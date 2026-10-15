@@ -13,10 +13,10 @@ import Foundation
 /// the loudness and the true peak of the mix before the temporary file exists. When the limiter
 /// would act, trial passes with no file search the gain, so that the limited output reaches the
 /// target. The write pass applies the gain and the true-peak limiter at -1 dBTP, and measures the
-/// output. An AAC or MP3 file is then decoded as macOS decodes it and measured again; the report is
-/// that decode, and a true peak over -1 dBTP or a loudness 0.2 LU off the target starts another
-/// write of the same temporary file, up to 2 times. A WAV 16 or FLAC 16 export gets a seeded TPDF
-/// dither, also with no target.
+/// output. A file that the encoder or the resampler changes (see `LoudnessReport`) is then decoded
+/// as macOS decodes it and measured again; the report is that decode, and a true peak over -1 dBTP
+/// or a loudness 0.2 LU off the target starts another write of the same temporary file, up to 2
+/// times. A WAV 16 or FLAC 16 export gets a seeded TPDF dither, also with no target.
 ///
 /// Before each chapter image, at each chunk, and once after the close it reads `isCancelled()`. An
 /// MP3 with chapter images also reads it once before the tag. At each chunk it reads

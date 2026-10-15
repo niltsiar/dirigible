@@ -166,8 +166,9 @@ public struct ExportSource: Hashable, Sendable {
 }
 
 /// The loudness of an export with a target (decision 0032). The output values are those of the
-/// written file as macOS decodes it, for an AAC or MP3 file; else those of the limited signal at
-/// the session rate.
+/// written file. For a file that the encoder or the resampler changes (an AAC or MP3 file, or a
+/// file at a rate other than the session rate), they are those of the file as macOS decodes it;
+/// else those of the limited signal at the session rate.
 public struct LoudnessReport: Hashable, Sendable {
     public let target: LUFS
     /// The mix before the gain. Nil when no block passes the gates: then the gain is 0 dB.

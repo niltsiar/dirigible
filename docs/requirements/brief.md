@@ -50,7 +50,7 @@ The first planning run (2026-09-24) answered the open questions. Each answer lin
 - How does capture survive a crash? Capture to CAF segments, finalize to WAV at stop, and recovery when the session opens. See [0004](../decisions/0004-capture-pipeline.md).
 - How does the input callback hand buffers to its writer without allocation or locks? An SPSC ring with apple/swift-atomics. See [0005](../decisions/0005-swift-atomics.md).
 - How does the app capture the audio of another app, and which permission text does it need? Core Audio process taps with `NSAudioCaptureUsageDescription`. See [0006](../decisions/0006-app-audio-process-taps.md).
-- How does the app stop the remote guest from leaking into the local microphone track? Headphones and a warning in Release 2, offline removal in Release 3 (R14). See [0004](../decisions/0004-capture-pipeline.md).
+- How does the app stop the remote guest from leaking into the local microphone track? Headphones and a warning in Release 2, offline removal later (R14, F42 in [features.md](features.md)). See [0004](../decisions/0004-capture-pipeline.md).
 - Which encoder does MP3 export use? LAME as a static C target, with the LGPL obligations. See [0007](../decisions/0007-export-formats-and-encoders.md).
 - Do exports carry podcast metadata? Yes, in Release 3. See [releases.md](releases.md).
 - How does SwiftPM ship localized UI strings, and how does the preference override the macOS language? `.lproj` tables with `Bundle.main`, and `AppleLanguages`. See [0010](../decisions/0010-ui-strings.md).

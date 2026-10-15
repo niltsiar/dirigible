@@ -123,7 +123,8 @@ workflow_docs=("$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/ski
 
 # Each workflow doc stays within its row of docs/workflow/budgets.tsv (path, words, decision), in
 # words of `wc -w`. A row that ends in / limits the sum of the budgeted files of that folder, and
-# the TOTAL row limits the sum of all of them. Each row names the reason of its value (decision 0028).
+# the TOTAL row limits the sum of all of them. The QUOTA row is the TOTAL of the last consolidation
+# (decision 0028, Word budgets). Each row names the reason of its value (decision 0028).
 budgets="$root/docs/workflow/budgets.tsv"
 [[ -f "$budgets" ]] || { err "docs/workflow/budgets.tsv is missing"; budgets=/dev/null; }
 counts=""
@@ -141,7 +142,7 @@ while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$count
             else if (words[f] > row[f] + 0) print f " is over its row: " words[f] " > " row[f]
         }
         for (p in row) {
-            if (p == "TOTAL") continue
+            if (p == "TOTAL" || p == "QUOTA") continue
             if (p !~ /\/$/) { if (!(p in words)) print "row for a missing file: " p; continue }
             total = 0; seen = 0
             for (f in words) if (index(f, p) == 1) { total += words[f]; seen = 1 }

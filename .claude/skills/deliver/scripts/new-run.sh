@@ -4,7 +4,8 @@
 # run fills them), plus one line in .scratchpads/ledger.md. A subagent fills a skeleton with the
 # Edit tool, which works where the Write tool refuses a new run file. Running it again for the
 # slug of an open run, on any day, returns the same folder and changes nothing. It prints the
-# backlog section sizes, the upkeep items of ## Next, and a due architecture audit on stderr.
+# backlog section sizes, the upkeep items of ## Next, a due architecture audit, and a due
+# consolidation (TOTAL 250 or more words over QUOTA in docs/workflow/budgets.tsv) on stderr.
 # A new run gets `- Branch: <type>/<slug>` in run.md. The script refuses a third non-feature run
 # in a row (exit 2, no folder, no ledger line): the two runs with the highest PR numbers in their
 # done ledger rows (each run once) have a run.md branch type other than feat (the text between
@@ -94,6 +95,11 @@ product="$(awk -F'|' -v cur="$run" '
 (( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run;" \
     "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
     ".claude/skills/architect/references/design-red-flags.md" >&2
+# Decision 0028, Word budgets: a consolidation round trims TOTAL to QUOTA at QUOTA + 250.
+budgets="$(git rev-parse --show-toplevel)/docs/workflow/budgets.tsv"
+over="$(awk -F'\t' '$1 == "TOTAL" { t = $2 } $1 == "QUOTA" { q = $2 } END { if (t != "" && q != "") print t - q }' "$budgets" 2>/dev/null || true)"
+[[ -z "$over" ]] || (( over < 250 )) || echo "consolidation due: TOTAL is $over words over QUOTA in docs/workflow/budgets.tsv;" \
+    "make this run a workflow upkeep run that trims TOTAL to QUOTA (reflect rule 6)" >&2
 
 [[ -f "$dir/analysis.md" ]] || printf '# Analysis: %s\n\n## Acceptance criteria\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n\n## Out of scope\n' "$slug" > "$dir/analysis.md"
 [[ -f "$dir/plan.md" ]] || printf '# Plan: %s\n\n## Slices\n' "$slug" > "$dir/plan.md"

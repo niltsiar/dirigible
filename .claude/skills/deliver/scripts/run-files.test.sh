@@ -232,6 +232,16 @@ ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 
 audit audit-docs
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder for workflow, upkeep, and docs runs: $(cat "$tmp/err")"
 
+# It prints `consolidation due` when the TOTAL row of docs/workflow/budgets.tsv is 250 or more
+# words over the QUOTA row (decision 0028, Word budgets).
+mkdir -p "$repo/docs/workflow"
+printf 'path\twords\tdecision\nTOTAL\t10249\tx\nQUOTA\t10000\tx\n' > "$repo/docs/workflow/budgets.tsv"
+audit quota-249
+grep -q 'consolidation due' "$tmp/err" && fail "consolidation due at QUOTA + 249: $(cat "$tmp/err")"
+printf 'path\twords\tdecision\nTOTAL\t10250\tx\nQUOTA\t10000\tx\n' > "$repo/docs/workflow/budgets.tsv"
+audit quota-250
+grep -q 'consolidation due: TOTAL is 250 words over QUOTA' "$tmp/err" || fail "no consolidation due at QUOTA + 250: $(cat "$tmp/err")"
+
 # It refuses a third non-feature run in a row: the two runs of the ledger with the highest PR
 # numbers in their done rows (open rows do not count; a run with two done rows counts once) have a run.md branch type other than feat, and the new type is not feat. The type is
 # the text between "- Branch: " and the first slash, as the real run.md lines have it.

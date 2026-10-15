@@ -90,19 +90,19 @@ struct LoudnessSearch {
         case .trial(let output):
             guard let output else {
                 capped = true
-                return write((points.isEmpty ? gain : bestPoint().gain).dB)
+                return write(points.isEmpty ? gain : bestPoint().gain)
             }
             points.append((gain, output))
             let best = bestPoint()
             let converged = miss(best.output) <= Self.tolerance
             capped = !converged && points.count >= limits.trialPasses
-            if converged || capped { return write(best.gain.dB) }
+            if converged || capped { return write(best.gain) }
             let candidate = nextGain()
             if points.contains(where: { abs($0.gain.dB - candidate) < 1e-9 }) {
                 capped = true
-                return write(best.gain.dB)
+                return write(best.gain)
             }
-            return trial(candidate)
+            return trial(Self.clamped(candidate))
         case .written(let output, let truePeak):
             limited = output
             writtenPeak = truePeak
@@ -130,23 +130,28 @@ struct LoudnessSearch {
     private mutating func begin(after previous: (gain: Gain, output: LUFS)?) -> Step {
         points = []
         capped = false
-        guard let measured else { return write(0) }
+        guard let measured else { return write(.zero) }
         let exact = effectiveTarget.value - measured.value
-        guard let mixTruePeak, mixTruePeak + exact > ceiling - TruePeakLimiter.margin else { return write(exact) }
-        return trial(previous.map { $0.gain.dB + effectiveTarget.value - $0.output.value } ?? exact)
+        guard let mixTruePeak, mixTruePeak + exact > ceiling - TruePeakLimiter.margin else {
+            return write(Self.clamped(exact))
+        }
+        return trial(Self.clamped(previous.map { $0.gain.dB + effectiveTarget.value - $0.output.value } ?? exact))
     }
 
-    private mutating func trial(_ candidate: Double) -> Step {
-        gain = Gain(clamping: candidate) ?? .zero
+    private mutating func trial(_ gain: Gain) -> Step {
+        self.gain = gain
         trials += 1
         return .trial(gain: gain, ceiling: ceiling)
     }
 
-    private mutating func write(_ candidate: Double) -> Step {
-        gain = Gain(clamping: candidate) ?? .zero
+    private mutating func write(_ gain: Gain) -> Step {
+        self.gain = gain
         writes += 1
         return .write(gain: gain, ceiling: ceiling)
     }
+
+    /// `dB` at the nearest end of `Gain.range`, and 0 dB for NaN and infinity.
+    private static func clamped(_ dB: Double) -> Gain { Gain(clamping: dB) ?? .zero }
 
     /// The trial point of the round with the smallest miss.
     private func bestPoint() -> (gain: Gain, output: LUFS) {

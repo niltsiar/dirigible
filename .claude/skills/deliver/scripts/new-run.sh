@@ -43,8 +43,15 @@ dir="$root/runs/$run"
 # The feature guard, for a new run only.
 if [[ ! -d "$dir" && "$type" != feat ]]; then
     # The land order is the PR number of the done row (a row with no PR is older); each run once.
+    # A done row says `done`, `done: ...`, or `done, ...`. The PR number is the pull/<n> URL of the
+    # Result cell, else `PR <n>` or `PR #<n>` of the Status cell.
     last="$(awk -F'|' '{ n = $2; gsub(/ /, "", n); st = $4; gsub(/ /, "", st) }
-        n ~ /^[0-9]{4}-/ && st == "done" { pr = match($5, /pull\/[0-9]+/) ? substr($5, RSTART + 5, RLENGTH - 5) : 0; print pr, NR, n }' \
+        n ~ /^[0-9]{4}-/ && st ~ /^done([,:]|$)/ {
+            pr = 0
+            if (match($5, /pull\/[0-9]+/)) pr = substr($5, RSTART + 5, RLENGTH - 5)
+            else if (match($4, /PR #?[0-9]+/)) { pr = substr($4, RSTART, RLENGTH); gsub(/[^0-9]/, "", pr) }
+            print pr + 0, NR, n
+        }' \
         "$root/ledger.md" 2>/dev/null | sort -k1,1n -k2,2n | awk '{ print $3 }' | tail -r | awk '!seen[$0]++' | head -n 2)"
     features=0
     for r in $last; do
@@ -89,12 +96,13 @@ echo "upkeep items: $upkeep" >&2
 product="$(awk -F'|' -v cur="$run" '
     { name = $2; gsub(/ /, "", name); state = $4; gsub(/ /, "", state) }
     name !~ /^[0-9]{4}-/ { next }
-    name ~ /architecture/ { if (state == "done") { split("", seen); n = 0 }; next }
+    name ~ /architecture/ { if (state ~ /^done([,:]|$)/) { split("", seen); n = 0 }; next }
     name != cur && name !~ /workflow|upkeep|docs/ && !(name in seen) { seen[name] = 1; n++ }
     END { print n + 0 }' "$root/ledger.md")"
 (( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run;" \
     "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
-    ".claude/skills/architect/references/design-red-flags.md" >&2
+    ".claude/skills/architect/references/design-red-flags.md, and the tooling (scripts/, .claude/hooks," \
+    ".claude/skills/*/scripts, .githooks, the Makefile): see docs/workflow/release-cycle.md" >&2
 # Decision 0028, Word budgets: a consolidation round trims TOTAL to QUOTA at QUOTA + 250.
 budgets="$(git rev-parse --show-toplevel)/docs/workflow/budgets.tsv"
 over="$(awk -F'\t' '$1 == "TOTAL" { t = $2 } $1 == "QUOTA" { q = $2 } END { if (t != "" && q != "") print t - q }' "$budgets" 2>/dev/null || true)"

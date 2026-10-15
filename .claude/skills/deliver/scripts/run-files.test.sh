@@ -296,5 +296,37 @@ guard bad-type feature
 [[ $code -eq 2 ]] || fail "guard: a type that is not a Conventional Commits type exits $code"
 [[ ! -e "$(gdir bad-type)" ]] || fail 'guard: a bad type made a run folder'
 
+# The ledger has three done forms: `done` with a pull/<n> URL in the Result cell, `done: PR #<n>, ...`,
+# and `done, PR <n>, ...` in the Status cell. The audit counter and the feature guard read all three, and the
+# PR number comes from the URL, else from the Status cell. The rows below are not in PR order.
+mixed_ledger() { # mixed_ledger <product runs after the architecture run>
+  { printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n'
+    printf '| 2026-02-01-p1 | x | done: PR #141, a..b: x | y |\n| 2026-02-02-p2 | x | done | https://x/pull/142, a..b: x |\n'
+    printf '| 2026-02-03-p3 | x | done | https://x/pull/130, a..b: x |\n| 2026-02-04-p4 | x | done: PR #131, a..b: x |\n'
+    printf '| 2026-02-05-p5 | x | done | https://x/pull/132, a..b: x |\n| 2026-02-06-architecture-x | x | done, PR 143, v0.3.1 | y |\n'
+    local i; for i in $(seq "$1"); do printf '| 2026-02-%02d-q%d | x | done, PR %d, v0.3.1 | y |\n' $((6 + i)) "$i" $((143 + i)); done
+  } > "$repo/.scratchpads/ledger.md"
+}
+mixed_ledger 1; audit mixed-one
+grep -q 'architecture audit' "$tmp/err" && fail "a reminder after a done, PR 143 architecture row and 1 product run: $(cat "$tmp/err")"
+mixed_ledger 5; audit mixed-five
+grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder at 5 product runs after a done, PR 143 architecture row: $(cat "$tmp/err")"
+grep -q 'scripts/' "$tmp/err" && grep -q '\.githooks' "$tmp/err" || fail "the reminder does not name scripts/ and .githooks: $(cat "$tmp/err")"
+# mixed_guard <type of the PR 143 run>: PR 143 (a done, PR row) and PR 142 (a URL row) are the newest lands.
+mixed_guard() {
+  printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
+  printf '| 2026-02-03-g3 | x | done, PR 143, v0.3.1 | y |\n| 2026-02-02-g2 | x | done | https://x/pull/142, a..b: x |\n| 2026-02-01-g1 | x | done: PR #141, a..b: x | y |\n' >> "$repo/.scratchpads/ledger.md"
+  local r t
+  for r in g1:feat g2:docs g3:"$1"; do
+    t="${r#*:}" r="2026-02-0${r:1:1}-${r%%:*}"
+    mkdir -p "$repo/.scratchpads/runs/$r"
+    printf '# Run %s\n\n- Branch: %s/x\n' "$r" "$t" > "$repo/.scratchpads/runs/$r/run.md"
+  done
+}
+mixed_guard docs; guard mixed-docs fix
+[[ $code -eq 2 ]] && grep -qF 'a third non-feature run in a row' "$tmp/err" || fail "guard: PR 143 and PR 142 are docs runs, but the exit is $code: $(cat "$tmp/err")"
+mixed_guard feat; guard mixed-feat fix
+[[ $code -eq 0 ]] || fail "guard: a feat run at PR 143 exits $code: $(cat "$tmp/err")"
+
 [[ $failures -eq 0 ]] && echo "run-files tests: all passed"
 exit $((failures > 0))

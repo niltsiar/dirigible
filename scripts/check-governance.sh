@@ -18,7 +18,7 @@
 # - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID and Feature cells
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
 # - A run number that HEAD adds to a done State of features.md is 1 + the highest run number of its
-#   Release at the base.
+#   Release at the base. Each run number of a done State at the base stays in its row.
 # - With a run folder whose run.md has a `- Lands:` line, each F-ID of the line has a done state in
 #   features.md that differs from its state at the base, on any branch type. `- Lands: none` names no
 #   F-ID; an empty line fails. A `feat/` branch that changes Sources/, Package.swift, Package.resolved,
@@ -84,9 +84,11 @@ runs() {
     }'
 }
 # A run number that HEAD adds to a row is 1 + the highest run number of its release at the base. A
-# land adds one number to each release, so all new parts of the land share it. A base with no
-# features.md has no number to continue.
+# land adds one number to each release, so all new parts of the land share it. A run number of the
+# base stays in its row. A base with no features.md has no number to continue or keep. The printf
+# gives each awk input a first line, so an empty list does not read the next input as the first.
 if [[ -n "$(at_base "$features")" ]]; then
+    base_runs="$(at_base "$features" | runs | sort)"
     head_runs="$([[ ! -f "$features" ]] || runs < "$features" | sort)"
     while IFS= read -r msg; do
         [[ -z "$msg" ]] || { echo "check-governance: $msg" >&2; fail=1; }
@@ -95,7 +97,10 @@ if [[ -n "$(at_base "$features")" ]]; then
         NF >= 3 && !($0 in old) {
             want = ($2 in top ? top[$2] : 0) + 1
             if ($3 "" != want "") print "features.md: " $1 " has Release " $2 " run " $3 ", but the next run number of Release " $2 " is " want
-        }' <(at_base "$features" | runs | sort) <(printf '%s\n' "$head_runs"))
+        }' <(printf '%s\n' "$base_runs") <(printf '%s\n' "$head_runs"))
+    while IFS='|' read -r id r n; do
+        [[ -z "$id" ]] || { echo "check-governance: features.md lost or changed the done part Release $r run $n of $id; a done state stays" >&2; fail=1; }
+    done < <(comm -23 <(printf '%s\n' "$base_runs") <(printf '%s\n' "$head_runs"))
 fi
 
 # A run with a reflect row (phase 8) in its decisions.tsv.

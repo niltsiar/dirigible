@@ -9,8 +9,8 @@ import Testing
 @testable import DirigibleAudio
 
 /// Run 2026-10-11-ui-polish-header C3: in a row of 80 pt or more, the no-sound state takes one
-/// line, in English and in Spanish. The test runner has no string table, so the test puts the
-/// en or es table into `Bundle.localizedString(forKey:value:table:)` and restores it after. That
+/// line, in each language. The test runner has no string table, so the test puts the
+/// table of the language into `Bundle.localizedString(forKey:value:table:)` and restores it after. That
 /// change is for the whole process, so the test is slow-gated: `make test-slow` runs it alone
 /// (`--no-parallel`), and no suite that reads a key as its text runs at the same time.
 @Suite(.serialized) @MainActor struct HeaderStateLineTests {
@@ -96,7 +96,7 @@ import Testing
         studio.liveTracks["t1"] = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.2)
         studio.liveTracks["t2"] = LiveTrack(state: .noSound, droppedFrames: 0, peak: 0)
         let header = try HeaderRowTests()
-        for language in ["en", "es"] {
+        for language in AppLanguage.allCases.map(\.rawValue) {
             try await withStrings(language) {
                 #expect(L10n.trackStateNoSound.format("A").count > 60, "the \(language) table is in use")
                 for lane in [80.0, 100, 200] {

@@ -26,7 +26,9 @@ verdict: grade.py verdict <eval> <old set> <new set>
   in no other line), the retention sum (it fails only when old minus new is over the bound
   2 x sqrt(sum of k x p x (1 - p)) of the live retention scenarios, with k the runs of both
   sets and p the pooled pass rate), below <id> (not due under 6 runs in a set),
-  and policy <id>. The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
+  and policy <id>. A fail of holdouts only (a below fail of an H, or a sum fail that the sum
+  with no H does not have) prints holdout fail <H>: no changed text, once for each H, and does
+  not fail the verdict. The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
 """
 import json
 import math
@@ -167,26 +169,40 @@ def verdict(old, new):
     live = [s for s in typ if s not in void]
     for s in void:
         print(f"void {s}")
-    kept = [s for s in live if typ[s] == "retention"]
-    old_sum = sum(passes.get((s, old), 0) for s in kept)
-    new_sum = sum(passes.get((s, new), 0) for s in kept)
-    spread = 0.0
-    for s in kept:
-        k = runs.get((s, old), 0) + runs.get((s, new), 0)
-        p = (passes.get((s, old), 0) + passes.get((s, new), 0)) / k
-        spread += k * p * (1 - p)
-    bound = 2 * math.sqrt(spread)
+    def drop(ids):
+        """The old and new pass sums of the scenarios, and their bound 2 x sqrt(sum of k p (1 - p))."""
+        spread = 0.0
+        for s in ids:
+            k = runs.get((s, old), 0) + runs.get((s, new), 0)
+            p = (passes.get((s, old), 0) + passes.get((s, new), 0)) / k
+            spread += k * p * (1 - p)
+        return sum(passes.get((s, old), 0) for s in ids), sum(passes.get((s, new), 0) for s in ids), 2 * math.sqrt(spread)
+
     word = {True: "PASS", False: "FAIL"}
-    ok &= old_sum - new_sum <= bound
+    # A fail of holdouts only does not fail the verdict: check-governance.sh stops the second in a row.
+    held = []
+    kept = [s for s in live if typ[s] == "retention"]
+    old_sum, new_sum, bound = drop(kept)
     print(f"retention: old {old_sum}, new {new_sum}, bound {bound:.1f}: {word[old_sum - new_sum <= bound]}")
+    if old_sum - new_sum > bound:
+        e_old, e_new, e_bound = drop([s for s in kept if not s.startswith("H")])
+        if e_old - e_new <= e_bound:
+            held += [s for s in kept if s.startswith("H") and passes.get((s, new), 0) < passes.get((s, old), 0)]
+        else:
+            ok = False
     for s in live:
         po, ro, pn, rn = passes.get((s, old), 0), runs.get((s, old), 0), passes.get((s, new), 0), runs.get((s, new), 0)
         result = "not due" if min(ro, rn) < 6 else "PASS" if pn > po - 2 else "FAIL"
-        ok &= result != "FAIL"
+        if result == "FAIL" and s.startswith("H"):
+            held += [] if s in held else [s]
+        else:
+            ok &= result != "FAIL"
         print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
         if typ[s] == "policy":
             ok &= 3 * pn >= 2 * rn
             print(f"policy {s}: new {pn}/{rn}: {word[3 * pn >= 2 * rn]}")
+    for s in held:
+        print(f"holdout fail {s}: no changed text")
     print(f"verdict: {word[ok]}")
     sys.exit(0 if ok else 1)
 

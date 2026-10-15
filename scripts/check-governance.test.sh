@@ -1,9 +1,10 @@
 #!/bin/bash
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
-# reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), and a run research
-# file with no docs/research copy, and a taken item of the run in ## Next of the backlog after the
-# reflect row (phase 8). Each case uses a temporary repo with a base commit on main and a branch.
+# reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
+# file with no docs/research copy, a holdout fail in this run and in the newest done run, and a
+# taken item of the run in ## Next of the backlog after the reflect row (phase 8). Each case uses
+# a temporary repo with a base commit on main and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-governance.sh"
@@ -126,6 +127,23 @@ printf '# Backlog\n\n## Next (short)\n\n- (taken: run 2026-01-01-x, S3) an item\
 refuse 'a taken item of the run with a slice' '## Next has a taken item of 2026-01-01-x' "$run2"
 printf '# Backlog\n\n## Now\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
 refuse 'a backlog with no ## Next heading' 'backlog.md has no line that starts with ## Next' "$run2"
+
+# A holdout fail (a phase 7 row "holdout fail <H>") in this run and in the newest done run of the
+# ledger beside runs/ stops the land. One run alone, or an older done run, passes.
+new_repo
+s="$tmp/s"
+rm -rf "$s" && mkdir -p "$s/runs/2026-01-01-a" "$s/runs/2026-01-02-b"
+cp -R "$tmp/run" "$s/runs/2026-01-03-me"
+printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n| 2026-01-01-a | a | done | x |\n| 2026-01-02-b | b | done: PR #2 | x |\n| 2026-01-03-me | me | open | |\n' > "$s/ledger.md"
+hold() { printf '2026-01-01T01:00\t7\tholdout fail %s: no changed text\tw\te\tr\n' "$2" >> "$s/runs/$1/decisions.tsv"; }
+hold 2026-01-03-me H6
+pass 'a holdout fail in this run only' "$s/runs/2026-01-03-me"
+hold 2026-01-01-a H6
+pass 'a holdout fail in this run and an older done run' "$s/runs/2026-01-03-me"
+hold 2026-01-02-b H1
+pass 'a fail of another holdout in the newest done run' "$s/runs/2026-01-03-me"
+hold 2026-01-02-b H6
+refuse 'a holdout fail in this run and the newest done run' 'H6 failed in this run and in 2026-01-02-b' "$s/runs/2026-01-03-me"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

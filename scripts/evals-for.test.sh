@@ -336,6 +336,15 @@ five() { local i=0 n; for n in "$@"; do i=$((i + 1)); sc t "E$i" retention old 6
 five 6 6 5 5 5; verdict_case retention-in-bound 0 'retention: old 30, new 27, bound 3.3: PASS' 'verdict: PASS'
 five 4 4 4 4 4; verdict_case retention-past-bound 1 'retention: old 30, new 20, bound 5.8: FAIL' 'verdict: FAIL'
 five 4 5 6 6 6; verdict_case retention-one-below 1 'retention: old 30, new 27, bound 3.2: PASS' 'below E1: old 6/6, new 4/6: FAIL' 'verdict: FAIL'
+# A fail of holdouts only (a below line, or a retention sum that passes with no holdout) prints one
+# holdout fail line for each such H and does not fail the verdict. An E fail still fails.
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; sc t H6 retention old 6 6; sc t H6 retention new 4 6; } > "$tmp/rows"
+verdict_case holdout-below 0 'below H6: old 6/6, new 4/6: FAIL' 'holdout fail H6: no changed text' 'verdict: PASS'
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; sc t H6 retention old 6 6; sc t H6 retention new 0 6; } > "$tmp/rows"
+verdict_case holdout-sum 0 'retention: old 12, new 6, bound 3.5: FAIL' 'holdout fail H6: no changed text' 'verdict: PASS'
+[[ "$(grep -c '^holdout fail' <<<"$out")" -eq 1 ]] || fail "verdict holdout-sum: not one holdout fail line: [$out]"
+{ sc t E1 retention old 6 6; sc t E1 retention new 4 6; sc t H6 retention old 6 6; sc t H6 retention new 4 6; } > "$tmp/rows"
+verdict_case holdout-and-e 1 'below E1: old 6/6, new 4/6: FAIL' 'verdict: FAIL'
 { sc t E1 retention old 4 6; sc t E1 retention new 3 6; sc t E5 retention old 0 6; sc t E5 retention new 1 6; } > "$tmp/rows"
 verdict_case below-pass 0 'retention: old 4, new 4, bound 3.9: PASS' 'below E1: old 4/6, new 3/6: PASS' 'verdict: PASS'
 { sc t E1 retention old 4 6; sc t E1 retention new 2 6; sc t E5 retention old 0 6; sc t E5 retention new 2 6; } > "$tmp/rows"

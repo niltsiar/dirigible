@@ -75,6 +75,27 @@ struct GateTests {
         #expect(checksAfterTheHold <= 2, "checks after the hold: \(checksAfterTheHold)")
     }
 
+    /// The attach poll of `SyntheticInput` runs on its own thread while a take start waits behind
+    /// a main-actor hold. The hold does not use up its limit: an attach after a 3 s hold is found
+    /// with a 2 s limit. The cap is 60 s, as in `aMainActorHoldIsOutOfTheUntilLimit`.
+    @Test @MainActor func aMainActorHoldIsOutOfTheAttachPollLimit() async {
+        _ = MainActorHolds.shared.total
+        let attached = OSAllocatedUnfairLock(initialState: false)
+        DispatchQueue.main.async {
+            Thread.sleep(forTimeInterval: 3)
+            attached.withLock { $0 = true }
+        }
+        let found = await withCheckedContinuation { continuation in
+            Thread {
+                continuation.resume(
+                    returning: SyntheticInput.poll(limit: .seconds(2), cap: .seconds(60)) {
+                        attached.withLock { $0 } ? true : nil
+                    })
+            }.start()
+        }
+        #expect(found == true, "the attach after the hold was not found")
+    }
+
     /// A stopwatch leaves a main-actor hold of other suites out of its elapsed time, so a
     /// wall-time assert does not fail on a hold (run flakes-2, S4).
     @Test @MainActor func aStopwatchLeavesAMainActorHoldOut() async {

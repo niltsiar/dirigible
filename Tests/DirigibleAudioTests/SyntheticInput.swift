@@ -124,15 +124,14 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     /// Waits until the records of each `play` are sent, with a limit. It polls, so it does not
-    /// hold the main actor. The limit is longer than the attach wait of `takeStartIn`, so a
-    /// miss shows as that issue. It is 3 times the worst wait, 24.8 s (run test-pool-health,
-    /// loops/s3q-12.log).
+    /// hold the main actor. The limit and its wall cap (3 x the limit) count as in `poll`, and
+    /// are longer than the attach wait of `takeStartIn`, so a miss shows as that issue. It is 3
+    /// times the worst wait, 24.8 s (run test-pool-health, loops/s3q-12.log).
     func wait(limit: Duration = .seconds(75)) async {
-        let start = ContinuousClock.now
-        defer { reportWait("SyntheticInput.wait", since: start, "SyntheticInput \(uid)") }
-        let end = start + limit
+        let watch = Stopwatch()
+        defer { reportWait("SyntheticInput.wait", since: watch.start, "SyntheticInput \(uid)") }
         while isSending {
-            guard ContinuousClock.now < end else {
+            guard watch.elapsed < limit, watch.wall < limit * 3 else {
                 Issue.record("SyntheticInput \(uid) did not end in \(limit)")
                 return
             }
@@ -158,21 +157,29 @@ final class SyntheticInput: @unchecked Sendable {
         return true
     }
 
+    /// Calls `find` each 1 ms until it gives a value; nil after `limit`. As in `until`, the limit
+    /// counts the time of a `Stopwatch`: a take start that waits behind a main-actor hold of other
+    /// suites does not use it up. `cap` (default 3 x `limit`) is the longest wait in wall time.
+    static func poll<Value>(limit: Duration, cap: Duration? = nil, _ find: () -> Value?) -> Value? {
+        let watch = Stopwatch()
+        let cap = cap ?? limit * 3
+        var found = find()
+        while found == nil, watch.elapsed < limit, watch.wall < cap {
+            usleep(1000)
+            found = find()
+        }
+        return found
+    }
+
     private func send(
         _ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags, into target: DeviceInput?, attach: Int?,
         delay: Duration, takeStartIn package: URL?, hold: Gate?
     ) {
-        let end = Date.now + (package == nil ? 10 : 30)
-        func find() -> DeviceInput? {
+        let found = Self.poll(limit: .seconds(package == nil ? 10 : 30)) { () -> DeviceInput? in
             if let target { return target }
             guard let attach else { return hal.current(uid) }
             let inputs = hal.inputs(uid)
             return inputs.count >= attach ? inputs[attach - 1] : nil
-        }
-        var found = find()
-        while found == nil, Date.now < end {
-            usleep(1000)
-            found = find()
         }
         var records = records
         if let package {

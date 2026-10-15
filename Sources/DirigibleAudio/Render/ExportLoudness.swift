@@ -208,7 +208,8 @@ struct ExportTuning {
 /// and up to 1 with no read-back). The read-back and each retry round share 0.75...1 in equal
 /// bands. A retry round gives 40 percent of its band to the trial passes, 50 percent to the write,
 /// and 10 percent to the read-back. A band that no step uses is skipped, so the value never goes
-/// down.
+/// down. A retry round moves the bar more slowly than the first write. The bar goes to 1 when the
+/// export ends.
 struct ProgressBands {
     let readsBack: Bool
     let limits: LoudnessSearch.Limits

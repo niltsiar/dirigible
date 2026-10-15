@@ -7,6 +7,8 @@
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes.
+# - With a run folder, no holdout has a phase 7 row `holdout fail <H>` both in this run and in the
+#   newest done run (Status done) of the ledger.md beside runs/.
 # - With a run folder that has a reflect row (phase 8), or with GOVERNANCE_LAND set (land.sh),
 #   ## Next of the main-checkout .scratchpads/backlog.md has no taken item of that run: a line with
 #   `(taken: run <run folder name>` and then a space, a comma, or `)`. A backlog with no line that
@@ -81,6 +83,20 @@ if [[ -f "$backlog" ]] && { reflected || [[ -n "$run" && -n "${GOVERNANCE_LAND:-
         /^## / { s = $0; if (index(s, "## Next") == 1) seen = 1; next }
         index(s, "## Next") == 1 && $0 ~ key { print FNR ":" }
         END { if (!seen) print "none" }' "$backlog")
+fi
+# A holdout fail (a phase 7 row "holdout fail <H>", grade.py verdict) of this run and of the newest
+# done run of ledger.md beside runs/ stops the land (docs/workflow/evals.md, the pass rule).
+if [[ -n "$run" && -f "$run/decisions.tsv" ]]; then
+    runs="$(dirname "${run%/}")"
+    last="$(awk -F' *[|] *' -v me="$(basename "${run%/}")" '$4 ~ /^done($|:)/ && $2 != me { last = $2 } END { print last }' \
+        "$(dirname "$runs")/ledger.md" 2>/dev/null || true)"
+    held() { awk -F'\t' '$2 == "7" && $3 ~ /^holdout fail H[0-9]+/ { split($3, w, /[ :]/); print w[3] }' "$1" | sort -u; }
+    if [[ -n "$last" && -f "$runs/$last/decisions.tsv" ]]; then
+        while IFS= read -r h; do
+            echo "check-governance: holdout $h failed in this run and in $last; fix its grader or docs before the land" >&2
+            fail=1
+        done < <(comm -12 <(held "$run/decisions.tsv") <(held "$runs/$last/decisions.tsv"))
+    fi
 fi
 if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2

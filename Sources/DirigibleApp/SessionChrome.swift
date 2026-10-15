@@ -338,56 +338,6 @@ import Observation
     }
 }
 
-/// The playhead time in the toolbar: a fixed box from the font, so the toolbar never moves when
-/// the digits change.
-final class TimeDisplay: NSView {
-    static let font = NSFont.monospacedDigitSystemFont(ofSize: 15, weight: .medium)
-    private static let attributes: [NSAttributedString.Key: Any] = [
-        .font: font, .foregroundColor: NSColor.labelColor,
-    ]
-
-    /// The text changes, for the tests.
-    private(set) var textChanges = 0
-    var text = "0:00:00.000" {
-        didSet {
-            guard text != oldValue else { return }
-            textChanges += 1
-            needsDisplay = true
-        }
-    }
-
-    // VoiceOver reads "Playhead" and the time. A play or a take posts no notice for each change.
-    override func isAccessibilityElement() -> Bool { true }
-    override func accessibilityRole() -> NSAccessibility.Role? { .staticText }
-    override func accessibilityLabel() -> String? { L10n.toolbarTime.text }
-    override func accessibilityValue() -> Any? { text }
-
-    override var intrinsicContentSize: NSSize {
-        let size = ("00:00:00.000" as NSString).size(withAttributes: Self.attributes)
-        return NSSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let height = (text as NSString).size(withAttributes: Self.attributes).height
-        (text as NSString).draw(at: NSPoint(x: 0, y: (bounds.height - height) / 2), withAttributes: Self.attributes)
-    }
-}
-
-extension NSWindow {
-    /// The first frame of a session window: a content size of min(1180 pt, the visible screen
-    /// width) x 720 pt, cascaded from `previous` (right and down), else centered.
-    func placeAsSessionWindow(after previous: NSWindow?) {
-        let width = min(1180, (screen ?? NSScreen.main)?.visibleFrame.width ?? 1180)
-        setContentSize(NSSize(width: width, height: 720))
-        guard let previous else {
-            center()
-            return
-        }
-        // The first call puts the window at the top left of `previous` and gives the next point.
-        cascadeTopLeft(from: cascadeTopLeft(from: NSPoint(x: previous.frame.minX, y: previous.frame.maxY)))
-    }
-}
-
 /// Posts a VoiceOver announcement of the app.
 @MainActor func postAnnouncement(_ text: String, priority: NSAccessibilityPriorityLevel) {
     NSAccessibility.post(

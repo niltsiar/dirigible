@@ -21,7 +21,7 @@
 # AppBundleTests, `test-dmg` for DiskImageTests (`make test` skips both), else `test`. With no
 # stamp, it runs `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with
 # the risk of origin/main. A land that stops keeps its stamp commit in the file
-# dirigible-land-stamp-<branch, with / as -> of the common git dir, until the merge. It prints the
+# dirigible-land-stamp-<branch with / as -> of the common git dir, until the merge. It prints the
 # stamp line.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those

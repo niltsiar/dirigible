@@ -471,6 +471,9 @@ reads_case 'rebase delta of a doc that no test reads' Tests/G.swift 'let p = "..
 reads_case 'rebase delta of a file that a test names in a comment' Tests/G.swift '/// reads scripts/a.sh' scripts/a.sh check-fast
 reads_case 'rebase delta of a file that a test names in part' Tests/G.swift $'let a = "xscripts/a.sh"\nlet b = "scripts/a.sh.txt"' scripts/a.sh check-fast
 reads_case 'rebase delta of a script that a test reads' Tests/G.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test'
+# make test skips AppBundleTests and DiskImageTests: a read in them adds the target that runs them.
+reads_case 'rebase delta of a script that AppBundleTests reads' Tests/DirigibleTests/AppBundleTests.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test-app'
+reads_case 'rebase delta of a script that DiskImageTests reads' Tests/DirigibleTests/DiskImageTests.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test-dmg'
 # A land that stops after its rebase (here: a slice with no Check line) keeps the rebased branch.
 # The second land of the branch finds the stamp commit in the land stamp file of the git dir.
 setup

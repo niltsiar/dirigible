@@ -11,12 +11,14 @@ public struct ClipRun: Hashable, Sendable {
 extension Session {
     /// The runs of `clips`, by file, then by span start. The written span of a clip is its file range
     /// plus `max(10 s, half the crossfade)` at each edge, capped at the file. No layout check: a
-    /// split refuses a mono clip itself. An unknown clip throws `.unknownClip`.
+    /// split refuses a mono clip itself. An unknown clip throws `.unknownClip`, and a clip whose file
+    /// has no record throws `.unknownFile`.
     package func clipRuns(of clips: [ClipID], sampleRate: Int) throws(SessionError) -> [ClipRun] {
         var spans: [(clip: Clip, span: Range<Frames>)] = []
         let handle = Frames(10 * sampleRate)
         for id in clips {
-            guard let clip = clip(id)?.clip, let length = files[clip.file]?.length else { throw .unknownClip(id) }
+            guard let clip = clip(id)?.clip else { throw .unknownClip(id) }
+            guard let length = files[clip.file]?.length else { throw .unknownFile(clip.file) }
             let start = max(.zero, clip.offset - max(handle, clip.crossfades.start.half))
             let end = min(length, clip.offset + clip.length + max(handle, clip.crossfades.end.half))
             spans.append((clip, start..<end))

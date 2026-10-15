@@ -74,6 +74,14 @@ struct DerivedFileTests {
         #expect(throws: SessionError.unknownClip("X")) { try session.clipRuns(of: ["A", "X"], sampleRate: 48_000) }
     }
 
+    /// A clip whose file record is missing throws and names the file, not the clip.
+    @Test func aMissingFileRecordIsNamed() throws {
+        var session = Session(sampleRate: 48_000)
+        session.tracks = try self.session(clips: [("A", 1_000_000, 100_000)]).tracks
+
+        #expect(throws: SessionError.unknownFile("f")) { try session.clipRuns(of: ["A"], sampleRate: 48_000) }
+    }
+
     /// C10. The new record has the stem, the span length, the layout, and the capture of the source.
     @Test func aDerivedFileKeepsTheCapture() throws {
         var session = Session(sampleRate: 48_000)

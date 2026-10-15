@@ -13,10 +13,14 @@
 # shortcut: an amended Sources/ commit keeps its author time, and a change in the minute of the
 # pass row passes; read the commit time or the tree of the pass when a run hits one of them.
 # The third argument names the row that says why no pass applies. Then
-# it runs the checks: none when the pass stamp of check-stamp.sh has HEAD, the targets of the
-# delta after the load wait of check-changed.sh when the stamp has an ancestor of HEAD, else
-# `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with the risk of
-# origin/main. It prints the stamp line. Before the push, it writes one flake row (phase 7) for
+# it runs the checks. It reads the pass stamp of check-stamp.sh before the rebase, because the
+# rebase rewrites each commit. After the rebase, it runs no check when the tree of the stamp
+# commit is the tree of HEAD, else the targets of the files that differ between them, after the
+# load wait of check-changed.sh, with `test` added for a file outside Sources/ and Tests/ that a
+# file of Tests/ names. With no stamp, it runs `make check-changed BASE=origin/main`. The delta runs
+# through run-checks.sh with the risk of origin/main. A land that stops keeps its stamp commit in
+# the file dirigible-land-stamp-<branch> of the git dir, until the merge. It prints the stamp line.
+# Before the push, it writes one flake row (phase 7) for
 # each dirigible-flakes line of run-checks.sh whose commit is an ancestor of HEAD before or after
 # the rebase, and removes those lines. Then it pushes the branch, creates the pull request,
 # refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
@@ -53,6 +57,21 @@ fi
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
 git fetch origin
 before="$(git rev-parse HEAD)"
+# The pass stamp is read before the rebase, when HEAD is the commit that the push check stamped or
+# a descendant of it: the rebase rewrites each commit, so no stamp commit is an ancestor of the new
+# HEAD. A stop after the rebase keeps the rebased branch, so the stamp commit goes to a file of the
+# git dir; a later land of the branch reads it when this read finds no line.
+stamp_file="$(git rev-parse --path-format=absolute --git-dir)/dirigible-land-stamp-${branch//\//-}"
+stamp_commit=""
+if stamp="$("$here/check-stamp.sh" read origin/main)"; then
+    stamp_commit="${stamp%% *}"
+elif [[ -s "$stamp_file" ]]; then
+    kept="$(cat "$stamp_file")"
+    if git cat-file -e "$kept^{commit}" 2>/dev/null && kept_line="$("$here/check-stamp.sh" read origin/main "$kept")"; then
+        stamp_commit="${kept_line%% *}"
+    fi
+fi
+[[ -z "$stamp_commit" ]] || echo "$stamp_commit" > "$stamp_file"
 if ! git rebase origin/main; then
     git rebase --abort
     die "the rebase on origin/main stopped on a conflict; the rebase is aborted, so the branch is as before; resolve the conflict with a rebase on a fresh branch"
@@ -76,10 +95,10 @@ if [[ "$risk" == yes ]]; then
             die "risk: yes, and the last mutation pass row of $log ($pass) is older than the last Sources/ commit ($last); run one new mutant for each guard that the fix touched, or pass the time of the phase 7 row that says the fix touches no guard"
     fi
 fi
-# The pass stamp: a passing push check of HEAD or of an ancestor of HEAD, with this base.
-# --no-renames lists the old path of a move too, as check-changed.sh does.
-if stamp="$("$here/check-stamp.sh" read origin/main)"; then
-    commit="${stamp%% *}"
+# The delta is the tree diff from the stamp commit to HEAD, so the stamp commit need not be an
+# ancestor of HEAD. --no-renames lists the old path of a move too, as check-changed.sh does.
+if [[ -n "$stamp_commit" ]]; then
+    commit="$stamp_commit"
     delta="$(git diff --name-only --no-renames "$commit" HEAD)"
     if [[ -z "$delta" ]]; then
         echo "stamp: reuse $commit"
@@ -87,6 +106,17 @@ if stamp="$("$here/check-stamp.sh" read origin/main)"; then
         out="$("$here/check-changed.sh" --paths --push <<<"$delta")" || die "check-changed.sh failed on the delta after $commit; nothing is pushed"
         targets="$(sed -n 's/^targets: //p' <<<"$out")"
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
+        # A Swift test can read a file of another class (docs/guide.md). A delta path outside
+        # Sources/ and Tests/ that a file of Tests/ names adds the test target; check runs it too.
+        if [[ " $targets " != *" check "* && " $targets " != *" test "* ]]; then
+            while IFS= read -r changed; do
+                case "$changed" in Sources/*|Tests/*) continue ;; esac
+                if [[ -n "$(grep -rlF -- "$changed" Tests 2>/dev/null)" ]]; then
+                    targets="$targets test"
+                    break
+                fi
+            done <<<"$delta"
+        fi
         echo "stamp: delta $targets"
         BASE=origin/main CHECK_RISK="$risk" "$here/run-checks.sh" $targets || die "the checks failed; nothing is pushed"
     fi
@@ -128,6 +158,7 @@ git merge-base --is-ancestor origin/main HEAD ||
     die "origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
 old="$(git rev-parse origin/main)"
 gh pr merge "$branch" --rebase --delete-branch
+rm -f "$stamp_file"
 git fetch --prune origin
 echo "range: $old..$(git rev-parse origin/main)"
 # git switch main fails while another worktree holds main (often the main checkout). This

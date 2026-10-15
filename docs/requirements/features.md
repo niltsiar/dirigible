@@ -162,3 +162,4 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F148 | A clip mark on a live peak at 0 dBFS during a take | Audacity | Later | R3 |
 | F149 | Split a whole stereo track into L and R tracks that replace it | Audacity | Later | R7 |
 | F150 | Pan (balance) of a track | Hindenburg, Logic | Later | R7 |
+| F151 | Import Session: merge the tracks of another Dirigible package into the open session | Hindenburg PRO; user 2026-10-15 | Release 7 | R7 |

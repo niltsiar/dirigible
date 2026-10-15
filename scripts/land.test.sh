@@ -97,7 +97,7 @@ setup() {
 }
 
 land_in() {
-  (cd "${land_dir:-$c/work}" &&PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$land" "$@") > "$c/out" 2>&1
+  (cd "${land_dir:-$c/work}" && PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$land" "$@") > "$c/out" 2>&1
 }
 
 no_side_effects() {
@@ -468,7 +468,7 @@ reads_case 'rebase delta of a file that a test reads' Tests/G.swift 'let p = "..
 reads_case 'rebase delta of a doc that no test reads' Tests/G.swift 'let p = "../../docs/guide.md"' docs/a.md check-docs
 # Only a path that a code line names whole counts: a comment, a longer name, and a name that is
 # part of a longer path do not.
-reads_case 'rebase delta of a file that a test names in a comment' Tests/G.swift '/// reads scripts/a.sh' scripts/a.sh check-fast
+reads_case 'rebase delta of a file that a test names in a comment' Tests/G.swift '/// reads "scripts/a.sh"' scripts/a.sh check-fast
 reads_case 'rebase delta of a file that a test names in part' Tests/G.swift $'let a = "xscripts/a.sh"\nlet b = "scripts/a.sh.txt"' scripts/a.sh check-fast
 reads_case 'rebase delta of a script that a test reads' Tests/G.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test'
 # make test skips AppBundleTests and DiskImageTests: a read in them adds the target that runs them.

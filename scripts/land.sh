@@ -16,10 +16,12 @@
 # it runs the checks. It reads the pass stamp of check-stamp.sh before the rebase, because the
 # rebase rewrites each commit. After the rebase, it runs no check when the tree of the stamp
 # commit is the tree of HEAD, else the targets of the files that differ between them, after the
-# load wait of check-changed.sh, with `test` added for a file outside Sources/ and Tests/ that a
-# code line of Tests/ names as a whole string-literal path. With no stamp, it runs `make check-changed BASE=origin/main`. The delta runs
-# through run-checks.sh with the risk of origin/main. A land that stops keeps its stamp commit in
-# the file dirigible-land-stamp-<branch> of the git dir, until the merge. It prints the stamp line.
+# load wait of check-changed.sh. A file outside Sources/ and Tests/ that a code line of Tests/
+# names as a whole string-literal path adds the target of that test file: `test-app` for
+# AppBundleTests, `test-dmg` for DiskImageTests (`make test` skips both), else `test`. With no
+# stamp, it runs `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with
+# the risk of origin/main. A land that stops keeps its stamp commit in the file
+# dirigible-land-stamp-<branch> of the git dir, until the merge. It prints the stamp line.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,
@@ -108,18 +110,25 @@ if [[ -n "$stamp_commit" ]]; then
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
         # A Swift test can read a file of another class (docs/guide.md). A delta path outside
         # Sources/ and Tests/ that a code line of Tests/ names as a whole string-literal path
-        # ("..." or ".../" before it, a quote after it) adds the test target; check runs it too.
-        if [[ " $targets " != *" check "* && " $targets " != *" test "* ]]; then
-            while IFS= read -r changed; do
-                case "$changed" in Sources/*|Tests/*) continue ;; esac
-                re="$(sed 's/[^A-Za-z0-9_/-]/\\&/g' <<<"$changed")"
-                hits="$(grep -rnE -e "[\"/]$re\"" Tests 2>/dev/null || true)"
-                if [[ -n "$hits" ]] && grep -qvE '^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*)' <<<"$hits"; then
-                    targets="$targets test"
-                    break
-                fi
-            done <<<"$delta"
-        fi
+        # ("..." or ".../" before it, a quote after it) adds the target that runs that test file:
+        # test-app for AppBundleTests, test-dmg for DiskImageTests (make test skips both), else
+        # test. check runs test and test-app too.
+        while IFS= read -r changed; do
+            case "$changed" in Sources/*|Tests/*) continue ;; esac
+            re="$(sed 's/[^A-Za-z0-9_/-]/\\&/g' <<<"$changed")"
+            hits="$(grep -rnE -e "[\"/]$re\"" Tests 2>/dev/null || true)"
+            [[ -n "$hits" ]] || continue
+            while IFS= read -r file; do
+                case "${file##*/}" in
+                    AppBundleTests.swift) want=test-app ;;
+                    DiskImageTests.swift) want=test-dmg ;;
+                    *) want=test ;;
+                esac
+                [[ " $targets " != *" $want "* ]] || continue
+                [[ $want == test-dmg || " $targets " != *" check "* ]] || continue
+                targets="$targets $want"
+            done < <(grep -vE '^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*)' <<<"$hits" | cut -d: -f1)
+        done <<<"$delta"
         echo "stamp: delta $targets"
         BASE=origin/main CHECK_RISK="$risk" "$here/run-checks.sh" $targets || die "the checks failed; nothing is pushed"
     fi

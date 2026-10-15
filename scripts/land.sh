@@ -20,9 +20,9 @@
 # file of Tests/ names. With no stamp, it runs `make check-changed BASE=origin/main`. The delta runs
 # through run-checks.sh with the risk of origin/main. A land that stops keeps its stamp commit in
 # the file dirigible-land-stamp-<branch> of the git dir, until the merge. It prints the stamp line.
-# Before the push, it writes one flake row (phase 7) for
-# each dirigible-flakes line of run-checks.sh whose commit is an ancestor of HEAD before or after
-# the rebase, and removes those lines. Then it pushes the branch, creates the pull request,
+# Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
+# run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
+# lines. Then it pushes the branch, creates the pull request,
 # refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
 # the PR URL and the commit range on main. Then it updates main: in this worktree, or with a
 # fast-forward in the worktree that holds main when its status is clean; with changes there, it

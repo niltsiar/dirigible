@@ -81,7 +81,7 @@ else
                 if (before ~ /[A-Za-z0-9]/ || line ~ /^[A-Za-z0-9]/) continue
                 if (!(id in named)) rid[++nr] = id
                 named[id] = 1
-                if (sec != "") { names[sec, id] = 1; if (!((sec, id) in listed)) { listed[sec, id] = 1; sid[sec, ++ns[sec]] = id } }
+                if (sec != "" && !((sec, id) in names)) { names[sec, id] = 1; sid[sec, ++ns[sec]] = id }
             }
             next
         }

@@ -2,7 +2,7 @@
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
-# file with no docs/research copy, a holdout fail in this run and in the newest done run, and a
+# file with no docs/research copy, a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run in ## Next of the backlog after the reflect row (phase 8). Each case uses
 # a temporary repo with a base commit on main and a branch.
 # Run by `make test-hooks`.
@@ -148,22 +148,36 @@ refuse 'a taken item of the run with a slice' '## Next has a taken item of 2026-
 printf '# Backlog\n\n## Now\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
 refuse 'a backlog with no ## Next heading' 'backlog.md has no line that starts with ## Next' "$run2"
 
-# A holdout fail (a phase 7 row "holdout fail <H>") in this run and in the newest done run of the
-# ledger beside runs/ stops the land. One run alone, or an older done run, passes.
+# Two holdout fails in a row stop the land. grade.py verdict writes its fail lines to
+# eval/holdout-fails.txt of the run, so no hand row is needed. The run to compare is the newest done
+# run of the ledger beside runs/ whose eval/scores.tsv has a row of the holdout: a run that did not
+# run the holdout is skipped. One run alone, or an older done run behind a newer one, passes.
 new_repo
 s="$tmp/s"
 rm -rf "$s" && mkdir -p "$s/runs/2026-01-01-a" "$s/runs/2026-01-02-b"
 cp -R "$tmp/run" "$s/runs/2026-01-03-me"
 printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n| 2026-01-01-a | a | done | x |\n| 2026-01-02-b | b | done: PR #2 | x |\n| 2026-01-03-me | me | open | |\n' > "$s/ledger.md"
-hold() { printf '2026-01-01T01:00\t7\tholdout fail %s: no changed text\tw\te\tr\n' "$2" >> "$s/runs/$1/decisions.tsv"; }
+# ran <run> <holdout>: the eval of the run scored the holdout. hold <run> <holdout>: its verdict failed it.
+ran() { mkdir -p "$s/runs/$1/eval"; printf 'tag\tscenario\ttype\tset\trun\tresult\tmissing\nt\t%s\tretention\told\t1\tPASS\t\n' "$2" >> "$s/runs/$1/eval/scores.tsv"; }
+hold() { ran "$1" "$2"; printf 'holdout fail %s: no changed text\n' "$2" >> "$s/runs/$1/eval/holdout-fails.txt"; }
+me="$s/runs/2026-01-03-me"
 hold 2026-01-03-me H6
-pass 'a holdout fail in this run only' "$s/runs/2026-01-03-me"
+pass 'a holdout fail in this run only' "$me"
 hold 2026-01-01-a H6
-pass 'a holdout fail in this run and an older done run' "$s/runs/2026-01-03-me"
-hold 2026-01-02-b H1
-pass 'a fail of another holdout in the newest done run' "$s/runs/2026-01-03-me"
+ran 2026-01-02-b E1
+refuse 'a holdout fail in this run and an older done run, with a newer run that did not run it' 'H6 failed in this run and in 2026-01-01-a' "$me"
+ran 2026-01-02-b H6
+pass 'a holdout fail in this run, an older done run, and a newer run that passed it' "$me"
 hold 2026-01-02-b H6
-refuse 'a holdout fail in this run and the newest done run' 'H6 failed in this run and in 2026-01-02-b' "$s/runs/2026-01-03-me"
+refuse 'a holdout fail in this run and the newest done run' 'H6 failed in this run and in 2026-01-02-b' "$me"
+rm -rf "$s/runs/2026-01-02-b/eval"
+hold 2026-01-02-b H1
+ran 2026-01-02-b H6
+pass 'a fail of another holdout in the newest done run' "$me"
+# A hand row "holdout fail" in decisions.tsv is not a verdict file: no run ran H6 with a fail file.
+rm -rf "$s/runs/2026-01-01-a/eval" "$s/runs/2026-01-02-b/eval"
+printf '2026-01-01T01:00\t7\tholdout fail H6: no changed text\tw\te\tr\n' >> "$s/runs/2026-01-02-b/decisions.tsv"
+pass 'a hand row of the newest done run with no verdict file' "$me"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

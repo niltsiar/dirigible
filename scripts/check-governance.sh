@@ -8,8 +8,9 @@
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes.
-# - With a run folder, no holdout has a phase 7 row `holdout fail <H>` both in this run and in the
-#   newest done run (Status done) of the ledger.md beside runs/.
+# - With a run folder, no holdout is in eval/holdout-fails.txt (grade.py verdict) both in this run
+#   and in the newest done run (Status done) of the ledger.md beside runs/ whose eval/scores.tsv has
+#   a row of that holdout.
 # - With a run folder that has a reflect row (phase 8), or with GOVERNANCE_LAND set (land.sh),
 #   ## Next of the main-checkout .scratchpads/backlog.md has no taken item of that run: a line with
 #   `(taken: run <run folder name>` and then a space, a comma, or `)`. A backlog with no line that
@@ -93,19 +94,25 @@ if [[ -f "$backlog" ]] && { reflected || [[ -n "$run" && -n "${GOVERNANCE_LAND:-
         index(s, "## Next") == 1 && $0 ~ key { print FNR ":" }
         END { if (!seen) print "none" }' "$backlog")
 fi
-# A holdout fail (a phase 7 row "holdout fail <H>", grade.py verdict) of this run and of the newest
-# done run of ledger.md beside runs/ stops the land (docs/workflow/evals.md, the pass rule).
-if [[ -n "$run" && -f "$run/decisions.tsv" ]]; then
+# Two holdout fails in a row stop the land. grade.py verdict writes its `holdout fail <H>` lines to
+# <run>/eval/holdout-fails.txt. For each H of this run, the run to compare is the newest done run
+# of the ledger.md beside runs/ whose eval/scores.tsv has a row of H: a run that did not run H is
+# skipped (docs/workflow/evals.md, the pass rule).
+failed_holdouts() { sed -n 's/^holdout fail \(H[0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | sort -u; }
+if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
     runs="$(dirname "${run%/}")"
-    last="$(awk -F' *[|] *' -v me="$(basename "${run%/}")" '$4 ~ /^done($|:)/ && $2 != me { last = $2 } END { print last }' \
+    done_runs="$(awk -F' *[|] *' -v me="$(basename "${run%/}")" '$4 ~ /^done($|:)/ && $2 != me { name[++n] = $2 } END { for (i = n; i > 0; i--) print name[i] }' \
         "$(dirname "$runs")/ledger.md" 2>/dev/null || true)"
-    held() { awk -F'\t' '$2 == "7" && $3 ~ /^holdout fail H[0-9]+/ { split($3, w, /[ :]/); print w[3] }' "$1" | sort -u; }
-    if [[ -n "$last" && -f "$runs/$last/decisions.tsv" ]]; then
-        while IFS= read -r h; do
-            echo "check-governance: holdout $h failed in this run and in $last; fix its grader or docs before the land" >&2
-            fail=1
-        done < <(comm -12 <(held "$run/decisions.tsv") <(held "$runs/$last/decisions.tsv"))
-    fi
+    while IFS= read -r h; do
+        while IFS= read -r prev; do
+            [[ -n "$prev" ]] && awk -F'\t' -v h="$h" '$2 == h { found = 1 } END { exit !found }' "$runs/$prev/eval/scores.tsv" 2>/dev/null || continue
+            if failed_holdouts "$runs/$prev/eval/holdout-fails.txt" | grep -qx "$h"; then
+                echo "check-governance: holdout $h failed in this run and in $prev; fix its grader or docs before the land" >&2
+                fail=1
+            fi
+            break
+        done <<<"$done_runs"
+    done < <(failed_holdouts "$run/eval/holdout-fails.txt")
 fi
 if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2

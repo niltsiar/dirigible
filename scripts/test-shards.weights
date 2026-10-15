@@ -52,6 +52,7 @@ DirigibleAudioTests.MediaTests	0.0
 DirigibleAudioTests.MixTests	0.8
 DirigibleAudioTests.MonitorTests	4.4
 DirigibleAudioTests.MovedPackageTests	1.4
+DirigibleAudioTests.NewClipFilesTests	0.2
 DirigibleAudioTests.NewerVersionOpenTests	0.6
 DirigibleAudioTests.PasteAcrossTests	3.7
 DirigibleAudioTests.PasteAcrossVolumeTests	0.0
@@ -106,6 +107,7 @@ DirigibleCoreTests.BackupTests	8.5
 DirigibleCoreTests.ChaptersTests	0.0
 DirigibleCoreTests.ClipEditTests	0.0
 DirigibleCoreTests.CrossfadeTests	2.3
+DirigibleCoreTests.DerivedFileTests	0.0
 DirigibleCoreTests.EditBenchmark	0.0
 DirigibleCoreTests.EditRoundTripTests	0.4
 DirigibleCoreTests.EpisodeFieldTextTests	0.0

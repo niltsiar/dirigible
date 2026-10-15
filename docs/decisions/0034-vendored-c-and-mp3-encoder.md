@@ -6,6 +6,7 @@
 - Amends: 0007 (LAME 4.0, not 3.100; the names of the LGPL files), 0019 (MP3 in the format list and the CLI), 0032 (MP3 gets no dither; the LAME level scale).
 - Amended: 2026-10-10, run `2026-10-10-episode-metadata`. An MP3 with episode data starts with an ID3v2.3 tag, and the LAME tag frame follows it. An MP3 with no episode data has no ID3 tag, as before (see 0045).
 - Amended: 2026-10-11, run `2026-10-11-chapters-in-file`. The ID3 tag also holds one `CTOC` frame and one `CHAP` frame for each chapter of the range. An MP3 with chapters and no episode data has a tag with only these frames. A `CHAP` frame also holds a `WXXX` frame for the chapter URL and an `APIC` frame (type 0) for the chapter image, with the bytes and the type of the file. The `CHAP` times are 32-bit ms, so an export with chapters and a range over 2^32 - 1 ms (about 49.7 days) is refused before any file exists.
+- Amended: 2026-10-15, run `2026-10-15-export-loudness`. The LAME scale of U4 is the start offset of the MP3 loudness search. The read-back of the MP3 file replaces it with the measured change, and the report is the decoded file (see 0032).
 
 ## Context
 

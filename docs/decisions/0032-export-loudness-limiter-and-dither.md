@@ -4,6 +4,7 @@
 - Date: 2026-10-03
 - Accepted: 2026-10-03, after the architect synthesis and plan gates 1 and 2 of run `2026-10-03-export-loudness`.
 - Amended: 2026-10-03, MP3 run. MP3 gets no dither. LAME scales its input: a decoded MP3 reads up to 0.45 dB lower than the report (see 0034).
+- Amended: 2026-10-15, run `2026-10-15-export-loudness`. The export searches the gain on the limited signal with trial passes, reads back each AAC and MP3 file and each file at another rate as macOS decodes it, and writes again for a true-peak excess or a loudness miss. The report is the written file, and the MP3 offset above is the start value of the search. Research: `docs/research/export-loudness.md`.
 - Amends: 0008 (our own limiter, not `kAudioUnitSubType_PeakLimiter`; true peak and cases 15 to 19 are done) and 0019 (dither for 16-bit, two passes, the report banner, `--loudness`).
 
 ## Context

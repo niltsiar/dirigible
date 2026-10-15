@@ -24,7 +24,7 @@ struct DerivedFileTests {
     @Test func touchingSpansMerge() throws {
         let session = try session(clips: [("A", 1_000_000, 100_000), ("B", 2_060_000, 100_000)])
 
-        let runs = try session.clipRuns(of: ["B", "A"], sampleRate: 48_000)
+        let runs = try session.clipRuns(of: ["B", "A"])
 
         #expect(runs == [ClipRun(file: "f", span: 520_000..<2_640_000, clips: ["A", "B"])])
     }
@@ -33,7 +33,7 @@ struct DerivedFileTests {
     @Test func aGapOfOneMoreFrameGivesTwoRuns() throws {
         let session = try session(clips: [("A", 1_000_000, 100_000), ("B", 2_060_001, 100_000)])
 
-        let runs = try session.clipRuns(of: ["A", "B"], sampleRate: 48_000)
+        let runs = try session.clipRuns(of: ["A", "B"])
 
         #expect(
             runs == [
@@ -46,7 +46,7 @@ struct DerivedFileTests {
     @Test func theSpanStopsAtTheFileEnd() throws {
         let session = try session(length: 1_000_000, clips: [("A", 100_000, 800_000)])
 
-        let runs = try session.clipRuns(of: ["A"], sampleRate: 48_000)
+        let runs = try session.clipRuns(of: ["A"])
 
         #expect(runs == [ClipRun(file: "f", span: 0..<1_000_000, clips: ["A"])])
     }
@@ -62,7 +62,7 @@ struct DerivedFileTests {
         try session.place(Clip(id: "B", file: "fb", start: 20_000, offset: 10_000, length: 20_000), on: "t")
         try session.setCrossfades(["A": 4_000])
 
-        let runs = try session.clipRuns(of: ["A"], sampleRate: 100)
+        let runs = try session.clipRuns(of: ["A"])
 
         #expect(runs == [ClipRun(file: "fa", span: 9_000..<32_000, clips: ["A"])])
     }
@@ -71,7 +71,7 @@ struct DerivedFileTests {
     @Test func anUnknownClipIsRefused() throws {
         let session = try session(clips: [("A", 1_000_000, 100_000)])
 
-        #expect(throws: SessionError.unknownClip("X")) { try session.clipRuns(of: ["A", "X"], sampleRate: 48_000) }
+        #expect(throws: SessionError.unknownClip("X")) { try session.clipRuns(of: ["A", "X"]) }
     }
 
     /// A clip whose file record is missing throws and names the file, not the clip.
@@ -79,7 +79,7 @@ struct DerivedFileTests {
         var session = Session(sampleRate: 48_000)
         session.tracks = try self.session(clips: [("A", 1_000_000, 100_000)]).tracks
 
-        #expect(throws: SessionError.unknownFile("f")) { try session.clipRuns(of: ["A"], sampleRate: 48_000) }
+        #expect(throws: SessionError.unknownFile("f")) { try session.clipRuns(of: ["A"]) }
     }
 
     /// C10. The new record has the stem, the span length, the layout, and the capture of the source.

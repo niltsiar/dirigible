@@ -109,6 +109,22 @@ struct DerivedFileTests {
         #expect(session == before)
     }
 
+    /// A path that another record has throws and changes nothing, also in another case: one WAV has
+    /// one file record.
+    @Test func aTakenPathIsRefused() throws {
+        var session = try session(clips: [])
+        try session.addFile(AudioFile(id: "g", path: "f NR.wav", layout: .mono, length: 200_000))
+        let run = ClipRun(file: "f", span: 100_000..<300_000, clips: [])
+        let before = session
+
+        for stem in ["f NR", "f nr"] {
+            #expect(throws: SessionError.duplicateID("\(stem).wav")) {
+                try session.addDerivedFile(from: run, stem: stem, layout: .mono)
+            }
+        }
+        #expect(session == before)
+    }
+
     /// An empty span and a span past the end of the source throw and change nothing.
     @Test func aSpanOutsideTheFileIsRefused() throws {
         var session = try session(length: 1_000_000, clips: [])

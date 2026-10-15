@@ -216,7 +216,8 @@ struct PasteAcrossTests {
         #expect(throws: PasteError.write(file: "take2-mic.wav", errno: EIO)) {
             try pasteClipboard(
                 try clipboard, from: p.url, into: q.session, in: q.url, identity: PackageID(lockFileOf: q.url),
-                at: 480_000, on: .tracks(["u1", "u2"]), freeBytes: { .max },
+                at: 480_000, on: .tracks(["u1", "u2"]), insert: false, freeBytes: { .max },
+                canClone: { cloneWorks($0, into: $1) }, progress: { _ in }, isCancelled: { false },
                 flush: { $0.hasSuffix("/.take2-mic.wav.tmp") ? EIO : nil })
         }
         #expect(try names(q) == ["take1-mic.wav"], "no new name stays")

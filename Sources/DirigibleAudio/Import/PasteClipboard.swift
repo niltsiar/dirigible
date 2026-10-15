@@ -56,14 +56,26 @@ public enum PasteError: Error, Hashable, Sendable {
 /// `session.xml`. A throw before the first rename leaves no new name in `Clips/`; after it, nothing
 /// deletes a renamed WAV (0040). For another package it blocks: never call it on the main actor.
 /// `isCancelled` is read in each copy callback, before each conversion block, between the files, and
-/// before the renames. `flush` flushes each copied file and `Clips/`; nil is `fullFlush`.
+/// before the renames.
 public func pasteClipboard(
     _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
     at start: Frames, on target: PasteTarget, insert: Bool = false, freeBytes: () -> Int64,
     canClone: (URL, URL) -> Bool = { cloneWorks($0, into: $1) }, progress: @escaping (Double) -> Void = { _ in },
-    isCancelled: @escaping () -> Bool = { false }, flush: ((String) -> Int32?)? = nil
+    isCancelled: @escaping () -> Bool = { false }
 ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
-    let flush = flush ?? { fullFlush(path: $0) }
+    try pasteClipboard(
+        clipboard, from: source, into: session, in: package, identity: identity, at: start, on: target,
+        insert: insert, freeBytes: freeBytes, canClone: canClone, progress: progress, isCancelled: isCancelled,
+        flush: NewClipFiles.flushToDisk)
+}
+
+/// `pasteClipboard` with the flush of each copied file and of `Clips/` given: the tests give a fault.
+func pasteClipboard(
+    _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
+    at start: Frames, on target: PasteTarget, insert: Bool, freeBytes: () -> Int64,
+    canClone: (URL, URL) -> Bool, progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool,
+    flush: @escaping (String) -> Int32?
+) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
     let excerpt = clipboard.excerpt
     let same = PackageID.same(clipboard.origin, identity)
     let rate = session.sampleRate

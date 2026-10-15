@@ -38,7 +38,7 @@ struct NewClipFiles: ~Copyable {
     /// only) makes no check. Then makes `Clips/`. `flush` is the test seam of a flush fault.
     init(
         in package: URL, bytes: Int64, freeBytes: () -> Int64,
-        flush: @escaping (String) -> Int32? = { fullFlush(path: $0) }
+        flush: @escaping (String) -> Int32? = NewClipFiles.flushToDisk
     ) throws(NewClipFault) {
         if bytes > 0 {
             let free = freeBytes()
@@ -49,6 +49,9 @@ struct NewClipFiles: ~Copyable {
         self.package = package
         self.flush = flush
     }
+
+    /// The flush to disk of a file or a folder (`fullFlush`): the default of `flush`.
+    static func flushToDisk(_ path: String) -> Int32? { fullFlush(path: path) }
 
     private var clips: URL { package.appending(path: clipsFolderName) }
 

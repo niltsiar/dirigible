@@ -4,8 +4,8 @@
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy, a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run in ## Next of the backlog after the reflect row (phase 8), a features.md row
-# of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat
-# run that changes app code with no `- Lands:` line. Each case uses a temporary repo with a base commit on main
+# of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
+# fix, or perf run that changes app code with no `- Lands:` line. Each case uses a temporary repo with a base commit on main
 # and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -185,8 +185,8 @@ new_repo; mkdir -p "$tmp/r/docs/requirements"; printf '| F01 | One | Logic | Lat
 pass 'a base with no features.md'
 
 # A run.md with a `- Lands:` line names the F-IDs of this land, on any branch type: each one gets a done
-# state that the base lacks, or the line says `none`. A feat run that changes app code (Sources/,
-# Package.swift, Package.resolved, Support/) must have the line. A docs-only branch needs none.
+# state that the base lacks, or the line says `none`. A feat, fix, or perf run that changes app code
+# (Sources/, Package.swift, Package.resolved, Support/) must have the line. A docs-only branch needs none.
 # lands_repo <run.md text> [<app path>]: main holds F35, F77, and F89 at Release 4; the branch changes the path.
 lands_repo() {
   feat_repo
@@ -205,7 +205,13 @@ pass 'a feat run that sets its states done' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F89\n'; rm "$tmp/r/Sources/A.swift"; echo x > "$tmp/r/B.md"; commit
 pass 'a feat run that changes only docs' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/x\n- Requirements: F35, F89\n'; commit
-pass 'a run that is not feat, with no Lands line' "$tmp/run"
+refuse 'a fix run that changes Sources/ with no Lands line' 'name the F-IDs of this land in - Lands: of run.md, or write - Lands: none' "$tmp/run"
+lands_repo '# Run\n\n- Branch: perf/x\n- Requirements: F35, F89\n'; commit
+refuse 'a perf run that changes Sources/ with no Lands line' 'name the F-IDs of this land in - Lands: of run.md, or write - Lands: none' "$tmp/run"
+lands_repo '# Run\n\n- Branch: chore/x\n- Requirements: F35, F89\n'; commit
+pass 'a chore run that changes Sources/ with no Lands line' "$tmp/run"
+lands_repo '# Run\n\n- Branch: fix/x\n- Lands: none\n'; commit
+pass 'a fix run that changes Sources/ and writes Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F77\n- Lands: F35\n'; set_done F35; commit
 pass 'a feat run that lands F35 and keeps F77 open' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F77\n- Lands: F35\n'; commit

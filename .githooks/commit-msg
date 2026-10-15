@@ -6,6 +6,9 @@
 # HEAD, or HEAD^ for an amend (it replaces HEAD). Git gives the hook no amend flag, so the hook reads
 # the arguments of its git commit process; when ps gives none, both bases count. A copy that is not
 # there counts 0 words (a new or a deleted file).
+# The hook also refuses a staged change that cuts graded eval key text (scripts/evals-for.sh
+# --staged against the same base), unless a body line `Eval keys: <IDs>` names each such scenario;
+# the Phase 7 eval then runs it.
 # Usage: commit-msg <message file>; commit-msg --pairs prints the pairs of a message on stdin.
 # .claude/hooks/git-guardrails.test.sh tests it.
 set -euo pipefail
@@ -18,14 +21,12 @@ if [[ "${1:-}" == --pairs ]]; then
     pairs
     exit 0
 fi
-found="$({ grep -v '^#' "$1" || true; } | pairs)"
-[[ -n "$found" ]] || exit 0
+message="$(grep -v '^#' "$1" || true)"
 
 top="$(git rev-parse --show-toplevel)"
 empty="$(git hash-object -t tree /dev/null)"
 head="$(git rev-parse -q --verify HEAD || echo "$empty")"
 parent="$(git rev-parse -q --verify HEAD^ || echo "$empty")"
-budgeted="$(awk -F'\t' 'NR > 1 && $1 != "TOTAL" && $1 !~ /\/$/ { print $1 }' "$top/docs/workflow/budgets.tsv" 2>/dev/null || true)"
 caller="$(ps -o args= -p "$PPID" 2>/dev/null || true)"
 if [[ -z "$caller" ]]; then
     bases=("$head" "$parent")
@@ -34,6 +35,26 @@ elif [[ " $caller " == *" --amend "* ]]; then
 else
     bases=("$head")
 fi
+
+# The cuts of eval key text that no Eval keys line names; a base with none passes.
+if [[ -x "$top/scripts/evals-for.sh" ]]; then
+    named=" $({ grep -E '^Eval keys:' <<<"$message" || true; } | { grep -oE '[EH][0-9]+' || true; } | xargs) "
+    for base in "${bases[@]}"; do
+        rc=0
+        out="$("$top/scripts/evals-for.sh" --staged "$base")" || rc=$?
+        [[ $rc -le 1 ]] || { echo "commit-msg: scripts/evals-for.sh --staged $base failed (exit $rc): $out" >&2; exit 1; }
+        cuts="$(awk -v named="$named" 'index(named, " " $1 " ") == 0' <<<"$out")"
+        [[ -n "$cuts" ]] || break
+    done
+    if [[ -n "$cuts" ]]; then
+        printf 'commit-msg: the staged change cuts graded eval key text (docs/workflow/evals.md):\n%s\nKeep the text, change the key points in the same commit, or add a body line "Eval keys: <IDs>" and run those scenarios in the Phase 7 eval.\n' "$cuts" >&2
+        exit 1
+    fi
+fi
+
+found="$(pairs <<<"$message")"
+[[ -n "$found" ]] || exit 0
+budgeted="$(awk -F'\t' 'NR > 1 && $1 != "TOTAL" && $1 !~ /\/$/ { print $1 }' "$top/docs/workflow/budgets.tsv" 2>/dev/null || true)"
 files="$(for base in "${bases[@]}"; do git diff --cached --name-only "$base"; done | sort -u |
     { grep -Fx -f <(printf '%s\n' "$budgeted") || true; })"
 words() { { git show "$1" 2>/dev/null || true; } | wc -w | tr -d ' '; }

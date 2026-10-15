@@ -175,6 +175,28 @@ g commit -q -am change
 got="$(run --quoted main)" || fail "--quoted agent row: exit $?"
 [[ "$got" == E38 ]] || fail "--quoted agent row: got [$(tr '\n' ' ' <<<"$got")], want [E38]"
 
+# --staged (base HEAD) prints a cut of a graded row and exits 1; it skips a holdout, an agent row,
+# and a row new in the staged evals.md. Two bases are a usage error.
+rm -rf "$tmp/r"
+mkdir -p "$tmp/r/docs/workflow"
+g init -q -b main
+row() { printf '| %s | %s | s | q | (a) Keep `keep-term-1` here%s. | `a.md` | - | - |\n' "$@"; }
+{ printf '## Scenarios\n\n'; row E1 policy ''; row H1 retention ' (holdout)'; row E38 agent ''; } > "$tmp/r/docs/workflow/evals.md"
+printf 'Keep `keep-term-1` here.\n' > "$tmp/r/a.md"
+g add -A
+g commit -q -m base
+got="$(run --staged)" || fail "--staged, nothing staged: exit $?"
+[[ -z "$got" ]] || fail "--staged, nothing staged: got [$got]"
+printf 'Gone.\n' > "$tmp/r/a.md"
+row E9 policy '' >> "$tmp/r/docs/workflow/evals.md"
+g add -A
+got="$(run --staged)"
+code=$?
+[[ $code -eq 1 && "$got" == 'E1 a.md: `keep-term-1`' ]] || fail "--staged cut: exit $code, got [$got], want [E1 a.md: \`keep-term-1\`]"
+got="$(run --staged HEAD main 2>&1)"
+code=$?
+[[ $code -eq 2 && "$got" == *'--staged [<base>]'* ]] || fail "--staged with two bases: exit $code, got [$got]"
+
 # agent-grade.py (E38): case <label> <task> <variant> <after.json> <skills> <Bash command> <reply>.
 # T8 asks for a take: a CLI record command on the package or a reply with the command and its
 # warning passes; `dirigible help record` is no take; an edit outside the host is wrong. Another

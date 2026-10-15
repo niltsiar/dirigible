@@ -160,6 +160,32 @@ struct MarksTests {
         }
     }
 
+    /// Run split-no-cut criteria C2 and C3: when the in and out points cut no clip on the range
+    /// tracks, the playhead strictly inside the range splits. c1 is 0..<480,000 on t1. Controls: a
+    /// point inside a clip keeps both points; the playhead on an edge keeps them too.
+    @Test func aRangeThatCutsNothingSplitsAtThePlayheadInside() throws {
+        var session = try Self.session(tracks: 2)
+        let clipRange = Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1"])
+        let both = Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1", "t2"])
+        let rows: [(Marks, Frames, [Frames], [TrackID])] = [
+            (clipRange, 0, [0, 480_000], ["t1"]),
+            (clipRange, 1, [1], ["t1"]),
+            (clipRange, 479_999, [479_999], ["t1"]),
+            (clipRange, 480_000, [0, 480_000], ["t1"]),
+            (Marks(inPoint: 100, outPoint: 200, tracks: ["t1"]), 150, [100, 200], ["t1"]),
+            (Marks.all(in: session), 50, [50], ["t1", "t2"]),
+            (Marks(inPoint: 0, outPoint: 600_000, tracks: ["t1"]), 50, [50], ["t1"]),
+            (both, 50, [50], ["t1", "t2"]),
+        ]
+        for (marks, playhead, frames, tracks) in rows {
+            let points = marks.splitPoints(playhead: playhead, in: session)
+            #expect(points.frames == frames && points.tracks == tracks, "\(marks) at \(playhead)")
+        }
+        try session.place(Clip(id: "c2", file: "f1", start: 400_000, offset: 0, length: 300_000), on: "t2")
+        let points = both.splitPoints(playhead: 50, in: session)
+        #expect(points.frames == [0, 480_000] && points.tracks == ["t1", "t2"], "the out point cuts c2 on t2")
+    }
+
     /// Edit-commands criterion 18: the clips fully inside the range on the selected tracks; a left
     /// offset stops at frame 0; the Marks move with the clips. Controls: the overlapping clips
     /// fail the b row; no clamp fails the left rows.

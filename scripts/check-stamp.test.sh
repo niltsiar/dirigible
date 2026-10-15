@@ -156,6 +156,27 @@ st write "$(g rev-parse HEAD)" clean "$(g rev-parse main)" check > /dev/null
 g switch -q feat/x
 read_refused 'not an ancestor' 'not an ancestor'
 
+# read <base> <commit>: the newest line of that commit with the base commit, with no ancestry
+# test, so land.sh finds the stamp of a branch that an earlier land rebased.
+new_repo
+g switch -q -c side
+g commit -q --allow-empty -m side
+side="$(g rev-parse HEAD)" main="$(g rev-parse main)"
+st write "$side" clean "$main" check test-slow > /dev/null
+g switch -q feat/x
+got="$(st read main "$side")" || fail "read of a named commit: exit $?"
+[[ "$got" == "$side check test-slow" ]] || fail "read of a named commit: got [$got]"
+st read main > /dev/null && fail 'read of a named commit: the plain read took a commit that is not in HEAD'
+# A line with a branch-commit base, or a commit with no line, gives no line.
+head="$(g rev-parse HEAD)"
+rm "$file"
+g switch -q side
+st write "$side" clean "$head" check > /dev/null
+g switch -q feat/x
+[[ "$(lines)" == 1 ]] || fail 'read of a named commit: the line with a branch-commit base was not written'
+st read main "$side" > /dev/null && fail 'read of a named commit: a branch-commit base was taken'
+st read main "$head" > /dev/null && fail 'read of a named commit: a commit with no line was taken'
+
 # A bad base or a bad mode exits nonzero.
 new_repo
 st read does-not-exist > /dev/null 2>&1 && fail 'read with a bad base exits 0'

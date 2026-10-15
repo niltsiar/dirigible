@@ -7,7 +7,9 @@
 # (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
 # missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
 # after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
-# full push check; the governance and the ancestor checks still run. The ratchet case runs the
+# full push check; the governance and the ancestor checks still run. The land reads the stamp
+# before its rebase: the delta is the tree diff to the rebased HEAD, with the test target for a
+# file that a Swift test names, and a second land of a stopped branch reuses the stamp commit. The ratchet case runs the
 # real make check-changed first, so the land runs no check after it. A partial stamp is no pass.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -378,10 +380,105 @@ grep -qx 'make: risk yes' "$c/log" || fail "risk delta: run-checks.sh did not ge
 stamp_setup
 stamp origin/main~1
 stamp_case 'base moved' 'stamp: none (base moved)' 'make check-changed BASE=origin/main'
+# main_commit <path> [<text>]: origin/main gets a commit of one file, as another run that landed.
+main_commit() {
+  mkdir -p "$(dirname "$c/other/$1")"
+  echo "${2:-$1}" > "$c/other/$1"
+  git -C "$c/other" add -A && git -C "$c/other" commit -q -m "$1" && git -C "$c/other" push -q origin main
+}
+# The land reads the stamp before its rebase, and runs the targets of the tree diff from the
+# stamped commit to the rebased HEAD. In each case, origin/main moves and is fetched first, then
+# the stamp has origin/main as its base, as the land has.
 setup
 git -C "$c/work" fetch -q
 stamp origin/main
-stamp_case 'not an ancestor' 'stamp: none (not an ancestor)' 'make check-changed BASE=origin/main'
+stamp_case 'rebase with an empty main delta' "stamp: reuse $(git -C "$c/work" rev-parse HEAD)" ''
+setup
+main_commit docs/a.md
+git -C "$c/work" fetch -q
+stamp origin/main
+stamp_case 'rebase delta docs' 'stamp: delta check-docs' 'make -k check-docs'
+setup
+main_commit docs/a.md
+main_commit scripts/a.sh
+git -C "$c/work" fetch -q
+stamp origin/main
+stamp_case 'rebase delta tooling' 'stamp: delta check-fast' 'make -k check-fast'
+setup
+main_commit Sources/DirigibleApp/X.swift
+git -C "$c/work" fetch -q
+stamp origin/main
+stamp_case 'rebase delta sources' 'stamp: delta check' 'make -k check'
+[[ "$(grep -E '^(sysctl -n vm.loadavg|make -k check)$' "$c/log")" == $'sysctl -n vm.loadavg\nmake -k check' ]] ||
+  fail "rebase delta sources: no load wait before make check: $(cat "$c/log")"
+# A branch commit after the stamp counts, not only the main delta.
+setup
+main_commit docs/a.md
+git -C "$c/work" fetch -q
+stamp origin/main
+commit_file Tests/T.swift
+stamp_case 'rebase delta with a later branch commit' 'stamp: delta check' 'make -k check'
+# A floor path on main adds test-slow-push, and the risk stays that of the branch.
+setup
+main_commit Sources/DirigibleAudio/A.swift
+git -C "$c/work" fetch -q
+stamp origin/main
+stamp_case 'rebase delta with a floor path on main' 'stamp: delta check test-slow-push' 'make -k check test-slow-push'
+grep -qx 'make: risk no' "$c/log" || fail "rebase delta with a floor path on main: run-checks.sh did not get CHECK_RISK=no: $(cat "$c/log")"
+# A conflict stops the land before any stamp line, any check, and any push.
+setup
+main_commit x.txt conflict
+git -C "$c/work" fetch -q
+stamp origin/main
+before="$(git -C "$c/work" rev-parse HEAD)"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -ne 0 ]] || fail 'conflict with a stamp: exit 0'
+grep -q 'the rebase on origin/main stopped on a conflict' "$c/out" || fail "conflict with a stamp: no reason: $(cat "$c/out")"
+! grep -q '^stamp:' "$c/out" || fail "conflict with a stamp: a stamp line: $(cat "$c/out")"
+[[ "$(git -C "$c/work" rev-parse HEAD)" == "$before" ]] || fail 'conflict with a stamp: the branch is not as before'
+no_side_effects 'conflict with a stamp'
+# A stamp of a commit that is not in HEAD before the rebase (a side branch) is no pass.
+setup
+git -C "$c/work" fetch -q
+git -C "$c/work" switch -q -c side
+git -C "$c/work" commit -q --allow-empty -m side
+stamp origin/main
+git -C "$c/work" switch -q feat/x
+stamp_case 'not an ancestor before the rebase' 'stamp: none (not an ancestor)' 'make check-changed BASE=origin/main'
+# A stamp of a file that a Swift test reads (docs/guide.md here): the delta adds the test target.
+# The stamped tree and HEAD both hold Tests/G.swift, which names the file. A doc that no test
+# reads gets no test target.
+setup
+main_commit Tests/G.swift 'docs/guide.md'
+git -C "$c/work" fetch -q && git -C "$c/work" rebase -q origin/main
+main_commit docs/guide.md
+git -C "$c/work" fetch -q
+stamp origin/main
+stamp_case 'rebase delta of a file that a test reads' 'stamp: delta check-docs test' 'make -k check-docs test'
+setup
+main_commit Tests/G.swift 'docs/guide.md'
+git -C "$c/work" fetch -q && git -C "$c/work" rebase -q origin/main
+main_commit docs/a.md
+git -C "$c/work" fetch -q
+stamp origin/main
+stamp_case 'rebase delta of a doc that no test reads' 'stamp: delta check-docs' 'make -k check-docs'
+# A land that stops after its rebase (here: a slice with no Check line) keeps the rebased branch.
+# The second land of the branch finds the stamp commit in the land stamp file of the git dir.
+setup
+main_commit docs/a.md
+git -C "$c/work" fetch -q
+stamp origin/main
+cp "$c/plan.md" "$c/plan-ok.md"
+printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n' > "$c/plan.md"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -ne 0 ]] || fail 'second land: the first land exit 0'
+grep -q 'the governance check failed' "$c/out" || fail "second land: the first land has no governance stop: $(cat "$c/out")"
+no_side_effects 'second land, first land'
+cp "$c/plan-ok.md" "$c/plan.md"
+stamp_case 'second land after a stop after the rebase' 'stamp: delta check-docs' 'make -k check-docs'
+[[ -z "$(ls "$c"/work/.git/dirigible-land-stamp-* 2>/dev/null)" ]] || fail "second land: a land stamp file stays: $(ls "$c"/work/.git)"
 
 # A matching stamp does not skip the governance check or the ancestor check.
 stamp_setup

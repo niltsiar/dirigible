@@ -282,8 +282,11 @@ struct FileMeasure {
 /// Decodes the audio file at `url` as macOS decodes it (AudioToolbox), and measures its loudness
 /// and true peak at the file rate. `progress` gets the fraction done. It reads `isCancelled` at
 /// each chunk. A file that Core Audio cannot open or read throws `.writeFailed` with its status.
+/// The decode must give at least `frames` frames, else the values are those of a prefix and it
+/// throws `.writeFailed`. A decoder can fail on the padding after the audio of an MP3 file; then
+/// the frames before the failure are the file.
 func measureDecodedFile(
-    _ url: URL, layout: ChannelLayout, isCancelled: () -> Bool, progress: (Double) -> Void
+    _ url: URL, layout: ChannelLayout, frames: Int, isCancelled: () -> Bool, progress: (Double) -> Void
 ) throws(ExportError) -> FileMeasure {
     let file: AVAudioFile
     do { file = try AVAudioFile(forReading: url) } catch { throw .writeFailed(status(of: error)) }
@@ -292,14 +295,20 @@ func measureDecodedFile(
     else { throw .writeFailed(kAudio_ParamError) }
     var loudness = LoudnessMeter(sampleRate: rate, layout: layout)
     var peak = TruePeakMeter(layout: layout)
+    var read = 0
     while file.framePosition < file.length {
         if isCancelled() { throw .cancelled }
-        do { try file.read(into: buffer) } catch { throw .writeFailed(status(of: error)) }
+        do { try file.read(into: buffer) } catch {
+            if read >= frames { break }
+            throw .writeFailed(status(of: error))
+        }
         if buffer.frameLength == 0 { break }
         loudness?.feed(buffer)
         peak.feed(buffer)
+        read += Int(buffer.frameLength)
         progress(Double(file.framePosition) / Double(file.length))
     }
+    guard read >= frames else { throw .writeFailed(kAudioFileEndOfFileError) }
     return FileMeasure(loudness: loudness?.result().integrated, truePeak: peak.result())
 }
 

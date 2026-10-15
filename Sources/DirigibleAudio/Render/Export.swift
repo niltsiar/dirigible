@@ -234,7 +234,11 @@ func exportMix(
                 step = active.next(after: .written(output: current?.output?.value, truePeak: current?.truePeak))
             case .readBack:
                 let band = bands.readBack(round: active.writes - 1)
-                let measure = try measureDecodedFile(temporary, layout: options.layout, isCancelled: isCancelled) {
+                // The converter can round the length of a resampled file by one frame.
+                let frames = max(total * rate / session.sampleRate - 1, 0)
+                let measure = try measureDecodedFile(
+                    temporary, layout: options.layout, frames: frames, isCancelled: isCancelled
+                ) {
                     report(band.lowerBound + (band.upperBound - band.lowerBound) * $0)
                 }
                 decoded = measure

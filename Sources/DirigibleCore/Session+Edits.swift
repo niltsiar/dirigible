@@ -204,9 +204,8 @@ extension Session {
         var rights: [ClipID] = []
         for index in indices {
             for frame in frames.sorted(by: >) {
-                guard let at = self.tracks[index].clips.index(holding: frame) else { continue }
+                guard let at = self.tracks[index].clips.index(cutting: frame) else { continue }
                 let clip = self.tracks[index].clips[at]
-                guard clip.start < frame else { continue }
                 let right = Self.derivedID(of: clip.id, at: frame, taken: &taken)
                 self.tracks[index].clips.split(at: at, frame: frame, rightID: right)
                 rights.append(right)

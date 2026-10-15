@@ -53,4 +53,12 @@ struct SplitClipsTests {
         try session.splitClips(at: [20_000, 60_000], on: ["a", "b"])
         #expect(session == single)
     }
+
+    /// The one rule of a cut: a frame strictly inside a clip. Control: `index(holding:)` gives 0 at
+    /// the start frame 0.
+    @Test func indexCuttingSkipsAnEdgeAndAGap() throws {
+        let clips = try #require(session.track("a")).clips
+        let found = [0, 1, 99_999, 100_000, 200_000].map { clips.index(cutting: Frames($0)) }
+        #expect(found == [nil, 0, 0, nil, nil])
+    }
 }

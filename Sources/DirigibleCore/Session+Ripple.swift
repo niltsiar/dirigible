@@ -128,12 +128,9 @@ extension Session {
             if let last = tracks[index].clips.last, last.end > frame, !(last.end + length).isInRange {
                 throw .frameOutOfRange
             }
-            if let at = tracks[index].clips.index(holding: frame) {
-                let clip = tracks[index].clips[at]
-                if clip.start < frame {
-                    let right = Self.derivedID(of: clip.id, at: frame, taken: &taken)
-                    tracks[index].clips.split(at: at, frame: frame, rightID: right)
-                }
+            if let at = tracks[index].clips.index(cutting: frame) {
+                let right = Self.derivedID(of: tracks[index].clips[at].id, at: frame, taken: &taken)
+                tracks[index].clips.split(at: at, frame: frame, rightID: right)
             }
             tracks[index].clips.shift(from: frame, by: length)
         }

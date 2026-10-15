@@ -159,8 +159,8 @@ struct LoudnessSearch {
 }
 
 extension LoudnessSearch.Start {
-    /// AAC: a margin of 1.5 dB. MP3: 0.5 dB, and the LAME scale of 0034 U4 as the offset. Probes
-    /// U10 and U19.
+    /// AAC: a margin of 1.5 dB. MP3: 0.5 dB, and the LAME scale of 0034 U4 as the offset. A
+    /// lossless file at another rate: 0.3 dB, the resampler figure of 0032. Probes U10, U19, U24.
     init(format: ExportFormat, fileRate: Int, sessionRate: Int) {
         switch format {
         case .aac:
@@ -174,7 +174,8 @@ extension LoudnessSearch.Start {
                 }
             self.init(margin: 0.5, offset: scale, readsBack: true)
         case .wav, .flac, .floatCAF:
-            self.init(margin: 0, offset: 0, readsBack: false)
+            let resampled = fileRate != sessionRate
+            self.init(margin: resampled ? 0.3 : 0, offset: 0, readsBack: resampled)
         }
     }
 }

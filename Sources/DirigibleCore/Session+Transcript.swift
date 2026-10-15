@@ -197,6 +197,23 @@ extension Session {
         if transcripts[id]?.words?.isEmpty == true { transcripts[id] = nil }
     }
 
+    /// Copies each anchor of `file` whose midpoint is in `span` to each file of `targets`, at its
+    /// range clamped to `span` plus `shift`, with the same transcript and number.
+    mutating func copyWords(of file: FileID, span: Range<Frames>, shift: Frames, to targets: [FileID]) {
+        for id in transcripts.keys {
+            guard let anchors = transcripts[id]?.words?[file]?.anchors(midpointIn: span) else { continue }
+            let copied = anchors.map { anchor in
+                let range = anchor.range.clamped(to: span)
+                return Anchor(
+                    number: anchor.number, range: (range.lowerBound + shift)..<(range.upperBound + shift),
+                    text: anchor.text)
+            }
+            for target in targets {
+                setWords((transcripts[id]?.words?[target]?.all ?? []) + copied, file: target, transcript: id)
+            }
+        }
+    }
+
     /// The transcripts whose file did not load at the open, by ID (decision 0055).
     public var transcriptsNotLoaded: [(id: TranscriptID, name: String)] {
         transcripts.values.filter { $0.words == nil }.sorted { $0.id < $1.id }.map { ($0.id, $0.name) }

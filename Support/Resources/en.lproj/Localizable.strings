@@ -446,8 +446,8 @@
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Tracks:";
-"subtitle.record.time" = "Record time:";
-"banner.low.record.time" = "Less than %lld min of record time left on this disk. Free up disk space before you record.";
+"subtitle.record.time" = "Record time left:";
+"banner.low.record.time.left" = "Less than %@ of record time left on this disk. Free up disk space before you record.";
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";
 "banner.export.report" = "The export of %1$@ is done: %2$@.";

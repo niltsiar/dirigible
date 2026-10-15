@@ -7,48 +7,71 @@ import Testing
 
 /// The pure values of the subtitle and the banners (ui-shell criteria A12, A15).
 struct BannerValueTests {
-    /// A12: the rate in kHz, "Tracks: N" with no plural form, and the time left in units that
-    /// Foundation gives. The test process has no app tables, so the labels come from each table.
+    /// A12, F152: the rate in kHz, "Tracks: N" with no plural form, and the time left rounded down
+    /// to the minute, in units that Foundation gives. The test process has no app tables, so the
+    /// labels come from each table.
     @Test func theSubtitleShowsRateTracksAndTimeLeft() throws {
-        for (language, identifier) in [("en", "en_US"), ("es", "es_ES")] {
-            let table = try stringsTable(language)
-            let locale = Locale(identifier: identifier)
-            let text = { (key: L10n) in table[key.rawValue] ?? "" }
-            let style = Duration.UnitsFormatStyle(allowedUnits: [.hours, .minutes], width: .abbreviated).locale(locale)
-            let left = Duration.seconds(7_800).formatted(style)
-            #expect(
-                subtitleText(rate: 48_000, tracks: 3, recordTimeLeft: .seconds(7_800), locale: locale, text: text)
-                    == "48 kHz · \(text(.subtitleTracks)) 3 · \(text(.subtitleRecordTime)) \(left)")
-            #expect(
-                subtitleText(rate: 48_000, tracks: 0, recordTimeLeft: nil, locale: locale, text: text)
-                    == "48 kHz · \(text(.subtitleTracks)) 0")
-        }
+        let (en, es) = (try stringsTable("en"), try stringsTable("es"))
+        #expect(en[L10n.subtitleRecordTime.rawValue] == "Record time left:")
+        #expect(es[L10n.subtitleRecordTime.rawValue] == "Grabación restante:")
+        let (english, spanish) = ({ (key: L10n) in en[key.rawValue] ?? "" }, { (key: L10n) in es[key.rawValue] ?? "" })
+        let (enUS, esES) = (Locale(identifier: "en_US"), Locale(identifier: "es_ES"))
         #expect(
-            subtitleText(rate: 44_100, tracks: 1, recordTimeLeft: nil, locale: Locale(identifier: "es_ES")).hasPrefix(
-                "44,1 kHz"))
-        #expect(try stringsTable("en")[L10n.subtitleTracks.rawValue] == "Tracks:")
+            subtitleText(rate: 48_000, tracks: 3, recordTimeLeft: .seconds(10_799), locale: enUS, text: english)
+                == "48 kHz · Tracks: 3 · Record time left: 2 hr, 59 min")
+        #expect(
+            subtitleText(rate: 48_000, tracks: 3, recordTimeLeft: .seconds(10_799), locale: esES, text: spanish)
+                == "48 kHz · Pistas: 3 · Grabación restante: 2 h y 59 min")
+        for (seconds, left) in [(7_199, "1 hr, 59 min"), (3_600, "1 hr"), (59, "0 min")] {
+            #expect(
+                subtitleText(rate: 48_000, tracks: 1, recordTimeLeft: .seconds(seconds), locale: enUS, text: english)
+                    == "48 kHz · Tracks: 1 · Record time left: \(left)", "\(seconds) s")
+        }
+        for (table, locale) in [(english, enUS), (spanish, esES)] {
+            #expect(
+                subtitleText(rate: 48_000, tracks: 0, recordTimeLeft: nil, locale: locale, text: table)
+                    == "48 kHz · \(table(.subtitleTracks)) 0")
+        }
+        #expect(subtitleText(rate: 44_100, tracks: 1, recordTimeLeft: nil, locale: esES).hasPrefix("44,1 kHz"))
+        #expect(en[L10n.subtitleTracks.rawValue] == "Tracks:")
     }
 
-    /// A13: before a take under 60 min, during a take under 10 min, and 60 s of hysteresis.
+    /// F152: before a take under 3 h with a band of 300 s, during a take under 10 min with a band
+    /// of 60 s. A banner that showed before a take hides at a take start with more than 10 min.
     @Test func theLowRecordTimeRuleHasHysteresis() {
-        #expect(!showsLowRecordTime(left: .seconds(3_600), recording: false, shownBefore: false))
-        #expect(showsLowRecordTime(left: .seconds(3_599), recording: false, shownBefore: false))
-        #expect(showsLowRecordTime(left: .seconds(3_659), recording: false, shownBefore: true))
-        #expect(!showsLowRecordTime(left: .seconds(3_660), recording: false, shownBefore: true))
+        #expect(showsLowRecordTime(left: .seconds(10_799), recording: false, shownBefore: false))
+        #expect(!showsLowRecordTime(left: .seconds(10_800), recording: false, shownBefore: false))
+        #expect(!showsLowRecordTime(left: .seconds(10_801), recording: false, shownBefore: false))
+        #expect(showsLowRecordTime(left: .seconds(11_099), recording: false, shownBefore: true))
+        #expect(!showsLowRecordTime(left: .seconds(11_100), recording: false, shownBefore: true))
         #expect(!showsLowRecordTime(left: .seconds(600), recording: true, shownBefore: false))
         #expect(showsLowRecordTime(left: .seconds(599), recording: true, shownBefore: false))
         #expect(showsLowRecordTime(left: .seconds(659), recording: true, shownBefore: true))
         #expect(!showsLowRecordTime(left: .seconds(660), recording: true, shownBefore: true))
+        #expect(
+            !showsLowRecordTime(left: .seconds(3_000), recording: true, shownBefore: true), "the take start hides it")
     }
 
-    /// Code gate 1 item 3: the banner says "Less than N min", so N is over the time left, also at
-    /// a whole minute: 30 s gives 1, exactly 5 min gives 6, 59.9 min gives 60.
-    @Test func theLowRecordTimeBannerSaysMoreThanTheTimeLeft() {
+    /// Code gate 1 item 3, F152: the banner says "Less than N", so N is over the time left, also
+    /// at a whole minute: 30 s gives 1 min, exactly 5 min gives 6 min, 2 h gives 2 hr, 1 min.
+    @Test func theLowRecordTimeBannerSaysMoreThanTheTimeLeft() throws {
         #expect(lowRecordTimeMinutes(.seconds(0)) == 1)
         #expect(lowRecordTimeMinutes(.seconds(30)) == 1)
         #expect(lowRecordTimeMinutes(.seconds(299)) == 5)
         #expect(lowRecordTimeMinutes(.seconds(300)) == 6, "exactly 5 min left is not less than 5 min")
         #expect(lowRecordTimeMinutes(.milliseconds(3_594_000)) == 60)
+        #expect(lowRecordTimeMinutes(.seconds(7_200)) == 121)
+        #expect(lowRecordTimeMinutes(.seconds(10_799)) == 180)
+        let (en, es) = (try stringsTable("en"), try stringsTable("es"))
+        let (english, spanish) = ({ (key: L10n) in en[key.rawValue] ?? "" }, { (key: L10n) in es[key.rawValue] ?? "" })
+        let enUS = Locale(identifier: "en_US")
+        let action = " of record time left on this disk. Free up disk space before you record."
+        #expect(lowRecordTimeText(minutes: 121, locale: enUS, text: english) == "Less than 2 hr, 1 min" + action)
+        #expect(lowRecordTimeText(minutes: 180, locale: enUS, text: english) == "Less than 3 hr" + action)
+        #expect(lowRecordTimeText(minutes: 1, locale: enUS, text: english) == "Less than 1 min" + action)
+        #expect(
+            lowRecordTimeText(minutes: 150, locale: Locale(identifier: "es_ES"), text: spanish)
+                == "Quedan menos de 2 h y 30 min de grabación en este disco. Libera espacio antes de grabar.")
     }
 
     /// A15, A16: the symbol of each kind, the kind of each banner, its text key, and its
@@ -61,7 +84,7 @@ struct BannerValueTests {
         let banners: [(WindowBanner, WindowBanner.Kind, String, NSAccessibilityPriorityLevel?)] = [
             (.playbackStopped(.outputChanged), .warning, L10n.transportStopOutputChanged.text, .high),
             (.missingMedia(["a.wav"]), .error, L10n.mediaMissing.text, .medium),
-            (.lowRecordTime(minutes: 5), .warning, L10n.bannerLowRecordTime.text, .high),
+            (.lowRecordTime(minutes: 5), .warning, L10n.bannerLowRecordTimeLeft.text, .high),
             (
                 .levelReport(LevelReport(changed: 1, atLimit: 0, unmeasured: 0), press: 1), .info,
                 L10n.bannerLevelChanged.text, .medium
@@ -78,7 +101,8 @@ struct BannerValueTests {
         }
         for language in ["en", "es"] {
             let table = (try? stringsTable(language)) ?? [:]
-            for key in [L10n.bannerLowRecordTime, .mediaMissing, .transportStopOutputChanged, .transportRecordOver] {
+            for key in [L10n.bannerLowRecordTimeLeft, .mediaMissing, .transportStopOutputChanged, .transportRecordOver]
+            {
                 #expect(table[key.rawValue]?.hasSuffix(".") == true, "\(language) \(key): a fact, then an action")
                 #expect((table[key.rawValue]?.split(separator: ".").count ?? 0) >= 2, "\(language) \(key)")
             }

@@ -320,7 +320,7 @@ enum L10n: String, CaseIterable {
     case keySpace = "key.space"
     case subtitleTracks = "subtitle.tracks"
     case subtitleRecordTime = "subtitle.record.time"
-    case bannerLowRecordTime = "banner.low.record.time"
+    case bannerLowRecordTimeLeft = "banner.low.record.time.left"
     case bannerUseHeadphones = "banner.use.headphones"
     case bannerMonitorHeadphones = "banner.monitor.headphones"
     case bannerExportReport = "banner.export.report"

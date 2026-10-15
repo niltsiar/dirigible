@@ -99,7 +99,7 @@ import os
 
     /// Code gate 1 item 2, plan gate 2 items 4 and 5: a read that hangs holds one pool thread at
     /// most. The first read waits at an async gate; ten triggers during it start no read. After it
-    /// ends, one more read runs, and its 5 min stays over the 90 min of the old read.
+    /// ends, one more read runs, and its 5 min stays over the 200 min of the old read.
     @Test func oneRecordTimeReadRunsAtATime() async throws {
         let (model, _, _, chrome) = try await open()
         // No idle tick reads during the test: in a full suite a tick came during the read after
@@ -114,7 +114,7 @@ import os
             calls += 1
             if calls == 1 {
                 await gate.wait()
-                return .seconds(5_400)
+                return .seconds(12_000)
             }
             return .seconds(300)
         }
@@ -141,7 +141,7 @@ import os
 
     @Test func theIdleRecordTimeBannerHasHysteresis() async throws {
         let (model, _, _, chrome) = try await open()
-        for (seconds, shows) in [(3_700, false), (3_599, true), (3_630, true), (3_660, false)] {
+        for (seconds, shows) in [(11_000, false), (10_799, true), (11_099, true), (11_100, false), (10_900, false)] {
             await read(seconds: seconds, model, chrome)
             await until(limit: .seconds(5), "\(seconds) s: the banner follows") { lowTime(model) == shows }
             #expect(lowTime(model) == shows, "\(seconds) s")
@@ -242,7 +242,7 @@ import os
 
         #expect(
             heard == [
-                "\(high) \(L10n.bannerLowRecordTime.text)", "\(high) \(L10n.transportStopOutputChanged.text)",
+                "\(high) \(L10n.bannerLowRecordTimeLeft.text)", "\(high) \(L10n.transportStopOutputChanged.text)",
                 "\(NSAccessibilityPriorityLevel.medium.rawValue) \(L10n.mediaMissing.text)",
             ])
         await model.close()

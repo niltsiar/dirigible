@@ -446,8 +446,8 @@
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Pistas:";
-"subtitle.record.time" = "Grabación:";
-"banner.low.record.time" = "Quedan menos de %lld min de grabación en este disco. Libera espacio antes de grabar.";
+"subtitle.record.time" = "Grabación restante:";
+"banner.low.record.time.left" = "Quedan menos de %@ de grabación en este disco. Libera espacio antes de grabar.";
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";
 "banner.export.report" = "La exportación de %1$@ terminó: %2$@.";

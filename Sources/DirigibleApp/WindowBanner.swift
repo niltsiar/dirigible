@@ -105,7 +105,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped(let stop): L10n.message(for: stop)
         case .missingMedia(let paths): L10n.mediaMissing.format(paths.joined(separator: ", "))
-        case .lowRecordTime(let minutes): L10n.bannerLowRecordTime.format(minutes)
+        case .lowRecordTime(let minutes): lowRecordTimeText(minutes: minutes)
         case .useHeadphones: L10n.bannerUseHeadphones.text
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
         case .exportReport(let report, let file):

@@ -229,6 +229,7 @@ struct SearchedExportTests {
 
         var trials: Int { steps.filter { if case .trial = $0 { true } else { false } }.count }
         var writes: Int { steps.filter { if case .write = $0 { true } else { false } }.count }
+        var readBacks: Int { steps.filter { $0 == .readBack }.count }
     }
 
     /// Exports all of `channels` with the target. `isCancelled` and `progress` are the hooks of the
@@ -318,5 +319,22 @@ struct SearchedExportTests {
         #expect(values.last == 1, "the last value: \(String(describing: values.last))")
         #expect(values.contains { 0.15 < $0 && $0 <= 0.3 }, "no value in the trial band")
         #expect(values.contains { 0.3 < $0 && $0 < 1 }, "no value in the write band")
+    }
+
+    /// A 48 kHz session exports to 44.1 kHz: the converter can raise the true peak (0.3 dB in 0032),
+    /// so the file is read back. The line has the passes of case (e) of the time table.
+    @Test func anExportAtAnotherRateKeepsTheCeiling() throws {
+        let options = ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .hz44100, loudness: .podcast)
+
+        let export = try Self.export(Self.train(), options)
+
+        let back = try ExportTests.read(export.url)
+        let peak = try #require(try truePeak(back.channels))
+        print(
+            "anExportAtAnotherRateKeepsTheCeiling: \(1 + export.trials + export.writes) renders, "
+                + "\(export.trials) trial passes, \(export.writes) writes, \(export.readBacks) read-backs")
+        #expect(back.rate == 44_100)
+        #expect(peak <= -1.0, "the read-back true peak: \(peak) dBTP")
+        expectLUFS(try measure(back.channels, rate: 44_100).integrated, -16, tolerance: 0.2, "the read-back")
     }
 }

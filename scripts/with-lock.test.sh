@@ -7,7 +7,8 @@
 # TERM to a holder (the command stops and the lock goes), a dead holder with a live child (the call
 # waits), a dead holder (the lock is taken over), a git dir with no write (exit 2, also with a dead
 # holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
-# with no wait). Each case uses a temporary repo with a worktree, so the lock of an outer
+# with no wait), and a lock folder that goes between a failed mkdir and the test for it (the call
+# tries again). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -231,6 +232,32 @@ code=$?
 chmod -R u+w "$lock" 2>/dev/null
 [[ $code -eq 2 && "$out" == *'cannot write the pid'* ]] || fail "pid write: exit $code: $out"
 [[ ! -e "$lock" && ! -e "$tmp/ran2" ]] || fail 'pid write: the lock stays or the command ran'
+
+# The holder removes the lock between a failed mkdir and the test for the folder: a healthy call
+# tries again and runs, for an ordinary call and for a release call. A wrapper of mkdir fails the
+# first tries on the lock and leaves no folder, as that window does. When all tries fail with no
+# folder (the no-write case above), the call still exits 2.
+cat > "$tmp/bin/mkdir" << EOF
+#!/bin/bash
+if [[ "\${@: -1}" == *dirigible-build.lock ]]; then
+  n=\$(cat "$tmp/tries" 2>/dev/null || echo 0)
+  echo \$((n + 1)) > "$tmp/tries"
+  [[ \$n -ge \$FAIL_TRIES ]] || exit 1
+fi
+exec /bin/mkdir "\$@"
+EOF
+for words in "touch $tmp/ran3" "$fake/make check-changed BASE=x"; do
+  rm -f "$tmp/tries" "$tmp/ran3" "$tmp/order"
+  out="$(FAIL_TRIES=2 PATH="$tmp/bin:$PATH" "$repo/scripts/with-lock.sh" $words 2>&1)"
+  code=$?
+  [[ $code -eq 0 && "$out" != *'cannot make'* ]] || fail "lock removed after a failed mkdir, $words: exit $code: $out"
+  [[ "$(cat "$tmp/tries" 2>/dev/null)" -ge 3 ]] || fail "lock removed after a failed mkdir, $words: no later try"
+  [[ ! -e "$lock" ]] || fail "lock removed after a failed mkdir, $words: the lock stays"
+done
+rm -f "$tmp/tries"
+FAIL_TRIES=99 PATH="$tmp/bin:$PATH" "$repo/scripts/with-lock.sh" true > "$tmp/wait.out" 2>&1
+code=$?
+[[ $code -eq 2 && "$(cat "$tmp/wait.out")" == *'cannot make'* ]] || fail "mkdir fails with no folder: exit $code: $(cat "$tmp/wait.out")"
 
 [[ $failures -eq 0 ]] && echo "with-lock tests: all passed"
 exit $((failures > 0))

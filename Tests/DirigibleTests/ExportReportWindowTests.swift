@@ -136,7 +136,7 @@ extension ExportWindowTests {
         #expect(WindowAlert.exported(["f.wav"], large).text.hasSuffix(L10n.reportGainLarge.text))
         #expect(
             !WindowBanner.exportReport(try report(gain: 14), file: "a.wav").text.contains(L10n.reportGainLarge.text))
-        for language in ["en", "es"] {
+        for language in AppLanguage.allCases.map(\.rawValue) {
             let text = (try? stringsTable(language))?["banner.export.report"] ?? ""
             #expect(text.contains("%1$@") && text.contains("%2$@"), "\(language): \(text)")
         }
@@ -205,7 +205,7 @@ extension ExportWindowTests {
         let banner = WindowBanner.chapterImagesOmitted(file: "mix.m4a")
         await until("the banner shows") { model.shown.banners.contains(banner) }
         #expect(banner.kind == .warning)
-        for language in ["en", "es"] {
+        for language in AppLanguage.allCases.map(\.rawValue) {
             let text = (try? stringsTable(language))?["banner.export.chapter.images.omitted"] ?? ""
             #expect(text.contains("%@"), "\(language): \(text)")
         }

@@ -33,6 +33,7 @@
 	<string>com.delineas.dirigible</string>
 	<key>CFBundleLocalizations</key>
 	<array>
+		<string>de</string>
 		<string>en</string>
 		<string>es</string>
 	</array>

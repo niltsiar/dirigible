@@ -1,19 +1,38 @@
 import Foundation
 import SwiftUI
 
-/// The language of the app (R13, decision 0010). English and Spanish store one language in the app
-/// domain; System Language stores no key, so the app follows macOS. The change applies at the next
-/// launch.
+/// A language of the UI (R13, decision 0010). The one list of the `.lproj` folders, of
+/// `CFBundleLocalizations`, of the Settings pop-up, and of the text-rule tests. The order is the
+/// order of the pop-up.
+enum AppLanguage: String, CaseIterable {
+    case german = "de"
+    case english = "en"
+    case spanish = "es"
+
+    /// The name of the language in that language, so a user who cannot read the current UI
+    /// language still finds theirs.
+    var endonym: String {
+        switch self {
+        case .german: "Deutsch"
+        case .english: "English"
+        case .spanish: "Español"
+        }
+    }
+}
+
+/// The language of the app (R13, decision 0010). Each language stores its code in the app
+/// domain; System Language stores no key, so the app follows macOS. The change applies at the
+/// next launch.
 enum LanguageChoice: Hashable {
-    case system, english, spanish
+    case system
+    case language(AppLanguage)
 
     static let key = "AppleLanguages"
 
     var appleLanguages: [String]? {
         switch self {
         case .system: nil
-        case .english: ["en"]
-        case .spanish: ["es"]
+        case .language(let language): [language.rawValue]
         }
     }
 
@@ -24,9 +43,10 @@ enum LanguageChoice: Hashable {
             self = .system
             return
         }
-        self =
-            Bundle.preferredLocalizations(from: ["en", "es"], forPreferences: stored).first == "es"
-            ? .spanish : .english
+        let code = Bundle.preferredLocalizations(
+            from: AppLanguage.allCases.map(\.rawValue), forPreferences: stored
+        ).first
+        self = .language(code.flatMap(AppLanguage.init(rawValue:)) ?? .english)
     }
 
     /// The app domain only: `defaults` alone also returns the global language list.
@@ -48,7 +68,7 @@ struct SettingsView: View {
     /// Nil: no agent part (tests).
     let app: AppDelegate?
     /// The first value comes from `init`, not from `onAppear`: a set there runs `onChange`, which
-    /// writes over a stored list such as `["fr", "es"]`.
+    /// writes over a stored list such as `["ja", "es"]`.
     @State private var choice: LanguageChoice
 
     init(defaults: UserDefaults?, domain: String?, app: AppDelegate? = nil) {
@@ -68,9 +88,9 @@ struct SettingsView: View {
             Picker(L10n.settingsLanguage.key, selection: $choice) {
                 Text(L10n.settingsLanguageSystem.key).tag(LanguageChoice.system)
                 Divider()
-                // Endonyms: a user who cannot read the current UI language still finds their language.
-                Text(verbatim: "English").tag(LanguageChoice.english)
-                Text(verbatim: "Español").tag(LanguageChoice.spanish)
+                ForEach(AppLanguage.allCases, id: \.self) { language in
+                    Text(verbatim: language.endonym).tag(LanguageChoice.language(language))
+                }
             }
             Text(L10n.settingsLanguageRestart.key).settingsHelp()
             if let app {

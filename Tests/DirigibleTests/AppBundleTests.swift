@@ -28,10 +28,10 @@ struct AppBundleTests {
         #expect(!micReason.isEmpty)
     }
 
-    @Test func permissionTextsAreInEnglishWithSpanishTranslation() throws {
+    @Test func permissionTextsAreTranslatedInEachLanguage() throws {
         let plist = try propertyList(at: "Contents/Info.plist")
         #expect(plist["CFBundleDevelopmentRegion"] as? String == "en")
-        #expect(plist["CFBundleLocalizations"] as? [String] == ["en", "es"])
+        #expect(plist["CFBundleLocalizations"] as? [String] == AppLanguage.allCases.map(\.rawValue))
         #expect(
             plist["NSMicrophoneUsageDescription"] as? String
                 == "Dirigible records audio from your microphones and audio interfaces.")
@@ -49,6 +49,20 @@ struct AppBundleTests {
             spanish["NSAudioCaptureUsageDescription"] as? String
                 == "Dirigible graba el sonido de las apps que eliges como fuente de una pista, por ejemplo una llamada."
         )
+
+        let english = [
+            "NSMicrophoneUsageDescription": plist["NSMicrophoneUsageDescription"] as? String,
+            "NSAudioCaptureUsageDescription": plist["NSAudioCaptureUsageDescription"] as? String,
+            "Dirigible Session": "Dirigible Session",
+        ]
+        for language in AppLanguage.allCases.map(\.rawValue) where language != "en" {
+            let table = try propertyList(at: "Contents/Resources/\(language).lproj/InfoPlist.strings")
+            for (key, value) in english {
+                let text = table[key] as? String ?? ""
+                #expect(!text.isEmpty, "\(language) \(key) has no text")
+                #expect(text != value, "\(language) \(key) is the English text")
+            }
+        }
     }
 
     /// A session is a document package (decision 0003): Finder shows it as one file.
@@ -77,13 +91,16 @@ struct AppBundleTests {
 
     /// The UI tables are in the bundle (decision 0010). The English table is the control: the
     /// same key gives a different value, so the Spanish value comes from `es.lproj`.
-    @Test func uiStringsResolveInEnglishAndSpanish() throws {
+    @Test func uiStringsResolveInEachLanguage() throws {
         let bundle = try #require(Bundle(url: app))
-        #expect(Set(bundle.localizations).isSuperset(of: ["en", "es"]))
+        #expect(Set(bundle.localizations).isSuperset(of: AppLanguage.allCases.map(\.rawValue)))
         let spanish = try propertyList(at: "Contents/Resources/es.lproj/Localizable.strings")
         let english = try propertyList(at: "Contents/Resources/en.lproj/Localizable.strings")
-        #expect(spanish["menu.record.start"] as? String == "Grabar")
-        #expect(english["menu.record.start"] as? String == "Record")
+        let record = ["de": "Aufnehmen", "en": "Record", "es": "Grabar"]
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try propertyList(at: "Contents/Resources/\(language).lproj/Localizable.strings")
+            #expect(table["menu.record.start"] as? String == record[language], "\(language) menu.record.start")
+        }
         // App sources (A7, A9, A14, A15).
         let texts: [(key: String, en: String, es: String)] = [
             ("track.state.waiting.app", "Waiting for %@", "Esperando a %@"),

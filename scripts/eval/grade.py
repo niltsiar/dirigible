@@ -194,14 +194,14 @@ def verdict(old, new):
         po, ro, pn, rn = passes.get((s, old), 0), runs.get((s, old), 0), passes.get((s, new), 0), runs.get((s, new), 0)
         result = "not due" if min(ro, rn) < 6 else "PASS" if pn > po - 2 else "FAIL"
         if result == "FAIL" and s.startswith("H"):
-            held += [] if s in held else [s]
+            held.append(s)
         else:
             ok &= result != "FAIL"
         print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
         if typ[s] == "policy":
             ok &= 3 * pn >= 2 * rn
             print(f"policy {s}: new {pn}/{rn}: {word[3 * pn >= 2 * rn]}")
-    for s in held:
+    for s in dict.fromkeys(held):
         print(f"holdout fail {s}: no changed text")
     print(f"verdict: {word[ok]}")
     sys.exit(0 if ok else 1)

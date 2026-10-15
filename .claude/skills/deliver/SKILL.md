@@ -101,7 +101,7 @@ Run the **reflect** skill on the branch. Then move each `## Later` item that thi
 
 ## Phase 9: Land through a pull request
 
-1. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md` with `run_in_background` and a Bash `timeout` of 7200000. Read its output for the `pr:` and `range:` lines.
+1. Set the `features.md` state of each F-ID that the run lands (`docs/workflow/release-cycle.md`); `check-governance.sh` refuses the land otherwise. Write `<run>/pr.md` with the **pr** skill. Then run `scripts/land.sh "<plain title>" <run>/pr.md` with `run_in_background` and a Bash `timeout` of 7200000. Read its output for the `pr:` and `range:` lines.
 2. If the land stops on a conflict, resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge. Record the conflict and the branch in `run.md`.
 3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
 

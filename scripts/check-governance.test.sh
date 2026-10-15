@@ -4,7 +4,7 @@
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy, a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run in ## Next of the backlog after the reflect row (phase 8), a features.md row
-# of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat
+# of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat
 # run that changes app code with no `- Lands:` line. Each case uses a temporary repo with a base commit on main
 # and a branch.
 # Run by `make test-hooks`.
@@ -267,6 +267,16 @@ runs_repo; sed -i '' 's/^\(| F35 | [^|]*| [^|]*| \)[^|]*|/\1done, Release 5 run 
 refuse 'a first run number of a release that is not 1' 'F35 has Release 5 run 2, but the next run number of Release 5 is 1'
 new_repo; mkdir -p "$tmp/r/docs/requirements"; printf '| F01 | One | Logic | done, Release 4 run 5 | R1 |\n' > "$features"; commit
 pass 'a base with no features.md and any run number'
+
+# A done part of the base stays: a shipped run number is not removed, and a done row does not go back.
+runs_repo; sed -i '' 's/^\(| F01 | [^|]*| [^|]*| \)[^|]*|/\1Later |/' "$features"; commit
+refuse 'a done row set back to Later' 'features.md lost or changed the done part Release 4 run 1 of F01'
+runs_repo; sed -i '' 's/^\(| F01 | [^|]*| [^|]*| \)[^|]*|/\1Dropped (not used) |/' "$features"; commit
+refuse 'a done row set to Dropped' 'features.md lost or changed the done part Release 4 run 1 of F01'
+runs_repo; sed -i '' 's/Release 4 run 1/Release 5 run 1/' "$features"; commit
+refuse 'a done part that moves to another release' 'features.md lost or changed the done part Release 4 run 1 of F01'
+runs_repo; sed -i '' 's/; Later: a part//' "$features"; commit
+pass 'a done row that drops its Later part'
 
 # Two holdout fails in a row stop the land. grade.py verdict writes its fail lines to
 # eval/holdout-fails.txt of the run, so no hand row is needed. The run to compare is the newest done

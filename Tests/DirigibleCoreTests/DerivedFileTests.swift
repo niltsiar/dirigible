@@ -67,6 +67,15 @@ struct DerivedFileTests {
         #expect(runs == [ClipRun(file: "fa", span: 9_000..<32_000, clips: ["A"])])
     }
 
+    /// A clip ID named twice is one clip: the run lists it once.
+    @Test func aRepeatedClipIsListedOnce() throws {
+        let session = try session(clips: [("A", 1_000_000, 100_000), ("B", 2_060_000, 100_000)])
+
+        let runs = try session.clipRuns(of: ["A", "B", "A", "A"])
+
+        #expect(runs == [ClipRun(file: "f", span: 520_000..<2_640_000, clips: ["A", "B"])])
+    }
+
     /// C9. An unknown clip ID throws and names the clip.
     @Test func anUnknownClipIsRefused() throws {
         let session = try session(clips: [("A", 1_000_000, 100_000)])

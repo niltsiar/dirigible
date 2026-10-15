@@ -89,13 +89,13 @@ actor Player {
     private var number = 0
     private var played = 0
     /// The position while no feed runs.
-    private var frame: Frames = .zero
+    private(set) var frame: Frames = .zero
     private(set) var graph: Graph?
-    private(set) var feed: Feed?
+    var feed: Feed?
     private var stop: PlaybackStop?
     /// The output presentation latency in session frames, read at each play start. The node
     /// frames run ahead of the heard frames by this much. 0 in offline rendering.
-    private var latency = 0
+    private(set) var latency = 0
     /// The refill tick of the running play; nil while no play runs.
     private var ticker: DispatchSourceTimer?
     /// Tests only: the ticks that ran.
@@ -336,39 +336,6 @@ actor Player {
         ticks += 1
         refill()
         loudness.heard(heardFrames())
-    }
-
-    /// Sets the rate of the unit of the running feed, with no new play: a change between two
-    /// speeds other than 1 (decision 0052, S6). False when no feed plays through the unit; the
-    /// caller then starts a new play.
-    func setSpeed(_ speed: Speed) -> Bool {
-        guard speed != .one, let graph, let current = feed?.speed, current != .one else { return false }
-        // No rewire while the node plays: a rewire stops the node (probe S6).
-        guard let unit = graph.unit, setRate(unit, speed) else { return false }
-        let node = nodeFrames()
-        let held = Self.held(nodeFrames: node, latency: latency, speed: current.factor, step: feed?.step)
-        feed?.step = SpeedStep(node: node, held: held)
-        feed?.speed = speed
-        return true
-    }
-
-    /// The frame that the user hears: the heard node frames, at most the scheduled frames.
-    private func position() -> Frames {
-        guard let feed else { return frame }
-        return frame(feed, played: min(heardFrames(), feed.scheduled))
-    }
-
-    /// The node frames that the output played since the play.
-    private func heardFrames() -> Int {
-        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed.factor ?? 1, step: feed?.step)
-    }
-
-    /// The output frames that the node played since its play; 0 before the first render.
-    func nodeFrames() -> Int {
-        guard let node = graph?.node, let time = node.lastRenderTime, time.isSampleTimeValid || time.isHostTimeValid,
-            let player = node.playerTime(forNodeTime: time)
-        else { return 0 }
-        return max(0, Int(player.sampleTime))
     }
 
     private func makeGraph() -> Graph? {

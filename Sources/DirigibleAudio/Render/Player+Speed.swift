@@ -1,5 +1,6 @@
 import AVFoundation
 import AudioToolbox
+import DirigibleCore
 
 /// Finds the speed unit, with no instance, so a check on the main actor loads no audio unit.
 /// Nil when the system has no such component. Tests give one that finds nothing (decision 0052).
@@ -70,6 +71,39 @@ extension Player {
     var speedUnitInGraph: Bool {
         guard let graph, let unit = graph.unit else { return false }
         return graph.engine.outputConnectionPoints(for: graph.node, outputBus: 0).contains { $0.node === unit }
+    }
+
+    /// Sets the rate of the unit of the running feed, with no new play: a change between two
+    /// speeds other than 1 (decision 0052, S6). False when no feed plays through the unit; the
+    /// caller then starts a new play.
+    func setSpeed(_ speed: Speed) -> Bool {
+        guard speed != .one, let graph, let current = feed?.speed, current != .one else { return false }
+        // No rewire while the node plays: a rewire stops the node (probe S6).
+        guard let unit = graph.unit, setRate(unit, speed) else { return false }
+        let node = nodeFrames()
+        let held = Self.held(nodeFrames: node, latency: latency, speed: current.factor, step: feed?.step)
+        feed?.step = SpeedStep(node: node, held: held)
+        feed?.speed = speed
+        return true
+    }
+
+    /// The frame that the user hears: the heard node frames, at most the scheduled frames.
+    func position() -> Frames {
+        guard let feed else { return frame }
+        return frame(feed, played: min(heardFrames(), feed.scheduled))
+    }
+
+    /// The node frames that the output played since the play.
+    func heardFrames() -> Int {
+        Self.heard(nodeFrames: nodeFrames(), latency: latency, speed: feed?.speed.factor ?? 1, step: feed?.step)
+    }
+
+    /// The output frames that the node played since its play; 0 before the first render.
+    func nodeFrames() -> Int {
+        guard let node = graph?.node, let time = node.lastRenderTime, time.isSampleTimeValid || time.isHostTimeValid,
+            let player = node.playerTime(forNodeTime: time)
+        else { return 0 }
+        return max(0, Int(player.sampleTime))
     }
 
     /// Tests only: the node frames that the running feed scheduled.

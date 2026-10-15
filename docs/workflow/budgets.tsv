@@ -45,7 +45,7 @@ path	words	decision
 .claude/skills/research/	347	baseline
 .claude/skills/research/SKILL.md	347	baseline
 .claude/skills/tdd/	3050	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/tdd/SKILL.md	916	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
+.claude/skills/tdd/SKILL.md	917	2026-10-14-workflow-upkeep-2 S18 (decisions.tsv 2026-10-15T05:28: user decision B5, raise by the exact count, C28)
 .claude/skills/tdd/references/flake-triage.md	780	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/tdd/references/test-harness.md	600	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/tdd/references/waits-and-limits.md	790	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)

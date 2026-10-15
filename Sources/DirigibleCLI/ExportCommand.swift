@@ -25,10 +25,9 @@ struct Export: ParsableCommand {
             0 dB. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes \
             32000, 44100, or 48000 Hz. An .m4a gets the chapter markers of the range as a chapter \
             track, and an .mp3 gets them as ID3 CHAP frames, at most 255. Each chapter keeps its URL \
-            and its image. A chapter at \
-            the time of the chapter before it is not in the file, and a warning names it. An .m4a with a \
-            chapter image, a chapter with none, and no episode artwork gets no chapter images, and a \
-            warning says so.
+            and its image. A chapter at the time of the chapter before it is not in the file, and a \
+            warning names it. An .m4a with a chapter image, a chapter with none, and no episode \
+            artwork gets no chapter images, and a warning says so.
             """)
 
     @OptionGroup var package: PackageArgument

@@ -15,9 +15,9 @@ struct ReadBackExportTests {
 
     /// The loudness and the true peak of the file as our meters read the decode.
     static func decoded(_ url: URL) throws -> (loudness: Double, truePeak: Double) {
-        let channels = try ExportTests.read(url).channels
-        let loudness = try #require(try measure(channels).integrated).value
-        return (loudness, try #require(try truePeak(channels)))
+        let file = try ExportTests.read(url)
+        let loudness = try #require(try measure(file.channels, rate: Int(file.rate)).integrated).value
+        return (loudness, try #require(try truePeak(file.channels)))
     }
 
     /// The setup of the retry: AAC 128 and "train" with a start margin of 0 dB, so that the first
@@ -51,6 +51,21 @@ struct ReadBackExportTests {
         let decoded = try Self.decoded(export.url)
 
         #expect(decoded.truePeak <= -1.0, "the decoded true peak: \(decoded.truePeak) dBTP")
+        try Self.expectReport(export, equals: decoded)
+    }
+
+    /// The converter changes a WAV, FLAC, or float CAF file at 44.1 kHz from a 48 kHz session, so
+    /// the file is read back and the report is the file.
+    @Test(arguments: [
+        (ExportFormat.wav(.bits24), "mix.wav"), (.flac(.bits24), "mix.flac"), (.floatCAF, "mix.caf"),
+    ])
+    func aLosslessExportAtAnotherRateReadsBack(format: ExportFormat, name: String) throws {
+        let options = ExportOptions(format: format, layout: .stereo, rate: .hz44100, loudness: .podcast)
+        let export = try SearchedExportTests.export(SearchedExportTests.train(seconds: 5), options, to: name)
+
+        let decoded = try Self.decoded(export.url)
+
+        #expect(export.readBacks == 1, "\(export.readBacks) read-backs")
         try Self.expectReport(export, equals: decoded)
     }
 

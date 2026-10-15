@@ -14,8 +14,8 @@ set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/with-lock.sh"
 failures=0
 tmp="$(mktemp -d)"
-holder="" child="" waiter="" inner=""
-trap 'kill $holder $child $waiter $inner 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
+holder="" child="" waiter="" inner="" other=""
+trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 # The value of an outer with-lock.sh call names another lock.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK
 export WITH_LOCK_RETRY=0.1
@@ -112,6 +112,57 @@ started="" seconds=0 command="" held=""
 IFS=$'\t' read -r started seconds command held < "$waits"
 [[ "$started" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T && "$seconds" -ge 1 && "$command" == "touch $tmp/ran" && "$held" == 'make test' ]] ||
     fail "wait line: [$started] [$seconds] [$command] [$held]"
+
+# A release call (make check-changed BASE=<ref>, scripts/land.sh, make dmg) holds a ticket folder
+# dirigible-build-first/<pid> in the git common dir while it waits; an ordinary call does not take
+# the lock while a live ticket is there. The fake make and land.sh log their arguments.
+first="$repo/.git/dirigible-build-first" fake="$tmp/fake"
+mkdir -p "$fake"
+printf '#!/bin/bash\necho "$*" >> "%s"\nsleep 0.3\n' "$tmp/order" > "$fake/make"
+cp "$fake/make" "$fake/land.sh"
+chmod +x "$fake/make" "$fake/land.sh"
+# The ordinary waiter starts first and retries more often; the release waiter still runs first.
+rm -f "$tmp/order"
+mkdir "$lock" && echo "$holder" > "$lock/pid"
+WITH_LOCK_RETRY=0.02 "$repo/scripts/with-lock.sh" "$fake/make" test-filter ATests > "$tmp/w1.out" 2>&1 &
+other=$!
+until_true 50 grep -q 'held by pid' "$tmp/w1.out" || fail 'release first: the ordinary call did not wait'
+WITH_LOCK_RETRY=2 "$tmp/wt/scripts/with-lock.sh" "$fake/make" check-changed BASE=x > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail 'release first: the release call did not wait'
+rm -rf "$lock"
+wait "$waiter" "$other"
+waiter="" other=""
+[[ "$(paste -sd'|' - < "$tmp/order")" == 'check-changed BASE=x|test-filter ATests' ]] ||
+    fail "a release waiter that starts second runs first: order [$(paste -sd'|' - < "$tmp/order")]"
+[[ -z "$(ls "$first" 2>/dev/null)" ]] || fail "release first: a ticket stays: $(ls "$first")"
+# The ticket of a dead release call does not block an ordinary call.
+/usr/bin/true &
+dead_pid=$!
+wait "$dead_pid"
+mkdir -p "$first/$dead_pid"
+rm -f "$tmp/ran"
+"$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 test -e "$tmp/ran" || fail "a dead ticket blocks an ordinary call: $(cat "$tmp/wait.out")"
+wait "$waiter"
+waiter=""
+# scripts/land.sh and make dmg take a ticket while they wait; make test does not. A TERM removes it.
+mkdir "$lock" && echo "$holder" > "$lock/pid"
+for words in "$fake/land.sh" "$fake/make dmg" "$fake/make check-changed BASE=origin/main" "$fake/make test" "$fake/make check-changed"; do
+  "$repo/scripts/with-lock.sh" $words > "$tmp/wait.out" 2>&1 &
+  waiter=$!
+  until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail "ticket of $words: no wait"
+  case "$words" in
+    *test | *check-changed) [[ ! -e "$first/$waiter" ]] || fail "an ordinary call has a ticket: $words" ;;
+    *) [[ -d "$first/$waiter" ]] || fail "a release call has no ticket: $words" ;;
+  esac
+  kill -TERM "$waiter"
+  wait "$waiter" 2>/dev/null
+  [[ ! -e "$first/$waiter" ]] || fail "a TERM leaves the ticket of $words"
+done
+waiter=""
+rm -rf "$lock"
 
 # A TERM to a holder stops its command, also a process that the command started (make sends
 # TERM only to its recipe shell), and removes the lock.

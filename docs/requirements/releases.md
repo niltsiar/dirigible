@@ -2,9 +2,11 @@
 
 Date: 2026-09-24
 
-This file orders the requirements of `brief.md` into releases. The feature IDs (F01 to F67), the ranking, and the Hindenburg PRO, GarageBand, and Logic Pro comparison are in `docs/research/podcast-features.md`. The decisions are in `docs/decisions/`. Each release ends with a working app on `main`.
+This file orders the requirements of `brief.md` into releases. The feature IDs, their source, and their state are in [features.md](features.md). The ranking and the app comparison stay in `docs/research/podcast-features.md`. The workflow of a release is in `docs/workflow/release-cycle.md`. The decisions are in `docs/decisions/`. Each release ends with a working app on `main`.
 
 ## Release 1: record, edit, export
+
+Status: closed
 
 Goal: record two or more devices, make a rough edit, and export one file. This is the thin path that R1 needs first.
 
@@ -41,6 +43,8 @@ Run order. Each run lands through its own pull request.
 5. **Export.** `exportMix` to WAV, AAC, and FLAC, mono or stereo.
 
 ## Release 2: a podcast-ready episode
+
+Status: closed
 
 Goal: record a remote guest, level the clips, and publish at the podcast loudness.
 
@@ -99,56 +103,110 @@ Run order. The research for this order is in `docs/research/final-cut-pro.md`, `
 
 ## Release 3: Hindenburg-style production
 
-Goal: match the Hindenburg tools that save time on each episode.
+Status: closed
 
-| Requirement | What Release 3 gives |
+Goal: match the Hindenburg tools that save time on each episode. The release closed at what landed. The work that did not land is in Release 4 to 7 and in [features.md](features.md).
+
+| Requirement | What Release 3 gave |
 |---|---|
 | R3 | Record monitor: hear the input of a track in the output (F02 part). |
 | R5 | Remove unused clip files (F87). |
-| R7 | Part: punch-in, pre-roll, vari-speed, replace and room-tone fill, clipboard, split stereo to mono (F07, F08, F18, F21, F22, F25). Roll and slip, a follow track, sync by waveform, a gain envelope, a session index, waveform zoom, drag modes, close gaps, snap to clip edges, the playhead, and markers (F69, F70, F74, F75, F76, F78, F80, F81, F82). A track volume fader in the track header (F94). |
-| R8 | Noise reduction with one control (F35, 0009). Hum removal, and a render of a range through an effect (F77, F89). |
-| R10 | Part: favorites, silence removal, ducking, EQ and compressor, episode metadata and artwork, chapters inside the audio file (F56 part), export presets, templates, track roles (F23, F26, F34, F36, F55, F56, F57, F63, F72). |
-| R11 | Stem export: one file per track or per role (F73). |
-| R14 | Offline removal of the remote guest from the local microphone track (F42). |
+| R7 | Part: vari-speed, snap to clip edges, a track volume fader in the track header, and the transcript import and the cut by words (F18, F82, F94, F27 part). |
+| R10 | Part: episode metadata and artwork, and chapters inside the audio file (F55, F56 part). |
 | R16 | The MCP server in the running app (off by default, a Settings switch, a toolbar mark, the agent name in Undo), and recording after a consent sheet (0041). |
 
 Podcast metadata inside the audio file (title, artwork, chapters as ID3 or MP4 chapters) is Release 3, runs 4 and 5. The user asked for all the metadata that podcast apps read. The `chapters.json` export of Release 2 run 16 does not wait for it: it is a separate file next to the export, not metadata inside the audio file, and it uses only the chapter markers of Release 1.
 
-Rules for Release 3:
-
-- The rules of Release 2 continue: one pull request for each run, the guide and the screenshots in each user-facing run, a menu item with a key for each command (F16), CLI and MCP parity (0011, 0041), the bench rule (0022), and the session version policy (0024).
-- The session version is 5 today. A run that adds user data to `session.xml` raises the version to the next free number, in land order. A session with no new data keeps its old version.
-- The beta tester requests come first (`.scratchpads/runs/feedback-2026-10-04.md`). The user requests come next (R16). The other features follow the score of `podcast-features.md` and their shared parts.
-
 Run order. The research for this order is in `docs/research/podcast-features.md`, `document-window.md`, `mouse-edits.md`, `final-cut-pro.md`, `logic-garageband-update.md`, and `podcasting-2.md`. The tester requests are in `.scratchpads/runs/feedback-2026-10-04.md` (B1.5, B2.7, B2.9, B2.10).
 
-1. **Record monitor (F02 part).** The tester asked for it two times (B1.5, B2.10). A Monitor button in each track header, next to Arm, sends the input of the track to the output, before and during a take. Start with a probe: the latency and the clock drift from the built-in microphone, and from a USB device, to the headphones. `CaptureRing` has one consumer, the `DeviceWriter`. The monitor needs a second ring that the input proc fills, and an output render that reads it and absorbs the drift. Input and output are different devices with no aggregate device (0004). When the output is the built-in speakers, the monitor plays nothing, its button keeps its state, and the "Use headphones" banner shows (F43, `DeviceList.speakers`). An app track has no monitor: the user already hears the call app. Give the meter item and the monitor item two clear names: the toolbar item Monitor Inputs shows only meters today. The monitor state is window state, as Arm, so the session version does not change. No `dirigible` command: the monitor writes nothing to a package, and its output is for a person (0015). The UI expert panel picks the header layout, and the layout keeps space for the fader of run 2. One-way decisions: the owner and the thread of the monitor output path (the `Player` engine with a source node, a second engine, or a separate output IOProc; the Owners rule of 0013); the owner of the monitor input feed, which must live across the hand-over to a take (0015); the drift rule of the monitor ring; whether playback runs during a take (0039 Consequences gives this choice to this run, also for M and S during a take). Research: `document-window.md` section 8, `process-taps.md` line 143, 0015. Manual checks: the latency on headphones, and no feedback on the speakers. Bench case: none if the lanes do not change. The run can split at its plan: **1a** the audio path and a menu item, **1b** the header button, after the arm button run (`feat/arm-toggle-button`) lands.
-2. **Track fader (F94).** The tester asked for a volume control in the track header (B2.9). `Track.gain` is already in the session, the mix, `dirigible track gain`, and the MCP tool `track_gain`. This run adds the UI only: a fader in the header with a dB readout, and a double-click that resets it to 0 dB. A drag plays the new gain at once and makes one edit at the mouse-up: one undo entry and one autosave. A gain change during play uses the mix crossfade of 0039, so it does not step at a chunk boundary (backlog Later item on 0039 point 5). The fader is off during a take, as M and S (0039). Put a range on `Gain(dB:)` in Core, so the fader, the CLI, and the MCP tool refuse the same values (backlog Later item of run 2026-10-07-mcp-cli). The tester said "input volume". Hindenburg's header fader is the track volume of the mix. The run asks the tester to confirm this reading. Rule: every edit path (the app, `dirigible`, MCP) refuses a gain outside -96 to +96 dB. -60 to +20 dB is only the fader travel: a stored value outside the travel pins the thumb, and a drag or a key step does not move it further out. One-way decisions: none (the header layout comes from the panel of run 1). Bench case: a fader drag during play.
-3. **Snap (F82, B2.7).** A clip move, a trim, and a range drag snap to clip edges, the playhead, and the markers, and an alignment guide line shows. View > Snap turns it on and off, with a key. A modifier held during a drag turns snap off for that drag. The snap setting is an app preference, so the session version does not change. No `dirigible` command: snap changes only a mouse gesture, as run 4d of Release 1. Riskiest part first: the snap target search at 2 h with many clips, inside the frame budget of a mouse event. One-way decisions: the snap step in the gesture model (amends 0020); the snap distance in points; the modifier. Research: `mouse-edits.md` section 5, `logic-garageband-update.md`. Bench case: a snap drag at 2 h.
-4. **Episode metadata and artwork (F55).** All the metadata that podcast apps read (user request). The fields: title, show (album), host or author (artist), episode and season numbers, date, genre Podcast, language, copyright, the explicit flag, the episode notes and description (ID3 COMM and TDES, MP4 `desc` and `ldes`), the episode and feed URLs (WXXX, WOAF, WFED), the podcast flags (PCST, TGID), and the artwork (APIC, `covr`). They go in the session, in the MP3 (ID3) and M4A files, in a metadata panel in the app, and in a `dirigible` option for each field. Raises the session version. The research step lists what Apple Podcasts, Overcast, Pocket Casts, and Spotify read. One-way decision: the metadata fields in `session.xml`.
-5. **Chapters inside the audio file (F56 part).** ID3 CHAP and CTOC in MP3 with the sub-frames TIT2, WXXX, and APIC, and a chapter track in M4A, from the chapter markers of run 16 of Release 2. Each chapter has a title, a URL, and an image, also in `chapters.json` (`url`, `img`). One-way decisions: none.
-6. **MCP server in the app (R16 part).** Slice 2 of 0041: the server in the running app, off by default, a Settings switch, a "Copy Claude Code command" button, a toolbar mark while an agent is connected, and the agent name in Undo. The live edit tools map to `Studio.edit(ripple:)`, which refuses a ripple under a pending take (`.rippleBlocked`). One-way decisions: the transport of the in-app server and its life cycle with the windows; the owner of the server state (0013 Owners rule).
-7. **Record with consent (R16 part).** Slice 3 of 0041: an agent asks to record, and the app shows a consent sheet; the take starts only when the user clicks Record. Then the long audio tools (`export`, `render`, `level`, `loudness`, `import`) with `notifications/progress` and `notifications/cancelled`. The run can split at its plan. One-way decision: the consent sheet flow.
-8. **Remove unused clip files (F87).** `dirigible file remove` removes one pool entry that no clip uses, but the WAV stays in `Clips/`. This run adds a scan for pool files that no clip uses and for WAV files in `Clips/` that the pool does not name (after an import that stopped, or a revert to a backup). File > Remove Unused Files shows the list and the size, and moves the files to the Trash after a confirmation. `dirigible file prune` does the same, with `--dry-run`. One-way decisions: the Trash or a delete; the rule for files that a backup of `Backups/` names (0043).
-9. **Pre-roll (F08) and vari-speed (F18).** Record at the playhead after a pre-roll of the other tracks, with a length in Settings. Play at a different speed with the pitch kept. Pre-roll needs playback during a take, with a take anchor that includes the output latency; run 1 left this choice, and mute and solo during a take, to this run (0044). One-way decisions: playback during a take and its take anchor (amends 0039); the speed node in the `Player` engine (amends 0016).
-10. **Replace, room-tone fill, and duplicate (F21), and split stereo to mono (F25).** Each with a menu item, a key, a `dirigible` command, and an MCP tool. One-way decision: split stereo writes two mono files, or the clip gets a channel field (a session version raise).
-11. **Track roles (F72).** Dialogue, music, and effects, with a color. Raises the session version. One-way decision: the role list is fixed or user-defined.
-12. **Stem export (F73).** One file for each track or each role, all from the same start, with `dirigible export --stems`. One-way decisions: none.
-13. **Export presets (F57) and session templates (F63).** Several targets in one step, and a new session from a template package. The presets and the templates live outside the session package. One-way decision: where they are stored.
-14. **Favorites (F23) and clipboard bins (F22).** A clipboard that all sessions share, and named groups of clips in a session. The bins raise the session version. The run can split at its plan.
-15. **Timeline edits (F81, F69, F70, F80).** Close gaps, roll and slip trims, a follow track in a ripple, and drag modes. F70 adds a track flag (a session version raise). The run splits at its plan. One-way decisions: the new mouse zones (amends 0020) and the drag mode setting.
-16. **Session index and waveform zoom (F76, F78).** A list of clips, markers, and chapters with search, and a vertical zoom of the waveforms. One-way decisions: none.
-17. **Gain envelope (F75).** Gain points on a clip, and ramps from a range gain. Raises the session version. One-way decision: the envelope model and its relation to fades (amends 0035).
-18. **Ducking (F34) and silence removal (F26).** Ducking makes gain ramps under speech from the envelope of run 17. Silence removal cuts passages below a threshold with the ripple edit of 0037.
-19. **Sync by waveform (F74).** Align a clip to another track by cross-correlation (Accelerate). One-way decisions: none.
-20. **Render through an effect, hum removal (F89, F77).** Render a range through an effect into a new file and clip, as one undo entry. Hum removal at 50 or 60 Hz is the first effect. One-way decision: the offline render path that runs 21 and 23 also use.
-21. **Noise reduction (F35).** One control. The method decision of 0009 goes first, with a probe on real speech. It uses the render path of run 20.
-22. **EQ and compressor per track (F36).** A real-time chain in the Player and the same result in the export. Raises the session version. One-way decision: the effect chain model.
-23. **Remove the remote guest from the local microphone (F42, R14).** Offline, with the app track as the reference. It uses the DSP of runs 20 and 21. This is the largest unknown of the release, so it comes last.
+1. **Record monitor (F02 part).** The tester asked for it two times (B1.5, B2.10). A Monitor button in each track header, next to Arm, sends the input of the track to the output, before and during a take. Start with a probe: the latency and the clock drift from the built-in microphone, and from a USB device, to the headphones. `CaptureRing` has one consumer, the `DeviceWriter`. The monitor needs a second ring that the input proc fills, and an output render that reads it and absorbs the drift. Input and output are different devices with no aggregate device (0004). When the output is the built-in speakers, the monitor plays nothing, its button keeps its state, and the "Use headphones" banner shows (F43, `DeviceList.speakers`). An app track has no monitor: the user already hears the call app. Give the meter item and the monitor item two clear names: the toolbar item Monitor Inputs shows only meters today. The monitor state is window state, as Arm, so the session version does not change. No `dirigible` command: the monitor writes nothing to a package, and its output is for a person (0015). The UI expert panel picks the header layout, and the layout keeps space for the fader of run 2. One-way decisions: the owner and the thread of the monitor output path (the `Player` engine with a source node, a second engine, or a separate output IOProc; the Owners rule of 0013); the owner of the monitor input feed, which must live across the hand-over to a take (0015); the drift rule of the monitor ring; whether playback runs during a take (0039 Consequences gives this choice to this run, also for M and S during a take). Research: `document-window.md` section 8, `process-taps.md` line 143, 0015. Manual checks: the latency on headphones, and no feedback on the speakers. Bench case: none if the lanes do not change. The run can split at its plan: **1a** the audio path and a menu item, **1b** the header button, after the arm button run (`feat/arm-toggle-button`) lands. Tag: `v0.3.4`.
+2. **Track fader (F94).** The tester asked for a volume control in the track header (B2.9). `Track.gain` is already in the session, the mix, `dirigible track gain`, and the MCP tool `track_gain`. This run adds the UI only: a fader in the header with a dB readout, and a double-click that resets it to 0 dB. A drag plays the new gain at once and makes one edit at the mouse-up: one undo entry and one autosave. A gain change during play uses the mix crossfade of 0039, so it does not step at a chunk boundary (backlog Later item on 0039 point 5). The fader is off during a take, as M and S (0039). Put a range on `Gain(dB:)` in Core, so the fader, the CLI, and the MCP tool refuse the same values (backlog Later item of run 2026-10-07-mcp-cli). The tester said "input volume". Hindenburg's header fader is the track volume of the mix. The run asks the tester to confirm this reading. Rule: every edit path (the app, `dirigible`, MCP) refuses a gain outside -96 to +96 dB. -60 to +20 dB is only the fader travel: a stored value outside the travel pins the thumb, and a drag or a key step does not move it further out. One-way decisions: none (the header layout comes from the panel of run 1). Bench case: a fader drag during play. Tag: `v0.3.4`.
+3. **Snap (F82, B2.7).** A clip move, a trim, and a range drag snap to clip edges, the playhead, and the markers, and an alignment guide line shows. View > Snap turns it on and off, with a key. A modifier held during a drag turns snap off for that drag. The snap setting is an app preference, so the session version does not change. No `dirigible` command: snap changes only a mouse gesture, as run 4d of Release 1. Riskiest part first: the snap target search at 2 h with many clips, inside the frame budget of a mouse event. One-way decisions: the snap step in the gesture model (amends 0020); the snap distance in points; the modifier. Research: `mouse-edits.md` section 5, `logic-garageband-update.md`. Bench case: a snap drag at 2 h. Tag: `v0.3.4`.
+4. **Episode metadata and artwork (F55).** All the metadata that podcast apps read (user request). The fields: title, show (album), host or author (artist), episode and season numbers, date, genre Podcast, language, copyright, the explicit flag, the episode notes and description (ID3 COMM and TDES, MP4 `desc` and `ldes`), the episode and feed URLs (WXXX, WOAF, WFED), the podcast flags (PCST, TGID), and the artwork (APIC, `covr`). They go in the session, in the MP3 (ID3) and M4A files, in a metadata panel in the app, and in a `dirigible` option for each field. Raises the session version. The research step lists what Apple Podcasts, Overcast, Pocket Casts, and Spotify read. One-way decision: the metadata fields in `session.xml`. Tag: `v0.3.4`.
+5. **Chapters inside the audio file (F56 part).** ID3 CHAP and CTOC in MP3 with the sub-frames TIT2, WXXX, and APIC, and a chapter track in M4A, from the chapter markers of run 16 of Release 2. Each chapter has a title, a URL, and an image, also in `chapters.json` (`url`, `img`). One-way decisions: none. Tag: `v0.3.5`.
+6. **MCP server in the app (R16 part).** Slice 2 of 0041: the server in the running app, off by default, a Settings switch, a "Copy Claude Code command" button, a toolbar mark while an agent is connected, and the agent name in Undo. The live edit tools map to `Studio.edit(ripple:)`, which refuses a ripple under a pending take (`.rippleBlocked`). One-way decisions: the transport of the in-app server and its life cycle with the windows; the owner of the server state (0013 Owners rule). Tag: `v0.3.6`.
+7. **Record with consent (R16 part).** Slice 3 of 0041: an agent asks to record, and the app shows a consent sheet; the take starts only when the user clicks Record. Then the long audio tools (`export`, `render`, `level`, `loudness`, `import`) with `notifications/progress` and `notifications/cancelled`. The run can split at its plan. One-way decision: the consent sheet flow. Tag: `v0.3.7`.
+8. **Remove unused clip files (F87).** `dirigible file remove` removes one pool entry that no clip uses, but the WAV stays in `Clips/`. This run adds a scan for pool files that no clip uses and for WAV files in `Clips/` that the pool does not name (after an import that stopped, or a revert to a backup). File > Remove Unused Files shows the list and the size, and moves the files to the Trash after a confirmation. `dirigible file prune` does the same, with `--dry-run`. One-way decisions: the Trash or a delete; the rule for files that a backup of `Backups/` names (0043). Tag: `v0.3.8`.
+9. **Vari-speed (F18).** Play at a different speed with the pitch kept. One-way decision: the speed node in the `Player` engine (amends 0016). Pre-roll moved to Release 6: it needs playback during a take, so that run decides playback during a take and its take anchor (amends 0039). Tag: `v0.3.9`.
+10. **Transcript import and cut by words (F27 part).** Import a transcript (Whisper JSON or WebVTT) and cut the audio by words, in the `dirigible` CLI and the agent tools. The words are stored in a write-once file for each transcript (0055). Tag: `v0.3.10`.
+
+Merges between the runs have a fourth-number tag (`v0.3.4.1` to `v0.3.10.2`): the agent tools and onboarding, the record grant, the ripple of several ranges, UI polish, and the hardening for the first real episode.
+
+## Release 4: sound repair
+
+Goal: repair a recording: reduce noise and hum, level a voice, match voices, and fix harsh sounds and peaks. The list order fixes no version.
+
+| Requirement | What Release 4 gives |
+|---|---|
+| R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono (F107, F108, F109, F25). |
+| R8 | Noise reduction, hum removal, a render of a range through an effect, a render link, and a repair set: rumble, clipped peaks, and harsh "s" sounds (F35, F77, F89, F110, F98, F99, F100). |
+| R9 | Part: a leveler that rides the gain inside a clip (F38 part). |
+| R10 | Part: voice match, and the leveler (F37 part, F38 part). |
+| R12 | Part: the meter and the permission state of an armed app track before a take (F114). |
+| R13 | More UI languages (F113). |
+
+1. **More UI languages (F113).** Portuguese, German, French, Italian, and Dutch, with the language preference of Release 2 (0010).
+2. **Markers during a take (F107).** Add a marker while the take runs.
+3. **Empty session drop and lane click (F108, F109).** A drop of files on an empty session makes one track for each file. A click in an empty lane selects its track.
+4. **Split stereo to mono (F25).** Split a stereo clip into two mono clips, each with a menu item, a key, a `dirigible` command, and an MCP tool. Run: `2026-10-13-replace-roomtone-split` L1.
+5. **Noise reduction and the clip render (F35, F89).** One control for noise reduction, on the render of a clip through an effect. Run: `2026-10-13-render-denoise` L1.
+6. **Render link (F110).** A rendered clip keeps a link to its original, so that the user changes the amount of the effect later or restores the original. Run: `2026-10-14-render-link`.
+7. **Hum removal and the dial (F77).** Hum removal at 50 or 60 Hz, and the preview dial of the noise reduction. Run: `2026-10-13-render-denoise` L2.
+8. **The leveler (F38 part).** Gain riding inside a clip, as a render effect. Run: `2026-10-14-leveler`.
+9. **Voice match (F37 part).** Match the EQ of a clip to a reference clip. Run: `2026-10-14-voice-match`.
+10. **The repair set (F98, F99, F100).** Reduce rumble with a high-pass filter, repair clipped peaks, and soften harsh "s" sounds.
+11. **Armed app track (F114).** A level meter and the permission state of an armed app track before a take.
+
+## Release 5: edit by text
+
+Goal: edit the audio from its transcript, and cut silence with a review list.
+
+| Requirement | What Release 5 gives |
+|---|---|
+| R7 | The text pane of a transcript, cut edges at the word edges, and transcription in the app (F27, F111, F112). |
+| R10 | The silence tool with a review list (F26, F96). |
+| R11 | Export one file for each chapter or marker (F95). |
+
+1. **The text pane (F27).** Show the transcript beside the lanes, select words, and cut the audio from the text. The import and the cut by words in the CLI landed in Release 3 run 10. Run: `2026-10-13-transcript-1` landing 2.
+2. **Cut edges (F111).** A cut by words lands at the word edges.
+3. **Transcription in the app (F112).** whisper.cpp in the app, vendored as LAME is (0034).
+4. **The silence tool (F26, F96).** Find the long pauses, and shorten, mute, or mark each one from a review list.
+5. **Export one file for each chapter or marker (F95).**
+
+## Release 6: timeline editing
+
+Goal: edit the timeline faster: pre-roll, replace and fill, and the timeline edits of Logic Pro and Final Cut Pro.
+
+| Requirement | What Release 6 gives |
+|---|---|
+| R7 | Part: pre-roll, replace, room-tone fill, duplicate, close gaps, roll and slip trims, a follow track, drag modes, a session index, waveform zoom, and sync by waveform (F08, F21, F69, F70, F74, F76, F78, F80, F81). |
+
+1. **Pre-roll (F08).** Record at the playhead after a pre-roll of the other tracks, with a length in Settings. The run decides playback during a take and its take anchor (amends 0039).
+2. **Replace, room-tone fill, and duplicate (F21).** Each with a menu item, a key, a `dirigible` command, and an MCP tool. Run: `2026-10-13-replace-roomtone-split` L2 and L3.
+3. **Timeline edits (F81, F69, F70, F80).** Close gaps, roll and slip trims, a follow track in a ripple, and drag modes. The run splits at its plan.
+4. **Session index and waveform zoom (F76, F78).** A list of clips, markers, and chapters with search, and a vertical zoom of the waveforms.
+5. **Sync by waveform (F74).** Align a clip to another track by its audio waveform.
+
+## Release 7: mix and organization
+
+Goal: mix with roles, a gain envelope, and ducking, and organize the work with presets, templates, favorites, and bins.
+
+| Requirement | What Release 7 gives |
+|---|---|
+| R7 | A gain envelope on a clip (F75). |
+| R10 | Track roles, ducking, export presets and templates, favorites, and clipboard bins (F72, F34, F63, F23, F22). |
+| R11 | Stem export and export presets (F73, F57). |
+
+1. **Track roles (F72).** Dialogue, music, and effects, with a color.
+2. **Gain envelope (F75).** Gain points on a clip, and ramps from a range gain.
+3. **Ducking (F34).** Gain ramps for the music under speech, from the envelope and the roles.
+4. **Stem export (F73).** One file for each track or each role, all from the same start.
+5. **Export presets and session templates (F57, F63).** Several targets in one step, and a new session from a template package.
+6. **Favorites and clipboard bins (F23, F22).** A clipboard that all sessions share, and named groups of clips in a session.
 
 ## Versions
 
-The app version is `0.<release>.<run>`, from the release and the run number of this file, with the fourth number of bullet 1. Release 3 run 4 is `0.3.4`, and Release 4 starts at `0.4.0`.
+The app version is `0.<release>.<run>`, from the release and the run number of this file, with the fourth number of bullet 1. Release 3 run 4 is `0.3.4`, and Release 4 run 1 is `0.4.1`. A run that lands an F-ID takes the lowest open release and the next run number of that release; the list order below fixes no version.
 
 - A version never goes down. A merge that changes app code (`Sources/`, `Package.swift`, `Package.resolved`, `Support/`) gets the next fourth number on the newest tag when the lead tags it, if it is not a numbered run or if it lands after a higher run (runs land in parallel): `0.3.4.1`, `0.3.4.2`; run 7 after `v0.3.8.1` is `0.3.8.2`, not `0.3.7.1`. The fourth number counts the tags, not the merges. The next numbered run resets it.
 - The source of the version is an annotated tag `v<version>` on `main`. A lightweight tag does not count. There is no GitHub release.
@@ -160,7 +218,4 @@ The app version is `0.<release>.<run>`, from the release and the run number of t
 
 ## Later
 
-Each item needs its own design run.
-
-- R5: session interchange, first the AES31-3 ADL export (F67, 0003).
-- R7 and R10: transcripts and text editing (F27), Voice Profiler (F37), Magic Levels (F38), time stretch (F28), track groups (F24), Audio Unit plug-ins (F39), upload to hosts (F58), user-defined shortcuts (F64), retroactive capture (F09), connected clips (F71), the height of one track (F85 part), help tags with keys (F86), session alternatives (F88), lock a track (F90), take folders and comps (F91), a large time display (F92).
+Each feature with the state Later in [features.md](features.md) waits for its own design run.

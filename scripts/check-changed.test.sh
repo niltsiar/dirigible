@@ -259,6 +259,56 @@ printf 'let y = 1\n' >> "$tmp/r/$sw"
 got="$(run_in main)" || fail "a doc, a comment, and code in a floor file: exit $?"
 [[ "$got" == "$(out 'docs sources-risk' 'check test-slow-push' yes)" ]] || fail "a doc, a comment, and code in a floor file: got [$got]"
 
+# The delta after a pass stamp: the targets of the paths since the stamp commit S only, and the
+# classes and risk of the whole base diff. stamp_case <path before S> <path after S|-> [stamp base]:
+# on a branch with a slow run today, a commit of the first path, a stamp of it (base main, or the
+# stamp base), then a commit of the second path. stamp_is <name> <classes> <targets> <risk>.
+stamp_line() { echo "$1 $(g rev-parse "$2") check" >> "$tmp/r/.git/dirigible-check-stamp"; }
+put() { mkdir -p "$(dirname "$tmp/r/$1")" && printf '%s\n' "$2" >> "$tmp/r/$1" && g add -A && g commit -q -m "$1"; }
+stamp_case() {
+  new_repo
+  g switch -q -c feat/d
+  echo "$today" > "$tmp/r/.git/dirigible-slow-date"
+  put "$1" one
+  stamped="$(g rev-parse HEAD)"
+  stamp_line "$stamped" "${3:-main}"
+  [[ "$2" == - ]] || put "$2" two
+}
+stamp_is() {
+  local want
+  want="$(printf 'stamp: delta %s\n%s' "$stamped" "$(out "$2" "$3" "$4")")"
+  got="$(run_in main)" || { fail "$1: exit $?"; return; }
+  [[ "$got" == "$want" ]] || fail "$1: got [$got], want [$want]"
+}
+stamp_case Tests/T.swift docs/b.md
+stamp_is 'a docs-only change after a pass stamp gives check-docs' 'docs tests' check-docs no
+stamp_case Sources/DirigibleAudio/A.swift docs/b.md
+stamp_is 'a docs change after a stamp of a risk change keeps the risk' 'docs sources-risk' check-docs yes
+stamp_case docs/b.md Tests/T.swift
+stamp_is 'a Tests path after a stamp gives check' 'docs tests' check no
+stamp_case docs/b.md Sources/DirigibleAudio/A.swift
+stamp_is 'a risk path after a stamp gives the slow tests' 'docs sources-risk' 'check test-slow-push' yes
+stamp_case Tests/T.swift -
+stamp_is 'a stamp of HEAD with a clean tree' tests none no
+printf 'x\n' >> "$tmp/r/docs/a.md"
+stamp_is 'a stamp of HEAD and a changed doc in the working tree' 'docs tests' check-docs no
+# The delta reads the content against S: a comment after a stamp of code in a floor file.
+stamp_case $sw -
+printf '// note\n' >> "$tmp/r/$sw"
+g commit -q -am comment
+stamp_is 'a comment after a stamp of floor code' sources-risk check-fast yes
+# No delta: a stamp of another base, and a stamp of a commit that is not an ancestor of HEAD.
+stamp_case Tests/T.swift docs/b.md HEAD
+got="$(run_in main)" || fail "a stamp of another base: exit $?"
+[[ "$got" == "$(out 'docs tests' check no)" ]] || fail "a stamp of another base: got [$got]"
+stamp_case Tests/T.swift docs/b.md HEAD
+g switch -q -c feat/other main
+put docs/c.md other
+stamp_line "$(g rev-parse HEAD)" main
+g switch -q feat/d
+got="$(run_in main)" || fail "a stamp that is not an ancestor: exit $?"
+[[ "$got" == "$(out 'docs tests' check no)" ]] || fail "a stamp that is not an ancestor: got [$got]"
+
 # make check-changed with the real Makefile and script. A wrong recipe runs the default goal
 # `setup`, which sets core.hooksPath, so each case also checks that the value stays unset.
 # make exits 2 when a recipe fails, so a refused case asserts a nonzero exit and its reason.

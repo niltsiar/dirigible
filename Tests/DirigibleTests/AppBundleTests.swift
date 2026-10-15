@@ -96,7 +96,7 @@ struct AppBundleTests {
         #expect(Set(bundle.localizations).isSuperset(of: AppLanguage.allCases.map(\.rawValue)))
         let spanish = try propertyList(at: "Contents/Resources/es.lproj/Localizable.strings")
         let english = try propertyList(at: "Contents/Resources/en.lproj/Localizable.strings")
-        let record = ["de": "Aufnehmen", "en": "Record", "es": "Grabar", "fr": "Enregistrer"]
+        let record = ["de": "Aufnehmen", "en": "Record", "es": "Grabar", "fr": "Enregistrer", "it": "Registra"]
         for language in AppLanguage.allCases.map(\.rawValue) {
             let table = try propertyList(at: "Contents/Resources/\(language).lproj/Localizable.strings")
             #expect(table["menu.record.start"] as? String == record[language], "\(language) menu.record.start")

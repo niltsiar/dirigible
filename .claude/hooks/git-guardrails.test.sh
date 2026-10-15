@@ -621,6 +621,52 @@ gc "$m" -m 'delete: 11 before, 0 after' || msg_fail 'a staged delete was refused
 [[ "$(printf 'a: 5 words before,\n6 after; b: 7 before and after; c: 3 before, then\n' | "$m/.githooks/commit-msg" --pairs)" == $'5 6\n7 7' ]] \
   || msg_fail "--pairs prints: $(printf 'a: 5 words before,\n6 after; b: 7 before and after\n' | "$m/.githooks/commit-msg" --pairs 2>&1)"
 
+# The commit-msg hook refuses a staged change that cuts graded eval key text (evals-for.sh
+# --staged): a key term that the staged file holds fewer times than the file at HEAD, or a 5-word
+# run of the key points that the file at HEAD holds and the staged file does not. An insertion next
+# to kept key text, a key that changes in the same commit, and a body line `Eval keys: <IDs>` pass.
+k="$tmp/k" deliver=.claude/skills/deliver/SKILL.md
+git init -q "$k"
+mkdir -p "$k/.githooks" "$k/scripts" "$k/docs/workflow" "$k/.claude/skills/deliver"
+cp "$(dirname "$0")/../../.githooks/commit-msg" "$k/.githooks/"
+cp "$(dirname "$0")/../../scripts/evals-for.sh" "$k/scripts/"
+git -C "$k" config core.hooksPath .githooks
+cat > "$k/docs/workflow/evals.md" <<'EOF'
+# Evals
+
+## Scenarios
+
+| ID | Type | Source | Question | Key points | Files | Old | New |
+|---|---|---|---|---|---|---|---|
+| E2 | policy | s | q | (c) Before the push: `make check-changed BASE=origin/main`, which picks `check-docs`. | `.claude/skills/deliver/SKILL.md` | - | - |
+| E37 | policy | s | q | (b) Run the same command again with `run_in_background`. | `AGENTS.md` | - | - |
+EOF
+printf 'Then run the push check `make check-changed BASE=origin/main` with `run_in_background`.\nCommit nothing until it ends.\n' > "$k/$deliver"
+printf 'When the call stops, run the same command again with `run_in_background`; a subagent waits.\n' > "$k/AGENTS.md"
+git -C "$k" add -A
+gc "$k" -m base || msg_fail 'the first commit of the eval key fixture was refused'
+key_refused() {
+  gc "$k" "$@" 2>"$tmp/err" && msg_fail "a cut of eval key text passed: $*"
+  grep -q "$want_id" "$tmp/err" || msg_fail "the refusal names no $want_id: $(cat "$tmp/err")"
+}
+printf 'Commit nothing until it ends.\n' > "$k/$deliver"
+git -C "$k" add -A
+want_id=E2 key_refused -m 'cut the push check'
+printf 'Then run the push check `make check-changed BASE=origin/main` with `run_in_background`.\nCommit no file until it ends.\n' > "$k/$deliver"
+git -C "$k" add -A
+gc "$k" -m 'keep the key line' 2>"$tmp/err" || msg_fail "a change that keeps the key text was refused: $(cat "$tmp/err")"
+printf 'When the call stops, run the same command again with `run_in_background` and a Bash `timeout` of 7200000; a subagent waits.\n' > "$k/AGENTS.md"
+git -C "$k" add -A
+gc "$k" -m 'insert a timeout' 2>"$tmp/err" || msg_fail "an insertion next to kept key text was refused: $(cat "$tmp/err")"
+sed -i '' 's|BASE=origin/main`, which|BASE=<base>`, which|' "$k/docs/workflow/evals.md"
+sed -i '' 's|BASE=origin/main|BASE=<base>|' "$k/$deliver"
+git -C "$k" add -A
+gc "$k" -m 'a rule and its key' 2>"$tmp/err" || msg_fail "a rule and its key change in one commit was refused: $(cat "$tmp/err")"
+printf 'A subagent waits.\n' > "$k/AGENTS.md"
+git -C "$k" add -A
+want_id=E37 key_refused -m 'cut the rerun'
+gc "$k" -m $'cut the rerun\n\nEval keys: E37' 2>"$tmp/err" || msg_fail "a cut with an Eval keys line was refused: $(cat "$tmp/err")"
+
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }

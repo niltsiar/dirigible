@@ -333,12 +333,12 @@ stamp_case() {
   grep -q '^gh pr merge' "$c/log" || fail "$1: no merge: $(cat "$c/log")"
 }
 
-# A matching stamp: no check runs. A later line with another base (the reflect check) does not
-# hide it.
+# A matching stamp: no check runs. A later line with a base that is not on main (the reflect
+# check) does not hide it.
 stamp_setup
 head="$(git -C "$c/work" rev-parse HEAD)"
 stamp origin/main
-stamp origin/main~1
+stamp HEAD
 stamp_case 'matching stamp' "stamp: reuse $head" ''
 
 # A docs commit after the stamp: only check-docs. A Sources commit: check.
@@ -376,10 +376,15 @@ commit_file docs/a.md
 stamp_case 'risk delta' 'stamp: delta check-docs' 'make -k check-docs'
 grep -qx 'make: risk yes' "$c/log" || fail "risk delta: run-checks.sh did not get CHECK_RISK=yes: $(cat "$c/log")"
 
-# No usable stamp: the full push check, with the reason.
+# A stamp of an older commit of main (another run landed since the check) gives the delta. A stamp
+# with a base that is a branch commit is no pass: the full push check, with the reason.
 stamp_setup
 stamp origin/main~1
-stamp_case 'base moved' 'stamp: none (base moved)' 'make check-changed BASE=origin/main'
+commit_file docs/a.md
+stamp_case 'base moved on main' 'stamp: delta check-docs' 'make -k check-docs'
+stamp_setup
+stamp HEAD
+stamp_case 'base off main' 'stamp: none (base moved)' 'make check-changed BASE=origin/main'
 # main_commit <path> [<text>]: origin/main gets a commit of one file, as another run that landed.
 main_commit() {
   mkdir -p "$(dirname "$c/other/$1")"

@@ -310,6 +310,11 @@ stamp_line "$(g rev-parse HEAD)" main
 g switch -q feat/d
 got="$(run_in main)" || fail "a stamp that is not an ancestor: exit $?"
 [[ "$got" == "$(out 'docs tests' check no)" ]] || fail "a stamp that is not an ancestor: got [$got]"
+# A stamp of an older commit of main (main moved after the check) still gives the delta.
+main_moves() { g switch -q main && g commit -q --allow-empty -m moved && g switch -q "$1"; }
+stamp_case Tests/T.swift docs/b.md
+main_moves feat/d
+stamp_is 'a stamp of an older main base' 'docs tests' check-docs no
 
 # The partial stamp: a check whose only red targets were tests appended '<P> <base commit> failed
 # fast:<names> slow:<names>'. check-changed.sh <base> selects the newest line of this base whose P
@@ -380,6 +385,15 @@ put docs/c.md other
 partial_line "$(g rev-parse HEAD)" main aFast ''
 g switch -q feat/p
 partial_is 'a line of a commit on another branch' '' tests check no
+# A partial line still needs the exact commit of the base: a pass stamp S and a newer partial line
+# P of an older main commit give the delta after S, no partial line, and no RERUN word.
+partial_case
+stamped="$P"
+stamp_line "$P" main
+put docs/b.md two
+partial_line "$(g rev-parse HEAD)" main aFast ''
+main_moves feat/p
+partial_is 'a partial line of an older main base' "stamp: delta $stamped" 'docs tests' check-docs no
 # A red slow test of a PUSH_SKIP bench file, then a risk path after P: test-slow-push with no
 # PUSH_RUN skips the bench file, so the slow part stays in the word.
 partial_case

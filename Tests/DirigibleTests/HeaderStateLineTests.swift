@@ -23,9 +23,9 @@ import Testing
     }
 
     /// Runs `body` with the strings of `language`, and restores the lookups of the test runner.
-    /// A verbatim text of `L10n` (the state) takes the table. A SwiftUI `LocalizedStringKey` (the
-    /// "Privacy…" title) does not, in any of these variants: it shows its key, which is wider than
-    /// the English and the Spanish title, so the button test is a worst case.
+    /// A verbatim text of `L10n` takes the table. A SwiftUI `LocalizedStringKey` does not, in any
+    /// of these variants: it shows its key. The header rows draw each text verbatim (decision 0010,
+    /// **Views**), so the tests draw them with the table.
     func withStrings(_ language: String, _ body: () async throws -> Void) async throws {
         let table = try stringsTable(language)
         let three: @convention(block) (Bundle, String, String?, String?) -> String = { _, key, value, _ in

@@ -26,11 +26,15 @@ extension HeaderRowTests {
     }
 
     /// The leaf views under `host` that go past the right padding of a row of `width`. A view of
-    /// almost the row width is a row background, not a control.
+    /// almost the row width is a row background, not a control. A leaf of a button counts by the
+    /// alignment rect of the button: the bezel has a margin that the eye does not see.
     func outside(_ host: NSView, width: Double) -> [String] {
         func leaves(_ view: NSView) -> [NSView] { view.subviews.isEmpty ? [view] : view.subviews.flatMap(leaves) }
         return leaves(host).compactMap { leaf in
-            let frame = leaf.convert(leaf.bounds, to: host)
+            var frame = leaf.convert(leaf.bounds, to: host)
+            if let button = leaf.superview as? NSButton, let parent = button.superview {
+                frame = parent.convert(button.alignmentRect(forFrame: button.frame), to: host)
+            }
             return frame.width < width - 20 && frame.maxX > width - 8 ? "\(type(of: leaf)) \(frame)" : nil
         }
     }

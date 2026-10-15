@@ -109,6 +109,25 @@ expect allow 'make check'
 expect allow 'git -C /repo status'
 expect allow 'git push -u origin feat/main-window'
 expect allow 'git push --follow-tags origin feat/x'
+# A release tag comes only from scripts/tag-release.sh: a hand tag, a tag delete, or a tag push
+# blocks, and the message names the script. A list of the tags passes.
+expect block 'git tag -a v0.3.10 -m x'
+expect block 'git tag v0.3.10 abc123'
+expect block 'git -C ../wt tag -d v0.3.10'
+expect block 'git push origin v0.3.10'
+expect block 'git push --tags'
+expect block 'git push origin refs/tags/v1'
+expect block 'cd x && git tag -f v1'
+expect allow 'git tag'
+expect allow "git tag -l 'v0.3.*'"
+expect allow 'git tag --list'
+expect allow 'git tag --points-at HEAD'
+expect allow 'scripts/tag-release.sh 0.3.10 abc123 run'
+expect allow 'git push origin chore/x'
+expect allow "rg -n 'git tag -d' scripts"
+got="$(printf '{"tool_input":{"command":"git tag -d v0.3.10"}}' | "$hook" 2>&1)"
+[[ "$got" == *scripts/tag-release.sh* ]] ||
+  { echo "FAIL: the tag block message does not name scripts/tag-release.sh: $got"; failures=$((failures + 1)); }
 # One segment of a chained command must not match a pattern with a word of the next segment.
 expect allow 'git push -u origin feat/x && gh pr create --base main --title x'
 expect allow 'git commit -F msg.txt; sed -n 1p file'

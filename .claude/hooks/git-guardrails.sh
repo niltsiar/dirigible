@@ -243,4 +243,22 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   fi
 done
 
+# A release tag comes only from scripts/tag-release.sh, which checks the version order against the
+# tags of origin and removes its own stale local tag. A git tag command at a command start with an
+# argument blocks, unless it lists the tags (-l, --list, --points-at, --contains, --merged) and
+# makes, deletes, or moves none. A push of --tags, refs/tags/, or a v<digit> name blocks.
+tag_way="Tag a release with scripts/tag-release.sh <version> <commit> <message>: only the tags of origin decide a refusal, and the script removes its own stale local tag."
+while IFS= read -r line; do
+  if [[ "$line" =~ (^|[ \(])git\ tag(\ |$)(.*) ]]; then
+    rest="${BASH_REMATCH[3]}"
+    if [[ -n "${rest// /}" ]] && ! { grep -qE '(^| )(-l|--list|--points-at|--contains|--no-contains|--merged|--no-merged)( |=|$)' <<< "$rest" &&
+      ! grep -qE '(^| )(-[a-zA-Z]*[adsfmF][a-zA-Z]*|--delete|--annotate|--sign|--force|--message|--file)( |=|$)' <<< "$rest"; }; then
+      block "makes, deletes, or moves a tag by hand" "$tag_way"
+    fi
+  fi
+  if grep -qE "(^|[ (])git push( .*)? (--tags|[^ ]*refs/tags/|[\"']?v[0-9])" <<< "$line"; then
+    block "pushes a tag by hand" "$tag_way"
+  fi
+done <<< "$NORMALIZED"
+
 exit 0

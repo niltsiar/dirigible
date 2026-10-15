@@ -6,7 +6,7 @@
 - Amended: 2026-10-10. The speaker guard plays zeros when the output, or one of its active subdevices, is a loopback device of the listened input: the input when it is virtual, and each virtual device under an aggregate input. A failed transport or subdevice read, or an aggregate under itself, makes every output a loopback (fail closed), and the header shows the quiet text.
 - Amended: 2026-10-10. Track > Monitor Track has the key Control-Command-M. A text field has no Control-Command-M, so the track name field keeps its keys. Each device track header has a Monitor button with the same state.
 - Amended: 2026-10-11, run ui-polish-header. The full quiet sentence wrapped to 3 to 13 lines in a header row. The row shows "No monitor sound": on line 3 in a row of 80 pt or more, as a speaker symbol in a lower row. The full sentence is the help tag and the VoiceOver label.
-- Amends: 0013 (a second owner of an input IOProc), 0015 (the meter request includes the listened tracks), 0039 (playback during a take goes to Release 3 run 9).
+- Amends: 0013 (a second owner of an input IOProc), 0015 (the meter request includes the listened tracks), 0039 (playback during a take goes to the pre-roll run, F08, Release 6).
 
 ## Context
 
@@ -42,7 +42,7 @@ Probes P1 to P9 (2026-10-10, macOS 15.7.9, x86_64, Swift 6.2.4; run `2026-10-10-
 
 **State in the window.** A `Listener` that waits or stops retrying reports it. `Studio` keeps the quiet state per device and takes a report only from the current `Listener` of that device. The quiet tracks are the listened tracks of a quiet device, so off leaves no text. The tracks of a quiet device show "No monitor sound" in the track header, with the full sentence "No monitor sound. Turn Monitor Track off and on." as the help tag and the VoiceOver label.
 
-**Playback during a take.** No playback runs during a take, and mute and solo stay off during a take. Pre-roll (Release 3 run 9) needs playback during a take with a take anchor that includes the output latency, so that run decides both.
+**Playback during a take.** No playback runs during a take, and mute and solo stay off during a take. Pre-roll (F08, Release 6) needs playback during a take with a take anchor that includes the output latency, so that run decides both.
 
 **CLI (0011).** No `dirigible` command and no MCP tool: the monitor writes nothing to a package, and its output is sound for a person (the 0015 reason).
 
@@ -50,7 +50,7 @@ Probes P1 to P9 (2026-10-10, macOS 15.7.9, x86_64, Swift 6.2.4; run `2026-10-10-
 
 - 0013 gets an amended line: a `Listener` also owns an input IOProc on a device (0044); its ring has the same callback and keep rules.
 - 0015 gets an amended line: the window meters the listened tracks with the armed tracks (0044).
-- 0039 gets an amended line: playback, mute, and solo during a take are decided in Release 3 run 9 (0044).
+- 0039 gets an amended line: playback, mute, and solo during a take are decided in the pre-roll run (F08, Release 6; 0044).
 - During a take, a listened device runs two IOProcs (the take writer and the `Listener`), and three during the hand-over.
 - The ring target costs one input block of delay (10.7 ms at 512 frames) over a 2 ms target.
 - The heard latency from the built-in microphone is about 102 ms, because 40.8 ms is the microphone device and stream latency. The guide says so.

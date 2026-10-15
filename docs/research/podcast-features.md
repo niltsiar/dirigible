@@ -72,36 +72,36 @@ Value: 5 = a podcaster needs it for each episode, 1 = rarely used. Effort: S = d
 
 ## Features added 2026-09-27
 
-The Release 2 planning run added these features from Final Cut Pro, Logic Pro, and GarageBand. The behavior, the Dirigible mapping, and the sources are in the linked research files. The value, the effort, and the release are our estimates. The release is the one of `docs/requirements/releases.md`. F79 is not used.
+The Release 2 planning run added these features from Final Cut Pro, Logic Pro, and GarageBand. The behavior, the Dirigible mapping, and the sources are in the linked research files. The value and the effort are our estimates. The state and the release of each ID are in `docs/requirements/features.md`. F79 is not used.
 
-| ID | Feature | Area | From | Value | Effort | Req | Release | Source |
-|---|---|---|---|---|---|---|---|---|
-| F68 | Ripple trim: an edge drag with a modifier ripples the tracks | edit | FCP | 4 | S | R7 | 2 | [FCP](final-cut-pro.md) |
-| F69 | Roll and slip trims | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
-| F70 | Follow track: in a ripple, its clips move whole and never split | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
-| F71 | Connected clips: a clip anchored to a clip on another track | edit | FCP | 3 | L | R7 | Later | [FCP](final-cut-pro.md) |
-| F72 | Track role (dialogue, music, effects) with a color | project | FCP | 3 | S | R10 | 3 | [FCP](final-cut-pro.md) |
-| F73 | Stem export: one file per track or per role, all from the same start | export | FCP | 3 | S | R11 | 3 | [FCP](final-cut-pro.md) |
-| F74 | Sync a clip to another track by its audio waveform | edit | FCP | 4 | M | R7 | 3 | [FCP](final-cut-pro.md) |
-| F75 | Gain envelope per clip; a range gain makes ramps | process | FCP | 4 | M | R7 | 3 | [FCP](final-cut-pro.md) |
-| F76 | Session index: a list of clips, markers, and chapters with search | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
-| F77 | Hum removal at 50 or 60 Hz | process | FCP | 3 | S | R8 | 3 | [FCP](final-cut-pro.md) |
-| F78 | Waveform vertical zoom | edit | FCP | 3 | S | R7 | 3 | [FCP](final-cut-pro.md) |
-| F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | edit | Logic | 4 | M | R7 | 3 | [LG](logic-garageband-update.md) |
-| F81 | Close gaps between the selected clips | edit | Logic | 3 | S | R7 | 3 | [LG](logic-garageband-update.md) |
-| F82 | Snap to clip edges with an alignment guide | edit | GarageBand, Logic | 4 | S | R7 | 3 | [LG](logic-garageband-update.md) |
-| F83 | Zoom toggle and zoom history | edit | Logic | 3 | S | R1 | 2 | [LG](logic-garageband-update.md) |
-| F84 | Clip inspector with numeric gain and fades | process | Logic | 3 | M | R7 | 2 | [LG](logic-garageband-update.md) |
-| F85 | Width of the track headers; height of one track | edit | Logic | 2 | S | R1 | 2 (header width), Later (height of one track) | [LG](logic-garageband-update.md) |
-| F86 | Help tags that show the key equivalent | project | Logic | 2 | S | R1 | Later | [LG](logic-garageband-update.md) |
-| F87 | Remove unused clip files | project | GarageBand, Logic | 3 | S | R5 | 3 | [LG](logic-garageband-update.md) |
-| F88 | Session alternatives | project | Logic | 2 | M | R5 | Later | [LG](logic-garageband-update.md) |
-| F89 | Render a range through an effect | process | Logic | 3 | M | R8, R10 | 3 | [LG](logic-garageband-update.md) |
-| F90 | Lock a track | edit | GarageBand | 2 | S | R7 | Later | [LG](logic-garageband-update.md) |
-| F91 | Take folders and comps for punch-in | record | Logic | 2 | L | R7 | Later | [LG](logic-garageband-update.md) |
-| F92 | Time display format and a large time window | edit | Logic | 2 | S | R7 | Later | [LG](logic-garageband-update.md) |
-| F93 | Customizable toolbar | project | Logic | 2 | S | R1 | 2 | [LG](logic-garageband-update.md) |
-| F94 | A track volume fader in the track header | process | Hindenburg PRO | 4 | S | R7 | 3 | [HM] |
+| ID | Feature | Area | From | Value | Effort | Req | Source |
+|---|---|---|---|---|---|---|---|
+| F68 | Ripple trim: an edge drag with a modifier ripples the tracks | edit | FCP | 4 | S | R7 | [FCP](final-cut-pro.md) |
+| F69 | Roll and slip trims | edit | FCP | 3 | S | R7 | [FCP](final-cut-pro.md) |
+| F70 | Follow track: in a ripple, its clips move whole and never split | edit | FCP | 3 | S | R7 | [FCP](final-cut-pro.md) |
+| F71 | Connected clips: a clip anchored to a clip on another track | edit | FCP | 3 | L | R7 | [FCP](final-cut-pro.md) |
+| F72 | Track role (dialogue, music, effects) with a color | project | FCP | 3 | S | R10 | [FCP](final-cut-pro.md) |
+| F73 | Stem export: one file per track or per role, all from the same start | export | FCP | 3 | S | R11 | [FCP](final-cut-pro.md) |
+| F74 | Sync a clip to another track by its audio waveform | edit | FCP | 4 | M | R7 | [FCP](final-cut-pro.md) |
+| F75 | Gain envelope per clip; a range gain makes ramps | process | FCP | 4 | M | R7 | [FCP](final-cut-pro.md) |
+| F76 | Session index: a list of clips, markers, and chapters with search | edit | FCP | 3 | S | R7 | [FCP](final-cut-pro.md) |
+| F77 | Hum removal at 50 or 60 Hz | process | FCP | 3 | S | R8 | [FCP](final-cut-pro.md) |
+| F78 | Waveform vertical zoom | edit | FCP | 3 | S | R7 | [FCP](final-cut-pro.md) |
+| F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | edit | Logic | 4 | M | R7 | [LG](logic-garageband-update.md) |
+| F81 | Close gaps between the selected clips | edit | Logic | 3 | S | R7 | [LG](logic-garageband-update.md) |
+| F82 | Snap to clip edges with an alignment guide | edit | GarageBand, Logic | 4 | S | R7 | [LG](logic-garageband-update.md) |
+| F83 | Zoom toggle and zoom history | edit | Logic | 3 | S | R1 | [LG](logic-garageband-update.md) |
+| F84 | Clip inspector with numeric gain and fades | process | Logic | 3 | M | R7 | [LG](logic-garageband-update.md) |
+| F85 | Width of the track headers; height of one track | edit | Logic | 2 | S | R1 | [LG](logic-garageband-update.md) |
+| F86 | Help tags that show the key equivalent | project | Logic | 2 | S | R1 | [LG](logic-garageband-update.md) |
+| F87 | Remove unused clip files | project | GarageBand, Logic | 3 | S | R5 | [LG](logic-garageband-update.md) |
+| F88 | Session alternatives | project | Logic | 2 | M | R5 | [LG](logic-garageband-update.md) |
+| F89 | Render a range through an effect | process | Logic | 3 | M | R8, R10 | [LG](logic-garageband-update.md) |
+| F90 | Lock a track | edit | GarageBand | 2 | S | R7 | [LG](logic-garageband-update.md) |
+| F91 | Take folders and comps for punch-in | record | Logic | 2 | L | R7 | [LG](logic-garageband-update.md) |
+| F92 | Time display format and a large time window | edit | Logic | 2 | S | R7 | [LG](logic-garageband-update.md) |
+| F93 | Customizable toolbar | project | Logic | 2 | S | R1 | [LG](logic-garageband-update.md) |
+| F94 | A track volume fader in the track header | process | Hindenburg PRO | 4 | S | R7 | [HM] |
 
 ## Hindenburg default shortcuts
 
@@ -158,6 +158,8 @@ The score is value divided by effort (S = 1, M = 2, L = 3). A higher score comes
 F01 and F03 have a low score but they are the premise of the product (R3, R4). Release 1 must include them. Build them first.
 
 ## Proposed releases
+
+This is the proposal of 2026-09-23. The state of each ID is in `docs/requirements/features.md`, and the order is in `docs/requirements/releases.md`.
 
 ### Release 1: record -> edit -> export
 

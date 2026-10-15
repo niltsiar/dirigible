@@ -11,10 +11,11 @@
 #          -n, -t, -i, or -q (the first word of MAKEFLAGS has these flags; a word with = is a
 #          variable).
 #        scripts/check-stamp.sh read <base> [<commit>]
-#          Prints "<commit> <targets>" of the newest line whose base is the commit of <base> and
-#          whose commit is an ancestor of HEAD. Else it prints the reason and exits 1. With
-#          <commit>, it takes the newest line of that commit with that base and tests no
-#          ancestry: land.sh uses it for a branch that an earlier land rebased.
+#          Prints "<commit> <targets>" of the newest line whose base is the commit of <base> or an
+#          older commit of it (a branch commit is no base) and whose commit is an ancestor of
+#          HEAD. Else it prints the reason and exits 1. With <commit>, it takes the newest line
+#          of that commit with such a base and tests no ancestry: land.sh uses it for a branch
+#          that an earlier land rebased.
 # scripts/check-stamp.test.sh tests it.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -45,15 +46,33 @@ read)
     [[ $# -eq 2 || $# -eq 3 ]] || { echo "usage: scripts/check-stamp.sh read <base> [<commit>]" >&2; exit 2; }
     base="$(git rev-parse --verify "$2^{commit}")" want="${3:-}"
     [[ -s "$file" ]] || { echo "no stamp"; exit 1; }
+    # A line is usable when its base is the commit of <base> or an older commit of it (another
+    # land moved <base> after the check). A base that is a branch commit is no pass.
+    base_ok() { [[ $1 == "$base" ]] || git merge-base --is-ancestor "$1" "$base" 2>/dev/null; }
     reason="base moved"
+    if [[ -n $want ]]; then
+        while read -r commit line_base targets; do
+            [[ $commit == "$want" ]] && base_ok "$line_base" || continue
+            echo "$commit $targets"
+            exit 0
+        done < <(tail -r "$file")
+        echo "$reason"
+        exit 1
+    fi
+    # A line whose commit is not one of this branch (or <base>) costs no git call: the lines of
+    # the file grow with each check, the lines of this branch do not.
+    mine=$'\n'"$(git rev-list HEAD --not "$base")"$'\n'
     # The newest line first.
     while read -r commit line_base targets; do
-        [[ -z $want || $commit == "$want" ]] || continue
-        [[ $line_base == "$base" ]] || continue
-        if [[ -z $want ]]; then
-            reason="not an ancestor"
-            git merge-base --is-ancestor "$commit" HEAD 2>/dev/null || continue
+        if [[ $commit != "$base" && $mine != *$'\n'"$commit"$'\n'* ]]; then
+            [[ $line_base != "$base" ]] || reason="not an ancestor"
+            continue
         fi
+        if ! git merge-base --is-ancestor "$commit" HEAD 2>/dev/null; then
+            [[ $line_base != "$base" ]] || reason="not an ancestor"
+            continue
+        fi
+        base_ok "$line_base" || continue
         echo "$commit $targets"
         exit 0
     done < <(tail -r "$file")

@@ -5,10 +5,12 @@
 # lines is class comments, and a Makefile change of only comment lines is class docs (comment_only).
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push.
-#          After a pass stamp S of <base> (check-stamp.sh read), it prints `stamp: delta <S>` first,
-#          and the targets of the paths changed since S only; classes and risk stay those of <base>.
+#          After a pass stamp S of <base> (check-stamp.sh read; its base can be an older commit of
+#          <base>), it prints `stamp: delta <S>` first, and the targets of the paths changed since
+#          S only; classes and risk stay those of <base>.
 #          After a newer partial stamp P (run-checks.sh), it prints `stamp: partial <P>`, the targets
 #          of the paths since P, and the word RERUN=<P>:fast:<names>+slow:<names> of the failed tests.
+#          A partial line still needs the exact commit of <base>.
 #          With risk: yes and no Sources/ or Tests/ path since P, it exits 1 with no targets line.
 #          CHECK_PARTIAL=ignore: the targets with no partial stamp, and the word with each name.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only

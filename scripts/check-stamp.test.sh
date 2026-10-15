@@ -1,8 +1,8 @@
 #!/bin/bash
 # Check that check-stamp.sh appends a stamp line only for a passing check with a base on a clean
 # tree whose HEAD did not move, and not when make runs with -n, -t, -i, or -q. Check that the
-# reader gives the newest line with the base commit and an ancestor commit, or the reason that no
-# line is usable. Run by `make test-hooks`.
+# reader gives the newest line with the base commit (or an older commit of it) and an ancestor
+# commit, or the reason that no line is usable. Run by `make test-hooks`.
 set -uo pipefail
 stamp_sh="$(cd "$(dirname "$0")" && pwd)/check-stamp.sh"
 failures=0
@@ -155,6 +155,44 @@ g commit -q --allow-empty -m side
 st write "$(g rev-parse HEAD)" clean "$(g rev-parse main)" check > /dev/null
 g switch -q feat/x
 read_refused 'not an ancestor' 'not an ancestor'
+
+# A line whose base is an older commit of main (another run landed since the check) is usable.
+# main_moves puts one more commit on main.
+main_moves() { g switch -q main && g commit -q --allow-empty -m moved && g switch -q feat/x; }
+new_repo
+head="$(g rev-parse HEAD)"
+st write "$head" clean "$(g rev-parse main)" check test-slow > /dev/null
+main_moves
+got="$(st read main)" || fail "older main base: exit $?"
+[[ "$got" == "$head check test-slow" ]] || fail "older main base: got [$got]"
+# A base that is a branch commit stays refused (the case base moved above).
+
+# A base that is a well-formed hash of no commit (pruned): the line is skipped with no git error.
+new_repo
+echo "$(g rev-parse HEAD) $(printf 'a%.0s' {1..40}) check" >> "$file"
+read_refused 'a pruned base' 'base moved'
+err="$(st read main 2>&1 > /dev/null)"
+[[ -z "$err" ]] || fail "a pruned base: stderr [$err]"
+
+# The git calls of one read follow the lines of this branch, not the lines of the file: 50 newer
+# lines of commits that are not in HEAD cost no merge-base call. A git wrapper logs each call.
+new_repo
+head="$(g rev-parse HEAD)"
+st write "$head" clean "$(g rev-parse main)" check > /dev/null
+g switch -q -c side
+for i in $(seq 50); do
+  g commit -q --allow-empty -m "side $i"
+  echo "$(g rev-parse HEAD) $(g rev-parse main) check" >> "$file"
+done
+g switch -q feat/x
+main_moves
+mkdir "$tmp/wrap"
+printf '#!/bin/bash\n[[ "$1" != merge-base ]] || echo call >> "%s"\nexec %s "$@"\n' "$tmp/calls" "$(command -v git)" > "$tmp/wrap/git"
+chmod +x "$tmp/wrap/git"
+got="$(PATH="$tmp/wrap:$PATH" st read main)" || fail "a long file: exit $?"
+[[ "$got" == "$head check" ]] || fail "a long file: got [$got]"
+calls="$(grep -c call "$tmp/calls" 2> /dev/null)"
+[[ "${calls:-0}" -le 2 ]] || fail "a long file: $calls merge-base calls, want 2 at most"
 
 # read <base> <commit>: the newest line of that commit with the base commit, with no ancestry
 # test, so land.sh finds the stamp of a branch that an earlier land rebased.

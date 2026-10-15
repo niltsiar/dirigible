@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleCore
 import Foundation
 import Testing
@@ -83,6 +84,24 @@ struct LocalizationTests {
         }
     }
 
+    /// The inspector has no room in pt: a label is `fixedSize`, and a column takes the width of its
+    /// widest label. So a group of texts has a room, the widest text of the group in `en`, `es`,
+    /// and `de` (rounded up), which the on-screen check at 240 pt shows whole. A text wider than
+    /// its room needs a shorter value, or that check in its language and a wider room.
+    @Test func eachInspectorTextFitsItsRoom() throws {
+        for (name, size, room, keys) in inspectorRooms {
+            for language in AppLanguage.allCases.map(\.rawValue) {
+                let table = try stringsTable(language)
+                for key in keys {
+                    let text = try #require(table[key.rawValue], "\(language) \(key.rawValue)")
+                    let font = NSFont.systemFont(ofSize: size)
+                    let width = NSString(string: text).size(withAttributes: [.font: font]).width.rounded(.up)
+                    #expect(width <= room, "\(language) \(key.rawValue): \(width) pt in the room \(room) pt of \(name)")
+                }
+            }
+        }
+    }
+
     /// Crossfades F2b: the window never makes a crossfade error, so each one shows the text of a
     /// refused change (code gate 1).
     @Test func eachCrossfadeErrorShowsTheRefusedChangeText() {
@@ -127,6 +146,27 @@ struct LocalizationTests {
         #expect(tableProblems(["en": ["a": "A"], "es": ["a": ""]], keys: ["a"]) == ["es: no value for a"])
     }
 }
+
+/// The inspector text groups: name, font size in pt (11 in the panes, the regular size for the tab
+/// picker), room in pt, and keys.
+private let inspectorRooms: [(name: String, size: Double, room: Double, keys: [L10n])] = [
+    ("clip labels", 11, 50, [.inspectorGain, .inspectorFadeIn, .inspectorFadeOut]),
+    ("clip units", 11, 16, [.inspectorDecibels, .inspectorMilliseconds]),
+    (
+        "episode labels", 11, 59,
+        [
+            .episodeTitle, .episodeShow, .episodeAuthor, .episodeSeason, .episodeNumber, .episodeDate,
+            .episodeLanguage, .episodeCopyright,
+        ]
+    ),
+    ("episode link labels", 11, 89, [.episodeURL, .episodeFeedURL, .episodeGUID]),
+    ("marker labels", 11, 42, [.markerName, .markerURL]),
+    ("tab titles", Double(NSFont.systemFontSize), 58, [.inspectorTabClip, .inspectorTabEpisode, .inspectorTabMarker]),
+    ("Explicit", 11, 45, [.episodeExplicit]),
+    ("Links", 11, 41, [.episodeLinks]),
+    ("Choose", 11, 51, [.episodeArtworkChoose]),
+    ("Remove", 11, 51, [.episodeArtworkRemove]),
+]
 
 private let resourcesFolder = URL(filePath: #filePath).deletingLastPathComponent()
     .appending(path: "../../Support/Resources").standardized

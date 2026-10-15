@@ -239,6 +239,12 @@ expect block 'rmdir "$(git rev-parse --git-common-dir)/dirigible-build.lock"'
 expect block 'rm -rf /Users/x/repo/.git/dirigible-build.lock'
 expect allow 'ls .git/dirigible-build.lock'
 expect allow 'cat .git/dirigible-build.lock/pid .git/dirigible-build.lock/command'
+# Only scripts/verify-copy.sh start takes the screen lock and stop removes it: a hand-written
+# remove freed the screen for a second verify copy. A read is allowed.
+expect_each_write .git/dirigible-screen
+expect block 'rm -rf "$(git rev-parse --git-common-dir)/dirigible-screen"'
+expect allow 'ls .git/dirigible-screen'
+expect allow 'cat .git/dirigible-screen/root .git/dirigible-screen/pid'
 # Only scripts/test-hooks.sh appends to the hooks pass stamp, after a pass of the whole list, so
 # a Bash command cannot write it to skip the hook tests. A read is allowed.
 expect_each_write .git/dirigible-hooks-stamp

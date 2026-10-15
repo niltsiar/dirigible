@@ -120,13 +120,16 @@ struct LoudnessSearchTests {
     }
 
     /// The limiter does nothing on the write: the file has a true peak of -2.8 dBTP under the
-    /// ceiling of -2.5, and the encoder adds 1.9 dB. Each retry gives the encoder a lower peak, so
-    /// the file ends at or under -1.0 dBTP (the decode is the written peak plus 1.9 dB). A limiter
-    /// that acts at the ceiling lowers the loudness by half of its excess.
+    /// ceiling of -2.5, and the encoder adds 1.85 dB, so the decode reads -0.95 dBTP. Each retry
+    /// gives the encoder a peak at least 0.05 dB lower than the write before, so the file ends at
+    /// or under -1.0 dBTP. The old rule (the ceiling lowered from the round ceiling) writes the same
+    /// peak again and ends at -0.95 dBTP. A limiter that acts at the ceiling lowers the loudness by
+    /// half of its excess.
     @Test func anIdleLimiterAndACodecOvershootEndUnderTheCeiling() {
         let start = LoudnessSearch.Start(margin: 1.5, offset: 0, readsBack: true)
         var (search, step) = Self.quiet(start, peak: -16.8)
-        var (written, decoded) = (0.0, 0.0)
+        var peaks: [Double] = []
+        var decoded = 0.0
         func limited(_ gain: Double, _ ceiling: Double) -> (peak: Double, loudness: Double) {
             let over = max(0, -16.8 + gain - ceiling)
             return (min(-16.8 + gain, ceiling), -16 - 0.5 * over)
@@ -138,7 +141,7 @@ struct LoudnessSearchTests {
                 step = search.next(after: .trial(output: lufs(limited(gain.dB, ceiling).loudness)))
             case .write(let gain, let ceiling):
                 let file = limited(gain.dB, ceiling)
-                (written, decoded) = (file.peak, file.peak + 1.9)
+                (decoded, peaks) = (file.peak + 1.85, peaks + [file.peak])
                 step = search.next(after: .written(output: lufs(file.loudness), truePeak: file.peak))
             case .readBack:
                 step = search.next(after: .readBack(loudness: lufs(-16), truePeak: decoded))
@@ -146,8 +149,11 @@ struct LoudnessSearchTests {
             }
         }
 
+        #expect(peaks.count >= 2, "the write true peaks: \(peaks)")
+        for (before, after) in zip(peaks, peaks.dropFirst()) {
+            #expect(after <= before - 0.05, "a retry wrote \(after) dBTP after \(before) dBTP")
+        }
         #expect(decoded <= -1.0, "the file decodes at \(decoded) dBTP after \(search.writes) writes")
-        #expect(written < -2.8, "the last file has a true peak of \(written) dBTP")
     }
 
     /// A decoded loudness 0.3 LU under the target, with a true peak under the ceiling, keeps the

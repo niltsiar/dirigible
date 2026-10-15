@@ -97,6 +97,13 @@ new_repo; reflect_row; verdicts delete merge; mkdir -p "$tmp/r/scripts"; echo x 
 pass 'two removals in a branch with a script change' "$tmp/run"
 new_repo; reflect_row; verdicts delete merge; commit
 pass 'two removals with no run folder'
+# check-changed.sh refuses a rerun after a partial stamp on a risk: yes branch with no Sources/ or
+# Tests/ change since the stamp: a flaky test must not read as a governance fault.
+new_repo; reflect_row; mkdir -p "$tmp/r/Sources/DirigibleAudio"; echo x > "$tmp/r/Sources/DirigibleAudio/A.swift"; commit
+printf '%s %s failed fast:SomeTest slow:\n' "$(g rev-parse HEAD)" "$(g rev-parse main)" > "$(g rev-parse --path-format=absolute --git-common-dir)/dirigible-check-partial"
+refusal="$(cd "$tmp/r" && "$(dirname "$script")/check-changed.sh" main 2>&1 >/dev/null)" && fail 'a refused rerun: check-changed.sh did not refuse'
+[[ "$refusal" == *'fix the test first'* ]] || fail "a refused rerun: not the rerun refusal: $refusal"
+pass 'a rerun that check-changed.sh refuses' "$tmp/run"
 three() { printf '%s\nA-1\ta.md\tdelete\t\tr\ts\t\tx\nA-2\ta.md\tmerge\tA-1\tr\ts\t\tx\nA-3\ta.md\tdelete\t\tr\ts\t\tx\n' "$head_rules" > "$rules"; }
 new_repo; reflect_row; three; commit
 refuse 'three removals with no user decision row' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"

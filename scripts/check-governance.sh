@@ -52,7 +52,10 @@ fi
 reflected() { [[ -n "$run" && -f "$run/decisions.tsv" ]] && awk -F'\t' '$2 == "8" { found = 1 } END { exit !found }' "$run/decisions.tsv"; }
 rules=docs/workflow/rules.tsv
 if [[ -f "$rules" ]] && reflected; then
-    out="$("$here/check-changed.sh" "$base")" || die "check-changed.sh $base failed"
+    # The classes come from the paths, not from check-changed.sh <base>: that mode refuses a rerun
+    # of a flaky test, and a refusal is no governance fault.
+    paths="$(git diff --name-only --no-renames "$base...HEAD")"$'\n'"$(git diff --name-only --no-renames HEAD)"$'\n'"$(git ls-files --others --exclude-standard)"
+    out="$("$here/check-changed.sh" --paths <<<"$paths")" || die "check-changed.sh --paths failed"
     if [[ "$(sed -n 's/^classes: //p' <<<"$out")" == docs ]]; then
         removed="$(at_base "$rules" | awk -F'\t' '
             NR == FNR { if (FNR > 1) old[$1] = $3; next }

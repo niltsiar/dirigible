@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Dirigible registra l’audio dei tuoi microfoni e delle tue interfacce audio.";
+"Dirigible Session" = "Sessione Dirigible";
+"NSAudioCaptureUsageDescription" = "Dirigible registra il suono delle app che scegli come sorgenti delle tracce, per esempio una chiamata.";

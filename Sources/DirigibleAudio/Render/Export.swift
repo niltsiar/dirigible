@@ -153,8 +153,8 @@ func exportMix(
         }
         measured = meter?.result().integrated
         var started = LoudnessSearch(
-            target: target.integrated(for: options.layout).value, start: searchStart, limits: tuning.limits)
-        step = started.next(after: .mix(loudness: measured?.value, truePeak: meter == nil ? nil : peak.result()))
+            target: target.integrated(for: options.layout), start: searchStart, limits: tuning.limits)
+        step = started.next(after: .mix(loudness: measured, truePeak: meter == nil ? nil : peak.result()))
         search = started
     }
 
@@ -223,7 +223,7 @@ func exportMix(
                     advance(band, done)
                 }
                 while trial.drain(into: folded ?? mixBuffer) { trial.measure(folded ?? mixBuffer) }
-                step = active.next(after: .trial(output: trial.output?.value))
+                step = active.next(after: .trial(output: trial.output))
             case .write(let gain, let ceiling):
                 current = LoudnessStage(
                     gain: gain, ceiling: ceiling, rate: session.sampleRate, layout: options.layout,
@@ -231,7 +231,7 @@ func exportMix(
                 try writeRound(bands.write(round: active.writes - 1, afterTrials: trialsInRound > 0))
                 trialsInRound = 0
                 tuning.afterWrite?(temporary)
-                step = active.next(after: .written(output: current?.output?.value, truePeak: current?.truePeak))
+                step = active.next(after: .written(output: current?.output, truePeak: current?.truePeak))
             case .readBack:
                 let band = bands.readBack(round: active.writes - 1)
                 // The converter can round the length of a resampled file by one frame.
@@ -242,7 +242,7 @@ func exportMix(
                     report(band.lowerBound + (band.upperBound - band.lowerBound) * $0)
                 }
                 decoded = measure
-                step = active.next(after: .readBack(loudness: measure.loudness?.value, truePeak: measure.truePeak))
+                step = active.next(after: .readBack(loudness: measure.loudness, truePeak: measure.truePeak))
             case .done:
                 break loop
             }

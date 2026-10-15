@@ -104,8 +104,8 @@ struct ReadBackExportTests {
         let measured = try #require(export.result.loudness?.measured).value
         let (isTrial, gain, ceiling): (Bool, Double, Double) =
             switch try #require(export.steps.first) {
-            case .trial(let gain, let ceiling): (true, gain, ceiling)
-            case .write(let gain, let ceiling): (false, gain, ceiling)
+            case .trial(let gain, let ceiling): (true, gain.dB, ceiling)
+            case .write(let gain, let ceiling): (false, gain.dB, ceiling)
             case .readBack, .done: (false, .nan, .nan)
             }
         #expect(isTrial == peaky, "the first step is a \(isTrial ? "trial pass" : "write")")

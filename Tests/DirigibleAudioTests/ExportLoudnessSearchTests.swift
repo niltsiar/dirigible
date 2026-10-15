@@ -5,6 +5,9 @@ import Testing
 
 @testable import DirigibleAudio
 
+private func lufs(_ value: Double) -> LUFS { LUFS(value: value) }
+private func dB(_ value: Double) -> Gain { Gain(dB: value)! }
+
 /// Run export-loudness: `LoudnessSearch` decides each step of an export with a loudness target.
 /// These tests give it measurements and read the steps, so they need no audio file.
 struct LoudnessSearchTests {
@@ -18,8 +21,8 @@ struct LoudnessSearchTests {
     static func quiet(
         _ start: LoudnessSearch.Start = plain, peak: Double = -20, limits: LoudnessSearch.Limits = .init()
     ) -> (LoudnessSearch, Step) {
-        var search = LoudnessSearch(target: -16, start: start, limits: limits)
-        let step = search.next(after: .mix(loudness: -30, truePeak: peak))
+        var search = LoudnessSearch(target: lufs(-16), start: start, limits: limits)
+        let step = search.next(after: .mix(loudness: lufs(-30), truePeak: peak))
         return (search, step)
     }
 
@@ -35,13 +38,13 @@ struct LoudnessSearchTests {
         while let step = steps.last, step != .done, steps.count < 100 {
             switch step {
             case .trial(let gain, let ceiling):
-                steps.append(search.next(after: .trial(output: response(gain, ceiling))))
+                steps.append(search.next(after: .trial(output: response(gain.dB, ceiling).map(lufs))))
             case .write(let gain, let ceiling):
-                limited = response(gain, ceiling)
-                steps.append(search.next(after: .written(output: limited, truePeak: nil)))
+                limited = response(gain.dB, ceiling)
+                steps.append(search.next(after: .written(output: limited.map(lufs), truePeak: nil)))
             case .readBack:
                 let (loudness, truePeak) = readBack(limited)
-                steps.append(search.next(after: .readBack(loudness: loudness, truePeak: truePeak)))
+                steps.append(search.next(after: .readBack(loudness: loudness.map(lufs), truePeak: truePeak)))
             case .done: break
             }
         }
@@ -50,14 +53,14 @@ struct LoudnessSearchTests {
 
     static func isWrite(_ step: Step, gain: Double, ceiling: Double) -> Bool {
         guard case .write(let g, let c) = step else { return false }
-        return abs(g - gain) <= 1e-9 && abs(c - ceiling) <= 1e-9
+        return abs(g.dB - gain) <= 1e-9 && abs(c - ceiling) <= 1e-9
     }
 
     static func gains(_ steps: [Step], trials: Bool) -> [Double] {
         steps.compactMap {
             switch $0 {
-            case .trial(let gain, _): trials ? gain : nil
-            case .write(let gain, _): trials ? nil : gain
+            case .trial(let gain, _): trials ? gain.dB : nil
+            case .write(let gain, _): trials ? nil : gain.dB
             case .readBack, .done: nil
             }
         }
@@ -67,8 +70,8 @@ struct LoudnessSearchTests {
     /// stay over -1.0 dBTP: each round runs 4 trial steps and one write, for 3 rounds. The write
     /// gain of a round is the trial gain with the smallest miss.
     @Test func theCapsStopTheSearchAndKeepTheLastFile() {
-        var search = LoudnessSearch(target: -16, start: Self.plain)
-        let first = search.next(after: .mix(loudness: -15.5, truePeak: 0.85))
+        var search = LoudnessSearch(target: lufs(-16), start: Self.plain)
+        let first = search.next(after: .mix(loudness: lufs(-15.5), truePeak: 0.85))
         func response(_ gain: Double, _ ceiling: Double) -> Double? { -17 + 0.2 * atan(gain) / (.pi / 2) }
 
         let steps = Self.run(&search, first: first, response: response) { ($0, -0.5) }
@@ -87,10 +90,10 @@ struct LoudnessSearchTests {
                 #expect(round.count == 4, "a round of \(round.count) trial steps")
                 let misses = round.map { step -> (Double, Double) in
                     guard case .trial(let g, let c) = step else { return (0, 0) }
-                    return (g, abs((response(g, c) ?? 0) + 16))
+                    return (g.dB, abs((response(g.dB, c) ?? 0) + 16))
                 }
                 let best = misses.min { $0.1 < $1.1 }?.0
-                #expect(gain == best, "the write gain \(gain) is not the smallest miss \(String(describing: best))")
+                #expect(gain.dB == best, "the write gain \(gain) is not the smallest miss \(String(describing: best))")
                 round = []
             case .readBack, .done: break
             }
@@ -103,16 +106,16 @@ struct LoudnessSearchTests {
     @Test func aTruePeakExcessLowersTheCeiling() {
         let start = LoudnessSearch.Start(margin: 1.5, offset: 0, readsBack: true)
         var (search, first) = Self.quiet(start, peak: -16.8)
-        #expect(first == .write(gain: 14, ceiling: -2.5))
-        #expect(search.next(after: .written(output: -16, truePeak: -2.8)) == .readBack)
+        #expect(first == .write(gain: dB(14), ceiling: -2.5))
+        #expect(search.next(after: .written(output: lufs(-16), truePeak: -2.8)) == .readBack)
 
-        let retry = search.next(after: .readBack(loudness: -16, truePeak: -0.5))
+        let retry = search.next(after: .readBack(loudness: lufs(-16), truePeak: -0.5))
 
         #expect(abs(search.ceiling - -3.4) <= 1e-9, "the ceiling: \(search.ceiling)")
-        #expect(retry == .trial(gain: 14, ceiling: search.ceiling))
-        #expect(search.next(after: .trial(output: -16)) == .write(gain: 14, ceiling: search.ceiling))
-        #expect(search.next(after: .written(output: -16, truePeak: -3.4)) == .readBack)
-        #expect(search.next(after: .readBack(loudness: -16, truePeak: -1.0)) == .done)
+        #expect(retry == .trial(gain: dB(14), ceiling: search.ceiling))
+        #expect(search.next(after: .trial(output: lufs(-16))) == .write(gain: dB(14), ceiling: search.ceiling))
+        #expect(search.next(after: .written(output: lufs(-16), truePeak: -3.4)) == .readBack)
+        #expect(search.next(after: .readBack(loudness: lufs(-16), truePeak: -1.0)) == .done)
         #expect(abs(search.ceiling - -3.4) <= 1e-9, "the ceiling moved at -1.0 dBTP: \(search.ceiling)")
     }
 
@@ -132,13 +135,13 @@ struct LoudnessSearchTests {
         while step != .done, search.writes <= 10 {
             switch step {
             case .trial(let gain, let ceiling):
-                step = search.next(after: .trial(output: limited(gain, ceiling).loudness))
+                step = search.next(after: .trial(output: lufs(limited(gain.dB, ceiling).loudness)))
             case .write(let gain, let ceiling):
-                let file = limited(gain, ceiling)
+                let file = limited(gain.dB, ceiling)
                 (written, decoded) = (file.peak, file.peak + 1.9)
-                step = search.next(after: .written(output: file.loudness, truePeak: file.peak))
+                step = search.next(after: .written(output: lufs(file.loudness), truePeak: file.peak))
             case .readBack:
-                step = search.next(after: .readBack(loudness: -16, truePeak: decoded))
+                step = search.next(after: .readBack(loudness: lufs(-16), truePeak: decoded))
             case .done: break
             }
         }
@@ -152,21 +155,21 @@ struct LoudnessSearchTests {
     /// a round that the trial cap stopped, a loudness miss also ends the search.
     @Test func aLoudnessOnlyMissMovesOnlyTheTarget() {
         var (search, _) = Self.quiet()
-        _ = search.next(after: .written(output: -16, truePeak: nil))
+        _ = search.next(after: .written(output: lufs(-16), truePeak: nil))
 
-        let retry = search.next(after: .readBack(loudness: -16.3, truePeak: -1.1))
+        let retry = search.next(after: .readBack(loudness: lufs(-16.3), truePeak: -1.1))
 
         #expect(search.ceiling == -1, "the ceiling: \(search.ceiling)")
-        #expect(abs(search.effectiveTarget - -15.7) <= 1e-9, "the effective target: \(search.effectiveTarget)")
-        #expect(retry == .write(gain: search.effectiveTarget + 30, ceiling: -1))
-        _ = search.next(after: .written(output: -15.7, truePeak: nil))
-        #expect(search.next(after: .readBack(loudness: -16.15, truePeak: -1.1)) == .done)
+        #expect(abs(search.effectiveTarget.value - -15.7) <= 1e-9, "the effective target: \(search.effectiveTarget)")
+        #expect(retry == .write(gain: dB(search.effectiveTarget.value + 30), ceiling: -1))
+        _ = search.next(after: .written(output: lufs(-15.7), truePeak: nil))
+        #expect(search.next(after: .readBack(loudness: lufs(-16.15), truePeak: -1.1)) == .done)
 
-        var capped = LoudnessSearch(target: -16, start: Self.plain, limits: .init(trialPasses: 1))
-        _ = capped.next(after: .mix(loudness: -15.5, truePeak: 0.85))
-        #expect(capped.next(after: .trial(output: -17)) == .write(gain: -0.5, ceiling: -1))
-        #expect(capped.next(after: .written(output: -17, truePeak: nil)) == .readBack)
-        #expect(capped.next(after: .readBack(loudness: -17, truePeak: -1.5)) == .done)
+        var capped = LoudnessSearch(target: lufs(-16), start: Self.plain, limits: .init(trialPasses: 1))
+        _ = capped.next(after: .mix(loudness: lufs(-15.5), truePeak: 0.85))
+        #expect(capped.next(after: .trial(output: lufs(-17))) == .write(gain: dB(-0.5), ceiling: -1))
+        #expect(capped.next(after: .written(output: lufs(-17), truePeak: nil)) == .readBack)
+        #expect(capped.next(after: .readBack(loudness: lufs(-17), truePeak: -1.5)) == .done)
     }
 
     /// The MP3 start offset of 0.45 dB aims the limited signal at -15.55 LUFS. A read-back that
@@ -175,42 +178,42 @@ struct LoudnessSearchTests {
     @Test func theCodecOffsetCountsOnce() {
         var (search, first) = Self.quiet(.init(margin: 0.5, offset: 0.45, readsBack: true))
         #expect(Self.isWrite(first, gain: 14.45, ceiling: -1.5), "\(first)")
-        #expect(abs(search.effectiveTarget - -15.55) <= 1e-9)
-        _ = search.next(after: .written(output: -15.55, truePeak: nil))
+        #expect(abs(search.effectiveTarget.value - -15.55) <= 1e-9)
+        _ = search.next(after: .written(output: lufs(-15.55), truePeak: nil))
 
-        _ = search.next(after: .readBack(loudness: -15.99, truePeak: -3))
+        _ = search.next(after: .readBack(loudness: lufs(-15.99), truePeak: -3))
 
-        #expect(abs(search.effectiveTarget - -15.56) <= 1e-9, "the effective target: \(search.effectiveTarget)")
+        #expect(abs(search.effectiveTarget.value - -15.56) <= 1e-9, "the effective target: \(search.effectiveTarget)")
     }
 
     /// With the ceiling at -1 dBTP the limiter changes no frame when the true peak plus the gain
     /// is at or under -1.05 dBTP (the ceiling minus `TruePeakLimiter.margin`). A mix at -30 LUFS
     /// gets +14 dB.
     @Test func aMixUnderTheCeilingWritesAtOnce() {
-        var under = LoudnessSearch(target: -16, start: Self.plain)
-        var over = LoudnessSearch(target: -16, start: Self.plain)
+        var under = LoudnessSearch(target: lufs(-16), start: Self.plain)
+        var over = LoudnessSearch(target: lufs(-16), start: Self.plain)
 
-        let write = under.next(after: .mix(loudness: -30, truePeak: -15.08))
-        let trial = over.next(after: .mix(loudness: -30, truePeak: -15.02))
+        let write = under.next(after: .mix(loudness: lufs(-30), truePeak: -15.08))
+        let trial = over.next(after: .mix(loudness: lufs(-30), truePeak: -15.02))
 
-        #expect(write == .write(gain: 14, ceiling: -1), "0.03 dB under the limit gave \(write)")
-        #expect(trial == .trial(gain: 14, ceiling: -1), "0.03 dB over the limit gave \(trial)")
+        #expect(write == .write(gain: dB(14), ceiling: -1), "0.03 dB under the limit gave \(write)")
+        #expect(trial == .trial(gain: dB(14), ceiling: -1), "0.03 dB over the limit gave \(trial)")
     }
 
     /// No measurement gives a gain of 0 dB, no trial step, and no loudness retry. The true-peak
     /// retry still runs, and a nil true peak counts as under the ceiling.
     @Test func aNilMeasurementMakesNoGain() {
-        var search = LoudnessSearch(target: -16, start: Self.plain)
-        #expect(search.next(after: .mix(loudness: nil, truePeak: 0.85)) == .write(gain: 0, ceiling: -1))
+        var search = LoudnessSearch(target: lufs(-16), start: Self.plain)
+        #expect(search.next(after: .mix(loudness: nil, truePeak: 0.85)) == .write(gain: dB(0), ceiling: -1))
         #expect(search.next(after: .written(output: nil, truePeak: nil)) == .readBack)
         #expect(search.next(after: .readBack(loudness: nil, truePeak: nil)) == .done)
 
-        var retry = LoudnessSearch(target: -16, start: Self.plain)
+        var retry = LoudnessSearch(target: lufs(-16), start: Self.plain)
         _ = retry.next(after: .mix(loudness: nil, truePeak: -3))
         _ = retry.next(after: .written(output: nil, truePeak: -3))
-        let step = retry.next(after: .readBack(loudness: -40, truePeak: -0.5))
+        let step = retry.next(after: .readBack(loudness: lufs(-40), truePeak: -0.5))
         #expect(abs(retry.ceiling - -3.6) <= 1e-9, "the ceiling: \(retry.ceiling)")
-        #expect(step == .write(gain: 0, ceiling: retry.ceiling))
+        #expect(step == .write(gain: dB(0), ceiling: retry.ceiling))
         #expect(retry.trials == 0 && retry.writes == 2, "\(retry.trials) trials, \(retry.writes) writes")
     }
 
@@ -224,8 +227,8 @@ struct LoudnessSearchTests {
             let (a, b) = upper == 0 ? (points[0], points[1]) : (points[upper - 1], points[upper])
             return a.1 + (b.1 - a.1) * (gain - a.0) / (b.0 - a.0)
         }
-        var search = LoudnessSearch(target: -16, start: .init(margin: 0, offset: 0, readsBack: false))
-        let first = search.next(after: .mix(loudness: -15.674, truePeak: 0.85))
+        var search = LoudnessSearch(target: lufs(-16), start: .init(margin: 0, offset: 0, readsBack: false))
+        let first = search.next(after: .mix(loudness: lufs(-15.674), truePeak: 0.85))
 
         let steps = Self.run(&search, first: first, response: response) { _ in (nil, nil) }
 

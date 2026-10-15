@@ -9,16 +9,19 @@ import Foundation
 /// the range. A mono export folds each chunk to 0.5 x (L + R) (probe P10). The file rate is the
 /// chosen rate; the converter of `ExtAudioFile` resamples (P4), and LAME resamples an MP3.
 ///
-/// With a loudness target it renders the source twice (decision 0032). Pass 1 measures the mix
-/// before the temporary file exists. Pass 2 applies the gain `target - measured` and the
-/// true-peak limiter at -1 dBTP, and measures the output for the report. A WAV 16 or FLAC 16
-/// export gets a seeded TPDF dither, also with no target.
+/// With a loudness target it renders the source at least twice (decision 0032). Pass 1 measures
+/// the loudness and the true peak of the mix before the temporary file exists. When the limiter
+/// would act, trial passes with no file search the gain, so that the limited output reaches the
+/// target. The write pass applies the gain and the true-peak limiter at -1 dBTP, and measures the
+/// output for the report. A WAV 16 or FLAC 16 export gets a seeded TPDF dither, also with no
+/// target.
 ///
 /// Before each chapter image, at each chunk, and once after the close it reads `isCancelled()`. An
 /// MP3 with chapter images also reads it once before the tag. At each chunk it reads
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
-/// percent changes: pass 1 maps to 0...0.25 and pass 2 to 0.25...1. The call of 1.0
-/// comes after the last write and before the close. It writes `.<name>.<UUID>.tmp` in the
+/// percent changes: pass 1 maps to 0...0.15, the trial passes to 0.15...0.3, and the write to
+/// 0.3...1 (0.15...1 with no trial pass). The call of 1.0 comes after the last write and before
+/// the close. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url` and closes it. An AAC export of a session with episode fields or chapters then
 /// copies it to `.<name>.<UUID>.tag.tmp` with the iTunes atoms and the chapter tracks (decision
 /// 0045): the encode maps to 0...0.95, the call of 1.0 comes after the copy, and the copy reads
@@ -37,6 +40,18 @@ public func exportMix(
     replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
     chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil
+) throws(ExportError) -> ExportResult {
+    try exportMix(
+        session, source: source, options: options, to: url, replacing: replacing, package: package,
+        progress: progress, isCancelled: isCancelled, chunk: chunk, flush: flush, tuning: ExportTuning())
+}
+
+/// `exportMix` with the caps, the start margin, and the hooks of `ExportTuning`.
+func exportMix(
+    _ session: Session, source: ExportSource, options: ExportOptions, to url: URL,
+    replacing: ConfirmedFile? = nil, package: () throws(SessionFileError) -> URL,
+    progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled },
+    chunk: Int = 48_000, flush: ((String) -> Int32?)? = nil, tuning: ExportTuning
 ) throws(ExportError) -> ExportResult {
     let flush = flush ?? { fullFlush(path: $0) }
     let rate = options.rate.hertz(session: session.sampleRate)
@@ -88,11 +103,19 @@ public func exportMix(
     let mix = MixReader(package: URL(filePath: "/"), session: session, tracks: source.tracks)
     var percent = 0
     let tags = aac && (!session.episode.isEmpty || !chapters.isEmpty)
-    func report(_ whole: Int, _ fraction: Double) {
+    func report(_ fraction: Double) {
+        let whole = Int(fraction * 100)
         if whole > percent {
             percent = whole
             progress(tags ? 0.95 * fraction : fraction)
         }
+    }
+    /// Reports `done` of `total` frames inside `band`.
+    func advance(_ band: ClosedRange<Double>, _ done: Int) {
+        report(
+            done >= total
+                ? band.upperBound : band.lowerBound + (band.upperBound - band.lowerBound) * Double(done) / Double(total)
+        )
     }
     /// Renders the source chunk by chunk and gives each chunk and the frames done to `body`.
     func render(_ body: (AVAudioPCMBuffer, Int) throws(ExportError) -> Void) throws(ExportError) {
@@ -109,18 +132,27 @@ public func exportMix(
         }
     }
 
-    var stage: LoudnessStage?
+    var searchStart = LoudnessSearch.Start(format: options.format, fileRate: rate, sessionRate: session.sampleRate)
+    if let margin = tuning.startMargin { searchStart.margin = margin }
+    let bands = ProgressBands(readsBack: searchStart.readsBack, limits: tuning.limits)
+    var measured: LUFS?
+    var search: LoudnessSearch?
+    var step = LoudnessSearch.Step.done
     if let target = options.loudness {
         var meter = LoudnessMeter(sampleRate: session.sampleRate, layout: options.layout)
+        var peak = TruePeakMeter(layout: options.layout)
         if meter != nil {
             try render { buffer, done throws(ExportError) in
                 meter?.feed(buffer)
-                report(25 * done / total, 0.25 * Double(done) / Double(total))
+                peak.feed(buffer)
+                advance(bands.measure, done)
             }
         }
-        stage = LoudnessStage(
-            target: target.integrated(for: options.layout), measured: meter?.result().integrated,
-            rate: session.sampleRate, layout: options.layout)
+        measured = meter?.result().integrated
+        var started = LoudnessSearch(
+            target: target.integrated(for: options.layout).value, start: searchStart, limits: tuning.limits)
+        step = started.next(after: .mix(loudness: measured?.value, truePeak: meter == nil ? nil : peak.result()))
+        search = started
     }
 
     removeExportLeftovers(of: url)
@@ -143,33 +175,68 @@ public func exportMix(
     let tagged = tags ? folder.appending(path: "\(name).tag.tmp") : nil
     // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
     defer { if let tagged { unlink(tagged.path) } }
-    try writeFile(
-        temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
-    ) {
-        sink throws(ExportError) in
-        var written = 0
-        var dither: TPDFDither?
-        if options.format == .wav(.bits16) || options.format == .flac(.bits16) {
-            dither = TPDFDither(channels: options.layout.channelCount)
+    var current: LoudnessStage?
+    /// Writes the file once. `current` is the gain stage, nil for no target.
+    func writeRound(_ band: ClosedRange<Double>) throws(ExportError) {
+        try writeFile(
+            temporary, format: options.format, rate: rate, client: folded?.format ?? stereo, tag: id3
+        ) {
+            sink throws(ExportError) in
+            var written = 0
+            var dither: TPDFDither?
+            if options.format == .wav(.bits16) || options.format == .flac(.bits16) {
+                dither = TPDFDither(channels: options.layout.channelCount)
+            }
+            func write(_ buffer: AVAudioPCMBuffer) throws(ExportError) {
+                dither?.apply(buffer)
+                current?.measure(buffer)
+                guard buffer.frameLength > 0 else { return }
+                try sink(buffer)
+                written += Int(buffer.frameLength)
+                advance(band, written)
+            }
+            try render { buffer, _ throws(ExportError) in
+                current?.process(buffer)
+                try write(buffer)
+            }
+            while let drained = current?.drain(into: folded ?? mixBuffer), drained { try write(folded ?? mixBuffer) }
         }
-        func write(_ buffer: AVAudioPCMBuffer) throws(ExportError) {
-            dither?.apply(buffer)
-            stage?.measure(buffer)
-            guard buffer.frameLength > 0 else { return }
-            try sink(buffer)
-            written += Int(buffer.frameLength)
-            if stage == nil {
-                report(100 * written / total, Double(written) / Double(total))
-            } else {
-                report(25 + 75 * written / total, 0.25 + 0.75 * Double(written) / Double(total))
+    }
+    if var active = search {
+        var trialsInRound = 0
+        loop: while true {
+            tuning.onStep?(step)
+            switch step {
+            case .trial(let gain, let ceiling):
+                var trial = LoudnessStage(
+                    gain: gain, ceiling: ceiling, rate: session.sampleRate, layout: options.layout,
+                    measuresTruePeak: false)
+                let band = bands.trial(round: active.writes, index: trialsInRound)
+                trialsInRound += 1
+                try render { buffer, done throws(ExportError) in
+                    trial.process(buffer)
+                    trial.measure(buffer)
+                    advance(band, done)
+                }
+                while trial.drain(into: folded ?? mixBuffer) { trial.measure(folded ?? mixBuffer) }
+                step = active.next(after: .trial(output: trial.output?.value))
+            case .write(let gain, let ceiling):
+                current = LoudnessStage(
+                    gain: gain, ceiling: ceiling, rate: session.sampleRate, layout: options.layout,
+                    measuresTruePeak: true)
+                try writeRound(bands.write(round: active.writes - 1, afterTrials: trialsInRound > 0))
+                trialsInRound = 0
+                step = active.next(after: .written(output: current?.output?.value))
+            case .readBack:
+                step = active.next(after: .readBack(loudness: nil, truePeak: nil))
+            case .done:
+                break loop
             }
         }
-        try render { buffer, _ throws(ExportError) in
-            stage?.process(buffer)
-            try write(buffer)
-        }
-        while let drained = stage?.drain(into: folded ?? mixBuffer), drained { try write(folded ?? mixBuffer) }
+    } else {
+        try writeRound(0...1)
     }
+    if !tags { report(1) }
     // A cancel after the last chunk skips the flush and the move, so a take start does not
     // wait for them (code gate 1).
     if isCancelled() { throw .cancelled }
@@ -197,8 +264,15 @@ public func exportMix(
     }
     // The file is at the target now. A volume that refuses both flushes does not undo the move.
     _ = flush(folder.path)
+    let loudness = options.loudness.flatMap { target in
+        current.map { stage in
+            LoudnessReport(
+                target: target.integrated(for: options.layout), measured: measured, gain: stage.gain,
+                output: stage.output, truePeak: stage.truePeak)
+        }
+    }
     return ExportResult(
-        faults: mix.faults, loudness: stage?.report(), droppedChapters: mp3 ? list.dropped : m4a.dropped,
+        faults: mix.faults, loudness: loudness, droppedChapters: mp3 ? list.dropped : m4a.dropped,
         chapterImagesOmitted: imagesOmitted)
 }
 
@@ -218,53 +292,6 @@ private func readArtwork(
         throw .artworkMissing(name.path)
     }
     return data
-}
-
-/// Pass 2 of an export with a loudness target: the gain, the limiter, and the meters of the
-/// report.
-private struct LoudnessStage {
-    let target: LUFS
-    let measured: LUFS?
-    let gain: Gain
-    private let factor: Float
-    private var limiter: TruePeakLimiter
-    private var loudness: LoudnessMeter?
-    private var truePeak: TruePeakMeter
-
-    init(target: LUFS, measured: LUFS?, rate: Int, layout: ChannelLayout) {
-        self.target = target
-        self.measured = measured
-        // Nil only for a value that is not finite. The -70 LUFS gate keeps the gain under +60 dB.
-        gain = measured.flatMap { Gain(clamping: target.value - $0.value) } ?? .zero
-        factor = Float(pow(10, gain.dB / 20))
-        limiter = TruePeakLimiter(ceiling: -1, rate: rate, layout: layout)
-        loudness = LoudnessMeter(sampleRate: rate, layout: layout)
-        truePeak = TruePeakMeter(layout: layout)
-    }
-
-    /// The gain and the limiter, in place. The frame count can go down (the look-ahead).
-    mutating func process(_ buffer: AVAudioPCMBuffer) {
-        var scale = factor
-        for channel in 0..<Int(buffer.format.channelCount) {
-            let samples = buffer.floatChannelData![channel]
-            vDSP_vsmul(samples, 1, &scale, samples, 1, vDSP_Length(buffer.frameLength))
-        }
-        limiter.process(buffer)
-    }
-
-    /// The last frames of the limiter into `buffer`. False when it has none left.
-    mutating func drain(into buffer: AVAudioPCMBuffer) -> Bool { limiter.drain(into: buffer) }
-
-    mutating func measure(_ buffer: AVAudioPCMBuffer) {
-        loudness?.feed(buffer)
-        truePeak.feed(buffer)
-    }
-
-    func report() -> LoudnessReport {
-        LoudnessReport(
-            target: target, measured: measured, gain: gain, output: loudness?.result().integrated,
-            truePeak: truePeak.result())
-    }
 }
 
 /// `mono = 0.5 x (L + R)` of `stereo` (decision 0007).

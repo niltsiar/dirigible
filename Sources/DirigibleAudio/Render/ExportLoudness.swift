@@ -1,3 +1,5 @@
+import AVFoundation
+import Accelerate
 import DirigibleCore
 import Foundation
 
@@ -176,4 +178,89 @@ extension LoudnessSearch.Start {
             self.init(margin: resampled ? 0.3 : 0, offset: 0, readsBack: resampled)
         }
     }
+}
+
+/// The caps, the start margin, and the hooks of a test or a bench. `exportMix` reads the defaults.
+struct ExportTuning {
+    var limits = LoudnessSearch.Limits()
+    /// Replaces the start margin of the format.
+    var startMargin: Double?
+    /// Called with each step that `LoudnessSearch` gives, the last `.done` too.
+    var onStep: ((LoudnessSearch.Step) -> Void)?
+    /// Called with the temporary file after each write and before its read-back.
+    var afterWrite: ((URL) -> Void)?
+}
+
+/// The bands of the progress value (decision 0032). Pass 1 takes 0...0.15, the trial passes of the
+/// first round share 0.15...0.3, the write takes 0.3...0.9 (0.15...0.9 with no trial pass, and up
+/// to 1 with no read-back), and the read-back takes 0.9...0.95. Each retry round shares a part of
+/// 0.95...1. A band that no step uses is skipped, so the value never goes down.
+struct ProgressBands {
+    let readsBack: Bool
+    let limits: LoudnessSearch.Limits
+
+    let measure = 0.0...0.15
+
+    func trial(round: Int, index: Int) -> ClosedRange<Double> {
+        let (low, share) = round == 0 ? (0.15, 0.15) : (retryStart(round), 0.4 * retryWidth)
+        let count = Double(max(limits.trialPasses, 1))
+        return low + share * Double(index) / count...low + share * Double(index + 1) / count
+    }
+
+    func write(round: Int, afterTrials: Bool) -> ClosedRange<Double> {
+        if round == 0 { return (afterTrials ? 0.3 : 0.15)...(readsBack ? 0.9 : 1) }
+        let low = retryStart(round)
+        return (low + (afterTrials ? 0.4 : 0) * retryWidth)...(low + 0.9 * retryWidth)
+    }
+
+    func readBack(round: Int) -> ClosedRange<Double> {
+        if round == 0 { return 0.9...0.95 }
+        let low = retryStart(round)
+        return (low + 0.9 * retryWidth)...(low + retryWidth)
+    }
+
+    private var retryWidth: Double { 0.05 / Double(max(limits.retryRounds, 1)) }
+
+    private func retryStart(_ round: Int) -> Double { 0.95 + retryWidth * Double(round - 1) }
+}
+
+/// The gain, the limiter at the ceiling of the search, and the meters of one pass over the mix.
+struct LoudnessStage {
+    let gain: Gain
+    private let factor: Float
+    private var limiter: TruePeakLimiter
+    private var loudness: LoudnessMeter?
+    private var truePeakMeter: TruePeakMeter?
+
+    init(gain dB: Double, ceiling: Double, rate: Int, layout: ChannelLayout, measuresTruePeak: Bool) {
+        gain = Gain(clamping: dB) ?? .zero
+        factor = Float(pow(10, gain.dB / 20))
+        limiter = TruePeakLimiter(ceiling: ceiling, rate: rate, layout: layout)
+        loudness = LoudnessMeter(sampleRate: rate, layout: layout)
+        truePeakMeter = measuresTruePeak ? TruePeakMeter(layout: layout) : nil
+    }
+
+    /// The gain and the limiter, in place. The frame count can go down (the look-ahead).
+    mutating func process(_ buffer: AVAudioPCMBuffer) {
+        var scale = factor
+        for channel in 0..<Int(buffer.format.channelCount) {
+            let samples = buffer.floatChannelData![channel]
+            vDSP_vsmul(samples, 1, &scale, samples, 1, vDSP_Length(buffer.frameLength))
+        }
+        limiter.process(buffer)
+    }
+
+    /// The last frames of the limiter into `buffer`. False when it has none left.
+    mutating func drain(into buffer: AVAudioPCMBuffer) -> Bool { limiter.drain(into: buffer) }
+
+    mutating func measure(_ buffer: AVAudioPCMBuffer) {
+        loudness?.feed(buffer)
+        truePeakMeter?.feed(buffer)
+    }
+
+    /// The loudness of the limited signal. Nil with no gated block.
+    var output: LUFS? { loudness?.result().integrated }
+    /// The true peak of the limited signal. Nil for digital silence, and when the pass has no
+    /// true-peak meter.
+    var truePeak: Double? { truePeakMeter?.result() }
 }

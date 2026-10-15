@@ -81,17 +81,18 @@ struct ExportLoudnessTests {
         expectLUFS(try measure(back).integrated, -19, "the mono read-back")
     }
 
-    /// The gain is +3.85 dB, so the bursts reach about +3.9 dBTP; the limiter takes them to the
-    /// ceiling and no lower than -1.3 dBTP.
+    /// The first gain is +3.85 dB, so the bursts reach about +3.9 dBTP; the limiter takes them to
+    /// the ceiling and no lower than -1.3 dBTP. It loses 0.13 LU, so the search raises the gain to
+    /// +3.99 dB (probe P5).
     @Test func theLimiterHoldsTheCeiling() throws {
         let export = try Self.export(Self.bursts(), Self.options(.podcast))
 
         let report = try #require(export.result.loudness)
         expectLUFS(report.measured, -19.85, "the measured bursts")
-        Self.expectGain(report, 3.85)
+        Self.expectGain(report, 3.99)
         expectDBTP(try truePeak(ExportTests.read(export.url).channels), -1, above: 0, below: 0.3, "the read-back peak")
         expectDBTP(report.truePeak, -1, above: 0, below: 0.3, "the report true peak")
-        expectLUFS(report.output, -16.1, tolerance: 0.2, "the output loudness")
+        expectLUFS(report.output, -16, "the output loudness")
     }
 
     /// With no limiting, each sample is the mix sample x the gain, at the same frame. The mix
@@ -138,7 +139,8 @@ struct ExportLoudnessTests {
         #expect(same, "the file with a target differs from the file with no target")
     }
 
-    /// Pass 1 maps to 0...0.25 and pass 2 to 0.25...1, with one percent counter.
+    /// Pass 1 maps to 0...0.15 and the write to 0.15...1 when no trial pass runs, with one percent
+    /// counter.
     @Test func progressSpansBothPasses() throws {
         var values: [Double] = []
         _ = try Self.export(tone([(20, -30)]), Self.options(.podcast), chunk: 4_800, progress: { values.append($0) })
@@ -146,7 +148,7 @@ struct ExportLoudnessTests {
         #expect(values.count <= 101, "\(values.count) calls")
         #expect(zip(values, values.dropFirst()).allSatisfy { $0 <= $1 }, "the values go down")
         #expect(values.last == 1, "the last value: \(String(describing: values.last))")
-        #expect(values.contains { (0.2...0.25).contains($0) }, "no value at the end of pass 1")
+        #expect(values.contains(0.15), "no value at the end of pass 1")
     }
 
     /// The cancel at the third chunk of pass 1 leaves no file, and pass 2 does not start.

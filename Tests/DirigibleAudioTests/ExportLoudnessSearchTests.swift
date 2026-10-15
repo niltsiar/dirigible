@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
@@ -201,5 +202,116 @@ struct LoudnessSearchTests {
         let output = written.first.flatMap { response($0, -1) } ?? .nan
         #expect(abs(output - -16) <= 0.1, "the written file reads \(output) LUFS")
         #expect(steps.last == .done && written.count == 1)
+    }
+}
+
+/// Run export-loudness: `exportMix` with a loudness target reaches the target after the limiter.
+struct SearchedExportTests {
+    /// "train": a 20 s 1 kHz carrier at -20 dBFS with a 2 ms fs/4 burst at 45 degrees and 1.0 FFS
+    /// every 250 ms from 0.5 s, the same in both channels. The limiter takes 1.07 LU of its loudness
+    /// when one gain reaches the target (probe P5).
+    static func train(seconds: Int = 20, rate: Int = 48_000) -> [[Float]] {
+        var samples = tone([(Double(seconds), -20)], rate: rate)[0]
+        let length = rate * 2 / 1000
+        for start in stride(from: rate / 2, to: samples.count - length, by: rate / 4) {
+            for index in 0..<length { samples[start + index] += Float(sin(.pi / 2 * Double(index) + .pi / 4)) }
+        }
+        return [samples, samples]
+    }
+
+    /// What an export gave: the files, and the steps of the search.
+    struct Run {
+        var url: URL
+        var result: ExportResult
+        var package: MixPackage
+        var steps: [LoudnessSearch.Step]
+        var packageCalls: Int
+
+        var trials: Int { steps.filter { if case .trial = $0 { true } else { false } }.count }
+        var writes: Int { steps.filter { if case .write = $0 { true } else { false } }.count }
+    }
+
+    /// Exports all of `channels` with the target. `isCancelled` and `progress` are the hooks of the
+    /// export, and `tuning` sets the caps and the start margin.
+    static func export(
+        _ channels: [[Float]], _ options: ExportOptions, sessionRate: Int = 48_000, tuning: ExportTuning = .init(),
+        chunk: Int = 48_000, progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
+    ) throws -> Run {
+        let package = try ExportTests.package(channels, rate: sessionRate)
+        let url = package.folder.url.appending(path: "mix.wav")
+        let source = try #require(ExportSource(range: 0..<Frames(channels[0].count)))
+        var (steps, calls) = ([LoudnessSearch.Step](), 0)
+        var tuning = tuning
+        tuning.onStep = { steps.append($0) }
+        let result = try exportMix(
+            package.session, source: source, options: options, to: url,
+            package: {
+                calls += 1
+                return package.url
+            }, progress: progress, isCancelled: isCancelled, chunk: chunk, tuning: tuning)
+        return Run(url: url, result: result, package: package, steps: steps, packageCalls: calls)
+    }
+
+    @Test(arguments: [(ChannelLayout.stereo, -16.0), (.mono, -19.0)])
+    func aPeakyMixReachesTheTargetAfterTheLimiter(layout: ChannelLayout, target: Double) throws {
+        let export = try Self.export(Self.train(), ExportLoudnessTests.options(.podcast, layout))
+
+        let back = try ExportTests.read(export.url).channels
+        expectLUFS(try measure(back).integrated, target, "the read-back")
+        let peak = try #require(try truePeak(back))
+        #expect(peak <= -1.0, "the read-back true peak: \(peak) dBTP")
+        let report = try #require(export.result.loudness)
+        expectLUFS(report.output, target, tolerance: 0.05, "the report output")
+        #expect(
+            abs((report.truePeak ?? .nan) - peak) <= 0.05,
+            "the report true peak: \(String(describing: report.truePeak))")
+    }
+
+    /// A mix under the ceiling gets the gain at once: pass 1 and the write read the package 20 times
+    /// each, with no trial pass.
+    @Test func aMixUnderTheCeilingRendersTwice() throws {
+        let export = try Self.export(tone([(20, -30)]), ExportLoudnessTests.options(.podcast))
+
+        #expect(export.packageCalls == 40, "\(export.packageCalls) package reads, not 40")
+        #expect(export.trials == 0 && export.writes == 1, "\(export.steps)")
+    }
+
+    /// The cancel at the 25th check is in the first trial pass (pass 1 has 20 checks).
+    @Test func aCancelInATrialPassLeavesNothing() throws {
+        var (checks, steps) = (0, [LoudnessSearch.Step]())
+        let package = try ExportTests.package(Self.train())
+        let source = try #require(ExportSource(range: 0..<960_000))
+        var tuning = ExportTuning()
+        tuning.onStep = { steps.append($0) }
+
+        #expect(throws: ExportError.cancelled) {
+            try exportMix(
+                package.session, source: source, options: ExportLoudnessTests.options(.podcast),
+                to: package.folder.url.appending(path: "mix.wav"), package: { package.url },
+                isCancelled: {
+                    checks += 1
+                    return checks == 25
+                }, tuning: tuning)
+        }
+
+        let trial = steps.contains { if case .trial = $0 { true } else { false } }
+        #expect(trial && steps.count == 1, "the cancel was not in a trial pass: \(steps)")
+        try MP3ExportTests.expectNoOutput(package)
+    }
+
+    /// The trial passes share 0.15...0.3, the write follows, and the last value is 1.
+    @Test func progressNeverGoesDownAcrossTrialPasses() throws {
+        var values: [Double] = []
+
+        let export = try Self.export(Self.train(), ExportLoudnessTests.options(.podcast), chunk: 4_800) {
+            values.append($0)
+        }
+
+        #expect(export.trials >= 3, "\(export.trials) trial passes")
+        #expect(values.count <= 101, "\(values.count) calls")
+        #expect(zip(values, values.dropFirst()).allSatisfy { $0 <= $1 }, "the values go down")
+        #expect(values.last == 1, "the last value: \(String(describing: values.last))")
+        #expect(values.contains { 0.15 < $0 && $0 <= 0.3 }, "no value in the trial band")
+        #expect(values.contains { 0.3 < $0 && $0 < 1 }, "no value in the write band")
     }
 }

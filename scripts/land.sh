@@ -21,7 +21,8 @@
 # AppBundleTests, `test-dmg` for DiskImageTests (`make test` skips both), else `test`. With no
 # stamp, it runs `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with
 # the risk of origin/main. A land that stops keeps its stamp commit in the file
-# dirigible-land-stamp-<branch> of the git dir, until the merge. It prints the stamp line.
+# dirigible-land-stamp-<branch, with / as -> of the common git dir, until the merge. It prints the
+# stamp line.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,
@@ -62,8 +63,8 @@ before="$(git rev-parse HEAD)"
 # The pass stamp is read before the rebase, when HEAD is the commit that the push check stamped or
 # a descendant of it: the rebase rewrites each commit, so no stamp commit is an ancestor of the new
 # HEAD. A stop after the rebase keeps the rebased branch, so the stamp commit goes to a file of the
-# git dir; a later land of the branch reads it when this read finds no line.
-stamp_file="$(git rev-parse --path-format=absolute --git-dir)/dirigible-land-stamp-${branch//\//-}"
+# common git dir; a later land of the branch reads it when this read finds no line.
+stamp_file="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-land-stamp-${branch//\//-}"
 stamp_commit=""
 if stamp="$("$here/check-stamp.sh" read origin/main)"; then
     stamp_commit="${stamp%% *}"

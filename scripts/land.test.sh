@@ -97,7 +97,7 @@ setup() {
 }
 
 land_in() {
-  (cd "$c/work" && PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$land" "$@") > "$c/out" 2>&1
+  (cd "${land_dir:-$c/work}" &&PATH="$bin:$PATH" LAND_LOG="$c/log" FAKE_OTHER="$c/other" "$land" "$@") > "$c/out" 2>&1
 }
 
 no_side_effects() {
@@ -475,7 +475,7 @@ reads_case 'rebase delta of a script that a test reads' Tests/G.swift 'let p = "
 reads_case 'rebase delta of a script that AppBundleTests reads' Tests/DirigibleTests/AppBundleTests.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test-app'
 reads_case 'rebase delta of a script that DiskImageTests reads' Tests/DirigibleTests/DiskImageTests.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test-dmg'
 # A land that stops after its rebase (here: a slice with no Check line) keeps the rebased branch.
-# The second land of the branch finds the stamp commit in the land stamp file of the git dir.
+# The second land of the branch finds the stamp commit in the land stamp file of the common git dir.
 setup
 main_commit docs/a.md
 git -C "$c/work" fetch -q
@@ -490,6 +490,21 @@ no_side_effects 'second land, first land'
 cp "$c/plan-ok.md" "$c/plan.md"
 stamp_case 'second land after a stop after the rebase' 'stamp: delta check-docs' 'make -k check-docs'
 [[ -z "$(ls "$c"/work/.git/dirigible-land-stamp-* 2>/dev/null)" ]] || fail "second land: a land stamp file stays: $(ls "$c"/work/.git)"
+# The land stamp file is in the common git dir, like the other state files of the land, so a land
+# from any worktree of the clone finds it.
+setup
+main_commit docs/a.md
+git -C "$c/work" fetch -q
+stamp origin/main
+git -C "$c/work" switch -q main
+git -C "$c/work" worktree add -q "$c/wt" feat/x
+cp "$c/plan.md" "$c/plan-ok.md"
+printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n' > "$c/plan.md"
+land_dir="$c/wt" land_in "Add x" "$c/pr.md"
+[[ -f "$c/work/.git/dirigible-land-stamp-feat-x" ]] || fail "land stamp file: not in the common git dir: $(ls "$c"/work/.git "$c"/work/.git/worktrees/wt)"
+cp "$c/plan-ok.md" "$c/plan.md"
+land_dir="$c/wt" stamp_case 'second land from a linked worktree' 'stamp: delta check-docs' 'make -k check-docs'
+unset land_dir
 
 # A matching stamp does not skip the governance check or the ancestor check.
 stamp_setup

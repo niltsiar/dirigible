@@ -74,7 +74,7 @@ else
                 sec = ""
                 if (match($0, /^## Release [0-9]+:/)) { sec = substr($0, 12, RLENGTH - 12); exists[sec] = 1 }
             }
-            if (sec != "" && $0 == "Status: closed") closed[sec] = 1
+            if (sec != "" && $0 ~ /^Status: closed( |$)/) closed[sec] = 1
             line = $0
             while (match(line, /F[0-9]+/)) {
                 before = (RSTART > 1) ? substr(line, RSTART - 1, 1) : " "

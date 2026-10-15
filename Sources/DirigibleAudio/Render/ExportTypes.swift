@@ -165,8 +165,9 @@ public struct ExportSource: Hashable, Sendable {
     }
 }
 
-/// The loudness of an export with a target (decision 0032). The output values are measured on the
-/// processed signal at the session rate, before the encoder.
+/// The loudness of an export with a target (decision 0032). The output values are those of the
+/// written file as macOS decodes it, for an AAC or MP3 file; else those of the limited signal at
+/// the session rate.
 public struct LoudnessReport: Hashable, Sendable {
     public let target: LUFS
     /// The mix before the gain. Nil when no block passes the gates: then the gain is 0 dB.
@@ -174,9 +175,9 @@ public struct LoudnessReport: Hashable, Sendable {
     /// The gain that the file got. It is `target - measured` plus the limiter loss that the search
     /// made up, with no limit.
     public let gain: Gain
-    /// The output after the gain and the limiter.
+    /// The loudness of the file after the gain, the limiter, and the encoder.
     public let output: LUFS?
-    /// The true peak of the output in dBTP. Nil only for digital silence: a 16-bit export has
+    /// The true peak of the file in dBTP. Nil only for digital silence: a 16-bit export has
     /// dither, so it is never silent.
     public let truePeak: Double?
 

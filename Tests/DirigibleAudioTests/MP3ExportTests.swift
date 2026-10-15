@@ -155,19 +155,18 @@ struct MP3ExportTests {
         #expect(try Data(contentsOf: first) == Data(contentsOf: second), "two MP3 exports differ")
     }
 
-    /// The report measures before the encoder (decision 0032); the decoded file reads 0.45 LU
-    /// lower at 128 kbit/s (probe U4).
-    @Test func anMP3PodcastExportReportsTheLoudnessBeforeTheEncoder() throws {
+    /// The report is the decoded file (decision 0032): the search aims 0.45 LU high at 128 kbit/s
+    /// (probe U4), so the decode reads the target.
+    @Test func anMP3PodcastExportReportsTheDecodedFile() throws {
         let options = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session, loudness: .podcast)
 
         let export = try ExportLoudnessTests.export(tone([(20, -30)]), options, to: "mix.mp3")
 
         let report = try #require(export.result.loudness)
-        let output = try #require(report.output).value
-        #expect(abs(output - -16) <= 0.1, "the report says \(output) LUFS")
         let loudness = try measure(ExportTests.read(export.url).channels)
         let decoded = try #require(loudness.integrated).value
-        #expect(abs(decoded - -16.45) <= 0.2, "the decoded MP3 reads \(decoded) LUFS")
+        expectLUFS(report.output, decoded, tolerance: 0.05, "the report")
+        #expect(abs(decoded - -16) <= 0.2, "the decoded MP3 reads \(decoded) LUFS")
     }
 
     @Test func aCancelAtTheFirstChunkLeavesNoMP3() throws {

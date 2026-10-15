@@ -124,16 +124,22 @@ struct ExportLoudnessTests {
         }
     }
 
-    /// Silence and a mix of 300 ms have no gated block: the gain is 0 dB, and the file equals the
-    /// export with no target.
-    @Test(arguments: [[(20.0, -Double.infinity)], [(0.3, -23.0)]])
-    func noMeasurementMeansNoGain(parts: [(Double, Double)]) throws {
+    /// Silence and a mix of 300 ms have no gated block: the gain is 0 dB, no trial pass runs, and one
+    /// file is written. The WAV equals the export with no target. An AAC or MP3 file is read back,
+    /// and a nil true peak counts as under the ceiling, so it gets no retry.
+    @Test(
+        arguments: [[(20.0, -Double.infinity)], [(0.3, -23.0)]], [ExportFormat.wav(.bits24), .aac(.k128), .mp3(.k128)])
+    func noMeasurementMeansNoGain(parts: [(Double, Double)], format: ExportFormat) throws {
         let channels = tone(parts.map { (seconds: $0.0, dBFS: $0.1) })
-        let target = try Self.export(channels, Self.options(.podcast), to: "target.wav")
-        let plain = try Self.export(channels, Self.options(nil), to: "plain.wav")
+        let options = ExportOptions(format: format, layout: .stereo, rate: .session, loudness: .podcast)
+        let target = try SearchedExportTests.export(channels, options, to: "target.out")
 
         let report = try #require(target.result.loudness)
         #expect(report.measured == nil && report.gain == .zero, "measured \(String(describing: report.measured))")
+        #expect(target.trials == 0 && target.writes == 1, "\(target.steps)")
+        guard case .wav = format else { return }
+        let plain = try Self.export(
+            channels, ExportOptions(format: format, layout: .stereo, rate: .session), to: "plain.wav")
         #expect(plain.result.loudness == nil)
         let same = try Data(contentsOf: target.url) == Data(contentsOf: plain.url)
         #expect(same, "the file with a target differs from the file with no target")

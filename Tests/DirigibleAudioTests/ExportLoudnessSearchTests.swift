@@ -234,15 +234,20 @@ struct SearchedExportTests {
     /// Exports all of `channels` with the target. `isCancelled` and `progress` are the hooks of the
     /// export, and `tuning` sets the caps and the start margin.
     static func export(
-        _ channels: [[Float]], _ options: ExportOptions, sessionRate: Int = 48_000, tuning: ExportTuning = .init(),
-        chunk: Int = 48_000, progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
+        _ channels: [[Float]], _ options: ExportOptions, sessionRate: Int = 48_000, to name: String = "mix.wav",
+        tuning: ExportTuning = .init(), chunk: Int = 48_000, progress: (Double) -> Void = { _ in },
+        isCancelled: () -> Bool = { false }
     ) throws -> Run {
         let package = try ExportTests.package(channels, rate: sessionRate)
-        let url = package.folder.url.appending(path: "mix.wav")
+        let url = package.folder.url.appending(path: name)
         let source = try #require(ExportSource(range: 0..<Frames(channels[0].count)))
         var (steps, calls) = ([LoudnessSearch.Step](), 0)
         var tuning = tuning
-        tuning.onStep = { steps.append($0) }
+        let observe = tuning.onStep
+        tuning.onStep = {
+            steps.append($0)
+            observe?($0)
+        }
         let result = try exportMix(
             package.session, source: source, options: options, to: url,
             package: {

@@ -69,6 +69,7 @@ DirigibleAudioTests.PlaceSegmentTests	19.2
 DirigibleAudioTests.PlayerLoudnessTests	10.3
 DirigibleAudioTests.PlayerTests	4.3
 DirigibleAudioTests.RateChoiceTests	0.0
+DirigibleAudioTests.ReadBackExportTests	98.0
 DirigibleAudioTests.RecordLoudnessTests	5.4
 DirigibleAudioTests.RecordTests	10.6
 DirigibleAudioTests.RecoveryTests	3.8

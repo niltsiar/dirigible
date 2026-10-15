@@ -13,15 +13,18 @@ import Foundation
 /// the loudness and the true peak of the mix before the temporary file exists. When the limiter
 /// would act, trial passes with no file search the gain, so that the limited output reaches the
 /// target. The write pass applies the gain and the true-peak limiter at -1 dBTP, and measures the
-/// output for the report. A WAV 16 or FLAC 16 export gets a seeded TPDF dither, also with no
-/// target.
+/// output. An AAC or MP3 file is then decoded as macOS decodes it and measured again; the report is
+/// that decode, and a true peak over -1 dBTP or a loudness 0.2 LU off the target starts another
+/// write of the same temporary file, up to 2 times. A WAV 16 or FLAC 16 export gets a seeded TPDF
+/// dither, also with no target.
 ///
 /// Before each chapter image, at each chunk, and once after the close it reads `isCancelled()`. An
 /// MP3 with chapter images also reads it once before the tag. At each chunk it reads
 /// `package()`, so a package that moves keeps its audio. It calls `progress` when the whole
-/// percent changes: pass 1 maps to 0...0.15, the trial passes to 0.15...0.3, and the write to
-/// 0.3...1 (0.15...1 with no trial pass). The call of 1.0 comes after the last write and before
-/// the close. It writes `.<name>.<UUID>.tmp` in the
+/// percent changes: pass 1 maps to 0...0.15, the trial passes to 0.15...0.3, the write to
+/// 0.3...0.9 (0.15...0.9 with no trial pass, and up to 1 with no read-back), the read-back to
+/// 0.9...0.95, and each retry round to a part of 0.95...1. The call of 1.0 comes after the last
+/// write and before the close, or after the read-back. It writes `.<name>.<UUID>.tmp` in the
 /// folder of `url` and closes it. An AAC export of a session with episode fields or chapters then
 /// copies it to `.<name>.<UUID>.tag.tmp` with the iTunes atoms and the chapter tracks (decision
 /// 0045): the encode maps to 0...0.95, the call of 1.0 comes after the copy, and the copy reads
@@ -176,6 +179,7 @@ func exportMix(
     // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
     defer { if let tagged { unlink(tagged.path) } }
     var current: LoudnessStage?
+    var decoded: FileMeasure?
     /// Writes the file once. `current` is the gain stage, nil for no target.
     func writeRound(_ band: ClosedRange<Double>) throws(ExportError) {
         try writeFile(
@@ -226,9 +230,15 @@ func exportMix(
                     measuresTruePeak: true)
                 try writeRound(bands.write(round: active.writes - 1, afterTrials: trialsInRound > 0))
                 trialsInRound = 0
+                tuning.afterWrite?(temporary)
                 step = active.next(after: .written(output: current?.output?.value))
             case .readBack:
-                step = active.next(after: .readBack(loudness: nil, truePeak: nil))
+                let band = bands.readBack(round: active.writes - 1)
+                let measure = try measureDecodedFile(temporary, layout: options.layout, isCancelled: isCancelled) {
+                    report(band.lowerBound + (band.upperBound - band.lowerBound) * $0)
+                }
+                decoded = measure
+                step = active.next(after: .readBack(loudness: measure.loudness?.value, truePeak: measure.truePeak))
             case .done:
                 break loop
             }
@@ -266,9 +276,10 @@ func exportMix(
     _ = flush(folder.path)
     let loudness = options.loudness.flatMap { target in
         current.map { stage in
-            LoudnessReport(
+            let file = decoded ?? FileMeasure(loudness: stage.output, truePeak: stage.truePeak)
+            return LoudnessReport(
                 target: target.integrated(for: options.layout), measured: measured, gain: stage.gain,
-                output: stage.output, truePeak: stage.truePeak)
+                output: file.loudness, truePeak: file.truePeak)
         }
     }
     return ExportResult(

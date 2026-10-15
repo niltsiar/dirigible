@@ -42,6 +42,7 @@ struct TimeTextTests {
             in: folder.url, tracks: tracks, seconds: seconds, audio: true, device: "duo")
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         studio.environment.playerOutput = .offline
         let chrome = try #require(model.chrome)

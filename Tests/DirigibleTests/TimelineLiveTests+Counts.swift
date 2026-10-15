@@ -20,6 +20,7 @@ extension TimelineLiveTests {
         NSWindow.allowsAutomaticWindowTabbing = false
         let model = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 2))
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         await until("the window shows the lanes") {
             (model.timelineView?.updates ?? 0) > 0 && model.timelineView?.window != nil
         }

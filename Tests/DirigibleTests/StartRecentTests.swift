@@ -63,6 +63,7 @@ extension StartWindowTests {
         await app.open(other)
         let window = await app.open(old)
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         let new = folder.url.appending(path: "new.dirigible")
         try FileManager.default.moveItem(at: old, to: new)
         let moved = packageIdentity(new)

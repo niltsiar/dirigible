@@ -117,6 +117,7 @@ import Testing
     @Test func aClippedArmedLaneShowsTheWarning() async throws {
         let window = await app.open(try await timelinePackage(in: folder.url, tracks: 12, seconds: 20))
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         window.window?.setContentSize(NSSize(width: 1000, height: 360))
         await until("the lanes publish the smaller height") {
             window.timeline.visible.map { !$0.lanes.contains(11) } == true
@@ -136,6 +137,7 @@ import Testing
     func openWindow(tracks: Int) async throws -> (SessionWindow, Studio, TimelineScrollView) {
         let window = await app.open(try await timelinePackage(in: folder.url, tracks: tracks, seconds: 20))
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         await until("the window shows the lanes") {
             window.timelineView?.window != nil && window.timeline.visible != nil
         }

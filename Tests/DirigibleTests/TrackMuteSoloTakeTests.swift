@@ -12,6 +12,7 @@ extension EditTakeTests {
     @Test func muteAndSoloDoNothingDuringATake() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         await model.record()
         try #require(studio.transport == .recording(take: 1))

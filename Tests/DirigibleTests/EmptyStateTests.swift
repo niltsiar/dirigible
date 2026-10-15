@@ -35,6 +35,7 @@ import Testing
         try await Task.detached { try Session.create(at: url, sampleRate: 48_000) }.value
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         let window = try #require(model.window)
         var button: NSButton?
         // The empty content has one button and the Add Call Tracks menu (B1c), a pop-up button.
@@ -72,6 +73,7 @@ import Testing
         }.value
         let model = await app.open(url)
         _ = await model.opened()
+        try await fixFreeSpace(model)
         let window = try #require(model.window)
         var menu: NSPopUpButton?
         await until(limit: .seconds(10), "the route menu shows") {

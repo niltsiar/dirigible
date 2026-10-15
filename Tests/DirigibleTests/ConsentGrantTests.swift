@@ -332,6 +332,7 @@ extension ConsentTests {
         }
         let again = await app.open(url)
         let reopened = try #require(await again.opened() ? again.studio : nil)
+        try await fixFreeSpace(again)
         reopened.environment = hal.environment
         again.attention = ConsentAttention(isActive: { true }, request: { 0 }, cancel: { _ in })
         let answer = ask(again, seconds: 0.3, connection: Self.seven)

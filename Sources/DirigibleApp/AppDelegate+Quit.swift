@@ -4,16 +4,16 @@ extension AppDelegate {
     /// During a take, one question. A refused episode draft stops Quit, as it stops Close. Then every
     /// window settles; a window whose last save still failed gives one more question.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        terminating = true
+        beginQuit()
         guard !windows.isEmpty else { return .terminateNow }
         if windows.values.contains(where: \.isTakeRunning),
             !confirmQuit(L10n.alertQuitRecording.text, L10n.alertQuitRecordingConfirm.text, false)
         {
-            terminating = false
+            cancelQuit()
             return .terminateCancel
         }
         if let held = windows.values.first(where: { $0.holdsRefusedEpisode() }) {
-            terminating = false
+            cancelQuit()
             held.window?.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
@@ -32,7 +32,7 @@ extension AppDelegate {
                 || confirmQuit(L10n.alertQuitUnsaved.format(names), L10n.alertQuitUnsavedConfirm.text, true)
             // A cancelled Quit: the settle started no peak pass (decision 0017).
             if !quit {
-                terminating = false
+                cancelQuit()
                 for window in open { window.studio?.loadPeaks() }
                 startAgentsIfOn()
             }

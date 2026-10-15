@@ -91,7 +91,7 @@ actor Player {
     /// The position while no feed runs.
     private(set) var frame: Frames = .zero
     private(set) var graph: Graph?
-    var feed: Feed?
+    private(set) var feed: Feed?
     private var stop: PlaybackStop?
     /// The output presentation latency in session frames, read at each play start. The node
     /// frames run ahead of the heard frames by this much. 0 in offline rendering.
@@ -125,6 +125,12 @@ actor Player {
         self.offlineLatency = offlineLatency
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
+    }
+
+    /// Records a change of speed of the running feed (decision 0052); `setSpeed` calls it.
+    func changeFeedSpeed(to speed: Speed, step: SpeedStep) {
+        feed?.step = step
+        feed?.speed = speed
     }
 
     /// Does nothing when `number` is not newer than the last feed number.

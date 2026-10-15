@@ -231,7 +231,7 @@ func exportMix(
                 try writeRound(bands.write(round: active.writes - 1, afterTrials: trialsInRound > 0))
                 trialsInRound = 0
                 tuning.afterWrite?(temporary)
-                step = active.next(after: .written(output: current?.output?.value))
+                step = active.next(after: .written(output: current?.output?.value, truePeak: current?.truePeak))
             case .readBack:
                 let band = bands.readBack(round: active.writes - 1)
                 let measure = try measureDecodedFile(temporary, layout: options.layout, isCancelled: isCancelled) {

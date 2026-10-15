@@ -37,11 +37,12 @@ struct LoudnessSearch {
     }
 
     /// The measurement of the step that ran. Loudness is nil when no block passes the gates, and
-    /// true peak is nil for digital silence.
+    /// true peak is nil for digital silence. `written` gives the true peak of the signal that the
+    /// encoder got.
     enum Event {
         case mix(loudness: Double?, truePeak: Double?)
         case trial(output: Double?)
-        case written(output: Double?)
+        case written(output: Double?, truePeak: Double?)
         case readBack(loudness: Double?, truePeak: Double?)
     }
 
@@ -51,7 +52,8 @@ struct LoudnessSearch {
     static let readBackTolerance = 0.2
     /// A decoded true peak over this many dBTP starts a retry.
     static let truePeakLimit = -1.0
-    /// A retry puts the ceiling this many dB under the decoded true peak.
+    /// A retry puts the ceiling this many dB under the excess of the decoded true peak, counted from
+    /// the lower of the ceiling and the written true peak.
     static let retrySlack = 0.1
 
     let target: Double
@@ -69,6 +71,7 @@ struct LoudnessSearch {
     private var round = 0
     private var capped = false
     private var limited: Double?
+    private var writtenPeak: Double?
 
     init(target: Double, start: Start, limits: Limits = Limits()) {
         self.target = target
@@ -100,8 +103,9 @@ struct LoudnessSearch {
                 return write(best.gain)
             }
             return trial(candidate)
-        case .written(let output):
+        case .written(let output, let truePeak):
             limited = output
+            writtenPeak = truePeak
             return readsBack ? .readBack : .done
         case .readBack(let loudness, let truePeak):
             readBacks += 1
@@ -109,7 +113,9 @@ struct LoudnessSearch {
             let excess = truePeak.map { $0 > Self.truePeakLimit } ?? false
             let missed = loudness.map { measured != nil && abs($0 - target) > Self.readBackTolerance } ?? false
             guard round < limits.retryRounds, excess || (missed && !capped) else { return .done }
-            if excess, let truePeak { ceiling -= truePeak - Self.truePeakLimit + Self.retrySlack }
+            if excess, let truePeak {
+                ceiling = min(ceiling, writtenPeak ?? ceiling) - (truePeak - Self.truePeakLimit) - Self.retrySlack
+            }
             round += 1
             return begin(after: limited.map { (gain, $0) })
         }

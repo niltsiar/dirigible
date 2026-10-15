@@ -17,6 +17,8 @@
 #   starts with `## Next` fails.
 # - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID and Feature cells
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
+# - A run number that HEAD adds to a done State of features.md is 1 + the highest run number of its
+#   Release at the base.
 # - With a run folder whose run.md has a `- Lands:` line, each F-ID of the line has a done state in
 #   features.md that differs from its state at the base, on any branch type. `- Lands: none` names no
 #   F-ID; an empty line fails. A `feat/` branch that changes Sources/, Package.swift, Package.resolved,
@@ -63,6 +65,37 @@ if [[ -n "$(at_base "$features")" ]]; then
     while IFS= read -r row; do
         [[ -z "$row" ]] || { echo "check-governance: features.md lost the row of ${row%%|*}; keep it and set Dropped (<reason>)" >&2; fail=1; }
     done <<<"$lost"
+fi
+
+# A done State is `done, ` and parts `Release <r> run <n>` or `Release <r> runs <list>`, joined by
+# ` and Release `. A `; Later:` part and each (note) are cut first. runs() prints `ID|r|run` for each run.
+runs() {
+    awk -F'|' '/^\| F[0-9]+ \|/ {
+        id = $2; s = $5; gsub(/^ +| +$/, "", id); gsub(/^ +| +$/, "", s)
+        if (s !~ /^done, /) next
+        sub(/; Later:.*/, "", s); gsub(/ [(][^)]*[)]/, "", s); sub(/^done, /, "", s)
+        k = split(s, part, / and Release /)
+        for (i = 1; i <= k; i++) {
+            p = part[i]; sub(/^Release /, "", p); r = p; sub(/ .*/, "", r)
+            sub(/^[0-9]+ runs? /, "", p); gsub(/ and /, ", ", p)
+            m = split(p, run, /, /)
+            for (j = 1; j <= m; j++) print id "|" r "|" run[j]
+        }
+    }'
+}
+# A run number that HEAD adds to a row is 1 + the highest run number of its release at the base. A
+# land adds one number to each release, so all new parts of the land share it. A base with no
+# features.md has no number to continue.
+if [[ -n "$(at_base "$features")" ]]; then
+    head_runs="$([[ ! -f "$features" ]] || runs < "$features" | sort)"
+    while IFS= read -r msg; do
+        [[ -z "$msg" ]] || { echo "check-governance: $msg" >&2; fail=1; }
+    done < <(awk -F'|' '
+        NR == FNR { old[$0] = 1; n = $3 + 0; if (!($2 in top) || n > top[$2]) top[$2] = n; next }
+        NF >= 3 && !($0 in old) {
+            want = ($2 in top ? top[$2] : 0) + 1
+            if ($3 "" != want "") print "features.md: " $1 " has Release " $2 " run " $3 ", but the next run number of Release " $2 " is " want
+        }' <(at_base "$features" | runs | sort) <(printf '%s\n' "$head_runs"))
 fi
 
 # A run with a reflect row (phase 8) in its decisions.tsv.

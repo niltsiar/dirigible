@@ -232,6 +232,42 @@ refuse 'a feat run with an empty Lands line' 'run.md has a - Lands: line with no
 lands_repo '# Run\n\n- Branch: fix/x\n- Lands:   \n'; commit
 refuse 'a fix run with a blank Lands line' 'run.md has a - Lands: line with no F-ID' "$tmp/run"
 
+# A new run number of a done state is 1 + the highest run number of that release at the base, and all
+# new parts of one land share it. A part of the base is not new. A base with no features.md has no number.
+# runs_repo: main holds F01 done in Release 4 run 1, F35 and F77 at Release 4, and F89 at Release 5.
+runs_repo() {
+  new_repo
+  g switch -q main
+  mkdir -p "$tmp/r/docs/requirements"
+  printf '# Features\n\n| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n| F01 | One | Logic | done, Release 4 run 1 (v0.4.1); Later: a part | R1 |\n| F35 | Noise | Logic | Release 4 | R8 |\n| F77 | Hum | Logic | Release 4 | R8 |\n| F89 | Render | Logic | Release 5 | R8 |\n' > "$features"
+  g add -A && g commit -q -m features
+  g switch -q -C feat/x
+}
+runs_repo; set_done F35 2; set_done F77 2; commit
+pass 'two features that land with the next run number'
+runs_repo; set_done F35 1; commit
+refuse 'a duplicate run number' 'F35 has Release 4 run 1, but the next run number of Release 4 is 2'
+runs_repo; set_done F35 3; commit
+refuse 'a skipped run number' 'F35 has Release 4 run 3, but the next run number of Release 4 is 2'
+runs_repo; set_done F35 2; set_done F77 3; commit
+refuse 'two features of one land with another number' 'F77 has Release 4 run 3, but the next run number of Release 4 is 2'
+runs_repo; set_done F35 11; commit
+refuse 'an item number as the run number' 'F35 has Release 4 run 11, but the next run number of Release 4 is 2'
+runs_repo; set_done F35 2a; commit
+refuse 'a run number with a letter' 'F35 has Release 4 run 2a, but the next run number of Release 4 is 2'
+runs_repo; sed -i '' 's/^\(| F89 | [^|]*| [^|]*| \)[^|]*|/\1done, Release 4 run 2 (moved from Release 5) |/' "$features"; commit
+pass 'a feature of a later release that lands early in the next run of Release 4'
+runs_repo; sed -i '' 's/done, Release 4 run 1 (v0.4.1)/done, Release 4 runs 1 and 2 (v0.4.1)/' "$features"; commit
+pass 'a second run that extends the done state of a row'
+runs_repo; sed -i '' 's/done, Release 4 run 1/done, Release 4 run 1/; s/a part/another part/' "$features"; commit
+pass 'a done row whose run numbers stay'
+runs_repo; sed -i '' 's/^\(| F35 | [^|]*| [^|]*| \)[^|]*|/\1done, Release 5 run 1 |/' "$features"; commit
+pass 'the first run number of a release with no done run at the base'
+runs_repo; sed -i '' 's/^\(| F35 | [^|]*| [^|]*| \)[^|]*|/\1done, Release 5 run 2 |/' "$features"; commit
+refuse 'a first run number of a release that is not 1' 'F35 has Release 5 run 2, but the next run number of Release 5 is 1'
+new_repo; mkdir -p "$tmp/r/docs/requirements"; printf '| F01 | One | Logic | done, Release 4 run 5 | R1 |\n' > "$features"; commit
+pass 'a base with no features.md and any run number'
+
 # Two holdout fails in a row stop the land. grade.py verdict writes its fail lines to
 # eval/holdout-fails.txt of the run, so no hand row is needed. The run to compare is the newest done
 # run of the ledger beside runs/ whose eval/scores.tsv has a row of the holdout: a run that did not

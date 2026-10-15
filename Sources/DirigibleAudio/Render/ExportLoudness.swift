@@ -159,8 +159,8 @@ struct LoudnessSearch {
 }
 
 extension LoudnessSearch.Start {
-    /// AAC: a margin of 1.5 dB. MP3: 0.5 dB, and the LAME scale of 0034 U4 as the offset. A
-    /// lossless file at another rate: 0.3 dB, the resampler figure of 0032. Probes U10, U19, U24.
+    /// AAC: a margin of 1.5 dB. MP3: 0.5 dB, and the LAME scale of 0034 U4 as the offset. Probes
+    /// U10 and U19.
     init(format: ExportFormat, fileRate: Int, sessionRate: Int) {
         switch format {
         case .aac:
@@ -174,8 +174,7 @@ extension LoudnessSearch.Start {
                 }
             self.init(margin: 0.5, offset: scale, readsBack: true)
         case .wav, .flac, .floatCAF:
-            let resampled = fileRate != sessionRate
-            self.init(margin: resampled ? 0.3 : 0, offset: 0, readsBack: resampled)
+            self.init(margin: 0, offset: 0, readsBack: false)
         }
     }
 }
@@ -264,3 +263,36 @@ struct LoudnessStage {
     /// true-peak meter.
     var truePeak: Double? { truePeakMeter?.result() }
 }
+
+/// The loudness and the true peak of a file.
+struct FileMeasure {
+    var loudness: LUFS?
+    var truePeak: Double?
+}
+
+/// Decodes the audio file at `url` as macOS decodes it (AudioToolbox), and measures its loudness
+/// and true peak at the file rate. `progress` gets the fraction done. It reads `isCancelled` at
+/// each chunk. A file that Core Audio cannot open or read throws `.writeFailed` with its status.
+func measureDecodedFile(
+    _ url: URL, layout: ChannelLayout, isCancelled: () -> Bool, progress: (Double) -> Void
+) throws(ExportError) -> FileMeasure {
+    let file: AVAudioFile
+    do { file = try AVAudioFile(forReading: url) } catch { throw .writeFailed(status(of: error)) }
+    let rate = Int(file.processingFormat.sampleRate)
+    guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(rate))
+    else { throw .writeFailed(kAudio_ParamError) }
+    var loudness = LoudnessMeter(sampleRate: rate, layout: layout)
+    var peak = TruePeakMeter(layout: layout)
+    while file.framePosition < file.length {
+        if isCancelled() { throw .cancelled }
+        do { try file.read(into: buffer) } catch { throw .writeFailed(status(of: error)) }
+        if buffer.frameLength == 0 { break }
+        loudness?.feed(buffer)
+        peak.feed(buffer)
+        progress(Double(file.framePosition) / Double(file.length))
+    }
+    return FileMeasure(loudness: loudness?.result().integrated, truePeak: peak.result())
+}
+
+/// The status of a Core Audio error, which `AVAudioFile` gives as the code of an `NSError`.
+private func status(of error: any Error) -> OSStatus { OSStatus(truncatingIfNeeded: (error as NSError).code) }

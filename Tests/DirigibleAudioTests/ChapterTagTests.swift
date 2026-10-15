@@ -207,6 +207,26 @@ struct ChapterTagTests {
         #expect(throws: ExportError.tagTooLarge) { try tagHeaderSize(maximumTagSize + 1) }
     }
 
+    /// The read-back skips the ID3 tag: the report of an MP3 export with episode fields and a chapter
+    /// image equals the report of the same export with no tag, within 0.01 LU.
+    @Test func aTaggedMP3ReadsBack() throws {
+        let options = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session, loudness: .podcast)
+        let plain = try exportMix(
+            package.session, source: ExportSource(range: 0..<144_000)!, options: options,
+            to: package.folder.url.appending(path: "plain.mp3"), package: { package.url })
+        var episode = Episode()
+        episode.title = try EpisodeLine("Ep")
+        let image = try artwork("jpeg bytes")
+
+        let tagged = try export(
+            [Marker(id: "one", name: "One", position: 0, kind: .chapter, image: image)], episode: episode,
+            options: options)
+
+        let (tag, base) = (try Self.tag(url), try #require(plain.loudness?.output).value)
+        #expect(tag.contains { $0.id == "CHAP" } && tag.contains { $0.id == "TIT2" }, "the file has no tag")
+        expectLUFS(tagged.loudness?.output, base, tolerance: 0.01, "the tagged report")
+    }
+
     /// C6. A chapter with a URL has `WXXX`, and a chapter with an image has `APIC` (type 0), in its
     /// `CHAP`. A chapter with neither has only its title.
     @Test func aChapterWithAURLAndAnImageGetsWXXXAndAPIC() throws {

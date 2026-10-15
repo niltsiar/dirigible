@@ -20,10 +20,12 @@ struct LoudnessExportBenchmark {
     }
 
     /// Exports the 8 tracks to `format` stereo with podcast, and gives the passes that the search
-    /// ran. The line has the renders (pass 1, each trial pass, each write) and the trial passes.
+    /// ran. The line has the renders (pass 1, each trial pass, each write), the trial passes, the
+    /// encodes, and the read-backs. An export with more than one write has `retryBudget`.
     static func exportTwoHours(
-        _ format: ExportFormat = .wav(.bits16), to name: String = "mix.wav", peaky: Bool, budget: Duration
-    ) throws -> (trials: Int, writes: Int) {
+        _ format: ExportFormat = .wav(.bits16), to name: String = "mix.wav", peaky: Bool, budget: Duration,
+        retryBudget: Duration? = nil
+    ) throws -> (trials: Int, writes: Int, readBacks: Int) {
         #if DEBUG
             let blocks = 60
         #else
@@ -45,13 +47,14 @@ struct LoudnessExportBenchmark {
 
         let trials = steps.filter { if case .trial = $0 { true } else { false } }.count
         let writes = steps.filter { if case .write = $0 { true } else { false } }.count
+        let readBacks = steps.filter { $0 == .readBack }.count
         print(
             "LoudnessExportBenchmark: \(blocks * 10) s of 8 tracks to \(name) with podcast in \(elapsed): "
-                + "\(1 + trials + writes) renders, \(trials) trial passes, \(writes) writes")
+                + "\(1 + trials + writes) renders, \(trials) trial passes, \(writes) encodes, \(readBacks) read-backs")
         #expect(result.faults == [:])
         expectLUFS(result.loudness?.output, -16, "the output loudness")
         #expect(try AVAudioFile(forReading: out).length == AVAudioFramePosition(frames.count))
-        expectWithinBudget(elapsed, budget, "the export took \(elapsed)")
-        return (trials, writes)
+        expectWithinBudget(elapsed, writes > 1 ? retryBudget ?? budget : budget, "the export took \(elapsed)")
+        return (trials, writes, readBacks)
     }
 }

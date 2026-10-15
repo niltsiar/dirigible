@@ -51,17 +51,25 @@ struct ExportBenchmark {
     }
 
     /// Export-loudness criterion C12 (c): AAC 128 with the podcast target, the sine fixture (no
-    /// limiting, no trial pass).
+    /// limiting, no trial pass), with one read-back in 147 s or less: 1.4 times its first run of
+    /// 105 s.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func anAACPodcastExportOfTheSineFixtureFitsTheBudget() throws {
-        _ = try LoudnessExportBenchmark.exportTwoHours(.aac(.k128), to: "mix.m4a", peaky: false, budget: .seconds(600))
+        let passes = try LoudnessExportBenchmark.exportTwoHours(
+            .aac(.k128), to: "mix.m4a", peaky: false, budget: .seconds(147))
+
+        #expect((passes.trials, passes.writes, passes.readBacks) == (0, 1, 1), "\(passes)")
     }
 
     /// Export-loudness criterion C12 (d): AAC 128 with the podcast target, the "train" fixture
-    /// (trial passes before the encode).
+    /// (trial passes before the encode): 240 s or less with one encode, 420 s or less with two. A
+    /// third encode fails.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func anAACPodcastExportOfTheTrainFixtureFitsTheBudget() throws {
-        _ = try LoudnessExportBenchmark.exportTwoHours(.aac(.k128), to: "mix.m4a", peaky: true, budget: .seconds(600))
+        let passes = try LoudnessExportBenchmark.exportTwoHours(
+            .aac(.k128), to: "mix.m4a", peaky: true, budget: .seconds(240), retryBudget: .seconds(420))
+
+        #expect(passes.writes <= 2, "\(passes.writes) encodes")
     }
 
     /// Exports the 8 tracks to `format` stereo and expects the exact length and the budget.

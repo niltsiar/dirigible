@@ -10,7 +10,9 @@
 # PUSH_SKIP file outside PUSH_RUN, that a passing make test-slow or test-slow-push writes the
 # date, and that check-slow-gates fails on a PUSH_SKIP name with no file or with no Benchmark.
 # Check that the recipe waits for a load under the core count before Swift tests, stops the wait
-# at CHECK_LOAD_WAIT, and reads no load for docs targets. Run by `make test-hooks`.
+# at CHECK_LOAD_WAIT, and reads no load for docs targets. Check the delta after a pass stamp, and
+# the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
+# ignore mode. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 script="$repo/scripts/check-changed.sh"
@@ -309,6 +311,105 @@ g switch -q feat/d
 got="$(run_in main)" || fail "a stamp that is not an ancestor: exit $?"
 [[ "$got" == "$(out 'docs tests' check no)" ]] || fail "a stamp that is not an ancestor: got [$got]"
 
+# The partial stamp: a check whose only red targets were tests appended '<P> <base commit> failed
+# fast:<names> slow:<names>'. check-changed.sh <base> selects the newest line of this base whose P
+# is HEAD or an ancestor and is newer than the newest pass stamp, prints `stamp: partial <P>`, the
+# targets of the paths since P, and the word RERUN=<P>:fast:<names>+slow:<names>. partial_case
+# [path before P]: on a branch with a slow run today, a commit of the tests aFast, bFast, and
+# aSlow (and of the path), then P is HEAD. partial_line <commit> <base> <fast> <slow>.
+partial_line() { echo "$1 $(g rev-parse "$2") failed fast:$3 slow:$4" >> "$tmp/r/.git/dirigible-check-partial"; }
+tests_file=Tests/DirigibleCoreTests/A.swift bench_file=Tests/DirigibleAudioTests/LoudnessBenchmark.swift
+partial_case() {
+  new_repo
+  g switch -q -c feat/p
+  echo "$today" > "$tmp/r/.git/dirigible-slow-date"
+  mkdir -p "$tmp/r/Tests/DirigibleCoreTests"
+  printf 'func aFast() {}\nfunc bFast() {}\nfunc aSlow() {}\n' > "$tmp/r/$tests_file"
+  g add -A
+  g commit -q -m tests
+  [[ -z "${1:-}" ]] || put "$1" one
+  P="$(g rev-parse HEAD)"
+}
+# partial_is <name> <header> <classes> <targets> <risk> [env]: the whole output, exit 0.
+partial_is() {
+  local name="$1" want
+  want="$(printf '%s\n%s' "$2" "$(out "$3" "$4" "$5")")"
+  [[ -n "$2" ]] || want="$(out "$3" "$4" "$5")"
+  got="$(cd "$tmp/r" && env ${6:-} "$script" main)" || { fail "$name: exit $?"; return; }
+  [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
+}
+partial_case
+partial_line "$P" main aFast aSlow
+partial_is 'a partial line and no path since P' "stamp: partial $P" tests "RERUN=$P:fast:aFast+slow:aSlow" no
+put docs/b.md two
+partial_is 'a partial line and a docs path since P' "stamp: partial $P" 'docs tests' "check-docs RERUN=$P:fast:aFast+slow:aSlow" no
+# A Tests path since P gives check, which runs each fast test: the fast part drops, the slow part stays.
+put Tests/DirigibleCoreTests/B.swift two
+partial_is 'a Tests path since P drops the fast part' "stamp: partial $P" 'docs tests' "check RERUN=$P:fast:+slow:aSlow" no
+# A name with no func <name>( under Tests/ drops; with no name left, there is no word.
+partial_case
+partial_line "$P" main aFast,gone ''
+put docs/b.md two
+partial_is 'a deleted name drops' "stamp: partial $P" 'docs tests' "check-docs RERUN=$P:fast:aFast+slow:" no
+partial_case
+partial_line "$P" main gone ''
+put docs/b.md two
+partial_is 'no name left: no word' "stamp: partial $P" 'docs tests' check-docs no
+# Of two lines of ancestors of this base, the last in the file wins.
+partial_case
+partial_line "$P" main aFast ''
+put docs/b.md two
+P2="$(g rev-parse HEAD)"
+partial_line "$P2" main bFast ''
+partial_is 'the newest of two lines wins' "stamp: partial $P2" 'docs tests' "RERUN=$P2:fast:bFast+slow:" no
+# No word: a pass stamp at P or after it, a line of another base, a line of a commit on another branch.
+partial_case
+partial_line "$P" main aFast ''
+stamp_line "$P" main
+stamped="$P"
+partial_is 'a pass stamp at P' "stamp: delta $P" tests none no
+put docs/b.md two
+stamp_line "$(g rev-parse HEAD)" main
+partial_is 'a pass stamp after P' "stamp: delta $(g rev-parse HEAD)" 'docs tests' none no
+partial_case
+partial_line "$P" "$P" aFast ''
+partial_is 'a line of another base' '' tests check no
+partial_case
+g switch -q -c feat/other main
+put docs/c.md other
+partial_line "$(g rev-parse HEAD)" main aFast ''
+g switch -q feat/p
+partial_is 'a line of a commit on another branch' '' tests check no
+# A red slow test of a PUSH_SKIP bench file, then a risk path after P: test-slow-push with no
+# PUSH_RUN skips the bench file, so the slow part stays in the word.
+partial_case
+mkdir -p "$tmp/r/Tests/DirigibleAudioTests"
+printf 'func aBench() {}\n' > "$tmp/r/$bench_file"
+g add -A
+g commit -q -m bench
+P="$(g rev-parse HEAD)"
+partial_line "$P" main '' aBench
+put Sources/DirigibleAudio/A.swift two
+partial_is 'a bench name and a risk path since P' "stamp: partial $P" 'tests sources-risk' "check test-slow-push RERUN=$P:fast:+slow:aBench" yes
+# risk: yes and no Sources/ or Tests/ path since P (the working tree too): exit 1, no targets
+# line, and a message that names the fix of the test, also in ignore mode.
+for mode in '' CHECK_PARTIAL=ignore; do
+  partial_case Sources/DirigibleAudio/A.swift
+  partial_line "$P" main aFast ''
+  put docs/b.md two
+  got="$(cd "$tmp/r" && env $mode "$script" main 2> "$tmp/refuse.err")" && fail "risk and no change since P ($mode): exit 0"
+  [[ "$got" != *targets:* ]] || fail "risk and no change since P ($mode): a targets line: $got"
+  grep -q 'flake-triage.md' "$tmp/refuse.err" || fail "risk and no change since P ($mode): no flake-triage.md: $(cat "$tmp/refuse.err")"
+  ! grep -q CHECK_PARTIAL "$tmp/refuse.err" || fail "risk and no change since P ($mode): the message offers CHECK_PARTIAL"
+done
+printf 'func cFast() {}\n' >> "$tmp/r/$tests_file"
+partial_is 'risk and a Tests path since P in the working tree' "stamp: partial $P" 'docs tests sources-risk' check yes
+# Ignore mode: the targets of a check with no partial line, and the word with each name of the line.
+partial_case
+partial_line "$P" main aFast,gone aSlow
+put Tests/DirigibleCoreTests/B.swift two
+partial_is 'ignore mode keeps each name' '' tests "check RERUN=$P:fast:aFast,gone+slow:aSlow" no CHECK_PARTIAL=ignore
+
 # make check-changed with the real Makefile and script. A wrong recipe runs the default goal
 # `setup`, which sets core.hooksPath, so each case also checks that the value stays unset.
 # make exits 2 when a recipe fails, so a refused case asserts a nonzero exit and its reason.
@@ -516,6 +617,20 @@ FAKE_FILTER=pass PATH="$tmp/bin:$PATH" make_case 'a red test that passes on a re
 rerun_repo
 FAKE_FILTER=red PATH="$tmp/bin:$PATH" make_case 'a red rerun' 'red after 3 reruns' BASE=main
 [[ "$(stamp_read)" == 'no stamp' ]] || fail "a red rerun: stamp [$(stamp_read)]"
+# A partial stamp through the real recipe and script: the RERUN word alone runs the failed test,
+# and its pass writes the pass stamp of HEAD.
+rerun_repo
+cp "$script" "$tmp/r/scripts/check-changed.sh"
+g commit -q -am real-script
+g switch -q -c feat/r
+put Tests/DirigibleCoreTests/F.swift 'func aFlake() {}'
+partial_line "$(g rev-parse HEAD)" main aFlake ''
+echo 1.00 > "$tmp/load"
+: > "$tmp/procs"
+FAKE_FILTER=pass PATH="$tmp/bin:$PATH" make_case 'a partial stamp through make check-changed' '' BASE=main
+word="RERUN=$(g rev-parse HEAD):fast:aFlake+slow:"
+[[ "$output" == *"targets: $word"* ]] || fail "a partial stamp through make check-changed: no word: $output"
+[[ "$(stamp_read)" == "$(g rev-parse HEAD) $word" ]] || fail "a partial stamp through make check-changed: stamp [$(stamp_read)]: $output"
 
 [[ $failures -eq 0 ]] && echo "check-changed tests: all passed"
 exit $((failures > 0))

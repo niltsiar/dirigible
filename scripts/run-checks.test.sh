@@ -7,7 +7,8 @@
 # refusal with no rerun (also a crashed shard of test-shards.sh), CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
 # later try with only the names that did not pass again, a real make on a stub Makefile, the
 # static gates first (a red gate stops the check before test; a gate runs once; a nested make
-# still runs a gate), and --flakes (the read route of the flakes file). Run by `make test-hooks`.
+# still runs a gate), --flakes (the read route of the flakes file), the partial stamp line, and
+# the RERUN word (its two modes, no make call, one flake line for each name). Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -23,6 +24,7 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # each name and exits 1 (FAKE_AGAIN limits the failed names to that one name). Each other name
 # gets a pass line, except FAKE_SILENT, which gets no line (a test that did not run). While red,
 # FAKE_BOTH also gets a pass line beside its failed line (the same name in a second suite).
+# FAKE_SKIP gets a skip line and no pass line when DIRIGIBLE_SLOW_TESTS is not 1 (a slow test).
 w="$tmp/w"
 mkdir -p "$w/scripts" "$tmp/bin"
 git init -q "$w"
@@ -38,6 +40,7 @@ red=0
 ((n < FAKE_PASS_AT)) && red=1
 for a in "$@"; do
   [[ $a == --* || $a == "${FAKE_SILENT:-}" ]] && continue
+  if [[ $a == "${FAKE_SKIP:-}" && "${DIRIGIBLE_SLOW_TESTS:-}" != 1 ]]; then echo "➜ Test $a() skipped"; continue; fi
   if ((red)) && [[ -z "${FAKE_AGAIN:-}" || $a == "$FAKE_AGAIN" ]]; then
     echo "✘ Test $a() failed after 1.0 seconds with 1 issue."
     [[ $a != "${FAKE_BOTH:-}" ]] || echo "✔ Test $a() passed after 1.0 seconds."
@@ -252,6 +255,65 @@ BASE=origin/main run 1 2 '2:make: *** [check] Error 2' check
 : > "$tmp/log.marks"
 run 1 0 'ok' check
 [[ ! -s "$tmp/log.marks" ]] || fail "a run with no BASE marked the tree"
+
+# The partial stamp: with BASE, on a clean tree, a check whose only red targets after the reruns
+# are test or test-slow-push appends '<HEAD> <base commit> failed fast:<names> slow:<names>' to the
+# partial file of the git common dir. The fixture files are committed, so the tree is clean.
+git -C "$w" add -A
+git -C "$w" -c user.name=t -c user.email=t@t commit -q -m files
+git -C "$w" tag base
+head="$(git -C "$w" rev-parse HEAD)"
+partial="$w/.git/dirigible-check-partial"
+partial_run() { rm -f "$partial"; run "$@"; }
+no_partial() { [[ ! -e "$partial" ]] || fail "$1: a partial line [$(cat "$partial")]"; }
+BASE=base partial_run 9 2 "$red_test"
+[[ $code -eq 1 ]] || fail "a test-only red check with BASE: exit $code: $out"
+[[ "$(cat "$partial" 2>/dev/null)" == "$head $head failed fast:aFlake slow:" ]] ||
+  fail "a test-only red check with BASE writes one partial line: [$(cat "$partial" 2>/dev/null)]"
+BASE=base partial_run 9 2 $'✘ Test aFast() failed after 1.0 seconds with 1 issue.\n✘ Test bFast() failed after 1.0 seconds with 1 issue.\n2:make[1]: *** [test] Error 1\n✘ Test aSlow() failed after 9.0 seconds with 1 issue.\n2:make[1]: *** [test-slow-push] Error 1' check test-slow-push
+[[ "$(cat "$partial" 2>/dev/null)" == "$head $head failed fast:aFast,bFast slow:aSlow" ]] ||
+  fail "a red fast and a red slow name: [$(cat "$partial" 2>/dev/null)]"
+BASE=base partial_run 1 0 'ok'
+no_partial 'a green check'
+BASE=base partial_run 1 2 $'2:make[1]: *** [check-docs] Error 1'
+no_partial 'a red check-docs'
+partial_run 9 2 "$red_test"
+no_partial 'a red test with no BASE'
+echo x > "$w/dirty.txt"
+BASE=base partial_run 9 2 "$red_test"
+no_partial 'a dirty tree'
+rm "$w/dirty.txt"
+
+# A RERUN=<P>:fast:<names>+slow:<names> word: run-checks.sh runs the other targets, then the fast
+# names with no slow env and the slow names with DIRIGIBLE_SLOW_TESTS=1 and --no-parallel. The word
+# never reaches make; with no other target, make does not run. Each name that passes gets one
+# flake line, also a name that passed on the first try, and no name gets two lines in one check.
+P=abc
+run 1 0 'ok' "RERUN=$P:fast:aFast+slow:aSlow" FILTER=
+[[ $code -eq 0 ]] || fail "a RERUN word alone: exit $code: $out"
+[[ "$(cat "$tmp/log")" == $'check-changed --wait-load test\ntest-filter slow= --exact aFast\ntest-filter slow=1 --exact --no-parallel aSlow' ]] ||
+  fail "a RERUN word alone: calls [$(cat "$tmp/log")]"
+[[ "$(cut -d' ' -f1,2 "$flakes" 2>/dev/null | paste -sd' ' -)" == "$head aFast $head aSlow" ]] || fail "a RERUN pass: flakes [$(cat "$flakes" 2>/dev/null)]"
+run 1 0 'ok' check-docs "RERUN=$P:fast:aFast+slow:" FILTER=
+[[ $code -eq 0 ]] || fail "a RERUN word after check-docs: exit $code: $out"
+[[ "$(cat "$tmp/log")" == $'check-changed --wait-load check-docs\nmake -k check-docs FILTER=\ncheck-changed --wait-load test\ntest-filter slow= --exact aFast' ]] ||
+  fail "a RERUN word after check-docs: calls [$(cat "$tmp/log")]"
+# A slow name passes only in the slow mode: a skip line is no pass line.
+FAKE_SKIP=aSlow run 1 0 'ok' "RERUN=$P:fast:+slow:aSlow"
+[[ $code -eq 0 ]] || fail "a slow name in the slow mode: exit $code: $out"
+FAKE_SKIP=aSlow run 1 0 'ok' "RERUN=$P:fast:aSlow+slow:"
+[[ $code -eq 1 ]] || fail "a skipped name passed: exit $code: $out"
+# The ignore mode: check passes with the name, then the word runs it again: one flake line.
+run 1 0 'ok' check "RERUN=$P:fast:aFlake+slow:"
+[[ $code -eq 0 && "$(cut -d' ' -f2 "$flakes" 2>/dev/null)" == aFlake ]] || fail "ignore mode, a pass on the first try: exit $code, flakes [$(cat "$flakes" 2>/dev/null)]"
+# A rerun of the check wrote the line of aFlake, so the word adds no second line.
+run 2 2 "$red_test" check "RERUN=$P:fast:aFlake+slow:"
+[[ $code -eq 0 && "$(wc -l < "$flakes" | tr -d ' ')" == 1 ]] || fail "one flake line for each name and check: exit $code, flakes [$(cat "$flakes" 2>/dev/null)]"
+# A red RERUN writes a new partial line of HEAD; a red check keeps the names of the word too.
+BASE=base partial_run 9 0 'ok' "RERUN=$P:fast:aFast+slow:"
+[[ $code -eq 1 && "$(cat "$partial" 2>/dev/null)" == "$head $head failed fast:aFast slow:" ]] || fail "a red RERUN: exit $code, partial [$(cat "$partial" 2>/dev/null)]"
+BASE=base partial_run 9 2 "$red_test" check "RERUN=$P:fast:aFast+slow:aSlow"
+[[ "$(cat "$partial" 2>/dev/null)" == "$head $head failed fast:aFlake,aFast slow:aSlow" ]] || fail "a red check with a word: partial [$(cat "$partial" 2>/dev/null)]"
 
 [[ $failures -eq 0 ]] && echo "run-checks tests: all passed"
 exit $((failures > 0))

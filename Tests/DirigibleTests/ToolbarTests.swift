@@ -259,7 +259,7 @@ struct ToolbarValueTests {
     }
 
     /// A10: at the minimum width, with a long title, the transport and the time stay in the
-    /// toolbar; at 900 pt, Input Levels and Export too (probe P1c). English and Spanish labels.
+    /// toolbar; at 900 pt, Input Levels and Export too (probe P1c). The labels of each language.
     @Test func theTransportStaysVisibleAtTheMinimumWidth() async throws {
         let (model, window, chrome) = try await open(String(repeating: "Interview ", count: 12))
         try #require(window.title.count == 120)
@@ -269,7 +269,7 @@ struct ToolbarValueTests {
         ]
         let wide = transport.union(["record.monitor", "file.export"])
 
-        for language in ["en", "es"] {
+        for language in AppLanguage.allCases.map(\.rawValue) {
             try useLabels(language, chrome)
             // A smaller size gives the minimum: the content keeps its minimum width.
             window.setContentSize(NSSize(width: 500, height: 600))
@@ -291,7 +291,7 @@ struct ToolbarValueTests {
     }
 
     /// A11: min(1180 pt, the screen) x 720 pt, and a second window cascades from the first. At
-    /// 1180 pt every default item shows with the English labels and with the Spanish labels.
+    /// 1180 pt every default item shows with the labels of each language.
     @Test func aNewWindowShowsTheDefaultToolbar() async throws {
         let (first, window, chrome) = try await open("first")
         let screen = try #require(window.screen).visibleFrame.width
@@ -300,7 +300,7 @@ struct ToolbarValueTests {
         #expect(window.contentLayoutRect.size == NSSize(width: width, height: 720), "screen width \(screen)")
         if width == 1180 {
             let items = Set(ToolbarItemID.defaults.map(\.rawValue))
-            for language in ["en", "es"] {
+            for language in AppLanguage.allCases.map(\.rawValue) {
                 try useLabels(language, chrome)
                 await until(limit: .seconds(10), "\(language): every default item shows at 1180 pt") {
                     window.layoutIfNeeded()

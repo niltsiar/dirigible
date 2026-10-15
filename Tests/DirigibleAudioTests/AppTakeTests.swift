@@ -133,10 +133,12 @@ struct AppTakeTests {
         await until(limit: .seconds(20), "the start waits for the app") { started.value }
         if !started.value { hal.releaseTaps() }
         try await start.value
+        // The take start writes the time left with no WAV bytes; a disk watch tick counts them.
+        let atStart = try #require(studio.recordTimeLeft)
         let micInput = SyntheticInput(hal, "mic")
         var micClock = DeviceClock()
         micInput.play(micClock.run(seconds: 3), pace: .realTime, takeStartIn: url)
-        await until(limit: .seconds(20), "the disk watch did not tick") { studio.recordTimeLeft != nil }
+        await until(limit: .seconds(20), "the disk watch did not tick") { (studio.recordTimeLeft ?? atStart) < atStart }
         try await Task.sleep(for: .milliseconds(500))
         let takeStart = try #require(studio.session.recording?.takeStartHostTimeNanos)
         // The stop host is read in the job of the stop, so a main-actor hold before it does not

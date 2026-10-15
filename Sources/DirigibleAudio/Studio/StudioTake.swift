@@ -116,9 +116,9 @@ extension Studio {
         let result = await serialized { () async -> Result<(take: Int, generation: Int), StudioError> in
             defer { isStarting = false }
             let playhead = await takePlayhead(stopped, playhead)
-            let started: StartedTake
+            let (started, free): (StartedTake, Int64)
             do throws(StudioError) {
-                started = try await prepareTake(
+                (started, free) = try await prepareTake(
                     of: session, lock: lock, armed: armed, playhead: playhead, environment: environment,
                     recordings: recordings, endExport: exportEnd())
             } catch {
@@ -130,8 +130,11 @@ extension Studio {
                     .addingReportingOverflow(length)
                 for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
             }
+            let channels = self.armed.compactMap { session.track($0.id)?.layout.channelCount }.reduce(0, +)
+            recordTimeLeft = DirigibleAudio.remainingRecordTime(
+                free: free, wav: 0, channels: channels, rate: session.sampleRate)
             sleepAssertion = SleepAssertion()
-            diskWatcher = watchDisk()
+            diskWatcher = watchDisk(channels: channels)
             // A stop from now on waits for this step and does not throw `.busy`.
             isStarting = false
             await environment.afterStart()
@@ -284,10 +287,9 @@ extension Studio {
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
     /// the take plus 1 GB. Before the stop, it ends the exports of the other studios to the
     /// volume of the package and checks again. The reads run off the main actor.
-    /// It also sets `recordTimeLeft` for the transport bar.
-    func watchDisk() -> Task<Void, Never> {
+    /// It also sets `recordTimeLeft` of the `channels` of the take for the window subtitle.
+    func watchDisk(channels: Int) -> Task<Void, Never> {
         let (lock, environment, writers) = (lock, environment, Array(writers.values))
-        let channels = armed.compactMap { session.track($0.id)?.layout.channelCount }.reduce(0, +)
         let rate = session.sampleRate
         return Task { [weak self] in
             while !Task.isCancelled {

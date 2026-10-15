@@ -314,21 +314,23 @@ func appUID(_ bundleID: String) -> String { "app:\(bundleID)" }
 /// check, and the save. Then the list entry, before the attach (decision 0004). `endExport` runs
 /// after the checks and before the disk check (decision 0019), so a refused start keeps the
 /// export and the disk check sees the space that the export frees. It is nil when no export
-/// runs, so the start makes no main-actor turn between its checks and its save.
+/// runs, so the start makes no main-actor turn between its checks and its save. It also returns
+/// the free bytes of the disk check.
 @concurrent nonisolated func prepareTake(
     of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment,
     recordings: ActiveRecordings?, endExport: (@MainActor @Sendable () async -> Void)?
-) async throws(StudioError) -> StartedTake {
+) async throws(StudioError) -> (started: StartedTake, free: Int64) {
     dispatchPrecondition(condition: .notOnQueue(.main))
     await environment.beforeLookUp()
     let routes = try checkTake(of: session, armed: armed, environment: environment)
     if let endExport { await endExport() }
-    guard environment.freeBytes(lock) >= diskMargin else { throw .diskLow }
+    let free = environment.freeBytes(lock)
+    guard free >= diskMargin else { throw .diskLow }
     let started = try saveTakeStart(
         session, lock: lock, routes: routes, playhead: playhead,
         hostTimeNanos: hostNanosNow())
     recordings?.set(started.package, active: true)
-    return started
+    return (started, free)
 }
 
 /// The free bytes of the volume of the package that `lock` holds, off the main actor.

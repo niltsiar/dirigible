@@ -9,8 +9,9 @@
 # after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
 # full push check; the governance and the ancestor checks still run. The land reads the stamp
 # before its rebase: the delta is the tree diff to the rebased HEAD, with the test target for a
-# file that a Swift test names, and a second land of a stopped branch reuses the stamp commit. The ratchet case runs the
-# real make check-changed first, so the land runs no check after it. A partial stamp is no pass.
+# file that a code line of a Swift test names whole, and a second land of a stopped branch reuses
+# the stamp commit. The ratchet case runs the real make check-changed first, so the land runs no
+# check after it. A partial stamp is no pass.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -451,23 +452,25 @@ git -C "$c/work" commit -q --allow-empty -m side
 stamp origin/main
 git -C "$c/work" switch -q feat/x
 stamp_case 'not an ancestor before the rebase' 'stamp: none (not an ancestor)' 'make check-changed BASE=origin/main'
-# A stamp of a file that a Swift test reads (docs/guide.md here): the delta adds the test target.
-# The stamped tree and HEAD both hold Tests/G.swift, which names the file. A doc that no test
-# reads gets no test target.
-setup
-main_commit Tests/G.swift 'docs/guide.md'
-git -C "$c/work" fetch -q && git -C "$c/work" rebase -q origin/main
-main_commit docs/guide.md
-git -C "$c/work" fetch -q
-stamp origin/main
-stamp_case 'rebase delta of a file that a test reads' 'stamp: delta check-docs test' 'make -k check-docs test'
-setup
-main_commit Tests/G.swift 'docs/guide.md'
-git -C "$c/work" fetch -q && git -C "$c/work" rebase -q origin/main
-main_commit docs/a.md
-git -C "$c/work" fetch -q
-stamp origin/main
-stamp_case 'rebase delta of a doc that no test reads' 'stamp: delta check-docs' 'make -k check-docs'
+# A delta path that a Swift test reads adds a test target. reads_case <name> <test file> <test
+# text> <main file> <targets>: the stamped tree and HEAD both hold the test file, then
+# origin/main gets the main file.
+reads_case() {
+  setup
+  main_commit "$2" "$3"
+  git -C "$c/work" fetch -q && git -C "$c/work" rebase -q origin/main
+  main_commit "$4"
+  git -C "$c/work" fetch -q
+  stamp origin/main
+  stamp_case "$1" "stamp: delta $5" "make -k $5"
+}
+reads_case 'rebase delta of a file that a test reads' Tests/G.swift 'let p = "../../docs/guide.md"' docs/guide.md 'check-docs test'
+reads_case 'rebase delta of a doc that no test reads' Tests/G.swift 'let p = "../../docs/guide.md"' docs/a.md check-docs
+# Only a path that a code line names whole counts: a comment, a longer name, and a name that is
+# part of a longer path do not.
+reads_case 'rebase delta of a file that a test names in a comment' Tests/G.swift '/// reads scripts/a.sh' scripts/a.sh check-fast
+reads_case 'rebase delta of a file that a test names in part' Tests/G.swift $'let a = "xscripts/a.sh"\nlet b = "scripts/a.sh.txt"' scripts/a.sh check-fast
+reads_case 'rebase delta of a script that a test reads' Tests/G.swift 'let p = "scripts/a.sh"' scripts/a.sh 'check-fast test'
 # A land that stops after its rebase (here: a slice with no Check line) keeps the rebased branch.
 # The second land of the branch finds the stamp commit in the land stamp file of the git dir.
 setup

@@ -22,7 +22,7 @@ Probes of the run (`.scratchpads/runs/2026-10-03-export-loudness/probe/`): P1 re
 
 **Limiter.** `TruePeakLimiter` in `DSP/Limiter.swift` is our own, with one gain for all channels. Per frame: the needed gain `min(1, c / truePeak)` with an internal ceiling c of -1.05 dBTP; the minimum over 5 ms plus the 12 FIR frames; a one-pole release of 50 ms; and the mean of the last 5 ms. The audio is delayed by 5 ms plus 10 frames. A drain at the end gives back the delay, so the output length equals the input length for any chunk size. Under the ceiling the gain is exactly 1, so the output equals the input bit for bit.
 
-**Two passes.** With a target, `exportMix` renders the source twice. Pass 1 measures the mix (the mono fold for a mono export) before the temporary file exists. Pass 2 applies the gain `target - measured` with no limit, the limiter, and the dither, then measures the output at the session rate before the encoder. A mix with no gated block gets 0 dB. The progress maps pass 1 to 0...0.25 and pass 2 to 0.25...1, with at most 101 calls. A cancel in either pass leaves no file. `ExportOptions.loudness` is nil by default, and `ExportOptions.render` keeps nil, so `dirigible render` and an export with Off do not change. `exportMix` and `Studio.export` return `ExportResult`: the faults and the `LoudnessReport` (target, measured, gain, output loudness, true peak).
+**Passes.** With a target, `exportMix` renders the source at least twice. Pass 1 measures the mix (the mono fold for a mono export) and its true peak before the temporary file exists. The first gain is `target - measured` with no limit. When the true peak of the mix plus the gain is over the ceiling minus `TruePeakLimiter.margin` (0.05 dB), the limiter acts and the output reads lower than the target. Then trial passes run before the write: each renders the mix with a gain and the limiter and measures the output, with no file. The next gain adds `target - output`, and then the secant of the last two points. A round of trial passes stops within 0.1 LU of the target or after 4 trial passes, and keeps the gain with the smallest miss. The write pass applies that gain, the limiter, and the dither. A mix with no gated block gets 0 dB and no trial pass. `LoudnessSearch` in `Render/ExportLoudness.swift` decides each step. The progress maps pass 1 to 0...0.15, the trial passes to 0.15...0.3, and the write to 0.3...1 (0.15...1 with no trial pass), with at most 101 calls. A cancel in any pass leaves no file. `ExportOptions.loudness` is nil by default, and `ExportOptions.render` keeps nil, so `dirigible render` and an export with Off do not change. `exportMix` and `Studio.export` return `ExportResult`: the faults and the `LoudnessReport` (target, measured, gain, output loudness, true peak). The gain is the one that the file got.
 
 **Dither.** `TPDFDither` in `DSP/Dither.swift` adds ±1 LSB of 16 bit to WAV 16 and FLAC 16, with and without a target: the difference of two uniform values from SplitMix64, one stream per channel, with a fixed seed that starts again at each export. So each export of the same mix gives the same file, and FLAC equals WAV bit for bit. 24-bit, AAC, MP3, and the float CAF get no dither.
 
@@ -32,12 +32,12 @@ Probes of the run (`.scratchpads/runs/2026-10-03-export-loudness/probe/`): P1 re
 
 ## Consequences
 
-- An export with a target renders the mix twice. The 2 h, 8-track bench to WAV 16 with Podcast takes 30.8 s; the budget is 57 s (`make bench FILTER=LoudnessExportBenchmark`).
+- An export with a target renders the mix twice when the limiter changes no frame, and 1 + k + 1 times when it acts, with k trial passes (4 at most). The 2 h, 8-track bench to WAV 16 with Podcast takes 37 s with no limiting (the budget is 57 s) and 94 s with hard limiting and 4 trial passes (the budget is 120 s) (`make bench FILTER='LoudnessExportBenchmark PeakyLoudnessExportBenchmark'`).
 - A 16-bit export with Off changes too: its last bit has dither, so it differs from an export of an earlier version.
 - An export with Off still clips a mix over full scale.
 - An export at a file rate other than the session rate is limited and measured at the session rate. The resampler can raise the true peak by about 0.3 dB, and it filters the dither a little.
 - The report measures the processed signal before the encoder, not the written file: AAC can read a little higher after its decode, and MP3 up to 0.45 dB lower (0034).
-- The limiter loss is reported, not made up: a mix with loud peaks can read under the target.
+- The search makes up the limiter loss: the gain rises until the output is within 0.1 LU of the target, and the report shows the gain that the file got.
 - Each Export Selection is measured and normalized by itself.
 
 ## Alternatives considered

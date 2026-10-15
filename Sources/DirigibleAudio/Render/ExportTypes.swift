@@ -171,7 +171,8 @@ public struct LoudnessReport: Hashable, Sendable {
     public let target: LUFS
     /// The mix before the gain. Nil when no block passes the gates: then the gain is 0 dB.
     public let measured: LUFS?
-    /// `target - measured`, with no limit.
+    /// The gain that the file got. It is `target - measured` plus the limiter loss that the search
+    /// made up, with no limit.
     public let gain: Gain
     /// The output after the gain and the limiter.
     public let output: LUFS?

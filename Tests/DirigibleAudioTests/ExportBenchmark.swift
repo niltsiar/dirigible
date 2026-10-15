@@ -9,13 +9,20 @@ import Testing
 /// AAC 128 kbit/s stereo, and MP3 run criterion 15 to MP3 128 kbit/s stereo, each in 120 s or less, optimized build (`make bench FILTER=ExportBenchmark`).
 /// A debug build exports 10 min with no budget: a smoke run, not the criterion.
 struct ExportBenchmark {
-    /// A package with 8 tracks of one mono WAV of `blocks` x 10 s: a 375 Hz sine at -20 dBFS.
-    static func eightTracks(blocks: Int) throws -> (package: MixPackage, frames: Frames) {
+    /// A package with 8 tracks of one mono WAV of `blocks` x 10 s: a 375 Hz sine at -20 dBFS. With
+    /// `peaky`, each track is an eighth of the "train" of `SearchedExportTests`: a 1 kHz carrier and a
+    /// 2 ms fs/4 burst every 250 ms from 0.5 s, so the mix limits hard at the podcast target.
+    static func eightTracks(blocks: Int, peaky: Bool = false) throws -> (package: MixPackage, frames: Frames) {
         let package = try MixPackage()
         let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
         let block = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480_000))
         block.frameLength = 480_000
-        let tone = sine(seconds: 10, rate: 48_000, frequency: 375).map { $0 / 5 }
+        var tone = sine(seconds: 10, rate: 48_000, frequency: peaky ? 1000 : 375).map { $0 / (peaky ? 40 : 5) }
+        if peaky {
+            for start in stride(from: 24_000, to: tone.count - 96, by: 12_000) {
+                for index in 0..<96 { tone[start + index] += Float(sin(.pi / 2 * Double(index) + .pi / 4)) / 8 }
+            }
+        }
         block.floatChannelData![0].update(from: tone, count: tone.count)
         let writer = try ClipWriter(
             url: package.url.appending(path: "\(clipsFolderName)/long.wav"), file: "long.wav", format: format)

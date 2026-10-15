@@ -14,8 +14,9 @@ struct Export: ParsableCommand {
             unreadable (unless --allow-missing), or the write fails; a failed export leaves no output file \
             and the old file does not change. A file that the check finds whole but the export cannot read \
             also gives exit 2 (unless --allow-missing); then the output file has its clips as silence. \
-            With --loudness, the export measures the mix, applies one gain to the target, and limits the \
-            true peak to -1 dBTP. Then it prints one line, for example "loudness -16.0 LUFS, true peak \
+            With --loudness, the export measures the mix, applies one gain, and limits the true peak to \
+            -1 dBTP. When the limiter lowers the level, the export raises the gain until the file is \
+            within 0.1 LU of the target. Then it prints one line, for example "loudness -16.0 LUFS, true peak \
             -1.2 dBTP, gain +3.4 dB"; "none" means no measurement, and the gain is then 0 dB. The limit \
             and the printed values are at the session rate: a --rate change can add about 0.3 dB of true \
             peak. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes 32000, \

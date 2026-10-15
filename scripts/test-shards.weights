@@ -43,6 +43,7 @@ DirigibleAudioTests.LivePeaksTests	0.8
 DirigibleAudioTests.LiveStoreTests	5.8
 DirigibleAudioTests.LoudnessBenchmark	0.0
 DirigibleAudioTests.LoudnessExportBenchmark	0.0
+DirigibleAudioTests.LoudnessSearchTests	0.0
 DirigibleAudioTests.LoudnessTargetTests	0.0
 DirigibleAudioTests.LoudnessTests	22.9
 DirigibleAudioTests.M4AChapterTests	3.4
@@ -62,6 +63,7 @@ DirigibleAudioTests.PasteConvertTests	0.3
 DirigibleAudioTests.PeakComputeBenchmark	0.0
 DirigibleAudioTests.PeakComputeTests	0.1
 DirigibleAudioTests.PeakFileTests	1.2
+DirigibleAudioTests.PeakyLoudnessExportBenchmark	0.0
 DirigibleAudioTests.PendingTakeTests	4.0
 DirigibleAudioTests.PlaceSegmentTests	19.2
 DirigibleAudioTests.PlayerLoudnessTests	10.3
@@ -72,6 +74,7 @@ DirigibleAudioTests.RecordTests	10.6
 DirigibleAudioTests.RecoveryTests	3.8
 DirigibleAudioTests.RenderMixTests	0.1
 DirigibleAudioTests.RipplePredicateTests	0.0
+DirigibleAudioTests.SearchedExportTests	19.0
 DirigibleAudioTests.SegmentBreakTests	15.7
 DirigibleAudioTests.SegmentNameTests	0.0
 DirigibleAudioTests.SegmentWriterTests	0.3

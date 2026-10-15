@@ -138,6 +138,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 
 | Requirement | What Release 4 gives |
 |---|---|
+| R1 | Part: the record time and its warning only under 3 hours (F152). |
 | R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono (F107, F108, F109, F25). |
 | R8 | Noise reduction, hum removal, a render of a range through an effect, a render link, and a repair set: rumble, clipped peaks, and harsh "s" sounds (F35, F77, F89, F110, F98, F99, F100). |
 | R9 | Part: a leveler that rides the gain inside a clip (F38 part). |
@@ -156,6 +157,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 9. **Voice match (F37 part).** Match the EQ of a clip to a reference clip. Run: `2026-10-14-voice-match`.
 10. **The repair set (F98, F99, F100).** Reduce rumble with a high-pass filter, repair clipped peaks, and soften harsh "s" sounds.
 11. **Armed app track (F114).** A level meter and the permission state of an armed app track before a take.
+12. **Record time only when relevant (F152).** The window subtitle shows the record time left, and a banner warns, only under 3 hours of record time.
 
 ## Release 5: edit by text
 

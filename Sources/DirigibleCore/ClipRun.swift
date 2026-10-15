@@ -13,7 +13,7 @@ extension Session {
     /// plus `max(10 s, half the crossfade)` at each edge, capped at the file. No layout check: a
     /// split refuses a mono clip itself. An unknown clip throws `.unknownClip`, and a clip whose file
     /// has no record throws `.unknownFile`.
-    package func clipRuns(of clips: [ClipID], sampleRate: Int) throws(SessionError) -> [ClipRun] {
+    package func clipRuns(of clips: [ClipID]) throws(SessionError) -> [ClipRun] {
         var spans: [(clip: Clip, span: Range<Frames>)] = []
         let handle = Frames(10 * sampleRate)
         for id in clips {

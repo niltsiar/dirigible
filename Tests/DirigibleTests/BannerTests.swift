@@ -49,6 +49,15 @@ import os
 
     func lowTime(_ model: SessionWindow) -> Bool { model.shown.banners.contains { $0.key == "lowRecordTime" } }
 
+    /// The window subtitle has the record time part.
+    func timePart(_ window: NSWindow) -> Bool { window.subtitle.contains(L10n.subtitleRecordTime.text) }
+
+    /// The record time part of the subtitle for `minutes` whole minutes, in the test locale.
+    func timePart(minutes: Int) -> String {
+        let units = Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+        return "\(L10n.subtitleRecordTime.text) \(units)"
+    }
+
     /// Sets the free space, reads it again, and waits until the window has the new time.
     func read(seconds: Int, _ model: SessionWindow, _ chrome: SessionChrome) async {
         setFree(seconds: seconds)
@@ -139,42 +148,85 @@ import os
         await model.close()
     }
 
+    /// F152: before a take, the banner and the subtitle part show under 3 h and hide 300 s over it.
     @Test func theIdleRecordTimeBannerHasHysteresis() async throws {
-        let (model, _, _, chrome) = try await open()
+        let (model, _, window, chrome) = try await open()
         for (seconds, shows) in [(11_000, false), (10_799, true), (11_099, true), (11_100, false), (10_900, false)] {
             await read(seconds: seconds, model, chrome)
-            await until(limit: .seconds(5), "\(seconds) s: the banner follows") { lowTime(model) == shows }
+            await until(limit: .seconds(5), "\(seconds) s: the banner and the part follow") {
+                lowTime(model) == shows && timePart(window) == shows
+            }
             #expect(lowTime(model) == shows, "\(seconds) s")
+            #expect(timePart(window) == shows, "\(seconds) s: \(window.subtitle)")
         }
         setFree(seconds: 3_000)
         model.armed = []
         await until(limit: .seconds(5), "no armed track: no read") { model.idleRecordTimeLeft == nil }
         #expect(!lowTime(model), "a banner with no armed track")
+        #expect(!timePart(window), "a record time with no armed track: \(window.subtitle)")
 
         model.armed = ["t1"]
 
         await until(limit: .seconds(10), "an arm change reads again") { model.idleRecordTimeLeft == .seconds(3_000) }
-        await until(limit: .seconds(5), "the banner shows after the arm") { lowTime(model) }
+        await until(limit: .seconds(5), "the banner shows after the arm") { lowTime(model) && timePart(window) }
         #expect(lowTime(model))
+        #expect(window.subtitle.hasSuffix(timePart(minutes: 50)), "\(window.subtitle)")
         await model.close()
     }
 
+    /// F152: in a take, the subtitle part keeps the 3 h rule, and the banner shows under 10 min and
+    /// hides 60 s over it.
     @Test func theTakeRecordTimeBannerHasHysteresis() async throws {
-        let (model, studio, _, _) = try await open()
-        setFree(seconds: 700)
+        let (model, studio, window, _) = try await open()
+        setFree(seconds: 11_000)
         await model.record()
         try #require(model.canStop)
-        for (seconds, shows) in [(700, false), (599, true), (659, true), (660, false)] {
+        let steps = [
+            (11_000, false, false), (10_799, true, false), (11_099, true, false), (11_100, false, false),
+            (700, true, false), (599, true, true), (659, true, true), (660, true, false),
+        ]
+        for (seconds, part, shows) in steps {
             setFree(seconds: seconds)
             await until(limit: .seconds(10), "the disk watch gives \(seconds) s") {
                 studio.recordTimeLeft == .seconds(seconds)
             }
-            await until(limit: .seconds(5), "\(seconds) s in a take: the banner follows") { lowTime(model) == shows }
+            await until(limit: .seconds(5), "\(seconds) s in a take: the banner and the part follow") {
+                lowTime(model) == shows && timePart(window) == part
+            }
             #expect(lowTime(model) == shows, "\(seconds) s in a take")
+            #expect(timePart(window) == part, "\(seconds) s in a take: \(window.subtitle)")
         }
         await hal.feed(seconds: 0.2)
         await model.stop()
         await until("the finalize ends") { studio.transport == .idle }
+        await model.close()
+    }
+
+    /// F152: a take start with more than 10 min hides the idle banner and keeps the part, with the
+    /// value of the take start before the first disk check. After the take, the idle read shows
+    /// the banner again.
+    @Test func theIdleBannerHidesWhenATakeStartsAboveTheTakeLimit() async throws {
+        let (model, studio, window, chrome) = try await open()
+        // No disk check in the first interval of the take.
+        studio.environment.diskCheckInterval = .seconds(60)
+        await read(seconds: 3_000, model, chrome)
+        await until(limit: .seconds(5), "the idle banner and part show") { lowTime(model) && timePart(window) }
+        #expect(window.subtitle.hasSuffix(timePart(minutes: 50)), "\(window.subtitle)")
+        setFree(seconds: 2_500)
+
+        await model.record()
+
+        try #require(model.canStop)
+        await until(limit: .seconds(5), "the take start hides the banner and keeps the part") {
+            !lowTime(model) && window.subtitle.hasSuffix(timePart(minutes: 41))
+        }
+        #expect(!lowTime(model), "2_500 s is over 660 s")
+        #expect(window.subtitle.hasSuffix(timePart(minutes: 41)), "\(window.subtitle)")
+        await hal.feed(seconds: 0.2)
+        await model.stop()
+        await until("the finalize ends") { studio.transport == .idle }
+        await until(limit: .seconds(10), "the idle read shows the banner again") { lowTime(model) }
+        #expect(lowTime(model))
         await model.close()
     }
 

@@ -70,6 +70,25 @@ struct DiskRuleTests {
         #expect(try Session(contentsOf: url).recording == nil)
     }
 
+    /// F152: the take start gives the record time left from the free bytes of its start check, for
+    /// the channels of the take, before the first disk check: 1 GB over the margin for 2 mono
+    /// tracks is 1_000_000_000 / 672_000 s. `t2` needs a second device: `mic` has one channel.
+    @Test func theTakeStartGivesTheRecordTimeLeft() async throws {
+        let mic2 = InputDevice(
+            uid: "mic2", name: "USB Mic 2", nominalRate: 48_000, availableRates: [48_000...48_000],
+            channelsPerBuffer: [1], latency: 0)!
+        var session = try Session(contentsOf: url)
+        try session.setRoute(Route.device(uid: mic2.uid, channels: .mono(1)), track: "t2")
+        try session.write(to: url)
+        let studio = try await studio(TestHAL([mic, mic2]), free: FreeBytes(2_000_000_000))
+        studio.environment.diskCheckInterval = .seconds(60)
+
+        try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
+
+        #expect(studio.recordTimeLeft == .seconds(1_000_000_000.0 / 672_000))
+        try await studio.stopRecording()
+    }
+
     // MARK: Criterion 12
 
     /// 2 mono tracks x 48,000 x 7 bytes = 672,000 bytes each second.

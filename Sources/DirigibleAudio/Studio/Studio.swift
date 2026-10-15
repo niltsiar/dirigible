@@ -43,7 +43,8 @@ import Observation
     public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
     /// The start of the take that records. The view computes the elapsed time.
     public internal(set) var recordingSince: ContinuousClock.Instant?
-    /// The record time left on the disk of the take that records, at each disk check. Nil before.
+    /// The record time left on the disk of the take that records: from the take start, then at
+    /// each disk check. Nil with no take.
     public internal(set) var recordTimeLeft: Duration?
 
     /// The result of the last take, set when its writers finish, before its finalize. So a

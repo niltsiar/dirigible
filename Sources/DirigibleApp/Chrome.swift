@@ -213,6 +213,9 @@ struct ShownChrome: Equatable {
     var recordOver = false
     /// The banner rows under the take banner, in order.
     var banners: [WindowBanner] = []
+    /// The window subtitle shows the record time left. Its rule reads it as the banner rule
+    /// reads the shown banner.
+    var recordTime = false
     /// A take or a play runs: the Stop item and the Stop menu item are on. When nothing runs,
     /// Command-period reaches a sheet (decision 0023).
     var isRunning = false
@@ -260,11 +263,15 @@ struct ChromeState: Equatable {
         if model.monitoring { on.insert(.monitor) }
         if model.showsInspector { on.insert(.inspector) }
         if model.snaps { on.insert(.snap) }
-        // During a take the disk watch gives the time left; before it, the idle read of the
-        // armed tracks with a route.
+        // During a take the take start and the disk watch give the time left; before it, the
+        // idle read of the armed tracks with a route.
         let left = recording ? studio.recordTimeLeft : model.armedWithRoute.isEmpty ? nil : model.idleRecordTimeLeft
+        // The subtitle shows the time left on the rule before a take, also during a take (F152).
+        let subtitleLeft = left.flatMap {
+            showsLowRecordTime(left: $0, recording: false, shownBefore: model.shown.recordTime) ? $0 : nil
+        }
         subtitle = subtitleText(
-            rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: left)
+            rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: subtitleLeft)
         var banners: [WindowBanner] = []
         if let stop = studio.playbackStop { banners.append(.playbackStopped(stop)) }
         if !studio.missingMedia.isEmpty {
@@ -305,8 +312,8 @@ struct ChromeState: Equatable {
             banners.append(.consentExpired(agent: shown.agent))
         }
         shown = ShownChrome(
-            recordOver: model.showsRecordOver, banners: banners, isRunning: recording || playing, speed: studio.speed,
-            canChangeSpeed: studio.canChangeSpeed)
+            recordOver: model.showsRecordOver, banners: banners, recordTime: subtitleLeft != nil,
+            isRunning: recording || playing, speed: studio.speed, canChangeSpeed: studio.canChangeSpeed)
     }
 }
 

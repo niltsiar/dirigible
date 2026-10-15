@@ -280,4 +280,28 @@ import Testing
         window.close()
         await model.close()
     }
+
+    /// The tester steps of run 2026-10-15-split-no-cut: t1 has a cut at 480,000 (x 937.5 pt). A
+    /// click on the right part of t1, a click on its in triangle (a seek to the cut), and a click on
+    /// c2 select c2 with the playhead inside it. Split then cuts c2 at the playhead.
+    @Test func splitAfterAClickOnAClipCutsTheClipAtThePlayhead() async throws {
+        let (model, studio, window, view) = try await lanes()
+        try studio.edit(ripple: false) { s throws(SessionError) in _ = try s.splitClips(at: [480_000], on: ["t1"]) }
+        try press(view, 1000, 10)
+        try release(view, 1000, 10)
+        try #require(model.timeline.marks == Marks(inPoint: 480_000, outPoint: 960_000, tracks: ["t1"]))
+        view.ruler.mouseDown(with: try rulerMouse(.leftMouseDown, 937.5, 20, in: view))
+        view.ruler.mouseUp(with: try rulerMouse(.leftMouseUp, 937.5, 20, in: view))
+        await settle()
+        try #require(studio.playhead == 480_000)
+        try press(view, 600, 110)
+        try release(view, 600, 110)
+        try #require(model.timeline.marks == Marks(inPoint: 0, outPoint: 960_000, tracks: ["t2"]))
+
+        model.run(.split)
+
+        #expect(studio.session.track("t2")?.clips.map(\.id) == ["c2", "c2@480000"])
+        window.close()
+        await model.close()
+    }
 }

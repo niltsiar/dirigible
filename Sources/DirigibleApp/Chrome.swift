@@ -213,8 +213,8 @@ struct ShownChrome: Equatable {
     var recordOver = false
     /// The banner rows under the take banner, in order.
     var banners: [WindowBanner] = []
-    /// The window subtitle shows the record time left. Its rule reads it as the banner rule
-    /// reads the shown banner.
+    /// The shown state of the record-time part of the window subtitle at the last loop turn.
+    /// `ChromeState` gives it to `showsLowRecordTime` as `shownBefore`; no view reads it.
     var recordTime = false
     /// A take or a play runs: the Stop item and the Stop menu item are on. When nothing runs,
     /// Command-period reaches a sheet (decision 0023).

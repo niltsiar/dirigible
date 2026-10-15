@@ -311,6 +311,3 @@ func measureDecodedFile(
     guard read >= frames else { throw .writeFailed(kAudioFileEndOfFileError) }
     return FileMeasure(loudness: loudness?.result().integrated, truePeak: peak.result())
 }
-
-/// The status of a Core Audio error, which `AVAudioFile` gives as the code of an `NSError`.
-private func status(of error: any Error) -> OSStatus { OSStatus(truncatingIfNeeded: (error as NSError).code) }

@@ -12,7 +12,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 ## Rules
 
 - Land: the landing run of an ID sets `done, Release <n> run <m>` in its own pull request. The `- Lands:` line of `run.md` names the IDs of the land, or says `none`. `check-governance.sh` refuses the land when an ID of the line keeps its state. A part that stays open goes after `; Later: `.
-- Run number: a run that lands an ID takes the lowest open release and the next run number of that release. A feature of a later release that lands early moves to that release, with `(moved from Release <k>)` in its state. The order in `releases.md` fixes no version.
+- Run number: a run that lands an ID takes the lowest open release and the next run number of that release. A feature of a later release that lands early moves to that release, with `(moved from Release <k>)` in its state. `check-governance.sh` refuses a new run number that is not 1 + the highest run number of that release at the base. The order in `releases.md` fixes no version.
 - IDs: a new request gets the next free ID. An ID is never used again. The `Feature` and `Req` cells of a row stay as they are.
 - From: the cell names a reference app, a brief ID such as `brief R12`, or a role with a date such as `user 2026-10-14` or `tester 2026-10-04`. It names no scratch label and no run.
 - Role: a source names a role, never a person. It has no name, no handle, and no pronoun for a tester.

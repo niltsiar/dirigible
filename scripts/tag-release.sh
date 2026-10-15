@@ -16,8 +16,8 @@
 #   fails, a trap removes the local tag, so a retry of the same version works.
 # - A version 0.<r>.<n> with r of 4 or more needs a State in docs/requirements/features.md at the
 #   commit that is done in Release <r> with n in its run list; else it exits 1. A version with
-#   four numbers needs no row. After the tag, it prints the reminder to post the DMG and, after
-#   the last run of a release, the release summary.
+#   four numbers needs no row. After each tag, it prints one reminder: post the DMG to the
+#   testers, and after the last run of a release, post the release summary.
 # scripts/tag-release.test.sh tests it (scripts/bundle.test.sh runs the test).
 set -euo pipefail
 

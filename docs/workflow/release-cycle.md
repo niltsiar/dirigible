@@ -33,7 +33,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 
 ## Posts
 
-- After each tag of a merge that changes app code, `scripts/tag-release.sh` prints a reminder to post the DMG to the testers. After the last run of a release, it also reminds of the release summary.
+- After each tag, `scripts/tag-release.sh` prints one reminder: post the DMG to the testers, and after the last run of a release, post the release summary.
 - The post has no tool in the repo yet.
 
 ## Rules that continue from Release 2

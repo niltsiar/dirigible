@@ -208,7 +208,7 @@
 "track.no.sound.privacy" = "Datenschutz …";
 "track.state.device.lost" = "Gerät getrennt";
 "track.state.write.failed" = "Schreibfehler";
-"track.state.retry.stopped" = "Neuversuche gestoppt. Schalte „Eingangspegel“ aus und ein.";
+"track.state.retry.stopped" = "Neuversuche gestoppt. „Eingangspegel“ aus und ein.";
 "track.state.waiting.app" = "Warten auf %@";
 "track.state.no.sound" = "Kein Ton von %1$@. Wenn %1$@ Ton wiedergibt, klicke auf „Datenschutz …“ und erlaube Dirigible, Systemaudio aufzunehmen.";
 "track.state.no.sound.short" = "Kein Ton von %@";

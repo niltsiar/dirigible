@@ -197,11 +197,11 @@ Goal: edit the timeline faster: pre-roll, replace and fill, and the timeline edi
 
 ## Release 7: mix and organization
 
-Goal: mix with roles, a gain envelope, and ducking, and organize the work with presets, templates, favorites, and bins.
+Goal: mix with roles, a gain envelope, and ducking, organize the work with presets, templates, favorites, and bins, and merge a session that another Dirigible recorded.
 
 | Requirement | What Release 7 gives |
 |---|---|
-| R7 | A gain envelope on a clip (F75). |
+| R7 | A gain envelope on a clip, and Import Session (F75, F151). |
 | R10 | Track roles, ducking, export presets and templates, favorites, and clipboard bins (F72, F34, F63, F23, F22). |
 | R11 | Stem export and export presets (F73, F57). |
 
@@ -211,6 +211,7 @@ Goal: mix with roles, a gain envelope, and ducking, and organize the work with p
 4. **Stem export (F73).** One file for each track or each role, all from the same start.
 5. **Export presets and session templates (F57, F63).** Several targets in one step, and a new session from a template package.
 6. **Favorites and clipboard bins (F23, F22).** A clipboard that all sessions share, and named groups of clips in a session.
+7. **Import Session (F151).** Merge another Dirigible package into the open session (Hindenburg PRO has Import Session Into Session). The use case: two people record apart, with no link between the apps. One of them sends the full package for the edit. A recording from another app, such as Audacity, uses Import Audio and Sync by waveform. The merge adds one track for each imported track, with its name, and the markers as an option. It copies the files with the copy function of the paste across packages (0042: new file IDs, `NewClipFiles`). It gets a `dirigible` command (0011, CLI parity). The capture times of the other package come from another clock and give only a rough start. The package has one timebase, so all its tracks align with the same drift fit of Sync by waveform (Release 6). The fit uses a track that both sessions recorded, for example the call track. With no common track, the import keeps the rough start from the capture times.
 
 ## Versions
 

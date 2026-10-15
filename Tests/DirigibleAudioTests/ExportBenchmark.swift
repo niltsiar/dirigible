@@ -50,6 +50,20 @@ struct ExportBenchmark {
         try Self.exportTwoHours(.mp3(.k128), to: "mix.mp3")
     }
 
+    /// Export-loudness criterion C12 (c): AAC 128 with the podcast target, the sine fixture (no
+    /// limiting, no trial pass).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anAACPodcastExportOfTheSineFixtureFitsTheBudget() throws {
+        _ = try LoudnessExportBenchmark.exportTwoHours(.aac(.k128), to: "mix.m4a", peaky: false, budget: .seconds(600))
+    }
+
+    /// Export-loudness criterion C12 (d): AAC 128 with the podcast target, the "train" fixture
+    /// (trial passes before the encode).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anAACPodcastExportOfTheTrainFixtureFitsTheBudget() throws {
+        _ = try LoudnessExportBenchmark.exportTwoHours(.aac(.k128), to: "mix.m4a", peaky: true, budget: .seconds(600))
+    }
+
     /// Exports the 8 tracks to `format` stereo and expects the exact length and the budget.
     static func exportTwoHours(_ format: ExportFormat, to name: String) throws {
         #if DEBUG

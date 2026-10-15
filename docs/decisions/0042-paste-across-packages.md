@@ -5,6 +5,7 @@
 - Accepted: 2026-10-08, after plan gates 1 and 2 of run `2026-10-08-paste-across-packages`.
 - Amends: 0018 (the clipboard is one per app; a window close keeps it), 0040 (a paste uses the stem rule, the conversion, the import transport, and the rule that nothing deletes a renamed WAV), 0041 (the paste tools take `source`).
 - Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). An excerpt carries the transcript words of its files. A paste across packages adds the words of each new file, under a new transcript ID for each source transcript, and scales them at another sample rate.
+- Amended: 2026-10-14, run `2026-10-14-architecture-seams` (see 0056). A paste from another package writes its files through `NewClipFiles`: one space check, the temp names, the renames with `moveNew`, and one flush of `Clips/`. Each copied file keeps its own flush before the rename. The copy order and the rule that nothing deletes a renamed WAV do not change.
 
 ## Context
 

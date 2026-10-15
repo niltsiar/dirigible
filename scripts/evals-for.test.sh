@@ -175,6 +175,23 @@ g commit -q -am change
 got="$(run --quoted main)" || fail "--quoted agent row: exit $?"
 [[ "$got" == E38 ]] || fail "--quoted agent row: got [$(tr '\n' ' ' <<<"$got")], want [E38]"
 
+# --quoted omits a holdout of the void list of evals.md (the line `- Void list: <IDs>.`).
+rm -rf "$tmp/r"
+mkdir -p "$tmp/r/docs/workflow"
+g init -q -b main
+{
+  printf '## How the eval runs\n\n- Void list: H1, H13. They fail on both sets.\n\n## Scenarios\n\n'
+  for h in H1 H3 H13; do printf '| %s | retention | s | q | (a) k (holdout). | `a.md` | - | - |\n' "$h"; done
+} > "$tmp/r/docs/workflow/evals.md"
+printf 'One line.\n' > "$tmp/r/a.md"
+g add -A
+g commit -q -m base
+g switch -q -c feat/x
+printf 'Another line.\n' > "$tmp/r/a.md"
+g commit -q -am change
+got="$(run --quoted main)" || fail "--quoted void list: exit $?"
+[[ "$got" == H3 ]] || fail "--quoted void list: got [$(tr '\n' ' ' <<<"$got")], want [H3]"
+
 # --staged (base HEAD) prints a cut of a graded row and exits 1; it skips a holdout, an agent row,
 # and a row new in the staged evals.md. Two bases are a usage error.
 rm -rf "$tmp/r"

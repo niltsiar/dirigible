@@ -3,12 +3,12 @@
 # a commit since <base>, a working tree change, or an untracked file. Deliver Phase 7 and the
 # eval pass of an upkeep run (reflect rule 8) run the scenarios of --quoted.
 # Usage: scripts/evals-for.sh [--quoted] <base>
-# --quoted keeps only a scenario that is new since <base>, a holdout, a row of type agent (its key
-# points are a pass rule, not quotes of a file), or a scenario whose key points quote the changed
-# words of a hunk of a changed file of its Files cell: a backticked term
-# of 8 or more characters (a whole term, not in the stop list) whose count differs between the
-# deleted and the added lines, or a run of 5 words (case and punctuation ignored) that touches a
-# changed word span of the hunk.
+# --quoted keeps only a scenario that is new since <base>, a holdout that is not on the void list
+# of evals.md (the line `- Void list: <IDs>.`), a row of type agent (its key points are a pass
+# rule, not quotes of a file), or a scenario whose key points quote the changed words of a hunk of
+# a changed file of its Files cell: a backticked term of 8 or more characters (a whole term, not
+# in the stop list) whose count differs between the deleted and the added lines, or a run of 5
+# words (case and punctuation ignored) that touches a changed word span of the hunk.
 # A bad base exits nonzero with nothing on stdout. scripts/evals-for.test.sh tests it.
 # --staged [<base>] (the commit-msg hook) prints '<ID> <file>: <cut text>' and exits 1 for each
 # real cut of a file of the Files cell by the index: a key term (as above) that the staged file
@@ -156,9 +156,11 @@ for raw in open(diff, encoding="utf-8", errors="replace"):
 
 changed = {f for f in open(files, encoding="utf-8").read().split("\n") if f}
 base_ids = {row[0] for row in rows(base)}
+listed = re.search(r"^- Void list: ([^.\n]*)", open(evals, encoding="utf-8").read(), re.M)
+void = set(re.findall(r"H[0-9]+", listed.group(1))) if listed else set()
 for sid, kind, keys, cell in rows(evals):
     hit = [f for f in re.findall(r"`([^`]+)`", cell) if f in changed]
-    if not hit:
+    if not hit or sid in void:
         continue
     if sid not in base_ids or "holdout" in keys or kind == "agent":
         print(sid)

@@ -28,7 +28,8 @@ verdict: grade.py verdict <eval> <old set> <new set>
   sets and p the pooled pass rate), below <id> (not due under 6 runs in a set),
   and policy <id>. A fail of holdouts only (a below fail of an H, or a sum fail that the sum
   with no H does not have) prints holdout fail <H>: no changed text, once for each H, and does
-  not fail the verdict. The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
+  not fail the verdict, and the same lines go to <eval>/holdout-fails.txt (empty for none; each
+  verdict replaces it). The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
 """
 import json
 import math
@@ -201,8 +202,12 @@ def verdict(old, new):
         if typ[s] == "policy":
             ok &= 3 * pn >= 2 * rn
             print(f"policy {s}: new {pn}/{rn}: {word[3 * pn >= 2 * rn]}")
-    for s in dict.fromkeys(held):
-        print(f"holdout fail {s}: no changed text")
+    fails = [f"holdout fail {s}: no changed text" for s in dict.fromkeys(held)]
+    for line in fails:
+        print(line)
+    # check-governance.sh reads this file: two holdout fails in a row stop the land with no hand step.
+    with open(os.path.join(EVAL, "holdout-fails.txt"), "w", encoding="utf-8") as f:
+        f.write("".join(line + "\n" for line in fails))
     print(f"verdict: {word[ok]}")
     sys.exit(0 if ok else 1)
 

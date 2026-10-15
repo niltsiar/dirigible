@@ -31,6 +31,7 @@ import Testing
         }.value
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         model.readApps = { [Self.chrome, Self.zoom] }
         return (model, studio)
@@ -277,6 +278,7 @@ import Testing
         }.value
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         #expect(model.armed.contains("t1"), "the first owner arms")
         #expect(model.armed.contains("t2") == secondArms, "the arm of t2 is wrong for \(second)")
         #expect(studio.session.track("t2")?.route == second, "the route stays")

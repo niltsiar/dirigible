@@ -85,6 +85,7 @@ import Testing
     private func openWithOneTrack() async throws -> (SessionWindow, NSWindow) {
         let model = await app.open(try folder.package("undo"))
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Track 1", layout: .mono)
         }
         return (model, try #require(model.window))

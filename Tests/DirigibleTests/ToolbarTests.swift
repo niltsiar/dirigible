@@ -89,6 +89,7 @@ struct ToolbarValueTests {
         try await Task.detached { try Session.create(at: url, sampleRate: 48_000) }.value
         let model = await app.open(url)
         _ = await model.opened()
+        try await fixFreeSpace(model)
         return (model, try #require(model.window), try #require(model.chrome))
     }
 

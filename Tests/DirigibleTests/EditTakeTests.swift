@@ -44,6 +44,7 @@ import os
     @Test func editsDoNothingDuringATake() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
         model.run(.copy)
@@ -94,6 +95,7 @@ import os
     @Test func aTypedMarkerNameSavesAtTheTakeStart() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         model.run(.addMarker)
         let marker = try #require(model.timeline.marker)
@@ -115,6 +117,7 @@ import os
     @Test func aTakeEndsATrackRename() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         model.startRename("t1")
         #expect(model.renamingTrack == "t1")
@@ -134,6 +137,7 @@ import os
     @Test func anEditDuringPlayKeepsThePlayGoing() async throws {
         let model = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 10, audio: true))
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
@@ -213,6 +217,7 @@ import os
     func openWithHAL() async throws -> (SessionWindow, Studio) {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         studio.environment = hal.environment
         return (model, studio)
     }

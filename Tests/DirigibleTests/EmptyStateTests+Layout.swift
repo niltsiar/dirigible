@@ -19,6 +19,7 @@ extension EmptyStateTests {
         try await Task.detached { try Session.create(at: url, sampleRate: 48_000) }.value
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
+        try await fixFreeSpace(model)
         let window = try #require(model.window)
         if let inspector { model.inspectorWidth = InspectorWidth(inspector) }
         if (inspector != nil) != model.showsInspector { model.toggleInspector() }

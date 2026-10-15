@@ -37,17 +37,10 @@ import os
         studio.environment = hal.environment
         studio.environment.playerOutput = .offline
         studio.environment.diskCheckInterval = .milliseconds(50)
-        let free = free
-        studio.environment.freeBytes = { _ in free.withLock { $0 } }
         let chrome = try #require(model.chrome)
         await until("the toolbar has its items") { chrome.time != nil }
-        // The read at open can use the real disk, where 20 tracks can have less than 60 min. Read
-        // again with the free bytes of the test, and wait for the end of the newest read.
-        chrome.refreshRecordTime()
-        // A hang guard: 3 times the worst wait, 13.8 s (run test-pool-health, loops/s3loadb-3.log).
-        await until(limit: .seconds(42), "the read with the test disk ends") {
-            chrome.recordTimeReads == chrome.recordTimeReadsStarted && !lowTime(model)
-        }
+        let free = free
+        try await fixFreeSpace(model) { _ in free.withLock { $0 } }
         return (model, studio, try #require(model.window), chrome)
     }
 

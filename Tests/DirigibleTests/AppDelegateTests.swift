@@ -59,6 +59,7 @@ import os
         weak var closedStudio: Studio?
         do {
             let studio = try #require(await window.opened() ? window.studio : nil)
+            try await fixFreeSpace(window)
             closedStudio = studio
             try FileManager.default.moveItem(at: old, to: new)
             try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono)
@@ -88,6 +89,7 @@ import os
         let second = await app.open(b)
         #expect(await second.opened())
         let studio = try #require(await first.opened() ? first.studio : nil)
+        try await fixFreeSpace(first)
         // B moves and does not write, so the registry still has B at its old path. Then A
         // moves to that path.
         try FileManager.default.moveItem(at: b, to: folder.url.appending(path: "c.dirigible"))
@@ -108,6 +110,7 @@ import os
         let package = packageIdentity(try folder.package("still"))
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await studio.settle()
         try await Task.sleep(for: .milliseconds(100))
@@ -121,6 +124,7 @@ import os
     @Test func aCloseWithAFailedSaveAsksAndCancelKeepsTheStudio() async throws {
         let window = await app.open(try folder.package("failing"))
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
         }
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
@@ -213,6 +217,7 @@ import os
     @Test func aCloseAfterAGoodSaveAsksNothing() async throws {
         let window = await app.open(try folder.package("good"))
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await window.close()
         #expect(window.alert == nil)
@@ -235,6 +240,7 @@ import os
         try session.write(to: package)
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         let granted = OSAllocatedUnfairLock(initialState: false)
         studio.environment = CaptureEnvironment(
             hal: DeviceHAL(
@@ -272,6 +278,7 @@ import os
         let package = try folder.package("typed")
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
         window.drafts["t1"] = "Guest"
@@ -291,6 +298,7 @@ import os
     @Test func aRefusedNameGivesBackTheSavedName() async throws {
         let window = await app.open(try folder.package("refused"))
         let studio = try #require(await window.opened() ? window.studio : nil)
+        try await fixFreeSpace(window)
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
         window.drafts["t1"] = "Tab\t"

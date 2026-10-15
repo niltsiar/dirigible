@@ -4,7 +4,9 @@
 # In the git modes, the content of a change can also give the class: a change of only comment
 # lines is class comments, and a Makefile change of only comment lines is class docs (comment_only).
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
-#        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push
+#        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push.
+#          After a pass stamp S of <base> (check-stamp.sh read), it prints `stamp: delta <S>` first,
+#          and the targets of the paths changed since S only; classes and risk stay those of <base>.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
@@ -149,24 +151,40 @@ if [[ -z "$paths" && $push == 1 ]]; then
     exit 1
 fi
 
-# kept: the paths that keep their path class. The push rule for test-slow-push reads only them.
-found=" " kept=""
-while IFS= read -r p; do
-    [[ -n "$p" ]] || continue
-    if comment_only "$p"; then
-        c=comments
-        [[ $p == Makefile ]] && c=docs
-    else
-        c="$(class_of "$p")" kept+="$p"$'\n'
-    fi
-    [[ "$found" == *" $c "* ]] || found+="$c "
-done <<<"$paths"
+# classify <paths>: sets found (the classes) and kept (the paths that keep their path class; the
+# push rule for test-slow-push reads only them). comment_only reads the old side at $from.
+classify() {
+    local p c
+    found=" " kept=""
+    while IFS= read -r p; do
+        [[ -n "$p" ]] || continue
+        if comment_only "$p"; then
+            c=comments
+            [[ $p == Makefile ]] && c=docs
+        else
+            c="$(class_of "$p")" kept+="$p"$'\n'
+        fi
+        [[ "$found" == *" $c "* ]] || found+="$c "
+    done <<<"$1"
+}
+classify "$paths"
 
-classes="" wanted=" " risk=no
+classes="" risk=no
 for c in docs comments tooling tests sources sources-risk bundle build; do
     [[ "$found" == *" $c "* ]] || continue
     classes+=" $c"
     [[ $c == sources-risk ]] && risk=yes
+done
+
+# The delta: after a pass stamp S of this base, only the paths changed since S (the working tree
+# too) pick the targets, with the content against S.
+if [[ -n "$base" ]] && stamp="$("$(dirname "$0")/check-stamp.sh" read "$base")"; then
+    from="${stamp%% *}"
+    echo "stamp: delta $from"
+    classify "$(git diff --name-only --no-renames "$from")"$'\n'"$untracked"
+fi
+wanted=" "
+for c in $found; do
     for t in $(targets_of "$c"); do wanted+="$t "; done
 done
 
@@ -179,7 +197,7 @@ run=""
 if [[ $push == 1 ]]; then
     slow=no
     skip="$(sed -n 's/^PUSH_SKIP = //p' "$(dirname "$0")/../Makefile")"
-    [[ $risk == yes ]] && slow=yes
+    [[ "$found" == *" sources-risk "* ]] && slow=yes
     grep -qx Makefile <<<"$kept" && slow=yes
     root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     while IFS= read -r p; do

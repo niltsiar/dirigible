@@ -233,6 +233,11 @@ lands_repo '# Run\n\n- Branch: feat/x\n- Lands:\n'; commit
 refuse 'a feat run with an empty Lands line' 'run.md has a - Lands: line with no F-ID; name the F-IDs of this land, or write - Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/x\n- Lands:   \n'; commit
 refuse 'a fix run with a blank Lands line' 'run.md has a - Lands: line with no F-ID' "$tmp/run"
+# A run that lands in steps replaces the line before each land, but a second line still counts: the newest line decides.
+lands_repo '# Run\n\n- Branch: feat/x\n- Lands: F35\n- Lands: F77\n'; set_done F77; commit
+pass 'a run with two Lands lines whose last line is set done' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Lands: F35\n- Lands: F77\n'; set_done F35; commit
+refuse 'a run with two Lands lines whose last line keeps its state' 'run.md lands F77, but features.md keeps its state Release 4' "$tmp/run"
 
 # A new run number of a done state is 1 + the highest run number of that release at the base, and all
 # new parts of one land share it. A part of the base is not new. A base with no features.md has no number.

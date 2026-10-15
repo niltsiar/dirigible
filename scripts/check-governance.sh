@@ -19,9 +19,9 @@
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
 # - A run number that HEAD adds to a done State of features.md is 1 + the highest run number of its
 #   Release at the base. Each run number of a done State at the base stays in its row.
-# - With a run folder whose run.md has a `- Lands:` line, each F-ID of the line has a done state in
-#   features.md that differs from its state at the base, on any branch type. `- Lands: none` names no
-#   F-ID; an empty line fails. A `feat/` branch that changes Sources/, Package.swift, Package.resolved,
+# - With a run folder whose run.md has a `- Lands:` line, each F-ID of the newest (last) such line has a
+#   done state in features.md that differs from its state at the base, on any branch type. `- Lands: none`
+#   names no F-ID; an empty line fails. A `feat/` branch that changes Sources/, Package.swift, Package.resolved,
 #   or Support/ needs the line.
 # - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
@@ -133,11 +133,12 @@ if [[ -n "$run" ]]; then
     done
 fi
 # A run.md with a `- Lands:` line names the F-IDs of this land, on any branch type: each one gets a
-# done state that the base lacks. `- Lands: none` names no F-ID. A feat run that changes app code
+# done state that the base lacks. `- Lands: none` names no F-ID. A run that lands in steps replaces
+# the line before each land, so the last line counts. A feat run that changes app code
 # (the paths of the DMG rule) must have the line, because a run can land in steps.
 lands_state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
 if [[ -n "$run" && -f "$run/run.md" ]]; then
-    line="$(grep -m1 '^- Lands:' "$run/run.md" || true)"
+    line="$(grep '^- Lands:' "$run/run.md" | tail -n 1 || true)"
     if [[ -z "$line" ]]; then
         if grep -q '^- Branch: feat/' "$run/run.md" \
             && git diff --name-only "$base...HEAD" | grep -qE '^(Sources/|Package\.swift$|Package\.resolved$|Support/)'; then

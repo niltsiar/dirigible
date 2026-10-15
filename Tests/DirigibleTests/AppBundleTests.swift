@@ -98,6 +98,7 @@ struct AppBundleTests {
         let english = try propertyList(at: "Contents/Resources/en.lproj/Localizable.strings")
         let record = [
             "de": "Aufnehmen", "en": "Record", "es": "Grabar", "fr": "Enregistrer", "it": "Registra", "nl": "Neem op",
+            "pt": "Gravar",
         ]
         for language in AppLanguage.allCases.map(\.rawValue) {
             let table = try propertyList(at: "Contents/Resources/\(language).lproj/Localizable.strings")

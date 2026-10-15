@@ -157,8 +157,8 @@ refuse 'a taken item of the run with a slice' '## Next has a taken item of 2026-
 printf '# Backlog\n\n## Now\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
 refuse 'a backlog with no ## Next heading' 'backlog.md has no line that starts with ## Next' "$run2"
 
-# features.md keeps each row of the base: the ID and Feature cells of an `| F<n> |` row must stay.
-# A drop sets Dropped (<reason>); a new idea gets a new ID. A base with no features.md has no rows to keep.
+# features.md keeps each row of the base: the ID, Feature, and Req cells of an `| F<n> |` row must stay.
+# A drop sets Dropped (<reason>); a new idea gets a new ID. The Req cell stays too. A base with no features.md has no rows to keep.
 # feat_repo [<F02 Feature cell>]: main holds a features.md with F01 and F02; feat/x branches from it.
 feat_repo() {
   new_repo
@@ -170,11 +170,13 @@ feat_repo() {
 }
 features="$tmp/r/docs/requirements/features.md"
 feat_repo; sed -i '' '/^| F02 /d' "$features"; commit
-refuse 'a deleted features.md row' 'features.md lost the row of F02; keep it and set Dropped (<reason>)'
+refuse 'a deleted features.md row' 'features.md lost or changed the row of F02; keep its ID, Feature, and Req cells'
 feat_repo; sed -i '' 's/| Two |/| Too |/' "$features"; commit
-refuse 'a features.md row with another Feature cell' 'features.md lost the row of F02; keep it and set Dropped (<reason>)'
+refuse 'a features.md row with another Feature cell' 'features.md lost or changed the row of F02; keep its ID, Feature, and Req cells'
 feat_repo; g rm -q docs/requirements/features.md; commit
-refuse 'a branch with no features.md' 'features.md lost the row of F01'
+refuse 'a branch with no features.md' 'features.md lost or changed the row of F01'
+feat_repo; sed -i '' 's/| R2 |/| R9 |/' "$features"; commit
+refuse 'a features.md row with another Req cell' 'features.md lost or changed the row of F02; keep its ID, Feature, and Req cells'
 feat_repo; sed -i '' 's/| Release 4 |/| Dropped (not used) |/' "$features"; commit
 pass 'a features.md row set to Dropped'
 feat_repo; printf '| F03 | Three | Logic | Later | R3 |\n' >> "$features"; commit

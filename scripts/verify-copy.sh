@@ -8,7 +8,9 @@
 #
 # usage: verify-copy.sh start [<package>] [-- <open arguments>]
 #                                  stop a running copy, clean up, copy build/Dirigible.app, set
-#                                  the bundle ID, sign it, open it, and print its PID
+#                                  the bundle ID, sign it, open it, and print its PID; while the
+#                                  copy of another worktree runs, wait for the screen lock up to
+#                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1
 #        verify-copy.sh id         print the bundle ID of the copy of this worktree (no build);
 #                                  call it by the absolute path of the tree that runs the copy
 #        verify-copy.sh ax <ax.swift arguments>
@@ -106,6 +108,49 @@ cleanup() {
     fi
 }
 
+# The screen lock: one verify copy on the screen at a time, for all worktrees. The folder
+# dirigible-screen of the git common dir holds the root of the tree and the PID of its copy (the
+# PID of start until the copy runs). A lock with no PID file is held.
+screen="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)/dirigible-screen"
+
+# Take the screen lock for this tree. While the copy of another tree runs, print the holder once,
+# poll each second, and exit 1 after VERIFY_COPY_SCREEN_WAIT s (default 480). The lock of a dead
+# PID is taken over by one start at a time (the folder <lock>.reap).
+take_screen() {
+    local wait="${VERIFY_COPY_SCREEN_WAIT:-480}" holder pid i
+    [[ "$wait" =~ ^[0-9]+$ ]] || { echo "verify-copy.sh: VERIFY_COPY_SCREEN_WAIT is not a whole number of seconds: $wait" >&2 && exit 2; }
+    for ((i = 0; ; i++)); do
+        mkdir "$screen" 2>/dev/null && break
+        holder="$(cat "$screen/root" 2>/dev/null)" pid="$(cat "$screen/pid" 2>/dev/null)"
+        [[ "$holder" != "$root" ]] || break
+        if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null && mkdir "$screen.reap" 2>/dev/null; then
+            if [[ "$(cat "$screen/pid" 2>/dev/null)" == "$pid" ]]; then
+                echo "$root" >"$screen/root"
+                echo "verify-copy.sh: took over the screen lock of the dead PID $pid" >&2
+                rmdir "$screen.reap"
+                break
+            fi
+            rmdir "$screen.reap"
+            continue
+        fi
+        [[ $i -gt 0 ]] || echo "verify-copy.sh: the verify copy of ${holder:-another tree} (PID ${pid:-unknown}) holds the screen; wait up to $wait s (VERIFY_COPY_SCREEN_WAIT)" >&2
+        if [[ $i -ge $wait ]]; then
+            echo "verify-copy.sh: the verify copy of ${holder:-another tree} (PID ${pid:-unknown}) is still on the screen after $wait s; stop it with scripts/verify-copy.sh stop in its tree" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+    echo "$root" >"$screen/root"
+    echo $$ >"$screen/pid"
+}
+
+# Remove the screen lock when this tree holds it.
+release_screen() {
+    [[ "$(cat "$screen/root" 2>/dev/null)" == "$root" ]] || return 0
+    rm -f "$screen/root" "$screen/pid"
+    rmdir "$screen" 2>/dev/null || true
+}
+
 start() {
     local open_args=() pid="" out
     if [[ $# -gt 0 && "$1" != -- ]]; then open_args+=("$1") && shift; fi
@@ -115,6 +160,7 @@ start() {
         open_args+=("$@")
     fi
     [[ -d "$real_app" ]] || { echo "verify-copy.sh: no $real_app: run make app first." >&2 && exit 1; }
+    take_screen
     stop_copy >/dev/null
     cleanup
     mkdir -p "$root/build/verify"
@@ -129,7 +175,9 @@ start() {
         sleep 0.2
     done
     [[ -n "$pid" ]] || { echo "verify-copy.sh: the copy did not start in 10 s." >&2 && exit 1; }
-    printf '%s\n' "$pid" | head -1
+    pid="$(printf '%s\n' "$pid" | head -1)"
+    echo "$pid" >"$screen/pid"
+    echo "$pid"
 }
 
 # One poll: find the prompt window of UserNotificationCenter, check that its text names the app,
@@ -249,6 +297,7 @@ doctor() {
 stop() {
     stop_copy
     cleanup
+    release_screen
 }
 
 case "${1:-}" in

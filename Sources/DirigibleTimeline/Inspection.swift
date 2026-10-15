@@ -48,7 +48,7 @@ public struct ClipInspection: Equatable, Sendable {
     }
 
     /// A typed gain: an optional sign (+, -, or U+2212), digits, and an optional "." or "," with
-    /// digits, in both languages (probe P2: a locale parse reads "-6,5" in English as -6). Nil
+    /// digits, in each language (probe P2: a locale parse reads "-6,5" in English as -6). Nil
     /// for any other text.
     public static func decibels(_ text: String) -> Double? {
         let text = normalized(text)

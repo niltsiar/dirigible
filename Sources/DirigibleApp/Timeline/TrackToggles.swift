@@ -36,7 +36,7 @@ struct TrackToggles: View {
     }
 
     /// Arm is window state, not a session edit, so a click adds no undo entry. The symbol has no
-    /// language, so English and Spanish show the same dot.
+    /// language, so each language shows the same dot.
     private var arm: some View {
         Toggle(
             isOn: Binding(

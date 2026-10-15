@@ -3,8 +3,10 @@
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy, a holdout fail in this run and in the newest done run that ran it, and a
-# taken item of the run in ## Next of the backlog after the reflect row (phase 8). Each case uses
-# a temporary repo with a base commit on main and a branch.
+# taken item of the run in ## Next of the backlog after the reflect row (phase 8), a features.md row
+# of the base that the branch loses, and a feat run that changes Sources/ and leaves the features.md
+# state of an F-ID of run.md as it is. Each case uses a temporary repo with a base commit on main
+# and a branch.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-governance.sh"
@@ -155,6 +157,57 @@ refuse 'a taken item of the run with a slice' '## Next has a taken item of 2026-
 printf '# Backlog\n\n## Now\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
 refuse 'a backlog with no ## Next heading' 'backlog.md has no line that starts with ## Next' "$run2"
 
+# features.md keeps each row of the base: the ID and Feature cells of an `| F<n> |` row must stay.
+# A drop sets Dropped (<reason>); a new idea gets a new ID. A base with no features.md has no rows to keep.
+# feat_repo [<F02 Feature cell>]: main holds a features.md with F01 and F02; feat/x branches from it.
+feat_repo() {
+  new_repo
+  g switch -q main
+  mkdir -p "$tmp/r/docs/requirements"
+  printf '# Features\n\n| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n| F01 | One | Logic | Later | R1 |\n| F02 | Two | Logic | Release 4 | R2 |\n' > "$features"
+  g add -A && g commit -q -m features
+  g switch -q -C feat/x
+}
+features="$tmp/r/docs/requirements/features.md"
+feat_repo; sed -i '' '/^| F02 /d' "$features"; commit
+refuse 'a deleted features.md row' 'features.md lost the row of F02; keep it and set Dropped (<reason>)'
+feat_repo; sed -i '' 's/| Two |/| Too |/' "$features"; commit
+refuse 'a features.md row with another Feature cell' 'features.md lost the row of F02; keep it and set Dropped (<reason>)'
+feat_repo; g rm -q docs/requirements/features.md; commit
+refuse 'a branch with no features.md' 'features.md lost the row of F01'
+feat_repo; sed -i '' 's/| Release 4 |/| Dropped (not used) |/' "$features"; commit
+pass 'a features.md row set to Dropped'
+feat_repo; printf '| F03 | Three | Logic | Later | R3 |\n' >> "$features"; commit
+pass 'a features.md row added'
+new_repo; mkdir -p "$tmp/r/docs/requirements"; printf '| F01 | One | Logic | Later | R1 |\n' > "$tmp/r/docs/requirements/features.md"; commit
+pass 'a base with no features.md'
+
+# A feat run that changes Sources/ sets each F-ID that it lands to a new done state. run.md names the
+# F-IDs in `- Lands:`, else in `- Requirements:`. A docs-only branch and a branch that is not feat pass.
+# lands_repo <run.md text>: main holds F35, F77, and F89 at Release 4; the branch changes Sources/A.swift.
+lands_repo() {
+  feat_repo
+  g switch -q main
+  printf '# Features\n\n| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n| F35 | Noise | Logic | Release 4 | R8 |\n| F77 | Hum | Logic | Release 4 | R8 |\n| F89 | Render | Logic | Release 4 | R8 |\n' > "$features"
+  g add -A && g commit -q -m features
+  g switch -q -C feat/x
+  printf '%b' "$1" > "$tmp/run/run.md"
+  mkdir -p "$tmp/r/Sources"; echo x > "$tmp/r/Sources/A.swift"
+}
+set_done() { sed -i '' "s/^\(| $1 | [^|]*| [^|]*| \)[^|]*|/\1done, Release 4 run 5 |/" "$features"; }
+lands_repo '# Run\n\n- Branch: feat/x, from origin/main\n- Requirements: F35, F89\n'; commit
+refuse 'a feat run that changes Sources/ and keeps its states' 'run.md lands F35, but features.md keeps its state Release 4' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F89\n'; set_done F35; set_done F89; commit
+pass 'a feat run that sets its states done' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F89\n'; rm "$tmp/r/Sources/A.swift"; echo x > "$tmp/r/B.md"; commit
+pass 'a feat run that changes only docs' "$tmp/run"
+lands_repo '# Run\n\n- Branch: fix/x\n- Requirements: F35, F89\n'; commit
+pass 'a run that is not feat' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F77\n- Lands: F35\n'; set_done F35; commit
+pass 'a feat run that lands F35 and keeps F77 open' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Requirements: F35, F77\n- Lands: F35\n'; commit
+refuse 'a feat run that lands F35 and keeps its state' 'run.md lands F35, but features.md keeps its state Release 4' "$tmp/run"
+
 # Two holdout fails in a row stop the land. grade.py verdict writes its fail lines to
 # eval/holdout-fails.txt of the run, so no hand row is needed. The run to compare is the newest done
 # run of the ledger beside runs/ whose eval/scores.tsv has a row of the holdout: a run that did not
@@ -185,6 +238,11 @@ pass 'a fail of another holdout in the newest done run' "$me"
 rm -rf "$s/runs/2026-01-01-a/eval" "$s/runs/2026-01-02-b/eval"
 printf '2026-01-01T01:00\t7\tholdout fail H6: no changed text\tw\te\tr\n' >> "$s/runs/2026-01-02-b/decisions.tsv"
 pass 'a hand row of the newest done run with no verdict file' "$me"
+# A ledger status of the form `done, PR <n>, ...` is a done run too.
+sed -i '' 's/| done: PR #2 |/| done, PR 2, x |/' "$s/ledger.md"
+rm -rf "$s/runs/2026-01-02-b/eval"
+hold 2026-01-02-b H6
+refuse 'a holdout fail in this run and the newest run with the status done, PR 2' 'H6 failed in this run and in 2026-01-02-b' "$me"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

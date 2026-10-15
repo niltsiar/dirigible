@@ -15,6 +15,12 @@
 #   ## Next of the main-checkout .scratchpads/backlog.md has no taken item of that run: a line with
 #   `(taken: run <run folder name>` and then a space, a comma, or `)`. A backlog with no line that
 #   starts with `## Next` fails.
+# - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID and Feature cells
+#   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
+# - With a run folder whose run.md has `- Branch: feat/...`, a branch that changes Sources/ sets
+#   each F-ID of the `- Lands:` line of run.md (else of `- Requirements:`) to a done state that
+#   differs from its state at the base.
+# - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -48,6 +54,16 @@ if [[ -f "$budgets" ]]; then
     fi
 fi
 
+# features.md keeps the row of each feature ID of the base; a base with no file has none to keep.
+features=docs/requirements/features.md
+cells() { awk -F'|' '/^\| F[0-9]+ \|/ { gsub(/^ +| +$/, "", $2); gsub(/^ +| +$/, "", $3); print $2 "|" $3 }'; }
+if [[ -n "$(at_base "$features")" ]]; then
+    lost="$(comm -23 <(at_base "$features" | cells | sort) <({ [[ ! -f "$features" ]] || cells < "$features"; } | sort))"
+    while IFS= read -r row; do
+        [[ -z "$row" ]] || { echo "check-governance: features.md lost the row of ${row%%|*}; keep it and set Dropped (<reason>)" >&2; fail=1; }
+    done <<<"$lost"
+fi
+
 # A run with a reflect row (phase 8) in its decisions.tsv.
 reflected() { [[ -n "$run" && -f "$run/decisions.tsv" ]] && awk -F'\t' '$2 == "8" { found = 1 } END { exit !found }' "$run/decisions.tsv"; }
 rules=docs/workflow/rules.tsv
@@ -77,6 +93,20 @@ if [[ -n "$run" ]]; then
         fail=1
     done
 fi
+# A feat run that changes Sources/ lands its F-IDs: each one gets a done state that the base lacks.
+# A run that lands in steps names the F-IDs of this land in `- Lands:`.
+if [[ -n "$run" && -f "$run/run.md" ]] && grep -q '^- Branch: feat/' "$run/run.md" \
+    && git diff --name-only "$base...HEAD" | grep -q '^Sources/'; then
+    line="$(grep -m1 '^- Lands:' "$run/run.md" || grep -m1 '^- Requirements:' "$run/run.md" || true)"
+    state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
+    for id in $(grep -oE 'F[0-9]+' <<<"$line" | sort -u || true); do
+        new="$([[ ! -f "$features" ]] || state "$id" < "$features")" old="$(at_base "$features" | state "$id")"
+        if [[ "$new" != done,* || "$new" == "$old" ]]; then
+            echo "check-governance: run.md lands $id, but features.md keeps its state ${new:-none}" >&2
+            fail=1
+        fi
+    done
+fi
 # A run moves its own taken items out of ## Next of the backlog before the land: each run reads
 # ## Next at Phase 0, so a long ## Next costs each run. The backlog is in the main checkout, the
 # parent of the git common dir, also when the branch is in a worktree. Phase 8 moves the items,
@@ -104,7 +134,7 @@ fi
 failed_holdouts() { sed -n 's/^holdout fail \(H[0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | sort -u; }
 if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
     runs="$(dirname "${run%/}")"
-    done_runs="$(awk -F' *[|] *' -v me="$(basename "${run%/}")" '$4 ~ /^done($|:)/ && $2 != me { name[++n] = $2 } END { for (i = n; i > 0; i--) print name[i] }' \
+    done_runs="$(awk -F' *[|] *' -v me="$(basename "${run%/}")" '$4 ~ /^done($|[,:])/ && $2 != me { name[++n] = $2 } END { for (i = n; i > 0; i--) print name[i] }' \
         "$(dirname "$runs")/ledger.md" 2>/dev/null || true)"
     while IFS= read -r h; do
         while IFS= read -r prev; do

@@ -39,8 +39,6 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 ## Rules that continue from Release 2
 
 - Each run lands through its own pull request.
-- Each user-facing run updates `docs/guide.md`, and the screenshots when the window changes.
+- Three rules have their own home: the guide and the screenshots (`.claude/skills/deliver/SKILL.md`), the CLI and MCP parity (`docs/decisions/0011-command-line-front-end.md`), and the bench limit (`scripts/bench-pairs.sh`).
 - Each command has a menu item with a key (F16).
-- Each public library feature that changes a package or an audio file gets a `dirigible` command and a test (0011). An edit command also gets an MCP tool (0041).
-- No bench case gets worse than `main` by more than 10 % or 1 ms (0022).
 - A run that adds user data to `session.xml` raises `sessionVersion` to the next free number, in land order (0024).

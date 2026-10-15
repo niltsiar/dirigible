@@ -19,7 +19,9 @@ good() {
     "$tmp/Support/Resources/en.lproj" "$tmp/Support/Resources/es.lproj"
   printf '# Topic\n\nDate: 2026-09-24\n\n## Sources\n\n- x\n' > "$tmp/docs/research/topic.md"
   printf '| ID | Requirement |\n|---|---|\n| R1 | One. |\n| R10 | Ten. |\n\n## Answered questions\n\n- Q? See [0002](../decisions/0002-x.md).\n' > "$tmp/docs/requirements/brief.md"
-  printf '| Requirement | What |\n|---|---|\n| R1 | a |\n| R10 | b |\n' > "$tmp/docs/requirements/releases.md"
+  printf '# Releases\n\n## Release 1: a\n\nStatus: closed\n\n| Requirement | What |\n|---|---|\n| R1 | a |\n\n1. **x (F01, F03).**\n\n## Release 4: b\n\n| Requirement | What |\n|---|---|\n| R10 | b |\n\n1. **y (F02).**\n' > "$tmp/docs/requirements/releases.md"
+  printf '# Features\n\nDate: 2026-09-24\n\n## Sources\n\n- x\n\n| ID | Feature | Req |\n|---|---|---|\n| F01 | One | R1 |\n| F02 | Two | R10 |\n| F04 | Four | - |\n\n| Command | Key |\n|---|---|\n| Fade or crossfade | Cmd-F |\n' > "$tmp/docs/research/podcast-features.md"
+  printf '# Features\n\n| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n| F01 | One | user 2026-10-14 | done, Release 1 run 1 | R1 |\n| F02 | Two | Logic | Release 4 | R10 |\n| F03 | Three | Audacity | Later | R10 |\n| F04 | Four | Logic | Later | - |\n' > "$tmp/docs/requirements/features.md"
   printf '# 0002. X\n\n- Status: accepted\n' > "$tmp/docs/decisions/0002-x.md"
   printf '| Command | What |\n|---|---|\n| `make test` | a |\n| `make bench FILTER=<test>` | b |\n' > "$tmp/AGENTS.md"
   printf 'test:\n\tswift test\n\nbench:\n\tscripts/bench.sh\n' > "$tmp/Makefile"
@@ -77,6 +79,11 @@ rule() { printf '%s\n' "$1" >> "$tmp/docs/workflow/rules.tsv"; }
 
 # Set the words cell of the budget row of <path> to <n>.
 budget() { sed -i '' "s|^$1	[0-9]*	|$1	$2	|" "$tmp/docs/workflow/budgets.tsv"; }
+# Set the cell <col> (State is 5, Req is 6) of the features.md row of <id> to <value>.
+setcol() {
+  awk -F'|' -v OFS='|' -v id="$1" -v col="$2" -v val="$3" '$2 == " " id " " { $col = " " val " " } { print }' \
+    "$tmp/docs/requirements/features.md" > "$tmp/features.new" && mv "$tmp/features.new" "$tmp/docs/requirements/features.md"
+}
 # Write a references file of <n> lines, with an optional first line.
 long_ref() { { [[ -n "${2:-}" ]] && echo "$2"; for _ in $(seq "$1"); do echo x; done; } > "$tmp/.claude/skills/s/references/r.md"; }
 
@@ -185,6 +192,36 @@ expect fail 'an Act on format with another field than check-plan.sh' '.claude/sk
 good; sed -i '' 's/^- \*\*Act on:\*\*/- **Fix:**/' "$tmp/.claude/skills/interrogate/SKILL.md"
 expect fail 'no Act on line' '.claude/skills/interrogate/SKILL.md: no Act on line in ## Output format'
 good; printf '#!/bin/bash\n' > "$tmp/scripts/check-plan.sh"; expect fail 'check-plan.sh with no field names' 'scripts/check-plan.sh: no field[1] and field[2] names'
+
+# The feature inventory: features.md has one row for each catalog ID, a state of the grammar, and the catalog Req.
+for s in 'done, Release 1 run 2' 'done, Release 2 runs 11a and 11b-1' 'done, Release 1 run 2; Later: a part' \
+  'done, Release 2 run 16 and Release 3 run 5 (v0.3.5)' \
+  'done, Release 1 runs 3 and 3b and Release 3 run 1 (v0.3.4: the record monitor); Later: a part'; do
+  good; setcol F01 5 "$s"; expect pass "feature state $s"
+done
+good; setcol F02 5 'done, Release 4 run 7 (moved from Release 5)'; expect pass 'a moved feature in the open release section'
+good; setcol F03 5 'Later (note)'; expect pass 'a Later state with a note'
+good; setcol F03 5 'Dropped (reason)'; expect pass 'a Dropped state'
+good; rm "$tmp/docs/requirements/features.md"; expect fail 'no features.md' 'docs/requirements/features.md is missing'
+good; sed -i '' '/^| F01 /d' "$tmp/docs/requirements/features.md"; expect fail 'a catalog ID with no row' 'features.md: no row for F01'
+good; printf '| F01 | One again | user 2026-10-14 | Later | R1 |\n' >> "$tmp/docs/requirements/features.md"; expect fail 'two rows for one ID' 'features.md: F01 has more than one row'
+good; setcol F01 5 ''; expect fail 'an empty state' 'features.md: F01 has no state'
+for s in 'planned' 'later' 'Release' 'Release four' 'done' 'done in run 3' 'Dropped' 'done, Release 1' 'done, Release 1 run'; do
+  good; setcol F01 5 "$s"; expect fail "feature state $s" 'features.md: F01 has a bad state'
+done
+good; setcol F01 6 'R2'; expect fail 'a Req that differs from the catalog' 'features.md: F01 Req R2 is not the Req R1 of podcast-features.md'
+good; setcol F04 6 'R3'; expect fail 'a catalog Req of - changed' 'features.md: F04 Req R3 is not the Req - of podcast-features.md'
+good; printf '| F05 | Five | Logic | Later | - |\n' >> "$tmp/docs/requirements/features.md"; expect fail 'a new ID with no Req' 'features.md: F05 has no Req'
+good; printf '| F05 | Five | Logic | Dropped (not used) | - |\n' >> "$tmp/docs/requirements/features.md"; expect pass 'a dropped new ID with no Req'
+good; sed -i '' 's/| State |/| Status |/' "$tmp/docs/requirements/features.md"; expect fail 'features.md with no State column' 'features.md: no State column'
+good; sed -i '' 's/| Req |/| Reqs |/' "$tmp/docs/requirements/features.md"; expect fail 'features.md with no Req column' 'features.md: no Req column'
+good; sed -i '' 's/| ID |/| No |/' "$tmp/docs/requirements/features.md"; expect fail 'features.md with no ID column' 'features.md: no ID column'
+good; printf '# Features\n\n| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n' > "$tmp/docs/requirements/features.md"; expect fail 'features.md with no F row' 'features.md has no F row'
+good; printf '| ID | Feature |\n|---|---|\n| F09 | Nine |\n' >> "$tmp/docs/research/podcast-features.md"; expect fail 'a catalog table with an ID header and no Req column' 'podcast-features.md: a table with an ID header has no Req column'
+good; sed -i '' 's/(F01, F03)/(F01, F03, F09)/' "$tmp/docs/requirements/releases.md"; expect fail 'releases.md names an ID with no row' 'releases.md names F09, which has no features.md row'
+good; setcol F02 5 'Release 5'; expect fail 'a Release 5 state with no Release 5 section' 'features.md: F02 has the state Release 5, but the open Release 5 section does not name it'
+good; sed -i '' 's/(F02)/(F01)/' "$tmp/docs/requirements/releases.md"; expect fail 'an open release section that does not name its feature' 'features.md: F02 has the state Release 4, but the open Release 4 section does not name it'
+good; sed -i '' 's/(F02)/(F02, F03)/' "$tmp/docs/requirements/releases.md"; expect fail 'an open release section that names a Later feature' 'releases.md: the Release 4 section names F03, whose state is Later'
 
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

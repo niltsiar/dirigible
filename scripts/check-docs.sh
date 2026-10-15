@@ -26,6 +26,99 @@ else
     done
 fi
 
+# Every feature ID of the catalog has one row in features.md, with a state of its header grammar
+# and the catalog Req. releases.md names only IDs that have a row, and an open Release section
+# (no `Status: closed` line) names the IDs whose state is that release.
+features="$root/docs/requirements/features.md"
+catalog="$root/docs/research/podcast-features.md"
+if [[ ! -f "$features" ]]; then
+    err "docs/requirements/features.md is missing"
+elif [[ ! -f "$catalog" ]]; then
+    err "docs/research/podcast-features.md is missing"
+else
+    runid='[0-9][0-9a-z-]*'
+    part="Release [0-9]+ runs? $runid((, | and )$runid)*"
+    done_state="^done, $part( and $part)*( [(][^)]*[)])?(; Later: .+)?\$"
+    if out="$(awk -F'|' -v done_state="$done_state" '
+        function t(x) { gsub(/^ +| +$/, "", x); return x }
+        function bad(m) { print m; failed = 1 }
+        function released(s, n,   x) {
+            x = s; sub(/; Later:.*/, "", x); gsub(/ [(][^)]*[)]/, "", x)
+            return x ~ ("^done, .*Release " n " runs? ")
+        }
+        FILENAME == ARGV[1] {
+            if ($0 ~ /^\| ID \|/) {
+                delete col; for (i = 2; i < NF; i++) col[t($i)] = i
+                ok = ("Req" in col)
+                if (!ok) bad("podcast-features.md: a table with an ID header has no Req column")
+            } else if ($0 !~ /^\|/) ok = 0
+            else if (ok && $0 ~ /^\| F[0-9]+ \|/) { cid[++nc] = t($2); cat[t($2)] = t($(col["Req"])) }
+            next
+        }
+        FILENAME == ARGV[2] {
+            if ($0 !~ /^\|/) { intable = 0; next }
+            if (!intable) {
+                intable = 1; delete col; for (i = 2; i < NF; i++) col[t($i)] = i
+                for (k = 1; k <= 3; k++) { c = (k == 1 ? "ID" : (k == 2 ? "State" : "Req")); if (!(c in col)) { bad("features.md: no " c " column"); nocol = 1 } }
+                next
+            }
+            if ($0 ~ /^\| F[0-9]+ \|/ && !nocol) {
+                id = t($2); if (!(id in rows)) fid[++nf] = id
+                rows[id]++; st[id] = t($(col["State"])); rq[id] = t($(col["Req"]))
+            }
+            next
+        }
+        FILENAME == ARGV[3] {
+            if ($0 ~ /^## /) {
+                sec = ""
+                if (match($0, /^## Release [0-9]+:/)) { sec = substr($0, 12, RLENGTH - 12); exists[sec] = 1 }
+            }
+            if (sec != "" && $0 == "Status: closed") closed[sec] = 1
+            line = $0
+            while (match(line, /F[0-9]+/)) {
+                before = (RSTART > 1) ? substr(line, RSTART - 1, 1) : " "
+                id = substr(line, RSTART, RLENGTH); line = substr(line, RSTART + RLENGTH)
+                if (before ~ /[A-Za-z0-9]/ || line ~ /^[A-Za-z0-9]/) continue
+                if (!(id in named)) rid[++nr] = id
+                named[id] = 1
+                if (sec != "") { names[sec, id] = 1; if (!((sec, id) in listed)) { listed[sec, id] = 1; sid[sec, ++ns[sec]] = id } }
+            }
+            next
+        }
+        END {
+            if (nocol) exit 1
+            if (nf == 0) { bad("features.md has no F row"); exit 1 }
+            for (i = 1; i <= nc; i++) if (!(cid[i] in rows)) bad("features.md: no row for " cid[i])
+            for (i = 1; i <= nf; i++) {
+                id = fid[i]
+                if (rows[id] > 1) bad("features.md: " id " has more than one row")
+                s = st[id]
+                if (s == "") bad("features.md: " id " has no state")
+                else if (s !~ done_state && s !~ /^Release [0-9]+( [(].+[)])?$/ && s !~ /^Later( [(].+[)])?$/ && s !~ /^Dropped [(].+[)]$/)
+                    bad("features.md: " id " has a bad state: " s)
+                if (id in cat) { if (rq[id] != cat[id]) bad("features.md: " id " Req " rq[id] " is not the Req " cat[id] " of podcast-features.md") }
+                else if (s !~ /^Dropped/ && rq[id] !~ /^R[0-9]+/) bad("features.md: " id " has no Req")
+                if (s ~ /^Release [0-9]+( |$)/) {
+                    n = s; sub(/^Release /, "", n); sub(/[^0-9].*/, "", n)
+                    if (!(n in exists) || (n in closed) || !((n, id) in names)) bad("features.md: " id " has the state Release " n ", but the open Release " n " section does not name it")
+                }
+            }
+            for (i = 1; i <= nr; i++) if (!(rid[i] in rows)) bad("releases.md names " rid[i] ", which has no features.md row")
+            for (n in exists) {
+                if (n in closed) continue
+                for (j = 1; j <= ns[n]; j++) {
+                    id = sid[n, j]; s = st[id]
+                    if (!(id in rows)) continue
+                    if (s !~ ("^Release " n "( |$)") && !released(s, n)) bad("releases.md: the Release " n " section names " id ", whose state is " s)
+                }
+            }
+            exit failed
+        }' "$catalog" "$features" "$([[ -f "$releases" ]] && echo "$releases" || echo /dev/null)" 2>&1)"; then :; else
+        [[ -n "$out" ]] || out="the feature check failed"
+        while IFS= read -r msg; do err "$msg"; done <<<"$out"
+    fi
+fi
+
 # Every answered question links to a file that exists. A linked decision record is accepted.
 answered="$(awk '/^## Answered questions/{p=1; next} /^## /{p=0} p' "$brief")"
 [[ -n "$answered" ]] || err "brief.md: no '## Answered questions' section"

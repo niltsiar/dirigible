@@ -6,8 +6,11 @@
 # - It exits 1 with no tag for a version that is not higher (sort -V) than the newest v<digit> tag
 #   of origin, for a commit that is not on origin/main, for a commit that does not hold the
 #   commit of the newest tag (a higher version holds the code of each lower one), and for a commit
-#   that already has a v<digit> tag (one commit has one version). It reads the
-#   tags of origin with git ls-remote, so a local tag that origin does not have does not count.
+#   that already has a v<digit> tag on origin (one commit has one version). Only the tags of
+#   origin decide a refusal: it reads them with git ls-remote (the peeled refs for the tag of the
+#   commit), and its tag fetch has --force, so a tag of origin replaces a local tag of the same
+#   name. A local tag v<version> that origin does not have is a stale try: the script removes it
+#   and goes on, so no git tag -d by hand is needed (the guardrail hook blocks it).
 # - The tag is annotated, because scripts/version.sh ignores a lightweight tag. Before the push,
 #   git describe --exact-match of the commit must print the tag. When that check or the push
 #   fails, a trap removes the local tag, so a retry of the same version works.
@@ -19,7 +22,7 @@ version="$1" commit="$2" message="$3"
 [[ "$version" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]] ||
     { echo "tag-release: bad version $version (3 or 4 numbers with dots, no v)" >&2; exit 2; }
 
-git fetch -q --tags origin
+git fetch -q --tags --force origin
 newest="$(git ls-remote --tags --refs origin | sed -n 's|.*refs/tags/v\([0-9][0-9.]*\)$|\1|p' | sort -V | tail -1)"
 if [[ -n "$newest" ]]; then
     if [[ "$newest" == "$version" || "$(printf '%s\n%s\n' "$newest" "$version" | sort -V | tail -1)" != "$version" ]]; then
@@ -31,10 +34,13 @@ git merge-base --is-ancestor "$commit" origin/main ||
     { echo "tag-release: $commit is not on origin/main" >&2; exit 1; }
 [[ -z "$newest" ]] || git merge-base --is-ancestor "refs/tags/v$newest^{commit}" "$commit" ||
     { echo "tag-release: $commit does not hold v$newest; tag a commit after it" >&2; exit 1; }
-held="$(git tag --points-at "$commit" --list 'v[0-9]*' | head -1)"
-[[ -z "$held" ]] || { echo "tag-release: $commit already has the tag $held; one commit has one version" >&2; exit 1; }
-git rev-parse -q --verify "refs/tags/v$version" >/dev/null &&
-    { echo "tag-release: a local tag v$version that origin does not have exists; remove it with git tag -d v$version, then run again" >&2; exit 1; }
+sha="$(git rev-parse --verify "$commit^{commit}")"
+held="$(git ls-remote --tags origin | awk -v c="$sha" '$1 == c && $2 ~ /^refs\/tags\/v[0-9].*\^\{\}$/ { sub(/^refs\/tags\//, "", $2); sub(/\^\{\}$/, "", $2); print $2; exit }')"
+[[ -z "$held" ]] || { echo "tag-release: $commit already has the tag $held on origin; one commit has one version" >&2; exit 1; }
+if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+    git tag -d "v$version" >/dev/null
+    echo "tag-release: removed the local tag v$version that origin does not have"
+fi
 
 made=""
 trap '[[ -z "$made" ]] || git tag -d "v$version" >/dev/null 2>&1' EXIT

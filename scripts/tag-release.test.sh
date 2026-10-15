@@ -2,7 +2,9 @@
 # Check scripts/tag-release.sh against a bare origin in a temporary folder: it refuses a version
 # that is not higher than the newest tag of origin (equal, lower, sort -V order), a commit off
 # origin/main, a commit that does not hold the newest tag, and a bad version; a pass leaves an
-# annotated tag on origin; a failed push leaves no local tag, and a retry passes.
+# annotated tag on origin; a failed push leaves no local tag, and a retry passes. Only the tags of
+# origin decide a refusal: a stale local tag of the version goes, a stale local tag of another
+# version on the commit does not block, and a forced fetch takes the tag of origin of the same name.
 # scripts/bundle.test.sh runs it, so make test-hooks runs it.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/tag-release.sh"
@@ -103,6 +105,27 @@ setup local && origin_tag 0.3.8.1 "$one"
 git -C "$d/work" tag -a v0.9.0 -m stale "$one"
 run 0.3.8.2 "$two"
 [[ $code -eq 0 ]] || fail "a local-only v0.9.0 counted as the newest tag: exit $code: $out"
+
+# Only the tags of origin decide a refusal, so a stale local tag never needs a git tag -d by hand
+# (the guardrail blocks it). A local tag of the version that origin does not have goes, and the
+# run tags and pushes.
+setup stale && origin_tag 0.3.8.1 "$one"
+git -C "$d/work" tag -a v0.3.8.2 -m stale "$one"
+run 0.3.8.2 "$two"
+[[ $code -eq 0 ]] || fail "a stale local tag of the version: exit $code: $out"
+[[ "$(git -C "$d/origin.git" rev-parse 'v0.3.8.2^{commit}' 2>&1)" == "$two" ]] || fail 'a stale local tag of the version: the origin tag is not on the commit'
+# A stale local tag of another version on the commit, with an older tagger date (git describe
+# prints the newer of two annotated tags on one commit).
+setup other && origin_tag 0.3.8.1 "$one"
+GIT_COMMITTER_DATE='2020-01-01T00:00:00' git -C "$d/work" tag -a v0.3.10 -m stale "$two"
+run 0.3.11.1 "$two"
+[[ $code -eq 0 ]] || fail "a stale local tag of another version on the commit: exit $code: $out"
+# A local tag of the same name on another commit than the tag of origin: the forced fetch takes
+# the tag of origin, so the refusal is the one of the newest tag.
+setup clobber && origin_tag 0.3.10 "$one"
+git -C "$d/work" tag -a v0.3.10 -m local "$two"
+run 0.3.10 "$two"
+[[ $code -eq 1 && "$out" == *'is not higher than the newest tag v0.3.10'* ]] || fail "a local tag of the same name on another commit: exit $code: $out"
 
 [[ $failures -eq 0 ]] && echo "tag-release tests: all passed"
 exit $((failures > 0))

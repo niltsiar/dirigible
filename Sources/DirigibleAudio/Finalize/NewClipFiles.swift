@@ -2,7 +2,8 @@ import DirigibleCore
 import Foundation
 
 /// The bytes of a 24-bit WAV of `frames` frames with `channels` channels: 3 for each sample
-/// (decision 0021). The one copy of the rule.
+/// (decision 0021). The one copy of this rule for a size known in frames. The take disk checks know
+/// only the size of a CAF file and take 3 for each 4 bytes of it (decision 0013).
 func wavFileBytes(frames: Int64, channels: Int) -> Int64 { frames * Int64(channels) * 3 }
 
 /// Why a batch of new clip files stopped (decision 0056). Each caller maps it to its own error.

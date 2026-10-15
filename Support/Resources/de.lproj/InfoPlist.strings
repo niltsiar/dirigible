@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Dirigible nimmt Audio von deinen Mikrofonen und Audio-Interfaces auf.";
+"Dirigible Session" = "Dirigible-Session";
+"NSAudioCaptureUsageDescription" = "Dirigible nimmt den Ton der Apps auf, die du als Quellen für Spuren wählst, zum Beispiel einen Anruf.";

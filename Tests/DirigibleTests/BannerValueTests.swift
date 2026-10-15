@@ -99,7 +99,7 @@ struct BannerValueTests {
             #expect(banner.text == text, "\(banner)")
             #expect(banner.announcement == announcement, "\(banner)")
         }
-        for language in ["en", "es"] {
+        for language in AppLanguage.allCases.map(\.rawValue) {
             let table = (try? stringsTable(language)) ?? [:]
             for key in [L10n.bannerLowRecordTimeLeft, .mediaMissing, .transportStopOutputChanged, .transportRecordOver]
             {

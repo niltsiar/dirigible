@@ -80,7 +80,7 @@ import Testing
     }
 
     /// Code gate 1 item 1: a take from a build before decision 0021 has no anchor file, so the
-    /// default Place fails. The alert names the way out in both languages.
+    /// default Place fails. The alert names the way out in each language.
     @Test func aPlaceWithNoAnchorNamesPlaceAtPlayhead() async throws {
         let (model, studio) = try await open()
         _ = try await unplacedTake(model, studio)
@@ -90,7 +90,7 @@ import Testing
 
         #expect(model.alert == .error(.segment(Self.first, .noAlignment)))
         #expect(studio.unplacedSegments == [Self.first, Self.second])
-        for language in ["en", "es"] {
+        for language in AppLanguage.allCases.map(\.rawValue) {
             let table = try stringsTable(language)
             let placeAtPlayhead = try #require(table[L10n.menuUnplacedPlacePlayhead.rawValue])
             let text = try #require(table[L10n.errorSegmentNoAlignment.rawValue])

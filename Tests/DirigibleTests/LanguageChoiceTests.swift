@@ -6,17 +6,25 @@ import Testing
 /// The language preference (R13, decision 0010): the value of each choice, the read of the app
 /// domain, and the write.
 struct LanguageChoiceTests {
-    /// C1: English and Spanish store one language; System Language stores no key.
+    /// C1: each language stores its code; System Language stores no key.
     @Test func valueOfEachChoice() {
         #expect(LanguageChoice.system.appleLanguages == nil)
-        #expect(LanguageChoice.english.appleLanguages == ["en"])
-        #expect(LanguageChoice.spanish.appleLanguages == ["es"])
+        #expect(LanguageChoice.language(.german).appleLanguages == ["de"])
+        #expect(LanguageChoice.language(.english).appleLanguages == ["en"])
+        #expect(LanguageChoice.language(.spanish).appleLanguages == ["es"])
+    }
+
+    /// C8: the pop-up lists the endonyms in the order of `AppLanguage`.
+    @Test func endonymOfEachLanguage() {
+        #expect(AppLanguage.allCases.map(\.endonym) == ["Deutsch", "English", "Español"])
     }
 
     /// C3: a stored list shows the language of the next launch, never System Language.
     @Test(arguments: [
-        (["es"], LanguageChoice.spanish), (["es-ES"], .spanish), (["es-MX"], .spanish), (["fr", "es"], .spanish),
-        (["en"], .english), (["en-GB"], .english), (["fr"], .english),
+        (["de-AT"], LanguageChoice.language(.german)), (["es"], .language(.spanish)),
+        (["es-ES"], .language(.spanish)), (["es-MX"], .language(.spanish)), (["ja", "es"], .language(.spanish)),
+        (["fr", "es"], .language(.spanish)), (["en"], .language(.english)), (["en-GB"], .language(.english)),
+        (["ja"], .language(.english)), (["fr"], .language(.english)),
     ])
     func readMapsTheStoredValue(stored: [String], choice: LanguageChoice) {
         #expect(LanguageChoice(stored: stored) == choice)
@@ -40,17 +48,17 @@ struct LanguageChoiceTests {
         #expect(LanguageChoice(defaults, domain: domain) == .system)
     }
 
-    /// C2: English and Spanish set the key in the app domain; System Language removes it.
+    /// C2: each language sets the key in the app domain; System Language removes it.
     @Test func writeSetsAndRemovesTheKey() throws {
         let domain = "DirigibleTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: domain))
         defer { defaults.removePersistentDomain(forName: domain) }
         let stored = { defaults.persistentDomain(forName: domain)?[LanguageChoice.key] as? [String] }
-        LanguageChoice.english.write(to: defaults)
+        LanguageChoice.language(.english).write(to: defaults)
         #expect(stored() == ["en"])
-        LanguageChoice.spanish.write(to: defaults)
+        LanguageChoice.language(.spanish).write(to: defaults)
         #expect(stored() == ["es"])
-        #expect(LanguageChoice(defaults, domain: domain) == .spanish)
+        #expect(LanguageChoice(defaults, domain: domain) == .language(.spanish))
         LanguageChoice.system.write(to: defaults)
         #expect(stored() == nil)
         #expect(LanguageChoice(defaults, domain: domain) == .system)
@@ -62,8 +70,8 @@ struct LanguageChoiceTests {
         let domain = "DirigibleTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: domain))
         defer { defaults.removePersistentDomain(forName: domain) }
-        defaults.set(["fr", "es"], forKey: LanguageChoice.key)
-        #expect(LanguageChoice(defaults, domain: domain) == .spanish)
+        defaults.set(["ja", "es"], forKey: LanguageChoice.key)
+        #expect(LanguageChoice(defaults, domain: domain) == .language(.spanish))
         LanguageChoice.system.write(to: defaults)
         #expect(defaults.persistentDomain(forName: domain)?[LanguageChoice.key] == nil)
     }

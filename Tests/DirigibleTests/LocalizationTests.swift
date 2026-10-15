@@ -4,24 +4,83 @@ import Testing
 
 @testable import DirigibleApp
 
-/// Both string tables hold every `L10n` key and nothing else, with a value and the same format
-/// specifiers (decision 0010). `AppBundleTests` checks the tables in the built bundle.
+/// Each string table holds every `L10n` key and nothing else, with a value and the format
+/// specifiers of English (decision 0010). `AppBundleTests` checks the tables in the built bundle.
 struct LocalizationTests {
-    @Test func bothTablesMatchTheKeys() throws {
+    @Test func everyTableMatchesTheKeys() throws {
+        var tables: [String: [String: String]] = [:]
+        for language in AppLanguage.allCases.map(\.rawValue) { tables[language] = try stringsTable(language) }
+        #expect(tableProblems(tables, keys: L10n.allCases.map(\.rawValue)) == [])
+    }
+
+    @Test func checkerFindsAMissingKeyInAnyLanguage() {
         let problems = tableProblems(
-            en: try stringsTable("en"), es: try stringsTable("es"), keys: L10n.allCases.map(\.rawValue))
+            [
+                "en": ["a.one": "One %@", "a.two": "Two", "a.peak": "Peak %.1f dB", "a.swap": "Files: %lld (%@)"],
+                "de": ["a.one": "Uno %lld", "a.peak": "Spitze %d dB", "a.swap": "(%@) Dateien: %lld"],
+                "fr": [
+                    "a.one": "Un %@", "a.two": "Deux", "a.peak": "Pic %.1f dB", "a.swap": "Fichiers : %lld (%@)",
+                    "a.extra": "Plus",
+                ],
+            ], keys: ["a.one", "a.two", "a.peak", "a.swap"])
+        #expect(
+            problems == [
+                "de: no value for a.two", "fr: key a.extra is not in L10n",
+                "a.one: specifiers [\"%@\"] in en, [\"%lld\"] in de",
+                "a.peak: specifiers [\"%.1f\"] in en, [\"%d\"] in de",
+                "a.swap: specifiers [\"%lld\", \"%@\"] in en, [\"%@\", \"%lld\"] in de",
+            ])
+    }
+
+    @Test func checkerKeepsAPositionalReorderAndAFlaggedSpecifier() {
+        let problems = tableProblems(
+            [
+                "en": ["a.pos": "%1$lld of %2$@", "a.gain": "Gain %+.1f dB", "a.pct": "100%% done %@"],
+                "de": ["a.pos": "%2$@: %1$lld", "a.gain": "Pegel %+.1f dB", "a.pct": "100%% fertig %@"],
+            ], keys: ["a.pos", "a.gain", "a.pct"])
         #expect(problems == [])
     }
 
-    @Test func checkerFindsAMissingKeyAndAnOtherSpecifier() {
-        let problems = tableProblems(
-            en: ["a.one": "One %@", "a.two": "Two"], es: ["a.one": "Uno %lld", "a.extra": "Más"],
-            keys: ["a.one", "a.two"])
-        #expect(
-            problems == [
-                "es: no value for a.two", "es: key a.extra is not in L10n",
-                "a.one: specifiers [\"%@\"] in en, [\"%lld\"] in es",
-            ])
+    /// Each `*.lproj` folder of `Support/Resources` is a language of `AppLanguage`, with the
+    /// files that the build needs (decision 0010): no `.stringsdict`, and an `InfoPlist.strings`
+    /// in each folder but English.
+    @Test func eachLanguageHasItsFolder() throws {
+        let languages = AppLanguage.allCases.map(\.rawValue)
+        let names = try FileManager.default.contentsOfDirectory(atPath: resourcesFolder.path)
+        let folders = names.filter { $0.hasSuffix(".lproj") }.map { String($0.dropLast(".lproj".count)) }.sorted()
+        var problems: [String] = []
+        for language in languages where !folders.contains(language) { problems.append("\(language): no folder") }
+        for folder in folders where !languages.contains(folder) { problems.append("\(folder): not in AppLanguage") }
+        for language in languages where folders.contains(language) {
+            let files = try FileManager.default.contentsOfDirectory(
+                atPath: resourcesFolder.appending(path: "\(language).lproj").path
+            ).filter { !$0.hasPrefix(".") }.sorted()
+            let expected = language == "en" ? ["Localizable.strings"] : ["InfoPlist.strings", "Localizable.strings"]
+            if files != expected { problems.append("\(language): files \(files), expected \(expected)") }
+        }
+        #expect(problems == [])
+    }
+
+    /// A value equal to its English value is a missing translation unless its key is in the list
+    /// of its language: units, format names, and words that are the same in the language.
+    @Test func noValueCopiesEnglish() throws {
+        let english = try stringsTable("en")
+        for language in AppLanguage.allCases.map(\.rawValue) where language != "en" {
+            let table = try stringsTable(language)
+            let allowed = sameAsEnglish[language] ?? []
+            let copies = english.keys.sorted().filter { table[$0] == english[$0] && !allowed.contains($0) }
+            #expect(copies == [], "\(language) copies the English value")
+        }
+    }
+
+    /// The Mute and Solo boxes of a track header are 18 x 16 pt (decision 0039).
+    @Test func eachHeaderLetterIsOneCharacter() throws {
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            for key in [L10n.trackMuteLetter, .trackSoloLetter] {
+                #expect(table[key.rawValue]?.count == 1, "\(language) \(key.rawValue)")
+            }
+        }
     }
 
     /// Crossfades F2b: the window never makes a crossfade error, so each one shows the text of a
@@ -57,40 +116,83 @@ struct LocalizationTests {
         for (language, text) in texts {
             #expect(try stringsTable(language)[L10n.bannerUnusedMoved.rawValue] == text, "\(language)")
         }
+        // The other languages keep the form `<words>: %lld (%@).`; French puts a space before the colon.
+        for language in AppLanguage.allCases.map(\.rawValue) where texts[language] == nil {
+            let text = try #require(try stringsTable(language)[L10n.bannerUnusedMoved.rawValue], "\(language)")
+            #expect(text.wholeMatch(of: /[^%:]+: %lld \(%@\)\./) != nil, "\(language): \(text)")
+        }
     }
 
     @Test func checkerFindsAnEmptyValue() {
-        #expect(tableProblems(en: ["a": "A"], es: ["a": ""], keys: ["a"]) == ["es: no value for a"])
+        #expect(tableProblems(["en": ["a": "A"], "es": ["a": ""]], keys: ["a"]) == ["es: no value for a"])
     }
 }
 
+private let resourcesFolder = URL(filePath: #filePath).deletingLastPathComponent()
+    .appending(path: "../../Support/Resources").standardized
+
 /// The `Localizable.strings` table of `language` in `Support/Resources`.
 func stringsTable(_ language: String) throws -> [String: String] {
-    let url = URL(filePath: #filePath).deletingLastPathComponent()
-        .appending(path: "../../Support/Resources/\(language).lproj/Localizable.strings").standardized
-    let data = try Data(contentsOf: url)
+    let data = try Data(contentsOf: resourcesFolder.appending(path: "\(language).lproj/Localizable.strings"))
     return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String])
 }
 
-/// The problems of two tables against the keys, in a stable order: per table, the missing or
-/// empty values, then the extra keys; then the keys whose specifiers differ.
-func tableProblems(en: [String: String], es: [String: String], keys: [String]) -> [String] {
+/// The keys whose value is the English value in that language, and right so (units, format names,
+/// and words that are the same).
+private let sameAsEnglish: [String: Set<String>] = [
+    "de": [
+        "inspector.tab.clip", "inspector.tab.marker", "marker.name", "marker.url", "episode.details",
+        "episode.copyright", "episode.links", "episode.guid", "alert.ok", "track.name", "track.mute.letter",
+        "track.solo.letter", "track.volume.value", "track.layout.mono", "track.layout.stereo",
+        "track.route", "track.route.apps", "dock.badge.recording", "menu.transport", "menu.transport.pause",
+        "timeline.accessibility", "timeline.readout.crossfade", "inspector.clip", "inspector.clips",
+        "inspector.decibels", "inspector.milliseconds", "loudness.short", "menu.edit.fade", "agent.mark",
+        "marker.default.name", "panel.export.format", "panel.export.format.wav", "panel.export.format.aac",
+        "panel.export.format.mp3", "panel.export.format.flac", "panel.export.bitrate.value",
+        "panel.export.channels.stereo", "panel.export.channels.mono", "panel.export.rate.48000",
+        "panel.export.loudness", "panel.export.loudness.podcast", "panel.export.loudness.ebu",
+        "export.chapter.intro", "sheet.unused.name", "toolbar.tooltip", "banner.kind.info", "start.version",
+        "start.name",
+    ],
+    "es": [
+        "banner.kind.error", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.clip",
+        "inspector.clips", "inspector.decibels", "inspector.milliseconds", "inspector.tab.clip",
+        "panel.export.bitrate.value", "panel.export.channels.mono", "panel.export.format.aac",
+        "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
+        "panel.export.loudness.ebu", "panel.export.rate.48000", "toolbar.inspector", "toolbar.tooltip",
+        "track.layout.mono", "track.mute.letter", "track.route", "track.route.apps", "track.solo.label",
+        "track.solo.letter", "track.volume.value",
+    ],
+]
+
+/// The problems of the tables against the keys, in a stable order: per table (by language code),
+/// the missing or empty values, then the extra keys; then the keys whose specifiers differ from
+/// English.
+func tableProblems(_ tables: [String: [String: String]], keys: [String]) -> [String] {
+    let ordered = tables.sorted { $0.key < $1.key }
     var problems: [String] = []
-    for (language, table) in [("en", en), ("es", es)] {
+    for (language, table) in ordered {
         for key in keys where table[key]?.isEmpty != false { problems.append("\(language): no value for \(key)") }
         for key in table.keys.sorted() where !keys.contains(key) {
             problems.append("\(language): key \(key) is not in L10n")
         }
     }
+    let english = tables["en"] ?? [:]
     for key in keys {
-        guard let english = en[key], let spanish = es[key] else { continue }
-        let (a, b) = (specifiers(english), specifiers(spanish))
-        if a != b { problems.append("\(key): specifiers \(a) in en, \(b) in es") }
+        for (language, table) in ordered where language != "en" {
+            guard let reference = english[key], let value = table[key] else { continue }
+            let (a, b) = (specifiers(reference), specifiers(value))
+            if a != b { problems.append("\(key): specifiers \(a) in en, \(b) in \(language)") }
+        }
     }
     return problems
 }
 
-/// The format specifiers of a value, sorted, so a positional reorder in a language is allowed.
+/// The format specifiers of a value in their order, without `%%`. They are sorted only when each
+/// one has an index (`%1$@`): a positional reorder is allowed, an unpositioned word-order swap is
+/// not, because `String(format:)` reads the arguments in order.
 private func specifiers(_ value: String) -> [String] {
-    value.matches(of: /%(\d+\$)?(ll|l)?[@dfs]/).map { String($0.output.0) }.sorted()
+    let found = value.replacing("%%", with: "")
+        .matches(of: /%(\d+\$)?[-+ 0#]*\d*(\.\d+)?(ll|l)?[@dfsu]/).map { String($0.output.0) }
+    return found.allSatisfy { $0.contains("$") } ? found.sorted() : found
 }

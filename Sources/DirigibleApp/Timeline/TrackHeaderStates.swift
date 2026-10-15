@@ -54,9 +54,9 @@ struct LiveState: View {
         if let loudness = LoudnessText.header(live) { loudnessText(loudness) }
         switch live.state {
         case .recording, .monitoring: EmptyView()
-        case .deviceLost: Text(L10n.trackStateDeviceLost.key).foregroundStyle(.red)
-        case .writeFailed: Text(L10n.trackStateWriteFailed.key).foregroundStyle(.red)
-        case .retryStopped: Text(L10n.trackStateRetryStopped.key).foregroundStyle(.red)
+        case .deviceLost: Text(verbatim: L10n.trackStateDeviceLost.text).foregroundStyle(.red)
+        case .writeFailed: Text(verbatim: L10n.trackStateWriteFailed.text).foregroundStyle(.red)
+        case .retryStopped: Text(verbatim: L10n.trackStateRetryStopped.text).foregroundStyle(.red)
         case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
         case .noSound where showsNoSound:
             // A row of 56 to 79 pt has no room for the text and the "Privacy…" button.

@@ -112,7 +112,7 @@ private struct TrackRow: View {
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the
                     // name is at its minimum, so the route and the state always show.
-                    Text(track.layout == .mono ? L10n.trackLayoutMono.key : L10n.trackLayoutStereo.key)
+                    Text(verbatim: track.layout == .mono ? L10n.trackLayoutMono.text : L10n.trackLayoutStereo.text)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -176,7 +176,7 @@ private struct TrackRow: View {
     /// label: a click on it selects the track, and a double-click starts the rename (ui-panel 5).
     /// The field stays in the row, so a rename keeps the layout.
     private var nameField: some View {
-        TextField(L10n.trackName.key, text: name)
+        TextField(L10n.trackName.text, text: name)
             .textFieldStyle(.plain)
             .focused($focused)
             // Return ends a rename: the lanes take the focus, so a later key is not a draft. A field
@@ -307,7 +307,7 @@ private struct TrackRow: View {
                     .help(Text(verbatim: state.full)).accessibilityLabel(Text(verbatim: state.full))
                 if noSound {
                     // A short title; the full name is the help and the VoiceOver name.
-                    Button(L10n.trackNoSoundPrivacy.key, action: model.openAudioCaptureSettings)
+                    Button(L10n.trackNoSoundPrivacy.text, action: model.openAudioCaptureSettings)
                         .fixedSize()
                         .help(L10n.trackNoSoundSettings.key)
                         .accessibilityLabel(L10n.trackNoSoundSettings.key)

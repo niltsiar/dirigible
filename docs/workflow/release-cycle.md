@@ -13,7 +13,7 @@ The steering rules of the release plan. `docs/requirements/releases.md` lists th
 
 - A run that lands an F-ID takes the lowest open release and the next run number of that release. Its version is `0.<release>.<run>`.
 - A feature of a later release that lands early moves to that release. The landing run moves its item in `releases.md` and writes `(moved from Release <k>)` in the state.
-- The landing run sets the state of each F-ID that it lands in its own pull request. `check-governance.sh` refuses the land otherwise.
+- The landing run names the F-IDs of the land in `- Lands:` of `run.md`, or writes `- Lands: none`. It sets the state of each of them in its own pull request. A run that lands in steps writes the line before each land. `check-governance.sh` refuses the land otherwise.
 - A new request gets the next free ID, and an ID is never used again. A drop sets `Dropped (<reason>)`, and the row stays.
 
 ## Steering runs

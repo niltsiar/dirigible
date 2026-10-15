@@ -15,7 +15,7 @@
 #   ## Next of the main-checkout .scratchpads/backlog.md has no taken item of that run: a line with
 #   `(taken: run <run folder name>` and then a space, a comma, or `)`. A backlog with no line that
 #   starts with `## Next` fails.
-# - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID and Feature cells
+# - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID, Feature, and Req cells
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
 # - A run number that HEAD adds to a done State of features.md is 1 + the highest run number of its
 #   Release at the base. Each run number of a done State at the base stays in its row.
@@ -59,11 +59,11 @@ fi
 
 # features.md keeps the row of each feature ID of the base; a base with no file has none to keep.
 features=docs/requirements/features.md
-cells() { awk -F'|' '/^\| F[0-9]+ \|/ { gsub(/^ +| +$/, "", $2); gsub(/^ +| +$/, "", $3); print $2 "|" $3 }'; }
+cells() { awk -F'|' '/^\| F[0-9]+ \|/ { for (i = 2; i <= 6; i++) gsub(/^ +| +$/, "", $i); print $2 "|" $3 "|" $6 }'; }
 if [[ -n "$(at_base "$features")" ]]; then
     lost="$(comm -23 <(at_base "$features" | cells | sort) <({ [[ ! -f "$features" ]] || cells < "$features"; } | sort))"
     while IFS= read -r row; do
-        [[ -z "$row" ]] || { echo "check-governance: features.md lost the row of ${row%%|*}; keep it and set Dropped (<reason>)" >&2; fail=1; }
+        [[ -z "$row" ]] || { echo "check-governance: features.md lost or changed the row of ${row%%|*}; keep its ID, Feature, and Req cells; a drop sets Dropped (<reason>)" >&2; fail=1; }
     done <<<"$lost"
 fi
 

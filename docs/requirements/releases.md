@@ -188,9 +188,9 @@ Goal: edit the timeline faster: pre-roll, replace and fill, and the timeline edi
 5. **Sync by waveform (F74).** F74 lands in two steps.
    - **L1 Waveform sync.** Align a clip to another track by its audio waveform.
    - **L2 Drift fit.** F74 also aligns an outside recording that has its own clock. Examples: the file that a remote guest recorded on the guest computer, a backup recorder, or camera audio. An outside recording has no shared host clock, so F74 measures the drift from the audio. The drift fit is a cross-correlation at several points across the clip, a line fit of offset and rate, and one resample. The line fit is the fit of 0004, but from the audio. F74 reads the original file of the outside recording. It does the rate conversion and the drift correction in one resample, as Finalize does (0004). A drift of 50 ppm is about 180 ms in one hour. Edge cases that the F74 run handles:
-     - A pause or a gap in the outside recording: one fit for each segment.
+     - A pause or a gap in the outside recording: one drift fit for each segment.
      - 44.1 kHz against 48 kHz.
-     - Call-track dropouts with no correlation peak: the fit rejects outliers.
+     - Call-track dropouts with no correlation peak: the line fit rejects outliers.
      - A clean microphone against a codec-degraded copy of the call.
      - Several remote people in one call track: each outside recording aligns on its own, against the segments where that person talks alone.
      - The original file is gone: the F74 run picks the source of the resample.

@@ -213,6 +213,20 @@ code=$?
 got="$(run --staged HEAD main 2>&1)"
 code=$?
 [[ $code -eq 2 && "$got" == *'--staged [<base>]'* ]] || fail "--staged with two bases: exit $code, got [$got]"
+# A 5-word run is one of a single key point: text inserted between the words of two key points,
+# which each stay whole, is no cut.
+g reset -q --hard
+printf '## Scenarios\n\n| E2 | policy | s | q | (a) Read the run files. (b) Start no build or test. | `b.md` | - | - |\n' > "$tmp/r/docs/workflow/evals.md"
+printf 'Read the run files. Start no build or test.\n' > "$tmp/r/b.md"
+g add -A
+g commit -q -m points
+printf 'Read the run files and the built files. Start a fix later. Start no build or test.\n' > "$tmp/r/b.md"
+g add -A
+got="$(run --staged)" || fail "--staged, an insertion between two key points: exit $?, got [$got]"
+printf 'Read the run files. Start a build or test.\n' > "$tmp/r/b.md"
+g add -A
+got="$(run --staged)" && fail "--staged, a cut inside one key point: exit 0"
+[[ "$got" == 'E2 b.md: start no build or test' ]] || fail "--staged, a cut inside one key point: got [$got]"
 
 # agent-grade.py (E38): case <label> <task> <variant> <after.json> <skills> <Bash command> <reply>.
 # T8 asks for a take: a CLI record command on the package or a reply with the command and its

@@ -12,7 +12,7 @@
 # A bad base exits nonzero with nothing on stdout. scripts/evals-for.test.sh tests it.
 # --staged [<base>] (the commit-msg hook) prints '<ID> <file>: <cut text>' and exits 1 for each
 # real cut of a file of the Files cell by the index: a key term (as above) that the staged file
-# holds fewer times than the file at <base> (default HEAD), or a 5-word run of the key points that
+# holds fewer times than the file at <base> (default HEAD), or a 5-word run of one key point that
 # the whole file at <base> holds and the whole staged file does not. An insertion next to kept key
 # text is no cut. It reads the key points from the staged evals.md, so a rule and its key that
 # change in one commit pass, and it skips a holdout, a row of type agent, and a row new since <base>.
@@ -131,7 +131,8 @@ if mode == "staged":
         for f in (f for f in re.findall(r"`([^`]+)`", cell) if f in changed):
             old, new = show(f"{base}:{f}"), show(f":{f}")
             lost = [t for t, p in key_terms(keys) if len(p.findall(new)) < len(p.findall(old))]
-            runs = sorted(grams(words(keys)) & grams(words(old)) - grams(words(new)))
+            point_runs = set().union(*(grams(words(k)) for k in re.split(r"\([a-z]\) ", keys)))
+            runs = sorted(point_runs & grams(words(old)) - grams(words(new)))
             if lost or runs:
                 print(f"{sid} {f}: {'`' + lost[0] + '`' if lost else runs[0]}")
                 cut = 1

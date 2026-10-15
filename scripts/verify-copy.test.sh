@@ -557,6 +557,46 @@ echo 1 >"$state/lock.code"
 expect_doctor_fail "doctor f no session" "(f)" "manual"
 run stop
 
+# C10 screen lock: one verify copy on the screen at a time. Two worktrees share the git common dir,
+# so a start in the second tree waits for the copy of the first, prints the holder once at the
+# start of the wait, and exits 1 with the holder after VERIFY_COPY_SCREEN_WAIT s.
+new_case
+wt="$tmp/case-$n/wt"
+git -C "$repo" worktree add -q "$wt" 2>/dev/null
+mkdir -p "$wt/build"
+cp -R "$real" "$wt/build/Dirigible.app"
+script2="$wt/scripts/verify-copy.sh"
+run start
+first_pid="$out"
+[[ $code -eq 0 ]] || fail "screen lock: the first start: exit $code: $err"
+VERIFY_COPY_SCREEN_WAIT=2 "$script2" start >"$tmp/out2" 2>"$tmp/err2" &
+second=$!
+for _ in $(seq 30); do grep -q 'holds the screen' "$tmp/err2" && break; sleep 0.1; done
+kill -0 "$second" 2>/dev/null && grep -q 'holds the screen' "$tmp/err2" ||
+    fail "a second start waits for the screen lock: no holder line while it waits: $(cat "$tmp/err2")"
+wait "$second"
+code=$?
+[[ $code -eq 1 && "$(grep -c "PID $first_pid" "$tmp/err2")" -ge 1 ]] ||
+    fail "a second start waits for the screen lock and exits 1 with the holder: exit $code: $(cat "$tmp/err2")"
+[[ "$(grep -c 'holds the screen' "$tmp/err2")" == 1 ]] || fail "screen lock: the holder line is not printed once: $(cat "$tmp/err2")"
+[[ "$(wc -l <"$state/open.log" | tr -d ' ')" == 1 ]] || fail "screen lock: the second start opened a copy: $(cat "$state/open.log")"
+# A stop in the second tree leaves the lock of the first tree.
+"$script2" stop >/dev/null 2>&1
+VERIFY_COPY_SCREEN_WAIT=1 "$script2" start >/dev/null 2>"$tmp/err2"
+code=$?
+[[ $code -eq 1 ]] || fail "screen lock: a stop in the second tree removed the lock of the first: exit $code"
+# After the first stop, a start in the second tree goes on.
+run stop
+VERIFY_COPY_SCREEN_WAIT=1 "$script2" start >"$tmp/out2" 2>"$tmp/err2"
+code=$?
+[[ $code -eq 0 ]] || fail "screen lock: a start after the first stop: exit $code: $(cat "$tmp/err2")"
+# A lock whose copy is dead is taken over.
+kill -9 "$(cat "$tmp/out2")" 2>/dev/null
+gone "$(cat "$tmp/out2")" || fail "screen lock: the copy of the second tree did not end"
+VERIFY_COPY_SCREEN_WAIT=1 run start
+[[ $code -eq 0 ]] || fail "screen lock: the lock of a dead copy was not taken over: exit $code: $err"
+run stop
+
 # C17: no stop by name, and each recursive delete acts on build/verify or the saved state of the copy.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"
 grep -q 'rm -rf' "$here/verify-copy.sh" 2>/dev/null || fail "C17: no rm -rf line"

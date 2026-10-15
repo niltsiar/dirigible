@@ -17,9 +17,10 @@
 #   starts with `## Next` fails.
 # - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID and Feature cells
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
-# - With a run folder whose run.md has `- Branch: feat/...`, a branch that changes Sources/ sets
-#   each F-ID of the `- Lands:` line of run.md (else of `- Requirements:`) to a done state that
-#   differs from its state at the base.
+# - With a run folder whose run.md has a `- Lands:` line, each F-ID of the line has a done state in
+#   features.md that differs from its state at the base, on any branch type. `- Lands: none` names no
+#   F-ID; an empty line fails. A `feat/` branch that changes Sources/, Package.swift, Package.resolved,
+#   or Support/ needs the line.
 # - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
@@ -93,19 +94,33 @@ if [[ -n "$run" ]]; then
         fail=1
     done
 fi
-# A feat run that changes Sources/ lands its F-IDs: each one gets a done state that the base lacks.
-# A run that lands in steps names the F-IDs of this land in `- Lands:`.
-if [[ -n "$run" && -f "$run/run.md" ]] && grep -q '^- Branch: feat/' "$run/run.md" \
-    && git diff --name-only "$base...HEAD" | grep -q '^Sources/'; then
-    line="$(grep -m1 '^- Lands:' "$run/run.md" || grep -m1 '^- Requirements:' "$run/run.md" || true)"
-    state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
-    for id in $(grep -oE 'F[0-9]+' <<<"$line" | sort -u || true); do
-        new="$([[ ! -f "$features" ]] || state "$id" < "$features")" old="$(at_base "$features" | state "$id")"
-        if [[ "$new" != done,* || "$new" == "$old" ]]; then
-            echo "check-governance: run.md lands $id, but features.md keeps its state ${new:-none}" >&2
+# A run.md with a `- Lands:` line names the F-IDs of this land, on any branch type: each one gets a
+# done state that the base lacks. `- Lands: none` names no F-ID. A feat run that changes app code
+# (the paths of the DMG rule) must have the line, because a run can land in steps.
+lands_state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
+if [[ -n "$run" && -f "$run/run.md" ]]; then
+    line="$(grep -m1 '^- Lands:' "$run/run.md" || true)"
+    if [[ -z "$line" ]]; then
+        if grep -q '^- Branch: feat/' "$run/run.md" \
+            && git diff --name-only "$base...HEAD" | grep -qE '^(Sources/|Package\.swift$|Package\.resolved$|Support/)'; then
+            echo "check-governance: this feat branch changes app code and run.md has no '- Lands:' line; name the F-IDs of this land in - Lands: of run.md, or write - Lands: none" >&2
             fail=1
         fi
-    done
+    else
+        ids="$(grep -oE 'F[0-9]+' <<<"$line" | sort -u || true)"
+        value="$(sed 's/^- Lands: *//; s/ *$//' <<<"$line")"
+        if [[ -z "$ids" && "$value" != none ]]; then
+            echo "check-governance: run.md has a - Lands: line with no F-ID; name the F-IDs of this land, or write - Lands: none" >&2
+            fail=1
+        fi
+        for id in $ids; do
+            new="$([[ ! -f "$features" ]] || lands_state "$id" < "$features")" old="$(at_base "$features" | lands_state "$id")"
+            if [[ "$new" != done,* || "$new" == "$old" ]]; then
+                echo "check-governance: run.md lands $id, but features.md keeps its state ${new:-none}" >&2
+                fail=1
+            fi
+        done
+    fi
 fi
 # A run moves its own taken items out of ## Next of the backlog before the land: each run reads
 # ## Next at Phase 0, so a long ## Next costs each run. The backlog is in the main checkout, the

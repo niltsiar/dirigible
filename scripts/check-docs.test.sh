@@ -206,6 +206,11 @@ good; rm "$tmp/docs/requirements/features.md"; expect fail 'no features.md' 'doc
 good; sed -i '' '/^| F01 /d' "$tmp/docs/requirements/features.md"; expect fail 'a catalog ID with no row' 'features.md: no row for F01'
 good; printf '| F01 | One again | user 2026-10-14 | Later | R1 |\n' >> "$tmp/docs/requirements/features.md"; expect fail 'two rows for one ID' 'features.md: F01 has more than one row'
 good; setcol F01 5 ''; expect fail 'an empty state' 'features.md: F01 has no state'
+# A run ID of Release 4 or later is digits only: tag-release.sh matches the digits of the tag.
+good; setcol F01 5 'done, Release 3 run 9b and Release 4 run 2'; expect pass 'a letter run ID in Release 3 and digits in Release 4'
+for s in 'done, Release 4 run 5a' 'done, Release 4 runs 5 and 5b' 'done, Release 3 run 2 and Release 4 run 5a' 'done, Release 12 run 2-1'; do
+  good; setcol F01 5 "$s"; expect fail "feature state $s" 'features.md: F01 has a bad state'
+done
 for s in 'planned' 'later' 'Release' 'Release four' 'done' 'done in run 3' 'Dropped' 'done, Release 1' 'done, Release 1 run'; do
   good; setcol F01 5 "$s"; expect fail "feature state $s" 'features.md: F01 has a bad state'
 done

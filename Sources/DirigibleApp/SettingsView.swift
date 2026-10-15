@@ -10,6 +10,7 @@ enum AppLanguage: String, CaseIterable {
     case spanish = "es"
     case french = "fr"
     case italian = "it"
+    case dutch = "nl"
 
     /// The name of the language in that language, so a user who cannot read the current UI
     /// language still finds theirs.
@@ -20,6 +21,7 @@ enum AppLanguage: String, CaseIterable {
         case .spanish: "Español"
         case .french: "Français"
         case .italian: "Italiano"
+        case .dutch: "Nederlands"
         }
     }
 }

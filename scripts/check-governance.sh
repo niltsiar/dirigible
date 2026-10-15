@@ -3,7 +3,7 @@
 # Usage: scripts/check-governance.sh <base> [<run folder>]
 # - A row of docs/workflow/budgets.tsv whose words go up names a decisions.tsv row in its
 #   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`. The TOTAL row goes up by at most 50
-#   words, unless the branch changes the words of the QUOTA row (a consolidation run).
+#   words, unless the branch has a QUOTA row at or above its new TOTAL (a consolidation run).
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
@@ -40,9 +40,9 @@ if [[ -f "$budgets" ]]; then
     up="$(at_base "$budgets" | awk -F'\t' '
         NR == FNR { if ($1 == "TOTAL") t = $2; if ($1 == "QUOTA") q = $2; next }
         $1 == "TOTAL" { nt = $2 } $1 == "QUOTA" { nq = $2 }
-        END { if (t != "" && q == nq && nt - t > 50) print nt - t }' - "$budgets")"
+        END { if (t != "" && nt - t > 50 && !(nq != "" && nt + 0 <= nq + 0)) print nt - t }' - "$budgets")"
     if [[ -n "$up" ]]; then
-        echo "check-governance: budgets.tsv: TOTAL goes up by $up words, over the cap of 50 for a branch; trim, or change the QUOTA row in a consolidation run (decision 0028, Word budgets)" >&2
+        echo "check-governance: budgets.tsv: TOTAL goes up by $up words, over the cap of 50 for a branch; trim; only a consolidation run raises it more, and its TOTAL stays at or below its QUOTA row (decision 0028, Word budgets)" >&2
         fail=1
     fi
 fi

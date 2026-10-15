@@ -56,7 +56,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 - `docs/workflow/budgets.tsv` gives a word limit for each workflow doc, a total for each skill folder, and one `TOTAL` row. `make check-docs` checks the limits.
 - A limit goes up only in a commit that names a `decisions.tsv` row in the `decision` cell. Before the push, `scripts/check-governance.sh` refuses a row that goes up with no `decisions.tsv <time>` in that cell.
-- Each limit keeps 1 % room: a file row is at least `wc -w` x 1.01, rounded up, and a folder row and `TOTAL` are at least the sum of those values. The `QUOTA` row is the `TOTAL` of the last consolidation. A branch raises `TOTAL` by 50 words at most, unless it changes `QUOTA` (`scripts/check-governance.sh`). When `TOTAL` is 250 or more words over `QUOTA`, `new-run.sh` prints `consolidation due`, and the next workflow upkeep run trims the docs until `TOTAL` is at `QUOTA` again.
+- Each limit keeps 1 % room: a file row is at least `wc -w` x 1.01, rounded up, and a folder row and `TOTAL` are at least the sum of those values. The `QUOTA` row is the `TOTAL` of the last consolidation. A branch raises `TOTAL` by 50 words at most, unless its `QUOTA` row is at or above its new `TOTAL` (`scripts/check-governance.sh`). When `TOTAL` is 250 or more words over `QUOTA`, `new-run.sh` prints `consolidation due`, and the next workflow upkeep run trims the docs until `TOTAL` is at `QUOTA` again.
 
 ### Rule register
 

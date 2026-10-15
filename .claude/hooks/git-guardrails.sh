@@ -164,6 +164,11 @@ fi
 if ! reads_only dirigible-build.lock; then
   block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat)"
 fi
+# Only scripts/verify-copy.sh start takes the screen lock and stop removes it, so a hand-written
+# remove cannot free the screen for a second verify copy. A read is allowed.
+if ! reads_only dirigible-screen; then
+  block "names the screen lock of the verify copy in a command that is not a read (only scripts/verify-copy.sh start takes it and stop removes it; read it with ls or cat)"
+fi
 # Only scripts/test-hooks.sh appends to the hooks pass stamp, after a pass of the whole list, so a
 # Bash command cannot write it to skip the hook tests. A read is allowed. This rule covers only the
 # Bash tool, not the Edit and Write tools.

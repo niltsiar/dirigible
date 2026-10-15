@@ -21,8 +21,8 @@
 #   Release at the base. Each run number of a done State at the base stays in its row.
 # - With a run folder whose run.md has a `- Lands:` line, each F-ID of the newest (last) such line has a
 #   done state in features.md that differs from its state at the base, on any branch type. `- Lands: none`
-#   names no F-ID; an empty line fails. A `feat/` branch that changes Sources/, Package.swift, Package.resolved,
-#   or Support/ needs the line.
+#   names no F-ID; an empty line fails. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
+#   Package.swift, Package.resolved, or Support/ needs the line.
 # - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
@@ -134,15 +134,16 @@ if [[ -n "$run" ]]; then
 fi
 # A run.md with a `- Lands:` line names the F-IDs of this land, on any branch type: each one gets a
 # done state that the base lacks. `- Lands: none` names no F-ID. A run that lands in steps replaces
-# the line before each land, so the last line counts. A feat run that changes app code
-# (the paths of the DMG rule) must have the line, because a run can land in steps.
+# the line before each land, so the last line counts. A feat, fix, or perf run that changes app code
+# (the paths of the DMG rule) must have the line, because a run can land in steps. A hardening run
+# (fix/) that lands no feature writes `- Lands: none`.
 lands_state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
 if [[ -n "$run" && -f "$run/run.md" ]]; then
     line="$(grep '^- Lands:' "$run/run.md" | tail -n 1 || true)"
     if [[ -z "$line" ]]; then
-        if grep -q '^- Branch: feat/' "$run/run.md" \
+        if grep -qE '^- Branch: (feat|fix|perf)/' "$run/run.md" \
             && git diff --name-only "$base...HEAD" | grep -qE '^(Sources/|Package\.swift$|Package\.resolved$|Support/)'; then
-            echo "check-governance: this feat branch changes app code and run.md has no '- Lands:' line; name the F-IDs of this land in - Lands: of run.md, or write - Lands: none" >&2
+            echo "check-governance: this branch changes app code and run.md has no '- Lands:' line; name the F-IDs of this land in - Lands: of run.md, or write - Lands: none" >&2
             fail=1
         fi
     else

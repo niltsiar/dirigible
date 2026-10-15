@@ -84,6 +84,25 @@ struct LocalizationTests {
         }
     }
 
+    /// `HeaderStateLineTests` sets the table that `.text` reads, so a row text drawn with
+    /// `Text(x.key)` shows its dotted key there (decision 0010, **Views**). Help and VoiceOver
+    /// texts keep `.key`.
+    @Test func eachHeaderRowTextReadsTheTable() throws {
+        let folder = URL(filePath: #filePath).deletingLastPathComponent()
+            .appending(path: "../../Sources/DirigibleApp/Timeline").standardized
+        var keyTexts: [String] = []
+        for name in ["TrackHeaders.swift", "TrackHeaderStates.swift", "TrackToggles.swift"] {
+            let source = try String(contentsOf: folder.appending(path: name), encoding: .utf8)
+            for (index, line) in source.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+                for match in line.matches(of: /Text\(\s*[\w.]+\.key\s*\)/)
+                where line[..<match.range.lowerBound].firstMatch(of: /\.(help|accessibility\w*)\((\w+:\s*)?$/) == nil {
+                    keyTexts.append("\(name) line \(index + 1): \(match.output)")
+                }
+            }
+        }
+        #expect(keyTexts == [])
+    }
+
     /// The inspector has no room in pt: a label is `fixedSize`, and a column takes the width of its
     /// widest label. So a group of texts has a room, the widest text of the group in `en`, `es`,
     /// and `de` (rounded up), which the on-screen check at 240 pt shows whole. A text wider than

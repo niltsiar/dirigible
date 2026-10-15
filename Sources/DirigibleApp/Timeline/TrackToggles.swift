@@ -87,7 +87,7 @@ struct TrackToggles: View {
                 set: { on in
                     model.setFlag(flag, on, track: track.id, all: Self.isOptionClick(NSApp.currentEvent))
                 })
-        ) { Text(letter.key) }
+        ) { Text(verbatim: letter.text) }
         .toggleStyle(FlagToggleStyle(fill: Color(nsColor: fill), letter: text))
         .accessibilityLabel(Text(verbatim: flag.label(track.name)))
         .help(Text(help.key))

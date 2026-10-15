@@ -39,4 +39,3 @@ Question: how do the reference apps show the record time or the free disk space 
 - [W-DC] Steinberg WaveLab LE 11, Disk Capacity Indicator: https://archive.steinberg.help/wavelab_le/v11/en/wavelab/topics/recording/recording_disk_capacity_r.html
 - [M-FR] mimoLive user manual, File Recording Performance Monitor: https://mimolive.com/user-manual/diagnostics/performance-monitoring/file-recording-performance-monitor/
 - [AH-RB] Audio Hijack manual, Recorder block: https://rogueamoeba.com/support/manuals/audiohijack/?page=recorderblock
-- [AP-VC] Apple Developer, Checking Volume Storage Capacity: https://developer.apple.com/documentation/foundation/checking-volume-storage-capacity

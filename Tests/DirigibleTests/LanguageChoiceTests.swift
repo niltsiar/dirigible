@@ -28,13 +28,14 @@ struct LanguageChoiceTests {
 
     /// C3: a stored list shows the language of the next launch, never System Language.
     @Test(arguments: [
-        (["de-AT"], LanguageChoice.language(.german)), (["es"], .language(.spanish)),
-        (["es-ES"], .language(.spanish)), (["es-MX"], .language(.spanish)), (["ja", "es"], .language(.spanish)),
-        (["fr", "es"], .language(.french)), (["fr-CA"], .language(.french)), (["it-CH"], .language(.italian)),
+        (["de-AT"], LanguageChoice.language(.german)),
+        (["en"], .language(.english)), (["en-GB"], .language(.english)), (["ja"], .language(.english)),
+        (["es"], .language(.spanish)), (["es-ES"], .language(.spanish)), (["es-MX"], .language(.spanish)),
+        (["ja", "es"], .language(.spanish)),
+        (["fr"], .language(.french)), (["fr", "es"], .language(.french)), (["fr-CA"], .language(.french)),
+        (["it-CH"], .language(.italian)),
         (["nl-BE"], .language(.dutch)),
         (["pt-PT"], .language(.portuguese)), (["pt-BR"], .language(.portuguese)),
-        (["en"], .language(.english)),
-        (["en-GB"], .language(.english)), (["ja"], .language(.english)), (["fr"], .language(.french)),
     ])
     func readMapsTheStoredValue(stored: [String], choice: LanguageChoice) {
         #expect(LanguageChoice(stored: stored) == choice)

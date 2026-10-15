@@ -17,7 +17,7 @@
 # rebase rewrites each commit. After the rebase, it runs no check when the tree of the stamp
 # commit is the tree of HEAD, else the targets of the files that differ between them, after the
 # load wait of check-changed.sh, with `test` added for a file outside Sources/ and Tests/ that a
-# file of Tests/ names. With no stamp, it runs `make check-changed BASE=origin/main`. The delta runs
+# code line of Tests/ names as a whole string-literal path. With no stamp, it runs `make check-changed BASE=origin/main`. The delta runs
 # through run-checks.sh with the risk of origin/main. A land that stops keeps its stamp commit in
 # the file dirigible-land-stamp-<branch> of the git dir, until the merge. It prints the stamp line.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
@@ -107,11 +107,14 @@ if [[ -n "$stamp_commit" ]]; then
         targets="$(sed -n 's/^targets: //p' <<<"$out")"
         [[ -n "$targets" ]] || die "check-changed.sh gave no targets for the delta after $commit; nothing is pushed"
         # A Swift test can read a file of another class (docs/guide.md). A delta path outside
-        # Sources/ and Tests/ that a file of Tests/ names adds the test target; check runs it too.
+        # Sources/ and Tests/ that a code line of Tests/ names as a whole string-literal path
+        # ("..." or ".../" before it, a quote after it) adds the test target; check runs it too.
         if [[ " $targets " != *" check "* && " $targets " != *" test "* ]]; then
             while IFS= read -r changed; do
                 case "$changed" in Sources/*|Tests/*) continue ;; esac
-                if [[ -n "$(grep -rlF -- "$changed" Tests 2>/dev/null)" ]]; then
+                re="$(sed 's/[^A-Za-z0-9_/-]/\\&/g' <<<"$changed")"
+                hits="$(grep -rnE -e "[\"/]$re\"" Tests 2>/dev/null || true)"
+                if [[ -n "$hits" ]] && grep -qvE '^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*)' <<<"$hits"; then
                     targets="$targets test"
                     break
                 fi

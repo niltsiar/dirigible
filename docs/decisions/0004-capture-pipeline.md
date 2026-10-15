@@ -6,6 +6,7 @@
 - Amended: 2026-09-24. The IOProc and the listeners use the C APIs (`AudioDeviceCreateIOProcID`, `AudioObjectAddPropertyListener`), not the block APIs. The library reads the microphone status in `Studio.startRecording`, and the front ends request access. A write error on one track reopens that track after 1 s (see 0013).
 - Amended: 2026-09-24. The active-recordings list is a plist array of package paths that `Studio` keeps in the order of this record. The app gives the path of the file; the CLI and the tests give none (see 0014).
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Timing** holds the clock rules for every device. `AGENTS.md` points here.
+- Amended: 2026-10-15, run record-time-relevant (F152). The record time is computed before a take; decision 0023 says when the window shows it.
 
 ## Context
 
@@ -85,7 +86,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 **Disk and sleep.**
 
 - A take needs 7 bytes per sample and channel on disk: 4 for the float32 CAF and 3 for the 24-bit WAV, because Release 1 keeps the CAF. The rate of use is the sum over the armed tracks of channels x rate x 7 bytes per second.
-- Before a take, show the remaining record time from the free space and that rate. During a take, stop cleanly and tell the user when the free space is less than the WAV size of the take so far plus 1 GB.
+- Before a take, compute the remaining record time from the free space and that rate; decision 0023 says when the window shows it. During a take, stop cleanly and tell the user when the free space is less than the WAV size of the take so far plus 1 GB.
 - Hold a `kIOPMAssertPreventUserIdleSystemSleep` assertion while recording. It does not stop sleep on lid close, from the Apple menu, or on low battery (IOPMLib.h). A segment break catches the sample-time jump after a wake.
 
 **Echo (R14).** Headphones are the only live measure. From Release 2, when a session has an app source (0006) and the output is the built-in speakers, show "Use headphones". Voice processing is not used: it needs AVAudioEngine, builds its own aggregate device, ducks the call, and changes the raw signal. Offline bleed removal is R14 work in Release 3.

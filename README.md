@@ -16,7 +16,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Record several input devices at the same time, one mono or stereo track for each input.
 - Record the sound of another app, for example a call, on its own track (macOS 14.2 or later).
 - Hear a microphone in your headphones while you record: click the headphones button in the track header, or choose **Track > Monitor Track** (Control-Command-M).
-- Keep the recorded audio after a crash, an unplug, or a full disk.
+- Keep the recorded audio after a crash, an unplug, or a full disk. A banner warns when less than 3 hours of record time is left.
 - Go back to an earlier state of the session with **File > Revert To**. Dirigible keeps backups of the session, and Undo reverses a revert.
 - Make a session smaller after many retakes with **File > Remove Unused Files**. It shows the list and the size first, and moves the files to the Trash.
 - Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder. Dirigible copies each file into the session at its sample rate and levels it.

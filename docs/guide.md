@@ -34,7 +34,7 @@ Do these steps on the Mac of the recording before the show. The Spanish menu nam
 6. Choose **Track > Add Call Tracks** and the call app. **Host** records the default input of macOS: check the input name in the **Host** header. Add one track for each other microphone ([Set up the tracks](#set-up-the-tracks)).
 7. Choose **Record > Input Levels**. Speak into each microphone, and make sure that the meter of its track moves.
 8. Record a test take of 1 minute while the guest speaks. When macOS asks for the microphone or for System Audio Recording, click **Allow**. After **Stop**, make sure that each track, also **Guest**, shows a waveform.
-9. Connect the power cable and keep the lid open. Dirigible keeps the Mac awake during a take, but a closed lid puts a laptop to sleep. Make sure that "Record time:" in the window subtitle is longer than the show.
+9. Connect the power cable and keep the lid open. Dirigible keeps the Mac awake during a take, but a closed lid puts a laptop to sleep. If a banner says that less than 3 hr of record time is left, free up disk space. Each hour needs about 1.2 GB for each channel at 48 kHz (2.4 GB at 96 kHz), plus 1 GB.
 10. During the show, do not change the privacy settings. Before each new take, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop), so that Record does not replace audio. To start a take, click the Dirigible session window first, then choose **Record > Record** (Command-R). Make sure that the window shows **Recording take 1** (with the number of the take). When the call app is in front, Command-R goes to the call app.
 11. If Dirigible stops during the call, open Dirigible again. The old session opens and recovers its take by itself: the window shows **Recovering the last take**. Choose **File > New Session** at once, and record the rest of the call in the new session ([After a crash](#after-a-crash)).
 
@@ -515,8 +515,8 @@ If a device goes away during a take, its tracks show **Device lost**. The other 
 
 ### When the disk is almost full
 
-- When a track is armed, the window subtitle shows the record time that is left on the disk, for example "Record time: 5 hrs, 20 min".
-- The window shows a banner when less than 60 minutes of record time is left on the disk. During a take, the banner shows at less than 10 minutes.
+- When a track is armed and less than 3 hours of record time is left on the disk, the window subtitle shows it, for example "Record time left: 2 hr, 59 min", and a banner shows.
+- During a take, the subtitle shows the time under 3 hours, and the banner shows at less than 10 minutes.
 - Record does not start when less than 1 GB is free on the disk of the session.
 - If the disk becomes almost full during a take, Dirigible stops the take and keeps the audio.
 

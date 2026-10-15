@@ -137,7 +137,37 @@ struct ReadBackExportTests {
         #expect(values.count <= 101, "\(values.count) calls")
         #expect(zip(values, values.dropFirst()).allSatisfy { $0 <= $1 }, "the values go down")
         #expect(values.last == 1, "the last value: \(String(describing: values.last))")
-        #expect(values.contains { 0.9 < $0 && $0 <= 0.95 }, "no value in the read-back band")
+        #expect(values.contains { 0.75 < $0 && $0 <= 0.75 + 0.25 / 3 }, "no value in the read-back band")
+        #expect(values.contains { 0.75 + 0.25 / 3 < $0 && $0 < 1 }, "no value in a retry round")
+    }
+
+    /// The first write takes 0.3...0.75 of the bar. The read-back and the two retry rounds share
+    /// 0.75...1 in three equal bands, and inside a retry round the trial passes, the write, and the
+    /// read-back follow each other with no gap.
+    @Test func theProgressBandsGiveEachRoundItsOwnShare() {
+        let bands = ProgressBands(readsBack: true, limits: .init())
+        let third = 0.25 / 3
+        func same(_ a: Double, _ b: Double) -> Bool { abs(a - b) <= 1e-9 }
+
+        #expect(bands.write(round: 0, afterTrials: true) == 0.3...0.75)
+        #expect(bands.write(round: 0, afterTrials: false) == 0.15...0.75)
+        #expect(bands.trial(round: 0, index: 3).upperBound == 0.3)
+        #expect(bands.readBack(round: 0).lowerBound == 0.75)
+        #expect(same(bands.readBack(round: 0).upperBound, 0.75 + third), "\(bands.readBack(round: 0))")
+        for round in 1...2 {
+            let low = 0.75 + third * Double(round)
+            #expect(same(bands.trial(round: round, index: 0).lowerBound, low), "round \(round)")
+            #expect(
+                same(
+                    bands.trial(round: round, index: 3).upperBound,
+                    bands.write(round: round, afterTrials: true).lowerBound))
+            #expect(
+                same(bands.write(round: round, afterTrials: true).upperBound, bands.readBack(round: round).lowerBound))
+            #expect(same(bands.write(round: round, afterTrials: false).lowerBound, low), "round \(round)")
+            #expect(same(bands.readBack(round: round).upperBound, low + third), "round \(round)")
+        }
+        #expect(ProgressBands(readsBack: false, limits: .init()).write(round: 0, afterTrials: true) == 0.3...1)
+        #expect(ProgressBands(readsBack: true, limits: .init(retryRounds: 0)).readBack(round: 0) == 0.75...1)
     }
 
     /// The write is done and the read-back starts: the next cancel check is its first chunk.

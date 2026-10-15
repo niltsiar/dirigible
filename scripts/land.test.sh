@@ -8,7 +8,8 @@
 # missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
 # after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
 # full push check; the governance and the ancestor checks still run. The ratchet case runs the
-# real make check-changed first, so the land runs no check after it. Run by `make test-hooks`.
+# real make check-changed first, so the land runs no check after it. A partial stamp is no pass.
+# Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 land="$here/land.sh"
@@ -25,7 +26,8 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER
 bin="$tmp/bin"
 mkdir "$bin"
 # The fake make logs its arguments and whether origin/main is in HEAD (the rebase came first).
-# FAKE_MAKE=red fails the check; FAKE_MAKE=move moves origin/main while the check runs.
+# FAKE_MAKE=red fails the check; FAKE_MAKE=move moves origin/main while the check runs;
+# FAKE_MAKE=changed logs the output of the real check-changed.sh origin/main, as the recipe runs it.
 cat > "$bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$LAND_LOG"
@@ -35,6 +37,7 @@ git merge-base --is-ancestor origin/main HEAD && echo "make: rebased" >> "$LAND_
 case "${FAKE_MAKE:-ok}" in
   red) exit 1 ;;
   move) git -C "$FAKE_OTHER" commit -q --allow-empty -m moved && git -C "$FAKE_OTHER" push -q origin main ;;
+  changed) "$FAKE_CHANGED" origin/main >> "$LAND_LOG" ;;
 esac
 exit 0
 EOF
@@ -542,6 +545,20 @@ code=$?
 [[ $code -eq 2 ]] || fail "no arguments: expected exit 2, got $code"
 grep -q '^usage: scripts/land.sh <title> <body-file>' "$c/out" || fail "no arguments: no usage: $(cat "$c/out")"
 no_side_effects 'no arguments'
+
+# A partial stamp is no pass: with a partial line for HEAD and no pass line, the land runs the
+# push check, and the real check-changed.sh origin/main gives the RERUN word, not targets: none.
+stamp_setup
+mkdir -p "$c/work/Tests/DirigibleCoreTests"
+printf 'func aFast() {}\n' > "$c/work/Tests/DirigibleCoreTests/A.swift"
+git -C "$c/work" add -A && git -C "$c/work" commit -q -m tests
+head="$(git -C "$c/work" rev-parse HEAD)"
+echo "$head $(git -C "$c/work" rev-parse origin/main) failed fast:aFast slow:" >> "$c/work/.git/dirigible-check-partial"
+FAKE_MAKE=changed FAKE_CHANGED="$here/check-changed.sh" land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "a partial stamp: exit $code: $(cat "$c/out")"
+! grep -q '^stamp: reuse' "$c/out" || fail "a partial stamp: the land reused it: $(cat "$c/out")"
+grep -qx "targets: RERUN=$head:fast:aFast+slow:" "$c/log" || fail "a partial stamp: no RERUN word: $(cat "$c/log")"
 
 [[ $failures -eq 0 ]] && echo "land tests: all passed"
 exit $((failures > 0))

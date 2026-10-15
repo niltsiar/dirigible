@@ -149,6 +149,11 @@ reads_only() {
 if ! reads_only dirigible-flakes; then
   block "names the flakes file in a command that is not a read: cat, grep, head, tail, wc, ls, stat, or test, with no -i and no redirect into it (only scripts/run-checks.sh appends to it; scripts/land.sh writes a flake row for each line; read it with scripts/run-checks.sh --flakes)"
 fi
+# Only scripts/run-checks.sh appends to dirigible-check-partial, so a hand-written line cannot
+# narrow a push check to a rerun of chosen tests. A read is allowed.
+if ! reads_only dirigible-check-partial; then
+  block "names the partial stamp file in a command that is not a read (only scripts/run-checks.sh appends to it after a check whose only red targets are tests; read it with cat or grep)"
+fi
 # Only scripts/run-checks.sh writes and removes the run marks that .githooks/pre-commit reads, so
 # a direct write, move, or remove cannot clear a mark to commit during a check. A read is allowed.
 if ! reads_only dirigible-check-running; then

@@ -188,6 +188,12 @@ expect block 'echo x >> "$(git rev-parse --path-format=absolute --git-common-dir
 expect block 'echo x >> "$d"/dirigible-flakes'
 expect block 'printf x "$a">"$d/dirigible-flakes"'
 expect allow 'grep -n dirigible-flakes .claude/hooks/git-guardrails.sh'
+# Only run-checks.sh appends to the partial stamp file, so a hand-written line cannot narrow a
+# push check to a rerun of chosen tests. A read is allowed.
+expect_each_write .git/dirigible-check-partial
+expect block 'echo abc base failed fast:a slow: >> "$(git rev-parse --git-common-dir)/dirigible-check-partial"'
+expect allow 'cat .git/dirigible-check-partial'
+expect allow 'grep -c failed .git/dirigible-check-partial'
 expect allow 'cat .git/dirigible-flakes'
 expect allow 'grep -c x .git/dirigible-flakes > /tmp/count.txt'
 expect allow "grep -n '>.*dirigible-flakes' .claude/hooks/git-guardrails.sh"

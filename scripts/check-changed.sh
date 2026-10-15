@@ -7,6 +7,10 @@
 #        scripts/check-changed.sh <base>        also the commits since <base>; the targets before the push.
 #          After a pass stamp S of <base> (check-stamp.sh read), it prints `stamp: delta <S>` first,
 #          and the targets of the paths changed since S only; classes and risk stay those of <base>.
+#          After a newer partial stamp P (run-checks.sh), it prints `stamp: partial <P>`, the targets
+#          of the paths since P, and the word RERUN=<P>:fast:<names>+slow:<names> of the failed tests.
+#          With risk: yes and no Sources/ or Tests/ path since P, it exits 1 with no targets line.
+#          CHECK_PARTIAL=ignore: the targets with no partial stamp, and the word with each name.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
@@ -176,10 +180,42 @@ for c in docs comments tooling tests sources sources-risk bundle build; do
     [[ $c == sources-risk ]] && risk=yes
 done
 
-# The delta: after a pass stamp S of this base, only the paths changed since S (the working tree
-# too) pick the targets, with the content against S.
-if [[ -n "$base" ]] && stamp="$("$(dirname "$0")/check-stamp.sh" read "$base")"; then
-    from="${stamp%% *}"
+# The newest pass stamp S of this base, and the partial stamp line that run-checks.sh appends
+# after a check whose only red targets were tests: '<P> <base commit> failed fast:<names>
+# slow:<names>'. This script is its only reader. It takes the last line of this base whose P is
+# HEAD or an ancestor of HEAD, and descends from S and is not S (or with no S).
+pass="" partial=""
+if [[ -n "$base" ]]; then
+    stamp="$("$(dirname "$0")/check-stamp.sh" read "$base")" && pass="${stamp%% *}"
+    base_commit="$(git rev-parse --verify "$base^{commit}")"
+    partial_file="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-check-partial"
+    [[ ! -s "$partial_file" ]] || while read -r p p_base _ p_fast p_slow; do
+        [[ $p_base == "$base_commit" && $p != "$pass" ]] || continue
+        git merge-base --is-ancestor "$p" HEAD 2>/dev/null || continue
+        [[ -z $pass ]] || git merge-base --is-ancestor "$pass" "$p" || continue
+        partial="$p" rerun_fast="${p_fast#fast:}" rerun_slow="${p_slow#slow:}"
+        break
+    done < <(tail -r "$partial_file")
+fi
+# With risk: yes, a test that failed and passes with no change of Sources/ or Tests/ is a flake of
+# a risk branch: refuse the rerun, also with CHECK_PARTIAL=ignore.
+if [[ -n $partial ]]; then
+    since="$(git diff --name-only --no-renames "$partial")"$'\n'"$untracked"
+    if [[ $risk == yes ]] && ! grep -qE '^(Sources|Tests)/' <<<"$since"; then
+        echo "check-changed: the tests ${rerun_fast//,/ } ${rerun_slow//,/ } failed in the check of $partial, and no Sources/ or Tests/ path changed since then on this risk: yes branch: fix the test first (.claude/skills/tdd/references/flake-triage.md)" >&2
+        exit 1
+    fi
+fi
+
+# The delta: after a partial stamp P, only the paths changed since P (the working tree too) pick
+# the targets, with the content against P; with CHECK_PARTIAL=ignore, or with no P, the paths
+# changed since the pass stamp S.
+if [[ -n $partial && "${CHECK_PARTIAL:-}" != ignore ]]; then
+    from="$partial"
+    echo "stamp: partial $from"
+    classify "$since"
+elif [[ -n $pass ]]; then
+    from="$pass"
     echo "stamp: delta $from"
     classify "$(git diff --name-only --no-renames "$from")"$'\n'"$untracked"
 fi
@@ -221,6 +257,23 @@ for t in check-docs check-fast test check test-slow-push test-dmg; do
 done
 
 [[ -n "$run" ]] && targets+=" PUSH_RUN=$(sort -u <<<"${run%$'\n'}" | paste -sd, -)"
+
+# The word RERUN=<P>:fast:<names>+slow:<names> gives run-checks.sh the failed tests of P. The fast
+# part drops beside check or test, which run each fast test. test-slow-push skips a PUSH_SKIP file
+# that PUSH_RUN does not name, so the slow part stays. A name with no `func <name>(` under Tests/
+# drops. CHECK_PARTIAL=ignore keeps each name.
+tested() {
+    local n left=""
+    for n in ${1//,/ }; do
+        grep -rqF --include='*.swift' "func $n(" Tests 2>/dev/null && left+=",$n"
+    done
+    echo "${left#,}"
+}
+if [[ -n $partial && "${CHECK_PARTIAL:-}" != ignore ]]; then
+    [[ " $targets " != *" check "* && " $targets " != *" test "* ]] || rerun_fast=""
+    rerun_fast="$(tested "$rerun_fast")" rerun_slow="$(tested "$rerun_slow")"
+fi
+[[ -z $partial || -z "$rerun_fast$rerun_slow" ]] || targets+=" RERUN=$partial:fast:$rerun_fast+slow:$rerun_slow"
 classes="${classes# }" targets="${targets# }"
 [[ -n "${FILTER:-}" && " $targets " == *" test "* ]] && targets="$(sed -E 's/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
 echo "classes: ${classes:-none}"

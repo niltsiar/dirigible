@@ -225,8 +225,15 @@ import os
         await hal.feed(seconds: 0.2)
         await model.stop()
         await until("the finalize ends") { studio.transport == .idle }
-        await until(limit: .seconds(10), "the idle read shows the banner again") { lowTime(model) }
-        #expect(lowTime(model))
+        // The value of the read after the take: the pre-take read gave 3_000 s.
+        await until(limit: .seconds(10), "the idle read after the take gives 2_500 s") {
+            model.idleRecordTimeLeft == .seconds(2_500)
+        }
+        await until(limit: .seconds(5), "the idle read shows the banner again") {
+            model.shown.banners.contains(.lowRecordTime(minutes: 42))
+        }
+        #expect(model.shown.banners.contains(.lowRecordTime(minutes: 42)), "\(model.shown.banners)")
+        #expect(window.subtitle.hasSuffix(timePart(minutes: 41)), "\(window.subtitle)")
         await model.close()
     }
 

@@ -5,6 +5,8 @@
 # annotated tag on origin; a failed push leaves no local tag, and a retry passes. Only the tags of
 # origin decide a refusal: a stale local tag of the version goes, a stale local tag of another
 # version on the commit does not block, and a forced fetch takes the tag of origin of the same name.
+# A version 0.<r>.<n> with r of 4 or more needs a features.md row of the commit that is done in
+# Release <r> run <n>; a pass prints the reminder to post the DMG and the release summary.
 # scripts/bundle.test.sh runs it, so make test-hooks runs it.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/tag-release.sh"
@@ -19,14 +21,21 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
 printf '[user]\n\tname = t\n\temail = t@t\n[init]\n\tdefaultBranch = main\n[commit]\n\tgpgsign = false\n[tag]\n\tgpgsign = false\n[core]\n\thooksPath = /dev/null\n' > "$tmp/gitconfig"
 export GIT_CONFIG_GLOBAL="$tmp/gitconfig" GIT_CONFIG_NOSYSTEM=1
 
-# setup <case>: origin.git (bare) and work (a clone) with the commits one and two on main.
+# setup <case> [<state>]: origin.git (bare) and work (a clone) with the commits one and two on main.
+# With a <state>, commit two adds a docs/requirements/features.md with one row in that State.
 setup() {
     d="$tmp/$1"
     mkdir -p "$d"
     git init -q --bare "$d/origin.git"
     git clone -q "$d/origin.git" "$d/work" 2>/dev/null
     git -C "$d/work" commit -q --allow-empty -m one
-    git -C "$d/work" commit -q --allow-empty -m two
+    if [[ $# -gt 1 ]]; then
+        mkdir -p "$d/work/docs/requirements"
+        printf '| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n| F01 | x | y | %s | R1 |\n' "$2" > "$d/work/docs/requirements/features.md"
+        git -C "$d/work" add -A && git -C "$d/work" commit -q -m two
+    else
+        git -C "$d/work" commit -q --allow-empty -m two
+    fi
     git -C "$d/work" push -q origin HEAD:main
     one="$(git -C "$d/work" rev-parse HEAD~1)" two="$(git -C "$d/work" rev-parse HEAD)"
 }
@@ -126,6 +135,35 @@ setup clobber && origin_tag 0.3.10 "$one"
 git -C "$d/work" tag -a v0.3.10 -m local "$two"
 run 0.3.10 "$two"
 [[ $code -eq 1 && "$out" == *'is not higher than the newest tag v0.3.10'* ]] || fail "a local tag of the same name on another commit: exit $code: $out"
+
+# A version 0.<r>.<n> with r of 4 or more needs a features.md row of the commit whose State is done
+# in Release <r> with a run list that names n. A four-number version and a version under 4 need no row.
+reminder='tag-release: post the DMG to the testers; after the last run of a release, post the release summary'
+passes() { # passes <state> <version>
+    setup "p-$2-${1//[^a-z0-9]/}" "$1"
+    run "$2" "$two"
+    [[ $code -eq 0 ]] || fail "the state '$1' for $2: exit $code: $out"
+    grep -qF -- "$reminder" <<<"$out" || fail "the state '$1' for $2: no post reminder: $out"
+}
+refuses() { # refuses <state> <version> <text>
+    setup "r-$2-${1//[^a-z0-9]/}" "$1"
+    refused "the state '$1' for $2" "$2" "$two" 1 "$3"
+}
+passes 'done, Release 4 run 2 (v0.4.2)' 0.4.2
+passes 'done, Release 4 runs 1 and 2' 0.4.2
+passes 'done, Release 3 run 10 and Release 5 run 1 (v0.5.1)' 0.5.1
+passes 'done, Release 4 run 7 (moved from Release 5)' 0.4.7
+passes 'Later' 0.4.2.1
+setup r3
+run 0.3.11 "$two"
+[[ $code -eq 0 ]] || fail "a Release 3 version with no features.md: exit $code: $out"
+refuses 'done, Release 4 run 12' 0.4.2 'no features.md row of .* is done in Release 4 run 2'
+refuses 'done, Release 4 run 3; Later: 2 things' 0.4.2 'no features.md row of .* is done in Release 4 run 2'
+refuses 'Release 4' 0.4.2 'no features.md row of .* is done in Release 4 run 2'
+refuses 'done, Release 4 run 5 and Release 5 run 1' 0.4.1 'no features.md row of .* is done in Release 4 run 1'
+refuses 'done, Release 4 run 7 (moved from Release 5 run 1)' 0.5.1 'no features.md row of .* is done in Release 5 run 1'
+setup nofeatures
+refused 'a Release 4 version with no features.md' 0.4.1 "$two" 1 'no features.md row of .* is done in Release 4 run 1'
 
 [[ $failures -eq 0 ]] && echo "tag-release tests: all passed"
 exit $((failures > 0))

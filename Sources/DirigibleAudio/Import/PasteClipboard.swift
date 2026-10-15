@@ -211,7 +211,12 @@ private func copyFiles(
         let size = sizes[index]
         guard !isCancelled() else { throw .cancelled }
         let from = source.appending(path: "\(clipsFolderName)/\(record.path)")
-        let temporary = files.add(stem: (copy.path as NSString).deletingPathExtension)
+        let temporary: URL
+        do throws(NewClipFault) {
+            temporary = try files.add(stem: (copy.path as NSString).deletingPathExtension)
+        } catch {
+            throw PasteError(error)
+        }
         let base = done
         if let rate = rate?.target {
             let share = { (fraction: Double) in progress((Double(base) + fraction * Double(size)) / Double(total)) }

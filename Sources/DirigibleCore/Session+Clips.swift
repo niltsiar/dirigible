@@ -35,8 +35,7 @@ extension Session {
     @discardableResult
     public mutating func split(_ id: ClipID, at frame: Frames, rightID: ClipID? = nil) throws(SessionError) -> ClipID {
         let (track, index) = try position(of: id)
-        let clip = tracks[track].clips[index]
-        guard clip.start < frame, frame < clip.end else { throw .frameOutsideClip(id, frame) }
+        guard tracks[track].clips.index(cutting: frame) == index else { throw .frameOutsideClip(id, frame) }
         var taken = clipIDs
         let right = rightID ?? Self.derivedID(of: id, at: frame, taken: &taken)
         try Self.checkText(right.rawValue)

@@ -136,6 +136,12 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         return low > 0 && frame < storage[low - 1].end ? low - 1 : nil
     }
 
+    /// The index of the clip that `frame` cuts: `start < frame < end`. A frame at a clip edge or in
+    /// a gap cuts nothing.
+    public func index(cutting frame: Frames) -> Int? {
+        index(holding: frame).flatMap { storage[$0].start < frame ? $0 : nil }
+    }
+
     mutating func remove(ids: Set<ClipID>) {
         storage.removeAll { ids.contains($0.id) }
         repair(storage.indices)

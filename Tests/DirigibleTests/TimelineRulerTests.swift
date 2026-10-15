@@ -22,7 +22,7 @@ import Testing
     func lanes() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in try s.setMarker(Self.flag) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.setMarker(Self.flag) }
         let (window, view) = standaloneLanes(model, studio)
         return (model, studio, window, view)
     }
@@ -31,7 +31,7 @@ import Testing
     func openedLanes() async throws -> (SessionWindow, Studio, TimelineScrollView, Double) {
         let (model, studio, _, view) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 20))
-        model.edit { s throws(SessionError) in try s.setMarker(Self.flag) }
+        model.edit(ripple: false) { s throws(SessionError) in try s.setMarker(Self.flag) }
         await until("the ruler shows the flag") { view.ruler.inputs?.markers["m1"] != nil }
         return (model, studio, view, try #require(view.ruler.inputs?.geometry.x(of: Self.flag.position)))
     }

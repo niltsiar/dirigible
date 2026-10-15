@@ -17,7 +17,7 @@ extension ExportWindowTests {
     }
 
     func addChapter(at position: Frames, _ studio: Studio) throws {
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: MarkerID(), name: "Chapter", position: position, kind: .chapter))
         }
     }
@@ -54,7 +54,7 @@ extension ExportWindowTests {
         let (model, studio, _) = try await window()
         try addChapter(at: 480_000, studio)
         #expect(!model.isOn(.exportChapters), "a chapter at the session end")
-        try studio.edit { session throws(SessionError) in try session.removeClips(["c1"]) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeClips(["c1"]) }
         #expect(studio.session.end == .zero)
         #expect(!model.isOn(.exportChapters), "no clip")
         await model.close()
@@ -132,7 +132,7 @@ extension ExportWindowTests {
         let file = folder.url.appending(path: "dropped.json")
         _ = chaptersPanel(file)
         let (model, studio, _) = try await window()
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "a", name: "A", position: 192_000, kind: .chapter))
             try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter))
         }
@@ -157,7 +157,7 @@ extension ExportWindowTests {
         try FileManager.default.createDirectory(
             at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("jpeg bytes".utf8).write(to: source)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter, image: image))
         }
         let picture = folder.url.appending(path: "show-1.jpg")
@@ -192,7 +192,7 @@ extension ExportWindowTests {
         try FileManager.default.createDirectory(
             at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("first".utf8).write(to: source)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter, image: image))
         }
         let picture = folder.url.appending(path: "show-1.jpg")
@@ -226,7 +226,7 @@ extension ExportWindowTests {
         try FileManager.default.createDirectory(
             at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("new".utf8).write(to: source)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter, image: image))
         }
         model.exportChapters()
@@ -248,7 +248,7 @@ extension ExportWindowTests {
         let chapter = Marker(
             id: "c", name: "Talk", position: 192_000, kind: .chapter,
             image: try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg"))
-        try studio.edit { session throws(SessionError) in try session.setMarker(chapter) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setMarker(chapter) }
         model.exportChapters()
         await until("the alert shows") { model.alert != nil }
         let error = StudioError.export(.chapterImageMissing(chapter, rate: 48_000))

@@ -14,7 +14,7 @@ typealias ToolEdit = @Sendable (inout Session) throws(SessionError) -> [String]
 /// What a tool call does after its arguments are checked.
 enum ToolWork: Sendable {
     /// A package edit under the lock. A `ripple` edit also refuses a split take.
-    case edit(ripple: Bool = false, ToolEdit)
+    case edit(ripple: Bool, ToolEdit)
     /// `session_info`: no lock, as `dirigible info`. `range` has `from <= to` (V24).
     case info(tracks: [TrackID]?, range: Range<Frames>?)
     case create(sampleRate: Int)

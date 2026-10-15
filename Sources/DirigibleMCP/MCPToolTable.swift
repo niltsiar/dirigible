@@ -81,7 +81,7 @@ private let trackIDs = Param.required("tracks", "The track IDs.", .strings(minIt
 let trackTools = [
     Tool("track_add", "Add a track and give its ID.", [Arg.name, Arg.layout, trackID]) { a throws(ToolError) in
         let (id, name, layout) = (try a[trackID].map { TrackID($0) } ?? TrackID(), try a[Arg.name], try a[Arg.layout])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.addTrack(id, name: name, layout: layout)
             return [id.rawValue]
         }
@@ -104,7 +104,7 @@ let trackTools = [
         let (host, guest) = (
             try a[hostID].map { TrackID($0) } ?? TrackID(), try a[guestID].map { TrackID($0) } ?? TrackID()
         )
-        return .edit { [device] session throws(SessionError) in
+        return .edit(ripple: false) { [device] session throws(SessionError) in
             try session.addCallTracks(
                 host: host, guest: guest, names: (host: "Host", guest: "Guest"), hostDevice: device, guestApp: app)
             return [host.rawValue, guest.rawValue]
@@ -112,21 +112,21 @@ let trackTools = [
     },
     Tool("track_remove", "Remove a track and its clips.", [Arg.track]) { a throws(ToolError) in
         let track = TrackID(try a[Arg.track])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.removeTrack(track)
             return []
         }
     },
     Tool("track_rename", "Rename a track.", [Arg.track, Arg.name]) { a throws(ToolError) in
         let (track, name) = (TrackID(try a[Arg.track]), try a[Arg.name])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.renameTrack(track, to: name)
             return []
         }
     },
     Tool("track_gain", "Set the gain of a track.", [Arg.track, Arg.gain]) { a throws(ToolError) in
         let (track, gain) = (TrackID(try a[Arg.track]), try a[Arg.gain])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setGain(gain, track: track)
             return []
         }
@@ -136,7 +136,7 @@ let trackTools = [
         [Arg.track, Arg.device, Arg.channels, Arg.app, Arg.noRoute]
     ) { a throws(ToolError) in
         let (track, route) = (TrackID(try a[Arg.track]), try routeArgument(a))
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setRoute(route, track: track)
             return []
         }
@@ -146,7 +146,7 @@ let trackTools = [
         [Arg.track, Arg.layout, Arg.device, Arg.channels, Arg.app, Arg.noRoute]
     ) { a throws(ToolError) in
         let (track, layout, route) = (TrackID(try a[Arg.track]), try a[Arg.layout], try routeArgument(a))
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setLayout(layout, route: route, track: track)
             return []
         }
@@ -155,7 +155,7 @@ let trackTools = [
         "track_mute", "Mute tracks: the mix, the export, and the render leave them out.", [trackIDs, Arg.off]
     ) { a throws(ToolError) in
         let (tracks, off) = (try a[trackIDs].map { TrackID($0) }, try a[Arg.off])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setMuted(!off, tracks: tracks)
             return []
         }
@@ -166,7 +166,7 @@ let trackTools = [
         [trackIDs, Arg.off]
     ) { a throws(ToolError) in
         let (tracks, off) = (try a[trackIDs].map { TrackID($0) }, try a[Arg.off])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setSoloed(!off, tracks: tracks)
             return []
         }
@@ -224,7 +224,7 @@ let markerTools = [
     },
     Tool("marker_remove", "Remove a marker.", [marker]) { a throws(ToolError) in
         let id = MarkerID(try a[marker])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.removeMarker(id)
             return []
         }
@@ -239,14 +239,14 @@ private let file = Param.required("file", "The file ID.", .string)
 let poolTools = [
     Tool("capture_remove", "Remove a capture that no file uses.", [capture]) { a throws(ToolError) in
         let id = CaptureID(try a[capture])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.removeCapture(id)
             return []
         }
     },
     Tool("file_remove", "Remove a file that no clip uses.", [file]) { a throws(ToolError) in
         let id = FileID(try a[file])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.removeFile(id)
             return []
         }

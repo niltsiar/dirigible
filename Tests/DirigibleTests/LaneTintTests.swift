@@ -103,11 +103,11 @@ import Testing
         await until("the new lane height") { view.lanes.inputs?.laneHeight != height }
         #expect(tints(view) == [try laneRect(2, view)], "a lane height change moves the tint")
 
-        try studio.edit { session throws(SessionError) in try session.removeTrack("t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeTrack("t1") }
         await until("t3 is lane 1") { view.lanes.inputs?.session.tracks.count == 2 }
         #expect(tints(view) == [try laneRect(1, view)], "a track move moves the tint")
 
-        try studio.edit { session throws(SessionError) in try session.removeTrack("t3") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeTrack("t3") }
         await until("no t3") { view.lanes.inputs?.session.tracks.count == 1 }
         #expect(tints(view).isEmpty, "a track delete removes the tint")
         await model.close()

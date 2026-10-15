@@ -76,7 +76,7 @@ import Testing
     /// view).
     @Test func eachAutoscrollFrameDrawsTheLanesOnce() async throws {
         let (model, studio, window, view) = try await lanes()
-        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 51_200..<102_400) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.trim("c1", to: 51_200..<102_400) }
         view.update(laneInputs(model, studio))
         drawNow(window)
         for (start, name, down) in [
@@ -166,7 +166,7 @@ import Testing
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: Double(view.shown.maxX) + 40, y: 80), in: view))
 
         view.scroll(toFrame: 0)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "m", name: "M", position: 51_200, kind: .marker))
         }
         view.update(laneInputs(model, studio))

@@ -207,7 +207,7 @@ extension SessionWindow {
         }
         markerDraft = nil
         guard marker != session.markers[draft.marker] else { return }
-        edit { s throws(SessionError) in try s.setMarker(marker) }
+        edit(ripple: false) { s throws(SessionError) in try s.setMarker(marker) }
     }
 
     /// Choose… of the chapter image.
@@ -226,6 +226,6 @@ extension SessionWindow {
             return
         }
         marker.image = nil
-        edit { s throws(SessionError) in try s.setMarker(marker) }
+        edit(ripple: false) { s throws(SessionError) in try s.setMarker(marker) }
     }
 }

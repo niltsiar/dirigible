@@ -209,7 +209,7 @@ import os
             let start = ContinuousClock.now
             studio.handOffLive(finalized)
             studio.transport = .idle
-            try studio.edit { s throws(SessionError) in s = finalized }
+            try studio.edit(ripple: false) { s throws(SessionError) in s = finalized }
             view.update(shown)
             view.tick(playhead: head, playback: .stopped)
             drawNow(take.window)
@@ -219,7 +219,7 @@ import os
                 failures.append("hand-off \(event): \(view.lanes.draws - draws) draws of \(view.lanes.drawnRect)")
             }
             // The next take, untimed: the session of the fixture, and the same 3 h of bins.
-            try studio.edit { s throws(SessionError) in s = session }
+            try studio.edit(ripple: false) { s throws(SessionError) in s = session }
             try LiveTake.begin(studio, tracks: Self.tracks, at: Self.takeStart, take: event + 1)
             studio.live.tracks = bins
             var next = inputs

@@ -29,7 +29,7 @@ import Testing
 
     /// Adds the markers m1 (48 000), c2 (a chapter at 96 000), and m3 (96 000), one undo entry.
     func threeMarkers(_ studio: Studio) throws {
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "m1", name: "One", position: 48_000, kind: .marker))
             try s.setMarker(Marker(id: "c2", name: "Two", position: 96_000, kind: .chapter))
             try s.setMarker(Marker(id: "m3", name: "Three", position: 96_000, kind: .marker))

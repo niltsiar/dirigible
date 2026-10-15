@@ -42,7 +42,7 @@ struct StudioBackupTests {
     }
 
     func setName(_ studio: Studio, to name: String) throws {
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: name) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: name) }
     }
 
     /// The bytes that a save writes for `session`.

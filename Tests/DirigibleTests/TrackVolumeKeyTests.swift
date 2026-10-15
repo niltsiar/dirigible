@@ -26,7 +26,7 @@ import Testing
     func gains(_ studio: Studio) -> [Double] { studio.session.tracks.map(\.gain.dB) }
 
     func setGains(_ studio: Studio, _ values: [Double]) throws {
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             for (track, dB) in zip(session.tracks.map(\.id), values) {
                 try session.setGain(Gain(dB: dB)!, track: track)
             }

@@ -51,7 +51,7 @@ import Testing
         let url = studio.url
         studio.environment.saveSession = { _, _ in url }
         let session = try Self.session(tracks: tracks)
-        try studio.edit { s throws(SessionError) in s = session }
+        try studio.edit(ripple: false) { s throws(SessionError) in s = session }
         let (window, view) = standaloneLanes(model, studio, onScreen: onScreen)
         view.update(inputs(model, studio))
         drawNow(window)

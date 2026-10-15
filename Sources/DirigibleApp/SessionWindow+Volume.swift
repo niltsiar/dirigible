@@ -20,7 +20,8 @@ extension SessionWindow {
         defer { studio?.endPreview() }
         guard let studio, let gain = Gain(dB: dB) else { return false }
         let changed = studio.session.track(track).map { $0.gain != gain } ?? false
-        return changed && edit({ session throws(SessionError) in try session.setGain(gain, track: track) }) != nil
+        return changed
+            && edit(ripple: false, { session throws(SessionError) in try session.setGain(gain, track: track) }) != nil
     }
 
     /// Track > Raise, Lower, and Reset Track Volume: the tracks of the range selection, in one edit.
@@ -52,7 +53,7 @@ extension SessionWindow {
 
     /// Sets each of `tracks` to `gain` in one edit: the fader reset and a VoiceOver set value.
     func setVolume(_ gain: Gain, tracks: [TrackID]) {
-        edit { session throws(SessionError) in
+        edit(ripple: false) { session throws(SessionError) in
             for track in tracks { try session.setGain(gain, track: track) }
         }
     }
@@ -60,7 +61,7 @@ extension SessionWindow {
     /// Moves each of `tracks` by `delta` dB from its own value, in one edit. A step stops at the
     /// end of the fader travel; a stored value outside it does not move further out.
     func stepVolume(by delta: Double, tracks: [TrackID]) {
-        edit { session throws(SessionError) in
+        edit(ripple: false) { session throws(SessionError) in
             for track in tracks {
                 guard let dB = session.track(track)?.gain.dB, let gain = Gain(dB: FaderScale.step(dB, by: delta))
                 else { continue }

@@ -30,7 +30,8 @@ extension Studio {
     ) async throws(StudioError) {
         let name = source.lastPathComponent
         try await blockingRun(
-            name: name, kind: .file, cancelled: .audioImport(.cancelled), yielded: .importYielded(file: name)
+            name: name, kind: .file, cancelled: .audioImport(.cancelled), yielded: .importYielded(file: name),
+            ripple: false
         ) { session, lock, _ in
             await imageOffMain(source, into: session, lock: lock, apply: apply).map { ($0.0, $0.1, made: []) }
         }

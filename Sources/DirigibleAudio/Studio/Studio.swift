@@ -178,7 +178,7 @@ import Observation
     /// ripple with `ripple`: under a pending or split take, it throws `.rippleBlocked` (decision 0037).
     /// `agent` names the agent of an MCP edit in its undo entry (decision 0046).
     public func edit<Result>(
-        ripple: Bool = false, agent: AgentName? = nil, _ body: (inout Session) throws(SessionError) -> Result
+        ripple: Bool, agent: AgentName? = nil, _ body: (inout Session) throws(SessionError) -> Result
     ) throws(StudioError) -> Result {
         try checkIdle()
         if ripple { try checkRipple() }

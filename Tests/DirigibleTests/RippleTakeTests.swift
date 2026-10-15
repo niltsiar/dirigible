@@ -37,7 +37,7 @@ extension UnplacedBannerTests {
         let url = try await splitTake()
         try Data("not a CAF".utf8).write(to: url.appending(path: "\(captureFolderName)/\(Self.second.stem).caf"))
         let (reopened, again) = try await timelineModel(url, app: app)
-        _ = try again.edit { session throws(SessionError) in
+        _ = try again.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "m", name: "M", position: 10_000, kind: .marker))
         }
         reopened.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
@@ -118,7 +118,7 @@ extension UnplacedBannerTests {
         #expect(
             beeps == 1 && model.alert == nil && studio.session == base,
             "RIPPLE-W9 a ripple trim commit under a split take changed the session")
-        model.apply([.commit(GestureCommit(base: base, result: renamed, selection: nil, marker: nil))])
+        model.apply([.commit(GestureCommit(base: base, result: renamed, selection: nil, marker: nil, ripple: false))])
         #expect(
             studio.session == renamed && beeps == 1, "RIPPLE-W10 a plain gesture commit under a split take was refused")
         await model.close()
@@ -139,7 +139,7 @@ extension UnplacedBannerTests {
     @Test func anUndoneTakeAllowsARipple() async throws {
         let (model, studio) = try await open()
         _ = try await unplacedTake(model, studio)
-        _ = try studio.edit { session throws(SessionError) in
+        _ = try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "m", name: "M", position: 10_000, kind: .marker))
         }
         let before = studio.session

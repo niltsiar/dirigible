@@ -75,7 +75,9 @@ struct StartRecordingTests {
         await until("the start did not reach the lookup") { hal.heldLookUps == 1 }
         await #expect(throws: StudioError.busy) { try await studio.startRecording(armed: ["t1"], playhead: 0) }
         #expect(throws: StudioError.busy) {
-            try studio.edit { session throws(SessionError) in try session.addTrack("t2", name: "Guest", layout: .mono) }
+            try studio.edit(ripple: false) { session throws(SessionError) in
+                try session.addTrack("t2", name: "Guest", layout: .mono)
+            }
         }
         await #expect(throws: StudioError.busy) { try await studio.stopRecording() }
         hal.releaseLookUps()
@@ -83,7 +85,9 @@ struct StartRecordingTests {
 
         #expect(studio.transport == .recording(take: 1))
         try await studio.stopRecording()
-        try studio.edit { session throws(SessionError) in try session.addTrack("t2", name: "Guest", layout: .mono) }
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.addTrack("t2", name: "Guest", layout: .mono)
+        }
         try await studio.startRecording(armed: ["t1"], playhead: 0)
         #expect(isRecording(studio))
         try await studio.stopRecording()

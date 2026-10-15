@@ -61,7 +61,8 @@ import os
             let studio = try #require(await window.opened() ? window.studio : nil)
             closedStudio = studio
             try FileManager.default.moveItem(at: old, to: new)
-            try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+            try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono)
+            }
             await studio.settle()
         }
         await until("the registry follows the move") { app.windows[packageIdentity(new)] === window }
@@ -91,7 +92,7 @@ import os
         // moves to that path.
         try FileManager.default.moveItem(at: b, to: folder.url.appending(path: "c.dirigible"))
         try FileManager.default.moveItem(at: a, to: b)
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await studio.settle()
         await until("the first window follows the move") { first.url == packageIdentity(b) }
         try await Task.sleep(for: .milliseconds(100))
@@ -107,7 +108,7 @@ import os
         let package = packageIdentity(try folder.package("still"))
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await studio.settle()
         try await Task.sleep(for: .milliseconds(100))
         #expect(Array(app.windows.keys) == [package])
@@ -122,7 +123,7 @@ import os
         let studio = try #require(await window.opened() ? window.studio : nil)
         studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
         }
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
         // AppKit asks the delegate of the window, so the test calls the same witness.
         let nsWindow = try #require(window.window)
@@ -153,7 +154,7 @@ import os
         let (window, studio) = try await windowWithPeaks()
         studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
         }
-        try studio.edit { s throws(SessionError) in try s.renameTrack("t1", to: "Host") }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t1", to: "Host") }
         await window.close()
         #expect(window.alert == .confirmUnsavedClose)
         studio.peakLoad.states = [:]
@@ -212,7 +213,7 @@ import os
     @Test func aCloseAfterAGoodSaveAsksNothing() async throws {
         let window = await app.open(try folder.package("good"))
         let studio = try #require(await window.opened() ? window.studio : nil)
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await window.close()
         #expect(window.alert == nil)
         #expect(window.window == nil)
@@ -271,7 +272,7 @@ import os
         let package = try folder.package("typed")
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
         window.drafts["t1"] = "Guest"
         switch action {
@@ -290,7 +291,7 @@ import os
     @Test func aRefusedNameGivesBackTheSavedName() async throws {
         let window = await app.open(try folder.package("refused"))
         let studio = try #require(await window.opened() ? window.studio : nil)
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
 
         window.drafts["t1"] = "Tab\t"
         window.commitName("t1")

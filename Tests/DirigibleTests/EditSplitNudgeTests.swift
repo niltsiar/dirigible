@@ -12,7 +12,7 @@ extension EditCommandWindowTests {
     /// Splits t1 at 48 000 and 96 000 and clears 0..<200 on t1 (one undo entry, not counted by the
     /// tests below): c1 200..<48 000, c1@48000 48 000..<96 000, c1@96000 96 000..<2 880 000.
     func threeClipsOnT1(_ studio: Studio) throws {
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.splitClips(at: [48_000, 96_000], on: ["t1"])
             try s.clear(0..<200, on: ["t1"])
         }

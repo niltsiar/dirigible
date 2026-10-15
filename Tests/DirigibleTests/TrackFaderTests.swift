@@ -134,7 +134,8 @@ import os
     /// test sends real events.
     @Test func aDoubleClickAndAnOptionClickResetToZero() async throws {
         let (model, studio) = try await model()
-        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -6)!, track: "t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setGain(Gain(dB: -6)!, track: "t1")
+        }
         let (window, view) = fader(model, studio)
         view.update(model: model, track: "t1", name: "T1", dB: -6, enabled: true)
         func click(count: Int, flags: NSEvent.ModifierFlags) throws {
@@ -185,7 +186,9 @@ import os
     }
 
     func setGain(_ studio: Studio, _ dB: Double, track: TrackID = "t1") throws {
-        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: dB)!, track: track) }
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setGain(Gain(dB: dB)!, track: track)
+        }
     }
 
     @Test func aDoubleClickOffTheThumbMakesOneEdit() async throws {
@@ -224,7 +227,8 @@ import os
         let (window, view) = fader(model, studio)
 
         try doubleClick(view, window, from: -6, jump: -36) {
-            try studio.edit { session throws(SessionError) in try session.setMuted(true, tracks: ["t2"]) }
+            try studio.edit(ripple: false) { session throws(SessionError) in try session.setMuted(true, tracks: ["t2"])
+            }
         }
         #expect(studio.session.track("t2")?.isMuted == true, "code gate 1: the edit between the clicks stays")
         try studio.undo()

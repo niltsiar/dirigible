@@ -16,7 +16,7 @@ extension ExportWindowTests {
         }
         let (model, studio, _) = try await window()
         await model.export(.session)
-        try studio.edit { session throws(SessionError) in try session.setMuted(true, tracks: ["t1"]) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setMuted(true, tracks: ["t1"]) }
         await model.export(.session)
 
         #expect(notes == [nil, L10n.panelExportNoteSilent.format(1)], "the notes of the panel: \(notes)")

@@ -144,7 +144,7 @@ extension InspectorTests {
         fields = try await paneFields(window)
         #expect(fields.map(\.stringValue) == [decibels(-6), "500", "0"], "equal: \(fields.map(\.stringValue))")
 
-        model.edit { s throws(SessionError) in try s.setGain(Gain(dB: 2)!, clip: "B") }
+        model.edit(ripple: false) { s throws(SessionError) in try s.setGain(Gain(dB: 2)!, clip: "B") }
         await until("different gains show Mixed") { shownFields(window).first?.stringValue == "" }
         #expect(shownFields(window).first?.placeholderString == L10n.inspectorMixed.text, "the Mixed placeholder")
 
@@ -171,7 +171,7 @@ extension InspectorTests {
         try await Task.sleep(for: .milliseconds(200))
         let (runs, bodies) = (model.inspectorRuns, model.bodyRuns)
         for n in 0..<10 { model.timeline.marks = Marks(inPoint: Frames(n * 1_000), outPoint: 200_000, tracks: ["t1"]) }
-        model.edit { s throws(SessionError) in try s.setGain(Gain(dB: -1)!, clip: "A") }
+        model.edit(ripple: false) { s throws(SessionError) in try s.setGain(Gain(dB: -1)!, clip: "A") }
         window.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(200))
         #expect(model.inspectorRuns == runs, "hidden: \(model.inspectorRuns - runs) inspector runs")

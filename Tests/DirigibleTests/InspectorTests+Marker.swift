@@ -14,7 +14,7 @@ import UniformTypeIdentifiers
 /// "Three" at 3 s.
 extension InspectorTests {
     func addMarkers(_ model: SessionWindow) {
-        model.edit { s throws(SessionError) in
+        model.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "c1", name: "One", position: 48_000, kind: .chapter))
             try s.setMarker(Marker(id: "m2", name: "Two", position: 96_000, kind: .marker))
             try s.setMarker(Marker(id: "c3", name: "Three", position: 144_000, kind: .chapter))

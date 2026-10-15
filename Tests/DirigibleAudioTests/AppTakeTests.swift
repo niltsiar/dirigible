@@ -301,7 +301,7 @@ struct AppTakeTests {
     /// Decision 0029: one track for each app.
     @Test func aSecondTrackOnTheSameAppIsRefused() async throws {
         let studio = try await studio(hal())
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setRoute(.app(bundleID: Self.zoom), track: "t3")
         }
         await #expect(throws: StudioError.channelInUse("t2", "t3")) {

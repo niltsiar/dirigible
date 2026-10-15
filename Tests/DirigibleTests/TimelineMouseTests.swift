@@ -171,7 +171,7 @@ import Testing
     @Test func anUndoDuringADragDropsTheCommit() async throws {
         let (model, studio, window, view) = try await lanes()
         let before = studio.session
-        model.edit { s throws(SessionError) in try s.renameTrack("t2", to: "Guest") }
+        model.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t2", to: "Guest") }
         try press(view, 100, 10)
         try drag(view, 200, 10)
 
@@ -190,7 +190,7 @@ import Testing
     @Test func anUndoBetweenTwoDragEventsDropsTheGesture() async throws {
         let (model, studio, window, view) = try await lanes()
         let before = studio.session
-        model.edit { s throws(SessionError) in try s.renameTrack("t2", to: "Guest") }
+        model.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t2", to: "Guest") }
         try press(view, 100, 10)
         try drag(view, 150, 10)
 
@@ -239,7 +239,7 @@ import Testing
     /// trim is one undo entry, with no alert.
     @Test func anEdgeDragTrimsWithinItsLimits() async throws {
         let (model, studio, window, view) = try await lanes()
-        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
         view.update(laneInputs(model, studio))
         let trimmed = studio.session
 

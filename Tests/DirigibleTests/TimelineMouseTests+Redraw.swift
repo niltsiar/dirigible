@@ -18,7 +18,7 @@ extension TimelineMouseTests {
     @Test func aDragEventRedrawsOnlyTheClipsItChanges() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
         let (window, view) = standaloneLanes(model, studio)
         try press(view, 250, 10)
 
@@ -53,7 +53,7 @@ extension TimelineMouseTests {
     @Test func aDragAfterAnEditFarAwayDrawsOnlyTheEvents() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
         let (window, view) = standaloneLanes(model, studio)
         view.update(
             laneInputs(
@@ -80,7 +80,7 @@ extension TimelineMouseTests {
     @Test func aDrawCoversOnlyTheLanesInView() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 8, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.trim("c1", to: 102_400..<153_600) }
         let (window, view) = standaloneLanes(model, studio)
         try #require(view.shown.minY == 0 && view.shown.height == 376, "\(view.shown)")
         let all = Set((1...8).map { TrackID("t\($0)") })
@@ -125,7 +125,7 @@ extension TimelineMouseTests {
     @Test func aDragPastTheEndKeepsTheWidthUntilTheUp() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.trim("c1", to: 921_600..<960_000)
             try s.trim("c2", to: 0..<102_400)
         }

@@ -37,7 +37,7 @@ struct AutosaveTests {
     }
 
     func rename(_ studio: Studio, to name: String) throws {
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: name) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: name) }
     }
 
     // MARK: Criterion 2

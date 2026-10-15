@@ -49,7 +49,7 @@ struct MovedPackageTests {
         let studio = try await studio()
         let moved = try move(url, to: "Moved.dirigible")
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Guest") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Guest") }
         await studio.settle()
 
         #expect(!exists(url))
@@ -64,7 +64,7 @@ struct MovedPackageTests {
         let studio = try await studio()
         let before = studio.url
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Guest") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Guest") }
         await studio.settle()
 
         #expect(studio.url == before)
@@ -76,7 +76,7 @@ struct MovedPackageTests {
         let studio = try await studio()
         try FileManager.default.removeItem(at: url)
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Guest") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Guest") }
         await studio.settle()
 
         #expect(studio.saveError == .file(.packageMoved))

@@ -65,7 +65,7 @@ struct EpisodeCommand: ParsableCommand {
             do throws(EpisodeFieldError) { work = try fields.work() } catch {
                 throw ValidationError(error.message)
             }
-            try editPackage(package, refused: refusedArtwork) { session, _ throws(ArtworkError) in
+            try editPackage(package, ripple: false, refused: refusedArtwork) { session, _ throws(ArtworkError) in
                 try work.run(&session, package: package.url)
             }
         }

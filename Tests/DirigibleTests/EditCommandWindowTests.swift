@@ -154,7 +154,7 @@ import Testing
         #expect(model.alert == .error(.session(.trackCount(2))))
 
         model.alert = nil
-        try studio.edit { s throws(SessionError) in try s.removeTrack("t1") }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.removeTrack("t1") }
         model.timeline.marks = Marks()
         before = studio.session
         model.run(.paste)
@@ -167,7 +167,7 @@ import Testing
     /// check that refuses a present file fails the other paste tests.
     @Test func pasteOfAFileThatAnUndoRemovedDoesNothing() async throws {
         let (model, studio, _, _) = try await open()
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.addFile(AudioFile(id: "f2", path: "f2.wav", layout: .mono, length: 48_000))
             try s.place(Clip(id: "x", file: "f2", start: 0, offset: 0, length: 48_000), on: "t1")
         }
@@ -246,7 +246,7 @@ import Testing
     /// handles and is not seamless. A take: `EditTakeTests.editsDoNothingDuringATake`.
     @Test func crossfadeIsOneUndoEntry() async throws {
         let (model, studio, window, _) = try await open()
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.clear(96_000..<2_880_000, on: ["t1"])
             try s.place(Clip(id: "b", file: "f1", start: 96_000, offset: 192_000, length: 48_000), on: "t1")
         }

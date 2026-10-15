@@ -101,7 +101,7 @@ extension StudioPlaybackTests {
         try studio.previewGain(try #require(Gain(dB: -6)), track: "t1")
         await untilPlayed(studio, -6, "the preview reaches the Player")
 
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "m1", name: "A", position: 0, kind: .marker))
         }
         let clock = ContinuousClock()
@@ -128,7 +128,7 @@ extension StudioPlaybackTests {
         try studio.previewGain(gain, track: "t1")
         let sends = studio.play.revision
 
-        try studio.edit { session throws(SessionError) in try session.setGain(gain, track: "t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setGain(gain, track: "t1") }
         studio.endPreview()
 
         #expect(studio.play.revision == sends + 1, "code gate 2: one send")

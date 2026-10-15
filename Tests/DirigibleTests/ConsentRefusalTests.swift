@@ -122,7 +122,7 @@ extension ConsentTests {
         await until("the alert goes") { model.window?.attachedSheet == nil }
 
         studio.environment.microphoneAccess = { nil }
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setRoute(.device(uid: "gone", channels: .mono(1)), track: "t1")
         }
         let missing = ask(model)

@@ -70,7 +70,7 @@ extension AutoLevelWindowTests {
         model.timeline.marks = Self.oneSecondOnT1
         await model.level(.eachClip)
         await until("the banner shows") { levelBanner(model) != nil }
-        model.edit { session throws(SessionError) in try session.setGain(Gain(dB: 3)!, clip: "c2") }
+        model.edit(ripple: false) { session throws(SessionError) in try session.setGain(Gain(dB: 3)!, clip: "c2") }
         await until("the edit hides the banner") { levelBanner(model) == nil }
         await model.close()
     }

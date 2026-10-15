@@ -38,7 +38,7 @@ struct StudioPlaybackTests {
 
     @Test func homeEndAndClipEdgesMoveThePlayhead() async throws {
         let studio = try await studio()
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.addTrack("t2", name: "Guest", layout: .mono)
             try session.place(Clip(id: "c2", file: "f1", start: 24_000, offset: 0, length: 48_000), on: "t2")
         }
@@ -63,7 +63,7 @@ struct StudioPlaybackTests {
     /// `homeEndAndClipEdgesMoveThePlayhead`.
     @Test func previousClipDuringPlayPassesTheEdgeJustPlayed() async throws {
         let studio = try await studio()
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.addTrack("t2", name: "Guest", layout: .mono)
             try session.place(Clip(id: "c2", file: "f1", start: 24_000, offset: 0, length: 48_000), on: "t2")
         }

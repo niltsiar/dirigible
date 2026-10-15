@@ -109,7 +109,7 @@ struct MonitorTests {
         try await studio.monitor(armed: ["t1"])
         let old = try #require(studio.monitors["duo"]?.number)
 
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setRoute(Route.device(uid: "duo", channels: .mono(2)), track: "t1")
         }
         try await studio.monitor(armed: ["t1"])

@@ -49,7 +49,7 @@ import Testing
     @Test func theOverviewDrawsTheSessionAndTheView() async throws {
         let (model, studio, window, pane) = try await pane(onScreen: true)
         let (view, strip) = (pane.scroll, pane.overview)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "m", name: "M", position: 240_000, kind: .marker))
             try s.setMarker(Marker(id: "c", name: "C", position: 384_000, kind: .chapter))
             try s.clear(288_000..<336_000, on: ["t2"])
@@ -109,7 +109,7 @@ import Testing
         let dimmed = shot.pixel(column: Int(x(720_000) * scale), row: gapRow)
         #expect(dimmed.allSatisfy { $0 < 0xE8 - 20 }, "the part outside the frame is dimmed: \(dimmed)")
 
-        try studio.edit { s throws(SessionError) in try s.clear(480_000..<528_000, on: ["t1"]) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.clear(480_000..<528_000, on: ["t1"]) }
         swiftUIUpdate(pane, model, studio)
         drawNow(window)
         try await Task.sleep(for: .milliseconds(100))
@@ -193,7 +193,7 @@ import Testing
             } == 1, "the up renders the overview once")
 
         let edit = try renders {
-            try studio.edit { s throws(SessionError) in _ = try s.splitClips(at: [240_000], on: ["t3"]) }
+            try studio.edit(ripple: false) { s throws(SessionError) in _ = try s.splitClips(at: [240_000], on: ["t3"]) }
             swiftUIUpdate(pane, model, studio)
         }
         #expect(edit == 1, "an edit renders the overview once")

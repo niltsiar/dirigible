@@ -175,7 +175,7 @@ struct LiveToolTests {
         let gate = Gate()
         let held = Task { await studio.serialized { await gate.wait() } }
         await until("the write turn is not held") { gate.waiting }
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.renameTrack("t1", to: "Unsaved")
             var episode = session.episode
             try? episode.set(.title, text: "Pilot")
@@ -351,7 +351,7 @@ struct LiveToolTests {
         let studio = try await package.open()
         let (server, folder) = try liveServer(studio)
         defer { server.stop() }
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 480_000))
             try session.place(Clip(id: "A", file: "f", start: 0, offset: 0, length: 480_000), on: "t1")
         }

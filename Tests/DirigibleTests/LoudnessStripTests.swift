@@ -233,7 +233,7 @@ import Testing
         #expect(strip.texts == LoudnessTexts(target: "-16"), "\(path): \(strip.texts)")
         if path == "take" {
             studio.transport = .idle
-            _ = try? studio.edit { s throws(SessionError) in try s.setRecording(nil) }
+            _ = try? studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(nil) }
         }
         studio.liveTracks = [:]
         await model.close()

@@ -61,7 +61,7 @@ public struct GestureCommit: Equatable, Sendable {
     /// True for a ripple trim (decision 0037): the window passes it to `Studio.edit(ripple:)`.
     public let ripple: Bool
 
-    init(base: Session, result: Session, selection: Selection?, marker: MarkerID?, ripple: Bool = false) {
+    init(base: Session, result: Session, selection: Selection?, marker: MarkerID?, ripple: Bool) {
         (self.base, self.result, self.selection, self.marker, self.ripple) = (base, result, selection, marker, ripple)
     }
 

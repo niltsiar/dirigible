@@ -22,7 +22,7 @@ extension ConsentTests {
 
     /// `t2` "Guest" gets channel 2 of `duo` as a mono track, so a take can record both tracks.
     func routeGuest(_ studio: Studio) throws {
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setLayout(.mono, route: .device(uid: "duo", channels: .mono(2)), track: "t2")
         }
     }
@@ -88,14 +88,16 @@ extension ConsentTests {
         try await giveGrant(model, studio, change == .subset ? ["t1", "t2"] : ["t1"])
         var (armed, seconds, connection) = ([TrackID("t1")], 0.3, Self.seven)
         func route(_ route: Route, _ layout: ChannelLayout = .mono) throws {
-            try studio.edit { s throws(SessionError) in try s.setLayout(layout, route: route, track: "t1") }
+            try studio.edit(ripple: false) { s throws(SessionError) in
+                try s.setLayout(layout, route: route, track: "t1")
+            }
         }
         switch change {
         case .otherConnection: connection = AgentConnection(serial: 8)
         case .subset: break
         case .superset: armed = ["t1", "t2"]
         case .recordOver:
-            try studio.edit { s throws(SessionError) in
+            try studio.edit(ripple: false) { s throws(SessionError) in
                 try s.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 48_000))
                 try s.place(Clip(id: "c", file: "f", start: 1000, offset: 0, length: 1000), on: "t1")
             }
@@ -103,7 +105,7 @@ extension ConsentTests {
         case .otherChannels: try route(.device(uid: "duo", channels: .mono(2)))
         case .appRoute: try route(.app(bundleID: "us.zoom.xos"), .stereo)
         case .readded:
-            try studio.edit { s throws(SessionError) in
+            try studio.edit(ripple: false) { s throws(SessionError) in
                 try s.removeTrack("t1")
                 try s.addTrack("t1", name: "Host", layout: .mono)
                 try s.setRoute(.device(uid: "other", channels: .mono(1)), track: "t1")
@@ -142,7 +144,7 @@ extension ConsentTests {
         let answer = ask(model, seconds: 0.3, connection: Self.seven)
         await until("the prompt waits") { prompt.asked() }
         #expect(model.window?.attachedSheet == nil, "a grant take shows no sheet")
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setRoute(.device(uid: "duo", channels: .mono(2)), track: "t1")
         }
 
@@ -179,7 +181,7 @@ extension ConsentTests {
         try #require(grantBox(in: sheet)).performClick(nil)
         try click(record: true, in: sheet)
         await until("the prompt waits") { prompt.asked() }
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             if app {
                 try s.setLayout(.stereo, route: .app(bundleID: "us.zoom.xos"), track: "t1")
             } else {
@@ -208,11 +210,11 @@ extension ConsentTests {
         case .microphones: break
         case .tooLong: seconds = 7200.5
         case .appTrack:
-            try studio.edit { s throws(SessionError) in
+            try studio.edit(ripple: false) { s throws(SessionError) in
                 try s.setLayout(.stereo, route: .app(bundleID: "us.zoom.xos"), track: "t1")
             }
         case .recordOver:
-            try studio.edit { s throws(SessionError) in
+            try studio.edit(ripple: false) { s throws(SessionError) in
                 try s.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 48_000))
                 try s.place(Clip(id: "c", file: "f", start: 1000, offset: 0, length: 1000), on: "t1")
             }

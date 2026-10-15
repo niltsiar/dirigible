@@ -54,7 +54,9 @@ extension PlaceSegmentTests {
     /// clip can sound at its start.
     @Test @MainActor func aPlacementStopsThePlay() async throws {
         let studio = try await studio()
-        try studio.edit { session throws(SessionError) in try session.move("take1-2-1", to: "t2", start: 300_000) }
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.move("take1-2-1", to: "t2", start: 300_000)
+        }
         await studio.perform(.seek(.frame(96_432)))
         await studio.perform(.playStop)
         let silence = await studio.renderOffline(frames: 4_800)

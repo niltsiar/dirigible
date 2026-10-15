@@ -51,7 +51,8 @@ import Testing
         redo.setAccessibilityLabel("Redo")
         func spoken(_ item: NSMenuItem) -> Comment { "C11: VoiceOver gets \(item.accessibilityLabel() ?? "nil")" }
 
-        try studio.edit(agent: AgentName(title: "Claude Code", clientName: "claude-code")) { s throws(SessionError) in
+        try studio.edit(ripple: false, agent: AgentName(title: "Claude Code", clientName: "claude-code")) {
+            s throws(SessionError) in
             try s.renameTrack("t1", to: "Host")
         }
         #expect(window.validateMenuItem(undo))
@@ -65,7 +66,7 @@ import Testing
         #expect(undo.title == plain.0, "the add track of the user")
         #expect(undo.accessibilityLabel() == plain.0, spoken(undo))
 
-        try studio.edit(agent: AgentName(title: nil, clientName: "\n")) { s throws(SessionError) in
+        try studio.edit(ripple: false, agent: AgentName(title: nil, clientName: "\n")) { s throws(SessionError) in
             try s.renameTrack("t1", to: "Guest")
         }
         #expect(window.validateMenuItem(undo))
@@ -84,7 +85,8 @@ import Testing
     private func openWithOneTrack() async throws -> (SessionWindow, NSWindow) {
         let model = await app.open(try folder.package("undo"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Track 1", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Track 1", layout: .mono)
+        }
         return (model, try #require(model.window))
     }
 

@@ -48,7 +48,7 @@ let transcriptTools = [
             (file, source) = (try TranscriptWork.file(Data(text.utf8), source: "text"), TranscriptWork.defaultName)
         }
         let title = given ?? source
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             TranscriptWork.importLines(
                 try session.importTranscript(file, name: title, track: track, at: frame), cues: file.cues)
         }

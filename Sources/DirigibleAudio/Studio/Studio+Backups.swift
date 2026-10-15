@@ -26,7 +26,7 @@ extension Studio {
             // The edit runs in this turn, so no other job runs between the check and it.
             guard sessionRevision == revision else { return .failure(.busy) }
             do throws(StudioError) {
-                try edit { session throws(SessionError) in session = try session.reverted(to: target) }
+                try edit(ripple: false) { session throws(SessionError) in session = try session.reverted(to: target) }
             } catch {
                 return .failure(error)
             }

@@ -184,7 +184,7 @@ struct StudioPeaksTests {
         let blocks = StepCounter()
         let studio = try await fixture.studio { _ = blocks.next() }
         let peaks = try #require(await waitForPeaks(studio))
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.removeTrack("t1")
             try session.removeFile("f1")
         }
@@ -203,8 +203,8 @@ struct StudioPeaksTests {
         let studio = try await fixture.studio()
         _ = await waitForPeaks(studio, "f2")
         let f2 = try #require(studio.session.files["f2"])
-        try studio.edit { session throws(SessionError) in try session.removeFile("f2") }
-        try studio.edit { session throws(SessionError) in try session.addFile(f2) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeFile("f2") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.addFile(f2) }
         try studio.undo()
         await until(limit: .seconds(30), "the pass of the undo did not end") { studio.peakLoad.pass == nil }
         try fixture.rewrite("f2")
@@ -235,7 +235,7 @@ struct StudioPeaksTests {
         _ = await waitForPeaks(studio)
         try fixture.rewrite("f1")
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
         try await Task.sleep(for: .milliseconds(300))
 
         #expect(blocks.calls == 3)
@@ -246,7 +246,7 @@ struct StudioPeaksTests {
         let fixture = try await PeakPackage.make(files: ["f1", "f2"])
         let blocks = StepCounter()
         let studio = try await fixture.studio(cache: false) { _ = blocks.next() }
-        try studio.edit { session throws(SessionError) in try session.removeFile("f2") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeFile("f2") }
         try studio.undo()
         studio.loadPeaks()
         try await Task.sleep(for: .milliseconds(300))

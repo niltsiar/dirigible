@@ -269,13 +269,13 @@ extension SessionWindow {
         }
         episodeDraft = nil
         guard episode != session.episode else { return }
-        edit { s in s.setEpisode(episode) }
+        edit(ripple: false) { s in s.setEpisode(episode) }
     }
 
     func setExplicit(_ explicit: Bool) {
         guard var episode = idleStudio?.session.episode, episode.explicit != explicit else { return }
         episode.explicit = explicit
-        edit { s in s.setEpisode(episode) }
+        edit(ripple: false) { s in s.setEpisode(episode) }
     }
 
     /// Choose… of the artwork.
@@ -290,6 +290,6 @@ extension SessionWindow {
     func removeArtwork() {
         guard var episode = idleStudio?.session.episode, episode.artwork != nil else { return }
         episode.artwork = nil
-        edit { s in s.setEpisode(episode) }
+        edit(ripple: false) { s in s.setEpisode(episode) }
     }
 }

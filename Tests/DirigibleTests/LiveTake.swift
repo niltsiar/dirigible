@@ -53,7 +53,7 @@ import os
 
     /// The store state of a take start, as `Studio.beginLive` sets it, with no device.
     static func begin(_ studio: Studio, tracks: [TrackID], at start: Frames, take: Int) throws {
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setRecording(
                 Recording(take: take, playheadFrame: start, takeStartHostTimeNanos: host, armedTracks: tracks))
         }
@@ -169,7 +169,7 @@ import os
     /// The end of the take, before the window closes.
     func close() {
         studio.transport = .idle
-        _ = try? studio.edit { s throws(SessionError) in try s.setRecording(nil) }
+        _ = try? studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(nil) }
     }
 }
 

@@ -13,7 +13,7 @@ import Testing
 extension EditCommandWindowTests {
     func openSet() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView) {
         let opened = try await open()
-        try opened.1.edit { session throws(SessionError) in _ = try session.split("c1", at: 48_000) }
+        try opened.1.edit(ripple: false) { session throws(SessionError) in _ = try session.split("c1", at: 48_000) }
         opened.0.timeline.selection = .clips(try #require(ClipSet(["c1", "c2"])))
         return opened
     }

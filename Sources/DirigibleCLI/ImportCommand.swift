@@ -30,7 +30,8 @@ struct ImportCommand: ParsableCommand {
     @Flag(help: "Keep the gain of the conversion: no auto level.") var noLevel = false
 
     func run() throws {
-        let clip = try editPackage(package, refused: failure) { session, lock throws(ImportError) -> ClipID in
+        let clip = try editPackage(package, ripple: false, refused: failure) {
+            session, lock throws(ImportError) -> ClipID in
             let imported = try importAudio(
                 URL(filePath: file), to: ImportTarget(track: track.map { TrackID($0) }, start: Frames(at)),
                 of: session, in: package.url, level: !noLevel, freeBytes: { lock.freeBytes() })

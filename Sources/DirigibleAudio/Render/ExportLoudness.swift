@@ -290,8 +290,10 @@ struct FileMeasure {
 /// and true peak at the file rate. `progress` gets the fraction done. It reads `isCancelled` at
 /// each chunk. A file that Core Audio cannot open or read throws `.writeFailed` with its status.
 /// The decode must give at least `frames` frames, else the values are those of a prefix and it
-/// throws `.writeFailed`. A decoder can fail on the padding after the audio of an MP3 file; then
-/// the frames before the failure are the file.
+/// throws `.writeFailed`. This check has two limits. An MP3 file that Core Audio does not trim counts
+/// its encoder delay and padding, so a decode that ends up to one MP3 frame (1152 frames) early
+/// passes. A read that fails after `frames` frames ends the file for every format, and the frames
+/// after the failure are not measured.
 func measureDecodedFile(
     _ url: URL, layout: ChannelLayout, frames: Int, isCancelled: () -> Bool, progress: (Double) -> Void
 ) throws(ExportError) -> FileMeasure {

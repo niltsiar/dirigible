@@ -6,6 +6,8 @@
 # so each worktree sees the same lock. The call takes it with mkdir, writes its pid, runs the
 # command as a child, and writes the pid of the child. While another process holds the lock, the
 # call prints the holder once and tries again each 30 s (WITH_LOCK_RETRY sets other seconds).
+# After a wait, the take appends one line to dirigible-build-waits.log in the git common dir: the
+# start time, the wait seconds, the command, and the command of the holder, with tabs between.
 # When the call, the child, and the process group of the child are all dead, one waiter at a time
 # (the folder <lock>.reap) reads the pid again and takes the lock over. A lock with no pid file is
 # held. A mkdir that fails with no lock folder (a sandbox, a full disk), a reap mkdir that fails
@@ -24,7 +26,7 @@ set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 lock="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/dirigible-build.lock" || exit 2
 retry="${WITH_LOCK_RETRY:-30}"
-told=""
+told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 [[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
@@ -43,7 +45,8 @@ until mkdir "$lock" 2>/dev/null; do
         [[ -w "${lock%/*}" ]] || { echo "with-lock: cannot reap the lock of the dead pid $pid; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
     fi
     if [[ -z "$told" ]]; then
-        echo "with-lock: $lock is held by pid ${pid:-unknown (no pid file)} ($(cat "$lock/command" 2>/dev/null)); retry each $retry s" >&2
+        held="$(cat "$lock/command" 2>/dev/null)"
+        echo "with-lock: $lock is held by pid ${pid:-unknown (no pid file)} ($held); retry each $retry s" >&2
         told=1
     fi
     sleep "$retry"
@@ -51,6 +54,8 @@ done
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.
 { echo $$ > "$lock/pid" && echo "$*" > "$lock/command"; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
+[[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" \
+    >> "${lock%/*}/dirigible-build-waits.log" 2>/dev/null
 child=""
 release() { [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || rm -rf "$lock"; }
 # The TERM goes to the process group of the command: make sends it only to its recipe shell.

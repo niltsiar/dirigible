@@ -250,14 +250,24 @@ done
 
 # A release tag comes only from scripts/tag-release.sh, which checks the version order against the
 # tags of origin and removes its own stale local tag. A git tag command at a command start with an
-# argument blocks, unless it lists the tags (-l, --list, --points-at, --contains, --merged) and
-# makes, deletes, or moves none. A push of --tags, refs/tags/, or a v<digit> name blocks.
+# argument blocks, unless it lists or verifies the tags (tag_reads) and makes, deletes, or moves
+# none. A push of --tags, refs/tags/, or a v<digit> name blocks.
 tag_way="Tag a release with scripts/tag-release.sh <version> <commit> <message>: only the tags of origin decide a refusal, and the script removes its own stale local tag."
+# tag_reads <arguments of git tag>: 0 when they only list or verify tags. -l, --list, --points-at,
+# --contains, --merged, -n, and -v list or verify with a name too. --sort, --format, and --column
+# make a tag when a name follows and no list flag does, so they read only with no name.
+tag_reads() {
+  local rest="$1" word
+  ! grep -qE '(^| )(-[a-zA-Z]*[adsfmF][a-zA-Z]*|--delete|--annotate|--sign|--force|--message|--file)( |=|$)' <<< "$rest" || return 1
+  ! grep -qE '(^| )(-l[n0-9]*|--list|--points-at|--contains|--no-contains|--merged|--no-merged|-n[0-9]*|-v|--verify)( |=|$)' <<< "$rest" || return 0
+  rest="$(sed -E "s/--(sort|format)=(\"[^\"]*\"|'[^']*')//g" <<< "$rest")"
+  for word in $rest; do [[ "$word" == -* ]] || return 1; done
+  grep -qE '(^| )--(sort|format|column)( |=|$)' <<< "$rest"
+}
 while IFS= read -r line; do
   if [[ "$line" =~ (^|[ \(])git\ tag(\ |$)(.*) ]]; then
     rest="${BASH_REMATCH[3]}"
-    if [[ -n "${rest// /}" ]] && ! { grep -qE '(^| )(-l|--list|--points-at|--contains|--no-contains|--merged|--no-merged)( |=|$)' <<< "$rest" &&
-      ! grep -qE '(^| )(-[a-zA-Z]*[adsfmF][a-zA-Z]*|--delete|--annotate|--sign|--force|--message|--file)( |=|$)' <<< "$rest"; }; then
+    if [[ -n "${rest// /}" ]] && ! tag_reads "$rest"; then
       block "makes, deletes, or moves a tag by hand" "$tag_way"
     fi
   fi

@@ -122,6 +122,22 @@ expect allow 'git tag'
 expect allow "git tag -l 'v0.3.*'"
 expect allow 'git tag --list'
 expect allow 'git tag --points-at HEAD'
+# Every read form passes: a note list, a sort, a format, a column, and a verify. --sort, --format,
+# and --column make a tag when a name follows and no list flag does, so a name blocks them.
+expect allow 'git tag -n'
+expect allow 'git tag -n5 v0.3.10'
+expect allow 'git tag -ln'
+expect allow 'git tag --sort=-v:refname | head -3'
+expect allow "git tag --sort=-creatordate --format='%(refname) %(creatordate)'"
+expect allow 'git tag --format=%(refname)'
+expect allow 'git tag --column'
+expect allow 'git tag -v v0.3.10'
+expect allow 'git tag --verify v0.3.10'
+expect allow "git tag -l 'v0.3.*' --sort=-v:refname"
+expect block 'git tag --sort=-v:refname v1'
+expect block "git tag --format='%(refname)' 'v1'"
+expect block 'git tag --column v1'
+expect block 'git tag -n -a v1 -m x'
 expect allow 'scripts/tag-release.sh 0.3.10 abc123 run'
 expect allow 'git push origin chore/x'
 expect allow "rg -n 'git tag -d' scripts"

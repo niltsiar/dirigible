@@ -63,6 +63,8 @@ import os
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1", "t2"])
         var beeps = 0
         model.beep = { beeps += 1 }
+        model.run(.split)
+        #expect(beeps == 0, "Split beeps during the take (run split-no-cut criterion C6)")
         for command in [
             TimelineCommand.addMarker, .addChapter, .moveMarker, .markerInfo, .deleteMarker, .removeTrack,
         ] {

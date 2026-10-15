@@ -80,6 +80,28 @@ extension EditCommandWindowTests {
         await model.close()
     }
 
+    /// Run split-no-cut criterion C6: a Split that cuts nothing beeps once and makes no undo entry,
+    /// with a range on the clip edges or with no selection and the playhead at the clip ends.
+    /// Control: a Split that cuts gives no beep.
+    @Test func aSplitThatCutsNothingBeeps() async throws {
+        let (model, studio, _, _) = try await open()
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+        model.run(.split)
+        #expect(beeps == 1 && studio.session == before && !studio.canUndo, "a range on the clip edges")
+        model.timeline.marks = Marks()
+        await studio.perform(.seek(.frame(2_880_000)))
+        model.run(.split)
+        #expect(beeps == 2 && studio.session == before && !studio.canUndo, "no selection, the playhead at the ends")
+        await studio.perform(.seek(.frame(240_000)))
+        model.run(.split)
+        #expect(beeps == 2 && studio.session != before, "the control cuts")
+        await model.close()
+    }
+
     /// The clip fully inside moves by 10 ms (480 frames), and it cuts the head of its neighbor;
     /// the partly selected c1 and the unselected t2 stay. The Marks move with the clip.
     @Test func nudgeRightMovesTheClipsInsideAndTheMarks() async throws {

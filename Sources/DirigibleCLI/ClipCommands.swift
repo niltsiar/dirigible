@@ -29,7 +29,9 @@ struct ClipCommand: ParsableCommand {
             let clip = Clip(
                 id: id.map { ClipID($0) } ?? ClipID(), file: FileID(file), start: Frames(start), offset: Frames(offset),
                 length: Frames(length), gain: db)
-            try editPackage(package) { session throws(SessionError) in try session.place(clip, on: TrackID(track)) }
+            try editPackage(package, ripple: false) { session throws(SessionError) in
+                try session.place(clip, on: TrackID(track))
+            }
             print(clip.id)
         }
     }
@@ -46,7 +48,7 @@ struct ClipCommand: ParsableCommand {
         }
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in
+            try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.clear(range.frames, on: track.map { TrackID($0) })
             }
         }
@@ -64,7 +66,7 @@ struct ClipCommand: ParsableCommand {
         }
 
         func run() throws {
-            let rights = try editPackage(package) { session throws(SessionError) in
+            let rights = try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.splitClips(at: at.map { Frames($0) }, on: track.map { TrackID($0) })
             }
             for id in rights { print(id) }
@@ -100,7 +102,7 @@ struct ClipCommand: ParsableCommand {
             }
             // `validate()` checked the targets.
             let targets = (EditRules.pasteTargets(sources: track, onto: onto) ?? []).map { TrackID($0) }
-            let pasted = try editPackage(package) { session throws(SessionError) in
+            let pasted = try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.paste(try session.excerpt(of: range.frames, on: sources), at: Frames(at), on: targets)
             }
             for id in pasted { print(id) }
@@ -129,7 +131,7 @@ struct ClipCommand: ParsableCommand {
                     onto: onto)
                 return try SourceOption.run(work, package: package)
             }
-            let pasted = try editPackage(package) { session throws(SessionError) in
+            let pasted = try editPackage(package, ripple: false) { session throws(SessionError) in
                 let excerpt = try session.excerpt(of: clips.map { ClipID($0) })
                 return try session.paste(excerpt, at: Frames(at), on: EditRules.laneTargets(of: excerpt, onto: onto))
             }
@@ -146,7 +148,7 @@ struct ClipCommand: ParsableCommand {
         @Option(parsing: .unconditional, help: "The tracks to move; negative moves up.") var lanes = 0
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in
+            try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.nudge(clips.map { ClipID($0) }, by: Frames(by), lanes: lanes)
             }
         }
@@ -158,7 +160,8 @@ struct ClipCommand: ParsableCommand {
         @Argument var clips: [String] = []
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in try session.removeClips(clips.map { ClipID($0) })
+            try editPackage(package, ripple: false) { session throws(SessionError) in
+                try session.removeClips(clips.map { ClipID($0) })
             }
         }
     }
@@ -171,7 +174,7 @@ struct ClipCommand: ParsableCommand {
         @Option(help: "The ID of the right part. The default is <clip>@<frame>.") var rightID: String?
 
         func run() throws {
-            let right = try editPackage(package) { session throws(SessionError) in
+            let right = try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.split(ClipID(clip), at: Frames(at), rightID: rightID.map { ClipID($0) })
             }
             print(right)
@@ -187,7 +190,7 @@ struct ClipCommand: ParsableCommand {
         @Option(parsing: .unconditional, help: "The new timeline frame of the first clip frame.") var start: Int
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in
+            try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.move(ClipID(clip), to: TrackID(track), start: Frames(start))
             }
         }
@@ -200,7 +203,7 @@ struct ClipCommand: ParsableCommand {
         @OptionGroup var range: FrameRange
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in
+            try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.trim(ClipID(clip), to: range.frames)
             }
         }
@@ -221,7 +224,7 @@ struct ClipCommand: ParsableCommand {
 
         func run() throws {
             let gains = Dictionary(uniqueKeysWithValues: clips.map { (ClipID($0), db) })
-            try editPackage(package) { session throws(SessionError) in try session.setGains(gains) }
+            try editPackage(package, ripple: false) { session throws(SessionError) in try session.setGains(gains) }
         }
     }
 }
@@ -248,7 +251,7 @@ extension ClipCommand {
         }
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in
+            try editPackage(package, ripple: false) { session throws(SessionError) in
                 let id = ClipID(clip)
                 guard let current = session.clip(id)?.clip.fades else { throw .unknownClip(id) }
                 let fadeIn = fadeIn.map { Frames($0) } ?? current.fadeIn
@@ -274,7 +277,7 @@ extension ClipCommand {
         var length: Frames
 
         func run() throws {
-            try editPackage(package) { session throws(SessionError) in
+            try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.setCrossfades([ClipID(clip): length])
             }
         }
@@ -304,7 +307,8 @@ enum SourceOption {
     }
 
     static func run(_ work: PasteWork, package: PackageArgument) throws {
-        let pasted = try editPackage(package, refused: refusedPaste) { session, lock throws(PasteError) in
+        let pasted = try editPackage(package, ripple: false, refused: refusedPaste) {
+            session, lock throws(PasteError) in
             try work.run(&session, lock: lock, package: package.url)
         }
         for id in pasted { print(id) }

@@ -136,7 +136,7 @@ extension SessionWindow {
     func redo() { perform { studio throws(StudioError) in try studio.redo() } }
 
     func addTrack() {
-        edit { s throws(SessionError) in
+        edit(ripple: false) { s throws(SessionError) in
             try s.addTrack(name: L10n.trackDefaultName.format(s.tracks.count + 1), layout: .mono)
         }
     }
@@ -148,7 +148,7 @@ extension SessionWindow {
         guard let name = drafts.removeValue(forKey: track), idleStudio?.session.track(track)?.name != name else {
             return
         }
-        edit { s throws(SessionError) in try s.renameTrack(track, to: name) }
+        edit(ripple: false) { s throws(SessionError) in try s.renameTrack(track, to: name) }
     }
 
     /// Record, Close, Quit, Auto Level, Place, Retry, an import (the menu or a drop), a paste from
@@ -165,19 +165,19 @@ extension SessionWindow {
     /// A route sets the layout of its channels, and it arms the track.
     func setRoute(_ channels: Route.Channels?, device: InputDevice?, track: TrackID) {
         guard let channels, let device else {
-            edit { s throws(SessionError) in try s.setRoute(nil, track: track) }
+            edit(ripple: false) { s throws(SessionError) in try s.setRoute(nil, track: track) }
             armed.remove(track)
             return
         }
         let route = Route.device(uid: device.uid, channels: channels)
-        edit { s throws(SessionError) in try s.setLayout(channels.layout, route: route, track: track) }
+        edit(ripple: false) { s throws(SessionError) in try s.setLayout(channels.layout, route: route, track: track) }
         if idleStudio?.session.track(track)?.route == route { armed.insert(track) }
     }
 
     /// Runs the edit on an idle studio. Nil when the studio is not idle (no alert), or after a
     /// throw (with its alert). A `ripple` that Studio refuses under a pending or split take beeps.
     @discardableResult func edit<Result>(
-        ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result
+        ripple: Bool, _ body: (inout Session) throws(SessionError) -> Result
     ) -> Result? {
         guard let studio = idleStudio else { return nil }
         do throws(StudioError) {

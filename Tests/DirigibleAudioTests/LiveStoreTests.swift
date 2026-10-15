@@ -219,7 +219,7 @@ struct LiveStoreTests {
     @Test func theTakeFilesGetTheLivePeaks() async throws {
         let hal = TestHAL([mic, box])
         let studio = try await open(hal)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.addFile(AudioFile(id: "old", path: "old.wav", layout: .mono, length: 100))
             try session.place(Clip(id: "c1", file: "old", start: 5_000_000, offset: 0, length: 100), on: "t1")
         }

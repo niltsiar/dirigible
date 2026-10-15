@@ -144,7 +144,7 @@ import Testing
     @Test func markerKeysGoToAFocusedField() async throws {
         let (model, studio, window, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "m1", name: "One", position: 48_000, kind: .marker))
             try s.setMarker(Marker(id: "m2", name: "Two", position: 96_000, kind: .marker))
         }

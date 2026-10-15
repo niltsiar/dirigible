@@ -221,7 +221,7 @@ struct StudioExportTests {
         if path == .startRecording {
             studio.environment.microphoneAccess = { .denied }
         } else {
-            try studio.edit { session throws(SessionError) in
+            try studio.edit(ripple: false) { session throws(SessionError) in
                 try session.setRoute(Route.device(uid: "mic", channels: .mono(2)), track: "t1")
             }
         }

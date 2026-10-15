@@ -31,7 +31,7 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
 /// session refusal exits 1, a package fault or a pending take exits 2, and a split take on a
 /// `ripple` edit exits 3 (decision 0037).
 func editPackage<Result>(
-    _ package: PackageArgument, ripple: Bool = false, writeUnchanged: Bool = true,
+    _ package: PackageArgument, ripple: Bool, writeUnchanged: Bool = true,
     _ body: (inout Session) throws(SessionError) -> Result
 ) throws(ExitCode) -> Result {
     try editPackage(package, ripple: ripple, writeUnchanged: writeUnchanged, refused: refusedEdit) {
@@ -46,7 +46,7 @@ private func refusedEdit(_ error: SessionError) -> ExitCode { fail(error.message
 /// `editPackage` for a body with its own error that also gets the lock: `refused` writes its line
 /// and gives its exit code.
 func editPackage<Result, Failure: Error>(
-    _ package: PackageArgument, ripple: Bool = false, writeUnchanged: Bool = true, refused: (Failure) -> ExitCode,
+    _ package: PackageArgument, ripple: Bool, writeUnchanged: Bool = true, refused: (Failure) -> ExitCode,
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
     do {

@@ -335,7 +335,7 @@ import os
     @Test(arguments: [true, false]) func appTrackLine(app: Bool) async throws {
         let (model, studio) = try await window()
         if app {
-            try studio.edit { s throws(SessionError) in
+            try studio.edit(ripple: false) { s throws(SessionError) in
                 try s.setLayout(.stereo, route: .app(bundleID: "us.zoom.xos"), track: "t1")
             }
         }

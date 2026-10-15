@@ -256,6 +256,6 @@ extension TimelineGesture {
     /// The commit of a clip edit, with the Marks on the clip range on its track.
     private func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
         let marks = Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])
-        return GestureCommit(base: press.base, result: result, selection: .range(marks), marker: nil)
+        return GestureCommit(base: press.base, result: result, selection: .range(marks), marker: nil, ripple: false)
     }
 }

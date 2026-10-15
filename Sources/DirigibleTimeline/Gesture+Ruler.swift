@@ -75,7 +75,10 @@ extension TimelineGesture {
     /// marker. A drag back to the start is a click.
     func commit(_ press: Press, _ original: Marker, _ preview: Session) -> [GestureEffect] {
         guard preview.markers[original.id]?.position != original.position else { return rulerClick(press) }
-        return [.commit(GestureCommit(base: press.base, result: preview, selection: nil, marker: original.id))]
+        return [
+            .commit(
+                GestureCommit(base: press.base, result: preview, selection: nil, marker: original.id, ripple: false))
+        ]
     }
 
     /// The frame and the flag under the ruler x `x`, for the ruler menu (criterion 13). A flag under

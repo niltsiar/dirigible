@@ -69,7 +69,7 @@ extension StartWindowTests {
         // A stale row of another session at the new path.
         app.recent.append(moved)
 
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         await studio.settle()
         await until("the registry follows the move") { app.windows[moved] === window }
 

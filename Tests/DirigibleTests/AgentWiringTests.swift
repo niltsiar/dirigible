@@ -45,7 +45,7 @@ import Testing
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
         }
-        try studio.edit { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
         var replied: Bool?
         var busyAtTheQuestion: [AgentBusy?] = []
         app.confirmQuit = { _, _, _ in

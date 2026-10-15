@@ -67,7 +67,7 @@ let clipTools = [
             id: try a[clipID].map { ClipID($0) } ?? ClipID(), file: FileID(try a[file]), start: Frames(try a[start]),
             offset: Frames(try a[offset]), length: Frames(try a[length]), gain: try a[clipGain])
         let track = TrackID(try a[Arg.track])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.place(placed, on: track)
             return [placed.id.rawValue]
         }
@@ -77,14 +77,14 @@ let clipTools = [
         [tracks, Arg.from, Arg.to]
     ) { a throws(ToolError) in
         let (range, targets) = (try a.range(), try a[tracks].map { TrackID($0) })
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.clear(range, on: targets)
             return []
         }
     },
     Tool("clip_split", "Split a clip and give the ID of the right part.", [clip, at, rightID]) { a throws(ToolError) in
         let (id, frame, right) = (ClipID(try a[clip]), Frames(try a[at]), try a[rightID].map { ClipID($0) })
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             [try session.split(id, at: frame, rightID: right).rawValue]
         }
     },
@@ -93,7 +93,7 @@ let clipTools = [
         [tracks, ats]
     ) { a throws(ToolError) in
         let (frames, targets) = (try a[ats].map { Frames($0) }, try a[tracks].map { TrackID($0) })
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.splitClips(at: frames, on: targets).map(\.rawValue)
         }
     },
@@ -109,7 +109,7 @@ let clipTools = [
         if let work = try a.paste(.range(range, tracks: sources.map { TrackID($0) }), at: frame, onto: try a[onto]) {
             return .paste(work)
         }
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             let excerpt = try session.excerpt(of: range, on: sources.map { TrackID($0) })
             return try session.paste(excerpt, at: frame, on: targets.map { TrackID($0) }).map(\.rawValue)
         }
@@ -122,7 +122,7 @@ let clipTools = [
     ) { a throws(ToolError) in
         let (ids, frame, targets) = (try a[clips].map { ClipID($0) }, Frames(try a[at]), try a[onto])
         if let work = try a.paste(.clips(ids), at: frame, onto: targets) { return .paste(work) }
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             let excerpt = try session.excerpt(of: ids)
             return try session.paste(excerpt, at: frame, on: EditRules.laneTargets(of: excerpt, onto: targets))
                 .map(\.rawValue)
@@ -133,14 +133,14 @@ let clipTools = [
         [someClips, by, lanes]
     ) { a throws(ToolError) in
         let (ids, frames, count) = (try a[someClips].map { ClipID($0) }, Frames(try a[by]), try a[lanes])
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.nudge(ids, by: frames, lanes: count)
             return []
         }
     },
     Tool("clip_remove", "Remove clips and leave gaps.", [someClips]) { a throws(ToolError) in
         let ids = try a[someClips].map { ClipID($0) }
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.removeClips(ids)
             return []
         }
@@ -149,14 +149,14 @@ let clipTools = [
         "clip_move", "Move a clip. It overwrites the clips under it at the new place.", [clip, Arg.track, start]
     ) { a throws(ToolError) in
         let (id, track, frame) = (ClipID(try a[clip]), TrackID(try a[Arg.track]), Frames(try a[start]))
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.move(id, to: track, start: frame)
             return []
         }
     },
     Tool("clip_trim", "Give a clip a new timeline range.", [clip, Arg.from, Arg.to]) { a throws(ToolError) in
         let (id, range) = (ClipID(try a[clip]), try a.range())
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.trim(id, to: range)
             return []
         }
@@ -166,7 +166,7 @@ let clipTools = [
         // V16: Dictionary(uniqueKeysWithValues:) traps on an ID that is given twice.
         if let twice = EditRules.firstRepeat(ids) { throw ToolError("Clip \"\(twice)\" is given twice.") }
         let gains = Dictionary(uniqueKeysWithValues: ids.map { (ClipID($0), gain) })
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setGains(gains)
             return []
         }
@@ -176,7 +176,7 @@ let clipTools = [
     ) { a throws(ToolError) in
         let (id, newIn, newOut) = (ClipID(try a[clip]), try a[fadeIn], try a[fadeOut])
         guard EditRules.fadeGiven(fadeIn: newIn, fadeOut: newOut) else { throw ToolError("Give in, out, or both.") }
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             guard let current = session.clip(id)?.clip.fades else { throw .unknownClip(id) }
             let fades = Fades(
                 fadeIn: newIn.map { Frames($0) } ?? current.fadeIn,
@@ -195,7 +195,7 @@ let clipTools = [
         guard let frames = EditRules.crossfadeLength(try a[crossfade]) else {
             throw ToolError("A crossfade length is an even number of frames, 0 or more.")
         }
-        return .edit { session throws(SessionError) in
+        return .edit(ripple: false) { session throws(SessionError) in
             try session.setCrossfades([id: frames])
             return []
         }

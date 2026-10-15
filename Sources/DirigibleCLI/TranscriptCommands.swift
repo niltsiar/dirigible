@@ -33,7 +33,7 @@ struct TranscriptCommand: ParsableCommand {
                 throw fail(error.message, code: editRefused)
             }
             let title = name ?? (file == "-" ? TranscriptWork.defaultName : URL(filePath: file).lastPathComponent)
-            let lines = try editPackage(package) { session throws(SessionError) in
+            let lines = try editPackage(package, ripple: false) { session throws(SessionError) in
                 TranscriptWork.importLines(
                     try session.importTranscript(transcript, name: title, track: TrackID(track), at: Frames(at)),
                     cues: transcript.cues)

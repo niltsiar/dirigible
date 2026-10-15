@@ -35,7 +35,7 @@ struct PendingTakeTests {
     @Test func anEditOfAnUnarmedTrackWorksAndTheSaveKeepsTheRecording() async throws {
         let studio = try await openPending()
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t3", to: "Jingle") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t3", to: "Jingle") }
         await studio.settle()
 
         let saved = try package.read()
@@ -49,7 +49,7 @@ struct PendingTakeTests {
         let before = studio.session
 
         #expect(throws: StudioError.session(.trackInRecording("t1"))) {
-            try studio.edit { session throws(SessionError) in try session.removeTrack("t1") }
+            try studio.edit(ripple: false) { session throws(SessionError) in try session.removeTrack("t1") }
         }
         #expect(studio.session == before)
         #expect(!studio.canUndo)
@@ -67,7 +67,9 @@ struct PendingTakeTests {
         #expect(
             studio.session == before && !studio.canUndo,
             "RIPPLE-S1 a ripple edit under a pending take changed the session")
-        let renamed: Void? = try? studio.edit { session throws(SessionError) in try session.renameTrack("t3", to: "J") }
+        let renamed: Void? = try? studio.edit(ripple: false) { session throws(SessionError) in
+            try session.renameTrack("t3", to: "J")
+        }
         #expect(renamed != nil, "RIPPLE-S5 a non-ripple edit under a pending take works")
     }
 

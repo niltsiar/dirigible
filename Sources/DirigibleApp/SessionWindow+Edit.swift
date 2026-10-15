@@ -18,7 +18,7 @@ extension SessionWindow {
         }
         guard command == .delete else { return }
         let selection = timeline.selection
-        let deleted = edit { session throws(SessionError) -> Bool in
+        let deleted = edit(ripple: false) { session throws(SessionError) -> Bool in
             guard let result = try selection.deleted(session) else { return false }
             session = result
             return true
@@ -60,7 +60,7 @@ extension SessionWindow {
     private func cutClips(_ studio: Studio) {
         let selection = timeline.selection
         guard let excerpt = try? selection.excerpt(in: studio.session) else { return }
-        let cut = edit { session throws(SessionError) -> Bool in
+        let cut = edit(ripple: false) { session throws(SessionError) -> Bool in
             guard let result = try selection.deleted(session) else { return false }
             session = result
             return true
@@ -82,7 +82,9 @@ extension SessionWindow {
     func runSplitOrNudge(_ command: TimelineCommand, _ studio: Studio) {
         if command == .split {
             let points = timeline.selection.splitPoints(playhead: studio.playhead, in: studio.session)
-            edit { session throws(SessionError) in try session.splitClips(at: points.frames, on: points.tracks) }
+            edit(ripple: false) { session throws(SessionError) in
+                try session.splitClips(at: points.frames, on: points.tracks)
+            }
             return
         }
         // ponytail: a fixed step of 10 ms, a calibration knob (manual check M3); a zoom step is the
@@ -95,7 +97,9 @@ extension SessionWindow {
         default: return
         }
         guard let move = timeline.selection.nudge(by: offset, in: studio.session) else { return }
-        if edit({ session throws(SessionError) in try session.nudge(move.clips, by: move.offset) }) != nil {
+        if edit(ripple: false, { session throws(SessionError) in try session.nudge(move.clips, by: move.offset) })
+            != nil
+        {
             timeline.selection = move.selection
         }
     }
@@ -104,7 +108,7 @@ extension SessionWindow {
     /// one edit, so one undo entry. With no change, a beep. During a take `edit` refuses, with no beep.
     func runFade(_ studio: Studio) {
         let selection = timeline.selection
-        let changed = edit { session throws(SessionError) -> Bool in
+        let changed = edit(ripple: false) { session throws(SessionError) -> Bool in
             guard let result = try selection.faded(session) else { return false }
             session = result
             return true
@@ -139,9 +143,11 @@ extension SessionWindow {
             case .moveMarker:
                 guard marker.position != playhead else { return beep() }
                 marker.position = playhead
-                edit { s throws(SessionError) in try s.setMarker(marker) }
+                edit(ripple: false) { s throws(SessionError) in try s.setMarker(marker) }
             case .deleteMarker:
-                if edit({ s throws(SessionError) in try s.removeMarker(marker.id) }) != nil { timeline.marker = nil }
+                if edit(ripple: false, { s throws(SessionError) in try s.removeMarker(marker.id) }) != nil {
+                    timeline.marker = nil
+                }
             default: return
             }
         default: return
@@ -154,7 +160,9 @@ extension SessionWindow {
         guard let studio else { return }
         let name = newMarkerName(kind, in: studio.session)
         let marker = Marker(id: MarkerID(), name: name.key.format(name.number), position: frame, kind: kind)
-        if edit({ s throws(SessionError) in try s.setMarker(marker) }) != nil { timeline.marker = marker.id }
+        if edit(ripple: false, { s throws(SessionError) in try s.setMarker(marker) }) != nil {
+            timeline.marker = marker.id
+        }
     }
 }
 
@@ -210,7 +218,7 @@ extension SessionWindow {
     /// of the removed tracks go. The armed set stays, so an undo gives back an armed track; every
     /// reader of the set filters it by the session tracks.
     func confirmRemoveTracks(_ tracks: [TrackID]) {
-        if edit(removing(tracks)) != nil {
+        if edit(ripple: false, removing(tracks)) != nil {
             for track in tracks { drafts[track] = nil }
         }
     }

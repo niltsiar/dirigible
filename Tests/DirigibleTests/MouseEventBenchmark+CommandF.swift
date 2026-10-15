@@ -67,7 +67,7 @@ extension MouseEventBenchmark {
                 if event > 0 {
                     faded.append(studio.session.tracks.reduce(0) { $0 + $1.clips.count { $0.fades == standard } })
                 }
-                try? studio.edit { s throws(SessionError) in s = gapped }
+                try? studio.edit(ripple: false) { s throws(SessionError) in s = gapped }
                 model.timeline.marks = Marks.all(in: studio.session)
             }
             return { model.run(.fade) }
@@ -125,7 +125,7 @@ extension MouseEventBenchmark {
                 if event > 0 {
                     made.append(studio.session.tracks.reduce(0) { $0 + $1.clips.count { $0.crossfades.end != .zero } })
                 }
-                try? studio.edit { s throws(SessionError) in s = joined }
+                try? studio.edit(ripple: false) { s throws(SessionError) in s = joined }
                 model.timeline.marks = Marks.all(in: studio.session)
             }
             return { model.run(.fade) }

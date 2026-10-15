@@ -92,7 +92,7 @@ import Testing
         let zoomed = zoom(old)
         model.run(.zoomIn)
         let last = zoom(old)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.removeTrack("t1")
             try s.removeTrack("t2")
         }
@@ -124,7 +124,7 @@ import Testing
         model.run(.zoomIn)
         old.scroll(toFrame: 2_800_000)
         #expect(old.origin > 2_000_000)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.removeTrack("t1")
             try s.removeTrack("t2")
         }
@@ -132,7 +132,7 @@ import Testing
             window.contentView?.layoutSubtreeIfNeeded()
             return old.window == nil
         }
-        try studio.edit { s throws(SessionError) in try s.addTrack("t3", name: "T3", layout: .mono) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t3", name: "T3", layout: .mono) }
         await until(limit: .seconds(10), "a new pane shows the lanes") {
             window.contentView?.layoutSubtreeIfNeeded()
             return model.timelineView.map { $0 !== old && $0.window != nil } ?? false
@@ -147,7 +147,7 @@ import Testing
     /// U11 (N11): at the fit, smart zoom shows the clip under the pointer; again, it fits.
     @Test func smartZoomShowsTheClipUnderThePointer() async throws {
         let (model, studio, _, view) = try await open()
-        try studio.edit { s throws(SessionError) in _ = try s.splitClips(at: [960_000], on: ["t1"]) }
+        try studio.edit(ripple: false) { s throws(SessionError) in _ = try s.splitClips(at: [960_000], on: ["t1"]) }
         await until(limit: .seconds(10), "the lanes show the split") { view.lanes.inputs?.session == studio.session }
         let fit = zoom(view)
         view.smartZoom(at: NSPoint(x: 100, y: 10))

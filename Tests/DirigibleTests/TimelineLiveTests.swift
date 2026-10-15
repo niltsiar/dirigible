@@ -98,7 +98,7 @@ import Testing
 
         func close() async {
             studio.transport = .idle
-            _ = try? studio.edit { s throws(SessionError) in try s.setRecording(nil) }
+            _ = try? studio.edit(ripple: false) { s throws(SessionError) in try s.setRecording(nil) }
             window.close()
             await model.close()
         }
@@ -141,7 +141,7 @@ import Testing
         try build(&session)
         try session.setRecording(
             Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: Self.host, armedTracks: armed))
-        try studio.edit { s throws(SessionError) in s = session }
+        try studio.edit(ripple: false) { s throws(SessionError) in s = session }
         let (window, view) = standaloneLanes(model, studio, onScreen: onScreen)
         // Only the ticks of the test move the head.
         view.linkProxy?.view = nil

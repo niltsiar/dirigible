@@ -86,7 +86,9 @@ struct StudioImportTests {
         await gate.entered()
 
         #expect(studio.importRun?.name == "Voice.wav" && studio.playback == .stopped, "play stops at the start")
-        #expect(throws: StudioError.busy, "an edit is busy") { try studio.edit { _ throws(SessionError) in } }
+        #expect(throws: StudioError.busy, "an edit is busy") {
+            try studio.edit(ripple: false) { _ throws(SessionError) in }
+        }
         await #expect(throws: StudioError.busy, "Cmd-L is busy") { try await studio.level(["c1"], .eachClip) }
         await #expect(throws: StudioError.busy, "a second import is busy") {
             try await studio.importAudio(fixture.source, to: newTrack) { _ in }
@@ -190,7 +192,7 @@ struct StudioImportTests {
             await hold.wait()
             return try await CaptureEnvironment.live.saveSession(session, lock)
         }
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
         await hold.entered()
         let settle = Task { await studio.settle() }
         await until(limit: .seconds(10), "settle did not start") { studio.settling }

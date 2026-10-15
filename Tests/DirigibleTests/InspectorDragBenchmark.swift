@@ -41,7 +41,7 @@ import Testing
             // The 2 h session and its peaks, and a save that does not write (`lanesOnScreen`).
             let url = studio.url
             studio.environment.saveSession = { _, _ in url }
-            try studio.edit { s throws(SessionError) in s = session }
+            try studio.edit(ripple: false) { s throws(SessionError) in s = session }
             studio.peakLoad.states = peaks
             if !model.showsInspector { model.toggleInspector() }
             window.setContentSize(NSSize(width: 1440, height: 600))

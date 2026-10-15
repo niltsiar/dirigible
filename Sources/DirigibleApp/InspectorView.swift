@@ -202,12 +202,12 @@ extension SessionWindow {
         case .gain:
             guard let dB = ClipInspection.decibels(text) else { return beep() }
             guard let gains = ClipInspection.gains(dB, for: draft.clips, in: session) else { return }
-            edit { s throws(SessionError) in try s.setGains(gains) }
+            edit(ripple: false) { s throws(SessionError) in try s.setGains(gains) }
         case .fadeIn, .fadeOut:
             guard let ms = ClipInspection.milliseconds(text) else { return beep() }
             let edge: Fades.Edge = draft.field == .fadeIn ? .start : .end
             guard let fades = ClipInspection.fades(edge, ms: ms, for: draft.clips, in: session) else { return }
-            edit { s throws(SessionError) in try s.setFades(fades) }
+            edit(ripple: false) { s throws(SessionError) in try s.setFades(fades) }
         }
     }
 

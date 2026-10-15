@@ -95,7 +95,11 @@ extension TimelineGesture {
         guard (group.offset, group.lanes) != (.zero, 0),
             let set = ClipSet(Set(group.clips.map(\.clip.id)))
         else { return click(press, context) }
-        return [.commit(GestureCommit(base: press.base, result: group.preview, selection: .clips(set), marker: nil))]
+        return [
+            .commit(
+                GestureCommit(
+                    base: press.base, result: group.preview, selection: .clips(set), marker: nil, ripple: false))
+        ]
     }
 
     /// A move drag event: the clip follows the pointer, and the preview has the clip there.
@@ -170,6 +174,10 @@ extension TimelineGesture {
             return click(press, context)
         }
         let marks = Marks(inPoint: move.start, outPoint: move.start + move.clip.length, tracks: [move.track])
-        return [.commit(GestureCommit(base: press.base, result: move.preview, selection: .range(marks), marker: nil))]
+        return [
+            .commit(
+                GestureCommit(
+                    base: press.base, result: move.preview, selection: .range(marks), marker: nil, ripple: false))
+        ]
     }
 }

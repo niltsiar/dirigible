@@ -21,7 +21,7 @@ extension SessionWindow {
     /// The M or S button of a header row: one edit, so one undo entry and an autosave. With `all`
     /// (Option-click) every track gets the new state. During a take it does nothing.
     func setFlag(_ flag: TrackFlag, _ on: Bool, track: TrackID, all: Bool) {
-        edit { session throws(SessionError) in
+        edit(ripple: false) { session throws(SessionError) in
             try flag.set(on, all ? session.tracks.map(\.id) : [track], in: &session)
         }
     }
@@ -33,6 +33,6 @@ extension SessionWindow {
         let tracks = timeline.selection.headerTracks(in: studio.session)
         guard !tracks.isEmpty else { return beep() }
         let on = tracks.contains { studio.session.track($0).map { !flag.isOn($0) } ?? false }
-        edit { session throws(SessionError) in try flag.set(on, tracks, in: &session) }
+        edit(ripple: false) { session throws(SessionError) in try flag.set(on, tracks, in: &session) }
     }
 }

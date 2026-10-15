@@ -143,7 +143,7 @@ extension InspectorTests {
         let base = try #require(view.lanes.inputs?.session)
         var result = base
         try result.trim("A", to: 12_000..<48_000)
-        model.apply([.commit(GestureCommit(base: base, result: result, selection: nil, marker: nil))])
+        model.apply([.commit(GestureCommit(base: base, result: result, selection: nil, marker: nil, ripple: false))])
         #expect(studio.session.clip("A")?.clip.start == 12_000, "the trim is in the session")
         #expect(studio.session.episode == episode && !episode.isEmpty, "the trim keeps the episode")
         #expect(undoAll(model, studio) == 2, "the trim is one entry")

@@ -154,7 +154,7 @@ import Testing
         try studio.undo()
         #expect(studio.session.tracks.map(\.id) == ["t1", "t2"], "one undo entry")
 
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.removeTrack("t1")
             try s.removeTrack("t2")
         }
@@ -232,7 +232,7 @@ import Testing
     func addCallTracksDoesNotArmARouteInUse(armedRoute: Route, hostArms: Bool, guestArms: Bool) async throws {
         let (model, studio) = try await callWindow()
         let layout: ChannelLayout = if case .device(_, .stereo) = armedRoute { .stereo } else { .mono }
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setRoute(nil, track: "t1")
             try s.setLayout(layout, route: armedRoute, track: "t2")
         }

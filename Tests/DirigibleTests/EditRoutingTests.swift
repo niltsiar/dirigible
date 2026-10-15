@@ -71,7 +71,7 @@ import Testing
     @Test func aRunFunctionIgnoresTheCommandsOfOtherGroups() async throws {
         let (model, studio, _, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "m1", name: "One", position: 48_000, kind: .marker))
         }
         model.timeline.marker = "m1"

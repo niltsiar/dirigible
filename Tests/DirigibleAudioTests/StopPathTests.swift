@@ -89,7 +89,7 @@ struct StopPathTests {
                 uid: "quad", name: "Quad", nominalRate: 48_000, availableRates: [48_000...48_000],
                 channelsPerBuffer: [2, 2], latency: 0))
         let studio = try await Studio.open(url)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setRoute(Route.device(uid: "quad", channels: .mono(3)), track: "t1")
         }
         let tone = sine(seconds: 1, rate: 48_000)
@@ -143,7 +143,7 @@ struct StopPathTests {
 
         await #expect(throws: StudioError.deviceMissing("t2")) { try await start(["t1", "t2"], [mic]) }
         #expect(try Data(contentsOf: sessionXML) == before)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setRoute(Route.device(uid: "mic", channels: .mono(3)), track: "t1")
             try session.setLayout(.mono, route: Route.device(uid: "mic", channels: .mono(1)), track: "t2")
             try session.addTrack("t3", name: "Music", layout: .mono)
@@ -153,7 +153,7 @@ struct StopPathTests {
         before = try Data(contentsOf: sessionXML)
         await #expect(throws: StudioError.channelOutOfRange("t1")) { try await start(["t1"], [stereoMic]) }
         #expect(try Data(contentsOf: sessionXML) == before)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         }
         await studio.settle()
@@ -169,7 +169,7 @@ struct StopPathTests {
         _ = try await recordThreeSeconds(studio)
 
         #expect(throws: StudioError.busy) {
-            try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "X") }
+            try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "X") }
         }
         #expect(throws: StudioError.busy) { try studio.undo() }
         await #expect(throws: StudioError.busy) {

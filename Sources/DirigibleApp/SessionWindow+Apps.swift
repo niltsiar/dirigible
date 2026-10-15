@@ -33,7 +33,7 @@ extension SessionWindow {
     /// arms the track, as a device route.
     func setAppRoute(_ bundleID: String, track: TrackID) {
         let route = Route.app(bundleID: bundleID)
-        edit { s throws(SessionError) in try s.setRoute(route, track: track) }
+        edit(ripple: false) { s throws(SessionError) in try s.setRoute(route, track: track) }
         if idleStudio?.session.track(track)?.route == route { armed.insert(track) }
     }
 
@@ -50,12 +50,14 @@ extension SessionWindow {
         }
         let names = (host: L10n.trackNameHost.text, guest: L10n.trackNameGuest.text)
         guard
-            let added = edit({ s throws(SessionError) -> [TrackID] in
-                let (host, guest) = (TrackID(), TrackID())
-                try s.addCallTracks(
-                    host: host, guest: guest, names: names, hostDevice: input.map { ($0, 1) }, guestApp: app)
-                return [host, guest]
-            })
+            let added = edit(
+                ripple: false,
+                { s throws(SessionError) -> [TrackID] in
+                    let (host, guest) = (TrackID(), TrackID())
+                    try s.addCallTracks(
+                        host: host, guest: guest, names: names, hostDevice: input.map { ($0, 1) }, guestApp: app)
+                    return [host, guest]
+                })
         else { return }
         let tracks = added.compactMap { idleStudio?.session.track($0) }
         armed.formUnion(tracksToArm(tracks, taken: taken))

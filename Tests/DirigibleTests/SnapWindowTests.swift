@@ -142,7 +142,7 @@ import Testing
     @Test func aNewTargetPlaysTheHapticAndEachSnappedEventDrawsOnce() async throws {
         let (model, studio, window, view) = try await lanes()
         let marker = Frames(308 * 512)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setMarker(Marker(id: "m", name: "M", position: marker, kind: .marker))
         }
         view.update(laneInputs(model, studio))

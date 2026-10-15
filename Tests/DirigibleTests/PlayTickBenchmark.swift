@@ -30,7 +30,7 @@ import Testing
                 try await timelinePackage(in: package, tracks: 1, seconds: 1), app: app)
             let url = studio.url
             studio.environment.saveSession = { _, _ in url }
-            try studio.edit { s throws(SessionError) in s = session }
+            try studio.edit(ripple: false) { s throws(SessionError) in s = session }
             model.armed = Set(session.tracks.map(\.id))
 
             // A titled window, so the chrome has its toolbar and time display.

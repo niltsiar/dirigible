@@ -92,7 +92,7 @@ struct StudioPeaksSettleTests {
             return try session.write(under: lock)
         }
         await blockGate.entered()
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
         await until(limit: .seconds(10), "the autosave did not fail") { studio.saveError != nil }
         let before = blocks.calls
         let done = StepCounter()

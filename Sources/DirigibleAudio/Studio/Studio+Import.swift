@@ -61,7 +61,7 @@ extension Studio {
         let environment = environment
         return try await blockingRun(
             name: source.lastPathComponent, kind: .file, cancelled: .audioImport(.cancelled),
-            yielded: .importYielded(file: source.lastPathComponent), agent: agent
+            yielded: .importYielded(file: source.lastPathComponent), ripple: false, agent: agent
         ) { session, lock, flags in
             let done = await convertImport(
                 source, target, of: session, lock: lock, level: level, environment: environment, flags: flags,
@@ -97,7 +97,7 @@ extension Studio {
     /// Else the run saves, records one undo entry with `agent`, and loads the peaks of new files.
     /// `importProgress` starts at 0 for each run.
     func blockingRun<Value: Sendable>(
-        name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError, ripple: Bool = false,
+        name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError, ripple: Bool,
         agent: AgentName? = nil,
         work:
             @escaping @Sendable (Session, PackageLock, ImportFlags) async -> Result<

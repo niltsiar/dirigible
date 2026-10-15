@@ -85,7 +85,7 @@ extension ExportWindowTests {
             model.shown.banners.contains(.exportReport(report, file: "mix.wav"))
         }
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
 
         await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport" } }
         await model.close()
@@ -110,7 +110,7 @@ extension ExportWindowTests {
         let export = Task { await model.run(source, target, studio) }
         await until("the export starts") { studio.exportProgress != nil }
 
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
         release.signal()
         await export.value
 
@@ -146,7 +146,7 @@ extension ExportWindowTests {
     /// start, and a warning banner names it. A session edit removes the banner.
     @Test func aDroppedChapterShowsAWarningBanner() async throws {
         let (model, studio, _) = try await window()
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "a", name: "A", position: 192_000, kind: .chapter))
             try session.setMarker(Marker(id: "c", name: "C", position: 192_000, kind: .chapter))
         }
@@ -160,7 +160,7 @@ extension ExportWindowTests {
         let banner = WindowBanner.chaptersDropped(["C"], file: "mix.mp3")
         await until("the banner shows") { model.shown.banners.contains(banner) }
         #expect(banner.kind == .warning)
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
         await until("the banner goes") { !model.shown.banners.contains { $0.key == "chaptersDropped" } }
         // Code gate item D6: the text also gives the second reason, a chapter after the audio.
         let texts = [
@@ -191,7 +191,7 @@ extension ExportWindowTests {
             CGImageDestinationCreateWithURL(file as CFURL, UTType.jpeg.identifier as CFString, 1, nil))
         CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
         try #require(CGImageDestinationFinalize(destination))
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "a", name: "A", position: 0, kind: .chapter, image: image))
             try session.setMarker(Marker(id: "b", name: "B", position: 192_000, kind: .chapter))
         }

@@ -145,7 +145,7 @@ import os
         studio.environment.saveSession = { _, _ throws(SessionFileError) in
             throw .writeFailed(step: "test", errno: EIO)
         }
-        try studio.edit { s throws(SessionError) in try s.renameTrack("t1", to: "Hostess") }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t1", to: "Hostess") }
         await window.close()
         #expect(window.alert == .confirmUnsavedClose)
 
@@ -169,7 +169,7 @@ import os
         studio.environment.saveSession = { _, _ throws(SessionFileError) in
             throw .writeFailed(step: "test", errno: EIO)
         }
-        try studio.edit { s throws(SessionError) in try s.renameTrack("t1", to: "Hostess") }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.renameTrack("t1", to: "Hostess") }
         await window.close()
         #expect(window.alert == .confirmUnsavedClose)
         #expect(!window.canMonitor)

@@ -86,7 +86,7 @@ import Testing
     @Test func aClipBoxIsAtItsStartOverTheScale() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in try s.move("c2", to: "t2", start: 48_000) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.move("c2", to: "t2", start: 48_000) }
         let (lanesWindow, view) = standaloneLanes(model, studio)
 
         #expect(view.lanes.clipFrame("c2") == NSRect(x: 93.75, y: 100, width: 1875, height: 100))

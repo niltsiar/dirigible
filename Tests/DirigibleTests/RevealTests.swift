@@ -31,7 +31,7 @@ import Testing
         }
         let (model, studio, _, _) = try await openLanes(app, package)
         app.reveal = { [revealed] urls in revealed.calls.append(urls.map(\.lastPathComponent)) }
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.addFile(AudioFile(id: "f2", path: "f2.wav", layout: .mono, length: 48_000))
             try s.clear(0..<48_000, on: ["t2"])
             try s.place(Clip(id: "x", file: "f2", start: 0, offset: 0, length: 48_000), on: "t2")

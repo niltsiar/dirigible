@@ -81,7 +81,7 @@ extension TimelineMouseTests {
         app.snaps = false
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 3, seconds: 20), app: app)
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.trim("c1", to: 102_400..<153_600)
             try kind.prepare(&s)
         }

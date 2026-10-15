@@ -95,7 +95,7 @@ func expectWithinBudget(
             try await timelinePackage(in: folder, tracks: 1, seconds: 1), app: app)
         let url = studio.url
         studio.environment.saveSession = { _, _ in url }
-        try studio.edit { s throws(SessionError) in s = session }
+        try studio.edit(ripple: false) { s throws(SessionError) in s = session }
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0, y: 0, width: 1440 + HeaderWidth.standard.points + scrollerWidth, height: 660 + scrollerWidth),

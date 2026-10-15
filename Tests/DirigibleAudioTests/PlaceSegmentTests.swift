@@ -295,7 +295,7 @@ struct PlaceSegmentTests {
         await gate.entered()
 
         #expect(studio.transport == .placing(Self.segment))
-        #expect(throws: StudioError.busy) { try studio.edit { _ throws(SessionError) in } }
+        #expect(throws: StudioError.busy) { try studio.edit(ripple: false) { _ throws(SessionError) in } }
         #expect(throws: StudioError.busy) { try studio.undo() }
         await #expect(throws: StudioError.busy) { try await studio.retryFinalize() }
         await #expect(throws: StudioError.busy) { try await studio.startRecording(armed: ["t1"]) }

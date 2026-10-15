@@ -191,7 +191,7 @@ struct StopLevelTests {
         let leveling = Task { try await studio.level(["c1", "c2"], .eachClip) }
         await gate.entered()
         #expect(studio.transport == .leveling, "level hold: \(studio.transport)")
-        #expect(throws: StudioError.busy) { try studio.edit { _ throws(SessionError) in } }
+        #expect(throws: StudioError.busy) { try studio.edit(ripple: false) { _ throws(SessionError) in } }
         gate.open()
         _ = try await leveling.value
 

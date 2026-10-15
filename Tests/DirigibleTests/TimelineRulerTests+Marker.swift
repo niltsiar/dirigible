@@ -82,7 +82,7 @@ extension TimelineRulerTests {
     @Test func theCurrentMarkerHasItsOwnLook() async throws {
         let (model, studio, window, view) = try await lanes()
         let chapter = Marker(id: "c2", name: "Part", position: 307_200, kind: .chapter)
-        try studio.edit { s throws(SessionError) in try s.setMarker(chapter) }
+        try studio.edit(ripple: false) { s throws(SessionError) in try s.setMarker(chapter) }
         view.update(laneInputs(model, studio))
         let at = { (id: MarkerID) in
             view.ruler.convert(NSPoint(x: id == "m1" ? 200 : 600, y: 0), from: view.lanes).x

@@ -100,7 +100,7 @@ struct StudioPruneTests {
         let studio = try await open()
         let scan = try await studio.unusedFiles()
         let clip = Clip(id: "B", file: spare, start: 10_000, offset: 0, length: 4_800)
-        try studio.edit { session throws(SessionError) in try session.place(clip, on: "t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.place(clip, on: "t1") }
 
         let report = try await studio.removeUnusedFiles(scan)
         defer { cleanUp(report) }
@@ -133,7 +133,7 @@ struct StudioPruneTests {
     /// C7: Undo and Redo after the prune bring back no pool entry of a moved file.
     @Test func undoAfterPruneHasNoMissingMedia() async throws {
         let studio = try await open()
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
         let revision = studio.sessionRevision
 
         let report = try await studio.removeUnusedFiles(try await studio.unusedFiles())
@@ -180,7 +180,7 @@ struct StudioPruneTests {
             saveSession: { _, _ throws(SessionFileError) in throw .writeFailed(step: "write", errno: ENOSPC) })
         try FileManager.default.removeItem(at: clips.appending(path: stray))
         let clip = Clip(id: "B", file: spare, start: 10_000, offset: 0, length: 4_800)
-        try studio.edit { session throws(SessionError) in try session.place(clip, on: "t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.place(clip, on: "t1") }
 
         let report = try await studio.removeUnusedFiles(scan)
 
@@ -198,7 +198,9 @@ struct StudioPruneTests {
         studio.environment = .test(
             TestHAL([]),
             saveSession: { session, lock throws(SessionFileError) in
-                await MainActor.run { _ = try? studio.edit { s throws(SessionError) in try s.place(clip, on: "t1") } }
+                await MainActor.run {
+                    _ = try? studio.edit(ripple: false) { s throws(SessionError) in try s.place(clip, on: "t1") }
+                }
                 return try session.write(under: lock)
             })
 
@@ -215,7 +217,7 @@ struct StudioPruneTests {
     /// Undo brings back no pool entry of a file in the Trash.
     @Test func undoEntryLosesEntryOfMovedStray() async throws {
         let studio = try await open()
-        try studio.edit { session throws(SessionError) in try session.removeFile(spare) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeFile(spare) }
         let scan = try await studio.unusedFiles()
         #expect(scan.items.map(\.path) == [spareName, stray].sorted() && scan.items.allSatisfy { $0.kind == .stray })
 
@@ -242,7 +244,7 @@ struct StudioPruneTests {
                 await gate.wait()
                 return try session.write(under: lock)
             })
-        try studio.edit { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
         await gate.entered()
         let box = ClipboardBox()
 

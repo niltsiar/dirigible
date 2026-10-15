@@ -14,7 +14,7 @@ extension TimelineLayerTests {
     @Test(arguments: [512.0, 511.3])
     func aGroupDragDrawsAsAFullDraw(framesPerPoint: Double) async throws {
         let (model, studio, window, view) = try await lanes(onScreen: true)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.clear(600_000..<Frames(Self.frames), on: session.tracks.map(\.id))
         }
         model.timeline.scale = TimelineScale(framesPerPoint: framesPerPoint)

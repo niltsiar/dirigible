@@ -18,7 +18,9 @@ extension StudioPlaybackTests {
 
     /// Sets the clip gain of `c1` to -6.0206 dB (0.5).
     func halve(_ studio: Studio) throws {
-        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -6.0206)!, clip: "c1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setGain(Gain(dB: -6.0206)!, clip: "c1")
+        }
     }
 
     // MARK: Criterion 14

@@ -73,7 +73,7 @@ import Testing
         model.timeline.laneHeight = .fixed(height == 80 ? 100 : 80)
         await until("the new lane height") { lanes.inputs?.laneHeight != height && dims(view).count == 1 }
         #expect(dims(view) == [try laneRect(2, view)], "e: a lane height change keeps the lane rect")
-        try studio.edit { session throws(SessionError) in try session.removeTrack("t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.removeTrack("t1") }
         await until("t3 is lane 1") { lanes.inputs?.session.tracks.count == 2 }
         #expect(dims(view) == [try laneRect(1, view)], "e: a track move keeps the lane rect")
         await model.close()
@@ -86,10 +86,10 @@ import Testing
         model.setFlag(.muted, true, track: "t1", all: false)
         await until("the dim of t1") { dims(view).count == 1 }
         let take = Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 0, armedTracks: ["t1"])
-        try studio.edit { session throws(SessionError) in try session.setRecording(take) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setRecording(take) }
         await until("no dim during the take") { dims(view).isEmpty }
         #expect(dims(view).isEmpty, "the recording lane of t1 is not dimmed")
-        try studio.edit { session throws(SessionError) in try session.setRecording(nil) }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setRecording(nil) }
         await until("the dim after the take") { dims(view).count == 1 }
         #expect(dims(view) == [try laneRect(0, view)], "the dim comes back after the take")
         await model.close()

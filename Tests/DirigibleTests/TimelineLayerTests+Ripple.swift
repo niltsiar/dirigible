@@ -22,7 +22,7 @@ extension TimelineLayerTests {
     @Test(arguments: [512.0, 511.3])
     func aRippleDragEqualsAFullRender(framesPerPoint: Double) async throws {
         let (model, studio, window, view) = try await lanes(onScreen: true)
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setFades(["c1": Fades(fadeIn: 0, fadeOut: 4_800)!])
             let next = session.tracks[0].clips[1].id
             try session.setFades([next: Fades(fadeIn: 4_800, fadeOut: 0)!])
@@ -113,7 +113,7 @@ extension TimelineLayerTests {
         view.update(inputs(model, studio))
         drawNow(window)
         let before = view.lanes.surfaces.shifted
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.rippleDelete(10_240..<20_480, on: session.tracks.map(\.id))
             try session.removeMarker("after")
         }
@@ -125,7 +125,7 @@ extension TimelineLayerTests {
         // Code gate 2 item 2: an edit outside a gesture whose move is 41 columns at 511.3 frames
         // per point within one frame (10 482 frames) takes no rounded shift: it draws in full.
         let edited = view.lanes.surfaces.shifted
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.rippleDelete(5_000..<15_482, on: session.tracks.map(\.id))
         }
         view.update(inputs(model, studio))

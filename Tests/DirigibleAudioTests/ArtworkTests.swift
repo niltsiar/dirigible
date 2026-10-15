@@ -172,7 +172,7 @@ struct StudioMarkerImageTests {
     @Test func aDroppedImageIsOneUndoEntry() async throws {
         let fixture = try await ImportStudioFixture.make()
         let studio = try await fixture.open()
-        try studio.edit { session throws(SessionError) in
+        try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setMarker(Marker(id: "c", name: "C", position: 0, kind: .chapter))
         }
         let source = try ArtworkTests.image(300, 300, in: fixture.package.folder.url)

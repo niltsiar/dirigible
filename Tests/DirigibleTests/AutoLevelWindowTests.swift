@@ -44,7 +44,7 @@ import Testing
         let parent = folder.url.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         let (model, studio, _, _) = try await open(in: parent)
-        model.edit { session throws(SessionError) in try session.setMuted(true, tracks: ["t3"]) }
+        model.edit(ripple: false) { session throws(SessionError) in try session.setMuted(true, tracks: ["t3"]) }
         let before = studio.session
         let target = await expected(leveled, mode, studio)
         model.timeline.marks = marks
@@ -113,7 +113,9 @@ import Testing
         let (model, studio, _, _) = try await open()
         var beeps = 0
         model.beep = { beeps += 1 }
-        model.edit { session throws(SessionError) in try session.addTrack("t4", name: "t4", layout: .mono) }
+        model.edit(ripple: false) { session throws(SessionError) in
+            try session.addTrack("t4", name: "t4", layout: .mono)
+        }
         let past = Marks(inPoint: 3_000_000, outPoint: 3_048_000)
         let values: [(Selection, String)] = [
             (.range(Marks(inPoint: 3_000_000, outPoint: 3_048_000, tracks: ["t1"])), "gap on t1"),
@@ -169,7 +171,8 @@ import Testing
         model.timeline.marks = Marks(inPoint: 3_000_000, outPoint: 3_048_000, tracks: ["t1"])
         #expect(model.isOn(.autoLevel) && model.isOn(.autoLevelPerTrack), "a range over a gap turns the items off")
         let tracks = studio.session.tracks.map(\.id)
-        model.edit { session throws(SessionError) in try session.clear(.zero..<Frames.limit, on: tracks) }
+        model.edit(ripple: false) { session throws(SessionError) in try session.clear(.zero..<Frames.limit, on: tracks)
+        }
         #expect(studio.session.tracks.allSatisfy { $0.clips.isEmpty }, "the clips stay")
         #expect(!model.isOn(.autoLevel) && !model.isOn(.autoLevelPerTrack), "no clip: the items are on")
         await model.close()
@@ -264,7 +267,7 @@ import Testing
     /// 12g. Option-Command-L gives the two clips of t1 one delta.
     @Test func perTrackGivesOneDelta() async throws {
         let (model, studio, _, _) = try await open()
-        model.edit { session throws(SessionError) in
+        model.edit(ripple: false) { session throws(SessionError) in
             let right = try session.split("c1", at: 240_000)
             try session.setGain(Gain(dB: 3)!, clip: right)
         }

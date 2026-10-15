@@ -10,7 +10,7 @@ import Foundation
 func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     let (studio, path) = (target.studio, call.path)
     let refusedOpen = AgentReply.result(text: openInAppMessage(path), isError: true)
-    func edit<Result>(ripple: Bool = false, _ body: (inout Session) throws(SessionError) -> Result) throws(StudioError)
+    func edit<Result>(ripple: Bool, _ body: (inout Session) throws(SessionError) -> Result) throws(StudioError)
         -> Result
     {
         if target.busy != nil { throw .busy }
@@ -27,11 +27,11 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             do throws(MarkerEditError) { marker = try work.marker(from: studio.session.markers[work.id]) } catch {
                 return .result(text: error.message, isError: true)
             }
-            try edit { session throws(SessionError) in try session.setMarker(marker) }
+            try edit(ripple: false) { session throws(SessionError) in try session.setMarker(marker) }
             return .result(text: marker.id.rawValue, isError: false)
         case .episode(let work):
             if let artwork = work.artwork, !artwork.isEmpty { return refusedOpen }
-            try edit { session in session.setEpisode(work.episode(from: session.episode)) }
+            try edit(ripple: false) { session in session.setEpisode(work.episode(from: session.episode)) }
             return .result(text: "OK", isError: false)
         case .info(let tracks, let range):
             do throws(ToolError) {

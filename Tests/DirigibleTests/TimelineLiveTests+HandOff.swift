@@ -44,7 +44,7 @@ extension TimelineLiveTests {
         studio.transport = .idle
         try check("finalize error", taking: false)
 
-        try studio.edit { s throws(SessionError) in
+        try studio.edit(ripple: false) { s throws(SessionError) in
             try s.setRecording(
                 Recording(take: 2, playheadFrame: 96_000, takeStartHostTimeNanos: Self.host, armedTracks: ["t1"]))
         }
@@ -342,7 +342,7 @@ extension TimelineLiveTests {
         }
         studio.handOffLive(finalized)
         studio.transport = .idle
-        try studio.edit { s throws(SessionError) in s = finalized }
+        try studio.edit(ripple: false) { s throws(SessionError) in s = finalized }
         _ = end
     }
 }

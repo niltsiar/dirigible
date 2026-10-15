@@ -28,7 +28,9 @@ struct StudioExportJobTests {
         let export = Task { try await studio.export(source, options, to: out, replacing: nil) }
         await gate.entered()
 
-        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -20)!, track: "t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setGain(Gain(dB: -20)!, track: "t1")
+        }
         await until(limit: .seconds(10), "the edit was not saved") {
             (try? Session(contentsOf: url))?.track("t1")?.gain == Gain(dB: -20)
         }
@@ -201,7 +203,8 @@ struct StudioExportJobTests {
             await save.wait()
             return try session.write(under: lock)
         }
-        try studio.edit { session throws(SessionError) in try session.setGain(Gain(dB: -6)!, track: "t1") }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setGain(Gain(dB: -6)!, track: "t1")
+        }
         await save.entered()
         let (source, options, out) = (fixture.source, fixture.options, fixture.out)
         let second = fixture.package.folder.url.appending(path: "second.wav")

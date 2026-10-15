@@ -15,14 +15,17 @@ struct Export: ParsableCommand {
             and the old file does not change. A file that the check finds whole but the export cannot read \
             also gives exit 2 (unless --allow-missing); then the output file has its clips as silence. \
             With --loudness, the export measures the mix, sets one gain, and limits the true peak to \
-            -1 dBTP. When the limiter lowers the level, the export raises the gain until the file is \
-            within 0.1 LU of the target. Then it prints one line, for example "loudness -16.0 LUFS, true peak \
-            -1.2 dBTP, gain +3.4 dB"; "none" means no measurement, and the gain is then 0 dB. A 16-bit export \
-            has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes 32000, 44100, or 48000 Hz. For \
-            AAC, MP3, and a --rate other than the session rate, the export decodes the file, as macOS does, \
-            and the printed values are those of the decoded file; it writes the file again when the true \
-            peak is over -1 dBTP or the loudness is 0.2 LU off. An .m4a gets the chapter markers of the \
-            range as a chapter track, and an .mp3 gets them as ID3 CHAP frames, at most 255. Each chapter keeps its URL and its image. A chapter at \
+            -1 dBTP. When the limiter lowers the level, the export raises the gain until the limited \
+            mix is within 0.1 LU of the target. If the encoder or the resampler changes the file (AAC, \
+            MP3, or a --rate other than the session rate), the export decodes the file, as macOS does, \
+            and writes it again when it decodes over -1 dBTP or more than 0.2 LU off the target. The \
+            search stops after 4 trial renders in a round and 2 rewrites, so it can end short of the \
+            target. Then it prints one line, for example "loudness -16.0 LUFS, true peak -1.2 dBTP, gain \
+            +3.4 dB", with the values of the file; "none" means no measurement, and the gain is then \
+            0 dB. A 16-bit export has TPDF dither. AAC takes a rate of 48000 Hz or less; MP3 takes \
+            32000, 44100, or 48000 Hz. An .m4a gets the chapter markers of the range as a chapter \
+            track, and an .mp3 gets them as ID3 CHAP frames, at most 255. Each chapter keeps its URL \
+            and its image. A chapter at \
             the time of the chapter before it is not in the file, and a warning names it. An .m4a with a \
             chapter image, a chapter with none, and no episode artwork gets no chapter images, and a \
             warning says so.

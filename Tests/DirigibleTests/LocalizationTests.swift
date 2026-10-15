@@ -203,6 +203,18 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.layout.mono", "track.mute.letter", "track.route", "track.route.apps", "track.solo.label",
         "track.solo.letter", "track.volume.value",
     ],
+    "fr": [
+        "agent.mark", "alert.ok", "banner.kind.info", "dock.badge.recording", "episode.copyright",
+        "episode.date", "episode.description", "episode.guid", "episode.notes", "export.chapter.intro",
+        "inspector.clip", "inspector.decibels", "inspector.gain", "inspector.milliseconds",
+        "inspector.tab.clip", "inspector.tab.marker", "marker.image", "menu.transport",
+        "menu.transport.pause", "panel.export.bitrate.value", "panel.export.channels.mono",
+        "panel.export.format", "panel.export.format.aac", "panel.export.format.flac",
+        "panel.export.format.mp3", "panel.export.format.wav", "panel.export.loudness.ebu",
+        "panel.export.loudness.podcast", "panel.export.rate.48000", "report.gain", "start.version",
+        "timeline.accessibility", "timeline.readout.gain", "toolbar.tooltip", "track.layout.mono",
+        "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter", "track.volume.value",
+    ],
 ]
 
 /// The problems of the tables against the keys, in a stable order: per table (by language code),

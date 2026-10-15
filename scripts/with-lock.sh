@@ -8,6 +8,10 @@
 # call prints the holder once and tries again each 30 s (WITH_LOCK_RETRY sets other seconds).
 # After a wait, the take appends one line to dirigible-build-waits.log in the git common dir: the
 # start time, the wait seconds, the command, and the command of the holder, with tabs between.
+# A release call (make check-changed BASE=<ref>, land.sh, make dmg) holds the ticket folder
+# dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
+# ordinary call does not take the lock while a ticket of a live pid is there, so a release call
+# that starts later still runs first. A ticket of a dead pid does not block.
 # When the call, the child, and the process group of the child are all dead, one waiter at a time
 # (the folder <lock>.reap) reads the pid again and takes the lock over. A lock with no pid file is
 # held. A mkdir that fails with no lock folder (a sandbox, a full disk), a reap mkdir that fails
@@ -30,8 +34,39 @@ told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 [[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
-until mkdir "$lock" 2>/dev/null; do
-    [[ -d "$lock" ]] || { echo "with-lock: cannot make $lock; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
+# release_call <command>: a push check (make check-changed BASE=<ref>), a land (land.sh), or a DMG
+# build (make dmg).
+release_call() {
+    local w goal="" base=""
+    [[ "${1##*/}" == land.sh ]] && return 0
+    [[ "${1##*/}" == make ]] || return 1
+    for w in "${@:2}"; do
+        case "$w" in BASE=?*) base=1 ;; dmg) goal=dmg ;; check-changed) [[ $goal == dmg ]] || goal=check ;; esac
+    done
+    [[ $goal == dmg || ($goal == check && -n $base) ]]
+}
+# ahead: the ticket of a live release call other than this one. A ticket of a dead pid goes.
+first="${lock%/*}/dirigible-build-first" ticket=""
+ahead() {
+    local t
+    for t in "$first"/*; do
+        [[ -d "$t" && "${t##*/}" != $$ ]] || continue
+        alive "${t##*/}" && return 0
+        rmdir "$t" 2>/dev/null
+    done
+    return 1
+}
+if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
+    ticket="$first/$$"
+    trap 'rmdir "$ticket" 2>/dev/null' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+fi
+while :; do
+    if [[ -n "$ticket" ]] || ! ahead; then
+        mkdir "$lock" 2>/dev/null && break
+        [[ -d "$lock" ]] || { echo "with-lock: cannot make $lock; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
+    fi
     pid="$(cat "$lock/pid" 2>/dev/null)" child="$(cat "$lock/child" 2>/dev/null)"
     if [[ -n "$pid" ]] && ! alive "$pid" && ! alive "$child" && ! alive "-$child"; then
         if mkdir "$lock.reap" 2>/dev/null; then
@@ -46,11 +81,16 @@ until mkdir "$lock" 2>/dev/null; do
     fi
     if [[ -z "$told" ]]; then
         held="$(cat "$lock/command" 2>/dev/null)"
-        echo "with-lock: $lock is held by pid ${pid:-unknown (no pid file)} ($held); retry each $retry s" >&2
+        if [[ -d "$lock" ]]; then
+            echo "with-lock: $lock is held by pid ${pid:-unknown (no pid file)} ($held); retry each $retry s" >&2
+        else
+            echo "with-lock: a push check, a land, or a DMG build takes $lock first; retry each $retry s" >&2
+        fi
         told=1
     fi
     sleep "$retry"
 done
+[[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.
 { echo $$ > "$lock/pid" && echo "$*" > "$lock/command"; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }

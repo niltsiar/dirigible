@@ -4,7 +4,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 
 ## States
 
-- `done, Release <n> run <m>`: the feature landed. Several parts join with ` and `, for example `done, Release 2 run 16 and Release 3 run 5`. A part can list runs: `Release 2 runs 11a and 11b-1`. A note in parentheses can follow. A part that stays open goes after `; Later: `. The state stays done.
+- `done, Release <n> run <m>`: the feature landed. Several parts join with ` and `, for example `done, Release 2 run 16 and Release 3 run 5`. A part can list runs: `Release 2 runs 11a and 11b-1`. A run ID can have letters in Release 1 to 3; from Release 4 on it is digits only. A note in parentheses can follow. A part that stays open goes after `; Later: `. The state stays done.
 - `Release <n>`: the feature waits in the open release n. The Release n section of `releases.md` names the ID.
 - `Later`: the feature waits for its own design run. A note in parentheses can follow.
 - `Dropped (<reason>)`: we do not build the feature.

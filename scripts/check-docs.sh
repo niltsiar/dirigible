@@ -36,8 +36,9 @@ if [[ ! -f "$features" ]]; then
 elif [[ ! -f "$catalog" ]]; then
     err "docs/research/podcast-features.md is missing"
 else
-    runid='[0-9][0-9a-z-]*'
-    part="Release [0-9]+ runs? $runid((, | and )$runid)*"
+    # A run ID of Release 1 to 3 can have letters; from Release 4 on it is digits only (tag-release.sh).
+    oldid='[0-9][0-9a-z-]*' newid='[0-9]+'
+    part="(Release [1-3] runs? $oldid((, | and )$oldid)*|Release ([4-9]|[1-9][0-9]+) runs? $newid((, | and )$newid)*)"
     done_state="^done, $part( and $part)*( [(][^)]*[)])?(; Later: .+)?\$"
     if out="$(awk -F'|' -v done_state="$done_state" '
         function t(x) { gsub(/^ +| +$/, "", x); return x }

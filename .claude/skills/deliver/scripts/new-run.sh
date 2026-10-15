@@ -91,14 +91,19 @@ upkeep="$(awk '/^## /{s=$0; next} s=="## Next" && /^- upkeep /{n++} END{print n+
 echo "upkeep items: $upkeep" >&2
 (( upkeep < 8 )) || echo "warning: $upkeep upkeep items wait; make this run a workflow upkeep run (reflect rule 6)" >&2
 # The distinct product runs after the done row of the last run whose name has architecture: an
-# open audit has not audited yet. A run has an open and a done row. The current run, and a run
-# whose name has workflow, upkeep, or docs, do not count.
-product="$(awk -F'|' -v cur="$run" '
+# open audit has not audited yet. A run has an open and a done row. A product run has a run.md
+# branch of type feat, fix, or perf, and a slug with no hardening. The current run does not count.
+product=0
+while IFS= read -r r; do
+    [[ "$r" != *hardening* ]] || continue
+    t="$(sed -n 's/^- Branch: \([^/]*\)\/.*/\1/p' "$root/runs/$r/run.md" 2>/dev/null | head -n 1)" || true
+    [[ "$t" != feat && "$t" != fix && "$t" != perf ]] || product=$((product + 1))
+done < <(awk -F'|' -v cur="$run" '
     { name = $2; gsub(/ /, "", name); state = $4; gsub(/ /, "", state) }
     name !~ /^[0-9]{4}-/ { next }
-    name ~ /architecture/ { if (state ~ /^done([,:]|$)/) { split("", seen); n = 0 }; next }
-    name != cur && name !~ /workflow|upkeep|docs/ && !(name in seen) { seen[name] = 1; n++ }
-    END { print n + 0 }' "$root/ledger.md")"
+    name ~ /architecture/ { if (state ~ /^done([,:]|$)/) { split("", seen); split("", list); n = 0 }; next }
+    name != cur && !(name in seen) { seen[name] = 1; list[++n] = name }
+    END { for (i = 1; i <= n; i++) print list[i] }' "$root/ledger.md")
 (( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run;" \
     "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
     ".claude/skills/architect/references/design-red-flags.md, and the tooling (scripts/, .claude/hooks," \

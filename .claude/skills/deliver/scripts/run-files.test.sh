@@ -207,12 +207,26 @@ grep -qx 'upkeep items: 8' "$tmp/err" || fail "no upkeep count of 8: $(cat "$tmp
 grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 8 upkeep items: $(cat "$tmp/err")"
 
 # It reminds of an architecture audit at 5 distinct product runs after the last run whose name has
-# architecture and a done row. A run has an open and a done row. The current run, and a run whose name has
-# workflow, upkeep, or docs, do not count.
-ledger_rows() {
+# architecture and a done row. A run has an open and a done row. A product run has a run.md branch
+# of type feat, fix, or perf, and a slug with no hardening. The current run does not count.
+# ledger_typed <run>:<type> ...: an open row and a done row of each run, and its run.md.
+ledger_typed() {
   printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
-  local r
-  for r in "$@"; do printf '| %s | x | open | |\n| %s | x | done | |\n' "$r" "$r" >> "$repo/.scratchpads/ledger.md"; done
+  local spec r
+  for spec in "$@"; do
+    r="${spec%%:*}"
+    mkdir -p "$repo/.scratchpads/runs/$r"
+    printf '# Run %s\n\n- Branch: %s/x\n' "$r" "${spec##*:}" > "$repo/.scratchpads/runs/$r/run.md"
+    printf '| %s | x | open | |\n| %s | x | done | |\n' "$r" "$r" >> "$repo/.scratchpads/ledger.md"
+  done
+}
+# ledger_rows <run> ...: a run whose name has workflow, upkeep, or docs is of type docs, else feat.
+ledger_rows() {
+  local r specs=()
+  for r in "$@"; do
+    case "$r" in *workflow* | *upkeep* | *docs*) specs+=("$r:docs") ;; *) specs+=("$r:feat") ;; esac
+  done
+  ledger_typed "${specs[@]}"
 }
 audit() { (cd "$repo" && "$new_run" "$1" feat > /dev/null 2> "$tmp/err") || fail "new-run $1 exits $?"; }
 ledger_rows 2026-01-01-architecture-a 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4
@@ -231,6 +245,17 @@ grep -q 'architecture audit' "$tmp/err" && fail "a reminder after a done archite
 ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 2026-01-04-docs-c 2026-01-05-workflow-d 2026-01-06-docs-e
 audit audit-docs
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder for workflow, upkeep, and docs runs: $(cat "$tmp/err")"
+
+# A run counts by the type of its run.md branch, not by its name: docs, build, and chore runs do not
+# count, nor does a run with hardening in its slug. feat, fix, and perf runs do.
+ledger_typed 2026-01-01-architecture-a:docs 2026-01-02-p1:feat 2026-01-03-p2:fix 2026-01-04-p3:perf 2026-01-05-p4:feat \
+  2026-01-06-cycle:docs 2026-01-07-tool:build 2026-01-08-hardening:fix 2026-01-09-cleanup:chore
+audit audit-types
+grep -q 'architecture audit' "$tmp/err" && fail "a reminder at 4 product runs among docs, build, chore, and hardening runs: $(cat "$tmp/err")"
+ledger_typed 2026-01-01-architecture-a:docs 2026-01-02-p1:feat 2026-01-03-p2:fix 2026-01-04-p3:perf 2026-01-05-p4:feat \
+  2026-01-06-cycle:docs 2026-01-07-tool:build 2026-01-08-hardening:fix 2026-01-09-p5:fix
+audit audit-types-five
+grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder at 5 feat, fix, and perf runs: $(cat "$tmp/err")"
 
 # It prints `consolidation due` when the TOTAL row of docs/workflow/budgets.tsv is 250 or more
 # words over the QUOTA row (decision 0028, Word budgets).
@@ -306,6 +331,10 @@ mixed_ledger() { # mixed_ledger <product runs after the architecture run>
     printf '| 2026-02-05-p5 | x | done | https://x/pull/132, a..b: x |\n| 2026-02-06-architecture-x | x | done, PR 143, v0.3.1 | y |\n'
     local i; for i in $(seq "$1"); do printf '| 2026-02-%02d-q%d | x | done, PR %d, v0.3.1 | y |\n' $((6 + i)) "$i" $((143 + i)); done
   } > "$repo/.scratchpads/ledger.md"
+  for i in $(seq "$1"); do
+    mkdir -p "$repo/.scratchpads/runs/$(printf '2026-02-%02d-q%d' $((6 + i)) "$i")"
+    printf '# Run\n\n- Branch: feat/x\n' > "$repo/.scratchpads/runs/$(printf '2026-02-%02d-q%d' $((6 + i)) "$i")/run.md"
+  done
 }
 mixed_ledger 1; audit mixed-one
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder after a done, PR 143 architecture row and 1 product run: $(cat "$tmp/err")"

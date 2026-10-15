@@ -32,12 +32,12 @@ The workflow runs the reviewer agents in parallel. Skeptics try to refute each w
 - `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those paths in `paths`.
 - other docs paths: no panel.
 
-A code gate with a non-docs, non-comments class also calls the `code-review` skill, while `git status --porcelain` of the branch tree is empty and no `mutate.py` control is active:
+A `risk: yes` code gate with a non-docs, non-comments class also calls the `code-review` skill in round 1 only, while `git status --porcelain` of the branch tree is empty and no `mutate.py` control is active:
 
 - Round 1: `high` on `origin/main...<branch>`.
-- Round 2: `medium` on `<first fix>^..<branch>`, not the workflow.
 - A result that names no range file did not run: rerun it once on `origin/main...<branch>`.
 - No skeptic: the fixer checks each finding.
+- Round 2 is the convergence workflow, with no `code-review`.
 
 Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 

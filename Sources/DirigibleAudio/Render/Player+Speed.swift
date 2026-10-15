@@ -82,8 +82,7 @@ extension Player {
         guard let unit = graph.unit, setRate(unit, speed) else { return false }
         let node = nodeFrames()
         let held = Self.held(nodeFrames: node, latency: latency, speed: current.factor, step: feed?.step)
-        feed?.step = SpeedStep(node: node, held: held)
-        feed?.speed = speed
+        changeFeedSpeed(to: speed, step: SpeedStep(node: node, held: held))
         return true
     }
 

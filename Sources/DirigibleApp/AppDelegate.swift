@@ -48,7 +48,7 @@ import UniformTypeIdentifiers
     @ObservationIgnored private(set) var start: StartWindow?
     /// True from the Quit decision until a cancel: no start window shows (decision 0027), and
     /// each agent edit is refused (decision 0046).
-    @ObservationIgnored var terminating = false
+    @ObservationIgnored private(set) var terminating = false
     /// Sets the Dock badge (decision 0050). Tests give their own.
     @ObservationIgnored var dockBadge: @MainActor (String?) -> Void = { NSApp.dockTile.badgeLabel = $0 }
     /// The socket of the agent server. Tests give a short path of their own.
@@ -333,6 +333,12 @@ import UniformTypeIdentifiers
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Marks the Quit decision (`terminating` is true until `cancelQuit`).
+    func beginQuit() { terminating = true }
+
+    /// Ends `terminating` after a Quit that a question, a refused draft, or a failed save cancelled.
+    func cancelQuit() { terminating = false }
 }
 
 /// `packageIdentity` off the main actor.

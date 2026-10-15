@@ -6,8 +6,9 @@
 # waiting call (the lock of the holder stays), a release by the holder (the waiting call runs), a
 # TERM to a holder (the command stops and the lock goes), a dead holder with a live child (the call
 # waits), a dead holder (the lock is taken over), a git dir with no write (exit 2, also with a dead
-# holder), and a pid write that fails (exit 2, no lock). Each case uses a temporary repo with a
-# worktree, so the lock of an outer with-lock.sh call is not touched.
+# holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
+# with no wait). Each case uses a temporary repo with a worktree, so the lock of an outer
+# with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/with-lock.sh"
@@ -20,7 +21,7 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
-repo="$tmp/repo" lock="$tmp/repo/.git/dirigible-build.lock"
+repo="$tmp/repo" lock="$tmp/repo/.git/dirigible-build.lock" waits="$tmp/repo/.git/dirigible-build-waits.log"
 mkdir -p "$repo/scripts"
 cp "$script" "$repo/scripts/with-lock.sh"
 git -C "$repo" init -q && git -C "$repo" add -A &&
@@ -43,6 +44,7 @@ dead() { ! kill -0 "$1" 2>/dev/null; }
 out="$("$repo/scripts/with-lock.sh" bash -c "cat '$lock/pid'" 2>&1)" || fail "free: exit $?: $out"
 [[ "$out" =~ ^[0-9]+$ ]] || fail "free: no pid in the lock while the command runs: $out"
 [[ ! -e "$lock" ]] || fail 'free: the lock stays after the command'
+[[ ! -e "$waits" ]] || fail "free: a call with no wait appended a wait line: $(cat "$waits")"
 
 # The exit status of the command passes through, and the lock is gone after.
 "$repo/scripts/with-lock.sh" bash -c 'exit 3' > /dev/null 2>&1
@@ -92,6 +94,24 @@ rm -rf "$lock"
 until_true 50 test -e "$tmp/ran" || fail 'release: the waiting call did not run'
 wait "$waiter" || fail 'release: the waiting call failed'
 [[ ! -e "$lock" ]] || fail 'release: the lock stays after the command'
+
+# A call that waited appends one line to dirigible-build-waits.log of the git common dir: the
+# start time, the wait seconds, the command, and the command of the holder.
+rm -f "$waits" "$tmp/ran"
+mkdir "$lock" && echo "$holder" > "$lock/pid" && echo 'make test' > "$lock/command"
+WITH_LOCK_RETRY=1 "$tmp/wt/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail 'wait line: no wait'
+sleep 1.5
+rm -rf "$lock"
+until_true 50 test -e "$tmp/ran" || fail 'wait line: the waiting call did not run'
+wait "$waiter"
+waiter=""
+[[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 ]] || fail "a call that waited appends one wait line: [$(cat "$waits" 2>/dev/null)]"
+started="" seconds=0 command="" held=""
+IFS=$'\t' read -r started seconds command held < "$waits"
+[[ "$started" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T && "$seconds" -ge 1 && "$command" == "touch $tmp/ran" && "$held" == 'make test' ]] ||
+    fail "wait line: [$started] [$seconds] [$command] [$held]"
 
 # A TERM to a holder stops its command, also a process that the command started (make sends
 # TERM only to its recipe shell), and removes the lock.

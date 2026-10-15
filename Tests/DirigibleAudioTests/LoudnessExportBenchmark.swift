@@ -19,16 +19,18 @@ struct LoudnessExportBenchmark {
         #expect(steps.trials == 0, "a mix under the ceiling ran \(steps.trials) trial passes")
     }
 
-    /// Exports the 8 tracks to WAV 16 with podcast, and gives the passes that the search ran. The
-    /// line has the renders (pass 1, each trial pass, each write) and the trial passes.
-    static func exportTwoHours(peaky: Bool, budget: Duration) throws -> (trials: Int, writes: Int) {
+    /// Exports the 8 tracks to `format` stereo with podcast, and gives the passes that the search
+    /// ran. The line has the renders (pass 1, each trial pass, each write) and the trial passes.
+    static func exportTwoHours(
+        _ format: ExportFormat = .wav(.bits16), to name: String = "mix.wav", peaky: Bool, budget: Duration
+    ) throws -> (trials: Int, writes: Int) {
         #if DEBUG
             let blocks = 60
         #else
             let blocks = 720
         #endif
         let (package, frames) = try ExportBenchmark.eightTracks(blocks: blocks, peaky: peaky)
-        let out = package.folder.url.appending(path: "mix.wav")
+        let out = package.folder.url.appending(path: name)
         var steps: [LoudnessSearch.Step] = []
         var tuning = ExportTuning()
         tuning.onStep = { steps.append($0) }
@@ -37,14 +39,14 @@ struct LoudnessExportBenchmark {
         let start = clock.now
         let result = try exportMix(
             package.session, source: #require(ExportSource(range: 0..<frames)),
-            options: ExportOptions(format: .wav(.bits16), layout: .stereo, rate: .session, loudness: .podcast),
+            options: ExportOptions(format: format, layout: .stereo, rate: .session, loudness: .podcast),
             to: out, package: { package.url }, tuning: tuning)
         let elapsed = clock.now - start
 
         let trials = steps.filter { if case .trial = $0 { true } else { false } }.count
         let writes = steps.filter { if case .write = $0 { true } else { false } }.count
         print(
-            "LoudnessExportBenchmark: \(blocks * 10) s of 8 tracks to WAV 16 with podcast in \(elapsed): "
+            "LoudnessExportBenchmark: \(blocks * 10) s of 8 tracks to \(name) with podcast in \(elapsed): "
                 + "\(1 + trials + writes) renders, \(trials) trial passes, \(writes) writes")
         #expect(result.faults == [:])
         expectLUFS(result.loudness?.output, -16, "the output loudness")

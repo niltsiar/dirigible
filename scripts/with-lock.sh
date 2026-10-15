@@ -14,7 +14,8 @@
 # that starts later still runs first. A ticket of a dead pid does not block.
 # When the call, the child, and the process group of the child are all dead, one waiter at a time
 # (the folder <lock>.reap) reads the pid again and takes the lock over. A lock with no pid file is
-# held. A mkdir that fails with no lock folder (a sandbox, a full disk), a reap mkdir that fails
+# held. A mkdir that fails with no lock folder (a sandbox, a full disk) three times in a row (a
+# holder that removes the folder just after one failed mkdir gets a new try), a reap mkdir that fails
 # in a git dir with no write (a dead holder seen from scripts/probe.sh), or a pid write that fails,
 # exits 2 and leaves no lock. Only after its own take does the call set the trap that removes the
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
@@ -64,8 +65,14 @@ if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
 fi
 while :; do
     if [[ -n "$ticket" ]] || ! ahead; then
-        mkdir "$lock" 2>/dev/null && break
-        [[ -d "$lock" ]] || { echo "with-lock: cannot make $lock; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
+        made="" busy=""
+        # A holder can remove the folder after the mkdir of this call failed: try again.
+        for _ in 1 2 3; do
+            mkdir "$lock" 2>/dev/null && { made=1; break; }
+            [[ ! -d "$lock" ]] || { busy=1; break; }
+        done
+        [[ -z "$made" ]] || break
+        [[ -n "$busy" ]] || { echo "with-lock: cannot make $lock; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
     fi
     pid="$(cat "$lock/pid" 2>/dev/null)" child="$(cat "$lock/child" 2>/dev/null)"
     if [[ -n "$pid" ]] && ! alive "$pid" && ! alive "$child" && ! alive "-$child"; then

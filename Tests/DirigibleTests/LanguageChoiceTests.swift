@@ -12,19 +12,20 @@ struct LanguageChoiceTests {
         #expect(LanguageChoice.language(.german).appleLanguages == ["de"])
         #expect(LanguageChoice.language(.english).appleLanguages == ["en"])
         #expect(LanguageChoice.language(.spanish).appleLanguages == ["es"])
+        #expect(LanguageChoice.language(.french).appleLanguages == ["fr"])
     }
 
     /// C8: the pop-up lists the endonyms in the order of `AppLanguage`.
     @Test func endonymOfEachLanguage() {
-        #expect(AppLanguage.allCases.map(\.endonym) == ["Deutsch", "English", "Español"])
+        #expect(AppLanguage.allCases.map(\.endonym) == ["Deutsch", "English", "Español", "Français"])
     }
 
     /// C3: a stored list shows the language of the next launch, never System Language.
     @Test(arguments: [
         (["de-AT"], LanguageChoice.language(.german)), (["es"], .language(.spanish)),
         (["es-ES"], .language(.spanish)), (["es-MX"], .language(.spanish)), (["ja", "es"], .language(.spanish)),
-        (["fr", "es"], .language(.spanish)), (["en"], .language(.english)), (["en-GB"], .language(.english)),
-        (["ja"], .language(.english)), (["fr"], .language(.english)),
+        (["fr", "es"], .language(.french)), (["fr-CA"], .language(.french)), (["en"], .language(.english)),
+        (["en-GB"], .language(.english)), (["ja"], .language(.english)), (["fr"], .language(.french)),
     ])
     func readMapsTheStoredValue(stored: [String], choice: LanguageChoice) {
         #expect(LanguageChoice(stored: stored) == choice)

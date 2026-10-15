@@ -22,6 +22,14 @@ code=$?
 kill -0 "$pid" 2>/dev/null || fail "a running Dirigible: the script stopped it"
 [[ ! -e "$tmp/shots" ]] || fail "a running Dirigible: the folder was made"
 
+# A language with no folder in Support/Resources stops the script with exit 2, before a build, a
+# folder, or a window.
+err="$("$shots" "$tmp/shots-xx" xx 2>&1 >/dev/null)"
+code=$?
+[[ $code -eq 2 ]] || fail "an unknown language: exit $code, not 2"
+[[ "$err" == *"Support/Resources/xx.lproj"* ]] || fail "an unknown language: the message does not name the folder: $err"
+[[ ! -e "$tmp/shots-xx" ]] || fail "an unknown language: the folder was made"
+
 # The images must not depend on the stored View preferences: the launch arguments pin the
 # inspector hidden and the loudness meter shown. The argument domain wins over a stored value.
 args="$(awk '/^open -a "\$app"/ { on = 1 } on { print } on && !/\\$/ { exit }' "$shots")"

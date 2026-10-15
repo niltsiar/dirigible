@@ -1,11 +1,14 @@
 #!/bin/bash
 # Make the screenshots of the README and the guide from the scripted "Demo Episode" session.
-# Usage: scripts/screenshots.sh <folder>. The script builds the app and the CLI of this tree first.
+# Usage: scripts/screenshots.sh <folder> [<lang>]. The script builds the app and the CLI of this tree
+# first. <lang> is a folder of Support/Resources (<lang>.lproj), by default en. The script refuses any
+# other value with exit 2, before it builds.
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
-# The script opens build/Dirigible.app in English (US number format) and light mode, and writes
-# docs/images/screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png,
-# screenshot-episode.png, screenshot-crossfade.png, and screenshot-settings.png. The app also
+# The script opens build/Dirigible.app in the language (the number format of its locale) and light
+# mode, and writes screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png,
+# screenshot-episode.png, screenshot-crossfade.png, and screenshot-settings.png. For en, it writes
+# them to docs/images. For another language, it writes them to <folder>/images. The app also
 # writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
 # this script as a check.
 # The terminal app needs the Screen Recording and Accessibility permissions, and the screen must be
@@ -13,7 +16,18 @@
 # A running copy of the app ignores the launch arguments, and it can hold a real session. The
 # script does not stop it: it refuses to start.
 set -euo pipefail
-folder="${1:?usage: screenshots.sh <folder>}"
+folder="${1:?usage: screenshots.sh <folder> [<lang>]}"
+lang="${2:-en}"
+repo="$(cd "$(dirname "$0")/.." && pwd -P)"
+[[ "$lang" =~ ^[a-z]{2,3}$ && -d "$repo/Support/Resources/$lang.lproj" ]] || {
+    echo "screenshots.sh: no language '$lang': Support/Resources/$lang.lproj is missing." >&2
+    exit 2
+}
+case "$lang" in
+de) locale=de_DE ;; en) locale=en_US ;; es) locale=es_ES ;; fr) locale=fr_FR ;; it) locale=it_IT ;;
+nl) locale=nl_NL ;; pt) locale=pt_BR ;;
+*) echo "screenshots.sh: no locale for '$lang': add it to this script." >&2; exit 2 ;;
+esac
 refuse_running() {
     if pgrep -x Dirigible >/dev/null; then
         echo "screenshots.sh: Dirigible runs. Quit it, then run this script again." >&2
@@ -21,9 +35,9 @@ refuse_running() {
     fi
 }
 refuse_running
-repo="$(cd "$(dirname "$0")/.." && pwd -P)"
 app="$repo/build/Dirigible.app"
 images="$repo/docs/images"
+[[ "$lang" == en ]] || images="$folder/images"
 
 "$repo/scripts/bundle.sh" >/dev/null
 swift build --package-path "$repo" --product dirigible >/dev/null
@@ -73,6 +87,7 @@ for line in "${lines[@]}"; do
 done
 ' screenshots "$cli"
 session="$(cd "$folder" && pwd -P)/Demo Episode.dirigible"
+mkdir -p "$images"
 # The episode details, with the app icon as the artwork.
 sips -s format png -Z 1024 "$app/Contents/Resources/AppIcon.icns" --out "$folder/cover.png" >/dev/null
 "$cli" episode set "$session" --title "Demo Episode 1: How podcasts get made" --show "The Demo Show" \
@@ -85,8 +100,8 @@ pid=""
 trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
 # The View preferences and the agent switch in the arguments win over the stored ones, so the
 # images do not depend on them. The inspector toggle below starts from hidden.
-open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(en)" \
-    -AppleLocale en_US -ApplePersistenceIgnoreState YES -view.inspector.shown NO -view.loudness.shown YES \
+open -a "$app" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "($lang)" \
+    -AppleLocale "$locale" -ApplePersistenceIgnoreState YES -view.inspector.shown NO -view.loudness.shown YES \
     -agents.edit.open.sessions NO
 # No copy ran before the launch, so the one Dirigible process is the launched one.
 # open can return before the process shows, so wait up to 10 s for it.
@@ -100,19 +115,22 @@ done
 # The size of a new session window: a content size of 1180 x 720 pt (placeAsSessionWindow) and
 # the toolbar. Another size (a narrow screen, a saved window) gives other images.
 # The window is the "Demo Episode" window of the launched process, not a window of another copy.
-# Prints "<number> <width> x <height>" of the window with the title in argument 1, after it shows.
+# Prints "<number> <width> x <height>" of the window after it shows: the window with the title in
+# argument 1, or, with no title, the layer-0 window whose number is not the one in argument 2 (the
+# Settings window: its title is localized).
 find_window() {
     local found=""
     for _ in $(seq 60); do
-        found="$(PID="$pid" NAME="$1" swift - <<'SWIFT'
+        found="$(PID="$pid" NAME="$1" EXCEPT="${2:-}" swift - <<'SWIFT'
 import CoreGraphics
 import Foundation
 let pid = Int(ProcessInfo.processInfo.environment["PID"] ?? "")
-let name = ProcessInfo.processInfo.environment["NAME"]
+let name = ProcessInfo.processInfo.environment["NAME"] ?? ""
+let except = Int(ProcessInfo.processInfo.environment["EXCEPT"] ?? "")
 let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
 if let window = windows.first(where: {
-    $0[kCGWindowOwnerPID as String] as? Int == pid && $0[kCGWindowName as String] as? String == name
-        && $0[kCGWindowLayer as String] as? Int == 0
+    $0[kCGWindowOwnerPID as String] as? Int == pid && $0[kCGWindowLayer as String] as? Int == 0
+        && (name.isEmpty ? $0[kCGWindowNumber as String] as? Int != except : $0[kCGWindowName as String] as? String == name)
 }), let bounds = window[kCGWindowBounds as String] as? [String: Any] {
     print("\(window[kCGWindowNumber as String]!) \(bounds["Width"]!) x \(bounds["Height"]!)")
 }
@@ -170,18 +188,22 @@ shot screenshot-episode.png
 key 53
 key 34 --command --option
 # Esc clears the selection. Home, then Shift-Right two times: the playhead goes to the join in
-# Host 1. View > Zoom In six times (the menu, so the key layout does not matter): zoom in at the
+# Host 1. Zoom In six times (the menu, so the key layout does not matter): zoom in at the
 # playhead, so the X of the crossfade is about 200 pt.
 key 53
 key 115
 key 124 --shift
 key 124 --shift
-for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "View > Zoom In" >/dev/null; done
+# The View menu title is macOS text, so the press path is the title of the item, from the table.
+zoom_in="$(plutil -convert json -o - "$repo/Support/Resources/$lang.lproj/Localizable.strings" |
+    python3 -I -c 'import json, sys; print(json.load(sys.stdin)["menu.view.zoom.in"])')"
+for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "$zoom_in" >/dev/null; done
 sleep 1
 shot screenshot-crossfade.png
-# Dirigible > Settings: the image is the Settings window alone, at its own size.
-swift "$repo/scripts/ax.swift" press "Settings…" >/dev/null
-found="$(find_window "Dirigible Settings")"
+# Command-Comma opens Settings (its menu title is localized): the image is the Settings window
+# alone, at its own size.
+key 43 --command
+found="$(find_window "" "$id")"
 [[ -n "$found" ]] || { echo "screenshots.sh: the Settings window did not show." >&2; exit 1; }
 id="${found%% *}"
 size="${found#* }"

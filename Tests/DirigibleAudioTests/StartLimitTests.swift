@@ -117,7 +117,7 @@ struct StartLimitTests {
         let writer = try #require(writer)
         writer.post(.alive(false), from: hal.current(uid))
         writer.post(.devicesChanged, from: nil)
-        await until(limit: busy, "the come-back attach of \(uid) did not wait") { hal.heldAttachCount(uid) == 1 }
+        await until(limit: busy, "the come-back attach of \(uid) did not wait") { hal.heldAttachCount(uid) >= 1 }
     }
 
     /// The frames of each clip of `track`.

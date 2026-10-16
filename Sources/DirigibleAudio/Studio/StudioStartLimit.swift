@@ -74,10 +74,12 @@ private final class Once<T: Sendable>: Sendable {
     var values: [ObjectIdentifier: T] = [:]
 }
 
-/// A writer of the pending take that did not finish by the stop deadline, with the track of each
-/// of its arms: the stop clears `armed`, and Retry Finalize maps the late gaps through it.
+/// A writer of the pending take that did not finish by the stop deadline, with its device UID and
+/// the track of each of its arms: the stop clears `armed`, and Retry Finalize maps the late gaps
+/// through it.
 struct UnfinishedWriter {
     let writer: DeviceWriter
+    let uid: String
     let tracks: [Int: TrackID]
 }
 
@@ -111,9 +113,12 @@ extension Studio {
         var gaps: [TrackID: TakeResult.Gap] = [:]
         var unfinished: [UnfinishedWriter] = []
         let isAbandoned = { (writer: DeviceWriter) in abandoned.contains { $0 === writer } }
-        let order = writers.values.filter { $0.app == nil } + writers.values.filter { $0.app != nil }
-        let answers = await boundedEach(order.filter { !isAbandoned($0) }, by: deadline) { await $0.finish() }
-        for writer in order {
+        let pairs = Array(writers)
+        let order = pairs.filter { $0.value.app == nil } + pairs.filter { $0.value.app != nil }
+        let answers = await boundedEach(order.map(\.value).filter { !isAbandoned($0) }, by: deadline) {
+            await $0.finish()
+        }
+        for (uid, writer) in order {
             let tracks = Dictionary(
                 uniqueKeysWithValues: armed.indices.filter { armed[$0].writer === writer }.map {
                     ($0 + 1, armed[$0].id)
@@ -123,14 +128,15 @@ extension Studio {
             } else if let finished = answers[ObjectIdentifier(writer)] {
                 for (arm, gap) in finished { gaps[armed[arm - 1].id] = gap }
             } else {
-                unfinished.append(UnfinishedWriter(writer: writer, tracks: tracks))
+                unfinished.append(UnfinishedWriter(writer: writer, uid: uid, tracks: tracks))
             }
         }
         return (gaps, unfinished)
     }
 
     /// Retry Finalize waits for the writers that the stop left unfinished, by `deadline`, and
-    /// adds their gaps to `lastTake`. Returns `.writerDidNotStop` when one still does not answer.
+    /// adds their gaps to `lastTake`. The device of a writer that finished gets its monitor again.
+    /// Returns `.writerDidNotStop` when one still does not answer.
     func finishUnfinished(by deadline: ContinuousClock.Instant) async -> StudioError? {
         var late: [TrackID: TakeResult.Gap] = [:]
         var still: [UnfinishedWriter] = []
@@ -148,6 +154,7 @@ extension Studio {
                 take: last.take, end: last.end, gaps: last.gaps.merging(late) { first, _ in first },
                 droppedFrames: last.droppedFrames, silent: last.silent)
         }
+        if !answers.isEmpty { await monitorTurns.run { await applyMonitor() } }
         return still.first.map { .writerDidNotStop($0.writer.name) }
     }
 

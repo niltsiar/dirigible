@@ -7,10 +7,11 @@ import os
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// A start call of a take that the test environment fakes: the HAL calls of a device and of an
-/// app source (decision 0030), the microphone status read, and the free space read.
+/// A start call of a take that the test environment fakes: the step before the lookup, the HAL
+/// calls of a device and of an app source (decision 0030), the microphone status read, and the
+/// free space read.
 enum StartCall: String, CaseIterable, Sendable {
-    case lookUp, microphoneAccess, freeBytes, watchDevices, attach, lookUpApp, appName, makeTap
+    case beforeLookUp, lookUp, microphoneAccess, freeBytes, watchDevices, attach, lookUpApp, appName, makeTap
 }
 
 /// Records the thread of each start call. After `arm()`, the first call of `held` waits until
@@ -103,7 +104,10 @@ private let zoomBundleID = "us.zoom.xos"
         let tap = InputDevice(
             uid: "com.delineas.dirigible.tap.1001", name: "Tap", nominalRate: 48_000,
             availableRates: [48_000...48_000], channelsPerBuffer: [2], latency: 0)!
-        environment.beforeLookUp = { hold.arm() }
+        environment.beforeLookUp = { _ in
+            hold.arm()
+            hold.call(.beforeLookUp)
+        }
         environment.hal.lookUp = { uid in
             hold.call(.lookUp)
             return hal.lookUp(uid)

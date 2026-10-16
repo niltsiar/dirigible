@@ -244,12 +244,19 @@ final class TimelineScrollView: NSScrollView {
             ruler.needsDisplay = true
         }
         lanes.shownMoved()
+        moveHead()
         if let viewport {
             overview?.show(viewport)
             // A session with no tracks shows no pane: its clamp of the origin is not a view to keep.
             if fitted, source?.session.tracks.isEmpty == false { model?.shownZoom = viewport.zoom }
         }
         publishVisible()
+    }
+
+    /// The head of the playhead on the ruler, at the playhead of the last tick.
+    private func moveHead() {
+        guard let last else { return }
+        ruler.moveHead(toDocumentX: last.playhead / framesPerPoint, taking: last.taking)
     }
 
     @objc private func liveScrollStarted() { liveScrollOrigin = origin }
@@ -353,7 +360,8 @@ final class TimelineScrollView: NSScrollView {
             // The session can end before the right edge: keep it, so the clip view keeps the origin.
             holdEnd(Frames(Int(origin + visibleFrames)))
         }
-        lanes.movePlayhead(to: playhead)
+        lanes.movePlayhead(to: playhead, taking: taking)
+        moveHead()
         overview?.movePlayhead(to: playhead)
         liveTick(head: taking ? Frames(Int(playhead)) : nil)
         guard let model, let previous, taking || !previous.taking else { return }

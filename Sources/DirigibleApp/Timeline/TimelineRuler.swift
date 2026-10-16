@@ -28,6 +28,8 @@ final class TimelineRuler: NSRulerView {
     /// The draws and the rect of the last draw, for the ruler guard of a page turn (live take G5).
     private(set) var draws = 0
     private(set) var drawnRect = NSRect.zero
+    /// The head of the playhead, a layer over the times.
+    let head = PlayheadHead()
 
     init(model: SessionWindow) {
         self.model = model
@@ -38,6 +40,8 @@ final class TimelineRuler: NSRulerView {
         // macOS 14 does not clip a view by default: the base line drew past the lanes into the
         // inspector (run 11b-2, on-screen check).
         clipsToBounds = true
+        wantsLayer = true
+        layer?.addSublayer(head.container)
     }
 
     required init(coder: NSCoder) { fatalError("no coder") }
@@ -45,6 +49,15 @@ final class TimelineRuler: NSRulerView {
     /// The ruler x of a document x.
     private func x(of documentX: Double) -> Double {
         Double(convert(NSPoint(x: documentX, y: 0), from: scrollView?.documentView).x)
+    }
+
+    /// Puts the tip of the head at the document x `documentX`. The ruler x moves with the horizontal
+    /// scroll, so the container starts at the ruler x of the left edge of the lanes in view.
+    func moveHead(toDocumentX documentX: Double, taking: Bool) {
+        guard let shown = (scrollView as? TimelineScrollView)?.shown else { return }
+        head.place(
+            at: x(of: documentX), edge: x(of: Double(shown.minX)), width: bounds.width, taking: taking,
+            scale: Double(window?.backingScaleFactor ?? 2))
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {

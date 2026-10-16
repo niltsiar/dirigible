@@ -17,7 +17,7 @@
 # The database is OPENCODE_DB, else the opencode.db of the XDG data folder (OpenCode v2.0.29).
 # Exit 0: each path is allowed. Exit 1: it prints each failure. Exit 2: usage, no sqlite3, no
 # database, no main checkout, a title that is not <run>/<gate>/<lens>, no session, or two sessions
-# for a title. free-lens-reads.test.sh tests it.
+# for a title.
 set -euo pipefail
 
 die() { echo "free-lens-reads: $1" >&2; exit 2; }
@@ -122,7 +122,6 @@ for s in $sessions; do
     while IFS= read -r input; do
         calls=$((calls + 1))
         while IFS= read -r token; do
-            [[ -n "$token" ]] || continue
             r="$(rel "$token")"
             is_allowed "$r" && continue
             deny ".scratchpads/$r"

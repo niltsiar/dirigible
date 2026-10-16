@@ -10,7 +10,7 @@
 # - the reset is 60 min or less away, and percentUsed is 70 or less: spend.
 # - else: normal.
 # The numbers come from the highest rate on record: 54 % to 81 % in about 70 min of Opus work, so
-# 25 % lasts about one hour. usage-mode.test.sh tests it.
+# 25 % lasts about one hour.
 set -euo pipefail
 
 file="${USAGE_LIMITS_FILE:-$HOME/.claude/usage/limits.json}"

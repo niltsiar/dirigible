@@ -160,7 +160,6 @@ extension EditTakeTests {
     @Test func aPendingTakeRefusesEveryRipple() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
         model.run(.copy)
         try await pendingTake(model, studio)
@@ -181,7 +180,6 @@ extension EditTakeTests {
     @Test func anInsertWithNoClipboardUnderAPendingTakeBeeps() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         try await pendingTake(model, studio)
         model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
         let before = studio.session
@@ -202,7 +200,6 @@ extension EditTakeTests {
     @Test func aPendingTakeHasNoClipSoASetCutActs() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         let clips = studio.session.tracks.map { Array($0.clips) }
         try await pendingTake(model, studio)
         #expect(studio.session.tracks.map { Array($0.clips) } == clips, "the pending take has no clip")

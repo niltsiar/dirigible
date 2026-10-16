@@ -37,7 +37,6 @@ import os
     func window() async throws -> (SessionWindow, Studio) {
         let window = await app.open(try await package())
         let studio = try #require(await window.opened() ? window.studio : nil)
-        try await fixFreeSpace(window)
         studio.environment = hal.environment
         return (window, studio)
     }

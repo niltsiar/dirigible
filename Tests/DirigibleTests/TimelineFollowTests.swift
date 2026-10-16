@@ -193,7 +193,6 @@ import os
         NSWindow.allowsAutomaticWindowTabbing = false
         let window = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 2, audio: true))
         let studio = try #require(await window.opened() ? window.studio : nil)
-        try await fixFreeSpace(window)
         await until("the window shows the lanes") { (window.timelineView?.updates ?? 0) > 0 }
         let view = try #require(window.timelineView)
         studio.environment.playerOutput = .offline

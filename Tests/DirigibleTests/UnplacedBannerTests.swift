@@ -32,7 +32,6 @@ import Testing
         }.value
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         studio.environment = hal.environment
         model.armed = ["t1", "t2"]
         return (model, studio)

@@ -5,8 +5,8 @@
 # an empty selection, a paths scope with no changed file, the read limits of the lens and skeptic
 # prompts, and the absolute run paths of a worktree call. Check that only warning and critical
 # findings go to a skeptic, that the skeptic is the typed agent of .claude/agents/skeptic.md with a
-# fallback of the model and effort of that file, and that the result lists the nits of each lens
-# under `nits`. Run by `make test-hooks`.
+# fallback of the model and effort of that file, the lens effort of each risk and round, and that
+# the result lists the nits of each lens under `nits`. Run by `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
 const src = require('fs').readFileSync(process.env.PANEL, 'utf8').replace(/^export const meta/m, 'const meta')
@@ -20,7 +20,7 @@ const fail = msg => { console.log(`FAIL: ${msg}`); failures++ }
 // `found[lens]` (none by default) with one checked entry for each lens, and a skeptic verdict that
 // upholds each finding. The stub pipeline passes the lens to each stage.
 async function run(args, files = ['a.sh'], found = {}, typedFails = false) {
-  const prompts = [], labels = [], options = []
+  const prompts = [], labels = [], options = [], logs = []
   const agent = async (prompt, opts) => {
     prompts.push(prompt)
     labels.push(opts.label)
@@ -35,8 +35,8 @@ async function run(args, files = ['a.sh'], found = {}, typedFails = false) {
     for (const stage of stages) r = await stage(r, item)
     return r
   }))
-  const result = await new AsyncFunction('args', 'log', 'agent', 'pipeline', src)(args, () => {}, agent, pipeline)
-  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, options, panel: result.panel, maxRounds: result.maxRounds }
+  const result = await new AsyncFunction('args', 'log', 'agent', 'pipeline', src)(args, m => logs.push(m), agent, pipeline)
+  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, options, logs, panel: result.panel, maxRounds: result.maxRounds }
 }
 
 // The model and effort lines of the frontmatter of an agent file.
@@ -44,6 +44,8 @@ const front = name => {
   const head = require('fs').readFileSync(require('path').join(require('path').dirname(process.env.PANEL), `../agents/${name}.md`), 'utf8').split('---')[1]
   return Object.fromEntries(['model', 'effort'].map(k => [k, (head.match(new RegExp(`^${k}: (.+)$`, 'm')) || [])[1]]))
 }
+// The effort option of each review call of a run.
+const efforts = got => got.labels.map((l, i) => [l, got.options[i].effort]).filter(([l]) => l.startsWith('review:'))
 
 const finding = (severity, title) => ({ severity, title, location: 'a.sh:1', failure: 'f', evidence: 'e' })
 const titles = list => JSON.stringify((list || []).map(f => f.title))
@@ -129,8 +131,50 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
     for (const key of ['model', 'effort']) {
       if (!want[key] || fallback.options[j]?.[key] !== want[key]) fail(`skeptic fallback: ${key} ${fallback.options[j]?.[key]}, want ${want[key]} of skeptic.md`)
     }
+    const risky = await run({ target: 'diff', lenses: ['premortem'], risk: 'yes' }, ['a.sh'], { premortem: one })
+    const k = risky.labels.indexOf('verify:premortem')
+    if (risky.options[k]?.effort !== undefined) fail(`skeptic at risk yes: effort ${risky.options[k]?.effort}, want none (skeptic.md sets it)`)
   } catch (error) {
     fail(`skeptic: threw ${error.message}`)
+  }
+  // Lens effort: risk yes gives high, a convergence round gives medium at each risk, and round 1
+  // with no risk passes none, so the agent file sets it. Each review call logs its lens and effort.
+  const ALL = ['premortem', 'devils-advocate', 'architecture', 'code-quality', ...FIVE]
+  const cases = [
+    ['risk yes', { target: 'diff', lenses: ALL, risk: 'yes' }, 'high'],
+    ['a convergence round with risk yes', { target: 'plan', round: 2, prior: ['x'], risk: 'yes' }, 'medium'],
+    ['round 1 with no risk', { target: 'diff', lenses: ALL }, undefined],
+    ['round 1 with risk no', { target: 'diff', lenses: ALL, risk: 'no' }, undefined],
+  ]
+  for (const [name, args, want] of cases) {
+    try {
+      const got = await run(args)
+      const calls = efforts(got)
+      if (!calls.length) fail(`${name}: no review call`)
+      for (const [label, effort] of calls) if (effort !== want) fail(`${name}: ${label} effort ${effort}, want ${want}`)
+      for (const [label] of calls) if (!got.logs.some(m => m.startsWith(`${label}: effort ${want || ''}`))) fail(`${name}: no log line of the effort of ${label}`)
+    } catch (error) {
+      fail(`${name}: threw ${error.message}`)
+    }
+  }
+  await expectThrow('a risk that is not yes or no', { target: 'diff', risk: 'high' }, /args\.risk/)
+  // The fallback of a lens passes the effort of the typed call: at risk yes, high; with none, the
+  // effort of the agent file. It passes the model of the agent file.
+  try {
+    const risky = await run({ target: 'diff', lenses: ALL, risk: 'yes' }, ['a.sh'], {}, true)
+    const plain = await run({ target: 'diff', lenses: ALL }, ['a.sh'], {}, true)
+    for (const [got, name] of [[risky, 'risk yes'], [plain, 'no risk']]) {
+      const calls = got.options.filter(o => o.label.startsWith('review:') && !o.agentType)
+      if (calls.length !== ALL.length) fail(`fallback ${name}: ${calls.length} fallback calls, want ${ALL.length}`)
+      for (const o of calls) {
+        const file = front(got.prompts[got.options.indexOf(o)].match(/agents\/([a-z-]+)\.md/)[1])
+        const effort = name === 'risk yes' ? 'high' : file.effort
+        if (!file.effort || o.effort !== effort) fail(`fallback ${name}: ${o.label} effort ${o.effort}, want ${effort}`)
+        if (o.model !== file.model) fail(`fallback ${name}: ${o.label} model ${o.model}, want ${file.model} of its agent file`)
+      }
+    }
+  } catch (error) {
+    fail(`lens fallback effort: threw ${error.message}`)
   }
   await expectThrow('a relative worktree', { target: 'diff', worktree: 'wt' }, /absolute path/)
   await expectKeys('default plan lenses', { target: 'plan' }, ['premortem', 'devils-advocate', 'architecture'])

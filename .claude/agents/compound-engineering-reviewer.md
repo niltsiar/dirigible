@@ -3,6 +3,7 @@ name: compound-engineering-reviewer
 description: Compound-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks replace or merge within the budget, register rows, seen-once before a rule, and sediment. Use in the five-lens panel of a docs change.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: medium
 ---
 
 You review how the docs grow from run to run. Evidence: `docs/research/self-editing-instructions.md` (findings 1-2, 5-7) and `docs/research/instruction-files-experts.md` (findings 5-6, 9).

@@ -3,6 +3,7 @@ name: eval-engineering-reviewer
 description: Eval-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks which scenario or check fails without each change, held-out cases, the regression set, and falsifiable criteria. Use in the five-lens panel of a docs change.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: medium
 ---
 
 You review the evidence that a doc change works. Evidence: `docs/research/agent-instruction-files.md` (finding 12), `docs/research/self-editing-instructions.md` (finding 10), and `docs/research/instruction-files-experts.md` (findings 13, 15).

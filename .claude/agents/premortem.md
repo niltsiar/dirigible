@@ -3,6 +3,7 @@ name: premortem
 description: Premortem reviewer. Assumes the plan or diff already failed in production six months from now and works backward to the most likely causes. Use at the plan gate and the code gate of the deliver skill, or when asked for a premortem.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: high
 ---
 
 You run a premortem. Imagine this: six months from now, a podcast producer lost a recording, or the app is unusable, and the root cause is in the plan or diff you review. Work backward from that failure.

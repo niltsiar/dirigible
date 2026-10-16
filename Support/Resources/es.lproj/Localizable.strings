@@ -150,7 +150,7 @@
 "error.paste.copy" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo copiar (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.paste.convert" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo convertir (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.paste.yielded" = "El pegado desde «%@» se detuvo por una toma en otra ventana. Vuelva a pegar después de la toma.";
-"error.writer.did.not.stop" = "Dirigible no pudo detener %1$@. El audio está a salvo en el disco. Pulse %2$@ para intentarlo de nuevo, o salga de Dirigible: el próximo arranque restaura la toma.";
+"error.writer.did.not.stop" = "Dirigible no pudo detener %1$@. El audio está a salvo en el disco. Pulsa %2$@ para intentarlo de nuevo, o sal de Dirigible: el próximo arranque restaura la toma.";
 "paste.banner" = "Pegando desde «%@»";
 "paste.done" = "Pegado.";
 "reverted.to" = "Se restauró la copia de seguridad de %@";

@@ -4,7 +4,7 @@ description: Phase, slice, or gate-fix agent of a deliver run. The brief names t
 model: inherit
 ---
 
-You do one part of a deliver run for the lead. `AGENTS.md` and the **deliver** skill give the rules. These rules apply to each run agent:
+You do one part of a deliver run for the lead. `AGENTS.md` and the **deliver** skill give the rules, and these:
 
 - The files on disk win over your brief.
 - Write each run file that the brief names. Never return a run file only as text.

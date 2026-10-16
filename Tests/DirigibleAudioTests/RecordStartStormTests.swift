@@ -73,6 +73,8 @@ struct RecordStartStormTests {
         case flapStorm
         /// `busy`, and 500 rate events and 500 layout events with no change to `mic` in 1 s.
         case formatStorm
+
+        static let stalls: [Change] = [.busyWideListStorm, .busySlowListBurst]
     }
 
     /// Track `t1` on `mic` and track `t2` on `box`, both mono.
@@ -201,9 +203,7 @@ extension RecordStartStormTests {
     /// The two storms of R3 that held the start for 15 to 19 s: the start returns in under 1 s,
     /// the stop in under 2 s with a clip of `t1`, and `box` makes 6 tries or fewer. It prints the
     /// peak footprint of the test process (U11).
-    @Test(
-        .enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"),
-        arguments: [Change.busyWideListStorm, .busySlowListBurst])
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"), arguments: Change.stalls)
     func aStormDoesNotDelayTheStartOrTheStop(change: Change) async throws {
         let hal = TestHAL([mic, change == .busyWideListStorm ? wideBox : box])
         hal.failAttach { uid, _ in uid == "box" ? .undone(kAudioDevicePermissionsError) : nil }

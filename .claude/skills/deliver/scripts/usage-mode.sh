@@ -4,7 +4,8 @@
 # It reads the five_hour row of ~/.claude/usage/limits.json (USAGE_LIMITS_FILE sets another file;
 # USAGE_MODE_NOW sets the clock, in epoch seconds). Claude Code writes the file at the end of each
 # turn of the main agent, so an in-process subagent does not update it. The first rule that fits wins:
-# - no file, no five_hour row, or a resetsAt in the past (a new window): normal.
+# - no file, no five_hour row, a resetsAt in the past (a new window), or a percentUsed that is not
+#   a number or a resetsAt that is not an ISO date: normal.
 # - written_at more than 15 min ago, with a future resetsAt: save (the percent is out of date).
 # - percentUsed 75 or more: save.
 # - the reset is 60 min or less away, and percentUsed is 70 or less: spend.
@@ -22,8 +23,9 @@ jq -r --argjson now "$now" --argjson stale 900 --argjson save 75 --argjson windo
     ([.rate_limits[]? | select(.kind == "five_hour")] | first) as $row
     | if $row == null then "normal"
       else
-        ($row.resetsAt | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $reset
-        | if $reset <= $now then "normal"
+        ($row.resetsAt | if type == "string" then try (sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) catch null else null end) as $reset
+        | if $reset == null or ($row.percentUsed | type) != "number" then "normal"
+          elif $reset <= $now then "normal"
           elif $now - ((.written_at // 0) / 1000) > $stale then "save"
           elif $row.percentUsed >= $save then "save"
           elif $reset - $now <= $window and $row.percentUsed <= $spend then "spend"

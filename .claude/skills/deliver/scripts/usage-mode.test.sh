@@ -1,8 +1,8 @@
 #!/bin/bash
 # Check the mode that usage-mode.sh prints for a fixture limits.json and a fixed clock: the
 # thresholds at both sides (75 % save; 60 min and 70 % spend), a past reset (normal), a file
-# older than 15 min with a future reset (save), the seven_day row ignored, and no file or no
-# five_hour row (normal). Run by `make test-hooks`.
+# older than 15 min with a future reset (save), the seven_day row ignored, and no file, no
+# five_hour row, or a bad percentUsed or resetsAt (normal). Run by `make test-hooks`.
 set -uo pipefail
 mode="$(cd "$(dirname "$0")" && pwd)/usage-mode.sh"
 failures=0
@@ -41,6 +41,18 @@ limits 20 120 0 99; expect "a seven_day row of 99 %" normal
 printf '{"written_at":%s,"rate_limits":[{"kind":"seven_day","percentUsed":99,"resetsAt":"%s"}]}\n' \
   $((now * 1000)) "$(iso $((now + 600)))" > "$tmp/limits.json"
 expect "no five_hour row" normal
+
+# A five_hour row with a bad field: bad data never selects save or spend. The reset is 30 min away.
+# row <fields of the five_hour row>
+row() {
+  printf '{"written_at":%s,"rate_limits":[{"kind":"five_hour"%s}]}\n' $((now * 1000)) "$1" > "$tmp/limits.json"
+}
+ok_reset=",\"resetsAt\":\"$(iso $((now + 1800)))\""
+row "$ok_reset"; expect "no percentUsed" normal
+row ",\"percentUsed\":\"90\"$ok_reset"; expect "a percentUsed that is a string" normal
+row ",\"percentUsed\":10"; expect "no resetsAt" normal
+row ",\"percentUsed\":10,\"resetsAt\":\"soon\""; expect "a resetsAt that is not a date" normal
+row ",\"percentUsed\":10,\"resetsAt\":1792001800"; expect "a resetsAt that is a number" normal
 
 rm "$tmp/limits.json"
 expect "no file" normal

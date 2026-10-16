@@ -25,14 +25,14 @@ import Testing
 
         window.armed = ["t7"]
         window.timeline.visible = nil
-        #expect(window.showsRecordOver, "before the first layout")
+        #expect(!window.showsRecordOver.isEmpty, "before the first layout")
         window.timeline.visible = visible
-        #expect(window.showsRecordOver, "lane 7 is under the visible lanes")
+        #expect(window.showsRecordOver.reached.map(\.track) == ["t7"], "lane 7 is under the visible lanes")
 
         window.armed = ["t2"]
-        #expect(!window.showsRecordOver, "lane 2 is in view")
+        #expect(window.showsRecordOver.isEmpty, "lane 2 is in view")
         window.timeline.visible = TimelineVisible(frames: 200_000..<937_280, lanes: 0..<5)
-        #expect(window.showsRecordOver, "the playhead is before the visible frames")
+        #expect(!window.showsRecordOver.isEmpty, "the playhead is before the visible frames")
         await window.close()
     }
 
@@ -126,9 +126,9 @@ import Testing
         #expect(!visible.lanes.contains(11) && visible.frames.contains(100_000), "\(visible)")
 
         window.armed = ["t12"]
-        #expect(window.showsRecordOver)
+        #expect(window.showsRecordOver.reached.map(\.track) == ["t12"])
         window.armed = ["t2"]
-        #expect(!window.showsRecordOver)
+        #expect(window.showsRecordOver.isEmpty)
         await window.close()
     }
 
@@ -210,23 +210,34 @@ import Testing
     }
 
     /// Code gate 1 item 1: the record-over warning reads the lanes in view after a vertical
-    /// scroll, and a zoom (a page turn) keeps the vertical origin.
+    /// scroll, and a zoom (a page turn) keeps the vertical origin. Timeline-clarity C4: a lane of
+    /// 40 pt with 20 pt in view is in view, and with 19 pt in view it is not.
     @Test func theWarningSeesAnArmedLaneScrolledAboveTheView() async throws {
         let (window, studio, view) = try await openWindow(tracks: Self.tracksThatDoNotFit)
+        try #require(view.lanes.inputs?.laneHeight == 40)
         await studio.perform(.seek(.frame(100_000)))
-        window.armed = ["t1"]
         let insets = view.contentView.contentInsets
-        view.contentView.scroll(to: NSPoint(x: view.contentView.bounds.minX, y: 10 - insets.top))
-        view.reflectScrolledClipView(view.contentView)
-        #expect(window.showsRecordOver, "the top 10 pt of lane 1 are under the time ruler")
+        func scroll(_ y: Double) {
+            view.contentView.scroll(to: NSPoint(x: view.contentView.bounds.minX, y: y - insets.top))
+            view.reflectScrolledClipView(view.contentView)
+        }
+        window.armed = ["t1"]
+        scroll(21)
+        #expect(window.timeline.visible?.lanes.lowerBound == 1, "19 pt of lane 1 are in view")
+        await until(limit: .seconds(5), "the warning names t1") {
+            window.shown.recordOver.reached.map(\.track) == ["t1"]
+        }
+        scroll(20)
+        #expect(window.timeline.visible?.lanes.lowerBound == 0, "20 pt of lane 1 are in view")
+        await until(limit: .seconds(5), "the warning goes at 20 pt") { window.shown.recordOver.isEmpty }
 
         view.lanes.scrollToVisible(
             NSRect(x: view.shown.minX, y: view.lanes.frame.height - 1, width: 1, height: 1))
         let top = view.contentView.bounds.minY
-        #expect(view.shown.minY > 10, "the lanes scroll down")
-        #expect(window.showsRecordOver, "lane 1 is above the view")
+        #expect(view.shown.minY > 21, "the lanes scroll down")
+        #expect(!window.showsRecordOver.isEmpty, "lane 1 is above the view")
         window.armed = [TrackID("t\(Self.tracksThatDoNotFit)")]
-        #expect(!window.showsRecordOver, "the last lane is in view")
+        #expect(window.showsRecordOver.isEmpty, "the last lane is in view")
         window.run(.zoomIn)
         #expect(view.contentView.bounds.minY == top, "a zoom keeps the vertical origin")
         await window.close()

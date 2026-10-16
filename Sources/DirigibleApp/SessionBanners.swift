@@ -63,7 +63,7 @@ struct RecordOverOverlay: View {
 
     var body: some View {
         let _ = model.countBody()
-        if model.shown.recordOver {
+        if !model.shown.recordOver.isEmpty {
             let _ = model.countOverlay()
             BannerRow(kind: .warning, text: L10n.transportRecordOver.text).allowsHitTesting(false)
         }

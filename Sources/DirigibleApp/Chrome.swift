@@ -210,7 +210,7 @@ func keyText(_ shortcut: KeyboardShortcut) -> String {
 /// reads `Studio.play` (decision 0023).
 struct ShownChrome: Equatable {
     /// The record-over warning (decisions 0016, 0017). `ChromeState` is its only owner.
-    var recordOver = false
+    var recordOver = RecordOverWarning()
     /// The banner rows under the take banner, in order.
     var banners: [WindowBanner] = []
     /// The shown state of the record-time part of the window subtitle at the last loop turn.

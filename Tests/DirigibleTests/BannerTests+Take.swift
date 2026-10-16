@@ -38,7 +38,7 @@ extension BannerTests {
             return model.overlayShows > shows
         }
 
-        #expect(model.shown.recordOver)
+        #expect(!model.shown.recordOver.isEmpty)
         #expect(view.convert(view.bounds, to: nil) == before, "the overlay moved the lanes")
         await model.close()
     }
@@ -54,7 +54,7 @@ extension BannerTests {
         await studio.perform(.seek(.frame(100_000)))
         await until(limit: .seconds(10), "the overlay body shows the warning") {
             window.contentView?.layoutSubtreeIfNeeded()
-            return model.shown.recordOver && model.overlayShows > 0
+            return !model.shown.recordOver.isEmpty && model.overlayShows > 0
         }
         let geometry = try #require(view.ruler.inputs?.geometry)
         let x = Double(view.shown.minX) + 100
@@ -97,7 +97,7 @@ extension BannerTests {
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
         await until(limit: .seconds(10), "the overlay body shows the warning") {
             window.contentView?.layoutSubtreeIfNeeded()
-            return model.shown.recordOver && model.overlayShows > 0
+            return !model.shown.recordOver.isEmpty && model.overlayShows > 0
         }
         let (stripAfter, rulerAfter) = (try await pixels(strip), try await pixels(view.ruler))
         #expect(rulerAfter != rulerBefore, "the warning shows over the ruler")

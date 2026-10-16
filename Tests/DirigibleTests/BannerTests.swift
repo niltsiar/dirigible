@@ -309,7 +309,7 @@ import os
         model.timelineView?.viewWillMove(toWindow: nil)
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
         await studio.perform(.seek(.frame(100_000)))
-        await until(limit: .seconds(5), "the record-over warning shows") { model.shown.recordOver }
+        await until(limit: .seconds(5), "the record-over warning shows") { !model.shown.recordOver.isEmpty }
 
         #expect(
             heard == [

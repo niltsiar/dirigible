@@ -289,16 +289,14 @@ final class TimelineScrollView: NSScrollView {
         viewMoved()
     }
 
-    /// The frames and the whole lanes in view, for the record-over warning. It writes only a
-    /// change, so a tick that does not scroll updates no SwiftUI view.
+    /// The frames and the lanes in view, for the record-over warning. It writes only a change, so
+    /// a tick that does not scroll updates no SwiftUI view.
     private func publishVisible() {
-        guard let model, let inputs = source, shown.width > 0 else { return }
-        // A lane counts when all of it is in view, with half a point of rounding.
-        let (top, bottom) = (Double(shown.minY), Double(shown.maxY))
-        let first = max(0, Int(((top - 0.5) / inputs.laneHeight).rounded(.up)))
-        let end = min(inputs.session.tracks.count, Int((bottom + 0.5) / inputs.laneHeight))
+        guard let model, let inputs = source, let geometry = inputs.geometry, shown.width > 0 else { return }
+        let lanes = geometry.lanesInView(
+            top: Double(shown.minY), bottom: Double(shown.maxY), count: inputs.session.tracks.count)
         let visible = TimelineVisible(
-            frames: Frames(Int(origin))..<Frames(Int(origin + visibleFrames)), lanes: first..<max(first, end))
+            frames: Frames(Int(origin))..<Frames(Int(origin + visibleFrames)), lanes: lanes)
         if model.timeline.visible != visible { model.timeline.visible = visible }
     }
 

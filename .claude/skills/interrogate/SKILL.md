@@ -41,7 +41,7 @@ A `risk: yes` code gate with a non-docs, non-comments class also calls the `code
 
 Take `maxRounds` from the **deliver** class table and `risk` from `scripts/check-changed.sh`. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
-Pass `round`, and the earlier verdict files in `prior`. Round 1 is open. Each later round converges.
+Pass `round`, and the earlier verdict files in `prior`.
 
 The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session, pass `scriptPath: ".claude/workflows/review-panel.js"` instead of `name`.
 

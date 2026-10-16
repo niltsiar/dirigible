@@ -446,8 +446,8 @@
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Spuren:";
-"subtitle.record.time" = "Aufnahmezeit:";
-"banner.low.record.time" = "Auf dieser Festplatte bleiben weniger als %lld Min. Aufnahmezeit. Gib Speicherplatz frei, bevor du aufnimmst.";
+"subtitle.record.time" = "Verbleibende Aufnahmezeit:";
+"banner.low.record.time.left" = "Auf dieser Festplatte bleiben weniger als %@ Aufnahmezeit. Gib Speicherplatz frei, bevor du aufnimmst.";
 "banner.use.headphones" = "Verwende Kopfhörer: Der Gast kann in dein Mikrofon übersprechen.";
 "banner.monitor.headphones" = "Verwende Kopfhörer, um das Monitoring zu hören.";
 "banner.export.report" = "Der Export von %1$@ ist fertig: %2$@.";

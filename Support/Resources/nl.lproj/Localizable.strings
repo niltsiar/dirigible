@@ -446,8 +446,8 @@
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Sporen:";
-"subtitle.record.time" = "Opnametijd:";
-"banner.low.record.time" = "Er is minder dan %lld min opnametijd over op deze schijf. Maak schijfruimte vrij voordat je opneemt.";
+"subtitle.record.time" = "Resterende opnametijd:";
+"banner.low.record.time.left" = "Er is minder dan %@ opnametijd over op deze schijf. Maak schijfruimte vrij voordat je opneemt.";
 "banner.use.headphones" = "Gebruik een koptelefoon: de gast kan doorklinken in je microfoon.";
 "banner.monitor.headphones" = "Gebruik een koptelefoon om de monitor te horen.";
 "banner.export.report" = "De export van %1$@ is klaar: %2$@.";

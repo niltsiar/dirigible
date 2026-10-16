@@ -37,9 +37,9 @@ Any free model can get repo text and train on it: the project goes open source (
 
 Explore, the implementer, and the skeptic stay on Claude.
 
-Only the lead thread has `delegate_task`. With no such tool, skip the free job. Call it with `mode: "async"`, `role: "review"`, `target: { providerInstanceId: "opencode", model: "opencode/<model>", options: { variant: "high" } }`, and a `title` that is unique in the run. The OpenCode session gets that title.
+Only the lead thread has `delegate_task`. With no such tool, skip the free job. Call it with `mode: "async"`, `role: "review"`, `target: { providerInstanceId: "opencode", model: "opencode/<model>", options: { variant: "high" } }`, and a `title` of the form `<run>/<gate>/<lens>`. The OpenCode session gets that title. Keep the session id that the call returns.
 
 1. The gate never waits for a free job. When the Claude steps are done, judge with the results that are in.
 2. On "Rate limit exceeded", skip the job and log a `decisions.tsv` row with the result `skipped: rate limit`. Zen publishes no cap for the account, but about 25 sessions in one afternoon reached it. Keep bench and trial sessions off gate days.
 3. The brief names the only `.scratchpads/` files that the model can read, and its answer file. `AGENTS.md` sends a model to the ledger and the backlog, and a bench model read an earlier review (the answer key) when it could.
-4. Before you judge a free result, run `.claude/skills/interrogate/scripts/free-lens-reads.sh "<title>" <allowed file>...`. A non-zero exit voids the result: log it, and judge without it.
+4. Before you judge a free result, run `.claude/skills/interrogate/scripts/free-lens-reads.sh <session id> <allowed file>...`. It audits that one session. With the title in its place, run it in the run worktree: it audits the one session that has that title in that folder, and exits 2 for two. A non-zero exit voids the result: log it, and judge without it.

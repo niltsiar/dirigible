@@ -86,8 +86,6 @@ import Observation
     @ObservationIgnored var armed: [(id: TrackID, writer: DeviceWriter)] = []
     /// The waits of the take start in progress, which a stop ends (decision 0030).
     @ObservationIgnored var startCut: WaitCut?
-    /// The end of the last take start step: the stop deadline is `stopGrace` after it or later.
-    @ObservationIgnored var startEnded: ContinuousClock.Instant?
     /// The writers of the pending take that did not finish by the stop deadline. Retry Finalize
     /// waits for them again. Each one still holds the package lock (decision 0012).
     @ObservationIgnored var unfinishedWriters: [UnfinishedWriter] = []

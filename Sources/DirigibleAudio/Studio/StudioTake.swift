@@ -151,7 +151,6 @@ extension Studio {
             await environment.afterStart()
             await startApps(by: deadline, cut: cut)
             await handOver(by: deadline, cut: cut)
-            startEnded = .now
             startCut = nil
             return .success((started.take, generation))
         }
@@ -162,10 +161,9 @@ extension Studio {
     /// again, then finalizes and saves (0004), then levels the take clips and saves again (0031).
     /// With no take, it does nothing. A success records one undo entry, and one more when the
     /// level changes a gain. A failure keeps the take pending and throws. A writer that never
-    /// attached is given up, and the stop waits for each other writer until one deadline: the
-    /// later of the call plus `stopLimit` and the end of the start step plus `stopGrace`. When a
-    /// writer misses it, no finalize runs: the take stays pending with its audio on disk, and the
-    /// stop throws `.writerDidNotStop` (decision 0030).
+    /// attached is given up, and the stop waits for each other writer until one deadline: the call
+    /// plus `stopLimit`. When a writer misses it, no finalize runs: the take stays pending with its
+    /// audio on disk, and the stop throws `.writerDidNotStop` (decision 0030).
     public func stopRecording() async throws(StudioError) {
         try await stop(.requested)
     }
@@ -190,7 +188,7 @@ extension Studio {
         for writer in abandoned { writer.finishLater() }
         startCut?.cut()
         let error = await serialized { () async -> StudioError? in
-            let deadline = max(called + environment.stopLimit, (startEnded ?? called) + environment.stopGrace)
+            let deadline = called + environment.stopLimit
             let (gaps, unfinished) = await finishWriters(by: deadline, abandoned: abandoned)
             let silent = await silentTracks(skipping: abandoned + unfinished.map(\.writer))
             let dropped = armed.compactMap { track in
@@ -284,7 +282,6 @@ extension Studio {
             startCut = cut
             await startApps(by: deadline, cut: cut)
             await handOver(by: deadline, cut: cut)
-            startEnded = .now
             startCut = nil
             return nil
         }

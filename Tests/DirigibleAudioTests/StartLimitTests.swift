@@ -61,14 +61,11 @@ struct StartLimitTests {
         return hal
     }
 
-    func studio(
-        _ hal: TestHAL, start: Duration = .seconds(10), stop: Duration = .seconds(10), grace: Duration = .seconds(1)
-    ) async throws -> Studio {
+    func studio(_ hal: TestHAL, start: Duration = .seconds(10), stop: Duration = .seconds(10)) async throws -> Studio {
         let studio = try await Studio.open(url)
         studio.environment = .test(hal)
         studio.environment.startLimit = start
         studio.environment.stopLimit = stop
-        studio.environment.stopGrace = grace
         return studio
     }
 

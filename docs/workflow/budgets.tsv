@@ -67,5 +67,5 @@ path	words	decision
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1332	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 CODING_STANDARDS.md	307	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
-TOTAL	32098	2026-10-16-agent-setup code gate 1 item 2 (decisions.tsv 2026-10-16T13:09: the gate fixes after a no-op trim; row = the budgeted sum)
+TOTAL	32115	2026-10-16-agent-setup code gate 1 item 3 (decisions.tsv 2026-10-16T13:13: the gate fixes after a no-op trim; row = the budgeted sum)
 QUOTA	32080	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))

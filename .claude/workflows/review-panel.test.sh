@@ -5,8 +5,9 @@
 # an empty selection, a paths scope with no changed file, the read limits of the lens and skeptic
 # prompts, and the absolute run paths of a worktree call. Check that only warning and critical
 # findings go to a skeptic, that the skeptic is the typed agent of .claude/agents/skeptic.md with a
-# fallback of the model and effort of that file, the lens effort of each risk and round, and that
-# the result lists the nits of each lens under `nits`. Run by `make test-hooks`.
+# fallback of the model and effort of that file, the fallback for an agent file that a worktree diff
+# changes, the lens effort of each risk and round, and that the result lists the nits of each lens
+# under `nits`. Run by `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
 const src = require('fs').readFileSync(process.env.PANEL, 'utf8').replace(/^export const meta/m, 'const meta')
@@ -115,6 +116,24 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
     if (!got.prompts.some(p => p.startsWith('Read /abs/wt/.claude/agents/premortem.md'))) fail('worktree fallback: no read of the worktree agent file')
   } catch (error) {
     fail(`worktree fallback: threw ${error.message}`)
+  }
+  // A typed call runs the agent file of the session checkout. When the diff of a worktree changes
+  // an agent file, its lens or skeptic runs as the fallback that reads the worktree file, with the
+  // model and effort of that file. An unchanged file, or a diff with no worktree, stays typed.
+  try {
+    const changed = ['.claude/agents/premortem.md', '.claude/agents/skeptic.md']
+    const got = await run({ target: 'diff', lenses: ['premortem', 'devils-advocate'], worktree: '/abs/wt' }, changed, { premortem: [finding('warning', 'warn one')] })
+    for (const [label, name] of [['review:premortem', 'premortem'], ['verify:premortem', 'skeptic']]) {
+      const i = got.labels.indexOf(label)
+      if (got.options[i]?.agentType || !(got.prompts[i] || '').startsWith(`Read /abs/wt/.claude/agents/${name}.md`)) fail(`changed agent file: ${label} is not the fallback of the worktree ${name}.md`)
+      for (const [key, want] of Object.entries(front(name))) if (got.options[i]?.[key] !== want) fail(`changed agent file: ${label} ${key} ${got.options[i]?.[key]}, want ${want} of ${name}.md`)
+      if (!got.logs.some(m => m.startsWith(`${label}: the diff changes /abs/wt/.claude/agents/${name}.md`))) fail(`changed agent file: no log line of the fallback of ${label}`)
+    }
+    if (got.options[got.labels.indexOf('review:devils-advocate')]?.agentType !== 'devils-advocate') fail('changed agent file: a lens with an unchanged agent file is not typed')
+    const here = await run({ target: 'diff', lenses: ['premortem'] }, changed)
+    if (here.options[here.labels.indexOf('review:premortem')]?.agentType !== 'premortem') fail('changed agent file with no worktree: the lens is not typed')
+  } catch (error) {
+    fail(`changed agent file: threw ${error.message}`)
   }
   // The skeptic is a typed agent: its contract is in its agent file, not in the prompt. Its
   // fallback reads the worktree agent file and runs with the model and effort of that file.

@@ -130,12 +130,13 @@ const skepticTargetText = target === 'plan'
 // changed file (the main checkout of a branch in a worktree, or a paths scope that matches
 // nothing) gives reviewers nothing to read, and their empty result looks like a clean review.
 // review-panel.test.sh stubs this step by its label.
+let files = []
 if (target === 'diff') {
   const scoped = await agent(
     `Run \`${git} diff --name-only ${scope}...HEAD${pathArgs}\` and \`${git} diff --name-only HEAD${pathArgs}\`. Return each file that either command prints, once. Do not modify files.${treeText}`,
     { label: 'scope', phase: 'Review', effort: 'low', schema: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } } }, required: ['files'] } },
   )
-  const files = (scoped && Array.isArray(scoped.files)) ? scoped.files : []
+  files = (scoped && Array.isArray(scoped.files)) ? scoped.files : []
   const where = `${paths ? `The paths scope (${paths.join(' ')})` : 'The diff'}${worktree ? ` in ${worktree}` : ''}`
   if (!files.length) throw new Error(`${where} has no changed file against ${scope}. Pass worktree for a branch in a worktree. The panel did not run.`)
   log(`Diff scope: ${files.length} changed files.`)
@@ -153,16 +154,24 @@ const MODE_TEXT = {
   converge: `Round ${round} of ${maxRounds}: the convergence round. It closes the gate. ${priorText}\nCheck only these two things. (1) Is each earlier "Act on" item fixed, correctly, and consistently with the other fixes? (2) Did a fix introduce a new defect in the text or code that it changed? Do not review areas that no earlier item or fix touched. Each finding must set priorItem to the item or fix it concerns. Exception: report a critical defect (data loss, crash, security) wherever you see it, with priorItem "none".`,
 }
 
-// An agent file reloads at the next call, but only in the checkout of the session. When the
-// agent file is new in a worktree, or another harness runs this script, fall back to a general
-// agent that reads the same agent file as its role, with its model and the effort of the typed call.
+// An agent file reloads at the next call, but only in the checkout of the session. When the diff
+// of a worktree changes the agent file, when the file is new there, or when another harness runs
+// this script, a general agent reads the worktree file as its role, with the model of the role
+// table and the effort of the typed call, else of the table (the test holds the table equal to each
+// frontmatter). A plan gate has no scope step: it runs a changed agent file of the worktree as the
+// copy of the session checkout.
 async function typedAgent(role, prompt, opts) {
   const file = `${worktree ? `${worktree}/` : ''}.claude/agents/${role.agentType}.md`
+  const fallback = () => agent(`Read ${file}. Act as that agent and follow its rules. Do not modify files.\n\n${prompt}`, { effort: role.effort, ...opts, model: role.model })
+  if (worktree && files.includes(`.claude/agents/${role.agentType}.md`)) {
+    log(`${opts.label}: the diff changes ${file}. Running a general agent that reads it`)
+    return fallback()
+  }
   try {
     return await agent(prompt, { ...opts, agentType: role.agentType })
   } catch (error) {
     log(`${opts.label}: typed agent failed (${error && error.message}). Retrying as a general agent that reads ${file}`)
-    return agent(`Read ${file}. Act as that agent and follow its rules. Do not modify files.\n\n${prompt}`, { effort: role.effort, ...opts, model: role.model })
+    return fallback()
   }
 }
 

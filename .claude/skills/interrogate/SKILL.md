@@ -43,7 +43,7 @@ Take `maxRounds` from the **deliver** class table and `risk` from `scripts/check
 
 Pass `round`, and the earlier verdict files in `prior`.
 
-The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session, pass `scriptPath: ".claude/workflows/review-panel.js"` instead of `name`.
+The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session or on the branch, pass `scriptPath` with its absolute path in the tree under review, instead of `name`.
 
 A lens in `missing` (no result, or no `checked` list) makes the gate incomplete, because an empty result looks the same as "no findings". Run that lens again with the Agent tool before you judge.
 

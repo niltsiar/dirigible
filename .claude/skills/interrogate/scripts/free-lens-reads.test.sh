@@ -6,7 +6,9 @@
 # another directory is not audited); and exits 2 for a bad title, two sessions, no session, or no
 # database. The fixture database copies the opencode.db shape of
 # OpenCode v2.0.29: session_v2 and session_message, with tool parts in the content of assistant
-# rows. Run by `make test-hooks`.
+# rows. A session that starts in the main checkout, names its path, or runs a search that skips
+# .gitignore (rg -uu, rg --no-ignore, rg --hidden with a root path) or a recursive grep with no
+# path also fails: a search from the worktree finds an empty .scratchpads/. Run by `make test-hooks`.
 set -uo pipefail
 audit="$(cd "$(dirname "$0")" && pwd)/free-lens-reads.sh"
 failures=0
@@ -28,13 +30,14 @@ tool() {
   data="{\"content\":[{\"type\":\"text\",\"text\":\"step\"},{\"type\":\"tool\",\"name\":\"$2\",\"state\":{\"status\":\"completed\",\"input\":$3,\"content\":[{\"type\":\"text\",\"text\":\"${4:-ok}\"}]}}]}"
   sqlite3 "$db" "insert into session_message values ('m$n', '$1', 'assistant', $n, '$data');"
 }
-run() { OPENCODE_DB="$db" FREE_LENS_WORKTREE=/repo "$audit" "$@" > "$tmp/out" 2>&1; code=$?; }
+run() { OPENCODE_DB="$db" FREE_LENS_WORKTREE=/repo FREE_LENS_MAIN=/main "$audit" "$@" > "$tmp/out" 2>&1; code=$?; }
 
 session ses_ok lens-ok
 tool ses_ok read "{\"path\":\"$scratch/runs/r/brief.txt\"}"
 tool ses_ok shell '{"command":"cat .scratchpads/runs/r/brief.txt\nls Sources"}'
 tool ses_ok read '{"path":"/repo/Sources/A.swift"}' "see $scratch/runs/old/review-diff-1.md for the key"
 tool ses_ok write "{\"path\":\"$scratch/runs/r/answer.md\",\"content\":\"x\"}"
+tool ses_ok shell '{"command":"rg --hidden stopGrace Sources && grep -rn stopGrace Sources Tests && rg -u foo && ls /repo-two"}'
 run ses_ok runs/r/brief.txt "$scratch/runs/r/answer.md"
 [[ $code -eq 0 ]] || fail "allowed reads, a quote in output: exit $code: $(cat "$tmp/out")"
 
@@ -65,6 +68,32 @@ session ses_ex lens-ex
 tool ses_ex execute '{"code":"await tools.read({path: `.scratchpads/runs/old/run.md`})"}'
 run ses_ex runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "Code Mode read: expected exit 1, got $code"
+
+# A search or path that could reach the answer key from the worktree: one case each.
+# deny <id> <command> <text of the failure line>
+deny() {
+  session "ses_$1" "lens-$1"
+  tool "ses_$1" shell "{\"command\":\"$2\"}"
+  run "ses_$1" runs/r/brief.txt
+  [[ $code -eq 1 ]] || fail "$1: expected exit 1, got $code: $(cat "$tmp/out")"
+  grep -q "$3" "$tmp/out" || fail "$1: no failure line with '$3': $(cat "$tmp/out")"
+}
+deny uu 'rg -uu review' 'rg -uu'
+deny uuu 'cd Sources && rg -uuu review' 'rg -uu'
+deny noign 'rg --no-ignore review' 'rg --no-ignore'
+deny hidroot 'rg --hidden review /' 'rg --hidden with a root path'
+deny hidhome 'rg --hidden review ~' 'rg --hidden with a root path'
+deny grepnopath 'grep -r review' 'grep -r with no path'
+deny grepnopath2 'cat a | grep -rn review' 'grep -r with no path'
+deny grepafterrg 'rg review Sources | grep -r review' 'grep -r with no path'
+deny maincat 'cat /main/AGENTS.md' 'main checkout'
+deny mainls 'ls /main' 'main checkout'
+
+session ses_inmain r/g/inmain /main
+tool ses_inmain read '{"path":"/main/Sources/A.swift"}'
+run ses_inmain runs/r/brief.txt
+[[ $code -eq 1 ]] || fail "a session that starts in the main checkout: expected exit 1, got $code"
+grep -q 'starts in the main checkout' "$tmp/out" || fail "a session that starts in the main checkout: no failure line: $(cat "$tmp/out")"
 
 session ses_old r/g/lens /old-worktree
 tool ses_old read "{\"path\":\"$scratch/runs/old/review-diff-1.md\"}"

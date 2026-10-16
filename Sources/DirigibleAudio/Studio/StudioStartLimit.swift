@@ -102,23 +102,19 @@ extension Studio {
         for writer in writers.values where writer.app != nil { writer.start() }
     }
 
-    /// Finishes the device writers, then the app writers, by `deadline`, and returns the gaps of
-    /// the take and the writers that did not finish. An app writer can wait for the prompt: a
-    /// device writer closes first, so its input stops at the stop (code gate 2 F1). A writer in
-    /// `abandoned` never attached: it holds no audio, so each of its tracks gets a gap and the
-    /// stop does not wait for it.
+    /// Finishes each writer by `deadline`, and returns the gaps of the take and the writers that
+    /// did not finish. All finishes start at the same time; the stop time (`end(atHostNanos:)`)
+    /// ends each track at the click, so a writer that finishes late records nothing after it. A
+    /// writer in `abandoned` never attached: it holds no audio, so each of its tracks gets a gap
+    /// and the stop does not wait for it.
     func finishWriters(by deadline: ContinuousClock.Instant, abandoned: [DeviceWriter]) async -> (
         gaps: [TrackID: TakeResult.Gap], unfinished: [UnfinishedWriter]
     ) {
         var gaps: [TrackID: TakeResult.Gap] = [:]
         var unfinished: [UnfinishedWriter] = []
         let isAbandoned = { (writer: DeviceWriter) in abandoned.contains { $0 === writer } }
-        let pairs = Array(writers)
-        let order = pairs.filter { $0.value.app == nil } + pairs.filter { $0.value.app != nil }
-        let answers = await boundedEach(order.map(\.value).filter { !isAbandoned($0) }, by: deadline) {
-            await $0.finish()
-        }
-        for (uid, writer) in order {
+        let answers = await boundedEach(writers.values.filter { !isAbandoned($0) }, by: deadline) { await $0.finish() }
+        for (uid, writer) in writers {
             let tracks = Dictionary(
                 uniqueKeysWithValues: armed.indices.filter { armed[$0].writer === writer }.map {
                     ($0 + 1, armed[$0].id)

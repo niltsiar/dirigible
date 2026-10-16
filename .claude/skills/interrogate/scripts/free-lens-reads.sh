@@ -54,7 +54,7 @@ for s in $sessions; do
             found=1
             echo "free-lens-reads: $s: not allowed: .scratchpads/$r"
             bad=1
-        done < <(grep -oE "[^][{}[:space:]\"'\`;|&()<>=,\\\\]*\.scratchpads[^][{}[:space:]\"'\`;|&()<>=,\\\\]*" <<< "$input" || true)
+        done < <(grep -oE "[^][{}[:space:]\"'\`;|&()<>=,\\\\]*\.scratchpads[^][{}[:space:]\"'\`;|&()<>=,\\\\]*" <<< "$input")
     done < <(sqlite3 -readonly "$db" "select json_extract(p.value, '$.state.input') from session_message m, json_each(m.data, '$.content') p
         where m.session_id = '$s' and m.type = 'assistant' and json_extract(p.value, '$.type') = 'tool';")
     [[ $found -eq 0 ]] && echo "free-lens-reads: $s: clean ($calls tool calls)"

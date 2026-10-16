@@ -150,6 +150,7 @@
 "error.paste.copy" = "Dirigible non può incollare da “%1$@”. Impossibile copiare l’audio (errore %2$lld). Controlla il disco e riprova.";
 "error.paste.convert" = "Dirigible non può incollare da “%1$@”. Impossibile convertire l’audio (errore %2$lld). Controlla il disco e riprova.";
 "error.paste.yielded" = "L’operazione Incolla da “%@” si è interrotta a causa di un take in un’altra finestra. Incolla di nuovo dopo il take.";
+"error.writer.did.not.stop" = "Dirigible non è riuscito a fermare %1$@. L’audio è al sicuro sul disco. Fai clic su %2$@ per riprovare, oppure esci da Dirigible: il prossimo avvio ripristina il take.";
 "paste.banner" = "Operazione Incolla da “%@” in corso";
 "paste.done" = "Incollato.";
 "reverted.to" = "Backup del %@ ripristinato";
@@ -210,6 +211,7 @@
 "track.state.write.failed" = "Errore scrittura";
 "track.state.retry.stopped" = "Tentativi interrotti. Disattiva e attiva Livelli di ingresso.";
 "track.state.waiting.app" = "In attesa: %@";
+"track.state.not.started" = "Non avviato";
 "track.state.no.sound" = "Nessun suono da %1$@. Se %1$@ riproduce audio, fai clic su Privacy… e consenti a Dirigible di registrare l’audio di sistema.";
 "track.state.no.sound.short" = "Nessun suono: %@";
 "track.listen.quiet" = "Nessun suono di monitoraggio. Disattiva e riattiva Monitoraggio traccia.";

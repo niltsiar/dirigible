@@ -150,6 +150,7 @@
 "error.paste.copy" = "O Dirigible não pode colar de “%1$@”. Não foi possível copiar o áudio (erro %2$lld). Verifique o disco e tente novamente.";
 "error.paste.convert" = "O Dirigible não pode colar de “%1$@”. Não foi possível converter o áudio (erro %2$lld). Verifique o disco e tente novamente.";
 "error.paste.yielded" = "A colagem de “%@” foi interrompida por uma tomada em outra janela. Cole novamente depois da tomada.";
+"error.writer.did.not.stop" = "O Dirigible não conseguiu parar %1$@. O áudio está seguro no disco. Clique em %2$@ para tentar novamente ou encerre o Dirigible: a próxima abertura restaura a tomada.";
 "paste.banner" = "Colando de “%@”";
 "paste.done" = "Colado.";
 "reverted.to" = "Revertido para o backup de %@";
@@ -210,6 +211,7 @@
 "track.state.write.failed" = "Erro de escrita";
 "track.state.retry.stopped" = "Tentativas encerradas. Desative e ative Níveis de Entrada.";
 "track.state.waiting.app" = "Aguardando %@";
+"track.state.not.started" = "Não iniciado";
 "track.state.no.sound" = "Sem som de %1$@. Se %1$@ reproduz som, clique em Privacidade… e permita que o Dirigible grave o áudio do sistema.";
 "track.state.no.sound.short" = "Sem som de %@";
 "track.listen.quiet" = "Sem som do monitor. Desative e ative Monitorar Pista.";

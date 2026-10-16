@@ -1,6 +1,7 @@
 import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
+import Observation
 
 /// The actions of the session window and the rules that turn them on (decision 0014). Each
 /// action maps to a `Studio` call.
@@ -118,14 +119,28 @@ extension SessionWindow {
     }
 
     /// A finalize error keeps the take pending, and the take banner shows it. A writer that did
-    /// not stop also gets an alert: the take stays pending until Retry Finalize (decision 0030).
+    /// not stop also gets an alert (`followTakeError`).
     func stop() async {
         guard canStop else { return }
-        do throws(StudioError) {
-            try await studio?.stopRecording()
-        } catch .writerDidNotStop(let name) {
-            alert = .error(.writerDidNotStop(name))
-        } catch {}
+        try? await studio?.stopRecording()
+    }
+
+    /// Shows an alert when `takeError` of `studio` becomes `.writerDidNotStop`, for each stop:
+    /// Stop, Space, and the stops of the Studio. The take stays pending until Retry Finalize
+    /// (decision 0030).
+    func followTakeError(_ studio: Studio) {
+        let before = studio.takeError
+        withObservationTracking {
+            _ = studio.takeError
+        } onChange: { [weak self, weak studio] in
+            Task { @MainActor in
+                guard let self, let studio, self.studio === studio else { return }
+                if studio.takeError != before, case .writerDidNotStop(let name)? = studio.takeError {
+                    self.alert = .error(.writerDidNotStop(name))
+                }
+                self.followTakeError(studio)
+            }
+        }
     }
 
     func retry() async {

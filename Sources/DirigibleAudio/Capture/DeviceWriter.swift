@@ -14,6 +14,7 @@ private let attachLog = Logger(subsystem: "com.delineas.dirigible", category: "c
 /// queue, so it is `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
     private enum Phase { case ready, running, lost, finished }
+    private typealias Found = (id: AudioObjectID, device: InputDevice, teardown: Detach, key: AppKey?)
 
     /// A writer with this many failed detaches attaches no more in the take (decision 0013).
     static let failedDetachLimit = 8
@@ -69,10 +70,9 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
     /// checks of `Studio` make every channel exist on the device. `files` is nil for a monitor,
-    /// which reports take 0 (`tracks.take`). `drainInterval`,
-    /// `silenceLimit`, `firstRecordLimit`, and `ringSeconds` are parameters so that tests stay
-    /// fast. `app` is the bundle ID of an app source; then `device` has the UID
-    /// `app:<bundle ID>` and the app name.
+    /// which reports take 0 (`tracks.take`). `drainInterval`, `silenceLimit`, `firstRecordLimit`,
+    /// and `ringSeconds` are parameters so that tests stay fast. `app` is the bundle ID of an app
+    /// source; then `device` has the UID `app:<bundle ID>` and the app name.
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?, hal: DeviceHAL,
         report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
@@ -175,9 +175,8 @@ final class DeviceWriter: @unchecked Sendable {
         }
     }
 
-    /// The WAV bytes of the take so far, for the disk rule.
-    /// Any thread reads it with no queue hop, so a writer that waits (an app attach at the prompt,
-    /// E1) never holds the disk watch.
+    /// The WAV bytes of the take so far, for the disk rule. Any thread reads it with no queue hop,
+    /// so a writer that waits (an app attach at the prompt, E1) never holds the disk watch.
     var wavBytes: Int64 { wavByteCount.load(ordering: .relaxed) }
 
     private func handle(_ event: Event, from sender: DeviceInput?) {
@@ -207,9 +206,8 @@ final class DeviceWriter: @unchecked Sendable {
         }
     }
 
-    /// A rate or a layout that needs a larger ring starts a new appearance, so the IO thread
-    /// never writes into a ring that is too small or touches a new page. A failed attach makes
-    /// the device lost.
+    /// A rate or a layout that needs a larger ring starts a new appearance, so the IO thread never
+    /// writes into a ring that is too small or touches a new page. A failed attach loses the device.
     private func growRing(rate: Double, channels: Int) {
         guard let current = input?.input,
             CaptureRing.capacity(rate: rate, channels: channels, seconds: ringSeconds) > current.ring.capacity
@@ -302,12 +300,12 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
     /// checked before a ring exists, and a ring of an attach that threw is used again. At the
-    /// keep limit it attaches no more, and it reports `.retryStopped` once. Each try that does not
-    /// attach opens a come-back window.
+    /// keep limit it attaches no more, and it reports `.retryStopped` once. A try that makes a tap
+    /// or calls `hal.attach` and does not attach opens a come-back window.
     func attach() -> Bool {
         guard lifecycle.state != .abandoned else { return false }
-        var attached = false
-        defer { if attached { comeBacks.attached() } else { comeBacks.failed(at: .now) } }
+        var outcome = ComeBackSchedule.Outcome.absent
+        defer { comeBacks.tried(outcome, at: .now) }
         guard kept < keepLimit else {
             if !retryStopped {
                 retryStopped = true
@@ -315,7 +313,7 @@ final class DeviceWriter: @unchecked Sendable {
             }
             return false
         }
-        guard failedDetaches < Self.failedDetachLimit, let found = find() else { return false }
+        guard failedDetaches < Self.failedDetachLimit, let found = find(&outcome) else { return false }
         tracks.use(found.device)
         let capacity = CaptureRing.capacity(for: found.device, seconds: ringSeconds)
         if let spare, spare.capacity != capacity {
@@ -327,6 +325,7 @@ final class DeviceWriter: @unchecked Sendable {
         ring.setRate(found.device.nominalRate)
         let input = DeviceInput(id: found.id, ring: ring, writer: self)
         let detachAll: Detach
+        outcome = .failed
         do throws(HALError) {
             let detach = try timedAttach(input)
             let teardown = found.teardown
@@ -356,7 +355,7 @@ final class DeviceWriter: @unchecked Sendable {
         phase = .running
         lastValid = .now
         hasRecord = false
-        attached = true
+        outcome = .attached
         if before == .notAttached { reportFirst() }
         return true
     }
@@ -383,13 +382,15 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// The device as the lookup finds it now with the routed channels. For an app, a new tap and
     /// aggregate of its processes now (decision 0030); a device has no teardown.
-    private func find() -> (id: AudioObjectID, device: InputDevice, teardown: Detach, key: AppKey?)? {
+    private func find(_ outcome: inout ComeBackSchedule.Outcome) -> Found? {
         guard let app else {
             guard let found = hal.lookUp(tracks.device.uid), tracks.hasRoutedChannels(found.device) else { return nil }
             return (found.id, found.device, { true }, nil)
         }
         let layout = ChannelLayout(channelCount: tracks.routedWidth) ?? .mono
-        guard let found = hal.lookUpApp(app, layout), let tap = try? hal.makeTap(found) else { return nil }
+        guard let found = hal.lookUpApp(app, layout) else { return nil }
+        outcome = .failed
+        guard let tap = try? hal.makeTap(found) else { return nil }
         guard tracks.hasRoutedChannels(tap.device) else {
             if !tap.teardown() { failedDetaches += 1 }
             return nil

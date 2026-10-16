@@ -302,4 +302,29 @@ extension DeviceEventTests {
         #expect(tries.count >= 2)
         #expect(gaps.allSatisfy { $0 >= .milliseconds(250) }, "tries \(tries.count), gaps \(gaps)")
     }
+
+    /// A try that finds no device makes no HAL object, so it opens no backoff window: the next
+    /// device-list event that finds the device attaches at once. The drain tick is 1 h away, so
+    /// only an event can make a try.
+    @Test func aDeviceThatComesBackAfterAnAbsenceAttachesAtTheEvent() async throws {
+        let hal = TestHAL([mic])
+        let url = folder.url
+        let writer = DeviceWriter(
+            device: mic, tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { url }),
+            hal: hal.hal, report: log.closure, drainInterval: .seconds(3_600), silenceLimit: noWatchdog,
+            firstRecordLimit: noWatchdog)
+        writer.start()
+        await writer.started()
+        hal.set("mic", id: nil)
+        writer.post(.devicesChanged, from: nil)
+        await writer.started()
+        hal.set("mic", id: 1)
+        writer.post(.devicesChanged, from: nil)
+        await writer.started()
+        let attaches = hal.inputs("mic").count
+        await writer.finish()
+
+        #expect(attaches == 2, "the event after the absence did not attach")
+        #expect(log.states(arm: 1) == [.recording, .deviceLost, .recording])
+    }
 }

@@ -9,7 +9,7 @@ path	words	decision
 .claude/agents/harness-engineering-reviewer.md	350	0028
 .claude/agents/premortem.md	310	baseline
 .claude/agents/prompt-engineering-reviewer.md	350	0028
-.claude/agents/researcher.md	313	2026-10-16-agent-setup plan gate 1 item 2 (decisions.tsv 2026-10-16T10:43: researcher file rules, row = ceil(wc -w x 1.01))
+.claude/agents/researcher.md	339	2026-10-16-agent-setup code gate 1 item 2 (decisions.tsv 2026-10-16T13:09: researcher lock wait, row = ceil(wc -w x 1.01))
 .claude/agents/run-agent.md	164	2026-10-16-agent-setup S3 (decisions.tsv 2026-10-16T09:04: user decision option 3a, row = ceil(wc -w x 1.01))
 .claude/agents/skeptic.md	135	2026-10-16-agent-setup S4 (decisions.tsv 2026-10-16T09:04: user decision option 5a, row = ceil(wc -w x 1.01))
 .claude/skills/architect/	2665	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
@@ -67,5 +67,5 @@ path	words	decision
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1332	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 CODING_STANDARDS.md	307	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
-TOTAL	32080	2026-10-16-agent-setup S7 (decisions.tsv 2026-10-16T10:10: the trim brings the sum under the TOTAL of origin/main; the row stays at its base value)
+TOTAL	32098	2026-10-16-agent-setup code gate 1 item 2 (decisions.tsv 2026-10-16T13:09: the gate fixes after a no-op trim; row = the budgeted sum)
 QUOTA	32080	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))

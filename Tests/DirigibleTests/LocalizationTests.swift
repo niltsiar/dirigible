@@ -63,7 +63,8 @@ struct LocalizationTests {
     }
 
     /// A value equal to its English value is a missing translation unless its key is in the list
-    /// of its language: units, format names, and words that are the same in the language.
+    /// of its language: units, format names, and words that are the same in the language. Each key
+    /// of the list still has the English value, so the list holds no stale key.
     @Test func noValueCopiesEnglish() throws {
         let english = try stringsTable("en")
         for language in AppLanguage.allCases.map(\.rawValue) where language != "en" {
@@ -71,6 +72,8 @@ struct LocalizationTests {
             let allowed = sameAsEnglish[language] ?? []
             let copies = english.keys.sorted().filter { table[$0] == english[$0] && !allowed.contains($0) }
             #expect(copies == [], "\(language) copies the English value")
+            let stale = allowed.sorted().filter { table[$0] != english[$0] }
+            #expect(stale == [], "\(language) lists a key whose value is not the English value")
         }
     }
 

@@ -77,11 +77,15 @@ extension SessionWindow {
         paste(insert: true)
     }
 
-    /// Split and Nudge. A split with no clip at its frames makes no undo entry and beeps; during a
-    /// take `edit` refuses, with no beep. Each Nudge press is one entry; the Marks move with the
-    /// clips, so the next press moves them again.
+    /// Split and Nudge. A split with no clip at its frames makes no undo entry and beeps. A split
+    /// that a busy studio refuses beeps, but not while a take starts or records. Each Nudge press
+    /// is one entry; the Marks move with the clips, so the next press moves them again.
     func runSplitOrNudge(_ command: TimelineCommand, _ studio: Studio) {
         if command == .split {
+            guard idleStudio != nil else {
+                if !isTakeRunning { beep() }
+                return
+            }
             let points = timeline.selection.splitPoints(playhead: studio.playhead, in: studio.session)
             let rights = edit(ripple: false) { session throws(SessionError) in
                 try session.splitClips(at: points.frames, on: points.tracks)

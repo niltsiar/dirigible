@@ -102,6 +102,32 @@ extension EditCommandWindowTests {
         await model.close()
     }
 
+    /// Code gate 1 nit 1: a Split that a busy studio refuses beeps once per press during a level, a
+    /// placement, and a finalize, and changes nothing. Control: on the idle studio, the same Split cuts.
+    @Test func aSplitThatABusyStudioRefusesBeeps() async throws {
+        let (model, studio, _, _) = try await open()
+        let before = studio.session
+        let marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1"])
+        model.timeline.marks = marks
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        let busy: [Studio.Transport] = [
+            .leveling, .placing(SegmentName(take: 1, arm: 1, segment: 1)), .finalizing(take: 1),
+        ]
+        for (n, transport) in busy.enumerated() {
+            studio.transport = transport
+            model.run(.split)
+            #expect(beeps == n + 1, "\(transport): beeps \(beeps)")
+            #expect(studio.session == before && !studio.canUndo && model.alert == nil, "\(transport)")
+            #expect(model.timeline.marks == marks, "\(transport): the selection changed")
+        }
+        studio.transport = .idle
+        model.run(.split)
+        #expect(beeps == 3 && studio.session != before, "the control cuts")
+        await model.close()
+    }
+
     /// The clip fully inside moves by 10 ms (480 frames), and it cuts the head of its neighbor;
     /// the partly selected c1 and the unselected t2 stay. The Marks move with the clip.
     @Test func nudgeRightMovesTheClipsInsideAndTheMarks() async throws {

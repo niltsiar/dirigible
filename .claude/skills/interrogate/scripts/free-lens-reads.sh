@@ -10,8 +10,8 @@
 # tool output quotes does not count. These are failures:
 # - Any other .scratchpads/ path in an input, also the bare folder (a cd into it or a search of it).
 # - A session that starts in the main checkout, or an input that names its path (FREE_LENS_MAIN,
-#   else the first entry of `git worktree list`). A session starts in the run worktree, where
-#   .scratchpads/ holds only the brief files, so a search of the worktree cannot reach a review.
+#   else the first entry of `git worktree list`). The isolation worktree of delegate_task has
+#   no .scratchpads/ folder, so a search of it cannot reach a review.
 # - A shell search that skips .gitignore (rg -uu, rg --no-ignore), a recursive grep with no path,
 #   and an rg or recursive grep of /, ~, $HOME, .., or a folder that holds the main checkout. The
 #   check reads the shell text of a command and the shell text in Code Mode code, quotes removed.
@@ -191,7 +191,7 @@ for s in $sessions; do
     calls=0 found=0 reported="|"
     dir="$(sqlite3 -readonly "$db" "select directory from session_v2 where id = '$s';")"
     dir="${dir%/}"
-    [[ "$dir" == "$main" ]] && deny "the session starts in the main checkout $main, not in the run worktree"
+    [[ "$dir" == "$main" ]] && deny "the session starts in the main checkout $main, not in its isolation worktree"
     # One line per tool input: the JSON text keeps a newline of a command as \n.
     while IFS= read -r input; do
         calls=$((calls + 1))

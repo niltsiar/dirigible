@@ -135,15 +135,17 @@ extension Studio {
     }
 
     /// Retry Finalize waits for the writers that the stop left unfinished, by `deadline`, and
-    /// adds their gaps to `lastTake`. The device of a writer that finished gets its monitor again.
-    /// Returns `.writerDidNotStop` when one still does not answer.
+    /// adds their gaps and their silent tracks to `lastTake`. The device of a writer that finished
+    /// gets its monitor again. Returns `.writerDidNotStop` when one still does not answer.
     func finishUnfinished(by deadline: ContinuousClock.Instant) async -> StudioError? {
         var late: [TrackID: TakeResult.Gap] = [:]
+        var silent: [TrackID: String] = [:]
         var still: [UnfinishedWriter] = []
         let answers = await boundedEach(unfinishedWriters.map(\.writer), by: deadline) { await $0.finish() }
         for entry in unfinishedWriters {
             if let finished = answers[ObjectIdentifier(entry.writer)] {
                 for (arm, gap) in finished { if let track = entry.tracks[arm] { late[track] = gap } }
+                if let app = await entry.writer.silentApp() { for track in entry.tracks.values { silent[track] = app } }
             } else {
                 still.append(entry)
             }
@@ -152,7 +154,7 @@ extension Studio {
         if let last = lastTake {
             lastTake = TakeResult(
                 take: last.take, end: last.end, gaps: last.gaps.merging(late) { first, _ in first },
-                droppedFrames: last.droppedFrames, silent: last.silent)
+                droppedFrames: last.droppedFrames, silent: last.silent.merging(silent) { first, _ in first })
         }
         if !answers.isEmpty { await monitorTurns.run { await applyMonitor() } }
         return still.first.map { .writerDidNotStop($0.writer.name) }

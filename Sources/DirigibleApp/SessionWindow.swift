@@ -262,6 +262,7 @@ import SwiftUI
         phase = .open(studio)
         follow(studio)
         followMonitor(studio)
+        followTakeError(studio)
     }
 
     /// The close button and Close: during a take, ask first.

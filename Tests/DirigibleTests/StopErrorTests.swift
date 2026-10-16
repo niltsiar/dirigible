@@ -9,9 +9,11 @@ import Testing
 /// The Stop alert of a writer that does not stop (decision 0030): it names the control that
 /// finishes the pending take, and Quit does not wait for the writer.
 extension ChromeTests {
-    /// Records on `t1`, holds the detach of `duo`, and clicks Stop, so the writer misses the stop
-    /// deadline. A stop that does not return in 5 s is an issue; then the hold ends.
-    func stopWithAHeldWriter() async throws -> (SessionWindow, Studio) {
+    /// Records on `t1`, holds the detach of `duo`, and clicks Stop (or presses Space with `space`),
+    /// so the writer misses the stop deadline. A stop that does not return in 5 s is an issue; then
+    /// the hold ends. Then waits up to 5 s for the alert, and gives Retry Finalize the default stop
+    /// limit, so a slow finish after the release does not miss it.
+    func stopWithAHeldWriter(space: Bool = false) async throws -> (SessionWindow, Studio) {
         let (model, studio, _) = try await open(tracks: 1)
         studio.environment.stopLimit = .milliseconds(300)
         studio.environment.stopGrace = .zero
@@ -22,11 +24,29 @@ extension ChromeTests {
         // The fed records have host times up to 0.5 s from now; the stop writes no later record.
         try await Task.sleep(for: .milliseconds(600))
         hal.holdDetach()
-        let stop = Task { @MainActor in await model.stop() }
+        let stop = Task { @MainActor in
+            if space { model.transport(.playStop) } else { await model.stop() }
+        }
         await until(limit: .seconds(5), "the stop waits for the held writer") { studio.transport == .idle }
         if studio.transport != .idle { hal.releaseDetach() }
         await stop.value
+        await until(limit: .seconds(5), "no alert after the stop") { model.alert != nil }
+        studio.environment.stopLimit = .seconds(10)
         return (model, studio)
+    }
+
+    /// Space stops the take through the transport, not through the Stop button, and shows the same
+    /// alert.
+    @Test(arguments: [false, true])
+    func eachStopShowsTheAlertOfAWriterThatDidNotStop(space: Bool) async throws {
+        defer { hal.releaseDetach() }
+        let (model, studio) = try await stopWithAHeldWriter(space: space)
+
+        #expect(model.alert == .error(.writerDidNotStop("Duo")))
+        hal.releaseDetach()
+        await model.retry()
+        #expect(studio.pendingTake == nil, "Retry Finalize did not finish the take")
+        await model.close()
     }
 
     @Test func theStopErrorNamesAControlThatFinishesTheTake() async throws {

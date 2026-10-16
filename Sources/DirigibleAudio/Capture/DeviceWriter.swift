@@ -5,24 +5,15 @@ import Foundation
 
 /// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
 /// serial queue pops the ring of the current `DeviceInput`, runs the watchdog while the device
-/// runs, and tries to attach again each 1 s while it is lost. `TrackSegments` writes the records
-/// to the segment files of the tracks. A writer with no take files is a monitor (decision 0015):
-/// it computes the peaks and writes no file. All state is confined to its serial queue, so it is
-/// `@unchecked Sendable`.
+/// runs, and tries to attach again while it is lost (`ComeBackSchedule`). `TrackSegments` writes
+/// the records to the segment files of the tracks. A writer with no take files is a monitor
+/// (decision 0015): it computes the peaks and writes no file. All state is confined to its serial
+/// queue, so it is `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
-    enum Event: Sendable {
-        case rate(Double)
-        /// The channel count of each input buffer.
-        case layout([Int])
-        case alive(Bool)
-        case devicesChanged
-    }
-
     private enum Phase { case ready, running, lost, finished }
 
     /// A writer with this many failed detaches attaches no more in the take (decision 0013).
     static let failedDetachLimit = 8
-    static let retryInterval = Duration.seconds(1)
 
     private let hal: DeviceHAL
     /// The bundle ID of an app source (decision 0030), else nil. An app writer makes a tap and
@@ -61,8 +52,10 @@ final class DeviceWriter: @unchecked Sendable {
     /// True after the first valid record of the current appearance. Before it, the watchdog
     /// uses `firstRecordLimit`.
     private var hasRecord = false
-    /// The retry clock: the loss, or the last try.
-    private var lastTry = ContinuousClock.now
+    /// When a lost writer tries to attach again.
+    private var comeBacks = ComeBackSchedule(at: .now)
+    /// True while one device-list handler waits in the queue: a device-list post then adds none.
+    private let listQueued = ManagedAtomic<Bool>(false)
     private let dropped = ManagedAtomic<Int>(0)
     /// `tracks.wavBytes` after each drain.
     private let wavByteCount = ManagedAtomic<Int64>(0)
@@ -122,8 +115,11 @@ final class DeviceWriter: @unchecked Sendable {
     }
 
     /// A device listener passes its own `DeviceInput`; the device-list listener passes nil. A
-    /// rate, layout, or IsAlive event from an input that is not the current one does nothing.
+    /// rate, layout, or IsAlive event from an input that is not the current one does nothing. A
+    /// device-list handler reads the devices when it runs, so one queued handler serves each
+    /// device-list post before it runs.
     func post(_ event: Event, from sender: DeviceInput?) {
+        if case .devicesChanged = event, listQueued.exchange(true, ordering: .acquiringAndReleasing) { return }
         queue.async { [self] in handle(event, from: sender) }
     }
 
@@ -167,10 +163,12 @@ final class DeviceWriter: @unchecked Sendable {
     var wavBytes: Int64 { wavByteCount.load(ordering: .relaxed) }
 
     private func handle(_ event: Event, from sender: DeviceInput?) {
+        if case .devicesChanged = event { _ = listQueued.exchange(false, ordering: .acquiringAndReleasing) }
         guard phase == .running || phase == .lost else { return }
         if case .devicesChanged = event {
             if phase == .running, app != nil { return appChanged() }
             if phase == .running, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
+            guard phase == .lost, comeBacks.event(at: .now) else { return }
             return comeBack()
         }
         guard let current = input?.input, current === sender else { return }
@@ -208,7 +206,7 @@ final class DeviceWriter: @unchecked Sendable {
         let now = ContinuousClock.now
         if phase == .running, now - lastValid >= (hasRecord ? silenceLimit : firstRecordLimit) {
             lose()
-        } else if phase == .lost, now - lastTry >= Self.retryInterval {
+        } else if phase == .lost, comeBacks.tick(at: now) {
             comeBack()
         }
     }
@@ -269,7 +267,7 @@ final class DeviceWriter: @unchecked Sendable {
         detach()
         tracks.endSegment()
         phase = .lost
-        lastTry = .now
+        comeBacks.lost(at: .now)
         for arm in tracks.arms {
             tracks.gaps[arm] = tracks.gaps[arm] ?? .deviceLost
             if !retryStopped { report(.state(take: tracks.take, arm: arm, .deviceLost, status: nil)) }
@@ -278,9 +276,7 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// Lost to running when the device is present with the routed channels and attaches.
     private func comeBack() {
-        guard phase == .lost else { return }
-        lastTry = .now
-        guard attach() else { return }
+        guard phase == .lost, attach() else { return }
         appState = .recording
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .recording, status: nil)) }
         reportAppState()
@@ -335,8 +331,11 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
     /// checked before a ring exists, and a ring of an attach that threw is used again. At the
-    /// keep limit it attaches no more, and it reports `.retryStopped` once.
+    /// keep limit it attaches no more, and it reports `.retryStopped` once. Each try that does not
+    /// attach opens a come-back window.
     private func attach() -> Bool {
+        var attached = false
+        defer { if attached { comeBacks.attached() } else { comeBacks.failed(at: .now) } }
         guard kept < keepLimit else {
             if !retryStopped {
                 retryStopped = true
@@ -377,6 +376,7 @@ final class DeviceWriter: @unchecked Sendable {
         phase = .running
         lastValid = .now
         hasRecord = false
+        attached = true
         return true
     }
 

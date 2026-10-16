@@ -290,9 +290,9 @@ extension DeviceEventTests {
 
 extension DeviceEventTests {
     /// Each attach throws `.undone`, so each try keeps one input. A monitor writer with a keep
-    /// limit of 2 stops at 2 tries and reports `.retryStopped` once. Control: a take writer (no
-    /// limit) tries at the start and at each of the 5 events, and never stops. The 1 s retry can
-    /// add tries while a full suite holds the main actor, so the control counts at least 6.
+    /// limit of 2 stops at 2 tries and reports `.retryStopped` once, at its next 1 s try.
+    /// Control: a take writer (no limit) tries at the start and once at the end of the first
+    /// window (250 ms), and never stops. The 5 events wait in that window.
     @Test(arguments: [true, false])
     func aMonitorWriterStopsAtItsKeepLimit(monitor: Bool) async throws {
         let hal = TestHAL([mic])
@@ -305,9 +305,18 @@ extension DeviceEventTests {
         writer.start()
 
         for _ in 0..<5 { writer.post(.devicesChanged, from: nil) }
+        if monitor {
+            await until(limit: .seconds(5), "no retry stop") { log.states(arm: 1).contains(.retryStopped) }
+        } else {
+            try await Task.sleep(for: .milliseconds(300))
+        }
         await writer.finish()
 
-        if monitor { #expect(hal.tries("mic").count == 2) } else { #expect(hal.tries("mic").count >= 6) }
+        if monitor {
+            #expect(hal.tries("mic").count == 2)
+        } else {
+            #expect((2...3).contains(hal.tries("mic").count))
+        }
         #expect(log.states(arm: 1).filter { $0 == .retryStopped }.count == (monitor ? 1 : 0))
     }
 }

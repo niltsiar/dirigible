@@ -2,6 +2,7 @@ import CoreAudio
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -273,5 +274,31 @@ extension Report {
     var latencyNanos: Int64? {
         guard case .levels(_, _, let latency, _) = self else { return nil }
         return latency
+    }
+}
+
+// MARK: C3 of record-start-hang: the come-back tries of a lost writer
+
+extension DeviceEventTests {
+    /// Every attach throws `.undone`, and 500 device-list events come right after the start. The
+    /// failed start try opens a backoff window, so the events make one more try at the end of the
+    /// window, not one try for each event: each try comes 250 ms or more after the one before.
+    @Test func aDeviceListStormMakesOneTryPerBackoffWindow() async throws {
+        let hal = TestHAL([mic])
+        let times = OSAllocatedUnfairLock(initialState: [ContinuousClock.Instant]())
+        hal.failAttach { _, _ in
+            times.withLock { $0.append(.now) }
+            return .undone(kAudioHardwareUnspecifiedError)
+        }
+        let writer = writer(mic, hal)
+        for _ in 0..<500 { writer.post(.devicesChanged, from: nil) }
+        await writer.started()
+        await until("no try at the end of the window") { hal.tries("mic").count >= 2 }
+        await writer.finish()
+        let tries = times.withLock { $0 }
+
+        let gaps = zip(tries, tries.dropFirst()).map { $1 - $0 }
+        #expect(tries.count >= 2)
+        #expect(gaps.allSatisfy { $0 >= .milliseconds(250) }, "tries \(tries.count), gaps \(gaps)")
     }
 }

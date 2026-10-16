@@ -109,15 +109,16 @@ extension Selection {
         }
     }
 
-    /// The frames and tracks of a split: for a clip set, the playhead on the tracks where a set
-    /// clip holds it.
+    /// The frames and tracks of a split: for a clip set, the playhead on the tracks where it cuts a
+    /// set clip.
     public func splitPoints(playhead: Frames, in session: Session) -> (frames: [Frames], tracks: [TrackID]) {
         switch self {
         case .range(let marks): return marks.splitPoints(playhead: playhead, in: session)
-        case .clips:
-            let holding = tracks(
-                of: selectedClips(in: session).filter { $0.clip.range.contains(playhead) }, in: session)
-            return ([playhead], session.tracks.map(\.id).filter(holding.contains))
+        case .clips(let set):
+            let cutting = session.tracks.filter { track in
+                track.clips.index(cutting: playhead).map { set.ids.contains(track.clips[$0].id) } == true
+            }
+            return ([playhead], cutting.map(\.id))
         }
     }
 

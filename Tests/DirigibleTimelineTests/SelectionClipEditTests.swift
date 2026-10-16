@@ -79,6 +79,14 @@ struct SelectionClipEditTests {
         #expect(set.span(in: session) == 0..<144_000)
     }
 
+    /// Code gate 1 nit 2: a set clip whose start is at the playhead does not pick its track, as
+    /// `ClipLane.index(cutting:)` decides. Control: a frame inside B picks t2.
+    @Test func aSetClipThatStartsAtThePlayheadIsNoSplitTrack() {
+        #expect(set.splitPoints(playhead: 0, in: session).tracks == [], "A starts at 0")
+        #expect(set.splitPoints(playhead: 96_000, in: session).tracks == [], "B starts at 96,000")
+        #expect(set.splitPoints(playhead: 120_000, in: session).tracks == ["t2"])
+    }
+
     /// C11i: Show Clips in Finder takes the files of the set clips.
     @Test func showInFinderTakesTheSetFiles() {
         #expect(set.files(in: session) == ["fa", "fb"])

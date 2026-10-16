@@ -15,7 +15,7 @@ private let drawLog = Logger(subsystem: "com.delineas.dirigible", category: "tim
 /// the backing scale changes, and at the live ticks of a take (`liveMoved`, `liveChanged`). The
 /// playhead is a layer that moves with no redraw.
 final class TimelineDocumentView: NSView {
-    let playhead = CALayer()
+    let playhead = PlayheadLine()
     /// The snap guide (snap run).
     let guide = GuideLayer()
     /// The value of a gain or fade-handle drag at the pointer (run 11b-1).
@@ -26,8 +26,13 @@ final class TimelineDocumentView: NSView {
     private(set) var liveHead: Frames?
     /// Increase Contrast: the playhead is 2 pt wide, else 1 pt. The display options set it.
     var increasesContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast {
-        didSet { resize() }
+        didSet {
+            resize()
+            showPlayheadColors()
+        }
     }
+    /// True while the line is the record head of a take.
+    private var taking = false
     /// The pixels of the lanes in view.
     let surfaces = LaneSurfaces()
     /// The dim of the lanes that are not heard (decision 0039).
@@ -148,9 +153,8 @@ final class TimelineDocumentView: NSView {
         layer?.addSublayer(dim.layer)
         layer?.addSublayer(tint.layer)
         layer?.addSublayer(drop.layer)
-        playhead.backgroundColor = NSColor.systemRed.cgColor
         playhead.zPosition = 10
-        playhead.actions = ["position": NSNull(), "bounds": NSNull()]
+        showPlayheadColors()
         layer?.addSublayer(playhead)
         layer?.addSublayer(guide)
         readout.zPosition = 20
@@ -205,7 +209,7 @@ final class TimelineDocumentView: NSView {
                 shown: Double(scrollView?.shown.width ?? 0))
         let height = Double(session.tracks.count) * inputs.laneHeight
         if frame.size != NSSize(width: width, height: height) { setFrameSize(NSSize(width: width, height: height)) }
-        playhead.bounds = CGRect(x: 0, y: 0, width: increasesContrast ? 2 : 1, height: height)
+        playhead.resize(width: increasesContrast ? 2 : 1, height: height)
         updateShades()
     }
 
@@ -220,8 +224,18 @@ final class TimelineDocumentView: NSView {
             lanes: LaneShade.selected(inputs), laneHeight: height, width: width, color: palette.outline, alpha: alpha)
     }
 
-    /// Moves the playhead line to `frame`, with no redraw of the lanes.
-    func movePlayhead(to frame: Double) {
+    private func showPlayheadColors() {
+        playhead.apply(PlayheadColors(appearance: effectiveAppearance, taking: taking))
+        scrollView?.ruler.head.show(appearance: effectiveAppearance, wide: increasesContrast)
+    }
+
+    /// Moves the playhead line to `frame`, with no redraw of the lanes. During a take (`taking`) the
+    /// line is the record head and red.
+    func movePlayhead(to frame: Double, taking: Bool = false) {
+        if taking != self.taking {
+            self.taking = taking
+            showPlayheadColors()
+        }
         playhead.position = CGPoint(x: frame / framesPerPoint, y: bounds.height / 2)
     }
 
@@ -244,6 +258,8 @@ final class TimelineDocumentView: NSView {
     func pickPalette() {
         let picked = LanePalette.pick(for: effectiveAppearance)
         if picked != palette { palette = picked }
+        // The line is dark or light by the appearance, also when the lane palette stays.
+        showPlayheadColors()
     }
 
     override func viewDidChangeEffectiveAppearance() {

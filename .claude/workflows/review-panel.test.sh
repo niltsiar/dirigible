@@ -4,8 +4,9 @@
 # list, a named lens outside its gates, an unknown key,
 # an empty selection, a paths scope with no changed file, the read limits of the lens and skeptic
 # prompts, and the absolute run paths of a worktree call. Check that only warning and critical
-# findings go to a skeptic, and that the result lists the nits of each lens under `nits`. Run by
-# `make test-hooks`.
+# findings go to a skeptic, that the skeptic is the typed agent of .claude/agents/skeptic.md with a
+# fallback of the model and effort of that file, and that the result lists the nits of each lens
+# under `nits`. Run by `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
 const src = require('fs').readFileSync(process.env.PANEL, 'utf8').replace(/^export const meta/m, 'const meta')
@@ -19,10 +20,11 @@ const fail = msg => { console.log(`FAIL: ${msg}`); failures++ }
 // `found[lens]` (none by default) with one checked entry for each lens, and a skeptic verdict that
 // upholds each finding. The stub pipeline passes the lens to each stage.
 async function run(args, files = ['a.sh'], found = {}, typedFails = false) {
-  const prompts = [], labels = []
+  const prompts = [], labels = [], options = []
   const agent = async (prompt, opts) => {
     prompts.push(prompt)
     labels.push(opts.label)
+    options.push(opts)
     if (opts.label === 'scope') return { files }
     if (typedFails && opts.agentType) throw new Error('no agent type')
     if (opts.label.startsWith('verify:')) return { verdicts: [0, 1, 2].map(index => ({ index, upheld: true, reason: 'stub' })) }
@@ -34,7 +36,13 @@ async function run(args, files = ['a.sh'], found = {}, typedFails = false) {
     return r
   }))
   const result = await new AsyncFunction('args', 'log', 'agent', 'pipeline', src)(args, () => {}, agent, pipeline)
-  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, panel: result.panel, maxRounds: result.maxRounds }
+  return { keys: result.panel.map(p => p.lens), missing: result.missing, prompts, labels, options, panel: result.panel, maxRounds: result.maxRounds }
+}
+
+// The model and effort lines of the frontmatter of an agent file.
+const front = name => {
+  const head = require('fs').readFileSync(require('path').join(require('path').dirname(process.env.PANEL), `../agents/${name}.md`), 'utf8').split('---')[1]
+  return Object.fromEntries(['model', 'effort'].map(k => [k, (head.match(new RegExp(`^${k}: (.+)$`, 'm')) || [])[1]]))
 }
 
 const finding = (severity, title) => ({ severity, title, location: 'a.sh:1', failure: 'f', evidence: 'e' })
@@ -105,6 +113,24 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
     if (!got.prompts.some(p => p.startsWith('Read /abs/wt/.claude/agents/premortem.md'))) fail('worktree fallback: no read of the worktree agent file')
   } catch (error) {
     fail(`worktree fallback: threw ${error.message}`)
+  }
+  // The skeptic is a typed agent: its contract is in its agent file, not in the prompt. Its
+  // fallback reads the worktree agent file and runs with the model and effort of that file.
+  try {
+    const one = [finding('warning', 'warn one')]
+    const typed = await run({ target: 'diff', lenses: ['premortem'] }, ['a.sh'], { premortem: one })
+    const i = typed.labels.indexOf('verify:premortem')
+    if (typed.options[i]?.agentType !== 'skeptic') fail(`skeptic: agentType ${typed.options[i]?.agentType}, want skeptic`)
+    if ((typed.prompts[i] || '').includes('A finding is upheld only when')) fail('skeptic: the prompt repeats the contract of skeptic.md')
+    const fallback = await run({ target: 'diff', lenses: ['premortem'], worktree: '/abs/wt' }, ['a.sh'], { premortem: one }, true)
+    const j = fallback.labels.lastIndexOf('verify:premortem')
+    if (!(fallback.prompts[j] || '').startsWith('Read /abs/wt/.claude/agents/skeptic.md')) fail('skeptic fallback: no read of the worktree agent file')
+    const want = front('skeptic')
+    for (const key of ['model', 'effort']) {
+      if (!want[key] || fallback.options[j]?.[key] !== want[key]) fail(`skeptic fallback: ${key} ${fallback.options[j]?.[key]}, want ${want[key]} of skeptic.md`)
+    }
+  } catch (error) {
+    fail(`skeptic: threw ${error.message}`)
   }
   await expectThrow('a relative worktree', { target: 'diff', worktree: 'wt' }, /absolute path/)
   await expectKeys('default plan lenses', { target: 'plan' }, ['premortem', 'devils-advocate', 'architecture'])

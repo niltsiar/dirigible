@@ -123,8 +123,9 @@ struct CaptureEnvironment: Sendable {
     /// A step before the Player stop of a take start, off the main actor. Tests hold it.
     var beforePlayerStop: @Sendable () async -> Void = {}
     /// A step of a take start before the device lookup, off the main actor. Tests hold the start
-    /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing.
-    var beforeLookUp: @Sendable () async -> Void = {}
+    /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing. The
+    /// step passes its `#isolation`, so a test hook runs on the thread of the step.
+    var beforeLookUp: @Sendable (isolated (any Actor)?) async -> Void = { _ in }
     /// The wait of a timed take from its start to its stop (decision 0048). Tests hold it with a
     /// gate, so no wall clock races a check.
     var takeLength: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
@@ -331,7 +332,7 @@ func appUID(_ bundleID: String) -> String { "app:\(bundleID)" }
     recordings: ActiveRecordings?, endExport: (@MainActor @Sendable () async -> Void)?
 ) async throws(StudioError) -> (started: StartedTake, free: Int64) {
     dispatchPrecondition(condition: .notOnQueue(.main))
-    await environment.beforeLookUp()
+    await environment.beforeLookUp(#isolation)
     let routes = try checkTake(of: session, armed: armed, environment: environment)
     if let endExport { await endExport() }
     let free = environment.freeBytes(lock)

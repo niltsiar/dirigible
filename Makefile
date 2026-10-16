@@ -129,6 +129,7 @@ HOOK_TESTS = \
 	scripts/check-waits.test.sh \
 	.claude/skills/deliver/scripts/mutation-pass.test.sh \
 	.claude/skills/reflect/scripts/cost.test.sh \
+	.claude/skills/interrogate/scripts/free-lens-reads.test.sh \
 	scripts/check-governance.test.sh \
 	scripts/pr-terms.test.sh \
 	scripts/land.test.sh \

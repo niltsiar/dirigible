@@ -38,8 +38,8 @@ extension ChromeTests {
         let texts = [
             "en": "Dirigible could not stop Duo. The audio is safe on disk. Click Retry Finalize to try again, or "
                 + "quit Dirigible: the next launch restores the take.",
-            "es": "Dirigible no pudo detener Duo. El audio está a salvo en el disco. Pulse Reintentar la finalización "
-                + "para intentarlo de nuevo, o salga de Dirigible: el próximo arranque restaura la toma.",
+            "es": "Dirigible no pudo detener Duo. El audio está a salvo en el disco. Pulsa Reintentar la finalización "
+                + "para intentarlo de nuevo, o sal de Dirigible: el próximo arranque restaura la toma.",
         ]
         for (language, expected) in texts {
             let table = try stringsTable(language)

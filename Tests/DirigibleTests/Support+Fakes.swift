@@ -74,6 +74,48 @@ final class CountingHAL: Sendable {
             }
         }
     }
+
+    /// Calls the IOProc of the last attached input on a thread of its own at the pace of the
+    /// clock, with stereo records of `frames` frames at 48 kHz, as a device with that buffer
+    /// size does, until `stop` is true. Returns the record count at the stop.
+    func stream(frames: Int, until stop: OSAllocatedUnfairLock<Bool>) async -> Int {
+        guard let input = inputs.withLock({ $0.last }) else {
+            Issue.record("No input is attached")
+            return 0
+        }
+        input.ring.setRate(48_000)
+        return await withCheckedContinuation { done in
+            Thread.detachNewThread {
+                let start = AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
+                var samples = [Float](repeating: 0.1, count: 2 * frames)
+                var count = 0
+                while !stop.withLock({ $0 }) {
+                    let now = AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
+                    while UInt64(count * frames) * 1_000_000_000 / 48_000 <= now - start {
+                        var time = AudioTimeStamp()
+                        time.mSampleTime = Double(count * frames)
+                        time.mHostTime = AudioConvertNanosToHostTime(
+                            start + UInt64(count * frames) * 1_000_000_000 / 48_000)
+                        time.mRateScalar = 1
+                        time.mFlags = [.sampleTimeValid, .hostTimeValid]
+                        samples.withUnsafeMutableBytes { bytes in
+                            var list = AudioBufferList(
+                                mNumberBuffers: 1,
+                                mBuffers: AudioBuffer(
+                                    mNumberChannels: 2, mDataByteSize: UInt32(bytes.count), mData: bytes.baseAddress))
+                            var output = AudioBufferList()
+                            withUnsafePointer(to: time) { time in
+                                _ = CaptureRing.ioProc(7, time, &list, time, &output, time, input.ring.context)
+                            }
+                        }
+                        count += 1
+                    }
+                    Thread.sleep(forTimeInterval: 0.001)
+                }
+                done.resume(returning: count)
+            }
+        }
+    }
 }
 
 /// Counts the package writes of a studio. Each write still goes to the disk.

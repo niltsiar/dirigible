@@ -227,6 +227,7 @@ struct DeviceEventTests {
         await writer.finish()
         let files = try FileManager.default.contentsOfDirectory(atPath: folder.url.path).sorted()
         let old = hal.inputs("mic").last
+        let reported = log.count
 
         writer.post(.layout([2]), from: old)
         writer.post(.alive(false), from: old)
@@ -234,7 +235,7 @@ struct DeviceEventTests {
         await writer.finish()
 
         #expect(try FileManager.default.contentsOfDirectory(atPath: folder.url.path).sorted() == files)
-        #expect(log.count == 0)
+        #expect(log.count == reported)
         #expect(hal.tries("mic").count == 1)
     }
 

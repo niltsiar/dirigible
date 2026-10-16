@@ -35,6 +35,7 @@ struct CompactLiveState: View {
         case .retryStopped: L10n.trackStateRetryStopped.text
         case .waitingForApp: L10n.trackStateWaitingForApp.format(source)
         case .noSound: L10n.trackStateNoSound.format(source)
+        case .notStarted: L10n.trackStateNotStarted.text
         }
     }
 }
@@ -57,6 +58,7 @@ struct LiveState: View {
         case .deviceLost: Text(verbatim: L10n.trackStateDeviceLost.text).foregroundStyle(.red)
         case .writeFailed: Text(verbatim: L10n.trackStateWriteFailed.text).foregroundStyle(.red)
         case .retryStopped: Text(verbatim: L10n.trackStateRetryStopped.text).foregroundStyle(.red)
+        case .notStarted: Text(verbatim: L10n.trackStateNotStarted.text).foregroundStyle(.red)
         case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
         case .noSound where showsNoSound:
             // A row of 56 to 79 pt has no room for the text and the "Privacy…" button.

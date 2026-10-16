@@ -117,10 +117,15 @@ extension SessionWindow {
         }
     }
 
-    /// A finalize error keeps the take pending, and the take banner shows it.
+    /// A finalize error keeps the take pending, and the take banner shows it. A writer that did
+    /// not stop also gets an alert: the take stays pending until Retry Finalize (decision 0030).
     func stop() async {
         guard canStop else { return }
-        try? await studio?.stopRecording()
+        do throws(StudioError) {
+            try await studio?.stopRecording()
+        } catch .writerDidNotStop(let name) {
+            alert = .error(.writerDidNotStop(name))
+        } catch {}
     }
 
     func retry() async {

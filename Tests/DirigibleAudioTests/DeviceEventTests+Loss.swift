@@ -26,7 +26,7 @@ extension DeviceEventTests {
 
         #expect(try stems() == ["take1-1-1", "take1-1-2"])
         #expect(gaps == [1: .deviceLost])
-        #expect(log.states(arm: 1).starts(with: [.deviceLost, .recording]))
+        #expect(log.states(arm: 1).starts(with: [.recording, .deviceLost, .recording]))
     }
 
     /// Control of the watchdog: records with no pause keep the device, also when `finish()`
@@ -174,7 +174,7 @@ extension DeviceEventTests {
 
         hal.set("mic", id: nil)
         writer.post(.alive(false), from: hal.current("mic"))
-        await until("mic is not lost") { log.states(arm: 1) == [.deviceLost] }
+        await until("mic is not lost") { log.states(arm: 1) == [.recording, .deviceLost] }
         hal.failAttach { _, count in count == 2 || !comesBack ? .status(kAudioHardwareBadDeviceError) : nil }
         hal.set("mic", id: 1)
         if comesBack {
@@ -194,7 +194,7 @@ extension DeviceEventTests {
             #expect(tries[1].ring.context == tries[2].ring.context)
             #expect(try stems() == ["take1-1-1", "take1-1-2"])
         } else {
-            #expect(log.states(arm: 1) == [.deviceLost])
+            #expect(log.states(arm: 1) == [.recording, .deviceLost])
             #expect(try stems() == ["take1-1-1"])
         }
     }

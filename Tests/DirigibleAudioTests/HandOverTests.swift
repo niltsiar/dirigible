@@ -181,8 +181,9 @@ extension MonitorTests {
 
     // MARK: Criterion 22
 
-    /// Control: `isStarting` is false while the first attach of the take writer is held.
-    @Test func aStopDuringTheHandOverWaitsForIt() async throws {
+    /// Control: `isStarting` is false while the first attach of the take writer is held. The stop
+    /// abandons that writer (decision 0030): its late attach detaches, and the monitor comes back.
+    @Test func aStopDuringAHeldFirstAttachBringsTheMonitorBack() async throws {
         let (folder, url) = try await package()
         let hal = TestHAL([duo])
         let studio = try await open(url, hal)
@@ -202,8 +203,10 @@ extension MonitorTests {
         try await start.value
         try await stop.value
         #expect(studio.transport == .idle)
+        // The late attach of the take writer and the attach of the new monitor come in any order.
         await until(limit: busy, "no monitor after the take") {
-            hal.inputs("duo").count == 3 && hal.current("duo") != nil
+            let late = hal.inputs("duo").dropFirst(held)
+            return late.count == 2 && late.filter { !hal.isDetached($0) }.count == 1
         }
         #expect(studio.liveTracks["t1"]?.state == .monitoring)
         await studio.settle()

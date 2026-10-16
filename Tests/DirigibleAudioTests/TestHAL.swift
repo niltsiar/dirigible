@@ -36,6 +36,10 @@ final class TestHAL: @unchecked Sendable {
     private var nextAggregate = AudioObjectID(1000)
     private var failingTeardown: String?
     private var attachDelays: [String: Duration] = [:]
+    private var detachDelays: [String: Duration] = [:]
+    /// The attach hold of each UID, and the attach calls that waited in it.
+    private var deviceGates: [String: DispatchSemaphore] = [:]
+    private var heldAttaches: [String: Int] = [:]
     private var callLog: [String] = []
     private var tapGate: DispatchSemaphore?
     /// The output devices that left the device list (`deviceExists` is false for them).
@@ -165,6 +169,13 @@ final class TestHAL: @unchecked Sendable {
 
     private func attach(_ input: DeviceInput) throws(HALError) -> Detach {
         lock.withLock { attachGate }?.wait()
+        let deviceGate = lock.withLock { () -> DispatchSemaphore? in
+            let uid = present.first { $0.value.id == input.id }?.key ?? aggregates[input.id] ?? ""
+            guard let gate = deviceGates[uid] else { return nil }
+            heldAttaches[uid, default: 0] += 1
+            return gate
+        }
+        deviceGate?.wait()
         let delay = lock.withLock {
             attachDelays[present.first { $0.value.id == input.id }?.key ?? aggregates[input.id] ?? ""] ?? .zero
         }
@@ -184,6 +195,7 @@ final class TestHAL: @unchecked Sendable {
         }
         return { [self] in
             lock.withLock { detachGate }?.waitOnce()
+            if let delay = lock.withLock({ detachDelays[uid] }) { usleep(UInt32(delay / .microseconds(1))) }
             // The mark and the producer list are one step: a producer that is not in the list
             // sees the mark before it sends.
             let (running, clean) = lock.withLock {
@@ -286,6 +298,22 @@ final class TestHAL: @unchecked Sendable {
 
     /// Each attach of `uid` waits `delay` first: a device that is slow to start.
     func delayAttach(_ uid: String, by delay: Duration) { lock.withLock { attachDelays[uid] = delay } }
+
+    /// Each detach of `uid` waits `delay` first: a device that is slow to stop.
+    func delayDetach(_ uid: String, by delay: Duration) { lock.withLock { detachDelays[uid] = delay } }
+
+    /// The next attaches of `uid` wait until `releaseAttach(uid)`, with no limit: a HAL call that
+    /// blocks the writer queue. The test releases them in a `defer`.
+    func holdAttach(_ uid: String) { lock.withLock { deviceGates[uid] = DispatchSemaphore(value: 0) } }
+
+    /// Lets the held attaches of `uid` go on, and stops holding new ones.
+    func releaseAttach(_ uid: String) {
+        let gate = lock.withLock { deviceGates.removeValue(forKey: uid) }
+        for _ in 0..<8 { gate?.signal() }
+    }
+
+    /// The attach calls of `uid` that waited in its hold.
+    func heldAttachCount(_ uid: String) -> Int { lock.withLock { heldAttaches[uid] ?? 0 } }
 
     /// The app lookups, the taps, the successful attaches, the detaches, the teardown steps, and
     /// the listen attaches and detaches, in order.

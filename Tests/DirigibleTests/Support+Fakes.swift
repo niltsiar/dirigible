@@ -13,6 +13,7 @@ import os
 final class CountingHAL: Sendable {
     private let counts = OSAllocatedUnfairLock(initialState: (attaches: 0, cleanDetaches: 0))
     private let inputs = OSAllocatedUnfairLock(initialState: [DeviceInput]())
+    private let detachHold = OSAllocatedUnfairLock<DispatchSemaphore?>(initialState: nil)
 
     var attaches: Int { counts.withLock { $0.attaches } }
     var isFree: Bool { counts.withLock { $0.attaches == $0.cleanDetaches } }
@@ -26,10 +27,11 @@ final class CountingHAL: Sendable {
         var environment = CaptureEnvironment.live
         environment.hal = DeviceHAL(
             lookUp: { $0 == duo.uid ? (7, duo) : nil },
-            attach: { [counts, inputs] input in
+            attach: { [counts, inputs, detachHold] input in
                 counts.withLock { $0.attaches += 1 }
                 inputs.withLock { $0.append(input) }
                 return {
+                    detachHold.withLock { $0 }?.wait()
                     counts.withLock { $0.cleanDetaches += 1 }
                     return true
                 }
@@ -41,6 +43,18 @@ final class CountingHAL: Sendable {
         environment.silenceLimit = noWatchdog
         environment.firstRecordLimit = noWatchdog
         return environment
+    }
+
+    /// The next detaches wait until `releaseDetach`, with no limit: a writer whose queue does not
+    /// answer the stop. The test releases them in a `defer`.
+    func holdDetach() { detachHold.withLock { $0 = DispatchSemaphore(value: 0) } }
+
+    func releaseDetach() {
+        let hold = detachHold.withLock { held in
+            defer { held = nil }
+            return held
+        }
+        for _ in 0..<8 { hold?.signal() }
     }
 
     /// Pushes `seconds` of stereo silence into the ring of the last attached input, as the IOProc

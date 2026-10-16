@@ -42,12 +42,20 @@ extension Studio {
     /// Runs finalize again for the pending take (decision 0004). With no pending take, it does
     /// nothing. A success records one undo entry. A failure keeps the take pending and throws.
     /// With `leavingUnreadable`, a segment that throws `.segmentUnreadable` stays unplaced and
-    /// the take ends without it (decision 0021). Only a choice of the user sets it.
+    /// the take ends without it (decision 0021). Only a choice of the user sets it. It first waits
+    /// for each writer that the stop left unfinished, until `stopLimit` after the call; a writer
+    /// that still does not answer throws `.writerDidNotStop` with no finalize (decision 0030).
     public func retryFinalize(leavingUnreadable: Bool = false) async throws(StudioError) {
         try checkIdle()
         guard let take = pendingTake?.take else { return }
+        let deadline = ContinuousClock.now + environment.stopLimit
         transport = .finalizing(take: take)
         let error = await serialized { () async -> StudioError? in
+            if let error = await finishUnfinished(by: deadline) {
+                takeError = error
+                transport = .idle
+                return error
+            }
             do throws(StudioError) {
                 try await complete(take, leavingUnreadable: leavingUnreadable)
             } catch {
@@ -124,7 +132,10 @@ extension Studio {
             } catch {
                 return .failure(error)
             }
+            let deadline = ContinuousClock.now + environment.startLimit
             begin(started)
+            let cut = WaitCut()
+            startCut = cut
             if let length {
                 let (end, overflow) = (started.session.recording?.takeStartHostTimeNanos ?? 0)
                     .addingReportingOverflow(length)
@@ -138,8 +149,10 @@ extension Studio {
             // A stop from now on waits for this step and does not throw `.busy`.
             isStarting = false
             await environment.afterStart()
-            await startApps()
-            await handOver()
+            await startApps(by: deadline, cut: cut)
+            await handOver(by: deadline, cut: cut)
+            startEnded = .now
+            startCut = nil
             return .success((started.take, generation))
         }
         return try result.get()
@@ -148,7 +161,11 @@ extension Studio {
     /// Stops the take: drains and closes each device writer, starts the monitor of the request
     /// again, then finalizes and saves (0004), then levels the take clips and saves again (0031).
     /// With no take, it does nothing. A success records one undo entry, and one more when the
-    /// level changes a gain. A failure keeps the take pending and throws.
+    /// level changes a gain. A failure keeps the take pending and throws. A writer that never
+    /// attached is given up, and the stop waits for each other writer until one deadline: the
+    /// later of the call plus `stopLimit` and the end of the start step plus `stopGrace`. When a
+    /// writer misses it, no finalize runs: the take stays pending with its audio on disk, and the
+    /// stop throws `.writerDidNotStop` (decision 0030).
     public func stopRecording() async throws(StudioError) {
         try await stop(.requested)
     }
@@ -157,6 +174,7 @@ extension Studio {
         if case .finalizing = transport { throw .busy }
         guard !isStarting else { throw .busy }
         guard case .recording(let take) = transport else { return }
+        let called = ContinuousClock.now
         transport = .finalizing(take: take)
         stopLive()
         diskWatcher?.cancel()
@@ -166,9 +184,15 @@ extension Studio {
         // E1: the take ends now on every track, also while an app attach waits for the prompt.
         let now = hostNanosNow()
         for writer in writers.values { writer.end(atHostNanos: now) }
+        // A writer that never attached holds no audio, so the stop does not wait for it; its queued
+        // finish runs after its attach returns. The start step returns at once.
+        let abandoned = writers.values.filter { $0.abandon() }
+        for writer in abandoned { writer.finishLater() }
+        startCut?.cut()
         let error = await serialized { () async -> StudioError? in
-            let gaps = await finishWriters()
-            let silent = await silentTracks()
+            let deadline = max(called + environment.stopLimit, (startEnded ?? called) + environment.stopGrace)
+            let (gaps, unfinished) = await finishWriters(by: deadline, abandoned: abandoned)
+            let silent = await silentTracks(skipping: abandoned + unfinished.map(\.writer))
             let dropped = armed.compactMap { track in
                 track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil
             }
@@ -183,6 +207,13 @@ extension Studio {
             // The come back returns its monitor turn before the finalize (decision 0015).
             await monitorTurns.run { await applyMonitor() }
             defer { sleepAssertion = nil }
+            if let late = unfinished.first {
+                unfinishedWriters = unfinished
+                takeError = .writerDidNotStop(late.writer.name)
+                dropLiveTake()
+                transport = .idle
+                return takeError
+            }
             do throws(StudioError) { try await complete(take, level: true) } catch { return error }
             return nil
         }
@@ -218,35 +249,6 @@ extension Studio {
         return ClipID(segment.stem)
     }
 
-    /// Starts the app writers after the first attach of each device writer (A5): a tap that
-    /// starts before the microphone of a Bluetooth headset can stop its IO ([MT-ARCH] in
-    /// `docs/research/process-taps.md`).
-    func startApps() async {
-        for writer in writers.values where writer.app == nil { await writer.started() }
-        for writer in writers.values where writer.app != nil { writer.start() }
-    }
-
-    /// Finishes the device writers, then the app writers, and returns the gaps of the take. An
-    /// app writer can wait for the prompt: a device writer closes first, so its input stops at
-    /// the stop (code gate 2 F1).
-    func finishWriters() async -> [TrackID: TakeResult.Gap] {
-        var gaps: [TrackID: TakeResult.Gap] = [:]
-        for writer in writers.values.filter({ $0.app == nil }) + writers.values.filter({ $0.app != nil }) {
-            for (arm, state) in await writer.finish() { gaps[armed[arm - 1].id] = state }
-        }
-        return gaps
-    }
-
-    /// The armed app tracks whose writer showed the silence warning and got no sound, each with
-    /// the app name (A9). Call it after each writer finished.
-    func silentTracks() async -> [TrackID: String] {
-        var silent: [TrackID: String] = [:]
-        for (track, writer) in armed {
-            if let app = await writer.silentApp() { silent[track] = app }
-        }
-        return silent
-    }
-
     /// The device writer of `uid` in the take that records. For tests.
     func writer(_ uid: String) -> DeviceWriter? { writers[uid] }
 
@@ -276,8 +278,13 @@ extension Studio {
                 return error
             }
             isStarting = false
-            await startApps()
-            await handOver()
+            let deadline = ContinuousClock.now + environment.startLimit
+            let cut = WaitCut()
+            startCut = cut
+            await startApps(by: deadline, cut: cut)
+            await handOver(by: deadline, cut: cut)
+            startEnded = .now
+            startCut = nil
             return nil
         }
         if let error { throw error }

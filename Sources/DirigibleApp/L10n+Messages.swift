@@ -48,6 +48,8 @@ extension L10n {
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         case .artwork(let error): return message(for: error)
         case .unusedFiles(let error): return message(for: error)
+        // Retry Finalize is the control that finishes the pending take, so the text names it.
+        case .writerDidNotStop(let name): return errorWriterDidNotStop.format(name, menuRecordRetry.text)
         }
     }
 

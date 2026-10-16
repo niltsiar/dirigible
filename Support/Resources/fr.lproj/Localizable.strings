@@ -208,7 +208,7 @@
 "track.no.sound.privacy" = "Confidentialité…";
 "track.state.device.lost" = "Appareil perdu";
 "track.state.write.failed" = "Erreur d’écriture";
-"track.state.retry.stopped" = "Tentatives arrêtées. Relancez Niveaux d’entrée.";
+"track.state.retry.stopped" = "Plus d’essai. Désactivez et réactivez Niveaux d’entrée.";
 "track.state.waiting.app" = "Attente de %@";
 "track.state.no.sound" = "Aucun son de %1$@. Si %1$@ émet du son, cliquez sur Confidentialité… et autorisez Dirigible à enregistrer l’audio système.";
 "track.state.no.sound.short" = "Aucun son de %@";

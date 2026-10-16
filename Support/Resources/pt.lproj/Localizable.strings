@@ -208,7 +208,7 @@
 "track.no.sound.privacy" = "Privacidade…";
 "track.state.device.lost" = "Dispositivo ausente";
 "track.state.write.failed" = "Erro de escrita";
-"track.state.retry.stopped" = "Tentativas encerradas. Reinicie Níveis de Entrada.";
+"track.state.retry.stopped" = "Tentativas encerradas. Desative e ative Níveis de Entrada.";
 "track.state.waiting.app" = "Aguardando %@";
 "track.state.no.sound" = "Sem som de %1$@. Se %1$@ reproduz som, clique em Privacidade… e permita que o Dirigible grave o áudio do sistema.";
 "track.state.no.sound.short" = "Sem som de %@";

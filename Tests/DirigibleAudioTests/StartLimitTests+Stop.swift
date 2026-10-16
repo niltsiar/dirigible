@@ -8,29 +8,21 @@ import Testing
 /// The stop of decision 0030 with a writer that does not answer: one deadline, the take state
 /// ends, the take stays pending, and Retry Finalize places it after the late finish.
 extension StartLimitTests {
-    // MARK: C6, C16, C18, C19
-
-    enum Bound: CaseIterable, Sendable {
-        /// `stopLimit` with no grace, and a Stop 1 s into the take.
-        case limit
-        /// `stopLimit` of 1 ms and `stopGrace`, and a Stop just after the start returns.
-        case grace
-    }
+    // MARK: C6, C16, C18
 
     /// `writers` devices attach, record, are lost, and their come-back attach waits, so their
     /// queues do not answer. The stop throws `.writerDidNotStop` at its one deadline, ends the take
     /// state, and keeps the take pending. After the release, Retry Finalize places the take with
     /// the late gaps, and no clip has audio after the stop.
-    @Test(arguments: [1, 2], Bound.allCases)
-    func aHeldWriterDoesNotHoldTheStop(writers count: Int, bound: Bound) async throws {
+    @Test(arguments: [1, 2])
+    func aHeldWriterDoesNotHoldTheStop(writers count: Int) async throws {
         let hal = hal()
         let held = Array([("box", TrackID("t2")), ("deck", TrackID("t3"))].prefix(count))
         defer { for (uid, _) in held { hal.releaseAttach(uid) } }
-        let studio = try await studio(
-            hal, stop: bound == .limit ? limit : .milliseconds(1), grace: bound == .limit ? .zero : limit)
+        let studio = try await studio(hal, stop: limit)
         let inputs = (["mic"] + held.map(\.0)).map { play(hal, $0) }
         _ = try await start(studio, ["t1"] + held.map(\.1)) {}
-        if bound == .limit { try await Task.sleep(for: .seconds(1)) }
+        try await Task.sleep(for: .seconds(1))
         // The come-back appearance gets records past any stop time.
         let late = held.map { (uid, _) in
             let input = SyntheticInput(hal, uid)
@@ -71,7 +63,7 @@ extension StartLimitTests {
     @Test func aFailedRetryKeepsRetryOn() async throws {
         let hal = hal()
         defer { hal.releaseAttach("box") }
-        let studio = try await studio(hal, stop: limit, grace: .zero)
+        let studio = try await studio(hal, stop: limit)
         let inputs = [play(hal, "mic"), play(hal, "box")]
         _ = try await start(studio, ["t1", "t2"]) {}
         try await Task.sleep(for: .seconds(1))
@@ -96,15 +88,12 @@ extension StartLimitTests {
     }
 
     /// A Stop right after Record, while the first attach of `box` waits: the start returns at the
-    /// stop, `box` is given up, and the grace after the start step lets the healthy `mic` (a 20 ms
-    /// detach) finish, with a `stopLimit` of 1 ms. Control: with no grace, `mic` misses the stop.
-    @Test(arguments: [true, false])
-    func aStopRightAfterAHeldStartFinalizesTheHealthyWriters(grace: Bool) async throws {
+    /// stop, `box` is given up, and the healthy `mic` finishes, so the take finalizes.
+    @Test func aStopRightAfterAHeldStartFinalizesTheHealthyWriters() async throws {
         let hal = hal()
         hal.holdAttach("box")
         defer { hal.releaseAttach("box") }
-        hal.delayDetach("mic", by: .milliseconds(20))
-        let studio = try await studio(hal, stop: .milliseconds(1), grace: grace ? .seconds(1) : .zero)
+        let studio = try await studio(hal, stop: limit)
         let mics = play(hal, "mic")
         let started = Task { try await studio.startRecording(armed: ["t1", "t2"], playhead: 0) }
         await until(limit: busy, "the take did not begin") { studio.transport == .recording(take: 1) }
@@ -114,13 +103,9 @@ extension StartLimitTests {
         try await started.value
         await mics.wait()
         #expect(took < .seconds(2), "the stop returned after \(took)")
-        if grace {
-            #expect(error == nil)
-            #expect(studio.lastTake?.gaps["t2"] == .deviceLost)
-            #expect(!clipFrames(studio, "t1").isEmpty, "no clip of t1")
-        } else {
-            #expect(error == .writerDidNotStop("USB Mic"))
-        }
+        #expect(error == nil)
+        #expect(studio.lastTake?.gaps["t2"] == .deviceLost)
+        #expect(!clipFrames(studio, "t1").isEmpty, "no clip of t1")
         hal.releaseAttach("box")
         await studio.settle()
     }
@@ -131,7 +116,7 @@ extension StartLimitTests {
     @Test func aStopStartsNoMonitorOnTheDeviceOfAnUnfinishedWriter() async throws {
         let hal = hal()
         defer { hal.releaseAttach("box") }
-        let studio = try await studio(hal, stop: limit, grace: .zero)
+        let studio = try await studio(hal, stop: limit)
         try await studio.monitor(armed: ["t2"])
         await until(limit: busy, "no monitor attach of box") { hal.current("box") != nil }
         let mics = play(hal, "mic")
@@ -159,7 +144,7 @@ extension StartLimitTests {
     @Test func aRetryNamesTheSilentTrackOfALateAppWriter() async throws {
         let hal = hal()
         defer { hal.releaseTaps() }
-        let studio = try await studio(hal, stop: limit, grace: .zero)
+        let studio = try await studio(hal, stop: limit)
         _ = try await start(studio, ["t4"]) {}
         await until(limit: busy, "Zoom did not attach") { hal.current(Self.zoomUID) != nil }
         let first = try #require(hal.current(Self.zoomUID))
@@ -192,7 +177,7 @@ extension StartLimitTests {
     @Test func aLiveWriterKeepsThePackageLock() async throws {
         let hal = hal()
         defer { hal.releaseAttach("box") }
-        var studio: Studio? = try await studio(hal, stop: limit, grace: .zero)
+        var studio: Studio? = try await studio(hal, stop: limit)
         let inputs = [play(hal, "mic"), play(hal, "box")]
         _ = try await start(studio!, ["t1", "t2"]) {}
         try await Task.sleep(for: .seconds(1))
@@ -228,7 +213,7 @@ extension StartLimitTests {
     @Test func aTimedTakeWithAHeldWriterKeepsItsResult() async throws {
         let hal = hal()
         defer { hal.releaseAttach("box") }
-        let studio = try await studio(hal, stop: limit, grace: .zero)
+        let studio = try await studio(hal, stop: limit)
         let length = AsyncGate()
         studio.environment.takeLength = { _ in await length.wait() }
         let inputs = [play(hal, "mic"), play(hal, "box")]

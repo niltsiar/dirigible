@@ -16,7 +16,6 @@ extension ChromeTests {
     func stopWithAHeldWriter(space: Bool = false) async throws -> (SessionWindow, Studio) {
         let (model, studio, _) = try await open(tracks: 1)
         studio.environment.stopLimit = .milliseconds(300)
-        studio.environment.stopGrace = .zero
         model.armed = ["t1"]
         await model.record()
         try #require(model.canStop, "the take runs")

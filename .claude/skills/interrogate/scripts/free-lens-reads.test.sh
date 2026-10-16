@@ -3,12 +3,12 @@
 # paths, also when a tool output quotes another one; fails and names each other path (a read, a
 # cd or a search of the folder, a workdir, Code Mode code); audits the one session of a
 # <run>/<gate>/<lens> title; and exits 2 for a session id or another bad title, two rows with a
-# title (in one directory, in two, or one in the main checkout), no session, or no database. The fixture database copies the opencode.db shape of
-# OpenCode v2.0.29: session_v2 and session_message, with tool parts in the content of assistant
-# rows. A session that starts in the main checkout, names its path, or runs a search that skips
-# .gitignore (rg -uu, rg --no-ignore), a recursive grep with no path, or an rg or recursive grep of
-# a root, home, or parent folder also fails, also when quoted or in Code Mode code. Run by
-# `make test-hooks`.
+# title (in one directory, in two, or one in the main checkout), no session, or no database. The
+# fixture database copies the opencode.db shape of OpenCode v2.0.29: session_v2 and
+# session_message, with tool parts in the content of assistant rows. A session that starts in the
+# main checkout, names its path, or runs a search that skips .gitignore (rg -uu, rg --no-ignore),
+# a recursive grep with no path, or an rg or recursive grep of a root, home, or parent folder also
+# fails, also when quoted or in Code Mode code. Run by `make test-hooks`.
 set -uo pipefail
 audit="$(cd "$(dirname "$0")" && pwd)/free-lens-reads.sh"
 failures=0

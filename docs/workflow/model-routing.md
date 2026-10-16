@@ -4,15 +4,13 @@ The model and effort of each job of a deliver run. Read this file before each `A
 
 ## Usage limits
 
-Before the call, read `~/.claude/usage/limits.json` on the lead thread: an in-process subagent does not update it. Use the `five_hour` row. A `resetsAt` in the past starts a new window: count it as 0 %. With no file, the mode is normal.
+Before the call, run `.claude/skills/deliver/scripts/usage-mode.sh` on the lead thread. It reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode.
 
-| Mode | When | Change |
-|---|---|---|
-| save | `percentUsed` is 75 or more | A code-reading question for a plan goes to space-bunny-free first. On no result, a Claude agent takes it. Each new `run-agent` takes effort `medium` in place of `high`, except a `risk: yes` slice. A typed agent keeps its frontmatter. |
-| spend | the reset is 60 min or less away, and `percentUsed` is 70 or less | Start the queued Opus jobs first. A `risk: no` slice can take Opus. |
-| normal | all other values | The tables below. |
-
-At the highest rate on record (54 % to 81 % in about 70 min of Opus work), 25 % lasts about one hour.
+| Mode | Change |
+|---|---|
+| save | A code-reading question for a plan goes to space-bunny-free first. On no result, a Claude agent takes it. Each new `run-agent` takes effort `medium` in place of `high`, except a `risk: yes` slice. A typed agent keeps its frontmatter. |
+| spend | Start the queued Opus jobs first. A `risk: no` slice can take Opus. |
+| normal | The tables below. |
 
 ## Claude jobs
 

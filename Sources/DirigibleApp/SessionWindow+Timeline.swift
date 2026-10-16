@@ -16,6 +16,27 @@ extension SessionWindow {
 }
 
 extension SessionWindow {
+    /// An item of the record-over chip. Each item first saves the typed drafts, as a ruler press
+    /// does. Show Clip shows the clip with the first start in the warning, and its lane.
+    func recordOver(_ action: RecordOverAction) {
+        commitDrafts()
+        switch action {
+        case .goToEnd: transport(.seek(.end))
+        case .turnOffRecord(let track): armed.remove(track)
+        case .showClip:
+            guard let studio else { return }
+            let tracks = studio.session.tracks
+            let reached = shown.recordOver.reached.compactMap { reached -> (lane: Int, start: Frames)? in
+                guard let lane = tracks.firstIndex(where: { $0.id == reached.track }),
+                    let clip = tracks[lane].clips.first(where: { $0.id == reached.clip })
+                else { return nil }
+                return (lane, clip.start)
+            }
+            guard let first = reached.min(by: { $0.start < $1.start }) else { return }
+            timelineView?.reveal(frame: max(studio.playhead, first.start), lane: first.lane)
+        }
+    }
+
     /// The effects of a timeline gesture (decision 0020). A commit makes one undo entry when the
     /// session is still the session of the mouse-down. Else, or during a take, it changes nothing
     /// and shows no alert. Studio refuses a ripple trim under a pending or split take, with a beep.

@@ -262,7 +262,9 @@
 "transport.record" = "Registra";
 "transport.stop" = "Interrompi";
 "transport.play" = "Riproduci";
-"transport.record.over" = "Registra sostituisce l’audio fuori vista su una traccia abilitata alla registrazione, dalla testina di riproduzione in poi. Per conservarlo, scegli Vai alla fine o disattiva il pulsante rosso di registrazione nell’intestazione della traccia.";
+"record.over.chip" = "Audio nascosto a rischio";
+"record.over.show" = "Mostra clip";
+"record.over.disarm" = "Disabilita registrazione di %@";
 "transport.stop.output.changed" = "La riproduzione si è interrotta: il dispositivo di uscita è cambiato. Premi la barra spaziatrice per riprodurre sul nuovo dispositivo.";
 "transport.stop.output.unavailable" = "La riproduzione non può iniziare: il dispositivo di uscita non è disponibile (errore %lld).";
 "transport.stop.package.unavailable" = "La riproduzione si è interrotta: il pacchetto della sessione non è disponibile. Controlla che il suo disco sia collegato.";

@@ -164,7 +164,7 @@ struct ViewportTests {
     }
 }
 
-/// The record-over overlay (criterion 19): 8 tracks, each with the clips of `clips` (by default one
+/// The record-over warning (criterion 19): 8 tracks, each with the clips of `clips` (by default one
 /// clip at 0 ..< 1,000,000), 5 lanes in view, and the frames 0 ..< 737,280 in view.
 struct RecordOverTests {
     static func session(clips: [Range<Frames>] = [0..<1_000_000]) throws -> Session {
@@ -198,7 +198,8 @@ struct RecordOverTests {
 
     @Test func anArmedClipInAClippedLaneWarns() throws {
         let warning = try Self.warning(["t2", "t7"], 100_000)
-        #expect(warning.reached == [.init(track: "t7", clip: "c7-0")], "an armed clip in a clipped lane warns")
+        #expect(
+            warning.reached == [.init(track: "t7", clip: "c7-0", name: "T7")], "an armed clip in a clipped lane warns")
     }
 
     @Test func anArmedClipInViewDoesNotWarn() throws {
@@ -270,16 +271,20 @@ struct RecordOverTests {
             "a later clip out of view behind a clip in view does not warn")
     }
 
-    @Test func theWarningNamesTheRangeThatRecordReplaces() {
-        let texts = [
-            "en": "Record replaces audio out of view on an armed track, from the playhead on. "
-                + "To keep it, choose Go to End or turn off the red record button in the track header.",
-            "es": "Grabar sustituye audio fuera de la vista en una pista armada, desde el cursor. "
-                + "Para conservarlo, elige Ir al final o desactiva el botón rojo de grabar en la cabecera de la pista.",
+    @Test func theChipAndItsItemsHaveEnglishAndSpanishTexts() {
+        let texts: [String: [String: String]] = [
+            "en": [
+                "record.over.chip": "Hidden Audio at Risk", "record.over.show": "Show Clip",
+                "record.over.disarm": "Turn Off Record on %@",
+            ],
+            "es": [
+                "record.over.chip": "Audio oculto en riesgo", "record.over.show": "Mostrar clip",
+                "record.over.disarm": "Desactivar grabar en %@",
+            ],
         ]
-        for (language, text) in texts {
+        for (language, expected) in texts {
             let table = (try? stringsTable(language)) ?? [:]
-            #expect(table["transport.record.over"] == text, "\(language) record-over text")
+            for (key, text) in expected { #expect(table[key] == text, "\(language) \(key)") }
         }
     }
 }

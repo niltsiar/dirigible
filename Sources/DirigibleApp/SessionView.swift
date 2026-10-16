@@ -138,10 +138,10 @@ struct SessionView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // An overlay, not a row: the lanes do not move when it shows or goes. It shows
-                // over the ruler, below the overview strip, where the user acts on it (0025).
-                TimelinePane(model: model, studio: studio).overlay(alignment: .top) {
-                    RecordOverOverlay(model: model).padding(.top, OverviewGeometry.height)
+                // An overlay, not a row: the lanes do not move when it shows or goes. It shows in the
+                // ruler band over the track headers, so it covers no ruler time (0025).
+                TimelinePane(model: model, studio: studio).overlay(alignment: .topLeading) {
+                    RecordOverChip(model: model).padding(.top, OverviewGeometry.height)
                 }
                 if model.showsLoudness {
                     LoudnessStripView(model: model).frame(height: LoudnessStrip.height)
@@ -241,7 +241,7 @@ let removeQuestionButtons: [(title: L10n, role: ButtonRole?)] = [
 extension SessionWindow {
     /// Counts a run of a SwiftUI body of the window content, for the tests (ui-shell A21).
     func countBody() { bodyRuns += 1 }
-    /// Counts a body run of the record-over overlay that shows the warning, for the tests.
+    /// Counts a body run of the record-over chip that shows the warning, for the tests.
     func countOverlay() { overlayShows += 1 }
     /// Counts a run of the periodic content of the take banner, for the tests.
     func countBannerRun() { bannerRuns += 1 }

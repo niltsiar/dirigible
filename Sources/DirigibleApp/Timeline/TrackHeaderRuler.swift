@@ -25,6 +25,9 @@ final class TrackHeaderRuler: NSRulerView {
         didSet {
             guard width != oldValue else { return }
             ruleThickness = width.points
+            if let model = (scrollView as? TimelineScrollView)?.model, model.headerWidth != width {
+                model.headerWidth = width
+            }
             scrollView?.tile()
             needsLayout = true
         }

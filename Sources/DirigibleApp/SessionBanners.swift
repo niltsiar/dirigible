@@ -55,21 +55,6 @@ struct WindowBanners: View {
     }
 }
 
-/// The record-over warning (decisions 0016, 0017) over the top of the lanes. It shows only for a
-/// clip that the lanes do not show. The clicks go through to the ruler and the lanes under it,
-/// where the user acts on the warning.
-struct RecordOverOverlay: View {
-    let model: SessionWindow
-
-    var body: some View {
-        let _ = model.countBody()
-        if !model.shown.recordOver.isEmpty {
-            let _ = model.countOverlay()
-            BannerRow(kind: .warning, text: L10n.transportRecordOver.text).allowsHitTesting(false)
-        }
-    }
-}
-
 /// The take state: recording, finishing, pending, or the result of the last take.
 struct TakeBanner: View {
     let model: SessionWindow

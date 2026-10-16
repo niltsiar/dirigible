@@ -60,6 +60,9 @@ import SwiftUI
     var showsInspector = false
     /// The inspector width (decision 0023): the app preference at open, then the handle.
     var inspectorWidth = InspectorWidth.standard
+    /// The width of the track headers: `TrackHeaderRuler` owns it and writes each change here, so
+    /// the record-over chip over the header corner has that width (decision 0023).
+    var headerWidth = HeaderWidth.standard
     /// The drag of the inspector handle.
     @ObservationIgnored var inspectorDrag = PaneDrag<InspectorWidth>()
     /// The target width of an inspector drag, nil when idle. Not observed: a drag event runs no
@@ -152,7 +155,7 @@ import SwiftUI
     /// The body runs of the track headers and of their rows, for the tests: a header width change
     /// that keeps the layout and a range drag over the same tracks run none (code gate 3, C16).
     @ObservationIgnored var headerRuns = (headers: 0, rows: 0)
-    /// The body runs of the record-over overlay that show the warning, for the tests.
+    /// The body runs of the record-over chip that show the warning, for the tests.
     @ObservationIgnored var overlayShows = 0
     /// The period of the take banner content in seconds, and its runs. Tests shorten the period.
     @ObservationIgnored var bannerTick = 1.0
@@ -194,6 +197,7 @@ import SwiftUI
         showsLoudness = app.defaults?.object(forKey: Self.loudnessKey) as? Bool ?? true
         showsInspector = app.defaults?.bool(forKey: Self.inspectorKey) ?? false
         inspectorWidth = InspectorWidth(stored: app.defaults?.object(forKey: InspectorWidth.defaultsKey))
+        headerWidth = HeaderWidth(stored: app.defaults?.object(forKey: HeaderWidth.defaultsKey))
     }
 
     /// The studio of an open window, also while a close waits for it.

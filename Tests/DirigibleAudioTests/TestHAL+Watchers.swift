@@ -29,6 +29,9 @@ final class DeviceListWatchers: @unchecked Sendable {
         }
     }
 
+    /// The writers that watch the device list now.
+    var count: Int { lock.withLock { watchers.count } }
+
     func postAggregateEvents() { lock.withLock { aggregateEvents = true } }
 
     /// A tap aggregate was made or destroyed.

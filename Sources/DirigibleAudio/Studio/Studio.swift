@@ -16,7 +16,7 @@ import Observation
     /// Derived, not stored: `session.recording` while the transport is idle (decision 0004).
     public var pendingTake: Recording? { transport == .idle ? session.recording : nil }
     /// The last error of a finalize or of the save after it. Nil after a success.
-    public private(set) var takeError: StudioError?
+    public internal(set) var takeError: StudioError?
     /// The segments of CAFs with audio that no pool file points to (decision 0012). Derived from
     /// the session on each read, so an edit, an undo, or a redo changes it.
     public var unplacedSegments: [SegmentName] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
@@ -84,6 +84,13 @@ import Observation
     @ObservationIgnored var writers: [String: DeviceWriter] = [:]
     /// The armed tracks of the take that records, in arm order, with the writer of each.
     @ObservationIgnored var armed: [(id: TrackID, writer: DeviceWriter)] = []
+    /// The waits of the take start in progress, which a stop ends (decision 0030).
+    @ObservationIgnored var startCut: WaitCut?
+    /// The end of the last take start step: the stop deadline is `stopGrace` after it or later.
+    @ObservationIgnored var startEnded: ContinuousClock.Instant?
+    /// The writers of the pending take that did not finish by the stop deadline. Retry Finalize
+    /// waits for them again. Each one still holds the package lock (decision 0012).
+    @ObservationIgnored var unfinishedWriters: [UnfinishedWriter] = []
     /// The live peaks and the head of the take (live take view), in `Studio+Live.swift`.
     @ObservationIgnored var live = LiveStore()
     /// One more for each take that begins. Two takes can have the same number.

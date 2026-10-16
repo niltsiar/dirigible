@@ -305,6 +305,9 @@ extension StudioError {
         case .unusedFiles(let error): error.message(package: package)
         // No command levels through Studio; `dirigible level` calls `autoLevel`.
         case .levelCancelled: "the level was cancelled."
+        case .writerDidNotStop(let name):
+            "\(name) did not stop in time. The audio is safe in \(package)/Capture; open the package in "
+                + "Dirigible to finish the take."
         }
     }
 }

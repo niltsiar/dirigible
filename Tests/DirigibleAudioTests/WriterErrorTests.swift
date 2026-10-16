@@ -68,8 +68,8 @@ extension DeviceEventTests {
         let gaps = await writer.finish()
 
         #expect(gaps == [1: .writeFailed])
-        #expect(log.states(arm: 1) == [.writeFailed, .recording])
-        #expect(log.statuses(arm: 1) == [EISDIR, nil])
+        #expect(log.states(arm: 1) == [.recording, .writeFailed, .recording])
+        #expect(log.statuses(arm: 1) == [nil, EISDIR, nil])
         #expect(try stems() == ["take1-1-2"])
         #expect(try samples("take1-1-2").count == 24_000)
     }
@@ -106,7 +106,9 @@ extension DeviceEventTests {
         await writer.finish()
 
         let reports = log.all
-        let reopen = try #require(reports.firstIndex { $0.state(arm: 2)?.0 == .recording }, "arm 2 did not reopen")
+        let failed = try #require(reports.firstIndex { $0.state(arm: 2)?.0 == .writeFailed }, "arm 2 did not fail")
+        let reopen = try #require(
+            reports[failed...].firstIndex { $0.state(arm: 2)?.0 == .recording }, "arm 2 did not reopen")
         let before = reports[..<reopen].compactMap(\.arms)
         let after = reports[reopen...].compactMap(\.arms)
         #expect(before.contains { $0[1]?.written != nil })
@@ -163,7 +165,7 @@ extension DeviceEventTests {
         await input.wait()
         await writer.finish()
 
-        #expect(log.states(arm: 2) == [.writeFailed, .recording])
+        #expect(log.states(arm: 2) == [.recording, .writeFailed, .recording])
         let end = takeStart + 2_000_000_000
         try expectSpans(1, first: takeStart, last: end, gap: end..<end)
         try expectSpans(2, first: takeStart, last: nil, gap: (takeStart + 500_000_000)..<(takeStart + 1_500_000_000))

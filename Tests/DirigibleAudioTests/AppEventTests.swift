@@ -133,7 +133,7 @@ struct AppEventTests {
         let gaps = await writer.finish()
 
         #expect(taps == 2, "the restart rebuilds")
-        #expect(log.states(arm: 1) == [.waitingForApp, .recording], "waiting, then recording")
+        #expect(log.states(arm: 1) == [.recording, .waitingForApp, .recording], "waiting, then recording")
         #expect(gaps.isEmpty)
     }
 
@@ -237,7 +237,7 @@ struct AppEventTests {
         let gaps = await writer.finish()
 
         #expect(gaps == [1: .deviceLost], "a lost rebuild is a gap")
-        #expect(log.states(arm: 1) == [.deviceLost, .recording])
+        #expect(log.states(arm: 1) == [.recording, .deviceLost, .recording])
     }
 
     /// The rebuild rule (W1, code gate 2 F2): a found process that the tap lacks, or a reported

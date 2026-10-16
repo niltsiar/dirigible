@@ -43,19 +43,6 @@ extension Studio {
         await monitorTurns.run { await applyMonitor() }
     }
 
-    /// The hand-over to a take (decision 0015), after `begin`: in one monitor turn, it waits until
-    /// each take writer tried its first attach, then finishes each monitor writer. So the device
-    /// keeps running (probe Q1). `begin` replaced the entries of `liveTracks` already.
-    func handOver() async {
-        await monitorTurns.run {
-            // E1: an app writer has no monitor, and its attach can wait for the prompt.
-            for writer in writers.values where writer.app == nil { await writer.started() }
-            let released = monitors
-            monitors = [:]
-            for monitor in released.values { await monitor.writer.finish() }
-        }
-    }
-
     /// The monitor writer of `uid`. For tests.
     func monitorWriter(_ uid: String) -> DeviceWriter? { monitors[uid]?.writer }
 
@@ -101,7 +88,9 @@ extension Studio {
             for track in tracks { liveTracks[track.id] = LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0) }
             writer.start()
         }
-        for writer in released { await writer.finish() }
+        // A monitor writer has no file, so one that does not finish in time loses no audio.
+        let answers = await boundedEach(released, by: ContinuousClock.now + environment.stopLimit) { await $0.finish() }
+        for writer in released where answers[ObjectIdentifier(writer)] == nil { writer.finishLater() }
     }
 }
 

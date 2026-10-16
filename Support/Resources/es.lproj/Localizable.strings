@@ -150,6 +150,7 @@
 "error.paste.copy" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo copiar (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.paste.convert" = "Dirigible no puede pegar desde «%1$@». El audio no se pudo convertir (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.paste.yielded" = "El pegado desde «%@» se detuvo por una toma en otra ventana. Vuelva a pegar después de la toma.";
+"error.writer.did.not.stop" = "Dirigible no pudo detener %1$@. El audio está a salvo en el disco. Pulse %2$@ para intentarlo de nuevo, o salga de Dirigible: el próximo arranque restaura la toma.";
 "paste.banner" = "Pegando desde «%@»";
 "paste.done" = "Pegado.";
 "reverted.to" = "Se restauró la copia de seguridad de %@";
@@ -210,6 +211,7 @@
 "track.state.write.failed" = "Error de escritura";
 "track.state.retry.stopped" = "Desactiva y activa Niveles de entrada para reintentar.";
 "track.state.waiting.app" = "Esperando a %@";
+"track.state.not.started" = "No se inició";
 "track.state.no.sound" = "No hay sonido de %1$@. Si %1$@ reproduce sonido, haz clic en Privacidad… y permite que Dirigible grabe el audio del sistema.";
 "track.state.no.sound.short" = "Sin sonido de %@";
 "track.listen.quiet" = "Sin sonido de monitor. Desactiva y activa Monitorizar pista.";

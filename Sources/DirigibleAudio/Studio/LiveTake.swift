@@ -26,6 +26,9 @@ public struct LiveTrack: Hashable, Sendable {
         /// An app track got only zeros for 5 s while its app plays: the System Audio Recording
         /// access can be missing (A9).
         case noSound
+        /// The device did not answer its first attach by the start deadline; the other tracks
+        /// record, and the first report of its writer replaces this state.
+        case notStarted
     }
 
     public var state: State
@@ -94,6 +97,13 @@ struct CaptureEnvironment: Sendable {
     var diskCheckInterval: Duration
     /// The ring length of each device appearance.
     var ringSeconds: Double = 10
+    /// The limit of the device writer waits of a take start, from `begin`.
+    var startLimit = Duration.seconds(10)
+    /// The limit of the writer waits of a stop, from the stop call, and of a Retry Finalize.
+    var stopLimit = Duration.seconds(10)
+    /// The stop deadline is at least this long after the end of the start step, so a stop just
+    /// after a start that missed its deadline gives each writer time to finish.
+    var stopGrace = Duration.seconds(1)
     /// The autosave write of a session into the package that the lock holds. Returns the package
     /// path that it wrote. Called off the main actor. It is async, so a test holds a write with an
     /// async wait and blocks no thread of the concurrency pool.

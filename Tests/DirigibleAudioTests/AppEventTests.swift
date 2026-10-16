@@ -2,6 +2,7 @@ import CoreAudio
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -278,5 +279,35 @@ struct AppEventTests {
         await writer.finish()
 
         #expect(taps == 2, "nil to another device: a rebuild")
+    }
+}
+
+// MARK: U15 of record-start-hang: the events of a failed app attach
+
+extension AppEventTests {
+    /// Each tap aggregate create and destroy posts a device-list event (probe P1), and each attach
+    /// throws `.undone`. The events of a failed try wait for the backoff window, so each try comes
+    /// 250 ms or more after the one before, not at once for each event of the last try.
+    @Test func aFailingAppAttachDoesNotFeedItself() async throws {
+        hal.watchers.postAggregateEvents()
+        let times = OSAllocatedUnfairLock(initialState: [ContinuousClock.Instant]())
+        hal.failAttach { _, _ in
+            times.withLock { $0.append(.now) }
+            return .undone(kAudioHardwareUnspecifiedError)
+        }
+        hal.setApp(Self.zoom, found([41]))
+        let url = folder.url
+        let writer = DeviceWriter(
+            device: found([41]).device, tracks: [(arm: 1, channels: .mono(1))],
+            files: TakeFiles(take: 1, folder: { url }), hal: hal.hal, report: log.closure, silenceLimit: noWatchdog,
+            firstRecordLimit: noWatchdog, app: Self.zoom)
+        writer.start()
+        try await Task.sleep(for: .seconds(2))
+        await writer.finish()
+        let tries = times.withLock { $0 }
+
+        let gaps = zip(tries, tries.dropFirst()).map { $1 - $0 }
+        #expect(tries.count >= 2, "\(tries.count) tries: no try after the start")
+        #expect(gaps.allSatisfy { $0 >= .milliseconds(250) }, "tries \(tries.count), gaps \(gaps)")
     }
 }

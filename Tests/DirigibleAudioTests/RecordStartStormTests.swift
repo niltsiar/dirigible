@@ -194,3 +194,73 @@ struct RecordStartStormTests {
         #expect(longest < holdLimit, "the main actor was held for \(longest)")
     }
 }
+
+// MARK: C1, C2, C3 of record-start-hang
+
+extension RecordStartStormTests {
+    /// The two storms of R3 that held the start for 15 to 19 s: the start returns in under 1 s,
+    /// the stop in under 2 s with a clip of `t1`, and `box` makes 6 tries or fewer. It prints the
+    /// peak footprint of the test process (U11).
+    @Test(
+        .enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"),
+        arguments: [Change.busyWideListStorm, .busySlowListBurst])
+    func aStormDoesNotDelayTheStartOrTheStop(change: Change) async throws {
+        let hal = TestHAL([mic, change == .busyWideListStorm ? wideBox : box])
+        hal.failAttach { uid, _ in uid == "box" ? .undone(kAudioDevicePermissionsError) : nil }
+        if change == .busySlowListBurst { hal.delayAttach("box", by: .milliseconds(20)) }
+        let studio = try await Studio.open(url)
+        studio.environment = .test(hal)
+        let done = OSAllocatedUnfairLock(initialState: false)
+        studio.environment.afterStart = { [weak studio] in
+            guard let studio else { return }
+            let writers = await MainActor.run { (studio.writer("mic"), studio.writer("box")) }
+            guard let micWriter = writers.0, let boxWriter = writers.1 else { return }
+            if change == .busySlowListBurst {
+                for _ in 0..<500 { boxWriter.post(.devicesChanged, from: nil) }
+                done.withLock { $0 = true }
+            } else {
+                Self.storm(count: 500, spacing: .milliseconds(2), done: done) { _ in
+                    micWriter.post(.devicesChanged, from: nil)
+                    boxWriter.post(.devicesChanged, from: nil)
+                }
+            }
+        }
+        let micInput = SyntheticInput(hal, "mic")
+        var clock = DeviceClock(hostNanos: Double(takeStart) + 100_000_000)
+        micInput.play(clock.run(seconds: 30), pace: .realTime, takeStartIn: url)
+
+        let watch = ContinuousClock.now
+        try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
+        let started = ContinuousClock.now - watch
+        await until(limit: busy, "the storm did not end") { done.withLock { $0 } }
+        // The take records for 2 s after the start returns, so t1 has frames from after the storm.
+        await until(limit: busy, "the take did not record 2 s after the start") {
+            ContinuousClock.now - watch >= started + .seconds(2)
+        }
+        let stopWatch = ContinuousClock.now
+        try await studio.stopRecording()
+        let stopped = ContinuousClock.now - stopWatch
+        let boxTries = hal.tries("box").count
+        await micInput.wait()
+
+        print(
+            "R3 fix \(change): start returned after \(started), stop after \(stopped), box attach tries \(boxTries), "
+                + "peak footprint \(peakFootprint() / 1_048_576) MiB")
+        #expect(started < .seconds(1), "the start returned after \(started)")
+        #expect(stopped < .seconds(2), "the stop returned after \(stopped)")
+        #expect(boxTries <= 6, "\(boxTries) attach tries of box")
+        #expect(studio.session.track("t1")?.clips.isEmpty == false, "no clip of t1")
+    }
+}
+
+/// The largest physical footprint of the process so far, in bytes (`ri_lifetime_max_phys_footprint`,
+/// the ledger of `TASK_VM_INFO`). 0 when the read fails.
+func peakFootprint() -> UInt64 {
+    var info = rusage_info_v4()
+    let status = withUnsafeMutablePointer(to: &info) { pointer in
+        pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+            proc_pid_rusage(getpid(), RUSAGE_INFO_V4, $0)
+        }
+    }
+    return status == 0 ? info.ri_lifetime_max_phys_footprint : 0
+}

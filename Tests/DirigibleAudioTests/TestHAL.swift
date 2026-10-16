@@ -53,6 +53,7 @@ final class TestHAL: @unchecked Sendable {
     /// The aggregate that the next listen attach of a UID makes current: a change before its adds.
     private var attachAggregates: [String: (subdevices: [AudioObjectID], virtual: Set<AudioObjectID>)] = [:]
     private var listenDetaches: [String: Int] = [:]
+    let watchers = DeviceListWatchers()
 
     /// A successful attach or a clean detach of one input.
     enum Event: Equatable {
@@ -78,7 +79,7 @@ final class TestHAL: @unchecked Sendable {
         DeviceHAL(
             lookUp: { [self] uid in lookUp(uid) },
             attach: { [self] input throws(HALError) in try attach(input) },
-            watchDevices: { _ in { true } },
+            watchDevices: { [watchers] writer in watchers.watch(writer) },
             attachListen: { [self] input throws(HALError) in try attachListen(input) },
             lookUpApp: { [self] bundleID, _ in
                 lock.withLock {
@@ -121,8 +122,10 @@ final class TestHAL: @unchecked Sendable {
         let device = InputDevice(
             uid: "com.delineas.dirigible.tap.\(id)", name: "Tap", nominalRate: found.device.nominalRate,
             availableRates: found.device.availableRates, channelsPerBuffer: layout, latency: found.device.latency)!
+        watchers.aggregateChanged()
         let teardown: Detach = { [self] in
-            lock.withLock {
+            defer { watchers.aggregateChanged() }
+            return lock.withLock {
                 callLog.append("destroyAggregate \(uid)")
                 callLog.append("destroyTap \(uid)")
                 return failingTeardown != "aggregate" && failingTeardown != "tap"

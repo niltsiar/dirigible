@@ -34,6 +34,9 @@ struct LanePalette: Equatable {
     /// The system accent color: the outline of a selected clip, and the color of its tint
     /// (decision 0038). `light` has the default blue; `pick` gives the accent of the system.
     var outline: UInt32 = 0xFF00_7AFF
+    /// The 2 pt join at a cut between two clips. Light: 3.05:1 on the clip color; the lane color
+    /// gives 1.21:1 there. Dark: the lane color.
+    var join: UInt32 = 0xFF5A_7BA6
 
     static let light = LanePalette(
         lane: 0xFFE8_ECF2, clip: 0xFFC4_DAF5, peak: 0xFF7A_A7E0, rms: 0xFF1F_4F9E, missing: 0xFFF4_C4C4,
@@ -55,6 +58,7 @@ struct LanePalette: Equatable {
         (palette.missing, palette.missingOutline, palette.label) = (0xFF4A_2427, 0xFFFF_6961, 0xFFE6_E6E6)
         (palette.liveClip, palette.livePeak, palette.liveRms) = (0xFF7A_2020, 0xFFE0_6E6E, 0xFFF2_A9A9)
         (palette.accent, palette.outline) = (accent, accent)
+        palette.join = palette.lane
         return palette
     }
 
@@ -109,9 +113,9 @@ struct LanePalette: Equatable {
 /// per row, then the clip boxes, the missing-media tint, and the waveform as column spans, rectified
 /// on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain and the
 /// fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the fade lines of
-/// the crossfade halves outside the boxes (decision 0036), the gain lines and handles, the
-/// selection band and the marker, chapter, in, and out lines. One per document view, on the main
-/// thread. It writes every pixel of the rect of the region, and the region refuses every pixel
+/// the crossfade halves outside the boxes (decision 0036), the gain lines and handles, the joins
+/// between clips that touch, the selection band and the marker, chapter, in, and out lines. One
+/// per document view, on the main thread. It writes every pixel of the rect of the region, and the region refuses every pixel
 /// outside it. Each edge rounds in absolute document pixels, so two partial draws agree with one
 /// full draw on each pixel. It keeps no pixel state. A drag event redraws only the columns that
 /// `changedFrames` gives, so each Session value drawn here needs a compare there (decision 0020,
@@ -240,10 +244,11 @@ final class LaneRenderer {
         // test finds them.
         for lane in drawn {
             let track = tracks[lane]
-            for clip in track.clips.clips(overlapping: visible)
-            where geometry.box(of: clip, lane: lane).width >= LaneGeometry.controlsWidth {
+            let inView = track.clips.clips(overlapping: visible)
+            for clip in inView where geometry.box(of: clip, lane: lane).width >= LaneGeometry.controlsWidth {
                 drawControls(clip, track, lane, geometry, palette, into: region)
             }
+            drawJoins(inView, of: track.clips, lane: lane, geometry, palette, into: region)
         }
         if let take = live.take {
             drawLive(take, inputs, take.finalizing ? palette : palette.live, labels: labels, into: region)

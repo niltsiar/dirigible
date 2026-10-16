@@ -59,6 +59,46 @@ struct LaneRenderBenchmark {
     }
 }
 
+extension LaneRenderBenchmark {
+    /// Timeline clarity C11: 6 lanes of clips of 12 pt that all touch, so the view holds 120 joins
+    /// on each lane, drawn at scale 2 over ready peaks. The draw keeps the budget of a full draw.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func buttJoinsAtTwelvePointsDrawInTheBudget() throws {
+        let framesPerPoint = 512.0
+        let clip = Int(12 * framesPerPoint)
+        let frames = clip * 400
+        let peaks = randomPeaks(frames: frames)
+        var session = Session(sampleRate: 48_000)
+        var states: [FileID: PeakState] = [:]
+        for n in 1...6 {
+            let file = FileID("f\(n)")
+            try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: Frames(frames)))
+            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+            for index in 0..<400 {
+                try session.place(
+                    Clip(
+                        id: ClipID("c\(n)x\(index)"), file: file, start: Frames(index * clip),
+                        offset: Frames(index * clip), length: Frames(clip)), on: TrackID("t\(n)"))
+            }
+            states[file] = .ready(peaks)
+        }
+        let inputs = LaneInputs(
+            session: session, peaks: states, missingMedia: [:], selection: .none,
+            scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+        let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+        let pixels = windows.map { OwnedPixels($0) }
+        let renderer = LaneRenderer()
+        var times: [Duration] = []
+        for draw in 0..<120 {
+            let start = ContinuousClock.now
+            pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
+            times.append(ContinuousClock.now - start)
+        }
+        let p95 = times.sorted()[113]
+        expectWithinBudget(p95, Self.budget, "p95 \(p95)")
+    }
+}
+
 /// Run 2026-10-11-ui-polish-header C17 (premortem 4): an edited episode, 6 lanes of clips of 60 to
 /// 200 pt with gains that are not 0, about 17 labeled clips per lane in view. The full draw of the
 /// view (the labels once, the lane pixels with their chips, the label texts) at 2880 x 1200 px

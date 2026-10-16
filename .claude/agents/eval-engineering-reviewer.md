@@ -23,4 +23,4 @@ Rules:
 
 - Do not modify files. Use `Bash` only for read-only commands.
 - Each finding names the rule, the case that is missing, and the result that the case must show before and after.
-- Return at most six findings, and list in `checked` the files you read and the commands you ran. Zero findings is a valid result.
+- Return at most six findings. Zero findings is a valid result.

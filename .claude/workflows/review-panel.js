@@ -150,19 +150,22 @@ const MODE_TEXT = {
 
 // An agent file reloads at the next call, but only in the checkout of the session. When the
 // agent file is new in a worktree, or another harness runs this script, fall back to a general
-// agent that reads the same agent file as its role.
+// agent that reads the same agent file as its role, with its model and the effort of the typed call.
+async function typedAgent(role, prompt, opts) {
+  const file = `${worktree ? `${worktree}/` : ''}.claude/agents/${role.agentType}.md`
+  try {
+    return await agent(prompt, { ...opts, agentType: role.agentType })
+  } catch (error) {
+    log(`${opts.label}: typed agent failed (${error && error.message}). Retrying as a general agent that reads ${file}`)
+    return agent(`Read ${file}. Act as that agent and follow its rules. Do not modify files.\n\n${prompt}`, { effort: role.effort, ...opts, model: role.model })
+  }
+}
+
+const SKEPTIC = { agentType: 'skeptic', model: 'sonnet', effort: 'medium' }
+
 async function review(lens) {
   const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${settledText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings, and in \`checked\` the files you read and the commands you ran. An empty findings list is a valid result. An empty \`checked\` list is not.`
-  const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS }
-  try {
-    return await agent(`Review with your ${lens.key} lens.\n\n${task}`, { ...opts, agentType: lens.agentType })
-  } catch (error) {
-    log(`${lens.key}: typed agent failed (${error && error.message}). Retrying as a general agent that reads ${worktree ? `${worktree}/` : ''}.claude/agents/${lens.agentType}.md`)
-    return agent(
-      `Read ${worktree ? `${worktree}/` : ''}.claude/agents/${lens.agentType}.md. Act as that reviewer and follow its rules. Do not modify files.\n\n${task}`,
-      { ...opts, model: lens.model },
-    )
-  }
+  return typedAgent(lens, `Review with your ${lens.key} lens.\n\n${task}`, { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS })
 }
 
 const results = await pipeline(
@@ -182,9 +185,10 @@ const results = await pipeline(
     const findings = review.findings.filter(f => !unscoped(f) && f.severity !== 'nit')
     if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope, nits }
     const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
-    return agent(
-      `You are a skeptic. A ${lens.key} reviewer raised the findings below about a ${target}. ${skepticTargetText}\n\nFor each finding, try to refute it by reading the actual ${target === 'plan' ? 'plan and code' : 'code'}. A finding is upheld only when the path it describes exists and nothing already handles it. A finding that is only a style preference, or that asks for an abstraction with a single use, is not upheld. A finding that attacks a settled choice without new evidence is not upheld.${ledger ? ` Grep ${ledger} for the result tokens (failed, fail, flake, survived, NOT VERIFIED, missed unknown) and the words of each finding: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''} Do not modify files.${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
-      { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS, effort: 'medium' },
+    return typedAgent(
+      SKEPTIC,
+      `A ${lens.key} reviewer raised the findings below about a ${target}. ${skepticTargetText}${ledger ? ` Grep ${ledger} for the result tokens (failed, fail, flake, survived, NOT VERIFIED, missed unknown) and the words of each finding: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''}${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,
+      { label: `verify:${lens.key}`, phase: 'Verify', schema: VERDICTS },
     ).then(v => {
       const upheld = new Map(((v && v.verdicts) || []).map(x => [x.index, x]))
       const judged = findings.map((f, i) => ({ ...f, skeptic: upheld.get(i) }))

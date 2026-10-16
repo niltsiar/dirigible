@@ -208,7 +208,7 @@
 "track.no.sound.privacy" = "Privacidad…";
 "track.state.device.lost" = "Dispositivo perdido";
 "track.state.write.failed" = "Error de escritura";
-"track.state.retry.stopped" = "Se dejó de reintentar. Reinicia Niveles de entrada.";
+"track.state.retry.stopped" = "Desactiva y activa Niveles de entrada para reintentar.";
 "track.state.waiting.app" = "Esperando a %@";
 "track.state.no.sound" = "No hay sonido de %1$@. Si %1$@ reproduce sonido, haz clic en Privacidad… y permite que Dirigible grabe el audio del sistema.";
 "track.state.no.sound.short" = "Sin sonido de %@";

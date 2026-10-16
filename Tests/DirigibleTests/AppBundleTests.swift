@@ -123,7 +123,7 @@ struct AppBundleTests {
             ("toolbar.monitor", "Levels", "Niveles"),
             (
                 "track.state.retry.stopped", "Stopped retrying. Turn Input Levels off and on.",
-                "Se dejó de reintentar. Reinicia Niveles de entrada."
+                "Desactiva y activa Niveles de entrada para reintentar."
             ),
             // Code gate round 1, item 1: the loopback text of a header row.
             (

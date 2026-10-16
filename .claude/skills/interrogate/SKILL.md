@@ -23,7 +23,7 @@ Then list the settled choices, one line each: the scope, the run order, the choi
 Run the saved workflow `review-panel` with the Workflow tool:
 
 ```
-Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: "<main-checkout>/.scratchpads/runs/<run>/decisions.tsv", lenses?, paths?, worktree: "<absolute worktree path>" } })
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: "<main-checkout>/.scratchpads/runs/<run>/decisions.tsv", risk, lenses?, paths?, worktree: "<absolute worktree path>" } })
 ```
 
 The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:
@@ -39,7 +39,7 @@ A `risk: yes` code gate with a non-docs, non-comments class also calls the `code
 - No skeptic: the fixer checks each finding.
 - Round 2 is the convergence workflow, with no `code-review`.
 
-Take `maxRounds` from the **deliver** class table. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
+Take `maxRounds` from the **deliver** class table and `risk` from `scripts/check-changed.sh`. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
 Pass `round`, and the earlier verdict files in `prior`. Round 1 is open. Each later round converges.
 

@@ -3,6 +3,7 @@ name: prompt-engineering-reviewer
 description: Prompt and instruction reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks wording, STE, leading words, negation, completion criteria, emphasis, contradictions, and no-op lines. Use in the five-lens panel of a docs change.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: medium
 ---
 
 You review the wording of the instructions that an agent executes. Evidence: `docs/research/agent-instruction-files.md` (findings 3-6, 14) and the **writing-for-agents** and **technical-writing** skills.

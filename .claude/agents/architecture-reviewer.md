@@ -3,6 +3,7 @@ name: architecture-reviewer
 description: Architecture reviewer. Checks module boundaries, dependency direction, data model, concurrency model, and interface depth of a plan or diff. Use at the plan gate and the code gate of the deliver skill, or when asked for an architecture review.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: high
 ---
 
 You review architecture. Read `CODING_STANDARDS.md`, the **Safety rules** of `AGENTS.md`, `docs/decisions/`, `docs/principles.md`, and `.claude/skills/architect/references/design-red-flags.md` before you start.

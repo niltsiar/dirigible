@@ -1,7 +1,7 @@
 export const meta = {
   name: 'review-panel',
   description: 'Lens review panel (premortem, devils advocate, architecture, code quality, or a chosen lens list) on a plan or diff, with a skeptic check per lens',
-  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records; with worktree, ledger, prior, and a plan scope are absolute), lenses?: string[] (lens keys that replace the default lenses of the target; a lens outside its gates is dropped; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering, and code-quality run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. Round 1 with no prior is open; each other round only checks that earlier fixes converged.',
+  whenToUse: 'Plan gate and code gate of the deliver skill. Args: { target: "plan" | "diff", intent: string, scope: string (plan path, or base ref such as main), round?: number (default 1), maxRounds?: number (default 2), prior?: string[] (verdict files of earlier rounds), settled?: string[] (choices the user asked for or the run already accepted; reviewers do not attack them), risk?: "yes" | "no" (the risk: line of scripts/check-changed.sh; yes runs each lens at effort high, except in a convergence round, which runs each lens at medium), ledger?: string (path of the decisions.tsv of the run; skeptics uphold a finding whose failure it records; with worktree, ledger, prior, and a plan scope are absolute), lenses?: string[] (lens keys that replace the default lenses of the target; a lens outside its gates is dropped; the five doc lenses context-engineering, prompt-engineering, harness-engineering, eval-engineering, compound-engineering, and code-quality run only this way), paths?: string[] (diff only: limit the diff to these paths; the workflow stops when no changed file matches), worktree?: string (the absolute path of the worktree that holds the branch: git runs with -C and files are read there; a diff with no changed file stops the workflow) }. Round 1 with no prior is open; each other round only checks that earlier fixes converged.',
   phases: [
     { title: 'Review', detail: 'one reviewer agent per lens' },
     { title: 'Verify', detail: 'one skeptic per lens tries to refute its warning and critical findings' },
@@ -19,6 +19,11 @@ const ledger = (args && args.ledger) || ''
 // widening the review and never closes the gate. Each gate has 2 rounds (deliver, class table).
 const mode = round === 1 && !prior.length ? 'open' : 'converge'
 if (mode !== 'open' && !prior.length) log(`Round ${round} has no prior verdicts. Reviewers cannot see what earlier rounds fixed.`)
+const risk = args && args.risk !== undefined ? args.risk : null
+if (risk !== null && risk !== 'yes' && risk !== 'no') throw new Error('args.risk must be "yes" or "no"')
+// A per-call effort overrides the effort of the agent file. A convergence round checks only the
+// earlier Act-on items, so it runs at medium at each risk. With no effort, the agent file sets it.
+const lensEffort = mode === 'converge' ? 'medium' : risk === 'yes' ? 'high' : null
 
 const lenses = args && args.lenses !== undefined ? args.lenses : null
 const paths = args && args.paths !== undefined ? args.paths : null
@@ -45,15 +50,15 @@ const treeText = worktree ? ` The branch is checked out in ${worktree}: read eac
 // `named` is not a default lens: the code gate runs the code-review skill in place of code-quality
 // (interrogate Step 3).
 const ALL_LENSES = [
-  { key: 'premortem', agentType: 'premortem', model: 'opus', gates: ['plan', 'diff'] },
-  { key: 'devils-advocate', agentType: 'devils-advocate', model: 'sonnet', gates: ['plan', 'diff'] },
-  { key: 'architecture', agentType: 'architecture-reviewer', model: 'opus', gates: ['plan', 'diff'] },
-  { key: 'code-quality', agentType: 'code-quality-reviewer', model: 'sonnet', gates: ['diff'], named: true },
-  { key: 'context-engineering', agentType: 'context-engineering-reviewer', model: 'opus', gates: [] },
-  { key: 'prompt-engineering', agentType: 'prompt-engineering-reviewer', model: 'sonnet', gates: [] },
-  { key: 'harness-engineering', agentType: 'harness-engineering-reviewer', model: 'opus', gates: [] },
-  { key: 'eval-engineering', agentType: 'eval-engineering-reviewer', model: 'opus', gates: [] },
-  { key: 'compound-engineering', agentType: 'compound-engineering-reviewer', model: 'sonnet', gates: [] },
+  { key: 'premortem', agentType: 'premortem', model: 'opus', effort: 'high', gates: ['plan', 'diff'] },
+  { key: 'devils-advocate', agentType: 'devils-advocate', model: 'sonnet', effort: 'medium', gates: ['plan', 'diff'] },
+  { key: 'architecture', agentType: 'architecture-reviewer', model: 'opus', effort: 'high', gates: ['plan', 'diff'] },
+  { key: 'code-quality', agentType: 'code-quality-reviewer', model: 'sonnet', effort: 'medium', gates: ['diff'], named: true },
+  { key: 'context-engineering', agentType: 'context-engineering-reviewer', model: 'opus', effort: 'medium', gates: [] },
+  { key: 'prompt-engineering', agentType: 'prompt-engineering-reviewer', model: 'sonnet', effort: 'medium', gates: [] },
+  { key: 'harness-engineering', agentType: 'harness-engineering-reviewer', model: 'opus', effort: 'medium', gates: [] },
+  { key: 'eval-engineering', agentType: 'eval-engineering-reviewer', model: 'opus', effort: 'medium', gates: [] },
+  { key: 'compound-engineering', agentType: 'compound-engineering-reviewer', model: 'sonnet', effort: 'medium', gates: [] },
 ]
 const atGate = l => !l.gates.length || l.gates.includes(target)
 const LENSES = ALL_LENSES.filter(l => lenses ? lenses.includes(l.key) && atGate(l) : l.gates.includes(target) && !l.named)
@@ -165,7 +170,9 @@ const SKEPTIC = { agentType: 'skeptic', model: 'sonnet', effort: 'medium' }
 
 async function review(lens) {
   const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${settledText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings, and in \`checked\` the files you read and the commands you ran. An empty findings list is a valid result. An empty \`checked\` list is not.`
-  return typedAgent(lens, `Review with your ${lens.key} lens.\n\n${task}`, { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS })
+  log(`review:${lens.key}: effort ${lensEffort || `${lens.effort} (agent file)`}`)
+  const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS, ...(lensEffort ? { effort: lensEffort } : {}) }
+  return typedAgent(lens, `Review with your ${lens.key} lens.\n\n${task}`, opts)
 }
 
 const results = await pipeline(

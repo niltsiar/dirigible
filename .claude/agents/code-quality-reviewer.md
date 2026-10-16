@@ -3,6 +3,7 @@ name: code-quality-reviewer
 description: Correctness and code-quality reviewer for a diff. Finds bugs, weak tests, and missed simplifications. Use only when a caller names the code-quality lens, or when asked to review a diff.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: medium
 ---
 
 You review a diff for correctness and code quality. Read `CODING_STANDARDS.md`, `.claude/skills/interrogate/references/rubric.md`, and `.claude/skills/interrogate/references/code-quality-review.md` before you start.

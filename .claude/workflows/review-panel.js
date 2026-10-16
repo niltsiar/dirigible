@@ -148,9 +148,9 @@ const MODE_TEXT = {
   converge: `Round ${round} of ${maxRounds}: the convergence round. It closes the gate. ${priorText}\nCheck only these two things. (1) Is each earlier "Act on" item fixed, correctly, and consistently with the other fixes? (2) Did a fix introduce a new defect in the text or code that it changed? Do not review areas that no earlier item or fix touched. Each finding must set priorItem to the item or fix it concerns. Exception: report a critical defect (data loss, crash, security) wherever you see it, with priorItem "none".`,
 }
 
-// Agent types load at session start. When the session started before an agent file
-// existed, or another harness runs this script, fall back to a general agent that
-// reads the same agent file as its role.
+// An agent file reloads at the next call, but only in the checkout of the session. When the
+// agent file is new in a worktree, or another harness runs this script, fall back to a general
+// agent that reads the same agent file as its role.
 async function review(lens) {
   const task = `Intent (assume the goal is right, attack the execution):\n> ${intent}\n\n${targetText}\n\n${settledText}\n\n${MODE_TEXT[mode]}\n\nReturn your findings, and in \`checked\` the files you read and the commands you ran. An empty findings list is a valid result. An empty \`checked\` list is not.`
   const opts = { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS }

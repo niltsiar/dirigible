@@ -26,7 +26,7 @@ Run the saved workflow `review-panel` with the Workflow tool:
 Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: "<main-checkout>/.scratchpads/runs/<run>/decisions.tsv", risk, lenses?, paths?, worktree: "<absolute worktree path>" } })
 ```
 
-The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:
+The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. The free jobs of `docs/workflow/model-routing.md` run beside it. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:
 
 - sources, sources-risk: the default lenses.
 - `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those paths in `paths`.

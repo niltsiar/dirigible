@@ -8,6 +8,7 @@ path	words	decision
 .claude/agents/harness-engineering-reviewer.md	350	0028
 .claude/agents/premortem.md	310	baseline
 .claude/agents/prompt-engineering-reviewer.md	350	0028
+.claude/agents/researcher.md	267	2026-10-16-agent-setup S2 (decisions.tsv 2026-10-16T09:00: research move, row = ceil(wc -w x 1.01))
 .claude/skills/architect/	2665	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/architect/SKILL.md	913	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/architect/references/design-red-flags.md	292	baseline
@@ -42,8 +43,8 @@ path	words	decision
 .claude/skills/reflect/references/judgment-reviewer.md	440	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/reflect/references/synthesizer.md	990	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/reflect/references/tooling-reviewer.md	660	2026-09-30-workflow-consolidation slice 9 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
-.claude/skills/research/	347	baseline
-.claude/skills/research/SKILL.md	347	baseline
+.claude/skills/research/	92	2026-10-16-agent-setup S2 (decisions.tsv 2026-10-16T09:00: research move, row = ceil(wc -w x 1.01))
+.claude/skills/research/SKILL.md	92	2026-10-16-agent-setup S2 (decisions.tsv 2026-10-16T09:00: research move, row = ceil(wc -w x 1.01))
 .claude/skills/tdd/	3050	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/tdd/SKILL.md	917	2026-10-14-workflow-upkeep-2 S18 (decisions.tsv 2026-10-15T05:28: user decision B5, raise by the exact count, C28)
 .claude/skills/tdd/references/flake-triage.md	780	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
@@ -63,5 +64,5 @@ path	words	decision
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1332	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 CODING_STANDARDS.md	307	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
-TOTAL	32130	2026-10-16-agent-setup S1 (decisions.tsv 2026-10-16T09:00: the branch cap of 50 words; the sum is 32084)
+TOTAL	32130	2026-10-16-agent-setup S2 (decisions.tsv 2026-10-16T09:00: the branch cap of 50 words; the sum is 32129)
 QUOTA	32080	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))

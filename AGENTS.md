@@ -30,7 +30,7 @@ Run each build, test, and bench as `scripts/with-lock.sh <command>`. This applie
 
 ## How to work
 
-Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `writing-for-humans`, `research`, `pr`, `diagnosing-bugs`, and `domain-modeling`. Reviewer agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
+Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `writing-for-humans`, `research`, `pr`, `diagnosing-bugs`, and `domain-modeling`. The agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
 
 ## Run ledger in .scratchpads/
 

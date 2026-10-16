@@ -1,10 +1,9 @@
 #!/bin/bash
 # Check that free-lens-reads.sh passes a session whose tool inputs name only allowed .scratchpads/
 # paths, also when a tool output quotes another one; fails and names each other path (a read, a
-# cd or a search of the folder, a workdir, Code Mode code); audits the one session of an id, or of
-# a <run>/<gate>/<lens> title in the worktree directory (an older session with the same title in
-# another directory is not audited); and exits 2 for a bad title, two sessions, no session, or no
-# database. The fixture database copies the opencode.db shape of
+# cd or a search of the folder, a workdir, Code Mode code); audits the one session of a
+# <run>/<gate>/<lens> title; and exits 2 for a session id or another bad title, two rows with a
+# title (in one directory, in two, or one in the main checkout), no session, or no database. The fixture database copies the opencode.db shape of
 # OpenCode v2.0.29: session_v2 and session_message, with tool parts in the content of assistant
 # rows. A session that starts in the main checkout, names its path, or runs a search that skips
 # .gitignore (rg -uu, rg --no-ignore), a recursive grep with no path, or an rg or recursive grep of
@@ -33,65 +32,65 @@ tool() {
   data="${data//$sq/$sq$sq}"
   sqlite3 "$db" "insert into session_message values ('m$n', '$1', 'assistant', $n, '$data');"
 }
-run() { OPENCODE_DB="$db" FREE_LENS_WORKTREE=/repo FREE_LENS_MAIN="${MAIN:-/main}" "$audit" "$@" > "$tmp/out" 2>&1; code=$?; }
+run() { OPENCODE_DB="$db" FREE_LENS_MAIN="${MAIN:-/main}" "$audit" "$@" > "$tmp/out" 2>&1; code=$?; }
 
-session ses_ok lens-ok
+session ses_ok r/g/ok
 tool ses_ok read "{\"path\":\"$scratch/runs/r/brief.txt\"}"
 tool ses_ok shell '{"command":"cat .scratchpads/runs/r/brief.txt\nls Sources"}'
 tool ses_ok read '{"path":"/repo/Sources/A.swift"}' "see $scratch/runs/old/review-diff-1.md for the key"
 tool ses_ok write "{\"path\":\"$scratch/runs/r/answer.md\",\"content\":\"x\"}"
 tool ses_ok shell '{"command":"rg --hidden stopGrace Sources && grep -rn stopGrace Sources Tests && rg -u foo && ls /repo-two"}'
 tool ses_ok shell '{"command":"rg \"a b\" ./Sources /repo/Tests; rg --files Sources; grep -rn \"/\" Sources; grep -rn -e .. Sources; rg \"x|y; z\" Sources"}'
-run ses_ok runs/r/brief.txt "$scratch/runs/r/answer.md"
+run r/g/ok runs/r/brief.txt "$scratch/runs/r/answer.md"
 [[ $code -eq 0 ]] || fail "allowed reads, a quote in output: exit $code: $(cat "$tmp/out")"
 
-session ses_bad lens-bad
+session ses_bad r/g/bad
 tool ses_bad read "{\"path\":\"$scratch/runs/r/brief.txt\"}"
 tool ses_bad read "{\"path\":\"$scratch/runs/old/review-diff-1.md\"}"
-run ses_bad runs/r/brief.txt
+run r/g/bad runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "read outside the list: expected exit 1, got $code"
 grep -q 'runs/old/review-diff-1.md' "$tmp/out" || fail "read outside the list: path not named: $(cat "$tmp/out")"
 grep -q 'runs/r/brief.txt' "$tmp/out" && fail "read outside the list: an allowed path is named"
 
-session ses_cd lens-cd
+session ses_cd r/g/cd
 tool ses_cd shell '{"command":"cd /repo/.scratchpads && cat runs/old/review-diff-1.md"}'
-run ses_cd runs/r/brief.txt
+run r/g/cd runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "cd into the folder: expected exit 1, got $code"
 
-session ses_rg lens-rg
+session ses_rg r/g/rg
 tool ses_rg shell '{"command":"rg -uu review .scratchpads/"}'
-run ses_rg runs/r/brief.txt
+run r/g/rg runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "search of the folder: expected exit 1, got $code"
 
-session ses_cm lens-cm
+session ses_cm r/g/cm
 tool ses_cm execute '{"code":"await tools.shell({command: \"grep -r review ~\"})"}'
 tool ses_cm execute '{"code":"await tools.shell({command: `rg -uu review`})"}'
 tool ses_cm execute '{"code":"exec(\"rg\", [\"--no-ignore\", \"x\"])"}'
-run ses_cm runs/r/brief.txt
+run r/g/cm runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "shell text in Code Mode: expected exit 1, got $code: $(cat "$tmp/out")"
 [[ "$(grep -c 'not allowed' "$tmp/out")" -eq 3 ]] || fail "shell text in Code Mode: expected 3 failures: $(cat "$tmp/out")"
 
-session ses_cmok lens-cmok
+session ses_cmok r/g/cmok
 tool ses_cmok execute '{"code":"const r = await tools.shell({command: \"rg stopGrace Sources\"}); return [1, 2].map((x) => x + 1)"}'
-run ses_cmok runs/r/brief.txt
+run r/g/cmok runs/r/brief.txt
 [[ $code -eq 0 ]] || fail "Code Mode with a clean search: expected exit 0, got $code: $(cat "$tmp/out")"
 
-session ses_wd lens-wd
+session ses_wd r/g/wd
 tool ses_wd shell "{\"command\":\"cat review-diff-1.md\",\"workdir\":\"$scratch/runs/old\"}"
-run ses_wd runs/r/brief.txt
+run r/g/wd runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "workdir in the folder: expected exit 1, got $code"
 
-session ses_ex lens-ex
+session ses_ex r/g/ex
 tool ses_ex execute '{"code":"await tools.read({path: `.scratchpads/runs/old/run.md`})"}'
-run ses_ex runs/r/brief.txt
+run r/g/ex runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "Code Mode read: expected exit 1, got $code"
 
 # A search or path that could reach the answer key from the worktree: one case each.
 # deny <id> <command> <text of the failure line>
 deny() {
-  session "ses_$1" "lens-$1"
+  session "ses_$1" "r/g/$1"
   tool "ses_$1" shell "{\"command\":\"$2\"}"
-  run "ses_$1" runs/r/brief.txt
+  run "r/g/$1" runs/r/brief.txt
   [[ $code -eq 1 ]] || fail "$1: expected exit 1, got $code: $(cat "$tmp/out")"
   grep -q "$3" "$tmp/out" || fail "$1: no failure line with '$3': $(cat "$tmp/out")"
 }
@@ -134,7 +133,7 @@ deny nopathquoted 'grep -r \"a b\"' 'grep -r with no path'
 
 session ses_inmain r/g/inmain /main
 tool ses_inmain read '{"path":"/main/Sources/A.swift"}'
-run ses_inmain runs/r/brief.txt
+run r/g/inmain runs/r/brief.txt
 [[ $code -eq 1 ]] || fail "a session that starts in the main checkout: expected exit 1, got $code"
 grep -q 'starts in the main checkout' "$tmp/out" || fail "a session that starts in the main checkout: no failure line: $(cat "$tmp/out")"
 
@@ -143,25 +142,33 @@ tool ses_old read "{\"path\":\"$scratch/runs/old/review-diff-1.md\"}"
 session ses_new r/g/lens
 tool ses_new read "{\"path\":\"$scratch/runs/r/brief.txt\"}"
 run r/g/lens runs/r/brief.txt
-[[ $code -eq 0 ]] || fail "a title shared with an older session: expected exit 0, got $code: $(cat "$tmp/out")"
-grep -q 'ses_old' "$tmp/out" && fail "a title shared with an older session: the older session is audited"
-grep -q 'ses_new: clean' "$tmp/out" || fail "a title shared with an older session: the new session is not audited: $(cat "$tmp/out")"
+[[ $code -eq 2 ]] || fail "a title with two rows in two directories: expected exit 2, got $code: $(cat "$tmp/out")"
+grep -q 'ses_old\|ses_new' "$tmp/out" && fail "a title with two rows: a session is audited"
+grep -q 'two sessions' "$tmp/out" || fail "a title with two rows: no failure line: $(cat "$tmp/out")"
 
 session ses_t1 r/g/twice
 session ses_t2 r/g/twice
 run r/g/twice runs/r/brief.txt
-[[ $code -eq 2 ]] || fail "a title with two sessions in the worktree: expected exit 2, got $code"
-grep -q 'session id' "$tmp/out" || fail "a title with two sessions in the worktree: no hint to use the id: $(cat "$tmp/out")"
+[[ $code -eq 2 ]] || fail "a title with two rows in the worktree: expected exit 2, got $code"
 
-session ses_loose lens-loose
-run lens-loose runs/r/brief.txt
+session ses_m1 r/g/mixed /main
+session ses_m2 r/g/mixed
+run r/g/mixed runs/r/brief.txt
+[[ $code -eq 2 ]] || fail "a title with a row in the main checkout and a row in the worktree: expected exit 2, got $code"
+
+run ses_ok runs/r/brief.txt
+[[ $code -eq 2 ]] || fail "a session id in place of the title: expected exit 2, got $code"
+grep -q 'run>/<gate>/<lens' "$tmp/out" || fail "a session id in place of the title: no form hint: $(cat "$tmp/out")"
+
+session ses_loose loose
+run loose runs/r/brief.txt
 [[ $code -eq 2 ]] || fail "a title not in the run/gate/lens form: expected exit 2, got $code"
 grep -q 'run>/<gate>/<lens' "$tmp/out" || fail "a title not in the run/gate/lens form: no form hint: $(cat "$tmp/out")"
 
 run r/g/none runs/r/brief.txt
 [[ $code -eq 2 ]] || fail "no session: expected exit 2, got $code"
 
-OPENCODE_DB="$tmp/missing.db" "$audit" ses_ok runs/r/brief.txt > /dev/null 2>&1; code=$?
+OPENCODE_DB="$tmp/missing.db" "$audit" r/g/ok runs/r/brief.txt > /dev/null 2>&1; code=$?
 [[ $code -eq 2 ]] || fail "no database: expected exit 2, got $code"
 
 run

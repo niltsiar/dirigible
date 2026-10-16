@@ -1,10 +1,10 @@
 #!/bin/bash
 # Audit what a free-model session of OpenCode did, against the files that its brief allowed
 # (docs/workflow/model-routing.md, free-job rules).
-# Usage: free-lens-reads.sh <session id or run/gate/lens title> <allowed path>...
-# One call audits one session: the session id that delegate_task returns, else a title of the form
-# <run>/<gate>/<lens> that one session has in the worktree directory (FREE_LENS_WORKTREE, else the
-# top folder of the current directory). A session of another directory with that title is not read.
+# Usage: free-lens-reads.sh <run>/<gate>/<lens> <allowed path>...
+# One call audits one session. The key is the title that the delegate_task call gave it, which
+# delegate_task does not return as an id: exactly one session_v2 row has the title, and its
+# directory is not the main checkout. A second row with the title makes the key void.
 # An allowed path is absolute or relative to .scratchpads/. The script reads the tool inputs only
 # (a read path, a shell command and its workdir, a search path, Code Mode code), so a path that a
 # tool output quotes does not count. These are failures:
@@ -22,7 +22,7 @@
 set -euo pipefail
 
 die() { echo "free-lens-reads: $1" >&2; exit 2; }
-[[ $# -ge 1 && -n "$1" ]] || die "usage: free-lens-reads.sh <session id or run/gate/lens title> <allowed path>..."
+[[ $# -ge 1 && -n "$1" ]] || die "usage: free-lens-reads.sh <run>/<gate>/<lens> <allowed path>..."
 command -v sqlite3 > /dev/null || die "sqlite3 is not installed"
 db="${OPENCODE_DB:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode/opencode.db}"
 [[ -f "$db" ]] || die "no OpenCode database at $db (set OPENCODE_DB)"
@@ -52,15 +52,10 @@ is_allowed() {
     return 1
 }
 
-sessions="$(sqlite3 -readonly "$db" "select id from session_v2 where id = '$query';")"
-if [[ -z "$sessions" ]]; then
-    [[ "$arg" =~ ^[^/]+/[^/]+/[^/]+$ ]] || die "no session id '$arg', and it is not a title of the form <run>/<gate>/<lens>"
-    worktree="${FREE_LENS_WORKTREE:-$(git rev-parse --show-toplevel)}"
-    wt_sql="${worktree//\'/\'\'}"
-    sessions="$(sqlite3 -readonly "$db" "select id from session_v2 where title = '$query' and directory = '$wt_sql' order by id;")"
-    [[ -n "$sessions" ]] || die "no session with the title '$arg' in $worktree"
-    [[ "$(wc -l <<< "$sessions")" -eq 1 ]] || die "two sessions have the title '$arg' in $worktree: audit by the session id"
-fi
+[[ "$arg" =~ ^[^/]+/[^/]+/[^/]+$ ]] || die "'$arg' is not a title of the form <run>/<gate>/<lens>"
+sessions="$(sqlite3 -readonly "$db" "select id from session_v2 where title = '$query' order by id;")"
+[[ -n "$sessions" ]] || die "no session with the title '$arg'"
+[[ "$(wc -l <<< "$sessions")" -eq 1 ]] || die "two sessions have the title '$arg': give each free job a new title"
 
 bad=0
 # deny <text>: print one failure of the session once.

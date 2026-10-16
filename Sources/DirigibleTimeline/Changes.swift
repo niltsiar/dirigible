@@ -117,8 +117,8 @@ private func hull(_ range: Range<Frames>?, _ start: Frames, _ end: Frames) -> Ra
 extension ClipLane {
     /// Whether a lane neighbor touches the clip at `index` (a butt join). Command-F and the fade
     /// handles read it (decision 0035); `changedFrames` compares the joins of a changed run with
-    /// `LaneGeometry.hasHandle`.
-    func joins(at index: Int) -> (before: Bool, after: Bool) {
+    /// `LaneGeometry.hasHandle`; the lane renderer draws a join where it holds.
+    public func joins(at index: Int) -> (before: Bool, after: Bool) {
         let clip = self[index]
         return (
             index > startIndex && self[index - 1].end == clip.start,

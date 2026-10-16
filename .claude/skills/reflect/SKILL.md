@@ -54,7 +54,7 @@ A deliver run with the goal "apply the upkeep items". If the user asked for a ch
 - Make one commit per changed doc file, with its `rules.tsv` rows and the check that replaces its prose.
 - Append a `learnings.md` line with the date, the key, and the commit hash, and remove the item from `## Next`.
 
-Then, once for the batch: the eval pass of rule 8, and the `review-panel` workflow on the diff (`target: "diff"`, `maxRounds: 2`, `risk` of `scripts/check-changed.sh`, the five doc lenses and `paths` of Step 3 of the **interrogate** skill, also in a small run). Each Act on finding gets a fix commit or a revert commit before the merge.
+Then, once for the batch: the eval pass of rule 8, and the `review-panel` workflow on the diff (`target: "diff"`, `maxRounds: 2`, and the `risk`, the five doc lenses, and `paths` of Step 3 of the **interrogate** skill, also in a small run). Each Act on finding gets a fix commit or a revert commit before the merge.
 
 ### 5. Summarize
 

@@ -39,7 +39,7 @@ A `risk: yes` code gate with a non-docs, non-comments class also calls the `code
 - No skeptic: the fixer checks each finding.
 - Round 2 is the convergence workflow, with no `code-review`.
 
-Take `maxRounds` from the **deliver** class table and `risk` from `scripts/check-changed.sh`. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
+Take `maxRounds` from the **deliver** class table. Pass the plan `risk` at a plan gate, and at a code gate the higher of it and the `risk:` line of `scripts/check-changed.sh origin/main`. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
 Pass `round`, and the earlier verdict files in `prior`.
 

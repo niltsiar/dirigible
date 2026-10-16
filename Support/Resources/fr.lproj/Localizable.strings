@@ -446,8 +446,8 @@
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Pistes :";
-"subtitle.record.time" = "Temps d’enregistrement :";
-"banner.low.record.time" = "Il reste moins de %lld min d’enregistrement sur ce disque. Libérez de l’espace disque avant d’enregistrer.";
+"subtitle.record.time" = "Temps d’enregistrement restant :";
+"banner.low.record.time.left" = "Il reste moins de %@ d’enregistrement sur ce disque. Libérez de l’espace disque avant d’enregistrer.";
 "banner.use.headphones" = "Utilisez un casque : le son de l’invité peut être capté par votre micro.";
 "banner.monitor.headphones" = "Utilisez un casque pour entendre le monitoring.";
 "banner.export.report" = "L’exportation de %1$@ est terminée : %2$@.";

@@ -26,14 +26,14 @@ At the highest rate on record (54 % to 81 % in about 70 min of Opus work), 25 % 
 
 Free jobs run on the free models of OpenCode Zen. They are optional extras: a free result never replaces a Claude step.
 
-Only four free models keep no input and do not train on it: glm-5.3-flash-free, deepseek-v4.1-flash-free, space-bunny-free, and longcat-2.5-preview-free. Only these models get a free job. Each OpenCode session in the repo sends `AGENTS.md` and the skill list to the model, so no other model can run in the repo.
+Any free model can get repo text and train on it: the project goes open source (user, 2026-10-16). No credential, personal data, or real-voice recording goes to a model.
 
 | Job | Model | Use |
 |---|---|---|
 | Extra review lens at a gate | space-bunny-free, then deepseek-v4.1-flash-free | Beside the Claude lenses |
-| Translation check | space-bunny-free | The Claude check runs on a skip |
-| First read of a red push-check log | space-bunny-free | The lead reads the log on a skip |
-| Second opinion on the panel findings | glm-5.3-flash-free | Beside the skeptic |
+| Translation check | muse-spark-1.3-contributor-free | The Claude check runs on a skip |
+| First read of a red push-check log | muse-spark-1.3-contributor-free | The lead reads the log on a skip |
+| Second opinion on the panel findings | muse-spark-1.3-contributor-free | Beside the skeptic |
 
 Explore, the implementer, and the skeptic stay on Claude.
 

@@ -262,7 +262,9 @@
 "transport.record" = "Neem op";
 "transport.stop" = "Stop";
 "transport.play" = "Speel af";
-"transport.record.over" = "'Neem op' vervangt audio buiten beeld op een spoor met actieve opname, vanaf de afspeelkop. Kies 'Ga naar einde' of zet de rode opnameknop in het spoorlabel uit om die audio te behouden.";
+"record.over.chip" = "Verborgen audio in gevaar";
+"record.over.show" = "Toon clip";
+"record.over.disarm" = "Deactiveer opname voor %@";
 "transport.stop.output.changed" = "Het afspelen is gestopt: het uitvoerapparaat is gewijzigd. Druk op de spatiebalk om af te spelen op het nieuwe apparaat.";
 "transport.stop.output.unavailable" = "Het afspelen kan niet starten: het uitvoerapparaat is niet beschikbaar (fout %lld).";
 "transport.stop.package.unavailable" = "Het afspelen is gestopt: het sessiepakket is niet beschikbaar. Controleer of de schijf ervan is aangesloten.";

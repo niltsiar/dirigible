@@ -101,8 +101,7 @@ struct BannerValueTests {
         }
         for language in AppLanguage.allCases.map(\.rawValue) {
             let table = (try? stringsTable(language)) ?? [:]
-            for key in [L10n.bannerLowRecordTimeLeft, .mediaMissing, .transportStopOutputChanged, .transportRecordOver]
-            {
+            for key in [L10n.bannerLowRecordTimeLeft, .mediaMissing, .transportStopOutputChanged] {
                 #expect(table[key.rawValue]?.hasSuffix(".") == true, "\(language) \(key): a fact, then an action")
                 #expect((table[key.rawValue]?.split(separator: ".").count ?? 0) >= 2, "\(language) \(key)")
             }

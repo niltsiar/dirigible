@@ -8,12 +8,12 @@ import os
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// The record-over overlay, the transport warnings, and Use headphones (ui-shell A17, A18, B2c).
+/// The record-over chip, the transport warnings, and Use headphones (ui-shell A17, A18, B2c).
 extension BannerTests {
     // MARK: A17, A18
 
-    /// The frame check comes after a body run of the overlay that shows the warning, so it sees
-    /// the lanes with the overlay. The count is read before the arm, so no run is missed.
+    /// The frame check comes after a body run of the chip that shows the warning, so it sees the
+    /// lanes with the chip. The count is read before the arm, so no run is missed.
     @Test func theRecordOverBannerDoesNotMoveTheLanes() async throws {
         let (model, studio, window, _) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
         await until("the window shows the lanes") { model.timelineView?.window != nil }
@@ -33,18 +33,18 @@ extension BannerTests {
         let shows = model.overlayShows
 
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
-        await until(limit: .seconds(10), "the overlay body shows the warning") {
+        await until(limit: .seconds(10), "the chip body shows the warning") {
             window.contentView?.layoutSubtreeIfNeeded()
             return model.overlayShows > shows
         }
 
         #expect(!model.shown.recordOver.isEmpty)
-        #expect(view.convert(view.bounds, to: nil) == before, "the overlay moved the lanes")
+        #expect(view.convert(view.bounds, to: nil) == before, "the chip moved the lanes")
         await model.close()
     }
 
-    /// Code gate 1 item 1: the overlay covers the ruler, where the user acts on the warning. A
-    /// mouse-down there goes through the window to the ruler and moves the playhead.
+    /// Code gate 1 item 1: the chip is in the header corner of the ruler band, so a mouse-down on
+    /// the ruler times goes through the window to the ruler and moves the playhead.
     @Test func aRulerClickUnderTheRecordOverOverlaySeeks() async throws {
         let (model, studio, window, _) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
         await until("the window shows the lanes") { model.timelineView?.window != nil }
@@ -52,7 +52,7 @@ extension BannerTests {
         view.viewWillMove(toWindow: nil)
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
         await studio.perform(.seek(.frame(100_000)))
-        await until(limit: .seconds(10), "the overlay body shows the warning") {
+        await until(limit: .seconds(10), "the chip body shows the warning") {
             window.contentView?.layoutSubtreeIfNeeded()
             return !model.shown.recordOver.isEmpty && model.overlayShows > 0
         }
@@ -69,12 +69,12 @@ extension BannerTests {
         hit.mouseUp(with: try rulerMouse(.leftMouseUp, x, 10, in: view))
 
         await until(limit: .seconds(5), "the ruler click seeks") { studio.playhead == target }
-        #expect(studio.playhead == target, "the overlay took the ruler click")
+        #expect(studio.playhead == target, "the chip took the ruler click")
         await model.close()
     }
 
-    /// Code gate 1 item 1 (round 2 of the timeline-navigation gate): the warning covers the ruler,
-    /// not the overview strip above it. The strip pixels stay when the warning shows, and the
+    /// Code gate 1 item 1 (round 2 of the timeline-navigation gate): the chip is in the ruler band,
+    /// not over the overview strip above it. The strip pixels stay when the warning shows, and the
     /// ruler pixels change in the same captures. A click on the strip still moves the view.
     @Test func theRecordOverOverlayLeavesTheOverviewFree() async throws {
         let (model, studio, window, _) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
@@ -95,12 +95,12 @@ extension BannerTests {
         let (stripBefore, rulerBefore) = (try await pixels(strip), try await pixels(view.ruler))
 
         model.armed = [TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")]
-        await until(limit: .seconds(10), "the overlay body shows the warning") {
+        await until(limit: .seconds(10), "the chip body shows the warning") {
             window.contentView?.layoutSubtreeIfNeeded()
             return !model.shown.recordOver.isEmpty && model.overlayShows > 0
         }
         let (stripAfter, rulerAfter) = (try await pixels(strip), try await pixels(view.ruler))
-        #expect(rulerAfter != rulerBefore, "the warning shows over the ruler")
+        #expect(rulerAfter != rulerBefore, "the chip shows in the ruler band")
         let covered = zip(stripBefore, stripAfter).filter { $0 != $1 }.count
         #expect(covered == 0, "the warning covers \(covered) pixels of the overview strip")
 

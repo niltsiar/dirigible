@@ -14,7 +14,7 @@ import Testing
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// Criterion 19: the record-over overlay shows only when Record can reach a clip on an armed
+    /// Criterion 19: the record-over warning shows only when Record can reach a clip on an armed
     /// track that is not in view. Controls: an armed lane in view does not warn; nothing is in view
     /// before a layout.
     @Test func theRecordOverWarningNeedsAnArmedClipOutOfView() async throws {

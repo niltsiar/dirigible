@@ -262,7 +262,9 @@
 "transport.record" = "Aufnehmen";
 "transport.stop" = "Stoppen";
 "transport.play" = "Wiedergabe";
-"transport.record.over" = "„Aufnehmen“ ersetzt Audio außerhalb der Ansicht auf einer aufnahmebereiten Spur, ab der Abspielposition. Um es zu behalten, wähle „Zum Ende“ oder schalte die rote Aufnahmetaste im Spur-Header aus.";
+"record.over.chip" = "Verdecktes Audio in Gefahr";
+"record.over.show" = "Clip zeigen";
+"record.over.disarm" = "Aufnahme für %@ ausschalten";
 "transport.stop.output.changed" = "Die Wiedergabe wurde gestoppt: Das Ausgabegerät hat sich geändert. Drücke die Leertaste, um auf dem neuen Gerät abzuspielen.";
 "transport.stop.output.unavailable" = "Die Wiedergabe kann nicht starten: Das Ausgabegerät ist nicht verfügbar (Fehler %lld).";
 "transport.stop.package.unavailable" = "Die Wiedergabe wurde gestoppt: Das Session-Paket ist nicht verfügbar. Prüfe, ob seine Festplatte verbunden ist.";

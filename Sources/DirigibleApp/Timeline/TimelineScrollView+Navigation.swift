@@ -88,6 +88,18 @@ extension TimelineScrollView {
         show(first.scale, origin: first.origin)
     }
 
+    /// Show Clip of the record-over chip: `frame` in the middle of the view, and the whole lane in
+    /// view with the least vertical scroll.
+    func reveal(frame: Frames, lane: Int) {
+        navigate(.center(frame))
+        guard let laneHeight = source?.laneHeight else { return }
+        let (top, bottom, shown) = (Double(lane) * laneHeight, Double(lane + 1) * laneHeight, self.shown)
+        let y = top < shown.minY ? top : bottom > shown.maxY ? max(top, bottom - shown.height) : shown.minY
+        guard y != shown.minY else { return }
+        contentView.scroll(to: NSPoint(x: contentView.bounds.minX, y: y - contentView.contentInsets.top))
+        reflectScrolledClipView(contentView)
+    }
+
     /// Automatic Scroll turned on: the page of the head, with the head at 11%.
     func showPlayhead() {
         guard let turn = followOrigin(playhead: head, origin: origin, frames: visibleFrames, direction: .forward)

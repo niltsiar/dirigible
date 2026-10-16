@@ -262,7 +262,9 @@
 "transport.record" = "Enregistrer";
 "transport.stop" = "Arrêter";
 "transport.play" = "Lecture";
-"transport.record.over" = "Enregistrer remplace l’audio hors de vue sur une piste armée, à partir de la tête de lecture. Pour le conserver, choisissez Aller à la fin ou désactivez le bouton rouge d’enregistrement dans l’en-tête de la piste.";
+"record.over.chip" = "Audio masqué en danger";
+"record.over.show" = "Afficher le clip";
+"record.over.disarm" = "Désactiver l’enregistrement sur %@";
 "transport.stop.output.changed" = "La lecture s’est arrêtée : l’appareil de sortie a changé. Appuyez sur Espace pour lire sur le nouvel appareil.";
 "transport.stop.output.unavailable" = "La lecture ne peut pas démarrer : l’appareil de sortie n’est pas disponible (erreur %lld).";
 "transport.stop.package.unavailable" = "La lecture s’est arrêtée : le paquet de la session n’est pas disponible. Vérifiez que son disque est connecté.";

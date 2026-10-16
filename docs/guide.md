@@ -80,10 +80,10 @@ A track records only when its arm button is on. Click the button to turn it on o
 ### Record a take
 
 1. Choose **Record > Record** (Command-R). The window shows **Recording take 1** and the time.
-2. Record the interview. The armed tracks show the audio in red as it records. A red line shows the record head. The time in the toolbar shows the record head. The header of each track shows its name and its input (if it has one) as text until the take is finished. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
+2. Record the interview. The armed tracks show the audio in red as it records. A red line shows the record head. After Stop, the playhead is a white or black line with a head in the time ruler. The time in the toolbar shows the record head. The header of each track shows its name and its input (if it has one) as text until the take is finished. When **View > Automatic Scroll** is on, the view turns the page to keep the record head in view.
 3. Choose **Transport > Stop** (Command-Period). The window shows **Finishing take 1**, then **Take 1 is finished.** Space also stops the take. After a long take, **Finishing take 1** can last some minutes. Do not force Dirigible to quit.
 
-A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. After a take, the playhead is at the end of the take.
+A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. The line is white in dark mode and black in light mode, so it shows over a selected track too. The head is in the time ruler. Only the record head of a take is red. With **Increase Contrast** on in the macOS settings, the line is thicker. When the playhead is near a time in the ruler, the head covers part of that time. After a take, the playhead is at the end of the take.
 
 After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. When Dirigible leveled the take, the first Undo removes the level and keeps the take. A take with no change of gain, for example a silent take, gets no level, and the first Undo removes the take.
 
@@ -109,7 +109,13 @@ When you play again from the frame where you stopped, **Average** and **Peak** g
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 
-> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is out of view, a warning shows over the lanes. Before you record again, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop). Or turn off the arm button of the tracks that you want to keep.
+> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is hidden, the chip **Hidden Audio at Risk** shows in the corner over the track headers. Audio is hidden when less than half of its track is in view, or when the part that Record reaches is out of view. The chip does not move the tracks or cover the ruler. Click the chip to open its menu. The menu shows the tracks and the time, and has these items:
+>
+> - **Go to End** moves the playhead to the end of the session. You can also choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop).
+> - **Show Clip** scrolls to the first clip that Record reaches.
+> - **Turn Off Record on** a track turns off the arm button of that track, so Record keeps its audio.
+>
+> VoiceOver says the warning once for each set of tracks.
 >
 > If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z) until the old audio comes back. When Dirigible leveled the take, the first Undo removes the level. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >
@@ -166,13 +172,14 @@ You can play the session faster or slower, and the voices keep their pitch. This
 - On a trackpad, pinch to zoom. With a mouse, hold Command and turn the scroll wheel. The zoom keeps the part under the pointer in place. The tooltips of the **Zoom In** and **Zoom Out** toolbar buttons tell you this.
 - Choose **View > Zoom to Selection or Session** to show the selection. With no selection, it shows the whole session. Choose it again to go back to the view before.
 - Choose **View > Zoom Back** and **View > Zoom Forward** to go through the zoom history of the window.
+- Where two clips touch, a join of 2 points marks the cut on the track. The join shows when both clips are 12 points wide or wider on the screen, so zoom in to see the joins of short clips.
 - Double-tap with two fingers on a trackpad for smart zoom. When the whole session is in view, smart zoom zooms in at the pointer. In other views, it shows the whole session.
 
 ### Use the Session overview
 
 The **Session overview** is the strip above the time ruler. It shows the whole session and a frame around the part in view.
 
-- Click the Session overview to show that part of the session.
+- Click the Session overview to show that part of the session. Its playhead stays red.
 - Drag the frame to scroll.
 - Drag an edge of the frame to zoom. When the frame is 16 pt or wider, a grip shows at each edge. Press Esc during the drag to go back to the view before.
 - Double-click the Session overview to show the whole session. Double-click again to go back.

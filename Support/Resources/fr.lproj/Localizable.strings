@@ -150,6 +150,7 @@
 "error.paste.copy" = "Dirigible ne peut pas coller depuis « %1$@ ». L’audio n’a pas pu être copié (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.paste.convert" = "Dirigible ne peut pas coller depuis « %1$@ ». L’audio n’a pas pu être converti (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.paste.yielded" = "Le collage depuis « %@ » s’est arrêté à cause d’une prise dans une autre fenêtre. Collez à nouveau après la prise.";
+"error.writer.did.not.stop" = "Dirigible n’a pas pu arrêter %1$@. L’audio est en sécurité sur le disque. Cliquez sur %2$@ pour réessayer, ou quittez Dirigible. Le prochain lancement restaure la prise.";
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";
 "reverted.to" = "Copie de secours du %@ restaurée";
@@ -210,6 +211,7 @@
 "track.state.write.failed" = "Erreur d’écriture";
 "track.state.retry.stopped" = "Plus d’essai. Désactivez et réactivez Niveaux d’entrée.";
 "track.state.waiting.app" = "Attente de %@";
+"track.state.not.started" = "Pas démarré";
 "track.state.no.sound" = "Aucun son de %1$@. Si %1$@ émet du son, cliquez sur Confidentialité… et autorisez Dirigible à enregistrer l’audio système.";
 "track.state.no.sound.short" = "Aucun son de %@";
 "track.listen.quiet" = "Aucun son de monitoring. Désactivez et réactivez Monitoring de la piste.";

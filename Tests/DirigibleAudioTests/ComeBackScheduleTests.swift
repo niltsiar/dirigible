@@ -17,7 +17,7 @@ struct ComeBackScheduleTests {
             let tick = millis.isMultiple(of: 50)
             if (event && schedule.event(at: at(millis))) || (tick && schedule.tick(at: at(millis))) {
                 tries.append(millis)
-                schedule.failed(at: at(millis))
+                schedule.tried(.failed, at: at(millis))
             }
         }
         return tries.map { Double($0) / 1000 }
@@ -38,10 +38,10 @@ struct ComeBackScheduleTests {
     @Test func anAttachEndsTheBackoff() {
         let zero = ContinuousClock.now
         var schedule = ComeBackSchedule(at: zero)
-        schedule.failed(at: zero)
+        schedule.tried(.failed, at: zero)
         let inWindow = schedule.event(at: zero + .milliseconds(100))
         #expect(!inWindow, "an event in the window waits")
-        schedule.attached()
+        schedule.tried(.attached, at: zero + .milliseconds(120))
         schedule.lost(at: zero + .milliseconds(150))
         let afterAttach = schedule.event(at: zero + .milliseconds(160))
         #expect(afterAttach, "the first event after an attach did not try")

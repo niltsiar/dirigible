@@ -153,6 +153,38 @@ extension StartLimitTests {
         await studio.settle()
     }
 
+    /// The Zoom writer of `t4` gets 6 s of zeros, so it shows the silence warning, and the tap of
+    /// its warning rebuild waits, so the writer does not stop. Retry Finalize names the silent
+    /// track after the late finish, as a stop names the track of a writer that finished.
+    @Test func aRetryNamesTheSilentTrackOfALateAppWriter() async throws {
+        let hal = hal()
+        defer { hal.releaseTaps() }
+        let studio = try await studio(hal, stop: limit, grace: .zero)
+        _ = try await start(studio, ["t4"]) {}
+        await until(limit: busy, "Zoom did not attach") { hal.current(Self.zoomUID) != nil }
+        let first = try #require(hal.current(Self.zoomUID))
+        hal.holdTaps()
+        let zeros = SyntheticInput(hal, Self.zoomUID)
+        var clock = DeviceClock()
+        zeros.play(
+            clock.run(seconds: 6).map { record in
+                var record = record
+                record.buffers = [[Float](repeating: 0, count: record.frameCount)]
+                return record
+            }, takeStartIn: url)
+        await zeros.wait()
+        await until(limit: busy, "the silence warning did not rebuild the tap") { hal.isDetached(first) }
+        let (error, _) = await stop(studio) { hal.releaseTaps() }
+        let silentAtStop = studio.lastTake?.silent
+
+        hal.releaseTaps()
+        try await studio.retryFinalize()
+        #expect(error == .writerDidNotStop("zoom.us"))
+        #expect(silentAtStop == [:])
+        #expect(studio.lastTake?.silent == ["t4": "zoom.us"])
+        await studio.settle()
+    }
+
     // MARK: C17
 
     /// A writer that does not stop keeps the package lock, also after Close drops the Studio. After

@@ -204,11 +204,12 @@ extension Studio {
             liveTracks = [:]
             recordingSince = nil
             recordTimeLeft = nil
+            // Before the monitor: it skips the device of each unfinished writer.
+            unfinishedWriters = unfinished
             // The come back returns its monitor turn before the finalize (decision 0015).
             await monitorTurns.run { await applyMonitor() }
             defer { sleepAssertion = nil }
             if let late = unfinished.first {
-                unfinishedWriters = unfinished
                 takeError = .writerDidNotStop(late.writer.name)
                 dropLiveTake()
                 transport = .idle

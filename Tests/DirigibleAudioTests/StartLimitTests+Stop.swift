@@ -125,6 +125,34 @@ extension StartLimitTests {
         await studio.settle()
     }
 
+    /// The monitor of `t2` is on, and the `box` writer of the take does not stop. The stop starts
+    /// no monitor writer on `box`: its attach would go to the device that does not answer. After
+    /// Retry Finalize finishes the writer, the monitor of `box` comes back.
+    @Test func aStopStartsNoMonitorOnTheDeviceOfAnUnfinishedWriter() async throws {
+        let hal = hal()
+        defer { hal.releaseAttach("box") }
+        let studio = try await studio(hal, stop: limit, grace: .zero)
+        try await studio.monitor(armed: ["t2"])
+        await until(limit: busy, "no monitor attach of box") { hal.current("box") != nil }
+        let mics = play(hal, "mic")
+        _ = try await start(studio, ["t1", "t2"]) {}
+        try await Task.sleep(for: .seconds(1))
+        try await holdComeBack(studio.writer("box"), hal, "box")
+        let (error, _) = await stop(studio) { hal.releaseAttach("box") }
+        let monitorDuringHold = studio.monitorWriter("box") != nil
+        let held = hal.heldAttachCount("box")
+
+        hal.releaseAttach("box")
+        await mics.wait()
+        try await studio.retryFinalize()
+        #expect(error == .writerDidNotStop("Box"))
+        #expect(!monitorDuringHold, "the stop started a monitor writer on box")
+        #expect(held == 1, "\(held) attaches of box waited in the hold")
+        #expect(studio.monitorWriter("box") != nil, "the monitor of box did not come back")
+        #expect(studio.liveTracks["t2"]?.state == .monitoring)
+        await studio.settle()
+    }
+
     // MARK: C17
 
     /// A writer that does not stop keeps the package lock, also after Close drops the Studio. After

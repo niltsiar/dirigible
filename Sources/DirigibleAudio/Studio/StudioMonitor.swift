@@ -63,10 +63,12 @@ extension Studio {
     /// writer, and a device whose tracks changed or went is finished. The caller holds a monitor
     /// turn. With take writers, it changes nothing. It makes the whole state change before its
     /// first await and then waits for the finish of each released writer, so a take that begins
-    /// meanwhile keeps its entries of `liveTracks`.
+    /// meanwhile keeps its entries of `liveTracks`. The device of a writer that a stop left
+    /// unfinished gets no monitor writer: its queue can wait in a HAL call of that device.
     func applyMonitor() async {
         guard writers.isEmpty else { return }
-        let plan = monitorPlan()
+        let held = Set(unfinishedWriters.map(\.uid))
+        let plan = monitorPlan().filter { !held.contains($0.key) }
         var released: [DeviceWriter] = []
         for (uid, monitor) in monitors where plan[uid] != monitor.tracks {
             monitors[uid] = nil

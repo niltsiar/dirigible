@@ -184,14 +184,21 @@ struct RecordOverTests {
 
     static let visible = TimelineVisible(frames: 0..<737_280, lanes: 0..<5)
 
-    static func warns(_ armed: Set<TrackID>, _ playhead: Frames, clips: [Range<Frames>] = [0..<1_000_000]) throws
-        -> Bool
+    static func warning(_ armed: Set<TrackID>, _ playhead: Frames, clips: [Range<Frames>] = [0..<1_000_000]) throws
+        -> RecordOverWarning
     {
         recordOverHidden(session: try session(clips: clips), armed: armed, playhead: playhead, visible: visible)
     }
 
+    static func warns(_ armed: Set<TrackID>, _ playhead: Frames, clips: [Range<Frames>] = [0..<1_000_000]) throws
+        -> Bool
+    {
+        try !warning(armed, playhead, clips: clips).isEmpty
+    }
+
     @Test func anArmedClipInAClippedLaneWarns() throws {
-        #expect(try Self.warns(["t7"], 100_000), "an armed clip in a clipped lane warns")
+        let warning = try Self.warning(["t2", "t7"], 100_000)
+        #expect(warning.reached == [.init(track: "t7", clip: "c7-0")], "an armed clip in a clipped lane warns")
     }
 
     @Test func anArmedClipInViewDoesNotWarn() throws {
@@ -210,10 +217,10 @@ struct RecordOverTests {
     @Test func noLayoutYetWarnsForAClip() throws {
         let session = try Self.session()
         #expect(
-            recordOverHidden(session: session, armed: ["t2"], playhead: 100_000, visible: nil),
+            !recordOverHidden(session: session, armed: ["t2"], playhead: 100_000, visible: nil).isEmpty,
             "before a layout a clip at the playhead warns")
         #expect(
-            !recordOverHidden(session: session, armed: ["t2"], playhead: 1_500_000, visible: nil),
+            recordOverHidden(session: session, armed: ["t2"], playhead: 1_500_000, visible: nil).isEmpty,
             "before a layout no clip does not warn")
     }
 
@@ -240,7 +247,7 @@ struct RecordOverTests {
     @Test func noLayoutYetWarnsForAClipAfterThePlayhead() throws {
         let session = try Self.session(clips: [200_000..<1_000_000])
         #expect(
-            recordOverHidden(session: session, armed: ["t2"], playhead: 100_000, visible: nil),
+            !recordOverHidden(session: session, armed: ["t2"], playhead: 100_000, visible: nil).isEmpty,
             "before a layout a clip after the playhead warns")
     }
 

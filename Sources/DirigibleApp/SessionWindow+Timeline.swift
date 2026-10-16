@@ -6,10 +6,10 @@ import SwiftUI
 
 /// The timeline side of the session window (decision 0017).
 extension SessionWindow {
-    /// The record-over overlay (decisions 0016, 0017): Record can start, and it can reach a clip on
+    /// The record-over warning (decisions 0016, 0017): Record can start, and it can reach a clip on
     /// an armed track that is not in view.
-    var showsRecordOver: Bool {
-        guard canRecord, let studio else { return false }
+    var showsRecordOver: RecordOverWarning {
+        guard canRecord, let studio else { return RecordOverWarning() }
         return recordOverHidden(
             session: studio.session, armed: armed, playhead: studio.playhead, visible: timeline.visible)
     }

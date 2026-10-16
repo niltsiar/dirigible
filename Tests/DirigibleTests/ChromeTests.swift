@@ -259,15 +259,15 @@ struct TimeTextTests {
         await until("the lanes publish the lanes in view") { model.timeline.visible != nil }
         let last = TrackID("t\(TimelineViewTests.tracksThatDoNotFit)")
         try #require(model.timeline.visible?.lanes.contains(TimelineViewTests.tracksThatDoNotFit - 1) == false)
-        #expect(!model.shown.recordOver)
+        #expect(model.shown.recordOver.isEmpty)
 
         model.armed = [last]
 
-        await until(limit: .seconds(5), "the warning shows after the arm") { model.shown.recordOver }
-        #expect(model.shown.recordOver)
+        await until(limit: .seconds(5), "the warning shows after the arm") { !model.shown.recordOver.isEmpty }
+        #expect(model.shown.recordOver.reached.map(\.track) == [last])
         model.armed = ["t1"]
-        await until(limit: .seconds(5), "the warning goes for a lane in view") { !model.shown.recordOver }
-        #expect(!model.shown.recordOver)
+        await until(limit: .seconds(5), "the warning goes for a lane in view") { model.shown.recordOver.isEmpty }
+        #expect(model.shown.recordOver.isEmpty)
         await model.close()
     }
 

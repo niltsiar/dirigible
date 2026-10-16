@@ -53,6 +53,18 @@ public struct LaneGeometry: Equatable, Sendable {
     /// The lane that holds `y`. Internal: no public API gives a lane index.
     func lane(at y: Double) -> Int { Int((max(0, y) / laneHeight).rounded(.down)) }
 
+    /// The lanes of `count` lanes that are in view between the document y `top` and `bottom`: a
+    /// lane is in view when half of its height or more shows (timeline-clarity U-a5).
+    public func lanesInView(top: Double, bottom: Double, count: Int) -> Range<Int> {
+        func shows(_ lane: Int) -> Bool {
+            min(bottom, Double(lane + 1) * laneHeight) - max(top, Double(lane) * laneHeight) >= laneHeight / 2
+        }
+        var (first, end) = (lane(at: top), min(count, lane(at: bottom) + 1))
+        if first < end, !shows(first) { first += 1 }
+        if first < end, !shows(end - 1) { end -= 1 }
+        return first..<max(first, end)
+    }
+
     /// The highest New Track zone (points) at the bottom of the lanes in view (run 13c).
     private static let newTrackZone = 32.0
 

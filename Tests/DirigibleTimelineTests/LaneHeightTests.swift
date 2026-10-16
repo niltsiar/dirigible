@@ -28,4 +28,18 @@ struct LaneHeightTests {
         #expect(LaneHeight.automatic.points(free: 300, tracks: 0) == 200)
         #expect(LaneHeight.fixed(160).points(free: 300, tracks: 20) == 160)
     }
+
+    /// Timeline-clarity C4: a lane counts as in view when half of its height or more shows. Lanes
+    /// of 40 pt, 5 lanes from 0 to 200 pt.
+    @Test func aLaneCountsInViewFromHalfItsHeight() throws {
+        let geometry = try #require(LaneGeometry(scale: TimelineScale(framesPerPoint: 512), laneHeight: 40))
+        #expect(geometry.lanesInView(top: 20, bottom: 200, count: 5) == 0..<5, "20 pt of the first lane")
+        #expect(geometry.lanesInView(top: 21, bottom: 200, count: 5) == 1..<5, "19 pt of the first lane")
+        #expect(geometry.lanesInView(top: 0, bottom: 180, count: 5) == 0..<5, "20 pt of the last lane")
+        #expect(geometry.lanesInView(top: 0, bottom: 179, count: 5) == 0..<4, "19 pt of the last lane")
+        #expect(geometry.lanesInView(top: 0, bottom: 400, count: 5) == 0..<5, "no lane after the last")
+        #expect(geometry.lanesInView(top: 50, bottom: 70, count: 5) == 1..<2, "a view of 20 pt in lane 2")
+        #expect(geometry.lanesInView(top: 50, bottom: 69, count: 5).isEmpty, "a view of 19 pt in lane 2")
+        #expect(geometry.lanesInView(top: 70, bottom: 90, count: 5).isEmpty, "10 pt of lanes 2 and 3")
+    }
 }

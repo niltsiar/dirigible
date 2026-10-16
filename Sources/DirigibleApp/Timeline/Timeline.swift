@@ -24,23 +24,50 @@ func playheadFrame(
     return max(0, Double(polled.count) + sign * seconds * shuttle.rate.rawValue * Double(rate))
 }
 
-/// The frames and the lanes that a window shows fully.
+/// The frames and the lanes that a window shows (`LaneGeometry.lanesInView`).
 struct TimelineVisible: Hashable {
     var frames: Range<Frames>
     var lanes: Range<Int>
 }
 
-/// The record-over overlay (decisions 0016, 0017). A take replaces the armed tracks from the
-/// playhead on, and its length is not known at the start. Thus the overlay reads only the first
-/// clip of each armed track that ends after the playhead: the clip that Record reaches first. True
-/// when that clip is not in view: its lane is not fully in view, or its first frame that Record
-/// reaches is outside the visible frames. Before the first layout (`visible` nil) nothing is in view.
-func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, visible: TimelineVisible?) -> Bool {
-    session.tracks.enumerated().contains { lane, track in
-        guard armed.contains(track.id), let clip = track.clips.first(where: { $0.end > playhead }) else { return false }
-        guard let visible else { return true }
-        return !visible.lanes.contains(lane) || !visible.frames.contains(max(playhead, clip.start))
+/// The record-over warning (decisions 0016, 0017): in lane order, each armed track whose first
+/// reached clip is not in view, with that clip. Empty for no warning. It holds no playhead time, so
+/// a play changes it only when the first reached clip of a track changes.
+struct RecordOverWarning: Equatable {
+    struct Reached: Equatable {
+        let track: TrackID
+        let clip: ClipID
     }
+    var reached: [Reached] = []
+    /// `consent.record.over` with the names of the tracks and the earliest start of the clips.
+    var detail = ""
+
+    var isEmpty: Bool { reached.isEmpty }
+}
+
+/// The record-over warning (decisions 0016, 0017). A take replaces the armed tracks from the
+/// playhead on, and its length is not known at the start. Thus the warning reads only the first
+/// clip of each armed track that ends after the playhead: the clip that Record reaches first. That
+/// clip is hidden when its lane is not in view, or its first frame that Record reaches is outside
+/// the visible frames. Before the first layout (`visible` nil) nothing is in view.
+func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, visible: TimelineVisible?)
+    -> RecordOverWarning
+{
+    var warning = RecordOverWarning()
+    var names: [String] = []
+    var start: Frames?
+    for (lane, track) in session.tracks.enumerated() where armed.contains(track.id) {
+        guard let clip = track.clips.first(where: { $0.end > playhead }) else { continue }
+        if let visible, visible.lanes.contains(lane), visible.frames.contains(max(playhead, clip.start)) { continue }
+        warning.reached.append(.init(track: track.id, clip: clip.id))
+        names.append(track.name)
+        start = min(start ?? clip.start, clip.start)
+    }
+    guard let start else { return warning }
+    // As the consent sheet formats its list and its time.
+    let time = timeDisplayText(start, rate: session.sampleRate, playing: false)
+    warning.detail = L10n.consentRecordOver.format(ListFormatter.localizedString(byJoining: names), time)
+    return warning
 }
 
 /// The timeline state of one window (decision 0017). None of it is saved.

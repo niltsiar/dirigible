@@ -84,12 +84,28 @@ final class TemporaryFolder {
 
 extension SessionWindow {
     /// Waits until the open of the package ends with a studio. The studio gets the offline
-    /// listen output, so no test plays to the real speakers (`ListenSafetyTests`).
+    /// listen output, so no test plays to the real speakers (`ListenSafetyTests`), and the free
+    /// bytes of `fixFreeSpace()`, so no test depends on the free space of the Mac that runs it.
     func opened() async -> Bool {
         await until("the window opens its package") { studio != nil }
         if studio == nil { Issue.record("The phase is \(phase)") }
         studio?.environment.listenOutput = .offline()
+        await fixFreeSpace()
         return studio != nil
+    }
+
+    /// Gives the studio the free bytes of `freeBytes`, reads the record time again, and returns
+    /// when the window shows that read. The read at open uses the real disk, where the window can
+    /// show the low-record-time banner.
+    func fixFreeSpace(_ freeBytes: @escaping @Sendable (PackageLock) -> Int64 = { _ in .max }) async {
+        studio?.environment.freeBytes = freeBytes
+        guard let chrome else { return }
+        chrome.refreshRecordTime()
+        // A hang guard: 3 times the worst wait, 13.8 s (run test-pool-health, loops/s3loadb-3.log).
+        await until(limit: .seconds(42), "the read with the test disk ends") {
+            chrome.recordTimeReads == chrome.recordTimeReadsStarted
+                && !shown.banners.contains { $0.key == "lowRecordTime" }
+        }
     }
 }
 
@@ -118,7 +134,6 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
 {
     let model = await app.open(package)
     let studio = try #require(await model.opened() ? model.studio : nil)
-    try await fixFreeSpace(model)
     let window = try #require(model.window)
     await until("the window shows the lanes") { model.timelineView?.window != nil }
     // The first read of the shared device list is async. Its result runs each header row again,
@@ -126,22 +141,6 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
     await until("the device list has its first read") { model.deviceList.reads > 0 }
     app.key = model
     return (model, studio, window, try #require(model.timelineView))
-}
-
-/// Gives the studio of an opened window the free bytes of `freeBytes`, reads the record time
-/// again, and returns when the window shows that read. The read at open uses the real disk, where
-/// the window can show the low-record-time banner.
-@MainActor func fixFreeSpace(
-    _ model: SessionWindow, _ freeBytes: @escaping @Sendable (PackageLock) -> Int64 = { _ in .max }
-) async throws {
-    try #require(model.studio).environment.freeBytes = freeBytes
-    let chrome = try #require(model.chrome)
-    chrome.refreshRecordTime()
-    // A hang guard: 3 times the worst wait, 13.8 s (run test-pool-health, loops/s3loadb-3.log).
-    await until(limit: .seconds(42), "the read with the test disk ends") {
-        chrome.recordTimeReads == chrome.recordTimeReadsStarted
-            && !model.shown.banners.contains { $0.key == "lowRecordTime" }
-    }
 }
 
 /// Focuses the name field of the first track and returns its field editor.

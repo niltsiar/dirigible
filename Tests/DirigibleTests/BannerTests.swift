@@ -40,7 +40,7 @@ import os
         let chrome = try #require(model.chrome)
         await until("the toolbar has its items") { chrome.time != nil }
         let free = free
-        try await fixFreeSpace(model) { _ in free.withLock { $0 } }
+        await model.fixFreeSpace { _ in free.withLock { $0 } }
         return (model, studio, try #require(model.window), chrome)
     }
 
@@ -105,6 +105,18 @@ import os
     }
 
     // MARK: A13
+
+    /// Code gate 1 item 2 of run record-time-relevant: a window that a test opens reads the free
+    /// bytes of `fixFreeSpace()`, so no test depends on the disk of the Mac that runs it.
+    @Test func anOpenedWindowReadsTheTestFreeSpace() async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 10, device: "duo")
+        let model = await app.open(package)
+        let studio = try #require(await model.opened() ? model.studio : nil)
+
+        #expect(studio.environment.freeBytes(studio.lock) == .max)
+        #expect(model.idleRecordTimeLeft == remainingRecordTime(free: .max, wav: 0, channels: 1, rate: 48_000))
+        await model.close()
+    }
 
     /// Code gate 1 item 2, plan gate 2 items 4 and 5: a read that hangs holds one pool thread at
     /// most. The first read waits at an async gate; ten triggers during it start no read. After it

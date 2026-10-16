@@ -29,7 +29,6 @@ extension EditTakeTests {
     @Test func aPendingTakeKeepsItsArmedTrack() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         model.armed.remove("t2")
         try await pendingTake(model, studio)
         let before = studio.session
@@ -80,7 +79,6 @@ extension EditTakeTests {
     @Test func undoAfterRemoveTrackRecordsOnTheArmedTrack() async throws {
         let model = await app.open(try await package())
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         studio.environment = hal.environment
         model.timeline.marks = Marks(tracks: ["t1"])
         model.run(.removeTrack)

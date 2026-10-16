@@ -43,7 +43,6 @@ import Testing
         app.setAgents(true)
         let model = await app.open(try folder.package("quit"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
         }
         try studio.edit(ripple: false) { s throws(SessionError) in try s.addTrack("t1", name: "Host", layout: .mono) }
@@ -73,7 +72,6 @@ import Testing
     @Test func closingWindowRefusesEdits() async throws {
         let model = await app.open(try folder.package("closing"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         #expect(app.agentTargets().map(\.busy) == [nil])
         let gate = AsyncGate()
         let held = Task { await studio.serialized { await gate.wait() } }
@@ -92,7 +90,6 @@ import Testing
     @Test func anExportStepIsADialog() async throws {
         let model = await app.open(try folder.package("dialog"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == false)
         model.exportStep = .choosing
         #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == true, "the save panel is a dialog")
@@ -123,7 +120,6 @@ import Testing
     @Test func agentMarkFollowsConnections() async throws {
         let model = await app.open(try folder.package("mark"))
         _ = try #require(await model.opened() ? model.studio : nil)
-        try await fixFreeSpace(model)
         let mark = try #require(model.chrome?.agentMark)
         #expect(!shown(mark))
         app.agents.start()
@@ -149,7 +145,6 @@ import Testing
     @Test func agentMarkFollowsTheCountAndTheSwitch() async throws {
         let first = await app.open(try folder.package("mark-1"))
         _ = try #require(await first.opened() ? first.studio : nil)
-        try await fixFreeSpace(first)
         let mark = try #require(first.chrome?.agentMark)
         app.agents.start()
         defer { app.agents.stop() }
@@ -165,7 +160,6 @@ import Testing
 
         let second = await app.open(try folder.package("mark-2"))
         _ = try #require(await second.opened() ? second.studio : nil)
-        try await fixFreeSpace(second)
         let other = try #require(second.chrome?.agentMark)
         await until("C12: a window that opens while an agent is connected shows the mark") { shown(other) }
 

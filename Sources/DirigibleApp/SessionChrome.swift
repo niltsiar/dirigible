@@ -34,6 +34,9 @@ import Observation
     /// trigger during a read starts no second read: it asks for one more read after it.
     private var reading: Task<Void, Never>?
     private var readAgain = false
+    /// The tracks of the last record-over warning that was announced. Only a different, not empty
+    /// set of tracks announces again: a play across a clip end changes the clip, not the tracks.
+    private var announcedRecordOver: [TrackID] = []
     /// The reads that started and that ended, written or dropped, for the tests.
     private(set) var recordTimeReadsStarted = 0
     private(set) var recordTimeReads = 0
@@ -175,6 +178,11 @@ import Observation
         // A banner of a kind that did not show is announced once.
         for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {
             if let priority = banner.announcement { announce(banner.text, priority) }
+        }
+        let tracks = state.shown.recordOver.reached.map(\.track)
+        if !tracks.isEmpty, tracks != announcedRecordOver {
+            announcedRecordOver = tracks
+            announce(state.shown.recordOver.detail, .high)
         }
         model.shown = state.shown
     }

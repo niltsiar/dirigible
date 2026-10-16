@@ -287,7 +287,8 @@ import os
 
     // MARK: A16
 
-    /// A new banner is announced once, at its priority; record-over and the time display are not.
+    /// A new banner is announced once, at its priority. So is a new record-over warning, at high priority,
+    /// with its detail text. The time display is not announced.
     @Test func newBannersAreAnnounced() async throws {
         let (model, studio, _, chrome) = try await open(tracks: TimelineViewTests.tracksThatDoNotFit, seconds: 20)
         var heard: [String] = []
@@ -315,6 +316,7 @@ import os
             heard == [
                 "\(high) \(L10n.bannerLowRecordTimeLeft.text)", "\(high) \(L10n.transportStopOutputChanged.text)",
                 "\(NSAccessibilityPriorityLevel.medium.rawValue) \(L10n.mediaMissing.text)",
+                "\(high) \(model.shown.recordOver.detail)",
             ])
         await model.close()
     }

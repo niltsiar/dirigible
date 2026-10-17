@@ -139,12 +139,13 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 | Requirement | What Release 4 gives |
 |---|---|
 | R1 | Part: the record time and its warning only under 3 hours (F152). |
-| R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono, and timeline clarity (F107, F108, F109, F25, F153, F154, F155, F156). |
+| R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono, and timeline clarity (F107, F108, F109, F25, F153, F154, F155, F156), and heal of touching pieces (F161). |
 | R8 | Noise reduction, hum removal, a render of a range through an effect, a render link, and a repair set: rumble, clipped peaks, and harsh "s" sounds (F35, F77, F89, F110, F98, F99, F100). |
 | R9 | Part: a leveler that rides the gain inside a clip (F38 part). |
-| R10 | Part: voice match, and the leveler (F37 part, F38 part). |
+| R10 | Part: voice match, and the leveler (F37 part, F38 part), and a text chapter list (F160). |
 | R12 | Part: the meter and the permission state of an armed app track before a take (F114). |
 | R13 | More UI languages (F113). |
+| R16 | Part: the agent pack, an import in one call, a reuse of the same audio, and a compact session read (F157, F158, F159). |
 
 1. **More UI languages (F113).** Portuguese, German, French, Italian, and Dutch, with the language preference of Release 2 (0010).
 2. **Markers during a take (F107).** Add a marker while the take runs.
@@ -159,6 +160,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 11. **Armed app track (F114).** A level meter and the permission state of an armed app track before a take.
 12. **Record time only when relevant (F152).** The window subtitle shows the record time left, and a banner warns, only under 3 hours of record time.
 13. **Timeline clarity (F153, F154, F155, F156).** The record-over warning is a chip over the track headers. Each cut between two clips has a join, and the playhead is neutral with a head on the ruler. A drag on the ruler makes a range, and a click on a clip selects the clip as a set of clips. Each clip has a bar with its name. Three landings. Run: `2026-10-16-timeline-clarity` L1 to L3.
+14. **Agent pack (F157 to F161).** An import shapes its clip in one call, and an import of the same audio reuses the WAV. `session_info` has a compact form. Chapters export as a text list and import from a Podcasting 2.0 file, and Heal joins touching pieces of one file. Run: `2026-10-17-agent-pack` L1.
 
 ## Release 5: edit by text
 

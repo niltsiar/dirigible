@@ -89,15 +89,20 @@ struct ChaptersImportCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// Code gate 1 item 4: a path that is not a regular file, or a file over 1 MiB, is refused
-    /// before the read, and the bytes of `session.xml` stay. Control: the same JSON at 1 MiB
-    /// imports.
+    /// Code gate 1 item 4: a path that is not a regular file (a folder, or a FIFO with no writer),
+    /// or a file over 1 MiB, is refused before the read, and the bytes of `session.xml` stay.
+    /// Control: the same JSON at 1 MiB imports.
     @Test func aChaptersImportRefusesAFolderOrALargeFile() async throws {
         let before = try package.xml()
         let folder = package.folder.appending(path: "chapters.json")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
         let refused = try await package.run("chapters", "import", "PKG", folder.path)
         #expect(refused == CLIResult(status: 1, stdout: "", stderr: "Error: \(folder.path) is not a file.\n"))
+
+        let fifo = package.folder.appending(path: "chapters.fifo")
+        #expect(mkfifo(fifo.path, 0o600) == 0, "a FIFO is made")
+        let stalled = try await package.run("chapters", "import", "PKG", fifo.path)
+        #expect(stalled == CLIResult(status: 1, stdout: "", stderr: "Error: \(fifo.path) is not a file.\n"))
 
         let json = #"{"version": "1.2.0", "chapters": [{"startTime": 3, "title": "Big"}]}"#
         let padded = { (bytes: Int) in json + String(repeating: " ", count: bytes - json.utf8.count) }

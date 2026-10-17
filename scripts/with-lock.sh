@@ -8,6 +8,15 @@
 # call prints the holder once and tries again each 30 s (WITH_LOCK_RETRY sets other seconds).
 # After a wait, the take appends one line to dirigible-build-waits.log in the git common dir: the
 # start time, the wait seconds, the command, and the command of the holder, with tabs between.
+# A call that an agent starts directly stops after WITH_LOCK_MAX_WAIT seconds of wait (default 120):
+# it prints the limit and "run the same command again", leaves the lock of the holder, and exits
+# 75. The default is min(120, 600 - B) with B = 457 s, the worst build plus slice tests of one call
+# (an Intel i5-8259U, 8 logical CPUs, 16 GiB, macOS 15), and 600 s the foreground limit of
+# .claude/agents/run-agent.md. The wait sleeps the seconds that are left, so the call stops at the
+# limit. These calls have no limit: WITH_LOCK_MAX_WAIT=0, a release call (below), a call with the
+# DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
+# scripts/run-checks.sh and scripts/flake-monitor/loop.sh set the 0, so an exit 75 never reads as
+# a red test.
 # A release call (make check-changed BASE=<ref>, land.sh, make dmg) holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
 # ordinary call does not take the lock while a ticket of a live pid is there, so a release call
@@ -57,6 +66,10 @@ ahead() {
     done
     return 1
 }
+max="${WITH_LOCK_MAX_WAIT:-120}"
+[[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
+max=$((10#$max))
+if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0; fi
 if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
     ticket="$first/$$"
     trap 'rmdir "$ticket" 2>/dev/null' EXIT
@@ -95,7 +108,13 @@ while :; do
         fi
         told=1
     fi
-    sleep "$retry"
+    nap="$retry"
+    if [[ $max -gt 0 ]]; then
+        left=$((max - ($(date +%s) - start)))
+        [[ $left -gt 0 ]] || { echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2; exit 75; }
+        nap="$(awk -v r="$retry" -v l="$left" 'BEGIN { print (l < r) ? l : r }')"
+    fi
+    sleep "$nap"
 done
 [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.

@@ -7,8 +7,9 @@
 # TERM to a holder (the command stops and the lock goes), a dead holder with a live child (the call
 # waits), a dead holder (the lock is taken over), a git dir with no write (exit 2, also with a dead
 # holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
-# with no wait), and a lock folder that goes between a failed mkdir and the test for it (the call
-# tries again). Each case uses a temporary repo with a worktree, so the lock of an outer
+# with no wait), a lock folder that goes between a failed mkdir and the test for it (the call
+# tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
+# default with a fake clock, and the export of run-checks.sh). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -258,6 +259,86 @@ rm -f "$tmp/tries"
 FAIL_TRIES=99 PATH="$tmp/bin:$PATH" "$repo/scripts/with-lock.sh" true > "$tmp/wait.out" 2>&1
 code=$?
 [[ $code -eq 2 && "$(cat "$tmp/wait.out")" == *'cannot make'* ]] || fail "mkdir fails with no folder: exit $code: $(cat "$tmp/wait.out")"
+
+# The wait limit WITH_LOCK_MAX_WAIT (default 120 s): a direct call that waits past it exits 75 and
+# leaves the lock of the holder. A release call, a call with the DIRIGIBLE_LOCKED_SCRIPT marker,
+# a mutation-pass.sh call, and a call with WITH_LOCK_MAX_WAIT=0 wait with no limit. A nested call
+# runs at once. The holder is a live sleep whose lock a timer removes after n seconds.
+hold_for() { hold; ( sleep "$1"; rm -rf "$lock" ) > /dev/null 2>&1 & other=$!; }
+clear_hold() { kill $holder $other 2>/dev/null; wait $holder $other 2>/dev/null; rm -rf "$lock"; holder="" other=""; }
+cp "$fake/make" "$fake/mutation-pass.sh"
+rm -f "$tmp/ran" "$tmp/order"
+hold_for 6
+t0=$(date +%s)
+out="$(WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>&1)"
+code=$?
+elapsed=$(($(date +%s) - t0))
+[[ $code -eq 75 && $elapsed -le 3 && ! -e "$tmp/ran" ]] || fail "limit: exit $code after $elapsed s (want 75 within 3 s): $out"
+[[ "$out" == *"held by pid $holder"* && "$out" == *'run the same command again'* ]] || fail "limit: no holder line or rerun text: $out"
+[[ "$(cat "$lock/pid" 2>/dev/null)" == "$holder" ]] || fail 'limit: the lock of the holder is gone after exit 75'
+clear_hold
+# A holder that goes in time: exit 0 (the pass value of the threshold).
+hold_for 1
+WITH_LOCK_MAX_WAIT=3 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1
+code=$?
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "limit, holder of 1 s under 3 s: exit $code: $(cat "$tmp/wait.out")"
+clear_hold
+# These calls wait past a limit of 2 s for a holder of 3 s.
+for kind in release mark mutation zero; do
+  hold_for 3
+  rm -f "$tmp/ran" "$tmp/order"
+  case "$kind" in
+    release) WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed BASE=origin/main ;;
+    mark) DIRIGIBLE_LOCKED_SCRIPT="$fake/make" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" test ;;
+    mutation) WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/mutation-pass.sh" x ;;
+    zero) WITH_LOCK_MAX_WAIT=0 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" test ;;
+  esac > "$tmp/wait.out" 2>&1
+  code=$?
+  [[ $code -eq 0 && -s "$tmp/order" ]] || fail "no limit, $kind: exit $code: $(cat "$tmp/wait.out")"
+  clear_hold
+done
+# A nested call runs at once under the held lock, also with a limit.
+mkdir "$lock" && echo 4242 > "$lock/pid"
+DIRIGIBLE_BUILD_LOCK=4242 WITH_LOCK_MAX_WAIT=1 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1
+code=$?
+[[ $code -eq 0 && -e "$tmp/ran" && "$(cat "$lock/pid")" == 4242 ]] || fail "limit, nested call: exit $code: $(cat "$tmp/wait.out")"
+rm -rf "$lock"
+# The default limit with a fake clock: sleep adds its seconds to the clock and date +%s reads it. A
+# holder that stays gives exit 75 at 120 s, and one that goes at 119 s gives exit 0. The wait
+# sleeps the seconds that are left, so the retry of 7 s does not pass the limit.
+mkdir "$tmp/clockbin"
+printf '#!/bin/bash\n[[ "$1" == +%%s ]] && { cat "$FAKE_CLOCK"; exit; }\nexec /bin/date "$@"\n' > "$tmp/clockbin/date"
+cat > "$tmp/clockbin/sleep" << EOF
+#!/bin/bash
+now=\$((\$(cat "\$FAKE_CLOCK") + \${1%.*}))
+echo \$now > "\$FAKE_CLOCK"
+[[ \$now -lt 1002000 ]] || kill -TERM \$PPID
+[[ -z "\${FAKE_RELEASE_AT:-}" || \$now -lt \$FAKE_RELEASE_AT ]] || rm -rf "$lock"
+EOF
+chmod +x "$tmp/clockbin/date" "$tmp/clockbin/sleep"
+hold
+echo 1000000 > "$tmp/clock"
+out="$(env -u WITH_LOCK_MAX_WAIT PATH="$tmp/clockbin:$PATH" FAKE_CLOCK="$tmp/clock" WITH_LOCK_RETRY=7 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>&1)"
+code=$?
+[[ $code -eq 75 && "$(cat "$tmp/clock")" == 1000120 && "$out" == *'120 s'* ]] || fail "default limit, holder stays: exit $code at $(($(cat "$tmp/clock") - 1000000)) s: $out"
+echo 1000000 > "$tmp/clock"
+out="$(env -u WITH_LOCK_MAX_WAIT PATH="$tmp/clockbin:$PATH" FAKE_CLOCK="$tmp/clock" FAKE_RELEASE_AT=1000119 WITH_LOCK_RETRY=7 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>&1)"
+code=$?
+[[ $code -eq 0 && "$(cat "$tmp/clock")" -ge 1000119 ]] || fail "default limit, holder goes at 119 s: exit $code at $(($(cat "$tmp/clock") - 1000000)) s: $out"
+clear_hold
+# run-checks.sh exports WITH_LOCK_MAX_WAIT=0, so a with-lock.sh call of a make recipe (swift-test.sh)
+# under a push check waits past the limit of the caller. The fake make calls with-lock.sh as that
+# recipe does.
+cp "$(dirname "$script")/run-checks.sh" "$repo/scripts/run-checks.sh"
+printf '#!/bin/bash\nexit 0\n' > "$repo/scripts/check-changed.sh"
+printf '#!/bin/bash\nexec %q touch %q\n' "$repo/scripts/with-lock.sh" "$tmp/ran" > "$fake/rcmake"
+chmod +x "$repo/scripts/check-changed.sh" "$fake/rcmake"
+hold_for 4
+rm -f "$tmp/ran"
+out="$(cd "$repo" && MAKE="$fake/rcmake" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/run-checks.sh test 2>&1)"
+code=$?
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "run-checks.sh: the recipe call stops at the limit of the caller: exit $code: $out"
+clear_hold
 
 [[ $failures -eq 0 ]] && echo "with-lock tests: all passed"
 exit $((failures > 0))

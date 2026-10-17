@@ -21,12 +21,15 @@
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args> [RERUN=<P>:fast:<names>+slow:<names>]
 #        scripts/run-checks.sh --flakes   print the lines of dirigible-flakes (nothing with no file)
 #          and run no make. The guardrail hook blocks each other command that names the file, except a read.
+# It sets WITH_LOCK_MAX_WAIT=0, so a with-lock.sh call of a make recipe (swift-test.sh) waits with
+# no limit and never ends in exit 75, which would read as a red test.
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
 set -euo pipefail
 if [[ "${1:-}" == --flakes ]]; then
     cat "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes" 2>/dev/null || true
     exit 0
 fi
+export WITH_LOCK_MAX_WAIT=0
 word="" args=()
 for a in "$@"; do
     if [[ $a == RERUN=* ]]; then word="${a#RERUN=}"; else args+=("$a"); fi

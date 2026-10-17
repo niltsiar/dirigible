@@ -2,12 +2,16 @@
 # Runs `make test` with the flake monitor (Tests/DirigibleAudioTests/FlakeMonitor.swift) for the
 # runs <first> to <last>, and appends one line for each run to <out folder>/summary.txt. The log
 # of run i is <out folder>/<tag>-<i>.log, and its monitor folder is <out folder>/<tag>-<i>/.
-# Usage: scripts/flake-monitor/loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]
+# Usage: scripts/with-lock.sh scripts/flake-monitor/loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]
 #        scripts/flake-monitor/loop.sh --summary <tag> <run> <exit> <wall> <load> <begin> <log>
 # The second form prints the summary line of one log. loop.test.sh calls it.
+# The first form runs under with-lock.sh, so the loop takes the build lock once, outside the loop.
+# It sets WITH_LOCK_MAX_WAIT=0: a lock wait in a run never ends in exit 75 and never counts as a
+# failed run.
 # With --min-load, the loop stops before a run whose 1-minute load average is below <n>. A loop
 # under a load source uses it: a load source that makes no load gives the numbers of a quiet loop.
 set -uo pipefail
+export WITH_LOCK_MAX_WAIT=0
 
 # The summary line: tag, run, exit code, wall seconds, the load average at the start, the start
 # of the monitor after the start of `make test`, the durations of the two longest timed tests,

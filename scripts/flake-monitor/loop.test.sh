@@ -29,5 +29,13 @@ code=$?
 [[ $code -eq 3 && "$msg" == *"below the minimum 1000 before run 1"* && ! -e "$tmp/out/t-1.log" ]] \
     || { echo "FAIL: --min-load 1000 did not stop the loop before run 1 (exit $code): $msg"; failures=$((failures + 1)); }
 
+# Each make test of the loop runs with WITH_LOCK_MAX_WAIT=0, so a lock wait in a run never ends in
+# exit 75 and never counts as a failed run.
+mkdir "$tmp/stub"
+printf 'test:\n\t@echo "limit=$$WITH_LOCK_MAX_WAIT"\n' > "$tmp/stub/Makefile"
+WITH_LOCK_MAX_WAIT=5 "$loop" t 1 1 "$tmp/out10" "$tmp/stub" > /dev/null 2>&1
+[[ "$(cat "$tmp/out10/t-1.log" 2>/dev/null)" == "limit=0" ]] \
+    || { echo "FAIL: the loop does not export WITH_LOCK_MAX_WAIT=0 to make test: $(cat "$tmp/out10/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
+
 [[ $failures -eq 0 ]] && echo "loop tests: all passed"
 exit $((failures > 0))

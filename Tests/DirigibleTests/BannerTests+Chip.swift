@@ -99,6 +99,30 @@ extension BannerTests {
         await model.close()
     }
 
+    /// The warning symbol of the chip is orange on screen, in the light and the dark appearance.
+    /// Each capture counts the pixels of the chip with a systemOrange hue: the symbol has them, and
+    /// the text in the label color and the 12 % tint have none.
+    @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
+    func theChipSymbolIsOrangeOnScreen(_ appearance: NSAppearance.Name) async throws {
+        let (model, _, window, view) = try await chipWindow()
+        window.appearance = NSAppearance(named: appearance)
+        var found: NSPopUpButton?
+        await until(limit: .seconds(10), "the chip button shows") {
+            found = chipButton(window, view)
+            return found != nil
+        }
+        let chip = shownFrame(try #require(found))
+        drawNow(window)
+        try await Task.sleep(for: .milliseconds(200))
+        let image = try await TimelineColorTests.capture(window)
+        let orange = try TimelineRulerTests.pixels(of: chip, image, window).filter { pixel in
+            let (red, green, blue) = ((pixel >> 16) & 0xFF, (pixel >> 8) & 0xFF, pixel & 0xFF)
+            return red >= 200 && (90...200).contains(green) && blue <= 90
+        }
+        #expect(orange.count >= 8, "\(appearance.rawValue): \(orange.count) orange pixels in \(chip)")
+        await model.close()
+    }
+
     /// The text field that shows the title of a pop-up button.
     func titleField(_ view: NSView) -> NSTextField? {
         (view as? NSTextField) ?? view.subviews.lazy.compactMap { titleField($0) }.first

@@ -1,10 +1,21 @@
 #!/bin/bash
-# Check the summary line that loop.sh writes for one run, and the --min-load stop. Run by `make test-hooks`.
+# Check the summary line that loop.sh writes for one run, the --min-load stop, the exports to make
+# test, and the hold limit that the loop sets for its own take of the lock. Run by `make test-hooks`.
 set -uo pipefail
-loop="$(cd "$(dirname "$0")" && pwd)/loop.sh"
+here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# The loop takes the lock itself, so a copy in a temporary repo keeps the test off the real lock.
+unset DIRIGIBLE_BUILD_LOCK DIRIGIBLE_LOCKED_SCRIPT WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD
+export WITH_LOCK_RETRY=0.1
+repo="$tmp/repo"
+mkdir -p "$repo/scripts/flake-monitor"
+cp "$here/../with-lock.sh" "$repo/scripts/with-lock.sh"
+cp "$here/loop.sh" "$repo/scripts/flake-monitor/loop.sh"
+git -C "$repo" init -q
+loop="$repo/scripts/flake-monitor/loop.sh"
+holds="$repo/.git/dirigible-build-holds.log"
 
 cat > "$tmp/run.log" <<'LOG'
 WAIT until 3.2 s the window did not open
@@ -43,6 +54,25 @@ printf 'test:\n\t@echo "suite=$$DIRIGIBLE_FULL_SUITE"\n' > "$tmp/stub/Makefile"
 env -u DIRIGIBLE_FULL_SUITE "$loop" t 1 1 "$tmp/out11" "$tmp/stub" > /dev/null 2>&1
 [[ "$(cat "$tmp/out11/t-1.log" 2>/dev/null)" == "suite=1" ]] \
     || { echo "FAIL: the loop does not export DIRIGIBLE_FULL_SUITE=1 to make test: $(cat "$tmp/out11/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
+
+# The loop takes the lock once, with a hold limit of its run count times 2 times the newest push-check
+# hold, at least 3600 s. A make test that prints the limit in the lock folder shows it.
+printf 'test:\n\t@cat "%s/dirigible-build.lock/maxhold"\n' "$repo/.git" > "$tmp/stub/Makefile"
+limit() { rm -rf "$tmp/outh"; "$loop" t 1 "$1" "$tmp/outh" "$tmp/stub" > /dev/null 2>&1; cat "$tmp/outh/t-$1.log" 2>/dev/null; }
+got="$(limit 1)"
+[[ "$got" == 3600 ]] || { echo "FAIL: the hold limit of a 1-run loop with no history: [$got]"; failures=$((failures + 1)); }
+printf '2026-10-17T10:00:00\t6000\tmake check-changed BASE=origin/main\t/t/a\n' > "$holds"
+got="$(limit 1)"
+[[ "$got" == 12000 ]] || { echo "FAIL: the hold limit of a 1-run loop, newest push check 6000 s: [$got]"; failures=$((failures + 1)); }
+got="$(limit 3)"
+[[ "$got" == 36000 ]] || { echo "FAIL: the hold limit of a 3-run loop, newest push check 6000 s: [$got]"; failures=$((failures + 1)); }
+
+# A caller that holds the lock already (the nested path) runs the loop at once under its own limit.
+rm -rf "$tmp/outh"
+out="$("$repo/scripts/with-lock.sh" "$loop" t 1 1 "$tmp/outh" "$tmp/stub" 2>&1)"
+code=$?
+[[ $code -eq 0 && "$(cat "$tmp/outh/t-1.log" 2>/dev/null)" == 1800 ]] \
+    || { echo "FAIL: the loop under an outer with-lock.sh call: exit $code, limit [$(cat "$tmp/outh/t-1.log" 2>/dev/null)]: $out"; failures=$((failures + 1)); }
 
 [[ $failures -eq 0 ]] && echo "loop tests: all passed"
 exit $((failures > 0))

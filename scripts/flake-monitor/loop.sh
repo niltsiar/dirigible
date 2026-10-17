@@ -2,10 +2,14 @@
 # Runs `make test` with the flake monitor (Tests/DirigibleAudioTests/FlakeMonitor.swift) for the
 # runs <first> to <last>, and appends one line for each run to <out folder>/summary.txt. The log
 # of run i is <out folder>/<tag>-<i>.log, and its monitor folder is <out folder>/<tag>-<i>/.
-# Usage: scripts/with-lock.sh scripts/flake-monitor/loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]
+# Usage: scripts/flake-monitor/loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]
 #        scripts/flake-monitor/loop.sh --summary <tag> <run> <exit> <wall> <load> <begin> <log>
 # The second form prints the summary line of one log. loop.test.sh calls it.
-# The first form runs under with-lock.sh, so the loop takes the build lock once, outside the loop.
+# The first form runs itself under with-lock.sh (with the DIRIGIBLE_LOCKED_SCRIPT marker, as
+# test-shards.sh does), so the loop takes the build lock once, outside the loop. A caller that holds
+# the lock already (a nested call) keeps its own hold limit. For its own take, the loop sets
+# WITH_LOCK_MAX_HOLD to the run count times 2 times the newest push-check hold in the hold log,
+# at least 3600 s, unless the caller sets it.
 # It sets WITH_LOCK_MAX_WAIT=0: a lock wait in a run never ends in exit 75 and never counts as a
 # failed run. It sets DIRIGIBLE_FULL_SUITE=1: the loop runs the full suite on purpose, and a bare
 # make test refuses (test-shards.sh).
@@ -39,13 +43,24 @@ if [[ "${1:-}" == --summary ]]; then
     exit 0
 fi
 
+args=("$@")
 min_load=0
 if [[ "${1:-}" == --min-load ]]; then
     min_load="${2:-}"
     shift 2 || true
 fi
-[[ $# -ge 4 ]] || { echo "usage: loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]" >&2; exit 2; }
+[[ $# -ge 4 && "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]] || { echo "usage: loop.sh [--min-load <n>] <tag> <first> <last> <out folder> [repo]" >&2; exit 2; }
 tag="$1" first="$2" last="$3"
+# with-lock.sh runs this script again with the marker, and the marker stops a second wrap. The awk
+# line is the one of with-lock.sh for a call with no wait limit, with the run count as a factor.
+if [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" != "$0" ]]; then
+    wrapper="$(dirname "$0")/../with-lock.sh"
+    holds="$(git -C "$(dirname "$wrapper")" rev-parse --path-format=absolute --git-common-dir)/dirigible-build-holds.log" || exit 2
+    export WITH_LOCK_MAX_HOLD="${WITH_LOCK_MAX_HOLD:-$(awk -F'\t' -v first="$first" -v last="$last" \
+        '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { s = $2 }
+        END { s *= 2 * ((last > first ? last - first : first - last) + 1); print (s < 3600) ? 3600 : s }' "$holds" 2>/dev/null)}"
+    DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$wrapper" "$0" "${args[@]}"
+fi
 mkdir -p "$4"
 out="$(cd "$4" && pwd -P)"
 cd "${5:-$(dirname "$0")/../..}" || exit 2

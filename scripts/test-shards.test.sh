@@ -7,9 +7,10 @@
 # after the other shards end. Check that a failed test fails the run with its line once in the
 # output, that a report line with no suite count counts, that TEST_SHARDS sets the count with the CLI shard in it (default: the physical cores), that the
 # weights file balances the shards and names its stale keys, that a failed build runs no shard, that the build, the list,
-# and the shards share one hold of the lock, and that a TERM leaves no test process alive. Check that a
-# call with neither DIRIGIBLE_PUSH_CHECK=1 (run-checks.sh sets it with a base) nor DIRIGIBLE_FULL_SUITE=1
-# (a person sets it) exits 1 with the reason, before the build.
+# and the shards share one hold of the lock, that a journal in the default log folder fails the run,
+# and that a TERM leaves no test process alive. Check that a call with neither DIRIGIBLE_PUSH_CHECK=1
+# (run-checks.sh sets it with a base) nor DIRIGIBLE_FULL_SUITE=1 (a person sets it) exits 1 with the
+# reason, before the build.
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -32,12 +33,13 @@ echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo f
 EOF
 # The stub runner: --list-tests prints the list. Else it runs the IDs of the list that match its
 # --filter (an extended regex, as Swift Testing matches the ID), and prints the lines of Swift
-# Testing. A name in FAKE_CRASH, FAKE_FAIL, FAKE_SHORT, FAKE_NOREPORT, or FAKE_HANG changes the run
-# of the shard that has it: exit 132 with no report, a failed test, one test fewer in the report,
-# exit 0 with no report, or a wait of 60 s.
+# Testing. A name in FAKE_CRASH, FAKE_FAIL, FAKE_SHORT, FAKE_NOREPORT, FAKE_HANG, or FAKE_JOURNAL
+# changes the run of the shard that has it: exit 132 with no report, a failed test, one test fewer
+# in the report, exit 0 with no report, a wait of 60 s, or a journal in DIRIGIBLE_LOG_FOLDER.
 cat > "$root/scripts/test-helper.sh" <<'EOF'
 #!/bin/bash
 echo "runner $*" >> "$FAKE_DIR/args.log"
+echo "logs ${DIRIGIBLE_LOG_FOLDER:-none}" >> "$FAKE_DIR/args.log"
 echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo free)" >> "$FAKE_DIR/lock.log"
 filter="" skips=()
 while [[ $# -gt 0 ]]; do
@@ -54,6 +56,7 @@ has() { [[ -n "$1" ]] && grep -q "$1" <<<"$ids"; }
 [[ -n "$ids" ]] || { echo "✔ Test run with 0 tests in 0 suites passed after 0.001 seconds."; exit 69; }
 if has "${FAKE_HANG:-}"; then echo $$ >> "$FAKE_DIR/hang.pid"; echo "◇ Test hang() started."; sleep 60; fi
 has "${FAKE_CRASH:-}" && { echo "◇ Test crash() started."; exit 132; }
+has "${FAKE_JOURNAL:-}" && : > "${DIRIGIBLE_LOG_FOLDER:-/nonexistent}/2026-10-16-192000-app-1.tsv"
 n=0 code=0
 while IFS= read -r id; do
     name="${id##*[./]}"
@@ -129,6 +132,9 @@ grep -q "^runner .*--filter ^(DirigibleCLITests\\\\.)" "$tmp/args.log" || fail "
 grep -q -- "--test-bundle-path $root/.build/debug/DirigiblePackageTests.xctest/Contents/MacOS/DirigiblePackageTests" "$tmp/args.log" ||
     fail "pass: the bundle path: $(cat "$tmp/args.log")"
 [[ -f "$root/.build/test-shards/shard-1.log" && -f "$root/.build/test-shards/shard-cli.log" ]] || fail "pass: no shard logs"
+# Each runner gets the empty guard folder as its journal folder.
+[[ "$(grep '^logs ' "$tmp/args.log" | sort -u)" == "logs $root/.build/test-shards/default-logs" ]] ||
+    fail "pass: the journal folder: $(grep '^logs ' "$tmp/args.log" | sort -u)"
 # One hold of the lock of the repo for the build, the list, and the shards.
 [[ "$(grep -cE '^([0-9]+) \1$' "$tmp/lock.log")" -eq 5 && "$(sort -u "$tmp/lock.log" | wc -l | tr -d ' ')" -eq 1 ]] ||
     fail "pass: no one hold of the lock: $(cat "$tmp/lock.log")"
@@ -199,6 +205,15 @@ run TEST_SHARDS=2
 [[ $code -eq 1 ]] || fail "no match: exit $code"
 grep -qE '^test-shards: shard 1: the test process ended before its report' "$tmp/out" || fail "no match: no report-end line: $(tail -5 "$tmp/out")"
 mv "$tmp/helper.real" "$root/scripts/test-helper.sh"
+
+# A test that writes a journal to the default folder fails the run and names the file; the next
+# run starts with an empty folder.
+run TEST_SHARDS=3 FAKE_JOURNAL=c1
+[[ $code -eq 1 ]] || fail "journal: exit $code"
+grep -qxF 'test-shards: a test wrote a journal to the default log folder: 2026-10-16-192000-app-1.tsv' "$tmp/out" ||
+    fail "journal: no message: $(tail -3 "$tmp/out")"
+run TEST_SHARDS=3
+[[ $code -eq 0 ]] || fail "journal: the next run: exit $code: $(tail -3 "$tmp/out")"
 
 # (g) A failed build runs no shard.
 run TEST_SHARDS=3 FAKE_BUILD_FAIL=1

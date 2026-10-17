@@ -16,9 +16,11 @@ struct CLIResult: Equatable {
 func dirigible(_ arguments: String...) async throws -> CLIResult { try await dirigible(arguments) }
 
 /// With `input`, the child reads that file on stdin. With `socket`, `dirigible mcp` connects to
-/// that app socket.
-func dirigible(_ arguments: [String], input: URL? = nil, socket: URL? = nil) async throws -> CLIResult {
-    try await run(dirigibleBinary, arguments, input: input, socket: socket)
+/// that app socket. With `logs`, the child writes its journal there (decision 0059).
+func dirigible(_ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil) async throws
+    -> CLIResult
+{
+    try await run(dirigibleBinary, arguments, input: input, socket: socket, logs: logs)
 }
 
 /// The `dirigible` binary that `swift test` builds next to the test bundle.
@@ -30,14 +32,19 @@ var dirigibleBinary: URL {
 /// so a relative path in a test never lands in the working folder of the test process (the repo).
 /// Each launcher of a CLI child makes its process here. The child gets an app socket path in
 /// `folder` with no app, so `dirigible mcp` never reaches a running app (decision 0046), unless
-/// `socket` gives another one.
-func childProcess(_ executable: URL, _ arguments: [String], in folder: URL, socket: URL? = nil) -> Process {
+/// `socket` gives another one. The journal folder is `folder/logs`, or `logs`, so no child writes
+/// to `~/Library/Logs/Dirigible` (decision 0059).
+func childProcess(_ executable: URL, _ arguments: [String], in folder: URL, socket: URL? = nil, logs: URL? = nil)
+    -> Process
+{
     let process = Process()
     process.executableURL = executable
     process.arguments = arguments
     process.currentDirectoryURL = folder
-    process.environment = ProcessInfo.processInfo.environment.merging(
-        ["DIRIGIBLE_MCP_SOCKET": (socket ?? folder.appending(path: "no-app.sock")).path]) { $1 }
+    process.environment = ProcessInfo.processInfo.environment.merging([
+        "DIRIGIBLE_MCP_SOCKET": (socket ?? folder.appending(path: "no-app.sock")).path,
+        "DIRIGIBLE_LOG_FOLDER": (logs ?? folder.appending(path: "logs")).path,
+    ]) { $1 }
     return process
 }
 
@@ -50,7 +57,8 @@ func dirigible(shell script: String, _ arguments: String..., slots: Slots = .sha
 /// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
 /// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
 private func run(
-    _ executable: URL, _ arguments: [String], input: URL? = nil, socket: URL? = nil, slots: Slots = .shared
+    _ executable: URL, _ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil,
+    slots: Slots = .shared
 ) async throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -60,7 +68,7 @@ private func run(
     FileManager.default.createFile(atPath: output.path, contents: nil)
     FileManager.default.createFile(atPath: errors.path, contents: nil)
 
-    let process = childProcess(executable, arguments, in: folder, socket: socket)
+    let process = childProcess(executable, arguments, in: folder, socket: socket, logs: logs)
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
     if let input { process.standardInput = try FileHandle(forReadingFrom: input) }

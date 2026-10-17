@@ -72,6 +72,8 @@ import Observation
             speedUnitFound = nil
         }
     }
+    /// The journal that `open` got from the front end (decision 0059), for the lines of the window.
+    public var log: DiagnosticLog { environment.log }
     /// The speed lookup of `environment` found the unit: one lookup, not one at each chrome read.
     @ObservationIgnored var speedUnitFound: Bool?
     /// The playback state (decision 0016), in `Studio+Transport.swift`.
@@ -162,7 +164,7 @@ import Observation
     /// True from the start of `settle()` to its end: no peak pass and no export starts.
     private(set) var settling = false
 
-    private init(opened: OpenedPackage, recordings: ActiveRecordings?, peakCache: URL?) {
+    private init(opened: OpenedPackage, recordings: ActiveRecordings?, peakCache: URL?, log: DiagnosticLog) {
         self.recordings = recordings
         self.peakLoad = PeakLoad(cache: peakCache)
         self.url = opened.package
@@ -175,17 +177,19 @@ import Observation
         self.play = PlayState(at: opened.session.end)
         self.missingMedia = opened.missingMedia
         self.backups = opened.backups
+        environment.log = log
     }
 
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
     /// Throws `.locked` when another studio or the CLI has the package. `recordings` is the list
     /// of decision 0004 that the studio keeps; the default is none. With `peakCache`, it starts
-    /// a peak pass (decision 0017); with none, it computes no peaks.
+    /// a peak pass (decision 0017); with none, it computes no peaks. The studio writes its lines to
+    /// `log`, the journal of the front end (decision 0059).
     public static func open(
-        _ package: URL, recordings: ActiveRecordings? = nil, peakCache: URL? = nil
+        _ package: URL, recordings: ActiveRecordings? = nil, peakCache: URL? = nil, log: DiagnosticLog = .disabled
     ) async throws(StudioError) -> Studio {
         let opened = try await openPackage(package, recordings: recordings)
-        let studio = Studio(opened: opened, recordings: recordings, peakCache: peakCache)
+        let studio = Studio(opened: opened, recordings: recordings, peakCache: peakCache, log: log)
         studio.loadPeaks()
         return studio
     }

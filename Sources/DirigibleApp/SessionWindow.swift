@@ -246,7 +246,8 @@ import SwiftUI
         phase = .opening
         opening = Task {
             do throws(StudioError) {
-                let studio = try await Studio.open(url, recordings: recordings, peakCache: app?.peakCache)
+                let studio = try await Studio.open(
+                    url, recordings: recordings, peakCache: app?.peakCache, log: app?.log ?? .disabled)
                 if case .closing = phase {
                     phase = .closing(studio)
                     return

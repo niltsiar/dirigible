@@ -83,6 +83,8 @@ let diskMargin: Int64 = 1_000_000_000
 /// calls the system.
 struct CaptureEnvironment: Sendable {
     var hal: DeviceHAL
+    /// The journal of the front end (decision 0059). `live` has `disabled`; `Studio.open` sets it.
+    var log = DiagnosticLog.disabled
     /// A running device with no valid record for this long is lost (the watchdog).
     var silenceLimit: Duration
     /// The watchdog limit from an attach to the first valid record of that appearance. A device

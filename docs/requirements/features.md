@@ -168,3 +168,8 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F154 | A join at each cut between two clips, and a neutral playhead with a head on the ruler | tester 2026-10-15 | done, Release 4 run 3 | R7 |
 | F155 | A drag on the ruler makes a range, and a click on a clip selects it as a set of clips | tester 2026-10-15 | Release 4 | R7 |
 | F156 | A bar with the clip name at the top of each clip | tester 2026-10-15 | Release 4 | R7 |
+| F157 | An import shapes its clip in one call: the part of the file, the gain, the fades, and the clip ID | tester 2026-10-16 | Later | R16 |
+| F158 | An import of the same audio again reuses the WAV in the session | tester 2026-10-16 | Later | R16 |
+| F159 | A compact session read for agents | tester 2026-10-16 | Later | R16 |
+| F160 | A text chapter list, one line for each chapter with its time and title | tester 2026-10-16 | Later | R10 |
+| F161 | Heal: join touching pieces of one file with no change of sound | tester 2026-10-16, Pro Tools | Later | R7 |

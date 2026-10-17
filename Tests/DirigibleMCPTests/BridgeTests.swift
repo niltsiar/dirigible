@@ -106,7 +106,7 @@ struct BridgeTests {
         let first = server.answer(callLine("track_rename", arguments, id: 1))
         let second = server.answer(callLine("track_rename", arguments, id: 2))
 
-        #expect(toolText(first) == (generalLimitText(seconds: 1), true))
+        #expect(toolText(first) == (generalLimitText, true))
         #expect(toolText(second) == ("second", false))
         #expect(app.connections == 2, "the second call connects again")
     }
@@ -194,10 +194,9 @@ struct BridgeTests {
     }
 }
 
-/// The limit text of a tool other than `export`, `render`, and `record` (C8).
-func generalLimitText(seconds: Int) -> String {
-    "Dirigible gave no reply in \(seconds) s. The call may have run: read the session before you try again."
-}
+/// The limit text of a tool other than `export`, `render`, and `record` at the 1 s limit of the tests (C8).
+let generalLimitText =
+    "Dirigible gave no reply in 1 s. The call may have run: read the session before you try again."
 
 /// A fake app socket on its own thread. For each call line, `answer` gets the call number (from
 /// 1) and gives the action.

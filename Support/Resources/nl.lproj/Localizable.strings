@@ -262,7 +262,7 @@
 "transport.record" = "Neem op";
 "transport.stop" = "Stop";
 "transport.play" = "Speel af";
-"record.over.chip" = "Verborgen audio in gevaar";
+"record.over.chip" = "Verborgen audio";
 "record.over.show" = "Toon clip";
 "record.over.disarm" = "Deactiveer opname voor %@";
 "transport.stop.output.changed" = "Het afspelen is gestopt: het uitvoerapparaat is gewijzigd. Druk op de spatiebalk om af te spelen op het nieuwe apparaat.";

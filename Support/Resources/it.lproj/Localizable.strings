@@ -262,7 +262,7 @@
 "transport.record" = "Registra";
 "transport.stop" = "Interrompi";
 "transport.play" = "Riproduci";
-"record.over.chip" = "Audio nascosto a rischio";
+"record.over.chip" = "Audio nascosto";
 "record.over.show" = "Mostra clip";
 "record.over.disarm" = "Disabilita registrazione di %@";
 "transport.stop.output.changed" = "La riproduzione si è interrotta: il dispositivo di uscita è cambiato. Premi la barra spaziatrice per riprodurre sul nuovo dispositivo.";

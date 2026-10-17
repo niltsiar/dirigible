@@ -32,6 +32,23 @@ struct GateTests {
         await until(limit: .seconds(5), "the wait off the pool did not end") { done.withLock { $0 } }
     }
 
+    /// A hold that times out on a thread of a writer queue has no test, so `open()` records the
+    /// miss in the test that opens the gate.
+    @Test func aTimedOutHoldIsRecordedWhenTheTestOpensTheGate() async {
+        let gate = Gate(limit: .milliseconds(50))
+        let ended = OSAllocatedUnfairLock(initialState: false)
+        DispatchQueue.global(qos: .utility).async {
+            gate.waitOnce()
+            ended.withLock { $0 = true }
+        }
+        await until(limit: .seconds(5), "the hold did not end") { ended.withLock { $0 } }
+        withKnownIssue {
+            gate.open()
+        } matching: { issue in
+            issue.comments.contains { $0.rawValue.contains("was not opened") }
+        }
+    }
+
     /// A main-actor hold over the limit of `until` does not use up the limit (run flakes-2, H1). A
     /// start that ends off the main actor 200 ms after such a hold failed "the take did not
     /// start". The hold and the timer use GCD, so a stall of the concurrency pool does not move

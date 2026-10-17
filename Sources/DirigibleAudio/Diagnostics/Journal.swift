@@ -1,6 +1,7 @@
 import CryptoKit
 import Darwin
 import Foundation
+import os
 
 /// Why `Journal.open` failed: the step and its errno, for the one `fault` line of the system log.
 struct JournalOpenError: Error, CustomStringConvertible {
@@ -10,7 +11,7 @@ struct JournalOpenError: Error, CustomStringConvertible {
 }
 
 /// The file side of `DiagnosticLog` (decision 0059). `open` runs on the caller. After it, only
-/// `queue` touches the descriptor and the part size, so the class needs no lock.
+/// `queue` touches the descriptor and the part size; `waiting` has its own lock.
 final class Journal: @unchecked Sendable {
     /// A part of 4 MiB, then the rotation to `<stem>.prev.tsv`.
     static let partLimit = 4 << 20
@@ -29,6 +30,8 @@ final class Journal: @unchecked Sendable {
     private let partLimit: Int
     private var descriptor: Int32
     private var partBytes: Int
+    /// The noted lines that no drain has taken yet.
+    private let waiting = OSAllocatedUnfairLock<[Entry]>(initialState: [])
 
     private init(
         queue: DispatchQueue, salt: SymmetricKey, stem: URL, preamble: Data, partLimit: Int, descriptor: Int32
@@ -72,7 +75,7 @@ final class Journal: @unchecked Sendable {
         if kind == .app, let last = uncleanEnd(in: folder, before: name) {
             unclean = true
             let line = Entry(.app, "previous-unclean", [("last", .text(last.event)), ("last_time", .text(last.time))])
-            queue.async { journal.append(line) }
+            queue.async { journal.append([line]) }
         }
         queue.async { prune(folder) }
         return (journal, unclean)
@@ -80,14 +83,47 @@ final class Journal: @unchecked Sendable {
 
     static let header = "time\tuptime_ms\tthread\tlevel\tcategory\tevent\tfields...\n"
 
-    /// Writes one line on the queue. A full part first moves to `<stem>.prev.tsv`. A `fault` line,
-    /// a `hang` line, and a `sync` line also call `fsync`. A line that the disk refuses is lost.
-    func append(_ entry: Entry, sync: Bool = false) {
+    /// Adds a line for the next drain. Only the line that finds none waiting queues a drain, so
+    /// a backlog costs few writes.
+    func note(_ entry: Entry) {
+        let first = waiting.withLock { lines in
+            lines.append(entry)
+            return lines.count == 1
+        }
+        if first { queue.async { self.drain() } }
+    }
+
+    /// Writes each waiting line, on the queue.
+    func drain() {
+        append(
+            waiting.withLock { lines in
+                defer { lines = [] }
+                return lines
+            })
+    }
+
+    /// Writes the lines on the queue, with one `write(2)` for each part. A full part first moves
+    /// to `<stem>.prev.tsv`. A `fault` line, a `hang` line, and `sync` also call `fsync`. Lines
+    /// that the disk refuses are lost.
+    func append(_ entries: [Entry], sync: Bool = false) {
         dispatchPrecondition(condition: .onQueue(queue))
-        let line = Data(entry.line(salt: salt).utf8)
-        if partBytes + line.count > partLimit, partBytes > preamble.count { rotate() }
-        if Self.writeAll(descriptor, line) { partBytes += line.count }
-        if sync || entry.level == .fault || entry.category == .hang { fsync(descriptor) }
+        var batch = Data()
+        var needsSync = sync
+        func flush() {
+            if Self.writeAll(descriptor, batch) { partBytes += batch.count }
+            if needsSync { fsync(descriptor) }
+            batch.removeAll(keepingCapacity: true)
+        }
+        for entry in entries {
+            let line = entry.line(salt: salt).utf8
+            if partBytes + batch.count + line.count > partLimit, partBytes + batch.count > preamble.count {
+                flush()
+                rotate()
+            }
+            batch.append(contentsOf: line)
+            needsSync = needsSync || entry.level == .fault || entry.category == .hang
+        }
+        flush()
     }
 
     /// The part becomes `<stem>.prev.tsv` (it replaces an older one), and a new part starts with

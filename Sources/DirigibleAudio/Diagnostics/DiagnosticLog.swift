@@ -97,8 +97,7 @@ public final class DiagnosticLog: Sendable {
         fields: [(key: String, value: DiagnosticValue)]
     ) {
         guard let journal else { return }
-        let entry = Entry(category, event, fields, level: level)
-        journal.queue.async { journal.append(entry) }
+        journal.note(Entry(category, event, fields, level: level))
     }
 
     /// Writes the begin line of a call that can block, so a call that never returns leaves it in
@@ -115,7 +114,10 @@ public final class DiagnosticLog: Sendable {
     public func quit() {
         guard let journal else { return }
         let entry = Entry(.app, "quit", [])
-        let written = DispatchWorkItem { journal.append(entry, sync: true) }
+        let written = DispatchWorkItem {
+            journal.drain()
+            journal.append([entry], sync: true)
+        }
         journal.queue.async(execute: written)
         // A work item wait lends the QoS of the caller to the `.utility` queue; a semaphore wait
         // does not, and under load the queued lines then miss the bound.

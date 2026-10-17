@@ -45,6 +45,7 @@ struct ParityTests {
         "removeUnusedFiles": ["file prune"],
         "importTranscript": ["transcript import"],
         "cutWords": ["transcript cut"],
+        "importChapters": ["chapters import"],
     ]
 
     static let exemptions: [String: String] = [

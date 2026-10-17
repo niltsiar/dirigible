@@ -316,4 +316,10 @@ public enum SessionError: Error, Hashable, Sendable {
     /// The files of these transcripts did not load, so a cut could join words across hidden ones
     /// (decision 0055).
     case transcriptNotLoaded([TranscriptID])
+    /// The frame of chapter `place` (from 1) of a chapters import is negative or more than
+    /// `Frames.limit`.
+    case chapterOutOfRange(place: Int)
+    /// A chapters import with `replacing` would drop the image of each of these chapters: the file
+    /// has no chapter at the time of each.
+    case chapterImageNotKept([Marker])
 }

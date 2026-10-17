@@ -13,6 +13,15 @@ private let to = Param<Int?>.optional(
 private let replace = Param.defaulted(
     "replace", "Replace the file and its chapter images when they exist.", .boolean, false)
 
+private let importPath = Param.required(
+    "path", "The absolute path of a Podcasting 2.0 JSON Chapters file, version 1.x.", .string)
+private let importAt = Param.defaulted("at", "The timeline frame of second 0 of the file.", .integer(), 0)
+private let importReplace = Param.defaulted(
+    "replace",
+    "Remove each chapter first and keep each plain marker. The image of a removed chapter moves to the file chapter at "
+        + "its millisecond. When a removed image has no chapter at its time, the call fails and changes nothing.",
+    .boolean, false)
+
 let chapterTools = [
     Tool(
         "chapters_export",
@@ -25,5 +34,22 @@ let chapterTools = [
         let (first, end, replaces) = (try a[from], try a[to], try a[replace])
         let path = try outPath(a, out)
         return .chapters(try ChaptersWork(out: path, from: first, to: end, replace: replaces))
-    }
+    },
+    Tool(
+        "chapters_import",
+        "Add the chapters of a Podcasting 2.0 JSON Chapters file as chapter markers, as dirigible chapters import. A "
+            + "chapter with toc false is a plain marker. A chapter with no title is named Chapter N. The import copies "
+            + "no image. Give the IDs of the new markers, one on each line, then the warning lines. A bad file or a "
+            + "failed call changes nothing.",
+        [importPath, importAt, importReplace]
+    ) { a throws(ToolError) in
+        let (location, first, replaces) = (try a[importPath], try a[importAt], try a[importReplace])
+        guard location.hasPrefix("/") else { throw ToolError("The argument \"path\" must be an absolute path.") }
+        let work = try ChaptersWork.Import(
+            path: location, at: try ChaptersWork.Import.frame(at: first, spelling: .tool), replace: replaces)
+        return .edit(ripple: false) { session throws(SessionError) in
+            let result = try work.apply(&session)
+            return result.ids + result.warnings
+        }
+    },
 ]

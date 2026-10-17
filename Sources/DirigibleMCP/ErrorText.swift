@@ -163,6 +163,20 @@ extension TranscriptFileError {
     }
 }
 
+extension ChaptersFileError {
+    package var message: String {
+        switch self {
+        case .notAnObject: "the file is not a JSON object."
+        case .noChapters: "the file has no chapter: it needs a \"chapters\" array with one chapter or more."
+        case .unsupportedVersion(let version):
+            version.map { "version \"\($0)\" is not 1.x; Dirigible reads versions 1.x." }
+                ?? "the file has no \"version\"; Dirigible reads versions 1.x."
+        case .startTime(let place): "chapter \(place) has no startTime that is a number of seconds, 0 or more."
+        case .title(let place): "the title of chapter \(place) has a control character."
+        }
+    }
+}
+
 extension SessionError {
     /// No `default` case: a new error case does not compile until it has a message.
     package var message: String {
@@ -215,6 +229,13 @@ extension SessionError {
                 ? "transcript \(ids[0]) did not load: its file is missing or damaged. Import the transcript again."
                 : "transcripts \(ids.map(\.description).joined(separator: ", ")) did not load: their files are missing "
                     + "or damaged. Import the transcripts again."
+        case .chapterOutOfRange(let place):
+            "chapter \(place) starts at a frame that is negative or more than 2^40."
+        case .chapterImageNotKept(let markers):
+            "the import would drop the image of "
+                + markers.map { "\"\($0.name)\" at \($0.position)" }.joined(separator: ", ")
+                + ". The file has no chapter at the same time. Remove the chapter first, or add one at that time to "
+                + "the file."
         }
     }
 }

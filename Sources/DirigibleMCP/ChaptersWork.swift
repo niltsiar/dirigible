@@ -121,3 +121,53 @@ package struct ChaptersWork: Sendable {
         return Self.text(of: source)
     }
 }
+
+extension ChaptersWork {
+    /// The work of a `chapters import` command or a `chapters_import` call. It is the one owner of
+    /// the rules of the file, `at`, `replace`, and the warning lines, as `ChaptersWork` is for the
+    /// export (decisions 0011 and 0041). The file is read and parsed in `init`, in the argument
+    /// step, so `apply` does no file I/O and runs in the edit of a package or of the app.
+    package struct Import: Sendable {
+        let file: ImportedChapters
+        let at: Frames
+        let replace: Bool
+
+        /// The frame `at`, or the usage error: a frame in `0...Frames.limit`. The check comes before
+        /// any `Frames` sum.
+        package static func frame(at: Int, spelling: OptionSpelling) throws(ToolError) -> Frames {
+            guard (0...Frames.limit.count).contains(at) else {
+                throw ToolError("\(spelling("at")) is a frame in 0...2^40.")
+            }
+            return Frames(at)
+        }
+
+        /// Reads and parses the chapters file at `path`. The error text is the line of the command
+        /// and of the tool.
+        package init(path: String, at: Frames, replace: Bool) throws(ToolError) {
+            let data: Data
+            do { data = try Data(contentsOf: URL(filePath: path)) } catch {
+                throw ToolError("cannot read \(path): \(error.localizedDescription)")
+            }
+            do throws(ChaptersFileError) { file = try ImportedChapters(data: data) } catch {
+                throw ToolError("\(path): \(error.message)")
+            }
+            (self.at, self.replace) = (at, replace)
+        }
+
+        /// The edit: the IDs of the new markers in file order, and the warning lines.
+        package func apply(_ session: inout Session) throws(SessionError) -> (ids: [String], warnings: [String]) {
+            let report = try session.importChapters(file, at: at, replacing: replace)
+            var warnings = file.droppedURLs.map {
+                "Warning: chapter \($0) has a url that is not an http or https link of at most "
+                    + "\(Marker.maximumURLBytes) bytes; it is not imported."
+            }
+            if report.imagesLeft > 0 {
+                let count = report.imagesLeft
+                warnings.append(
+                    "Warning: \(count) chapter\(count == 1 ? " has" : "s have") an img that is not imported: the "
+                        + "import copies no image.")
+            }
+            return (report.markers.map(\.rawValue), warnings)
+        }
+    }
+}

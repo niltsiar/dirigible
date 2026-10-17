@@ -849,6 +849,10 @@ These commands use a transcript with word times, in Whisper JSON or WebVTT. For 
 
 The words follow the clips of the import track: a move, a trim, or a cut moves the words with the audio. An edit of another track alone does not move them, so edit all tracks together. The package keeps the words, in the `Transcripts` folder. A session with a transcript does not open in a version of Dirigible from before the transcripts.
 
+This command saves a problem report:
+
+- `dirigible diagnostics collect Report.zip` saves one zip with the journals of Dirigible of the last 7 days (`--days`), the crash and hang reports of Dirigible of the last 30 days, the input devices, and a summary of the Mac. The zip has no audio and no session file. The home folder, the user name, and the names of the Mac are replaced, and each device UID is a token. Nothing leaves the Mac: send the file by hand. `--logs` and `--reports` give other folders. A zip path that exists, or a folder that does not exist, gives exit 2.
+
 The text of the tool is English only.
 
 ### Connect an AI agent
@@ -988,7 +992,7 @@ The 50 tools, in groups:
 - `import` takes `file`, the absolute path of the audio file. The clip replaces the clips under it, as **File > Import Audio** does. Its `id`, `offset`, `length`, `db`, `fade_in`, and `fade_out` shape the clip in the same call, so one call replaces `import`, `clip_trim`, `clip_gain`, and `clip_fade`. An import of audio that a file of the session holds already reuses that file. Each import still converts the whole file, so for more parts of one file the agent imports it once, then places each part with `clip_place` and the file ID and fades it with `clip_fade`.
 - `export` and `render` refuse an output file inside a session package, also with `replace`, so an export cannot replace a take. `out` must be an absolute path.
 - Codex stops a tool call at its time limit, 60 s in its docs, also when the call sends progress. Codex sends no cancel, so the job runs on to its end. Long calls can take more than 60 s. Add `tool_timeout_sec = 600` under `[mcp_servers.dirigible]` in `~/.codex/config.toml`.
-- These commands have no tool. `capture place`, `take finalize`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. `diagnostics collect` saves a problem report and reads no package. Run these commands in the terminal.
 
 #### What you can ask an agent
 

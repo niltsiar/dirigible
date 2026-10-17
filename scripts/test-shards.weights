@@ -15,6 +15,7 @@ DirigibleAudioTests.ClipWriterTests	0.0
 DirigibleAudioTests.DeviceEventTests	47.6
 DirigibleAudioTests.DeviceListListenerTests	2.1
 DirigibleAudioTests.DeviceListTests	0.0
+DirigibleAudioTests.DiagnosticBundleTests	1.0
 DirigibleAudioTests.DiagnosticLogBenchmark	0.0
 DirigibleAudioTests.DiagnosticLogTests	1.0
 DirigibleAudioTests.DiskRuleTests	2.1
@@ -115,6 +116,7 @@ DirigibleAudioTests.TakeAnchorTests	5.2
 DirigibleAudioTests.TakeLogTests	8.0
 DirigibleAudioTests.TakeNumberTests	0.0
 DirigibleAudioTests.TruePeakTests	1.6
+DirigibleCLITests.DiagnosticsCommandTests	1.5
 DirigibleCoreTests.ArtworkNameTests	0.0
 DirigibleCoreTests.BackupTests	8.5
 DirigibleCoreTests.ChaptersTests	0.0

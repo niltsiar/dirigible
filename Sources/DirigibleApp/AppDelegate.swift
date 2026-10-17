@@ -62,8 +62,9 @@ import UniformTypeIdentifiers
     /// `applicationWillFinishLaunching` starts no timer on the main queue of the test process.
     @ObservationIgnored let watchesHangs: Bool
     @ObservationIgnored private var watchdog: HangWatchdog?
-    /// The agent server (decision 0046). The Settings switch starts and stops it.
-    @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket) { [weak self] in
+    /// The agent server (decision 0046). The Settings switch starts and stops it. Its first use
+    /// comes after `applicationWillFinishLaunching`, so it gets the started log.
+    @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket, log: log) { [weak self] in
         self?.agentTargets() ?? []
     }
     /// Tests replace the Quit question (message, button, true after a failed save; true for the button)

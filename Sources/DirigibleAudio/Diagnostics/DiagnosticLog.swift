@@ -259,8 +259,8 @@ private func utcParts(_ seconds: Int64) -> tm {
 }
 
 /// The fields of `app launch`: the build facts of the front end, macOS, the architecture, the
-/// model, and the locale.
-private func launchFields(version: String, commit: String) -> [(key: String, value: DiagnosticValue)] {
+/// model, and the locale. `summary.txt` of a bundle has the same facts.
+func launchFields(version: String, commit: String) -> [(key: String, value: DiagnosticValue)] {
     let system = ProcessInfo.processInfo.operatingSystemVersion
     #if arch(arm64)
         let arch = "arm64"

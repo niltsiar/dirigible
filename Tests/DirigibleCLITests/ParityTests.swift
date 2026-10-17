@@ -67,6 +67,8 @@ struct ParityTests {
         "mcp": "It is the MCP server.",
         "skill show": "It reads no package: the skill text of the agent manual (decision 0051).",
         "skill path": "It reads no package: the path of the bundled skill file (decision 0051).",
+        "diagnostics collect":
+            "It reads no package and changes none: a report zip that the user sends (decision 0059).",
     ]
 
     /// The commands whose tool name does not follow the name rule.

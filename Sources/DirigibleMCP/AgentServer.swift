@@ -75,6 +75,7 @@ package final class AgentServer {
     package private(set) var connected = 0
 
     private let socket: URL
+    private let log: DiagnosticLog
     private let targets: @MainActor () -> [AgentTarget]
     @ObservationIgnored private(set) var listener: AgentListener?
     /// True from a stop until its listener freed the lock. A start in that time waits for it.
@@ -83,9 +84,12 @@ package final class AgentServer {
     /// One more for each start, so a count of a stopped listener does not change `connected`.
     @ObservationIgnored private var generation = 0
 
-    /// `targets` gives the windows of the app on each call.
-    package init(socket: URL = agentSocketPath(), targets: @escaping @MainActor () -> [AgentTarget]) {
-        (self.socket, self.targets) = (socket, targets)
+    /// `targets` gives the windows of the app on each call. `log` gets one line for each call.
+    package init(
+        socket: URL = agentSocketPath(), log: DiagnosticLog = .disabled,
+        targets: @escaping @MainActor () -> [AgentTarget]
+    ) {
+        (self.socket, self.log, self.targets) = (socket, log, targets)
     }
 
     package func start() {
@@ -142,7 +146,24 @@ package final class AgentServer {
         connected = 0
     }
 
+    /// Writes `agent call` with the tool, the ms, and the error flag, and never an argument
+    /// (decision 0059).
     private func answer(_ call: AgentCall, generation: Int, report: @escaping @Sendable (Double) -> Void) async
+        -> AgentReply
+    {
+        let start = ContinuousClock.now
+        let reply = await reply(to: call, generation: generation, report: report)
+        let failed = if case .result(_, isError: true) = reply { true } else { false }
+        log.note(
+            .agent, "call",
+            [
+                "tool": .text(call.tool), "ms": .milliseconds((ContinuousClock.now - start) / .milliseconds(1)),
+                "error": .text(failed ? "true" : "false"),
+            ])
+        return reply
+    }
+
+    private func reply(to call: AgentCall, generation: Int, report: @escaping @Sendable (Double) -> Void) async
         -> AgentReply
     {
         guard let target = targets().first(where: { $0.studio.url.path == call.identity.path }) else { return .notOpen }

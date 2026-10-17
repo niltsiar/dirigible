@@ -17,7 +17,7 @@ struct Dirigible: AsyncParsableCommand {
             ChaptersCommand.self,
             PeaksCommand.self, LoudnessCommand.self, LevelCommand.self, ImportCommand.self, TranscriptCommand.self,
             BackupCommand.self,
-            MCPCommand.self, SkillCommand.self,
+            MCPCommand.self, SkillCommand.self, DiagnosticsCommand.self,
         ])
 
     @Flag(help: "Print the agent manual: the instructions that dirigible mcp gives an agent.")

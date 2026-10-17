@@ -164,7 +164,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F150 | Pan (balance) of a track | Hindenburg, Logic | Later | R7 |
 | F151 | Import Session: merge the tracks of another Dirigible package into the open session | Hindenburg PRO; user 2026-10-15 | Release 7 | R7 |
 | F152 | The record time and its warning show only under 3 hours | tester 2026-10-15 | done, Release 4 run 1 | R1 |
-| F153 | The record-over warning is a chip over the track headers, with a menu to go to the end, show the clip, or turn off record | tester 2026-10-15 | Release 4 | R7 |
-| F154 | A join at each cut between two clips, and a neutral playhead with a head on the ruler | tester 2026-10-15 | Release 4 | R7 |
+| F153 | The record-over warning is a chip over the track headers, with a menu to go to the end, show the clip, or turn off record | tester 2026-10-15 | done, Release 4 run 3 | R7 |
+| F154 | A join at each cut between two clips, and a neutral playhead with a head on the ruler | tester 2026-10-15 | done, Release 4 run 3 | R7 |
 | F155 | A drag on the ruler makes a range, and a click on a clip selects it as a set of clips | tester 2026-10-15 | Release 4 | R7 |
 | F156 | A bar with the clip name at the top of each clip | tester 2026-10-15 | Release 4 | R7 |

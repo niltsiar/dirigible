@@ -24,9 +24,11 @@ public enum ImportError: Error, Hashable, Sendable {
 
 /// Converts `source` into `Clips/<stem>.wav` at the session rate and the target layout, adds the
 /// file, the clip, and a new track when `target.track` is nil, and levels the clip with
-/// `autoLevel(.eachClip)` when `level` (decision 0040). The clip overwrites the clips under it, as a
-/// placement does. It never writes `session.xml`, and it blocks until the end, so never call it on
-/// the main actor.
+/// `autoLevel(.eachClip)` when `level` and `target` has no gain (decision 0040). The clip has the
+/// ID, the range of the made WAV, the gain, and the fades of `target`; a length past the end of
+/// the WAV stops at its end. The clip overwrites the clips under it, as a placement does. It
+/// never writes `session.xml`, and it blocks until the end, so never call it on the main actor.
+/// It returns the WAV that it renamed as `made`.
 ///
 /// The order: the download check (`isDownloaded`, before any read), the source checks, the target
 /// checks, the disk check (`freeBytes`, the free bytes of the volume of the package lock), the
@@ -38,14 +40,14 @@ public enum ImportError: Error, Hashable, Sendable {
 /// the rename, also during the level, removes the WAV with `removeMadeFiles` and throws
 /// `.cancelled` (decision 0049). `isCancelled` is read before each block of 65,536 frames, before
 /// the read-back, after the rename, at each block of the level, and last before the return. A
-/// caller that reads its flag again after the return removes the WAV itself. With `level`, the
+/// caller that reads its flag again after the return removes `made` itself. With the level, the
 /// conversion gives 0...0.8 of `progress` and the level 0.8...1.
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
     progress: @escaping @Sendable (Double) -> Void = { _ in },
     isCancelled: @escaping @Sendable () -> Bool = { false }
-) throws(ImportError) -> (session: Session, clip: ClipID) {
+) throws(ImportError) -> (session: Session, clip: ClipID, made: URL?) {
     let name = source.lastPathComponent
     guard isDownloaded(source) else { throw .notDownloaded(file: name) }
     let (descriptor, input) = try openAudio(source)
@@ -62,7 +64,10 @@ public func importAudio(
     } else {
         layout = fileLayout
     }
-    guard target.start >= .zero else { throw .session(.frameOutOfRange) }
+    guard target.start >= .zero, target.offset >= .zero, target.offset <= .limit else {
+        throw .session(.frameOutOfRange)
+    }
+    if let id = target.clip, session.clip(id) != nil { throw .session(.duplicateID(id.rawValue)) }
     let (sourceRate, rate) = (input.fileFormat.sampleRate, Double(session.sampleRate))
     let frames = Int64((Double(input.length) * rate / sourceRate).rounded(.up))
     var files: NewClipFiles
@@ -81,26 +86,30 @@ public func importAudio(
         throw ImportError(error, file: name)
     }
     let wav = "\(clipsFolderName)/\(stem).wav"
-    let share = level ? 0.8 : 1
+    let leveled = level && target.gain == nil
+    let share = leveled ? 0.8 : 1
     let converted = try convertToWAV(
         input, descriptor: descriptor, source: source, package: package, wav: wav, channels: layout.channelCount,
         rate: rate, into: temporary, progress: { progress($0 * share) }, isCancelled: isCancelled)
     guard let (length, gain) = converted else { throw isCancelled() ? .cancelled : .notAudio(file: name) }
 
-    let (track, file, clip) = (target.track ?? TrackID(), FileID(stem), ClipID(stem))
+    let (track, file, clip) = (target.track ?? TrackID(), FileID(stem), target.clip ?? ClipID(stem))
+    // The offset is in 0...limit, so the rest cannot overflow; `place` refuses a rest under 1.
+    let rest = Frames(length) - target.offset
+    let shaped = Clip(
+        id: clip, file: file, start: target.start, offset: target.offset,
+        length: target.length.map { min($0, rest) } ?? rest, gain: target.gain ?? gain, fades: target.fades)
     var imported = session
     do throws(SessionError) {
         if target.track == nil { try imported.addTrack(track, name: stem, layout: layout) }
         try imported.addFile(AudioFile(id: file, path: "\(stem).wav", layout: layout, length: Frames(length)))
-        try imported.place(
-            Clip(id: clip, file: file, start: target.start, offset: .zero, length: Frames(length), gain: gain),
-            on: track)
+        try imported.place(shaped, on: track)
     } catch {
         throw .session(error)
     }
     do throws(NewClipFault) { try files.commit() } catch { throw ImportError(error, file: name) }
     // The level reads the renamed file, and stops at a cancel (about 0.4 s for each hour of stereo).
-    if !isCancelled(), level {
+    if !isCancelled(), leveled {
         imported =
             autoLevel(
                 [clip], .eachClip, of: imported, in: package, progress: { progress(share + $0 * (1 - share)) },
@@ -111,12 +120,7 @@ public func importAudio(
         removeMadeFiles([package.appending(path: wav)])
         throw .cancelled
     }
-    return (imported, clip)
-}
-
-/// The WAV that `importAudio` made for `clip`: the clip, its file, and its WAV share the stem.
-public func importedWAV(_ clip: ClipID, in package: URL) -> URL {
-    package.appending(path: clipsFolderName).appending(path: "\(clip.rawValue).wav")
+    return (imported, clip, package.appending(path: wav))
 }
 
 /// Removes the files that a cancelled run made after their rename (decision 0049): the WAV of an

@@ -227,9 +227,10 @@ func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     progress: @escaping @Sendable (Double) -> Void = { _ in }, isCancelled: @escaping @Sendable () -> Bool = { false }
 ) throws(ImportError) -> (session: Session, clip: ClipID) {
-    try DirigibleAudio.importAudio(
+    let imported = try DirigibleAudio.importAudio(
         source, to: target, of: session, in: package, level: level, freeBytes: { .max }, progress: progress,
         isCancelled: isCancelled)
+    return (imported.session, imported.clip)
 }
 
 /// A package folder with a session and no `session.xml`: the import writes only `Clips/`.

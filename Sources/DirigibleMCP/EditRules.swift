@@ -123,6 +123,14 @@ package enum EditRules {
         return onto.count == sources.count ? onto : nil
     }
 
+    /// The range of an import in the made WAV (decision 0040): an offset in `0...Frames.limit`, and
+    /// a length in `1...Frames.limit` or nil. The checks come before any `Frames` sum.
+    package static func importRange(offset: Int, length: Int?) -> (offset: Frames, length: Frames?)? {
+        let limit = Frames.limit.count
+        guard (0...limit).contains(offset), (1...limit).contains(length ?? 1) else { return nil }
+        return (Frames(offset), length.map { Frames($0) })
+    }
+
     /// A fade edit gives the fade-in, the fade-out, or both.
     package static func fadeGiven(fadeIn: Int?, fadeOut: Int?) -> Bool { fadeIn != nil || fadeOut != nil }
 }

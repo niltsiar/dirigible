@@ -72,7 +72,7 @@ extension Studio {
                     }
                 })
             await environment.importWorkDone()
-            return done.map { ($0.session, $0.clip, made: [$0.wav]) }
+            return done.map { ($0.session, $0.clip, made: [$0.made].compactMap { $0 }) }
         }
     }
 
@@ -177,8 +177,8 @@ extension Studio {
 @concurrent nonisolated func convertImport(
     _ source: URL, _ target: ImportTarget, of session: Session, lock: PackageLock, level: Bool,
     environment: CaptureEnvironment, flags: ImportFlags, progress: @escaping @Sendable (Double) -> Void
-) async -> Result<(session: Session, clip: ClipID, wav: URL), StudioError> {
-    @Sendable func run() -> Result<(session: Session, clip: ClipID, wav: URL), StudioError> {
+) async -> Result<(session: Session, clip: ClipID, made: URL?), StudioError> {
+    @Sendable func run() -> Result<(session: Session, clip: ClipID, made: URL?), StudioError> {
         dispatchPrecondition(condition: .notOnQueue(.main))
         let package: URL
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
@@ -190,7 +190,7 @@ extension Studio {
                     environment.importStep()
                     return flags.isCancelled
                 })
-            return .success((imported.session, imported.clip, importedWAV(imported.clip, in: package)))
+            return .success(imported)
         } catch {
             return .failure(.audioImport(error))
         }

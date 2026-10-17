@@ -29,6 +29,9 @@ cp "$script" "$repo/scripts/with-lock.sh"
 git -C "$repo" init -q && git -C "$repo" add -A &&
     git -C "$repo" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base
 git -C "$repo" worktree add -q "$tmp/wt" 2>/dev/null
+# The tree of a call is the git top level of its working directory.
+repo_tree="$(git -C "$repo" rev-parse --show-toplevel)" wt_tree="$(git -C "$tmp/wt" rev-parse --show-toplevel)"
+cd "$repo" || exit 2
 # until_true <limit in tenths of a second> <command...>: 0 when the command passes in the limit.
 # At the limit it stops the waiting call, so a regression fails the test and never hangs it.
 until_true() {
@@ -98,11 +101,13 @@ wait "$waiter" || fail 'release: the waiting call failed'
 [[ ! -e "$lock" ]] || fail 'release: the lock stays after the command'
 
 # A call that waited appends one line to dirigible-build-waits.log of the git common dir: the
-# start time, the wait seconds, the command, and the command of the holder.
+# start time, the wait seconds, the command, the command of the holder, and the tree of the call.
 rm -f "$waits" "$tmp/ran"
 mkdir "$lock" && echo "$holder" > "$lock/pid" && echo 'make test' > "$lock/command"
+cd "$tmp/wt" || exit 2
 WITH_LOCK_RETRY=1 "$tmp/wt/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
 waiter=$!
+cd "$repo" || exit 2
 until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail 'wait line: no wait'
 sleep 1.5
 rm -rf "$lock"
@@ -110,10 +115,10 @@ until_true 50 test -e "$tmp/ran" || fail 'wait line: the waiting call did not ru
 wait "$waiter"
 waiter=""
 [[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 ]] || fail "a call that waited appends one wait line: [$(cat "$waits" 2>/dev/null)]"
-started="" seconds=0 command="" held=""
-IFS=$'\t' read -r started seconds command held < "$waits"
-[[ "$started" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T && "$seconds" -ge 1 && "$command" == "touch $tmp/ran" && "$held" == 'make test' ]] ||
-    fail "wait line: [$started] [$seconds] [$command] [$held]"
+started="" seconds=0 command="" held="" wtree=""
+IFS=$'\t' read -r started seconds command held wtree < "$waits"
+[[ "$started" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T && "$seconds" -ge 1 && "$command" == "touch $tmp/ran" && "$held" == 'make test' && "$wtree" == "$wt_tree" ]] ||
+    fail "wait line: [$started] [$seconds] [$command] [$held] [$wtree]"
 
 # A release call (make check-changed BASE=<ref>, scripts/land.sh, make dmg) holds a ticket folder
 # dirigible-build-first/<pid> in the git common dir while it waits; an ordinary call does not take
@@ -339,6 +344,106 @@ out="$(cd "$repo" && MAKE="$fake/rcmake" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 
 code=$?
 [[ $code -eq 0 && -e "$tmp/ran" ]] || fail "run-checks.sh: the recipe call stops at the limit of the caller: exit $code: $out"
 clear_hold
+
+# Builders. A release appends one hold line to dirigible-build-holds.log: the start, the hold
+# seconds, the command, and the tree. The lock folder keeps $lock/tree while a call holds it, and a
+# waiting call keeps the marker dirigible-build-waiting/<pid> with its tree. --builders prints each
+# tree with a wait or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60),
+# the live holder, and each live waiter. A wait with 2 or more other trees prints the count.
+holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build-waiting"
+reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
+# ago <minutes>: the ISO time of that many minutes ago, as the logs write it.
+ago() { date -r $(($(date +%s) - $1 * 60)) +%FT%T; }
+/usr/bin/true &
+dead_pid=$!
+wait "$dead_pid"
+reset_builders
+"$repo/scripts/with-lock.sh" bash -c 'sleep 1.2' > /dev/null 2>&1
+code=$?
+started="" seconds=0 command="" htree=""
+IFS=$'\t' read -r started seconds command htree < "$holds"
+[[ $code -eq 0 && "$(wc -l < "$holds" | tr -d ' ')" == 1 && "$started" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T && "$seconds" -ge 1 && "$command" == "bash -c sleep 1.2" && "$htree" == "$repo_tree" ]] ||
+    fail "hold line: exit $code [$started] [$seconds] [$command] [$htree]: $(cat "$holds" 2>/dev/null)"
+# The take writes the tree of the call, also after the takeover of a dead lock.
+reset_builders
+out="$(cd "$tmp/wt" && "$repo/scripts/with-lock.sh" bash -c "cat '$lock/tree'" 2>&1)"
+[[ "$out" == "$wt_tree" ]] || fail "take: the lock tree is [$out], not [$wt_tree]"
+mkdir "$lock" && echo "$dead_pid" > "$lock/pid" && echo /old/tree > "$lock/tree"
+out="$(cd "$tmp/wt" && "$repo/scripts/with-lock.sh" bash -c "cat '$lock/tree'" 2>&1)"
+[[ "$out" == *"$wt_tree" && "$out" != *'/old/tree'* ]] || fail "takeover: the lock tree is [$out], not [$wt_tree]"
+# The window: a hold that ended 59 min ago counts, one that ended 61 min ago does not. A wait line
+# counts as a hold line, and the old wait line of 4 columns has no tree.
+reset_builders
+printf '%s\t30\tmake test\t/t/in\n%s\t30\tmake test\t/t/out\n' "$(ago 60)" "$(ago 62)" > "$holds"
+printf '%s\t30\ttouch x\tmake test\t/t/wait-in\n%s\t30\ttouch x\tmake test\t/t/wait-out\n%s\t30\ttouch x\tmake test\n' "$(ago 60)" "$(ago 62)" "$(ago 5)" > "$waits"
+out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
+[[ "$out" == "$(printf '/t/in\n/t/wait-in')" ]] || fail "--builders window: [$out]"
+out="$(WITH_LOCK_BUILDERS_MIN=90 "$repo/scripts/with-lock.sh" --builders 2>&1)"
+[[ "$out" == *'/t/out'* && "$out" == *'/t/wait-out'* ]] || fail "--builders, 90 min: [$out]"
+# A live holder with no log line counts, and a dead holder does not. A live waiter counts, and a
+# marker of a dead pid does not and goes.
+reset_builders
+hold
+echo /t/holder > "$lock/tree"
+mkdir -p "$waiting"
+sleep 60 & other=$!
+echo /t/waiter > "$waiting/$other"
+echo /t/gone > "$waiting/$dead_pid"
+out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
+[[ "$out" == "$(printf '/t/holder\n/t/waiter')" && ! -e "$waiting/$dead_pid" ]] || fail "--builders, live holder and waiter: [$out]"
+# A wait behind them, with no log line, counts both: 2 other trees.
+cd "$tmp/wt" || exit 2
+"$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+cd "$repo" || exit 2
+until_true 50 grep -q 'the cap is 2' "$tmp/wait.out" || fail "builders line: none for 2 other trees: $(cat "$tmp/wait.out")"
+grep -qF 'builders in the last 60 min: 2 (/t/holder, /t/waiter); the cap is 2 (long-runs.md)' "$tmp/wait.out" || fail "builders line: $(cat "$tmp/wait.out")"
+[[ "$(cat "$waiting/$waiter" 2>/dev/null)" == "$wt_tree" ]] || fail 'wait marker: no marker with the tree of the waiting call'
+wpid=$waiter
+kill -TERM "$waiter"
+wait "$waiter" 2>/dev/null
+waiter=""
+[[ ! -e "$waiting/$wpid" ]] || fail "a TERM leaves a wait marker: $(ls "$waiting")"
+# One other tree prints no line, and the tree of the caller is never an other tree.
+reset_builders
+hold
+echo /t/holder > "$lock/tree"
+printf '%s\t30\tmake test\t%s\n' "$(ago 5)" "$wt_tree" > "$holds"
+cd "$tmp/wt" || exit 2
+"$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+cd "$repo" || exit 2
+until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail 'builders line: no wait'
+sleep 0.5
+kill -TERM "$waiter"
+wait "$waiter" 2>/dev/null
+waiter=""
+! grep -q 'builders in the last' "$tmp/wait.out" || fail "builders line for 1 other tree: $(cat "$tmp/wait.out")"
+# A call that waits behind a live release ticket and a free lock leaves a marker that --builders counts.
+reset_builders
+sleep 60 & other=$!
+mkdir -p "$first/$other"
+cd "$tmp/wt" || exit 2
+"$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+cd "$repo" || exit 2
+until_true 50 grep -q 'takes .* first' "$tmp/wait.out" || fail "ticket wait: no wait line: $(cat "$tmp/wait.out")"
+out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
+[[ "$out" == "$wt_tree" ]] || fail "ticket wait: --builders lists [$out], not the waiting tree"
+kill -TERM "$waiter"
+wait "$waiter" 2>/dev/null
+waiter=""
+# A call that ends in exit 75, and a call that takes the lock, leave no marker.
+reset_builders
+hold
+WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.3 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1
+code=$?
+[[ $code -eq 75 && -z "$(ls "$waiting" 2>/dev/null)" ]] || fail "exit 75: code $code, markers [$(ls "$waiting" 2>/dev/null)]"
+clear_hold
+hold_for 1
+WITH_LOCK_RETRY=0.3 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1
+[[ -z "$(ls "$waiting" 2>/dev/null)" ]] || fail "a take leaves a marker: $(ls "$waiting")"
+reset_builders
 
 [[ $failures -eq 0 ]] && echo "with-lock tests: all passed"
 exit $((failures > 0))

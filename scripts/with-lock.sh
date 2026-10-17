@@ -17,6 +17,14 @@
 # DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
 # scripts/run-checks.sh and scripts/flake-monitor/loop.sh set the 0, so an exit 75 never reads as
 # a red test.
+# Each wait line has the tree of the call as its fifth column (git rev-parse --show-toplevel). At
+# its release, a call appends one line to dirigible-build-holds.log in the git common dir: the
+# start time, the hold seconds, the command, and the tree. The take writes the tree into the lock
+# folder (<lock>/tree), and a waiting call keeps the marker dirigible-build-waiting/<pid> with its
+# tree until it takes the lock or ends. scripts/with-lock.sh --builders prints each tree with a wait
+# or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60), the tree of the
+# live holder, and each live waiter, one per line. A marker of a dead pid is ignored and removed.
+# A wait with 2 or more other trees in that list prints their count: the cap of long-runs.md.
 # A release call (make check-changed BASE=<ref>, land.sh, make dmg) holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
 # ordinary call does not take the lock while a ticket of a live pid is there, so a release call
@@ -43,7 +51,34 @@ retry="${WITH_LOCK_RETRY:-30}"
 told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
+waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
+waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-60}"
+# builders: the trees of the wait and hold lines that ended in the last $min minutes, of the live
+# holder, and of each live waiter, one per line. awk reads the ISO times as UTC to add the seconds.
+builders() {
+    local cutoff m c
+    cutoff="$(date -r $(($(date +%s) - min * 60)) +%FT%T)"
+    {
+        for m in "$waits:5" "$holds:4"; do
+            awk -F'\t' -v cutoff="$cutoff" -v col="${m##*:}" '
+                function ep(s, y, mo) {
+                    y = substr(s, 1, 4) + 0; mo = substr(s, 6, 2) + 0
+                    if (mo < 3) { y--; mo += 12 }
+                    return (365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * mo - 457) / 5) + substr(s, 9, 2)) * 86400 + substr(s, 12, 2) * 3600 + substr(s, 15, 2) * 60 + substr(s, 18, 2)
+                }
+                $col != "" && ep($1) + $2 >= ep(cutoff) { print $col }' "${m%:*}" 2>/dev/null
+        done
+        m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
+        if alive "$m" || alive "$c" || alive "-$c"; then cat "$lock/tree" 2>/dev/null; fi
+        for m in "$waiting"/*; do
+            [[ -f "$m" ]] || continue
+            if alive "${m##*/}"; then cat "$m"; else rm -f "$m"; fi
+        done
+    } | awk 'NF && !seen[$0]++' | sort
+}
+[[ "$1" != --builders ]] || { builders; exit 0; }
 [[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
+tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # release_call <command>: a push check (make check-changed BASE=<ref>), a land (land.sh), or a DMG
 # build (make dmg).
 release_call() {
@@ -107,6 +142,15 @@ while :; do
             echo "with-lock: a push check, a land, or a DMG build takes $lock first; retry each $retry s" >&2
         fi
         told=1
+        if mkdir -p "$waiting" 2>/dev/null && echo "$tree" > "$waiting/$$" 2>/dev/null; then marker="$waiting/$$"; fi
+        trap 'rm -f ${marker:+"$marker"}; [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null' EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        others="$(builders | grep -vxF -- "$tree")"
+        n="$(printf '%s\n' "$others" | awk 'NF' | wc -l | tr -d ' ')"
+        if [[ $n -ge 2 ]]; then
+            echo "with-lock: builders in the last $min min: $n ($(printf '%s\n' "$others" | paste -sd, - | sed 's/,/, /g')); the cap is 2 (long-runs.md)" >&2
+        fi
     fi
     nap="$retry"
     if [[ $max -gt 0 ]]; then
@@ -117,13 +161,20 @@ while :; do
     sleep "$nap"
 done
 [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
+rm -f ${marker:+"$marker"}
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.
-{ echo $$ > "$lock/pid" && echo "$*" > "$lock/command"; } 2>/dev/null ||
+{ echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree"; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
-[[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" \
-    >> "${lock%/*}/dirigible-build-waits.log" 2>/dev/null
+taken="$(date +%s)" cmdline="$*"
+[[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" \
+    >> "$waits" 2>/dev/null
 child=""
-release() { [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || rm -rf "$lock"; }
+release() {
+    [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || {
+        printf '%s\t%s\t%s\t%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" >> "$holds" 2>/dev/null
+        rm -rf "$lock"
+    }
+}
 # The TERM goes to the process group of the command: make sends it only to its recipe shell.
 stop() { [[ -z "$child" ]] || { kill -TERM -- "-$child" 2>/dev/null; wait "$child"; }; exit "$1"; }
 trap release EXIT

@@ -669,5 +669,5 @@ AsyncStream { continuation in
 func fetchUser() -> AsyncStream<User> { ... } // Overkill for one result
 ```
 
-- **Sharing a single `AsyncStream` between multiple consumers**: Values split unpredictably. There is no built-in broadcast; use `AsyncChannel` for point-to-point multi-consumer patterns.
+- **Sharing a single `AsyncStream` between multiple consumers**: Values split unpredictably. There is no built-in broadcast.
 - **Forgetting `onTermination`** when bridging delegate or observer APIs, causing resources to leak.

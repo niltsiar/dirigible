@@ -9,12 +9,18 @@ struct StartView: View {
     @FocusState private var focus: StartField?
 
     var body: some View {
-        HStack(spacing: 0) {
-            welcome
-            Divider()
-            recent
+        VStack(spacing: 0) {
+            if let app = model.noticeApp {
+                // The window has a fixed width: the text wraps at it and the row grows.
+                UncleanNoticeBanner(app: app).frame(width: 700).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 0) {
+                welcome
+                Divider()
+                recent
+            }
+            .frame(width: 700, height: 420)
         }
-        .frame(width: 700, height: 420)
         .onAppear { focus = model.focus }
         .onChange(of: model.focus) { focus = model.focus }
         .onChange(of: model.name) { model.nameShown() }

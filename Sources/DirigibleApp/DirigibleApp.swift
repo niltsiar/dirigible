@@ -131,9 +131,12 @@ struct DirigibleApp: App {
                             NSApp.orderFrontStandardAboutPanel(options: commit.map { [.version: $0] } ?? [:])
                         }
                     }
-                    // No key: Command-? stays with the Help search field of macOS.
+                    // No key: Command-? stays with the Help search field of macOS. Report a Problem...
+                    // is a group of its own under the guide.
                     CommandGroup(replacing: .help) {
                         Button(L10n.menuHelpGuide.key) { app.openGuide() }
+                        Divider()
+                        Button(L10n.menuHelpReport.key) { app.reportProblem() }
                     }
                 }
                 // Plain keys: never disabled, because a disabled item still takes its key (probe

@@ -62,6 +62,10 @@ import UniformTypeIdentifiers
     /// `applicationWillFinishLaunching` starts no timer on the main queue of the test process.
     @ObservationIgnored let watchesHangs: Bool
     @ObservationIgnored private var watchdog: HangWatchdog?
+    /// The windows and the collect of Report a Problem. Tests give their own.
+    @ObservationIgnored var panels = ReportPanels()
+    /// The notice after an unclean end of the earlier launch (decision 0059).
+    var uncleanNotice = UncleanNotice(previousEndedUnclean: false)
     /// The agent server (decision 0046). The Settings switch starts and stops it. Its first use
     /// comes after `applicationWillFinishLaunching`, so it gets the started log.
     @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket, log: log) { [weak self] in
@@ -325,10 +329,9 @@ import UniformTypeIdentifiers
 
     /// Before the open events of the launch and their recovery (decision 0059).
     func applicationWillFinishLaunching(_ notification: Notification) {
-        let info = Bundle.main.infoDictionary
-        log = DiagnosticLog.start(
-            .app, folder: logFolder, version: info?["CFBundleShortVersionString"] as? String ?? "0.0.0",
-            commit: info?["DirigibleCommit"] as? String ?? "none")
+        let facts = Self.buildFacts
+        log = DiagnosticLog.start(.app, folder: logFolder, version: facts.version, commit: facts.commit)
+        uncleanNotice = UncleanNotice(previousEndedUnclean: log.previousEndedUnclean)
         if watchesHangs { watchdog = HangWatchdog.start(log: log) }
     }
 

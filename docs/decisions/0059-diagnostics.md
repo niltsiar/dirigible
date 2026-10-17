@@ -52,6 +52,14 @@ A beta tester pressed Record during a call, the window showed the busy cursor, a
 - The app server writes `agent call` with `tool`, `ms`, and `error` for each call that `dirigible mcp` sends to the app, and never an argument.
 - The command line: `dirigible diagnostics collect <zip> [--days <n>] [--logs <folder>] [--reports <folder>]...`, exit 0, 2 (the zip exists or cannot be written), or 64. Nothing leaves the Mac: the user sends the file.
 
+**Report window.** Help > Report a Problem... has its own group under Dirigible Help, no key (Command-? stays with the Help search field), and keys `menu.help.report` and `report.*` in the seven tables (0010).
+
+- One sheet on the key window, else on the start window, else an app-modal window. It says first what the file does not hold, and that the app sends nothing. A disclosure lists the four groups. Cancel has Escape, Save Report... has Return. There is no check box: a producer leaves all on, and the list gives the trust.
+- Save Report... closes the sheet, then a save panel opens on the Desktop with the name `Dirigible Report <yyyy-MM-dd>.zip`. The panel asks before it replaces a file. The app removes the old file after the answer, because `collect` needs a free path.
+- A collect that takes more than 1 s shows a progress sheet with a labeled spinner and Cancel. `collect` has no cancel point, so Cancel hides the sheet, and the app removes the late zip and shows nothing.
+- A success posts a VoiceOver announcement, then shows the zip in Finder. A failure shows an alert with the folder and the cause. The cause is the English reason of `BundleError`.
+- The notice: when the earlier app journal ended unclean (`app previous-unclean`), the first window that shows gets a banner with Report a Problem... and Not Now. Both buttons end the notice for this launch. The earlier journal is the only state: the next launch shows the notice only after a new unclean end.
+
 **Module.** `DirigibleAudio/Diagnostics/` holds `DiagnosticLog`, the journal, `HangWatchdog`, `HangRule`, `DiagnosticBundle`, and the redaction (0002 **Folders**). The C target `CMainStack` holds the walk and the image list, and `DirigibleAudio` depends on it.
 
 ## Consequences

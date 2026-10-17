@@ -95,6 +95,14 @@ extension SessionName.Refusal {
     @ObservationIgnored private var focusPinned = false
     @ObservationIgnored private weak var app: AppDelegate?
 
+    /// The app, while the notice of an unclean end shows in the start window.
+    var noticeApp: AppDelegate? {
+        guard let app, let window = app.start?.window, app.uncleanNotice.shows(in: ObjectIdentifier(window)) else {
+            return nil
+        }
+        return app
+    }
+
     init(app: AppDelegate, folder: URL) {
         self.app = app
         self.folder = folder
@@ -275,6 +283,7 @@ extension SessionName.Refusal {
 
     func show() {
         window?.makeKeyAndOrderFront(nil)
+        app?.noticeWindowShown(window)
         selectName()
     }
 

@@ -599,6 +599,20 @@ If Dirigible stopped during a take, the backup has no copy of that take: keep th
 
 For another error, do not change the package. Remove the cause, for example close the other window, then click **Try Again**.
 
+### Report a problem
+
+When Dirigible stops, hangs, or loses audio, save a report and send it to the person who helps you.
+
+1. Choose **Report a Problem** in the Help menu (**Informar de un problema** in Spanish).
+2. Read the text in the window. Click **Show what is included** to see the list of files.
+3. Click **Save Report**. Choose the folder and the name in the panel. The name is "Dirigible Report" and the date. The folder is the Desktop.
+4. Dirigible makes one zip file and shows it in Finder. A screen reader says that the report is saved.
+5. Send the zip file to the person who helps you.
+
+The report has the logs of the last 7 days, the crash reports of Dirigible, the list of your audio devices, and a summary of your Mac. It has no audio, no session files, no transcripts, and no names of guests or sessions. Your name, the name of your Mac, and your folder names are removed. Dirigible sends nothing. You choose if you send the file, and to whom.
+
+If the last use of Dirigible did not end with a quit, a banner shows in the first window after the next start. Click **Report a Problem** in the banner to save a report, or click **Not Now**. The banner shows once for each such end.
+
 ## Menu commands and keys
 
 Each table lists the commands of one menu, in the order of the menu. The Spanish name is the name in the app when the app language is Spanish.
@@ -765,12 +779,13 @@ The **Playback Speed** submenu (**Velocidad de reproducción**) has these comman
 | Command | Spanish name | Key |
 |---|---|---|
 | **Dirigible Guide** | **Guía de Dirigible** | None |
+| **Report a Problem** | **Informar de un problema** | None |
 
-**Dirigible Guide** opens this guide in your web browser. The guide is part of the app, so it opens with no internet connection. The guide is in English only.
+**Dirigible Guide** opens this guide in your web browser. The guide is part of the app, so it opens with no internet connection. The guide is in English only. **Report a Problem** opens the window that saves a problem report (see "Report a problem").
 
 ### Commands in the banners
 
-These commands are buttons in the banners of the window, not items of the menu bar. **Retry Finalize** and **Finish Without Unreadable Audio** show in the banner of a take that is not finished. **Place** shows in each row of unplaced audio, and **Place at Playhead on Selected Track** is in its menu.
+These commands are buttons in the banners of the window, not items of the menu bar. **Retry Finalize** and **Finish Without Unreadable Audio** show in the banner of a take that is not finished. **Place** shows in each row of unplaced audio, and **Place at Playhead on Selected Track** is in its menu. **Not Now** hides the banner that follows a stop of Dirigible with no quit; the banner also has **Report a Problem**.
 
 | Command | Spanish name | Key |
 |---|---|---|
@@ -778,6 +793,7 @@ These commands are buttons in the banners of the window, not items of the menu b
 | **Finish Without Unreadable Audio** | **Terminar sin el audio ilegible** | None |
 | **Place** | **Colocar** | None |
 | **Place at Playhead on Selected Track** | **Colocar en el cursor en la pista seleccionada** | None |
+| **Not Now** | **Ahora no** | None |
 
 ## For contributors
 

@@ -236,6 +236,7 @@ import SwiftUI
         showTitle()
         window.placeAsSessionWindow(after: previous)
         window.makeKeyAndOrderFront(nil)
+        app?.noticeWindowShown(window)
     }
 
     func bringToFront() { window?.makeKeyAndOrderFront(nil) }

@@ -31,13 +31,16 @@ struct Dirigible: AsyncParsableCommand {
     /// The `CFBundleShortVersionString` of the app that holds this tool at
     /// `<name>.app/Contents/Helpers/dirigible`, also through a symlink. Else 0.0.0, the version with
     /// no tag, as in `scripts/version.sh` and `Support/Info.plist`.
-    private static var appVersion: String {
+    static var appVersion: String { appInfo("CFBundleShortVersionString") ?? "0.0.0" }
+    /// The `DirigibleCommit` of that app (`scripts/bundle.sh`), else `none`.
+    static var appCommit: String { appInfo("DirigibleCommit") ?? "none" }
+
+    private static func appInfo(_ key: String) -> String? {
         guard let contents = Bundle.main.executableURL.flatMap(appContents(of:)),
             let data = try? Data(contentsOf: contents.appending(path: "Info.plist")),
-            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-            let version = plist["CFBundleShortVersionString"] as? String
-        else { return "0.0.0" }
-        return version
+            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        else { return nil }
+        return plist[key] as? String
     }
 }
 

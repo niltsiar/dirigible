@@ -14,6 +14,8 @@ DirigibleAudioTests.ClipWriterTests	0.0
 DirigibleAudioTests.DeviceEventTests	47.6
 DirigibleAudioTests.DeviceListListenerTests	2.1
 DirigibleAudioTests.DeviceListTests	0.0
+DirigibleAudioTests.DiagnosticLogBenchmark	0.0
+DirigibleAudioTests.DiagnosticLogTests	1.0
 DirigibleAudioTests.DiskRuleTests	2.1
 DirigibleAudioTests.DriftRuleTests	1.7
 DirigibleAudioTests.ExportBenchmark	0.0
@@ -97,6 +99,7 @@ DirigibleAudioTests.StudioExportYieldTests	7.1
 DirigibleAudioTests.StudioIdleTests	0.0
 DirigibleAudioTests.StudioImportTests	18.3
 DirigibleAudioTests.StudioListenTests	8.7
+DirigibleAudioTests.StudioLogTests	0.6
 DirigibleAudioTests.StudioLoudnessTests	3.2
 DirigibleAudioTests.StudioMarkerImageTests	0.4
 DirigibleAudioTests.StudioPasteTests	2.2
@@ -140,6 +143,7 @@ DirigibleCoreTests.WriteGuardTests	0.0
 DirigibleCoreTests.notesTakeAVerticalTabOrAFormFeedAsALineBreak()	0.1
 DirigibleTests.AlertReturnTests	4.6
 DirigibleTests.AppDelegateTests	9.2
+DirigibleTests.AppJournalTests	1.1
 DirigibleTests.AppRouteMenuTests	8.1
 DirigibleTests.AutoLevelWindowTests	86.7
 DirigibleTests.AutoscrollTests	3.1

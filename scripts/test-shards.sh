@@ -16,7 +16,10 @@
 # crashes, exits 0 with no report line, runs fewer tests than it listed, or matches no test prints
 # "test-shards: shard <n>: the test process ended before its report": run-checks.sh then reruns
 # nothing, because a lost test is never a flake. A shard with a failed test and a full report is a
-# normal failure. The last line is "test-shards: <run> of <listed> tests in <s> s". The exit is 0
+# normal failure. Each shard writes journals to the empty folder .build/test-shards/default-logs
+# (DIRIGIBLE_LOG_FOLDER): a test that starts a front end passes its own folder, so a file there
+# fails the run with "test-shards: a test wrote a journal to the default log folder: <names>"
+# (decision 0059). The last line is "test-shards: <run> of <listed> tests in <s> s". The exit is 0
 # only when each shard passed.
 # The script holds the build lock (with-lock.sh) once for the build, the list, and the shards.
 # INT, TERM, or an exit stops each shard process; on INT (exit 130) or TERM (exit 143), it
@@ -50,6 +53,9 @@ start=$SECONDS
 swift build --build-tests || { echo "test-shards: the build failed" >&2; exit 1; }
 mkdir -p "$logs"
 rm -f "$logs"/shard-*.log
+guard="$logs/default-logs"
+rm -rf "$guard" && mkdir "$guard" || { echo "test-shards: no folder $guard" >&2; exit 1; }
+export DIRIGIBLE_LOG_FOLDER="$guard"
 list="$logs/list.txt"
 "$helper" --test-bundle-path "$bundle" --testing-library swift-testing --list-tests > "$list" ||
     { echo "test-shards: the test list failed" >&2; cat "$list" >&2; exit 1; }
@@ -133,6 +139,11 @@ for i in "${!pids[@]}"; do
 done
 pids=()
 trap - INT TERM
+written="$(ls -A "$guard" | paste -sd' ' -)"
+if [[ -n "$written" ]]; then
+    messages+=("test-shards: a test wrote a journal to the default log folder: $written")
+    failed=1
+fi
 
 for s in "${names[@]}"; do
     echo "test-shards: shard $s ($logs/shard-$s.log)"

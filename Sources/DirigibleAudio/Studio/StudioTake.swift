@@ -5,10 +5,11 @@ extension Studio {
     /// Makes a package where nothing exists, then opens it. Throws `.file(.exists)` and changes
     /// nothing when anything is at the path.
     public static func create(
-        _ package: URL, sampleRate: Int, recordings: ActiveRecordings? = nil, peakCache: URL? = nil
+        _ package: URL, sampleRate: Int, recordings: ActiveRecordings? = nil, peakCache: URL? = nil,
+        log: DiagnosticLog = .disabled
     ) async throws(StudioError) -> Studio {
         try await createPackage(package, sampleRate: sampleRate)
-        return try await open(package, recordings: recordings, peakCache: peakCache)
+        return try await open(package, recordings: recordings, peakCache: peakCache, log: log)
     }
 
     /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
@@ -116,6 +117,7 @@ extension Studio {
     func beginRecording(armed: [TrackID], playhead: Frames?, length: UInt64? = nil) async throws(StudioError) -> (
         take: Int, generation: Int
     ) {
+        environment.log.note(.take, "start-request", ["armed": .number(Int64(armed.count))])
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
         isStarting = true

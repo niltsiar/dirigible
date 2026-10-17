@@ -41,9 +41,13 @@ struct Record: AsyncParsableCommand {
         guard playhead >= 0 else { throw ValidationError("The playhead must be 0 or more.") }
     }
 
+    /// The one command that runs the capture code, so the one command with a journal (decision 0059).
     func run() async throws {
+        let log = DiagnosticLog.start(
+            .cli, folder: DiagnosticLog.folder(), version: Dirigible.appVersion, commit: Dirigible.appCommit)
+        defer { log.quit() }
         try await recordTake(
-            package, armed: arm.map { TrackID($0) }, playhead: Frames(playhead), duration: .seconds(seconds))
+            package, armed: arm.map { TrackID($0) }, playhead: Frames(playhead), duration: .seconds(seconds), log: log)
     }
 }
 
@@ -83,12 +87,12 @@ func parseSegment(_ text: String) throws -> SegmentName {
 /// Refuses a pending take before `Studio.open`, whose recovery would finalize it, then opens the
 /// package.
 @MainActor
-private func openStudio(_ package: PackageArgument) async throws(ExitCode) -> Studio {
+private func openStudio(_ package: PackageArgument, log: DiagnosticLog = .disabled) async throws(ExitCode) -> Studio {
     guard try readPackage(package).recording == nil else {
         throw fail("\(package.path) has a take that is not finalized; open it in Dirigible first.", code: packageError)
     }
     do {
-        return try await Studio.open(package.url)
+        return try await Studio.open(package.url, log: log)
     } catch {
         throw fail(error.message(package: package.path), code: packageError)
     }
@@ -110,9 +114,9 @@ private func placeSegment(
 /// (decision 0013).
 @MainActor
 private func recordTake(
-    _ package: PackageArgument, armed: [TrackID], playhead: Frames, duration: Duration
+    _ package: PackageArgument, armed: [TrackID], playhead: Frames, duration: Duration, log: DiagnosticLog
 ) async throws(ExitCode) {
-    let studio = try await openStudio(package)
+    let studio = try await openStudio(package, log: log)
     // A shell command records with no sheet: name each app it records (decision 0050, C18).
     for id in armed {
         guard let track = studio.session.track(id), case .app(let bundleID) = track.route else { continue }

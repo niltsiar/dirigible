@@ -53,6 +53,11 @@ import UniformTypeIdentifiers
     @ObservationIgnored var dockBadge: @MainActor (String?) -> Void = { NSApp.dockTile.badgeLabel = $0 }
     /// The socket of the agent server. Tests give a short path of their own.
     @ObservationIgnored let agentSocket: URL
+    /// The folder of the journal (decision 0059). Tests give a temporary folder.
+    @ObservationIgnored let logFolder: URL
+    /// The journal of this launch: `applicationWillFinishLaunching` starts it, and each studio of
+    /// the app gets it.
+    @ObservationIgnored private(set) var log = DiagnosticLog.disabled
     /// The agent server (decision 0046). The Settings switch starts and stops it.
     @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket) { [weak self] in
         self?.agentTargets() ?? []
@@ -133,10 +138,11 @@ import UniformTypeIdentifiers
 
     init(
         recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil,
-        agentSocket: URL = agentSocketPath()
+        agentSocket: URL = agentSocketPath(), logFolder: URL = DiagnosticLog.folder()
     ) {
         self.recordings = recordings
         self.agentSocket = agentSocket
+        self.logFolder = logFolder
         self.defaultFolder = defaultFolder
         self.peakCache = peakCache
         self.defaults = defaults
@@ -284,7 +290,7 @@ import UniformTypeIdentifiers
             await open(
                 url,
                 created: try await Studio.create(
-                    url, sampleRate: 48_000, recordings: recordings, peakCache: peakCache))
+                    url, sampleRate: 48_000, recordings: recordings, peakCache: peakCache, log: log))
         } catch {
             return error
         }
@@ -309,6 +315,14 @@ import UniformTypeIdentifiers
             for url in urls { await open(url) }
             openEvents -= 1
         }
+    }
+
+    /// Before the open events of the launch and their recovery (decision 0059).
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let info = Bundle.main.infoDictionary
+        log = DiagnosticLog.start(
+            .app, folder: logFolder, version: info?["CFBundleShortVersionString"] as? String ?? "0.0.0",
+            commit: info?["DirigibleCommit"] as? String ?? "none")
     }
 
     /// Open events come before this call (probe P7).
@@ -339,6 +353,9 @@ import UniformTypeIdentifiers
 
     /// Ends `terminating` after a Quit that a question, a refused draft, or a failed save cancelled.
     func cancelQuit() { terminating = false }
+
+    /// Only a Quit that goes on comes here, so a cancelled Quit writes no `app quit` line.
+    func applicationWillTerminate(_ notification: Notification) { log.quit() }
 }
 
 /// `packageIdentity` off the main actor.

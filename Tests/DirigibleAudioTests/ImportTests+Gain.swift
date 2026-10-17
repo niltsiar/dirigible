@@ -29,6 +29,25 @@ extension ImportTests {
         #expect(result.session.clip(result.clip)?.clip.gain.dB == 96, "C3b: the clip gain stops at +96 dB")
     }
 
+    /// Agent-pack C4: a given gain is the clip gain, and no level runs. The level gives this sine
+    /// another gain, so the fixture shows the level.
+    @Test func anImportWithAGainRunsNoLevel() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        try writeSource(package.source("Voice.wav"), .wav24, rate: 48_000, channels: [sine(seconds: 3, rate: 48_000)])
+        let gain = try #require(Gain(dB: -6))
+
+        let leveled = try importAudio(
+            package.source("Voice.wav"), to: ImportTarget(track: "t1", start: 0), of: package.session,
+            in: package.url)
+        let given = try importAudio(
+            package.source("Voice.wav"), to: ImportTarget(track: "t1", start: 192_000, gain: gain),
+            of: leveled.session, in: package.url)
+
+        let levelGain = try #require(given.session.clip(leveled.clip)?.clip.gain.dB)
+        #expect(abs(levelGain + 6) > 1, "the level gives another gain: \(levelGain) dB")
+        #expect(given.session.clip(given.clip)?.clip.gain.dB == -6, "the given gain, with no level")
+    }
+
     /// A peak that is not finite keeps one pass and 0 dB, so the other samples keep their level.
     @Test func anInfinitePeakKeepsOnePass() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])

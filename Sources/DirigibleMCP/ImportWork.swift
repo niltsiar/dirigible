@@ -11,11 +11,6 @@ package struct ImportWork: Sendable {
     let target: ImportTarget
     let level: Bool
 
-    init(file: String, track: String?, at: Int, level: Bool) {
-        (self.file, self.level) = (file, level)
-        target = ImportTarget(track: track.map { TrackID($0) }, start: Frames(at))
-    }
-
     var url: URL { URL(filePath: file) }
 
     /// The text of an import of `file` into `package` that changed nothing.
@@ -43,7 +38,7 @@ package struct ImportWork: Sendable {
                     url, to: target, of: session, in: package, level: level, freeBytes: { lock.freeBytes() },
                     progress: { control.report($0) }, isCancelled: { control.isCancelled() })
                 if control.isCancelled() {
-                    removeMadeFiles([importedWAV(imported.clip, in: package)])
+                    removeMadeFiles([imported.made].compactMap { $0 })
                     throw .cancelled
                 }
                 session = imported.session

@@ -133,6 +133,75 @@ struct ImportCommandTests {
         #expect(pending.status == 2 && pending.stderr.contains("not finalized"), "\(pending)")
     }
 
+    /// Agent-pack C1: `--id` names the clip; the file ID and the WAV keep the stem.
+    @Test func anImportWithAnIDNamesOnlyTheClip() async throws {
+        let package = try Self.package()
+        let source = package.folder.appending(path: "Intro.wav")
+        try Self.write(source, .wav(.bits16), Self.quiet)
+
+        let result = try await package.run("import", "PKG", source.path, "--track", "T", "--id", "Sting")
+
+        #expect(result == CLIResult(status: 0, stdout: "Sting\n", stderr: ""), "import: \(result)")
+        let session = try package.read()
+        #expect(session.clip("Sting")?.clip.file == "Intro" && session.files["Intro"]?.path == "Intro.wav")
+        #expect(session.clip("Intro") == nil, "no clip has the stem")
+        let names = try FileManager.default.contentsOfDirectory(atPath: package.url.appending(path: "Clips").path)
+        #expect(names == ["Intro.wav"], "\(names)")
+    }
+
+    /// Agent-pack C1: an `--id` that a clip uses refuses, and no file is made.
+    @Test func anImportWithAUsedClipIDWritesNoFile() async throws {
+        let package = try Self.package()
+        let (first, second) = (package.folder.appending(path: "Intro.wav"), package.folder.appending(path: "Outro.wav"))
+        try Self.write(first, .wav(.bits16), Self.quiet)
+        try Self.write(second, .wav(.bits16), Self.quiet)
+        #expect(try await package.run("import", "PKG", first.path, "--track", "T").status == 0)
+        let before = try Self.hashes(package)
+
+        let used = try await package.run("import", "PKG", second.path, "--track", "T", "--id", "Intro")
+
+        #expect(
+            used == CLIResult(status: 1, stdout: "", stderr: "Error: the ID \"Intro\" is already used.\n"), "\(used)")
+        let after = try Self.hashes(package)
+        #expect(after == before, "a refusal changes no byte and adds no file: \(after.keys.sorted())")
+    }
+
+    /// Agent-pack C2 and C3: a frame or a length out of its range exits 64; a range or fades past
+    /// the made WAV exit 1. Each refusal keeps every byte.
+    @Test func aShapeOutOfRangeChangesNothing() async throws {
+        let package = try Self.package()
+        let source = package.folder.appending(path: "Intro.wav")
+        try Self.write(source, .wav(.bits16), Self.quiet)
+        FileManager.default.createFile(atPath: package.url.appending(path: ".lock").path, contents: nil)
+        let before = try Self.hashes(package)
+        let past = String((1 << 40) + 1)
+
+        for options in [
+            ["--offset=-1"], ["--length", "0"], ["--offset", past], ["--length", past], ["--fade-in=-1"],
+            ["--fade-out", past],
+        ] {
+            let result = try await package.run(["import", "PKG", source.path, "--track", "T"] + options)
+            #expect(result.status == 64 && result.stdout.isEmpty, "\(options): \(result)")
+        }
+        let atEnd = try await package.run("import", "PKG", source.path, "--track", "T", "--offset", "96000")
+        let faded = try await package.run(
+            "import", "PKG", source.path, "--track", "T", "--fade-in", "30000", "--fade-out", "30000")
+
+        #expect(atEnd == CLIResult(status: 1, stdout: "", stderr: "Error: clip \"Intro\" is not inside its file.\n"))
+        #expect(faded.status == 1 && faded.stderr.hasPrefix("Error: the fades and crossfades of clip"), "\(faded)")
+        let after = try Self.hashes(package)
+        #expect(after == before, "a refusal changes no byte and adds no file: \(after.keys.sorted())")
+    }
+
+    /// Agent-pack C2: the help gives the unit of `--offset` and `--length`.
+    @Test func helpGivesTheUnitOfTheRange() async throws {
+        let help = try await dirigible("import", "--help")
+        let text = help.stdout.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        for words in ["--id", "--offset", "--length", "--db", "--fade-in", "--fade-out", "frames of the made WAV"] {
+            #expect(text.contains(words), "help has no \(words)")
+        }
+    }
+
     @Test func helpNamesTheOptions() async throws {
         let help = try await dirigible("import", "--help")
         #expect(help.status == 0)

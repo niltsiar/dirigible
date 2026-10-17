@@ -44,6 +44,18 @@ private let importTrack = Param<String?>.optional(
     .string)
 private let importAt = Param.defaulted("at", "The timeline frame of the clip start.", .integer(), 0)
 private let noLevel = Param.defaulted("no_level", "Keep the gain of the conversion: no auto level.", .boolean, false)
+private let importID = Param<String?>.optional(
+    "id", "The clip ID. The default is the file name with no extension.", .string)
+private let importOffset = Param.defaulted(
+    "offset", "The first clip frame in the made WAV, at the session rate.", .integer(), 0)
+private let importLength = Param<Int?>.optional(
+    "length",
+    "The clip length in frames of the made WAV, at the session rate. A longer length stops at the end of the WAV. "
+        + "The default is the rest of the WAV.", .integer())
+private let importGain = Param<Gain?>.optional(
+    "db", "The clip gain in dB. No auto level runs. The default is the gain of Auto Level.", .gain)
+private let importFadeIn = Param.defaulted("fade_in", "The fade-in length in frames.", .integer(), 0)
+private let importFadeOut = Param.defaulted("fade_out", "The fade-out length in frames.", .integer(), 0)
 
 /// The end of the description of a tool that writes a file: a late cancel can leave the file.
 private let cancelNote =
@@ -119,12 +131,27 @@ let audioTools = [
         "import",
         "Import an audio file into a track, as dirigible import: the file becomes a 24-bit WAV at the session rate in "
             + "Clips/, and a clip at the frame at that overwrites the clips under it, with the gain of Auto Level "
-            + "unless no_level. The text is the clip ID." + editCancelNote("no clip is added"),
-        [importFile, importTrack, importAt, noLevel]
+            + "unless db or no_level. offset and length are frames of the made WAV, so one call takes a part of the "
+            + "file with its gain and fades. The text is the clip ID." + editCancelNote("no clip is added"),
+        [
+            importFile, importTrack, importAt, noLevel, importID, importOffset, importLength, importGain, importFadeIn,
+            importFadeOut,
+        ]
     ) { a throws(ToolError) in
         let (path, track, start, keeps) = (try a[importFile], try a[importTrack], try a[importAt], try a[noLevel])
+        let (id, first, count, gain) = (try a[importID], try a[importOffset], try a[importLength], try a[importGain])
+        let (fadeIn, fadeOut) = (try a[importFadeIn], try a[importFadeOut])
         guard path.hasPrefix("/") else { throw ToolError("The argument \"file\" must be an absolute path.") }
-        return .importFile(ImportWork(file: path, track: track, at: start, level: !keeps))
+        guard let range = EditRules.importRange(offset: first, length: count) else {
+            throw ToolError("offset is a frame in 0...2^40, and length is a length in 1...2^40.")
+        }
+        guard let fades = Fades(fadeIn: Frames(fadeIn), fadeOut: Frames(fadeOut)) else {
+            throw ToolError("fade_in and fade_out are lengths in 0...2^40.")
+        }
+        let target = ImportTarget(
+            track: track.map { TrackID($0) }, start: Frames(start), clip: id.map { ClipID($0) },
+            offset: range.offset, length: range.length, gain: gain, fades: fades)
+        return .importFile(ImportWork(file: path, target: target, level: !keeps))
     },
 ]
 

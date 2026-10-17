@@ -16,4 +16,18 @@ struct EditRulesTests {
         #expect(EditRules.rippleRanges(from: [0, 5], to: [3, 5]) == .notIncreasing(range: 2))
         #expect(EditRules.rippleRanges(from: [0, 5], to: [3, 9]) == .ranges([0..<3, 5..<9]))
     }
+
+    /// Agent-pack C2: the exact bounds of an import range, 0...2^40 and 1...2^40.
+    @Test func importRangeHoldsItsBounds() {
+        let limit = 1 << 40
+        let bounds: [(Int, Int?)] = [(0, nil), (limit, 1), (0, limit)]
+        let accepted = bounds.map { EditRules.importRange(offset: $0, length: $1) }
+        #expect(accepted.map { $0?.offset } == [0, Frames(limit), 0])
+        #expect(accepted.map { $0?.length } == [nil, 1, Frames(limit)])
+        let outside: [(Int, Int?)] = [(-1, nil), (limit + 1, nil), (0, 0), (0, limit + 1), (Int.min, Int.max)]
+        for (offset, length) in outside {
+            #expect(
+                EditRules.importRange(offset: offset, length: length) == nil, "\(offset) \(String(describing: length))")
+        }
+    }
 }

@@ -46,6 +46,26 @@ struct LiveImportTests {
         await studio.settle()
     }
 
+    /// Agent-pack C7: the six shape arguments give the clip in the app too, in one undo step.
+    @Test func aLiveImportShapesTheClip() async throws {
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let shape: [String: any Sendable] = [
+            "id": "Sting", "offset": 4_800, "length": 24_000, "db": -3, "fade_in": 480, "fade_out": 960,
+        ]
+
+        let outcome = await send(folder.socket, "import", arguments(shape))
+
+        #expect(outcome == .reply(.result(text: "Sting", isError: false)), "\(outcome)")
+        let clip = try #require(studio.session.clip("Sting")?.clip)
+        #expect([clip.offset, clip.length] == [4_800, 24_000] && clip.gain.dB == -3 && clip.file == "Voice")
+        #expect(clip.fades == Fades(fadeIn: 480, fadeOut: 960), "\(clip)")
+        try studio.undo()
+        #expect(studio.session.clip("Sting") == nil && !studio.canUndo, "one undo step removes the clip")
+        await studio.settle()
+    }
+
     /// A cancel line on stdin closes the bridge, the listener cancels the call task, and the
     /// import ends with no clip, no new WAV, no undo entry, and no answer.
     @Test func aCancelOfTheCallImportsNothing() async throws {

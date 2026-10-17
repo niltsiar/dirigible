@@ -10,8 +10,10 @@ struct StudioImportCancelTests {
     let target = ImportTarget(track: "t1", start: 96_000)
 
     /// Runs one import of the fixture source, and gives its error, or nil.
-    func run(_ studio: Studio, _ fixture: ImportStudioFixture) -> Task<StudioError?, Never> {
-        let (source, target) = (fixture.source, target)
+    func run(_ studio: Studio, _ fixture: ImportStudioFixture, to target: ImportTarget? = nil)
+        -> Task<StudioError?, Never>
+    {
+        let (source, target) = (fixture.source, target ?? self.target)
         return Task {
             do throws(StudioError) {
                 _ = try await studio.importAudio(source, to: target) { _ in }
@@ -39,6 +41,30 @@ struct StudioImportCancelTests {
 
         #expect(await import1.value == .audioImport(.cancelled))
         #expect(fixture.clipsNames == names, "the cancel left the WAV: \(fixture.clipsNames)")
+        #expect(fixture.xml == xml && !studio.canUndo, "a cancelled import saved")
+    }
+
+    /// Agent-pack C8: a late cancel of an import with the ID "X" removes the WAV of the stem, and a
+    /// file at `Clips/X.wav` keeps its bytes.
+    @Test func aCancelledImportWithAnIDRemovesTheStemWAV() async throws {
+        let fixture = try await ImportStudioFixture.make()
+        let other = fixture.url.appending(path: "\(clipsFolderName)/X.wav")
+        let bytes = Data("not the import".utf8)
+        try bytes.write(to: other)
+        let studio = try await fixture.open()
+        let gate = AsyncGate()
+        studio.environment.importWorkDone = { await gate.wait() }
+        let (xml, names) = (fixture.xml, fixture.clipsNames)
+
+        let import1 = run(studio, fixture, to: ImportTarget(track: "t1", start: 96_000, clip: "X"))
+        await gate.entered()
+        #expect(fixture.clipsNames == (names + ["Voice.wav"]).sorted(), "the work made the WAV of the stem")
+        studio.cancelImport()
+        gate.open()
+
+        #expect(await import1.value == .audioImport(.cancelled))
+        #expect(fixture.clipsNames == names, "the cancel left the WAV: \(fixture.clipsNames)")
+        #expect(FileManager.default.contents(atPath: other.path) == bytes, "the cancel changed Clips/X.wav")
         #expect(fixture.xml == xml && !studio.canUndo, "a cancelled import saved")
     }
 

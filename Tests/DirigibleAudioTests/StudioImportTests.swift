@@ -73,6 +73,28 @@ struct StudioImportTests {
         #expect(studio.session == saved, "Redo brings the import back")
     }
 
+    /// Agent-pack C6: an import with an ID, a range, a gain, and fades is one undo entry.
+    @Test func aShapedImportIsOneUndoEntry() async throws {
+        let fixture = try await ImportStudioFixture.make()
+        let studio = try await fixture.open()
+        let before = studio.session
+        let shape = ImportTarget(
+            track: nil, start: 96_000, clip: "Sting", offset: 4_800, length: 24_000, gain: Gain(dB: -3),
+            fades: Fades(fadeIn: 480, fadeOut: 960)!)
+
+        let clip = try await studio.importAudio(fixture.source, to: shape) { _ in }
+
+        let shaped = try #require(studio.session.clip(clip)?.clip)
+        #expect(clip == "Sting" && shaped.file == "Voice", "the clip ID is the id, the file ID is the stem")
+        #expect([shaped.start, shaped.offset, shaped.length] == [96_000, 4_800, 24_000], "\(shaped)")
+        #expect(shaped.gain.dB == -3 && shaped.fades == Fades(fadeIn: 480, fadeOut: 960), "\(shaped)")
+        let after = studio.session
+        try studio.undo()
+        #expect(studio.session == before && !studio.canUndo, "one Undo gives the session before")
+        try studio.redo()
+        #expect(studio.session == after, "one Redo gives the shaped clip back")
+    }
+
     @Test func anImportIsBusyAndStopsPlay() async throws {
         let fixture = try await ImportStudioFixture.make()
         let gate = Gate(limit: Gate.openLimit)

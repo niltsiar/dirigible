@@ -8,13 +8,14 @@
 # later try with only the names that did not pass again, a real make on a stub Makefile, the
 # static gates first (a red gate stops the check before test; a gate runs once; a nested make
 # still runs a gate), --flakes (the read route of the flakes file), the partial stamp line, and
-# the RERUN word (its two modes, no make call, one flake line for each name). Run by `make test-hooks`.
+# the RERUN word (its two modes, no make call, one flake line for each name), and the push check marker
+# that only a run with BASE gives make. Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS BASE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS BASE DIRIGIBLE_PUSH_CHECK
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -59,6 +60,7 @@ cat > "$tmp/bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$FAKE_LOG"
 [[ " $* " == *" static "* ]] && exit 0
+echo "push-check=${DIRIGIBLE_PUSH_CHECK:-unset}" >> "$FAKE_LOG.env"
 for f in "$(git rev-parse --path-format=absolute --git-dir)"/dirigible-check-running/*; do
   p="${f##*/}"
   [[ -e $f ]] && kill -0 "$p" 2>/dev/null && [[ "$(cat "$f")" == "$(ps -o lstart= -p "$p")" ]] &&
@@ -241,6 +243,15 @@ out="$(cd "$w" && MAKE="$tmp/no-make" FAKE_LOG="$tmp/log" scripts/run-checks.sh 
 code=$?
 [[ $code -eq 0 && -z "$out" ]] || fail "--flakes with no file: exit $code: [$out]"
 [[ ! -s "$tmp/log" ]] || fail "--flakes ran a check: $(cat "$tmp/log")"
+
+# The push check marker: with BASE, make runs with DIRIGIBLE_PUSH_CHECK=1 (test-shards.sh then runs
+# the full suite); with no BASE, the marker stays unset, so a bare run-checks.sh call is refused.
+: > "$tmp/log.env"
+BASE=origin/main run 1 0 'ok' check
+[[ "$(cat "$tmp/log.env")" == 'push-check=1' ]] || fail "a run with BASE: marker [$(cat "$tmp/log.env")]"
+: > "$tmp/log.env"
+run 1 0 'ok' check
+[[ "$(cat "$tmp/log.env")" == 'push-check=unset' ]] || fail "a run with no BASE: marker [$(cat "$tmp/log.env")]"
 
 # A stamped run (BASE set by make check-changed BASE=<ref> or by the land.sh delta) marks the tree
 # while make runs: the pid of run-checks.sh and its start time. The mark is gone after a pass and

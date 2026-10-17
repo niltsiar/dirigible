@@ -18,7 +18,10 @@
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
-# test-filter. FILTER before the push exits 1: the push runs the full targets.
+# test-filter, and the local target check becomes check-fast test-filter test-app. FILTER before
+# the push exits 1: the push runs the full targets. A local git run with no FILTER whose targets
+# have test or check prints the three lines and exits 1: the full suite runs only in the push
+# check. The mode --paths keeps the targets (a probe of the table).
 set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
@@ -277,7 +280,15 @@ if [[ -n $partial && "${CHECK_PARTIAL:-}" != ignore ]]; then
 fi
 [[ -z $partial || -z "$rerun_fast$rerun_slow" ]] || targets+=" RERUN=$partial:fast:$rerun_fast+slow:$rerun_slow"
 classes="${classes# }" targets="${targets# }"
-[[ -n "${FILTER:-}" && " $targets " == *" test "* ]] && targets="$(sed -E 's/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
+needs_suite=no
+[[ " $targets " == *" test "* || " $targets " == *" check "* ]] && needs_suite=yes
+if [[ -n "${FILTER:-}" ]]; then
+    targets="$(sed -E 's/(^| )check( |$)/\1check-fast test-filter test-app\2/; s/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
+fi
 echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"
 echo "risk: $risk"
+if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && $needs_suite == yes ]]; then
+    echo "check-changed: the targets $targets run the full Swift suite. A slice runs make check-changed FILTER='<name> <name>'. The full suite runs only in the push check: make check-changed BASE=origin/main. A bare make test refuses too." >&2
+    exit 1
+fi

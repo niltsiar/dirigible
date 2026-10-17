@@ -23,6 +23,8 @@
 #          and run no make. The guardrail hook blocks each other command that names the file, except a read.
 # It sets WITH_LOCK_MAX_WAIT=0, so a with-lock.sh call of a make recipe (swift-test.sh) waits with
 # no limit and never ends in exit 75, which would read as a red test.
+# With BASE (the push check), it exports DIRIGIBLE_PUSH_CHECK=1, which test-shards.sh needs to run
+# the full suite: a bare make test refuses.
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
 set -euo pipefail
 if [[ "${1:-}" == --flakes ]]; then
@@ -30,6 +32,7 @@ if [[ "${1:-}" == --flakes ]]; then
     exit 0
 fi
 export WITH_LOCK_MAX_WAIT=0
+[[ -z "${BASE:-}" ]] || export DIRIGIBLE_PUSH_CHECK=1
 word="" args=()
 for a in "$@"; do
     if [[ $a == RERUN=* ]]; then word="${a#RERUN=}"; else args+=("$a"); fi

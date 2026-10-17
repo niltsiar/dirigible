@@ -37,5 +37,12 @@ WITH_LOCK_MAX_WAIT=5 "$loop" t 1 1 "$tmp/out10" "$tmp/stub" > /dev/null 2>&1
 [[ "$(cat "$tmp/out10/t-1.log" 2>/dev/null)" == "limit=0" ]] \
     || { echo "FAIL: the loop does not export WITH_LOCK_MAX_WAIT=0 to make test: $(cat "$tmp/out10/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
 
+# The loop runs the full suite on purpose, so make test gets DIRIGIBLE_FULL_SUITE=1 (the refusal of
+# test-shards.sh for a bare call).
+printf 'test:\n\t@echo "suite=$$DIRIGIBLE_FULL_SUITE"\n' > "$tmp/stub/Makefile"
+env -u DIRIGIBLE_FULL_SUITE "$loop" t 1 1 "$tmp/out11" "$tmp/stub" > /dev/null 2>&1
+[[ "$(cat "$tmp/out11/t-1.log" 2>/dev/null)" == "suite=1" ]] \
+    || { echo "FAIL: the loop does not export DIRIGIBLE_FULL_SUITE=1 to make test: $(cat "$tmp/out11/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
+
 [[ $failures -eq 0 ]] && echo "loop tests: all passed"
 exit $((failures > 0))

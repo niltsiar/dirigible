@@ -7,14 +7,16 @@
 # after the other shards end. Check that a failed test fails the run with its line once in the
 # output, that a report line with no suite count counts, that TEST_SHARDS sets the count with the CLI shard in it (default: the physical cores), that the
 # weights file balances the shards and names its stale keys, that a failed build runs no shard, that the build, the list,
-# and the shards share one hold of the lock, and that a TERM leaves no test process alive.
+# and the shards share one hold of the lock, and that a TERM leaves no test process alive. Check that a
+# call with neither DIRIGIBLE_PUSH_CHECK=1 (run-checks.sh sets it with a base) nor DIRIGIBLE_FULL_SUITE=1
+# (a person sets it) exits 1 with the reason, before the build.
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'pkill -f "$tmp/root/scripts/test-helper.sh" 2>/dev/null; rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE TEST_SHARDS DIRIGIBLE_BUILD_LOCK DIRIGIBLE_LOCKED_SCRIPT
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE TEST_SHARDS DIRIGIBLE_BUILD_LOCK DIRIGIBLE_LOCKED_SCRIPT DIRIGIBLE_FULL_SUITE DIRIGIBLE_PUSH_CHECK
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 root="$tmp/root"
@@ -91,12 +93,27 @@ DirigibleTests.DiskImageTests/image()
 EOF
 
 # run <environment assignments>: a call from another folder with fresh logs; sets code and out.
+# The call has DIRIGIBLE_FULL_SUITE=1 unless an assignment changes it.
 run() {
     : > "$tmp/args.log" && : > "$tmp/lock.log"
-    (cd / && env PATH="$tmp/bin:$PATH" "$@" "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1
+    (cd / && env PATH="$tmp/bin:$PATH" DIRIGIBLE_FULL_SUITE=1 "$@" "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1
     code=$?
 }
 ran() { grep -cE "^(✔|✘) Test $1 (passed|failed)" "$tmp/out"; }
+
+# The refusal: no marker, an empty value, or a value other than 1 exits 1 with the reason before
+# any build. The push check marker and the override of a person let the run pass.
+for env in 'DIRIGIBLE_FULL_SUITE=' 'DIRIGIBLE_FULL_SUITE=0' 'DIRIGIBLE_FULL_SUITE=yes DIRIGIBLE_PUSH_CHECK=0'; do
+    run TEST_SHARDS=3 $env
+    [[ $code -eq 1 ]] || fail "refusal with [$env]: exit $code, want 1: $(cat "$tmp/out")"
+    for word in FILTER 'push check' DIRIGIBLE_FULL_SUITE; do
+        grep -qF -- "$word" "$tmp/out" || fail "refusal with [$env]: no '$word' in the text: $(cat "$tmp/out")"
+    done
+    [[ ! -s "$tmp/args.log" && ! -s "$tmp/lock.log" ]] || fail "refusal with [$env]: a build or runner started: $(cat "$tmp/args.log")"
+done
+run TEST_SHARDS=3 DIRIGIBLE_FULL_SUITE= DIRIGIBLE_PUSH_CHECK=1
+[[ $code -eq 0 ]] || fail "push check marker: exit $code: $(cat "$tmp/out")"
+[[ "$(grep -c '^swift build --build-tests$' "$tmp/args.log")" -eq 1 ]] || fail "push check marker: no build: $(cat "$tmp/args.log")"
 
 # (a) Each listed test runs once; the CLI tests in their own shard; no app bundle or disk image test.
 run TEST_SHARDS=3
@@ -193,7 +210,7 @@ grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args
 : > "$tmp/hang.pid"
 : > "$tmp/args.log" && : > "$tmp/lock.log"
 # The lock marker skips the with-lock.sh wrap, so the TERM and the exit code are the script's own.
-(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
+(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 DIRIGIBLE_FULL_SUITE=1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
     "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1 &
 pid=$!
 for _ in $(seq 100); do [[ -s "$tmp/hang.pid" ]] && break; sleep 0.1; done

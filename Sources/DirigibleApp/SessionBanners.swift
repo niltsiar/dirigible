@@ -78,18 +78,23 @@ struct TakeBanner: View {
     var body: some View {
         switch studio.transport {
         case .recording(let take):
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                if let agent = model.agentRecord.take, agent.take == take {
+            // The model reads stay here: a read in the 1 s content would register again each tick.
+            let agent = model.agentRecord.take.flatMap { $0.take == take ? $0 : nil }
+            let hasGrant = model.agentRecord.grant != nil
+            let since = studio.recordingSince
+            TimelineView(.periodic(from: .now, by: model.bannerTick)) { _ in
+                let _ = model.countBannerRun()
+                if let agent {
                     // An agent take (decision 0050): Stop, and Always Ask Again while a grant lives.
                     BannerRow(kind: .recording, text: model.agentTakeText(agent)) {
                         Button(L10n.transportStop.key) { Task { await model.stop() } }
-                        if model.agentRecord.grant != nil {
+                        if hasGrant {
                             Button(L10n.takeAgentAlwaysAsk.key) { model.alwaysAskAgain() }
                         }
                     }
                 } else {
                     BannerRow(
-                        kind: .recording, text: L10n.takeRecording.format(take) + "  " + elapsed(at: context.date))
+                        kind: .recording, text: L10n.takeRecording.format(take) + "  " + Self.elapsed(since: since))
                 }
             }
         case .finalizing(let take):
@@ -161,9 +166,9 @@ struct TakeBanner: View {
         .background(Color.secondary.opacity(0.15))
     }
 
-    private func elapsed(at date: Date) -> String {
-        guard let since = studio.recordingSince else { return "" }
-        let seconds = Int((ContinuousClock.now - since) / .seconds(1))
+    static func elapsed(since: ContinuousClock.Instant?, now: ContinuousClock.Instant = .now) -> String {
+        guard let since else { return "" }
+        let seconds = Int((now - since) / .seconds(1))
         return Duration.seconds(seconds).formatted(.time(pattern: .hourMinuteSecond))
     }
 

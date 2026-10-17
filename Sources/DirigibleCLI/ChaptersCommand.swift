@@ -23,7 +23,8 @@ struct ChaptersImport: ParsableCommand {
             at the same millisecond; when a removed image has no such chapter, the command stops and \
             changes nothing. A chapter with toc false takes no image, and adds no marker when a plain \
             marker has its title and frame. The command prints the IDs of the new markers, one on each line. Exit 1 \
-            when the file does not read, is not a chapters file, has a chapter with no startTime that is \
+            when the file does not read, is not a regular file, is not on this Mac, is larger than \
+            1 MiB, is not a chapters file, has a chapter with no startTime that is \
             a number of 0 seconds or more, or has a frame past 2^40, or when --replace would drop an \
             image. Exit 64 when --at is not in 0...2^40. Exit 2 when the package cannot be read or \
             written, is locked, or has a take that is not finalized.

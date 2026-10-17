@@ -89,6 +89,28 @@ struct ChaptersImportCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// Code gate 1 item 4: a path that is not a regular file, or a file over 1 MiB, is refused
+    /// before the read, and the bytes of `session.xml` stay. Control: the same JSON at 1 MiB
+    /// imports.
+    @Test func aChaptersImportRefusesAFolderOrALargeFile() async throws {
+        let before = try package.xml()
+        let folder = package.folder.appending(path: "chapters.json")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        let refused = try await package.run("chapters", "import", "PKG", folder.path)
+        #expect(refused == CLIResult(status: 1, stdout: "", stderr: "Error: \(folder.path) is not a file.\n"))
+
+        let json = #"{"version": "1.2.0", "chapters": [{"startTime": 3, "title": "Big"}]}"#
+        let padded = { (bytes: Int) in json + String(repeating: " ", count: bytes - json.utf8.count) }
+        let big = try raw(padded(1_048_577))
+        let large = try await package.run("chapters", "import", "PKG", big)
+        #expect(large == CLIResult(status: 1, stdout: "", stderr: "Error: \(big) is larger than 1 MiB.\n"))
+        #expect(try package.xml() == before)
+
+        let fits = try await package.run("chapters", "import", "PKG", try raw(padded(1_048_576)))
+        #expect(fits.status == 0, "\(fits)")
+        #expect(try package.read().sortedMarkers.contains { $0.name == "Big" }, "a file of 1 MiB imports")
+    }
+
     /// C20: an `--at` below 0 or past 2^40 is a usage error, before the file is read.
     @Test(arguments: ["-1", "1099511627777", "9223372036854775807"])
     func anAtOutOfRangeIsAUsageError(at: String) async throws {

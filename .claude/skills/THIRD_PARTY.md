@@ -33,6 +33,10 @@ One skill comes from `AvdLee/Swift-Concurrency-Agent-Skill` (https://github.com/
 |---|---|---|
 | `swift-concurrency` | `SKILL.md` and `references/` (a subset) | Antoine van der Lee |
 
+Pinned skills: `swift-concurrency`.
+
+A pinned skill is kept near its source commit. Its rows in `docs/workflow/budgets.tsv` start with `vendored:` and stay out of `TOTAL`. Adding a name to this line is the only way to pin a skill.
+
 All sources use the MIT License:
 
 ```

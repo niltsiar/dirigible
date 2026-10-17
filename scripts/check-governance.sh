@@ -4,6 +4,8 @@
 # - A row of docs/workflow/budgets.tsv whose words go up names a decisions.tsv row in its
 #   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`. The TOTAL row goes up by at most 50
 #   words, unless the branch has a QUOTA row at or above its new TOTAL (a consolidation run).
+# - A budgets.tsv row whose decision cell becomes `vendored:` is refused, unless the same diff adds its skill
+#   to the `Pinned skills` line of .claude/skills/THIRD_PARTY.md (or the base pins it and the row is new).
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
@@ -46,6 +48,21 @@ if [[ -f "$budgets" ]]; then
         FNR > 1 && ($1 in old) && $2 + 0 > old[$1] + 0 &&
             $3 !~ /decisions\.tsv [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]/ {
             print "budgets.tsv: the row for " $1 " goes up from " old[$1] " to " $2 "; name the decisions.tsv row in its decision cell as decisions.tsv <YYYY-MM-DDTHH:MM>"
+        }' - "$budgets")
+    # A row leaves TOTAL (its decision cell becomes vendored:) only in the diff that adds its skill to the
+    # Pinned skills line of THIRD_PARTY.md, or as a new row of a skill that the base pins.
+    third_party=.claude/skills/THIRD_PARTY.md
+    pinned() { sed -n 's/^Pinned skills: //p' | grep -o '`[a-z0-9-]*`' | tr -d '`' | tr '\n' ' ' || true; }
+    base_pinned=" $(at_base "$third_party" | pinned)"
+    new_pinned=" $([[ ! -f "$third_party" ]] || pinned < "$third_party")"
+    while IFS= read -r msg; do echo "check-governance: $msg" >&2; fail=1; done < <(at_base "$budgets" | awk -F'\t' -v bp="$base_pinned" -v np="$new_pinned" '
+        NR == FNR { if (FNR > 1) { seen[$1] = 1; old[$1] = $3 }; next }
+        FNR > 1 && $3 ~ /^vendored:/ && !(($1 in seen) && old[$1] ~ /^vendored:/) {
+            skill = match($1, /^\.claude\/skills\/[^\/]+\//) ? substr($1, 16, RLENGTH - 16) : ""
+            added = index(np, " " skill " ") && !index(bp, " " skill " ")
+            fresh = !($1 in seen) && index(bp, " " skill " ")
+            if (skill == "" || !(added || fresh))
+                print "budgets.tsv: the row for " $1 " becomes vendored, which takes it out of TOTAL; add its skill to the Pinned skills line of " "'"$third_party"'" " in the same diff"
         }' - "$budgets")
     up="$(at_base "$budgets" | awk -F'\t' '
         NR == FNR { if ($1 == "TOTAL") t = $2; if ($1 == "QUOTA") q = $2; next }

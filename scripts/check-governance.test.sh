@@ -63,6 +63,21 @@ pass 'a new row with free text'
 new_repo; g switch -q main; g rm -q docs/workflow/budgets.tsv; g commit -q -m rm; g switch -q -C feat/x
 row 120 'raised'; commit
 pass 'no budgets.tsv in the base'
+# A row moves out of TOTAL (its decision cell becomes vendored:) only when the same diff adds its
+# skill to the Pinned skills line of THIRD_PARTY.md, or when the base already pins the skill and the row is new.
+pin() { mkdir -p "$tmp/r/.claude/skills"; printf 'Pinned skills: %s\n' "$1" > "$tmp/r/.claude/skills/THIRD_PARTY.md"; }
+vrows() { printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\n.claude/skills/x/NOTES.md\t100\t%s\nTOTAL\t200\tbaseline\n' "$1" > "$budgets"; }
+base_vendor() { g switch -q main; vrows "$1"; pin "$2"; g add -A; g commit -qm vendor; g switch -q -C feat/x; }
+new_repo; base_vendor baseline '`y`.'; vrows 'vendored: x'; commit
+refuse 'a row that becomes vendored with no pin' 'the row for .claude/skills/x/NOTES.md becomes vendored'
+new_repo; base_vendor baseline '`x`.'; vrows 'vendored: x'; commit
+refuse 'an existing row that becomes vendored under a pinned skill' 'the row for .claude/skills/x/NOTES.md becomes vendored'
+new_repo; base_vendor baseline '`y`.'; vrows 'vendored: x'; pin '`y`, `x`.'; commit
+pass 'a row that becomes vendored in the diff that pins its skill'
+new_repo; base_vendor 'vendored: x' '`x`.'; vrows 'vendored: x again'; commit
+pass 'a row that is vendored in the base'
+new_repo; base_vendor baseline '`x`.'; printf '.claude/skills/x/NEW.md\t10\tvendored: x\n' >> "$budgets"; commit
+pass 'a new vendored row under a skill that the base pins'
 # A branch raises TOTAL by at most 50 words, unless its QUOTA row holds a value at or above the new
 # TOTAL (a consolidation run). A lower QUOTA or a deleted QUOTA row does not lift the cap.
 totals() { printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t%s\tdecisions.tsv 2026-10-01T02:43\n%s' "$1" "$2" > "$budgets"; }

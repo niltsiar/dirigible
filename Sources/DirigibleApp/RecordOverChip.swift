@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleCore
 import SwiftUI
 
@@ -14,6 +15,15 @@ enum RecordOverAction: Equatable {
 struct RecordOverChip: View {
     /// The space between the chip and the edge of the header corner, in points.
     static let inset = 4.0
+
+    /// The warning symbol: a systemOrange triangle with a black mark. A pull-down button draws a
+    /// template image in the label color and ignores `foregroundStyle`, so the colors are in the image.
+    private static let symbol: NSImage = {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
+            .applying(.init(paletteColors: [.black, .systemOrange]))
+        return NSImage(systemSymbolName: WindowBanner.Kind.warning.symbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(configuration) ?? NSImage()
+    }()
 
     let model: SessionWindow
 
@@ -34,7 +44,7 @@ struct RecordOverChip: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: WindowBanner.Kind.warning.symbol).foregroundStyle(Color(nsColor: .systemOrange))
+                    Image(nsImage: Self.symbol)
                     Text(L10n.recordOverChip.key).foregroundStyle(.primary).lineLimit(1)
                 }
                 .font(.system(size: 11, weight: .medium))

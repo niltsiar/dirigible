@@ -25,6 +25,13 @@
 # or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60), the tree of the
 # live holder, and each live waiter, one per line. A marker of a dead pid is ignored and removed.
 # A wait with 2 or more other trees in that list prints their count: the cap of long-runs.md.
+# A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
+# group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
+# goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
+# call that has no wait limit (above) gets 2 times the newest push-check hold line (a make
+# check-changed BASE= line with no limit column) in the hold log, at least 3600 s. 0 turns the
+# limit off. The lock folder keeps the limit in <lock>/maxhold, and --builders ends with the line
+# "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
 # A release call (make check-changed BASE=<ref>, land.sh, make dmg) holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
 # ordinary call does not take the lock while a ticket of a live pid is there, so a release call
@@ -76,7 +83,16 @@ builders() {
         done
     } | awk 'NF && !seen[$0]++' | sort
 }
-[[ "$1" != --builders ]] || { builders; exit 0; }
+# holder_line: the live holder, its seconds of hold, and its limit.
+holder_line() {
+    local m c
+    m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
+    alive "$m" || alive "$c" || alive "-$c" || return 0
+    printf 'holder: %s held %s s' "$(cat "$lock/tree" 2>/dev/null)" "$(($(date +%s) - $(stat -f %m "$lock/pid")))"
+    [[ ! -f "$lock/maxhold" ]] || printf ' of %s s' "$(cat "$lock/maxhold")"
+    echo
+}
+[[ "$1" != --builders ]] || { builders; holder_line; exit 0; }
 [[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # release_call <command>: a push check (make check-changed BASE=<ref>), a land (land.sh), or a DMG
@@ -104,7 +120,17 @@ ahead() {
 max="${WITH_LOCK_MAX_WAIT:-120}"
 [[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
 max=$((10#$max))
-if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0; fi
+long=""
+if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 long=1; fi
+maxhold="${WITH_LOCK_MAX_HOLD:-}"
+if [[ -z "$maxhold" && -z "$long" ]]; then
+    maxhold=1800
+elif [[ -z "$maxhold" ]]; then
+    maxhold="$(awk -F'\t' '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { s = $2 } END { s *= 2; print (s < 3600) ? 3600 : s }' "$holds" 2>/dev/null)"
+    maxhold="${maxhold:-3600}"
+fi
+[[ "$maxhold" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_HOLD is '$maxhold'; give whole seconds, or 0 for no limit" >&2; exit 2; }
+maxhold=$((10#$maxhold))
 if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
     ticket="$first/$$"
     trap 'rmdir "$ticket" 2>/dev/null' EXIT
@@ -163,15 +189,16 @@ done
 [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
 rm -f ${marker:+"$marker"}
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.
-{ echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree"; } 2>/dev/null ||
+{ echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree" && echo "$maxhold" > "$lock/maxhold"; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
 taken="$(date +%s)" cmdline="$*"
 [[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" \
     >> "$waits" 2>/dev/null
-child=""
+child="" watcher=""
 release() {
     [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || {
-        printf '%s\t%s\t%s\t%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" >> "$holds" 2>/dev/null
+        [[ -z "$watcher" ]] || kill "$watcher" 2>/dev/null
+        printf '%s\t%s\t%s\t%s%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" "$([[ ! -e "$lock/limit" ]] || printf '\tlimit')" >> "$holds" 2>/dev/null
         rm -rf "$lock"
     }
 }
@@ -188,4 +215,25 @@ set -m
 child=$!
 set +m
 echo "$child" > "$lock/child"
+# The hold limit: the watcher stops the process group of the command (TERM, then KILL after the
+# grace time) and marks the lock folder; the call then exits 124. It calls /bin/sleep, so a test that
+# puts a fake sleep on the PATH does not see its polls.
+if [[ $maxhold -gt 0 ]]; then
+    (
+        end=$(($(date +%s) + maxhold))
+        while kill -0 $$ 2>/dev/null && [[ $(date +%s) -lt $end ]]; do /bin/sleep 1; done
+        kill -0 $$ 2>/dev/null || exit 0
+        echo limit > "$lock/limit"
+        kill -TERM -- "-$child"
+        /bin/sleep "${WITH_LOCK_HOLD_GRACE:-10}"
+        kill -KILL -- "-$child"
+    ) > /dev/null 2>&1 &
+    watcher=$!
+fi
 wait "$child"
+status=$?
+if [[ -e "$lock/limit" ]]; then
+    echo "with-lock: the command ran past WITH_LOCK_MAX_HOLD ($maxhold s); its process group got TERM, then KILL" >&2
+    status=124
+fi
+exit "$status"

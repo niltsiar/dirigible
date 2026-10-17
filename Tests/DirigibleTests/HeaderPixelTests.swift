@@ -32,7 +32,7 @@ import Testing
     static let sentinel = LanePalette(
         lane: 0xFFC0_00C0, clip: 0xFFD0_08D0, peak: 0xFFF0_10F0, rms: 0xFFA0_00B0, missing: 0xFFB0_00A0,
         missingOutline: 0xFFE0_00E0, label: 0xFFA0_0CA0, marker: 0xFFC8_04C8, chapter: 0xFFE8_08E8,
-        inPoint: 0xFFB8_02B8, outPoint: 0xFFD8_06D8)
+        inPoint: 0xFFB8_02B8, outPoint: 0xFFD8_06D8, join: 0xFFB4_0CB4)
 
     /// The classes of `classes(_:skip:)`, inline there for speed.
     static func isLane(_ pixel: UInt32) -> Bool {
@@ -141,9 +141,11 @@ import Testing
             [view.horizontalScroller, view.verticalScroller].compactMap { $0 }.filter { !$0.isHidden }
                 .map { $0.convert($0.bounds, to: nil) }
         }
-        /// The 2 pt column of the playhead, when it is in view.
+        /// The column of the playhead line and its halos, when it is in view.
         var playhead: NSRect? {
-            let frame = view.lanes.convert(view.lanes.playhead.frame, to: nil).insetBy(dx: -0.5, dy: 0)
+            let line = view.lanes.playhead
+            let extent = (line.sublayers ?? []).reduce(line.bounds) { $0.union($1.frame) }
+            let frame = view.lanes.convert(line.convert(extent, to: line.superlayer), to: nil).insetBy(dx: -0.5, dy: 0)
             return frame.intersects(lanes) ? frame : nil
         }
     }
@@ -189,6 +191,9 @@ import Testing
                 #expect(
                     try capture.pixels(scene.lanes) != old.pixels(scene.lanes),
                     "the capture shows the scroll at \(step)")
+                #expect(
+                    try capture.pixels(try #require(scene.playhead)).contains(where: Self.isPlayhead),
+                    "the capture shows the red playhead at \(step)")
             }
         case .vertical:
             let old = try #require(old)
@@ -233,6 +238,8 @@ import Testing
         model.timeline.scale = TimelineScale(framesPerPoint: 256)
         await until("the lanes take 256 frames per point") { view.framesPerPoint == 256 }
         view.lanes.palette = Self.sentinel
+        // The core of a take is red, the color class of `isPlayhead`; the neutral core is not in it.
+        view.lanes.playhead.apply(PlayheadColors(appearance: try #require(NSAppearance(named: .aqua)), taking: true))
         // An armed track has a red arm box in its header, in the color class of the playhead.
         model.armed = []
         view.tick(playhead: 0, playback: .stopped)

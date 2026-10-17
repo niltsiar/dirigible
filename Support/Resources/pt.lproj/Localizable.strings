@@ -265,6 +265,7 @@
 "record.over.chip" = "Áudio oculto em risco";
 "record.over.show" = "Mostrar Clipe";
 "record.over.disarm" = "Desativar Gravação de %@";
+"record.over.detail" = "A gravação substitui o áudio em %1$@. O primeiro clipe começa em %2$@.";
 "transport.stop.output.changed" = "A reprodução parou: o dispositivo de saída mudou. Pressione a barra de espaço para reproduzir no novo dispositivo.";
 "transport.stop.output.unavailable" = "Não é possível iniciar a reprodução: o dispositivo de saída não está disponível (erro %lld).";
 "transport.stop.package.unavailable" = "A reprodução parou: o pacote da sessão não está disponível. Verifique se o disco dele está conectado.";

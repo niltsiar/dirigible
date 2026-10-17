@@ -265,6 +265,7 @@
 "record.over.chip" = "Audio nascosto";
 "record.over.show" = "Mostra clip";
 "record.over.disarm" = "Disabilita registrazione di %@";
+"record.over.detail" = "La registrazione sostituisce l’audio su %1$@. Il primo clip inizia a %2$@.";
 "transport.stop.output.changed" = "La riproduzione si è interrotta: il dispositivo di uscita è cambiato. Premi la barra spaziatrice per riprodurre sul nuovo dispositivo.";
 "transport.stop.output.unavailable" = "La riproduzione non può iniziare: il dispositivo di uscita non è disponibile (errore %lld).";
 "transport.stop.package.unavailable" = "La riproduzione si è interrotta: il pacchetto della sessione non è disponibile. Controlla che il suo disco sia collegato.";

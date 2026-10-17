@@ -109,13 +109,13 @@ When you play again from the frame where you stopped, **Average** and **Peak** g
 
 Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and **View > Show Loudness Meter** to show it again. New windows keep your choice.
 
-> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is hidden, the chip **Hidden Audio at Risk** shows in the corner over the track headers. Audio is hidden when less than half of its track is in view, or when the part that Record reaches is out of view. The chip does not move the tracks or cover the ruler. Click the chip to open its menu. The menu shows the tracks and the time, and has these items:
+> **Warning.** Record replaces the audio of the armed tracks from the playhead on. When the first audio that Record reaches on an armed track is hidden, the chip **Hidden Audio at Risk** shows in the corner over the track headers. Audio is hidden when less than half of its track is in view, or when the part that Record reaches is out of view. The chip does not move the tracks or cover the ruler. Click the chip to open its menu. The menu shows the tracks and the start of the earliest clip, and has these items:
 >
 > - **Go to End** moves the playhead to the end of the session. You can also choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop).
-> - **Show Clip** scrolls to the first clip that Record reaches.
+> - **Show Clip** scrolls to the earliest clip that Record reaches on the armed tracks.
 > - **Turn Off Record on** a track turns off the arm button of that track, so Record keeps its audio.
 >
-> VoiceOver says the warning once for each set of tracks.
+> VoiceOver says the warning once for each set of tracks. The same warning shown again stays silent.
 >
 > If Record replaced audio by mistake, choose **Edit > Undo** (Command-Z) until the old audio comes back. When Dirigible leveled the take, the first Undo removes the level. The new take stays in the session as unplaced audio (see [Put unplaced audio on a track](#put-unplaced-audio-on-a-track)).
 >

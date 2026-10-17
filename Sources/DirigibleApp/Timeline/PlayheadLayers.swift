@@ -79,7 +79,8 @@ final class PlayheadHead {
         restyle()
     }
 
-    /// The look follows the effective appearance of the ruler.
+    /// The look follows the effective appearance of the document view, which calls this from
+    /// `showPlayheadColors`.
     func show(appearance: NSAppearance, wide: Bool) {
         guard appearance != self.appearance || wide != self.wide else { return }
         (self.appearance, self.wide) = (appearance, wide)

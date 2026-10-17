@@ -96,7 +96,7 @@ import Testing
     /// C5: a warning is announced when its key is new. The key is the tracks of the warning. A seek
     /// inside the same clip, a disarm, and the same arm again announce nothing; a second hidden armed
     /// track is a new key.
-    @Test func theRecordOverWarningIsAnnouncedOncePerKey() async throws {
+    @Test func aNewRecordOverKeyIsAnnouncedAndAShowAgainOfTheSameKeyStaysSilent() async throws {
         let (model, studio, chrome, _, heard) = try await warningWindow()
         let high = NSAccessibilityPriorityLevel.high.rawValue
         let (last, before) = (TrackID("t20"), TrackID("t19"))

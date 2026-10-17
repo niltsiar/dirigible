@@ -115,11 +115,11 @@ struct LanePalette: Equatable {
 /// fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the fade lines of
 /// the crossfade halves outside the boxes (decision 0036), the gain lines and handles, the joins
 /// between clips that touch, the selection band and the marker, chapter, in, and out lines. One
-/// per document view, on the main thread. It writes every pixel of the rect of the region, and the region refuses every pixel
-/// outside it. Each edge rounds in absolute document pixels, so two partial draws agree with one
-/// full draw on each pixel. It keeps no pixel state. A drag event redraws only the columns that
-/// `changedFrames` gives, so each Session value drawn here needs a compare there (decision 0020,
-/// the invariant).
+/// per document view, on the main thread. It writes every pixel of the rect of the region, and the
+/// region refuses every pixel outside it. Each edge rounds in absolute document pixels, so two
+/// partial draws agree with one full draw on each pixel. It keeps no pixel state. A drag event
+/// redraws only the columns that `changedFrames` gives, so each Session value drawn here needs a
+/// compare there (decision 0020, the invariant).
 final class LaneRenderer {
     /// The columns of one clip, reused.
     var values: [PeakColumn] = []

@@ -15,12 +15,11 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
     /// Row n is the header of lane n, with the lane height.
     let headers: Headers
 
-    /// The header width of the app preferences at open; the handle saves there (decision 0023).
+    /// The pane takes the header width of the window, which reads the app preferences once at its
+    /// open; the handle saves there (decision 0023).
     func makeNSView(context: Context) -> TimelinePaneView {
-        let defaults = model.app?.defaults
-        let width = HeaderWidth(stored: defaults?.object(forKey: HeaderWidth.defaultsKey))
-        let view = TimelineScrollView(model: model, studio: studio, headerWidth: width)
-        if let defaults {
+        let view = TimelineScrollView(model: model, studio: studio, headerWidth: model.headerWidth)
+        if let defaults = model.app?.defaults {
             view.headers.save = { defaults.set($0.points, forKey: HeaderWidth.defaultsKey) }
         }
         model.timelineView = view

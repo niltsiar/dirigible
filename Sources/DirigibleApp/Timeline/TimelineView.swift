@@ -253,10 +253,11 @@ final class TimelineScrollView: NSScrollView {
         publishVisible()
     }
 
-    /// The head of the playhead on the ruler, at the playhead of the last tick.
+    /// The head of the playhead on the ruler, at the playhead of the last tick. Before the first
+    /// tick it is at the Studio playhead, so a layout never leaves the ruler with no head.
     private func moveHead() {
-        guard let last else { return }
-        ruler.moveHead(toDocumentX: last.playhead / framesPerPoint, taking: last.taking)
+        guard let playhead = last?.playhead ?? studio.map({ Double($0.playhead.count) }) else { return }
+        ruler.moveHead(toDocumentX: playhead / framesPerPoint, taking: taking)
     }
 
     @objc private func liveScrollStarted() { liveScrollOrigin = origin }

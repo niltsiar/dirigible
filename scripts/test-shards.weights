@@ -29,6 +29,9 @@ DirigibleAudioTests.FinalizeTests	6.3
 DirigibleAudioTests.FlakeMonitor	0.0
 DirigibleAudioTests.FullDiskTests	0.0
 DirigibleAudioTests.GateTests	6.4
+DirigibleAudioTests.HangRuleTests	0.0
+DirigibleAudioTests.HangWatchdogMainThreadTests	0.3
+DirigibleAudioTests.HangWatchdogTests	1.1
 DirigibleAudioTests.ID3TagTests	0.3
 DirigibleAudioTests.ImportFaultTests	0.4
 DirigibleAudioTests.ImportTests	3.2
@@ -51,6 +54,7 @@ DirigibleAudioTests.LoudnessTests	22.9
 DirigibleAudioTests.M4AChapterTests	3.4
 DirigibleAudioTests.M4ATagTests	0.8
 DirigibleAudioTests.MP3ExportTests	12.3
+DirigibleAudioTests.MainStackTests	0.0
 DirigibleAudioTests.MediaTests	0.0
 DirigibleAudioTests.MixTests	0.8
 DirigibleAudioTests.MonitorTests	4.4

@@ -1,4 +1,4 @@
-# 0059. Diagnostics: a journal for each launch
+# 0059. Diagnostics: a journal for each launch and a hang watchdog
 
 - Status: proposed
 - Date: 2026-10-16
@@ -9,6 +9,7 @@ A beta tester pressed Record during a call, the window showed the busy cursor, a
 
 - After a force quit by a standard user, no Apple channel gives the app its log of the earlier launch. `OSLogStore(scope: .currentProcessIdentifier)` holds only the current launch. `.system`, Console, and `/Library/Logs/DiagnosticReports` need an administrator. `OSLogStore.local()` needs an entitlement that an ad-hoc app cannot have.
 - A line that `write(2)` wrote stays in the file after a SIGKILL of the process (probe U2 of run `2026-10-16-diagnostics`).
+- `/usr/bin/sample` suspends the whole process. With a take on 128-frame buffers, each sample run made the IOProc lose 1400 to 1600 input frames, with one overload for each gap (probe Q4 of the same run, macOS 15.8.1, x86_64).
 
 ## Decision
 
@@ -26,17 +27,33 @@ A beta tester pressed Record during a call, the window showed the busy cursor, a
 - At each app start, the journal reads the last line of the newest earlier app journal. When it is not `app quit` and its PID is not alive, the new journal writes `app previous-unclean` with the last event and its time.
 - The first line of a take start is `take start-request`, with the count of armed tracks.
 
-**Module.** `DirigibleAudio/Diagnostics/` holds `DiagnosticLog` and the journal (0002 **Folders**).
+**Watchdog.** In the app only. `applicationWillFinishLaunching` starts it after the journal, and `applicationWillTerminate` stops it before the quit line. `HangWatchdog.start(log:)` runs on the main actor and takes the main thread there: the macOS SDK has no call that gives the main thread from another thread. The late, sleep, and burst rules are a value type, `HangRule`, with `tick(now:)` and `answered(now:)`, so its tests use set instants and no wall time.
+
+- A `DispatchSourceTimer` on its own user-interactive queue, `Dirigible.Watchdog`, ticks each 250 ms with 25 ms leeway and posts one ping block to the main queue. The block takes the time on the main thread, and the watchdog queue writes the line, so no line goes through the main thread.
+- A ping that is 1 s late writes `hang start` with `late_ms`; its answer writes `hang end` with `blocked_ms`. Before a hang start, a tick that comes more than one interval past its deadline (a system sleep, a suspended process) sends a new ping and writes nothing. After a hang start, a late tick keeps the ping, so one hang has one start and one burst. The queue is user-interactive, so a loaded Mac delays its ticks less: under the load of the full test run, a utility timer ticked late enough to look like a sleep.
+- At 2 s, one burst: one `hang images` line, 10 `hang stack` lines 100 ms apart, then one `hang names` line for each distinct stack. One burst for each hang, at most 3 for each launch. `stop()` cancels the timer, stops the rule on the watchdog queue, and waits for a burst to end at its next pause, so no `hang` line comes after the quit line.
+- `hang stack` has `n`, `suspend_us` (the suspend window of the walk), `status` when the walk failed, and `frames`, the raw addresses. `hang images` has `count`, `dropped` when the list is full, and `list`, with `<header>:<slide>:<UUID>` for each image. `hang names` has `stacks` (the `n` of each stack with these frames), `names` (`<symbol>+<offset>` or `?` for each frame, split by `|`), and `images` (the path of each image of the frames, with `~` for the home folder). A return address is named at the address before it, inside the call.
+- The stack comes from the C target `CMainStack`. It suspends only the walked thread, reads its registers, follows the frame-pointer chain inside the stack bounds into a buffer of the caller, and resumes it. Between the suspend and the resume, only `thread_get_state` and two clock reads run. It is C because a suspended main thread can hold a lock of the Swift runtime or of malloc, and a walk that took that lock would wait for ever. The walks run on a user-interactive queue: with all 8 logical cores busy and the main thread blocked while it holds a mutex, 100 walks lost 0 input frames, and the longest suspend was 0.17 ms (probe Q4c, macOS 15.8.1, x86_64).
+- On arm64 the walk masks the pc and each saved return address with `0x00007FFFFFFFFFFF` (the 47-bit user address space of macOS, as KSCrash does), not the chain pointer. An arm64e system library signs its return addresses, and `ptrauth_strip` does nothing in a plain arm64 build ([pac-mask.md](../research/pac-mask.md)).
+- At its start, the watchdog registers a C callback with `_dyld_register_func_for_add_image`, once for each process. dyld calls it for each image already loaded, during the call, and later for each new image on the thread that loads it, the main thread too. The callback takes a slot of a preallocated list of 4096 with an atomic add, writes the header address, the slide, and the `LC_UUID` of the image, and sets the ready flag of the slot with a release store. It calls no dyld function, no allocator, and no lock. dyld cannot remove the callback, so an image that unloads stays in the list.
+- The burst writes `hang images` from that list first (each `hang` line calls `fsync`), then the raw stacks, and names the frames with `dladdr` only after the last stack. So a main thread that hangs in dyld, which holds the dyld lock, still gives its raw stacks for `atos`.
+- The watchdog never runs `sample` (Context).
+
+**Module.** `DirigibleAudio/Diagnostics/` holds `DiagnosticLog`, the journal, `HangWatchdog`, and `HangRule` (0002 **Folders**). The C target `CMainStack` holds the walk and the image list, and `DirigibleAudio` depends on it.
 
 ## Consequences
 
 - A force quit keeps each line that the journal queue wrote. A power loss or a kernel panic can lose the last lines, except a `hang` or `fault` line.
+- The last `main` line before a `hang start` line names the step that held the main thread.
+- The stack walk on arm64 uses the same code with the arm64 register macros of the SDK and the mask. The run that adds it tests on macOS 15 x86_64 only. The `hang stack` lines of a tester journal show the result on macOS 14 and on arm64.
+- A false `hang` line can come from a permission prompt or a long menu track: one line with its stack.
 - A long take with a storm of dropouts can rotate its start lines out of the journal. Accepted: a storm of that size is itself the finding.
 - A CLI `record` that ends with Ctrl-C has no quit line: `record` has no signal handler.
 
 ## Alternatives considered
 
 - **`Logger` only, with an `OSLogStore` export at collect time.** Rejected: the store gives the current launch only, and the hang ends in a force quit.
+- **`sample` at 2 s.** Rejected by probe Q4: it makes the IOProc lose input during a take.
 - **`Logger` beside the journal.** Rejected: no reader can read it without an administrator, and its privacy rule for each value adds a second format to keep true.
 - **A token for each launch.** Rejected: one device gets another token in each journal, so the lead cannot join its lines.
 - **A Swift `DirigibleDiagnostics` target.** Rejected: 0002 rejects a target for each capability, and `DirigibleCore` has no event that needs a line.

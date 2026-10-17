@@ -17,9 +17,13 @@ let package = Package(
         .target(
             name: "CLame", exclude: ["README.dirigible"],
             cSettings: [.define("HAVE_CONFIG_H"), .headerSearchPath("."), .treatAllWarnings(as: .error)]),
+        // The main-thread stack walk and the image list of the hang watchdog (decision 0059).
+        .target(name: "CMainStack", cSettings: [.treatAllWarnings(as: .error)]),
         .target(
             name: "DirigibleAudio",
-            dependencies: ["DirigibleCore", "CLame", .product(name: "Atomics", package: "swift-atomics")]),
+            dependencies: [
+                "DirigibleCore", "CLame", "CMainStack", .product(name: "Atomics", package: "swift-atomics"),
+            ]),
         .target(name: "DirigibleTimeline", dependencies: ["DirigibleCore"]),
         .target(name: "DirigibleMCP", dependencies: ["DirigibleCore", "DirigibleAudio"]),
         .executableTarget(
@@ -32,7 +36,7 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
         .testTarget(name: "DirigibleCoreTests", dependencies: ["DirigibleCore"]),
-        .testTarget(name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore"]),
+        .testTarget(name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore", "CMainStack"]),
         .testTarget(
             name: "DirigibleCLITests",
             dependencies: ["DirigibleCLI", "DirigibleMCP", "DirigibleCore", "DirigibleAudio"]),

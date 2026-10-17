@@ -311,6 +311,10 @@ struct SilenceCheck {
     /// True while the track shows the warning: it warned and no sound came.
     var warns: Bool { warnedAt != nil && !heard }
 
+    /// The journal cause of the last rebuild: the seconds of zeros before it, for example
+    /// `silence-15s`. Only after a rebuild of `due`.
+    var rebuildCause: String { "silence-\((Self.limit + Self.rebuilds[done - 1]) / 1_000_000_000)s" }
+
     /// Takes one drain: the host times of its first and last records, whether a routed sample
     /// was not zero, and whether the tap has a matched process.
     mutating func take(firstHost: UInt64, lastHost: UInt64, heard: Bool, hasProcess: Bool) {

@@ -125,10 +125,12 @@ missed unknowns: 1
 critical findings: 4
 friction: 9
 window: 2026-09-20T08:20 to 2026-09-20T11:30
+lock: no Worktree line in run.md
 agents: 3
 workflows: 1
 idle: 12 min in 1 gaps over 5 min
 subagents: none
+tokens: none
 pace: 2026-09-20-fixture open to merge 4.0 h
 pace: merges per day 2026-09-11 1 2026-09-12 1 2026-09-13 1 2026-09-14 1 2026-09-15 1 2026-09-16 1 2026-09-17 1 2026-09-18 1 2026-09-19 2 2026-09-20 1"
 
@@ -150,7 +152,7 @@ check 'a run with a transcript' "$want" "$run" "$transcript"
 grep -qx 'gh pr list --state merged --limit 100 --json number,createdAt,mergedAt,title' "$tmp/gh.log" || fail "gh arguments: $(cat "$tmp/gh.log")"
 
 no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^workflows: .*/workflows: no transcript/' -e 's/^idle: .*/idle: no transcript/' \
-  -e 's/^subagents: .*/subagents: no transcript/' <<<"$want")"
+  -e 's/^subagents: .*/subagents: no transcript/' -e 's/^tokens: .*/tokens: no transcript/' <<<"$want")"
 check 'no transcript' "$no_transcript" "$run"
 
 no_gh="$(grep -v '^pace: ' <<<"$no_transcript")
@@ -258,6 +260,45 @@ for zone in UTC:2 Etc/GMT-2:1; do
   out="$(cd "$tmp" && TZ="${zone%:*}" PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/tz.jsonl" 2>&1)"
   grep -qx "agents: ${zone#*:}" <<<"$out" || fail "run window in TZ ${zone%:*}: want agents: ${zone#*:}: $(grep '^agents' <<<"$out")"
 done
+
+# The lock minutes: the wait and hold lines of the tree in the Worktree line of run.md (relative to
+# the checkout that holds the run folder), whose start is in the run window. A line of another tree,
+# a line outside the window, and the old wait line of 4 columns (no tree) are not counted.
+mkdir -p "$tmp/main" "$tmp/tree"
+git -C "$tmp/main" init -q
+git -C "$tmp/tree" init -q
+lockrun="$tmp/main/.scratchpads/runs/2026-09-20-lock"
+mkdir -p "$lockrun"
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-09-20T08:00\t4\ta\tw\te\tdone\n2026-09-20T09:00\t4\tb\tw\te\tdone\n' > "$lockrun/decisions.tsv"
+printf -- '- Worktree: ../tree (from origin/main abc)\n' > "$lockrun/run.md"
+mine="$(git -C "$tmp/tree" rev-parse --show-toplevel)"
+printf '2026-09-20T08:10:00\t600\tmake test\tmake test\t%s\n2026-09-20T08:20:00\t1200\tmake test\tmake test\t/other/tree\n2026-09-20T07:00:00\t3600\tmake test\tmake test\t%s\n2026-09-20T08:30:00\t900\tmake test\tmake test\n' \
+  "$mine" "$mine" > "$tmp/tree/.git/dirigible-build-waits.log"
+printf '2026-09-20T08:30:00\t1800\tmake test\t%s\n2026-09-20T08:40:00\t300\tmake test limit\t/other/tree\n2026-09-20T09:30:00\t600\tmake test\t%s\n' \
+  "$mine" "$mine" > "$tmp/tree/.git/dirigible-build-holds.log"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$lockrun" 2>&1)" || fail "lock minutes: exit $?: $out"
+grep -qxF 'lock: 10 min wait, 30 min hold' <<<"$out" || fail "lock minutes: $(grep -E '^lock|awk|error' <<<"$out")"
+
+# The tokens: each reply once by message.id and requestId (a reply line can repeat), each
+# usage.iterations entry under its own model (an advisor_message names the advisor model), the cache
+# writes split into 5 min and 1 h, and the attributed subagents added. A reply outside the window
+# does not count.
+tok="$tmp/tok.jsonl"
+reply() { printf '{"type":"assistant","timestamp":"%s","requestId":"%s","message":{"id":"%s","model":"claude-opus-5-5","content":[],"usage":%s}}\n' "$1" "$2" "$3" "$4"; }
+{
+  reply 2026-09-20T09:00:00.000Z r1 m1 '{"input_tokens":10,"output_tokens":100,"cache_read_input_tokens":1000,"cache_creation_input_tokens":300,"cache_creation":{"ephemeral_5m_input_tokens":100,"ephemeral_1h_input_tokens":200},"iterations":[{"type":"message","input_tokens":10,"output_tokens":100,"cache_read_input_tokens":1000,"cache_creation_input_tokens":300,"cache_creation":{"ephemeral_5m_input_tokens":100,"ephemeral_1h_input_tokens":200}}]}'
+  reply 2026-09-20T09:00:01.000Z r1 m1 '{"input_tokens":10,"output_tokens":100,"cache_read_input_tokens":1000,"cache_creation_input_tokens":300,"cache_creation":{"ephemeral_5m_input_tokens":100,"ephemeral_1h_input_tokens":200},"iterations":[{"type":"message","input_tokens":10,"output_tokens":100,"cache_read_input_tokens":1000,"cache_creation_input_tokens":300,"cache_creation":{"ephemeral_5m_input_tokens":100,"ephemeral_1h_input_tokens":200}}]}'
+  reply 2026-09-20T09:10:00.000Z r2 m2 '{"input_tokens":5,"output_tokens":50,"cache_read_input_tokens":500,"cache_creation_input_tokens":0,"iterations":[{"type":"message","input_tokens":5,"output_tokens":50,"cache_read_input_tokens":500,"cache_creation_input_tokens":0},{"type":"advisor_message","model":"claude-fable-5-1","input_tokens":7,"output_tokens":70,"cache_read_input_tokens":700,"cache_creation_input_tokens":40,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":40}}]}'
+  reply 2026-09-20T12:00:00.000Z r3 m3 '{"input_tokens":99,"output_tokens":99,"cache_read_input_tokens":99,"cache_creation_input_tokens":99}'
+} > "$tok"
+mkdir -p "$tmp/tok/subagents"
+{ u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture, slice 1."'
+  reply 2026-09-20T09:05:00.000Z r4 m4 '{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":9,"cache_creation":{"ephemeral_5m_input_tokens":4,"ephemeral_1h_input_tokens":5}}'
+} > "$tmp/tok/subagents/agent-s.jsonl"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tok" 2>&1)" || fail "tokens: exit $?: $out"
+want_tokens='tokens: claude-fable-5-1 in 7 out 70 cache-read 700 cache-write-5m 0 cache-write-1h 40
+tokens: claude-opus-5-5 in 16 out 152 cache-read 1503 cache-write-5m 104 cache-write-1h 205'
+[[ "$(grep '^tokens:' <<<"$out")" == "$want_tokens" ]] || fail "tokens: $(grep '^tokens:' <<<"$out")"
 
 out="$("$cost" 2>&1)"
 code=$?

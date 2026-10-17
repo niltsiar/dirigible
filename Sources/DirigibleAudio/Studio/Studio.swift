@@ -40,7 +40,18 @@ import Observation
     private var notAudioSegments: Set<SegmentName>
     /// The live state of each armed track of the take or of the monitor (decision 0015), from
     /// the reports of the drain. Empty while no take records and no monitor runs.
-    public internal(set) var liveTracks: [TrackID: LiveTrack] = [:]
+    public internal(set) var liveTracks: [TrackID: LiveTrack] = [:] {
+        didSet {
+            liveTrackWrites += 1
+            let states = liveTracks.mapValues(\.state)
+            if states != liveStates { liveStates = states }
+        }
+    }
+    /// The state of each entry of `liveTracks`, changed only at a state change. The track rows
+    /// read it, so a meter report runs no row body (decision 0014).
+    public internal(set) var liveStates: [TrackID: LiveTrack.State] = [:]
+    /// The writes of `liveTracks`, for the tests: one for each meter report.
+    @ObservationIgnored var liveTrackWrites = 0
     /// The start of the take that records. The view computes the elapsed time.
     public internal(set) var recordingSince: ContinuousClock.Instant?
     /// The record time left on the disk of the take that records: from the take start, then at

@@ -217,9 +217,9 @@ import Testing
 
     /// A loopback has its own text; a meter fault shows first, as for the quiet text.
     @Test func aLoopbackHasItsOwnText() throws {
-        #expect(listenQuietText(live: nil, quiet: false, loopback: true) == L10n.trackListenLoopback.text)
-        #expect(listenQuietText(live: nil, quiet: true, loopback: false) == L10n.trackListenQuiet.text)
-        #expect(listenQuietText(live: nil, quiet: false, loopback: false) == nil)
+        #expect(listenQuietText(state: nil, quiet: false, loopback: true) == L10n.trackListenLoopback.text)
+        #expect(listenQuietText(state: nil, quiet: true, loopback: false) == L10n.trackListenQuiet.text)
+        #expect(listenQuietText(state: nil, quiet: false, loopback: false) == nil)
         let (en, es) = (try stringsTable("en"), try stringsTable("es"))
         #expect(en[L10n.trackListenLoopback.rawValue] != nil && es[L10n.trackListenLoopback.rawValue] != nil)
     }

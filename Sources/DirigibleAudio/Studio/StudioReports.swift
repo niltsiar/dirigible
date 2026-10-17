@@ -30,11 +30,8 @@ extension Studio {
                 }
             }
             guard transport == .recording(take: take) else { return }
-            for (arm, level) in arms where armed.indices.contains(arm - 1) {
-                liveTracks[armed[arm - 1].id]?.peak = level.peak
-                liveTracks[armed[arm - 1].id]?.shortTerm = level.shortTerm
-                liveTracks[armed[arm - 1].id]?.droppedFrames = droppedFrames
-            }
+            liveTracks = metered(
+                arms.compactMap { armed.indices.contains($0 - 1) ? (armed[$0 - 1].id, $1) : nil }, droppedFrames)
         }
     }
 }
@@ -59,11 +56,23 @@ extension Studio {
                 liveTracks[id]?.shortTerm = nil
             }
         case .levels(_, let arms, _, let droppedFrames):
-            for (arm, level) in arms where monitor.tracks.indices.contains(arm - 1) {
-                liveTracks[monitor.tracks[arm - 1].id]?.peak = level.peak
-                liveTracks[monitor.tracks[arm - 1].id]?.shortTerm = level.shortTerm
-                liveTracks[monitor.tracks[arm - 1].id]?.droppedFrames = droppedFrames
-            }
+            let tracks = monitor.tracks
+            liveTracks = metered(
+                arms.compactMap { tracks.indices.contains($0 - 1) ? (tracks[$0 - 1].id, $1) : nil }, droppedFrames)
         }
+    }
+}
+
+extension Studio {
+    /// `liveTracks` with the levels of one report: one write for the report, so the `didSet` of
+    /// `liveTracks` runs once.
+    fileprivate func metered(_ levels: [(TrackID, ArmLevel)], _ droppedFrames: Int) -> [TrackID: LiveTrack] {
+        var tracks = liveTracks
+        for (id, level) in levels {
+            tracks[id]?.peak = level.peak
+            tracks[id]?.shortTerm = level.shortTerm
+            tracks[id]?.droppedFrames = droppedFrames
+        }
+        return tracks
     }
 }

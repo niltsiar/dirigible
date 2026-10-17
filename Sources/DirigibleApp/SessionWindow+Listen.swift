@@ -53,9 +53,9 @@ extension SessionWindow {
 
 /// The text of a listened track that plays no monitor sound: no device or output, or a loopback.
 /// A meter fault of the track shows first, so the header shows one text.
-func listenQuietText(live: LiveTrack?, quiet: Bool, loopback: Bool) -> String? {
+func listenQuietText(state: LiveTrack.State?, quiet: Bool, loopback: Bool) -> String? {
     guard quiet || loopback else { return nil }
-    switch live?.state {
+    switch state {
     case nil, .recording, .monitoring: return (loopback ? L10n.trackListenLoopback : L10n.trackListenQuiet).text
     default: return nil
     }

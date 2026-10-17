@@ -19,12 +19,12 @@ import Testing
     }
 
     @Test func theQuietTextIsShort() throws {
-        let quiet = try #require(HeaderStateText.quiet(live: nil, quiet: true, loopback: false))
-        let loopback = try #require(HeaderStateText.quiet(live: nil, quiet: false, loopback: true))
+        let quiet = try #require(HeaderStateText.quiet(state: nil, quiet: true, loopback: false))
+        let loopback = try #require(HeaderStateText.quiet(state: nil, quiet: false, loopback: true))
         #expect(quiet.row == L10n.trackListenQuietShort.text && loopback.row == L10n.trackListenQuietShort.text)
         #expect(quiet.full == L10n.trackListenQuiet.text)
         #expect(loopback.full == L10n.trackListenLoopback.text)
-        #expect(HeaderStateText.quiet(live: nil, quiet: false, loopback: false) == nil, "a track that plays")
+        #expect(HeaderStateText.quiet(state: nil, quiet: false, loopback: false) == nil, "a track that plays")
         for (language, row) in [("en", "No monitor sound"), ("es", "Sin sonido de monitor")] {
             #expect(try stringsTable(language)[L10n.trackListenQuietShort.rawValue] == row, "\(language)")
         }

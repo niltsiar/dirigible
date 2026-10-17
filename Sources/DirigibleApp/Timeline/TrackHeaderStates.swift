@@ -1,4 +1,5 @@
 import DirigibleAudio
+import DirigibleCore
 import SwiftUI
 
 /// The level of a live track on the meter scale: -60 dBFS to 0 dBFS as 0 to 1.
@@ -6,9 +7,24 @@ func meterLevel(_ live: LiveTrack) -> Double {
     live.peak > 0 ? max(0, min(1, (20 * log10(Double(live.peak)) + 60) / 60)) : 0
 }
 
+/// The live state of `track` in a one-line row. It reads `liveTracks` in its own body, so a meter
+/// report runs it and not the row (decision 0014).
+struct CompactLiveState: View {
+    let studio: Studio
+    let track: TrackID
+    let source: String
+    let showsLoudness: Bool
+
+    var body: some View {
+        if let live = studio.liveTracks[track] {
+            CompactLiveStateContent(live: live, source: source, showsLoudness: showsLoudness)
+        }
+    }
+}
+
 /// The meter and the state of a one-line row: a meter of 16 pt, and a symbol for a fault (red) or
 /// dropped frames (orange), with the state text for VoiceOver and as its tooltip.
-struct CompactLiveState: View {
+struct CompactLiveStateContent: View {
     let live: LiveTrack
     /// The route label: the app of a `.waitingForApp` or `.noSound` track.
     let source: String
@@ -40,8 +56,24 @@ struct CompactLiveState: View {
     }
 }
 
-/// The meter and the state of an armed track during a take or a monitor.
+/// The live state of `track` on line 2 of a row. It reads `liveTracks` in its own body, as
+/// `CompactLiveState`.
 struct LiveState: View {
+    let studio: Studio
+    let track: TrackID
+    let source: String
+    let showsNoSound: Bool
+    let openSettings: () -> Void
+
+    var body: some View {
+        if let live = studio.liveTracks[track] {
+            LiveStateContent(live: live, source: source, showsNoSound: showsNoSound, openSettings: openSettings)
+        }
+    }
+}
+
+/// The meter and the state of an armed track during a take or a monitor.
+struct LiveStateContent: View {
     let live: LiveTrack
     /// The route label: the app of a `.waitingForApp` or `.noSound` track.
     let source: String

@@ -231,7 +231,7 @@ final class TimelineDocumentView: NSView {
 
     /// Moves the playhead line to `frame`, with no redraw of the lanes. During a take (`taking`) the
     /// line is the record head and red.
-    func movePlayhead(to frame: Double, taking: Bool = false) {
+    func movePlayhead(to frame: Double, taking: Bool) {
         if taking != self.taking {
             self.taking = taking
             showPlayheadColors()

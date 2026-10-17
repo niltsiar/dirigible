@@ -108,7 +108,9 @@ public func importAudio(
     let shaped = Clip(
         id: clip, file: file, start: target.start, offset: target.offset,
         length: target.length.map { min($0, rest) } ?? rest,
-        gain: target.gain.map { Gain(clamping: gain.dB + $0.dB) ?? gain } ?? gain, fades: target.fades)
+        gain: target.gain.map { Gain(dB: min(max(gain.dB + $0.dB, Gain.range.lowerBound), Gain.range.upperBound))! }
+            ?? gain,
+        fades: target.fades)
     var imported = session
     do throws(SessionError) {
         if target.track == nil { try imported.addTrack(track, name: stem, layout: layout) }

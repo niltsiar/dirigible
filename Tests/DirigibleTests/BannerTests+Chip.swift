@@ -70,19 +70,38 @@ extension BannerTests {
         await model.close()
     }
 
-    /// C2: the chip text, with its symbol, fits the corner at the narrowest header width (180 pt)
-    /// in each language, at 11 pt medium.
-    @Test func theRecordOverChipFitsTheNarrowestHeaderInEachLanguage() throws {
-        let symbol = try #require(
-            NSImage(systemSymbolName: WindowBanner.Kind.warning.symbol, accessibilityDescription: nil))
-        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
-        let room = HeaderWidth(0).points - 2 * RecordOverChip.inset
-        for language in AppLanguage.allCases.map(\.rawValue) {
-            let table = (try? stringsTable(language)) ?? [:]
-            let text = try #require(table[L10n.recordOverChip.rawValue])
-            let width = (text as NSString).size(withAttributes: [.font: font]).width + symbol.size.width + 4
-            #expect(width <= room, "\(language): \(text) needs \(width) pt of \(room)")
+    /// C2: at the narrowest header (180 pt) the title of the real chip button holds the chip text of
+    /// each language on one line, with the font and the room that the button gives it.
+    @Test func theRecordOverChipFitsTheNarrowestHeaderInEachLanguage() async throws {
+        let (model, _, window, view) = try await chipWindow()
+        var found: NSPopUpButton?
+        await until(limit: .seconds(10), "the chip button shows") {
+            found = chipButton(window, view)
+            return found != nil
         }
+        let chip = try #require(found)
+        view.headers.step(by: HeaderWidth(0).points - view.headers.width.points)
+        await until(limit: .seconds(10), "the chip takes the narrowest header") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return abs(shownFrame(chip).width - (HeaderWidth(0).points - 2 * RecordOverChip.inset)) < 1.5
+        }
+        let title = try #require(titleField(chip), "the chip button has a title field")
+        let font = try #require(title.font)
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let text = try #require(try stringsTable(language)[L10n.recordOverChip.rawValue])
+            let label = NSTextField(labelWithString: text)
+            label.font = font
+            label.sizeToFit()
+            #expect(
+                label.frame.width <= title.frame.width,
+                "\(language): \(text) needs \(label.frame.width) of \(title.frame.width) pt")
+        }
+        await model.close()
+    }
+
+    /// The text field that shows the title of a pop-up button.
+    func titleField(_ view: NSView) -> NSTextField? {
+        (view as? NSTextField) ?? view.subviews.lazy.compactMap { titleField($0) }.first
     }
 
     /// C3: Go to End moves the playhead past every clip, so the warning goes.

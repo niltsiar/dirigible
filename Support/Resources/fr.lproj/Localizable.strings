@@ -262,7 +262,7 @@
 "transport.record" = "Enregistrer";
 "transport.stop" = "Arrêter";
 "transport.play" = "Lecture";
-"record.over.chip" = "Audio masqué en danger";
+"record.over.chip" = "Audio masqué menacé";
 "record.over.show" = "Afficher le clip";
 "record.over.disarm" = "Désactiver l’enregistrement sur %@";
 "transport.stop.output.changed" = "La lecture s’est arrêtée : l’appareil de sortie a changé. Appuyez sur Espace pour lire sur le nouvel appareil.";

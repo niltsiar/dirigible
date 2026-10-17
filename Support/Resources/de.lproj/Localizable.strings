@@ -262,7 +262,7 @@
 "transport.record" = "Aufnehmen";
 "transport.stop" = "Stoppen";
 "transport.play" = "Wiedergabe";
-"record.over.chip" = "Verdecktes Audio in Gefahr";
+"record.over.chip" = "Verdecktes Audio";
 "record.over.show" = "Clip zeigen";
 "record.over.disarm" = "Aufnahme für %@ ausschalten";
 "transport.stop.output.changed" = "Die Wiedergabe wurde gestoppt: Das Ausgabegerät hat sich geändert. Drücke die Leertaste, um auf dem neuen Gerät abzuspielen.";

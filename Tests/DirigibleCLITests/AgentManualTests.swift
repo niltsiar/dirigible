@@ -184,13 +184,17 @@ struct AgentManualTests {
         #expect(sound.contains("`track_add` with the layout of the file"), "\(sound)")
     }
 
-    /// C30: the sound recipe shapes the clip in one `import`, with no `clip_fade` or `clip_gain`.
+    /// C30: the sound recipe shapes the clip in one `import`, with no `clip_gain`. Each import
+    /// converts the whole source (code gate 1 item 6), so more parts of one file come from
+    /// `clip_place` with the file ID and `clip_fade`.
     @Test func theSoundRecipeShapesTheClipInOneImport() {
         let sound = Self.steps("add-sound")
         for argument in ["offset", "length", "db", "fade_in", "fade_out"] {
             #expect(sound.contains("`\(argument)`"), "add-sound does not name \(argument)")
         }
-        #expect(!sound.contains("clip_fade") && !sound.contains("clip_gain"), "\(sound)")
+        #expect(!sound.contains("clip_gain"), "\(sound)")
+        #expect(sound.contains("`clip_place` with the file ID") && sound.contains("`clip_fade`"), "\(sound)")
+        #expect(!sound.contains("again reuses"), "\(sound)")
     }
 
     /// C30: a heal after a cut joins only the splits that stay, and the words need a new read.

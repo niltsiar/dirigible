@@ -292,6 +292,8 @@ final class Gate: @unchecked Sendable {
     private let semaphore = DispatchSemaphore(value: 0)
     private var used = false
     private var inside = false
+    /// The miss of a hold that timed out. The thread of the hold has no test, so `open()` records it.
+    private var miss: String?
 
     /// No default, so each hold chooses nil or a limit.
     init(limit: Duration?) { self.limit = limit }
@@ -316,11 +318,20 @@ final class Gate: @unchecked Sendable {
         defer { reportWait("Gate.waitOnce", since: start, "Gate") }
         guard let limit else { return semaphore.wait() }
         if semaphore.wait(timeout: .now() + limit / .seconds(1)) == .timedOut {
-            Issue.record("The gate was not opened in \(limit)")
+            let text = "The gate was not opened in \(limit)"
+            lock.withLock { miss = text }
+            FileHandle.standardError.write(Data("\(text)\n".utf8))
         }
     }
 
-    func open() { semaphore.signal() }
+    func open() {
+        semaphore.signal()
+        let text = lock.withLock { () -> String? in
+            defer { miss = nil }
+            return miss
+        }
+        if let text { Issue.record(Comment(rawValue: text)) }
+    }
 
     /// Returns when the first caller is inside `waitOnce`. After `limit`, it records a failure.
     func entered(limit: Duration = .seconds(72)) async {

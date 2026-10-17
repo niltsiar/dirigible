@@ -90,6 +90,8 @@ final class SyntheticInput: @unchecked Sendable {
     /// The threads that send now, and how many send into each input.
     private var sending = 0
     private var targets: [ObjectIdentifier: Int] = [:]
+    /// The attach misses of the threads. A thread has no test, so `wait()` records them.
+    private var misses: [String] = []
 
     init(_ hal: TestHAL, _ uid: String) {
         self.hal = hal
@@ -103,7 +105,8 @@ final class SyntheticInput: @unchecked Sendable {
     /// or into the current input. It waits for that attach, and then for `delay`: a device that
     /// is slow to start its IO. With `package`, the host times of `records` count from
     /// `takeStart`: after the attach, they move to the take start that `package` saved, so a
-    /// late start of the take does not cut them. Then a miss of the attach in 30 s is an issue.
+    /// late start of the take does not cut them. Then a miss of the attach in 30 s is an issue of
+    /// the test that calls `wait()`.
     /// With `hold`, the thread waits in that gate after it counts for its input and before the
     /// first record: a producer that a stop cannot end.
     func play(
@@ -124,12 +127,19 @@ final class SyntheticInput: @unchecked Sendable {
     }
 
     /// Waits until the records of each `play` are sent, with a limit. It polls, so it does not
-    /// hold the main actor. The limit and its wall cap (3 x the limit) count as in `poll`, and
-    /// are longer than the attach wait of `takeStartIn`, so a miss shows as that issue. It is 3
-    /// times the worst wait, 24.8 s (run test-pool-health, loops/s3q-12.log).
+    /// hold the main actor. The limit and its wall cap (3 x the limit) count as in `poll`. It is
+    /// 3 times the worst wait, 24.8 s (run test-pool-health, loops/s3q-12.log). It records the
+    /// attach misses of the threads in the test.
     func wait(limit: Duration = .seconds(75)) async {
         let watch = Stopwatch()
-        defer { reportWait("SyntheticInput.wait", since: watch.start, "SyntheticInput \(uid)") }
+        defer {
+            reportWait("SyntheticInput.wait", since: watch.start, "SyntheticInput \(uid)")
+            let found = lock.withLock { () -> [String] in
+                defer { misses = [] }
+                return misses
+            }
+            for text in found { Issue.record(Comment(rawValue: text)) }
+        }
         while isSending {
             guard watch.elapsed < limit, watch.wall < limit * 3 else {
                 Issue.record("SyntheticInput \(uid) did not end in \(limit)")
@@ -171,6 +181,13 @@ final class SyntheticInput: @unchecked Sendable {
         return found
     }
 
+    /// Keeps the miss `text` for `wait()`, and writes it to stderr, as in `stop`: a thread that no
+    /// test waits for has no test to fail.
+    private func miss(_ text: String) {
+        lock.withLock { misses.append(text) }
+        FileHandle.standardError.write(Data("\(text)\n".utf8))
+    }
+
     private func send(
         _ records: [InputRecord], pace: Pace, flags: AudioTimeStampFlags, into target: DeviceInput?, attach: Int?,
         delay: Duration, takeStartIn package: URL?, hold: Gate?
@@ -184,11 +201,11 @@ final class SyntheticInput: @unchecked Sendable {
         var records = records
         if let package {
             guard found != nil else {
-                Issue.record("SyntheticInput \(uid) did not attach in 30 s")
+                miss("SyntheticInput \(uid) did not attach in 30 s")
                 return
             }
             guard let saved = (try? Session(contentsOf: package))?.recording?.takeStartHostTimeNanos else {
-                Issue.record("SyntheticInput \(uid) found no saved take start")
+                miss("SyntheticInput \(uid) found no saved take start")
                 return
             }
             // The operators wrap: a record can be before `takeStart`, and `saved` is less than

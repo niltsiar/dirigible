@@ -30,7 +30,7 @@ Run each build, test, and bench as `scripts/with-lock.sh <command>`: each `swift
 
 ## How to work
 
-Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `writing-for-humans`, `research`, `pr`, `diagnosing-bugs`, and `domain-modeling`. The agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
+Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `writing-for-humans`, `research`, `pr`, `diagnosing-bugs`, `domain-modeling`, and `swift-concurrency`. The agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
 
 ## Run ledger in .scratchpads/
 
@@ -56,6 +56,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 ## Read first
 
 - **Coding standards.** Before a review, read `CODING_STANDARDS.md`. Before you add a type, read **Design** there. Before you write actor code, read **Concurrency** there. Before you parse input at a boundary, read **Validate at boundaries** there.
+- **Swift Concurrency.** Before you write or review a `Task`, an `await` in an actor, or a `@MainActor` method that does file I/O, use the **swift-concurrency** skill.
 - **Module map.** Before you look for a type or a file in `Sources/`, read the Decision table and **Folders** in `docs/decisions/0002-module-map.md`.
 - **Audio callbacks.** Before you write an audio callback (render block, tap, input proc, listener), read **Callbacks** in `docs/decisions/0013-live-capture.md`. Before code branches on an `OSStatus`, read **Status codes** there.
 - **Device clocks.** Before you store or align capture times, read **Timing** in `docs/decisions/0004-capture-pipeline.md`.

@@ -53,12 +53,19 @@ struct CrossfadeRendererTests {
     static func a(_ k: Int) -> Double { sin(.pi / 2 * Double(30_720 - k) / 10_240) }
     static func b(_ k: Int) -> Double { sin(.pi / 2 * Double(k) / 10_240) }
 
-    /// R1: the column at J - 1 of A is 3 dB under the top, within 1 px (fail value: the top row).
-    /// With no peaks for B, no waveform shows in B's box: A draws its waveform in its own box only.
+    /// R1: the column at J - 3 of A, the last column of A left of the 2 pt join (decision 0017), takes
+    /// the fade-out curve within 1 px (fail value: the top row). The join covers the columns at J - 2
+    /// to J + 1 over the whole lane. With no peaks for B, no waveform shows in B's box: A draws its
+    /// waveform in its own box only.
     @Test func theWaveformTakesTheCrossfadeCurve() throws {
         let pixels = try Self.render(try Self.inputs())
-        let top = try #require((0..<200).first { pixels.pixel(199, $0) != LanePalette.light.clip })
-        #expect(abs(top - Self.row(pow(10, -3.0 / 20))) <= 1, "top row \(top)")
+        let top = try #require((0..<200).first { pixels.pixel(197, $0) != LanePalette.light.clip })
+        #expect(abs(top - Self.row(Self.a(197 * 128))) <= 1, "top row \(top)")
+        for column in 198...201 {
+            #expect(
+                (0..<200).allSatisfy { pixels.pixel(column, $0) == LanePalette.light.join },
+                "the join covers the column \(column)")
+        }
 
         var inputs = try Self.inputs()
         inputs.peaks["f2"] = .unavailable

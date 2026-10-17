@@ -50,7 +50,7 @@ struct BridgeKeepAliveTests {
             var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(1)).route)
             return server.answer(progressCall("track_rename", rename))
         }
-        #expect(toolText(answer) == (generalLimitText(seconds: 1), true), "a short call got keep-alive frames")
+        #expect(toolText(answer) == (generalLimitText, true), "a short call got keep-alive frames")
     }
 
     /// C11: an `export` or `render` with no line at the limit tells the agent to check the output
@@ -94,8 +94,8 @@ struct BridgeKeepAliveTests {
     @Test func recordGetsNoGeneralLimitText() async throws {
         let record = try toolText(await limited("record", ["package": "/x.dirigible"]))
         let other = try toolText(await limited("track_rename", rename))
-        #expect(record == (recordLimitText, true) && record.text != generalLimitText(seconds: 1), "\(record)")
-        #expect(other == (generalLimitText(seconds: 1), true) && other.text != recordLimitText, "\(other)")
+        #expect(record == (recordLimitText, true) && record.text != generalLimitText, "\(record)")
+        #expect(other == (generalLimitText, true) && other.text != recordLimitText, "\(other)")
     }
 
     /// The answer of a call that gets no line for the 1 s limit of the bridge.

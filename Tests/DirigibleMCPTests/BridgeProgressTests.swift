@@ -43,7 +43,7 @@ struct BridgeProgressTests {
             var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(1)).route)
             return server.answer(progressCall("track_rename", rename))
         }
-        #expect(toolText(answer) == (generalLimitText(seconds: 1), true), "a junk line kept the call open")
+        #expect(toolText(answer) == (generalLimitText, true), "a junk line kept the call open")
     }
 
     /// C18: one buffer holds the reads of a call: a frame and the reply in one write give both.

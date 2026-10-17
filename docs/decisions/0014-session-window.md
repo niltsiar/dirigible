@@ -11,6 +11,7 @@
 - Amended: 2026-09-30. Open Recent and the start window read the recent sessions from the app preferences (key `recent.sessions`, absolute paths, 10 at most), not from `recentDocumentURLs`. The list of `NSDocumentController` belongs to the code signature, and each ad-hoc build has a new one. The app still calls `noteNewRecentDocumentURL` for the Dock menu (see 0027).
 - Amended: 2026-10-08, run app-bug-batch. In the Stop and Close question, Stop and Close is the default button (Return) with no destructive style, as Stop and Quit; Cancel has the cancel role (Esc). The questions after a failed save, Close and Quit, have the destructive style and no Return; Esc gives Cancel. One key must not drop edits that Undo cannot give back.
 - Amended: 2026-10-09, run `2026-10-09-autosave-backups` (see 0043). Versions is decided: it takes no part. Backups are copies of `session.xml` in `Backups/` of the package, and File > Revert To restores one as one undo entry that keeps `<recording>`.
+- Amended: 2026-10-17, run `2026-10-16-observation-hang`. `Studio.liveStates` mirrors the states of `liveTracks` and changes only at a state change. The track rows read it, and only the meter views read `liveTracks`, so a meter report runs no row body (see `docs/research/observation.md`).
 
 ## Context
 

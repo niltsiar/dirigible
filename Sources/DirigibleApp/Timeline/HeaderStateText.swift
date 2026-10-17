@@ -12,8 +12,8 @@ struct HeaderStateText: Equatable {
     }
 
     /// A listened track that plays no monitor sound (decision 0044), or nil.
-    static func quiet(live: LiveTrack?, quiet: Bool, loopback: Bool) -> Self? {
-        listenQuietText(live: live, quiet: quiet, loopback: loopback).map {
+    static func quiet(state: LiveTrack.State?, quiet: Bool, loopback: Bool) -> Self? {
+        listenQuietText(state: state, quiet: quiet, loopback: loopback).map {
             Self(row: L10n.trackListenQuietShort.text, full: $0)
         }
     }

@@ -46,10 +46,10 @@ extension HeaderRowTests {
         await model.close()
     }
 
-    /// C20: a level report of a take runs no more row bodies than on main, and no header body. The
-    /// take form reads the transport, which a level report does not change. The live
-    /// store version is not observed, so a row that reads it runs no more bodies (premortem 5).
-    @Test func aTakeTickRunsNoMoreRowBodies() async throws {
+    /// C20: a level report of a take runs no row body and no header body. The take form reads the
+    /// transport, and the rows read the live states: a level report changes neither (run
+    /// 2026-10-16-observation-hang C1). The meter tests are in `HeaderMeterRateTests`.
+    @Test func aTakeTickRunsNoRowBody() async throws {
         let (model, studio) = try await model()
         studio.transport = .recording(take: 1)
         studio.liveTracks["t1"] = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.1)
@@ -64,17 +64,11 @@ extension HeaderRowTests {
             host.layoutSubtreeIfNeeded()
             drawNow(window)
         }
-        #expect(model.headerRuns.rows <= Self.mainTickRows, "row bodies over 60 ticks: \(model.headerRuns.rows)")
-        // The rows still read the level reports, so the meter of a row moves.
-        #expect(model.headerRuns.rows > 0, "no row body over 60 ticks")
+        #expect(model.headerRuns.rows == 0, "row bodies over 60 ticks: \(model.headerRuns.rows)")
         // The take form reads the transport, not the level reports: no header body at a tick.
         #expect(model.headerRuns.headers == 0, "header bodies over 60 ticks: \(model.headerRuns.headers)")
         window.close()
         studio.transport = .idle
         await model.close()
     }
-
-    /// The row bodies of `aTakeTickRunsNoMoreRowBodies` before the take form (ad181e75): each
-    /// level report runs the 2 rows, as on main (c197e401), because each row reads `liveTracks`.
-    static let mainTickRows = 120
 }

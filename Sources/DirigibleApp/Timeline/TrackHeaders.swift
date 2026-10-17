@@ -120,26 +120,27 @@ private struct TrackRow: View {
                     // A lost device must show during a take at every lane height, so the route and
                     // the state stay on one line, in compact form.
                     if !taking { compactRoute } else if track.route != nil { takeRouteSymbol }
-                    if let live = studio.liveTracks[track.id] {
-                        CompactLiveState(live: live, source: sourceLabel, showsLoudness: showsCompactLoudness)
+                    if studio.liveStates[track.id] != nil {
+                        CompactLiveState(
+                            studio: studio, track: track.id, source: sourceLabel, showsLoudness: showsCompactLoudness)
                     }
                     if let quiet { quietSymbol(quiet) }
                 }
             }
             if secondLine {
-                let live = studio.liveTracks[track.id]
+                let state = studio.liveStates[track.id]
                 // The live state and the quiet symbol take the place of the fader, so the fader
                 // never reads as an input gain next to the meter. A tall row has the quiet text
                 // on line 3.
-                let fader = showsFader && live == nil && (quiet == nil || tall)
+                let fader = showsFader && state == nil && (quiet == nil || tall)
                 HStack(spacing: 8) {
                     // During a take an unrouted row shows no route: "Choose Input…" reads as an action.
                     Group { if !taking { routeMenu.disabled(!model.canEdit) } else if track.route != nil { takeRoute } }
                         .frame(minWidth: 0, maxWidth: 240, alignment: .leading)
                         .layoutPriority(fader ? 1 : 0)
-                    if let live {
+                    if state != nil {
                         LiveState(
-                            live: live, source: sourceLabel, showsNoSound: !tall,
+                            studio: studio, track: track.id, source: sourceLabel, showsNoSound: !tall,
                             openSettings: model.openAudioCaptureSettings)
                     }
                     if let quiet, !tall { quietSymbol(quiet) }
@@ -150,7 +151,7 @@ private struct TrackRow: View {
                             .fixedSize().disabled(!model.canEdit)
                     }
                 }
-                if tall { stateLine(live) }
+                if tall { stateLine(state) }
             }
         }
         .controlSize(.small)
@@ -287,7 +288,7 @@ private struct TrackRow: View {
     /// The state of a listened track that plays no monitor sound (decision 0044).
     private var quiet: HeaderStateText? {
         HeaderStateText.quiet(
-            live: studio.liveTracks[track.id], quiet: studio.quietListens.contains(track.id),
+            state: studio.liveStates[track.id], quiet: studio.quietListens.contains(track.id),
             loopback: studio.loopbackListens.contains(track.id))
     }
 
@@ -299,8 +300,8 @@ private struct TrackRow: View {
     /// Line 3 of a row of 80 pt or more: the short state on one line, then the "Privacy…" button of
     /// an app track that gets no sound. The full sentence wrapped to 3 to 13 lines (run
     /// 2026-10-11-ui-polish-header U5).
-    @ViewBuilder private func stateLine(_ live: LiveTrack?) -> some View {
-        let noSound = live?.state == .noSound
+    @ViewBuilder private func stateLine(_ liveState: LiveTrack.State?) -> some View {
+        let noSound = liveState == .noSound
         if let state = noSound ? HeaderStateText.noSound(sourceLabel) : quiet {
             HStack(spacing: 8) {
                 Text(verbatim: state.row).foregroundStyle(.orange).lineLimit(1).truncationMode(.tail)

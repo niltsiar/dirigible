@@ -18,7 +18,8 @@ struct ImportCommand: ParsableCommand {
             mono file on a stereo track goes to both channels. Then the clip gets the gain of Auto \
             Level: -16 LUFS for a stereo track and -19 LUFS for a mono track. With --no-level, the clip \
             keeps the gain of the conversion: 0 dB, or the gain that gives back the level of a file \
-            with a peak over full scale. With --db, the clip gets that gain, and no level runs. \
+            with a peak over full scale. With --db, the clip gets the gain of the conversion plus that \
+            gain, and no level runs. \
             --id gives the clip ID; the file ID and the WAV keep the file name. --offset and --length \
             are frames of the made WAV at the session rate, so the clip takes a part of the file; a \
             --length past the end of the WAV stops at its end. The level measures that part. \
@@ -39,7 +40,9 @@ struct ImportCommand: ParsableCommand {
     var offset = 0
     @Option(parsing: .unconditional, help: "The clip length in frames of the made WAV. The default is the rest.")
     var length: Int?
-    @Option(parsing: .unconditional, help: "The clip gain in dB. No auto level runs.", transform: parseGain)
+    @Option(
+        parsing: .unconditional, help: "The clip gain in dB, relative to the level of the file. No auto level runs.",
+        transform: parseGain)
     var db: Gain?
     @Option(parsing: .unconditional, help: "The fade-in length in frames.") var fadeIn = 0
     @Option(parsing: .unconditional, help: "The fade-out length in frames.") var fadeOut = 0

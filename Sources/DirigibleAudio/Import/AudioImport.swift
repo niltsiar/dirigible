@@ -25,8 +25,9 @@ public enum ImportError: Error, Hashable, Sendable {
 /// Converts `source` into `Clips/<stem>.wav` at the session rate and the target layout, adds the
 /// file, the clip, and a new track when `target.track` is nil, and levels the clip with
 /// `autoLevel(.eachClip)` when `level` and `target` has no gain (decision 0040). The clip has the
-/// ID, the range of the made WAV, the gain, and the fades of `target`; a length past the end of
-/// the WAV stops at its end. The clip overwrites the clips under it, as a placement does. It
+/// ID, the range of the made WAV, and the fades of `target`, and the gain of the conversion plus
+/// the gain of `target`, clamped to `Gain.range`; a length past the end of the WAV stops at its
+/// end. The clip overwrites the clips under it, as a placement does. It
 /// never writes `session.xml`, and it blocks until the end, so never call it on the main actor.
 /// It returns the WAV that it renamed as `made`, or nil when the clip reuses a pool file with the
 /// same bytes (`identicalPoolFile`).
@@ -106,7 +107,8 @@ public func importAudio(
     let rest = Frames(length) - target.offset
     let shaped = Clip(
         id: clip, file: file, start: target.start, offset: target.offset,
-        length: target.length.map { min($0, rest) } ?? rest, gain: target.gain ?? gain, fades: target.fades)
+        length: target.length.map { min($0, rest) } ?? rest,
+        gain: target.gain.map { Gain(clamping: gain.dB + $0.dB) ?? gain } ?? gain, fades: target.fades)
     var imported = session
     do throws(SessionError) {
         if target.track == nil { try imported.addTrack(track, name: stem, layout: layout) }

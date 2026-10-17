@@ -38,6 +38,14 @@
 #   one line with its tool calls, wall minutes, error results (at most 5 commands, 80 characters
 #   each), the commands that ran more than once (the 3 most), and its gaps over 5 min. The other
 #   files are unattributed.
+# - lock: the minutes of wait and of hold in the lock logs (dirigible-build-waits.log and
+#   dirigible-build-holds.log of the git common dir) for the tree of the `- Worktree:` line of
+#   run.md (a relative path starts at the checkout that holds the run folder), for the lines that
+#   start in the window. A line of another tree, and a wait line of 4 columns (no tree), do not count.
+# - tokens: one line for each model, `tokens: <model> in <i> out <o> cache-read <r>
+#   cache-write-5m <w5> cache-write-1h <w1>`, for the replies of the transcript in the window and
+#   of the attributed subagents. Each reply counts once by message.id and requestId, and each
+#   usage.iterations entry counts under its own model (an advisor_message names the advisor).
 # - pace: open to merge, when run.md names a pull request that gh lists as merged; the merges
 #   on each of the last 10 days with a merge (local dates).
 # cost.test.sh tests it.
@@ -120,6 +128,25 @@ else
     from="$(stat -f %B "$run")" to="$(date +%s)"
 fi
 echo "window: ${first:-$open} to ${last:-now}"
+# The lock minutes of the run tree: the logs hold local ISO times and the tree of each call.
+worktree="$(sed -n 's/^- Worktree: \([^ ]*\).*/\1/p' "$run/run.md" 2>/dev/null | head -n 1 || true)"
+if [[ -z "$worktree" ]]; then
+    echo "lock: no Worktree line in run.md"
+else
+    [[ "$worktree" == /* ]] || worktree="$(git -C "$run" rev-parse --show-toplevel 2>/dev/null || echo "$run")/$worktree"
+    tree="$(git -C "$worktree" rev-parse --show-toplevel 2>/dev/null || true)"
+    common="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [[ -z "$tree" || -z "$common" ]]; then
+        echo "lock: no git tree at the Worktree line of run.md"
+    else
+        # lock_min <log> <tree column>: the minutes of the lines of this tree that start in the window.
+        lock_min() {
+            awk -F'\t' -v tree="$tree" -v col="$2" -v from="$(date -r "$from" +%FT%T)" -v to="$(date -r "$to" +%FT%T)" \
+                '$1 >= from && $1 <= to && $col == tree { sum += $2 } END { printf "%d", sum / 60 }' "$1" 2>/dev/null || printf 0
+        }
+        echo "lock: $(lock_min "$common/dirigible-build-waits.log" 5) min wait, $(lock_min "$common/dirigible-build-holds.log" 4) min hold"
+    fi
+fi
 if [[ -n "$transcript" && -f "$transcript" ]]; then
     jq -r --argjson from "$from" --argjson to "$to" 'select(.timestamp) |
         (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t | select($t >= $from and $t <= $to) |
@@ -133,6 +160,7 @@ else
     echo "idle: no transcript"
 fi
 
+attributed=()
 if [[ -z "$transcript" || ! -f "$transcript" ]]; then
     echo "subagents: no transcript"
 elif [[ ! -d "${transcript%.jsonl}/subagents" ]]; then
@@ -148,6 +176,7 @@ else
         t0="${start%% *}" rest="${start#* }"
         t1="${rest%% *}"
         if [[ "$t0" =~ ^[0-9]+$ && "$t1" =~ ^[0-9]+$ ]] && ((t0 <= to && t1 >= since)) && grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"${rest#* }"; then
+            attributed+=("$f")
             jq -r -s --arg file "$(basename "$f" .jsonl)" '
                 ([.[] | select(.timestamp) | .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601] | sort) as $t
                 | [.[] | .message.content[]? | objects | select(.type == "tool_use")
@@ -165,6 +194,29 @@ else
         fi
     done < <(find "${transcript%.jsonl}/subagents" -name 'agent-*.jsonl' -type f | sort)
     echo "unattributed: $other files"
+fi
+
+# One row for each usage entry of a reply: the awk keeps the first row of each reply and entry.
+if [[ -z "$transcript" || ! -f "$transcript" ]]; then
+    echo "tokens: no transcript"
+else
+    rows='select(.type == "assistant" and (.message.usage | type) == "object")
+        | (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t
+        | select($all or ($t >= $from and $t <= $to))
+        | .message as $m | .requestId as $r
+        | (if ($m.usage.iterations | length) > 0 then $m.usage.iterations else [$m.usage] end) | to_entries[]
+        | .key as $i | .value as $u | ($u.cache_creation.ephemeral_1h_input_tokens // 0) as $w1
+        | [$m.id, $r, ($u.model // $m.model // "unknown"), ($u.input_tokens // 0), ($u.output_tokens // 0),
+           ($u.cache_read_input_tokens // 0), (($u.cache_creation_input_tokens // 0) - $w1), $w1, $i] | @tsv'
+    {
+        jq -r --argjson from "$from" --argjson to "$to" --argjson all false "$rows" "$transcript"
+        for f in ${attributed[@]+"${attributed[@]}"}; do jq -r --argjson from 0 --argjson to 0 --argjson all true "$rows" "$f"; done
+    } | awk -F'\t' '
+        !seen[$1, $2, $9]++ { m[$3] = 1; i[$3] += $4; o[$3] += $5; r[$3] += $6; w5[$3] += $7; w1[$3] += $8 }
+        END {
+            for (k in m) printf "tokens: %s in %.0f out %.0f cache-read %.0f cache-write-5m %.0f cache-write-1h %.0f\n", k, i[k], o[k], r[k], w5[k], w1[k]
+            if (length(m) == 0) print "tokens: none"
+        }' | sort
 fi
 
 if prs="$(gh pr list --state merged --limit 100 --json number,createdAt,mergedAt,title 2>/dev/null)" && [[ -n "$prs" ]]; then

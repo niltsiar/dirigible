@@ -27,10 +27,10 @@ public enum ImportError: Error, Hashable, Sendable {
 /// `autoLevel(.eachClip)` when `level` and `target` has no gain (decision 0040). The clip has the
 /// ID, the range of the made WAV, and the fades of `target`, and the gain of the conversion plus
 /// the gain of `target`, clamped to `Gain.range`; a length past the end of the WAV stops at its
-/// end. The clip overwrites the clips under it, as a placement does. It
-/// never writes `session.xml`, and it blocks until the end, so never call it on the main actor.
-/// It returns the WAV that it renamed as `made`, or nil when the clip reuses a pool file with the
-/// same bytes (`identicalPoolFile`).
+/// end. The clip overwrites the clips under it, as a placement does. It never writes
+/// `session.xml`, and it blocks until the end, so never call it on the main actor. It returns the
+/// WAV that it renamed as `made`, or nil when the clip reuses a pool file with the same bytes
+/// (`identicalPoolFile`).
 ///
 /// The order: the download check (`isDownloaded`, before any read), the source checks, the target
 /// checks, the disk check (`freeBytes`, the free bytes of the volume of the package lock), the

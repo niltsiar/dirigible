@@ -183,10 +183,12 @@ struct LiveToolTests {
         }
 
         let info = await send(folder.socket, "session_info", ["package": package.path])
+        let compact = await send(folder.socket, "session_info", ["package": package.path, "compact": true])
         let episode = await send(folder.socket, "episode_get", ["package": package.path])
         let backups = await send(folder.socket, "backup_list", ["package": package.path])
 
         #expect(replyText(info).contains("\"Unsaved\""), "session_info: \(info)")
+        #expect(replyText(compact).contains("\"Unsaved\"") && !replyText(compact).contains("\"files\""), "\(compact)")
         #expect(replyText(episode) == #"{"title":"Pilot"}"#)
         #expect(replyText(backups) == "No backups.")
         #expect(try Session(contentsOf: package.url).track("t1")?.name == "Host", "the autosave waits")

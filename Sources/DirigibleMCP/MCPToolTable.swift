@@ -36,6 +36,9 @@ private let infoFrom = Param<Int?>.optional(
     "from", "Only the clips and markers from this frame. Give it with to.", .integer())
 private let infoTo = Param<Int?>.optional(
     "to", "Only the clips and markers to this frame. Give it with from.", .integer())
+private let infoCompact = Param.defaulted(
+    "compact", "Only sampleRate, tracks with their clips, and markers: no files, captures, or episode.", .boolean,
+    false)
 
 let sessionTools = [
     Tool("session_create", "Make an empty session package.", [sampleRate], saves: false) { a throws(ToolError) in
@@ -49,9 +52,10 @@ let sessionTools = [
         "session_info",
         "Read a session package as compact JSON, the JSON of dirigible info --json. For a long session, read it "
             + "in parts with from and to (a frame range), or with tracks. An answer over \(sessionInfoBudget) characters is an "
-            + "overview: each track with its clip count, the end frame, and the marker count. episode_get reads the "
-            + "episode of any session.",
-        [infoTracks, infoFrom, infoTo], saves: false
+            + "overview: each track with its clip count, the end frame, and the marker count. With compact, the JSON "
+            + "has only sampleRate, tracks with their clips, and markers, so a read costs fewer tokens. episode_get "
+            + "reads the episode of any session.",
+        [infoTracks, infoFrom, infoTo, infoCompact], saves: false
     ) { a throws(ToolError) in
         let (from, to) = (try a[infoFrom], try a[infoTo])
         var range: Range<Frames>?
@@ -64,7 +68,7 @@ let sessionTools = [
             range = checked
         default: throw ToolError("Give from and to, or neither.")
         }
-        return .info(tracks: try a[infoTracks]?.map { TrackID($0) }, range: range)
+        return .info(tracks: try a[infoTracks]?.map { TrackID($0) }, range: range, compact: try a[infoCompact])
     }.hinted(.readOnly),
 ]
 

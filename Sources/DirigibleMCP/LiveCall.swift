@@ -33,9 +33,10 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             if let artwork = work.artwork, !artwork.isEmpty { return refusedOpen }
             try edit(ripple: false) { session in session.setEpisode(work.episode(from: session.episode)) }
             return .result(text: "OK", isError: false)
-        case .info(let tracks, let range):
+        case .info(let tracks, let range, let compact):
             do throws(ToolError) {
-                let text = try infoText(studio.session, media: studio.missingMedia, tracks: tracks, range: range)
+                let text = try infoText(
+                    studio.session, media: studio.missingMedia, tracks: tracks, range: range, compact: compact)
                 return .result(text: text, isError: false)
             } catch {
                 return .result(text: error.message, isError: true)

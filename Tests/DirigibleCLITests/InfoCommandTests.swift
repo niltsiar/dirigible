@@ -164,6 +164,83 @@ struct InfoCommandTests {
             try await dirigible("info", package.path, "--json") == CLIResult(status: 0, stdout: expected, stderr: ""))
     }
 
+    /// C16: `--compact` keeps `markers`, `sampleRate`, and `tracks`; it needs `--json`.
+    @Test func infoJSONCompact() async throws {
+        let expected = """
+            {
+              "markers" : [
+                {
+                  "id" : "m2",
+                  "kind" : "chapter",
+                  "name" : "Intro",
+                  "position" : 48000
+                },
+                {
+                  "id" : "m1",
+                  "kind" : "marker",
+                  "name" : "Note",
+                  "position" : 96000
+                }
+              ],
+              "sampleRate" : 48000,
+              "tracks" : [
+                {
+                  "clips" : [
+                    {
+                      "file" : "f1",
+                      "gain" : 0,
+                      "id" : "c1",
+                      "length" : 96000,
+                      "offset" : 0,
+                      "start" : 0
+                    },
+                    {
+                      "file" : "f1",
+                      "gain" : -6,
+                      "id" : "c1@96000",
+                      "length" : 384000,
+                      "offset" : 96000,
+                      "start" : 96000
+                    }
+                  ],
+                  "gain" : -3.5,
+                  "id" : "host",
+                  "layout" : "mono",
+                  "name" : "Host",
+                  "route" : {
+                    "channels" : [
+                      1
+                    ],
+                    "device" : "BuiltIn"
+                  }
+                },
+                {
+                  "clips" : [
+                    {
+                      "file" : "f2",
+                      "gain" : 0,
+                      "id" : "c3",
+                      "length" : 1000,
+                      "offset" : 0,
+                      "start" : 0
+                    }
+                  ],
+                  "gain" : 0,
+                  "id" : "guest",
+                  "layout" : "stereo",
+                  "name" : "Guest"
+                }
+              ]
+            }
+
+            """
+        #expect(
+            try await dirigible("info", package.path, "--json", "--compact")
+                == CLIResult(status: 0, stdout: expected, stderr: ""))
+        let text = try await dirigible("info", package.path, "--compact")
+        #expect(text.status == 64 && text.stdout.isEmpty && text.stderr.contains("--compact"), "\(text)")
+    }
+
     /// A2: `info` shows an app route, and `info --json` shows the session version.
     @Test func infoShowsAnAppRouteAndVersion2() async throws {
         try package.edit { try $0.setRoute(.app(bundleID: "us.zoom.xos"), track: "guest") }

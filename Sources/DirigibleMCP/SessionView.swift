@@ -141,13 +141,25 @@ package struct SessionView: Encodable {
         }
     }
 
+    /// The keys of `info --json --compact` and of `session_info` with `compact`: what an agent
+    /// needs to edit, with no file, capture, version, recording, or episode.
+    private struct CompactView: Encodable {
+        let sampleRate: Int
+        let tracks: [TrackView]
+        let markers: [MarkerView]
+    }
+
     /// Pretty JSON with a newline at the end for `info --json`, or compact JSON on one line for
-    /// `session_info`.
-    package func json(pretty: Bool = true) throws -> String {
+    /// `session_info`. With `compact`, only `sampleRate`, `tracks`, and `markers`.
+    package func json(pretty: Bool = true, compact: Bool = false) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         if pretty { encoder.outputFormatting.insert(.prettyPrinted) }
-        return String(decoding: try encoder.encode(self), as: UTF8.self) + (pretty ? "\n" : "")
+        let data =
+            compact
+            ? try encoder.encode(CompactView(sampleRate: sampleRate, tracks: tracks, markers: markers))
+            : try encoder.encode(self)
+        return String(decoding: data, as: UTF8.self) + (pretty ? "\n" : "")
     }
 
     /// Only the `tracks`, and only the clips and markers that touch `range`: a clip touches it when

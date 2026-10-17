@@ -51,8 +51,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         } catch {
             throw ToolError(error.message(package: path))
         }
-    case .info(let tracks, let range):
-        return try info(package, path: path, tracks: tracks, range: range)
+    case .info(let tracks, let range, let compact):
+        return try info(package, path: path, tracks: tracks, range: range, compact: compact)
     case .backups:
         if let message = missingSessionFile(package, path: path) { throw ToolError(message) }
         let names = Backup.all(in: package).map(\.fileName)
@@ -122,7 +122,9 @@ private func read(_ package: URL, path: String) throws(ToolError) -> Session {
 }
 
 /// `session_info`: the compact JSON of `info --json`, read with no lock, as `dirigible info`.
-private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range<Frames>?) throws(ToolError) -> String {
+private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range<Frames>?, compact: Bool)
+    throws(ToolError) -> String
+{
     let session = try read(package, path: path)
     try checkTracks(tracks, in: session)
     let media: [FileID: MediaFault]
@@ -131,20 +133,20 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     } catch {
         throw ToolError(mediaCheckMessage(error))
     }
-    return try infoText(session, media: media, tracks: tracks, range: range)
+    return try infoText(session, media: media, tracks: tracks, range: range, compact: compact)
 }
 
 /// The `session_info` text of a session and its media faults: the file path and the live path
 /// of an agent give the same JSON (decision 0046).
-func infoText(_ session: Session, media: [FileID: MediaFault], tracks: [TrackID]?, range: Range<Frames>?)
-    throws(ToolError) -> String
-{
+func infoText(
+    _ session: Session, media: [FileID: MediaFault], tracks: [TrackID]?, range: Range<Frames>?, compact: Bool
+) throws(ToolError) -> String {
     try checkTracks(tracks, in: session)
     let whole = SessionView(session, media: media)
     let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String
     do {
-        text = try view.json(pretty: false)
+        text = try view.json(pretty: false, compact: compact)
     } catch {
         // SessionView holds only strings and numbers, so the encode does not fail.
         throw ToolError("cannot write the session as JSON: \(error.localizedDescription)")

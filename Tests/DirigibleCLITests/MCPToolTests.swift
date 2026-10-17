@@ -76,11 +76,9 @@ struct MCPToolTests {
         #expect(unknown.isError && unknown.text == "no track \"nope\".", "\(unknown)")
     }
 
-    /// C9a: 6 tracks of 201 clips, each split from the right part of the split before, so the IDs
-    /// chain as the app makes them (c1@10000@20000...). An answer over `sessionInfoBudget` is the
-    /// overview. The JSON of 1950001...2010000 has 56,443 characters, which Claude Code refused
-    /// (over 25,000 tokens, decisions.tsv M1 measure). A short from/to range gives the full JSON.
-    @Test func sessionInfoOfALongSessionGivesAnOverview() async throws {
+    /// 6 tracks of 201 clips, each split from the right part of the split before, so the IDs chain
+    /// as the app makes them (c1@10000@20000...), and one marker.
+    private func longPackage() throws -> TemporaryPackage {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 2_010_000))
         for track in 1...6 {
@@ -91,7 +89,14 @@ struct MCPToolTests {
             for split in 1...200 { right = try session.split(right, at: Frames(split * 10_000)) }
         }
         try session.setMarker(Marker(id: "m", name: "M", position: 0, kind: .marker))
-        let long = try TemporaryPackage(session)
+        return try TemporaryPackage(session)
+    }
+
+    /// C9a: An answer over `sessionInfoBudget` is the overview. The JSON of 1950001...2010000 has
+    /// 56,443 characters, which Claude Code refused (over 25,000 tokens, decisions.tsv M1 measure).
+    /// A short from/to range gives the full JSON.
+    @Test func sessionInfoOfALongSessionGivesAnOverview() async throws {
+        let long = try longPackage()
         let answers = try await mcp([
             toolCall(1, "session_info", ["package": long.path]),
             toolCall(2, "session_info", ["package": long.path, "tracks": ["track-1"]]),
@@ -123,6 +128,33 @@ struct MCPToolTests {
         #expect((json(one)?["tracks"] as? [[String: Any]])?.first?["clips"] as? Int == 201, "one track: overview")
         let clips = (json(range)?["tracks"] as? [[String: Any]])?.map { ($0["clips"] as? [Any])?.count }
         #expect(clips == Array(repeating: 6, count: 6), "the range 0...50000 holds 6 clips of each track")
+    }
+
+    /// C16: `compact` keeps `sampleRate`, `tracks` with their clips, and `markers`. The filters and
+    /// the overview rule hold, and `compact` false gives the JSON of `info --json`.
+    @Test func aCompactInfoHasOnlyTracksClipsAndMarkers() async throws {
+        let full = try #require(json(try await info().text))
+        let compact = try await info(["compact": true])
+        let object = try #require(json(compact.text))
+        #expect(!compact.isError && !compact.text.contains("\n"), "one compact line: \(compact.text)")
+        #expect(Set(object.allKeys.compactMap { $0 as? String }) == ["markers", "sampleRate", "tracks"], "\(object)")
+        for key in ["markers", "sampleRate", "tracks"] { #expect(object[key] as? NSObject == full[key] as? NSObject) }
+        #expect(json(try await info(["compact": false]).text) == full, "compact false is the JSON of now")
+
+        let byTrack = json(try await info(["compact": true, "tracks": ["b"]]).text)
+        #expect(Set(byTrack?.allKeys.compactMap { $0 as? String } ?? []) == ["markers", "sampleRate", "tracks"])
+        #expect((byTrack?["tracks"] as? [[String: Any]])?.map { $0["id"] as? String } == ["b"])
+        let byRange = json(try await info(["compact": true, "from": 1000, "to": 3000]).text)
+        let tracks = byRange?["tracks"] as? [[String: Any]] ?? []
+        let clips = tracks.map { ($0["clips"] as? [[String: Any]] ?? []).map { $0["id"] as? String ?? "" } }
+        #expect(clips == [["A1", "A2"], ["B1"]])
+        #expect((byRange?["markers"] as? [[String: Any]])?.map { $0["id"] as? String } == ["m1"])
+
+        let long = try longPackage()
+        let overview = toolResult(
+            answer(try await mcp([toolCall(1, "session_info", ["package": long.path, "compact": true])]), id: 1))
+        let note = json(overview.text)?["note"] as? String ?? ""
+        #expect(overview.text.count <= sessionInfoBudget && note.contains("This is an overview"), "\(overview.text)")
     }
 
     @Test func sessionCreateMatchesCreate() async throws {
@@ -234,7 +266,7 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// C5 and W1: 47 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// C5 and W1: 48 tools in a fixed order, each with a description and a closed schema with `package`,
     /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
@@ -250,7 +282,9 @@ struct MCPToolTests {
                 "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
                 "clip_crossfade", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim", "transcript_import",
                 "transcript_words", "transcript_cut", "backup_list",
-                "backup_revert", "record", "loudness", "export", "render", "level", "import", "devices", "apps",
+                "backup_revert", "record", "loudness", "export", "render", "level", "import", "chapters_export",
+                "devices",
+                "apps",
             ])
         for tool in tools {
             let name = tool["name"] as? String ?? ""

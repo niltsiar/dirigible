@@ -119,10 +119,10 @@ struct BridgeTests {
         ]
         #expect(
             texts == [
-                "Dirigible gave no reply in 30 s. The call may have run: read the session before you try again.",
-                "Dirigible gave no reply in 30 s. The export can still write its file: check the output file, "
+                "Dirigible sent nothing for 30 s. The call may have run: read the session before you try again.",
+                "Dirigible sent nothing for 30 s. The export can still write its file: check the output file, "
                     + "and read the session before you try again.",
-                "Dirigible gave no reply in 30 s. The take can still start after a system prompt. Tell the user to "
+                "Dirigible sent nothing for 30 s. The take can still start after a system prompt. Tell the user to "
                     + "check the Dirigible window, and read the session before you try again.",
             ])
         let named = texts.filter { text in ["busy", "main thread", "closed"].contains { text.contains($0) } }
@@ -196,7 +196,7 @@ struct BridgeTests {
 
 /// The limit text of a tool other than `export`, `render`, and `record` at the 1 s limit of the tests (C8).
 let generalLimitText =
-    "Dirigible gave no reply in 1 s. The call may have run: read the session before you try again."
+    "Dirigible sent nothing for 1 s. The call may have run: read the session before you try again."
 
 /// A fake app socket on its own thread. For each call line, `answer` gets the call number (from
 /// 1) and gives the action.

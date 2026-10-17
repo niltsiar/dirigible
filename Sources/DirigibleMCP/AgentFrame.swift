@@ -78,18 +78,22 @@ package let lostCallMessage =
 /// The lost-call text of `export` and `render` at a close: a job past its last cancel check still
 /// writes its file.
 func lostFileMessage(_ tool: String) -> String {
-    "The connection to Dirigible closed during the call. The \(tool) can still write its file: check the output "
-        + "file, and read the session before you try again."
+    "The connection to Dirigible closed during the call. \(fileAdvice(tool))"
 }
 
-/// The error text of a call that got no line from the app for `seconds`. It states the limit and
-/// what the bridge does not know: the call may have run, and no cause is named.
+/// The advice of `export` and `render` when the bridge does not know if the job wrote its file.
+private func fileAdvice(_ tool: String) -> String {
+    "The \(tool) can still write its file: check the output file, and read the session before you try again."
+}
+
+/// The error text of a call that got no line from the app for `seconds`. A progress line restarts
+/// the limit, so the text says only that nothing came. It names no cause.
 func limitMessage(tool: String, seconds: Int) -> String {
-    let head = "Dirigible gave no reply in \(seconds) s."
+    let head = "Dirigible sent nothing for \(seconds) s."
     let tail = "read the session before you try again."
     switch tool {
     case "export", "render":
-        return "\(head) The \(tool) can still write its file: check the output file, and \(tail)"
+        return "\(head) \(fileAdvice(tool))"
     case "record":
         return "\(head) The take can still start after a system prompt. Tell the user to check the Dirigible window, "
             + "and \(tail)"

@@ -58,7 +58,7 @@ extension LiveLanes {
         guard let head, let recording = studio.session.recording, let live = studio.transport.liveTake else { return }
         var tracks: [TrackID: (peaks: LivePeaks, state: LiveTrack.State?)] = [:]
         for id in recording.armedTracks {
-            if let peaks = studio.livePeaks(of: id) { tracks[id] = (peaks, studio.liveTracks[id]?.state) }
+            if let peaks = studio.livePeaks(of: id) { tracks[id] = (peaks, studio.liveStates[id]) }
         }
         take = Take(number: recording.take, finalizing: live.finalizing, head: head, tracks: tracks)
     }

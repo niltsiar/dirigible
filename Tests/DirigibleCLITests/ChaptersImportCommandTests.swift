@@ -68,7 +68,7 @@ struct ChaptersImportCommandTests {
             "PATH: chapter 1 has no startTime that is a number of seconds, 0 or more."
         ),
         (
-            #"{"version": "1.2.0", "chapters": [{"startTime": 0, "title": "A\tB"}]}"#,
+            #"{"version": "1.2.0", "chapters": [{"startTime": 0, "title": "A\u0007B"}]}"#,
             "PATH: the title of chapter 1 has a control character."
         ),
         (

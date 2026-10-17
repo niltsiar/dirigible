@@ -1,0 +1,30 @@
+import Foundation
+
+@MainActor
+final class Studio {
+    private(set) var takeCount = 0
+    private let writer = DeviceWriter()
+
+    func startTake(sessionURL: URL, state: Data) async throws {
+        let fd = open(sessionURL.path, O_WRONLY | O_CREAT, 0o644)
+        guard fd >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { close(fd) }
+        _ = state.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+        _ = fcntl(fd, F_FULLFSYNC)
+        takeCount += 1
+        await writer.start()
+    }
+}
+
+final class DeviceWriter: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "DeviceWriter")
+
+    func start() async {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                // Drain the ring buffer to the CAF file of the device.
+                continuation.resume()
+            }
+        }
+    }
+}

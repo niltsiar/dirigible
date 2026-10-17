@@ -26,7 +26,7 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 
 More targets are in the `Makefile`: read the comment above the recipe, or the header of the script that it runs.
 
-Run each build, test, and bench as `scripts/with-lock.sh <command>`: each `swift` command, `scripts/land.sh`, and each `make` target except `check-docs`, `lint`, and `format`. `scripts/swift-test.sh`, `scripts/test-shards.sh`, `scripts/bench.sh`, `scripts/bench-pairs.sh`, and `scripts/sanitize.sh` take the lock themselves. In a probe, put it first: `scripts/with-lock.sh scripts/probe.sh <folder> <command>`. A wait over its limit exits 75 (run it again), a hold exits 124. After a second exit 75, or for a push check, a land, `make dmg`, or a loop, run `WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>` with `run_in_background` and a Bash `timeout` of 7200000; a subagent returns to the lead. Never take or remove the build lock by hand.
+Run each build, test, and bench as `scripts/with-lock.sh <command>`: each `swift` command, `scripts/land.sh`, and each `make` target except `check-docs`, `check-fast`, `lint`, and `format`. `scripts/swift-test.sh`, `scripts/test-shards.sh`, `scripts/bench.sh`, `scripts/bench-pairs.sh`, and `scripts/sanitize.sh` take the lock themselves. In a probe, put it first: `scripts/with-lock.sh scripts/probe.sh <folder> <command>`. A wait over its limit exits 75 (run it again), a hold exits 124. After a second exit 75, or for a push check, a land, `make dmg`, or a loop, run `WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>` with `run_in_background` and a Bash `timeout` of 7200000; a subagent returns to the lead. Never take or remove the build lock by hand.
 
 ## How to work
 

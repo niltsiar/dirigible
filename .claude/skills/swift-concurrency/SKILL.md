@@ -6,13 +6,13 @@ description: Diagnose and review Swift Concurrency code and refactor callbacks t
 
 ## Dirigible
 
-The settings are known. Do not ask for them.
+The settings are known. Skip step 1 of Fast Path.
 
 - Swift 6 language mode (`// swift-tools-version: 6.2`), no `defaultIsolation`, no upcoming or experimental features, minimum macOS 14.
 - These rules win over this skill, for example over "prefer actor over locks or queues": `docs/decisions/0004-capture-pipeline.md` (each device writer runs on its own serial `DispatchQueue`, never on the cooperative pool), **Callbacks** in `docs/decisions/0013-live-capture.md` (no lock, allocation, log, file I/O, or `await` on a real-time thread), and **Concurrency** in `CODING_STANDARDS.md`.
-- On macOS 14, `assumeIsolated` on an actor with a custom `DispatchSerialQueue` executor crashes when a dispatch block calls it (no SE-0424 `checkIsolated`). `MainActor.assumeIsolated` from a main-queue block is safe. `Player` in `Sources/DirigibleAudio/Render/Player.swift` is the pattern for an actor on its own `DispatchSerialQueue`.
+- On macOS 14, `assumeIsolated` on an actor with a custom `DispatchSerialQueue` executor crashes when a dispatch block calls it (no SE-0424 `checkIsolated`). `MainActor.assumeIsolated` from a main-queue block is safe. `Player` (`Sources/DirigibleAudio/Render/Player.swift`) is the pattern for an actor on its own `DispatchSerialQueue`.
 - File I/O, `fsync`, and `F_FULLFSYNC` never run on the main actor.
-- Run each `swift` or `make` command through `scripts/with-lock.sh`. A bare `swift test` fails here (`AGENTS.md`, Commands).
+- Run each `swift` or `make` command through `scripts/with-lock.sh`, except `make check-docs`, `check-fast`, `lint`, and `format`. A bare `swift test` fails here.
 
 ## Fast Path
 

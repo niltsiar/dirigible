@@ -217,8 +217,9 @@ workflow_docs=("$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/ski
 
 # Each workflow doc stays within its row of docs/workflow/budgets.tsv (path, words, decision), in
 # words of `wc -w`. A row that ends in / limits the sum of the budgeted files of that folder, and
-# the TOTAL row limits the sum of all of them. A row whose decision cell starts with `vendored:` caps
-# its own file or folder and stays out of TOTAL. The QUOTA row is the TOTAL of the last consolidation
+# the TOTAL row limits the sum of all of them. A row whose decision cell starts with `vendored:`, under a
+# skill folder that the table of .claude/skills/THIRD_PARTY.md lists, caps its own file or folder and stays
+# out of TOTAL. The QUOTA row is the TOTAL of the last consolidation
 # (decision 0028, Word budgets). Each row names the reason of its value (decision 0028).
 budgets="$root/docs/workflow/budgets.tsv"
 [[ -f "$budgets" ]] || { err "docs/workflow/budgets.tsv is missing"; budgets=/dev/null; }
@@ -227,10 +228,18 @@ for f in "${workflow_docs[@]}"; do
     [[ -f "$f" ]] || continue
     counts+="${f#"$root"/}	$(wc -w <"$f" | tr -d ' ')"$'\n'
 done
-while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$counts" | awk -F'\t' '
+third_party="$(sed -n 's/^| `\([a-z0-9-]*\)` .*/\1/p' "$root/.claude/skills/THIRD_PARTY.md" 2>/dev/null | tr '\n' ' ' || true)"
+while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$counts" | awk -F'\t' -v listed=" $third_party" '
     FILENAME == "-" { words[$1] = $2; next }
     FNR == 1 { next }
-    { row[$1] = $2; if ($3 ~ /^vendored:/) vendored[$1] = 1; if ($3 == "") print "the row for " $1 " has no decision" }
+    {
+        row[$1] = $2
+        if ($3 == "") print "the row for " $1 " has no decision"
+        if ($3 !~ /^vendored:/) next
+        vendored[$1] = 1
+        ok = match($1, /^\.claude\/skills\/[^\/]+\//) && index(listed, " " substr($1, 16, RLENGTH - 16) " ")
+        if (!ok) print "the vendored row for " $1 " is not under a skill listed in .claude/skills/THIRD_PARTY.md"
+    }
     END {
         for (f in words) {
             if (!(f in vendored)) sum += words[f]

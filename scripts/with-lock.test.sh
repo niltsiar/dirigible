@@ -19,7 +19,7 @@ tmp="$(mktemp -d)"
 holder="" child="" waiter="" inner="" other=""
 trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 # The value of an outer with-lock.sh call names another lock.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -448,8 +448,9 @@ reset_builders
 # The hold limit WITH_LOCK_MAX_HOLD: a command that runs past it gets TERM on its process group,
 # then KILL after WITH_LOCK_HOLD_GRACE seconds; the lock goes, the hold line gets the fifth column
 # limit, and the call exits 124. A command that ends in time keeps its status, and 0 turns the
-# limit off. The default is in $lock/maxhold while the lock is held: 30 min, and for a release call
-# 2 times the newest push-check hold in the log, at least 60 min.
+# limit off. The default is in $lock/maxhold while the lock is held: 30 min, and for a call with no
+# wait limit (a release call, WITH_LOCK_MAX_WAIT=0) 2 times the newest push-check hold in the log,
+# at least 60 min.
 reset_builders
 rm -f "$tmp/inner"
 printf '#!/bin/bash\necho $$ > "%s"\ntrap "" TERM\nwhile :; do sleep 0.2; done\n' "$tmp/inner" > "$fake/stubborn"
@@ -487,9 +488,13 @@ chmod +x "$tmp/relbin/make"
 reset_builders
 out="$("$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
 [[ "$out" == 1800 ]] || fail "default hold limit, ordinary call: [$out]"
+out="$(WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
+[[ "$out" == 3600 ]] || fail "default hold limit, WITH_LOCK_MAX_WAIT=0, no history: [$out]"
 out="$("$repo/scripts/with-lock.sh" "$tmp/relbin/make" check-changed BASE=origin/main 2>&1)"
 [[ "$out" == 3600 ]] || fail "default hold limit, release call, no history: [$out]"
 printf '%s\t6000\tmake check-changed BASE=origin/main\t/t/a\n%s\t9000\tmake check-changed BASE=origin/main\t/t/a\tlimit\n%s\t100\tmake test\t/t/a\n' "$(ago 300)" "$(ago 200)" "$(ago 100)" > "$holds"
+out="$(WITH_LOCK_MAX_WAIT=0 "$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
+[[ "$out" == 12000 ]] || fail "default hold limit, WITH_LOCK_MAX_WAIT=0, newest push check 6000 s: [$out]"
 out="$("$repo/scripts/with-lock.sh" "$tmp/relbin/make" check-changed BASE=origin/main 2>&1)"
 [[ "$out" == 12000 ]] || fail "default hold limit, release call, newest push check 6000 s: [$out]"
 out="$(WITH_LOCK_MAX_HOLD=77 "$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"

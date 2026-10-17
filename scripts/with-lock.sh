@@ -16,7 +16,7 @@
 # limit. These calls have no limit: WITH_LOCK_MAX_WAIT=0, a release call (below), a call with the
 # DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
 # scripts/run-checks.sh and scripts/flake-monitor/loop.sh set the 0, so an exit 75 never reads as
-# a red test.
+# a red test. loop.sh runs itself under this script with the marker and sets WITH_LOCK_MAX_HOLD.
 # Each wait line has the tree of the call as its fifth column (git rev-parse --show-toplevel). At
 # its release, a call appends one line to dirigible-build-holds.log in the git common dir: the
 # start time, the hold seconds, the command, and the tree. The take writes the tree into the lock
@@ -121,7 +121,8 @@ max="${WITH_LOCK_MAX_WAIT:-120}"
 [[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
 max=$((10#$max))
 long=""
-if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 long=1; fi
+if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0; fi
+[[ $max -ne 0 ]] || long=1
 maxhold="${WITH_LOCK_MAX_HOLD:-}"
 if [[ -z "$maxhold" && -z "$long" ]]; then
     maxhold=1800

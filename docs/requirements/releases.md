@@ -160,7 +160,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 11. **Armed app track (F114).** A level meter and the permission state of an armed app track before a take.
 12. **Record time only when relevant (F152).** The window subtitle shows the record time left, and a banner warns, only under 3 hours of record time.
 13. **Timeline clarity (F153, F154, F155, F156).** The record-over warning is a chip over the track headers. Each cut between two clips has a join, and the playhead is neutral with a head on the ruler. A drag on the ruler makes a range, and a click on a clip selects the clip as a set of clips. Each clip has a bar with its name. Three landings. Run: `2026-10-16-timeline-clarity` L1 to L3.
-14. **Agent pack (F157 to F161).** An import shapes its clip in one call, and an import of the same audio reuses the WAV. `session_info` has a compact form. Chapters export as a text list and import from a Podcasting 2.0 file, and Heal joins touching pieces of one file. Run: `2026-10-17-agent-pack` L1.
+14. **Agent pack (F122, F157 to F161).** An import shapes its clip in one call, and an import of the same audio reuses the WAV. `session_info` has a compact form. Chapters export as a text list and import from a Podcasting 2.0 file, and Heal joins touching pieces of one file. Run: `2026-10-17-agent-pack` L1.
 
 ## Release 5: edit by text
 

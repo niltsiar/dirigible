@@ -133,7 +133,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F119 | Transcript speakers: names, and a speaker-to-track map | Descript | Later | R7 |
 | F120 | Transcript text corrections, shown cut words, and find | Hindenburg, Descript | Later | R7 |
 | F121 | Transcript export: VTT, SRT, and JSON | Podcasting 2.0, Apple Podcasts, Spotify | Later | R10 |
-| F122 | Chapters import from chapters.json | Podcasting 2.0 | Later | R10 |
+| F122 | Chapters import from chapters.json | Podcasting 2.0 | done, Release 4 run 4 | R10 |
 | F123 | Cue point import from recorder files, and the marker number keys | Hindenburg | Later | R7 |
 | F124 | A second copy of each take on a second disk | REAPER; tester 2026-10-11 | Later | R6 |
 | F125 | Episode metadata in WAV and FLAC, a three-state explicit flag, keywords, and category | Hindenburg | Later | R10 |
@@ -168,8 +168,8 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F154 | A join at each cut between two clips, and a neutral playhead with a head on the ruler | tester 2026-10-15 | done, Release 4 run 3 | R7 |
 | F155 | A drag on the ruler makes a range, and a click on a clip selects it as a set of clips | tester 2026-10-15 | Release 4 | R7 |
 | F156 | A bar with the clip name at the top of each clip | tester 2026-10-15 | Release 4 | R7 |
-| F157 | An import shapes its clip in one call: the part of the file, the gain, the fades, and the clip ID | tester 2026-10-16 | Release 4 | R16 |
-| F158 | An import of the same audio again reuses the WAV in the session | tester 2026-10-16 | Release 4 | R16 |
-| F159 | A compact session read for agents | tester 2026-10-16 | Release 4 | R16 |
-| F160 | A text chapter list, one line for each chapter with its time and title | tester 2026-10-16 | Release 4 | R10 |
+| F157 | An import shapes its clip in one call: the part of the file, the gain, the fades, and the clip ID | tester 2026-10-16 | done, Release 4 run 4 | R16 |
+| F158 | An import of the same audio again reuses the WAV in the session | tester 2026-10-16 | done, Release 4 run 4 | R16 |
+| F159 | A compact session read for agents | tester 2026-10-16 | done, Release 4 run 4 | R16 |
+| F160 | A text chapter list, one line for each chapter with its time and title | tester 2026-10-16 | done, Release 4 run 4 | R10 |
 | F161 | Heal: join touching pieces of one file with no change of sound | tester 2026-10-16, Pro Tools | Release 4 | R7 |

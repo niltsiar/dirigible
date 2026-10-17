@@ -265,6 +265,7 @@
 "record.over.chip" = "Verborgen audio";
 "record.over.show" = "Toon clip";
 "record.over.disarm" = "Deactiveer opname voor %@";
+"record.over.detail" = "De opname vervangt audio op %1$@. De eerste clip begint bij %2$@.";
 "transport.stop.output.changed" = "Het afspelen is gestopt: het uitvoerapparaat is gewijzigd. Druk op de spatiebalk om af te spelen op het nieuwe apparaat.";
 "transport.stop.output.unavailable" = "Het afspelen kan niet starten: het uitvoerapparaat is niet beschikbaar (fout %lld).";
 "transport.stop.package.unavailable" = "Het afspelen is gestopt: het sessiepakket is niet beschikbaar. Controleer of de schijf ervan is aangesloten.";

@@ -265,6 +265,7 @@
 "record.over.chip" = "Verdecktes Audio";
 "record.over.show" = "Clip zeigen";
 "record.over.disarm" = "Aufnahme für %@ ausschalten";
+"record.over.detail" = "Die Aufnahme ersetzt Audio auf %1$@. Der erste Clip beginnt bei %2$@.";
 "transport.stop.output.changed" = "Die Wiedergabe wurde gestoppt: Das Ausgabegerät hat sich geändert. Drücke die Leertaste, um auf dem neuen Gerät abzuspielen.";
 "transport.stop.output.unavailable" = "Die Wiedergabe kann nicht starten: Das Ausgabegerät ist nicht verfügbar (Fehler %lld).";
 "transport.stop.package.unavailable" = "Die Wiedergabe wurde gestoppt: Das Session-Paket ist nicht verfügbar. Prüfe, ob seine Festplatte verbunden ist.";

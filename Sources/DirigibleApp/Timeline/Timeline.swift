@@ -40,16 +40,18 @@ struct RecordOverWarning: Equatable {
         let name: String
     }
     var reached: [Reached] = []
-    /// The earliest start of the reached clips, and the sample rate that its text needs.
-    var start = Frames.zero
+    /// The earliest start of the reached clips, and the sample rate that its text needs. Nil for
+    /// an empty warning.
+    var start: Frames?
     var rate = 48_000
 
     var isEmpty: Bool { reached.isEmpty }
 
-    /// `consent.record.over` with the names of the tracks and the start, as the consent sheet
-    /// formats its list and its time.
+    /// `record.over.detail` with the names of the tracks and the earliest clip start. The consent
+    /// sheet has its own text: its time is the take start.
     var detail: String {
-        L10n.consentRecordOver.format(
+        guard let start else { return "" }
+        return L10n.recordOverDetail.format(
             ListFormatter.localizedString(byJoining: reached.map(\.name)),
             timeDisplayText(start, rate: rate, playing: false))
     }
@@ -67,9 +69,8 @@ func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, v
     for (lane, track) in session.tracks.enumerated() where armed.contains(track.id) {
         guard let clip = track.clips.first(where: { $0.end > playhead }) else { continue }
         if let visible, visible.lanes.contains(lane), visible.frames.contains(max(playhead, clip.start)) { continue }
-        let first = warning.reached.isEmpty
         warning.reached.append(.init(track: track.id, clip: clip.id, name: track.name))
-        warning.start = first ? clip.start : min(warning.start, clip.start)
+        warning.start = min(warning.start ?? clip.start, clip.start)
         warning.rate = session.sampleRate
     }
     return warning

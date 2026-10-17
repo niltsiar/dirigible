@@ -271,15 +271,33 @@ struct RecordOverTests {
             "a later clip out of view behind a clip in view does not warn")
     }
 
+    /// The consent sheet shows the take start; the chip shows the earliest clip start. Two meanings
+    /// get two keys.
+    @Test func theChipDetailDoesNotBorrowTheConsentSheetText() throws {
+        let warning = try Self.warning(["t7"], 100_000, clips: [20_000..<1_000_000])
+        #expect(!warning.isEmpty)
+        #expect(
+            warning.detail != L10n.consentRecordOver.format("T7", "0:00"),
+            "the chip detail has its own text key")
+    }
+
+    @Test func anEmptyWarningHoldsNoTimeAndNoText() throws {
+        let none = try Self.warning(["t2"], 100_000)
+        #expect(none.isEmpty && none == RecordOverWarning())
+        #expect(none.detail.isEmpty, "an empty warning has no detail text")
+    }
+
     @Test func theChipAndItsItemsHaveEnglishAndSpanishTexts() {
         let texts: [String: [String: String]] = [
             "en": [
                 "record.over.chip": "Hidden Audio at Risk", "record.over.show": "Show Clip",
                 "record.over.disarm": "Turn Off Record on %@",
+                "record.over.detail": "Recording replaces audio on %1$@. The first clip starts at %2$@.",
             ],
             "es": [
                 "record.over.chip": "Audio oculto en riesgo", "record.over.show": "Mostrar clip",
                 "record.over.disarm": "Desactivar grabar en %@",
+                "record.over.detail": "La grabación sustituye el audio de %1$@. El primer clip empieza en %2$@.",
             ],
         ]
         for (language, expected) in texts {

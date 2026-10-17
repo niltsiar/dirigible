@@ -296,6 +296,7 @@ enum L10n: String, CaseIterable {
     case recordOverChip = "record.over.chip"
     case recordOverShow = "record.over.show"
     case recordOverDisarm = "record.over.disarm"
+    case recordOverDetail = "record.over.detail"
     case transportStopOutputChanged = "transport.stop.output.changed"
     case transportStopOutputUnavailable = "transport.stop.output.unavailable"
     case transportStopPackageUnavailable = "transport.stop.package.unavailable"

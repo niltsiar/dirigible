@@ -36,14 +36,15 @@ public enum ImportError: Error, Hashable, Sendable {
 /// `mkdir` of `Clips/`, the conversion into `.<stem>.wav.tmp`, the reuse compare, the session
 /// edits, the rename (none for a reuse), the flush of `Clips/`, and the level. `NewClipFiles` owns
 /// the file steps (decision 0056). The rename never replaces a file: another file at the name
-/// throws a write fault with EEXIST and keeps its bytes. A throw before the rename leaves no new file. After the rename, a flush fault throws and
-/// keeps the WAV as an unused file: the caller can have a session that names it. A cancel after
-/// the rename, also during the level, removes the WAV with `removeMadeFiles` and throws
-/// `.cancelled` (decision 0049). `isCancelled` is read before each block of 65,536 frames, before
-/// the read-back, at each block of the compare, after the rename, at each block of the level, and
-/// last before the return. A caller that reads its flag again after the return removes `made`
-/// itself. With the level, the conversion gives 0...0.7 of `progress`, the compare 0.7...0.8, and
-/// the level 0.8...1; with no level, the conversion gives 0...0.9 and the compare 0.9...1.
+/// throws a write fault with EEXIST and keeps its bytes. A throw before the rename leaves no new
+/// file. After the rename, a flush fault throws and keeps the WAV as an unused file: the caller can
+/// have a session that names it. A cancel after the rename, also during the level, removes the WAV
+/// with `removeMadeFiles` and throws `.cancelled` (decision 0049). `isCancelled` is read before
+/// each block of 65,536 frames, before the read-back, at each block of the compare, after the
+/// rename, at each block of the level, and last before the return. A caller that reads its flag
+/// again after the return removes `made` itself. With the level, the conversion gives 0...0.7 of
+/// `progress`, the compare 0.7...0.8, and the level 0.8...1; with no level, the conversion gives
+/// 0...0.9 and the compare 0.9...1.
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,

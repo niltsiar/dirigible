@@ -21,10 +21,18 @@
 # The script holds the build lock (with-lock.sh) once for the build, the list, and the shards.
 # INT, TERM, or an exit stops each shard process; on INT (exit 130) or TERM (exit 143), it
 # prints the tail of each shard that still ran.
+# The full suite runs only in the push check. A call without DIRIGIBLE_PUSH_CHECK=1 (run-checks.sh
+# sets it for a run with BASE) or DIRIGIBLE_FULL_SUITE=1 (a person sets it) prints the reason and
+# exits 1, before the build. make test and make check reach this script. An outer
+# with-lock.sh call still waits for the lock first.
 # Usage: [TEST_SHARDS=<processes, the CLI shard in the count; default: the physical cores>]
 #        scripts/test-shards.sh
 # scripts/test-shards.test.sh tests it.
 set -uo pipefail
+if [[ "${DIRIGIBLE_PUSH_CHECK:-}" != 1 && "${DIRIGIBLE_FULL_SUITE:-}" != 1 ]]; then
+    echo "test-shards: the full suite runs only in the push check: make check-changed BASE=origin/main. A slice runs make check-changed FILTER='<name> <name>'. A person who needs the full suite sets DIRIGIBLE_FULL_SUITE=1." >&2
+    exit 1
+fi
 # with-lock.sh runs this script again with the marker, and the marker stops a second wrap.
 [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" == "$0" ]] || DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$(dirname "$0")/with-lock.sh" "$0" "$@"
 root="$(cd "$(dirname "$0")/.." && pwd)"

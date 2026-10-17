@@ -3,7 +3,9 @@
 # on a bad or empty base, still sees a moved floor file, and that each risk floor path exists.
 # Check that `make check-changed` of the real Makefile exits nonzero when the script does, and
 # runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
-# gives test-filter in place of test, and reaches the swift calls through make. Check that a
+# gives test-filter in place of test (and check-fast test-filter test-app in place of check), that
+# a local git run with a Swift test target and no FILTER exits 1 with the reason, and that FILTER
+# reaches the swift calls through make. Check that a
 # passing make check-changed with BASE writes the stamp, and a red one does not. Check that the push
 # adds test-slow-push only for risk, a slow test, a Makefile change, or no passed slow run today,
 # and PUSH_RUN=<names> for a changed PUSH_SKIP file. Check that test-slow-push has no test of a
@@ -99,7 +101,12 @@ got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift')" || fail "outsi
 # FILTER: the tests of the slice in place of all tests. The other targets do not change.
 FILTER=ClipTests expect 'tests with FILTER' "$(out tests test-filter no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 FILTER=ClipTests expect 'docs with FILTER' "$(out docs check-docs no)" <<<'docs/guide.md'
-FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle check no)" <<<'Makefile'
+FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle 'check-fast test-filter test-app' no)" <<<'Makefile'
+FILTER=ClipTests expect 'build with FILTER' "$(out build 'check-fast test-filter test-app' no)" <<<'Package.swift'
+FILTER=ClipTests expect 'bundle and sources with FILTER' "$(out 'sources bundle' 'check-fast test-filter test-app' no)" \
+  <<<$'Makefile\nSources/DirigibleApp/AppDelegate.swift'
+# With no FILTER, the stdin mode keeps the targets: the refusal is for the local git run.
+expect 'bundle with no FILTER, stdin' "$(out bundle check no)" <<<'Makefile'
 FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 'tooling sources' 'check-fast test-filter' no)" \
   <<<$'scripts/probe.sh\nSources/DirigibleApp/AppDelegate.swift'
 # FILTER before the push: exit nonzero with the reason, because the push runs the full targets.
@@ -141,8 +148,30 @@ new_repo
 printf 'b2\n' > "$tmp/r/scripts/b.sh"
 mkdir -p "$tmp/r/Tests"
 printf 't\n' > "$tmp/r/Tests/T.swift"
-got="$(run_in)" || fail "no base: exit $?"
+got="$(run_in 2> "$tmp/refuse.err")"
+code=$?
+[[ $code -eq 1 ]] || fail "no base, a Swift test, no FILTER: expected exit 1, got $code"
 [[ "$got" == "$(out 'tooling tests' 'check-fast test' no)" ]] || fail "no base: got [$got]"
+for word in FILTER 'push check' 'make test'; do
+  grep -qF "$word" "$tmp/refuse.err" || fail "no base, no FILTER: no '$word' in the reason: $(cat "$tmp/refuse.err")"
+done
+got="$(FILTER=ClipTests run_in 2>&1)" || fail "no base with FILTER: exit $?"
+[[ "$got" == "$(out 'tooling tests' 'check-fast test-filter' no)" ]] || fail "no base with FILTER: got [$got]"
+# Sources and Support, no FILTER: the three lines, then exit 1 with the reason. A docs path exits 0.
+for path in Sources/DirigibleApp/X.swift Support/Info.plist; do
+  new_repo
+  mkdir -p "$tmp/r/$(dirname "$path")"
+  printf 'x\n' > "$tmp/r/$path"
+  got="$(run_in 2> "$tmp/refuse.err")"
+  code=$?
+  [[ $code -eq 1 && "$got" == classes:*$'\n'targets:*$'\n'risk:* ]] || fail "$path, no FILTER: exit $code, got [$got]"
+  grep -qF 'FILTER' "$tmp/refuse.err" || fail "$path, no FILTER: no reason: $(cat "$tmp/refuse.err")"
+  got="$(FILTER=ClipTests run_in)" || fail "$path with FILTER: exit $?"
+done
+new_repo
+printf 'a2\n' >> "$tmp/r/docs/a.md"
+got="$(run_in)" || fail "a docs path, no FILTER: exit $?"
+[[ "$got" == "$(out docs check-docs no)" ]] || fail "a docs path, no FILTER: got [$got]"
 
 # A base that does not exist: exit nonzero and nothing on stdout.
 new_repo
@@ -187,6 +216,10 @@ got="$(run_in main)" || fail "a moved floor file: exit $?"
 # The content of the change (the git modes only). content_case <name> <file> <old> <new> <want>
 # [main]: commit <old> on main, then write <new> to the working tree. With main, commit <new> on a
 # branch with a slow run today, and run against main.
+# local_exit [base]: with no base, a want with the target test or check exits 1 (no FILTER).
+local_exit() {
+  [[ $# -eq 0 && " $(sed -n 's/^targets: //p' <<<"$want") " =~ \ (test|check)\  ]] && echo 1 || echo 0
+}
 content_case() {
   local name="$1" file="$2" old="$3" new="$4" want="$5"
   shift 5
@@ -201,7 +234,9 @@ content_case() {
     g commit -q -am new
     echo "$today" > "$tmp/r/.git/dirigible-slow-date"
   fi
-  got="$(run_in "$@")" || { fail "$name: exit $?"; return; }
+  got="$(run_in "$@" 2>/dev/null)"
+  code=$?
+  [[ $code -eq $(local_exit "$@") ]] || { fail "$name: exit $code"; return; }
   [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
 }
 sw=Sources/DirigibleCore/SessionWriter.swift app=Sources/DirigibleApp/A.swift
@@ -230,13 +265,13 @@ content_case 'a comment in a PUSH_SKIP bench' Tests/DirigibleAudioTests/Loudness
 new_repo
 mkdir -p "$tmp/r/Tests"
 printf '// t\n' > "$tmp/r/Tests/T.swift"
-got="$(run_in)" || fail "an untracked comment file: exit $?"
+got="$(run_in 2>/dev/null)" && fail "an untracked comment file: exit 0 with no FILTER"
 [[ "$got" == "$(out tests test no)" ]] || fail "an untracked comment file: got [$got]"
 rm "$tmp/r/Tests/T.swift"
 printf '// only\n' > "$tmp/r/$sw"
 g commit -q -am comment
 g rm -q "$sw"
-got="$(run_in)" || fail "a deleted comment file: exit $?"
+got="$(run_in 2>/dev/null)" && fail "a deleted comment file: exit 0 with no FILTER"
 [[ "$got" == "$(out sources-risk test yes)" ]] || fail "a deleted comment file: got [$got]"
 # A Makefile change of only column-0 # lines is class docs and adds no push target. A # line that
 # make reads stays code: a recipe line, a $ reference, a \ continuation, or a define body.
@@ -491,6 +526,12 @@ PATH="$tmp/bin:$PATH" make_case 'make check-changed with FILTER' '' "FILTER=ATes
 [[ "$output" == *"targets: test-filter"* ]] || fail "make check-changed with FILTER: no test-filter target: $output"
 [[ "$(cat "$tmp/swift.log")" == "swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests --filter ATests --filter BTests" ]] ||
   fail "make check-changed with FILTER: swift calls: $(cat "$tmp/swift.log")"
+
+# No FILTER: a local run with a Swift test exits 1 before any target, so no swift call runs.
+: > "$tmp/swift.log"
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with no FILTER' 'push check'
+[[ "$output" == *"FILTER"* && "$output" != *"check-changed: commit"* && ! -s "$tmp/swift.log" ]] ||
+  fail "make check-changed with no FILTER: ran a target or named no FILTER: $output [$(cat "$tmp/swift.log")]"
 
 # The load wait: before Swift tests, the recipe waits until the 1-minute load is under the core
 # count, prints each load that it reads, and after CHECK_LOAD_WAIT seconds runs the tests anyway.

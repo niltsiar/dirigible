@@ -7,11 +7,12 @@
 # The second form prints the summary line of one log. loop.test.sh calls it.
 # The first form runs under with-lock.sh, so the loop takes the build lock once, outside the loop.
 # It sets WITH_LOCK_MAX_WAIT=0: a lock wait in a run never ends in exit 75 and never counts as a
-# failed run.
+# failed run. It sets DIRIGIBLE_FULL_SUITE=1: the loop runs the full suite on purpose, and a bare
+# make test refuses (test-shards.sh).
 # With --min-load, the loop stops before a run whose 1-minute load average is below <n>. A loop
 # under a load source uses it: a load source that makes no load gives the numbers of a quiet loop.
 set -uo pipefail
-export WITH_LOCK_MAX_WAIT=0
+export WITH_LOCK_MAX_WAIT=0 DIRIGIBLE_FULL_SUITE=1
 
 # The summary line: tag, run, exit code, wall seconds, the load average at the start, the start
 # of the monitor after the start of `make test`, the durations of the two longest timed tests,

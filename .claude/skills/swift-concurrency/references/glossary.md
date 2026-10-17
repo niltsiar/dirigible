@@ -24,14 +24,6 @@ Contents:
 - Isolation domain
 - Task priority
 - Cancellation
-- Debounce
-- Throttle
-- Merge (AsyncAlgorithms)
-- CombineLatest (AsyncAlgorithms)
-- Zip (AsyncAlgorithms)
-- AsyncChannel
-- AsyncThrowingChannel
-- AsyncTimerSequence
 
 Use this when:
 
@@ -134,35 +126,3 @@ A hint to the runtime about the relative importance of a task. Priorities includ
 ## Cancellation
 
 A cooperative mechanism to signal that a task should stop. Check `Task.isCancelled` or call `Task.checkCancellation()` (throws) in long-running work. Cancellation propagates to child tasks in structured concurrency.
-
-## Debounce
-
-Wait for a period of inactivity before emitting a value. Used to reduce API calls for rapid inputs like search fields. Implemented as `debounce(for:tolerance:clock:)` in AsyncAlgorithms.
-
-## Throttle
-
-Emit at most one value per time interval, discarding intermediate values. Used to prevent excessive calls from repeated actions like button taps. Implemented as `throttle(for:clock:reducing:)` in AsyncAlgorithms.
-
-## Merge (AsyncAlgorithms)
-
-Combine multiple asynchronous sequences into one, emitting values as they arrive from any source. Order is interleaved based on emission timing. Stable operator.
-
-## CombineLatest (AsyncAlgorithms)
-
-Combine multiple asynchronous sequences, emitting a tuple whenever any source emits a new value. Always uses the latest value from each sequence. Stable operator.
-
-## Zip (AsyncAlgorithms)
-
-Combine multiple asynchronous sequences by pairing elements in order. Waits for all sequences to emit before producing a tuple. Stable operator.
-
-## AsyncChannel
-
-An AsyncSequence with backpressure sending semantics. Allows multiple producers to send values safely to multiple consumers with flow control. Stable operator.
-
-## AsyncThrowingChannel
-
-Like AsyncChannel but can emit errors through the stream. Stable operator.
-
-## AsyncTimerSequence
-
-An AsyncSequence that emits a value at regular intervals. Replaces timer-based publishers and manual sleep loops. Stable operator.

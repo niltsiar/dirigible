@@ -1,3 +1,4 @@
+import Darwin
 import Observation
 import Testing
 
@@ -86,6 +87,41 @@ import Testing
                 }
                 #expect(refused == nil, "no count for \(fake.reason)")
             }
+        }
+    }
+
+    /// A pointer word that is aligned and above page zero, but points to a page that is not
+    /// mapped or not readable, gives an issue and no crash: for the `observations` and for the
+    /// `lookups` word.
+    @Test func refusesAnUnreadablePointer() throws {
+        let page = Int(getpagesize())
+        let reserved = try #require(mmap(nil, page, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0))
+        defer { munmap(reserved, page) }
+        let hole = try #require(mmap(nil, page, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0))
+        munmap(hole, page)
+        let header = UnsafeMutableRawPointer.allocate(byteCount: 24, alignment: 16)
+        defer { header.deallocate() }
+        let counts = UnsafeMutableRawPointer.allocate(byteCount: 24, alignment: 16)
+        defer { counts.deallocate() }
+        counts.storeBytes(of: 2, toByteOffset: 16, as: Int.self)
+        header.storeBytes(of: 3, as: Int.self)
+        let readable = UInt(bitPattern: counts)
+        let cases: [(observations: UInt, lookups: UInt, reason: String)] = [
+            (UInt(bitPattern: reserved), readable, "observations not readable"),
+            (UInt(bitPattern: hole), readable, "observations not readable"),
+            (readable, UInt(bitPattern: reserved), "lookups not readable"),
+            (readable, UInt(bitPattern: hole), "lookups not readable"),
+        ]
+        for fake in cases {
+            header.storeBytes(of: fake.observations, toByteOffset: 8, as: UInt.self)
+            header.storeBytes(of: fake.lookups, toByteOffset: 16, as: UInt.self)
+            var refused: Registrations? = Registrations(next: 0, live: 0, ids: [:])
+            withKnownIssue("an unreadable pointer records an issue") {
+                refused = registrations(header: header)
+            } matching: { issue in
+                issue.comments.contains { $0.rawValue.hasPrefix("\(unknownRegistrarLayout): \(fake.reason) at 0x") }
+            }
+            #expect(refused == nil, "no count for \(fake.reason)")
         }
     }
 }

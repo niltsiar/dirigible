@@ -49,7 +49,7 @@ import Observation
     }
     /// The state of each entry of `liveTracks`, changed only at a state change. The track rows
     /// read it, so a meter report runs no row body (decision 0014).
-    public internal(set) var liveStates: [TrackID: LiveTrack.State] = [:]
+    public private(set) var liveStates: [TrackID: LiveTrack.State] = [:]
     /// The writes of `liveTracks`, for the tests: one for each meter report.
     @ObservationIgnored var liveTrackWrites = 0
     /// The start of the take that records. The view computes the elapsed time.

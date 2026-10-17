@@ -151,6 +151,16 @@ good; budget .claude/skills/s/ 5; expect fail 'skill folder over its total row' 
 good; budget TOTAL 5; expect fail 'all budgeted files over the TOTAL row' 'budgets.tsv: the budgeted files are over the TOTAL row'
 good; sed -i '' '/^TOTAL	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'no TOTAL row' 'budgets.tsv: no TOTAL row'
 good; sed -i '' 's|^AGENTS.md	1000	baseline$|AGENTS.md	1000	|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'budget row with an empty decision' 'budgets.tsv: the row for AGENTS.md has no decision'
+# A vendored folder (reason cell starts with `vendored:`) stays out of TOTAL and keeps its own caps.
+vendor() {
+  mkdir -p "$tmp/.claude/skills/v"
+  seq 11000 | tr '\n' ' ' > "$tmp/.claude/skills/v/NOTES.md"
+  printf '.claude/skills/v/\t11500\tvendored: third party\n.claude/skills/v/NOTES.md\t11500\tvendored: third party\n' >> "$tmp/docs/workflow/budgets.tsv"
+}
+good; vendor; expect pass 'vendored words are left out of the TOTAL row'
+good; vendor; budget .claude/skills/v/NOTES.md 100; expect fail 'vendored file over its own row' 'budgets.tsv: .claude/skills/v/NOTES.md is over its row'
+good; vendor; budget .claude/skills/v/ 100; expect fail 'vendored folder over its total row' 'budgets.tsv: .claude/skills/v/ is over its total row'
+good; vendor; sed -i '' 's|vendored: third party|third party|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'the same rows without the vendored mark count in TOTAL' 'budgets.tsv: the budgeted files are over the TOTAL row'
 good; sed -i '' 's|references/r.md|the reference|' "$tmp/.claude/skills/s/SKILL.md"; expect fail 'references file not named by its SKILL.md' '.claude/skills/s/references/r.md: .claude/skills/s/SKILL.md does not name it by path'
 good; long_ref 101; expect fail 'long references file with no contents list' '.claude/skills/s/references/r.md: over 100 lines with no contents list in its first 10 lines'
 good; long_ref 101 '## Contents'; expect pass 'long references file with a contents list'

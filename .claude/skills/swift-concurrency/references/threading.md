@@ -1,5 +1,14 @@
 # Threading
 
+Contents:
+- Core Concepts (Tasks vs Threads)
+- Cooperative Thread Pool
+- Suspension Points and Actor Reentrancy
+- Swift 6.2 Changes (SE-461, SE-466)
+- Default Isolation Domain
+- Debugging Thread Execution
+- Common Misconceptions
+
 Use this when:
 
 - You need to understand the relationship between tasks and threads.
@@ -10,17 +19,6 @@ Skip this file if:
 
 - You mainly need to protect mutable state. Use `actors.md`.
 - You need to make types safe to transfer. Use `sendable.md`.
-
-Jump to:
-
-- Core Concepts (Tasks vs Threads)
-- Cooperative Thread Pool
-- Suspension Points and Actor Reentrancy
-- Swift 6.2 Changes (SE-461, SE-466)
-- Default Isolation Domain
-- Debugging Thread Execution
-- Common Misconceptions
-- Migration Strategy
 
 ## Core Concepts
 
@@ -33,8 +31,6 @@ System-level resource that runs instructions. High overhead for creation and swi
 **Tasks** are units of async work, not tied to specific threads. Swift dynamically schedules tasks on available threads from a cooperative pool.
 
 **Key insight**: No direct relationship between one task and one thread.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 7.1: How Threads relate to Tasks](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 **Important (Swift 6+)**: Avoid using `Thread.current` inside async contexts. In Swift 6 language mode, `Thread.current` is unavailable from asynchronous contexts and will fail to compile. Prefer reasoning in terms of isolation domains; use Instruments and the debugger to observe execution when needed.
 
@@ -51,11 +47,9 @@ Swift creates only as many threads as CPU cores. Tasks share these threads effic
 
 ```swift
 func example() async {
-    print("Started on: \(Thread.current)")
-    
+    // Started on some pool thread
     try await Task.sleep(for: .seconds(1))
-    
-    print("Resumed on: \(Thread.current)") // Likely different thread
+    // Resumed on likely a different thread
 }
 ```
 
@@ -121,8 +115,6 @@ Task(priority: .userInitiated) {
 
 You're describing the nature of work, not assigning threads. Swift optimizes execution.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 7.2: Getting rid of the "Threading Mindset"](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Suspension Points
 
 ### What is a suspension point?
@@ -141,7 +133,7 @@ let data = await fetchData() // Potential suspension
 2. **State can change** - mutable state may be modified during suspension
 3. **Actor reentrancy** - other tasks can access actor during suspension
 
-The same entry-isolation rule applies to any unstructured task: choose startup isolation by what the synchronous prefix needs. If nothing before the first `await` needs the main actor—whether that first operation is `Task.sleep`, an actor hop, a `print`, or a Sendable computation—prefer `Task { @concurrent in ... }` and hop back with `MainActor.run` only for the UI mutation. If the synchronous prefix already needs main actor for one statement, keep nearby cheap lines on main with it instead of splitting them out.
+The same entry-isolation rule applies to any unstructured task: choose startup isolation by what the synchronous prefix needs. If nothing before the first `await` needs the main actor-whether that first operation is `Task.sleep`, an actor hop, a `print`, or a Sendable computation-prefer `Task { @concurrent in ... }` and hop back with `MainActor.run` only for the UI mutation. If the synchronous prefix already needs main actor for one statement, keep nearby cheap lines on main with it instead of splitting them out.
 
 ### Actor reentrancy example
 
@@ -190,9 +182,6 @@ func deposit(amount: Int) async {
 
 **Rule**: Don't mutate actor state after suspension points.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 7.3: Understanding Task suspension points](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
-
 ## Choosing Task entry isolation
 
 For unstructured `Task { ... }`, choose entry isolation based on the synchronous prefix (everything before the first `await`), not on where the task was created.
@@ -223,9 +212,9 @@ Task { @concurrent in
     await MainActor.run { updateUI() }
 }
 
-// ✅ Synchronous prefix DOES contain main-actor work — keep inheritance
+// ✅ Synchronous prefix DOES contain main-actor work - keep inheritance
 Task {
-    print("debug")              // trivial, non-main — rides along
+    print("debug")              // trivial, non-main - rides along
     self.isLoading = true       // needs @MainActor, before any await
     await fetchData()
 }
@@ -242,8 +231,10 @@ Note that `Task { @concurrent in ... }` changes the closure's isolation, so any 
 Tasks run on cooperative thread pool (background threads):
 
 ```swift
-Task {
-    print(Thread.current) // Background thread
+func start() {  // nonisolated: no actor to inherit
+    Task {
+        // Runs on the cooperative pool
+    }
 }
 ```
 
@@ -255,7 +246,7 @@ Use `@MainActor` for main thread:
 @MainActor
 func updateUI() {
     Task {
-        print(Thread.current) // Main thread
+        // Inherits @MainActor: runs on the main actor
     }
 }
 ```
@@ -264,16 +255,16 @@ func updateUI() {
 
 ```swift
 @MainActor
-func updateUI() {
-    print("Main thread: \(Thread.current)")
-    
-    await backgroundTask() // Switches to background
-    
-    print("Back on main: \(Thread.current)") // Returns to main
+func updateUI() async {
+    // On the main actor
+
+    await backgroundTask() // Switches to the cooperative pool
+
+    // Back on the main actor
 }
 
 func backgroundTask() async {
-    print("Background: \(Thread.current)")
+    // Runs on the cooperative pool (nonisolated async, default behavior)
 }
 ```
 
@@ -281,14 +272,15 @@ func backgroundTask() async {
 
 ### Nonisolated async functions (SE-461)
 
-**Old behavior**: Nonisolated async functions always switch to background.
+**Default (feature off)**: Nonisolated async functions always switch to the global executor.
 
-**New behavior**: Inherit caller's isolation by default.
+**With `NonisolatedNonsendingByDefault` on**: Nonisolated async functions inherit the caller's isolation.
 
 ```swift
 class NotSendable {
     func performAsync() async {
-        print(Thread.current)
+        // Feature off: runs on the global executor
+        // Feature on: runs on the caller's actor
     }
 }
 
@@ -296,14 +288,14 @@ class NotSendable {
 func caller() async {
     let obj = NotSendable()
     await obj.performAsync()
-    // Old: Background thread
-    // New: Main thread (inherits @MainActor)
+    // Feature off: runs off the main actor
+    // Feature on: runs on the main actor (inherits @MainActor)
 }
 ```
 
 ### Enabling new behavior
 
-In Xcode 16+:
+In Swift 6.2 (Xcode 26):
 
 ```swift
 // Build setting or swift-settings
@@ -317,7 +309,7 @@ Force function to switch away from caller's isolation:
 ```swift
 @concurrent
 func performAsync() async {
-    print(Thread.current) // Always background
+    // Always runs off the caller's actor
 }
 ```
 
@@ -331,15 +323,13 @@ nonisolated(nonsending) func storeTouch(...) async {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 7.4: Dispatching to different threads using nonisolated(nonsending) and @concurrent (Updated for Swift 6.2)](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 **Use when**: Method doesn't need to switch isolation, avoiding Sendable requirements.
 
 ## Default Isolation Domain (SE-466)
 
 ### Configuring default isolation
 
-**Build setting** (Xcode 16+):
+**Build setting** (Swift 6.2, Xcode 26):
 - Default Actor Isolation: `MainActor` or `None`
 
 **Swift Package**:
@@ -376,8 +366,6 @@ class C {
 struct S {
     func f() {} // Inferred: @MyActor (explicit override)
 }
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 7.5: Controlling the default isolation domain (Updated for Swift 6.2)](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 ```
 
 ### Per-module setting
@@ -392,19 +380,7 @@ Opt-in only. Default remains `nonisolated` if not specified.
 
 ### Print current thread
 
-**⚠️ Important**: `Thread.current` is unavailable in Swift 6 language mode from async contexts. The compiler error states: "Class property 'current' is unavailable from asynchronous contexts; Thread.current cannot be used from async contexts."
-
-**Workaround** (Swift 6+ mode only):
-
-```swift
-extension Thread {
-    public static var currentThread: Thread {
-        Thread.current
-    }
-}
-
-print("Thread: \(Thread.currentThread)")
-```
+**⚠️ Important**: `Thread.current` is unavailable in Swift 6 language mode from async contexts. The compiler error states: "Class property 'current' is unavailable from asynchronous contexts; Thread.current cannot be used from async contexts." Check isolation instead (`MainActor.assertIsolated()`), or use the Debug Navigator below.
 
 ### Debug navigator
 
@@ -442,11 +418,9 @@ Since tasks move between threads unpredictably:
 
 ```swift
 func example() async {
-    print("Thread 1: \(Thread.current)")
-    
+    // Runs on thread 1
     await someWork()
-    
-    print("Thread 2: \(Thread.current)") // Different thread
+    // May run on thread 2
 }
 ```
 
@@ -461,24 +435,7 @@ Values crossing suspension points may cross threads. **Sendable** ensures safety
 5. **Complete state changes before suspending** - prevent inconsistent state
 6. **Use priorities as hints** - not guarantees
 7. **Make types Sendable** - safe across thread boundaries
-8. **Enable Swift 6.2 features** - easier migration, better defaults
-9. **Set default isolation for apps** - reduce false warnings
-10. **Don't force thread switching** - let Swift optimize
-
-## Migration Strategy
-
-### For new projects (Xcode 16+)
-
-1. Set default isolation to `@MainActor`
-2. Enable `NonisolatedNonsendingByDefault`
-3. Use `@concurrent` for explicit background work
-
-### For existing projects
-
-1. Gradually enable Swift 6 language mode
-2. Consider default isolation change
-3. Use `@concurrent` to maintain old behavior where needed
-4. Migrate module by module
+8. **Don't force thread switching** - let Swift optimize
 
 ## Decision Tree
 
@@ -515,7 +472,7 @@ Instead of asking "what thread should this run on?" ask "what isolation domain s
 
 - Recommending GCD queue hopping when actor isolation already expresses the ownership model.
 - Debugging correctness by thread ID instead of by isolation and ordering.
-- Treating `await` as a blocking call — it suspends the task, freeing the thread.
+- Treating `await` as a blocking call - it suspends the task, freeing the thread.
 - Mapping each `Task` to a conceptual thread.
 - Picking task entry isolation by the enclosing context instead of by the task's synchronous prefix. A `Task { ... }` from `@MainActor` whose first `await` immediately hops away (with no main-actor work before it) should usually be `Task { @concurrent in ... }`.
 
@@ -534,8 +491,3 @@ Instead of asking "what thread should this run on?" ask "what isolation domain s
 - Prevents oversubscription
 - Efficient task scheduling
 - Automatic load balancing
-
-## Further Learning
-
-For migration strategies, real-world examples, and advanced threading patterns, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
-

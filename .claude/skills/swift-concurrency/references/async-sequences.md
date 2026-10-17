@@ -1,5 +1,15 @@
 # Async Sequences and Streams
 
+Contents:
+- AsyncSequence Protocol
+- AsyncStream / AsyncThrowingStream
+- Bridging Callbacks and Delegates
+- Stream Lifecycle and Cleanup
+- Buffer Policies
+- Standard Library Integration
+- Limitations
+- When to Use AsyncStream vs Regular Async Methods
+
 Use this when:
 
 - You need to iterate over values that arrive over time.
@@ -8,19 +18,7 @@ Use this when:
 
 Skip this file if:
 
-- You need time-based operators like debounce, throttle, or merge. Use `async-algorithms.md`.
 - You are choosing between `Task`, `async let`, or task groups. Use `tasks.md`.
-
-Jump to:
-
-- AsyncSequence Protocol
-- AsyncStream / AsyncThrowingStream
-- Bridging Callbacks and Delegates
-- Stream Lifecycle and Cleanup
-- Buffer Policies
-- Standard Library Integration
-- Limitations
-- When to Use AsyncAlgorithms
 
 ## AsyncSequence
 
@@ -103,8 +101,6 @@ mutating func next() async -> Int? {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 6.1: Working with asynchronous sequences](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## AsyncStream
 
 Convenient way to create async sequences without implementing protocols.
@@ -143,8 +139,6 @@ do {
     print("Error: \(error)")
 }
 ```
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 6.2: Using AsyncStream and AsyncThrowingStream in your code](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Bridging Closures to Streams
 
@@ -508,15 +502,7 @@ for await value in stream {
 
 ---
 
-## When to Use AsyncAlgorithms vs Standard Library
-
-### Use AsyncAlgorithms when:
-
-- **Time-based operations** need debounce/throttle/timer
-- **Combining multiple async sequences** (merge, combineLatest, zip)
-- **Multi-consumer scenarios** require backpressure (AsyncChannel)
-- **Complex operator chains** that Combine would handle naturally
-- **Need specific operators** not in standard library
+## When to Use AsyncStream vs Regular Async Methods
 
 ### Use Standard Library when:
 
@@ -524,22 +510,6 @@ for await value in stream {
 - **Simple iteration** → for await in sequence
 - **Single-value operations** → async/await
 - **Basic transformations** → map/filter/contains
-
-### Quick Decision Table
-
-| Need | Solution |
-|------|----------|
-| Debounce search input | ✅ AsyncAlgorithms.debounce() |
-| Throttle button clicks | ✅ AsyncAlgorithms.throttle() |
-| Merge independent streams | ✅ AsyncAlgorithms.merge() |
-| Combine dependent values | ✅ AsyncAlgorithms.combineLatest() or async let |
-| Pair values from two sources | ✅ AsyncAlgorithms.zip() |
-| Bridge callback API | AsyncStream |
-| Multi-consumer with backpressure | ✅ AsyncChannel |
-| Periodic timer | ✅ AsyncTimerSequence |
-| Simple async iteration | for await in... |
-
-> **See**: [async-algorithms.md](async-algorithms.md) for detailed usage examples with real-world patterns.
 
 ### Use regular async methods when:
 
@@ -553,8 +523,6 @@ func fetchData() async throws -> Data
 
 // Not this
 func fetchData() -> AsyncThrowingStream<Data, Error>
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 6.3: Deciding between AsyncSequence, AsyncStream, or regular asynchronous methods](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 ```
 
 ## Common Patterns
@@ -697,14 +665,9 @@ AsyncStream { continuation in
     // Missing: continuation.finish()
 }
 
-// ❌ Wrapping a single-value API in a stream — use a regular async function instead
+// ❌ Wrapping a single-value API in a stream - use a regular async function instead
 func fetchUser() -> AsyncStream<User> { ... } // Overkill for one result
 ```
 
 - **Sharing a single `AsyncStream` between multiple consumers**: Values split unpredictably. There is no built-in broadcast; use `AsyncChannel` for point-to-point multi-consumer patterns.
 - **Forgetting `onTermination`** when bridging delegate or observer APIs, causing resources to leak.
-
-## Further Learning
-
-For real-world migration examples, performance patterns, and advanced stream techniques, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
-

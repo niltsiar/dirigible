@@ -1,5 +1,14 @@
 # Memory Management
 
+Contents:
+- Core Concepts (Task Capture)
+- Retain Cycles
+- One-Way Retention
+- Async Sequences and Retention
+- Isolated Deinit (Swift 6.2+)
+- Detection and Testing
+- Common Patterns
+
 Use this when:
 
 - A task or async sequence is keeping objects alive longer than expected.
@@ -10,16 +19,6 @@ Skip this file if:
 
 - You mainly need to protect mutable state from races. Use `actors.md`.
 - You are debugging slow async code. Use `performance.md`.
-
-Jump to:
-
-- Core Concepts (Task Capture)
-- Retain Cycles
-- One-Way Retention
-- Async Sequences and Retention
-- Isolated Deinit (Swift 6.2+)
-- Detection and Testing
-- Common Patterns
 
 ## Core Concepts
 
@@ -39,8 +38,6 @@ Task {
 - Async operations delay execution
 - Harder to track when memory should be released
 - Long-running tasks can hold references indefinitely
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 8.1: Overview of memory management in Swift Concurrency](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Retain Cycles
 
@@ -118,8 +115,6 @@ task = Task { [weak self] in
     }
 }
 ```
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 8.2: Preventing retain cycles when using Tasks](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 Loop exits when `self` becomes `nil`.
 
@@ -562,8 +557,3 @@ When object won't deallocate:
 - [ ] Review async sequence usage
 - [ ] Check nested task captures
 - [ ] Verify cleanup in deinit
-
-## Further Learning
-
-For migration strategies, real-world examples, and advanced memory patterns, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
-

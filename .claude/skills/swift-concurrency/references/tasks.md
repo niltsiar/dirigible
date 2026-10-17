@@ -1,18 +1,6 @@
 # Tasks
 
-Use this when:
-
-- You need to start async work from synchronous code.
-- You are choosing between `Task`, `async let`, and task groups.
-- You need cancellation, priorities, or structured vs unstructured guidance.
-
-Skip this file if:
-
-- The problem is mainly actor isolation or sendability. Use `actors.md` or `sendable.md`.
-- The work is stream-shaped. Use `async-sequences.md` or `async-algorithms.md`.
-
-Jump to:
-
+Contents:
 - What is a Task?
 - Cancellation
 - Task Groups
@@ -22,9 +10,20 @@ Jump to:
 - Structured vs Unstructured Tasks
 - Task Priorities
 
+Use this when:
+
+- You need to start async work from synchronous code.
+- You are choosing between `Task`, `async let`, and task groups.
+- You need cancellation, priorities, or structured vs unstructured guidance.
+
+Skip this file if:
+
+- The problem is mainly actor isolation or sendability. Use `actors.md` or `sendable.md`.
+- The work is stream-shaped. Use `async-sequences.md`.
+
 ## What is a Task?
 
-Tasks bridge synchronous and asynchronous contexts. They start executing immediately upon creation—no `resume()` needed.
+Tasks bridge synchronous and asynchronous contexts. They start executing immediately upon creation-no `resume()` needed.
 
 ```swift
 func synchronousMethod() {
@@ -81,8 +80,6 @@ final class ImageLoader {
 
 Tasks run regardless of whether you keep a reference.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.1: Introduction to tasks in Swift Concurrency](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Cancellation
 
 ### Checking for cancellation
@@ -133,8 +130,6 @@ parent.cancel() // Both children notified
 
 Children must still check `Task.isCancelled` to stop work.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.2: Task cancellation](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Error Handling
 
 Task error types are inferred from the operation:
@@ -173,8 +168,6 @@ let safeTask: Task<String, Never> = Task {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.3: Error handling in Tasks](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## SwiftUI Integration
 
 ### The .task modifier
@@ -207,8 +200,6 @@ Task cancels automatically when view disappears.
 When `searchQuery` changes:
 1. Previous task cancels
 2. New task starts with updated value
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.12: Running tasks in SwiftUI](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ### Priority configuration
 
@@ -270,8 +261,6 @@ let images = try await withThrowingTaskGroup(of: UIImage.self) { group in
 ```
 
 **Critical**: Errors in child tasks don't automatically fail the group. Use iteration (`for try await`, `next()`, `reduce()`) to propagate errors.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.5: Task Groups](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ### Early termination on error
 
@@ -370,8 +359,6 @@ for await _ in NotificationCenter.default.notifications(
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.6: Discarding Task Groups](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Structured vs Unstructured Tasks
 
 ### Structured (preferred)
@@ -390,8 +377,6 @@ await withTaskGroup(of: Data.self) { group in
     group.addTask { await fetch(2) }
 }
 ```
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.7: The difference between structured and unstructured tasks](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ### Unstructured (use sparingly)
 
@@ -431,8 +416,6 @@ Task.detached(priority: .background) {
 
 **Prefer**: Task groups or `async let` for most parallel work.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.4: Detached Tasks](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Task Priorities
 
 ### Available priorities
@@ -442,7 +425,7 @@ Task.detached(priority: .background) {
 .userInitiated  // User-triggered work (same as .high)
 .medium         // Default for detached tasks
 .utility        // Longer-running, non-urgent
-.low            // Similar to .background
+.low            // Same as .utility
 .background     // Lowest priority
 ```
 
@@ -480,8 +463,6 @@ Task(priority: .high) {
 System automatically elevates priority to prevent priority inversion:
 - Actor waiting on lower-priority task
 - High-priority task awaiting `.value` of lower-priority task
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.8: Managing Task priorities](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Task.sleep() vs Task.yield()
 
@@ -538,8 +519,6 @@ func search(_ query: String) async {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.10: Task.yield() vs. Task.sleep()](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## async let vs TaskGroup
 
 | Feature | async let | TaskGroup |
@@ -595,11 +574,9 @@ let data = try await withTimeout(.seconds(5)) {
 }
 ```
 
-**`cancelAll()` is critical** — without it, the losing task keeps running until scope exit.
+**`cancelAll()` is critical** - without it, the losing task keeps running until scope exit.
 
-`Task.sleep` throws `CancellationError` when the task is cancelled, making it a useful cancellation checkpoint in polling loops. `Task.yield()` only gives other tasks a chance to run and does not check cancellation — if the current task has the highest priority, it may resume immediately.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 3.14: Creating a Task timeout handler using a Task Group (advanced)](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
+`Task.sleep` throws `CancellationError` when the task is cancelled, making it a useful cancellation checkpoint in polling loops. `Task.yield()` only gives other tasks a chance to run and does not check cancellation - if the current task has the highest priority, it may resume immediately.
 
 ## Common Patterns
 
@@ -643,7 +620,7 @@ let profile = Profile(
 - Using `Task.detached` just to "make it background."
 - Ignoring cancellation in long-running operations.
 - Keeping a stored task forever without a clear owner or cleanup path.
-- Picking entry isolation from the enclosing context rather than the task's synchronous prefix — `Task { await someActor.x() }` from a `@MainActor` context should be `Task { @concurrent in ... }`; a `Task` whose prefix mutates `@MainActor` state should stay on inherited `@MainActor` even if it also has a `print`.
+- Picking entry isolation from the enclosing context rather than the task's synchronous prefix - `Task { await someActor.x() }` from a `@MainActor` context should be `Task { @concurrent in ... }`; a `Task` whose prefix mutates `@MainActor` state should stay on inherited `@MainActor` even if it also has a `print`.
 - Priorities are hints, not guarantees. The system automatically elevates priority to prevent inversion (e.g., a high-priority task awaiting `.value` of a lower-priority task). Do not rely on priority for correctness.
 
 ## Best Practices
@@ -655,8 +632,3 @@ let profile = Profile(
 5. **Handle errors explicitly** in throwing task groups
 6. **Set priority only when needed** (inherit by default)
 7. **Don't mutate task groups** from outside their creation context
-
-## Further Learning
-
-For hands-on examples, advanced patterns, and migration strategies, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
-

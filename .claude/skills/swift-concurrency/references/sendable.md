@@ -1,5 +1,15 @@
 # Sendable
 
+Contents:
+- Isolation Domains
+- Value Types (Structs, Enums)
+- Reference Types (Classes)
+- Functions and Closures (@Sendable)
+- @unchecked Sendable
+- Region-Based Isolation / `sending`
+- Global Variables
+- Decision Tree
+
 Use this when:
 
 - A value or reference type must cross an isolation boundary safely.
@@ -11,17 +21,6 @@ Skip this file if:
 - The issue is about which actor should own the state. Use `actors.md`.
 - The issue is about how async functions execute. Use `threading.md`.
 
-Jump to:
-
-- Isolation Domains
-- Value Types (Structs, Enums)
-- Reference Types (Classes)
-- Functions and Closures (@Sendable)
-- @unchecked Sendable
-- Region-Based Isolation / `sending`
-- Global Variables
-- Decision Tree
-
 ## What is Sendable?
 
 `Sendable` indicates a type is safe to share across isolation domains (actors, tasks, threads). The compiler verifies thread-safety at compile time.
@@ -31,8 +30,6 @@ public protocol Sendable {}
 ```
 
 Empty protocol, but triggers compiler verification of thread-safety.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.1: Explaining the concept of Sendable in Swift](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Isolation Domains
 
@@ -120,8 +117,6 @@ print(await counter.getValue())
 
 **Key difference**: Swift Concurrency prevents data races but not race conditions. You must still ensure proper sequencing.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.2: Understanding Data Races vs. Race Conditions: Key Differences Explained](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Value Types (Structs, Enums)
 
 ### Implicit conformance
@@ -172,8 +167,6 @@ public struct Location: Sendable {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.3: Conforming your code to the Sendable protocol](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ### Copy-on-write makes mutability safe
 
 ```swift
@@ -183,8 +176,6 @@ public struct Person: Sendable {
 ```
 
 Each mutation creates a copy, preventing concurrent access to same instance.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.4: Sendable and Value Types](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Reference Types (Classes)
 
@@ -247,8 +238,6 @@ final class GamePurchaser {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.5: Sendable and Reference Types](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Functions and Closures (@Sendable)
 
 Mark functions/closures that cross isolation domains:
@@ -290,11 +279,9 @@ store.filter { [query] contact in
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.6: Using @Sendable with closures](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## @unchecked Sendable
 
-**Use as last resort.** Tells compiler to skip verification—you guarantee thread-safety.
+**Use as last resort.** Tells compiler to skip verification-you guarantee thread-safety.
 
 ### When to use
 
@@ -354,8 +341,6 @@ actor Cache {
     }
 }
 ```
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.7: Using @unchecked Sendable](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Region-Based Isolation
 
@@ -427,8 +412,6 @@ func createArticle(title: String) -> sending Article {
 
 Transfers ownership to caller's region.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.8: Understanding region-based isolation and the sending keyword](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Global Variables
 
 Must be concurrency-safe since accessible from any context.
@@ -473,8 +456,6 @@ struct APIProvider: Sendable {
 ```
 
 Use `private(set)` to limit mutation points.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.9: Concurrency-safe global variables](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Custom Locks + Sendable
 
@@ -521,8 +502,6 @@ actor BankAccount {
     }
 }
 ```
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 4.10: Combining Sendable with custom Locks](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Decision Tree
 
@@ -591,8 +570,3 @@ class ViewModel: ObservableObject {
 7. **Capture immutably** - use capture lists for mutable variables
 8. **Test with Thread Sanitizer** - catches runtime data races
 9. **File migration tickets** - track @unchecked Sendable usage
-
-## Further Learning
-
-For migration strategies, real-world examples, and actor patterns, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
-

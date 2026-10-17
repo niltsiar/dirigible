@@ -40,8 +40,9 @@ let chapterTools = [
         "chapters_import",
         "Add the chapters of a Podcasting 2.0 JSON Chapters file as chapter markers, as dirigible chapters import. A "
             + "chapter with toc false is a plain marker. A chapter with no title is named Chapter N. The import copies "
-            + "no image. Give the IDs of the new markers, one on each line, then the warning lines. A bad file or a "
-            + "failed call changes nothing.",
+            + "no image. Give the ID of the marker of each file chapter, in file order, one on each line, then the "
+            + "warning lines. With replace, a chapter with toc false can give the ID of an existing plain marker. A "
+            + "bad file or a failed call changes nothing.",
         [importPath, importAt, importReplace]
     ) { a throws(ToolError) in
         let (location, first, replaces) = (try a[importPath], try a[importAt], try a[importReplace])

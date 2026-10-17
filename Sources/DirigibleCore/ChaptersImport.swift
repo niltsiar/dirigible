@@ -103,10 +103,12 @@ extension Session {
     /// import copies none.
     ///
     /// With `replacing`, it first removes each chapter marker and keeps each plain marker. A
-    /// removed chapter with an image gives it to the first file chapter that is at the same
-    /// millisecond (the rule of the export, `chaptersJSON`), counted from `at`. When a removed
-    /// image finds no chapter, the import throws `.chapterImageNotKept` and changes nothing: it
-    /// never drops an image that the file does not replace.
+    /// removed chapter with an image gives it to the first file chapter with `toc` true that is at
+    /// the same millisecond (the rule of the export, `chaptersJSON`), counted from `at`; the export
+    /// writes no image of a plain marker. When a removed image finds no chapter, the import throws
+    /// `.chapterImageNotKept` and changes nothing: it never drops an image that the file does not
+    /// replace. A `toc` false chapter with the name and frame of a plain marker adds no marker and
+    /// gives the ID of that marker, so a second import of one file gives the same markers.
     ///
     /// The frame of each chapter is checked against `Frames.limit` before `Int(...)`, as
     /// `importTranscript`, so a `startTime` of 1e300 throws `.chapterOutOfRange` and does not trap.
@@ -133,7 +135,7 @@ extension Session {
                 old.position < at
                 ? nil
                 : file.chapters.indices.first { index in
-                    images[index] == nil
+                    images[index] == nil && file.chapters[index].isChapter
                         && Int((file.chapters[index].startTime * 1000).rounded()) == milliseconds(old.position - at)
                 }
             if let match { images[match] = image } else { lost.append(old) }
@@ -141,11 +143,19 @@ extension Session {
         guard lost.isEmpty else { throw .chapterImageNotKept(lost) }
         var next = self
         for old in removed { try next.removeMarker(old.id) }
+        var plain = replacing ? next.sortedMarkers.filter { $0.kind == .marker } : []
         var ids: [MarkerID] = []
         for (index, chapter) in file.chapters.enumerated() {
+            let name = chapter.title ?? "Chapter \(index + 1)"
+            if !chapter.isChapter,
+                let kept = plain.firstIndex(where: { $0.name == name && $0.position == frames[index] })
+            {
+                ids.append(plain.remove(at: kept).id)
+                continue
+            }
             let marker = Marker(
-                id: MarkerID(), name: chapter.title ?? "Chapter \(index + 1)", position: frames[index],
-                kind: chapter.isChapter ? .chapter : .marker, url: chapter.url, image: images[index])
+                id: MarkerID(), name: name, position: frames[index], kind: chapter.isChapter ? .chapter : .marker,
+                url: chapter.url, image: images[index])
             try next.setMarker(marker)
             ids.append(marker.id)
         }

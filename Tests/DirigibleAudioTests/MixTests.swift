@@ -251,4 +251,27 @@ struct MixTests {
             try isLevel(0.25, { try $0.setMuted(true, tracks: ["t2"]) }, tracks: ["t1", "t2"]),
             "Export Selection: the selected tracks that are heard")
     }
+
+    /// Heal C27: a clip with a gain and both fades, split twice, renders the same samples after
+    /// a heal, over the clips and 1 s on each side. The clip count shows that the heal ran.
+    @Test func aHealedClipSoundsTheSame() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: [ramp(frames: 40_000)])
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 48_000, offset: 1_000, length: 30_000)
+        try package.session.setGain(#require(Gain(dB: -4.5)), clip: "c1")
+        try package.session.setFades(["c1": #require(Fades(fadeIn: 480, fadeOut: 960))])
+        try package.session.splitClips(at: [60_000, 70_000], on: ["t1"])
+        #expect(package.session.track("t1")?.clips.count == 3)
+        let range: Range<Frames> = 0..<126_000
+        let split = try package.mix(range)
+
+        try package.session.heal()
+
+        #expect(package.session.track("t1")?.clips.count == 1)
+        let healed = try package.mix(range)
+        #expect(split[0].contains { $0 != 0 }, "the fixture sounds")
+        for channel in 0..<2 {
+            #expect(maxError(healed[channel], split[channel]) <= 1e-6, "channel \(channel)")
+        }
+    }
 }

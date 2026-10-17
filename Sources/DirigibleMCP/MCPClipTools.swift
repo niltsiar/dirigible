@@ -33,6 +33,12 @@ private let fadeOut = Param<Int?>.optional(
     "out", "The fade-out length in frames. The default is the current value.", .integer())
 private let crossfade = Param.required(
     "length", "The crossfade length in frames, an even number.", .integer(minimum: 0))
+private let healTracks = Param<[String]?>.optional(
+    "track", "Only these tracks. The default is all tracks.", .strings(minItems: 1))
+private let healFrom = Param<Int?>.optional(
+    "from", "Only the joins from this timeline frame. Give it with to.", .integer())
+private let healTo = Param<Int?>.optional(
+    "to", "Only the joins to this timeline frame, a join at this frame too. Give it with from.", .integer())
 
 extension Arguments {
     /// The paste from another package of `source` (decision 0042), or nil with no `source`. The
@@ -198,6 +204,27 @@ let clipTools = [
         return .edit(ripple: false) { session throws(SessionError) in
             try session.setCrossfades([id: frames])
             return []
+        }
+    },
+    Tool(
+        "clip_heal",
+        "Join the clips that touch and play on in one file at one gain, with no fade at the join. The sound does "
+            + "not change: it undoes a split. Give the ID of each healed clip.",
+        [healTracks, healFrom, healTo]
+    ) { a throws(ToolError) in
+        let targets = try a[healTracks]?.map { TrackID($0) }
+        let range: ClosedRange<Frames>?
+        switch (try a[healFrom], try a[healTo]) {
+        case (nil, nil): range = nil
+        case (let from?, let to?):
+            guard let checked = EditRules.joinRange(from: from, to: to) else {
+                throw ToolError("from must not be more than to.")
+            }
+            range = checked
+        default: throw ToolError("Give from and to, or neither.")
+        }
+        return .edit(ripple: false) { session throws(SessionError) in
+            try session.heal(tracks: targets, range: range).map(\.rawValue)
         }
     },
 ]

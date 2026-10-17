@@ -322,4 +322,6 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A chapters import with `replacing` would drop the image of each of these chapters: the file
     /// has no chapter at the time of each.
     case chapterImageNotKept([Marker])
+    /// A heal found no join of two clips that play on in one file at one gain with no fade at the join.
+    case nothingToHeal
 }

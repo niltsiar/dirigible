@@ -44,6 +44,12 @@ package enum EditRules {
         from <= to ? Frames(from)..<Frames(to) : nil
     }
 
+    /// `from...to` of a heal: a join at `to` is in the range. `ClosedRange` traps when `from` is
+    /// above `to`.
+    package static func joinRange(from: Int, to: Int) -> ClosedRange<Frames>? {
+        from <= to ? Frames(from)...Frames(to) : nil
+    }
+
     /// An even number of frames, 0 or more. `Session` refuses a length over the limit.
     package static func crossfadeLength(_ count: Int) -> Frames? { count >= 0 && count % 2 == 0 ? Frames(count) : nil }
 

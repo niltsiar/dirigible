@@ -161,6 +161,27 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair((index - 1)..<(index + 1))
     }
 
+    /// True when the clips at `left` and `left + 1` touch and play on in one file at one gain, with
+    /// no fade at the join: one clip over both plays the same samples.
+    func canHeal(after left: Int) -> Bool {
+        guard join(after: left) == .seamless else { return false }
+        let (a, b) = (storage[left], storage[left + 1])
+        return a.gain == b.gain && a.fades.fadeOut == .zero && b.fades.fadeIn == .zero
+    }
+
+    /// Joins the clip at `index` and the clip after it, which `canHeal(after:)` approved. The clip
+    /// keeps its ID, its start edge, and the fade-in and start crossfade; the right clip gives the end
+    /// edge. The neighbors still touch the same edges, so their crossfades stay paired.
+    mutating func heal(at index: Int) {
+        var clip = storage[index]
+        let right = storage.remove(at: index + 1)
+        clip.length = clip.length + right.length
+        clip.fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: right.fades.fadeOut)!
+        clip.crossfades = Crossfades(valid: clip.crossfades.start, end: right.crossfades.end)
+        storage[index] = clip
+        repair((index - 1)..<(index + 2))
+    }
+
     /// Moves each clip that starts at or after `frame` by `offset` (a ripple, decision 0037). The
     /// caller checks that the moved clips do not overlap the clip before them and that their ends
     /// stay in range. The joins inside the moved part stay paired, so only the join at the edge of

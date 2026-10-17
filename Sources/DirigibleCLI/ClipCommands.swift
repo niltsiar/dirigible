@@ -10,7 +10,7 @@ struct ClipCommand: ParsableCommand {
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, PasteClips.self, Nudge.self, Remove.self,
             Move.self, Trim.self,
-            SetGain.self, Fade.self, Crossfade.self, RippleDelete.self, RippleInsert.self, RippleTrim.self,
+            SetGain.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self, RippleInsert.self, RippleTrim.self,
         ])
 
     struct Place: ParsableCommand {
@@ -280,6 +280,43 @@ extension ClipCommand {
             try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.setCrossfades([ClipID(clip): length])
             }
+        }
+    }
+}
+
+extension ClipCommand {
+    struct Heal: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract:
+                "Join the clips that touch and play on in one file at one gain, with no fade at the join. The sound "
+                + "does not change: it undoes a split. Write the ID of each healed clip.")
+        @OptionGroup var package: PackageArgument
+        @Option(help: "A track. The default is all tracks.") var track: [String] = []
+        @Option(parsing: .unconditional, help: "Only the joins from this timeline frame. Give it with --to.")
+        var from: Int?
+        @Option(
+            parsing: .unconditional,
+            help: "Only the joins to this timeline frame, a join at this frame too. Give it with --from.")
+        var to: Int?
+
+        func validate() throws {
+            switch (from, to) {
+            case (nil, nil): break
+            case (let from?, let to?):
+                guard EditRules.joinRange(from: from, to: to) != nil else {
+                    throw ValidationError("--from must not be more than --to.")
+                }
+            default: throw ValidationError("Give --from and --to, or neither.")
+            }
+        }
+
+        func run() throws {
+            var range: ClosedRange<Frames>?
+            if let from, let to { range = EditRules.joinRange(from: from, to: to) }
+            let healed = try editPackage(package, ripple: false) { session throws(SessionError) in
+                try session.heal(tracks: track.isEmpty ? nil : track.map { TrackID($0) }, range: range)
+            }
+            for id in healed { print(id) }
         }
     }
 }

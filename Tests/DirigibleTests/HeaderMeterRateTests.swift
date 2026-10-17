@@ -54,6 +54,7 @@ import Testing
     @Test func meterReportsRunNoRowBody() async throws {
         let (model, studio, window, view) = try await open()
         let rows = model.headerRuns.rows
+        let observed = try #require(registrations(of: studio)).ids[\Studio.liveTracks]?.count ?? 0
         var made: [String: Int] = [:]
         for tick in 1...100 {
             let studioBefore = try #require(registrations(of: studio))
@@ -77,6 +78,10 @@ import Testing
             model.headerRuns.rows - rows == 0, "C1: row bodies at 100 meter reports: \(model.headerRuns.rows - rows)")
         let stable = made.isEmpty
         #expect(stable, "C2: new registrations at 100 meter reports: \(made.sorted { $0.key < $1.key })")
+        let live = try #require(registrations(of: studio)).ids[\Studio.liveTracks]?.count ?? 0
+        #expect(
+            live <= levels.count,
+            "only the meter views observe liveTracks: \(observed) live before, \(live) after, \(levels.count) meters")
         window.close()
         await model.close()
     }

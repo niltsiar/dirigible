@@ -2,9 +2,6 @@ import Atomics
 import CoreAudio
 import DirigibleCore
 import Foundation
-import os
-
-private let attachLog = Logger(subsystem: "com.delineas.dirigible", category: "capture")
 
 /// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
 /// serial queue pops the ring of the current `DeviceInput`, runs the watchdog while the device
@@ -13,8 +10,8 @@ private let attachLog = Logger(subsystem: "com.delineas.dirigible", category: "c
 /// (decision 0015): it computes the peaks and writes no file. All state is confined to its serial
 /// queue, so it is `@unchecked Sendable`.
 final class DeviceWriter: @unchecked Sendable {
-    private enum Phase { case ready, running, lost, finished }
-    private typealias Found = (id: AudioObjectID, device: InputDevice, teardown: Detach, key: AppKey?)
+    enum Phase { case ready, running, lost, finished }
+    typealias Found = (id: AudioObjectID, device: InputDevice, teardown: Detach, key: AppKey?)
 
     /// A writer with this many failed detaches attaches no more in the take (decision 0013).
     static let failedDetachLimit = 8
@@ -27,44 +24,44 @@ final class DeviceWriter: @unchecked Sendable {
     private let drainInterval: Duration
     private let silenceLimit: Duration
     private let firstRecordLimit: Duration
-    private let ringSeconds: Double
+    let ringSeconds: Double
     /// At this many kept inputs, the writer attaches no more (decision 0015).
-    private let keepLimit: Int
+    let keepLimit: Int
     private let queue: DispatchQueue
     var tracks: TrackSegments
-    private var phase = Phase.ready
+    var phase = Phase.ready
     /// The attached appearance of the device, its detach, and for an app the key of the
     /// appearance: its processes and the main sub-device of its aggregate (decision 0030).
     var input: (input: DeviceInput, detach: Detach, key: AppKey?)?
     /// The detaches that failed: a late IOProc call can still use their ring bytes.
-    private var failedDetaches = 0
+    var failedDetaches = 0
     /// The inputs that `keep` kept for the process life.
-    private var kept = 0
+    var kept = 0
     /// True after the writer reported `.retryStopped`.
-    private var retryStopped = false
+    var retryStopped = false
     /// The last running state that an app writer reported: `.waitingForApp` while its app has no
     /// process, else `.recording`.
     var appState = LiveTrack.State.recording
     /// The silence check of an app track for the take (A9).
     var silence = SilenceCheck()
     /// The ring of an attach that threw before its IOProc existed: no call can reach it.
-    private var spare: CaptureRing?
+    var spare: CaptureRing?
     private var unwatch: Detach?
     private var timer: DispatchSourceTimer?
     /// The watchdog clock: the last valid record, or the attach.
-    private var lastValid = ContinuousClock.now
+    var lastValid = ContinuousClock.now
     /// True after the first valid record of the current appearance. Before it, the watchdog
     /// uses `firstRecordLimit`.
-    private var hasRecord = false
+    var hasRecord = false
     /// When a lost writer tries to attach again.
-    private var comeBacks = ComeBackSchedule(at: .now)
+    var comeBacks = ComeBackSchedule(at: .now)
     /// True while one device-list handler waits in the queue: a device-list post then adds none.
     private let listQueued = ManagedAtomic<Bool>(false)
     private let dropped = ManagedAtomic<Int>(0)
     /// `tracks.wavBytes` after each drain.
     private let wavByteCount = ManagedAtomic<Int64>(0)
     /// The start state and the stop time, which the Studio sets from any thread.
-    private let lifecycle = WriterLifecycle()
+    let lifecycle = WriterLifecycle()
     /// The name of the device or the app, for an error text. Any thread reads it.
     let name: String
 
@@ -271,7 +268,7 @@ final class DeviceWriter: @unchecked Sendable {
     /// Keeps `input` and its ring atomics for the process life (decision 0013): a listener call
     /// that was in progress during its removal can use them at any later time, also after the
     /// take. A clean detach frees the ring bytes, because no IOProc call can come.
-    private func keep(_ input: DeviceInput, clean: Bool) {
+    func keep(_ input: DeviceInput, clean: Bool) {
         _ = Unmanaged.passRetained(input)
         kept += 1
         if clean { input.ring.deallocateBytes() } else { failedDetaches += 1 }
@@ -296,105 +293,5 @@ final class DeviceWriter: @unchecked Sendable {
         appState = .recording
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .recording, status: nil)) }
         reportAppState()
-    }
-
-    /// A new `DeviceInput` for the device as the lookup finds it now. The routed channels are
-    /// checked before a ring exists, and a ring of an attach that threw is used again. At the
-    /// keep limit it attaches no more, and it reports `.retryStopped` once. A try that makes a tap
-    /// or calls `hal.attach` and does not attach opens a come-back window.
-    func attach() -> Bool {
-        guard lifecycle.state != .abandoned else { return false }
-        var outcome = ComeBackSchedule.Outcome.absent
-        defer { comeBacks.tried(outcome, at: .now) }
-        guard kept < keepLimit else {
-            if !retryStopped {
-                retryStopped = true
-                for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .retryStopped, status: nil)) }
-            }
-            return false
-        }
-        guard failedDetaches < Self.failedDetachLimit, let found = find(&outcome) else { return false }
-        tracks.use(found.device)
-        let capacity = CaptureRing.capacity(for: found.device, seconds: ringSeconds)
-        if let spare, spare.capacity != capacity {
-            spare.deallocate()
-            self.spare = nil
-        }
-        let ring = spare ?? CaptureRing(capacity: capacity, rate: found.device.nominalRate)
-        spare = nil
-        ring.setRate(found.device.nominalRate)
-        let input = DeviceInput(id: found.id, ring: ring, writer: self)
-        let detachAll: Detach
-        outcome = .failed
-        do throws(HALError) {
-            let detach = try timedAttach(input)
-            let teardown = found.teardown
-            // Each step runs; the detach is clean only when both are (A6). The IOProc goes first:
-            // an aggregate destroy with a live IOProc gives late calls (probe P12).
-            detachAll = { [detach(), teardown()].allSatisfy { $0 } }
-        } catch .undoFailed {
-            _ = found.teardown()
-            keep(input, clean: false)
-            return false
-        } catch .undone {
-            // A listener call can still be in progress, as after a clean detach.
-            keep(input, clean: found.teardown())
-            return false
-        } catch {
-            spare = ring
-            if !found.teardown() { failedDetaches += 1 }
-            return false
-        }
-        // A stop that gave up the writer during the attach gets no record from it.
-        let before = lifecycle.attach()
-        guard before != .abandoned else {
-            keep(input, clean: detachAll())
-            return false
-        }
-        self.input = (input, detachAll, found.key)
-        phase = .running
-        lastValid = .now
-        hasRecord = false
-        outcome = .attached
-        if before == .notAttached { reportFirst() }
-        return true
-    }
-
-    /// `hal.attach`, with a log line for a call of 1 s or more: a HAL call can hold the queue.
-    private func timedAttach(_ input: DeviceInput) throws(HALError) -> Detach {
-        let called = ContinuousClock.now
-        defer {
-            let took = ContinuousClock.now - called
-            if took >= .seconds(1) {
-                attachLog.notice(
-                    "The attach of \(self.name, privacy: .public) took \(String(describing: took), privacy: .public)")
-            }
-        }
-        return try hal.attach(input)
-    }
-
-    /// The first report of the writer, at its first attach: `.recording` for a device, and for an
-    /// app `.waitingForApp` while it has no process. It replaces the state of the take start.
-    private func reportFirst() {
-        appState = input?.key?.processes.isEmpty == true ? .waitingForApp : .recording
-        for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, appState, status: nil)) }
-    }
-
-    /// The device as the lookup finds it now with the routed channels. For an app, a new tap and
-    /// aggregate of its processes now (decision 0030); a device has no teardown.
-    private func find(_ outcome: inout ComeBackSchedule.Outcome) -> Found? {
-        guard let app else {
-            guard let found = hal.lookUp(tracks.device.uid), tracks.hasRoutedChannels(found.device) else { return nil }
-            return (found.id, found.device, { true }, nil)
-        }
-        let layout = ChannelLayout(channelCount: tracks.routedWidth) ?? .mono
-        guard let found = hal.lookUpApp(app, layout) else { return nil }
-        outcome = .failed
-        guard let tap = try? hal.makeTap(found) else { return nil }
-        guard tracks.hasRoutedChannels(tap.device) else {
-            if !tap.teardown() { failedDetaches += 1 }
-            return nil
-        }
-        return (tap.id, tap.device, tap.teardown, AppKey(processes: found.key.processes, output: found.output))
     }
 }

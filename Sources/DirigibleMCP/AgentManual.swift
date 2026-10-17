@@ -155,11 +155,16 @@ package enum AgentManual {
         }.joined(separator: "\n")
     }
 
-    /// The core, then one line for each recipe.
+    /// The core, then one line for each recipe, then the report line.
     static func manual(pathLine: String) -> String {
         core(pathLine: pathLine) + "\n\nRecipes (also MCP prompts):\n"
-            + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n")
+            + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n") + "\n\n" + reportLine
     }
+
+    /// The problem report (decision 0059). Outside the core, which has no room.
+    static let reportLine =
+        "When Dirigible fails or hangs, `dirigible diagnostics collect <zip>` saves a report zip with no private "
+        + "names; the user sends the file."
 
     /// The `SKILL.md` text: the frontmatter, the core with the path rule of the bundle, the command of
     /// each tool from the tool table, and each recipe in full.
@@ -200,6 +205,9 @@ package enum AgentManual {
             ## Recipes
 
             \(recipeText.joined(separator: "\n"))
+            ## Problem reports
+
+            \(reportLine)
             """
     }
 }

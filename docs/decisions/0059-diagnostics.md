@@ -39,7 +39,20 @@ A beta tester pressed Record during a call, the window showed the busy cursor, a
 - The burst writes `hang images` from that list first (each `hang` line calls `fsync`), then the raw stacks, and names the frames with `dladdr` only after the last stack. So a main thread that hangs in dyld, which holds the dyld lock, still gives its raw stacks for `atos`.
 - The watchdog never runs `sample` (Context).
 
-**Module.** `DirigibleAudio/Diagnostics/` holds `DiagnosticLog`, the journal, `HangWatchdog`, and `HangRule` (0002 **Folders**). The C target `CMainStack` holds the walk and the image list, and `DirigibleAudio` depends on it.
+**Report.** `DiagnosticBundle.collect` builds one zip and never writes to the log folder:
+
+- `summary.txt`: the facts of the `app launch` line, the free bytes of the home volume, the microphone status (read with no prompt), the default input and output, the counts, the `stack walk` line, and one `skipped` line with the reason for each folder or file that the bundle could not read. A folder that does not exist gives no line.
+- `devices.tsv`: the columns of `dirigible devices`, then the transport, the buffer frame size, and the default input and output flags. The UID is the `uid-` token of the salt of the log folder, so one device has one token in the journals and in the list. With no salt, the bundle uses a new random key and writes no salt.
+- `logs/`: the journal parts whose time of change is in the last 7 days. Only journal names, so never the salt.
+- `reports/`: the reports whose name starts with `Dirigible` (any case, so a report of the `dirigible` tool too), with any extension (`.ips`, `.hang`, `.spin`), of the last 30 days, the 20 newest, from `~/Library/Logs/DiagnosticReports` and `/Library/Logs/DiagnosticReports`. A Force Quit of an app that does not respond can write a `.hang` or `.spin` report.
+- The redaction replaces, in each text and each file name, the home folder with `~`; the short user name, the full user name, and each word of the full name with `USER`; the computer name with `MAC-NAME`; and the local host name and the `gethostname` name with `HOST-NAME`. One scan, with no regard to case, replaces the longest value at each place. A value of 3 characters or fewer and a word of the full name match only as a whole word. The names come from `SCDynamicStoreCopyComputerName`, `SCDynamicStoreCopyLocalHostName`, and `gethostname`, with no DNS lookup. A device name keeps its other words: "Quinn's AirPods" becomes "USER's AirPods".
+- `stack walk`: the collect step parks a helper thread in `holdForStackWalkProbe` on a semaphore, walks it once with the `CMainStack` walk, and names the frames. `ok` needs 3 frames or more, the helper, and a named frame of a system library. So each bundle shows if the walk works on the macOS and the architecture of that Mac.
+- The zip comes from `NSFileCoordinator` with `.forUploading`, with Foundation only and no child process. The coordinator deletes its zip when the accessor block returns, so the move to the zip path runs in the block. The zip path must not exist.
+- The bundle never holds audio, peaks, `session.xml`, transcripts, episode data, `agent-log.tsv`, the list of running apps, or the system log.
+- The app server writes `agent call` with `tool`, `ms`, and `error` for each call that `dirigible mcp` sends to the app, and never an argument.
+- The command line: `dirigible diagnostics collect <zip> [--days <n>] [--logs <folder>] [--reports <folder>]...`, exit 0, 2 (the zip exists or cannot be written), or 64. Nothing leaves the Mac: the user sends the file.
+
+**Module.** `DirigibleAudio/Diagnostics/` holds `DiagnosticLog`, the journal, `HangWatchdog`, `HangRule`, `DiagnosticBundle`, and the redaction (0002 **Folders**). The C target `CMainStack` holds the walk and the image list, and `DirigibleAudio` depends on it.
 
 ## Consequences
 
@@ -56,4 +69,5 @@ A beta tester pressed Record during a call, the window showed the busy cursor, a
 - **`sample` at 2 s.** Rejected by probe Q4: it makes the IOProc lose input during a take.
 - **`Logger` beside the journal.** Rejected: no reader can read it without an administrator, and its privacy rule for each value adds a second format to keep true.
 - **A token for each launch.** Rejected: one device gets another token in each journal, so the lead cannot join its lines.
+- **`ditto -c -k` for the zip.** Rejected: a child process, where `.forUploading` gives the zip with Foundation only.
 - **A Swift `DirigibleDiagnostics` target.** Rejected: 0002 rejects a target for each capability, and `DirigibleCore` has no event that needs a line.

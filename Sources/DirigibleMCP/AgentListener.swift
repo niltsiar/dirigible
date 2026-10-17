@@ -9,6 +9,8 @@ private let log = Logger(subsystem: "com.delineas.dirigible", category: "agents"
 package struct AgentCall: Sendable {
     /// The package path as the agent gave it, for the error texts.
     let path: String
+    /// The tool name, from the tool table: the one fact of the call in its journal line.
+    let tool: String
     /// `packageIdentity` of the path, computed on the listener queue (C6).
     let identity: URL
     let work: ToolWork
@@ -315,7 +317,7 @@ final class AgentListener: @unchecked Sendable {
             let work = try make(checked)
             return .success(
                 AgentCall(
-                    path: checked.path, identity: packageIdentity(checked.package), work: work,
+                    path: checked.path, tool: tool.name, identity: packageIdentity(checked.package), work: work,
                     agent: AgentName(title: client.title, clientName: client.name), connection: connection))
         } catch {
             return .failure(error)

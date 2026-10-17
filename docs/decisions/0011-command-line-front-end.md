@@ -20,6 +20,7 @@
 - Amended: 2026-10-13, run `2026-10-13-ripple-ranges`. `clip ripple-delete` takes `--from` and `--to` more than once, paired by order, and cuts all the ranges in one save. No range, or a count of `--to` that is not the count of `--from`, exits 64. The tool `clip_ripple_delete` takes `from` and `to` as arrays (see 0037).
 - Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). `transcript import`, `transcript words`, and `transcript cut`. `transcript import` reads stdin with `-`. A file that is not a transcript exits 1. A malformed word occurrence exits 64.
 - Amended: 2026-10-17, run `2026-10-17-agent-pack`. `clip heal` joins touching pieces of one file (exit 1 when no join heals). `chapters import` reads a Podcasting 2.0 chapters file. `chapters export` writes a `.txt` list. `info --json --compact` writes a short JSON. `import` has `--id`, `--offset`, `--length`, `--db`, `--fade-in`, and `--fade-out`. Each has a tool and a `ParityTests` entry.
+- Amended: 2026-10-17, run `2026-10-16-diagnostics` (see 0059). `dirigible diagnostics collect <zip>` saves a redacted problem report. It reads no package and changes none, so it has no MCP tool (see 0041). Exit codes 0, 2 (the zip exists or cannot be written), and 64.
 
 ## Context
 

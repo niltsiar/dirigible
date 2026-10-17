@@ -68,6 +68,30 @@ struct StudioImportCancelTests {
         #expect(fixture.xml == xml && !studio.canUndo, "a cancelled import saved")
     }
 
+    /// Agent-pack C12: a late cancel of an import that reused `Voice.wav` keeps that WAV and
+    /// `session.xml`: the reuse made no file, so the cancel removes none.
+    @Test func aCancelledImportThatReusedAFileKeepsTheFile() async throws {
+        let fixture = try await ImportStudioFixture.make()
+        let studio = try await fixture.open()
+        #expect(await run(studio, fixture).value == nil, "the first import")
+        let wav = fixture.url.appending(path: "\(clipsFolderName)/Voice.wav")
+        let bytes = try #require(FileManager.default.contents(atPath: wav.path))
+        let gate = AsyncGate()
+        studio.environment.importWorkDone = { await gate.wait() }
+        let (xml, names) = (fixture.xml, fixture.clipsNames)
+
+        let import2 = run(studio, fixture, to: ImportTarget(track: "t1", start: 500_000))
+        await gate.entered()
+        #expect(fixture.clipsNames == names, "the work reused Voice.wav: \(fixture.clipsNames)")
+        studio.cancelImport()
+        gate.open()
+
+        #expect(await import2.value == .audioImport(.cancelled))
+        let kept = FileManager.default.contents(atPath: wav.path) == bytes
+        #expect(kept && fixture.clipsNames == names, "the cancel changed Clips/: \(fixture.clipsNames)")
+        #expect(fixture.xml == xml, "a cancelled import saved")
+    }
+
     /// G24: the studio fraction keeps the largest value of the run, and the next run starts at 0.
     @Test func theImportFractionStartsAtZeroForEachRun() async throws {
         let fixture = try await ImportStudioFixture.make()

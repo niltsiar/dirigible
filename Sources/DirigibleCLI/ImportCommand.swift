@@ -11,7 +11,8 @@ struct ImportCommand: ParsableCommand {
         abstract: "Import an audio file into a track.",
         discussion: """
             The formats are WAV, AIFF, FLAC, MP3, and M4A. The command copies the file into Clips/ as a \
-            24-bit WAV at the session rate and places it as a clip at --at on --track. The clip \
+            24-bit WAV at the session rate and places it as a clip at --at on --track. When a file of the \
+            session has the same bytes as that WAV, the clip uses that file, and Clips/ gets no copy. The clip \
             overwrites the clips under it. With no --track, the clip goes on a new last track that has \
             the name and the layout of the file. A stereo file on a mono track becomes 0.5 L + 0.5 R; a \
             mono file on a stereo track goes to both channels. Then the clip gets the gain of Auto \

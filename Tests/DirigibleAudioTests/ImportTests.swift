@@ -145,6 +145,8 @@ struct ImportTests {
 
         let first = try importAudio(
             source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url, level: false)
+        // Other audio with the same name, so the second import makes a file (agent-pack C10).
+        try writeSource(source, .wav16, rate: 48_000, channels: [ramp(frames: 4_801)])
         let second = try importAudio(
             source, to: ImportTarget(track: "t1", start: 9_600), of: first.session, in: package.url, level: false)
 
@@ -208,7 +210,8 @@ struct ImportTests {
         #expect((wav.channels[0].map(abs).max() ?? 1) < 1, "no sample saturates")
     }
 
-    @Test func aQuietFileProgressesFromHalfToOne() throws {
+    /// One pass ends at 0.9 with no level; with no pool file to compare, the progress then steps to 1.
+    @Test func aQuietFileProgressesInOnePass() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         try writeSource(package.source("Quiet.wav"), .wav16, rate: 44_100, channels: [sine(seconds: 3, rate: 44_100)])
         let box = OSAllocatedUnfairLock(initialState: [Double]())
@@ -218,7 +221,7 @@ struct ImportTests {
             in: package.url, level: false, progress: { value in box.withLock { $0.append(value) } })
         let values = box.withLock { $0 }
 
-        #expect(values.dropLast().allSatisfy { $0 <= 0.5 } && values.last == 1, "one pass ends at 1: \(values)")
+        #expect(values.dropLast(2).allSatisfy { $0 < 0.5 } && values.suffix(2) == [0.9, 1], "one pass: \(values)")
     }
 }
 

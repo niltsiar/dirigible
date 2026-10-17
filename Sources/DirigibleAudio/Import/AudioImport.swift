@@ -28,20 +28,22 @@ public enum ImportError: Error, Hashable, Sendable {
 /// ID, the range of the made WAV, the gain, and the fades of `target`; a length past the end of
 /// the WAV stops at its end. The clip overwrites the clips under it, as a placement does. It
 /// never writes `session.xml`, and it blocks until the end, so never call it on the main actor.
-/// It returns the WAV that it renamed as `made`.
+/// It returns the WAV that it renamed as `made`, or nil when the clip reuses a pool file with the
+/// same bytes (`identicalPoolFile`).
 ///
 /// The order: the download check (`isDownloaded`, before any read), the source checks, the target
 /// checks, the disk check (`freeBytes`, the free bytes of the volume of the package lock), the
-/// `mkdir` of `Clips/`, the conversion into `.<stem>.wav.tmp`, the session edits, the rename, the
-/// flush of `Clips/`, and the level. `NewClipFiles` owns the file steps (decision 0056). The rename
-/// never replaces a file: another file at the name throws a write fault with EEXIST and keeps its
-/// bytes. A throw before the rename leaves no new file. After the rename, a flush fault throws and
+/// `mkdir` of `Clips/`, the conversion into `.<stem>.wav.tmp`, the reuse compare, the session
+/// edits, the rename (none for a reuse), the flush of `Clips/`, and the level. `NewClipFiles` owns
+/// the file steps (decision 0056). The rename never replaces a file: another file at the name
+/// throws a write fault with EEXIST and keeps its bytes. A throw before the rename leaves no new file. After the rename, a flush fault throws and
 /// keeps the WAV as an unused file: the caller can have a session that names it. A cancel after
 /// the rename, also during the level, removes the WAV with `removeMadeFiles` and throws
 /// `.cancelled` (decision 0049). `isCancelled` is read before each block of 65,536 frames, before
-/// the read-back, after the rename, at each block of the level, and last before the return. A
-/// caller that reads its flag again after the return removes `made` itself. With the level, the
-/// conversion gives 0...0.8 of `progress` and the level 0.8...1.
+/// the read-back, at each block of the compare, after the rename, at each block of the level, and
+/// last before the return. A caller that reads its flag again after the return removes `made`
+/// itself. With the level, the conversion gives 0...0.7 of `progress`, the compare 0.7...0.8, and
+/// the level 0.8...1; with no level, the conversion gives 0...0.9 and the compare 0.9...1.
 public func importAudio(
     _ source: URL, to target: ImportTarget, of session: Session, in package: URL, level: Bool = true,
     freeBytes: () -> Int64, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
@@ -87,13 +89,18 @@ public func importAudio(
     }
     let wav = "\(clipsFolderName)/\(stem).wav"
     let leveled = level && target.gain == nil
-    let share = leveled ? 0.8 : 1
+    let (convertedShare, comparedShare) = leveled ? (0.7, 0.8) : (0.9, 1)
     let converted = try convertToWAV(
         input, descriptor: descriptor, source: source, package: package, wav: wav, channels: layout.channelCount,
-        rate: rate, into: temporary, progress: { progress($0 * share) }, isCancelled: isCancelled)
+        rate: rate, into: temporary, progress: { progress($0 * convertedShare) }, isCancelled: isCancelled)
     guard let (length, gain) = converted else { throw isCancelled() ? .cancelled : .notAudio(file: name) }
+    let reused = try identicalPoolFile(
+        temporary, layout: layout, length: Frames(length), of: session, in: package,
+        progress: { progress(min(comparedShare, convertedShare + $0 * (comparedShare - convertedShare))) },
+        isCancelled: isCancelled)
+    progress(comparedShare)
 
-    let (track, file, clip) = (target.track ?? TrackID(), FileID(stem), target.clip ?? ClipID(stem))
+    let (track, file, clip) = (target.track ?? TrackID(), reused ?? FileID(stem), target.clip ?? ClipID(stem))
     // The offset is in 0...limit, so the rest cannot overflow; `place` refuses a rest under 1.
     let rest = Frames(length) - target.offset
     let shaped = Clip(
@@ -102,25 +109,80 @@ public func importAudio(
     var imported = session
     do throws(SessionError) {
         if target.track == nil { try imported.addTrack(track, name: stem, layout: layout) }
-        try imported.addFile(AudioFile(id: file, path: "\(stem).wav", layout: layout, length: Frames(length)))
+        if reused == nil {
+            try imported.addFile(AudioFile(id: file, path: "\(stem).wav", layout: layout, length: Frames(length)))
+        }
         try imported.place(shaped, on: track)
     } catch {
         throw .session(error)
     }
-    do throws(NewClipFault) { try files.commit() } catch { throw ImportError(error, file: name) }
-    // The level reads the renamed file, and stops at a cancel (about 0.4 s for each hour of stereo).
+    // The `defer` deletes the temporary WAV of a reuse.
+    var made: URL?
+    if reused == nil {
+        do throws(NewClipFault) { try files.commit() } catch { throw ImportError(error, file: name) }
+        made = package.appending(path: wav)
+    }
+    // The level reads the WAV of the clip, and stops at a cancel (about 0.4 s for each hour of stereo).
     if !isCancelled(), leveled {
         imported =
             autoLevel(
-                [clip], .eachClip, of: imported, in: package, progress: { progress(share + $0 * (1 - share)) },
+                [clip], .eachClip, of: imported, in: package,
+                progress: { progress(comparedShare + $0 * (1 - comparedShare)) },
                 isCancelled: isCancelled
             ).session
     }
     guard !isCancelled() else {
-        removeMadeFiles([package.appending(path: wav)])
+        removeMadeFiles([made].compactMap { $0 })
         throw .cancelled
     }
-    return (imported, clip, package.appending(path: wav))
+    return (imported, clip, made)
+}
+
+/// The first pool file of `session`, by ID, whose WAV in `Clips/` has the bytes of the temporary
+/// WAV at `temporary`, header included, or nil (decision 0040, probe P1). A candidate has no
+/// capture, `layout`, `length`, and a file of the same size, so missing or short media never
+/// match. The compare stops at the first different block of 65,536 frames, and reads
+/// `isCancelled` before each block: a set flag throws `.cancelled`. `progress` gets the bytes
+/// compared over the bytes of all candidates, 0...1. A read fault is a difference.
+func identicalPoolFile(
+    _ temporary: URL, layout: ChannelLayout, length: Frames, of session: Session, in package: URL,
+    progress: (Double) -> Void, isCancelled: () -> Bool
+) throws(ImportError) -> FileID? {
+    let candidates = session.files.values.filter { $0.capture == nil && $0.layout == layout && $0.length == length }
+        .sorted { $0.id < $1.id }
+    let made = open(temporary.path, O_RDONLY | O_CLOEXEC)
+    guard !candidates.isEmpty, made >= 0 else { return nil }
+    defer { close(made) }
+    var info = stat()
+    guard fstat(made, &info) == 0 else { return nil }
+    let size = Int(info.st_size)
+    let blockBytes = 65_536 * layout.channelCount * 3
+    var (mine, theirs) = ([UInt8](repeating: 0, count: blockBytes), [UInt8](repeating: 0, count: blockBytes))
+    let total = Double(size) * Double(candidates.count)
+    for (index, file) in candidates.enumerated() {
+        let other = open(package.appending(path: "\(clipsFolderName)/\(file.path)").path, O_RDONLY | O_CLOEXEC)
+        guard other >= 0 else { continue }
+        defer { close(other) }
+        guard fstat(other, &info) == 0, Int(info.st_size) == size else { continue }
+        var offset = 0
+        while offset < size {
+            guard !isCancelled() else { throw .cancelled }
+            let count = min(blockBytes, size - offset)
+            let same =
+                mine.withUnsafeMutableBytes { a in
+                    theirs.withUnsafeMutableBytes { b in
+                        pread(made, a.baseAddress, count, off_t(offset)) == count
+                            && pread(other, b.baseAddress, count, off_t(offset)) == count
+                            && memcmp(a.baseAddress, b.baseAddress, count) == 0
+                    }
+                }
+            guard same else { break }
+            offset += count
+            progress((Double(index) * Double(size) + Double(offset)) / total)
+        }
+        if offset == size { return file.id }
+    }
+    return nil
 }
 
 /// Removes the files that a cancelled run made after their rename (decision 0049): the WAV of an

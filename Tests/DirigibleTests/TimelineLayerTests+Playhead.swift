@@ -104,6 +104,12 @@ extension TimelineLayerTests {
             "\(step): x \(head.shape.position.x), want \(x - edge)")
     }
 
+    /// C10: a layout before the first display tick gives the head its place at the Studio playhead.
+    @Test func theHeadHasItsPlaceBeforeTheFirstTick() async throws {
+        let (_, studio, _, view) = try await lanes()
+        expectHead(view, at: Double(studio.playhead.count), "before the first tick")
+    }
+
     /// C10, C11 (tick): a play tick moves the head and draws no ruler. A scroll while stopped and a
     /// header width drag move it with no tick. A playhead left of the lanes in view shows no head.
     @Test func thePlayheadHeadMovesWithNoRulerDraw() async throws {

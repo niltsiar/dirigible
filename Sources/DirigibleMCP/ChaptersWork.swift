@@ -175,7 +175,7 @@ extension ChaptersWork {
             (self.at, self.replace) = (at, replace)
         }
 
-        /// The edit: the IDs of the new markers in file order, and the warning lines.
+        /// The edit: the ID of the marker of each file chapter, in file order, and the warning lines.
         package func apply(_ session: inout Session) throws(SessionError) -> (ids: [String], warnings: [String]) {
             let report = try session.importChapters(file, at: at, replacing: replace)
             var warnings = file.droppedURLs.map {

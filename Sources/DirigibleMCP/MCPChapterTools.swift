@@ -14,7 +14,7 @@ private let replace = Param.defaulted(
     "replace", "Replace the file and its chapter images when they exist.", .boolean, false)
 
 private let importPath = Param.required(
-    "path", "The absolute path of a Podcasting 2.0 JSON Chapters file, version 1.x.", .string)
+    "path", "The absolute path of a Podcasting 2.0 JSON Chapters file, version 1.x, of at most 1 MiB.", .string)
 private let importAt = Param.defaulted("at", "The timeline frame of second 0 of the file.", .integer(), 0)
 private let importReplace = Param.defaulted(
     "replace",

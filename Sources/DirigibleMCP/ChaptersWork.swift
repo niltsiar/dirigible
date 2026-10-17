@@ -141,11 +141,32 @@ extension ChaptersWork {
             return Frames(at)
         }
 
-        /// Reads and parses the chapters file at `path`. The error text is the line of the command
-        /// and of the tool.
+        /// The largest chapters file, 1 MiB.
+        static let maximumBytes = 1 << 20
+
+        /// Reads and parses the chapters file at `path`. The tool runs it on the listener queue of
+        /// the app, so before the read it refuses a file that is not on this Mac, that is not a
+        /// regular file (a FIFO can block with no end), or that is larger than `maximumBytes`. The
+        /// error text is the line of the command and of the tool.
         package init(path: String, at: Frames, replace: Bool) throws(ToolError) {
+            guard sourceIsDownloaded(URL(filePath: path)) else {
+                throw ToolError("\(path) is not on this Mac. Download the file first.")
+            }
+            // With O_NONBLOCK, the open of a FIFO with no writer does not wait.
+            let descriptor = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+            guard descriptor >= 0 else { throw ToolError("cannot read \(path): \(String(cString: strerror(errno)))") }
+            defer { close(descriptor) }
+            var info = stat()
+            guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
+                throw ToolError("\(path) is not a file.")
+            }
+            guard Int(info.st_size) <= Self.maximumBytes else { throw ToolError("\(path) is larger than 1 MiB.") }
             let data: Data
-            do { data = try Data(contentsOf: URL(filePath: path)) } catch {
+            do {
+                data =
+                    try FileHandle(fileDescriptor: descriptor, closeOnDealloc: false).read(upToCount: Self.maximumBytes)
+                    ?? Data()
+            } catch {
                 throw ToolError("cannot read \(path): \(error.localizedDescription)")
             }
             do throws(ChaptersFileError) { file = try ImportedChapters(data: data) } catch {

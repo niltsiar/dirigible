@@ -145,7 +145,7 @@ struct ImportTests {
 
         let first = try importAudio(
             source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url, level: false)
-        // Other audio with the same name, so the second import makes a file (agent-pack C10).
+        // Other audio with the same name, so the second import makes a file.
         try writeSource(source, .wav16, rate: 48_000, channels: [ramp(frames: 4_801)])
         let second = try importAudio(
             source, to: ImportTarget(track: "t1", start: 9_600), of: first.session, in: package.url, level: false)

@@ -73,7 +73,7 @@ struct StudioImportTests {
         #expect(studio.session == saved, "Redo brings the import back")
     }
 
-    /// Agent-pack C6: an import with an ID, a range, a gain, and fades is one undo entry.
+    /// An import with an ID, a range, a gain, and fades is one undo entry.
     @Test func aShapedImportIsOneUndoEntry() async throws {
         let fixture = try await ImportStudioFixture.make()
         let studio = try await fixture.open()

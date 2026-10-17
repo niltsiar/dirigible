@@ -29,7 +29,7 @@ extension ImportTests {
         #expect(result.session.clip(result.clip)?.clip.gain.dB == 96, "C3b: the clip gain stops at +96 dB")
     }
 
-    /// Agent-pack C4: a given gain is the clip gain, and no level runs. The level gives this sine
+    /// A given gain is the clip gain, and no level runs. The level gives this sine
     /// another gain, so the fixture shows the level.
     @Test func anImportWithAGainRunsNoLevel() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
@@ -48,8 +48,8 @@ extension ImportTests {
         #expect(given.session.clip(given.clip)?.clip.gain.dB == -6, "the given gain, with no level")
     }
 
-    /// Code gate 1 item 3: `db` is relative to the source level. A float source with a peak of 2.0
-    /// gets about +6.02 dB from the conversion (A11); `db` adds to it, and the sum stops at +96 dB.
+    /// `db` is relative to the source level. A float source with a peak of 2.0
+    /// gets about +6.02 dB from the conversion; `db` adds to it, and the sum stops at +96 dB.
     @Test func aGainOfAnImportIsRelativeToTheSourceLevel() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         try writeSource(package.source("Loud.wav"), .wavFloat, rate: 48_000, channels: [spiked(2)])

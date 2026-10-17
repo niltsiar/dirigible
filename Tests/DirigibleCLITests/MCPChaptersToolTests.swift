@@ -2,9 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// The tool `chapters_export` of `dirigible mcp` on the files (C17, C19 of run
-/// 2026-10-17-agent-pack). Track `t1` has a clip at 0..<960 000; chapters at 10 s, 12 s with an
-/// image, and 12 s plus 10 frames, which the file leaves out.
+/// The tool `chapters_export` of `dirigible mcp` on the files. Track `t1` has a clip at
+/// 0..<960 000; chapters at 10 s, 12 s with an image, and 12 s plus 10 frames, which the file leaves out.
 struct MCPChaptersToolTests {
     let package: TemporaryPackage
 
@@ -33,7 +32,7 @@ struct MCPChaptersToolTests {
         return url
     }
 
-    /// C17: the tool writes the bytes of the command and the same images, and its text is the
+    /// The tool writes the bytes of the command and the same images, and its text is the
     /// stderr lines of the command. Both folders use one file name, so the image names match.
     @Test(arguments: ["json", "txt"])
     func theChaptersExportToolWritesTheCLIFile(form: String) async throws {
@@ -61,7 +60,7 @@ struct MCPChaptersToolTests {
         }
     }
 
-    /// C19: the refusals of the command in the words of the tool. No file is written, and the old
+    /// The refusals of the command in the words of the tool. No file is written, and the old
     /// file keeps its bytes.
     @Test func theToolKeepsTheRefusalsOfTheCommand() async throws {
         let old = package.folder.appending(path: "old.json")

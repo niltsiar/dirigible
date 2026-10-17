@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The chapters import (run 2026-10-17-agent-pack, C20 to C25): the parse of a Podcasting 2.0 JSON
+/// The chapters import: the parse of a Podcasting 2.0 JSON
 /// Chapters file, and `Session.importChapters`.
 struct ChaptersImportTests {
     static let imageA = try! ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
@@ -25,7 +25,7 @@ struct ChaptersImportTests {
         session.sortedMarkers.map { "\($0.name)@\($0.position)\($0.image.map { " " + $0.name } ?? "")" }
     }
 
-    /// C22: each fault of the file, with the place of the chapter. Control: a file with no fault
+    /// Each fault of the file, with the place of the chapter. Control: a file with no fault
     /// parses (the test after this one).
     @Test(arguments: [
         ("not json", ChaptersFileError.notAnObject),
@@ -51,7 +51,7 @@ struct ChaptersImportTests {
         #expect(throws: error) { try ImportedChapters(data: Data(json.utf8)) }
     }
 
-    /// C22 frames: the frame of a chapter is checked before `Int(...)`. 2^40 frames at 48 kHz are
+    /// The frame of a chapter is checked before `Int(...)`. 2^40 frames at 48 kHz are
     /// 22,906,492.245 s. A bad import changes nothing.
     @Test func aChapterPastTheFrameLimitChangesNothing() throws {
         var session = try Self.session([Marker(id: "m", name: "Old", position: 100, kind: .chapter)])
@@ -80,7 +80,7 @@ struct ChaptersImportTests {
         #expect(session.markers[first]?.position == 1_099_511_627_520, "the frame just under the limit")
     }
 
-    /// C20: chapters at 0, 94.5, and 168 s at 48 kHz, from `at` 0 and from `at` 240000.
+    /// Chapters at 0, 94.5, and 168 s at 48 kHz, from `at` 0 and from `at` 240000.
     @Test func aChaptersImportAddsChapterMarkers() throws {
         let file = try Self.file(
             #"{"startTime": 0, "title": "Intro"}, {"startTime": 94.5, "title": "Talk"}, {"startTime": 168, "title": "End"}"#
@@ -95,7 +95,7 @@ struct ChaptersImportTests {
         }
     }
 
-    /// C23: no title, `toc` false, a link that stays, a link that goes, and an `img` with no copy.
+    /// No title, `toc` false, a link that stays, a link that goes, and an `img` with no copy.
     @Test func aChaptersImportMapsTheOptionalFields() throws {
         let file = try Self.file(
             """
@@ -117,7 +117,7 @@ struct ChaptersImportTests {
         #expect(report.imagesLeft == 2, "the chapters 3 and 5 name an img")
     }
 
-    /// C24: `replace` removes the chapters and keeps the plain markers; with no `replace`, the old
+    /// `replace` removes the chapters and keeps the plain markers; with no `replace`, the old
     /// chapters stay.
     @Test func aChaptersImportWithReplaceKeepsPlainMarkers() throws {
         let base = try Self.session([
@@ -133,7 +133,7 @@ struct ChaptersImportTests {
         #expect(Self.shape(added) == ["Old@48000", "Note@96000", "New@144000"])
     }
 
-    /// C24b: a removed image moves to the file chapter at its millisecond, 20 frames off here, and
+    /// A removed image moves to the file chapter at its millisecond, 20 frames off here, and
     /// with `at` the time counts from `at`.
     @Test func aChaptersImportWithReplaceKeepsEachImageAtItsTime() throws {
         let base = try Self.session([
@@ -158,7 +158,7 @@ struct ChaptersImportTests {
         #expect(moved.map(\.image) == [Self.imageA, Self.imageB, nil], "20 frames after at is the millisecond 0")
     }
 
-    /// C24b: a removed image with no chapter at its time stops the import before any change. With
+    /// A removed image with no chapter at its time stops the import before any change. With
     /// no `replace`, nothing is removed, so the import goes on. A second image at one millisecond
     /// has no chapter of its own.
     @Test func aChaptersImportThatWouldDropAnImageChangesNothing() throws {
@@ -189,7 +189,7 @@ struct ChaptersImportTests {
         }
     }
 
-    /// Code gate 1 item 2: with `replace`, a removed image goes only to a chapter, because the
+    /// With `replace`, a removed image goes only to a chapter, because the
     /// export writes no image of a plain marker. A `toc` false entry alone at the millisecond of
     /// the image refuses the import; a chapter after it at the same millisecond takes the image.
     @Test func aChaptersImportWithReplaceGivesAnImageOnlyToAChapter() throws {
@@ -210,7 +210,7 @@ struct ChaptersImportTests {
         #expect(markers.map(\.image) == [nil, Self.imageA], "the chapter after the plain marker takes the image")
     }
 
-    /// Code gate 1 item 2: a second import with `replace` of one file gives the session of the
+    /// A second import with `replace` of one file gives the session of the
     /// first. A `toc` false entry that matches a plain marker by name and frame adds no marker and
     /// gives the ID of that marker; two equal entries match two markers.
     @Test func twoChaptersImportsWithReplaceGiveTheSessionOfOne() throws {
@@ -239,7 +239,7 @@ struct ChaptersImportTests {
         #expect(second.count == 4 && Set(second[1...2]) == Set(first[1...2]), "the plain markers keep their IDs")
     }
 
-    /// Code gate 1 item 5: a title loses the spaces and line breaks at its edges, and each inner
+    /// A title loses the spaces and line breaks at its edges, and each inner
     /// tab, LF, and CR becomes one space. Another control character still refuses the file.
     @Test func aChaptersImportMapsLineBreaksInATitleToSpaces() throws {
         let file = try Self.file(#"{"startTime": 0, "title": " A\tB\nC\r "}, {"startTime": 1, "title": "\r\nEnd\n"}"#)
@@ -247,7 +247,7 @@ struct ChaptersImportTests {
         #expect(throws: ChaptersFileError.title(place: 1)) { try Self.file(#"{"startTime": 0, "title": "A\u0007B"}"#) }
     }
 
-    /// C25: the export, then the import, keeps the millisecond. 1.234 s at 44.1 kHz is the frame
+    /// The export, then the import, keeps the millisecond. 1.234 s at 44.1 kHz is the frame
     /// 54,419. The sweep keeps each chapter within 23 frames, half a millisecond.
     @Test func aChaptersRoundTripKeepsTheMillisecond() throws {
         var source = Session(sampleRate: 44_100)
@@ -269,7 +269,7 @@ struct ChaptersImportTests {
         #expect(off.count == 200 && off.allSatisfy { $0 <= 23 }, "largest difference \(off.max() ?? -1)")
     }
 
-    /// C25: an export from frame 240000 and an import with `replace` at 240000 keep each image on
+    /// An export from frame 240000 and an import with `replace` at 240000 keep each image on
     /// its chapter.
     @Test func anExportAndAnImportWithReplaceKeepEachImage() throws {
         var session = try Self.session([

@@ -201,7 +201,7 @@ struct ChaptersCommandTests {
         #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
     }
 
-    /// C18, C19 of run 2026-10-17-agent-pack. `.txt` writes one `HH:MM:SS title` line for each
+    /// `.txt` writes one `HH:MM:SS title` line for each
     /// chapter, and no image file. A list with no chapter at its start gets one warning line.
     @Test func writesATextList() async throws {
         let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
@@ -228,7 +228,7 @@ struct ChaptersCommandTests {
         #expect(names == ["Show.dirigible", "range.txt", "whole.txt"], "no image file")
     }
 
-    /// C19 of run 2026-10-17-agent-pack: the exits of `.json` hold for `.txt`.
+    /// The exits of `.json` hold for `.txt`.
     @Test func aTextListKeepsTheExits() async throws {
         let none = out("none.txt")
         #expect(

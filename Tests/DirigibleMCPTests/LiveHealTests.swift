@@ -5,7 +5,7 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleMCP
 
-/// `clip_heal` on a package that the app has open (C29 of run 2026-10-17-agent-pack).
+/// `clip_heal` on a package that the app has open.
 @MainActor
 struct LiveHealTests {
     /// Three pieces of one clip heal in one call: one edit with the agent name, and one undo gives

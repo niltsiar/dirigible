@@ -164,7 +164,7 @@ struct InfoCommandTests {
             try await dirigible("info", package.path, "--json") == CLIResult(status: 0, stdout: expected, stderr: ""))
     }
 
-    /// C16: `--compact` keeps `markers`, `sampleRate`, and `tracks`; it needs `--json`.
+    /// `--compact` keeps `markers`, `sampleRate`, and `tracks`; it needs `--json`.
     @Test func infoJSONCompact() async throws {
         let expected = """
             {

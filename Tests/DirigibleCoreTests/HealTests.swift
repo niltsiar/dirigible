@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// `Session.heal` (C26 to C29 of run 2026-10-17-agent-pack). Tracks "t" and "u" (mono); files "f"
+/// `Session.heal`. Tracks "t" and "u" (mono); files "f"
 /// and "g" of 200 000 frames.
 struct HealTests {
     var session: Session
@@ -26,7 +26,7 @@ struct HealTests {
         try session.splitClips(at: (1..<count).map { Frames(30_000 * $0) }, on: [track])
     }
 
-    /// C26: a split at three points, then a heal of the session, gives the clip before the split,
+    /// A split at three points, then a heal of the session, gives the clip before the split,
     /// with its gain and both fades.
     @Test mutating func aHealUndoesASplit() throws {
         let whole = Clip(
@@ -42,7 +42,7 @@ struct HealTests {
         #expect(session == before)
     }
 
-    /// C26: the healed clip keeps the ID, the start, the offset, the gain, the start crossfade of the
+    /// The healed clip keeps the ID, the start, the offset, the gain, the start crossfade of the
     /// left piece, and the end crossfade of the right piece. The crossfade halves of the neighbors stay.
     @Test mutating func aHealKeepsTheOuterEdges() throws {
         let gain = Gain(dB: -3)!
@@ -65,7 +65,7 @@ struct HealTests {
         #expect(same, "the healed session saves and reads back")
     }
 
-    /// C28: each join that changes the sound stays. The first case is the control: it heals.
+    /// Each join that changes the sound stays. The first case is the control: it heals.
     @Test func aHealSkipsEachJoinThatChangesTheSound() throws {
         let cases: [(name: String, heals: Bool, change: (inout Clip, inout Clip) -> Void)] = [
             ("a join with no change", true, { _, _ in }),
@@ -94,7 +94,7 @@ struct HealTests {
         }
     }
 
-    /// C29: three pieces heal to one clip in one call. A join in `from...to` heals: a join at `to`
+    /// Three pieces heal to one clip in one call. A join in `from...to` heals: a join at `to`
     /// does, and a join at `to + 1` does not. With `tracks`, only those tracks heal.
     @Test mutating func aHealJoinsEveryPieceInTheRange() throws {
         try pieces(on: "t", id: "P", count: 4)
@@ -126,7 +126,7 @@ struct HealTests {
         #expect(session == before, "a throw changes nothing")
     }
 
-    /// C29: the words keep their text and number. A word that crossed the join shows its whole
+    /// The words keep their text and number. A word that crossed the join shows its whole
     /// range under the healed clip, and an occurrence from before the heal that names the right
     /// piece is refused.
     @Test func aHealKeepsTheTranscriptWords() throws {

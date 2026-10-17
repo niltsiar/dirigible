@@ -166,7 +166,7 @@ package struct SessionView: Encodable {
     /// `clip.start <= range.upperBound` and `range.lowerBound <= clip.end`, and a marker when its
     /// position is in `range.lowerBound...range.upperBound`. With a filter, only the files of the
     /// clips that stay and the captures of those files stay. So an agent can read a long session
-    /// in parts (U9).
+    /// in parts.
     func filtered(tracks ids: Set<String>?, range: Range<Frames>?) -> SessionView {
         var view = self
         if let ids { view.tracks = tracks.filter { ids.contains($0.id) } }

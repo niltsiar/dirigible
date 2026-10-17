@@ -183,7 +183,7 @@ public struct Session: Hashable, Sendable {
     }
 
     /// The `session.xml` version that holds this session (decision 0024 P6): 8 with a transcript
-    /// (decision 0055), else 7 with a marker URL or image (run 2026-10-11-chapters-in-file), else 6
+    /// (decision 0055), else 7 with a marker URL or image, else 6
     /// with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4
     /// with a crossfade (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route
     /// (decision 0029), else 1.

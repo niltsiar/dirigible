@@ -8,7 +8,7 @@ extension Session {
 
     /// The chapters of `range` that go into a file (MP3, M4A, chapters.json), and the chapters
     /// that it drops. A chapter that starts at the millisecond of the chapter before it is dropped:
-    /// two chapters at one time stop the M4A writer (probe P1 of run 2026-10-11-chapters-in-file).
+    /// two chapters at one time stop the M4A writer.
     public func chapterList(in range: Range<Frames>) -> ChapterList {
         var kept: [Marker] = []
         var dropped: [Marker] = []
@@ -101,15 +101,15 @@ public struct ChapterList: Hashable, Sendable {
     public let dropped: [Marker]
 }
 
-/// The file name beside the JSON of the image of the chapter at `place` (from 1) in the file
-/// (U5 of run 2026-10-11-chapters-in-file): `<stem>-<place>.<jpg or png>`.
+/// The file name beside the JSON of the image of the chapter at `place` (from 1) in the file:
+/// `<stem>-<place>.<jpg or png>`.
 private func imageName(_ image: ArtworkName, stem: String, place: Int) -> String {
     "\(stem)-\(place).\(image.isPNG ? "png" : "jpg")"
 }
 
 private struct ChaptersFile: Encodable {
     /// The encoder leaves out a nil key, so a chapter with no URL and no image keeps the text of
-    /// run 2026-10-09-chapters-export.
+    /// the export from before the URL and image keys.
     struct Chapter: Encodable {
         let startTime: Double
         let title: String

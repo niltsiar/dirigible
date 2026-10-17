@@ -141,12 +141,9 @@ public func importAudio(
     return (imported, clip, made)
 }
 
-/// The first pool file of `session`, by ID, whose WAV in `Clips/` has the bytes of the temporary
-/// WAV at `temporary`, header included, or nil (decision 0040, probe P1). A candidate has no
-/// capture, `layout`, `length`, and a file of the same size, so missing or short media never
-/// match. The compare stops at the first different block of 65,536 frames, and reads
-/// `isCancelled` before each block: a set flag throws `.cancelled`. `progress` gets the bytes
-/// compared over the bytes of all candidates, 0...1. A read fault is a difference.
+/// The first pool file, by ID, with no capture, `layout`, `length`, and the bytes of the WAV at
+/// `temporary`, or nil (decision 0040). Each block of 65,536 frames reads `isCancelled` first;
+/// `progress` is the share of the candidate bytes compared. A read fault is a difference.
 func identicalPoolFile(
     _ temporary: URL, layout: ChannelLayout, length: Frames, of session: Session, in package: URL,
     progress: (Double) -> Void, isCancelled: () -> Bool

@@ -46,8 +46,8 @@ extension SessionWindow {
     var canExportSelection: Bool { exportStudio.flatMap { source(of: .selection, in: $0) } != nil }
 
     /// Import Audio, Export, Export Selection, and Export Chapters are off when they cannot run. Their keys have Command, so the
-    /// plain-key rule (probe K1) does not apply. During an import, the edit items whose key no text field uses
-    /// are off (run 13a, C6). Auto Level is also off with no clip or a busy studio. The other items
+    /// plain-key rule does not apply. During an import, the edit items whose key no text field uses
+    /// are off. Auto Level is also off with no clip or a busy studio. The other items
     /// are never off: a field uses their keys (0018 K1).
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {

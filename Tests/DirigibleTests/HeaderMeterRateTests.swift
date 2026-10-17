@@ -81,9 +81,9 @@ import Testing
         await model.close()
     }
 
-    /// A monitor meter report of 2 tracks writes `liveTracks` once, so its `didSet` builds the
-    /// states once for the report. The writer of the monitor does not start.
-    @Test func oneDidSetForEachReport() async throws {
+    /// A model whose monitor of device "mic" holds tracks t1 and t2 (arms 1 and 2), both in the
+    /// monitor state. The writer of the monitor does not start.
+    func monitored() async throws -> (SessionWindow, Studio) {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 2, seconds: 1), app: app)
         let device = try #require(InputDevice.placeholder(uid: "mic", channels: 1))
@@ -97,6 +97,13 @@ import Testing
         for id in ["t1", "t2"] as [TrackID] {
             studio.liveTracks[id] = LiveTrack(state: .monitoring, droppedFrames: 0, peak: 0)
         }
+        return (model, studio)
+    }
+
+    /// A monitor meter report of 2 tracks writes `liveTracks` once, so its `didSet` builds the
+    /// states once for the report.
+    @Test func oneDidSetForEachReport() async throws {
+        let (model, studio) = try await monitored()
         let writes = studio.liveTrackWrites
         for tick in 1...100 {
             let arms = [1: ArmLevel(peak: Float(tick) / 200), 2: ArmLevel(peak: 0.25)]
@@ -108,6 +115,26 @@ import Testing
             studio.liveTracks["t1"] == LiveTrack(state: .monitoring, droppedFrames: 100, peak: 0.5)
                 && studio.liveTracks["t2"] == LiveTrack(state: .monitoring, droppedFrames: 100, peak: 0.25),
             "the last report: \(studio.liveTracks)")
+        studio.monitors = [:]
+        await model.close()
+    }
+
+    /// A meter report whose arm maps to no track of the monitor writes no `liveTracks`, so it runs
+    /// no `didSet` and no meter view. A report of arm 1 then writes once.
+    @Test func aReportOfNoTrackWritesNothing() async throws {
+        let (model, studio) = try await monitored()
+        let writes = studio.liveTrackWrites
+        studio.applyMonitor(
+            .levels(take: 0, arms: [3: ArmLevel(peak: 0.5)], latencyNanos: 0, droppedFrames: 7), number: 1, uid: "mic")
+        #expect(
+            studio.liveTrackWrites - writes == 0, "writes for a report of arm 3: \(studio.liveTrackWrites - writes)")
+        studio.applyMonitor(
+            .levels(take: 0, arms: [1: ArmLevel(peak: 0.5)], latencyNanos: 0, droppedFrames: 7), number: 1, uid: "mic")
+        #expect(
+            studio.liveTrackWrites - writes == 1
+                && studio.liveTracks["t1"] == LiveTrack(state: .monitoring, droppedFrames: 7, peak: 0.5),
+            "a report of arm 1: \(studio.liveTrackWrites - writes) writes, \(String(describing: studio.liveTracks["t1"]))"
+        )
         studio.monitors = [:]
         await model.close()
     }

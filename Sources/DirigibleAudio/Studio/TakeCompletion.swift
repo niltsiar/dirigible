@@ -44,11 +44,12 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
 
 /// Opens a package off the main actor: the lock, the read, `removeTemporaryFiles`, the
 /// marker rules of decision 0004, `completeTake`, and the segments with audio. The sweep comes
-/// after the read, so a package of a newer version does not change (decision 0024 P4).
+/// after the read, so a package of a newer version does not change (decision 0024 P4). The
+/// recovery of a pending take writes its `recovery` lines to `log` (decision 0059).
 /// `@concurrent` keeps it off the caller's actor also with `NonisolatedNonsendingByDefault`.
-@concurrent nonisolated func openPackage(_ package: URL, recordings: ActiveRecordings?) async throws(StudioError)
-    -> OpenedPackage
-{
+@concurrent nonisolated func openPackage(
+    _ package: URL, recordings: ActiveRecordings?, log: DiagnosticLog = .disabled
+) async throws(StudioError) -> OpenedPackage {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let lock: PackageLock
     let session: Session
@@ -73,7 +74,7 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
             missingMedia: (try? checkMedia(session, package: package)) ?? [:], backups: Backup.all(in: package))
     }
 
-    guard session.recording != nil else {
+    guard let recording = session.recording else {
         unlink(marker.path)  // A stale marker of a recovery that ended.
         return opened(session)
     }
@@ -84,7 +85,18 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         return opened(session, .file(.writeFailed(step: marker.lastPathComponent, errno: errno)))
     }
     close(descriptor)
+    let segments = (try? captureSegments(in: package))?.count { $0.take == recording.take } ?? 0
+    let span = log.begin(
+        .recovery, "found", ["take": .number(Int64(recording.take)), "segments": .number(Int64(segments))])
     let outcome = await completeTake(of: session, lock: lock, recordings: recordings, previous: identity)
+    if case .finalize(.segmentUnreadable(let name, _, _))? = outcome.error {
+        log.note(.recovery, "unreadable", level: .error, ["segment": .text(name.stem)])
+    }
+    if let error = outcome.error {
+        span.end("done", level: .error, ["error": .text(error.journalName)])
+    } else {
+        span.end("done")
+    }
     return OpenedPackage(
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
         segmentsWithAudio: outcome.segmentsWithAudio, notAudioSegments: outcome.notAudioSegments,

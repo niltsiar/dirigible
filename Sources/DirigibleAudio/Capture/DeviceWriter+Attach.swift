@@ -48,7 +48,7 @@ extension DeviceWriter {
             return false
         } catch {
             spare = ring
-            if !found.teardown() { failedDetaches += 1 }
+            if !found.teardown() { countFailedDetach() }
             return false
         }
         // A stop that gave up the writer during the attach gets no record from it.
@@ -85,7 +85,7 @@ extension DeviceWriter {
         outcome = .failed
         guard let tap = try? loggedTap(found, app: app) else { return nil }
         guard tracks.hasRoutedChannels(tap.device) else {
-            if !tap.teardown() { failedDetaches += 1 }
+            if !tap.teardown() { countFailedDetach() }
             return nil
         }
         return (tap.id, tap.device, tap.teardown, AppKey(processes: found.key.processes, output: found.output))

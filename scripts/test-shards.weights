@@ -6,6 +6,7 @@ DirigibleAudioTests.ArtworkTests	1.5
 DirigibleAudioTests.AutoLevelBenchmark	0.0
 DirigibleAudioTests.AutoLevelTests	13.1
 DirigibleAudioTests.AutosaveTests	3.9
+DirigibleAudioTests.CaptureLogTests	22.0
 DirigibleAudioTests.CaptureRingStressTests	0.0
 DirigibleAudioTests.CaptureRingTests	3.2
 DirigibleAudioTests.CaptureRingWrapTests	2.7

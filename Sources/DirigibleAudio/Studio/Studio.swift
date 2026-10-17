@@ -188,7 +188,7 @@ import Observation
     public static func open(
         _ package: URL, recordings: ActiveRecordings? = nil, peakCache: URL? = nil, log: DiagnosticLog = .disabled
     ) async throws(StudioError) -> Studio {
-        let opened = try await openPackage(package, recordings: recordings)
+        let opened = try await openPackage(package, recordings: recordings, log: log)
         let studio = Studio(opened: opened, recordings: recordings, peakCache: peakCache, log: log)
         studio.loadPeaks()
         return studio

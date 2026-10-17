@@ -57,9 +57,12 @@ final class DeviceWriter: @unchecked Sendable {
     var hasRecord = false
     /// When a lost writer tries to attach again.
     var comeBacks = ComeBackSchedule(at: .now)
-    /// True while one device-list handler waits in the queue: a device-list post then adds none.
-    private let listQueued = ManagedAtomic<Bool>(false)
+    /// The device-list posts since the last handler took them. Only the post from 0 queues a
+    /// handler, so one handler serves each post before it runs.
+    private let listPosts = ManagedAtomic<Int>(0)
     private let dropped = ManagedAtomic<Int>(0)
+    /// The limit of the `device dropped` lines.
+    var drops = LineLimit()
     /// `tracks.wavBytes` after each drain.
     private let wavByteCount = ManagedAtomic<Int64>(0)
     /// The start state and the stop time, which the Studio sets from any thread.
@@ -91,7 +94,7 @@ final class DeviceWriter: @unchecked Sendable {
         name = device.name
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
         self.tracks = TrackSegments(
-            device: device, tracks: tracks, files: files, report: report, routesLastChannels: app != nil)
+            device: device, tracks: tracks, files: files, report: report, routesLastChannels: app != nil, log: log)
     }
 
     deinit { timer?.cancel() }
@@ -113,7 +116,7 @@ final class DeviceWriter: @unchecked Sendable {
             timer.resume()
             self.timer = timer
             unwatch = hal.watchDevices(self)
-            if !attach() { lose() }
+            if !attach() { lose(.attachFailed) }
         }
     }
 
@@ -127,7 +130,9 @@ final class DeviceWriter: @unchecked Sendable {
     /// device-list handler reads the devices when it runs, so one queued handler serves each
     /// device-list post before it runs.
     func post(_ event: Event, from sender: DeviceInput?) {
-        if case .devicesChanged = event, listQueued.exchange(true, ordering: .acquiringAndReleasing) { return }
+        if case .devicesChanged = event, listPosts.loadThenWrappingIncrement(ordering: .acquiringAndReleasing) > 0 {
+            return
+        }
         queue.async { [self] in handle(event, from: sender) }
     }
 
@@ -156,6 +161,7 @@ final class DeviceWriter: @unchecked Sendable {
     private func finishSteps() {
         guard phase != .finished else { return }
         detach()
+        noteLimitedLines(at: .now, force: true)
         tracks.endSegment()
         _ = unwatch?()
         spare?.deallocate()
@@ -181,27 +187,30 @@ final class DeviceWriter: @unchecked Sendable {
     var wavBytes: Int64 { wavByteCount.load(ordering: .relaxed) }
 
     private func handle(_ event: Event, from sender: DeviceInput?) {
-        if case .devicesChanged = event { _ = listQueued.exchange(false, ordering: .acquiringAndReleasing) }
+        var posts = 0
+        if case .devicesChanged = event { posts = listPosts.exchange(0, ordering: .acquiringAndReleasing) }
         guard phase == .running || phase == .lost else { return }
         if case .devicesChanged = event {
+            note(event, posts: posts)
             if phase == .running, app != nil { return appChanged() }
-            if phase == .running, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose() }
+            if phase == .running, hal.lookUp(tracks.device.uid)?.id != input?.input.id { lose(.list) }
             guard phase == .lost, comeBacks.event(at: .now) else { return }
             return comeBack()
         }
         guard let current = input?.input, current === sender else { return }
+        note(event, posts: 0)
         switch event {
         case .layout(let channels):
             // A record in the ring of the other layout ends the segment again and re-routes.
             tracks.endSegment()
-            guard tracks.use(channels: channels) else { return lose() }
+            guard tracks.use(channels: channels) else { return lose(.layout) }
             growRing(rate: tracks.device.nominalRate, channels: tracks.device.channelCount)
         case .rate(let rate):
             // The rate is in the ring already: the next record header breaks the segment.
             growRing(rate: rate, channels: tracks.device.channelCount)
         case .alive(false):
             // A8: an app aggregate rebuilds on the new output; a device is lost.
-            if app != nil { rebuild() } else { lose() }
+            if app != nil { rebuild(cause: "alive") } else { lose(.alive) }
         case .alive(true), .devicesChanged:
             break
         }
@@ -214,15 +223,16 @@ final class DeviceWriter: @unchecked Sendable {
             CaptureRing.capacity(rate: rate, channels: channels, seconds: ringSeconds) > current.ring.capacity
         else { return }
         detach()
-        if !attach() { lose() }
+        if !attach() { lose(.attachFailed) }
     }
 
     private func tick() {
         drain()
         if app != nil, phase == .running { checkSilence() }
         let now = ContinuousClock.now
+        noteLimitedLines(at: now)
         if phase == .running, now - lastValid >= (hasRecord ? silenceLimit : firstRecordLimit) {
-            lose()
+            lose(.noRecord)
         } else if phase == .lost, comeBacks.tick(at: now) {
             comeBack()
         }
@@ -249,6 +259,7 @@ final class DeviceWriter: @unchecked Sendable {
             hosts = (hosts?.first ?? record.hostTimeNanos, record.hostTimeNanos)
         }
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
+        if lost > 0 { drops.add(Int64(lost), at: .now) }
         wavByteCount.store(tracks.wavBytes, ordering: .relaxed)
         let levels = tracks.takeLevels()
         if app != nil, let hosts {
@@ -275,12 +286,13 @@ final class DeviceWriter: @unchecked Sendable {
     func keep(_ input: DeviceInput, clean: Bool) {
         _ = Unmanaged.passRetained(input)
         kept += 1
-        if clean { input.ring.deallocateBytes() } else { failedDetaches += 1 }
+        if clean { input.ring.deallocateBytes() } else { countFailedDetach() }
     }
 
     /// Running or ready to lost: detach, end the segments, report, and record the gaps. A writer
     /// that stopped retrying keeps its `.retryStopped` state.
-    func lose() {
+    func lose(_ cause: LossCause) {
+        log.note(.device, "lost", level: .error, ["device": .text(name), "cause": .text(cause.rawValue)])
         detach()
         tracks.endSegment()
         phase = .lost
@@ -293,7 +305,10 @@ final class DeviceWriter: @unchecked Sendable {
 
     /// Lost to running when the device is present with the routed channels and attaches.
     private func comeBack() {
-        guard phase == .lost, attach() else { return }
+        guard phase == .lost else { return }
+        let attached = attach()
+        noteComeBack(attached: attached)
+        guard attached else { return }
         appState = .recording
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, .recording, status: nil)) }
         reportAppState()

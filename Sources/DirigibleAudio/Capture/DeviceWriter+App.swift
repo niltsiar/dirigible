@@ -10,7 +10,7 @@ extension DeviceWriter {
     func appChanged() {
         guard let app, let current = input?.key else { return }
         guard let found = hal.lookUpApp(app, ChannelLayout(channelCount: tracks.routedWidth) ?? .mono) else {
-            return lose()
+            return lose(.list)
         }
         // H1: a main sub-device that no process reports can leave the device list.
         let mainGone = current.output.map { !hal.deviceExists($0) } ?? false
@@ -19,20 +19,21 @@ extension DeviceWriter {
             input?.key = AppKey(processes: found.key.processes, output: current.output)
             return reportAppState()
         }
-        rebuild()
+        rebuild(cause: Set(found.key.processes).isSubset(of: current.processes) ? "output" : "processes")
     }
 
     /// A new tap and aggregate into a new segment, with no gap: a rebuild is not a loss. A
-    /// rebuild that fails makes the track lost, and the 1 s retry goes on.
-    func rebuild() {
-        let span = log.begin(.tap, "rebuild-begin", ["app": .text(app ?? "")])
+    /// rebuild that fails makes the track lost, and the 1 s retry goes on. `cause` goes to the
+    /// journal: `processes`, `output`, `alive`, or the silence step (`SilenceCheck.rebuildCause`).
+    func rebuild(cause: String) {
+        let span = log.begin(.tap, "rebuild-begin", ["app": .text(app ?? ""), "cause": .text(cause)])
         detach()
         tracks.endSegment()
         guard attach() else {
-            span.end("rebuild", level: .error, ["result": .text("lost")])
-            return lose()
+            span.end("rebuild", level: .error, ["cause": .text(cause), "result": .text("lost")])
+            return lose(.attachFailed)
         }
-        span.end("rebuild")
+        span.end("rebuild", ["cause": .text(cause)])
         reportAppState()
     }
 
@@ -41,7 +42,8 @@ extension DeviceWriter {
         guard let app else { return }
         let layout = ChannelLayout(channelCount: tracks.routedWidth) ?? .mono
         let due = silence.due { hal.lookUpApp(app, layout)?.playing == true }
-        if due.rebuild { rebuild() } else { reportAppState() }
+        if due.warn { log.note(.tap, "silence", ["app": .text(app)]) }
+        if due.rebuild { rebuild(cause: silence.rebuildCause) } else { reportAppState() }
     }
 
     /// Reports `.waitingForApp` when the app of the current tap has no process, `.noSound` while

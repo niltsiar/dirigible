@@ -31,12 +31,17 @@ struct TrackSegments {
     private var deviceFrames: Int64 = 0
     /// The cause of the first gap of each arm.
     var gaps: [Int: TakeResult.Gap] = [:]
+    /// The journal of the `disk write-failed` lines (decision 0059).
+    private let log: DiagnosticLog
+    /// The forward sample-time jumps for the `device input-gap` lines of the writer.
+    var inputGaps = LineLimit()
 
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?,
-        report: @escaping @Sendable (Report) -> Void, routesLastChannels: Bool = false
+        report: @escaping @Sendable (Report) -> Void, routesLastChannels: Bool = false, log: DiagnosticLog = .disabled
     ) {
         self.device = device
+        self.log = log
         self.routesLastChannels = routesLastChannels
         self.files = files
         self.report = report
@@ -112,7 +117,12 @@ struct TrackSegments {
             for index in outputs.indices { _ = samples(index, of: record) }
             return true
         }
-        if let segment, segment.breaks(at: record) { endSegment() }
+        if let segment {
+            // An IO stall: the silence fill or a new segment takes the jump.
+            let jump = Int64((record.sampleTime - segment.nextSampleTime).rounded())
+            if jump > 0 { inputGaps.add(jump, at: .now) }
+            if segment.breaks(at: record) { endSegment() }
+        }
         if segment == nil { open(at: record) }
         guard var current = segment else { return true }
 
@@ -354,6 +364,9 @@ struct TrackSegments {
         outputs[index].spanStopped = true
         let arm = outputs[index].arm
         gaps[arm] = gaps[arm] ?? .writeFailed
+        log.note(
+            .disk, "write-failed", level: .error,
+            ["device": .text(device.name), "arm": .number(Int64(arm)), "status": .status(status)])
         report(.state(take: take, arm: arm, .writeFailed, status: status))
     }
 }

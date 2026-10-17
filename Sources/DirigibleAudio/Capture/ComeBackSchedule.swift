@@ -7,7 +7,7 @@
 struct ComeBackSchedule {
     /// How a try ended. A failed try made or called a HAL object (a tap, the attach), and its
     /// device-list events must not feed more tries. An absent try made none.
-    enum Outcome { case attached, failed, absent }
+    enum Outcome: String { case attached, failed, absent }
 
     static let firstBackoff = Duration.milliseconds(250)
     static let retryInterval = Duration.seconds(1)
@@ -17,18 +17,24 @@ struct ComeBackSchedule {
     /// The window after the last failed try: its end and its length. Nil after an attach.
     private var window: (end: ContinuousClock.Instant, length: Duration)?
     private var pending = false
+    /// The tries since the loss, and how the last one ended.
+    private(set) var tries = 0
+    private(set) var outcome: Outcome?
 
     init(at now: ContinuousClock.Instant) { lastTry = now }
 
     /// The writer is lost at `now`. The tick tries at `now` + `retryInterval`.
     mutating func lost(at now: ContinuousClock.Instant) {
         lastTry = now
+        tries = 0
     }
 
     /// A try at `now` ended with `outcome`. An absent try keeps the window of the last failed try.
     mutating func tried(_ outcome: Outcome, at now: ContinuousClock.Instant) {
         lastTry = now
         pending = false
+        tries += 1
+        self.outcome = outcome
         switch outcome {
         case .attached:
             window = nil
@@ -39,6 +45,9 @@ struct ComeBackSchedule {
             break
         }
     }
+
+    /// The length of the backoff window after the last failed try; zero after an attach.
+    var backoff: Duration { window?.length ?? .zero }
 
     /// A device-list event at `now` of a lost writer. True: try now.
     mutating func event(at now: ContinuousClock.Instant) -> Bool {

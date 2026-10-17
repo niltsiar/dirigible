@@ -6,11 +6,14 @@ extension Studio {
     /// Each check interval: stops the take when the free space is less than the WAV bytes of
     /// the take plus 1 GB. Before the stop, it ends the exports of the other studios to the
     /// volume of the package and checks again. The reads run off the main actor.
-    /// It also sets `recordTimeLeft` of the `channels` of the take for the window subtitle.
+    /// It also sets `recordTimeLeft` of the `channels` of the take for the window subtitle, and
+    /// writes `disk threshold` once at each fall of the free space under a `diskThresholds` value.
     func watchDisk(channels: Int) -> Task<Void, Never> {
         let (lock, environment, writers) = (lock, environment, Array(writers.values))
         let rate = session.sampleRate
         return Task { [weak self] in
+            // The thresholds that the free space of the last check was under.
+            var under = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: environment.diskCheckInterval)
                 var wav: Int64 = 0
@@ -18,11 +21,18 @@ extension Studio {
                 let free = await freeBytes(of: lock, environment)
                 // The stop cancels on the main actor, so a tick after it sets nothing.
                 guard !Task.isCancelled else { return }
+                let now = diskThresholds.count { free < $0 }
+                for threshold in diskThresholds[min(under, now)..<now] {
+                    environment.log.note(.disk, "threshold", ["below": .number(threshold), "free": .number(free)])
+                }
+                under = now
                 self?.recordTimeLeft = DirigibleAudio.remainingRecordTime(
                     free: free, wav: wav, channels: channels, rate: rate)
                 guard free < wav + diskMargin else { continue }
                 // Capture comes first (decision 0019): the next check counts the space again.
                 if await self?.endOtherExports(onVolumeOf: lock) == true { continue }
+                environment.log.note(
+                    .take, "stopped", ["cause": .text("diskLow"), "free": .number(free), "wav": .number(wav)])
                 try? await self?.stop(.diskLow)
                 return
             }
@@ -54,6 +64,9 @@ extension Studio {
             free: free, wav: pending, channels: channels, rate: session.sampleRate)
     }
 }
+
+/// The free bytes whose fall under each value writes one `disk threshold` line, from the highest.
+let diskThresholds: [Int64] = [5_000_000_000, 2_000_000_000]
 
 /// The record time that `free` bytes give `channels` channels at `rate`: 7 bytes for each sample
 /// and channel (a CAF and its WAV) after 1 GB and the WAV bytes `wav` (decision 0004). Never

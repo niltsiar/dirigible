@@ -76,6 +76,11 @@ struct Info: ParsableCommand {
 
     @OptionGroup var package: PackageArgument
     @Flag(help: "Write the session as JSON.") var json = false
+    @Flag(help: "With --json, write only sampleRate, tracks with their clips, and markers.") var compact = false
+
+    func validate() throws {
+        if compact && !json { throw ValidationError("--compact needs --json.") }
+    }
 
     func run() throws {
         let session = try readPackage(package)
@@ -87,7 +92,7 @@ struct Info: ParsableCommand {
         }
         print(
             json
-                ? try SessionView(session, media: media).json()
+                ? try SessionView(session, media: media).json(compact: compact)
                 : summary(of: session, name: package.url.lastPathComponent, media: media),
             terminator: "")
     }

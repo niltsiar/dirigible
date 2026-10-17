@@ -955,7 +955,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 47 tools, in groups:
+The 48 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
@@ -968,9 +968,10 @@ The 47 tools, in groups:
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.
 - Audio: `loudness`, `export`, `render`, `level`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it.
+- Chapters: `chapters_export`. It gives the warning lines of `dirigible chapters export`, or OK.
 - Source: `devices`, `apps`. They give the lines of `dirigible devices` and `dirigible apps`: the input devices and the apps of this Mac that can be a track source. They take no argument.
 
-`session_info` gives the JSON of `dirigible info --json` on one line. The JSON of a long edited session is too large for the agent, so a `session_info` answer over a size limit is an overview: each track with its clip count, the end frame, and the marker count. Then the agent reads the session in parts: `from` and `to` give only the clips and markers that touch that frame range, and `tracks` gives only those tracks. With a filter, the answer has only the files and captures of the clips in it.
+`session_info` gives the JSON of `dirigible info --json` on one line. The JSON of a long edited session is too large for the agent, so a `session_info` answer over a size limit is an overview: each track with its clip count, the end frame, and the marker count. Then the agent reads the session in parts: `from` and `to` give only the clips and markers that touch that frame range, and `tracks` gives only those tracks. With a filter, the answer has only the files and captures of the clips in it. With `compact` true (and `dirigible info --json --compact`), the JSON has only `sampleRate`, `tracks` with their clips, and `markers`: an agent that edits needs no more, and the read costs fewer tokens.
 
 - With Let Agents Edit Open Sessions off, the server does not edit a package that the app has open. The tool gives the error "`<path>` is open in Dirigible." Close the session in the app, or turn the switch on, then try again.
 - The server sees the app lock only on a volume with `flock`. On a network volume (SMB), it cannot see that the app has the package open. Keep the session on a local disk while an agent edits it.

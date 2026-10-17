@@ -16,7 +16,7 @@ enum ToolWork: Sendable {
     /// A package edit under the lock. A `ripple` edit also refuses a split take.
     case edit(ripple: Bool, ToolEdit)
     /// `session_info`: no lock, as `dirigible info`. `range` has `from <= to` (V24).
-    case info(tracks: [TrackID]?, range: Range<Frames>?)
+    case info(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool)
     case create(sampleRate: Int)
     /// A paste from another package (decision 0042): files copy or convert under the lock.
     case paste(PasteWork)

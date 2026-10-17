@@ -236,6 +236,7 @@ extension SessionError {
                 + markers.map { "\"\($0.name)\" at \($0.position)" }.joined(separator: ", ")
                 + ". The file has no chapter at the same time. Remove the chapter first, or add one at that time to "
                 + "the file."
+        case .nothingToHeal: "no join to heal."
         }
     }
 }

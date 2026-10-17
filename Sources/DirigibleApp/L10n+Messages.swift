@@ -195,7 +195,8 @@ extension L10n {
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeOutsideFile,
             .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade, .laneOutOfRange, .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack,
-            .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept:
+            .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
+            .nothingToHeal:
             return errorSessionOther.text
         }
     }

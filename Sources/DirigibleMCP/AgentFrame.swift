@@ -70,15 +70,32 @@ enum AppFrame: Equatable {
 /// The size of one socket read of the listener and the bridge.
 let readSize = 64 * 1024
 
-/// The error text of a call whose reply did not come: the app may have run it (C8).
+/// The error text of a call whose connection closed, or that a cancel or the end of stdin ended:
+/// the app may have run it (C8).
 package let lostCallMessage =
     "The connection to Dirigible closed during the call. Read the session before you try again."
 
-/// The lost-call text of `export` and `render`: a job past its last cancel check still writes
-/// its file.
+/// The lost-call text of `export` and `render` at a close: a job past its last cancel check still
+/// writes its file.
 func lostFileMessage(_ tool: String) -> String {
     "The connection to Dirigible closed during the call. The \(tool) can still write its file: check the output "
         + "file, and read the session before you try again."
+}
+
+/// The error text of a call that got no line from the app for `seconds`. It states the limit and
+/// what the bridge does not know: the call may have run, and no cause is named.
+func limitMessage(tool: String, seconds: Int) -> String {
+    let head = "Dirigible gave no reply in \(seconds) s."
+    let tail = "read the session before you try again."
+    switch tool {
+    case "export", "render":
+        return "\(head) The \(tool) can still write its file: check the output file, and \(tail)"
+    case "record":
+        return "\(head) The take can still start after a system prompt. Tell the user to check the Dirigible window, "
+            + "and \(tail)"
+    default:
+        return "\(head) The call may have run: \(tail)"
+    }
 }
 
 /// The socket of the app server: `DIRIGIBLE_MCP_SOCKET` when it is set (the verify copy and the

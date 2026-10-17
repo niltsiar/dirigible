@@ -8,9 +8,12 @@ package final class AgentBridge {
         case reply(AgentReply)
         /// No app listens: the bridge runs the call on the files.
         case noApp
-        /// The connection closed, or no reply came in time, after the send: the app may have run
-        /// the call, so the bridge never runs it again (C8).
+        /// The connection closed, or a cancel or the end of stdin ended the wait, after the send:
+        /// the app may have run the call, so the bridge never runs it again (C8).
         case lost
+        /// No line came from the app within the reply limit. The bridge knows no cause. The app
+        /// may have run the call (C8).
+        case limit
     }
 
     private let socket: URL
@@ -64,23 +67,22 @@ package final class AgentBridge {
                 return .noApp
             }
         }
-        guard let reply = reply(control: control, record: tool == "record") else {
-            // A late reply must never answer the next call. A full close also cancels the call
-            // in the app: the listener keeps a half-close (decision 0049).
-            disconnect()
-            return .lost
-        }
-        return .reply(reply)
+        let outcome = reply(control: control, record: tool == "record")
+        // A late reply must never answer the next call. A full close also cancels the call in the
+        // app: the listener keeps a half-close (decision 0049).
+        if outcome == .lost || outcome == .limit { disconnect() }
+        return outcome
     }
 
-    /// The `route` of `MCPServer`: the reply of the app, the lost-call error, or nil to run the
-    /// call on the files.
+    /// The `route` of `MCPServer`: the reply of the app, the lost-call or limit error, or nil to
+    /// run the call on the files.
     package func route(tool: String, arguments: [String: Any], client: ClientInfo, control: CallControl) -> (
         text: String, isError: Bool
     )? {
         switch call(tool: tool, arguments: arguments, client: client, control: control) {
         case .reply(.result(let text, let isError)): (text, isError)
         case .lost: (["export", "render"].contains(tool) ? lostFileMessage(tool) : lostCallMessage, true)
+        case .limit: (limitMessage(tool: tool, seconds: Int((timeout / .seconds(1)).rounded(.up))), true)
         case .reply(.notOpen), .noApp: nil
         }
     }
@@ -91,12 +93,13 @@ package final class AgentBridge {
         return poll(&entry, 1, 0) == 0
     }
 
-    /// The reply of the app, or nil at a close, an error, the time limit, a cancel on stdin, or
-    /// the end of stdin during a `record` call. One buffer holds the reads of the whole call, and
-    /// each whole line in it is handled before the next poll. Each progress line goes to
-    /// `control` and starts the limit again; another line that is not a reply changes nothing.
-    /// After EOF, stdin is out of the poll set, so the wait does not spin (decision 0049).
-    private func reply(control: CallControl?, record: Bool) -> AgentReply? {
+    /// The reply of the app, `.limit` when no line comes within the reply limit, or `.lost` at a
+    /// close, an error, a cancel on stdin, or the end of stdin during a `record` call. One buffer
+    /// holds the reads of the whole call, and each whole line in it is handled before the next
+    /// poll. Each progress line goes to `control` and starts the limit again; another line that
+    /// is not a reply changes nothing. After EOF, stdin is out of the poll set, so the wait does
+    /// not spin (decision 0049).
+    private func reply(control: CallControl?, record: Bool) -> Outcome {
         let stdin = control == nil ? nil : input
         var buffer = Data()
         var deadline = ContinuousClock.now + timeout
@@ -108,27 +111,28 @@ package final class AgentBridge {
                 case .progress(let fraction):
                     control?.report(fraction)
                     deadline = ContinuousClock.now + timeout
-                case .reply(let reply): return reply
+                case .reply(let reply): return .reply(reply)
                 case nil: continue
                 }
             }
             if let stdin {
-                if record, stdin.ended { return nil }
-                if control?.isCancelled() == true { return nil }
+                if record, stdin.ended { return .lost }
+                if control?.isCancelled() == true { return .lost }
             }
             let left = ContinuousClock.now.duration(to: deadline)
-            guard left > .zero else { return nil }
+            guard left > .zero else { return .limit }
             var entries = [pollfd(fd: fd, events: Int16(POLLIN), revents: 0)]
             if let stdin, !stdin.ended { entries.append(pollfd(fd: stdin.fd, events: Int16(POLLIN), revents: 0)) }
             // Round up, so the last wait is not 0 ms.
             let ready = poll(&entries, nfds_t(entries.count), Int32((left / .milliseconds(1)).rounded(.up)))
             if ready < 0, errno == EINTR { continue }
-            guard ready > 0 else { return nil }
+            guard ready >= 0 else { return .lost }
+            guard ready > 0 else { return .limit }
             if entries.count > 1, entries[1].revents != 0 { stdin?.fill() }
             guard entries[0].revents != 0 else { continue }
             let count = read(fd, &bytes, readSize)
             if count < 0, errno == EINTR { continue }
-            guard count > 0 else { return nil }
+            guard count > 0 else { return .lost }
             buffer.append(contentsOf: bytes[..<count])
         }
     }

@@ -97,17 +97,36 @@ struct BridgeTests {
     /// never answers the second call.
     @Test func timeoutThenNextCall() throws {
         let app = try FakeApp { count in
-            count == 1 ? .lateReply(#"{"isError":false,"text":"late"}"#) : .reply(#"{"isError":false,"text":"second"}"#)
+            count == 1
+                ? .script([(3, #"{"isError":false,"text":"late"}"#)]) : .reply(#"{"isError":false,"text":"second"}"#)
         }
-        var server = MCPServer(route: AgentBridge(socket: app.socket, timeout: .milliseconds(300)).route)
+        var server = MCPServer(route: AgentBridge(socket: app.socket, timeout: .seconds(1)).route)
         let arguments = ["package": "/x.dirigible", "track": "t1", "name": "A"]
 
         let first = server.answer(callLine("track_rename", arguments, id: 1))
         let second = server.answer(callLine("track_rename", arguments, id: 2))
 
-        #expect(toolText(first) == (lostCallMessage, true))
+        #expect(toolText(first) == (generalLimitText(seconds: 1), true))
         #expect(toolText(second) == ("second", false))
         #expect(app.connections == 2, "the second call connects again")
+    }
+
+    /// C14: a limit text states the limit and what the bridge knows. It names no cause and no close.
+    @Test func limitTextsClaimOnlyFacts() {
+        let texts = [
+            limitMessage(tool: "track_rename", seconds: 30), limitMessage(tool: "export", seconds: 30),
+            limitMessage(tool: "record", seconds: 30),
+        ]
+        #expect(
+            texts == [
+                "Dirigible gave no reply in 30 s. The call may have run: read the session before you try again.",
+                "Dirigible gave no reply in 30 s. The export can still write its file: check the output file, "
+                    + "and read the session before you try again.",
+                "Dirigible gave no reply in 30 s. The take can still start after a system prompt. Tell the user to "
+                    + "check the Dirigible window, and read the session before you try again.",
+            ])
+        let named = texts.filter { text in ["busy", "main thread", "closed"].contains { text.contains($0) } }
+        #expect(named.isEmpty, "a limit text names a cause or a close: \(named)")
     }
 
     /// Decision 0048: during a call, a cancel of the running request or the end of stdin closes
@@ -173,6 +192,11 @@ struct BridgeTests {
         #expect(toolText(second) == ("OK", false))
         #expect(try Session(contentsOf: package.url).track("t1")?.name == "Guest")
     }
+}
+
+/// The limit text of a tool other than `export`, `render`, and `record` (C8).
+func generalLimitText(seconds: Int) -> String {
+    "Dirigible gave no reply in \(seconds) s. The call may have run: read the session before you try again."
 }
 
 /// A fake app socket on its own thread. For each call line, `answer` gets the call number (from

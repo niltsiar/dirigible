@@ -21,6 +21,6 @@ Check the diff of the current branch against `main` (`git diff main...HEAD` plus
 
 - Keep behavior unchanged unless fixing a clear bug.
 - Prefer minimal, focused edits over broad rewrites.
-- Run `make check-changed` after the edits.
+- Run no test: the push check runs them.
 - Commit the result as its own `refactor:` or `style:` commit.
 - Keep the final summary to 1-3 sentences.

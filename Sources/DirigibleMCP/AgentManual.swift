@@ -208,6 +208,7 @@ package enum AgentManual {
             ## Problem reports
 
             \(reportLine)
+
             """
     }
 }

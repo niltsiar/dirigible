@@ -154,6 +154,9 @@ import SwiftUI
     @ObservationIgnored var headerRuns = (headers: 0, rows: 0)
     /// The body runs of the record-over overlay that show the warning, for the tests.
     @ObservationIgnored var overlayShows = 0
+    /// The period of the take banner content in seconds, and its runs. Tests shorten the period.
+    @ObservationIgnored var bannerTick = 1.0
+    @ObservationIgnored var bannerRuns = 0
     /// The record time left of the armed tracks before a take; only
     /// `SessionChrome.refreshRecordTime()` writes it (decision 0023).
     var idleRecordTimeLeft: Duration?

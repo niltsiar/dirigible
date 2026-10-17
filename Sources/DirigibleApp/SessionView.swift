@@ -243,6 +243,8 @@ extension SessionWindow {
     func countBody() { bodyRuns += 1 }
     /// Counts a body run of the record-over overlay that shows the warning, for the tests.
     func countOverlay() { overlayShows += 1 }
+    /// Counts a run of the periodic content of the take banner, for the tests.
+    func countBannerRun() { bannerRuns += 1 }
 }
 
 /// The items of Track > Add Call Tracks and of the empty state menu (B1c).

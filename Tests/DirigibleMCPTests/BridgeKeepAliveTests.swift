@@ -59,7 +59,7 @@ struct BridgeKeepAliveTests {
     func aLimitedExportNamesTheOutputFile(tool: String) async throws {
         let answer = try await limited(tool, ["package": "/x.dirigible", "out": "/tmp/x.wav"])
         let text =
-            "Dirigible gave no reply in 1 s. The \(tool) can still write its file: check the output file, "
+            "Dirigible sent nothing for 1 s. The \(tool) can still write its file: check the output file, "
             + "and read the session before you try again."
         #expect(toolText(answer) == (text, true))
     }
@@ -80,7 +80,7 @@ struct BridgeKeepAliveTests {
     }
 
     let recordLimitText =
-        "Dirigible gave no reply in 1 s. The take can still start after a system prompt. Tell the user to check "
+        "Dirigible sent nothing for 1 s. The take can still start after a system prompt. Tell the user to check "
         + "the Dirigible window, and read the session before you try again."
 
     /// C12: a `record` call with no line at the limit says that the take can still start.

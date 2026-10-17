@@ -47,4 +47,45 @@ import Testing
             #expect(refused == nil, "no count for id \(id), observations \(observations)")
         }
     }
+
+    /// A fake registrar state with true plain counts (id 3, 2 live) and a pointer word that is
+    /// not an object of the known layout gives an issue that names the word, and no crash.
+    @Test func refusesAFakeLayout() {
+        let observations = UnsafeMutableRawPointer.allocate(byteCount: 24, alignment: 16)
+        defer { observations.deallocate() }
+        observations.storeBytes(of: 2, toByteOffset: 16, as: Int.self)
+        let header = UnsafeMutableRawPointer.allocate(byteCount: 24, alignment: 16)
+        defer { header.deallocate() }
+        header.storeBytes(of: 3, as: Int.self)
+        let (box, known): (CountedBox, [AnyKeyPath: Set<Int>]) = (CountedBox(), [\CountedBox.x: [0, 1]])
+        withExtendedLifetime((box, known)) {
+            let storage = UInt(bitPattern: observations)
+            let lookups = withUnsafeBytes(of: known) { $0.load(as: UInt.self) }
+            func read(_ storage: UInt, _ lookups: UInt) -> Registrations? {
+                header.storeBytes(of: storage, toByteOffset: 8, as: UInt.self)
+                header.storeBytes(of: lookups, toByteOffset: 16, as: UInt.self)
+                return registrations(header: header)
+            }
+            let count = read(storage, lookups)
+            #expect(
+                count?.next == 3 && count?.live == 2 && count?.ids == known,
+                "the fake of a true layout gives its count: \(String(describing: count))")
+            let object = UInt(bitPattern: Unmanaged.passUnretained(box).toOpaque())
+            let fakes: [(storage: UInt, lookups: UInt, reason: String)] = [
+                (storage, object, "lookups is not dictionary storage"),
+                (0x1000, lookups, "observations at 0x1000"),
+                (storage, 0x1000, "lookups at 0x1000"),
+                (storage, lookups + 4, "lookups at 0x\(String(lookups + 4, radix: 16))"),
+            ]
+            for fake in fakes {
+                var refused: Registrations? = Registrations(next: 0, live: 0, ids: [:])
+                withKnownIssue("a fake layout records an issue") {
+                    refused = read(fake.storage, fake.lookups)
+                } matching: { issue in
+                    issue.comments.contains { $0.rawValue.hasPrefix("\(unknownRegistrarLayout): \(fake.reason)") }
+                }
+                #expect(refused == nil, "no count for \(fake.reason)")
+            }
+        }
+    }
 }

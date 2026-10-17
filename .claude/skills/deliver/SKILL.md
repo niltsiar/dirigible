@@ -76,7 +76,7 @@ Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interro
 
 ## Phase 5: Clean up
 
-Run the **deslop** skill. Commit the cleanup on its own.
+Run the **deslop** skill. Phase 5 runs no test, and a rebase with no conflict runs no test: the push check runs on the final tree. Commit the cleanup on its own.
 
 ## Phase 6: Code gate
 

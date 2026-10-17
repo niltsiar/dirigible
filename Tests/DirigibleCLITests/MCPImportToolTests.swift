@@ -123,6 +123,55 @@ struct MCPImportToolTests {
         #expect(try package.xml() == before, "a cancelled import changed session.xml")
     }
 
+    /// Agent-pack C12: a cancel at the last read (the work) or the one before it (`importAudio`),
+    /// after the session edit of an import that reused `Intro.wav`, keeps that WAV and
+    /// `session.xml`. A twin package gives the read count of the import with no cancel.
+    @Test(arguments: [0, 1]) func aCancelledImportThatReusedAFileKeepsTheFile(readsBeforeTheLast: Int) throws {
+        func control(_ poll: @escaping () -> Bool) -> CallControl {
+            CallControl(token: nil, interval: .zero, send: { _ in }, poll: { _ in poll() }, step: {})
+        }
+        /// A package after one import of `Intro.wav`, and the work of the second import.
+        func reimport() throws -> (TemporaryPackage, ImportWork) {
+            let (package, source) = try fixture()
+            _ = try ImportWork(file: source.path, target: ImportTarget(track: "T", start: 0), level: true)
+                .run(package.url, path: package.path, control: control { false })
+            let target = ImportTarget(track: "T", start: 48_000, gain: .zero)
+            return (package, ImportWork(file: source.path, target: target, level: true))
+        }
+        let (twin, twinWork) = try reimport()
+        let count = OSAllocatedUnfairLock(initialState: 0)
+        _ = try twinWork.run(
+            twin.url, path: twin.path,
+            control: control {
+                count.withLock { $0 += 1 }
+                return false
+            })
+        let last = count.withLock { $0 }
+        let (package, work) = try reimport()
+        let wav = package.url.appending(path: "Clips/Intro.wav")
+        let (bytes, before) = (FileManager.default.contents(atPath: wav.path), try package.xml())
+        let folder = package.url.appending(path: "Clips").path
+        let state = OSAllocatedUnfairLock(initialState: (reads: 0, seen: [String]()))
+        let cancel = control {
+            state.withLock { state in
+                state.reads += 1
+                guard state.reads >= last - readsBeforeTheLast else { return false }
+                if state.seen.isEmpty {
+                    let names = (try? FileManager.default.contentsOfDirectory(atPath: folder)) ?? []
+                    state.seen = names.filter { !$0.hasPrefix(".") }.sorted()
+                }
+                return true
+            }
+        }
+
+        #expect(throws: ToolError.self) { try work.run(package.url, path: package.path, control: cancel) }
+
+        #expect(state.withLock { $0.seen } == ["Intro.wav"], "the cancel came after a reuse")
+        #expect(clips(package) == ["Intro.wav"], "the cancel left \(clips(package))")
+        #expect(FileManager.default.contents(atPath: wav.path) == bytes, "the cancel changed Clips/Intro.wav")
+        #expect(try package.xml() == before, "a cancelled import changed session.xml")
+    }
+
     @Test func aRelativeFileIsRefused() async throws {
         let (package, _) = try fixture()
         let answers = try await mcp([toolCall(1, "import", ["package": package.path, "file": "Intro.wav"])])

@@ -14,7 +14,7 @@ struct LiveKey: Equatable {
     @MainActor init(_ studio: Studio) {
         guard let live = studio.transport.liveTake else { return }
         (take, finalizing) = (live.take, live.finalizing)
-        if !live.finalizing { states = studio.liveTracks.mapValues(\.state) }
+        if !live.finalizing { states = studio.liveStates }
     }
 }
 

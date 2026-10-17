@@ -1,5 +1,6 @@
 import Atomics
 import DirigibleCore
+import os
 
 /// The waits of one take start that a stop ends at once (decision 0030). On the main actor.
 @MainActor final class WaitCut {
@@ -57,21 +58,21 @@ private final class Once<T: Sendable>: Sendable {
 }
 
 /// The results of `work` for each writer that answered by `deadline` or the cut. Each `work`
-/// starts at once, so a writer that does not answer takes no time from the others.
+/// starts at once off the main actor and keeps its answer when it ends, so a writer that does not
+/// answer takes no time from the others, and a main-actor hold does not delay a writer step.
 @MainActor func boundedEach<T: Sendable>(
     _ writers: [DeviceWriter], by deadline: ContinuousClock.Instant, cut: WaitCut? = nil,
     _ work: @escaping @Sendable (DeviceWriter) async -> T
 ) async -> [ObjectIdentifier: T] {
-    let results = Answers<T>()
+    let answers = OSAllocatedUnfairLock(initialState: [ObjectIdentifier: T]())
     let tasks = writers.map { writer in
-        Task { @MainActor in results.values[ObjectIdentifier(writer)] = await work(writer) }
+        Task.detached {
+            let answer = await work(writer)
+            answers.withLock { $0[ObjectIdentifier(writer)] = answer }
+        }
     }
     _ = await bounded(by: deadline, cut: cut) { for task in tasks { await task.value } }
-    return results.values
-}
-
-@MainActor private final class Answers<T> {
-    var values: [ObjectIdentifier: T] = [:]
+    return answers.withLock { $0 }
 }
 
 /// A writer of the pending take that did not finish by the stop deadline, with its device UID and

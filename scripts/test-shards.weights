@@ -218,6 +218,7 @@ DirigibleTests.OverviewStripTests	4.0
 DirigibleTests.PageKeyTests	0.8
 DirigibleTests.PlayTickBenchmark	0.0
 DirigibleTests.RecordOverTests	0.0
+DirigibleTests.ReportFlowTests	3.0
 DirigibleTests.RevealTests	2.0
 DirigibleTests.RevertMenuTests	3.5
 DirigibleTests.RippleWindowTests	5.2

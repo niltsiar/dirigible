@@ -104,6 +104,9 @@ struct SessionView: View {
     /// The banners, the lanes, and the loudness strip of an open session.
     private func lanes(_ studio: Studio) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            if let app = model.app, let window = model.window, app.uncleanNotice.shows(in: ObjectIdentifier(window)) {
+                UncleanNoticeBanner(app: app)
+            }
             if let error = studio.saveError {
                 BannerRow(
                     kind: .error,

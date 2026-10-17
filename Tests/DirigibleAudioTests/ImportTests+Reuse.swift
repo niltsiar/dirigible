@@ -149,6 +149,42 @@ struct ImportReuseTests {
         #expect(bytes(package.clip("Voice.wav")) == wav, "the made WAV has the bytes of the take")
         #expect(bytes(package.clip("Take.wav")) == wav && bytes(package.clip("Short.wav")) == wav.prefix(wav.count - 3))
     }
+
+    /// The open descriptors of the files under `folder`: the entries of `/dev/fd` whose path is
+    /// there. Other tests run at the same time, so a count of all entries would not be exact.
+    func openFiles(under folder: URL) -> Int {
+        guard let root = realpath(folder.path, nil) else { return -1 }
+        defer { free(root) }
+        let prefix = String(cString: root) + "/"
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: "/dev/fd")) ?? []
+        return entries.compactMap { Int32($0) }.filter { descriptor in
+            var path = [UInt8](repeating: 0, count: Int(MAXPATHLEN))
+            guard fcntl(descriptor, F_GETPATH, &path) == 0 else { return false }
+            return String(decoding: path.prefix { $0 != 0 }, as: UTF8.self).hasPrefix(prefix)
+        }.count
+    }
+
+    /// Code gate 1 item 1: an import with no candidate, and an import that reuses a file, close
+    /// each descriptor that they open. A leak holds the made WAV open after the rename.
+    @Test func anImportClosesEachFileThatItOpens() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        let source = package.source("Talk.wav")
+        try writeSource(source, .wav16, rate: 48_000, channels: [sine(seconds: 1, rate: 48_000)])
+        let before = openFiles(under: package.folder.url)
+
+        let first = try autoreleasepool {
+            try importAudio(
+                source, to: ImportTarget(track: "t1", start: 0), of: package.session, in: package.url, level: false)
+        }
+        #expect(openFiles(under: package.folder.url) == before, "the import with no candidate")
+        let second = try autoreleasepool {
+            try importAudio(
+                source, to: ImportTarget(track: "t1", start: 96_000), of: first.session, in: package.url,
+                level: false)
+        }
+        #expect(openFiles(under: package.folder.url) == before, "the import that reuses a file")
+        #expect(before == 0 && second.session.files.keys.sorted() == ["Talk"], "the second import is a reuse")
+    }
 }
 
 /// The reuse in `Studio` (agent-pack C14).

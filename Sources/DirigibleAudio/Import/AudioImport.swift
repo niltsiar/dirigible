@@ -151,8 +151,9 @@ func identicalPoolFile(
 ) throws(ImportError) -> FileID? {
     let candidates = session.files.values.filter { $0.capture == nil && $0.layout == layout && $0.length == length }
         .sorted { $0.id < $1.id }
+    guard !candidates.isEmpty else { return nil }
     let made = open(temporary.path, O_RDONLY | O_CLOEXEC)
-    guard !candidates.isEmpty, made >= 0 else { return nil }
+    guard made >= 0 else { return nil }
     defer { close(made) }
     var info = stat()
     guard fstat(made, &info) == 0 else { return nil }

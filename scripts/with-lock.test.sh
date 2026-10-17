@@ -389,7 +389,7 @@ mkdir -p "$waiting"
 sleep 60 & other=$!
 echo /t/waiter > "$waiting/$other"
 echo /t/gone > "$waiting/$dead_pid"
-out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
+out="$("$repo/scripts/with-lock.sh" --builders 2>&1 | sed '/^holder:/d')"
 [[ "$out" == "$(printf '/t/holder\n/t/waiter')" && ! -e "$waiting/$dead_pid" ]] || fail "--builders, live holder and waiter: [$out]"
 # A wait behind them, with no log line, counts both: 2 other trees.
 cd "$tmp/wt" || exit 2
@@ -443,6 +443,65 @@ clear_hold
 hold_for 1
 WITH_LOCK_RETRY=0.3 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.out" 2>&1
 [[ -z "$(ls "$waiting" 2>/dev/null)" ]] || fail "a take leaves a marker: $(ls "$waiting")"
+reset_builders
+
+# The hold limit WITH_LOCK_MAX_HOLD: a command that runs past it gets TERM on its process group,
+# then KILL after WITH_LOCK_HOLD_GRACE seconds; the lock goes, the hold line gets the fifth column
+# limit, and the call exits 124. A command that ends in time keeps its status, and 0 turns the
+# limit off. The default is in $lock/maxhold while the lock is held: 30 min, and for a release call
+# 2 times the newest push-check hold in the log, at least 60 min.
+reset_builders
+rm -f "$tmp/inner"
+printf '#!/bin/bash\necho $$ > "%s"\ntrap "" TERM\nwhile :; do sleep 0.2; done\n' "$tmp/inner" > "$fake/stubborn"
+chmod +x "$fake/stubborn"
+t0=$(date +%s)
+WITH_LOCK_MAX_HOLD=2 WITH_LOCK_HOLD_GRACE=1 "$repo/scripts/with-lock.sh" "$fake/stubborn" > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 80 dead "$waiter" || { fail 'hold limit: the call runs past the limit'; kill -KILL "$(cat "$tmp/inner" 2>/dev/null)" "$waiter" 2>/dev/null; }
+wait "$waiter" 2>/dev/null
+code=$?
+waiter=""
+elapsed=$(($(date +%s) - t0))
+[[ $code -eq 124 && $elapsed -ge 2 && $elapsed -le 6 ]] || fail "hold limit: exit $code after $elapsed s (want 124 in 2 to 6 s): $(cat "$tmp/wait.out")"
+[[ ! -e "$lock" ]] || fail 'hold limit: the lock stays'
+inner="$(cat "$tmp/inner" 2>/dev/null)"
+dead "$inner" || fail 'hold limit: the command still runs'
+started="" seconds=0 command="" htree="" word=""
+IFS=$'\t' read -r started seconds command htree word < "$holds"
+[[ "$word" == limit && "$command" == "$fake/stubborn" && "$seconds" -ge 2 ]] || fail "hold limit: the hold line is [$started] [$seconds] [$command] [$htree] [$word]"
+inner=""
+# A command that ends in time keeps its status and its four-column hold line; 0 turns the limit off.
+reset_builders
+WITH_LOCK_MAX_HOLD=5 "$repo/scripts/with-lock.sh" bash -c 'exit 3' > /dev/null 2>&1
+code=$?
+[[ $code -eq 3 && "$(awk -F'\t' '{ print NF }' "$holds")" == 4 ]] || fail "hold in time: exit $code, hold line [$(cat "$holds" 2>/dev/null)]"
+WITH_LOCK_MAX_HOLD=0 "$repo/scripts/with-lock.sh" bash -c 'sleep 2' > /dev/null 2>&1
+code=$?
+[[ $code -eq 0 ]] || fail "WITH_LOCK_MAX_HOLD=0: exit $code"
+# The default limit: 30 min for an ordinary call, 60 min for a release call with no push check in
+# the log, and 2 times the newest push-check hold when that is over 30 min. A killed push check
+# does not count.
+mkdir -p "$tmp/relbin"
+printf '#!/bin/bash\ncat "%s/maxhold"\n' "$lock" > "$tmp/relbin/make"
+chmod +x "$tmp/relbin/make"
+reset_builders
+out="$("$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
+[[ "$out" == 1800 ]] || fail "default hold limit, ordinary call: [$out]"
+out="$("$repo/scripts/with-lock.sh" "$tmp/relbin/make" check-changed BASE=origin/main 2>&1)"
+[[ "$out" == 3600 ]] || fail "default hold limit, release call, no history: [$out]"
+printf '%s\t6000\tmake check-changed BASE=origin/main\t/t/a\n%s\t9000\tmake check-changed BASE=origin/main\t/t/a\tlimit\n%s\t100\tmake test\t/t/a\n' "$(ago 300)" "$(ago 200)" "$(ago 100)" > "$holds"
+out="$("$repo/scripts/with-lock.sh" "$tmp/relbin/make" check-changed BASE=origin/main 2>&1)"
+[[ "$out" == 12000 ]] || fail "default hold limit, release call, newest push check 6000 s: [$out]"
+out="$(WITH_LOCK_MAX_HOLD=77 "$repo/scripts/with-lock.sh" bash -c "cat '$lock/maxhold'" 2>&1)"
+[[ "$out" == 77 ]] || fail "WITH_LOCK_MAX_HOLD=77: [$out]"
+# --builders prints the hold seconds of the live holder, and its limit when the lock folder has one.
+reset_builders
+hold
+echo /t/holder > "$lock/tree"
+echo 1800 > "$lock/maxhold"
+touch -t "$(date -r $(($(date +%s) - 100)) +%Y%m%d%H%M.%S)" "$lock/pid"
+out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
+[[ "$out" =~ holder:\ /t/holder\ held\ (99|100|101|102)\ s\ of\ 1800\ s ]] || fail "--builders, hold seconds: [$out]"
 reset_builders
 
 [[ $failures -eq 0 ]] && echo "with-lock tests: all passed"

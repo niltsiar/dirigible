@@ -136,7 +136,7 @@ struct ChaptersCommandTests {
 
     /// C12. Each refusal names its rule and makes no file. `export` accepts the same ranges.
     @Test(arguments: [
-        (["--out", "x.txt"], "--out must end in .json."),
+        (["--out", "x.csv"], "--out must end in .json or .txt."),
         (["--out", "x.json", "--from", "-1"], "The range must be 0 or more"),
         (["--out", "x.json", "--from", "480000", "--to", "480000"], "The range must be 0 or more"),
         // Code gate item 3: the bound of ExportSource, 2^40 frames, as `export`.
@@ -199,5 +199,56 @@ struct ChaptersCommandTests {
                         + "not downloaded. Set the image again with `dirigible marker set --id b --image <image> "
                         + "<package>`, or remove it with `--image \"\"`.\n"))
         #expect(!FileManager.default.fileExists(atPath: file.path), "a JSON")
+    }
+
+    /// C18, C19 of run 2026-10-17-agent-pack. `.txt` writes one `HH:MM:SS title` line for each
+    /// chapter, and no image file. A list with no chapter at its start gets one warning line.
+    @Test func writesATextList() async throws {
+        let image = try ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
+        try FileManager.default.createDirectory(
+            at: package.url.appending(path: image.path).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("jpeg bytes".utf8).write(to: package.url.appending(path: image.path))
+        try package.edit { session in
+            try session.setMarker(Marker(id: "b", name: "Outro", position: 576_000, kind: .chapter, image: image))
+        }
+        let range = out("range.txt")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", range.path, "--from", "480000")
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try String(contentsOf: range, encoding: .utf8) == "00:00:00 Interview\n00:00:02 Outro\n")
+        let whole = out("whole.txt")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", whole.path)
+                == CLIResult(
+                    status: 0, stdout: "",
+                    stderr: "Warning: no chapter starts at 00:00:00; Apple Podcasts, Spotify, and YouTube want the "
+                        + "first chapter there.\n"))
+        #expect(try String(contentsOf: whole, encoding: .utf8) == "00:00:10 Interview\n00:00:12 Outro\n")
+        let names = try FileManager.default.contentsOfDirectory(atPath: package.folder.path).sorted()
+        #expect(names == ["Show.dirigible", "range.txt", "whole.txt"], "no image file")
+    }
+
+    /// C19 of run 2026-10-17-agent-pack: the exits of `.json` hold for `.txt`.
+    @Test func aTextListKeepsTheExits() async throws {
+        let none = out("none.txt")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", none.path, "--to", "480000")
+                == CLIResult(status: 1, stdout: "", stderr: "Error: no chapter in frames 0..<480000.\n"))
+        #expect(!FileManager.default.fileExists(atPath: none.path))
+        let file = out("old.txt")
+        let old = Data("old bytes".utf8)
+        try old.write(to: file)
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path, "--from", "480000")
+                == CLIResult(status: 2, stdout: "", stderr: "Error: \(file.path) exists.\n"))
+        #expect(try Data(contentsOf: file) == old, "the old bytes stay")
+        #expect(
+            try await package.run("chapters", "export", "PKG", "--out", file.path, "--from", "480000", "--replace")
+                == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(try String(contentsOf: file, encoding: .utf8) == "00:00:00 Interview\n00:00:02 Outro\n")
+        let inside = package.url.appending(path: "list.txt")
+        let result = try await package.run("chapters", "export", "PKG", "--out", inside.path)
+        #expect(result.status == 64 && result.stderr.contains("The output file must be outside the session package."))
+        #expect(!FileManager.default.fileExists(atPath: inside.path))
     }
 }

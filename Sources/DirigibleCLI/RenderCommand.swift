@@ -72,15 +72,6 @@ func cancelOnInterrupt() -> (source: DispatchSourceSignal, isCancelled: @Sendabl
     return (interrupt, { interrupted.withLock { $0 } })
 }
 
-/// The exit of a failed or cancelled render or export. `noun` is "render", "export", or "chapters file".
-func failure(_ error: ExportError, out: String, noun: String) -> ExitCode {
-    // Control-C: the exit status of the default action, with no message.
-    guard let message = ExportText.failureMessage(error, out: out, noun: noun, spelling: .cli) else {
-        return ExitCode(128 + SIGINT)
-    }
-    return fail(message, code: packageError)
-}
-
 /// Refuses an `--out` inside a session package, as a usage error.
 func checkOutsidePackages(_ out: String) throws(ValidationError) {
     do throws(ToolError) {

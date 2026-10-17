@@ -68,7 +68,7 @@ private func editCancelNote(_ nothing: String) -> String {
 
 /// Refuses a relative `out` first: the option checks resolve a relative path against the working
 /// folder of the server, which can differ from the folder of the agent.
-private func outPath(_ arguments: Arguments, _ param: Param<String> = out) throws(ToolError) -> String {
+func outPath(_ arguments: Arguments, _ param: Param<String>) throws(ToolError) -> String {
     let path = try arguments[param]
     guard path.hasPrefix("/") else { throw ToolError("The argument \"out\" must be an absolute path.") }
     return path
@@ -97,7 +97,7 @@ let audioTools = [
         let (first, end, ids, replaces, allows) = (
             try a[from], try a[to], try a[tracks] ?? [], try a[replace], try a[allowMissing]
         )
-        let path = try outPath(a)
+        let path = try outPath(a, out)
         let options = try ExportText.options(
             out: path, bits: depth, bitrate: kbits, mono: folds, rate: hertz, loudness: target, spelling: .tool)
         return .export(

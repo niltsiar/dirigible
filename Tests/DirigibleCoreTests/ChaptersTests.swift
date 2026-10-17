@@ -146,4 +146,24 @@ struct ChaptersTests {
         let images = session.chapterImages(in: 0..<480_000, imageStem: "show")
         #expect(images.map(\.image) == [png, jpeg] && images.map(\.name) == ["show-2.png", "show-3.jpg"])
     }
+
+    /// C18 of run 2026-10-17-agent-pack. Each line is `HH:MM:SS title`, the time from the range
+    /// start rounded down to the second. Fail value: `59:59 End`, the `MM:SS` form.
+    @Test func aTextChapterListUsesHoursInEveryLine() throws {
+        let hour = try Self.session([("Intro", 0, .chapter), ("End", 172_800_000, .chapter)])
+        #expect(hour.chaptersText(in: 0..<Frames.limit) == "00:00:00 Intro\n01:00:00 End\n")
+        let under = try Self.session([("Intro", 0, .chapter), ("End", 172_752_000, .chapter)])
+        #expect(under.chaptersText(in: 0..<Frames.limit) == "00:00:00 Intro\n00:59:59 End\n")
+        // 3599 s and 47,999 frames are still second 3599.
+        let n: Frames = 480_000
+        let down = try Self.session([
+            ("Intro", n, .chapter), ("End", n + 172_799_999, .chapter), ("Before", n - 1, .chapter),
+            ("plain", n + 48_000, .marker),
+        ])
+        #expect(down.chaptersText(in: n..<Frames.limit) == "00:00:00 Intro\n00:59:59 End\n", "rounded down")
+        // The session refuses tab, LF, and CR in a name; these line breaks it keeps.
+        var titled = Session(sampleRate: 48_000)
+        try titled.setMarker(Marker(id: "a", name: "Part\u{2028}One\u{85}A\u{2029}B", position: 0, kind: .chapter))
+        #expect(titled.chaptersText(in: 0..<48_000) == "00:00:00 Part One A B\n")
+    }
 }

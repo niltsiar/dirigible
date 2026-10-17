@@ -128,16 +128,37 @@ func m4aJPEG(_ data: Data, of name: ArtworkName) throws(ExportError) -> Data {
     return output as Data
 }
 
-/// Writes the chapters file of `range` (`Session.chaptersJSON`) to `url`: first each chapter
-/// image beside it (`Session.chapterImages`) with the bytes of `Artwork/` in `package`, then the
-/// JSON, each with an atomic write (run 2026-10-11-chapters-in-file, C3, C3b). The caller checks
-/// the JSON target. Before any write, an item at the name of an image throws
-/// `.chapterImageExists(<path>)` when `replacingImages` is false, and an image that does not read
-/// throws `.chapterImageMissing`. Pass `replacingImages` true when the user confirmed the replace
-/// of the JSON: the images belong to it.
+/// The form of a chapters file: Podcasting 2.0 JSON Chapters 1.2.0, or a text list.
+public enum ChaptersForm: Sendable {
+    case json, text
+
+    /// The form of a file name that ends in `.json` or `.txt`, with no case.
+    public init?(of url: URL) {
+        switch url.pathExtension.lowercased() {
+        case "json": self = .json
+        case "txt": self = .text
+        default: return nil
+        }
+    }
+}
+
+/// Writes the chapters file of `range` to `url` in `form`. The JSON (`Session.chaptersJSON`) goes
+/// after each chapter image beside it (`Session.chapterImages`) with the bytes of `Artwork/` in
+/// `package`, each with an atomic write (run 2026-10-11-chapters-in-file, C3, C3b). The text list
+/// (`Session.chaptersText`) has no image. The caller checks the file target. Before any write, an
+/// item at the name of an image throws `.chapterImageExists(<path>)` when `replacingImages` is
+/// false, and an image that does not read throws `.chapterImageMissing`. Pass `replacingImages`
+/// true when the user confirmed the replace of the JSON: the images belong to it.
 public func writeChapters(
-    _ session: Session, in range: Range<Frames>, to url: URL, replacingImages: Bool, package: URL
+    _ session: Session, in range: Range<Frames>, to url: URL, form: ChaptersForm, replacingImages: Bool,
+    package: URL
 ) throws(ExportError) {
+    guard form == .json else {
+        do { try Data(session.chaptersText(in: range).utf8).write(to: url, options: .atomic) } catch {
+            throw ExportError(writing: error)
+        }
+        return
+    }
     let (folder, stem) = (url.deletingLastPathComponent(), url.deletingPathExtension().lastPathComponent)
     var copies: [(data: Data, target: URL)] = []
     for (chapter, image, name) in session.chapterImages(in: range, imageStem: stem) {

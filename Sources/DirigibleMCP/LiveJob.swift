@@ -39,6 +39,14 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveLevel(work, studio: studio, call: call, report: report)
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
+    case .chapters(let work):
+        if let busy = exportBusy(studio) { return .result(text: busy.message(package: call.path), isError: true) }
+        if target.dialog() { return .result(text: AgentBusy.dialog.message(package: call.path), isError: true) }
+        do throws(ToolError) {
+            return .result(text: try await liveChapters(work, studio: studio), isError: false)
+        } catch {
+            return .result(text: error.message, isError: true)
+        }
     // `AgentServer` sends only long work here.
     case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words:
         return .notOpen
@@ -135,6 +143,26 @@ private func liveImport(
     }
 }
 
+/// `chapters_export` through `Studio.exportChapters`: the session of the window, written off the
+/// main actor. It has no progress and no cancel: the job writes a small file and its images.
+@MainActor
+private func liveChapters(_ work: ChaptersWork, studio: Studio) async throws(ToolError) -> String {
+    let session = studio.session
+    let source: ChaptersWork.Source
+    do throws(ChaptersWork.Refusal) { source = try work.source(in: session) } catch { throw ToolError(error.text) }
+    try await checkTarget(work)
+    do throws(ExportError) {
+        try await studio.exportChapters(
+            session, in: source.range, to: work.url, form: work.form, replacingImages: work.replace)
+    } catch {
+        throw ToolError(work.message(error))
+    }
+    return ChaptersWork.text(of: source)
+}
+
+/// The target check of a chapters export off the main actor: an lstat is file I/O.
+@concurrent private func checkTarget(_ work: ChaptersWork) async throws(ToolError) { try work.checkTarget() }
+
 private let noClip = "No clip was added."
 
 /// The text of an export or an import that the app stopped: the agent must not try again before
@@ -156,8 +184,9 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
-    // `AgentServer` gives this text only for long work.
-    case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words:
+    // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
+    case .chapters, .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record,
+        .words:
         "Dirigible stopped its agent server, so the call stopped."
     }
 }

@@ -192,7 +192,7 @@ extension SessionWindow {
             Task {
                 do throws(ExportError) {
                     try await studio.exportChapters(
-                        session, in: range, to: target.url, replacingImages: target.confirmed != nil)
+                        session, in: range, to: target.url, form: .json, replacingImages: target.confirmed != nil)
                     chapterWarnings = ChapterWarningsShown(
                         dropped, file: target.url.lastPathComponent, revision: revision)
                 } catch {

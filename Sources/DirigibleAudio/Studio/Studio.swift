@@ -272,6 +272,9 @@ import Observation
     /// results of earlier takes cleared, the writers, and the transport; then each writer
     /// attaches on its queue.
     func begin(_ started: StartedTake) {
+        logTake(started)
+        let span = environment.log.begin(.take, "writers-begin")
+        defer { span.end("writers") }
         history.edit { $0 = started.session }
         saveError = nil  // The start save wrote the whole session.
         url = started.package
@@ -292,7 +295,7 @@ import Observation
             }
             writers[device.uid] = DeviceWriter(
                 device: device, tracks: tracks, files: TakeFiles(take: started.take, folder: capture),
-                hal: environment.hal,
+                hal: environment.hal, log: environment.log,
                 report: report, silenceLimit: environment.silenceLimit,
                 firstRecordLimit: environment.firstRecordLimit, ringSeconds: environment.ringSeconds,
                 app: started.routes.first { $0.device == device }?.app)

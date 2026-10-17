@@ -1,8 +1,5 @@
 import CoreAudio
 import DirigibleCore
-import os
-
-private let attachLog = Logger(subsystem: "com.delineas.dirigible", category: "capture")
 
 /// The attach of a writer on its queue (decision 0013): the device lookup or the app tap, the
 /// ring, and `hal.attach`.
@@ -36,7 +33,7 @@ extension DeviceWriter {
         let detachAll: Detach
         outcome = .failed
         do throws(HALError) {
-            let detach = try timedAttach(input)
+            let detach = try loggedAttach(input)
             let teardown = found.teardown
             // Each step runs; the detach is clean only when both are (A6). The IOProc goes first:
             // an aggregate destroy with a live IOProc gives late calls (probe P12).
@@ -69,19 +66,6 @@ extension DeviceWriter {
         return true
     }
 
-    /// `hal.attach`, with a log line for a call of 1 s or more: a HAL call can hold the queue.
-    private func timedAttach(_ input: DeviceInput) throws(HALError) -> Detach {
-        let called = ContinuousClock.now
-        defer {
-            let took = ContinuousClock.now - called
-            if took >= .seconds(1) {
-                attachLog.notice(
-                    "The attach of \(self.name, privacy: .public) took \(String(describing: took), privacy: .public)")
-            }
-        }
-        return try hal.attach(input)
-    }
-
     /// The first report of the writer, at its first attach: `.recording` for a device, and for an
     /// app `.waitingForApp` while it has no process. It replaces the state of the take start.
     private func reportFirst() {
@@ -99,7 +83,7 @@ extension DeviceWriter {
         let layout = ChannelLayout(channelCount: tracks.routedWidth) ?? .mono
         guard let found = hal.lookUpApp(app, layout) else { return nil }
         outcome = .failed
-        guard let tap = try? hal.makeTap(found) else { return nil }
+        guard let tap = try? loggedTap(found, app: app) else { return nil }
         guard tracks.hasRoutedChannels(tap.device) else {
             if !tap.teardown() { failedDetaches += 1 }
             return nil

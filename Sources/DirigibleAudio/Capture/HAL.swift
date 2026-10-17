@@ -38,10 +38,11 @@ struct DeviceHAL: Sendable {
     /// The app source of `bundleID` as the system shows it now, with reads only (decision 0030).
     var lookUpApp: @Sendable (_ bundleID: String, _ layout: ChannelLayout) -> AppFound? = { _, _ in nil }
     /// A tap of the processes of `found` and its private aggregate: the aggregate object ID, its
-    /// facts, and the teardown of both.
+    /// facts, and the teardown of both. The live tap writes the aggregate lines to `log`.
     var makeTap:
-        @Sendable (_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) =
-            { _ throws(HALError) in throw .status(kAudioHardwareUnsupportedOperationError) }
+        @Sendable (_ found: AppFound, _ log: DiagnosticLog) throws(HALError) -> (
+            id: AudioObjectID, device: InputDevice, teardown: Detach
+        ) = { _, _ throws(HALError) in throw .status(kAudioHardwareUnsupportedOperationError) }
     /// The name of an app, else its bundle ID.
     var appName: @Sendable (_ bundleID: String) -> String = { $0 }
     /// True when a device with `uid` is in the device list (an output device too).
@@ -212,9 +213,9 @@ extension DeviceHAL {
         watchDevices: { writer in watchLive(writer) },
         attachListen: { input throws(HALError) in try attachListenLive(input) },
         lookUpApp: { bundleID, layout in DirigibleAudio.lookUpApp(bundleID, layout: layout) },
-        makeTap: { found throws(HALError) in
+        makeTap: { found, log throws(HALError) in
             guard #available(macOS 14.2, *) else { throw .status(kAudioHardwareUnsupportedOperationError) }
-            return try DirigibleAudio.makeTap(found)
+            return try DirigibleAudio.makeTap(found, log: log)
         },
         appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil },
         loopback: { device in

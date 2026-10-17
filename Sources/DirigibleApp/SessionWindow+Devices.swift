@@ -50,7 +50,10 @@ extension SessionWindow {
         } catch .microphoneAccess(let access) {
             switch microphoneStep(access) {
             case .request:
-                guard await requestMicrophoneAccess() else { throw .microphoneAccess(.denied) }
+                let request = studio.log.begin(.permission, "microphone-request-begin")
+                let granted = await requestMicrophoneAccess()
+                request.end("microphone-request", ["granted": .text(granted ? "yes" : "no")])
+                guard granted else { throw .microphoneAccess(.denied) }
                 guard case .open(let current) = phase, current === studio else { return }
                 try await body()
             case .privacyLink: throw .microphoneAccess(access)

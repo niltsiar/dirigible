@@ -25,9 +25,14 @@ extension DeviceWriter {
     /// A new tap and aggregate into a new segment, with no gap: a rebuild is not a loss. A
     /// rebuild that fails makes the track lost, and the 1 s retry goes on.
     func rebuild() {
+        let span = log.begin(.tap, "rebuild-begin", ["app": .text(app ?? "")])
         detach()
         tracks.endSegment()
-        guard attach() else { return lose() }
+        guard attach() else {
+            span.end("rebuild", level: .error, ["result": .text("lost")])
+            return lose()
+        }
+        span.end("rebuild")
         reportAppState()
     }
 

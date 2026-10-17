@@ -4,7 +4,7 @@ import os
 
 /// The part of the app that a journal line is about (decision 0059).
 public enum DiagnosticCategory: String, Sendable {
-    case app, take, device, tap, permission, disk, recovery, hang, agent
+    case app, take, device, tap, permission, disk, session, recovery, hang, agent
 }
 
 /// The level of a journal line. A `fault` line and each `hang` line also call `fsync`.
@@ -23,6 +23,11 @@ public enum DiagnosticValue: Sendable {
     case uid(String)
     /// Written as `pkg-<8 hex>`, the same way, from the package path.
     case package(URL)
+
+    /// The milliseconds from `start` to now.
+    static func since(_ start: ContinuousClock.Instant) -> DiagnosticValue {
+        .milliseconds((ContinuousClock.now - start) / .milliseconds(1))
+    }
 }
 
 /// The journal of one launch (decision 0059): one TSV file, written on one serial queue. The front
@@ -84,9 +89,25 @@ public final class DiagnosticLog: Sendable {
         _ category: DiagnosticCategory, _ event: StaticString, level: DiagnosticLevel = .notice,
         _ fields: KeyValuePairs<String, DiagnosticValue> = [:]
     ) {
+        note(category, event, level: level, fields: Array(fields))
+    }
+
+    func note(
+        _ category: DiagnosticCategory, _ event: StaticString, level: DiagnosticLevel = .notice,
+        fields: [(key: String, value: DiagnosticValue)]
+    ) {
         guard let journal else { return }
-        let entry = Entry(category, event, Array(fields), level: level)
+        let entry = Entry(category, event, fields, level: level)
         journal.queue.async { journal.append(entry) }
+    }
+
+    /// Writes the begin line of a call that can block, so a call that never returns leaves it in
+    /// the file. `end` on the result writes the step line with the ms of the call.
+    public func begin(
+        _ category: DiagnosticCategory, _ event: StaticString, _ fields: KeyValuePairs<String, DiagnosticValue> = [:]
+    ) -> DiagnosticSpan {
+        note(category, event, fields: Array(fields))
+        return DiagnosticSpan(log: self, category: category, start: .now)
     }
 
     /// Queues `app quit` and `fsync` behind the queued lines, and waits for them at most 1 s. On a
@@ -106,6 +127,24 @@ public final class DiagnosticLog: Sendable {
 
     /// Tests: returns after the queue ran each block queued before the call.
     func drain() { journal?.queue.sync {} }
+}
+
+/// A call between its begin line and its step line (`DiagnosticLog.begin`).
+public struct DiagnosticSpan: Sendable {
+    let log: DiagnosticLog
+    let category: DiagnosticCategory
+    let start: ContinuousClock.Instant
+
+    /// Writes the step line: `fields`, then `ms`, the time since the begin line.
+    public func end(
+        _ event: StaticString, level: DiagnosticLevel = .notice, _ fields: KeyValuePairs<String, DiagnosticValue> = [:]
+    ) {
+        end(event, level: level, fields: Array(fields))
+    }
+
+    func end(_ event: StaticString, level: DiagnosticLevel = .notice, fields: [(key: String, value: DiagnosticValue)]) {
+        log.note(category, event, level: level, fields: fields + [("ms", .since(start))])
+    }
 }
 
 private let openLog = Logger(subsystem: "com.delineas.dirigible", category: "diagnostics")

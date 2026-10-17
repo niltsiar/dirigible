@@ -17,6 +17,8 @@ final class DeviceWriter: @unchecked Sendable {
     static let failedDetachLimit = 8
 
     let hal: DeviceHAL
+    /// The journal of the front end (decision 0059): the attach and tap lines.
+    let log: DiagnosticLog
     /// The bundle ID of an app source (decision 0030), else nil. An app writer makes a tap and
     /// its aggregate at each attach, and the detach tears both down.
     let app: String?
@@ -72,11 +74,13 @@ final class DeviceWriter: @unchecked Sendable {
     /// source; then `device` has the UID `app:<bundle ID>` and the app name.
     init(
         device: InputDevice, tracks: [(arm: Int, channels: Route.Channels)], files: TakeFiles?, hal: DeviceHAL,
-        report: @escaping @Sendable (Report) -> Void = { _ in }, drainInterval: Duration = .milliseconds(50),
+        log: DiagnosticLog = .disabled, report: @escaping @Sendable (Report) -> Void = { _ in },
+        drainInterval: Duration = .milliseconds(50),
         silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10,
         keepLimit: Int = .max, app: String? = nil
     ) {
         self.hal = hal
+        self.log = log
         self.app = app
         self.report = report
         self.drainInterval = drainInterval

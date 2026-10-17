@@ -246,9 +246,12 @@ func appFound(
 
 /// Makes a private, unmuted mixdown tap of the processes of `found` and its private aggregate
 /// (decision 0006). The teardown destroys the aggregate, then the tap; each step runs, and it is
-/// clean only when both return noErr.
+/// clean only when both return noErr. The aggregate create writes its begin line and its line to
+/// `log` (decision 0059).
 @available(macOS 14.2, *)
-func makeTap(_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: InputDevice, teardown: Detach) {
+func makeTap(_ found: AppFound, log: DiagnosticLog) throws(HALError) -> (
+    id: AudioObjectID, device: InputDevice, teardown: Detach
+) {
     let description =
         found.device.channelCount == 1
         ? CATapDescription(monoMixdownOfProcesses: found.key.processes)
@@ -262,7 +265,9 @@ func makeTap(_ found: AppFound) throws(HALError) -> (id: AudioObjectID, device: 
     var aggregate = AudioObjectID(kAudioObjectUnknown)
     let wanted = aggregateDescription(
         output: found.output, tapUID: tapUID, uid: tapUIDPrefix + UUID().uuidString)
+    let span = log.begin(.tap, "aggregate-begin")
     status = AudioHardwareCreateAggregateDevice(wanted as CFDictionary, &aggregate)
+    span.end("aggregate", level: status == noErr ? .notice : .error, ["status": .status(status)])
     guard status == noErr else {
         _ = AudioHardwareDestroyProcessTap(tap)
         throw .status(status)

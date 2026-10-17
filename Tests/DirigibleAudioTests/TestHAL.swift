@@ -90,7 +90,7 @@ final class TestHAL: @unchecked Sendable {
                     return apps[bundleID]
                 }
             },
-            makeTap: { [self] found in makeTap(found) },
+            makeTap: { [self] found, _ in makeTap(found) },
             appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } },
             deviceExists: { [self] uid in lock.withLock { !goneDevices.contains(uid) } },
             loopback: { [self] id in

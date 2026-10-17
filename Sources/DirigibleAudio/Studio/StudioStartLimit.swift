@@ -94,12 +94,20 @@ extension Studio {
         let devices = writers.values.filter { $0.app == nil }
         let started = await boundedEach(devices, by: deadline, cut: cut) { await $0.started() }
         guard !cut.isCut else { return }
-        for writer in devices where started[ObjectIdentifier(writer)] == nil && writer.startState == .notAttached {
-            for track in armed where track.writer === writer && liveTracks[track.id]?.state != .deviceLost {
+        let missed = devices.filter { started[ObjectIdentifier($0)] == nil && $0.startState == .notAttached }
+        if !missed.isEmpty {
+            let names = missed.map(\.name).joined(separator: ",")
+            environment.log.note(.take, "start-deadline", level: .error, ["missed": .text(names)])
+        }
+        for writer in missed {
+            for (index, track) in armed.enumerated()
+            where track.writer === writer && liveTracks[track.id]?.state != .deviceLost {
                 liveTracks[track.id]?.state = .notStarted
+                environment.log.note(.take, "arm-not-started", ["arm": .number(Int64(index + 1))])
             }
         }
         for writer in writers.values where writer.app != nil { writer.start() }
+        environment.log.note(.take, "apps-started", ["missed": .number(Int64(missed.count))])
     }
 
     /// Finishes each writer by `deadline`, and returns the gaps of the take and the writers that
@@ -113,7 +121,9 @@ extension Studio {
         var gaps: [TrackID: TakeResult.Gap] = [:]
         var unfinished: [UnfinishedWriter] = []
         let isAbandoned = { (writer: DeviceWriter) in abandoned.contains { $0 === writer } }
-        let answers = await boundedEach(writers.values.filter { !isAbandoned($0) }, by: deadline) { await $0.finish() }
+        let answers = await boundedEach(writers.values.filter { !isAbandoned($0) }, by: deadline) {
+            [log = environment.log] in await finishLogged($0, log)
+        }
         for (uid, writer) in writers {
             let tracks = Dictionary(
                 uniqueKeysWithValues: armed.indices.filter { armed[$0].writer === writer }.map {
@@ -137,7 +147,9 @@ extension Studio {
         var late: [TrackID: TakeResult.Gap] = [:]
         var silent: [TrackID: String] = [:]
         var still: [UnfinishedWriter] = []
-        let answers = await boundedEach(unfinishedWriters.map(\.writer), by: deadline) { await $0.finish() }
+        let answers = await boundedEach(unfinishedWriters.map(\.writer), by: deadline) {
+            [log = environment.log] in await finishLogged($0, log)
+        }
         for entry in unfinishedWriters {
             if let finished = answers[ObjectIdentifier(entry.writer)] {
                 for (arm, gap) in finished { if let track = entry.tracks[arm] { late[track] = gap } }
@@ -147,6 +159,7 @@ extension Studio {
             }
         }
         unfinishedWriters = still
+        logLate(still)
         if let last = lastTake {
             lastTake = TakeResult(
                 take: last.take, end: last.end, gaps: last.gaps.merging(late) { first, _ in first },
@@ -161,6 +174,8 @@ extension Studio {
     /// start deadline or at a stop. A turn that comes after them waits for no writer: it finishes
     /// each monitor writer later. `begin` replaced the entries of `liveTracks` already.
     func handOver(by deadline: ContinuousClock.Instant, cut: WaitCut) async {
+        let span = environment.log.begin(.take, "hand-over-begin")
+        defer { span.end("hand-over") }
         let turn = Task { @MainActor in
             await monitorTurns.run {
                 let released = monitors.values.map(\.writer)

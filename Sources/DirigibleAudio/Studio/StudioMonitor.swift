@@ -82,7 +82,7 @@ extension Studio {
             reportNumber += 1
             let writer = DeviceWriter(
                 device: device, tracks: tracks.enumerated().map { (arm: $0.offset + 1, channels: $0.element.channels) },
-                files: nil, hal: environment.hal,
+                files: nil, hal: environment.hal, log: environment.log,
                 report: Self.monitorReporter(to: self, number: reportNumber, uid: uid),
                 silenceLimit: environment.silenceLimit, firstRecordLimit: environment.firstRecordLimit, ringSeconds: 1,
                 keepLimit: monitorKeepLimit)

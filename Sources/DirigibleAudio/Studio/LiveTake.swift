@@ -131,6 +131,11 @@ struct CaptureEnvironment: Sendable {
     /// A step of a take start after the take begins, before the app attach. Tests hold it to stop
     /// the take before the start returns; `live` does nothing.
     var afterStart: @Sendable () async -> Void = {}
+    /// The sleep assertion of a take start, on the main actor. Tests read the journal in it.
+    var makeSleepAssertion: @Sendable () -> SleepAssertion = { SleepAssertion() }
+    /// A step of a take start before the save of `<recording>`, off the main actor. Tests read the
+    /// journal in it.
+    var beforeTakeSave: @Sendable () async -> Void = {}
     /// A step at the start of each media check of `Studio.checkMedia` and `Studio.exportFaults`, off the main actor. Tests
     /// hold the check with it and suspend, so no thread of the concurrency pool waits.
     var beforeMediaCheck: @Sendable () async -> Void = {}
@@ -294,6 +299,7 @@ nonisolated func checkTake(
     let tracks = armed.compactMap { session.track($0) }
     let hasApp = tracks.contains { if case .app = $0.route { true } else { false } }
     if hasApp, !environment.tapsAvailable { throw .appSourcesUnavailable }
+    let check = environment.log.begin(.take, "check-begin")
     var devices: [InputDevice] = []
     for track in tracks {
         switch track.route {
@@ -309,10 +315,14 @@ nonisolated func checkTake(
         case nil: continue
         }
     }
+    check.end("check", ["devices": .number(Int64(devices.count))])
     let routes = try checkRoutes(session, armed: armed, devices: devices)
     // An app-only take needs no microphone access (A13).
-    if routes.contains(where: { $0.app == nil }), let access = environment.microphoneAccess() {
-        throw .microphoneAccess(access)
+    if routes.contains(where: { $0.app == nil }) {
+        let read = environment.log.begin(.permission, "microphone-begin")
+        let access = environment.microphoneAccess()
+        read.end("microphone", ["status": .text(access.map { "\($0)" } ?? "granted")])
+        if let access { throw .microphoneAccess(access) }
     }
     return routes
 }
@@ -334,11 +344,16 @@ func appUID(_ bundleID: String) -> String { "app:\(bundleID)" }
     await environment.beforeLookUp(#isolation)
     let routes = try checkTake(of: session, armed: armed, environment: environment)
     if let endExport { await endExport() }
+    let disk = environment.log.begin(.disk, "free-begin")
     let free = environment.freeBytes(lock)
+    disk.end("free", ["bytes": .number(free)])
     guard free >= diskMargin else { throw .diskLow }
+    let save = environment.log.begin(.session, "save-begin")
+    await environment.beforeTakeSave()
     let started = try saveTakeStart(
         session, lock: lock, routes: routes, playhead: playhead,
         hostTimeNanos: hostNanosNow())
+    save.end("save", ["take": .number(Int64(started.take))])
     recordings?.set(started.package, active: true)
     return (started, free)
 }

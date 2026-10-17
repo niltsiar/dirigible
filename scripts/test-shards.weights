@@ -107,6 +107,7 @@ DirigibleAudioTests.StudioPeaksSettleTests	9.2
 DirigibleAudioTests.StudioPeaksTests	8.1
 DirigibleAudioTests.StudioPlaybackTests	9.5
 DirigibleAudioTests.TakeAnchorTests	5.2
+DirigibleAudioTests.TakeLogTests	8.0
 DirigibleAudioTests.TakeNumberTests	0.0
 DirigibleAudioTests.TruePeakTests	1.6
 DirigibleCoreTests.ArtworkNameTests	0.0
@@ -193,6 +194,7 @@ DirigibleTests.LocalizationTests	0.2
 DirigibleTests.LoudnessStripTests	3.6
 DirigibleTests.ManyLabelsBenchmark	0.0
 DirigibleTests.MarkerCommandTests	8.3
+DirigibleTests.MicrophoneRequestLogTests	1.0
 DirigibleTests.MonitorWindowTests	4.5
 DirigibleTests.MouseEventBenchmark	0.0
 DirigibleTests.MouseEventCrossfadeBenchmark	0.0

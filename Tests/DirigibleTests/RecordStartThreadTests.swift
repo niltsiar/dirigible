@@ -128,7 +128,7 @@ private let zoomBundleID = "us.zoom.xos"
             hold.call(.appName)
             return "zoom.us"
         }
-        environment.hal.makeTap = { _ throws(HALError) in
+        environment.hal.makeTap = { _, _ throws(HALError) in
             hold.call(.makeTap)
             return (1001, tap, { true })
         }

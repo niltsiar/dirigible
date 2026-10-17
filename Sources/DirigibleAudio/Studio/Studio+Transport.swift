@@ -221,8 +221,10 @@ extension Studio {
     /// take ended (`stopped`), or `play.playhead` (plan gate 2 item 1).
     func takePlayhead(_ stopped: Int?, _ playhead: Frames?) async -> Frames {
         if let player = play.player {
+            let span = environment.log.begin(.take, "play-stop-begin")
             await environment.beforePlayerStop()
             await player.apply(.stop, number: play.feed)
+            span.end("play-stop")
             let reading = await player.reading()
             if let stopped, reading.played == stopped { play.playhead = reading.frame }
         }

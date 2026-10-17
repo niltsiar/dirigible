@@ -51,6 +51,7 @@ extension Studio {
         guard let take = pendingTake?.take else { return }
         let deadline = ContinuousClock.now + environment.stopLimit
         transport = .finalizing(take: take)
+        environment.log.note(.take, "retry-finalize", ["unfinished": .number(Int64(unfinishedWriters.count))])
         let error = await serialized { () async -> StudioError? in
             if let error = await finishUnfinished(by: deadline) {
                 takeError = error
@@ -58,7 +59,7 @@ extension Studio {
                 return error
             }
             do throws(StudioError) {
-                try await complete(take, leavingUnreadable: leavingUnreadable)
+                try await completeLogged(take, leavingUnreadable: leavingUnreadable)
             } catch {
                 return error
             }
@@ -113,18 +114,19 @@ extension Studio {
     /// `startRecording`, which also returns the take and the generation that it started. A stop
     /// can end that take before this call returns. With `length` (nanoseconds), each writer
     /// writes no record at or after the take start + `length`. The end is set before the
-    /// hand-over waits, so no drain writes past it.
-    func beginRecording(armed: [TrackID], playhead: Frames?, length: UInt64? = nil) async throws(StudioError) -> (
+    /// hand-over waits, so no drain writes past it. `beginRecording` writes its first and last line.
+    func startSteps(armed: [TrackID], playhead: Frames?, length: UInt64?) async throws(StudioError) -> (
         take: Int, generation: Int
     ) {
-        environment.log.note(.take, "start-request", ["armed": .number(Int64(armed.count))])
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
         isStarting = true
         let stopped = endPlayForTake()
+        let queued = ContinuousClock.now
         // The whole start is one step of the chain, so a stop or a settle never sees half of it.
         let result = await serialized { () async -> Result<(take: Int, generation: Int), StudioError> in
             defer { isStarting = false }
+            environment.log.note(.take, "write-chain", ["ms": .since(queued)])
             let playhead = await takePlayhead(stopped, playhead)
             let (started, free): (StartedTake, Int64)
             do throws(StudioError) {
@@ -146,7 +148,9 @@ extension Studio {
             let channels = self.armed.compactMap { session.track($0.id)?.layout.channelCount }.reduce(0, +)
             recordTimeLeft = DirigibleAudio.remainingRecordTime(
                 free: free, wav: 0, channels: channels, rate: session.sampleRate)
-            sleepAssertion = SleepAssertion()
+            let assertion = environment.log.begin(.take, "sleep-assertion-begin")
+            sleepAssertion = environment.makeSleepAssertion()
+            assertion.end("sleep-assertion")
             diskWatcher = watchDisk(channels: channels)
             // A stop from now on waits for this step and does not throw `.busy`.
             isStarting = false
@@ -174,6 +178,7 @@ extension Studio {
         if case .finalizing = transport { throw .busy }
         guard !isStarting else { throw .busy }
         guard case .recording(let take) = transport else { return }
+        environment.log.note(.take, "stop-request", ["take": .number(Int64(take)), "end": .text("\(end)")])
         let called = ContinuousClock.now
         transport = .finalizing(take: take)
         stopLive()
@@ -183,11 +188,15 @@ extension Studio {
         takeTimer = nil
         // E1: the take ends now on every track, also while an app attach waits for the prompt.
         let now = hostNanosNow()
+        let seconds = session.recording.map { Double(Int64(bitPattern: now &- $0.takeStartHostTimeNanos)) / 1e9 }
         for writer in writers.values { writer.end(atHostNanos: now) }
         // A writer that never attached holds no audio, so the stop does not wait for it; its queued
         // finish runs after its attach returns. The start step returns at once.
         let abandoned = writers.values.filter { $0.abandon() }
-        for writer in abandoned { writer.finishLater() }
+        for writer in abandoned {
+            writer.finishLater()
+            environment.log.note(.take, "abandoned", ["writer": .text(writer.name)])
+        }
         startCut?.cut()
         let error = await serialized { () async -> StudioError? in
             let deadline = called + environment.stopLimit
@@ -196,6 +205,7 @@ extension Studio {
             let dropped = armed.compactMap { track in
                 track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil
             }
+            let wav = writers.values.reduce(Int64(0)) { $0 + $1.wavBytes }
             lastTake = TakeResult(
                 take: take, end: end, gaps: gaps, droppedFrames: Dictionary(uniqueKeysWithValues: dropped),
                 silent: silent)
@@ -210,12 +220,17 @@ extension Studio {
             await monitorTurns.run { await applyMonitor() }
             defer { sleepAssertion = nil }
             if let late = unfinished.first {
+                logLate(unfinished)
                 takeError = .writerDidNotStop(late.writer.name)
                 dropLiveTake()
                 transport = .idle
                 return takeError
             }
-            do throws(StudioError) { try await complete(take, level: true) } catch { return error }
+            do throws(StudioError) {
+                try await completeLogged(take, level: true, wav: wav, seconds: seconds)
+            } catch {
+                return error
+            }
             return nil
         }
         if let error { throw error }

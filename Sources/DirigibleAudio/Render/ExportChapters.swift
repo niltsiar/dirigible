@@ -5,7 +5,7 @@ import ImageIO
 import UniformTypeIdentifiers
 
 /// A chapter of the M4A chapter track: its start in output frames from the range start, and its
-/// image as a JPEG. Nil shows the episode artwork (decision 0045, run 5).
+/// image as a JPEG. Nil shows the episode artwork (decision 0045).
 struct ExportChapter: Hashable, Sendable {
     var title: String
     var start: Int
@@ -22,8 +22,8 @@ struct M4AChapters {
 
 /// The M4A chapter list of `range`. It starts from `list`, the `Session.chapterList(in: range)` of
 /// the caller, converts each start to the output rate, and only then drops each chapter at the start of the chapter before it and
-/// each chapter at or after `outputFrames`: two text samples at one time stop the writer (probe
-/// P1, plan gate G12). When the first start is after 0, it adds a chapter at 0, because the writer
+/// each chapter at or after `outputFrames`: two text samples at one time stop the writer. When
+/// the first start is after 0, it adds a chapter at 0, because the writer
 /// moves a first sample to 0. The added chapter has the episode title, else the show name, else
 /// `introTitle`, and the image of the first chapter. `images` holds the JPEG of each marker.
 func m4aChapters(
@@ -64,15 +64,15 @@ func m4aKept(_ list: ChapterList, in session: Session, range: Range<Frames>, out
     return list.chapters.filter { !dropped.contains($0.id) }
 }
 
-/// `offset` session frames at the output rate, rounded half up with integer math (plan gate G1).
+/// `offset` session frames at the output rate, rounded half up with integer math.
 func outputFrames(_ offset: Frames, sessionRate: Int, outputRate: Int) -> Int {
     (2 * offset.count * outputRate + sessionRate) / (2 * sessionRate)
 }
 
-/// The samples of the M4A image track, each to the start of the next one (criterion C5b). A chapter
+/// The samples of the M4A image track, each to the start of the next one. A chapter
 /// with no image gets `artwork`, and one artwork sample spans each run of such chapters. No sample
 /// when no chapter has an image. No sample and `omitted` when a chapter has no image and there is
-/// no artwork: a gap would show the image of the chapter before it (probe P1, U8).
+/// no artwork: a gap would show the image of the chapter before it.
 func imageSamples(_ chapters: [ExportChapter], artwork: Data?) -> (samples: [(start: Int, jpeg: Data)], omitted: Bool) {
     guard chapters.contains(where: { $0.image != nil }) else { return ([], false) }
     var samples: [(start: Int, jpeg: Data)] = []
@@ -144,7 +144,7 @@ public enum ChaptersForm: Sendable {
 
 /// Writes the chapters file of `range` to `url` in `form`. The JSON (`Session.chaptersJSON`) goes
 /// after each chapter image beside it (`Session.chapterImages`) with the bytes of `Artwork/` in
-/// `package`, each with an atomic write (run 2026-10-11-chapters-in-file, C3, C3b). The text list
+/// `package`, each with an atomic write. The text list
 /// (`Session.chaptersText`) has no image. The caller checks the file target. Before any write, an
 /// item at the name of an image throws `.chapterImageExists(<path>)` when `replacingImages` is
 /// false, and an image that does not read throws `.chapterImageMissing`. Pass `replacingImages`

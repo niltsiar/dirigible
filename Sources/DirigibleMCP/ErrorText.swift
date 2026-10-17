@@ -18,7 +18,7 @@ package func splitTakeMessage(_ package: String) -> String {
 }
 
 /// The refusal of a live agent call that copies files into a package that the app has open
-/// (decision 0046, C7).
+/// (decision 0046).
 func openInAppMessage(_ package: String) -> String {
     "\(package) is open in Dirigible. Do this in the app, or close the window."
 }

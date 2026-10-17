@@ -58,6 +58,10 @@ import UniformTypeIdentifiers
     /// The journal of this launch: `applicationWillFinishLaunching` starts it, and each studio of
     /// the app gets it.
     @ObservationIgnored private(set) var log = DiagnosticLog.disabled
+    /// Starts the hang watchdog after the journal. Off in tests: a test that calls
+    /// `applicationWillFinishLaunching` starts no timer on the main queue of the test process.
+    @ObservationIgnored let watchesHangs: Bool
+    @ObservationIgnored private var watchdog: HangWatchdog?
     /// The agent server (decision 0046). The Settings switch starts and stops it.
     @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket) { [weak self] in
         self?.agentTargets() ?? []
@@ -133,14 +137,15 @@ import UniformTypeIdentifiers
                 file: support.appending(path: "com.delineas.dirigible/active-recordings.plist")),
             peakCache: PeakFile.folder, defaults: .standard,
             defaultFolder: FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
-                .appending(path: "Dirigible", directoryHint: .isDirectory))
+                .appending(path: "Dirigible", directoryHint: .isDirectory), watchesHangs: true)
     }
 
     init(
         recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil,
-        agentSocket: URL = agentSocketPath(), logFolder: URL = DiagnosticLog.folder()
+        agentSocket: URL = agentSocketPath(), logFolder: URL = DiagnosticLog.folder(), watchesHangs: Bool = false
     ) {
         self.recordings = recordings
+        self.watchesHangs = watchesHangs
         self.agentSocket = agentSocket
         self.logFolder = logFolder
         self.defaultFolder = defaultFolder
@@ -323,6 +328,7 @@ import UniformTypeIdentifiers
         log = DiagnosticLog.start(
             .app, folder: logFolder, version: info?["CFBundleShortVersionString"] as? String ?? "0.0.0",
             commit: info?["DirigibleCommit"] as? String ?? "none")
+        if watchesHangs { watchdog = HangWatchdog.start(log: log) }
     }
 
     /// Open events come before this call (probe P7).
@@ -355,7 +361,11 @@ import UniformTypeIdentifiers
     func cancelQuit() { terminating = false }
 
     /// Only a Quit that goes on comes here, so a cancelled Quit writes no `app quit` line.
-    func applicationWillTerminate(_ notification: Notification) { log.quit() }
+    /// The watchdog stops first, so no `hang` line comes after `app quit`.
+    func applicationWillTerminate(_ notification: Notification) {
+        watchdog?.stop()
+        log.quit()
+    }
 }
 
 /// `packageIdentity` off the main actor.

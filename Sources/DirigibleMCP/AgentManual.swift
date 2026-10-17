@@ -74,8 +74,8 @@ package enum AgentManual {
                 + "layout of the file, or in a range of a track that has no clip; "
                 + "`import` with `file` (an absolute path), `track`, and `at` (a frame) shapes the clip in the same "
                 + "call: `offset` and `length` (frames of the made WAV) take a range of the file, `db` sets the gain "
-                + "in place of the auto level, `fade_in` and `fade_out` set the fades in frames, and `id` names the "
-                + "clip. An import of the same file again reuses its WAV."),
+                + "relative to the file level, with no auto level, `fade_in` and `fade_out` set the fades in frames, "
+                + "and `id` names the clip. An import of the same file again reuses its WAV."),
         Recipe(
             phase: .produce, name: "add-chapter", title: "Add a chapter",
             summary: "Add a chapter marker at a time.",

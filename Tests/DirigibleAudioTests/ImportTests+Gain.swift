@@ -48,6 +48,29 @@ extension ImportTests {
         #expect(given.session.clip(given.clip)?.clip.gain.dB == -6, "the given gain, with no level")
     }
 
+    /// Code gate 1 item 3: `db` is relative to the source level. A float source with a peak of 2.0
+    /// gets about +6.02 dB from the conversion (A11); `db` adds to it, and the sum stops at +96 dB.
+    @Test func aGainOfAnImportIsRelativeToTheSourceLevel() throws {
+        let package = try ImportPackage(tracks: [("t1", .mono)])
+        try writeSource(package.source("Loud.wav"), .wavFloat, rate: 48_000, channels: [spiked(2)])
+        let plain = try importAudio(
+            package.source("Loud.wav"), to: ImportTarget(track: "t1", start: 0), of: package.session,
+            in: package.url, level: false)
+        let conversion = try #require(plain.session.clip(plain.clip)?.clip.gain.dB)
+        #expect(abs(conversion - 20 * log10(2.0)) < 0.01, "the conversion gives the peak back: \(conversion) dB")
+
+        var (session, gains) = (plain.session, [Double]())
+        for (start, dB) in [(96_000, -3.0), (192_000, 96.0)] {
+            let given = try importAudio(
+                package.source("Loud.wav"), to: ImportTarget(track: "t1", start: Frames(start), gain: Gain(dB: dB)),
+                of: session, in: package.url)
+            session = given.session
+            gains.append(try #require(session.clip(given.clip)?.clip.gain.dB))
+        }
+        #expect(abs(gains[0] - (conversion - 3)) < 1e-9, "db -3 is 3 dB under the source level: \(gains[0]) dB")
+        #expect(gains[1] == 96, "the sum stops at the end of Gain.range: \(gains[1]) dB")
+    }
+
     /// A peak that is not finite keeps one pass and 0 dB, so the other samples keep their level.
     @Test func anInfinitePeakKeepsOnePass() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])

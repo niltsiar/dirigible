@@ -11,7 +11,8 @@ public struct ImportTarget: Hashable, Sendable {
     public var offset: Frames
     /// Nil: the rest of the made WAV. A longer length stops at its end.
     public var length: Frames?
-    /// Nil: the level gain, or the gain of the conversion with no level.
+    /// Added to the gain of the conversion, clamped to `Gain.range`, with no level. Nil: the level
+    /// gain, or the gain of the conversion with no level.
     public var gain: Gain?
     public var fades: Fades
 

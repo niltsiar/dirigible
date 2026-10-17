@@ -53,7 +53,9 @@ private let importLength = Param<Int?>.optional(
     "The clip length in frames of the made WAV, at the session rate. A longer length stops at the end of the WAV. "
         + "The default is the rest of the WAV.", .integer())
 private let importGain = Param<Gain?>.optional(
-    "db", "The clip gain in dB. No auto level runs. The default is the gain of Auto Level.", .gain)
+    "db",
+    "The clip gain in dB, relative to the level of the file: 0 keeps that level. No auto level runs. The "
+        + "default is the gain of Auto Level.", .gain)
 private let importFadeIn = Param.defaulted("fade_in", "The fade-in length in frames.", .integer(), 0)
 private let importFadeOut = Param.defaulted("fade_out", "The fade-out length in frames.", .integer(), 0)
 

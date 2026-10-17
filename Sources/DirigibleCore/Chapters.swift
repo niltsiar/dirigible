@@ -51,6 +51,21 @@ extension Session {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         return try encoder.encode(file)
     }
+
+    /// The text chapter list of the chapters in `range`: one line `HH:MM:SS title` for each
+    /// chapter of `chapterList(in:)`, each line with a line break. The time is the offset from the
+    /// start of `range`, rounded down to the second. `HH:MM:SS` is in every line, as the Apple
+    /// Podcasts example: that Apple reads `MM:SS` is unconfirmed. A line break in a title becomes a
+    /// space. The caller checks first that `chapters(in: range)` is not empty.
+    public func chaptersText(in range: Range<Frames>) -> String {
+        chapterList(in: range).chapters.map { chapter in
+            let seconds = (chapter.position - range.lowerBound).count / sampleRate
+            let time = String(format: "%02d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60)
+            let title = String(
+                String.UnicodeScalarView(chapter.name.unicodeScalars.map { Character($0).isNewline ? " " : $0 }))
+            return "\(time) \(title)\n"
+        }.joined()
+    }
 }
 
 extension Session {

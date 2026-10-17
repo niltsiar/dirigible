@@ -161,12 +161,12 @@ extension Studio {
 }
 
 extension Studio {
-    /// `writeChapters` of `range` of `session` to `url` on a utility GCD thread, in the package
-    /// that the lock holds now. Pass `replacingImages` true when the save panel confirmed the
-    /// replace of an item at `url`: the chapter images beside it are replaced too. Else an item at
-    /// the name of an image stops the write.
+    /// `writeChapters` of `range` of `session` to `url` in `form` on a utility GCD thread, in the
+    /// package that the lock holds now. Pass `replacingImages` true when the save panel confirmed
+    /// the replace of an item at `url`: the chapter images beside it are replaced too. Else an item
+    /// at the name of an image stops the write.
     public func exportChapters(
-        _ session: Session, in range: Range<Frames>, to url: URL, replacingImages: Bool
+        _ session: Session, in range: Range<Frames>, to url: URL, form: ChaptersForm, replacingImages: Bool
     ) async throws(ExportError) {
         let lock = lock
         let result = await withCheckedContinuation { continuation in
@@ -176,7 +176,8 @@ extension Studio {
                         let package: URL
                         do { package = try lock.package() } catch { throw .packageUnavailable }
                         try writeChapters(
-                            session, in: range, to: url, replacingImages: replacingImages, package: package)
+                            session, in: range, to: url, form: form, replacingImages: replacingImages,
+                            package: package)
                     })
             }
         }

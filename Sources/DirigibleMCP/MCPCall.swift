@@ -100,6 +100,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try work.run(package, path: path, control: control)
     case .importFile(let work):
         return try work.run(package, path: path, control: control)
+    case .chapters(let work):
+        return try work.run(package, path: path)
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in

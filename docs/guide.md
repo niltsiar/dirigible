@@ -983,7 +983,7 @@ The 47 tools, in groups:
 - `import` takes `file`, the absolute path of the audio file. The clip replaces the clips under it, as **File > Import Audio** does.
 - `export` and `render` refuse an output file inside a session package, also with `replace`, so an export cannot replace a take. `out` must be an absolute path.
 - Codex stops a tool call at its time limit, 60 s in its docs, also when the call sends progress. Codex sends no cancel, so the job runs on to its end. Long calls can take more than 60 s. Add `tool_timeout_sec = 600` under `[mcp_servers.dirigible]` in `~/.codex/config.toml`.
-- These commands have no tool. `capture place`, `take finalize`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `chapters export` writes a file outside the package and edits nothing; `session_info` gives the markers. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. Run these commands in the terminal.
+- These commands have no tool. `capture place`, `take finalize`, and `peaks` do long audio work that needs progress and cancel. `capture add` and `file add` write raw records and read no audio. `mcp` is the server. `skill show` and `skill path` give the skill of the agent manual and read no package. Run these commands in the terminal.
 
 #### What you can ask an agent
 

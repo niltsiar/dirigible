@@ -250,6 +250,40 @@ extension LiveExportTests {
         #expect(checks.withLock { $0 } == 0, "the render ran a media check")
         await studio.settle()
     }
+
+    /// C17 of run 2026-10-17-agent-pack: a live `chapters_export` writes the chapters of the
+    /// session of the window. The write turn is held, so the files do not have the chapter. A
+    /// dialog refuses the call first, as `export`: only `liveJob` reads the dialog.
+    @Test func aLiveChaptersExportReadsTheOpenSession() async throws {
+        let studio = try await package.open()
+        let shown = OSAllocatedUnfairLock(initialState: true)
+        let (server, folder) = try liveServer(studio, dialog: { shown.withLock { $0 } })
+        defer { server.stop() }
+        let gate = Gate()
+        defer { gate.open() }
+        let held = Task { await studio.serialized { await gate.wait() } }
+        await until("the write turn is not held") { gate.waiting }
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setMarker(Marker(id: "a", name: "Intro", position: 0, kind: .chapter))
+        }
+        let (text, json) = (package.folder.appending(path: "show.txt"), package.folder.appending(path: "show.json"))
+
+        let refused = await send(folder.socket, "chapters_export", ["package": package.path, "out": text.path])
+        shown.withLock { $0 = false }
+        let written = await send(folder.socket, "chapters_export", ["package": package.path, "out": text.path])
+        let both = await send(folder.socket, "chapters_export", ["package": package.path, "out": json.path])
+
+        #expect(refused == .reply(.result(text: AgentBusy.dialog.message(package: package.path), isError: true)))
+        #expect([written, both] == Array(repeating: .reply(.result(text: "OK", isError: false)), count: 2))
+        #expect(try String(contentsOf: text, encoding: .utf8) == "00:00:00 Intro\n")
+        let file = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: json)) as? [String: Any])
+        #expect((file["chapters"] as? [[String: Any]])?.compactMap { $0["title"] as? String } == ["Intro"])
+        #expect(
+            try Session(contentsOf: package.url).markers.isEmpty, "the autosave waits, so the files have no chapter")
+        gate.open()
+        await held.value
+        await studio.settle()
+    }
 }
 
 /// Holds the export of a studio once, at chunk `at`, until `release`.

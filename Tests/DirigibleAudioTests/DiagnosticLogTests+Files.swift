@@ -137,6 +137,65 @@ extension DiagnosticLogTests {
         let lines = try journalLines(of: try #require(journalFiles(in: folder.url).first))
         #expect(!lines.contains { $0.hasSuffix("\tapp\tquit") }, "lines: \(lines)")
     }
+
+    /// C7: the lines before the quit line drain at the QoS of the `quit()` caller, not at the
+    /// `.utility` QoS of the queue, so a backlog meets the 1 s bound under load. A line block on
+    /// the queue reads the priority of its thread until it rises or `quit()` returns.
+    @Test func quitRaisesThePriorityOfTheQueuedLines() async throws {
+        let queue = DispatchQueue(label: "test.journal.utility", qos: .utility)
+        let log = DiagnosticLog.start(
+            .app, folder: folder.url, version: "0.4.9", commit: "abc1234", now: date("2026-10-16T19:20:00Z"),
+            queue: queue)
+        let drain = OSAllocatedUnfairLock(initialState: (started: false, raised: false, returned: false))
+        queue.async {
+            let start = threadPriority()
+            drain.withLock { $0.started = true }
+            var raised = false
+            while !raised, !drain.withLock({ $0.returned }) {
+                let now = threadPriority()
+                raised = now.base > start.base || now.current > start.current
+            }
+            drain.withLock { [raised] in $0.raised = raised }
+        }
+        try await poll("the line block did not start") { drain.withLock { $0.started } }
+        let quitter = Thread {
+            log.quit()
+            drain.withLock { $0.returned = true }
+        }
+        quitter.qualityOfService = .userInitiated
+        quitter.start()
+        try await poll("quit() did not return") { drain.withLock { $0.returned } }
+
+        #expect(drain.withLock { $0.raised }, "the queued lines drained at .utility while quit() waited")
+    }
+}
+
+/// Returns when `condition` holds; throws after 5 s.
+private func poll(_ message: String, _ condition: () -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while !condition() {
+        guard ContinuousClock.now < deadline else { throw PollTimeout(message: message) }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+}
+
+private struct PollTimeout: Error, CustomStringConvertible {
+    let message: String
+    var description: String { "\(message) in 5 s" }
+}
+
+/// The base and the current scheduling priority of the calling thread.
+private func threadPriority() -> (base: Int32, current: Int32) {
+    var info = thread_extended_info()
+    var count = mach_msg_type_number_t(MemoryLayout<thread_extended_info>.size / MemoryLayout<integer_t>.size)
+    let thread = mach_thread_self()
+    defer { mach_port_deallocate(mach_task_self_, thread) }
+    _ = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+            thread_info(thread, thread_flavor_t(THREAD_EXTENDED_INFO), $0, &count)
+        }
+    }
+    return (info.pth_priority, info.pth_curpri)
 }
 
 /// The stem of fixture launch `index` of `kind`, one minute apart on 2026-10-15. With no `pid`,

@@ -115,11 +115,10 @@ public final class DiagnosticLog: Sendable {
     public func quit() {
         guard let journal else { return }
         let entry = Entry(.app, "quit", [])
-        let written = DispatchSemaphore(value: 0)
-        journal.queue.async {
-            journal.append(entry, sync: true)
-            written.signal()
-        }
+        let written = DispatchWorkItem { journal.append(entry, sync: true) }
+        journal.queue.async(execute: written)
+        // A work item wait lends the QoS of the caller to the `.utility` queue; a semaphore wait
+        // does not, and under load the queued lines then miss the bound.
         _ = written.wait(timeout: .now() + Self.quitLimit)
     }
 

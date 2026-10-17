@@ -43,7 +43,10 @@ package enum AgentManual {
             phase: .edit, name: "cut-a-range", title: "Cut a range",
             summary: "Remove a time range from all tracks and keep them in sync.",
             steps: "`clip_ripple_delete` with `from` and `to` and no `track`; `from` and `to` are arrays, one item "
-                + "for each range; read `session_info` again."),
+                + "for each range; read `session_info` (use `compact`) again. `clip_heal` joins the splits that stay "
+                + "after the cuts: the sound does not change. After a cut, \"no join to heal\" is normal: a cut "
+                + "leaves a gap in the file, so its join is not healable. A heal changes clip IDs: run "
+                + "`transcript_words` again."),
         Recipe(
             phase: .edit, name: "cut-from-transcript", title: "Cut from a transcript",
             summary: "Find words in a transcript with word times, and cut them from all tracks in sync.",
@@ -69,18 +72,25 @@ package enum AgentManual {
             summary: "Import a sound clip, such as music or a jingle, at a frame, and fade it.",
             steps: "the imported clip replaces the clips under it, so put it on a new track from `track_add` with the "
                 + "layout of the file, or in a range of a track that has no clip; "
-                + "`import` with `file` (an absolute path), `track`, and `at` (a frame); `clip_fade` to fade it in or "
-                + "out; `clip_gain` to set its level."),
+                + "`import` with `file` (an absolute path), `track`, and `at` (a frame) shapes the clip in the same "
+                + "call: `offset` and `length` (frames of the made WAV) take a range of the file, `db` sets the gain "
+                + "in place of the auto level, `fade_in` and `fade_out` set the fades in frames, and `id` names the "
+                + "clip. An import of the same file again reuses its WAV."),
         Recipe(
             phase: .produce, name: "add-chapter", title: "Add a chapter",
             summary: "Add a chapter marker at a time.",
-            steps: "`marker_set` with `kind` chapter and `at` in frames."),
+            steps: "`marker_set` with `kind` chapter and `at` in frames. For a chapters file, run `chapters_import` "
+                + "with `path` (Podcasting 2.0 JSON) and `at` (the frame of 0 s). Give `replace` to remove the old "
+                + "chapters first: each image stays on the chapter of the file at the same time. A chapter with an "
+                + "image that the file leaves out blocks `replace`: run `marker_remove` for it first."),
         Recipe(
             phase: .export, name: "prepare-for-publishing", title: "Prepare for publishing",
             summary: "Set the episode details, level the session, and export an MP3 at the podcast loudness.",
-            steps: "read `session_info` and `episode_get`; ask for a missing title or show and set them with "
-                + "`episode_set`; when the session has chapters, make sure one is at frame 0; run "
-                + "`level`; then run `export` with `out` an .mp3 file and `loudness` podcast; "
+            steps: "read `session_info` (use `compact`) and `episode_get`; ask for a missing title or show and set "
+                + "them with `episode_set`; when the session has chapters, make sure one is at frame 0; run "
+                + "`level`; then run `export` with `out` an .mp3 file and `loudness` podcast; `chapters_export` with "
+                + "`out` a .txt file gives the chapter list for the show notes; `file_prune` with `dry_run` lists "
+                + "the unused files of a closed package (in the app, File > Remove Unused Files does it); "
                 + "report the loudness line and the file path."),
     ]
 

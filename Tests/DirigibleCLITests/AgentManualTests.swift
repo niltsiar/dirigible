@@ -184,6 +184,56 @@ struct AgentManualTests {
         #expect(sound.contains("`track_add` with the layout of the file"), "\(sound)")
     }
 
+    /// C30: the sound recipe shapes the clip in one `import`, with no `clip_fade` or `clip_gain`.
+    @Test func theSoundRecipeShapesTheClipInOneImport() {
+        let sound = Self.steps("add-sound")
+        for argument in ["offset", "length", "db", "fade_in", "fade_out"] {
+            #expect(sound.contains("`\(argument)`"), "add-sound does not name \(argument)")
+        }
+        #expect(!sound.contains("clip_fade") && !sound.contains("clip_gain"), "\(sound)")
+    }
+
+    /// C30: a heal after a cut joins only the splits that stay, and the words need a new read.
+    @Test func theCutRecipeHealsOnlyTheSplitsThatStay() {
+        let cut = Self.steps("cut-a-range")
+        for text in [
+            "`clip_heal` joins the splits that stay after the cuts", "\"no join to heal\" is normal",
+            "a cut leaves a gap in the file", "run `transcript_words` again",
+        ] {
+            #expect(cut.contains(text), "cut-a-range does not say \(text)")
+        }
+    }
+
+    /// C30, plan gate item 2: a chapters file keeps each image at its time, and a chapter whose image
+    /// the file leaves out is removed first.
+    @Test func theChapterRecipeImportsAFileAndKeepsTheImages() {
+        let chapter = Self.steps("add-chapter")
+        for text in [
+            "`chapters_import` with `path`", "each image stays on the chapter of the file at the same time",
+            "run `marker_remove` for it first",
+        ] {
+            #expect(chapter.contains(text), "add-chapter does not say \(text)")
+        }
+    }
+
+    /// C30: the publish recipe writes the chapter list, and lists the unused files by the tool on a
+    /// closed package and by the menu in the app (the tool is refused there).
+    @Test func thePublishRecipeListsTheChaptersAndTheUnusedFiles() {
+        let publish = Self.steps("prepare-for-publishing")
+        for text in [
+            "`chapters_export` with `out` a .txt file", "`file_prune` with `dry_run`", "File > Remove Unused Files",
+        ] {
+            #expect(publish.contains(text), "prepare-for-publishing does not say \(text)")
+        }
+    }
+
+    /// C30: the reading lines of the recipes name `session_info` with `compact`.
+    @Test func theReadingLinesUseCompact() {
+        for name in ["cut-a-range", "prepare-for-publishing"] {
+            #expect(Self.steps(name).contains("`session_info` (use `compact`)"), "\(name)")
+        }
+    }
+
     /// W9: each import at a frame warns that the clip replaces the clips under it.
     @Test func theImportSaysItReplaces() {
         let texts = [AgentManual.manual(pathLine: "x"), AgentManual.skill] + AgentManual.recipes.map(\.steps)

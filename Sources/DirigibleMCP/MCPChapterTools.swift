@@ -19,7 +19,8 @@ private let importAt = Param.defaulted("at", "The timeline frame of second 0 of 
 private let importReplace = Param.defaulted(
     "replace",
     "Remove each chapter first and keep each plain marker. The image of a removed chapter moves to the file chapter at "
-        + "its millisecond. When a removed image has no chapter at its time, the call fails and changes nothing.",
+        + "its millisecond. When a removed image has no chapter at its time, the call fails and changes nothing. A toc "
+        + "false chapter takes no image, and adds no marker when a plain marker has its title and frame.",
     .boolean, false)
 
 let chapterTools = [

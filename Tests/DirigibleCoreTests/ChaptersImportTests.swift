@@ -186,6 +186,56 @@ struct ChaptersImportTests {
         }
     }
 
+    /// Code gate 1 item 2: with `replace`, a removed image goes only to a chapter, because the
+    /// export writes no image of a plain marker. A `toc` false entry alone at the millisecond of
+    /// the image refuses the import; a chapter after it at the same millisecond takes the image.
+    @Test func aChaptersImportWithReplaceGivesAnImageOnlyToAChapter() throws {
+        let outro = Marker(id: "o", name: "Outro", position: 480_000, kind: .chapter, image: Self.imageA)
+        let base = try Self.session([outro])
+        var session = base
+        let plain = try Self.file(
+            #"{"startTime": 0, "title": "Start"}, {"startTime": 10, "title": "Ad", "toc": false}"#)
+        #expect(throws: SessionError.chapterImageNotKept([outro])) {
+            try session.importChapters(plain, at: 0, replacing: true)
+        }
+        #expect(session == base)
+
+        let both = try Self.file(#"{"startTime": 10, "title": "Ad", "toc": false}, {"startTime": 10, "title": "End"}"#)
+        let ids = try session.importChapters(both, at: 0, replacing: true).markers
+        let markers = ids.compactMap { session.markers[$0] }
+        #expect(markers.map(\.kind) == [.marker, .chapter])
+        #expect(markers.map(\.image) == [nil, Self.imageA], "the chapter after the plain marker takes the image")
+    }
+
+    /// Code gate 1 item 2: a second import with `replace` of one file gives the session of the
+    /// first. A `toc` false entry that matches a plain marker by name and frame adds no marker and
+    /// gives the ID of that marker; two equal entries match two markers.
+    @Test func twoChaptersImportsWithReplaceGiveTheSessionOfOne() throws {
+        let base = try Self.session([
+            Marker(id: "a", name: "A", position: 480_000, kind: .chapter, image: Self.imageA),
+            Marker(id: "n", name: "Note", position: 100, kind: .marker),
+        ])
+        let file = try Self.file(
+            #"{"startTime": 0, "title": "Intro"}, {"startTime": 5, "title": "Ad", "toc": false}, "#
+                + #"{"startTime": 5, "title": "Ad", "toc": false}, {"startTime": 10, "title": "Talk"}"#)
+        func shape(_ session: Session) -> [String] {
+            session.sortedMarkers.map { "\($0.name)@\($0.position) \($0.kind.rawValue) \($0.image?.name ?? "-")" }
+                .sorted()
+        }
+        var once = base
+        let first = try once.importChapters(file, at: 0, replacing: true).markers
+        var twice = once
+        let second = try twice.importChapters(file, at: 0, replacing: true).markers
+
+        #expect(
+            shape(once) == [
+                "Ad@240000 marker -", "Ad@240000 marker -", "Intro@0 chapter -", "Note@100 marker -",
+                "Talk@480000 chapter \(Self.imageA.name)",
+            ], "\(shape(once))")
+        #expect(shape(twice) == shape(once), "\(shape(twice))")
+        #expect(second.count == 4 && Set(second[1...2]) == Set(first[1...2]), "the plain markers keep their IDs")
+    }
+
     /// C25: the export, then the import, keeps the millisecond. 1.234 s at 44.1 kHz is the frame
     /// 54,419. The sweep keeps each chapter within 23 frames, half a millisecond.
     @Test func aChaptersRoundTripKeepsTheMillisecond() throws {

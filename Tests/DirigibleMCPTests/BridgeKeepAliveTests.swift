@@ -38,8 +38,8 @@ struct BridgeKeepAliveTests {
     }
 
     /// Code gate 2 item 1: a short call sends no keep-alive frame, so a stalled app still gives
-    /// the lost-call text at the bridge limit.
-    @Test func aShortCallIsLostAtTheBridgeLimit() async throws {
+    /// the limit text at the bridge limit.
+    @Test func aShortCallGetsTheLimitText() async throws {
         let (listener, folder) = try listener(keepAlive: .milliseconds(300)) { _, _ in
             try? await Task.sleep(for: .seconds(3))
             return .result(text: "done", isError: false)
@@ -50,22 +50,62 @@ struct BridgeKeepAliveTests {
             var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(1)).route)
             return server.answer(progressCall("track_rename", rename))
         }
-        #expect(toolText(answer) == (lostCallMessage, true), "a short call got keep-alive frames")
+        #expect(toolText(answer) == (generalLimitText(seconds: 1), true), "a short call got keep-alive frames")
     }
 
-    /// Item 2: a lost `export` or `render` tells the agent to check the output file.
+    /// C11: an `export` or `render` with no line at the limit tells the agent to check the output
+    /// file, and does not say that the connection closed.
     @Test(arguments: ["export", "render"])
-    func aLostExportNamesTheOutputFile(tool: String) async throws {
-        let app = try FakeApp { _ in .script([(3, #"{"isError":false,"text":"late"}"#)]) }
+    func aLimitedExportNamesTheOutputFile(tool: String) async throws {
+        let answer = try await limited(tool, ["package": "/x.dirigible", "out": "/tmp/x.wav"])
+        let text =
+            "Dirigible gave no reply in 1 s. The \(tool) can still write its file: check the output file, "
+            + "and read the session before you try again."
+        #expect(toolText(answer) == (text, true))
+    }
+
+    /// C9: a close during `export` or `render` keeps the lost file text.
+    @Test(arguments: ["export", "render"])
+    func aClosedExportKeepsTheLostFileText(tool: String) async throws {
+        let app = try FakeApp { _ in .close }
         let socket = app.socket
         let answer = await onThread {
-            var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(1)).route)
+            var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(5)).route)
             return server.answer(progressCall(tool, ["package": "/x.dirigible", "out": "/tmp/x.wav"]))
         }
         let text =
             "The connection to Dirigible closed during the call. The \(tool) can still write its file: check the "
             + "output file, and read the session before you try again."
         #expect(toolText(answer) == (text, true))
+    }
+
+    let recordLimitText =
+        "Dirigible gave no reply in 1 s. The take can still start after a system prompt. Tell the user to check "
+        + "the Dirigible window, and read the session before you try again."
+
+    /// C12: a `record` call with no line at the limit says that the take can still start.
+    @Test func aRecordCallAtTheLimitTellsTheUserToCheckTheWindow() async throws {
+        let answer = try await limited("record", ["package": "/x.dirigible"])
+        #expect(toolText(answer) == (recordLimitText, true))
+    }
+
+    /// C13: each tool gets its own limit text: `record` not the general one, another tool not the
+    /// `record` one.
+    @Test func recordGetsNoGeneralLimitText() async throws {
+        let record = try toolText(await limited("record", ["package": "/x.dirigible"]))
+        let other = try toolText(await limited("track_rename", rename))
+        #expect(record == (recordLimitText, true) && record.text != generalLimitText(seconds: 1), "\(record)")
+        #expect(other == (generalLimitText(seconds: 1), true) && other.text != recordLimitText, "\(other)")
+    }
+
+    /// The answer of a call that gets no line for the 1 s limit of the bridge.
+    private func limited(_ tool: String, _ arguments: [String: String]) async throws -> String? {
+        let app = try FakeApp { _ in .script([(3, #"{"isError":false,"text":"late"}"#)]) }
+        let socket = app.socket
+        return await onThread {
+            var server = MCPServer(route: AgentBridge(socket: socket, timeout: .seconds(1)).route)
+            return server.answer(progressCall(tool, arguments))
+        }
     }
 
     /// Item 8: a frame that the listener cannot write ends the connection and cancels its call.

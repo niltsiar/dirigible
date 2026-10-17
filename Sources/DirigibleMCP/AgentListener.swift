@@ -216,7 +216,7 @@ final class AgentListener: @unchecked Sendable {
         connection.calls += 1
         (connection.running, connection.gate, connection.last) = (connection.calls, ProgressGate(), 0)
         let (handle, serial, number) = (handle, connection.serial, connection.calls)
-        // A short call sends no frame, so a stalled main actor still gives the lost-call text.
+        // A short call sends no frame, so a call with no reply gets the limit text of the bridge.
         if case .success(let call) = checked, call.work.isLong {
             let timer = DispatchSource.makeTimerSource(queue: queue)
             let interval = DispatchTimeInterval.nanoseconds(Int(keepAlive / .nanoseconds(1)))

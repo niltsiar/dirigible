@@ -110,6 +110,29 @@ extension StartLimitTests {
         await studio.settle()
     }
 
+    /// A Stop while the start waits for the first attach of `box` starts no app writer, and no
+    /// writer keeps a device-list watcher: the stop gives up each writer that never attached, the
+    /// app writer too, so a start after the cut does nothing.
+    @Test func aStopDuringTheDeviceWaitStartsNoAppWriter() async throws {
+        let hal = hal()
+        hal.holdAttach("box")
+        defer { hal.releaseAttach("box") }
+        let studio = try await studio(hal, stop: limit)
+        let mics = play(hal, "mic")
+        let started = Task { try await studio.startRecording(armed: ["t1", "t2", "t4"], playhead: 0) }
+        await until(limit: busy, "the take did not begin") { studio.transport == .recording(take: 1) }
+        try await Task.sleep(for: .milliseconds(300))
+
+        let (error, _) = await stop(studio) { hal.releaseAttach("box") }
+        try await started.value
+        await mics.wait()
+        hal.releaseAttach("box")
+        await studio.settle()
+        #expect(error == nil)
+        #expect(!hal.calls.contains { $0.hasPrefix("makeTap") }, "an app tap after the stop: \(hal.calls)")
+        await until(limit: busy, "a writer keeps its device-list watcher") { hal.watchers.count == 0 }
+    }
+
     /// The monitor of `t2` is on, and the `box` writer of the take does not stop. The stop starts
     /// no monitor writer on `box`: its attach would go to the device that does not answer. After
     /// Retry Finalize finishes the writer, the monitor of `box` comes back.

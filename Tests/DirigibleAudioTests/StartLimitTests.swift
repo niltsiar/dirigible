@@ -236,6 +236,28 @@ struct StartLimitTests {
 
     // MARK: C6, C14
 
+    /// A writer that the stop gave up while its first attach waited tears that attach down at once,
+    /// with no queued finish: the writer queue can run a drain tick before the finish.
+    @Test func anAbandonedWriterTearsDownItsLateAttachAtOnce() async throws {
+        let hal = hal()
+        hal.holdAttach("box")
+        defer { hal.releaseAttach("box") }
+        let log = ReportLog()
+        let capture = folder.url
+        let writer = DeviceWriter(
+            device: box, tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { capture }),
+            hal: hal.hal, report: log.closure, silenceLimit: noWatchdog, firstRecordLimit: noWatchdog)
+        writer.start()
+        await until(limit: busy, "the first attach of box did not wait") { hal.heldAttachCount("box") >= 1 }
+        #expect(writer.abandon())
+
+        hal.releaseAttach("box")
+        await until(limit: busy, "the held attach did not return") { hal.calls.contains("attach box") }
+        await until(limit: .seconds(3), "the late attach did not tear down") { hal.calls.contains("detach box") }
+        #expect(!log.states(arm: 1).contains(.recording), "an abandoned writer reported recording")
+        await writer.finish()
+    }
+
     enum Start: CaseIterable, Sendable {
         /// The first attach of `box` waits in the HAL.
         case heldDevice

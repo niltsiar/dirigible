@@ -60,8 +60,9 @@ import SwiftUI
     var showsInspector = false
     /// The inspector width (decision 0023): the app preference at open, then the handle.
     var inspectorWidth = InspectorWidth.standard
-    /// The width of the track headers: `TrackHeaderRuler` owns it and writes each change here, so
-    /// the record-over chip over the header corner has that width (decision 0023).
+    /// The width of the track headers (decision 0023): read from the preferences once, in `init`.
+    /// `TrackHeaderRuler` writes each change here, and a pane that SwiftUI builds again starts with
+    /// it, so the record-over chip over the header corner has the width of the headers.
     var headerWidth = HeaderWidth.standard
     /// The drag of the inspector handle.
     @ObservationIgnored var inspectorDrag = PaneDrag<InspectorWidth>()

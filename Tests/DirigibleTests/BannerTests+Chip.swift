@@ -104,6 +104,32 @@ extension BannerTests {
         (view as? NSTextField) ?? view.subviews.lazy.compactMap { titleField($0) }.first
     }
 
+    /// The chip and the header corner have one width: the window owns it. A pane that SwiftUI builds
+    /// again (all tracks deleted, then Undo) takes the width of the window, not a stored value.
+    @Test func aRebuiltPaneKeepsTheHeaderWidthOfTheWindow() async throws {
+        let (model, studio, _, _) = try await open(tracks: 2, seconds: 10)
+        await until("the window shows the lanes") { model.timelineView?.window != nil }
+        let first = try #require(model.timelineView)
+        first.headers.step(by: -160)
+        try #require(model.headerWidth == HeaderWidth(180), "the drag sets the width of the window")
+
+        let tracks = studio.session.tracks.map(\.id)
+        try studio.edit(ripple: false) { s throws(SessionError) in
+            for track in tracks { try s.removeTrack(track) }
+        }
+        await until(limit: .seconds(10), "the empty state replaces the pane") { model.timelineView?.window == nil }
+        try studio.undo()
+        var second: TimelineScrollView?
+        await until(limit: .seconds(10), "a new pane shows the lanes") {
+            second = model.timelineView.flatMap { $0 !== first && $0.window != nil ? $0 : nil }
+            return second != nil
+        }
+        let rebuilt = try #require(second)
+        #expect(
+            rebuilt.headers.width == model.headerWidth, "pane \(rebuilt.headers.width), window \(model.headerWidth)")
+        await model.close()
+    }
+
     /// C3: Go to End moves the playhead past every clip, so the warning goes.
     @Test func goToEndFromTheChipHidesIt() async throws {
         let (model, studio, _, _) = try await chipWindow()

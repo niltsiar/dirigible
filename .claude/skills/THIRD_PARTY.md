@@ -27,6 +27,12 @@ More skills come from `mattpocock/skills` (https://github.com/mattpocock/skills,
 | `writing-for-agents` | `skills/productivity/writing-for-agents` | Matt Pocock |
 | `.claude/hooks/git-guardrails.sh` | `skills/misc/git-guardrails-claude-code/scripts/block-dangerous-git.sh` | Matt Pocock |
 
+One skill comes from `AvdLee/Swift-Concurrency-Agent-Skill` (https://github.com/AvdLee/Swift-Concurrency-Agent-Skill, commit `d5770817d262`, 2026-09-14). We dropped the course advertising, the references on Core Data, linting, async algorithms, and migration, and the claims that are wrong for this repo.
+
+| Skill | Source path | Copyright |
+|---|---|---|
+| `swift-concurrency` | `SKILL.md` and `references/` (a subset) | Antoine van der Lee |
+
 All sources use the MIT License:
 
 ```
@@ -35,6 +41,7 @@ MIT License
 Copyright (c) 2026 Lauren Tan
 Copyright (c) 2026 Cursor
 Copyright (c) 2026 Matt Pocock
+Copyright (c) 2026 Antoine van der Lee
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

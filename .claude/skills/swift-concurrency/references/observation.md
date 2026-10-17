@@ -1,5 +1,15 @@
 # Observation Framework & Swift Concurrency
 
+Contents:
+- [Observable with MainActor](#observable-with-mainactor)
+- [Observable with Custom Actors](#observable-with-custom-actors)
+- [Accessing Observed Properties from Async Contexts](#accessing-observed-properties-from-async-contexts)
+- [Bridging Observable to AsyncSequence](#bridging-observable-to-asyncsequence)
+- [Preventing Data Races](#preventing-data-races)
+- [Passing @Observable Across Isolation Boundaries](#passing-observable-across-isolation-boundaries)
+- [Migration from ObservableObject](#migration-from-observableobject)
+- [Common Diagnostics](#common-diagnostics)
+
 Use this when:
 - You're using `@Observable` classes with `@MainActor` or custom actors
 - You see data-race warnings when accessing observed properties from async contexts
@@ -10,17 +20,6 @@ Skip this file if:
 - You need general async/await patterns → [async-await-basics.md](async-await-basics.md)
 - You need actor fundamentals → [actors.md](actors.md)
 - You need Sendable conformance details → [sendable.md](sendable.md)
-- You need Combine-to-Concurrency migration → [migration.md](migration.md)
-
-Jump to:
-- [Observable with MainActor](#observable-with-mainactor)
-- [Observable with Custom Actors](#observable-with-custom-actors)
-- [Accessing Observed Properties from Async Contexts](#accessing-observed-properties-from-async-contexts)
-- [Bridging Observable to AsyncSequence](#bridging-observable-to-asyncsequence)
-- [Preventing Data Races](#preventing-data-races)
-- [Passing @Observable Across Isolation Boundaries](#passing-observable-across-isolation-boundaries)
-- [Migration from ObservableObject](#migration-from-observableobject)
-- [Common Diagnostics](#common-diagnostics)
 
 ---
 
@@ -167,7 +166,7 @@ final class ImageProcessor {
 }
 ```
 
-> **Note**: For CPU-heavy work, prefer a dedicated actor or a `nonisolated` `async` method marked `@concurrent` so the call stays structured. Reserve `Task.detached` for the specific case where you must escape inherited actor isolation (see `tasks.md` — "Detached Tasks"). Either way, keep heavy computation off `@MainActor` so the UI stays responsive.
+> **Note**: For CPU-heavy work, prefer a dedicated actor or a `nonisolated` `async` method marked `@concurrent` so the call stays structured. Reserve `Task.detached` for the specific case where you must escape inherited actor isolation (see `tasks.md` - "Detached Tasks"). Either way, keep heavy computation off `@MainActor` so the UI stays responsive.
 
 ---
 
@@ -187,8 +186,7 @@ final class SearchModel {
     func observeQuery() async {
         let queryChanges = Observations { self.query }
 
-        // `.debounce(for:)` requires AsyncAlgorithms — see `async-algorithms.md`.
-        for await text in queryChanges.debounce(for: .milliseconds(300)) {
+        for await text in queryChanges {
             guard !Task.isCancelled else { return }
             results = text.isEmpty ? [] : (try? await api.search(text)) ?? []
         }
@@ -196,15 +194,13 @@ final class SearchModel {
 }
 ```
 
-`Observations` batches synchronous mutations until the next `await`, so observers only see consistent snapshots — no half-updated state. It is **not back-ported**; reach for the fallback below if you need to support older OS versions.
+`Observations` batches synchronous mutations until the next `await`, so observers only see consistent snapshots - no half-updated state. It is **not back-ported**; reach for the fallback below if you need to support older OS versions.
 
 ### Pre-Swift 6.2 fallback: `withObservationTracking` + `AsyncStream`
 
 `withObservationTracking` fires `onChange` only once per cycle, so the closure has to re-register itself to keep observing.
 
 ```swift
-import AsyncAlgorithms
-
 @MainActor
 @Observable
 final class SearchModel {
@@ -226,7 +222,7 @@ final class SearchModel {
             track()
         }
 
-        for await text in stream.debounce(for: .milliseconds(300)) {
+        for await text in stream {
             guard !Task.isCancelled else { return }
             results = text.isEmpty ? [] : (try? await api.search(text)) ?? []
         }
@@ -235,7 +231,7 @@ final class SearchModel {
 ```
 
 **Lifecycle notes** (apply to both patterns):
-- The consumer (`for await …`) owns cancellation. Cancelling the enclosing `Task` ends the loop.
+- The consumer (`for await ...`) owns cancellation. Cancelling the enclosing `Task` ends the loop.
 - In the fallback, finish the `AsyncStream` continuation when ownership ends (e.g. in `deinit` on a non-isolated coordinator) to avoid leaking the stream.
 
 ---
@@ -323,13 +319,12 @@ final class Counter {
 
 ## Passing @Observable Across Isolation Boundaries
 
-`@Observable` classes are reference types and are **not** implicitly `Sendable`. Passing them across isolation boundaries triggers a compiler error in Swift 6.
+A non-isolated `@Observable` class is a reference type and is **not** implicitly `Sendable`. Passing it across isolation boundaries triggers a compiler error in Swift 6. A class isolated to a global actor, such as `@MainActor`, is `Sendable`.
 
 ### Problem
 
 ```swift
 // ❌ Compiler error in Swift 6
-@MainActor
 @Observable
 final class Settings {
     var theme: String = "light"
@@ -376,7 +371,7 @@ actor SyncEngine {
 }
 ```
 
-> **Note**: A `@MainActor` `@Observable` class is already implicitly `Sendable` because access is serialized through the main actor — you do not need `@unchecked Sendable` on it. If you have a genuinely non-isolated `@Observable` that must cross boundaries, prefer a Sendable snapshot or actor wrapping; reach for `@unchecked Sendable` only with a documented safety invariant. See `sendable.md` for the full discussion of safe escape hatches.
+> **Note**: A `@MainActor` `@Observable` class is already implicitly `Sendable` because access is serialized through the main actor - you do not need `@unchecked Sendable` on it. If you have a genuinely non-isolated `@Observable` that must cross boundaries, prefer a Sendable snapshot or actor wrapping; reach for `@unchecked Sendable` only with a documented safety invariant. See `sendable.md` for the full discussion of safe escape hatches.
 
 ---
 
@@ -388,10 +383,10 @@ actor SyncEngine {
 |---|---|
 | `class MyModel: ObservableObject` | `@Observable final class MyModel` |
 | `@Published var name = ""` | `var name = ""` |
-| `objectWillChange.send()` | Automatic — tracked on property access |
-| `$name` publisher → `sink` | `Observations { … }` (Swift 6.2+) or `withObservationTracking` fallback |
+| `objectWillChange.send()` | Automatic - tracked on property access |
+| `$name` publisher → `sink` | `Observations { ... }` (Swift 6.2+) or `withObservationTracking` fallback |
 
-For full Combine-to-Concurrency examples — including `@Published` + `debounce` + `sink` rewritten as `@Observable` + `AsyncSequence` — use `references/async-algorithms.md` (operator-by-operator mapping) and `references/migration.md` (real-world migration walkthroughs). The "Bridging Observable to AsyncSequence" section above shows the modern replacement for `$name.sink { … }` patterns specifically.
+The "Bridging Observable to AsyncSequence" section above shows the modern replacement for `$name.sink { ... }` patterns.
 
 ---
 
@@ -410,8 +405,5 @@ For full Combine-to-Concurrency examples — including `@Published` + `debounce`
 
 ## Further Learning
 
-- [actors.md](actors.md) — Actor fundamentals and isolation rules
-- [sendable.md](sendable.md) — Sendable conformance for types crossing isolation
-- [migration.md](migration.md) — Migrating from Combine and completion handlers
-
-For in-depth coverage of Swift Concurrency, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
+- [actors.md](actors.md) - Actor fundamentals and isolation rules
+- [sendable.md](sendable.md) - Sendable conformance for types crossing isolation

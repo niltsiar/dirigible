@@ -1,5 +1,14 @@
 # Testing Concurrent Code
 
+Contents:
+- Swift Testing (Recommended)
+- Awaiting Async Callbacks
+- Setup and Teardown
+- Handling Flaky Tests
+- XCTest Patterns (Legacy)
+- Memory Management Tests
+- Testing Checklist
+
 Use this when:
 
 - You are writing async tests.
@@ -9,17 +18,6 @@ Use this when:
 Skip this file if:
 
 - You mainly need production ownership guidance. Use `actors.md`, `tasks.md`, or `memory-management.md`.
-
-Jump to:
-
-- Swift Testing (Recommended)
-- Awaiting Async Callbacks
-- Setup and Teardown
-- Handling Flaky Tests
-- Swift Concurrency Extras
-- XCTest Patterns (Legacy)
-- Memory Management Tests
-- Testing Checklist
 
 ## Recommendation: Use Swift Testing
 
@@ -64,8 +62,6 @@ func searchReturnsResults() async {
 ```
 
 Mark test with actor if system under test requires it.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 11.2: Testing concurrent code using Swift Testing](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Awaiting Async Callbacks
 
@@ -219,47 +215,9 @@ func isLoadingState() async throws {
 
 **Issue**: Task may complete before we check `isLoading`.
 
-### Solution: Swift Concurrency Extras
+### Solution: Wait on a signal, not on timing
 
-```swift
-import ConcurrencyExtras
-
-@Test
-@MainActor
-func isLoadingState() async throws {
-    try await withMainSerialExecutor {
-        let fetcher = ImageFetcher { url in
-            await Task.yield() // Allow test to check state
-            return Data()
-        }
-        
-        let task = Task { try await fetcher.fetch(url) }
-        
-        await Task.yield() // Switch to task
-        
-        #expect(fetcher.isLoading == true) // ✅ Reliable
-        
-        try await task.value
-        #expect(fetcher.isLoading == false)
-    }
-}
-```
-
-**Add package**: `https://github.com/pointfreeco/swift-concurrency-extras.git`
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 11.3: Using Swift Concurrency Extras by Point-Free](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
-### Serial execution required
-
-```swift
-@Suite(.serialized)
-@MainActor
-final class ImageFetcherTests {
-    // Tests run serially when using withMainSerialExecutor
-}
-```
-
-**Critical**: Main serial executor doesn't work with parallel test execution.
+Do not assert on the intermediate state of an unstructured `Task`. Assert the final state after `await task.value`. If the test needs a state in the middle, make the code under test report that change as an event the test can await, such as an `AsyncStream` element or a `confirmation`.
 
 ## XCTest Patterns (Legacy)
 
@@ -317,20 +275,6 @@ final class DatabaseTests: XCTestCase {
 
 Mark as `async throws` to call async methods.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 11.1: Testing concurrent code using XCTest](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
-### Main serial executor for all tests
-
-```swift
-final class MyTests: XCTestCase {
-    override func invokeTest() {
-        withMainSerialExecutor {
-            super.invokeTest()
-        }
-    }
-}
-```
-
 ## Common Patterns
 
 ### Testing @MainActor code
@@ -375,30 +319,6 @@ func cancellationStopsWork() async throws {
         Issue.record("Should have thrown cancellation error")
     } catch is CancellationError {
         // Expected
-    }
-}
-```
-
-### Testing with delays
-
-```swift
-@Test
-func debouncedSearch() async throws {
-    try await withMainSerialExecutor {
-        let searcher = DebouncedSearcher()
-        
-        searcher.search("a")
-        await Task.yield()
-        
-        searcher.search("ab")
-        await Task.yield()
-        
-        searcher.search("abc")
-        
-        // Wait for debounce
-        try await Task.sleep(for: .milliseconds(600))
-        
-        #expect(searcher.searchCount == 1) // Only last search executed
     }
 }
 ```
@@ -465,7 +385,7 @@ func noRetainCycle() async {
 1. **Use Swift Testing for new code** - modern, better concurrency support
 2. **Mark tests with correct isolation** - @MainActor when needed
 3. **Use confirmations over continuations** - when structured concurrency allows
-4. **Serialize tests with main serial executor** - avoid flaky tests
+4. **Wait on signals, not on timing** - avoid flaky tests
 5. **Test cancellation explicitly** - ensure proper cleanup
 6. **Verify deallocation** - catch retain cycles early
 7. **Use Task.yield() strategically** - control execution in tests
@@ -542,7 +462,7 @@ struct SetupTrait: TestTrait, TestScoping {
 
 **Cause**: Race condition in unstructured task.
 
-**Solution**: Use main serial executor + Task.yield().
+**Solution**: Await a signal (`task.value`, a `confirmation`, an `AsyncStream` element) instead of timing.
 
 ### Deadlock
 
@@ -564,9 +484,8 @@ struct SetupTrait: TestTrait, TestScoping {
 
 ## Common Mistakes Agents Make
 
-- **Flaky intermediate-state assertions**: Asserting `isLoading == true` immediately after creating a `Task` is a race condition — the task may not have started yet. Use `withMainSerialExecutor` + `Task.yield()` to control scheduling before asserting intermediate state.
+- **Flaky intermediate-state assertions**: Asserting `isLoading == true` immediately after creating a `Task` is a race condition; the task may not have started yet. Assert the final state, or await an event that the code under test reports.
 - **Using `Task.sleep` as a synchronization primitive** in tests instead of deterministic scheduling.
-- **Asserting intermediate state without controlling scheduling**: Always use `withMainSerialExecutor` when you need to observe state between task creation and completion. Note: `withMainSerialExecutor` does not work with parallel test execution — mark the suite `@Suite(.serialized)`.
 - **Reaching into isolated internals** instead of testing public behavior.
 - **Keeping both Swift Testing and XCTest versions** of the same example unless they teach different migration paths.
 
@@ -579,14 +498,12 @@ struct SetupTrait: TestTrait, TestScoping {
 - [ ] Memory leaks checked
 - [ ] Race conditions handled
 - [ ] Timeouts appropriate
-- [ ] Flaky tests fixed with serial executor
+- [ ] Flaky tests wait on a signal, not on timing
 - [ ] Actor isolation verified
 - [ ] Cleanup in traits (not deinit)
 
+---
+
 ## Further Learning
 
-For advanced testing patterns, real-world examples, and migration strategies:
 - [Swift Testing Documentation](https://developer.apple.com/documentation/testing)
-- [Swift Concurrency Extras](https://github.com/pointfreeco/swift-concurrency-extras)
-- [Swift Concurrency Course](https://www.swiftconcurrencycourse.com)
-

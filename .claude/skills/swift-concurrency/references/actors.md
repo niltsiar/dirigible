@@ -1,5 +1,15 @@
 # Actors
 
+Contents:
+- Actor Isolation
+- Global Actors / @MainActor
+- Isolated vs Nonisolated
+- Actor Reentrancy
+- Isolated Deinit / Isolated Conformances (Swift 6.2+)
+- `#isolation` Macro
+- Mutex: Alternative to Actors
+- Decision Tree
+
 Use this when:
 
 - You need to protect class-based mutable state from concurrent access.
@@ -10,17 +20,6 @@ Skip this file if:
 
 - You mainly need to make a value safe to transfer across boundaries. Use `sendable.md`.
 - You are debugging execution threads or suspension behavior. Use `threading.md`.
-
-Jump to:
-
-- Actor Isolation
-- Global Actors / @MainActor
-- Isolated vs Nonisolated
-- Actor Reentrancy
-- Isolated Deinit / Isolated Conformances (Swift 6.2+)
-- `#isolation` Macro
-- Mutex: Alternative to Actors
-- Decision Tree
 
 ## What is an Actor?
 
@@ -37,8 +36,6 @@ actor Counter {
 ```
 
 **Key guarantee**: Only one task can access mutable state at a time (serialized access).
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.1: Understanding actors in Swift Concurrency](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Actor Isolation
 
@@ -66,7 +63,7 @@ await account.deposit(100)
 print(await account.balance) // Must await reads too
 ```
 
-Always use `await` when accessing actor properties/methods—you don't know if another task is inside.
+Always use `await` when accessing actor properties/methods-you don't know if another task is inside.
 
 ## Actors vs Classes
 
@@ -136,8 +133,6 @@ func applyFilter(_ image: UIImage) -> UIImage {
 
 **Use private init** to prevent creating multiple executors.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.2: An introduction to Global Actors](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## @MainActor Best Practices
 
 ### When to use
@@ -186,8 +181,6 @@ func methodB() {
 ```
 
 **Prefer**: Explicit `@MainActor` or `await MainActor.run` over `assumeIsolated`.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.3: When and how to use @MainActor](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Isolated vs Nonisolated
 
@@ -290,8 +283,6 @@ extension BankAccount: CustomStringConvertible {
 }
 ```
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.4: Isolated vs. non-isolated access in actors](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Isolated Deinit (Swift 6.2+)
 
 Clean up actor state on deallocation:
@@ -307,8 +298,6 @@ actor FileDownloader {
 ```
 
 **Requires**: iOS 18.4+, macOS 15.4+
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.5: Using Isolated synchronous deinit](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Global Actor Isolated Conformance (Swift 6.2+)
 
@@ -329,8 +318,6 @@ extension PersonViewModel: @MainActor Equatable {
 ```
 
 **Enable**: `InferIsolatedConformances` upcoming feature.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.6: Adding isolated conformance to protocols](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ### `SendableMetatype` Error with Isolated Conformances
 
@@ -369,7 +356,7 @@ class C: P {
 }
 ```
 
-2. Avoid passing the metatype across isolation boundaries — call the static method directly rather than routing through the generic function.
+2. Avoid passing the metatype across isolation boundaries - call the static method directly rather than routing through the generic function.
 
 3. Make the generic function actor-aware so it accepts an isolated conformance (requires changing the callee's signature).
 
@@ -420,8 +407,6 @@ func deposit(amount: Double) async {
 ```
 
 **Rule**: Don't assume state is unchanged after `await`.
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.7: Understanding actor reentrancy](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## #isolation Macro
 
@@ -489,8 +474,6 @@ func process(
 
 **Note**: This pattern keeps the `non-Sendable` value alive and accessible within the `Task`. The `Task` runs on the caller's isolation domain, so no cross-isolation "sending" occurs.
 
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.8: Inheritance of actor isolation using the #isolation macro](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
-
 ## Custom Actor Executors
 
 **Advanced**: Control how actor schedules work.
@@ -535,8 +518,6 @@ actor LoggingActor {
 - Custom scheduling logic
 
 **Default executor is usually sufficient.**
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.9: Using a custom actor executor](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Mutex: Alternative to Actors
 
@@ -607,8 +588,6 @@ func decrement() throws {
 - Can adopt async/await
 - Need logical isolation
 - Working in async context
-
-> **Course Deep Dive**: This topic is covered in detail in [Lesson 5.10: Using a Mutex as an alternative to actors](https://www.swiftconcurrencycourse.com?utm_source=github&utm_medium=agent-skill&utm_campaign=lesson-reference)
 
 ## Common Patterns
 
@@ -694,8 +673,3 @@ Need thread-safe mutable state?
    ├─ Legacy code integration? → Mutex
    └─ Fine-grained locking? → Mutex
 ```
-
-## Further Learning
-
-For migration strategies, advanced patterns, and real-world examples, see [Swift Concurrency Course](https://www.swiftconcurrencycourse.com).
-

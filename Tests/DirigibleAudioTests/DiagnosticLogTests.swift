@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -47,6 +48,26 @@ struct DiagnosticLogTests {
         try #require(lines.count == 4, "lines: \(lines)")
         let columns = lines[3].split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
         #expect(columns[3...] == ["notice", "take", "start-request", "armed=2"])
+    }
+
+    /// C2: the queue is held while 1000 lines wait. A block queued after the first line reads
+    /// the file, so it sees each line that the drains before it wrote.
+    @Test func oneDrainWritesEachLineThatWaits() throws {
+        let queue = DispatchQueue(label: "test.journal.held")
+        let log = DiagnosticLog.start(
+            .app, folder: folder.url, version: "0.4.9", commit: "abc1234", now: date("2026-10-16T19:20:00Z"),
+            queue: queue)
+        let file = try #require(journalFiles(in: folder.url).first)
+        let seen = OSAllocatedUnfairLock<Int?>(initialState: nil)
+        queue.suspend()
+        log.note(.device, "input-gap", ["n": .number(0)])
+        queue.async { seen.withLock { $0 = (try? journalLines(of: file))?.count } }
+        for index in 1..<1000 { log.note(.device, "input-gap", ["n": .number(Int64(index))]) }
+        queue.resume()
+        log.drain()
+
+        #expect(seen.withLock { $0 } == 1003, "the file had fewer lines after the first drain")
+        #expect(try journalLines(of: file).count == 1003)
     }
 
     /// C3.

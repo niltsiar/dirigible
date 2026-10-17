@@ -27,7 +27,7 @@ More skills come from `mattpocock/skills` (https://github.com/mattpocock/skills,
 | `writing-for-agents` | `skills/productivity/writing-for-agents` | Matt Pocock |
 | `.claude/hooks/git-guardrails.sh` | `skills/misc/git-guardrails-claude-code/scripts/block-dangerous-git.sh` | Matt Pocock |
 
-One skill comes from `AvdLee/Swift-Concurrency-Agent-Skill` (https://github.com/AvdLee/Swift-Concurrency-Agent-Skill, commit `d5770817d262`, 2026-09-14). We dropped the course advertising, the references on Core Data, linting, async algorithms, and migration, and the claims that are wrong for this repo.
+One skill comes from `AvdLee/Swift-Concurrency-Agent-Skill` (https://github.com/AvdLee/Swift-Concurrency-Agent-Skill, commit `d5770817d262`, 2026-09-14). We adapted it to this project. The git history shows each change against the original text.
 
 | Skill | Source path | Copyright |
 |---|---|---|

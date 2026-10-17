@@ -165,10 +165,10 @@ Key changes in Swift 6:
 
 Apply this cycle for each migration change:
 
-1. **Build** - Run `swift build` or Xcode build to surface new diagnostics
+1. **Build** - Run `scripts/with-lock.sh swift build` to surface new diagnostics
 2. **Fix** - Address one category of error at a time (e.g., all Sendable issues first)
 3. **Rebuild** - Confirm the fix compiles cleanly before moving on
-4. **Test** - Run the test suite to catch regressions (`swift test` or Cmd+U)
+4. **Test** - Run the tests of the change to catch regressions (`scripts/with-lock.sh make check-changed`)
 5. **Only proceed** to the next file/module when all diagnostics are resolved
 
 If a fix introduces new warnings, resolve them before continuing. Never batch multiple unrelated fixes - keep commits small and reviewable.

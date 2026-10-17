@@ -92,8 +92,8 @@ struct MCPToolTests {
         return try TemporaryPackage(session)
     }
 
-    /// C9a: An answer over `sessionInfoBudget` is the overview. The JSON of 1950001...2010000 has
-    /// 56,443 characters, which Claude Code refused (over 25,000 tokens, decisions.tsv M1 measure).
+    /// An answer over `sessionInfoBudget` is the overview. The JSON of 1950001...2010000 has
+    /// 56,443 characters, which Claude Code refused (over 25,000 tokens).
     /// A short from/to range gives the full JSON.
     @Test func sessionInfoOfALongSessionGivesAnOverview() async throws {
         let long = try longPackage()
@@ -130,7 +130,7 @@ struct MCPToolTests {
         #expect(clips == Array(repeating: 6, count: 6), "the range 0...50000 holds 6 clips of each track")
     }
 
-    /// C16: `compact` keeps `sampleRate`, `tracks` with their clips, and `markers`. The filters and
+    /// `compact` keeps `sampleRate`, `tracks` with their clips, and `markers`. The filters and
     /// the overview rule hold, and `compact` false gives the JSON of `info --json`.
     @Test func aCompactInfoHasOnlyTracksClipsAndMarkers() async throws {
         let full = try #require(json(try await info().text))
@@ -266,7 +266,7 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// C5 and W1: 50 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// 50 tools in a fixed order, each with a description and a closed schema with `package`,
     /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])

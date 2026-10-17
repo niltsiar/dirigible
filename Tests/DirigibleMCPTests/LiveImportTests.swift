@@ -46,7 +46,7 @@ struct LiveImportTests {
         await studio.settle()
     }
 
-    /// Agent-pack C7: the six shape arguments give the clip in the app too, in one undo step.
+    /// The six shape arguments give the clip in the app too, in one undo step.
     @Test func aLiveImportShapesTheClip() async throws {
         let studio = try await package.open()
         let (server, folder) = try liveServer(studio)

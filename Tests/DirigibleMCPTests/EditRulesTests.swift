@@ -17,7 +17,7 @@ struct EditRulesTests {
         #expect(EditRules.rippleRanges(from: [0, 5], to: [3, 9]) == .ranges([0..<3, 5..<9]))
     }
 
-    /// Agent-pack C2: the exact bounds of an import range, 0...2^40 and 1...2^40.
+    /// The exact bounds of an import range, 0...2^40 and 1...2^40.
     @Test func importRangeHoldsItsBounds() {
         let limit = 1 << 40
         let bounds: [(Int, Int?)] = [(0, nil), (limit, 1), (0, limit)]

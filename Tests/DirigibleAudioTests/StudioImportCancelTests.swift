@@ -44,7 +44,7 @@ struct StudioImportCancelTests {
         #expect(fixture.xml == xml && !studio.canUndo, "a cancelled import saved")
     }
 
-    /// Agent-pack C8: a late cancel of an import with the ID "X" removes the WAV of the stem, and a
+    /// A late cancel of an import with the ID "X" removes the WAV of the stem, and a
     /// file at `Clips/X.wav` keeps its bytes.
     @Test func aCancelledImportWithAnIDRemovesTheStemWAV() async throws {
         let fixture = try await ImportStudioFixture.make()
@@ -68,7 +68,7 @@ struct StudioImportCancelTests {
         #expect(fixture.xml == xml && !studio.canUndo, "a cancelled import saved")
     }
 
-    /// Agent-pack C12: a late cancel of an import that reused `Voice.wav` keeps that WAV and
+    /// A late cancel of an import that reused `Voice.wav` keeps that WAV and
     /// `session.xml`: the reuse made no file, so the cancel removes none.
     @Test func aCancelledImportThatReusedAFileKeepsTheFile() async throws {
         let fixture = try await ImportStudioFixture.make()

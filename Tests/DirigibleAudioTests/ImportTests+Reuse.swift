@@ -5,12 +5,12 @@ import os
 
 @testable import DirigibleAudio
 
-/// The reuse of a pool file with the same bytes (agent-pack C10 to C13, decision 0040).
+/// The reuse of a pool file with the same bytes (decision 0040).
 struct ImportReuseTests {
     /// The bytes of a file, or nil.
     func bytes(_ url: URL) -> Data? { FileManager.default.contents(atPath: url.path) }
 
-    /// C10: a rate change and the level give the same WAV again (probe P1), so the second import
+    /// A rate change and the level give the same WAV again, so the second import
     /// adds a clip on the first file.
     @Test func aSecondImportOfOneFileReusesItsWAV() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
@@ -32,7 +32,7 @@ struct ImportReuseTests {
         #expect(bytes(package.clip("Talk.wav")) == wav, "the reuse changed the WAV")
     }
 
-    /// C11: another layout, or one other sample, makes a new file.
+    /// Another layout, or one other sample, makes a new file.
     @Test func anImportOfOtherAudioMakesANewFile() throws {
         let package = try ImportPackage(tracks: [("stereo", .stereo), ("mono", .mono)])
         let (left, right) = (ramp(frames: 70_000), ramp(frames: 70_000, channel: 1))
@@ -58,7 +58,7 @@ struct ImportReuseTests {
         #expect(edit.session.clip(mono.clip)?.clip.file == "Two 2" && edit.session.clip(edit.clip)?.clip.file == "Edit")
     }
 
-    /// C12b: the compare reads the flag at each block of 65,536 frames. The pool WAV has 4 blocks of
+    /// The compare reads the flag at each block of 65,536 frames. The pool WAV has 4 blocks of
     /// data; the flag turns true after the first compared block.
     @Test func aCancelDuringTheReuseCompareStopsAtTheNextBlock() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
@@ -80,14 +80,14 @@ struct ImportReuseTests {
                 }, isCancelled: { box.withLock { $0.flipped != nil } })
         }
         let (values, flipped) = box.withLock { ($0.values, $0.flipped) }
-        if let flipped { print("U20: the cancel of the compare ended \(flipped.duration(to: .now)) after the flag") }
+        if let flipped { print("the cancel of the compare ended \(flipped.duration(to: .now)) after the flag") }
         let compared = values.filter { $0 > 0.9 }
         #expect(compared.count == 1 && compared[0] < 1, "the compare ends at the block after the flag: \(values)")
         #expect(package.clipsNames == ["Same.wav"], "a cancelled compare left \(package.clipsNames)")
         #expect(bytes(package.clip("Same.wav")) == wav, "the cancel changed the pool WAV")
     }
 
-    /// C12b: the conversion gives 0...0.7, the compare 0.7...0.8, and the level 0.8...1; with no
+    /// The conversion gives 0...0.7, the compare 0.7...0.8, and the level 0.8...1; with no
     /// level, 0...0.9 and 0.9...1. With no candidate, the progress steps over the compare share.
     @Test func theReuseCompareReportsProgress() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
@@ -116,7 +116,7 @@ struct ImportReuseTests {
         #expect(unleveled.filter { $0 > 0.9 && $0 < 1 }.count >= 3, "with no level, 0.9...1: \(unleveled)")
     }
 
-    /// C13: a pool file with missing or short media, and the file of a capture, are never a reuse
+    /// A pool file with missing or short media, and the file of a capture, are never a reuse
     /// target, also with the same bytes.
     @Test func anImportReusesOnlyAReadablePoolFile() throws {
         let made = try ImportPackage(tracks: [("t1", .mono)])
@@ -164,7 +164,7 @@ struct ImportReuseTests {
         }.count
     }
 
-    /// Code gate 1 item 1: an import with no candidate, and an import that reuses a file, close
+    /// An import with no candidate, and an import that reuses a file, close
     /// each descriptor that they open. A leak holds the made WAV open after the rename.
     @Test func anImportClosesEachFileThatItOpens() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
@@ -187,10 +187,10 @@ struct ImportReuseTests {
     }
 }
 
-/// The reuse in `Studio` (agent-pack C14).
+/// The reuse in `Studio`.
 @MainActor
 struct StudioImportReuseTests {
-    /// C14: the Undo of a reused import keeps the WAV and the first clip, and no peak pass starts.
+    /// The Undo of a reused import keeps the WAV and the first clip, and no peak pass starts.
     @Test func theUndoOfAReusedImportKeepsTheFile() async throws {
         let fixture = try await ImportStudioFixture.make()
         let cache = try TemporaryFolder()

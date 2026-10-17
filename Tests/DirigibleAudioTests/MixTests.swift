@@ -252,7 +252,7 @@ struct MixTests {
             "Export Selection: the selected tracks that are heard")
     }
 
-    /// Heal C27: a clip with a gain and both fades, split twice, renders the same samples after
+    /// A clip with a gain and both fades, split twice, renders the same samples after
     /// a heal, over the clips and 1 s on each side. The clip count shows that the heal ran.
     @Test func aHealedClipSoundsTheSame() throws {
         let package = try MixPackage()

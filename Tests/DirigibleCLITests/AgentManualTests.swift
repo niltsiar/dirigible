@@ -184,8 +184,8 @@ struct AgentManualTests {
         #expect(sound.contains("`track_add` with the layout of the file"), "\(sound)")
     }
 
-    /// C30: the sound recipe shapes the clip in one `import`, with no `clip_gain`. Each import
-    /// converts the whole source (code gate 1 item 6), so more parts of one file come from
+    /// The sound recipe shapes the clip in one `import`, with no `clip_gain`. Each import
+    /// converts the whole source, so more parts of one file come from
     /// `clip_place` with the file ID and `clip_fade`.
     @Test func theSoundRecipeShapesTheClipInOneImport() {
         let sound = Self.steps("add-sound")
@@ -197,7 +197,7 @@ struct AgentManualTests {
         #expect(!sound.contains("again reuses"), "\(sound)")
     }
 
-    /// C30: a heal after a cut joins only the splits that stay, and the words need a new read.
+    /// A heal after a cut joins only the splits that stay, and the words need a new read.
     @Test func theCutRecipeHealsOnlyTheSplitsThatStay() {
         let cut = Self.steps("cut-a-range")
         for text in [
@@ -208,7 +208,7 @@ struct AgentManualTests {
         }
     }
 
-    /// C30, plan gate item 2: a chapters file keeps each image at its time, and a chapter whose image
+    /// A chapters file keeps each image at its time, and a chapter whose image
     /// the file leaves out is removed first.
     @Test func theChapterRecipeImportsAFileAndKeepsTheImages() {
         let chapter = Self.steps("add-chapter")
@@ -220,7 +220,7 @@ struct AgentManualTests {
         }
     }
 
-    /// C30: the publish recipe writes the chapter list, and lists the unused files by the tool on a
+    /// The publish recipe writes the chapter list, and lists the unused files by the tool on a
     /// closed package and by the menu in the app (the tool is refused there).
     @Test func thePublishRecipeListsTheChaptersAndTheUnusedFiles() {
         let publish = Self.steps("prepare-for-publishing")
@@ -231,7 +231,7 @@ struct AgentManualTests {
         }
     }
 
-    /// C30: the reading lines of the recipes name `session_info` with `compact`.
+    /// The reading lines of the recipes name `session_info` with `compact`.
     @Test func theReadingLinesUseCompact() {
         for name in ["cut-a-range", "prepare-for-publishing"] {
             #expect(Self.steps(name).contains("`session_info` (use `compact`)"), "\(name)")

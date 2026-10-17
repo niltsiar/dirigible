@@ -147,7 +147,7 @@ struct ChaptersTests {
         #expect(images.map(\.image) == [png, jpeg] && images.map(\.name) == ["show-2.png", "show-3.jpg"])
     }
 
-    /// C18 of run 2026-10-17-agent-pack. Each line is `HH:MM:SS title`, the time from the range
+    /// Each line is `HH:MM:SS title`, the time from the range
     /// start rounded down to the second. Fail value: `59:59 End`, the `MM:SS` form.
     @Test func aTextChapterListUsesHoursInEveryLine() throws {
         let hour = try Self.session([("Intro", 0, .chapter), ("End", 172_800_000, .chapter)])

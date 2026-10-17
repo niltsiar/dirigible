@@ -4,7 +4,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The clip shape of an import in one call (run agent-pack C2, C3, C5): a range of the made WAV,
+/// The clip shape of an import in one call: a range of the made WAV,
 /// the fades, and the level of that range.
 extension ImportTests {
     /// The error of an import that throws, or nil.
@@ -17,7 +17,7 @@ extension ImportTests {
         }
     }
 
-    /// C2: `offset` and `length` are frames of the made WAV at the session rate. A length past its
+    /// `offset` and `length` are frames of the made WAV at the session rate. A length past its
     /// end stops there; an offset at its end refuses and leaves no file.
     @Test func anImportTakesARangeOfTheMadeFile() throws {
         let package = try ImportPackage(tracks: [("t1", .stereo)])
@@ -54,7 +54,7 @@ extension ImportTests {
         #expect(package.clipsNames == names, "an offset out of range leaves no file: \(package.clipsNames)")
     }
 
-    /// C3: the import sets the fades of its clip; fades over the clip length refuse with no file.
+    /// The import sets the fades of its clip; fades over the clip length refuse with no file.
     @Test func anImportSetsTheFadesOfItsClip() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])
         let source = package.source("Sting.wav")
@@ -78,7 +78,7 @@ extension ImportTests {
         #expect(package.clipsNames == names, "a refused fade leaves no file: \(package.clipsNames)")
     }
 
-    /// C5: the level measures the clip range, not the whole file. The file is 1 s at -6 dBFS, then
+    /// The level measures the clip range, not the whole file. The file is 1 s at -6 dBFS, then
     /// 1 s at -26 dBFS, so the quiet range needs about 20 dB more gain.
     @Test func theLevelOfAnImportMeasuresTheClipRange() throws {
         let package = try ImportPackage(tracks: [("t1", .mono)])

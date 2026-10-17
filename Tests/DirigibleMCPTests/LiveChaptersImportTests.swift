@@ -5,8 +5,8 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleMCP
 
-/// `chapters_import` on a package that the app has open (C20, C21, C24b of run
-/// 2026-10-17-agent-pack): one undo entry, and no entry for a bad file.
+/// `chapters_import` on a package that the app has open: one undo entry, and no
+/// entry for a bad file.
 @MainActor
 struct LiveChaptersImportTests {
     let package: LivePackage
@@ -25,7 +25,7 @@ struct LiveChaptersImportTests {
         return url.path
     }
 
-    /// C21: three chapters are one edit with the agent name; one undo gives the session back.
+    /// Three chapters are one edit with the agent name; one undo gives the session back.
     @Test func aLiveChaptersImportIsOneUndoEntry() async throws {
         let studio = try await package.open()
         let (server, folder) = try liveServer(studio)
@@ -50,7 +50,7 @@ struct LiveChaptersImportTests {
         await studio.settle()
     }
 
-    /// C20, C24b: a bad file, and an import that would drop an image, give an error and no undo entry.
+    /// A bad file, and an import that would drop an image, give an error and no undo entry.
     @Test func aLiveChaptersImportOfABadFileAddsNoUndoEntry() async throws {
         let studio = try await package.open()
         let (server, folder) = try liveServer(studio)

@@ -133,7 +133,7 @@ struct ImportCommandTests {
         #expect(pending.status == 2 && pending.stderr.contains("not finalized"), "\(pending)")
     }
 
-    /// Agent-pack C1: `--id` names the clip; the file ID and the WAV keep the stem.
+    /// `--id` names the clip; the file ID and the WAV keep the stem.
     @Test func anImportWithAnIDNamesOnlyTheClip() async throws {
         let package = try Self.package()
         let source = package.folder.appending(path: "Intro.wav")
@@ -149,7 +149,7 @@ struct ImportCommandTests {
         #expect(names == ["Intro.wav"], "\(names)")
     }
 
-    /// Agent-pack C1: an `--id` that a clip uses refuses, and no file is made.
+    /// An `--id` that a clip uses refuses, and no file is made.
     @Test func anImportWithAUsedClipIDWritesNoFile() async throws {
         let package = try Self.package()
         let (first, second) = (package.folder.appending(path: "Intro.wav"), package.folder.appending(path: "Outro.wav"))
@@ -166,7 +166,7 @@ struct ImportCommandTests {
         #expect(after == before, "a refusal changes no byte and adds no file: \(after.keys.sorted())")
     }
 
-    /// Agent-pack C2 and C3: a frame or a length out of its range exits 64; a range or fades past
+    /// A frame or a length out of its range exits 64; a range or fades past
     /// the made WAV exit 1. Each refusal keeps every byte.
     @Test func aShapeOutOfRangeChangesNothing() async throws {
         let package = try Self.package()
@@ -193,7 +193,7 @@ struct ImportCommandTests {
         #expect(after == before, "a refusal changes no byte and adds no file: \(after.keys.sorted())")
     }
 
-    /// Agent-pack C2: the help gives the unit of `--offset` and `--length`.
+    /// The help gives the unit of `--offset` and `--length`.
     @Test func helpGivesTheUnitOfTheRange() async throws {
         let help = try await dirigible("import", "--help")
         let text = help.stdout.split(whereSeparator: \.isWhitespace).joined(separator: " ")

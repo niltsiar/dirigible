@@ -2,9 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// `dirigible clip heal` and the tool `clip_heal` on the files (C26, C28, C29 of run
-/// 2026-10-17-agent-pack). Track `t1` has a clip of 4 pieces of 1 s, and track `t2` has two clips of
-/// two files (a butt join).
+/// `dirigible clip heal` and the tool `clip_heal` on the files. Track `t1` has a clip of
+/// 4 pieces of 1 s, and track `t2` has two clips of two files (a butt join).
 struct ClipHealCommandTests {
     let package: TemporaryPackage
 
@@ -26,7 +25,7 @@ struct ClipHealCommandTests {
         try package.read().track(track).map { $0.clips.map(\.length.count) } ?? []
     }
 
-    /// C26, C29: the output is the ID of each healed clip. `--track` keeps the other tracks, and a
+    /// The output is the ID of each healed clip. `--track` keeps the other tracks, and a
     /// join at `--to` heals.
     @Test func aHealJoinsThePiecesAndWritesTheIDs() async throws {
         let ranged = try await package.run("clip", "heal", "PKG", "--track", "t1", "--from", "48000", "--to", "96000")
@@ -38,7 +37,7 @@ struct ClipHealCommandTests {
         #expect(try lengths("t1") == [192_000] && lengths("t2") == [48_000, 48_000], "the butt join stays")
     }
 
-    /// C28: no join to heal exits 1 and the bytes of `session.xml` stay. The tool gives the same
+    /// No join to heal exits 1 and the bytes of `session.xml` stay. The tool gives the same
     /// line as an error, with no edit.
     @Test func noJoinToHealExitsOneAndChangesNothing() async throws {
         let before = try package.xml()
@@ -51,7 +50,7 @@ struct ClipHealCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// C29, V19: `--from` alone, `--to` alone, and `--from` over `--to` are usage errors (exit 64).
+    /// `--from` alone, `--to` alone, and `--from` over `--to` are usage errors (exit 64).
     @Test(arguments: [
         (["--from", "5"], "Give --from and --to, or neither."),
         (["--to", "5"], "Give --from and --to, or neither."),
@@ -64,7 +63,7 @@ struct ClipHealCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// C7, C29: the tool heals the same pieces as the command, and gives the IDs, one per line.
+    /// The tool heals the same pieces as the command, and gives the IDs, one per line.
     @Test func theHealToolGivesTheCommandResult() async throws {
         let twin = try TemporaryPackage(package.read())
         let cli = try await twin.run("clip", "heal", "PKG", "--from", "0", "--to", "96000")

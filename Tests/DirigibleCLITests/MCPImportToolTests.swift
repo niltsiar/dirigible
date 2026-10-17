@@ -52,7 +52,7 @@ struct MCPImportToolTests {
         #expect(run.status == 1 && toolResult(answer(answers, id: 1)) == (errorText(run), true), "\(run)")
     }
 
-    /// Agent-pack C7: the six shape arguments give the clip of the six options of the command.
+    /// The six shape arguments give the clip of the six options of the command.
     @Test func theImportToolShapesTheClip() async throws {
         let ((cli, cliSource), (tool, toolSource)) = (try fixture(), try fixture())
         let options = [
@@ -74,7 +74,7 @@ struct MCPImportToolTests {
         #expect(clip.fades == Fades(fadeIn: 480, fadeOut: 960) && clip.file == "Intro", "\(clip)")
     }
 
-    /// Agent-pack C2: a frame or a length out of its range is an argument error, and no file is made.
+    /// A frame or a length out of its range is an argument error, and no file is made.
     @Test func aShapeOutOfRangeIsAnArgumentError() async throws {
         let (package, source) = try fixture()
         let range = "offset is a frame in 0...2^40, and length is a length in 1...2^40."
@@ -92,7 +92,7 @@ struct MCPImportToolTests {
         #expect(clips(package).isEmpty, "a refused import made a file")
     }
 
-    /// Agent-pack C8: a cancel after `importAudio` returns, on the files, removes the WAV of the
+    /// A cancel after `importAudio` returns, on the files, removes the WAV of the
     /// stem; a file at `Clips/X.wav` keeps its bytes. The poll finds the cancel at the third read
     /// after the rename: two in `importAudio` with `db` (no level), then the one in `ImportWork`.
     @Test func aCancelledImportWithAnIDRemovesTheStemWAV() throws {
@@ -123,7 +123,7 @@ struct MCPImportToolTests {
         #expect(try package.xml() == before, "a cancelled import changed session.xml")
     }
 
-    /// Agent-pack C12: a cancel at the last read (the work) or the one before it (`importAudio`),
+    /// A cancel at the last read (the work) or the one before it (`importAudio`),
     /// after the session edit of an import that reused `Intro.wav`, keeps that WAV and
     /// `session.xml`. A twin package gives the read count of the import with no cancel.
     @Test(arguments: [0, 1]) func aCancelledImportThatReusedAFileKeepsTheFile(readsBeforeTheLast: Int) throws {

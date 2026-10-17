@@ -2,9 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// `dirigible chapters import` and the tool `chapters_import` on the files (C20, C22, C23, C24b of
-/// run 2026-10-17-agent-pack). Track `t1` has a clip of 20 s. Chapters "Interview" at 10 s and
-/// "Outro" at 12 s with an image, and a plain marker "Note".
+/// `dirigible chapters import` and the tool `chapters_import` on the files. Track `t1` has a clip of
+/// 20 s. Chapters "Interview" at 10 s and "Outro" at 12 s with an image, and a plain marker "Note".
 struct ChaptersImportCommandTests {
     let package: TemporaryPackage
     static let image = try! ArtworkName("0B3C5B2E-6F1A-4D2B-9E57-1C8F2A9D4E60.jpg")
@@ -42,7 +41,7 @@ struct ChaptersImportCommandTests {
 
     static let timeline = #"{"startTime": 0}, {"startTime": 94.5, "title": "Talk"}, {"startTime": 168, "title": "End"}"#
 
-    /// C22: each fault gives exit 1 with a line that names the chapter by its place, and the
+    /// Each fault gives exit 1 with a line that names the chapter by its place, and the
     /// bytes of `session.xml` stay. Control: the next test imports a good file.
     @Test(arguments: [
         ("not json", "PATH: the file is not a JSON object."),
@@ -89,7 +88,7 @@ struct ChaptersImportCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// Code gate 1 item 4: a path that is not a regular file (a folder, or a FIFO with no writer),
+    /// A path that is not a regular file (a folder, or a FIFO with no writer),
     /// or a file over 1 MiB, is refused before the read, and the bytes of `session.xml` stay.
     /// Control: the same JSON at 1 MiB imports.
     @Test func aChaptersImportRefusesAFolderOrALargeFile() async throws {
@@ -116,7 +115,7 @@ struct ChaptersImportCommandTests {
         #expect(try package.read().sortedMarkers.contains { $0.name == "Big" }, "a file of 1 MiB imports")
     }
 
-    /// C20: an `--at` below 0 or past 2^40 is a usage error, before the file is read.
+    /// An `--at` below 0 or past 2^40 is a usage error, before the file is read.
     @Test(arguments: ["-1", "1099511627777", "9223372036854775807"])
     func anAtOutOfRangeIsAUsageError(at: String) async throws {
         let before = try package.xml()
@@ -126,9 +125,9 @@ struct ChaptersImportCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// C20: chapters at 0, 94.5, and 168 s at 48 kHz, and the first at `--at`. The old chapters
+    /// Chapters at 0, 94.5, and 168 s at 48 kHz, and the first at `--at`. The old chapters
     /// stay, the output is the marker IDs, and a link or an image that the import cannot take
-    /// gives a warning line (C23).
+    /// gives a warning line.
     @Test func aChaptersImportAddsChapterMarkers() async throws {
         let path = try file(Self.timeline)
         let result = try await package.run("chapters", "import", "PKG", path)
@@ -155,7 +154,7 @@ struct ChaptersImportCommandTests {
                 + "imported.\nWarning: 1 chapter has an img that is not imported: the import copies no image.\n")
     }
 
-    /// C24 and C24b: `--replace` removes the chapters, keeps the plain marker, and gives the image
+    /// `--replace` removes the chapters, keeps the plain marker, and gives the image
     /// of "Outro" to the file chapter at 12 s.
     @Test func aReplaceKeepsTheImageAtItsTime() async throws {
         let path = try file(#"{"startTime": 0, "title": "Start"}, {"startTime": 12, "title": "Closing"}"#)
@@ -165,7 +164,7 @@ struct ChaptersImportCommandTests {
         #expect(try package.read().markers["a"] == nil && package.read().markers["b"] == nil)
     }
 
-    /// C24b: a removed image with no chapter at its time stops the import: exit 1, a line with the
+    /// A removed image with no chapter at its time stops the import: exit 1, a line with the
     /// title and the frame, and the bytes of `session.xml` stay. With no `--replace`, the import goes on.
     @Test func aChaptersImportThatWouldDropAnImageChangesNothing() async throws {
         let before = try package.xml()
@@ -183,7 +182,7 @@ struct ChaptersImportCommandTests {
         #expect(try package.read().markers["b"]?.image == Self.image)
     }
 
-    /// C20, C7: the tool gives the markers of the command, the same lines, and the same refusals.
+    /// The tool gives the markers of the command, the same lines, and the same refusals.
     @Test func theChaptersImportToolGivesTheCLIResult() async throws {
         let twin = try TemporaryPackage(package.read())
         let path = try file(

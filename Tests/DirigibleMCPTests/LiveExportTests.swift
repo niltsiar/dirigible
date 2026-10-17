@@ -251,7 +251,7 @@ extension LiveExportTests {
         await studio.settle()
     }
 
-    /// C17 of run 2026-10-17-agent-pack: a live `chapters_export` writes the chapters of the
+    /// A live `chapters_export` writes the chapters of the
     /// session of the window. The write turn is held, so the files do not have the chapter. A
     /// dialog refuses the call first, as `export`: only `liveJob` reads the dialog.
     @Test func aLiveChaptersExportReadsTheOpenSession() async throws {

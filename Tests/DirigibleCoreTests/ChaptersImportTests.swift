@@ -42,7 +42,10 @@ struct ChaptersImportTests {
         (#"{"version": "1.0.0", "chapters": [{"startTime": 1e999}]}"#, .startTime(place: 1)),
         (#"{"version": "1.0.0", "chapters": [{"startTime": 0}, 5]}"#, .startTime(place: 2)),
         (#"{"version": "1.0.0", "chapters": [{"startTime": 0, "title": "A\u0001B"}]}"#, .title(place: 1)),
-        (#"{"version": "1.0.0", "chapters": [{"startTime": 0}, {"startTime": 1, "title": "A\nB"}]}"#, .title(place: 2)),
+        (
+            #"{"version": "1.0.0", "chapters": [{"startTime": 0}, {"startTime": 1, "title": "A\u001BB"}]}"#,
+            .title(place: 2)
+        ),
     ])
     func aBadChaptersFileIsRefused(json: String, error: ChaptersFileError) {
         #expect(throws: error) { try ImportedChapters(data: Data(json.utf8)) }
@@ -234,6 +237,14 @@ struct ChaptersImportTests {
             ], "\(shape(once))")
         #expect(shape(twice) == shape(once), "\(shape(twice))")
         #expect(second.count == 4 && Set(second[1...2]) == Set(first[1...2]), "the plain markers keep their IDs")
+    }
+
+    /// Code gate 1 item 5: a title loses the spaces and line breaks at its edges, and each inner
+    /// tab, LF, and CR becomes one space. Another control character still refuses the file.
+    @Test func aChaptersImportMapsLineBreaksInATitleToSpaces() throws {
+        let file = try Self.file(#"{"startTime": 0, "title": " A\tB\nC\r "}, {"startTime": 1, "title": "\r\nEnd\n"}"#)
+        #expect(file.chapters.map(\.title) == ["A B C", "End"])
+        #expect(throws: ChaptersFileError.title(place: 1)) { try Self.file(#"{"startTime": 0, "title": "A\u0007B"}"#) }
     }
 
     /// C25: the export, then the import, keeps the millisecond. 1.234 s at 44.1 kHz is the frame

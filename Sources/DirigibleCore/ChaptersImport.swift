@@ -69,7 +69,8 @@ public struct ImportedChapters: Hashable, Sendable {
 
     /// Reads `data`. The checks come in this order: a JSON object, a non-empty `chapters` array, a
     /// `version` that starts with "1.", then each chapter in file order (`startTime`, then
-    /// `title`). A `title` that is empty after the spaces at its edges is no title.
+    /// `title`). A `title` loses the spaces and line breaks at its edges, and each inner tab, LF,
+    /// and CR becomes one space, as XML reads them back; an empty one is no title.
     public init(data: Data) throws(ChaptersFileError) {
         guard let file = try? JSONDecoder().decode(File.self, from: data) else { throw .notAnObject }
         guard let entries = file.chapters, !entries.isEmpty else { throw .noChapters }
@@ -81,7 +82,13 @@ public struct ImportedChapters: Hashable, Sendable {
             guard let startTime = entry.startTime, startTime.isFinite, startTime >= 0 else {
                 throw .startTime(place: place)
             }
-            let title = entry.title?.trimmingCharacters(in: .whitespaces)
+            let title = entry.title.map { text in
+                String(
+                    String.UnicodeScalarView(
+                        text.trimmingCharacters(in: .whitespacesAndNewlines).unicodeScalars.map {
+                            "\t\n\r".unicodeScalars.contains($0) ? " " : $0
+                        }))
+            }
             guard title?.unicodeScalars.allSatisfy(\.isStorableInSession) ?? true else { throw .title(place: place) }
             var url: WebURL?
             if let text = entry.url {

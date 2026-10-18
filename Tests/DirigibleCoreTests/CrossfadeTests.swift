@@ -150,7 +150,7 @@ struct CrossfadeTests {
 
         var seamless = try CrossfadeTests()
         try seamless.join(b: { ($0.file, $0.offset) = ("fa", 5_000) })
-        #expect(seamless.limit(after: "A") == 0, "a seamless join gives 0")
+        #expect(seamless.limit(after: "A") == 8_000, "a seamless join: the rooms of A and B")
         #expect(throws: SessionError.crossfadeAtEqualGains("A"), "a seamless join with equal gains is refused") {
             try seamless.session.setCrossfades(["A": 960])
         }
@@ -353,16 +353,11 @@ struct CrossfadeTests {
                         var lengths: [ClipID: Frames] = [:]
                         let lane = session.tracks[0].clips
                         for index in lane.indices where Bool.random(using: &random) {
-                            guard var limit = session.crossfadeLimit(after: index, in: lane) else { continue }
+                            guard let limit = session.crossfadeLimit(after: index, in: lane) else { continue }
                             let (a, b) = (lane[index], lane[index + 1])
-                            if lane.join(after: index) == .seamless {
-                                // A new crossfade at equal gains is refused (C32). The limit is 0 here, so the
-                                // lengths come from the handle limit of a butt join.
-                                guard a.gain != b.gain || a.crossfades.end != .zero else { continue }
-                                let half = min(
-                                    60_000 - (a.offset + a.length).count, b.offset.count, a.crossfadeRoom(.end).count,
-                                    b.crossfadeRoom(.start).count)
-                                limit = Frames(2 * max(0, half))
+                            // A new crossfade at a seamless join with equal gains is refused (C32).
+                            if lane.join(after: index) == .seamless, a.gain == b.gain, a.crossfades.end == .zero {
+                                continue
                             }
                             lengths[lane[index].id] = Frames(
                                 min(limit.count, Int.random(in: 0...2_000, using: &random)) / 2 * 2)

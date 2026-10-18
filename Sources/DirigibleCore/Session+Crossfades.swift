@@ -65,13 +65,11 @@ extension Session {
 
     /// The longest crossfade at the join after the clip at `left` of `lane`: 2 x the least of the
     /// handle after that clip, the handle before its neighbor, and the room of each clip beside the
-    /// crossfade half at its other edge (its fades yield). 0 at a seamless join. Nil with no
-    /// touching neighbor or no pool file. The index makes it constant time, so Command-F on Select
-    /// All reads it for each join with no clip search.
+    /// crossfade half at its other edge (its fades yield). Nil with no touching neighbor or no pool
+    /// file. The index makes it constant time, so Command-F on Select All reads it for each join
+    /// with no clip search.
     public func crossfadeLimit(after left: Int, in lane: ClipLane) -> Frames? {
-        let join = lane.join(after: left)
-        guard join != .none, let file = files[lane[left].file] else { return nil }
-        if join == .seamless { return .zero }
+        guard lane.join(after: left) != .none, let file = files[lane[left].file] else { return nil }
         let (a, b) = (lane[left], lane[left + 1])
         let half = min(
             file.length - (a.offset + a.length), b.offset, a.crossfadeRoom(.end), b.crossfadeRoom(.start))

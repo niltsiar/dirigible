@@ -82,6 +82,20 @@ struct CrossfadeGestureTests {
         #expect(gesture.readout == .crossfade(96_000))
     }
 
+    /// C35: at a seamless join with two gains (B plays on in fa at -6 dB), the drag clamps to the
+    /// handle limit of a butt join, 96,000. Fail value of the old limit 0: 0.
+    @Test mutating func aDragAtASeamlessJoinStopsAtTheHandleLimit() throws {
+        session = try Fixture.session(withB: false)
+        try session.place(
+            Clip(id: "B", file: "fa", start: 96_000, offset: 48_000, length: 48_000, gain: Gain(dB: -6)!), on: "t1")
+        try session.setCrossfades(["A": 19_200])
+        down(180)
+        _ = drag(170)
+        #expect(drawn.a == Crossfades(start: 0, end: 28_800) && drawn.b == Crossfades(start: 28_800, end: 0))
+        _ = drag(0)
+        #expect(drawn.a?.end == 96_000 && gesture.readout == .crossfade(96_000))
+    }
+
     /// G3: a drag to the join and past it gives 0 on both clips; a drag back out makes the
     /// crossfade again. The commit of 0 removes it, and the handles go away.
     @Test mutating func aDragToTheJoinRemovesTheCrossfade() throws {

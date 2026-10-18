@@ -480,6 +480,9 @@ make_repo() {
   cp "$repo/Makefile" "$tmp/r/Makefile"
   cp "$script" "$tmp/r/scripts/check-changed.sh"
   cp "$repo/scripts/check-stamp.sh" "$repo/scripts/test-filter.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/with-lock.sh" "$repo/scripts/run-checks.sh" "$repo/scripts/check-waits.sh" "$tmp/r/scripts/"
+  # run-checks.sh runs check-commits.sh when BASE is set; land.test.sh has the cases of the real one.
+  printf '#!/bin/bash\nexit 0\n' > "$tmp/r/scripts/check-commits.sh"
+  chmod +x "$tmp/r/scripts/check-commits.sh"
   g add -A
   g commit -q -m make
 }

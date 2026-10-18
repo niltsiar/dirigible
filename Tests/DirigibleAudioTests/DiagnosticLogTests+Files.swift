@@ -136,6 +136,44 @@ extension DiagnosticLogTests {
         #expect(after.previousEndedUnclean)
     }
 
+    /// C6: the caller runs only the open and the preamble write. The queue is held, so an
+    /// earlier journal that gets its quit line after the start counts as clean, and the first
+    /// start has no salt before the queue runs.
+    @Test func theStartReadsNoOtherFileOnTheCaller() throws {
+        try fixture(folder.url, "app", 0, last: "2026-10-16T18:05:00.000Z\t2\tmain\tnotice\ttake\tstart-request")
+        let queue = DispatchQueue(label: "test.journal.held")
+        queue.suspend()
+        // The release of a suspended queue traps, so each exit resumes it.
+        var resumed = false
+        defer { if !resumed { queue.resume() } }
+        let log = DiagnosticLog.start(
+            .app, folder: folder.url, version: "0.4.9", commit: "abc1234", now: date("2026-10-16T19:20:00Z"),
+            queue: queue)
+        let preamble = try journalLines(of: folder.url.appending(path: "2026-10-16-192000-app-\(getpid()).tsv"))
+        let salted = FileManager.default.fileExists(atPath: folder.url.appending(path: "salt").path)
+        let earlier = try FileHandle(forWritingTo: folder.url.appending(path: "\(fixtureStem("app", 0)).tsv"))
+        try earlier.seekToEnd()
+        try earlier.write(contentsOf: Data("2026-10-16T18:06:00.000Z\t3\tmain\tnotice\tapp\tquit\n".utf8))
+        try earlier.close()
+        queue.resume()
+        resumed = true
+
+        #expect(preamble.count == 3, "the preamble is not on the caller: \(preamble)")
+        #expect(!salted, "the caller wrote the salt")
+        #expect(!log.previousEndedUnclean, "the caller read the earlier journal")
+    }
+
+    /// C7: no barrier after the quit.
+    @Test func quitIsTheLastLine() throws {
+        let log = startLog(in: folder.url)
+        for index in 0..<1000 { log.note(.device, "input-gap", ["n": .number(Int64(index))]) }
+        log.quit()
+
+        let lines = try journalLines(of: try #require(journalFiles(in: folder.url).first))
+        #expect(lines.count == 1004)
+        #expect(lines.last?.split(separator: "\t").dropFirst(4).prefix(2) == ["app", "quit"])
+    }
+
     /// C7: a writer queue that notes a line after `quit()` (an abandoned attach) adds no line
     /// after `app quit`. The quit drops the lock, so the next start reads that last line.
     @Test func aNoteAfterQuitLeavesACleanEnd() throws {

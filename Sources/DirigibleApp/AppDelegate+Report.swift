@@ -95,6 +95,10 @@ extension AppDelegate {
     /// A window shows: the first one after an unclean end gets the notice.
     func noticeWindowShown(_ window: NSWindow?) {
         guard let window else { return }
+        if !noticeRead {
+            noticeRead = true
+            uncleanNotice = UncleanNotice(previousEndedUnclean: log.previousEndedUnclean)
+        }
         let id = ObjectIdentifier(window)
         let showedBefore = uncleanNotice.shows(in: id)
         uncleanNotice.windowShown(id)
@@ -106,6 +110,7 @@ extension AppDelegate {
     /// Help > Report a Problem... and the button of the notice: the sheet, then the save panel,
     /// then the collect.
     func reportProblem() {
+        noticeRead = true
         uncleanNotice.dismiss()
         panels.sheet(reportHost) { [weak self] saves in
             guard saves, let self else { return }

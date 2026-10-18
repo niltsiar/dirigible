@@ -373,7 +373,7 @@ private func spawnSleepWithACopy(of file: URL) throws -> pid_t {
     posix_spawn_file_actions_init(&actions)
     defer { posix_spawn_file_actions_destroy(&actions) }
     posix_spawn_file_actions_addinherit_np(&actions, descriptor)
-    let argv = Array(arrayLiteral: "/bin/sleep", "60").map { strdup($0) } + [nil]
+    let argv = (["/bin/sleep", "60"] as [String]).map { strdup($0) } + [nil]
     defer { for pointer in argv { free(pointer) } }
     var child: pid_t = 0
     try #require(posix_spawn(&child, "/bin/sleep", &actions, &attributes, argv, environ) == 0)

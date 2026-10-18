@@ -54,15 +54,17 @@ extension DeviceWriter {
     }
 
     /// `device come-back` with the try number since the loss, its outcome, and the backoff after
-    /// it; then `device back` when the try attached.
+    /// it, for each try that `ComeBackSchedule` notes; then `device back` when the try attached.
     func noteComeBack(attached: Bool) {
-        let wait = comeBacks.backoff / .milliseconds(1)
-        log.note(
-            .device, "come-back",
-            [
-                "device": .text(name), "try": .number(Int64(comeBacks.tries)),
-                "outcome": .text(comeBacks.outcome?.rawValue ?? "none"), "wait_ms": .milliseconds(wait),
-            ])
+        if comeBacks.takeNote() {
+            let wait = comeBacks.backoff / .milliseconds(1)
+            log.note(
+                .device, "come-back",
+                [
+                    "device": .text(name), "try": .number(Int64(comeBacks.tries)),
+                    "outcome": .text(comeBacks.outcome?.rawValue ?? "none"), "wait_ms": .milliseconds(wait),
+                ])
+        }
         if attached { log.note(.device, "back", ["device": .text(name)]) }
     }
 

@@ -110,6 +110,31 @@ struct CaptureLogTests {
         #expect(fields("device lost").first?["cause"] == cause, "\(fields("device lost"))")
     }
 
+    /// A lost device that stays absent for 100 tries writes a `device come-back` line only at
+    /// each try whose number is a power of two, and at the try that attaches. The drain tick is
+    /// 1 h away, so each device-list event makes one try.
+    @Test func aDeviceThatStaysAbsentWritesFewComeBackLines() async throws {
+        let hal = TestHAL([mic])
+        let writer = writer(mic, hal, drainInterval: .seconds(3_600))
+        await writer.started()
+        hal.set("mic", id: nil)
+        for _ in 0..<100 {
+            writer.post(.devicesChanged, from: nil)
+            await writer.started()
+        }
+        hal.set("mic", id: 1)
+        writer.post(.devicesChanged, from: nil)
+        await writer.started()
+        await writer.finish()
+
+        let tries = fields("device come-back").map { "\($0["try"] ?? "?") \($0["outcome"] ?? "?")" }
+        #expect(
+            tries == [
+                "1 absent", "2 absent", "4 absent", "8 absent", "16 absent", "32 absent", "64 absent", "101 attached",
+            ], "\(tries.count) lines: \(tries.prefix(12))")
+        #expect(fields("device back").count == 1)
+    }
+
     // MARK: C21
 
     /// One sample-time jump of 2400 frames gives one line. 60 jumps in one second of the limit

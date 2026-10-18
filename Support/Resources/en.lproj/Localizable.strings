@@ -505,6 +505,11 @@
 "report.progress" = "Preparing the report…";
 "report.saved" = "Report saved. Dirigible shows the file in Finder.";
 "report.error.write" = "Dirigible could not save the report in “%1$@”. Reason: %2$@.";
+"report.error.exists" = "a file or a folder with that name exists";
+"report.error.folder" = "the folder does not exist";
+"report.error.permission" = "the folder has no write permission";
+"report.error.temporary" = "the temporary folder is full or has no write permission";
+"report.error.zip" = "the system could not make the zip (error %lld)";
 "report.file.name" = "Dirigible Report %@";
 "notice.unclean.text" = "Dirigible did not quit in the normal way the last time. A report can show why. Dirigible sends nothing: you choose if you send the file.";
 "notice.unclean.later" = "Not Now";

@@ -505,6 +505,11 @@
 "report.progress" = "Bericht wird vorbereitet…";
 "report.saved" = "Bericht gesichert. Dirigible zeigt die Datei im Finder.";
 "report.error.write" = "Dirigible konnte den Bericht nicht in „%1$@“ sichern. Grund: %2$@.";
+"report.error.exists" = "Es gibt schon eine Datei oder einen Ordner mit diesem Namen";
+"report.error.folder" = "Der Ordner existiert nicht";
+"report.error.permission" = "Der Ordner hat keine Schreibberechtigung";
+"report.error.temporary" = "Der temporäre Ordner ist voll oder hat keine Schreibberechtigung";
+"report.error.zip" = "Das System konnte das ZIP nicht erstellen (Fehler %lld)";
 "report.file.name" = "Dirigible-Bericht %@";
 "notice.unclean.text" = "Dirigible wurde beim letzten Mal nicht normal beendet. Ein Bericht kann zeigen, warum. Dirigible sendet nichts: Du entscheidest, ob du die Datei sendest.";
 "notice.unclean.later" = "Nicht jetzt";

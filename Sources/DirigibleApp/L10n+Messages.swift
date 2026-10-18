@@ -53,6 +53,18 @@ extension L10n {
         }
     }
 
+    /// The reason in the alert of a report that was not written (decision 0059). The switch has
+    /// no `default`, so a new case does not compile until it has a key.
+    static func message(for error: BundleError) -> String {
+        switch error {
+        case .exists: reportErrorExists.text
+        case .folderMissing: reportErrorFolder.text
+        case .noPermission: reportErrorPermission.text
+        case .tempFolder: reportErrorTemporary.text
+        case .zipFailed(let code): reportErrorZip.format(code)
+        }
+    }
+
     /// The text of a refused Remove Unused Files (decision 0047): no file moved.
     private static func message(for error: UnusedFilesError) -> String {
         switch error {

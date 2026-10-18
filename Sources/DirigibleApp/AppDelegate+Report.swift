@@ -146,12 +146,12 @@ extension AppDelegate {
             do {
                 try Self.place(temporary, at: url)
             } catch {
-                return panels.fail(host, name, error.cause)
+                return panels.fail(host, name, L10n.message(for: error))
             }
             postAnnouncement(L10n.reportSaved.text, priority: .high)
             reveal([url])
         case .failure(let error):
-            panels.fail(host, name, error.cause)
+            panels.fail(host, name, L10n.message(for: error))
         }
     }
 
@@ -164,17 +164,7 @@ extension AppDelegate {
                 try FileManager.default.moveItem(at: zip, to: url)
             }
         } catch {
-            throw .cannotWrite("the file cannot be replaced")
-        }
-    }
-}
-
-extension BundleError {
-    /// The reason in English, as the library gives it.
-    fileprivate var cause: String {
-        switch self {
-        case .exists: "a file or a folder is at that place"
-        case .cannotWrite(let reason): reason
+            throw .zipFailed(code: (error as NSError).code)
         }
     }
 }

@@ -505,6 +505,11 @@
 "report.progress" = "Rapport voorbereiden…";
 "report.saved" = "Rapport bewaard. Dirigible toont het bestand in de Finder.";
 "report.error.write" = "Dirigible kon het rapport niet bewaren in '%1$@'. Reden: %2$@.";
+"report.error.exists" = "er bestaat al een bestand of een map met die naam";
+"report.error.folder" = "de map bestaat niet";
+"report.error.permission" = "de map heeft geen schrijfrechten";
+"report.error.temporary" = "de tijdelijke map is vol of heeft geen schrijfrechten";
+"report.error.zip" = "het systeem kon de zip niet maken (fout %lld)";
 "report.file.name" = "Dirigible-rapport %@";
 "notice.unclean.text" = "Dirigible is de vorige keer niet normaal afgesloten. Een rapport kan laten zien waarom. Dirigible verstuurt niets: jij kiest of je het bestand verstuurt.";
 "notice.unclean.later" = "Niet nu";

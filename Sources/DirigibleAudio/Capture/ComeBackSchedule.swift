@@ -20,6 +20,10 @@ struct ComeBackSchedule {
     /// The tries since the loss, and how the last one ended.
     private(set) var tries = 0
     private(set) var outcome: Outcome?
+    /// True when the last try gets a journal line (decision 0059): another outcome than the try
+    /// before it, or a try number that is a power of two. So a writer that stays lost writes
+    /// about 12 lines in an hour, not one each second.
+    private var noted = false
 
     init(at now: ContinuousClock.Instant) { lastTry = now }
 
@@ -34,6 +38,7 @@ struct ComeBackSchedule {
         lastTry = now
         pending = false
         tries += 1
+        noted = outcome != self.outcome || (tries & (tries - 1)) == 0
         self.outcome = outcome
         switch outcome {
         case .attached:
@@ -44,6 +49,12 @@ struct ComeBackSchedule {
         case .absent:
             break
         }
+    }
+
+    /// True once for a try that gets a journal line.
+    mutating func takeNote() -> Bool {
+        defer { noted = false }
+        return noted
     }
 
     /// The length of the backoff window after the last failed try; zero after an attach.

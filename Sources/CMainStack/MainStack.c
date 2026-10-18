@@ -23,6 +23,22 @@ static uintptr_t code_address(uintptr_t address) {
 #endif
 }
 
+// True when the instruction before `pc` is a system call (`syscall` on x86_64, `svc #0x80` on
+// arm64): the thread waits in a kernel stub, which keeps no frame record, so its return address
+// is still in the link register or at the stack pointer. The read stays in the page of `pc`.
+static bool after_system_call(uintptr_t pc) {
+#if defined(__x86_64__)
+    static const uint8_t call[] = {0x0F, 0x05};
+#else
+    static const uint8_t call[] = {0x01, 0x10, 0x00, 0xD4};
+#endif
+    if ((pc & 4095) < sizeof(call)) return false;
+    const uint8_t *before = (const uint8_t *)(pc - sizeof(call));
+    for (size_t i = 0; i < sizeof(call); i++)
+        if (before[i] != call[i]) return false;
+    return true;
+}
+
 ms_walk_result ms_walk(ms_thread thread, uintptr_t *frames, int capacity) {
     ms_walk_result result = {KERN_INVALID_ARGUMENT, 0, 0, 0};
     if (capacity < 1 || thread.port == pthread_mach_thread_np(pthread_self()))
@@ -37,18 +53,29 @@ ms_walk_result ms_walk(ms_thread thread, uintptr_t *frames, int capacity) {
     x86_thread_state64_t state;
     mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
     status = thread_get_state(thread.port, x86_THREAD_STATE64, (thread_state_t)&state, &count);
-    uintptr_t pc = state.__rip, fp = state.__rbp;
+    uintptr_t pc = state.__rip, fp = state.__rbp, sp = state.__rsp;
 #elif defined(__arm64__)
     arm_thread_state64_t state;
     mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
     status = thread_get_state(thread.port, ARM_THREAD_STATE64, (thread_state_t)&state, &count);
     uintptr_t pc = arm_thread_state64_get_pc(state), fp = arm_thread_state64_get_fp(state);
+    uintptr_t lr = arm_thread_state64_get_lr(state);
 #else
 #error "CMainStack walks x86_64 and arm64 only"
 #endif
     int saved = 0;
     if (status == KERN_SUCCESS) {
         frames[saved++] = code_address(pc);
+        if (saved < capacity && after_system_call(code_address(pc))) {
+#if defined(__x86_64__)
+            uintptr_t caller = 0;
+            if (sp >= thread.stack_low && sp + sizeof(uintptr_t) <= thread.stack_high && (sp & 7) == 0)
+                caller = *(const uintptr_t *)sp;
+#else
+            uintptr_t caller = code_address(lr);
+#endif
+            if (caller != 0) frames[saved++] = caller;
+        }
         // A frame record is the next record and the return address. The chain pointer is not
         // signed, so only the return address gets the mask.
         while (saved < capacity && fp >= thread.stack_low && fp + 2 * sizeof(uintptr_t) <= thread.stack_high &&

@@ -109,48 +109,69 @@ extension DiagnosticBundle {
         return lines.map { $0.replacingOccurrences(of: "\n", with: " ") }.joined(separator: "\n") + "\n"
     }
 
-    /// The `stack walk` line (C48): one walk of a helper thread that waits in
-    /// `holdForStackWalkProbe`, with its frames named. `ok` needs 3 frames or more, the helper,
-    /// and a named frame of a system library, so each bundle shows if the walk of the hang
-    /// watchdog works on its macOS and its architecture.
+    /// The `stack walk` line (C48): a walk of a helper thread that waits in `read(2)`, called from
+    /// `holdForStackWalkProbe`, with its frames named. `ok` needs 3 frames or more, the helper as
+    /// the frame after the system call stub, and a named frame of a system library, so each bundle
+    /// shows if the walk of the hang watchdog works on its macOS and its architecture.
     static func walkCheck(_ walk: (ms_thread, UnsafeMutablePointer<UInt>, Int32) -> ms_walk_result) -> String {
-        let probe = WalkProbe()
-        defer { probe.release.signal() }
+        guard let probe = WalkProbe() else { return "stack walk failed reason=no-pipe" }
+        defer { probe.release() }
         Thread { holdForStackWalkProbe(probe) }.start()
         guard probe.ready.wait(timeout: .now() + 5) == .success else { return "stack walk failed reason=no-helper" }
         let capacity = 128
         let frames = UnsafeMutablePointer<UInt>.allocate(capacity: capacity)
         defer { frames.deallocate() }
-        let result = walk(probe.thread, frames, Int32(capacity))
-        let stack = Array(UnsafeBufferPointer(start: frames, count: Int(max(result.count, 0))))
-        // A return address is named at the address before it, inside the call.
-        let names = stack.enumerated().map { index, address in
-            dladdrName(index == 0 || address == 0 ? address : address - 1)
+        var result = ms_walk_result()
+        var names: [FrameName] = []
+        // The helper signals before its read, so the walks go on until its pc is in a system stub.
+        for _ in 0..<100 {
+            result = walk(probe.thread, frames, Int32(capacity))
+            let stack = UnsafeBufferPointer(start: frames, count: Int(max(result.count, 0)))
+            // A return address is named at the address before it, inside the call.
+            names = stack.enumerated().map { index, address in
+                dladdrName(index == 0 || address == 0 ? address : address - 1)
+            }
+            if names.isEmpty || names.first.map(isSystem) == true { break }
+            usleep(10_000)
         }
         let named = names.filter { $0.symbol != nil }
-        let helper = named.contains { $0.symbol?.contains("holdForStackWalkProbe") == true }
-        let system = named.contains { name in
-            name.image.map { $0.hasPrefix("/usr/lib/") || $0.hasPrefix("/System/") } == true
-        }
-        let ok = result.status == KERN_SUCCESS && stack.count >= 3 && helper && system
-        var line = "stack walk \(ok ? "ok" : "failed") frames=\(stack.count) named=\(named.count)"
+        let helper = names.dropFirst().first?.symbol?.contains("holdForStackWalkProbe") == true
+        let system = named.contains(where: isSystem)
+        let ok = result.status == KERN_SUCCESS && names.count >= 3 && helper && system
+        var line = "stack walk \(ok ? "ok" : "failed") frames=\(names.count) named=\(named.count)"
         line += " helper=\(helper ? "yes" : "no") system=\(system ? "yes" : "no")"
         return ok ? line : line + " status=\(result.status)"
+    }
+
+    private static func isSystem(_ name: FrameName) -> Bool {
+        name.image.map { $0.hasPrefix("/usr/lib/") || $0.hasPrefix("/System/") } == true
     }
 }
 
 /// The helper thread of the walk self-check. `thread` is written before `ready` and read after it.
+/// The helper reads one byte from the pipe, and `release` writes it.
 final class WalkProbe: @unchecked Sendable {
     let ready = DispatchSemaphore(value: 0)
-    let release = DispatchSemaphore(value: 0)
     var thread = ms_thread()
+    private(set) var pipe: [Int32] = [-1, -1]
+
+    init?() {
+        guard Darwin.pipe(&pipe) == 0 else { return nil }
+    }
+
+    func release() { _ = write(pipe[1], [UInt8(1)], 1) }
+
+    deinit { for descriptor in pipe { close(descriptor) } }
 }
 
 /// The frame that the walk self-check looks for. Its name has no word of the module name, so the
-/// Swift mangling keeps it whole in the symbol. Internal, not private: `dladdr` names it. The
-/// wait is not the last step, so an optimized build makes no tail call that removes the frame.
+/// Swift mangling keeps it whole in the symbol. Internal, not private: `dladdr` names it. It
+/// calls the `read` stub itself, and the read is not the last step, so an optimized build makes
+/// no tail call that removes the frame.
 @inline(never) func holdForStackWalkProbe(_ probe: WalkProbe) {
     probe.thread = ms_thread_current()
     probe.ready.signal()
-    withExtendedLifetime(probe) { probe.release.wait() }
+    var byte: UInt8 = 0
+    _ = read(probe.pipe[0], &byte, 1)
+    withExtendedLifetime(probe) {}
 }

@@ -211,7 +211,9 @@ extension SessionError {
             "clip \"\(id)\" needs \(needed) frames of audio past its edge in its file for this crossfade."
         case .crossfadeWithoutJoin(let id): "no clip touches the crossfade edge of clip \"\(id)\"."
         case .crossfadeAtSeamlessJoin(let id):
-            "clip \"\(id)\" and the next clip play one piece of audio; a crossfade there would be 3 dB too loud."
+            "session.xml is from an older version of Dirigible that cannot hold a crossfade between clip \"\(id)\" "
+                + "and the next clip, which play one piece of audio. Remove crossfadeOut from that clip and crossfadeIn "
+                + "from the next clip in session.xml."
         case .crossfadeAtEqualGains(let id):
             "clip \"\(id)\" and the next clip play one piece of audio at one gain with no fade at the join, so a "
                 + "crossfade there changes nothing."

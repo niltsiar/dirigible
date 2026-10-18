@@ -213,10 +213,12 @@ public struct Clip: Identifiable, Hashable, Sendable {
     public var fades: Fades
     /// `ClipLane` keeps each crossfade paired with the touching neighbor (decision 0036).
     public var crossfades: Crossfades
+    /// At file frames, on top of `gain` (decision 0060). `Session.check` keeps each point in the file.
+    public var envelope: GainEnvelope
 
     public init(
         id: ClipID, file: FileID, start: Frames, offset: Frames, length: Frames, gain: Gain = .zero,
-        fades: Fades = .zero, crossfades: Crossfades = .zero
+        fades: Fades = .zero, crossfades: Crossfades = .zero, envelope: GainEnvelope = .empty
     ) {
         self.id = id
         self.file = file
@@ -226,6 +228,7 @@ public struct Clip: Identifiable, Hashable, Sendable {
         self.gain = gain
         self.fades = fades
         self.crossfades = crossfades
+        self.envelope = envelope
     }
 
     public var end: Frames { start + length }

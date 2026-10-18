@@ -208,8 +208,8 @@ let clipTools = [
     },
     Tool(
         "clip_heal",
-        "Join the clips that touch and play on in one file at one gain, with no fade at the join. The sound does "
-            + "not change: it undoes a split. Give the ID of each healed clip.",
+        "Join the clips that touch and play on in one file at one gain at each frame, the envelope included, with "
+            + "no fade at the join. The sound does not change: it undoes a split. Give the ID of each healed clip.",
         [healTracks, healFrom, healTo]
     ) { a throws(ToolError) in
         let targets = try a[healTracks]?.map { TrackID($0) }

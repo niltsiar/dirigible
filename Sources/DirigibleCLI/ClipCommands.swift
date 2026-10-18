@@ -288,8 +288,9 @@ extension ClipCommand {
     struct Heal: ParsableCommand {
         static let configuration = CommandConfiguration(
             abstract:
-                "Join the clips that touch and play on in one file at one gain, with no fade at the join. The sound "
-                + "does not change: it undoes a split. Write the ID of each healed clip.")
+                "Join the clips that touch and play on in one file at one gain at each frame, the envelope included, "
+                + "with no fade at the join. The sound does not change: it undoes a split. Write the ID of each healed clip."
+        )
         @OptionGroup var package: PackageArgument
         @Option(help: "A track. The default is all tracks.") var track: [String] = []
         @Option(parsing: .unconditional, help: "Only the joins from this timeline frame. Give it with --to.")

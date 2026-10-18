@@ -102,6 +102,28 @@ struct ExcerptResampleTests {
         #expect(scaled.lanes[0].clips.map(\.gain.dB) == [96], "C4: the sum clamps at +96 dB")
     }
 
+    /// C2: a paste at another rate scales each point frame as an offset, round(f x 44 100 / 48 000),
+    /// and stops it at the end of the converted file. Of two points on one frame, the first stays:
+    /// frames 6 and 7 both go to 6, and frames 59 990 and 60 000 both stop at 55 000.
+    @Test func aCrossRatePasteKeepsTheFirstOfTwoPointsOnOneFrame() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 60_000))
+        try session.addTrack("t", name: "T", layout: .mono)
+        let points = envelope([(6, -3), (7, -9), (20_000, -6), (59_990, -12), (60_000, 0)])
+        try session.place(Clip(id: "A", file: "f", start: 0, offset: 0, length: 30_000, envelope: points), on: "t")
+        let excerpt = try session.excerpt(of: 0..<30_000, on: ["t"])
+
+        let scaled = excerpt.resampled(to: 44_100, lengths: ["f": 55_000])
+
+        let expected = envelope([(6, -3), (18_375, -6), (55_000, -12)])
+        #expect(scaled.lanes[0].clips.map(\.envelope) == [expected])
+        var target = Session(sampleRate: 44_100)
+        try target.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 55_000))
+        try target.addTrack("t", name: "T", layout: .mono)
+        try target.paste(scaled, at: 0, on: ["t"])
+        #expect(target.track("t").map { $0.clips.map(\.envelope) } == [expected], "the paste passes the check")
+    }
+
     /// Literal edges at 44 100 to 48 000 Hz: 88 200 -> 96 000, a 441-frame fade -> 480, an
     /// 882-frame crossfade -> 960, and the length stops at the converted file end.
     @Test func literalEdgesScaleToTheNearestFrame() throws {

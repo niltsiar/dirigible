@@ -84,7 +84,7 @@ extension Session {
         var trimmed = Clip(
             id: id, file: clip.file, start: range.lowerBound, offset: offset,
             length: range.upperBound - range.lowerBound, gain: clip.gain,
-            crossfades: .kept(edgesOf: clip, in: range))
+            crossfades: .kept(edgesOf: clip, in: range), envelope: clip.envelope)
         trimmed.fades = trimmed.fitting(clip.fades, keeping: kept)
         try check(trimmed, on: tracks[track])
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
@@ -183,7 +183,9 @@ extension Session {
         guard clip.start.isInRange, clip.offset >= .zero else { throw .frameOutOfRange }
         guard let file = files[clip.file] else { throw .unknownFile(clip.file) }
         guard file.layout == track.layout else { throw .layoutMismatch(track.id, .file(file.id)) }
-        guard clip.length > .zero, clip.length <= file.length - clip.offset else { throw .clipOutsideFile(clip.id) }
+        guard clip.length > .zero, clip.length <= file.length - clip.offset,
+            clip.envelope.points.last.map({ $0.frame <= file.length }) ?? true
+        else { throw .clipOutsideFile(clip.id) }
         let (before, after) = (clip.crossfades.start.half, clip.crossfades.end.half)
         guard (before == .zero || clip.fades.fadeIn == .zero) && (after == .zero || clip.fades.fadeOut == .zero) else {
             throw .fadeAtCrossfade(clip.id)

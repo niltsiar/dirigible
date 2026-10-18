@@ -185,13 +185,18 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair((index - 1)..<(index + 1))
     }
 
-    /// True when the clips at `left` and `left + 1` touch and play on in one file at one gain, with
-    /// no fade at the join: one clip over both plays the same samples, and so does a crossfade of
-    /// any length there (Command-F skips the join).
+    /// True when the clips at `left` and `left + 1` touch and play on in one file at one gain at
+    /// each frame, the envelope included, with no fade at the join: one clip over both plays the
+    /// same samples, and so does a crossfade of any length there (Command-F skips the join). The
+    /// envelopes compare on the file frames that the joined clip plays, its crossfade halves too
+    /// (decision 0060).
     package func canHeal(after left: Int) -> Bool {
         guard join(after: left) == .seamless else { return false }
         let (a, b) = (storage[left], storage[left + 1])
-        return a.gain == b.gain && a.fades.fadeOut == .zero && b.fades.fadeIn == .zero
+        guard a.gain == b.gain, a.fades.fadeOut == .zero, b.fades.fadeIn == .zero else { return false }
+        let first = a.offset - a.crossfades.start.half
+        let last = b.offset + b.length + b.crossfades.end.half - Frames(1)
+        return a.envelope.hasEqualGain(to: b.envelope, in: first...last)
     }
 
     /// True when a new crossfade at the join after `left` changes no sample: `canHeal(after:)`, and
@@ -203,11 +208,13 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
 
     /// Joins the clip at `index` and the clip after it, which `canHeal(after:)` approved. The clip
     /// keeps its ID, its start edge, and the fade-in and start crossfade; the right clip gives the end
-    /// edge. The neighbors still touch the same edges, so their crossfades stay paired.
+    /// edge, and the points of each clip on its side of the join. The neighbors still touch the same
+    /// edges, so their crossfades stay paired.
     mutating func heal(at index: Int) {
         var clip = storage[index]
         let right = storage.remove(at: index + 1)
         clip.length = clip.length + right.length
+        clip.envelope = .joined(clip.envelope, right.envelope, at: right.offset)
         clip.fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: right.fades.fadeOut)!
         clip.crossfades = Crossfades(valid: clip.crossfades.start, end: right.crossfades.end)
         storage[index] = clip
@@ -257,7 +264,8 @@ extension Clip {
     func cut(to range: Range<Frames>, id: ClipID) -> Clip {
         var part = Clip(
             id: id, file: file, start: range.lowerBound, offset: offset + (range.lowerBound - start),
-            length: range.upperBound - range.lowerBound, gain: gain, fades: fades.cut(range, of: self.range))
+            length: range.upperBound - range.lowerBound, gain: gain, fades: fades.cut(range, of: self.range),
+            envelope: envelope)
         let kept = Crossfades.kept(edgesOf: self, in: range)
         part.crossfades = kept
         part.crossfades = Crossfades(

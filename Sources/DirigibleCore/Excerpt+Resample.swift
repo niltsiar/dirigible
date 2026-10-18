@@ -32,6 +32,7 @@ extension Excerpt {
                 (result.start, result.offset) = (start, offset)
                 result.length = min(scale(clip.end) - start, fileLength - offset)
                 result.crossfades = .zero
+                result.envelope = clip.envelope.resampled(scale, fileLength: fileLength)
                 if let gain = gains[clip.file], let sum = Gain(clamping: clip.gain.dB + gain.dB) { result.gain = sum }
                 return result
             }

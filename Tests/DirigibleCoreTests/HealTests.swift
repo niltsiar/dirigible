@@ -94,6 +94,48 @@ struct HealTests {
         }
     }
 
+    /// C3: a heal needs equal envelope gain at each file frame of the joined range (0 ..< 20 000).
+    /// Two parts of one split heal to the list of the clip. A right list that differs only after the
+    /// range heals to the points of A before the join and of B from it. A step at the join and an
+    /// equal value at the join with another slope do not heal.
+    @Test func aJoinWithDifferentEnvelopeGainsDoesNotHeal() throws {
+        var split = session
+        let whole = Clip(
+            id: "A", file: "f", start: 0, offset: 0, length: 20_000, envelope: envelope([(5_000, -6), (15_000, 0)]))
+        try split.place(whole, on: "t")
+        let before = split
+        try split.split("A", at: 10_000)
+        #expect(try split.heal() == ["A"], "two parts of one split")
+        #expect(split == before)
+
+        let cases: [(name: String, a: GainEnvelope, b: GainEnvelope, healed: GainEnvelope?)] = [
+            (
+                "the right list differs only after the range", envelope([(0, -3), (25_000, -3)]),
+                envelope([(0, -3), (25_000, -3), (40_000, -12)]), envelope([(0, -3), (25_000, -3), (40_000, -12)])
+            ),
+            ("a step of 1 dB at the join", .empty, envelope([(10_000, -1)]), nil),
+            (
+                "an equal value at the join with another slope", envelope([(0, 0), (20_000, -10)]),
+                envelope([(0, -10), (20_000, 0)]), nil
+            ),
+        ]
+        for (name, envelopeA, envelopeB, healed) in cases {
+            var session = session
+            try session.place(
+                Clip(id: "A", file: "f", start: 0, offset: 0, length: 10_000, envelope: envelopeA), on: "t")
+            try session.place(
+                Clip(id: "B", file: "f", start: 10_000, offset: 10_000, length: 10_000, envelope: envelopeB), on: "t")
+            let before = session
+            if let healed {
+                #expect(try session.heal() == ["A"], "\(name)")
+                #expect(session.track("t").map { Array($0.clips).map(\.envelope) } == [healed], "\(name)")
+            } else {
+                #expect(throws: SessionError.nothingToHeal, "\(name)") { try session.heal() }
+                #expect(session == before, "\(name)")
+            }
+        }
+    }
+
     /// Three pieces heal to one clip in one call. A join in `from...to` heals: a join at `to`
     /// does, and a join at `to + 1` does not. With `tracks`, only those tracks heal.
     @Test mutating func aHealJoinsEveryPieceInTheRange() throws {

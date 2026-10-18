@@ -86,6 +86,8 @@ import Testing
         var hidden = 0
         var cancel: (@MainActor () -> Void)?
         var revealed: [URL] = []
+        /// The path that each collect got.
+        var zips: [URL] = []
         var failures: [(folder: String, cause: String)] = []
         let gate: AsyncStream<Void>
         let release: AsyncStream<Void>.Continuation
@@ -106,6 +108,7 @@ import Testing
         }
         app.panels.fail = { _, folder, cause in run.failures.append((folder, cause)) }
         app.panels.collect = { zip, _ in
+            run.zips.append(zip)
             if waits { for await _ in run.gate { break } }
             if case .success = result { try? Data("zip".utf8).write(to: zip) }
             return result
@@ -145,11 +148,23 @@ import Testing
         #expect(run.revealed.isEmpty)
     }
 
-    /// C35: Cancel on the progress sheet hides it, drops the late zip, and shows nothing.
-    @Test func cancelDropsTheLateReport() async throws {
+    /// A folder for one report, so the test sees each file that the report leaves.
+    func reportFolder() throws -> URL {
+        let url = folder.url.appending(path: "Desktop")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    func names(in folder: URL) throws -> [String] { try FileManager.default.contentsOfDirectory(atPath: folder.path) }
+
+    /// C35: Cancel on the progress sheet hides it, drops the late zip, and shows nothing. The
+    /// file that the panel asked to replace stays, and no temporary file stays.
+    @Test(arguments: [true, false]) func cancelDropsTheLateReport(replacing: Bool) async throws {
         let run = Run()
         prepare(run, waits: true, delay: .milliseconds(50), result: .success(collected))
-        let url = folder.url.appending(path: "Report.zip")
+        let desktop = try reportFolder()
+        let url = desktop.appending(path: "Report.zip")
+        if replacing { try Data("old".utf8).write(to: url) }
 
         let writing = Task { await app.writeReport(to: url) }
         await until("the progress sheet shows") { run.shown == 1 }
@@ -158,7 +173,39 @@ import Testing
         await writing.value
 
         #expect(run.hidden == 1 && run.revealed.isEmpty && run.failures.isEmpty)
-        #expect(!FileManager.default.fileExists(atPath: url.path), "the late zip is removed")
+        #expect(try names(in: desktop) == (replacing ? ["Report.zip"] : []), "the late zip is removed")
+        if replacing { #expect(try Data(contentsOf: url) == Data("old".utf8), "the old file stays") }
+    }
+
+    /// A report never deletes a file unless its new zip replaces it: the collect writes to its own
+    /// path, and a failed collect leaves the old file.
+    @Test func aFailedCollectKeepsTheFileItWouldReplace() async throws {
+        let run = Run()
+        prepare(run, waits: false, delay: .seconds(60), result: .failure(.cannotWrite("no write permission")))
+        let desktop = try reportFolder()
+        let url = desktop.appending(path: "Report.zip")
+        try Data("old".utf8).write(to: url)
+
+        await app.writeReport(to: url)
+
+        #expect(run.failures.count == 1 && run.zips.count == 1 && run.zips[0] != url)
+        #expect(try Data(contentsOf: url) == Data("old".utf8), "the old file stays")
+        #expect(try names(in: desktop) == ["Report.zip"], "no temporary file stays")
+    }
+
+    /// A saved report replaces the file that the panel confirmed, and a new name gets the zip.
+    @Test(arguments: [true, false]) func aSavedReportReplacesTheOldFile(replacing: Bool) async throws {
+        let run = Run()
+        prepare(run, waits: false, delay: .seconds(60), result: .success(collected))
+        let desktop = try reportFolder()
+        let url = desktop.appending(path: "Report.zip")
+        if replacing { try Data("old".utf8).write(to: url) }
+
+        await app.writeReport(to: url)
+
+        #expect(try Data(contentsOf: url) == Data("zip".utf8), "the new zip is at the chosen name")
+        #expect(try names(in: desktop) == ["Report.zip"], "no temporary file stays")
+        #expect(run.revealed == [url] && run.failures.isEmpty)
     }
 
     /// C36: the notice goes to the first window that shows, once, and Not Now ends it. A launch

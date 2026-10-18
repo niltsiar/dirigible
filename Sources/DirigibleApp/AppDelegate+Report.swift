@@ -121,9 +121,10 @@ extension AppDelegate {
         }
     }
 
-    /// Makes the zip at `url`, which the save panel confirmed. The progress sheet shows when the
-    /// collect takes longer than `progressDelay`. Then a VoiceOver announcement, and Finder shows
-    /// the file. A Cancel of the progress sheet drops the result.
+    /// Makes the zip at `url`, which the save panel confirmed. The collect writes to a hidden file
+    /// next to `url`, and the zip replaces `url` only when the collect succeeds. The progress
+    /// sheet shows when the collect takes longer than `progressDelay`. Then a VoiceOver
+    /// announcement, and Finder shows the file. A Cancel of the progress sheet drops the result.
     func writeReport(to url: URL) async {
         let host = reportHost
         let (panels, logFolder) = (panels, logFolder)
@@ -132,23 +133,38 @@ extension AppDelegate {
             try? await Task.sleep(for: panels.progressDelay)
             if !Task.isCancelled { run.show(panels.progress(host) { run.cancel() }) }
         }
-        // The panel asked to replace the file, and the bundle needs a free path.
-        try? FileManager.default.removeItem(at: url)
-        let result = await panels.collect(url, logFolder)
+        let folder = url.deletingLastPathComponent()
+        let temporary = folder.appending(path: ".Dirigible-report-\(UUID().uuidString).zip")
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        let result = await panels.collect(temporary, logFolder)
         timer.cancel()
         run.finish()
+        if run.cancelled { return }
+        let name = FileManager.default.displayName(atPath: folder.path)
         switch result {
         case .success:
-            if run.cancelled {
-                try? FileManager.default.removeItem(at: url)
-                return
+            do {
+                try Self.place(temporary, at: url)
+            } catch {
+                return panels.fail(host, name, error.cause)
             }
             postAnnouncement(L10n.reportSaved.text, priority: .high)
             reveal([url])
         case .failure(let error):
-            if run.cancelled { return }
-            let folder = FileManager.default.displayName(atPath: url.deletingLastPathComponent().path)
-            panels.fail(host, folder, error.cause)
+            panels.fail(host, name, error.cause)
+        }
+    }
+
+    /// Moves `zip` to `url`, and replaces the file that is there.
+    private static func place(_ zip: URL, at url: URL) throws(BundleError) {
+        do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: zip)
+            } else {
+                try FileManager.default.moveItem(at: zip, to: url)
+            }
+        } catch {
+            throw .cannotWrite("the file cannot be replaced")
         }
     }
 }

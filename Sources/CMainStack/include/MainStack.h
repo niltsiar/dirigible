@@ -29,8 +29,9 @@ typedef struct {
 ms_thread ms_thread_current(void);
 
 /// Suspends `thread`, saves its pc and the return address of each frame-pointer record inside
-/// its stack bounds into `frames` (at most `capacity`), and resumes it. A walk of the calling
-/// thread returns `KERN_INVALID_ARGUMENT` with no suspend.
+/// its stack bounds into `frames` (at most `capacity`), and resumes it. When the pc follows a
+/// system call instruction, the second frame is the caller of that stub, which has no record.
+/// A walk of the calling thread returns `KERN_INVALID_ARGUMENT` with no suspend.
 ms_walk_result ms_walk(ms_thread thread, uintptr_t *frames, int capacity);
 
 /// Clears the pointer-authentication bits of an arm64e code address: the bits above the 47-bit

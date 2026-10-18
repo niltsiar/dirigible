@@ -2,6 +2,7 @@ import CMainStack
 import Foundation
 import MachO
 import Testing
+import os
 
 /// The C part of the hang watchdog (decision 0059): the PAC mask and the image list.
 struct MainStackTests {
@@ -48,6 +49,41 @@ struct MainStackTests {
         #expect(ms_images_dropped() == 0)
     }
 
+    /// C10: a thread that waits in the `read` stub, which has no frame record. The frame after
+    /// the pc is the function that called the stub.
+    @Test func theWalkNamesTheCallerOfAStubWithNoFrame() async throws {
+        var pipe: [Int32] = [-1, -1]
+        try #require(Darwin.pipe(&pipe) == 0)
+        defer { for descriptor in pipe { close(descriptor) } }
+        let reader = pipe[0]
+        let thread = await startThread { readInsideTheTestFunction(reader) }
+
+        let frames = try #require(
+            await walk(thread, until: { $0.first.map(symbol)?.hasPrefix("read") == true }), "no walk in read")
+        _ = write(pipe[1], [UInt8(1)], 1)
+
+        #expect(frames.count >= 3, "\(frames.count) frames")
+        let caller = frames.dropFirst().first.map { symbol($0 - 1) } ?? "none"
+        #expect(caller.contains("readInsideTheTestFunction"), "frame 1: \(caller)")
+    }
+
+    /// C10: a thread in a loop of a function with a frame record. The frame after the pc comes
+    /// from the record, never from a word of the stack.
+    @Test func theWalkOfAFunctionWithAFrameAddsNoStackWord() async throws {
+        nonisolated(unsafe) let spinning = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
+        spinning.initialize(to: 1)
+        let thread = await startThread { spinInsideTheTestFunction(spinning) }
+        defer { spinning.pointee = 0 }
+
+        let frames = try #require(await walk(thread, until: { $0.count >= 2 }), "no walk of 2 frames")
+        spinning.pointee = 0
+
+        let inStack = frames.dropFirst().filter { $0 >= thread.stack_low && $0 < thread.stack_high }
+        #expect(inStack.isEmpty, "stack addresses as frames: \(inStack.map { String($0, radix: 16) })")
+        let caller = frames.dropFirst().first.map { symbol($0 - 1) } ?? "none"
+        #expect(caller != "?", "frame 1 has no name")
+    }
+
     /// The UUIDs of the list for each header address.
     func imageList() -> [UInt: [[UInt8]]] {
         var list: [UInt: [[UInt8]]] = [:]
@@ -75,4 +111,50 @@ struct MainStackTests {
         }
         return nil
     }
+}
+
+/// Starts a thread that runs `body` and returns the thread once it runs.
+private func startThread(_ body: @escaping @Sendable () -> Void) async -> ms_thread {
+    let thread = OSAllocatedUnfairLock<ms_thread?>(initialState: nil)
+    Thread {
+        thread.withLock { $0 = ms_thread_current() }
+        body()
+    }.start()
+    let end = ContinuousClock.now + .seconds(5)
+    while ContinuousClock.now < end, thread.withLock({ $0 }) == nil { try? await Task.sleep(for: .milliseconds(5)) }
+    return thread.withLock { $0 } ?? ms_thread()
+}
+
+/// The frames of the first walk of `thread` that `done` accepts, at most 5 s of walks.
+private func walk(_ thread: ms_thread, until done: ([UInt]) -> Bool) async -> [UInt]? {
+    var frames = [UInt](repeating: 0, count: 128)
+    let end = ContinuousClock.now + .seconds(5)
+    while ContinuousClock.now < end {
+        let result = ms_walk(thread, &frames, Int32(frames.count))
+        let stack = Array(frames.prefix(Int(result.count)))
+        if result.status == KERN_SUCCESS, done(stack) { return stack }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return nil
+}
+
+/// The symbol of `address` from `dladdr`, or `?`.
+private func symbol(_ address: UInt) -> String {
+    var info = Dl_info()
+    guard let pointer = UnsafeRawPointer(bitPattern: address), dladdr(pointer, &info) != 0, let name = info.dli_sname
+    else { return "?" }
+    return String(cString: name)
+}
+
+/// Waits in `read(2)` until a byte comes. Internal, so `dladdr` names it.
+@inline(never) func readInsideTheTestFunction(_ descriptor: Int32) {
+    var byte: UInt8 = 0
+    _ = read(descriptor, &byte, 1)
+    withExtendedLifetime(byte) {}
+}
+
+/// Loops until `spinning` is 0.
+@inline(never) func spinInsideTheTestFunction(_ spinning: UnsafeMutablePointer<Int32>) {
+    while spinning.pointee != 0 {}
+    withExtendedLifetime(spinning) {}
 }

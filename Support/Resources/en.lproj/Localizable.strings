@@ -495,10 +495,10 @@
 "start.recent.missing" = "Not found";
 "menu.help.report" = "Report a Problem…";
 "report.title" = "Report a Problem";
-"report.privacy" = "The report has no audio, no session files, no transcripts, and no names of guests or sessions. It has the names of your audio devices and your Mac model. Your name, the name of your Mac, and your folder names are removed. Dirigible sends nothing. You choose if you send the file, and to whom.";
+"report.privacy" = "The report has no audio, no session files, and no transcripts. It has the names of your audio devices, the apps that you record, and your Mac model. The logs show a code in place of each device ID. The crash and hang reports are copied as macOS wrote them, cut to the part about Dirigible. Your user name, the name of your Mac, and your home folder are removed from every file. A report can still hold other folder and file names. Dirigible sends nothing. You choose if you send the file, and to whom.";
 "report.included.show" = "Show what is included";
 "report.included.logs" = "The logs of the last 7 days, with the stacks of hangs";
-"report.included.crashes" = "The crash reports of Dirigible";
+"report.included.crashes" = "The crash and hang reports of Dirigible";
 "report.included.devices" = "The list of your audio devices";
 "report.included.summary" = "A summary of your Mac: macOS version, model, free space, and the microphone permission";
 "report.save" = "Save Report…";

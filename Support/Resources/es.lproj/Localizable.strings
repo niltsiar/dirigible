@@ -495,10 +495,10 @@
 "start.recent.missing" = "No se encuentra";
 "menu.help.report" = "Informar de un problema…";
 "report.title" = "Informar de un problema";
-"report.privacy" = "El informe no tiene audio, ni archivos de sesión, ni transcripciones, ni nombres de invitados o de sesiones. Tiene los nombres de tus dispositivos de audio y el modelo de tu Mac. Tu nombre, el nombre de tu Mac y los nombres de tus carpetas se quitan. Dirigible no envía nada. Tú eliges si envías el archivo y a quién.";
+"report.privacy" = "El informe no tiene audio, ni archivos de sesión, ni transcripciones. Tiene los nombres de tus dispositivos de audio, de las apps que grabas y el modelo de tu Mac. Los registros muestran un código en lugar de cada ID de dispositivo. Los informes de fallos y de bloqueos se copian tal como los escribió macOS, recortados a la parte sobre Dirigible. Tu nombre de usuario, el nombre de tu Mac y tu carpeta personal se quitan de cada archivo. Un informe aún puede tener otros nombres de carpetas y de archivos. Dirigible no envía nada. Tú eliges si envías el archivo y a quién.";
 "report.included.show" = "Mostrar qué se incluye";
 "report.included.logs" = "Los registros de los últimos 7 días, con las pilas de los bloqueos";
-"report.included.crashes" = "Los informes de fallos de Dirigible";
+"report.included.crashes" = "Los informes de fallos y de bloqueos de Dirigible";
 "report.included.devices" = "La lista de tus dispositivos de audio";
 "report.included.summary" = "Un resumen de tu Mac: versión de macOS, modelo, espacio libre y permiso del micrófono";
 "report.save" = "Guardar informe…";

@@ -495,10 +495,10 @@
 "start.recent.missing" = "Non trovata";
 "menu.help.report" = "Segnala un problema…";
 "report.title" = "Segnala un problema";
-"report.privacy" = "Il rapporto non contiene audio, file di sessione, trascrizioni né nomi di ospiti o di sessioni. Contiene i nomi dei tuoi dispositivi audio e il modello del tuo Mac. Il tuo nome, il nome del tuo Mac e i nomi delle tue cartelle vengono rimossi. Dirigible non invia nulla. Sei tu a scegliere se inviare il file e a chi.";
+"report.privacy" = "Il rapporto non contiene audio, file di sessione né trascrizioni. Contiene i nomi dei tuoi dispositivi audio, delle app che registri e il modello del tuo Mac. I registri mostrano un codice al posto di ogni ID dispositivo. I rapporti di arresto anomalo e di blocco sono copiati come li ha scritti macOS, ridotti alla parte su Dirigible. Il tuo nome utente, il nome del tuo Mac e la tua cartella Home vengono rimossi da ogni file. Un rapporto può ancora contenere altri nomi di cartelle e di file. Dirigible non invia nulla. Sei tu a scegliere se inviare il file e a chi.";
 "report.included.show" = "Mostra cosa è incluso";
 "report.included.logs" = "I registri degli ultimi 7 giorni, con gli stack dei blocchi";
-"report.included.crashes" = "I rapporti di arresto anomalo di Dirigible";
+"report.included.crashes" = "I rapporti di arresto anomalo e di blocco di Dirigible";
 "report.included.devices" = "L’elenco dei tuoi dispositivi audio";
 "report.included.summary" = "Un riepilogo del tuo Mac: versione di macOS, modello, spazio libero e permesso del microfono";
 "report.save" = "Salva rapporto…";

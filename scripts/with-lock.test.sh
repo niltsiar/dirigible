@@ -340,7 +340,7 @@ printf '#!/bin/bash\nexec %q touch %q\n' "$repo/scripts/with-lock.sh" "$tmp/ran"
 chmod +x "$repo/scripts/check-changed.sh" "$fake/rcmake"
 hold_for 4
 rm -f "$tmp/ran"
-out="$(cd "$repo" && MAKE="$fake/rcmake" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/run-checks.sh test 2>&1)"
+out="$(cd "$repo" && env -u BASE MAKE="$fake/rcmake" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/run-checks.sh test 2>&1)"
 code=$?
 [[ $code -eq 0 && -e "$tmp/ran" ]] || fail "run-checks.sh: the recipe call stops at the limit of the caller: exit $code: $out"
 clear_hold

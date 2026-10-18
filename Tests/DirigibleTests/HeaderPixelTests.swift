@@ -66,10 +66,14 @@ import Testing
             return (rows, Int(rect.minX * scale)..<Int(rect.maxX * scale))
         }
 
-        /// The BGRA pixels in `rect` (window points), as `TimelineRulerTests.pixels`.
+        /// The BGRA pixels in `rect` (window points), as `TimelineRulerTests.pixels`. The rect must
+        /// be in the capture: a read outside it reads memory outside the image.
         func pixels(_ rect: NSRect) throws -> [UInt32] {
             let bytes = try #require(CFDataGetBytePtr(data))
             let (rows, columns) = area(rect)
+            try #require(
+                rows.clamped(to: 0..<image.height) == rows && columns.clamped(to: 0..<image.width) == columns,
+                "the rect \(rect) is in the capture of \(image.width) x \(image.height) pixels")
             var pixels: [UInt32] = []
             pixels.reserveCapacity(rows.count * columns.count)
             for y in rows {
@@ -192,7 +196,8 @@ import Testing
                     try capture.pixels(scene.lanes) != old.pixels(scene.lanes),
                     "the capture shows the scroll at \(step)")
                 #expect(
-                    try capture.pixels(try #require(scene.playhead)).contains(where: Self.isPlayhead),
+                    try capture.pixels(try #require(scene.playhead).intersection(scene.lanes))
+                        .contains(where: Self.isPlayhead),
                     "the capture shows the red playhead at \(step)")
             }
         case .vertical:

@@ -106,14 +106,20 @@ final class Journal: @unchecked Sendable {
     private static let partFlags = O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC | O_EXLOCK
 
     /// Adds a line for the next drain. Only the line that finds none waiting queues a drain, so
-    /// a backlog costs few writes. After `refuseNotes`, it drops the line.
+    /// a backlog costs few writes. A `hang` or a `fault` line queues a user-interactive drain,
+    /// which lends its QoS to the drains before it, so the line never waits for `.utility` work.
+    /// After `refuseNotes`, it drops the line.
     func note(_ entry: Entry) {
-        let first = waiting.withLock { state in
-            guard !state.refused else { return false }
+        let (added, first) = waiting.withLock { state in
+            guard !state.refused else { return (false, false) }
             state.lines.append(entry)
-            return state.lines.count == 1
+            return (true, state.lines.count == 1)
         }
-        if first { queue.async { self.drain() } }
+        if added, entry.level == .fault || entry.category == .hang {
+            queue.async(execute: DispatchWorkItem(qos: .userInteractive, flags: .enforceQoS) { self.drain() })
+        } else if first {
+            queue.async { self.drain() }
+        }
     }
 
     /// Drops each later note, so the line that the quit queues next is the last line.

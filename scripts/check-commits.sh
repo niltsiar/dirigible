@@ -50,8 +50,8 @@ secrets() {
     case $code in
         0) ;;
         2)
-            grep -E '"(RuleID|File|Commit)"' <<<"$report" >&2 || true
-            die "gitleaks found a secret in the commits of $base..HEAD (listed above); remove it from the commit, not only from the tree"
+            grep -E '"(RuleID|File|StartLine|Commit|Fingerprint)"' <<<"$report" >&2 || true
+            die "gitleaks found a secret in the commits of $base..HEAD (listed above); remove it from the commit, not only from the tree. For a false positive, add its Fingerprint line to .gitleaksignore in a new commit"
             ;;
         *) die "gitleaks failed (exit $code)" ;;
     esac

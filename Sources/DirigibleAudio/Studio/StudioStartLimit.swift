@@ -67,7 +67,7 @@ private final class Once<T: Sendable>: Sendable {
 ) async -> [ObjectIdentifier: T] {
     let answers = OSAllocatedUnfairLock(initialState: [ObjectIdentifier: T]())
     let tasks = writers.map { writer in
-        Task.detached {
+        Task { @concurrent in
             let answer = await work(writer)
             answers.withLock { $0[ObjectIdentifier(writer)] = answer }
         }

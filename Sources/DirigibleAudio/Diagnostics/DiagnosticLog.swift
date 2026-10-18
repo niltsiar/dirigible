@@ -36,19 +36,17 @@ public final class DiagnosticLog: Sendable {
     public enum Kind: String, Sendable { case app, cli }
 
     /// Writes nothing: the log before a start, after an open failure, and of a caller with no log.
-    public static let disabled = DiagnosticLog(journal: nil, previousEndedUnclean: false)
+    public static let disabled = DiagnosticLog(journal: nil)
 
     /// False for `disabled`, also after a start that could not open the journal.
     public var isEnabled: Bool { journal != nil }
     /// True when the newest earlier app journal ends with no `app quit` line and no process holds
-    /// its lock.
-    public let previousEndedUnclean: Bool
+    /// its lock. The journal queue reads that journal after the start, and the first read waits
+    /// for it.
+    public var previousEndedUnclean: Bool { journal?.previousEndedUnclean ?? false }
     private let journal: Journal?
 
-    private init(journal: Journal?, previousEndedUnclean: Bool) {
-        self.journal = journal
-        self.previousEndedUnclean = previousEndedUnclean
-    }
+    private init(journal: Journal?) { self.journal = journal }
 
     /// `DIRIGIBLE_LOG_FOLDER` when it is set, else `~/Library/Logs/Dirigible`.
     public static func folder(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
@@ -60,8 +58,9 @@ public final class DiagnosticLog: Sendable {
 
     /// Opens `<yyyy-MM-dd-HHmmss>-<kind>-<pid>.tsv` in `folder` (UTC time) and writes the version
     /// line, the header, and the `app launch` line with the build facts of the front end. Then the
-    /// queue deletes the oldest journals past the limits. When the journal cannot open, it writes
-    /// one `fault` line to the system log and returns `disabled`.
+    /// queue reads the salt, checks the end of the earlier app journal, and deletes the oldest
+    /// journals past the limits. When the journal cannot open, it writes one `fault` line to the
+    /// system log and returns `disabled`.
     public static func start(_ kind: Kind, folder: URL, version: String, commit: String, now: Date = .now)
         -> DiagnosticLog
     {
@@ -75,11 +74,11 @@ public final class DiagnosticLog: Sendable {
     ) -> DiagnosticLog {
         let launch = Entry(.app, "launch", launchFields(version: version, commit: commit), date: now)
         do throws(JournalOpenError) {
-            let (journal, unclean) = try Journal.open(
+            let journal = try Journal.open(
                 kind, folder: folder, now: now, launch: launch, queue: queue, partLimit: partLimit)
-            return DiagnosticLog(journal: journal, previousEndedUnclean: unclean)
+            return DiagnosticLog(journal: journal)
         } catch {
-            openLog.fault("The diagnostics journal did not open: \(error.description, privacy: .public)")
+            diagnosticsLog.fault("The diagnostics journal did not open: \(error.description, privacy: .public)")
             return .disabled
         }
     }
@@ -153,7 +152,8 @@ public struct DiagnosticSpan: Sendable {
     }
 }
 
-private let openLog = Logger(subsystem: "com.delineas.dirigible", category: "diagnostics")
+/// The system log of the journal: only for a journal that does not open, or a salt that does not.
+let diagnosticsLog = Logger(subsystem: "com.delineas.dirigible", category: "diagnostics")
 
 /// One line before its format: the caller takes the time, the uptime, and the thread, and the
 /// journal queue makes the text and the tokens.
@@ -180,7 +180,7 @@ struct Entry: Sendable {
     }
 
     /// The line with its newline: the six columns, then one `key=value` column for each field.
-    func line(salt: SymmetricKey) -> String {
+    func line(salt: SymmetricKey?) -> String {
         var line = "\(utcTime(date))\t\(uptimeNanos / 1_000_000)\t\(escaped(thread))\t\(level.rawValue)"
         line += "\t\(category.rawValue)\t\(event)"
         for (key, value) in fields { line += "\t\(escaped(key))=\(text(of: value, salt: salt))" }
@@ -188,14 +188,14 @@ struct Entry: Sendable {
     }
 }
 
-private func text(of value: DiagnosticValue, salt: SymmetricKey) -> String {
+private func text(of value: DiagnosticValue, salt: SymmetricKey?) -> String {
     switch value {
     case .text(let text): escaped(text)
     case .number(let number): String(number)
     case .milliseconds(let ms): String(format: "%.1f", ms)
     case .status(let status): statusText(status)
-    case .uid(let uid): "uid-" + token(uid, salt: salt)
-    case .package(let url): "pkg-" + token(url.standardizedFileURL.path, salt: salt)
+    case .uid(let uid): "uid-" + (salt.map { token(uid, salt: $0) } ?? "none")
+    case .package(let url): "pkg-" + (salt.map { token(url.standardizedFileURL.path, salt: $0) } ?? "none")
     }
 }
 

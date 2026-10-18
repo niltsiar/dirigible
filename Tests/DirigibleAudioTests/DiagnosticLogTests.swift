@@ -123,7 +123,7 @@ struct DiagnosticLogTests {
         let salt = folder.url.appending(path: "salt")
         try Data(repeating: 7, count: 10).write(to: salt)
 
-        _ = startLog(in: folder.url)
+        startLog(in: folder.url).drain()
 
         #expect(try Data(contentsOf: salt).count == 32)
     }

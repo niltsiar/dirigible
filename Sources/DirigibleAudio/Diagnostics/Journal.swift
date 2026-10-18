@@ -24,7 +24,8 @@ final class Journal: @unchecked Sendable {
     static func makeQueue() -> DispatchQueue { DispatchQueue(label: "Dirigible.Journal", qos: .utility) }
 
     let queue: DispatchQueue
-    private let salt: SymmetricKey
+    /// Nil until the queue reads the salt, and when it cannot read or write one.
+    private var salt: SymmetricKey?
     private let current: String
     private let previous: String
     /// The version line, the header, and the launch line: the start of each part.
@@ -34,12 +35,11 @@ final class Journal: @unchecked Sendable {
     private var partBytes: Int
     /// The noted lines that no drain has taken yet, and true after `refuseNotes`.
     private let waiting = OSAllocatedUnfairLock(initialState: (lines: [Entry](), refused: false))
+    /// The result of the unclean-end check, after the queue ran it.
+    private let unclean = OSAllocatedUnfairLock<Bool?>(initialState: nil)
 
-    private init(
-        queue: DispatchQueue, salt: SymmetricKey, stem: URL, preamble: Data, partLimit: Int, descriptor: Int32
-    ) {
+    private init(queue: DispatchQueue, stem: URL, preamble: Data, partLimit: Int, descriptor: Int32) {
         self.queue = queue
-        self.salt = salt
         current = stem.path + ".tsv"
         previous = stem.path + ".prev.tsv"
         self.preamble = preamble
@@ -48,23 +48,23 @@ final class Journal: @unchecked Sendable {
         partBytes = preamble.count
     }
 
-    /// Makes the folder and the salt, opens the new journal, writes its preamble, and reads the end
-    /// of the earlier app journal (an app start only). Then the queue runs the retention. Returns
-    /// the journal and true for an unclean end of the earlier launch.
+    /// Makes the folder, opens the new journal, and writes its preamble, the only file work on the
+    /// caller. Then the queue reads the salt, reads the end of the earlier app journal (an app
+    /// start only), and runs the retention, before each line.
     static func open(
         _ kind: DiagnosticLog.Kind, folder: URL, now: Date, launch: Entry, queue: DispatchQueue, partLimit: Int
-    ) throws(JournalOpenError) -> (Journal, unclean: Bool) {
+    ) throws(JournalOpenError) -> Journal {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         } catch {
             throw JournalOpenError(step: "folder", code: Int32((error as NSError).code))
         }
-        let salt = try readSalt(in: folder)
         let name = JournalName(time: fileTime(now), kind: kind, pid: getpid())
         let stem = folder.appending(path: name.stem)
         let descriptor = Darwin.open(stem.path + ".tsv", partFlags, 0o644)
         guard descriptor >= 0 else { throw JournalOpenError(step: "open", code: errno) }
-        let preamble = Data(("dirigible-journal 1\n" + header + launch.line(salt: salt)).utf8)
+        // The launch line has no token field, so it needs no salt.
+        let preamble = Data(("dirigible-journal 1\n" + header + launch.line(salt: nil)).utf8)
         guard writeAll(descriptor, preamble) else {
             let code = errno
             close(descriptor)
@@ -72,15 +72,32 @@ final class Journal: @unchecked Sendable {
             throw JournalOpenError(step: "write", code: code)
         }
         let journal = Journal(
-            queue: queue, salt: salt, stem: stem, preamble: preamble, partLimit: partLimit, descriptor: descriptor)
-        var unclean = false
-        if kind == .app, let last = uncleanEnd(in: folder, before: name) {
-            unclean = true
-            let line = Entry(.app, "previous-unclean", [("last", .text(last.event)), ("last_time", .text(last.time))])
-            queue.async { journal.append([line]) }
+            queue: queue, stem: stem, preamble: preamble, partLimit: partLimit, descriptor: descriptor)
+        queue.async { journal.start(kind, folder: folder, name: name) }
+        return journal
+    }
+
+    /// The start work of the queue. A salt that cannot be read or written gives one `fault` line
+    /// to the system log, and each token of the launch is `none`.
+    private func start(_ kind: DiagnosticLog.Kind, folder: URL, name: JournalName) {
+        do throws(JournalOpenError) {
+            salt = try Self.readSalt(in: folder)
+        } catch {
+            diagnosticsLog.fault("The diagnostics salt did not open: \(error.description, privacy: .public)")
         }
-        queue.async { prune(folder) }
-        return (journal, unclean)
+        let last = kind == .app ? Self.uncleanEnd(in: folder, before: name) : nil
+        if let last {
+            append([Entry(.app, "previous-unclean", [("last", .text(last.event)), ("last_time", .text(last.time))])])
+        }
+        unclean.withLock { $0 = last != nil }
+        Self.prune(folder)
+    }
+
+    /// True for an unclean end of the earlier launch. The first read waits for the start work.
+    var previousEndedUnclean: Bool {
+        if let found = unclean.withLock({ $0 }) { return found }
+        queue.sync {}
+        return unclean.withLock { $0 } ?? false
     }
 
     static let header = "time\tuptime_ms\tthread\tlevel\tcategory\tevent\tfields...\n"

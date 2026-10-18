@@ -66,6 +66,9 @@ import UniformTypeIdentifiers
     @ObservationIgnored var panels = ReportPanels()
     /// The notice after an unclean end of the earlier launch (decision 0059).
     var uncleanNotice = UncleanNotice(previousEndedUnclean: false)
+    /// True after the first window show or report read the end of the earlier journal. The
+    /// journal queue checks that end after the launch, so the launch never waits for it.
+    @ObservationIgnored var noticeRead = false
     /// The agent server (decision 0046). The Settings switch starts and stops it. Its first use
     /// comes after `applicationWillFinishLaunching`, so it gets the started log.
     @ObservationIgnored private(set) lazy var agents = AgentServer(socket: agentSocket, log: log) { [weak self] in
@@ -331,7 +334,6 @@ import UniformTypeIdentifiers
     func applicationWillFinishLaunching(_ notification: Notification) {
         let facts = Self.buildFacts
         log = DiagnosticLog.start(.app, folder: logFolder, version: facts.version, commit: facts.commit)
-        uncleanNotice = UncleanNotice(previousEndedUnclean: log.previousEndedUnclean)
         if watchesHangs { watchdog = HangWatchdog.start(log: log) }
     }
 

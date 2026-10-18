@@ -105,4 +105,4 @@ Rejected: Waveform and Sparkle (no need now), AudioKit MD5 tests (brittle), IceC
 - https://github.com/insidegui/AudioCap README.
 - https://github.com/rogueamoeba (org repo list via `gh api`).
 - Root listings, licences (`gh api`) of CodeEdit, Ice, Loop, Whisky, Sparkle, IINA, Stats, Maccy, CotEditor.
-- Transcript `~/.claude/projects/-Users-bquepab-projects-audio-sw-for-delineas/7c81479a-...jsonl` (user message naming Compositor).
+- A user message that names Compositor.

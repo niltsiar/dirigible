@@ -6,7 +6,7 @@ Method: `gh api` and raw files, 2026-10-01. "Read" = I read the text; "listing" 
 
 ## 1. The photo-editor reference: Compositor
 
-- Found in the first user session (transcript `7c81479a`): "get inspiration https://github.com/robbietilton/Compositor ... it tried to do something similar with Photoshop and it got really good results". The repo has no mention of it in `docs/` (history grep for "photo" found nothing relevant).
+- Found in the first user session: "get inspiration https://github.com/robbietilton/Compositor ... it tried to do something similar with Photoshop and it got really good results". The repo has no mention of it in `docs/` (history grep for "photo" found nothing relevant).
 - Repo: https://github.com/robbietilton/Compositor. MIT. About 6.8k stars. Swift (SwiftUI and AppKit, some C and Metal). "The Photoshop alternative for Mac". Pushed 2026-09-29. Needs macOS 26 and Apple silicon.
 - Agent files (read): `AGENTS.md`, 15 lines, no `CLAUDE.md`, no `.claude`, no `.cursor`. It has two parts. Part 1 is for an agent that edits a user's project: "you don't need the app's source code", read `docs/writing-comp-files.md`. Part 2 is for work on the app: build and test commands, "match the surrounding code", American spelling, and "a change to what's saved means a format version bump" in `docs/project-format.md` and `ProjectManifest.current`.
 - Product idea that is agentic: a `.comp` project is a folder of PNG layers and a `manifest.json`. The open app reloads it within about 0.5 s of a file write. An agent edits the file and the user watches the canvas. `docs/writing-comp-files.md` is the contract (format, load rules, safe write while open).

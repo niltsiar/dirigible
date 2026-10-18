@@ -95,6 +95,30 @@ extension StartLimitTests {
         await studio.settle()
     }
 
+    /// A main-actor job starts after the call of `bounded`, holds the main actor past the deadline,
+    /// and queues a marker job at its end. The deadline (no answer) or the answer (at once) resumes
+    /// the caller during the hold, so the caller runs before the marker. The hold past the
+    /// deadline, and past an answer at once, is longer than a pool hop under load.
+    @Test(arguments: [false, true])
+    func aBoundedWaitEndsWithoutTheMainActor(answers: Bool) async {
+        let gate = AsyncGate()
+        defer { gate.open() }
+        let marker = Done()
+        let deadline = ContinuousClock.now + (answers ? .seconds(5) : .milliseconds(100))
+        let hold = Task { @MainActor in
+            usleep(700_000)
+            return Task { @MainActor in marker.value = true }
+        }
+        let result = await bounded(by: deadline) { () async -> Int in
+            if !answers { await gate.wait() }
+            return 1
+        }
+        let markerFirst = marker.value
+        await hold.value.value
+        #expect(result == (answers ? 1 : nil))
+        #expect(!markerFirst, "the caller of bounded ran after the job that the hold queued")
+    }
+
     /// A Retry Finalize while the writer still does not answer throws `.writerDidNotStop` at its own
     /// deadline and leaves Retry Finalize on; after the release, it places the take.
     @Test func aFailedRetryKeepsRetryOn() async throws {

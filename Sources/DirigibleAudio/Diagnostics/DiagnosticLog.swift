@@ -227,8 +227,8 @@ func escaped(_ text: String) -> String {
     return out
 }
 
-/// `main`, or the label of the current queue. A Dirigible label ends with a device UID
-/// (`Dirigible.DeviceWriter.<uid>`), so only its first two parts go to the file.
+/// `main`, or the label of the current queue. A Dirigible label is `Dirigible.<owner>` with an
+/// optional detail, and only its first two parts go to the file.
 private func threadName() -> String {
     if pthread_main_np() != 0 { return "main" }
     let label = String(cString: __dispatch_queue_get_label(nil))

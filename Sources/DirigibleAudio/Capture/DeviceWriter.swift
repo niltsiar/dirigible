@@ -92,7 +92,7 @@ final class DeviceWriter: @unchecked Sendable {
         self.ringSeconds = ringSeconds
         self.keepLimit = keepLimit
         name = device.name
-        queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(device.uid)")
+        queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(tracks.map(\.arm).min() ?? 0)")
         self.tracks = TrackSegments(
             device: device, tracks: tracks, files: files, report: report, routesLastChannels: app != nil, log: log)
     }

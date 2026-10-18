@@ -78,7 +78,7 @@ final class Listener: @unchecked Sendable {
         self.retryInterval = retryInterval
         self.keepLimit = keepLimit
         shared = OSAllocatedUnfairLock(initialState: Shared(map: map))
-        queue = DispatchQueue(label: "Dirigible.Listener.\(uid)")
+        queue = DispatchQueue(label: "Dirigible.Listener")
     }
 
     /// The first attach try. A device that is absent waits.

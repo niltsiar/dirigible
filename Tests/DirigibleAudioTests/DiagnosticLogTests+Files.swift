@@ -176,10 +176,7 @@ extension DiagnosticLogTests {
 
     /// C7: a writer queue that notes a line after `quit()` (an abandoned attach) adds no line
     /// after `app quit`. The quit drops the lock, so the next start reads that last line.
-    @Test(
-        .disabled(
-            "quarantine: the journal stays locked after quit in 3 of 35 parallel runs, see backlog DIAGNOSTICS FLAKE"))
-    func aNoteAfterQuitLeavesACleanEnd() throws {
+    @Test func aNoteAfterQuitLeavesACleanEnd() throws {
         let log = startLog(in: folder.url, at: "2026-10-16T19:20:00Z")
         log.note(.take, "start-request")
         log.quit()
@@ -196,6 +193,22 @@ extension DiagnosticLogTests {
         #expect(events == ["take start-request", "app quit"], "\(events)")
         #expect(!locked, "the journal keeps its lock after the quit")
         #expect(!next.previousEndedUnclean)
+    }
+
+    /// C7: a child process between posix_spawn and exec holds a copy of the journal descriptor
+    /// (a parallel test spawns one). The quit drops the lock of that copy too.
+    @Test func theQuitDropsTheLockThatAChildCopyHolds() throws {
+        let log = startLog(in: folder.url)
+        let file = folder.url.appending(path: "2026-10-16-192000-app-\(getpid()).tsv")
+        let child = try spawnSleepWithACopy(of: file)
+        defer {
+            kill(child, SIGKILL)
+            waitpid(child, nil, 0)
+        }
+        log.quit()
+        log.drain()
+
+        #expect(!isLocked(file), "the copy in the child keeps the lock after the quit")
     }
 
     /// C7: a journal queue that does not run (a stalled disk) holds `quit()` for its 1 s bound only.
@@ -340,6 +353,31 @@ private func isLocked(_ file: URL) -> Bool {
     guard descriptor >= 0 else { return errno == EWOULDBLOCK }
     close(descriptor)
     return false
+}
+
+/// Starts `/bin/sleep` with a copy of the descriptor that this process holds on `file`, and no
+/// other descriptor: a copy of a descriptor of a parallel test changes that test.
+private func spawnSleepWithACopy(of file: URL) throws -> pid_t {
+    var target = stat()
+    try #require(stat(file.path, &target) == 0)
+    let descriptor = try #require(
+        (0..<getdtablesize()).first { candidate in
+            var info = stat()
+            return fstat(candidate, &info) == 0 && info.st_dev == target.st_dev && info.st_ino == target.st_ino
+        })
+    var attributes: posix_spawnattr_t?
+    posix_spawnattr_init(&attributes)
+    defer { posix_spawnattr_destroy(&attributes) }
+    posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
+    var actions: posix_spawn_file_actions_t?
+    posix_spawn_file_actions_init(&actions)
+    defer { posix_spawn_file_actions_destroy(&actions) }
+    posix_spawn_file_actions_addinherit_np(&actions, descriptor)
+    let argv = Array(arrayLiteral: "/bin/sleep", "60").map { strdup($0) } + [nil]
+    defer { for pointer in argv { free(pointer) } }
+    var child: pid_t = 0
+    try #require(posix_spawn(&child, "/bin/sleep", &actions, &attributes, argv, environ) == 0)
+    return child
 }
 
 /// The stem of fixture launch `index` of `kind`, one minute apart on 2026-10-15. With no `pid`,

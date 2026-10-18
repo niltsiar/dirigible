@@ -134,9 +134,11 @@ final class Journal: @unchecked Sendable {
             })
     }
 
-    /// Closes the part, on the queue, after the quit line. The close drops the lock.
+    /// Unlocks and closes the part, on the queue, after the quit line. A child process between
+    /// posix_spawn and exec holds a copy of the descriptor, so a close alone can keep the lock.
     func closeFile() {
         dispatchPrecondition(condition: .onQueue(queue))
+        flock(descriptor, LOCK_UN)
         close(descriptor)
         descriptor = -1
     }

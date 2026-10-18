@@ -272,14 +272,14 @@ struct ClipEditTests {
     /// The curve: a quarter sine in, its mirror out, 1 outside the fades.
     @Test func theFadeGainFollowsTheQuarterSine() throws {
         let fades = try #require(Fades(fadeIn: 480, fadeOut: 960))
-        let gain = { (k: Int) in fades.gain(at: Frames(k), length: 4_800) }
+        let gain = { (k: Int) in fades.gain(at: Frames(k), length: 4_800, curves: .sine) }
         #expect(gain(0) == 0, "the first frame of a fade-in is 0")
         #expect(abs(gain(240) - 0.707_106_78) < 1e-8, "half the fade-in is -3 dB")
         #expect(gain(480) == 1 && gain(2_000) == 1, "1 between the fades")
         #expect(abs(gain(3_840) - 1) < 1e-12, "the first frame of the fade-out is 1")
         #expect(abs(gain(4_799) - sin(Double.pi / 2 / 960)) < 1e-12, "the last frame is sin(pi/2 / O)")
         #expect(abs(gain(4_320) - 0.707_106_78) < 1e-8, "half the fade-out is -3 dB")
-        #expect(Fades.zero.gain(at: 0, length: 10) == 1, "no fade is 1")
+        #expect(Fades.zero.gain(at: 0, length: 10, curves: .sine) == 1, "no fade is 1")
     }
 
     /// Fades C4: the edit checks fadeIn + fadeOut <= length, and the batch is atomic.

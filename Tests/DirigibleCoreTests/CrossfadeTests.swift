@@ -151,7 +151,7 @@ struct CrossfadeTests {
         var seamless = try CrossfadeTests()
         try seamless.join(b: { ($0.file, $0.offset) = ("fa", 5_000) })
         #expect(seamless.limit(after: "A") == 0, "a seamless join gives 0")
-        #expect(throws: SessionError.crossfadeAtSeamlessJoin("A"), "setCrossfades refuses a seamless join") {
+        #expect(throws: SessionError.crossfadeAtEqualGains("A"), "a seamless join with equal gains is refused") {
             try seamless.session.setCrossfades(["A": 960])
         }
     }
@@ -269,9 +269,11 @@ struct CrossfadeTests {
     }
 
     /// F4: after random edits on a lane with crossfades, each crossfade has its partner and the
-    /// session saves. A refused edit changes nothing. The edits include the ripples of 0037 (C5).
+    /// session saves. A refused edit changes nothing. The edits include the ripples of 0037 (C5) and
+    /// clip gains. Seamless crossfade C32: each sounding edge curve is the curve of its join, and a
+    /// session with a seamless crossfade reads back equal.
     @Test func randomEditsKeepTheSessionSavable() throws {
-        var withCrossfade = 0
+        var (withCrossfade, seamless, wrongCurves) = (0, 0, 0)
         var done: [String: Int] = [:]
         for seed in 1...500 {
             var random = SplitMix(seed: UInt64(seed))
@@ -280,12 +282,15 @@ struct CrossfadeTests {
                 try session.addFile(AudioFile(id: id, path: "\(id).wav", layout: .mono, length: 60_000))
             }
             try session.addTrack("t1", name: "Host", layout: .mono)
+            // c1 plays on in the file of c0 at -6 dB: a seamless join with two gains (C32).
             for index in 0..<4 {
-                let file: FileID = index % 2 == 0 ? "fa" : "fb"
+                let (file, offset): (FileID, Frames) =
+                    index == 1 ? ("fa", 15_000) : (index % 2 == 0 ? "fa" : "fb", 10_000)
                 try session.place(
                     Clip(
-                        id: ClipID("c\(index)"), file: file, start: Frames(index * 5_000), offset: 10_000, length: 5_000
-                    ),
+                        id: ClipID("c\(index)"), file: file, start: Frames(index * 5_000), offset: offset,
+                        length: 5_000,
+                        gain: index == 1 ? Gain(dB: -6)! : .zero),
                     on: "t1")
             }
             func frame(_ range: ClosedRange<Int>) -> Frames { Frames(Int.random(in: range, using: &random)) }
@@ -293,7 +298,7 @@ struct CrossfadeTests {
             for step in 0..<6 {
                 let before = session
                 if session.tracks[0].clips.contains(where: { $0.crossfades != .zero }) { withCrossfade += 1 }
-                let kind = step < 2 ? 8 : Int.random(in: 0..<11, using: &random)
+                let kind = step < 2 ? 8 : Int.random(in: 0..<12, using: &random)
                 do {
                     switch kind {
                     case 0:
@@ -340,11 +345,25 @@ struct CrossfadeTests {
                     case 10:
                         try session.rippleInsert(frame(1...8_000), at: frame(0...24_000), on: ["t1"])
                         done["rippleInsert", default: 0] += 1
+                    case 11:
+                        guard let clip = anyClip() else { continue }
+                        try session.setGain(Gain(dB: Bool.random(using: &random) ? 0 : -6)!, clip: clip.id)
+                        done["setGain", default: 0] += 1
                     default:
                         var lengths: [ClipID: Frames] = [:]
                         let lane = session.tracks[0].clips
                         for index in lane.indices where Bool.random(using: &random) {
-                            guard let limit = session.crossfadeLimit(after: index, in: lane) else { continue }
+                            guard var limit = session.crossfadeLimit(after: index, in: lane) else { continue }
+                            let (a, b) = (lane[index], lane[index + 1])
+                            if lane.join(after: index) == .seamless {
+                                // A new crossfade at equal gains is refused (C32). The limit is 0 here, so the
+                                // lengths come from the handle limit of a butt join.
+                                guard a.gain != b.gain || a.crossfades.end != .zero else { continue }
+                                let half = min(
+                                    60_000 - (a.offset + a.length).count, b.offset.count, a.crossfadeRoom(.end).count,
+                                    b.crossfadeRoom(.start).count)
+                                limit = Frames(2 * max(0, half))
+                            }
                             lengths[lane[index].id] = Frames(
                                 min(limit.count, Int.random(in: 0...2_000, using: &random)) / 2 * 2)
                         }
@@ -355,14 +374,20 @@ struct CrossfadeTests {
                     #expect(session == before, "seed \(seed) step \(step): a refused edit changes nothing: \(error)")
                 }
                 do {
-                    _ = try session.checkedData()
+                    let data = try session.checkedData()
+                    if session.fileVersion == 9, try Session(xml: data) != session {
+                        Issue.record("seed \(seed) step \(step): a seamless crossfade does not read back")
+                    }
                 } catch {
                     Issue.record("seed \(seed) step \(step) kind \(kind): the session does not save: \(error)")
                     return
                 }
+                let check = Self.curveCheck(session.tracks[0].clips)
+                (wrongCurves, seamless) = (wrongCurves + check.wrong, seamless + check.seamless)
             }
         }
         #expect(withCrossfade >= 1_000, "edits on a lane with a crossfade: \(withCrossfade)")
-        #expect(done.keys.count == 11, "each kind of edit ran: \(done)")
+        #expect(wrongCurves == 0 && seamless >= 100, "\(wrongCurves) wrong curves, \(seamless) seamless crossfades")
+        #expect(done.keys.count == 12, "each kind of edit ran: \(done)")
     }
 }

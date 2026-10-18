@@ -39,8 +39,8 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         let (before, after) = (
             x[(x.startIndex + head)..<(x.endIndex - tail)], y[(y.startIndex + head)..<(y.endIndex - tail)]
         )
-        guard var start = [before.first?.sounding.start, after.first?.sounding.start].compactMap({ $0 }).min(),
-            var end = [before.last?.sounding.end, after.last?.sounding.end].compactMap({ $0 }).max()
+        guard var start = [before.first, after.first].compactMap({ $0?.soundingRange.lowerBound }).min(),
+            var end = [before.last, after.last].compactMap({ $0?.soundingRange.upperBound }).max()
         else { continue }
         // The unchanged neighbors just before and after the run: a fade handle of an edge with no
         // fade and no crossfade shows only with no join, so a join that comes or goes redraws that
@@ -165,13 +165,14 @@ public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? 
         let first = b.clips[j + 1]
         let joined = (j >= b.clips.startIndex && b.clips[j].end == first.start)
         let wasJoined = (i >= a.clips.startIndex && a.clips[i].end == a.clips[i + 1].start)
-        from = max(from, joined == wasJoined ? first.sounding.start : first.sounding.end)
+        from = max(from, joined == wasJoined ? first.soundingRange.lowerBound : first.soundingRange.upperBound)
     }
     // The check of the rule at `from`, on each lane and for the markers.
     for (a, b) in zip(old.tracks, new.tracks) {
         let before = a.clips.clips(soundingIn: (from - delta)..<Frames.limit + Frames.limit)
         let after = b.clips.clips(soundingIn: from..<Frames.limit + Frames.limit)
-        guard before.allSatisfy({ $0.sounding.start >= from - delta }), after.allSatisfy({ $0.sounding.start >= from }),
+        guard before.allSatisfy({ $0.soundingRange.lowerBound >= from - delta }),
+            after.allSatisfy({ $0.soundingRange.lowerBound >= from }),
             before.map({ moved($0, by: delta) }) == after
         else { return nil }
     }

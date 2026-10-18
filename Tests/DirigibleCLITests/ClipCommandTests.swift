@@ -195,6 +195,19 @@ struct ClipCommandTests {
         #expect(try clips("host").allSatisfy { $0.crossfades == .zero }, "--length 0 removes it")
     }
 
+    /// Seamless crossfade C32 and C34: `clip crossfade` at a seamless join with two gains saves
+    /// version 9, and `info` reads it.
+    @Test func crossfadeAtASeamlessJoinWithTwoGains() async throws {
+        try joined(bOffset: 5_000, bFile: "f1")
+        #expect(try await package.run("clip", "gain", "PKG", "B", "--db", "-6") == silent)
+        #expect(try await package.run("clip", "crossfade", "PKG", "--clip", "A", "--length", "960") == silent)
+        #expect(
+            try clips("host").map(\.crossfades) == [Crossfades(start: 0, end: 960), Crossfades(start: 960, end: 0)])
+        #expect(String(decoding: try package.xml(), as: UTF8.self).contains(#"version="9""#), "saved as version 9")
+        let info = try await package.run("info", "PKG")
+        #expect(info.status == 0 && info.stdout.contains("crossfade in 960\n"), "\(info)")
+    }
+
     /// Crossfades F5 and F2b: each refusal exits with its message and changes nothing.
     @Test func crossfadeRefusesWithNoHandle() async throws {
         try joined(bOffset: 479)
@@ -213,7 +226,7 @@ struct ClipCommandTests {
             (["--clip", "E", "--length", "960"], "no clip touches the crossfade edge of clip \"E\"."),
             (
                 ["--clip", "C", "--length", "960"],
-                "clip \"C\" and the next clip play one piece of audio; a crossfade there would be 3 dB too loud."
+                "clip \"C\" and the next clip play one piece of audio at one gain, so a crossfade there changes nothing."
             ),
             (
                 ["--clip", "D", "--length", "2002"],

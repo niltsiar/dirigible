@@ -173,26 +173,31 @@ struct MixTests {
         for from in [length - Frames(4800), length - Frames(30_001)] {
             var envelope = [Float](repeating: 0, count: 4800)
             envelope.withUnsafeMutableBufferPointer {
-                fadeEnvelope(fades, length: length, from: from, gain: 1, into: $0)
+                fadeEnvelope(fades, curves: .sine, length: length, from: from, gain: 1, into: $0)
             }
-            let expected = (0..<4800).map { Float(fades.gain(at: from + Frames($0), length: length)) }
+            let expected = (0..<4800).map { Float(fades.gain(at: from + Frames($0), length: length, curves: .sine)) }
             #expect(maxError(envelope, expected) <= 1e-6, "the envelope at the end of a long clip")
         }
     }
 
-    /// The two copies of the curve (decision 0035): the vector `fadeEnvelope` equals `Fades.gain`
-    /// within the B1 tolerance across a whole clip with both fades, from the clip start and from a
-    /// part start inside each fade.
-    @Test func theEnvelopeEqualsFadesGain() throws {
-        let fades = try #require(Fades(fadeIn: 480, fadeOut: 960))
+    /// The two copies of the curve (decisions 0035 and 0036): the vector `fadeEnvelope` equals
+    /// `Fades.gain` within the B1 tolerance across a whole clip with both fades, from the clip start
+    /// and from a part start inside each fade, for each curve at each edge.
+    @Test(arguments: [(Fades.Curve.sine, Fades.Curve.sine), (.linear, .linear), (.linear, .sine), (.sine, .linear)])
+    func theEnvelopeEqualsFadesGain(start: Fades.Curve, end: Fades.Curve) throws {
+        let (fades, curves) = (try #require(Fades(fadeIn: 480, fadeOut: 960)), Fades.Curves(start: start, end: end))
         for (from, count) in [(0, 4800), (100, 700), (4000, 800)] {
             var envelope = [Float](repeating: 0, count: count)
             envelope.withUnsafeMutableBufferPointer {
-                fadeEnvelope(fades, length: 4800, from: Frames(from), gain: 0.5, into: $0)
+                fadeEnvelope(fades, curves: curves, length: 4800, from: Frames(from), gain: 0.5, into: $0)
             }
-            let expected = (from..<from + count).map { Float(0.5 * fades.gain(at: Frames($0), length: 4800)) }
-            #expect(maxError(envelope, expected) <= 1e-6, "the envelope from \(from) equals Fades.gain")
+            let expected = (from..<from + count).map {
+                Float(0.5 * fades.gain(at: Frames($0), length: 4800, curves: curves))
+            }
+            #expect(maxError(envelope, expected) <= 1e-6, "\(curves): the envelope from \(from) equals Fades.gain")
         }
+        let half = start == .linear ? 0.5 : sin(Double.pi / 4)
+        #expect(abs(fades.gain(at: 240, length: 4800, curves: curves) - half) <= 1e-12, "\(start): k = 240 of 480")
     }
 
     // MARK: Crossfades (decision 0036)
@@ -213,18 +218,63 @@ struct MixTests {
         #expect(power <= 1e-6, "L \(length): equal power, error \(power)")
     }
 
-    /// Crossfades X1: the envelope of a crossfaded clip, read through `Clip.sounding`, equals
-    /// `Fades.gain` of the sounding clip, so the render and the draw read one geometry.
+    /// Crossfades X1: the envelope of a crossfaded clip, read through `ClipLane.sounding(at:)`,
+    /// equals `Fades.gain` of the sounding clip, so the render and the draw read one geometry.
     @Test func theEnvelopeOfACrossfadeEqualsFadesGain() throws {
         let package = try crossfadedPackage(4_800)
-        let sounding = try #require(package.session.clip("A")?.clip.sounding)
+        let edges = try #require(package.session.track("t1")?.clips.sounding(at: 0))
+        let (sounding, curves) = (edges.clip, edges.curves)
         #expect(sounding.start == 1_000 && sounding.length == 12_400 && sounding.fades.fadeOut == 4_800)
+        #expect(curves == .sine, "a butt join keeps equal power")
         var envelope = [Float](repeating: 0, count: 5_000)
         envelope.withUnsafeMutableBufferPointer {
-            fadeEnvelope(sounding.fades, length: sounding.length, from: 7_400, gain: 1, into: $0)
+            fadeEnvelope(sounding.fades, curves: curves, length: sounding.length, from: 7_400, gain: 1, into: $0)
         }
-        let expected = (7_400..<12_400).map { Float(sounding.fades.gain(at: Frames($0), length: sounding.length)) }
+        let expected = (7_400..<12_400).map {
+            Float(sounding.fades.gain(at: Frames($0), length: sounding.length, curves: curves))
+        }
         #expect(maxError(envelope, expected) <= 1e-6, "the envelope of the sounding clip equals Fades.gain")
+    }
+
+    /// Seamless crossfade C33: a sine split at J = 24,000, clip gains 0 dB and -12 dB, and a
+    /// crossfade of 960 frames at J. Both pieces read one signal s, so the mix is s times the gain
+    /// gA x a(i) + gB x b(i) with the linear curve, i = t - (J - 480): it falls from gA to gB and never
+    /// rises. With equal gains the mix is s within 2e-7 x |s| (probe P4); equal power is 3 dB over at J.
+    @Test func aSeamlessCrossfadeIsAGainRamp() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: [sine(seconds: 1, rate: 48_000, frequency: 440)])
+        try package.addTrack("t1", clip: "A", file: "f1", start: 0, offset: 0, length: 48_000)
+        let range: Range<Frames> = 20_000..<28_000
+        let signal = try package.mix(range)[0].map(Double.init)
+        let right = try package.session.split("A", at: 24_000)
+        try package.session.setGain(#require(Gain(dB: -12)), clip: right)
+        try package.session.setCrossfades(["A": 960])
+        let ramp = try package.mix(range)[0]
+        try package.session.setGain(.zero, clip: right)
+        #expect(package.session.clip("A")?.clip.crossfades.end == 960, "a gain edit keeps the crossfade")
+        let flat = try package.mix(range)[0]
+
+        let (gA, gB) = (1.0, pow(10, -12.0 / 20))
+        func gain(at t: Int) -> Double {
+            let i = Double(min(max(t - 23_520, 0), 960))
+            return gA * (960 - i) / 960 + gB * i / 960
+        }
+        var (rampError, flatError, rises, outside) = (0.0, 0.0, 0, 0)
+        var last = gA
+        for (k, t) in (20_000..<28_000).enumerated() where signal[k] != 0 {
+            let s = signal[k]
+            rampError = max(rampError, abs(Double(ramp[k]) - s * gain(at: t)) / abs(s))
+            flatError = max(flatError, abs(Double(flat[k]) - s) / abs(s))
+            guard abs(s) >= 0.1 else { continue }
+            let measured = Double(ramp[k]) / s
+            if measured > last + 1e-6 { rises += 1 }
+            if measured > gA + 1e-6 || measured < gB - 1e-6 { outside += 1 }
+            last = measured
+        }
+        #expect(signal.contains { abs($0) >= 0.4 }, "the fixture sounds")
+        #expect(rampError <= 1e-6, "the mix is s times the linear gain ramp, error \(rampError) x |s|")
+        #expect(rises == 0 && outside == 0, "the gain never rises: \(rises) rises, \(outside) outside gB...gA")
+        #expect(flatError <= 2e-7, "equal gains: the mix is s, error \(flatError) x |s|")
     }
 
     /// Mute and solo C2: t1 is 0.25 and t2 is 0.5 over 0 to 48,000. The mix reads only the heard
@@ -273,5 +323,29 @@ struct MixTests {
         for channel in 0..<2 {
             #expect(maxError(healed[channel], split[channel]) <= 1e-6, "channel \(channel)")
         }
+    }
+
+    /// Heal C27: a heal at a seamless join with an equal-gain crossfade drops the crossfade, and the
+    /// mix stays within 2e-7 x |s| of the mix before the heal (probe P4).
+    @Test func aHealAtAnEqualGainCrossfadeSoundsTheSame() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: [sine(seconds: 1, rate: 48_000, frequency: 440)])
+        try package.addTrack("t1", clip: "A", file: "f1", start: 0, offset: 0, length: 48_000)
+        let right = try package.session.split("A", at: 24_000)
+        try package.session.setGain(#require(Gain(dB: -6)), clip: right)
+        try package.session.setCrossfades(["A": 960])
+        try package.session.setGain(.zero, clip: right)
+        let crossfaded = try package.mix(0..<48_000)[0]
+
+        try package.session.heal()
+
+        #expect(package.session.track("t1")?.clips.count == 1 && package.session.fileVersion == 1, "one clip")
+        let healed = try package.mix(0..<48_000)[0]
+        #expect(healed.contains { abs($0) >= 0.4 }, "the fixture sounds")
+        var error = 0.0
+        for (after, before) in zip(healed, crossfaded) where after != 0 {
+            error = max(error, abs(Double(before) - Double(after)) / abs(Double(after)))
+        }
+        #expect(error <= 2e-7, "the healed mix is the mix before, error \(error) x |s|")
     }
 }

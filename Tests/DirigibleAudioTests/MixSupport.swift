@@ -100,7 +100,7 @@ func fadedMix(_ range: Range<Int>, gain: Double = 1) throws -> [Float] {
     let fades = try #require(Fades(fadeIn: 480, fadeOut: 960))
     return range.map { frame in
         let k = frame - 1000
-        let faded = (0..<4800).contains(k) ? 0.5 * gain * fades.gain(at: Frames(k), length: 4800) : 0
+        let faded = (0..<4800).contains(k) ? 0.5 * gain * fades.gain(at: Frames(k), length: 4800, curves: .sine) : 0
         return Float((frame < 7000 ? 0.25 : 0) + faded)
     }
 }

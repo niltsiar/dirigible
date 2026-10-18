@@ -202,6 +202,57 @@ struct DiagnosticBundleTests {
         )
     }
 
+    /// A spindump report (`.hang`, `.spin`) holds the stacks of each process of the Mac. The zip
+    /// keeps its header and its first process with the binary images, and no name of another one.
+    @Test(arguments: ["hang", "spin"]) func aSpindumpReportKeepsOnlyItsFirstProcess(kind: String) throws {
+        let fixture = try BundleFixture()
+        let report = """
+            Date/Time:        2026-10-16 12:00:00.000 +0200
+            Report Version:   35
+
+            Process:          Dirigible [101]
+            Path:             /Applications/Dirigible.app/Contents/MacOS/Dirigible
+              Thread 0x1a  DispatchQueue "com.apple.main-thread"  1000 samples
+                1000 main + 10 (Dirigible) [0x100001000]
+
+            Binary Images:
+              0x100000000 - 0x1000fffff  Dirigible (0.4.9) <A1B2C3D4> /Applications/Dirigible.app/Contents/MacOS/Dirigible
+
+            Process:          FixtureVideoCall [202]
+            Path:             /Applications/FixtureVideoCall.app/Contents/MacOS/FixtureVideoCall
+              Thread 0x2b  1000 samples
+                1000 start + 1 (FixtureVideoCall) [0x200001000]
+
+            Binary Images:
+              0x200000000 - 0x2000fffff  FixtureVideoCall (3.1) <E5F6A7B8> /Applications/FixtureVideoCall.app/x
+
+            """
+        try Data(report.utf8).write(to: fixture.reports.appending(path: "Dirigible_2026-10-16-120000_Mac.\(kind)"))
+
+        let bundle = try fixture.collect()
+
+        let copied = try bundle.text("reports/Dirigible_2026-10-16-120000_Mac.\(kind)")
+        #expect(copied.hasPrefix("Date/Time:        2026-10-16 12:00:00.000 +0200\nReport Version:   35\n"))
+        #expect(copied.contains("main + 10 (Dirigible)") && copied.contains("<A1B2C3D4>"), "the first process stays")
+        #expect(!copied.contains("FixtureVideoCall") && !copied.contains("E5F6A7B8"), "no other process")
+    }
+
+    /// A spindump report is read up to `hangReportLimit` bytes, so one report cannot make a zip
+    /// of any size.
+    @Test func aSpindumpReportIsCutAtTheSizeLimit() throws {
+        let fixture = try BundleFixture()
+        let line = "    100 frame_" + String(repeating: "x", count: 100) + " + 4 (Dirigible) [0x100001000]\n"
+        let lines = DiagnosticBundle.hangReportLimit / line.utf8.count + 100
+        let report = "Process:          Dirigible [101]\n" + String(repeating: line, count: lines)
+        try Data(report.utf8).write(to: fixture.reports.appending(path: "Dirigible_2026-10-16-120000_Mac.hang"))
+
+        let bundle = try fixture.collect()
+
+        let copied = try bundle.text("reports/Dirigible_2026-10-16-120000_Mac.hang")
+        #expect(copied.utf8.count <= DiagnosticBundle.hangReportLimit && copied.hasPrefix("Process:"))
+        #expect(copied.utf8.count > DiagnosticBundle.hangReportLimit - 1_000, "the report is cut, not dropped")
+    }
+
     /// The redaction of random text: a text with no name stays the same, and a name between two
     /// such texts becomes its replacement.
     @Test func aRandomTextKeepsItsOtherWords() {

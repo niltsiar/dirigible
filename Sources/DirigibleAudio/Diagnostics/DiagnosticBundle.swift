@@ -42,6 +42,8 @@ public enum DiagnosticBundle {
 
     static let reportDays = 30
     static let reportLimit = 20
+    /// The most bytes of a `.hang` or `.spin` report that the bundle reads.
+    static let hangReportLimit = 4 * 1024 * 1024
 
     /// `collect` with the facts of the Mac as a value. Tests give a fake device list and fake names.
     static func write(
@@ -188,18 +190,30 @@ private struct Copy {
     }
 
     /// Copies one text file with its name and its text redacted. False when it cannot be read.
+    /// A spindump report (`.hang`, `.spin`) holds the stacks of each process of the Mac, so the
+    /// copy reads at most `hangReportLimit` bytes and stops before its second `Process:` line:
+    /// the header and the first process with its binary images stay.
     private mutating func copy(_ file: URL, to folder: String, group: String) throws(BundleError) -> Bool {
-        let data: Data
+        var text: String
+        let isSpindump = ["hang", "spin"].contains(file.pathExtension.lowercased())
         do {
-            data = try Data(contentsOf: file)
+            if isSpindump {
+                let handle = try FileHandle(forReadingFrom: file)
+                defer { try? handle.close() }
+                text = String(
+                    decoding: try handle.read(upToCount: DiagnosticBundle.hangReportLimit) ?? Data(), as: UTF8.self)
+            } else {
+                text = String(decoding: try Data(contentsOf: file), as: UTF8.self)
+            }
         } catch {
             skipped.append("\(group) \(file.lastPathComponent): \(reason(error) ?? "the file is gone")")
             return false
         }
+        if isSpindump, let second = text.matches(of: /(?m)^Process:/).dropFirst().first {
+            text = String(text[..<second.range.lowerBound])
+        }
         let name = redaction.apply(file.lastPathComponent)
-        try save(
-            redaction.apply(String(decoding: data, as: UTF8.self)),
-            to: root.appending(path: folder).appending(path: name))
+        try save(redaction.apply(text), to: root.appending(path: folder).appending(path: name))
         return true
     }
 

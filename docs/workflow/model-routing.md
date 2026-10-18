@@ -4,7 +4,7 @@ The model and effort of each job of a deliver run. Read this file before each `A
 
 ## Usage limits
 
-Before the call, run `.claude/skills/deliver/scripts/usage-mode.sh` on the lead thread. It reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode. The file is optional: Claude Code does not write it, and a status-line script of the user setup does. With no file, the mode is `normal`. A non-zero exit is `normal`.
+Before the call, run `.claude/skills/deliver/scripts/usage-mode.sh` on the lead thread. It reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode. The file is optional: Claude Code does not write it, and a Claude Code mod of the user setup (a turn hook) writes it after each main-agent turn. With no file, the mode is `normal`. A non-zero exit is `normal`.
 
 | Mode | Change |
 |---|---|

@@ -182,13 +182,14 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 9 with a crossfade at a
-    /// seamless join (decision 0036), else 8 with a transcript (decision 0055), else 7 with a marker
-    /// URL or image, else 6
-    /// with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4
-    /// with a crossfade (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route
-    /// (decision 0029), else 1.
+    /// The `session.xml` version that holds this session (decision 0024 P6): 10 with a gain envelope
+    /// point (decision 0060), else 9 with a crossfade at a seamless join (decision 0036), else 8 with
+    /// a transcript (decision 0055), else 7 with a marker URL or image, else 6 with episode data
+    /// (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade
+    /// (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route (decision 0029),
+    /// else 1.
     public var fileVersion: Int {
+        if tracks.contains(where: { $0.clips.contains { !$0.envelope.isEmpty } }) { return 10 }
         if tracks.contains(where: { $0.clips.seamlessCrossfade != nil }) { return 9 }
         if !transcripts.isEmpty { return 8 }
         if markers.values.contains(where: { $0.url != nil || $0.image != nil }) { return 7 }

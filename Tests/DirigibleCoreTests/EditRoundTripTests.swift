@@ -5,6 +5,7 @@ import Testing
 /// Edit-commands criterion 3: every session that the edits make, the reader reads back. A seeded
 /// sequence of `place`, `clear`, `paste`, `splitClips`, `nudge`, and `setRoute` edits (a device
 /// route, an app route, or none, so each session version 1 and 2 shows up), then a write and a read.
+/// A placed clip can have a gain envelope with points anywhere in its file (decision 0060, C4).
 struct EditRoundTripTests {
     @Test(arguments: [UInt64(1), 2, 3])
     func aSeededSequenceOfEditsReadsBack(seed: UInt64) throws {
@@ -26,9 +27,13 @@ struct EditRoundTripTests {
                 case 0:
                     let layout: ChannelLayout = Bool.random(using: &random) ? .mono : .stereo
                     let length = frame(1...40_000)
+                    let frames = Set((0..<Int.random(in: 0...3, using: &random)).map { _ in frame(0...480_000) })
+                    let points = frames.sorted().map {
+                        GainEnvelope.Point(frame: $0, gain: Gain(dB: Double.random(in: -30...12, using: &random))!)
+                    }
                     let clip = Clip(
                         id: ClipID("p\(step)"), file: layout == .mono ? "f" : "g", start: frame(0...300_000),
-                        offset: frame(0...100_000), length: length)
+                        offset: frame(0...100_000), length: length, envelope: GainEnvelope(points)!)
                     try session.place(clip, on: tracks(layout).randomElement(using: &random)!)
                     done["place", default: 0] += 1
                 case 1:
@@ -72,6 +77,7 @@ struct EditRoundTripTests {
         #expect(
             done.keys.sorted() == ["clear", "nudge", "paste", "paste two lanes", "place", "setRoute", "splitClips"])
         #expect(session.tracks.allSatisfy { !$0.clips.isEmpty })
+        #expect(session.fileVersion == 10, "a clip with an envelope is left")
         let package = FileManager.default.temporaryDirectory
             .appending(path: "EditRoundTripTests-\(UUID().uuidString)/Episode.dirigible")
         defer { try? FileManager.default.removeItem(at: package.deletingLastPathComponent()) }

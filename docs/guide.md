@@ -611,7 +611,7 @@ When Dirigible stops, hangs, or loses audio, save a report and send it to the pe
 
 The report has the logs of the last 7 days, the crash and hang reports of Dirigible, the list of your audio devices, and a summary of your Mac. It has no audio, no session files, and no transcripts. It has the names of your audio devices, the apps that you record, and your Mac model. The logs show a code in place of each device ID. The crash and hang reports are copied as macOS wrote them, cut to the part about Dirigible. Your user name, the name of your Mac, and your home folder are removed from every file. A report can still hold other folder and file names. Dirigible sends nothing. You choose if you send the file, and to whom.
 
-If the last use of Dirigible did not end with a quit, a banner shows in the first window after the next start. Click **Report a Problem** in the banner to save a report, or click **Not Now**. The banner shows once for each such end.
+If the last use of Dirigible did not end with a quit, a banner shows in the first window after the next start. Click **Report a Problem** in the banner to save a report, or click **Not Now**. If you close that window first, the banner shows in the next window. The banner shows once for each such end.
 
 ## Menu commands and keys
 

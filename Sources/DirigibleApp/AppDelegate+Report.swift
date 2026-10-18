@@ -48,23 +48,41 @@ struct ReportPanels {
 }
 
 /// The notice after a launch whose earlier launch ended with no quit line (decision 0059). It
-/// shows in the first window that shows, until Not Now or Report a Problem.... The journal of the
-/// earlier launch holds the state, so each unclean end gives one notice.
-struct UncleanNotice: Equatable {
-    private enum State: Equatable {
+/// shows in one window at a time, the first window that shows, until Not Now or Report a
+/// Problem.... A window that closes with no button press gives the notice back, and the next
+/// window that shows gets it. The earlier journal holds the state, so each unclean end gives one
+/// notice.
+struct UncleanNotice {
+    private struct WeakWindow {
+        weak var window: NSWindow?
+    }
+
+    private enum State {
         case none, waiting
-        case showing(ObjectIdentifier)
+        case showing(WeakWindow)
     }
 
     private var state: State
 
     init(previousEndedUnclean: Bool) { state = previousEndedUnclean ? .waiting : .none }
 
-    func shows(in window: ObjectIdentifier) -> Bool { state == .showing(window) }
+    func shows(in window: NSWindow) -> Bool {
+        guard case .showing(let current) = state else { return false }
+        return current.window === window
+    }
 
-    /// A window shows. The first one after the launch gets the notice.
-    mutating func windowShown(_ window: ObjectIdentifier) {
-        if state == .waiting { state = .showing(window) }
+    /// A window shows. It gets the notice when the notice waits, or when its window is gone.
+    mutating func windowShown(_ window: NSWindow) {
+        switch state {
+        case .none: return
+        case .showing(let current) where current.window != nil: return
+        case .waiting, .showing: state = .showing(WeakWindow(window: window))
+        }
+    }
+
+    /// A window closes. The notice waits again when that window had it.
+    mutating func windowClosed(_ window: NSWindow) {
+        if shows(in: window) { state = .waiting }
     }
 
     mutating func dismiss() { state = .none }
@@ -99,12 +117,16 @@ extension AppDelegate {
             noticeRead = true
             uncleanNotice = UncleanNotice(previousEndedUnclean: log.previousEndedUnclean)
         }
-        let id = ObjectIdentifier(window)
-        let showedBefore = uncleanNotice.shows(in: id)
-        uncleanNotice.windowShown(id)
-        if !showedBefore && uncleanNotice.shows(in: id) {
+        let showedBefore = uncleanNotice.shows(in: window)
+        uncleanNotice.windowShown(window)
+        if !showedBefore && uncleanNotice.shows(in: window) {
             postAnnouncement(L10n.noticeUncleanText.text, priority: .medium)
         }
+    }
+
+    /// A window closes: the notice that it had waits for the next window.
+    func noticeWindowClosed(_ window: NSWindow?) {
+        if let window { uncleanNotice.windowClosed(window) }
     }
 
     /// Help > Report a Problem... and the button of the notice: the sheet, then the save panel,

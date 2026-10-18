@@ -277,7 +277,10 @@ import UniformTypeIdentifiers
     }
 
     /// The `windowWillClose(_:)` of the start window.
-    func startDidClose() { start = nil }
+    func startDidClose() {
+        noticeWindowClosed(start?.window)
+        start = nil
+    }
 
     // MARK: Panels
 

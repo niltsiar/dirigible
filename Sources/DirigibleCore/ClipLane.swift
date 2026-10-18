@@ -87,8 +87,8 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     }
 
     /// The clips whose sounding range (decision 0036: the clip plus half of each crossfade) has at
-    /// least one frame in `range`. The media check and `changedFrames` read it, so a clip that
-    /// sounds in a range from its handle is found.
+    /// least one frame in `range`. `checkMedia` and `shiftedFrames` read it, so a clip that sounds
+    /// in a range from its handle is found.
     public func clips(soundingIn range: Range<Frames>) -> [Clip] {
         storage.filter { $0.soundingRange.overlaps(range) }
     }

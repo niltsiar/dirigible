@@ -41,7 +41,9 @@ struct ExcerptResampleTests {
             // Gate 1 item 1: half of the joins take the longest crossfade (`crossfadeLimit`).
             for (index, id) in ids.dropLast().enumerated() where Bool.random(using: &random) {
                 let lane = try #require(session.track("t")).clips
-                let limit = session.crossfadeLimit(after: index, in: lane) ?? .zero
+                // A split join is seamless at one gain, where a new crossfade is refused (C32).
+                let seamless = lane[index].isSeamless(with: lane[index + 1])
+                let limit = seamless ? .zero : session.crossfadeLimit(after: index, in: lane) ?? .zero
                 let value =
                     Bool.random(using: &random)
                     ? limit : min(limit, Frames(2 * Int.random(in: 1...1_000, using: &random)))

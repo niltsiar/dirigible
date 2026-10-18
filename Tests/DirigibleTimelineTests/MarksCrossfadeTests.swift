@@ -108,12 +108,27 @@ struct MarksCrossfadeTests {
         #expect(try marks(95_000..<97_500).faded(try Self.session(bOffset: 0)) == nil, "no handle before B")
     }
 
-    /// C7: a seamless join (B plays on in A's file) gets no crossfade.
-    @Test func aSeamlessJoinGetsNoCrossfade() throws {
-        let session = try Self.session(bOffset: 48_000, bFile: "fa")
+    /// C35: at a seamless join (B plays on in A's file) with two gains, Command-F makes the
+    /// crossfade of a butt join. With equal gains it skips the join, also a crossfade there that a
+    /// gain edit kept, so with no other change the window beeps. Fail value of the old limit 0: nil.
+    @Test func commandFCrossfadesASeamlessJoinWithTwoGains() throws {
+        var session = try Self.session(bOffset: 48_000, bFile: "fa")
         #expect(session.clip("B")?.clip.isSeamless(with: session.clip("A")!.clip) == false)
         #expect(session.clip("A")?.clip.isSeamless(with: session.clip("B")!.clip) == true)
-        #expect(try marks(95_000..<97_500).faded(session) == nil)
+        #expect(try marks(95_000..<97_500).faded(session) == nil, "equal gains")
+
+        try session.setGain(Gain(dB: -6)!, clip: "B")
+        let result = try marks(95_000..<97_500).faded(session)
+        #expect(crossfades("A", result) == Crossfades(start: 0, end: 2_000))
+        #expect(crossfades("B", result) == Crossfades(start: 2_000, end: 0))
+        #expect(crossfades("A", try marks(0..<200_000).faded(session)) == Crossfades(start: 0, end: 960), "whole clips")
+
+        try session.setCrossfades(["A": 960])
+        #expect(try marks(95_520..<96_480).faded(session) == nil, "960 again")
+        #expect(crossfades("A", try marks(95_000..<97_500).faded(session)) == Crossfades(start: 0, end: 2_000))
+        try session.setGain(.zero, clip: "B")
+        #expect(try marks(95_000..<97_500).faded(session) == nil, "equal gains keep the crossfade")
+        #expect(crossfades("A", session) == Crossfades(start: 0, end: 960))
     }
 
     /// C8: the crossfade replaces a fade-out of A at J.

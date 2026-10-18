@@ -15,8 +15,13 @@ struct CrossfadeRendererTests {
     static let label = LanePalette.light.label
 
     /// The inputs with A and B of `points` pt each, at `gain` dB, and a crossfade of `length`.
-    static func inputs(points: Double = 100, gain: Double = 0, length: Frames = 10_240) throws -> LaneInputs {
+    /// With `seamless`, B plays on in f1 at `seamless` dB.
+    static func inputs(points: Double = 100, gain: Double = 0, length: Frames = 10_240, seamless: Double? = nil)
+        throws -> LaneInputs
+    {
         let frames = Frames(Int(points * 256))
+        let (bFile, bOffset): (FileID, Frames) = seamless == nil ? ("f2", 25_600) : ("f1", frames)
+        let bGain = try #require(Gain(dB: seamless ?? gain))
         var session = Session(sampleRate: 48_000)
         for file in ["f1", "f2"] as [FileID] {
             try session.addFile(AudioFile(id: file, path: "\(file).wav", layout: .mono, length: 102_400))
@@ -26,7 +31,7 @@ struct CrossfadeRendererTests {
         let clipGain = try #require(Gain(dB: gain))
         try session.place(Clip(id: "A", file: "f1", start: 0, offset: 0, length: frames, gain: clipGain), on: "t1")
         try session.place(
-            Clip(id: "B", file: "f2", start: frames, offset: 25_600, length: frames, gain: clipGain), on: "t1")
+            Clip(id: "B", file: bFile, start: frames, offset: bOffset, length: frames, gain: bGain), on: "t1")
         try session.setCrossfades(["A": length])
         return LaneRendererTests.inputs(session, peaks: GainLineRendererTests.full(102_400))
     }
@@ -89,6 +94,23 @@ struct CrossfadeRendererTests {
         #expect(GainLineRendererTests.noLabel(narrow), "11 pt boxes")
         let twelve = try Self.render(try Self.inputs(points: 12, length: 1_024))
         #expect(!GainLineRendererTests.noLabel(twelve), "12 pt boxes")
+    }
+
+    /// C36: at a seamless join with two gains (B at -6 dB), the four lines in and out of each box
+    /// take the equal-gain curve k / L, which is 0.5 at J. Fail value: the sine curve, 6 to 13
+    /// rows higher.
+    @Test func theLinesOfASeamlessCrossfadeAreStraight() throws {
+        let pixels = try Self.render(try Self.inputs(seamless: -6))
+        func a(_ k: Int) -> Double { Double(30_720 - k) / 10_240 }
+        func b(_ k: Int) -> Double { Double(k) / 10_240 }
+        let lines = [
+            (180, a(180 * 128), 0.0, "A in its box"), (220, a(220 * 128), 0, "A over B"),
+            (180, b(180 * 128 - 20_480 + 128), -6, "B over A"), (210, b(210 * 128 - 20_480 + 128), -6, "B in its box"),
+        ]
+        for (column, factor, gain, name) in lines {
+            let row = Self.row(factor, gain: gain)
+            #expect(Self.labelRows(pixels, column).contains { abs($0 - row) <= 1 }, "\(name): row \(row)")
+        }
     }
 
     /// R3: a draw of x 100 to 220 holds no frame of A's box, but A's line reaches into it (fail

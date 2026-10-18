@@ -97,7 +97,7 @@ extension SessionName.Refusal {
 
     /// The app, while the notice of an unclean end shows in the start window.
     var noticeApp: AppDelegate? {
-        guard let app, let window = app.start?.window, app.uncleanNotice.shows(in: ObjectIdentifier(window)) else {
+        guard let app, let window = app.start?.window, app.uncleanNotice.shows(in: window) else {
             return nil
         }
         return app

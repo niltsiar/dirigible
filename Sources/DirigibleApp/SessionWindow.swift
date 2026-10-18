@@ -353,6 +353,7 @@ import SwiftUI
         // and its lock go before this call returns, and an open right after it works.
         autoreleasepool {
             let window = window
+            app?.noticeWindowClosed(window)
             self.window = nil
             chrome?.close()
             chrome = nil

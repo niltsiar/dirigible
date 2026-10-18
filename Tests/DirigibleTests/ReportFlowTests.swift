@@ -224,9 +224,7 @@ import Testing
     /// C36: the notice goes to the first window that shows, once, and Not Now ends it. A launch
     /// after a clean end has none.
     @Test func theNoticeShowsOnceForEachUncleanEnd() {
-        let (one, two) = (NSObject(), NSObject())
-        let (first, second) = (ObjectIdentifier(one), ObjectIdentifier(two))
-        defer { withExtendedLifetime((one, two)) {} }
+        let (first, second) = (NSWindow(), NSWindow())
         var launch = UncleanNotice(previousEndedUnclean: true)
 
         launch.windowShown(first)
@@ -242,8 +240,40 @@ import Testing
         #expect(!clean.shows(in: first), "no notice after a clean end")
     }
 
-    /// C36: the launch reads the earlier journal, and the start window shows the notice.
-    @Test(arguments: [true, false]) func anUncleanEarlierLaunchGivesTheStartWindowTheNotice(unclean: Bool) throws {
+    /// C36: a window that closes with no button press gives the notice back, and the next window
+    /// that shows gets it. After Not Now, a close brings nothing back.
+    @Test func aClosedWindowPassesTheNoticeToTheNextWindow() {
+        let (first, second) = (NSWindow(), NSWindow())
+        var launch = UncleanNotice(previousEndedUnclean: true)
+
+        launch.windowShown(first)
+        launch.windowClosed(second)
+        #expect(launch.shows(in: first), "another window that closes keeps the notice")
+        launch.windowClosed(first)
+        #expect(!launch.shows(in: first))
+        launch.windowShown(second)
+        #expect(launch.shows(in: second), "the next window gets the notice")
+
+        launch.dismiss()
+        launch.windowClosed(second)
+        launch.windowShown(first)
+        #expect(!launch.shows(in: first) && !launch.shows(in: second), "Not Now ends it for good")
+    }
+
+    /// C36: a window that is gone cannot hold the notice, and a new window at its address does
+    /// not get it by chance.
+    @Test func aWindowThatIsGoneDoesNotHoldTheNotice() {
+        var launch = UncleanNotice(previousEndedUnclean: true)
+        autoreleasepool { launch.windowShown(NSWindow()) }
+        let next = NSWindow()
+
+        #expect(!launch.shows(in: next), "a window that never showed has no notice")
+        launch.windowShown(next)
+        #expect(launch.shows(in: next), "the notice goes on to the next window")
+    }
+
+    /// The app of a launch whose earlier journal ended unclean, or clean.
+    func launchedApp(afterUncleanEnd unclean: Bool) throws -> AppDelegate {
         let logs = folder.url.appending(path: "logs")
         try FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
         let last = unclean ? "take\tstart-request" : "app\tquit"
@@ -256,12 +286,32 @@ import Testing
             """
         try Data(text.utf8).write(to: logs.appending(path: "2026-10-15-100000-app-100000.tsv"))
         let app = AppDelegate(recordings: nil, defaultFolder: folder.url, logFolder: logs)
-
         app.applicationWillFinishLaunching(Notification(name: NSApplication.willFinishLaunchingNotification))
+        return app
+    }
+
+    /// C36: the launch reads the earlier journal, and the start window shows the notice.
+    @Test(arguments: [true, false]) func anUncleanEarlierLaunchGivesTheStartWindowTheNotice(unclean: Bool) throws {
+        let app = try launchedApp(afterUncleanEnd: unclean)
         app.showStart()
 
         #expect((app.start?.model.noticeApp != nil) == unclean)
         app.start?.close()
+        app.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
+    }
+
+    /// C36: an open closes the start window before its session window shows, and the session
+    /// window shows the notice that the start window had.
+    @Test func theSessionWindowShowsTheNoticeOfTheClosedStartWindow() async throws {
+        let app = try launchedApp(afterUncleanEnd: true)
+        app.showStart()
+        try #require(app.start?.model.noticeApp != nil, "the start window shows the notice")
+
+        let session = await app.open(try folder.package("a"))
+
+        let window = try #require(session.window)
+        #expect(app.start == nil && app.uncleanNotice.shows(in: window), "the session window has the notice")
+        await session.close()
         app.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
     }
 }

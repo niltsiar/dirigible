@@ -92,7 +92,7 @@ cp "$(dirname "$stamp_sh")/../Makefile" "$tmp/r/Makefile"
 printf '\nstub-ok:\n\t@echo stub-ok ran\n' >> "$tmp/r/Makefile"
 printf '#!/bin/bash\nprintf "classes: docs\\ntargets: stub-ok\\nrisk: no\\n"\n' > "$tmp/r/scripts/check-changed.sh"
 cp "$stamp_sh" "$tmp/r/scripts/check-stamp.sh"
-cp "$(dirname "$stamp_sh")/run-checks.sh" "$tmp/r/scripts/run-checks.sh"
+cp "$(dirname "$stamp_sh")/run-checks.sh" "$(dirname "$stamp_sh")/check-commits.sh" "$tmp/r/scripts/"
 chmod +x "$tmp/r/scripts/check-changed.sh"
 g add -A && g commit -q -m make
 (cd "$tmp/r" && make -n check-changed BASE=main) > "$tmp/make.out" 2>&1 || fail "make -n check-changed: exit $?: $(cat "$tmp/make.out")"

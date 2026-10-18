@@ -781,6 +781,9 @@ leak_commit
 guard origin/main
 [[ $code -eq 1 ]] || fail "secret: exit $code: $(cat "$c/out")"
 grep -q 'github-pat' "$c/out" && grep -q 'secret.txt' "$c/out" && grep -q 'found a secret' "$c/out" || fail "secret: no finding named: $(cat "$c/out")"
+grep -q "\"Fingerprint\": \"$(git -C "$c/work" rev-parse HEAD):secret.txt:github-pat:1\"" "$c/out" && grep -q '"StartLine": 1' "$c/out" ||
+  fail "secret: no line or fingerprint: $(cat "$c/out")"
+grep -q '.gitleaksignore' "$c/out" || fail "secret: no allow route: $(cat "$c/out")"
 ! grep -q "$tok" "$c/out" || fail "secret: the output holds the token"
 # The scan reads the commits, not the tree: a token removed in a later commit is still found.
 git -C "$c/work" rm -q secret.txt && git -C "$c/work" commit -q -m remove

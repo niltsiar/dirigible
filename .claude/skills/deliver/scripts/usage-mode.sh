@@ -2,8 +2,9 @@
 # Print the usage mode of the lead thread: save, spend, or normal (docs/workflow/model-routing.md).
 # Usage: usage-mode.sh
 # It reads the five_hour row of ~/.claude/usage/limits.json (USAGE_LIMITS_FILE sets another file;
-# USAGE_MODE_NOW sets the clock, in epoch seconds). Claude Code writes the file at the end of each
-# turn of the main agent, so an in-process subagent does not update it. The first rule that fits wins:
+# USAGE_MODE_NOW sets the clock, in epoch seconds). The file is optional. Claude Code does not write
+# it: a status-line script of the user setup does, at the end of each turn of the main agent, so an
+# in-process subagent does not update it. With no file, the mode is normal. The first rule that fits wins:
 # - no file, no five_hour row, a resetsAt in the past (a new window), or a percentUsed that is not
 #   a number or a resetsAt that is not an ISO date: normal.
 # - written_at more than 15 min ago, with a future resetsAt: save (the percent is out of date).

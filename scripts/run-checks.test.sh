@@ -7,9 +7,10 @@
 # refusal with no rerun (also a crashed shard of test-shards.sh), CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
 # later try with only the names that did not pass again, a real make on a stub Makefile, the
 # static gates first (a red gate stops the check before test; a gate runs once; a nested make
-# still runs a gate), --flakes (the read route of the flakes file), the partial stamp line, and
-# the RERUN word (its two modes, no make call, one flake line for each name), and the push check marker
-# that only a run with BASE gives make. Run by `make test-hooks`.
+# still runs a gate), --flakes (the read route of the flakes file), the partial stamp line, the
+# RERUN word (its two modes, no make call, one flake line for each name), the push check marker
+# that only a run with BASE gives make, and the secret scan that only a run with BASE starts.
+# Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -32,6 +33,7 @@ git init -q "$w"
 git -C "$w" -c user.name=t -c user.email=t@t commit -q --allow-empty -m base
 cp "$repo/scripts/run-checks.sh" "$w/scripts/run-checks.sh"
 printf '#!/bin/bash\necho "check-changed $*" >> "$FAKE_LOG"\n' > "$w/scripts/check-changed.sh"
+printf '#!/bin/bash\necho "check-commits $*" >> "$FAKE_LOG"\nexit "${FAKE_COMMITS_CODE:-0}"\n' > "$w/scripts/check-commits.sh"
 cat > "$w/scripts/test-filter.sh" <<'EOF'
 #!/bin/bash
 echo "test-filter slow=${DIRIGIBLE_SLOW_TESTS:-} $*" >> "$FAKE_LOG"
@@ -252,6 +254,16 @@ BASE=origin/main run 1 0 'ok' check
 : > "$tmp/log.env"
 run 1 0 'ok' check
 [[ "$(cat "$tmp/log.env")" == 'push-check=unset' ]] || fail "a run with no BASE: marker [$(cat "$tmp/log.env")]"
+
+# The secret scan: with BASE, check-commits.sh --secrets <base> runs first, before the static gates
+# and make; with no BASE it does not run; a red scan ends the run with its exit code and no make call.
+BASE=origin/main run 1 0 'ok' check
+[[ "$(head -n 1 "$tmp/log")" == 'check-commits --secrets origin/main' && "$(grep -c '^check-commits' "$tmp/log")" == 1 ]] ||
+  fail "a run with BASE: no scan first: [$(cat "$tmp/log")]"
+run 1 0 'ok' check
+! grep -q '^check-commits' "$tmp/log" || fail "a run with no BASE scanned: [$(cat "$tmp/log")]"
+FAKE_COMMITS_CODE=3 BASE=origin/main run 1 0 'ok' check
+[[ $code -eq 3 && "$(cat "$tmp/log")" == 'check-commits --secrets origin/main' ]] || fail "a red scan: exit $code, calls [$(cat "$tmp/log")]"
 
 # A stamped run (BASE set by make check-changed BASE=<ref> or by the land.sh delta) marks the tree
 # while make runs: the pid of run-checks.sh and its start time. The mark is gone after a pass and

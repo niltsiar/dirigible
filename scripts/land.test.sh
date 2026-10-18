@@ -538,7 +538,7 @@ mkdir -p "$c/work/scripts"
 cp "$here/../Makefile" "$c/work/Makefile"
 printf '\nstub-ok:\n\t@echo stub-ok ran\n' >> "$c/work/Makefile"
 printf '#!/bin/bash\nprintf "classes: docs\\ntargets: stub-ok\\nrisk: no\\n"\n' > "$c/work/scripts/check-changed.sh"
-cp "$here/check-stamp.sh" "$here/run-checks.sh" "$c/work/scripts/"
+cp "$here/check-stamp.sh" "$here/run-checks.sh" "$here/check-commits.sh" "$c/work/scripts/"
 chmod +x "$c/work/scripts/check-changed.sh"
 git -C "$c/work" add -A && git -C "$c/work" commit -q -m ratchet
 (cd "$c/work" && make -s check-changed BASE=origin/main) > "$c/make.out" 2>&1 || fail "ratchet: make check-changed failed: $(cat "$c/make.out")"
@@ -767,6 +767,76 @@ hook_case 'update, tool commit' 1 "$clean" "$tip"
 hook_case 'update, tool commit already on the remote' 0 "$tool" "$tip"
 hook_case 'remote sha unknown here, tool commit' 1 1111111111111111111111111111111111111111 "$tip"
 hook_case 'delete' 0 "$clean" "$zero"
+
+# The secret scan (check-commits.sh, gitleaks on <base>..HEAD). The fake token is joined here, so
+# this file holds no token for the scan of the commits that add it. leak_commit adds a commit
+# with the token in a file; a clean range passes in the cases above.
+tok="g""hp_R8sT2vXy9LmQ4wPz7KdN1bC5fG3hJ6aEuYoI"
+leak_commit() {
+  printf 'token = "%s"\n' "$tok" > "$c/work/${1:-secret.txt}"
+  git -C "$c/work" add -A && git -C "$c/work" commit -q -m leak
+}
+setup
+leak_commit
+guard origin/main
+[[ $code -eq 1 ]] || fail "secret: exit $code: $(cat "$c/out")"
+grep -q 'github-pat' "$c/out" && grep -q 'secret.txt' "$c/out" && grep -q 'found a secret' "$c/out" || fail "secret: no finding named: $(cat "$c/out")"
+! grep -q "$tok" "$c/out" || fail "secret: the output holds the token"
+# The scan reads the commits, not the tree: a token removed in a later commit is still found.
+git -C "$c/work" rm -q secret.txt && git -C "$c/work" commit -q -m remove
+guard origin/main
+[[ $code -eq 1 ]] || fail "a removed secret: exit $code: $(cat "$c/out")"
+# --secrets alone, and a token that origin/main holds is outside the range.
+guard --secrets origin/main
+[[ $code -eq 1 ]] || fail "--secrets: exit $code: $(cat "$c/out")"
+setup
+printf 'token = "%s"\n' "$tok" > "$c/other/old.txt"
+git -C "$c/other" add -A && git -C "$c/other" commit -q -m old
+git -C "$c/other" push -q origin main
+git -C "$c/work" fetch -q
+guard origin/main
+[[ $code -eq 0 ]] || fail "a secret below the base: exit $code: $(cat "$c/out")"
+guard --secrets nosuchbase
+[[ $code -eq 1 ]] && grep -q 'nosuchbase is not a commit' "$c/out" || fail "--secrets with a base that is no commit: exit $code: $(cat "$c/out")"
+# With no gitleaks, the scan fails and names the tool and the install command; --authors needs none.
+# nogl prints a PATH whose folders that hold gitleaks have links to their other files only.
+nogl() {
+  local d f dirs out=""
+  mkdir -p "$c/nobin"
+  IFS=: read -ra dirs <<<"$PATH"
+  for d in "${dirs[@]}"; do
+    if [[ -x "$d/gitleaks" ]]; then
+      for f in "$d"/*; do [[ ${f##*/} == gitleaks ]] || ln -sf "$f" "$c/nobin/" 2>/dev/null; done
+      d="$c/nobin"
+    fi
+    out+="$d:"
+  done
+  echo "${out%:}"
+}
+setup
+nopath="$(nogl)"
+(cd "$c/work" && PATH="$nopath" "$here/check-commits.sh" origin/main) > "$c/out" 2>&1
+code=$?
+[[ $code -eq 1 ]] || fail "no gitleaks: exit $code: $(cat "$c/out")"
+grep -q 'gitleaks is not installed' "$c/out" && grep -q 'brew install gitleaks' "$c/out" || fail "no gitleaks: no install hint: $(cat "$c/out")"
+(cd "$c/work" && PATH="$nopath" "$here/check-commits.sh" --authors origin/main..HEAD) > "$c/out" 2>&1
+code=$?
+[[ $code -eq 0 ]] || fail "no gitleaks, --authors: exit $code: $(cat "$c/out")"
+# A gitleaks that fails with a tool error is no clean scan.
+mkdir -p "$c/badbin"
+printf '#!/bin/bash\necho "fatal" >&2\nexit 1\n' > "$c/badbin/gitleaks"
+chmod +x "$c/badbin/gitleaks"
+(cd "$c/work" && PATH="$c/badbin:$PATH" "$here/check-commits.sh" origin/main) > "$c/out" 2>&1
+code=$?
+[[ $code -eq 1 ]] && grep -q 'gitleaks failed (exit 1)' "$c/out" || fail "a gitleaks error: exit $code: $(cat "$c/out")"
+# land.sh stops before the check and the push.
+setup
+leak_commit
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "land with a secret: exit $code: $(cat "$c/out")"
+grep -q 'found a secret' "$c/out" && grep -q 'nothing is pushed' "$c/out" || fail "land with a secret: no reason: $(cat "$c/out")"
+no_side_effects 'land with a secret'
 
 [[ $failures -eq 0 ]] && echo "land tests: all passed"
 exit $((failures > 0))

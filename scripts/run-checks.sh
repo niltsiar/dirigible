@@ -23,6 +23,8 @@
 #          and run no make. The guardrail hook blocks each other command that names the file, except a read.
 # It sets WITH_LOCK_MAX_WAIT=0, so a with-lock.sh call of a make recipe (swift-test.sh) waits with
 # no limit and never ends in exit 75, which would read as a red test.
+# With BASE, it first runs check-commits.sh --secrets (the gitleaks scan of BASE..HEAD); a finding
+# or a missing gitleaks ends the run before any target.
 # With BASE (the push check), it exports DIRIGIBLE_PUSH_CHECK=1, which test-shards.sh needs to run
 # the full suite: a bare make test refuses.
 # The check-changed target of the Makefile and land.sh call it. scripts/run-checks.test.sh tests it.
@@ -61,6 +63,8 @@ here="$(cd "$(dirname "$0")" && pwd)"
 common="$(git rev-parse --path-format=absolute --git-common-dir)"
 log="$(mktemp)"
 trap 'rm -f "$log" "$log".* ${mark:+"$mark"}' EXIT
+# The secret scan of the pushed commits comes first: a leak ends the push check at once.
+[[ -z "${BASE:-}" ]] || "$here/check-commits.sh" --secrets "$BASE"
 
 skip=() vars=() goals=() first=no
 for a in "$@"; do

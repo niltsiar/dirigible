@@ -1,12 +1,19 @@
 import CryptoKit
 import Foundation
 
-/// Why `DiagnosticBundle.collect` wrote no zip.
+/// Why `DiagnosticBundle.collect` wrote no zip. The library gives no text: each front end names
+/// the cause in its own words (decision 0010).
 public enum BundleError: Error, Equatable, Sendable {
     /// A file or a folder is at the zip path.
     case exists
-    /// The zip could not be written, with the reason in English.
-    case cannotWrite(String)
+    /// The folder of the zip does not exist.
+    case folderMissing
+    /// The folder of the zip has no write permission.
+    case noPermission
+    /// The temporary folder cannot be made, is full, or has no write permission.
+    case tempFolder
+    /// The system did not make the zip, with its Cocoa error code.
+    case zipFailed(code: Int)
 }
 
 /// The problem report of decision 0059: one zip with `summary.txt`, `devices.tsv`, `logs/`, and
@@ -60,7 +67,7 @@ public enum DiagnosticBundle {
                     at: root.appending(path: folder), withIntermediateDirectories: true)
             }
         } catch {
-            throw .cannotWrite("the temporary folder cannot be made")
+            throw .tempFolder
         }
         var copy = Copy(root: root, redaction: facts.redaction)
         let salt = existingSalt(in: logs) ?? SymmetricKey(size: .bits256)
@@ -80,9 +87,9 @@ public enum DiagnosticBundle {
         let folder = zip.deletingLastPathComponent().path
         var isFolder: ObjCBool = false
         guard FileManager.default.fileExists(atPath: folder, isDirectory: &isFolder), isFolder.boolValue else {
-            throw .cannotWrite("the folder of the zip does not exist")
+            throw .folderMissing
         }
-        guard access(folder, W_OK) == 0 else { throw .cannotWrite("the folder of the zip has no write permission") }
+        guard access(folder, W_OK) == 0 else { throw .noPermission }
     }
 
     /// The salt of the journals, so `devices.tsv` gives each device the token of the journals.
@@ -107,7 +114,7 @@ public enum DiagnosticBundle {
         }
         if moveError?.code == .fileWriteFileExists { throw .exists }
         if let failure = moveError ?? coordinatorError.map({ CocoaError(CocoaError.Code(rawValue: $0.code)) }) {
-            throw .cannotWrite("the zip was not written (Cocoa error \(failure.code.rawValue))")
+            throw .zipFailed(code: failure.code.rawValue)
         }
     }
 }
@@ -162,7 +169,7 @@ private struct Copy {
         do {
             try Data(text.utf8).write(to: file)
         } catch {
-            throw .cannotWrite("the temporary folder is full or has no write permission")
+            throw .tempFolder
         }
     }
 

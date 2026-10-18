@@ -136,16 +136,29 @@ import Testing
         #expect(run.revealed == [url], "the saved file shows in Finder")
     }
 
-    /// C35: a write failure names the cause and the folder, and the file does not show in Finder.
-    @Test func aFailedWriteNamesTheCauseAndTheFolder() async {
+    /// C35 and decision 0010: a write failure names the folder and the table text of its case, and
+    /// the file does not show in Finder. The English reason of the library never reaches the alert.
+    @Test(arguments: [
+        (BundleError.exists, L10n.reportErrorExists), (.folderMissing, .reportErrorFolder),
+        (.noPermission, .reportErrorPermission), (.tempFolder, .reportErrorTemporary),
+        (.zipFailed(code: 640), .reportErrorZip),
+    ]) func aFailedWriteNamesTheCauseAndTheFolder(error: BundleError, text: L10n) async {
         let run = Run()
-        prepare(run, waits: false, delay: .seconds(60), result: .failure(.cannotWrite("no write permission")))
+        prepare(run, waits: false, delay: .seconds(60), result: .failure(error))
 
         await app.writeReport(to: folder.url.appending(path: "Report.zip"))
 
-        #expect(run.failures.map(\.cause) == ["no write permission"])
+        let expected = error == .zipFailed(code: 640) ? text.format(640) : text.text
+        #expect(run.failures.map(\.cause) == [expected])
         #expect(run.failures.map(\.folder) == [folder.url.lastPathComponent])
         #expect(run.revealed.isEmpty)
+    }
+
+    /// The text of each case differs, so a user can tell the causes apart.
+    @Test func eachFailureCaseHasItsOwnText() {
+        let errors: [BundleError] = [.exists, .folderMissing, .noPermission, .tempFolder, .zipFailed(code: 1)]
+
+        #expect(Set(errors.map { L10n.message(for: $0) }).count == errors.count)
     }
 
     /// A folder for one report, so the test sees each file that the report leaves.
@@ -181,7 +194,7 @@ import Testing
     /// path, and a failed collect leaves the old file.
     @Test func aFailedCollectKeepsTheFileItWouldReplace() async throws {
         let run = Run()
-        prepare(run, waits: false, delay: .seconds(60), result: .failure(.cannotWrite("no write permission")))
+        prepare(run, waits: false, delay: .seconds(60), result: .failure(.noPermission))
         let desktop = try reportFolder()
         let url = desktop.appending(path: "Report.zip")
         try Data("old".utf8).write(to: url)

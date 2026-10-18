@@ -505,6 +505,11 @@
 "report.progress" = "Preparando el informe…";
 "report.saved" = "Informe guardado. Dirigible muestra el archivo en el Finder.";
 "report.error.write" = "Dirigible no pudo guardar el informe en “%1$@”. Motivo: %2$@.";
+"report.error.exists" = "ya existe un archivo o una carpeta con ese nombre";
+"report.error.folder" = "la carpeta no existe";
+"report.error.permission" = "la carpeta no tiene permiso de escritura";
+"report.error.temporary" = "la carpeta temporal está llena o no tiene permiso de escritura";
+"report.error.zip" = "el sistema no pudo crear el zip (error %lld)";
 "report.file.name" = "Informe de Dirigible %@";
 "notice.unclean.text" = "La última vez, Dirigible no se cerró de forma normal. Un informe puede mostrar el motivo. Dirigible no envía nada: tú eliges si envías el archivo.";
 "notice.unclean.later" = "Ahora no";

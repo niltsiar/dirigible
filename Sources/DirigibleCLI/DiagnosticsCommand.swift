@@ -34,6 +34,10 @@ extension DiagnosticsCommand {
             guard (1...3650).contains(days) else { throw ValidationError("The days must be from 1 to 3650.") }
         }
 
+        private func unwritten(_ reason: String) -> ExitCode {
+            fail("\(zip) was not written: \(reason).", code: packageError)
+        }
+
         func run() async throws {
             let collected: DiagnosticBundle.Collected
             do throws(BundleError) {
@@ -47,7 +51,10 @@ extension DiagnosticsCommand {
             } catch {
                 switch error {
                 case .exists: throw fail("\(zip) exists.", code: packageError)
-                case .cannotWrite(let reason): throw fail("\(zip) was not written: \(reason).", code: packageError)
+                case .folderMissing: throw unwritten("the folder of the zip does not exist")
+                case .noPermission: throw unwritten("the folder of the zip has no write permission")
+                case .tempFolder: throw unwritten("the temporary folder is full or has no write permission")
+                case .zipFailed(let code): throw unwritten("the zip was not written (Cocoa error \(code))")
                 }
             }
             print("Saved \(zip): \(collected.logs) journals, \(collected.reports) reports.")

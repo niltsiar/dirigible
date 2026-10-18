@@ -130,6 +130,29 @@ struct DiagnosticBundleTests {
         #expect(bundle.files(in: "reports").isEmpty)
     }
 
+    /// Each refusal of the zip path has its own case, so the front end maps it to a text of its
+    /// own language (decision 0010). The library gives no text.
+    @Test func eachRefusedZipPathGivesItsOwnCase() throws {
+        let fixture = try BundleFixture()
+        try Data("keep".utf8).write(to: fixture.folder.appending(path: "exists.zip"))
+        let locked = fixture.folder.appending(path: "locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        func refusal(_ name: String) -> BundleError? {
+            do {
+                _ = try fixture.collect(zip: name)
+                return nil
+            } catch {
+                return error as? BundleError
+            }
+        }
+
+        #expect(refusal("exists.zip") == .exists)
+        #expect(refusal("missing/report.zip") == .folderMissing)
+        #expect(refusal("locked/report.zip") == .noPermission)
+    }
+
     /// C45: one device has one token in both launch journals and in `devices.tsv`, and neither the
     /// UID nor the salt is in the zip.
     @Test func oneDeviceHasOneTokenInEveryFile() throws {

@@ -505,6 +505,11 @@
 "report.progress" = "Preparando o relatório…";
 "report.saved" = "Relatório salvo. O Dirigible mostra o arquivo no Finder.";
 "report.error.write" = "O Dirigible não conseguiu salvar o relatório em “%1$@”. Motivo: %2$@.";
+"report.error.exists" = "já existe um arquivo ou uma pasta com esse nome";
+"report.error.folder" = "a pasta não existe";
+"report.error.permission" = "a pasta não tem permissão de escrita";
+"report.error.temporary" = "a pasta temporária está cheia ou não tem permissão de escrita";
+"report.error.zip" = "o sistema não conseguiu criar o zip (erro %lld)";
 "report.file.name" = "Relatório do Dirigible %@";
 "notice.unclean.text" = "Da última vez, o Dirigible não encerrou de forma normal. Um relatório pode mostrar o motivo. O Dirigible não envia nada: você escolhe se envia o arquivo.";
 "notice.unclean.later" = "Agora não";

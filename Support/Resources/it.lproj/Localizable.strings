@@ -505,6 +505,11 @@
 "report.progress" = "Preparazione del rapporto…";
 "report.saved" = "Rapporto salvato. Dirigible mostra il file nel Finder.";
 "report.error.write" = "Dirigible non è riuscito a salvare il rapporto in “%1$@”. Motivo: %2$@.";
+"report.error.exists" = "esiste già un file o una cartella con questo nome";
+"report.error.folder" = "la cartella non esiste";
+"report.error.permission" = "la cartella non ha il permesso di scrittura";
+"report.error.temporary" = "la cartella temporanea è piena o non ha il permesso di scrittura";
+"report.error.zip" = "il sistema non è riuscito a creare lo zip (errore %lld)";
 "report.file.name" = "Rapporto Dirigible %@";
 "notice.unclean.text" = "L’ultima volta Dirigible non si è chiuso normalmente. Un rapporto può mostrarne il motivo. Dirigible non invia nulla: scegli tu se inviare il file.";
 "notice.unclean.later" = "Non ora";

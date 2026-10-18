@@ -1,12 +1,13 @@
 import Foundation
 
-/// Crossfades at a butt join (decision 0036).
+/// Crossfades at a join (decision 0036).
 extension Session {
     /// Sets the crossfade at the end of each clip (the key) and at the start of its right neighbor,
     /// in one pass over the lanes. 0 removes it. A new crossfade sets the fades at its two edges to
     /// 0, and the fade at the other edge of each clip yields. A clip with no touching neighbor
-    /// throws `.crossfadeWithoutJoin`, a seamless join `.crossfadeAtSeamlessJoin`, and a length
-    /// that `Crossfades` refuses `.frameOutOfRange`. A throw changes nothing.
+    /// throws `.crossfadeWithoutJoin`, a new crossfade at a seamless join of two equal gains
+    /// `.crossfadeAtEqualGains`, and a length that `Crossfades` refuses `.frameOutOfRange`. A throw
+    /// changes nothing.
     public mutating func setCrossfades(_ lengths: [ClipID: Frames]) throws(SessionError) {
         var joins: [Int: [(index: Int, length: Frames)]] = [:]
         var found = 0
@@ -40,8 +41,11 @@ extension Session {
                 var left = changed.last?.index == index ? changed.removeLast().clip : lane[index]
                 let join = lane.join(after: index)
                 guard join != .none else { throw .crossfadeWithoutJoin(left.id) }
-                if length != .zero, join == .seamless { throw .crossfadeAtSeamlessJoin(left.id) }
                 var right = lane[index + 1]
+                // `changed` can hold `left` with a new start only, so its end is the length before the call.
+                if length != .zero, join == .seamless, left.crossfades.end == .zero, left.gain == right.gain {
+                    throw .crossfadeAtEqualGains(left.id)
+                }
                 guard let end = Crossfades(start: left.crossfades.start, end: length),
                     let start = Crossfades(start: length, end: right.crossfades.end)
                 else { throw .frameOutOfRange }

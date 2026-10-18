@@ -182,12 +182,14 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 8 with a transcript
-    /// (decision 0055), else 7 with a marker URL or image, else 6
+    /// The `session.xml` version that holds this session (decision 0024 P6): 9 with a crossfade at a
+    /// seamless join (decision 0036), else 8 with a transcript (decision 0055), else 7 with a marker
+    /// URL or image, else 6
     /// with episode data (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4
     /// with a crossfade (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route
     /// (decision 0029), else 1.
     public var fileVersion: Int {
+        if tracks.contains(where: { $0.clips.seamlessCrossfade != nil }) { return 9 }
         if !transcripts.isEmpty { return 8 }
         if markers.values.contains(where: { $0.url != nil || $0.image != nil }) { return 7 }
         if !episode.isEmpty { return 6 }
@@ -289,9 +291,12 @@ public enum SessionError: Error, Hashable, Sendable {
     case crossfadeOutsideFile(ClipID, needed: Frames)
     /// No clip touches the crossfade edge of the clip with the same crossfade length (decision 0036).
     case crossfadeWithoutJoin(ClipID)
-    /// The clip after this clip plays on from the same file frame, so a crossfade there would be
-    /// 3 dB too loud (decision 0036).
+    /// A file of version 8 or lower has a crossfade at the end of this clip, and the clip after it
+    /// plays on from the same file frame: these versions play it 3 dB too loud (decision 0036).
     case crossfadeAtSeamlessJoin(ClipID)
+    /// A new crossfade at the end of this clip, where the clip after it plays on from the same file
+    /// frame at the same gain: it changes no sample (decision 0036).
+    case crossfadeAtEqualGains(ClipID)
     /// The clip has a fade and a crossfade at one edge (decision 0036).
     case fadeAtCrossfade(ClipID)
     /// A paste names a track count that is not the lane count of its excerpt, which this case holds.

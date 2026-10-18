@@ -219,15 +219,18 @@ final class LaneRenderer {
                     peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
                 }
                 // The fades as the clip sounds: a crossfade is the fade of its edge (decision 0036).
-                // Most clips have no crossfade and skip the sounding copy.
-                let sounding = clip.crossfades == .zero ? nil : clip.sounding
-                let (clipFades, length, start) =
-                    sounding.map { ($0.fades, $0.length, $0.start) } ?? (clip.fades, clip.length, clip.start)
+                // Most clips have no crossfade and skip the lane lookup of the sounding clip.
+                let sounding =
+                    clip.crossfades == .zero
+                    ? nil : track.clips.index(holding: clip.start).map(track.clips.sounding(at:))
+                let (clipFades, curves, length, start) =
+                    sounding.map { ($0.clip.fades, $0.curves, $0.clip.length, $0.clip.start) }
+                    ?? (clip.fades, Fades.Curves.sine, clip.length, clip.start)
                 let fades =
                     clipFades == .zero
                     ? nil
                     : ColumnFades(
-                        fades: clipFades, length: length,
+                        fades: clipFades, curves: curves, length: length,
                         first: Double(range.lowerBound) * pixelFrames - Double(start.count),
                         step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
                 drawColumns(
@@ -351,6 +354,7 @@ final class LaneRenderer {
 /// column, and the frames per column.
 struct ColumnFades {
     let fades: Fades
+    let curves: Fades.Curves
     let length: Frames
     let first: Double
     let step: Double
@@ -368,8 +372,8 @@ struct ColumnFades {
         let falling = fades.fadeOut > .zero && k > length.count - fades.fadeOut.count
         guard rising || falling else { return nil }
         var factor = 1.0
-        if rising { factor *= fades.gain(at: Frames(end), length: length) }
-        if falling { factor *= fades.gain(at: Frames(k), length: length) }
+        if rising { factor *= fades.gain(at: Frames(end), length: length, curves: curves) }
+        if falling { factor *= fades.gain(at: Frames(k), length: length, curves: curves) }
         return factor
     }
 }

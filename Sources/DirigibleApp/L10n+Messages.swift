@@ -205,7 +205,8 @@ extension L10n {
             .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,
             .markerURLTooLong,
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .fadeOutsideClip, .crossfadeOutsideFile,
-            .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .fadeAtCrossfade, .laneOutOfRange, .foreignFile,
+            .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .crossfadeAtEqualGains, .fadeAtCrossfade, .laneOutOfRange,
+            .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack,
             .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
             .nothingToHeal:

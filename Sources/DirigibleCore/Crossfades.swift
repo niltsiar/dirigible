@@ -32,12 +32,36 @@ public struct Crossfades: Hashable, Sendable {
     public subscript(edge: Fades.Edge) -> Frames { edge == .start ? start : end }
 }
 
+extension Fades {
+    /// The curve of a fade edge: `sine` is equal power (0035), `linear` is equal gain (0036).
+    public enum Curve: Sendable { case sine, linear }
+
+    /// The curve of each edge. No stored value holds it: a stored fade always plays `sine`.
+    public struct Curves: Hashable, Sendable {
+        public let start: Curve
+        public let end: Curve
+
+        public static let sine = Curves(start: .sine, end: .sine)
+
+        public init(start: Curve, end: Curve) {
+            self.start = start
+            self.end = end
+        }
+    }
+}
+
+/// A clip as it sounds and the curve of each edge, from `ClipLane.sounding(at:)` (decision 0036).
+/// No session edit takes it, so a linear curve never goes into a stored clip.
+public struct SoundingClip: Hashable, Sendable {
+    public let clip: Clip
+    public let curves: Fades.Curves
+}
+
 /// The geometry of crossfades (decision 0036).
 extension Clip {
-    /// The clip as it sounds: the clip plus half of each crossfade from its media handles, with
-    /// the crossfade of each edge as the fade of that edge. The render and the draw read it, so
-    /// `Fades.gain` and `fadeEnvelope` play a crossfade with no neighbor lookup.
-    public var sounding: Clip {
+    /// The clip plus half of each crossfade from its media handles, with the crossfade of each edge
+    /// as the fade of that edge. Only `ClipLane` reads it: the lane gives the curve of each edge.
+    var sounding: Clip {
         guard crossfades != .zero else { return self }
         let (left, range) = (crossfades.start.half, soundingRange)
         let fades = Fades(
@@ -48,8 +72,8 @@ extension Clip {
             length: range.upperBound - range.lowerBound, gain: gain, fades: fades, crossfades: .zero)
     }
 
-    /// The timeline range of `sounding`.
-    var soundingRange: Range<Frames> { (start - crossfades.start.half)..<(end + crossfades.end.half) }
+    /// The timeline range of the clip as it sounds: the clip plus half of each crossfade.
+    public var soundingRange: Range<Frames> { (start - crossfades.start.half)..<(end + crossfades.end.half) }
 
     /// The frames of the clip that `edge` reaches: its fade plus half its crossfade. The fade
     /// handle sits at the reach.
@@ -79,7 +103,7 @@ extension Clip {
     }
 
     /// True when `right` plays on from the frame of the file where this clip stops: the handles of
-    /// a crossfade there hold one signal, which equal power makes 3 dB too loud.
+    /// a crossfade there hold one signal, so the crossfade takes the linear curve.
     public func isSeamless(with right: Clip) -> Bool { file == right.file && offset + length == right.offset }
 }
 

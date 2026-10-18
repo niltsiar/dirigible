@@ -4,14 +4,13 @@ import DirigibleCore
 
 /// Renders the mix of a session (decision 0016): stereo float32, non-interleaved, at the session
 /// rate. Clip gain plus track gain in dB is one linear factor, times the fade factor of decision
-/// 0035 of the sounding clip, whose fades hold its crossfades (decision 0036). A mono clip goes to
-/// both channels,
-/// a stereo clip left to left and right to right (0007). It reads only the heard tracks of its
-/// track set: muted and unsoloed tracks are out (decision 0039). Where no clip or no media is, the
-/// mix is silence. One owner, not Sendable: the Player or the command-line render. It keeps at most
-/// `openLimit` files open and closes the least recently used one, so a session with many files
-/// does not use up the descriptors of the process. Each read stops at the real length of the file
-/// (probe E6c).
+/// 0035 of the sounding clip of the lane, whose fades hold its crossfades with the curve of each
+/// edge (decision 0036). A mono clip goes to both channels, a stereo clip left to left and right
+/// to right (0007). It reads only the heard tracks of its track set: muted and unsoloed tracks are
+/// out (decision 0039). Where no clip or no media is, the mix is silence. One owner, not Sendable:
+/// the Player or the command-line render. It keeps at most `openLimit` files open and closes the
+/// least recently used one, so a session with many files does not use up the descriptors of the
+/// process. Each read stops at the real length of the file (probe E6c).
 final class MixReader {
     /// A calibration knob: the process limit is 256 descriptors by default.
     static let openLimit = 32
@@ -51,7 +50,8 @@ final class MixReader {
         let out = buffer.floatChannelData!
         for channel in 0..<2 { out[channel].update(repeating: 0, count: count) }
         for track in session.heardTracks(in: tracks) {
-            for clip in track.clips.clips(soundingIn: range).map(\.sounding) {
+            for sounding in track.clips.sounding(in: range) {
+                let clip = sounding.clip
                 let part = max(clip.start, range.lowerBound)..<min(clip.end, range.upperBound)
                 guard let read = read(clip.file, from: clip.offset + (part.lowerBound - clip.start), part) else {
                     continue
@@ -68,7 +68,7 @@ final class MixReader {
                     if envelope.count < count { envelope = [Float](repeating: 0, count: count) }
                     envelope.withUnsafeMutableBufferPointer {
                         fadeEnvelope(
-                            clip.fades, length: clip.length, from: first, gain: gain,
+                            clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: gain,
                             into: .init(rebasing: $0[..<count]))
                     }
                 }
@@ -133,11 +133,13 @@ final class MixReader {
 }
 
 /// Fills `envelope` with `gain` times the fade factor of the clip frames `from ..< from +
-/// envelope.count` of a clip of `length` frames (decision 0035). In each fade it ramps the frame
-/// index from an `Int` start, then scales it, so no clip frame above 2^24 becomes a Float (probe
-/// B1: 1.3e-7 or less). A frame is in at most one fade, because fadeIn + fadeOut <= length.
+/// envelope.count` of a clip of `length` frames, with the curve of each edge (decisions 0035 and
+/// 0036). In each fade it ramps the frame index from an `Int` start, then scales it, so no clip
+/// frame above 2^24 becomes a Float (probe B1: 1.3e-7 or less). A frame is in at most one fade,
+/// because fadeIn + fadeOut <= length.
 func fadeEnvelope(
-    _ fades: Fades, length: Frames, from: Frames, gain: Float, into envelope: UnsafeMutableBufferPointer<Float>
+    _ fades: Fades, curves: Fades.Curves, length: Frames, from: Frames, gain: Float,
+    into envelope: UnsafeMutableBufferPointer<Float>
 ) {
     guard let base = envelope.baseAddress else { return }
     var level = gain
@@ -146,25 +148,36 @@ func fadeEnvelope(
     // The fade-in: index k for the frames from ..< I.
     let inEnd = min(end, fades.fadeIn.count)
     if from.count < inEnd {
-        sineRamp(base, count: inEnd - from.count, start: from.count, step: 1, fade: fades.fadeIn, gain: gain)
+        fadeRamp(
+            base, count: inEnd - from.count, start: from.count, step: 1, fade: fades.fadeIn, curve: curves.start,
+            gain: gain)
     }
     // The fade-out: index N - k, from O down to 1, for the frames N - O ..< N.
     let outStart = max(from.count, length.count - fades.fadeOut.count)
     if outStart < end {
-        sineRamp(
+        fadeRamp(
             base + (outStart - from.count), count: end - outStart, start: length.count - outStart, step: -1,
-            fade: fades.fadeOut, gain: gain)
+            fade: fades.fadeOut, curve: curves.end, gain: gain)
     }
 }
 
-/// Writes gain * sin(pi/2 * index / fade) for index = start, start + step, and so on.
-private func sineRamp(
-    _ out: UnsafeMutablePointer<Float>, count: Int, start: Int, step: Float, fade: Frames, gain: Float
+/// Writes gain * sin(pi/2 * index / fade), or gain * index / fade with the linear curve, for
+/// index = start, start + step, and so on.
+private func fadeRamp(
+    _ out: UnsafeMutablePointer<Float>, count: Int, start: Int, step: Float, fade: Frames, curve: Fades.Curve,
+    gain: Float
 ) {
-    var (first, step, scale, gain) = (Float(start), step, Float(Double.pi / 2 / Double(fade.count)), gain)
+    var (first, step, gain) = (Float(start), step, gain)
     let frames = vDSP_Length(count)
     vDSP_vramp(&first, &step, out, 1, frames)
-    vDSP_vsmul(out, 1, &scale, out, 1, frames)
-    vvsinf(out, out, [Int32(count)])
-    vDSP_vsmul(out, 1, &gain, out, 1, frames)
+    switch curve {
+    case .sine:
+        var scale = Float(Double.pi / 2 / Double(fade.count))
+        vDSP_vsmul(out, 1, &scale, out, 1, frames)
+        vvsinf(out, out, [Int32(count)])
+        vDSP_vsmul(out, 1, &gain, out, 1, frames)
+    case .linear:
+        var scale = Float(Double(gain) / Double(fade.count))
+        vDSP_vsmul(out, 1, &scale, out, 1, frames)
+    }
 }

@@ -129,7 +129,7 @@ struct LocalizationTests {
     @Test func eachCrossfadeErrorShowsTheRefusedChangeText() {
         for error in [
             SessionError.crossfadeOutsideFile("B", needed: 480), .crossfadeWithoutJoin("A"),
-            .crossfadeAtSeamlessJoin("A"),
+            .crossfadeAtSeamlessJoin("A"), .crossfadeAtEqualGains("A"),
             .fadeAtCrossfade("A"),
         ] {
             #expect(L10n.message(for: .session(error)) == L10n.errorSessionOther.rawValue, "\(error)")

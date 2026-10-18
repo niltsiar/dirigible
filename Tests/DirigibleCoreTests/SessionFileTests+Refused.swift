@@ -86,15 +86,17 @@ extension SessionFileTests {
     @Test func theReaderRefusesEachBadCrossfade() throws {
         let files =
             #"<file id="fa" path="a.wav" channels="1" length="10000"/><file id="fb" path="b.wav" channels="1" length="10000"/>"#
-        func read(_ version: String, a: String, b: String, bFile: String = "fb", bOffset: Int = 1_000)
-            throws(SessionFileError) -> Session
-        {
+        func read(
+            _ version: String, a: String, b: String, bFile: String = "fb", bOffset: Int = 1_000, bGain: String = "0",
+            newest: Int = sessionVersion
+        ) throws(SessionFileError) -> Session {
             let tracks = """
                 <track id="t1" name="A" gain="0" layout="mono">\
                 <clip id="A" file="fa" start="1000" offset="1000" length="4000" gain="0" \(a)/>\
-                <clip id="B" file="\(bFile)" start="5000" offset="\(bOffset)" length="4000" gain="0" \(b)/></track>
+                <clip id="B" file="\(bFile)" start="5000" offset="\(bOffset)" length="4000" gain="\(bGain)" \(b)/></track>
                 """
-            return try Session(xml: Data(document(version: version, files: files, tracks: tracks).utf8))
+            return try Session(
+                xml: Data(document(version: version, files: files, tracks: tracks).utf8), newest: newest)
         }
 
         let good = try? read("4", a: #"crossfadeOut="960""#, b: #"crossfadeIn="960""#)
@@ -130,8 +132,20 @@ extension SessionFileTests {
         #expect(throws: SessionFileError.invalidSession(.crossfadeOutsideFile("B", needed: 480)), "a short handle") {
             try read("4", a: #"crossfadeOut="960""#, b: #"crossfadeIn="960""#, bOffset: 479)
         }
-        #expect(throws: SessionFileError.invalidSession(.crossfadeAtSeamlessJoin("A")), "a seamless join") {
-            try read("4", a: #"crossfadeOut="960""#, b: #"crossfadeIn="960""#, bFile: "fa", bOffset: 5_000)
+        // Seamless crossfade C34: only version 9 holds a crossfade at a seamless join.
+        let (out, into) = (#"crossfadeOut="960""#, #"crossfadeIn="960""#)
+        for version in ["4", "8"] {
+            #expect(
+                throws: SessionFileError.invalidSession(.crossfadeAtSeamlessJoin("A")), "a seamless join in \(version)"
+            ) { try read(version, a: out, b: into, bFile: "fa", bOffset: 5_000, bGain: "-6") }
+        }
+        for gain in ["-6", "0"] {
+            let seamless = try? read("9", a: out, b: into, bFile: "fa", bOffset: 5_000, bGain: gain)
+            #expect(
+                seamless?.clip("B")?.clip.crossfades == Crossfades(start: 960, end: 0), "version 9, B at \(gain) dB")
+        }
+        #expect(throws: SessionFileError.unsupportedVersion(9), "a version 8 build refuses version 9") {
+            try read("9", a: out, b: into, bFile: "fa", bOffset: 5_000, bGain: "-6", newest: 8)
         }
     }
 

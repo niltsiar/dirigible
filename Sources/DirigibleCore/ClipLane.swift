@@ -1,7 +1,7 @@
 import Foundation
 
 /// The clips of one track, sorted by start. No two clips overlap. Each crossfade has its partner
-/// (decision 0036): a touching neighbor with the same length at a join that is not seamless.
+/// (decision 0036): a touching neighbor with the same length.
 /// The mutators are internal: `Session` adds the checks that need the file pool. Each mutator ends
 /// with a repair that drops a crossfade whose join the edit broke, on both clips.
 public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
@@ -34,11 +34,35 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     /// The fault of the crossfade at the join of the clips at `left` and `left + 1`, named for
     /// `id`; nil when the join holds it.
     private func joinFault(_ left: Int, id: ClipID) -> SessionError? {
-        let join = join(after: left)
-        guard join != .none, storage[left].crossfades.end == storage[left + 1].crossfades.start else {
+        guard join(after: left) != .none, storage[left].crossfades.end == storage[left + 1].crossfades.start else {
             return .crossfadeWithoutJoin(id)
         }
-        return join == .seamless ? .crossfadeAtSeamlessJoin(id) : nil
+        return nil
+    }
+
+    /// The clip at `index` as it sounds (`Clip.sounding`), and the curve of each edge: linear for a
+    /// crossfade at a seamless join (equal gain), else sine.
+    public func sounding(at index: Int) -> SoundingClip {
+        let clip = storage[index]
+        func curve(_ length: Frames, after left: Int) -> Fades.Curve {
+            length != .zero && join(after: left) == .seamless ? .linear : .sine
+        }
+        return SoundingClip(
+            clip: clip.sounding,
+            curves: Fades.Curves(
+                start: curve(clip.crossfades.start, after: index - 1), end: curve(clip.crossfades.end, after: index)))
+    }
+
+    /// The sounding clips whose sounding range has at least one frame in `range` (the render).
+    public func sounding(in range: Range<Frames>) -> [SoundingClip] {
+        storage.indices.filter { storage[$0].soundingRange.overlaps(range) }.map(sounding(at:))
+    }
+
+    /// The left clip of the first seamless join with a crossfade: `fileVersion` 9, and the refusal
+    /// of a file of version 8 or lower.
+    var seamlessCrossfade: ClipID? {
+        storage.indices.first { storage[$0].crossfades.end != .zero && join(after: $0) == .seamless }
+            .map { storage[$0].id }
     }
 
     /// Drops each crossfade of the clips in `indices` whose join does not hold it.
@@ -63,8 +87,8 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     }
 
     /// The clips whose sounding range (decision 0036: the clip plus half of each crossfade) has at
-    /// least one frame in `range`. The render, the media check, and the draw read it, so a clip
-    /// that sounds in a range from its handle is found.
+    /// least one frame in `range`. The media check and `changedFrames` read it, so a clip that
+    /// sounds in a range from its handle is found.
     public func clips(soundingIn range: Range<Frames>) -> [Clip] {
         storage.filter { $0.soundingRange.overlaps(range) }
     }

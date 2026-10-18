@@ -58,6 +58,9 @@ extension Session {
                 try setGain(track.gain, track: track.id)
                 try setRoute(track.route, track: track.id)
                 try setClips(track.clips, on: track.id)
+                if version <= 8, let clip = self.track(track.id)?.clips.seamlessCrossfade {
+                    throw .crossfadeAtSeamlessJoin(clip)
+                }
                 try setMuted(track.isMuted, tracks: [track.id])
                 try setSoloed(track.isSoloed, tracks: [track.id])
             }

@@ -44,7 +44,7 @@ package let artworkFolderName = "Artwork"
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 8
+package let sessionVersion = 9
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if

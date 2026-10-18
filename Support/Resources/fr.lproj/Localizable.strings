@@ -495,10 +495,10 @@
 "start.recent.missing" = "Introuvable";
 "menu.help.report" = "Signaler un problème…";
 "report.title" = "Signaler un problème";
-"report.privacy" = "Le rapport ne contient ni audio, ni fichiers de session, ni transcriptions, ni noms d’invités ou de sessions. Il contient les noms de vos appareils audio et le modèle de votre Mac. Votre nom, le nom de votre Mac et les noms de vos dossiers sont retirés. Dirigible n’envoie rien. Vous choisissez si vous envoyez le fichier, et à qui.";
+"report.privacy" = "Le rapport ne contient ni audio, ni fichiers de session, ni transcriptions. Il contient les noms de vos appareils audio, des apps que vous enregistrez et le modèle de votre Mac. Les journaux montrent un code à la place de chaque identifiant d’appareil. Les rapports de plantage et de blocage sont copiés tels que macOS les a écrits, réduits à la partie sur Dirigible. Votre nom d’utilisateur, le nom de votre Mac et votre dossier personnel sont retirés de chaque fichier. Un rapport peut encore contenir d’autres noms de dossiers et de fichiers. Dirigible n’envoie rien. Vous choisissez si vous envoyez le fichier, et à qui.";
 "report.included.show" = "Afficher ce qui est inclus";
 "report.included.logs" = "Les journaux des 7 derniers jours, avec les piles d’appels des blocages";
-"report.included.crashes" = "Les rapports de plantage de Dirigible";
+"report.included.crashes" = "Les rapports de plantage et de blocage de Dirigible";
 "report.included.devices" = "La liste de vos appareils audio";
 "report.included.summary" = "Un résumé de votre Mac : version de macOS, modèle, espace libre et autorisation du microphone";
 "report.save" = "Enregistrer le rapport…";

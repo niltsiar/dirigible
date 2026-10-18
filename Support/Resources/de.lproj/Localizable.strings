@@ -495,10 +495,10 @@
 "start.recent.missing" = "Nicht gefunden";
 "menu.help.report" = "Problem melden…";
 "report.title" = "Problem melden";
-"report.privacy" = "Der Bericht enthält kein Audio, keine Sitzungsdateien, keine Transkripte und keine Namen von Gästen oder Sitzungen. Er enthält die Namen deiner Audiogeräte und das Modell deines Macs. Dein Name, der Name deines Macs und die Namen deiner Ordner werden entfernt. Dirigible sendet nichts. Du entscheidest, ob du die Datei sendest und an wen.";
+"report.privacy" = "Der Bericht enthält kein Audio, keine Sitzungsdateien und keine Transkripte. Er enthält die Namen deiner Audiogeräte, der Apps, die du aufnimmst, und das Modell deines Macs. Die Protokolle zeigen einen Code anstelle jeder Geräte-ID. Die Absturz- und Hängerberichte sind so kopiert, wie macOS sie geschrieben hat, gekürzt auf den Teil über Dirigible. Dein Benutzername, der Name deines Macs und dein Home-Ordner werden aus jeder Datei entfernt. Ein Bericht kann trotzdem andere Ordner- und Dateinamen enthalten. Dirigible sendet nichts. Du entscheidest, ob du die Datei sendest und an wen.";
 "report.included.show" = "Zeigen, was enthalten ist";
 "report.included.logs" = "Die Protokolle der letzten 7 Tage, mit den Aufrufstapeln bei Hängern";
-"report.included.crashes" = "Die Absturzberichte von Dirigible";
+"report.included.crashes" = "Die Absturz- und Hängerberichte von Dirigible";
 "report.included.devices" = "Die Liste deiner Audiogeräte";
 "report.included.summary" = "Eine Übersicht über deinen Mac: macOS-Version, Modell, freier Speicher und Mikrofonzugriff";
 "report.save" = "Bericht sichern…";

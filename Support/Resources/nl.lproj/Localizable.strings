@@ -495,10 +495,10 @@
 "start.recent.missing" = "Niet gevonden";
 "menu.help.report" = "Een probleem melden…";
 "report.title" = "Een probleem melden";
-"report.privacy" = "Het rapport bevat geen audio, geen sessiebestanden, geen transcripties en geen namen van gasten of sessies. Het bevat de namen van je audioapparaten en het model van je Mac. Je naam, de naam van je Mac en de namen van je mappen worden verwijderd. Dirigible verstuurt niets. Jij kiest of je het bestand verstuurt en naar wie.";
+"report.privacy" = "Het rapport bevat geen audio, geen sessiebestanden en geen transcripties. Het bevat de namen van je audioapparaten, van de apps die je opneemt en het model van je Mac. De logboeken tonen een code in plaats van elke apparaat-ID. De crash- en vastloperrapporten zijn gekopieerd zoals macOS ze schreef, ingekort tot het deel over Dirigible. Je gebruikersnaam, de naam van je Mac en je thuismap worden uit elk bestand verwijderd. Een rapport kan nog andere map- en bestandsnamen bevatten. Dirigible verstuurt niets. Jij kiest of je het bestand verstuurt en naar wie.";
 "report.included.show" = "Toon wat is inbegrepen";
 "report.included.logs" = "De logboeken van de afgelopen 7 dagen, met de stacks van vastlopers";
-"report.included.crashes" = "De crashrapporten van Dirigible";
+"report.included.crashes" = "De crash- en vastloperrapporten van Dirigible";
 "report.included.devices" = "De lijst met je audioapparaten";
 "report.included.summary" = "Een samenvatting van je Mac: macOS-versie, model, vrije ruimte en microfoontoegang";
 "report.save" = "Bewaar rapport…";

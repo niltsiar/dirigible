@@ -69,7 +69,8 @@ extension Clip {
             fadeOut: crossfades.end == .zero ? self.fades.fadeOut : crossfades.end)!
         return Clip(
             id: id, file: file, start: range.lowerBound, offset: offset - left,
-            length: range.upperBound - range.lowerBound, gain: gain, fades: fades, crossfades: .zero)
+            length: range.upperBound - range.lowerBound, gain: gain, fades: fades, crossfades: .zero,
+            envelope: envelope)
     }
 
     /// The timeline range of the clip as it sounds: the clip plus half of each crossfade.

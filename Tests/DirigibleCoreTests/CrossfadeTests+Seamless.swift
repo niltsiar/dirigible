@@ -64,6 +64,22 @@ extension CrossfadeTests {
         #expect(session == before)
     }
 
+    /// C3: at a seamless join with equal clip gains, envelopes with an equal value at the join and
+    /// another slope change samples in the joined range, so a crossfade there is set. The control:
+    /// equal envelopes refuse it.
+    @Test mutating func aCrossfadeAtAJoinWithDifferentSlopesIsAllowed() throws {
+        try join(
+            a: { $0.envelope = envelope([(1_000, 0), (9_000, -8)]) },
+            b: { ($0.file, $0.offset, $0.envelope) = ("fa", 5_000, envelope([(1_000, -8), (9_000, 0)])) })
+        try session.setCrossfades(["A": 960])
+        #expect(crossfades("A") == Crossfades(start: 0, end: 960) && crossfades("B") == Crossfades(start: 960, end: 0))
+
+        var equal = try CrossfadeTests()
+        let same = envelope([(1_000, 0), (9_000, -8)])
+        try equal.join(a: { $0.envelope = same }, b: { ($0.file, $0.offset, $0.envelope) = ("fa", 5_000, same) })
+        #expect(throws: SessionError.crossfadeAtEqualGains("A")) { try equal.session.setCrossfades(["A": 960]) }
+    }
+
     /// C32: at a seamless join with equal gains, a fade at the join makes a dip, so a crossfade there
     /// changes samples: `setCrossfades` sets it, with no fade at the join, in version 9.
     @Test mutating func aCrossfadeAtASeamlessJoinWithAFadeIsSet() throws {

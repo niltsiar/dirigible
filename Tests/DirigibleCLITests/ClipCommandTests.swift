@@ -255,8 +255,8 @@ struct ClipCommandTests {
             (["--clip", "E", "--length", "960"], "no clip touches the crossfade edge of clip \"E\"."),
             (
                 ["--clip", "C", "--length", "960"],
-                "clip \"C\" and the next clip play one piece of audio at one gain with no fade at the join, so a "
-                    + "crossfade there changes nothing."
+                "clip \"C\" and the next clip play one piece of audio at one gain at each frame, the envelope "
+                    + "included, with no fade at the join, so a crossfade there changes nothing."
             ),
             (
                 ["--clip", "D", "--length", "2002"],

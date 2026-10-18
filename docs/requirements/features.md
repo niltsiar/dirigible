@@ -173,4 +173,4 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F159 | A compact session read for agents | tester 2026-10-16 | done, Release 4 run 4 | R16 |
 | F160 | A text chapter list, one line for each chapter with its time and title | tester 2026-10-16 | done, Release 4 run 4 | R10 |
 | F161 | Heal: join touching pieces of one file with no change of sound | tester 2026-10-16, Pro Tools | Release 4 | R7 |
-| F162 | Diagnostics: a local journal, a hang watchdog, and Report a Problem | tester 2026-10-15; user 2026-10-16 | Release 4 | R2, R3, R12, R13 |
+| F162 | Diagnostics: a local journal, a hang watchdog, and Report a Problem | tester 2026-10-15; user 2026-10-16 | done, Release 4 run 5 | R2, R3, R12, R13 |

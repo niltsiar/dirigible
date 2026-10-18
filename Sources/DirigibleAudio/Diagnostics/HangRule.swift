@@ -2,9 +2,10 @@
 struct HangLimits: Sendable {
     /// The period of the timer that pings the watched queue.
     var interval = Duration.milliseconds(250)
-    /// A tick more than this after the last tick (the deadline plus one interval) comes after a
-    /// sleep or a suspended process. Tests set it past their run, so a loaded test timer is no sleep.
-    var sleep = Duration.milliseconds(500)
+    /// A tick more than this after the last tick comes after a sleep or a suspended process. A
+    /// loaded Mac delays a tick by less, so a block under load still gets its start line. Tests
+    /// set it past their run.
+    var sleep = Duration.seconds(5)
     /// A ping with no answer for this long writes `hang start`.
     var late = Duration.seconds(1)
     /// A ping with no answer for this long starts the burst of stacks.
@@ -39,7 +40,7 @@ struct HangRule {
     init(limits: HangLimits) { self.limits = limits }
 
     /// `.ping` with no ping out; `.hangStart` once when the ping is late; `.burst` once when the
-    /// ping waits past the stack limit. A tick later than `sleep` after the last tick comes after
+    /// ping waits past the stack limit. A tick more than `sleep` after the last tick comes after
     /// a sleep or a suspended process: before a hang start it sends a new ping and writes no
     /// line. After a hang start it keeps the ping, so one hang has one start and one burst.
     mutating func tick(now: ContinuousClock.Instant) -> HangStep? {

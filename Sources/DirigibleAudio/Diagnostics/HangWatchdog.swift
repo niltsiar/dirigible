@@ -145,7 +145,7 @@ private final class Watch: @unchecked Sendable {
     let thread: ms_thread
     let limits: HangLimits
     let namer: @Sendable (UInt) -> FrameName
-    /// User-interactive, so a loaded Mac delays the ticks less: a late tick is a sleep.
+    /// User-interactive, so a loaded Mac delays the ticks less.
     let queue = DispatchQueue(label: "Dirigible.Watchdog", qos: .userInteractive)
     let burstQueue = DispatchQueue(label: "Dirigible.Watchdog.burst", qos: .userInteractive)
     let timer: DispatchSourceTimer

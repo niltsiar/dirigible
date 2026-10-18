@@ -252,6 +252,50 @@ extension DiagnosticLogTests {
     }
 }
 
+extension DiagnosticLogTests {
+    /// C8: a `hang` line and a `fault` line drain at user-interactive QoS behind the lines
+    /// before them, so they never wait for the `.utility` queue under load. A line block on the
+    /// queue reads the priority of its thread until it rises, at most 5 s.
+    @Test(arguments: [false, true]) func aHangOrFaultLineRaisesThePriorityOfTheQueuedLines(fault: Bool) async throws {
+        let queue = DispatchQueue(label: "test.journal.utility", qos: .utility)
+        let log = DiagnosticLog.start(
+            .app, folder: folder.url, version: "0.4.9", commit: "abc1234", now: date("2026-10-16T19:20:00Z"),
+            queue: queue)
+        let drain = OSAllocatedUnfairLock(initialState: (started: false, raised: false, done: false))
+        queue.async {
+            let start = threadPriority()
+            drain.withLock { $0.started = true }
+            let deadline = ContinuousClock.now + .seconds(5)
+            var raised = false
+            while !raised, ContinuousClock.now < deadline {
+                let now = threadPriority()
+                raised = now.base > start.base || now.current > start.current
+            }
+            drain.withLock { [raised] in
+                $0.raised = raised
+                $0.done = true
+            }
+        }
+        try await poll("the line block did not start") { drain.withLock { $0.started } }
+        log.note(.take, "start-request")
+        // The watchdog queue is user-interactive, and the main thread notes the fault lines.
+        let noter = Thread {
+            if fault { log.note(.device, "lost", level: .fault) } else { log.note(.hang, "start") }
+        }
+        noter.qualityOfService = .userInteractive
+        noter.start()
+        try await poll("the line block did not end") { drain.withLock { $0.done } }
+        log.drain()
+
+        let line = fault ? "fault" : "hang"
+        #expect(drain.withLock { $0.raised }, "the lines before the \(line) line drained at .utility")
+        let events = try journalLines(of: try #require(journalFiles(in: folder.url).first)).dropFirst(3).map {
+            $0.split(separator: "\t").dropFirst(4).prefix(2).joined(separator: " ")
+        }
+        #expect(events == ["take start-request", fault ? "device lost" : "hang start"], "\(events)")
+    }
+}
+
 /// Returns when `condition` holds; throws after 5 s.
 private func poll(_ message: String, _ condition: () -> Bool) async throws {
     let deadline = ContinuousClock.now + .seconds(5)

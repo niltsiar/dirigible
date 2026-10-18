@@ -186,11 +186,19 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     }
 
     /// True when the clips at `left` and `left + 1` touch and play on in one file at one gain, with
-    /// no fade at the join: one clip over both plays the same samples.
-    func canHeal(after left: Int) -> Bool {
+    /// no fade at the join: one clip over both plays the same samples, and so does a crossfade of
+    /// any length there (Command-F skips the join).
+    package func canHeal(after left: Int) -> Bool {
         guard join(after: left) == .seamless else { return false }
         let (a, b) = (storage[left], storage[left + 1])
         return a.gain == b.gain && a.fades.fadeOut == .zero && b.fades.fadeIn == .zero
+    }
+
+    /// True when a new crossfade at the join after `left` changes no sample: `canHeal(after:)`, and
+    /// the join has no crossfade. `setCrossfades` refuses a new crossfade there, and
+    /// `crossfadeLimit` is 0.
+    func newCrossfadeChangesNoSample(after left: Int) -> Bool {
+        canHeal(after: left) && storage[left].crossfades.end == .zero
     }
 
     /// Joins the clip at `index` and the clip after it, which `canHeal(after:)` approved. The clip

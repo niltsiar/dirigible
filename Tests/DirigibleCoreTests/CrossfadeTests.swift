@@ -149,10 +149,13 @@ struct CrossfadeTests {
         #expect(test.limit(after: "B") == nil, "no join after B")
 
         var seamless = try CrossfadeTests()
-        try seamless.join(b: { ($0.file, $0.offset) = ("fa", 5_000) })
-        #expect(seamless.limit(after: "A") == 8_000, "a seamless join: the rooms of A and B")
+        try seamless.seamlessJoin(gainB: #require(Gain(dB: -6)))
+        #expect(seamless.limit(after: "A") == 8_000, "a seamless join with two gains: the rooms of A and B")
+        var equal = try CrossfadeTests()
+        try equal.seamlessJoin(gainB: .zero)
+        #expect(equal.limit(after: "A") == 0, "a seamless join with equal gains and no fade at the join")
         #expect(throws: SessionError.crossfadeAtEqualGains("A"), "a seamless join with equal gains is refused") {
-            try seamless.session.setCrossfades(["A": 960])
+            try equal.session.setCrossfades(["A": 960])
         }
     }
 
@@ -354,11 +357,6 @@ struct CrossfadeTests {
                         let lane = session.tracks[0].clips
                         for index in lane.indices where Bool.random(using: &random) {
                             guard let limit = session.crossfadeLimit(after: index, in: lane) else { continue }
-                            let (a, b) = (lane[index], lane[index + 1])
-                            // A new crossfade at a seamless join with equal gains is refused (C32).
-                            if lane.join(after: index) == .seamless, a.gain == b.gain, a.crossfades.end == .zero {
-                                continue
-                            }
                             lengths[lane[index].id] = Frames(
                                 min(limit.count, Int.random(in: 0...2_000, using: &random)) / 2 * 2)
                         }

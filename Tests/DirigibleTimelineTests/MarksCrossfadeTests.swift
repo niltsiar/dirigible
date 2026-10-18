@@ -109,8 +109,8 @@ struct MarksCrossfadeTests {
     }
 
     /// C35: at a seamless join (B plays on in A's file) with two gains, Command-F makes the
-    /// crossfade of a butt join. With equal gains it skips the join, also a crossfade there that a
-    /// gain edit kept, so with no other change the window beeps. Fail value of the old limit 0: nil.
+    /// crossfade of a butt join. With equal gains and no fade at the join it skips the join, also a
+    /// crossfade there that a gain edit kept, so with no other change the window beeps. Fail value of the old limit 0: nil.
     @Test func commandFCrossfadesASeamlessJoinWithTwoGains() throws {
         var session = try Self.session(bOffset: 48_000, bFile: "fa")
         #expect(session.clip("B")?.clip.isSeamless(with: session.clip("A")!.clip) == false)
@@ -129,6 +129,16 @@ struct MarksCrossfadeTests {
         try session.setGain(.zero, clip: "B")
         #expect(try marks(95_000..<97_500).faded(session) == nil, "equal gains keep the crossfade")
         #expect(crossfades("A", session) == Crossfades(start: 0, end: 960))
+    }
+
+    /// C35: at a seamless join with equal gains, a fade-out on A and a fade-in on B make a dip, so
+    /// Command-F crossfades the join and replaces the two fades.
+    @Test func commandFCrossfadesASeamlessJoinWithFadesAtEqualGains() throws {
+        var session = try Self.session(bOffset: 48_000, bFile: "fa", aFades: Fades(fadeIn: 0, fadeOut: 4_800)!)
+        try session.setFades(["B": Fades(fadeIn: 4_800, fadeOut: 0)!])
+        let result = try marks(95_000..<97_500).faded(session)
+        #expect(crossfades("A", result) == Crossfades(start: 0, end: 2_000))
+        #expect(fades("A", result) == .zero && fades("B", result) == .zero)
     }
 
     /// C8: the crossfade replaces a fade-out of A at J.

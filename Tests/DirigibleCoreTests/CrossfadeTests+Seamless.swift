@@ -50,8 +50,8 @@ extension CrossfadeTests {
         #expect(butt.session.fileVersion == 4, "a crossfade at a butt join keeps version 4")
     }
 
-    /// C32: a new crossfade at a seamless join with equal gains changes no sample, so both forms of
-    /// `setCrossfades` refuse it and change nothing. L = 0 there is not refused.
+    /// C32: a new crossfade at a seamless join with equal gains and no fade at the join changes no
+    /// sample, so both forms of `setCrossfades` refuse it and change nothing. L = 0 there is not refused.
     @Test mutating func aCrossfadeAtASeamlessJoinWithEqualGainsIsRefused() throws {
         try seamlessJoin(gainB: .zero)
         let before = session
@@ -62,6 +62,23 @@ extension CrossfadeTests {
         #expect(session == before && session.fileVersion == 1, "a refused crossfade changes nothing")
         #expect(throws: Never.self, "L = 0") { try session.setCrossfades(["A": 0]) }
         #expect(session == before)
+    }
+
+    /// C32: at a seamless join with equal gains, a fade at the join makes a dip, so a crossfade there
+    /// changes samples: `setCrossfades` sets it, with no fade at the join, in version 9.
+    @Test mutating func aCrossfadeAtASeamlessJoinWithAFadeIsSet() throws {
+        try join(
+            a: { $0.fades = Fades(fadeIn: 0, fadeOut: 400)! },
+            b: { ($0.file, $0.offset, $0.fades) = ("fa", 5_000, Fades(fadeIn: 400, fadeOut: 0)!) })
+        #expect(limit(after: "A") == 8_000)
+        try session.setCrossfades(["A": 960])
+        #expect(crossfades("A") == Crossfades(start: 0, end: 960) && crossfades("B") == Crossfades(start: 960, end: 0))
+        #expect(fades("A") == .zero && fades("B") == .zero, "the crossfade replaces the fades at the join")
+        #expect(session.fileVersion == 9)
+
+        var fadeIn = try CrossfadeTests()
+        try fadeIn.join(b: { ($0.file, $0.offset, $0.fades) = ("fa", 5_000, Fades(fadeIn: 400, fadeOut: 0)!) })
+        #expect(throws: Never.self, "only a fade-in on B") { try fadeIn.session.setCrossfades(["A": 960]) }
     }
 
     /// C32: a gain edit that makes the two gains equal keeps the crossfade and version 9; a kept

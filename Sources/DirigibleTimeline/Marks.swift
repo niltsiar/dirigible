@@ -248,8 +248,8 @@ public struct Marks: Hashable, Sendable {
     }
 
     /// The crossfades of Command-F (decision 0036), keyed by the left clip, at each join J of a
-    /// selected track with in < J < out, except a seamless join with equal gains, where a crossfade
-    /// changes no sample: 20 ms (even) when the range holds both clips whole, else
+    /// selected track with in < J < out, except a join that `ClipLane.canHeal(after:)` approves,
+    /// where a crossfade changes no sample: 20 ms (even) when the range holds both clips whole, else
     /// 2 x min(J - in, out - J), centered on J. Each length clamps to `crossfadeLimit`. A join also
     /// clamps to the room that the join before it leaves in the clip between them, so two new
     /// halves never pass the length of a short clip. A join that gets 0 or its present length is
@@ -278,7 +278,7 @@ public struct Marks: Hashable, Sendable {
             var given: (index: Int, half: Frames)?
             for (index, (a, b)) in zip(lane, lane.dropFirst()).enumerated()
             where low < a.end && a.end < high && a.end == b.start {
-                if a.gain == b.gain, a.isSeamless(with: b) { continue }
+                if lane.canHeal(after: index) { continue }
                 guard var limit = session.crossfadeLimit(after: index, in: lane) else { continue }
                 if let given, given.index == index { limit = min(limit, Frames(2 * (a.length - given.half).count)) }
                 let wanted =

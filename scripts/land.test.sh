@@ -11,7 +11,10 @@
 # before its rebase: the delta is the tree diff to the rebased HEAD, with the test target for a
 # file that a code line of a Swift test names whole, and a second land of a stopped branch reuses
 # the stamp commit. The ratchet case runs the real make check-changed first, so the land runs no
-# check after it. A partial stamp is no pass.
+# check after it. A partial stamp is no pass. The tool-author guard of check-commits.sh: a tool
+# name in the author, the committer, or a Co-Authored-By trailer refuses the land and the push
+# (.githooks/pre-push) for each field and name, and the owner passes; a tool commit below the base
+# is out of the range.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -682,6 +685,88 @@ code=$?
 [[ $code -eq 0 ]] || fail "a partial stamp: exit $code: $(cat "$c/out")"
 ! grep -q '^stamp: reuse' "$c/out" || fail "a partial stamp: the land reused it: $(cat "$c/out")"
 grep -qx "targets: RERUN=$head:fast:aFast+slow:" "$c/log" || fail "a partial stamp: no RERUN word: $(cat "$c/log")"
+
+# The tool-author guard (check-commits.sh --authors, run by land.sh and .githooks/pre-push).
+# ident_commit <author name> <author email> <committer name> <committer email> <message> adds an
+# empty commit to the work branch. guard <args> runs check-commits.sh in the work clone.
+ident_commit() {
+  GIT_AUTHOR_NAME="$1" GIT_AUTHOR_EMAIL="$2" GIT_COMMITTER_NAME="$3" GIT_COMMITTER_EMAIL="$4" \
+    git -C "$c/work" commit -q --allow-empty -m "$5"
+}
+guard() { (cd "$c/work" && "$here/check-commits.sh" "$@") > "$c/out" 2>&1; code=$?; }
+# authors_case <name> <pass|fail> <author name> <author email> <committer name> <committer email> <message>
+authors_case() {
+  setup
+  ident_commit "$3" "$4" "$5" "$6" "$7"
+  guard origin/main
+  if [[ $2 == pass ]]; then
+    [[ $code -eq 0 ]] || fail "authors $1: exit $code: $(cat "$c/out")"
+  else
+    [[ $code -eq 1 ]] || fail "authors $1: exit $code: $(cat "$c/out")"
+    grep -q 'names a tool' "$c/out" || fail "authors $1: no reason: $(cat "$c/out")"
+  fi
+}
+for tool in Claude Copilot Codex "T3 Code" opencode Cursor Gemini; do
+  authors_case "author $tool" fail "$tool" t@t t t@t m
+done
+authors_case 'author address t3code' fail x t3code@users.noreply.github.com t t@t m
+authors_case 'author bot' fail 'dependabot[bot]' 49699333+dependabot[bot]@users.noreply.github.com t t@t m
+authors_case 'author anthropic address' fail x noreply@anthropic.com t t@t m
+authors_case 'author openai address' fail x noreply@openai.com t t@t m
+authors_case 'committer bot' fail t t@t 'github-actions[bot]' 41898282+github-actions[bot]@users.noreply.github.com m
+authors_case 'committer Copilot' fail t t@t Copilot t@t m
+authors_case 'trailer Claude' fail t t@t t t@t $'m\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>'
+authors_case 'trailer in lower case' fail t t@t t t@t $'m\n\nCo-authored-by: Copilot <copilot@github.com>'
+authors_case 'owner' pass 'Borja Quevedo' borjota@gmail.com 'Borja Quevedo' borjota@gmail.com $'m\n\nCo-Authored-By: Jane Doe <jane@example.org>'
+# The whole range counts, not only the tip.
+setup
+ident_commit Claude t@t t t@t first
+ident_commit t t@t t t@t second
+guard origin/main
+[[ $code -eq 1 ]] || fail "authors in the middle of the range: exit $code: $(cat "$c/out")"
+# A tool commit that origin/main already holds is outside the range.
+setup
+GIT_AUTHOR_NAME=Claude git -C "$c/other" commit -q --allow-empty -m old
+git -C "$c/other" push -q origin main
+git -C "$c/work" fetch -q
+guard origin/main
+[[ $code -eq 0 ]] || fail "a tool commit below the base: exit $code: $(cat "$c/out")"
+guard nosuchbase
+[[ $code -eq 1 ]] && grep -q 'nosuchbase is not a commit' "$c/out" || fail "a base that is no commit: exit $code: $(cat "$c/out")"
+# land.sh stops before the check and the push.
+setup
+ident_commit 'T3 Code' t3code@users.noreply.github.com t t@t m
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "land with a tool commit: exit $code: $(cat "$c/out")"
+grep -q 'names a tool' "$c/out" || fail "land with a tool commit: no reason: $(cat "$c/out")"
+grep -q 'nothing is pushed' "$c/out" || fail "land with a tool commit: no stop text: $(cat "$c/out")"
+no_side_effects 'land with a tool commit'
+
+# The pre-push hook checks the range of each pushed ref. hook <remote sha> <local sha> feeds the
+# line that git gives it; <local sha> zero is a delete.
+zero=0000000000000000000000000000000000000000
+hook() {
+  (cd "$c/work" && "$here/../.githooks/pre-push" origin "$c/origin.git" <<<"refs/heads/feat/x $2 refs/heads/feat/x $1") > "$c/out" 2>&1
+  code=$?
+}
+hook_case() { # <name> <expected exit> <remote sha> <local sha>
+  hook "$3" "$4"
+  [[ $code -eq $2 ]] || fail "pre-push $1: exit $code, expected $2: $(cat "$c/out")"
+}
+setup
+clean="$(git -C "$c/work" rev-parse HEAD)"
+hook_case 'new branch, clean' 0 "$zero" "$clean"
+ident_commit Claude t@t t t@t tool
+tool="$(git -C "$c/work" rev-parse HEAD)"
+ident_commit t t@t t t@t after
+tip="$(git -C "$c/work" rev-parse HEAD)"
+hook_case 'new branch, tool commit' 1 "$zero" "$tip"
+grep -q 'names a tool' "$c/out" || fail "pre-push new branch: no reason: $(cat "$c/out")"
+hook_case 'update, tool commit' 1 "$clean" "$tip"
+hook_case 'update, tool commit already on the remote' 0 "$tool" "$tip"
+hook_case 'remote sha unknown here, tool commit' 1 1111111111111111111111111111111111111111 "$tip"
+hook_case 'delete' 0 "$clean" "$zero"
 
 [[ $failures -eq 0 ]] && echo "land tests: all passed"
 exit $((failures > 0))

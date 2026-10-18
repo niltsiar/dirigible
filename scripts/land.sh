@@ -23,6 +23,8 @@
 # the risk of origin/main. A land that stops keeps its stamp commit in the file
 # dirigible-land-stamp-<branch with / as -> of the common git dir, until the merge. It prints the
 # stamp line.
+# After the rebase and the governance check, check-commits.sh refuses a commit of the branch that
+# a tool made (author, committer, or Co-Authored-By trailer), also when the stamp is reused.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,
@@ -81,6 +83,7 @@ if ! git rebase origin/main; then
 fi
 # GOVERNANCE_LAND: the taken-item check runs also when the run has no reflect row.
 GOVERNANCE_LAND=1 "$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
+"$here/check-commits.sh" --authors origin/main..HEAD || die "check-commits.sh failed; nothing is pushed"
 out="$("$here/check-changed.sh" origin/main)" || die "check-changed.sh origin/main failed; nothing is pushed"
 risk="$(sed -n 's/^risk: //p' <<<"$out")"
 if [[ "$risk" == yes ]]; then

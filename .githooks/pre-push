@@ -1,0 +1,18 @@
+#!/bin/bash
+# Refuse a push of a commit that a tool made (scripts/check-commits.sh --authors). Git gives this
+# hook the remote name and URL as arguments, and one line "<local ref> <local sha> <remote ref>
+# <remote sha>" on stdin for each ref. A new ref (remote sha zero) checks the commits that no
+# remote-tracking ref of the remote holds. So does a remote sha that this clone does not have.
+# A delete (local sha zero) checks nothing. `make setup` enables this hook. land.sh checks too.
+# scripts/land.test.sh tests it.
+set -euo pipefail
+remote="$1"
+check="$(cd "$(dirname "$0")/../scripts" && pwd)/check-commits.sh"
+while read -r _ local_sha _ remote_sha; do
+  [[ ! $local_sha =~ ^0+$ ]] || continue
+  if [[ ! $remote_sha =~ ^0+$ ]] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    "$check" --authors "$remote_sha..$local_sha"
+  else
+    "$check" --authors "$local_sha" --not "--remotes=$remote"
+  fi
+done

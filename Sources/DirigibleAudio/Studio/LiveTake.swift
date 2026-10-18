@@ -125,6 +125,10 @@ struct CaptureEnvironment: Sendable {
     /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing. The
     /// step passes its `#isolation`, so a test hook runs on the thread of the step.
     var beforeLookUp: @Sendable (isolated (any Actor)?) async -> Void = { _ in }
+    /// A step of a test take start (`Studio.startTake`) before its save, off the main actor.
+    /// Tests check its thread with it; `live` does nothing. It passes its `#isolation`, as
+    /// `beforeLookUp`.
+    var beforeStartSave: @Sendable (isolated (any Actor)?) async -> Void = { _ in }
     /// The wait of a timed take from its start to its stop (decision 0048). Tests hold it with a
     /// gate, so no wall clock races a check.
     var takeLength: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
@@ -261,10 +265,11 @@ func checkRoutes(_ session: Session, armed: [TrackID], devices: [InputDevice]) t
 
 /// The file part of the 0004 start order in the package that `lock` holds now: `mkdir
 /// Capture/`, then save `session.xml` with `<recording>`. It resolves the package path once
-/// (decision 0014). A throw leaves `session.xml` unchanged.
+/// (decision 0014). A throw leaves `session.xml` unchanged. Off the main actor.
 func saveTakeStart(
     _ session: Session, lock: PackageLock, routes: [ArmedRoute], playhead: Frames, hostTimeNanos: UInt64
 ) throws(StudioError) -> StartedTake {
+    dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
     do { package = try lock.package() } catch { throw .file(error) }
     let take = SegmentName.nextTake(in: package, session: session)
@@ -288,6 +293,15 @@ func saveTakeStart(
     // this file (the state before the take, with <recording>) only when a backup is due (0043).
     do { try started.write(under: lock, backups: .none) } catch { throw .file(error) }
     return StartedTake(session: started, take: take, routes: routes, package: packageIdentity(package))
+}
+
+/// The save of the test take start (`Studio.startTake`), off the main actor, as `prepareTake`.
+@concurrent nonisolated func saveTestTakeStart(
+    _ session: Session, lock: PackageLock, routes: [ArmedRoute], playhead: Frames, hostTimeNanos: UInt64,
+    environment: CaptureEnvironment
+) async throws(StudioError) -> StartedTake {
+    await environment.beforeStartSave(#isolation)
+    return try saveTakeStart(session, lock: lock, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos)
 }
 
 /// Steps 2 and 3 of the start order of decision 0013: the device lookup and the route checks,

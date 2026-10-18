@@ -270,7 +270,7 @@ extension Studio {
 
     /// The test seam of decision 0004: starts a take from device descriptions, with no access or
     /// disk check, no sleep assertion, and no disk watcher. Checks the route of each armed track,
-    /// then, after the write in progress, saves `session.xml` with `<recording>` on the main
+    /// then, after the write in progress, saves `session.xml` with `<recording>` off the main
     /// actor, then starts each device writer on the environment HAL. A throw changes nothing, but
     /// a running export of this studio or of another studio ends before the save.
     func startTake(
@@ -288,8 +288,9 @@ extension Studio {
             await exportEnd()?()
             do throws(StudioError) {
                 begin(
-                    try saveTakeStart(
-                        session, lock: lock, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos))
+                    try await saveTestTakeStart(
+                        session, lock: lock, routes: routes, playhead: playhead, hostTimeNanos: hostTimeNanos,
+                        environment: environment))
             } catch {
                 return error
             }

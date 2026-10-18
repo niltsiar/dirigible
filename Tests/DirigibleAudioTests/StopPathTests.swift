@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -125,6 +126,43 @@ struct StopPathTests {
         }
         #expect(try Data(contentsOf: sessionXML) == before)
         #expect(studio.transport == .idle)
+        #expect(studio.session.recording == nil)
+        #expect(!FileManager.default.fileExists(atPath: url.appending(path: "Capture").path))
+    }
+
+    /// The save of a test take start runs off the main actor, as the save of `startRecording`.
+    @Test func aTestTakeStartSavesOffTheMainActor() async throws {
+        let studio = try await Studio.open(url)
+        let hal = TestHAL([mic])
+        studio.environment = .test(hal)
+        let onMain = OSAllocatedUnfairLock<Bool?>(initialState: nil)
+        studio.environment.beforeStartSave = { _ in onMain.withLock { $0 = pthread_main_np() != 0 } }
+
+        _ = try await studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+        #expect(onMain.withLock { $0 } == false)
+        #expect(try Session(contentsOf: url).recording?.armedTracks == ["t1"])
+        let input = SyntheticInput(hal, "mic")
+        input.play(
+            records([sine(seconds: 1, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart + 1_000_000))
+        await input.wait()
+        try await studio.stopRecording()
+        #expect(studio.transport == .idle)
+    }
+
+    /// A test take start whose save is refused throws the reason, keeps `session.xml`, and leaves
+    /// the studio idle.
+    @Test func aRefusedTestTakeStartChangesNothing() async throws {
+        let studio = try await Studio.open(url)
+        studio.environment = .test(TestHAL([mic]))
+        let before = try Data(contentsOf: sessionXML)
+        chmod(url.path, 0o500)
+        defer { chmod(url.path, 0o755) }
+
+        await #expect(throws: StudioError.file(.writeFailed(step: "Capture", errno: EACCES))) {
+            _ = try await studio.startTake(armed: ["t1"], devices: [mic], playhead: 0, hostTimeNanos: takeStart)
+        }
+        #expect(try Data(contentsOf: sessionXML) == before)
+        #expect(studio.isIdle)
         #expect(studio.session.recording == nil)
         #expect(!FileManager.default.fileExists(atPath: url.appending(path: "Capture").path))
     }

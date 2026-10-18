@@ -44,7 +44,7 @@ package let artworkFolderName = "Artwork"
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 9
+package let sessionVersion = 10
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -213,6 +213,14 @@ extension Session {
                     add(("crossfadeIn", clip.crossfades.start.description), to: clipNode)
                 }
                 if clip.crossfades.end != .zero { add(("crossfadeOut", clip.crossfades.end.description), to: clipNode) }
+                if !clip.envelope.isEmpty {
+                    let envelope = element("envelope")
+                    for point in clip.envelope.points {
+                        envelope.addChild(
+                            element("point", ("frame", point.frame.description), ("gain", text(point.gain.dB))))
+                    }
+                    clipNode.addChild(envelope)
+                }
                 node.addChild(clipNode)
             }
             trackList.addChild(node)

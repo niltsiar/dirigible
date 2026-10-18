@@ -109,7 +109,8 @@ private struct ParsedTrack {
                     id: ClipID(try clip.string("id")), file: FileID(try clip.string("file")),
                     start: try clip.frames("start"), offset: try clip.frames("offset"),
                     length: try clip.frames("length"), gain: try clip.gain("gain"),
-                    fades: try clip.fades(version: version), crossfades: try clip.crossfades(version: version)))
+                    fades: try clip.fades(version: version), crossfades: try clip.crossfades(version: version),
+                    envelope: try clip.envelope(version: version)))
         }
         self.clips = clips
     }
@@ -309,6 +310,21 @@ extension XMLElement {
             return value
         }
         return Crossfades(start: try length("crossfadeIn"), end: try length("crossfadeOut"))!
+    }
+
+    /// `<envelope>` from version 10 on (decision 0060). A negative frame, a frame over the limit,
+    /// frames that do not ascend strictly, and a gain that is not finite are invalid; a gain outside
+    /// `Gain.range` clamps. `Session.check` refuses a point after the end of the file.
+    fileprivate func envelope(version: Int) throws(SessionFileError) -> GainEnvelope {
+        guard let node = sessionElements("envelope").first else { return .empty }
+        guard version >= 10 else { throw .invalidValue(element: "envelope", attribute: "version") }
+        var points: [GainEnvelope.Point] = []
+        for point in node.sessionElements("point") {
+            let frame = try point.frames("frame")
+            guard frame.isInRange, points.last.map({ $0.frame < frame }) ?? true else { throw point.invalid("frame") }
+            points.append(GainEnvelope.Point(frame: frame, gain: try point.gain("gain")))
+        }
+        return GainEnvelope(points)!
     }
 
     /// `muted` and `soloed` from version 5 on (decision 0039): `true` or `false`. A missing one is

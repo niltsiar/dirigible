@@ -343,6 +343,7 @@
 "menu.edit.nudge.left" = "Nach links schieben";
 "menu.edit.nudge.right" = "Nach rechts schieben";
 "menu.edit.fade" = "Fade";
+"menu.edit.heal" = "Clips verbinden";
 "menu.markers" = "Marker";
 "menu.markers.add" = "Marker hinzufügen";
 "menu.markers.add.chapter" = "Kapitel hinzufügen";

@@ -343,6 +343,7 @@
 "menu.edit.nudge.left" = "Sposta a sinistra";
 "menu.edit.nudge.right" = "Sposta a destra";
 "menu.edit.fade" = "Dissolvenza";
+"menu.edit.heal" = "Unisci clip";
 "menu.markers" = "Marcatori";
 "menu.markers.add" = "Aggiungi marcatore";
 "menu.markers.add.chapter" = "Aggiungi capitolo";

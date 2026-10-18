@@ -343,6 +343,7 @@
 "menu.edit.nudge.left" = "Schuif naar links";
 "menu.edit.nudge.right" = "Schuif naar rechts";
 "menu.edit.fade" = "Fade";
+"menu.edit.heal" = "Voeg clips samen";
 "menu.markers" = "Markeringen";
 "menu.markers.add" = "Voeg markering toe";
 "menu.markers.add.chapter" = "Voeg hoofdstuk toe";

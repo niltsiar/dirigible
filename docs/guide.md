@@ -219,6 +219,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - **Cut in Selected Tracks** and **Delete and Close Gap in Selected Tracks** close the gap only on the selected tracks. The other tracks do not move, so they can go out of sync with the moved tracks. The markers move with the moved tracks.
 - **Split** cuts the clips at the in point and the out point. When those points cut no clip, for example after a click on a clip, Split cuts at the playhead if it is inside the selection. With no selection, it cuts the clips at the playhead. When Split cuts nothing, Dirigible beeps. It also beeps when Split must wait for an import, Auto Level, or the end of a take. While a take records, Split does not beep.
 - **Nudge Left** and **Nudge Right** move the clips that are fully in the selection, or the set of clips, by 10 ms.
+- **Heal Clips** joins the parts of a split clip again, on the selected tracks. It joins two clips where they touch in the selection, play on in one file at one gain, and have no fade at the join. A join at the in point or the out point is in the selection. The sound does not change, and a crossfade at the join goes. When no join can heal, Dirigible beeps. With no selection range, the item is off. Heal Clips has no key.
 - Drag the upper part of a clip to move it. You can drag it to another track of the same type, mono or stereo. The clip replaces the audio under it.
 - Drag a clip of a set of clips, or a clip that a range holds fully with other clips, to move all these clips together. They keep their distances in time and in tracks. When one clip would go to a track of the other type, all clips stay on their tracks and move only in time. After the drag, the moved clips are the set of clips. A click with no drag selects only that clip.
 - With a set of clips, **Copy** copies only the clips of the set. **Cut** copies them and removes them; it leaves silence, and no other clip moves. **Delete** removes the clips and leaves silence. **Split** cuts the clips of the set at the playhead. **Fade**, **Auto Level**, the inspector, and **Show Clips in Finder** act on the clips of the set. **Paste** and **Insert** use the first track of the set. **Cut in Selected Tracks** and the **Delete and Close Gap** commands beep and change nothing.
@@ -668,6 +669,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Nudge Left** | **Desplazar a la izquierda** | Command-Left Arrow |
 | **Nudge Right** | **Desplazar a la derecha** | Command-Right Arrow |
 | **Fade** | **Fundido** | Command-F |
+| **Heal Clips** | **Unir clips** | None |
 
 ### View
 

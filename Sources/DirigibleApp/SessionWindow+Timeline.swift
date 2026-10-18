@@ -67,7 +67,7 @@ enum TimelineCommand: Hashable {
     /// The ripple items of decision 0037: Delete and Close Gap, Insert, and the two twins that
     /// ripple only the selected tracks. Cut closes the gap too.
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
-    case split, nudgeLeft, nudgeRight, fade
+    case split, nudgeLeft, nudgeRight, fade, heal
     case addMarker, addChapter, markerInfo, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
@@ -114,6 +114,8 @@ enum TimelineCommand: Hashable {
         case .autoLevel, .autoLevelPerTrack: false
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
         case .fade: false
+        // Heal Clips has no key: Command-H is Hide in macOS.
+        case .heal: false
         }
     }
 
@@ -331,6 +333,7 @@ extension SessionWindow {
             runRipple(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         case .fade: runFade(studio)
+        case .heal: runHeal(studio)
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
         case .renameTrack:

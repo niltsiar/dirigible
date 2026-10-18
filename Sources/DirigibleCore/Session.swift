@@ -295,7 +295,7 @@ public enum SessionError: Error, Hashable, Sendable {
     /// plays on from the same file frame: these versions play it 3 dB too loud (decision 0036).
     case crossfadeAtSeamlessJoin(ClipID)
     /// A new crossfade at the end of this clip, where the clip after it plays on from the same file
-    /// frame at the same gain: it changes no sample (decision 0036).
+    /// frame at the same gain, with no fade at the join: it changes no sample (decision 0036).
     case crossfadeAtEqualGains(ClipID)
     /// The clip has a fade and a crossfade at one edge (decision 0036).
     case fadeAtCrossfade(ClipID)

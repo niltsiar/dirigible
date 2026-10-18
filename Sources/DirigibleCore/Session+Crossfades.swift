@@ -5,9 +5,9 @@ extension Session {
     /// Sets the crossfade at the end of each clip (the key) and at the start of its right neighbor,
     /// in one pass over the lanes. 0 removes it. A new crossfade sets the fades at its two edges to
     /// 0, and the fade at the other edge of each clip yields. A clip with no touching neighbor
-    /// throws `.crossfadeWithoutJoin`, a new crossfade at a seamless join of two equal gains
-    /// `.crossfadeAtEqualGains`, and a length that `Crossfades` refuses `.frameOutOfRange`. A throw
-    /// changes nothing.
+    /// throws `.crossfadeWithoutJoin`, a new crossfade that changes no sample
+    /// (`ClipLane.newCrossfadeChangesNoSample`) `.crossfadeAtEqualGains`, and a length that
+    /// `Crossfades` refuses `.frameOutOfRange`. A throw changes nothing.
     public mutating func setCrossfades(_ lengths: [ClipID: Frames]) throws(SessionError) {
         var joins: [Int: [(index: Int, length: Frames)]] = [:]
         var found = 0
@@ -39,11 +39,9 @@ extension Session {
             var changed: [(index: Int, clip: Clip)] = []
             for (index, length) in joins[track] ?? [] {
                 var left = changed.last?.index == index ? changed.removeLast().clip : lane[index]
-                let join = lane.join(after: index)
-                guard join != .none else { throw .crossfadeWithoutJoin(left.id) }
+                guard lane.join(after: index) != .none else { throw .crossfadeWithoutJoin(left.id) }
                 var right = lane[index + 1]
-                // `changed` can hold `left` with a new start only, so its end is the length before the call.
-                if length != .zero, join == .seamless, left.crossfades.end == .zero, left.gain == right.gain {
+                if length != .zero, lane.newCrossfadeChangesNoSample(after: index) {
                     throw .crossfadeAtEqualGains(left.id)
                 }
                 guard let end = Crossfades(start: left.crossfades.start, end: length),
@@ -65,11 +63,13 @@ extension Session {
 
     /// The longest crossfade at the join after the clip at `left` of `lane`: 2 x the least of the
     /// handle after that clip, the handle before its neighbor, and the room of each clip beside the
-    /// crossfade half at its other edge (its fades yield). Nil with no touching neighbor or no pool
-    /// file. The index makes it constant time, so Command-F on Select All reads it for each join
-    /// with no clip search.
+    /// crossfade half at its other edge (its fades yield). 0 where a new crossfade changes no sample
+    /// (`ClipLane.newCrossfadeChangesNoSample`). Nil with no touching neighbor or no pool file. The
+    /// index makes it constant time, so Command-F on Select All reads it for each join with no clip
+    /// search.
     public func crossfadeLimit(after left: Int, in lane: ClipLane) -> Frames? {
         guard lane.join(after: left) != .none, let file = files[lane[left].file] else { return nil }
+        guard !lane.newCrossfadeChangesNoSample(after: left) else { return .zero }
         let (a, b) = (lane[left], lane[left + 1])
         let half = min(
             file.length - (a.offset + a.length), b.offset, a.crossfadeRoom(.end), b.crossfadeRoom(.start))

@@ -213,7 +213,8 @@ extension SessionError {
         case .crossfadeAtSeamlessJoin(let id):
             "clip \"\(id)\" and the next clip play one piece of audio; a crossfade there would be 3 dB too loud."
         case .crossfadeAtEqualGains(let id):
-            "clip \"\(id)\" and the next clip play one piece of audio at one gain, so a crossfade there changes nothing."
+            "clip \"\(id)\" and the next clip play one piece of audio at one gain with no fade at the join, so a "
+                + "crossfade there changes nothing."
         case .fadeAtCrossfade(let id):
             "clip \"\(id)\" has a crossfade at that edge, so it cannot also have a fade there."
         case .trackCount(let count): "the excerpt has \(count) tracks, so give \(count) different target tracks."

@@ -343,6 +343,7 @@
 "menu.edit.nudge.left" = "Pousser vers la gauche";
 "menu.edit.nudge.right" = "Pousser vers la droite";
 "menu.edit.fade" = "Fondu";
+"menu.edit.heal" = "Joindre les clips";
 "menu.markers" = "Marqueurs";
 "menu.markers.add" = "Ajouter un marqueur";
 "menu.markers.add.chapter" = "Ajouter un chapitre";

@@ -343,6 +343,7 @@
 "menu.edit.nudge.left" = "Empurrar para a Esquerda";
 "menu.edit.nudge.right" = "Empurrar para a Direita";
 "menu.edit.fade" = "Fade";
+"menu.edit.heal" = "Unir Clipes";
 "menu.markers" = "Marcadores";
 "menu.markers.add" = "Adicionar Marcador";
 "menu.markers.add.chapter" = "Adicionar Capítulo";

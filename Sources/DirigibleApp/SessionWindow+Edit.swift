@@ -122,6 +122,23 @@ extension SessionWindow {
         if changed == false { NSSound.beep() }
     }
 
+    /// Edit > Heal Clips: `Session.heal` of the joins in in...out on the selected tracks, a join at
+    /// the out point too, as `dirigible clip heal --from --to` does. One edit, so one undo entry.
+    /// With no healable join, a beep.
+    func runHeal(_ studio: Studio) {
+        guard let selection = timeline.selection.marks?.selection(in: studio.session) else { return beep() }
+        let range = selection.range.lowerBound...selection.range.upperBound
+        let healed = edit(ripple: false) { session throws(SessionError) -> Bool in
+            do throws(SessionError) {
+                try session.heal(tracks: selection.tracks, range: range)
+            } catch .nothingToHeal {
+                return false
+            }
+            return true
+        }
+        if healed == false { beep() }
+    }
+
     /// The marker commands. Add names the marker "Marker N" or "Chapter N", N the count of markers
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
     /// marker. Move and Delete act on the current marker when the session has it, else they beep;

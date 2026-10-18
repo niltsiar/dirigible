@@ -275,4 +275,33 @@ import Testing
         #expect(window.firstResponder === editor)
         await model.close()
     }
+
+    /// C37: Edit > Heal Clips heals the joins in in...out on the selected tracks, a join at the out
+    /// point too, as one undo entry. A range with no healable join beeps and keeps the range; with
+    /// no range the item is off. t1 and t2 are split at 48,000 and 96,000.
+    @Test func healClipsJoinsThePiecesOfTheRange() async throws {
+        let (model, studio, _, _) = try await open()
+        try studio.edit(ripple: false) { s throws(SessionError) in
+            _ = try s.splitClips(at: [48_000, 96_000], on: ["t1", "t2"])
+        }
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        #expect(!model.isOn(.heal), "no range")
+
+        model.timeline.marks = Marks(inPoint: 40_000, outPoint: 96_000, tracks: ["t1"])
+        #expect(model.isOn(.heal))
+        model.run(.heal)
+        #expect(Array(studio.session.track("t1")!.clips) == [clip("c1", 0..<2_880_000)])
+        #expect(studio.session.track("t2") == before.track("t2"), "t2 is not selected")
+        model.undo()
+        #expect(studio.session == before, "one entry")
+
+        let far = Marks(inPoint: 100_000, outPoint: 200_000, tracks: ["t1", "t2"])
+        model.timeline.marks = far
+        model.run(.heal)
+        #expect(beeps == 1 && studio.session == before && model.timeline.marks == far, "no healable join")
+        #expect(model.alert == nil)
+        await model.close()
+    }
 }

@@ -343,6 +343,7 @@
 "menu.edit.nudge.left" = "Nudge Left";
 "menu.edit.nudge.right" = "Nudge Right";
 "menu.edit.fade" = "Fade";
+"menu.edit.heal" = "Heal Clips";
 "menu.markers" = "Markers";
 "menu.markers.add" = "Add Marker";
 "menu.markers.add.chapter" = "Add Chapter";

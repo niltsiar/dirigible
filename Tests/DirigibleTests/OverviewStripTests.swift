@@ -332,7 +332,11 @@ import Testing
 
     /// RGB of the pixel at `column` and `row` of the strip.
     func pixel(column: Int, row: Int) -> [Int] {
-        let offset = (origin.y + row) * image.bytesPerRow + (origin.x + column) * 4
+        let (x, y) = (origin.x + column, origin.y + row)
+        precondition(
+            (0..<image.width).contains(x) && (0..<image.height).contains(y),
+            "the pixel \(x), \(y) is in the capture of \(image.width) x \(image.height) pixels")
+        let offset = y * image.bytesPerRow + x * 4
         return [Int(bytes[offset + 2]), Int(bytes[offset + 1]), Int(bytes[offset])]
     }
 

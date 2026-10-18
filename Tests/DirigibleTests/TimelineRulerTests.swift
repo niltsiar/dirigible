@@ -176,7 +176,8 @@ import Testing
         await model.close()
     }
 
-    /// The BGRA pixels of a capture of `window` in `rect` (window points).
+    /// The BGRA pixels of a capture of `window` in `rect` (window points). The rect must be in the
+    /// capture: a read outside it reads memory outside the image.
     static func pixels(of rect: NSRect, _ image: CGImage, _ window: NSWindow) throws -> [UInt32] {
         let data = try #require(image.dataProvider?.data)
         let bytes = try #require(CFDataGetBytePtr(data))
@@ -184,6 +185,9 @@ import Testing
         // The capture has row 0 at the top of the window; the window has y 0 at the bottom.
         let rows = Int((window.frame.height - rect.maxY) * scale)..<Int((window.frame.height - rect.minY) * scale)
         let columns = Int(rect.minX * scale)..<Int(rect.maxX * scale)
+        try #require(
+            rows.clamped(to: 0..<image.height) == rows && columns.clamped(to: 0..<image.width) == columns,
+            "the rect \(rect) is in the capture of \(image.width) x \(image.height) pixels")
         return rows.flatMap { y in
             columns.map { x in UnsafeRawPointer(bytes + y * image.bytesPerRow + x * 4).loadUnaligned(as: UInt32.self) }
         }

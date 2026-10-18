@@ -118,15 +118,18 @@ struct WindowCaptureError: Error, CustomStringConvertible {
         try #require(
             image.bitsPerPixel == 32 && image.bitmapInfo.contains(.byteOrder32Little), "BGRA: \(image.bitmapInfo)")
         let scale = Double(image.width) / window.frame.width
-        func color(at point: NSPoint) -> [UInt8] {
+        func color(at point: NSPoint) throws -> [UInt8] {
             // The capture has row 0 at the top of the window; the window has y 0 at the bottom.
             let (x, y) = (Int(point.x * scale), Int((window.frame.height - point.y) * scale))
+            try #require(
+                (0..<image.width).contains(x) && (0..<image.height).contains(y),
+                "the point \(point) is in the capture of \(image.width) x \(image.height) pixels")
             let offset = y * image.bytesPerRow + x * 4
             return [bytes[offset + 2], bytes[offset + 1], bytes[offset]]
         }
         // Lane 1 at x 300 pt: the clip c1 of a silent file (no waveform), above its label.
-        let lane = color(at: view.lanes.convert(NSPoint(x: 300, y: 30), to: nil))
-        let drawn = color(at: reference.convert(NSPoint(x: 20, y: 20), to: nil))
+        let lane = try color(at: view.lanes.convert(NSPoint(x: 300, y: 30), to: nil))
+        let drawn = try color(at: reference.convert(NSPoint(x: 20, y: 20), to: nil))
 
         #expect(
             zip(lane, drawn).allSatisfy { abs(Int($0) - Int($1)) <= 1 }, "lanes RGB \(lane), draw path RGB \(drawn)")

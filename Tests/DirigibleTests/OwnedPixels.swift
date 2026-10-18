@@ -31,6 +31,8 @@ final class OwnedPixels {
 
     /// The pixels of a document row, one per column of the window.
     func row(_ row: Int) -> [UInt32] {
+        precondition(
+            window.pixels.rows.contains(row), "the row \(row) is in the rows \(window.pixels.rows) of the window")
         let start = (memory + (row - window.pixels.rows.lowerBound) * bytesPerRow).assumingMemoryBound(to: UInt32.self)
         return Array(UnsafeBufferPointer(start: start, count: window.pixels.columns.count))
     }

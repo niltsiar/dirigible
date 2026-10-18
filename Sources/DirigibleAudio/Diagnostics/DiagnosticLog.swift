@@ -12,7 +12,7 @@ public enum DiagnosticLevel: String, Sendable {
     case notice, error, fault
 }
 
-/// One field value of a journal line. A `uid` and a `package` reach the file only as tokens.
+/// One field value of a journal line. A `uid` reaches the file only as a token.
 public enum DiagnosticValue: Sendable {
     case text(String)
     case number(Int64)
@@ -21,8 +21,6 @@ public enum DiagnosticValue: Sendable {
     case status(OSStatus)
     /// Written as `uid-<8 hex>`: HMAC-SHA256 of the UID with the salt of the log folder.
     case uid(String)
-    /// Written as `pkg-<8 hex>`, the same way, from the package path.
-    case package(URL)
 
     /// The milliseconds from `start` to now.
     static func since(_ start: ContinuousClock.Instant) -> DiagnosticValue {
@@ -195,7 +193,6 @@ private func text(of value: DiagnosticValue, salt: SymmetricKey?) -> String {
     case .milliseconds(let ms): String(format: "%.1f", ms)
     case .status(let status): statusText(status)
     case .uid(let uid): "uid-" + (salt.map { token(uid, salt: $0) } ?? "none")
-    case .package(let url): "pkg-" + (salt.map { token(url.standardizedFileURL.path, salt: $0) } ?? "none")
     }
 }
 

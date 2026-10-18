@@ -82,24 +82,19 @@ struct DiagnosticLogTests {
     }
 
     /// C3: two launches in one folder give one token for one UID, and no raw value.
-    @Test func aUIDAndAPackageAreTokensInTheFile() throws {
+    @Test func aUIDIsATokenInTheFile() throws {
         let uid = "AppleUSBAudioEngine:Focusrite:Scarlett 2i2:14130000:1"
-        let package = URL(filePath: "/Users/tester/Podcasts/Secret Show.dirigible")
         for time in ["2026-10-16T19:20:00Z", "2026-10-16T19:21:00Z"] {
             let log = startLog(in: folder.url, at: time)
-            log.note(.device, "attach", ["uid": .uid(uid), "package": .package(package)])
+            log.note(.device, "attach", ["uid": .uid(uid)])
             log.drain()
         }
 
         let texts = try journalFiles(in: folder.url).map { String(decoding: try Data(contentsOf: $0), as: UTF8.self) }
         try #require(texts.count == 2)
-        #expect(texts.allSatisfy { !$0.contains(uid) && !$0.contains("Secret Show") && !$0.contains("tester") })
+        #expect(texts.allSatisfy { !$0.contains(uid) })
         let uids = texts.compactMap { $0.firstMatch(of: #/\tuid=(uid-[0-9a-f]{8})(\t|\n)/#).map { String($0.1) } }
-        let packages = texts.compactMap {
-            $0.firstMatch(of: #/\tpackage=(pkg-[0-9a-f]{8})(\t|\n)/#).map { String($0.1) }
-        }
         #expect(uids.count == 2 && Set(uids).count == 1, "uid tokens: \(uids)")
-        #expect(packages.count == 2 && Set(packages).count == 1, "package tokens: \(packages)")
     }
 
     /// C3: in a folder with no salt, a second start runs between the temporary write and the move

@@ -119,6 +119,19 @@ extension StartLimitTests {
         #expect(!markerFirst, "the caller of bounded ran after the job that the hold queued")
     }
 
+    /// A stop that runs at `.userInitiated` priority runs each writer step at that priority or higher.
+    @Test func aBoundedWriterStepKeepsTheCallerPriority() async {
+        let capture = folder.url
+        let writer = DeviceWriter(
+            device: mic, tracks: [(arm: 1, channels: .mono(1))], files: TakeFiles(take: 1, folder: { capture }),
+            hal: hal().hal, report: ReportLog().closure, silenceLimit: noWatchdog, firstRecordLimit: noWatchdog)
+        let seen = await Task(priority: .userInitiated) { @MainActor in
+            let answers = await boundedEach([writer], by: .now + .seconds(5)) { _ in Task.currentPriority }
+            return answers[ObjectIdentifier(writer)]
+        }.value
+        #expect(seen.map { $0 >= .userInitiated } == true, "the step ran at \(String(describing: seen))")
+    }
+
     /// A Retry Finalize while the writer still does not answer throws `.writerDidNotStop` at its own
     /// deadline and leaves Retry Finalize on; after the release, it places the take.
     @Test func aFailedRetryKeepsRetryOn() async throws {

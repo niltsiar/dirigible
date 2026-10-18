@@ -36,13 +36,14 @@ private final class Once<T: Sendable>: Sendable {
 /// The result of `work`, or nil at `deadline` or at the cut, whichever comes first. A missed
 /// `work` goes on in its own task, and its result goes nowhere, so a writer step that waits on
 /// its queue (`started()`, `finish()`) still runs when the queue answers. A task group does not
-/// fit: it waits for each child, and a continuation does not cancel.
+/// fit: it waits for each child, and a continuation does not cancel. The deadline and the answer
+/// resume off the main actor, so a main-actor hold delays only the return to the caller.
 @MainActor func bounded<T: Sendable>(
     by deadline: ContinuousClock.Instant, cut: WaitCut? = nil, _ work: @escaping @Sendable () async -> T
 ) async -> T? {
     await withCheckedContinuation { (continuation: CheckedContinuation<T?, Never>) in
         let once = Once(continuation)
-        let timer = Task {
+        let timer = Task { @concurrent in
             try? await Task.sleep(until: deadline, clock: .continuous)
             once.resume(nil)
         }
@@ -50,7 +51,7 @@ private final class Once<T: Sendable>: Sendable {
             timer.cancel()
             once.resume(nil)
         }
-        Task {
+        Task { @concurrent in
             once.resume(await work())
             timer.cancel()
         }

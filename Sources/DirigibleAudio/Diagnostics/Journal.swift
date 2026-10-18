@@ -11,7 +11,9 @@ struct JournalOpenError: Error, CustomStringConvertible {
 }
 
 /// The file side of `DiagnosticLog` (decision 0059). `open` runs on the caller. After it, only
-/// `queue` touches the descriptor and the part size; `waiting` has its own lock.
+/// `queue` touches the descriptor and the part size; `waiting` has its own lock. The open part
+/// holds an exclusive `flock` lock (`O_EXLOCK`) until the quit or the end of the process, so
+/// `isLive` tells a running launch from a PID that a new process got after a restart.
 final class Journal: @unchecked Sendable {
     /// A part of 4 MiB, then the rotation to `<stem>.prev.tsv`.
     static let partLimit = 4 << 20
@@ -30,8 +32,8 @@ final class Journal: @unchecked Sendable {
     private let partLimit: Int
     private var descriptor: Int32
     private var partBytes: Int
-    /// The noted lines that no drain has taken yet.
-    private let waiting = OSAllocatedUnfairLock<[Entry]>(initialState: [])
+    /// The noted lines that no drain has taken yet, and true after `refuseNotes`.
+    private let waiting = OSAllocatedUnfairLock(initialState: (lines: [Entry](), refused: false))
 
     private init(
         queue: DispatchQueue, salt: SymmetricKey, stem: URL, preamble: Data, partLimit: Int, descriptor: Int32
@@ -60,7 +62,7 @@ final class Journal: @unchecked Sendable {
         let salt = try readSalt(in: folder)
         let name = JournalName(time: fileTime(now), kind: kind, pid: getpid())
         let stem = folder.appending(path: name.stem)
-        let descriptor = Darwin.open(stem.path + ".tsv", O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC, 0o644)
+        let descriptor = Darwin.open(stem.path + ".tsv", partFlags, 0o644)
         guard descriptor >= 0 else { throw JournalOpenError(step: "open", code: errno) }
         let preamble = Data(("dirigible-journal 1\n" + header + launch.line(salt: salt)).utf8)
         guard writeAll(descriptor, preamble) else {
@@ -83,23 +85,37 @@ final class Journal: @unchecked Sendable {
 
     static let header = "time\tuptime_ms\tthread\tlevel\tcategory\tevent\tfields...\n"
 
+    /// A new part, with its lock taken in the same call, so no reader finds it open and unlocked.
+    private static let partFlags = O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC | O_EXLOCK
+
     /// Adds a line for the next drain. Only the line that finds none waiting queues a drain, so
-    /// a backlog costs few writes.
+    /// a backlog costs few writes. After `refuseNotes`, it drops the line.
     func note(_ entry: Entry) {
-        let first = waiting.withLock { lines in
-            lines.append(entry)
-            return lines.count == 1
+        let first = waiting.withLock { state in
+            guard !state.refused else { return false }
+            state.lines.append(entry)
+            return state.lines.count == 1
         }
         if first { queue.async { self.drain() } }
     }
 
+    /// Drops each later note, so the line that the quit queues next is the last line.
+    func refuseNotes() { waiting.withLock { $0.refused = true } }
+
     /// Writes each waiting line, on the queue.
     func drain() {
         append(
-            waiting.withLock { lines in
-                defer { lines = [] }
-                return lines
+            waiting.withLock { state in
+                defer { state.lines = [] }
+                return state.lines
             })
+    }
+
+    /// Closes the part, on the queue, after the quit line. The close drops the lock.
+    func closeFile() {
+        dispatchPrecondition(condition: .onQueue(queue))
+        close(descriptor)
+        descriptor = -1
     }
 
     /// Writes the lines on the queue, with one `write(2)` for each part. A full part first moves
@@ -107,6 +123,7 @@ final class Journal: @unchecked Sendable {
     /// that the disk refuses are lost.
     func append(_ entries: [Entry], sync: Bool = false) {
         dispatchPrecondition(condition: .onQueue(queue))
+        guard descriptor >= 0 else { return }
         var batch = Data()
         var needsSync = sync
         func flush() {
@@ -127,10 +144,11 @@ final class Journal: @unchecked Sendable {
     }
 
     /// The part becomes `<stem>.prev.tsv` (it replaces an older one), and a new part starts with
-    /// the preamble. When a step fails, the lines go on into the open part.
+    /// the preamble. When a step fails, the lines go on into the open part. The old part keeps its
+    /// lock until the new part has one.
     private func rotate() {
         guard rename(current, previous) == 0 else { return }
-        let next = Darwin.open(current, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC, 0o644)
+        let next = Darwin.open(current, Self.partFlags, 0o644)
         guard next >= 0 else { return }
         close(descriptor)
         descriptor = next
@@ -212,13 +230,23 @@ struct JournalName: Hashable {
     }
 }
 
-/// True while a process has `pid`, also one of another user.
-func processIsAlive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 || errno == EPERM }
-
 extension Journal {
+    /// True while another open holds the lock of a part of the launch. A PID is no proof: after a
+    /// restart, a new process can have the PID of an earlier launch. The kernel drops the lock
+    /// when the process ends.
+    static func isLive(_ name: JournalName, in folder: URL) -> Bool {
+        [".tsv", ".prev.tsv"].contains { suffix in
+            let descriptor = Darwin.open(
+                folder.appending(path: name.stem + suffix).path, O_RDONLY | O_CLOEXEC | O_SHLOCK | O_NONBLOCK)
+            guard descriptor >= 0 else { return errno == EWOULDBLOCK }
+            close(descriptor)
+            return false
+        }
+    }
+
     /// Deletes the oldest launches (both parts of each) until each kind has `launchLimit` or fewer
     /// and all journals have `byteLimit` bytes or fewer. It lists only journal names, and it never
-    /// deletes a launch whose process is alive.
+    /// deletes a live launch.
     static func prune(_ folder: URL, launches: Int = launchLimit, bytes limit: Int64 = byteLimit) {
         var parts: [JournalName: (files: [String], bytes: Int64)] = [:]
         for file in (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? [] {
@@ -232,13 +260,13 @@ extension Journal {
         var doomed: Set<JournalName> = []
         for kind in [DiagnosticLog.Kind.app, .cli] {
             var excess = oldestFirst.count { $0.kind == kind } - launches
-            for name in oldestFirst where excess > 0 && name.kind == kind && !processIsAlive(name.pid) {
+            for name in oldestFirst where excess > 0 && name.kind == kind && !isLive(name, in: folder) {
                 doomed.insert(name)
                 excess -= 1
             }
         }
         var total = parts.filter { !doomed.contains($0.key) }.values.reduce(0) { $0 + $1.bytes }
-        for name in oldestFirst where total > limit && !doomed.contains(name) && !processIsAlive(name.pid) {
+        for name in oldestFirst where total > limit && !doomed.contains(name) && !isLive(name, in: folder) {
             doomed.insert(name)
             total -= parts[name]?.bytes ?? 0
         }
@@ -247,15 +275,15 @@ extension Journal {
         }
     }
 
-    /// The last line of the newest app journal before `name`, when it is not `app quit` and its
-    /// process is gone. Nil with no earlier app journal.
+    /// The last line of the newest app journal before `name`, when it is not `app quit` and the
+    /// launch is not live. Nil with no earlier app journal.
     static func uncleanEnd(in folder: URL, before name: JournalName) -> (event: String, time: String)? {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
         let earlier = Set(files.compactMap(JournalName.init(file:))).filter {
             $0.kind == .app && $0 != name && ($0.time, $0.stem) < (name.time, name.stem)
         }
         guard let newest = earlier.max(by: { ($0.time, $0.stem) < ($1.time, $1.stem) }),
-            !processIsAlive(newest.pid)
+            !isLive(newest, in: folder)
         else { return nil }
         let stem = folder.appending(path: newest.stem).path
         let text = lastLine(of: stem + ".tsv") ?? lastLine(of: stem + ".prev.tsv")

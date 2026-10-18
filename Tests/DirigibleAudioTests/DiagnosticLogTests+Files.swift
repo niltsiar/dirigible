@@ -65,33 +65,40 @@ extension DiagnosticLogTests {
         #expect(kept == ["\(fixtureStem("app", 2)).tsv"])
     }
 
-    /// C44: 21 older app launches; the oldest has the PID of this process.
-    @Test func theStartKeepsTheFileOfALivePID() throws {
-        for index in 0..<21 { try fixture(folder.url, "app", index, pid: index == 0 ? getpid() : nil) }
+    /// C44: 21 older app launches. The oldest is locked; the second has the PID of this process
+    /// and no lock, as a PID that a new process got after a restart.
+    @Test func theStartKeepsTheFileOfALockedJournal() throws {
+        for index in 0..<21 { try fixture(folder.url, "app", index, pid: index == 1 ? getpid() : nil) }
+        let locked = try lock(folder.url.appending(path: "\(fixtureStem("app", 0)).tsv"))
+        defer { close(locked) }
 
         startLog(in: folder.url).drain()
 
         let names = Set(try FileManager.default.contentsOfDirectory(atPath: folder.url.path))
-        #expect(names.contains("\(fixtureStem("app", 0, pid: getpid())).tsv"))
-        #expect(!names.contains("\(fixtureStem("app", 1)).tsv") && !names.contains("\(fixtureStem("app", 2)).tsv"))
+        #expect(names.contains("\(fixtureStem("app", 0)).tsv"))
+        #expect(!names.contains("\(fixtureStem("app", 1, pid: getpid())).tsv"))
+        #expect(!names.contains("\(fixtureStem("app", 2)).tsv"))
         #expect(names.filter { $0.contains("-app-") }.count == 20)
     }
 
-    enum EarlierLaunch: CaseIterable { case quit, otherLastLine, none, livePID }
+    enum EarlierLaunch: CaseIterable { case quit, otherLastLine, none, livePIDWithNoLock, locked }
 
-    /// C6: one case for each start state.
+    /// C6: one case for each start state. A live PID with no lock is a new process with the PID
+    /// of the earlier launch (after a restart), so its end is unclean.
     @Test(arguments: EarlierLaunch.allCases) func theStartFindsAnUncleanPreviousLaunch(_ earlier: EarlierLaunch) throws
     {
         let last =
             "2026-10-16T18:05:00.000Z\t2\tmain\tnotice\t" + (earlier == .quit ? "app\tquit" : "take\tstart-request")
         if earlier != .none {
-            try fixture(folder.url, "app", 0, pid: earlier == .livePID ? getpid() : nil, last: last)
+            try fixture(folder.url, "app", 0, pid: earlier == .livePIDWithNoLock ? getpid() : nil, last: last)
         }
+        let locked = earlier == .locked ? try lock(folder.url.appending(path: "\(fixtureStem("app", 0)).tsv")) : -1
+        defer { if locked >= 0 { close(locked) } }
 
         let log = startLog(in: folder.url)
         log.drain()
 
-        let unclean = earlier == .otherLastLine
+        let unclean = earlier == .otherLastLine || earlier == .livePIDWithNoLock
         #expect(log.previousEndedUnclean == unclean)
         let file = folder.url.appending(path: "2026-10-16-192000-app-\(getpid()).tsv")
         let lines = try journalLines(of: file)
@@ -102,15 +109,52 @@ extension DiagnosticLogTests {
         }
     }
 
-    /// C7: no barrier after the quit.
-    @Test func quitIsTheLastLine() throws {
-        let log = startLog(in: folder.url)
-        for index in 0..<1000 { log.note(.device, "input-gap", ["n": .number(Int64(index))]) }
-        log.quit()
+    /// C6: an earlier journal that another process locks is live. When that process ends, the
+    /// kernel drops the lock, and the next start finds the unclean end.
+    @Test func aJournalLockedByAnotherProcessIsLiveUntilItEnds() async throws {
+        try fixture(folder.url, "app", 0, last: "2026-10-16T18:05:00.000Z\t2\tmain\tnotice\ttake\tstart-request")
+        let file = folder.url.appending(path: "\(fixtureStem("app", 0)).tsv")
+        let helper = Process()
+        helper.executableURL = URL(filePath: "/usr/bin/lockf")
+        helper.arguments = ["-k", file.path, "/bin/cat"]
+        let input = Pipe()
+        helper.standardInput = input
+        try helper.run()
+        defer { if helper.isRunning { helper.terminate() } }
+        try await poll("the helper did not lock the journal") { isLocked(file) }
 
-        let lines = try journalLines(of: try #require(journalFiles(in: folder.url).first))
-        #expect(lines.count == 1004)
-        #expect(lines.last?.split(separator: "\t").dropFirst(4).prefix(2) == ["app", "quit"])
+        let during = startLog(in: folder.url, at: "2026-10-16T19:20:00Z")
+        during.drain()
+        // The journal of `during` stays locked by this process, so the next start reads the fixture.
+        try FileManager.default.removeItem(at: folder.url.appending(path: "2026-10-16-192000-app-\(getpid()).tsv"))
+        try input.fileHandleForWriting.close()
+        try await poll("the helper did not end") { !helper.isRunning }
+        let after = startLog(in: folder.url, at: "2026-10-16T19:21:00Z")
+        after.drain()
+
+        #expect(!during.previousEndedUnclean)
+        #expect(after.previousEndedUnclean)
+    }
+
+    /// C7: a writer queue that notes a line after `quit()` (an abandoned attach) adds no line
+    /// after `app quit`. The quit drops the lock, so the next start reads that last line.
+    @Test func aNoteAfterQuitLeavesACleanEnd() throws {
+        let log = startLog(in: folder.url, at: "2026-10-16T19:20:00Z")
+        log.note(.take, "start-request")
+        log.quit()
+        log.note(.device, "attach", ["device": .text("USB Mic")])
+        log.drain()
+        let file = folder.url.appending(path: "2026-10-16-192000-app-\(getpid()).tsv")
+        let locked = isLocked(file)
+        let next = startLog(in: folder.url, at: "2026-10-16T19:21:00Z")
+        next.drain()
+
+        let events = try journalLines(of: file).dropFirst(3).map {
+            $0.split(separator: "\t").dropFirst(4).prefix(2).joined(separator: " ")
+        }
+        #expect(events == ["take start-request", "app quit"], "\(events)")
+        #expect(!locked, "the journal keeps its lock after the quit")
+        #expect(!next.previousEndedUnclean)
     }
 
     /// C7: a journal queue that does not run (a stalled disk) holds `quit()` for its 1 s bound only.
@@ -196,6 +240,21 @@ private func threadPriority() -> (base: Int32, current: Int32) {
         }
     }
     return (info.pth_priority, info.pth_curpri)
+}
+
+/// A new descriptor of `file` with an exclusive lock, as a live launch holds on its journal.
+private func lock(_ file: URL) throws -> Int32 {
+    let descriptor = open(file.path, O_RDONLY | O_CLOEXEC | O_EXLOCK | O_NONBLOCK)
+    try #require(descriptor >= 0, "the lock of \(file.lastPathComponent): errno \(errno)")
+    return descriptor
+}
+
+/// True while a descriptor of another open holds a lock on `file`.
+private func isLocked(_ file: URL) -> Bool {
+    let descriptor = open(file.path, O_RDONLY | O_CLOEXEC | O_SHLOCK | O_NONBLOCK)
+    guard descriptor >= 0 else { return errno == EWOULDBLOCK }
+    close(descriptor)
+    return false
 }
 
 /// The stem of fixture launch `index` of `kind`, one minute apart on 2026-10-15. With no `pid`,

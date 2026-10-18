@@ -40,7 +40,8 @@ public final class DiagnosticLog: Sendable {
 
     /// False for `disabled`, also after a start that could not open the journal.
     public var isEnabled: Bool { journal != nil }
-    /// True when the newest earlier app journal ends with no `app quit` line and its process is gone.
+    /// True when the newest earlier app journal ends with no `app quit` line and no process holds
+    /// its lock.
     public let previousEndedUnclean: Bool
     private let journal: Journal?
 
@@ -109,14 +110,18 @@ public final class DiagnosticLog: Sendable {
         return DiagnosticSpan(log: self, category: category, start: .now)
     }
 
-    /// Queues `app quit` and `fsync` behind the queued lines, and waits for them at most 1 s. On a
-    /// disk that does not answer, it returns with no quit line.
+    /// Queues `app quit` and `fsync` behind the queued lines, then closes the journal, and waits
+    /// for them at most 1 s. Each later note writes nothing, so a writer queue that notes a line
+    /// during the exit cannot make a clean quit look unclean. On a disk that does not answer, it
+    /// returns with no quit line.
     public func quit() {
         guard let journal else { return }
+        journal.refuseNotes()
         let entry = Entry(.app, "quit", [])
         let written = DispatchWorkItem {
             journal.drain()
             journal.append([entry], sync: true)
+            journal.closeFile()
         }
         journal.queue.async(execute: written)
         // A work item wait lends the QoS of the caller to the `.utility` queue; a semaphore wait

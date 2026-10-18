@@ -46,7 +46,7 @@ cd dirigible
 ```
 
 ```sh
-make setup   # once per clone: enables the pre-commit hook
+make setup   # once per clone: enables the git hooks
 make run
 ```
 

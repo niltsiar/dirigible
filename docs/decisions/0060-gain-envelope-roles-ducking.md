@@ -62,7 +62,7 @@ Rejected: **a live side chain at play and export** (GarageBand 09 ducking, which
 
 ### Render path
 
-`MixReader.render` multiplies the fade factor of 0035 and 0036 by the envelope factor, in the one envelope buffer of the part: for each envelope segment in the part, `vDSP_vramp` from an `Int` segment index (the B1 rule of 0035), then `10^(dB/20)` as `vvexpf(dB * ln(10) / 20)`. A part with no envelope point and no fade keeps the one-gain `vDSP_vsma` path. The Player and the export read the same code, so play equals export.
+`MixReader.render` multiplies the fade factor of 0035 and 0036 by the envelope factor, in the factor buffer of the part, with a second buffer for the fade factors when the part also has a fade. For each run of frames between two points in the part, it computes the dB of the run start in `Double` and ramps the index from the run start with `vDSP_vramp`, so no file frame becomes a `Float` (the B1 rule of 0035). Then `10^(dB/20)` is `vvexpf(dB * ln(10) / 20)`, with the clip and track gain added in dB. A part with no envelope point and no fade keeps the one-gain `vDSP_vsma` path. The Player and the export read the same code, so play equals export.
 
 ### Draw
 

@@ -50,10 +50,11 @@ final class MixPackage {
     /// Adds a track with one clip.
     func addTrack(
         _ id: TrackID, layout: ChannelLayout = .mono, clip: ClipID, file: FileID, start: Frames, offset: Frames,
-        length: Frames
+        length: Frames, envelope: GainEnvelope = .empty
     ) throws {
         try session.addTrack(id, name: id.rawValue, layout: layout)
-        try session.place(Clip(id: clip, file: file, start: start, offset: offset, length: length), on: id)
+        try session.place(
+            Clip(id: clip, file: file, start: start, offset: offset, length: length, envelope: envelope), on: id)
     }
 
     /// The mix of `range` from a new `MixReader`, as two channel arrays.
@@ -84,7 +85,7 @@ final class MixPackage {
 
 /// The fades fixture (decision 0035): track t1 with a DC 0.25 clip at 0..<7000 and no fade, then
 /// track t2 with a DC 0.5 clip "c1" at 1000, length 4800, fadeIn 480, and fadeOut 960. The plain
-/// clip first in the chunk catches an envelope that scales the sum, not the clip.
+/// clip first in the chunk catches gain factors that scale the sum, not the clip.
 func fadedPackage() throws -> MixPackage {
     let package = try MixPackage()
     try package.addFile("quarter", channels: [[Float](repeating: 0.25, count: 7000)])

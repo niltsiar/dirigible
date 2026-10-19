@@ -163,7 +163,7 @@ struct MixTests {
         for channel in out { #expect(maxError(channel, expected) <= 1e-6, "0.5 * fin * fout * 10^(-4/20)") }
     }
 
-    /// Fades C14: the envelope at the end of a clip of 2^30 + 7 frames, with no media, is within the
+    /// Fades C14: the gain factors at the end of a clip of 2^30 + 7 frames, with no media, are within the
     /// B1 tolerance of `Fades.gain`.
     @Test func aFadeAtTheEndOfALongClipIsExact() throws {
         let length = Frames((1 << 30) + 7)
@@ -171,30 +171,30 @@ struct MixTests {
         // A part at the clip end, and one inside the fade-out: a Float start can round to the
         // right value at the end only.
         for from in [length - Frames(4800), length - Frames(30_001)] {
-            var envelope = [Float](repeating: 0, count: 4800)
-            envelope.withUnsafeMutableBufferPointer {
-                fadeEnvelope(fades, curves: .sine, length: length, from: from, gain: 1, into: $0)
+            var factors = [Float](repeating: 0, count: 4800)
+            factors.withUnsafeMutableBufferPointer {
+                gainFactors(fades, curves: .sine, length: length, from: from, gain: 1, into: $0)
             }
             let expected = (0..<4800).map { Float(fades.gain(at: from + Frames($0), length: length, curves: .sine)) }
-            #expect(maxError(envelope, expected) <= 1e-6, "the envelope at the end of a long clip")
+            #expect(maxError(factors, expected) <= 1e-6, "the gain factors at the end of a long clip")
         }
     }
 
-    /// The two copies of the curve (decisions 0035 and 0036): the vector `fadeEnvelope` equals
+    /// The two copies of the curve (decisions 0035 and 0036): the vector `gainFactors` equals
     /// `Fades.gain` within the B1 tolerance across a whole clip with both fades, from the clip start
     /// and from a part start inside each fade, for each curve at each edge.
     @Test(arguments: [(Fades.Curve.sine, Fades.Curve.sine), (.linear, .linear), (.linear, .sine), (.sine, .linear)])
-    func theEnvelopeEqualsFadesGain(start: Fades.Curve, end: Fades.Curve) throws {
+    func theGainFactorsEqualFadesGain(start: Fades.Curve, end: Fades.Curve) throws {
         let (fades, curves) = (try #require(Fades(fadeIn: 480, fadeOut: 960)), Fades.Curves(start: start, end: end))
         for (from, count) in [(0, 4800), (100, 700), (4000, 800)] {
-            var envelope = [Float](repeating: 0, count: count)
-            envelope.withUnsafeMutableBufferPointer {
-                fadeEnvelope(fades, curves: curves, length: 4800, from: Frames(from), gain: 0.5, into: $0)
+            var factors = [Float](repeating: 0, count: count)
+            factors.withUnsafeMutableBufferPointer {
+                gainFactors(fades, curves: curves, length: 4800, from: Frames(from), gain: 0.5, into: $0)
             }
             let expected = (from..<from + count).map {
                 Float(0.5 * fades.gain(at: Frames($0), length: 4800, curves: curves))
             }
-            #expect(maxError(envelope, expected) <= 1e-6, "\(curves): the envelope from \(from) equals Fades.gain")
+            #expect(maxError(factors, expected) <= 1e-6, "\(curves): the gain factors from \(from) equal Fades.gain")
         }
         let half = start == .linear ? 0.5 : sin(Double.pi / 4)
         #expect(abs(fades.gain(at: 240, length: 4800, curves: curves) - half) <= 1e-12, "\(start): k = 240 of 480")
@@ -218,22 +218,22 @@ struct MixTests {
         #expect(power <= 1e-6, "L \(length): equal power, error \(power)")
     }
 
-    /// Crossfades X1: the envelope of a crossfaded clip, read through `ClipLane.sounding(at:)`,
+    /// Crossfades X1: the gain factors of a crossfaded clip, read through `ClipLane.sounding(at:)`,
     /// equals `Fades.gain` of the sounding clip, so the render and the draw read one geometry.
-    @Test func theEnvelopeOfACrossfadeEqualsFadesGain() throws {
+    @Test func theGainFactorsOfACrossfadeEqualFadesGain() throws {
         let package = try crossfadedPackage(4_800)
         let edges = try #require(package.session.track("t1")?.clips.sounding(at: 0))
         let (sounding, curves) = (edges.clip, edges.curves)
         #expect(sounding.start == 1_000 && sounding.length == 12_400 && sounding.fades.fadeOut == 4_800)
         #expect(curves == .sine, "a butt join keeps equal power")
-        var envelope = [Float](repeating: 0, count: 5_000)
-        envelope.withUnsafeMutableBufferPointer {
-            fadeEnvelope(sounding.fades, curves: curves, length: sounding.length, from: 7_400, gain: 1, into: $0)
+        var factors = [Float](repeating: 0, count: 5_000)
+        factors.withUnsafeMutableBufferPointer {
+            gainFactors(sounding.fades, curves: curves, length: sounding.length, from: 7_400, gain: 1, into: $0)
         }
         let expected = (7_400..<12_400).map {
             Float(sounding.fades.gain(at: Frames($0), length: sounding.length, curves: curves))
         }
-        #expect(maxError(envelope, expected) <= 1e-6, "the envelope of the sounding clip equals Fades.gain")
+        #expect(maxError(factors, expected) <= 1e-6, "the gain factors of the sounding clip equal Fades.gain")
     }
 
     /// Seamless crossfade C33: a sine split at J = 24,000, clip gains 0 dB and -12 dB, and a

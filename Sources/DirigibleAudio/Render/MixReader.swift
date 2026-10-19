@@ -5,12 +5,13 @@ import DirigibleCore
 /// Renders the mix of a session (decision 0016): stereo float32, non-interleaved, at the session
 /// rate. Clip gain plus track gain in dB is one linear factor, times the fade factor of decision
 /// 0035 of the sounding clip of the lane, whose fades hold its crossfades with the curve of each
-/// edge (decision 0036). A mono clip goes to both channels, a stereo clip left to left and right
-/// to right (0007). It reads only the heard tracks of its track set: muted and unsoloed tracks are
-/// out (decision 0039). Where no clip or no media is, the mix is silence. One owner, not Sendable:
-/// the Player or the command-line render. It keeps at most `openLimit` files open and closes the
-/// least recently used one, so a session with many files does not use up the descriptors of the
-/// process. Each read stops at the real length of the file (probe E6c).
+/// edge (decision 0036), times the gain envelope factor of the clip (decision 0060). A mono clip
+/// goes to both channels, a stereo clip left to left and right to right (0007). It reads only the
+/// heard tracks of its track set: muted and unsoloed tracks are out (decision 0039). Where no clip
+/// or no media is, the mix is silence. One owner, not Sendable: the Player or the command-line
+/// render. It keeps at most `openLimit` files open and closes the least recently used one, so a
+/// session with many files does not use up the descriptors of the process. Each read stops at the
+/// real length of the file (probe E6c).
 final class MixReader {
     /// A calibration knob: the process limit is 256 descriptors by default.
     static let openLimit = 32
@@ -31,8 +32,14 @@ final class MixReader {
     /// The files that did not open. They hold no descriptor.
     private var failed: Set<FileID> = []
     private var scratch: [AVAudioFormat: AVAudioPCMBuffer] = [:]
-    /// The fade envelope of one clip part. It grows only for a longer part.
-    private var envelope: [Float] = []
+    /// The gain factors of one clip part, and the fade factors of a part with a gain envelope and a
+    /// fade. Each grows only for a longer part.
+    private var factors: [Float] = []
+    private var fadeFactors: [Float] = []
+    #if DEBUG
+        /// The clip parts that read the gain envelope.
+        private(set) var envelopeParts = 0
+    #endif
     /// Opens a pool file. Tests give one that throws EMFILE.
     private let openFile: MediaOpen
 
@@ -56,27 +63,47 @@ final class MixReader {
                 guard let read = read(clip.file, from: clip.offset + (part.lowerBound - clip.start), part) else {
                     continue
                 }
-                var gain = Float(pow(10, (clip.gain.dB + track.gain.dB) / 20))
+                let decibels = clip.gain.dB + track.gain.dB
+                var gain = Float(pow(10, decibels / 20))
                 let target = part.lowerBound.count - range.lowerBound.count
                 let count = Int(read.frameLength)
                 let frames = vDSP_Length(count)
                 let last = Int(read.format.channelCount) - 1
-                // The clip frame of the part start. Only a part with a frame in a fade reads the envelope.
+                // The clip frame of the part start. A part with no frame in a fade and no envelope
+                // point keeps the one-gain path.
                 let first = part.lowerBound - clip.start
                 let faded = clip.fades.fadeIn > first || clip.fades.fadeOut > clip.length - first - Frames(count)
-                if faded {
-                    if envelope.count < count { envelope = [Float](repeating: 0, count: count) }
-                    envelope.withUnsafeMutableBufferPointer {
-                        fadeEnvelope(
-                            clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: gain,
-                            into: .init(rebasing: $0[..<count]))
+                let enveloped = !clip.envelope.isEmpty
+                if faded || enveloped {
+                    if factors.count < count { factors = [Float](repeating: 0, count: count) }
+                    if faded, enveloped, fadeFactors.count < count { fadeFactors = [Float](repeating: 0, count: count) }
+                    factors.withUnsafeMutableBufferPointer { all in
+                        let factors = UnsafeMutableBufferPointer(rebasing: all[..<count])
+                        guard enveloped else {
+                            gainFactors(
+                                clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: gain,
+                                into: factors)
+                            return
+                        }
+                        #if DEBUG
+                            envelopeParts += 1
+                        #endif
+                        envelopeFactors(clip.envelope, from: clip.offset + first, decibels: decibels, into: factors)
+                        guard faded else { return }
+                        fadeFactors.withUnsafeMutableBufferPointer { all in
+                            let fades = UnsafeMutableBufferPointer(rebasing: all[..<count])
+                            gainFactors(
+                                clip.fades, curves: sounding.curves, length: clip.length, from: first, gain: 1,
+                                into: fades)
+                            vDSP_vmul(factors.baseAddress!, 1, fades.baseAddress!, 1, factors.baseAddress!, 1, frames)
+                        }
                     }
                 }
                 for channel in 0..<2 {
                     let source = read.floatChannelData![min(channel, last)]
                     let destination = out[channel] + target
-                    if faded {
-                        vDSP_vma(source, 1, envelope, 1, destination, 1, destination, 1, frames)
+                    if faded || enveloped {
+                        vDSP_vma(source, 1, factors, 1, destination, 1, destination, 1, frames)
                     } else {
                         vDSP_vsma(source, 1, &gain, destination, 1, destination, 1, frames)
                     }
@@ -132,19 +159,19 @@ final class MixReader {
     }
 }
 
-/// Fills `envelope` with `gain` times the fade factor of the clip frames `from ..< from +
-/// envelope.count` of a clip of `length` frames, with the curve of each edge (decisions 0035 and
+/// Fills `factors` with `gain` times the fade factor of the clip frames `from ..< from +
+/// factors.count` of a clip of `length` frames, with the curve of each edge (decisions 0035 and
 /// 0036). In each fade it ramps the frame index from an `Int` start, then scales it, so no clip
 /// frame above 2^24 becomes a Float (probe B1: 1.3e-7 or less). A frame is in at most one fade,
 /// because fadeIn + fadeOut <= length.
-func fadeEnvelope(
+func gainFactors(
     _ fades: Fades, curves: Fades.Curves, length: Frames, from: Frames, gain: Float,
-    into envelope: UnsafeMutableBufferPointer<Float>
+    into factors: UnsafeMutableBufferPointer<Float>
 ) {
-    guard let base = envelope.baseAddress else { return }
+    guard let base = factors.baseAddress else { return }
     var level = gain
-    vDSP_vfill(&level, base, 1, vDSP_Length(envelope.count))
-    let end = from.count + envelope.count
+    vDSP_vfill(&level, base, 1, vDSP_Length(factors.count))
+    let end = from.count + factors.count
     // The fade-in: index k for the frames from ..< I.
     let inEnd = min(end, fades.fadeIn.count)
     if from.count < inEnd {
@@ -180,4 +207,46 @@ private func fadeRamp(
         var scale = Float(Double(gain) / Double(fade.count))
         vDSP_vsmul(out, 1, &scale, out, 1, frames)
     }
+}
+
+/// Fills `factors` with 10^((`decibels` + g) / 20), g the dB of `envelope` at the file frames `from
+/// ..< from + factors.count` (decision 0060). In each run of frames between two points, it computes
+/// the dB of the run start in Double and ramps the index from the run start, so no file frame
+/// becomes a Float. Then one `vvexpf` takes all frames.
+func envelopeFactors(
+    _ envelope: GainEnvelope, from: Frames, decibels: Double, into factors: UnsafeMutableBufferPointer<Float>
+) {
+    guard let base = factors.baseAddress else { return }
+    let (points, start, count) = (envelope.points, from.count, factors.count)
+    // 10^(dB / 20) is e^(dB x ln(10) / 20).
+    let scale = log(10.0) / 20
+    // The first point after the part start, by binary search.
+    var (next, high) = (0, points.count)
+    while next < high {
+        let middle = (next + high) / 2
+        if points[middle].frame.count <= start { next = middle + 1 } else { high = middle }
+    }
+    var done = 0
+    while done < count {
+        let frame = start + done
+        let end = next < points.count ? min(count, points[next].frame.count - start) : count
+        let frames = vDSP_Length(end - done)
+        if next == 0 || next == points.count {
+            // Before the first point or after the last point, the gain holds.
+            var level = Float((decibels + (points.isEmpty ? 0 : points[max(next - 1, 0)].gain.dB)) * scale)
+            vDSP_vfill(&level, base + done, 1, frames)
+        } else {
+            let (a, b) = (points[next - 1], points[next])
+            let slope = (b.gain.dB - a.gain.dB) / Double((b.frame - a.frame).count)
+            var (zero, one) = (Float(0), Float(1))
+            var step = Float(slope * scale)
+            var level = Float((decibels + a.gain.dB + slope * Double(frame - a.frame.count)) * scale)
+            vDSP_vramp(&zero, &one, base + done, 1, frames)
+            vDSP_vsmsa(base + done, 1, &step, &level, base + done, 1, frames)
+        }
+        done = end
+        next += 1
+    }
+    var length = Int32(count)
+    vvexpf(base, base, &length)
 }

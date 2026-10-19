@@ -14,6 +14,7 @@
 - Amended: 2026-10-03, run 11a. The mix multiplies clip gain plus track gain by the fade factor of 0035.
 - Amended: 2026-10-04, run 11c-1. The mix finds a clip by its sounding range and takes the fade factor of the sounding clip, so a crossfade plays from the media handles (see 0036).
 - Amended: 2026-10-17, run `2026-10-16-timeline-clarity` (F153). The record-over warning is a chip over the track headers, and a lane counts as in view when half of its height or more shows (see 0017, 0023).
+- Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (see 0060). The mix also multiplies each clip by the factor of its gain envelope, linear in dB at each file frame.
 
 ## Context
 

@@ -26,7 +26,8 @@
 # - With a run folder whose run.md has a `- Lands:` line, each F-ID of the newest (last) such line has a
 #   done state in features.md that differs from its state at the base, on any branch type. `- Lands: none`
 #   names no F-ID; an empty line fails. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
-#   Package.swift, Package.resolved, or Support/ needs the line.
+#   Package.swift, Package.resolved, or Support/ needs the line. A `feat/` branch that changes
+#   Sources/ cannot write `- Lands: none`: scripts/tag-release.sh needs a done row for its run number.
 # - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
@@ -176,6 +177,11 @@ if [[ -n "$run" && -f "$run/run.md" ]]; then
         value="$(sed 's/^- Lands: *//; s/ *$//' <<<"$line")"
         if [[ -z "$ids" && "$value" != none ]]; then
             echo "check-governance: run.md has a - Lands: line with no F-ID; name the F-IDs of this land, or write - Lands: none" >&2
+            fail=1
+        fi
+        if [[ "$value" == none ]] && grep -q '^- Branch: feat/' "$run/run.md" \
+            && git diff --name-only "$base...HEAD" | grep -q '^Sources/'; then
+            echo "check-governance: a feat/ landing that changes Sources/ writes - Lands: none; scripts/tag-release.sh needs a done row in features.md for the run number, so name at least one F-ID in - Lands:" >&2
             fail=1
         fi
         for id in $ids; do

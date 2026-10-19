@@ -255,7 +255,7 @@ done
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n' Support/Info.plist; commit
 pass 'a feat run that changes only Support/ and writes Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n'; commit
-pass 'a feat run that changes Sources/ and writes Lands: none' "$tmp/run"
+refuse 'a feat run that changes Sources/ and writes Lands: none' 'scripts/tag-release.sh' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: F77\n' Support/Info.plist; set_done F77; commit
 pass 'a feat run that changes only Support/ and sets its Lands state' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/x\n- Lands: F35\n'; commit

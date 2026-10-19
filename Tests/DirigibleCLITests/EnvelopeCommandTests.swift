@@ -94,6 +94,20 @@ struct EnvelopeCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// A range gain with a frame or a ramp outside `0...2^40` is a session refusal (exit 1), not a
+    /// crash on an `Int` overflow, and `session.xml` keeps its bytes.
+    @Test(arguments: [
+        ["--from", "0", "--to", "10", "--ramp", "9223372036854775807"],
+        ["--from", "0", "--to", "9223372036854775807"],
+        ["--from", "-1", "--to", "10"],
+    ])
+    func aRangeGainOutOfRangeExits1(bounds: [String]) async throws {
+        let before = try package.xml()
+        let result = try await package.run(["clip", "gain-range", "PKG", "--track", "t1", "--db", "-6"] + bounds)
+        #expect(result == CLIResult(status: 1, stdout: "", stderr: "Error: a frame is negative or more than 2^40.\n"))
+        #expect(try package.xml() == before)
+    }
+
     /// C6: a set and a clear by the CLI keep the points outside the clip window in `session.xml`,
     /// and `info` shows the points inside the window in timeline frames and the count outside it.
     @Test func aSetKeepsThePointsOutsideTheClipWindow() async throws {

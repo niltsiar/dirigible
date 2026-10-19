@@ -66,12 +66,16 @@ package struct SessionView: Encodable {
         var points: Int?
 
         init(_ clip: Clip) {
-            (id, file, start, offset, length, gain) = (
-                clip.id.rawValue, clip.file.rawValue, clip.start.count, clip.offset.count, clip.length.count,
-                clip.gain.dB
-            )
-            (fadeIn, fadeOut) = (clip.fades.fadeIn.nonZero, clip.fades.fadeOut.nonZero)
-            (crossfadeIn, crossfadeOut) = (clip.crossfades.start.nonZero, clip.crossfades.end.nonZero)
+            id = clip.id.rawValue
+            file = clip.file.rawValue
+            start = clip.start.count
+            offset = clip.offset.count
+            length = clip.length.count
+            gain = clip.gain.dB
+            fadeIn = clip.fades.fadeIn.nonZero
+            fadeOut = clip.fades.fadeOut.nonZero
+            crossfadeIn = clip.crossfades.start.nonZero
+            crossfadeOut = clip.crossfades.end.nonZero
             let inside = clip.pointsInWindow
             envelope = inside.isEmpty ? nil : inside.map { PointView(frame: $0.frame.count, dB: $0.gain.dB) }
             let outside = clip.envelope.points.count - inside.count

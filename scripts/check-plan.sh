@@ -19,6 +19,9 @@
 #   ID as a whole word. log-decision.sh runs this check before the first phase 4 row, so each
 #   plan gate change gets its row while a fix is still possible; a later row is for a change that
 #   came after Phase 4 started (the code gate).
+# - With CHECK_PLAN_AT_PHASE4=1 only, the plan gate is closed: the run folder has a
+#   review-plan-<n>.md file, and a phase 3 row follows the last phase 2 row. The land check has no
+#   such variable, so a run with phase 4 rows and no review-plan file passes it.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -121,6 +124,13 @@ else
             grep -qF "$copy" "$run/plan.md" || say "$name: plan.md does not name $copy; research findings go to docs/research"
         fi
     done
+    # Row order, not the clock, decides which phase row is last.
+    if [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]]; then
+        compgen -G "$run/review-plan-*.md" >/dev/null || say "no review-plan-<n>.md in $run: the plan gate is not closed; run the plan gate (deliver Phase 3), write review-plan-<n>.md, and log its phase 3 row before the first phase 4 row"
+        if ! awk -F'\t' '$2 == "2" { l2 = NR } $2 == "3" { l3 = NR } END { exit !(l3 > l2) }' "$run/decisions.tsv" 2>/dev/null; then
+            say "the last phase 2 row of decisions.tsv has no phase 3 row after it: the plan gate is not closed; run the plan gate (deliver Phase 3), write review-plan-<n>.md, and log a new phase 3 row before the first phase 4 row"
+        fi
+    fi
     # 2026-10-14, the commit that added the number rule: a run with an older plan gate passed without it.
     first3="$(awk -F'\t' '$2 == "3" { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
     if [[ -z "$first3" || ! "$first3" < 2026-10-14T03:00 ]]; then

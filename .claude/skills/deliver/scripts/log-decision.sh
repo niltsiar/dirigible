@@ -12,7 +12,8 @@
 # row, and the words old and new. Each phase 4 row of a run folder with a plan.md needs a
 # passing scripts/check-plan.sh (CHECK_PLAN_AT_PHASE4=1): a Criteria: field for each plan gate
 # change, and a criterion change row for each of its IDs, while such a row can still come before
-# Phase 4. Else the script appends nothing and exits 2.
+# Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
+# last phase 2 row. Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>

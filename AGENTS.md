@@ -48,7 +48,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - One commit is one logical change. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
 - At each commit, only the hooks run, no test: pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, and commit-msg checks each `N before, M after` word count. Tests run in the **tdd** loop and in the push check before the land. Stage whole changes.
 - `scripts/land.sh` and the pre-push hook refuse a commit that a tool made (author, committer, or Co-Authored-By). The push check and the land run `gitleaks` on the pushed commits: `brew install gitleaks`.
-- `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F <file>`. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
+- `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F .scratchpads/commit-msg.txt`. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.
   - Never discard uncommitted work of the user or of another agent.

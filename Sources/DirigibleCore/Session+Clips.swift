@@ -90,10 +90,9 @@ extension Session {
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
             throw .overlap(id, neighbor.id)
         }
-        let lane = tracks[track].clips
         let staysBetweenNeighbors =
-            (index == lane.startIndex || lane[index - 1].end <= trimmed.start)
-            && (index + 1 == lane.endIndex || trimmed.end <= lane[index + 1].start)
+            (index == tracks[track].clips.startIndex || tracks[track].clips[index - 1].end <= trimmed.start)
+            && (index + 1 == tracks[track].clips.endIndex || trimmed.end <= tracks[track].clips[index + 1].start)
         if staysBetweenNeighbors {
             tracks[track].clips.replace(at: index, with: trimmed)
         } else {

@@ -172,6 +172,19 @@ new_repo
 printf 'a2\n' >> "$tmp/r/docs/a.md"
 got="$(run_in)" || fail "a docs path, no FILTER: exit $?"
 [[ "$got" == "$(out docs check-docs no)" ]] || fail "a docs path, no FILTER: got [$got]"
+# FILTER with a change that picks no test (a docs change, or a clean tree): exit 1 with the reason.
+# A FILTER run with only check-docs would pass with no test run. The mode --paths keeps exit 0.
+new_repo
+got="$(FILTER=ClipTests run_in 2> "$tmp/refuse.err")"
+code=$?
+[[ $code -eq 1 ]] || fail "a clean tree with FILTER: expected exit 1, got $code"
+grep -qF 'make test-filter FILTER=' "$tmp/refuse.err" || fail "a clean tree with FILTER: no reason: $(cat "$tmp/refuse.err")"
+printf 'a3\n' >> "$tmp/r/docs/a.md"
+got="$(FILTER=ClipTests run_in 2> "$tmp/refuse.err")"
+code=$?
+[[ $code -eq 1 && "$got" == "$(out docs check-docs no)" ]] || fail "a docs path with FILTER: exit $code, got [$got]"
+grep -qF 'make test-filter FILTER=' "$tmp/refuse.err" || fail "a docs path with FILTER: no reason: $(cat "$tmp/refuse.err")"
+got="$(run_in)" || fail "a docs path, no FILTER, after the FILTER cases: exit $?"
 
 # A base that does not exist: exit nonzero and nothing on stdout.
 new_repo

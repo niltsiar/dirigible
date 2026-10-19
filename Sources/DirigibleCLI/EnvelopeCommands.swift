@@ -15,7 +15,12 @@ extension ClipCommand {
             help: ArgumentHelp(
                 "A timeline frame inside the clip and a gain in dB. Give one or more.", valueName: "frame:dB"))
         var points: [String] = []
-        @Flag(help: "Remove the points inside the clip window.") var clear = false
+        @Flag(
+            help: ArgumentHelp(
+                "Remove the points inside the clip window. The points outside it still set the gain at the clip "
+                    + "edges. To make the clip flat, set a 0 dB point at the first frame and at the last frame of "
+                    + "the clip."))
+        var clear = false
 
         func validate() throws {
             guard !points.isEmpty != clear else { throw ValidationError("Give --point or --clear.") }

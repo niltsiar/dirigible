@@ -18,7 +18,7 @@ Before the call, run `.claude/skills/deliver/scripts/usage-mode.sh` on the lead 
 - Analysis, plan, architect, and a `risk: yes` slice: Opus, effort `high`.
 - A `risk: no` slice: Sonnet, effort `high`.
 - Start one implementer agent for each group of the `Agents:` line, not one agent for all of Phase 4. It writes a handoff in `run.md` when it stops. Replies with more than 150k tokens of context were 60 % of the cost.
-- A small run keeps its one agent for Phases 1-2 and 4 (deliver class table).
+- A small run has one subagent for Phases 1-2 and one for Phase 4 after the plan gate (deliver class table).
 - After the last code gate fix, one closing agent runs Phase 7 up to `scripts/check-governance.sh`, then Phase 8 and the PR text, with the model of a slice. The cold reader of the PR text is a separate Sonnet agent. The push check and the land run in the lead.
 
 ## Free jobs

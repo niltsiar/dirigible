@@ -53,7 +53,7 @@ Write `plan.md`:
 
 | Run | Plan gate and code gate |
 |---|---|
-| Small (`risk: no`) | One subagent runs Phases 1-2 and 4 and returns the plan path, the commit range, and the gate inputs. The lead runs the gates. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
+| Small (`risk: no`) | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 - The red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. `docs/decisions/0028-proportional-checks-and-reflect-governance.md` says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.

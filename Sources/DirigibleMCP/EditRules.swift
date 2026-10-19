@@ -87,9 +87,21 @@ package enum EditRules {
     package static func appRouteAllowed(_ app: String?, tapsAvailable: Bool) -> Bool { app == nil || tapsAvailable }
 
     /// The first ID that is given twice. `Dictionary(uniqueKeysWithValues:)` traps on it.
-    package static func firstRepeat(_ ids: [String]) -> String? {
-        var seen: Set<String> = []
-        return ids.first { !seen.insert($0).inserted }
+    package static func firstRepeat<Item: Hashable>(_ items: [Item]) -> Item? {
+        var seen: Set<Item> = []
+        return items.first { !seen.insert($0).inserted }
+    }
+
+    /// A point of an envelope set (decision 0060): a timeline frame 0 or more and a gain in
+    /// `Gain.range`. `Session` refuses a frame outside the clip.
+    package static func envelopePoint(frame: Int, dB: Double) -> (frame: Frames, gain: Gain)? {
+        guard frame >= 0, let gain = Gain(dB: dB) else { return nil }
+        return (Frames(frame), gain)
+    }
+
+    /// The range of a range gain: `from` less than `to`, so the range has a frame.
+    package static func gainRange(from: Int, to: Int) -> Range<Frames>? {
+        from < to ? Frames(from)..<Frames(to) : nil
     }
 
     package static func edge(_ word: String) -> Fades.Edge? {

@@ -10,7 +10,8 @@ struct ClipCommand: ParsableCommand {
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, PasteClips.self, Nudge.self, Remove.self,
             Move.self, Trim.self,
-            SetGain.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self, RippleInsert.self, RippleTrim.self,
+            SetGain.self, Envelope.self, GainRange.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self,
+            RippleInsert.self, RippleTrim.self,
         ])
 
     struct Place: ParsableCommand {

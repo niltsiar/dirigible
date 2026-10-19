@@ -78,6 +78,11 @@ package enum AgentManual {
                 + "and `id` names the clip. For more parts of one file, import it once, then run `clip_place` with "
                 + "the file ID and `clip_fade` for each part: each import converts the whole file."),
         Recipe(
+            phase: .produce, name: "lower-music", title: "Lower the music under the voice",
+            summary: "Lower a music clip, such as an intro, while a voice speaks over it, with 500 ms ramps.",
+            steps: "take the voice frames from the user or a transcript; `clip_gain_range` on the music `track`, "
+                + "`db` -16 if the user gives no depth."),
+        Recipe(
             phase: .produce, name: "add-chapter", title: "Add a chapter",
             summary: "Add a chapter marker at a time.",
             steps: "`marker_set` with `kind` chapter and `at` in frames. For a chapters file, run `chapters_import` "

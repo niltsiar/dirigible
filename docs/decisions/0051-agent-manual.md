@@ -8,6 +8,7 @@
 - Amended: 2026-10-14, run `2026-10-13-ripple-ranges`, by a lead ruling of upkeep run 2026-10-14. The core cut of 2048 characters stays. The whole text is a context-cost cap, not a client cut, so its limit moves from 4000 to 6000 characters.
 - Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). The `cut-from-transcript` recipe uses the transcript tools in place of the frame math: `transcript_import` with `path` first, `transcript_words` with `match`, the consent of the user, and one `transcript_cut`. It says that the words follow the clips of the import track.
 - Amended: 2026-10-17, run `2026-10-17-agent-pack`. `add-sound` shapes the clip in one `import` call, and places more parts of one file with `clip_place` and the file ID, because each import converts the whole file. `add-chapter` names `chapters_import`. `prepare-for-publishing` names `chapters_export` with a `.txt` file and `file_prune` with `dry_run`. `cut-a-range` heals the splits that stay with `clip_heal`. The reading lines name `session_info` with `compact`. The whole text stays at 6000 characters.
+- Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (see 0060). Eight recipes: `lower-music` (produce) lowers a music clip under a voice with `clip_gain_range`. The core and the whole text are at their caps, so `clip_envelope` is in the tool list only.
 
 ## Context
 

@@ -54,7 +54,8 @@ struct AgentManualTests {
         let names = AgentManual.recipes.map(\.name)
         #expect(
             names == [
-                "prepare-tracks", "cut-a-range", "cut-from-transcript", "check-levels", "add-sound", "add-chapter",
+                "prepare-tracks", "cut-a-range", "cut-from-transcript", "check-levels", "add-sound", "lower-music",
+                "add-chapter",
                 "prepare-for-publishing",
             ])
         for recipe in AgentManual.recipes {

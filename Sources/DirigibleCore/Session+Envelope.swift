@@ -41,14 +41,16 @@ extension Session {
 
     /// Adds `gain` to the envelope of each clip of `tracks` that plays a frame of `range` or of its
     /// ramps, and returns the IDs of the changed clips (decision 0060). The window is 1 in `range`
-    /// and falls to 0 over `ramp` frames on each side outside it; a ramp under 1 frame is 1 frame,
+    /// and falls to 0 over `ramp` frames on each side outside it; a ramp of 0 frames is 1 frame,
     /// a step. The sum works on the file map of each clip, so it goes on past the clip edges, and
     /// the edge rule fits it to the file. A gain of 0 dB or an empty range changes nothing. An
-    /// unknown track throws before a change.
+    /// unknown track, or a bound or a ramp outside `0...Frames.limit` (`.frameOutOfRange`), throws
+    /// before a change.
     @discardableResult
     public mutating func changeGain(by gain: Gain, in range: Range<Frames>, on tracks: [TrackID], ramp: Frames)
         throws(SessionError) -> [ClipID]
     {
+        guard range.lowerBound.isInRange, range.upperBound.isInRange, ramp.isInRange else { throw .frameOutOfRange }
         let indices = try trackIndices(tracks)
         guard gain != .zero, !range.isEmpty else { return [] }
         let ramp = max(ramp.count, 1)

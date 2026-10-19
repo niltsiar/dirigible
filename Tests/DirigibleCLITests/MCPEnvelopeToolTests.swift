@@ -50,7 +50,7 @@ struct MCPEnvelopeToolTests {
     }
 
     /// The tool refuses a point that is not a pair of a frame and a gain, a frame given twice, and a
-    /// range gain with `from` not less than `to` or a ramp under 1, with no edit.
+    /// range gain with `from` not less than `to` or a ramp under 1 or over 2^40, with no edit.
     @Test func aBadArgumentIsRefused() async throws {
         let before = try package.xml()
         let pairs = "an array of [frame, dB] pairs, each frame 0 or more and each gain from -96 to 96"
@@ -62,6 +62,10 @@ struct MCPEnvelopeToolTests {
             (
                 "clip_gain_range", ["track": ["t1"], "from": 0, "to": 5, "db": 1, "ramp": 0],
                 "The argument \"ramp\" must be an integer, 1 or more."
+            ),
+            (
+                "clip_gain_range", ["track": ["t1"], "from": 0, "to": 5, "db": 1, "ramp": Frames.limit.count + 1],
+                "a frame is negative or more than 2^40."
             ),
         ]
         let answers = try await mcp(

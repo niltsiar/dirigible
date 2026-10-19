@@ -21,7 +21,8 @@
 # test-filter, and the local target check becomes check-fast test-filter test-app. FILTER before
 # the push exits 1: the push runs the full targets. A local git run with no FILTER whose targets
 # have test or check prints the three lines and exits 1: the full suite runs only in the push
-# check. The mode --paths keeps the targets (a probe of the table).
+# check. A local git run with FILTER whose targets have no test-filter prints the three lines and
+# exits 1: it would run no test. The mode --paths keeps the targets (a probe of the table).
 set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
@@ -290,5 +291,9 @@ echo "targets: ${targets:-none}"
 echo "risk: $risk"
 if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && $needs_suite == yes ]]; then
     echo "check-changed: the targets $targets run the full Swift suite. A slice runs make check-changed FILTER='<name> <name>'. The full suite runs only in the push check: make check-changed BASE=origin/main. A bare make test refuses too." >&2
+    exit 1
+fi
+if [[ $mode == git && -n "${FILTER:-}" && " $targets " != *" test-filter "* ]]; then
+    echo "check-changed: FILTER is set, but the targets $targets run no test. Run make test-filter FILTER='<name> <name>' for the tests, or run make check-changed with no FILTER for these targets." >&2
     exit 1
 fi

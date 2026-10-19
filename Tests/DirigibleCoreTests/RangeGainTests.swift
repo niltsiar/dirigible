@@ -37,6 +37,17 @@ struct RangeGainTests {
         #expect(points == [[15_000, 0], [20_000, -16], [29_999, -16], [34_999, 0]])
     }
 
+    /// C7 edge rule: the first range gain puts a point at frame 0; a second one whose ramp also
+    /// passes the file start keeps that one point, so the session saves and reads back.
+    @Test func twoRangeGainsPastTheFileStartSaveAndReadBack() throws {
+        var session = try Self.session([Clip(id: "c", file: "fa", start: 0, offset: 0, length: 60_000)])
+        try session.changeGain(by: Gain(dB: -6)!, in: 2_000..<10_000, on: ["t1"], ramp: 5_000)
+        try session.changeGain(by: Gain(dB: -6)!, in: 1_000..<4_000, on: ["t1"], ramp: 3_000)
+        let frames = session.clip("c")?.clip.envelope.points.map(\.frame.count)
+        #expect(frames == [0, 1_000, 2_000, 3_999, 6_999, 9_999, 14_999], "one point at frame 0: \(frames ?? [])")
+        #expect(try Session(xml: session.checkedData()) == session, "the session reads back")
+    }
+
     /// C7 property: for seeded clips, envelopes, ranges, and ramps, the gain at each file frame is the
     /// old gain plus d times the window, on the file map of the clip, and the frames ascend strictly
     /// inside the file. The ranges and ramps pass both file ends. A clip that plays no frame of the

@@ -7,6 +7,8 @@
 # default, a nit tagged no behavior change, a nit that is not taken, and an old review file.
 # Check the ## Plan gate changes section of plan.md: each item has a Criteria: field, and each
 # criterion ID of a field has a criterion change row from Phase 4 on.
+# Check that CHECK_PLAN_AT_PHASE4=1 needs a review-plan-<n>.md file and a phase 3 row after the last
+# phase 2 row, and that the land check without it does not.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -237,6 +239,7 @@ pass 'a Criteria field with no decisions.tsv yet'
 row 3 'criterion change C8: old 3 s, new 5 s'
 pass 'a missing criterion change row before Phase 4'
 export CHECK_PLAN_AT_PHASE4=1
+: > "$run/review-plan-1.md"
 refuse 'a criterion with no criterion change row' 'criterion C3b of a plan gate change has no criterion change row'
 refuse 'the refusal says to edit analysis.md first' 'edit analysis.md first'
 refuse 'with no phase 4 row, the refusal says before Phase 4' 'criterion change row before Phase 4;'
@@ -261,6 +264,30 @@ refuse 'a row for C12 does not count for C1' 'criterion C1 of a plan gate change
 good
 printf '\n## Not the section\n\n1. An item with no field.\n' >> "$run/plan.md"
 pass 'a numbered item outside the Plan gate changes section'
+
+# The plan gate must be closed at the first phase 4 row (CHECK_PLAN_AT_PHASE4=1, which log-decision.sh
+# sets): a review-plan-<n>.md file, and a phase 3 row after the last phase 2 row. The land check
+# of an old run has no such variable, so a run with phase 4 rows and no review-plan file passes.
+good
+row 2 'plan written'
+CHECK_PLAN_AT_PHASE4=1 refuse 'a phase 4 row with no review-plan file' 'review-plan-<n>.md'
+CHECK_PLAN_AT_PHASE4=1 refuse 'the refusal names the plan gate' 'deliver Phase 3'
+row 3 'plan gate 1'
+CHECK_PLAN_AT_PHASE4=1 refuse 'a phase 3 row with no review-plan file' 'review-plan-<n>.md'
+: > "$run/review-plan-1.md"
+CHECK_PLAN_AT_PHASE4=1 pass 'a review-plan file and a phase 3 row after the phase 2 row'
+row 2 'plan changed after the gate'
+CHECK_PLAN_AT_PHASE4=1 refuse 'a phase 2 row after the last phase 3 row' 'phase 2 row'
+row 3 'plan gate 2'
+CHECK_PLAN_AT_PHASE4=1 pass 'a phase 3 row after the last phase 2 row'
+good
+: > "$run/review-plan-1.md"
+row 2 'plan written'
+CHECK_PLAN_AT_PHASE4=1 refuse 'a review-plan file and a phase 2 row with no phase 3 row' 'phase 3 row'
+good
+row 2 'plan written'
+row 4 'Slice S1 committed'
+pass 'phase 4 rows and no review-plan file at the land check'
 
 # The decision number of a record that the plan makes. A fixture repo holds a copy of the script,
 # docs/decisions/0042-old.md on origin/main, and .scratchpads/ledger.md beside runs/.

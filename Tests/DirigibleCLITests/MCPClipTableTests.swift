@@ -70,6 +70,24 @@ extension MCPEditTableTests {
             EditRow(
                 tool: "clip_crossfade", arguments: ["clip": "A2", "length": 960],
                 command: ["clip", "crossfade", "PKG", "--clip", "A2", "--length", "960"]),
+            EditRow(
+                tool: "clip_envelope", arguments: ["clip": "A2", "points": [[96_000, 0], [120_000, -16.5]]],
+                command: ["clip", "envelope", "PKG", "A2", "--point", "96000:0", "--point", "120000:-16.5"]),
+            EditRow(
+                tool: "clip_envelope", arguments: ["clip": "A2", "points": [[Any]]()],
+                command: ["clip", "envelope", "PKG", "A2", "--clear"]),
+            EditRow(
+                tool: "clip_gain_range",
+                arguments: ["track": ["a", "b"], "from": 10_000, "to": 100_000, "db": -6, "ramp": 4800],
+                command: [
+                    "clip", "gain-range", "PKG", "--track", "a", "--track", "b", "--from", "10000", "--to", "100000",
+                    "--db", "-6", "--ramp", "4800",
+                ]),
+            EditRow(
+                tool: "clip_gain_range", arguments: ["track": ["a"], "from": 10_000, "to": 100_000, "db": 3],
+                command: [
+                    "clip", "gain-range", "PKG", "--track", "a", "--from", "10000", "--to", "100000", "--db", "3",
+                ]),
         ]
     }
 
@@ -112,6 +130,12 @@ extension MCPEditTableTests {
             EditRow(
                 tool: "clip_crossfade", arguments: ["clip": "A", "length": 2],
                 command: ["clip", "crossfade", "PKG", "--clip", "A", "--length", "2"]),
+            EditRow(
+                tool: "clip_envelope", arguments: ["clip": "A", "points": [[48_000, 0]]],
+                command: ["clip", "envelope", "PKG", "A", "--point", "48000:0"]),
+            EditRow(
+                tool: "clip_gain_range", arguments: ["track": ["zz"], "from": 0, "to": 10, "db": 1],
+                command: ["clip", "gain-range", "PKG", "--track", "zz", "--from", "0", "--to", "10", "--db", "1"]),
         ]
     }
 }

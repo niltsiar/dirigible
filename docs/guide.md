@@ -328,7 +328,7 @@ After each command, a banner gives the result, and VoiceOver reads it:
 
 The banner goes after the next edit, the next take, or the next Auto Level.
 
-Auto Level changes the clip gain only. The track volume adds to the clip gain, and Auto Level does not change it.
+Auto Level changes the clip gain only. The envelope of a clip adds to the clip gain, so it keeps its shape. The track volume adds to the clip gain, and Auto Level does not change it.
 
 ## Add markers and chapters
 
@@ -830,18 +830,20 @@ swift run dirigible create Demo.dirigible --sample-rate 48000
 swift run dirigible info Demo.dirigible
 ```
 
-`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**. It prints one line for each clip, then one report line on stderr, for example `Clips changed: 3.` or `No change: the clips are at the target level.` When no gain changes, it does not write the session.
+`dirigible loudness Demo.dirigible` shows the integrated loudness of each clip in LUFS (ITU-R BS.1770), with the clip gain and without the envelope. `dirigible level Demo.dirigible` sets the gain of each clip as **Tools > Auto Level** does. Add `--per-track` for **Auto Level per Track**. It prints one line for each clip, then one report line on stderr, for example `Clips changed: 3.` or `No change: the clips are at the target level.` When no gain changes, it does not write the session.
 
 These commands change clips and the export. `info` shows the clip IDs. A length is in frames: at 48 kHz, 24000 frames are 0.5 s.
 
 - `dirigible clip gain Demo.dirigible <clip> <clip> --db -6` sets the gain of one or more clips in one edit.
+- `dirigible clip envelope Demo.dirigible <clip> --point 48000:0 --point 96000:-16` sets the gain envelope of a clip. A point is a timeline frame inside the clip and a gain in dB on top of the clip gain. Between two points, the gain changes linearly in dB. Before the first point and after the last point, the gain stays at the value of that point. The points replace the points inside the clip, and the points outside the clip stay: a trim that makes the clip longer plays them again. `--clear` removes the points inside the clip. A frame outside the clip gives exit 1. `info` shows the points inside the clip as `<frame>:<dB>` and the count of the points outside it. A session with an envelope does not open in a version of Dirigible from before the envelope.
+- `dirigible clip gain-range Demo.dirigible --track <track> --from 48000 --to 96000 --db -16` adds -16 dB to the frames from 48000 to 96000 on each `--track`, on top of the envelope. Outside the range, a ramp of 500 ms on each side joins the new gain to the old gain. `--ramp` sets the ramp length in frames. It writes the ID of each changed clip.
 - `dirigible clip fade Demo.dirigible --clip <clip> --in 24000 --out 24000` sets the fades of a clip. 0 removes a fade.
 - `dirigible clip crossfade Demo.dirigible --clip <clip> --length 4800` crossfades a clip into the clip that starts where it ends. The length is an even number of frames, and 0 removes the crossfade. Both clips need audio in their files past the join, for half the length. Play and export use the crossfade, and `info` shows it. Two parts of a split clip that continue the same audio get a crossfade only when their gains are different or a fade is at the join. An edit that breaks the join, for example a move or a delete of one clip, removes the crossfade. A session with a crossfade does not open in a version of Dirigible from before the crossfades, and a session with a crossfade between two parts of a split clip does not open in a version from before that crossfade.
 - `dirigible clip heal Demo.dirigible` joins the clips that touch and play on in one file at one gain at each frame, the envelope included, with no fade at the join. It undoes a split, and the sound does not change. It writes the ID of each healed clip. `--track` limits it to some tracks, and `--from` with `--to` to the joins in a frame range: a join at `--to` is in the range. With no join to heal, it gives exit 1 and changes nothing.
 - `dirigible clip ripple-delete Demo.dirigible --from 48000 --to 96000 --from 240000 --to 264000` removes two ranges from all tracks in one edit, and moves the later audio and the markers to the left. Give one `--to` for each `--from`. Ranges that overlap or touch cut as one range. Add `--track` to cut only some tracks.
 - `dirigible export Demo.dirigible --out Episode.mp3 --loudness podcast` exports with a loudness target: `podcast`, `speech`, `ebu`, or `atsc`, as the **Loudness** setting of the export panel.
 - `dirigible import Demo.dirigible Jingle.wav --track <track> --at 48000` imports an audio file, as **File > Import Audio**. The clip replaces the clips under it. The same call can shape the clip: `--id` names it, `--offset` and `--length` take a range of the made WAV (frames at the session rate; a length past the end stops at the end), `--db` sets the gain relative to the level of the file, in place of the auto level, and `--fade-in` and `--fade-out` set the fades in frames. A file with the same audio as a file of the session is not copied again: the new clip uses the first WAV. Each import still converts the whole file, so for more parts of one file, import it once and place the parts with `dirigible clip place` and the file ID.
-- `dirigible info Demo.dirigible --json --compact` writes only `sampleRate`, `tracks` with their clips, and `markers`.
+- `dirigible info Demo.dirigible --json --compact` writes only `sampleRate`, `tracks` with their clips, and `markers`. In place of the envelope points of a clip, it writes their count, `points`.
 - `dirigible chapters export Demo.dirigible --out Episode.chapters.json` writes the chapters as a Podcasting 2.0 JSON Chapters file, as **File > Export Chapters**. With `--from` and `--to`, it writes the chapters of that range, and the times start at 0 at `--from`. A range with no chapter gives exit 1 and no file. A chapter at or after the end of the audio is not in the file, and a warning names it. With `--out` a `.txt` file, it writes one line for each chapter: the time as `HH:MM:SS`, one space, and the title. A `.txt` file writes no image file.
 - `dirigible chapters import Demo.dirigible Episode.chapters.json` adds the chapters of a Podcasting 2.0 JSON Chapters file (version 1.x) as chapter markers, and writes the ID of the marker of each file chapter, in file order. `--at <frame>` is the frame of 0 s of the file. `--replace` removes the old chapters first, and each image stays on the chapter of the file at the same time; the import stops when an old image has no chapter at its time. A chapter with `toc` false takes no image. With `--replace`, it adds no marker when a plain marker has its title and frame, and gives the ID of that marker, so a second import of the same file gives the same markers. A chapter with no title is named `Chapter N`, a chapter with `toc` false is a plain marker, a link that is not http or https is dropped, and the import copies no image: a warning says how many. A bad file, or a file larger than 1 MiB, gives exit 1 and changes nothing.
 
@@ -981,14 +983,14 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 50 tools, in groups:
+The 52 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
 - Marker: `marker_set`, `marker_remove`.
 - Episode: `episode_set`, `episode_get`. The keys of `episode_get` are the argument names of `episode_set`.
 - Pool: `capture_remove`, `file_remove`, `file_prune`. `file_prune` gives the lines of `dirigible file prune`. With `dry_run` set to true, it changes nothing. The tool cannot see the clipboard of an app window.
-- Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`, `clip_heal`.
+- Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`, `clip_heal`, `clip_envelope`, `clip_gain_range`. `clip_envelope` takes the points as `[frame, dB]` pairs, the shape of `envelope` in `session_info`.
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
 - Transcript: `transcript_import`, `transcript_words`, `transcript_cut`. They give the text of `dirigible transcript import`, `words`, and `cut`.
 - Backup: `backup_list`, `backup_revert`.
@@ -1035,7 +1037,7 @@ Dirigible has no noise reduction and no voice profile yet. The agent tells you s
 
 An agent with a shell can also run `dirigible record`. It records at once from the routed devices, with no consent sheet. The manual tells the agent to run it only when you ask for a recording. To stop an agent that runs commands, set the permission rules of your agent.
 
-The server also gives seven recipes as prompts, in the order of the work: `prepare-tracks`, `cut-a-range`, `cut-from-transcript`, `check-levels`, `add-sound`, `add-chapter`, and `prepare-for-publishing`. In Claude Code, type `/dirigible:check-levels`; in opencode, `dirigible:check-levels`. Each prompt asks for the path of the session package. Claude Code cuts a prompt argument at a space, so for a path with a space, the agent asks you for the full path.
+The server also gives eight recipes as prompts, in the order of the work: `prepare-tracks`, `cut-a-range`, `cut-from-transcript`, `check-levels`, `add-sound`, `lower-music`, `add-chapter`, and `prepare-for-publishing`. In Claude Code, type `/dirigible:check-levels`; in opencode, `dirigible:check-levels`. Each prompt asks for the path of the session package. Claude Code cuts a prompt argument at a space, so for a path with a space, the agent asks you for the full path.
 
 An agent that reads skills can use the Dirigible skill, also with no MCP server. The skill is in the app, and `dirigible skill path` prints its path. Link its folder into the skills folder of your agent. Claude Code reads `~/.claude/skills`; Codex, opencode, and Cursor read `~/.agents/skills`:
 

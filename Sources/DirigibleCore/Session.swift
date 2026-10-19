@@ -284,6 +284,9 @@ public enum SessionError: Error, Hashable, Sendable {
     case clipOutsideFile(ClipID)
     case overlap(ClipID, ClipID)
     case frameOutsideClip(ClipID, Frames)
+    /// A gain point at this timeline frame is outside the clip window, which this case holds
+    /// (decision 0060).
+    case pointOutsideClip(ClipID, Frames, Range<Frames>)
     /// The fades and the crossfade halves of the clip are more than its length, which this case
     /// holds (decisions 0035 and 0036).
     case fadeOutsideClip(ClipID, length: Frames)

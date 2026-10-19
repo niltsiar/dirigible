@@ -204,7 +204,9 @@ struct EnvelopeEditTests {
         let lane = try #require(session.track("t1")).clips
         #expect(lane.map(\.id) == ["A", "A@10000", "B", "B@30000"])
         #expect(lane.map(\.envelope) == [.empty, .empty, points, points])
-        #expect(session.fileVersion == version && version == 1)
+        #expect(session.fileVersion == version && version == 10)
+        try session.removeClips(["B", "B@30000"])
+        #expect(session.fileVersion == 1, "the parts of A have no point")
     }
 
     /// `Session.check` refuses a point after the end of the file; a point at the end is valid.

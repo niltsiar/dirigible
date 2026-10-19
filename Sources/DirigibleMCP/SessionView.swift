@@ -58,6 +58,44 @@ package struct SessionView: Encodable {
         /// Left out at 0, as in `session.xml` (decision 0036).
         let crossfadeIn: Int?
         let crossfadeOut: Int?
+        /// The gain points inside the clip window as [timeline frame, dB], and the count of the
+        /// points outside it; each left out with none (decision 0060).
+        var envelope: [PointView]?
+        var pointsOutside: Int?
+        /// Only with `compact`, in place of the two keys above: the count of all points.
+        var points: Int?
+
+        init(_ clip: Clip) {
+            (id, file, start, offset, length, gain) = (
+                clip.id.rawValue, clip.file.rawValue, clip.start.count, clip.offset.count, clip.length.count,
+                clip.gain.dB
+            )
+            (fadeIn, fadeOut) = (clip.fades.fadeIn.nonZero, clip.fades.fadeOut.nonZero)
+            (crossfadeIn, crossfadeOut) = (clip.crossfades.start.nonZero, clip.crossfades.end.nonZero)
+            let inside = clip.pointsInWindow
+            envelope = inside.isEmpty ? nil : inside.map { PointView(frame: $0.frame.count, dB: $0.gain.dB) }
+            let outside = clip.envelope.points.count - inside.count
+            pointsOutside = outside == 0 ? nil : outside
+        }
+
+        var compacted: ClipView {
+            var clip = self
+            let count = (envelope?.count ?? 0) + (pointsOutside ?? 0)
+            (clip.envelope, clip.pointsOutside, clip.points) = (nil, nil, count == 0 ? nil : count)
+            return clip
+        }
+    }
+
+    /// `[frame, dB]`, the shape of a point of the tool `clip_envelope`.
+    struct PointView: Encodable {
+        let frame: Int
+        let dB: Double
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.unkeyedContainer()
+            try container.encode(frame)
+            try container.encode(dB)
+        }
     }
 
     struct TrackView: Encodable {
@@ -120,13 +158,8 @@ package struct SessionView: Encodable {
             TrackView(
                 id: track.id.rawValue, name: track.name, gain: track.gain.dB, layout: track.layout.rawValue,
                 route: track.route.map(RouteView.init),
-                clips: track.clips.map {
-                    ClipView(
-                        id: $0.id.rawValue, file: $0.file.rawValue, start: $0.start.count, offset: $0.offset.count,
-                        length: $0.length.count, gain: $0.gain.dB, fadeIn: $0.fades.fadeIn.nonZero,
-                        fadeOut: $0.fades.fadeOut.nonZero, crossfadeIn: $0.crossfades.start.nonZero,
-                        crossfadeOut: $0.crossfades.end.nonZero)
-                }, muted: track.isMuted ? true : nil, soloed: track.isSoloed ? true : nil)
+                clips: track.clips.map(ClipView.init), muted: track.isMuted ? true : nil,
+                soloed: track.isSoloed ? true : nil)
         }
         markers = session.sortedMarkers.map {
             MarkerView(
@@ -157,7 +190,14 @@ package struct SessionView: Encodable {
         if pretty { encoder.outputFormatting.insert(.prettyPrinted) }
         let data =
             compact
-            ? try encoder.encode(CompactView(sampleRate: sampleRate, tracks: tracks, markers: markers))
+            ? try encoder.encode(
+                CompactView(
+                    sampleRate: sampleRate,
+                    tracks: tracks.map { track in
+                        var track = track
+                        track.clips = track.clips.map(\.compacted)
+                        return track
+                    }, markers: markers))
             : try encoder.encode(self)
         return String(decoding: data, as: UTF8.self) + (pretty ? "\n" : "")
     }
@@ -208,7 +248,8 @@ package func summary(of session: Session, name: String, media: [FileID: MediaFau
                     + "\(clip.gain)"
                     + (clip.fades == .zero ? "" : " fade in \(clip.fades.fadeIn), out \(clip.fades.fadeOut)")
                     + (clip.crossfades.start == .zero ? "" : " crossfade in \(clip.crossfades.start)")
-                    + (clip.crossfades.end == .zero ? "" : " crossfade out \(clip.crossfades.end)"))
+                    + (clip.crossfades.end == .zero ? "" : " crossfade out \(clip.crossfades.end)")
+                    + envelopeText(of: clip))
         }
     }
     for file in session.sortedFiles {
@@ -241,6 +282,18 @@ package func summary(of session: Session, name: String, media: [FileID: MediaFau
     return lines.map { $0 + "\n" }.joined()
 }
 
+/// The gain points of a clip in the `info` text: the points inside the clip window as
+/// `<timeline frame>:<dB>`, as `clip envelope` takes them, and the count of the points outside it.
+private func envelopeText(of clip: Clip) -> String {
+    let inside = clip.pointsInWindow
+    let outside = clip.envelope.points.count - inside.count
+    var parts = inside.isEmpty ? [] : [" envelope " + inside.map { "\($0.frame):\($0.gain.dB)" }.joined(separator: " ")]
+    if outside > 0 {
+        parts.append("\(inside.isEmpty ? " " : ", ")\(outside) \(outside == 1 ? "point" : "points") outside the clip")
+    }
+    return parts.joined()
+}
+
 /// Quotes and escapes free text, so a quote or a space in a name keeps one line readable.
 private func quoted(_ text: String) -> String { String(reflecting: text) }
 
@@ -266,4 +319,12 @@ extension Frames {
 extension Session {
     fileprivate var sortedCaptures: [Capture] { captures.values.sorted { $0.id < $1.id } }
     fileprivate var sortedFiles: [AudioFile] { files.values.sorted { $0.id < $1.id } }
+}
+
+extension Clip {
+    /// The gain points inside the clip window, each at its timeline frame (decision 0060).
+    fileprivate var pointsInWindow: [(frame: Frames, gain: Gain)] {
+        let window = offset..<(offset + length)
+        return envelope.points.filter { window.contains($0.frame) }.map { ($0.frame - offset + start, $0.gain) }
+    }
 }

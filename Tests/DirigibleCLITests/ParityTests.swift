@@ -38,6 +38,8 @@ struct ParityTests {
         "removeClips": ["clip remove"],
         "setFades": ["clip fade"],
         "setGains": ["clip gain"],
+        "setEnvelope": ["clip envelope"],
+        "changeGain": ["clip gain-range"],
         "setCrossfades": ["clip crossfade"],
         "rippleDelete": ["clip ripple-delete"],
         "rippleInsert": ["clip ripple-insert"],

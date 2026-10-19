@@ -87,8 +87,8 @@ Rejected: **a live side chain at play and export** (GarageBand 09 ducking, which
 
 | Command | Tool | Does |
 |---|---|---|
-| `clip envelope <pkg> <clip> --point <frame>:<dB> ...` and `--clear` | `clip_gain_envelope(clip, points: [[frame, db], ...])` | Sets the envelope inside the clip. A frame is a timeline frame inside the clip. The new list replaces only the points inside the clip window and keeps the points outside it, so no call deletes a point that `info` does not show. An empty list clears the points inside the window. |
-| `clip gain-range <pkg> --track <t> ... --from <f> --to <f> --db <d> [--ramp <frames>]` | `gain_range(tracks, from, to, db, ramp)` | The range gain. |
+| `clip envelope <pkg> <clip> --point <frame>:<dB> ...` and `--clear` | `clip_envelope(clip, points: [[frame, db], ...])` | Sets the envelope inside the clip. A frame is a timeline frame inside the clip. The new list replaces only the points inside the clip window and keeps the points outside it, so no call deletes a point that `info` does not show. An empty list clears the points inside the window. |
+| `clip gain-range <pkg> --track <t> ... --from <f> --to <f> --db <d> [--ramp <frames>]` | `clip_gain_range(track, from, to, db, ramp)` | The range gain. |
 | `track role <pkg> <track> <dialogue\|music\|effects\|none>` | `track_role(track, role)` | Sets the role. |
 | `duck <pkg> [--speech <t>]... [--music <t>]... [--from <f> --to <f>] [--depth --attack --release --threshold --hold]` | `duck(...)` | The duck, with a report of the speech runs, the points written, and the clips it kept because no run reaches them. |
 

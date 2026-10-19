@@ -205,6 +205,9 @@ extension SessionError {
         case .clipOutsideFile(let id): "clip \"\(id)\" is not inside its file."
         case .overlap(let clip, let other): "clip \"\(clip)\" overlaps clip \"\(other)\"."
         case .frameOutsideClip(let id, let frame): "frame \(frame) is not inside clip \"\(id)\"."
+        case .pointOutsideClip(let id, let frame, let range):
+            "frame \(frame) is not inside clip \"\(id)\", which plays the timeline frames "
+                + "\(range.lowerBound)..<\(range.upperBound)."
         case .fadeOutsideClip(let id, let length):
             "the fades and crossfades of clip \"\(id)\" are longer than the clip (\(length) frames)."
         case .crossfadeOutsideFile(let id, let needed):

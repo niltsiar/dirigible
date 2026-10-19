@@ -178,7 +178,8 @@ extension Session {
 
     /// Checks the clip against its file and its track. The comparisons cannot overflow:
     /// the start is in `0...Frames.limit`, and the length is not more than the file length. Each
-    /// crossfade half has media handle in the file (decision 0036). `ClipLane` checks the pairing.
+    /// crossfade half has media handle in the file (decision 0036). No gain point is after the end of
+    /// the file (decision 0060). `ClipLane` checks the pairing.
     func check(_ clip: Clip, on track: Track) throws(SessionError) {
         guard clip.start.isInRange, clip.offset >= .zero else { throw .frameOutOfRange }
         guard let file = files[clip.file] else { throw .unknownFile(clip.file) }

@@ -266,7 +266,7 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// 50 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// 52 tools in a fixed order, each with a description and a closed schema with `package`,
     /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
@@ -277,10 +277,10 @@ struct MCPToolTests {
                 "track_gain", "track_route", "track_layout", "track_mute", "track_solo", "marker_set", "marker_remove",
                 "episode_set", "episode_get",
                 "capture_remove", "file_remove", "file_prune", "clip_place", "clip_clear", "clip_split",
-                "clip_split_at",
-                "clip_paste",
-                "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
-                "clip_crossfade", "clip_heal", "clip_ripple_delete", "clip_ripple_insert", "clip_ripple_trim",
+                "clip_split_at", "clip_paste", "clip_paste_clips", "clip_nudge", "clip_remove", "clip_move",
+                "clip_trim", "clip_gain", "clip_fade",
+                "clip_crossfade", "clip_heal", "clip_envelope", "clip_gain_range", "clip_ripple_delete",
+                "clip_ripple_insert", "clip_ripple_trim",
                 "transcript_import",
                 "transcript_words", "transcript_cut", "backup_list",
                 "backup_revert", "record", "loudness", "export", "render", "level", "import", "chapters_export",

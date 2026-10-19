@@ -324,7 +324,7 @@ extension XMLElement {
             guard frame.isInRange, points.last.map({ $0.frame < frame }) ?? true else { throw point.invalid("frame") }
             points.append(GainEnvelope.Point(frame: frame, gain: try point.gain("gain")))
         }
-        return GainEnvelope(points)!
+        return GainEnvelope(valid: points)
     }
 
     /// `muted` and `soloed` from version 5 on (decision 0039): `true` or `false`. A missing one is

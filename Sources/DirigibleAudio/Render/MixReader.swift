@@ -209,8 +209,8 @@ private func fadeRamp(
     }
 }
 
-/// Fills `factors` with 10^((`decibels` + g) / 20), g the dB of `envelope` at the file frames `from
-/// ..< from + factors.count` (decision 0060). In each run of frames between two points, it computes
+/// Fills `factors` with 10^((`decibels` + g) / 20), g the dB of `envelope`, which has a point, at the
+/// file frames `from ..< from + factors.count` (decision 0060). In each run of frames between two points, it computes
 /// the dB of the run start in Double and ramps the index from the run start, so no file frame
 /// becomes a Float. Then one `vvexpf` takes all frames.
 func envelopeFactors(
@@ -233,7 +233,7 @@ func envelopeFactors(
         let frames = vDSP_Length(end - done)
         if next == 0 || next == points.count {
             // Before the first point or after the last point, the gain holds.
-            var level = Float((decibels + (points.isEmpty ? 0 : points[max(next - 1, 0)].gain.dB)) * scale)
+            var level = Float((decibels + points[max(next - 1, 0)].gain.dB) * scale)
             vDSP_vfill(&level, base + done, 1, frames)
         } else {
             let (a, b) = (points[next - 1], points[next])

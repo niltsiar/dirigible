@@ -87,6 +87,22 @@ struct ClipCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// A trim that passes a neighbor puts the clip at its sorted place, so a place into the gap that it left works.
+    @Test func trimPastANeighborThenPlaceWorks() async throws {
+        try package.edit {
+            for (id, start) in [("A", 0), ("B", 2000), ("C", 4000)] as [(ClipID, Frames)] {
+                try $0.place(Clip(id: id, file: "f1", start: start, offset: start, length: 1000), on: "host")
+            }
+        }
+        #expect(try await package.run("clip", "trim", "PKG", "A", "--from", "6000", "--to", "7000") == silent)
+        #expect(try clips("host").map(\.id) == ["B", "C", "A"])
+        #expect(
+            try await package.run(
+                "clip", "place", "PKG", "--id", "D", "--track", "host", "--file", "f1", "--start", "0", "--length",
+                "1000") == CLIResult(status: 0, stdout: "D\n", stderr: ""))
+        #expect(try clips("host").map(\.id) == ["D", "B", "C", "A"])
+    }
+
     /// K3: `clip gain` takes one or more clips and sets them in one edit. A duplicate, an unknown
     /// clip, or no clip exits nonzero and leaves the file unchanged.
     @Test func gainSetsManyClips() async throws {

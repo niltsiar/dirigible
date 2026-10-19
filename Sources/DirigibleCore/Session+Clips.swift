@@ -72,7 +72,8 @@ extension Session {
     /// Gives the clip a new timeline range. The file offset follows the start. The clip does not
     /// grow into a neighbor. The fade of the edge that does not move stays; the other fade yields
     /// (decision 0035). When both edges move, the fade-in stays. The crossfade of an edge that does
-    /// not move stays, and the fades yield to its half (decision 0036).
+    /// not move stays, and the fades yield to its half (decision 0036). A range that passes a
+    /// neighbor ends in a gap: the clip moves to its sorted place and has no crossfade.
     public mutating func trim(_ id: ClipID, to range: Range<Frames>) throws(SessionError) {
         let (track, index) = try position(of: id)
         let clip = tracks[track].clips[index]
@@ -89,7 +90,16 @@ extension Session {
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
             throw .overlap(id, neighbor.id)
         }
-        tracks[track].clips.replace(at: index, with: trimmed)
+        let lane = tracks[track].clips
+        let staysBetweenNeighbors =
+            (index == lane.startIndex || lane[index - 1].end <= trimmed.start)
+            && (index + 1 == lane.endIndex || trimmed.end <= lane[index + 1].start)
+        if staysBetweenNeighbors {
+            tracks[track].clips.replace(at: index, with: trimmed)
+        } else {
+            tracks[track].clips.remove(at: index)
+            tracks[track].clips.insert(sorted: [trimmed])
+        }
     }
 
     public mutating func setGain(_ gain: Gain, clip id: ClipID) throws(SessionError) {

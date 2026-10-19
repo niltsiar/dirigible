@@ -42,7 +42,7 @@ extension ClipEditTests {
         #expect(session == before, "a range inside a is refused")
     }
 
-    @Test mutating func aTrimThatTouchesItsNeighborsStaysInPlace() throws {
+    @Test mutating func theEdgeOfANeighborIsNotAnOverlapAndOneFrameInsideIs() throws {
         try placeABC()
         let before = session
         try session.trim("b", to: 10_000..<15_000)
@@ -78,6 +78,28 @@ extension ClipEditTests {
         try session.trim("B", to: 60_000..<65_000)
         #expect(lane("t1").map(\.id) == ["A", "C", "B"])
         #expect(lane("t1").allSatisfy { $0.crossfades == .zero })
+        #expect(throws: Never.self) { try session.checkedData() }
+    }
+
+    /// M and N touch at 10 000 with a crossfade, and M has a fade-in. P and Q, and R and S, are the
+    /// same kind of pair. M trims to a gap between Q and R, so it leaves N and lands between two
+    /// clips that each keep a crossfade with a clip further on.
+    @Test mutating func aMovedClipRepairsItsOldJoinAndKeepsTheJoinsAroundItsNewPlace() throws {
+        for (id, start, offset) in [
+            ("M", 0, 0), ("N", 10_000, 50_000), ("P", 30_000, 30_000), ("Q", 40_000, 70_000),
+            ("R", 60_000, 60_000), ("S", 70_000, 20_000),
+        ] as [(ClipID, Frames, Frames)] {
+            try session.place(clip(id, start: start, offset: offset, length: 10_000), on: "t1")
+        }
+        try session.setCrossfades(["M": 960, "P": 960, "R": 960])
+        try session.setFades(["M": Fades(fadeIn: 200, fadeOut: 0)!])
+        try session.trim("M", to: 51_000..<55_000)
+        #expect(lane("t1").map(\.id) == ["N", "P", "Q", "M", "R", "S"])
+        #expect(session.clip("N")?.clip.crossfades == .zero, "N lost its left neighbor")
+        #expect(session.clip("M")?.clip.crossfades == .zero)
+        #expect(session.clip("M")?.clip.fades.fadeIn == 200, "the fade-in of the moved clip stays")
+        #expect(session.clip("P")?.clip.crossfades.end == 960 && session.clip("Q")?.clip.crossfades.start == 960)
+        #expect(session.clip("R")?.clip.crossfades.end == 960 && session.clip("S")?.clip.crossfades.start == 960)
         #expect(throws: Never.self) { try session.checkedData() }
     }
 

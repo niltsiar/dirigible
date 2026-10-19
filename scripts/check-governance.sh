@@ -9,7 +9,9 @@
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
-#   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes.
+#   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes,
+#   or that a commit of the base changed on or after the run start date (the YYYY-MM-DD prefix of
+#   the run folder name; a run that lands in steps copied it in an earlier landing).
 # - With a run folder, no holdout is in eval/holdout-fails.txt (grade.py verdict) both in this run
 #   and in the newest done run (Status done) of the ledger.md beside runs/ whose eval/scores.tsv has
 #   a row of that holdout.
@@ -140,12 +142,18 @@ if [[ -f "$rules" ]] && reflected; then
     fi
 fi
 if [[ -n "$run" ]]; then
+    # since is the run start date, the YYYY-MM-DD prefix of the run folder name, or empty.
+    since="$(basename "${run%/}")"
+    [[ "$since" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}- ]] && since="${since:0:10}" || since=
     for f in "$run"/research-*.md; do
         [[ -e "$f" ]] || continue
         name="$(basename "$f")"
         copy="docs/research/${name#research-}"
-        [[ -f "$copy" ]] && ! git diff --quiet "$base" -- "$copy" && continue
-        echo "check-governance: $name has no $copy that this branch adds or changes; research findings go to docs/research" >&2
+        if [[ -f "$copy" ]]; then
+            ! git diff --quiet "$base" -- "$copy" && continue
+            [[ -z "$since" || -z "$(git log -1 --since="$since 00:00:00" --format=%H "$base" -- "$copy")" ]] || continue
+        fi
+        echo "check-governance: $name has no $copy that this branch adds or changes${since:+, or that a commit of $base since $since changed}; research findings go to docs/research" >&2
         fail=1
     done
 fi

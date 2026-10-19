@@ -2,7 +2,7 @@
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
 # its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
-# file with no docs/research copy, a holdout fail in this run and in the newest done run that ran it, and a
+# file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run in ## Next of the backlog after the reflect row (phase 8), a features.md row
 # of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
 # fix, or perf run that changes app code with no `- Lands:` line. Each case uses a temporary repo with a base commit on main
@@ -140,6 +140,20 @@ new_repo; mkdir -p "$tmp/r/docs/research"; echo x > "$tmp/r/docs/research/topic.
 g switch -q main; g merge -q --ff-only feat/x; g switch -q feat/x; echo x > "$tmp/run/research-topic.md"
 echo '- S1 copies it to docs/research/topic.md.' >> "$tmp/run/plan.md"
 refuse 'a run research file whose copy the branch does not change' 'research-topic.md has no docs/research/topic.md that this branch adds or changes' "$tmp/run"
+
+# A run that lands in steps copied its research in an earlier landing: a base commit dated on or after
+# the run start date (the date prefix of the run folder name) also counts. An older copy does not.
+later_landing() {
+  new_repo; mkdir -p "$tmp/r/docs/research"; echo x > "$tmp/r/docs/research/topic.md"; g add -A
+  GIT_COMMITTER_DATE="$1" g commit -q -m copy
+  g switch -q main; g merge -q --ff-only feat/x; g switch -q feat/x
+  run3="$tmp/2026-10-18-topic"; rm -rf "$run3"; cp -R "$tmp/run" "$run3"; echo x > "$run3/research-topic.md"
+  echo '- S1 copies it to docs/research/topic.md.' >> "$run3/plan.md"
+}
+later_landing '2026-10-18T00:00:30'
+pass 'a run research file whose copy a base commit changed on the run date' "$run3"
+later_landing '2026-10-17T23:59:30'
+refuse 'a run research file whose copy a base commit changed before the run date' 'research-topic.md has no docs/research/topic.md that this branch adds or changes' "$run3"
 
 # A run moves its own taken items out of ## Next of the main-checkout backlog before the land, so
 # ## Next stays short (each run reads it at Phase 0). A taken item of another run, a taken item in

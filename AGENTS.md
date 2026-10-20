@@ -35,7 +35,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 ## Run ledger in .scratchpads/
 
 - `.scratchpads/` is gitignored. It keeps the memory of the agents between sessions.
-- At the start of a session, read the files that step 1 of deliver Phase 0 names.
+- At session start, read the files that step 1 of deliver Phase 0 names.
 - The `decisions.tsv` of a run is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>`, also in a subagent. With `<run folder> --from <file>`, the file has the five fields on five lines. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder. Read its header first: the Swift build flags, and the app rule (never quit an app by name).
@@ -46,7 +46,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request with `scripts/land.sh`. It merges with a rebase, so `main` stays linear and keeps each commit.
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
-- At each commit, only the hooks run, no test: pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, and commit-msg checks each `N before, M after` word count. Tests run in the **tdd** loop and in the push check before the land. Stage whole changes.
+- At each commit, only the hooks run: pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, and commit-msg checks each `N before, M after` word count. Tests run in the **tdd** loop and in the push check before the land. Stage whole changes.
 - `scripts/land.sh` and the pre-push hook refuse a commit that a tool made (author, committer, or Co-Authored-By). The push check and the land run `gitleaks` on the pushed commits: `brew install gitleaks`.
 - `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F .scratchpads/commit-msg.txt`. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
@@ -66,12 +66,12 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Safety rules
 
-- **No data loss.** Captured audio stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio in a format that survives a crash (for example CAF) or repair the header at launch.
+- **No data loss.** Captured audio stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio in a format that survives a crash or repair the header at launch.
 - **Real-time thread.** Nothing on a real-time audio thread allocates, locks, logs, does file I/O, or awaits.
 
 ## Testing rules
 
-- Write the failing test first: every behavior change comes with a test that fails without it. The **tdd** skill has the test rules.
+- Write the failing test first: every behavior change comes with a test that fails without it. The **tdd** skill has the rules for test kinds, fixtures, slow tests, and asserts.
 - Read the exit status of the check itself, not of a pipe or a later command (`| tail`, `;`, `echo "$(...)"`).
 
 ## Keep this file true

@@ -23,7 +23,7 @@ Then list the settled choices, one line each: the scope, the run order, the choi
 Run the saved workflow `review-panel` with the Workflow tool:
 
 ```
-Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior: [...], settled: [...], ledger: "<main-checkout>/.scratchpads/runs/<run>/decisions.tsv", risk, lenses?, paths?, worktree: "<absolute worktree path>" } })
+Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope: "<plan path or base ref>", round, maxRounds, prior?: [...], settled: [...], ledger: "<main-checkout>/.scratchpads/runs/<run>/decisions.tsv", risk, lenses?, paths?, worktree: "<absolute worktree path>" } })
 ```
 
 The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. The free jobs of `docs/workflow/model-routing.md` run beside it. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:
@@ -41,7 +41,7 @@ A `risk: yes` code gate with a non-docs, non-comments class also calls the `code
 
 Take `maxRounds` from the **deliver** class table. Pass the plan `risk` at a plan gate, and at a code gate the higher of it and the `risk:` line of `scripts/check-changed.sh origin/main`. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
-Pass `round`, and the earlier verdict files in `prior`.
+Pass `round`. From round 2, pass the earlier verdict files of this gate in `prior`; round 1 gets none.
 
 The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session or on the branch, pass `scriptPath` with its absolute path in the tree under review, instead of `name`.
 

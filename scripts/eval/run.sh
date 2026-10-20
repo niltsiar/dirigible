@@ -20,6 +20,17 @@
 #   for the caller.
 #   E38 runs through scripts/eval/agent-tasks.sh.
 # Env: RUNS (3), ANSWER_MODEL (sonnet), GRADER_MODEL (opus).
+work="" lock="" agent_work=()
+cleanup() {
+    local d
+    [[ -z $lock ]] || rm -rf "$lock"
+    [[ -z $work ]] || rm -rf "$work"
+    for d in ${agent_work[@]+"${agent_work[@]}"}; do rm -rf "$d"; done
+}
+trap cleanup EXIT
+
+# One call at a time in an eval folder (the lock .run-lock holds the pid). A verdict comes only when
+# each requested ID has RUNS scored rows in both sets.
 # Exit: 0 verdict PASS (or the agent rows scored), 1 verdict FAIL, 2 bad input, 3 a session or a
 # check failed. A failed session stops the sessions that still run. An INT or TERM stops them all.
 set -uo pipefail
@@ -94,6 +105,17 @@ while IFS=$'\037' read -r id type key prompt; do
     fi
 done <<<"$table"
 
+# One call at a time in an eval folder: the lock holds the pid of the call. A lock of a dead call goes.
+lock_dir="$eval_dir/.run-lock"
+while ! mkdir "$lock_dir" 2>/dev/null; do
+    holder="$(cat "$lock_dir/pid" 2>/dev/null)"
+    [[ -n $holder ]] || die 2 "$lock_dir exists with no pid; remove it when no call runs in $eval_dir"
+    ! kill -0 "$holder" 2>/dev/null || die 2 "the call with pid $holder holds $lock_dir"
+    rm -rf "$lock_dir"
+done
+lock="$lock_dir"
+printf '%s\n' "$$" >"$lock/pid"
+
 # A tag that labels.tsv or scores.tsv holds counts its answers twice, and an answer file of an
 # earlier call must not pass for a new one.
 used_tag() { # <eval folder>
@@ -125,7 +147,6 @@ build b "$hash_b"
 
 # Sessions: start_session runs one command in the background; await_sessions waits for all of them.
 S_NAME=() S_PID=() S_PRE=() S_EXPECT=()
-work="" agent_work=()
 stop_sessions() {
     local pid
     for pid in ${S_PID[@]+"${S_PID[@]}"}; do
@@ -134,14 +155,8 @@ stop_sessions() {
     done
     wait
 }
-cleanup() {
-    local d
-    [[ -z $work ]] || rm -rf "$work"
-    for d in ${agent_work[@]+"${agent_work[@]}"}; do rm -rf "$d"; done
-}
 trap 'stop_sessions; exit 130' INT
 trap 'stop_sessions; exit 143' TERM
-trap cleanup EXIT
 
 start_session() { # <name> <expected file> <folder> <log prefix> <command> [args...]
     local name="$1" expect="$2" folder="$3" pre="$4"
@@ -195,10 +210,11 @@ Then reply with one line: the count of objects.
 EOF
 }
 
-# grade <eval folder> <packet count> <set:run:kept.json>...: packets, blind graders, scores.
+# grade <eval folder> <packet count> <ID,ID,...> <sets> <set:run:kept.json>...: packets, blind
+# graders, scores. A verdict needs RUNS scored rows for each ID in each set.
 grade() {
-    local ev="$1" count="$2" n results=()
-    shift 2
+    local ev="$1" count="$2" ids="$3" sets="$4" n id st rows results=()
+    shift 4
     python3 -I "$here/grade.py" packets "$ev" "$tag" 1 "$count" "$@" 2>"$eval_dir/logs/$tag-packets.log" \
         || die 3 "grade.py packets failed (see $eval_dir/logs/$tag-packets.log)"
     for ((n = 1; n <= count; n++)); do
@@ -210,6 +226,12 @@ grade() {
     await_sessions
     python3 -I "$here/grade.py" score "$ev" "$tag" "${results[@]}" >"$eval_dir/logs/$tag-score-$(basename "$ev").log" \
         || die 3 "grade.py score failed"
+    for id in ${ids//,/ }; do
+        for st in $sets; do
+            rows="$(awk -F'\t' -v t="$tag" -v i="$id" -v s="$st" '$1 == t && $2 == i && $4 == s { n++ } END { print n + 0 }' "$ev/scores.tsv")"
+            [[ $rows -eq $RUNS ]] || die 3 "$id has $rows scored runs of set $st, not $RUNS (see $eval_dir/logs/$tag-packets.log)"
+        done
+    done
 }
 
 verdict_code=0
@@ -241,7 +263,7 @@ if [[ ${#doc_ids[@]} -gt 0 ]]; then
     done
     count=${#doc_ids[@]}
     ((count <= 4)) || count=4
-    grade "$eval_dir" "$count" "${specs[@]}"
+    grade "$eval_dir" "$count" "$ids_csv" "a b" "${specs[@]}"
     python3 -I "$here/grade.py" verdict "$eval_dir" a b
     verdict_code=$?
 fi
@@ -279,7 +301,7 @@ json.dump({"kept": {sys.argv[3]: [{"quote": " ".join(str(obj["result"]).split())
 ' "$ans/run-$r.json" "$ans/kept-$r.json" "$agent_id" || die 3 "session $agent_id-$r returned an error or no result (see $ans/run-$r.json)"
         specs+=("b:$r:$ans/kept-$r.json")
     done
-    grade "$ag" 1 "${specs[@]}"
+    grade "$ag" 1 "$agent_id" b "${specs[@]}"
     cat "$eval_dir/logs/$tag-score-agent.log"
 fi
 exit "$verdict_code"

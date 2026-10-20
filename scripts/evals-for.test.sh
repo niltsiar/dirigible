@@ -647,6 +647,26 @@ for line in open(sys.argv[1]):
   [[ $code -eq 0 && "$(calls '"kind": "answer".*"--model", "haiku"')" -eq 2 && "$(calls '"kind": "grader".*"--model", "opus"')" -eq 1 ]] \
     || fail "run.sh with ANSWER_MODEL=haiku: exit $code: $(cat "$tmp/fake.log")"
 
+  [[ ! -e "$e/.run-lock" ]] || fail 'run.sh: the lock of the eval folder stays after a call'
+  # An ID that no grader scored stops the call before a verdict (exit 3, the packets log named).
+  e="$(eval_env ungraded)"
+  FAKE_DROP=E5 runner "$e" HEAD HEAD E2,E5 t1
+  [[ $code -eq 3 && "$out" == *E5* && "$out" == *t1-packets.log* && "$out" != *verdict:* ]] || fail "run.sh with an ID that no answer holds: exit $code: $out"
+  [[ ! -e "$e/.run-lock" ]] || fail 'run.sh: the lock stays after a failed call'
+  # A live call holds the lock of its eval folder: a second call exits 2 before any session. A lock
+  # of a dead call does not count.
+  e="$(eval_env locked)"
+  sleep 60 &
+  holder=$!
+  mkdir "$e/.run-lock"
+  printf '%s\n' "$holder" > "$e/.run-lock/pid"
+  runner "$e" HEAD HEAD E2 t1
+  [[ $code -eq 2 && "$out" == *"$holder"* && ! -s "$tmp/fake.log" && -d "$e/.run-lock" ]] || fail "run.sh with a live lock: exit $code: $out"
+  kill "$holder"
+  wait "$holder" 2> /dev/null
+  runner "$e" HEAD HEAD E2 t1
+  [[ $code -eq 0 && ! -e "$e/.run-lock" ]] || fail "run.sh with a dead lock: exit $code: $out"
+
   # keys.md holds each Key points cell of the table, which this test reads on its own.
   e="$(eval_env keys)"
   printf '## E99\nstale\n' > "$e/keys.md"

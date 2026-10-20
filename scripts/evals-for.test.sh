@@ -455,7 +455,8 @@ grep -qF "$q/docs-a" "$q/answer/prompt-a-1.md" 2>/dev/null && grep -qF "$q/answe
 # a model that did not write, and one JSON object with --output-format json. It appends one JSON
 # line to $FAKE_LOG for each call. FAKE_MODE is exit1:<s-r>, nofile:<s-r>, or badjson:<s-r> for
 # the answer session of one set and run, or agent_error. FAKE_GRADE=FAIL makes the grader fail each
-# key point. FAKE_SLEEP=<seconds> makes each other call sleep.
+# key point. FAKE_DROP=<ID> leaves that ID out of each answer. FAKE_SLEEP=<seconds> makes each other
+# call sleep. FAKE_EVAL is the eval folder: the log says if keys.md exists at the time of a call.
 real_run_sh="$eval_dir/run.sh"
 # The runner works in a small repo of its own: make test-hooks runs this test in a tree with no
 # docs/ folder, and the cases need Scenarios rows with known keys.
@@ -498,15 +499,33 @@ args = sys.argv[1:]
 prompt = args[args.index("-p") + 1]
 mode = os.environ.get("FAKE_MODE", "")
 kind = "agent" if "--output-format" in args else "grader" if "blind grader" in prompt else "answer"
+allowed = []
+if "--allowedTools" in args:
+    for a in args[args.index("--allowedTools") + 1:]:
+        if a.startswith("--"):
+            break
+        allowed.append(a)
+files = {}
+if kind == "answer":
+    files = {"docs": re.search(r"read only files under it\): (\S+)", prompt).group(1),
+             "questions": re.search(r"Questions: (\S+)", prompt).group(1),
+             "out": re.search(r"Write your answer file to: (\S+)", prompt).group(1)}
+elif kind == "grader":
+    files = {"packet": re.search(r"Read only this file: (\S+)", prompt).group(1),
+             "result": re.search(r"Write one JSON file to (\S+),", prompt).group(1)}
+ev = os.environ.get("FAKE_EVAL", "/nonexistent")
 entry = {"kind": kind, "cwd": os.path.realpath(os.getcwd()), "argv": ["<prompt>" if a == prompt else a for a in args],
-         "claude_tmp": os.environ.get("CLAUDE_CODE_TMPDIR", ""), "tmp": os.environ.get("TMPDIR", "")}
+         "claude_tmp": os.environ.get("CLAUDE_CODE_TMPDIR", ""), "tmp": os.environ.get("TMPDIR", ""),
+         "allowed": allowed, "files": files, "safe": "--safe-mode" in args,
+         "settings": args[args.index("--settings") + 1] if "--settings" in args else "",
+         "keys_seen": os.path.exists(ev + "/keys.md") or os.path.exists(ev + "/agent/keys.md")}
 if kind == "agent":
     entry["prompt"] = prompt
 with open(os.environ["FAKE_LOG"], "a") as f:
     f.write(json.dumps(entry) + "\n")
 target = ""
 if kind == "answer":
-    out = re.search(r"Write your answer file to: (\S+)", prompt).group(1)
+    out = files["out"]
     target = re.search(r"run-(\w-\d)\.json", out).group(1)
 hit = target != "" and mode.partition(":")[2] == target
 if os.environ.get("FAKE_SLEEP") and not hit and mode != "agent_error":
@@ -522,17 +541,16 @@ if kind == "answer":
         open(out, "w").write("{not json")
         print("done")
         sys.exit(0)
-    docs = re.search(r"read only files under it\): (\S+)", prompt).group(1)
-    questions = open(re.search(r"Questions: (\S+)", prompt).group(1)).read()
+    docs = files["docs"]
+    questions = open(files["questions"]).read()
     quote = open(docs + "/AGENTS.md").readline().strip()
     chain = [{"path": "AGENTS.md", "from": None, "pointer": None},
              {"path": ".claude/skills/deliver/SKILL.md", "from": None, "pointer": None}]
-    ids = re.findall(r"^([EH]\d+): ", questions, re.M)
+    ids = [i for i in re.findall(r"^([EH]\d+): ", questions, re.M) if i != os.environ.get("FAKE_DROP")]
     json.dump({"chain": chain, "answers": [{"id": i, "steps": [{"quote": quote, "path": "AGENTS.md"}]} for i in ids]}, open(out, "w"))
     print("2 files, %d answers" % len(ids))
 elif kind == "grader":
-    packet = re.search(r"Read only this file: (\S+)", prompt).group(1)
-    result = re.search(r"Write one JSON file to (\S+),", prompt).group(1)
+    packet, result = files["packet"], files["result"]
     word = os.environ.get("FAKE_GRADE", "PASS")
     rows, keys = [], []
     for line in open(packet):
@@ -579,7 +597,7 @@ eval_env() {
 # runner <args>: run.sh with the fake claude; sets out and code.
 runner() {
   : > "$tmp/fake.log"
-  out="$(PATH="$fake:$PATH" FAKE_LOG="$tmp/fake.log" "$run_sh" "$@" 2>&1)"
+  out="$(PATH="$fake:$PATH" FAKE_LOG="$tmp/fake.log" FAKE_EVAL="$1" "$run_sh" "$@" 2>&1)"
   code=$?
 }
 calls() { grep -c -- "$1" "$tmp/fake.log"; }
@@ -596,7 +614,9 @@ else
   [[ -f "$e/holdout-fails.txt" && ! -s "$e/holdout-fails.txt" ]] || fail 'run.sh end to end: holdout-fails.txt is missing or not empty'
   # Every call has Read and Write only, no Bash; answers use sonnet, graders opus (min(4, 2) packets).
   [[ "$(calls '"kind": "answer"')" -eq 6 && "$(calls '"kind": "grader"')" -eq 2 ]] || fail "run.sh calls: $(cat "$tmp/fake.log")"
-  [[ "$(calls '"--tools", "Read,Write", "--allowedTools", "Read", "Write"')" -eq 8 ]] || fail 'run.sh: a call has other tools than Read and Write'
+  [[ "$(calls '"--tools", "Read,Write"')" -eq 8 ]] || fail 'run.sh: a call has other tools than Read and Write'
+  # An answer or grader session starts with --safe-mode: no CLAUDE.md of the operator loads.
+  [[ "$(calls '"safe": true')" -eq 8 ]] || fail 'run.sh: a session of the doc eval does not run with --safe-mode'
   [[ "$(calls Bash)" -eq 0 ]] || fail 'run.sh: a call names Bash'
   [[ "$(calls '"kind": "answer".*"--model", "sonnet"')" -eq 6 && "$(calls '"kind": "grader".*"--model", "opus"')" -eq 2 ]] || fail 'run.sh: wrong models'
   # Each session starts in a folder outside the checkout and the eval folder (the CLAUDE.md of a
@@ -689,7 +709,7 @@ else
   runner "$e" HEAD HEAD E41 t3
   want="$(awk -F'|' '$2 == " E41 " && NF > 8 { print $5 }' "$rt/docs/workflow/evals.md" | sed -n 's/.*with the prompt: "\([^"]*\)".*/\1/p')"
   [[ $code -eq 0 && "$(calls '"kind": "agent"')" -eq 3 && "$(calls '"kind": "answer"')" -eq 0 ]] || fail "run.sh agent row: exit $code: $out"
-  [[ -n "$want" && "$(python3 -I -c 'import json, sys
+  [[ -n "$want" && "$(python3 -I -c 'import json, os, sys
 want = sys.argv[1]
 for line in open(sys.argv[2]):
     e = json.loads(line)
@@ -700,7 +720,8 @@ for line in open(sys.argv[2]):
         and a[a.index("--allowedTools") + 1:a.index("--allowedTools") + 3] == ["Skill", "Read"] \
         and a[a.index("--output-format") + 1] == "json" and a[a.index("--model") + 1] == "sonnet" \
         and e["claude_tmp"].startswith(e["cwd"] + "/") and e["tmp"].startswith(e["cwd"] + "/") \
-        and e["cwd"].split("/")[-1].startswith("dirigible-eval-agent-")
+        and e["cwd"].split("/")[-1].startswith("dirigible-eval-agent-") and not e["safe"] \
+        and json.loads(e["settings"]) == {"claudeMdExcludes": [os.path.expanduser("~/.claude/CLAUDE.md")]}
     print("ok" if ok else "bad " + line)' "$want" "$tmp/fake.log" | sort | uniq -c)" == '   3 ok' ]] || fail "run.sh agent row: a call has other arguments than the row says: $(cat "$tmp/fake.log")"
   [[ "$(tail -n +2 "$e/agent/scores.tsv" 2>/dev/null | cut -f2 | uniq -c)" == '   3 E41' && "$(grep -c '^t3	E41' <<<"$out")" -eq 3 ]] || fail "run.sh agent row: not 3 score rows of E41: $out"
   [[ ! -e "$e/scores.tsv" ]] || fail 'run.sh agent row: the doc scores.tsv exists'

@@ -2,7 +2,9 @@
 # Run a whole eval of docs/workflow/evals.md: the doc sets, the questions, the answer sessions, the
 # quote check, the blind graders, the scores, and the verdict. Each session is a headless claude
 # call with the tools Read and Write only, started in a new temporary folder outside the checkout
-# (a CLAUDE.md of the checkout would load in a session that starts under it).
+# (a CLAUDE.md of the checkout would load in a session that starts under it), and with --safe-mode
+# (no CLAUDE.md of the operator, no skill, no hook). An agent session needs the skills and the
+# CLAUDE.md of its docs copy: it excludes only the global CLAUDE.md, with claudeMdExcludes.
 # Usage: scripts/eval/run.sh <eval folder> <old commit> <new commit> <ID,ID,...> <tag> [--holdout-keys <keys.md>]...
 #   The eval folder is under .scratchpads/ or $TMPDIR. Set a is the old commit, set b the new one.
 #   Each docs copy has a stamp logs/build-<set>.commit. A copy is not built again when its log ends
@@ -201,7 +203,7 @@ grade() {
         results+=("$ev/grade/result-$tag-$n.json")
         start_session "grader-$tag-$n" "$ev/grade/result-$tag-$n.json" "$work" "$eval_dir/logs/$tag-grader-$(basename "$ev")-$n" \
             claude -p "$(grader_prompt "$ev/grade/packet-$tag-$n.md" "$ev/grade/result-$tag-$n.json")" --model "$GRADER_MODEL" \
-            "${common[@]}" --tools Read,Write --allowedTools Read Write
+            "${common[@]}" --safe-mode --tools Read,Write --allowedTools Read Write
     done
     await_sessions
     python3 -I "$here/grade.py" score "$ev" "$tag" "${results[@]}" >"$eval_dir/logs/$tag-score-$(basename "$ev").log" \
@@ -220,7 +222,7 @@ if [[ ${#doc_ids[@]} -gt 0 ]]; then
     for s in a b; do
         for ((r = 1; r <= RUNS; r++)); do
             start_session "prompt-$s-$r" "$ans/run-$s-$r.json" "$work" "$eval_dir/logs/$tag-answer-$s-$r" \
-                claude -p "$(cat "$ans/prompt-$s-$r.md")" --model "$ANSWER_MODEL" "${common[@]}" --tools Read,Write --allowedTools Read Write
+                claude -p "$(cat "$ans/prompt-$s-$r.md")" --model "$ANSWER_MODEL" "${common[@]}" --safe-mode --tools Read,Write --allowedTools Read Write
         done
     done
     await_sessions
@@ -242,6 +244,9 @@ fi
 
 if [[ -n $agent_id ]]; then
     ag="$eval_dir/agent"
+    # --safe-mode would drop the skills and the CLAUDE.md of the docs copy: only the global file goes.
+    agent_settings="$(python3 -I -c 'import json, os, sys
+print(json.dumps({"claudeMdExcludes": [os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"), "CLAUDE.md")]}))')"
     ans="$ag/answer-$tag"
     mkdir -p "$ans" "$ag/grade"
     # A key point is a predicate on one answer: the run counts of the row go to the caller.
@@ -255,7 +260,7 @@ if [[ -n $agent_id ]]; then
         mkdir "$aw/tmp"
         start_session "$agent_id-$r" "$eval_dir/logs/$tag-agent-$r.out" "$aw" "$eval_dir/logs/$tag-agent-$r" \
             "$repo/scripts/probe.sh" --no-audio "$aw" env CLAUDE_CODE_TMPDIR="$aw/tmp" TMPDIR="$aw/tmp" \
-            claude -p "$agent_prompt" --model "$ANSWER_MODEL" "${common[@]}" --tools Skill,Read --allowedTools Skill Read --output-format json
+            claude -p "$agent_prompt" --model "$ANSWER_MODEL" "${common[@]}" --settings "$agent_settings" --tools Skill,Read --allowedTools Skill Read --output-format json
     done
     await_sessions
     specs=()

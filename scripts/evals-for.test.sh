@@ -625,6 +625,18 @@ else
     case "$wd" in "$repo"/* | "$rt"/* | "$e"/*) fail "run.sh: a session started in $wd" ;; esac
     [[ "$(basename "$wd")" == dirigible-eval-* && ! -e "$wd" ]] || fail "run.sh: working folder $wd is not a temporary folder that is removed"
   done < <(python3 -I -c 'import json, sys; [print(json.loads(l)["cwd"]) for l in open(sys.argv[1])]' "$tmp/fake.log")
+  # A session reads and writes only its own files: the rules name the docs copy, the question file,
+  # and the answer file (a grader: its packet and its result file). A bare tool name allows every path.
+  [[ "$(python3 -I -c 'import json, sys
+for line in open(sys.argv[1]):
+    e = json.loads(line)
+    f = e["files"]
+    want = {"answer": ["Read(/%s/**)" % f.get("docs"), "Read(/%s)" % f.get("questions"), "Edit(/%s)" % f.get("out")],
+            "grader": ["Read(/%s)" % f.get("packet"), "Edit(/%s)" % f.get("result")]}[e["kind"]]
+    print("ok" if e["allowed"] == want else "bad " + line)' "$tmp/fake.log" | sort | uniq -c)" == '   8 ok' ]] \
+    || fail "run.sh: a session has other path rules than its own files: $(cat "$tmp/fake.log")"
+  [[ "$(calls '"kind": "answer".*"keys_seen": true')" -eq 0 ]] \
+    || fail 'run.sh: keys.md exists while an answer session runs'
   # A failing grader fails the policy scenario.
   e="$(eval_env e2e-fail)"
   FAKE_GRADE=FAIL runner "$e" HEAD HEAD E2,E5 t1
@@ -720,7 +732,7 @@ for line in open(sys.argv[2]):
         and a[a.index("--allowedTools") + 1:a.index("--allowedTools") + 3] == ["Skill", "Read"] \
         and a[a.index("--output-format") + 1] == "json" and a[a.index("--model") + 1] == "sonnet" \
         and e["claude_tmp"].startswith(e["cwd"] + "/") and e["tmp"].startswith(e["cwd"] + "/") \
-        and e["cwd"].split("/")[-1].startswith("dirigible-eval-agent-") and not e["safe"] \
+        and e["cwd"].split("/")[-1].startswith("dirigible-eval-agent-") and not e["safe"] and not e["keys_seen"] \
         and json.loads(e["settings"]) == {"claudeMdExcludes": [os.path.expanduser("~/.claude/CLAUDE.md")]}
     print("ok" if ok else "bad " + line)' "$want" "$tmp/fake.log" | sort | uniq -c)" == '   3 ok' ]] || fail "run.sh agent row: a call has other arguments than the row says: $(cat "$tmp/fake.log")"
   [[ "$(tail -n +2 "$e/agent/scores.tsv" 2>/dev/null | cut -f2 | uniq -c)" == '   3 E41' && "$(grep -c '^t3	E41' <<<"$out")" -eq 3 ]] || fail "run.sh agent row: not 3 score rows of E41: $out"
@@ -737,7 +749,7 @@ for line in open(sys.argv[2]):
   # The build branch for real: a stamp keys each docs copy to its commit, and a second commit into
   # the same folder is refused (the copies would be those of the first commit).
   mkdir -p "$tmp/t/real"
-  e="$tmp/t/real/eval"
+  e="$(cd "$tmp/t/real" && pwd -P)/eval"
   TMPDIR="$tmp/t" runner "$e" HEAD HEAD E2 t1
   [[ $code -eq 0 && "$(cat "$e/logs/build-a.commit" "$e/logs/build-b.commit" 2>/dev/null | sort -u)" == "$head_commit" ]] \
     || fail "run.sh build: exit $code, stamp [$(cat "$e"/logs/build-*.commit 2>/dev/null)]: $out"

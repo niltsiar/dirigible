@@ -34,6 +34,12 @@
 #   two parallel runs cannot take one number. Another record with that number in the work tree or
 #   on origin/main fails. A cited number with no record file path does not count. A run whose
 #   first phase 3 row is older than the rule is not checked.
+# - plan.md names each criterion ID of the `## Acceptance criteria` section of analysis.md (up to
+#   the next `## ` heading). An ID is the first token of an item line (`- `, `<n>. `) or of a table
+#   row, after any `**`: capitals, digits, and an optional lower-case suffix. The `## Slices` and
+#   `## Criteria map` sections of plan.md name it as a whole word, or in a range `C2 to C5` or
+#   `C2-C5` of the same prefix. A run whose first decisions.tsv row is older than the rule is not
+#   checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -124,6 +130,39 @@ else
             grep -qF "$copy" "$run/plan.md" || say "$name: plan.md does not name $copy; research findings go to docs/research"
         fi
     done
+    # 2026-10-20T11:35, the commit that added the coverage rule: a run that started earlier passes without it.
+    start="$(awk -F'\t' '$1 ~ /^[0-9][0-9][0-9][0-9]-/ { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
+    if [[ -f "$run/analysis.md" && ( -z "$start" || ! "$start" < 2026-10-20T11:35 ) ]]; then
+        while IFS= read -r msg; do say "$msg"; done < <(awk -v plan="$run/plan.md" '
+            BEGIN {
+                while ((getline line < plan) > 0) {
+                    if (line ~ /^## /) inside = (line ~ /^## (Slices|Criteria map)[[:space:]]*$/)
+                    if (inside) text = text "\n" line
+                }
+                rest = text
+                while (match(rest, /[A-Z]+[0-9]+( to |-)[A-Z]+[0-9]+/)) {
+                    r = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+                    gsub(/ to |-/, " ", r); split(r, e, " ")
+                    p = e[1]; sub(/[0-9]+$/, "", p); q = e[2]; sub(/[0-9]+$/, "", q)
+                    if (p != q) continue
+                    nr++; rp[nr] = p; lo[nr] = substr(e[1], length(p) + 1) + 0; hi[nr] = substr(e[2], length(q) + 1) + 0
+                }
+            }
+            /^## / { inside = ($0 ~ /^## Acceptance criteria[[:space:]]*$/); next }
+            inside && /^(- |[0-9]+\. |\|)/ {
+                t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
+                id = substr(t, 1, RLENGTH)
+                if (id in seen) next
+                seen[id] = 1
+                if (text ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) next
+                p = id; sub(/[0-9]+[a-z]*$/, "", p); n = id; sub(/^[A-Z]+/, "", n); n += 0
+                covered = 0
+                for (k = 1; k <= nr; k++) if (rp[k] == p && lo[k] <= n && n <= hi[k]) covered = 1
+                if (!covered)
+                    print "plan.md does not name criterion " id " of analysis.md; name it in the slice or check that proves it (a range such as C2 to C5 counts)"
+            }' "$run/analysis.md")
+    fi
     # Row order, not the clock, decides which phase row is last.
     if [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]]; then
         compgen -G "$run/review-plan-*.md" >/dev/null || say "no review-plan-<n>.md in $run: the plan gate is not closed; run the plan gate (deliver Phase 3), write review-plan-<n>.md, and log its phase 3 row before the first phase 4 row"

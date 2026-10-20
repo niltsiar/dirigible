@@ -9,6 +9,7 @@
 # criterion ID of a field has a criterion change row from Phase 4 on.
 # Check that CHECK_PLAN_AT_PHASE4=1 needs a review-plan-<n>.md file and a phase 3 row after the last
 # phase 2 row, and that the land check without it does not.
+# Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -288,6 +289,62 @@ good
 row 2 'plan written'
 row 4 'Slice S1 committed'
 pass 'phase 4 rows and no review-plan file at the land check'
+
+# Criterion coverage: plan.md names each ID of the ## Acceptance criteria section of analysis.md,
+# in ## Slices or ## Criteria map, as a whole word or inside a range. A run whose decisions.tsv
+# starts before the rule (2026-10-20T11:35) is not checked. The good() fixture has no such section.
+# criteria <lines>: good() plus an ## Acceptance criteria section. names <text>: the First test line
+# of slice S1 becomes <text>.
+criteria() { good; printf '\n## Acceptance criteria\n\n%s\n' "$1" >> "$run/analysis.md"; }
+names() { sed -i '' "s/^- First test: a\.\$/- First test: $1./" "$run/plan.md"; }
+CRIT=$'- **C1.** a\n- C2: b'
+criteria "$CRIT"
+names 'C1'
+refuse 'a criterion that plan.md does not name' 'criterion C2'
+refuse 'the refusal names the file and the fix' 'plan.md does not name criterion C2 of analysis.md; name it in the slice or check that proves it'
+criteria "$CRIT"
+names 'C1 and C2'
+pass 'each criterion named'
+criteria $'- **C1.** a\n- C2: b\n- C3: c'
+names 'C1 to C3'
+pass 'a range with to'
+criteria $'- **C1.** a\n- C2: b\n- C3: c'
+names 'C1-C3'
+pass 'a range with a hyphen'
+criteria $'- **C1.** a\n- C2: b\n- C4: c'
+names 'C1 to C3'
+refuse 'an ID outside the range' 'criterion C4'
+criteria $'- **C1.** a\n- C2: b\n- C3: c'
+names 'C1 to D3'
+refuse 'a range with two prefixes' 'criterion C2'
+criteria '- **C1.** a'
+names 'C12'
+refuse 'C12 does not name C1' 'criterion C1 of analysis.md'
+criteria $'| id | text |\n|---|---|\n| C4 | a |'
+refuse 'a table row with no ID in plan.md' 'criterion C4'
+names 'C4'
+pass 'a table row with its ID in plan.md'
+criteria $'1. **C1** a\n   - C9: a nested item\n\n### Sub\n\n- C2: b'
+names 'C1 and C2'
+pass 'a nested item is no ID and a subheading stays in the section'
+criteria "$CRIT"
+names 'C1'
+printf '\n## Criteria map\n\n| C2 | S1 |\n' >> "$run/plan.md"
+pass 'a criterion named in the Criteria map'
+criteria "$CRIT"
+sed -i '' 's/^Agents:/Inputs: criteria C1 to C2.\nAgents:/' "$run/plan.md"
+names 'C1'
+refuse 'a range above the Slices section' 'criterion C2'
+criteria "$CRIT"
+names 'C1'
+printf '2026-10-01T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
+pass 'a run whose first row is older than the rule, with no phase 3 row'
+printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-10-01T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
+pass 'an old first row after a header row'
+printf '2026-10-20T11:35\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
+refuse 'a run whose first row is at the cutoff' 'criterion C2'
+printf '2026-10-21T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
+refuse 'a run whose first row is after the cutoff' 'criterion C2'
 
 # The decision number of a record that the plan makes. A fixture repo holds a copy of the script,
 # docs/decisions/0042-old.md on origin/main, and .scratchpads/ledger.md beside runs/.

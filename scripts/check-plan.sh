@@ -36,10 +36,11 @@
 #   first phase 3 row is older than the rule is not checked.
 # - plan.md names each criterion ID of the `## Acceptance criteria` section of analysis.md (up to
 #   the next `## ` heading). An ID is the first token of an item line (`- `, `<n>. `) or of a table
-#   row, after any `**`: capitals, digits, and an optional lower-case suffix. The `## Slices` and
-#   `## Criteria map` sections of plan.md name it as a whole word, or in a range `C2 to C5` or
-#   `C2-C5` of the same prefix; each end may have a lower-case suffix (`C4a to C4d`). A run whose first decisions.tsv row is older than the rule is not
-#   checked.
+#   row, after any `**`: capitals, digits, and an optional lower-case suffix. The sections of plan.md
+#   `## Slices`, `## Criteria map` (each may have a suffix after a space), and `## Plan gate changes`
+#   or `## Plan gate <n> changes` name it as a whole word, or in a range `C2 to C5` or `C2-C5` of
+#   the same prefix (each end may have a suffix: `C4a to C4d`). A run whose first decisions.tsv row
+#   is older than the rule is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -142,7 +143,7 @@ else
             }
             BEGIN {
                 while ((getline line < plan) > 0) {
-                    if (line ~ /^## /) inside = (line ~ /^## (Slices|Criteria map)[[:space:]]*$/)
+                    if (line ~ /^## /) inside = (line ~ /^## (Slices|Criteria map)( .*)?$/ || line ~ /^## Plan gate( [0-9]+)? changes/)
                     if (inside) text = text "\n" line
                 }
                 rest = text
@@ -168,7 +169,7 @@ else
                 for (k = 1; k <= nr; k++)
                     if (rp[k] == gp && (gn > lo[k] || (gn == lo[k] && gs >= los[k])) && (gn < hi[k] || (gn == hi[k] && (his[k] == "" || gs <= his[k])))) covered = 1
                 if (!covered)
-                    print "plan.md does not name criterion " id " of analysis.md; name it under ## Slices or ## Criteria map (a range such as C2 to C5 counts)"
+                    print "plan.md does not name criterion " id " of analysis.md; name it under ## Slices, ## Criteria map, or ## Plan gate changes (a range such as C2 to C5 counts)"
             }' "$run/analysis.md")
     fi
     # Row order, not the clock, decides which phase row is last.

@@ -301,7 +301,7 @@ CRIT=$'- **C1.** a\n- C2: b'
 criteria "$CRIT"
 names 'C1'
 refuse 'a criterion that plan.md does not name' 'criterion C2'
-refuse 'the refusal names the file and the sections' 'plan.md does not name criterion C2 of analysis.md; name it under ## Slices or ## Criteria map (a range such as C2 to C5 counts)'
+refuse 'the refusal names the file and the sections' 'plan.md does not name criterion C2 of analysis.md; name it under ## Slices, ## Criteria map, or ## Plan gate changes (a range such as C2 to C5 counts)'
 good
 printf '\n## Criteria map\n\nC1 is proven.\n' >> "$run/plan.md"
 sed -i '' '1a\
@@ -358,6 +358,22 @@ criteria "$CRIT"
 names 'C1'
 printf '\n## Criteria map\n\n| C2 | S1 |\n' >> "$run/plan.md"
 pass 'a criterion named in the Criteria map'
+criteria "$CRIT"
+names 'C1'
+printf '\n## Criteria map (round 2)\n\n| C2 | S1 |\n' >> "$run/plan.md"
+pass 'a Criteria map heading with a suffix'
+criteria "$CRIT"
+sed -i '' 's/^## Slices$/## Slices (serial)/' "$run/plan.md"
+names 'C1 and C2'
+pass 'a Slices heading with a suffix'
+criteria "$CRIT"
+names 'C1'
+printf '\n## Plan gate 2 changes\n\n1. S2: a case.\n   Criteria: none\n   Covers C2.\n' >> "$run/plan.md"
+pass 'a criterion named in a Plan gate 2 changes section'
+criteria "$CRIT"
+names 'C1'
+printf '\n## Slicesx\n\nC2 here.\n' >> "$run/plan.md"
+refuse 'a heading that only starts with Slices' 'criterion C2'
 criteria "$CRIT"
 sed -i '' 's/^Agents:/Inputs: criteria C1 to C2.\nAgents:/' "$run/plan.md"
 names 'C1'

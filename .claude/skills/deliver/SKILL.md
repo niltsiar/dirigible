@@ -5,7 +5,7 @@ description: "Deliver one goal end to end: analyze, plan, gate, implement test-f
 
 # Deliver
 
-One run takes one goal (a requirement, a slice of one, or a bug) to a merged pull request on `main`. Every step writes to the run ledger. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
+One run takes one goal (a requirement, a slice, or a bug) to a merged pull request on `main`. Every step writes to the ledger. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
 
 ## Autonomy rules
 
@@ -20,9 +20,9 @@ One run takes one goal (a requirement, a slice of one, or a bug) to a merged pul
 ## Phase 0: Open the run
 
 1. Read `.scratchpads/ledger.md`, `## Next` of the backlog, and the last `run.md`. The **reflect** skill reads `learnings.md`.
-2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume one on its branch: read its `run.md` and `decisions.tsv`; compare its handoff with them, the last commit, and the PR state; log each difference; continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
+2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume one on its branch: read its `run.md` and `decisions.tsv`; compare its handoff with the git output, the last commit, and the PR state; log each difference; continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
 3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug> <type>`.
-4. Run `make check` on `main` only when `main` has commits that no run landed. If it is red, the fix is the goal.
+4. Run `make check` on `main` only when `main` has commits no run landed. If it is red, the fix is the goal.
 5. Before any file change, create the branch `<type>/<slug>` and write it in `run.md`. Every commit of the run goes on it.
 
 ## Phase 1: Analyze
@@ -40,7 +40,7 @@ Write `analysis.md`:
 Write `plan.md`:
 
 - Vertical slices, each ending in a passing test and a commit. The riskiest unknown goes first. Types that reference each other share a slice.
-- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line that gives its paths on stdin: `scripts/check-changed.sh --paths <<<$'<path>\n<path>'`. A slice that covers a criterion names the test of its negative control.
+- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line that gives its paths on stdin: `scripts/check-changed.sh --paths <<<$'<path>\n<path>'`. Each slice names the criterion IDs that it covers, and the test of its negative control.
 - An `Agents:` line: the agent groups (small adjacent slices of one module share an agent), which groups run at the same time (no shared file or build output), and why the others wait.
 - When a criterion sets a time budget or fixes a missed budget, adds a way to move or resize something, or a rule classifies loop runs, read `references/performance-criteria.md`.
 - A bug goal proves its fix with its red repro log (tdd step 7). A refactor or a file split pins the behavior with a test before code moves, and reverts a move that deletes no branch, copy, or layer. A split by responsibility that keeps a file under the size limit is a gain.
@@ -61,7 +61,7 @@ Write `plan.md`:
 
 ## Phase 3: Plan gate
 
-Run `scripts/check-plan.sh <run folder>`: it must exit 0. Then run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
+Run `scripts/check-plan.sh <run folder>`: it must exit 0. Run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Put each "Act on" change in `## Plan gate changes` with `Criteria:`, and log it. Grep each fact that a fix changes, as in Phase 2.
 - After the last round and the fix check, the gate is closed: record open risks in `run.md`.

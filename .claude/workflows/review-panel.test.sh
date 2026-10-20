@@ -215,6 +215,10 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   } catch (error) {
     fail(`round 2 of 3: threw ${error.message}`)
   }
+  // A prior verdict at round 1 (or with no round, which is round 1) is refused: it would select
+  // the convergence mode for a first review.
+  await expectThrow('a prior at round 1', { target: 'diff', round: 1, prior: ['/abs/v.md'] }, /pass no prior at round 1/)
+  await expectThrow('a prior with no round', { target: 'diff', prior: ['/abs/v.md'] }, /pass no prior at round 1/)
   // A named lens runs only at its gates; an empty gates list holds each target.
   await expectKeys('a diff-only lens at the plan gate', { target: 'plan', lenses: ['code-quality', 'premortem'] }, ['premortem'])
   await expectThrow('only a diff-only lens at the plan gate', { target: 'plan', lenses: ['code-quality'] }, /no lens/)

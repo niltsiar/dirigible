@@ -81,5 +81,5 @@ path	words	decision
 .claude/skills/writing-for-humans/SKILL.md	480	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: row = wc -w x 1.1, up to the next 10)
 AGENTS.md	1401	2026-10-18-push-guards (decisions.tsv 2026-10-18T11:18: one bullet for the push guards and gitleaks, row = ceil(wc -w x 1.01))
 CODING_STANDARDS.md	323	2026-10-17-swift-concurrency-skill (decisions.tsv 2026-10-17T21:47: wiring lines, 1 % room, row = ceil(wc -w x 1.01))
-TOTAL	32267	2026-10-20-yesyak-ideas S5 (decisions.tsv 2026-10-20T11:11: user-approved yesyak items, net +44)
+TOTAL	32269	2026-10-20-yesyak-ideas S9 (decisions.tsv 2026-10-20T11:57: user-approved yesyak items, net +46 under the cap of +50; corrects 2026-10-20T11:11)
 QUOTA	32135	2026-10-16-agent-setup code gate 1 item 4 (decisions.tsv 2026-10-16T13:15: the user decision on the word cap allows a small rise; QUOTA = the new TOTAL)

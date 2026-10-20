@@ -7,4 +7,4 @@
 - Before the first run of an unattended loop, check the access of Phase 9: `git ls-remote origin`, `gh auth status`, an allow rule for `scripts/land.sh` in `.claude/settings.json` (add it if missing), and a permission mode that allows file edits. If one fails, stack each run branch on the previous one, record it in `run.md`, and land them when the human is back.
 - Use only the access that these two commands already have; leave credential stores closed.
 - Each run lands green on `main` through its own pull request.
-- At a pause, leave each open run at a slice commit or with its working tree as is, and write the next step in `run.md`; make no `wip` commit.
+- At a pause, leave each open run at a slice commit or with its working tree as is, and write in `run.md` the next step and each check result, taken from its command output or log, not from memory; make no `wip` commit.

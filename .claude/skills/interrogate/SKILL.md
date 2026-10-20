@@ -51,7 +51,7 @@ Read `references/reviewer-prompt.md` when the Workflow tool is not available: it
 
 ## Step 4: Synthesize
 
-1. Read the Workflow output file (JSON) with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`). Print only the severity, title, and suggestion of `result.panel[].survived[]`, of `result.panel[].refuted[]` with `skeptic.reason`, and of `result.panel[].nits[]`. Keep the whole file out of the context.
+1. Read the Workflow output file (JSON) with a short `python3` script (`json.JSONDecoder().raw_decode` from the first `{`). Print only the severity, weight, title, and suggestion of `result.panel[].survived[]`, of `result.panel[].refuted[]` with `skeptic.reason`, and of `result.panel[].nits[]`. Keep the whole file out of the context.
 2. Findings from two or more lenses independently are the highest signal.
 3. Merge duplicates and note which lenses raised them.
 4. Note disagreements: one lens that contradicts another is useful context.
@@ -73,10 +73,11 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 
 - **Intent:** the paragraph from step 2.
 - **Panel:** for each lens, the findings raised and the findings that survived.
-- **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>)`, then the description, why it matters, Invariant, and Siblings.
+- **Act on:** a numbered list. Each item starts with `(<severity>, <lenses>, <weight>)`, then the description, why it matters, Invariant, and Siblings.
 - **Consider:** description, lenses, tradeoff.
 - **Noted:** a brief list.
 - **Dismissed:** each finding with its reason, each refuted finding with the skeptic reason, and each nit of `nits` that is not a Consider item. Read each reason: overrule a skeptic that refuted a real premise.
 - **Agreement map:** where the lenses agreed or diverged, and what the pattern says.
+- **Not covered:** each lens, claim, or visible behavior that the gate did not check, and why, or `none`.
 
 Then run `scripts/check-plan.sh <run folder>`. It must exit 0 before the fixer starts.

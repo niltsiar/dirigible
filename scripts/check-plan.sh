@@ -38,7 +38,7 @@
 #   the next `## ` heading). An ID is the first token of an item line (`- `, `<n>. `) or of a table
 #   row, after any `**`: capitals, digits, and an optional lower-case suffix. The `## Slices` and
 #   `## Criteria map` sections of plan.md name it as a whole word, or in a range `C2 to C5` or
-#   `C2-C5` of the same prefix. A run whose first decisions.tsv row is older than the rule is not
+#   `C2-C5` of the same prefix; each end may have a lower-case suffix (`C4a to C4d`). A run whose first decisions.tsv row is older than the rule is not
 #   checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
@@ -134,18 +134,25 @@ else
     start="$(awk -F'\t' '$1 ~ /^[0-9][0-9][0-9][0-9]-/ { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
     if [[ -f "$run/analysis.md" && ( -z "$start" || ! "$start" < 2026-10-20T11:35 ) ]]; then
         while IFS= read -r msg; do say "$msg"; done < <(awk -v plan="$run/plan.md" '
+            # parse(id): prefix gp, number gn, and lower-case suffix gs of a criterion ID.
+            function parse(id) {
+                gp = id; sub(/[0-9]+[a-z]*$/, "", gp)
+                gn = id; sub(/^[A-Z]+/, "", gn); gn += 0
+                gs = id; sub(/^[A-Z]+[0-9]+/, "", gs)
+            }
             BEGIN {
                 while ((getline line < plan) > 0) {
                     if (line ~ /^## /) inside = (line ~ /^## (Slices|Criteria map)[[:space:]]*$/)
                     if (inside) text = text "\n" line
                 }
                 rest = text
-                while (match(rest, /[A-Z]+[0-9]+( to |-)[A-Z]+[0-9]+/)) {
+                while (match(rest, /[A-Z]+[0-9]+[a-z]*( to |-)[A-Z]+[0-9]+[a-z]*/)) {
                     r = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
                     gsub(/ to |-/, " ", r); split(r, e, " ")
-                    p = e[1]; sub(/[0-9]+$/, "", p); q = e[2]; sub(/[0-9]+$/, "", q)
-                    if (p != q) continue
-                    nr++; rp[nr] = p; lo[nr] = substr(e[1], length(p) + 1) + 0; hi[nr] = substr(e[2], length(q) + 1) + 0
+                    parse(e[1]); p = gp; ln = gn; lsf = gs
+                    parse(e[2])
+                    if (p != gp) continue
+                    nr++; rp[nr] = p; lo[nr] = ln; los[nr] = lsf; hi[nr] = gn; his[nr] = gs
                 }
                 inside = 0
             }
@@ -157,9 +164,9 @@ else
                 if (id in seen) next
                 seen[id] = 1
                 if (text ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) next
-                p = id; sub(/[0-9]+[a-z]*$/, "", p); n = id; sub(/^[A-Z]+/, "", n); n += 0
-                covered = 0
-                for (k = 1; k <= nr; k++) if (rp[k] == p && lo[k] <= n && n <= hi[k]) covered = 1
+                parse(id); covered = 0
+                for (k = 1; k <= nr; k++)
+                    if (rp[k] == gp && (gn > lo[k] || (gn == lo[k] && gs >= los[k])) && (gn < hi[k] || (gn == hi[k] && (his[k] == "" || gs <= his[k])))) covered = 1
                 if (!covered)
                     print "plan.md does not name criterion " id " of analysis.md; name it under ## Slices or ## Criteria map (a range such as C2 to C5 counts)"
             }' "$run/analysis.md")

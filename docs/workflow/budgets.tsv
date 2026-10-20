@@ -32,7 +32,7 @@ path	words	decision
 .claude/skills/domain-modeling/CONTEXT-FORMAT.md	339	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/domain-modeling/SKILL.md	530	baseline
 .claude/skills/interrogate/	4390	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
-.claude/skills/interrogate/SKILL.md	1065	2026-10-20-yesyak-ideas S5 (decisions.tsv 2026-10-20T11:11: user-approved yesyak items, net +44; row = ceil(wc -w x 1.01))
+.claude/skills/interrogate/SKILL.md	1065	2026-10-20-yesyak-ideas S5 (decisions.tsv 2026-10-20T11:11: user-approved yesyak items, row +29; row = ceil(wc -w x 1.01))
 .claude/skills/interrogate/references/code-quality-review.md	740	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
 .claude/skills/interrogate/references/lead-judgment.md	1000	2026-10-11-upkeep-batch-10 code gate 1 (decisions.tsv 2026-10-11T08:01: the merged relaxes-or-adds-a-state sentence, 994 words)
 .claude/skills/interrogate/references/reviewer-prompt.md	590	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)

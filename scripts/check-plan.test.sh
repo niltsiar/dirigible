@@ -301,7 +301,15 @@ CRIT=$'- **C1.** a\n- C2: b'
 criteria "$CRIT"
 names 'C1'
 refuse 'a criterion that plan.md does not name' 'criterion C2'
-refuse 'the refusal names the file and the fix' 'plan.md does not name criterion C2 of analysis.md; name it in the slice or check that proves it'
+refuse 'the refusal names the file and the sections' 'plan.md does not name criterion C2 of analysis.md; name it under ## Slices or ## Criteria map (a range such as C2 to C5 counts)'
+good
+printf '\n## Criteria map\n\nC1 is proven.\n' >> "$run/plan.md"
+sed -i '' '1a\
+\
+- R5 is the release of this run.
+' "$run/analysis.md"
+printf '\n## Acceptance criteria\n\n- C1: a\n' >> "$run/analysis.md"
+pass 'an item above the first heading of analysis.md is no criterion'
 criteria "$CRIT"
 names 'C1 and C2'
 pass 'each criterion named'

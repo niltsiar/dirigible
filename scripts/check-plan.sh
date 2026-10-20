@@ -130,7 +130,7 @@ else
             grep -qF "$copy" "$run/plan.md" || say "$name: plan.md does not name $copy; research findings go to docs/research"
         fi
     done
-    # 2026-10-20T11:35, the commit that added the coverage rule: a run that started earlier passes without it.
+    # Cutoff 2026-10-20T11:35, one minute after the commit that added the coverage rule: a run that started earlier passes without it.
     start="$(awk -F'\t' '$1 ~ /^[0-9][0-9][0-9][0-9]-/ { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
     if [[ -f "$run/analysis.md" && ( -z "$start" || ! "$start" < 2026-10-20T11:35 ) ]]; then
         while IFS= read -r msg; do say "$msg"; done < <(awk -v plan="$run/plan.md" '
@@ -147,6 +147,7 @@ else
                     if (p != q) continue
                     nr++; rp[nr] = p; lo[nr] = substr(e[1], length(p) + 1) + 0; hi[nr] = substr(e[2], length(q) + 1) + 0
                 }
+                inside = 0
             }
             /^## / { inside = ($0 ~ /^## Acceptance criteria[[:space:]]*$/); next }
             inside && /^(- |[0-9]+\. |\|)/ {
@@ -160,7 +161,7 @@ else
                 covered = 0
                 for (k = 1; k <= nr; k++) if (rp[k] == p && lo[k] <= n && n <= hi[k]) covered = 1
                 if (!covered)
-                    print "plan.md does not name criterion " id " of analysis.md; name it in the slice or check that proves it (a range such as C2 to C5 counts)"
+                    print "plan.md does not name criterion " id " of analysis.md; name it under ## Slices or ## Criteria map (a range such as C2 to C5 counts)"
             }' "$run/analysis.md")
     fi
     # Row order, not the clock, decides which phase row is last.

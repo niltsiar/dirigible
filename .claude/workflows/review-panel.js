@@ -84,13 +84,14 @@ const FINDINGS = {
         properties: {
           severity: { type: 'string', enum: ['critical', 'warning', 'nit'] },
           title: { type: 'string' },
+          weight: { type: 'string', enum: ['demonstrated', 'read', 'enumerated'], description: 'demonstrated: a probe, a mutant, or an exit status shows it; read: seen in code or text; enumerated: a list for a human to judge' },
           location: { type: 'string', description: 'file:line, or plan section' },
           failure: { type: 'string', description: 'concrete trigger, path, and consequence' },
           evidence: { type: 'string' },
           suggestion: { type: 'string' },
           priorItem: { type: 'string', description: 'the earlier Act-on item or fix commit this finding concerns, or "none"' },
         },
-        required: ['severity', 'title', 'location', 'failure', 'evidence'],
+        required: ['severity', 'title', 'weight', 'location', 'failure', 'evidence'],
       },
     },
   },
@@ -200,7 +201,7 @@ const results = await pipeline(
     const nits = review.findings.filter(f => !unscoped(f) && f.severity === 'nit')
     const findings = review.findings.filter(f => !unscoped(f) && f.severity !== 'nit')
     if (!findings.length) return { lens: lens.key, raised: review.findings.length, survived: [], refuted: [], outOfScope, nits }
-    const list = findings.map((f, i) => `${i}. [${f.severity}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
+    const list = findings.map((f, i) => `${i}. [${f.severity}, ${f.weight}] ${f.title} @ ${f.location}\n   prior item: ${f.priorItem || 'none'}\n   failure: ${f.failure}\n   evidence: ${f.evidence}`).join('\n')
     return typedAgent(
       SKEPTIC,
       `A ${lens.key} reviewer raised the findings below about a ${target}. ${skepticTargetText}${ledger ? ` Grep ${ledger} for the result tokens (failed, fail, flake, survived, NOT VERIFIED, missed unknown) and the words of each finding: a finding whose failure already happened in this run is upheld, even if it looks hypothetical.` : ''}${settledText ? `\n\n${settledText}` : ''}${mode === 'converge' ? `\n\n${priorText}` : ''}\n\nFindings:\n${list}`,

@@ -7,7 +7,8 @@
 # findings go to a skeptic, that the skeptic is the typed agent of .claude/agents/skeptic.md with a
 # fallback of the model and effort of that file, the fallback for an agent file that a worktree diff
 # changes, the lens effort of each risk and round, and that the result lists the nits of each lens
-# under `nits`. Run by `make test-hooks`.
+# under `nits`, and that each finding has a required weight (demonstrated, read, or enumerated) in the
+# lens schema and in the skeptic list. Run by `make test-hooks`.
 set -euo pipefail
 PANEL="$(cd "$(dirname "$0")" && pwd)/review-panel.js" exec node - <<'JS'
 const src = require('fs').readFileSync(process.env.PANEL, 'utf8').replace(/^export const meta/m, 'const meta')
@@ -48,7 +49,7 @@ const front = name => {
 // The effort option of each review call of a run.
 const efforts = got => got.labels.map((l, i) => [l, got.options[i].effort]).filter(([l]) => l.startsWith('review:'))
 
-const finding = (severity, title) => ({ severity, title, location: 'a.sh:1', failure: 'f', evidence: 'e' })
+const finding = (severity, title, weight = 'read') => ({ severity, title, weight, location: 'a.sh:1', failure: 'f', evidence: 'e' })
 const titles = list => JSON.stringify((list || []).map(f => f.title))
 
 // Only warning and critical findings go to the skeptic of a lens; nits go to `nits`.
@@ -263,6 +264,17 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
     if (!got.prompts.some(p => p.includes('git -C /abs/wt rev-parse --path-format=absolute --git-common-dir'))) fail('a plan with a worktree and no scope: no prompt names the main checkout of the default plan')
   } catch (error) {
     fail(`a plan with a worktree and no scope: threw ${error.message}`)
+  }
+  // Each lens finding has a required evidence weight, and the skeptic list shows it.
+  try {
+    const got = await run({ target: 'diff', lenses: ['premortem'] }, ['a.sh'], { premortem: [finding('warning', 'warn one', 'demonstrated')] })
+    const weight = (((got.options[got.labels.indexOf('review:premortem')] || {}).schema || {}).properties?.findings?.items) || {}
+    if (JSON.stringify(weight.properties?.weight?.enum) !== JSON.stringify(['demonstrated', 'read', 'enumerated'])) fail(`weight: enum ${JSON.stringify(weight.properties?.weight?.enum)}`)
+    if (!(weight.required || []).includes('weight')) fail('weight: not in required')
+    const skeptic = got.prompts[got.labels.indexOf('verify:premortem')] || ''
+    if (!skeptic.includes('[warning, demonstrated] warn one')) fail('weight: the skeptic list line has no weight')
+  } catch (error) {
+    fail(`weight: threw ${error.message}`)
   }
   if (failures) { console.log(`${failures} failure(s)`); process.exit(1) }
   console.log('review-panel.test.sh: all cases pass')

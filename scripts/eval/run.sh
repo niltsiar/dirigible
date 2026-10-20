@@ -5,6 +5,8 @@
 # (a CLAUDE.md of the checkout would load in a session that starts under it), and with --safe-mode
 # (no CLAUDE.md of the operator, no skill, no hook). An agent session needs the skills and the
 # CLAUDE.md of its docs copy: it excludes only the global CLAUDE.md, with claudeMdExcludes.
+# An answer session reads its docs copy and its question file, and writes its answer file; a grader
+# reads its packet and writes its result file. keys.md comes after the answer sessions.
 # Usage: scripts/eval/run.sh <eval folder> <old commit> <new commit> <ID,ID,...> <tag> [--holdout-keys <keys.md>]...
 #   The eval folder is under .scratchpads/ or $TMPDIR. Set a is the old commit, set b the new one.
 #   Each docs copy has a stamp logs/build-<set>.commit. A copy is not built again when its log ends
@@ -47,7 +49,7 @@ done
 [[ $RUNS =~ ^[1-9][0-9]*$ ]] || die 2 "RUNS is $RUNS, not a number"
 command -v claude >/dev/null || die 2 "the command claude is not on PATH"
 mkdir -p "${pos[0]}"
-eval_dir="$(cd "${pos[0]}" && pwd)"
+eval_dir="$(cd "${pos[0]}" && pwd -P)"
 tag="${pos[4]}"
 [[ $tag =~ ^[A-Za-z0-9_-]+$ ]] || die 2 "the tag $tag has other characters than letters, digits, - and _"
 hash_a="$(git -C "$repo" rev-parse --verify --quiet "${pos[1]}^{commit}")" || die 2 "no commit ${pos[1]}"
@@ -203,7 +205,7 @@ grade() {
         results+=("$ev/grade/result-$tag-$n.json")
         start_session "grader-$tag-$n" "$ev/grade/result-$tag-$n.json" "$work" "$eval_dir/logs/$tag-grader-$(basename "$ev")-$n" \
             claude -p "$(grader_prompt "$ev/grade/packet-$tag-$n.md" "$ev/grade/result-$tag-$n.json")" --model "$GRADER_MODEL" \
-            "${common[@]}" --safe-mode --tools Read,Write --allowedTools Read Write
+            "${common[@]}" --safe-mode --tools Read,Write --allowedTools "Read(/$ev/grade/packet-$tag-$n.md)" "Edit(/$ev/grade/result-$tag-$n.json)"
     done
     await_sessions
     python3 -I "$here/grade.py" score "$ev" "$tag" "${results[@]}" >"$eval_dir/logs/$tag-score-$(basename "$ev").log" \
@@ -214,18 +216,20 @@ verdict_code=0
 if [[ ${#doc_ids[@]} -gt 0 ]]; then
     ans="$eval_dir/answer-$tag"
     mkdir -p "$ans" "$eval_dir/grade"
-    : >"$eval_dir/keys.md"
-    for i in "${!doc_ids[@]}"; do printf '## %s\n%s\n\n' "${doc_ids[i]}" "${doc_keys[i]}" >>"$eval_dir/keys.md"; done
     ids_csv="$(IFS=,; echo "${doc_ids[*]}")"
     python3 -I "$here/questions.py" "$evals_md" "$ans" "$ids_csv" "$RUNS" >"$eval_dir/logs/$tag-questions.log" \
         || die 2 "questions.py failed (see $eval_dir/logs/$tag-questions.log)"
     for s in a b; do
         for ((r = 1; r <= RUNS; r++)); do
             start_session "prompt-$s-$r" "$ans/run-$s-$r.json" "$work" "$eval_dir/logs/$tag-answer-$s-$r" \
-                claude -p "$(cat "$ans/prompt-$s-$r.md")" --model "$ANSWER_MODEL" "${common[@]}" --safe-mode --tools Read,Write --allowedTools Read Write
+                claude -p "$(cat "$ans/prompt-$s-$r.md")" --model "$ANSWER_MODEL" "${common[@]}" --safe-mode --tools Read,Write \
+                --allowedTools "Read(/$eval_dir/docs-$s/**)" "Read(/$ans/questions-$s-$r.txt)" "Edit(/$ans/run-$s-$r.json)"
         done
     done
     await_sessions
+    # keys.md comes after the answer sessions: no answer session can read a key.
+    : >"$eval_dir/keys.md"
+    for i in "${!doc_ids[@]}"; do printf '## %s\n%s\n\n' "${doc_ids[i]}" "${doc_keys[i]}" >>"$eval_dir/keys.md"; done
     specs=()
     for s in a b; do
         for ((r = 1; r <= RUNS; r++)); do
@@ -252,7 +256,6 @@ print(json.dumps({"claudeMdExcludes": [os.path.join(os.environ.get("CLAUDE_CONFI
     # A key point is a predicate on one answer: the run counts of the row go to the caller.
     agent_key="$(sed -E 's/In at least [0-9]+ of [0-9]+ runs, the /The /; s/In each run, the /The /' <<<"$agent_key")"
     ! grep -qE 'of [0-9]+ runs|In each run' <<<"$agent_key" || die 2 "the key points of $agent_id hold a run count: $agent_key"
-    printf '## %s\n%s\n' "$agent_id" "$agent_key" >"$ag/keys.md"
     for ((r = 1; r <= RUNS; r++)); do
         aw="$(mktemp -d /private/tmp/dirigible-eval-agent-XXXXXX)"
         agent_work+=("$aw")
@@ -263,6 +266,7 @@ print(json.dumps({"claudeMdExcludes": [os.path.join(os.environ.get("CLAUDE_CONFI
             claude -p "$agent_prompt" --model "$ANSWER_MODEL" "${common[@]}" --settings "$agent_settings" --tools Skill,Read --allowedTools Skill Read --output-format json
     done
     await_sessions
+    printf '## %s\n%s\n' "$agent_id" "$agent_key" >"$ag/keys.md"
     specs=()
     for ((r = 1; r <= RUNS; r++)); do
         cp "$eval_dir/logs/$tag-agent-$r.out" "$ans/run-$r.json"

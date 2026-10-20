@@ -619,6 +619,22 @@ else
   wait "$pid"
   no_fake_left || { pkill -f "$fake/claude"; fail 'run.sh after TERM: a session still runs'; }
 
+  # A holdout key comes from a --holdout-keys file (the table holds none). Without the file, the
+  # run exits 2 before any session. A second file fills an ID that the first lacks.
+  printf '## E2\n(a) not used\n\n## H5\n(a) x.\n' > "$tmp/hold1.md"
+  printf '## H6\n(a) Hold one. (b) Hold two. (c) Hold three.\n' > "$tmp/hold2.md"
+  e="$(eval_env holdout)"
+  runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold1.md" --holdout-keys "$tmp/hold2.md"
+  [[ $code -eq 0 && -f "$e/holdout-fails.txt" ]] || fail "run.sh holdout: exit $code: $out"
+  [[ "$(awk '$0 == "## H6" { getline; print }' "$e/keys.md")" == '(a) Hold one. (b) Hold two. (c) Hold three.' ]] || fail "run.sh holdout: keys.md has no H6 line of the file: $(cat "$e/keys.md")"
+  [[ "$(awk '$0 == "## E2" { getline; print }' "$e/keys.md")" != '(a) not used' ]] || fail 'run.sh holdout: E2 got its key from the holdout file'
+  [[ "$(awk '/^## Scenario H6/ { on = 1 } /^### Answer/ { on = 0 } on && /^- \([a-z]\) /' "$e"/grade/packet-t2-*.md | wc -l)" -eq 3 ]] || fail 'run.sh holdout: the packet of H6 does not list 3 key points'
+  e="$(eval_env holdout-none)"
+  runner "$e" HEAD HEAD E2,H6 t2
+  [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout with no file: exit $code: $out"
+  runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold1.md"
+  [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout with a file that lacks H6: exit $code: $out"
+
   # The build branch for real: a stamp keys each docs copy to its commit, and a second commit into
   # the same folder is refused (the copies would be those of the first commit).
   mkdir -p "$tmp/t/real"

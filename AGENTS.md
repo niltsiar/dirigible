@@ -26,7 +26,7 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 
 More targets are in the `Makefile`: read the comment above the recipe, or the header of its script.
 
-Run each build, test, and bench as `scripts/with-lock.sh <command>`: each `swift` command, `scripts/land.sh`, and each `make` target except `check-docs`, `check-fast`, `lint`, and `format`. `scripts/swift-test.sh`, `scripts/test-shards.sh`, `scripts/bench.sh`, `scripts/bench-pairs.sh`, and `scripts/sanitize.sh` take the lock themselves. In a probe, put it first: `scripts/with-lock.sh scripts/probe.sh <folder> <command>`. A wait over its limit exits 75 (run it again), a hold exits 124. After a second exit 75, or for a push check, a land, `make dmg`, or a loop, run `WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>` with `run_in_background` and a Bash `timeout` of 7200000; a subagent returns to the lead. Never take or remove the build lock by hand.
+Run each build, test, and bench as `scripts/with-lock.sh <command>`: each `swift` command, `scripts/land.sh`, and each `make` target except `check-docs`, `check-fast`, `lint`, and `format`. `scripts/swift-test.sh`, `scripts/test-shards.sh`, `scripts/bench.sh`, `scripts/bench-pairs.sh`, and `scripts/sanitize.sh` take the lock themselves. In a probe, put it first: `scripts/with-lock.sh scripts/probe.sh <folder> <command>`. A wait over its limit exits 75 (run it again), a hold exits 124. After a second exit 75, or for a push check, a land, `make dmg`, or a loop, run `WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh <command>` with `run_in_background`, a Bash `timeout` of 7200000, and a Monitor that waits until the call ends, re-armed at each expiry; a subagent returns to the lead. Never take or remove the build lock by hand.
 
 ## How to work
 
@@ -39,7 +39,7 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 - The `decisions.tsv` of a run is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>`, also in a subagent. With `<run folder> --from <file>`, the file has the five fields on five lines. A wrong row gets a new row that corrects it.
 - Never put recordings of real voices in git. Keep them in `.scratchpads/`.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder. Read its header first: the Swift build flags, and the app rule (never quit an app by name).
-- New sessions run bash (`.claude/settings.json`); live sessions keep zsh. In zsh, never name a variable `path` or `status`. An assignment to `path` changes `PATH`, so each later command fails with "command not found". An assignment to `status` fails with "read-only variable: status". zsh refuses a command whose unquoted glob matches no file: quote each glob (`--include='*.md'`). zsh reads a word that starts with `=` as a command path: quote the word (`echo '===='`). Run a loop from a script: `bash <file>`. macOS has no `timeout` command: use the Bash tool timeout parameter, or `run_in_background`.
+- New sessions run bash (`.claude/settings.json`); live sessions keep zsh. In zsh, never name a variable `path` (it changes `PATH`: "command not found") or `status` ("read-only variable"). zsh refuses a command whose unquoted glob matches no file: quote each glob (`--include='*.md'`). zsh reads a word that starts with `=` as a command path: quote the word (`echo '===='`). Run a loop from a script: `bash <file>`. macOS has no `timeout` command: use the Bash tool timeout parameter, or `run_in_background`.
 
 ## Git
 
@@ -71,7 +71,8 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Testing rules
 
-- Write the failing test first: every behavior change comes with a test that fails without it. The **tdd** skill has the rules for test kinds, fixtures, slow tests, and asserts.
+- Write the failing test first: every behavior change comes with a test that fails without it. The **tdd** skill has the test rules.
+- Read the exit status of the check itself, not of a pipe or a later command (`| tail`, `;`, `echo "$(...)"`).
 
 ## Keep this file true
 

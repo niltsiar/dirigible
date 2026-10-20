@@ -11,8 +11,9 @@
 #   keys.md is the Key points cells of the Scenarios table. A holdout row has its key in the first
 #   --holdout-keys file that has a "## <ID>" line, followed by one line of the key points.
 #   A row of type agent that has a quoted prompt and no task in agent-tasks.sh (E41) runs RUNS
-#   sessions of ANSWER_MODEL in a copy of set b, in <eval folder>/agent/, graded by the same
-#   grader. The runner prints its score rows; the pass rule of the row is for the caller.
+#   sessions of ANSWER_MODEL, each in a copy of set b under /private/tmp. The same grader scores
+#   them in <eval folder>/agent/. The runner prints the score rows; the pass rule of the row is
+#   for the caller.
 #   E38 runs through scripts/eval/agent-tasks.sh.
 # Env: RUNS (3), ANSWER_MODEL (sonnet), GRADER_MODEL (opus).
 # Exit: 0 verdict PASS (or the agent rows scored), 1 verdict FAIL, 2 bad input, 3 a session or a

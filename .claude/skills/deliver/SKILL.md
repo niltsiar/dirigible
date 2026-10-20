@@ -5,7 +5,7 @@ description: "Deliver one goal end to end: analyze, plan, gate, implement test-f
 
 # Deliver
 
-One run takes one goal (a requirement, a slice, or a bug) to a merged pull request on `main`. Every step writes to the ledger. Open a todo list with the phases. Do not skip a phase; a short phase still leaves its artifact.
+One run takes one goal (a requirement, a slice, or a bug) to a merged pull request on `main`. Every step writes to the run ledger. Open a todo list with the phases. Do not skip a phase; a short phase leaves its artifact.
 
 ## Autonomy rules
 

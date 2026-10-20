@@ -264,7 +264,7 @@ got="$(python3 -I "$repo/scripts/eval/agent-grade.py" "$a" | cut -f1,4 | grep . 
 # The eval runner of scripts/eval/. The run files (keys.md, labels.tsv) stay in the eval folder of
 # the run, never in the runner folder.
 eval_dir="$repo/scripts/eval"
-for f in build-copy.sh quote-check.py pointed-missing.py grade.py; do
+for f in build-copy.sh quote-check.py pointed-missing.py grade.py run.sh; do
   [[ -f "$eval_dir/$f" ]] || fail "scripts/eval/$f is missing"
 done
 for f in keys.md labels.tsv; do [[ ! -e "$eval_dir/$f" ]] || fail "scripts/eval/$f is a run file"; done
@@ -435,6 +435,209 @@ rm -f "$q/answer"/*
 python3 "$eval_dir/questions.py" "$q/evals.md" "$q/answer" E1,E2 1 > /dev/null || fail "questions.py with no template: exit $?"
 grep -qF "$q/docs-a" "$q/answer/prompt-a-1.md" 2>/dev/null && grep -qF "$q/answer/questions-a-1.txt" "$q/answer/prompt-a-1.md" \
   || fail "questions.py with no template: prompt-a-1.md does not name the copy and the questions: $(cat "$q/answer/prompt-a-1.md" 2>/dev/null)"
+# run.sh runs a whole doc eval with a fake claude first on PATH. The fake copies the probed
+# behavior of the real call: exit 1 with text on stdout for a failing call, exit 0 with no file for
+# a model that did not write, and one JSON object with --output-format json. It appends one JSON
+# line to $FAKE_LOG for each call. FAKE_MODE is exit1:<s-r>, nofile:<s-r>, or badjson:<s-r> for
+# the answer session of one set and run, or agent_error. FAKE_GRADE=FAIL makes the grader fail each
+# key point. FAKE_SLEEP=<seconds> makes each other call sleep.
+run_sh="$eval_dir/run.sh"
+fake="$tmp/fakebin"
+mkdir -p "$fake"
+cat > "$fake/claude" <<'EOF'
+#!/usr/bin/env python3
+import json, os, re, sys, time
+args = sys.argv[1:]
+prompt = args[args.index("-p") + 1]
+mode = os.environ.get("FAKE_MODE", "")
+kind = "agent" if "--output-format" in args else "grader" if "blind grader" in prompt else "answer"
+entry = {"kind": kind, "cwd": os.path.realpath(os.getcwd()), "argv": ["<prompt>" if a == prompt else a for a in args],
+         "claude_tmp": os.environ.get("CLAUDE_CODE_TMPDIR", ""), "tmp": os.environ.get("TMPDIR", "")}
+if kind == "agent":
+    entry["prompt"] = prompt
+with open(os.environ["FAKE_LOG"], "a") as f:
+    f.write(json.dumps(entry) + "\n")
+target = ""
+if kind == "answer":
+    out = re.search(r"Write your answer file to: (\S+)", prompt).group(1)
+    target = re.search(r"run-(\w-\d)\.json", out).group(1)
+hit = target != "" and mode.partition(":")[2] == target
+if os.environ.get("FAKE_SLEEP") and not hit and mode != "agent_error":
+    time.sleep(float(os.environ["FAKE_SLEEP"]))
+if kind == "answer":
+    if hit and mode.startswith("exit1"):
+        print("Error: fake failure")
+        sys.exit(1)
+    if hit and mode.startswith("nofile"):
+        print("done")
+        sys.exit(0)
+    if hit and mode.startswith("badjson"):
+        open(out, "w").write("{not json")
+        print("done")
+        sys.exit(0)
+    docs = re.search(r"read only files under it\): (\S+)", prompt).group(1)
+    questions = open(re.search(r"Questions: (\S+)", prompt).group(1)).read()
+    quote = open(docs + "/AGENTS.md").readline().strip()
+    chain = [{"path": "AGENTS.md", "from": None, "pointer": None},
+             {"path": ".claude/skills/deliver/SKILL.md", "from": None, "pointer": None}]
+    ids = re.findall(r"^([EH]\d+): ", questions, re.M)
+    json.dump({"chain": chain, "answers": [{"id": i, "steps": [{"quote": quote, "path": "AGENTS.md"}]} for i in ids]}, open(out, "w"))
+    print("2 files, %d answers" % len(ids))
+elif kind == "grader":
+    packet = re.search(r"Read only this file: (\S+)", prompt).group(1)
+    result = re.search(r"Write one JSON file to (\S+),", prompt).group(1)
+    word = os.environ.get("FAKE_GRADE", "PASS")
+    rows, keys = [], []
+    for line in open(packet):
+        if line.startswith("## Scenario"):
+            keys = []
+        m = re.match(r"- \(([a-z])\) ", line)
+        if m:
+            keys.append(m.group(1))
+        m = re.match(r"### Answer (\w+)", line)
+        if m:
+            rows += [{"label": m.group(1), "key": "(%s)" % k, "result": word, "reason": "fake"} for k in keys]
+    json.dump(rows, open(result, "w"))
+    print(len(rows))
+else:
+    here = os.path.realpath(os.getcwd())
+    if not os.path.exists("AGENTS.md") or not os.path.exists("scripts/eval/concurrency-review-snippet.txt"):
+        print(json.dumps({"is_error": True, "result": "the run folder holds no copy of the docs"}))
+        sys.exit(1)
+    if not os.path.realpath(os.environ.get("CLAUDE_CODE_TMPDIR", "/")).startswith(here + "/") \
+            or not os.path.realpath(os.environ.get("TMPDIR", "/")).startswith(here + "/"):
+        print(json.dumps({"is_error": True, "result": "the temp folders are not inside the run folder"}))
+        sys.exit(1)
+    if mode == "agent_error":
+        print(json.dumps({"type": "result", "is_error": True, "result": "fake failure"}))
+        sys.exit(1)
+    print(json.dumps({"type": "result", "is_error": False, "result": "The review flags the F_FULLFSYNC call.\nIt is file I/O on the main actor."}))
+EOF
+chmod +x "$fake/claude"
+head_commit="$(git -C "$repo" rev-parse HEAD)"
+# eval_env <name>: a new eval folder with two small doc sets and finished builds, keyed to HEAD.
+eval_env() {
+  local d="$tmp/e/$1" s
+  mkdir -p "$d/logs"
+  for s in a b; do
+    mkdir -p "$d/docs-$s/.claude/skills/deliver" "$d/docs-$s/scripts/eval"
+    printf 'Fake AGENTS.md of set %s.\nSecond line.\n' "$s" > "$d/docs-$s/AGENTS.md"
+    printf 'The deliver skill.\n' > "$d/docs-$s/.claude/skills/deliver/SKILL.md"
+    cp "$eval_dir/concurrency-review-snippet.txt" "$d/docs-$s/scripts/eval/"
+    printf 'byte check end\n' > "$d/logs/build-$s.log"
+    printf '%s\n' "$head_commit" > "$d/logs/build-$s.commit"
+  done
+  printf '%s\n' "$d"
+}
+# runner <args>: run.sh with the fake claude; sets out and code.
+runner() {
+  : > "$tmp/fake.log"
+  out="$(PATH="$fake:$PATH" FAKE_LOG="$tmp/fake.log" "$run_sh" "$@" 2>&1)"
+  code=$?
+}
+calls() { grep -c -- "$1" "$tmp/fake.log"; }
+no_fake_left() { ! pgrep -f "$fake/claude" > /dev/null; }
+if [[ ! -x "$run_sh" ]]; then
+  fail 'scripts/eval/run.sh is missing'
+else
+  e="$(eval_env e2e)"
+  runner "$e" HEAD HEAD E2,E5 t1
+  [[ $code -eq 0 && "$out" == *'verdict: PASS'* ]] || fail "run.sh end to end: exit $code: $out"
+  [[ "$(ls "$e"/answer-t1/run-*.json 2>/dev/null | wc -l)" -eq 6 && "$(ls "$e"/answer-t1/kept-*.json 2>/dev/null | wc -l)" -eq 6 ]] \
+    || fail 'run.sh end to end: not 6 answer files and 6 kept files'
+  [[ "$(wc -l < "$e/labels.tsv")" -eq 12 && "$(tail -n +2 "$e/scores.tsv" | wc -l)" -eq 12 ]] || fail 'run.sh end to end: not 12 labels and 12 scores'
+  [[ -f "$e/holdout-fails.txt" && ! -s "$e/holdout-fails.txt" ]] || fail 'run.sh end to end: holdout-fails.txt is missing or not empty'
+  # Every call has Read and Write only, no Bash; answers use sonnet, graders opus (min(4, 2) packets).
+  [[ "$(calls '"kind": "answer"')" -eq 6 && "$(calls '"kind": "grader"')" -eq 2 ]] || fail "run.sh calls: $(cat "$tmp/fake.log")"
+  [[ "$(calls '"--tools", "Read,Write", "--allowedTools", "Read", "Write"')" -eq 8 ]] || fail 'run.sh: a call has other tools than Read and Write'
+  [[ "$(calls Bash)" -eq 0 ]] || fail 'run.sh: a call names Bash'
+  [[ "$(calls '"kind": "answer".*"--model", "sonnet"')" -eq 6 && "$(calls '"kind": "grader".*"--model", "opus"')" -eq 2 ]] || fail 'run.sh: wrong models'
+  # Each session starts in a folder outside the checkout and the eval folder (the CLAUDE.md of a
+  # checkout would load), and the folder is gone at the end.
+  while IFS= read -r wd; do
+    case "$wd" in "$repo"/* | "$e"/*) fail "run.sh: a session started in $wd" ;; esac
+    [[ "$(basename "$wd")" == dirigible-eval-* && ! -e "$wd" ]] || fail "run.sh: working folder $wd is not a temporary folder that is removed"
+  done < <(python3 -I -c 'import json, sys; [print(json.loads(l)["cwd"]) for l in open(sys.argv[1])]' "$tmp/fake.log")
+  # A failing grader fails the policy scenario.
+  e="$(eval_env e2e-fail)"
+  FAKE_GRADE=FAIL runner "$e" HEAD HEAD E2,E5 t1
+  [[ $code -eq 1 && "$out" == *'verdict: FAIL'* && "$out" == *'policy E2: new 0/3: FAIL'* ]] || fail "run.sh with a failing grader: exit $code: $out"
+  # ANSWER_MODEL changes the answer calls only.
+  e="$(eval_env model)"
+  RUNS=1 ANSWER_MODEL=haiku runner "$e" HEAD HEAD E2 t1
+  [[ $code -eq 0 && "$(calls '"kind": "answer".*"--model", "haiku"')" -eq 2 && "$(calls '"kind": "grader".*"--model", "opus"')" -eq 1 ]] \
+    || fail "run.sh with ANSWER_MODEL=haiku: exit $code: $(cat "$tmp/fake.log")"
+
+  # keys.md holds each Key points cell of the table, which this test reads on its own.
+  e="$(eval_env keys)"
+  printf '## E99\nstale\n' > "$e/keys.md"
+  runner "$e" HEAD HEAD E2,E5 t1
+  for id in E2 E5; do
+    want="$(awk -F'|' -v id=" $id " '$2 == id && NF > 8 { gsub(/^ +| +$/, "", $6); print $6 }' "$repo/docs/workflow/evals.md")"
+    got="$(awk -v id="## $id" '$0 == id { getline; print }' "$e/keys.md")"
+    [[ -n "$want" && "$got" == "$want" ]] || fail "run.sh keys.md: $id is [$got], want [$want]"
+  done
+  [[ "$(grep -c '^## ' "$e/keys.md")" -eq 2 ]] || fail 'run.sh keys.md: a stale section stays'
+  [[ "$(cat "$e/answer-t1/prompt-a-1.md")" != *'Shell note'* ]] || fail 'prompt has a shell note'
+
+  # A failed session or check stops the run before grading.
+  for spec in "exit1:b-2|prompt-b-2|exit 1" "nofile:b-2|run-b-2.json|run-b-2.json" "badjson:b-2|quote check|run-b-2.json"; do
+    mode="${spec%%|*}"
+    rest="${spec#*|}"
+    e="$(eval_env "fail-${mode%%:*}")"
+    FAKE_MODE="$mode" runner "$e" HEAD HEAD E2,E5 t1
+    [[ $code -eq 3 && "$out" == *"${rest%%|*}"* && "$out" == *"${rest#*|}"* ]] || fail "run.sh $mode: exit $code, want 3 with [${rest%%|*}] and [${rest#*|}]: $out"
+    [[ ! -e "$e/scores.tsv" && "$(calls '"kind": "grader"')" -eq 0 ]] || fail "run.sh $mode: grading started"
+  done
+  # An answer folder that holds a file is refused before any session.
+  e="$(eval_env stale)"
+  mkdir -p "$e/answer-t1"
+  printf '{}\n' > "$e/answer-t1/run-b-2.json"
+  FAKE_MODE=nofile:b-2 runner "$e" HEAD HEAD E2,E5 t1
+  [[ $code -eq 2 && "$out" == *answer-t1* && ! -s "$tmp/fake.log" ]] || fail "run.sh with an answer file: exit $code: $out"
+  # No claude on PATH: exit 2 and the message names the command.
+  if PATH=/usr/bin:/bin command -v claude > /dev/null; then
+    echo 'skip: claude is in /usr/bin or /bin'
+  else
+    e="$(eval_env noclaude)"
+    out="$(PATH=/usr/bin:/bin "$run_sh" "$e" HEAD HEAD E2 t1 2>&1)"
+    code=$?
+    [[ $code -eq 2 && "$out" == *claude* ]] || fail "run.sh with no claude: exit $code: $out"
+  fi
+  # A failed session stops the sessions that still run, and a TERM stops them all.
+  e="$(eval_env killfail)"
+  SECONDS=0
+  FAKE_SLEEP=60 FAKE_MODE=exit1:b-2 runner "$e" HEAD HEAD E2 t1
+  [[ $code -eq 3 && $SECONDS -lt 40 ]] || fail "run.sh with a failed session: exit $code after $SECONDS s"
+  no_fake_left || { pkill -f "$fake/claude"; fail 'run.sh with a failed session: a session still runs'; }
+  e="$(eval_env killterm)"
+  : > "$tmp/fake.log"
+  PATH="$fake:$PATH" FAKE_LOG="$tmp/fake.log" FAKE_SLEEP=60 "$run_sh" "$e" HEAD HEAD E2 t1 > /dev/null 2>&1 &
+  pid=$!
+  for _ in $(seq 100); do [[ "$(calls '"kind": "answer"')" -eq 6 ]] && break; sleep 0.2; done
+  kill -TERM "$pid"
+  wait "$pid"
+  no_fake_left || { pkill -f "$fake/claude"; fail 'run.sh after TERM: a session still runs'; }
+
+  # The build branch for real: a stamp keys each docs copy to its commit, and a second commit into
+  # the same folder is refused (the copies would be those of the first commit).
+  mkdir -p "$tmp/t/real"
+  e="$tmp/t/real/eval"
+  TMPDIR="$tmp/t" runner "$e" HEAD HEAD E2 t1
+  [[ $code -eq 0 && "$(cat "$e/logs/build-a.commit" "$e/logs/build-b.commit" 2>/dev/null | sort -u)" == "$head_commit" ]] \
+    || fail "run.sh build: exit $code, stamp [$(cat "$e"/logs/build-*.commit 2>/dev/null)]: $out"
+  other="$(git -C "$repo" rev-parse HEAD~1 2>/dev/null || true)"
+  if [[ -n "$other" ]]; then
+    TMPDIR="$tmp/t" runner "$e" HEAD~1 HEAD~1 E2 t2
+    [[ $code -eq 2 && "$out" == *"$e/docs-a"* && "$out" == *"$other"* ]] || fail "run.sh build with another commit: exit $code: $out"
+  fi
+fi
+# prompt-template.md offers no shell: no mv and no shell note, and a line names the tools.
+[[ "$(grep -cw -e mv -e 'Shell note' "$eval_dir/prompt-template.md")" -eq 0 ]] || fail 'prompt-template.md offers a shell'
+grep -qF 'Your tools are Read and Write. You have no shell.' "$eval_dir/prompt-template.md" || fail 'prompt-template.md does not name the tools'
+# No local path in the runner or in this test (the patterns are split so this file does not hold them).
+[[ "$(grep -cE -e '/Use''rs/' -e '\.scratchpads/ru''ns' "$run_sh" "$repo/scripts/evals-for.test.sh" 2>/dev/null | awk -F: '{ n += $2 } END { print n + 0 }')" -eq 0 ]] \
+  || fail 'the runner or its test holds a local path'
 
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"
 exit $((failures > 0))

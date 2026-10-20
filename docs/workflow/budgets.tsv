@@ -20,7 +20,7 @@ path	words	decision
 .claude/skills/bro/	41	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/bro/SKILL.md	41	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/deliver/	4230	2026-10-15-release-cycle S7 (decisions.tsv 2026-10-15T11:19: goal pointer and Phase 9 sentence, row = ceil(wc -w x 1.01))
-.claude/skills/deliver/SKILL.md	2230	2026-10-20-yesyak-upkeep-2 fix check sibling (row = ceil(wc -w x 1.01))
+.claude/skills/deliver/SKILL.md	2230	2026-10-20-yesyak-upkeep-2 S1 (decisions.tsv 2026-10-20T14:25: the fix check clause of Phase 7, row = ceil(wc -w x 1.01))
 .claude/skills/deliver/references/long-runs.md	305	2026-10-20-yesyak-upkeep-2 fix check sibling (row = ceil(wc -w x 1.01))
 .claude/skills/deliver/references/mutation-controls.md	1117	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/deliver/references/performance-criteria.md	602	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))

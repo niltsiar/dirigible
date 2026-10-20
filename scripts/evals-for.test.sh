@@ -408,6 +408,21 @@ grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: 
 { sc t E23 policy old 0 3; sc t E1 retention old 3 3; sc t E1 retention new 3 3; } > "$tmp/rows"
 verdict_case policy-no-new-run 2
 [[ "$out" != *'verdict: PASS'* ]] || fail "verdict policy-no-new-run: [$out]"
+# A key point that is in the missing column of each row of a scenario, in both sets, is out of
+# reach: no answer holds it. The line does not change the exit status. scm <tag> <scenario> <type>
+# <set> <runs> <missing> prints failing rows with one missing cell.
+scm() {
+  local i
+  for ((i = 1; i <= $5; i++)); do printf '%s\t%s\t%s\t%s\t%s\tFAIL\t%s\n' "$1" "$2" "$3" "$4" "$i" "$6"; done
+}
+{ scm t E8 policy old 3 c,d; scm t E8 policy new 2 c,d; scm t E8 policy new 1 d; } > "$tmp/rows"
+verdict_case out-of-reach 1 'out of reach E8 (d)' 'policy E8: new 0/3: FAIL' 'verdict: FAIL'
+grep -qF 'out of reach E8 (c)' <<<"$out" && fail "verdict out-of-reach: a key that one answer holds is out of reach: [$out]"
+{ scm t E8 policy old 3 c,d; scm t E8 policy new 2 c,d; scm t E8 policy new 1 c; } > "$tmp/rows"
+verdict_case out-of-reach-held 1 'out of reach E8 (c)' 'verdict: FAIL'
+grep -qF 'out of reach E8 (d)' <<<"$out" && fail "verdict out-of-reach-held: a key that one new answer holds is out of reach: [$out]"
+{ sc t E23 policy old 0 3; sc t E23 policy new 3 3; } > "$tmp/rows"; verdict_case reach-all 0 'verdict: PASS'
+grep -qF 'out of reach' <<<"$out" && fail "verdict reach-all: an out of reach line with no missing key: [$out]"
 
 # questions.py: run r of set a and of set b ask the same questions in the same order, and run 1
 # and run 2 differ. The prompt of each set and run fills the template; with no template argument,

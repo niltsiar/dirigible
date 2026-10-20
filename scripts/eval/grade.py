@@ -26,7 +26,9 @@ verdict: grade.py verdict <eval> <old set> <new set>
   in no other line), the retention sum (it fails only when old minus new is over the bound
   2 x sqrt(sum of k x p x (1 - p)) of the live retention scenarios, with k the runs of both
   sets and p the pooled pass rate), below <id> (not due under 6 runs in a set),
-  and policy <id>. A fail of holdouts only (a below fail of an H, or a sum fail that the sum
+  policy <id>, and out of reach <id> (<key>) after the lines of a scenario (a key point in the
+  missing column of each row of both sets: no answer holds it; it changes no exit status).
+  A fail of holdouts only (a below fail of an H, or a sum fail that the sum
   with no H does not have) prints holdout fail <H>: no changed text, once for each H, and does
   not fail the verdict, and the same lines go to <eval>/holdout-fails.txt (empty for none; each
   verdict replaces it). The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
@@ -159,10 +161,12 @@ def verdict(old, new):
         if sets.get(old, set()) != sets.get(new, set()):
             print(f"grade.py: tag {tag} holds other scenarios in set {old} than in set {new}", file=sys.stderr)
             sys.exit(2)
-    passes, runs, typ = {}, {}, {}
-    for _, sid, t, set_name, _, result, _ in rows:
+    passes, runs, typ, out_of_reach = {}, {}, {}, {}
+    for _, sid, t, set_name, _, result, missing in rows:
         if set_name in (old, new):
             typ[sid] = t
+            keys_missing = set(missing.split(",")) - {""}
+            out_of_reach[sid] = out_of_reach[sid] & keys_missing if sid in out_of_reach else keys_missing
             runs[(sid, set_name)] = runs.get((sid, set_name), 0) + 1
             passes[(sid, set_name)] = passes.get((sid, set_name), 0) + (result == "PASS")
     ok = True
@@ -202,6 +206,8 @@ def verdict(old, new):
         if typ[s] == "policy":
             ok &= 3 * pn >= 2 * rn
             print(f"policy {s}: new {pn}/{rn}: {word[3 * pn >= 2 * rn]}")
+        for key in sorted(out_of_reach[s]):
+            print(f"out of reach {s} ({key})")
     fails = [f"holdout fail {s}: no changed text" for s in dict.fromkeys(held)]
     for line in fails:
         print(line)

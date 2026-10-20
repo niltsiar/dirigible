@@ -32,7 +32,8 @@ trap cleanup EXIT
 # One call at a time in an eval folder (the lock .run-lock holds the pid). A verdict comes only when
 # each requested ID has RUNS scored rows in both sets.
 # Exit: 0 verdict PASS (or the agent rows scored), 1 verdict FAIL, 2 bad input, 3 a session or a
-# check failed. A failed session stops the sessions that still run. An INT or TERM stops them all.
+# check failed. A failed session stops the sessions that still run. An INT stops them all and
+# exits 130, a TERM exits 143.
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd -P)"
@@ -86,12 +87,14 @@ for i in ids:
     print("\x1f".join([i, *rows[i]]))
 ' "$evals_md" "${pos[3]}")" || die 2 "${pos[3]}: see above"
 
+has_key_point() { [[ $1 =~ (^|[[:space:]])\(a\)\  ]]; }
 doc_ids=() doc_keys=() agent_id="" agent_key="" agent_prompt=""
 while IFS=$'\037' read -r id type key prompt; do
     if [[ $type == agent ]]; then
         [[ -n $prompt ]] || die 2 "$id has no quoted prompt in its question; scripts/eval/agent-tasks.sh runs it"
         [[ -z $agent_id ]] || die 2 "one agent row for each call; $agent_id and $id"
         agent_id="$id" agent_key="$key" agent_prompt="$prompt"
+        has_key_point "$key" || die 2 "the key of $id has no key point \"(a) \""
     elif [[ $key == *'(holdout)'* ]]; then
         found=""
         for f in ${holdout_files[@]+"${holdout_files[@]}"}; do
@@ -99,8 +102,10 @@ while IFS=$'\037' read -r id type key prompt; do
             if [[ -n $line ]]; then found="$line"; break; fi
         done
         [[ -n $found ]] || die 2 "$id is a holdout with no key; give a --holdout-keys file that has \"## $id\""
+        has_key_point "$found" || die 2 "the key of $id has no key point \"(a) \""
         doc_ids+=("$id") doc_keys+=("$found")
     else
+        has_key_point "$key" || die 2 "the key of $id has no key point \"(a) \""
         doc_ids+=("$id") doc_keys+=("$key")
     fi
 done <<<"$table"

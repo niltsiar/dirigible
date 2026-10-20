@@ -716,6 +716,9 @@ for line in open(sys.argv[1]):
   for _ in $(seq 100); do [[ "$(calls '"kind": "answer"')" -eq 6 ]] && break; sleep 0.2; done
   kill -TERM "$pid"
   wait "$pid"
+  term_code=$?
+  [[ $term_code -eq 143 ]] || fail "run.sh after TERM: exit $term_code, want 143"
+  sed -n '/^# Exit:/,/^set /p' "$real_run_sh" | grep -q 130 && sed -n '/^# Exit:/,/^set /p' "$real_run_sh" | grep -q 143 || fail 'the Exit line of run.sh does not name 130 and 143'
   no_fake_left || { pkill -f "$fake/claude"; fail 'run.sh after TERM: a session still runs'; }
 
   # A holdout key comes from a --holdout-keys file (the table holds none). Without the file, the
@@ -733,6 +736,12 @@ for line in open(sys.argv[1]):
   [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout with no file: exit $code: $out"
   runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold1.md"
   [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout with a file that lacks H6: exit $code: $out"
+
+  # A key with no key point "(a) " exits 2 before any session: every answer would pass.
+  printf '## H6\nHold one. Hold two.\n' > "$tmp/hold3.md"
+  e="$(eval_env holdout-nokey)"
+  runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold3.md"
+  [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout key with no key point: exit $code: $out"
 
   # An agent row with a quoted prompt and no task in agent-tasks.sh (E41) runs RUNS sessions in a
   # copy of set b, inside probe.sh, with the temp folders in the run folder, and is scored in

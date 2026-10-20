@@ -635,6 +635,37 @@ else
   runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold1.md"
   [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout with a file that lacks H6: exit $code: $out"
 
+  # An agent row with a quoted prompt and no task in agent-tasks.sh (E41) runs RUNS sessions in a
+  # copy of set b, inside probe.sh, with the temp folders in the run folder, and is scored in
+  # agent/ only. E38 has no prompt: it runs through agent-tasks.sh.
+  e="$(eval_env agent)"
+  runner "$e" HEAD HEAD E41 t3
+  want="$(awk -F'|' '$2 == " E41 " && NF > 8 { print $5 }' "$repo/docs/workflow/evals.md" | sed -n 's/.*with the prompt: "\([^"]*\)".*/\1/p')"
+  [[ $code -eq 0 && "$(calls '"kind": "agent"')" -eq 3 && "$(calls '"kind": "answer"')" -eq 0 ]] || fail "run.sh agent row: exit $code: $out"
+  [[ -n "$want" && "$(python3 -I -c 'import json, sys
+want = sys.argv[1]
+for line in open(sys.argv[2]):
+    e = json.loads(line)
+    if e["kind"] != "agent":
+        continue
+    a = e["argv"]
+    ok = e["prompt"] == want and a[a.index("--tools") + 1:a.index("--tools") + 2] == ["Skill,Read"] \
+        and a[a.index("--allowedTools") + 1:a.index("--allowedTools") + 3] == ["Skill", "Read"] \
+        and a[a.index("--output-format") + 1] == "json" and a[a.index("--model") + 1] == "sonnet" \
+        and e["claude_tmp"].startswith(e["cwd"] + "/") and e["tmp"].startswith(e["cwd"] + "/") \
+        and e["cwd"].split("/")[-1].startswith("dirigible-eval-agent-")
+    print("ok" if ok else "bad " + line)' "$want" "$tmp/fake.log" | sort | uniq -c)" == '   3 ok' ]] || fail "run.sh agent row: a call has other arguments than the row says: $(cat "$tmp/fake.log")"
+  [[ "$(tail -n +2 "$e/agent/scores.tsv" 2>/dev/null | cut -f2 | uniq -c)" == '   3 E41' && "$(grep -c '^t3	E41' <<<"$out")" -eq 3 ]] || fail "run.sh agent row: not 3 score rows of E41: $out"
+  [[ ! -e "$e/scores.tsv" ]] || fail 'run.sh agent row: the doc scores.tsv exists'
+  ! grep -qE 'of [0-9]+ runs|In each run' "$e/agent/keys.md" || fail "run.sh agent row: agent/keys.md holds a run count: $(cat "$e/agent/keys.md")"
+  while IFS= read -r wd; do [[ ! -e "$wd" ]] || fail "run.sh agent row: run folder $wd is not removed"; done < <(python3 -I -c 'import json, sys; [print(json.loads(l)["cwd"]) for l in open(sys.argv[1])]' "$tmp/fake.log")
+  e="$(eval_env agent-error)"
+  FAKE_MODE=agent_error runner "$e" HEAD HEAD E41 t3
+  [[ $code -eq 3 && "$out" == *E41-* ]] || fail "run.sh agent row with is_error: exit $code: $out"
+  e="$(eval_env agent-e38)"
+  runner "$e" HEAD HEAD E38 t3
+  [[ $code -eq 2 && "$out" == *agent-tasks.sh* && ! -s "$tmp/fake.log" ]] || fail "run.sh E38: exit $code: $out"
+
   # The build branch for real: a stamp keys each docs copy to its commit, and a second commit into
   # the same folder is refused (the copies would be those of the first commit).
   mkdir -p "$tmp/t/real"

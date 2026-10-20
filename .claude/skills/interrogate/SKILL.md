@@ -41,7 +41,7 @@ A `risk: yes` code gate with a non-docs, non-comments class also calls the `code
 
 Take `maxRounds` from the **deliver** class table. Pass the plan `risk` at a plan gate, and at a code gate the higher of it and the `risk:` line of `scripts/check-changed.sh origin/main`. An error for an empty lens selection, or a diff with no changed file, is not a clean review: correct the arguments (a branch in a worktree needs `worktree`).
 
-Pass `round`. From round 2, pass the earlier verdict files of this gate in `prior`; round 1 gets none.
+Pass `round`. Round 1 gets no `prior`; later rounds pass the earlier verdicts of this gate.
 
 The Workflow tool caches saved workflows at session start: after a change to `.claude/workflows/review-panel.js` in this session or on the branch, pass `scriptPath` with its absolute path in the tree under review, instead of `name`.
 

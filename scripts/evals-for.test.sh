@@ -456,7 +456,39 @@ grep -qF "$q/docs-a" "$q/answer/prompt-a-1.md" 2>/dev/null && grep -qF "$q/answe
 # line to $FAKE_LOG for each call. FAKE_MODE is exit1:<s-r>, nofile:<s-r>, or badjson:<s-r> for
 # the answer session of one set and run, or agent_error. FAKE_GRADE=FAIL makes the grader fail each
 # key point. FAKE_SLEEP=<seconds> makes each other call sleep.
-run_sh="$eval_dir/run.sh"
+real_run_sh="$eval_dir/run.sh"
+# The runner works in a small repo of its own: make test-hooks runs this test in a tree with no
+# docs/ folder, and the cases need Scenarios rows with known keys.
+rt="$tmp/rt"
+mkdir -p "$rt/scripts" "$rt/docs/workflow" "$rt/docs/decisions" "$rt/docs/requirements" "$rt/docs/research" "$rt/docs/images" \
+  "$rt/.claude/skills/deliver" "$rt/Support/Resources" "$rt/Tests/DirigibleTests"
+cp -R "$eval_dir" "$rt/scripts/eval"
+cp "$repo/scripts/probe.sh" "$rt/scripts/"
+for f in AGENTS.md CLAUDE.md README.md Package.swift docs/principles.md docs/guide.md docs/decisions/0001.md docs/requirements/brief.md \
+  docs/research/x.md docs/images/x.txt .claude/skills/deliver/SKILL.md Support/Info.plist Support/Resources/x.txt \
+  Tests/DirigibleTests/AppBundleTests.swift Tests/DirigibleTests/DiskImageTests.swift; do
+  printf 'Text of %s.\n' "$f" > "$rt/$f"
+done
+cat > "$rt/docs/workflow/evals.md" <<'EOT'
+# Evals
+
+## Scenarios
+
+| ID | Type | Source | Question | Key points | Files | Old | New |
+|---|---|---|---|---|---|---|---|
+| E2 | policy | s | You change one skill. Which check runs before the commit? | (a) Only the hooks run. (b) Only the push check runs the full suite. (c) Before the push, check-changed picks check-docs. | `AGENTS.md` | - | - |
+| E5 | retention | s | A test fails once. What do you do? | (a) Run the flake triage. (b) Rerun it 15 times. | `AGENTS.md` | 1 of 3 | 2 of 3 |
+| H6 | retention | s | Where does a probe run? | In the run folder (holdout). | `AGENTS.md` | 3 of 3 | 3 of 3 |
+| E38 | agent | s | `scripts/eval/agent-tasks.sh` runs tasks T1 to T10. | (a) MCP only: T3 passes. | `AGENTS.md` | - | - |
+| E41 | agent | s | A headless agent runs in a copy of this repo, with the prompt: "Use the skill. Review `scripts/eval/concurrency-review-snippet.txt` for mistakes." Three runs. | (a) In at least 2 of 3 runs, the review flags the file I/O. (b) In each run, the review does not propose an actor. | `AGENTS.md` | - | - |
+EOT
+git -C "$rt" init -q -b main
+g_rt() { git -C "$rt" -c user.name=t -c user.email=t@t -c commit.gpgsign=false "$@"; }
+g_rt add -A
+g_rt commit -q -m one
+printf 'More text.\n' >> "$rt/AGENTS.md"
+g_rt commit -q -am two
+run_sh="$rt/scripts/eval/run.sh"
 fake="$tmp/fakebin"
 mkdir -p "$fake"
 cat > "$fake/claude" <<'EOF'
@@ -529,7 +561,7 @@ else:
     print(json.dumps({"type": "result", "is_error": False, "result": "The review flags the F_FULLFSYNC call.\nIt is file I/O on the main actor."}))
 EOF
 chmod +x "$fake/claude"
-head_commit="$(git -C "$repo" rev-parse HEAD)"
+head_commit="$(git -C "$rt" rev-parse HEAD)"
 # eval_env <name>: a new eval folder with two small doc sets and finished builds, keyed to HEAD.
 eval_env() {
   local d="$tmp/e/$1" s
@@ -552,7 +584,7 @@ runner() {
 }
 calls() { grep -c -- "$1" "$tmp/fake.log"; }
 no_fake_left() { ! pgrep -f "$fake/claude" > /dev/null; }
-if [[ ! -x "$run_sh" ]]; then
+if [[ ! -x "$real_run_sh" ]]; then
   fail 'scripts/eval/run.sh is missing'
 else
   e="$(eval_env e2e)"
@@ -570,7 +602,7 @@ else
   # Each session starts in a folder outside the checkout and the eval folder (the CLAUDE.md of a
   # checkout would load), and the folder is gone at the end.
   while IFS= read -r wd; do
-    case "$wd" in "$repo"/* | "$e"/*) fail "run.sh: a session started in $wd" ;; esac
+    case "$wd" in "$repo"/* | "$rt"/* | "$e"/*) fail "run.sh: a session started in $wd" ;; esac
     [[ "$(basename "$wd")" == dirigible-eval-* && ! -e "$wd" ]] || fail "run.sh: working folder $wd is not a temporary folder that is removed"
   done < <(python3 -I -c 'import json, sys; [print(json.loads(l)["cwd"]) for l in open(sys.argv[1])]' "$tmp/fake.log")
   # A failing grader fails the policy scenario.
@@ -588,7 +620,7 @@ else
   printf '## E99\nstale\n' > "$e/keys.md"
   runner "$e" HEAD HEAD E2,E5 t1
   for id in E2 E5; do
-    want="$(awk -F'|' -v id=" $id " '$2 == id && NF > 8 { gsub(/^ +| +$/, "", $6); print $6 }' "$repo/docs/workflow/evals.md")"
+    want="$(awk -F'|' -v id=" $id " '$2 == id && NF > 8 { gsub(/^ +| +$/, "", $6); print $6 }' "$rt/docs/workflow/evals.md")"
     got="$(awk -v id="## $id" '$0 == id { getline; print }' "$e/keys.md")"
     [[ -n "$want" && "$got" == "$want" ]] || fail "run.sh keys.md: $id is [$got], want [$want]"
   done
@@ -655,7 +687,7 @@ else
   # agent/ only. E38 has no prompt: it runs through agent-tasks.sh.
   e="$(eval_env agent)"
   runner "$e" HEAD HEAD E41 t3
-  want="$(awk -F'|' '$2 == " E41 " && NF > 8 { print $5 }' "$repo/docs/workflow/evals.md" | sed -n 's/.*with the prompt: "\([^"]*\)".*/\1/p')"
+  want="$(awk -F'|' '$2 == " E41 " && NF > 8 { print $5 }' "$rt/docs/workflow/evals.md" | sed -n 's/.*with the prompt: "\([^"]*\)".*/\1/p')"
   [[ $code -eq 0 && "$(calls '"kind": "agent"')" -eq 3 && "$(calls '"kind": "answer"')" -eq 0 ]] || fail "run.sh agent row: exit $code: $out"
   [[ -n "$want" && "$(python3 -I -c 'import json, sys
 want = sys.argv[1]
@@ -688,7 +720,7 @@ for line in open(sys.argv[2]):
   TMPDIR="$tmp/t" runner "$e" HEAD HEAD E2 t1
   [[ $code -eq 0 && "$(cat "$e/logs/build-a.commit" "$e/logs/build-b.commit" 2>/dev/null | sort -u)" == "$head_commit" ]] \
     || fail "run.sh build: exit $code, stamp [$(cat "$e"/logs/build-*.commit 2>/dev/null)]: $out"
-  other="$(git -C "$repo" rev-parse HEAD~1 2>/dev/null || true)"
+  other="$(git -C "$rt" rev-parse HEAD~1 2>/dev/null || true)"
   if [[ -n "$other" ]]; then
     TMPDIR="$tmp/t" runner "$e" HEAD~1 HEAD~1 E2 t2
     [[ $code -eq 2 && "$out" == *"$e/docs-a"* && "$out" == *"$other"* ]] || fail "run.sh build with another commit: exit $code: $out"
@@ -698,7 +730,7 @@ fi
 [[ "$(grep -cw -e mv -e 'Shell note' "$eval_dir/prompt-template.md")" -eq 0 ]] || fail 'prompt-template.md offers a shell'
 grep -qF 'Your tools are Read and Write. You have no shell.' "$eval_dir/prompt-template.md" || fail 'prompt-template.md does not name the tools'
 # No local path in the runner or in this test (the patterns are split so this file does not hold them).
-[[ "$(grep -cE -e '/Use''rs/' -e '\.scratchpads/ru''ns' "$run_sh" "$repo/scripts/evals-for.test.sh" 2>/dev/null | awk -F: '{ n += $2 } END { print n + 0 }')" -eq 0 ]] \
+[[ "$(grep -cE -e '/Use''rs/' -e '\.scratchpads/ru''ns' "$real_run_sh" "$repo/scripts/evals-for.test.sh" 2>/dev/null | awk -F: '{ n += $2 } END { print n + 0 }')" -eq 0 ]] \
   || fail 'the runner or its test holds a local path'
 
 [[ $failures -eq 0 ]] && echo "evals-for tests: all passed"

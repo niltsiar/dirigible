@@ -788,6 +788,12 @@ for line in open(sys.argv[2]):
     [[ $code -eq 2 && "$out" == *"$e/docs-a"* && "$out" == *"$other"* ]] || fail "run.sh build with another commit: exit $code: $out"
   fi
 fi
+# A skill that tells an agent to run the scenarios of evals-for.sh --quoted names the runner too.
+for f in "$repo"/.claude/skills/*/SKILL.md; do
+  if grep -qF 'scripts/evals-for.sh --quoted' "$f" && ! grep -qF 'scripts/eval/run.sh' "$f"; then
+    fail "${f#"$repo"/} runs the evals of evals-for.sh --quoted and does not name scripts/eval/run.sh"
+  fi
+done
 # prompt-template.md offers no shell: no mv and no shell note, and a line names the tools.
 [[ "$(grep -cw -e mv -e 'Shell note' "$eval_dir/prompt-template.md")" -eq 0 ]] || fail 'prompt-template.md offers a shell'
 grep -qF 'Your tools are Read and Write. You have no shell.' "$eval_dir/prompt-template.md" || fail 'prompt-template.md does not name the tools'

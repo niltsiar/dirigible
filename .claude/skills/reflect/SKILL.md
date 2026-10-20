@@ -18,7 +18,7 @@ Each learning gets a cause key `<ID>/<class>`, by step 1 of `references/synthesi
 5. The lens panel reviews the diff of an upkeep run once, before the merge.
 6. The next run is a workflow upkeep run (deliver) when `## Next` has 8 or more upkeep items (it applies them all), or when an item has its third occurrence or cost a rerun or an idle hour (that item first, before any product item). When `new-run.sh` prints `consolidation due`, the next run is a workflow upkeep run that trims the docs until `TOTAL` is at `QUOTA` (decision 0028).
 7. A reflect run or an upkeep run removes at most one rule. A duplicate line gets a `merge` row whose target is the kept ID. A stale or no-op line gets a `delete` row whose reason gives the evidence. Skip it when no line qualifies. This is the only removal rule; other docs point here.
-8. An upkeep run runs once, for the batch, each scenario that `scripts/evals-for.sh --quoted <base>` prints, before and after the change. A scenario that passed before the change and fails after it reverts its change, unless it is a holdout. A changed file with no scenario gets one first, or the commit body says why none applies.
+8. An upkeep run runs `scripts/eval/run.sh` (in the background, AGENTS.md, Commands) for each ID that `scripts/evals-for.sh --quoted <base>` prints, before and after the change. A scenario that passed before the change and fails after it reverts its change, unless it is a holdout. A changed file with no scenario gets one first, or the commit body says why none applies.
 
 ## Process
 
@@ -42,7 +42,7 @@ Make one `Agent` call (`general-purpose`, `opus`). Pass `references/judgment-rev
 - Append each Seen once item to `learnings.md` by rule 1.
 - Append each Accepted item to `## Next` as an upkeep item by rule 2. An item that weakens a test gate goes to `## Next` for the user, not as an upkeep item.
 - Append each Backlog item to `.scratchpads/backlog.md`, in the section that the synthesizer names.
-- Log one `decisions.tsv` row (phase 8) with the counts. Make no commit.
+- Log one `decisions.tsv` row (phase 8) with the counts.
 
 ### 4. Workflow upkeep run
 

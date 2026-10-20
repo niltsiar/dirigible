@@ -34,8 +34,8 @@ path	words	decision
 .claude/skills/interrogate/	4390	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/interrogate/SKILL.md	1065	2026-10-20-yesyak-ideas S5 (decisions.tsv 2026-10-20T11:11: user-approved yesyak items, row +29; row = ceil(wc -w x 1.01))
 .claude/skills/interrogate/references/code-quality-review.md	740	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
-.claude/skills/interrogate/references/lead-judgment.md	1000	2026-10-11-upkeep-batch-10 code gate 1 (decisions.tsv 2026-10-11T08:01: the merged relaxes-or-adds-a-state sentence, 994 words)
-.claude/skills/interrogate/references/reviewer-prompt.md	590	2026-09-30-workflow-consolidation A6 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10)
+.claude/skills/interrogate/references/lead-judgment.md	982	2026-10-20-yesyak-upkeep-2 code gate 1 item 7 (decisions.tsv 2026-10-20T15:11: run 1 cut the file, row = ceil(wc -w x 1.01))
+.claude/skills/interrogate/references/reviewer-prompt.md	507	2026-10-20-yesyak-upkeep-2 code gate 1 item 7 (decisions.tsv 2026-10-20T15:11: run 1 cut the file, row = ceil(wc -w x 1.01))
 .claude/skills/interrogate/references/rubric.md	930	2026-09-30-workflow-consolidation slice 11 (decisions.tsv 2026-10-01T02:43: row = wc -w x 1.1, up to the next 10, never above the old row)
 .claude/skills/pr/	741	2026-10-02-readable-pr-text slice 4 (decisions.tsv 2026-10-02T02:51: lowered to the sum of its two rows)
 .claude/skills/pr/CREDITS.md	71	baseline

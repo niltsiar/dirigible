@@ -24,6 +24,4 @@ Output: write one JSON file to the output path, with this shape, and nothing els
 
 The chain lists each file that you read, in the order that you read it. Paths are relative to the copy folder. Make sure the file is valid JSON (escape each double quote and backslash inside a string). Then reply with one line: the count of chain files and the count of answers.
 
-Shell note: run no shell command except the `mv` below. Do not run make, swift, git, or any test.
-Tool note: write the JSON file with the Write tool, not with a shell heredoc.
-If the Write tool refuses the .json path, write `run-{S}-{R}.txt` in the same folder, then `mv` it to `run-{S}-{R}.json`.
+Your tools are Read and Write. You have no shell. Write the JSON file with the Write tool.

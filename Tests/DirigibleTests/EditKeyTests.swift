@@ -218,6 +218,8 @@ import Testing
     /// ";" is Shift-comma and "'" is the key right of 0. On screen, the automatic key localization
     /// moves a punctuation key, so each item keeps the typed character.
     @Test func theGainPointKeysReachTheirItemsOnTheUSAndTheSpanishLayouts() {
+        // A menu item sends its action through NSApp, and NSApp stays nil until something makes it.
+        _ = NSApplication.shared
         let menu = NSMenu()
         var fired: [String] = []
         final class Target: NSObject {

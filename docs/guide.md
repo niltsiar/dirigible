@@ -310,7 +310,7 @@ A text that is not a number gives a beep, and the field shows the old value. Eac
 The mouse is not the only way to reach the gain points. These steps work with the keyboard and with VoiceOver. They act on the clips of the selected tracks, at the playhead.
 
 - **Edit > Add Gain Point** (Option-K) adds a gain point at the playhead on each of these clips. The point has the gain that the clip has there, so the sound does not change. With no selected track, with the playhead outside every clip, or with a point at the playhead already, you hear a beep.
-- **Transport > Previous Gain Point** (Option-;) and **Transport > Next Gain Point** (Option-') move the playhead to the nearest point before or after it. With no point there, you hear a beep. These keys work when the cursor is in a text field.
+- **Transport > Previous Gain Point** (Option-;) and **Transport > Next Gain Point** (Option-') move the playhead to the nearest point before or after it. With no point there, you hear a beep. When the cursor is in a text field, the field gets these keys and types their character.
 - The inspector field **Gain at Playhead**, under **Fade Out**, shows the gain of the points at the playhead in dB, on top of the clip gain. With clips that have different values, it shows "Mixed". Type a value and press Return to set a point there, from -60 to +20 dB, in steps of 0.1 dB. The field is off when no clip of the selected tracks plays the playhead.
 
 Each add and each typed value is one step in the undo history, and VoiceOver says what changed, for example "Gain point added: -8.0 dB". Move to a point with the keys, and VoiceOver says its gain.

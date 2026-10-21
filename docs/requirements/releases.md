@@ -163,7 +163,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 13. **Timeline clarity (F153, F154, F155, F156).** The record-over warning is a chip over the track headers. Each cut between two clips has a join, and the playhead is neutral with a head on the ruler. A drag on the ruler makes a range, and a click on a clip selects the clip as a set of clips. Each clip has a bar with its name. Three landings. Run: `2026-10-16-timeline-clarity` L1 to L3.
 14. **Agent pack (F122, F157 to F161).** An import shapes its clip in one call, and an import of the same audio reuses the WAV. `session_info` has a compact form. Chapters export as a text list and import from a Podcasting 2.0 file, and Heal joins touching pieces of one file. Run: `2026-10-17-agent-pack` L1.
 15. **Diagnostics (F162).** A journal file for each launch, a main-thread hang watchdog with stacks, and one redacted report file that the user saves from the Help menu and sends by hand. Run: `2026-10-16-diagnostics`.
-16. **Gain envelope (F75, moved from Release 7).** Gain points on each clip and range gains with ramps, in playback, export, `session.xml` version 10, the `dirigible` CLI, and the MCP tools. The app does not draw the curve yet. Run: `2026-10-18-envelope-ducking` landing 1.
+16. **Gain envelope (F75, moved from Release 7).** Gain points on each clip and range gains with ramps, in playback, export, `session.xml` version 10, the `dirigible` CLI, and the MCP tools. The app draws the curve, and the user edits the points with the mouse, the keyboard, and the inspector. Run: `2026-10-18-envelope-ducking` landings 1 and 2.
 
 ## Release 5: edit by text
 

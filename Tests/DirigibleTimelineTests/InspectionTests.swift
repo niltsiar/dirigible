@@ -183,6 +183,25 @@ struct InspectionTests {
         #expect(pointGain(119_500, ["t1", "t2"])?.gain == .mixed, "two clips with two values")
     }
 
+    /// With many clips on a track, the field has the one clip under the playhead, also at the edges
+    /// of a clip and in a gap: a clip plays `start ..< end`.
+    @Test mutating func theFieldHasTheOneClipAtThePlayheadAmongManyClips() throws {
+        try session.addTrack("t4", name: "T4", layout: .mono)
+        for index in 0..<200 {
+            try session.place(
+                Clip(
+                    id: ClipID(stringLiteral: "m\(index)"), file: "fa", start: Frames(index * 2_000), offset: 0,
+                    length: 1_000), on: "t4")
+        }
+        try envelope("m150", [(300_500, -9)])
+        let point = try #require(pointGain(300_500, ["t4"]))
+        #expect(point.clips == ["m150"] && point.gain == .value(-9) && point.frame == 300_500)
+        #expect(pointGain(300_000, ["t4"])?.clips == ["m150"], "the start of a clip plays")
+        #expect(pointGain(301_000, ["t4"]) == nil, "the end of a clip does not play: a gap follows")
+        #expect(pointGain(299_999, ["t4"]) == nil, "the gap before the clip")
+        #expect(pointGain(300_500, ["t1", "t4"])?.clips == ["m150"], "t1 has no clip there")
+    }
+
     /// A typed value is 0.1 dB to nearest, from -60 to +20 dB, and sets one point on each clip that
     /// changes; a point at that frame is replaced.
     @Test mutating func aTypedValueSetsAPointAtThePlayhead() throws {

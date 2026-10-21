@@ -18,7 +18,7 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 | `make test` | All tests except `AppBundleTests` and `DiskImageTests`, in shards after one build. Only the push check runs it; a bare call refuses unless `DIRIGIBLE_FULL_SUITE=1`. A slice runs `make check-changed FILTER=...`. A bare `swift test` fails these two. |
 | `make lint` | `swift format lint --strict`. |
 | `make format` | Formats the Swift files in place. |
-| `make check-docs` | Checks the docs, this table, the links, and the word budgets of `docs/workflow/budgets.tsv`. |
+| `make check-docs` | Checks the docs, this table, and the links. |
 | `make check-fast` | `make check` with no Swift test. |
 | `make check-changed` | Runs the targets that `scripts/check-changed.sh` picks for the changed paths (decision 0028): a docs-only change gets `check-docs`. `BASE=<ref>` gives the targets before the push. `FILTER='<name> <name>'` runs `test-filter` in place of `test`. |
 | `make test-filter FILTER='<name> <name>'` | Only the tests that match a name. It fails when no test ran. |

@@ -258,15 +258,28 @@ ledger_typed 2026-01-01-architecture-a:docs 2026-01-02-p1:feat 2026-01-03-p2:fix
 audit audit-types-five
 grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder at 5 feat, fix, and perf runs: $(cat "$tmp/err")"
 
-# It prints `consolidation due` when the TOTAL row of docs/workflow/budgets.tsv is 250 or more
-# words over the QUOTA row (decision 0028, Word budgets).
-mkdir -p "$repo/docs/workflow"
-printf 'path\twords\tdecision\nTOTAL\t10249\tx\nQUOTA\t10000\tx\n' > "$repo/docs/workflow/budgets.tsv"
-audit quota-249
-grep -q 'consolidation due' "$tmp/err" && fail "consolidation due at QUOTA + 249: $(cat "$tmp/err")"
-printf 'path\twords\tdecision\nTOTAL\t10250\tx\nQUOTA\t10000\tx\n' > "$repo/docs/workflow/budgets.tsv"
-audit quota-250
-grep -q 'consolidation due: TOTAL is 250 words over QUOTA' "$tmp/err" || fail "no consolidation due at QUOTA + 250: $(cat "$tmp/err")"
+# It prints `consolidation due` when the words of the workflow docs (scripts/workflow-words.sh sum:
+# the pin line leaves out its folders) are over the TOTAL row of docs/workflow/budgets.tsv x 1.03, and
+# it exits 0 either way (decision 0028, Word budgets). A references file counts.
+mkdir -p "$repo/docs/workflow" "$repo/.claude/skills/pin" "$repo/.claude/skills/s/references"
+printf 'path\twords\tdecision\nTOTAL\t10000\tx\n' > "$repo/docs/workflow/budgets.tsv"
+n_words() { seq "$2" | tr '\n' ' ' > "$repo/$1"; }
+n_words AGENTS.md 10300
+audit total-10300
+grep -q 'consolidation due' "$tmp/err" && fail "consolidation due at TOTAL x 1.03: $(cat "$tmp/err")"
+n_words AGENTS.md 10301
+audit total-10301
+grep -q 'consolidation due: the workflow docs have 10301 words, over TOTAL x 1.03 (10000 in docs/workflow/budgets.tsv)' "$tmp/err" \
+  || fail "no consolidation due at 10301 words: $(cat "$tmp/err")"
+n_words AGENTS.md 10000
+n_words .claude/skills/pin/SKILL.md 5000
+printf 'Pinned skills: `pin`.\n' > "$repo/.claude/skills/THIRD_PARTY.md"
+audit pinned-words
+grep -q 'consolidation due' "$tmp/err" && fail "the words of a pinned skill count: $(cat "$tmp/err")"
+n_words .claude/skills/s/references/r.md 301
+audit references-file
+grep -q 'consolidation due: the workflow docs have 10301 words' "$tmp/err" || fail "a references file does not count: $(cat "$tmp/err")"
+rm -rf "$repo/AGENTS.md" "$repo/.claude" "$repo/docs"
 
 # It refuses a third non-feature run in a row: the two runs of the ledger with the highest PR
 # numbers in their done rows (open rows do not count; a run with two done rows counts once) have a run.md branch type other than feat, and the new type is not feat. The type is

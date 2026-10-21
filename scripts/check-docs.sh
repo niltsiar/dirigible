@@ -212,51 +212,22 @@ if [[ -f "$panel" ]]; then
     done
 fi
 
-# The workflow docs: the budget check and the date check read the same list.
-workflow_docs=("$root"/AGENTS.md "$root"/CODING_STANDARDS.md "$root"/.claude/skills/*/*.md "$root"/.claude/skills/*/references/*.md "$root"/.claude/agents/*.md)
+# The workflow docs: scripts/workflow-words.sh holds the one list of them.
+workflow_docs=()
+while IFS= read -r f; do workflow_docs+=("$root/$f"); done < <("$(cd "$(dirname "$0")" && pwd)/workflow-words.sh" list --root "$root")
 
-# Each workflow doc stays within its row of docs/workflow/budgets.tsv (path, words, decision), in
-# words of `wc -w`. A row that ends in / limits the sum of the budgeted files of that folder, and
-# the TOTAL row limits the sum of all of them. A row whose decision cell starts with `vendored:`, under a
-# skill folder on the Pinned skills line of .claude/skills/THIRD_PARTY.md, caps its own file or folder and
-# stays out of TOTAL. The QUOTA row is the TOTAL of the last consolidation
-# (decision 0028, Word budgets). Each row names the reason of its value (decision 0028).
+# docs/workflow/budgets.tsv holds the header and one TOTAL row with a decision. This check caps no
+# words: new-run.sh warns when the docs pass TOTAL x 1.03 (decision 0028, Word budgets).
 budgets="$root/docs/workflow/budgets.tsv"
-[[ -f "$budgets" ]] || { err "docs/workflow/budgets.tsv is missing"; budgets=/dev/null; }
-counts=""
-for f in "${workflow_docs[@]}"; do
-    [[ -f "$f" ]] || continue
-    counts+="${f#"$root"/}	$(wc -w <"$f" | tr -d ' ')"$'\n'
-done
-pinned="$(sed -n 's/^Pinned skills: //p' "$root/.claude/skills/THIRD_PARTY.md" 2>/dev/null | grep -o '`[a-z0-9-]*`' | tr -d '`' | tr '\n' ' ' || true)"
-while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(printf '%s' "$counts" | awk -F'\t' -v listed=" $pinned" '
-    FILENAME == "-" { words[$1] = $2; next }
-    FNR == 1 { next }
-    {
-        row[$1] = $2
-        if ($3 == "") print "the row for " $1 " has no decision"
-        if ($3 !~ /^vendored:/) next
-        vendored[$1] = 1
-        ok = match($1, /^\.claude\/skills\/[^\/]+\//) && index(listed, " " substr($1, 16, RLENGTH - 16) " ")
-        if (!ok) print "the vendored row for " $1 " is not under a skill on the Pinned skills line of .claude/skills/THIRD_PARTY.md"
-    }
-    END {
-        for (f in words) {
-            if (!(f in vendored)) sum += words[f]
-            if (!(f in row)) print "no row for " f
-            else if (words[f] > row[f] + 0) print f " is over its row: " words[f] " > " row[f]
-        }
-        for (p in row) {
-            if (p == "TOTAL" || p == "QUOTA") continue
-            if (p !~ /\/$/) { if (!(p in words)) print "row for a missing file: " p; continue }
-            total = 0; seen = 0
-            for (f in words) if (index(f, p) == 1) { total += words[f]; seen = 1 }
-            if (!seen) print "row for a missing file: " p
-            else if (total > row[p] + 0) print p " is over its total row: " total " > " row[p]
-        }
-        if (!("TOTAL" in row)) print "no TOTAL row"
-        else if (sum > row["TOTAL"] + 0) print "the budgeted files are over the TOTAL row: " sum " > " row["TOTAL"]
-    }' - "$budgets")
+if [[ -f "$budgets" ]]; then
+    while IFS= read -r msg; do err "budgets.tsv: $msg"; done < <(awk -F'\t' '
+        FNR == 1 { next }
+        $1 != "TOTAL" { print "a row other than TOTAL: " $1; next }
+        { n++; if ($3 == "") print "the row for TOTAL has no decision" }
+        END { if (n == 0) print "no TOTAL row"; else if (n > 1) print "more than one TOTAL row" }' "$budgets")
+else
+    err "docs/workflow/budgets.tsv is missing"
+fi
 
 # A loaded workflow doc holds no date: the story of a rule (the date, the run) stays in
 # decisions.tsv, learnings.md, and the commit body. A `Source:` line can give its fetch date.

@@ -35,7 +35,7 @@ One skill comes from `AvdLee/Swift-Concurrency-Agent-Skill` (https://github.com/
 
 Pinned skills: `swift-concurrency`.
 
-A pinned skill is kept near its source commit. Its rows in `docs/workflow/budgets.tsv` start with `vendored:` and stay out of `TOTAL`. Adding a name to this line is the only way to pin a skill.
+A pinned skill is kept near its source commit. Its words stay out of the sum of `scripts/workflow-words.sh`. Adding a name to this line is the only way to pin a skill.
 
 All sources use the MIT License:
 

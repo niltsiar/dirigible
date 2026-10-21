@@ -39,13 +39,38 @@
 # with another head is of an earlier run and is ignored. With an OPEN PR, the call stops with
 # `origin/main moved` when origin/main is not an ancestor of the pushed head; else it runs every
 # step as a first call does (rebase, governance, checks, push), runs gh pr edit with the title and
-# the body file in place of gh pr create, and goes on to the merge. A CLOSED PR of this push stops
-# the call. A failed lookup stops it with the gh text.
+# the body file in place of gh pr create, and goes on to the merge. A MERGED PR whose head is HEAD
+# runs only the tail: no check, no push; it prints the PR URL and the range (merge commit~commit
+# count..merge commit), removes the stamp file, and updates main. A CLOSED PR whose head is HEAD
+# stops the call; so does a PR whose head is an ancestor of HEAD but not HEAD (a commit after the
+# push), with no change. A failed lookup stops it with the gh text.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
 moved="origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
+# The tail of a land, when the PR is merged: finish_land <old> [<new>] drops the kept stamp, prints
+# the commit range on main (new is origin/main by default), and updates main.
+finish_land() {
+    rm -f "$stamp_file"
+    git fetch --prune origin
+    echo "range: $1..${2:-$(git rev-parse origin/main)}"
+    # git switch main fails while another worktree holds main (often the main checkout). This
+    # worktree is on the run branch, so a worktree on main is another one.
+    holder="$(git worktree list --porcelain | awk '/^worktree /{ w = substr($0, 10) } $0 == "branch refs/heads/main" { print w }')"
+    if [[ -n "$holder" && -z "$(git -C "$holder" status --porcelain)" ]]; then
+        if git -C "$holder" merge -q --ff-only origin/main; then
+            echo "land.sh: main is checked out in $holder; fast-forwarded it"
+        else
+            echo "land.sh: the merge is done, but the fast-forward of main in $holder failed; run git -C $holder merge --ff-only origin/main"
+        fi
+    elif [[ -n "$holder" ]]; then
+        echo "land.sh: main is checked out in $holder, which has changes; fast-forward it there with git merge --ff-only origin/main"
+    else
+        git switch main
+        git pull --ff-only origin main
+    fi
+}
 
 [[ $# -eq 2 || $# -eq 3 ]] || { echo "usage: scripts/land.sh <title> <body-file> [<decisions.tsv time>]" >&2; exit 2; }
 title="$1" body="$2" why="${3:-}"
@@ -70,6 +95,7 @@ fi
 
 [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
+stamp_file="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-land-stamp-${branch//\//-}"
 # A second land of a branch can find its PR. The lookup lists every PR of the branch name, newest
 # first, because a name that an earlier run used also lists the PR of that run. The land takes the
 # OPEN PR, else the newest closed or merged PR whose head is HEAD or an ancestor of HEAD.
@@ -94,8 +120,16 @@ while IFS=$'\t' read -r s u h m n; do
     fi
     pr_state=$s pr_url=$u pr_head=$h pr_mc=$m pr_count=$n pr_equal=$eq
 done <<<"$prs"
-[[ "$pr_state:$pr_equal" != CLOSED:yes ]] ||
-    die "the pull request $pr_url is closed, not merged; reopen it, or land from a fresh branch"
+case "$pr_state:$pr_equal" in
+    CLOSED:yes) die "the pull request $pr_url is closed, not merged; reopen it, or land from a fresh branch" ;;
+    MERGED:no|CLOSED:no) die "the branch has commits after the head of the pull request $pr_url ($pr_state); land them from a fresh branch" ;;
+    MERGED:yes)
+        # The merge went through after an error: only the tail is left. mergeCommit~commits is the old end.
+        git fetch origin
+        echo "pr: $pr_url"
+        finish_land "$(git rev-parse "$pr_mc~$pr_count")" "$pr_mc"
+        exit 0 ;;
+esac
 git fetch origin
 # A resume after origin/main moved past the pushed head cannot push without a force-push.
 [[ "$pr_state" != OPEN ]] || git merge-base --is-ancestor origin/main "$pr_head" 2>/dev/null || die "$moved"
@@ -104,7 +138,6 @@ before="$(git rev-parse HEAD)"
 # a descendant of it: the rebase rewrites each commit, so no stamp commit is an ancestor of the new
 # HEAD. A stop after the rebase keeps the rebased branch, so the stamp commit goes to a file of the
 # common git dir; a later land of the branch reads it when this read finds no line.
-stamp_file="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-land-stamp-${branch//\//-}"
 stamp_commit=""
 if stamp="$("$here/check-stamp.sh" read origin/main)"; then
     stamp_commit="${stamp%% *}"
@@ -216,21 +249,4 @@ git fetch origin
 git merge-base --is-ancestor origin/main HEAD || die "$moved"
 old="$(git rev-parse origin/main)"
 gh pr merge "$branch" --rebase --delete-branch
-rm -f "$stamp_file"
-git fetch --prune origin
-echo "range: $old..$(git rev-parse origin/main)"
-# git switch main fails while another worktree holds main (often the main checkout). This
-# worktree is on the run branch, so a worktree on main is another one.
-holder="$(git worktree list --porcelain | awk '/^worktree /{ w = substr($0, 10) } $0 == "branch refs/heads/main" { print w }')"
-if [[ -n "$holder" && -z "$(git -C "$holder" status --porcelain)" ]]; then
-    if git -C "$holder" merge -q --ff-only origin/main; then
-        echo "land.sh: main is checked out in $holder; fast-forwarded it"
-    else
-        echo "land.sh: the merge is done, but the fast-forward of main in $holder failed; run git -C $holder merge --ff-only origin/main"
-    fi
-elif [[ -n "$holder" ]]; then
-    echo "land.sh: main is checked out in $holder, which has changes; fast-forward it there with git merge --ff-only origin/main"
-else
-    git switch main
-    git pull --ff-only origin main
-fi
+finish_land "$old"

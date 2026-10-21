@@ -18,7 +18,9 @@
 # The resume cases (a second land of a branch whose PR exists, after a merge error): an open PR gets
 # its text from the body file and one merge call; the kept stamp, the checks, and the governance
 # check still run; origin/main past the pushed head stops it before any check; a closed PR, a
-# failed lookup, and a reused branch name (the PRs of an earlier run are ignored).
+# failed lookup, and a reused branch name (the PRs of an earlier run are ignored). A merged PR runs
+# only the tail: no check, no push, the range from the merge commit, and the update of main; a
+# commit after its pushed head stops the land.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -691,6 +693,75 @@ code=$?
 [[ $code -ne 0 ]] || fail 'view error: exit 0'
 grep -q 'HTTP 502' "$c/out" || fail "view error: no gh text: $(cat "$c/out")"
 no_side_effects 'view error'
+
+# play_merge: GitHub merges the PR while the land waits (a 502 hid it): HEAD goes to origin/main and
+# the PR line reads MERGED.
+play_merge() {
+  git -C "$c/work" push -q origin HEAD:main
+  awk -F'\t' -v OFS='\t' -v mc="$(git -C "$c/work" rev-parse HEAD)" '$1 == "OPEN" && !done { $1 = "MERGED"; $4 = mc; done = 1 } { print }' "$c/log.pr" > "$c/log.pr.new"
+  mv "$c/log.pr.new" "$c/log.pr"
+}
+
+# The PR is merged: no check, no push, no rebase, no gh call; the land prints the range from the
+# merge commit, removes the stamp file, and updates main.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+git -C "$c/work" fetch -q
+stamp origin/main
+resume_start
+[[ -f "$c/work/.git/dirigible-land-stamp-feat-x" ]] || fail 'merged PR finishes the tail: the first land kept no stamp file'
+play_merge
+new="$(git -C "$c/work" rev-parse HEAD)"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "merged PR finishes the tail: exit $code: $(cat "$c/out")"
+[[ ! -s "$c/log" ]] || fail "merged PR finishes the tail: make or gh ran: $(cat "$c/log")"
+! grep -qE 'Everything up-to-date|set up to track|Current branch' "$c/out" || fail "merged PR finishes the tail: push or rebase ran: $(cat "$c/out")"
+grep -qx 'pr: https://github.com/o/r/pull/7' "$c/out" || fail "merged PR finishes the tail: no PR URL: $(cat "$c/out")"
+grep -qx "range: $old..$new" "$c/out" || fail "merged PR finishes the tail: no commit range $old..$new: $(cat "$c/out")"
+[[ ! -e "$c/work/.git/dirigible-land-stamp-feat-x" ]] || fail 'merged PR finishes the tail: the stamp file stays'
+[[ "$(git -C "$c/work" branch --show-current)" == main && "$(git -C "$c/work" rev-parse HEAD)" == "$new" ]] ||
+  fail 'merged PR finishes the tail: local main is not origin/main'
+# Another worktree holds main: the land fast-forwards it and stays on the branch.
+setup
+git -C "$c/work" worktree add -q "$c/wt" main
+resume_start
+play_merge
+new="$(git -C "$c/work" rev-parse HEAD)"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "merged PR with main in a worktree: exit $code: $(cat "$c/out")"
+grep -q "main is checked out in .*/case/wt; fast-forwarded it" "$c/out" || fail "merged PR with main in a worktree: no fast-forward line: $(cat "$c/out")"
+[[ "$(git -C "$c/work" branch --show-current)" == feat/x && "$(git -C "$c/wt" rev-parse HEAD)" == "$new" ]] ||
+  fail 'merged PR with main in a worktree: the worktree is not at origin/main'
+
+# A commit after the pushed head of a merged PR: the land stops and changes nothing.
+setup
+git -C "$c/work" fetch -q
+stamp origin/main
+resume_start
+play_merge
+commit_file after.txt
+head="$(git -C "$c/work" rev-parse HEAD)"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "merged PR with another head: exit $code: $(cat "$c/out")"
+grep -q 'commits after the head of the pull request' "$c/out" || fail "merged PR with another head: no reason: $(cat "$c/out")"
+[[ ! -s "$c/log" ]] || fail "merged PR with another head: make or gh ran: $(cat "$c/log")"
+[[ "$(git -C "$c/work" branch --show-current)" == feat/x && "$(git -C "$c/work" rev-parse HEAD)" == "$head" && -s "$c/work/.git/dirigible-land-stamp-feat-x" ]] ||
+  fail 'merged PR with another head: the branch or the stamp file changed'
+
+# The merged PR of an earlier run with the same branch name (the newest line) is ignored.
+setup
+git -C "$c/work" switch -q -c side
+git -C "$c/work" commit -q --allow-empty -m side
+side="$(git -C "$c/work" rev-parse HEAD)"
+git -C "$c/work" switch -q feat/x
+printf 'MERGED\thttps://github.com/o/r/pull/6\t%s\t%s\t1\n' "$side" "$side" > "$c/log.pr"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "reused branch name, merged first: exit $code: $(cat "$c/out")"
+grep -qx 'pr: https://github.com/o/r/pull/8' "$c/out" || fail "reused branch name, merged first: no new PR URL: $(cat "$c/out")"
 
 # The flake rows: before the push, each dirigible-flakes line of a commit of the branch (an
 # ancestor of HEAD before or after the rebase) gives one flake row in the decisions.tsv of the run

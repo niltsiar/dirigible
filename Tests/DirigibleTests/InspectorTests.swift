@@ -57,7 +57,7 @@ import Testing
         return opened
     }
 
-    /// The editable text fields of the pane, top first: Gain, Fade In, Fade Out.
+    /// The editable text fields of the pane, top first: Gain, Fade In, Fade Out, Gain at Playhead.
     func shownFields(_ window: NSWindow) -> [NSTextField] {
         window.contentView?.layoutSubtreeIfNeeded()
         let edge = window.contentLayoutRect.width - InspectorWidth.standard.points
@@ -72,9 +72,9 @@ import Testing
         return own + view.subviews.flatMap { textFields(in: $0) }
     }
 
-    /// The three fields, once the pane shows them.
+    /// The four fields, once the pane shows them.
     func paneFields(_ window: NSWindow) async throws -> [NSTextField] {
-        await until(limit: .seconds(10), "the pane shows its fields") { shownFields(window).count == 3 }
+        await until(limit: .seconds(10), "the pane shows its fields") { shownFields(window).count == 4 }
         return shownFields(window)
     }
 

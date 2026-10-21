@@ -73,6 +73,7 @@ enum TimelineCommand: Hashable {
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, episodeInfo
     case autoLevel, autoLevelPerTrack
+    case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
     /// responder of the key window, so a focused text field takes it before the window (probe E3).
@@ -112,6 +113,9 @@ enum TimelineCommand: Hashable {
         // A text field does nothing with Command-T (run 13a, C9).
         case .importAudio, .export, .exportSelection, .exportChapters, .episodeInfo: false
         case .autoLevel, .autoLevelPerTrack: false
+        // A text field types a symbol with Option-K, Option-;, and Option-', and the item takes
+        // each key first, as the volume items take Control-=.
+        case .addGainPoint, .previousGainPoint, .nextGainPoint: false
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
         case .fade: false
         // Heal Clips has no key: Command-H is Hide in macOS.
@@ -121,9 +125,10 @@ enum TimelineCommand: Hashable {
 
     /// The volume keys stay the typed characters. With the automatic localization, AppKit moved "="
     /// of Raise Track Volume to the "*" key of the Spanish layout, where "=" is Shift-0 (S6 check).
+    /// The gain point keys also stay the typed characters: on the Spanish layout, ";" and "'" are on other keys than on the US layout.
     var keyLocalization: KeyboardShortcut.Localization {
         switch self {
-        case .raiseVolume, .lowerVolume, .resetVolume: .custom
+        case .raiseVolume, .lowerVolume, .resetVolume, .addGainPoint, .previousGainPoint, .nextGainPoint: .custom
         default: .automatic
         }
     }
@@ -193,7 +198,25 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .nudgeLeft, title: .menuEditNudgeLeft, key: .leftArrow, modifiers: .command),
         MenuItem(command: .nudgeRight, title: .menuEditNudgeRight, key: .rightArrow, modifiers: .command),
         MenuItem(command: .fade, title: .menuEditFade, key: "f", modifiers: .command),
+        MenuItem(command: .addGainPoint, title: .menuEditAddGainPoint, key: "k", modifiers: .option),
     ]
+
+    /// The Transport items that move the playhead to a gain point (decision 0060).
+    static let gainPointSeekItems = [
+        MenuItem(command: .previousGainPoint, title: .menuTransportPreviousGainPoint, key: ";", modifiers: .option),
+        MenuItem(command: .nextGainPoint, title: .menuTransportNextGainPoint, key: "'", modifiers: .option),
+    ]
+
+    /// The gain point command that a key-down is: Option and the typed character of the item. Shift
+    /// does not count for a symbol key, because ";" is Shift-comma on the Spanish layout.
+    static func gainPointCommand(for event: NSEvent) -> TimelineCommand? {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard let typed = event.charactersIgnoringModifiers else { return nil }
+        return (editItems.filter { $0.command == .addGainPoint } + gainPointSeekItems).first {
+            let symbol = $0.key.character.isPunctuation
+            return String($0.key.character) == typed && flags.subtracting(symbol ? .shift : []) == .option
+        }?.command
+    }
 
     /// The Markers items (decision 0018). Each key is one that a text field uses, so each item
     /// forwards it first.
@@ -352,6 +375,7 @@ extension SessionWindow {
         case .exportSelection: Task { await export(.selection) }
         case .exportChapters: exportChapters()
         case .episodeInfo: showEpisodeInfo()
+        case .addGainPoint, .previousGainPoint, .nextGainPoint: runGainPoint(command, studio)
         case .autoLevel: Task { await level(.eachClip) }
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
         }

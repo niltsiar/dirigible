@@ -6,17 +6,19 @@ import SwiftUI
 
 /// A field of the clip inspector.
 enum InspectorField: Hashable {
-    case gain, fadeIn, fadeOut
+    case gain, fadeIn, fadeOut, pointGain
 }
 
 /// The typed text of an inspector field that no commit has saved yet, the text that the field
 /// showed before the typing, and the clips of the inspection at the first key. A commit sets
-/// these clips, also after the Marks change (plan gate I2).
+/// these clips, also after the Marks change (plan gate I2). The Gain at Playhead field also keeps
+/// the playhead of the first key.
 struct InspectorDraft: Equatable {
     let field: InspectorField
     let shown: String
     var text: String
     let clips: [ClipID]
+    var playhead: Frames?
 }
 
 /// The clip inspector (run 11b-2): Gain, Fade In, and Fade Out of the clips that the selection
@@ -66,8 +68,11 @@ struct InspectorView: View {
                     row(.fadeOut, L10n.inspectorFadeOut, L10n.inspectorMilliseconds, inspection)
                 }
                 .disabled(!model.canEdit)
+                PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: true)
                 Spacer()
             } else {
+                // A selected track with no range has no clip fields, but Add Gain Point acts on it.
+                PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: false)
                 Spacer()
                 Text(L10n.inspectorNone.key).font(.title3).foregroundStyle(.tertiary).frame(maxWidth: .infinity)
                 Spacer()
@@ -120,13 +125,14 @@ struct InspectorView: View {
     }
 
     /// The text of a field: the gain to 0.1 dB, or the fade in whole ms with no grouping, so the
-    /// text parses again. Empty for Mixed.
+    /// text parses again. Empty for Mixed. The Gain at Playhead has `pointText`.
     static func text(_ field: InspectorField, _ inspection: ClipInspection, rate: Int) -> String {
         let fade: ClipInspection.Shown<Frames>
         switch field {
         case .gain:
             guard case .value(let gain) = inspection.gain else { return "" }
             return ReadoutLayer.decibels(gain.dB, locale: .current)
+        case .pointGain: return ""
         case .fadeIn: fade = inspection.fadeIn
         case .fadeOut: fade = inspection.fadeOut
         }
@@ -174,9 +180,17 @@ extension SessionWindow {
             inspectorDraft?.text = text
             return
         }
-        guard let studio = idleStudio,
-            let inspection = ClipInspection(selection: timeline.selection, session: studio.session)
-        else { return }
+        guard let studio = idleStudio else { return }
+        let point = PointGain(at: studio.playhead, selection: timeline.selection, session: studio.session)
+        if field == .pointGain {
+            guard let point, text != InspectorView.pointText(point) else { return }
+            commitInspector()
+            inspectorDraft = InspectorDraft(
+                field: field, shown: InspectorView.pointText(point), text: text, clips: point.clips,
+                playhead: point.frame)
+            return
+        }
+        guard let inspection = ClipInspection(selection: timeline.selection, session: studio.session) else { return }
         let shown = InspectorView.text(field, inspection, rate: studio.session.sampleRate)
         guard text != shown else { return }
         commitInspector()
@@ -203,6 +217,14 @@ extension SessionWindow {
             guard let dB = ClipInspection.decibels(text) else { return beep() }
             guard let gains = ClipInspection.gains(dB, for: draft.clips, in: session) else { return }
             edit(ripple: false) { s throws(SessionError) in try s.setGains(gains) }
+        case .pointGain:
+            guard let dB = ClipInspection.decibels(text) else { return beep() }
+            guard let frame = draft.playhead,
+                let envelopes = PointGain.envelopes(dB, at: frame, for: draft.clips, in: session)
+            else { return }
+            if edit(ripple: false, { s throws(SessionError) in try s.setEnvelopes(envelopes) }) != nil {
+                announceGainPoint(.gainPointSet, at: frame)
+            }
         case .fadeIn, .fadeOut:
             guard let ms = ClipInspection.milliseconds(text) else { return beep() }
             let edge: Fades.Edge = draft.field == .fadeIn ? .start : .end

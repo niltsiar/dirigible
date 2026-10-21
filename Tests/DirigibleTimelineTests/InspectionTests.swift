@@ -148,4 +148,105 @@ struct InspectionTests {
             stopped == ["A": Fades(fadeIn: 19_200, fadeOut: 28_800)!], "not the Command-F result: \(stopped ?? [:])")
         #expect(fades(.end, 600, ["A"]) == nil, "an equal value is no change")
     }
+
+    // MARK: Gain at Playhead (C11)
+
+    /// The envelope of `clip` with the points `points` (timeline frame, dB).
+    mutating func envelope(_ clip: ClipID, _ points: [(Int, Double)]) throws {
+        try session.setEnvelope(
+            Dictionary(uniqueKeysWithValues: points.map { (Frames($0.0), Gain(dB: $0.1)!) }), clip: clip)
+    }
+
+    func pointGain(_ frame: Int, _ tracks: Set<TrackID> = ["t1"]) -> PointGain? {
+        PointGain(at: Frames(frame), selection: .range(Marks(tracks: tracks)), session: session)
+    }
+
+    func gain(_ clip: ClipID, at frame: Int) throws -> Double {
+        try #require(session.clip(clip)).clip.envelope.gain(at: Frames(frame))
+    }
+
+    /// The field shows the envelope in dB at the file frame under the playhead, of each clip of the
+    /// selected tracks that plays it: one value, or Mixed.
+    @Test mutating func theFieldShowsTheEnvelopeAtThePlayhead() throws {
+        try envelope("A", [(0, 0), (40_000, -16)])
+        #expect(pointGain(20_000)?.gain == .value(-8))
+        #expect(pointGain(20_000)?.clips == ["A"] && pointGain(20_000)?.frame == 20_000)
+        #expect(pointGain(60_000) == nil, "the playhead is in a gap of t1")
+
+        // D plays file frames 48,000 ..< 96,000 at 96,000 ..< 144,000: the same time as B.
+        try session.place(Clip(id: "D", file: "fa", start: 96_000, offset: 48_000, length: second), on: "t2")
+        try envelope("D", [(96_000, -10), (143_000, -30)])
+        #expect(pointGain(119_500, ["t2"])?.gain == .value(-20), "the file map, not the timeline frame")
+        try envelope("B", [(96_000, -20)])
+        #expect(pointGain(119_500, ["t1", "t2"])?.gain == .value(-20), "two clips with one value")
+        try envelope("B", [(96_000, -12)])
+        #expect(pointGain(119_500, ["t1", "t2"])?.gain == .mixed, "two clips with two values")
+    }
+
+    /// A typed value is 0.1 dB to nearest, from -60 to +20 dB, and sets one point on each clip that
+    /// changes; a point at that frame is replaced.
+    @Test mutating func aTypedValueSetsAPointAtThePlayhead() throws {
+        func points(_ dB: Double, _ clips: [ClipID] = ["A"], at frame: Int = 20_000) -> [ClipID: GainEnvelope]? {
+            PointGain.envelopes(dB, at: Frames(frame), for: clips, in: session)
+        }
+        let set = try #require(points(-6.04))
+        #expect(set["A"]?.points == [.init(frame: 20_000, gain: Gain(dB: -6)!)])
+        #expect(points(25)?["A"]?.points.first?.gain.dB == 20 && points(-90)?["A"]?.points.first?.gain.dB == -60)
+        #expect(points(.infinity)?["A"]?.points.first?.gain.dB == 20, "no trap")
+
+        try session.setEnvelopes(set)
+        try envelope("B", [(96_000, 0)])
+        #expect(try gain("A", at: 20_000) == -6 && gain("A", at: 0) == -6 && gain("B", at: 100_000) == 0)
+        #expect(points(-6) == nil, "the point has that value: no change")
+        let replaced = try #require(points(-3))
+        #expect(replaced["A"]?.points == [.init(frame: 20_000, gain: Gain(dB: -3)!)], "one point, not two")
+        #expect(points(-3, ["A", "X"]) == replaced, "a clip that is gone drops out")
+        #expect(points(-3, ["A"], at: 60_000) == nil, "no clip plays that frame")
+    }
+
+    /// Option-K: the new point has the value of the envelope there, so no sample changes; a point
+    /// at that frame stays one point.
+    @Test mutating func aNewPointKeepsEverySample() throws {
+        try envelope("A", [(0, 0), (40_000, -16)])
+        let added = try #require(PointGain.envelopes(nil, at: 20_000, for: ["A"], in: session))
+        let before = try #require(session.clip("A")).clip.envelope
+        let after = try #require(added["A"])
+        #expect(after.points.map(\.frame) == [0, 20_000, 40_000])
+        for frame in stride(from: 0, to: 48_000, by: 777) {
+            #expect(abs(after.gain(at: Frames(frame)) - before.gain(at: Frames(frame))) < 1e-9, "frame \(frame)")
+        }
+        try session.setEnvelopes(added)
+        #expect(PointGain.envelopes(nil, at: 20_000, for: ["A"], in: session) == nil, "a point is there")
+    }
+
+    /// C11 start states: no selected track, the playhead outside every clip of the selected tracks,
+    /// and a selection of clips (it acts on its own clips).
+    @Test mutating func noTrackAndNoClipAtThePlayheadGiveNothing() throws {
+        try envelope("A", [(10_000, -4)])
+        #expect(PointGain(at: 20_000, selection: .none, session: session) == nil, "no selected track")
+        #expect(PointGain.neighbor(of: 20_000, forward: false, selection: .none, session: session) == nil)
+        #expect(pointGain(20_000, ["t2"]) == nil, "the selected track has no clip")
+        #expect(pointGain(60_000) == nil, "the playhead is outside every clip of the selected track")
+        let set = try #require(ClipSet(["A"]))
+        #expect(PointGain(at: 20_000, selection: .clips(set), session: session)?.clips == ["A"])
+        #expect(PointGain(at: 100_000, selection: .clips(set), session: session) == nil, "B is not in the set")
+    }
+
+    /// Previous and Next Gain Point: the nearest point of the clips of the selected tracks, in
+    /// timeline frames, strictly before or after the playhead; nil when there is none.
+    @Test mutating func previousAndNextFindTheNearestPointInTimelineFrames() throws {
+        try envelope("A", [(10_000, 0), (30_000, -4)])
+        try session.place(Clip(id: "D", file: "fa", start: 192_000, offset: 5_000, length: second), on: "t2")
+        try envelope("D", [(200_000, -9)])
+        try envelope("B", [(101_000, -2)])
+        func neighbor(_ frame: Int, _ forward: Bool, _ tracks: Set<TrackID> = ["t1"]) -> Frames? {
+            PointGain.neighbor(
+                of: Frames(frame), forward: forward, selection: .range(Marks(tracks: tracks)), session: session)
+        }
+        #expect(neighbor(40_000, false) == 30_000 && neighbor(30_000, false) == 10_000)
+        #expect(neighbor(5_000, false) == nil, "no point before the playhead")
+        #expect(neighbor(40_000, true) == 101_000 && neighbor(10_000, true) == 30_000)
+        #expect(neighbor(101_000, true) == nil, "no point after the playhead")
+        #expect(neighbor(101_000, true, ["t1", "t2"]) == 200_000, "the points of every selected track")
+    }
 }

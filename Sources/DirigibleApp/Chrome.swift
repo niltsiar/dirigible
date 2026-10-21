@@ -172,9 +172,11 @@ enum WindowCommand: Hashable {
 extension TimelineCommand {
     /// The menu item of each timeline command, from the menu tables.
     static let menuItems = Dictionary(
-        (viewItems + pasteboardItems + rippleItems + editItems + markerItems + trackItems + fileItems + toolItems).map {
-            ($0.command, $0)
-        },
+        (viewItems + pasteboardItems + rippleItems + editItems + gainPointSeekItems + markerItems + trackItems
+            + fileItems + toolItems)
+            .map {
+                ($0.command, $0)
+            },
         uniquingKeysWith: { first, _ in first })
 }
 

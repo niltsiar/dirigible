@@ -253,6 +253,8 @@
 "menu.transport.end" = "Zum Ende";
 "menu.transport.previous" = "Vorherige Clip-Kante";
 "menu.transport.next" = "Nächste Clip-Kante";
+"menu.transport.gain.point.previous" = "Vorheriger Pegelpunkt";
+"menu.transport.gain.point.next" = "Nächster Pegelpunkt";
 "menu.transport.speed" = "Wiedergabetempo";
 "menu.transport.speed.toggle" = "Varispeed";
 "menu.transport.speed.faster" = "Schneller";
@@ -313,6 +315,7 @@
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Keine Auswahl";
 "inspector.gain" = "Pegel";
+"inspector.gain.playhead" = "Pegel an der Abspielposition";
 "inspector.fade.in" = "Fade-In";
 "inspector.fade.out" = "Fade-Out";
 "inspector.mixed" = "Gemischt";
@@ -346,6 +349,10 @@
 "menu.edit.nudge.right" = "Nach rechts schieben";
 "menu.edit.fade" = "Fade";
 "menu.edit.heal" = "Clips verbinden";
+"menu.edit.gain.point.add" = "Pegelpunkt hinzufügen";
+"gain.point.added" = "Pegelpunkt hinzugefügt: %@";
+"gain.point.set" = "Pegelpunkt gesetzt: %@";
+"gain.point.at" = "Pegelpunkt: %@";
 "menu.markers" = "Marker";
 "menu.markers.add" = "Marker hinzufügen";
 "menu.markers.add.chapter" = "Kapitel hinzufügen";

@@ -293,7 +293,7 @@ Each drag and each double-click is one step in the undo history. Where two clips
 
 ### Type the gain and the fades in the inspector
 
-![The inspector at the right of the window, for three clips: Gain 0.0 dB, Fade In Mixed, and Fade Out 0 ms.](images/screenshot-inspector.png)
+![The inspector at the right of the window, for three clips: Gain 0.0 dB, Fade In Mixed, Fade Out 0 ms, and Gain at Playhead 0.0 dB.](images/screenshot-inspector.png)
 
 Choose **View > Show Inspector** (Option-Command-I), or click **Inspector** at the right end of the toolbar, to show the inspector at the right of the window. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Inspector** and **Go to Start** buttons. The inspector shows the Gain in dB, and the Fade In and Fade Out in ms, of each clip that the selection touches. With one clip, the top line shows the clip name. With more clips, it shows the clip count, and a field with different values shows "Mixed".
 
@@ -304,6 +304,16 @@ Choose **View > Show Inspector** (Option-Command-I), or click **Inspector** at t
 - Type a fade in whole ms, with no separator, for example "1500". A fade stops at the other fade of each clip.
 
 A text that is not a number gives a beep, and the field shows the old value. Each value that you set is one step in the undo history. During a take, the fields are off. New windows keep your choice to show or hide the inspector.
+
+### Set gain points with the keyboard
+
+The mouse is not the only way to reach the gain points. These steps work with the keyboard and with VoiceOver. They act on the clips of the selected tracks, at the playhead.
+
+- **Edit > Add Gain Point** (Option-K) adds a gain point at the playhead on each of these clips. The point has the gain that the clip has there, so the sound does not change. With no selected track, with the playhead outside every clip, or with a point at the playhead already, you hear a beep.
+- **Transport > Previous Gain Point** (Option-;) and **Transport > Next Gain Point** (Option-') move the playhead to the nearest point before or after it. With no point there, you hear a beep. These keys work when the cursor is in a text field.
+- The inspector field **Gain at Playhead**, under **Fade Out**, shows the gain of the points at the playhead in dB, on top of the clip gain. With clips that have different values, it shows "Mixed". Type a value and press Return to set a point there, from -60 to +20 dB, in steps of 0.1 dB. The field is off when no clip of the selected tracks plays the playhead.
+
+Each add and each typed value is one step in the undo history, and VoiceOver says what changed, for example "Gain point added: -8.0 dB". Move to a point with the keys, and VoiceOver says its gain.
 
 Drag the left edge of the inspector to make it wider or narrower, from 240 to 400 pt. In a narrow window, the inspector can be narrower than the width that you set, because the timeline keeps its minimum width. A line in the accent color shows the new edge, and the inspector takes the width when you release the mouse button. New windows keep the width. Double-click the edge to go back to the standard width.
 
@@ -676,6 +686,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Nudge Right** | **Desplazar a la derecha** | Command-Right Arrow |
 | **Fade** | **Fundido** | Command-F |
 | **Heal Clips** | **Unir clips** | None |
+| **Add Gain Point** | **Añadir punto de ganancia** | Option-K |
 
 ### View
 
@@ -767,6 +778,8 @@ The **Transport** menu (**Transporte**).
 | **Go to End** | **Ir al final** | End |
 | **Previous Clip Edge** | **Borde de clip anterior** | Shift-Left Arrow |
 | **Next Clip Edge** | **Borde de clip siguiente** | Shift-Right Arrow |
+| **Previous Gain Point** | **Punto de ganancia anterior** | Option-; |
+| **Next Gain Point** | **Punto de ganancia siguiente** | Option-' |
 
 The **Playback Speed** submenu (**Velocidad de reproducción**) has these commands and one item for each speed.
 

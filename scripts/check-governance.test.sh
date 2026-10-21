@@ -43,6 +43,7 @@ new_repo() {
   printf -- '---\nname: a\ndescription: one two three\n---\nbody\n' > "$tmp/r/.claude/agents/a.md"
   printf -- '---\nname: s\ndescription: four five six\n---\nbody\n' > "$tmp/r/.claude/skills/s/SKILL.md"
   printf 'ref words here\n' > "$tmp/r/.claude/skills/s/references/r.md"
+  g add -A
   sum0="$(tsum)"
   printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t%s\tbaseline\n' "$sum0" > "$budgets"
   printf '%s\nA-1\ta.md\tkeep\ta.md\tr\ts\t\tx\nA-2\ta.md\tkeep\ta.md\tr\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" > "$rules"

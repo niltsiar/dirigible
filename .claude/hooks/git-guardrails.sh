@@ -12,6 +12,12 @@ block() {
   exit 2
 }
 
+# block_merge: the merge block names the one route and has no data hint.
+block_merge() {
+  echo "BLOCKED by .claude/hooks/git-guardrails.sh: '$COMMAND' merges a pull request outside scripts/land.sh. Run scripts/land.sh \"<title>\" <body file>: it runs the governance check and the checks, then merges. If it stops, run the same command again." >&2
+  exit 2
+}
+
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
 trap 'rm -f "$input"' EXIT
@@ -44,7 +50,6 @@ DANGEROUS_PATTERNS=(
   'git worktree remove .*(--force|-f( |$))'
   '--no-verify'
   'git commit( .*)? -n( |$)'
-  'gh pr merge .*--admin'
 )
 
 # The only allowed change to the hooks path is the one `make setup` makes. A read with no value
@@ -247,6 +252,18 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
     block "matches '$pattern'"
   fi
 done
+
+# A pull request merges only through scripts/land.sh. The hook sees only the Bash command text, so
+# the gh call inside land.sh passes, and a script file, a query file, another harness, and the web UI
+# are outside it. The api merge path blocks with a PUT method only: the GET is a read. A query or an
+# alias can hold ; or |, so those two forms read the text before the chain split, on one line.
+flat="${UNSPLIT//$'\n'/ }"
+if grep -qE 'gh pr merge( |$)' <<< "$NORMALIZED" ||
+  grep -E 'gh api .*pulls/[^/ ]+/merge' <<< "$NORMALIZED" | grep -qiE -- '(-X ?PUT|--method[ =]PUT)' ||
+  grep -qE 'gh api .*(mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat" ||
+  grep -qE 'gh alias set .*(pr merge|pulls/[^/ ]+/merge|mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat"; then
+  block_merge
+fi
 
 # A release tag comes only from scripts/tag-release.sh, which checks the version order against the
 # tags of origin and removes its own stale local tag. A git tag command at a command start with an

@@ -21,9 +21,10 @@
 # failed lookup, and a reused branch name (the PRs of an earlier run are ignored). A merged PR runs
 # only the tail: no check, no push, the range from the merge commit, and the update of main; a
 # commit after its pushed head stops the land. The merge is tried three times: a failure then a
-# success, a merge that went through behind an error, three failures (the message names the resume
-# and the stamp file stays), a state read that fails, and an origin/main that moves between two
-# attempts.
+# success, a merge that went through behind an error, a merge that GitHub finishes during the wait
+# (the retry sees the rebased copies on origin/main, reads MERGED, and runs the tail), three failures
+# (the message names the resume and the stamp file stays), a state read that fails, and an
+# origin/main that moves between two attempts.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -66,7 +67,8 @@ EOF
 # OPEN line to MERGED. FAKE_GH=move moves origin/main in `pr create`, for a land that runs no make.
 # FAKE_MERGE=fail:<n> fails the first n `pr merge` calls (counted in $LAND_LOG.merges) with a 502
 # text, and moves origin/main in each when FAKE_MERGE_MOVE is set. FAKE_MERGE=late merges in the
-# first call and then fails it with "Merge already in progress".
+# first call and then fails it with "Merge already in progress". FAKE_MERGE=slow fails the first
+# call with a 502 text and merges as GitHub does (github-merge) right after the next state read.
 # FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
 cat > "$bin/gh" <<'EOF'
 #!/bin/bash
@@ -82,7 +84,10 @@ case "$1 $2" in
     [[ ! -f "$prs" ]] || cat "$prs" ;;
   "pr view")
     [[ "${FAKE_STATE:-}" != 502 ]] || { echo "$bad" >&2; exit 1; }
-    awk -F'\t' -v u="$3" '$2 == u { print $1 }' "$prs" ;;
+    state="$(awk -F'\t' -v u="$3" '$2 == u { print $1 }' "$prs")"
+    echo "$state"
+    # FAKE_MERGE=slow: GitHub finishes the merge right after this read, while the land waits.
+    [[ "${FAKE_MERGE:-}" != slow || "$state" != OPEN || ! -f "$LAND_LOG.merges" ]] || "$(dirname "$0")/github-merge" ;;
   "pr create")
     if grep -q '^OPEN' "$prs" 2>/dev/null; then
       echo "a pull request for branch \"$(git branch --show-current)\" into branch \"main\" already exists" >&2
@@ -98,6 +103,7 @@ case "$1 $2" in
     calls=$(($(cat "$LAND_LOG.merges" 2>/dev/null || echo 0) + 1))
     echo "$calls" > "$LAND_LOG.merges"
     case "${FAKE_MERGE:-}" in
+      slow) echo "$bad" >&2; exit 1 ;;
       fail:*) if ((calls <= ${FAKE_MERGE#fail:})); then
         [[ -z "${FAKE_MERGE_MOVE:-}" ]] || { git -C "$FAKE_OTHER" commit -q --allow-empty -m moved && git -C "$FAKE_OTHER" push -q origin main; }
         echo "$bad" >&2
@@ -110,6 +116,18 @@ case "$1 $2" in
     if [[ "${FAKE_MERGE:-}" == late && $calls -eq 1 ]]; then echo "Merge already in progress" >&2; exit 1; fi ;;
 esac
 EOF
+# github-merge does the rebase merge of GitHub: new commits (another committer date) for the PR
+# commits on origin/main, the remote branch deleted, the OPEN line of the PR set to MERGED with the
+# new tip of main as the merge commit. Run in the clone, so HEAD is the pushed head.
+cat > "$bin/github-merge" <<'EOF'
+#!/bin/bash
+tip="$(git rev-parse HEAD)"
+copy="$(GIT_COMMITTER_DATE=2001-01-01T00:00:00 git commit-tree "$tip^{tree}" -p "$(git rev-parse origin/main)" -m "$(git log -1 --format=%B "$tip")")"
+git push -q origin "$copy:refs/heads/main"
+git push -q origin --delete "$(git branch --show-current)"
+awk -F'\t' -v OFS='\t' -v mc="$copy" '$1 == "OPEN" && !done { $1 = "MERGED"; $4 = mc; done = 1 } { print }' "$LAND_LOG.pr" > "$LAND_LOG.pr.new"
+mv "$LAND_LOG.pr.new" "$LAND_LOG.pr"
+EOF
 # The fake sysctl logs its arguments and gives 8 cores and a load of 1.00, for the load wait.
 cat > "$bin/sysctl" <<'EOF'
 #!/bin/bash
@@ -119,7 +137,7 @@ EOF
 # The fake pgrep finds no test of another tree (no output, exit 1, as the real pgrep), so a test
 # run of another worktree does not make the load wait go on.
 printf '#!/bin/bash\nexit 1\n' > "$bin/pgrep"
-chmod +x "$bin/make" "$bin/gh" "$bin/sysctl" "$bin/pgrep"
+chmod +x "$bin/make" "$bin/gh" "$bin/github-merge" "$bin/sysctl" "$bin/pgrep"
 
 # A new case: a remote with one commit on main, a clone on the branch feat/x with one commit,
 # and one more commit on origin/main after the branch, so the land must rebase.
@@ -802,6 +820,22 @@ code=$?
 grep -qx 'gh pr view https://github.com/o/r/pull/7 --json state --jq .state' "$c/log.view" || fail "merge already in progress: no state read: $(cat "$c/log.view")"
 new="$(git -C "$c/origin.git" rev-parse main)"
 grep -qx "range: $old..$new" "$c/out" || fail "merge already in progress: no commit range $old..$new: $(cat "$c/out")"
+
+# The merge fails, the state read says OPEN, and GitHub finishes the merge while the land waits: the
+# rebased copies are on origin/main, so the retry finds origin/main not in HEAD. It reads the state
+# again, sees MERGED, and runs the tail with the range from before the merge.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+FAKE_MERGE=slow land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "merge completed during the wait: exit $code: $(cat "$c/out")"
+[[ "$(merges)" == 1 ]] || fail "merge completed during the wait: $(merges) merge calls, want 1: $(cat "$c/log")"
+! grep -q 'origin/main moved' "$c/out" || fail "merge completed during the wait: the moved text: $(cat "$c/out")"
+new="$(git -C "$c/origin.git" rev-parse main)"
+[[ "$new" != "$(git -C "$c/work" rev-parse feat/x)" ]] || fail 'merge completed during the wait: origin/main holds no copy of the commit'
+[[ "$(grep -c '^range:' "$c/out")" == 1 ]] && grep -qx "range: $old..$new" "$c/out" || fail "merge completed during the wait: no one commit range $old..$new: $(cat "$c/out")"
+[[ "$(git -C "$c/work" branch --show-current)" == main && "$(git -C "$c/work" rev-parse HEAD)" == "$new" ]] || fail 'merge completed during the wait: local main is not origin/main'
+[[ ! -e "$c/work/.git/dirigible-land-stamp-feat-x" ]] || fail 'merge completed during the wait: the stamp file stays'
 
 # Three failed merge calls end the land. The message names the resume, the stamp file stays, and a
 # later land merges.

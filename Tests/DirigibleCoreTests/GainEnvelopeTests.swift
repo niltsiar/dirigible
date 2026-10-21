@@ -48,6 +48,34 @@ struct GainEnvelopeTests {
         #expect(wrong == 0, "\(wrong) of 2000 seeded values differ from the formula")
     }
 
+    /// A point with no gain has the envelope value, so no sample changes; a point there gives nil.
+    /// A given gain sets the point, and the same gain there gives nil. Seeded random envelopes.
+    @Test func aPointWithNoGainChangesNoSample() throws {
+        var random = SplitMix(seed: 11)
+        for _ in 0..<2_000 {
+            let frames = Set(
+                (0..<Int.random(in: 0...6, using: &random)).map { _ in Int.random(in: 0...100_000, using: &random) }
+            ).sorted()
+            let before = envelope(frames.map { ($0, Double.random(in: -60...20, using: &random)) })
+            let frame = Frames(Int.random(in: 0...100_000, using: &random))
+            guard let after = before.withPoint(at: frame) else {
+                #expect(before.points.contains { $0.frame == frame }, "nil only with a point there")
+                continue
+            }
+            #expect(after.points.count == before.points.count + 1 && after.points.contains { $0.frame == frame })
+            let probes = [0, 100_000, frame.count - 1, frame.count, frame.count + 1] + frames
+            #expect(
+                probes.allSatisfy { abs(after.gain(at: Frames($0)) - before.gain(at: Frames($0))) < 1e-9 },
+                "the point at \(frame) changed a sample of \(before)")
+        }
+
+        let ramp = envelope([(0, 0), (48_000, -16)])
+        let set = try #require(ramp.withPoint(at: 24_000, gain: Gain(dB: -3)!))
+        #expect(set.points.map(\.gain.dB) == [0, -3, -16], "a given gain replaces the envelope value")
+        #expect(set.withPoint(at: 24_000, gain: Gain(dB: -3)!) == nil, "the same gain there is no change")
+        #expect(set.withPoint(at: 24_000) == nil, "a point there and no gain: no change")
+    }
+
     /// The initializer refuses a negative frame and frames that do not ascend strictly.
     @Test func theInitializerRefusesFramesOutOfOrder() {
         func point(_ frame: Int) -> GainEnvelope.Point { GainEnvelope.Point(frame: Frames(frame), gain: .zero) }

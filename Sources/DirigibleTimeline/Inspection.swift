@@ -115,8 +115,10 @@ public struct PointGain: Equatable, Sendable {
     public let clips: [ClipID]
     public let gain: ClipInspection.Shown<Double>
 
-    /// The limits of a typed point gain: the drag of a point stops at -60 dB too.
-    static let limits = -60.0...Gain.levelLimit
+    /// The lowest point gain that the UI sets: a typed value and a point drag stop at it.
+    static let floor = -60.0
+    /// The limits of a typed point gain.
+    static let limits = floor...Gain.levelLimit
 
     /// Nil when no clip of the selected tracks plays `frame`.
     public init?(at frame: Frames, selection: Selection, session: Session) {
@@ -143,22 +145,20 @@ public struct PointGain: Equatable, Sendable {
     public static func envelopes(_ dB: Double?, at frame: Frames, for clips: [ClipID], in session: Session)
         -> [ClipID: GainEnvelope]?
     {
-        let rounded = dB.map { (min(max($0, limits.lowerBound), limits.upperBound) * 10).rounded() / 10 }
+        let typed: Gain?
+        if let dB {
+            let rounded = (min(max(dB, limits.lowerBound), limits.upperBound) * 10).rounded() / 10
+            guard let gain = Gain(clamping: rounded) else { return nil }
+            typed = gain
+        } else {
+            typed = nil
+        }
         let ids = Set(clips)
         var result: [ClipID: GainEnvelope] = [:]
         for track in session.tracks {
             for clip in track.clips where ids.contains(clip.id) && clip.range.contains(frame) {
                 let file = frame - clip.start + clip.offset
-                guard let gain = Gain(clamping: rounded ?? clip.envelope.gain(at: file)) else { continue }
-                var points = clip.envelope.points
-                let index = points.firstIndex { $0.frame >= file } ?? points.endIndex
-                if index < points.endIndex, points[index].frame == file {
-                    guard rounded != nil, points[index].gain != gain else { continue }
-                    points[index] = GainEnvelope.Point(frame: file, gain: gain)
-                } else {
-                    points.insert(GainEnvelope.Point(frame: file, gain: gain), at: index)
-                }
-                result[clip.id] = GainEnvelope(points)
+                if let envelope = clip.envelope.withPoint(at: file, gain: typed) { result[clip.id] = envelope }
             }
         }
         return result.isEmpty ? nil : result

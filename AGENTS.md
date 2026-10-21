@@ -30,25 +30,23 @@ Run each build, test, and bench as `scripts/with-lock.sh <command>`: each `swift
 
 ## How to work
 
-Use the **deliver** skill for every feature, requirement, or bug. Use **architect** for one-way decisions. The other skills are `interrogate`, `tdd`, `deslop`, `verify-this`, `reflect`, `technical-writing`, `unslop`, `writing-for-agents`, `writing-for-humans`, `research`, `pr`, `diagnosing-bugs`, `domain-modeling`, and `swift-concurrency`. The agents are in `.claude/agents/`. The principles that skills cite are in `docs/principles.md`.
+Use the **deliver** skill for every feature, requirement, or bug. The principles that skills cite are in `docs/principles.md`.
 
 ## Run ledger in .scratchpads/
 
-- `.scratchpads/` is gitignored. It keeps the memory of the agents between sessions.
-- At session start, read the files that step 1 of deliver Phase 0 names.
 - The `decisions.tsv` of a run is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>`, also in a subagent. With `<run folder> --from <file>`, the file has the five fields on five lines. A wrong row gets a new row that corrects it. Change any other existing `.scratchpads/` file with the Edit tool: it refuses an anchor that is not unique.
 - Keep recordings of real voices in `.scratchpads/`, never in git.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder. Read its header first: the Swift build flags, and the app rule (never quit an app by name).
-- New sessions run bash (`.claude/settings.json`); live sessions keep zsh. In zsh, never name a variable `path` (it changes `PATH`: "command not found") or `status` ("read-only variable"). zsh refuses a command whose unquoted glob matches no file: quote each glob (`--include='*.md'`). zsh reads a word that starts with `=` as a command path: quote the word (`echo '===='`). Run a loop from a script: `bash <file>`. macOS has no `timeout` command: use the Bash tool timeout parameter, or `run_in_background`.
+- Run a loop from a script: `bash <file>`. macOS has no `timeout` command: use the Bash tool timeout parameter, or `run_in_background`.
 
 ## Git
 
-- Never commit on `main` directly. Work on a branch `<type>/<slug>`. Every run lands through a pull request with `scripts/land.sh`. It merges with a rebase, so `main` stays linear and keeps each commit.
+- Never commit on `main` directly. Every run lands through a pull request with `scripts/land.sh`.
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
 - At each commit, only the hooks run, no test: pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, and commit-msg checks each `N before, M after` word count. Tests run in the **tdd** loop and the push check before the land. Stage whole changes.
-- `scripts/land.sh` and the pre-push hook refuse a commit that a tool made (author, committer, or Co-Authored-By). The push check and the land run `gitleaks` on the pushed commits: `brew install gitleaks`.
-- `.claude/hooks/git-guardrails.sh` matches the whole command text, quoted text too: write data with the Write tool, `log-decision.sh --from <file>`, or `git commit -F .scratchpads/commit-msg.txt`. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
+- `scripts/land.sh` and the pre-push hook refuse a commit that a tool made (author, committer, or Co-Authored-By).
+- `.claude/hooks/git-guardrails.sh` matches quoted text too: write data with the Write tool. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.
   - If the path has changes that you did not make, or that no commit or copy holds, commit them or copy them first.
   - Never discard uncommitted work of the user or of another agent.
@@ -76,4 +74,4 @@ Use the **deliver** skill for every feature, requirement, or bug. Use **architec
 
 ## Keep this file true
 
-The **reflect** skill queues a repeated learning; an upkeep run changes this file, a skill, or a check. Commands and paths in this file must work at every commit.
+Commands and paths in this file must work at every commit.

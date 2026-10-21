@@ -125,7 +125,8 @@ enum TimelineCommand: Hashable {
 
     /// The volume keys stay the typed characters. With the automatic localization, AppKit moved "="
     /// of Raise Track Volume to the "*" key of the Spanish layout, where "=" is Shift-0 (S6 check).
-    /// The gain point keys also stay the typed characters: on the Spanish layout, ";" and "'" are on other keys than on the US layout.
+    /// The gain point keys also stay the typed characters: on the Spanish layout, ";" and "'" sit on
+    /// other keys than on the US layout.
     var keyLocalization: KeyboardShortcut.Localization {
         switch self {
         case .raiseVolume, .lowerVolume, .resetVolume, .addGainPoint, .previousGainPoint, .nextGainPoint: .custom

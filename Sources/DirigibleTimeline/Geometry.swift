@@ -107,7 +107,66 @@ public struct LaneGeometry: Equatable, Sendable {
     /// and the track gain: the lane height times 1 - `gainFraction` under the lane top. Over 0 dB
     /// the line stays at the lane top. The product comes first, so a whole dB gives an exact y.
     public func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int) -> Double {
-        Double(lane) * laneHeight + laneHeight * min(max(-(clip.gain.dB + trackGain.dB), 0), 60) / 60
+        lineY(gain: clip.gain.dB + trackGain.dB, lane: lane)
+    }
+
+    /// The y of the gain line of `clip` at the document x `x`: the line of `gainLineY` plus the
+    /// gain of the envelope at the file frame under `x` (decision 0060).
+    public func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int, atX x: Double) -> Double {
+        let envelope = clip.envelope.isEmpty ? 0 : clip.envelope.gain(at: clip.offset + (frame(at: x) - clip.start))
+        return lineY(gain: clip.gain.dB + trackGain.dB + envelope, lane: lane)
+    }
+
+    private func lineY(gain: Double, lane: Int) -> Double {
+        Double(lane) * laneHeight + laneHeight * min(max(-gain, 0), 60) / 60
+    }
+
+    /// A point of the envelope of a clip as the lanes show it: the index in `Clip.envelope.points`
+    /// and the center of its disc, in document points.
+    public struct EnvelopePoint: Equatable, Sendable {
+        public let index: Int
+        public let x, y: Double
+    }
+
+    /// The radius of the disc of an envelope point (points).
+    public static let pointRadius = 3.0
+    /// The room that a point needs: no point shows within this distance of another point or of a fade
+    /// handle (points).
+    static let pointClearance = 8.0
+    /// The line of an envelope clip stays this far under the top of the box, and a point this far
+    /// from the top and the bottom (points).
+    public static let lineClamp = 3.0
+
+    /// The points of the envelope of the clip at `clipIndex` of `clips` in `lane` that the lanes
+    /// draw and the hit test finds, in order: the points inside the clip window, in a box of
+    /// `controlsWidth` or more, with no other point of the window and no fade handle within
+    /// `pointClearance` (decision 0060). The center is at least `lineClamp` from the box top and bottom,
+    /// so the disc stays in its lane.
+    public func envelopePoints(of clip: Clip, at clipIndex: Int, in clips: ClipLane, trackGain: Gain, lane: Int)
+        -> [EnvelopePoint]
+    {
+        let box = box(of: clip, lane: lane)
+        let window = clip.offset..<(clip.offset + clip.length)
+        guard box.width >= Self.controlsWidth, case let inside = clip.envelope.points(in: window), !inside.isEmpty
+        else { return [] }
+        let handles = fadeHandles(of: clip, at: clipIndex, in: clips, lane: lane)
+        let handleXs = [handles.start, handles.end].compactMap { $0.map { $0.minX + $0.width / 2 } }
+        let xs = inside.map { box.minX + x(of: $0.frame - clip.offset) }
+        var shown: [EnvelopePoint] = []
+        for (n, point) in inside.enumerated() {
+            let x = xs[n]
+            let crowded =
+                (n > 0 && x - xs[n - 1] < Self.pointClearance)
+                || (n + 1 < xs.count && xs[n + 1] - x < Self.pointClearance)
+                || handleXs.contains { abs($0 - x) < Self.pointClearance }
+            guard !crowded else { continue }
+            let y = lineY(gain: clip.gain.dB + trackGain.dB + point.gain.dB, lane: lane)
+            shown.append(
+                EnvelopePoint(
+                    index: inside.startIndex + n, x: x,
+                    y: min(max(y, box.minY + Self.lineClamp), box.maxY - Self.lineClamp)))
+        }
+        return shown
     }
 
     /// Whether an edge with `fade` frames of fade and a crossfade of `crossfade` frames has a
@@ -164,7 +223,7 @@ public struct LaneGeometry: Equatable, Sendable {
         if x - box.minX < trim { return .trim(clip, .start, lane: lane) }
         if box.maxX - x < trim { return .trim(clip, .end, lane: lane) }
         if box.width >= Self.controlsWidth {
-            let line = max(gainLineY(clip, trackGain: track.gain, lane: lane), box.minY + Self.gainReach)
+            let line = max(gainLineY(clip, trackGain: track.gain, lane: lane, atX: x), box.minY + Self.lineClamp)
             // Two comparisons, not a range: when the fades fill the clip, the two ends come from two
             // float paths, and the fade-in end can be 1 ulp over the fade-out start (code gate K1).
             let (fadeInEnd, fadeOutStart) = (

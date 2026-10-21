@@ -38,6 +38,20 @@ public struct GainEnvelope: Hashable, Sendable {
         Self.value(of: points.lazy.map { ($0.frame.count, $0.gain.dB) }, at: frame.count)
     }
 
+    /// The points with a file frame in `window`, found by binary search. The lanes draw and hit
+    /// the points of the clip window with it.
+    public func points(in window: Range<Frames>) -> ArraySlice<Point> {
+        func index(of frame: Frames) -> Int {
+            var (low, high) = (points.startIndex, points.endIndex)
+            while low < high {
+                let middle = (low + high) / 2
+                if points[middle].frame < frame { low = middle + 1 } else { high = middle }
+            }
+            return low
+        }
+        return points[index(of: window.lowerBound)..<index(of: window.upperBound)]
+    }
+
     /// The function through `corners`, whose frames ascend strictly: linear between two corners
     /// and held outside them, 0 with no corner.
     private static func value<C: RandomAccessCollection>(of corners: C, at frame: Int) -> Double

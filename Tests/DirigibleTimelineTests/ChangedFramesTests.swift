@@ -182,4 +182,25 @@ struct ChangedFramesTests {
         #expect(changedFrames(from: range, to: a, in: session) == 0..<96_000, "the band and the box")
         #expect(changedFrames(from: ab, to: ab, in: session).isEmpty)
     }
+
+    /// Gain envelope C9 (decision 0020, the invariant): the envelope is a drawn value of the clip, so a
+    /// point that comes, moves, or goes redraws the frames of that clip on its lane, and no other clip.
+    /// Control: a compare that ignores the envelope gives no frames.
+    @Test func anEnvelopeChangeMarksItsFrames() throws {
+        let session = try Fixture.session()
+        var added = session
+        try added.setEnvelope([60_000: Gain(dB: -16)!, 80_000: Gain(dB: -16)!], clip: "A")
+        var moved = added
+        try moved.setEnvelope([60_000: Gain(dB: -16)!, 84_000: Gain(dB: -16)!], clip: "A")
+        var removed = moved
+        try removed.setEnvelope([:], clip: "A")
+
+        for (old, new) in [(session, added), (added, moved), (moved, removed), (added, session)] {
+            #expect(changedFrames(from: old, to: new)?.frames == 48_000..<96_000, "the frames of A")
+            #expect(changedFrames(from: old, to: new)?.lanes == 0..<1, "the rows of t1 only")
+        }
+        var other = session
+        try other.setEnvelope([150_000: Gain(dB: -6)!], clip: "B")
+        #expect(changedFrames(from: session, to: other)?.frames == 144_000..<192_000, "the frames of B")
+    }
 }

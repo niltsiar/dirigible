@@ -74,7 +74,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 1. A learning on its first occurrence becomes one line in `learnings.md` with the tag `seen-once`, the run slug, and a cause key. It does not change a skill.
 2. A key match is only a candidate. A learning is a second occurrence when the synthesizer records the earlier line and the shared cause. A second occurrence becomes an upkeep item in `## Next` of the backlog (amended 2026-10-02: a reflect run makes no commit). A check, a script, or a hook comes before a sentence. A high-cost first occurrence (lost data, lost user input, a destroyed file outside the repo) can skip to this step, with the reason in the commit body.
-3. A change replaces or merges text in the same section, so the file stays within its budget. When it cannot, the item goes to the `## Later` section of the backlog.
+3. A change replaces or merges text in the same section, and a change to always-on text stays within the always-on cap (a whole part moves to a references file; a rule loses no words). When it cannot, the item goes to the `## Later` section of the backlog.
 4. Each change updates `docs/workflow/rules.tsv` in the same commit.
 5. Once per upkeep run, before the merge, the review panel reviews the diff of the batch. The lenses come from the paths of the diff. A blocking finding gets a fix commit or a revert commit.
 6. When 8 or more upkeep items wait, the next run is a workflow upkeep run, which applies them all (amended 2026-10-08: 3 before).
@@ -88,7 +88,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 - A guard with no pick in the pass can land with a weak red-first test. The next 5 risk runs measure the picks in the `## Next` item "mutation pass trial" of the backlog; a defect that a mutant of a left-out guard kills brings back one mutant per guard. An upkeep run closes the trial.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.
 - Fewer mutation controls run. A defect in a guard outside the risk floor can land when its failing-before test is weak. The plan can raise such a guard to risk.
-- The workflow docs stop growing by one rule for each learning. A rule that does not fit the budget waits for a consolidation run.
+- The workflow docs stop growing by one rule for each learning. Always-on text does not grow; the other docs grow until the `TOTAL` tripwire starts a consolidation.
 
 ## Follow-up count
 

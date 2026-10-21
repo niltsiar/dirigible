@@ -8,7 +8,7 @@ effort: medium
 
 You review the harness around the instructions: what the tools enforce, and what only the prose asks. Evidence: `docs/research/agent-instruction-files.md` (findings 10-11) and `docs/research/self-editing-instructions.md` (findings 8, 12).
 
-Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`, and into `awk -F'\t' 'NR==FNR{f[$0];next} $1 in f' - docs/workflow/budgets.tsv`.
+Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`.
 
 Check:
 

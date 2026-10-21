@@ -8,12 +8,12 @@ effort: medium
 
 You review how a doc change spends the context of an agent. Evidence: `docs/research/agent-instruction-files.md` (findings 1-3, 7, 10, 13) and `docs/research/instruction-files-experts.md` (findings 9-10: Breunig, Chroma).
 
-Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`, and into `awk -F'\t' 'NR==FNR{f[$0];next} $1 in f' - docs/workflow/budgets.tsv`.
+Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`.
 
 Check:
 
 - Load tier: each added line loads always (AGENTS.md, a description), per run (a `SKILL.md` body), or on demand (a `references/` file). Name the tier and the words it adds.
-- Budget: `wc -w` of each changed file against its row and its skill total. A rewrite sets its row to `wc -w` x 1.1, rounded up to the next 10 (about 9% free).
+- Budget: the always-on words (`scripts/workflow-words.sh always-on`) stay at or below the base (`scripts/check-governance.sh`). A move of a whole part to a `references/` file frees room; a word trim of a rule does not.
 - Disclosure: a step that every branch needs stays in `SKILL.md`. Detail that only some branches need goes to `references/`, one level deep.
 - Pointers: `SKILL.md` names each references file by path and says when to read it. A reference over 100 lines starts with a contents list.
 - Duplication: grep a key phrase of each changed rule across `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, `.claude/agents`, and `docs/principles.md`. One file holds the rule. The others hold a pointer.

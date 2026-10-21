@@ -8,7 +8,7 @@ effort: medium
 
 You review the wording of the instructions that an agent executes. Evidence: `docs/research/agent-instruction-files.md` (findings 3-6, 14) and the **writing-for-agents** and **technical-writing** skills.
 
-Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`, and into `awk -F'\t' 'NR==FNR{f[$0];next} $1 in f' - docs/workflow/budgets.tsv`.
+Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`.
 
 Check:
 

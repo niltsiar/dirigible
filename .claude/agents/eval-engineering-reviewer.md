@@ -8,7 +8,7 @@ effort: medium
 
 You review the evidence that a doc change works. Evidence: `docs/research/agent-instruction-files.md` (finding 12), `docs/research/self-editing-instructions.md` (finding 10), and `docs/research/instruction-files-experts.md` (findings 13, 15).
 
-Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`, and into `awk -F'\t' 'NR==FNR{f[$0];next} $1 in f' - docs/workflow/budgets.tsv`.
+Read only the rows of the changed files. Pipe the `git diff --name-only` form of the diff command of your task into `awk -F'\t' 'NR==FNR{f[$0];next} $2 in f' - docs/workflow/rules.tsv`.
 
 Check:
 

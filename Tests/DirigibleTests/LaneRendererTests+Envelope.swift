@@ -79,4 +79,20 @@ extension LaneRendererTests {
         let atPoint = Self.rows(sparsePixels, column: 100, label)
         #expect(atPoint == Array((line - 3)..<(line + 3)), "a disc of 6 px around the line row: \(atPoint)")
     }
+
+    /// Decision 0060: a binary search finds the first point of the draw rect, so the draw cost does
+    /// not grow with the points before it. The walk of a rect late in a dense envelope starts at the
+    /// first point after the first column, and still gives the same gain after a lower column.
+    @Test func theWalkOfADrawRectLateInADenseEnvelopeStartsAtItsFirstPoint() throws {
+        let points = (0..<10_000).map { GainEnvelope.Point(frame: Frames($0 * 100), gain: Gain(dB: -Double($0 % 7))!) }
+        let envelope = try #require(GainEnvelope(points))
+        var column = ColumnEnvelope(envelope: envelope, first: 700_050, step: 100)
+
+        #expect(column.next == 7_001, "the first point after frame 700,050 is at 700,100")
+        let first = column.gain(0)
+        let expected = max(envelope.gain(at: 700_050), envelope.gain(at: 700_150), points[7_001].gain.dB)
+        #expect(first == expected)
+        _ = column.gain(30)
+        #expect(column.gain(0) == first, "a lower column walks again from the first point of the rect")
+    }
 }

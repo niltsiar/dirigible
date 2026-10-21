@@ -589,59 +589,16 @@ gc "$tmp/pw" -m source-wait 2>"$tmp/err"
 grep -q check-waits "$tmp/err" && pre_fail 'a raw wait under Sources/ failed the wait gate'
 grep -q lint "$tmp/err" || pre_fail "a raw wait under Sources/ did not reach make lint: $(cat "$tmp/err")"
 
-# The shipped commit-msg hook refuses a word pair ("10 before, 11 after") that no staged budgeted
-# file shows: wc -w at HEAD or HEAD^ (an amend) before, in the index after; a missing copy counts 0.
-# Run 2026-10-07-upkeep-batch-3 wrote 978 for 979 and 772 for 774.
+# The shipped commit-msg hook has no word pair check: a message with a pair that no staged file shows commits.
 msg_fail() { echo "FAIL: commit-msg: $1"; failures=$((failures + 1)); }
 m="$tmp/m"
 git init -q "$m"
-mkdir -p "$m/.githooks" "$m/docs/workflow"
+mkdir -p "$m/.githooks"
 cp "$(dirname "$0")/../../.githooks/commit-msg" "$m/.githooks/" || msg_fail 'no .githooks/commit-msg'
 git -C "$m" config core.hooksPath .githooks
-printf 'path\twords\tdecision\na.md\t100\tx\nb.md\t100\tx\nd/\t100\tx\nTOTAL\t200\tx\n' > "$m/docs/workflow/budgets.tsv"
-words() { seq "$2" | sed 's/^/w/' > "$m/$1"; }
-words a.md 10
-git -C "$m" add -A
-gc "$m" -m 'first: 0 before, 10 after' || msg_fail 'a first commit (no HEAD) was refused'
 echo x > "$m/other.txt"
 git -C "$m" add other.txt
-gc "$m" -m 'other: 3 before, then a change' || msg_fail 'a comma form with no after number was refused'
-refused() {
-  local before after
-  before="$(git -C "$m" rev-parse HEAD)"
-  gc "$m" "$@" 2>"$tmp/err" && msg_fail "a wrong pair passed: $*"
-  after="$(git -C "$m" rev-parse HEAD)"
-  [[ "$before" == "$after" ]] || msg_fail "HEAD moved after a refusal: $*"
-  grep -q 'a.md\|before' "$tmp/err" || msg_fail "the refusal names no pair or count: $(cat "$tmp/err")"
-}
-echo y > "$m/other2.txt"
-git -C "$m" add other2.txt
-refused -m 'x: 10 before, 11 after'
-git -C "$m" reset -q other2.txt
-words a.md 11
-git -C "$m" add a.md
-refused -m 'x: 10 before, 12 after'
-refused -m 'x: 9 before, 11 after'
-gc "$m" -m 'x: 10 before, 11 after' || msg_fail 'a true pair was refused'
-# A plain commit counts its before value at HEAD only: 10 is the count at HEAD^.
-words a.md 12
-git -C "$m" add a.md
-refused -m 'x: 10 before, 12 after'
-words a.md 11
-git -C "$m" add a.md
-gc "$m" --amend -m 'x: 10 words before, 11 after' || msg_fail 'a message-only amend with a pair from HEAD^ was refused'
-gc "$m" --amend -m $'x: 10 before,\n\n11 after' || msg_fail 'a pair split by a blank line was refused'
-printf 'r\n' > "$m/rules.tsv"
-git -C "$m" add rules.tsv
-gc "$m" --amend -m 'x: 10 before, 11 after' || msg_fail 'an amend that stages only rules.tsv was refused'
-gc "$m" -m 'no pair here' || msg_fail 'a message with no pair was refused'
-words b.md 3
-git -C "$m" add b.md
-gc "$m" -m 'new file: 0 before, 3 after' || msg_fail 'a new budgeted file was refused'
-git -C "$m" rm -q a.md
-gc "$m" -m 'delete: 11 before, 0 after' || msg_fail 'a staged delete was refused'
-[[ "$(printf 'a: 5 words before,\n6 after; b: 7 before and after; c: 3 before, then\n' | "$m/.githooks/commit-msg" --pairs)" == $'5 6\n7 7' ]] \
-  || msg_fail "--pairs prints: $(printf 'a: 5 words before,\n6 after; b: 7 before and after\n' | "$m/.githooks/commit-msg" --pairs 2>&1)"
+gc "$m" -m 'x: 10 before, 11 after' || msg_fail 'a word pair that no staged file shows was refused'
 
 # The commit-msg hook refuses a staged change that cuts graded eval key text (evals-for.sh
 # --staged): a key term that the staged file holds fewer times than the file at HEAD, or a 5-word

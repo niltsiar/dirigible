@@ -4,7 +4,7 @@
 # - A row of docs/workflow/budgets.tsv whose words go up names a decisions.tsv row in its
 #   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`. A raised TOTAL row also differs from the
 #   cell of the base, and with a run folder the cited time is a row of its decisions.tsv. A changed
-#   TOTAL is within 3 % of `scripts/workflow-words.sh sum`, in both directions.
+#   TOTAL is within 3 % of `scripts/workflow-words.sh sum`; a raise is at most the sum.
 # - The always-on words (`scripts/workflow-words.sh always-on`: AGENTS.md, CLAUDE.md, the files
 #   they import, and the description lines of the skills and agents) and the count of skills plus
 #   agents (`workflow-words.sh count`) stay at or below their value at the merge base of the base
@@ -77,8 +77,10 @@ if [[ -f "$budgets" ]]; then
                 fi
             fi
             sum="$("$words" sum)"
-            if ((sum * 100 > new_total * 103 || new_total * 100 > sum * 103)); then
-                echo "check-governance: budgets.tsv: TOTAL is $new_total, which is not the sum of the workflow docs ($sum words, 3 % room); set TOTAL to the output of scripts/workflow-words.sh sum" >&2
+            # A raise takes no room above the sum: the tripwire fires at 3 % over TOTAL.
+            if ((new_total > old_total)); then over=$((new_total > sum)); else over=$((new_total * 100 > sum * 103)); fi
+            if ((sum * 100 > new_total * 103 || over)); then
+                echo "check-governance: budgets.tsv: TOTAL is $new_total, which is not the sum of the workflow docs ($sum words; a raise sets it at most to the sum, a cut within 3 % of it); set TOTAL to the output of scripts/workflow-words.sh sum" >&2
                 fail=1
             fi
         fi

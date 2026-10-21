@@ -62,7 +62,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 - The count of skills plus agents (`scripts/workflow-words.sh count`) is at most the count of the merge base. A new skill or agent deletes one.
 - `docs/workflow/budgets.tsv` holds one `TOTAL` row: the words of the workflow docs (`scripts/workflow-words.sh sum`; the folders on the `Pinned skills` line of `.claude/skills/THIRD_PARTY.md` stay out). `make check-docs` checks that the file holds this row with a decision, and no other row. `TOTAL` is a tripwire, not a limit: when the docs pass `TOTAL` x 1.03, `new-run.sh` prints `consolidation due`.
 - A consolidation deletes or merges whole stale or duplicate parts of the docs, then sets `TOTAL` to the output of `scripts/workflow-words.sh sum`. It does not trim the words of a rule, and it does not trim back to an old value.
-- A `TOTAL` that goes up names a `decisions.tsv` row of its own run in the `decision` cell, not the cell of the base. A changed `TOTAL` stays within 3 % of the sum. `scripts/check-governance.sh` checks both before the push.
+- A `TOTAL` that goes up names a `decisions.tsv` row of its own run in the `decision` cell, not the cell of the base. A changed `TOTAL` stays within 3 % of the sum, and a raise sets it at most to the sum: a raise adds no room above the docs. `scripts/check-governance.sh` checks both before the push.
 
 ### Rule register
 

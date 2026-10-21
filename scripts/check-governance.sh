@@ -2,10 +2,13 @@
 # Check the reflect governance of decision 0028 against a base. land.sh runs it before the push.
 # Usage: scripts/check-governance.sh <base> [<run folder>]
 # - A row of docs/workflow/budgets.tsv whose words go up names a decisions.tsv row in its
-#   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`. The TOTAL row goes up by at most 50
-#   words, unless the branch has a QUOTA row at or above its new TOTAL (a consolidation run).
-# - A budgets.tsv row whose decision cell becomes `vendored:` is refused, unless the same diff adds its skill
-#   to the `Pinned skills` line of .claude/skills/THIRD_PARTY.md (or the base pins it and the row is new).
+#   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`. A raised TOTAL row also differs from the
+#   cell of the base, and with a run folder the cited time is a row of its decisions.tsv. A changed
+#   TOTAL is within 3 % of `scripts/workflow-words.sh sum`, in both directions.
+# - The always-on words (`scripts/workflow-words.sh always-on`: AGENTS.md, CLAUDE.md, the files
+#   they import, and the description lines of the skills and agents) and the count of skills plus
+#   agents (`workflow-words.sh count`) stay at or below their value at the merge base of the base
+#   and HEAD (decision 0028, Word budgets).
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
@@ -45,6 +48,7 @@ fail=0
 at_base() { git show "$base:$1" 2>/dev/null || true; }
 
 budgets=docs/workflow/budgets.tsv
+words="$here/workflow-words.sh"
 if [[ -f "$budgets" ]]; then
     while IFS= read -r msg; do echo "check-governance: $msg" >&2; fail=1; done < <(at_base "$budgets" | awk -F'\t' '
         NR == FNR { if (FNR > 1) old[$1] = $2; next }
@@ -52,29 +56,47 @@ if [[ -f "$budgets" ]]; then
             $3 !~ /decisions\.tsv [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]/ {
             print "budgets.tsv: the row for " $1 " goes up from " old[$1] " to " $2 "; name the decisions.tsv row in its decision cell as decisions.tsv <YYYY-MM-DDTHH:MM>"
         }' - "$budgets")
-    # A row leaves TOTAL (its decision cell becomes vendored:) only in the diff that adds its skill to the
-    # Pinned skills line of THIRD_PARTY.md, or as a new row of a skill that the base pins.
-    third_party=.claude/skills/THIRD_PARTY.md
-    pinned() { sed -n 's/^Pinned skills: //p' | grep -o '`[a-z0-9-]*`' | tr -d '`' | tr '\n' ' ' || true; }
-    base_pinned=" $(at_base "$third_party" | pinned)"
-    new_pinned=" $([[ ! -f "$third_party" ]] || pinned < "$third_party")"
-    while IFS= read -r msg; do echo "check-governance: $msg" >&2; fail=1; done < <(at_base "$budgets" | awk -F'\t' -v bp="$base_pinned" -v np="$new_pinned" '
-        NR == FNR { if (FNR > 1) { seen[$1] = 1; old[$1] = $3 }; next }
-        FNR > 1 && $3 ~ /^vendored:/ && !(($1 in seen) && old[$1] ~ /^vendored:/) {
-            skill = match($1, /^\.claude\/skills\/[^\/]+\//) ? substr($1, 16, RLENGTH - 16) : ""
-            added = index(np, " " skill " ") && !index(bp, " " skill " ")
-            fresh = !($1 in seen) && index(bp, " " skill " ")
-            if (skill == "" || !(added || fresh))
-                print "budgets.tsv: the row for " $1 " becomes vendored, which takes it out of TOTAL; add its skill to the Pinned skills line of " "'"$third_party"'" " in the same diff"
-        }' - "$budgets")
-    up="$(at_base "$budgets" | awk -F'\t' '
-        NR == FNR { if ($1 == "TOTAL") t = $2; if ($1 == "QUOTA") q = $2; next }
-        $1 == "TOTAL" { nt = $2 } $1 == "QUOTA" { nq = $2 }
-        END { if (t != "" && nt - t > 50 && !(nq != "" && nt + 0 <= nq + 0)) print nt - t }' - "$budgets")"
-    if [[ -n "$up" ]]; then
-        echo "check-governance: budgets.tsv: TOTAL goes up by $up words, over the cap of 50 for a branch; trim; only a consolidation run raises it more, and its TOTAL stays at or below its QUOTA row (decision 0028, Word budgets)" >&2
-        fail=1
+    # The TOTAL row: a raise cites a row of its own run, and a changed value is near the sum of the docs.
+    total_row() { awk -F'\t' '$1 == "TOTAL" { print $2 "\t" $3; exit }'; }
+    IFS=$'\t' read -r old_total old_cell <<<"$(at_base "$budgets" | total_row)"
+    IFS=$'\t' read -r new_total new_cell <<<"$(total_row < "$budgets")"
+    if [[ -n "${old_total:-}" && -n "${new_total:-}" && "$new_total" != "$old_total" ]]; then
+        if [[ ! "$old_total$new_total" =~ ^[0-9]+$ ]]; then
+            echo "check-governance: budgets.tsv: TOTAL is not a number: $old_total at the base, $new_total now" >&2
+            fail=1
+        else
+            if ((new_total > old_total)); then
+                cited='decisions\.tsv ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2})'
+                if [[ "$new_cell" == "$old_cell" ]]; then
+                    echo "check-governance: budgets.tsv: TOTAL goes up from $old_total to $new_total, but its decision cell is the cell of the base; it names a decisions.tsv row of its own" >&2
+                    fail=1
+                elif [[ -n "$run" && "$new_cell" =~ $cited ]] \
+                    && ! awk -F'\t' -v t="${BASH_REMATCH[1]}" '$1 == t { found = 1 } END { exit !found }' "$run/decisions.tsv" 2>/dev/null; then
+                    echo "check-governance: budgets.tsv: TOTAL cites decisions.tsv ${BASH_REMATCH[1]}, but $run/decisions.tsv has no row with that time" >&2
+                    fail=1
+                fi
+            fi
+            sum="$("$words" sum)"
+            if ((sum * 100 > new_total * 103 || new_total * 100 > sum * 103)); then
+                echo "check-governance: budgets.tsv: TOTAL is $new_total, which is not the sum of the workflow docs ($sum words, 3 % room); set TOTAL to the output of scripts/workflow-words.sh sum" >&2
+                fail=1
+            fi
+        fi
     fi
+fi
+
+# The always-on words and the count of skills plus agents stay at or below the merge base: the work
+# tree is the branch as it lands, and the tip of the base can hold changes that the branch lacks.
+mb="$(git merge-base "$base" HEAD)" || die "no merge base of $base and HEAD"
+base_words="$("$words" always-on --rev "$mb")" tree_words="$("$words" always-on)"
+if ((tree_words > base_words)); then
+    echo "check-governance: the always-on words go from $base_words at the merge base to $tree_words (AGENTS.md, CLAUDE.md, the files they import, and the description lines of the skills and agents); move a whole part to a references file and leave a one-line pointer; do not trim the words of a rule" >&2
+    fail=1
+fi
+base_count="$("$words" count --rev "$mb")" tree_count="$("$words" count)"
+if ((tree_count > base_count)); then
+    echo "check-governance: the branch has $tree_count skills and agents, the merge base has $base_count; delete one for each new one" >&2
+    fail=1
 fi
 
 # features.md keeps the row of each feature ID of the base; a base with no file has none to keep.

@@ -56,18 +56,20 @@ public struct GainEnvelope: Hashable, Sendable {
         return GainEnvelope(valid: points)
     }
 
+    /// The index of the first point with a file frame at or after `frame`, by binary search.
+    public func index(atOrAfter frame: Frames) -> Int {
+        var (low, high) = (points.startIndex, points.endIndex)
+        while low < high {
+            let middle = (low + high) / 2
+            if points[middle].frame < frame { low = middle + 1 } else { high = middle }
+        }
+        return low
+    }
+
     /// The points with a file frame in `window`, found by binary search. The lanes draw and hit
     /// the points of the clip window with it.
     public func points(in window: Range<Frames>) -> ArraySlice<Point> {
-        func index(of frame: Frames) -> Int {
-            var (low, high) = (points.startIndex, points.endIndex)
-            while low < high {
-                let middle = (low + high) / 2
-                if points[middle].frame < frame { low = middle + 1 } else { high = middle }
-            }
-            return low
-        }
-        return points[index(of: window.lowerBound)..<index(of: window.upperBound)]
+        points[index(atOrAfter: window.lowerBound)..<index(atOrAfter: window.upperBound)]
     }
 
     /// The function through `corners`, whose frames ascend strictly: linear between two corners

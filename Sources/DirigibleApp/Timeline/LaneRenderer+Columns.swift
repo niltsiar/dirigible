@@ -30,18 +30,22 @@ struct ColumnFades {
 }
 
 /// The gain envelope of one clip in the columns of a draw (decision 0060): the file frame of the
-/// first column, and the frames per column. A walk over the columns in order: the cursor `next`
-/// only moves forward, so a draw reads each point once.
+/// first column, and the frames per column. A binary search finds the first point of the draw rect,
+/// and a walk over the columns in order reads each point once: the cursor `next` only moves forward.
 struct ColumnEnvelope {
     private let points: [GainEnvelope.Point]
     private let first: Double
     private let step: Double
+    /// The index of the first point after the first column start: the cursor of a walk from there.
+    private let seed: Int
     /// The index of the first point after the start of the last column read.
-    private var next = 0
+    private(set) var next: Int
     private var last = Int.min
 
     init(envelope: GainEnvelope, first: Double, step: Double) {
         (points, self.first, self.step) = (envelope.points, first, step)
+        seed = envelope.index(atOrAfter: Frames(Int(first.rounded(.down)) + 1))
+        next = seed
     }
 
     /// The highest gain in dB over the file frames of column `index`, as the column keeps the
@@ -50,7 +54,7 @@ struct ColumnEnvelope {
     mutating func gain(_ index: Int) -> Double {
         let start = first + Double(index) * step
         let (low, high) = (Int(start.rounded(.down)), Int((start + step).rounded(.up)))
-        if low < last { next = 0 }
+        if low < last { next = seed }
         last = low
         while next < points.count, points[next].frame.count <= low { next += 1 }
         var best = max(value(at: low, after: next), points.isEmpty ? 0 : value(at: high))

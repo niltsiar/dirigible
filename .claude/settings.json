@@ -56,7 +56,6 @@
       "Bash(git push -u origin:*)",
       "Bash(git push origin:*)",
       "Bash(gh pr create:*)",
-      "Bash(gh pr merge:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr list:*)",
       "Bash(gh pr checks:*)",

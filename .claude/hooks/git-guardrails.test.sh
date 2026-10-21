@@ -103,7 +103,7 @@ expect allow 'git config get core.hooksPath'
 expect allow 'git config get --local core.hooksPath'
 expect allow 'git config core.hooksPath; git config --get core.hooksPath'
 expect allow 'git config core.hooksPath && git status'
-expect allow 'gh pr merge 3 --rebase --delete-branch'
+expect block 'gh pr merge 3 --rebase --delete-branch'
 expect allow 'git stash push -m wip'
 expect allow 'make check'
 expect allow 'git -C /repo status'
@@ -144,6 +144,36 @@ expect allow "rg -n 'git tag -d' scripts"
 got="$(printf '{"tool_input":{"command":"git tag -d v0.3.10"}}' | "$hook" 2>&1)"
 [[ "$got" == *scripts/tag-release.sh* ]] ||
   { echo "FAIL: the tag block message does not name scripts/tag-release.sh: $got"; failures=$((failures + 1)); }
+# A pull request merges only through scripts/land.sh: each merge form in the Bash command text
+# blocks, and the block message names that script. The reads and the land command pass.
+expect block 'gh pr merge --auto --rebase 3'
+expect block 'cd x && gh pr merge 3'
+expect block 'gh pr merge'
+expect block 'gh api -X PUT repos/o/r/pulls/3/merge'
+expect block 'gh api repos/o/r/pulls/3/merge --method PUT'
+expect block 'gh api repos/o/r/pulls/3/merge --method=PUT'
+expect block 'gh api repos/o/r/pulls/3/merge -XPUT -f merge_method=squash'
+expect block 'gh api graphql -f query="mutation { mergePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }"'
+expect block 'gh api graphql -f query="mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"x\"}) { clientMutationId } }"'
+expect block 'gh api graphql -f query="mutation { mergePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }" | cat; echo done'
+expect block $'gh api graphql -f query=\'mutation {\n  mergePullRequest(input: {pullRequestId: "x"}) { clientMutationId }\n}\''
+expect block "gh alias set m 'pr merge'"
+expect allow 'gh pr view 3 --json state'
+expect allow 'gh api repos/o/r/pulls/3'
+expect allow 'gh api repos/o/r/pulls/3/merge'
+expect allow 'gh api repos/o/r/pulls/3/merge --jq .merged'
+expect allow 'gh pr list --state merged'
+expect allow 'gh alias set v "pr view"'
+expect allow 'scripts/land.sh "t" pr.md'
+expect allow 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh "t" .scratchpads/runs/r/pr.md'
+got="$(printf '{"tool_input":{"command":"gh pr merge 3 --rebase"}}' | "$hook" 2>&1)"
+[[ "$got" == *scripts/land.sh* ]] ||
+  { echo "FAIL: the merge block message does not name scripts/land.sh: $got"; failures=$((failures + 1)); }
+[[ "$got" != *'Write tool'* ]] ||
+  { echo "FAIL: the merge block message talks about the Write tool: $got"; failures=$((failures + 1)); }
+got="$(printf '{"tool_input":{"command":"git reset --hard"}}' | "$hook" 2>&1)"
+[[ "$got" == *'Write tool'* ]] ||
+  { echo "FAIL: another block message lost its Write tool line: $got"; failures=$((failures + 1)); }
 # One segment of a chained command must not match a pattern with a word of the next segment.
 expect allow 'git push -u origin feat/x && gh pr create --base main --title x'
 expect allow 'git commit -F msg.txt; sed -n 1p file'

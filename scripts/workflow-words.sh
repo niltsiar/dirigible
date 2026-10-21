@@ -9,11 +9,13 @@
 # - list: the paths of the workflow docs.
 # - sum: their words (wc -w), less the folders on the `Pinned skills` line of
 #   .claude/skills/THIRD_PARTY.md.
-# - always-on: the words that Claude Code loads at the start: AGENTS.md, CLAUDE.md, each file that
-#   an `@<path>` line of those two files imports (to depth 5, each file once), and the
-#   `description:` value of each .claude/skills/<name>/SKILL.md and .claude/agents/<name>.md. The
-#   value runs from the `description:` line to the next frontmatter key; a lone YAML indicator
-#   (>, |, >-, |-) is not a word.
+# - start-files: the files that Claude Code loads at the start: AGENTS.md, CLAUDE.md,
+#   .claude/CLAUDE.md, each .claude/rules/**/*.md with no `paths:` frontmatter key, and each file
+#   that an `@<path>` line of those imports (to depth 5, each file once). Only existing files.
+# - always-on: the words of the start files, and the `description:` value of each
+#   .claude/skills/<name>/SKILL.md and .claude/agents/<name>.md. The value runs from the
+#   `description:` line to the next frontmatter key; a lone YAML indicator (>, |, >-, |-) is not a
+#   word.
 # - count: the number of skills (SKILL.md files) plus agents.
 # A missing file or folder counts 0. A bad mode or a bad commit exits 2.
 # scripts/workflow-words.test.sh tests it.
@@ -22,7 +24,7 @@ set -euo pipefail
 die() { echo "workflow-words: $1" >&2; exit 2; }
 
 mode="${1:-}"
-[[ "$mode" =~ ^(list|sum|always-on|count)$ ]] || die "usage: scripts/workflow-words.sh <list|sum|always-on|count> [--root <dir>] [--rev <commit>]"
+[[ "$mode" =~ ^(list|sum|always-on|start-files|count)$ ]] || die "usage: scripts/workflow-words.sh <list|sum|always-on|start-files|count> [--root <dir>] [--rev <commit>]"
 shift
 root="" rev=""
 while [[ $# -gt 0 ]]; do
@@ -48,14 +50,24 @@ exists() {
 }
 words() { read_file "$1" | wc -w | tr -d ' '; }
 
-docs() {
-    {
-        if [[ -n "$rev" ]]; then
-            git ls-tree -r --name-only "$rev"
-        else
-            find AGENTS.md CODING_STANDARDS.md .claude/skills .claude/agents -type f -name '*.md' 2> /dev/null || true
-        fi
-    } | { grep -E "$doc_re" || true; } | LC_ALL=C sort
+# Every file path of the root or commit that can be a workflow doc or a start file.
+tracked() {
+    if [[ -n "$rev" ]]; then
+        git ls-tree -r --name-only "$rev"
+    else
+        find AGENTS.md CLAUDE.md CODING_STANDARDS.md .claude -type f -name '*.md' 2> /dev/null || true
+    fi
+}
+
+docs() { tracked | { grep -E "$doc_re" || true; } | LC_ALL=C sort; }
+
+# 0 when the file $1 has a `paths:` key in its frontmatter.
+has_paths() {
+    read_file "$1" | awk '
+        NR == 1 { if ($0 != "---") exit; next }
+        /^---[ \t]*$/ { exit }
+        /^paths:/ { found = 1; exit }
+        END { exit !found }'
 }
 
 # The words of the description value of the file $1.
@@ -88,6 +100,30 @@ resolve() {
     (IFS=/; echo "${out[*]}")
 }
 
+# The existing start files, one per line, each once: the roots, then the files that an @ line imports.
+start_files() {
+    local queue=(AGENTS.md CLAUDE.md .claude/CLAUDE.md) next f target path seen=" " depth=0
+    while IFS= read -r f; do
+        has_paths "$f" || queue+=("$f")
+    done < <(tracked | { grep -E '^\.claude/rules/.+\.md$' || true; } | LC_ALL=C sort)
+    while [[ ${#queue[@]} -gt 0 && $depth -le 5 ]]; do
+        next=()
+        for f in "${queue[@]}"; do
+            [[ "$seen" != *" $f "* ]] || continue
+            seen+="$f "
+            exists "$f" || continue
+            echo "$f"
+            while IFS= read -r target; do
+                [[ -n "$target" && "$target" != /* && "$target" != '~'* ]] || continue
+                path="$(resolve "$f" "$target")"
+                [[ -z "$path" ]] || next+=("$path")
+            done < <(read_file "$f" | { grep -E '^@[^[:space:]]+[[:space:]]*$' || true; } | sed -E 's/^@//; s/[[:space:]]+$//')
+        done
+        queue=("${next[@]+"${next[@]}"}")
+        depth=$((depth + 1))
+    done
+}
+
 case "$mode" in
     list) docs ;;
     count) docs | { grep -cE "$desc_re" || true; } ;;
@@ -103,25 +139,10 @@ case "$mode" in
         done < <(docs)
         echo "$total"
         ;;
+    start-files) start_files ;;
     always-on)
         total=0
-        queue=(AGENTS.md CLAUDE.md) seen=" " depth=0
-        while [[ ${#queue[@]} -gt 0 && $depth -le 5 ]]; do
-            next=()
-            for f in "${queue[@]}"; do
-                [[ "$seen" != *" $f "* ]] || continue
-                seen+="$f "
-                exists "$f" || continue
-                total=$((total + $(words "$f")))
-                while IFS= read -r target; do
-                    [[ -n "$target" && "$target" != /* && "$target" != '~'* ]] || continue
-                    path="$(resolve "$f" "$target")"
-                    [[ -z "$path" ]] || next+=("$path")
-                done < <(read_file "$f" | { grep -E '^@[^[:space:]]+[[:space:]]*$' || true; } | sed -E 's/^@//; s/[[:space:]]+$//')
-            done
-            queue=("${next[@]+"${next[@]}"}")
-            depth=$((depth + 1))
-        done
+        while IFS= read -r f; do total=$((total + $(words "$f"))); done < <(start_files)
         while IFS= read -r f; do
             [[ -n "$f" ]] || continue
             total=$((total + $(description_words "$f")))

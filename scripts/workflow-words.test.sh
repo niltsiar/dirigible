@@ -82,6 +82,28 @@ put CLAUDE.md '@AGENTS.md'
 put docs/x.md 'i1 i2 i3'
 is 'AGENTS.md imports a file' 14 always-on
 
+# Claude Code also loads .claude/CLAUDE.md and each .claude/rules file with no paths: frontmatter at the start.
+new_repo
+put .claude/CLAUDE.md 'k1 k2'
+g add -A
+is '.claude/CLAUDE.md is a start file' 12 always-on
+put .claude/rules/a.md 'r1 r2 r3'
+put .claude/rules/sub/b.md 'b1'
+g add -A
+is 'a rules file and a nested rules file with no paths: are start files' 16 always-on
+put .claude/rules/c.md "$(printf -- '---\npaths:\n  - "src/**"\n---\nc1 c2 c3 c4')"
+g add -A
+is 'a rules file with paths: is no start file' 16 always-on
+put .claude/rules/d.md "$(printf -- '---\ndescription: x\n---\nd1 d2')"
+g add -A
+is 'a rules file with a frontmatter and no paths: is a start file' 22 always-on
+put .claude/rules/a.md "$(printf 'r1 r2 r3\n@../../docs/x.md')"
+put docs/x.md 'i1 i2'
+g add -A
+is 'a rules file imports a file' 25 always-on
+g add -A
+[[ "$(w start-files)" == $'AGENTS.md\nCLAUDE.md\n.claude/CLAUDE.md\n.claude/rules/a.md\n.claude/rules/d.md\n.claude/rules/sub/b.md\ndocs/x.md' ]] || fail "start-files: $(w start-files)"
+
 # A repo with no workflow file gives 0 in each mode and does not stop.
 rm -rf "$tmp/r"; mkdir -p "$tmp/r"; g init -q -b main; put README.md 'x'; g add -A; g commit -q -m base
 for m in always-on count sum; do

@@ -48,14 +48,23 @@ is 'count of skills and agents' 3 count
 is 'sum without the pinned folder' 28 sum
 [[ "$(w list)" == $'.claude/agents/x.md\n.claude/skills/p/SKILL.md\n.claude/skills/s/SKILL.md\n.claude/skills/s/references/r.md\nAGENTS.md\nCODING_STANDARDS.md' ]] || fail "list: $(w list)"
 
-# A commit is read with --rev; the work tree is read without it.
+# A commit is read with --rev; the work tree is read without it. Both read the files that git
+# tracks: an untracked doc counts in neither, so a comparison reads one file set.
 put AGENTS.md 'a b c d e'
 put .claude/agents/y.md "$(printf -- '---\nname: y\ndescription: six\n---\n')"
-is 'work tree sees an untracked agent and a longer AGENTS.md' 13 always-on
-is 'work tree count' 4 count
+is 'work tree reads a longer AGENTS.md and not an untracked agent' 12 always-on
+is 'work tree count has no untracked agent' 3 count
+[[ "$(w list)" != *y.md* ]] || fail "list shows an untracked agent: $(w list)"
+is 'work tree sum has no untracked agent' 30 sum
+g add -A
+is 'work tree sees a staged agent' 13 always-on
+is 'work tree count of a staged agent' 4 count
 is '--rev reads the commit' 10 always-on --rev HEAD
 is '--rev count' 3 count --rev HEAD
 is '--root names the repo' 13 always-on --root "$tmp/r"
+rm -rf "$tmp/n"; mkdir -p "$tmp/n/.claude/agents"
+printf -- '---\nname: z\ndescription: one two\n---\n' > "$tmp/n/.claude/agents/z.md"
+out="$("$script" always-on --root "$tmp/n" 2>&1)" && [[ "$out" == 2 ]] || fail "a folder with no git reads the files on disk: $out"
 
 # A folded description counts its words, not its indicator.
 for ind in '>' '|' '>-' '|-'; do

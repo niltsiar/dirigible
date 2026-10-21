@@ -263,7 +263,7 @@ grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder
 # it exits 0 either way (decision 0028, Word budgets). A references file counts.
 mkdir -p "$repo/docs/workflow" "$repo/.claude/skills/pin" "$repo/.claude/skills/s/references"
 printf 'path\twords\tdecision\nTOTAL\t10000\tx\n' > "$repo/docs/workflow/budgets.tsv"
-n_words() { seq "$2" | tr '\n' ' ' > "$repo/$1"; }
+n_words() { seq "$2" | tr '\n' ' ' > "$repo/$1"; git -C "$repo" add "$1"; }
 n_words AGENTS.md 10300
 audit total-10300
 grep -q 'consolidation due' "$tmp/err" && fail "consolidation due at TOTAL x 1.03: $(cat "$tmp/err")"

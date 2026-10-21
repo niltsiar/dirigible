@@ -2,9 +2,10 @@
 # Print words of the workflow docs of a repo (decision 0028, Word budgets). Read-only.
 # Usage: scripts/workflow-words.sh <mode> [--root <dir>] [--rev <commit>]
 # The root is the git top level unless --root names it. With --rev the script reads that commit
-# with git ls-tree and git show; else it reads the work tree. The workflow docs are AGENTS.md,
-# CODING_STANDARDS.md, .claude/skills/<name>/<file>.md, .claude/skills/<name>/references/<file>.md,
-# and .claude/agents/<name>.md. This is the one list of them: check-docs.sh, new-run.sh, and
+# with git ls-tree and git show; else it reads the tracked files of the work tree (the files on disk
+# when the root has no git). The workflow docs are AGENTS.md, CODING_STANDARDS.md,
+# .claude/skills/<name>/<file>.md, .claude/skills/<name>/references/<file>.md, and
+# .claude/agents/<name>.md. This is the one list of them: check-docs.sh, new-run.sh, and
 # check-governance.sh call this script.
 # - list: the paths of the workflow docs.
 # - sum: their words (wc -w), less the folders on the `Pinned skills` line of
@@ -50,10 +51,13 @@ exists() {
 }
 words() { read_file "$1" | wc -w | tr -d ' '; }
 
-# Every file path of the root or commit that can be a workflow doc or a start file.
+# Every file path of the commit, or of the git index in the work tree (an untracked file is no
+# doc, so both sides of a comparison read one file set). A root with no git reads the disk.
 tracked() {
     if [[ -n "$rev" ]]; then
         git ls-tree -r --name-only "$rev"
+    elif git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+        git ls-files
     else
         find AGENTS.md CLAUDE.md CODING_STANDARDS.md .claude -type f -name '*.md' 2> /dev/null || true
     fi

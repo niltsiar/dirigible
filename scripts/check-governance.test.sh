@@ -1,6 +1,9 @@
 #!/bin/bash
 # Check that check-governance.sh refuses a budget row that goes up with no decisions.tsv time in
-# its decision cell, more than one rules.tsv removal in a docs-only branch of a run with a
+# its decision cell, a TOTAL raise that keeps the base cell or cites a time that the run folder lacks, a
+# TOTAL change that is not near the sum of the workflow docs, more always-on words (AGENTS.md, CLAUDE.md,
+# the files they import, the descriptions of the skills and agents) than the merge base, more skills plus
+# agents than the merge base, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run in ## Next of the backlog after the reflect row (phase 8), a features.md row
@@ -18,15 +21,30 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 g() { git -C "$tmp/r" -c user.name=t -c user.email=t@t -c commit.gpgsign=false "$@"; }
 budgets="$tmp/r/docs/workflow/budgets.tsv"
+words_sh="$(dirname "$script")/workflow-words.sh"
 rules="$tmp/r/docs/workflow/rules.tsv"
 head_rules=$'id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary'
 
-# A repo with budgets.tsv and rules.tsv on main, on the branch feat/x, and a run folder.
+# wl <n>: n words. agents_with <n>: AGENTS.md with n words and the line that imports docs/i.md.
+wl() { seq "$1" | sed 's/^/w/' | tr '\n' ' '; }
+agents_with() { { wl "$1"; echo; echo '@docs/i.md'; } > "$tmp/r/AGENTS.md"; }
+tsum() { (cd "$tmp/r" && "$words_sh" sum); }
+
+# A repo with budgets.tsv, rules.tsv, and the always-on files on main (AGENTS.md of 60 words with an
+# import of docs/i.md, CLAUDE.md, an agent, a skill, and a references file), on the branch feat/x, and a run folder.
+# The TOTAL row of main is the sum of its workflow docs, kept in $sum0.
 new_repo() {
   rm -rf "$tmp/r" "$tmp/run"
-  mkdir -p "$tmp/r/docs/workflow" "$tmp/run"
+  mkdir -p "$tmp/r/docs/workflow" "$tmp/r/docs" "$tmp/r/.claude/agents" "$tmp/r/.claude/skills/s/references" "$tmp/run"
   g init -q -b main
-  printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t200\tbaseline\n' > "$budgets"
+  agents_with 59
+  printf '@AGENTS.md\n' > "$tmp/r/CLAUDE.md"
+  printf 'i1 i2\n' > "$tmp/r/docs/i.md"
+  printf -- '---\nname: a\ndescription: one two three\n---\nbody\n' > "$tmp/r/.claude/agents/a.md"
+  printf -- '---\nname: s\ndescription: four five six\n---\nbody\n' > "$tmp/r/.claude/skills/s/SKILL.md"
+  printf 'ref words here\n' > "$tmp/r/.claude/skills/s/references/r.md"
+  sum0="$(tsum)"
+  printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t%s\tbaseline\n' "$sum0" > "$budgets"
   printf '%s\nA-1\ta.md\tkeep\ta.md\tr\ts\t\tx\nA-2\ta.md\tkeep\ta.md\tr\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" > "$rules"
   g add -A
   g commit -q -m base
@@ -36,7 +54,7 @@ new_repo() {
   printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n- Check: check-docs.\n' > "$tmp/run/plan.md"
 }
 commit() { g add -A && g commit -q -m change; }
-row() { printf 'path\twords\tdecision\na.md\t%s\t%s\nb.md\t100\tbaseline\nTOTAL\t200\tbaseline\n' "$1" "$2" > "$budgets"; }
+row() { printf 'path\twords\tdecision\na.md\t%s\t%s\nb.md\t100\tbaseline\nTOTAL\t%s\tbaseline\n' "$1" "$2" "$sum0" > "$budgets"; }
 verdicts() { printf '%s\nA-1\ta.md\t%s\ta.md\tr\ts\t\tx\nA-2\ta.md\t%s\tA-1\tr\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "$1" "$2" > "$rules"; }
 
 # pass <name> [args]: exit 0. refuse <name> <reason> [args]: a nonzero exit and the reason.
@@ -63,41 +81,86 @@ pass 'a new row with free text'
 new_repo; g switch -q main; g rm -q docs/workflow/budgets.tsv; g commit -q -m rm; g switch -q -C feat/x
 row 120 'raised'; commit
 pass 'no budgets.tsv in the base'
-# A row moves out of TOTAL (its decision cell becomes vendored:) only when the same diff adds its
-# skill to the Pinned skills line of THIRD_PARTY.md, or when the base already pins the skill and the row is new.
-pin() { mkdir -p "$tmp/r/.claude/skills"; printf 'Pinned skills: %s\n' "$1" > "$tmp/r/.claude/skills/THIRD_PARTY.md"; }
-vrows() { printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\n.claude/skills/x/NOTES.md\t100\t%s\nTOTAL\t200\tbaseline\n' "$1" > "$budgets"; }
-base_vendor() { g switch -q main; vrows "$1"; pin "$2"; g add -A; g commit -qm vendor; g switch -q -C feat/x; }
-new_repo; base_vendor baseline '`y`.'; vrows 'vendored: x'; commit
-refuse 'a row that becomes vendored with no pin' 'the row for .claude/skills/x/NOTES.md becomes vendored'
-new_repo; base_vendor baseline '`x`.'; vrows 'vendored: x'; commit
-refuse 'an existing row that becomes vendored under a pinned skill' 'the row for .claude/skills/x/NOTES.md becomes vendored'
-new_repo; base_vendor baseline '`y`.'; vrows 'vendored: x'; pin '`y`, `x`.'; commit
-pass 'a row that becomes vendored in the diff that pins its skill'
-new_repo; base_vendor 'vendored: x' '`x`.'; vrows 'vendored: x again'; commit
-pass 'a row that is vendored in the base'
-new_repo; base_vendor baseline '`x`.'; printf '.claude/skills/x/NEW.md\t10\tvendored: x\n' >> "$budgets"; commit
-pass 'a new vendored row under a skill that the base pins'
-# A branch raises TOTAL by at most 50 words, unless its QUOTA row holds a value at or above the new
-# TOTAL (a consolidation run). A lower QUOTA or a deleted QUOTA row does not lift the cap.
-totals() { printf 'path\twords\tdecision\na.md\t100\tbaseline\nb.md\t100\tbaseline\nTOTAL\t%s\tdecisions.tsv 2026-10-01T02:43\n%s' "$1" "$2" > "$budgets"; }
-base_quota() { g switch -q main; printf 'QUOTA\t200\tbaseline\n' >> "$budgets"; g commit -qam quota; g switch -q -C feat/x; }
-new_repo; totals 250 ''; commit
-pass 'a TOTAL raise of 50 words'
-new_repo; totals 251 ''; commit
-refuse 'a TOTAL raise of 51 words with no QUOTA change' 'TOTAL goes up by 51 words'
+# A raised TOTAL row cites a row of its own run: not the cell of the base, and (with a run folder) a
+# time that decisions.tsv of the run has. A changed TOTAL stays within 3 % of the sum of the workflow docs.
+cite=$'decisions.tsv 2026-10-01T02:43'
+run_row() { printf '2026-10-01T02:43\t3\tx\tw\te\tr\n' >> "$tmp/run/decisions.tsv"; }
+total() { sed -i '' "s|^TOTAL	.*|TOTAL	$1	$2|" "$budgets"; }
+more_refs() { wl "$1" >> "$tmp/r/.claude/skills/s/references/r.md"; }
+new_repo; more_refs 51; run_row; total "$(tsum)" "$cite"; commit
+pass 'a TOTAL raise of 51 words that cites a decisions.tsv row' "$tmp/run"
+new_repo; more_refs 51; total "$(tsum)" "$cite"; commit
+pass 'a TOTAL raise that cites a time, with no run folder'
+new_repo; more_refs 51; total "$(tsum)" "$cite"; commit
+refuse 'a TOTAL raise that cites a time with no row in the run decisions.tsv' 'has no row with that time' "$tmp/run"
+new_repo; more_refs 51; total "$(tsum)" 'free text'; commit
+refuse 'a TOTAL raise with free text' 'the row for TOTAL goes up'
+new_repo; g switch -q main; total "$sum0" "$cite"; g commit -qam cite; g switch -q -C feat/x
+more_refs 51; total "$(tsum)" "$cite"; commit
+refuse 'a TOTAL raise that keeps the base citation' 'names a decisions.tsv row of its own'
+new_repo; more_refs 50; run_row; total "$(( sum0 + 20 ))" "$cite"; commit
+refuse 'a TOTAL change that is not near the sum' 'is not the sum of the workflow docs' "$tmp/run"
+new_repo; more_refs 500; run_row; total "$(( $(tsum) + 10 ))" "$cite"; commit
+pass 'a TOTAL change 2 % over the sum' "$tmp/run"
+new_repo; more_refs 500; run_row; total "$(( $(tsum) - 10 ))" "$cite"; commit
+pass 'a TOTAL change 2 % under the sum' "$tmp/run"
+new_repo; more_refs 30; total "$(tsum)" "$cite"; commit
+pass 'a TOTAL change that stays at the sum after a docs change'
+new_repo; printf 'x y\n' > "$tmp/r/.claude/skills/s/references/r.md"; total "$(tsum)" cut; commit
+pass 'a TOTAL cut to the sum needs no citation'
+new_repo; printf 'x y\n' > "$tmp/r/.claude/skills/s/references/r.md"; commit
+pass 'a docs cut with TOTAL unchanged'
+new_repo; more_refs 4000; commit
+pass 'docs over TOTAL x 1.03 are no governance fault (new-run.sh warns)'
+
+# The always-on words (AGENTS.md, CLAUDE.md, the files they import, the description of each skill and
+# agent) stay at or below the merge base. The merge base is not the tip of main.
+new_repo; echo extra >> "$tmp/r/AGENTS.md"; commit
+refuse 'AGENTS.md gets 1 more word' 'always-on words go from'
 out="$(cd "$tmp/r" && "$script" main 2>&1)"
-[[ "$out" != *'change the QUOTA row'* ]] || fail "the cap message tells the agent to change the QUOTA row: $out"
-new_repo; totals 251 $'QUOTA\t251\tdecisions.tsv 2026-10-01T02:43\n'; commit
-pass 'a TOTAL raise of 51 words with a new QUOTA row at the new TOTAL'
-new_repo; base_quota; totals 251 $'QUOTA\t251\tdecisions.tsv 2026-10-01T02:43\n'; commit
-pass 'a TOTAL raise of 51 words with a QUOTA row raised to the new TOTAL'
-new_repo; base_quota; totals 251 $'QUOTA\t199\tdecisions.tsv 2026-10-01T02:43\n'; commit
-refuse 'a TOTAL raise of 51 words with a lower QUOTA' 'TOTAL goes up by 51 words'
-new_repo; base_quota; totals 251 $'QUOTA\t201\tdecisions.tsv 2026-10-01T02:43\n'; commit
-refuse 'a TOTAL raise of 51 words with a raised QUOTA below the new TOTAL' 'TOTAL goes up by 51 words'
-new_repo; base_quota; totals 251 ''; commit
-refuse 'a TOTAL raise of 51 words with the QUOTA row deleted' 'TOTAL goes up by 51 words'
+[[ "$out" == *'move a whole part to a references file'* ]] || fail "the cap refusal does not name the way out: $out"
+[[ "$out" != *'cut text'* ]] || fail "the cap refusal asks for a word trim: $out"
+new_repo; { wl 59; echo; echo '@docs/i.md'; } | sed 's/w\([0-9]\)/v\1/g' > "$tmp/r/AGENTS.md"; commit
+pass 'equal always-on words'
+new_repo; { wl 9; echo; echo '@docs/i.md'; } > "$tmp/r/AGENTS.md"; more_refs 50; commit
+pass '50 words moved from AGENTS.md to a references file'
+new_repo; sed -i '' 's/three/three four/' "$tmp/r/.claude/agents/a.md"; commit
+refuse 'a description gets 1 more word' 'always-on words go from'
+new_repo; printf -- '---\nname: s\ndescription: >\n  four five\n  six seven\n---\nbody\n' > "$tmp/r/.claude/skills/s/SKILL.md"; commit
+refuse 'a folded description gets 1 more word' 'always-on words go from'
+new_repo; printf -- '---\nname: s\ndescription: >\n  four five\n  six\n---\nbody\n' > "$tmp/r/.claude/skills/s/SKILL.md"; commit
+pass 'a folded description with the same words'
+new_repo; echo extra >> "$tmp/r/CLAUDE.md"; commit
+refuse 'CLAUDE.md gets 1 more word' 'always-on words go from'
+new_repo; echo i3 >> "$tmp/r/docs/i.md"; commit
+refuse 'a file that AGENTS.md imports gets 1 more word' 'always-on words go from'
+new_repo; g switch -q main; { wl 49; echo; echo '@docs/i.md'; } > "$tmp/r/AGENTS.md"; g commit -qam 'cut 10 words'; g switch -q feat/x
+pass 'main cut 10 words of AGENTS.md after the branch start'
+
+# The count of skills plus agents stays at or below the merge base: a new one deletes one.
+new_repo; printf -- '---\nname: b\n---\nbody\n' > "$tmp/r/.claude/agents/b.md"; commit
+refuse 'an agent added and none deleted' 'skills and agents'
+new_repo; mkdir -p "$tmp/r/.claude/skills/t"; printf -- '---\nname: t\n---\nbody\n' > "$tmp/r/.claude/skills/t/SKILL.md"; commit
+refuse 'a skill folder added and none deleted' 'skills and agents'
+new_repo; mkdir -p "$tmp/r/.claude/skills/t"; printf -- '---\nname: t\ndescription: x y\n---\nbody\n' > "$tmp/r/.claude/skills/t/SKILL.md"; rm "$tmp/r/.claude/agents/a.md"; commit
+pass 'a skill added and an agent deleted'
+new_repo; g mv .claude/skills/s .claude/skills/s2; commit
+pass 'a skill folder renamed'
+
+# A base with no AGENTS.md and no .claude: the fixture of land.test.sh. The check does not stop.
+no_workflow_repo() {
+  rm -rf "$tmp/r" "$tmp/run"
+  mkdir -p "$tmp/r/docs/workflow" "$tmp/run"
+  g init -q -b main
+  printf 'path\twords\tdecision\na.md\t100\tbaseline\n' > "$budgets"
+  g add -A
+  g commit -q -m base
+  g switch -q -c feat/x
+}
+no_workflow_repo; echo x > "$tmp/r/x.md"; commit
+pass 'a base with no AGENTS.md and no .claude'
+no_workflow_repo; printf 'path\twords\tdecision\na.md\t120\traised\n' > "$budgets"; commit
+refuse 'a raised row in a repo with no workflow file' 'the row for a.md goes up from 100 to 120'
 new_repo; row 120 'raised'; commit
 out="$(cd "$tmp/r" && "$script" does-not-exist 2>&1)" && fail 'a bad base exits 0'
 [[ "$out" == *does-not-exist* ]] || fail "a bad base: no reason: $out"
@@ -355,6 +418,9 @@ sed -i '' 's/| done: PR #2 |/| done, PR 2, x |/' "$s/ledger.md"
 rm -rf "$s/runs/2026-01-02-b/eval"
 hold 2026-01-02-b H6
 refuse 'a holdout fail in this run and the newest run with the status done, PR 2' 'H6 failed in this run and in 2026-01-02-b' "$me"
+
+# The script that counts the words has its own test; this test runs it, so make test-hooks covers it.
+ww_out="$(bash "$(dirname "$script")/workflow-words.test.sh" 2>&1)" || fail "workflow-words.test.sh: $ww_out"
 
 [[ $failures -eq 0 ]] && echo "check-governance tests: all passed"
 exit $((failures > 0))

@@ -254,9 +254,8 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
 done
 
 # A pull request merges only through scripts/land.sh. The hook sees only the Bash command text, so
-# the gh call inside land.sh passes, and a script file, a query file, another harness, and the web UI
-# are outside it. The api merge path blocks with a PUT method only: the GET is a read. A query or an
-# alias can hold ; or |, so those two forms read the text before the chain split, on one line.
+# the gh call inside land.sh passes. The api path blocks with a PUT only (the GET is a read); a query
+# or an alias can hold ; or |, so those two forms read the text before the chain split.
 flat="${UNSPLIT//$'\n'/ }"
 if grep -qE 'gh pr merge( |$)' <<< "$NORMALIZED" ||
   grep -E 'gh api .*pulls/[^/ ]+/merge' <<< "$NORMALIZED" | grep -qiE -- '(-X ?PUT|--method[ =]PUT)' ||

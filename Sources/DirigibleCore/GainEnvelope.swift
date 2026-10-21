@@ -38,6 +38,24 @@ public struct GainEnvelope: Hashable, Sendable {
         Self.value(of: points.lazy.map { ($0.frame.count, $0.gain.dB) }, at: frame.count)
     }
 
+    /// The envelope with a point at the file frame `frame`: of `gain`, or with `gain` nil of the
+    /// envelope value there, so no sample changes. A point there is replaced when `gain` is given.
+    /// Nil when the result is this envelope: a point there and no `gain`, or a point with that
+    /// `gain`; also for a frame outside `0...Frames.limit`. Every add of a point calls it, so the
+    /// mouse and the keyboard add the same point.
+    public func withPoint(at frame: Frames, gain: Gain? = nil) -> GainEnvelope? {
+        guard frame.isInRange, let new = gain ?? Gain(clamping: self.gain(at: frame)) else { return nil }
+        var points = points
+        let index = points.firstIndex { $0.frame >= frame } ?? points.endIndex
+        if index < points.endIndex, points[index].frame == frame {
+            guard gain != nil, points[index].gain != new else { return nil }
+            points[index] = Point(frame: frame, gain: new)
+        } else {
+            points.insert(Point(frame: frame, gain: new), at: index)
+        }
+        return GainEnvelope(valid: points)
+    }
+
     /// The points with a file frame in `window`, found by binary search. The lanes draw and hit
     /// the points of the clip window with it.
     public func points(in window: Range<Frames>) -> ArraySlice<Point> {

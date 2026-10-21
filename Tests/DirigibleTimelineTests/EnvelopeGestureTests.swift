@@ -114,6 +114,17 @@ struct EnvelopeGestureTests {
             frames.allSatisfy { abs(new.gain(at: Frames($0)) - old.gain(at: Frames($0))) < 1e-9 }, "no sample changes")
     }
 
+    /// The mouse and the keyboard add the same point: Option-K at the timeline frame of an
+    /// Option-click gives the envelope that the click gives.
+    @Test mutating func anOptionClickAndOptionKGiveTheSameEnvelope() throws {
+        down(140, 4.8, option: true)
+        let clicked = try #require(committed(up(140, 4.8))?.clip("A")?.clip.envelope)
+
+        let keyed = try #require(PointGain.envelopes(nil, at: 67_200, for: ["A"], in: session)?["A"])
+
+        #expect(clicked == keyed, "\(clicked.points) and \(keyed.points)")
+    }
+
     @Test mutating func aPointDragMovesInTimeAndDecibelsAndStopsAtItsNeighbors() throws {
         down(150, 8)
         #expect(gesture.readout == nil, "no drag yet")

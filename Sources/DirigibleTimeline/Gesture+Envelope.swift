@@ -37,29 +37,19 @@ extension TimelineGesture {
         }
     }
 
-    /// `session` with the points of `clip` inside its window replaced by `points` (file frames, in
-    /// order); the points outside the window stay (`Session.setEnvelope`).
-    private static func setting(_ points: [GainEnvelope.Point], of clip: Clip, in session: Session) -> Session? {
-        let window = clip.offset..<(clip.offset + clip.length)
-        let inside = Dictionary(
-            uniqueKeysWithValues: points.filter { window.contains($0.frame) }
-                .map { ($0.frame - clip.offset + clip.start, $0.gain) })
+    /// `session` with `envelope` on `clip`. Nil when the clip does not accept it.
+    private static func setting(_ envelope: GainEnvelope?, of clip: Clip, in session: Session) -> Session? {
         var result = session
-        // Every key is inside the clip, so no input reaches a throw.
-        return (try? result.setEnvelope(inside, clip: clip.id)) == nil ? nil : result
+        guard let envelope, (try? result.setEnvelopes([clip.id: envelope])) != nil else { return nil }
+        return result
     }
 
     /// The clip with a new point at the timeline frame `frame` that changes no sample (the envelope
     /// value there), the index of the point, and the session with it. Nil when a point is there.
     private static func adding(at frame: Frames, to clip: Clip, in session: Session) -> (Clip, Int, Session)? {
         let file = frame - clip.start + clip.offset
-        guard !clip.envelope.points.contains(where: { $0.frame == file }),
-            let gain = Gain(clamping: clip.envelope.gain(at: file))
-        else { return nil }
-        let point = GainEnvelope.Point(frame: file, gain: gain)
-        let points = (clip.envelope.points + [point]).sorted { $0.frame < $1.frame }
-        guard let result = setting(points, of: clip, in: session),
-            let new = result.clip(clip.id)?.clip, let index = points.firstIndex(of: point)
+        guard let envelope = clip.envelope.withPoint(at: file), let result = setting(envelope, of: clip, in: session),
+            let new = result.clip(clip.id)?.clip, let index = envelope.points.firstIndex(where: { $0.frame == file })
         else { return nil }
         return (new, index, result)
     }
@@ -93,7 +83,7 @@ extension TimelineGesture {
 
     /// A point drag event: the point follows the pointer in time, between its neighbors and inside the
     /// clip window, and in dB (the line stays under the pointer, 60 dB per lane height, rounded to
-    /// 0.1 dB, from min(start, -60) to max(start, `Gain.levelLimit`)). A take ends the drag.
+    /// 0.1 dB, from min(start, `PointGain.floor`) to max(start, `Gain.levelLimit`)). A take ends the drag.
     mutating func pointDrag(_ press: Press, _ drag: PointDrag, _ x: Double, _ y: Double, _ context: GestureContext)
         -> [GestureEffect]
     {
@@ -112,14 +102,14 @@ extension TimelineGesture {
         var dB = start.gain.dB
         if y != press.y {
             let moved = ((start.gain.dB + (press.y - y) * 60 / context.geometry.laneHeight) * 10).rounded() / 10
-            dB = min(max(moved, min(start.gain.dB, -60)), max(start.gain.dB, Gain.levelLimit))
+            dB = min(max(moved, min(start.gain.dB, PointGain.floor)), max(start.gain.dB, Gain.levelLimit))
         }
         guard let gain = Gain(dB: dB), GainEnvelope.Point(frame: frame, gain: gain) != drag.point else { return [] }
         let point = GainEnvelope.Point(frame: frame, gain: gain)
         var moved = points
         moved[drag.index] = point
         // The frame stays between the neighbors, so the order holds. A failure keeps the last preview.
-        guard let preview = Self.setting(moved, of: drag.clip, in: press.base) else { return [] }
+        guard let preview = Self.setting(GainEnvelope(moved), of: drag.clip, in: press.base) else { return [] }
         var drag = drag
         (drag.point, drag.preview) = (point, preview)
         state = .pointing(press, drag)
@@ -148,7 +138,9 @@ extension TimelineGesture {
     {
         var points = clip.envelope.points
         points.remove(at: index)
-        guard context.canEdit, let result = Self.setting(points, of: clip, in: press.base) else { return nil }
+        guard context.canEdit, let result = Self.setting(GainEnvelope(points), of: clip, in: press.base) else {
+            return nil
+        }
         return [.commit(commit(press, clip, lane, result))]
     }
 

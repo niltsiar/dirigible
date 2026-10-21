@@ -133,6 +133,8 @@ public struct LaneGeometry: Equatable, Sendable {
     /// The room that a point needs: no point shows within this distance of another point or of a fade
     /// handle (points).
     static let pointClearance = 8.0
+    /// A press within this distance of the center of a shown point (points) hits the point.
+    public static let pointReach = 5.0
     /// The line of an envelope clip stays this far under the top of the box, and a point this far
     /// from the top and the bottom (points).
     public static let lineClamp = 3.0
@@ -196,7 +198,8 @@ public struct LaneGeometry: Equatable, Sendable {
     }
 
     /// The zone under a lane point (mouse-edits criterion 1, run 11b-1). On a clip, in this order:
-    /// a fade handle, 4 pt inside each edge trims, the gain band (3 pt around the gain line, at
+    /// a fade handle, a shown envelope point (the nearest within `pointReach`; before the trim zones,
+    /// so a point at a clip edge can be grabbed), 4 pt inside each edge trims, the gain band (3 pt around the gain line, at
     /// least 3 pt under the box top, between the fades and the crossfade halves), the upper two
     /// thirds moves, and the lower third is a range. The handles and the band need a box of
     /// `controlsWidth`. A box under 12 pt is all range, so a small drag at fit zoom cannot move a
@@ -220,6 +223,9 @@ public struct LaneGeometry: Equatable, Sendable {
         case (nil, .some): return .fade(clip, .end, lane: lane)
         case (nil, nil): break
         }
+        let point = envelopePoints(of: clip, at: index, in: track.clips, trackGain: track.gain, lane: lane)
+            .map { ($0, hypot(x - $0.x, y - $0.y)) }.filter { $0.1 <= Self.pointReach }.min { $0.1 < $1.1 }
+        if let point { return .point(clip, index: point.0.index, lane: lane) }
         if x - box.minX < trim { return .trim(clip, .start, lane: lane) }
         if box.maxX - x < trim { return .trim(clip, .end, lane: lane) }
         if box.width >= Self.controlsWidth {
@@ -244,11 +250,15 @@ enum LaneHit: Equatable, Sendable {
     case move(Clip, lane: Int)
     case gain(Clip, lane: Int)
     case fade(Clip, Edge, lane: Int)
+    /// A point of the envelope of the clip: its index in `Clip.envelope.points`.
+    case point(Clip, index: Int, lane: Int)
     case range(lane: Int?)
 
     var lane: Int? {
         switch self {
-        case .trim(_, _, let lane), .move(_, let lane), .gain(_, let lane), .fade(_, _, let lane): lane
+        case .trim(_, _, let lane), .move(_, let lane), .gain(_, let lane), .fade(_, _, let lane),
+            .point(_, _, let lane):
+            lane
         case .range(let lane): lane
         }
     }
@@ -256,7 +266,9 @@ enum LaneHit: Equatable, Sendable {
     /// The clip of a clip zone.
     var clip: Clip? {
         switch self {
-        case .trim(let clip, _, _), .move(let clip, _), .gain(let clip, _), .fade(let clip, _, _): clip
+        case .trim(let clip, _, _), .move(let clip, _), .gain(let clip, _), .fade(let clip, _, _),
+            .point(let clip, _, _):
+            clip
         case .range: nil
         }
     }
@@ -267,6 +279,7 @@ enum LaneHit: Equatable, Sendable {
         case .trim, .fade: .resizeLeftRight
         case .gain: .resizeUpDown
         case .move: .arrow
+        case .point: .openHand
         case .range: .iBeam
         }
     }

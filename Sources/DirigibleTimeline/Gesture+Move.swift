@@ -146,7 +146,7 @@ extension TimelineGesture {
         guard case .lane(let hit) = press.target else { return rulerClick(press) }
         switch hit {
         case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
-            .fade(let clip, _, let lane):
+            .fade(let clip, _, let lane), .point(let clip, _, let lane):
             if press.command { return [.selection(context.selection.toggling(clip.id, in: context.session))] }
             return [
                 .selection(.range(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])))

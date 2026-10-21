@@ -288,6 +288,8 @@
 "timeline.readout.fade.in" = "Fade-in %@ ms";
 "timeline.readout.fade.out" = "Fade-out %@ ms";
 "timeline.readout.crossfade" = "Crossfade %@ ms";
+"timeline.readout.point" = "Ponto %@ dB";
+"timeline.readout.range.gain" = "Ganho do intervalo %@ dB";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Ampliar";

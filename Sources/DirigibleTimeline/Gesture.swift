@@ -141,6 +141,10 @@ public struct TimelineGesture: Sendable {
         case trimming(Press, Trim)
         /// A drag of the gain line, of a fade handle, or of a crossfade handle (`Gesture+Clip.swift`).
         case gaining(Press, GainDrag)
+        /// A drag of an envelope point, or of a point that an Option press added, and a drag of the
+        /// line inside a range (`Gesture+Envelope.swift`).
+        case pointing(Press, PointDrag)
+        case rangeGaining(Press, RangeGainDrag)
         case fading(Press, FadeDrag)
         case crossfading(Press, CrossfadeDrag)
         /// A range drag, with its snap targets and the target that the pointer end is on.
@@ -170,7 +174,7 @@ public struct TimelineGesture: Sendable {
     public var autoscrolls: Bool {
         switch state {
         case .moving, .grouping, .trimming, .fading, .crossfading, .ranging, .markerDrag, .pointDrag: true
-        case .idle, .dropped, .pressed, .gaining: false
+        case .idle, .dropped, .pressed, .gaining, .pointing, .rangeGaining: false
         }
     }
 
@@ -203,11 +207,13 @@ public struct TimelineGesture: Sendable {
             let effects = drag(place, context)
             defer { state = .idle }
             switch state {
-            case .pressed(let press): return reset(press, context) ?? click(press, context)
+            case .pressed(let press): return reset(press, context) ?? addPoint(press, context) ?? click(press, context)
             case .moving(let press, let move): return commit(press, move, context)
             case .grouping(let press, let group): return commit(press, group, context)
             case .trimming(let press, let trim): return commit(press, trim, context)
             case .gaining(let press, let gain): return commit(press, gain, context)
+            case .pointing(let press, let point): return commit(press, point, context)
+            case .rangeGaining(let press, let gain): return commit(press, gain, context)
             case .fading(let press, let fade): return commit(press, fade, context)
             case .crossfading(let press, let crossfade): return commit(press, crossfade, context)
             case .markerDrag(let press, let original, let preview): return commit(press, original, preview)
@@ -220,7 +226,7 @@ public struct TimelineGesture: Sendable {
             case .pressed:
                 state = .idle
                 return []
-            case .moving, .grouping, .trimming, .gaining, .fading, .crossfading, .markerDrag:
+            case .moving, .grouping, .trimming, .gaining, .pointing, .rangeGaining, .fading, .crossfading, .markerDrag:
                 state = .dropped
                 return []
             case .ranging(let press, _, _), .pointDrag(let press, _):
@@ -229,7 +235,8 @@ public struct TimelineGesture: Sendable {
             }
         case .sessionChanged:
             switch state {
-            case .moving, .grouping, .trimming, .gaining, .fading, .crossfading, .markerDrag: state = .dropped
+            case .moving, .grouping, .trimming, .gaining, .pointing, .rangeGaining, .fading, .crossfading, .markerDrag:
+                state = .dropped
             case .pressed(let press) where press.target.edits: state = .idle
             // An undo or a take changes the clip edges: the range drag snaps to the new session.
             case .ranging(let press, _, _): state = rangeState(press, context)
@@ -247,6 +254,8 @@ public struct TimelineGesture: Sendable {
         case .grouping(_, let group): group.preview
         case .trimming(_, let trim): trim.preview
         case .gaining(_, let gain): gain.preview
+        case .pointing(_, let point): point.preview
+        case .rangeGaining(_, let gain): gain.preview
         case .fading(_, let fade): fade.preview
         case .crossfading(_, let crossfade): crossfade.preview
         case .markerDrag(_, _, let preview): preview
@@ -261,7 +270,8 @@ public struct TimelineGesture: Sendable {
         case .moving, .grouping: return .closedHand
         case .trimming(_, let trim) where trim.ripple: return .rippleTrim(trim.edge)
         case .trimming, .fading, .crossfading, .markerDrag, .pointDrag: return .resizeLeftRight
-        case .gaining: return .resizeUpDown
+        case .gaining, .rangeGaining: return .resizeUpDown
+        case .pointing: return .closedHand
         case .ranging: return .iBeam
         case .idle, .dropped, .pressed: break
         }
@@ -311,7 +321,11 @@ public struct TimelineGesture: Sendable {
                 return drag(place, context)
             case .lane(.gain(let clip, let lane)):
                 guard context.canEdit else { return [] }
-                state = .gaining(press, GainDrag(clip: clip, lane: lane, gain: clip.gain, preview: press.base))
+                state = gainState(press, clip, lane)
+                return drag(place, context)
+            case .lane(.point(let clip, let index, let lane)):
+                guard context.canEdit, let pointing = pointState(press, clip, lane, index: index) else { return [] }
+                state = pointing
                 return drag(place, context)
             case .lane(.fade(let clip, let edge, let lane)):
                 guard context.canEdit else { return [] }
@@ -353,6 +367,10 @@ public struct TimelineGesture: Sendable {
             return []
         case .gaining(let press, let gain):
             return gainDrag(press, gain, y, context)
+        case .pointing(let press, let point):
+            return pointDrag(press, point, x, y, context)
+        case .rangeGaining(let press, let gain):
+            return rangeGainDrag(press, gain, y, context)
         case .fading(let press, let fade):
             return fadeDrag(press, fade, x, context)
         case .crossfading(let press, let crossfade):

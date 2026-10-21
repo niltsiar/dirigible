@@ -276,13 +276,17 @@ A new fade replaces the old fade of that edge. When the two fades are longer tha
 
 On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and a small square at each top corner is a fade handle. The line is at the top of a full-scale signal with the gain. Above 0 dB, the line stays at the top of the clip and is dashed, and the clip name shows the gain.
 
-A clip with gain points has a line that follows them, and the waveform goes down where the gain is lower. The line stays 3 pt under the top of the clip. Each point is a disc of 6 pt. A disc does not show when another point or a fade handle is less than 8 pt away: you see only the line. You set the points with `dirigible clip envelope` and `dirigible clip gain-range`.
+A clip with gain points has a line that follows them, and the waveform goes down where the gain is lower. The line stays 3 pt under the top of the clip. Each point is a disc of 6 pt. A disc does not show when another point or a fade handle is less than 8 pt away: you see only the line. You set the points with the mouse (below), or with `dirigible clip envelope` and `dirigible clip gain-range`.
 
-- Drag the line up or down to change the gain of that clip, in steps of 0.1 dB. A drag goes to +20 dB or -20 dB, or stops at the start value when that value is outside these limits.
+- Drag the line up or down to change the gain of that clip, in steps of 0.1 dB. A drag goes to +20 dB or -20 dB, or stops at the start value when that value is outside these limits. The gain points keep their shape: they add to the clip gain.
+- With a range selected inside a clip, but not the whole clip, drag the line inside the range to change the gain of that range only. The gain goes up or down in the range, with a ramp of 500 ms on each side, and it adds to the gain points that are there. A drag outside the range changes the clip gain.
+- Option-click the line to add a gain point there. The sound does not change. Option-drag adds a point and moves it.
+- Drag a point to move it in time and in dB. It stops at the points next to it and at the clip edges, and it goes down to -60 dB and up to +20 dB. The label shows **Point -16.0 dB**.
+- Double-click a point to remove it.
 - Drag a fade handle to make the fade longer or shorter. The handle stops at the other fade.
 - A crossfade has a handle at each end of its X. Drag a handle away from the join to make the crossfade longer on both sides, or toward the join to make it shorter. A drag onto the join removes the crossfade. The handle stops where the audio or the clip ends.
-- Double-click the line to set the gain to 0 dB. Double-click a handle to remove that fade or crossfade.
-- During a drag, a label next to the pointer shows the gain in dB, or the fade or crossfade length in ms. For the gain, the label also shows the change since you started the drag, for example **Gain +4.0 dB (-2.0)**, and a bar from -20 dB to +20 dB. A mark on the bar shows the gain, and a short line shows 0 dB. Above 0 dB the gain line stays at the top of the clip, so the mark shows the change.
+- Double-click the line to set the clip gain to 0 dB: the gain points stay. Double-click a handle to remove that fade or crossfade.
+- During a drag, a label next to the pointer shows the gain in dB, the gain of a range (**Range Gain +4.0 dB**), or the fade or crossfade length in ms. For the gain, the label also shows the change since you started the drag, for example **Gain +4.0 dB (-2.0)**, and a bar from -20 dB to +20 dB. A mark on the bar shows the gain, and a short line shows 0 dB. Above 0 dB the gain line stays at the top of the clip, so the mark shows the change.
 - Press Esc during a drag to cancel it.
 
 Each drag and each double-click is one step in the undo history. Where two clips touch with no fade and no crossfade, the edges have no handle: press Command-F on a selection across the join to make a crossfade.

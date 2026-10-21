@@ -27,7 +27,7 @@ Match and route each learning by rules 1-3 of `.claude/skills/reflect/SKILL.md`:
    - `replace` or `merge`: it changes an existing rule in the same section, or joins one. For a merge, name the kept ID.
    - `backlog`: it fails the budget test, or it needs a user decision.
 
-Budget test: the `wc -w` of the target file, plus the added words, minus the removed words, stays within its row, its skill folder row, and the `TOTAL` row of `docs/workflow/budgets.tsv`.
+Budget test: the always-on words (`scripts/workflow-words.sh always-on`), plus the added words, minus the removed words, stay at or below their count at the base. Other files have no word limit. A part that does not fit moves whole to a references file; the test never asks for a word trim.
 
 Apply each criterion to every finding:
 

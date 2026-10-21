@@ -1,2 +1,2 @@
 path	words	decision
-TOTAL	32226	2026-10-21-growth-caps S3 (decisions.tsv 2026-10-21T23:11: a cap on the always-on words and a skill and agent count replace the file rows; TOTAL is a tripwire at +3 %)
+TOTAL	32246	2026-10-21-growth-caps S4 (decisions.tsv 2026-10-22T00:07: TOTAL is the output of scripts/workflow-words.sh sum after the last doc edit of the slice)

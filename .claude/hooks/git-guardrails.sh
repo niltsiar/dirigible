@@ -255,10 +255,18 @@ done
 
 # A pull request merges only through scripts/land.sh. The hook sees only the Bash command text, so
 # the gh call inside land.sh passes. The api path blocks with a PUT only (the GET is a read); a query
-# or an alias can hold ; or |, so those two forms read the text before the chain split.
+# or an alias can hold ; or |, so those two forms read the text before the chain split. The route
+# (a command that starts with scripts/land.sh or git commit, after NAME=value, env, and with-lock.sh
+# words) may hold merge words in its title or message, so the rule skips it, unless it has a
+# substitution. A ; or | inside its quotes splits it, and the rest blocks.
+route='^ *(\{ )?([A-Za-z_][A-Za-z0-9_]*=[^ ]+ |env |[^ ]*with-lock\.sh )*(\./)?(scripts/land\.sh|git commit)( |$)'
+is_route() { [[ "$1" =~ $route && "$1" != *'$('* && "$1" != *'`'* && "$1" != *'<('* ]]; }
+merge_text=""
+while IFS= read -r line; do is_route "$line" || merge_text+="$line"$'\n'; done <<< "$NORMALIZED"
 flat="${UNSPLIT//$'\n'/ }"
-if grep -qE 'gh pr merge( |$)' <<< "$NORMALIZED" ||
-  grep -E 'gh api .*pulls/[^/ ]+/merge' <<< "$NORMALIZED" | grep -qiE -- '(-X ?PUT|--method[ =]PUT)' ||
+if [[ "$(wc -l <<< "$NORMALIZED")" -eq 1 ]] && is_route "$UNSPLIT"; then flat=""; fi
+if grep -qE 'gh pr merge( |$)' <<< "$merge_text" ||
+  grep -E 'gh api .*pulls/[^/ ]+/merge' <<< "$merge_text" | grep -qiE -- '(-X ?PUT|--method[ =]PUT)' ||
   grep -qE 'gh api .*(mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat" ||
   grep -qE 'gh alias set .*(pr merge|pulls/[^/ ]+/merge|mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat"; then
   block_merge

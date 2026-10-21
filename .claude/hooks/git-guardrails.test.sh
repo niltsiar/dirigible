@@ -165,6 +165,20 @@ expect allow 'gh api repos/o/r/pulls/3/merge --jq .merged'
 expect allow 'gh pr list --state merged'
 expect allow 'gh alias set v "pr view"'
 expect allow 'scripts/land.sh "t" pr.md'
+# The route itself never blocks: a land title or a commit message may hold merge words. A command
+# after the route in the chain, and a substitution in the text, still block.
+expect allow 'scripts/land.sh "fix(land): retry gh pr merge after a 502" pr.md'
+expect allow './scripts/land.sh "fix(land): retry gh pr merge after a 502" pr.md'
+expect allow 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh "fix(land): retry gh pr merge after a 502" pr.md'
+expect allow 'cd x && scripts/land.sh "fix(land): retry gh pr merge after a 502" pr.md'
+expect allow 'scripts/land.sh "docs: gh api mergePullRequest" pr.md'
+expect allow 'git commit -m "fix(land): retry gh pr merge after a 502"'
+expect allow 'git -C ../wt commit -m "docs: gh alias set m pr merge"'
+expect block 'scripts/land.sh "t" pr.md && gh pr merge 3'
+expect block 'git commit -m x; gh pr merge 3'
+expect block 'gh pr merge 3 && scripts/land.sh "t" pr.md'
+expect block 'scripts/land.sh "$(gh pr merge 3)" pr.md'
+expect block 'git commit -m "`gh pr merge 3`"'
 expect allow 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh "t" .scratchpads/runs/r/pr.md'
 got="$(printf '{"tool_input":{"command":"gh pr merge 3 --rebase"}}' | "$hook" 2>&1)"
 [[ "$got" == *scripts/land.sh* ]] ||

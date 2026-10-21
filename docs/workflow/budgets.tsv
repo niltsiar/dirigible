@@ -10,7 +10,7 @@ path	words	decision
 .claude/agents/premortem.md	310	baseline
 .claude/agents/prompt-engineering-reviewer.md	350	0028
 .claude/agents/researcher.md	339	2026-10-16-agent-setup code gate 1 item 2 (decisions.tsv 2026-10-16T13:09: researcher lock wait, row = ceil(wc -w x 1.01))
-.claude/agents/run-agent.md	209	2026-10-21-context-cost S1 (decisions.tsv 2026-10-21T18:35: the Write refusal line, row = ceil(wc -w x 1.01))
+.claude/agents/run-agent.md	227	2026-10-21-context-cost S3 (decisions.tsv 2026-10-21T18:37: the batch-read sentence, row = ceil(wc -w x 1.01))
 .claude/agents/skeptic.md	135	2026-10-16-agent-setup S4 (decisions.tsv 2026-10-16T09:04: user decision option 5a, row = ceil(wc -w x 1.01))
 .claude/skills/architect/	2665	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))
 .claude/skills/architect/SKILL.md	913	2026-10-14-workflow-upkeep-2 S10 (decisions.tsv 2026-10-14T21:10: 1 % room, row = ceil(wc -w x 1.01))

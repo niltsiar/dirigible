@@ -120,10 +120,11 @@ const VERDICTS = {
 
 const pathArgs = paths ? ` -- ${paths.join(' ')}` : ''
 // A whole diff or a whole ledger in one read fills the context: a lens reads the stat first and
-// one file per call, and a skeptic reads only the files that its findings name.
+// then the files in parallel batches of about 150 KB, and a skeptic reads only the files that its
+// findings name.
 const targetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read it and every file it references.${treeText}`
-  : `The target is the diff of the current branch against ${scope}: run \`${git} diff --stat ${scope}...HEAD${pathArgs}\` first, then read the diff of one file per call (\`${git} diff ${scope}...HEAD -- <file>\`), and \`${git} diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.${treeText}`
+  : `The target is the diff of the current branch against ${scope}: run \`${git} diff --stat ${scope}...HEAD${pathArgs}\` first, then read the diffs of the changed files as parallel calls in one message, up to about 150 KB per batch (\`${git} diff ${scope}...HEAD -- <file>\` for each file), and \`${git} diff${pathArgs}\` for uncommitted work. Read the surrounding code, not only the hunks.${treeText}`
 const skepticTargetText = target === 'plan'
   ? `The target is the plan at ${scope}. Read the plan, and only the files that a finding names.${treeText}`
   : `The target is the diff of the current branch against ${scope}: read \`${git} diff ${scope}...HEAD -- <file>\` and \`${git} diff -- <file>\` only for the files that a finding names. Read the surrounding code, not only the hunks.${treeText}`

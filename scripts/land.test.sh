@@ -15,6 +15,10 @@
 # name in the author, the committer, or a Co-Authored-By trailer refuses the land and the push
 # (.githooks/pre-push) for each field and name, and the owner passes; a tool commit below the base
 # is out of the range.
+# The resume cases (a second land of a branch whose PR exists, after a merge error): an open PR gets
+# its text from the body file and one merge call; the kept stamp, the checks, and the governance
+# check still run; origin/main past the pushed head stops it before any check; a closed PR, a
+# failed lookup, and a reused branch name (the PRs of an earlier run are ignored).
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -47,18 +51,47 @@ case "${FAKE_MAKE:-ok}" in
 esac
 exit 0
 EOF
-# The fake gh logs its arguments. `pr create` also logs whether the branch is on origin (the push
-# came first) and prints a URL. `pr merge` puts HEAD on origin/main, as a rebase merge does.
-# FAKE_GH=move moves origin/main in `pr create`, for a land that runs no make.
+# The fake gh logs its arguments: a read (`pr list`, `pr view`) to $LAND_LOG.view, any other call
+# to $LAND_LOG. The state file $LAND_LOG.pr has one line per PR, newest first: state, url, head,
+# merge commit or -, commit count, separated by tabs. `pr create` fails while a PR is OPEN; else it
+# logs whether the branch is on origin (the push came first), adds an OPEN line, and prints its URL
+# (the first PR is 7). `pr merge` puts HEAD on origin/main, as a rebase merge does, and sets the
+# OPEN line to MERGED. FAKE_GH=move moves origin/main in `pr create`, for a land that runs no make.
+# FAKE_MERGE=fail:<n> fails the first n `pr merge` calls (counted in $LAND_LOG.merges) with a 502 text.
+# FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
 cat > "$bin/gh" <<'EOF'
 #!/bin/bash
-echo "gh $*" >> "$LAND_LOG"
+prs="$LAND_LOG.pr"
+bad="HTTP 502: Bad Gateway (https://api.github.com/graphql)"
 case "$1 $2" in
+  "pr list"|"pr view") echo "gh $*" >> "$LAND_LOG.view" ;;
+  *) echo "gh $*" >> "$LAND_LOG" ;;
+esac
+case "$1 $2" in
+  "pr list")
+    [[ "${FAKE_LOOKUP:-}" != 502 ]] || { echo "$bad" >&2; exit 1; }
+    [[ ! -f "$prs" ]] || cat "$prs" ;;
+  "pr view")
+    [[ "${FAKE_STATE:-}" != 502 ]] || { echo "$bad" >&2; exit 1; }
+    awk -F'\t' -v u="$3" '$2 == u { print $1 }' "$prs" ;;
   "pr create")
+    if grep -q '^OPEN' "$prs" 2>/dev/null; then
+      echo "a pull request for branch \"$(git branch --show-current)\" into branch \"main\" already exists" >&2
+      exit 1
+    fi
     git ls-remote --exit-code --heads origin "$(git branch --show-current)" > /dev/null && echo "gh: branch on origin" >> "$LAND_LOG"
     [[ "${FAKE_GH:-}" == move ]] && git -C "$FAKE_OTHER" commit -q --allow-empty -m moved && git -C "$FAKE_OTHER" push -q origin main
-    echo "https://github.com/o/r/pull/7" ;;
-  "pr merge") git push -q origin HEAD:main ;;
+    url="https://github.com/o/r/pull/$((7 + $(cat "$prs" 2>/dev/null | grep -c .)))"
+    { printf 'OPEN\t%s\t%s\t-\t%s\n' "$url" "$(git rev-parse HEAD)" "$(git rev-list --count origin/main..HEAD)"; cat "$prs" 2>/dev/null; } > "$prs.new"
+    mv "$prs.new" "$prs"
+    echo "$url" ;;
+  "pr merge")
+    calls=$(($(cat "$LAND_LOG.merges" 2>/dev/null || echo 0) + 1))
+    echo "$calls" > "$LAND_LOG.merges"
+    case "${FAKE_MERGE:-}" in fail:*) if ((calls <= ${FAKE_MERGE#fail:})); then echo "$bad" >&2; exit 1; fi ;; esac
+    git push -q origin HEAD:main
+    awk -F'\t' -v OFS='\t' -v mc="$(git rev-parse HEAD)" '$1 == "OPEN" && !done { $1 = "MERGED"; $4 = mc; done = 1 } { print }' "$prs" > "$prs.new"
+    mv "$prs.new" "$prs" ;;
 esac
 EOF
 # The fake sysctl logs its arguments and gives 8 cores and a load of 1.00, for the load wait.
@@ -127,6 +160,8 @@ new="$(git -C "$c/origin.git" rev-parse main)"
 grep -qx 'pr: https://github.com/o/r/pull/7' "$c/out" || fail "happy: no PR URL: $(cat "$c/out")"
 grep -qx "range: $old..$new" "$c/out" || fail "happy: no commit range $old..$new: $(cat "$c/out")"
 grep -qx 'stamp: none (no stamp)' "$c/out" || fail "happy: no stamp line: $(cat "$c/out")"
+[[ "$(cat "$c/log.view")" == 'gh pr list --head feat/x --state all --json state,url,headRefOid,mergeCommit,commits --jq .[]|[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv' ]] ||
+  fail "happy: the lookup differs: $(cat "$c/log.view")"
 
 # Another worktree holds main: the land prints the range before it touches main, skips the
 # switch, and stays on the branch (git switch main exits 128 in this state).
@@ -544,6 +579,118 @@ git -C "$c/work" add -A && git -C "$c/work" commit -q -m ratchet
 (cd "$c/work" && make -s check-changed BASE=origin/main) > "$c/make.out" 2>&1 || fail "ratchet: make check-changed failed: $(cat "$c/make.out")"
 grep -qx 'stub-ok ran' "$c/make.out" || fail "ratchet: the check ran no target: $(cat "$c/make.out")"
 stamp_case 'ratchet' "stamp: reuse $(git -C "$c/work" rev-parse HEAD)" ''
+
+# A second land of a branch whose PR exists (the first land stopped at the merge). resume_start:
+# the first land makes the PR and its merge fails, so the PR stays open; the logs and the merge
+# count restart for the second land.
+resume_start() {
+  FAKE_MERGE=fail:3 land_in "Add x" "$c/pr.md"
+  code=$?
+  [[ $code -ne 0 ]] || fail "resume: the first land exit 0"
+  grep -q '^gh pr create ' "$c/log" || fail "resume: the first land made no PR: $(cat "$c/log")"
+  : > "$c/log"
+  rm -f "$c/log.view" "$c/log.merges"
+}
+# resume_refused <name> <reason>: the second land stopped, with the reason, before it made or
+# merged a PR.
+resume_refused() {
+  [[ $code -ne 0 ]] || fail "$1: exit 0"
+  grep -q "$2" "$c/out" || fail "$1: no '$2' in: $(cat "$c/out")"
+  ! grep -qE '^gh pr (create|merge)' "$c/log" || fail "$1: gh made or merged a PR: $(cat "$c/log")"
+}
+
+# The PR is open: no second gh pr create, the PR text is the checked file, one merge call.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+resume_start
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "open PR resumes: exit $code: $(cat "$c/out")"
+[[ "$(grep -E '^gh pr (create|edit|merge)' "$c/log")" == "gh pr edit feat/x --title Add x --body-file $c/pr.md
+gh pr merge feat/x --rebase --delete-branch" ]] || fail "open PR resumes: calls differ: $(cat "$c/log")"
+new="$(git -C "$c/origin.git" rev-parse main)"
+grep -qx 'pr: https://github.com/o/r/pull/7' "$c/out" || fail "open PR resumes: no PR URL: $(cat "$c/out")"
+grep -qx "range: $old..$new" "$c/out" || fail "open PR resumes: no commit range $old..$new: $(cat "$c/out")"
+[[ "$(git -C "$c/work" branch --show-current)" == main && "$(git -C "$c/work" rev-parse HEAD)" == "$new" ]] ||
+  fail 'open PR resumes: local main is not origin/main'
+
+# The stamp commit of the first land stays in the land stamp file, so the second land reuses it.
+setup
+git -C "$c/work" fetch -q
+stamp origin/main
+kept="$(git -C "$c/work" rev-parse HEAD)"
+resume_start
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "resume reuses the stamp: exit $code: $(cat "$c/out")"
+grep -qx "stamp: reuse $kept" "$c/out" || fail "resume reuses the stamp: no stamp line: $(cat "$c/out")"
+[[ -z "$(makes)" ]] || fail "resume reuses the stamp: make ran: $(makes)"
+
+# The second land runs the checks again: a red check, a moved origin/main, and a red governance
+# check each stop it before the merge.
+setup
+resume_start
+FAKE_MAKE=red land_in "Add x" "$c/pr.md"
+code=$?
+resume_refused 'resume runs the checks' 'the checks failed'
+setup
+resume_start
+FAKE_MAKE=move land_in "Add x" "$c/pr.md"
+code=$?
+resume_refused 'resume checks origin/main ancestry' 'origin/main moved'
+grep -q '^make ' "$c/log" || fail "resume checks origin/main ancestry: no check ran: $(cat "$c/log")"
+setup
+resume_start
+printf 'Agents: A = S1.\n\n## Slices\n\n### S1 x\n\n' > "$c/plan.md"
+land_in "Add x" "$c/pr.md"
+code=$?
+resume_refused 'resume runs governance' 'the governance check failed'
+
+# origin/main moved past the pushed head since the first land: the second land stops before the
+# rebase, the checks, and the push.
+setup
+resume_start
+main_commit docs/b.md
+head="$(git -C "$c/work" rev-parse HEAD)"
+pushed="$(git -C "$c/origin.git" rev-parse feat/x)"
+land_in "Add x" "$c/pr.md"
+code=$?
+resume_refused 'resume after main moved' 'origin/main moved'
+[[ -z "$(makes)" ]] || fail "resume after main moved: make ran: $(makes)"
+[[ "$(git -C "$c/work" rev-parse HEAD)" == "$head" && "$(git -C "$c/origin.git" rev-parse feat/x)" == "$pushed" ]] ||
+  fail 'resume after main moved: the branch changed'
+
+# A closed PR of this push stops the land.
+setup
+resume_start
+awk -F'\t' -v OFS='\t' '{ $1 = "CLOSED" } 1' "$c/log.pr" > "$c/log.pr.new" && mv "$c/log.pr.new" "$c/log.pr"
+land_in "Add x" "$c/pr.md"
+code=$?
+resume_refused 'closed PR' 'is closed, not merged'
+[[ -z "$(makes)" ]] || fail "closed PR: make ran: $(makes)"
+
+# The PRs of an earlier run with the same branch name (merged with a head that is not an ancestor,
+# closed with a head the clone lacks) are not this land: the land makes a new PR and merges it.
+setup
+git -C "$c/work" switch -q -c side
+git -C "$c/work" commit -q --allow-empty -m side
+side="$(git -C "$c/work" rev-parse HEAD)"
+git -C "$c/work" switch -q feat/x
+printf 'CLOSED\thttps://github.com/o/r/pull/6\t%s\t-\t1\nMERGED\thttps://github.com/o/r/pull/5\t%s\t%s\t1\n' \
+  1111111111111111111111111111111111111111 "$side" "$side" > "$c/log.pr"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "reused branch name: exit $code: $(cat "$c/out")"
+[[ "$(grep -cE '^gh pr (create|merge)' "$c/log")" == 2 ]] || fail "reused branch name: calls differ: $(cat "$c/log")"
+grep -qx 'pr: https://github.com/o/r/pull/9' "$c/out" || fail "reused branch name: no new PR URL: $(cat "$c/out")"
+
+# A lookup error is no "no PR": the land stops before it makes a PR.
+setup
+FAKE_LOOKUP=502 land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -ne 0 ]] || fail 'view error: exit 0'
+grep -q 'HTTP 502' "$c/out" || fail "view error: no gh text: $(cat "$c/out")"
+no_side_effects 'view error'
 
 # The flake rows: before the push, each dirigible-flakes line of a commit of the branch (an
 # ancestor of HEAD before or after the rebase) gives one flake row in the decisions.tsv of the run

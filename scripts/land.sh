@@ -33,10 +33,19 @@
 # the PR URL and the commit range on main. Then it updates main: in this worktree, or with a
 # fast-forward in the worktree that holds main when its status is clean; with changes there, it
 # prints the command. It stops at the first failure and never force-pushes.
+# A second call resumes a land that stopped after the PR was made. It lists the PRs of the branch
+# name (gh pr list --head, newest first; a name that an earlier run used lists that PR too) and
+# takes the OPEN PR, else a closed or merged PR whose head is HEAD or an ancestor of HEAD. A PR
+# with another head is of an earlier run and is ignored. With an OPEN PR, the call stops with
+# `origin/main moved` when origin/main is not an ancestor of the pushed head; else it runs every
+# step as a first call does (rebase, governance, checks, push), runs gh pr edit with the title and
+# the body file in place of gh pr create, and goes on to the merge. A CLOSED PR of this push stops
+# the call. A failed lookup stops it with the gh text.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
+moved="origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
 
 [[ $# -eq 2 || $# -eq 3 ]] || { echo "usage: scripts/land.sh <title> <body-file> [<decisions.tsv time>]" >&2; exit 2; }
 title="$1" body="$2" why="${3:-}"
@@ -61,7 +70,35 @@ fi
 
 [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes that the push does not send; commit them or move them out of the repo"
+# A second land of a branch can find its PR. The lookup lists every PR of the branch name, newest
+# first, because a name that an earlier run used also lists the PR of that run. The land takes the
+# OPEN PR, else the newest closed or merged PR whose head is HEAD or an ancestor of HEAD.
+prs="$(gh pr list --head "$branch" --state all --json state,url,headRefOid,mergeCommit,commits \
+    --jq '.[]|[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv')" ||
+    die "gh pr list failed (the gh text is above); nothing is changed"
+head_oid="$(git rev-parse HEAD)"
+pr_state=none pr_url="" pr_head="" pr_mc="" pr_count="" pr_equal=no
+while IFS=$'\t' read -r s u h m n; do
+    [[ -n "$s" ]] || continue
+    if [[ "$s" == OPEN ]]; then
+        pr_state=$s pr_url=$u pr_head=$h
+        break
+    fi
+    [[ "$pr_state" == none ]] || continue
+    if [[ "$h" == "$head_oid" ]]; then
+        eq=yes
+    elif git merge-base --is-ancestor "$h" HEAD 2>/dev/null; then
+        eq=no
+    else
+        continue
+    fi
+    pr_state=$s pr_url=$u pr_head=$h pr_mc=$m pr_count=$n pr_equal=$eq
+done <<<"$prs"
+[[ "$pr_state:$pr_equal" != CLOSED:yes ]] ||
+    die "the pull request $pr_url is closed, not merged; reopen it, or land from a fresh branch"
 git fetch origin
+# A resume after origin/main moved past the pushed head cannot push without a force-push.
+[[ "$pr_state" != OPEN ]] || git merge-base --is-ancestor origin/main "$pr_head" 2>/dev/null || die "$moved"
 before="$(git rev-parse HEAD)"
 # The pass stamp is read before the rebase, when HEAD is the commit that the push check stamped or
 # a descendant of it: the rebase rewrites each commit, so no stamp commit is an ancestor of the new
@@ -168,11 +205,15 @@ if [[ -s "$flakes" ]]; then
     rm -f "$taken" "$keep" "$row"
 fi
 git push -u origin "$branch"
-url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
+if [[ "$pr_state" == OPEN ]]; then
+    url="$pr_url"
+    gh pr edit "$branch" --title "$title" --body-file "$body"
+else
+    url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
+fi
 echo "pr: $url"
 git fetch origin
-git merge-base --is-ancestor origin/main HEAD ||
-    die "origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
+git merge-base --is-ancestor origin/main HEAD || die "$moved"
 old="$(git rev-parse origin/main)"
 gh pr merge "$branch" --rebase --delete-branch
 rm -f "$stamp_file"

@@ -44,16 +44,21 @@
 # with another head is of an earlier run and is ignored. With an OPEN PR, the call stops with
 # `origin/main moved` when origin/main is not an ancestor of the pushed head; else it runs every
 # step as a first call does (rebase, governance, checks, push), runs gh pr edit with the title and
-# the body file in place of gh pr create, and goes on to the merge. A MERGED PR whose head is HEAD
-# runs only the tail: no check, no push; it prints the PR URL and the range (merge commit~commit
-# count..merge commit), removes the stamp file, and updates main. A CLOSED PR whose head is HEAD
-# stops the call; so does a PR whose head is an ancestor of HEAD but not HEAD (a commit after the
-# push), with no change. A failed lookup stops it with the gh text.
+# the body file in place of gh pr create, and goes on to the merge. With an OPEN PR it reads the
+# state by URL when that check fails, and right before the push, because a merge can finish
+# meanwhile: MERGED with the head HEAD runs the tail below with no push (the merge deleted the
+# remote branch, and a push makes it again); MERGED with another head stops. A MERGED PR whose head
+# is HEAD runs only the tail: no check, no push; it prints the PR URL and the range (merge
+# commit~commit count..merge commit), removes the stamp file, and updates main. A CLOSED PR whose
+# head is HEAD stops the call; so does a PR whose head is an ancestor of HEAD but not HEAD (a commit
+# after the push), with no change. A failed lookup stops it with the gh text.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 
 die() { echo "land.sh: $1" >&2; exit 1; }
 moved="origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
+# The fields of one PR for `gh pr list` and `gh pr view`: state, url, head, merge commit or -, commit count.
+pr_fields='[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv'
 # The tail of a land, when the PR is merged: finish_land <old> [<new>] drops the kept stamp, prints
 # the commit range on main (new is origin/main by default), and updates main.
 finish_land() {
@@ -75,6 +80,21 @@ finish_land() {
         git switch main
         git pull --ff-only origin main
     fi
+}
+
+# finish_if_merged <url>: when the PR is merged, the land is done: it prints the tail and exits 0,
+# or stops when the PR head is not HEAD (a commit came after the push). Another state, or a failed
+# read, returns.
+finish_if_merged() {
+    local s h m n
+    IFS=$'\t' read -r s _ h m n < <(gh pr view "$1" --json state,url,headRefOid,mergeCommit,commits --jq "$pr_fields" 2>/dev/null) || return 0
+    [[ "$s" == MERGED ]] || return 0
+    [[ "$h" == "$(git rev-parse HEAD)" ]] ||
+        die "the branch has commits after the head of the pull request $1 (MERGED); land them from a fresh branch"
+    git fetch origin
+    echo "pr: $1"
+    finish_land "$(git rev-parse "$m~$n")" "$m"
+    exit 0
 }
 
 [[ $# -eq 2 || $# -eq 3 ]] || { echo "usage: scripts/land.sh <title> <body-file> [<decisions.tsv time>]" >&2; exit 2; }
@@ -105,7 +125,7 @@ stamp_file="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-l
 # first, because a name that an earlier run used also lists the PR of that run. The land takes the
 # OPEN PR, else the newest closed or merged PR whose head is HEAD or an ancestor of HEAD.
 prs="$(gh pr list --head "$branch" --state all --json state,url,headRefOid,mergeCommit,commits \
-    --jq '.[]|[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv')" ||
+    --jq ".[]|$pr_fields")" ||
     die "gh pr list failed (the gh text is above); nothing is changed"
 head_oid="$(git rev-parse HEAD)"
 pr_state=none pr_url="" pr_head="" pr_mc="" pr_count="" pr_equal=no
@@ -136,8 +156,12 @@ case "$pr_state:$pr_equal" in
         exit 0 ;;
 esac
 git fetch origin
-# A resume after origin/main moved past the pushed head cannot push without a force-push.
-[[ "$pr_state" != OPEN ]] || git merge-base --is-ancestor origin/main "$pr_head" 2>/dev/null || die "$moved"
+# A resume after origin/main moved past the pushed head cannot push without a force-push. A merge
+# that finished after the lookup moves it too, and then the land is done.
+if [[ "$pr_state" == OPEN ]] && ! git merge-base --is-ancestor origin/main "$pr_head" 2>/dev/null; then
+    finish_if_merged "$pr_url"
+    die "$moved"
+fi
 before="$(git rev-parse HEAD)"
 # The pass stamp is read before the rebase, when HEAD is the commit that the push check stamped or
 # a descendant of it: the rebase rewrites each commit, so no stamp commit is an ancestor of the new
@@ -242,6 +266,8 @@ if [[ -s "$flakes" ]]; then
     cat "$keep" >> "$flakes"
     rm -f "$taken" "$keep" "$row"
 fi
+# A merge during the checks deletes the remote branch, and a push would make it again.
+[[ "$pr_state" != OPEN ]] || finish_if_merged "$pr_url"
 git push -u origin "$branch"
 if [[ "$pr_state" == OPEN ]]; then
     url="$pr_url"

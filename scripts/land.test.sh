@@ -20,7 +20,9 @@
 # check still run; origin/main past the pushed head stops it before any check; a closed PR, a
 # failed lookup, and a reused branch name (the PRs of an earlier run are ignored). A merged PR runs
 # only the tail: no check, no push, the range from the merge commit, and the update of main; a
-# commit after its pushed head stops the land. The merge is tried three times: a failure then a
+# commit after its pushed head stops the land. A PR that GitHub merges after the lookup (between it
+# and the early check, or during the checks) gives the tail with no push, and with another head than
+# HEAD it stops. The merge is tried three times: a failure then a
 # success, a merge that went through behind an error, a merge that GitHub finishes during the wait
 # (the retry sees the rebased copies on origin/main, reads MERGED, and runs the tail), three failures
 # (the message names the resume and the stamp file stays), a state read that fails, and an
@@ -45,7 +47,8 @@ bin="$tmp/bin"
 mkdir "$bin"
 # The fake make logs its arguments and whether origin/main is in HEAD (the rebase came first).
 # FAKE_MAKE=red fails the check; FAKE_MAKE=move moves origin/main while the check runs;
-# FAKE_MAKE=changed logs the output of the real check-changed.sh origin/main, as the recipe runs it.
+# FAKE_MAKE=changed logs the output of the real check-changed.sh origin/main, as the recipe runs it;
+# FAKE_MAKE=merge has GitHub merge the PR while the check runs (github-merge).
 cat > "$bin/make" <<'EOF'
 #!/bin/bash
 echo "make $*" >> "$LAND_LOG"
@@ -56,6 +59,7 @@ case "${FAKE_MAKE:-ok}" in
   red) exit 1 ;;
   move) git -C "$FAKE_OTHER" commit -q --allow-empty -m moved && git -C "$FAKE_OTHER" push -q origin main ;;
   changed) "$FAKE_CHANGED" origin/main >> "$LAND_LOG" ;;
+  merge) "$(dirname "$0")/github-merge" ;;
 esac
 exit 0
 EOF
@@ -70,6 +74,8 @@ EOF
 # first call and then fails it with "Merge already in progress". FAKE_MERGE=slow fails the first
 # call with a 502 text and merges as GitHub does (github-merge) right after the next state read.
 # FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
+# FAKE_LIST=merge merges the PR right after `pr list` prints. `pr view` with more than the state in
+# --json prints the whole line of the PR.
 cat > "$bin/gh" <<'EOF'
 #!/bin/bash
 prs="$LAND_LOG.pr"
@@ -81,9 +87,13 @@ esac
 case "$1 $2" in
   "pr list")
     [[ "${FAKE_LOOKUP:-}" != 502 ]] || { echo "$bad" >&2; exit 1; }
-    [[ ! -f "$prs" ]] || cat "$prs" ;;
+    [[ ! -f "$prs" ]] || cat "$prs"
+    # FAKE_LIST=merge: GitHub merges right after this lookup.
+    [[ "${FAKE_LIST:-}" != merge ]] || "$(dirname "$0")/github-merge" ;;
   "pr view")
     [[ "${FAKE_STATE:-}" != 502 ]] || { echo "$bad" >&2; exit 1; }
+    # The whole line of the PR (the fields of `pr list`) for a read of more than the state.
+    [[ "$5" == state ]] || { awk -F'\t' -v u="$3" '$2 == u' "$prs"; exit; }
     state="$(awk -F'\t' -v u="$3" '$2 == u { print $1 }' "$prs")"
     echo "$state"
     # FAKE_MERGE=slow: GitHub finishes the merge right after this read, while the land waits.
@@ -794,6 +804,50 @@ land_in "Add x" "$c/pr.md"
 code=$?
 [[ $code -eq 0 ]] || fail "reused branch name, merged first: exit $code: $(cat "$c/out")"
 grep -qx 'pr: https://github.com/o/r/pull/8' "$c/out" || fail "reused branch name, merged first: no new PR URL: $(cat "$c/out")"
+
+# GitHub merges the PR of a resume before the push (the merge deletes the remote branch): the land
+# reads the state by URL, runs the tail with no push and no gh write, and the branch stays deleted.
+# resumed_merged <name> <old>: the asserts of both cases below.
+resumed_merged() {
+  [[ $code -eq 0 ]] || fail "$1: exit $code: $(cat "$c/out")"
+  ! grep -qE '^gh pr (create|edit|merge)' "$c/log" || fail "$1: gh wrote: $(cat "$c/log")"
+  ! git -C "$c/origin.git" show-ref -q --verify refs/heads/feat/x || fail "$1: the push made the remote branch again"
+  new="$(git -C "$c/origin.git" rev-parse main)"
+  grep -qx 'pr: https://github.com/o/r/pull/7' "$c/out" || fail "$1: no PR URL: $(cat "$c/out")"
+  grep -qx "range: $2..$new" "$c/out" || fail "$1: no commit range $2..$new: $(cat "$c/out")"
+  [[ ! -e "$c/work/.git/dirigible-land-stamp-feat-x" ]] || fail "$1: the stamp file stays"
+  [[ "$(git -C "$c/work" branch --show-current)" == main && "$(git -C "$c/work" rev-parse HEAD)" == "$new" ]] ||
+    fail "$1: local main is not origin/main"
+}
+# Between the lookup and the early ancestry check: no check runs.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+resume_start
+FAKE_LIST=merge land_in "Add x" "$c/pr.md"
+code=$?
+resumed_merged 'resume merged between the lookup and the early check' "$old"
+[[ -z "$(makes)" ]] || fail "resume merged between the lookup and the early check: make ran: $(makes)"
+# During the checks: the checks run, the push does not.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+resume_start
+FAKE_MAKE=merge land_in "Add x" "$c/pr.md"
+code=$?
+resumed_merged 'resume merged during the checks' "$old"
+[[ -n "$(makes)" ]] || fail "resume merged during the checks: no check ran"
+# The merged PR has another head than HEAD (a commit after the push): the land stops, no push.
+setup
+resume_start
+commit_file after.txt
+head="$(git -C "$c/work" rev-parse HEAD)"
+FAKE_LIST=merge land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "resume merged with another head: exit $code: $(cat "$c/out")"
+grep -q 'commits after the head of the pull request' "$c/out" || fail "resume merged with another head: no reason: $(cat "$c/out")"
+! grep -qE '^gh pr (create|edit|merge)' "$c/log" || fail "resume merged with another head: gh wrote: $(cat "$c/log")"
+! git -C "$c/origin.git" show-ref -q --verify refs/heads/feat/x || fail "resume merged with another head: the push made the remote branch again"
+[[ "$(git -C "$c/work" branch --show-current)" == feat/x && "$(git -C "$c/work" rev-parse HEAD)" == "$head" ]] ||
+  fail 'resume merged with another head: the branch changed'
 
 # merges prints the count of gh pr merge calls of the log.
 merges() { grep -c '^gh pr merge' "$c/log"; }

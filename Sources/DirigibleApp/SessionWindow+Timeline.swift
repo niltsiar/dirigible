@@ -113,9 +113,8 @@ enum TimelineCommand: Hashable {
         // A text field does nothing with Command-T (run 13a, C9).
         case .importAudio, .export, .exportSelection, .exportChapters, .episodeInfo: false
         case .autoLevel, .autoLevelPerTrack: false
-        // A text field types a symbol with Option-K, Option-;, and Option-', and the item takes
-        // each key first, as the volume items take Control-=.
-        case .addGainPoint, .previousGainPoint, .nextGainPoint: false
+        // A text field types a symbol with Option-K, Option-;, and Option-'.
+        case .addGainPoint, .previousGainPoint, .nextGainPoint: true
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
         case .fade: false
         // Heal Clips has no key: Command-H is Hide in macOS.
@@ -207,17 +206,6 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .previousGainPoint, title: .menuTransportPreviousGainPoint, key: ";", modifiers: .option),
         MenuItem(command: .nextGainPoint, title: .menuTransportNextGainPoint, key: "'", modifiers: .option),
     ]
-
-    /// The gain point command that a key-down is: Option and the typed character of the item. Shift
-    /// does not count for a symbol key, because ";" is Shift-comma on the Spanish layout.
-    static func gainPointCommand(for event: NSEvent) -> TimelineCommand? {
-        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        guard let typed = event.charactersIgnoringModifiers else { return nil }
-        return (editItems.filter { $0.command == .addGainPoint } + gainPointSeekItems).first {
-            let symbol = $0.key.character.isPunctuation
-            return String($0.key.character) == typed && flags.subtracting(symbol ? .shift : []) == .option
-        }?.command
-    }
 
     /// The Markers items (decision 0018). Each key is one that a text field uses, so each item
     /// forwards it first.

@@ -86,42 +86,53 @@ import Testing
         await model.close()
     }
 
-    /// C11: with the focus in a text field, the gain point keys reach the item, and the field gets no
-    /// character. Option-' on the Spanish layout is a dead key (acute accent).
-    @Test func theKeysGoToTheItemWithAFieldFocused() async throws {
+    /// C11 (changed at the L2 code gate): with the focus in a text field, the field gets the key and
+    /// its character, and the playhead and the envelope stay.
+    @Test func aFocusedFieldGetsTheCharacterOfAGainPointKey() async throws {
         let (model, studio, window, _) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 2))
-        let editor = try await focusName(in: window)
-        let text = editor.string
         try studio.edit(ripple: false) { session throws(SessionError) in
             try session.setEnvelope([60_000: Gain(dB: -3)!], clip: "c1")
         }
         await studio.perform(.seek(.frame(40_000)))
         model.timeline.selection = .range(Marks(tracks: ["t1"]))
-        func press(_ typed: String, _ flags: NSEvent.ModifierFlags, code: UInt16, characters: String) throws {
-            window.sendEvent(
-                try #require(
-                    NSEvent.keyEvent(
-                        with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
-                        windowNumber: window.windowNumber, context: nil, characters: characters,
-                        charactersIgnoringModifiers: typed, isARepeat: false, keyCode: code)))
+        let editor = try await focusName(in: window)
+        editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0))
+        let (text, session) = (editor.string, studio.session)
+
+        for (command, typed, code, characters) in [
+            (TimelineCommand.addGainPoint, "k", UInt16(40), "\u{2DA}"),
+            (.previousGainPoint, ";", 41, "\u{2026}"), (.nextGainPoint, "'", 39, "\u{E6}"),
+        ] {
+            let event = try #require(
+                NSEvent.keyEvent(
+                    with: .keyDown, location: .zero, modifierFlags: .option, timestamp: 0,
+                    windowNumber: window.windowNumber, context: nil, characters: characters,
+                    charactersIgnoringModifiers: typed, isARepeat: false, keyCode: code))
+            app.timeline(command, event: event, in: window)
         }
 
-        try press("k", .option, code: 40, characters: "\u{2DA}")
-        #expect(points(studio) == [40_000, 60_000], "C11: Add Gain Point acted")
-        try press("'", .option, code: 27, characters: "\u{B4}")
-        await until("the playhead is at the next point") { studio.playhead == 60_000 }
-        // A seek gives the focus back to the lanes.
-        let again = try await focusName(in: window)
-        try press(";", [.option, .shift], code: 43, characters: "\u{2026}")
-        await until("the playhead is at the point before") { studio.playhead == 40_000 }
-        #expect(editor.string == text && again.string == text, "the field got no character")
-        #expect(
-            TimelineCommand.gainPointCommand(
-                for: NSEvent.keyEvent(
-                    with: .keyDown, location: .zero, modifierFlags: [.option, .shift], timestamp: 0,
-                    windowNumber: 0, context: nil, characters: "K", charactersIgnoringModifiers: "K", isARepeat: false,
-                    keyCode: 40)!) == nil, "Option-Shift-K is no gain point key")
+        #expect(editor.string == text + "\u{2DA}\u{2026}\u{E6}", "the field got each character")
+        #expect(studio.session == session && studio.playhead == 40_000, "the item did not act")
+        await model.close()
+    }
+
+    /// C11: with no text field focused, the key goes to the item.
+    @Test func withNoFieldFocusedTheKeyReachesTheItem() async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 1, seconds: 2))
+        await studio.perform(.seek(.frame(40_000)))
+        model.timeline.selection = .range(Marks(tracks: ["t1"]))
+        let event = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: .option, timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: "\u{2DA}",
+                charactersIgnoringModifiers: "k",
+                isARepeat: false, keyCode: 40))
+
+        app.timeline(.addGainPoint, event: event, in: window)
+
+        #expect(points(studio) == [40_000])
         await model.close()
     }
 

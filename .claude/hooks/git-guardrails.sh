@@ -265,6 +265,15 @@ merge_text=""
 while IFS= read -r line; do is_route "$line" || merge_text+="$line"$'\n'; done <<< "$NORMALIZED"
 flat="${UNSPLIT//$'\n'/ }"
 if [[ "$(wc -l <<< "$NORMALIZED")" -eq 1 ]] && is_route "$UNSPLIT"; then flat=""; fi
+# Drop the repo flags of gh (-R <repo>, --repo <repo>) before or after pr, api, or alias, so
+# `gh -R o/r pr merge` reads as `gh pr merge`. One pass drops the flags of one position.
+drop_repo_flags() {
+  local text="$1" next
+  while next="$(sed -E 's/(^|[^[:alnum:]_-])(gh( +(pr|api|alias))?)( +(-R[ =]?|--repo[ =])[^ ]+)+/\1\2/g' <<< "$text")"; [[ "$next" != "$text" ]]; do text="$next"; done
+  printf '%s\n' "$text"
+}
+merge_text="$(drop_repo_flags "$merge_text")"
+flat="$(drop_repo_flags "$flat")"
 if grep -qE 'gh pr merge( |$)' <<< "$merge_text" ||
   grep -E 'gh api .*pulls/[^/ ]+/merge' <<< "$merge_text" | grep -qiE -- '(-X ?PUT|--method[ =]PUT)' ||
   grep -qE 'gh api .*(mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat" ||

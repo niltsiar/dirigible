@@ -32,7 +32,9 @@
 # refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
 # the PR URL and the commit range on main. A failed merge call is tried again, 3 calls in all, after
 # LAND_MERGE_WAIT seconds (default 10); before each call it checks origin/main again, and a state
-# read of the PR that says MERGED ends the loop. After the third failure the message names this
+# read of the PR that says MERGED ends the loop. A retry that finds origin/main not an ancestor of
+# HEAD reads the state again: MERGED (GitHub finished the merge during the wait) ends the loop with
+# the range of the first attempt; any other state stops with the moved text. After the third failure the message names this
 # script, to run again with the same arguments. Then it updates main: in this worktree, or with a
 # fast-forward in the worktree that holds main when its status is clean; with changes there, it
 # prints the command. It stops at the first failure and never force-pushes.
@@ -254,7 +256,14 @@ echo "pr: $url"
 attempt=1
 while :; do
     git fetch origin
-    git merge-base --is-ancestor origin/main HEAD || die "$moved"
+    if ! git merge-base --is-ancestor origin/main HEAD; then
+        # A merge that GitHub finished during the wait puts rebased copies of the commits on
+        # origin/main. Then `old` of the first attempt is the start of the range.
+        state=unknown
+        ((attempt == 1)) || state="$(gh pr view "$url" --json state --jq .state)" || state=unknown
+        [[ "$state" == MERGED ]] || die "$moved"
+        break
+    fi
     old="$(git rev-parse origin/main)"
     gh pr merge "$branch" --rebase --delete-branch && break
     state="$(gh pr view "$url" --json state --jq .state)" || state=unknown

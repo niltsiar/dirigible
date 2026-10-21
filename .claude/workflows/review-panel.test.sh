@@ -233,7 +233,7 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   await expectNits('a nit and a warning', [finding('nit', 'nit one'), finding('warning', 'warn one')], { verify: true, sent: ['warn one'], nits: ['nit one'] })
   await expectNits('a critical finding', [finding('critical', 'crit one')], { verify: true, sent: ['crit one'], nits: [] })
   // Smaller reads: a diff lens reads the stat first, then the files in parallel batches of about
-  // 150 KB, not one file per call; a skeptic reads only
+  // 150 KB; a skeptic reads only
   // the files that a finding names and greps the ledger; a plan lens still reads every file that
   // the plan references.
   try {

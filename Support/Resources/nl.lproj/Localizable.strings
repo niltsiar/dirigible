@@ -253,6 +253,8 @@
 "menu.transport.end" = "Ga naar einde";
 "menu.transport.previous" = "Vorige clipgrens";
 "menu.transport.next" = "Volgende clipgrens";
+"menu.transport.gain.point.previous" = "Vorig gainpunt";
+"menu.transport.gain.point.next" = "Volgend gainpunt";
 "menu.transport.speed" = "Afspeelsnelheid";
 "menu.transport.speed.toggle" = "Variabele snelheid";
 "menu.transport.speed.faster" = "Sneller";
@@ -313,6 +315,7 @@
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Geen selectie";
 "inspector.gain" = "Gain";
+"inspector.gain.playhead" = "Gain bij afspeelkop";
 "inspector.fade.in" = "Fade-in";
 "inspector.fade.out" = "Fade-out";
 "inspector.mixed" = "Gemengd";
@@ -346,6 +349,10 @@
 "menu.edit.nudge.right" = "Schuif naar rechts";
 "menu.edit.fade" = "Fade";
 "menu.edit.heal" = "Voeg clips samen";
+"menu.edit.gain.point.add" = "Voeg gainpunt toe";
+"gain.point.added" = "Gainpunt toegevoegd: %@";
+"gain.point.set" = "Gainpunt ingesteld: %@";
+"gain.point.at" = "Gainpunt: %@";
 "menu.markers" = "Markeringen";
 "menu.markers.add" = "Voeg markering toe";
 "menu.markers.add.chapter" = "Voeg hoofdstuk toe";

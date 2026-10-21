@@ -152,6 +152,8 @@ struct DirigibleApp: App {
                         if group == 0 { windowButton(.stop).disabled(app.key?.shown.isRunning != true) }
                     }
                     Divider()
+                    ForEach(TimelineCommand.gainPointSeekItems, id: \.command) { item in menuButton(item) }
+                    Divider()
                     speedMenu
                 }
             }

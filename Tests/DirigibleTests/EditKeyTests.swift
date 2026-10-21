@@ -28,6 +28,7 @@ import Testing
                 "setOut o 0",
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)", "split b \(command)",
                 "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)", "fade f \(command)",
+                "addGainPoint k \(EventModifiers.option.rawValue)",
             ])
         let shift = EventModifiers.shift.rawValue
         let control = EventModifiers.control.rawValue
@@ -53,9 +54,15 @@ import Testing
             TimelineCommand.toolItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
                 "autoLevel l \(command)", "autoLevelPerTrack l \(EventModifiers([.command, .option]).rawValue)",
             ])
+        #expect(
+            TimelineCommand.gainPointSeekItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
+                == [
+                    "previousGainPoint ; \(EventModifiers.option.rawValue)",
+                    "nextGainPoint ' \(EventModifiers.option.rawValue)",
+                ])
         let items =
             TimelineCommand.viewItems + edit + TimelineCommand.markerItems + TimelineCommand.trackItems
-            + TimelineCommand.fileItems + TimelineCommand.toolItems
+            + TimelineCommand.fileItems + TimelineCommand.toolItems + TimelineCommand.gainPointSeekItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         #expect(KeyRule.problems(keys) == [])
@@ -204,6 +211,48 @@ import Testing
         try await Task.sleep(for: .milliseconds(300))
         #expect(revealed == 0)
         await model.close()
+    }
+
+    /// C11 (the K1 method of decision 0025): an AppKit menu with the keys of the gain point items
+    /// takes Option-K, and Option-; and Option-' on the US layout and on the Spanish layout, where
+    /// ";" is Shift-comma and "'" is the key right of 0. On screen, the automatic key localization
+    /// moves a punctuation key, so each item keeps the typed character.
+    @Test func theGainPointKeysReachTheirItemsOnTheUSAndTheSpanishLayouts() {
+        let menu = NSMenu()
+        var fired: [String] = []
+        final class Target: NSObject {
+            var action: (String) -> Void = { _ in }
+            @objc func fire(_ item: NSMenuItem) { action(item.title) }
+        }
+        let target = Target()
+        target.action = { fired.append($0) }
+        let items =
+            TimelineCommand.editItems.filter { $0.command == .addGainPoint } + TimelineCommand.gainPointSeekItems
+        for item in items {
+            let menuItem = NSMenuItem(
+                title: "\(item.command)", action: #selector(Target.fire(_:)), keyEquivalent: String(item.key.character))
+            menuItem.keyEquivalentModifierMask = NSEvent.ModifierFlags(item.modifiers)
+            menuItem.target = target
+            menu.addItem(menuItem)
+        }
+        func chord(_ characters: String, _ flags: NSEvent.ModifierFlags, code: UInt16) -> NSEvent {
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil,
+                characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
+        }
+
+        #expect(menu.performKeyEquivalent(with: chord("k", .option, code: 40)), "Option-K")
+        #expect(menu.performKeyEquivalent(with: chord(";", .option, code: 41)), "the US Option-;")
+        #expect(menu.performKeyEquivalent(with: chord("'", .option, code: 39)), "the US Option-'")
+        #expect(
+            menu.performKeyEquivalent(with: chord(";", [.option, .shift], code: 43)), "the Spanish Option-Shift-comma")
+        #expect(menu.performKeyEquivalent(with: chord("'", .option, code: 27)), "the Spanish Option-'")
+        #expect(
+            items.allSatisfy { "\($0.command.keyLocalization)" == "\(KeyboardShortcut.Localization.custom)" },
+            "the menu keeps the typed characters")
+        #expect(
+            fired == ["addGainPoint", "previousGainPoint", "nextGainPoint", "previousGainPoint", "nextGainPoint"],
+            "each chord reaches its item: \(fired)")
     }
 }
 

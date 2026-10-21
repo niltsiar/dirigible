@@ -253,6 +253,8 @@
 "menu.transport.end" = "Ir al final";
 "menu.transport.previous" = "Borde de clip anterior";
 "menu.transport.next" = "Borde de clip siguiente";
+"menu.transport.gain.point.previous" = "Punto de ganancia anterior";
+"menu.transport.gain.point.next" = "Punto de ganancia siguiente";
 "menu.transport.speed" = "Velocidad de reproducción";
 "menu.transport.speed.toggle" = "Velocidad variable";
 "menu.transport.speed.faster" = "Más rápido";
@@ -313,6 +315,7 @@
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Sin selección";
 "inspector.gain" = "Ganancia";
+"inspector.gain.playhead" = "Ganancia en el cursor";
 "inspector.fade.in" = "Entrada";
 "inspector.fade.out" = "Salida";
 "inspector.mixed" = "Varios";
@@ -346,6 +349,10 @@
 "menu.edit.nudge.right" = "Desplazar a la derecha";
 "menu.edit.fade" = "Fundido";
 "menu.edit.heal" = "Unir clips";
+"menu.edit.gain.point.add" = "Añadir punto de ganancia";
+"gain.point.added" = "Punto de ganancia añadido: %@";
+"gain.point.set" = "Punto de ganancia fijado: %@";
+"gain.point.at" = "Punto de ganancia: %@";
 "menu.markers" = "Marcadores";
 "menu.markers.add" = "Añadir marcador";
 "menu.markers.add.chapter" = "Añadir capítulo";

@@ -76,6 +76,18 @@ final class UndoRoutingWindow: NSWindow {
         return super.performKeyEquivalent(with: event)
     }
 
+    /// The keys of Add, Previous, and Next Gain Point act with a text field focused. On the Spanish
+    /// layout, Option-' is a dead key, and the text input system takes it before the menu does.
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, firstResponder is NSText, let model,
+            let command = TimelineCommand.gainPointCommand(for: event)
+        {
+            model.run(command)
+            return
+        }
+        super.sendEvent(event)
+    }
+
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let text = undoTarget(firstResponder: firstResponder) == .text
         switch menuItem.action {

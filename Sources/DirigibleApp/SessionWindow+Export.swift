@@ -64,7 +64,7 @@ extension SessionWindow {
         case .zoomBack: timeline.canGoBack
         case .zoomForward: timeline.canGoForward
         // No text field uses their keys, so they can be off during a take.
-        case .raiseVolume, .lowerVolume, .resetVolume: canEdit
+        case .raiseVolume, .lowerVolume, .resetVolume, .addGainPoint: canEdit
         // During a take the inspector is off and the name field goes, so no field takes their keys.
         case .addMarker, .addChapter, .moveMarker, .deleteMarker: canEdit
         default: true

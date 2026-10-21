@@ -103,3 +103,76 @@ public struct ClipInspection: Equatable, Sendable {
         return result.isEmpty ? nil : result
     }
 }
+
+/// The gain points at the playhead (decision 0060, C11): the Gain at Playhead field, Add Gain
+/// Point, and Previous and Next Gain Point work on the clips of the selected tracks. A clip set
+/// acts on its own clips. The field shows the envelope in dB, on top of the clip gain, at the file
+/// frame under the playhead.
+public struct PointGain: Equatable, Sendable {
+    /// The playhead.
+    public let frame: Frames
+    /// The clips that play `frame`, in session order.
+    public let clips: [ClipID]
+    public let gain: ClipInspection.Shown<Double>
+
+    /// The limits of a typed point gain: the drag of a point stops at -60 dB too.
+    static let limits = -60.0...Gain.levelLimit
+
+    /// Nil when no clip of the selected tracks plays `frame`.
+    public init?(at frame: Frames, selection: Selection, session: Session) {
+        let playing = Self.clips(of: selection, in: session).filter { $0.range.contains(frame) }
+        guard let first = playing.first else { return nil }
+        func value(_ clip: Clip) -> Double { clip.envelope.gain(at: frame - clip.start + clip.offset) }
+        self.frame = frame
+        clips = playing.map(\.id)
+        gain = playing.dropFirst().reduce(ClipInspection.Shown.value(value(first))) { $0.merged(with: value($1)) }
+    }
+
+    /// The clips of the selected tracks, or the clips of a clip set.
+    private static func clips(of selection: Selection, in session: Session) -> [Clip] {
+        switch selection {
+        case .range(let marks): session.tracks.filter { marks.tracks.contains($0.id) }.flatMap(\.clips)
+        case .clips: selection.selectedClips(in: session).map(\.clip)
+        }
+    }
+
+    /// The envelope of each clip of `clips` that plays `frame` and changes, with a point at that
+    /// frame: of `dB` (0.1 dB to nearest, in `limits`), or with `dB` nil of the envelope value
+    /// there, so no sample changes. A point at that frame is replaced, or kept with `dB` nil. A clip
+    /// that is gone drops out. Nil with no change.
+    public static func envelopes(_ dB: Double?, at frame: Frames, for clips: [ClipID], in session: Session)
+        -> [ClipID: GainEnvelope]?
+    {
+        let rounded = dB.map { (min(max($0, limits.lowerBound), limits.upperBound) * 10).rounded() / 10 }
+        let ids = Set(clips)
+        var result: [ClipID: GainEnvelope] = [:]
+        for track in session.tracks {
+            for clip in track.clips where ids.contains(clip.id) && clip.range.contains(frame) {
+                let file = frame - clip.start + clip.offset
+                guard let gain = Gain(clamping: rounded ?? clip.envelope.gain(at: file)) else { continue }
+                var points = clip.envelope.points
+                let index = points.firstIndex { $0.frame >= file } ?? points.endIndex
+                if index < points.endIndex, points[index].frame == file {
+                    guard rounded != nil, points[index].gain != gain else { continue }
+                    points[index] = GainEnvelope.Point(frame: file, gain: gain)
+                } else {
+                    points.insert(GainEnvelope.Point(frame: file, gain: gain), at: index)
+                }
+                result[clip.id] = GainEnvelope(points)
+            }
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    /// The nearest point of the clips of the selected tracks strictly after `frame` (`forward`) or
+    /// strictly before it, in timeline frames. Only a point that plays counts: one inside the clip
+    /// window. Nil when there is none.
+    public static func neighbor(of frame: Frames, forward: Bool, selection: Selection, session: Session) -> Frames? {
+        let frames = clips(of: selection, in: session).flatMap { clip in
+            clip.envelope.points(in: clip.offset..<(clip.offset + clip.length)).map {
+                $0.frame - clip.offset + clip.start
+            }
+        }
+        return forward ? frames.filter { $0 > frame }.min() : frames.filter { $0 < frame }.max()
+    }
+}

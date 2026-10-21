@@ -37,7 +37,7 @@ extension InspectorTests {
 
     /// C33, C18: at 240, 270, and 400 pt, the picker, each Episode field, and the Notes editor end
     /// at the pane trailing edge (12 pt padding), and the Details fields share one leading edge.
-    /// The three Clip fields stay 72 pt.
+    /// The four Clip fields stay 72 pt.
     @Test func eachPaneFillsTheWidth() async throws {
         for width in [240.0, 270, 400] {
             for tab in [InspectorTab.clip, .episode] {
@@ -52,7 +52,7 @@ extension InspectorTests {
                 #expect(abs(inWindow(picker).maxX - edge) <= 1, "\(at): picker \(inWindow(picker))")
                 let fields = paneControls(NSTextField.self, window, width: width).filter(\.isEditable).map(inWindow)
                 if tab == .clip {
-                    #expect(fields.count == 3 && fields.allSatisfy { abs($0.width - 72) <= 0.5 }, "\(at): \(fields)")
+                    #expect(fields.count == 4 && fields.allSatisfy { abs($0.width - 72) <= 0.5 }, "\(at): \(fields)")
                 } else {
                     for field in fields {
                         #expect(abs(field.maxX - edge) <= 1, "\(at): field \(field)")

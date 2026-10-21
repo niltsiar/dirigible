@@ -136,13 +136,15 @@ extension InspectorTests {
         var fields = try await paneFields(window)
         let one = try #require(ClipInspection(marks: overA, session: studio.session))
         #expect(InspectorView.title(one) == "f1")
-        #expect(fields.map(\.stringValue) == [decibels(-6), "500", "0"], "\(fields.map(\.stringValue))")
+        #expect(fields.prefix(3).map(\.stringValue) == [decibels(-6), "500", "0"], "\(fields.map(\.stringValue))")
+        #expect(!fields[3].isEnabled && fields[3].stringValue.isEmpty, "the playhead is past every clip")
 
         model.timeline.marks = overAll
         let all = try #require(ClipInspection(marks: overAll, session: studio.session))
         #expect(InspectorView.title(all) == L10n.inspectorClips.format(3))
         fields = try await paneFields(window)
-        #expect(fields.map(\.stringValue) == [decibels(-6), "500", "0"], "equal: \(fields.map(\.stringValue))")
+        #expect(
+            fields.prefix(3).map(\.stringValue) == [decibels(-6), "500", "0"], "equal: \(fields.map(\.stringValue))")
 
         model.edit(ripple: false) { s throws(SessionError) in try s.setGain(Gain(dB: 2)!, clip: "B") }
         await until("different gains show Mixed") { shownFields(window).first?.stringValue == "" }
@@ -151,14 +153,15 @@ extension InspectorTests {
         await model.record()
         #expect(studio.transport == .recording(take: 1))
         await until("a take turns the fields off") { shownFields(window).allSatisfy { !$0.isEnabled } }
-        #expect(shownFields(window).dropFirst().map(\.stringValue) == ["500", "0"], "a take keeps the values")
+        #expect(
+            shownFields(window).dropFirst().prefix(2).map(\.stringValue) == ["500", "0"], "a take keeps the values")
         model.toggleInspector()
         model.toggleInspector()
         #expect(model.showsInspector, "the item works during a take")
         await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
-        await until("the take end turns the fields on") { shownFields(window).allSatisfy(\.isEnabled) }
+        await until("the take end turns the fields on") { shownFields(window).prefix(3).allSatisfy(\.isEnabled) }
         await model.close()
     }
 

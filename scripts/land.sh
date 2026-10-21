@@ -30,7 +30,10 @@
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,
 # refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
-# the PR URL and the commit range on main. Then it updates main: in this worktree, or with a
+# the PR URL and the commit range on main. A failed merge call is tried again, 3 calls in all, after
+# LAND_MERGE_WAIT seconds (default 10); before each call it checks origin/main again, and a state
+# read of the PR that says MERGED ends the loop. After the third failure the message names this
+# script, to run again with the same arguments. Then it updates main: in this worktree, or with a
 # fast-forward in the worktree that holds main when its status is clean; with changes there, it
 # prints the command. It stops at the first failure and never force-pushes.
 # A second call resumes a land that stopped after the PR was made. It lists the PRs of the branch
@@ -245,8 +248,20 @@ else
     url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
 fi
 echo "pr: $url"
-git fetch origin
-git merge-base --is-ancestor origin/main HEAD || die "$moved"
-old="$(git rev-parse origin/main)"
-gh pr merge "$branch" --rebase --delete-branch
+# The merge can fail at GitHub, or finish behind an error. Each attempt follows an ancestry check,
+# so GitHub never rebases the PR on a main that the checks did not test. A failed state read is
+# unknown. The stamp file stays until the tail, so a later call resumes.
+attempt=1
+while :; do
+    git fetch origin
+    git merge-base --is-ancestor origin/main HEAD || die "$moved"
+    old="$(git rev-parse origin/main)"
+    gh pr merge "$branch" --rebase --delete-branch && break
+    state="$(gh pr view "$url" --json state --jq .state)" || state=unknown
+    [[ "$state" != MERGED ]] || break
+    ((attempt < 3)) ||
+        die "gh pr merge failed 3 times; the PR $url is not merged or its state is unknown; run scripts/land.sh again with the same arguments to resume at the merge"
+    attempt=$((attempt + 1))
+    sleep "${LAND_MERGE_WAIT:-10}"
+done
 finish_land "$old"

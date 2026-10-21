@@ -276,6 +276,8 @@ A new fade replaces the old fade of that edge. When the two fades are longer tha
 
 On a clip that is 40 pt wide or more on screen, a line shows the clip gain, and a small square at each top corner is a fade handle. The line is at the top of a full-scale signal with the gain. Above 0 dB, the line stays at the top of the clip and is dashed, and the clip name shows the gain.
 
+A clip with gain points has a line that follows them, and the waveform goes down where the gain is lower. The line stays 3 pt under the top of the clip. Each point is a disc of 6 pt. A disc does not show when another point or a fade handle is less than 8 pt away: you see only the line. You set the points with `dirigible clip envelope` and `dirigible clip gain-range`.
+
 - Drag the line up or down to change the gain of that clip, in steps of 0.1 dB. A drag goes to +20 dB or -20 dB, or stops at the start value when that value is outside these limits.
 - Drag a fade handle to make the fade longer or shorter. The handle stops at the other fade.
 - A crossfade has a handle at each end of its X. Drag a handle away from the join to make the crossfade longer on both sides, or toward the join to make it shorter. A drag onto the join removes the crossfade. The handle stops where the audio or the clip ends.

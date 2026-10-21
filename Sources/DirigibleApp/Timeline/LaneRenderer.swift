@@ -233,10 +233,12 @@ final class LaneRenderer {
                         fades: clipFades, curves: curves, length: length,
                         first: Double(range.lowerBound) * pixelFrames - Double(start.count),
                         step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
+                let envelope =
+                    clip.envelope.isEmpty
+                    ? nil : ColumnEnvelope(envelope: clip.envelope, first: from, step: pixelFrames)
                 drawColumns(
-                    range, gain: clip.gain.dB + track.gain.dB, fades: fades, bottom: bottom, chip: chips[clip.id],
-                    palette,
-                    into: region)
+                    range, gain: clip.gain.dB + track.gain.dB, fades: fades, envelope: envelope, bottom: bottom,
+                    chip: chips[clip.id], palette, into: region)
             }
         }
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
@@ -306,14 +308,18 @@ final class LaneRenderer {
 
     /// The one waveform draw of the final and the live columns: `values` from the column
     /// `range.lowerBound`, rectified on a -60 dB to 0 dB scale with `gain`, light peaks over dark
-    /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor.
+    /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor,
+    /// and a column of a clip with an `envelope` adds the highest gain of the envelope over its
+    /// frames; the fade line of such a clip stays under the top of the box (`lineClamp`).
     /// `chip`: the columns of a label chip and its top row; the peak and RMS spans of those columns
     /// end above it. The fade line still draws.
     func drawColumns(
-        _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, bottom: Int,
+        _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, envelope: ColumnEnvelope? = nil, bottom: Int,
         chip: (columns: Range<Int>, top: Int)? = nil, _ palette: LanePalette, into region: borrowing PixelRegion
     ) {
         let laneRows = region.window.laneRows
+        let clamp = envelope == nil ? 0 : Self.lineClamp(scale: region.window.scale)
+        var envelope = envelope
         values.withUnsafeBufferPointer { values in
             Self.decibels.withUnsafeBufferPointer { decibels in
                 func height(decibels decibel: Double, _ gain: Double) -> Int {
@@ -328,7 +334,8 @@ final class LaneRenderer {
                     let column = range.lowerBound + index
                     // Only a column in a fade computes a factor; 20 log10(0) is -infinity, height 0.
                     let factor = fades?.factor(index)
-                    let columnGain = factor.map { gain + 20 * log10($0) } ?? gain
+                    var columnGain = factor.map { gain + 20 * log10($0) } ?? gain
+                    if let envelopeGain = envelope?.gain(index) { columnGain += envelopeGain }
                     let peak = height(values[index].peak, columnGain)
                     // A cache file can hold an RMS over its peak; the span never inverts.
                     let rms = min(height(values[index].rms, columnGain), peak)
@@ -340,41 +347,13 @@ final class LaneRenderer {
                     region.span(palette.peak, column: column, rows: top..<middle)
                     region.span(palette.rms, column: column, rows: middle..<end)
                     if factor != nil, fades?.line == true {
-                        let row = Self.lineRow(columnGain, bottom: bottom, laneRows: laneRows)
+                        let row = Self.lineRow(columnGain, bottom: bottom, laneRows: laneRows, clamp: clamp)
                         region.span(palette.label, column: column, rows: row..<row + 1)
                     }
                     index += 1
                 }
             }
         }
-    }
-}
-
-/// The fades of one clip in the columns of a draw (decision 0035): the clip frame of the first
-/// column, and the frames per column.
-struct ColumnFades {
-    let fades: Fades
-    let curves: Fades.Curves
-    let length: Frames
-    let first: Double
-    let step: Double
-    /// A 1 px fade line, only in clip boxes of 12 pt or more wide (0035).
-    let line: Bool
-
-    /// The maximum of the fade factor over the frames of column `index` (plan gate F2): the fade-in
-    /// at min(k + step, I), the fade-out at max(k, N - O). Nil when that maximum is 1, so a column
-    /// that holds a fade end costs nothing: at fit zoom almost every column holds one (bench C25).
-    func factor(_ index: Int) -> Double? {
-        // A rounded column can start at the clip end; the curve takes a frame of the clip.
-        let k = min(max(0, Int((first + Double(index) * step).rounded(.down))), length.count - 1)
-        let end = k + Int(step.rounded(.up))
-        let rising = end < fades.fadeIn.count
-        let falling = fades.fadeOut > .zero && k > length.count - fades.fadeOut.count
-        guard rising || falling else { return nil }
-        var factor = 1.0
-        if rising { factor *= fades.gain(at: Frames(end), length: length, curves: curves) }
-        if falling { factor *= fades.gain(at: Frames(k), length: length, curves: curves) }
-        return factor
     }
 }
 

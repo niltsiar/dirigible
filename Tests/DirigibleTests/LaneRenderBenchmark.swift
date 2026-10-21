@@ -60,6 +60,52 @@ struct LaneRenderBenchmark {
 }
 
 extension LaneRenderBenchmark {
+    /// Gain envelope C12: 6 lanes of 2 h, each clip with 400 points that swing between 0 dB and
+    /// -16 dB. At fit zoom the points are 3.6 pt apart, so the draw has the line and no disc; at the
+    /// closest zoom they are 16 pt apart, so about 90 discs show on each lane. Each draw keeps the
+    /// budget of a full draw.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aDenseEnvelopeDrawsInTheBudget() throws {
+        let frames = 345_600_000
+        let peaks = randomPeaks(frames: frames)
+        for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
+            let spacing = zoom == "fit" ? frames / 400 : Int(16 * framesPerPoint)
+            let points = (0..<400).map {
+                GainEnvelope.Point(frame: Frames($0 * spacing), gain: Gain(dB: $0 % 2 == 0 ? 0 : -16)!)
+            }
+            let envelope = try #require(GainEnvelope(points))
+            var session = Session(sampleRate: 48_000)
+            var states: [FileID: PeakState] = [:]
+            for n in 1...6 {
+                let file = FileID("f\(n)")
+                try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: Frames(frames)))
+                try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+                try session.place(
+                    Clip(
+                        id: ClipID("c\(n)"), file: file, start: 0, offset: 0, length: Frames(frames),
+                        envelope: envelope), on: TrackID("t\(n)"))
+                states[file] = .ready(peaks)
+            }
+            let inputs = LaneInputs(
+                session: session, peaks: states, missingMedia: [:], selection: .none,
+                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+            let pixels = windows.map { OwnedPixels($0) }
+            let renderer = LaneRenderer()
+            var times: [Duration] = []
+            for draw in 0..<120 {
+                let start = ContinuousClock.now
+                pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
+                times.append(ContinuousClock.now - start)
+            }
+            let p95 = times.sorted()[113]
+            print("LaneRenderBenchmark dense envelope, \(zoom): p50 \(times.sorted()[60]), p95 \(p95)")
+            expectWithinBudget(p95, Self.budget, "\(zoom): p95 \(p95)")
+        }
+    }
+}
+
+extension LaneRenderBenchmark {
     /// Timeline clarity C11: 6 lanes of clips of 12 pt that all touch, so the view holds 120 joins
     /// on each lane, drawn at scale 2 over ready peaks. The draw keeps the budget of a full draw.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

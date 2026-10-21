@@ -22,11 +22,12 @@
 # only the tail: no check, no push, the range from the merge commit, and the update of main; a
 # commit after its pushed head stops the land. A PR that GitHub merges after the lookup (between it
 # and the early check, or during the checks) gives the tail with no push, and with another head than
-# HEAD it stops. The merge is tried three times: a failure then a
-# success, a merge that went through behind an error, a merge that GitHub finishes during the wait
-# (the retry sees the rebased copies on origin/main, reads MERGED, and runs the tail), three failures
-# (the message names the resume and the stamp file stays), a state read that fails, and an
-# origin/main that moves between two attempts.
+# HEAD it stops. The fake gh refuses a gh pr edit, merge, or view whose selector is not the URL of
+# the PR of the land, so each gh write acts on the PR that the script chose. The merge is tried
+# three times: a failure then a success, a merge that went through behind an error, a merge that
+# GitHub finishes during the wait (the retry sees the rebased copies on origin/main, reads MERGED,
+# and runs the tail), three failures (the message names the resume and the stamp file stays), a
+# state read that fails, and an origin/main that moves between two attempts.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -75,11 +76,21 @@ EOF
 # call with a 502 text and merges as GitHub does (github-merge) right after the next state read.
 # FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
 # FAKE_LIST=merge merges the PR right after `pr list` prints. `pr view` with more than the state in
-# --json prints the whole line of the PR.
+# --json prints the whole line of the PR. `pr merge`, `pr edit`, and `pr view` fail when their
+# selector is not the URL of the PR of this land (the OPEN line, else the newest line whose head
+# is HEAD or an ancestor of HEAD), as a branch name can select the PR of an earlier run.
 cat > "$bin/gh" <<'EOF'
 #!/bin/bash
 prs="$LAND_LOG.pr"
 bad="HTTP 502: Bad Gateway (https://api.github.com/graphql)"
+sel() {
+  local mine="" s u h _
+  while IFS=$'\t' read -r s u h _; do
+    [[ "$s" != OPEN ]] || { mine="$u"; break; }
+    [[ -n "$mine" ]] || ! git merge-base --is-ancestor "$h" HEAD 2>/dev/null || mine="$u"
+  done < "$prs"
+  [[ "$1" == "$mine" ]] || { echo "fake gh: $2 selects $1, not the PR of this land ($mine)" >&2; exit 1; }
+}
 case "$1 $2" in
   "pr list"|"pr view") echo "gh $*" >> "$LAND_LOG.view" ;;
   *) echo "gh $*" >> "$LAND_LOG" ;;
@@ -93,6 +104,7 @@ case "$1 $2" in
   "pr view")
     [[ "${FAKE_STATE:-}" != 502 ]] || { echo "$bad" >&2; exit 1; }
     # The whole line of the PR (the fields of `pr list`) for a read of more than the state.
+    sel "$3" 'pr view'
     [[ "$5" == state ]] || { awk -F'\t' -v u="$3" '$2 == u' "$prs"; exit; }
     state="$(awk -F'\t' -v u="$3" '$2 == u { print $1 }' "$prs")"
     echo "$state"
@@ -109,7 +121,9 @@ case "$1 $2" in
     { printf 'OPEN\t%s\t%s\t-\t%s\n' "$url" "$(git rev-parse HEAD)" "$(git rev-list --count origin/main..HEAD)"; cat "$prs" 2>/dev/null; } > "$prs.new"
     mv "$prs.new" "$prs"
     echo "$url" ;;
+  "pr edit") sel "$3" 'pr edit' ;;
   "pr merge")
+    sel "$3" 'pr merge'
     calls=$(($(cat "$LAND_LOG.merges" 2>/dev/null || echo 0) + 1))
     echo "$calls" > "$LAND_LOG.merges"
     case "${FAKE_MERGE:-}" in
@@ -195,7 +209,7 @@ want="make check-changed BASE=origin/main
 make: rebased
 gh pr create --base main --head feat/x --title Add x --body-file $c/pr.md
 gh: branch on origin
-gh pr merge feat/x --rebase --delete-branch"
+gh pr merge https://github.com/o/r/pull/7 --rebase --delete-branch"
 [[ "$(cat "$c/log")" == "$want" ]] || fail "happy: calls differ: $(cat "$c/log")"
 [[ "$(git -C "$c/work" config branch.feat/x.remote)" == origin ]] || fail 'happy: the push did not set the upstream'
 [[ "$(git -C "$c/work" branch --show-current)" == main ]] || fail 'happy: not on main at the end'
@@ -650,8 +664,8 @@ resume_start
 land_in "Add x" "$c/pr.md"
 code=$?
 [[ $code -eq 0 ]] || fail "open PR resumes: exit $code: $(cat "$c/out")"
-[[ "$(grep -E '^gh pr (create|edit|merge)' "$c/log")" == "gh pr edit feat/x --title Add x --body-file $c/pr.md
-gh pr merge feat/x --rebase --delete-branch" ]] || fail "open PR resumes: calls differ: $(cat "$c/log")"
+[[ "$(grep -E '^gh pr (create|edit|merge)' "$c/log")" == "gh pr edit https://github.com/o/r/pull/7 --title Add x --body-file $c/pr.md
+gh pr merge https://github.com/o/r/pull/7 --rebase --delete-branch" ]] || fail "open PR resumes: calls differ: $(cat "$c/log")"
 new="$(git -C "$c/origin.git" rev-parse main)"
 grep -qx 'pr: https://github.com/o/r/pull/7' "$c/out" || fail "open PR resumes: no PR URL: $(cat "$c/out")"
 grep -qx "range: $old..$new" "$c/out" || fail "open PR resumes: no commit range $old..$new: $(cat "$c/out")"

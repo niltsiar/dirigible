@@ -51,7 +51,9 @@
 # is HEAD runs only the tail: no check, no push; it prints the PR URL and the range (merge
 # commit~commit count..merge commit), removes the stamp file, and updates main. A CLOSED PR whose
 # head is HEAD stops the call; so does a PR whose head is an ancestor of HEAD but not HEAD (a commit
-# after the push), with no change. A failed lookup stops it with the gh text.
+# after the push), with no change. A failed lookup stops it with the gh text. gh pr edit, gh pr
+# merge, and gh pr view select the PR by the URL that the lookup or gh pr create gave, because a
+# reused branch name can select the PR of an earlier run.
 # scripts/land.test.sh tests it.
 set -euo pipefail
 
@@ -271,7 +273,7 @@ fi
 git push -u origin "$branch"
 if [[ "$pr_state" == OPEN ]]; then
     url="$pr_url"
-    gh pr edit "$branch" --title "$title" --body-file "$body"
+    gh pr edit "$url" --title "$title" --body-file "$body"
 else
     url="$(gh pr create --base main --head "$branch" --title "$title" --body-file "$body")"
 fi
@@ -291,7 +293,7 @@ while :; do
         break
     fi
     old="$(git rev-parse origin/main)"
-    gh pr merge "$branch" --rebase --delete-branch && break
+    gh pr merge "$url" --rebase --delete-branch && break
     state="$(gh pr view "$url" --json state --jq .state)" || state=unknown
     [[ "$state" != MERGED ]] || break
     ((attempt < 3)) ||

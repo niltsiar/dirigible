@@ -232,13 +232,14 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   await expectNits('a lens with only nits', [finding('nit', 'nit one'), finding('nit', 'nit two')], { verify: false, nits: ['nit one', 'nit two'] })
   await expectNits('a nit and a warning', [finding('nit', 'nit one'), finding('warning', 'warn one')], { verify: true, sent: ['warn one'], nits: ['nit one'] })
   await expectNits('a critical finding', [finding('critical', 'crit one')], { verify: true, sent: ['crit one'], nits: [] })
-  // Smaller reads: a diff lens reads the stat first and one file per call; a skeptic reads only
+  // Smaller reads: a diff lens reads the stat first, then the files in parallel batches of about
+  // 150 KB, not one file per call; a skeptic reads only
   // the files that a finding names and greps the ledger; a plan lens still reads every file that
   // the plan references.
   try {
     const got = await run({ target: 'diff', lenses: ['premortem'] })
     const prompt = got.prompts[got.labels.indexOf('review:premortem')] || ''
-    if (!prompt.includes('diff --stat') || !prompt.includes('one file per call')) fail('diff lens: no stat-first, one-file-per-call read')
+    if (!prompt.includes('diff --stat') || !prompt.includes('in one message') || !prompt.includes('150 KB') || prompt.includes('one file per call')) fail('diff lens: no stat-first read of batched parallel calls up to 150 KB')
   } catch (error) {
     fail(`diff lens reads: threw ${error.message}`)
   }

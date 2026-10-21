@@ -54,11 +54,7 @@ good() {
   printf '#!/bin/bash\n# tokens: /^(not verified|flake|fail)([^a-z]|$)/\n' > "$tmp/.claude/skills/reflect/scripts/cost.sh"
   printf -- '---\nname: deliver\n---\n\n## Autonomy rules\n\n- A row result starts with its token: `NOT VERIFIED`, `flake`, or `fail`.\n\n## Phase 7\n\nA `flake` here.\n' \
     > "$tmp/.claude/skills/deliver/SKILL.md"
-  printf 'path\twords\tdecision\n' > "$tmp/docs/workflow/budgets.tsv"
-  printf '%s\t1000\tbaseline\n' AGENTS.md .claude/agents/x-reviewer.md \
-    .claude/skills/s/SKILL.md .claude/skills/s/references/r.md .claude/skills/deliver/SKILL.md \
-    .claude/skills/interrogate/SKILL.md >> "$tmp/docs/workflow/budgets.tsv"
-  printf '.claude/skills/s/\t5000\tbaseline\nTOTAL\t10000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"
+  printf 'path\twords\tdecision\nTOTAL\t10000\tbaseline\n' > "$tmp/docs/workflow/budgets.tsv"
   printf 'id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary\n%s\n%s\n' \
     'AGT-001	AGENTS.md	keep	AGENTS.md	scope	10edc92		product scope' \
     'AGT-002	AGENTS.md	merge	AGT-001	duplicate	L12	AGT-001/doc	scope again' > "$tmp/docs/workflow/rules.tsv"
@@ -141,29 +137,14 @@ good; sed -i '' 's/^name: x-reviewer$/name: y-reviewer/' "$tmp/.claude/agents/x-
 good; printf -- '---\ndescription: X.\n---\n\nname: x-reviewer\n' > "$tmp/.claude/agents/x-reviewer.md"; expect fail 'name only in the body' "review-panel.js: .claude/agents/x-reviewer.md has no 'name: x-reviewer' in its frontmatter"
 good; sed -i '' "s/agentType: 'x-reviewer'/agentType: \"x-reviewer\"/" "$tmp/.claude/workflows/review-panel.js"; expect pass 'agentType in double quotes'
 good; sed -i '' "s/agentType: 'x-reviewer'/agentType: name/" "$tmp/.claude/workflows/review-panel.js"; expect fail 'panel with no literal agentType' 'review-panel.js: no literal agentType'
-good; budget AGENTS.md 1; expect fail 'file over its budget row' 'budgets.tsv: AGENTS.md is over its row'
-good; printf 'QUOTA\t9000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect pass 'a QUOTA row'
-good; sed -i '' '/^\.claude\/skills\/s\/SKILL\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'SKILL.md with no budget row' 'budgets.tsv: no row for .claude/skills/s/SKILL.md'
-good; sed -i '' '/^\.claude\/skills\/s\/references\/r\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'references file with no budget row' 'budgets.tsv: no row for .claude/skills/s/references/r.md'
-good; sed -i '' '/^\.claude\/agents\/x-reviewer\.md	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'agent file with no budget row' 'budgets.tsv: no row for .claude/agents/x-reviewer.md'
-good; printf '.claude/skills/gone/SKILL.md\t100\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect fail 'budget row for a missing file' 'budgets.tsv: row for a missing file: .claude/skills/gone/SKILL.md'
-good; budget .claude/skills/s/ 5; expect fail 'skill folder over its total row' 'budgets.tsv: .claude/skills/s/ is over its total row'
-good; budget TOTAL 5; expect fail 'all budgeted files over the TOTAL row' 'budgets.tsv: the budgeted files are over the TOTAL row'
+good; printf 'QUOTA\t9000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect fail 'a QUOTA row' 'budgets.tsv: a row other than TOTAL: QUOTA'
+good; printf 'AGENTS.md\t1000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect fail 'an AGENTS.md row' 'budgets.tsv: a row other than TOTAL: AGENTS.md'
+good; printf '.claude/skills/v/NOTES.md\t100\tvendored: third party\n' >> "$tmp/docs/workflow/budgets.tsv"; expect fail 'a vendored row' 'budgets.tsv: a row other than TOTAL: .claude/skills/v/NOTES.md'
+good; printf 'TOTAL\t10000\tbaseline\n' >> "$tmp/docs/workflow/budgets.tsv"; expect fail 'two TOTAL rows' 'budgets.tsv: more than one TOTAL row'
+good; mkdir -p "$tmp/.claude/skills/new"; printf -- '---\nname: new\n---\n' > "$tmp/.claude/skills/new/SKILL.md"; expect pass 'a new SKILL.md with no row'
+good; budget TOTAL 5; expect pass 'the docs over TOTAL x 1.03'
 good; sed -i '' '/^TOTAL	/d' "$tmp/docs/workflow/budgets.tsv"; expect fail 'no TOTAL row' 'budgets.tsv: no TOTAL row'
-good; sed -i '' 's|^AGENTS.md	1000	baseline$|AGENTS.md	1000	|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'budget row with an empty decision' 'budgets.tsv: the row for AGENTS.md has no decision'
-# A vendored folder (reason cell starts with `vendored:`) stays out of TOTAL and keeps its own caps.
-vendor() {
-  mkdir -p "$tmp/.claude/skills/v"
-  printf '| Skill | Source path | Copyright |\n|---|---|---|\n| `v` | `skills/v` | Someone |\n\nPinned skills: `%s`.\n' "${1:-v}" > "$tmp/.claude/skills/THIRD_PARTY.md"
-  seq 11000 | tr '\n' ' ' > "$tmp/.claude/skills/v/NOTES.md"
-  printf '.claude/skills/v/\t11500\tvendored: third party\n.claude/skills/v/NOTES.md\t11500\tvendored: third party\n' >> "$tmp/docs/workflow/budgets.tsv"
-}
-good; vendor; expect pass 'vendored words are left out of the TOTAL row'
-good; vendor; budget .claude/skills/v/NOTES.md 100; expect fail 'vendored file over its own row' 'budgets.tsv: .claude/skills/v/NOTES.md is over its row'
-good; vendor; budget .claude/skills/v/ 100; expect fail 'vendored folder over its total row' 'budgets.tsv: .claude/skills/v/ is over its total row'
-good; vendor; sed -i '' 's|vendored: third party|third party|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'the same rows without the vendored mark count in TOTAL' 'budgets.tsv: the budgeted files are over the TOTAL row'
-good; vendor other; expect fail 'vendored row under a skill that THIRD_PARTY.md lists but does not pin' 'budgets.tsv: the vendored row for .claude/skills/v/NOTES.md'
-good; vendor; sed -i '' 's|^AGENTS.md	1000	baseline$|AGENTS.md	1000	vendored: x|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'vendored row for a project doc' 'budgets.tsv: the vendored row for AGENTS.md'
+good; sed -i '' 's|^TOTAL	10000	baseline$|TOTAL	10000	|' "$tmp/docs/workflow/budgets.tsv"; expect fail 'the TOTAL row with an empty decision' 'budgets.tsv: the row for TOTAL has no decision'
 good; sed -i '' 's|references/r.md|the reference|' "$tmp/.claude/skills/s/SKILL.md"; expect fail 'references file not named by its SKILL.md' '.claude/skills/s/references/r.md: .claude/skills/s/SKILL.md does not name it by path'
 good; long_ref 101; expect fail 'long references file with no contents list' '.claude/skills/s/references/r.md: over 100 lines with no contents list in its first 10 lines'
 good; long_ref 101 '## Contents'; expect pass 'long references file with a contents list'
@@ -179,7 +160,6 @@ good; rm "$tmp/docs/workflow/rules.tsv"; expect fail 'no register' 'docs/workflo
 good; sed -i '' '1s/$/	text/' "$tmp/docs/workflow/rules.tsv"; expect fail 'register with a text column' 'rules.tsv: the header is not'
 good; printf 'In run 2026-10-01-x the hook failed.\n' >> "$tmp/.claude/skills/s/references/r.md"; expect fail 'a date in a loaded doc' '.claude/skills/s/references/r.md:4: a date in a loaded doc'
 good; printf 'Since 2026-10-01, check.\n' >> "$tmp/AGENTS.md"; expect fail 'a date in AGENTS.md' 'AGENTS.md:5: a date in a loaded doc'
-good; printf 'Rule.\n' > "$tmp/CODING_STANDARDS.md"; expect fail 'CODING_STANDARDS.md with no budget row' 'budgets.tsv: no row for CODING_STANDARDS.md'
 good; printf 'Since 2026-10-01, check.\n' > "$tmp/CODING_STANDARDS.md"; expect fail 'a date in CODING_STANDARDS.md' 'CODING_STANDARDS.md:1: a date in a loaded doc'
 good; printf 'Source: example.org, fetched 2026-07-18.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect pass 'a fetch date on a Source line'
 good; sed -i '' 's/, `flake`,/,/' "$tmp/.claude/skills/deliver/SKILL.md"; expect fail 'a cost.sh token only outside the deliver Autonomy rules' '.claude/skills/deliver/SKILL.md: the Autonomy rules have no `flake`'

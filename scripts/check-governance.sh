@@ -5,10 +5,10 @@
 #   decision cell, as `decisions.tsv <YYYY-MM-DDTHH:MM>`. A raised TOTAL row also differs from the
 #   cell of the base, and with a run folder the cited time is a row of its decisions.tsv. A changed
 #   TOTAL is within 3 % of `scripts/workflow-words.sh sum`; a raise is at most the sum.
-# - The always-on words (`scripts/workflow-words.sh always-on`: AGENTS.md, CLAUDE.md, the files
-#   they import, and the description lines of the skills and agents) and the count of skills plus
-#   agents (`workflow-words.sh count`) stay at or below their value at the merge base of the base
-#   and HEAD (decision 0028, Word budgets).
+# - The always-on words (`scripts/workflow-words.sh always-on`: the start files and the description
+#   lines of the skills and agents) and the count of skills plus agents (`workflow-words.sh count`)
+#   stay at or below their value at the merge base of the base and HEAD (decision 0028, Word
+#   budgets).
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
@@ -92,7 +92,7 @@ fi
 mb="$(git merge-base "$base" HEAD)" || die "no merge base of $base and HEAD"
 base_words="$("$words" always-on --rev "$mb")" tree_words="$("$words" always-on)"
 if ((tree_words > base_words)); then
-    echo "check-governance: the always-on words go from $base_words at the merge base to $tree_words (AGENTS.md, CLAUDE.md, the files they import, and the description lines of the skills and agents); move a whole part to a references file and leave a one-line pointer; do not trim the words of a rule" >&2
+    echo "check-governance: the always-on words go from $base_words at the merge base to $tree_words (the start files, which are AGENTS.md, CLAUDE.md, .claude/CLAUDE.md, the .claude/rules files with no paths:, and the files they import; and the description lines of the skills and agents); move a whole part to a references file and leave a one-line pointer; do not trim the words of a rule" >&2
     fail=1
 fi
 base_count="$("$words" count --rev "$mb")" tree_count="$("$words" count)"

@@ -14,7 +14,7 @@ export GUIDE_HTML="$tmp/guide-html"
 # deliver Autonomy rules section with each friction token of a reflect cost.sh, and a CLI with the root
 # commands info and clip.
 good() {
-  rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude" "$tmp/Sources" "$tmp/CODING_STANDARDS.md"
+  rm -rf "$tmp/docs" "$tmp/Support" "$tmp/README.md" "$tmp/.claude" "$tmp/Sources" "$tmp/CODING_STANDARDS.md" "$tmp/CLAUDE.md"
   mkdir -p "$tmp/docs/research" "$tmp/docs/requirements" "$tmp/docs/decisions" "$tmp/docs/images" \
     "$tmp/Support/Resources/en.lproj" "$tmp/Support/Resources/es.lproj"
   printf '# Topic\n\nDate: 2026-09-24\n\n## Sources\n\n- x\n' > "$tmp/docs/research/topic.md"
@@ -159,6 +159,16 @@ good; rule 'AGT-003	AGENTS.md	new		scope	10edc92		scope'; expect fail 'register 
 good; rm "$tmp/docs/workflow/rules.tsv"; expect fail 'no register' 'docs/workflow/rules.tsv is missing'
 good; sed -i '' '1s/$/	text/' "$tmp/docs/workflow/rules.tsv"; expect fail 'register with a text column' 'rules.tsv: the header is not'
 good; printf 'In run 2026-10-01-x the hook failed.\n' >> "$tmp/.claude/skills/s/references/r.md"; expect fail 'a date in a loaded doc' '.claude/skills/s/references/r.md:4: a date in a loaded doc'
+# An import is a line that is only @<path>: the always-on count reads those. An inline @<path> outside
+# a code span or a fence loads at the start and passes the count uncounted.
+good; printf 'See @docs/guide.md for the guide.\n' >> "$tmp/AGENTS.md"; expect fail 'an inline @ import in AGENTS.md' 'AGENTS.md:5: an inline @ import'
+good; printf -- '- @docs/guide.md\n' >> "$tmp/AGENTS.md"; expect fail 'an @ import in a list item' 'AGENTS.md:5: an inline @ import'
+good; printf '@docs/guide.md\n' >> "$tmp/AGENTS.md"; expect pass 'an @ import on a line of its own'
+good; printf 'See `@docs/guide.md`, or mail a@b.com.\n' >> "$tmp/AGENTS.md"; expect pass 'an @ token in a code span and in an address'
+good; printf '```\nsee @docs/guide.md\n```\n' >> "$tmp/AGENTS.md"; expect pass 'an @ token in a fenced block'
+good; printf '@docs/i.md\n' > "$tmp/CLAUDE.md"; printf 'See @docs/guide.md\n' > "$tmp/docs/i.md"; expect fail 'an inline @ import in a file that CLAUDE.md imports' 'docs/i.md:1: an inline @ import'
+good; mkdir -p "$tmp/.claude/rules"; printf 'See @docs/guide.md\n' > "$tmp/.claude/rules/r.md"; expect fail 'an inline @ import in a rules file' '.claude/rules/r.md:1: an inline @ import'
+good; printf 'See @docs/guide.md\n' > "$tmp/docs/i.md"; expect pass 'an inline @ import in a file that no start file imports'
 good; printf 'Since 2026-10-01, check.\n' >> "$tmp/AGENTS.md"; expect fail 'a date in AGENTS.md' 'AGENTS.md:5: a date in a loaded doc'
 good; printf 'Since 2026-10-01, check.\n' > "$tmp/CODING_STANDARDS.md"; expect fail 'a date in CODING_STANDARDS.md' 'CODING_STANDARDS.md:1: a date in a loaded doc'
 good; printf 'Source: example.org, fetched 2026-07-18.\n' >> "$tmp/.claude/skills/s/SKILL.md"; expect pass 'a fetch date on a Source line'

@@ -216,6 +216,21 @@ fi
 workflow_docs=()
 while IFS= read -r f; do workflow_docs+=("$root/$f"); done < <("$(cd "$(dirname "$0")" && pwd)/workflow-words.sh" list --root "$root")
 
+# A start file imports another file with a line that is only @<path>: the always-on count reads
+# those lines. Claude Code also imports an @<path> inside a line, outside a code span or a fence,
+# which the count would not see.
+words_sh="$(cd "$(dirname "$0")" && pwd)/workflow-words.sh"
+while IFS= read -r f; do
+    [[ -f "$root/$f" ]] || continue
+    while IFS= read -r n; do
+        err "$f:$n: an inline @ import (put the import on a line of its own, so that the always-on count reads it)"
+    done < <(awk '
+        /^[ \t]*(```|~~~)/ { fence = !fence; next }
+        fence || /^@[^ \t]+[ \t]*$/ { next }
+        { line = $0; gsub(/`[^`]*`/, "", line) }
+        line ~ /(^|[ \t(])@[A-Za-z0-9_.~\/-]+/ { print FNR }' "$root/$f")
+done < <("$words_sh" start-files --root "$root")
+
 # docs/workflow/budgets.tsv holds the header and one TOTAL row with a decision. This check caps no
 # words: new-run.sh warns when the docs pass TOTAL x 1.03 (decision 0028, Word budgets).
 budgets="$root/docs/workflow/budgets.tsv"

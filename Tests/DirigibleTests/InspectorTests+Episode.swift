@@ -80,7 +80,7 @@ extension InspectorTests {
         _ = try await paneFields(window)
         drawNow(window)
         draws = view.lanes.draws
-        model.type("-3", in: .gain)
+        model.type("-3", in: .clip(.gain))
         model.commitInspector()
         await until("the control: a gain commit draws the lanes") {
             drawNow(window)
@@ -196,7 +196,7 @@ extension InspectorTests {
 
         model.timeline.marks = overA
         _ = try await paneFields(window)
-        model.type("-3", in: .gain)
+        model.type("-3", in: .clip(.gain))
         model.selectInspectorTab(.episode)
         #expect(gain(studio, "A") == -3 && model.inspectorTab == .episode)
         await model.close()

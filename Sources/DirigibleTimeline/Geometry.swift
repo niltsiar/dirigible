@@ -112,7 +112,7 @@ public struct LaneGeometry: Equatable, Sendable {
 
     /// The y of the gain line of `clip` at the document x `x`: the line of `gainLineY` plus the
     /// gain of the envelope at the file frame under `x` (decision 0060).
-    public func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int, atX x: Double) -> Double {
+    func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int, atX x: Double) -> Double {
         let envelope = clip.envelope.isEmpty ? 0 : clip.envelope.gain(at: clip.offset + (frame(at: x) - clip.start))
         return lineY(gain: clip.gain.dB + trackGain.dB + envelope, lane: lane)
     }
@@ -134,7 +134,7 @@ public struct LaneGeometry: Equatable, Sendable {
     /// handle (points).
     static let pointClearance = 8.0
     /// A press within this distance of the center of a shown point (points) hits the point.
-    public static let pointReach = 5.0
+    static let pointReach = 5.0
     /// The line of an envelope clip stays this far under the top of the box, and a point this far
     /// from the top and the bottom (points).
     public static let lineClamp = 3.0

@@ -122,12 +122,22 @@ public struct PointGain: Equatable, Sendable {
 
     /// Nil when no clip of the selected tracks plays `frame`.
     public init?(at frame: Frames, selection: Selection, session: Session) {
-        let playing = Self.clips(of: selection, in: session).filter { $0.range.contains(frame) }
+        let playing = Self.playing(at: frame, selection: selection, in: session)
         guard let first = playing.first else { return nil }
         func value(_ clip: Clip) -> Double { clip.envelope.gain(at: frame - clip.start + clip.offset) }
         self.frame = frame
         clips = playing.map(\.id)
         gain = playing.dropFirst().reduce(ClipInspection.Shown.value(value(first))) { $0.merged(with: value($1)) }
+    }
+
+    /// The clips of `selection` that play `frame`: at most one for each selected track.
+    private static func playing(at frame: Frames, selection: Selection, in session: Session) -> [Clip] {
+        switch selection {
+        case .range(let marks):
+            session.tracks.filter { marks.tracks.contains($0.id) }
+                .compactMap { track in track.clips.index(holding: frame).map { track.clips[$0] } }
+        case .clips: selection.selectedClips(in: session).map(\.clip).filter { $0.range.contains(frame) }
+        }
     }
 
     /// The clips of the selected tracks, or the clips of a clip set.

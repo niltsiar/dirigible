@@ -288,6 +288,8 @@
 "timeline.readout.fade.in" = "Entrada %@ ms";
 "timeline.readout.fade.out" = "Salida %@ ms";
 "timeline.readout.crossfade" = "Fundido cruzado %@ ms";
+"timeline.readout.point" = "Punto %@ dB";
+"timeline.readout.range.gain" = "Ganancia del rango %@ dB";
 
 /* Elementos de Visualización y Edición de la línea de tiempo (decisión 0017) */
 "menu.view.zoom.in" = "Acercar";

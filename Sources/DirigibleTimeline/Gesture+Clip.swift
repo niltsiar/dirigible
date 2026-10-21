@@ -9,6 +9,10 @@ public enum GestureReadout: Equatable, Sendable {
     case fade(Fades.Edge, Frames)
     /// The length of a crossfade (decision 0036).
     case crossfade(Frames)
+    /// The gain of an envelope point (decision 0060).
+    case point(Gain)
+    /// The gain that a drag inside a range adds to it (decision 0060).
+    case rangeGain(Gain)
 }
 
 /// The clip part of the gesture (run 11b-1): a drag of the gain line sets the clip gain, a drag of
@@ -53,7 +57,7 @@ extension TimelineGesture {
         case .gaining(_, let drag): .gain(drag.gain, from: drag.clip.gain)
         case .fading(_, let drag): .fade(drag.edge, drag.edge == .start ? drag.fades.fadeIn : drag.fades.fadeOut)
         case .crossfading(_, let drag): .crossfade(drag.length)
-        default: nil
+        default: envelopeReadout
         }
     }
 
@@ -187,6 +191,8 @@ extension TimelineGesture {
             let fades = clip.fades(setting: edge, to: .zero)
             guard let fades, fades != old, (try? result.setFades([clip.id: fades])) != nil else { return nil }
             return [.commit(commit(press, clip, lane, result))]
+        case .point(let clip, let index, let lane):
+            return removePoint(press, clip, index, lane, context)
         case .move, .trim, .range:
             return nil
         }
@@ -240,7 +246,7 @@ extension TimelineGesture {
         let session = context.session
         switch context.geometry.hit(x, y, in: session) {
         case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
-            .fade(let clip, _, let lane):
+            .fade(let clip, _, let lane), .point(let clip, _, let lane):
             let track = session.tracks[lane].id
             if case .clips(let set) = context.selection, set.ids.contains(clip.id) { return nil }
             if let selection = context.selection.marks?.selection(in: session), selection.tracks.contains(track),
@@ -254,7 +260,7 @@ extension TimelineGesture {
     }
 
     /// The commit of a clip edit, with the Marks on the clip range on its track.
-    private func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
+    func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
         let marks = Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])
         return GestureCommit(base: press.base, result: result, selection: .range(marks), marker: nil, ripple: false)
     }

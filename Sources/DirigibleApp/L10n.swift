@@ -315,6 +315,8 @@ enum L10n: String, CaseIterable {
     case timelineReadoutFadeIn = "timeline.readout.fade.in"
     case timelineReadoutFadeOut = "timeline.readout.fade.out"
     case timelineReadoutCrossfade = "timeline.readout.crossfade"
+    case timelineReadoutPoint = "timeline.readout.point"
+    case timelineReadoutRangeGain = "timeline.readout.range.gain"
     case toolbarMonitor = "toolbar.monitor"
     case toolbarTime = "toolbar.time"
     case toolbarSpeed = "toolbar.speed"

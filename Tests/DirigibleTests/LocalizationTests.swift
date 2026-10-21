@@ -234,7 +234,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.format", "panel.export.format.aac", "panel.export.format.flac",
         "panel.export.format.mp3", "panel.export.format.wav", "panel.export.loudness.ebu",
         "panel.export.loudness.podcast", "panel.export.rate.48000", "report.gain", "start.version",
-        "timeline.accessibility", "timeline.readout.gain", "toolbar.tooltip", "track.layout.mono",
+        "timeline.accessibility", "timeline.readout.gain", "timeline.readout.point", "toolbar.tooltip",
+        "track.layout.mono",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter", "track.volume.value",
     ],
     "it": [

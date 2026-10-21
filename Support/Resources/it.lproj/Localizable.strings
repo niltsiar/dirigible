@@ -288,6 +288,8 @@
 "timeline.readout.fade.in" = "Dissolvenza in entrata %@ ms";
 "timeline.readout.fade.out" = "Dissolvenza in uscita %@ ms";
 "timeline.readout.crossfade" = "Dissolvenza incrociata %@ ms";
+"timeline.readout.point" = "Punto %@ dB";
+"timeline.readout.range.gain" = "Guadagno dell'intervallo %@ dB";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Ingrandisci";

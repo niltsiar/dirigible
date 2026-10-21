@@ -80,7 +80,8 @@ final class ReadoutLayer: CATextLayer {
     }
 
     /// The text of `readout`: the gain in dB to 0.1 and its change since the mouse-down, or the fade
-    /// or crossfade length in whole ms at `rate`, in the number format of `locale`. `value` gives
+    /// or crossfade length in whole ms at `rate`, or the gain of a point or of a range gain in dB,
+    /// in the number format of `locale`. `value` gives
     /// the string of a key (a test passes a table).
     static func text(_ readout: GestureReadout, rate: Int, locale: Locale, value: (L10n) -> String) -> String {
         switch readout {
@@ -93,6 +94,10 @@ final class ReadoutLayer: CATextLayer {
             return String(format: value(key), milliseconds(length, rate: rate, locale: locale))
         case .crossfade(let length):
             return String(format: value(.timelineReadoutCrossfade), milliseconds(length, rate: rate, locale: locale))
+        case .point(let gain):
+            return String(format: value(.timelineReadoutPoint), decibels(gain.dB, locale: locale))
+        case .rangeGain(let gain):
+            return String(format: value(.timelineReadoutRangeGain), decibels(gain.dB, locale: locale))
         }
     }
 

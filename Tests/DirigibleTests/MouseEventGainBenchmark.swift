@@ -127,6 +127,40 @@ import Testing
         return p50
     }
 
+    /// Gain envelope C12: the point drag. "big" and the t2 clip at x 300 of the 60 pt zoom have three
+    /// points at a third, a half, and two thirds of the clip, 8 pt or more apart and away from the fade
+    /// handles. The press is on the middle point; each event takes it to -10 or -20 dB (10 or 20 pt
+    /// down), a new value. Then the mouse-up commit, and a double-click on the point that removes it.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aPointDragEventFitsOneFrameAtTwoHours() async throws {
+        var (session, peaks) = try Self.fixture()
+        for id: ClipID in ["big", session.tracks[1].clips[5].id] {
+            let clip = try #require(session.clip(id)?.clip)
+            let points = Dictionary(
+                uniqueKeysWithValues: [2, 3, 4].map { (clip.start + Frames(clip.length.count * $0 / 6), Gain.zero) })
+            try session.setEnvelope(points, clip: id)
+        }
+        try await Self.eachZoom(session, peaks) { zoom, window, view, box in
+            let down = NSPoint(x: box.midX, y: box.minY + 3)
+            view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
+            let sorted = try await MouseEventBenchmark.pacedDrags(view, window, zoom) { event in
+                try mouse(.leftMouseDragged, NSPoint(x: down.x, y: down.y + (event % 2 == 0 ? 10 : 20)), in: view)
+            }
+            let up = try await Self.timed(window) {
+                view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: down.x, y: down.y + 10), in: view))
+            }
+            let point = NSPoint(x: down.x, y: box.minY + 10)
+            let remove = try await Self.timed(window) {
+                view.lanes.mouseDown(with: try mouse(.leftMouseDown, point, in: view, clicks: 2))
+                view.lanes.mouseUp(with: try mouse(.leftMouseUp, point, in: view, clicks: 2))
+            }
+            let clips = try #require(view.lanes.inputs?.session.tracks[1].clips)
+            let index = try #require(clips.index(holding: Frames(Int(down.x * view.lanes.framesPerPoint))))
+            try #require(clips[index].envelope.points.count == 2, "\(zoom): the double-click removed the point")
+            Self.report("point", zoom, sorted, oneOff: [up, remove])
+        }
+    }
+
     /// B4: the full draw of the lanes in view with -20 dB on every second clip (the line 33 pt under
     /// the lane top) and the labels with the gain, 120 times at each zoom.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

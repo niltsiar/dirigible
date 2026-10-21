@@ -64,4 +64,43 @@ struct HitTestTests {
         #expect(RulerHit.triangle(.outPoint).cursor == .resizeLeftRight)
         #expect(RulerHit.time(0).cursor == .arrow)
     }
+
+    /// A clip D of 40 pt (x 400 to 440, 480 frames per point) touches the end of B, so its start edge
+    /// has no fade handle; its end edge has one at x 432 to 440, y 0 to 8. The envelope has three
+    /// points: x 401 and x 415 at -20 dB (y 20), and x 428 at 0 dB (y 3, 3 pt under the box top).
+    func sessionWithFortyPointClip() throws -> (Session, Clip) {
+        var session = try Fixture.session()
+        try session.place(Clip(id: "D", file: "fb", start: 192_000, offset: 0, length: 19_200), on: "t1")
+        try session.setEnvelope([192_480: Gain(dB: -20)!, 199_200: Gain(dB: -20)!, 205_440: .zero], clip: "D")
+        return (session, try #require(session.clip("D")?.clip))
+    }
+
+    /// Hit order (plan gate U15): a fade handle, then a point, then the trim zones, then the gain
+    /// line. Each test presses where two zones overlap, and a control where only the lower one is.
+    @Test func aFadeHandleIsHitBeforeAPoint() throws {
+        let (session, d) = try sessionWithFortyPointClip()
+
+        #expect(
+            geometry.hit(432.5, 4, in: session) == .fade(d, .end, lane: 0), "in the handle and 4.6 pt from the point")
+        #expect(geometry.hit(427, 4, in: session) == .point(d, index: 2, lane: 0), "in the zone of the point only")
+    }
+
+    @Test func aPointIsHitBeforeATrimZoneAndTheGainLine() throws {
+        let (session, d) = try sessionWithFortyPointClip()
+
+        #expect(geometry.hit(401, 20, in: session) == .point(d, index: 0, lane: 0), "1 pt inside the start edge")
+        #expect(geometry.hit(402.5, 20, in: session) == .point(d, index: 0, lane: 0), "on the line, at the point")
+        #expect(geometry.hit(409, 20, in: session) == .gain(d, lane: 0), "on the line, 6 pt from the point")
+        #expect(geometry.hit(403, 10, in: session) == .trim(d, .start, lane: 0), "off the line, in the trim zone")
+    }
+
+    @Test func aHiddenPointIsNotHit() throws {
+        var (session, d) = try sessionWithFortyPointClip()
+        try session.setEnvelope([192_480: Gain(dB: -20)!, 195_840: Gain(dB: -20)!], clip: "D")
+        d = try #require(session.clip("D")?.clip)
+
+        // The points are 7 pt apart, so neither shows.
+        #expect(geometry.hit(408, 20, in: session) == .gain(d, lane: 0))
+        #expect(geometry.hit(401, 20, in: session) == .trim(d, .start, lane: 0))
+    }
 }

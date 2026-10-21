@@ -20,7 +20,10 @@
 # check still run; origin/main past the pushed head stops it before any check; a closed PR, a
 # failed lookup, and a reused branch name (the PRs of an earlier run are ignored). A merged PR runs
 # only the tail: no check, no push, the range from the merge commit, and the update of main; a
-# commit after its pushed head stops the land.
+# commit after its pushed head stops the land. The merge is tried three times: a failure then a
+# success, a merge that went through behind an error, three failures (the message names the resume
+# and the stamp file stays), a state read that fails, and an origin/main that moves between two
+# attempts.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -30,6 +33,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
+# The merge retry waits this many seconds (default 10) between two attempts.
+export LAND_MERGE_WAIT=0
 # A git or make value of an outer run (make test-hooks) must not reach the ratchet case.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER CHECK_RISK
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
@@ -59,7 +64,9 @@ EOF
 # logs whether the branch is on origin (the push came first), adds an OPEN line, and prints its URL
 # (the first PR is 7). `pr merge` puts HEAD on origin/main, as a rebase merge does, and sets the
 # OPEN line to MERGED. FAKE_GH=move moves origin/main in `pr create`, for a land that runs no make.
-# FAKE_MERGE=fail:<n> fails the first n `pr merge` calls (counted in $LAND_LOG.merges) with a 502 text.
+# FAKE_MERGE=fail:<n> fails the first n `pr merge` calls (counted in $LAND_LOG.merges) with a 502
+# text, and moves origin/main in each when FAKE_MERGE_MOVE is set. FAKE_MERGE=late merges in the
+# first call and then fails it with "Merge already in progress".
 # FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
 cat > "$bin/gh" <<'EOF'
 #!/bin/bash
@@ -90,10 +97,17 @@ case "$1 $2" in
   "pr merge")
     calls=$(($(cat "$LAND_LOG.merges" 2>/dev/null || echo 0) + 1))
     echo "$calls" > "$LAND_LOG.merges"
-    case "${FAKE_MERGE:-}" in fail:*) if ((calls <= ${FAKE_MERGE#fail:})); then echo "$bad" >&2; exit 1; fi ;; esac
+    case "${FAKE_MERGE:-}" in
+      fail:*) if ((calls <= ${FAKE_MERGE#fail:})); then
+        [[ -z "${FAKE_MERGE_MOVE:-}" ]] || { git -C "$FAKE_OTHER" commit -q --allow-empty -m moved && git -C "$FAKE_OTHER" push -q origin main; }
+        echo "$bad" >&2
+        exit 1
+      fi ;;
+    esac
     git push -q origin HEAD:main
     awk -F'\t' -v OFS='\t' -v mc="$(git rev-parse HEAD)" '$1 == "OPEN" && !done { $1 = "MERGED"; $4 = mc; done = 1 } { print }' "$prs" > "$prs.new"
-    mv "$prs.new" "$prs" ;;
+    mv "$prs.new" "$prs"
+    if [[ "${FAKE_MERGE:-}" == late && $calls -eq 1 ]]; then echo "Merge already in progress" >&2; exit 1; fi ;;
 esac
 EOF
 # The fake sysctl logs its arguments and gives 8 cores and a load of 1.00, for the load wait.
@@ -762,6 +776,70 @@ land_in "Add x" "$c/pr.md"
 code=$?
 [[ $code -eq 0 ]] || fail "reused branch name, merged first: exit $code: $(cat "$c/out")"
 grep -qx 'pr: https://github.com/o/r/pull/8' "$c/out" || fail "reused branch name, merged first: no new PR URL: $(cat "$c/out")"
+
+# merges prints the count of gh pr merge calls of the log.
+merges() { grep -c '^gh pr merge' "$c/log"; }
+
+# A merge that fails once at GitHub and works the second time: two merge calls, then the tail.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+FAKE_MERGE=fail:1 land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "merge retry: exit $code: $(cat "$c/out")"
+[[ "$(merges)" == 2 ]] || fail "merge retry: $(merges) merge calls, want 2: $(cat "$c/log")"
+new="$(git -C "$c/origin.git" rev-parse main)"
+grep -qx "range: $old..$new" "$c/out" || fail "merge retry: no commit range $old..$new: $(cat "$c/out")"
+[[ "$(git -C "$c/work" branch --show-current)" == main ]] || fail 'merge retry: not on main at the end'
+
+# The merge went through, and GitHub then answered with an error: the state read says MERGED, so
+# there is no second merge call, and the tail runs.
+setup
+old="$(git -C "$c/other" rev-parse HEAD)"
+FAKE_MERGE=late land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "merge already in progress: exit $code: $(cat "$c/out")"
+[[ "$(merges)" == 1 ]] || fail "merge already in progress: $(merges) merge calls, want 1: $(cat "$c/log")"
+grep -qx 'gh pr view https://github.com/o/r/pull/7 --json state --jq .state' "$c/log.view" || fail "merge already in progress: no state read: $(cat "$c/log.view")"
+new="$(git -C "$c/origin.git" rev-parse main)"
+grep -qx "range: $old..$new" "$c/out" || fail "merge already in progress: no commit range $old..$new: $(cat "$c/out")"
+
+# Three failed merge calls end the land. The message names the resume, the stamp file stays, and a
+# later land merges.
+setup
+git -C "$c/work" fetch -q
+stamp origin/main
+FAKE_MERGE=fail:3 land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "merge retry bound: exit $code: $(cat "$c/out")"
+[[ "$(merges)" == 3 ]] || fail "merge retry bound: $(merges) merge calls, want 3: $(cat "$c/log")"
+grep -q 'scripts/land.sh again' "$c/out" || fail "merge retry bound: no resume command: $(cat "$c/out")"
+grep -q 'is not merged or its state is unknown' "$c/out" || fail "merge retry bound: no state text: $(cat "$c/out")"
+[[ -s "$c/work/.git/dirigible-land-stamp-feat-x" ]] || fail 'merge retry bound: the stamp file is gone'
+: > "$c/log"
+land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 && "$(merges)" == 1 ]] || fail "merge retry bound: the later land: exit $code, $(merges) merge calls: $(cat "$c/out")"
+
+# origin/main moves while the merge fails: the retry checks it again and stops, with no second
+# merge call, so GitHub does not rebase the PR on a main that the checks did not test.
+setup
+FAKE_MERGE=fail:1 FAKE_MERGE_MOVE=1 land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "merge retry checks origin/main: exit $code: $(cat "$c/out")"
+grep -q 'origin/main moved' "$c/out" || fail "merge retry checks origin/main: no reason: $(cat "$c/out")"
+[[ "$(merges)" == 1 ]] || fail "merge retry checks origin/main: $(merges) merge calls, want 1: $(cat "$c/log")"
+
+# A state read that fails counts as unknown: the land tries the merge again.
+setup
+FAKE_MERGE=fail:1 FAKE_STATE=502 land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 0 ]] || fail "merge state unknown: exit $code: $(cat "$c/out")"
+[[ "$(merges)" == 2 ]] || fail "merge state unknown: $(merges) merge calls, want 2: $(cat "$c/log")"
+setup
+FAKE_MERGE=fail:3 FAKE_STATE=502 land_in "Add x" "$c/pr.md"
+code=$?
+[[ $code -eq 1 ]] || fail "merge state unknown, three failures: exit $code: $(cat "$c/out")"
+grep -q 'is not merged or its state is unknown' "$c/out" || fail "merge state unknown, three failures: no reason: $(cat "$c/out")"
 
 # The flake rows: before the push, each dirigible-flakes line of a commit of the branch (an
 # ancestor of HEAD before or after the rebase) gives one flake row in the decisions.tsv of the run

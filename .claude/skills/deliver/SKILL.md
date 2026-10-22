@@ -105,7 +105,7 @@ The closing agent (on the light path, the lead) runs the **reflect** skill on th
 
 1. Phase 7 wrote `- Lands:` and set the `features.md` states, and the closing agent (on the light path, the lead) wrote `<run>/pr.md` with the **pr** skill, up to step 6 of **writing-for-humans**. While the push check runs, one Sonnet agent reads `pr.md` as the cold reader (step 7); the lead revises each misread sentence. When the check passes, run `scripts/land.sh "<plain title>" <run>/pr.md` in the background (AGENTS.md, Commands). Read its `pr:` and `range:` output lines.
 2. If the land stops on a conflict, resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge. Record the conflict and the branch in `run.md`. If it stops with the PR open, run the same command again; the header of `scripts/land.sh` says what a second call does.
-3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. It and the PR body list each default "open for the user", with the run that must stop for it. Write the PR URL in `run.md` and the ledger.
+3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. The lead decides each default: `run.md` and the PR body name it and how to reverse it, and list no open item. Write the PR URL in `run.md` and the ledger.
 
 ## Long autonomous runs
 

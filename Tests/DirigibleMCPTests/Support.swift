@@ -62,16 +62,17 @@ final class LivePackage {
         try writer.close()
     }
 
-    /// Opens a studio. With a pending take, `Clips/` is read-only during the open.
+    /// Opens a studio. With a pending take, `Clips/` is read-only during the open, and the studio
+    /// must have that take pending.
     @MainActor
-    func open(pending: Bool = false) async throws -> Studio {
-        guard pending else { return try await Studio.open(url) }
+    func open(pending take: Int? = nil) async throws -> Studio {
+        guard let take else { return try await Studio.open(url) }
         let clips = url.appending(path: "Clips")
         try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
         chmod(clips.path, 0o500)
         defer { chmod(clips.path, 0o755) }
         let studio = try await Studio.open(url)
-        try #require(studio.pendingTake != nil)
+        try #require(studio.pendingTake?.take == take)
         return studio
     }
 

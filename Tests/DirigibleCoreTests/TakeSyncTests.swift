@@ -85,6 +85,55 @@ struct TakeSyncTests {
         #expect(TakeSync.change(from: before, to: after) == [])
     }
 
+    /// Take 1 on `t1` and `t2` from 2 s, and a cold open at 0: a copy of take frames 24 000 to
+    /// 72 000 of each track. Then a ripple insert on `t1` after the copied range.
+    @Test func aColdOpenCopyKeepsTheTakeInSyncAndALaterBreakShows() throws {
+        var fixture = try TakeSession(tracks: 2)
+        for arm in [1, 2] {
+            let file = try fixture.addTakeFile(take: 1, arm: arm, origin: 0, length: 480_000)
+            try fixture.session.place(
+                Clip(id: ClipID("main\(arm)"), file: file, start: 96_000, offset: 0, length: 480_000),
+                on: TrackID("t\(arm)"))
+            try fixture.session.place(
+                Clip(id: ClipID("cold\(arm)"), file: file, start: 0, offset: 24_000, length: 48_000),
+                on: TrackID("t\(arm)"))
+        }
+        let cold = fixture.map.sync
+        try fixture.session.rippleInsert(24_000, at: 300_000, on: ["t1"])
+
+        let ripple = fixture.map.sync
+
+        #expect(cold == [1: .inSync(offset: 96_000)])
+        #expect(ripple == [1: .broken(from: 324_000, shifts: 2)])
+        #expect(TakeSync.change(from: cold, to: ripple).count == 1)
+    }
+
+    /// A part of the take clip moved, not copied, to after the take: no clip plays its take frames
+    /// at the reference shift now.
+    @Test func aMovedClipBreaksTheTake() throws {
+        var fixture = try TakeSession(tracks: 1)
+        let file = try fixture.addTakeFile(take: 1, arm: 1, origin: 0, length: 480_000)
+        try fixture.session.place(Clip(id: "main", file: file, start: 96_000, offset: 0, length: 480_000), on: "t1")
+        _ = try fixture.session.splitClips(at: [200_000, 248_000], on: ["t1"])
+        let middle = try #require(fixture.session.track("t1")?.clips.first { $0.start == 200_000 })
+
+        try fixture.session.move(middle.id, to: "t1", start: 700_000)
+
+        #expect(fixture.map.sync == [1: .broken(from: 700_000, shifts: 2)])
+    }
+
+    /// A copy of `t1` take audio on `t2`, where no clip plays that take time: not a copy, a break.
+    @Test func aCopyOnAnotherTrackBreaksTheTake() throws {
+        var fixture = try TakeSession(tracks: 2)
+        let file = try fixture.addTakeFile(take: 1, arm: 1, origin: 0, length: 480_000)
+        try fixture.session.place(Clip(id: "main", file: file, start: 96_000, offset: 0, length: 480_000), on: "t1")
+
+        try fixture.session.place(
+            Clip(id: "copy", file: file, start: 700_000, offset: 24_000, length: 48_000), on: "t2")
+
+        #expect(fixture.map.sync == [1: .broken(from: 700_000, shifts: 2)])
+    }
+
     /// A take in both lists gives its change; a take only in the old list or only in the new list
     /// gives none.
     @Test func aTakeInOneListGivesNoChange() {

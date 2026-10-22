@@ -251,6 +251,9 @@ extension SessionError {
         case .noSpeech(let scope, let threshold):
             "no speech over \(String(format: "%.1f", threshold)) dBFS in the timeline frames "
                 + "\(scope.lowerBound)..<\(scope.upperBound), so the duck changed nothing."
+        case .duckRangePastEnd(let range, let end):
+            "the range \(range.lowerBound)..<\(range.upperBound) starts at or after the session end at frame "
+                + "\(end), so the duck changed nothing."
         }
     }
 }

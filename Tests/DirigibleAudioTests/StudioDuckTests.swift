@@ -25,8 +25,7 @@ struct StudioDuckTests {
     }
 
     func duck(_ studio: Studio) async throws(StudioError) -> DuckResult {
-        try await studio.duck(
-            speech: ["t1"], music: ["t2"], scope: .zero..<studio.session.end, range: nil, shape: shape)
+        try await studio.duck(speech: ["t1"], music: ["t2"], range: nil, shape: shape)
     }
 
     func sessionBytes() throws -> Data { try Data(contentsOf: package.url.appending(path: "session.xml")) }
@@ -94,5 +93,15 @@ struct StudioDuckTests {
         let unchanged = studio.session == before
         #expect(unchanged && !studio.canUndo, "a duck with no speech changed the session")
         #expect(try fixture.sessionBytes() == bytes, "a duck with no speech saved")
+    }
+
+    /// A range past the session end reads only up to the end: the `noSpeech` scope is the cut range.
+    @Test func aRangePastTheEndReadsUpToTheEnd() async throws {
+        let fixture = try StudioDuckTests(speech: -.infinity)
+        let studio = try await Studio.open(fixture.package.url)
+        await #expect(throws: StudioError.session(.noSpeech(100_000..<144_000, threshold: -40))) {
+            try await studio.duck(speech: ["t1"], music: ["t2"], range: 100_000..<Frames.limit, shape: fixture.shape)
+        }
+        #expect(studio.transport == .idle && !studio.canUndo, "after the refusal: \(studio.transport)")
     }
 }

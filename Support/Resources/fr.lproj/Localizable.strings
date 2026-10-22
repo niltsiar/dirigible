@@ -66,6 +66,7 @@
 "error.duck.no.ducked.track" = "Sélectionnez une piste à atténuer ou donnez à une piste le rôle Musique.";
 "error.duck.both.lists" = "La piste « %@ » ne peut pas être à la fois une piste de voix et une piste à atténuer.";
 "error.duck.read" = "Un fichier audio d’une piste de voix n’a pas pu être lu (erreur %lld). Aucun point de gain n’a changé.";
+"error.duck.past.end" = "La sélection commence à la fin de la session ou après, l’atténuation n’a donc modifié aucun point de gain.";
 "error.file.unreadable" = "Le fichier de la session est endommagé.";
 "error.file.newer" = "Cette session a été créée par une version plus récente de Dirigible. Mettez à jour Dirigible pour l’ouvrir.";
 "error.file.read" = "Le fichier de la session ne peut pas être lu (erreur %lld).";

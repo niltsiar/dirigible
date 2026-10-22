@@ -92,8 +92,8 @@ private func liveDuck(
     }
     do throws(StudioError) {
         let result = try await studio.duck(
-            speech: planned.speech, music: planned.music, scope: planned.scope, range: work.range,
-            shape: planned.shape, agent: call.agent, progress: report)
+            speech: planned.speech, music: planned.music, range: work.range, shape: planned.shape, agent: call.agent,
+            progress: report)
         return .result(
             text: (DuckWork.lines(result) + [DuckWork.text(of: result)]).joined(separator: "\n"), isError: false)
     } catch .duckCancelled {

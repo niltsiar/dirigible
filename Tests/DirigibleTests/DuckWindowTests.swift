@@ -114,6 +114,24 @@ import Testing
         await model.close()
     }
 
+    /// A selection after the session end: the alert names the range, and the duck changes nothing.
+    @Test func aSelectionAfterTheSessionEndShowsTheAlert() async throws {
+        let (model, studio) = try await open()
+        let (before, bytes) = (studio.session, try sessionBytes(studio))
+        model.timeline.marks = Marks(inPoint: 500_000, outPoint: 600_000, tracks: ["t1"])
+        model.run(.duck)
+        let draft = try #require(model.duckDraft, "the item opened no sheet")
+
+        await model.duck(draft)
+
+        #expect(model.alert == .error(.session(.duckRangePastEnd(500_000..<600_000, end: 480_000))))
+        #expect(!model.shown.banners.contains { if case .duckNoSpeech = $0 { true } else { false } })
+        let unchanged = studio.session == before
+        #expect(unchanged && !studio.canUndo, "the duck changed the session")
+        #expect(try sessionBytes(studio) == bytes, "the duck saved")
+        await model.close()
+    }
+
     /// Silent speech: the banner gives the reason, and the duck changes nothing and adds no undo step.
     @Test func aDuckWithNoSpeechShowsTheReasonInTheBanner() async throws {
         let (model, studio) = try await open(silent: true)

@@ -217,6 +217,7 @@ extension L10n {
         case .noDuckedTrack: return errorDuckNoDuckedTrack.text
         case .trackInBothDuckLists(let track): return errorDuckBothLists.format(name(track))
         case .noSpeech(_, let threshold): return errorDuckNoSpeech.format(threshold)
+        case .duckRangePastEnd: return errorDuckPastEnd.text
         }
     }
 

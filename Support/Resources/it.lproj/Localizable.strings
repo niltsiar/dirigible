@@ -66,6 +66,7 @@
 "error.duck.no.ducked.track" = "Seleziona una traccia da abbassare o assegna a una traccia il ruolo Musica.";
 "error.duck.both.lists" = "La traccia “%@” non può essere sia una traccia vocale sia una traccia da abbassare.";
 "error.duck.read" = "Non è stato possibile leggere un file audio di una traccia vocale (errore %lld). Nessun punto di gain è cambiato.";
+"error.duck.past.end" = "La selezione inizia alla fine della sessione o dopo, quindi l’abbassamento non ha cambiato nessun punto di gain.";
 "error.file.unreadable" = "Il file della sessione è danneggiato.";
 "error.file.newer" = "Questa sessione è stata creata da una versione più recente di Dirigible. Aggiorna Dirigible per aprirla.";
 "error.file.read" = "Impossibile leggere il file della sessione (errore %lld).";

@@ -144,6 +144,22 @@ struct DuckCommandTests {
         #expect(!points.isEmpty && zip(points, points.dropFirst()).allSatisfy { $0.frame < $1.frame })
     }
 
+    /// A range past the session end reads only up to the end: the noSpeech text names the cut
+    /// range. A range that starts at the end is refused with its own text, and nothing changes.
+    @Test func aRangePastTheSessionEndIsCutToTheEnd() async throws {
+        let before = try package.xml()
+        let cut = try await package.run("duck", "PKG", "--from", "900000", "--to", "2000000")
+        let silent =
+            "Error: no speech over -40.0 dBFS in the timeline frames 900000..<960000, so the duck changed nothing.\n"
+        #expect(cut == CLIResult(status: 1, stdout: "", stderr: silent))
+        let past = try await package.run("duck", "PKG", "--from", "960000", "--to", "2000000")
+        let text =
+            "Error: the range 960000..<2000000 starts at or after the session end at frame 960000, so the duck "
+            + "changed nothing.\n"
+        #expect(past == CLIResult(status: 1, stdout: "", stderr: text))
+        #expect(try package.xml() == before)
+    }
+
     /// A bad argument is a usage error: exit 64.
     @Test func aBadArgumentExits64() async throws {
         #expect(try await package.run("duck", "PKG", "--depth", "6").status == 64)

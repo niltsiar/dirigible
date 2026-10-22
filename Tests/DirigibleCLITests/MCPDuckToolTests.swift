@@ -29,6 +29,18 @@ struct MCPDuckToolTests {
         #expect(try package.xml() == before)
     }
 
+    /// A range that starts at the session end is a tool error, and session.xml keeps its bytes.
+    @Test func aRangePastTheSessionEndIsAToolError() async throws {
+        let before = try package.xml()
+        let answers = try await mcp([
+            toolCall(1, "duck", ["package": package.path, "from": 960_000, "to": 2_000_000])
+        ])
+        let text =
+            "the range 960000..<2000000 starts at or after the session end at frame 960000, so the duck changed nothing."
+        #expect(toolResult(answer(answers, id: 1)) == (text, true))
+        #expect(try package.xml() == before)
+    }
+
     /// A positive depth and a lone from are refused before the package is read.
     @Test func aBadArgumentIsAToolError() async throws {
         let answers = try await mcp([

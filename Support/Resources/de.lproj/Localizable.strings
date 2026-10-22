@@ -66,6 +66,7 @@
 "error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";
 "error.duck.both.lists" = "Spur „%@“ kann nicht zugleich Sprachspur und abzusenkende Spur sein.";
 "error.duck.read" = "Eine Audiodatei einer Sprachspur wurde nicht gelesen (Fehler %lld). Kein Pegelpunkt wurde geändert.";
+"error.duck.past.end" = "Die Auswahl beginnt am Ende der Session oder danach, daher hat das Absenken keinen Pegelpunkt geändert.";
 "error.file.unreadable" = "Die Session-Datei ist beschädigt.";
 "error.file.newer" = "Diese Session wurde mit einer neueren Version von Dirigible erstellt. Aktualisiere Dirigible, um sie zu öffnen.";
 "error.file.read" = "Die Session-Datei kann nicht gelesen werden (Fehler %lld).";

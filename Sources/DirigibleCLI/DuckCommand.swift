@@ -17,10 +17,11 @@ struct DuckCommand: ParsableCommand {
             points inside the clip window, or inside --from and --to, of each clip that a run reaches, \
             and keeps the other points and clips. Lines on stdout: "speech", the first frame, and the \
             frame after the end of each run; "ducked" and the ID of each changed clip; "kept" and the \
-            ID of each clip that no run reaches. Then one report line on stderr. Exit 1 when no track \
-            is a speech track or a track to duck, a track is unknown or in both lists, or no speech \
-            is over the threshold: then nothing changes. Exit 2 when the package cannot be read or \
-            written, is locked, or has a take that is not finalized.
+            ID of each clip that no run reaches. Then one report line on stderr. The scope ends at \
+            the session end. Exit 1 when no track is a speech track or a track to duck, a track is \
+            unknown or in both lists, --from is at or after the session end, or no speech is over \
+            the threshold: then nothing changes. Exit 2 when the package cannot be read or written, \
+            is locked, or has a take that is not finalized.
             """)
 
     @OptionGroup var package: PackageArgument

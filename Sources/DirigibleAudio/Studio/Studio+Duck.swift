@@ -2,8 +2,9 @@ import DirigibleCore
 import Foundation
 
 extension Studio {
-    /// The duck of decision 0060: reads the speech runs of `speech` in `scope` with `speechRuns`
-    /// and writes the duck of `music` with `Session.duck` (`range` nil: each whole clip). It runs as
+    /// The duck of decision 0060: reads the speech runs of `speech` in `range` (nil: the whole
+    /// session), cut by `Session.duckScope`, with `speechRuns`, and writes the duck of `music` with
+    /// `Session.duck` (`range` nil: each whole clip). It runs as
     /// a level runs (`level`), on the `.ducking` transport, so the duck banner and its Cancel
     /// show; the read runs off the main actor; a change saves `session.xml` and records one undo
     /// entry with `agent` in the same turn. No runs throws `.session(.noSpeech)`. `cancelLevel()`
@@ -12,10 +13,12 @@ extension Studio {
     /// nothing.
     @discardableResult
     public func duck(
-        speech: [TrackID], music: [TrackID], scope: Range<Frames>, range: Range<Frames>?, shape: DuckShape,
-        agent: AgentName? = nil, progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
+        speech: [TrackID], music: [TrackID], range: Range<Frames>?, shape: DuckShape, agent: AgentName? = nil,
+        progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> DuckResult {
         try checkIdle()
+        let scope: Range<Frames>
+        do throws(SessionError) { scope = try session.duckScope(range) } catch { throw .session(error) }
         let stopped = endPlayForTake()
         let flags = ImportFlags()
         (transport, levelFlags) = (.ducking, flags)

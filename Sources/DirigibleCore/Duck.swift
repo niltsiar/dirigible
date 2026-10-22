@@ -69,18 +69,26 @@ extension Session {
         return (speech, music)
     }
 
+    /// The timeline frames that a duck in `range` reads (nil: the whole session): the range cut to
+    /// the session end. A range that starts at or after the end throws `.duckRangePastEnd`.
+    public func duckScope(_ range: Range<Frames>?) throws(SessionError) -> Range<Frames> {
+        guard let range else { return .zero..<end }
+        guard range.lowerBound < end else { throw .duckRangePastEnd(range, end: end) }
+        return range.lowerBound..<min(range.upperBound, end)
+    }
+
     /// Ducks the clips of `music` under the speech `runs`, in timeline frames, inside `scope` (nil:
-    /// each whole clip) (decision 0060). The runs merge by `shape.mergeGap`. The duck replaces the
-    /// envelope inside the scope of each clip that a run, widened by the attack and the release,
-    /// reaches, and keeps the points outside that scope; a clip that no run reaches keeps its
-    /// envelope. It works on the file map of each clip, so a ramp goes on past a clip edge, and the
-    /// edge rule fits it to the file. No runs in the scope throws `.noSpeech`. A throw changes
-    /// nothing.
+    /// each whole clip) cut by `duckScope` (decision 0060). The runs merge by `shape.mergeGap`. The
+    /// duck replaces the envelope inside the scope of each clip that a run, widened by the attack
+    /// and the release, reaches, and keeps the points outside that scope; a clip that no run
+    /// reaches keeps its envelope. It works on the file map of each clip, so a ramp goes on past a
+    /// clip edge, and the edge rule fits it to the file. No runs in the scope throws `.noSpeech`.
+    /// A throw changes nothing.
     @discardableResult
     public mutating func duck(runs: [Range<Frames>], shape: DuckShape, music: [TrackID], scope: Range<Frames>?)
         throws(SessionError) -> DuckResult
     {
-        let whole = scope ?? .zero..<end
+        let whole = try duckScope(scope)
         let runs = shape.merged(runs.map { $0.clamped(to: whole) })
         guard !runs.isEmpty else { throw .noSpeech(whole, threshold: shape.threshold.dB) }
         let indices = try trackIndices(music)

@@ -13,7 +13,7 @@ struct TranscriptCommand: ParsableCommand {
     struct Import: ParsableCommand {
         static let configuration = CommandConfiguration(
             abstract:
-                "Import a Whisper JSON or WebVTT transcript of an export of the whole session; the track is the track "
+                "Import a Whisper JSON, WebVTT, or SRT transcript of an export of the whole session; the track is the track "
                 + "whose clips carry the words. Print the transcript ID and the count of words. A word with no clip of the track under it, or with no time, is skipped. A new import "
                 + "replaces the words of an earlier one in the same span.")
         @OptionGroup var package: PackageArgument

@@ -150,6 +150,7 @@ extension SessionWindow {
         let tracks = studio.session.tracks.map(\.id)
         let range = timeline.selection.marks?.selection(in: studio.session)?.range
         duckProgress = 0
+        duckPresses += 1
         defer { duckProgress = nil }
         do throws(StudioError) {
             let result = try await studio.duck(
@@ -157,14 +158,15 @@ extension SessionWindow {
                 shape: draft.shape(sampleRate: studio.session.sampleRate)
             ) { [weak self] fraction in self?.duckProgress = fraction }
             if !result.unread.isEmpty {
-                let banner = WindowBanner.duckUnread(paths(result.unread))
+                let banner = WindowBanner.duckUnread(paths(result.unread), press: duckPresses)
                 duckReport = DuckReportShown(banner: banner, revision: studio.sessionRevision)
             }
         } catch .duckCancelled {
             // The banner Cancel: the user asked for it, so no alert.
         } catch .session(.noSpeech(_, let threshold, let unread)) {
             duckReport = DuckReportShown(
-                banner: .duckNoSpeech(threshold: threshold, unread: paths(unread)), revision: studio.sessionRevision)
+                banner: .duckNoSpeech(threshold: threshold, unread: paths(unread), press: duckPresses),
+                revision: studio.sessionRevision)
         } catch {
             alert = .error(error)
         }

@@ -53,10 +53,11 @@ enum WindowBanner: Equatable {
     /// An agent record request ended with no answer (decision 0048). Nil: the agent gave no name.
     case consentExpired(agent: String?)
     /// A duck found no speech over the threshold in dBFS, so it changed nothing (decision 0060),
-    /// with the paths of the speech files that did not read.
-    case duckNoSpeech(threshold: Double, unread: [String])
+    /// with the paths of the speech files that did not read. The press number of the duck makes a
+    /// new key for each duck, so VoiceOver reads each result.
+    case duckNoSpeech(threshold: Double, unread: [String], press: Int)
     /// A duck did not read the speech files of these paths, so the music stays up over them.
-    case duckUnread([String])
+    case duckUnread([String], press: Int)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -98,8 +99,8 @@ enum WindowBanner: Equatable {
         case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
         case .consentExpired: "consentExpired"
-        case .duckNoSpeech: "duckNoSpeech"
-        case .duckUnread: "duckUnread"
+        case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
+        case .duckUnread(_, let press): "duckUnread.\(press)"
         }
     }
 
@@ -132,10 +133,10 @@ enum WindowBanner: Equatable {
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
         case .consentExpired(nil): L10n.bannerConsentExpiredUnnamed.text
-        case .duckNoSpeech(let threshold, let unread) where unread.isEmpty: L10n.errorDuckNoSpeech.format(threshold)
-        case .duckNoSpeech(let threshold, let unread):
-            L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread).text
-        case .duckUnread(let paths): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
+        case .duckNoSpeech(let threshold, let unread, _) where unread.isEmpty: L10n.errorDuckNoSpeech.format(threshold)
+        case .duckNoSpeech(let threshold, let unread, let press):
+            L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread, press: press).text
+        case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
         }
     }
 

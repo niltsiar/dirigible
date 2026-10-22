@@ -150,11 +150,25 @@ import Testing
         await model.duck(draft)
 
         #expect(studio.session.clip("c2")?.clip.envelope.isEmpty == false, "the music does not duck")
-        let named = WindowBanner.duckUnread(["gone.wav"])
+        let named = WindowBanner.duckUnread(["gone.wav"], press: 1)
         await until("no banner names gone.wav") { model.shown.banners.contains(named) }
         #expect(named.kind == .warning && named.text == L10n.bannerDuckUnread.format("gone.wav"))
-        let silent = WindowBanner.duckNoSpeech(threshold: -40, unread: ["gone.wav"]).text
+        let silent = WindowBanner.duckNoSpeech(threshold: -40, unread: ["gone.wav"], press: 1).text
         #expect(silent == L10n.errorDuckNoSpeech.format(-40.0) + " " + named.text, "no speech: \(silent)")
+        await model.close()
+    }
+
+    /// Two failed ducks give two banner keys, so VoiceOver reads the second banner too.
+    @Test func eachFailedDuckGetsANewBannerKey() async throws {
+        let (model, _) = try await open(silent: true)
+        func key() -> String? { model.shown.banners.first { $0.key.hasPrefix("duckNoSpeech") }?.key }
+        model.run(.duck)
+        await model.duck(try #require(model.duckDraft, "the item opened no sheet"))
+        await until("the first banner does not show") { key() != nil }
+        let first = key()
+        model.run(.duck)
+        await model.duck(try #require(model.duckDraft, "the item opened no sheet"))
+        await until("the second failed duck has the key of the first") { key() != nil && key() != first }
         await model.close()
     }
 
@@ -167,7 +181,7 @@ import Testing
 
         await model.duck(draft)
 
-        let reason = WindowBanner.duckNoSpeech(threshold: -40, unread: [])
+        let reason = WindowBanner.duckNoSpeech(threshold: -40, unread: [], press: 1)
         await until("the banner gives no reason") { model.shown.banners.contains(reason) }
         #expect(reason.kind == .warning && reason.text == L10n.errorDuckNoSpeech.format(-40.0))
         #expect(model.alert == nil, "an alert shows: \(String(describing: model.alert))")

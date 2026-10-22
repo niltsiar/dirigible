@@ -17,6 +17,8 @@ struct OpenedPackage: Sendable {
     var missingMedia: [FileID: MediaFault] = [:]
     /// The backups of the package, newest first (decision 0043).
     var backups: [Backup] = []
+    /// The take anchors of the package, or the read fault (decision 0061).
+    var takeAnchors: Result<[Int: Recording], FinalizeError> = .success([:])
 }
 
 /// The result of `completeTake`. On a thrown finalize or save, `session` is the input (it keeps
@@ -37,6 +39,9 @@ struct TakeOutcome: Sendable {
     var beforeLevel: Session? = nil
     /// The backups after the writes (decision 0043). Nil when the package left its volume.
     var backups: [Backup]? = nil
+    /// The take anchors after the writes, or the read fault, which never sets `error` (decision
+    /// 0061). Nil when the package left its volume.
+    var takeAnchors: Result<[Int: Recording], FinalizeError>? = nil
 }
 
 /// The recovery marker of decision 0004, in the package root.
@@ -71,7 +76,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         return OpenedPackage(
             lock: lock, package: identity, session: session, takeError: error,
             segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
-            missingMedia: (try? checkMedia(session, package: package)) ?? [:], backups: Backup.all(in: package))
+            missingMedia: (try? checkMedia(session, package: package)) ?? [:], backups: Backup.all(in: package),
+            takeAnchors: TakeAnchors.result(package))
     }
 
     guard let recording = session.recording else {
@@ -101,7 +107,8 @@ func marker(in package: URL) -> URL { package.appending(path: "recovery-attempt"
         lock: lock, package: outcome.package ?? identity, session: outcome.session, takeError: outcome.error,
         segmentsWithAudio: outcome.segmentsWithAudio, notAudioSegments: outcome.notAudioSegments,
         recoveredTake: outcome.error == nil ? session.recording : nil,
-        missingMedia: outcome.missingMedia ?? [:], backups: outcome.backups ?? Backup.all(in: package))
+        missingMedia: outcome.missingMedia ?? [:], backups: outcome.backups ?? Backup.all(in: package),
+        takeAnchors: outcome.takeAnchors ?? TakeAnchors.result(package))
 }
 
 /// The one step that open, stop, and retry share, in the package that `lock` holds now (decision
@@ -141,7 +148,7 @@ nonisolated func completeTake(
             session: session, error: error, segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             package: identity,
             missingMedia: try? checkMedia(session, package: package), beforeLevel: beforeLevel,
-            backups: Backup.all(in: package))
+            backups: Backup.all(in: package), takeAnchors: TakeAnchors.result(package))
     }
     let finalized: Session
     do {
@@ -199,7 +206,8 @@ func takeClips(of finalized: Session, before: Session) -> [Clip] {
         return TakeOutcome(
             session: session, error: error, segmentsWithAudio: scan.withAudio, notAudioSegments: scan.notAudio,
             package: identity,
-            missingMedia: try? checkMedia(session, package: package), backups: Backup.all(in: package))
+            missingMedia: try? checkMedia(session, package: package), backups: Backup.all(in: package),
+            takeAnchors: TakeAnchors.result(package))
     }
     // The disk rule of a finalize, for one segment.
     let (needed, free) = (wavBytes(of: [name], in: package) + diskMargin, environment.freeBytes(lock))

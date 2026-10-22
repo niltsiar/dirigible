@@ -33,6 +33,8 @@ import Observation
     public var redoAgent: AgentName? { history.redoAgent }
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
     public internal(set) var backups: [Backup]
+    /// The take anchors of the package, or the read fault: from the open and each take outcome (0061).
+    var takeAnchors: Result<[Int: Recording], FinalizeError>
 
     private(set) var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
@@ -178,6 +180,7 @@ import Observation
         self.play = PlayState(at: opened.session.end)
         self.missingMedia = opened.missingMedia
         self.backups = opened.backups
+        self.takeAnchors = opened.takeAnchors
         environment.log = log
     }
 
@@ -335,6 +338,7 @@ import Observation
         notAudioSegments = outcome.notAudioSegments
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let backups = outcome.backups { self.backups = backups }
+        if let anchors = outcome.takeAnchors { takeAnchors = anchors }
         if let error = outcome.error { throw error }
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }

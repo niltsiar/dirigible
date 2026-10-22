@@ -1,6 +1,6 @@
 ---
 name: compound-engineering-reviewer
-description: Compound-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks replace or merge, the always-on cap, register rows, seen-once before a rule, and sediment. Use in the five-lens panel of a docs change.
+description: Compound-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks replace or merge, the always-on cap, register rows, seen-once before a rule, and sediment. Use only when a caller names this lens.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium

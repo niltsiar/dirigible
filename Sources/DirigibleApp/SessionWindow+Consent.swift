@@ -142,8 +142,8 @@ func recordOverTracks(_ session: Session, _ tracks: [TrackID], from start: Frame
 extension SessionWindow {
     /// Why the sheet of an agent record or export cannot show now, or nil (decisions 0048 and
     /// 0049). `.export`: the window runs an export, whose progress sheet shows, or checks the media
-    /// of one, which shows no view. `.dialog`: an alert, a step of Export, or a sheet. Only the
-    /// user can finish or close that.
+    /// of one, which shows no view. `.dialog`: an alert, the media question, the save panel, or a
+    /// sheet. Only the user can finish or close that.
     var sheetCause: AgentBusy? {
         if exportStep == .checking || studio?.exportProgress != nil { return .export }
         return alert != nil || exportStep != nil || window?.attachedSheet != nil ? .dialog : nil

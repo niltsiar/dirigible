@@ -68,14 +68,14 @@ struct StudioTakeSyncTests {
     }
 
     /// C8: an agent edit, an undo, and a redo, each followed by 200 playhead moves and 5 reads,
-    /// make 3 maps. Each change has the revision and the agent of its revision: none for the undo.
+    /// give 3 changes. Each change has the revision and the agent of its revision: none for the undo.
     @Test func theSyncIsMadeOncePerRevision() async throws {
         let package = try TakePackage()
         try package.segment(samples: sine(seconds: 1, rate: 48_000))
         let studio = try await Studio.open(package.url)
         try #require(studio.pendingTake == nil && studio.takeError == nil)
         let agent = AgentName(title: "Test Agent", clientName: nil)
-        let (made, revision) = (studio.takeSyncState.made, studio.sessionRevision)
+        let revision = studio.sessionRevision
         var changes: [TakeSyncChange] = []
         func moveAndRead() async {
             for frame in 0..<200 { await studio.perform(.seek(.frame(Frames(frame * 100)))) }
@@ -92,7 +92,6 @@ struct StudioTakeSyncTests {
         try studio.redo()
         await moveAndRead()
 
-        #expect(studio.takeSyncState.made - made == 3)
         #expect(changes.map(\.revision) == [revision + 1, revision + 2, revision + 3])
         #expect(changes.map(\.agent) == [agent, nil, agent])
         let insert = try #require(changes[0].changes.first)

@@ -164,7 +164,7 @@ import os
         defer { gate.open() }
         let thread = await blockedThread(queue, gate)
         let limits = HangLimits(
-            interval: .milliseconds(50), sleep: .seconds(600), late: .milliseconds(200), bursts: 0)
+            interval: .milliseconds(50), reset: .seconds(600), late: .milliseconds(200), bursts: 0)
         let watchdog = HangWatchdog.start(log: log, ping: queue, thread: thread, limits: limits, namer: dladdrName)
         await until(limit: .seconds(20), "a hang start line") {
             hangLines(log, in: folder.url).contains { $0.event == "start" }
@@ -226,7 +226,7 @@ import os
     @Test func aBlockedMainThreadWritesItsStack() async throws {
         let log = startLog(in: folder.url)
         let limits = HangLimits(
-            interval: .milliseconds(20), sleep: .seconds(600), late: .milliseconds(100), burstStacks: 3,
+            interval: .milliseconds(20), reset: .seconds(600), late: .milliseconds(100), burstStacks: 3,
             burstPause: .milliseconds(10))
         let watchdog = HangWatchdog.start(
             log: log, ping: .main, thread: ms_thread_current(), limits: limits, namer: dladdrName)
@@ -248,9 +248,9 @@ import os
 
 extension HangLimits {
     /// A burst of 10 stacks 10 ms apart at the hang start, 100 ms after the ping. No tick of a
-    /// loaded test is a sleep.
+    /// loaded test resets the ping.
     static let fast = HangLimits(
-        interval: .milliseconds(20), sleep: .seconds(600), late: .milliseconds(100), burstPause: .milliseconds(10))
+        interval: .milliseconds(20), reset: .seconds(600), late: .milliseconds(100), burstPause: .milliseconds(10))
 }
 
 /// The events of a burst of 10 stacks before its names, after the start line.

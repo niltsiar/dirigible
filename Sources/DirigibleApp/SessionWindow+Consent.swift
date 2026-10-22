@@ -144,7 +144,7 @@ extension SessionWindow {
     /// 0049). `.export`: the window runs an export, whose progress sheet shows, or checks the media
     /// of one, which shows no view. `.dialog`: an alert, a step of Export, or a sheet. Only the
     /// user can finish or close that.
-    var dialogCause: AgentBusy? {
+    var sheetCause: AgentBusy? {
         if exportStep == .checking || studio?.exportProgress != nil { return .export }
         return alert != nil || exportStep != nil || window?.attachedSheet != nil ? .dialog : nil
     }
@@ -277,7 +277,7 @@ extension SessionWindow {
         }
         guard case .open(let studio) = phase else { return .busy(.closing) }
         if window?.isMiniaturized == true { return .minimized }
-        if let cause = dialogCause { return .busy(cause) }
+        if let cause = sheetCause { return .busy(cause) }
         guard studio.isIdle, studio.pendingTake == nil, importJob == nil else { return .busy(.task) }
         return nil
     }

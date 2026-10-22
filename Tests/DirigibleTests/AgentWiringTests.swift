@@ -91,9 +91,10 @@ import os
     @Test func anExportStepIsADialog() async throws {
         let model = await app.open(try folder.package("dialog"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == nil)
+        #expect(app.agentTargets().first { $0.studio === studio }?.sheetCause() == nil)
         model.exportStep = .choosing
-        #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == .dialog, "the save panel is a dialog")
+        #expect(
+            app.agentTargets().first { $0.studio === studio }?.sheetCause() == .dialog, "the save panel is a dialog")
         model.exportStep = nil
         await model.close()
     }

@@ -41,7 +41,10 @@ struct DuckCommand: ParsableCommand {
     @Option(parsing: .unconditional, help: "The speech level in dBFS, under 0. The default is -40.")
     var threshold: Double?
     @Option(
-        parsing: .unconditional, help: "The shortest pause in frames that lets the music come up. The default is 2 s.")
+        parsing: .unconditional,
+        help:
+            "The hold in frames. The music comes up after a pause of at least the larger of the hold and attack plus release. The default is 2 s."
+    )
     var hold: Int?
 
     func work() throws(ValidationError) -> DuckWork {

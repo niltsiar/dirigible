@@ -74,7 +74,7 @@ public struct TakeMap: Sendable {
         let bound = Self.originBound
         var origins: [FileID: Origin] = [:]
         for file in session.files.values {
-            guard let id = file.capture, id.rawValue == file.id.rawValue, let capture = session.captures[id],
+            guard file.isTakeFile, let id = file.capture, let capture = session.captures[id],
                 let recording = recordings[id]
             else { continue }
             // The aligned start with the playhead at 0: the take time of file frame 0.

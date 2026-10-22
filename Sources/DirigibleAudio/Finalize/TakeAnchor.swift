@@ -153,7 +153,7 @@ extension TakeMap {
         case .success(let anchors):
             return .success(TakeMap(session, recordings: takeRecordings(session, anchors: anchors)))
         case .failure(let error):
-            let takeFile = session.files.values.contains { $0.capture?.rawValue == $0.id.rawValue }
+            let takeFile = session.files.values.contains(where: \.isTakeFile)
             return takeFile ? .failure(error) : .success(TakeMap(session, recordings: [:]))
         }
     }

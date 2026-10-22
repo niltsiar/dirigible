@@ -207,11 +207,12 @@ import Observation
     ) throws(StudioError) -> Result {
         try checkIdle()
         if ripple { try checkRipple() }
-        let before = session
+        let (before, revision) = (session, sessionRevision)
         let result: Result
         do { result = try history.edit(agent: agent, body) } catch { throw .session(error) }
         if session != before { scheduleSave() }
-        poolChanged(from: before.files, agent: agent)
+        // A no-op edit keeps the revision, which a level or a duck can have moved with no change.
+        if sessionRevision != revision { poolChanged(from: before.files, agent: agent) }
         return result
     }
 

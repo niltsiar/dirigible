@@ -27,9 +27,92 @@ if ! COMMAND="$(plutil -extract tool_input.command raw -o - "$input" 2>/dev/null
   block "cannot be checked"
 fi
 
+# cut_bodies <sink|all>: print $COMMAND without the body and the end line of each heredoc that is
+# data. A body is data when the first line is `cat` or `tee` with a redirect or a file argument to a
+# plain file, and only the marker (or the marker and one `> file`) ends that line. In mode all, the
+# body of python3, node, perl, or ruby with no -c or -e goes too: only the lock-value rule and the
+# log-decision rule skip it, because an interpreter runs its body. A body stays when the end line is
+# missing or not exact, when the first line has a second marker, a here-string, a pipe, or a list,
+# and when an unquoted marker has `$(` or a backtick in the body (the shell runs them). After a
+# line that it can not read, it cuts no more.
+cut_bodies() {
+  local mode="$1" line head tail marker dash quoted body i j k n ones kind has_arg name w out="" cut
+  local bt='`' lines=() ws=()
+  local word="[^[:space:];&|<>()${bt}]+"
+  local start_re='^(.*[^<])?<<(-?)[[:space:]]*(\\?[A-Za-z0-9_.-]+|'"'"'[A-Za-z0-9_.-]+'"'"'|"[A-Za-z0-9_.-]+")(.*)$'
+  local sink_re="^[[:space:]]*(cat|tee)(([[:space:]]+$word)|([[:space:]]*>>?[[:space:]]*$word))*[[:space:]]*\$"
+  local tail_re="^[[:space:]]*(>>?[[:space:]]*$word)?[[:space:]]*\$"
+  local redirect_re="(^|[[:space:]])>>?[[:space:]]*$word"
+  local interp_re='^[[:space:]]*(python3?|node|perl|ruby)([[:space:]]+-)?[[:space:]]*$'
+  if [[ "$COMMAND" != *'<<'* ]]; then printf '%s' "$COMMAND"; return; fi
+  while IFS= read -r line || [[ -n "$line" ]]; do lines+=("$line"); done <<< "$COMMAND"
+  n=${#lines[@]}
+  i=0
+  while ((i < n)); do
+    line="${lines[i]}"
+    out+="$line"$'\n'
+    i=$((i + 1))
+    [[ "$line" == *'<<'* ]] || continue
+    ones="${line//[^<]/}"
+    if ((${#ones} != 2)) || ! [[ "$line" =~ $start_re ]]; then
+      while ((i < n)); do out+="${lines[i]}"$'\n'; i=$((i + 1)); done
+      break
+    fi
+    head="${BASH_REMATCH[1]}" dash="${BASH_REMATCH[2]}" marker="${BASH_REMATCH[3]}" tail="${BASH_REMATCH[4]}"
+    quoted=0
+    [[ "$marker" == [\\\'\"]* ]] && quoted=1
+    marker="${marker#\\}"
+    marker="${marker#[\'\"]}"
+    marker="${marker%[\'\"]}"
+    j=$i
+    while ((j < n)); do
+      w="${lines[j]}"
+      [[ -n "$dash" ]] && w="${w#"${w%%[!$'\t']*}"}"
+      [[ "$w" == "$marker" ]] && break
+      j=$((j + 1))
+    done
+    if ((j >= n)); then
+      while ((i < n)); do out+="${lines[i]}"$'\n'; i=$((i + 1)); done
+      break
+    fi
+    kind=none
+    if [[ "$head" =~ $sink_re ]]; then
+      name="${BASH_REMATCH[1]}"
+    else
+      name=""
+    fi
+    if [[ -n "$name" && "$tail" =~ $tail_re ]]; then
+      if [[ "$head $tail" =~ $redirect_re ]]; then
+        kind=sink
+      elif [[ "$name" == tee ]]; then
+        has_arg=0
+        read -ra ws <<< "$head"
+        for w in "${ws[@]}"; do [[ "$w" == tee || "$w" == -* || "$w" == *'>'* ]] || has_arg=1; done
+        ((has_arg)) && kind=sink
+      fi
+    elif [[ "$head" =~ $interp_re && "$tail" =~ ^[[:space:]]*$ && "$mode" == all ]]; then
+      kind=interpreter
+    fi
+    cut=0
+    if [[ "$kind" != none ]]; then
+      body=""
+      for ((k = i; k < j; k++)); do body+="${lines[k]}"$'\n'; done
+      if ((quoted)) || [[ "$body" != *'$('* && "$body" != *"$bt"* ]]; then cut=1; fi
+    fi
+    if ((cut)); then
+      i=$((j + 1))
+    else
+      while ((i <= j)); do out+="${lines[i]}"$'\n'; i=$((i + 1)); done
+    fi
+  done
+  printf '%s' "$out"
+}
+SINK_CUT="$(cut_bodies sink)"
+DATA_CUT="$(cut_bodies all)"
+
 # Join backslash-newline continuations, as the shell does. Make each run of tabs and spaces
 # one space, so the patterns match `git<TAB>push` and `git  push` too.
-joined="${COMMAND//\\$'\n'/ }"
+joined="${SINK_CUT//\\$'\n'/ }"
 NORMALIZED="$(tr -s '\t ' '  ' <<< "$joined")"
 # Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
 NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$NORMALIZED")"
@@ -67,7 +150,11 @@ fi
 
 # The joined text with one space for each run of tabs and spaces, the git global options removed,
 # and the new lines kept, so `git -C <path>  commit` reads as `git commit` in the two chain rules.
-chained="$(tr -s '\t ' '  ' <<< "$joined" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g")"
+chain_text() {
+  tr -s '\t ' '  ' <<< "${1//\\$'\n'/ }" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g"
+}
+chained="$(chain_text "$SINK_CUT")"
+chained_data="$(chain_text "$DATA_CUT")"
 
 # Put $1 without && and the redirects (2>&1, &>, >&), which are not background jobs, in $stripped.
 # A variable, not $(...): a command substitution drops a new line at the end.
@@ -100,7 +187,7 @@ fi
 # xcrun) or after a quote character is not blocked.
 word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
 start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
-if [[ "$chained" =~ $start(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
+if [[ "$chained_data" =~ $start(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
   middle="${BASH_REMATCH[6]}${BASH_REMATCH[7]}"
   drop_safe_joins "${middle//||/}"
   if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
@@ -182,7 +269,7 @@ if ! reads_only dirigible-hooks-stamp; then
 fi
 # Only with-lock.sh, bench.sh, bench-pairs.sh, and sanitize.sh set the lock reuse values: a value
 # set by hand runs a build beside the holder of the lock.
-if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$NORMALIZED"; then
+if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$chained_data"; then
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 

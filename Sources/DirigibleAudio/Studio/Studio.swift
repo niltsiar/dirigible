@@ -343,7 +343,7 @@ import Observation
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }
         history.edit { $0 = outcome.session }
-        poolChanged(from: before)
+        poolChanged(from: before, transitions: false)
     }
 
     /// The pool change of Remove Unused Files (decision 0047): the session and each undo and redo

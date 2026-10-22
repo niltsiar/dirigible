@@ -32,13 +32,14 @@ struct TakeSyncState {
         map = TakeMap.of(session, anchors: anchors)
     }
 
-    /// Makes the map of `session` and its change from the map before, once for each revision.
-    mutating func update(_ session: Session, revision: Int, agent: AgentName?) {
+    /// Makes the map of `session` and its change from the map before, once for each revision. A
+    /// take outcome or a placement passes `transitions: false`: it is never a transition.
+    mutating func update(_ session: Session, revision: Int, agent: AgentName?, transitions: Bool = true) {
         guard revision != change.revision else { return }
         let old = map
         map = TakeMap.of(session, anchors: anchors)
         var changes: [TakeSync.Change] = []
-        if case .success(let before) = old, case .success(let after) = map {
+        if transitions, case .success(let before) = old, case .success(let after) = map {
             changes = TakeSync.change(from: before.sync, to: after.sync)
         }
         change = TakeSyncChange(revision: revision, agent: agent, changes: changes)

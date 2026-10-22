@@ -12,6 +12,7 @@ import os
     init() throws { folder = try TemporaryFolder() }
 
     /// C10: the burst writes the images, then 10 raw stacks of the blocked thread, then the names.
+    /// watchdog-hangs C11: the hang end line has `blocked_ms` and `slept_ms` as numbers.
     @Test func aLongBlockWritesTheStackOfTheBlockingFunction() async throws {
         let log = startLog(in: folder.url)
         let queue = DispatchQueue(label: "HangWatchdogTests.blocked")
@@ -44,6 +45,9 @@ import os
             lines.first { $0.event == "names" && $0.list("stacks").contains(stack.fields["n"] ?? "") })
         #expect(names.list("names", by: "|").contains { $0.contains("blockInsideTheTestFunction") })
         #expect(!(names.fields["images"] ?? "").contains(NSHomeDirectory()), "images: \(names.fields["images"] ?? "")")
+        let end = try #require(lines.first { $0.event == "end" })
+        #expect(end.fields["blocked_ms"].flatMap(Double.init) != nil, "end: \(end.fields)")
+        #expect((end.fields["slept_ms"].flatMap(Double.init) ?? .infinity) < 50, "end: \(end.fields)")
     }
 
     /// watchdog-hangs C14: the first walk comes before the images line, and the file keeps the

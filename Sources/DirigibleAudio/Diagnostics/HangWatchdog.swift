@@ -61,10 +61,15 @@ public final class HangWatchdog: Sendable {
 
     /// Runs on the watched queue: it takes the time there and writes on the watchdog queue.
     private static func answer(_ watch: Watch) {
-        let now = ContinuousClock.now
+        let now = HangInstant.now
         watch.queue.async {
-            guard case .hangEnd(let blocked) = watch.rule.answered(now: now) else { return }
-            watch.log.note(.hang, "end", ["blocked_ms": .milliseconds(blocked / .milliseconds(1))])
+            guard case .hangEnd(let blocked, let slept) = watch.rule.answered(now: now) else { return }
+            watch.log.note(
+                .hang, "end",
+                [
+                    "blocked_ms": .milliseconds(blocked / .milliseconds(1)),
+                    "slept_ms": .milliseconds(slept / .milliseconds(1)),
+                ])
         }
     }
 

@@ -216,7 +216,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.channels.stereo", "panel.export.channels.mono", "panel.export.rate.48000",
         "panel.export.loudness", "panel.export.loudness.podcast", "panel.export.loudness.ebu",
         "export.chapter.intro", "sheet.unused.name", "toolbar.tooltip", "banner.kind.info", "start.version",
-        "start.name",
+        "start.name", "sheet.duck.attack", "sheet.duck.release",
     ],
     "es": [
         "banner.kind.error", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.clip",
@@ -266,7 +266,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "toolbar.tooltip", "track.layout.mono", "track.layout.stereo", "track.role.dialogue.letter",
         "track.role.effects.letter", "track.role.music.letter", "track.mute.letter",
         "track.no.sound.privacy", "track.route", "track.route.apps", "track.solo.letter",
-        "track.volume.value", "transport.stop",
+        "track.volume.value", "transport.stop", "sheet.duck.attack", "sheet.duck.release",
     ],
     "pt": [
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "episode.links",

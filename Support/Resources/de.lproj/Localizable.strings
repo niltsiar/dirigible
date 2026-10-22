@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Auto-Pegel pro Spur";
 "menu.tools.level.all" = "Auto-Pegel für alle Clips";
 "menu.tools.level.track.all" = "Auto-Pegel pro Spur (alle)";
+"menu.tools.duck" = "Musik unter Sprache absenken …";
 
 /* Errors */
 "error.studio.busy" = "Ein Take wird gerade aufgenommen oder abgeschlossen. Warte, bis er endet.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "Spur „%@“ ist im Take, der auf seinen Abschluss wartet.";
 "error.session.track.count" = "Die Kopie hat %lld Spuren. Wähle genauso viele Spuren aus, um sie einzusetzen.";
 "error.session.other" = "Die Session hat die Änderung abgelehnt.";
+"error.duck.no.speech" = "Das Absenken fand keine Sprache über %.1f dBFS und hat keinen Pegelpunkt geändert.";
+"error.duck.no.speech.track" = "Wähle eine Sprachspur aus oder gib einer Spur die Rolle „Dialog“.";
+"error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";
+"error.duck.both.lists" = "Spur „%@“ kann nicht zugleich Sprachspur und abzusenkende Spur sein.";
+"error.duck.read" = "Eine Audiodatei einer Sprachspur wurde nicht gelesen (Fehler %lld). Kein Pegelpunkt wurde geändert.";
 "error.file.unreadable" = "Die Session-Datei ist beschädigt.";
 "error.file.newer" = "Diese Session wurde mit einer neueren Version von Dirigible erstellt. Aktualisiere Dirigible, um sie zu öffnen.";
 "error.file.read" = "Die Session-Datei kann nicht gelesen werden (Fehler %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Take %lld wird abgeschlossen …";
 "take.placing" = "%@ wird platziert …";
 "take.leveling" = "Clips werden eingepegelt …";
+"take.ducking" = "Musik wird unter der Sprache abgesenkt …";
 "take.pending" = "Take %lld ist nicht abgeschlossen.";
 "take.pending.leave.hint" = "Wenn die Festplatte dieses Audio nicht wieder lesen kann, schließe den Take ohne es ab. Die Datei bleibt im Paket, und du kannst sie später platzieren.";
 "take.pending.space" = "Der Abschluss benötigt %1$@ freien Speicherplatz. Jetzt sind %2$@ frei.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "Links und Ordner in der Session bleiben: %@";
 "sheet.unused.footnote" = "Der Speicherplatz wird frei, wenn du den Papierkorb entleerst.";
 "sheet.unused.move" = "In den Papierkorb legen";
+"sheet.duck.title" = "Musik unter Sprache absenken";
+"sheet.duck.speech" = "Sprachspuren";
+"sheet.duck.music" = "Abzusenkende Spuren";
+"sheet.duck.depth" = "Tiefe";
+"sheet.duck.attack" = "Attack";
+"sheet.duck.release" = "Release";
+"sheet.duck.note" = "Das Absenken ersetzt die Pegelpunkte jedes Musikclips, den Sprache erreicht, im Auswahlbereich oder sonst in der ganzen Session. Die anderen Clips bleiben unverändert.";
+"sheet.duck.apply" = "Anwenden";
 "alert.export.missing" = "Diese Dateien fehlen oder sind nicht lesbar und werden als Stille exportiert:\n%@";
 "alert.export.confirm" = "Exportieren";
 "alert.exported" = "Der Export ist fertig. Diese Dateien fehlten oder waren nicht lesbar und wurden als Stille exportiert:\n%@";

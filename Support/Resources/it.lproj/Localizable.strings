@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Livellamento automatico per traccia";
 "menu.tools.level.all" = "Livellamento automatico di tutti i clip";
 "menu.tools.level.track.all" = "Livellamento automatico per traccia (tutti)";
+"menu.tools.duck" = "Abbassa la musica sotto la voce…";
 
 /* Errors */
 "error.studio.busy" = "Un take è in registrazione o in finalizzazione. Attendi che termini.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "La traccia “%@” fa parte del take in attesa di finalizzazione.";
 "error.session.track.count" = "La copia ha %lld tracce. Seleziona lo stesso numero di tracce per incollarla.";
 "error.session.other" = "La sessione ha rifiutato la modifica.";
+"error.duck.no.speech" = "L’abbassamento non ha trovato voce sopra %.1f dBFS, quindi non ha cambiato nessun punto di gain.";
+"error.duck.no.speech.track" = "Seleziona una traccia vocale o assegna a una traccia il ruolo Dialogo.";
+"error.duck.no.ducked.track" = "Seleziona una traccia da abbassare o assegna a una traccia il ruolo Musica.";
+"error.duck.both.lists" = "La traccia “%@” non può essere sia una traccia vocale sia una traccia da abbassare.";
+"error.duck.read" = "Non è stato possibile leggere un file audio di una traccia vocale (errore %lld). Nessun punto di gain è cambiato.";
 "error.file.unreadable" = "Il file della sessione è danneggiato.";
 "error.file.newer" = "Questa sessione è stata creata da una versione più recente di Dirigible. Aggiorna Dirigible per aprirla.";
 "error.file.read" = "Impossibile leggere il file della sessione (errore %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Finalizzazione del take %lld…";
 "take.placing" = "Posizionamento di %@…";
 "take.leveling" = "Livellamento dei clip…";
+"take.ducking" = "Abbassamento della musica sotto la voce…";
 "take.pending" = "Il take %lld non è terminato.";
 "take.pending.leave.hint" = "Se il disco non riesce ancora a leggere questo audio, termina il take senza di esso. Il file resta nel pacchetto, e puoi posizionarlo più tardi.";
 "take.pending.space" = "La finalizzazione richiede %1$@ di spazio libero. Spazio libero ora: %2$@.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "I link e le cartelle nella sessione vengono conservati: %@";
 "sheet.unused.footnote" = "Lo spazio torna libero quando svuoti il Cestino.";
 "sheet.unused.move" = "Sposta nel Cestino";
+"sheet.duck.title" = "Abbassa la musica sotto la voce";
+"sheet.duck.speech" = "Tracce vocali";
+"sheet.duck.music" = "Tracce da abbassare";
+"sheet.duck.depth" = "Profondità";
+"sheet.duck.attack" = "Attacco";
+"sheet.duck.release" = "Rilascio";
+"sheet.duck.note" = "L’abbassamento sostituisce i punti di gain di ogni clip musicale raggiunto dalla voce, nell’intervallo selezionato o altrimenti in tutta la sessione. Gli altri clip restano invariati.";
+"sheet.duck.apply" = "Applica";
 "alert.export.missing" = "Questi file mancano o non sono leggibili. Verranno esportati come silenzio:\n%@";
 "alert.export.confirm" = "Esporta";
 "alert.exported" = "L’esportazione è terminata. Questi file mancavano o non erano leggibili, e sono stati esportati come silenzio:\n%@";

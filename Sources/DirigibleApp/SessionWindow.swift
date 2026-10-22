@@ -120,6 +120,14 @@ import SwiftUI
     /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;
     /// the banner shows only at its session revision.
     var levelReport: LevelReportShown?
+    /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
+    var duckDraft: DuckDraft?
+    /// The fraction of the duck of this window while it runs, for its banner. Nil: no duck of
+    /// this window runs, so an agent duck shows no bar.
+    var duckProgress: Double?
+    /// The `noSpeech` reason of the last duck, for its banner. The next duck and the next take
+    /// start remove it; the banner shows only at its session revision.
+    var duckNoSpeech: DuckNoSpeechShown?
     /// The list of File > Remove Unused Files while its sheet shows (decision 0047).
     var unusedFiles: UnusedFiles?
     /// The last Remove Unused Files, for its banners at its session revision.

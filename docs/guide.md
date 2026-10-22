@@ -217,7 +217,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - **Delete** removes the selection and leaves silence.
 - **Delete and Close Gap** removes the selection from all tracks and moves the audio after it to the left (a ripple delete).
 - **Cut in Selected Tracks** and **Delete and Close Gap in Selected Tracks** close the gap only on the selected tracks. The other tracks do not move, so they can go out of sync with the moved tracks. The markers move with the moved tracks.
-- **Split** cuts the clips at the in point and the out point. When those points cut no clip, for example after a click on a clip, Split cuts at the playhead if it is inside the selection. With no selection, it cuts the clips at the playhead. When Split cuts nothing, Dirigible beeps. It also beeps when Split must wait for an import, Auto Level, or the end of a take. While a take records, Split does not beep.
+- **Split** cuts the clips at the in point and the out point. When those points cut no clip, for example after a click on a clip, Split cuts at the playhead if it is inside the selection. With no selection, it cuts the clips at the playhead. When Split cuts nothing, Dirigible beeps. It also beeps when Split must wait for an import, Auto Level, a duck, or the end of a take. While a take records, Split does not beep.
 - **Nudge Left** and **Nudge Right** move the clips that are fully in the selection, or the set of clips, by 10 ms.
 - **Heal Clips** joins the parts of a split clip again, on the selected tracks. It joins two clips where they touch in the selection, play on in one file at one gain at each frame, the envelope included, and have no fade at the join. A join at the in point or the out point is in the selection. The sound does not change, and a crossfade at the join goes. When no join can heal, Dirigible beeps. With no selection range, the item is off. Heal Clips has no key.
 - Drag the upper part of a clip to move it. You can drag it to another track of the same type, mono or stereo. The clip replaces the audio under it.
@@ -345,6 +345,20 @@ After each command, a banner gives the result, and VoiceOver reads it:
 The banner goes after the next edit, the next take, or the next Auto Level.
 
 Auto Level changes the clip gain only. The envelope of a clip adds to the clip gain, so it keeps its shape. The track volume adds to the clip gain, and Auto Level does not change it.
+
+### Duck the music under the speech
+
+Choose **Tools > Duck Music Under Speech** to lower the music while someone speaks. The command has no key.
+
+![The sheet Duck Music Under Speech: the Speech Tracks list with Host and Guest checked, the Tracks to Duck list with Music checked, Depth -16 dB, Attack 1000 ms, Release 1000 ms, the note, and the buttons Cancel and Apply.](images/screenshot-duck.png)
+
+1. Check the speech tracks and the tracks to duck. The tracks with the dialogue role start checked as speech, and the tracks with the music role start checked to duck. A track with no role starts unchecked. With no role in the session, both lists start empty (see [Give a track a role](#give-a-track-a-role)).
+2. Set the depth (-16 dB at first), and the attack and the release (1000 ms at first). The music goes down over the attack before each speech run and comes back over the release after it.
+3. Click **Apply**. With no speech track, no track to duck, or a track in both lists, the sheet gives the reason and **Apply** is off.
+
+The duck reads the speech tracks with mute and solo ignored. Speech is a level over -40 dBFS. A pause under 2 s does not let the music come up. The duck replaces the gain points of each music clip that speech reaches, and keeps the other clips. With a selection, it works only inside the selection range, with a ramp of 500 ms at each range edge. With no selection, it works on the whole session. A second duck with the same values gives the same result.
+
+While the duck runs, its banner shows the progress and **Cancel** (Command-period). Cancel stops the duck, and no gain point changes. The duck is one step in the undo history. When the duck finds no speech, a banner says so and nothing changes. The command is off when the session has no clip, during a take, and during an import, a level, or another duck.
 
 ## Add markers and chapters
 
@@ -597,7 +611,7 @@ To go back to a backup:
 
 Before the revert, Dirigible keeps a backup of the session that the revert replaces. To go back to the session before the revert, choose **Edit > Undo** (Command-Z).
 
-During a take, an import, or Auto Level, the backups are off. A revert deletes no audio. If you recorded a take after the backup, the audio of the take shows as unplaced audio. Edit > Undo puts the take back on its tracks. To remove the audio files that no clip uses, see the next section.
+During a take, an import, Auto Level, or a duck, the backups are off. A revert deletes no audio. If you recorded a take after the backup, the audio of the take shows as unplaced audio. Edit > Undo puts the take back on its tracks. To remove the audio files that no clip uses, see the next section.
 
 ### Remove the audio files that no clip uses
 
@@ -610,7 +624,7 @@ The window then shows the number of moved files and their size. If a file does n
 
 Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. A pool file that is a link or a folder also stays, and the sheet names it, with each damaged backup, which keeps no file. Remove Unused Files has no Undo. To get a file back, drag it from the Trash into the `Clips` folder of the session (**File > Show Clips in Finder**). **Put Back** in the Trash works only for the first file that Dirigible or a `dirigible` command moves after it starts. The space on the disk comes back when you empty the Trash.
 
-During a take, an import, or Auto Level, the command is off. With no file to remove, an alert says so.
+During a take, an import, Auto Level, or a duck, the command is off. With no file to remove, an alert says so.
 
 ### When a session does not open
 
@@ -771,6 +785,7 @@ The **Tools** menu (**Herramientas**).
 | **Auto Level per Track** | **Nivelar automáticamente por pista** | Option-Command-L |
 | **Auto Level All Clips** | **Nivelar automáticamente todos los clips** | Command-L |
 | **Auto Level per Track (All)** | **Nivelar automáticamente por pista (todos)** | Option-Command-L |
+| **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
 
 ### Transport
 

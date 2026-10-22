@@ -113,7 +113,7 @@ extension EditCommandWindowTests {
         model.beep = { beeps += 1 }
 
         let busy: [Studio.Transport] = [
-            .leveling, .placing(SegmentName(take: 1, arm: 1, segment: 1)), .finalizing(take: 1),
+            .leveling, .ducking, .placing(SegmentName(take: 1, arm: 1, segment: 1)), .finalizing(take: 1),
         ]
         for (n, transport) in busy.enumerated() {
             studio.transport = transport
@@ -124,7 +124,7 @@ extension EditCommandWindowTests {
         }
         studio.transport = .idle
         model.run(.split)
-        #expect(beeps == 3 && studio.session != before, "the control cuts")
+        #expect(beeps == busy.count && studio.session != before, "the control cuts")
         await model.close()
     }
 

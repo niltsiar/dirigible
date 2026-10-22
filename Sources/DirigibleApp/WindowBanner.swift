@@ -16,6 +16,13 @@ struct LevelReportShown: Equatable {
     let press: Int
 }
 
+/// The threshold of the last duck that found no speech, and the session revision after it.
+struct DuckNoSpeechShown: Equatable {
+    let threshold: Double
+    let revision: Int
+    var banner: WindowBanner { .duckNoSpeech(threshold: threshold) }
+}
+
 /// A banner row of the window (decision 0023): a fact, then what to do.
 enum WindowBanner: Equatable {
     case playbackStopped(PlaybackStop)
@@ -45,6 +52,8 @@ enum WindowBanner: Equatable {
     case unusedFilesFailed([String])
     /// An agent record request ended with no answer (decision 0048). Nil: the agent gave no name.
     case consentExpired(agent: String?)
+    /// A duck found no speech over the threshold in dBFS, so it changed nothing (decision 0060).
+    case duckNoSpeech(threshold: Double)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -86,13 +95,14 @@ enum WindowBanner: Equatable {
         case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
         case .consentExpired: "consentExpired"
+        case .duckNoSpeech: "duckNoSpeech"
         }
     }
 
     var kind: Kind {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
-            .chapterImagesOmitted:
+            .chapterImagesOmitted, .duckNoSpeech:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired: .info
@@ -118,6 +128,7 @@ enum WindowBanner: Equatable {
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
         case .consentExpired(nil): L10n.bannerConsentExpiredUnnamed.text
+        case .duckNoSpeech(let threshold): L10n.errorDuckNoSpeech.format(threshold)
         }
     }
 
@@ -126,7 +137,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .levelReport, .unusedFilesMoved,
-            .unusedFilesFailed, .consentExpired:
+            .unusedFilesFailed, .consentExpired, .duckNoSpeech:
             .medium
         }
     }

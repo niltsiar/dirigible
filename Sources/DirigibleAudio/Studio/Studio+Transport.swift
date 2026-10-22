@@ -33,16 +33,19 @@ extension Studio {
         case placing(SegmentName)
         /// Cmd-L measures the clips and saves their gains (decision 0031).
         case leveling
+        /// Tools > Duck Music Under Speech... and the `duck` tool read the speech and save the
+        /// music envelopes (decision 0060).
+        case ducking
         /// An import converts a file and saves the session (decision 0040).
         case importing(ImportRun)
     }
 
-    /// True when no take, placement, level, or import runs, and no take starts.
+    /// True when no take, placement, level, duck, or import runs, and no take starts.
     public var isIdle: Bool { transport == .idle && !isStarting }
 
     /// Edits, saves, and a new take wait during a take (0004), a placement (0021), a level (0031),
-    /// or an import (0040). They also wait during `settle()`, so an agent edit that gets OK is on
-    /// disk before its window closes (decision 0046).
+    /// a duck (0060), or an import (0040). They also wait during `settle()`, so an agent edit that
+    /// gets OK is on disk before its window closes (decision 0046).
     func checkIdle() throws(StudioError) {
         guard isIdle, !settling else { throw .busy }
     }

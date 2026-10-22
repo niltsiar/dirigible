@@ -20,6 +20,7 @@ struct StudioIdleTests {
             (.finalizing(take: 1), false, false),
             (.placing(SegmentName(take: 1, arm: 1, segment: 1)), false, false),
             (.leveling, false, false),
+            (.ducking, false, false),
             (
                 .importing(ImportRun(name: "Voice.wav", kind: .file, flags: ImportFlags())), false,
                 false

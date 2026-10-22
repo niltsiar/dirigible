@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Auto Level per Track";
 "menu.tools.level.all" = "Auto Level All Clips";
 "menu.tools.level.track.all" = "Auto Level per Track (All)";
+"menu.tools.duck" = "Duck Music Under Speech…";
 
 /* Errors */
 "error.studio.busy" = "A take records or finishes. Wait until it ends.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "Track “%@” is in the take that waits to finish.";
 "error.session.track.count" = "The copy has %lld tracks. Select as many tracks to paste it.";
 "error.session.other" = "The session refused the change.";
+"error.duck.no.speech" = "The duck found no speech over %.1f dBFS, so it changed no gain point.";
+"error.duck.no.speech.track" = "Select a speech track, or give a track the Dialogue role.";
+"error.duck.no.ducked.track" = "Select a track to duck, or give a track the Music role.";
+"error.duck.both.lists" = "Track “%@” cannot be a speech track and a track to duck.";
+"error.duck.read" = "An audio file of a speech track did not read (error %lld). No gain point changed.";
 "error.file.unreadable" = "The session file is damaged.";
 "error.file.newer" = "This session was made by a newer version of Dirigible. Update Dirigible to open it.";
 "error.file.read" = "The session file cannot be read (error %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Finishing take %lld…";
 "take.placing" = "Placing %@…";
 "take.leveling" = "Leveling clips…";
+"take.ducking" = "Ducking the music under the speech…";
 "take.pending" = "Take %lld is not finished.";
 "take.pending.leave.hint" = "If the disk cannot read this audio again, finish the take without it. The file stays in the package, and you can place it later.";
 "take.pending.space" = "The finish needs %1$@ free. %2$@ is free now.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "Links and folders in the session stay: %@";
 "sheet.unused.footnote" = "The space comes back when you empty the Trash.";
 "sheet.unused.move" = "Move to Trash";
+"sheet.duck.title" = "Duck Music Under Speech";
+"sheet.duck.speech" = "Speech Tracks";
+"sheet.duck.music" = "Tracks to Duck";
+"sheet.duck.depth" = "Depth";
+"sheet.duck.attack" = "Attack";
+"sheet.duck.release" = "Release";
+"sheet.duck.note" = "The duck replaces the gain points of each music clip that speech reaches, in the selection range or else in the whole session. It keeps the other clips.";
+"sheet.duck.apply" = "Apply";
 "alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";
 "alert.export.confirm" = "Export";
 "alert.exported" = "The export is done. These files were missing or could not be read, and they exported as silence:\n%@";

@@ -61,8 +61,8 @@ extension Studio {
         return try result.get()
     }
 
-    /// The Cancel of the level banner (decision 0049): sets the flag of the running level, with no
-    /// wait. The level ends at its next block and saves nothing.
+    /// The Cancel of the level banner and of the duck banner (decisions 0049 and 0060): sets the
+    /// flag of the running level or duck, with no wait. It ends at its next block and saves nothing.
     public func cancelLevel() { levelFlags?.cancel(yielding: false) }
 }
 

@@ -305,6 +305,7 @@ struct ChromeState: Equatable {
         if let shown = model.levelReport, shown.revision == studio.sessionRevision {
             banners.append(.levelReport(shown.report, press: shown.press))
         }
+        if let shown = model.duckNoSpeech, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
             let moved = shown.report.moved.map(\.item.bytes)
             banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))

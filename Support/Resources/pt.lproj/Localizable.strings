@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Nivelamento Automático por Pista";
 "menu.tools.level.all" = "Nivelamento Automático de Todos os Clipes";
 "menu.tools.level.track.all" = "Nivelamento Automático por Pista (Todos os Clipes)";
+"menu.tools.duck" = "Abaixar Música sob a Voz…";
 
 /* Errors */
 "error.studio.busy" = "Uma tomada está sendo gravada ou finalizada. Aguarde até que ela termine.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "A pista “%@” faz parte da tomada que aguarda finalização.";
 "error.session.track.count" = "A cópia tem %lld pistas. Selecione o mesmo número de pistas para colá-la.";
 "error.session.other" = "A sessão recusou a alteração.";
+"error.duck.no.speech" = "O abaixamento não encontrou voz acima de %.1f dBFS, então nenhum ponto de ganho mudou.";
+"error.duck.no.speech.track" = "Selecione uma pista de voz ou dê a uma pista a função Diálogo.";
+"error.duck.no.ducked.track" = "Selecione uma pista a abaixar ou dê a uma pista a função Música.";
+"error.duck.both.lists" = "A pista “%@” não pode ser ao mesmo tempo uma pista de voz e uma pista a abaixar.";
+"error.duck.read" = "Um arquivo de áudio de uma pista de voz não foi lido (erro %lld). Nenhum ponto de ganho mudou.";
 "error.file.unreadable" = "O arquivo da sessão está danificado.";
 "error.file.newer" = "Esta sessão foi criada por uma versão mais recente do Dirigible. Atualize o Dirigible para abri-la.";
 "error.file.read" = "Não é possível ler o arquivo da sessão (erro %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Finalizando a tomada %lld…";
 "take.placing" = "Posicionando %@…";
 "take.leveling" = "Nivelando os clipes…";
+"take.ducking" = "Abaixando a música sob a voz…";
 "take.pending" = "A tomada %lld não foi finalizada.";
 "take.pending.leave.hint" = "Se o disco não conseguir ler este áudio novamente, finalize a tomada sem ele. O arquivo permanece no pacote, e você poderá posicioná-lo depois.";
 "take.pending.space" = "A finalização precisa de %1$@ de espaço livre. Espaço livre agora: %2$@.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "Links e pastas na sessão são mantidos: %@";
 "sheet.unused.footnote" = "O espaço em disco é liberado quando você esvaziar o Lixo.";
 "sheet.unused.move" = "Mover para o Lixo";
+"sheet.duck.title" = "Abaixar Música sob a Voz";
+"sheet.duck.speech" = "Pistas de Voz";
+"sheet.duck.music" = "Pistas a Abaixar";
+"sheet.duck.depth" = "Profundidade";
+"sheet.duck.attack" = "Ataque";
+"sheet.duck.release" = "Liberação";
+"sheet.duck.note" = "O abaixamento substitui os pontos de ganho de cada clipe de música que a voz alcança, no intervalo selecionado ou, se não houver, em toda a sessão. Os outros clipes ficam como estão.";
+"sheet.duck.apply" = "Aplicar";
 "alert.export.missing" = "Estes arquivos estão ausentes ou não podem ser lidos. Eles serão exportados como silêncio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "A exportação foi concluída. Estes arquivos estavam ausentes ou não puderam ser lidos e foram exportados como silêncio:\\n%@";

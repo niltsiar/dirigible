@@ -98,6 +98,11 @@ struct DirigibleApp: App {
                     }
                     // Its key is one that a text field uses: never disabled (probe K1).
                     ForEach(TimelineCommand.trackItems, id: \.command) { item in menuButton(item) }
+                    if let key = app.key, key.canEdit, !key.roleMenuTracks.isEmpty {
+                        Menu(L10n.menuTrackRole.key) { RoleItems(model: key, tracks: key.roleMenuTracks) }
+                    } else {
+                        Button(L10n.menuTrackRole.key) {}.disabled(true)
+                    }
                     Toggle(
                         L10n.menuTrackMonitor.key,
                         isOn: Binding(get: { app.key?.listensSelection == true }, set: { _ in app.key?.toggleListen() })

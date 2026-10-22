@@ -18,6 +18,14 @@
 "menu.track.rename" = "Rinomina traccia";
 "menu.track.mute" = "Disattiva audio traccia";
 "menu.track.solo" = "Assolo traccia";
+"menu.track.role" = "Ruolo";
+"track.role.none" = "Nessuno";
+"track.role.dialogue" = "Dialogo";
+"track.role.music" = "Musica";
+"track.role.effects" = "Effetti";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Alza volume traccia";
 "menu.track.volume.down" = "Abbassa volume traccia";
 "menu.track.volume.reset" = "Reimposta volume traccia";

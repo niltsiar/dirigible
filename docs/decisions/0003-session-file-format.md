@@ -15,6 +15,7 @@
 - Amended: 2026-10-10, run `2026-10-10-episode-metadata` (see 0045). Version 6 has an `<episode>` element after `<markers>`. The package has an `Artwork/` folder with the episode image, named `<UUID>.jpg` or `<UUID>.png`. An import writes a new file and never replaces one, so undo and the backups keep their image.
 - Amended: 2026-10-14, run `2026-10-13-transcript-1` (see 0055). Version 8 has a `<transcripts>` element after `<episode>`, with one reference per transcript; the words are in `Transcripts/<UUID>.xml` (0055).
 - Amended: 2026-10-19, run `2026-10-18-envelope-ducking`. From version 10, a clip can hold `<envelope>` with `<point frame="F" gain="dB"/>` children: file frames in strictly ascending order, gains relative to the clip gain. A clip with no point writes no element (see 0060).
+- Amended: 2026-10-22, run `2026-10-18-envelope-ducking`. From version 11, a track can hold `role="dialogue"`, `"music"`, or `"effects"`. A track with no role writes no attribute (see 0060).
 
 ## Context
 

@@ -8,7 +8,7 @@ struct TrackCommand: ParsableCommand {
         commandName: "track", abstract: "Add, change, and remove tracks.",
         subcommands: [
             Add.self, AddCall.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self, Mute.self,
-            Solo.self,
+            Solo.self, SetRole.self,
         ])
 
     struct Add: ParsableCommand {
@@ -135,6 +135,28 @@ struct TrackCommand: ParsableCommand {
         func run() throws {
             try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.setSoloed(!off, tracks: tracks.map { TrackID($0) })
+            }
+        }
+    }
+
+    struct SetRole: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "role", abstract: "Set the role of a track: dialogue, music, effects, or none.")
+        @OptionGroup var package: PackageArgument
+        @Argument var track: String
+        @Argument(help: "dialogue, music, effects, or none. none removes the role.") var role: String
+
+        func validate() throws {
+            guard EditRules.role(role) != nil else {
+                throw ValidationError("A role is dialogue, music, effects, or none.")
+            }
+        }
+
+        func run() throws {
+            // `validate()` checked the word.
+            let role = EditRules.role(role) ?? nil
+            try editPackage(package, ripple: false) { session throws(SessionError) in
+                try session.setRole(role, tracks: [TrackID(track)])
             }
         }
     }

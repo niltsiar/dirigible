@@ -44,7 +44,7 @@ package let artworkFolderName = "Artwork"
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = 10
+package let sessionVersion = 11
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if
@@ -191,6 +191,7 @@ extension Session {
             // A flag is written only when on, so a track with none keeps its old text (0039).
             if track.isMuted { add(("muted", "true"), to: node) }
             if track.isSoloed { add(("soloed", "true"), to: node) }
+            if let role = track.role { add(("role", role.rawValue), to: node) }
             switch track.route {
             case nil: break
             case .device(let uid, let channels):

@@ -102,12 +102,15 @@ private struct TrackRow: View {
     private var style: HeaderRowStyle { HeaderRowStyle(selected: selected, emphasized: activeState == .key) }
     private var textColor: Color { style.text.map { Color(nsColor: $0) } ?? .primary }
     private var renaming: Bool { model.renamingTrack == track.id }
+    /// The role glyph and its spacing come out of the name, so the width gates hold with a role.
+    private var nameMinWidth: Double { (secondLine ? 60 : 54) - (track.role == nil ? 0 : RoleGlyph.size + 8) }
 
     var body: some View {
         let _ = model.countHeaderRun(row: true)
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 TrackToggles(model: model, track: track, boxes: boxes)
+                if let role = track.role { RoleGlyph(role: role) }
                 if taking { takeName } else { nameField }
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the
@@ -162,6 +165,7 @@ private struct TrackRow: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: tall ? .topLeading : .leading)
         .foregroundStyle(textColor)
         .background { if let fill = style.fill { Color(nsColor: fill) } }
+        .roleStrip(track.role)
         .contentShape(Rectangle())
         // The controls of the row take their own clicks.
         .onTapGesture(perform: click)
@@ -170,6 +174,7 @@ private struct TrackRow: View {
             // The menu content appears when the menu opens (ui-panel 8).
             Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track.id) }
                 .onAppear { model.showHeaderMenu(track.id) }
+            Menu(L10n.menuTrackRole.key) { RoleItems(model: model, tracks: model.headerMenuTracks(track.id)) }
         }
     }
 
@@ -194,14 +199,14 @@ private struct TrackRow: View {
             }
             .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
             // A one-line row has the arm box of 18 pt at every width, so its name gives up 6 pt.
-            .frame(minWidth: secondLine ? 60 : 54, maxWidth: .infinity)
+            .frame(minWidth: nameMinWidth, maxWidth: .infinity)
     }
 
     /// The name during a take: 13 pt in the row text color. A dimmed field reads as broken; the
     /// rename stays blocked.
     private var takeName: some View {
         Text(verbatim: track.name).font(.body).lineLimit(1).truncationMode(.tail)
-            .frame(minWidth: secondLine ? 60 : 54, maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: nameMinWidth, maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(Text(L10n.trackName.key)).accessibilityValue(Text(verbatim: track.name))
     }
 

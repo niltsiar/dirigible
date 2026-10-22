@@ -63,6 +63,7 @@ extension Session {
                 }
                 try setMuted(track.isMuted, tracks: [track.id])
                 try setSoloed(track.isSoloed, tracks: [track.id])
+                try setRole(track.role, tracks: [track.id])
             }
             // setMarker replaces a marker with the same ID, so a file with two would lose one.
             var markerIDs: Set<MarkerID> = []
@@ -88,11 +89,19 @@ private struct ParsedTrack {
     let clips: [Clip]
     let isMuted: Bool
     let isSoloed: Bool
+    let role: Track.Role?
 
     init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         id = TrackID(try node.string("id"))
         isMuted = try node.flag("muted", version: version)
         isSoloed = try node.flag("soloed", version: version)
+        role = try node.optionalString("role").map { word throws(SessionFileError) in
+            // From version 11 on (decision 0060).
+            guard version >= 11, let role = Track.Role(rawValue: word) else {
+                throw .invalidValue(element: "track", attribute: "role")
+            }
+            return role
+        }
         name = try node.string("name")
         gain = try node.gain("gain")
         guard let layout = ChannelLayout(rawValue: try node.string("layout")) else {

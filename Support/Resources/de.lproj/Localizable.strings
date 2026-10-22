@@ -18,6 +18,14 @@
 "menu.track.rename" = "Spur umbenennen";
 "menu.track.mute" = "Spur stummschalten";
 "menu.track.solo" = "Spur auf Solo schalten";
+"menu.track.role" = "Rolle";
+"track.role.none" = "Keine";
+"track.role.dialogue" = "Dialog";
+"track.role.music" = "Musik";
+"track.role.effects" = "Effekte";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Spurlautstärke erhöhen";
 "menu.track.volume.down" = "Spurlautstärke verringern";
 "menu.track.volume.reset" = "Spurlautstärke zurücksetzen";

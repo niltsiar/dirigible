@@ -289,11 +289,7 @@ extension SessionWindow {
 
     /// Remove Track of the header menu: the selected tracks when the row is selected, else the track
     /// of the row.
-    func removeFromHeader(_ track: TrackID) {
-        guard let studio else { return }
-        let selected = timeline.selection.headerTracks(in: studio.session)
-        removeTracks(selected.contains(track) ? selected : [track])
-    }
+    func removeFromHeader(_ track: TrackID) { removeTracks(headerMenuTracks(track)) }
 
     /// Shows in Finder the pool files of `Selection.files`. Only files on disk go; with none, a
     /// beep.

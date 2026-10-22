@@ -54,19 +54,22 @@ extension View {
     }
 }
 
-/// The items of Track > Role and of the header menu. An item is checked when each track of
-/// `tracks` has its role.
+/// The items of Track > Role and of the header menu. An item is checked when each track of the
+/// menu has its role.
 struct RoleItems: View {
     let model: SessionWindow
-    let tracks: [TrackID]
+    /// The row of the header menu; nil for Track > Role. The tracks come from the selection in
+    /// this body, so a range drag runs no row body (ui-polish C16).
+    let headerRow: TrackID?
 
     var body: some View {
-        item(nil, .trackRoleNone)
+        let tracks = headerRow.map(model.headerMenuTracks) ?? model.roleMenuTracks
+        item(nil, .trackRoleNone, tracks)
         Divider()
-        ForEach(Track.Role.allCases, id: \.self) { role in item(role, role.title) }
+        ForEach(Track.Role.allCases, id: \.self) { role in item(role, role.title, tracks) }
     }
 
-    private func item(_ role: Track.Role?, _ title: L10n) -> some View {
+    private func item(_ role: Track.Role?, _ title: L10n, _ tracks: [TrackID]) -> some View {
         let roles = tracks.map { model.studio?.session.track($0)?.role }
         return Toggle(
             title.key,

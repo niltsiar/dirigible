@@ -120,8 +120,8 @@ struct HangRuleTests {
             ])
     }
 
-    /// C12 threshold: a tick 5 s after the last one is a normal tick, and a tick 5.001 s after it
-    /// resets the ping.
+    /// C12 threshold, watchdog-hangs C8: a tick 5 s of awake time after the last one is a normal
+    /// tick, and a tick 5.001 s after it resets the ping.
     @Test func aTickUpTo5SecondsAfterTheLastIsNormal() {
         var normal = HangRule(limits: HangLimits())
         var reset = HangRule(limits: HangLimits())

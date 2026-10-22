@@ -1,10 +1,10 @@
 #!/bin/bash
 # Check scripts/test-hooks.sh, the pass stamp of make test-hooks: a reuse with the same key (C1),
 # a new run after a change of each key input (C2), a reuse after a change of an excluded path
-# (C3), no stamp and no reuse on a dirty tree, a red test, or a make flag (C4), and a run from a
-# key tree that fails on a read outside the key and leaves no git state (C5). Each case uses a
-# stub repo whose two stub tests append their name to a log, fake swift, xcodebuild, jq, sw_vers,
-# and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
+# (C3), a key from the work tree on a dirty tree (C16), no stamp after a red test or a make flag
+# (C4), and a run from a key tree that fails on a read outside the key and leaves no git state
+# (C5). Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
+# xcodebuild, jq, sw_vers, and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 # A make value of an outer run (make test-hooks) must not reach the stub make.
@@ -119,18 +119,35 @@ for f in Sources/Other/O.swift Tests/T.swift docs/d.md README.md Sources/Dirigib
         || fail "excluded paths: a change of $f gave no reuse: code $code, ran $(ran): $(out)"
 done
 
-# C4: a dirty tree runs the tests in place, with no reuse and no stamp.
+# C4: a dirty tree has a key from its work tree, as a clean tree has one from HEAD. A change of a
+# path outside the key keeps the key, and an untracked file in the key gives a new key.
 new_repo
 run
 echo y >> "$repo/README.md"
 run
-[[ $code -eq 0 && $(ran) -eq 4 && $(stamps) -eq 1 ]] && grep -q '^test-hooks: no stamp (the tree is dirty)$' "$tmp/out" \
-    && ! grep -q reuse "$tmp/out" || fail "a modified tracked file: code $code, ran $(ran), stamps $(stamps): $(out)"
+[[ $code -eq 0 && $(ran) -eq 2 && $(stamps) -eq 1 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
+    || fail "a modified tracked file: code $code, ran $(ran), stamps $(stamps): $(out)"
 git -C "$repo" checkout -q README.md
 echo y > "$repo/untracked.txt"
 run
-[[ $code -eq 0 && $(ran) -eq 6 && $(stamps) -eq 1 ]] && grep -q '^test-hooks: no stamp (the tree is dirty)$' "$tmp/out" \
-    && ! grep -q reuse "$tmp/out" || fail "an untracked file: code $code, ran $(ran), stamps $(stamps): $(out)"
+[[ $code -eq 0 && $(ran) -eq 4 && $(stamps) -eq 2 ]] && grep -qE '^test-hooks: wrote [0-9a-f]{64}$' "$tmp/out" \
+    || fail "an untracked file: code $code, ran $(ran), stamps $(stamps): $(out)"
+
+# C16: a pass on a dirty tree is reused after a commit of the same content, and a stray untracked
+# file after the pass gives a miss.
+new_repo
+echo '# x' >> "$repo/Makefile"
+run
+[[ $code -eq 0 && $(ran) -eq 2 && $(stamps) -eq 1 ]] && grep -qE '^test-hooks: wrote [0-9a-f]{64}$' "$tmp/out" \
+    || fail "a dirty pass: code $code, ran $(ran), stamps $(stamps): $(out)"
+commit 'same content'
+run
+[[ $code -eq 0 && $(ran) -eq 2 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
+    || fail "a dirty pass, then a commit of the same content: code $code, ran $(ran): $(out)"
+echo y > "$repo/stray.txt"
+run
+[[ $code -eq 0 && $(ran) -eq 4 ]] && ! grep -q reuse "$tmp/out" \
+    || fail "a stray untracked file after a pass: code $code, ran $(ran): $(out)"
 
 # C4: a red stub test gives exit 1 and no stamp, also with make -i.
 new_repo
@@ -170,8 +187,8 @@ run
 [[ $code -eq 0 && $(ran) -eq 4 ]] && ! grep -q reuse "$tmp/out" \
     || fail "commit during the run: the new HEAD got a reuse: code $code, ran $(ran): $(out)"
 
-# C5: on a clean tree the tests run from a key tree with no docs/, so a read of docs/ fails and
-# writes no stamp. On a dirty tree the same test runs in place and passes.
+# C5: the tests run from a key tree with no docs/, so a read of docs/ fails and writes no stamp.
+# A dirty tree runs from a key tree too.
 new_repo
 printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\ncat docs/d.md > /dev/null\n' > "$repo/t/a.test.sh"
 commit 'outside read'
@@ -180,7 +197,8 @@ run
     || fail "outside read: the clean run passed or wrote a stamp: code $code, stamps $(stamps): $(out)"
 echo y > "$repo/untracked.txt"
 run
-[[ $code -eq 0 ]] || fail "outside read: the run in place failed: code $code: $(out)"
+[[ $code -ne 0 && $(stamps) -eq 0 ]] && grep -q 'failed: t/a.test.sh$' "$tmp/out" \
+    || fail "outside read: the dirty run passed or wrote a stamp: code $code, stamps $(stamps): $(out)"
 
 # A run removes each key tree folder over one hour old that a killed run left, and keeps a newer
 # one. A stamp append keeps only the lines of today.
@@ -237,6 +255,29 @@ if kill -0 "$pid" 2>/dev/null; then
 fi
 wait "$pid" 2>/dev/null
 same_state 'no git state left after a stopped run'
+
+# C16: a run stopped with TERM during a dirty pass leaves no key tree folder, and the status and
+# the real index are as before.
+echo y > "$repo/untracked.txt"
+rm -f "$tmp/mark"
+git -C "$repo" status --porcelain > "$tmp/status-before"
+cp "$repo/.git/index" "$tmp/index-before"
+set -m
+(cd "$repo" && TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" HOOKS_MARK="$tmp/mark" exec scripts/test-hooks.sh t/a.test.sh t/b.test.sh) > "$tmp/out" 2>&1 &
+pid=$!
+set +m
+for _ in $(seq 100); do [[ -e "$tmp/mark" ]] && break; sleep 0.1; done
+[[ -e "$tmp/mark" ]] || fail "stopped dirty run: the stub did not start in 10 s"
+kill -TERM -- "-$pid" 2>/dev/null
+for _ in $(seq 30); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+if kill -0 "$pid" 2>/dev/null; then
+    fail "stopped dirty run: the script did not end in 3 s after the signal"
+    kill -KILL -- "-$pid" 2>/dev/null
+fi
+wait "$pid" 2>/dev/null
+same_state 'no git state left after a stopped dirty run'
+git -C "$repo" status --porcelain | cmp -s - "$tmp/status-before" || fail "stopped dirty run: git status changed"
+cmp -s "$repo/.git/index" "$tmp/index-before" || fail "stopped dirty run: the real index changed"
 
 [[ $failures -eq 0 ]] || { echo "$failures failure(s)"; exit 1; }
 echo "test-hooks.test.sh: all passed"

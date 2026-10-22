@@ -5,6 +5,8 @@
 #        log-decision.sh <run folder> --from <file>
 # With --from, the file has five lines: phase, decision, why, evidence, result. Use it when a
 # field has text that the guardrail hook blocks in a command, for example the check and the commit.
+# The script removes the file after the row is appended, as .githooks/post-commit does for the
+# commit message; a refused row keeps it.
 # A row whose decision or result starts with `default` (any case) needs `Reverse:` (any case) in
 # its why: the word or line that reverses the default (deliver autonomy rules). The phase is one
 # digit (0-9), so land.sh finds the mutation pass row of phase 7. A decision that starts with
@@ -18,8 +20,10 @@ set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
        log-decision.sh <run folder> --from <file>"
+from_file=""
 if [[ $# -eq 3 && "$2" == --from ]]; then
     [[ -f "$3" ]] || { echo "no file $3" >&2; exit 2; }
+    from_file="$3"
     fields=()
     while IFS= read -r line || [[ -n "$line" ]]; do fields+=("$line"); done < "$3"
     [[ ${#fields[@]} -eq 5 ]] || { echo "$3 has ${#fields[@]} lines; it must have five lines" >&2; exit 2; }
@@ -61,3 +65,4 @@ for field in "$@"; do
     row+=$'\t'"$(printf '%s' "$field" | tr '\t\n\r' '   ')"
 done
 printf '%s\n' "$row" >> "$file"
+[[ -z "$from_file" ]] || rm -f "$from_file"

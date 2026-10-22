@@ -121,8 +121,8 @@ package enum TakeWork {
 
     /// The `info` lines of the sync state, one for each take in take order.
     package static func syncLines(_ sync: [Int: TakeSync], sampleRate: Int) -> [String] {
-        sync.keys.sorted().map { take in
-            switch sync[take]! {
+        sync.sorted { $0.key < $1.key }.map { take, state in
+            switch state {
             case .inSync(let offset):
                 "sync take \(take) in sync, offset \(seconds(offset, sampleRate)) s (\(offset) frames)"
             case .broken(let from, let shifts):

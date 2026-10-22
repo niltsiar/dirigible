@@ -127,7 +127,7 @@ public enum TakeAnchors {
 
 /// The anchor in `anchors` of the take of each capture of `session`, by the take number of the
 /// capture ID (decision 0012). A capture whose take has no anchor gets no entry.
-public func takeRecordings(_ session: Session, anchors: [Int: Recording]) -> [CaptureID: Recording] {
+func takeRecordings(_ session: Session, anchors: [Int: Recording]) -> [CaptureID: Recording] {
     var recordings: [CaptureID: Recording] = [:]
     for id in session.captures.keys {
         if let take = SegmentName(id: id.rawValue)?.take, let recording = anchors[take] { recordings[id] = recording }

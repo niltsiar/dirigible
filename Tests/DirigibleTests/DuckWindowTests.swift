@@ -69,11 +69,11 @@ import Testing
 
     /// With no role, the item opens the sheet with both lists empty, and Apply is off with the reason.
     @Test func aSheetWithNoRoleStartsEmpty() async throws {
-        let (model, _) = try await open(roles: [:])
+        let (model, studio) = try await open(roles: [:])
         model.run(.duck)
         let draft = try #require(model.duckDraft, "the item opened no sheet")
         #expect(draft.speech.isEmpty && draft.music.isEmpty, "\(draft)")
-        #expect(draft.refusal == .noSpeechTrack, "\(String(describing: draft.refusal))")
+        #expect(draft.refusal(in: studio.session) == .noSpeechTrack, "\(draft)")
         await model.close()
     }
 
@@ -84,10 +84,10 @@ import Testing
         model.run(.duck)
         let draft = try #require(model.duckDraft, "the item opened no sheet")
         #expect(draft.speech == ["t1"] && draft.music == ["t2"], "\(draft)")
-        #expect(draft.refusal == nil, "\(String(describing: draft.refusal))")
+        #expect(draft.refusal(in: studio.session) == nil, "\(draft)")
         var both = draft
         both.music.insert("t1")
-        #expect(both.refusal == .trackInBothDuckLists("t1"), "\(String(describing: both.refusal))")
+        #expect(both.refusal(in: studio.session) == .trackInBothDuckLists("t1"), "\(both)")
         await model.close()
     }
 

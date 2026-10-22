@@ -21,12 +21,14 @@ struct DuckDraft: Equatable {
         music = Set(session.tracks.filter { $0.role == .music }.map(\.id))
     }
 
-    /// The reason that Apply is off, as `Session.duckTracks` refuses the lists, or nil.
-    var refusal: SessionError? {
-        if speech.isEmpty { return .noSpeechTrack }
-        if music.isEmpty { return .noDuckedTrack }
-        if let both = music.sorted().first(where: speech.contains) { return .trackInBothDuckLists(both) }
-        return nil
+    /// The reason that Apply is off, as `Session.checkDuckLists` refuses the lists in `session`, or nil.
+    func refusal(in session: Session) -> SessionError? {
+        do throws(SessionError) {
+            try session.checkDuckLists(speech: speech.sorted(), music: music.sorted())
+            return nil
+        } catch {
+            return error
+        }
     }
 
     func shape(sampleRate: Int) -> DuckShape {
@@ -50,6 +52,9 @@ struct DuckSheet: View {
         _draft = State(initialValue: draft)
     }
 
+    /// Nil with no studio: Apply then does nothing.
+    private var refusal: SessionError? { model.studio.flatMap { draft.refusal(in: $0.session) } }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.sheetDuckTitle.key).font(.headline)
@@ -63,7 +68,7 @@ struct DuckSheet: View {
                 stepper(L10n.sheetDuckRelease, $draft.release, DuckDraft.times, step: 100, unit: .inspectorMilliseconds)
             }
             Text(L10n.sheetDuckNote.key).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if let refusal = draft.refusal {
+            if let refusal {
                 Label {
                     Text(verbatim: L10n.message(for: .session(refusal), session: model.studio?.session))
                 } icon: {
@@ -74,7 +79,7 @@ struct DuckSheet: View {
                 Spacer()
                 Button(L10n.alertCancel.key) { model.duckDraft = nil }.keyboardShortcut(.cancelAction)
                 Button(L10n.sheetDuckApply.key) { Task { await model.duck(draft) } }
-                    .keyboardShortcut(.defaultAction).disabled(draft.refusal != nil)
+                    .keyboardShortcut(.defaultAction).disabled(refusal != nil)
             }
         }
         .padding(20)

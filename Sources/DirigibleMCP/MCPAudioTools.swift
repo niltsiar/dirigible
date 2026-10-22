@@ -52,7 +52,9 @@ private let duckRelease = Param<Int?>.optional(
 private let duckThreshold = Param<Gain?>.optional(
     "threshold", "The speech level in dBFS, under 0. The default is -40.", .gain)
 private let duckHold = Param<Int?>.optional(
-    "hold", "The shortest pause in frames that lets the music come up. The default is 2 s.", .integer())
+    "hold",
+    "The hold in frames. The music comes up after a pause of at least the larger of the hold and attack plus release. The default is 2 s.",
+    .integer())
 
 private let importFile = Param.required(
     "file", "The absolute path of the audio file: WAV, AIFF, FLAC, MP3, or M4A.", .string)

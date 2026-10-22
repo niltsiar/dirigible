@@ -25,12 +25,12 @@ struct LiveExportTests {
     }
 
     /// Opens the studio with its export held at chunk 2, and starts a server for it.
-    func open(_ hold: ChunkHold, dialog: @escaping @MainActor () -> AgentBusy? = { nil }) async throws -> (
+    func open(_ hold: ChunkHold, sheetCause: @escaping @MainActor () -> AgentBusy? = { nil }) async throws -> (
         Studio, AgentServer, SocketFolder
     ) {
         let studio = try await package.open()
         studio.environment.exportChunk = { hold.step() }
-        let (server, folder) = try liveServer(studio, dialog: dialog)
+        let (server, folder) = try liveServer(studio, sheetCause: sheetCause)
         return (studio, server, folder)
     }
 
@@ -261,7 +261,7 @@ extension LiveExportTests {
     @Test func aLiveChaptersExportReadsTheOpenSession() async throws {
         let studio = try await package.open()
         let shown = OSAllocatedUnfairLock(initialState: true)
-        let (server, folder) = try liveServer(studio, dialog: { shown.withLock { $0 } ? .dialog : nil })
+        let (server, folder) = try liveServer(studio, sheetCause: { shown.withLock { $0 } ? .dialog : nil })
         defer { server.stop() }
         let gate = Gate()
         defer { gate.open() }

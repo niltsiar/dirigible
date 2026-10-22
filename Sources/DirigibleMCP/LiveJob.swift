@@ -26,11 +26,11 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
     case .export(let work):
         // A running export shows its sheet too: its cause comes first.
         if let busy = exportBusy(studio) { return .result(text: busy.message(package: call.path), isError: true) }
-        if let busy = target.dialog() { return .result(text: busy.message(package: call.path), isError: true) }
+        if let busy = target.sheetCause() { return .result(text: busy.message(package: call.path), isError: true) }
         do throws(ToolError) {
             return .result(
                 text: try await liveExport(
-                    work, studio: studio, path: call.path, dialog: target.dialog, report: report),
+                    work, studio: studio, path: call.path, sheetCause: target.sheetCause, report: report),
                 isError: false)
         } catch {
             return .result(text: error.message, isError: true)
@@ -41,7 +41,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveImport(work, studio: studio, call: call, report: report)
     case .chapters(let work):
         if let busy = exportBusy(studio) { return .result(text: busy.message(package: call.path), isError: true) }
-        if let busy = target.dialog() { return .result(text: busy.message(package: call.path), isError: true) }
+        if let busy = target.sheetCause() { return .result(text: busy.message(package: call.path), isError: true) }
         do throws(ToolError) {
             return .result(text: try await liveChapters(work, studio: studio), isError: false)
         } catch {
@@ -82,7 +82,7 @@ private func liveLevel(
 /// start, the sheet Cancel, or a cancel of the call ends the job with no file (decision 0049).
 @MainActor
 private func liveExport(
-    _ work: ExportWork, studio: Studio, path: String, dialog: @MainActor () -> AgentBusy?,
+    _ work: ExportWork, studio: Studio, path: String, sheetCause: @MainActor () -> AgentBusy?,
     report: @escaping @Sendable (Double) -> Void
 ) async throws(ToolError) -> String {
     let session = studio.session
@@ -94,7 +94,7 @@ private func liveExport(
         }
         try work.check(faults, in: session)
         // The user can open a dialog or start an export during the media check.
-        if let busy = dialog() { throw ToolError(busy.message(package: path)) }
+        if let busy = sheetCause() { throw ToolError(busy.message(package: path)) }
     }
     // The item at `out` now is the one that `replace` confirms.
     let confirmed = work.replace ? ConfirmedFile(at: work.url) : nil

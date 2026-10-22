@@ -41,8 +41,9 @@ extension AppDelegate {
                 } else {
                     nil
                 }
-            let dialog = { @MainActor [weak window] in window?.dialogCause }
-            return AgentTarget(studio: studio, busy: busy, dialog: dialog) { [weak window] request, agent, connection in
+            let sheetCause = { @MainActor [weak window] in window?.sheetCause }
+            return AgentTarget(studio: studio, busy: busy, sheetCause: sheetCause) {
+                [weak window] request, agent, connection in
                 await window?.askRecord(request, agent: agent, connection: connection) ?? .closed
             }
         }

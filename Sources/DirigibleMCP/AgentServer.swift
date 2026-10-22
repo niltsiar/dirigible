@@ -4,7 +4,7 @@ import Foundation
 import Observation
 
 /// A window that an agent call can reach: its studio, why the app refuses agent edits now
-/// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil. With `dialog`, the
+/// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil. With `sheetCause`, the
 /// window cannot show the export sheet of an agent `export` or `render`: the call is refused
 /// (decision 0049).
 package struct AgentTarget {
@@ -15,14 +15,14 @@ package struct AgentTarget {
     /// Why the window cannot show a sheet now, or nil. `.dialog` is an alert, a sheet, or a panel
     /// that only the user can finish or close; `.export` is an export of the window. A live job
     /// reads it again after each await.
-    package let dialog: @MainActor () -> AgentBusy?
+    package let sheetCause: @MainActor () -> AgentBusy?
     package let record: Record?
 
     package init(
-        studio: Studio, busy: AgentBusy? = nil, dialog: @escaping @MainActor () -> AgentBusy? = { nil },
+        studio: Studio, busy: AgentBusy? = nil, sheetCause: @escaping @MainActor () -> AgentBusy? = { nil },
         record: Record? = nil
     ) {
-        (self.studio, self.busy, self.dialog, self.record) = (studio, busy, dialog, record)
+        (self.studio, self.busy, self.sheetCause, self.record) = (studio, busy, sheetCause, record)
     }
 }
 
@@ -43,19 +43,22 @@ package enum AgentBusy: Sendable {
     case pendingTake
 
     package func message(package: String) -> String {
-        let cause =
+        let later = "Try again later."
+        let (cause, step) =
             switch self {
-            case .task: "a take, an import, a level, or a close runs"
-            case .drag: "a drag runs in its window"
-            case .closing: "its window closes"
-            case .quit: "Dirigible quits"
-            case .asking: "a record request waits for the user"
-            case .dialog: "its window shows an alert, a sheet, or a panel"
-            case .export: "an export runs in its window"
-            case .pendingTake: "a take is not finalized"
+            case .task: ("a take, an import, a level, or a close runs", later)
+            case .drag: ("a drag runs in its window", later)
+            case .closing: ("its window closes", later)
+            case .quit: ("Dirigible quits", later)
+            case .asking: ("a record request waits for the user", later)
+            case .dialog:
+                (
+                    "its window shows an alert, a sheet, or a panel",
+                    "Ask the user to finish or close it in Dirigible, then try again."
+                )
+            case .export: ("an export runs in its window", later)
+            case .pendingTake: ("a take is not finalized", later)
             }
-        let step =
-            self == .dialog ? "Ask the user to finish or close it in Dirigible, then try again." : "Try again later."
         return "\(package) is busy in Dirigible: \(cause). \(step)"
     }
 }

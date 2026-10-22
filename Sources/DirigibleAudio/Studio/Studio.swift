@@ -349,8 +349,8 @@ import Observation
         try history.removeUnusedFiles(files.poolIDs, saved: saved)
     }
 
-    /// The one undo entry of `runReadJob` (a level or a duck), after its write. The write saved the
-    /// whole session.
+    /// The one undo entry of `runReadJob` (a level or a duck) or of a file import, after its write.
+    /// The write saved the whole session.
     func recordLevel(_ leveled: Session, agent: AgentName? = nil) {
         history.edit(agent: agent) { $0 = leveled }
         saveError = nil

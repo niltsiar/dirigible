@@ -48,6 +48,7 @@ struct DuckShapeTests {
     /// window stay. Some runs have ramps that pass both file ends.
     @Test func theDuckFollowsTheShapeAndDoesNotStack() throws {
         var random = Seeded(state: 20_261_018)
+        var ducks = 0
         for _ in 0..<300 {
             let fileLength = Int.random(in: 100_000...2_000_000, using: &random)
             let offset = Int.random(in: 0...(fileLength / 4), using: &random)
@@ -77,8 +78,11 @@ struct DuckShapeTests {
                 fileLength: fileLength, start: start, offset: offset, length: length, envelope: before)
             let merged = shape.merged(runs.map { $0.clamped(to: 0..<Frames(start + length)) })
             let first: DuckResult
-            do { first = try session.duck(runs: runs, shape: shape, music: ["m"], scope: nil) } catch {
+            do throws(SessionError) {
+                first = try session.duck(runs: runs, shape: shape, music: ["m"], scope: nil)
+            } catch {
                 // Every run lies before the clip window and session end clamps none: no speech.
+                guard case .noSpeech = error else { throw error }
                 continue
             }
             let clip = try #require(session.clip("c1")?.clip)
@@ -86,6 +90,7 @@ struct DuckShapeTests {
                 #expect(clip.envelope == before, "a clip that no run reaches changed")
                 continue
             }
+            ducks += 1
             let points = clip.envelope.points
             #expect(GainEnvelope(points) != nil && points.allSatisfy { $0.frame.count <= fileLength })
             for point in outside { #expect(points.contains(point), "a point outside the window was lost") }
@@ -99,6 +104,7 @@ struct DuckShapeTests {
             try session.duck(runs: runs, shape: shape, music: ["m"], scope: nil)
             #expect(session == once, "a second duck changed the envelope")
         }
+        #expect(ducks > 200, "only \(ducks) of 300 seeds ducked")
     }
 
     /// A clip that no run, widened by the attack and the release, reaches keeps its envelope, and

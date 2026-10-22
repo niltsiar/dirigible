@@ -38,7 +38,8 @@ package enum TakeMapError: Error {
     package var message: String {
         switch self {
         case .anchor(let error):
-            "cannot read the take anchor \(error.fault.file) (errno \(error.fault.errno)), so the take time is not known."
+            "Cannot read \(error.fault.file == captureFolderName ? "the folder" : "the take anchor file") "
+                + "\(error.fault.file) (errno \(error.fault.errno)), so the take time is not known."
         case .takeNeeded(let takes): "Give --take: the session has takes \(list(takes))."
         case .noTakeAudio: "The session has no take audio with a take time."
         case .noSuchTake(let take, let takes):

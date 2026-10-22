@@ -234,7 +234,22 @@ struct TakeMapCommandTests {
             try await package.run("take", "map", "PKG", "--take", "1", "100")
                 == CLIResult(
                     status: 2, stdout: "",
-                    stderr: "Error: cannot read the take anchor Capture/take2.anchor (errno 13), so the take time is "
+                    stderr:
+                        "Error: Cannot read the take anchor file Capture/take2.anchor (errno 13), so the take time is "
                         + "not known.\n"))
+    }
+
+    /// A `Capture/` that does not read is named as a folder, not as a take anchor.
+    @Test func aCaptureFolderFaultNamesTheFolder() async throws {
+        let package = try Self.twoTakes()
+        let capture = package.url.appending(path: "Capture")
+        chmod(capture.path, 0o000)
+        defer { chmod(capture.path, 0o755) }
+
+        #expect(
+            try await package.run("take", "map", "PKG", "--take", "1", "100")
+                == CLIResult(
+                    status: 2, stdout: "",
+                    stderr: "Error: Cannot read the folder Capture (errno 13), so the take time is not known.\n"))
     }
 }

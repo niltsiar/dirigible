@@ -78,7 +78,8 @@ takes = [
     f'cd /private/tmp && bash -c "{cli} record {package} --seconds 10 --arm host"',
     f"sh -c '{cli} record {package} --seconds 1 --arm host'",
 ]
-safe = [f'{cli} help record', f'{cli} info {package}', f'env {cli} loudness {package}']
+safe = [f'{cli} help record', f'{cli} info {package}', f'env {cli} loudness {package}',
+        f'{cli} take map {package} 48000', f'env {cli} take map {package} --take 1 --timeline 0']
 missed = [c for c in takes if not grade.take_commands([c])]
 wrong = [c for c in safe if grade.take_commands([c])]
 for c in missed:

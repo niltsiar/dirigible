@@ -29,6 +29,8 @@ import subprocess
 import sys
 
 TAKE = {'record', 'capture', 'take'}
+# The one subcommand of `take` that writes: `take map` only reads.
+TAKE_WRITE = 'finalize'
 # The words that run the command after them, and the shells whose -c argument is a command line.
 WRAPPERS = {'env', 'exec', 'time', 'nohup', 'command', 'sudo'}
 SHELLS = {'bash', 'sh', 'zsh'}
@@ -66,8 +68,8 @@ def leaked(init, marks, skills):
 
 
 def take_commands(commands):
-    """The Bash commands that run the CLI with record, capture, or take as its command and a
-    package argument. `dirigible help record` is not a take."""
+    """The Bash commands that run the CLI with record, capture, or take finalize as its command
+    and a package argument. `dirigible help record` and `dirigible take map` are not a take."""
     found = []
     for command in commands:
         for line in command.splitlines():
@@ -98,7 +100,9 @@ def is_take(words):
     if words and os.path.basename(words[0]) in SHELLS and '-c' in words[:-1]:
         return bool(take_commands([words[words.index('-c') + 1]]))
     cli = words and (os.path.basename(words[0]) == 'dirigible' or words[0].startswith('$'))
-    return bool(cli and len(words) > 2 and words[1] in TAKE and any('.dirigible' in w for w in words[2:]))
+    if not (cli and len(words) > 2 and words[1] in TAKE) or (words[1] == 'take' and words[2] != TAKE_WRITE):
+        return False
+    return any('.dirigible' in w for w in words[2:])
 
 
 def stream(d):

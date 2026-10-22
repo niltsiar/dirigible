@@ -135,6 +135,28 @@ struct StudioTakeSyncTests {
         await studio.settle()
     }
 
+    /// A fader reset at 0 dB after an agent edit is an amend that changes nothing: the revision
+    /// stays, so the change of that revision keeps its agent and its transition.
+    @Test func aNoOpAmendKeepsTheChangeOfTheRevision() async throws {
+        let package = try TakePackage()
+        try package.segment(samples: sine(seconds: 1, rate: 48_000))
+        let studio = try await Studio.open(package.url)
+        let agent = AgentName(title: "Test Agent", clientName: nil)
+        try studio.edit(ripple: true, agent: agent) { session throws(SessionError) in
+            try session.rippleInsert(1000, at: 0, on: session.tracks.map(\.id))
+        }
+        let (revision, change) = (studio.sessionRevision, studio.takeSyncChange)
+        try #require(change.agent == agent && change.changes.count == 1, "\(change)")
+        let track = try #require(studio.session.tracks.first)
+        try #require(track.gain == .zero)
+
+        try studio.amend { session throws(SessionError) in try session.setGain(.zero, track: track.id) }
+
+        #expect(studio.sessionRevision == revision)
+        #expect(studio.takeSyncChange == change)
+        await studio.settle()
+    }
+
     /// C8: an agent edit, an undo, and a redo, each followed by 200 playhead moves and 5 reads,
     /// give 3 changes. Each change has the revision and the agent of its revision: none for the undo.
     @Test func theSyncIsMadeOncePerRevision() async throws {

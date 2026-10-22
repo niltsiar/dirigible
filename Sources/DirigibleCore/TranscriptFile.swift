@@ -2,15 +2,15 @@ import Foundation
 
 /// The refusal of a transcript file.
 public enum TranscriptFileError: Error, Hashable, Sendable {
-    /// The data is neither WebVTT nor JSON of the Whisper shape.
+    /// The data is not WebVTT, not JSON of the Whisper shape, and has no SRT timing line.
     case unreadable
     /// No unit with a usable time and a text is left.
     case noTimedWord
 }
 
 /// A transcript file in seconds, parsed at the boundary (decision 0055): Whisper JSON
-/// (`segments[].words[]`, a segment with no words as one unit, or a top-level `words` array) or
-/// WebVTT (one unit per cue). Foundation only.
+/// (`segments[].words[]`, a segment with no words as one unit, or a top-level `words` array),
+/// WebVTT, or SRT (one unit per cue). Foundation only.
 public struct TranscriptFile: Hashable, Sendable {
     public struct Unit: Hashable, Sendable {
         public let start: Double
@@ -23,15 +23,24 @@ public struct TranscriptFile: Hashable, Sendable {
     /// The count of units with no usable time: none (an unaligned WhisperX word), end before start,
     /// negative, or not finite. A unit with no length keeps its text, so a match finds it.
     public let untimed: Int
-    /// True when a unit has no word times: WebVTT cues, or a Whisper segment with no words, as a
+    /// True when a unit has no word times: WebVTT or SRT cues, or a Whisper segment with no words, as a
     /// WhisperX segment that did not align. A cut removes such a unit whole.
     public let cues: Bool
 
-    /// `WEBVTT` after an optional byte order mark is WebVTT, else Whisper JSON.
+    /// After an optional byte order mark, `WEBVTT` is WebVTT, and `{` or `[` after white space is
+    /// Whisper JSON. Other text is SRT.
     public init(data: Data) throws(TranscriptFileError) {
         guard let text = String(data: data, encoding: .utf8) else { throw .unreadable }
         let body = text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
-        let (raw, cues) = body.hasPrefix("WEBVTT") ? (Self.cues(body), true) : try Self.whisper(data)
+        let raw: [(Double?, Double?, String)]
+        let cues: Bool
+        if body.hasPrefix("WEBVTT") {
+            (raw, cues) = (Self.cues(body), true)
+        } else if let first = body.first(where: { !$0.isWhitespace }), "{[".contains(first) {
+            (raw, cues) = try Self.whisper(data)
+        } else {
+            (raw, cues) = (try Self.srt(body), true)
+        }
         var units: [Unit] = []
         var untimed = 0
         for (start, end, text) in raw {
@@ -102,6 +111,30 @@ public struct TranscriptFile: Hashable, Sendable {
             let words = lines[(timing + 1)...].joined(separator: " ").replacing(/<[^>]*>/, with: "")
                 .replacing("&lt;", with: "<").replacing("&gt;", with: ">").replacing("&amp;", with: "&")
             return (seconds(times[0]), end.flatMap(seconds), words)
+        }
+    }
+
+    /// One unit per cue: a timing line `hh:mm:ss,ttt --> hh:mm:ss,ttt`, then the text lines, to the
+    /// next blank line. A line before a timing line (the index) is ignored, and so are the tags of
+    /// the text: `<...>` and `{\...}`. A comma reads as a dot. No timing line is no SRT.
+    private static func srt(_ text: String) throws(TranscriptFileError) -> [(Double?, Double?, String)] {
+        var cues: [(start: Double?, end: Double?, lines: [Substring])] = []
+        var open = false
+        for line in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
+            if line.allSatisfy(\.isWhitespace) {
+                open = false
+            } else if line.contains("-->") {
+                let times = line.components(separatedBy: "-->").map { $0.replacing(",", with: ".") }
+                let end = times[1].split(separator: " ", omittingEmptySubsequences: true).first.map(String.init)
+                cues.append((seconds(times[0]), end.flatMap(seconds), []))
+                open = true
+            } else if open {
+                cues[cues.count - 1].lines.append(line)
+            }
+        }
+        guard !cues.isEmpty else { throw .unreadable }
+        return cues.map { cue in
+            (cue.start, cue.end, cue.lines.joined(separator: " ").replacing(/<[^>]*>|\{\\[^}]*\}/, with: ""))
         }
     }
 

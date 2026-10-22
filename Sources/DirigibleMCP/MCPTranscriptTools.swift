@@ -2,10 +2,10 @@ import DirigibleCore
 import Foundation
 
 private let path = Param<String?>.optional(
-    "path", "The absolute path of a Whisper JSON or WebVTT file. Give path or text.", .string)
+    "path", "The absolute path of a Whisper JSON, WebVTT, or SRT file. Give path or text.", .string)
 private let text = Param<String?>.optional(
     "text",
-    "The Whisper JSON or WebVTT text, at most \(TranscriptWork.maximumText) bytes. Give it only for a short "
+    "The Whisper JSON, WebVTT, or SRT text, at most \(TranscriptWork.maximumText) bytes. Give it only for a short "
         + "transcript; else give path.", .string)
 private let importTrack = Param.required(
     "track", "The track whose clips carry the words. The words follow the clips of this track.", .string)
@@ -27,7 +27,7 @@ private let occurrences = Param.required(
 let transcriptTools = [
     Tool(
         "transcript_import",
-        "Import a Whisper JSON or WebVTT transcript of an export of the whole session; the track is the track whose "
+        "Import a Whisper JSON, WebVTT, or SRT transcript of an export of the whole session; the track is the track whose "
             + "clips carry the words. Give the transcript ID and the count of words. A word with no clip of the track "
             + "under it, or with no time, is skipped. A new import replaces the words of an earlier one in the same "
             + "span.",

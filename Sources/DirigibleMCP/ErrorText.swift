@@ -157,7 +157,7 @@ extension PasteError {
 extension TranscriptFileError {
     package var message: String {
         switch self {
-        case .unreadable: "the file is neither WebVTT nor Whisper JSON."
+        case .unreadable: "the file is not WebVTT, SRT, or Whisper JSON."
         case .noTimedWord: "no word has a usable time."
         }
     }

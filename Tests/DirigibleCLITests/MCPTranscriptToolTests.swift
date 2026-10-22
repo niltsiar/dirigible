@@ -77,7 +77,7 @@ struct MCPTranscriptToolTests {
         #expect(
             results.map(\.text) == [
                 "Give path or text, not both.", "Give path or text.",
-                "text: the file is neither WebVTT nor Whisper JSON.",
+                "text: the file is not WebVTT, SRT, or Whisper JSON.",
             ])
         #expect(results.allSatisfy { $0.isError })
         #expect(try package.xml() == before)

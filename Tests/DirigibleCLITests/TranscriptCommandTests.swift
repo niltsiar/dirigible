@@ -127,6 +127,21 @@ struct TranscriptCommandTests {
                     stderr: "Skipped 1 cue with no time.\n"))
     }
 
+    /// C9 of run 2026-10-22-take-sync: an SRT import reports cues and puts each cue at its time.
+    @Test func importReadsSRT() async throws {
+        let file = package.folder.appending(path: "t.srt")
+        try Data("1\n00:00:01,000 --> 00:00:02,000\n Hello there.\n\n2\n00:00:02,000 --> 00:00:03,500\n Bye.\n".utf8)
+            .write(to: file)
+        #expect(
+            try await package.run("transcript", "import", "PKG", file.path, "--track", "host")
+                == CLIResult(
+                    status: 0, stdout: "1\nImported 2 cues: a cut removes a whole cue when it has no word times.\n",
+                    stderr: ""))
+        let rows = try await package.run("transcript", "words", "PKG").stdout.split(separator: "\n")
+            .map { $0.split(separator: "\t").dropFirst().map(String.init) }
+        #expect(rows == [["48000", "96000", "host", "Hello there."], ["96000", "168000", "host", "Bye."]], "\(rows)")
+    }
+
     /// T3: a file that is not a transcript, and one with no timed word, exit 1 with the file and the
     /// reason, and change nothing.
     @Test func badFileChangesNothing() async throws {
@@ -139,7 +154,7 @@ struct TranscriptCommandTests {
             try await package.run("transcript", "import", "PKG", text.path, "--track", "host")
                 == CLIResult(
                     status: 1, stdout: "",
-                    stderr: "Error: \(text.path): the file is neither WebVTT nor Whisper JSON.\n"))
+                    stderr: "Error: \(text.path): the file is not WebVTT, SRT, or Whisper JSON.\n"))
         #expect(
             try await package.run("transcript", "import", "PKG", untimed.path, "--track", "host")
                 == CLIResult(status: 1, stdout: "", stderr: "Error: \(untimed.path): no word has a usable time.\n"))

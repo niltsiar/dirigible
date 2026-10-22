@@ -33,9 +33,11 @@ struct HangRuleTests {
 
         #expect(
             ticks(&rule, [0, 250, 500, 750, 1000]) == [
-                .ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), burst: true),
+                .ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true),
             ])
-        #expect(rule.answered(now: at(1200)) == .hangEnd(blocked: .milliseconds(1200), slept: .zero))
+        #expect(
+            rule.answered(now: at(1200))
+                == .hangEnd(blocked: .milliseconds(1200), slept: .zero, tickGap: .milliseconds(250)))
         #expect(rule.tick(now: at(1250)) == .ping)
     }
 
@@ -45,8 +47,14 @@ struct HangRuleTests {
 
         let steps = ticks(&rule, Array(stride(from: 0, through: 1250, by: 250)))
 
-        #expect(steps == [.ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), burst: true), nil])
-        #expect(rule.answered(now: at(1500)) == .hangEnd(blocked: .milliseconds(1500), slept: .zero))
+        #expect(
+            steps == [
+                .ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true),
+                nil,
+            ])
+        #expect(
+            rule.answered(now: at(1500))
+                == .hangEnd(blocked: .milliseconds(1500), slept: .zero, tickGap: .milliseconds(250)))
     }
 
     /// watchdog-hangs C1: a ping 1000 ms late gives the start with a burst. A ping 999 ms late
@@ -57,7 +65,7 @@ struct HangRuleTests {
 
         #expect(
             ticks(&late, [0, 250, 500, 750, 1000]) == [
-                .ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), burst: true),
+                .ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true),
             ])
         #expect(ticks(&early, [0, 250, 500, 750, 999]) == [.ping, nil, nil, nil, nil])
         #expect(early.answered(now: at(999)) == nil)
@@ -80,7 +88,7 @@ struct HangRuleTests {
         #expect(ticks(&rule, [0, 250, 30_250]) == [.ping, nil, .ping])
         #expect(
             ticks(&rule, [30_500, 30_750, 31_000, 31_250]) == [
-                nil, nil, nil, .hangStart(late: .milliseconds(1000), burst: true),
+                nil, nil, nil, .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true),
             ])
     }
 
@@ -90,9 +98,13 @@ struct HangRuleTests {
     @Test func aLateTickInAStartedHangKeepsThePing() {
         var rule = HangRule(limits: HangLimits())
 
-        #expect(ticks(&rule, [0, 250, 500, 750, 1000]).last == .hangStart(late: .milliseconds(1000), burst: true))
+        #expect(
+            ticks(&rule, [0, 250, 500, 750, 1000]).last
+                == .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true))
         #expect(ticks(&rule, [1600, 2000, 2700]) == [nil, nil, nil])
-        #expect(rule.answered(now: at(2800)) == .hangEnd(blocked: .milliseconds(2800), slept: .zero))
+        #expect(
+            rule.answered(now: at(2800))
+                == .hangEnd(blocked: .milliseconds(2800), slept: .zero, tickGap: .milliseconds(700)))
     }
 
     /// C12: under load the ticks come 600 ms apart during a 5 s block. The late limit counts from
@@ -102,7 +114,9 @@ struct HangRuleTests {
 
         #expect(
             ticks(&rule, Array(stride(from: 0, through: 4800, by: 600))) == [
-                .ping, nil, .hangStart(late: .milliseconds(1200), burst: true), nil, nil, nil, nil, nil, nil,
+                .ping, nil, .hangStart(late: .milliseconds(1200), tickGap: .milliseconds(600), burst: true), nil, nil,
+                nil, nil, nil,
+                nil,
             ])
     }
 
@@ -112,7 +126,10 @@ struct HangRuleTests {
         var normal = HangRule(limits: HangLimits())
         var reset = HangRule(limits: HangLimits())
 
-        #expect(ticks(&normal, [0, 250, 5250]) == [.ping, nil, .hangStart(late: .milliseconds(5250), burst: true)])
+        #expect(
+            ticks(&normal, [0, 250, 5250]) == [
+                .ping, nil, .hangStart(late: .milliseconds(5250), tickGap: .milliseconds(5000), burst: true),
+            ])
         #expect(ticks(&reset, [0, 250, 5251]) == [.ping, nil, .ping])
     }
 
@@ -125,20 +142,24 @@ struct HangRuleTests {
 
         #expect(
             hang(&rule, startingAt: 25 * minute, slept: 35 * minute)
-                == .hangStart(late: .milliseconds(1000), burst: true))
+                == .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true))
     }
 
     /// watchdog-hangs C6: a sleep inside a hang counts as `slept`, not as `blocked`.
     @Test func aSleepInsideAHangIsSleptNotBlocked() {
         var rule = HangRule(limits: HangLimits())
 
-        #expect(ticks(&rule, [0, 250, 500, 750, 1000]).last == .hangStart(late: .milliseconds(1000), burst: true))
+        #expect(
+            ticks(&rule, [0, 250, 500, 750, 1000]).last
+                == .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true))
         #expect(
             rule.answered(now: at(awake: 8000, continuous: 9950))
-                == .hangEnd(blocked: .milliseconds(8000), slept: .milliseconds(1950)))
+                == .hangEnd(blocked: .milliseconds(8000), slept: .milliseconds(1950), tickGap: .milliseconds(7000)))
         var awake = HangRule(limits: HangLimits())
         _ = ticks(&awake, [0, 250, 500, 750, 1000])
-        #expect(awake.answered(now: at(8000)) == .hangEnd(blocked: .milliseconds(8000), slept: .zero))
+        #expect(
+            awake.answered(now: at(8000))
+                == .hangEnd(blocked: .milliseconds(8000), slept: .zero, tickGap: .milliseconds(7000)))
     }
 
     /// watchdog-hangs C7: a sleep of 3 s with a ping out gives no hang start and no hang end.
@@ -152,12 +173,44 @@ struct HangRuleTests {
         #expect(rule.answered(now: at(awake: 800, continuous: 3800)) == nil)
     }
 
+    /// watchdog-hangs C9: the start gives the longest gap between two ticks from the ping.
+    @Test func theStartGivesTheLongestTickGap() {
+        var late = HangRule(limits: HangLimits())
+        var even = HangRule(limits: HangLimits())
+
+        #expect(
+            ticks(&late, [0, 250, 1662]) == [
+                .ping, nil, .hangStart(late: .milliseconds(1662), tickGap: .milliseconds(1412), burst: true),
+            ])
+        #expect(
+            ticks(&even, [0, 250, 500, 750, 1000]).last
+                == .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true))
+    }
+
+    /// watchdog-hangs C10: the end gives the longest gap between two ticks of the hang, with the
+    /// answer as the last tick.
+    @Test func theEndGivesTheLongestTickGapUpToTheAnswer() {
+        var stalled = HangRule(limits: HangLimits())
+        var even = HangRule(limits: HangLimits())
+        _ = ticks(&stalled, [0, 250, 500, 750, 1000])
+        _ = ticks(&even, [0, 250, 500, 750, 1000, 1250])
+
+        #expect(
+            stalled.answered(now: at(3950))
+                == .hangEnd(blocked: .milliseconds(3950), slept: .zero, tickGap: .milliseconds(2950)))
+        #expect(
+            even.answered(now: at(1300))
+                == .hangEnd(blocked: .milliseconds(1300), slept: .zero, tickGap: .milliseconds(250)))
+    }
+
     /// watchdog-hangs C4: hangs that start at 0, 10, 20, and 30 min get a burst in the first
     /// three only. A hang 3600 s after the first burst gets a burst; 1 ms earlier it gets only its
     /// start.
     @Test func atMostThreeBurstsInAnHour() {
         let minute = 60_000
-        func start(burst: Bool) -> HangStep { .hangStart(late: .milliseconds(1000), burst: burst) }
+        func start(burst: Bool) -> HangStep {
+            .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: burst)
+        }
         var rule = HangRule(limits: HangLimits())
         var onTheHour = HangRule(limits: HangLimits())
         var beforeTheHour = HangRule(limits: HangLimits())

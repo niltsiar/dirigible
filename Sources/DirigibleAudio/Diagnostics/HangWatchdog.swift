@@ -51,8 +51,13 @@ public final class HangWatchdog: Sendable {
     private static func tick(_ watch: Watch) {
         switch watch.rule.tick(now: .now) {
         case .ping: watch.ping.async { answer(watch) }
-        case .hangStart(let late, let takesBurst):
-            watch.log.note(.hang, "start", ["late_ms": .milliseconds(late / .milliseconds(1))])
+        case .hangStart(let late, let tickGap, let takesBurst):
+            watch.log.note(
+                .hang, "start",
+                [
+                    "late_ms": .milliseconds(late / .milliseconds(1)),
+                    "tick_gap_ms": .milliseconds(tickGap / .milliseconds(1)),
+                ])
             guard takesBurst else { break }
             watch.burstQueue.async(qos: .userInteractive, flags: .enforceQoS) { burst(watch) }
         case .hangEnd, nil: break
@@ -63,12 +68,13 @@ public final class HangWatchdog: Sendable {
     private static func answer(_ watch: Watch) {
         let now = HangInstant.now
         watch.queue.async {
-            guard case .hangEnd(let blocked, let slept) = watch.rule.answered(now: now) else { return }
+            guard case .hangEnd(let blocked, let slept, let tickGap) = watch.rule.answered(now: now) else { return }
             watch.log.note(
                 .hang, "end",
                 [
                     "blocked_ms": .milliseconds(blocked / .milliseconds(1)),
                     "slept_ms": .milliseconds(slept / .milliseconds(1)),
+                    "tick_gap_ms": .milliseconds(tickGap / .milliseconds(1)),
                 ])
         }
     }

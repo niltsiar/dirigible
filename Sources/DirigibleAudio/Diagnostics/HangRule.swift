@@ -29,8 +29,8 @@ struct HangInstant: Equatable, Sendable {
 enum HangStep: Equatable {
     case ping
     /// `burst`: a burst of stacks follows the start line.
-    case hangStart(late: Duration, burst: Bool)
-    case hangEnd(blocked: Duration, slept: Duration)
+    case hangStart(late: Duration, tickGap: Duration, burst: Bool)
+    case hangEnd(blocked: Duration, slept: Duration, tickGap: Duration)
 }
 
 /// The late, sleep, and burst rules of the watchdog, with the instants as input, so a test needs
@@ -41,6 +41,8 @@ struct HangRule {
     /// The send time of the ping with no answer.
     private var sent: HangInstant?
     private var started = false
+    /// The longest awake gap between two ticks since the ping.
+    private var tickGap = Duration.zero
     /// The instants of the bursts in the last `burstHour`, oldest first.
     private var bursts: [ContinuousClock.Instant] = []
     private var stopped = false
@@ -57,12 +59,15 @@ struct HangRule {
         defer { lastTick = now }
         if !started, let lastTick, now.awake - lastTick.awake > limits.sleep {
             sent = now
+            tickGap = .zero
             return .ping
         }
-        guard let sent else {
+        guard let sent, let lastTick else {
             self.sent = now
+            tickGap = .zero
             return .ping
         }
+        tickGap = max(tickGap, now.awake - lastTick.awake)
         let waited = now.awake - sent.awake
         guard !started, waited >= limits.late else { return nil }
         started = true
@@ -70,20 +75,23 @@ struct HangRule {
         bursts.removeAll { now.continuous - $0 >= hour }
         let burst = bursts.count < limits.bursts
         if burst { bursts.append(now.continuous) }
-        return .hangStart(late: waited, burst: burst)
+        return .hangStart(late: waited, tickGap: tickGap, burst: burst)
     }
 
     /// The answer of the ping: `.hangEnd` after a `.hangStart`, else nil. `slept` is the continuous
-    /// time minus the awake time of the hang.
+    /// time minus the awake time of the hang. `tickGap` counts the answer as the last tick; the
+    /// answer of a false start comes before the last tick, so that gap is never under zero.
     mutating func answered(now: HangInstant) -> HangStep? {
-        guard !stopped, let sent else { return nil }
+        guard !stopped, let sent, let lastTick else { return nil }
         defer {
             self.sent = nil
             started = false
         }
         guard started else { return nil }
         let blocked = now.awake - sent.awake
-        return .hangEnd(blocked: blocked, slept: max(.zero, now.continuous - sent.continuous - blocked))
+        return .hangEnd(
+            blocked: blocked, slept: max(.zero, now.continuous - sent.continuous - blocked),
+            tickGap: max(tickGap, now.awake - lastTick.awake))
     }
 
     mutating func stop() { stopped = true }

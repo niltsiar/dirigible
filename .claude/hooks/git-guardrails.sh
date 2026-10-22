@@ -136,13 +136,14 @@ DANGEROUS_PATTERNS=(
 )
 
 # The only allowed change to the hooks path is the one `make setup` makes. A read with no value
-# (`git [-C <dir>] config [get] [--local] [--get] core.hooksPath`, flags in any order) is allowed
-# too, only as a whole command: `xargs git config core.hooksPath` is a write. The key matches in
+# (`git [-C <dir>] config [get] [--local] [--worktree] [--get] [--get-all] [--show-origin]
+# core.hooksPath [2>/dev/null]`, flags in any order) is allowed too, only as a whole command:
+# `xargs git config core.hooksPath` is a write. The key matches in
 # any case. Each command of a chain or a substitution is one line; a line that is not one of the
 # two forms and names the key is a change. A direct write of .git/config is not checked.
 hooks_rest="$(sed -E 's/[Cc][Oo][Rr][Ee]\.[Hh][Oo][Oo][Kk][Ss][Pp][Aa][Tt][Hh]/core.hookspath/g' <<< "$joined" |
   tr -s '\t ' '  ' | awk '{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }' |
-  grep -vE '^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|get))* +core\.hookspath *$' |
+  grep -vE '^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$' |
   grep -vE '^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$')"
 if grep -q 'core\.hookspath' <<< "$hooks_rest"; then
   block "changes core.hooksPath"

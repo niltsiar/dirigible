@@ -180,19 +180,15 @@ package enum TakeWork {
     /// Seconds with three decimals, for example -29.496.
     static func seconds(_ frames: Int, _ sampleRate: Int) -> String {
         let ms = milliseconds(frames, sampleRate)
-        return "\(ms < 0 ? "-" : "")\(abs(ms) / 1000).\(digits(abs(ms) % 1000, 3))"
+        return (ms < 0 ? "-" : "") + String(format: "%d.%03d", abs(ms) / 1000, abs(ms) % 1000)
     }
 
     /// H:MM:SS.mmm, for example 0:21:07.000.
     static func clock(_ frames: Int, _ sampleRate: Int) -> String {
         let ms = milliseconds(frames, sampleRate)
-        let (hours, minutes, rest) = (ms / 3_600_000, ms / 60_000 % 60, ms % 60_000)
-        return
-            "\(ms < 0 ? "-" : "")\(abs(hours)):\(digits(abs(minutes), 2)):\(digits(abs(rest) / 1000, 2)).\(digits(abs(rest) % 1000, 3))"
-    }
-
-    private static func digits(_ value: Int, _ count: Int) -> String {
-        String(repeating: "0", count: max(0, count - String(value).count)) + String(value)
+        let size = abs(ms)
+        return (ms < 0 ? "-" : "")
+            + String(format: "%d:%02d:%02d.%03d", size / 3_600_000, size / 60_000 % 60, size / 1000 % 60, size % 1000)
     }
 
     /// The `info` line of an anchor read fault.

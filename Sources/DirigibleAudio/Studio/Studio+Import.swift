@@ -163,7 +163,7 @@ extension Studio {
                 url = written.package
                 backups = written.backups
                 recordLevel(edited, agent: agent)
-                poolChanged(from: before.files)
+                poolChanged(from: before.files, agent: agent)
                 return .success(value)
             case .failure(let error):
                 return .failure(error)

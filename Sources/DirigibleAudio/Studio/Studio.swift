@@ -33,8 +33,8 @@ import Observation
     public var redoAgent: AgentName? { history.redoAgent }
     /// The backups of the package, newest first (decision 0043). The open and each write turn set it.
     public internal(set) var backups: [Backup]
-    /// The take anchors of the package, or the read fault: from the open and each take outcome (0061).
-    var takeAnchors: Result<[Int: Recording], FinalizeError>
+    /// The take anchors, and the take map and its change of the last revision (decision 0061).
+    var takeSyncState: TakeSyncState
 
     private(set) var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
@@ -180,7 +180,7 @@ import Observation
         self.play = PlayState(at: opened.session.end)
         self.missingMedia = opened.missingMedia
         self.backups = opened.backups
-        self.takeAnchors = opened.takeAnchors
+        self.takeSyncState = TakeSyncState(opened.session, anchors: opened.takeAnchors)
         environment.log = log
     }
 
@@ -211,7 +211,7 @@ import Observation
         let result: Result
         do { result = try history.edit(agent: agent, body) } catch { throw .session(error) }
         if session != before { scheduleSave() }
-        poolChanged(from: before.files)
+        poolChanged(from: before.files, agent: agent)
         return result
     }
 
@@ -235,10 +235,10 @@ import Observation
 
     public func redo() throws(StudioError) {
         try checkIdle()
-        let before = session.files
+        let (before, agent) = (session.files, redoAgent)
         do { try history.redo() } catch { throw .session(error) }
         scheduleSave()
-        poolChanged(from: before)
+        poolChanged(from: before, agent: agent)
     }
 
     /// Ends a running import and export (decisions 0040 and 0019), turns off every Listener,
@@ -338,7 +338,7 @@ import Observation
         notAudioSegments = outcome.notAudioSegments
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let backups = outcome.backups { self.backups = backups }
-        if let anchors = outcome.takeAnchors { takeAnchors = anchors }
+        if let anchors = outcome.takeAnchors { takeSyncState.anchors = anchors }
         if let error = outcome.error { throw error }
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }

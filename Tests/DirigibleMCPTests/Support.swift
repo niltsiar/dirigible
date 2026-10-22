@@ -37,19 +37,20 @@ final class LivePackage {
         try session.write(to: url)
     }
 
-    /// Adds a pending take 1 that arms `t1`, with one 1 s segment. With `Clips/` at mode 0500 for
+    /// Adds a pending take that arms `t1`, with one 1 s segment. With `Clips/` at mode 0500 for
     /// the open, finalize fails, so the take stays pending (as `PendingTakeTests`).
-    func addPendingTake() throws {
+    func addPendingTake(_ take: Int = 1, playhead: Frames = 0) throws {
         var session = try Session(contentsOf: url)
         try session.setRecording(
-            Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: takeStart, armedTracks: ["t1"]))
+            Recording(take: take, playheadFrame: playhead, takeStartHostTimeNanos: takeStart, armedTracks: ["t1"]))
         try session.write(to: url)
         let capture = url.appending(path: "Capture")
         try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
         let header = CaptureHeader(
             deviceUID: "usb-1", deviceName: "USB Mic", nominalRate: 48_000, availableRates: [48_000...48_000],
             channelCount: 1, latency: 48, firstSampleTime: 512, firstHostTimeNanos: takeStart + 10_000_000)
-        let writer = try SegmentWriter(folder: capture, name: SegmentName(take: 1, arm: 1, segment: 1), header: header)
+        let writer = try SegmentWriter(
+            folder: capture, name: SegmentName(take: take, arm: 1, segment: 1), header: header)
         for frame in [0, 47_999] {
             try writer.checkpoint(
                 Checkpoint(
@@ -70,7 +71,7 @@ final class LivePackage {
         chmod(clips.path, 0o500)
         defer { chmod(clips.path, 0o755) }
         let studio = try await Studio.open(url)
-        try #require(studio.pendingTake?.take == 1)
+        try #require(studio.pendingTake != nil)
         return studio
     }
 

@@ -27,20 +27,22 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
     switch work {
     case .edit(let ripple, let edit):
         do throws(EditFailure<SessionError>) {
-            let ids = try editPackageCore(package, ripple: ripple) { session, _ throws(SessionError) -> [String] in
-                try edit(&session)
+            let (ids, note) = try editPackageCore(package, ripple: ripple) { session, _ throws(SessionError) in
+                try TakeWork.noted(&session, package: package, edit)
             }
-            // The new IDs, one on each line, or OK.
-            return ids.isEmpty ? "OK" : ids.joined(separator: "\n")
+            // The new IDs, one on each line, or OK; then the note.
+            return ((ids.isEmpty ? ["OK"] : ids) + note).joined(separator: "\n")
         } catch {
             throw ToolError(error.message(package: path))
         }
     case .paste(let work):
         do throws(EditFailure<PasteError>) {
-            let ids = try editPackageCore(package, ripple: false) { session, lock throws(PasteError) -> [ClipID] in
-                try work.run(&session, lock: lock, package: package)
+            let (ids, note) = try editPackageCore(package, ripple: false) { session, lock throws(PasteError) in
+                try TakeWork.noted(&session, package: package) { session throws(PasteError) in
+                    try work.run(&session, lock: lock, package: package)
+                }
             }
-            return ids.isEmpty ? "OK" : ids.map(\.rawValue).joined(separator: "\n")
+            return ((ids.isEmpty ? ["OK"] : ids.map(\.rawValue)) + note).joined(separator: "\n")
         } catch {
             throw ToolError(error.message(package: path))
         }
@@ -114,10 +116,12 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         }
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
-            try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in
-                try revert(&session, to: backup, under: lock)
+            let note = try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in
+                try TakeWork.noted(&session, package: package) { session throws(RevertError) in
+                    try revert(&session, to: backup, under: lock)
+                }.note
             }
-            return "OK"
+            return (["OK"] + note).joined(separator: "\n")
         } catch {
             throw ToolError(error.message(package: path))
         }

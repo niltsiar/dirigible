@@ -33,17 +33,20 @@ package struct ImportWork: Sendable {
     /// save removes the WAV and writes nothing (decision 0049).
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<ImportError>) {
-            return try editPackageCore(package, ripple: false) { session, lock throws(ImportError) -> ClipID in
-                let imported = try importAudio(
-                    url, to: target, of: session, in: package, level: level, freeBytes: { lock.freeBytes() },
-                    progress: { control.report($0) }, isCancelled: { control.isCancelled() })
-                if control.isCancelled() {
-                    removeMadeFiles([imported.made].compactMap { $0 })
-                    throw .cancelled
+            let (clip, note) = try editPackageCore(package, ripple: false) { session, lock throws(ImportError) in
+                try TakeWork.noted(&session, package: package) { session throws(ImportError) -> ClipID in
+                    let imported = try importAudio(
+                        url, to: target, of: session, in: package, level: level, freeBytes: { lock.freeBytes() },
+                        progress: { control.report($0) }, isCancelled: { control.isCancelled() })
+                    if control.isCancelled() {
+                        removeMadeFiles([imported.made].compactMap { $0 })
+                        throw .cancelled
+                    }
+                    session = imported.session
+                    return imported.clip
                 }
-                session = imported.session
-                return imported.clip
-            }.rawValue
+            }
+            return ([clip.rawValue] + note).joined(separator: "\n")
         } catch {
             let message =
                 switch error {

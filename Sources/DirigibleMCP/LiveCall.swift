@@ -19,8 +19,10 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     do throws(StudioError) {
         switch call.work {
         case .edit(let ripple, let body):
+            let revision = studio.sessionRevision
             let ids = try edit(ripple: ripple, body)
-            return .result(text: ids.isEmpty ? "OK" : ids.joined(separator: "\n"), isError: false)
+            let note = TakeWork.note(studio, after: revision, agent: call.agent)
+            return .result(text: ((ids.isEmpty ? ["OK"] : ids) + note).joined(separator: "\n"), isError: false)
         case .marker(let work):
             if let image = work.image, !image.isEmpty { return refusedOpen }
             let marker: Marker

@@ -197,6 +197,10 @@ public struct AudioFile: Identifiable, Hashable, Sendable {
         self.length = length
         self.capture = capture
     }
+
+    /// A file that finalize made: its capture ID equals its file ID (decision 0061). Only such a
+    /// file has a take time.
+    public var isTakeFile: Bool { capture?.rawValue == id.rawValue }
 }
 
 /// A part of a file on the timeline of a track.

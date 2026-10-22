@@ -16,11 +16,18 @@ public struct TakeSyncChange: Equatable, Sendable {
 /// The take anchors of the studio, and the take map and the change of the last revision.
 struct TakeSyncState {
     /// The take anchors of the package, or the read fault: from the open and each take outcome.
-    var anchors: Result<[Int: Recording], FinalizeError>
+    private(set) var anchors: Result<[Int: Recording], FinalizeError>
     private(set) var map: Result<TakeMap, FinalizeError>
     private(set) var change = TakeSyncChange(revision: 0, agent: nil, changes: [])
 
     init(_ session: Session, anchors: Result<[Int: Recording], FinalizeError>) {
+        self.anchors = anchors
+        map = TakeMap.of(session, anchors: anchors)
+    }
+
+    /// Stores the anchors of a take outcome and makes the map of `session` again, so the map always
+    /// comes from the stored anchors. It records no change and no revision.
+    mutating func store(_ anchors: Result<[Int: Recording], FinalizeError>, session: Session) {
         self.anchors = anchors
         map = TakeMap.of(session, anchors: anchors)
     }

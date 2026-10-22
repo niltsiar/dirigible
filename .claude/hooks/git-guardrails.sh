@@ -207,35 +207,97 @@ fi
 if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
   block "names the slow-run date file (only a passing make test-slow or make test-slow-push writes it)"
 fi
-# reads_only <name>: each simple command that names the file <name> is a read. A \| (an
-# alternation in a grep pattern) does not split the command. Its first word is cat, grep, head,
-# tail, wc, ls, stat, test, [, rg, awk, sort (no -o), sed (with -n and no -i), or git grep; and
-# no redirect path runs up to the name (quotes and a $(...) part are part of the path, and the
-# path stops at `*` and `[`, so a grep whose quoted pattern holds `>` is a read). An allowlist,
-# because a list of write forms missed sed -i, dd of=, and a variable. A path that starts with ../
-# or / and has no .git in it is a folder of that name (a worktree), not the file.
+# mask_quoted_pipes <text>: print the text with each | inside single quotes as \003, so a quoted
+# alternation (grep -E 'a|b') does not split a command. A single line with balanced quotes only; a
+# substitution, $'..', and a new line keep the text as it is (the safe side: more splits).
+mask_quoted_pipes() {
+  if [[ "$1" != *\'* || "$1" != *'|'* || "$1" == *$'\n'* || "$1" == *'$('* || "$1" == *'`'* ||
+    "$1" == *'<('* || "$1" == *'>('* || "$1" == *"\$'"* ]]; then
+    printf '%s\n' "$1"
+    return
+  fi
+  awk '{
+    s = $0; n = length(s); out = ""; q = ""
+    for (i = 1; i <= n; i++) {
+      c = substr(s, i, 1)
+      if (c == "\\" && q != "s") { out = out c substr(s, i + 1, 1); i++; continue }
+      if (q == "") { if (c == "\047") q = "s"; else if (c == "\"") q = "d" }
+      else if (q == "s") { if (c == "\047") q = ""; else if (c == "|") c = "\003" }
+      else if (c == "\"") q = ""
+      out = out c
+    }
+    print (q == "" ? out : s)
+  }' <<< "$1"
+}
+# reads_only <name>: a command that names the file <name> must hold only reads. When no segment
+# names <name>, the command is none of its business. Else each segment of the whole command (split
+# on && || ; | a lone & and a new line; a \| or a quoted | does not split) is one of:
+#   - the allowed assignment: one word NAME=VALUE, VALUE a path that holds <name>, with at most one
+#     $(git rev-parse ...) and no other substitution, backtick, quote, ; & | < >;
+#   - a `for X in ...` head, `do` (with or without a command after it), or `done`;
+#   - a segment that names <name>: its first word is cat, grep, head, tail, wc, ls, stat, test, [,
+#     rg, awk, sort (no -o), sed (with -n and no -i), or git grep, and no redirect path runs up to
+#     the name (quotes and a $(...) part are part of the path, and the path stops at `*` and `[`);
+#   - a segment that does not name <name>: its first word is cat, ls, echo, test, [, wc, grep, head,
+#     tail, or cut, and it has no < or > except 2>/dev/null and 2>&1.
+# A substitution other than $(git rev-parse ...), $(cat ...), and $(ls ...), a backtick, <(, and >(
+# block. An allowlist, because a list of write forms missed sed -i, dd of=, a variable, and a pipe
+# into xargs. A path that starts with ../ or / and has no .git in it is a folder of that name (a
+# worktree), not the file. The read tools awk, sed, rg, sort, and git grep can run a program.
 reads_only() {
-  local line token first second named redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
+  local name="$1" line first second token named any=0 i rest sep=$'\002' bar=$'\003'
+  local redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
+  local value="[\"']?(\\\$\\(git rev-parse [^()\`<>&;|]*\\))?[^][:space:]()\`\$<>&;|\"']*$1[^][:space:]()\`\$<>&;|\"']*[\"']?"
+  local -a segs=() kinds=()
   while IFS= read -r line; do
+    line="${line//$sep/&}"
+    line="${line//$bar/|}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" ]] && segs+=("$line")
+  done < <(sed -E "s/\\\\\\|/ /g; s/&>/${sep}>/g; s/>&/>${sep}/g" <<< "$MASKED" | awk '{ gsub(/&&|\|\||;|\||&/, "\n"); print }')
+  for line in "${segs[@]}"; do
     named=0
     while IFS= read -r token; do
       token="${token#[\"\']}"
       [[ -n "$token" && "$token" =~ ^(\.\./|/) && "$token" != *.git* ]] || named=1
-    done < <(grep -oE "[^[:space:]]*$1([^A-Za-z0-9_.-]|\$)" <<< "$line")
-    [[ $named -eq 1 ]] || continue
+    done < <(grep -oE "[^[:space:]]*$name([^A-Za-z0-9_.-]|\$)" <<< "$line")
+    kinds+=("$named")
+    any=$((any + named))
+  done
+  [[ $any -eq 0 ]] && return 0
+  for i in "${!segs[@]}"; do
+    line="${segs[$i]}" named="${kinds[$i]}"
+    rest="$(sed -E 's/\$\((git rev-parse|cat|ls) [^()`<>]*\)//g' <<< "$line")"
+    [[ "$rest" == *'$('* || "$rest" == *'`'* || "$rest" == *'<('* || "$rest" == *'>('* ]] && return 1
+    [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*=$value$ ]] && continue
+    [[ "$line" =~ ^for\ [A-Za-z_][A-Za-z0-9_]*\ in\  ]] && continue
+    [[ "$line" == done || "$line" == do ]] && continue
+    [[ "$line" == "do "* ]] && line="${line#do }"
     read -r first second _ <<< "$line"
-    case "$first" in
-      cat | grep | head | tail | wc | ls | stat | test | '[' | rg | awk) ;;
-      sort) grep -qE '(^|[[:space:]])-[a-zA-Z]*o' <<< "$line" && return 1 ;;
-      sed) grep -qE '(^|[[:space:]])-[a-zA-Z]*i' <<< "$line" && return 1
-        grep -qE '(^|[[:space:]])-[a-zA-Z]*n' <<< "$line" || return 1 ;;
-      git) [[ "$second" == grep ]] || return 1 ;;
-      *) return 1 ;;
-    esac
-    grep -qE "$redirect" <<< "$line" && return 1
-  done < <(sed -E 's/\\\|/ /g' <<< "$UNSPLIT" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
+    if [[ $named -eq 1 ]]; then
+      case "$first" in
+        cat | grep | head | tail | wc | ls | stat | test | '[' | rg | awk) ;;
+        sort) grep -qE '(^|[[:space:]])-[a-zA-Z]*o' <<< "$line" && return 1 ;;
+        sed) grep -qE '(^|[[:space:]])-[a-zA-Z]*i' <<< "$line" && return 1
+          grep -qE '(^|[[:space:]])-[a-zA-Z]*n' <<< "$line" || return 1 ;;
+        git) [[ "$second" == grep ]] || return 1 ;;
+        *) return 1 ;;
+      esac
+      grep -qE "$redirect" <<< "$line" && return 1
+    else
+      case "$first" in
+        cat | ls | echo | test | '[' | wc | grep | head | tail | cut) ;;
+        *) return 1 ;;
+      esac
+      rest="${line//2>\/dev\/null/}"
+      rest="${rest//2>&1/}"
+      [[ "$rest" == *[\<\>]* ]] && return 1
+    fi
+  done
   return 0
 }
+MASKED="$(mask_quoted_pipes "$UNSPLIT")"
 # Only scripts/run-checks.sh appends to dirigible-flakes, and only scripts/land.sh removes its
 # lines after it writes their flake rows, so a direct change cannot erase a flake row. A read is
 # allowed.

@@ -261,9 +261,33 @@ write_forms=(
   'dd if=/dev/null of=@P@' 'sort -o @P@ x' "awk '{ print > \"@P@\" }' x" 'f=@P@; : > "$f"'
   "python3 -c 'open(\"@P@\", \"w\")'"
 )
+# A command that names a guarded path must hold only reads: a variable or a pipe must not carry
+# the path to a segment that writes or runs a program.
+write_forms+=(
+  'f=@P@; rmdir "$f"' 'f=@P@; mkdir "$f"' 'f=@P@; rm -rf "$f"' 'f=@P@; mv "$f" /tmp/x'
+  'f=@P@; g=$f; rm "$g"' 'f=@P@; for x in "$f"/*; do rm "$x"; done'
+  'f=@P@; for x in "$f"/*; do echo y > "$x"; done' "f=@P@ bash -c 'rmdir \"\$f\"'"
+  'f=$(rm -rf @P@); echo "$f"' "f=@P@; printf '%s\n' \"\$f\" | xargs rmdir"
+  'ls -d @P@ | xargs rmdir' 'cat @P@/pid | xargs kill' 'ls @P@ & rmdir @P@'
+  'cat $(rmdir @P@)/x' 'cat `rmdir @P@`/x'
+  'f=@P@; for x in "$f"/*; do echo "$x"; done; rmdir "$x"' 'f=@P@; X=f; rmdir "${!X}"'
+  "f=@P@; export f; python3 -c 'import os; os.rmdir(os.environ[\"f\"])'"
+  "f=@P@; declare -x f; python3 -c 'import os; os.rmdir(os.environ[\"f\"])'"
+  'ls @P@ && make test'
+)
+read_forms=(
+  'ls @P@ | wc -l' 'cat @P@/* | grep pid' 'ls @P@ 2>/dev/null | head -3' 'ls @P@ 2>&1 | tail -2'
+  'cat @P@ && echo ok' 'f=@P@; [ -d "$f" ] && echo present || echo absent'
+  'f=@P@; test -d "$f" && cat "$f"/pid' 'for x in @P@/*; do cat "$x"; done'
+  'f=@P@; for x in "$f"/*; do echo "$x: $(cat $x)"; done'
+)
 expect_each_write() {
   local form
   for form in "${write_forms[@]}"; do expect block "${form//@P@/$1}"; done
+}
+expect_each_read() {
+  local form
+  for form in "${read_forms[@]}"; do expect allow "${form//@P@/$1}"; done
 }
 
 # Only run-checks.sh appends to the flakes file and only land.sh removes its lines, so a flake row
@@ -342,6 +366,17 @@ expect block 'rm .git/dirigible-hooks-stamp'
 expect block "sed -i '' 1d .git/dirigible-hooks-stamp"
 expect allow 'cat .git/dirigible-hooks-stamp'
 expect allow 'grep -c . "$(git rev-parse --git-common-dir)/dirigible-hooks-stamp"'
+# Each guarded path allows the read forms of one shared list.
+for guarded in .git/dirigible-flakes .git/dirigible-check-partial .git/dirigible-check-running/5 \
+  .git/dirigible-build.lock .git/dirigible-screen .git/dirigible-hooks-stamp; do
+  expect_each_read "$guarded"
+done
+# A loop over the lock files, a test of the lock, and a quoted pattern with a pipe are reads.
+expect allow 'L=.git/dirigible-build.lock; [ -d "$L" ]'
+expect allow 'L=.git/dirigible-build.lock; test -d "$L" && cat "$L"/pid'
+expect allow 'L=$(git rev-parse --git-common-dir)/dirigible-build.lock; for f in "$L"/*; do echo "$f: $(cat $f)"; done'
+expect allow 'for f in .git/dirigible-build.lock/*; do cat "$f"; done'
+expect allow $'wc -l .claude/hooks/git-guardrails.sh .claude/hooks/git-guardrails.test.sh; rg -n -i \'heredoc|here-doc|<<|LOCKED_SCRIPT|hooksPath|reads_only|dirigible-build.lock|tccutil|screencapture|\\-F|--file|\\.index\\(|flakes|pass-stamp|commit-after|log-decision\' .claude/hooks/git-guardrails.sh | cut -c1-220'
 # A hand-set reuse value would run a build beside the holder of the lock.
 expect block 'DIRIGIBLE_BUILD_LOCK=123 scripts/with-lock.sh make test'
 expect block 'DIRIGIBLE_LOCKED_SCRIPT=scripts/bench.sh scripts/bench.sh X'

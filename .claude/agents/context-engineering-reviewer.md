@@ -1,6 +1,6 @@
 ---
 name: context-engineering-reviewer
-description: Context-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks load cost, budgets, disclosure, pointers, duplication, and sprawl. Use in the doc panel of a docs change.
+description: Context-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks load cost, budgets, disclosure, pointers, duplication, and sprawl. Use as a doc lens of a docs change.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: medium

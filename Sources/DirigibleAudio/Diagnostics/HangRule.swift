@@ -6,12 +6,11 @@ struct HangLimits: Sendable {
     /// loaded Mac delays a tick by less, so a block under load still gets its start line. Tests
     /// set it past their run.
     var sleep = Duration.seconds(5)
-    /// A ping with no answer for this long writes `hang start`.
+    /// A ping with no answer for this long writes `hang start` and starts the burst of stacks.
     var late = Duration.seconds(1)
-    /// A ping with no answer for this long starts the burst of stacks.
-    var stacks = Duration.seconds(2)
-    /// The bursts of one launch.
+    /// The bursts in any `burstHour`.
     var bursts = 3
+    var burstHour = Duration.seconds(3600)
     /// The stacks of one burst, and the pause before each stack after the first.
     var burstStacks = 10
     var burstPause = Duration.milliseconds(100)
@@ -20,9 +19,9 @@ struct HangLimits: Sendable {
 /// What the watchdog does after a tick or an answer.
 enum HangStep: Equatable {
     case ping
-    case hangStart(late: Duration)
+    /// `burst`: a burst of stacks follows the start line.
+    case hangStart(late: Duration, burst: Bool)
     case hangEnd(blocked: Duration)
-    case burst
 }
 
 /// The late, sleep, and burst rules of the watchdog, with the instants as input, so a test needs
@@ -33,16 +32,16 @@ struct HangRule {
     /// The send time of the ping with no answer.
     private var sent: ContinuousClock.Instant?
     private var started = false
-    private var burstDone = false
-    private var bursts = 0
+    /// The instants of the bursts in the last `burstHour`, oldest first.
+    private var bursts: [ContinuousClock.Instant] = []
     private var stopped = false
 
     init(limits: HangLimits) { self.limits = limits }
 
-    /// `.ping` with no ping out; `.hangStart` once when the ping is late; `.burst` once when the
-    /// ping waits past the stack limit. A tick more than `sleep` after the last tick comes after
-    /// a sleep or a suspended process: before a hang start it sends a new ping and writes no
-    /// line. After a hang start it keeps the ping, so one hang has one start and one burst.
+    /// `.ping` with no ping out; `.hangStart` once when the ping is late, with a burst when fewer
+    /// than `bursts` bursts came in the last `burstHour`. A tick more than `sleep` after the last
+    /// tick comes after a sleep or a suspended process: before a hang start it sends a new ping and
+    /// writes no line. After a hang start it keeps the ping, so one hang has one start and one burst.
     mutating func tick(now: ContinuousClock.Instant) -> HangStep? {
         guard !stopped else { return nil }
         defer { lastTick = now }
@@ -55,15 +54,13 @@ struct HangRule {
             return .ping
         }
         let waited = now - sent
-        if !started {
-            guard waited >= limits.late else { return nil }
-            started = true
-            return .hangStart(late: waited)
-        }
-        guard !burstDone, bursts < limits.bursts, waited >= limits.stacks else { return nil }
-        burstDone = true
-        bursts += 1
-        return .burst
+        guard !started, waited >= limits.late else { return nil }
+        started = true
+        let hour = limits.burstHour
+        bursts.removeAll { now - $0 >= hour }
+        let burst = bursts.count < limits.bursts
+        if burst { bursts.append(now) }
+        return .hangStart(late: waited, burst: burst)
     }
 
     /// The answer of the ping: `.hangEnd` after a `.hangStart`, else nil.
@@ -72,7 +69,6 @@ struct HangRule {
         defer {
             self.sent = nil
             started = false
-            burstDone = false
         }
         return started ? .hangEnd(blocked: now - sent) : nil
     }

@@ -46,6 +46,45 @@ import os
         #expect(!(names.fields["images"] ?? "").contains(NSHomeDirectory()), "images: \(names.fields["images"] ?? "")")
     }
 
+    /// watchdog-hangs C14: the first walk comes before the images line, and the file keeps the
+    /// order images, 10 stacks, names. The images step lets the blocked thread go and waits until
+    /// it left the blocking function, so a walk after the images step finds an idle thread.
+    @Test func theFirstWalkComesBeforeTheImagesLine() async throws {
+        let log = startLog(in: folder.url)
+        let queue = DispatchQueue(label: "HangWatchdogTests.blocked")
+        let gate = Gate(limit: nil)
+        let left = Gate(limit: .seconds(20))
+        let thread = await blockedThread(queue, gate)
+        queue.async { left.open() }
+        let watchdog = HangWatchdog.start(
+            log: log, ping: queue, thread: thread, limits: .fast, namer: dladdrName,
+            images: {
+                gate.open()
+                left.waitOnce()
+                return [("count", .number(0))]
+            })
+        defer {
+            gate.open()
+            left.open()
+            watchdog.stop()
+        }
+
+        await until(limit: .seconds(20), "names lines for the 10 stacks and a hang end line") {
+            let lines = hangLines(log, in: folder.url)
+            let named = lines.filter { $0.event == "names" }.flatMap { $0.list("stacks") }
+            return named.count == 10 && lines.contains { $0.event == "end" }
+        }
+
+        let lines = hangLines(log, in: folder.url)
+        let burst = lines.map(\.event).filter { $0 != "start" && $0 != "end" }
+        let order = ["images"] + [String](repeating: "stack", count: 10)
+        #expect(Array(burst.prefix(11)) == order && burst.dropFirst(11).allSatisfy { $0 == "names" }, "lines: \(burst)")
+        let first = try #require(lines.first { $0.event == "names" && $0.list("stacks").contains("1") })
+        #expect(
+            first.list("names", by: "|").contains { $0.contains("blockInsideTheTestFunction") },
+            "stack 1: \(first.fields["names"] ?? "")")
+    }
+
     /// C47: a namer that blocks (a main thread in dyld) still finds the raw stacks in the file.
     @Test func theRawStacksComeBeforeTheNames() async throws {
         let log = startLog(in: folder.url)
@@ -80,7 +119,7 @@ import os
         defer { gate.open() }
         let thread = await blockedThread(queue, gate)
         let limits = HangLimits(
-            interval: .milliseconds(50), sleep: .seconds(600), late: .milliseconds(200), stacks: .seconds(600))
+            interval: .milliseconds(50), sleep: .seconds(600), late: .milliseconds(200), bursts: 0)
         let watchdog = HangWatchdog.start(log: log, ping: queue, thread: thread, limits: limits, namer: dladdrName)
         await until(limit: .seconds(20), "a hang start line") {
             hangLines(log, in: folder.url).contains { $0.event == "start" }
@@ -142,8 +181,8 @@ import os
     @Test func aBlockedMainThreadWritesItsStack() async throws {
         let log = startLog(in: folder.url)
         let limits = HangLimits(
-            interval: .milliseconds(20), sleep: .seconds(600), late: .milliseconds(100), stacks: .milliseconds(150),
-            burstStacks: 3, burstPause: .milliseconds(10))
+            interval: .milliseconds(20), sleep: .seconds(600), late: .milliseconds(100), burstStacks: 3,
+            burstPause: .milliseconds(10))
         let watchdog = HangWatchdog.start(
             log: log, ping: .main, thread: ms_thread_current(), limits: limits, namer: dladdrName)
         defer { watchdog.stop() }
@@ -163,10 +202,10 @@ import os
 }
 
 extension HangLimits {
-    /// A burst of 10 stacks 10 ms apart, 200 ms after the ping. No tick of a loaded test is a sleep.
+    /// A burst of 10 stacks 10 ms apart at the hang start, 100 ms after the ping. No tick of a
+    /// loaded test is a sleep.
     static let fast = HangLimits(
-        interval: .milliseconds(20), sleep: .seconds(600), late: .milliseconds(100), stacks: .milliseconds(200),
-        burstPause: .milliseconds(10))
+        interval: .milliseconds(20), sleep: .seconds(600), late: .milliseconds(100), burstPause: .milliseconds(10))
 }
 
 /// The events of a burst of 10 stacks before its names, after the start line.

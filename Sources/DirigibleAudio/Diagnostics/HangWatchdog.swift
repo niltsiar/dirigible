@@ -25,10 +25,11 @@ public final class HangWatchdog: Sendable {
     /// so no closure takes the isolation of a caller (0013 Callbacks).
     static func start(
         log: DiagnosticLog, ping: DispatchQueue, thread: ms_thread, limits: HangLimits,
-        namer: @escaping @Sendable (UInt) -> FrameName
+        namer: @escaping @Sendable (UInt) -> FrameName,
+        images: @escaping @Sendable () -> [(key: String, value: DiagnosticValue)] = imageFields
     ) -> HangWatchdog {
         ms_images_start()
-        let watch = Watch(log: log, ping: ping, thread: thread, limits: limits, namer: namer)
+        let watch = Watch(log: log, ping: ping, thread: thread, limits: limits, namer: namer, images: images)
         let nanos = Int(limits.interval / .nanoseconds(1))
         watch.timer.schedule(deadline: .now(), repeating: .nanoseconds(nanos), leeway: .nanoseconds(nanos / 10))
         watch.timer.setEventHandler { tick(watch) }
@@ -50,8 +51,10 @@ public final class HangWatchdog: Sendable {
     private static func tick(_ watch: Watch) {
         switch watch.rule.tick(now: .now) {
         case .ping: watch.ping.async { answer(watch) }
-        case .hangStart(let late): watch.log.note(.hang, "start", ["late_ms": .milliseconds(late / .milliseconds(1))])
-        case .burst: watch.burstQueue.async(qos: .userInteractive, flags: .enforceQoS) { burst(watch) }
+        case .hangStart(let late, let takesBurst):
+            watch.log.note(.hang, "start", ["late_ms": .milliseconds(late / .milliseconds(1))])
+            guard takesBurst else { break }
+            watch.burstQueue.async(qos: .userInteractive, flags: .enforceQoS) { burst(watch) }
         case .hangEnd, nil: break
         }
     }
@@ -65,21 +68,25 @@ public final class HangWatchdog: Sendable {
         }
     }
 
-    /// The images line, then the raw stacks, then the names. A thread that holds the dyld lock
-    /// blocks `dladdr`, so no dyld call runs before the last stack line. The walks run on a
-    /// user-interactive queue, so the suspend stays short when each core is busy (probe Q4c).
+    /// The images line, then the raw stacks, then the names. The first walk comes before the
+    /// images line, so a hang that ends while that line is written still gives one stack of the
+    /// block. A thread that holds the dyld lock blocks `dladdr`, so no dyld call runs before the
+    /// last stack line. The walks run on a user-interactive queue, so the suspend stays short when
+    /// each core is busy (probe Q4c).
     private static func burst(_ watch: Watch) {
         guard !watch.isStopped else { return }
-        watch.log.note(.hang, "images", fields: imageFields())
         let capacity = 128
         let frames = UnsafeMutablePointer<UInt>.allocate(capacity: capacity)
         defer { frames.deallocate() }
         var stacks: [[UInt]] = []
         for number in 1...watch.limits.burstStacks {
-            if number > 1 { _ = watch.wake.wait(timeout: .now() + watch.limits.burstPause / .seconds(1)) }
-            guard !watch.isStopped else { return }
+            if number > 1 {
+                _ = watch.wake.wait(timeout: .now() + watch.limits.burstPause / .seconds(1))
+                guard !watch.isStopped else { return }
+            }
             let walk = ms_walk(watch.thread, frames, Int32(capacity))
             let stack = Array(UnsafeBufferPointer(start: frames, count: Int(walk.count)))
+            if number == 1 { watch.log.note(.hang, "images", fields: watch.images()) }
             stacks.append(stack)
             var fields: [(key: String, value: DiagnosticValue)] = [
                 ("n", .number(Int64(number))), ("suspend_us", .text(String(format: "%.1f", microseconds(walk)))),
@@ -145,6 +152,7 @@ private final class Watch: @unchecked Sendable {
     let thread: ms_thread
     let limits: HangLimits
     let namer: @Sendable (UInt) -> FrameName
+    let images: @Sendable () -> [(key: String, value: DiagnosticValue)]
     /// User-interactive, so a loaded Mac delays the ticks less.
     let queue = DispatchQueue(label: "Dirigible.Watchdog", qos: .userInteractive)
     let burstQueue = DispatchQueue(label: "Dirigible.Watchdog.burst", qos: .userInteractive)
@@ -158,13 +166,15 @@ private final class Watch: @unchecked Sendable {
 
     init(
         log: DiagnosticLog, ping: DispatchQueue, thread: ms_thread, limits: HangLimits,
-        namer: @escaping @Sendable (UInt) -> FrameName
+        namer: @escaping @Sendable (UInt) -> FrameName,
+        images: @escaping @Sendable () -> [(key: String, value: DiagnosticValue)]
     ) {
         self.log = log
         self.ping = ping
         self.thread = thread
         self.limits = limits
         self.namer = namer
+        self.images = images
         rule = HangRule(limits: limits)
         timer = DispatchSource.makeTimerSource(queue: queue)
     }

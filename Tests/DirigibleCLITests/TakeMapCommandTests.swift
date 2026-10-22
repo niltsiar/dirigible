@@ -259,7 +259,7 @@ struct TakeMapCommandTests {
             info.status == 0
                 && lines == [
                     "sync take 4 in sync, offset 0.000 s (0 frames)",
-                    "sync anchor unreadable: Capture/take2.anchor (errno 13)",
+                    "sync anchor file unreadable: Capture/take2.anchor (errno 13)",
                 ], "\(info)")
     }
 

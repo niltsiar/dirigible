@@ -213,8 +213,9 @@ package enum TakeWork {
             + String(format: "%d:%02d:%02d.%03d", size / 3_600_000, size / 60_000 % 60, size / 1000 % 60, size % 1000)
     }
 
-    /// The `info` line of an anchor read fault.
+    /// The `info` line of an anchor read fault: of the `Capture` folder, or of one anchor file.
     package static func faultLine(_ error: FinalizeError) -> String {
-        "sync anchor unreadable: \(error.fault.file) (errno \(error.fault.errno))"
+        let thing = error.fault.file == captureFolderName ? "folder" : "anchor file"
+        return "sync \(thing) unreadable: \(error.fault.file) (errno \(error.fault.errno))"
     }
 }

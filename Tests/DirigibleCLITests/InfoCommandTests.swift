@@ -349,13 +349,23 @@ struct SessionViewTests {
         #expect(
             try await syncLines(package) == [
                 "sync take 1 in sync, offset 0.000 s (0 frames)",
-                "sync anchor unreadable: Capture/take2.anchor (errno 13)",
+                "sync anchor file unreadable: Capture/take2.anchor (errno 13)",
             ])
         let fault = SyncView(
             takeSync: [.init(take: 1, state: "inSync", offset: 0, from: nil, shifts: nil)],
             takeSyncFault: .init(file: "Capture/take2.anchor", errno: EACCES))
         #expect(try await json(package) == fault)
         #expect(try await json(package, "--compact") == fault)
+    }
+
+    /// A `Capture/` that does not read keeps every take out, and its line names a folder.
+    @Test func aCaptureFolderFaultLineNamesTheFolder() async throws {
+        let package = try TakeMapCommandTests.twoTakes()
+        let capture = package.url.appending(path: "Capture")
+        chmod(capture.path, 0o000)
+        defer { chmod(capture.path, 0o755) }
+
+        #expect(try await syncLines(package) == ["sync folder unreadable: Capture (errno 13)"])
     }
 
     /// No take file, so no sync key and no line, also with an unreadable `Capture/`.

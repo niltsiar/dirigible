@@ -104,14 +104,16 @@ struct SegmentFinalize {
         else { return .failure(.badAudio) }
         let (length, gain) = converted
 
+        let id = name.stem
+        let capture = Capture(
+            id: CaptureID(id), deviceUID: header.deviceUID, deviceName: header.deviceName,
+            hostTimeNanos: header.firstHostTimeNanos, sampleTime: header.firstSampleTime,
+            nominalSampleRate: choice.nominal, measuredSampleRate: choice.measured, latency: header.latency,
+            resampledFromRate: choice.source == rate ? nil : choice.source, driftCorrected: choice.driftCorrected)
         let anchor: Int
         switch target {
         case .aligned(let recording, _):
-            let latency = (Double(header.latency) * rate / choice.nominal).rounded()
-            let hostOffset =
-                (Double(nanos(from: recording.takeStartHostTimeNanos, to: header.firstHostTimeNanos)) * rate / 1e9)
-                .rounded()
-            guard let aligned = Int(exactly: Double(recording.playheadFrame.count) + hostOffset - latency) else {
+            guard let aligned = capture.alignedStart(in: recording, sampleRate: session.sampleRate) else {
                 return .failure(.badAudio)
             }
             anchor = aligned
@@ -122,16 +124,9 @@ struct SegmentFinalize {
         let offset = max(0, -anchor)
         guard length > offset else { return .failure(.beforeTimeline) }
 
-        let id = name.stem
         var copy = session
         do throws(SessionError) {
-            try copy.addCapture(
-                Capture(
-                    id: CaptureID(id), deviceUID: header.deviceUID, deviceName: header.deviceName,
-                    hostTimeNanos: header.firstHostTimeNanos, sampleTime: header.firstSampleTime,
-                    nominalSampleRate: choice.nominal, measuredSampleRate: choice.measured, latency: header.latency,
-                    resampledFromRate: choice.source == rate ? nil : choice.source,
-                    driftCorrected: choice.driftCorrected))
+            try copy.addCapture(capture)
             try copy.addFile(
                 AudioFile(
                     id: FileID(id), path: "\(id).wav", layout: ChannelLayout(channelCount: header.channelCount)!,

@@ -1,3 +1,4 @@
+import DirigibleCore
 import Foundation
 
 /// The clock state of one open segment, and the break rules of decision 0004.

@@ -95,3 +95,42 @@ enum TakeAnchor {
         }
     }
 }
+
+/// The take anchors of a package, for the take map (decision 0061).
+public enum TakeAnchors {
+    /// The `Recording` of each `Capture/take<n>.anchor`, by take. A missing `Capture/`, a missing
+    /// anchor, a newer anchor, and an anchor that the reader refuses give no entry. Another errno
+    /// on `Capture/` or on an anchor throws `.readFailed`, so an I/O fault never reads as no take
+    /// time.
+    public static func read(_ package: URL) throws(FinalizeError) -> [Int: Recording] {
+        let folder = package.appending(path: captureFolderName)
+        if let code = openErrno(folder.path) {
+            if code == ENOENT { return [:] }
+            throw .readFailed(file: captureFolderName, errno: code)
+        }
+        let names: [String]
+        do {
+            names = try FileManager.default.contentsOfDirectory(atPath: folder.path)
+        } catch {
+            throw .readFailed(file: captureFolderName, errno: posixCode(of: error) ?? EIO)
+        }
+        var anchors: [Int: Recording] = [:]
+        for name in names {
+            guard let match = name.wholeMatch(of: /take([1-9][0-9]{0,8})\.anchor/), let take = Int(match.1) else {
+                continue
+            }
+            if case .success(let recording) = try TakeAnchor.read(take: take, in: package) { anchors[take] = recording }
+        }
+        return anchors
+    }
+}
+
+/// The anchor in `anchors` of the take of each capture of `session`, by the take number of the
+/// capture ID (decision 0012). A capture whose take has no anchor gets no entry.
+public func takeRecordings(_ session: Session, anchors: [Int: Recording]) -> [CaptureID: Recording] {
+    var recordings: [CaptureID: Recording] = [:]
+    for id in session.captures.keys {
+        if let take = SegmentName(id: id.rawValue)?.take, let recording = anchors[take] { recordings[id] = recording }
+    }
+    return recordings
+}

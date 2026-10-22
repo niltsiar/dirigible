@@ -18,6 +18,14 @@
 "menu.track.rename" = "Renomear Pista";
 "menu.track.mute" = "Silenciar Pista";
 "menu.track.solo" = "Ativar Solo da Pista";
+"menu.track.role" = "Função";
+"track.role.none" = "Nenhuma";
+"track.role.dialogue" = "Diálogo";
+"track.role.music" = "Música";
+"track.role.effects" = "Efeitos";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Aumentar Volume da Pista";
 "menu.track.volume.down" = "Diminuir Volume da Pista";
 "menu.track.volume.reset" = "Redefinir Volume da Pista";

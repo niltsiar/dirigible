@@ -82,6 +82,8 @@ private let hostChannels = Param<Route.Channels?>.optional(
 private let guestApp = Param<String?>.optional(
     "app", "The bundle ID of the app of Guest, for example us.zoom.xos.", .string)
 private let trackIDs = Param.required("tracks", "The track IDs.", .strings(minItems: 1))
+private let trackRole = Param<Track.Role?>.required(
+    "role", "dialogue, music, effects, or none. none removes the role.", .choice(EditRules.roleWords, EditRules.role))
 
 let trackTools = [
     Tool("track_add", "Add a track and give its ID.", [Arg.name, Arg.layout, trackID]) { a throws(ToolError) in
@@ -173,6 +175,14 @@ let trackTools = [
         let (tracks, off) = (try a[trackIDs].map { TrackID($0) }, try a[Arg.off])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.setSoloed(!off, tracks: tracks)
+            return []
+        }
+    },
+    Tool("track_role", "Set the role of a track: dialogue, music, effects, or none.", [Arg.track, trackRole]) {
+        a throws(ToolError) in
+        let (track, role) = (TrackID(try a[Arg.track]), try a[trackRole])
+        return .edit(ripple: false) { session throws(SessionError) in
+            try session.setRole(role, tracks: [track])
             return []
         }
     },

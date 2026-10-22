@@ -5,6 +5,15 @@ import Foundation
 /// its MCP tool both call it, and each writes its own text (`--from` or `from`). Each rule gives
 /// the checked value, or nil when the arguments break it.
 package enum EditRules {
+    /// The words of `track role` and `track_role`: a role, or `none` to remove the role.
+    package static let roleWords = Track.Role.allCases.map(\.rawValue) + ["none"]
+
+    /// The role of a word of `roleWords`: `.some(nil)` for `none`, nil for a word that is not in it.
+    package static func role(_ word: String) -> Track.Role?? {
+        if word == "none" { return .some(nil) }
+        return Track.Role(rawValue: word).map { .some($0) }
+    }
+
     /// The Host device of `track add-call`: a device with one channel, or no device.
     package enum HostDevice {
         case none

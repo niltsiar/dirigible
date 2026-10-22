@@ -18,6 +18,14 @@
 "menu.track.rename" = "Renombrar pista";
 "menu.track.mute" = "Silenciar pista";
 "menu.track.solo" = "Solo de pista";
+"menu.track.role" = "Función";
+"track.role.none" = "Ninguna";
+"track.role.dialogue" = "Diálogo";
+"track.role.music" = "Música";
+"track.role.effects" = "Efectos";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Subir volumen de pista";
 "menu.track.volume.down" = "Bajar volumen de pista";
 "menu.track.volume.reset" = "Restablecer volumen de pista";

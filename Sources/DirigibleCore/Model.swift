@@ -297,6 +297,14 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// Mute and solo (decision 0039). `Session.heardTracks(in:)` owns the rule.
     public internal(set) var isMuted = false
     public internal(set) var isSoloed = false
+    /// The header strip and the default track lists of a duck (decision 0060). No role changes the
+    /// sound.
+    public internal(set) var role: Role?
+
+    /// The raw value is the word of `session.xml`, the CLI, and the tools.
+    public enum Role: String, CaseIterable, Sendable {
+        case dialogue, music, effects
+    }
 
     init(id: TrackID, name: String, layout: ChannelLayout) {
         self.id = id

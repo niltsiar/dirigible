@@ -18,6 +18,14 @@
 "menu.track.rename" = "Renommer la piste";
 "menu.track.mute" = "Couper le son de la piste";
 "menu.track.solo" = "Mettre la piste en solo";
+"menu.track.role" = "Rôle";
+"track.role.none" = "Aucun";
+"track.role.dialogue" = "Dialogue";
+"track.role.music" = "Musique";
+"track.role.effects" = "Effets";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Monter le volume de la piste";
 "menu.track.volume.down" = "Baisser le volume de la piste";
 "menu.track.volume.reset" = "Réinitialiser le volume de la piste";

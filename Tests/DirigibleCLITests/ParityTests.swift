@@ -23,6 +23,7 @@ struct ParityTests {
         "setLayout": ["track layout"],
         "setMuted": ["track mute"],
         "setSoloed": ["track solo"],
+        "setRole": ["track role"],
         "setMarker": ["marker set"],
         "removeMarker": ["marker remove"],
         "setEpisode": ["episode set"],

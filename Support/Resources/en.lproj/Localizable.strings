@@ -18,6 +18,14 @@
 "menu.track.rename" = "Rename Track";
 "menu.track.mute" = "Mute Track";
 "menu.track.solo" = "Solo Track";
+"menu.track.role" = "Role";
+"track.role.none" = "None";
+"track.role.dialogue" = "Dialogue";
+"track.role.music" = "Music";
+"track.role.effects" = "Effects";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Raise Track Volume";
 "menu.track.volume.down" = "Lower Track Volume";
 "menu.track.volume.reset" = "Reset Track Volume";

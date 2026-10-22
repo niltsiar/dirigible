@@ -205,7 +205,8 @@ func stringsTable(_ language: String) throws -> [String: String] {
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
         "inspector.tab.clip", "inspector.tab.marker", "marker.name", "marker.url", "episode.details",
-        "episode.copyright", "episode.links", "episode.guid", "alert.ok", "track.name", "track.mute.letter",
+        "episode.copyright", "episode.links", "episode.guid", "alert.ok", "track.name", "track.role.dialogue.letter",
+        "track.role.effects.letter", "track.role.music.letter", "track.mute.letter",
         "track.solo.letter", "track.volume.value", "track.layout.mono", "track.layout.stereo",
         "track.route", "track.route.apps", "dock.badge.recording", "menu.transport", "menu.transport.pause",
         "timeline.accessibility", "timeline.readout.crossfade", "inspector.clip", "inspector.clips",
@@ -223,7 +224,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.bitrate.value", "panel.export.channels.mono", "panel.export.format.aac",
         "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
         "panel.export.loudness.ebu", "panel.export.rate.48000", "toolbar.inspector", "toolbar.tooltip",
-        "track.layout.mono", "track.mute.letter", "track.route", "track.route.apps", "track.solo.label",
+        "track.layout.mono", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
+        "track.mute.letter", "track.route", "track.route.apps", "track.solo.label",
         "track.solo.letter", "track.volume.value",
     ],
     "fr": [
@@ -237,6 +239,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.loudness.podcast", "panel.export.rate.48000", "report.gain", "start.version",
         "timeline.accessibility", "timeline.readout.gain", "timeline.readout.point", "toolbar.tooltip",
         "track.layout.mono",
+        "track.role.dialogue", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter", "track.volume.value",
     ],
     "it": [
@@ -247,7 +250,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
         "panel.export.loudness.ebu", "panel.export.loudness.podcast", "panel.export.rate.48000",
         "timeline.accessibility", "toolbar.inspector", "toolbar.tooltip", "track.layout.mono",
-        "track.layout.stereo", "track.mute.letter", "track.no.sound.privacy", "track.route",
+        "track.layout.stereo", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
+        "track.mute.letter", "track.no.sound.privacy", "track.route",
         "track.solo.letter", "track.volume.value",
     ],
     "nl": [
@@ -259,7 +263,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.channels.stereo", "panel.export.format.aac", "panel.export.format.flac",
         "panel.export.format.mp3", "panel.export.format.wav", "panel.export.loudness.ebu",
         "panel.export.loudness.podcast", "panel.export.rate.48000", "timeline.readout.crossfade",
-        "toolbar.tooltip", "track.layout.mono", "track.layout.stereo", "track.mute.letter",
+        "toolbar.tooltip", "track.layout.mono", "track.layout.stereo", "track.role.dialogue.letter",
+        "track.role.effects.letter", "track.role.music.letter", "track.mute.letter",
         "track.no.sound.privacy", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value", "transport.stop",
     ],
@@ -270,7 +275,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
         "panel.export.loudness", "panel.export.loudness.ebu", "panel.export.loudness.podcast",
         "panel.export.rate.48000", "report.loudness", "timeline.readout.crossfade", "toolbar.tooltip",
-        "track.layout.mono", "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter",
+        "track.layout.mono", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
+        "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value",
     ],
 ]

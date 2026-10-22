@@ -18,6 +18,14 @@
 "menu.track.rename" = "Wijzig naam van spoor";
 "menu.track.mute" = "Geluid uit voor spoor";
 "menu.track.solo" = "Solo voor spoor";
+"menu.track.role" = "Rol";
+"track.role.none" = "Geen";
+"track.role.dialogue" = "Dialoog";
+"track.role.music" = "Muziek";
+"track.role.effects" = "Effecten";
+"track.role.dialogue.letter" = "D";
+"track.role.music.letter" = "M";
+"track.role.effects.letter" = "E";
 "menu.track.volume.up" = "Verhoog spoorvolume";
 "menu.track.volume.down" = "Verlaag spoorvolume";
 "menu.track.volume.reset" = "Zet spoorvolume terug";

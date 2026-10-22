@@ -415,6 +415,16 @@ Each track header has the buttons **M** (mute) and **S** (solo), after the arm b
 - A session with a muted or soloed track does not open in a version of Dirigible from before mute and solo.
 - In Terminal, `dirigible track mute <package> <track>...` and `dirigible track solo <package> <track>...` set the buttons, and `--off` clears them.
 
+### Give a track a role
+
+A role tells what a track holds: dialogue, music, or effects. A role changes no sound.
+
+- Choose **Track > Role**, then **Dialogue**, **Music**, **Effects**, or **None**. The role goes to the selected tracks. You can also right-click a track header and choose **Role**.
+- A track with a role has a color strip at the left edge of its header and a letter before its name: teal and **D** for dialogue, green and **M** for music, yellow and **E** for effects. A track with no role shows neither.
+- Each change is one step of **Edit > Undo**, and the session saves it.
+- A session with a role does not open in a version of Dirigible from before roles.
+- In Terminal, `dirigible track role <package> <track> dialogue` sets a role (`music`, `effects`, or `none` to remove it). `dirigible info` shows the role of each track.
+
 ### Set the volume of a track
 
 A track header with two lines has a volume slider and its value in dB at the end of the second line. The volume is the level of the track in the mix: it does not change the recording level. The slider goes from -60 dB to +20 dB, and 0 dB is three quarters of the way.
@@ -734,6 +744,7 @@ The **Track** menu (**Pista**).
 | **Remove Track** | **Eliminar pista** | Option-Command-Delete |
 | **Mute Track** | **Silenciar pista** | Shift-M |
 | **Solo Track** | **Solo de pista** | Shift-S |
+| **Role** | **Función** | - |
 | **Raise Track Volume** | **Subir volumen de pista** | Control-= |
 | **Lower Track Volume** | **Bajar volumen de pista** | Control-minus |
 | **Reset Track Volume** | **Restablecer volumen de pista** | Control-0 |
@@ -1002,10 +1013,10 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 52 tools, in groups:
+The 53 tools, in groups:
 
 - Session: `session_create`, `session_info`.
-- Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`.
+- Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`.
 - Marker: `marker_set`, `marker_remove`.
 - Episode: `episode_set`, `episode_get`. The keys of `episode_get` are the argument names of `episode_set`.
 - Pool: `capture_remove`, `file_remove`, `file_prune`. `file_prune` gives the lines of `dirigible file prune`. With `dry_run` set to true, it changes nothing. The tool cannot see the clipboard of an app window.

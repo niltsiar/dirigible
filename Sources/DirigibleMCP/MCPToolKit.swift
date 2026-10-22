@@ -48,12 +48,15 @@ enum ToolWork: Sendable {
     case importFile(ImportWork)
     /// `chapters_export`: no lock, as `dirigible chapters export`.
     case chapters(ChaptersWork)
+    /// `take_map`: no lock, as `dirigible take map` (decision 0061).
+    case takeMap(TakeMapQuery)
 
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
         case .loudness, .export, .level, .duck, .importFile, .chapters: true
-        case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words:
+        case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words,
+            .takeMap:
             false
         }
     }

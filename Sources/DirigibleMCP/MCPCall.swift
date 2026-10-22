@@ -104,6 +104,14 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try work.run(package, path: path, control: control)
     case .chapters(let work):
         return try work.run(package, path: path)
+    case .takeMap(let query):
+        let session = try read(package, path: path)
+        do throws(TakeMapError) {
+            return try TakeWork.text(
+                TakeMap.of(session, anchors: TakeAnchors.result(package)), session: session, query: query)
+        } catch {
+            throw ToolError(error.message)
+        }
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
             try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in
@@ -135,16 +143,18 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
     } catch {
         throw ToolError(mediaCheckMessage(error))
     }
-    return try infoText(session, media: media, tracks: tracks, range: range, compact: compact)
+    let takeMap = TakeMap.of(session, anchors: TakeAnchors.result(package))
+    return try infoText(session, media: media, takeMap: takeMap, tracks: tracks, range: range, compact: compact)
 }
 
-/// The `session_info` text of a session and its media faults: the file path and the live path
-/// of an agent give the same JSON (decision 0046).
+/// The `session_info` text of a session, its media faults, and its take map: the file path and
+/// the live path of an agent give the same JSON (decision 0046).
 func infoText(
-    _ session: Session, media: [FileID: MediaFault], tracks: [TrackID]?, range: Range<Frames>?, compact: Bool
+    _ session: Session, media: [FileID: MediaFault], takeMap: Result<TakeMap, FinalizeError>, tracks: [TrackID]?,
+    range: Range<Frames>?, compact: Bool
 ) throws(ToolError) -> String {
     try checkTracks(tracks, in: session)
-    let whole = SessionView(session, media: media)
+    let whole = SessionView(session, media: media, takeMap: takeMap)
     let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String
     do {

@@ -854,7 +854,7 @@ A session is a macOS package: a folder with the extension `.dirigible` that Find
 - `session.xml` holds the tracks, the clips, the markers, and the chapters.
 - `Clips/` holds the audio of the clips as WAV files.
 - `Transcripts/` holds the words of each imported transcript, one file each. A change of the words writes a new file, and the old file stays until **File > Remove Unused Files** finds that no state of the session names it. When a transcript file is missing or damaged, the session still opens: `dirigible transcript words` names the transcript, and a cut asks you to import it again.
-- `Capture/` holds the audio of a take while it records, in files that survive a crash.
+- `Capture/` holds the audio of a take while it records, in files that survive a crash. The anchor file of each take (`take<n>.anchor`) keeps the record start of the take, so the take time of the audio comes from it. Keep it in the package.
 - `Backups/` holds backups of `session.xml`. The name of a backup has the UTC date and time of the copied file, for example `session-20261009T081530.250Z.xml`.
 
 ### The dirigible tool
@@ -913,6 +913,11 @@ These commands use a transcript with word times, in Whisper JSON or WebVTT. For 
 - `dirigible transcript import Demo.dirigible episode.json --track <track>` imports a transcript of an export of the whole session. The track is the track whose clips carry the words. It writes the transcript ID and the count of words. A WebVTT file, or a Whisper file with a segment that has no word times, has cues: each line of the report names cues, and a cut removes a cue with no word times whole. The times start at the start of the timeline: `--at <frame>` moves them. `-` in place of the file reads stdin. A word with no clip of the track under it, or with no time, is skipped, and a line on stderr gives the count. A file that is not a transcript gives exit 1. A new import replaces the words of an earlier one in the same span.
 - `dirigible transcript words Demo.dirigible --match "let me say that again"` writes the words of that phrase, one row each: the occurrence, the start frame, the end frame, the track, and the text, with a tab between them. Case and punctuation do not count. `--from` and `--to` give the words of a frame range, and `--track` the words of one track. It writes at most 200 rows (`--limit`), then a line with the count of the rest. `--json` writes JSON.
 - `dirigible transcript cut Demo.dirigible <occurrence> <occurrence>` cuts the words from all tracks in one edit and closes the gaps, as `clip ripple-delete` does. Words next to each other cut as one range. It writes the frames of each cut range. Each edit, also a cut, changes the occurrences of the words after it: run `dirigible transcript words` again before the next cut. A stale occurrence gives exit 1 and cuts nothing.
+
+These commands use the take time: the time of the audio from the record start of its take. An edit moves the audio on the timeline, and the take time stays with the audio.
+
+- `dirigible take map Demo.dirigible 48000 96000` writes, for each take frame, the timeline frame of each clip that plays it: `48000 t1:240000 t2:240000`. `cut` means that an edit removed that audio. `--timeline` maps timeline frames to take frames: `240000 t1:48000`, or `none` where no audio of the take is. `--track` limits the map to some tracks, and `--json` writes JSON. With two takes with audio or more, give `--take <n>`, else it gives exit 64 with the list of takes. A session with no take audio gives exit 1, and a take anchor that cannot be read gives exit 2.
+- `dirigible info Demo.dirigible` writes one sync line for each take with audio: `sync take 1 in sync, offset 5.000 s (240000 frames)` when each clip of the take keeps one shift from the take, or `sync take 1 broken from 0:21:07.000 (60816000), 2 shifts` when an edit moved some clips of the take and not others. The offset is the timeline time of take time 0. `info --json` has the key `takeSync`. When a take anchor cannot be read, `info` writes `sync anchor unreadable: Capture/take1.anchor (errno 13)` in place of the sync lines, and `info --json` has the key `takeSyncFault`.
 
 The words follow the clips of the import track: a move, a trim, or a cut moves the words with the audio. An edit of another track alone does not move them, so edit all tracks together. The package keeps the words, in the `Transcripts` folder. A session with a transcript does not open in a version of Dirigible from before the transcripts.
 
@@ -1030,7 +1035,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 54 tools, in groups:
+The 55 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`.
@@ -1040,6 +1045,7 @@ The 54 tools, in groups:
 - Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`, `clip_heal`, `clip_envelope`, `clip_gain_range`. `clip_envelope` takes the points as `[frame, dB]` pairs, the shape of `envelope` in `session_info`.
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
 - Transcript: `transcript_import`, `transcript_words`, `transcript_cut`. They give the text of `dirigible transcript import`, `words`, and `cut`.
+- Take: `take_map`. It gives the text of `dirigible take map`. On a session that is open in Dirigible, it maps the session of the window.
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.
 - Audio: `loudness`, `export`, `render`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it.

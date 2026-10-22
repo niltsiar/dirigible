@@ -134,3 +134,38 @@ public func takeRecordings(_ session: Session, anchors: [Int: Recording]) -> [Ca
     }
     return recordings
 }
+
+extension TakeAnchors {
+    /// `read(_:)` as a value, so a result can cross from a read off the main actor to the studio.
+    public static func result(_ package: URL) -> Result<[Int: Recording], FinalizeError> {
+        Result { () throws(FinalizeError) in try read(package) }
+    }
+}
+
+extension TakeMap {
+    /// The map of `session` with the anchors of its package (decision 0061). A read fault is the
+    /// result only when the session has a take file, a file whose capture ID equals its file ID:
+    /// with none, the session has no take audio, whatever `Capture/` holds.
+    public static func of(_ session: Session, anchors: Result<[Int: Recording], FinalizeError>)
+        -> Result<TakeMap, FinalizeError>
+    {
+        switch anchors {
+        case .success(let anchors):
+            return .success(TakeMap(session, recordings: takeRecordings(session, anchors: anchors)))
+        case .failure(let error):
+            let takeFile = session.files.values.contains { $0.capture?.rawValue == $0.id.rawValue }
+            return takeFile ? .failure(error) : .success(TakeMap(session, recordings: [:]))
+        }
+    }
+}
+
+extension FinalizeError {
+    /// The package-relative file and the errno of the fault.
+    public var fault: (file: String, errno: Int32) {
+        switch self {
+        case .readFailed(let file, let code), .segmentUnreadable(_, let file, let code),
+            .writeFailed(let file, let code):
+            (file, code)
+        }
+    }
+}

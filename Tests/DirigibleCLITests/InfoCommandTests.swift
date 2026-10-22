@@ -276,3 +276,92 @@ struct InfoCommandTests {
         #expect(markers[1]["url"] == nil && markers[1]["image"] == nil)
     }
 }
+
+/// The sync state in `info`, `info --json`, and `info --json --compact` (decision 0061, C6).
+struct SessionViewTests {
+    /// The keys of the sync state in the JSON of `info`.
+    struct SyncView: Decodable, Equatable {
+        struct Take: Decodable, Equatable {
+            let take: Int
+            let state: String
+            let offset: Int?
+            let from: Int?
+            let shifts: Int?
+        }
+        struct Fault: Decodable, Equatable {
+            let file: String
+            let errno: Int32
+        }
+        let takeSync: [Take]?
+        let takeSyncFault: Fault?
+    }
+
+    func json(_ package: TemporaryPackage, _ flags: String...) async throws -> SyncView {
+        let result = try await package.run(["info", "PKG", "--json"] + flags)
+        try #require(result.status == 0, "\(result)")
+        return try JSONDecoder().decode(SyncView.self, from: Data(result.stdout.utf8))
+    }
+
+    func syncLines(_ package: TemporaryPackage) async throws -> [String] {
+        let result = try await package.run("info", "PKG")
+        try #require(result.status == 0, "\(result)")
+        return result.stdout.split(separator: "\n").map(String.init).filter { $0.hasPrefix("sync ") }
+    }
+
+    @Test func takeSyncKeyAndInfoLine() async throws {
+        let package = try TakeMapCommandTests.twoTakes()
+        let inSync = SyncView(
+            takeSync: [
+                .init(take: 1, state: "inSync", offset: 0, from: nil, shifts: nil),
+                .init(take: 2, state: "inSync", offset: 480_000, from: nil, shifts: nil),
+            ], takeSyncFault: nil)
+
+        #expect(
+            try await syncLines(package) == [
+                "sync take 1 in sync, offset 0.000 s (0 frames)",
+                "sync take 2 in sync, offset 10.000 s (480000 frames)",
+            ])
+        #expect(try await json(package) == inSync)
+        #expect(try await json(package, "--compact") == inSync)
+
+        // A second clip of the take 1 file at 100 000 on t2: shift 100 000 against 0.
+        var session = try package.read()
+        try session.place(Clip(id: "copy", file: "take1-1-1", start: 100_000, offset: 0, length: 1000), on: "t2")
+        try session.write(to: package.url)
+        #expect(
+            try await syncLines(package) == [
+                "sync take 1 broken from 0:00:02.083 (100000), 2 shifts",
+                "sync take 2 in sync, offset 10.000 s (480000 frames)",
+            ])
+        #expect(
+            try await json(package).takeSync?.first
+                == .init(take: 1, state: "broken", offset: nil, from: 100_000, shifts: 2))
+    }
+
+    /// C2: `info` still answers with an anchor that does not read, and says which one.
+    @Test func anAnchorFaultIsALineAndAKey() async throws {
+        let package = try TakeMapCommandTests.twoTakes()
+        let anchor = package.url.appending(path: "Capture/take2.anchor")
+        chmod(anchor.path, 0o000)
+        defer { chmod(anchor.path, 0o644) }
+
+        #expect(try await syncLines(package) == ["sync anchor unreadable: Capture/take2.anchor (errno 13)"])
+        let fault = SyncView(takeSync: nil, takeSyncFault: .init(file: "Capture/take2.anchor", errno: EACCES))
+        #expect(try await json(package) == fault)
+        #expect(try await json(package, "--compact") == fault)
+    }
+
+    /// No take file, so no sync key and no line, also with an unreadable `Capture/`.
+    @Test func noTakeAudioGivesNoSyncLine() async throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        let package = try TemporaryPackage(session)
+        let capture = package.url.appending(path: "Capture")
+        try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
+        chmod(capture.path, 0o000)
+        defer { chmod(capture.path, 0o755) }
+
+        #expect(try await syncLines(package) == [])
+        #expect(try await json(package) == SyncView(takeSync: nil, takeSyncFault: nil))
+    }
+}

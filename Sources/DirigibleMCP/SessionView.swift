@@ -133,6 +133,31 @@ package struct SessionView: Encodable {
         let armedTracks: [String]
     }
 
+    /// The sync state of one take with audio (decision 0061): `offset` for `inSync`, `from` and
+    /// `shifts` for `broken`.
+    struct TakeSyncView: Encodable {
+        let take: Int
+        let state: String
+        let offset: Int?
+        let from: Int?
+        let shifts: Int?
+
+        init(take: Int, _ sync: TakeSync) {
+            self.take = take
+            switch sync {
+            case .inSync(let offset): (state, self.offset, from, shifts) = ("inSync", offset, nil, nil)
+            case .broken(let from, let shifts):
+                (state, offset, self.from, self.shifts) = ("broken", nil, from.count, shifts)
+            }
+        }
+    }
+
+    /// The anchor file that does not read, and its errno.
+    struct FaultView: Encodable {
+        let file: String
+        let errno: Int32
+    }
+
     /// The `session.xml` version that a save of this session writes (decision 0029).
     let version: Int
     let sampleRate: Int
@@ -143,8 +168,13 @@ package struct SessionView: Encodable {
     let recording: RecordingView?
     /// Left out when empty (decision 0045).
     let episode: EpisodeView?
+    /// One entry for each take with audio, in take order; left out with none (decision 0061).
+    let takeSync: [TakeSyncView]?
+    /// The anchor read fault, in place of `takeSync`.
+    let takeSyncFault: FaultView?
 
-    package init(_ session: Session, media: [FileID: MediaFault]) {
+    /// `takeMap` is the take map of the session, or the anchor read fault.
+    package init(_ session: Session, media: [FileID: MediaFault], takeMap: Result<TakeMap, FinalizeError>) {
         version = session.fileVersion
         sampleRate = session.sampleRate
         captures = session.sortedCaptures.map {
@@ -173,6 +203,14 @@ package struct SessionView: Encodable {
                 url: $0.url?.text, image: $0.image?.path)
         }
         episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
+        switch takeMap {
+        case .success(let map):
+            takeSync = map.sync.isEmpty ? nil : map.sync.keys.sorted().map { TakeSyncView(take: $0, map.sync[$0]!) }
+            takeSyncFault = nil
+        case .failure(let error):
+            takeSync = nil
+            takeSyncFault = FaultView(file: error.fault.file, errno: error.fault.errno)
+        }
         recording = session.recording.map {
             RecordingView(
                 take: $0.take, playheadFrame: $0.playheadFrame.count, takeStartHostTimeNanos: $0.takeStartHostTimeNanos,
@@ -186,10 +224,12 @@ package struct SessionView: Encodable {
         let sampleRate: Int
         let tracks: [TrackView]
         let markers: [MarkerView]
+        let takeSync: [TakeSyncView]?
+        let takeSyncFault: FaultView?
     }
 
     /// Pretty JSON with a newline at the end for `info --json`, or compact JSON on one line for
-    /// `session_info`. With `compact`, only `sampleRate`, `tracks`, and `markers`.
+    /// `session_info`. With `compact`, only `sampleRate`, `tracks`, `markers`, and the sync keys.
     package func json(pretty: Bool = true, compact: Bool = false) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -203,7 +243,7 @@ package struct SessionView: Encodable {
                         var track = track
                         track.clips = track.clips.map(\.compacted)
                         return track
-                    }, markers: markers))
+                    }, markers: markers, takeSync: takeSync, takeSyncFault: takeSyncFault))
             : try encoder.encode(self)
         return String(decoding: data, as: UTF8.self) + (pretty ? "\n" : "")
     }
@@ -234,8 +274,11 @@ package struct SessionView: Encodable {
     }
 }
 
-/// The text summary of `info`: one line for the session, then one line for each object.
-package func summary(of session: Session, name: String, media: [FileID: MediaFault]) -> String {
+/// The text summary of `info`: one line for the session, then one line for each object, then the
+/// sync line of each take with audio, or the anchor fault line (decision 0061).
+package func summary(
+    of session: Session, name: String, media: [FileID: MediaFault], takeMap: Result<TakeMap, FinalizeError>
+) -> String {
     var lines = ["\(name): \(session.sampleRate) Hz"]
     for track in session.tracks {
         var line = "track \(track.id) \(quoted(track.name)) \(track.layout.rawValue) \(track.gain)"
@@ -285,6 +328,10 @@ package func summary(of session: Session, name: String, media: [FileID: MediaFau
         lines.append(
             "recording take \(recording.take) at \(recording.playheadFrame) "
                 + "host time \(recording.takeStartHostTimeNanos) armed \(armed)")
+    }
+    switch takeMap {
+    case .success(let map): lines += TakeWork.syncLines(map.sync, sampleRate: session.sampleRate)
+    case .failure(let error): lines.append(TakeWork.faultLine(error))
     }
     return lines.map { $0 + "\n" }.joined()
 }

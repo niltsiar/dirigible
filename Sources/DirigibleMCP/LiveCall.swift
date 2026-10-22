@@ -36,7 +36,8 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .info(let tracks, let range, let compact):
             do throws(ToolError) {
                 let text = try infoText(
-                    studio.session, media: studio.missingMedia, tracks: tracks, range: range, compact: compact)
+                    studio.session, media: studio.missingMedia, takeMap: studio.takeMap, tracks: tracks, range: range,
+                    compact: compact)
                 return .result(text: text, isError: false)
             } catch {
                 return .result(text: error.message, isError: true)
@@ -47,6 +48,13 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .words(let query):
             do throws(ToolError) {
                 return .result(text: try TranscriptWork.wordsText(studio.session, query), isError: false)
+            } catch {
+                return .result(text: error.message, isError: true)
+            }
+        case .takeMap(let query):
+            do throws(TakeMapError) {
+                return .result(
+                    text: try TakeWork.text(studio.takeMap, session: studio.session, query: query), isError: false)
             } catch {
                 return .result(text: error.message, isError: true)
             }

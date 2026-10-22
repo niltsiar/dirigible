@@ -213,13 +213,13 @@ if [[ -f "$panel" ]]; then
 fi
 
 # The workflow docs: scripts/workflow-words.sh holds the one list of them.
+words_sh="$(cd "$(dirname "$0")" && pwd)/workflow-words.sh"
 workflow_docs=()
-while IFS= read -r f; do workflow_docs+=("$root/$f"); done < <("$(cd "$(dirname "$0")" && pwd)/workflow-words.sh" list --root "$root")
+while IFS= read -r f; do workflow_docs+=("$root/$f"); done < <("$words_sh" list --root "$root")
 
 # A start file imports another file with a line that is only @<path>: the always-on count reads
 # those lines. Claude Code also imports an @<path> inside a line, outside a code span or a fence,
 # which the count would not see.
-words_sh="$(cd "$(dirname "$0")" && pwd)/workflow-words.sh"
 while IFS= read -r f; do
     [[ -f "$root/$f" ]] || continue
     while IFS= read -r n; do

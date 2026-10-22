@@ -33,10 +33,12 @@ printf '4\nuse make check && git commit\nwhy\nevidence\ndone\n' > "$tmp/five"
 "$log" "$run" --from "$tmp/five" || fail "--from with five lines exits $?"
 check_row '--from' $'4\tuse make check && git commit\twhy\tevidence\tdone'
 [[ "$(wc -l < "$run/decisions.tsv")" -eq 1 ]] || fail '--from did not append exactly one row'
+[[ ! -e "$tmp/five" ]] || fail '--from kept its file after an append that exited 0'
 
 printf '4\na\tb\nwhy\nevidence\ndone\n' > "$tmp/tab"
 "$log" "$run" --from "$tmp/tab" || fail "--from with a tab exits $?"
 check_row 'a tab in a field' $'4\ta b\twhy\tevidence\tdone'
+[[ ! -e "$tmp/tab" ]] || fail '--from kept its file after the row with a tab'
 
 before="$(shasum -a 256 "$run/decisions.tsv")"
 printf '4\ndecision\nwhy\nevidence\n' > "$tmp/four"
@@ -45,6 +47,7 @@ code=$?
 [[ $code -eq 2 ]] || fail "four lines: expected exit 2, got $code"
 [[ "$err" == *"five lines"* ]] || fail "four lines: no reason in the message: $err"
 [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail 'four lines: decisions.tsv changed'
+[[ -e "$tmp/four" ]] || fail 'four lines: the refused --from file is gone'
 
 "$log" "$run" 2 decision why evidence done || fail "six arguments exit $?"
 check_row 'six arguments' $'2\tdecision\twhy\tevidence\tdone'
@@ -62,6 +65,7 @@ for form in from args; do
   [[ $code -eq 2 ]] || fail "a default row with no Reverse: ($form): expected exit 2, got $code"
   [[ "$err" == *'Reverse:'* ]] || fail "a default row with no Reverse: ($form): no reason in the message: $err"
   [[ "$(shasum -a 256 "$run/decisions.tsv")" == "$before" ]] || fail "a default row with no Reverse: ($form): decisions.tsv changed"
+  [[ $form != from || -e "$tmp/default" ]] || fail 'a default row with no Reverse: the refused --from file is gone'
 done
 rows="$(wc -l < "$run/decisions.tsv")"
 "$log" "$run" 2 'use blue' 'no reference app. Reverse: say red.' evidence 'default: blue' || fail "a default row with Reverse: exits $?"

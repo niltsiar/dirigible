@@ -107,12 +107,13 @@ struct AgentManualTests {
         #expect(!ripple.contains("from the last range"), "\(ripple)")
     }
 
-    /// The busy text of a dialog asks the user, and the other busy texts say to try again, so the
-    /// rule sends the agent to the step of the text, not to a retry.
+    /// The busy text of a dialog asks the user, and the other busy texts say to try again. The
+    /// rule has one branch for each: the agent asks and waits for the user, or it tries again
+    /// after a few seconds. A retry timer alone would use the 3 tries before the user answers.
     @Test func theBusyRuleFollowsTheStepOfTheText() {
         let rule = Self.core.split(separator: "\n").first { $0.contains("\"is busy in Dirigible\"") } ?? ""
-        #expect(rule.contains("do the step in the text, at most 3 retries"), "\(rule)")
-        #expect(!rule.contains("try again after a few seconds"), "\(rule)")
+        #expect(rule.contains("if the text asks the user, ask and wait."), "\(rule)")
+        #expect(rule.contains("Else try again after a few seconds, at most 3 times."), "\(rule)")
     }
 
     /// W8 and RR11: the transcript is of the current session with each track heard, the user

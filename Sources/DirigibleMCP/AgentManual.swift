@@ -139,9 +139,9 @@ package enum AgentManual {
         - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report what it shows.
         - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync. Give all \
         the ranges of a cut in one call.
-        - On a package open in the app, an edit is one undo step there when Settings > Let Agents Edit Open \
-        Sessions is on; else it is refused. A closed package saves at once, with no undo. On "is busy in \
-        Dirigible", try again after a few seconds, at most 3 times.
+        - On a package open in the app, an edit is one undo step when Settings > Let Agents Edit Open \
+        Sessions is on; else refused. A closed package saves at once, no undo. On "is busy in Dirigible", \
+        do the step in the text, at most 3 retries, a few seconds apart.
         - Dirigible has no noise reduction and no voice profile yet: tell the user.
 
         Phases and recipes, in order:

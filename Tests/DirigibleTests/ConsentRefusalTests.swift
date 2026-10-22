@@ -38,7 +38,7 @@ extension ConsentTests {
         await model.close()
     }
 
-    /// C7: a request on one window goes on while another window shows a question.
+    /// C7: a request on one window goes on while another window shows an alert.
     @Test func otherWindowSheetDoesNotBlock() async throws {
         let (other, _) = try await window("other")
         other.alert = .error(.busy)

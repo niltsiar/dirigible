@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleApp
 @testable import DirigibleAudio
@@ -90,9 +91,9 @@ import Testing
     @Test func anExportStepIsADialog() async throws {
         let model = await app.open(try folder.package("dialog"))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == false)
+        #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == nil)
         model.exportStep = .choosing
-        #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == true, "the save panel is a dialog")
+        #expect(app.agentTargets().first { $0.studio === studio }?.dialog() == .dialog, "the save panel is a dialog")
         model.exportStep = nil
         await model.close()
     }
@@ -194,5 +195,147 @@ import Testing
         #expect(model.timeline.selection == before.1)
         #expect(view.origin == before.2 && view.framesPerPoint == before.3)
         await model.close()
+    }
+
+    // MARK: What an agent gets while the window cannot show the sheet of its call
+
+    enum Dialog: CaseIterable {
+        case exportPanel, alert, sheet
+    }
+
+    /// The window shows a dialog that only the user clears: `export` gets the text that asks the
+    /// user, and writes no file. After the dialog goes, the same call writes it.
+    @Test(arguments: Dialog.allCases) func aDialogAsksTheUserToCloseIt(dialog: Dialog) async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 1, audio: true)
+        try Data(count: 64).write(to: package.appending(path: "Clips/stray-\(UUID().uuidString).wav"))
+        let (model, _, window, _) = try await openLanes(app, package)
+        app.agents.start()
+        defer { app.agents.stop() }
+        let out = folder.url.appending(path: "mix.wav")
+        let arguments: [String: any Sendable] = ["package": package.path, "out": out.path]
+        switch dialog {
+        case .exportPanel: model.exportStep = .choosing
+        case .alert: model.alert = .error(.busy)
+        case .sheet: model.removeUnusedFiles()
+        }
+        if dialog != .exportPanel { await until("the dialog shows") { window.attachedSheet != nil } }
+
+        let refused = await call("export", arguments)
+
+        let text =
+            "\(package.path) is busy in Dirigible: its window shows an alert, a sheet, or a panel. "
+            + "Ask the user to finish or close it in Dirigible, then try again."
+        #expect(refused == .reply(.result(text: text, isError: true)))
+        #expect(!FileManager.default.fileExists(atPath: out.path), "the export ran")
+        model.exportStep = nil
+        model.alert = nil
+        model.unusedFiles = nil
+        await until("the dialog goes") { window.attachedSheet == nil }
+
+        let written = await call("export", arguments)
+
+        #expect(written == .reply(.result(text: "OK", isError: false)))
+        #expect(FileManager.default.fileExists(atPath: out.path), "the export wrote no file")
+        await model.close()
+    }
+
+    /// The window runs an export that holds its first chunk until `release`.
+    private func startWindowExport(_ model: SessionWindow, _ studio: Studio, _ window: NSWindow) async throws -> (
+        FirstChunkHold, Task<Void, Never>
+    ) {
+        let release = FirstChunkHold()
+        studio.environment.exportChunk = { release.step() }
+        let source = try #require(model.source(of: .session, in: studio))
+        let target = ExportTarget(url: folder.url.appending(path: "window.caf"), options: .render, confirmed: nil)
+        let export = Task { await model.run(source, target, studio) }
+        await until("the progress sheet shows") { window.attachedSheet != nil && studio.exportProgress != nil }
+        return (release, export)
+    }
+
+    /// The progress sheet of a running export is not a dialog that the user closes: Cancel is
+    /// the user's choice, and the end of the export clears it. So `record` gets the export cause.
+    @Test func aRunningExportGivesRecordItsBusyCause() async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 1, audio: true)
+        let (model, studio, window, _) = try await openLanes(app, package)
+        let (release, export) = try await startWindowExport(model, studio, window)
+
+        let request = RecordRequest(armed: ["t1"], seconds: 30, playhead: nil)
+        let answer = await model.askRecord(request, agent: AgentName(title: "Test Agent", clientName: "test"))
+
+        #expect(answer == .busy(.export))
+        release.release()
+        await export.value
+        await model.close()
+    }
+
+    /// The same, when the export of the window starts during the media check of an agent export.
+    @Test func anExportThatStartsDuringTheMediaCheckGivesItsBusyCause() async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 1, audio: true)
+        let (model, studio, window, _) = try await openLanes(app, package)
+        app.agents.start()
+        defer { app.agents.stop() }
+        let check = AsyncGate()
+        studio.environment.beforeMediaCheck = { await check.wait() }
+        let out = folder.url.appending(path: "mix.wav")
+        let agent = Task { await call("export", ["package": package.path, "out": out.path]) }
+        await check.entered()
+        let (release, export) = try await startWindowExport(model, studio, window)
+        check.open()
+
+        let refused = await agent.value
+
+        let text = "\(package.path) is busy in Dirigible: an export runs in its window. Try again later."
+        #expect(refused == .reply(.result(text: text, isError: true)))
+        #expect(!FileManager.default.fileExists(atPath: out.path), "the agent export ran")
+        release.release()
+        await export.value
+        await model.close()
+    }
+
+    /// The media check of a user export shows no view: nothing for the user to close. `export`
+    /// and `record` get the export cause, which ends with the try-again step.
+    @Test func theMediaCheckOfTheWindowIsNotADialog() async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 1, seconds: 1, audio: true)
+        let (model, _, _, _) = try await openLanes(app, package)
+        app.agents.start()
+        defer { app.agents.stop() }
+        model.exportStep = .checking
+        let out = folder.url.appending(path: "mix.wav")
+
+        let refused = await call("export", ["package": package.path, "out": out.path])
+        let request = RecordRequest(armed: ["t1"], seconds: 30, playhead: nil)
+        let answer = await model.askRecord(request, agent: AgentName(title: "Test Agent", clientName: "test"))
+
+        let text = "\(package.path) is busy in Dirigible: an export runs in its window. Try again later."
+        #expect(refused == .reply(.result(text: text, isError: true)))
+        #expect(answer == .busy(.export))
+        #expect(!FileManager.default.fileExists(atPath: out.path), "the export ran")
+        model.exportStep = nil
+        await model.close()
+    }
+}
+
+/// Holds the first chunk of an export until `release`, with a limit that a release ends before.
+final class FirstChunkHold: Sendable {
+    static let limit = Duration.seconds(30)
+    private let state = OSAllocatedUnfairLock(initialState: (chunks: 0, released: false))
+
+    func release() { state.withLock { $0.released = true } }
+
+    func step() {
+        guard
+            state.withLock({ state in
+                state.chunks += 1
+                return state.chunks == 1
+            })
+        else { return }
+        let end = ContinuousClock.now + Self.limit
+        while !state.withLock({ $0.released }) {
+            guard ContinuousClock.now < end else {
+                Issue.record("No release in \(Self.limit)")
+                return
+            }
+            Thread.sleep(forTimeInterval: 0.005)
+        }
     }
 }

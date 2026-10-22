@@ -126,6 +126,75 @@ struct DuckShapeTests {
         #expect(envelope.gain(at: 100_000) == 0 && envelope.gain(at: 800_000) == 0)
     }
 
+    /// A range of 1 frame inside a clip changes no frame after it: each frame from the range end to
+    /// the clip end keeps the old gain.
+    @Test func aOneFrameRangeKeepsTheGainAfterIt() throws {
+        let before = try #require(
+            GainEnvelope([.init(frame: 0, gain: Gain(dB: -6)!), .init(frame: 480_000, gain: Gain(dB: -3)!)]))
+        var session = try Self.session(fileLength: 480_000, start: 0, offset: 0, length: 480_000, envelope: before)
+        try session.duck(
+            runs: [0..<480_000], shape: .defaults(sampleRate: 48_000), music: ["m"], scope: 100_000..<100_001)
+        let envelope = try #require(session.clip("c1")?.clip.envelope)
+        for frame in Array(0..<100_000) + Array(100_001..<480_000) {
+            let (now, old) = (envelope.gain(at: Frames(frame)), before.gain(at: Frames(frame)))
+            guard abs(now - old) < 1e-9 else {
+                Issue.record("frame \(frame): \(now) dB, want the old \(old) dB")
+                return
+            }
+        }
+    }
+
+    /// 300 seeded ranges, some shorter than a ramp or 1 frame long: each played frame outside the
+    /// range keeps its old gain, also the frame at the range end and the frame before its start.
+    @Test func aRangeChangesNoFrameOutsideIt() throws {
+        var random = Seeded(state: 20_261_022)
+        var ducks = 0
+        for _ in 0..<300 {
+            let fileLength = Int.random(in: 100_000...1_000_000, using: &random)
+            let offset = Int.random(in: 0...(fileLength / 4), using: &random)
+            let length = Int.random(in: 1_000...(fileLength - offset), using: &random)
+            let start = Int.random(in: 0...200_000, using: &random)
+            let ramp = Int.random(in: 0...100_000, using: &random)
+            let shape = DuckShape(
+                depth: Gain(dB: -Double.random(in: 1...40, using: &random))!, attack: Frames(ramp),
+                release: Frames(Int.random(in: 0...100_000, using: &random)), threshold: Gain(dB: -40)!,
+                hold: Frames(Int.random(in: 0...96_000, using: &random)))
+            let frames = (0..<Int.random(in: 0...4, using: &random)).map { _ in
+                Int.random(in: 0...fileLength, using: &random)
+            }
+            var points: [GainEnvelope.Point] = []
+            for frame in Set(frames).sorted() {
+                points.append(.init(frame: Frames(frame), gain: Gain(dB: -Double.random(in: 0...20, using: &random))!))
+            }
+            let before = try #require(GainEnvelope(points))
+            let short = [1, 2, 3, Int.random(in: 1...(2 * ramp + 2), using: &random)]
+            let scopeLength = short[Int.random(in: 0..<short.count, using: &random)]
+            let low = max(0, Int.random(in: (start - 2_000)...(start + length), using: &random))
+            let scope = Frames(low)..<Frames(low + scopeLength)
+            let runStart = max(0, low - Int.random(in: 0...200_000, using: &random))
+            let runs = [Frames(runStart)..<Frames(low + scopeLength + Int.random(in: 0...200_000, using: &random))]
+            var session = try Self.session(
+                fileLength: fileLength, start: start, offset: offset, length: length, envelope: before)
+            do throws(SessionError) {
+                try session.duck(runs: runs, shape: shape, music: ["m"], scope: scope)
+            } catch {
+                guard case .noSpeech = error else { throw error }
+                continue
+            }
+            ducks += 1
+            let envelope = try #require(session.clip("c1")?.clip.envelope)
+            let window = start..<(start + length)
+            let edges = [scope.lowerBound.count - 1, scope.upperBound.count]
+            let samples = (0..<40).map { _ in Int.random(in: window, using: &random) }
+            for t in edges + samples where window.contains(t) && !scope.contains(Frames(t)) {
+                let file = Frames(t - start + offset)
+                let (now, old) = (envelope.gain(at: file), before.gain(at: file))
+                #expect(abs(now - old) < 1e-6, "scope \(scope), frame \(t): \(now) dB, want the old \(old) dB")
+            }
+        }
+        #expect(ducks > 200, "only \(ducks) of 300 seeds ducked")
+    }
+
     /// No run throws `noSpeech` with the scope and the threshold, and changes nothing.
     @Test func noRunIsNoSpeech() throws {
         var session = try Self.session(fileLength: 480_000, start: 0, offset: 0, length: 480_000)

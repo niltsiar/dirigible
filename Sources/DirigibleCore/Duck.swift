@@ -142,15 +142,18 @@ extension Session {
         let ramp = max(1, min(ramp, (high - low) / 2))
         let outside = old.points.filter { $0.frame.count < low || $0.frame.count >= high }
             .map { (frame: $0.frame.count, dB: $0.gain.dB) }
-        // The range edges first: of two corners on one frame, the first stays.
+        // Of two corners on one frame, the first stays. So the old values at the range edges come
+        // first: in a range of 1 frame, the ramp end of one edge is the other edge.
         var result: [(frame: Int, dB: Double)] = []
         var inner = low..<high
+        if rangeEdges.low { result.append((low, old.gain(at: Frames(low)))) }
+        if rangeEdges.high { result.append((high, old.gain(at: Frames(high)))) }
         if rangeEdges.low {
-            result += [(low, old.gain(at: Frames(low))), (low + ramp, duck(low + ramp))]
+            result.append((low + ramp, duck(low + ramp)))
             inner = (low + ramp)..<inner.upperBound
         }
         if rangeEdges.high {
-            result += [(high - ramp, duck(high - ramp)), (high, old.gain(at: Frames(high)))]
+            result.append((high - ramp, duck(high - ramp)))
             inner = inner.lowerBound..<max(inner.lowerBound, high - ramp)
         }
         result += outside

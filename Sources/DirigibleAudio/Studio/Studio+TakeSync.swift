@@ -19,8 +19,6 @@ struct TakeSyncState {
     var anchors: Result<[Int: Recording], FinalizeError>
     private(set) var map: Result<TakeMap, FinalizeError>
     private(set) var change = TakeSyncChange(revision: 0, agent: nil, changes: [])
-    /// The maps made, for the tests.
-    private(set) var made = 1
 
     init(_ session: Session, anchors: Result<[Int: Recording], FinalizeError>) {
         self.anchors = anchors
@@ -32,7 +30,6 @@ struct TakeSyncState {
         guard revision != change.revision else { return }
         let old = map
         map = TakeMap.of(session, anchors: anchors)
-        made += 1
         var changes: [TakeSync.Change] = []
         if case .success(let before) = old, case .success(let after) = map {
             changes = TakeSync.change(from: before.sync, to: after.sync)

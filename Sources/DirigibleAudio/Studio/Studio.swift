@@ -338,7 +338,7 @@ import Observation
         notAudioSegments = outcome.notAudioSegments
         if let missingMedia = outcome.missingMedia { self.missingMedia = missingMedia }
         if let backups = outcome.backups { self.backups = backups }
-        if let anchors = outcome.takeAnchors { takeSyncState.anchors = anchors }
+        if let anchors = outcome.takeAnchors { takeSyncState.store(anchors, session: session) }
         if let error = outcome.error { throw error }
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }

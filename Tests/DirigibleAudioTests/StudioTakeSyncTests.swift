@@ -67,6 +67,34 @@ struct StudioTakeSyncTests {
         await third.settle()
     }
 
+    /// A take end whose save fails after the anchor write keeps the anchors of the take outcome,
+    /// and the map comes from them: the fault of another take shows.
+    @Test func aFailedTakeEndMakesTheMapFromItsAnchors() async throws {
+        let package = try TakePackage()
+        try package.segment(samples: sine(seconds: 1, rate: 48_000))
+        var session = try finalizeTake(of: package.read(), in: package.url)
+        try session.setRecording(
+            Recording(take: 2, playheadFrame: 0, takeStartHostTimeNanos: takeStart, armedTracks: ["t1"]))
+        try session.write(to: package.url)
+        try package.segment(take: 2, samples: sine(seconds: 1, rate: 48_000))
+        let clipsFolder = package.url.appending(path: "Clips")
+        chmod(clipsFolder.path, 0o500)
+        let studio = try await Studio.open(package.url)
+        chmod(clipsFolder.path, 0o755)
+        try #require(studio.pendingTake?.take == 2 && studio.takeSyncFault == nil)
+        try Self.unreadableAnchor(in: package)
+        chmod(package.url.path, 0o500)
+        defer { chmod(package.url.path, 0o755) }
+
+        await #expect(throws: StudioError.self) { try await studio.retryFinalize() }
+
+        let anchor = package.capture.appending(path: "take2.anchor")
+        #expect(FileManager.default.fileExists(atPath: anchor.path), "the take end did not write its anchor")
+        #expect(studio.takeSyncFault == Self.fault, "\(String(describing: studio.takeSyncFault))")
+        chmod(package.url.path, 0o755)
+        await studio.settle()
+    }
+
     /// C8: an agent edit, an undo, and a redo, each followed by 200 playhead moves and 5 reads,
     /// give 3 changes. Each change has the revision and the agent of its revision: none for the undo.
     @Test func theSyncIsMadeOncePerRevision() async throws {

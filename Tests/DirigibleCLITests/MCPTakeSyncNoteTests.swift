@@ -37,7 +37,25 @@ struct MCPTakeSyncNoteTests {
 
         #expect(
             toolResult(answer(answers, id: 1))
-                == ("OK\nTake sync: take 1 offset 0.000 s -> 0.500 s (+0.500 s)", false))
+                == ("OK\nTake sync: take 1 offset 0.000 s -> 0.500 s (+0.500 s, +24000 frames)", false))
+    }
+
+    /// A move under 1 ms keeps its sign and its size in frames: a 1-frame nudge, then a -10-frame
+    /// nudge of the one take clip.
+    @Test func aSubMillisecondNudgeShowsItsSignAndFrames() async throws {
+        let package = try TakeMapCommandTests.takes([(1, TakeMapCommandTests.takeStart, 48_000)])
+        let nudge = { (id: Int, by: Int) in
+            toolCall(id, "clip_nudge", ["package": package.path, "clips": ["take1-1-1"], "by": by])
+        }
+
+        let answers = try await mcp([nudge(1, 1), nudge(2, -10)])
+
+        #expect(
+            toolResult(answer(answers, id: 1))
+                == ("OK\nTake sync: take 1 offset 1.000 s -> 1.000 s (+0.000 s, +1 frames)", false))
+        #expect(
+            toolResult(answer(answers, id: 2))
+                == ("OK\nTake sync: take 1 offset 1.000 s -> 1.000 s (-0.000 s, -10 frames)", false))
     }
 
     /// An insert inside the clip of take 2 breaks only take 2, and the line names take 2.

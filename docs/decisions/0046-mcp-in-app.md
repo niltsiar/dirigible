@@ -6,7 +6,7 @@
 - Date: 2026-10-12
 - Accepted: 2026-10-12, after plan gates 1 and 2 of run `2026-10-12-mcp-in-app`.
 - Amended: 2026-10-13, run `2026-10-12-remove-unused-files` (see 0047). `file_prune` on an open package also gives the "open in Dirigible" error.
-- Amended: 2026-10-13, run `2026-10-12-record-with-consent` (see 0048). `AgentTarget` has a `record` closure, the one async live call: the window shows a consent sheet. `AgentBusy` has `asking` (a record request waits) and `dialog` (the window shows a question). `AgentBridge.replyLimit` names the 30 s. Each connection reads during its call; an EOF or a stop cancels the running call.
+- Amended: 2026-10-13, run `2026-10-12-record-with-consent` (see 0048). `AgentTarget` has a `record` closure, the one async live call: the window shows a consent sheet. `AgentBusy` has `asking` (a record request waits) and `dialog` (the window shows an alert, a sheet, or a panel). `AgentBridge.replyLimit` names the 30 s. Each connection reads during its call; an EOF or a stop cancels the running call.
 - Amended: 2026-10-17, run `2026-10-16-observation-hang`. The limit text replaces the lost-call text at the 30 s reply limit. It states the limit and names no cause, and no close. `AgentBridge.Outcome` has `limit` besides `lost`; the texts are `limitMessage(tool:seconds:)` in `AgentFrame.swift`.
 - Amends: 0041 (the library target `DirigibleMCP`; a call on a package that the app has open runs in the app; the tool description text about undo), 0002 (a new library target and test target).
 

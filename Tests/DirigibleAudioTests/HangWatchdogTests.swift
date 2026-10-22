@@ -12,7 +12,8 @@ import os
     init() throws { folder = try TemporaryFolder() }
 
     /// C10: the burst writes the images, then 10 raw stacks of the blocked thread, then the names.
-    /// watchdog-hangs C11: the hang end line has `blocked_ms` and `slept_ms` as numbers.
+    /// watchdog-hangs C11: the hang start line has `late_ms` and `tick_gap_ms`, and the hang end
+    /// line has `blocked_ms`, `slept_ms`, and `tick_gap_ms`, each as a number.
     @Test func aLongBlockWritesTheStackOfTheBlockingFunction() async throws {
         let log = startLog(in: folder.url)
         let queue = DispatchQueue(label: "HangWatchdogTests.blocked")
@@ -45,8 +46,14 @@ import os
             lines.first { $0.event == "names" && $0.list("stacks").contains(stack.fields["n"] ?? "") })
         #expect(names.list("names", by: "|").contains { $0.contains("blockInsideTheTestFunction") })
         #expect(!(names.fields["images"] ?? "").contains(NSHomeDirectory()), "images: \(names.fields["images"] ?? "")")
+        let start = try #require(lines.first { $0.event == "start" })
+        #expect(
+            ["late_ms", "tick_gap_ms"].allSatisfy { start.fields[$0].flatMap(Double.init) != nil },
+            "start: \(start.fields)")
         let end = try #require(lines.first { $0.event == "end" })
-        #expect(end.fields["blocked_ms"].flatMap(Double.init) != nil, "end: \(end.fields)")
+        #expect(
+            ["blocked_ms", "tick_gap_ms"].allSatisfy { end.fields[$0].flatMap(Double.init) != nil },
+            "end: \(end.fields)")
         #expect((end.fields["slept_ms"].flatMap(Double.init) ?? .infinity) < 50, "end: \(end.fields)")
     }
 

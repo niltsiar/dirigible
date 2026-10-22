@@ -143,7 +143,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 | R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono, and timeline clarity (F107, F108, F109, F25, F153, F154, F155, F156), heal of touching pieces (F161), and a gain envelope on a clip with range gains (F75). |
 | R8 | Noise reduction, hum removal, a render of a range through an effect, a render link, and a repair set: rumble, clipped peaks, and harsh "s" sounds (F35, F77, F89, F110, F98, F99, F100). |
 | R9 | Part: a leveler that rides the gain inside a clip (F38 part). |
-| R10 | Part: voice match, and the leveler (F37 part, F38 part), and a text chapter list (F160). |
+| R10 | Part: voice match, and the leveler (F37 part, F38 part), a text chapter list (F160), and track roles and the duck of the music under speech (F72, F34). |
 | R12 | Part: the meter and the permission state of an armed app track before a take (F114). |
 | R13 | More UI languages (F113). |
 | R16 | Part: the agent pack, an import in one call, a reuse of the same audio, and a compact session read (F157, F158, F159). |
@@ -164,6 +164,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 14. **Agent pack (F122, F157 to F161).** An import shapes its clip in one call, and an import of the same audio reuses the WAV. `session_info` has a compact form. Chapters export as a text list and import from a Podcasting 2.0 file, and Heal joins touching pieces of one file. Run: `2026-10-17-agent-pack` L1.
 15. **Diagnostics (F162).** A journal file for each launch, a main-thread hang watchdog with stacks, and one redacted report file that the user saves from the Help menu and sends by hand. Run: `2026-10-16-diagnostics`.
 16. **Gain envelope (F75, moved from Release 7).** Gain points on each clip and range gains with ramps, in playback, export, `session.xml` version 10, the `dirigible` CLI, and the MCP tools. The app draws the curve, and the user edits the points with the mouse, the keyboard, and the inspector. Run: `2026-10-18-envelope-ducking` landings 1 and 2.
+17. **Track roles and ducking (F72, F34, moved from Release 7).** A dialogue, music, or effects role on a track, with a color strip and a letter in its header, in `session.xml` version 11. Tools > Duck Music Under Speech... lowers the music under the speech in one undo step, and so do `dirigible duck` and the `duck` MCP tool. Run: `2026-10-18-envelope-ducking` landing 3.
 
 ## Release 5: edit by text
 
@@ -205,20 +206,18 @@ Goal: edit the timeline faster: pre-roll, replace and fill, and the timeline edi
 
 ## Release 7: mix and organization
 
-Goal: mix with roles and ducking, organize the work with presets, templates, favorites, and bins, and merge a session that another Dirigible recorded.
+Goal: export stems, organize the work with presets, templates, favorites, and bins, and merge a session that another Dirigible recorded.
 
 | Requirement | What Release 7 gives |
 |---|---|
 | R7 | Import Session (F151). |
-| R10 | Track roles, ducking, export presets and templates, favorites, and clipboard bins (F72, F34, F63, F23, F22). |
+| R10 | Export presets and templates, favorites, and clipboard bins (F63, F23, F22). |
 | R11 | Stem export and export presets (F73, F57). |
 
-1. **Track roles (F72).** Dialogue, music, and effects, with a color.
-2. **Ducking (F34).** Gain ramps for the music under speech, from the envelope and the roles.
-3. **Stem export (F73).** One file for each track or each role, all from the same start.
-4. **Export presets and session templates (F57, F63).** Several targets in one step, and a new session from a template package.
-5. **Favorites and clipboard bins (F23, F22).** A clipboard that all sessions share, and named groups of clips in a session.
-6. **Import Session (F151).** Merge another Dirigible package into the open session (Hindenburg PRO has Import Session Into Session). The use case: two people record apart, with no link between the apps. One of them sends the full package for the edit. A recording from another app, such as Audacity, uses Import Audio and Sync by waveform. The merge adds one track for each imported track, with its name, and the markers as an option. It copies the files with the copy function of the paste across packages (0042: new file IDs, `NewClipFiles`). It gets a `dirigible` command (0011, CLI parity). The capture times of the other package come from another clock and give only a rough start. The package has one timebase, so all its tracks align with the same drift fit of Sync by waveform (Release 6). The drift fit uses a track that both sessions recorded, for example the call track. With no common track, the import keeps the rough start from the capture times.
+1. **Stem export (F73).** One file for each track or each role, all from the same start.
+2. **Export presets and session templates (F57, F63).** Several targets in one step, and a new session from a template package.
+3. **Favorites and clipboard bins (F23, F22).** A clipboard that all sessions share, and named groups of clips in a session.
+4. **Import Session (F151).** Merge another Dirigible package into the open session (Hindenburg PRO has Import Session Into Session). The use case: two people record apart, with no link between the apps. One of them sends the full package for the edit. A recording from another app, such as Audacity, uses Import Audio and Sync by waveform. The merge adds one track for each imported track, with its name, and the markers as an option. It copies the files with the copy function of the paste across packages (0042: new file IDs, `NewClipFiles`). It gets a `dirigible` command (0011, CLI parity). The capture times of the other package come from another clock and give only a rough start. The package has one timebase, so all its tracks align with the same drift fit of Sync by waveform (Release 6). The drift fit uses a track that both sessions recorded, for example the call track. With no common track, the import keeps the rough start from the capture times.
 
 ## Versions
 

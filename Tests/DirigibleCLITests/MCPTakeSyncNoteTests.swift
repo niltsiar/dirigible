@@ -98,8 +98,9 @@ struct MCPTakeSyncNoteTests {
                 == ("OK\nTake sync: take 1 broken from 0:00:00.750 (2 shifts) -> in sync, offset 0.000 s", false))
     }
 
-    /// `clip_paste` from the package itself runs the paste work: a copy of take audio at another
-    /// time breaks the take.
+    /// `clip_paste` from the package itself runs the paste work. The paste of take frames 0 to
+    /// 12 000 at 6 000 replaces take frames 6 000 to 18 000, so no other clip plays all of its take
+    /// frames: it is no copy, and it breaks the take.
     @Test func aPasteOfTakeAudioGivesTheLine() async throws {
         let package = try Self.oneTake()
 
@@ -107,7 +108,7 @@ struct MCPTakeSyncNoteTests {
             toolCall(
                 1, "clip_paste",
                 [
-                    "package": package.path, "from": 0, "to": 12_000, "track": ["t1"], "at": 30_000,
+                    "package": package.path, "from": 0, "to": 12_000, "track": ["t1"], "at": 6_000,
                     "source": package.path,
                 ])
         ])
@@ -116,7 +117,7 @@ struct MCPTakeSyncNoteTests {
         #expect(!result.isError, "\(result.text)")
         #expect(
             result.text.split(separator: "\n").last
-                == "Take sync: take 1 in sync, offset 0.000 s -> broken from 0:00:00.625 (2 shifts)", "\(result.text)")
+                == "Take sync: take 1 in sync, offset 0.000 s -> broken from 0:00:00.125 (2 shifts)", "\(result.text)")
     }
 
     /// A transcript import moves no clip, so it gives no line.

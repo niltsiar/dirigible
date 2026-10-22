@@ -115,22 +115,42 @@ public struct TakeMap: Sendable {
 
 /// The sync state of one take with audio (decision 0061). The shift of a clip is the timeline
 /// frame of take time 0. 0 frames of tolerance: a shift that differs by 1 frame is another shift.
+/// The reference shift is the shift of the most clip frames (a tie: the shift of the earliest
+/// clip). A clip at another shift is a copy (for example a cold open) when the clips at the
+/// reference shift on its track play each frame of its take range. A copy is not a break.
 public enum TakeSync: Hashable, Sendable {
-    /// Every clip of the take has the shift `offset`.
+    /// Every clip of the take that is not a copy has the shift `offset`.
     case inSync(offset: Int)
-    /// `from` is the earliest start of a clip whose shift differs from the shift of the first clip
-    /// of the take; `shifts` counts the different shifts.
+    /// `from` is the earliest start of a clip that is not a copy and whose shift differs from the
+    /// shift of the first such clip of the take; `shifts` counts the shifts of these clips.
     case broken(from: Frames, shifts: Int)
 
     /// The pieces of one take, in timeline order; never empty.
     fileprivate init(_ pieces: [TakeMap.Piece]) {
-        let first = pieces[0].shift
-        let shifts = Set(pieces.map(\.shift)).count
-        if let other = pieces.first(where: { $0.shift != first }) {
-            self = .broken(from: other.clip.start, shifts: shifts)
+        var frames: [Int: Int] = [:]
+        for piece in pieces { frames[piece.shift, default: 0] += piece.clip.length.count }
+        let reference = pieces.reduce(pieces[0].shift) {
+            frames[$1.shift, default: 0] > frames[$0, default: 0] ? $1.shift : $0
+        }
+        let played = Dictionary(grouping: pieces.filter { $0.shift == reference }, by: \.track)
+        let kept = pieces.filter { $0.shift == reference || !Self.play(played[$0.track] ?? [], all: $0) }
+        let first = kept[0].shift
+        if let other = kept.first(where: { $0.shift != first }) {
+            self = .broken(from: other.clip.start, shifts: Set(kept.map(\.shift)).count)
         } else {
             self = .inSync(offset: first)
         }
+    }
+
+    /// Whether `pieces`, pieces of one shift in timeline order, play each take frame of `piece`.
+    private static func play(_ pieces: [TakeMap.Piece], all piece: TakeMap.Piece) -> Bool {
+        let end = piece.first + piece.clip.length.count
+        var next = piece.first
+        for other in pieces where other.first <= next {
+            next = max(next, other.first + other.clip.length.count)
+            if next >= end { return true }
+        }
+        return false
     }
 
     /// A change of the state of one take.

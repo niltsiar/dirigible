@@ -36,6 +36,7 @@
 // first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
 // the Mac (run 2026-09-30-start-window).
 // A press path with an empty title is refused: a menu separator has an empty title.
+// An element with no title (for example an icon button) has its Description as its title.
 // With no match, press lists the path of each element whose title holds the last title.
 // Exit: 0 done, 1 no app with the bundle ID, no element, or no witness line, 2 usage, an empty
 // title in the press path, or an empty DIRIGIBLE_BUNDLE_ID, 3 no Accessibility trust, 4 more than
@@ -118,8 +119,9 @@ func line(_ element: AXUIElement) -> String {
     }.joined(separator: " ")
 }
 
-/// One element for press: its dump line, role, title, and children. A tree from a dump file has
-/// no element to press.
+/// One element for press: its dump line, role, title, and children. The title is the AXTitle, or
+/// the AXDescription when the element has no AXTitle. A tree from a dump file has no element to
+/// press.
 struct Node {
     let line: String
     let role: String?
@@ -132,7 +134,8 @@ func node(_ element: AXUIElement, _ level: Int) -> Node {
     let children = level < depth ? (attribute(element, kAXChildrenAttribute) as? [AXUIElement]) ?? [] : []
     return Node(
         line: line(element), role: attribute(element, "AXRole") as? String,
-        title: attribute(element, "AXTitle") as? String, element: element,
+        title: (attribute(element, "AXTitle") ?? attribute(element, "AXDescription")) as? String,
+        element: element,
         children: children.map { node($0, level + 1) })
 }
 
@@ -142,6 +145,7 @@ func tree(fromDump text: String) -> Node? {
     // A value runs to the next " <Key>=" or to the end of the line.
     let role = try! Regex("(?:^| )Role=(.*?)(?= [A-Za-z]+=|$)")
     let title = try! Regex("(?:^| )Title=(.*?)(?= [A-Za-z]+=|$)")
+    let description = try! Regex("(?:^| )Description=(.*?)(?= [A-Za-z]+=|$)")
     func field(_ regex: Regex<AnyRegexOutput>, _ text: String) -> String? {
         guard let match = text.firstMatch(of: regex) else { return nil }
         return match.output[1].substring.map(String.init)
@@ -154,7 +158,8 @@ func tree(fromDump text: String) -> Node? {
             index += 1
             nodes.append(
                 Node(
-                    line: text, role: field(role, text), title: field(title, text), element: nil,
+                    line: text, role: field(role, text), title: field(title, text) ?? field(description, text),
+                    element: nil,
                     children: parse(level + 1)))
         }
         return nodes

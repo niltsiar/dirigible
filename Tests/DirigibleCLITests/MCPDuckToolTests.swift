@@ -1,6 +1,8 @@
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 import Testing
+import os
 
 /// The `duck` tool on the files (decision 0060, C16), on the package of `DuckCommandTests`.
 struct MCPDuckToolTests {
@@ -49,6 +51,29 @@ struct MCPDuckToolTests {
             "speech\t96000\t288000\nspeech\t576000\t768000\nducked\tcm\nunread\tgone\nSpeech runs: 2. Clips ducked: 1, "
             + "with 8 points. Speech files that did not read: 1. The music stays up over their speech."
         #expect(toolResult(answer(answers, id: 1)) == (text, false))
+    }
+
+    /// A cancel after the last block of the speech read, under the package lock of the tool:
+    /// the duck throws `cancelled`, and session.xml keeps its bytes.
+    @Test func aCancelAfterTheReadWritesNothing() throws {
+        let before = try package.xml()
+        let url = package.url
+        let work = try DuckWork.parse(
+            speech: [], music: [], from: nil, to: nil, depth: nil, attack: nil, release: nil, threshold: nil, hold: nil
+        ).get()
+        let readEnded = OSAllocatedUnfairLock(initialState: false)
+
+        let failure = #expect(throws: EditFailure<DuckFailure>.self) {
+            try editPackageCore(url, ripple: false, writeUnchanged: false) { session, _ throws(DuckFailure) in
+                try work.run(
+                    &session, package: url, progress: { if $0 >= 1 { readEnded.withLock { $0 = true } } },
+                    isCancelled: { readEnded.withLock { $0 } })
+            }
+        }
+
+        #expect(readEnded.withLock { $0 }, "the cancel came before the end of the read")
+        #expect(failure?.message(package: package.path) == "the duck was cancelled.", "\(String(describing: failure))")
+        #expect(try package.xml() == before, "a cancel after the read changed session.xml")
     }
 
     /// A positive depth and a lone from are refused before the package is read.

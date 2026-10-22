@@ -36,7 +36,7 @@
 // first "Clear Menu" pressed Apple > Recent Items > Clear Menu and cleared the Recent Items list of
 // the Mac (run 2026-09-30-start-window).
 // A press path with an empty title is refused: a menu separator has an empty title.
-// An element with no title (for example an icon button) has its Description as its title.
+// An element with no title or an empty title (for example an icon button) has its Description as its title.
 // With no match, press lists the path of each element whose title holds the last title.
 // Exit: 0 done, 1 no app with the bundle ID, no element, or no witness line, 2 usage, an empty
 // title in the press path, or an empty DIRIGIBLE_BUNDLE_ID, 3 no Accessibility trust, 4 more than
@@ -119,9 +119,14 @@ func line(_ element: AXUIElement) -> String {
     }.joined(separator: " ")
 }
 
+/// The first value that is not empty: an empty AXTitle is no title.
+func usableTitle(_ values: String?...) -> String? {
+    values.lazy.compactMap { $0 }.first { !$0.isEmpty }
+}
+
 /// One element for press: its dump line, role, title, and children. The title is the AXTitle, or
-/// the AXDescription when the element has no AXTitle. A tree from a dump file has no element to
-/// press.
+/// the AXDescription when the element has no AXTitle or an empty one. A tree from a dump file has
+/// no element to press.
 struct Node {
     let line: String
     let role: String?
@@ -134,7 +139,7 @@ func node(_ element: AXUIElement, _ level: Int) -> Node {
     let children = level < depth ? (attribute(element, kAXChildrenAttribute) as? [AXUIElement]) ?? [] : []
     return Node(
         line: line(element), role: attribute(element, "AXRole") as? String,
-        title: (attribute(element, "AXTitle") ?? attribute(element, "AXDescription")) as? String,
+        title: usableTitle(attribute(element, "AXTitle") as? String, attribute(element, "AXDescription") as? String),
         element: element,
         children: children.map { node($0, level + 1) })
 }
@@ -158,7 +163,7 @@ func tree(fromDump text: String) -> Node? {
             index += 1
             nodes.append(
                 Node(
-                    line: text, role: field(role, text), title: field(title, text) ?? field(description, text),
+                    line: text, role: field(role, text), title: usableTitle(field(title, text), field(description, text)),
                     element: nil,
                     children: parse(level + 1)))
         }

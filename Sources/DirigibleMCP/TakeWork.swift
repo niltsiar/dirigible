@@ -140,9 +140,29 @@ package enum TakeWork {
     ) throws(Failure) -> (result: Result, note: [String]) {
         let before = session
         let result = try edit(&session)
+        // With no take file or no clip placement change, the sync cannot change: no anchor read.
+        guard session.files.values.contains(where: \.isTakeFile), placements(of: before) != placements(of: session)
+        else { return (result, []) }
         let anchors = TakeAnchors.result(package)
         let (old, new) = (TakeMap.of(before, anchors: anchors).map, TakeMap.of(session, anchors: anchors).map)
         return (result, note(TakeSync.change(from: old.sync, to: new.sync), sampleRate: session.sampleRate))
+    }
+
+    /// The clip facts that the take map reads.
+    private struct Placement: Hashable {
+        let track: TrackID
+        let file: FileID
+        let start: Frames
+        let offset: Frames
+        let length: Frames
+    }
+
+    private static func placements(of session: Session) -> [Placement] {
+        session.tracks.flatMap { track in
+            track.clips.map {
+                Placement(track: track.id, file: $0.file, start: $0.start, offset: $0.offset, length: $0.length)
+            }
+        }
     }
 
     /// The note of a live call of `agent` that started at `revision`: the change of the studio when

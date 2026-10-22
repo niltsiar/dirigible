@@ -74,13 +74,10 @@ package enum TakeWork {
     /// take frame that no clip plays, or `<frame> none` for a timeline frame with no audio of the take.
     /// With `json`, one JSON object: the take and each frame with its places.
     package static func text(
-        _ result: Result<TakeMap, FinalizeError>, session: Session, query: TakeMapQuery, json: Bool = false
+        _ read: TakeMapRead, session: Session, query: TakeMapQuery, json: Bool = false
     ) throws(TakeMapError) -> String {
-        let map: TakeMap
-        switch result {
-        case .success(let found): map = found
-        case .failure(let error): throw .anchor(error)
-        }
+        if let fault = read.fault(take: query.take, in: session) { throw .anchor(fault) }
+        let map = read.map
         let takes = map.sync.keys.sorted()
         if let unknown = query.tracks.first(where: { session.track($0) == nil }) { throw .unknownTrack(unknown) }
         guard let first = takes.first else { throw .noTakeAudio }
@@ -136,16 +133,15 @@ package enum TakeWork {
 
     /// Runs `edit` on `session` and gives its result with the note of the take sync change. An MCP
     /// edit tool calls it inside the body that it gives `editPackageCore`, so the anchors read under
-    /// the package lock. An anchor fault gives no note: `session_info` shows the fault.
+    /// the package lock. A take whose anchor does not read gives no line: `session_info` shows the
+    /// fault.
     static func noted<Result, Failure: Error>(
         _ session: inout Session, package: URL, _ edit: (inout Session) throws(Failure) -> Result
     ) throws(Failure) -> (result: Result, note: [String]) {
         let before = session
         let result = try edit(&session)
         let anchors = TakeAnchors.result(package)
-        guard case .success(let old) = TakeMap.of(before, anchors: anchors),
-            case .success(let new) = TakeMap.of(session, anchors: anchors)
-        else { return (result, []) }
+        let (old, new) = (TakeMap.of(before, anchors: anchors).map, TakeMap.of(session, anchors: anchors).map)
         return (result, note(TakeSync.change(from: old.sync, to: new.sync), sampleRate: session.sampleRate))
     }
 

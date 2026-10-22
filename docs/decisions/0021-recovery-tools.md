@@ -5,7 +5,7 @@
 - Amended: 2026-09-27. The anchor magic is a 7-byte prefix and a version digit. A newer anchor is a per-segment fault at a placement that needs it. A finalize keeps a newer anchor and ends the take; an anchor that does not read keeps the take pending before any WAV. The anchor name counts for the next take number (see 0024).
 - Amended: 2026-10-04, run 12. A split take, an unplaced segment with a placed segment of the same take, blocks each ripple until the segment is placed; a wholly unplaced take does not (see 0037).
 - Amended: 2026-10-12, run `2026-10-12-remove-unused-files` (see 0047). The WAV that an undo of a placement leaves in `Clips/` is a stray WAV. Remove Unused Files can move it to the Trash, unless a clip of an undo or redo entry, of a backup, or of `session.xml` uses it. A later placement writes it again from the CAF.
-- Amended: 2026-10-22, run `2026-10-22-take-sync` (see 0061). The take map is a second reader of the anchor files: they keep the take time, so they must stay. `TakeAnchors.read` reads each anchor of `Capture/`; an errno other than ENOENT throws, as `TakeAnchor.read`.
+- Amended: 2026-10-22, run `2026-10-22-take-sync` (see 0061). The take map is a second reader of the anchor files: they keep the take time, so they must stay. `TakeAnchors.read` reads each anchor of `Capture/`; an errno other than ENOENT on `Capture/` throws, and on an anchor it is the fault of that take only.
 
 ## Context
 

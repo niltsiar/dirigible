@@ -9,7 +9,8 @@ import Testing
 struct TakeOriginTests {
     /// The origins of the files of `session`, with the anchors on disk in `package`.
     func origins(_ session: Session, _ package: URL) throws -> [FileID: TakeMap.Origin] {
-        TakeMap(session, recordings: takeRecordings(session, anchors: try TakeAnchors.read(package))).origins
+        let anchors = try TakeAnchors.read(package).compactMapValues { try? $0.get() }
+        return TakeMap(session, recordings: takeRecordings(session, anchors: anchors)).origins
     }
 
     /// The real finalize at playhead 48000 with three devices of one take, each with a latency of
@@ -90,8 +91,8 @@ struct TakeOriginTests {
         }
     }
 
-    /// An errno other than ENOENT is not "no anchor".
-    @Test func anAnchorReadFaultThrows() throws {
+    /// An errno other than ENOENT is not "no anchor": it is the entry of its take.
+    @Test func anAnchorReadFaultIsTheEntryOfItsTake() throws {
         let package = try TakePackage()
         try package.segment(samples: sine(seconds: 1, rate: 48_000))
         _ = try finalizeTake(of: package.read(), in: package.url)
@@ -99,8 +100,10 @@ struct TakeOriginTests {
         chmod(anchor.path, 0o000)
         defer { chmod(anchor.path, 0o644) }
 
+        let anchors = try TakeAnchors.read(package.url)
+        #expect(anchors.count == 1)
         #expect(throws: FinalizeError.readFailed(file: "Capture/take1.anchor", errno: EACCES)) {
-            try TakeAnchors.read(package.url)
+            try anchors[1]?.get()
         }
     }
 }

@@ -96,13 +96,17 @@ enum TakeAnchor {
     }
 }
 
+/// The take anchors of a package: by take, the `Recording` of its anchor or the read fault of that
+/// anchor; or the read fault of `Capture/`.
+public typealias TakeAnchorRead = Result<[Int: Result<Recording, FinalizeError>], FinalizeError>
+
 /// The take anchors of a package, for the take map (decision 0061).
 public enum TakeAnchors {
     /// The `Recording` of each `Capture/take<n>.anchor`, by take. A missing `Capture/`, a missing
     /// anchor, a newer anchor, and an anchor that the reader refuses give no entry. Another errno
-    /// on `Capture/` or on an anchor throws `.readFailed`, so an I/O fault never reads as no take
-    /// time.
-    public static func read(_ package: URL) throws(FinalizeError) -> [Int: Recording] {
+    /// on `Capture/` throws `.readFailed`; on an anchor, it is the `.failure` entry of its take. So
+    /// an I/O fault never reads as no take time, and it keeps out only its own take.
+    public static func read(_ package: URL) throws(FinalizeError) -> [Int: Result<Recording, FinalizeError>] {
         let folder = package.appending(path: captureFolderName)
         if let code = openErrno(folder.path) {
             if code == ENOENT { return [:] }
@@ -114,12 +118,18 @@ public enum TakeAnchors {
         } catch {
             throw .readFailed(file: captureFolderName, errno: posixCode(of: error) ?? EIO)
         }
-        var anchors: [Int: Recording] = [:]
+        var anchors: [Int: Result<Recording, FinalizeError>] = [:]
         for name in names {
             guard let match = name.wholeMatch(of: /take([1-9][0-9]{0,8})\.anchor/), let take = Int(match.1) else {
                 continue
             }
-            if case .success(let recording) = try TakeAnchor.read(take: take, in: package) { anchors[take] = recording }
+            do throws(FinalizeError) {
+                if case .success(let recording) = try TakeAnchor.read(take: take, in: package) {
+                    anchors[take] = .success(recording)
+                }
+            } catch {
+                anchors[take] = .failure(error)
+            }
         }
         return anchors
     }
@@ -137,24 +147,52 @@ func takeRecordings(_ session: Session, anchors: [Int: Recording]) -> [CaptureID
 
 extension TakeAnchors {
     /// `read(_:)` as a value, so a result can cross from a read off the main actor to the studio.
-    public static func result(_ package: URL) -> Result<[Int: Recording], FinalizeError> {
+    public static func result(_ package: URL) -> TakeAnchorRead {
         Result { () throws(FinalizeError) in try read(package) }
     }
 }
 
+/// The take map of a session, and the anchor read faults that keep takes out of it (decision 0061).
+public struct TakeMapRead: Sendable {
+    /// A read fault, and the take whose anchor it is: nil for `Capture/`, which keeps every take out.
+    public struct Fault: Hashable, Sendable {
+        public let take: Int?
+        public let error: FinalizeError
+    }
+
+    /// The map of the takes whose anchors read.
+    public let map: TakeMap
+    /// In take order, the fault of `Capture/` first.
+    public let faults: [Fault]
+
+    /// The fault that keeps `take` out of the map, or nil. With no take, the fault of `Capture/` or
+    /// of a take with a capture in `session`, because that take can have audio.
+    public func fault(take: Int?, in session: Session) -> FinalizeError? {
+        faults.first { fault in
+            guard let faulted = fault.take else { return true }
+            if let take { return faulted == take }
+            return session.captures.keys.contains { SegmentName(id: $0.rawValue)?.take == faulted }
+        }?.error
+    }
+}
+
 extension TakeMap {
-    /// The map of `session` with the anchors of its package (decision 0061). A read fault is the
-    /// result only when the session has a take file, a file whose capture ID equals its file ID:
-    /// with none, the session has no take audio, whatever `Capture/` holds.
-    public static func of(_ session: Session, anchors: Result<[Int: Recording], FinalizeError>)
-        -> Result<TakeMap, FinalizeError>
-    {
+    /// The map of `session` with the anchors of its package (decision 0061). The read faults count
+    /// only when the session has a take file: with none, the session has no take audio, whatever
+    /// `Capture/` holds.
+    public static func of(_ session: Session, anchors: TakeAnchorRead) -> TakeMapRead {
+        guard session.files.values.contains(where: \.isTakeFile) else {
+            return TakeMapRead(map: TakeMap(session, recordings: [:]), faults: [])
+        }
         switch anchors {
         case .success(let anchors):
-            return .success(TakeMap(session, recordings: takeRecordings(session, anchors: anchors)))
+            let faults = anchors.sorted { $0.key < $1.key }.compactMap { take, anchor in
+                if case .failure(let error) = anchor { TakeMapRead.Fault(take: take, error: error) } else { nil }
+            }
+            let recordings = takeRecordings(session, anchors: anchors.compactMapValues { try? $0.get() })
+            return TakeMapRead(map: TakeMap(session, recordings: recordings), faults: faults)
         case .failure(let error):
-            let takeFile = session.files.values.contains(where: \.isTakeFile)
-            return takeFile ? .failure(error) : .success(TakeMap(session, recordings: [:]))
+            return TakeMapRead(map: TakeMap(session, recordings: [:]), faults: [.init(take: nil, error: error)])
         }
     }
 }

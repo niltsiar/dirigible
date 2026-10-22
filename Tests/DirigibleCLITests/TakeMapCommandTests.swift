@@ -231,12 +231,36 @@ struct TakeMapCommandTests {
         defer { chmod(anchor.path, 0o644) }
 
         #expect(
-            try await package.run("take", "map", "PKG", "--take", "1", "100")
+            try await package.run("take", "map", "PKG", "--take", "2", "100")
                 == CLIResult(
                     status: 2, stdout: "",
                     stderr:
                         "Error: Cannot read the take anchor file Capture/take2.anchor (errno 13), so the take time is "
                         + "not known.\n"))
+    }
+
+    /// The anchor fault of a pruned take 2 keeps only take 2 out: take 4 maps, and `info` shows
+    /// the take 2 fault.
+    @Test func anAnchorFaultBlocksOnlyItsTake() async throws {
+        let package = try Self.takes([(4, Self.takeStart, 0)])
+        try TakeAnchor.write(
+            Recording(take: 2, playheadFrame: 0, takeStartHostTimeNanos: Self.takeStart, armedTracks: ["t1"]),
+            in: package.url)
+        let anchor = package.url.appending(path: "Capture/take2.anchor")
+        chmod(anchor.path, 0o000)
+        defer { chmod(anchor.path, 0o644) }
+
+        let map = try await package.run("take", "map", "PKG", "--take", "4", "100")
+        let info = try await package.run("info", "PKG")
+
+        #expect(map == CLIResult(status: 0, stdout: "100 t1:100\n", stderr: ""))
+        let lines = info.stdout.split(separator: "\n").filter { $0.hasPrefix("sync ") }
+        #expect(
+            info.status == 0
+                && lines == [
+                    "sync take 4 in sync, offset 0.000 s (0 frames)",
+                    "sync anchor unreadable: Capture/take2.anchor (errno 13)",
+                ], "\(info)")
     }
 
     /// A `Capture/` that does not read is named as a folder, not as a take anchor.

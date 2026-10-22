@@ -18,7 +18,7 @@ struct OpenedPackage: Sendable {
     /// The backups of the package, newest first (decision 0043).
     var backups: [Backup] = []
     /// The take anchors of the package, or the read fault (decision 0061).
-    var takeAnchors: Result<[Int: Recording], FinalizeError> = .success([:])
+    var takeAnchors: TakeAnchorRead = .success([:])
 }
 
 /// The result of `completeTake`. On a thrown finalize or save, `session` is the input (it keeps
@@ -41,7 +41,7 @@ struct TakeOutcome: Sendable {
     var backups: [Backup]? = nil
     /// The take anchors after the writes, or the read fault, which never sets `error` (decision
     /// 0061). Nil when the package left its volume.
-    var takeAnchors: Result<[Int: Recording], FinalizeError>? = nil
+    var takeAnchors: TakeAnchorRead? = nil
 }
 
 /// The recovery marker of decision 0004, in the package root.

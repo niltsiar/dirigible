@@ -170,11 +170,11 @@ package struct SessionView: Encodable {
     let episode: EpisodeView?
     /// One entry for each take with audio, in take order; left out with none (decision 0061).
     let takeSync: [TakeSyncView]?
-    /// The anchor read fault, in place of `takeSync`.
+    /// The first anchor read fault, in take order.
     let takeSyncFault: FaultView?
 
-    /// `takeMap` is the take map of the session, or the anchor read fault.
-    package init(_ session: Session, media: [FileID: MediaFault], takeMap: Result<TakeMap, FinalizeError>) {
+    /// `takeMap` is the take map of the session and its anchor read faults.
+    package init(_ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead) {
         version = session.fileVersion
         sampleRate = session.sampleRate
         captures = session.sortedCaptures.map {
@@ -203,16 +203,9 @@ package struct SessionView: Encodable {
                 url: $0.url?.text, image: $0.image?.path)
         }
         episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
-        switch takeMap {
-        case .success(let map):
-            takeSync =
-                map.sync.isEmpty
-                ? nil : map.sync.sorted { $0.key < $1.key }.map { TakeSyncView(take: $0.key, $0.value) }
-            takeSyncFault = nil
-        case .failure(let error):
-            takeSync = nil
-            takeSyncFault = FaultView(file: error.fault.file, errno: error.fault.errno)
-        }
+        let sync = takeMap.map.sync
+        takeSync = sync.isEmpty ? nil : sync.sorted { $0.key < $1.key }.map { TakeSyncView(take: $0.key, $0.value) }
+        takeSyncFault = takeMap.faults.first.map { FaultView(file: $0.error.fault.file, errno: $0.error.fault.errno) }
         recording = session.recording.map {
             RecordingView(
                 take: $0.take, playheadFrame: $0.playheadFrame.count, takeStartHostTimeNanos: $0.takeStartHostTimeNanos,
@@ -277,9 +270,9 @@ package struct SessionView: Encodable {
 }
 
 /// The text summary of `info`: one line for the session, then one line for each object, then the
-/// sync line of each take with audio, or the anchor fault line (decision 0061).
+/// sync line of each take with audio, and the line of each anchor fault (decision 0061).
 package func summary(
-    of session: Session, name: String, media: [FileID: MediaFault], takeMap: Result<TakeMap, FinalizeError>
+    of session: Session, name: String, media: [FileID: MediaFault], takeMap: TakeMapRead
 ) -> String {
     var lines = ["\(name): \(session.sampleRate) Hz"]
     for track in session.tracks {
@@ -331,10 +324,8 @@ package func summary(
             "recording take \(recording.take) at \(recording.playheadFrame) "
                 + "host time \(recording.takeStartHostTimeNanos) armed \(armed)")
     }
-    switch takeMap {
-    case .success(let map): lines += TakeWork.syncLines(map.sync, sampleRate: session.sampleRate)
-    case .failure(let error): lines.append(TakeWork.faultLine(error))
-    }
+    lines += TakeWork.syncLines(takeMap.map.sync, sampleRate: session.sampleRate)
+    lines += takeMap.faults.map { TakeWork.faultLine($0.error) }
     return lines.map { $0 + "\n" }.joined()
 }
 

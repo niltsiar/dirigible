@@ -1,6 +1,6 @@
 ---
 name: prompt-engineering-reviewer
-description: Prompt and instruction reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks wording, STE, leading words, negation, completion criteria, emphasis, contradictions, and no-op lines. Use in the five-lens panel of a docs change.
+description: Prompt and instruction reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks wording, STE, leading words, negation, completion criteria, emphasis, contradictions, and no-op lines. Use only when a caller names this lens.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium

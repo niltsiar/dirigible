@@ -66,7 +66,7 @@ struct StudioDuckTests {
         let ducking = Task { try await duck(studio) }
         await gate.entered()
         #expect(studio.transport == .ducking, "duck hold: \(studio.transport)")
-        studio.cancelLevel()
+        studio.cancelReadJob()
         gate.open()
         let result = await ducking.result
 

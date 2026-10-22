@@ -156,8 +156,9 @@ import Observation
     /// Why the last import stopped before its end, read after its `.audioImport(.cancelled)`. Nil
     /// until a stop, and after a cancel of the calling task.
     @ObservationIgnored public internal(set) var importStop: ExportStop?
-    /// The cancel flag of the running level, or nil: each level makes a clear one (decision 0049).
-    @ObservationIgnored var levelFlags: ImportFlags?
+    /// The cancel flag of the running level or duck, or nil: each `runReadJob` makes a clear one
+    /// (decisions 0049 and 0060).
+    @ObservationIgnored var readJobFlags: ImportFlags?
     /// The largest fraction of the running file import, 0 at the start of each run. The banner of
     /// an agent import shows it (decision 0049).
     public internal(set) var importProgress = 0.0
@@ -348,7 +349,8 @@ import Observation
         try history.removeUnusedFiles(files.poolIDs, saved: saved)
     }
 
-    /// The one undo entry of `level`, after its write. The write saved the whole session.
+    /// The one undo entry of `runReadJob` (a level or a duck), after its write. The write saved the
+    /// whole session.
     func recordLevel(_ leveled: Session, agent: AgentName? = nil) {
         history.edit(agent: agent) { $0 = leveled }
         saveError = nil

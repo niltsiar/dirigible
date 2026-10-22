@@ -40,7 +40,7 @@ import Testing
         await until("the level holds") { hold.held }
         #expect(studio.transport == .leveling, "\(studio.transport)")
 
-        model.cancelLevel()
+        model.cancelReadJob()
         hold.release()
 
         let error = await level.value
@@ -57,7 +57,7 @@ import Testing
         let level = Task { await model.level(.eachClip) }
         await until("the level holds") { hold.held }
 
-        model.cancelLevel()
+        model.cancelReadJob()
         hold.release()
         await level.value
 

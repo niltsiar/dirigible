@@ -47,6 +47,8 @@ cat >"$tree/dump.txt" <<'DUMP'
 Role=AXApplication RoleDescription=application Title=Dirigible
  Role=AXWindow RoleDescription=standard window Title=Welcome to Dirigible
   Role=AXButton RoleDescription=button Title=Clear Menu Help=Removes the rows
+  Role=AXButton RoleDescription=button Description=Cancel Enabled=1
+  Role=AXButton RoleDescription=button Title=Stop Description=Stop
  Role=AXMenuBar RoleDescription=menu bar
   Role=AXMenuBarItem RoleDescription=menu bar item Title=Apple MenuItemCmdModifiers=0
    Role=AXMenu RoleDescription=menu
@@ -101,6 +103,10 @@ ROLE=AXMenuBarItem expect_press "a menu title with the menu bar item role" "File
 ROLE=AXMenuBarItem expect_press "a role that no match has" "Close" 1 "" "No element matches"
 # A dump line ends in Enabled=: the title stops at the next key.
 expect_press "an item with an Enabled field" "File > Close" 0 "match: Dirigible > File > Close"
+# An icon button has an AXDescription and no AXTitle: the description is its title. AXTitle stays
+# first, so a button with both gives one match, not two.
+expect_press "a button with only a description" "Cancel" 0 "match: Dirigible > Welcome to Dirigible > Cancel"
+expect_press "a title and a description of one text" "Stop" 0 "match: Dirigible > Welcome to Dirigible > Stop"
 expect_press "an empty title at the end" "File > " 2 "" "has an empty title"
 expect_press "an empty title in the middle" "File >  > Close" 2 "" "has an empty title"
 # With no match, press lists the path of each element whose title holds the last title (in any

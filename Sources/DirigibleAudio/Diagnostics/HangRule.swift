@@ -6,7 +6,8 @@ struct HangLimits: Sendable {
     /// suspended process, a stalled watchdog, or a timer that App Nap holds. A loaded Mac delays a
     /// tick by less, so a block under load still gets its start line. Tests set it past their run.
     var reset = Duration.seconds(5)
-    /// A ping with no answer for this awake time writes `hang start` and starts the burst of stacks.
+    /// The first tick this awake time or more after a ping with no answer writes `hang start` and
+    /// starts the burst of stacks.
     var late = Duration.seconds(1)
     /// The bursts in any `burstHour`.
     var bursts = 3

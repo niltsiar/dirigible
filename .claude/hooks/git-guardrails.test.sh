@@ -1,6 +1,7 @@
 #!/bin/bash
 # Check that git-guardrails.sh blocks and allows the right commands, and that the post-commit hook
-# of .githooks deletes the commit message file. Run by `make check`.
+# of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the Agent
+# tool. Run by `make check`.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -830,6 +831,28 @@ printf 'A subagent waits.\n' > "$k/AGENTS.md"
 git -C "$k" add -A
 want_id=E37 key_refused -m 'cut the rerun'
 gc "$k" -m $'cut the rerun\n\nEval keys: E37' 2>"$tmp/err" || msg_fail "a cut with an Eval keys line was refused: $(cat "$tmp/err")"
+
+# The second hook, agent-guard.sh, refuses an Agent call with worktree isolation: such a worktree does
+# not fit the run layout, and its creation can set the hooks path of the shared git config.
+agent_hook="$(dirname "$0")/agent-guard.sh"
+expect_agent() {
+  local want="$1" json="$2" got
+  printf '%s' "$json" | "$agent_hook" 2>"$tmp/agent-err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == "$want" ]] || { echo "FAIL: agent-guard: expected $want, got $got: $json"; failures=$((failures + 1)); }
+}
+expect_agent block '{"tool_input":{"description":"d","prompt":"p","isolation":"worktree"}}'
+grep -q 'git worktree add' "$tmp/agent-err" ||
+  { echo "FAIL: the agent-guard block message does not name git worktree add: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+expect_agent allow '{"tool_input":{"description":"d","prompt":"p"}}'
+python3 -c '
+import json, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
+ok = any(e.get("matcher") == "Agent"
+         and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/agent-guard.sh") for h in e.get("hooks", []))
+         for e in entries)
+sys.exit(0 if ok else 1)
+' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register agent-guard.sh for Agent"; failures=$((failures + 1)); }
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

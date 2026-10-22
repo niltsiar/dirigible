@@ -154,10 +154,12 @@ private func liveExport(
 private func liveImport(
     _ work: ImportWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
 ) async -> AgentReply {
+    let revision = studio.sessionRevision
     do throws(StudioError) {
         let clip = try await studio.importAudio(
             work.url, to: work.target, level: work.level, agent: call.agent, progress: report)
-        return .result(text: clip.rawValue, isError: false)
+        let note = TakeWork.note(studio, after: revision, agent: call.agent)
+        return .result(text: ([clip.rawValue] + note).joined(separator: "\n"), isError: false)
     } catch .audioImport(.cancelled) {
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         let text = Task.isCancelled ? cancelledMessage : stopMessage(studio.importStop, noun: "import", nothing: noClip)

@@ -131,6 +131,48 @@ package enum TakeWork {
         }
     }
 
+    /// Runs `edit` on `session` and gives its result with the note of the take sync change. An MCP
+    /// edit tool calls it inside the body that it gives `editPackageCore`, so the anchors read under
+    /// the package lock. An anchor fault gives no note: `session_info` shows the fault.
+    static func noted<Result, Failure: Error>(
+        _ session: inout Session, package: URL, _ edit: (inout Session) throws(Failure) -> Result
+    ) throws(Failure) -> (result: Result, note: [String]) {
+        let before = session
+        let result = try edit(&session)
+        let anchors = TakeAnchors.result(package)
+        guard case .success(let old) = TakeMap.of(before, anchors: anchors),
+            case .success(let new) = TakeMap.of(session, anchors: anchors)
+        else { return (result, []) }
+        return (result, note(TakeSync.change(from: old.sync, to: new.sync), sampleRate: session.sampleRate))
+    }
+
+    /// The note of a live call of `agent` that started at `revision`: the change of the studio when
+    /// a newer revision of that agent made it, so a no-op edit and a user edit give no line.
+    @MainActor static func note(_ studio: Studio, after revision: Int, agent: AgentName) -> [String] {
+        let change = studio.takeSyncChange
+        guard change.revision > revision, change.agent == agent else { return [] }
+        return note(change.changes, sampleRate: studio.session.sampleRate)
+    }
+
+    /// One line for each change, for example `Take sync: take 4 in sync, offset -29.496 s -> broken
+    /// from 0:21:07.000 (2 shifts)`, or `Take sync: take 4 offset -29.496 s -> -24.496 s (+5.000 s)`.
+    static func note(_ changes: [TakeSync.Change], sampleRate: Int) -> [String] {
+        func state(_ sync: TakeSync) -> String {
+            switch sync {
+            case .inSync(let offset): "in sync, offset \(seconds(offset, sampleRate)) s"
+            case .broken(let from, let shifts): "broken from \(clock(from.count, sampleRate)) (\(shifts) shifts)"
+            }
+        }
+        return changes.map { change in
+            if case .inSync(let old) = change.old, case .inSync(let new) = change.new {
+                let moved = seconds(new - old, sampleRate)
+                return "Take sync: take \(change.take) offset \(seconds(old, sampleRate)) s -> "
+                    + "\(seconds(new, sampleRate)) s (\(new > old ? "+" : "")\(moved) s)"
+            }
+            return "Take sync: take \(change.take) \(state(change.old)) -> \(state(change.new))"
+        }
+    }
+
     /// `frames` in whole milliseconds, half away from zero.
     static func milliseconds(_ frames: Int, _ sampleRate: Int) -> Int {
         Int((Double(frames) * 1000 / Double(sampleRate)).rounded())

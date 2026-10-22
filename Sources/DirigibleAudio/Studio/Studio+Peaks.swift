@@ -57,9 +57,10 @@ extension Studio {
         }
     }
 
-    /// Studio calls it after an edit, an undo, a redo, and a finalize: a pass when the pool
-    /// files changed.
-    func poolChanged(from before: [FileID: AudioFile]) {
+    /// Studio calls it after an edit, an undo, a redo, a finalize, an import, and a prune: the
+    /// take sync of the revision, with `agent` (decision 0061), and a pass when the pool files changed.
+    func poolChanged(from before: [FileID: AudioFile], agent: AgentName? = nil) {
+        takeSyncState.update(session, revision: sessionRevision, agent: agent)
         if session.files != before { loadPeaks() }
     }
 

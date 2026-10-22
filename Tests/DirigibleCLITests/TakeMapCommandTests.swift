@@ -111,14 +111,17 @@ struct TakeMapCommandTests {
     }
 
     /// Two takes with audio on `t1`, each placed by its anchor: take 1 at 0, and take 2, recorded
-    /// at playhead 480 000, at 480 000. The anchors come from the real writer.
+    /// at playhead 480 000, at 480 000.
     static func twoTakes() throws -> TemporaryPackage {
+        try takes([(1, takeStart, 0), (2, takeStart + 60_000_000_000, 480_000)])
+    }
+
+    /// One 1 s clip on `t1` for each take of `starts`, at the playhead of its record start, with
+    /// the anchor of each take from the real writer.
+    static func takes(_ starts: [(take: Int, host: UInt64, playhead: Frames)]) throws -> TemporaryPackage {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.addTrack("t2", name: "Guest", layout: .mono)
-        let starts: [(take: Int, host: UInt64, playhead: Frames)] = [
-            (1, takeStart, 0), (2, takeStart + 60_000_000_000, 480_000),
-        ]
         for (take, host, playhead) in starts {
             let id = "take\(take)-1-1"
             try session.addCapture(

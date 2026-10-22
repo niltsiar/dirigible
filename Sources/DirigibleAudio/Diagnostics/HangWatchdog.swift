@@ -48,6 +48,9 @@ public final class HangWatchdog: Sendable {
         watch.burstQueue.sync {}
     }
 
+    /// True after `stop()` sets the flag that a burst reads.
+    var isStopped: Bool { watch.isStopped }
+
     private static func tick(_ watch: Watch) {
         switch watch.rule.tick(now: .now) {
         case .ping: watch.ping.async { answer(watch) }
@@ -97,7 +100,10 @@ public final class HangWatchdog: Sendable {
             }
             let walk = ms_walk(watch.thread, frames, Int32(capacity))
             let stack = Array(UnsafeBufferPointer(start: frames, count: Int(walk.count)))
-            if number == 1 { watch.log.note(.hang, "images", fields: watch.images()) }
+            if number == 1 {
+                watch.log.note(.hang, "images", fields: watch.images())
+                guard !watch.isStopped else { return }
+            }
             stacks.append(stack)
             var fields: [(key: String, value: DiagnosticValue)] = [
                 ("n", .number(Int64(number))), ("suspend_us", .text(String(format: "%.1f", microseconds(walk)))),

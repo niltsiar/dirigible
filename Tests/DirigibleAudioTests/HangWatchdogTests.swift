@@ -96,6 +96,40 @@ import os
             "stack 1: \(first.fields["names"] ?? "")")
     }
 
+    /// A stop while the images step runs: the burst writes the images line and no `hang stack`
+    /// line, so `stop()` does not wait for a walk and its `fsync`.
+    @Test func aStopDuringTheImagesStepWritesNoStackLine() async throws {
+        let log = startLog(in: folder.url)
+        let queue = DispatchQueue(label: "HangWatchdogTests.blocked")
+        let gate = Gate(limit: nil)
+        let release = Gate(limit: .seconds(20))
+        let thread = await blockedThread(queue, gate)
+        let watchdog = HangWatchdog.start(
+            log: log, ping: queue, thread: thread, limits: .fast, namer: dladdrName,
+            images: {
+                release.waitOnce()
+                return [("count", .number(0))]
+            })
+        defer {
+            release.open()
+            gate.open()
+            watchdog.stop()
+        }
+
+        await release.entered(limit: .seconds(20))
+        let returned = OSAllocatedUnfairLock(initialState: false)
+        DispatchQueue.global(qos: .utility).async {
+            watchdog.stop()
+            returned.withLock { $0 = true }
+        }
+        await until(limit: .seconds(20), "the stop flag") { watchdog.isStopped }
+        release.open()
+        await until(limit: .seconds(20), "the return of stop") { returned.withLock { $0 } }
+
+        let events = hangLines(log, in: folder.url).map(\.event)
+        #expect(events == ["start", "images"], "lines: \(events)")
+    }
+
     /// C47: a namer that blocks (a main thread in dyld) still finds the raw stacks in the file.
     @Test func theRawStacksComeBeforeTheNames() async throws {
         let log = startLog(in: folder.url)
@@ -270,117 +304,4 @@ func blockedThread(_ queue: DispatchQueue, _ gate: Gate) async -> ms_thread {
         usleep(5000)
     }
     return false
-}
-
-/// One walk and its suspend window in `mach_absolute_time` ticks.
-typealias WalkWindow = (status: kern_return_t, start: UInt64, end: UInt64)
-
-func walkWindow(_ thread: ms_thread, pause: Bool) -> WalkWindow {
-    var frames = [UInt](repeating: 0, count: 128)
-    let result = ms_walk(thread, &frames, Int32(frames.count))
-    if pause { usleep(1000) }
-    return (result.status, result.suspended_at, result.resumed_at)
-}
-
-/// True when an ascending list of stamps has one between `start` and `end`.
-func holdsStamp<Stamps: RandomAccessCollection<UInt64>>(_ stamps: Stamps, after start: UInt64, before end: UInt64)
-    -> Bool where Stamps.Index == Int
-{
-    var low = 0
-    var high = stamps.count
-    while low < high {
-        let middle = (low + high) / 2
-        if stamps[middle] <= start { low = middle + 1 } else { high = middle }
-    }
-    return low < stamps.count && stamps[low] < end
-}
-
-/// Runs `body` on a new thread of `qos` and returns its result, or nil after `limit`.
-func onThread<T: Sendable>(
-    _ qos: QualityOfService, limit: Duration = .seconds(20), _ body: @escaping @Sendable () -> T
-) async -> T? {
-    let result = OSAllocatedUnfairLock<T?>(initialState: nil)
-    let thread = Thread { result.withLock { $0 = body() } }
-    thread.qualityOfService = qos
-    thread.start()
-    let end = ContinuousClock.now + limit
-    while ContinuousClock.now < end {
-        if let value = result.withLock({ $0 }) { return value }
-        try? await Task.sleep(for: .milliseconds(5))
-    }
-    return nil
-}
-
-/// A user-interactive thread that stores `mach_absolute_time` each 2 us or more in a
-/// preallocated array while `stamps(true)` holds, until `stop`. The stamps under `count` do not
-/// change. With no stamps, it sleeps, so it adds no load.
-final class Bystander: @unchecked Sendable {
-    static let capacity = 1 << 21
-    private let stamps = UnsafeMutablePointer<UInt64>.allocate(capacity: capacity)
-    private let state = OSAllocatedUnfairLock(
-        initialState: (thread: ms_thread?.none, stamps: false, stop: false, count: 0, done: false))
-
-    /// Starts the thread and returns it, or nil after 20 s.
-    func started() async -> ms_thread? {
-        let thread = Thread { self.run() }
-        thread.qualityOfService = .userInteractive
-        thread.start()
-        let end = ContinuousClock.now + .seconds(20)
-        while ContinuousClock.now < end {
-            if let thread = state.withLock({ $0.thread }) { return thread }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return nil
-    }
-
-    func stop() { state.withLock { $0.stop = true } }
-
-    func stamps(_ on: Bool) { state.withLock { $0.stamps = on } }
-
-    /// Stops the thread and returns its stamps, or nil after 20 s.
-    func stopped() async -> [UInt64]? {
-        stop()
-        let end = ContinuousClock.now + .seconds(20)
-        while ContinuousClock.now < end {
-            if let count = state.withLock({ $0.done ? $0.count : nil }) {
-                defer { stamps.deallocate() }
-                return Array(UnsafeBufferPointer(start: stamps, count: count))
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return nil
-    }
-
-    private func run() {
-        state.withLock { $0.thread = ms_thread_current() }
-        var timebase = mach_timebase_info()
-        mach_timebase_info(&timebase)
-        let gap = 2_000 * UInt64(timebase.denom) / UInt64(timebase.numer)
-        var count = 0
-        var last: UInt64 = 0
-        var stamping = false
-        while true {
-            let now = mach_absolute_time()
-            if stamping, now - last >= gap, count < Self.capacity {
-                stamps[count] = now
-                count += 1
-                last = now
-            }
-            let total = count
-            let (stop, on) = state.withLock { state in
-                state.count = total
-                return (state.stop, state.stamps)
-            }
-            if stop { break }
-            if !on { usleep(100) }
-            stamping = on
-        }
-        state.withLock { $0.done = true }
-    }
-
-    /// True when a stamp so far lies inside the window.
-    func hasStamp(inside window: WalkWindow) -> Bool {
-        let count = state.withLock { $0.count }
-        return holdsStamp(UnsafeBufferPointer(start: stamps, count: count), after: window.start, before: window.end)
-    }
 }

@@ -37,8 +37,9 @@ struct MCPTakeMapToolTests {
         defer { chmod(anchor.path, 0o644) }
 
         let answers = try await mcp([
-            toolCall(1, "take_map", ["package": package.path, "frames": [100], "take": 1]),
+            toolCall(1, "take_map", ["package": package.path, "frames": [100], "take": 2]),
             toolCall(2, "session_info", ["package": package.path]),
+            toolCall(3, "take_map", ["package": package.path, "frames": [100], "take": 1]),
         ])
 
         #expect(
@@ -50,7 +51,8 @@ struct MCPTakeMapToolTests {
         )
         let info = toolResult(answer(answers, id: 2))
         #expect(!info.isError && info.text.contains(#""takeSyncFault":{"errno":13,"file":"Capture/take2.anchor"}"#))
-        #expect(!info.text.contains(#""takeSync":"#), "\(info.text)")
+        #expect(info.text.contains(#""takeSync":[{"offset":0,"state":"inSync","take":1}]"#), "\(info.text)")
+        #expect(toolResult(answer(answers, id: 3)) == ("100 t1:100\n", false))
     }
 
     @Test func noTakeAudioIsAToolError() async throws {

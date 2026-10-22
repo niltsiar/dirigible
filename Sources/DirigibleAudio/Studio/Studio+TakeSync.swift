@@ -8,26 +8,26 @@ public struct TakeSyncChange: Equatable, Sendable {
     /// The agent of an edit, of a redo of an agent entry, or of an import. Nil for a user edit, an
     /// undo, a take outcome, and a prune.
     public let agent: AgentName?
-    /// The transitions from the revision before (`TakeSync.change(from:to:)`). Empty when the
-    /// anchors of either revision do not read.
+    /// The transitions from the revision before (`TakeSync.change(from:to:)`). A take whose
+    /// anchor does not read is in neither map, so it gives no entry.
     public let changes: [TakeSync.Change]
 }
 
 /// The take anchors of the studio, and the take map and the change of the last revision.
 struct TakeSyncState {
     /// The take anchors of the package, or the read fault: from the open and each take outcome.
-    private(set) var anchors: Result<[Int: Recording], FinalizeError>
-    private(set) var map: Result<TakeMap, FinalizeError>
+    private(set) var anchors: TakeAnchorRead
+    private(set) var map: TakeMapRead
     private(set) var change = TakeSyncChange(revision: 0, agent: nil, changes: [])
 
-    init(_ session: Session, anchors: Result<[Int: Recording], FinalizeError>) {
+    init(_ session: Session, anchors: TakeAnchorRead) {
         self.anchors = anchors
         map = TakeMap.of(session, anchors: anchors)
     }
 
     /// Stores the anchors of a take outcome and makes the map of `session` again, so the map always
     /// comes from the stored anchors. It records no change and no revision.
-    mutating func store(_ anchors: Result<[Int: Recording], FinalizeError>, session: Session) {
+    mutating func store(_ anchors: TakeAnchorRead, session: Session) {
         self.anchors = anchors
         map = TakeMap.of(session, anchors: anchors)
     }
@@ -38,23 +38,18 @@ struct TakeSyncState {
         guard revision != change.revision else { return }
         let old = map
         map = TakeMap.of(session, anchors: anchors)
-        var changes: [TakeSync.Change] = []
-        if transitions, case .success(let before) = old, case .success(let after) = map {
-            changes = TakeSync.change(from: before.sync, to: after.sync)
-        }
+        let changes = transitions ? TakeSync.change(from: old.map.sync, to: map.map.sync) : []
         change = TakeSyncChange(revision: revision, agent: agent, changes: changes)
     }
 }
 
 extension Studio {
-    /// The take map of the session (decision 0061), or the anchor read fault. It is made once for
-    /// each revision, with the anchors of the open and of the last take outcome.
-    public var takeMap: Result<TakeMap, FinalizeError> { takeSyncState.map }
+    /// The take map of the session (decision 0061), and the anchor read faults. It is made once
+    /// for each revision, with the anchors of the open and of the last take outcome.
+    public var takeMap: TakeMapRead { takeSyncState.map }
 
-    /// The anchor read fault that keeps the take map from the session, or nil.
-    public var takeSyncFault: FinalizeError? {
-        if case .failure(let error) = takeMap { error } else { nil }
-    }
+    /// The first anchor read fault, in take order, or nil.
+    public var takeSyncFault: FinalizeError? { takeMap.faults.first?.error }
 
     /// The take sync change of the last revision of an edit, an undo, a redo, a take outcome, an
     /// import, or a prune. A level or a duck changes only gains and envelopes, so it makes none.

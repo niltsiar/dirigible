@@ -154,7 +154,7 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
 /// The `session_info` text of a session, its media faults, and its take map: the file path and
 /// the live path of an agent give the same JSON (decision 0046).
 func infoText(
-    _ session: Session, media: [FileID: MediaFault], takeMap: Result<TakeMap, FinalizeError>, tracks: [TrackID]?,
+    _ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead, tracks: [TrackID]?,
     range: Range<Frames>?, compact: Bool
 ) throws(ToolError) -> String {
     try checkTracks(tracks, in: session)

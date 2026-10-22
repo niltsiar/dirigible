@@ -338,15 +338,22 @@ struct SessionViewTests {
                 == .init(take: 1, state: "broken", offset: nil, from: 100_000, shifts: 2))
     }
 
-    /// C2: `info` still answers with an anchor that does not read, and says which one.
+    /// C2: `info` still answers with an anchor that does not read, says which one, and keeps the
+    /// state of each take whose anchor reads.
     @Test func anAnchorFaultIsALineAndAKey() async throws {
         let package = try TakeMapCommandTests.twoTakes()
         let anchor = package.url.appending(path: "Capture/take2.anchor")
         chmod(anchor.path, 0o000)
         defer { chmod(anchor.path, 0o644) }
 
-        #expect(try await syncLines(package) == ["sync anchor unreadable: Capture/take2.anchor (errno 13)"])
-        let fault = SyncView(takeSync: nil, takeSyncFault: .init(file: "Capture/take2.anchor", errno: EACCES))
+        #expect(
+            try await syncLines(package) == [
+                "sync take 1 in sync, offset 0.000 s (0 frames)",
+                "sync anchor unreadable: Capture/take2.anchor (errno 13)",
+            ])
+        let fault = SyncView(
+            takeSync: [.init(take: 1, state: "inSync", offset: 0, from: nil, shifts: nil)],
+            takeSyncFault: .init(file: "Capture/take2.anchor", errno: EACCES))
         #expect(try await json(package) == fault)
         #expect(try await json(package, "--compact") == fault)
     }

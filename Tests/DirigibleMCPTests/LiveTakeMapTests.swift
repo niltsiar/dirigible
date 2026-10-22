@@ -72,7 +72,7 @@ struct LiveTakeMapTests {
             Issue.record("session_info: \(info)")
             return
         }
-        #expect(json.contains(#""takeSyncFault":{"errno":13,"file":"Capture/take1.anchor"}"#), "\(json)")
+        #expect(json.contains(#""takeSyncFaults":[{"errno":13,"file":"Capture/take1.anchor"}]"#), "\(json)")
         await studio.settle()
     }
 }

@@ -115,6 +115,26 @@ struct StudioTakeSyncTests {
         await studio.settle()
     }
 
+    /// A level moves the revision with no change of the take sync. A later agent edit that changes
+    /// nothing does not move the revision, so no change names that agent.
+    @Test func aNoOpAgentEditNamesNoChangeAfterALevel() async throws {
+        let package = try TakePackage()
+        try package.segment(samples: sine(seconds: 1, rate: 48_000))
+        let studio = try await Studio.open(package.url)
+        let agent = AgentName(title: "Test Agent", clientName: nil)
+        let revision = studio.sessionRevision
+        var leveled = studio.session
+        try leveled.addTrack("t2", name: "Music", layout: .mono)
+        studio.recordLevel(leveled)
+        try #require(studio.sessionRevision == revision + 1)
+
+        try studio.edit(ripple: false, agent: agent) { _ throws(SessionError) in }
+
+        #expect(studio.sessionRevision == revision + 1)
+        #expect(studio.takeSyncChange.agent == nil, "\(studio.takeSyncChange)")
+        await studio.settle()
+    }
+
     /// C8: an agent edit, an undo, and a redo, each followed by 200 playhead moves and 5 reads,
     /// give 3 changes. Each change has the revision and the agent of its revision: none for the undo.
     @Test func theSyncIsMadeOncePerRevision() async throws {

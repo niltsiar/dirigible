@@ -15,7 +15,9 @@
 # passing scripts/check-plan.sh (CHECK_PLAN_AT_PHASE4=1): a Criteria: field for each plan gate
 # change, and a criterion change row for each of its IDs, while such a row can still come before
 # Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
-# last phase 2 row. Else the script appends nothing and exits 2.
+# last phase 2 row. A phase 6 row needs a passing scripts/check-plan.sh with no variable, the check
+# of the land: the review files have their fields. A criterion change row skips that check. Else
+# the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -50,11 +52,20 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
     [[ "$text" =~ $word && "$text" =~ ${word/old/new} ]] || { echo "a criterion change row names the old and new value (the words old and new)" >&2; exit 2; }
 fi
 
+plan_check="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/check-plan.sh"
 # A phase 4 row: the plan gate is closed, so plan.md must pass check-plan.sh now.
 if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]]; then
-    plan_check="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/check-plan.sh"
     if ! out="$(CHECK_PLAN_AT_PHASE4=1 "$plan_check" "${file%/*}" 2>&1)"; then
         printf '%s\na phase 4 row needs a passing check-plan.sh: fix plan.md or log the rows above, then log this row\n' "$out" >&2
+        exit 2
+    fi
+fi
+# A phase 6 row: check-plan.sh passes as the land check runs it (no plan gate test), so the review
+# fields are complete before the fixer starts. The criterion change row repairs a missing criterion
+# change row, which that check refuses, so it skips the check.
+if [[ "$1" == 6 && -f "${file%/*}/plan.md" && "$(lower "$2")" != "criterion change"* ]]; then
+    if ! out="$("$plan_check" "${file%/*}" 2>&1)"; then
+        printf '%s\na phase 6 row needs a passing check-plan.sh: fix the review file or the plan, then log this row\n' "$out" >&2
         exit 2
     fi
 fi

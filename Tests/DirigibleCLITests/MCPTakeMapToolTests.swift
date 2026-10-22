@@ -13,7 +13,8 @@ struct MCPTakeMapToolTests {
             toolCall(1, "take_map", ["package": path, "frames": [100, 48_000], "take": 2]),
             toolCall(2, "take_map", ["package": path, "frames": [480_100], "take": 2, "timeline": true]),
             toolCall(3, "take_map", ["package": path, "frames": [100]]),
-            toolCall(4, "take_map", ["package": path, "frames": [-1], "take": 1]),
+            toolCall(4, "take_map", ["package": path, "frames": [-1], "take": 1, "timeline": true]),
+            toolCall(6, "take_map", ["package": path, "frames": [-1], "take": 1]),
             toolCall(5, "session_info", ["package": path, "compact": true]),
         ])
 
@@ -21,6 +22,7 @@ struct MCPTakeMapToolTests {
         #expect(toolResult(answer(answers, id: 2)) == ("480100 t1:100\n", false))
         #expect(toolResult(answer(answers, id: 3)) == ("Give --take: the session has takes 1, 2.", true))
         #expect(toolResult(answer(answers, id: 4)) == ("Each frame must be 0 to 1099511627776.", true))
+        #expect(toolResult(answer(answers, id: 6)) == ("-1 cut\n", false))
         let info = toolResult(answer(answers, id: 5)).text
         #expect(
             info.contains(

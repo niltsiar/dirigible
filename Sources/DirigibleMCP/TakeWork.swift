@@ -12,10 +12,12 @@ package struct TakeMapQuery: Sendable {
     /// Empty: every track.
     let tracks: [TrackID]
 
-    /// Refuses a frame outside 0...`Frames.limit` and a take under 1.
+    /// Refuses a timeline frame outside 0...`Frames.limit`, a take frame outside
+    /// `TakeMap.takeFrames`, and a take under 1.
     package init(frames: [Int], take: Int?, timeline: Bool, tracks: [TrackID]) throws(ToolError) {
-        guard frames.allSatisfy({ (0...Frames.limit.count).contains($0) }) else {
-            throw ToolError("Each frame must be 0 to \(Frames.limit.count).")
+        let bound = timeline ? 0...Frames.limit.count : TakeMap.takeFrames
+        guard frames.allSatisfy(bound.contains) else {
+            throw ToolError("Each frame must be \(bound.lowerBound) to \(bound.upperBound).")
         }
         if let take, take < 1 { throw ToolError("The take must be 1 or more.") }
         (self.frames, self.take, self.timeline, self.tracks) = (frames, take, timeline, tracks)

@@ -350,4 +350,7 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A duck found no speech over the threshold in dBFS in the scope, in timeline frames. It
     /// changes nothing.
     case noSpeech(Range<Frames>, threshold: Double)
+    /// A duck range starts at or after the session end, so it holds no frame to read (decision
+    /// 0060). It changes nothing.
+    case duckRangePastEnd(Range<Frames>, end: Frames)
 }

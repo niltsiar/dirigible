@@ -66,6 +66,7 @@
 "error.duck.no.ducked.track" = "Selecteer een spoor om te verlagen of geef een spoor de rol Muziek.";
 "error.duck.both.lists" = "Spoor '%@' kan niet zowel een spraakspoor als een spoor om te verlagen zijn.";
 "error.duck.read" = "Een audiobestand van een spraakspoor is niet gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
+"error.duck.past.end" = "De selectie begint bij of na het einde van de sessie, dus de verlaging heeft geen gainpunt gewijzigd.";
 "error.file.unreadable" = "Het sessiebestand is beschadigd.";
 "error.file.newer" = "Deze sessie is gemaakt met een nieuwere versie van Dirigible. Werk Dirigible bij om de sessie te openen.";
 "error.file.read" = "Het sessiebestand kan niet worden gelezen (fout %lld).";

@@ -146,8 +146,7 @@ extension SessionWindow {
         defer { duckProgress = nil }
         do throws(StudioError) {
             try await studio.duck(
-                speech: tracks.filter(draft.speech.contains), music: tracks.filter(draft.music.contains),
-                scope: range ?? .zero..<studio.session.end, range: range,
+                speech: tracks.filter(draft.speech.contains), music: tracks.filter(draft.music.contains), range: range,
                 shape: draft.shape(sampleRate: studio.session.sampleRate)
             ) { [weak self] fraction in self?.duckProgress = fraction }
         } catch .duckCancelled {

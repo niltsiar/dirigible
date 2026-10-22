@@ -76,12 +76,12 @@ package struct DuckWork: Sendable {
             threshold: threshold ?? base.threshold, hold: hold ?? base.hold)
     }
 
-    /// The track lists, the scope, and the shape of the duck in `session`.
+    /// The track lists, the scope (`Session.duckScope`), and the shape of the duck in `session`.
     package func plan(in session: Session) throws(SessionError) -> (
         speech: [TrackID], music: [TrackID], scope: Range<Frames>, shape: DuckShape
     ) {
         let (speech, music) = try session.duckTracks(speech: speech, music: music)
-        return (speech, music, range ?? .zero..<session.end, shape(sampleRate: session.sampleRate))
+        return (speech, music, try session.duckScope(range), shape(sampleRate: session.sampleRate))
     }
 
     /// The duck in `session`: the stdout lines and the report line of the command. The flag is read

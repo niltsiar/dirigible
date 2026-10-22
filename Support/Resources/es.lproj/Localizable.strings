@@ -66,6 +66,7 @@
 "error.duck.no.ducked.track" = "Selecciona una pista que atenuar o da a una pista el rol Música.";
 "error.duck.both.lists" = "La pista “%@” no puede ser a la vez una pista de voz y una pista que atenuar.";
 "error.duck.read" = "No se pudo leer un archivo de audio de una pista de voz (error %lld). No cambió ningún punto de ganancia.";
+"error.duck.past.end" = "La selección empieza en el final de la sesión o después, así que la atenuación no cambió ningún punto de ganancia.";
 "error.file.unreadable" = "El archivo de la sesión está dañado.";
 "error.file.newer" = "Esta sesión se creó con una versión más nueva de Dirigible. Actualiza Dirigible para abrirla.";
 "error.file.read" = "No se puede leer el archivo de la sesión (error %lld).";

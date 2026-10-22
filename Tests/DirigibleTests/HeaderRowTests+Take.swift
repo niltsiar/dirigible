@@ -25,6 +25,7 @@ extension HeaderRowTests {
             (.finalizing(take: 1), true, "a finalize"),
             (.placing(SegmentName(take: 1, arm: 1, segment: 1)), false, "a placement"),
             (.leveling, false, "a level"),
+            (.ducking, false, "a duck"),
             (.importing(ImportRun(name: "Voice.wav", kind: .file, flags: ImportFlags())), false, "an import"),
         ]
         for (transport, live, label) in states {

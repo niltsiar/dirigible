@@ -24,6 +24,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Import a Whisper JSON or WebVTT transcript with the dirigible tool or an AI agent, find a phrase, and cut its words from all tracks in one edit.
 - Let an AI agent do common jobs in few calls: one `import` places a sound with its range, gain, and fades; `chapters_import` reads a chapters file and `chapters_export` writes a text chapter list; `clip_heal` joins the pieces of a split clip; `session_info` with `compact` reads a long session in fewer tokens.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
+- Give each track a role (dialogue, music, or effects), then lower the music under the speech with Tools > Duck Music Under Speech, in one undo step.
 - Read the loudness of the mix in the meter below the tracks while you play.
 - Play forward and backward with the J, K, and L keys, at slow and fast speeds.
 - Play faster or slower with the voices at their pitch, from 0.75x to 2x.

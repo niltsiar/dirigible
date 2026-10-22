@@ -72,7 +72,7 @@ enum TimelineCommand: Hashable {
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, episodeInfo
-    case autoLevel, autoLevelPerTrack
+    case autoLevel, autoLevelPerTrack, duck
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -113,6 +113,8 @@ enum TimelineCommand: Hashable {
         // A text field does nothing with Command-T (run 13a, C9).
         case .importAudio, .export, .exportSelection, .exportChapters, .episodeInfo: false
         case .autoLevel, .autoLevelPerTrack: false
+        // Duck Music Under Speech... has no key (plan gate 1 item 3).
+        case .duck: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
         case .addGainPoint, .previousGainPoint, .nextGainPoint: true
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
@@ -367,6 +369,7 @@ extension SessionWindow {
         case .addGainPoint, .previousGainPoint, .nextGainPoint: runGainPoint(command, studio)
         case .autoLevel: Task { await level(.eachClip) }
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
+        case .duck: startDuck()
         }
     }
 }

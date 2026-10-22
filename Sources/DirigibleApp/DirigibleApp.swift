@@ -125,6 +125,8 @@ struct DirigibleApp: App {
                 Group {
                     CommandMenu(L10n.menuTools.key) {
                         ForEach(TimelineCommand.toolItems, id: \.command) { item in menuButton(item) }
+                        Divider()
+                        Button(L10n.menuToolsDuck.key) { app.timeline(.duck) }.disabled(app.key?.isOn(.duck) != true)
                     }
                     CommandGroup(before: .windowList) {
                         Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)

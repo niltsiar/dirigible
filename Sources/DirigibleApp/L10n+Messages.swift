@@ -42,8 +42,9 @@ extension L10n {
         case .pasteYielded(let source): return errorPasteYielded.format(source)
         // The window beeps for it and shows no alert.
         case .rippleBlocked: return errorSessionOther.text
-        // The banner Cancel ends a level, so the window shows no alert for it (decision 0049).
-        case .levelCancelled, .duckCancelled, .duckRead: return errorSessionOther.text
+        // The banner Cancel ends a level or a duck, so the window shows no alert for it (decision 0049).
+        case .levelCancelled, .duckCancelled: return errorSessionOther.text
+        case .duckRead(let code): return errorDuckRead.format(Int(code))
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         case .artwork(let error): return message(for: error)
@@ -210,8 +211,12 @@ extension L10n {
             .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack,
             .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
-            .nothingToHeal, .noSpeechTrack, .noDuckedTrack, .trackInBothDuckLists, .noSpeech:
+            .nothingToHeal:
             return errorSessionOther.text
+        case .noSpeechTrack: return errorDuckNoSpeechTrack.text
+        case .noDuckedTrack: return errorDuckNoDuckedTrack.text
+        case .trackInBothDuckLists(let track): return errorDuckBothLists.format(name(track))
+        case .noSpeech(_, let threshold): return errorDuckNoSpeech.format(threshold)
         }
     }
 

@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Automatische niveaus per spoor";
 "menu.tools.level.all" = "Automatische niveaus voor alle clips";
 "menu.tools.level.track.all" = "Automatische niveaus per spoor (alle)";
+"menu.tools.duck" = "Verlaag muziek onder spraak…";
 
 /* Errors */
 "error.studio.busy" = "Er wordt een take opgenomen of afgerond. Wacht tot die klaar is.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "Spoor '%@' hoort bij de take die nog moet worden afgerond.";
 "error.session.track.count" = "De kopie heeft %lld sporen. Selecteer evenveel sporen om de kopie te plakken.";
 "error.session.other" = "De sessie heeft de wijziging geweigerd.";
+"error.duck.no.speech" = "De verlaging vond geen spraak boven %.1f dBFS, dus er is geen gainpunt gewijzigd.";
+"error.duck.no.speech.track" = "Selecteer een spraakspoor of geef een spoor de rol Dialoog.";
+"error.duck.no.ducked.track" = "Selecteer een spoor om te verlagen of geef een spoor de rol Muziek.";
+"error.duck.both.lists" = "Spoor '%@' kan niet zowel een spraakspoor als een spoor om te verlagen zijn.";
+"error.duck.read" = "Een audiobestand van een spraakspoor is niet gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
 "error.file.unreadable" = "Het sessiebestand is beschadigd.";
 "error.file.newer" = "Deze sessie is gemaakt met een nieuwere versie van Dirigible. Werk Dirigible bij om de sessie te openen.";
 "error.file.read" = "Het sessiebestand kan niet worden gelezen (fout %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Take %lld afronden…";
 "take.placing" = "%@ plaatsen…";
 "take.leveling" = "Clipniveaus instellen…";
+"take.ducking" = "Muziek onder de spraak verlagen…";
 "take.pending" = "Take %lld is niet afgerond.";
 "take.pending.leave.hint" = "Als de schijf deze audio ook bij een nieuwe poging niet kan lezen, rond de take dan af zonder de audio. Het bestand blijft in het pakket, en je kunt het later plaatsen.";
 "take.pending.space" = "Voor het afronden is %1$@ vrije ruimte nodig. Nu is %2$@ vrij.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "Links en mappen in de sessie blijven behouden: %@";
 "sheet.unused.footnote" = "De ruimte komt vrij als je de prullenmand leegmaakt.";
 "sheet.unused.move" = "Verplaats naar prullenmand";
+"sheet.duck.title" = "Verlaag muziek onder spraak";
+"sheet.duck.speech" = "Spraaksporen";
+"sheet.duck.music" = "Sporen om te verlagen";
+"sheet.duck.depth" = "Diepte";
+"sheet.duck.attack" = "Attack";
+"sheet.duck.release" = "Release";
+"sheet.duck.note" = "De verlaging vervangt de gainpunten van elke muziekclip die spraak bereikt, in het geselecteerde bereik of anders in de hele sessie. De andere clips blijven ongewijzigd.";
+"sheet.duck.apply" = "Pas toe";
 "alert.export.missing" = "Deze bestanden ontbreken of kunnen niet worden gelezen. Ze worden als stilte geëxporteerd:\n%@";
 "alert.export.confirm" = "Exporteer";
 "alert.exported" = "De export is klaar. Deze bestanden ontbraken of konden niet worden gelezen, en ze zijn als stilte geëxporteerd:\n%@";

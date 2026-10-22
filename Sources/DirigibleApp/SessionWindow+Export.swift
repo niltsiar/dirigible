@@ -47,8 +47,8 @@ extension SessionWindow {
 
     /// Import Audio, Export, Export Selection, and Export Chapters are off when they cannot run. Their keys have Command, so the
     /// plain-key rule does not apply. During an import, the edit items whose key no text field uses
-    /// are off. Auto Level is also off with no clip or a busy studio, and Heal Clips with no range
-    /// or a busy studio. The other items
+    /// are off. Auto Level and Duck Music Under Speech are also off with no clip or a busy studio,
+    /// and Heal Clips with no range or a busy studio. The other items
     /// are never off: a field uses their keys (0018 K1).
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {
@@ -57,7 +57,7 @@ extension SessionWindow {
         case .exportChapters: canExportChapters
         case .importAudio: canImport
         case .insert, .cutSelectedTracks, .fade: importJob == nil
-        case .autoLevel, .autoLevelPerTrack:
+        case .autoLevel, .autoLevelPerTrack, .duck:
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true
         case .heal:
             importJob == nil && idleStudio.flatMap { timeline.selection.marks?.selection(in: $0.session) } != nil

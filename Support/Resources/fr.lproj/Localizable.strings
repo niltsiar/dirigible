@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Nivellement automatique par piste";
 "menu.tools.level.all" = "Nivellement automatique de tous les clips";
 "menu.tools.level.track.all" = "Nivellement automatique par piste (tous)";
+"menu.tools.duck" = "Atténuer la musique sous la voix…";
 
 /* Errors */
 "error.studio.busy" = "Une prise est en cours d’enregistrement ou de finalisation. Attendez qu’elle se termine.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "La piste « %@ » fait partie de la prise qui attend sa finalisation.";
 "error.session.track.count" = "La copie contient %lld pistes. Sélectionnez le même nombre de pistes pour la coller.";
 "error.session.other" = "La session a refusé la modification.";
+"error.duck.no.speech" = "L’atténuation n’a trouvé aucune voix au-dessus de %.1f dBFS, elle n’a donc modifié aucun point de gain.";
+"error.duck.no.speech.track" = "Sélectionnez une piste de voix ou donnez à une piste le rôle Dialogue.";
+"error.duck.no.ducked.track" = "Sélectionnez une piste à atténuer ou donnez à une piste le rôle Musique.";
+"error.duck.both.lists" = "La piste « %@ » ne peut pas être à la fois une piste de voix et une piste à atténuer.";
+"error.duck.read" = "Un fichier audio d’une piste de voix n’a pas pu être lu (erreur %lld). Aucun point de gain n’a changé.";
 "error.file.unreadable" = "Le fichier de la session est endommagé.";
 "error.file.newer" = "Cette session a été créée par une version plus récente de Dirigible. Mettez à jour Dirigible pour l’ouvrir.";
 "error.file.read" = "Le fichier de la session ne peut pas être lu (erreur %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Finalisation de la prise %lld…";
 "take.placing" = "Placement de %@…";
 "take.leveling" = "Nivellement des clips…";
+"take.ducking" = "Atténuation de la musique sous la voix…";
 "take.pending" = "La prise %lld n’est pas terminée.";
 "take.pending.leave.hint" = "Si le disque ne parvient toujours pas à lire cet audio, terminez la prise sans lui. Le fichier reste dans le paquet, et vous pourrez le placer plus tard.";
 "take.pending.space" = "La finalisation nécessite %1$@ d’espace libre. Espace libre actuel : %2$@.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "Les liens et les dossiers de la session restent : %@";
 "sheet.unused.footnote" = "L’espace se libère quand vous videz la corbeille.";
 "sheet.unused.move" = "Placer dans la corbeille";
+"sheet.duck.title" = "Atténuer la musique sous la voix";
+"sheet.duck.speech" = "Pistes de voix";
+"sheet.duck.music" = "Pistes à atténuer";
+"sheet.duck.depth" = "Profondeur";
+"sheet.duck.attack" = "Attaque";
+"sheet.duck.release" = "Relâchement";
+"sheet.duck.note" = "L’atténuation remplace les points de gain de chaque clip de musique que la voix atteint, dans la plage sélectionnée ou sinon dans toute la session. Elle conserve les autres clips.";
+"sheet.duck.apply" = "Appliquer";
 "alert.export.missing" = "Ces fichiers sont manquants ou illisibles. Ils seront exportés sous forme de silence :\n%@";
 "alert.export.confirm" = "Exporter";
 "alert.exported" = "L’exportation est terminée. Ces fichiers étaient manquants ou illisibles, et ils ont été exportés sous forme de silence :\n%@";

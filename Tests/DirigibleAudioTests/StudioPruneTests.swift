@@ -84,7 +84,9 @@ struct StudioPruneTests {
         let scan = try await studio.unusedFiles()
         try #require(scan.items.count == 2)
 
-        for state in [Studio.Transport.importing(ImportRun(name: "x", kind: .file, flags: ImportFlags())), .leveling] {
+        for state in [
+            Studio.Transport.importing(ImportRun(name: "x", kind: .file, flags: ImportFlags())), .leveling, .ducking,
+        ] {
             studio.transport = state
             await #expect(throws: StudioError.busy) { try await studio.unusedFiles() }
             await #expect(throws: StudioError.busy) { try await studio.removeUnusedFiles(scan) }

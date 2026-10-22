@@ -42,6 +42,7 @@
 "menu.tools.level.track" = "Nivelar automáticamente por pista";
 "menu.tools.level.all" = "Nivelar automáticamente todos los clips";
 "menu.tools.level.track.all" = "Nivelar automáticamente por pista (todos)";
+"menu.tools.duck" = "Atenuar la música bajo la voz…";
 
 /* Errores */
 "error.studio.busy" = "Hay una toma en curso o terminando. Espera a que termine.";
@@ -60,6 +61,11 @@
 "error.session.track.in.take" = "La pista «%@» está en la toma que espera a terminar.";
 "error.session.track.count" = "La copia tiene %lld pistas. Seleccione el mismo número de pistas para pegarla.";
 "error.session.other" = "La sesión rechazó el cambio.";
+"error.duck.no.speech" = "La atenuación no encontró voz por encima de %.1f dBFS, así que no cambió ningún punto de ganancia.";
+"error.duck.no.speech.track" = "Selecciona una pista de voz o da a una pista el rol Diálogo.";
+"error.duck.no.ducked.track" = "Selecciona una pista que atenuar o da a una pista el rol Música.";
+"error.duck.both.lists" = "La pista “%@” no puede ser a la vez una pista de voz y una pista que atenuar.";
+"error.duck.read" = "No se pudo leer un archivo de audio de una pista de voz (error %lld). No cambió ningún punto de ganancia.";
 "error.file.unreadable" = "El archivo de la sesión está dañado.";
 "error.file.newer" = "Esta sesión se creó con una versión más nueva de Dirigible. Actualiza Dirigible para abrirla.";
 "error.file.read" = "No se puede leer el archivo de la sesión (error %lld).";
@@ -234,6 +240,7 @@
 "take.finishing" = "Terminando la toma %lld…";
 "take.placing" = "Colocando %@…";
 "take.leveling" = "Nivelando clips…";
+"take.ducking" = "Atenuando la música bajo la voz…";
 "take.pending" = "La toma %lld no está terminada.";
 "take.pending.leave.hint" = "Si el disco no puede volver a leer este audio, termina la toma sin él. El archivo se queda en el paquete y puedes colocarlo más tarde.";
 "take.pending.space" = "Para terminar hacen falta %1$@ libres. Ahora hay %2$@ libres.";
@@ -449,6 +456,14 @@
 "sheet.unused.notfiles" = "Los enlaces y las carpetas de la sesión se conservan: %@";
 "sheet.unused.footnote" = "El espacio se recupera al vaciar la Papelera.";
 "sheet.unused.move" = "Trasladar a la Papelera";
+"sheet.duck.title" = "Atenuar la música bajo la voz";
+"sheet.duck.speech" = "Pistas de voz";
+"sheet.duck.music" = "Pistas que atenuar";
+"sheet.duck.depth" = "Profundidad";
+"sheet.duck.attack" = "Ataque";
+"sheet.duck.release" = "Liberación";
+"sheet.duck.note" = "La atenuación sustituye los puntos de ganancia de cada clip de música al que llega la voz, en el rango de la selección o, si no hay, en toda la sesión. Conserva los demás clips.";
+"sheet.duck.apply" = "Aplicar";
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "La exportación terminó. Estos archivos faltaban o no se podían leer, y se exportaron como silencio:\n%@";

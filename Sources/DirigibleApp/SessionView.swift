@@ -96,6 +96,14 @@ struct SessionView: View {
                     if let scan = model.unusedFiles { UnusedFilesSheet(model: model, scan: scan) }
                 }
             }
+            // Tools > Duck Music Under Speech... (decision 0060). Only its buttons close it.
+            .background {
+                Color.clear.sheet(isPresented: Binding(get: { model.duckDraft != nil }, set: { _ in })) {
+                    if let draft = model.duckDraft {
+                        DuckSheet(model: model, tracks: studio.session.tracks, draft: draft)
+                    }
+                }
+            }
         case .closing(nil), .closed:
             EmptyView()
         }

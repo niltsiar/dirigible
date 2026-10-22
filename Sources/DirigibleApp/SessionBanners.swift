@@ -91,6 +91,15 @@ struct TakeBanner: View {
                 // Also an agent level (decision 0049). Command-period is the Mac key of Cancel.
                 Button(L10n.importCancel.key) { model.cancelLevel() }.keyboardShortcut(".", modifiers: .command)
             }
+        case .ducking:
+            let text = L10n.takeDucking.text
+            BannerRow(kind: .info, text: text) {
+                // An agent duck has no bar here: its progress goes to the agent (decision 0049).
+                if let progress = model.duckProgress {
+                    ProgressView(value: progress).frame(width: 160).accessibilityLabel(Text(verbatim: text))
+                }
+                Button(L10n.importCancel.key) { model.cancelLevel() }.keyboardShortcut(".", modifiers: .command)
+            }
         case .importing where model.importJob?.visible == false:
             EmptyView()  // A paste shows its banner after 0.5 s.
         case .importing(let run):

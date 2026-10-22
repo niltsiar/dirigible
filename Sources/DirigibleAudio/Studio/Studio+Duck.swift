@@ -4,7 +4,7 @@ import Foundation
 extension Studio {
     /// The duck of decision 0060: reads the speech runs of `speech` in `scope` with `speechRuns`
     /// and writes the duck of `music` with `Session.duck` (`range` nil: each whole clip). It runs as
-    /// a level runs (`level`): the transport is `.leveling`, so the level banner and its Cancel
+    /// a level runs (`level`), on the `.ducking` transport, so the duck banner and its Cancel
     /// show; the read runs off the main actor; a change saves `session.xml` and records one undo
     /// entry with `agent` in the same turn. No runs throws `.session(.noSpeech)`. `cancelLevel()`
     /// or a cancel of the caller stops the read at its next second of audio; the flag is read last
@@ -18,7 +18,7 @@ extension Studio {
         try checkIdle()
         let stopped = endPlayForTake()
         let flags = ImportFlags()
-        (transport, levelFlags) = (.leveling, flags)
+        (transport, levelFlags) = (.ducking, flags)
         defer { (transport, levelFlags) = (.idle, nil) }
         let hop: @Sendable (Double) -> Void = { fraction in Task { @MainActor in progress(fraction) } }
         let result = await withTaskCancellationHandler {

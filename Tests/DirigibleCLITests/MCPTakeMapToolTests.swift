@@ -43,7 +43,10 @@ struct MCPTakeMapToolTests {
 
         #expect(
             toolResult(answer(answers, id: 1))
-                == ("cannot read the take anchor Capture/take2.anchor (errno 13), so the take time is not known.", true)
+                == (
+                    "Cannot read the take anchor file Capture/take2.anchor (errno 13), so the take time is not known.",
+                    true
+                )
         )
         let info = toolResult(answer(answers, id: 2))
         #expect(!info.isError && info.text.contains(#""takeSyncFault":{"errno":13,"file":"Capture/take2.anchor"}"#))

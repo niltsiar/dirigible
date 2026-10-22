@@ -66,7 +66,7 @@ struct LiveTakeMapTests {
         let map = await send(folder.socket, "take_map", ["package": package.path, "frames": [10]])
         let info = await send(folder.socket, "session_info", ["package": package.path])
 
-        let text = "cannot read the take anchor Capture/take1.anchor (errno 13), so the take time is not known."
+        let text = "Cannot read the take anchor file Capture/take1.anchor (errno 13), so the take time is not known."
         #expect(map == .reply(.result(text: text, isError: true)))
         guard case .reply(.result(let json, false)) = info else {
             Issue.record("session_info: \(info)")

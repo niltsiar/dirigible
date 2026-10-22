@@ -16,14 +16,17 @@ import Testing
 
     init() throws { folder = try TemporaryFolder() }
 
-    /// Opens the package with the roles of `roles` written before the open, so no undo entry has them.
+    /// Opens the package with the roles of `roles` and the points of `envelopes` written before the
+    /// open, so no undo entry has them.
     func open(
-        roles: [TrackID: Track.Role] = ["t1": .dialogue, "t2": .music], silent: Bool = false, device: String = "mic"
+        roles: [TrackID: Track.Role] = ["t1": .dialogue, "t2": .music], envelopes: [ClipID: [Frames: Gain]] = [:],
+        silent: Bool = false, device: String = "mic"
     ) async throws -> (SessionWindow, Studio) {
         let url = try await timelinePackage(
             in: folder.url, tracks: 3, seconds: 10, audio: silent, noise: !silent, device: device)
         var session = try Session(contentsOf: url)
         for (track, role) in roles { try session.setRole(role, tracks: [track]) }
+        for (clip, points) in envelopes { try session.setEnvelope(points, clip: clip) }
         try session.write(to: url)
         let (model, studio, _, _) = try await openLanes(app, url)
         return (model, studio)
@@ -91,9 +94,10 @@ import Testing
         await model.close()
     }
 
-    /// Apply with a selection range ducks the music inside the range only, in one undo step.
+    /// Apply with a selection range ducks the music inside the range only, in one undo step. The
+    /// music has a point before the duck, so an undo that leaves a cleared envelope shows.
     @Test func applyDucksTheSelectionRange() async throws {
-        let (model, studio) = try await open()
+        let (model, studio) = try await open(envelopes: ["c2": [48_000: try #require(Gain(dB: -3))]])
         let before = studio.session
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t1"])
         model.run(.duck)
@@ -104,7 +108,7 @@ import Testing
         #expect(model.duckDraft == nil && model.alert == nil, "the sheet stays or an alert shows")
         let envelope = studio.session.clip("c2")?.clip.envelope
         #expect(envelope?.gain(at: 144_000) == -16, "the music does not duck in the range")
-        #expect(envelope?.gain(at: 400_000) == 0, "the music ducks outside the range")
+        #expect(envelope?.gain(at: 400_000) == -3, "the music ducks outside the range")
         let others =
             studio.session.track("t1") == before.track("t1") && studio.session.track("t3") == before.track("t3")
         #expect(others, "a track that is not in the music list changed")

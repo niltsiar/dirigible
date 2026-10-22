@@ -45,12 +45,14 @@ public struct DuckShape: Hashable, Sendable {
 }
 
 /// What a duck did: the merged speech runs, the clips whose envelope changed, the point count of
-/// those envelopes, and the clips of the ducked tracks in the scope that no run reaches.
+/// those envelopes, the clips of the ducked tracks in the scope that no run reaches, and the speech
+/// files that did not read, so their speech is not in the runs.
 public struct DuckResult: Hashable, Sendable {
     public let runs: [Range<Frames>]
     public let ducked: [ClipID]
     public let points: Int
     public let kept: [ClipID]
+    public let unread: [FileID]
 }
 
 extension Session {
@@ -82,15 +84,16 @@ extension Session {
     /// duck replaces the envelope inside the scope of each clip that a run, widened by the attack
     /// and the release, reaches, and keeps the points outside that scope; a clip that no run
     /// reaches keeps its envelope. It works on the file map of each clip, so a ramp goes on past a
-    /// clip edge, and the edge rule fits it to the file. No runs in the scope throws `.noSpeech`.
+    /// clip edge, and the edge rule fits it to the file. `unread` names the speech files that the
+    /// read of `runs` could not read, for the result. No runs in the scope throws `.noSpeech`.
     /// A throw changes nothing.
     @discardableResult
-    public mutating func duck(runs: [Range<Frames>], shape: DuckShape, music: [TrackID], scope: Range<Frames>?)
-        throws(SessionError) -> DuckResult
-    {
+    public mutating func duck(
+        runs: [Range<Frames>], unread: [FileID] = [], shape: DuckShape, music: [TrackID], scope: Range<Frames>?
+    ) throws(SessionError) -> DuckResult {
         let whole = try duckScope(scope)
         let runs = shape.merged(runs.map { $0.clamped(to: whole) })
-        guard !runs.isEmpty else { throw .noSpeech(whole, threshold: shape.threshold.dB) }
+        guard !runs.isEmpty else { throw .noSpeech(whole, threshold: shape.threshold.dB, unread: unread) }
         let indices = try trackIndices(music)
         let (attack, release) = (shape.attackRamp, shape.releaseRamp)
         // The corners of the duck function in timeline frames. The merge keeps two windows apart,
@@ -130,7 +133,7 @@ extension Session {
             }
         }
         try setEnvelopes(changed)
-        return DuckResult(runs: runs, ducked: ducked, points: points, kept: kept)
+        return DuckResult(runs: runs, ducked: ducked, points: points, kept: kept, unread: unread)
     }
 
     /// The new envelope of `clip`: the duck function inside `reach`, the timeline frames of its

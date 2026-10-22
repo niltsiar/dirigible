@@ -29,7 +29,8 @@ struct SpeechActivityTests {
         try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: length)
         return try speechRuns(
             of: ["t1"], in: package.session, package: package.url, scope: 0..<length,
-            shape: .defaults(sampleRate: 48_000))
+            shape: .defaults(sampleRate: 48_000)
+        ).runs
     }
 
     /// Bursts at -20 dBFS over a -60 dBFS floor: the runs join across a 1.5 s gap and split at a
@@ -56,7 +57,8 @@ struct SpeechActivityTests {
         try package.session.setSoloed(true, tracks: ["t2"])
         let found = try speechRuns(
             of: ["t1"], in: package.session, package: package.url, scope: 0..<144_000,
-            shape: .defaults(sampleRate: 48_000))
+            shape: .defaults(sampleRate: 48_000)
+        ).runs
         #expect(found == [Frames(48_000)..<Frames(96_000)], "\(found)")
     }
 }

@@ -160,6 +160,38 @@ struct DuckCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// Adds track `v2` (dialogue role) with clip `cg` of the file `gone`, which is not on disk.
+    static func addMissingSpeech(_ package: TemporaryPackage) throws {
+        try package.edit { session in
+            try session.addFile(AudioFile(id: "gone", path: "gone.wav", layout: .mono, length: 960_000))
+            try session.addTrack("v2", name: "Guest", layout: .mono)
+            try session.place(Clip(id: "cg", file: "gone", start: 0, offset: 0, length: 960_000), on: "v2")
+            try session.setRole(.dialogue, tracks: ["v2"])
+        }
+    }
+
+    /// A speech file that does not read: the duck uses the speech that it read, names the file in
+    /// an unread line and in the report, and exits 0.
+    @Test func aSpeechFileThatDoesNotReadIsNamed() async throws {
+        try Self.addMissingSpeech(package)
+        let duck = try await package.run("duck", "PKG")
+        #expect(duck.status == 0, "\(duck)")
+        #expect(duck.stdout == "speech\t96000\t288000\nspeech\t576000\t768000\nducked\tcm\nunread\tgone\n", "\(duck)")
+        #expect(duck.stderr.contains("Speech files that did not read: 1. The music stays up over their speech."))
+    }
+
+    /// The only speech file deleted: the noSpeech text names it, and nothing changes.
+    @Test func aDeletedSpeechFileIsNamedInTheNoSpeechText() async throws {
+        try FileManager.default.removeItem(at: package.url.appending(path: "Clips/speech.wav"))
+        let before = try package.xml()
+        let duck = try await package.run("duck", "PKG")
+        let text =
+            "Error: no speech over -40.0 dBFS in the timeline frames 0..<960000, so the duck changed nothing. "
+            + "Speech files that did not read: speech.\n"
+        #expect(duck == CLIResult(status: 1, stdout: "", stderr: text))
+        #expect(try package.xml() == before)
+    }
+
     /// A bad argument is a usage error: exit 64.
     @Test func aBadArgumentExits64() async throws {
         #expect(try await package.run("duck", "PKG", "--depth", "6").status == 64)

@@ -135,24 +135,31 @@ extension SessionWindow {
 
     /// Apply of the sheet: ducks the music of `draft` under its speech in the selection range, else
     /// in the whole session, in one undo entry (decision 0060). Zero speech runs show the reason in
-    /// a banner. The banner Cancel shows nothing; another error shows the alert.
+    /// a banner, and so does a speech file that did not read, with its path. The banner Cancel
+    /// shows nothing; another error shows the alert.
     func duck(_ draft: DuckDraft) async {
         duckDraft = nil
-        duckNoSpeech = nil
+        duckReport = nil
         guard let studio = idleStudio else { return }
+        let paths = { (files: [FileID]) in files.map { studio.session.files[$0]?.path ?? $0.rawValue } }
         let tracks = studio.session.tracks.map(\.id)
         let range = timeline.selection.marks?.selection(in: studio.session)?.range
         duckProgress = 0
         defer { duckProgress = nil }
         do throws(StudioError) {
-            try await studio.duck(
+            let result = try await studio.duck(
                 speech: tracks.filter(draft.speech.contains), music: tracks.filter(draft.music.contains), range: range,
                 shape: draft.shape(sampleRate: studio.session.sampleRate)
             ) { [weak self] fraction in self?.duckProgress = fraction }
+            if !result.unread.isEmpty {
+                let banner = WindowBanner.duckUnread(paths(result.unread))
+                duckReport = DuckReportShown(banner: banner, revision: studio.sessionRevision)
+            }
         } catch .duckCancelled {
             // The banner Cancel: the user asked for it, so no alert.
-        } catch .session(.noSpeech(_, let threshold)) {
-            duckNoSpeech = DuckNoSpeechShown(threshold: threshold, revision: studio.sessionRevision)
+        } catch .session(.noSpeech(_, let threshold, let unread)) {
+            duckReport = DuckReportShown(
+                banner: .duckNoSpeech(threshold: threshold, unread: paths(unread)), revision: studio.sessionRevision)
         } catch {
             alert = .error(error)
         }

@@ -248,9 +248,11 @@ extension SessionError {
         case .noSpeechTrack: "no speech track: give a track the dialogue role, or name the speech tracks."
         case .noDuckedTrack: "no track to duck: give a track the music role, or name the tracks to duck."
         case .trackInBothDuckLists(let id): "track \"\(id)\" is a speech track and a track to duck."
-        case .noSpeech(let scope, let threshold):
+        case .noSpeech(let scope, let threshold, let unread):
             "no speech over \(String(format: "%.1f", threshold)) dBFS in the timeline frames "
                 + "\(scope.lowerBound)..<\(scope.upperBound), so the duck changed nothing."
+                + (unread.isEmpty
+                    ? "" : " Speech files that did not read: \(unread.map(\.rawValue).joined(separator: ", ")).")
         case .duckRangePastEnd(let range, let end):
             "the range \(range.lowerBound)..<\(range.upperBound) starts at or after the session end at frame "
                 + "\(end), so the duck changed nothing."

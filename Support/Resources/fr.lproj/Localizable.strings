@@ -67,6 +67,7 @@
 "error.duck.both.lists" = "La piste « %@ » ne peut pas être à la fois une piste de voix et une piste à atténuer.";
 "error.duck.read" = "Un fichier audio d’une piste de voix n’a pas pu être lu (erreur %lld). Aucun point de gain n’a changé.";
 "error.duck.past.end" = "La sélection commence à la fin de la session ou après, l’atténuation n’a donc modifié aucun point de gain.";
+"banner.duck.unread" = "L’atténuation n’a pas pu lire ces fichiers de voix, la musique reste donc forte sur leur voix : %@.";
 "error.file.unreadable" = "Le fichier de la session est endommagé.";
 "error.file.newer" = "Cette session a été créée par une version plus récente de Dirigible. Mettez à jour Dirigible pour l’ouvrir.";
 "error.file.read" = "Le fichier de la session ne peut pas être lu (erreur %lld).";

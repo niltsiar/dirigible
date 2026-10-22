@@ -28,7 +28,7 @@ extension Studio {
             await serialized { () async -> Result<DuckResult, StudioError> in
                 _ = await takePlayhead(stopped, nil)  // The Player stops.
                 await environment.beforeFinalize()
-                let runs: [Range<Frames>]
+                let read: (runs: [Range<Frames>], unread: [FileID])
                 switch await readSpeech(
                     speech, of: session, lock: lock, scope: scope, shape: shape, progress: hop,
                     isCancelled: { [step = environment.loudnessBlock] in
@@ -36,14 +36,15 @@ extension Studio {
                         return flags.isCancelled
                     })
                 {
-                case .success(let value): runs = value
+                case .success(let value): read = value
                 case .failure(let error): return .failure(error)
                 }
                 if flags.isCancelled { return .failure(.duckCancelled) }
                 var ducked = session
                 let result: DuckResult
                 do throws(SessionError) {
-                    result = try ducked.duck(runs: runs, shape: shape, music: music, scope: range)
+                    result = try ducked.duck(
+                        runs: read.runs, unread: read.unread, shape: shape, music: music, scope: range)
                 } catch {
                     return .failure(.session(error))
                 }
@@ -71,7 +72,7 @@ extension Studio {
 @concurrent nonisolated func readSpeech(
     _ speech: [TrackID], of session: Session, lock: PackageLock, scope: Range<Frames>, shape: DuckShape,
     progress: @escaping @Sendable (Double) -> Void, isCancelled: @escaping @Sendable () -> Bool
-) async -> Result<[Range<Frames>], StudioError> {
+) async -> Result<(runs: [Range<Frames>], unread: [FileID]), StudioError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
     do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }

@@ -132,6 +132,32 @@ import Testing
         await model.close()
     }
 
+    /// A speech file that does not read: track t4 (dialogue) plays the file `gone`, which is not on
+    /// disk. The duck uses the speech of t1, and a warning banner names the file.
+    @Test func aSpeechFileThatDoesNotReadIsNamedInABanner() async throws {
+        let url = try await timelinePackage(in: folder.url, tracks: 3, seconds: 10, noise: true)
+        var session = try Session(contentsOf: url)
+        try session.addFile(AudioFile(id: "gone", path: "gone.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t4", name: "T4", layout: .mono)
+        try session.place(Clip(id: "c4", file: "gone", start: 0, offset: 0, length: 480_000), on: "t4")
+        try session.setRole(.dialogue, tracks: ["t1", "t4"])
+        try session.setRole(.music, tracks: ["t2"])
+        try session.write(to: url)
+        let (model, studio, _, _) = try await openLanes(app, url)
+        model.run(.duck)
+        let draft = try #require(model.duckDraft, "the item opened no sheet")
+
+        await model.duck(draft)
+
+        #expect(studio.session.clip("c2")?.clip.envelope.isEmpty == false, "the music does not duck")
+        let named = WindowBanner.duckUnread(["gone.wav"])
+        await until("no banner names gone.wav") { model.shown.banners.contains(named) }
+        #expect(named.kind == .warning && named.text == L10n.bannerDuckUnread.format("gone.wav"))
+        let silent = WindowBanner.duckNoSpeech(threshold: -40, unread: ["gone.wav"]).text
+        #expect(silent == L10n.errorDuckNoSpeech.format(-40.0) + " " + named.text, "no speech: \(silent)")
+        await model.close()
+    }
+
     /// Silent speech: the banner gives the reason, and the duck changes nothing and adds no undo step.
     @Test func aDuckWithNoSpeechShowsTheReasonInTheBanner() async throws {
         let (model, studio) = try await open(silent: true)
@@ -141,7 +167,7 @@ import Testing
 
         await model.duck(draft)
 
-        let reason = WindowBanner.duckNoSpeech(threshold: -40)
+        let reason = WindowBanner.duckNoSpeech(threshold: -40, unread: [])
         await until("the banner gives no reason") { model.shown.banners.contains(reason) }
         #expect(reason.kind == .warning && reason.text == L10n.errorDuckNoSpeech.format(-40.0))
         #expect(model.alert == nil, "an alert shows: \(String(describing: model.alert))")

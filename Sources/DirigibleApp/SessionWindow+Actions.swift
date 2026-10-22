@@ -101,7 +101,7 @@ extension SessionWindow {
             exportReport = nil
             chapterWarnings = nil
             levelReport = nil
-            duckNoSpeech = nil
+            duckReport = nil
             consentExpired = nil
             return .started(take: take)
         } catch let error where studio.exportProgress != nil {

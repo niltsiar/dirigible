@@ -415,6 +415,7 @@ enum L10n: String, CaseIterable {
     case errorDuckBothLists = "error.duck.both.lists"
     case errorDuckRead = "error.duck.read"
     case errorDuckPastEnd = "error.duck.past.end"
+    case bannerDuckUnread = "banner.duck.unread"
     case errorFileUnreadable = "error.file.unreadable"
     case errorFileNewer = "error.file.newer"
     case errorFileRead = "error.file.read"

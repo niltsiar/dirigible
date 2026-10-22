@@ -16,11 +16,11 @@ struct LevelReportShown: Equatable {
     let press: Int
 }
 
-/// The threshold of the last duck that found no speech, and the session revision after it.
-struct DuckNoSpeechShown: Equatable {
-    let threshold: Double
+/// The banner of the last duck that found no speech or did not read a speech file, and the
+/// session revision after it.
+struct DuckReportShown: Equatable {
+    let banner: WindowBanner
     let revision: Int
-    var banner: WindowBanner { .duckNoSpeech(threshold: threshold) }
 }
 
 /// A banner row of the window (decision 0023): a fact, then what to do.
@@ -52,8 +52,11 @@ enum WindowBanner: Equatable {
     case unusedFilesFailed([String])
     /// An agent record request ended with no answer (decision 0048). Nil: the agent gave no name.
     case consentExpired(agent: String?)
-    /// A duck found no speech over the threshold in dBFS, so it changed nothing (decision 0060).
-    case duckNoSpeech(threshold: Double)
+    /// A duck found no speech over the threshold in dBFS, so it changed nothing (decision 0060),
+    /// with the paths of the speech files that did not read.
+    case duckNoSpeech(threshold: Double, unread: [String])
+    /// A duck did not read the speech files of these paths, so the music stays up over them.
+    case duckUnread([String])
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -96,13 +99,14 @@ enum WindowBanner: Equatable {
         case .unusedFilesFailed: "unusedFilesFailed"
         case .consentExpired: "consentExpired"
         case .duckNoSpeech: "duckNoSpeech"
+        case .duckUnread: "duckUnread"
         }
     }
 
     var kind: Kind {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
-            .chapterImagesOmitted, .duckNoSpeech:
+            .chapterImagesOmitted, .duckNoSpeech, .duckUnread:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired: .info
@@ -128,7 +132,10 @@ enum WindowBanner: Equatable {
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
         case .consentExpired(nil): L10n.bannerConsentExpiredUnnamed.text
-        case .duckNoSpeech(let threshold): L10n.errorDuckNoSpeech.format(threshold)
+        case .duckNoSpeech(let threshold, let unread) where unread.isEmpty: L10n.errorDuckNoSpeech.format(threshold)
+        case .duckNoSpeech(let threshold, let unread):
+            L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread).text
+        case .duckUnread(let paths): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
         }
     }
 
@@ -137,7 +144,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .levelReport, .unusedFilesMoved,
-            .unusedFilesFailed, .consentExpired, .duckNoSpeech:
+            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread:
             .medium
         }
     }

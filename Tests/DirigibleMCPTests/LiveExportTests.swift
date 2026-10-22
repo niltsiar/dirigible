@@ -193,7 +193,7 @@ extension LiveExportTests {
     /// Code gate 1 item 4: a take that is not finalized makes an agent export busy, with that cause.
     @Test func aPendingTakeGivesItsBusyCause() async throws {
         try package.addPendingTake()
-        let studio = try await package.open(pending: true)
+        let studio = try await package.open(pending: 1)
         let (server, folder) = try liveServer(studio)
         defer { server.stop() }
 

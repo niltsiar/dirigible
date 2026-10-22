@@ -54,7 +54,7 @@ struct LiveTakeSyncNoteTests {
         try package.addPendingTake()
         try finalizeTake(of: Session(contentsOf: package.url), in: package.url).write(to: package.url)
         try package.addPendingTake(2, playhead: 96_000)
-        let studio = try await package.open(pending: true)
+        let studio = try await package.open(pending: 2)
         let (server, folder) = try liveServer(studio)
         defer { server.stop() }
         try await studio.retryFinalize()

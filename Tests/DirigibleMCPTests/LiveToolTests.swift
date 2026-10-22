@@ -54,7 +54,7 @@ struct LiveToolTests {
     @Test func rippleUnderPendingTakeIsRefused() async throws {
         let package = try LivePackage()
         try package.addPendingTake()
-        let studio = try await package.open(pending: true)
+        let studio = try await package.open(pending: 1)
         let (server, folder) = try liveServer(studio)
         defer { server.stop() }
         let before = studio.session
@@ -103,7 +103,7 @@ struct LiveToolTests {
     @Test func plainEditUnderPendingTakeRuns() async throws {
         let package = try LivePackage()
         try package.addPendingTake()
-        let studio = try await package.open(pending: true)
+        let studio = try await package.open(pending: 1)
         let (server, folder) = try liveServer(studio)
         defer { server.stop() }
 

@@ -80,6 +80,22 @@ struct StudioDuckTests {
         #expect(try sessionBytes() == bytes, "a cancelled duck saved")
     }
 
+    /// A duck during a take throws `busy`, changes nothing, and the take goes on.
+    @Test func aDuckDuringATakeIsBusy() async throws {
+        try package.session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
+        try package.session.write(to: package.url)
+        let studio = try await Studio.open(package.url)
+        studio.environment = .test(TestHAL([StopLevelTests.mic]))
+        _ = try await studio.startTake(
+            armed: ["t1"], devices: [StopLevelTests.mic], playhead: 0, hostTimeNanos: takeStart)
+        let before = studio.session
+
+        await #expect(throws: StudioError.busy) { try await duck(studio) }
+        #expect(studio.session == before, "a duck during a take changed the session")
+        #expect(studio.transport == .recording(take: 1), "a duck during a take: \(studio.transport)")
+        try await studio.stopRecording()
+    }
+
     /// Silent speech: the `noSpeech` reason, no envelope change, no save, no undo step.
     @Test func aDuckWithNoSpeechChangesNothing() async throws {
         let fixture = try StudioDuckTests(speech: -.infinity)

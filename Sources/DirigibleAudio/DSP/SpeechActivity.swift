@@ -7,13 +7,14 @@ import DirigibleCore
 /// whose RMS level is over `shape.threshold` dBFS is speech, and `shape.merged` joins the runs
 /// (U19). Mute and solo do not count, as for Auto Level (0039): `MixReader` reads a
 /// copy of the session with the flags off, so `Session.heardTracks(in:)` stays the one heard rule.
-/// A missing or unreadable file is silence. `progress` gets the fraction of the scope done.
+/// A missing, short, or unreadable file is silence there, and `unread` names it, sorted.
+/// `progress` gets the fraction of the scope done.
 /// `isCancelled` is read before each second of audio; a cancel throws `ECANCELED`. No free
 /// descriptor throws its errno. It blocks, so never call it on the main actor.
 public func speechRuns(
     of speech: [TrackID], in session: Session, package: URL, scope: Range<Frames>, shape: DuckShape,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
-) throws(POSIXError) -> [Range<Frames>] {
+) throws(POSIXError) -> (runs: [Range<Frames>], unread: [FileID]) {
     var copy = session
     let all = session.tracks.map(\.id)
     // Each ID is in the session, so neither edit can throw.
@@ -24,7 +25,7 @@ public func speechRuns(
     let chunk = window * 20
     guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(session.sampleRate), channels: 2),
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(chunk))
-    else { return [] }
+    else { return ([], []) }
     // The mean square of the threshold: 10^(dBFS / 10).
     let limit = Float(pow(10, shape.threshold.dB / 10))
     let total = Double(max(1, scope.upperBound.count - scope.lowerBound.count))
@@ -55,5 +56,5 @@ public func speechRuns(
         progress(Double(start - scope.lowerBound.count) / total)
     }
     if let begin = open { runs.append(Frames(begin)..<scope.upperBound) }
-    return shape.merged(runs)
+    return (shape.merged(runs), reader.faults.keys.sorted())
 }

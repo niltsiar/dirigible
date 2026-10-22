@@ -152,7 +152,7 @@ let audioTools = [
             + "speech tracks over the threshold, with mute and solo ignored. A track with no role is in a list only "
             + "when named. The duck replaces the points inside the clip window, or inside from and to, of each clip "
             + "that speech reaches, and keeps the other points and clips. The text is the lines of the command (speech "
-            + "runs, ducked clips, kept clips), then the report line. The scope ends at the session end. A from at or "
+            + "runs, ducked clips, kept clips, speech files that did not read), then the report line. The scope ends at the session end. A from at or "
             + "after the session end, or no speech over the threshold, changes nothing."
             + editCancelNote("no envelope changes"),
         [duckSpeech, duckMusic, duckFrom, duckTo, duckDepth, duckAttack, duckRelease, duckThreshold, duckHold]

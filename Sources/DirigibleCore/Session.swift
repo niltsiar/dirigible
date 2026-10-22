@@ -347,9 +347,9 @@ public enum SessionError: Error, Hashable, Sendable {
     case noDuckedTrack
     /// A duck names this track as a speech track and as a track to duck.
     case trackInBothDuckLists(TrackID)
-    /// A duck found no speech over the threshold in dBFS in the scope, in timeline frames. It
-    /// changes nothing.
-    case noSpeech(Range<Frames>, threshold: Double)
+    /// A duck found no speech over the threshold in dBFS in the scope, in timeline frames. `unread`
+    /// names the speech files that did not read. It changes nothing.
+    case noSpeech(Range<Frames>, threshold: Double, unread: [FileID] = [])
     /// A duck range starts at or after the session end, so it holds no frame to read (decision
     /// 0060). It changes nothing.
     case duckRangePastEnd(Range<Frames>, end: Frames)

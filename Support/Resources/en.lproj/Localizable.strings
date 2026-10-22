@@ -67,6 +67,7 @@
 "error.duck.both.lists" = "Track “%@” cannot be a speech track and a track to duck.";
 "error.duck.read" = "An audio file of a speech track did not read (error %lld). No gain point changed.";
 "error.duck.past.end" = "The selection starts at or after the end of the session, so the duck changed no gain point.";
+"banner.duck.unread" = "The duck did not read these speech files, so the music stays up over their speech: %@.";
 "error.file.unreadable" = "The session file is damaged.";
 "error.file.newer" = "This session was made by a newer version of Dirigible. Update Dirigible to open it.";
 "error.file.read" = "The session file cannot be read (error %lld).";

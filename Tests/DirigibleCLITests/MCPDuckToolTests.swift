@@ -41,6 +41,16 @@ struct MCPDuckToolTests {
         #expect(try package.xml() == before)
     }
 
+    /// A speech file that does not read: the text names it in an unread line and in the report.
+    @Test func aSpeechFileThatDoesNotReadIsNamed() async throws {
+        try DuckCommandTests.addMissingSpeech(package)
+        let answers = try await mcp([toolCall(1, "duck", ["package": package.path])])
+        let text =
+            "speech\t96000\t288000\nspeech\t576000\t768000\nducked\tcm\nunread\tgone\nSpeech runs: 2. Clips ducked: 1, "
+            + "with 8 points. Speech files that did not read: 1. The music stays up over their speech."
+        #expect(toolResult(answer(answers, id: 1)) == (text, false))
+    }
+
     /// A positive depth and a lone from are refused before the package is read.
     @Test func aBadArgumentIsAToolError() async throws {
         let answers = try await mcp([

@@ -67,6 +67,7 @@
 "error.duck.both.lists" = "La pista “%@” no puede ser a la vez una pista de voz y una pista que atenuar.";
 "error.duck.read" = "No se pudo leer un archivo de audio de una pista de voz (error %lld). No cambió ningún punto de ganancia.";
 "error.duck.past.end" = "La selección empieza en el final de la sesión o después, así que la atenuación no cambió ningún punto de ganancia.";
+"banner.duck.unread" = "La atenuación no pudo leer estos archivos de voz, así que la música sigue alta sobre su voz: %@.";
 "error.file.unreadable" = "El archivo de la sesión está dañado.";
 "error.file.newer" = "Esta sesión se creó con una versión más nueva de Dirigible. Actualiza Dirigible para abrirla.";
 "error.file.read" = "No se puede leer el archivo de la sesión (error %lld).";

@@ -92,9 +92,9 @@ package struct DuckWork: Sendable {
     ) throws(DuckFailure) -> (lines: [String], report: String) {
         let planned: (speech: [TrackID], music: [TrackID], scope: Range<Frames>, shape: DuckShape)
         do throws(SessionError) { planned = try plan(in: session) } catch { throw .session(error) }
-        let runs: [Range<Frames>]
+        let read: (runs: [Range<Frames>], unread: [FileID])
         do throws(POSIXError) {
-            runs = try speechRuns(
+            read = try speechRuns(
                 of: planned.speech, in: session, package: package, scope: planned.scope, shape: planned.shape,
                 progress: progress, isCancelled: isCancelled)
         } catch {
@@ -104,7 +104,8 @@ package struct DuckWork: Sendable {
         var ducked = session
         let result: DuckResult
         do throws(SessionError) {
-            result = try ducked.duck(runs: runs, shape: planned.shape, music: planned.music, scope: range)
+            result = try ducked.duck(
+                runs: read.runs, unread: read.unread, shape: planned.shape, music: planned.music, scope: range)
         } catch {
             throw .session(error)
         }
@@ -113,10 +114,11 @@ package struct DuckWork: Sendable {
     }
 
     /// One line for each speech run (`speech`, its first frame, and the frame after its end), then
-    /// one line for each ducked clip (`ducked` and the ID), then one for each kept clip (`kept`).
+    /// one line for each ducked clip (`ducked` and the ID), then one for each kept clip (`kept`),
+    /// then one for each speech file that did not read (`unread` and the file ID).
     package static func lines(_ result: DuckResult) -> [String] {
         result.runs.map { "speech\t\($0.lowerBound)\t\($0.upperBound)" } + result.ducked.map { "ducked\t\($0)" }
-            + result.kept.map { "kept\t\($0)" }
+            + result.kept.map { "kept\t\($0)" } + result.unread.map { "unread\t\($0)" }
     }
 
     /// The report line.
@@ -125,6 +127,9 @@ package struct DuckWork: Sendable {
             "Speech runs: \(result.runs.count). Clips ducked: \(result.ducked.count), with \(result.points) points."
         if !result.kept.isEmpty {
             text += " Clips that no speech reaches keep their envelope: \(result.kept.count)."
+        }
+        if !result.unread.isEmpty {
+            text += " Speech files that did not read: \(result.unread.count). The music stays up over their speech."
         }
         return text
     }

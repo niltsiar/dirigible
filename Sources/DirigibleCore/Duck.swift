@@ -45,12 +45,14 @@ public struct DuckShape: Hashable, Sendable {
 }
 
 /// What a duck did: the merged speech runs, the clips whose envelope changed, the point count of
-/// those envelopes, the clips of the ducked tracks in the scope that no run reaches, and the speech
-/// files that did not read, so their speech is not in the runs.
+/// those envelopes, the clips that a run reaches whose envelope already is the duck, the clips of
+/// the ducked tracks in the scope that no run reaches, and the speech files that did not read, so
+/// their speech is not in the runs. Each music clip in the scope is in one clip list.
 public struct DuckResult: Hashable, Sendable {
     public let runs: [Range<Frames>]
     public let ducked: [ClipID]
     public let points: Int
+    public let unchanged: [ClipID]
     public let kept: [ClipID]
     public let unread: [FileID]
 }
@@ -114,7 +116,7 @@ extension Session {
             }
         }
         var changed: [ClipID: GainEnvelope] = [:]
-        var (ducked, kept, points): ([ClipID], [ClipID], Int) = ([], [], 0)
+        var (ducked, unchanged, kept, points): ([ClipID], [ClipID], [ClipID], Int) = ([], [], [], 0)
         for index in indices {
             for clip in tracks[index].clips {
                 let reach = clip.range.clamped(to: whole)
@@ -133,14 +135,18 @@ extension Session {
                         scope != nil && reach.lowerBound > clip.start, scope != nil && reach.upperBound < clip.end
                     ),
                     corners: corners, ramp: gainRamp.count, fileLength: file.length)
-                guard new != clip.envelope else { continue }
+                guard new != clip.envelope else {
+                    unchanged.append(clip.id)
+                    continue
+                }
                 changed[clip.id] = new
                 ducked.append(clip.id)
                 points += new.points.count
             }
         }
         try setEnvelopes(changed)
-        return DuckResult(runs: runs, ducked: ducked, points: points, kept: kept, unread: unread)
+        return DuckResult(
+            runs: runs, ducked: ducked, points: points, unchanged: unchanged, kept: kept, unread: unread)
     }
 
     /// The new envelope of `clip`: the duck function inside `reach`, the timeline frames of its

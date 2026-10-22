@@ -43,7 +43,7 @@ extension L10n {
         // The window beeps for it and shows no alert.
         case .rippleBlocked: return errorSessionOther.text
         // The banner Cancel ends a level, so the window shows no alert for it (decision 0049).
-        case .levelCancelled: return errorSessionOther.text
+        case .levelCancelled, .duckCancelled, .duckRead: return errorSessionOther.text
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         case .artwork(let error): return message(for: error)
@@ -210,7 +210,7 @@ extension L10n {
             .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack,
             .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
-            .nothingToHeal:
+            .nothingToHeal, .noSpeechTrack, .noDuckedTrack, .trackInBothDuckLists, .noSpeech:
             return errorSessionOther.text
         }
     }

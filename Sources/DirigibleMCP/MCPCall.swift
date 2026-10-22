@@ -98,6 +98,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try work.run(package, path: path, control: control)
     case .level(let work):
         return try work.run(package, path: path, control: control)
+    case .duck(let work):
+        return try work.run(package, path: path, control: control)
     case .importFile(let work):
         return try work.run(package, path: path, control: control)
     case .chapters(let work):

@@ -283,7 +283,7 @@ struct MCPToolTests {
                 "clip_ripple_insert", "clip_ripple_trim",
                 "transcript_import",
                 "transcript_words", "transcript_cut", "backup_list",
-                "backup_revert", "record", "loudness", "export", "render", "level", "import", "chapters_export",
+                "backup_revert", "record", "loudness", "export", "render", "level", "duck", "import", "chapters_export",
                 "chapters_import",
                 "devices",
                 "apps",

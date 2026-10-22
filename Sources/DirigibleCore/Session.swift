@@ -340,4 +340,14 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A heal found no join of two clips that play on in one file at one gain at each frame, the
     /// envelope included, with no fade at the join.
     case nothingToHeal
+    /// A duck has no speech track: no track has the dialogue role, and the caller named none
+    /// (decision 0060).
+    case noSpeechTrack
+    /// A duck has no track to duck: no track has the music role, and the caller named none.
+    case noDuckedTrack
+    /// A duck names this track as a speech track and as a track to duck.
+    case trackInBothDuckLists(TrackID)
+    /// A duck found no speech over the threshold in dBFS in the scope, in timeline frames. It
+    /// changes nothing.
+    case noSpeech(Range<Frames>, threshold: Double)
 }

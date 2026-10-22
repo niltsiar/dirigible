@@ -8,6 +8,7 @@
 - Amended: 2026-10-03, run 9b. One meter still serves all three: the live meter (momentary, short-term, integrated, and true peak) uses `LoudnessMeter` and `TruePeakMeter`, and the gates compare mean squares. See 0033.
 - Amended: 2026-10-11, run `2026-10-11-track-fader`. `Gain(dB:)` refuses a value outside `Gain.range`, -96 to +96 dB. `Gain(clamping:)` clamps a computed gain (the reader, the export loudness gain, the clip conversion, the excerpt sum) and refuses a value that is not finite. The track fader travel ends at `Gain.levelLimit`.
 - Amended: 2026-10-15, run `2026-10-15-export-loudness`. At export, the gain is searched on the limited signal: after the limiter the output is within 0.1 LU of the target, so the measure after the limiter is also the loop of the gain. See 0032.
+- Amended: 2026-10-22, run `2026-10-18-envelope-ducking` (see 0060). The duck measures speech as the 50 ms RMS level of the speech mix in dBFS (mean square of both channels), not as loudness: the default threshold is -40 dBFS.
 
 ## Context
 

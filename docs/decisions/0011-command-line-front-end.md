@@ -23,6 +23,7 @@
 - Amended: 2026-10-17, run `2026-10-16-diagnostics` (see 0059). `dirigible diagnostics collect <zip>` saves a redacted problem report. It reads no package and changes none, so it has no MCP tool (see 0041). Exit codes 0, 2 (the zip exists or cannot be written), and 64.
 - Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (see 0060). `clip envelope` sets the gain points of a clip inside the clip in timeline frames and keeps the points outside it; `--clear` removes the points inside. `clip gain-range` adds a gain to a frame range of tracks, with ramps outside the range, and writes the ID of each changed clip. A frame outside the clip exits 1; a point that does not parse exits 64. `info` shows the points. Each has a tool and a `ParityTests` entry.
 - Amended: 2026-10-22, run `2026-10-18-envelope-ducking` (see 0060). `track role <package> <track> <dialogue|music|effects|none>` sets or removes the role of a track; another word exits 64, and an unknown track exits 1. `info` and `info --json` show the role. The tool `track_role` has a `ParityTests` entry.
+- Amended: 2026-10-22, run `2026-10-18-envelope-ducking` (see 0060). `duck <package> [--speech <t>]... [--music <t>]... [--from <f> --to <f>] [--depth --attack --release --threshold --hold]` and the `duck` tool lower the music under the speech. A bad argument exits 64; no speech track, no track to duck, a track in both lists, or no speech over the threshold exits 1 and changes nothing.
 
 ## Context
 

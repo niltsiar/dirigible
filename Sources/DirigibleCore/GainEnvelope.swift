@@ -74,7 +74,7 @@ public struct GainEnvelope: Hashable, Sendable {
 
     /// The function through `corners`, whose frames ascend strictly: linear between two corners
     /// and held outside them, 0 with no corner.
-    private static func value<C: RandomAccessCollection>(of corners: C, at frame: Int) -> Double
+    static func value<C: RandomAccessCollection>(of corners: C, at frame: Int) -> Double
     where C.Element == (Int, Double), C.Index == Int {
         // The first corner after `frame`, by binary search.
         var (low, high) = (corners.startIndex, corners.endIndex)

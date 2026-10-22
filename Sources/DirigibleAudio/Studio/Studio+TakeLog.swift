@@ -106,6 +106,8 @@ extension StudioError {
         case .artwork: "artwork"
         case .unusedFiles: "unusedFiles"
         case .levelCancelled: "levelCancelled"
+        case .duckCancelled: "duckCancelled"
+        case .duckRead: "duckRead"
         case .writerDidNotStop: "writerDidNotStop"
         }
     }

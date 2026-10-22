@@ -37,6 +37,23 @@ private let perTrack = Param.defaulted(
     "per_track", "Give the clips of one track one change, so the gain differences between them stay.", .boolean,
     false)
 
+private let duckSpeech = Param<[String]?>.optional(
+    "speech", "The IDs of the speech tracks. The default is the tracks with the dialogue role.", .strings())
+private let duckMusic = Param<[String]?>.optional(
+    "music", "The IDs of the tracks to duck. The default is the tracks with the music role.", .strings())
+private let duckFrom = Param<Int?>.optional("from", "The first timeline frame of the scope, with to.", .integer())
+private let duckTo = Param<Int?>.optional("to", "The timeline frame after the scope, with from.", .integer())
+private let duckDepth = Param<Gain?>.optional(
+    "depth", "The gain of the music under speech in dB, under 0. The default is -16.", .gain)
+private let duckAttack = Param<Int?>.optional(
+    "attack", "The ramp down before speech in frames. The default is 1 s.", .integer())
+private let duckRelease = Param<Int?>.optional(
+    "release", "The ramp up after speech in frames. The default is 1 s.", .integer())
+private let duckThreshold = Param<Gain?>.optional(
+    "threshold", "The speech level in dBFS, under 0. The default is -40.", .gain)
+private let duckHold = Param<Int?>.optional(
+    "hold", "The shortest pause in frames that lets the music come up. The default is 2 s.", .integer())
+
 private let importFile = Param.required(
     "file", "The absolute path of the audio file: WAV, AIFF, FLAC, MP3, or M4A.", .string)
 private let importTrack = Param<String?>.optional(
@@ -129,6 +146,29 @@ let audioTools = [
             + "changes no gain writes nothing." + editCancelNote("no gain changes"),
         [chosenClips, perTrack]
     ) { a throws(ToolError) in .level(LevelWork(clips: try a[chosenClips] ?? [], perTrack: try a[perTrack])) },
+    Tool(
+        "duck",
+        "Lower the music under the speech, as dirigible duck: it writes gain envelope points. The speech is the mix of the "
+            + "speech tracks over the threshold, with mute and solo ignored. A track with no role is in a list only "
+            + "when named. The duck replaces the points inside the clip window, or inside from and to, of each clip "
+            + "that speech reaches, and keeps the other points and clips. The text is the lines of the command (speech "
+            + "runs, ducked clips, kept clips), then the report line. No speech over the threshold changes nothing."
+            + editCancelNote("no envelope changes"),
+        [duckSpeech, duckMusic, duckFrom, duckTo, duckDepth, duckAttack, duckRelease, duckThreshold, duckHold]
+    ) { a throws(ToolError) in
+        let (speech, music, first, end) = (
+            try a[duckSpeech] ?? [], try a[duckMusic] ?? [], try a[duckFrom], try a[duckTo]
+        )
+        let (depth, attack, release) = (try a[duckDepth], try a[duckAttack], try a[duckRelease])
+        let (threshold, hold) = (try a[duckThreshold], try a[duckHold])
+        switch DuckWork.parse(
+            speech: speech, music: music, from: first, to: end, depth: depth?.dB, attack: attack, release: release,
+            threshold: threshold?.dB, hold: hold)
+        {
+        case .success(let work): return .duck(work)
+        case .failure(let error): throw error
+        }
+    },
     Tool(
         "import",
         "Import an audio file into a track, as dirigible import: the file becomes a 24-bit WAV at the session rate in "

@@ -38,6 +38,10 @@ struct ToolTextTests {
         #expect(
             AgentBusy.task.message(package: "p")
                 == "p is busy in Dirigible: a take, an import, a level, or a close runs. Try again later.")
+        #expect(
+            AgentBusy.dialog.message(package: "p")
+                == "p is busy in Dirigible: its window shows an alert, a sheet, or a panel. "
+                + "Ask the user to finish or close it in Dirigible, then try again.")
     }
 
     /// Decision 0050 (C19): the record text names the window grant, its ends, and the rate limit,

@@ -140,9 +140,14 @@ func recordOverTracks(_ session: Session, _ tracks: [TrackID], from start: Frame
 }
 
 extension SessionWindow {
-    /// True while the window shows an alert, a step of Export, or a sheet: then the sheet of an
-    /// agent record or export cannot show (decisions 0048 and 0049).
-    var showsDialog: Bool { alert != nil || exportStep != nil || window?.attachedSheet != nil }
+    /// Why the sheet of an agent record or export cannot show now, or nil (decisions 0048 and
+    /// 0049). `.export`: the window runs an export, whose progress sheet shows, or checks the media
+    /// of one, which shows no view. `.dialog`: an alert, a step of Export, or a sheet. Only the
+    /// user can finish or close that.
+    var dialogCause: AgentBusy? {
+        if exportStep == .checking || studio?.exportProgress != nil { return .export }
+        return alert != nil || exportStep != nil || window?.attachedSheet != nil ? .dialog : nil
+    }
 
     /// An agent asks to record (decision 0048). A refusal answers at once; a request that the
     /// window grant covers starts with no sheet (decision 0050); else the sheet shows, and the
@@ -272,7 +277,7 @@ extension SessionWindow {
         }
         guard case .open(let studio) = phase else { return .busy(.closing) }
         if window?.isMiniaturized == true { return .minimized }
-        if showsDialog { return .busy(.dialog) }
+        if let cause = dialogCause { return .busy(cause) }
         guard studio.isIdle, studio.pendingTake == nil, importJob == nil else { return .busy(.task) }
         return nil
     }

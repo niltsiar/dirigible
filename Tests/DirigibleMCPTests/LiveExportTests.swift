@@ -25,7 +25,7 @@ struct LiveExportTests {
     }
 
     /// Opens the studio with its export held at chunk 2, and starts a server for it.
-    func open(_ hold: ChunkHold, dialog: @escaping @MainActor () -> Bool = { false }) async throws -> (
+    func open(_ hold: ChunkHold, dialog: @escaping @MainActor () -> AgentBusy? = { nil }) async throws -> (
         Studio, AgentServer, SocketFolder
     ) {
         let studio = try await package.open()
@@ -173,7 +173,7 @@ extension LiveExportTests {
     @Test func aWindowExportGivesItsBusyCause() async throws {
         let hold = ChunkHold(at: 2)
         defer { hold.release() }
-        let (studio, server, folder) = try await open(hold) { true }
+        let (studio, server, folder) = try await open(hold) { .dialog }
         defer { server.stop() }
         let own = package.folder.appending(path: "own.caf")
         let window = Task {
@@ -207,12 +207,14 @@ extension LiveExportTests {
     /// Code gate 1 item 1: a window that shows a dialog refuses an agent export with no file.
     @Test func aDialogRefusesTheExport() async throws {
         let studio = try await package.open()
-        let (server, folder) = try liveServer(studio) { true }
+        let (server, folder) = try liveServer(studio) { .dialog }
         defer { server.stop() }
 
         let outcome = await send(folder.socket, "export", arguments)
 
-        let text = "\(package.path) is busy in Dirigible: its window shows a question. Try again later."
+        let text =
+            "\(package.path) is busy in Dirigible: its window shows an alert, a sheet, or a panel. "
+            + "Ask the user to finish or close it in Dirigible, then try again."
         #expect(outcome == .reply(.result(text: text, isError: true)))
         #expect(try outputs() == [], "the export ran")
         await studio.settle()
@@ -223,12 +225,14 @@ extension LiveExportTests {
         let studio = try await package.open()
         let shown = OSAllocatedUnfairLock(initialState: false)
         studio.environment.beforeMediaCheck = { shown.withLock { $0 = true } }
-        let (server, folder) = try liveServer(studio) { shown.withLock { $0 } }
+        let (server, folder) = try liveServer(studio) { shown.withLock { $0 } ? .dialog : nil }
         defer { server.stop() }
 
         let outcome = await send(folder.socket, "export", arguments)
 
-        let text = "\(package.path) is busy in Dirigible: its window shows a question. Try again later."
+        let text =
+            "\(package.path) is busy in Dirigible: its window shows an alert, a sheet, or a panel. "
+            + "Ask the user to finish or close it in Dirigible, then try again."
         #expect(outcome == .reply(.result(text: text, isError: true)))
         #expect(try outputs() == [], "the export ran")
         await studio.settle()
@@ -257,7 +261,7 @@ extension LiveExportTests {
     @Test func aLiveChaptersExportReadsTheOpenSession() async throws {
         let studio = try await package.open()
         let shown = OSAllocatedUnfairLock(initialState: true)
-        let (server, folder) = try liveServer(studio, dialog: { shown.withLock { $0 } })
+        let (server, folder) = try liveServer(studio, dialog: { shown.withLock { $0 } ? .dialog : nil })
         defer { server.stop() }
         let gate = Gate()
         defer { gate.open() }

@@ -116,7 +116,7 @@ func until(limit: Duration = .seconds(60), _ message: String, _ condition: () ->
 /// A server for one studio, on a new socket.
 @MainActor
 func liveServer(
-    _ studio: Studio, busy: AgentBusy? = nil, dialog: @escaping @MainActor () -> Bool = { false }
+    _ studio: Studio, busy: AgentBusy? = nil, dialog: @escaping @MainActor () -> AgentBusy? = { nil }
 ) throws -> (AgentServer, SocketFolder) {
     let folder = try SocketFolder()
     let server = AgentServer(socket: folder.socket) { [AgentTarget(studio: studio, busy: busy, dialog: dialog)] }

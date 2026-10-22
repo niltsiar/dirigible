@@ -5,20 +5,21 @@ import Observation
 
 /// A window that an agent call can reach: its studio, why the app refuses agent edits now
 /// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil. With `dialog`, the
-/// window shows an alert, a step of Export, or a sheet, so the export sheet of an agent `export`
-/// or `render` cannot show: the call is refused (decision 0049).
+/// window cannot show the export sheet of an agent `export` or `render`: the call is refused
+/// (decision 0049).
 package struct AgentTarget {
     package typealias Record = @MainActor (RecordRequest, AgentName, AgentConnection) async -> RecordAnswer
 
     package let studio: Studio
     package let busy: AgentBusy?
-    /// True while the window shows an alert, a sheet, or a panel. A live job reads it again after
-    /// each await.
-    package let dialog: @MainActor () -> Bool
+    /// Why the window cannot show a sheet now, or nil. `.dialog` is an alert, a sheet, or a panel
+    /// that only the user can finish or close; `.export` is an export of the window. A live job
+    /// reads it again after each await.
+    package let dialog: @MainActor () -> AgentBusy?
     package let record: Record?
 
     package init(
-        studio: Studio, busy: AgentBusy? = nil, dialog: @escaping @MainActor () -> Bool = { false },
+        studio: Studio, busy: AgentBusy? = nil, dialog: @escaping @MainActor () -> AgentBusy? = { nil },
         record: Record? = nil
     ) {
         (self.studio, self.busy, self.dialog, self.record) = (studio, busy, dialog, record)
@@ -34,7 +35,7 @@ package enum AgentBusy: Sendable {
     case quit
     /// A record request waits for the user (decision 0048).
     case asking
-    /// The window shows an alert, a sheet, or a panel.
+    /// The window shows an alert, a sheet, or a panel that only the user can finish or close.
     case dialog
     /// An export of the window runs: a second export waits for its end.
     case export
@@ -49,11 +50,13 @@ package enum AgentBusy: Sendable {
             case .closing: "its window closes"
             case .quit: "Dirigible quits"
             case .asking: "a record request waits for the user"
-            case .dialog: "its window shows a question"
+            case .dialog: "its window shows an alert, a sheet, or a panel"
             case .export: "an export runs in its window"
             case .pendingTake: "a take is not finalized"
             }
-        return "\(package) is busy in Dirigible: \(cause). Try again later."
+        let step =
+            self == .dialog ? "Ask the user to finish or close it in Dirigible, then try again." : "Try again later."
+        return "\(package) is busy in Dirigible: \(cause). \(step)"
     }
 }
 

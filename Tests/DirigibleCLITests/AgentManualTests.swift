@@ -107,6 +107,14 @@ struct AgentManualTests {
         #expect(!ripple.contains("from the last range"), "\(ripple)")
     }
 
+    /// The busy text of a dialog asks the user, and the other busy texts say to try again, so the
+    /// rule sends the agent to the step of the text, not to a retry.
+    @Test func theBusyRuleFollowsTheStepOfTheText() {
+        let rule = Self.core.split(separator: "\n").first { $0.contains("\"is busy in Dirigible\"") } ?? ""
+        #expect(rule.contains("do the step in the text, at most 3 retries"), "\(rule)")
+        #expect(!rule.contains("try again after a few seconds"), "\(rule)")
+    }
+
     /// W8 and RR11: the transcript is of the current session with each track heard, the user
     /// agrees before the cut, and one call cuts all the words, so the recipe has no merge and no
     /// order. A cut ripples each track, so a track that the export left out stops the recipe (code

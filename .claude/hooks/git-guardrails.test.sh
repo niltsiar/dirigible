@@ -296,10 +296,9 @@ expect allow 'grep -c x .git/dirigible-flakes > /tmp/count.txt'
 expect allow "grep -n '>.*dirigible-flakes' .claude/hooks/git-guardrails.sh"
 expect allow 'grep -n ">.*dirigible-flakes" .claude/hooks/git-guardrails.sh'
 expect allow "grep -n ' >.*dirigible-flakes' .claude/hooks/git-guardrails.sh"
-# A quoted ;, &, or | splits the command, and a heredoc line is not a read: both block. Write such
-# text with the Write tool.
+# A quoted ; or & splits the command, so that grep blocks. The body of a cat sink is data.
 expect block "grep -nE 'x >[[:space:]]*[^;&|]*dirigible-flakes' .claude/hooks/git-guardrails.sh"
-expect block $'cat >> scripts/run-checks.test.sh <<\'EOF\'\nflakes="$tmp/dirigible-flakes"\nEOF'
+expect allow $'cat >> scripts/run-checks.test.sh <<\'EOF\'\nflakes="$tmp/dirigible-flakes"\nEOF'
 # Only run-checks.sh writes and removes the run marks that the pre-commit hook reads, so an agent
 # cannot clear a mark to commit during a check. A read of the marks is allowed.
 expect_each_write .git/dirigible-check-running/5
@@ -348,6 +347,70 @@ message="$("$hook" < "$input" 2>&1 >/dev/null)"
 [[ "$message" == *'read it with scripts/run-checks.sh --flakes'* ]] ||
   { echo "FAIL: the flakes block message names no read route: $message"; failures=$((failures + 1)); }
 expect allow 'scripts/check-changed.test.sh'
+
+# The body of a heredoc that goes to a file (cat or tee, a plain file) is data: no rule reads it. The
+# marker ends the first line, or only a redirect to a plain file follows it, and an exact end line
+# follows the body. All else keeps the body in the text: a pipe, bash, an inline text, a here-string.
+sink_bodies=(
+  'x=1 DIRIGIBLE_LOCKED_SCRIPT="$0" exec'
+  $'make lint; echo\n.claude/skills/deliver/scripts/log-decision.sh r 4 a b c d'
+  'git -c core.hooksPath=/dev/null commit -m x'
+  'git push origin main'
+  'rm .git/dirigible-flakes'
+  'echo k >> .git/dirigible-check-stamp'
+)
+for body in "${sink_bodies[@]}"; do
+  expect allow $'cat > f <<\'EOF\'\n'"$body"$'\nEOF'
+  expect allow $'tee f <<\'EOF\'\n'"$body"$'\nEOF'
+  expect allow $'cat <<\'EOF\' > f\n'"$body"$'\nEOF'
+  expect block $'bash <<EOF\n'"$body"$'\nEOF'
+done
+expect allow $'cat >> f <<-EOF\n\tgit reset --hard\n\tEOF'
+expect allow $'tee -a f <<\'EOF\'\ngit push origin main\nEOF'
+expect allow $'cat <<\'EOF\' > f\ngit reset --hard\nEOF'
+# An unquoted marker expands $(...) and backticks in the body, so the shell runs them.
+expect block $'cat > f <<EOF\n$(git reset --hard)\nEOF'
+expect block $'cat > f <<EOF\n`git reset --hard`\nEOF'
+expect allow $'cat > f <<\'EOF\'\n$(git reset --hard)\nEOF'
+# No sink: the body stays in the text.
+expect block $'cat <<\'EOF\' | bash\ngit push --force origin main\nEOF'
+expect block $'tee f <<EOF | sh\ngit reset --hard\nEOF'
+expect block $'cat > f <<EOF; git reset --hard\nx\nEOF'
+expect block $'cat > f <<EOF\nx\nEOF\ngit reset --hard'
+expect block $'cat > f <<EOF\ngit reset --hard'
+expect block $'cat > f <<A && bash <<B\nx\nA\ngit reset --hard\nB'
+expect block $'cat > >(bash) <<EOF\ngit reset --hard\nEOF'
+expect block $'tee >(sh) <<EOF\ngit reset --hard\nEOF'
+expect block $'bash <<-EOF\n\tgit reset --hard\n\tEOF'
+expect block $'bash <<< \'git reset --hard\''
+expect block $'cat <<< \'git reset --hard\' | sh'
+expect block $'cat <<EOF > f; git reset --hard\nx\nEOF'
+expect block $'cat <<EOF > f | sh\ngit reset --hard\nEOF'
+expect block $'cat <<EOF > >(sh)\ngit reset --hard\nEOF'
+expect block $'cat > f <<EOF\ngit reset --hard\nEOF x'
+# An interpreter heredoc is read as a program. The lock-value rule and the log-decision rule skip
+# its body. Each other rule reads it, so python3 can not remove the lock or write a stamp.
+expect allow $'python3 - <<\'EOF\'\n'"${sink_bodies[0]}"$'\nEOF'
+expect allow $'python3 <<\'EOF\'\n'"${sink_bodies[1]}"$'\nEOF'
+for body in "${sink_bodies[@]:2}"; do
+  expect block $'python3 - <<\'EOF\'\n'"$body"$'\nEOF'
+done
+for name in dirigible-check-stamp dirigible-slow-date dirigible-flakes dirigible-check-partial \
+  dirigible-check-running dirigible-build.lock dirigible-screen dirigible-hooks-stamp; do
+  expect block $'python3 - <<\'EOF\'\nimport os\nos.remove(".git/'"$name"$'")\nEOF'
+done
+expect block $'python3 - <<\'EOF\'\nimport os\nos.rmdir(".git/dirigible-build.lock")\nEOF'
+expect block $'python3 - <<\'EOF\'\nopen(".git/dirigible-check-stamp", "a").write("x")\nEOF'
+expect block $'python3 - <<\'EOF\'\nopen(".git/dirigible-flakes", "a").write("x")\nEOF'
+expect block $'node - <<\'EOF\'\nrequire("fs").rmdirSync(".git/dirigible-build.lock")\nEOF'
+expect block $'perl <<\'EOF\'\nrmdir ".git/dirigible-build.lock";\nEOF'
+expect block $'ruby <<\'EOF\'\nDir.rmdir(".git/dirigible-build.lock")\nEOF'
+expect block $'python3 - <<\'EOF\'\nimport subprocess\nsubprocess.run("make check; git commit -m x", shell=True)\nEOF'
+expect block $'bash <<EOF\nmake check; git commit -m x\nEOF'
+expect block "python3 -c 'import os; os.rmdir(\".git/dirigible-build.lock\")'"
+expect block "node -e 'require(\"fs\").rmdirSync(\".git/dirigible-build.lock\")'"
+expect block "perl -e 'rmdir \".git/dirigible-build.lock\"'"
+expect block "ruby -e 'Dir.rmdir(\".git/dirigible-build.lock\")'"
 
 # A text rule of osascript must hold for each shell form, not only for the forms that a gate found
 # one at a time (run 2026-10-08-upkeep-batch-6). expect_each_form <want> <line>... runs one
@@ -485,7 +548,7 @@ expect_message() {
     || { echo "FAIL: no reason or no data hint in the message: $2"; failures=$((failures + 1)); }
 }
 expect_message "matches '--no-verify'" "git commit -m 'docs(agents): the hook blocks --no-verify'"
-expect_message 'without &&' $'cat > notes.md <<\'EOF\'\nRun make check; then git commit.\nEOF'
+expect_message 'without &&' 'make check; git commit -m x'
 # git -C <path> is the same commit for the make-check rule.
 expect block 'make check-changed > log 2>&1; git -C /x/wt commit -F .scratchpads/commit-msg.txt'
 

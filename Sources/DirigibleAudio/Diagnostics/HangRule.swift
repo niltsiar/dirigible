@@ -2,15 +2,16 @@
 struct HangLimits: Sendable {
     /// The period of the timer that pings the watched queue.
     var interval = Duration.milliseconds(250)
-    /// A tick more than this awake time after the last tick comes after a suspended process, a
-    /// stalled watchdog, or a timer that App Nap holds. A loaded Mac delays a tick by less, so a
-    /// block under load still gets its start line. Tests set it past their run.
-    var sleep = Duration.seconds(5)
+    /// A tick more than this awake time after the last tick resets the ping: it comes after a
+    /// suspended process, a stalled watchdog, or a timer that App Nap holds. A loaded Mac delays a
+    /// tick by less, so a block under load still gets its start line. Tests set it past their run.
+    var reset = Duration.seconds(5)
     /// A ping with no answer for this awake time writes `hang start` and starts the burst of stacks.
     var late = Duration.seconds(1)
-    /// The bursts in any `burstHour` of continuous time, so the hour counts sleep.
+    /// The bursts in any `burstHour`.
     var bursts = 3
-    var burstHour = Duration.seconds(3600)
+    /// The window of the burst limit, in continuous time, so it counts sleep.
+    let burstHour = Duration.seconds(3600)
     /// The stacks of one burst, and the pause before each stack after the first.
     var burstStacks = 10
     var burstPause = Duration.milliseconds(100)
@@ -18,7 +19,7 @@ struct HangLimits: Sendable {
 
 /// One reading of both clocks. The rules count awake time; the burst hour and `slept` count sleep
 /// too.
-struct HangInstant: Equatable, Sendable {
+struct HangInstant: Sendable {
     var awake: SuspendingClock.Instant
     var continuous: ContinuousClock.Instant
 
@@ -33,7 +34,7 @@ enum HangStep: Equatable {
     case hangEnd(blocked: Duration, slept: Duration, tickGap: Duration)
 }
 
-/// The late, sleep, and burst rules of the watchdog, with the instants as input, so a test needs
+/// The late, reset, and burst rules of the watchdog, with the instants as input, so a test needs
 /// no timer and no wall time.
 struct HangRule {
     let limits: HangLimits
@@ -50,14 +51,14 @@ struct HangRule {
     init(limits: HangLimits) { self.limits = limits }
 
     /// `.ping` with no ping out; `.hangStart` once when the ping is late, with a burst when fewer
-    /// than `bursts` bursts came in the last `burstHour`. A tick more than `sleep` of awake time
+    /// than `bursts` bursts came in the last `burstHour`. A tick more than `reset` of awake time
     /// after the last tick comes after a suspended process, a stalled watchdog, or a timer that App
     /// Nap holds: before a hang start it sends a new ping and writes no line. After a hang start it
     /// keeps the ping, so one hang has one start and one burst.
     mutating func tick(now: HangInstant) -> HangStep? {
         guard !stopped else { return nil }
         defer { lastTick = now }
-        if !started, let lastTick, now.awake - lastTick.awake > limits.sleep {
+        if !started, let lastTick, now.awake - lastTick.awake > limits.reset {
             sent = now
             tickGap = .zero
             return .ping

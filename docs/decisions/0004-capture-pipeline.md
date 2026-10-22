@@ -7,6 +7,7 @@
 - Amended: 2026-09-24. The active-recordings list is a plist array of package paths that `Studio` keeps in the order of this record. The app gives the path of the file; the CLI and the tests give none (see 0014).
 - Amended: 2026-10-10, run `2026-10-10-agents-md-restructure`. **Timing** holds the clock rules for every device. `AGENTS.md` points here.
 - Amended: 2026-10-15, run record-time-relevant (F152). The record time is computed before a take; decision 0023 says when the window shows it.
+- Amended: 2026-10-22, run `2026-10-22-take-sync`. `Capture.alignedStart(in:sampleRate:)` is the one owner of the take anchor formula of **Timing**: finalize and the take map of 0061 call it.
 
 ## Context
 

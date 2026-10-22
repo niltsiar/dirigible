@@ -1,3 +1,5 @@
+import DirigibleCore
+
 /// The rates of one segment, by the rules of decision 0004.
 struct RateChoice: Hashable, Sendable {
     /// The nominal rate of the device: the header rate, or the snapped rate of rule 2.

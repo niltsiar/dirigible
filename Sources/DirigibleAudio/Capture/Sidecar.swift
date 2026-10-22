@@ -65,10 +65,6 @@ public struct SegmentName: Hashable, Comparable, Sendable, CustomStringConvertib
     public static func < (a: Self, b: Self) -> Bool { (a.take, a.arm, a.segment) < (b.take, b.arm, b.segment) }
 }
 
-/// The signed difference `to - from` in nanoseconds. Every host-time difference uses it, so a
-/// first frame before the take start gives a negative value, not a trap.
-func nanos(from: UInt64, to: UInt64) -> Int64 { Int64(bitPattern: to &- from) }
-
 /// The first record of a sidecar: the device facts and the time of the first frame.
 struct CaptureHeader: Hashable, Sendable {
     var deviceUID: String

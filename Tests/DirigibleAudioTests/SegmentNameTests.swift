@@ -1,3 +1,4 @@
+import DirigibleCore
 import Testing
 
 @testable import DirigibleAudio

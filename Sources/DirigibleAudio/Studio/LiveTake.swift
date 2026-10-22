@@ -158,8 +158,8 @@ struct CaptureEnvironment: Sendable {
     /// A step after the work of a file import returns, before its run reads the cancel flag
     /// (decision 0049). Tests cancel there.
     var importWorkDone: @Sendable () async -> Void = {}
-    /// A step on the thread of each block of `Studio.measureLoudness` and `Studio.level` (decision
-    /// 0049). Tests hold the measure with it.
+    /// A step on the thread of each block of `Studio.measureLoudness` and of the read of a level or
+    /// a duck (`Studio.runReadJob`, decision 0049). Tests hold the read with it.
     var loudnessBlock: @Sendable () -> Void = {}
 
     static let live = CaptureEnvironment(

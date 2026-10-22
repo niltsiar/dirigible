@@ -119,12 +119,14 @@ struct DuckSheet: View {
     private func stepper(
         _ title: L10n, _ value: Binding<Int>, _ range: ClosedRange<Int>, step: Int, unit: L10n
     ) -> some View {
-        GridRow {
+        let shown = "\(value.wrappedValue) \(unit.text)"
+        return GridRow {
             Text(title.key)
             Stepper(value: value, in: range, step: step) {
-                Text(verbatim: "\(value.wrappedValue) \(unit.text)").monospacedDigit()
+                Text(verbatim: shown).monospacedDigit()
             }
             .accessibilityLabel(Text(title.key))
+            .accessibilityValue(Text(verbatim: shown))
         }
     }
 }

@@ -59,8 +59,9 @@ extension Studio {
 
     /// Studio calls it after an edit, an undo, a redo, a finalize, an import, and a prune: the
     /// take sync of the revision, with `agent` (decision 0061), and a pass when the pool files changed.
-    func poolChanged(from before: [FileID: AudioFile], agent: AgentName? = nil) {
-        takeSyncState.update(session, revision: sessionRevision, agent: agent)
+    /// A take outcome passes `transitions: false`.
+    func poolChanged(from before: [FileID: AudioFile], agent: AgentName? = nil, transitions: Bool = true) {
+        takeSyncState.update(session, revision: sessionRevision, agent: agent, transitions: transitions)
         if session.files != before { loadPeaks() }
     }
 

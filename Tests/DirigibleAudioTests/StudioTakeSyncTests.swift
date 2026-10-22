@@ -95,6 +95,26 @@ struct StudioTakeSyncTests {
         await studio.settle()
     }
 
+    /// A placement is never a transition (decision 0061): a segment of a split take placed away
+    /// from its recorded time breaks the sync, and the studio records no change for it.
+    @Test func aPlacementRecordsNoChange() async throws {
+        let package = try TakePackage(tracks: [("t1", .mono), ("t2", .mono)])
+        try package.segment(arm: 1, samples: sine(seconds: 1, rate: 48_000))
+        try finalizeTake(of: package.read(), in: package.url).write(to: package.url)
+        try package.segment(arm: 2, samples: sine(seconds: 1, rate: 48_000))
+        let studio = try await Studio.open(package.url)
+        let before = try studio.takeMap.get().sync[1]
+        try #require(
+            before.map { if case .inSync = $0 { true } else { false } } == true, "\(String(describing: before))")
+
+        _ = try await studio.place(SegmentName(take: 1, arm: 2, segment: 1), on: "t2", at: 0)
+
+        // The t2 clip at 0 is the first clip, so the break is at the t1 clip: 96 000 + 480 - 48.
+        #expect(try studio.takeMap.get().sync[1] == .broken(from: 96_432, shifts: 2))
+        #expect(studio.takeSyncChange.changes == [], "\(studio.takeSyncChange)")
+        await studio.settle()
+    }
+
     /// C8: an agent edit, an undo, and a redo, each followed by 200 playhead moves and 5 reads,
     /// give 3 changes. Each change has the revision and the agent of its revision: none for the undo.
     @Test func theSyncIsMadeOncePerRevision() async throws {

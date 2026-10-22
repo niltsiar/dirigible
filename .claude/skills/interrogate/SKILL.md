@@ -29,7 +29,7 @@ Workflow({ name: "review-panel", args: { target: "plan" | "diff", intent, scope:
 The workflow runs the reviewer agents in parallel. Skeptics try to refute each warning and critical finding. The free jobs of `docs/workflow/model-routing.md` run beside it. A small run passes the `lenses` of the **deliver** class table in one call. Else, with no `lenses`, each gate runs `.claude/agents/premortem.md`, `devils-advocate`, and `architecture-reviewer`. A `risk: yes` code gate makes one call per item below that the classes from `scripts/check-changed.sh` match:
 
 - sources, sources-risk: the default lenses.
-- `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "prompt-engineering", "harness-engineering", "eval-engineering", "compound-engineering"]`, with those paths in `paths`.
+- `AGENTS.md`, `CODING_STANDARDS.md`, `.claude/skills`, `.claude/agents`, `docs/workflow`: `lenses: ["context-engineering", "harness-engineering", "eval-engineering"]`, with those paths in `paths`.
 - other docs paths: no panel.
 
 A `risk: yes` code gate with a non-docs, non-comments class also calls the `code-review` skill in round 1 only, while `git status --porcelain` of the branch tree is empty and no `mutate.py` control is active:

@@ -194,13 +194,32 @@ struct TakeMapCommandTests {
                 == CLIResult(status: 1, stdout: "", stderr: "Error: The session has no take audio with a take time.\n"))
     }
 
-    @Test func aNegativeFrameExitsSixtyFour() async throws {
+    @Test func aNegativeTimelineFrameExitsSixtyFour() async throws {
         let package = try Self.twoTakes()
 
-        let result = try await package.run("take", "map", "PKG", "--take", "1", "-5")
+        let result = try await package.run("take", "map", "PKG", "--take", "1", "--timeline", "-5")
 
         #expect(result.status == 64 && result.stdout.isEmpty, "\(result)")
         #expect(result.stderr.contains("Each frame must be 0 to 1099511627776."), "\(result.stderr)")
+    }
+
+    /// A capture file whose first frame is 10 ms before the take start has the origin -480, so
+    /// `--timeline` gives a take frame under 0. That take frame maps back to the same place.
+    @Test func aPrintedNegativeTakeFrameMapsBack() async throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.setRecording(
+            Recording(take: 1, playheadFrame: 96_000, takeStartHostTimeNanos: Self.takeStart, armedTracks: ["t1"]))
+        let package = try TemporaryPackage(session)
+        try Self.rampSegment(package, arm: 1, firstHost: Self.takeStart - 10_000_000, frames: 48_000)
+        let finalize = try await package.run("take", "finalize", "PKG")
+        try #require(finalize.status == 0, "take finalize: \(finalize)")
+
+        let timeline = try await package.run("take", "map", "PKG", "--timeline", "95520")
+        let take = try await package.run("take", "map", "PKG", "-480")
+
+        #expect(timeline == CLIResult(status: 0, stdout: "95520 t1:-480\n", stderr: ""))
+        #expect(take == CLIResult(status: 0, stdout: "-480 t1:95520\n", stderr: ""))
     }
 
     /// C2: an anchor that does not read is not "no take audio": exit 2, as for a package that does

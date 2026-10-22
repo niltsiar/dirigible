@@ -33,7 +33,7 @@ struct TakeCommand: AsyncParsableCommand {
                 "Take frame 0 is the record start of the take. One line for each frame: the frame, then "
                 + "<track>:<frame> for each clip that plays it, or cut when an edit removed it. With --timeline, "
                 + "the frame, then <track>:<take frame> for each track with audio of the take there, or none. "
-                + "Exit 64 for a frame under 0, or with no --take when the session has two takes with audio or "
+                + "Exit 64 for a timeline frame under 0, or with no --take when the session has two takes with audio or "
                 + "more; exit 1 when the session or the take has no audio with a take time, or for an unknown "
                 + "track; exit 2 when the package or a take anchor in Capture/ cannot be read.")
         @OptionGroup var package: PackageArgument

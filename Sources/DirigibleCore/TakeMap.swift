@@ -61,13 +61,17 @@ public struct TakeMap: Sendable {
     /// In timeline order: by start, then by track order.
     private let pieces: [Piece]
 
+    /// The origin of a finalized file is inside this bound, so the sums of the map cannot overflow.
+    private static let originBound = 2 * Frames.limit.count
+    /// Each take frame that the map can give: an origin plus a file frame.
+    public static let takeFrames = -originBound...(originBound + Frames.limit.count)
+
     /// `recordings` holds the take anchor of each capture. A file has an origin only when its
     /// capture ID equals its file ID, so a file that finalize did not make (an import, a paste
-    /// from another package, a derived file) has none. A finalized file has an origin inside 2 x
-    /// `Frames.limit`, so the sums of the map cannot overflow; a larger origin comes from a damaged
-    /// `session.xml` and is no take time.
+    /// from another package, a derived file) has none. An origin outside `originBound` comes from a
+    /// damaged `session.xml` and is no take time.
     public init(_ session: Session, recordings: [CaptureID: Recording]) {
-        let bound = 2 * Frames.limit.count
+        let bound = Self.originBound
         var origins: [FileID: Origin] = [:]
         for file in session.files.values {
             guard let id = file.capture, id.rawValue == file.id.rawValue, let capture = session.captures[id],

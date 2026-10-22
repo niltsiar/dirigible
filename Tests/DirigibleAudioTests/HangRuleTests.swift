@@ -173,6 +173,23 @@ struct HangRuleTests {
         #expect(rule.answered(now: at(awake: 800, continuous: 3800)) == nil)
     }
 
+    /// watchdog-hangs C8: a sleep of 30 s between two ticks 250 ms of awake time apart keeps the
+    /// ping, so the block before the sleep counts toward the late limit.
+    @Test func aSleepWithAPingOutKeepsThePingWhenTheAwakeGapIsShort() {
+        var rule = HangRule(limits: HangLimits())
+
+        let instants = [
+            at(0), at(250), at(awake: 500, continuous: 30_500), at(awake: 750, continuous: 30_750),
+            at(awake: 1000, continuous: 31_000),
+        ]
+        let steps = instants.map { rule.tick(now: $0) }
+
+        #expect(
+            steps == [
+                .ping, nil, nil, nil, .hangStart(late: .milliseconds(1000), tickGap: .milliseconds(250), burst: true),
+            ])
+    }
+
     /// watchdog-hangs C9: the start gives the longest gap between two ticks from the ping.
     @Test func theStartGivesTheLongestTickGap() {
         var late = HangRule(limits: HangLimits())

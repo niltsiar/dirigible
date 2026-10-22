@@ -93,7 +93,7 @@ struct LiveLevelTests {
         let call = Task { await send(socket, "level", ["package": path]) }
         await until("the level does not hold") { hold.isHeld }
 
-        studio.cancelLevel()
+        studio.cancelReadJob()
         hold.release()
         let outcome = await call.value
 

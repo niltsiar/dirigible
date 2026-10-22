@@ -217,7 +217,7 @@ extension SessionWindow {
 
     /// The Cancel of the level banner: it ends the level of the user or of an agent at its next
     /// block, with no gain change (decision 0049).
-    func cancelLevel() { studio?.cancelLevel() }
+    func cancelReadJob() { studio?.cancelReadJob() }
 
     /// Remove Track: a track of a pending take gives its alert (decision 0012), and a track with
     /// clips asks first (ui-polish A1). The check runs on a copy, so a refused remove asks nothing.

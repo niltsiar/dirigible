@@ -109,7 +109,7 @@ struct LiveDuckTests {
         let call = Task { await send(socket, "duck", ["package": path]) }
         await until("the duck does not hold") { hold.isHeld }
 
-        studio.cancelLevel()
+        studio.cancelReadJob()
         hold.release()
         let outcome = await call.value
 

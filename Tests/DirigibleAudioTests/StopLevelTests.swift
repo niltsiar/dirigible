@@ -233,7 +233,7 @@ struct StopLevelTests {
 
         let leveling = Task { try await studio.level(["c1", "c2"], .eachClip) }
         await until(limit: .seconds(30), "the level did not reach step 8") { steps.withLock { $0 } >= 8 }
-        studio.cancelLevel()
+        studio.cancelReadJob()
         semaphore.signal()
         let result = await leveling.result
 

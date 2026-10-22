@@ -1,6 +1,6 @@
 ---
 name: harness-engineering-reviewer
-description: Harness and agentic-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks enforcement, subagent boundaries, limits, workflow caching, and hook false positives. Use in the doc panel of a docs change.
+description: Harness and agentic-engineering reviewer for a diff to AGENTS.md, skills, agents, or docs/workflow. Checks enforcement, subagent boundaries, limits, workflow caching, and hook false positives. Use as a doc lens of a docs change.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: medium

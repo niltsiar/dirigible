@@ -566,6 +566,19 @@ message="$("$hook" < "$input" 2>&1 >/dev/null)"
 [[ "$message" == *'pgrep'* && "$message" == *'only that PID'* && "$message" != *'deliver flow'* ]] ||
   { echo "FAIL: the quit-by-name block message: $message"; failures=$((failures + 1)); }
 
+# A privacy reset of the bundle ID of the user removes the grants of each build of the user. Only the
+# ID of the verify copy (.verify-<hash>) may be reset.
+expect block 'tccutil reset AudioCapture com.delineas.dirigible'
+expect block 'tccutil reset All com.delineas.dirigible'
+expect block 'make app && tccutil reset Microphone com.delineas.dirigible'
+expect allow 'tccutil reset All com.delineas.dirigible.verify-1a2b3c4d'
+expect allow 'tccutil reset Microphone com.example.other'
+expect allow 'rg -n com.delineas.dirigible Package.swift'
+expect allow $'cat > notes.md <<\'EOF\'\ntccutil reset All com.delineas.dirigible\nEOF'
+message="$(printf '{"tool_input":{"command":"tccutil reset All com.delineas.dirigible"}}' | "$hook" 2>&1)"
+[[ "$message" == *'scripts/verify-copy.sh'* && "$message" != *'deliver flow'* ]] ||
+  { echo "FAIL: the tccutil block message names no verify copy route: $message"; failures=$((failures + 1)); }
+
 # A quoted main is the same push to main.
 expect block "git push origin 'main'"
 expect block 'git push origin "main"'

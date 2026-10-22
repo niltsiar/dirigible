@@ -52,6 +52,10 @@ public enum StudioError: Error, Hashable, Sendable {
     case unusedFiles(UnusedFilesError)
     /// The user or the caller cancelled a level (decision 0049). No gain changed.
     case levelCancelled
+    /// The user or the caller cancelled a duck (decision 0060). No envelope changed.
+    case duckCancelled
+    /// A duck could not open an audio file: no free descriptor, with its errno (decision 0016).
+    case duckRead(Int32)
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).
     /// The take stays pending with its audio on disk, and Retry Finalize waits for it again.
     case writerDidNotStop(String)

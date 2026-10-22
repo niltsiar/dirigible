@@ -245,6 +245,12 @@ extension SessionError {
                 + ". The file has no chapter at the same time. Remove the chapter first, or add one at that time to "
                 + "the file."
         case .nothingToHeal: "no join to heal."
+        case .noSpeechTrack: "no speech track: give a track the dialogue role, or name the speech tracks."
+        case .noDuckedTrack: "no track to duck: give a track the music role, or name the tracks to duck."
+        case .trackInBothDuckLists(let id): "track \"\(id)\" is a speech track and a track to duck."
+        case .noSpeech(let scope, let threshold):
+            "no speech over \(String(format: "%.1f", threshold)) dBFS in the timeline frames "
+                + "\(scope.lowerBound)..<\(scope.upperBound), so the duck changed nothing."
         }
     }
 }
@@ -335,6 +341,8 @@ extension StudioError {
         case .unusedFiles(let error): error.message(package: package)
         // No command levels through Studio; `dirigible level` calls `autoLevel`.
         case .levelCancelled: "the level was cancelled."
+        case .duckCancelled: "the duck was cancelled."
+        case .duckRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
         case .writerDidNotStop(let name):
             "\(name) did not stop in time. The audio is safe in \(package)/Capture; open the package in "
                 + "Dirigible to finish the take."

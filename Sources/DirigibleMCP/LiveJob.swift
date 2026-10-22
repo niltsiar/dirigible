@@ -37,6 +37,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         }
     case .level(let work):
         return await liveLevel(work, studio: studio, call: call, report: report)
+    case .duck(let work):
+        return await liveDuck(work, studio: studio, call: call, report: report)
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
     case .chapters(let work):
@@ -70,6 +72,34 @@ private func liveLevel(
     } catch .levelCancelled {
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         let text = Task.isCancelled ? cancelledMessage : "The user cancelled the level in Dirigible. No gain changed."
+        return .result(text: text, isError: true)
+    } catch .busy {
+        return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
+/// `duck` through `Studio.duck`: one undo step with the agent name. The banner Cancel or a cancel
+/// of the call ends it with no envelope change (decisions 0049 and 0060).
+@MainActor
+private func liveDuck(
+    _ work: DuckWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    let planned: (speech: [TrackID], music: [TrackID], scope: Range<Frames>, shape: DuckShape)
+    do throws(SessionError) { planned = try work.plan(in: studio.session) } catch {
+        return .result(text: error.message, isError: true)
+    }
+    do throws(StudioError) {
+        let result = try await studio.duck(
+            speech: planned.speech, music: planned.music, scope: planned.scope, range: work.range,
+            shape: planned.shape, agent: call.agent, progress: report)
+        return .result(
+            text: (DuckWork.lines(result) + [DuckWork.text(of: result)]).joined(separator: "\n"), isError: false)
+    } catch .duckCancelled {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text =
+            Task.isCancelled ? cancelledMessage : "The user cancelled the duck in Dirigible. No envelope changed."
         return .result(text: text, isError: true)
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
@@ -182,6 +212,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .export(let export):
         "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
+    case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.

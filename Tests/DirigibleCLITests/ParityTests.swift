@@ -50,6 +50,7 @@ struct ParityTests {
         "cutWords": ["transcript cut"],
         "importChapters": ["chapters import"],
         "heal": ["clip heal"],
+        "duck": ["duck"],
     ]
 
     static let exemptions: [String: String] = [

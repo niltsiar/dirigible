@@ -42,6 +42,8 @@ enum ToolWork: Sendable {
     case export(ExportWork)
     /// `level`: an edit under the lock, as `dirigible level`.
     case level(LevelWork)
+    /// `duck`: a speech read and an edit under the lock, as `dirigible duck`.
+    case duck(DuckWork)
     /// `import`: a conversion and an edit under the lock, as `dirigible import`.
     case importFile(ImportWork)
     /// `chapters_export`: no lock, as `dirigible chapters export`.
@@ -50,7 +52,7 @@ enum ToolWork: Sendable {
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .level, .importFile, .chapters: true
+        case .loudness, .export, .level, .duck, .importFile, .chapters: true
         case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words:
             false
         }

@@ -80,4 +80,4 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 - **Agreement map:** where the lenses agreed or diverged, and what the pattern says.
 - **Not covered:** each lens, claim, or visible behavior that the gate did not check, and why, or `none`.
 
-Then run `scripts/check-plan.sh <run folder>`. It must exit 0 before the fixer starts.
+Log a phase 6 verdict row before the fixer: `log-decision.sh` refuses it until `scripts/check-plan.sh` exits 0.

@@ -156,6 +156,35 @@ touch -t 200001010000 "$gated/decisions.tsv"
 "$log" "$gated" 6 'criterion change C5: old a, new b' why evidence done || fail "the criterion change row for C5 exits $?"
 "$log" "$gated" 4 'Slice S3 committed' why evidence done || fail "the next phase 4 row after the late C5 row exits $?"
 
+# A phase 6 row runs scripts/check-plan.sh with no CHECK_PLAN_AT_PHASE4 value, the check of the land
+# (check-governance.sh): an Act on item with no Siblings field refuses the row and keeps the --from
+# file. A phase 2 row after the phase 3 row is no refusal, because only the phase 4 check tests the
+# plan gate. The criterion change row of the gated run above is the case that skips the check.
+p6="$tmp/p6"
+mkdir "$p6"
+printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$p6/analysis.md"
+printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n' > "$p6/plan.md"
+: > "$p6/decisions.tsv"
+: > "$p6/review-plan-1.md"
+"$log" "$p6" 2 'plan written' why evidence done || fail "p6: the phase 2 row exits $?"
+"$log" "$p6" 3 'plan gate closed' why evidence done || fail "p6: the phase 3 row exits $?"
+"$log" "$p6" 4 'Slice S1 committed' why evidence done || fail "p6: the phase 4 row exits $?"
+printf '# V\n\n## Act on\n\n1. (warning, x, read) A case is missing. Invariant: each case has a test.\n' > "$p6/review-diff-1.md"
+printf '6\nfix item 1\nthe case\nevidence\nfixed\n' > "$tmp/p6row"
+before="$(shasum -a 256 "$p6/decisions.tsv")"
+err="$("$log" "$p6" --from "$tmp/p6row" 2>&1)"
+code=$?
+[[ $code -eq 2 ]] || fail "p6: an Act on item with no Siblings field: expected exit 2, got $code"
+[[ "$err" == *'Siblings'* ]] || fail "p6: the refusal names no Siblings field: $err"
+[[ "$(shasum -a 256 "$p6/decisions.tsv")" == "$before" ]] || fail 'p6: the refused phase 6 row changed decisions.tsv'
+[[ -e "$tmp/p6row" ]] || fail 'p6: the refused --from file is gone'
+printf '# V\n\n## Act on\n\n1. (warning, x, read) A case is missing. Invariant: each case has a test. Siblings: none.\n' > "$p6/review-diff-1.md"
+"$log" "$p6" --from "$tmp/p6row" || fail "p6: the phase 6 row with both fields exits $?"
+[[ "$(tail -n 1 "$p6/decisions.tsv" | cut -f2-)" == $'6\tfix item 1\tthe case\tevidence\tfixed' ]] || fail 'p6: no phase 6 row after the field came'
+[[ ! -e "$tmp/p6row" ]] || fail 'p6: the --from file is still there after the append'
+"$log" "$p6" 2 'plan changed late' why evidence done || fail "p6: the late phase 2 row exits $?"
+"$log" "$p6" 6 'fix item 2' 'the plan gate has no row after the late phase 2 row' evidence fixed || fail "p6: a phase 6 row after a late phase 2 row exits $?"
+
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the
 # Later count with the change from the `Later items:` line of the last run.md. It makes the logs/

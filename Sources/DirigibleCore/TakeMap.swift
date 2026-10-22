@@ -18,8 +18,9 @@ extension Capture {
     }
 }
 
-/// The take time of the capture files of a session (decision 0061). The take time of a frame is its
-/// time from the record start of its own take, at the session rate.
+/// The take time of the capture files of a session, and where each take frame is on the timeline
+/// (decision 0061). The take time of a frame is its time from the record start of its own take, at
+/// the session rate. The map uses the file range of each clip, not its crossfade handles.
 public struct TakeMap: Sendable {
     /// Where file frame 0 of a capture file is in the take time of `take`.
     public struct Origin: Hashable, Sendable {
@@ -27,13 +28,46 @@ public struct TakeMap: Sendable {
         public let frame: Int
     }
 
+    /// A timeline frame on a track.
+    public struct Place: Hashable, Sendable {
+        public let track: TrackID
+        public let frame: Frames
+    }
+
+    /// A frame in the take time of `take`.
+    public struct TakeTime: Hashable, Sendable {
+        public let take: Int
+        public let frame: Int
+    }
+
+    /// A clip of a file with take time.
+    fileprivate struct Piece: Sendable {
+        let track: TrackID
+        /// The index of `track` in the session.
+        let order: Int
+        let clip: Clip
+        let origin: Origin
+        /// The take frame of the first clip frame.
+        var first: Int { origin.frame + clip.offset.count }
+        /// The timeline frame of take time 0.
+        var shift: Int { clip.start.count - first }
+    }
+
     /// The origin of each file that has take time.
     public let origins: [FileID: Origin]
+    /// The state of each take with audio, a take with a clip of a file that has an origin. Empty:
+    /// the session has no take audio.
+    public let sync: [Int: TakeSync]
+    /// In timeline order: by start, then by track order.
+    private let pieces: [Piece]
 
     /// `recordings` holds the take anchor of each capture. A file has an origin only when its
     /// capture ID equals its file ID, so a file that finalize did not make (an import, a paste
-    /// from another package, a derived file) has none.
+    /// from another package, a derived file) has none. A finalized file has an origin inside 2 x
+    /// `Frames.limit`, so the sums of the map cannot overflow; a larger origin comes from a damaged
+    /// `session.xml` and is no take time.
     public init(_ session: Session, recordings: [CaptureID: Recording]) {
+        let bound = 2 * Frames.limit.count
         var origins: [FileID: Origin] = [:]
         for file in session.files.values {
             guard let id = file.capture, id.rawValue == file.id.rawValue, let capture = session.captures[id],
@@ -42,9 +76,77 @@ public struct TakeMap: Sendable {
             // The aligned start with the playhead at 0: the take time of file frame 0.
             var takeStart = recording
             takeStart.playheadFrame = .zero
-            guard let frame = capture.alignedStart(in: takeStart, sampleRate: session.sampleRate) else { continue }
+            guard let frame = capture.alignedStart(in: takeStart, sampleRate: session.sampleRate),
+                (-bound...bound).contains(frame)
+            else { continue }
             origins[file.id] = Origin(take: recording.take, frame: frame)
         }
+        let pieces = session.tracks.enumerated().flatMap { order, track in
+            track.clips.compactMap { clip in
+                origins[clip.file].map { Piece(track: track.id, order: order, clip: clip, origin: $0) }
+            }
+        }
+        .sorted { ($0.clip.start, $0.order) < ($1.clip.start, $1.order) }
         self.origins = origins
+        self.pieces = pieces
+        sync = Dictionary(grouping: pieces, by: \.origin.take).mapValues(TakeSync.init)
+    }
+
+    /// The places that play take frame `frame` of `take`, one for each clip whose take range holds
+    /// it, in timeline order. Empty: an edit removed that audio, or the take has none.
+    public func timeline(atTake frame: Int, take: Int) -> [Place] {
+        pieces.filter { $0.origin.take == take && $0.first <= frame && frame < $0.first + $0.clip.length.count }
+            .map { (place: Place(track: $0.track, frame: $0.clip.start + Frames(frame - $0.first)), order: $0.order) }
+            .sorted { ($0.place.frame, $0.order) < ($1.place.frame, $1.order) }.map(\.place)
+    }
+
+    /// The take time of the clip under `frame` on `track`, or nil for a gap or a clip of a file
+    /// with no take time.
+    public func take(atTimeline frame: Frames, on track: TrackID) -> TakeTime? {
+        pieces.first { $0.track == track && $0.clip.range.contains(frame) }.map {
+            TakeTime(take: $0.origin.take, frame: $0.first + (frame - $0.clip.start).count)
+        }
+    }
+}
+
+/// The sync state of one take with audio (decision 0061). The shift of a clip is the timeline
+/// frame of take time 0. 0 frames of tolerance: a shift that differs by 1 frame is another shift.
+public enum TakeSync: Hashable, Sendable {
+    /// Every clip of the take has the shift `offset`.
+    case inSync(offset: Int)
+    /// `from` is the earliest start of a clip whose shift differs from the shift of the first clip
+    /// of the take; `shifts` counts the different shifts.
+    case broken(from: Frames, shifts: Int)
+
+    /// The pieces of one take, in timeline order; never empty.
+    fileprivate init(_ pieces: [TakeMap.Piece]) {
+        let first = pieces[0].shift
+        let shifts = Set(pieces.map(\.shift)).count
+        if let other = pieces.first(where: { $0.shift != first }) {
+            self = .broken(from: other.clip.start, shifts: shifts)
+        } else {
+            self = .inSync(offset: first)
+        }
+    }
+
+    /// A change of the state of one take.
+    public struct Change: Hashable, Sendable {
+        public let take: Int
+        public let old: TakeSync
+        public let new: TakeSync
+    }
+
+    /// The one rule of a transition: one entry, in take order, for each take in both lists whose
+    /// state changes class or whose `inSync` offset changes. From `broken` to `broken` gives none.
+    /// A take in only one list gives none, so a new take or a removed take is no transition.
+    public static func change(from old: [Int: TakeSync], to new: [Int: TakeSync]) -> [Change] {
+        old.keys.sorted().compactMap { take in
+            guard let before = old[take], let after = new[take] else { return nil }
+            switch (before, after) {
+            case (.broken, .broken): return nil
+            case (.inSync(let a), .inSync(let b)) where a == b: return nil
+            default: return Change(take: take, old: before, new: after)
+            }
+        }
     }
 }

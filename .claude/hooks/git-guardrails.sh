@@ -397,6 +397,15 @@ while IFS= read -r file; do
   fi
 done < <(grep -oE "git commit( .*)? (-F ?|--file[= ])[^ ]+" <<< "$NORMALIZED" | sed -E 's/.*(-F ?|--file[= ])//')
 
+# A privacy reset of com.delineas.dirigible removes the grants of each build of the user (VER-084:
+# one reset removed 11 records). Only the ID of the verify copy, com.delineas.dirigible.verify-<hash>,
+# may be reset.
+if grep -E '(^|[^[:alnum:]_.-])tccutil +reset( |$)' <<< "$NORMALIZED" |
+  sed -E 's/com\.delineas\.dirigible\.verify-[0-9a-f]+//g' | grep -q 'com\.delineas\.dirigible'; then
+  block "resets the privacy grants of the app ID of the user (com.delineas.dirigible), and so of each build of the user" \
+    "Reset only the copy of the check: scripts/verify-copy.sh stop runs tccutil reset All with the copy ID, and scripts/verify-copy.sh id prints it."
+fi
+
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if grep -qE -- "$pattern" <<< "$NORMALIZED"; then
     block "matches '$pattern'"

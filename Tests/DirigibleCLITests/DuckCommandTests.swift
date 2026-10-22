@@ -202,6 +202,14 @@ struct DuckCommandTests {
         #expect(bad.status == 64 && bad.stderr.contains(rule), "\(bad)")
     }
 
+    /// A second duck changes no envelope: the clip that speech reaches is in the unchanged list.
+    @Test func aSecondDuckNamesTheClipUnchanged() async throws {
+        #expect(try await package.run("duck", "PKG").status == 0)
+        let again = try await package.run("duck", "PKG")
+        #expect(again.stdout == "speech\t96000\t288000\nspeech\t576000\t768000\nunchanged\tcm\n", "\(again)")
+        #expect(again.status == 0 && again.stderr.contains("Clips that speech reaches with no change: 1."))
+    }
+
     /// A bad argument is a usage error: exit 64.
     @Test func aBadArgumentExits64() async throws {
         #expect(try await package.run("duck", "PKG", "--depth", "6").status == 64)

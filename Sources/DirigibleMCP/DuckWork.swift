@@ -114,17 +114,22 @@ package struct DuckWork: Sendable {
     }
 
     /// One line for each speech run (`speech`, its first frame, and the frame after its end), then
-    /// one line for each ducked clip (`ducked` and the ID), then one for each kept clip (`kept`),
-    /// then one for each speech file that did not read (`unread` and the file ID).
+    /// one line for each ducked clip (`ducked` and the ID), then one for each reached clip with no
+    /// change (`unchanged`), then one for each kept clip (`kept`), then one for each speech file
+    /// that did not read (`unread` and the file ID).
     package static func lines(_ result: DuckResult) -> [String] {
         result.runs.map { "speech\t\($0.lowerBound)\t\($0.upperBound)" } + result.ducked.map { "ducked\t\($0)" }
-            + result.kept.map { "kept\t\($0)" } + result.unread.map { "unread\t\($0)" }
+            + result.unchanged.map { "unchanged\t\($0)" } + result.kept.map { "kept\t\($0)" }
+            + result.unread.map { "unread\t\($0)" }
     }
 
     /// The report line.
     package static func text(of result: DuckResult) -> String {
         var text =
             "Speech runs: \(result.runs.count). Clips ducked: \(result.ducked.count), with \(result.points) points."
+        if !result.unchanged.isEmpty {
+            text += " Clips that speech reaches with no change: \(result.unchanged.count)."
+        }
         if !result.kept.isEmpty {
             text += " Clips that no speech reaches keep their envelope: \(result.kept.count)."
         }

@@ -205,7 +205,9 @@ package struct SessionView: Encodable {
         episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
         switch takeMap {
         case .success(let map):
-            takeSync = map.sync.isEmpty ? nil : map.sync.keys.sorted().map { TakeSyncView(take: $0, map.sync[$0]!) }
+            takeSync =
+                map.sync.isEmpty
+                ? nil : map.sync.sorted { $0.key < $1.key }.map { TakeSyncView(take: $0.key, $0.value) }
             takeSyncFault = nil
         case .failure(let error):
             takeSync = nil

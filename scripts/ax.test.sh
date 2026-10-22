@@ -49,6 +49,7 @@ Role=AXApplication RoleDescription=application Title=Dirigible
   Role=AXButton RoleDescription=button Title=Clear Menu Help=Removes the rows
   Role=AXButton RoleDescription=button Description=Cancel Enabled=1
   Role=AXButton RoleDescription=button Title=Stop Description=Stop
+  Role=AXButton RoleDescription=button Title= Description=Dismiss Enabled=1
  Role=AXMenuBar RoleDescription=menu bar
   Role=AXMenuBarItem RoleDescription=menu bar item Title=Apple MenuItemCmdModifiers=0
    Role=AXMenu RoleDescription=menu
@@ -107,6 +108,8 @@ expect_press "an item with an Enabled field" "File > Close" 0 "match: Dirigible 
 # first, so a button with both gives one match, not two.
 expect_press "a button with only a description" "Cancel" 0 "match: Dirigible > Welcome to Dirigible > Cancel"
 expect_press "a title and a description of one text" "Stop" 0 "match: Dirigible > Welcome to Dirigible > Stop"
+# A dump line of a button with no usable title has "Title=" with no text, then its Description.
+expect_press "a button with an empty title and a description" "Dismiss" 0 "match: Dirigible > Welcome to Dirigible > Dismiss"
 expect_press "an empty title at the end" "File > " 2 "" "has an empty title"
 expect_press "an empty title in the middle" "File >  > Close" 2 "" "has an empty title"
 # With no match, press lists the path of each element whose title holds the last title (in any

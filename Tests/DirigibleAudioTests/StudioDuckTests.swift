@@ -95,6 +95,21 @@ struct StudioDuckTests {
         #expect(try fixture.sessionBytes() == bytes, "a duck with no speech saved")
     }
 
+    /// The lists of `Studio.duck` get the named errors of `Session.duckTracks`: an empty speech
+    /// list and a track in both lists throw, before any read, and change nothing.
+    @Test func badListsThrowTheNamedErrors() async throws {
+        let studio = try await Studio.open(package.url)
+        let before = studio.session
+        await #expect(throws: StudioError.session(.noSpeechTrack)) {
+            try await studio.duck(speech: [], music: ["t2"], range: nil, shape: shape)
+        }
+        await #expect(throws: StudioError.session(.trackInBothDuckLists("t2"))) {
+            try await studio.duck(speech: ["t1", "t2"], music: ["t2"], range: nil, shape: shape)
+        }
+        let unchanged = studio.session == before
+        #expect(unchanged && !studio.canUndo && studio.transport == .idle, "a refused duck changed the session")
+    }
+
     /// A range past the session end reads only up to the end: the `noSpeech` scope is the cut range.
     @Test func aRangePastTheEndReadsUpToTheEnd() async throws {
         let fixture = try StudioDuckTests(speech: -.infinity)

@@ -57,18 +57,25 @@ public struct DuckResult: Hashable, Sendable {
 
 extension Session {
     /// The track lists of a duck (decision 0060, U20): `speech`, else the dialogue-role tracks;
-    /// `music`, else the music-role tracks. There is no route fallback. An unknown track, an empty
-    /// list, or a track in both lists throws.
+    /// `music`, else the music-role tracks. There is no route fallback. The lists then pass
+    /// `checkDuckLists`.
     public func duckTracks(speech: [TrackID], music: [TrackID]) throws(SessionError) -> (
         speech: [TrackID], music: [TrackID]
     ) {
         _ = try trackIndices(speech + music)
         let speech = speech.isEmpty ? tracks.filter { $0.role == .dialogue }.map(\.id) : speech
         let music = music.isEmpty ? tracks.filter { $0.role == .music }.map(\.id) : music
+        try checkDuckLists(speech: speech, music: music)
+        return (speech, music)
+    }
+
+    /// The list rule of a duck, with no role fallback: an unknown track, an empty list, or a track
+    /// in both lists (the first in `music`) throws.
+    public func checkDuckLists(speech: [TrackID], music: [TrackID]) throws(SessionError) {
+        _ = try trackIndices(speech + music)
         guard !speech.isEmpty else { throw .noSpeechTrack }
         guard !music.isEmpty else { throw .noDuckedTrack }
         if let both = music.first(where: speech.contains) { throw .trackInBothDuckLists(both) }
-        return (speech, music)
     }
 
     /// The timeline frames that a duck in `range` reads (nil: the whole session): the range cut to

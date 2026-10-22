@@ -2,7 +2,8 @@ import DirigibleCore
 import Foundation
 
 extension Studio {
-    /// The duck of decision 0060: reads the speech runs of `speech` in `range` (nil: the whole
+    /// The duck of decision 0060: checks the lists with `Session.checkDuckLists`, reads the speech
+    /// runs of `speech` in `range` (nil: the whole
     /// session), cut by `Session.duckScope`, with `speechRuns`, and writes the duck of `music` with
     /// `Session.duck` (`range` nil: each whole clip). It runs as
     /// a level runs (`level`), on the `.ducking` transport, so the duck banner and its Cancel
@@ -18,7 +19,12 @@ extension Studio {
     ) async throws(StudioError) -> DuckResult {
         try checkIdle()
         let scope: Range<Frames>
-        do throws(SessionError) { scope = try session.duckScope(range) } catch { throw .session(error) }
+        do throws(SessionError) {
+            try session.checkDuckLists(speech: speech, music: music)
+            scope = try session.duckScope(range)
+        } catch {
+            throw .session(error)
+        }
         let stopped = endPlayForTake()
         let flags = ImportFlags()
         (transport, levelFlags) = (.ducking, flags)

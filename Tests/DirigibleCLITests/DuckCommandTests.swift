@@ -192,6 +192,16 @@ struct DuckCommandTests {
         #expect(try package.xml() == before)
     }
 
+    /// Each documented value parses in the space form: a negative depth and threshold duck, and a
+    /// negative attack gets the text of the length rule, not a parser error.
+    @Test func negativeValuesParseInTheSpaceForm() async throws {
+        let duck = try await package.run("duck", "PKG", "--depth", "-20", "--threshold", "-45")
+        #expect(duck.status == 0, "\(duck)")
+        let bad = try await package.run("duck", "PKG", "--attack", "-1")
+        let rule = "attack, release, and hold are lengths in frames in 0...2^40."
+        #expect(bad.status == 64 && bad.stderr.contains(rule), "\(bad)")
+    }
+
     /// A bad argument is a usage error: exit 64.
     @Test func aBadArgumentExits64() async throws {
         #expect(try await package.run("duck", "PKG", "--depth", "6").status == 64)

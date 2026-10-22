@@ -29,13 +29,19 @@ struct DuckCommand: ParsableCommand {
     @OptionGroup var package: PackageArgument
     @Option(help: "A speech track ID. Repeat it for more tracks.") var speech: [String] = []
     @Option(help: "The ID of a track to duck. Repeat it for more tracks.") var music: [String] = []
-    @Option(help: "The first timeline frame of the scope, with --to.") var from: Int?
-    @Option(help: "The timeline frame after the scope, with --from.") var to: Int?
-    @Option(help: "The gain of the music under speech in dB, under 0. The default is -16.") var depth: Double?
-    @Option(help: "The ramp down before speech in frames. The default is 1 s.") var attack: Int?
-    @Option(help: "The ramp up after speech in frames. The default is 1 s.") var release: Int?
-    @Option(help: "The speech level in dBFS, under 0. The default is -40.") var threshold: Double?
-    @Option(help: "The shortest pause in frames that lets the music come up. The default is 2 s.") var hold: Int?
+    @Option(parsing: .unconditional, help: "The first timeline frame of the scope, with --to.") var from: Int?
+    @Option(parsing: .unconditional, help: "The timeline frame after the scope, with --from.") var to: Int?
+    @Option(parsing: .unconditional, help: "The gain of the music under speech in dB, under 0. The default is -16.")
+    var depth: Double?
+    @Option(parsing: .unconditional, help: "The ramp down before speech in frames. The default is 1 s.")
+    var attack: Int?
+    @Option(parsing: .unconditional, help: "The ramp up after speech in frames. The default is 1 s.")
+    var release: Int?
+    @Option(parsing: .unconditional, help: "The speech level in dBFS, under 0. The default is -40.")
+    var threshold: Double?
+    @Option(
+        parsing: .unconditional, help: "The shortest pause in frames that lets the music come up. The default is 2 s.")
+    var hold: Int?
 
     func work() throws(ValidationError) -> DuckWork {
         switch DuckWork.parse(

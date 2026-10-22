@@ -576,6 +576,21 @@ expect allow 'tccutil reset All com.delineas.dirigible.verify-1a2b3c4d'
 expect allow 'tccutil reset Microphone com.example.other'
 expect allow 'rg -n com.delineas.dirigible Package.swift'
 expect allow $'cat > notes.md <<\'EOF\'\ntccutil reset All com.delineas.dirigible\nEOF'
+# A reset with no bundle ID removes the grants of every app, and a bundle ID from a variable can
+# name the ID of the user: both block.
+expect block 'tccutil reset Microphone'
+expect block 'tccutil reset All'
+expect block 'tccutil reset All 2>&1'
+expect block 'make app && tccutil reset Microphone && echo done'
+expect block $'tccutil reset All\nls'
+expect block $'id=com.delineas.dirigible; tccutil reset Microphone "$id"'
+expect block 'tccutil reset Microphone "$(printf com.delineas.dirigible)"'
+expect block 'tccutil reset Microphone `printf com.delineas.dirigible`'
+expect allow 'tccutil reset All com.delineas.dirigible.verify-1a2b3c4d 2>&1'
+expect allow $'cat > notes.md <<\'EOF\'\ntccutil reset All\nEOF'
+message="$(printf '{"tool_input":{"command":"tccutil reset All"}}' | "$hook" 2>&1)"
+[[ "$message" == *'scripts/verify-copy.sh'* && "$message" == *'no bundle ID'* ]] ||
+  { echo "FAIL: the no-ID tccutil block message: $message"; failures=$((failures + 1)); }
 message="$(printf '{"tool_input":{"command":"tccutil reset All com.delineas.dirigible"}}' | "$hook" 2>&1)"
 [[ "$message" == *'scripts/verify-copy.sh'* && "$message" != *'deliver flow'* ]] ||
   { echo "FAIL: the tccutil block message names no verify copy route: $message"; failures=$((failures + 1)); }

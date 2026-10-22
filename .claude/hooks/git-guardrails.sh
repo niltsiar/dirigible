@@ -406,6 +406,18 @@ if grep -E '(^|[^[:alnum:]_.-])tccutil +reset( |$)' <<< "$NORMALIZED" |
     "Reset only the copy of the check: scripts/verify-copy.sh stop runs tccutil reset All with the copy ID, and scripts/verify-copy.sh id prints it."
 fi
 
+# A reset with no bundle ID removes the grants of every app (Zoom and Teams too), and a bundle ID
+# from a variable or a substitution can name the ID of the user. Both block.
+while IFS= read -r reset; do
+  rest="${reset#*reset}"
+  read -ra words <<< "${rest%[;&|]}"
+  if [[ ${#words[@]} -lt 2 || "${words[1]}" == *[\$\`]* ]]; then
+    block "resets the privacy grants of every app (tccutil reset with no bundle ID, or with a bundle ID that holds \$ or a backtick)" \
+      "Reset only the copy of the check: scripts/verify-copy.sh stop runs tccutil reset All with the copy ID, and scripts/verify-copy.sh id prints it."
+  fi
+done < <(sed -E 's/[0-9]*>&[0-9-]*//g' <<< "$NORMALIZED" |
+  grep -oE '(^|[^[:alnum:]_.-])tccutil +reset( [^;&|]*)?($|[;&|])')
+
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if grep -qE -- "$pattern" <<< "$NORMALIZED"; then
     block "matches '$pattern'"

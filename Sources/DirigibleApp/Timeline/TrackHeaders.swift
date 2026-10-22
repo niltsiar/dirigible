@@ -174,7 +174,7 @@ private struct TrackRow: View {
             // The menu content appears when the menu opens (ui-panel 8).
             Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track.id) }
                 .onAppear { model.showHeaderMenu(track.id) }
-            Menu(L10n.menuTrackRole.key) { RoleItems(model: model, tracks: model.headerMenuTracks(track.id)) }
+            Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track.id) }
         }
     }
 

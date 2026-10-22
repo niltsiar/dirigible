@@ -133,6 +133,8 @@ import SwiftUI
     /// The last Remove Unused Files, for its banners at its session revision.
     var pruneReport: PruneReportShown?
     @ObservationIgnored var levelPresses = 0
+    /// The number of ducks of this window, for the key of the duck banner.
+    @ObservationIgnored var duckPresses = 0
     /// The running import (decision 0040). Nil: no import.
     var importJob: ImportJob?
     /// The error of a take start that its checks refused while an export runs. The progress

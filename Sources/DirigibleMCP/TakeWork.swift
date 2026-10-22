@@ -154,7 +154,8 @@ package enum TakeWork {
     }
 
     /// One line for each change, for example `Take sync: take 4 in sync, offset -29.496 s -> broken
-    /// from 0:21:07.000 (2 shifts)`, or `Take sync: take 4 offset -29.496 s -> -24.496 s (+5.000 s)`.
+    /// from 0:21:07.000 (2 shifts)`, or `Take sync: take 4 offset -29.496 s -> -24.496 s (+5.000 s,
+    /// +240000 frames)`. The move has its sign and its frames, so a move under 1 ms shows.
     static func note(_ changes: [TakeSync.Change], sampleRate: Int) -> [String] {
         func state(_ sync: TakeSync) -> String {
             switch sync {
@@ -164,9 +165,10 @@ package enum TakeWork {
         }
         return changes.map { change in
             if case .inSync(let old) = change.old, case .inSync(let new) = change.new {
-                let moved = seconds(new - old, sampleRate)
+                let moved = new - old
                 return "Take sync: take \(change.take) offset \(seconds(old, sampleRate)) s -> "
-                    + "\(seconds(new, sampleRate)) s (\(new > old ? "+" : "")\(moved) s)"
+                    + "\(seconds(new, sampleRate)) s (\(moved > 0 ? "+" : "-")\(seconds(abs(moved), sampleRate)) s, "
+                    + String(format: "%+d frames)", moved)
             }
             return "Take sync: take \(change.take) \(state(change.old)) -> \(state(change.new))"
         }

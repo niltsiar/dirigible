@@ -293,7 +293,7 @@ struct SessionViewTests {
             let errno: Int32
         }
         let takeSync: [Take]?
-        let takeSyncFault: Fault?
+        let takeSyncFaults: [Fault]?
     }
 
     func json(_ package: TemporaryPackage, _ flags: String...) async throws -> SyncView {
@@ -314,7 +314,7 @@ struct SessionViewTests {
             takeSync: [
                 .init(take: 1, state: "inSync", offset: 0, from: nil, shifts: nil),
                 .init(take: 2, state: "inSync", offset: 480_000, from: nil, shifts: nil),
-            ], takeSyncFault: nil)
+            ], takeSyncFaults: nil)
 
         #expect(
             try await syncLines(package) == [
@@ -338,27 +338,30 @@ struct SessionViewTests {
                 == .init(take: 1, state: "broken", offset: nil, from: 100_000, shifts: 2))
     }
 
-    /// C2: `info` still answers with an anchor that does not read, says which one, and keeps the
-    /// state of each take whose anchor reads.
-    @Test func anAnchorFaultIsALineAndAKey() async throws {
+    /// C2: `info` still answers with anchors that do not read (take 2 and a pruned take 3), says
+    /// which ones, and keeps the state of each take whose anchor reads.
+    @Test func eachAnchorFaultIsALineAndAnEntry() async throws {
         let package = try TakeMapCommandTests.twoTakes()
-        let anchor = package.url.appending(path: "Capture/take2.anchor")
-        chmod(anchor.path, 0o000)
-        defer { chmod(anchor.path, 0o644) }
+        let pruned = package.url.appending(path: "Capture/take3.anchor")
+        try Data().write(to: pruned)
+        let anchors = [package.url.appending(path: "Capture/take2.anchor"), pruned]
+        for anchor in anchors { chmod(anchor.path, 0o000) }
+        defer { for anchor in anchors { chmod(anchor.path, 0o644) } }
 
         #expect(
             try await syncLines(package) == [
                 "sync take 1 in sync, offset 0.000 s (0 frames)",
                 "sync anchor file unreadable: Capture/take2.anchor (errno 13)",
+                "sync anchor file unreadable: Capture/take3.anchor (errno 13)",
             ])
-        let fault = SyncView(
+        let faults = SyncView(
             takeSync: [.init(take: 1, state: "inSync", offset: 0, from: nil, shifts: nil)],
-            takeSyncFault: .init(file: "Capture/take2.anchor", errno: EACCES))
-        #expect(try await json(package) == fault)
-        #expect(try await json(package, "--compact") == fault)
+            takeSyncFaults: [2, 3].map { .init(file: "Capture/take\($0).anchor", errno: EACCES) })
+        #expect(try await json(package) == faults)
+        #expect(try await json(package, "--compact") == faults)
     }
 
-    /// A `Capture/` that does not read keeps every take out, and its line names a folder.
+    /// A `Capture/` that does not read keeps every take out, and its line and entry name a folder.
     @Test func aCaptureFolderFaultLineNamesTheFolder() async throws {
         let package = try TakeMapCommandTests.twoTakes()
         let capture = package.url.appending(path: "Capture")
@@ -366,6 +369,8 @@ struct SessionViewTests {
         defer { chmod(capture.path, 0o755) }
 
         #expect(try await syncLines(package) == ["sync folder unreadable: Capture (errno 13)"])
+        #expect(
+            try await json(package) == SyncView(takeSync: nil, takeSyncFaults: [.init(file: "Capture", errno: EACCES)]))
     }
 
     /// No take file, so no sync key and no line, also with an unreadable `Capture/`.
@@ -379,6 +384,6 @@ struct SessionViewTests {
         defer { chmod(capture.path, 0o755) }
 
         #expect(try await syncLines(package) == [])
-        #expect(try await json(package) == SyncView(takeSync: nil, takeSyncFault: nil))
+        #expect(try await json(package) == SyncView(takeSync: nil, takeSyncFaults: nil))
     }
 }

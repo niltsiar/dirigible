@@ -30,11 +30,14 @@ struct MCPTakeMapToolTests {
             "\(info)")
     }
 
+    /// The anchors of take 2 and of a pruned take 3 do not read: `session_info` lists both faults.
     @Test func anAnchorFaultIsAToolErrorAndAnInfoKey() async throws {
         let package = try TakeMapCommandTests.twoTakes()
-        let anchor = package.url.appending(path: "Capture/take2.anchor")
-        chmod(anchor.path, 0o000)
-        defer { chmod(anchor.path, 0o644) }
+        let pruned = package.url.appending(path: "Capture/take3.anchor")
+        try Data().write(to: pruned)
+        let anchors = [package.url.appending(path: "Capture/take2.anchor"), pruned]
+        for anchor in anchors { chmod(anchor.path, 0o000) }
+        defer { for anchor in anchors { chmod(anchor.path, 0o644) } }
 
         let answers = try await mcp([
             toolCall(1, "take_map", ["package": package.path, "frames": [100], "take": 2]),
@@ -50,7 +53,12 @@ struct MCPTakeMapToolTests {
                 )
         )
         let info = toolResult(answer(answers, id: 2))
-        #expect(!info.isError && info.text.contains(#""takeSyncFault":{"errno":13,"file":"Capture/take2.anchor"}"#))
+        #expect(
+            !info.isError
+                && info.text.contains(
+                    #""takeSyncFaults":[{"errno":13,"file":"Capture/take2.anchor"},"#
+                        + #"{"errno":13,"file":"Capture/take3.anchor"}]"#),
+            "\(info.text)")
         #expect(info.text.contains(#""takeSync":[{"offset":0,"state":"inSync","take":1}]"#), "\(info.text)")
         #expect(toolResult(answer(answers, id: 3)) == ("100 t1:100\n", false))
     }

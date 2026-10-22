@@ -170,8 +170,9 @@ package struct SessionView: Encodable {
     let episode: EpisodeView?
     /// One entry for each take with audio, in take order; left out with none (decision 0061).
     let takeSync: [TakeSyncView]?
-    /// The first anchor read fault, in take order.
-    let takeSyncFault: FaultView?
+    /// One entry for each anchor read fault, the fault of `Capture/` first, then in take order; left
+    /// out with none.
+    let takeSyncFaults: [FaultView]?
 
     /// `takeMap` is the take map of the session and its anchor read faults.
     package init(_ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead) {
@@ -205,7 +206,8 @@ package struct SessionView: Encodable {
         episode = session.episode.isEmpty ? nil : EpisodeView(session.episode)
         let sync = takeMap.map.sync
         takeSync = sync.isEmpty ? nil : sync.sorted { $0.key < $1.key }.map { TakeSyncView(take: $0.key, $0.value) }
-        takeSyncFault = takeMap.faults.first.map { FaultView(file: $0.error.fault.file, errno: $0.error.fault.errno) }
+        let faults = takeMap.faults.map { FaultView(file: $0.error.fault.file, errno: $0.error.fault.errno) }
+        takeSyncFaults = faults.isEmpty ? nil : faults
         recording = session.recording.map {
             RecordingView(
                 take: $0.take, playheadFrame: $0.playheadFrame.count, takeStartHostTimeNanos: $0.takeStartHostTimeNanos,
@@ -220,7 +222,7 @@ package struct SessionView: Encodable {
         let tracks: [TrackView]
         let markers: [MarkerView]
         let takeSync: [TakeSyncView]?
-        let takeSyncFault: FaultView?
+        let takeSyncFaults: [FaultView]?
     }
 
     /// Pretty JSON with a newline at the end for `info --json`, or compact JSON on one line for
@@ -238,7 +240,7 @@ package struct SessionView: Encodable {
                         var track = track
                         track.clips = track.clips.map(\.compacted)
                         return track
-                    }, markers: markers, takeSync: takeSync, takeSyncFault: takeSyncFault))
+                    }, markers: markers, takeSync: takeSync, takeSyncFaults: takeSyncFaults))
             : try encoder.encode(self)
         return String(decoding: data, as: UTF8.self) + (pretty ? "\n" : "")
     }

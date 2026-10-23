@@ -17,8 +17,8 @@ public enum SubtitleError: Error, Hashable, Sendable {
     case unknownTranscript(Int)
     /// The file of this transcript did not load.
     case notLoaded(Int)
-    /// The transcript has no word on the timeline with a length. `left` units have none.
-    case noCue(left: Int)
+    /// The transcript has no word on the timeline with a length.
+    case noCue
 }
 
 extension Session {
@@ -47,7 +47,7 @@ extension Session {
             }
         }
         let cues = units.filter { $0.end > $0.start }.map { Cue(start: $0.start, end: $0.end, text: $0.text) }
-        guard !cues.isEmpty else { throw .noCue(left: units.count) }
+        guard !cues.isEmpty else { throw .noCue }
         return (cues, units.count - cues.count)
     }
 }

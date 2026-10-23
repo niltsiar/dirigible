@@ -69,7 +69,7 @@ struct SubtitlesTests {
         #expect(cues.map(\.text) == ["one"] && left == 1)
         #expect(try session.cues(ofTranscript: 2).cues.map(\.text) == ["other"])
         session.addWords([(1, 5_000..<5_000, "z")], file: "h", transcript: 3)
-        #expect(throws: SubtitleError.noCue(left: 1)) { try session.cues(ofTranscript: 3) }
+        #expect(throws: SubtitleError.noCue) { try session.cues(ofTranscript: 3) }
         #expect(throws: SubtitleError.noTranscript) { try Session(sampleRate: 48_000).cues(ofTranscript: nil) }
         #expect(throws: SubtitleError.unknownTranscript(1)) { try Session(sampleRate: 48_000).cues(ofTranscript: 1) }
     }

@@ -11,10 +11,16 @@ package struct ToolError: Error, Sendable {
 /// `editPackageCore` runs it under the package lock.
 typealias ToolEdit = @Sendable (inout Session) throws(SessionError) -> [String]
 
+/// The edit of `transcript_import` with `take`. It gets the take map of its session, so the closed
+/// path reads the anchors under the lock and the open window gives its stored map.
+typealias TakeImportEdit = @Sendable (inout Session, TakeMap) throws(SessionError) -> [String]
+
 /// What a tool call does after its arguments are checked.
 enum ToolWork: Sendable {
     /// A package edit under the lock. A `ripple` edit also refuses a split take.
     case edit(ripple: Bool, ToolEdit)
+    /// `transcript_import` with `take`: an edit under the lock that reads the take map (decision 0061).
+    case takeImport(take: Int, TakeImportEdit)
     /// `session_info`: no lock, as `dirigible info`. `range` has `from <= to` (V24).
     case info(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool)
     case create(sampleRate: Int)
@@ -55,7 +61,8 @@ enum ToolWork: Sendable {
     var isLong: Bool {
         switch self {
         case .loudness, .export, .level, .duck, .importFile, .chapters: true
-        case .edit, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune, .record, .words,
+        case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
+            .record, .words,
             .takeMap:
             false
         }

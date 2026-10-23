@@ -9,7 +9,13 @@ private let text = Param<String?>.optional(
         + "transcript; else give path.", .string)
 private let importTrack = Param.required(
     "track", "The track whose clips carry the words. The words follow the clips of this track.", .string)
-private let at = Param.defaulted("at", "The timeline frame of second 0 of the transcript.", .integer(), 0)
+private let at = Param.defaulted(
+    "at", "The frame of second 0 of the transcript: a timeline frame, or with take a take frame.", .integer(), 0)
+private let take = Param<Int?>.optional(
+    "take",
+    "The take number, 1 or more, when the transcript is of one take. Time 0 is then the record start of that take, "
+        + "and the words follow the audio of the take after each edit. Leave it out for a transcript of an export "
+        + "of the session.", .integer(minimum: 1))
 private let name = Param<String?>.optional(
     "name", "The transcript name. The default is the file name of path, else transcript.", .string)
 private let from = Param<Int?>.optional("from", "Only the words that touch this frame on. Give it with to.", .integer())
@@ -30,11 +36,12 @@ let transcriptTools = [
         "Import a Whisper JSON, WebVTT, or SRT transcript of an export of the whole session; the track is the track whose "
             + "clips carry the words. Give the transcript ID and the count of words. A word with no clip of the track "
             + "under it, or with no time, is skipped. A new import replaces the words of an earlier one in the same "
-            + "span.",
-        [path, text, importTrack, at, name]
+            + "span. With take, the transcript is of the original take, not of an export.",
+        [path, text, importTrack, at, take, name]
     ) { a throws(ToolError) in
         // Each argument is checked before the source, so a bad argument gets its own text.
         let (track, frame, given) = (TrackID(try a[importTrack]), Frames(try a[at]), try a[name])
+        let takeNumber = try a[take]
         let file: TranscriptFile
         let source: String
         switch (try a[path], try a[text]) {
@@ -48,6 +55,14 @@ let transcriptTools = [
             (file, source) = (try TranscriptWork.file(Data(text.utf8), source: "text"), TranscriptWork.defaultName)
         }
         let title = given ?? source
+        if let takeNumber {
+            return .takeImport(take: takeNumber) { session, map throws(SessionError) in
+                TranscriptWork.importLines(
+                    try session.importTranscript(
+                        file, name: title, track: track, at: frame, time: .take(takeNumber, map)),
+                    cues: file.cues, take: takeNumber)
+            }
+        }
         return .edit(ripple: false) { session throws(SessionError) in
             TranscriptWork.importLines(
                 try session.importTranscript(file, name: title, track: track, at: frame), cues: file.cues)

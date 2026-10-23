@@ -96,4 +96,32 @@ struct MCPTranscriptToolTests {
         #expect(results[0].text == "The text is over 256 KiB. Give the path of the file." && results[0].isError)
         #expect(results[1].text == "1\nImported 1 word." && !results[1].isError)
     }
+
+    /// C10: `transcript_import` with `take` puts the words where the audio of the take is now. A ripple
+    /// delete of the first 2 s skips the first word and moves the second 2 s earlier. A track with no
+    /// audio of the take, and a take under 1, are refused with the session unchanged.
+    @Test func aTakeImportSkipsCutAudio() async throws {
+        let package = try TranscriptTakeImportTests.oneTake()
+        let words = try TranscriptTakeImportTests.write(
+            #"{"words":[{"word":"one","start":1,"end":2},{"word":"two","start":3,"end":4}]}"#, in: package)
+        let cut = try await call([("clip_ripple_delete", ["from": [0], "to": [96_000]])], on: package)
+        try #require(!cut[0].isError, "\(cut)")
+        let before = try package.xml()
+
+        let refused = try await call(
+            [
+                ("transcript_import", ["path": words, "track": "t2", "take": 1]),
+                ("transcript_import", ["path": words, "track": "t1", "take": 0]),
+            ], on: package)
+        #expect(refused[0].isError && refused[0].text == "The track t2 has no audio of take 1 with a take time.")
+        #expect(refused[1].isError && refused[1].text.contains("take"), "\(refused[1])")
+        #expect(try package.xml() == before)
+
+        let imported = try await call([("transcript_import", ["path": words, "track": "t1", "take": 1])], on: package)
+        #expect(
+            imported.map(\.text) == ["1\ntake 1: 1 word placed, 1 skipped (audio removed by an edit)"]
+                && !imported[0].isError, "\(imported)")
+        let rows = try await call([("transcript_words", [:])], on: package)
+        #expect(rows[0].text.hasSuffix("\t48000\t96000\tt1\ttwo"), "\(rows)")
+    }
 }

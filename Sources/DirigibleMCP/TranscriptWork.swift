@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -30,18 +31,26 @@ package enum TranscriptWork {
     /// The lines of an import: the ID and the count of kept words, then a line for each kind of
     /// skipped word. The command prints the first two on stdout and the others on stderr.
     /// With `cues`, each line names cues, because a cut removes a cue with no word times whole.
+    /// With `take`, the second line names the take and the placed and skipped counts, and holds
+    /// the skipped units that had no clip under them.
     package static func importLines(
         _ report: (id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int, dropped: [String]),
-        cues: Bool
+        cues: Bool, take: Int? = nil
     ) -> [String] {
         let noun = cues ? "cue" : "word"
         func units(_ count: Int) -> String { count == 1 ? "1 \(noun)" : "\(count) \(noun)s" }
-        var lines = [
-            report.id.description,
-            "Imported \(units(report.kept))" + (cues ? ": a cut removes a whole cue when it has no word times." : "."),
-        ]
-        if report.skipped > 0 {
-            lines.append("Skipped \(units(report.skipped)) with no clip under \(report.skipped == 1 ? "it" : "them").")
+        let note = cues ? ": a cut removes a whole cue when it has no word times." : "."
+        var lines = [report.id.description]
+        if let take {
+            let removed = report.skipped > 0 ? " (audio removed by an edit)" : ""
+            lines.append(
+                "take \(take): \(units(report.kept)) placed, \(report.skipped) skipped\(removed)" + (cues ? note : ""))
+        } else {
+            lines.append("Imported \(units(report.kept))" + note)
+            if report.skipped > 0 {
+                lines.append(
+                    "Skipped \(units(report.skipped)) with no clip under \(report.skipped == 1 ? "it" : "them").")
+            }
         }
         if report.untimed > 0 { lines.append("Skipped \(units(report.untimed)) with no time.") }
         if report.repeated > 0 {
@@ -49,6 +58,16 @@ package enum TranscriptWork {
         }
         for name in report.dropped { lines.append("Dropped the transcript \(name): its file was missing or damaged.") }
         return lines
+    }
+
+    /// Runs `edit` with the take map of `read`, for a transcript of take `take`. An anchor of that
+    /// take that does not read refuses the edit, because its take time is not known.
+    package static func inTake(
+        _ session: inout Session, take: Int, read: TakeMapRead,
+        _ edit: (inout Session, TakeMap) throws(SessionError) -> [String]
+    ) throws(TakeImportError) -> [String] {
+        if let fault = read.fault(take: take, in: session) { throw .anchor(fault) }
+        do throws(SessionError) { return try edit(&session, read.map) } catch { throw .session(error) }
     }
 
     /// The occurrences of a cut. A token that does not parse gives the error text.
@@ -125,5 +144,30 @@ package struct TranscriptQuery: Sendable {
         }
         guard limit >= 1 else { throw ToolError("The limit must be 1 or more.") }
         (self.match, self.track, self.limit, self.json) = (match, track.map { TrackID($0) }, limit, json)
+    }
+}
+
+/// Why an import of a transcript of a take fails.
+package enum TakeImportError: Error {
+    case session(SessionError)
+    /// A take anchor does not read, so the take time is not known.
+    case anchor(FinalizeError)
+
+    package var message: String {
+        switch self {
+        case .session(let error): error.message
+        case .anchor(let error): TakeMapError.anchor(error).message
+        }
+    }
+}
+
+extension EditFailure where Body == TakeImportError {
+    package func message(package: String) -> String {
+        switch self {
+        case .file(let error): error.message(package: package)
+        case .pendingTake: pendingTakeMessage(package)
+        case .splitTake: splitTakeMessage(package)
+        case .body(let error): error.message
+        }
     }
 }

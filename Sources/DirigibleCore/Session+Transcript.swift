@@ -116,6 +116,15 @@ extension Session {
         return cut
     }
 
+    /// The time base of the units of a transcript file.
+    public enum TranscriptTime: Sendable {
+        /// Seconds of an export of the timeline, from timeline frame `at`.
+        case timeline
+        /// Seconds of the take with this number, from take frame `at` (decision 0061): take time 0
+        /// is the record start of the take, and `map` says where each edit moved its audio.
+        case take(Int, TakeMap)
+    }
+
     /// Imports `file`, a transcript of an export from timeline frame `at`, through the clips of
     /// `track` (decision 0055). A unit goes to the clip of `track` under its midpoint, as file frames
     /// clamped to the clip. Each unit with a usable time gets the number of its index, from 1; a unit
@@ -127,20 +136,54 @@ extension Session {
     /// words (of any transcript) whose midpoint is in the span of the new words. A transcript with
     /// no word left goes. Then it drops each transcript that did not load, and returns their
     /// names. No kept word throws `.noWordOnTrack` and changes nothing.
+    ///
+    /// With `time` `.take(n, map)`, the times are take time of take `n`, and `at` is a take frame.
+    /// The clip under a unit is the first clip of `track`, in timeline order, whose file is a file
+    /// of take `n` and whose take range holds the midpoint, so a unit in audio that an edit removed
+    /// is skipped. A track with no clip of take `n` throws `.noTakeAudio`.
     @discardableResult
-    public mutating func importTranscript(_ file: TranscriptFile, name: String, track: TrackID, at: Frames)
-        throws(SessionError) -> (
-            id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int, dropped: [String]
-        )
-    {
+    public mutating func importTranscript(
+        _ file: TranscriptFile, name: String, track: TrackID, at: Frames, time: TranscriptTime = .timeline
+    ) throws(SessionError) -> (
+        id: TranscriptID, kept: Int, skipped: Int, untimed: Int, repeated: Int, dropped: [String]
+    ) {
         try Self.checkText(name)
-        guard at.isInRange else { throw .frameOutOfRange }
+        let valid: ClosedRange<Int>
+        switch time {
+        case .timeline:
+            guard at.isInRange else { throw .frameOutOfRange }
+            valid = 0...Frames.limit.count
+        case .take:
+            guard TakeMap.takeFrames.contains(at.count) else { throw .frameOutOfRange }
+            valid = TakeMap.takeFrames
+        }
         let clips = tracks[try trackIndex(track)].clips
-        func frame(_ seconds: Double) -> Frames? {
+        if case .take(let take, let map) = time, !clips.contains(where: { map.origins[$0.file]?.take == take }) {
+            throw .noTakeAudio(track, take)
+        }
+        func frame(_ seconds: Double) -> Int? {
             let frames = (seconds * Double(sampleRate)).rounded()
             guard frames <= Double(Frames.limit.count) else { return nil }
-            let frame = Frames(Int(frames)) + at
-            return frame.isInRange ? frame : nil
+            let frame = Int(frames) + at.count
+            return valid.contains(frame) ? frame : nil
+        }
+        /// The clip under `midpoint`, the frame range of the unit time base that it plays, and the
+        /// shift from that time base to file frames.
+        func located(at midpoint: Int) -> (index: Int, bounds: Range<Int>, shift: Int)? {
+            switch time {
+            case .timeline:
+                guard let index = clips.index(holding: Frames(midpoint)) else { return nil }
+                let clip = clips[index]
+                return (index, clip.start.count..<clip.end.count, clip.offset.count - clip.start.count)
+            case .take(let take, let map):
+                for (index, clip) in clips.enumerated() {
+                    guard let origin = map.origins[clip.file], origin.take == take else { continue }
+                    let bounds =
+                        (origin.frame + clip.offset.count)..<(origin.frame + clip.offset.count + clip.length.count)
+                    if bounds.contains(midpoint) { return (index, bounds, -origin.frame) }
+                }
+                return nil
+            }
         }
         var untimed = file.untimed
         var number = 0
@@ -154,24 +197,27 @@ extension Session {
                 continue
             }
             number += 1
-            let midpoint = Frames((start.count + end.count) / 2)
-            guard let index = clips.index(holding: midpoint) else {
+            let midpoint = (start + end) / 2
+            guard let (index, bounds, shift) = located(at: midpoint) else {
                 skipped += 1
                 continue
             }
             let clip = clips[index]
-            let shift = clip.offset - clip.start
             // A repeat of audio that another clip of the file gave already shows there: no second anchor.
-            let repeated = heard.contains { other in
-                other != index && clips[other].file == clip.file
-                    && (clips[other].offset..<(clips[other].offset + clips[other].length)).contains(midpoint + shift)
+            // A take time names the file frame, so a take import has no repeat.
+            if case .timeline = time {
+                let repeated = heard.contains { other in
+                    other != index && clips[other].file == clip.file
+                        && (clips[other].offset..<(clips[other].offset + clips[other].length)).contains(
+                            Frames(midpoint + shift))
+                }
+                guard !repeated else {
+                    repeats += 1
+                    continue
+                }
+                heard.insert(index)
             }
-            guard !repeated else {
-                repeats += 1
-                continue
-            }
-            heard.insert(index)
-            let range = (max(start, clip.start) + shift)..<(min(end, clip.end) + shift)
+            let range = Frames(max(start, bounds.lowerBound) + shift)..<Frames(min(end, bounds.upperBound) + shift)
             added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))
         }
         guard !added.isEmpty else { throw .noWordOnTrack(track) }

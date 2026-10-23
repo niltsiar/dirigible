@@ -68,6 +68,12 @@
 "error.duck.read" = "Non è stato possibile leggere un file audio di una traccia vocale (errore %lld). Nessun punto di gain è cambiato.";
 "error.duck.past.end" = "La selezione inizia alla fine della sessione o dopo, quindi l’abbassamento non ha cambiato nessun punto di gain.";
 "banner.duck.unread" = "L’abbassamento non ha potuto leggere questi file vocali, quindi la musica resta alta sulla loro voce: %@.";
+"banner.take.sync.broken" = "%1$@ ha spostato una parte dell’audio del take. Il take %2$lld non è più sincronizzato con la registrazione da %3$@.";
+"banner.take.sync.broken.unnamed" = "Un agente IA ha spostato una parte dell’audio del take. Il take %1$lld non è più sincronizzato con la registrazione da %2$@.";
+"banner.take.sync.show" = "Mostra";
+"episode.take.sync.in" = "Take %1$lld: sincronizzato, %2$@ s";
+"episode.take.sync.broken" = "Take %1$lld: non sincronizzato da %2$@, %3$lld spostamenti";
+"episode.take.sync.fault" = "Sincronia dei take: impossibile leggere %@";
 "error.file.unreadable" = "Il file della sessione è danneggiato.";
 "error.file.newer" = "Questa sessione è stata creata da una versione più recente di Dirigible. Aggiorna Dirigible per aprirla.";
 "error.file.read" = "Impossibile leggere il file della sessione (errore %lld).";

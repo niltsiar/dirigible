@@ -24,6 +24,16 @@ extension ChromeState {
         if let shown = model.consentExpired, shown.revision == studio.sessionRevision {
             banners.append(.consentExpired(agent: shown.agent))
         }
+        // One row for each take that a revision of an agent moved from in sync to broken
+        // (decision 0061): a user edit, an undo, and a take outcome have no agent.
+        let change = studio.takeSyncChange
+        if change.revision == studio.sessionRevision, let agent = change.agent {
+            for item in change.changes {
+                guard case .inSync = item.old, case .broken(let from, _) = item.new else { continue }
+                banners.append(
+                    .takeSyncBroken(take: item.take, from: from, rate: studio.session.sampleRate, agent: agent.name))
+            }
+        }
         return banners
     }
 }

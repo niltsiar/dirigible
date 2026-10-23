@@ -68,6 +68,12 @@
 "error.duck.read" = "Um arquivo de áudio de uma pista de voz não foi lido (erro %lld). Nenhum ponto de ganho mudou.";
 "error.duck.past.end" = "A seleção começa no fim da sessão ou depois, então o abaixamento não mudou nenhum ponto de ganho.";
 "banner.duck.unread" = "O abaixamento não conseguiu ler estes arquivos de voz, então a música fica alta sobre a voz deles: %@.";
+"banner.take.sync.broken" = "%1$@ moveu parte do áudio da tomada. A tomada %2$lld está fora de sincronia com a gravação a partir de %3$@.";
+"banner.take.sync.broken.unnamed" = "Um agente de IA moveu parte do áudio da tomada. A tomada %1$lld está fora de sincronia com a gravação a partir de %2$@.";
+"banner.take.sync.show" = "Mostrar";
+"episode.take.sync.in" = "Tomada %1$lld: em sincronia, %2$@ s";
+"episode.take.sync.broken" = "Tomada %1$lld: fora de sincronia a partir de %2$@, %3$lld deslocamentos";
+"episode.take.sync.fault" = "Sincronia das tomadas: não é possível ler %@";
 "error.file.unreadable" = "O arquivo da sessão está danificado.";
 "error.file.newer" = "Esta sessão foi criada por uma versão mais recente do Dirigible. Atualize o Dirigible para abri-la.";
 "error.file.read" = "Não é possível ler o arquivo da sessão (erro %lld).";

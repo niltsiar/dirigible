@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleAudio
+import DirigibleCore
 
 /// The loudness report of an export, the name of its file, and the session revision at its end.
 struct ExportReportShown: Equatable {
@@ -58,6 +59,10 @@ enum WindowBanner: Equatable {
     case duckNoSpeech(threshold: Double, unread: [String], press: Int)
     /// A duck did not read the speech files of these paths, so the music stays up over them.
     case duckUnread([String], press: Int)
+    /// A revision of `agent` moved part of the audio of `take`, so the take is out of sync with
+    /// its recording from the timeline frame `from` at `rate` (decision 0061). Nil: the agent gave
+    /// no name.
+    case takeSyncBroken(take: Int, from: Frames, rate: Int, agent: String?)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -101,13 +106,14 @@ enum WindowBanner: Equatable {
         case .consentExpired: "consentExpired"
         case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
         case .duckUnread(_, let press): "duckUnread.\(press)"
+        case .takeSyncBroken(let take, _, _, _): "takeSyncBroken.\(take)"
         }
     }
 
     var kind: Kind {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
-            .chapterImagesOmitted, .duckNoSpeech, .duckUnread:
+            .chapterImagesOmitted, .duckNoSpeech, .duckUnread, .takeSyncBroken:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired: .info
@@ -137,6 +143,8 @@ enum WindowBanner: Equatable {
         case .duckNoSpeech(let threshold, let unread, let press):
             L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread, press: press).text
         case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
+        case .takeSyncBroken(let take, let from, let rate, let agent):
+            takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
         }
     }
 
@@ -145,8 +153,24 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .levelReport, .unusedFilesMoved,
-            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread:
+            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken:
             .medium
         }
     }
+}
+
+/// The text of the take sync banner: "Claude Code moved part of the take audio. Take 4 is out of
+/// sync with the recording from 0:21:07." `text` gives the value of a key.
+func takeSyncBreakText(
+    take: Int, from: Frames, rate: Int, agent: String?, text: (L10n) -> String = { $0.text }
+) -> String {
+    let time = takeSyncClock(from, rate: rate)
+    guard let agent else { return String(format: text(.bannerTakeSyncBrokenUnnamed), take, time) }
+    return String(format: text(.bannerTakeSyncBroken), agent, take, time)
+}
+
+/// A break time of the take sync texts: h:mm:ss, with the digits cut as in the time display.
+func takeSyncClock(_ frames: Frames, rate: Int) -> String {
+    let seconds = frames.count / rate
+    return String(format: "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60)
 }

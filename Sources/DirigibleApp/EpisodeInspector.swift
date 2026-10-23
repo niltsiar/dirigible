@@ -59,6 +59,14 @@ struct EpisodeInspector: View {
                         .accessibilityIdentifier("episode.explicit")
                     }
                 }
+                ForEach(
+                    takeSyncLines(
+                        studio.takeMap.map.sync, fault: studio.takeSyncFault, sampleRate: studio.session.sampleRate),
+                    id: \.self
+                ) { line in
+                    Text(verbatim: line).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("episode.takeSync")
+                }
                 header(.episodeDescription)
                 field(.summary, label: .episodeDescription, episode, axis: .vertical).lineLimit(2...4)
                 HStack {
@@ -291,5 +299,24 @@ extension SessionWindow {
         guard var episode = idleStudio?.session.episode, episode.artwork != nil else { return }
         episode.artwork = nil
         edit(ripple: false) { s in s.setEpisode(episode) }
+    }
+}
+
+/// The take sync lines of the Episode inspector (decision 0061): one line for each take with
+/// audio, in take order, or one fault line in their place. `text` gives the value of a key.
+func takeSyncLines(
+    _ sync: [Int: TakeSync], fault: FinalizeError?, sampleRate: Int, locale: Locale = .current,
+    text: (L10n) -> String = { $0.text }
+) -> [String] {
+    if let fault { return [String(format: text(.episodeTakeSyncFault), fault.fault.file)] }
+    let style = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(3)).grouping(.never)
+        .sign(strategy: .always()).rounded(rule: .toNearestOrAwayFromZero).locale(locale)
+    return sync.sorted { $0.key < $1.key }.map { take, state in
+        switch state {
+        case .inSync(let offset):
+            String(format: text(.episodeTakeSyncIn), take, (Double(offset) / Double(sampleRate)).formatted(style))
+        case .broken(let from, let shifts):
+            String(format: text(.episodeTakeSyncBroken), take, takeSyncClock(from, rate: sampleRate), shifts)
+        }
     }
 }

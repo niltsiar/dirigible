@@ -548,6 +548,7 @@ Choose **File > Episode Info** (Shift-Command-I) to show the **Episode** tab of 
 - Type a short description in **Description** and the show notes in **Notes**. Command-Return saves the notes.
 - Click **Links** to type the episode URL, the feed URL, and the GUID.
 - Press Return or Tab, or click in another place, to save a field. Each save is one step for **Undo**. Esc puts back the saved text. A value that Dirigible cannot use, for example episode 0 or a date that does not exist, makes a beep and shows the rule in red below the field. The field keeps the focus until you correct the value or press Esc. The session keeps the old value.
+- Under the details, one line for each take with audio tells if the take is in sync with its recording: "Take 4: In sync, +5.000 s" when each clip of the take keeps one shift from the recording (the time is the place of the record start on the timeline), or "Take 4: Out of sync from 0:21:07, 2 shifts" when an edit moved some clips of the take and not others. A copy of take audio, for example a cold open, does not break the take. When a take anchor file cannot be read, one line names the file. A session with no take audio shows no line.
 - For the artwork, click **Choose** or drag an image to the well. The image must be a square JPEG or PNG file, at most 3000 x 3000 pixels. Dirigible copies it into the session. **Remove** removes the artwork from the episode.
 
 The MP3 and AAC (.m4a) exports contain these details and the artwork, so a player shows them. WAV and FLAC exports do not contain them. A session with episode details does not open in a version of Dirigible from before the episode details.
@@ -833,7 +834,7 @@ The **Playback Speed** submenu (**Velocidad de reproducción**) has these comman
 
 ### Commands in the banners
 
-These commands are buttons in the banners of the window, not items of the menu bar. **Retry Finalize** and **Finish Without Unreadable Audio** show in the banner of a take that is not finished. **Place** shows in each row of unplaced audio, and **Place at Playhead on Selected Track** is in its menu. **Not Now** hides the banner that follows a stop of Dirigible with no quit; the banner also has **Report a Problem**.
+These commands are buttons in the banners of the window, not items of the menu bar. **Retry Finalize** and **Finish Without Unreadable Audio** show in the banner of a take that is not finished. **Place** shows in each row of unplaced audio, and **Place at Playhead on Selected Track** is in its menu. **Not Now** hides the banner that follows a stop of Dirigible with no quit; the banner also has **Report a Problem**. **Show** moves the playhead to the place where an edit of an agent broke the sync of a take, in the banner that says so.
 
 | Command | Spanish name | Key |
 |---|---|---|
@@ -842,6 +843,7 @@ These commands are buttons in the banners of the window, not items of the menu b
 | **Place** | **Colocar** | None |
 | **Place at Playhead on Selected Track** | **Colocar en el cursor en la pista seleccionada** | None |
 | **Not Now** | **Ahora no** | None |
+| **Show** | **Mostrar** | None |
 
 ## For contributors
 
@@ -983,6 +985,7 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 - The app refuses an edit of an agent during a take, during a drag, while the window closes, and during Quit. The agent gets the error "`<path>` is busy in Dirigible", with the cause, and can try again later.
 - `clip_paste`, `clip_paste_clips`, `backup_revert`, and `file_prune` do not run on an open session. Do them in the app, or close the window.
 - An edit of an agent on a closed session saves the package and has no Undo in the app.
+- When an edit or an import of an agent moves part of the audio of a take, so that the take is out of sync with its recording, a banner says so: "Claude Code moved part of the take audio. Take 4 is out of sync with the recording from 0:21:07." Click **Undo Claude Code Edit** to undo the edit, or **Show** to move the playhead to the place where the sync breaks. A Redo of that edit shows the banner again. Your own edits, an Undo, and a later edit of a take that is out of sync already show no banner: the Episode inspector shows the state of each take. The banner goes at the next change of the session.
 - One copy of Dirigible serves the agents. When another copy serves them, Settings says so.
 
 #### Let an agent record

@@ -477,7 +477,7 @@
 "sheet.take.time.take" = "Take";
 "sheet.take.time.item" = "Take %lld";
 "sheet.take.time.field" = "Take-Zeit";
-"sheet.take.time.format" = "Gib die Zeit ab dem Aufnahmebeginn des Takes als H:MM:SS.mmm, M:SS oder Sekunden ein.";
+"sheet.take.time.format" = "Gib die Zeit ab dem Aufnahmebeginn des Takes als H:MM:SS.mmm (oder H:MM:SS,mmm), M:SS oder Sekunden ein.";
 "sheet.take.time.removed" = "Kein Clip spielt diese Zeit von Take %lld ab: Eine Bearbeitung hat sie entfernt, oder der Take hat dort kein Audio. Gib eine andere Zeit ein.";
 "alert.export.missing" = "Diese Dateien fehlen oder sind nicht lesbar und werden als Stille exportiert:\n%@";
 "alert.export.confirm" = "Exportieren";

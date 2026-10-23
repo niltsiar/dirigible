@@ -477,7 +477,7 @@
 "sheet.take.time.take" = "Take";
 "sheet.take.time.item" = "Take %lld";
 "sheet.take.time.field" = "Taketijd";
-"sheet.take.time.format" = "Typ de tijd vanaf het begin van de opname van de take als H:MM:SS.mmm, M:SS of seconden.";
+"sheet.take.time.format" = "Typ de tijd vanaf het begin van de opname van de take als H:MM:SS.mmm (of H:MM:SS,mmm), M:SS of seconden.";
 "sheet.take.time.removed" = "Geen clip speelt deze tijd van take %lld af: een bewerking heeft hem verwijderd, of de take heeft daar geen audio. Typ een andere tijd.";
 "alert.export.missing" = "Deze bestanden ontbreken of kunnen niet worden gelezen. Ze worden als stilte geëxporteerd:\n%@";
 "alert.export.confirm" = "Exporteer";

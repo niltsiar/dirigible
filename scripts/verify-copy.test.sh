@@ -580,7 +580,7 @@ code=$?
     fail "a second start waits for the screen lock and exits 1 with the holder: exit $code: $(cat "$tmp/err2")"
 [[ "$(grep -c 'holds the screen' "$tmp/err2")" == 1 ]] || fail "screen lock: the holder line is not printed once: $(cat "$tmp/err2")"
 # The timeout message tells the agent to wait and start again, never to stop the copy of another run.
-grep -q 'start again' "$tmp/err2" && grep -q 'ledger.md shows that run done' "$tmp/err2" && ! grep -q 'stop it with' "$tmp/err2" ||
+grep -q 'start again' "$tmp/err2" && grep -q 'scripts/wiki.py runs shows that run done' "$tmp/err2" && ! grep -q 'stop it with' "$tmp/err2" ||
     fail "screen lock: the timeout message does not say to wait, start again, and stop only a done run: $(cat "$tmp/err2")"
 [[ "$(wc -l <"$state/open.log" | tr -d ' ')" == 1 ]] || fail "screen lock: the second start opened a copy: $(cat "$state/open.log")"
 # A stop in the second tree leaves the lock of the first tree.

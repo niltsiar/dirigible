@@ -30,10 +30,12 @@
 # - Each record file `docs/decisions/<n>-<name>.md` that plan.md names, and that is not on
 #   origin/main, is a record that the plan makes (also when the run has written it in the work
 #   tree). Its number needs an entry "<n> <title> (run <run folder>" on the `Decision numbers`
-#   line of the ledger.md beside runs/ (line 3 of that file gives the reservation instruction), so
-#   two parallel runs cannot take one number. Another record with that number in the work tree or
-#   on origin/main fails. A cited number with no record file path does not count. A run whose
-#   first phase 3 row is older than the rule is not checked.
+#   line that `scripts/wiki.py numbers` prints (`scripts/wiki.py reserve --from <file>` adds an
+#   entry from a file that the Write tool made), so two parallel runs cannot take one number.
+#   With no wiki the check fails: wiki.py names the path, `scripts/wiki.py init`, and
+#   DIRIGIBLE_WIKI. Another record with that number in the work tree or on origin/main fails. A
+#   cited number with no record file path does not count. A run whose first phase 3 row is older
+#   than the rule is not checked.
 # - plan.md names each criterion ID of the `## Acceptance criteria` section of analysis.md (up to
 #   the next `## ` heading). An ID is the first token of an item line (`- `, `<n>. `) or of a table
 #   row, after any `**`: capitals, digits, and an optional lower-case suffix. The sections of plan.md
@@ -183,7 +185,6 @@ else
     first3="$(awk -F'\t' '$2 == "3" { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
     if [[ -z "$first3" || ! "$first3" < 2026-10-14T03:00 ]]; then
         root="$(cd "$(dirname "$0")/.." && pwd)"
-        ledger="$(dirname "$(dirname "$run")")/ledger.md"
         folder="$(basename "$run")"
         for record in $(grep -oE 'docs/decisions/0[0-9]{3}-[a-z0-9-]+\.md' "$run/plan.md" | sort -u); do
             n="${record#docs/decisions/}" n="${n%%-*}"
@@ -194,16 +195,16 @@ else
                 say "plan.md makes $record, but $(head -1 <<<"$others") has the number $n; take the next free number"
             elif git -C "$root" ls-tree --name-only origin/main -- "$record" 2>/dev/null | grep -q .; then
                 continue
-            elif [[ ! -f "$ledger" ]]; then
-                say "plan.md makes $record, and there is no ledger.md at $ledger to reserve $n"
+            elif ! numbers="$("$root/scripts/wiki.py" numbers 2>&1)"; then
+                say "plan.md makes $record, and the wiki cannot give the decision numbers to reserve $n: $numbers"
             else
                 # Each entry of the number on the line; one that names another run folder owns it.
-                entries="$(grep -m1 '^Decision numbers' "$ledger" | grep -oE "(^|[:,] )$n [^,(]*\([^)]*\)" | sed -E 's/^[:,]? //' || true)"
+                entries="$(grep -m1 '^Decision numbers' <<<"$numbers" | grep -oE "(^|[:,] )$n [^,(]*\([^)]*\)" | sed -E 's/^[:,]? //' || true)"
                 other="$(grep -vE "\(run $folder[,)]" <<<"$entries" | grep . | head -1 || true)"
                 if [[ -n "$other" ]]; then
                     say "plan.md makes $record, but $n is reserved for another run: $other; take the next free number"
                 elif [[ -z "$entries" ]]; then
-                    say "plan.md makes $record: reserve $n on the Decision numbers line of $ledger as \"$n <title> (run $folder)\""
+                    say "plan.md makes $record: reserve $n with scripts/wiki.py reserve --from <file>; write the file with the Write tool, one line: \"$n <title> (run $folder)\""
                 fi
             fi
         done

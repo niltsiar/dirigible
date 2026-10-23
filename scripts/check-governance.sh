@@ -16,12 +16,12 @@
 #   or that a commit of the base changed on or after the run start date (the YYYY-MM-DD prefix of
 #   the run folder name; a run that lands in steps copied it in an earlier landing).
 # - With a run folder, no holdout is in eval/holdout-fails.txt (grade.py verdict) both in this run
-#   and in the newest done run (Status done) of the ledger.md beside runs/ whose eval/scores.tsv has
-#   a row of that holdout.
-# - With a run folder that has a reflect row (phase 8), or with GOVERNANCE_LAND set (land.sh),
-#   ## Next of the main-checkout .scratchpads/backlog.md has no taken item of that run: a line with
-#   `(taken: run <run folder name>` and then a space, a comma, or `)`. A backlog with no line that
-#   starts with `## Next` fails.
+#   and in the newest done run of the run log of the wiki (`scripts/wiki.py runs`: the last row of a
+#   run name is its status) whose eval/scores.tsv has a row of that holdout.
+# - With a run folder that has a reflect row (phase 8), or with GOVERNANCE_LAND set (land.sh), the
+#   wiki has no item with status next that this run took (`scripts/wiki.py list next --taken
+#   <run folder name>`). A later item that the run took passes. With no wiki the check fails:
+#   wiki.py names the path, `scripts/wiki.py init`, and DIRIGIBLE_WIKI.
 # - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID, Feature, and Req cells
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
 # - A run number that HEAD adds to a done State of features.md is 1 + the highest run number of its
@@ -33,7 +33,7 @@
 #   Sources/ cannot write `- Lands: none`: scripts/tag-release.sh needs a done row for its run number.
 # - With a run folder, scripts/check-eval-keys.sh passes on this tree: each evals.md key that the
 #   branch adds or changes has an eval folder of the run with its exact key text and a scores.tsv line.
-# - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
+# - The done runs of the holdout stop are the log statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -219,35 +219,37 @@ if [[ -n "$run" && -f "$run/run.md" ]]; then
         done
     fi
 fi
-# A run moves its own taken items out of ## Next of the backlog before the land: each run reads
-# ## Next at Phase 0, so a long ## Next costs each run. The backlog is in the main checkout, the
-# parent of the git common dir, also when the branch is in a worktree. Phase 8 moves the items,
-# so the check waits for the reflect row: Phase 7 runs this script before it. land.sh sets
-# GOVERNANCE_LAND, so a land with no reflect row still fails on a taken item.
-backlog="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.scratchpads/backlog.md"
-if [[ -f "$backlog" ]] && { reflected || [[ -n "$run" && -n "${GOVERNANCE_LAND:-}" ]]; }; then
+# A run moves its own taken items out of the next list of the wiki before the land: each run reads
+# the list at Phase 0, so a long list costs each run. The wiki is the same from each worktree.
+# Phase 8 moves the items, so the check waits for the reflect row: Phase 7 runs this script before
+# it. land.sh sets GOVERNANCE_LAND, so a land with no reflect row still fails on a taken item.
+if reflected || [[ -n "$run" && -n "${GOVERNANCE_LAND:-}" ]]; then
     name="$(basename "${run%/}")"
-    while IFS= read -r hit; do
-        if [[ $hit == none ]]; then
-            echo "check-governance: backlog.md has no line that starts with ## Next; restore the heading" >&2
-        else
-            echo "check-governance: backlog.md:${hit%%:*}: ## Next has a taken item of $name; move it to ledger.md or ## Later" >&2
-        fi
+    if taken="$("$here/wiki.py" list next --taken "$name")"; then
+        while IFS= read -r hit; do
+            [[ -n "$hit" ]] || continue
+            echo "check-governance: wiki item ${hit%% *} is next and taken by $name; move it to done or later: scripts/wiki.py move ${hit%% *} done" >&2
+            fail=1
+        done <<<"$taken"
+    else
+        echo "check-governance: the wiki is not readable, so the taken items of $name are not checked" >&2
         fail=1
-    done < <(awk -v key="[(]taken: run $name[ ,)]" '
-        /^## / { s = $0; if (index(s, "## Next") == 1) seen = 1; next }
-        index(s, "## Next") == 1 && $0 ~ key { print FNR ":" }
-        END { if (!seen) print "none" }' "$backlog")
+    fi
 fi
 # Two holdout fails in a row stop the land. grade.py verdict writes its `holdout fail <H>` lines to
 # <run>/eval/holdout-fails.txt. For each H of this run, the run to compare is the newest done run
-# of the ledger.md beside runs/ whose eval/scores.tsv has a row of H: a run that did not run H is
-# skipped (docs/workflow/evals.md, the pass rule).
+# of the run log of the wiki whose eval/scores.tsv has a row of H: a run that did not run H is
+# skipped (docs/workflow/evals.md, the pass rule). The log is append-only, so a run takes its last row.
 failed_holdouts() { sed -n 's/^holdout fail \(H[0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | sort -u; }
 if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
     runs="$(dirname "${run%/}")"
-    done_runs="$(awk -F' *[|] *' -v me="$(basename "${run%/}")" '$4 ~ /^done($|[,:])/ && $2 != me { name[++n] = $2 } END { for (i = n; i > 0; i--) print name[i] }' \
-        "$(dirname "$runs")/ledger.md" 2>/dev/null || true)"
+    done_runs="$("$here/wiki.py" runs | awk -F' *[|] *' -v me="$(basename "${run%/}")" '
+        /^[|]/ && $2 ~ /^[0-9]{4}-/ { last[$2] = NR; who[NR] = $2; state[NR] = $4 }
+        END { for (i = NR; i > 0; i--) if ((i in who) && last[who[i]] == i && state[i] ~ /^done($|[,:])/ && who[i] != me) print who[i] }')" || {
+        echo "check-governance: the wiki is not readable, so the holdout stop cannot compare runs" >&2
+        fail=1
+        done_runs=""
+    }
     while IFS= read -r h; do
         while IFS= read -r prev; do
             [[ -n "$prev" ]] && awk -F'\t' -v h="$h" '$2 == h { found = 1 } END { exit !found }' "$runs/$prev/eval/scores.tsv" 2>/dev/null || continue

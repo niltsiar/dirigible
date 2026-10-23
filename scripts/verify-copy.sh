@@ -135,7 +135,7 @@ take_screen() {
         fi
         [[ $i -gt 0 ]] || echo "verify-copy.sh: the verify copy of ${holder:-another tree} (PID ${pid:-unknown}) holds the screen; wait up to $wait s (VERIFY_COPY_SCREEN_WAIT)" >&2
         if [[ $i -ge $wait ]]; then
-            echo "verify-copy.sh: the verify copy of ${holder:-another tree} (PID ${pid:-unknown}) is still on the screen after $wait s; wait and start again, and stop it only when ledger.md shows that run done" >&2
+            echo "verify-copy.sh: the verify copy of ${holder:-another tree} (PID ${pid:-unknown}) is still on the screen after $wait s; wait and start again, and stop it only when scripts/wiki.py runs shows that run done" >&2
             exit 1
         fi
         sleep 1

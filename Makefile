@@ -132,6 +132,7 @@ HOOK_TESTS = \
 	.claude/skills/interrogate/scripts/free-lens-reads.test.sh \
 	.claude/skills/deliver/scripts/usage-mode.test.sh \
 	scripts/check-governance.test.sh \
+	scripts/check-eval-keys.test.sh \
 	scripts/pr-terms.test.sh \
 	scripts/land.test.sh \
 	.claude/workflows/review-panel.test.sh \

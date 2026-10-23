@@ -6,6 +6,7 @@
 # Check that a criterion change row needs a newer analysis.md and the words old and new. Check
 # that the first phase 4 row of a run folder with a plan.md needs a passing scripts/check-plan.sh
 # (a Criteria: field for each plan gate change, and a criterion change row for each ID).
+# Check that a phase 6 row needs a graded eval key for each evals.md row that the branch adds or re-keys.
 # Check that new-run.sh reports the backlog sections, the upkeep items, and a due architecture
 # audit, and that it refuses a third non-feature run in a row with no --blocks-feature reason.
 # Run by `make test-hooks`.
@@ -184,6 +185,37 @@ printf '# V\n\n## Act on\n\n1. (warning, x, read) A case is missing. Invariant: 
 [[ ! -e "$tmp/p6row" ]] || fail 'p6: the --from file is still there after the append'
 "$log" "$p6" 2 'plan changed late' why evidence done || fail "p6: the late phase 2 row exits $?"
 "$log" "$p6" 6 'fix item 2' 'the plan gate has no row after the late phase 2 row' evidence fixed || fail "p6: a phase 6 row after a late phase 2 row exits $?"
+
+# A phase 6 row of a run whose branch adds an evals.md key with no graded eval folder is refused
+# (scripts/check-eval-keys.sh, against origin/main, with the worktree of the last - Branch: line),
+# and the --from file stays. A run folder with no run.md is not checked.
+ek="$tmp/ek"
+eg() { git -C "$ek" -c user.name=t -c user.email=t@t -c commit.gpgsign=false "$@"; }
+mkdir -p "$ek/docs/workflow" "$ek/runs/r"
+eg init -q -b main
+printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n' > "$ek/docs/workflow/evals.md"
+eg add docs
+eg commit -q -m base
+eg update-ref refs/remotes/origin/main main
+eg worktree add -q -b chore/k "$tmp/ek-wt"
+printf '| E4 | policy | s | q | (a) new. | `a.md` | - | - |\n' >> "$tmp/ek-wt/docs/workflow/evals.md"
+git -C "$tmp/ek-wt" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -am keys
+printf '# Run r\n\n- Branch: chore/k\n' > "$ek/runs/r/run.md"
+: > "$ek/runs/r/decisions.tsv"
+printf '6\nfix item 1\nthe case\nevidence\nfixed\n' > "$tmp/ekrow"
+err="$("$log" "$ek/runs/r" --from "$tmp/ekrow" 2>&1)"
+code=$?
+[[ $code -eq 2 ]] || fail "ek: a phase 6 row with an ungraded key: expected exit 2, got $code"
+[[ "$err" == *E4* ]] || fail "ek: the refusal names no ID: $err"
+[[ ! -s "$ek/runs/r/decisions.tsv" ]] || fail 'ek: the refused phase 6 row changed decisions.tsv'
+[[ -e "$tmp/ekrow" ]] || fail 'ek: the refused --from file is gone'
+mv "$ek/runs/r/run.md" "$ek/run.md.off"
+"$log" "$ek/runs/r" 6 'fix item 0' 'no run.md' evidence fixed || fail "ek: a phase 6 row with no run.md exits $?"
+mv "$ek/run.md.off" "$ek/runs/r/run.md"
+mkdir "$ek/runs/r/eval"
+printf '## E4\n(a) new.\n\n' > "$ek/runs/r/eval/keys.md"
+printf 'p7\tE4\tpolicy\ta\t1\tPASS\t\n' > "$ek/runs/r/eval/scores.tsv"
+"$log" "$ek/runs/r" --from "$tmp/ekrow" || fail "ek: a phase 6 row with a graded key exits $?"
 
 # new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
 # when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the

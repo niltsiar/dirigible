@@ -16,8 +16,10 @@
 # change, and a criterion change row for each of its IDs, while such a row can still come before
 # Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
 # last phase 2 row. A phase 6 row needs a passing scripts/check-plan.sh with no variable, the check
-# of the land: the review files have their fields. A criterion change row skips that check. Else
-# the script appends nothing and exits 2.
+# of the land: the review files have their fields. A criterion change row skips that check. A phase
+# 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
+# origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a
+# graded eval folder. Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -66,6 +68,13 @@ fi
 if [[ "$1" == 6 && -f "${file%/*}/plan.md" && "$(lower "$2")" != "criterion change"* ]]; then
     if ! out="$("$plan_check" "${file%/*}" 2>&1)"; then
         printf '%s\na phase 6 row needs a passing check-plan.sh: fix the review file or the plan, then log this row\n' "$out" >&2
+        exit 2
+    fi
+fi
+# A phase 6 row: each evals.md key of the branch has its grade before the gates (RFL-037).
+if [[ "$1" == 6 && -f "${file%/*}/run.md" ]]; then
+    if ! out="$("${plan_check%/*}/check-eval-keys.sh" origin/main "${file%/*}" 2>&1)"; then
+        printf '%s\na phase 6 row needs a graded key for each new evals.md key\n' "$out" >&2
         exit 2
     fi
 fi

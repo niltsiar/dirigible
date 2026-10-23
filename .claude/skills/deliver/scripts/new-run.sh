@@ -1,16 +1,19 @@
 #!/bin/bash
 # Open a deliver run: .scratchpads/runs/<date>-<slug>/ with run.md, decisions.tsv, logs/, and the
 # analysis.md and plan.md skeletons (headings only, so scripts/check-plan.sh refuses them until the
-# run fills them), plus one line in .scratchpads/ledger.md. A subagent fills a skeleton with the
-# Edit tool, which works where the Write tool refuses a new run file. Running it again for the
-# slug of an open run, on any day, returns the same folder and changes nothing. It prints the
-# backlog section sizes, the upkeep items of ## Next, a due architecture audit, and a due
-# consolidation (the workflow doc words over TOTAL x 1.03 of docs/workflow/budgets.tsv) on stderr.
+# run fills them), plus one open row in the run log of the wiki (scripts/wiki.py log). A subagent
+# fills a skeleton with the Edit tool, which works where the Write tool refuses a new run file.
+# Running it again for the slug of an open run, on any day, returns the same folder and changes
+# nothing. It prints the later count, the upkeep items of status next, the size of the next list
+# (a warning over 3000 words), a due architecture audit, and a due consolidation (the workflow doc
+# words over TOTAL x 1.03 of docs/workflow/budgets.tsv) on stderr.
 # A new run gets `- Branch: <type>/<slug>` in run.md. The script refuses a third non-feature run
-# in a row (exit 2, no folder, no ledger line): the two runs with the highest PR numbers in their
-# done ledger rows (each run once) have a run.md branch type other than feat (the text between
-# "- Branch: " and the first slash; no type is not a feature), and <type> is not feat. With --blocks-feature, it opens the run and logs the
-# reason as a phase 0 row. The ledger is in .scratchpads/ of the main checkout (the git common dir).
+# in a row (exit 2, no folder, no log row): the two runs with the highest PR numbers in their
+# done log rows (each run once, by its last row) have a run.md branch type other than feat (the
+# text between "- Branch: " and the first slash; no type is not a feature), and <type> is not feat.
+# With --blocks-feature, it opens the run and logs the reason as a phase 0 row. The run folders
+# are in .scratchpads/ of the main checkout (the git common dir). With no wiki, the script exits
+# 1 before it makes a folder: wiki.py names the path, `scripts/wiki.py init`, and DIRIGIBLE_WIKI.
 # Usage: new-run.sh <slug> <type> [--blocks-feature '<reason>']
 set -euo pipefail
 
@@ -27,13 +30,20 @@ fi
     { echo "type must be a Conventional Commits type: $type" >&2; exit 2; }
 
 root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.scratchpads"
+wiki="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/wiki.py"
+# The run log of the wiki, as one row for each run: the last row of its name, in the order of those
+# rows. With no wiki, wiki.py fails here and the script stops before it makes a folder.
+log_lines="$("$wiki" runs)"
+rows="$(awk -F'|' '/^\|/ { n = $2; gsub(/ /, "", n)
+    if (n ~ /^[0-9]{4}-/) { last[n] = NR; text[NR] = $0; who[NR] = n } }
+    END { for (i = 1; i <= NR; i++) if ((i in text) && last[who[i]] == i) print text[i] }' <<<"$log_lines")"
 # Reuse the open run of this exact slug, so a run that spans days keeps one folder.
 # A done run is history: never reopen it.
 run=""
 for d in "$root"/runs/*; do
     name="$(basename "$d")"
     [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-(.+)$ && "${BASH_REMATCH[1]}" == "$slug" ]] || continue
-    grep -q "^| $name | .* | open |" "$root/ledger.md" 2>/dev/null && run="$name"
+    if grep -q "^| $name | .* | open |" <<<"$rows"; then run="$name"; fi
 done
 if [[ -z "$run" ]]; then
     run="$(date +%Y-%m-%d)-$slug"
@@ -42,7 +52,7 @@ fi
 dir="$root/runs/$run"
 # The feature guard, for a new run only.
 if [[ ! -d "$dir" && "$type" != feat ]]; then
-    # The land order is the PR number of the done row (a row with no PR is older); each run once.
+    # The land order is the PR number of the done row (a row with no PR is older).
     # A done row says `done`, `done: ...`, or `done, ...`. The PR number is the pull/<n> URL of the
     # Result cell, else `PR <n>` or `PR #<n>` of the Status cell.
     last="$(awk -F'|' '{ n = $2; gsub(/ /, "", n); st = $4; gsub(/ /, "", st) }
@@ -52,7 +62,7 @@ if [[ ! -d "$dir" && "$type" != feat ]]; then
             else if (match($4, /PR #?[0-9]+/)) { pr = substr($4, RSTART, RLENGTH); gsub(/[^0-9]/, "", pr) }
             print pr + 0, NR, n
         }' \
-        "$root/ledger.md" 2>/dev/null | sort -k1,1n -k2,2n | awk '{ print $3 }' | tail -r | awk '!seen[$0]++' | head -n 2)"
+        <<<"$rows" | sort -k1,1n -k2,2n | awk '{ print $3 }' | tail -r | awk '!seen[$0]++' | head -n 2)"
     features=0
     for r in $last; do
         t="$(sed -n 's/^- Branch: \([^/]*\)\/.*/\1/p' "$root/runs/$r/run.md" 2>/dev/null | head -n 1)"
@@ -65,34 +75,36 @@ if [[ ! -d "$dir" && "$type" != feat ]]; then
 fi
 # logs/ holds the check and bench logs that cost.sh of reflect counts.
 mkdir -p "$dir/logs"
-touch "$root/learnings.md" "$root/backlog.md"
+# The wiki tool reads the row from a file and removes the file after its commit.
+if ! grep -q "^| $run |" <<<"$rows"; then
+    printf '| %s | %s | open | |\n' "$run" "$slug" > "$dir/logs/wiki-log.txt"
+    "$wiki" log --from "$dir/logs/wiki-log.txt"
+fi
 
-[[ -f "$root/ledger.md" ]] || printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$root/ledger.md"
-grep -q "| $run |" "$root/ledger.md" || printf '| %s | %s | open | |\n' "$run" "$slug" >> "$root/ledger.md"
-
-# Report the backlog sections on stderr; stdout stays the run folder. Phase 0 reads ## Next at
-# each run start, so a long ## Next costs each run. A backlog item has no date, so the Later
-# count of the last run.md is the record of the change.
-backlog="$root/backlog.md"
-next_words="$(awk '/^## /{s=$0; next} s=="## Next"{n+=NF} END{print n+0}' "$backlog")"
-(( next_words <= 1000 )) || echo "warning: ## Next of backlog.md has $next_words words, over 1000; move items to ## Later" >&2
-later="$(awk '/^## /{s=$0; next} s=="## Later" && /^- /{n++} END{print n+0}' "$backlog")"
+# Report the wiki on stderr; stdout stays the run folder. Phase 0 reads the next list at each run
+# start, so a long list costs each run. A wiki item has no date, so the later count of the last
+# run.md is the record of the change.
+next="$("$wiki" list next)"
+next_words="$(wc -w <<<"$next" | tr -d ' ')"
+(( next_words <= 3000 )) || echo "warning: wiki.py list next has $next_words words, over 3000; move items to later" >&2
+later="$("$wiki" count later)"
 last=""
 for d in "$root"/runs/*/; do [[ "${d%/}" == "$dir" ]] || last="${d%/}"; done
 prev=""
 [[ -f "$last/run.md" ]] && prev="$(sed -n 's/^- Later items: \([0-9][0-9]*\)$/\1/p' "$last/run.md" | head -n 1)"
 if [[ -n "$prev" ]]; then
-    printf 'backlog: ## Later has %d items (%+d since %s)\n' "$later" $((later - prev)) "$(basename "$last")" >&2
+    printf 'backlog: later has %d items (%+d since %s)\n' "$later" $((later - prev)) "$(basename "$last")" >&2
 else
-    echo "backlog: ## Later has $later items" >&2
+    echo "backlog: later has $later items" >&2
 fi
-# Reflect rule 6: with 8 or more upkeep items in ## Next, this run is a workflow upkeep run.
-upkeep="$(awk '/^## /{s=$0; next} s=="## Next" && /^- upkeep /{n++} END{print n+0}' "$backlog")"
+# Reflect rule 6: with 8 or more upkeep items with status next, this run is a workflow upkeep run.
+upkeep="$(grep -c '^[0-9][0-9]* upkeep ' <<<"$next" || true)"
 echo "upkeep items: $upkeep" >&2
 (( upkeep < 8 )) || echo "warning: $upkeep upkeep items wait; make this run a workflow upkeep run (reflect rule 6)" >&2
 # The distinct product runs after the done row of the last run whose name has architecture: an
-# open audit has not audited yet. A run has an open and a done row. A product run has a run.md
-# branch of type feat, fix, or perf, and a slug with no hardening. The current run does not count.
+# open audit has not audited yet. A run has an open and a done row, and its last row counts. A
+# product run has a run.md branch of type feat, fix, or perf, and a slug with no hardening. The
+# current run does not count.
 product=0
 while IFS= read -r r; do
     [[ "$r" != *hardening* ]] || continue
@@ -103,7 +115,7 @@ done < <(awk -F'|' -v cur="$run" '
     name !~ /^[0-9]{4}-/ { next }
     name ~ /architecture/ { if (state ~ /^done([,:]|$)/) { split("", seen); split("", list); n = 0 }; next }
     name != cur && !(name in seen) { seen[name] = 1; list[++n] = name }
-    END { for (i = 1; i <= n; i++) print list[i] }' "$root/ledger.md")
+    END { for (i = 1; i <= n; i++) print list[i] }' <<<"$rows")
 (( product < 5 )) || echo "architecture audit due: $product product runs since the last architecture run;" \
     "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
     ".claude/skills/architect/references/design-red-flags.md, and the tooling (scripts/, .claude/hooks," \
@@ -114,7 +126,7 @@ total="$(awk -F'\t' '$1 == "TOTAL" { print $2 }' "$top/docs/workflow/budgets.tsv
 if [[ "$total" =~ ^[0-9]+$ ]]; then
     sum="$("$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/workflow-words.sh" sum --root "$top")"
     (( sum * 100 <= total * 103 )) || echo "consolidation due: the workflow docs have $sum words, over TOTAL x 1.03 ($total in docs/workflow/budgets.tsv);" \
-        "add one consolidation item to ## Next unless it has one (reflect rule 6)" >&2
+        "add one consolidation item with status next unless it has one (reflect rule 6)" >&2
 fi
 
 [[ -f "$dir/analysis.md" ]] || printf '# Analysis: %s\n\n## Acceptance criteria\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n\n## Out of scope\n' "$slug" > "$dir/analysis.md"

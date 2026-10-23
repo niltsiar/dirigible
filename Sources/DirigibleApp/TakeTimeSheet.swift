@@ -109,15 +109,20 @@ struct TakeTimeSheet: View {
 }
 
 extension SessionWindow {
-    /// Go to Take Time is off with no take audio and while the studio is busy, for example during
-    /// a take.
-    var canGoToTakeTime: Bool { idleStudio?.takeMap.map.sync.isEmpty == false }
+    /// Go to Take Time is off with no take audio, while the studio is busy (for example during a
+    /// take), and while a dialog of the window shows: one dialog at a time.
+    var canGoToTakeTime: Bool {
+        guard takeTimeDraft == nil, exportStep == nil, duckDraft == nil, unusedFiles == nil, alert == nil,
+            let studio = idleStudio, studio.exportProgress == nil
+        else { return false }
+        return !studio.takeMap.map.sync.isEmpty
+    }
 
     /// Transport > Go to Take Time...: opens the sheet. The popup starts at the take under the
     /// playhead, else at the first take. A typed track name saves first.
     func startTakeTime() {
         commitDrafts()
-        guard takeTimeDraft == nil, let studio = idleStudio else { return }
+        guard canGoToTakeTime, let studio = idleStudio else { return }
         let map = studio.takeMap.map
         let takes = map.sync.keys.sorted()
         guard let first = takes.first else { return }

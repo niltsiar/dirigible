@@ -27,6 +27,9 @@ enum MenuKeys {
     static let end = KeyboardShortcut(.end, modifiers: [])
     static let previousClip = KeyboardShortcut(.leftArrow, modifiers: .shift)
     static let nextClip = KeyboardShortcut(.rightArrow, modifiers: .shift)
+    /// Transport > Go to Take Time... (decision 0061). It has Command, so it can be off, and the J
+    /// shuttle skips it.
+    static let takeTime = KeyboardShortcut("j")
     /// Command-= runs Zoom In (U1). The window takes it, not a menu item (`UndoRoutingWindow`).
     static let zoomInEquals = KeyboardShortcut("=")
     /// View > Show Loudness Meter, as the Audio Meters of Final Cut Pro (decision 0033).
@@ -68,8 +71,8 @@ enum MenuKeys {
         [
             newSession, open, startWindow, addTrack, record, stop, monitor, monitorTrack, retry, play, stopAndReturn,
             reverse, pause,
-            forward, slowReverse, slowForward, start, end, previousClip, nextClip, zoomInEquals, loudnessMeter,
-            inspector, snap, variSpeed, faster, slower,
+            forward, slowReverse, slowForward, start, end, previousClip, nextClip, takeTime, zoomInEquals,
+            loudnessMeter, inspector, snap, variSpeed, faster, slower,
         ] + system
 }
 

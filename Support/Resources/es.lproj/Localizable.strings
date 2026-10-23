@@ -472,6 +472,13 @@
 "sheet.duck.release" = "Liberación";
 "sheet.duck.note" = "La atenuación sustituye los puntos de ganancia de cada clip de música al que llega la voz, en el rango de la selección o, si no hay, en toda la sesión. Conserva los demás clips.";
 "sheet.duck.apply" = "Aplicar";
+"menu.transport.take.time" = "Ir al tiempo de la toma…";
+"sheet.take.time.title" = "Ir al tiempo de la toma";
+"sheet.take.time.take" = "Toma";
+"sheet.take.time.item" = "Toma %lld";
+"sheet.take.time.field" = "Tiempo de la toma";
+"sheet.take.time.format" = "Escribe el tiempo desde el inicio de la grabación de la toma como H:MM:SS.mmm, M:SS o segundos.";
+"sheet.take.time.removed" = "Ningún clip reproduce este tiempo de la toma %lld: una edición lo quitó o la toma no tiene audio ahí. Escribe otro tiempo.";
 "alert.export.missing" = "Estos archivos faltan o no se pueden leer. Se exportan como silencio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "La exportación terminó. Estos archivos faltaban o no se podían leer, y se exportaron como silencio:\n%@";

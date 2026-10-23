@@ -472,6 +472,13 @@
 "sheet.duck.release" = "Liberação";
 "sheet.duck.note" = "O abaixamento substitui os pontos de ganho de cada clipe de música que a voz alcança, no intervalo selecionado ou, se não houver, em toda a sessão. Os outros clipes ficam como estão.";
 "sheet.duck.apply" = "Aplicar";
+"menu.transport.take.time" = "Ir para o Tempo da Tomada…";
+"sheet.take.time.title" = "Ir para o Tempo da Tomada";
+"sheet.take.time.take" = "Tomada";
+"sheet.take.time.item" = "Tomada %lld";
+"sheet.take.time.field" = "Tempo da Tomada";
+"sheet.take.time.format" = "Digite o tempo desde o início da gravação da tomada como H:MM:SS.mmm, M:SS ou segundos.";
+"sheet.take.time.removed" = "Nenhum clipe reproduz este tempo da tomada %lld: uma edição o removeu, ou a tomada não tem áudio ali. Digite outro tempo.";
 "alert.export.missing" = "Estes arquivos estão ausentes ou não podem ser lidos. Eles serão exportados como silêncio:\n%@";
 "alert.export.confirm" = "Exportar";
 "alert.exported" = "A exportação foi concluída. Estes arquivos estavam ausentes ou não puderam ser lidos e foram exportados como silêncio:\\n%@";

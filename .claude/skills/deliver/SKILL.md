@@ -14,12 +14,12 @@ One run takes one goal (a requirement, a slice, or a bug) to a merged pull reque
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
 - Subagents do bulk reading and return conclusions. Start each phase, slice, and gate-fix agent as type `run-agent`, with the model of `docs/workflow/model-routing.md`. A subagent prompt names each run file that it writes as a required ledger file.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
-- Each backlog write names its section of `.scratchpads/backlog.md`: `## Next` for a user request or a next-run item, `## Later` for a "Consider" item and all other deferred work.
+- Each backlog write names its status (`scripts/wiki.py add <status> --from <file>`, the file written with the Write tool): `next` for a user request or a next-run item, `later` for a "Consider" item and all other deferred work.
 - Before you fake or detect a failure of an external tool, probe it (exit status, stderr, files). Record each result in its `## Unknowns` row. The fake copies each result. Guard on the status and files. For a status with several causes, make your call print a marker text, and guard on that.
 
 ## Phase 0: Open the run
 
-1. Read `.scratchpads/ledger.md`, `## Next` of the backlog, and the last `run.md`. The **reflect** skill reads `learnings.md`.
+1. Run `scripts/wiki.py now` and `scripts/wiki.py list next --ready`, and read the last `run.md`; `scripts/wiki.py show <id>` prints an item. The **reflect** skill reads the lessons.
 2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume one on its branch: read its `run.md` and `decisions.tsv`; compare its handoff with the git output, the last commit, and the PR state; log each difference; continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
 3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug> <type>`.
 4. Run `make check` on `main` only when `main` has commits no run landed. If it is red, the fix is the goal.
@@ -33,7 +33,7 @@ Write `analysis.md`:
 - Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value.
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion, under its original conditions (a test probe runs in the test runner). Before the plan gate, check each numeric plan rule (a curve, a threshold, a time rule) with a probe or a worked fixture. Replay a new check on past inputs. Log each probe and replay.
-- What is out of scope, in the backlog.
+- What is out of scope, as items with status later (`scripts/wiki.py add later --from <file>`).
 
 ## Phase 2: Plan
 
@@ -90,7 +90,7 @@ Run no push check at the gate. Phase 7 runs the one push check, after the last g
 When a slice or a gate fix adds or changes an `evals.md` key, the lead runs `scripts/eval/run.sh` for its IDs in the background before the next phase 6 row: `log-decision.sh` refuses the row until the key has a grade. A run agent returns to the lead.
 
 - Fix each "Act on" item and each flake in its own commit: a behavior fix with its regression test, a rule fix with the Phase 2 grep. Check a visible fix as in Phase 4 step 5.
-- Put each skipped "Consider" item in `## Later`, with the reason.
+- Add each skipped "Consider" item with status later (`scripts/wiki.py add later --from <file>`), with the reason.
 - When a user decision reverts a fix, write its symptom in the manual checks and in `pr.md`.
 
 ## Phase 7: Verify
@@ -101,13 +101,13 @@ Run the **verify-this** skill for each criterion against the real artifact (the 
 
 ## Phase 8: Reflect
 
-The closing agent (on the light path, the lead) runs the **reflect** skill on the branch. It moves each `## Later` item that this run made due to `## Next`, and each taken item out (`check-governance.sh` fails the land).
+The closing agent (on the light path, the lead) runs the **reflect** skill on the branch. It moves each later item that this run made due to status next (`scripts/wiki.py move <id> next`), and each taken item out (`scripts/wiki.py move <id> done`; `check-governance.sh` fails the land).
 
 ## Phase 9: Land through a pull request
 
 1. Phase 7 wrote `- Lands:` and set the `features.md` states, and the closing agent (on the light path, the lead) wrote `<run>/pr.md` with the **pr** skill, up to step 6 of **writing-for-humans**. While the push check runs, one Sonnet agent reads `pr.md` as the cold reader (step 7); the lead revises each misread sentence. When the check passes, run `scripts/land.sh "<plain title>" <run>/pr.md` in the background (AGENTS.md, Commands). Read its `pr:` and `range:` output lines.
 2. If the land stops on a conflict, resolve it with a rebase on a fresh branch. Leave a leftover local branch after the merge. Record the conflict and the branch in `run.md`. If it stops with the PR open, run the same command again; the header of `scripts/land.sh` says what a second call does.
-3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. The lead decides each default: `run.md` and the PR body name it and how to reverse it, and list no open item. Write the PR URL in `run.md` and the ledger.
+3. Set `run.md` to `done` with a summary: what landed (PR, commit range), what is verified, manual checks, and open risks. The lead decides each default: `run.md` and the PR body name it and how to reverse it, and list no open item. Write the PR URL in `run.md` and in the run log (`scripts/wiki.py log --from <file>`).
 
 ## Long autonomous runs
 

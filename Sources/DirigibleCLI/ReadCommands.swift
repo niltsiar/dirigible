@@ -91,8 +91,8 @@ struct NearestPauseCommand: ParsableCommand {
             --at minus --window to --at plus --window and is nearest to --at; a tie takes the earlier \
             one. One line: "pause", the first frame, the frame after it, and the cut, its middle frame, \
             with tabs. With no silence: "no pause", the middle frame of the quietest 50 ms window, and \
-            its level in dBFS. It writes nothing and takes no lock. Exit 64 for a bad value or an --at \
-            at or after the session end. Exit 2 when the package cannot be read, a track is unknown, or \
+            its level in dBFS (-inf dBFS for digital silence). It writes nothing and takes no lock. \
+            Exit 64 for a bad value or an --at at or after the session end. Exit 2 when the package cannot be read, a track is unknown, or \
             a file of the read is missing, short, or unreadable.
             """)
 
@@ -130,7 +130,7 @@ struct MeterCommand: ParsableCommand {
             loudness range (EBU Tech 3342; none under 2 min), the max momentary and short-term \
             loudness, the true peak, and the sample peak, each with one decimal or "none". With \
             --step, then one line for each step from the 50 ms window of --from: its first frame, the \
-            RMS level, and the peak. A missing, short, or unreadable file reads as silence. The warning \
+            RMS level, and the peak, in dBFS (-inf dBFS for digital silence). A missing, short, or unreadable file reads as silence. The warning \
             lines of a stereo export go to stderr: the files that read as silence, and the muted or not \
             soloed tracks. It writes nothing and takes no lock. Exit 64 for a bad value, a \
             --from at or after the session end, a --step that is not a multiple of the 50 ms window, \

@@ -22,6 +22,21 @@ struct ReadToolTests {
         #expect(meter.contains("heard stereo mix, as a stereo export"), "\(meter)")
     }
 
+    /// The work refuses a level of 0 dB and over, so the schema gives -96 up to under 0.
+    @Test func theLevelArgumentsHaveASchemaUnderZero() async throws {
+        let answers = try await mcp([modernRequest(1, "tools/list")])
+        let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
+        for (name, key) in [
+            ("silences", "threshold"), ("nearest_pause", "threshold"), ("duck", "threshold"), ("duck", "depth"),
+        ] {
+            let schema = tools.first { $0["name"] as? String == name }?["inputSchema"] as? [String: Any]
+            let property = (schema?["properties"] as? [String: Any])?[key] as? [String: Any] ?? [:]
+            #expect(
+                property["exclusiveMaximum"] as? Double == 0 && property["minimum"] as? Double == -96
+                    && property["maximum"] == nil, "\(name) \(key): \(property)")
+        }
+    }
+
     /// The tool text is the stderr lines and then the stdout lines of the command; a refusal names
     /// the option as the tool spells it.
     @Test func eachToolGivesTheTextOfItsCommand() async throws {

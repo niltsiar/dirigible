@@ -44,13 +44,13 @@ private let duckMusic = Param<[String]?>.optional(
 private let duckFrom = Param<Int?>.optional("from", "The first timeline frame of the scope, with to.", .integer())
 private let duckTo = Param<Int?>.optional("to", "The timeline frame after the scope, with from.", .integer())
 private let duckDepth = Param<Gain?>.optional(
-    "depth", "The gain of the music under speech in dB, under 0. The default is -16.", .gain)
+    "depth", "The gain of the music under speech in dB, under 0. The default is -16.", .level)
 private let duckAttack = Param<Int?>.optional(
     "attack", "The ramp down before speech in frames. The default is 1 s.", .integer())
 private let duckRelease = Param<Int?>.optional(
     "release", "The ramp up after speech in frames. The default is 1 s.", .integer())
 private let duckThreshold = Param<Gain?>.optional(
-    "threshold", "The speech level in dBFS, under 0. The default is -40.", .gain)
+    "threshold", "The speech level in dBFS, under 0. The default is -40.", .level)
 private let duckHold = Param<Int?>.optional(
     "hold",
     "The hold in frames. The music comes up after a pause of at least the larger of the hold and attack plus release. The default is 2 s.",
@@ -85,7 +85,7 @@ private let readTracks = Param<[String]?>.optional(
     "track", "The IDs of the tracks to read. The default is every track.", .strings())
 private let readThreshold = Param<Gain?>.optional(
     "threshold", "The silence level in dBFS, under 0: a 50 ms window at or under it is silent. The default is -40.",
-    .gain)
+    .level)
 private let silenceLength = Param<Int?>.optional(
     "min_length", "The shortest silence in frames. The default is 500 ms.", .integer())
 private let pauseAt = Param.required("at", "The frame to find a pause near.", .integer())

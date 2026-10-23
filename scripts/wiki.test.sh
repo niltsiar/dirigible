@@ -652,6 +652,124 @@ export DIRIGIBLE_WIKI="$tmp/imp-gate2"
 mkfix "$tmp/fx-gate2"
 imp_run "$gate" "$tmp/fx-gate2" --trees-checked "$tmp/trees-two.txt"; want_rc 0 "a phase 8 branch that holds the caller HEAD"
 
+# --- C23 items that wait: the waits field, wait, unwait, list --ready, the now line, the lint
+waitrepo="$tmp/waitrepo"
+waitrun=2026-10-23-waitrun
+mkdir -p "$waitrepo/scripts" "$waitrepo/.scratchpads/runs/$waitrun"
+cp "$script" "$waitrepo/scripts/wiki.py"
+g -C "$waitrepo" init -q -b main
+set_run_status() { printf '%s\n' "# Run $waitrun" '' "- Status: $1" > "$waitrepo/.scratchpads/runs/$waitrun/run.md"; }
+set_run_status open
+wt="$waitrepo/scripts/wiki.py"
+export DIRIGIBLE_WIKI="$tmp/waits"
+"$wt" init >/dev/null 2>&1 || fail "waits: init"
+for n in 1 2 3 4 5 6 7 8 9; do
+    put_item "$tmp/w$n.txt" "Wait item $n" "Description of wait item $n" "body $n"
+    "$wt" add next --from "$tmp/w$n.txt" >/dev/null 2>&1 || fail "waits: add $n"
+done
+# ready_is <id>...: list next --ready prints exactly these items, in order.
+ready_is() {
+    run "$wt" list next --ready
+    [[ "$(cut -d' ' -f1 <<<"$out" | tr '\n' ' ')" == "$* " ]] || fail "list next --ready: [$out], want ids: $*"
+}
+# front_of <id>: the front matter of an item page.
+front_of() { awk 'NR == 1 { next } /^---$/ { exit } { print }' "$DIRIGIBLE_WIKI/wiki/items/$1.md"; }
+ready_is 0001 0002 0003 0004 0005 0006 0007 0008 0009
+run "$wt" wait 0002 user; want_rc 0 "wait on the user"
+run "$wt" wait 0003 item:0004; want_rc 0 "wait on an item"
+run "$wt" wait 0005 "run:$waitrun"; want_rc 0 "wait on a run"
+ready_is 0001 0004 0006 0007 0008 0009
+run "$wt" list next; want_rc 0 "list next with waits"
+want_out "0002 Wait item 2: Description of wait item 2 (waits: user)" "list next shows waits"
+want_out "0003 Wait item 3: Description of wait item 3 (waits: item:0004)" "list next shows waits"
+want_out "0005 Wait item 5: Description of wait item 5 (waits: run:$waitrun)" "list next shows waits"
+[[ "$out" == "0001 Wait item 1: Description of wait item 1"$'\n'* ]] || fail "list next shows a waits value for an item that does not wait: $out"
+run "$wt" move 0004 done; want_rc 0 "move the awaited item to done"
+ready_is 0001 0003 0006 0007 0008 0009
+set_run_status done
+ready_is 0001 0003 0005 0006 0007 0008 0009
+set_run_status open
+ready_is 0001 0003 0006 0007 0008 0009
+run "$wt" move 0003 dropped; want_rc 0 "move a waiting item to dropped"
+run "$wt" wait 0006 item:0003; want_rc 0 "wait on a dropped item"
+ready_is 0001 0006 0007 0008 0009
+run "$wt" wait 0009 run:2026-10-23-no-such-run; want_rc 0 "wait on a run with no folder"
+ready_is 0001 0006 0007 0008 0009
+run "$wt" unwait 0002; want_rc 0 "unwait"
+ready_is 0001 0002 0006 0007 0008 0009
+run "$wt" list next
+[[ "$out" != *"0002 Wait item 2: Description of wait item 2 (waits"* ]] || fail "unwait leaves the waits value in list next"
+[[ "$(git -C "$DIRIGIBLE_WIKI" show --name-only --format= HEAD | sort)" == $'wiki/items/0002.md\nwiki/now.md' ]] \
+    || fail "unwait commit paths: $(git -C "$DIRIGIBLE_WIKI" show --name-only --format= HEAD | tr '\n' ' ')"
+
+# the now text counts the open items that wait for the user
+run "$wt" wait 0002 user; want_rc 0 "wait on the user again"
+run "$wt" wait 0006 user; want_rc 0 "wait on the user, second item"
+run "$wt" wait 0009 user; want_rc 0 "wait on the user, third item"
+run "$wt" move 0009 done; want_rc 0 "move a waiting item to done"
+run "$wt" now; want_rc 0 "now with waits"
+want_out "Waiting for the user: 2 (0002, 0006)." "now lists the items that wait for the user"
+run "$wt" unwait 0002; want_rc 0 "unwait before the now count"
+run "$wt" unwait 0006; want_rc 0 "unwait before the now count"
+run "$wt" now
+want_out "Waiting for the user: 0." "now with no waiting item"
+
+# wait and unwait refuse and write nothing
+h="$(head_of)"; n="$(commits_of)"
+refuse_wait() {
+    local want="$1"
+    shift
+    run "$wt" "$@"
+    [[ $rc -eq $want ]] || fail "$*: exit $rc, want $want: $out"
+    [[ "$h" == "$(head_of)" && "$n" == "$(commits_of)" && -z "$(status_of)" ]] || fail "$*: it wrote"
+}
+refuse_wait 1 wait 0006 item:9999
+refuse_wait 1 wait 0099 user
+refuse_wait 1 wait 0008 item:0008
+want_out "cycle" "a wait of an item on itself"
+refuse_wait 2 wait 0006 later
+refuse_wait 2 wait 0006 item:xyz
+refuse_wait 2 wait 0006 run:Bad_Name
+refuse_wait 2 wait 0006 user:0002
+refuse_wait 2 wait 0006 "item:0007 extra"
+refuse_wait 1 unwait 0007
+refuse_wait 1 unwait 0099
+run "$wt" wait 0007 item:0008; want_rc 0 "first wait of a pair"
+h="$(head_of)"; n="$(commits_of)"
+refuse_wait 1 wait 0008 item:0007
+want_out "cycle" "a cycle of two items"
+run "$wt" wait 0006 item:0007; want_rc 0 "a chain of waits"
+h="$(head_of)"; n="$(commits_of)"
+refuse_wait 1 wait 0008 item:0006
+want_out "cycle" "a cycle of three items"
+[[ "$(front_of 0008)" != *waits:* ]] || fail "a refused cycle left a waits value"
+ready_is 0001 0002 0008
+run "$wt" lint; want_rc 0 "lint with waits"
+
+# edit and move never change waits, and a body line never sets it
+put_item "$tmp/we1.txt" "Edited wait title" "Edited wait description" "waits: user" "status: done"
+run "$wt" show 0007; hash="$(head -n 1 <<<"$out" | sed 's/^hash: //')"
+want_out "waits: item:0008" "show prints waits"
+run "$wt" edit 0007 --expect "$hash" --from "$tmp/we1.txt"; want_rc 0 "edit of a waiting item"
+front="$(front_of 0007)"
+[[ "$front" == *"waits: item:0008"* && "$front" != *"waits: user"* && "$front" == *"status: next"* ]] || fail "edit changed waits or status: $front"
+run "$wt" move 0007 later; want_rc 0 "move of a waiting item"
+run "$wt" list later
+want_out "0007 Edited wait title: Edited wait description (waits: item:0008)" "move keeps waits"
+put_item "$tmp/we2.txt" "Edited plain title" "Edited plain description" "waits: user"
+run "$wt" show 0001; hash="$(head -n 1 <<<"$out" | sed 's/^hash: //')"
+run "$wt" edit 0001 --expect "$hash" --from "$tmp/we2.txt"; want_rc 0 "edit of an item with no waits"
+[[ "$(front_of 0001)" != *waits:* ]] || fail "an edit with a waits line in the body set waits: $(front_of 0001)"
+
+# the lint fails on a waits value that is no kind or names a missing item
+for bad in "item:9999" "soon" "run:Bad_Name" "item:"; do
+    printf -- '---\ntype: Item\ntitle: "Wait item 6"\ndescription: "Description of wait item 6"\nstatus: next\nwaits: %s\n---\n\nbody 6\n' "$bad" > "$DIRIGIBLE_WIKI/wiki/items/0006.md"
+    run "$wt" lint; want_rc 1 "lint of waits: $bad"
+    want_out "0006.md: waits" "lint of waits: $bad"
+done
+git -C "$DIRIGIBLE_WIKI" checkout -q -- wiki/items/0006.md
+run "$wt" lint; want_rc 0 "lint after the bad waits value is gone"
+
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"
     exit 1

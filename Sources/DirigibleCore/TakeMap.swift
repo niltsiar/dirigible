@@ -41,7 +41,7 @@ public struct TakeMap: Sendable {
     }
 
     /// A clip of a file with take time.
-    fileprivate struct Piece: Sendable {
+    struct Piece: Sendable {
         let track: TrackID
         /// The index of `track` in the session.
         let order: Int
@@ -49,6 +49,8 @@ public struct TakeMap: Sendable {
         let origin: Origin
         /// The take frame of the first clip frame.
         var first: Int { origin.frame + clip.offset.count }
+        /// The take frames that the clip plays: the one owner of the take range of a clip.
+        var takeRange: Range<Int> { first..<(first + clip.length.count) }
         /// The timeline frame of take time 0.
         var shift: Int { clip.start.count - first }
     }
@@ -99,9 +101,17 @@ public struct TakeMap: Sendable {
     /// The places that play take frame `frame` of `take`, one for each clip whose take range holds
     /// it, in timeline order. Empty: an edit removed that audio, or the take has none.
     public func timeline(atTake frame: Int, take: Int) -> [Place] {
-        pieces.filter { $0.origin.take == take && $0.first <= frame && frame < $0.first + $0.clip.length.count }
+        playing(atTake: frame, take: take)
             .map { (place: Place(track: $0.track, frame: $0.clip.start + Frames(frame - $0.first)), order: $0.order) }
             .sorted { ($0.place.frame, $0.order) < ($1.place.frame, $1.order) }.map(\.place)
+    }
+
+    /// The clips of `take` whose take range holds take frame `frame`, in timeline order, on `track`
+    /// or on any track when `track` is nil.
+    func playing(atTake frame: Int, take: Int, on track: TrackID? = nil) -> [Piece] {
+        pieces.filter {
+            $0.origin.take == take && $0.takeRange.contains(frame) && (track == nil || $0.track == track)
+        }
     }
 
     /// The take time of the clip under `frame` on `track`, or nil for a gap or a clip of a file
@@ -144,10 +154,10 @@ public enum TakeSync: Hashable, Sendable {
 
     /// Whether `pieces`, pieces of one shift in timeline order, play each take frame of `piece`.
     private static func play(_ pieces: [TakeMap.Piece], all piece: TakeMap.Piece) -> Bool {
-        let end = piece.first + piece.clip.length.count
+        let end = piece.takeRange.upperBound
         var next = piece.first
         for other in pieces where other.first <= next {
-            next = max(next, other.first + other.clip.length.count)
+            next = max(next, other.takeRange.upperBound)
             if next >= end { return true }
         }
         return false

@@ -68,6 +68,12 @@
 "error.duck.read" = "Een audiobestand van een spraakspoor is niet gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
 "error.duck.past.end" = "De selectie begint bij of na het einde van de sessie, dus de verlaging heeft geen gainpunt gewijzigd.";
 "banner.duck.unread" = "De verlaging kon deze spraakbestanden niet lezen, dus de muziek blijft luid boven hun spraak: %@.";
+"banner.take.sync.broken" = "%1$@ heeft een deel van de take-audio verplaatst. Take %2$lld loopt vanaf %3$@ niet meer synchroon met de opname.";
+"banner.take.sync.broken.unnamed" = "Een AI-agent heeft een deel van de take-audio verplaatst. Take %1$lld loopt vanaf %2$@ niet meer synchroon met de opname.";
+"banner.take.sync.show" = "Toon";
+"episode.take.sync.in" = "Take %1$lld: synchroon, %2$@ s";
+"episode.take.sync.broken" = "Take %1$lld: niet synchroon vanaf %2$@, %3$lld verschuivingen";
+"episode.take.sync.fault" = "Take-synchronisatie: %@ kan niet worden gelezen";
 "error.file.unreadable" = "Het sessiebestand is beschadigd.";
 "error.file.newer" = "Deze sessie is gemaakt met een nieuwere versie van Dirigible. Werk Dirigible bij om de sessie te openen.";
 "error.file.read" = "Het sessiebestand kan niet worden gelezen (fout %lld).";

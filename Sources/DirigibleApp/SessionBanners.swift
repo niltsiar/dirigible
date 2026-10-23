@@ -51,7 +51,17 @@ struct WindowBanners: View {
 
     var body: some View {
         let _ = model.countBody()
-        ForEach(model.shown.banners, id: \.key) { banner in BannerRow(kind: banner.kind, text: banner.text) }
+        ForEach(model.shown.banners, id: \.key) { banner in
+            if case .takeSyncBroken(_, let from, _, let agent) = banner {
+                // The row shows only at the revision of the agent edit, so Undo undoes that edit.
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(agent.map { L10n.undoAgent.format($0) } ?? L10n.undoAgentUnnamed.text) { model.undo() }
+                    Button(L10n.bannerTakeSyncShow.key) { model.transport(.seek(.frame(from))) }
+                }
+            } else {
+                BannerRow(kind: banner.kind, text: banner.text)
+            }
+        }
     }
 }
 

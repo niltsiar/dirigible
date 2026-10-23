@@ -68,6 +68,12 @@
 "error.duck.read" = "Eine Audiodatei einer Sprachspur wurde nicht gelesen (Fehler %lld). Kein Pegelpunkt wurde geändert.";
 "error.duck.past.end" = "Die Auswahl beginnt am Ende der Session oder danach, daher hat das Absenken keinen Pegelpunkt geändert.";
 "banner.duck.unread" = "Das Absenken konnte diese Sprachdateien nicht lesen, daher bleibt die Musik über ihrer Sprache laut: %@.";
+"banner.take.sync.broken" = "%1$@ hat einen Teil des Take-Audios verschoben. Take %2$lld ist ab %3$@ nicht mehr synchron mit der Aufnahme.";
+"banner.take.sync.broken.unnamed" = "Ein KI-Agent hat einen Teil des Take-Audios verschoben. Take %1$lld ist ab %2$@ nicht mehr synchron mit der Aufnahme.";
+"banner.take.sync.show" = "Zeigen";
+"episode.take.sync.in" = "Take %1$lld: synchron, %2$@ s";
+"episode.take.sync.broken" = "Take %1$lld: nicht synchron ab %2$@, %3$lld Versätze";
+"episode.take.sync.fault" = "Take-Synchronität: %@ kann nicht gelesen werden";
 "error.file.unreadable" = "Die Session-Datei ist beschädigt.";
 "error.file.newer" = "Diese Session wurde mit einer neueren Version von Dirigible erstellt. Aktualisiere Dirigible, um sie zu öffnen.";
 "error.file.read" = "Die Session-Datei kann nicht gelesen werden (Fehler %lld).";

@@ -4,6 +4,7 @@
 # two parts: a keys.md that holds the exact key text under `## <ID>`, and a scores.tsv line of the
 # ID. The text counts, not a commit hash, so a rebased branch passes. A holdout and a row of type
 # agent are skipped. log-decision.sh (each phase 6 row) and check-governance.sh (the land) run it.
+# The lead grades a key: the refusal says so, and a run agent returns to the lead.
 # Usage: scripts/check-eval-keys.sh <base> <run folder> [<tree>]
 # The check diffs evals.md from `git merge-base <base> HEAD` to the HEAD of the run tree, so a key
 # change that only the base made after the branch point is no fault of the branch. <tree> is that
@@ -86,8 +87,9 @@ for sid, (kind, key) in after.items():
     if not any(keys.get(sid) == key and sid in scored for keys, scored in folders):
         print(
             f"check-eval-keys: {sid} has a new or changed key and no eval folder in {run} "
-            "with its exact key text in keys.md and a scores.tsv line; grade it with "
-            "scripts/eval/run.sh of the branch worktree before the gates",
+            "with its exact key text in keys.md and a scores.tsv line; the lead runs "
+            "scripts/eval/run.sh for it in the background from the branch worktree, before the "
+            "gates; a run agent returns to the lead",
             file=sys.stderr,
         )
         bad = 1

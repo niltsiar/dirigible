@@ -207,6 +207,7 @@ err="$("$log" "$ek/runs/r" --from "$tmp/ekrow" 2>&1)"
 code=$?
 [[ $code -eq 2 ]] || fail "ek: a phase 6 row with an ungraded key: expected exit 2, got $code"
 [[ "$err" == *E4* ]] || fail "ek: the refusal names no ID: $err"
+[[ "$err" == *'the lead runs'* ]] || fail "ek: the refusal names no lead step: $err"
 [[ ! -s "$ek/runs/r/decisions.tsv" ]] || fail 'ek: the refused phase 6 row changed decisions.tsv'
 [[ -e "$tmp/ekrow" ]] || fail 'ek: the refused --from file is gone'
 mv "$ek/runs/r/run.md" "$ek/run.md.off"

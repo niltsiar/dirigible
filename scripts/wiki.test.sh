@@ -762,7 +762,6 @@ refuse_wait 2 wait 0006 item:xyz
 refuse_wait 2 wait 0006 run:Bad_Name
 refuse_wait 2 wait 0006 user:0002
 refuse_wait 2 wait 0006 "item:0007 extra"
-refuse_wait 1 unwait 0007
 refuse_wait 1 unwait 0099
 run "$wt" wait 0007 item:0008; want_rc 0 "first wait of a pair"
 h="$(head_of)"; n="$(commits_of)"
@@ -834,6 +833,32 @@ run "$wt" now
 want_out "- 0004 (taken: $waitrun) Take item 4" "now lists an item that an open run holds"
 [[ "$out" != *"0001 (taken"* && "$out" != *"0002 (taken"* ]] || fail "now lists an item that a closed run holds: $out"
 run "$wt" lint; want_rc 0 "lint after the takeovers"
+
+# --- a repeated write that changes nothing succeeds and makes no commit
+export DIRIGIBLE_WIKI="$tmp/repeat"
+"$wt" init >/dev/null 2>&1 || fail "repeat: init"
+put_item "$tmp/rp1.txt" "Repeat item" "Description of repeat item" "body"
+"$wt" add next --from "$tmp/rp1.txt" >/dev/null 2>&1 || fail "repeat: add"
+set_run_status open
+# repeat_is_quiet <command...>: the command succeeds, and the wiki has the same HEAD and a clean tree.
+repeat_is_quiet() {
+    local h="$(head_of)"
+    run "$wt" "$@"
+    [[ $rc -eq 0 ]] || fail "repeat $*: exit $rc: $out"
+    [[ "$h" == "$(head_of)" && -z "$(status_of)" ]] || fail "repeat $*: it made a commit or left the tree dirty"
+}
+run "$wt" take 0001 "$waitrun"; want_rc 0 "repeat: first take"
+repeat_is_quiet take 0001 "$waitrun"
+repeat_is_quiet move 0001 next
+run "$wt" wait 0001 user; want_rc 0 "repeat: first wait"
+repeat_is_quiet wait 0001 user
+run "$wt" unwait 0001; want_rc 0 "repeat: first unwait"
+repeat_is_quiet unwait 0001
+run "$wt" show 0001; hash="$(head -n 1 <<<"$out" | sed 's/^hash: //')"
+put_item "$tmp/rp2.txt" "Repeat item" "Description of repeat item" "body"
+repeat_is_quiet edit 0001 --expect "$hash" --from "$tmp/rp2.txt"
+run "$wt" unwait 0099; want_rc 1 "repeat: unwait of a missing item"
+run "$wt" lint; want_rc 0 "lint after the repeats"
 
 # --- open runs: now lists a run only when its last row is open and its run.md is not done or dropped
 export DIRIGIBLE_WIKI="$tmp/openruns"

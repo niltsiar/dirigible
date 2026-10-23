@@ -44,7 +44,8 @@ Usage: scripts/wiki.py <command> [<argument>...]
   lint                                     Check the pages, the index files (not now.md, which follows
                                            the run files), and the links.
 Free text comes only from a file, never from an argument: write the file with the Write tool. The
-tool removes the file after its commit and keeps it after a refusal.
+tool removes the file after its commit and keeps it after a refusal. A write that changes
+nothing (the same take, move, wait, edit, or unwait again) exits 0 and makes no commit.
 Where: $DIRIGIBLE_WIKI, else the folder dirigible-wiki beside the main checkout of the repo that
 holds this script (so it is the same from each worktree).
 Each write takes an exclusive flock on .git/wiki-write.lock of the wiki, polled for up to
@@ -191,6 +192,8 @@ def check_clean(wiki: Path) -> None:
 
 def commit(wiki: Path, paths: list[str], message: str) -> None:
     git(wiki, "add", "--", *paths)
+    if git(wiki, "diff", "--cached", "--quiet", "--", *paths, check=False).returncode == 0:
+        return
     git(wiki, "commit", "-q", "-F", "-", input=message)
 
 
@@ -946,7 +949,7 @@ def cmd_unwait(args) -> None:
     with write_lock(wiki):
         page = find_item(wiki, args.id)
         if "waits" not in page.fields:
-            raise Stop(f"item {args.id} does not wait")
+            return
         del page.fields["waits"]
         store(wiki, {f"wiki/items/{args.id}.md": page.text()}, f"wiki: item {args.id} stops waiting")
 

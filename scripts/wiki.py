@@ -4,7 +4,8 @@
 Usage: scripts/wiki.py <command> [<argument>...]
   init                                     Make an empty wiki. It refuses an existing path.
   path                                     Print the wiki path.
-  list <status> [--taken <run>]            Print one line for each item of a status.
+  list <status> [--taken <run>] [--ready]  Print one line for each item of a status. --ready hides
+                                           each item that waits for something that is still open.
   count <status>                           Print the number of items of a status.
   show <id>...                             Print the page hash and the page of each item.
   seed [--prs]                             Fill an empty wiki from the feature list and the release
@@ -25,6 +26,9 @@ Usage: scripts/wiki.py <command> [<argument>...]
                                            since then gives exit 75: run show again.
   move <id> <status>                       Change the status of an item.
   take <id> <run>                          Mark an item as taken by a run.
+  wait <id> <target>                       Make an item wait for the user (user), an item (item:<id>), or
+                                           a run (run:<run folder>). It refuses a cycle.
+  unwait <id>                              Clear the wait of an item.
   lesson <key> --from <file>               Append the lines of the file to the lesson page of a key.
   lessons [--seen-once]                    Print each lesson line, or each seen-once line.
   log --from <file>                        Append the lines of the file to the log.
@@ -33,8 +37,8 @@ Usage: scripts/wiki.py <command> [<argument>...]
   reserve --from <file>                    Add one decision number entry: "<number> <title>
                                            (run <run folder>)".
   numbers                                  Print the line of the decision numbers.
-  now                                      Print the state: counts, taken items, open runs, and
-                                           the last 15 log lines.
+  now                                      Print the state: counts, the items that wait for the user,
+                                           taken items, open runs, and the last 15 log lines.
   lint                                     Check the pages, the index files, and the links.
 Free text comes only from a file, never from an argument: write the file with the Write tool. The
 tool removes the file after its commit and keeps it after a refusal.
@@ -44,6 +48,9 @@ Each write takes an exclusive flock on .git/wiki-write.lock of the wiki, polled 
 DIRIGIBLE_WIKI_LOCK_WAIT seconds (default 30), then exit 75. The kernel drops the lock when its
 holder dies. Under the lock, a write refuses a dirty wiki tree and a .git/index.lock, exits 1, and
 prints the repair. Each write stages only its own paths and makes one commit.
+An item is ready when it has no waits value, or its target is closed: an item that is done or
+dropped, or a run whose run.md in the main checkout has the line "- Status: done", or a run with no
+folder. The user never closes. Readers compute it at each call: no page holds it.
 Exit codes: 0 done, 1 refused, 2 bad use, 75 try again.
 scripts/wiki.test.sh tests it.
 """
@@ -79,6 +86,7 @@ ID_RE = re.compile(r"^[0-9]{4,}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 ENTRY_RE = re.compile(r"^[0-9]{4} [^,\n]+ \(run [0-9a-z-]+\)$")
 TITLE_RE = re.compile(r"^- (upkeep (?:NEW-[A-Z]+-[a-z0-9-]+|[A-Z]+-[0-9]{3})/[a-z]+|[A-Z0-9][A-Z0-9 .,'&/+#-]*[A-Z0-9])(?=[ :(])")
+RUN_DONE_RE = re.compile(r"^- Status: done[ \t]*$", re.M)
 TAKEN_RE = re.compile(r"\(taken: run ([0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*)[ ,)]")
 GIT_ENV_DROP = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX",
                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE")
@@ -205,7 +213,7 @@ def parse_page(text: str) -> tuple[dict[str, str], list[str]] | None:
 
 
 QUOTED_FIELDS = ("title", "description", "group", "source")
-FIELD_ORDER = ("type", "title", "description", "status", "source", "runs", "taken", "group", "generated")
+FIELD_ORDER = ("type", "title", "description", "status", "source", "runs", "taken", "waits", "group", "generated")
 
 
 class Page:
@@ -267,6 +275,49 @@ def open_runs(lines: list[str]) -> list[tuple[str, str]]:
     return [(name, goal) for name, (goal, status) in last.items() if status == "open"]
 
 
+def parse_waits(value: str) -> tuple[str, str] | None:
+    """The kind and the name of a waits value, or None when the value is not one of the three kinds."""
+    if value == "user":
+        return "user", ""
+    kind, _, name = value.partition(":")
+    if (kind == "item" and ID_RE.match(name)) or (kind == "run" and RUN_RE.match(name)):
+        return kind, name
+    return None
+
+
+def awaited_item(page: Page) -> str:
+    """The ID of the item that this item waits for, or an empty string."""
+    parsed = parse_waits(page.fields.get("waits", ""))
+    return parsed[1] if parsed and parsed[0] == "item" else ""
+
+
+def run_is_open(name: str) -> bool:
+    """A run is open when its folder exists and its run.md has no done status line."""
+    folder = main_checkout() / ".scratchpads" / "runs" / name
+    if not folder.is_dir():
+        return False
+    run_md = folder / "run.md"
+    return not run_md.is_file() or not RUN_DONE_RE.search(read_text(run_md))
+
+
+def is_waiting(page: Page, items: dict[str, Page]) -> bool:
+    """True when the item has a waits target that is still open. A value that is no valid kind does not hide
+    the item: the lint reports it."""
+    parsed = parse_waits(page.fields.get("waits", ""))
+    if parsed is None:
+        return False
+    kind, name = parsed
+    if kind == "user":
+        return True
+    if kind == "item":
+        return name in items and items[name].fields.get("status") not in ("done", "dropped")
+    return run_is_open(name)
+
+
+def waiting_for_user(items: list[Page]) -> list[Page]:
+    return [p for p in items if p.fields.get("waits") == "user" and p.fields.get("status") in ("next", "later")]
+
+
 # ---------- generated files ----------
 
 def generate(wiki: Path) -> dict[str, str]:
@@ -299,9 +350,12 @@ def generate(wiki: Path) -> dict[str, str]:
     taken = [f"- {p.id} (taken: {p.fields['taken']}) {p.fields.get('title', '')}" for p in items
              if p.fields.get("status") == "next" and p.fields.get("taken")]
     runs = [f"- {name} ({goal})" for name, goal in open_runs(lines)]
+    waiting = [p.id for p in waiting_for_user(items)]
     tail = [line for line in lines if line.strip()][-LOG_LINES_IN_NOW:]
     out["wiki/now.md"] = render_page([("type", "Now")], (
-        ["# Now", "", f"Items: {counts}.", "", "## Next items taken by a run", ""] + (taken or ["None."]) +
+        ["# Now", "", f"Items: {counts}.", "",
+         f"Waiting for the user: {len(waiting)}" + (f" ({', '.join(waiting)})." if waiting else "."), "",
+         "## Next items taken by a run", ""] + (taken or ["None."]) +
         ["", "## Open runs", ""] + (runs or ["None."]) +
         ["", f"## Last {LOG_LINES_IN_NOW} log lines", ""] + (tail or ["None."])))
     return out
@@ -339,7 +393,8 @@ repo. Never edit a page by hand: each write goes through the tool, under a lock,
 
 - `Item` (`wiki/items/<nnnn>.md`): one backlog item. Fields: `title` (8 words or fewer),
   `description` (12 words or fewer), `status` (next, later, done, or dropped), `source`, `runs`,
-  `taken`, `group`, `generated`. The body holds the current state of the item. History is in git.
+  `taken`, `waits`, `group`, `generated`. `waits` is `user`, `item:<id>`, or `run:<run folder>`; set it
+  only with `wait` and `unwait`. The body holds the current state of the item. History is in git.
 - `Lesson` (`wiki/lessons/<key>.md`): the learning lines of one cause key.
 - `Log` (`wiki/log/<YYYY-MM>.md`): the run rows and the log lines of one month.
 - `Now` (`wiki/now.md`): generated. `Register` (`wiki/decision-numbers.md`): the decision numbers.
@@ -360,6 +415,7 @@ status: next
 source: "<where the item came from>"
 runs: <run folders that touched it>
 taken: <run folder that works on it>
+waits: <user, item:<id>, or run:<run folder>; set only with the wait command>
 group: "<optional group>"
 generated: <YYYY-MM-DD>
 ---
@@ -775,10 +831,14 @@ def cmd_import(args) -> None:
 def cmd_list(args) -> None:
     wiki = open_wiki()
     status = check_status(args.status)
-    for page in item_pages(wiki):
-        taken = page.fields.get("taken", "")
-        if page.fields.get("status") == status and (not args.taken or taken == args.taken):
-            print(f"{page.id} {item_line(page)}" + (f" (taken: {taken})" if taken else ""))
+    items = item_pages(wiki)
+    by_id = {p.id: p for p in items}
+    for page in items:
+        taken, waits = page.fields.get("taken", ""), page.fields.get("waits", "")
+        if page.fields.get("status") == status and (not args.taken or taken == args.taken) \
+                and not (args.ready and is_waiting(page, by_id)):
+            print(f"{page.id} {item_line(page)}" + (f" (taken: {taken})" if taken else "")
+                  + (f" (waits: {waits})" if waits else ""))
 
 
 def cmd_count(args) -> None:
@@ -849,6 +909,38 @@ def cmd_take(args) -> None:
             runs.append(args.run)
         page.fields.update(taken=args.run, runs=", ".join(runs))
         store(wiki, {f"wiki/items/{args.id}.md": page.text()}, f"wiki: item {args.id} taken by {args.run}")
+
+
+def cmd_wait(args) -> None:
+    wiki = open_wiki()
+    parsed = parse_waits(args.target)
+    if parsed is None:
+        raise Stop(f"{args.target} is not a wait target: use user, item:<id>, or run:<run folder>", 2)
+    with write_lock(wiki):
+        page = find_item(wiki, args.id)
+        kind, name = parsed
+        if kind == "item":
+            items = {p.id: p for p in item_pages(wiki)}
+            if name not in items:
+                raise Stop(f"no item {name}")
+            chain, current = [], name
+            while current in items and current not in chain:
+                chain.append(current)
+                current = awaited_item(items[current])
+            if args.id in chain:
+                raise Stop(f"item {args.id} cannot wait for item {name}: that makes a cycle ({' -> '.join([args.id] + chain)})")
+        page.fields["waits"] = args.target
+        store(wiki, {f"wiki/items/{args.id}.md": page.text()}, f"wiki: item {args.id} waits for {args.target}")
+
+
+def cmd_unwait(args) -> None:
+    wiki = open_wiki()
+    with write_lock(wiki):
+        page = find_item(wiki, args.id)
+        if "waits" not in page.fields:
+            raise Stop(f"item {args.id} does not wait")
+        del page.fields["waits"]
+        store(wiki, {f"wiki/items/{args.id}.md": page.text()}, f"wiki: item {args.id} stops waiting")
 
 
 def cmd_lesson(args) -> None:
@@ -959,6 +1051,13 @@ def cmd_lint(args) -> None:
                 problems.append(f"{rel}: the title has {words(title)} words; it needs 1 to {TITLE_WORDS}")
             if words(description) > DESCRIPTION_WORDS:
                 problems.append(f"{rel}: the description has {words(description)} words; the limit is {DESCRIPTION_WORDS}")
+            if "waits" in page.fields:
+                waits = page.fields["waits"]
+                parsed = parse_waits(waits)
+                if parsed is None:
+                    problems.append(f"{rel}: waits {waits!r} is not user, item:<id>, or run:<run folder>")
+                elif parsed[0] == "item" and not (root / "items" / f"{parsed[1]}.md").is_file():
+                    problems.append(f"{rel}: waits names the missing item {parsed[1]}")
     for path in sorted(root.rglob("*.md")):
         prose = re.sub(r"`[^`\n]*`", "", re.sub(r"```.*?```", "", read_text(path), flags=re.S))
         for target in re.findall(r"\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)", prose):
@@ -1011,7 +1110,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     command("init", cmd_init)
     command("path", cmd_path)
-    command("list", cmd_list, "status", taken={"default": None})
+    command("list", cmd_list, "status", taken={"default": None}, ready={"action": "store_true"})
     command("count", cmd_count, "status")
     command("show", cmd_show).add_argument("ids", nargs="+", metavar="id")
     command("seed", cmd_seed, prs={"action": "store_true"})
@@ -1021,6 +1120,8 @@ def build_parser() -> argparse.ArgumentParser:
     command("edit", cmd_edit, "id", src=True, expect={"required": True})
     command("move", cmd_move, "id", "status")
     command("take", cmd_take, "id", "run")
+    command("wait", cmd_wait, "id", "target")
+    command("unwait", cmd_unwait, "id")
     command("lesson", cmd_lesson, "key", src=True)
     command("lessons", cmd_lessons, seen_once={"action": "store_true"})
     command("log", cmd_log, src=True)

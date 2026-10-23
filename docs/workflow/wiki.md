@@ -16,10 +16,10 @@ The backlog, the run log, and the lessons are in a local wiki: a git repo of Mar
 
 ## What it holds
 
-- `Item` pages: one backlog item each, with a status (next, later, done, dropped). `list`, `show`, `add`, `edit`, `move`, and `take` read and change them.
+- `Item` pages: one backlog item each, with a status (next, later, done, dropped). `list`, `show`, `add`, `edit`, `move`, `take`, `wait`, and `unwait` read and change them.
 - `Lesson` pages: the learning lines of one cause key. `lesson` appends, and `lessons --seen-once` lists.
 - `Log` pages: the run rows and the log lines of one month. `log` appends, and `runs` prints them.
-- `now`: the counts, the taken items, the open runs, and the last 15 log lines.
+- `now`: the counts, the items that wait for the user, the taken items, the open runs, and the last 15 log lines.
 - The decision numbers: `reserve` adds an entry, and `numbers` prints them.
 - Each `index.md` and `now.md` is generated. `scripts/wiki.py lint` fails on a page that no index links.
 
@@ -30,6 +30,18 @@ The wiki is local only, with no remote: the backlog holds tester notes. A run ne
 A write takes its text only from a file: write the file with the Write tool and pass `--from <file>`. The guardrail hook reads the whole command text, and backticks in an argument run in the shell. The tool removes the file after its commit and keeps it after a refusal. An `add` or `edit` file has the title on line 1 (8 words or fewer), the description on line 2 (12 words or fewer), a blank line, and the body. Run `show <id>` first, and pass its hash to `edit <id> --expect <hash> --from <file>`. On exit 75, run `show` again and redo the edit on the new text.
 
 Each write takes a lock and makes one commit. A write that stopped part way leaves a dirty wiki tree, and the next write refuses with the repair steps.
+
+## Items that wait
+
+An item can wait. Its optional `waits:` field holds one target:
+
+- `user`: the item waits for a decision or an action of the user. It stays hidden until `unwait`.
+- `item:<id>`: the item waits for another item. The wait ends when that item is done or dropped.
+- `run:<run folder>`: the item waits for a run. The wait ends when `run.md` of that run in the main checkout has the line `- Status: done`, or when that run folder does not exist.
+
+`wait <id> <target>` sets the field and `unwait <id>` clears it. `wait` refuses a missing item, a target item that does not exist, and a cycle, and it writes nothing then. `edit` and `move` leave the field unchanged.
+
+`list next --ready` hides each item whose target is still open. Phase 0 of the deliver skill reads this list. `list <status>` with no flag shows every item, each with its `(waits: <target>)` value. `now` prints a line with the number and the IDs of the next and later items that wait for the user. `lint` fails on a `waits:` value that is no kind, a bad run folder name, or a missing item.
 
 ## What a fresh wiki cannot rebuild
 

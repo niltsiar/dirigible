@@ -37,7 +37,7 @@ An item can wait. Its optional `waits:` field holds one target:
 
 - `user`: the item waits for a decision or an action of the user. It stays hidden until `unwait`.
 - `item:<id>`: the item waits for another item. The wait ends when that item is done or dropped.
-- `run:<run folder>`: the item waits for a run. The wait ends when `run.md` of that run in the main checkout has the line `- Status: done`, or when that run folder does not exist.
+- `run:<run folder>`: the item waits for a run. The wait ends when `run.md` of that run in the main checkout has a status line of done or dropped (`- Status: done (PR ...)` counts), or when that run folder does not exist.
 
 `wait <id> <target>` sets the field and `unwait <id>` clears it. `wait` refuses a missing item, a target item that does not exist, and a cycle, and it writes nothing then. `edit` and `move` leave the field unchanged.
 

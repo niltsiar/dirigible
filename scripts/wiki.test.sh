@@ -695,6 +695,20 @@ set_run_status done
 ready_is 0001 0003 0005 0006 0007 0008 0009
 set_run_status open
 ready_is 0001 0003 0006 0007 0008 0009
+# set_run_line <line>: run.md with this exact status line.
+set_run_line() { printf '%s\n' "# Run $waitrun" '' "$1" > "$waitrepo/.scratchpads/runs/$waitrun/run.md"; }
+for form in '- Status: done (PR 168, 57707169..81629836; no tag, no DMG: workflow only)' \
+    'Status: done. PR https://github.com/niltsiar/dirigible/pull/109 landed on main.' \
+    '- Status: done' 'Status: done' '- Status: dropped (wrong name and scope)'; do
+    set_run_line "$form"
+    ready_is 0001 0003 0005 0006 0007 0008 0009
+done
+for form in '- Status: open (plan gate closed; next: Phase 4)' '- Status: deferred (features first)' \
+    '- Status: doneness' '- Status: undone' '- Status:' 'Status: open'; do
+    set_run_line "$form"
+    ready_is 0001 0003 0006 0007 0008 0009
+done
+set_run_status open
 run "$wt" move 0003 dropped; want_rc 0 "move a waiting item to dropped"
 run "$wt" wait 0006 item:0003; want_rc 0 "wait on a dropped item"
 ready_is 0001 0006 0007 0008 0009

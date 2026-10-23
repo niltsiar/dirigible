@@ -126,7 +126,8 @@ struct AgentManualTests {
         let steps = Self.steps("cut-from-transcript")
         for text in [
             "of the current session from frame 0 with each track heard", "muted or not soloed, stop and ask the user",
-            "of the current session with each track heard", "`transcript_import` with the `path`",
+            "or of one take: give `take`", "Many skipped words mean a wrong `take`",
+            "`transcript_import` with the `path`",
             "`text` only for a short transcript", "`transcript_words` with `match`",
             "words follow the clips of the import track: edit all tracks together", "before the cut",
             "one `transcript_cut` with all the occurrences", "run `transcript_words` again before the next cut",
@@ -158,7 +159,7 @@ struct AgentManualTests {
     /// W1: a transcript with no word times gives cues, and a cut removes each whole cue.
     @Test func theTranscriptRecipeStopsAtCues() {
         let steps = Self.steps("cut-from-transcript")
-        #expect(steps.contains("Ask the tool for word times (Whisper: word timestamps on)"), "word times")
+        #expect(steps.contains("Turn on word timestamps (Whisper)"), "word times")
         #expect(
             steps.contains(
                 "When `transcript_import` reports cues, stop and ask the user: a cut removes each whole cue"),

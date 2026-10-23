@@ -23,6 +23,13 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let ids = try edit(ripple: ripple, body)
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: ((ids.isEmpty ? ["OK"] : ids) + note).joined(separator: "\n"), isError: false)
+        case .takeImport(let take, let body):
+            let read = studio.takeMap
+            if let fault = read.fault(take: take, in: studio.session) {
+                return .result(text: TakeImportError.anchor(fault).message, isError: true)
+            }
+            let lines = try edit(ripple: false) { session throws(SessionError) in try body(&session, read.map) }
+            return .result(text: lines.joined(separator: "\n"), isError: false)
         case .marker(let work):
             if let image = work.image, !image.isEmpty { return refusedOpen }
             let marker: Marker

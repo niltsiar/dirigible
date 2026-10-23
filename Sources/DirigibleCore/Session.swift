@@ -324,6 +324,8 @@ public enum SessionError: Error, Hashable, Sendable {
     case unknownWord(WordOccurrence)
     /// An import found no word over a clip of the track (decision 0055).
     case noWordOnTrack(TrackID)
+    /// A take-time import found no clip of the track with a file of this take (decision 0061).
+    case noTakeAudio(TrackID, Int)
     /// A word of this file starts before 0 or ends past the file length (decision 0055).
     case wordOutsideFile(FileID)
     /// A cut names only words with no audio (decision 0055).

@@ -209,7 +209,7 @@ extension L10n {
             .crossfadeOutsideFile,
             .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .crossfadeAtEqualGains, .fadeAtCrossfade, .laneOutOfRange,
             .foreignFile,
-            .otherSampleRate, .unknownWord, .noWordOnTrack,
+            .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
             .nothingToHeal:
             return errorSessionOther.text

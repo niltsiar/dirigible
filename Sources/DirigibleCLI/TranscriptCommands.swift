@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
 import Foundation
@@ -15,12 +16,34 @@ struct TranscriptCommand: ParsableCommand {
             abstract:
                 "Import a Whisper JSON, WebVTT, or SRT transcript of an export of the whole session; the track is the track "
                 + "whose clips carry the words. Print the transcript ID and the count of words. A word with no clip of the track under it, or with no time, is skipped. A new import "
-                + "replaces the words of an earlier one in the same span.")
+                + "replaces the words of an earlier one in the same span.",
+            discussion:
+                "With --take <n>, the transcript is of take n, not of an export: time 0 is the record start of that take, "
+                + "and each word lands on the audio of the take where the edits left it. --at is then a take frame. "
+                + "Exit 1 when the track has no audio of the take; exit 2 when a take anchor in Capture/ cannot be read."
+        )
         @OptionGroup var package: PackageArgument
         @Argument(help: "The transcript file, or - for stdin.") var file: String
         @Option(help: "The track whose clips carry the words.") var track: String
-        @Option(parsing: .unconditional, help: "The timeline frame of second 0 of the transcript.") var at = 0
+        @Option(
+            parsing: .unconditional,
+            help: "The timeline frame of second 0 of the transcript, or with --take a take frame.")
+        var at = 0
+        @Option(help: "The take number, when the transcript is of one take. Time 0 is the record start of the take.")
+        var take: Int?
         @Option(help: "The transcript name. The default is the file name, else transcript.") var name: String?
+
+        func validate() throws {
+            if let take, take < 1 { throw ValidationError("The take must be 1 or more.") }
+        }
+
+        /// A session refusal exits 1; a take anchor that does not read exits 2.
+        private func refusedTakeImport(_ error: TakeImportError) -> ExitCode {
+            switch error {
+            case .session: fail(error.message, code: editRefused)
+            case .anchor: fail(error.message, code: packageError)
+            }
+        }
 
         func run() throws {
             let transcript: TranscriptFile
@@ -33,10 +56,25 @@ struct TranscriptCommand: ParsableCommand {
                 throw fail(error.message, code: editRefused)
             }
             let title = name ?? (file == "-" ? TranscriptWork.defaultName : URL(filePath: file).lastPathComponent)
-            let lines = try editPackage(package, ripple: false) { session throws(SessionError) in
-                TranscriptWork.importLines(
-                    try session.importTranscript(transcript, name: title, track: TrackID(track), at: Frames(at)),
-                    cues: transcript.cues)
+            let lines: [String]
+            if let take {
+                lines = try editPackage(package, ripple: false, refused: refusedTakeImport) {
+                    session, _ throws(TakeImportError) in
+                    try TranscriptWork.inTake(
+                        &session, take: take, read: TakeMap.of(session, anchors: TakeAnchors.result(package.url))
+                    ) { session, map throws(SessionError) in
+                        TranscriptWork.importLines(
+                            try session.importTranscript(
+                                transcript, name: title, track: TrackID(track), at: Frames(at), time: .take(take, map)),
+                            cues: transcript.cues, take: take)
+                    }
+                }
+            } else {
+                lines = try editPackage(package, ripple: false) { session throws(SessionError) in
+                    TranscriptWork.importLines(
+                        try session.importTranscript(transcript, name: title, track: TrackID(track), at: Frames(at)),
+                        cues: transcript.cues)
+                }
             }
             print(lines.prefix(2).joined(separator: "\n"))
             warn(Array(lines.dropFirst(2)))

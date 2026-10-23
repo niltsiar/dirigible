@@ -35,6 +35,16 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         } catch {
             throw ToolError(error.message(package: path))
         }
+    case .takeImport(let take, let edit):
+        do throws(EditFailure<TakeImportError>) {
+            let lines = try editPackageCore(package, ripple: false) { session, _ throws(TakeImportError) in
+                try TranscriptWork.inTake(
+                    &session, take: take, read: TakeMap.of(session, anchors: TakeAnchors.result(package)), edit)
+            }
+            return lines.joined(separator: "\n")
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
     case .paste(let work):
         do throws(EditFailure<PasteError>) {
             let (ids, note) = try editPackageCore(package, ripple: false) { session, lock throws(PasteError) in

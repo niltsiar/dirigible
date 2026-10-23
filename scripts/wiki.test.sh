@@ -20,7 +20,7 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
 unset DIRIGIBLE_WIKI_LOCK_WAIT
 
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
-g() { git -c user.name=t -c user.email=t@t -c commit.gpgsign=false "$@"; }
+g() { git -c user.name=t -c user.email=t@t "$@"; }
 newwiki() {
     export DIRIGIBLE_WIKI="$tmp/$1"
     local out
@@ -261,6 +261,20 @@ run "$script" lint; want_rc 1 "a broken link"
 want_out "nowhere.md" "a broken link"
 git -C "$DIRIGIBLE_WIKI" checkout -q -- wiki/items/0001.md
 run "$script" lint; want_rc 0 "lint at the end of the C7 cases"
+
+# --- a wiki commit uses the git config as it is: no -c flag, so no signing bypass and no fixed identity
+mkdir -p "$tmp/gitstub"
+cat > "$tmp/gitstub/git" <<EOF
+#!/bin/bash
+printf '%s\n' "\$*" >> "$tmp/git-args.log"
+exec "$(command -v git)" "\$@"
+EOF
+chmod +x "$tmp/gitstub/git"
+run env PATH="$tmp/gitstub:$PATH" DIRIGIBLE_WIKI="$tmp/cfg" "$script" init; want_rc 0 "init with a git stub"
+put_item "$tmp/cfg-a.txt" "Config item" "A write under a git stub" "body"
+run env PATH="$tmp/gitstub:$PATH" DIRIGIBLE_WIKI="$tmp/cfg" "$script" add next --from "$tmp/cfg-a.txt"; want_rc 0 "add with a git stub"
+[[ "$(rg -c ' commit ' "$tmp/git-args.log")" -ge 2 ]] || fail "the git stub saw fewer than 2 commits: $(cat "$tmp/git-args.log")"
+! rg -q -- '(^| )-c ' "$tmp/git-args.log" || fail "wiki.py ran git with a -c flag: $(rg -- '(^| )-c ' "$tmp/git-args.log" | head -n 1)"
 
 # --- C6 two writers at once
 newwiki race

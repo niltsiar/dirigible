@@ -39,7 +39,7 @@ An item can wait. Its optional `waits:` field holds one target:
 - `item:<id>`: the item waits for another item. The wait ends when that item is done or dropped.
 - `run:<run folder>`: the item waits for a run. The wait ends when `run.md` of that run in the main checkout has a status line of done or dropped (`- Status: done (PR ...)` counts), or when that run folder does not exist.
 
-`wait <id> <target>` sets the field and `unwait <id>` clears it. `wait` refuses a missing item, a target item that does not exist, and a cycle, and it writes nothing then. `edit` and `move` leave the field unchanged.
+`wait <id> <target>` sets the field and `unwait <id>` clears it. `wait` refuses a missing item, a target item that does not exist, and a cycle, and it writes nothing then. `edit` and `move` leave the field unchanged. A write that changes nothing (the same `take`, `move`, `wait`, or `unwait` again) exits 0 and makes no commit.
 
 `list next --ready` hides each item whose target is still open. Phase 0 of the deliver skill reads this list. `list <status>` with no flag shows every item, each with its `(waits: <target>)` value. `now` prints a line with the number and the IDs of the next and later items that wait for the user. `lint` fails on a `waits:` value that is no kind, a bad run folder name, or a missing item.
 

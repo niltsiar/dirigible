@@ -68,11 +68,11 @@
 "error.duck.read" = "Un fichier audio d’une piste de voix n’a pas pu être lu (erreur %lld). Aucun point de gain n’a changé.";
 "error.duck.past.end" = "La sélection commence à la fin de la session ou après, l’atténuation n’a donc modifié aucun point de gain.";
 "banner.duck.unread" = "L’atténuation n’a pas pu lire ces fichiers de voix, la musique reste donc forte sur leur voix : %@.";
-"banner.take.sync.broken" = "%1$@ a déplacé une partie de l’audio de la prise. La prise %2$lld n’est plus synchronisée avec l’enregistrement à partir de %3$@.";
-"banner.take.sync.broken.unnamed" = "Un agent d’IA a déplacé une partie de l’audio de la prise. La prise %1$lld n’est plus synchronisée avec l’enregistrement à partir de %2$@.";
+"banner.take.sync.broken" = "%1$@ a déplacé une partie de l’audio de la prise. La prise %2$lld n’est plus synchronisée avec l’enregistrement à partir de %3$@ sur la timeline.";
+"banner.take.sync.broken.unnamed" = "Un agent d’IA a déplacé une partie de l’audio de la prise. La prise %1$lld n’est plus synchronisée avec l’enregistrement à partir de %2$@ sur la timeline.";
 "banner.take.sync.show" = "Afficher";
 "episode.take.sync.in" = "Prise %1$lld : synchronisée, %2$@ s";
-"episode.take.sync.broken" = "Prise %1$lld : désynchronisée à partir de %2$@, %3$lld décalages";
+"episode.take.sync.broken" = "Prise %1$lld : désynchronisée à partir de %2$@ sur la timeline, %3$lld décalages";
 "episode.take.sync.fault" = "Synchronisation des prises : impossible de lire %@";
 "error.file.unreadable" = "Le fichier de la session est endommagé.";
 "error.file.newer" = "Cette session a été créée par une version plus récente de Dirigible. Mettez à jour Dirigible pour l’ouvrir.";

@@ -68,11 +68,11 @@
 "error.duck.read" = "An audio file of a speech track did not read (error %lld). No gain point changed.";
 "error.duck.past.end" = "The selection starts at or after the end of the session, so the duck changed no gain point.";
 "banner.duck.unread" = "The duck did not read these speech files, so the music stays up over their speech: %@.";
-"banner.take.sync.broken" = "%1$@ moved part of the take audio. Take %2$lld is out of sync with the recording from %3$@.";
-"banner.take.sync.broken.unnamed" = "An AI agent moved part of the take audio. Take %1$lld is out of sync with the recording from %2$@.";
+"banner.take.sync.broken" = "%1$@ moved part of the take audio. Take %2$lld is out of sync with the recording from %3$@ on the timeline.";
+"banner.take.sync.broken.unnamed" = "An AI agent moved part of the take audio. Take %1$lld is out of sync with the recording from %2$@ on the timeline.";
 "banner.take.sync.show" = "Show";
 "episode.take.sync.in" = "Take %1$lld: In sync, %2$@ s";
-"episode.take.sync.broken" = "Take %1$lld: Out of sync from %2$@, %3$lld shifts";
+"episode.take.sync.broken" = "Take %1$lld: Out of sync from %2$@ on the timeline, %3$lld shifts";
 "episode.take.sync.fault" = "Take sync: Cannot read %@";
 "error.file.unreadable" = "The session file is damaged.";
 "error.file.newer" = "This session was made by a newer version of Dirigible. Update Dirigible to open it.";

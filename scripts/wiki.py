@@ -547,6 +547,8 @@ def cmd_init(args) -> None:
     wiki.mkdir(parents=True)
     (wiki / "raw").mkdir()
     git(wiki, "init", "-q", "-b", "main")
+    # Agents write the wiki unattended, and a signing prompt would block each write.
+    git(wiki, "config", "--local", "commit.gpgsign", "false")
     files = init_files()
     for rel, text in files.items():
         write_file(wiki / rel, text)

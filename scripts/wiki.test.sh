@@ -276,6 +276,11 @@ run env PATH="$tmp/gitstub:$PATH" DIRIGIBLE_WIKI="$tmp/cfg" "$script" add next -
 [[ "$(rg -c ' commit ' "$tmp/git-args.log")" -ge 2 ]] || fail "the git stub saw fewer than 2 commits: $(cat "$tmp/git-args.log")"
 ! rg -q -- '(^| )-c ' "$tmp/git-args.log" || fail "wiki.py ran git with a -c flag: $(rg -- '(^| )-c ' "$tmp/git-args.log" | head -n 1)"
 
+# --- init turns off commit signing in the new wiki only (user 2026-10-23): one local config write
+[[ "$(git -C "$tmp/cfg" config --local --get commit.gpgsign)" == false ]] || fail "init did not set commit.gpgsign false in the wiki"
+[[ "$(rg -c ' config ' "$tmp/git-args.log")" == 1 ]] || fail "wiki.py wrote git config other than once: $(rg ' config ' "$tmp/git-args.log")"
+rg -q -F -x -- "-C $tmp/cfg config --local commit.gpgsign false" "$tmp/git-args.log" || fail "the config write is not the local signing key of the wiki: $(rg ' config ' "$tmp/git-args.log")"
+
 # --- C6 two writers at once
 newwiki race
 c0="$(commits_of)"

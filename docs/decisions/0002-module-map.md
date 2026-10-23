@@ -30,6 +30,7 @@
 - Amended: 2026-10-16, run `2026-10-16-diagnostics`. `DirigibleAudio/Diagnostics/` holds the journal of each launch. `DirigibleAudio` imports `os` (the one `fault` line of a journal that cannot open) and `CryptoKit` (the tokens of the device UIDs) (see 0059).
 - Amended: 2026-10-17, run `2026-10-16-diagnostics`. `DirigibleAudio/Diagnostics/` also holds the hang watchdog. The C target `CMainStack` holds the stack walk and the image list of the watchdog, with C warnings as errors. `DirigibleAudio` depends on it (see 0059).
 - Amended: 2026-10-17, run `2026-10-16-diagnostics`. `DirigibleAudio/Diagnostics/` also holds the problem report and its redaction. `DirigibleAudio` imports `SystemConfiguration` (the computer name and the local host name of the redaction, with no DNS lookup) (see 0059).
+- Amended: 2026-10-23, run `2026-10-23-read-by-time`. `DirigibleAudio/DSP/` also holds the window scan of the mix (`MixLevels.swift`) and the range meter (`RangeMeter.swift`). `DirigibleCore/LevelSeries.swift` holds the window series and the silence and pause rules (see 0062).
 
 ## Context
 

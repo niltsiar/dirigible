@@ -45,4 +45,34 @@ struct ReadBenchmark {
         expectLUFS(read.measure.integrated, -20, tolerance: 0.5, "the meter of the fixture")
         expectWithinBudget(elapsed, .milliseconds(10_500), "meter of 66.5 min took \(elapsed)")
     }
+
+    /// The silences of the whole fixture and the nearest pause 0.3 s before the gap of the clip
+    /// at frame 96 000 000, with the defaults: -40 dBFS, 500 ms and 200 ms, a 2 s window. The
+    /// silences budget is 2 times the first optimized time (1.08 s on the Intel Mac), rounded up to
+    /// 0.5 s; the pause budget of C14 (0.5 s) is already that rounding of 2 times 2.3 ms.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func silencesAndPauseFitTheBudget() throws {
+        let (package, frames) = try Self.fixture()
+        let threshold = Gain(dB: -40)!
+        let clock = ContinuousClock()
+        var start = clock.now
+        let all = try mixLevels(
+            of: nil, in: package.session, package: package.url, range: 0..<frames, silence: threshold)
+        let silences = all.series.silences(threshold: threshold, minLength: 24_000, in: 0..<frames)
+        let silencesTime = clock.now - start
+
+        let at = Frames(96_000_000 + 417_600)
+        start = clock.now
+        let near = try mixLevels(
+            of: nil, in: package.session, package: package.url, range: at - 96_000..<at + 96_000,
+            silence: threshold)
+        let pause = near.series.nearestPause(at: at, window: 96_000, threshold: threshold, minLength: 9_600)
+        let pauseTime = clock.now - start
+
+        print("bench report: silences of 66.5 min took \(silencesTime), nearest pause took \(pauseTime)")
+        #expect(silences.count == 399, "silences of the fixture: \(silences.count)")
+        #expect(pause == .pause(Frames(96_432_000)..<Frames(96_480_000), cut: 96_456_000), "\(pause)")
+        expectWithinBudget(silencesTime, .milliseconds(2_500), "silences of 66.5 min took \(silencesTime)")
+        expectWithinBudget(pauseTime, .milliseconds(500), "nearest pause took \(pauseTime)")
+    }
 }

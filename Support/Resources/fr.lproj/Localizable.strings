@@ -522,6 +522,10 @@
 "banner.kind.warning" = "Avertissement";
 "banner.kind.error" = "Erreur";
 "banner.kind.info" = "Information";
+"error.transcript.empty" = "La transcription n’a aucun mot sur la timeline. Il n’y a aucun sous-titre à écrire.";
+"error.transcript.gone" = "La transcription n’est plus dans la session. Aucun fichier n’a été écrit.";
+"error.transcript.unloaded" = "Le fichier de la transcription est manquant ou endommagé. Importez de nouveau la transcription avec un agent ou la commande dirigible.";
+"menu.file.export.transcript" = "Exporter la transcription…";
 
 /* Start window */
 "start.title" = "Bienvenue dans Dirigible";
@@ -561,3 +565,6 @@
 "report.file.name" = "Rapport Dirigible %@";
 "notice.unclean.text" = "La dernière fois, Dirigible ne s’est pas fermé normalement. Un rapport peut en montrer la cause. Dirigible n’envoie rien : vous choisissez si vous envoyez le fichier.";
 "notice.unclean.later" = "Pas maintenant";
+"panel.transcript.choice" = "Transcription";
+"panel.transcript.format.srt" = "SRT";
+"panel.transcript.format.vtt" = "WebVTT";

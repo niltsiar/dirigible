@@ -19,4 +19,6 @@ enum WindowAlert: Hashable {
     /// Remove Unused Files found no file to move (decision 0047). The scan gives the kept files,
     /// the damaged backups, and the pool entries that are not a regular file.
     case noUnusedFiles(UnusedFiles)
+    /// File > Export Transcript wrote no file.
+    case transcriptExport(TranscriptExportError)
 }

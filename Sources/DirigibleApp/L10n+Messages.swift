@@ -141,6 +141,17 @@ extension L10n {
         }
     }
 
+    /// The text of a failed Export Transcript. The number from the panel names no transcript when
+    /// an edit removed it while the panel showed.
+    static func message(for error: TranscriptExportError) -> String {
+        switch error {
+        case .cues(.noTranscript), .cues(.severalTranscripts), .cues(.unknownTranscript): errorTranscriptGone.text
+        case .cues(.notLoaded): errorTranscriptUnloaded.text
+        case .cues(.noCue): errorTranscriptEmpty.text
+        case .write(let error): message(for: error)
+        }
+    }
+
     /// The text of an import error (decision 0040): it quotes the file and says what to do. The
     /// window shows no alert for a cancel, so `.cancelled` has no key.
     private static func message(for error: ImportError) -> String {

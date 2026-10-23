@@ -522,6 +522,10 @@
 "banner.kind.warning" = "Waarschuwing";
 "banner.kind.error" = "Fout";
 "banner.kind.info" = "Informatie";
+"error.transcript.empty" = "Het transcript heeft geen woord op de tijdlijn, dus er zijn geen ondertitels om te schrijven.";
+"error.transcript.gone" = "Het transcript staat niet meer in de sessie, dus er is geen bestand geschreven.";
+"error.transcript.unloaded" = "Het bestand van het transcript ontbreekt of is beschadigd. Importeer het transcript opnieuw met een agent of het commando dirigible.";
+"menu.file.export.transcript" = "Exporteer transcript…";
 
 /* Start window */
 "start.title" = "Welkom bij Dirigible";
@@ -561,3 +565,6 @@
 "report.file.name" = "Dirigible-rapport %@";
 "notice.unclean.text" = "Dirigible is de vorige keer niet normaal afgesloten. Een rapport kan laten zien waarom. Dirigible verstuurt niets: jij kiest of je het bestand verstuurt.";
 "notice.unclean.later" = "Niet nu";
+"panel.transcript.choice" = "Transcript";
+"panel.transcript.format.srt" = "SRT";
+"panel.transcript.format.vtt" = "WebVTT";

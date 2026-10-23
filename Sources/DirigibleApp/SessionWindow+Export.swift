@@ -45,7 +45,7 @@ extension SessionWindow {
     var canExport: Bool { exportStudio.flatMap { source(of: .session, in: $0) } != nil }
     var canExportSelection: Bool { exportStudio.flatMap { source(of: .selection, in: $0) } != nil }
 
-    /// Import Audio, Export, Export Selection, and Export Chapters are off when they cannot run. Their keys have Command, so the
+    /// Import Audio, Export, Export Selection, Export Chapters, and Export Transcript are off when they cannot run. Their keys have Command, so the
     /// plain-key rule does not apply. During an import, the edit items whose key no text field uses
     /// are off. Auto Level and Duck Music Under Speech are also off with no clip or a busy studio,
     /// and Heal Clips with no range or a busy studio. The other items
@@ -55,6 +55,7 @@ extension SessionWindow {
         case .export: canExport
         case .exportSelection: canExportSelection
         case .exportChapters: canExportChapters
+        case .exportTranscript: canExportTranscript
         case .importAudio: canImport
         case .insert, .cutSelectedTracks, .fade: importJob == nil
         case .autoLevel, .autoLevelPerTrack, .duck:
@@ -200,6 +201,34 @@ extension SessionWindow {
                         dropped, file: target.url.lastPathComponent, revision: revision)
                 } catch {
                     alert = .error(.export(error))
+                }
+            }
+        }
+    }
+
+    /// On when an export can start and the session has a transcript.
+    var canExportTranscript: Bool { exportStudio.map { !$0.session.transcriptNames.isEmpty } == true }
+
+    /// File > Export Transcript: the save panel, then the file of `dirigible transcript export` for
+    /// the session of the Save click, so an agent edit while the panel shows is in the file. The
+    /// write runs off the main actor (`Studio.exportTranscript`). A fault shows its alert.
+    func exportTranscript() {
+        guard let studio = exportStudio, let window, let app else { return }
+        let transcripts = studio.session.transcriptNames
+        guard !transcripts.isEmpty else { return }
+        exportStep = .choosing
+        app.chooseTranscriptExport(window, url.deletingPathExtension().lastPathComponent, transcripts) {
+            [weak self] target in
+            guard let self, exportStep == .choosing else { return }
+            exportStep = nil
+            guard let target else { return }
+            let session = studio.session
+            Task {
+                do throws(TranscriptExportError) {
+                    try await studio.exportTranscript(
+                        session, transcript: target.transcript, as: target.format, to: target.url)
+                } catch {
+                    alert = .transcriptExport(error)
                 }
             }
         }

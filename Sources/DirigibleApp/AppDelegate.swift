@@ -136,6 +136,11 @@ import UniformTypeIdentifiers
         (NSWindow, String, String?, @escaping @MainActor (ChaptersTarget?) -> Void) -> Void = {
             ExportPanel.beginChapters(for: $0, name: $1, message: $2, done: $3)
         }
+    /// The save panel of Export Transcript as a sheet of a window: the name, the transcripts of
+    /// the session, and the answer. Tests give their own.
+    @ObservationIgnored var chooseTranscriptExport:
+        (NSWindow, String, [(id: TranscriptID, name: String)], @escaping @MainActor (TranscriptTarget?) -> Void)
+            -> Void = { ExportPanel.beginTranscript(for: $0, name: $1, transcripts: $2, done: $3) }
 
     /// The app: the list of active recordings in Application Support.
     override convenience init() {

@@ -9,9 +9,9 @@ import Testing
 struct EpisodeInspectorTests {
     static let english = Result { try stringsTable("en") }
 
-    func lines(_ sync: [Int: TakeSync], fault: FinalizeError? = nil) throws -> [String] {
+    func lines(_ sync: [Int: TakeSync], faults: [FinalizeError] = []) throws -> [String] {
         let table = try Self.english.get()
-        return takeSyncLines(sync, fault: fault, sampleRate: 48_000, locale: Locale(identifier: "en_US")) {
+        return takeSyncLines(sync, faults: faults, sampleRate: 48_000, locale: Locale(identifier: "en_US")) {
             table[$0.rawValue] ?? $0.rawValue
         }
     }
@@ -25,9 +25,13 @@ struct EpisodeInspectorTests {
             try lines([2: .inSync(offset: -1_415_798), 1: .broken(from: 60_816_000, shifts: 3)]) == [
                 "Take 1: Out of sync from 0:21:07, 3 shifts", "Take 2: In sync, -29.496 s",
             ])
-        let fault = FinalizeError.readFailed(file: "Capture/take4.anchor", errno: EACCES)
+        // A fault keeps out only its own take: the state lines stay, then one line for each fault.
+        let take3 = FinalizeError.readFailed(file: "Capture/take3.anchor", errno: EACCES)
+        let take4 = FinalizeError.readFailed(file: "Capture/take4.anchor", errno: EIO)
         #expect(
-            try lines([1: .inSync(offset: 0)], fault: fault) == ["Take sync: Cannot read Capture/take4.anchor"],
-            "the fault line takes the place of the state lines")
+            try lines([1: .inSync(offset: 0), 2: .broken(from: 60_816_000, shifts: 2)], faults: [take3, take4]) == [
+                "Take 1: In sync, +0.000 s", "Take 2: Out of sync from 0:21:07, 2 shifts",
+                "Take sync: Cannot read Capture/take3.anchor", "Take sync: Cannot read Capture/take4.anchor",
+            ])
     }
 }

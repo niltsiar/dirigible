@@ -72,6 +72,14 @@ struct LevelSeriesTests {
         #expect(found == [Self.windows(2, 14)], "\(found)")
     }
 
+    /// The scan and the step count check of `meter` take the window and the grid from here.
+    @Test func theGridOfAReadIsWholeWindowsCutToTheEnd() {
+        #expect(LevelSeries.window(rate: 48_000) == 2400 && LevelSeries.window(rate: 10) == 1)
+        #expect(LevelSeries.grid(of: 1000..<5000, rate: 48_000, end: 100_000) == 0..<7200)
+        #expect(LevelSeries.grid(of: 1000..<5000, rate: 48_000, end: 6000) == 0..<6000)
+        #expect(LevelSeries.grid(of: 4800..<9600, rate: 48_000, end: 100_000) == 4800..<9600)
+    }
+
     @Test func aSeriesWithTheWrongCountIsRefused() {
         let level = WindowLevel(meanSquare: 0, peak: 0)
         let tooMany = LevelSeries(range: 0..<4801, window: 2400, levels: Array(repeating: level, count: 4))

@@ -30,6 +30,17 @@ public struct LevelSeries: Hashable, Sendable {
         (self.range, self.window, self.levels) = (range, window, levels)
     }
 
+    /// The scan window at `rate` frames per second: 50 ms, and 1 frame or more.
+    public static func window(rate: Int) -> Frames { Frames(max(1, rate / 20)) }
+
+    /// The frames that a read of `range` scans (decision 0062): from the grid window of
+    /// `range.lowerBound` to the grid frame after `range.upperBound`, cut to `end`, the session end.
+    public static func grid(of range: Range<Frames>, rate: Int, end: Frames) -> Range<Frames> {
+        let window = window(rate: rate).count
+        let last = (range.upperBound.count + window - 1) / window * window
+        return Frames(range.lowerBound.count / window * window)..<Frames(min(last, max(range.upperBound, end).count))
+    }
+
     /// The frames of window `index`.
     func frames(of index: Int) -> Range<Frames> {
         let start = range.lowerBound.count + index * window.count

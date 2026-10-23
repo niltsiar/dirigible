@@ -122,6 +122,20 @@ struct ReadLiveTests {
         await studio.settle()
     }
 
+    /// A take start after the last block of a read, before its result reaches the main actor,
+    /// keeps the complete result: the read never saw the stop.
+    @Test func aTakeStartAfterTheLastBlockKeepsTheResult() async throws {
+        let studio = try await package.open()
+
+        let result = try await studio.readMix { _, _, _, _ in
+            DispatchQueue.main.sync { MainActor.assumeIsolated { studio.endReads() } }
+            return 7
+        }
+
+        #expect(result == 7)
+        await studio.settle()
+    }
+
     /// The muted track counts for `silences` on the window session too, so its missing file
     /// refuses the read.
     @Test func aMissingFileOnAMutedTrackRefusesTheLiveSilences() async throws {

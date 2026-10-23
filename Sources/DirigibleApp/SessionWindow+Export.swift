@@ -43,9 +43,11 @@ struct TranscriptLeftOutShown: Equatable {
 }
 
 extension SessionWindow {
-    /// The studio when an export can start: idle, no pending take, no export step, no export.
+    /// The studio when an export can start: idle, no pending take, no export step, no export, and
+    /// no Go to Take Time sheet.
     private var exportStudio: Studio? {
-        guard exportStep == nil, let studio = idleStudio, studio.pendingTake == nil, studio.exportProgress == nil
+        guard exportStep == nil, takeTimeDraft == nil, let studio = idleStudio, studio.pendingTake == nil,
+            studio.exportProgress == nil
         else { return nil }
         return studio
     }
@@ -66,8 +68,10 @@ extension SessionWindow {
         case .exportTranscript: canExportTranscript
         case .importAudio: canImport
         case .insert, .cutSelectedTracks, .fade: importJob == nil
-        case .autoLevel, .autoLevelPerTrack, .duck:
+        case .autoLevel, .autoLevelPerTrack:
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true
+        // Off while the Go to Take Time sheet shows: one dialog at a time.
+        case .duck: takeTimeDraft == nil && isOn(.autoLevel)
         case .heal:
             importJob == nil && idleStudio.flatMap { timeline.selection.marks?.selection(in: $0.session) } != nil
         case .zoomBack: timeline.canGoBack

@@ -49,6 +49,49 @@ import Testing
         await model.close()
     }
 
+    /// Code gate L3 item 3: one dialog at a time in a window. Each other dialog turns the item off,
+    /// and the take time sheet turns Duck Music Under Speech and the exports off.
+    @Test func anotherDialogTurnsTheItemOff() async throws {
+        let (model, studio) = try await sync.open(try sync.oneTake())
+        let dialogs: [(String, () -> Void)] = [
+            ("the save panel", { model.exportStep = .choosing }),
+            (
+                "the export progress sheet",
+                {
+                    studio.exportJob = ExportJob(
+                        number: 0, url: sync.folder.url, progress: 0.5, report: { _ in },
+                        task: Task { .failure(.cancelled) })
+                }
+            ),
+            ("the duck sheet", { model.duckDraft = DuckDraft(roles: studio.session) }),
+            (
+                "the unused files sheet",
+                {
+                    model.unusedFiles = try? UnusedFiles(scanning: studio.session, keptBy: [], in: studio.url)
+                }
+            ),
+            ("an alert", { model.alert = .error(.busy) }),
+        ]
+        for (name, show) in dialogs {
+            #expect(model.canGoToTakeTime, "before \(name)")
+            show()
+            #expect(!model.canGoToTakeTime, "\(name)")
+            model.startTakeTime()
+            #expect(model.takeTimeDraft == nil, "\(name)")
+            (model.exportStep, studio.exportJob, model.duckDraft, model.unusedFiles, model.alert) = (
+                nil, nil, nil, nil, nil
+            )
+            model.takeTimeDraft = nil
+        }
+
+        #expect(model.isOn(.duck) && model.isOn(.export))
+        model.startTakeTime()
+        #expect(model.takeTimeDraft != nil)
+        #expect(!model.isOn(.duck), "the take time sheet")
+        #expect(!model.isOn(.export) && !model.isOn(.exportSelection), "the take time sheet")
+        await model.close()
+    }
+
     /// During a take the item is off; after the take it is on again.
     @Test func duringATakeTheItemIsOff() async throws {
         let (model, studio) = try await sync.open(try sync.oneTake())

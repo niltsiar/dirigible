@@ -27,6 +27,11 @@ struct DirigibleApp: App {
                     // Export has Command in its keys, so it can be off (probe K1 is about plain keys).
                     ForEach(TimelineCommand.fileItems, id: \.command) { item in
                         menuButton(item)
+                        // No key: a rare command, after the other exports.
+                        if item.command == .exportChapters {
+                            Button(L10n.menuFileExportTranscript.key) { app.timeline(.exportTranscript) }
+                                .disabled(app.key?.isOn(.exportTranscript) != true)
+                        }
                     }
                     Divider()
                     // The submenu stays on; each item is off while the window is busy (decision 0043).

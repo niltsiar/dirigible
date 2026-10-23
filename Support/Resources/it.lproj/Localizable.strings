@@ -522,6 +522,10 @@
 "banner.kind.warning" = "Avviso";
 "banner.kind.error" = "Errore";
 "banner.kind.info" = "Informazioni";
+"error.transcript.empty" = "La trascrizione non ha parole sulla timeline, quindi non ci sono sottotitoli da scrivere.";
+"error.transcript.gone" = "La trascrizione non è più nella sessione, quindi nessun file è stato scritto.";
+"error.transcript.unloaded" = "Il file della trascrizione manca o è danneggiato. Importa di nuovo la trascrizione con un agente o con il comando dirigible.";
+"menu.file.export.transcript" = "Esporta trascrizione…";
 
 /* Start window */
 "start.title" = "Ti diamo il benvenuto in Dirigible";
@@ -561,3 +565,6 @@
 "report.file.name" = "Rapporto Dirigible %@";
 "notice.unclean.text" = "L’ultima volta Dirigible non si è chiuso normalmente. Un rapporto può mostrarne il motivo. Dirigible non invia nulla: scegli tu se inviare il file.";
 "notice.unclean.later" = "Non ora";
+"panel.transcript.choice" = "Trascrizione";
+"panel.transcript.format.srt" = "SRT";
+"panel.transcript.format.vtt" = "WebVTT";

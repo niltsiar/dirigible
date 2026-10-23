@@ -257,6 +257,11 @@ extension Session {
         }
     }
 
+    /// The transcripts by ID, with their names.
+    public var transcriptNames: [(id: TranscriptID, name: String)] {
+        transcripts.values.sorted { $0.id < $1.id }.map { ($0.id, $0.name) }
+    }
+
     /// The transcripts whose file did not load at the open, by ID (decision 0055).
     public var transcriptsNotLoaded: [(id: TranscriptID, name: String)] {
         transcripts.values.filter { $0.words == nil }.sorted { $0.id < $1.id }.map { ($0.id, $0.name) }

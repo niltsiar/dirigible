@@ -71,7 +71,7 @@ enum TimelineCommand: Hashable {
     case addMarker, addChapter, markerInfo, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
-    case exportChapters, episodeInfo
+    case exportChapters, exportTranscript, episodeInfo
     case autoLevel, autoLevelPerTrack, duck
     case addGainPoint, previousGainPoint, nextGainPoint
 
@@ -112,6 +112,8 @@ enum TimelineCommand: Hashable {
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         // A text field does nothing with Command-T (run 13a, C9).
         case .importAudio, .export, .exportSelection, .exportChapters, .episodeInfo: false
+        // Export Transcript has no key.
+        case .exportTranscript: false
         case .autoLevel, .autoLevelPerTrack: false
         // Duck Music Under Speech... has no key (plan gate 1 item 3).
         case .duck: false
@@ -365,6 +367,7 @@ extension SessionWindow {
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }
         case .exportChapters: exportChapters()
+        case .exportTranscript: exportTranscript()
         case .episodeInfo: showEpisodeInfo()
         case .addGainPoint, .previousGainPoint, .nextGainPoint: runGainPoint(command, studio)
         case .autoLevel: Task { await level(.eachClip) }

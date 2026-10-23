@@ -217,6 +217,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.loudness", "panel.export.loudness.podcast", "panel.export.loudness.ebu",
         "export.chapter.intro", "sheet.unused.name", "toolbar.tooltip", "banner.kind.info", "start.version",
         "start.name", "sheet.duck.attack", "sheet.duck.release", "sheet.take.time.take", "sheet.take.time.item",
+        "panel.transcript.format.srt", "panel.transcript.format.vtt",
     ],
     "es": [
         "banner.kind.error", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.clip",
@@ -227,6 +228,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.layout.mono", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.label",
         "track.solo.letter", "track.volume.value",
+        "panel.transcript.format.srt", "panel.transcript.format.vtt",
     ],
     "fr": [
         "agent.mark", "alert.ok", "banner.kind.info", "dock.badge.recording", "episode.copyright",
@@ -241,6 +243,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.layout.mono",
         "track.role.dialogue", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter", "track.volume.value",
+        "panel.transcript.format.srt", "panel.transcript.format.vtt",
     ],
     "it": [
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "export.chapter.intro",
@@ -253,6 +256,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.layout.stereo", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.no.sound.privacy", "track.route",
         "track.solo.letter", "track.volume.value", "sheet.take.time.take", "sheet.take.time.item",
+        "panel.transcript.format.srt", "panel.transcript.format.vtt",
     ],
     "nl": [
         "agent.mark", "alert.ok", "dock.badge.recording", "episode.copyright", "episode.details",
@@ -268,6 +272,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.no.sound.privacy", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value", "transport.stop", "sheet.duck.attack", "sheet.duck.release",
         "sheet.take.time.take", "sheet.take.time.item",
+        "panel.transcript.format.srt", "panel.transcript.format.vtt", "panel.transcript.choice",
     ],
     "pt": [
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "episode.links",
@@ -279,6 +284,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.layout.mono", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value",
+        "panel.transcript.format.srt", "panel.transcript.format.vtt",
     ],
 ]
 

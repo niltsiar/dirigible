@@ -138,6 +138,13 @@ struct ChaptersTarget {
     let confirmed: ConfirmedFile?
 }
 
+/// The answer of the save panel of Export Transcript: the file, its form, and the transcript number.
+struct TranscriptTarget {
+    let url: URL
+    let format: SubtitleFormat
+    let transcript: Int
+}
+
 extension ExportPanel {
     /// The save panel of Export Chapters: a JSON file, with `message` when the times start at the
     /// in point. The panel asks before it replaces a file.
@@ -154,6 +161,65 @@ extension ExportPanel {
                 done(ChaptersTarget(url: url, confirmed: ConfirmedFile(at: url)))
             }
         }
+    }
+
+    /// The save panel of Export Transcript: a form pop-up (SRT or WebVTT), whose extension the name
+    /// follows, and a transcript pop-up when `transcripts` has two or more (it has one or more).
+    /// Each panel starts with SRT and the first transcript. The panel asks before it replaces a file.
+    @MainActor static func beginTranscript(
+        for window: NSWindow, name: String, transcripts: [(id: TranscriptID, name: String)],
+        done: @escaping @MainActor (TranscriptTarget?) -> Void
+    ) {
+        let choice = TranscriptChoice(transcript: transcripts[0].id.number)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.allowedContentTypes = [choice.contentType]
+        panel.accessoryView = NSHostingView(
+            rootView: TranscriptAccessory(choice: choice, transcripts: transcripts) { [weak panel] type in
+                panel?.allowedContentTypes = [type]
+            })
+        panel.beginSheetModal(for: window) { response in
+            MainActor.assumeIsolated {
+                guard response == .OK, let url = panel.url else { return done(nil) }
+                done(TranscriptTarget(url: url, format: choice.format, transcript: choice.transcript))
+            }
+        }
+    }
+}
+
+/// The values of the pop-ups of the save panel of Export Transcript.
+@Observable @MainActor private final class TranscriptChoice {
+    var format = SubtitleFormat.srt
+    var transcript: Int
+
+    init(transcript: Int) { self.transcript = transcript }
+
+    /// The type of the panel: its extension follows a form change, as in Export (probe P11).
+    var contentType: UTType { UTType(filenameExtension: format == .srt ? "srt" : "vtt") ?? .data }
+}
+
+private struct TranscriptAccessory: View {
+    @Bindable var choice: TranscriptChoice
+    let transcripts: [(id: TranscriptID, name: String)]
+    let typeChanged: (UTType) -> Void
+
+    var body: some View {
+        Form {
+            Picker(L10n.panelExportFormat.key, selection: $choice.format) {
+                Text(L10n.panelTranscriptFormatSRT.key).tag(SubtitleFormat.srt)
+                Text(L10n.panelTranscriptFormatVTT.key).tag(SubtitleFormat.vtt)
+            }
+            if transcripts.count > 1 {
+                Picker(L10n.panelTranscriptChoice.key, selection: $choice.transcript) {
+                    ForEach(transcripts, id: \.id) { transcript in
+                        Text(verbatim: "\(transcript.id.number). \(transcript.name)").tag(transcript.id.number)
+                    }
+                }
+            }
+        }
+        .padding()
+        .frame(width: 420)
+        .onChange(of: choice.format) { typeChanged(choice.contentType) }
     }
 }
 

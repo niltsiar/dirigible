@@ -183,6 +183,27 @@ extension Studio {
         }
         try result.get()
     }
+
+    /// The SRT or WebVTT file of transcript `number` of `session` (decision 0061), the text of
+    /// `dirigible transcript export`, written atomically to `url` off the main actor. The caller
+    /// confirmed the replace of an item at `url`.
+    @concurrent public nonisolated func exportTranscript(
+        _ session: Session, transcript number: Int, as format: SubtitleFormat, to url: URL
+    ) async throws(TranscriptExportError) {
+        let cues: [Cue]
+        do { cues = try session.cues(ofTranscript: number).cues } catch { throw .cues(error) }
+        do { try Data(format.text(cues, sampleRate: session.sampleRate).utf8).write(to: url, options: .atomic) } catch {
+            throw .write(ExportError(writing: error))
+        }
+    }
+}
+
+/// Why `Studio.exportTranscript` wrote no file.
+public enum TranscriptExportError: Error, Hashable, Sendable {
+    /// The transcript gives no cue.
+    case cues(SubtitleError)
+    /// The atomic write failed: the old file, or no file, stays.
+    case write(ExportError)
 }
 
 /// True when `folder` is on the volume of the package that `lock` holds now.

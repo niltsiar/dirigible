@@ -166,7 +166,7 @@ enum WindowBanner: Equatable {
 }
 
 /// The text of the take sync banner: "Claude Code moved part of the take audio. Take 4 is out of
-/// sync with the recording from 0:21:07." `text` gives the value of a key.
+/// sync with the recording from 0:21:07 on the timeline." `text` gives the value of a key.
 func takeSyncBreakText(
     take: Int, from: Frames, rate: Int, agent: String?, text: (L10n) -> String = { $0.text }
 ) -> String {

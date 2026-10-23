@@ -142,10 +142,12 @@ import Testing
         #expect(row.kind == .warning && row.announcement == .medium)
         #expect(
             takeSyncBreakText(take: 1, from: 480_000, rate: 48_000, agent: "Test Agent", text: englishText)
-                == "Test Agent moved part of the take audio. Take 1 is out of sync with the recording from 0:00:10.")
+                == "Test Agent moved part of the take audio. Take 1 is out of sync with the recording from 0:00:10 on the timeline."
+        )
         #expect(
             takeSyncBreakText(take: 1, from: 480_000, rate: 48_000, agent: nil, text: englishText)
-                == "An AI agent moved part of the take audio. Take 1 is out of sync with the recording from 0:00:10.")
+                == "An AI agent moved part of the take audio. Take 1 is out of sync with the recording from 0:00:10 on the timeline."
+        )
         await model.close()
     }
 

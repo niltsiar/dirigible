@@ -12,6 +12,9 @@ extension ChromeState {
             if !shown.names.isEmpty { banners.append(.chaptersDropped(shown.names, file: shown.file)) }
             if shown.imagesOmitted { banners.append(.chapterImagesOmitted(file: shown.file)) }
         }
+        if let shown = model.transcriptLeftOut, shown.revision == studio.sessionRevision {
+            banners.append(.transcriptLeftOut(count: shown.count, file: shown.file))
+        }
         if let shown = model.levelReport, shown.revision == studio.sessionRevision {
             banners.append(.levelReport(shown.report, press: shown.press))
         }

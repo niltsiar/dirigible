@@ -195,7 +195,7 @@ extension ExportPanel {
     init(transcript: Int) { self.transcript = transcript }
 
     /// The type of the panel: its extension follows a form change, as in Export (probe P11).
-    var contentType: UTType { UTType(filenameExtension: format == .srt ? "srt" : "vtt") ?? .data }
+    var contentType: UTType { UTType(filenameExtension: format.pathExtension) ?? .data }
 }
 
 private struct TranscriptAccessory: View {

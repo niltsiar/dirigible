@@ -34,6 +34,14 @@ struct ChapterWarningsShown: Equatable {
     }
 }
 
+/// The count of cues that an exported transcript file leaves out because they have no length, the
+/// name of the file, and the session revision of the export.
+struct TranscriptLeftOutShown: Equatable {
+    let count: Int
+    let file: String
+    let revision: Int
+}
+
 extension SessionWindow {
     /// The studio when an export can start: idle, no pending take, no export step, no export.
     private var exportStudio: Studio? {
@@ -211,7 +219,8 @@ extension SessionWindow {
 
     /// File > Export Transcript: the save panel, then the file of `dirigible transcript export` for
     /// the session of the Save click, so an agent edit while the panel shows is in the file. The
-    /// write runs off the main actor (`Studio.exportTranscript`). A fault shows its alert.
+    /// write runs off the main actor (`Studio.exportTranscript`). A fault shows its alert. A file
+    /// that leaves out cues with no length shows the banner of `transcriptLeftOut`.
     func exportTranscript() {
         guard let studio = exportStudio, let window, let app else { return }
         let transcripts = studio.session.transcriptNames
@@ -222,11 +231,15 @@ extension SessionWindow {
             guard let self, exportStep == .choosing else { return }
             exportStep = nil
             guard let target else { return }
-            let session = studio.session
+            let (session, revision) = (studio.session, studio.sessionRevision)
+            transcriptLeftOut = nil
             Task {
                 do throws(TranscriptExportError) {
-                    try await studio.exportTranscript(
+                    let left = try await studio.exportTranscript(
                         session, transcript: target.transcript, as: target.format, to: target.url)
+                    guard left > 0 else { return }
+                    transcriptLeftOut = TranscriptLeftOutShown(
+                        count: left, file: target.url.lastPathComponent, revision: revision)
                 } catch {
                     alert = .transcriptExport(error)
                 }

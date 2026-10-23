@@ -377,6 +377,7 @@ enum L10n: String, CaseIterable {
     case bannerLevelUnmeasured = "banner.level.unmeasured"
     case bannerExportChapterDropped = "banner.export.chapter.dropped"
     case bannerExportChapterImagesOmitted = "banner.export.chapter.images.omitted"
+    case bannerTranscriptLeftOut = "banner.transcript.left.out"
     case reportLoudness = "report.loudness"
     case reportLoudnessNone = "report.loudness.none"
     case reportPeak = "report.peak"

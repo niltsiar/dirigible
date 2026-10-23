@@ -44,6 +44,9 @@ enum WindowBanner: Equatable {
     /// The exported M4A has no chapter images: a chapter has no image, and the episode has no
     /// artwork (run 2026-10-11-chapters-in-file, C5b).
     case chapterImagesOmitted(file: String)
+    /// The count of cues that an exported transcript file leaves out because they have no length,
+    /// as `dirigible transcript export` warns (decision 0061).
+    case transcriptLeftOut(count: Int, file: String)
     /// The result of an Auto Level (run 2026-10-12-autolevel-fader). The press number makes a
     /// new key for each press. A warning when a clip is at the 20 dB limit.
     case levelReport(LevelReport, press: Int)
@@ -100,6 +103,7 @@ enum WindowBanner: Equatable {
         case .exportReport: "exportReport"
         case .chaptersDropped: "chaptersDropped"
         case .chapterImagesOmitted: "chapterImagesOmitted"
+        case .transcriptLeftOut: "transcriptLeftOut"
         case .levelReport(_, let press): "levelReport.\(press)"
         case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
@@ -113,7 +117,7 @@ enum WindowBanner: Equatable {
     var kind: Kind {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
-            .chapterImagesOmitted, .duckNoSpeech, .duckUnread, .takeSyncBroken:
+            .chapterImagesOmitted, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired: .info
@@ -134,6 +138,7 @@ enum WindowBanner: Equatable {
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
         case .chapterImagesOmitted(let file): L10n.bannerExportChapterImagesOmitted.format(file)
+        case .transcriptLeftOut(let count, let file): L10n.bannerTranscriptLeftOut.format(file, count)
         case .levelReport(let report, _): L10n.message(for: report)
         case .unusedFilesMoved(let count, let bytes): L10n.bannerUnusedMoved.format(count, L10n.bytes(bytes))
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
@@ -152,7 +157,8 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .levelReport, .unusedFilesMoved,
+        case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .transcriptLeftOut, .levelReport,
+            .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken:
             .medium
         }

@@ -50,18 +50,36 @@ extension Session {
         guard !cues.isEmpty else { throw .noCue }
         return (cues, units.count - cues.count)
     }
+
+    /// The SRT or WebVTT file text of a transcript, and the count of units left out because their
+    /// range has no length: the one owner of the text of `dirigible transcript export`,
+    /// `transcript_export`, and File > Export Transcript. `number` nil picks the only transcript.
+    public func subtitleFile(ofTranscript number: Int?, as format: SubtitleFormat) throws(SubtitleError) -> (
+        text: String, left: Int
+    ) {
+        let (cues, left) = try cues(ofTranscript: number)
+        return (format.text(cues, sampleRate: sampleRate), left)
+    }
 }
 
 /// A subtitle file form, from the extension of its path.
-public enum SubtitleFormat: Sendable {
+public enum SubtitleFormat: Sendable, CaseIterable {
     case srt, vtt
 
-    public init?(pathExtension: String) {
-        switch pathExtension.lowercased() {
-        case "srt": self = .srt
-        case "vtt": self = .vtt
-        default: return nil
+    /// The extension of a file of this form, in lower case.
+    public var pathExtension: String {
+        switch self {
+        case .srt: "srt"
+        case .vtt: "vtt"
         }
+    }
+
+    /// The form of an extension in any case, or nil.
+    public init?(pathExtension: String) {
+        guard let format = Self.allCases.first(where: { $0.pathExtension == pathExtension.lowercased() }) else {
+            return nil
+        }
+        self = format
     }
 
     /// The file text: UTF-8 with LF line ends, cues in the order given, times in whole

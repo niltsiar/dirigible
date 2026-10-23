@@ -31,8 +31,8 @@
 # lines. Then it pushes the branch, creates the pull request,
 # refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
 # the PR URL and the commit range on main, and appends the done row of the run to the run log with
-# scripts/wiki.py (a warning on stderr, not a failure, when the write is refused). A failed merge call is tried again, 3 calls in all, after
-# LAND_MERGE_WAIT seconds (default 10); before each call it checks origin/main again, and a state
+# scripts/wiki.py (a warning on stderr, not a failure, when the write is refused). A failed merge
+# call is tried again, 3 calls in all, after LAND_MERGE_WAIT seconds (default 10); before each call it checks origin/main again, and a state
 # read of the PR that says MERGED ends the loop. A retry that finds origin/main not an ancestor of
 # HEAD reads the state again: MERGED (GitHub finished the merge during the wait) ends the loop with
 # the range of the first attempt; any other state stops with the moved text. After the third failure the message names this
@@ -62,9 +62,8 @@ die() { echo "land.sh: $1" >&2; exit 1; }
 moved="origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
 # The fields of one PR for `gh pr list` and `gh pr view`: state, url, head, merge commit or -, commit count.
 pr_fields='[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv'
-# write_done_row <url> <range>: append `| <run> | <goal> | done | <url> (<range>) |` to the run log of
-# the wiki. The goal is the `- Goal:` line of run.md in the run folder. A missing wiki, a refused
-# write, or no goal gives a warning, because the merge is done and the exit status stays 0.
+# write_done_row <url> <range>: append `| <run> | <goal> | done | <url> (<range>) |` to the run log.
+# The goal is the `- Goal:` line of run.md. A failure warns and returns 0: the merge is done.
 write_done_row() {
     local goal row err
     goal="$(sed -n 's/^- Goal: *//p' "$run/run.md" 2>/dev/null | head -n 1 | tr '|' '/' || true)"

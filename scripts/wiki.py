@@ -38,9 +38,11 @@ Usage: scripts/wiki.py <command> [<argument>...]
   reserve --from <file>                    Add one decision number entry: "<number> <title>
                                            (run <run folder>)".
   numbers                                  Print the line of the decision numbers.
-  now                                      Print the state: counts, the items that wait for the user,
-                                           taken items, open runs, and the last 15 log lines.
-  lint                                     Check the pages, the index files, and the links.
+  now                                      Print the state, computed at each call: counts, the items that
+                                           wait for the user, taken items, open runs (last row open and
+                                           run.md not done or dropped), and the last 15 log lines.
+  lint                                     Check the pages, the index files (not now.md, which follows
+                                           the run files), and the links.
 Free text comes only from a file, never from an argument: write the file with the Write tool. The
 tool removes the file after its commit and keeps it after a refusal.
 Where: $DIRIGIBLE_WIKI, else the folder dirigible-wiki beside the main checkout of the repo that
@@ -270,12 +272,13 @@ def item_line(page: Page) -> str:
 
 
 def open_runs(lines: list[str]) -> list[tuple[str, str]]:
+    """The runs whose last row is open and whose run.md is not closed."""
     last: dict[str, tuple[str, str]] = {}
     for line in lines:
         cells = [c.strip() for c in line.split("|")]
         if line.startswith("|") and len(cells) >= 5 and re.match(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}-", cells[1]):
             last[cells[1]] = (cells[2], cells[3])
-    return [(name, goal) for name, (goal, status) in last.items() if status == "open"]
+    return [(name, goal) for name, (goal, status) in last.items() if status == "open" and run_is_open(name)]
 
 
 def parse_waits(value: str) -> tuple[str, str] | None:
@@ -1027,10 +1030,7 @@ def cmd_numbers(args) -> None:
 
 def cmd_now(args) -> None:
     wiki = open_wiki()
-    page = read_page(wiki / "wiki" / "now.md")
-    if page is None:
-        raise Stop(f"{wiki}/wiki/now.md is not a page; run scripts/wiki.py lint")
-    print("\n".join(page.lines))
+    print("\n".join(parse_page(generate(wiki)["wiki/now.md"])[1]))
 
 
 def cmd_lint(args) -> None:
@@ -1080,7 +1080,7 @@ def cmd_lint(args) -> None:
     for rel, text in generate(wiki).items():
         if not (wiki / rel).exists():
             problems.append(f"{rel}: missing")
-        elif read_text(wiki / rel) != text:
+        elif rel != "wiki/now.md" and read_text(wiki / rel) != text:
             problems.append(f"{rel}: differs from its generated text")
     if problems:
         for problem in problems:

@@ -212,8 +212,12 @@ run "$script" runs; want_rc 0 "runs"
 [[ "$out" == "$(cat "$tmp/runs.want")" ]] || fail "runs: [$out]"
 [[ -f "$DIRIGIBLE_WIKI/wiki/log/2026-10.md" && -f "$DIRIGIBLE_WIKI/wiki/log/2026-09.md" ]] || fail "log pages: $(ls "$DIRIGIBLE_WIKI/wiki/log")"
 for i in $(seq 1 30); do printf 'filler log line %s of 2026-10-24\n' "$i"; done > "$tmp/g3.txt"
-run "$script" log --from "$tmp/g3.txt"; want_rc 0 "log of 30 lines"
-run "$script" now; want_rc 0 "now"
+mkdir -p "$tmp/nowrepo/scripts" "$tmp/nowrepo/.scratchpads/runs/2026-10-23-demo"
+cp "$script" "$tmp/nowrepo/scripts/wiki.py"
+g -C "$tmp/nowrepo" init -q -b main
+printf '%s\n' '# Run demo' '' '- Status: open' > "$tmp/nowrepo/.scratchpads/runs/2026-10-23-demo/run.md"
+run "$tmp/nowrepo/scripts/wiki.py" log --from "$tmp/g3.txt"; want_rc 0 "log of 30 lines"
+run "$tmp/nowrepo/scripts/wiki.py" now; want_rc 0 "now"
 [[ "$(rg -c '^filler log line' <<<"$out")" == 15 ]] || fail "now holds $(rg -c '^filler log line' <<<"$out") of the last log lines, want 15"
 want_out "filler log line 30 of" "now"
 want_out "2026-10-23-demo" "now lists the open run"
@@ -508,6 +512,8 @@ imp_run() { # imp_run <tool> <fixture dir> [extra args]: sets out and rc
 }
 
 mkrepo imp0
+mkdir -p "$tmp/imp0/.scratchpads/runs/2026-10-17-c"
+printf '%s\n' '# Run c' '' '- Status: open' > "$tmp/imp0/.scratchpads/runs/2026-10-17-c/run.md"
 imp="$tmp/imp0/scripts/wiki.py"
 mkfix "$tmp/fx0"
 before_sums="$(sums_of "$tmp/fx0")"
@@ -822,6 +828,23 @@ run "$wt" now
 want_out "- 0004 (taken: $waitrun) Take item 4" "now lists an item that an open run holds"
 [[ "$out" != *"0001 (taken"* && "$out" != *"0002 (taken"* ]] || fail "now lists an item that a closed run holds: $out"
 run "$wt" lint; want_rc 0 "lint after the takeovers"
+
+# --- open runs: now lists a run only when its last row is open and its run.md is not done or dropped
+export DIRIGIBLE_WIKI="$tmp/openruns"
+"$wt" init >/dev/null 2>&1 || fail "open runs: init"
+ghost=2026-10-23-ghost
+printf '%s\n' "| $waitrun | landed goal | open | |" "| $ghost | ghost goal | open | |" > "$tmp/or1.txt"
+set_run_status open
+run "$wt" log --from "$tmp/or1.txt"; want_rc 0 "open runs: log"
+run "$wt" now; want_out "- $waitrun (landed goal)" "now lists a run with an open row and an open run.md"
+[[ "$out" != *"- $ghost ("* ]] || fail "now lists a run with no folder: $out"
+set_run_status done
+run "$wt" now; [[ "$out" != *"- $waitrun ("* ]] || fail "now lists a run whose run.md says done: $out"
+run "$wt" lint; want_rc 0 "lint after a run closed with no write"
+set_run_status open
+printf '%s\n' "| $waitrun | landed goal | done | https://example.test/pull/1 (a..b) |" > "$tmp/or3.txt"
+run "$wt" log --from "$tmp/or3.txt"; want_rc 0 "open runs: done row"
+run "$wt" now; [[ "$out" != *"- $waitrun ("* ]] || fail "now lists a run whose last row is done: $out"
 
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"

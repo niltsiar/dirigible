@@ -30,7 +30,8 @@
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,
 # refuses the merge when origin/main moved after the checks, merges with a rebase, and prints
-# the PR URL and the commit range on main. A failed merge call is tried again, 3 calls in all, after
+# the PR URL and the commit range on main, and appends the done row of the run to the run log with
+# scripts/wiki.py (a warning on stderr, not a failure, when the write is refused). A failed merge call is tried again, 3 calls in all, after
 # LAND_MERGE_WAIT seconds (default 10); before each call it checks origin/main again, and a state
 # read of the PR that says MERGED ends the loop. A retry that finds origin/main not an ancestor of
 # HEAD reads the state again: MERGED (GitHub finished the merge during the wait) ends the loop with
@@ -61,12 +62,29 @@ die() { echo "land.sh: $1" >&2; exit 1; }
 moved="origin/main moved after the checks, so they did not test the merge; land again from a fresh branch"
 # The fields of one PR for `gh pr list` and `gh pr view`: state, url, head, merge commit or -, commit count.
 pr_fields='[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv'
-# The tail of a land, when the PR is merged: finish_land <old> [<new>] drops the kept stamp, prints
-# the commit range on main (new is origin/main by default), and updates main.
+# write_done_row <url> <range>: append `| <run> | <goal> | done | <url> (<range>) |` to the run log of
+# the wiki. The goal is the `- Goal:` line of run.md in the run folder. A missing wiki, a refused
+# write, or no goal gives a warning, because the merge is done and the exit status stays 0.
+write_done_row() {
+    local goal row err
+    goal="$(sed -n 's/^- Goal: *//p' "$run/run.md" 2>/dev/null | head -n 1 | tr '|' '/' || true)"
+    [[ -n "$goal" ]] || { echo "land.sh: warning: the done row is not written: $run/run.md has no '- Goal:' line" >&2; return 0; }
+    row="$(mktemp "$(git rev-parse --git-dir)/land-done-row.XXXXXX")"
+    printf '| %s | %s | done | %s (%s) |\n' "$(basename "$run")" "$goal" "$1" "$2" > "$row"
+    if ! err="$("$here/wiki.py" log --from "$row" 2>&1)"; then
+        echo "land.sh: warning: the done row is not written: $err" >&2
+        rm -f "$row"
+    fi
+}
+
+# The tail of a land, when the PR is merged: finish_land <url> <old> [<new>] drops the kept stamp,
+# prints the commit range on main (new is origin/main by default), writes the done row, and updates main.
 finish_land() {
     rm -f "$stamp_file"
     git fetch --prune origin
-    echo "range: $1..${2:-$(git rev-parse origin/main)}"
+    local range="$2..${3:-$(git rev-parse origin/main)}"
+    echo "range: $range"
+    write_done_row "$1" "$range"
     # git switch main fails while another worktree holds main (often the main checkout). This
     # worktree is on the run branch, so a worktree on main is another one.
     holder="$(git worktree list --porcelain | awk '/^worktree /{ w = substr($0, 10) } $0 == "branch refs/heads/main" { print w }')"
@@ -95,7 +113,7 @@ finish_if_merged() {
         die "the branch has commits after the head of the pull request $1 (MERGED); land them from a fresh branch"
     git fetch origin
     echo "pr: $1"
-    finish_land "$(git rev-parse "$m~$n")" "$m"
+    finish_land "$1" "$(git rev-parse "$m~$n")" "$m"
     exit 0
 }
 
@@ -154,7 +172,7 @@ case "$pr_state:$pr_equal" in
         # The merge went through after an error: only the tail is left. mergeCommit~commits is the old end.
         git fetch origin
         echo "pr: $pr_url"
-        finish_land "$(git rev-parse "$pr_mc~$pr_count")" "$pr_mc"
+        finish_land "$pr_url" "$(git rev-parse "$pr_mc~$pr_count")" "$pr_mc"
         exit 0 ;;
 esac
 git fetch origin
@@ -301,4 +319,4 @@ while :; do
     attempt=$((attempt + 1))
     sleep "${LAND_MERGE_WAIT:-10}"
 done
-finish_land "$old"
+finish_land "$url" "$old"

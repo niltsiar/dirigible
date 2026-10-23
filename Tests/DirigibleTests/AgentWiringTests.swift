@@ -198,6 +198,35 @@ import os
         await model.close()
     }
 
+    /// C17: four calls at once, each on its own bridge connection, each answer within the bridge
+    /// timeout. The session then has both names, both new tracks, and four more undo steps.
+    @Test func fourCallsAtOnceEachAnswer() async throws {
+        let package = try await timelinePackage(in: folder.url, tracks: 2, seconds: 1)
+        let (model, studio, _, _) = try await openLanes(app, package)
+        app.agents.start()
+        defer { app.agents.stop() }
+        let ids = studio.session.tracks.map(\.id.rawValue)
+        let steps = studio.history.entries.count
+
+        async let renameOne = call("track_rename", ["package": package.path, "track": ids[0], "name": "One"])
+        async let renameTwo = call("track_rename", ["package": package.path, "track": ids[1], "name": "Two"])
+        async let addA = call("track_add", ["package": package.path, "name": "Added A", "layout": "mono"])
+        async let addB = call("track_add", ["package": package.path, "name": "Added B", "layout": "mono"])
+        let outcomes = await [renameOne, renameTwo, addA, addB]
+
+        for outcome in outcomes {
+            guard case .reply(.result(let text, let isError)) = outcome else {
+                Issue.record("no reply: \(outcome)")
+                continue
+            }
+            #expect(!isError, "\(text)")
+        }
+        #expect(Set(studio.session.tracks.map(\.name)) == ["One", "Two", "Added A", "Added B"])
+        #expect(studio.session.tracks.count == 4)
+        #expect(studio.history.entries.count == steps + 4)
+        await model.close()
+    }
+
     // MARK: What an agent gets while the window cannot show the sheet of its call
 
     enum Dialog: CaseIterable {

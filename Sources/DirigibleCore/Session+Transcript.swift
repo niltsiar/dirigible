@@ -140,7 +140,9 @@ extension Session {
     /// With `time` `.take(n, map)`, the times are take time of take `n`, and `at` is a take frame.
     /// The clip under a unit is the first clip of `track`, in timeline order, whose file is a file
     /// of take `n` and whose take range holds the midpoint, so a unit in audio that an edit removed
-    /// is skipped. A track with no clip of take `n` throws `.noTakeAudio`.
+    /// is skipped. A word is stored at its range in the file, not clamped to that clip, so it does
+    /// not depend on which other clips of the file the timeline plays. A track with no clip of
+    /// take `n` throws `.noTakeAudio`.
     @discardableResult
     public mutating func importTranscript(
         _ file: TranscriptFile, name: String, track: TrackID, at: Frames, time: TranscriptTime = .timeline
@@ -167,8 +169,8 @@ extension Session {
             let frame = Int(frames) + at.count
             return valid.contains(frame) ? frame : nil
         }
-        /// The clip under `midpoint`, the frame range of the unit time base that it plays, and the
-        /// shift from that time base to file frames.
+        /// The clip under `midpoint`, the frame range of the unit time base that a stored word is
+        /// clamped to, and the shift from that time base to file frames.
         func located(at midpoint: Int) -> (index: Int, bounds: Range<Int>, shift: Int)? {
             switch time {
             case .timeline:
@@ -178,9 +180,10 @@ extension Session {
             case .take(let take, let map):
                 for (index, clip) in clips.enumerated() {
                     guard let origin = map.origins[clip.file], origin.take == take else { continue }
-                    let bounds =
+                    let played =
                         (origin.frame + clip.offset.count)..<(origin.frame + clip.offset.count + clip.length.count)
-                    if bounds.contains(midpoint) { return (index, bounds, -origin.frame) }
+                    guard played.contains(midpoint), let file = files[clip.file] else { continue }
+                    return (index, origin.frame..<(origin.frame + file.length.count), -origin.frame)
                 }
                 return nil
             }

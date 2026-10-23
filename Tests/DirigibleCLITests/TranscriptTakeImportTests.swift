@@ -119,6 +119,31 @@ struct TranscriptTakeImportTests {
             ], "the cut word is skipped and the third word follows its audio")
     }
 
+    /// C10. A pasted cold open does not shorten a word. The cold open is a copy of take frames
+    /// 156 000 to 180 000, the middle of the word "two" (144 000 to 192 000), at timeline 0. The
+    /// stored word is the whole word of the file, so the main clip shows all of it and the copy
+    /// shows its part. The copy comes first in timeline order, and it must not set the word range.
+    @Test func aColdOpenCopyDoesNotShortenTheWordUnderTheMainClip() async throws {
+        let package = try Self.oneTake()
+        try await edit(package, "ripple-insert", "PKG", "--at", "0", "--length", "240000")
+        let paste = try await package.run(
+            "clip", "paste", "PKG", "--from", "396000", "--to", "420000", "--track", "t1", "--at", "0")
+        try #require(paste.status == 0, "clip paste: \(paste)")
+
+        let result = try await package.run(
+            "transcript", "import", "PKG", try Self.write(Self.words, in: package), "--track", "t1", "--take", "1")
+
+        #expect(result.status == 0 && result.stdout == "1\ntake 1: 3 words placed, 0 skipped\n", "\(result)")
+        let rows = try await Self.rows(package)
+        #expect(
+            rows == [
+                Row(start: 0, end: 24_000, track: "t1", text: "two"),
+                Row(start: 288_000, end: 336_000, track: "t1", text: "one"),
+                Row(start: 384_000, end: 432_000, track: "t1", text: "two"),
+                Row(start: 528_000, end: 576_000, track: "t1", text: "three"),
+            ], "the main clip shows the whole word, the copy shows the part that it holds: \(rows)")
+    }
+
     /// C10. `--at` is the take frame of second 0 of the transcript. After a ripple delete of the
     /// first 2 s, a transcript of the export of the edited timeline has its second 0 at take frame
     /// 96 000, and `--at 96000` gives the rows of an import without `--take`.

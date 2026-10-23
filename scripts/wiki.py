@@ -25,7 +25,8 @@ Usage: scripts/wiki.py <command> [<argument>...]
                                            hash is the one that show printed. A page that changed
                                            since then gives exit 75: run show again.
   move <id> <status>                       Change the status of an item.
-  take <id> <run>                          Mark an item as taken by a run.
+  take <id> <run>                          Mark an item as taken by a run. It refuses an item that
+                                           another open run holds, and takes over from a closed run.
   wait <id> <target>                       Make an item wait for the user (user), an item (item:<id>), or
                                            a run (run:<run folder>). It refuses a cycle.
   unwait <id>                              Clear the wait of an item.
@@ -60,6 +61,7 @@ import argparse
 import contextlib
 import datetime
 import fcntl
+import functools
 import hashlib
 import json
 import os
@@ -126,6 +128,7 @@ def git(cwd: Path | str, *args: str, input: str | None = None, check: bool = Tru
     return proc
 
 
+@functools.cache
 def main_checkout() -> Path:
     common = git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
     return Path(common).parent
@@ -348,7 +351,7 @@ def generate(wiki: Path) -> dict[str, str]:
     lines = [line for page in logs for line in page.lines]
     counts = ", ".join(f"{s} {sum(1 for p in items if p.fields.get('status') == s)}" for s in STATUSES)
     taken = [f"- {p.id} (taken: {p.fields['taken']}) {p.fields.get('title', '')}" for p in items
-             if p.fields.get("status") == "next" and p.fields.get("taken")]
+             if p.fields.get("status") == "next" and p.fields.get("taken") and run_is_open(p.fields["taken"])]
     runs = [f"- {name} ({goal})" for name, goal in open_runs(lines)]
     waiting = [p.id for p in waiting_for_user(items)]
     tail = [line for line in lines if line.strip()][-LOG_LINES_IN_NOW:]
@@ -904,7 +907,7 @@ def cmd_take(args) -> None:
     with write_lock(wiki):
         page = find_item(wiki, args.id)
         holder = page.fields.get("taken", "")
-        if holder and holder != args.run:
+        if holder and holder != args.run and run_is_open(holder):
             raise Stop(f"item {args.id} is taken by {holder}")
         runs = [r for r in page.fields.get("runs", "").split(", ") if r]
         if args.run not in runs:

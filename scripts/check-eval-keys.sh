@@ -27,7 +27,7 @@ if [[ -z $tree ]]; then
     [[ -f $run/run.md ]] || die 2 "no run.md in $run: the run folder names the branch to check"
     line="$(grep '^- Branch:' "$run/run.md" | tail -n 1 || true)"
     [[ -n $line ]] || die 2 "$run/run.md has no '- Branch:' line"
-    branch="$(sed -E 's/^- Branch: *//; s/[ ,].*$//' <<<"$line")"
+    branch="$(sed -E 's/^- Branch: *//; s/[ ,].*$//; s/`//g' <<<"$line")"
     list="$(git -C "$run" worktree list --porcelain 2>/dev/null)" || die 2 "$run is not in a git repository"
     tree="$(awk -v ref="refs/heads/$branch" '/^worktree /{ p = substr($0, 10) } $1 == "branch" && $2 == ref { print p; exit }' <<<"$list")"
     [[ -n $tree ]] || die 2 "no worktree holds the branch $branch; check it out in a worktree"

@@ -56,6 +56,8 @@ public enum StudioError: Error, Hashable, Sendable {
     case duckCancelled
     /// A take start ended an agent read by time (decision 0062).
     case readYielded
+    /// The close of the window (`settle()`) ended an agent read by time (decision 0062).
+    case readClosed
     /// A duck could not open an audio file: no free descriptor, with its errno (decision 0016).
     case duckRead(Int32)
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).

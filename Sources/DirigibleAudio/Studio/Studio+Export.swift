@@ -90,10 +90,10 @@ extension Studio {
         let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil || !$0.readRuns.isEmpty }
         guard exportJob != nil || !readRuns.isEmpty || !others.isEmpty else { return nil }
         return { [weak self] in
-            self?.endReads()
+            self?.endReads(.take)
             await self?.endExport(.take)
             for studio in others {
-                studio.endReads()
+                studio.endReads(.take)
                 await studio.endExport(.take, yielding: true)
                 studio.endImport(.take)
             }

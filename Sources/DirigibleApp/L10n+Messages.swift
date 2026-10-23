@@ -43,8 +43,8 @@ extension L10n {
         // The window beeps for it and shows no alert.
         case .rippleBlocked: return errorSessionOther.text
         // The banner Cancel ends a level or a duck, so the window shows no alert for it (decision 0049).
-        // Only an agent read gives `readYielded`, and the agent gets its text (decision 0062).
-        case .levelCancelled, .duckCancelled, .readYielded: return errorSessionOther.text
+        // Only an agent read gives `readYielded` and `readClosed`, and the agent gets its text (decision 0062).
+        case .levelCancelled, .duckCancelled, .readYielded, .readClosed: return errorSessionOther.text
         case .duckRead(let code): return errorDuckRead.format(Int(code))
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)

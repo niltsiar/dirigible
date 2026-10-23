@@ -350,6 +350,7 @@ extension StudioError {
         case .duckCancelled: "the duck was cancelled."
         // No command reads through Studio; the read commands call `ReadWork.read`.
         case .readYielded: "a take stopped the read."
+        case .readClosed: "the close of the window stopped the read."
         case .duckRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
         case .writerDidNotStop(let name):
             "\(name) did not stop in time. The audio is safe in \(package)/Capture; open the package in "

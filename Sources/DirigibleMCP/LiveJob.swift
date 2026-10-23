@@ -121,7 +121,7 @@ private func liveDuck(
 }
 
 /// `silences`, `nearest_pause`, and `meter` through `Studio.readMix`: the session of the window
-/// (decision 0062). A take start or a cancel of the call ends the read.
+/// (decision 0062). A take start, the close of the window, or a cancel of the call ends the read.
 @MainActor
 private func liveRead(
     _ work: ReadWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
@@ -135,6 +135,8 @@ private func liveRead(
         }
     } catch .readYielded {
         return .result(text: "Dirigible started a take, so the read stopped.", isError: true)
+    } catch .readClosed {
+        return .result(text: "The session window closed, so the read stopped.", isError: true)
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {

@@ -128,12 +128,36 @@ struct ReadLiveTests {
         let studio = try await package.open()
 
         let result = try await studio.readMix { _, _, _, _ in
-            DispatchQueue.main.sync { MainActor.assumeIsolated { studio.endReads() } }
+            DispatchQueue.main.sync { MainActor.assumeIsolated { studio.endReads(.take) } }
             return 7
         }
 
         #expect(result == 7)
         await studio.settle()
+    }
+
+    /// The close of the window (`settle()`) ends a held read with its text, and `settle()`
+    /// returns after the end of the read.
+    @Test func theCloseOfTheWindowStopsAHeldRead() async throws {
+        let studio = try await package.open()
+        let hold = ChunkHold(at: 2)
+        defer { hold.release() }
+        studio.environment.loudnessBlock = { hold.step() }
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let (socket, arguments) = (folder.socket, ["package": package.path] as [String: any Sendable])
+        let call = Task { await send(socket, "meter", arguments) }
+        await until("the read does not hold") { hold.isHeld }
+
+        let settle = Task { await studio.settle() }
+        await until("settle() does not start") { studio.settling }
+        hold.release()
+        await settle.value
+
+        #expect(studio.readRuns.isEmpty, "a read runs after settle()")
+        let outcome = await call.value
+        let text = "The session window closed, so the read stopped."
+        #expect(outcome == .reply(.result(text: text, isError: true)), "\(outcome)")
     }
 
     /// The muted track counts for `silences` on the window session too, so its missing file

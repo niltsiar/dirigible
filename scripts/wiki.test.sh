@@ -230,6 +230,12 @@ run "$script" reserve --from "$tmp/r1.txt"; want_rc 0 "reserve"
 [[ ! -e "$tmp/r1.txt" ]] || fail "reserve keeps the --from file"
 printf '%s\n' '0064 second `entry` (run 2026-10-23-other)' > "$tmp/r2.txt"
 run "$script" reserve --from "$tmp/r2.txt"; want_rc 0 "second reserve"
+h="$(head_of)"
+for bad in '0065 Undo (run log) (run 2026-10-23-other)' '0065 Two, titles (run 2026-10-23-other)'; do
+    printf '%s\n' "$bad" > "$tmp/r3.txt"
+    run "$script" reserve --from "$tmp/r3.txt"; want_rc 2 "reserve of a title the reader cannot parse: $bad"
+    [[ "$h" == "$(head_of)" && -f "$tmp/r3.txt" ]] || fail "a refused reserve wrote or removed the file: $bad"
+done
 run "$script" numbers; want_rc 0 "numbers"
 [[ "$out" == Decision\ numbers*"0063 wiki tool (run 2026-10-23-ledger-wiki), 0064 second \`entry\` (run 2026-10-23-other)." ]] || fail "numbers: [$out]"
 printf '%s\n' '0063 another title (run 2026-10-23-third)' > "$tmp/r3.txt"

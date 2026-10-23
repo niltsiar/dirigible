@@ -204,7 +204,7 @@ else
                 if [[ -n "$other" ]]; then
                     say "plan.md makes $record, but $n is reserved for another run: $other; take the next free number"
                 elif [[ -z "$entries" ]]; then
-                    say "plan.md makes $record: reserve $n with scripts/wiki.py reserve --from <file>; write the file with the Write tool, one line: \"$n <title> (run $folder)\""
+                    say "plan.md makes $record: reserve $n with scripts/wiki.py reserve --from <file>; write the file with the Write tool, one line: \"$n <title> (run $folder)\", with no comma and no parenthesis in the title"
                 fi
             fi
         done

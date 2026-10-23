@@ -49,7 +49,7 @@ Synthesis: B, with the single chunk loop of A as the one private scan.
 ## Consequences
 
 - F96 builds its review list on `LevelSeries.silences`, so the list and the agent read give the same pauses.
-- A read of a whole 66 min session takes seconds (budgets, optimized, on 66.5 min of 2 stereo tracks: `silences` 8 s, `nearest_pause` 0.5 s, `meter` 15 s); `nearest_pause` reads 2 x window, plus the length of a silence that crosses an edge of it.
+- A read of a whole 66 min session takes seconds (budgets of `ReadBenchmark`, optimized, on 66.5 min of 2 stereo tracks: `silences` 2.5 s, `nearest_pause` 0.5 s, `meter` 10.5 s, each 2 times the first optimized time rounded up to 0.5 s); `nearest_pause` reads 2 x window, plus the length of a silence that crosses an edge of it.
 - The texts are a contract for agents and scripts: a change of a column is a change of this record.
 - `silences` and `nearest_pause` ignore mute and solo, as the duck. `meter` measures the heard stereo mix, so `meter` of the whole session equals the loudness measure of a stereo export.
 - A ranged duck reads the frame 0 grid, so its run edges can move by less than one window (50 ms) from those of the scope-start grid. A duck of the whole session keeps its runs.

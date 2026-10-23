@@ -355,7 +355,7 @@ def generate(wiki: Path) -> dict[str, str]:
     out["wiki/now.md"] = render_page([("type", "Now")], (
         ["# Now", "", f"Items: {counts}.", "",
          f"Waiting for the user: {len(waiting)}" + (f" ({', '.join(waiting)})." if waiting else "."), "",
-         "## Next items taken by a run", ""] + (taken or ["None."]) +
+         "## Taken next items", ""] + (taken or ["None."]) +
         ["", "## Open runs", ""] + (runs or ["None."]) +
         ["", f"## Last {LOG_LINES_IN_NOW} log lines", ""] + (tail or ["None."])))
     return out

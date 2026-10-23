@@ -129,10 +129,10 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F115 | A taller automatic track height | Hindenburg; tester 2026-10-04 | Dropped (covered by View > Taller Tracks) | R1 |
 | F116 | Record (input) gain for each device track | user 2026-10-14 | Later | R3 |
 | F117 | The agent log of a session in the app | user 2026-10-14 | Later | R16 |
-| F118 | Transcript import of SRT and Podcasting 2.0 JSON | Podcasting 2.0 | Later (also: VTT word time tags) | R7 |
+| F118 | Transcript import of SRT and Podcasting 2.0 JSON | Podcasting 2.0 | done, Release 4 run 11; Later: Podcasting 2.0 JSON, VTT word time tags | R7 |
 | F119 | Transcript speakers: names, and a speaker-to-track map | Descript | Later | R7 |
 | F120 | Transcript text corrections, shown cut words, and find | Hindenburg, Descript | Later | R7 |
-| F121 | Transcript export: VTT, SRT, and JSON | Podcasting 2.0, Apple Podcasts, Spotify | Later | R10 |
+| F121 | Transcript export: VTT, SRT, and JSON | Podcasting 2.0, Apple Podcasts, Spotify | done, Release 4 run 11; Later: JSON | R10 |
 | F122 | Chapters import from chapters.json | Podcasting 2.0 | done, Release 4 run 4 | R10 |
 | F123 | Cue point import from recorder files, and the marker number keys | Hindenburg | Later | R7 |
 | F124 | A second copy of each take on a second disk | REAPER; tester 2026-10-11 | Later | R6 |

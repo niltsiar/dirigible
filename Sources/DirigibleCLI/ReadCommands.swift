@@ -130,8 +130,9 @@ struct MeterCommand: ParsableCommand {
             loudness range (EBU Tech 3342; none under 2 min), the max momentary and short-term \
             loudness, the true peak, and the sample peak, each with one decimal or "none". With \
             --step, then one line for each step from the 50 ms window of --from: its first frame, the \
-            RMS level, and the peak. A missing, short, or unreadable file reads as silence, with a \
-            warning line on stderr. It writes nothing and takes no lock. Exit 64 for a bad value, a \
+            RMS level, and the peak. A missing, short, or unreadable file reads as silence. The warning \
+            lines of a stereo export go to stderr: the files that read as silence, and the muted or not \
+            soloed tracks. It writes nothing and takes no lock. Exit 64 for a bad value, a \
             --from at or after the session end, a --step that is not a multiple of the 50 ms window, \
             or more than 1000 steps. Exit 2 when the package cannot be read or a track is unknown.
             """)

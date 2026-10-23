@@ -105,6 +105,20 @@ struct ReadWorkTests {
                 + "short-term none, true peak none, peak none", "\(output.text)")
     }
 
+    /// `meter` warns as a stereo export of the range does: the soloed empty track `t2` leaves out
+    /// the tone track, and a muted track that the call names leaves nothing heard.
+    @Test func meterWarnsOfTheTracksThatAreNotHeard() throws {
+        var (package, session) = try Self.tone()
+        try session.setSoloed(true, tracks: ["t2"])
+        let soloed = try Self.meter().read(session, package: package.url)
+        #expect(soloed.stderr == ["Warning: 1 track is muted or not soloed and is not in the export."], "\(soloed)")
+        try session.setSoloed(false, tracks: ["t2"])
+        try session.setMuted(true, tracks: ["t1"])
+        let muted = try ReadWork.meter(from: 0, to: nil, tracks: ["t1"], step: nil).get()
+            .read(session, package: package.url)
+        #expect(muted.stderr == ["Warning: no track is heard; the file is silent."], "\(muted)")
+    }
+
     @Test func aStepThatIsNotAWholeWindowIsRefused() throws {
         let (package, session) = try Self.tone()
         #expect(throws: ReadFailure.usage("step must be a multiple of the 50 ms window, 2400 frames.")) {

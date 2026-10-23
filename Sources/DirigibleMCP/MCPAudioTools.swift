@@ -260,8 +260,9 @@ let audioTools = [
         "Measure a range of the heard stereo mix, as a stereo export, as dirigible meter: mute and solo count. One "
             + "line: the integrated loudness, the loudness range (none under 2 min), the max momentary and short-term "
             + "loudness, the true peak, and the sample peak. With step, then one line for each step: its first frame, "
-            + "the RMS level, and the peak. A missing, short, or unreadable file reads as silence, with a warning "
-            + "line first. It writes nothing. A cancel stops the read.",
+            + "the RMS level, and the peak. A missing, short, or unreadable file reads as silence. The warning lines "
+            + "of a stereo export come first: the files that read as silence, and the muted or not soloed tracks. "
+            + "It writes nothing. A cancel stops the read.",
         [readFrom, readTo, readTracks, meterStep], saves: false
     ) { a throws(ToolError) in
         let (first, end, ids, step) = (try a[readFrom], try a[readTo], try a[readTracks] ?? [], try a[meterStep])

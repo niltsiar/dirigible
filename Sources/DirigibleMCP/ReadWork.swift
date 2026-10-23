@@ -119,7 +119,8 @@ package struct ReadWork: Sendable {
     /// 0062 at the session rate: the duck threshold, -40 dBFS; minimum 500 ms for `silences` and 200 ms for
     /// `nearest_pause`, window 2 s. `silences` and `nearest_pause` read every track of the read
     /// with mute and solo off, and refuse a missing, short, or unreadable file before and after the
-    /// scan. `meter` reads the heard mix, and its warning lines name the files that read as silence.
+    /// scan. `meter` reads the heard mix, and its warning lines are those of a stereo export of the
+    /// range: the files that read as silence, then the tracks that are not heard.
     /// A step refusal comes before the scan. It blocks, so never call it on the main actor.
     package func read(
         _ session: Session, package: URL, progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
@@ -159,7 +160,11 @@ package struct ReadWork: Sendable {
             }
             let line = Self.meterLine(read.measure, length: range.upperBound - range.lowerBound, rate: rate)
             let steps = step.map { Self.stepLines(read.series.steps(of: $0)) } ?? []
-            return ReadOutput(stdout: [line] + steps, stderr: ExportText.faultLines(read.faults, in: session))
+            // The range has a frame in the session, and `chosen` is nil or has a track.
+            let source = ExportSource(range: range, tracks: chosen)!
+            let warnings =
+                ExportText.faultLines(read.faults, in: session) + ExportText.unheardLines(session, source: source)
+            return ReadOutput(stdout: [line] + steps, stderr: warnings)
         }
     }
 

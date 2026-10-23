@@ -10,6 +10,13 @@ Usage: scripts/wiki.py <command> [<argument>...]
   seed [--prs]                             Fill an empty wiki from the feature list and the release
                                            plan. --prs adds the deferred and follow-up bullets of the
                                            merged pull requests (a read of gh).
+  import --backlog <file> --ledger <file> --learnings <file> [--trees-checked <file>]
+                                           The one-time move of the three old ledger files into a new
+                                           wiki. Other worktrees need the trees file: one line for
+                                           each, with path, branch, run folder, and phase, split by
+                                           tabs. A run at phase 8 or 9 must hold the HEAD of this tree.
+                                           The wiki keeps a frozen copy of each file in raw/, and each
+                                           old file becomes a read-only stub that names this tool.
   add <status> --from <file>               Add an item. Line 1 of the file is the title (8 words
                                            or fewer), line 2 the description (12 words or fewer),
                                            line 3 is blank, and the body follows.
@@ -50,6 +57,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -70,6 +78,8 @@ RUN_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*$")
 ID_RE = re.compile(r"^[0-9]{4,}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 ENTRY_RE = re.compile(r"^[0-9]{4} [^,\n]+ \(run [0-9a-z-]+\)$")
+TITLE_RE = re.compile(r"^- (upkeep (?:NEW-[A-Z]+-[a-z0-9-]+|[A-Z]+-[0-9]{3})/[a-z]+|[A-Z0-9][A-Z0-9 .,'&/+#-]*[A-Z0-9])(?=[ :(])")
+TAKEN_RE = re.compile(r"\(taken: run ([0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*)[ ,)]")
 GIT_ENV_DROP = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX",
                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE")
 GIT_ENV = {k: v for k, v in os.environ.items() if k not in GIT_ENV_DROP}
@@ -368,6 +378,12 @@ key: <ID>/<class>
 """
 
 
+STUB = """This file moved to the local wiki. Do not write here.
+Read the wiki with: {tool} <command>
+Commands: list next, list later, show <id>, now, runs, numbers, lessons --seen-once.
+The wiki folder is {wiki}. The frozen copy of this file is {wiki}/raw/{name}-cutover.md.
+"""
+
 # ---------- write helpers ----------
 
 def store(wiki: Path, changes: dict[str, str], message: str) -> None:
@@ -575,6 +591,187 @@ def cmd_seed(args) -> None:
         store(wiki, changes, f"wiki: seed {len(items)} items")
     print(f"seeded {len(items)} items: {sum(1 for i in items if i[0] == 'next')} next, "
           f"{sum(1 for i in items if i[0] == 'later')} later")
+
+
+def shasum(path: Path) -> str:
+    """The digest that the shasum command prints."""
+    return hashlib.sha1(path.read_bytes()).hexdigest()
+
+
+def split_title(text: str) -> tuple[str, str]:
+    """The title and the description of an imported item: a capital title or the first words."""
+    found = TITLE_RE.match("- " + text)
+    if found and len(found.group(1)) >= 4:
+        rest = re.sub(r"^\s*(\([^)]*\))?\s*:?\s*", "", text[len(found.group(1)):])
+        return " ".join(found.group(1).split()[:TITLE_WORDS]), " ".join(rest.split()[:DESCRIPTION_WORDS])
+    found_words = re.sub(r"^(\([^)]*\) )*", "", text).split() or text.split()
+    return " ".join(found_words[:TITLE_WORDS]), " ".join(found_words[TITLE_WORDS:TITLE_WORDS + DESCRIPTION_WORDS])
+
+
+def parse_backlog(lines: list[str]) -> list[dict]:
+    items: list[dict] = []
+    section = group = None
+    open_item = False
+    for n, line in enumerate(lines, 1):
+        if line.startswith("## "):
+            section, group, open_item = line[3:].strip().lower(), None, False
+            if section not in ("next", "later"):
+                raise Stop(f"backlog line {n}: the section {line[3:].strip()!r} is not Next or Later")
+        elif line.startswith("### "):
+            group, open_item = line[4:].strip(), False
+        elif line.startswith("# ") or not line.strip():
+            continue
+        elif line.startswith("- ") and section:
+            items.append({"status": section, "group": group, "lines": [line]})
+            open_item = True
+        elif line.startswith("  ") and open_item:
+            items[-1]["lines"].append(line)
+        else:
+            raise Stop(f"backlog line {n}: a line that is no item or continuation: {line[:60]!r}")
+    return items
+
+
+def build_import(backlog: str, ledger: str, learnings: str) -> tuple[dict[str, str], str]:
+    """Parse the three old files, check that the pages give each line back, and return the pages."""
+    changes: dict[str, str] = {}
+    source_lines = lines_of(backlog)
+    items = parse_backlog(source_lines)
+    counts = {s: sum(1 for i in items if i["status"] == s) for s in ("next", "later")}
+    item_lines = sum(1 for line in source_lines if line.startswith("- "))
+    if sum(counts.values()) != item_lines:
+        raise Stop(f"backlog: {item_lines} item lines, but {sum(counts.values())} items")
+    for n, item in enumerate(items, 1):
+        text = "\n".join(item["lines"])[2:]
+        title, description = split_title(text)
+        if not title:
+            raise Stop(f"backlog item {n} has no text")
+        extra = {"source": "backlog import"}
+        if item["group"]:
+            extra["group"] = item["group"]
+        taken = TAKEN_RE.search(text)
+        if taken:
+            extra.update(taken=taken.group(1), runs=taken.group(1))
+        page = item_text(item["status"], title, description, text.split("\n"), **extra)
+        parsed = parse_page(page)
+        if parsed is None or ("- " + "\n".join(parsed[1])).split("\n") != item["lines"] \
+                or parsed[0]["title"] != title or parsed[0]["description"] != description:
+            raise Stop(f"backlog item {n}: the page does not give the item back (round trip): {item['lines'][0][:60]!r}")
+        changes[f"wiki/items/{n:04d}.md"] = page
+
+    lines = lines_of(learnings)
+    grouped: dict[str, list[str]] = {}
+    for n, line in enumerate(lines, 1):
+        if n == 1 and line.startswith("# ") or not line.strip():
+            continue
+        if not line.startswith("- "):
+            raise Stop(f"learnings line {n}: a line that does not start with '- ': {line[:60]!r}")
+        key = KEY_RE.search(line)
+        date = DATE_RE.search(line)
+        grouped.setdefault(lesson_name(key.group(1)) if key else f"unkeyed-{date.group(1) if date else 'undated'}", []).append(line)
+    lesson_total = 0
+    for name, group_lines in grouped.items():
+        fields = {"type": "Lesson", "key": name.replace("--", "/")} if not name.startswith("unkeyed-") \
+            else {"type": "Lesson", "month": name[len("unkeyed-"):]}
+        page = Page(Path(name), fields, group_lines).text()
+        parsed = parse_page(page)
+        if parsed is None or parsed[1] != group_lines:
+            raise Stop(f"learnings page {name}: the page does not give the lines back (round trip)")
+        lesson_total += len(group_lines)
+        changes[f"wiki/lessons/{name}.md"] = page
+    kept = [line for line in lines if line.startswith("- ")]
+    if sorted(line for group_lines in grouped.values() for line in group_lines) != sorted(kept):
+        raise Stop("learnings: the lesson pages do not hold each line once")
+
+    old = lines_of(ledger)
+    if len(old) < 3 or not old[0].startswith("# ") or not old[2].startswith("Decision numbers"):
+        raise Stop("ledger: line 1 must be a heading and line 3 must start with 'Decision numbers'")
+    log = old[3:]
+    first = next((DATE_RE.search(line).group(1) for line in log if DATE_RE.search(line)), this_month())
+    months = route_log(log, first)
+    rebuilt: list[str] = []
+    for month in sorted(months):
+        page = Page(Path(month), {"type": "Log", "month": month}, months[month]).text()
+        changes[f"wiki/log/{month}.md"] = page
+        rebuilt += (parse_page(page) or ({}, []))[1]
+    if rebuilt != log:
+        raise Stop("ledger: the log pages do not give the lines back in order (round trip); the lines are not in month order")
+    changes["wiki/decision-numbers.md"] = Page(Path("decision-numbers"), {"type": "Register"}, [old[2]]).text()
+    summary = (f"items: next {counts['next']}, later {counts['later']}\n"
+               f"lessons: {len(grouped)} pages, {lesson_total} lines\n"
+               f"log: {len(months)} pages, {len(log)} lines")
+    return changes, summary
+
+
+def worktrees() -> list[tuple[str, str]]:
+    found, tree = [], {}
+    for line in git(REPO, "worktree", "list", "--porcelain").stdout.splitlines() + [""]:
+        if line.startswith("worktree "):
+            tree["path"] = line[9:]
+        elif line.startswith("branch "):
+            tree["branch"] = line[7:].removeprefix("refs/heads/")
+        elif not line and tree:
+            found.append((tree["path"], tree.get("branch", "")))
+            tree = {}
+    return found
+
+
+def check_trees(trees_file: str | None) -> str:
+    """The cutover gate: each other worktree is in the trees file, and no run at phase 8 or 9 lacks this HEAD."""
+    skip = {os.path.realpath(git(REPO, "rev-parse", "--show-toplevel").stdout.strip()), os.path.realpath(main_checkout())}
+    others = [path for path, _ in worktrees() if os.path.realpath(path) not in skip]
+    listed: dict[str, tuple[str, int]] = {}
+    text = ""
+    if trees_file is not None:
+        if not Path(trees_file).is_file():
+            raise Stop(f"the trees file {trees_file} does not exist")
+        text = read_text(Path(trees_file))
+        for n, line in enumerate(lines_of(text), 1):
+            if not line.strip():
+                continue
+            fields = line.split("\t") if "\t" in line else line.split()
+            if len(fields) < 4 or not fields[3].strip().isdigit():
+                raise Stop(f"{trees_file}:{n}: a line has four fields: path, branch, run folder, and a numeric phase")
+            listed[os.path.realpath(fields[0])] = (fields[1], int(fields[3]))
+    missing = [path for path in others if os.path.realpath(path) not in listed]
+    if missing:
+        raise Stop("other worktrees exist: " + ", ".join(missing) + ". List each one in a trees file (path, branch, run "
+                   "folder, phase) and pass --trees-checked <file>.")
+    head = git(REPO, "rev-parse", "HEAD").stdout.strip()
+    for tree, (branch, phase) in listed.items():
+        if phase in (8, 9) and git(REPO, "merge-base", "--is-ancestor", head, branch, check=False).returncode != 0:
+            raise Stop(f"{tree} runs at phase {phase} on {branch}, which does not hold the HEAD of this tree. "
+                       "Finish that run, or rebase it onto this branch, and try again.")
+    return text
+
+
+def cmd_import(args) -> None:
+    wiki = open_wiki()
+    olds = {"backlog": Path(args.backlog), "ledger": Path(args.ledger), "learnings": Path(args.learnings)}
+    for name, path in olds.items():
+        if not path.is_file():
+            raise Stop(f"the {name} file {path} does not exist", 2)
+    trees = check_trees(args.trees_checked)
+    with write_lock(wiki):
+        require_new_wiki(wiki)
+        sums = {name: shasum(path) for name, path in olds.items()}
+        changes, summary = build_import(*(read_text(olds[name]) for name in ("backlog", "ledger", "learnings")))
+        listing = "".join(f"{name} {sums[name]}\n" for name in olds)
+        message = f"wiki: import backlog, log, and lessons\n\n{summary}\n{listing}"
+        store(wiki, changes, message + (f"\ntrees checked:\n{trees}" if trees else ""))
+        raws = []
+        for name, path in olds.items():
+            copy = wiki / "raw" / f"{name}-cutover.md"
+            shutil.copyfile(path, copy)
+            if shasum(copy) != sums[name]:
+                raise Stop(f"the raw copy {copy} differs from {path}; no old file changed")
+            raws.append(f"raw/{name}-cutover.md")
+        commit(wiki, raws, "wiki: import raw copies")
+        for name, path in olds.items():
+            path.chmod(0o644)
+            write_file(path, STUB.format(tool=main_checkout() / "scripts" / "wiki.py", wiki=wiki, name=name))
+            path.chmod(0o444)
+    print(summary)
+    print(listing, end="")
 
 
 def cmd_list(args) -> None:
@@ -820,6 +1017,8 @@ def build_parser() -> argparse.ArgumentParser:
     command("count", cmd_count, "status")
     command("show", cmd_show).add_argument("ids", nargs="+", metavar="id")
     command("seed", cmd_seed, prs={"action": "store_true"})
+    command("import", cmd_import, backlog={"required": True}, ledger={"required": True},
+            learnings={"required": True}, trees_checked={"default": None})
     command("add", cmd_add, "status", src=True)
     command("edit", cmd_edit, "id", src=True, expect={"required": True})
     command("move", cmd_move, "id", "status")
@@ -844,6 +1043,9 @@ def main(argv: list[str]) -> int:
         return stop.code
     except BrokenPipeError:
         return 0
+    except OSError as err:
+        print(f"wiki.py: {err}", file=sys.stderr)
+        return 1
     return 0
 
 

@@ -901,6 +901,8 @@ Three commands read the audio by time and write nothing. Each takes `--track` fo
 - `dirigible nearest-pause Demo.dirigible --at <frame>` gives the best cut point near a frame: the silence of 200 ms or more nearest to it within 2 s (`--window`), and the cut: the middle frame of the silence, or the frame of the search range nearest to it. With no silence, it gives `no pause` and the middle of the quietest 50 ms window.
 - `dirigible meter Demo.dirigible --from <frame> --to <frame>` measures the heard stereo mix of the range, as a stereo export: the integrated loudness, the loudness range (none under 2 min), the max momentary and short-term loudness, the true peak, and the sample peak. Add `--step <frames>` for the RMS level and the peak of each step.
 
+`silences` and `nearest-pause` give a silence that meets the range whole, up to 60 s past the range (for `nearest-pause`, the search range). A silence that goes on past that limit stops there, with a warning line on stderr.
+
 A missing, short, or unreadable file stops `silences` and `nearest-pause`, because its clips would read as silence. `meter` reads such a file as silence, with a warning. Like an export, `meter` also warns when a track is muted or not soloed.
 
 These commands change clips and the export. `info` shows the clip IDs. A length is in frames: at 48 kHz, 24000 frames are 0.5 s.

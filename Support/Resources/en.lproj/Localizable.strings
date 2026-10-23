@@ -512,6 +512,7 @@
 "banner.level.limit" = "Clips at the 20 dB limit: %lld. Check that they have speech.";
 "banner.level.unmeasured" = "Clips with no level to measure: %lld. They keep their gain.";
 "banner.export.chapter.images.omitted" = "%@ has no chapter images: a chapter has no image, and the episode has no artwork. Set the episode artwork, or an image for each chapter.";
+"banner.export.title.missing" = "%@ has no title tag, because the episode has no title. In File > Episode Info, set the title, then export again.";
 "banner.export.chapter.dropped" = "%1$@ leaves out these chapters, because each starts at the time of another chapter, or at or after the end of the audio: %2$@. Move them, then export again.";
 "banner.transcript.left.out" = "%1$@ leaves out subtitles with no length: %2$lld. To keep them, give each one an end after its start in the transcript file, then import the transcript again.";
 "report.loudness" = "loudness %.1f LUFS";

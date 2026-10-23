@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleMCP
 import DirigibleTimeline
 
 /// File > Export (the whole mix) and File > Export Selection (the Marks) (decision 0019).
@@ -18,19 +19,22 @@ enum ExportStep: Hashable {
     case choosing
 }
 
-/// The chapter warnings of an exported file: the names of the chapters that it leaves out, because
-/// each starts at the time of another chapter or after the audio, and whether it has no chapter
-/// images. Also the name of the file and the session revision of the export.
+/// The tag warnings of an exported file: the names of the chapters that it leaves out, because
+/// each starts at the time of another chapter or after the audio, whether it has no chapter
+/// images, and whether it has no title tag. Also the name of the file and the session revision of
+/// the export.
 struct ChapterWarningsShown: Equatable {
     let names: [String]
     let imagesOmitted: Bool
+    let titleMissing: Bool
     let file: String
     let revision: Int
 
-    /// Nil when no chapter is left out and the images are not omitted.
-    init?(_ chapters: [Marker], imagesOmitted: Bool = false, file: String, revision: Int) {
-        guard !chapters.isEmpty || imagesOmitted else { return nil }
-        (names, self.imagesOmitted, self.file, self.revision) = (chapters.map(\.name), imagesOmitted, file, revision)
+    /// Nil when no chapter is left out, the images are not omitted, and the title tag is there.
+    init?(_ chapters: [Marker], imagesOmitted: Bool = false, titleMissing: Bool = false, file: String, revision: Int) {
+        guard !chapters.isEmpty || imagesOmitted || titleMissing else { return nil }
+        (names, self.imagesOmitted, self.titleMissing) = (chapters.map(\.name), imagesOmitted, titleMissing)
+        (self.file, self.revision) = (file, revision)
     }
 }
 
@@ -158,11 +162,12 @@ extension SessionWindow {
         defer { recordRefusal = nil }
         // The file has the session of the export start: an edit during the export does not match it.
         let revision = studio.sessionRevision
+        let titleMissing = ExportText.lacksTitleTag(studio.session, format: target.options.format)
         do throws(StudioError) {
             let result = try await studio.export(source, target.options, to: target.url, replacing: target.confirmed)
             chapterWarnings = ChapterWarningsShown(
-                result.droppedChapters, imagesOmitted: result.chapterImagesOmitted, file: target.url.lastPathComponent,
-                revision: revision)
+                result.droppedChapters, imagesOmitted: result.chapterImagesOmitted, titleMissing: titleMissing,
+                file: target.url.lastPathComponent, revision: revision)
             if result.faults.isEmpty {
                 exportReport = result.loudness.map {
                     ExportReportShown(report: $0, file: target.url.lastPathComponent, revision: revision)

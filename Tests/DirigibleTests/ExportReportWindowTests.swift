@@ -211,4 +211,41 @@ extension ExportWindowTests {
         }
         await model.close()
     }
+
+    /// C18: an MP3 export of an episode with no title shows a warning banner with the file name. A
+    /// WAV export, and an MP3 export with a title, show none. A session edit removes the banner.
+    @Test func exportWithNoTitleShowsTheBanner() async throws {
+        let (model, studio, _) = try await window()
+        let source = try #require(model.source(of: .session, in: studio))
+        let mp3 = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session)
+        let target = ExportTarget(url: folder.url.appending(path: "mix.mp3"), options: mp3, confirmed: nil)
+
+        await model.run(source, target, studio)
+
+        #expect(model.alert == nil, "\(String(describing: model.alert))")
+        let banner = WindowBanner.titleMissing(file: "mix.mp3")
+        await until("the banner shows") { model.shown.banners.contains(banner) }
+        #expect(banner.kind == .warning)
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let text = (try? stringsTable(language))?["banner.export.title.missing"] ?? ""
+            #expect(text.contains("%@"), "\(language): \(text)")
+        }
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
+        await until("the banner goes") { !model.shown.banners.contains { $0.key == "titleMissing" } }
+
+        await model.run(source, self.target, studio)
+        #expect(model.alert == nil && FileManager.default.fileExists(atPath: out.path), "the WAV export ran")
+        #expect(model.chapterWarnings == nil, "a WAV file has no title tag")
+
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            var episode = session.episode
+            episode.title = try? EpisodeLine("Episode 1")
+            session.setEpisode(episode)
+        }
+        let titled = ExportTarget(url: folder.url.appending(path: "titled.mp3"), options: mp3, confirmed: nil)
+        await model.run(source, titled, studio)
+        #expect(model.alert == nil && FileManager.default.fileExists(atPath: titled.url.path), "the MP3 export ran")
+        #expect(model.chapterWarnings == nil, "an episode with a title has a title tag")
+        await model.close()
+    }
 }

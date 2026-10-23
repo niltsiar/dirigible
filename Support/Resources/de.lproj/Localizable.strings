@@ -512,6 +512,7 @@
 "banner.level.limit" = "Clips am Limit von 20 dB: %lld. Prüfe, ob sie Sprache enthalten.";
 "banner.level.unmeasured" = "Clips ohne messbaren Pegel: %lld. Diese Clips bleiben unverändert.";
 "banner.export.chapter.images.omitted" = "%@ hat keine Kapitelbilder: Ein Kapitel hat kein Bild, und die Folge hat kein Cover. Lege das Cover der Folge fest oder ein Bild für jedes Kapitel.";
+"banner.export.title.missing" = "%@ hat kein Titel-Tag, weil die Folge keinen Titel hat. Lege in Ablage > Folgeninformationen den Titel fest. Exportiere dann erneut.";
 "banner.export.chapter.dropped" = "%1$@ lässt diese Kapitel aus, weil jedes zur Zeit eines anderen Kapitels oder am oder nach dem Ende des Audios beginnt: %2$@. Bewege sie und exportiere dann erneut.";
 "banner.transcript.left.out" = "%1$@ lässt Untertitel ohne Dauer aus: %2$lld. Um sie zu behalten, gib jedem in der Transkriptdatei ein Ende nach seinem Anfang und importiere das Transkript dann erneut.";
 "report.loudness" = "Loudness %.1f LUFS";

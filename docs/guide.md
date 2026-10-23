@@ -497,6 +497,7 @@ Before the show, make a short test take with the call. Then macOS asks for Syste
 - **File > Export** exports all tracks, from the start to the end of the session.
 - **File > Export Selection** exports the selection only: the time from the in point to the out point, on the selected tracks.
 - The export has only the tracks that you hear: it leaves out muted tracks, and, while a track is soloed, the tracks that are not soloed. Then the export panel shows a line with the number of these tracks. When you hear no track of the export, the line says that the file will be silent. `dirigible export` and `dirigible render` show the same note as a warning.
+- An MP3 or AAC (.m4a) file gets the episode title as its title tag. When the episode has no title, the file has no title tag, and a banner says so. Set the title in **File > Episode Info**, then export again. `dirigible export` and the `export` tool show the same note as a warning.
 
 The export panel has these settings. It keeps the last settings that you used.
 

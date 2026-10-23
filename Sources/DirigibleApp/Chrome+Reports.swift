@@ -11,6 +11,7 @@ extension ChromeState {
         if let shown = model.chapterWarnings, shown.revision == studio.sessionRevision {
             if !shown.names.isEmpty { banners.append(.chaptersDropped(shown.names, file: shown.file)) }
             if shown.imagesOmitted { banners.append(.chapterImagesOmitted(file: shown.file)) }
+            if shown.titleMissing { banners.append(.titleMissing(file: shown.file)) }
         }
         if let shown = model.transcriptLeftOut, shown.revision == studio.sessionRevision {
             banners.append(.transcriptLeftOut(count: shown.count, file: shown.file))

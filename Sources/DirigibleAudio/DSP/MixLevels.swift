@@ -24,23 +24,18 @@ public func measureMix(
 /// The window levels of the mix of `tracks` (nil: every track) in `range` of `session`, on the
 /// grid of `LevelSeries` (decision 0062): the read of `silences`, `nearest_pause`, and the duck.
 /// The clip gain, the fades, the envelope, and the track gain count; mute and solo do not, as
-/// for the duck and Auto Level (decision 0039): `MixReader` reads a copy of the session with
-/// the flags off. With `silence`, the scan reads past each edge of `range` until the run of
-/// windows at or under `silence` dBFS that crosses the edge ends, or the session edge, so each
-/// silence that meets `range` has its whole extent; nil reads `range` only. A missing, short, or
-/// unreadable file is silence there, and `faults` gives its fault. `progress` gets the fraction
-/// of `range` done. `isCancelled` is read before each second of audio; a cancel throws
-/// `ECANCELED`. No free descriptor throws its errno. It blocks, so never call it on the main actor.
+/// for the duck and Auto Level (decision 0039): `MixReader` reads `session.ignoringMuteAndSolo`.
+/// With `silence`, the scan reads past each edge of `range` until the run of windows at or under
+/// `silence` dBFS that crosses the edge ends, or the session edge, so each silence that meets
+/// `range` has its whole extent; nil reads `range` only. A missing, short, or unreadable file
+/// is silence there, and `faults` gives its fault. `progress` gets the fraction of `range` done.
+/// `isCancelled` is read before each second of audio; a cancel throws `ECANCELED`. No free
+/// descriptor throws its errno. It blocks, so never call it on the main actor.
 public func mixLevels(
     of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>, silence: Gain?,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
 ) throws(POSIXError) -> (series: LevelSeries, faults: [FileID: MediaFault]) {
-    var copy = session
-    let all = session.tracks.map(\.id)
-    // Each ID is in the session, so neither edit can throw.
-    try? copy.setMuted(false, tracks: all)
-    try? copy.setSoloed(false, tracks: all)
-    let reader = MixReader(package: package, session: copy, tracks: tracks)
+    let reader = MixReader(package: package, session: session.ignoringMuteAndSolo, tracks: tracks)
     let series = try scanMix(
         reader, rate: session.sampleRate, end: session.end, range: range, silence: silence, sink: { _ in },
         progress: progress, isCancelled: isCancelled)

@@ -171,3 +171,88 @@ extension EditFailure where Body == TakeImportError {
         }
     }
 }
+
+/// The work of a `transcript export` command or a `transcript_export` call after its arguments are
+/// checked (decision 0061). It is the one owner of the form of `out`, the refusals, and the text of
+/// the file, as `ChaptersWork` is for the chapters export.
+package struct TranscriptExportWork: Sendable {
+    /// An absolute path outside each session package.
+    let out: String
+    let format: SubtitleFormat
+    let transcript: Int?
+    let replace: Bool
+    let spelling: OptionSpelling
+
+    /// Refuses an `out` that does not end in `.srt` or `.vtt`, or that is in a session package.
+    package init(out: String, transcript: Int?, replace: Bool, spelling: OptionSpelling = .tool) throws(ToolError) {
+        guard let format = SubtitleFormat(pathExtension: URL(filePath: out).pathExtension) else {
+            throw ToolError("\(spelling("out")) must end in .srt or .vtt.")
+        }
+        if let transcript, transcript < 1 { throw ToolError("The transcript must be 1 or more.") }
+        try ExportText.checkOutsidePackages(URL(filePath: out))
+        (self.out, self.format, self.transcript, self.replace, self.spelling) = (
+            out, format, transcript, replace, spelling
+        )
+    }
+
+    var url: URL { URL(filePath: out) }
+
+    /// The file text, and the warning lines. The error text is the line of the command and of the
+    /// tool.
+    package func render(_ session: Session) throws(ToolError) -> (text: String, warnings: [String]) {
+        do throws(SubtitleError) {
+            let (cues, left) = try session.cues(ofTranscript: transcript)
+            let warnings =
+                left == 0
+                ? []
+                : [
+                    "Warning: \(left) cue\(left == 1 ? " has" : "s have") no length and \(left == 1 ? "is" : "are") left out."
+                ]
+            return (format.text(cues, sampleRate: session.sampleRate), warnings)
+        } catch {
+            throw ToolError(message(error))
+        }
+    }
+
+    private func message(_ error: SubtitleError) -> String {
+        switch error {
+        case .noTranscript: "The session has no transcript."
+        case .severalTranscripts(let numbers):
+            "The session has transcripts \(numbers.map(String.init).joined(separator: ", ")). Give "
+                + "\(spelling("transcript"))\(spelling == .cli ? " <id>" : "")."
+        case .unknownTranscript(let number): "The session has no transcript \(number)."
+        case .notLoaded(let number):
+            "Transcript \(number) did not load: its file is missing or damaged. Import the transcript again."
+        case .noCue: "The transcript has no word on the timeline."
+        }
+    }
+
+    /// Refuses an item at `out` with no `replace`. An lstat: a dangling link is an item too.
+    /// `[.atomic, .withoutOverwriting]` is a fatal error of Foundation, so the check comes before
+    /// the write, and a race with another writer is accepted.
+    package func checkTarget() throws(ToolError) {
+        guard replace || ConfirmedFile(at: url) == nil else { throw ToolError("\(out) exists.") }
+    }
+
+    /// The atomic write: a failed write leaves the old file or no file.
+    package func write(_ text: String) throws(ToolError) {
+        do { try Data(text.utf8).write(to: url, options: .atomic) } catch {
+            throw ToolError("cannot write \(out): \(error.localizedDescription)")
+        }
+    }
+
+    /// The text of a written file: the warning lines, or "OK".
+    static func text(of warnings: [String]) -> String { warnings.isEmpty ? "OK" : warnings.joined(separator: "\n") }
+
+    /// The job of a tool call on the files. It reads with no lock, as the command.
+    func run(_ package: URL, path: String) throws(ToolError) -> String {
+        let session: Session
+        do throws(SessionFileError) { session = try Session(contentsOf: package) } catch {
+            throw ToolError(error.message(package: path))
+        }
+        let (text, warnings) = try render(session)
+        try checkTarget()
+        try write(text)
+        return Self.text(of: warnings)
+    }
+}

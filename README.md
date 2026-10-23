@@ -21,7 +21,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Make a session smaller after many retakes with **File > Remove Unused Files**. It shows the list and the size first, and moves the files to the Trash.
 - Import WAV, AIFF, FLAC, MP3, and M4A files into a track, by the menu or a drag from Finder. Dirigible copies each file into the session at its sample rate and levels it.
 - Edit with the keyboard or the mouse: cut, copy, paste, delete, split, nudge, move, and trim. Ripple delete, insert, and ripple trim keep all tracks and the markers in sync. Command-click clips on several tracks and drag them together. Each edit is one undo step.
-- Import a Whisper JSON, WebVTT, or SRT transcript with the dirigible tool or an AI agent, find a phrase, and cut its words from all tracks in one edit.
+- Import a Whisper JSON, WebVTT, or SRT transcript with the dirigible tool or an AI agent, find a phrase, and cut its words from all tracks in one edit. Export the transcript as SRT or WebVTT subtitles that match the edited episode.
 - Let an AI agent do common jobs in few calls: one `import` places a sound with its range, gain, and fades; `chapters_import` reads a chapters file and `chapters_export` writes a text chapter list; `clip_heal` joins the pieces of a split clip; `session_info` with `compact` reads a long session in fewer tokens.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
 - Give each track a role (dialogue, music, or effects), then lower the music under the speech with Tools > Duck Music Under Speech, in one undo step.

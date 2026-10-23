@@ -49,6 +49,14 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         } catch {
             return .result(text: error.message, isError: true)
         }
+    case .transcriptExport(let work):
+        if let busy = exportBusy(studio) { return .result(text: busy.message(package: call.path), isError: true) }
+        if let busy = target.sheetCause() { return .result(text: busy.message(package: call.path), isError: true) }
+        do throws(ToolError) {
+            return .result(text: try await liveTranscriptExport(work, studio: studio), isError: false)
+        } catch {
+            return .result(text: error.message, isError: true)
+        }
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
         .record, .words,
@@ -194,6 +202,21 @@ private func liveChapters(_ work: ChaptersWork, studio: Studio) async throws(Too
     return ChaptersWork.text(of: source)
 }
 
+/// `transcript_export` for the session of the window: the text from the session now, the check and the
+/// write off the main actor. It has no progress and no cancel: the file is small.
+@MainActor
+private func liveTranscriptExport(_ work: TranscriptExportWork, studio: Studio) async throws(ToolError) -> String {
+    let (text, warnings) = try work.render(studio.session)
+    try await write(text, work)
+    return TranscriptExportWork.text(of: warnings)
+}
+
+/// The target check and the write of a transcript export off the main actor: both are file I/O.
+@concurrent private func write(_ text: String, _ work: TranscriptExportWork) async throws(ToolError) {
+    try work.checkTarget()
+    try work.write(text)
+}
+
 /// The target check of a chapters export off the main actor: an lstat is file I/O.
 @concurrent private func checkTarget(_ work: ChaptersWork) async throws(ToolError) { try work.checkTarget() }
 
@@ -220,7 +243,8 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
-    case .chapters, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo,
+    case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker,
+        .episodeInfo,
         .prune, .record,
         .words, .takeMap:
         "Dirigible stopped its agent server, so the call stopped."

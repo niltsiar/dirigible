@@ -8,8 +8,8 @@ import Foundation
 /// `transcript_cut` give the same text: stdout, then stderr.
 struct TranscriptCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "transcript", abstract: "Import a transcript, read its words, and cut words.",
-        subcommands: [Import.self, Words.self, Cut.self])
+        commandName: "transcript", abstract: "Import a transcript, read its words, cut words, and export subtitles.",
+        subcommands: [Import.self, Words.self, Cut.self, Export.self])
 
     struct Import: ParsableCommand {
         static let configuration = CommandConfiguration(
@@ -138,6 +138,51 @@ struct TranscriptCommand: ParsableCommand {
             guard !occurrences.isEmpty else { throw ValidationError("Give one or more word occurrences.") }
             do throws(ToolError) { return try TranscriptWork.occurrences(occurrences) } catch {
                 throw ValidationError(error.message)
+            }
+        }
+    }
+
+    struct Export: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Write the transcript as an SRT or WebVTT file on the timeline as it is now.",
+            discussion:
+                "One cue for each word or cue of the transcript, in timeline order, with the times of transcript "
+                + "words in whole milliseconds. The extension of --out gives the form: .srt or .vtt. A cue that an "
+                + "edit cut is clamped to the audio that stays. Exit 64 when --out is not .srt or .vtt or is in a "
+                + ".dirigible package. Exit 1 when the session has no transcript, has more than one and no "
+                + "--transcript, or the transcript has no word on the timeline. Exit 2 when the package cannot be "
+                + "read, --out exists (unless --replace), or the write fails. The write is atomic: a failed write "
+                + "leaves the old file.")
+        @OptionGroup var package: PackageArgument
+        @Option(help: "The output file: .srt or .vtt.") var out: String
+        @Option(help: "The transcript number. Give it when the session has more than one transcript.")
+        var transcript: Int?
+        @Flag(help: "Replace the output file when it exists.") var replace = false
+
+        func work() throws(ValidationError) -> TranscriptExportWork {
+            do throws(ToolError) {
+                return try TranscriptExportWork(out: out, transcript: transcript, replace: replace, spelling: .cli)
+            } catch {
+                throw ValidationError(error.message)
+            }
+        }
+
+        func validate() throws { _ = try work() }
+
+        func run() throws {
+            let work = try work()
+            let session = try readPackage(package)
+            let text: String
+            let warnings: [String]
+            do throws(ToolError) { (text, warnings) = try work.render(session) } catch {
+                throw fail(error.message, code: editRefused)
+            }
+            warn(warnings)
+            do throws(ToolError) {
+                try work.checkTarget()
+                try work.write(text)
+            } catch {
+                throw fail(error.message, code: packageError)
             }
         }
     }

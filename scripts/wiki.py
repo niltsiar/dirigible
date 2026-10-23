@@ -36,7 +36,7 @@ Usage: scripts/wiki.py <command> [<argument>...]
   runs                                     Print the log lines. A later row of a run follows the
                                            earlier one: readers take the last row of a run.
   reserve --from <file>                    Add one decision number entry: "<number> <title>
-                                           (run <run folder>)".
+                                           (run <run folder>)". The title has no comma and no "(".
   numbers                                  Print the line of the decision numbers.
   now                                      Print the state, computed at each call: counts, the items that
                                            wait for the user, taken items, open runs (last row open and
@@ -88,7 +88,7 @@ KEY_ARG_RE = re.compile(r"^(?:NEW-[A-Z]+-[a-z0-9]+(?:-[a-z0-9]+)*|[A-Z]+-[0-9]{3
 RUN_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*$")
 ID_RE = re.compile(r"^[0-9]{4,}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
-ENTRY_RE = re.compile(r"^[0-9]{4} [^,\n]+ \(run [0-9a-z-]+\)$")
+ENTRY_RE = re.compile(r"^[0-9]{4} [^,(\n]+ \(run [0-9a-z-]+\)$")
 TITLE_RE = re.compile(r"^- (upkeep (?:NEW-[A-Z]+-[a-z0-9-]+|[A-Z]+-[0-9]{3})/[a-z]+|[A-Z0-9][A-Z0-9 .,'&/+#-]*[A-Z0-9])(?=[ :(])")
 RUN_CLOSED_RE = re.compile(r"^-? ?Status: (?:done|dropped)\b", re.M)
 TAKEN_RE = re.compile(r"\(taken: run ([0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*)[ ,)]")
@@ -1009,7 +1009,7 @@ def cmd_reserve(args) -> None:
     src, text = read_from(args.src)
     lines = lines_of(text)
     if len(lines) != 1 or not ENTRY_RE.match(lines[0]):
-        raise Stop('the file holds one entry: "<number> <title> (run <run folder>)"', 2)
+        raise Stop('the file holds one entry: "<number> <title> (run <run folder>)", and the title has no comma and no parenthesis', 2)
     entry = lines[0]
     with write_lock(wiki):
         page = register_page(wiki)

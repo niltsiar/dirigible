@@ -117,6 +117,12 @@ extension Kind where T == Gain {
         guard let number = value as? NSNumber, !isBoolean(number) else { return nil }
         return Gain(dB: number.doubleValue)
     }
+
+    /// A level in dB under 0, as the schema gives it. The parse is that of `gain`, so the work
+    /// refuses 0 and over with the text of its command.
+    static let level = Kind(
+        schema: ["type": "number", "minimum": Gain.range.lowerBound, "exclusiveMaximum": 0.0],
+        expected: "a number of dB under 0, \(Int(Gain.range.lowerBound)) or more", parse: gain.parse)
 }
 
 extension Kind where T == [String] {

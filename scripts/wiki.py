@@ -83,8 +83,6 @@ TAKEN_RE = re.compile(r"\(taken: run ([0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9
 GIT_ENV_DROP = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX",
                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE")
 GIT_ENV = {k: v for k, v in os.environ.items() if k not in GIT_ENV_DROP}
-# The wiki is a local repo that only this tool writes: a commit needs no identity and no signing.
-COMMIT_FLAGS = ["-c", "user.name=dirigible-wiki", "-c", "user.email=wiki@localhost", "-c", "commit.gpgsign=false"]
 REGISTER_HEAD = ('Decision numbers taken or reserved (reserve at Phase 2, one entry "<number> <title> '
                  '(run <run folder>)"; the next free number is after the last entry): ')
 
@@ -180,7 +178,7 @@ def check_clean(wiki: Path) -> None:
 
 def commit(wiki: Path, paths: list[str], message: str) -> None:
     git(wiki, "add", "--", *paths)
-    git(wiki, *COMMIT_FLAGS, "commit", "-q", "-F", "-", input=message)
+    git(wiki, "commit", "-q", "-F", "-", input=message)
 
 
 # ---------- pages ----------

@@ -231,7 +231,8 @@ let audioTools = [
         "List the silences of a range, as dirigible silences: one line for each silence, its first frame, a tab, and "
             + "the frame after it, at most 1000 lines; \"No silence.\" when none. A silence is a run of 50 ms windows "
             + "of the mix at or under threshold, of min_length or more, with mute and solo ignored. A silence that "
-            + "meets the range is given whole. A missing, short, or unreadable file refuses the read. It writes "
+            + "meets the range is given whole, up to 60 s past the range: a silence that goes on past that limit "
+            + "stops there, with a warning line first. A missing, short, or unreadable file refuses the read. It writes "
             + "nothing. A cancel stops the read.",
         [readFrom, readTo, readTracks, readThreshold, silenceLength], saves: false
     ) { a throws(ToolError) in

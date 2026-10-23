@@ -30,6 +30,10 @@ public struct LevelSeries: Hashable, Sendable {
         (self.range, self.window, self.levels) = (range, window, levels)
     }
 
+    /// The most windows that a read with a silence threshold reads past each edge of its range
+    /// for the uncut silence (decision 0062): 1200 windows of 50 ms, 60 s.
+    public static let edgeWindows = 1200
+
     /// The scan window at `rate` frames per second: 50 ms, and 1 frame or more.
     public static func window(rate: Int) -> Frames { Frames(max(1, rate / 20)) }
 

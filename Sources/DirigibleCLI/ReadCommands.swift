@@ -55,9 +55,10 @@ struct SilencesCommand: ParsableCommand {
             of --min-length frames or more, with mute and solo ignored. The windows start at multiples \
             of 50 ms from frame 0. One line for each silence that meets the range, with its whole \
             extent: the first frame, a tab, and the frame after it; at most 1000 lines, then a line \
-            with the count of the others. "No silence." when none. It writes nothing and takes no lock. \
-            Exit 64 for a bad value or a --from at or after the session end. Exit 2 when the package \
-            cannot be read, a track is unknown, or a file of the read is missing, short, or \
+            with the count of the others. "No silence." when none. A silence that goes on more than \
+            60 s past the range stops there, with a warning line on stderr. It writes nothing and takes \
+            no lock. Exit 64 for a bad value or a --from at or after the session end. Exit 2 when the \
+            package cannot be read, a track is unknown, or a file of the read is missing, short, or \
             unreadable: its clips would read as silence.
             """)
 

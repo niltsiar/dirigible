@@ -102,6 +102,34 @@ struct ReadWorkTests {
         }
     }
 
+    /// The scan reads at most 60 s past each edge of the range, and a silence that goes on past
+    /// that limit stops there with a warning line. The progress counts the frames past the edges.
+    /// The tone plays at 0 to 3 s and at 200 to 203 s, so a read of 100 s to 101 s reads 40 s to 161 s.
+    @Test func aSilencePastTheReadLimitStopsThere() throws {
+        var (package, session) = try Self.tone()
+        try session.place(Clip(id: "c2", file: "tone", start: 9_600_000, offset: 0, length: 144_000), on: "t1")
+        func warnings(_ frames: [Int]) -> [String] {
+            frames.map {
+                "Warning: a silence can go on beyond frame \($0), the read limit 60 s outside the range; its line "
+                    + "stops there."
+            }
+        }
+        let progress = Progress()
+        let silences = try Self.silences(from: 4_800_000, to: 4_848_000)
+            .read(session, package: package.url, progress: progress.add)
+        #expect(
+            silences == ReadOutput(stdout: ["1920000\t7728000"], stderr: warnings([1_920_000, 7_728_000])),
+            "\(silences)")
+        let values = progress.values
+        #expect(values.count == 121 && values.last == 1 && values == values.sorted(), "\(values.count): \(values)")
+        // The asked range of the pause is 4 728 000 ..< 4 920 000.
+        let pause = try Self.pause(at: 4_824_000).read(session, package: package.url)
+        #expect(
+            pause
+                == ReadOutput(stdout: ["pause\t1848000\t7800000\t4824000"], stderr: warnings([1_848_000, 7_800_000])),
+            "\(pause)")
+    }
+
     @Test func meterPutsTheFaultLinesFirst() throws {
         let (package, session) = try Self.tone(missing: true)
         let output = try Self.meter().read(session, package: package.url)

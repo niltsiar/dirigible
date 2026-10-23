@@ -26,11 +26,13 @@ public func measureMix(
 /// The clip gain, the fades, the envelope, and the track gain count; mute and solo do not, as
 /// for the duck and Auto Level (decision 0039): `MixReader` reads `session.ignoringMuteAndSolo`.
 /// With `silence`, the scan reads past each edge of `range` until the run of windows at or under
-/// `silence` dBFS that crosses the edge ends, or the session edge, so each silence that meets
-/// `range` has its whole extent; nil reads `range` only. A missing, short, or unreadable file
-/// is silence there, and `faults` gives its fault. `progress` gets the fraction of `range` done.
-/// `isCancelled` is read before each second of audio; a cancel throws `ECANCELED`. No free
-/// descriptor throws its errno. It blocks, so never call it on the main actor.
+/// `silence` dBFS that crosses the edge ends, the session edge, or `LevelSeries.edgeWindows`
+/// windows past the edge, so each silence that meets `range` has its whole extent up to that
+/// limit. A silence that reaches an edge of the series that is not a session edge can go on
+/// past the limit. Nil reads `range` only. A missing, short, or unreadable file is silence
+/// there, and `faults` gives its fault. `progress` gets the fraction of the most frames that the
+/// scan can read. `isCancelled` is read before each second of audio; a cancel throws
+/// `ECANCELED`. No free descriptor throws its errno. It blocks, so never call it on the main actor.
 public func mixLevels(
     of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>, silence: Gain?,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
@@ -47,8 +49,9 @@ public func mixLevels(
 /// `range.upperBound`, or up to `end` (the session end) when that comes first, and gives `sink`
 /// the frames of `range` only. With `silence`, while the edge window is at or under `silence`
 /// dBFS, it renders one more chunk past that edge, up to a chunk with a louder window, frame 0,
-/// or `end`. The window level is the mean of the L and R mean squares and the largest absolute
-/// sample. A buffer that does not allocate throws `ENOMEM`.
+/// `end`, or `LevelSeries.edgeWindows` windows past the edge. The window level is the mean of
+/// the L and R mean squares and the largest absolute sample. A buffer that does not allocate
+/// throws `ENOMEM`.
 private func scanMix(
     _ reader: MixReader, rate: Int, end: Frames, range: Range<Frames>, silence: Gain?,
     sink: (AVAudioPCMBuffer) -> Void, progress: (Double) -> Void, isCancelled: () -> Bool
@@ -63,7 +66,11 @@ private func scanMix(
     let (first, last) = (grid.lowerBound.count, grid.upperBound.count)
     var levels: [WindowLevel] = []
     levels.reserveCapacity((last - first + window - 1) / window)
-    let total = Double(max(1, last - first))
+    // With `silence`, the edge loops read up to `LevelSeries.edgeWindows` windows past each edge.
+    let reach = silence == nil ? 0 : LevelSeries.edgeWindows * window
+    let (lowest, highest) = (max(0, first - reach), max(last, min(last + reach, end.count)))
+    let total = Double(max(1, highest - lowest))
+    var done = 0
     /// Renders `frames` into `buffer` and gives the levels of its windows.
     func chunkLevels(_ frames: Range<Int>) throws(POSIXError) -> [WindowLevel] {
         if isCancelled() { throw POSIXError(.ECANCELED) }
@@ -86,24 +93,28 @@ private func scanMix(
             part.frameLength = AVAudioFrameCount(high - low)
             sink(part)
         }
-        start = stop
-        progress(Double(start - first) / total)
+        (start, done) = (stop, done + stop - start)
+        progress(Double(done) / total)
     }
     var (low, high) = (first, last)
     if let silence, let firstLevel = levels.first, let lastLevel = levels.last {
         let limit = LevelSeries.limit(silence)
         var before: [[WindowLevel]] = []
         var quiet = firstLevel.meanSquare <= limit
-        while quiet, low > 0 {
-            let part = try chunkLevels(max(0, low - chunk)..<low)
-            (low, quiet) = (max(0, low - chunk), part.allSatisfy { $0.meanSquare <= limit })
+        while quiet, low > lowest {
+            let next = max(lowest, low - chunk)
+            let part = try chunkLevels(next..<low)
+            (low, quiet, done) = (next, part.allSatisfy { $0.meanSquare <= limit }, done + low - next)
             before.append(part)
+            progress(Double(done) / total)
         }
         quiet = lastLevel.meanSquare <= limit
-        while quiet, high < end.count {
-            let part = try chunkLevels(high..<min(high + chunk, end.count))
-            (high, quiet) = (min(high + chunk, end.count), part.allSatisfy { $0.meanSquare <= limit })
+        while quiet, high < highest {
+            let next = min(high + chunk, highest)
+            let part = try chunkLevels(high..<next)
+            (high, quiet, done) = (next, part.allSatisfy { $0.meanSquare <= limit }, done + next - high)
             levels += part
+            progress(Double(done) / total)
         }
         levels = before.reversed().flatMap { $0 } + levels
     }

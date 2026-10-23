@@ -132,7 +132,8 @@ package struct ReadWork: Sendable {
             let series = try levels(
                 range, chosen, session, package, threshold, progress: progress, isCancelled: isCancelled)
             let silences = series.silences(threshold: threshold, minLength: minLength ?? Frames(rate / 2), in: range)
-            return ReadOutput(stdout: Self.silencesLines(silences, spelling: o), stderr: [])
+            return ReadOutput(
+                stdout: Self.silencesLines(silences, spelling: o), stderr: Self.limitLines(silences, series, end: end))
         case .pause(let at, let window, let level, let minLength):
             let threshold = level ?? quiet
             guard at < end else { throw .usage("\(o("at")) must be before the session end, frame \(end).") }
@@ -142,7 +143,8 @@ package struct ReadWork: Sendable {
                 asked, chosen, session, package, threshold, progress: progress, isCancelled: isCancelled)
             let pause = series.nearestPause(
                 at: at, window: width, threshold: threshold, minLength: minLength ?? Frames(rate / 5))
-            return ReadOutput(stdout: [Self.pauseLine(pause)], stderr: [])
+            let reported: [Range<Frames>] = if case .pause(let silence, _) = pause { [silence] } else { [] }
+            return ReadOutput(stdout: [Self.pauseLine(pause)], stderr: Self.limitLines(reported, series, end: end))
         case .meter(let from, let to, let step):
             let range = try range(from, to, in: session)
             if let step { try check(step, range: range, session: session) }
@@ -227,6 +229,18 @@ package struct ReadWork: Sendable {
         }
         guard read.faults.isEmpty else { throw .refused(Self.faultMessage(read.faults, in: session)) }
         return read.series
+    }
+
+    /// One warning line for each edge of `series` that a silence of `silences` reaches, unless it is
+    /// a session edge: there the scan stopped at its limit, so the silence can go on.
+    static func limitLines(_ silences: [Range<Frames>], _ series: LevelSeries, end: Frames) -> [String] {
+        let edges = [series.range.lowerBound, series.range.upperBound].filter { edge in
+            edge != .zero && edge != end && silences.contains { $0.lowerBound == edge || $0.upperBound == edge }
+        }
+        return edges.map {
+            "Warning: a silence can go on beyond frame \($0), the read limit \(LevelSeries.edgeWindows / 20) s outside "
+                + "the range; its line stops there."
+        }
     }
 
     /// The refusal of `silences` and `nearest_pause` for files that read as silence.

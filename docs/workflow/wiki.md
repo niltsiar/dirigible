@@ -29,7 +29,7 @@ The wiki is local only, with no remote: the backlog holds tester notes. A run ne
 
 A write takes its text only from a file: write the file with the Write tool and pass `--from <file>`. The guardrail hook reads the whole command text, and backticks in an argument run in the shell. The tool removes the file after its commit and keeps it after a refusal. An `add` or `edit` file has the title on line 1 (8 words or fewer), the description on line 2 (12 words or fewer), a blank line, and the body. Run `show <id>` first, and pass its hash to `edit <id> --expect <hash> --from <file>`. On exit 75, run `show` again and redo the edit on the new text.
 
-Each write takes a lock and makes one commit. `init` turns off commit signing in the local config of the wiki repo only: the wiki has no remote, and a signing prompt would block an unattended write. A write that stopped part way leaves a dirty wiki tree, and the next write refuses with the repair steps.
+Each write takes a lock and makes one commit. Change a page only through `scripts/wiki.py`: an edit with an editor or the Edit tool skips the lock and the commit. `init` turns off commit signing in the local config of the wiki repo only: the wiki has no remote, and a signing prompt would block an unattended write. A write that stopped part way leaves a dirty wiki tree, and the next write refuses with the repair steps.
 
 ## Items that wait
 

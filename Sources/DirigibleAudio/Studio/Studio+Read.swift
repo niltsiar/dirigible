@@ -3,10 +3,12 @@ import Foundation
 import os
 
 /// The flags of one running agent read (decision 0062). A cancel of the caller sets `cancelled`;
-/// a take start sets both.
+/// a take start sets `cancelled` and `yielded`. The read sets `observed` when it sees `cancelled`
+/// at a block, so a read that completed before the take start keeps its result.
 final class ReadRun: Sendable {
     let cancelled = OSAllocatedUnfairLock(initialState: false)
     let yielded = OSAllocatedUnfairLock(initialState: false)
+    let observed = OSAllocatedUnfairLock(initialState: false)
 }
 
 extension Studio {
@@ -15,7 +17,8 @@ extension Studio {
     /// autosave, so the files can lag the window. It throws `.busy` during a take, a take start,
     /// a finalize, a level, a duck, an import, or `settle()`. A read holds no transport, so it
     /// never refuses a take: a take start ends it at its next block, and then it throws
-    /// `.readYielded`. A cancel of the caller makes `isCancelled` true at the next block.
+    /// `.readYielded`; a read that saw no stop returns its result, also after a late take start.
+    /// A cancel of the caller makes `isCancelled` true at the next block.
     /// `progress` gets the fraction on the main actor.
     public func readMix<Success: Sendable>(
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in },
@@ -41,7 +44,9 @@ extension Studio {
                                 session, try lock.package(), hop,
                                 {
                                     step()
-                                    return run.cancelled.withLock { $0 }
+                                    let stop = run.cancelled.withLock { $0 }
+                                    if stop { run.observed.withLock { $0 = true } }
+                                    return stop
                                 })
                         })
                 }
@@ -49,7 +54,7 @@ extension Studio {
         } onCancel: {
             run.cancelled.withLock { $0 = true }
         }
-        if run.yielded.withLock({ $0 }) { throw .readYielded }
+        if run.yielded.withLock({ $0 }), run.observed.withLock({ $0 }) { throw .readYielded }
         do { return try result.get() } catch { throw .file(error) }
     }
 

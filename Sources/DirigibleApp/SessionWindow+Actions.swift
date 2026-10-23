@@ -6,6 +6,22 @@ import Observation
 /// The actions of the session window and the rules that turn them on (decision 0014). Each
 /// action maps to a `Studio` call.
 extension SessionWindow {
+    /// The studio of an open window, also while a close waits for it.
+    var studio: Studio? {
+        switch phase {
+        case .open(let studio): studio
+        case .closing(let studio): studio
+        case .opening, .failed, .closed: nil
+        }
+    }
+
+    /// A take starts or records: a close or a quit asks first.
+    var isTakeRunning: Bool {
+        guard let studio else { return false }
+        if case .recording = studio.transport { return true }
+        return studio.isStarting
+    }
+
     /// The studio when it takes a command: open, no take, no start.
     var idleStudio: Studio? {
         guard case .open(let studio) = phase, studio.isIdle else { return nil }

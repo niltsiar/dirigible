@@ -188,13 +188,12 @@ package struct ReadWork: Sendable {
     /// Refuses a step that is not a whole number of scan windows, or that gives more than
     /// `lineLimit` lines. The steps start on the window grid (decision 0062).
     private func check(_ step: Frames, range: Range<Frames>, session: Session) throws(ReadFailure) {
-        let window = max(1, session.sampleRate / 20)
+        let window = LevelSeries.window(rate: session.sampleRate).count
         guard step.count % window == 0 else {
             throw .usage("\(spelling("step")) must be a multiple of the 50 ms window, \(window) frames.")
         }
-        let first = range.lowerBound.count / window * window
-        let last = min((range.upperBound.count + window - 1) / window * window, session.end.count)
-        let count = (last - first + step.count - 1) / step.count
+        let grid = LevelSeries.grid(of: range, rate: session.sampleRate, end: session.end)
+        let count = (grid.upperBound.count - grid.lowerBound.count + step.count - 1) / step.count
         guard count <= Self.lineLimit else {
             throw .usage(
                 "\(spelling("step")) gives \(count) lines, more than \(Self.lineLimit). Give a longer step or a "

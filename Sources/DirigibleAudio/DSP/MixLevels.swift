@@ -53,15 +53,14 @@ private func scanMix(
     _ reader: MixReader, rate: Int, end: Frames, range: Range<Frames>, silence: Gain?,
     sink: (AVAudioPCMBuffer) -> Void, progress: (Double) -> Void, isCancelled: () -> Bool
 ) throws(POSIXError) -> LevelSeries {
-    let window = max(1, rate / 20)
+    let window = LevelSeries.window(rate: rate).count
     let chunk = window * 20
     guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 2),
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(chunk)),
         let part = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(chunk))
     else { throw POSIXError(.ENOMEM) }
-    let first = range.lowerBound.count / window * window
-    let last = min(
-        (range.upperBound.count + window - 1) / window * window, max(range.upperBound.count, end.count))
+    let grid = LevelSeries.grid(of: range, rate: rate, end: end)
+    let (first, last) = (grid.lowerBound.count, grid.upperBound.count)
     var levels: [WindowLevel] = []
     levels.reserveCapacity((last - first + window - 1) / window)
     let total = Double(max(1, last - first))

@@ -100,7 +100,8 @@ package struct ExportWork: Sendable {
         }
         return (
             result.loudness.map { [ExportText.loudnessLine($0)] } ?? [],
-            ExportText.warnings(of: result, session: session, source: source, output: url)
+            ExportText.warnings(
+                of: result, session: session, source: source, output: url, format: options.format, spelling: spelling)
         )
     }
 

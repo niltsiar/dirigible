@@ -139,10 +139,12 @@ package enum ExportText {
     }
 
     /// The warning lines of an export, in this order: the files that rendered as silence, the
-    /// tracks that are not heard, the chapters that the file leaves out, and the chapter images.
-    package static func warnings(of result: ExportResult, session: Session, source: ExportSource, output: URL)
-        -> [String]
-    {
+    /// tracks that are not heard, the chapters that the file leaves out, the chapter images, and
+    /// the title tag.
+    package static func warnings(
+        of result: ExportResult, session: Session, source: ExportSource, output: URL, format: ExportFormat,
+        spelling: OptionSpelling
+    ) -> [String] {
         var lines = faultLines(result.faults, in: session) + unheardLines(session, source: source)
         lines += droppedLines(result.droppedChapters, pastEnd: true)
         if result.chapterImagesOmitted {
@@ -150,7 +152,27 @@ package enum ExportText {
                 "Warning: \(output.path) has no chapter images: a chapter has no image, and the episode has no "
                     + "artwork. Set the episode artwork, or an image for each chapter.")
         }
-        return lines
+        return lines + titleLines(session, format: format, output: output, spelling: spelling)
+    }
+
+    /// True when an MP3 or M4A file of `session` has no title tag, because the episode has no title.
+    /// The tag writers skip an absent title (`ID3Tag`, `M4ATags`).
+    package static func lacksTitleTag(_ session: Session, format: ExportFormat) -> Bool {
+        switch format {
+        case .mp3, .aac: session.episode.title == nil
+        case .wav, .flac, .floatCAF: false
+        }
+    }
+
+    /// One warning line when `output` gets no title tag.
+    package static func titleLines(_ session: Session, format: ExportFormat, output: URL, spelling: OptionSpelling)
+        -> [String]
+    {
+        guard lacksTitleTag(session, format: format) else { return [] }
+        let action =
+            spelling == .cli
+            ? "`dirigible episode set --title <title> <package>`" : "episode_set and title"
+        return ["Warning: the episode has no title, so \(output.path) has no title tag. Set it with \(action)."]
     }
 
     /// One warning line for each file that rendered as silence.

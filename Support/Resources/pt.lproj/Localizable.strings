@@ -512,6 +512,7 @@
 "banner.level.limit" = "Clipes no limite de 20 dB: %lld. Verifique se eles têm fala.";
 "banner.level.unmeasured" = "Clipes sem nível mensurável: %lld. O ganho deles não muda.";
 "banner.export.chapter.images.omitted" = "%@ não tem imagens de capítulo: um capítulo não tem imagem, e o episódio não tem arte. Defina a arte do episódio ou uma imagem para cada capítulo.";
+"banner.export.title.missing" = "%@ não tem tag de título, porque o episódio não tem título. Em Arquivo > Informações do Episódio, defina o título. Depois, exporte novamente.";
 "banner.export.chapter.dropped" = "%1$@ omite estes capítulos, porque cada um começa no mesmo ponto que outro capítulo, no fim do áudio ou depois do fim: %2$@. Mova-os e exporte novamente.";
 "banner.transcript.left.out" = "%1$@ omite as legendas sem duração: %2$lld. Para mantê-las, dê a cada uma um fim depois do início no arquivo da transcrição e importe a transcrição novamente.";
 "report.loudness" = "loudness %.1f LUFS";

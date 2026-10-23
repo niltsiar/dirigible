@@ -6,7 +6,7 @@ import Testing
 
 /// `dirigible export` (export run criteria 31 and 32, decision 0019). The package of
 /// `RenderCommandTests`: track `t1` with a ramp of `f1.wav` at frames 1000..<21 000; the session
-/// ends at 21 000.
+/// ends at 21 000. The episode has a title, so an MP3 or M4A export prints no title warning.
 struct ExportCommandTests {
     let package: TemporaryPackage
 
@@ -17,6 +17,7 @@ struct ExportCommandTests {
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.addTrack("t2", name: "Guest", layout: .mono)
         try session.place(Clip(id: "c1", file: "f1", start: 1000, offset: 0, length: 20_000), on: "t1")
+        session.setEpisode(try Self.titledEpisode())
         package = try TemporaryPackage(session)
         try RenderCommandTests.writeWAV(package.url.appending(path: "Clips/f1.wav"), frames: 20_000)
     }
@@ -230,6 +231,7 @@ struct ExportCommandTests {
         try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: 192_000))
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 192_000), on: "t1")
+        session.setEpisode(try titledEpisode())
         let package = try TemporaryPackage(session)
         try RenderCommandTests.writeWAV(package.url.appending(path: "Clips/f1.wav"), frames: 192_000)
         return package

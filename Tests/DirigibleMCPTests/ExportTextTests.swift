@@ -73,6 +73,32 @@ struct ExportTextTests {
         }
     }
 
+    /// C18: an MP3 or M4A file of an episode with no title gets a warning line, in the spelling of
+    /// the caller. A WAV or FLAC file and an episode with a title get none.
+    @Test func anMP3OrM4AWithNoTitleWarns() throws {
+        var session = Session(sampleRate: 48_000)
+        let file = URL(filePath: "/out/mix.mp3")
+        let tool =
+            "Warning: the episode has no title, so /out/mix.mp3 has no title tag. Set it with episode_set and title."
+        let cli =
+            "Warning: the episode has no title, so /out/mix.mp3 has no title tag. Set it with "
+            + "`dirigible episode set --title <title> <package>`."
+        for format: ExportFormat in [.mp3(.k128), .aac(.k128)] {
+            #expect(
+                ExportText.titleLines(session, format: format, output: file, spelling: .tool) == [tool], "\(format)")
+            #expect(ExportText.titleLines(session, format: format, output: file, spelling: .cli) == [cli])
+        }
+        for format: ExportFormat in [.wav(.bits24), .flac(.bits24)] {
+            #expect(ExportText.titleLines(session, format: format, output: file, spelling: .tool) == [], "\(format)")
+        }
+        var episode = Episode()
+        episode.title = try EpisodeLine("Episode 1")
+        session.setEpisode(episode)
+        for format: ExportFormat in [.mp3(.k128), .aac(.k128)] {
+            #expect(ExportText.titleLines(session, format: format, output: file, spelling: .tool) == [], "\(format)")
+        }
+    }
+
     /// Code gate item E6. The MP3 chapter limit is a limit with an action, in ms and in days.
     @Test func theMP3ChapterLimitGivesTheLimitAndAnAction() {
         #expect(

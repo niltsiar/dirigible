@@ -6,8 +6,8 @@
 # main checkout. It exits 2 with the branch name when no worktree holds the run branch, and when
 # the branch of the last `- Branch:` line is landed (no commit off the base). With two `- Branch:`
 # lines it checks the last one, or the tree that the caller names. The refusal of an ungraded key
-# names the lead as the step that grades. It finds keys.md in any folder of the run, and takes
-# scores.tsv from the same folder.
+# names the lead as the step that grades. It finds keys.md in any folder of the run and takes
+# scores.tsv from the same folder. It reads a branch name in backticks.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-eval-keys.sh"
@@ -125,6 +125,9 @@ fresh; sed -i '' 's|feat/a|feat/none|' "$run/run.md"
 check 'no worktree holds the run branch' 2 'feat/none' main "$run"
 out="$(cd "$main" && "$script" main "$run" 2>&1)"
 [[ "$out" != *'give the tree'* ]] || fail "the message offers a tree that log-decision.sh cannot give: $out"
+
+fresh; printf '# Run r1\n\n- Branch: `feat/a`\n' > "$run/run.md"
+check 'a branch name in backticks' 0 '' main "$run"
 
 # A landed branch: a rebase merge puts its commits on main under other hashes, so no commit is off the base.
 fresh; branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"

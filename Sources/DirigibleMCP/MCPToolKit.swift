@@ -58,11 +58,13 @@ enum ToolWork: Sendable {
     case transcriptExport(TranscriptExportWork)
     /// `take_map`: no lock, as `dirigible take map` (decision 0061).
     case takeMap(TakeMapQuery)
+    /// `silences`, `nearest_pause`, and `meter`: no lock, as their commands (decision 0062).
+    case read(ReadWork)
 
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .level, .duck, .importFile, .chapters, .transcriptExport: true
+        case .loudness, .export, .level, .duck, .importFile, .chapters, .transcriptExport, .read: true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
             .record, .words,
             .takeMap:

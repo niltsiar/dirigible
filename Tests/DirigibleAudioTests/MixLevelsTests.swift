@@ -69,7 +69,7 @@ struct MixLevelsTests {
         let read = try mixLevels(
             of: nil, in: package.session, package: package.url, range: 0..<192_000, silence: Self.threshold)
         let found = read.series.silences(threshold: Self.threshold, minLength: 24_000, in: 0..<192_000)
-        #expect(found == [Self.seconds(2, 4)] && read.unread == ["gone"], "\(found), unread \(read.unread)")
+        #expect(found == [Self.seconds(2, 4)] && read.faults == ["gone": .missing], "\(found), faults \(read.faults)")
     }
 
     /// The scan reads past each edge to the end of the run that crosses it, or the session end.

@@ -78,6 +78,34 @@ private let importGain = Param<Gain?>.optional(
 private let importFadeIn = Param.defaulted("fade_in", "The fade-in length in frames.", .integer(), 0)
 private let importFadeOut = Param.defaulted("fade_out", "The fade-out length in frames.", .integer(), 0)
 
+private let readFrom = Param.defaulted("from", "The first frame of the range.", .integer(), 0)
+private let readTo = Param<Int?>.optional(
+    "to", "The frame after the range. The default and the most is the session end.", .integer())
+private let readTracks = Param<[String]?>.optional(
+    "track", "The IDs of the tracks to read. The default is every track.", .strings())
+private let readThreshold = Param<Gain?>.optional(
+    "threshold", "The silence level in dBFS, under 0: a 50 ms window at or under it is silent. The default is -40.",
+    .gain)
+private let silenceLength = Param<Int?>.optional(
+    "min_length", "The shortest silence in frames. The default is 500 ms.", .integer())
+private let pauseAt = Param.required("at", "The frame to find a pause near.", .integer())
+private let pauseWindow = Param<Int?>.optional(
+    "window", "The search reaches this many frames before and after at. The default is 2 s.", .integer())
+private let pauseLength = Param<Int?>.optional(
+    "min_length", "The shortest pause in frames. The default is 200 ms.", .integer())
+private let meterStep = Param<Int?>.optional(
+    "step",
+    "Also give the RMS level and the peak of each step of this many frames: a multiple of the 50 ms window, at "
+        + "most 1000 steps.", .integer())
+
+/// The tool error of a refused read argument, or the work.
+private func readWork(_ parsed: Result<ReadWork, ToolError>) throws(ToolError) -> ToolWork {
+    switch parsed {
+    case .success(let work): .read(work)
+    case .failure(let error): throw error
+    }
+}
+
 /// The end of the description of a tool that writes a file: a late cancel can leave the file.
 private let cancelNote =
     " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
@@ -198,6 +226,47 @@ let audioTools = [
             offset: range.offset, length: range.length, gain: gain, fades: fades)
         return .importFile(ImportWork(file: path, target: target, level: !keeps))
     },
+    Tool(
+        "silences",
+        "List the silences of a range, as dirigible silences: one line for each silence, its first frame, a tab, and "
+            + "the frame after it, at most 1000 lines; \"No silence.\" when none. A silence is a run of 50 ms windows "
+            + "of the mix at or under threshold, of min_length or more, with mute and solo ignored. A silence that "
+            + "meets the range is given whole. A missing, short, or unreadable file refuses the read. It writes "
+            + "nothing. A cancel stops the read.",
+        [readFrom, readTo, readTracks, readThreshold, silenceLength], saves: false
+    ) { a throws(ToolError) in
+        let (first, end, ids, level, minimum) = (
+            try a[readFrom], try a[readTo], try a[readTracks] ?? [], try a[readThreshold], try a[silenceLength]
+        )
+        return try readWork(
+            ReadWork.silences(from: first, to: end, tracks: ids, threshold: level?.dB, minLength: minimum))
+    }.hinted(.readOnly),
+    Tool(
+        "nearest_pause",
+        "Find the best cut point near a frame, as dirigible nearest-pause: the silence of the rule of silences "
+            + "nearest to at within window, as \"pause\", its first frame, the frame after it, and the cut, its middle "
+            + "frame, with tabs; with no silence, \"no pause\", the middle frame of the quietest 50 ms window, and its "
+            + "level. A missing, short, or unreadable file refuses the read. It writes nothing. A cancel stops the read.",
+        [pauseAt, pauseWindow, readTracks, readThreshold, pauseLength], saves: false
+    ) { a throws(ToolError) in
+        let (at, window, ids, level, minimum) = (
+            try a[pauseAt], try a[pauseWindow], try a[readTracks] ?? [], try a[readThreshold], try a[pauseLength]
+        )
+        return try readWork(
+            ReadWork.nearestPause(at: at, window: window, tracks: ids, threshold: level?.dB, minLength: minimum))
+    }.hinted(.readOnly),
+    Tool(
+        "meter",
+        "Measure a range of the heard stereo mix, as a stereo export, as dirigible meter: mute and solo count. One "
+            + "line: the integrated loudness, the loudness range (none under 2 min), the max momentary and short-term "
+            + "loudness, the true peak, and the sample peak. With step, then one line for each step: its first frame, "
+            + "the RMS level, and the peak. A missing, short, or unreadable file reads as silence, with a warning "
+            + "line first. It writes nothing. A cancel stops the read.",
+        [readFrom, readTo, readTracks, meterStep], saves: false
+    ) { a throws(ToolError) in
+        let (first, end, ids, step) = (try a[readFrom], try a[readTo], try a[readTracks] ?? [], try a[meterStep])
+        return try readWork(ReadWork.meter(from: first, to: end, tracks: ids, step: step))
+    }.hinted(.readOnly),
 ]
 
 /// The clips of `dirigible loudness` and the `loudness` tool: each clip, track by track in

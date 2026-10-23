@@ -95,13 +95,14 @@ struct AgentManualTests {
         #expect(titles.count == order.count && titles == titles.sorted(), "the skill has no phase sections in order")
     }
 
-    /// W8: frames come from the user or from a transcript. RR11: a cut gives all its ranges in one
-    /// call.
-    @Test func theTimeRuleAllowsATranscript() {
-        #expect(!Self.core.contains("ask the user for the frame"))
+    /// Decision 0062: the time rule names the tools that read audio by time. RR11: a cut gives all
+    /// its ranges in one call.
+    @Test func theTimeRuleNamesTheReads() {
+        #expect(!Self.core.contains("ask the user for the frame") && !Self.core.contains("No tool reads the audio"))
         let time = Self.core.split(separator: "\n").first { $0.hasPrefix("- Times are frames") } ?? ""
         #expect(
-            time.contains("frame = seconds x sample rate, rounded") && time.contains("from a transcript"), "\(time)")
+            time.contains("frame = seconds x sample rate, rounded")
+                && time.contains("`silences`, `nearest_pause`, and `meter` read audio by time."), "\(time)")
         let ripple = Self.core.split(separator: "\n").first { $0.hasPrefix("- The ripple tools") } ?? ""
         #expect(ripple.contains("Give all the ranges of a cut in one call."), "\(ripple)")
         #expect(!ripple.contains("from the last range"), "\(ripple)")

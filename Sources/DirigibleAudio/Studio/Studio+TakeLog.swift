@@ -108,6 +108,7 @@ extension StudioError {
         case .levelCancelled: "levelCancelled"
         case .duckCancelled: "duckCancelled"
         case .readYielded: "readYielded"
+        case .readClosed: "readClosed"
         case .duckRead: "duckRead"
         case .writerDidNotStop: "writerDidNotStop"
         }

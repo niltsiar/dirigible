@@ -153,7 +153,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .rippleBlocked:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded,
-        .artwork, .unusedFiles, .levelCancelled, .duckCancelled, .readYielded, .duckRead, .writerDidNotStop:
+        .artwork, .unusedFiles, .levelCancelled, .duckCancelled, .readYielded, .readClosed, .duckRead,
+        .writerDidNotStop:
         packageError
     }
 }

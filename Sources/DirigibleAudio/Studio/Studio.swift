@@ -152,6 +152,8 @@ import Observation
     @ObservationIgnored public var otherStudios: () -> [Studio] = { [] }
     /// The running agent reads by time (decision 0062), in `Studio+Read.swift`.
     @ObservationIgnored var readRuns: [ReadRun] = []
+    /// The waits of `readsEnded()`, resumed when the last read ends.
+    @ObservationIgnored var readWaiters: [CheckedContinuation<Void, Never>] = []
     /// The number of the export that a take of another studio ended.
     @ObservationIgnored var yieldedExport: Int?
     /// Why the last export stopped before its end, read after its `.export(.cancelled)`. Nil
@@ -244,17 +246,19 @@ import Observation
         poolChanged(from: before, agent: agent)
     }
 
-    /// Ends a running import and export (decisions 0040 and 0019), turns off every Listener,
-    /// releases every monitor device, stops a take that records, then waits for a start, a
-    /// finalize, an import, and every write in progress. When `saveError` is set, it writes the
-    /// session once more; `saveError` stays set only when that write also fails. Then it ends the peak pass (decision 0017). After it returns, no device is held, no
-    /// take records, and no export, write, or pass runs.
+    /// Ends a running import, export, and agent read (decisions 0040, 0019, and 0062), turns off every Listener,
+    /// releases every monitor device, stops a take that records, then waits for a start, a finalize, an import,
+    /// a read, and every write in progress. With `saveError`, it writes the session once more; `saveError` stays
+    /// only when that write fails too. Then it ends the peak pass (decision 0017). After it returns, no device is
+    /// held, no take records, and no export, read, write, or pass runs.
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
         endImport(.close)
+        endReads(.close)
         await endListen()
         await endExport(.close)
+        await readsEnded()
         await stopPlay()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []

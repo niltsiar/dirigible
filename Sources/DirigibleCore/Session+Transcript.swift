@@ -171,21 +171,17 @@ extension Session {
         }
         /// The clip under `midpoint`, the frame range of the unit time base that a stored word is
         /// clamped to, and the shift from that time base to file frames.
-        func located(at midpoint: Int) -> (index: Int, bounds: Range<Int>, shift: Int)? {
+        func located(at midpoint: Int) -> (clip: Clip, bounds: Range<Int>, shift: Int)? {
             switch time {
             case .timeline:
                 guard let index = clips.index(holding: Frames(midpoint)) else { return nil }
                 let clip = clips[index]
-                return (index, clip.start.count..<clip.end.count, clip.offset.count - clip.start.count)
+                return (clip, clip.start.count..<clip.end.count, clip.offset.count - clip.start.count)
             case .take(let take, let map):
-                for (index, clip) in clips.enumerated() {
-                    guard let origin = map.origins[clip.file], origin.take == take else { continue }
-                    let played =
-                        (origin.frame + clip.offset.count)..<(origin.frame + clip.offset.count + clip.length.count)
-                    guard played.contains(midpoint), let file = files[clip.file] else { continue }
-                    return (index, origin.frame..<(origin.frame + file.length.count), -origin.frame)
-                }
-                return nil
+                guard let piece = map.playing(atTake: midpoint, take: take, on: track).first,
+                    let file = files[piece.clip.file]
+                else { return nil }
+                return (piece.clip, piece.origin.frame..<(piece.origin.frame + file.length.count), -piece.origin.frame)
             }
         }
         var untimed = file.untimed
@@ -193,7 +189,7 @@ extension Session {
         var skipped = 0
         var repeats = 0
         var added: [FileID: [Anchor]] = [:]
-        var heard: Set<Int> = []
+        var heard: [ClipID: Clip] = [:]
         for unit in file.units {
             guard let start = frame(unit.start), let end = frame(unit.end) else {
                 untimed += 1
@@ -201,24 +197,22 @@ extension Session {
             }
             number += 1
             let midpoint = (start + end) / 2
-            guard let (index, bounds, shift) = located(at: midpoint) else {
+            guard let (clip, bounds, shift) = located(at: midpoint) else {
                 skipped += 1
                 continue
             }
-            let clip = clips[index]
             // A repeat of audio that another clip of the file gave already shows there: no second anchor.
             // A take time names the file frame, so a take import has no repeat.
             if case .timeline = time {
-                let repeated = heard.contains { other in
-                    other != index && clips[other].file == clip.file
-                        && (clips[other].offset..<(clips[other].offset + clips[other].length)).contains(
-                            Frames(midpoint + shift))
+                let repeated = heard.values.contains { other in
+                    other.id != clip.id && other.file == clip.file
+                        && (other.offset..<(other.offset + other.length)).contains(Frames(midpoint + shift))
                 }
                 guard !repeated else {
                     repeats += 1
                     continue
                 }
-                heard.insert(index)
+                heard[clip.id] = clip
             }
             let range = Frames(max(start, bounds.lowerBound) + shift)..<Frames(min(end, bounds.upperBound) + shift)
             added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))

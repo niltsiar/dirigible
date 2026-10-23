@@ -122,7 +122,7 @@ import Testing
 
         try await go(model, "0:00:11")
 
-        #expect(model.takeTimeDraft == TakeTimeDraft(takes: [1], take: 1, text: "0:00:11", refusal: .removed))
+        #expect(model.takeTimeDraft == TakeTimeDraft(takes: [1], take: 1, text: "0:00:11", refusal: .removed(take: 1)))
         #expect(studio.playhead == playhead)
         await model.close()
     }
@@ -164,6 +164,30 @@ import Testing
         #expect(studio.playhead == Frames(125 * Self.second))
         #expect(
             String(format: sync.englishText(.sheetTakeTimeItem), 2) == "Take 2", "the popup names the take")
+        await model.close()
+    }
+
+    /// Code gate L3 item 5: a refusal names the input that it judged, so a change of the take or
+    /// of the text clears it.
+    @Test func aChangeOfTheInputClearsTheRefusal() async throws {
+        let url = try sync.package([
+            Take(number: 1, playhead: 0, clips: [("t1", 0, 0, 60), ("t2", 0, 0, 60)]),
+            Take(number: 2, playhead: 120, clips: [("t1", 120, 0, 180), ("t2", 120, 0, 180)]),
+        ])
+        let (model, _) = try await sync.open(url)
+        try await go(model, "2:00", take: 1)
+        #expect(model.takeTimeDraft?.refusal == .removed(take: 1), "take 1 has no audio at 2:00")
+
+        model.takeTimeDraft?.take = 2
+
+        #expect(model.takeTimeDraft?.refusal == nil, "take 2 was not checked")
+        model.takeTimeDraft?.text = "0:1x"
+        await model.goToTakeTime()
+        #expect(model.takeTimeDraft?.refusal == .format)
+
+        model.takeTimeDraft?.text = "0:10"
+
+        #expect(model.takeTimeDraft?.refusal == nil, "the new text was not checked")
         await model.close()
     }
 

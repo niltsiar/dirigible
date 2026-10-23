@@ -48,7 +48,7 @@ Two Phase 4 fix cycles changed the docs and ran the failed scenarios again, thre
 
 ## Scenarios
 
-The key points of the holdouts H1-H14 stay in the run folder until the eval passes (H14: `.scratchpads/runs/2026-10-01-verify-copy/eval/`), because a fix that reads them burns the holdouts. `L<n>` in the `Source` column is line n of `.scratchpads/learnings.md` at `3bc03e0`. An ID such as `VER-028` is a row of `docs/workflow/rules.tsv`.
+The key points of the holdouts H1-H14 stay in the run folder until the eval passes (H14: `.scratchpads/runs/2026-10-01-verify-copy/eval/`), because a fix that reads them burns the holdouts. `L<n>` in the `Source` column is line n of `learnings-cutover.md` in `raw/` of the wiki. An ID such as `VER-028` is a row of `docs/workflow/rules.tsv`.
 
 | ID | Type | Source | Question | Key points | Files | Old | New |
 |---|---|---|---|---|---|---|---|

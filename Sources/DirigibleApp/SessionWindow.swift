@@ -122,6 +122,8 @@ import SwiftUI
     var levelReport: LevelReportShown?
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
+    /// The values of the Go to Take Time sheet while it shows (decision 0061).
+    var takeTimeDraft: TakeTimeDraft?
     /// The fraction of the duck of this window while it runs, for its banner. Nil: no duck of
     /// this window runs, so an agent duck shows no bar.
     var duckProgress: Double?

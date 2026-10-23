@@ -216,7 +216,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.channels.stereo", "panel.export.channels.mono", "panel.export.rate.48000",
         "panel.export.loudness", "panel.export.loudness.podcast", "panel.export.loudness.ebu",
         "export.chapter.intro", "sheet.unused.name", "toolbar.tooltip", "banner.kind.info", "start.version",
-        "start.name", "sheet.duck.attack", "sheet.duck.release",
+        "start.name", "sheet.duck.attack", "sheet.duck.release", "sheet.take.time.take", "sheet.take.time.item",
     ],
     "es": [
         "banner.kind.error", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.clip",
@@ -252,7 +252,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "timeline.accessibility", "toolbar.inspector", "toolbar.tooltip", "track.layout.mono",
         "track.layout.stereo", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.no.sound.privacy", "track.route",
-        "track.solo.letter", "track.volume.value",
+        "track.solo.letter", "track.volume.value", "sheet.take.time.take", "sheet.take.time.item",
     ],
     "nl": [
         "agent.mark", "alert.ok", "dock.badge.recording", "episode.copyright", "episode.details",
@@ -267,6 +267,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.role.effects.letter", "track.role.music.letter", "track.mute.letter",
         "track.no.sound.privacy", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value", "transport.stop", "sheet.duck.attack", "sheet.duck.release",
+        "sheet.take.time.take", "sheet.take.time.item",
     ],
     "pt": [
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "episode.links",

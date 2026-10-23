@@ -472,6 +472,13 @@
 "sheet.duck.release" = "Release";
 "sheet.duck.note" = "The duck replaces the gain points of each music clip that speech reaches, in the selection range or else in the whole session. It keeps the other clips.";
 "sheet.duck.apply" = "Apply";
+"menu.transport.take.time" = "Go to Take Time…";
+"sheet.take.time.title" = "Go to Take Time";
+"sheet.take.time.take" = "Take";
+"sheet.take.time.item" = "Take %lld";
+"sheet.take.time.field" = "Take Time";
+"sheet.take.time.format" = "Type the time from the record start of the take as H:MM:SS.mmm, M:SS, or seconds.";
+"sheet.take.time.removed" = "No clip plays this time of take %lld: an edit removed it, or the take has no audio there. Type another time.";
 "alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";
 "alert.export.confirm" = "Export";
 "alert.exported" = "The export is done. These files were missing or could not be read, and they exported as silence:\n%@";

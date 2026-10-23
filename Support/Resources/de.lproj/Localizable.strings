@@ -472,6 +472,13 @@
 "sheet.duck.release" = "Release";
 "sheet.duck.note" = "Das Absenken ersetzt die Pegelpunkte jedes Musikclips, den Sprache erreicht, im Auswahlbereich oder sonst in der ganzen Session. Die anderen Clips bleiben unverändert.";
 "sheet.duck.apply" = "Anwenden";
+"menu.transport.take.time" = "Gehe zu Take-Zeit …";
+"sheet.take.time.title" = "Gehe zu Take-Zeit";
+"sheet.take.time.take" = "Take";
+"sheet.take.time.item" = "Take %lld";
+"sheet.take.time.field" = "Take-Zeit";
+"sheet.take.time.format" = "Gib die Zeit ab dem Aufnahmebeginn des Takes als H:MM:SS.mmm, M:SS oder Sekunden ein.";
+"sheet.take.time.removed" = "Kein Clip spielt diese Zeit von Take %lld ab: Eine Bearbeitung hat sie entfernt, oder der Take hat dort kein Audio. Gib eine andere Zeit ein.";
 "alert.export.missing" = "Diese Dateien fehlen oder sind nicht lesbar und werden als Stille exportiert:\n%@";
 "alert.export.confirm" = "Exportieren";
 "alert.exported" = "Der Export ist fertig. Diese Dateien fehlten oder waren nicht lesbar und wurden als Stille exportiert:\n%@";

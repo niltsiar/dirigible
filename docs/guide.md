@@ -153,6 +153,7 @@ The in point is the start of the selection, and the out point is the end. With n
 - To move the playhead, click the time ruler. A click in an empty part of a track also moves the playhead.
 - The **Transport** menu has the play commands. **Play Forward** plays faster each time that you choose it again: 1x, 2x, then 4x. If you hold its key, the play pauses when you release the key.
 - **Go to Start**, **Go to End**, **Previous Clip Edge**, and **Next Clip Edge** move the playhead.
+- To go to a time of a take, for example a time that you noted from a video clock during the recording, choose **Transport > Go to Take Time** (Command-J). Type the time from the record start of the take as H:MM:SS.mmm, M:SS, or seconds, then click **OK**. With two or more takes, choose the take in the pop-up menu: it starts at the take under the playhead. The playhead goes to the first place on the timeline that plays that time of the take, also after edits moved the audio. When no clip plays that time, because an edit removed it or the take has no audio there, the sheet stays open and says so. The command is off during a take, and in a session with no audio recorded in Dirigible.
 - When **View > Automatic Scroll** is on, the view follows the playhead during play, and the record head during a take. If you scroll left or right during play or a take, the view stays there. It follows again after the head goes out of the view and comes back into it. A scroll up or down does not stop the follow.
 
 ### Play at a different speed
@@ -806,6 +807,7 @@ The **Transport** menu (**Transporte**).
 | **Go to End** | **Ir al final** | End |
 | **Previous Clip Edge** | **Borde de clip anterior** | Shift-Left Arrow |
 | **Next Clip Edge** | **Borde de clip siguiente** | Shift-Right Arrow |
+| **Go to Take Time** | **Ir al tiempo de la toma** | Command-J |
 | **Previous Gain Point** | **Punto de ganancia anterior** | Option-; |
 | **Next Gain Point** | **Punto de ganancia siguiente** | Option-' |
 

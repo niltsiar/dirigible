@@ -104,6 +104,12 @@ struct SessionView: View {
                     }
                 }
             }
+            // Transport > Go to Take Time... (decision 0061). Only its buttons close it.
+            .background {
+                Color.clear.sheet(isPresented: Binding(get: { model.takeTimeDraft != nil }, set: { _ in })) {
+                    if let draft = model.takeTimeDraft { TakeTimeSheet(model: model, draft: draft) }
+                }
+            }
         case .closing(nil), .closed:
             EmptyView()
         }

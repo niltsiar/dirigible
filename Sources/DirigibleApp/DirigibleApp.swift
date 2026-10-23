@@ -157,6 +157,11 @@ struct DirigibleApp: App {
                         }
                         // Stop has Command, so it can be off: then Command-period reaches a sheet.
                         if group == 0 { windowButton(.stop).disabled(app.key?.shown.isRunning != true) }
+                        // It has Command, so it can be off with no take audio or during a take.
+                        if group == 2 {
+                            Button(L10n.menuTransportTakeTime.key) { app.key?.startTakeTime() }
+                                .keyboardShortcut(MenuKeys.takeTime).disabled(app.key?.canGoToTakeTime != true)
+                        }
                     }
                     Divider()
                     ForEach(TimelineCommand.gainPointSeekItems, id: \.command) { item in menuButton(item) }

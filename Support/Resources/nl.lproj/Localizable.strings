@@ -472,6 +472,13 @@
 "sheet.duck.release" = "Release";
 "sheet.duck.note" = "De verlaging vervangt de gainpunten van elke muziekclip die spraak bereikt, in het geselecteerde bereik of anders in de hele sessie. De andere clips blijven ongewijzigd.";
 "sheet.duck.apply" = "Pas toe";
+"menu.transport.take.time" = "Ga naar taketijd…";
+"sheet.take.time.title" = "Ga naar taketijd";
+"sheet.take.time.take" = "Take";
+"sheet.take.time.item" = "Take %lld";
+"sheet.take.time.field" = "Taketijd";
+"sheet.take.time.format" = "Typ de tijd vanaf het begin van de opname van de take als H:MM:SS.mmm, M:SS of seconden.";
+"sheet.take.time.removed" = "Geen clip speelt deze tijd van take %lld af: een bewerking heeft hem verwijderd, of de take heeft daar geen audio. Typ een andere tijd.";
 "alert.export.missing" = "Deze bestanden ontbreken of kunnen niet worden gelezen. Ze worden als stilte geëxporteerd:\n%@";
 "alert.export.confirm" = "Exporteer";
 "alert.exported" = "De export is klaar. Deze bestanden ontbraken of konden niet worden gelezen, en ze zijn als stilte geëxporteerd:\n%@";

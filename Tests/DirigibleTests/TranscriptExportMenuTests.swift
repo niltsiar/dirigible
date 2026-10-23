@@ -145,6 +145,38 @@ import Testing
         await model.close()
     }
 
+    /// A Cancel writes no file: after it and a later export, the folder has only one new file.
+    @Test func aCancelWritesNoFile() async throws {
+        let (model, _, _) = try await window()
+        let other = folder.url.appending(path: "other.srt")
+        let before = Set(try FileManager.default.contentsOfDirectory(atPath: folder.url.path))
+        model.run(.exportTranscript)
+        try #require(panel.calls.first).answer(nil)
+        model.run(.exportTranscript)
+        try #require(panel.calls.count == 2, "the second panel showed")
+        try #require(panel.calls.last).answer(TranscriptTarget(url: other, format: .srt, transcript: 1))
+        await until("the file is written") { FileManager.default.fileExists(atPath: other.path) }
+        let after = Set(try FileManager.default.contentsOfDirectory(atPath: folder.url.path))
+        #expect(after.subtracting(before) == ["other.srt"], "a Cancel writes no file")
+        await model.close()
+    }
+
+    /// The replace renames a new file over the old one, so a failed write cannot cut the old file:
+    /// a hard link to the old file keeps its bytes.
+    @Test func aReplaceLeavesTheOldFileWhole() async throws {
+        let (model, _, _) = try await window()
+        let file = folder.url.appending(path: "chosen.srt")
+        let link = folder.url.appending(path: "link.srt")
+        let old = Data("old subtitles\n".utf8)
+        try old.write(to: file)
+        try FileManager.default.linkItem(at: file, to: link)
+        model.run(.exportTranscript)
+        try #require(panel.calls.first).answer(TranscriptTarget(url: file, format: .srt, transcript: 1))
+        await until("the file is replaced") { (try? Data(contentsOf: file)) != old }
+        #expect((try Data(contentsOf: link)) == old, "the old file is never written in place")
+        await model.close()
+    }
+
     /// A failed write shows the move alert with the errno, and writes no file.
     @Test func aFailedWriteShowsTheAlert() async throws {
         let (model, _, _) = try await window()

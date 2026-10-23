@@ -34,7 +34,9 @@ extension ChromeState {
             for item in change.changes {
                 guard case .inSync = item.old, case .broken(let from, _) = item.new else { continue }
                 banners.append(
-                    .takeSyncBroken(take: item.take, from: from, rate: studio.session.sampleRate, agent: agent.name))
+                    .takeSyncBroken(
+                        take: item.take, from: from, rate: studio.session.sampleRate, agent: agent.name,
+                        revision: change.revision))
             }
         }
         return banners

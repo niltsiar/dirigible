@@ -64,8 +64,8 @@ enum WindowBanner: Equatable {
     case duckUnread([String], press: Int)
     /// A revision of `agent` moved part of the audio of `take`, so the take is out of sync with
     /// its recording from the timeline frame `from` at `rate` (decision 0061). Nil: the agent gave
-    /// no name.
-    case takeSyncBroken(take: Int, from: Frames, rate: Int, agent: String?)
+    /// no name. `revision` is the session revision of the edit, which its Undo button undoes.
+    case takeSyncBroken(take: Int, from: Frames, rate: Int, agent: String?, revision: Int)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -110,7 +110,7 @@ enum WindowBanner: Equatable {
         case .consentExpired: "consentExpired"
         case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
         case .duckUnread(_, let press): "duckUnread.\(press)"
-        case .takeSyncBroken(let take, _, _, _): "takeSyncBroken.\(take)"
+        case .takeSyncBroken(let take, _, _, _, _): "takeSyncBroken.\(take)"
         }
     }
 
@@ -148,7 +148,7 @@ enum WindowBanner: Equatable {
         case .duckNoSpeech(let threshold, let unread, let press):
             L10n.errorDuckNoSpeech.format(threshold) + " " + WindowBanner.duckUnread(unread, press: press).text
         case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
-        case .takeSyncBroken(let take, let from, let rate, let agent):
+        case .takeSyncBroken(let take, let from, let rate, let agent, _):
             takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
         }
     }

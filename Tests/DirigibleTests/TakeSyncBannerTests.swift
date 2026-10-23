@@ -123,7 +123,7 @@ import Testing
     /// the take and the break time.
     @Test func anAgentCutFromInSyncShowsOneRow() async throws {
         let url = try oneTake()
-        let (model, _) = try await open(url)
+        let (model, studio) = try await open(url)
         app.agents.start()
         defer { app.agents.stop() }
 
@@ -135,7 +135,8 @@ import Testing
             return
         }
         #expect(text.contains("Take sync: take 1 in sync"), "\(text)")
-        let row = WindowBanner.takeSyncBroken(take: 1, from: 480_000, rate: 48_000, agent: "Test Agent")
+        let row = WindowBanner.takeSyncBroken(
+            take: 1, from: 480_000, rate: 48_000, agent: "Test Agent", revision: studio.sessionRevision)
         await until(limit: .seconds(10), "the chrome loop shows the row") { model.shown.banners.contains(row) }
         #expect(model.shown.banners.filter { $0.key.hasPrefix("takeSyncBroken") } == [row])
         #expect(row.kind == .warning && row.announcement == .medium)
@@ -160,24 +161,59 @@ import Testing
         await model.close()
     }
 
+    /// The row of an agent cut of 10 s to 11 s on t1 in take 1, at the revision of the studio now.
+    func row(_ studio: Studio) -> WindowBanner {
+        .takeSyncBroken(take: 1, from: 480_000, rate: 48_000, agent: "Test Agent", revision: studio.sessionRevision)
+    }
+
     /// Undo of the row (one Edit > Undo) removes the agent edit and the row; Redo of the agent
     /// entry shows the row again; Show moves the playhead to the break.
     @Test func undoRedoAndShowOfAnAgentBreak() async throws {
         let (model, studio) = try await open(try oneTake())
         try cut(studio, 10..<11)
-        let row = WindowBanner.takeSyncBroken(take: 1, from: 480_000, rate: 48_000, agent: "Test Agent")
-        #expect(rows(model) == [row])
+        let revision = studio.sessionRevision
+        #expect(rows(model) == [row(studio)])
 
         model.transport(.seek(.frame(480_000)))
         await until(limit: .seconds(10), "Show moves the playhead to the break") { studio.playhead == 480_000 }
 
-        model.undo()
+        #expect(model.canUndoAgentEdit(revision: revision))
+        model.undoAgentEdit(revision: revision)
         #expect(studio.takeMap.map.sync[1] == .inSync(offset: 0))
         #expect(rows(model) == [], "the undo revision has no agent")
 
         model.redo()
         #expect(studio.takeMap.map.sync[1] == .broken(from: 480_000, shifts: 2))
-        #expect(rows(model) == [row], "the redo names the agent of the entry")
+        #expect(rows(model) == [row(studio)], "the redo names the agent of the entry")
+        await model.close()
+    }
+
+    /// Code gate L3 item 6: Undo of the row undoes the edit that it names or nothing. It is off
+    /// after a newer revision and while the studio is busy, where Edit > Undo does nothing.
+    @Test func undoOfTheRowUndoesOnlyItsEdit() async throws {
+        let (model, studio) = try await open(try oneTake())
+        studio.environment = hal.environment
+        try cut(studio, 10..<11)
+        let agentRevision = studio.sessionRevision
+        try studio.edit(ripple: true) { s throws(SessionError) in
+            try s.rippleInsert(Frames(Self.second), at: Frames(30 * Self.second), on: ["t1", "t2"])
+        }
+        let newer = studio.sessionRevision
+
+        #expect(!model.canUndoAgentEdit(revision: agentRevision), "a newer revision")
+        model.undoAgentEdit(revision: agentRevision)
+        #expect(studio.sessionRevision == newer, "no undo ran")
+
+        try cut(studio, 40..<41)
+        #expect(model.canUndoAgentEdit(revision: studio.sessionRevision))
+        await studio.perform(.seek(.frame(studio.session.end)))
+        model.armed = ["t1"]
+        await model.record()
+        #expect(studio.transport == .recording(take: 2))
+        #expect(!model.canUndoAgentEdit(revision: studio.sessionRevision), "during a take")
+        await hal.feed(seconds: 1)
+        await model.stop()
+        await until(limit: .seconds(30), "the take ends") { studio.transport == .idle && studio.lastTake != nil }
         await model.close()
     }
 
@@ -256,7 +292,9 @@ import Testing
         #expect(studio.takeMap.map.sync[1] == .inSync(offset: 0))
         #expect(
             rows(model) == [
-                .takeSyncBroken(take: 2, from: Frames(130 * Self.second), rate: 48_000, agent: "Test Agent")
+                .takeSyncBroken(
+                    take: 2, from: Frames(130 * Self.second), rate: 48_000, agent: "Test Agent",
+                    revision: studio.sessionRevision)
             ]
         )
         await model.close()
@@ -279,7 +317,11 @@ import Testing
 
         #expect(studio.takeMap.map.sync[1] == .broken(from: Frames(70 * Self.second), shifts: 2))
         #expect(
-            rows(model) == [.takeSyncBroken(take: 1, from: Frames(70 * Self.second), rate: 48_000, agent: "Test Agent")]
+            rows(model) == [
+                .takeSyncBroken(
+                    take: 1, from: Frames(70 * Self.second), rate: 48_000, agent: "Test Agent",
+                    revision: studio.sessionRevision)
+            ]
         )
         await model.close()
     }
@@ -313,7 +355,9 @@ import Testing
 
         #expect(
             rows(model) == [
-                .takeSyncBroken(take: 2, from: inside + Frames(Self.second), rate: 48_000, agent: "Test Agent")
+                .takeSyncBroken(
+                    take: 2, from: inside + Frames(Self.second), rate: 48_000, agent: "Test Agent",
+                    revision: studio.sessionRevision)
             ])
         await model.close()
     }

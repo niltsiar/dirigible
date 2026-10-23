@@ -52,16 +52,29 @@ struct WindowBanners: View {
     var body: some View {
         let _ = model.countBody()
         ForEach(model.shown.banners, id: \.key) { banner in
-            if case .takeSyncBroken(_, let from, _, let agent) = banner {
-                // The row shows only at the revision of the agent edit, so Undo undoes that edit.
+            if case .takeSyncBroken(_, let from, _, let agent, let revision) = banner {
+                // Only this row reads the studio state, so a play runs no body of a session without it.
                 BannerRow(kind: banner.kind, text: banner.text) {
-                    Button(agent.map { L10n.undoAgent.format($0) } ?? L10n.undoAgentUnnamed.text) { model.undo() }
+                    Button(agent.map { L10n.undoAgent.format($0) } ?? L10n.undoAgentUnnamed.text) {
+                        model.undoAgentEdit(revision: revision)
+                    }
+                    .disabled(!model.canUndoAgentEdit(revision: revision))
                     Button(L10n.bannerTakeSyncShow.key) { model.transport(.seek(.frame(from))) }
                 }
             } else {
                 BannerRow(kind: banner.kind, text: banner.text)
             }
         }
+    }
+}
+
+extension SessionWindow {
+    /// Undo `<agent>` Edit of a take sync row: on only while the studio is idle at `revision`, the
+    /// revision of the agent edit, so it undoes that edit or nothing.
+    func canUndoAgentEdit(revision: Int) -> Bool { idleStudio?.sessionRevision == revision }
+
+    func undoAgentEdit(revision: Int) {
+        if canUndoAgentEdit(revision: revision) { undo() }
     }
 }
 

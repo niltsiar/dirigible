@@ -35,6 +35,16 @@ struct TrackMuteSoloTests {
         }
     }
 
+    /// The one copy of the duck and the pause reads hears each track; the session keeps its flags.
+    @Test func theCopyThatIgnoresTheFlagsHearsEachTrack() throws {
+        var session = try twoTracks()
+        try session.setMuted(true, tracks: ["t1"])
+        try session.setSoloed(true, tracks: ["t2"])
+        let copy = session.ignoringMuteAndSolo
+        #expect(copy.heardTracks(in: nil).map(\.id) == ["t1", "t2"], "\(copy.tracks)")
+        #expect(session.heardTracks(in: nil).map(\.id) == ["t2"], "\(session.tracks)")
+    }
+
     /// The setters set and clear each flag; an unknown track throws and changes nothing.
     @Test func theSettersSetAndClearAndRefuseAnUnknownTrack() throws {
         var session = try twoTracks()

@@ -203,21 +203,18 @@ package struct ReadWork: Sendable {
     }
 
     /// The window levels of `range` with the silence edge rule. A fault of a file of the read, in
-    /// the media check on the session with mute and solo off or in the scan, refuses the read: its
+    /// the media check on `Session.ignoringMuteAndSolo` or in the scan, refuses the read: its
     /// clips would read as silence, so a pause there would be wrong.
     private func levels(
         _ range: Range<Frames>, _ tracks: Set<TrackID>?, _ session: Session, _ package: URL, _ threshold: Gain,
         progress: (Double) -> Void, isCancelled: () -> Bool
     ) throws(ReadFailure) -> LevelSeries {
-        var heard = session
-        let all = session.tracks.map(\.id)
-        // Each ID is in the session, so neither edit can throw.
-        try? heard.setMuted(false, tracks: all)
-        try? heard.setSoloed(false, tracks: all)
         // The range has a frame in the session, and `tracks` is nil or has a track.
         let source = ExportSource(range: range, tracks: tracks)!
         let faults: [FileID: MediaFault]
-        do throws(POSIXError) { faults = try checkMedia(heard, package: package, source: source) } catch {
+        do throws(POSIXError) {
+            faults = try checkMedia(session.ignoringMuteAndSolo, package: package, source: source)
+        } catch {
             throw .refused(mediaCheckMessage(error))
         }
         guard faults.isEmpty else { throw .refused(Self.faultMessage(faults, in: session)) }

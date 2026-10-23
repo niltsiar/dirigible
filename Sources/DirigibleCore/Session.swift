@@ -170,6 +170,14 @@ public struct Session: Hashable, Sendable {
         for index in try ids.map(trackIndex) { tracks[index].role = role }
     }
 
+    /// A copy with mute and solo off on each track: the mix of the duck, `silences`, and
+    /// `nearest_pause` (decisions 0039 and 0062).
+    public var ignoringMuteAndSolo: Session {
+        var copy = self
+        for index in copy.tracks.indices { (copy.tracks[index].isMuted, copy.tracks[index].isSoloed) = (false, false) }
+        return copy
+    }
+
     /// The tracks that the mix reads: in `ids` (nil: all tracks) and heard, in session order.
     /// An empty result is silence, never all tracks.
     public func heardTracks(in ids: Set<TrackID>?) -> [Track] {

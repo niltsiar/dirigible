@@ -350,6 +350,102 @@ elapsed_ok "$t0" "$t1" "< 5.0" || fail "a live holder: the wait was longer than 
 stop_holder "$live"
 run "$script" add next --from "$tmp/k3.txt"; want_rc 0 "a write after the holder ended"
 
+# --- C16 seed
+seedrepo="$tmp/seedrepo"
+mkdir -p "$seedrepo/scripts" "$seedrepo/docs/requirements" "$tmp/bin"
+cp "$script" "$seedrepo/scripts/wiki.py"
+cat > "$seedrepo/docs/requirements/features.md" <<'EOF'
+# Features
+
+| ID | Feature | From | State | Req |
+|---|---|---|---|---|
+| F01 | Multitrack recording, one track per input | Hindenburg PRO | done, Release 1 run 2 | R3 |
+| F02 | Punch-in recording | Logic Pro | Later (Autopunch at a selection) | R7 |
+| F03 | Pre-roll, record at the playhead | Hindenburg PRO | Release 6 | R7 |
+| F04 | A feature that we do not build | user 2026-10-01 | Dropped (no demand) | - |
+| F05 | Noise reduction on the render | Audacity | Release 6 | R10 |
+EOF
+cat > "$seedrepo/docs/requirements/releases.md" <<'EOF'
+# Releases
+
+## Release 1: record
+
+1. **Session core (F01).** Done long ago.
+
+## Release 6: polish
+
+1. **Pre-roll (F03).** Record at the playhead after a pre-roll.
+   - **A sub item (F03).** Not a numbered item.
+2. **Old run (F01).** A run of done features only.
+3. **Noise and punch (F05, F02).** Two parts in one run.
+EOF
+cat > "$tmp/bin/gh" <<'EOF'
+#!/bin/bash
+[[ "$*" == "pr list --state merged "* ]] || { echo "gh stub: $*" >&2; exit 1; }
+cat "$GH_STUB_JSON"
+EOF
+chmod +x "$tmp/bin/gh"
+cat > "$tmp/prs.json" <<'EOF'
+[{"number":10,"body":"## Summary\n\nx\n\n- Deferred: the zoom bar (F44)\n- Follow-up: rename the menu item\n- Other bullet\n"},
+ {"number":11,"body":"- follow-up: speed test on Intel\nA line with deferred but no bullet\n"}]
+EOF
+seed="$seedrepo/scripts/wiki.py"
+export DIRIGIBLE_WIKI="$tmp/seeded"
+"$seed" init >/dev/null 2>&1 || fail "seed: init"
+run "$seed" seed; want_rc 0 "seed"
+[[ "$("$seed" count next)" == 4 && "$("$seed" count later)" == 1 ]] || fail "seed counts: next $("$seed" count next), later $("$seed" count later), want 4 and 1"
+run "$seed" list next
+for want in "F03 Pre-roll, record at the playhead" "F05 Noise reduction on the render" "Pre-roll" "Noise and punch"; do
+    [[ "$out" == *"$want"* ]] || fail "seed list next lacks [$want]: $out"
+done
+[[ "$out" != *"F01"* && "$out" != *"F04"* && "$out" != *"Old run"* && "$out" != *"sub item"* ]] || fail "seed listed a done, dropped, or sub item: $out"
+run "$seed" list later; [[ "$out" == "0001 F02 Punch-in recording: "* ]] || fail "seed list later: [$out]"
+run "$seed" show 0001
+want_out "Logic Pro" "seed body"
+run "$seed" show 0002
+want_out "Hindenburg" "seed body"
+run "$seed" lint; want_rc 0 "lint of a seeded wiki"
+[[ -z "$(git -C "$DIRIGIBLE_WIKI" status --porcelain)" ]] || fail "seed left the tree dirty"
+before="$(tree_sums "$DIRIGIBLE_WIKI")"; h="$(git -C "$DIRIGIBLE_WIKI" rev-parse HEAD)"
+run "$seed" seed; [[ $rc -ne 0 ]] || fail "seed on a wiki with items exits 0"
+want_out "item" "seed on a wiki with items"
+[[ "$before" == "$(tree_sums "$DIRIGIBLE_WIKI")" && "$h" == "$(git -C "$DIRIGIBLE_WIKI" rev-parse HEAD)" ]] || fail "a refused seed changed the wiki"
+
+export DIRIGIBLE_WIKI="$tmp/seeded-lesson"
+"$seed" init >/dev/null 2>&1
+printf '%s\n' '- 2026-10-23 seen-once 2026-10-23-demo DLV-012/tool: a line.' > "$tmp/sl.txt"
+"$seed" lesson DLV-012/tool --from "$tmp/sl.txt" >/dev/null 2>&1 || fail "seed: lesson"
+before="$(tree_sums "$DIRIGIBLE_WIKI")"; h="$(git -C "$DIRIGIBLE_WIKI" rev-parse HEAD)"
+run "$seed" seed; [[ $rc -ne 0 ]] || fail "seed on a wiki with one lesson and no item exits 0"
+want_out "lesson" "seed on a wiki with one lesson"
+[[ "$before" == "$(tree_sums "$DIRIGIBLE_WIKI")" && "$h" == "$(git -C "$DIRIGIBLE_WIKI" rev-parse HEAD)" ]] || fail "a refused seed changed the wiki with a lesson"
+
+export DIRIGIBLE_WIKI="$tmp/seeded-log"
+"$seed" init >/dev/null 2>&1
+printf '%s\n' '2026-10-23 a log line' > "$tmp/sg.txt"
+"$seed" log --from "$tmp/sg.txt" >/dev/null 2>&1 || fail "seed: log"
+run "$seed" seed; [[ $rc -ne 0 ]] || fail "seed on a wiki with a changed Log page exits 0"
+want_out "log" "seed on a wiki with a changed Log page"
+[[ "$("$seed" count next)" == 0 ]] || fail "a refused seed wrote items"
+
+export DIRIGIBLE_WIKI="$tmp/seeded-prs"
+"$seed" init >/dev/null 2>&1
+run env PATH="$tmp/bin:$PATH" GH_STUB_JSON="$tmp/prs.json" "$seed" seed --prs; want_rc 0 "seed --prs"
+[[ "$("$seed" count next)" == 4 && "$("$seed" count later)" == 4 ]] || fail "seed --prs counts: next $("$seed" count next), later $("$seed" count later), want 4 and 4"
+run "$seed" list later
+for want in "the zoom bar" "rename the menu item" "speed test on Intel"; do
+    [[ "$out" == *"$want"* ]] || fail "seed --prs lacks [$want]: $out"
+done
+[[ "$out" != *"Other bullet"* && "$out" != *"no bullet"* ]] || fail "seed --prs took a line that is no deferred bullet: $out"
+run "$seed" lint; want_rc 0 "lint of a seeded wiki with PR items"
+export DIRIGIBLE_WIKI="$tmp/seeded-nogh"
+"$seed" init >/dev/null 2>&1
+run env PATH="$tmp/bin:$PATH" GH_STUB_JSON="$tmp/does-not-exist.json" "$seed" seed --prs; [[ $rc -ne 0 ]] || fail "seed --prs with a failing gh exits 0"
+[[ "$("$seed" count next)" == 0 && "$("$seed" count later)" == 0 ]] || fail "a seed with a failing gh wrote items"
+rm -f "$seedrepo/docs/requirements/releases.md"
+run "$seed" seed; [[ $rc -ne 0 ]] || fail "seed with no releases file exits 0"
+want_out "releases" "seed with no releases file"
+
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"
     exit 1

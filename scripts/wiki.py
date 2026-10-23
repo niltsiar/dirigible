@@ -7,6 +7,9 @@ Usage: scripts/wiki.py <command> [<argument>...]
   list <status> [--taken <run>]            Print one line for each item of a status.
   count <status>                           Print the number of items of a status.
   show <id>...                             Print the page hash and the page of each item.
+  seed [--prs]                             Fill an empty wiki from the feature list and the release
+                                           plan. --prs adds the deferred and follow-up bullets of the
+                                           merged pull requests (a read of gh).
   add <status> --from <file>               Add an item. Line 1 of the file is the title (8 words
                                            or fewer), line 2 the description (12 words or fewer),
                                            line 3 is blank, and the body follows.
@@ -409,6 +412,18 @@ def parse_item_text(text: str) -> tuple[str, str, list[str]]:
     return title, description, body
 
 
+def item_text(status: str, title: str, description: str, body: list[str], **extra: str) -> str:
+    fields = {"type": "Item", "title": title, "description": description, "status": status, **extra,
+              "generated": datetime.date.today().isoformat()}
+    return Page(Path("item.md"), fields, body).text()
+
+
+def cut_words(text: str) -> tuple[str, str]:
+    """Split text into a title of the first 8 words and a description of the next 12 words."""
+    found = text.split()
+    return " ".join(found[:TITLE_WORDS]), " ".join(found[TITLE_WORDS:TITLE_WORDS + DESCRIPTION_WORDS])
+
+
 def next_id(wiki: Path) -> str:
     ids = [int(p.stem) for p in (wiki / "wiki" / "items").glob("*.md") if ID_RE.match(p.stem)]
     return f"{max(ids, default=0) + 1:04d}"
@@ -472,6 +487,96 @@ def cmd_init(args) -> None:
     print(wiki)
 
 
+def require_new_wiki(wiki: Path) -> None:
+    """Refuse a wiki that holds an item, a lesson, a changed log page, or decision numbers."""
+    if item_pages(wiki):
+        raise Stop(f"the wiki at {wiki} already holds an item page; seed and import need a new wiki")
+    if lesson_pages(wiki):
+        raise Stop(f"the wiki at {wiki} already holds a lesson page; seed and import need a new wiki")
+    for page in log_pages(wiki):
+        if read_text(page.path) != render_page([("type", "Log"), ("month", page.id)], []):
+            raise Stop(f"the wiki at {wiki} holds a log page that differs from its init text: {page.path.name}")
+    if register_page(wiki).lines:
+        raise Stop(f"the wiki at {wiki} already holds decision numbers; seed and import need a new wiki")
+
+
+def feature_items(path: Path) -> tuple[list[tuple[str, str, str, str, list[str]]], set[str]]:
+    """The features that are not done and not dropped, and the IDs of those features."""
+    items, open_ids = [], set()
+    for line in lines_of(read_text(path)):
+        if not re.match(r"^\| F[0-9]+ \|", line):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) != 5:
+            raise Stop(f"{path.name}: a feature row has {len(cells)} cells, not 5: {line[:60]}")
+        fid, feature, source, state, req = cells
+        if state.startswith(("done", "Dropped")):
+            continue
+        if not state.startswith(("Later", "Release")):
+            raise Stop(f"{path.name}: {fid} has the unknown state {state[:40]}")
+        title, _ = cut_words(f"{fid} {feature}")
+        description = " ".join(state.split()[:DESCRIPTION_WORDS])
+        body = [f"{fid} {feature}. From: {source}. State: {state}. Req: {req}."]
+        items.append(("later" if state.startswith("Later") else "next", title, description, "features.md", body))
+        open_ids.add(fid)
+    return items, open_ids
+
+
+def release_items(path: Path, open_ids: set[str]) -> list[tuple[str, str, str, str, list[str]]]:
+    """The numbered run items of the releases file that name a feature that is not done."""
+    items, release = [], None
+    for line in lines_of(read_text(path)):
+        heading = re.match(r"^## Release ([0-9]+)", line)
+        numbered = re.match(r"^([0-9]+)\. (.*)", line)
+        if heading:
+            release = heading.group(1)
+        elif numbered and release and open_ids & set(re.findall(r"\bF[0-9]+\b", line)):
+            name = re.match(r"\*\*(.+?)\*\*", numbered.group(2))
+            title, _ = cut_words(name.group(1).rstrip(".") if name else numbered.group(2))
+            items.append(("next", title, f"Release {release} item {numbered.group(1)}", f"releases.md, Release {release}",
+                          [numbered.group(2)]))
+    return items
+
+
+def pr_items() -> list[tuple[str, str, str, str, list[str]]]:
+    """The deferred and follow-up bullets of the merged pull request bodies (a read of gh)."""
+    try:
+        proc = subprocess.run(["gh", "pr", "list", "--state", "merged", "--limit", "1000", "--json", "number,body"],
+                              capture_output=True, text=True, cwd=REPO, check=False)
+    except FileNotFoundError:
+        raise Stop("seed --prs needs the gh command, and it is not installed") from None
+    if proc.returncode != 0:
+        raise Stop(f"gh pr list failed: {proc.stderr.strip()[:200]}")
+    items = []
+    for pr in json.loads(proc.stdout):
+        for line in (pr.get("body") or "").splitlines():
+            found = re.match(r"^\s*[-*]\s+(.*\b(?:deferred|follow[- ]up)\b.*)$", line, re.I)
+            if found:
+                title, description = cut_words(f"PR {pr['number']}: {found.group(1)}")
+                items.append(("later", title, description, f"pr {pr['number']}", [found.group(1), "", f"From PR {pr['number']}."]))
+    return items
+
+
+def cmd_seed(args) -> None:
+    wiki = open_wiki()
+    docs = REPO / "docs" / "requirements"
+    for name in ("features.md", "releases.md"):
+        if not (docs / name).is_file():
+            raise Stop(f"seed reads {docs}/{name}, and it does not exist")
+    items, open_ids = feature_items(docs / "features.md")
+    items += release_items(docs / "releases.md", open_ids)
+    if args.prs:
+        items += pr_items()
+    with write_lock(wiki):
+        require_new_wiki(wiki)
+        first = int(next_id(wiki))
+        changes = {f"wiki/items/{first + n:04d}.md": item_text(status, title, description, body, source=source)
+                   for n, (status, title, description, source, body) in enumerate(items)}
+        store(wiki, changes, f"wiki: seed {len(items)} items")
+    print(f"seeded {len(items)} items: {sum(1 for i in items if i[0] == 'next')} next, "
+          f"{sum(1 for i in items if i[0] == 'later')} later")
+
+
 def cmd_list(args) -> None:
     wiki = open_wiki()
     status = check_status(args.status)
@@ -504,9 +609,7 @@ def cmd_add(args) -> None:
     title, description, body = parse_item_text(text)
     with write_lock(wiki):
         item_id = next_id(wiki)
-        fields = {"type": "Item", "title": title, "description": description, "status": status,
-                  "generated": datetime.date.today().isoformat()}
-        store(wiki, {f"wiki/items/{item_id}.md": Page(Path(item_id), fields, body).text()},
+        store(wiki, {f"wiki/items/{item_id}.md": item_text(status, title, description, body)},
               f"wiki: add item {item_id} ({status})")
     src.unlink()
     print(item_id)
@@ -716,6 +819,7 @@ def build_parser() -> argparse.ArgumentParser:
     command("list", cmd_list, "status", taken={"default": None})
     command("count", cmd_count, "status")
     command("show", cmd_show).add_argument("ids", nargs="+", metavar="id")
+    command("seed", cmd_seed, prs={"action": "store_true"})
     command("add", cmd_add, "status", src=True)
     command("edit", cmd_edit, "id", src=True, expect={"required": True})
     command("move", cmd_move, "id", "status")

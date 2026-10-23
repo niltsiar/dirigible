@@ -82,7 +82,7 @@ Fit to this repo: 1-9 and 11-12 match the SwiftUI shell, menus, and windows. 18-
 
 1. File: new `.claude/skills/swiftui-macos-rules/SKILL.md` (about 100 lines). Change: write rules 1-9, 11-14, 16, 18-20 in our words, one source link each, plus the line "check the macOS 14 availability of each API". Why: a short checklist the UI panel and code-quality lens can cite. Risk: summary-only sourcing; two or three rules may be wrong. Check each against Apple docs or a probe before merge. Also check for overlap with existing skills first.
 2. File: `.claude/agents/code-quality-reviewer.md`. Change: add one line that points to the skill for any diff that touches `Sources/*App*` or a SwiftUI view. Why: loads the rules only when needed. Risk: more load for every review if the pointer is not scoped.
-3. File: `.scratchpads/backlog.md`. Change: add "read Panferova posts Inspectors, Custom scenes, Hide and show sidebar, Focus-based navigation; verify rules 5, 10, 16 on raw pages". Why: closes the unverified part cheaply. Risk: none.
+3. File: the backlog (a wiki item). Change: add "read Panferova posts Inspectors, Custom scenes, Hide and show sidebar, Focus-based navigation; verify rules 5, 10, 16 on raw pages". Why: closes the unverified part cheaply. Risk: none.
 4. Do not buy now. If a SwiftUI view-update or identity bug repeats in the ledger, then buy "The SwiftUI Way" ($35), read it as a human, and write own rules. Risk of not buying: agents miss deeper anti-patterns; the free posts cover only a slice.
 
 ## Not verified

@@ -898,7 +898,7 @@ swift run dirigible info Demo.dirigible
 Three commands read the audio by time and write nothing. Each takes `--track` for some tracks, and the times are frames.
 
 - `dirigible silences Demo.dirigible --from <frame> --to <frame>` lists the silences of the range: one line for each silence, its first frame and the frame after it. A silence is 500 ms or more (`--min-length`) of the mix at or under -40 dBFS (`--threshold`) in 50 ms windows. Mute and solo do not count, as for the duck.
-- `dirigible nearest-pause Demo.dirigible --at <frame>` gives the best cut point near a frame: the silence of 200 ms or more nearest to it within 2 s (`--window`), and its middle frame. With no silence, it gives `no pause` and the middle of the quietest 50 ms window.
+- `dirigible nearest-pause Demo.dirigible --at <frame>` gives the best cut point near a frame: the silence of 200 ms or more nearest to it within 2 s (`--window`), and the cut: the middle frame of the silence, or the frame of the search range nearest to it. With no silence, it gives `no pause` and the middle of the quietest 50 ms window.
 - `dirigible meter Demo.dirigible --from <frame> --to <frame>` measures the heard stereo mix of the range, as a stereo export: the integrated loudness, the loudness range (none under 2 min), the max momentary and short-term loudness, the true peak, and the sample peak. Add `--step <frames>` for the RMS level and the peak of each step.
 
 A missing, short, or unreadable file stops `silences` and `nearest-pause`, because its clips would read as silence. `meter` reads such a file as silence, with a warning. Like an export, `meter` also warns when a track is muted or not soloed.

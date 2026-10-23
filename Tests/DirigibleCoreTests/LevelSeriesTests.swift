@@ -102,9 +102,13 @@ struct LevelSeriesTests {
             Issue.record("150 ms: \(pause(shorter, at: 96_000))")
             return
         }
-        // A silence across the edge of the asked range is whole, cut at its middle.
+        // A silence across the edge of the asked range 0 ..< 168 000 is whole; its middle, 189 600,
+        // is past that edge, so the cut is the last frame of the asked range.
         let edge = try Self.series(Self.part(69, -20) + Self.part(20, -60) + Self.part(11, -20))
-        #expect(pause(edge, at: 72_000) == .pause(Self.windows(69, 89), cut: 189_600), "edge")
+        #expect(pause(edge, at: 72_000) == .pause(Self.windows(69, 89), cut: 167_999), "edge")
+        // A silence that starts before the asked range 96 000 ..< 288 000: the cut is its first frame.
+        let before = try Self.series(Self.part(10, -20) + Self.part(40, -60) + Self.part(80, -20))
+        #expect(pause(before, at: 192_000) == .pause(Self.windows(10, 50), cut: 96_000), "before")
     }
 
     /// With no silence, the cut is the middle of the quietest window, the earlier on a tie.

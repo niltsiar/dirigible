@@ -81,7 +81,8 @@ struct MixLevelsTests {
                 of: nil, in: package.session, package: package.url, range: 0..<192_000, silence: Self.threshold)
             return read.series.nearestPause(at: at, window: 96_000, threshold: Self.threshold, minLength: 9_600)
         }
-        #expect(try pause(1.9) == .pause(Self.seconds(3.9, 4.2), cut: 194_400), "1.9 s")
+        // The middle of the pause, 194 400, is past the asked range 0 ..< 192 000: the cut stays inside.
+        #expect(try pause(1.9) == .pause(Self.seconds(3.9, 4.2), cut: 191_999), "1.9 s")
         guard case .noPause = try pause(2.1) else {
             Issue.record("2.1 s: \(try pause(2.1))")
             return

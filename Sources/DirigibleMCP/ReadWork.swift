@@ -31,18 +31,15 @@ package struct ReadOutput: Equatable, Sendable {
 /// texts of the three commands and their tools. On the files it reads with no lock; in the app,
 /// `liveJob` runs `read` on the session of the window.
 package struct ReadWork: Sendable {
+    /// The checked arguments of each read; nil takes the default of decision 0062.
     enum Kind: Sendable {
-        case silences
-        case pause(at: Frames, window: Frames?)
-        case meter(step: Frames?)
+        case silences(from: Frames, to: Frames?, threshold: Gain?, minLength: Frames?)
+        case pause(at: Frames, window: Frames?, threshold: Gain?, minLength: Frames?)
+        case meter(from: Frames, to: Frames?, step: Frames?)
     }
 
     let kind: Kind
-    let from: Frames
-    let to: Frames?
     let tracks: [TrackID]
-    let threshold: Gain?
-    let minLength: Frames?
     let spelling: OptionSpelling
 
     /// The most lines of silences or steps in one text.
@@ -54,10 +51,10 @@ package struct ReadWork: Sendable {
     ) -> Result<ReadWork, ToolError> {
         Result { () throws(ToolError) in
             let range = try range(from: from, to: to, spelling)
-            return ReadWork(
-                kind: .silences, from: range.from, to: range.to, tracks: tracks.map { TrackID($0) },
-                threshold: try level(threshold, spelling), minLength: try length(minLength, "min_length", 0, spelling),
-                spelling: spelling)
+            let kind = Kind.silences(
+                from: range.from, to: range.to, threshold: try level(threshold, spelling),
+                minLength: try length(minLength, "min_length", 0, spelling))
+            return ReadWork(kind: kind, tracks: tracks.map { TrackID($0) }, spelling: spelling)
         }
     }
 
@@ -67,11 +64,10 @@ package struct ReadWork: Sendable {
     ) -> Result<ReadWork, ToolError> {
         Result { () throws(ToolError) in
             guard isFrame(at) else { throw ToolError("\(spelling("at")) is a frame in 0...2^40.") }
-            let width = try length(window, "window", 1, spelling)
-            return ReadWork(
-                kind: .pause(at: Frames(at), window: width), from: .zero, to: nil, tracks: tracks.map { TrackID($0) },
-                threshold: try level(threshold, spelling), minLength: try length(minLength, "min_length", 0, spelling),
-                spelling: spelling)
+            let kind = Kind.pause(
+                at: Frames(at), window: try length(window, "window", 1, spelling),
+                threshold: try level(threshold, spelling), minLength: try length(minLength, "min_length", 0, spelling))
+            return ReadWork(kind: kind, tracks: tracks.map { TrackID($0) }, spelling: spelling)
         }
     }
 
@@ -81,9 +77,8 @@ package struct ReadWork: Sendable {
     {
         Result { () throws(ToolError) in
             let range = try range(from: from, to: to, spelling)
-            return ReadWork(
-                kind: .meter(step: try length(step, "step", 1, spelling)), from: range.from, to: range.to,
-                tracks: tracks.map { TrackID($0) }, threshold: nil, minLength: nil, spelling: spelling)
+            let kind = Kind.meter(from: range.from, to: range.to, step: try length(step, "step", 1, spelling))
+            return ReadWork(kind: kind, tracks: tracks.map { TrackID($0) }, spelling: spelling)
         }
     }
 
@@ -130,15 +125,16 @@ package struct ReadWork: Sendable {
         }
         let chosen = tracks.isEmpty ? nil : Set(tracks)
         let (rate, end, o) = (session.sampleRate, session.end, spelling)
-        let threshold = threshold ?? DuckShape.defaults(sampleRate: rate).threshold
+        let quiet = DuckShape.defaults(sampleRate: rate).threshold
         switch kind {
-        case .silences:
-            let range = try range(in: session)
+        case .silences(let from, let to, let level, let minLength):
+            let (range, threshold) = (try range(from, to, in: session), level ?? quiet)
             let series = try levels(
                 range, chosen, session, package, threshold, progress: progress, isCancelled: isCancelled)
             let silences = series.silences(threshold: threshold, minLength: minLength ?? Frames(rate / 2), in: range)
             return ReadOutput(stdout: Self.silencesLines(silences, spelling: o), stderr: [])
-        case .pause(let at, let window):
+        case .pause(let at, let window, let level, let minLength):
+            let threshold = level ?? quiet
             guard at < end else { throw .usage("\(o("at")) must be before the session end, frame \(end).") }
             let width = window ?? Frames(2 * rate)
             let asked = max(at - width, .zero)..<min(at + width, end)
@@ -147,8 +143,8 @@ package struct ReadWork: Sendable {
             let pause = series.nearestPause(
                 at: at, window: width, threshold: threshold, minLength: minLength ?? Frames(rate / 5))
             return ReadOutput(stdout: [Self.pauseLine(pause)], stderr: [])
-        case .meter(let step):
-            let range = try range(in: session)
+        case .meter(let from, let to, let step):
+            let range = try range(from, to, in: session)
             if let step { try check(step, range: range, session: session) }
             let read: (measure: MixMeasure, series: LevelSeries, faults: [FileID: MediaFault])
             do throws(POSIXError) {
@@ -182,7 +178,7 @@ package struct ReadWork: Sendable {
     }
 
     /// `from ..< to`, with `to` cut to the session end.
-    private func range(in session: Session) throws(ReadFailure) -> Range<Frames> {
+    private func range(_ from: Frames, _ to: Frames?, in session: Session) throws(ReadFailure) -> Range<Frames> {
         guard from < session.end else {
             throw .usage("\(spelling("from")) must be before the session end, frame \(session.end).")
         }

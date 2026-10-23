@@ -244,8 +244,9 @@ let audioTools = [
     Tool(
         "nearest_pause",
         "Find the best cut point near a frame, as dirigible nearest-pause: the silence of the rule of silences "
-            + "nearest to at within window, as \"pause\", its first frame, the frame after it, and the cut, its middle "
-            + "frame, with tabs; with no silence, \"no pause\", the middle frame of the quietest 50 ms window, and its "
+            + "nearest to at within window, as \"pause\", its first frame, the frame after it, and the cut, with "
+            + "tabs. The cut is the middle frame of the silence, or the frame of the search range nearest to it. With "
+            + "no silence, \"no pause\", the middle frame of the quietest 50 ms window, and its "
             + "level (-inf dBFS for digital silence). A missing, short, or unreadable file refuses the read. It "
             + "writes nothing. A cancel stops the read.",
         [pauseAt, pauseWindow, readTracks, readThreshold, pauseLength], saves: false

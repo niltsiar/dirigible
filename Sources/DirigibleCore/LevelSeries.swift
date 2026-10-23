@@ -101,9 +101,10 @@ public struct LevelSeries: Hashable, Sendable {
 
     /// The pause nearest to `at` in `at - window ..< at + window`, cut to the series (decision 0062):
     /// the silence of `silences(threshold:minLength:in:)` with the least distance from `at` to its
-    /// range (0 from its start frame to its end frame; a tie takes the earlier silence), cut at the
-    /// middle frame of the silence. With no silence, the middle frame of the quietest window that
-    /// meets that range (the earlier on a tie) and its level.
+    /// range (0 from its start frame to its end frame; a tie takes the earlier silence), with its
+    /// whole extent. The cut is the middle frame of the silence, or the frame of the asked range
+    /// nearest to it, so the cut is always in the asked range. With no silence, the middle frame of
+    /// the quietest window that meets that range (the earlier on a tie) and its level.
     /// Precondition: the series holds a frame of that range.
     public func nearestPause(at: Frames, window: Frames, threshold: Gain, minLength: Frames) -> Pause {
         let asked = max(at - window, range.lowerBound)..<min(at + window, range.upperBound)
@@ -113,7 +114,11 @@ public struct LevelSeries: Hashable, Sendable {
         }
         let silences = silences(threshold: threshold, minLength: minLength, in: asked)
         if let nearest = silences.min(by: { distance($0) < distance($1) }) {
-            return .pause(nearest, cut: Frames((nearest.lowerBound.count + nearest.upperBound.count) / 2))
+            // The silence meets the asked range, so `first...last` has a frame.
+            let middle = (nearest.lowerBound.count + nearest.upperBound.count) / 2
+            let first = max(nearest.lowerBound, asked.lowerBound).count
+            let last = min(nearest.upperBound, asked.upperBound).count - 1
+            return .pause(nearest, cut: Frames(min(max(middle, first), last)))
         }
         let first = (asked.lowerBound.count - range.lowerBound.count) / self.window.count
         let last = (asked.upperBound.count - 1 - range.lowerBound.count) / self.window.count
@@ -125,7 +130,8 @@ public struct LevelSeries: Hashable, Sendable {
 
 /// The result of `LevelSeries.nearestPause`.
 public enum Pause: Hashable, Sendable {
-    /// A silence and its cut frame, the middle of the silence.
+    /// A silence and its cut frame: the middle of the silence, or the frame of the asked range
+    /// nearest to it.
     case pause(Range<Frames>, cut: Frames)
     /// No silence in the range: the middle frame of the quietest window, and its level.
     case noPause(cut: Frames, level: WindowLevel)

@@ -89,11 +89,12 @@ struct NearestPauseCommand: ParsableCommand {
         discussion: """
             The pause is the silence of the rule of dirigible silences, with --min-length, that meets \
             --at minus --window to --at plus --window and is nearest to --at; a tie takes the earlier \
-            one. One line: "pause", the first frame, the frame after it, and the cut, its middle frame, \
-            with tabs. With no silence: "no pause", the middle frame of the quietest 50 ms window, and \
-            its level in dBFS (-inf dBFS for digital silence). It writes nothing and takes no lock. \
-            Exit 64 for a bad value or an --at at or after the session end. Exit 2 when the package cannot be read, a track is unknown, or \
-            a file of the read is missing, short, or unreadable.
+            one. One line: "pause", the first frame, the frame after it, and the cut, with tabs. The \
+            cut is the middle frame of the silence, or the frame of the search range nearest to it. \
+            With no silence: "no pause", the middle frame of the quietest 50 ms window, and its level \
+            in dBFS (-inf dBFS for digital silence). It writes nothing and takes no lock. Exit 64 for \
+            a bad value or an --at at or after the session end. Exit 2 when the package cannot be \
+            read, a track is unknown, or a file of the read is missing, short, or unreadable.
             """)
 
     @OptionGroup var package: PackageArgument

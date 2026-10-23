@@ -446,6 +446,198 @@ rm -f "$seedrepo/docs/requirements/releases.md"
 run "$seed" seed; [[ $rc -ne 0 ]] || fail "seed with no releases file exits 0"
 want_out "releases" "seed with no releases file"
 
+# --- the import: C1 to C3, C12, C13
+mkrepo() { # mkrepo <name>: a repo with a copy of the tool and one commit
+    mkdir -p "$tmp/$1/scripts"
+    cp "$script" "$tmp/$1/scripts/wiki.py"
+    g -C "$tmp/$1" init -q -b main
+    g -C "$tmp/$1" add -A
+    g -C "$tmp/$1" commit -q -m base
+}
+mkfix() { # mkfix <dir>: the three old files in their old shape
+    mkdir -p "$1"
+    {
+        printf '%s\n' '# Backlog' '' '## Next' ''
+        printf '%s\n' '- ALPHA ITEM (user 2026-10-01): the first next item with a body long enough to make a description of more than twelve words.'
+        printf '%s\n' '  indented continuation line of the alpha item'
+        printf '%s\n' '- upkeep DLV-012/tool (run x): an upkeep item with a cause key'
+        printf '%s\n' '- (from run y) lower case item with no capital title and more than eight words in its first line'
+        printf '%s\n' '- LONG CAPITAL TITLE WITH MORE THAN EIGHT WORDS IN IT (taken: run 2026-10-23-demo): a taken item.'
+        printf '%s\n' '' '## Later' '' '- LATER ONE: a later item' '### User requests 2026-09-26'
+        printf '%s \n' '- GROUPED ONE: a grouped later item with a trailing space'
+        printf '%s\n' '- GROUPED TWO: second, with `backtick`, $(x), and git reset --hard'
+    } > "$1/backlog.txt"
+    {
+        printf '%s\n' '# Run ledger' ''
+        printf '%s\n' 'Decision numbers taken or reserved (reserve at Phase 2, one entry "<number> <title> (run <run folder>)"; the next free number is after the last entry): 0050 a (run 2026-09-01-a), 0051 b (run 2026-09-02-b, landed).'
+        printf '%s\n' '' '| Run | Goal | Status | Result |' '|---|---|---|---|'
+        printf '%s\n' '| 2026-09-01-a | a | done | PR 1 |' '| 2026-09-02-b | b | done | PR 2 |' ''
+        printf '%s\n' 'Stop 2026-10-16 ~04:00 for an update, with `code`.' '' '| 2026-10-17-c | c | open | |' '2026-10-17 a free line'
+    } > "$1/ledger.txt"
+    printf '%s\n' '# Learnings' '' \
+        '- 2026-09-23: an unkeyed line with `code`.' \
+        '- 2026-10-01 seen-once 2026-10-01-run NEW-AGT-x/cost: the first line of a key.' \
+        '- 2026-10-02 applied 2026-10-02-run NEW-AGT-x/cost: the second line of the same key.' \
+        '- 2026-10-03 seen-once 2026-10-03-run DLV-012/tool: also names NEW-AGT-x/cost as a second key.' \
+        '- 2026-10-05: another unkeyed line.' > "$1/learnings.txt"
+}
+sums_of() { (cd "$1" && shasum backlog.txt ledger.txt learnings.txt); }
+import_args() { printf '%s\n' --backlog "$1/backlog.txt" --ledger "$1/ledger.txt" --learnings "$1/learnings.txt"; }
+imp_run() { # imp_run <tool> <fixture dir> [extra args]: sets out and rc
+    local tool="$1" dir="$2"
+    shift 2
+    run "$tool" import --backlog "$dir/backlog.txt" --ledger "$dir/ledger.txt" --learnings "$dir/learnings.txt" "$@"
+}
+
+mkrepo imp0
+imp="$tmp/imp0/scripts/wiki.py"
+mkfix "$tmp/fx0"
+before_sums="$(sums_of "$tmp/fx0")"
+export DIRIGIBLE_WIKI="$tmp/imported"
+"$imp" init >/dev/null 2>&1 || fail "import: init"
+imp_run "$imp" "$tmp/fx0"; want_rc 0 "import"
+imp_out="$out"
+[[ "$("$imp" count next)" == 4 && "$("$imp" count later)" == 3 ]] || fail "import counts: next $("$imp" count next), later $("$imp" count later), want 4 and 3"
+[[ "$imp_out" == *"next 4, later 3"* ]] || fail "the import does not print the counts: $imp_out"
+run "$imp" list next
+want="$(printf '%s\n' '0001 ALPHA ITEM: the first next item with a body long enough to make a' \
+    '0002 upkeep DLV-012/tool: an upkeep item with a cause key' \
+    '0003 lower case item with no capital title and: more than eight words in its first line' \
+    '0004 LONG CAPITAL TITLE WITH MORE THAN EIGHT WORDS: a taken item. (taken: 2026-10-23-demo)')"
+[[ "$out" == "$want" ]] || fail "import list next: [$out]"
+run "$imp" list later
+[[ "$out" == *"0005 LATER ONE: a later item"* && "$out" == *"0006 GROUPED ONE: a grouped later item with a trailing space"* ]] || fail "import list later: [$out]"
+run "$imp" show 0006; want_out 'group: "User requests 2026-09-26"' "a group heading becomes the group field"
+run "$imp" list next --taken 2026-10-23-demo; want_out "0004" "a (taken: run ...) item gets the taken field"
+
+# C2: the item lines rebuilt from the page bodies equal the item lines of the old file
+: > "$tmp/rebuilt.txt"
+for id in 0001 0002 0003 0004 0005 0006 0007; do
+    body_of "$id" | awk 'NR == 1 { print "- " $0; next } { print }' >> "$tmp/rebuilt.txt"
+done
+# the fixture files are now stubs: read the frozen copies
+grep -E '^(- |  )' "$DIRIGIBLE_WIKI/raw/backlog-cutover.md" > "$tmp/want-items.txt"
+cmp -s "$tmp/rebuilt.txt" "$tmp/want-items.txt" || fail "import: the item lines are not byte for byte"
+
+# C3: the lessons, the log, and the decision numbers
+"$imp" lessons | sort > "$tmp/got-lessons.txt"
+grep '^- ' "$DIRIGIBLE_WIKI/raw/learnings-cutover.md" | sort > "$tmp/want-lessons.txt"
+cmp -s "$tmp/got-lessons.txt" "$tmp/want-lessons.txt" || fail "import: the lesson lines differ from the learnings lines"
+[[ "$(ls "$DIRIGIBLE_WIKI/wiki/lessons" | tr '\n' ' ')" == "DLV-012--tool.md NEW-AGT-x--cost.md index.md unkeyed-2026-09.md unkeyed-2026-10.md " ]] \
+    || fail "import lesson pages: $(ls "$DIRIGIBLE_WIKI/wiki/lessons" | tr '\n' ' ')"
+run "$imp" lessons --seen-once; [[ "$(wc -l <<<"$out" | tr -d ' ')" == 2 ]] || fail "import: seen-once lines: [$out]"
+"$imp" runs > "$tmp/got-runs.txt"
+tail -n +4 "$DIRIGIBLE_WIKI/raw/ledger-cutover.md" > "$tmp/want-runs.txt"
+cmp -s "$tmp/got-runs.txt" "$tmp/want-runs.txt" || fail "import: runs differ from the ledger lines after line 3"
+run "$imp" numbers
+[[ "$out" == "$(sed -n 3p "$DIRIGIBLE_WIKI/raw/ledger-cutover.md")" ]] || fail "import: numbers: [$out]"
+run "$imp" now; want_out "2026-10-17-c" "now lists the open run after an import"
+run "$imp" lint; want_rc 0 "lint after an import"
+[[ -z "$(status_of)" ]] || fail "the import left the tree dirty"
+
+# C12: the raw copies and the shasum
+for name in backlog ledger learnings; do
+    want_sum="$(printf '%s' "$before_sums" | awk -v n="$name.txt" '$2 == n { print $1 }')"
+    [[ "$(shasum "$DIRIGIBLE_WIKI/raw/$name-cutover.md" | awk '{ print $1 }')" == "$want_sum" ]] || fail "raw copy of $name has another shasum"
+    [[ "$imp_out" == *"$name $want_sum"* ]] || fail "the import does not print the shasum of $name: $imp_out"
+    git -C "$DIRIGIBLE_WIKI" ls-files --error-unmatch "raw/$name-cutover.md" >/dev/null 2>&1 || fail "raw/$name-cutover.md is not committed"
+done
+
+# C13: the read-only stubs
+for name in backlog ledger learnings; do
+    f="$tmp/fx0/$name.txt"
+    [[ "$(cat "$f")" == *"$tmp/imp0/scripts/wiki.py"* ]] || fail "the stub of $name does not name the main-checkout tool path"
+    [[ ! -w "$f" ]] || fail "the stub of $name is writable"
+    (echo x >> "$f") 2>/dev/null && fail "an append to the stub of $name worked"
+done
+
+# C13: a second import exits nonzero and leaves the wiki as it is
+mkfix "$tmp/fx0b"
+before="$(tree_sums "$DIRIGIBLE_WIKI")"; h="$(head_of)"
+imp_run "$imp" "$tmp/fx0b"; [[ $rc -ne 0 ]] || fail "a second import exits 0"
+want_out "item" "a second import"
+[[ "$before" == "$(tree_sums "$DIRIGIBLE_WIKI")" && "$h" == "$(head_of)" ]] || fail "a second import changed the wiki"
+[[ "$(cat "$tmp/fx0b/backlog.txt")" != *wiki.py* && -w "$tmp/fx0b/backlog.txt" ]] || fail "a refused second import made a stub"
+
+# C13: a wiki with a lesson (no item) is refused too
+export DIRIGIBLE_WIKI="$tmp/imp-lesson"
+"$imp" init >/dev/null 2>&1
+printf '%s\n' '- 2026-10-23 seen-once 2026-10-23-demo DLV-012/tool: a line.' > "$tmp/il.txt"
+"$imp" lesson DLV-012/tool --from "$tmp/il.txt" >/dev/null 2>&1
+before="$(tree_sums "$DIRIGIBLE_WIKI")"
+imp_run "$imp" "$tmp/fx0b"; [[ $rc -ne 0 ]] || fail "an import into a wiki with a lesson exits 0"
+[[ "$before" == "$(tree_sums "$DIRIGIBLE_WIKI")" ]] || fail "an import into a wiki with a lesson changed it"
+
+# C2 control: the item lines must come back byte for byte, or the import writes nothing
+sed 's/"".join(line + "\\n" for line in lines)/"".join(line.rstrip() + "\\n" for line in lines)/' "$imp" > "$tmp/imp0/scripts/wiki-mut.py"
+chmod +x "$tmp/imp0/scripts/wiki-mut.py"
+cmp -s "$imp" "$tmp/imp0/scripts/wiki-mut.py" && fail "the mutation of the page writer did not apply"
+export DIRIGIBLE_WIKI="$tmp/imp-mut"
+"$imp" init >/dev/null 2>&1
+mkfix "$tmp/fx-mut"
+before="$(tree_sums "$DIRIGIBLE_WIKI")"; h="$(head_of)"
+imp_run "$tmp/imp0/scripts/wiki-mut.py" "$tmp/fx-mut"; [[ $rc -ne 0 ]] || fail "an import that changes a byte exits 0"
+want_out "round trip" "an import that changes a byte"
+[[ "$before" == "$(tree_sums "$DIRIGIBLE_WIKI")" && "$h" == "$(head_of)" ]] || fail "an import that changes a byte wrote the wiki"
+[[ "$(cat "$tmp/fx-mut/backlog.txt")" != *wiki.py* && -w "$tmp/fx-mut/backlog.txt" ]] || fail "an import that changes a byte replaced an old file"
+
+# C13: a read-only raw/ stops the import before the stubs
+export DIRIGIBLE_WIKI="$tmp/imp-ro"
+"$imp" init >/dev/null 2>&1
+mkfix "$tmp/fx-ro"
+want_sums="$(sums_of "$tmp/fx-ro")"
+chmod a-w "$DIRIGIBLE_WIKI/raw"
+imp_run "$imp" "$tmp/fx-ro"
+chmod u+w "$DIRIGIBLE_WIKI/raw"
+[[ $rc -ne 0 ]] || fail "an import with a read-only raw/ exits 0"
+[[ "$want_sums" == "$(sums_of "$tmp/fx-ro")" ]] || fail "an import with a read-only raw/ changed an old file"
+for name in backlog ledger learnings; do [[ -w "$tmp/fx-ro/$name.txt" ]] || fail "an old file is not writable after a stopped import: $name"; done
+
+# C13: the worktree gate
+mkrepo gate
+g -C "$tmp/gate" worktree add -q -b feat/x "$tmp/gate-wt"
+printf 'more\n' > "$tmp/gate/more.txt"
+g -C "$tmp/gate" add -A
+g -C "$tmp/gate" commit -q -m advance
+gate="$tmp/gate/scripts/wiki.py"
+mkfix "$tmp/fx-gate"
+want_sums="$(sums_of "$tmp/fx-gate")"
+export DIRIGIBLE_WIKI="$tmp/imp-gate"
+"$gate" init >/dev/null 2>&1
+before="$(tree_sums "$DIRIGIBLE_WIKI")"; h="$(head_of)"
+tab="$(printf '\t')"
+gate_refuses() { # gate_refuses <why> <message part> [extra args]
+    local why="$1" part="$2"
+    shift 2
+    imp_run "$gate" "$tmp/fx-gate" "$@"
+    [[ $rc -ne 0 ]] || fail "the gate: $why exits 0"
+    [[ "$out" == *"$part"* ]] || fail "the gate: $why: output lacks [$part]: $out"
+    [[ "$before" == "$(tree_sums "$DIRIGIBLE_WIKI")" && "$h" == "$(head_of)" ]] || fail "the gate: $why changed the wiki"
+    [[ "$want_sums" == "$(sums_of "$tmp/fx-gate")" ]] || fail "the gate: $why changed an old file"
+}
+gate_refuses "no trees file" "--trees-checked"
+gate_refuses "a trees file that does not exist" "$tmp/no-such-trees.txt" --trees-checked "$tmp/no-such-trees.txt"
+printf '%s\t%s\t%s\t%s\n' "$tmp/elsewhere-wt" feat/z 2026-10-23-demo 6 > "$tmp/trees-miss.txt"
+gate_refuses "a trees file that misses the tree" "$tmp/gate-wt" --trees-checked "$tmp/trees-miss.txt"
+printf '%s\t%s\t%s\n' "$tmp/gate-wt" feat/x 2026-10-23-demo > "$tmp/trees-short.txt"
+gate_refuses "a three-field line" "four" --trees-checked "$tmp/trees-short.txt"
+printf '%s\t%s\t%s\t%s\n' "$tmp/gate-wt" feat/x 2026-10-23-demo 8 > "$tmp/trees-old8.txt"
+gate_refuses "a phase 8 line on a branch without the caller HEAD" "feat/x" --trees-checked "$tmp/trees-old8.txt"
+printf '%s\t%s\t%s\t%s\n' "$tmp/gate-wt" feat/x 2026-10-23-demo 6 > "$tmp/trees-ok.txt"
+imp_run "$gate" "$tmp/fx-gate" --trees-checked "$tmp/trees-ok.txt"; want_rc 0 "a full trees file"
+log_text="$(git -C "$DIRIGIBLE_WIKI" log --format=%B)"
+[[ "$log_text" == *"$tmp/gate-wt"* && "$log_text" == *"feat/x"* ]] || fail "the import commit message lacks the trees file text"
+[[ "$(cat "$tmp/fx-gate/backlog.txt")" == *"$tmp/gate/scripts/wiki.py"* ]] || fail "the stub does not name the main-checkout tool path"
+
+# a phase 8 branch that holds the caller HEAD passes
+g -C "$tmp/gate" worktree add -q -b feat/y "$tmp/gate-wt2"
+printf '%s\t%s\t%s\t%s\n' "$tmp/gate-wt" feat/x 2026-10-23-demo 6 > "$tmp/trees-two.txt"
+printf '%s\t%s\t%s\t%s\n' "$tmp/gate-wt2" feat/y 2026-10-23-other 8 >> "$tmp/trees-two.txt"
+export DIRIGIBLE_WIKI="$tmp/imp-gate2"
+"$gate" init >/dev/null 2>&1
+mkfix "$tmp/fx-gate2"
+imp_run "$gate" "$tmp/fx-gate2" --trees-checked "$tmp/trees-two.txt"; want_rc 0 "a phase 8 branch that holds the caller HEAD"
+
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"
     exit 1

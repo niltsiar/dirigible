@@ -20,6 +20,7 @@
       "Bash(scripts/check-governance.sh:*)",
       "Bash(.claude/skills/deliver/scripts/log-decision.sh:*)",
       "Bash(.claude/skills/reflect/scripts/seen.sh:*)",
+      "Bash(scripts/wiki.py:*)",
       "Bash(codesign:*)",
       "Bash(plutil:*)",
       "Bash(lipo:*)",

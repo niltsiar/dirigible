@@ -93,9 +93,11 @@ struct NearestPauseCommand: ParsableCommand {
             one. One line: "pause", the first frame, the frame after it, and the cut, with tabs. The \
             cut is the middle frame of the silence, or the frame of the search range nearest to it. \
             With no silence: "no pause", the middle frame of the quietest 50 ms window, and its level \
-            in dBFS (-inf dBFS for digital silence). It writes nothing and takes no lock. Exit 64 for \
-            a bad value or an --at at or after the session end. Exit 2 when the package cannot be \
-            read, a track is unknown, or a file of the read is missing, short, or unreadable.
+            in dBFS (-inf dBFS for digital silence). A silence that goes on more than 60 s past the \
+            search range stops there, with a warning line on stderr. It writes nothing and takes no \
+            lock. Exit 64 for a bad value or an --at at or after the session end. Exit 2 when the \
+            package cannot be read, a track is unknown, or a file of the read is missing, short, or \
+            unreadable.
             """)
 
     @OptionGroup var package: PackageArgument

@@ -22,6 +22,23 @@ struct ReadToolTests {
         #expect(meter.contains("heard stereo mix, as a stereo export"), "\(meter)")
     }
 
+    /// Decision 0062: each text of a silence read gives the 60 s edge limit that its warning line reports.
+    @Test func eachSilenceReadTextStatesTheEdgeLimit() async throws {
+        let answers = try await mcp([modernRequest(1, "tools/list")])
+        let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
+        var texts: [String: String] = [:]
+        for name in ["silences", "nearest_pause"] {
+            texts["tool \(name)"] = tools.first { $0["name"] as? String == name }?["description"] as? String
+            let help = try await dirigible(name.replacingOccurrences(of: "_", with: "-"), "--help")
+            texts["help \(name)"] = help.stdout
+        }
+        #expect(texts.count == 4)
+        for (name, text) in texts {
+            let words = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            #expect(words.contains("60 s past") && words.contains("stops there"), "\(name): \(words)")
+        }
+    }
+
     /// The work refuses a level of 0 dB and over, so the schema gives -96 up to under 0.
     @Test func theLevelArgumentsHaveASchemaUnderZero() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list")])

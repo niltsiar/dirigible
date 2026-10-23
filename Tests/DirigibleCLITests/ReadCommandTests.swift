@@ -2,8 +2,6 @@ import DirigibleCore
 import Foundation
 import Testing
 
-@testable import DirigibleMCP
-
 /// `dirigible silences`, `dirigible nearest-pause`, and `dirigible meter` (decision 0062).
 struct ReadCommandTests {
     let package: TemporaryPackage

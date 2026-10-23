@@ -116,7 +116,7 @@ package struct ReadWork: Sendable {
     }
 
     /// The read of `session`, whose audio files are in `package`, with the defaults of decision
-    /// 0062 at the session rate: threshold -40 dBFS, minimum 500 ms for `silences` and 200 ms for
+    /// 0062 at the session rate: the duck threshold, -40 dBFS; minimum 500 ms for `silences` and 200 ms for
     /// `nearest_pause`, window 2 s. `silences` and `nearest_pause` read every track of the read
     /// with mute and solo off, and refuse a missing, short, or unreadable file before and after the
     /// scan. `meter` reads the heard mix, and its warning lines name the files that read as silence.
@@ -129,8 +129,7 @@ package struct ReadWork: Sendable {
         }
         let chosen = tracks.isEmpty ? nil : Set(tracks)
         let (rate, end, o) = (session.sampleRate, session.end, spelling)
-        // -40 dBFS is in `Gain.range`.
-        let threshold = threshold ?? Gain(dB: -40)!
+        let threshold = threshold ?? DuckShape.defaults(sampleRate: rate).threshold
         switch kind {
         case .silences:
             let range = try range(in: session)

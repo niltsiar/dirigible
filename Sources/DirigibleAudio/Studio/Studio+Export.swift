@@ -80,17 +80,20 @@ extension Studio {
         if exportJob?.number == job.number { exportJob = nil }
     }
 
-    /// `endExport` of this studio, and `endExport` and `endImport` of each other studio, for a
-    /// take start (`prepareTake`, off the main actor): capture comes first across windows
-    /// (decisions 0019 and 0040). Nil when no export or import runs: then the start needs no
-    /// main-actor turn for it. An export or an import of another studio that starts during the
-    /// take start runs on; the disk check of the take watches it.
+    /// `endExport` and `endReads` of this studio, and `endExport`, `endImport`, and `endReads` of
+    /// each other studio, for a take start (`prepareTake`, off the main actor): capture comes first
+    /// across windows (decisions 0019, 0040, and 0062). Nil when no export, import, or read runs:
+    /// then the start needs no main-actor turn for it. An export, an import, or a read of another
+    /// studio that starts during the take start runs on; the disk check of the take watches the
+    /// export and the import.
     func exportEnd() -> (@MainActor @Sendable () async -> Void)? {
-        let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil }
-        guard exportJob != nil || !others.isEmpty else { return nil }
+        let others = otherStudios().filter { $0.exportJob != nil || $0.importRun != nil || !$0.readRuns.isEmpty }
+        guard exportJob != nil || !readRuns.isEmpty || !others.isEmpty else { return nil }
         return { [weak self] in
+            self?.endReads()
             await self?.endExport(.take)
             for studio in others {
+                studio.endReads()
                 await studio.endExport(.take, yielding: true)
                 studio.endImport(.take)
             }

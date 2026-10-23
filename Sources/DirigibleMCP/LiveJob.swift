@@ -57,8 +57,10 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         } catch {
             return .result(text: error.message, isError: true)
         }
+    case .read(let work):
+        return await liveRead(work, studio: studio, call: call, report: report)
     // `AgentServer` sends only long work here.
-    case .read, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
+    case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
         .record, .words,
         .takeMap:
         return .notOpen
@@ -115,6 +117,32 @@ private func liveDuck(
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
         return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
+/// `silences`, `nearest_pause`, and `meter` through `Studio.readMix`: the session of the window
+/// (decision 0062). A take start or a cancel of the call ends the read.
+@MainActor
+private func liveRead(
+    _ work: ReadWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    let result: Result<ReadOutput, ReadFailure>
+    do throws(StudioError) {
+        result = try await studio.readMix(progress: report) { session, package, progress, isCancelled in
+            Result { () throws(ReadFailure) in
+                try work.read(session, package: package, progress: progress, isCancelled: isCancelled)
+            }
+        }
+    } catch .readYielded {
+        return .result(text: "Dirigible started a take, so the read stopped.", isError: true)
+    } catch .busy {
+        return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
+    }
+    switch result {
+    case .success(let output): return .result(text: output.text, isError: false)
+    case .failure(let error): return .result(text: error.message, isError: true)
     }
 }
 
@@ -243,7 +271,8 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
-    case .chapters, .transcriptExport, .read, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode,
+    case .read: "Dirigible stopped its agent server, so the read stopped."
+    case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode,
         .marker,
         .episodeInfo,
         .prune, .record,

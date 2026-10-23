@@ -54,6 +54,8 @@ public enum StudioError: Error, Hashable, Sendable {
     case levelCancelled
     /// The user or the caller cancelled a duck (decision 0060). No envelope changed.
     case duckCancelled
+    /// A take start ended an agent read by time (decision 0062).
+    case readYielded
     /// A duck could not open an audio file: no free descriptor, with its errno (decision 0016).
     case duckRead(Int32)
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).

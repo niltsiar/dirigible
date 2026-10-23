@@ -150,6 +150,8 @@ import Observation
     @ObservationIgnored var exportNumber = 0
     /// The studios of the other windows (decision 0019). The app sets it; the CLI has none.
     @ObservationIgnored public var otherStudios: () -> [Studio] = { [] }
+    /// The running agent reads by time (decision 0062), in `Studio+Read.swift`.
+    @ObservationIgnored var readRuns: [ReadRun] = []
     /// The number of the export that a take of another studio ended.
     @ObservationIgnored var yieldedExport: Int?
     /// Why the last export stopped before its end, read after its `.export(.cancelled)`. Nil

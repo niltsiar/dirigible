@@ -49,8 +49,8 @@ DIRIGIBLE_WIKI_LOCK_WAIT seconds (default 30), then exit 75. The kernel drops th
 holder dies. Under the lock, a write refuses a dirty wiki tree and a .git/index.lock, exits 1, and
 prints the repair. Each write stages only its own paths and makes one commit.
 An item is ready when it has no waits value, or its target is closed: an item that is done or
-dropped, or a run whose run.md in the main checkout has the line "- Status: done", or a run with no
-folder. The user never closes. Readers compute it at each call: no page holds it.
+dropped, or a run whose run.md in the main checkout has a status line of done or dropped, or a run with
+no folder. The user never closes. Readers compute it at each call: no page holds it.
 Exit codes: 0 done, 1 refused, 2 bad use, 75 try again.
 scripts/wiki.test.sh tests it.
 """
@@ -86,7 +86,7 @@ ID_RE = re.compile(r"^[0-9]{4,}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 ENTRY_RE = re.compile(r"^[0-9]{4} [^,\n]+ \(run [0-9a-z-]+\)$")
 TITLE_RE = re.compile(r"^- (upkeep (?:NEW-[A-Z]+-[a-z0-9-]+|[A-Z]+-[0-9]{3})/[a-z]+|[A-Z0-9][A-Z0-9 .,'&/+#-]*[A-Z0-9])(?=[ :(])")
-RUN_DONE_RE = re.compile(r"^- Status: done[ \t]*$", re.M)
+RUN_CLOSED_RE = re.compile(r"^-? ?Status: (?:done|dropped)\b", re.M)
 TAKEN_RE = re.compile(r"\(taken: run ([0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*)[ ,)]")
 GIT_ENV_DROP = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_PREFIX",
                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE")
@@ -292,12 +292,12 @@ def awaited_item(page: Page) -> str:
 
 
 def run_is_open(name: str) -> bool:
-    """A run is open when its folder exists and its run.md has no done status line."""
+    """A run is open when its folder exists and its run.md has no status line of done or dropped."""
     folder = main_checkout() / ".scratchpads" / "runs" / name
     if not folder.is_dir():
         return False
     run_md = folder / "run.md"
-    return not run_md.is_file() or not RUN_DONE_RE.search(read_text(run_md))
+    return not run_md.is_file() or not RUN_CLOSED_RE.search(read_text(run_md))
 
 
 def is_waiting(page: Page, items: dict[str, Page]) -> bool:

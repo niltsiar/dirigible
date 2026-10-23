@@ -213,22 +213,6 @@ import SwiftUI
         headerWidth = HeaderWidth(stored: app.defaults?.object(forKey: HeaderWidth.defaultsKey))
     }
 
-    /// The studio of an open window, also while a close waits for it.
-    var studio: Studio? {
-        switch phase {
-        case .open(let studio): studio
-        case .closing(let studio): studio
-        case .opening, .failed, .closed: nil
-        }
-    }
-
-    /// A take starts or records: a close or a quit asks first.
-    var isTakeRunning: Bool {
-        guard let studio else { return false }
-        if case .recording = studio.transport { return true }
-        return studio.isStarting
-    }
-
     func show() {
         let previous = app?.windows.values.compactMap(\.window).max { $0.windowNumber < $1.windowNumber }
         let host = NSHostingController(rootView: SessionView(model: self))

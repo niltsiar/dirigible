@@ -124,4 +124,31 @@ struct MCPTranscriptToolTests {
         let rows = try await call([("transcript_words", [:])], on: package)
         #expect(rows[0].text.hasSuffix("\t48000\t96000\tt1\ttwo"), "\(rows)")
     }
+
+    /// C11: `transcript_export` gives the text of the command and the same file. A bad extension, a
+    /// file that exists, and a session with no transcript are tool errors.
+    @Test func transcriptExportWritesTheFileOfTheCommand() async throws {
+        let (tool, cli) = (try package(), try package())
+        let srt = TranscriptExportCommandTests.srt
+        let source = try TranscriptTakeImportTests.write(srt, in: tool, name: "in.srt")
+        _ = try await tool.run("transcript", "import", "PKG", source, "--track", "host")
+        _ = try await cli.run("transcript", "import", "PKG", source, "--track", "host")
+        let (toolOut, cliOut) = (tool.folder.appending(path: "a.vtt"), cli.folder.appending(path: "b.vtt"))
+
+        let results = try await call(
+            [
+                ("transcript_export", ["out": toolOut.path]), ("transcript_export", ["out": toolOut.path]),
+                ("transcript_export", ["out": toolOut.path + ".txt"]),
+            ], on: tool)
+        let command = try await cli.run("transcript", "export", "PKG", "--out", cliOut.path)
+
+        #expect(results[0].text == "OK" && !results[0].isError, "\(results)")
+        #expect(command.status == 0)
+        #expect(try String(contentsOf: toolOut, encoding: .utf8) == String(contentsOf: cliOut, encoding: .utf8))
+        #expect(results[1].isError && results[1].text == "\(toolOut.path) exists.", "\(results[1])")
+        #expect(results[2].isError && results[2].text == "out must end in .srt or .vtt.", "\(results[2])")
+        let empty = try await call(
+            [("transcript_export", ["out": tool.folder.appending(path: "c.srt").path])], on: try package())
+        #expect(empty[0].isError && empty[0].text == "The session has no transcript.", "\(empty)")
+    }
 }

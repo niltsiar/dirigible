@@ -29,7 +29,16 @@ private let occurrences = Param.required(
     "occurrences", "The word occurrences to cut: the first column of transcript_words. Give all in one call.",
     .strings(minItems: 1))
 
-/// The transcript tools (decision 0055): `dirigible transcript import`, `words`, and `cut`.
+private let exportOut = Param.required(
+    "out",
+    "The absolute path of the subtitle file, outside each session package: .srt or .vtt. It must not exist, unless "
+        + "replace.", .string)
+private let exportTranscript = Param<Int?>.optional(
+    "transcript", "The transcript number. Leave it out when the session has one transcript.", .integer(minimum: 1))
+private let exportReplace = Param.defaulted("replace", "Replace the file when it exists.", .boolean, false)
+
+/// The transcript tools (decision 0055): `dirigible transcript import`, `words`, and `cut`; and
+/// `export` (decision 0061).
 let transcriptTools = [
     Tool(
         "transcript_import",
@@ -89,5 +98,17 @@ let transcriptTools = [
         return .edit(ripple: true) { session throws(SessionError) in
             TranscriptWork.cutLines(try session.cutWords(words))
         }
+    },
+    Tool(
+        "transcript_export",
+        "Write the transcript as subtitles on the timeline now, as dirigible transcript export: one cue for each "
+            + "word or cue of the transcript, in timeline order. A .srt out gives SubRip, a .vtt out gives WebVTT. "
+            + "The text is the warning lines, or OK.",
+        [exportOut, exportTranscript, exportReplace], saves: false
+    ) { a throws(ToolError) in
+        // Each argument is checked before `out`, so a bad argument gets its own text.
+        let (transcript, replace) = (try a[exportTranscript], try a[exportReplace])
+        return .transcriptExport(
+            try TranscriptExportWork(out: try outPath(a, exportOut), transcript: transcript, replace: replace))
     },
 ]

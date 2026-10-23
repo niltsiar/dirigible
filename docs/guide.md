@@ -913,6 +913,7 @@ These commands use a transcript with word times, in Whisper JSON, WebVTT, or SRT
 - `dirigible transcript import Demo.dirigible episode.json --track <track>` imports a transcript of an export of the whole session. The track is the track whose clips carry the words. It writes the transcript ID and the count of words. A WebVTT or SRT file, or a Whisper file with a segment that has no word times, has cues: each line of the report names cues, and a cut removes a cue with no word times whole. The times start at the start of the timeline: `--at <frame>` moves them. `--take <n>` is for a transcript of the original take, for example the Whisper transcript of the recording before any edit: time 0 is the record start of take n, `--at` is then a take frame, and each word lands on the audio of the take where the edits left it. The report line reads `take 4: 812 words placed, 3 skipped (audio removed by an edit)`, so a high skipped count shows a wrong take. A track with no audio of the take exits 1, and a take anchor that cannot be read exits 2. The tool `transcript_import` takes `take` for the same. `-` in place of the file reads stdin. A word with no clip of the track under it, or with no time, is skipped, and a line on stderr gives the count. A file that is not a transcript gives exit 1. A new import replaces the words of an earlier one in the same span.
 - `dirigible transcript words Demo.dirigible --match "let me say that again"` writes the words of that phrase, one row each: the occurrence, the start frame, the end frame, the track, and the text, with a tab between them. Case and punctuation do not count. `--from` and `--to` give the words of a frame range, and `--track` the words of one track. It writes at most 200 rows (`--limit`), then a line with the count of the rest. `--json` writes JSON.
 - `dirigible transcript cut Demo.dirigible <occurrence> <occurrence>` cuts the words from all tracks in one edit and closes the gaps, as `clip ripple-delete` does. Words next to each other cut as one range. It writes the frames of each cut range. Each edit, also a cut, changes the occurrences of the words after it: run `dirigible transcript words` again before the next cut. A stale occurrence gives exit 1 and cuts nothing.
+- `dirigible transcript export Demo.dirigible --out Episode.srt` writes the transcript as subtitles on the timeline as it is now: one cue for each word or cue of the transcript, in timeline order. The extension picks the form: `.srt` (SubRip) or `.vtt` (WebVTT). The file is UTF-8 with no byte order mark and LF line ends, with times in whole milliseconds. After a ripple insert, each cue moves with its audio, and a cut through a cue shortens it to the audio that stays. Give `--transcript <id>` when the session has more than one transcript; the error lists the IDs. A word with no length is left out, and a line on stderr counts it. A file that exists is refused unless you give `--replace`, and the write is atomic. An `--out` inside a `.dirigible` package exits 64. For a transcript of the original take, import it with `--take` first: the export then gives the subtitles of the edited episode.
 
 These commands use the take time: the time of the audio from the record start of its take. An edit moves the audio on the timeline, and the take time stays with the audio.
 
@@ -1035,7 +1036,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 55 tools, in groups:
+The 56 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`.
@@ -1044,7 +1045,7 @@ The 55 tools, in groups:
 - Pool: `capture_remove`, `file_remove`, `file_prune`. `file_prune` gives the lines of `dirigible file prune`. With `dry_run` set to true, it changes nothing. The tool cannot see the clipboard of an app window.
 - Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_crossfade`, `clip_heal`, `clip_envelope`, `clip_gain_range`. `clip_envelope` takes the points as `[frame, dB]` pairs, the shape of `envelope` in `session_info`.
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
-- Transcript: `transcript_import`, `transcript_words`, `transcript_cut`. They give the text of `dirigible transcript import`, `words`, and `cut`.
+- Transcript: `transcript_import`, `transcript_words`, `transcript_cut`, `transcript_export`. They give the text of `dirigible transcript import`, `words`, `cut`, and `export`.
 - Take: `take_map`. It gives the text of `dirigible take map`. On a session that is open in Dirigible, it maps the session of the window.
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.

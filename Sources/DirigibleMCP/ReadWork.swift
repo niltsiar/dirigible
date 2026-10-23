@@ -257,7 +257,7 @@ package struct ReadWork: Sendable {
     static func pauseLine(_ pause: Pause) -> String {
         switch pause {
         case .pause(let silence, let cut): "pause\t\(silence.lowerBound)\t\(silence.upperBound)\t\(cut)"
-        case .noPause(let cut, let level): "no pause\t\(cut)\t\(value(power(level.meanSquare), "dBFS"))"
+        case .noPause(let cut, let level): "no pause\t\(cut)\t\(dBFS(power(level.meanSquare)))"
         }
     }
 
@@ -276,11 +276,14 @@ package struct ReadWork: Sendable {
     static func stepLines(_ steps: [LevelSeries.Step]) -> [String] {
         steps.map {
             let peak = 20 * log10(Double($0.level.peak))
-            return "\($0.frames.lowerBound)\t\(value(power($0.level.meanSquare), "dBFS"))\t\(value(peak, "dBFS"))"
+            return "\($0.frames.lowerBound)\t\(dBFS(power($0.level.meanSquare)))\t\(dBFS(peak))"
         }
     }
 
     private static func power(_ meanSquare: Float) -> Double { 10 * log10(Double(meanSquare)) }
+
+    /// A level column: digital silence is `-inf dBFS`, so the column has one form (decision 0062).
+    private static func dBFS(_ level: Double) -> String { level == -.infinity ? "-inf dBFS" : value(level, "dBFS") }
 
     /// A value with one decimal and `unit`, with a plus sign over 0; `none` for no value or no signal.
     private static func value(_ value: Double?, _ unit: String) -> String {

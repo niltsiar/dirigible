@@ -78,12 +78,12 @@ struct ReadCommandTests {
         #expect(heard.stdout.hasPrefix("heard stereo mix: "), "\(heard.stdout)")
     }
 
-    /// The steps start on the frame 0 grid, and a step of digital silence gives none.
+    /// The steps start on the frame 0 grid, and a step of digital silence gives -inf dBFS.
     @Test func aStepLineStartsOnTheGrid() async throws {
         let result = try await package.run("meter", "PKG", "--track", "t1", "--from", "1000", "--step", "48000")
         let lines = result.stdout.split(separator: "\n").map(String.init)
         #expect(result.status == 0 && lines.count == 4, "\(result)")
         #expect(lines.dropFirst().map { $0.prefix { $0 != "\t" } } == ["0", "48000", "96000"], "\(lines)")
-        #expect(lines[1].hasSuffix("\t-23.0 dBFS") && lines[2] == "48000\tnone\tnone", "\(lines)")
+        #expect(lines[1].hasSuffix("\t-23.0 dBFS") && lines[2] == "48000\t-inf dBFS\t-inf dBFS", "\(lines)")
     }
 }

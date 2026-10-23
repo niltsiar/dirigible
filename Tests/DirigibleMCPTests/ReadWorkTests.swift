@@ -56,6 +56,14 @@ struct ReadWorkTests {
         #expect(ReadWork.pauseLine(.noPause(cut: 1200, level: quiet)) == "no pause\t1200\t-30.0 dBFS")
     }
 
+    /// A level column gives digital silence as `-inf dBFS`, so each column keeps one form.
+    @Test func digitalSilenceIsMinusInfinityInALevelColumn() throws {
+        let zero = WindowLevel(meanSquare: 0, peak: 0)
+        #expect(ReadWork.pauseLine(.noPause(cut: 1200, level: zero)) == "no pause\t1200\t-inf dBFS")
+        let series = try #require(LevelSeries(range: 0..<2400, window: 2400, levels: [zero]))
+        #expect(ReadWork.stepLines(series.steps(of: 2400)) == ["0\t-inf dBFS\t-inf dBFS"])
+    }
+
     @Test func meterLineGivesNoneAndSignedValues() {
         let loud = MixMeasure(
             integrated: LUFS(value: -15.54), loudnessRange: 6.36, maxMomentary: LUFS(value: -9.0),

@@ -202,7 +202,17 @@ import Testing
         #expect(takeFrame("1:02:03", rate: 48_000) == 3723 * 48_000)
         #expect(takeFrame("7", rate: 48_000) == 7 * 48_000)
         #expect(takeFrame(" 0:10.5 ", rate: 48_000) == 504_000)
-        for text in ["", "1:60", "1:02:60", "1:60:00", "0:1x", "1.2345", ":10", "10:", "-5", "1:2:3:4", "1e3"] {
+        // Code gate L3 item 4: a comma is a decimal mark too, as in the Spanish inspector line, and
+        // a leading minus gives a time before the record start, rounded half away from zero.
+        #expect(takeFrame("21:07,500", rate: 48_000) == 1267 * 48_000 + 24_000)
+        #expect(takeFrame("-0.2", rate: 48_000) == -9_600)
+        #expect(takeFrame("-0,2", rate: 48_000) == -9_600)
+        #expect(takeFrame("-1:02.345", rate: 44_100) == -2_749_415)
+        #expect(takeFrame("-5", rate: 48_000) == -5 * 48_000)
+        for text in [
+            "", "1:60", "1:02:60", "1:60:00", "0:1x", "1.2345", "1,2345", ":10", "10:", "1:2:3:4", "1e3", "-", "--5",
+            "+5", "1,2.3", "1.2,3", "- 5", "5-",
+        ] {
             #expect(takeFrame(text, rate: 48_000) == nil, "\(text)")
         }
         #expect(takeFrame(String(repeating: "9", count: 30), rate: 48_000) == nil, "no overflow")

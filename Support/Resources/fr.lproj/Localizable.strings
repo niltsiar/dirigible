@@ -477,7 +477,7 @@
 "sheet.take.time.take" = "Prise";
 "sheet.take.time.item" = "Prise %lld";
 "sheet.take.time.field" = "Temps de la prise";
-"sheet.take.time.format" = "Saisissez le temps depuis le début de l’enregistrement de la prise sous la forme H:MM:SS.mmm, M:SS ou en secondes.";
+"sheet.take.time.format" = "Saisissez le temps depuis le début de l’enregistrement de la prise sous la forme H:MM:SS.mmm (ou H:MM:SS,mmm), M:SS ou en secondes.";
 "sheet.take.time.removed" = "Aucun clip ne lit ce temps de la prise %lld : une modification l’a supprimé, ou la prise n’a pas d’audio à cet endroit. Saisissez un autre temps.";
 "alert.export.missing" = "Ces fichiers sont manquants ou illisibles. Ils seront exportés sous forme de silence :\n%@";
 "alert.export.confirm" = "Exporter";

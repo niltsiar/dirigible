@@ -477,7 +477,7 @@
 "sheet.take.time.take" = "Take";
 "sheet.take.time.item" = "Take %lld";
 "sheet.take.time.field" = "Take Time";
-"sheet.take.time.format" = "Type the time from the record start of the take as H:MM:SS.mmm, M:SS, or seconds.";
+"sheet.take.time.format" = "Type the time from the record start of the take as H:MM:SS.mmm (or H:MM:SS,mmm), M:SS, or seconds.";
 "sheet.take.time.removed" = "No clip plays this time of take %lld: an edit removed it, or the take has no audio there. Type another time.";
 "alert.export.missing" = "These files are missing or cannot be read. They export as silence:\n%@";
 "alert.export.confirm" = "Export";

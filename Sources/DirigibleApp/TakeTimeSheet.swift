@@ -20,10 +20,14 @@ struct TakeTimeDraft: Equatable {
 }
 
 /// The take frame of a time typed in the sheet: `H:MM:SS.mmm`, `M:SS`, or seconds, each with an
-/// optional fraction of 1 to 3 digits, from the record start of the take. It rounds to the frame,
-/// half away from zero. Nil for another text, or a time that no take can hold.
+/// optional fraction of 1 to 3 digits after a period or a comma, from the record start of the take.
+/// A leading minus gives a time before the record start. It rounds to the frame, half away from
+/// zero. Nil for another text, or a time that no take can hold.
 func takeFrame(_ text: String, rate: Int) -> Int? {
-    let parts = text.trimmingCharacters(in: .whitespaces).split(separator: ".", omittingEmptySubsequences: false)
+    var body = Substring(text.trimmingCharacters(in: .whitespaces))
+    let sign = body.first == "-" ? -1 : 1
+    if sign < 0 { body = body.dropFirst() }
+    let parts = body.split(omittingEmptySubsequences: false) { $0 == "." || $0 == "," }
     let fields = parts[0].split(separator: ":", omittingEmptySubsequences: false)
     let fraction = parts.count == 2 ? parts[1] : "0"
     // Nine digits at most in each field, so the sums below cannot overflow.
@@ -38,7 +42,7 @@ func takeFrame(_ text: String, rate: Int) -> Int? {
     let milliseconds = seconds * 1000 + fractionDigits * [100, 10, 1][fraction.count - 1]
     let (product, overflow) = milliseconds.multipliedReportingOverflow(by: rate)
     guard !overflow else { return nil }
-    let frame = product / 1000 + (product % 1000 >= 500 ? 1 : 0)
+    let frame = sign * (product / 1000 + (product % 1000 >= 500 ? 1 : 0))
     return TakeMap.takeFrames.contains(frame) ? frame : nil
 }
 

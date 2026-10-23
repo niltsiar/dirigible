@@ -45,11 +45,11 @@ extension SessionWindow {
     var canExport: Bool { exportStudio.flatMap { source(of: .session, in: $0) } != nil }
     var canExportSelection: Bool { exportStudio.flatMap { source(of: .selection, in: $0) } != nil }
 
-    /// Import Audio, Export, Export Selection, Export Chapters, and Export Transcript are off when they cannot run. Their keys have Command, so the
-    /// plain-key rule does not apply. During an import, the edit items whose key no text field uses
-    /// are off. Auto Level and Duck Music Under Speech are also off with no clip or a busy studio,
-    /// and Heal Clips with no range or a busy studio. The other items
-    /// are never off: a field uses their keys (0018 K1).
+    /// Import Audio, Export, Export Selection, Export Chapters, and Export Transcript are off when
+    /// they cannot run. Their keys have Command, so the plain-key rule does not apply. During an
+    /// import, the edit items whose key no text field uses are off. Auto Level and Duck Music Under
+    /// Speech are also off with no clip or a busy studio, and Heal Clips with no range or a busy
+    /// studio. The other items are never off: a field uses their keys (0018 K1).
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {
         case .export: canExport

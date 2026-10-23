@@ -122,6 +122,7 @@ HOOK_TESTS = \
 	scripts/check-changed.test.sh \
 	scripts/check-stamp.test.sh \
 	scripts/evals-for.test.sh \
+	scripts/wiki.test.sh \
 	scripts/eval/agent-tasks.test.sh \
 	scripts/test-filter.test.sh \
 	scripts/run-checks.test.sh \

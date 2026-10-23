@@ -513,6 +513,7 @@
 "banner.level.unmeasured" = "Clips zonder meetbaar niveau: %lld. Hun versterking blijft gelijk.";
 "banner.export.chapter.images.omitted" = "%@ heeft geen hoofdstukafbeeldingen: een hoofdstuk heeft geen afbeelding, en de aflevering heeft geen illustratie. Stel de afleveringsillustratie in, of een afbeelding voor elk hoofdstuk.";
 "banner.export.chapter.dropped" = "%1$@ laat deze hoofdstukken weg, omdat elk begint op het tijdstip van een ander hoofdstuk, of op of na het einde van de audio: %2$@. Verplaats ze en exporteer dan opnieuw.";
+"banner.transcript.left.out" = "%1$@ laat ondertitels zonder duur weg: %2$lld. Geef elk ervan in het transcriptbestand een einde na het begin en importeer het transcript dan opnieuw om ze te houden.";
 "report.loudness" = "luidheid %.1f LUFS";
 "report.loudness.none" = "luidheid niet gemeten";
 "report.peak" = "echte piek %.1f dBTP";

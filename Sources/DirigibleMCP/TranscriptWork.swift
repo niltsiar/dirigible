@@ -173,8 +173,8 @@ extension EditFailure where Body == TakeImportError {
 }
 
 /// The work of a `transcript export` command or a `transcript_export` call after its arguments are
-/// checked (decision 0061). It is the one owner of the form of `out`, the refusals, and the text of
-/// the file, as `ChaptersWork` is for the chapters export.
+/// checked (decision 0061). It is the one owner of the form of `out`, the refusals, and the warning
+/// lines, as `ChaptersWork` is for the chapters export. `Session.subtitleFile` owns the file text.
 package struct TranscriptExportWork: Sendable {
     /// An absolute path outside each session package.
     let out: String
@@ -201,14 +201,14 @@ package struct TranscriptExportWork: Sendable {
     /// tool.
     package func render(_ session: Session) throws(ToolError) -> (text: String, warnings: [String]) {
         do throws(SubtitleError) {
-            let (cues, left) = try session.cues(ofTranscript: transcript)
+            let (text, left) = try session.subtitleFile(ofTranscript: transcript, as: format)
             let warnings =
                 left == 0
                 ? []
                 : [
                     "Warning: \(left) cue\(left == 1 ? " has" : "s have") no length and \(left == 1 ? "is" : "are") left out."
                 ]
-            return (format.text(cues, sampleRate: session.sampleRate), warnings)
+            return (text, warnings)
         } catch {
             throw ToolError(message(error))
         }

@@ -547,6 +547,7 @@ Choose **File > Export Transcript** to write the transcript as subtitles for you
 - When the session has more than one transcript, choose one in **Transcript**. Each transcript shows its number and its name.
 - The item is off when the session has no transcript, and during a take or another export.
 - When a file with the name exists, the save panel asks before it replaces it.
+- A word or cue with no length is left out of the file, and a banner gives their count. The banner goes at the next change of the session.
 - A cut through a cue shortens it to the audio that stays. A split through a cue shortens it to the clip under the middle of the cue: join the pieces with **Edit > Heal Clips** before the export.
 - To get the subtitles of the edited episode from a transcript of the original take, have an agent import the transcript with `take` first, or run `dirigible transcript import` with `--take`.
 

@@ -513,6 +513,7 @@
 "banner.level.unmeasured" = "Clips sin nivel que medir: %lld. Mantienen su ganancia.";
 "banner.export.chapter.images.omitted" = "%@ no tiene imágenes de capítulo: un capítulo no tiene imagen y el episodio no tiene ilustración. Defina la ilustración del episodio o una imagen para cada capítulo.";
 "banner.export.chapter.dropped" = "%1$@ no incluye estos capítulos, porque cada uno empieza en el tiempo de otro capítulo, o en el final del audio o después: %2$@. Muévalos y exporte de nuevo.";
+"banner.transcript.left.out" = "%1$@ omite los subtítulos sin duración: %2$lld. Para conservarlos, da a cada uno un final posterior a su inicio en el archivo de la transcripción y vuelve a importar la transcripción.";
 "report.loudness" = "sonoridad %.1f LUFS";
 "report.loudness.none" = "sonoridad sin medir";
 "report.peak" = "pico real %.1f dBTP";

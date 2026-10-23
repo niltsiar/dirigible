@@ -117,6 +117,8 @@ import SwiftUI
     var exportReport: ExportReportShown?
     /// The chapter warnings of the last export, for their banners. They go as `exportReport` goes.
     var chapterWarnings: ChapterWarningsShown?
+    /// The cues that the last Export Transcript left out, for its banner at its session revision.
+    var transcriptLeftOut: TranscriptLeftOutShown?
     /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;
     /// the banner shows only at its session revision.
     var levelReport: LevelReportShown?

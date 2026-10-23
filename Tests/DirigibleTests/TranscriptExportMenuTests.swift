@@ -156,4 +156,25 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: file.path))
         await model.close()
     }
+
+    /// Code gate L3 item 2. A word with no length is left out of the file, as the command leaves
+    /// it out, and a banner gives the count until the next change of the session.
+    @Test func aWordWithNoLengthShowsTheBanner() async throws {
+        let words = #"{"words":[{"word":"one","start":0.01,"end":0.02},{"word":"none","start":0.05,"end":0.05}]}"#
+        let (model, studio, package) = try await window([("Host", words)])
+        let file = folder.url.appending(path: "chosen.srt")
+        model.run(.exportTranscript)
+        try #require(panel.calls.first).answer(TranscriptTarget(url: file, format: .srt, transcript: 1))
+        let banners = { ChromeState(model: model).shown.banners.filter { $0.key == "transcriptLeftOut" } }
+        await until(limit: .seconds(10), "the banner shows") { !banners().isEmpty }
+        #expect(banners() == [.transcriptLeftOut(count: 1, file: "chosen.srt")])
+        #expect((try Data(contentsOf: file)) == (try commandFile(package, "command.srt")), "the file of the command")
+
+        try studio.edit(ripple: true) { session throws(SessionError) in
+            try session.rippleInsert(48_000, at: 0, on: ["t1"])
+        }
+
+        #expect(banners() == [], "the next change of the session hides it")
+        await model.close()
+    }
 }

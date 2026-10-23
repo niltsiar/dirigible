@@ -186,15 +186,17 @@ extension Studio {
 
     /// The SRT or WebVTT file of transcript `number` of `session` (decision 0061), the text of
     /// `dirigible transcript export`, written atomically to `url` off the main actor. The caller
-    /// confirmed the replace of an item at `url`.
+    /// confirmed the replace of an item at `url`. It returns the count of units left out because
+    /// their range has no length.
     @concurrent public nonisolated func exportTranscript(
         _ session: Session, transcript number: Int, as format: SubtitleFormat, to url: URL
-    ) async throws(TranscriptExportError) {
-        let cues: [Cue]
-        do { cues = try session.cues(ofTranscript: number).cues } catch { throw .cues(error) }
-        do { try Data(format.text(cues, sampleRate: session.sampleRate).utf8).write(to: url, options: .atomic) } catch {
+    ) async throws(TranscriptExportError) -> Int {
+        let file: (text: String, left: Int)
+        do { file = try session.subtitleFile(ofTranscript: number, as: format) } catch { throw .cues(error) }
+        do { try Data(file.text.utf8).write(to: url, options: .atomic) } catch {
             throw .write(ExportError(writing: error))
         }
+        return file.left
     }
 }
 

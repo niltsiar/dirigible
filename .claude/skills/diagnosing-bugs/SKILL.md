@@ -136,4 +136,4 @@ Required before declaring done:
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns
-- [ ] Variants searched: `grep` a pattern that matches only the fixed site, then widen one part at a time, up to 3 times or until a widening adds no real match. Add each real match to `## Next` of `.scratchpads/backlog.md`, or fix it through Phase 5 with its own failing test.
+- [ ] Variants searched: `grep` a pattern that matches only the fixed site, then widen one part at a time, up to 3 times or until a widening adds no real match. Add each real match with `scripts/wiki.py add next --from <file>`, or fix it through Phase 5 with its own failing test.

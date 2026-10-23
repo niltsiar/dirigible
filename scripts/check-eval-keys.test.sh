@@ -3,8 +3,9 @@
 # folder of the run holds its exact key text and a scores.tsv line of its ID. It passes for a branch
 # with no key change, for a rebased branch, for a holdout and a row of type agent, and for a key
 # change that only the base made after the branch point. It reads the branch tree, also from the
-# main checkout. It exits 2 with the branch name when no worktree holds the run branch. With two
-# `- Branch:` lines it checks the last one, or the tree that the caller names.
+# main checkout. It exits 2 with the branch name when no worktree holds the run branch, and when
+# the branch of the last `- Branch:` line is landed (no commit off the base). With two `- Branch:`
+# lines it checks the last one, or the tree that the caller names.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-eval-keys.sh"
@@ -29,7 +30,9 @@ evals_md() {
 }
 row() { printf '| %s | policy | s | q | %s | `a.md` | - | - |' "$1" "$2"; }
 
-# fresh: main holds evals.md with E1 key "(a) base."; the worktree $tmp/wt1 holds branch feat/a; run.md names it.
+# work <worktree>: commit a file that is no evals.md change, so the branch has a commit off main.
+work() { printf 'w\n' > "$1/work.txt"; g "$1" add work.txt; g "$1" commit -q -m work; }
+# fresh: main holds evals.md with E1 key "(a) base."; the worktree $tmp/wt1 holds branch feat/a, with one commit; run.md names it.
 fresh() {
   rm -rf "$tmp/main" "$tmp/wt1" "$tmp/wt2"
   mkdir -p "$main/docs/workflow" "$run"
@@ -39,6 +42,7 @@ fresh() {
   g "$main" add docs a.md
   g "$main" commit -q -m base
   g "$main" worktree add -q -b feat/a "$tmp/wt1"
+  work "$tmp/wt1"
   printf '# Run r1\n\n- Branch: feat/a\n' > "$run/run.md"
 }
 # branch_evals <worktree> <E1 key> [<extra row>]: commit a new evals.md on the branch of the worktree.
@@ -109,10 +113,20 @@ check 'a call from the main checkout sees the branch keys' 1 'E4' main "$run"
 
 fresh; sed -i '' 's|feat/a|feat/none|' "$run/run.md"
 check 'no worktree holds the run branch' 2 'feat/none' main "$run"
+out="$(cd "$main" && "$script" main "$run" 2>&1)"
+[[ "$out" != *'give the tree'* ]] || fail "the message offers a tree that log-decision.sh cannot give: $out"
+
+# A landed branch: a rebase merge puts its commits on main under other hashes, so no commit is off the base.
+fresh; branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"
+printf 'b\n' > "$main/b.md"; g "$main" add b.md; g "$main" commit -q -m other
+g "$main" cherry-pick main..feat/a >/dev/null
+[[ "$(g "$main" rev-parse HEAD)" != "$(g "$tmp/wt1" rev-parse HEAD)" ]] || fail 'the landing kept the commit hash'
+check 'the last - Branch: line is landed' 2 'add the line of the next landing' main "$run"
+check 'a landed branch, with the tree given' 1 'E4' main "$run" "$tmp/wt1"
 
 # Two landings: the last - Branch: line is the default tree, and a tree argument picks another.
 fresh; branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"
-g "$main" worktree add -q -b feat/b "$tmp/wt2"
+g "$main" worktree add -q -b feat/b "$tmp/wt2"; work "$tmp/wt2"
 printf '# Run r1\n\n- Branch: feat/a\n- Branch: feat/b\n' > "$run/run.md"
 check 'two branches, no tree: the last branch has no key change' 0 '' main "$run"
 check 'two branches, the tree of the first branch' 1 'E4' main "$run" "$tmp/wt1"

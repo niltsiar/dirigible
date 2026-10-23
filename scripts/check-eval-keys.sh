@@ -9,7 +9,9 @@
 # change that only the base made after the branch point is no fault of the branch. <tree> is that
 # tree. With no <tree>, it is the worktree of the last `- Branch:` line of the run.md of the run
 # folder (one line for each landing). A caller in another tree, for example the main checkout, sees
-# the branch keys. With no such worktree the script exits 2 and names the branch.
+# the branch keys. With no such worktree the script exits 2 and names the branch. It also exits 2
+# when that branch is landed (git cherry <base> HEAD prints no + line): the run needs the
+# `- Branch:` line of the next landing. A <tree> argument skips this check.
 # Exit: 0 pass, 1 an ungraded key, 2 bad input. scripts/check-eval-keys.test.sh tests it.
 set -euo pipefail
 
@@ -26,7 +28,9 @@ if [[ -z $tree ]]; then
     branch="$(sed -E 's/^- Branch: *//; s/[ ,].*$//' <<<"$line")"
     list="$(git -C "$run" worktree list --porcelain 2>/dev/null)" || die 2 "$run is not in a git repository"
     tree="$(awk -v ref="refs/heads/$branch" '/^worktree /{ p = substr($0, 10) } $1 == "branch" && $2 == ref { print p; exit }' <<<"$list")"
-    [[ -n $tree ]] || die 2 "no worktree holds the branch $branch; check it out in a worktree, or give the tree"
+    [[ -n $tree ]] || die 2 "no worktree holds the branch $branch; check it out in a worktree"
+    cherry="$(git -C "$tree" cherry "$base" HEAD 2>/dev/null)" || die 2 "no merge base of $base and HEAD in $tree"
+    grep -q '^+' <<<"$cherry" || die 2 "the branch $branch of the last '- Branch:' line is landed: add the line of the next landing to $run/run.md"
 fi
 
 merge_base="$(git -C "$tree" merge-base "$base" HEAD 2>/dev/null)" || die 2 "no merge base of $base and HEAD in $tree"

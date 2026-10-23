@@ -263,7 +263,6 @@ if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2
     fail=1
 fi
-# Each evals.md key that this branch adds or changes has a graded eval folder in the run folder.
 if [[ -n "$run" ]] && ! "$here/check-eval-keys.sh" "$base" "$run" "$PWD"; then
     echo "check-governance: check-eval-keys.sh $run failed" >&2
     fail=1

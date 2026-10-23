@@ -194,7 +194,7 @@ package enum ExportText {
     }
 
     /// The files of `faults` in ID order, separated by "; ".
-    private static func files(_ faults: [FileID: MediaFault], in session: Session) -> String {
+    static func files(_ faults: [FileID: MediaFault], in session: Session) -> String {
         faults.sorted { $0.key < $1.key }.map {
             "file \($0.key) \(path(of: $0.key, in: session)) \(describe($0.value))"
         }

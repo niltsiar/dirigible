@@ -118,6 +118,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try work.run(package, path: path)
     case .transcriptExport(let work):
         return try work.run(package, path: path)
+    case .read(let work):
+        return try work.run(package, path: path, control: control)
     case .takeMap(let query):
         let session = try read(package, path: path)
         do throws(TakeMapError) {

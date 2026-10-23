@@ -17,5 +17,5 @@ public func speechRuns(
         of: Set(speech), in: session, package: package, range: scope, silence: nil, progress: progress,
         isCancelled: isCancelled)
     let runs = read.series.runs(over: shape.threshold).map { $0.clamped(to: scope) }
-    return (shape.merged(runs), read.unread)
+    return (shape.merged(runs), read.faults.keys.sorted())
 }

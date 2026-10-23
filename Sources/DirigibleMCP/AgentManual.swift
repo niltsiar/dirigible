@@ -135,7 +135,7 @@ package enum AgentManual {
         - Give `package` as an absolute path. Call `session_info` first: it gives the sample rate and the IDs of \
         the tracks, clips, files, and markers. The tools take IDs, not names.
         - Times are frames: frame = seconds x sample rate, rounded. A `to` frame is the frame after the last \
-        frame. No tool reads the audio by time: take the times from the user or from a transcript.
+        frame. `silences`, `nearest_pause`, and `meter` read audio by time.
         - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report what it shows.
         - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync. Give all \
         the ranges of a cut in one call.
@@ -248,7 +248,10 @@ extension AgentManual.Recipe {
 
 extension Tool {
     /// The tools whose name does not follow the name rule of decision 0041.
-    static let commandNames = ["session_create": "create", "session_info": "info", "episode_get": "episode show"]
+    static let commandNames = [
+        "session_create": "create", "session_info": "info", "episode_get": "episode show",
+        "nearest_pause": "nearest-pause",
+    ]
 
     /// The `dirigible` command words of the tool: the first word, then the other words with `-`.
     var command: String {

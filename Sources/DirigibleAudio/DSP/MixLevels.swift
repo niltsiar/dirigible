@@ -5,20 +5,20 @@ import DirigibleCore
 /// The heard stereo mix of `range` of `session`, as a stereo export of that range (decision 0062):
 /// the values of `MixMeasure` of the frames of `range` exactly, and the window levels of the
 /// range on the grid of `LevelSeries`. Mute and solo count (decision 0039): `tracks` nil is each
-/// heard track. A missing, short, or unreadable file is silence there, and `unread` names it,
-/// sorted. `progress` gets the fraction done. `isCancelled` is read before each second of audio; a
+/// heard track. A missing, short, or unreadable file is silence there, and `faults` gives its
+/// fault. `progress` gets the fraction done. `isCancelled` is read before each second of audio; a
 /// cancel throws `ECANCELED`. No free descriptor throws its errno. It blocks, so never call it on
 /// the main actor.
 public func measureMix(
     of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
-) throws(POSIXError) -> (measure: MixMeasure, series: LevelSeries, unread: [FileID]) {
+) throws(POSIXError) -> (measure: MixMeasure, series: LevelSeries, faults: [FileID: MediaFault]) {
     let reader = MixReader(package: package, session: session, tracks: tracks)
     var meter = RangeMeter(sampleRate: session.sampleRate)
     let series = try scanMix(
         reader, rate: session.sampleRate, end: session.end, range: range, silence: nil, sink: { meter.feed($0) },
         progress: progress, isCancelled: isCancelled)
-    return (meter.result(), series, reader.faults.keys.sorted())
+    return (meter.result(), series, reader.faults)
 }
 
 /// The window levels of the mix of `tracks` (nil: every track) in `range` of `session`, on the
@@ -28,13 +28,13 @@ public func measureMix(
 /// the flags off. With `silence`, the scan reads past each edge of `range` until the run of
 /// windows at or under `silence` dBFS that crosses the edge ends, or the session edge, so each
 /// silence that meets `range` has its whole extent; nil reads `range` only. A missing, short, or
-/// unreadable file is silence there, and `unread` names it, sorted. `progress` gets the fraction
+/// unreadable file is silence there, and `faults` gives its fault. `progress` gets the fraction
 /// of `range` done. `isCancelled` is read before each second of audio; a cancel throws
 /// `ECANCELED`. No free descriptor throws its errno. It blocks, so never call it on the main actor.
 public func mixLevels(
     of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>, silence: Gain?,
     progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
-) throws(POSIXError) -> (series: LevelSeries, unread: [FileID]) {
+) throws(POSIXError) -> (series: LevelSeries, faults: [FileID: MediaFault]) {
     var copy = session
     let all = session.tracks.map(\.id)
     // Each ID is in the session, so neither edit can throw.
@@ -44,7 +44,7 @@ public func mixLevels(
     let series = try scanMix(
         reader, rate: session.sampleRate, end: session.end, range: range, silence: silence, sink: { _ in },
         progress: progress, isCancelled: isCancelled)
-    return (series, reader.faults.keys.sorted())
+    return (series, reader.faults)
 }
 
 /// The one chunk loop of the reads and the duck. It renders the mix of `reader` in chunks of 20

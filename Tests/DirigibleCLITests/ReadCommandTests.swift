@@ -61,15 +61,16 @@ struct ReadCommandTests {
     }
 
     /// The muted track `t2` counts for the pause reads, so its missing file refuses them. `meter`
-    /// reads the heard mix: with `t2` muted it reads no fault; with `t2` heard, the warning comes
-    /// first on stderr and the values on stdout, with exit 0.
+    /// reads the heard mix: with `t2` muted it reads no fault and warns as an export of the mix;
+    /// with `t2` heard, the fault warning comes first on stderr and the values on stdout, with exit 0.
     @Test func aMissingFileOnAMutedTrackRefusesTheSilences() async throws {
         for read in [["silences"], ["nearest-pause", "--at", "50000"]] {
             let result = try await package.run(read + ["PKG"])
             #expect(result == CLIResult(status: 2, stdout: "", stderr: Self.refusal), "\(read): \(result)")
         }
         let muted = try await package.run("meter", "PKG")
-        #expect(muted.status == 0 && muted.stderr == "", "\(muted)")
+        let unheard = "Warning: 1 track is muted or not soloed and is not in the export.\n"
+        #expect(muted.status == 0 && muted.stderr == unheard, "\(muted)")
         try package.edit { try $0.setMuted(false, tracks: ["t2"]) }
         let heard = try await package.run("meter", "PKG")
         #expect(heard.status == 0, "\(heard)")

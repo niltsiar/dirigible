@@ -5,7 +5,8 @@
 # change that only the base made after the branch point. It reads the branch tree, also from the
 # main checkout. It exits 2 with the branch name when no worktree holds the run branch, and when
 # the branch of the last `- Branch:` line is landed (no commit off the base). With two `- Branch:`
-# lines it checks the last one, or the tree that the caller names.
+# lines it checks the last one, or the tree that the caller names. The refusal of an ungraded key
+# names the lead as the step that grades.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-eval-keys.sh"
@@ -71,6 +72,7 @@ check 'a branch that changes no key' 0 '' main "$run"
 
 fresh; branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"
 check 'a new row with no eval folder' 1 'E4' main "$run"
+check 'the refusal names the lead as the step that grades' 1 'the lead runs' main "$run"
 eval_folder eval E4 '(a) other text.'
 check 'a folder whose keys.md holds other text' 1 'E4' main "$run"
 rm -rf "$run/eval"; eval_folder eval E4 '(a) new.' noscore

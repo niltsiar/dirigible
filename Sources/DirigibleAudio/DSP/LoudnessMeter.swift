@@ -102,6 +102,9 @@ public struct LoudnessMeter: Sendable {
     /// The sums of the last complete steps: at most the short-term window.
     var steps: [Double] = []
     var blocks: [Double] = []
+    /// The mean square of each complete 3 s window, one for each step from the first 3 s: the
+    /// short-term series of the range meter. Nil for the live and record meters, which keep none.
+    var shortTerms: [Double]?
     var nonFinite = false
 
     /// The steps of a 400 ms block, which is also the momentary window (EBU Tech 3341).
@@ -109,10 +112,12 @@ public struct LoudnessMeter: Sendable {
     /// The steps of the 3 s short-term window (EBU Tech 3341).
     static let shortTermSteps = 30
 
-    /// Nil when the shelf frequency is at or over Nyquist (a rate of 3 363 Hz or less).
-    public init?(sampleRate: Int, layout: ChannelLayout) {
+    /// Nil when the shelf frequency is at or over Nyquist (a rate of 3 363 Hz or less). With
+    /// `keepsShortTerms`, the meter keeps `shortTerms`.
+    public init?(sampleRate: Int, layout: ChannelLayout, keepsShortTerms: Bool = false) {
         guard Double(sampleRate) / 2 > Self.shelfFrequency else { return nil }
         self.sampleRate = sampleRate
+        shortTerms = keepsShortTerms ? [] : nil
         stepFrames = Int((Double(sampleRate) / 10).rounded())
         filters = Array(repeating: Self.kWeighting(rate: Double(sampleRate)), count: layout.channelCount)
     }
@@ -195,6 +200,9 @@ public struct LoudnessMeter: Sendable {
                 if steps.count > Self.shortTermSteps { steps.removeFirst() }
                 if steps.count >= Self.blockSteps {
                     blocks.append(steps.suffix(Self.blockSteps).reduce(0, +) / Double(Self.blockSteps * stepFrames))
+                }
+                if steps.count == Self.shortTermSteps {
+                    shortTerms?.append(steps.reduce(0, +) / Double(Self.shortTermSteps * stepFrames))
                 }
                 (stepSum, stepFilled) = (0, 0)
             }

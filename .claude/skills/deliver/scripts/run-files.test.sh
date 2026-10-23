@@ -7,8 +7,9 @@
 # that the first phase 4 row of a run folder with a plan.md needs a passing scripts/check-plan.sh
 # (a Criteria: field for each plan gate change, and a criterion change row for each ID).
 # Check that a phase 6 row needs a graded eval key for each evals.md row that the branch adds or re-keys.
-# Check that new-run.sh reports the backlog sections, the upkeep items, and a due architecture
-# audit, and that it refuses a third non-feature run in a row with no --blocks-feature reason.
+# Check that new-run.sh reads the wiki: it reports the later count, the size of the next list, the
+# upkeep items, and a due architecture audit, opens a run with one log row, refuses a third
+# non-feature run in a row with no --blocks-feature reason, and refuses to open a run with no wiki.
 # Run by `make test-hooks`.
 set -uo pipefail
 log="$(cd "$(dirname "$0")" && pwd)/log-decision.sh"
@@ -218,25 +219,73 @@ printf '## E4\n(a) new.\n\n' > "$ek/runs/r/eval/keys.md"
 printf 'p7\tE4\tpolicy\ta\t1\tPASS\t\n' > "$ek/runs/r/eval/scores.tsv"
 "$log" "$ek/runs/r" --from "$tmp/ekrow" || fail "ek: a phase 6 row with a graded key exits $?"
 
-# new-run.sh reports the backlog sections on stderr and keeps stdout to the run folder. It warns
-# when ## Next is over 1000 words, writes `- Later items: <n>` in the new run.md, and prints the
-# Later count with the change from the `Later items:` line of the last run.md. It makes the logs/
-# folder, where cost.sh of reflect counts the check and bench logs.
+# The backlog and the run log are the wiki of scripts/wiki.py. DIRIGIBLE_WIKI names a temp wiki, so
+# no case reads or writes the real one. The git config is off in this test, so the identity of the
+# wiki commits is in the environment.
 new_run="$(dirname "$log")/new-run.sh"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+wiki_tool="$(cd "$(dirname "$log")/../../../.." && pwd)/scripts/wiki.py"
+export DIRIGIBLE_WIKI="$tmp/wiki"
+new_wiki() { rm -rf "$DIRIGIBLE_WIKI"; "$wiki_tool" init > /dev/null || fail 'wiki init'; }
+# put_log: the lines on stdin are appended to the log of the wiki, as new-run.sh does.
+put_log() { cat > "$tmp/put-log.txt"; "$wiki_tool" log --from "$tmp/put-log.txt" || fail 'wiki log'; }
+# put_item <status> <title> <description>: add one item with the tool.
+put_item() {
+  printf '%s\n%s\n\nbody\n' "$2" "$3" > "$tmp/put-item.txt"
+  "$wiki_tool" add "$1" --from "$tmp/put-item.txt" > /dev/null || fail "wiki add $1 $2"
+}
+# bulk_next <n>: 142 next items of 21 words in their `list next` line (the ID, 8 title words, and 12
+# description words), and one more with 8 title words and <n> description words: 2991 + <n> words in
+# all. The pages are written in one commit, because 143 calls of the tool take a minute.
+bulk_next() {
+  local i n
+  mkdir -p "$DIRIGIBLE_WIKI/wiki/items"
+  for i in $(seq 143); do
+    n=12
+    [[ $i -eq 143 ]] && n="$1"
+    printf -- '---\ntype: Item\ntitle: "t1 t2 t3 t4 t5 t6 t7 t8"\ndescription: "%s"\nstatus: next\ngenerated: 2026-10-23\n---\n\nbody\n' \
+      "$(printf 'd%.0s ' $(seq "$n") | sed 's/ $//')" > "$DIRIGIBLE_WIKI/wiki/items/$(printf '%04d' "$i").md"
+  done
+  git -C "$DIRIGIBLE_WIKI" add -A && git -C "$DIRIGIBLE_WIKI" commit -q -m 'fixture: next items' || fail 'bulk_next commit'
+}
 repo="$tmp/repo"
 mkdir -p "$repo/.scratchpads/runs/2026-01-01-old"
 git -C "$repo" init -q
-words="$(printf 'w%.0s ' $(seq 1000))"
-printf '# Backlog\n\n## Next\n\n- %s\n\n## Later\n\n- a\n- b\n\n### From run x\n\n- c\n' "$words" > "$repo/.scratchpads/backlog.md"
+today="$(date +%Y-%m-%d)"
+
+# With no wiki, new-run.sh exits nonzero, names the path, `init`, and DIRIGIBLE_WIKI, and makes no
+# run folder and no wiki.
+out="$(cd "$repo" && DIRIGIBLE_WIKI="$tmp/missing" "$new_run" nowiki feat 2>&1)"
+code=$?
+[[ $code -ne 0 ]] || fail 'no wiki: new-run exits 0'
+for w in "$tmp/missing" 'scripts/wiki.py init' DIRIGIBLE_WIKI; do
+  [[ "$out" == *"$w"* ]] || fail "no wiki: the message lacks [$w]: $out"
+done
+[[ ! -e "$repo/.scratchpads/runs/$today-nowiki" && ! -e "$tmp/missing" ]] || fail 'no wiki: new-run made a run folder or a wiki'
+
+# new-run.sh reports the wiki on stderr and keeps stdout to the run folder. It warns when
+# `wiki.py list next` has over 3000 words (3000 gives no warning), writes `- Later items: <n>` in
+# the new run.md, and prints the later count with the change from the `Later items:` line of the
+# last run.md. It makes the logs/ folder, where cost.sh of reflect counts the check and bench logs,
+# and it adds one open row to the log: a second call for the open run adds none.
+new_wiki; bulk_next 9
+(cd "$repo" && "$new_run" limit feat > /dev/null 2> "$tmp/err") || fail "new-run with 3000 next words exits $?"
+grep -q 'words' "$tmp/err" && fail "a warning at 3000 next words: $(cat "$tmp/err")"
+rm -r "$repo/.scratchpads/runs/$today-limit"
+new_wiki; bulk_next 10
+for s in a b c; do put_item later "$s" x; done
 printf '# Run 2026-01-01-old\n\n- Later items: 1\n' > "$repo/.scratchpads/runs/2026-01-01-old/run.md"
-out="$(cd "$repo" && "$new_run" big feat 2> "$tmp/err")" || fail "new-run with a long ## Next exits $?"
-dir="$repo/.scratchpads/runs/$(date +%Y-%m-%d)-big"
-[[ "$out" == "$(cd "$repo" && pwd -P)/.scratchpads/runs/$(date +%Y-%m-%d)-big" ]] || fail "new-run stdout is not the run folder: $out"
-grep -q '## Next.*1001 words' "$tmp/err" || fail "no warning that names ## Next and 1001 words: $(cat "$tmp/err")"
+out="$(cd "$repo" && "$new_run" big feat 2> "$tmp/err")" || fail "new-run with a long next list exits $?"
+dir="$repo/.scratchpads/runs/$today-big"
+[[ "$out" == "$(cd "$repo" && pwd -P)/.scratchpads/runs/$today-big" ]] || fail "new-run stdout is not the run folder: $out"
+grep -q 'wiki.py list next has 3001 words, over 3000' "$tmp/err" || fail "no warning that names list next and 3001 words: $(cat "$tmp/err")"
 grep -qx -- '- Later items: 3' "$dir/run.md" || fail "run.md has no '- Later items: 3' line"
 [[ -d "$dir/logs" ]] || fail 'new-run made no logs/ folder'
-grep -q '## Later has 3 items (+2 since 2026-01-01-old)' "$tmp/err" || fail "no Later count with the change: $(cat "$tmp/err")"
+grep -q 'later has 3 items (+2 since 2026-01-01-old)' "$tmp/err" || fail "no later count with the change: $(cat "$tmp/err")"
+[[ "$("$wiki_tool" runs | grep -cxF "| $today-big | big | open | |")" == 1 ]] || fail "no single open row for the new run: $("$wiki_tool" runs)"
+[[ -z "$(ls "$dir/logs")" ]] || fail "the row file stays in logs/: $(ls "$dir/logs")"
+[[ -z "$(git -C "$DIRIGIBLE_WIKI" status --porcelain)" ]] || fail 'the wiki tree is not clean after new-run'
 
 # It writes analysis.md and plan.md skeletons, so a subagent fills them with the Edit tool.
 # check-plan.sh refuses the skeletons, and a second call for the open run keeps each edited file.
@@ -252,23 +301,24 @@ before="$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)"
 (cd "$repo" && "$new_run" big feat > /dev/null 2>&1) || fail "new-run again for the open run exits $?"
 [[ "$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)" == "$before" ]] || fail 'a second new-run changed an edited skeleton'
 
-printf '# Backlog\n\n## Next\n\n- short\n\n## Later\n\n- a\n' > "$repo/.scratchpads/backlog.md"
+new_wiki; put_item next short x; put_item later a x
 rm -r "$dir"
 printf '# Run 2026-01-01-old\n' > "$repo/.scratchpads/runs/2026-01-01-old/run.md"
-(cd "$repo" && "$new_run" small feat > /dev/null 2> "$tmp/err") || fail "new-run with a short ## Next exits $?"
-grep -q 'Next' "$tmp/err" && fail "warning for a short ## Next: $(cat "$tmp/err")"
-grep -qx 'backlog: ## Later has 1 items' "$tmp/err" || fail "no Later count without a last count: $(cat "$tmp/err")"
+(cd "$repo" && "$new_run" small feat > /dev/null 2> "$tmp/err") || fail "new-run with a short next list exits $?"
+grep -q 'words' "$tmp/err" && fail "warning for a short next list: $(cat "$tmp/err")"
+grep -qx 'backlog: later has 1 items' "$tmp/err" || fail "no later count without a last count: $(cat "$tmp/err")"
 grep -qx 'upkeep items: 0' "$tmp/err" || fail "no upkeep count of 0: $(cat "$tmp/err")"
 grep -q 'warning' "$tmp/err" && fail "warning with no upkeep item: $(cat "$tmp/err")"
 
-# It counts the upkeep items of ## Next only, and warns at 8 or more (reflect rule 6): 7 items in
-# ## Next and one in ## Later give no warning; 8 items in ## Next give one.
-items() { for i in $(seq "$1"); do printf -- '- upkeep k%d: x\n' "$i"; done; }
-printf '# Backlog\n\n## Next\n\n%s\n\n## Later\n\n- upkeep d: x\n' "$(items 7)" > "$repo/.scratchpads/backlog.md"
+# It counts the upkeep items of status next only, and warns at 8 or more (reflect rule 6): 7 next
+# items and one later item give no warning; 8 next items give one.
+new_wiki
+for i in $(seq 7); do put_item next "upkeep k$i" x; done
+put_item later 'upkeep d' x
 (cd "$repo" && "$new_run" upkeep-seven feat > /dev/null 2> "$tmp/err") || fail "new-run with 7 upkeep items exits $?"
 grep -qx 'upkeep items: 7' "$tmp/err" || fail "no upkeep count of 7: $(cat "$tmp/err")"
 grep -q 'warning' "$tmp/err" && fail "warning at 7 upkeep items: $(cat "$tmp/err")"
-printf '# Backlog\n\n## Next\n\n%s\n\n## Later\n\n- upkeep d: x\n' "$(items 8)" > "$repo/.scratchpads/backlog.md"
+put_item next 'upkeep k8' x
 (cd "$repo" && "$new_run" upkeep feat > /dev/null 2> "$tmp/err") || fail "new-run with 8 upkeep items exits $?"
 grep -qx 'upkeep items: 8' "$tmp/err" || fail "no upkeep count of 8: $(cat "$tmp/err")"
 grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 8 upkeep items: $(cat "$tmp/err")"
@@ -276,16 +326,18 @@ grep -q 'warning:.*upkeep run' "$tmp/err" || fail "no warning at 8 upkeep items:
 # It reminds of an architecture audit at 5 distinct product runs after the last run whose name has
 # architecture and a done row. A run has an open and a done row. A product run has a run.md branch
 # of type feat, fix, or perf, and a slug with no hardening. The current run does not count.
-# ledger_typed <run>:<type> ...: an open row and a done row of each run, and its run.md.
+# ledger_typed <run>:<type> ...: a new wiki with an open row and a later done row of each run in its
+# log, and the run.md of each run.
 ledger_typed() {
-  printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
-  local spec r
+  new_wiki
+  local spec r rows=""
   for spec in "$@"; do
     r="${spec%%:*}"
     mkdir -p "$repo/.scratchpads/runs/$r"
     printf '# Run %s\n\n- Branch: %s/x\n' "$r" "${spec##*:}" > "$repo/.scratchpads/runs/$r/run.md"
-    printf '| %s | x | open | |\n| %s | x | done | |\n' "$r" "$r" >> "$repo/.scratchpads/ledger.md"
+    rows+="$(printf '| %s | x | open | |\n| %s | x | done | |' "$r" "$r")"$'\n'
   done
+  printf '%s' "$rows" | put_log
 }
 # ledger_rows <run> ...: a run whose name has workflow, upkeep, or docs is of type docs, else feat.
 ledger_rows() {
@@ -303,10 +355,10 @@ ledger_rows 2026-01-01-architecture-a 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 
 audit audit-five
 grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder at 5 product runs: $(cat "$tmp/err")"
 ledger_rows 2026-01-02-p1 2026-01-03-p2 2026-01-04-p3 2026-01-05-p4 2026-01-06-p5
-printf '| 2026-01-07-architecture-b | x | open | |\n' >> "$repo/.scratchpads/ledger.md"
+echo '| 2026-01-07-architecture-b | x | open | |' | put_log
 audit audit-open
 grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "an open architecture run reset the count: $(cat "$tmp/err")"
-printf '| 2026-01-07-architecture-b | x | done | |\n' >> "$repo/.scratchpads/ledger.md"
+echo '| 2026-01-07-architecture-b | x | done | |' | put_log
 audit audit-reset
 grep -q 'architecture audit' "$tmp/err" && fail "a reminder after a done architecture run: $(cat "$tmp/err")"
 ledger_rows 2026-01-01-architecture-a 2026-01-02-workflow-a 2026-01-03-upkeep-b 2026-01-04-docs-c 2026-01-05-workflow-d 2026-01-06-docs-e
@@ -347,34 +399,36 @@ audit references-file
 grep -q 'consolidation due: the workflow docs have 10301 words' "$tmp/err" || fail "a references file does not count: $(cat "$tmp/err")"
 rm -rf "$repo/AGENTS.md" "$repo/.claude" "$repo/docs"
 
-# It refuses a third non-feature run in a row: the two runs of the ledger with the highest PR
-# numbers in their done rows (open rows do not count; a run with two done rows counts once) have a run.md branch type other than feat, and the new type is not feat. The type is
+# It refuses a third non-feature run in a row: the two runs of the log with the highest PR numbers
+# in their done rows (open rows do not count; a run with two rows counts once, by its last row) have
+# a run.md branch type other than feat, and the new type is not feat. The type is
 # the text between "- Branch: " and the first slash, as the real run.md lines have it.
-# guard_ledger <run> <branch line> ...: done rows with PR numbers 101, 102, ... in argument order.
+# guard_ledger <run> <branch line> ...: a new wiki with done rows with PR numbers 101, 102, ... in argument order.
 guard_ledger() {
-  printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
-  local r t n=100
+  new_wiki
+  local r t n=100 rows=""
   while [[ $# -gt 0 ]]; do
     r="$1" t="$2" n=$((n + 1)); shift 2
     mkdir -p "$repo/.scratchpads/runs/$r"
     printf '# Run %s\n\n- Status: done\n- Branch: %s\n' "$r" "$t" > "$repo/.scratchpads/runs/$r/run.md"
-    printf '| %s | x | done | https://github.com/o/r/pull/%s, a..b: x |\n' "$r" "$n" >> "$repo/.scratchpads/ledger.md"
+    rows+="$(printf '| %s | x | done | https://github.com/o/r/pull/%s, a..b: x |' "$r" "$n")"$'\n'
   done
+  printf '%s' "$rows" | put_log
 }
-# done_row <run> <PR number>: one more done row, at the end of the file.
-done_row() { printf '| %s | x | done | https://github.com/o/r/pull/%s, a..b: x |\n' "$1" "$2" >> "$repo/.scratchpads/ledger.md"; }
+# done_row <run> <PR number>: one more done row, at the end of the log.
+done_row() { printf '| %s | x | done | https://github.com/o/r/pull/%s, a..b: x |\n' "$1" "$2" | put_log; }
 guard() { (cd "$repo" && "$new_run" "$@" > "$tmp/out" 2> "$tmp/err"); code=$?; }
 gdir() { echo "$repo/.scratchpads/runs/$(date +%Y-%m-%d)-$1"; }
 guard_ledger 2026-02-01-f 'feat/f (worktree /x/dirigible-f, from origin/main 1234abcd)' \
   2026-02-02-c 'chore/upkeep-batch-12, cut from origin/main 897b01d3, in the worktree /x/dirigible-upkeep' \
   2026-02-03-r 'refactor/size-split (worktree /x/dirigible-upkeep, from 41bd906c)'
-printf '| 2026-02-04-open-feat | x | open | |\n' >> "$repo/.scratchpads/ledger.md"
-lines="$(wc -l < "$repo/.scratchpads/ledger.md")"
+echo '| 2026-02-04-open-feat | x | open | |' | put_log
+lines="$("$wiki_tool" runs | wc -l)"
 guard speed perf
 [[ $code -eq 2 ]] || fail "guard: a third non-feature run exits $code"
 grep -qF "new-run: a third non-feature run in a row; give --blocks-feature '<reason>'" "$tmp/err" || fail "guard: no refusal message: $(cat "$tmp/err")"
 [[ ! -e "$(gdir speed)" ]] || fail 'guard: the refusal made a run folder'
-[[ "$(wc -l < "$repo/.scratchpads/ledger.md")" -eq $lines ]] || fail 'guard: the refusal wrote a ledger line'
+[[ "$("$wiki_tool" runs | wc -l)" -eq $lines ]] || fail 'guard: the refusal wrote a log row'
 guard speed perf --blocks-feature 'R2 needs it'
 [[ $code -eq 0 ]] || fail "guard: a run with a reason exits $code: $(cat "$tmp/err")"
 awk -F'\t' '$2 == 0 && $3 ~ /third non-feature run/ && $4 == "R2 needs it"' "$(gdir speed)/decisions.tsv" 2>/dev/null | grep -q . || fail "guard: no phase 0 row with the reason: $(cat "$(gdir speed)/decisions.tsv" 2>&1)"
@@ -386,14 +440,15 @@ guard feature feat
 guard_ledger 2026-02-01-c 'chore/a' 2026-02-02-f 'feat/b (worktree /x/y)' 2026-02-03-r 'refactor/c'
 guard after-feat fix
 [[ $code -eq 0 ]] || fail "guard: a feat run before the last one exits $code: $(cat "$tmp/err")"
-# The land order is the PR order, not the file order: a feat run that started first and landed
+# The land order is the PR order, not the log order: a feat run that started first and landed
 # last is the newest run. A run with two done rows counts once.
 guard_ledger 2026-02-01-f 'feat/f' 2026-02-02-c 'chore/c' 2026-02-03-r 'refactor/r'
-printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n| 2026-01-30-old | x | done | no PR |\n' > "$repo/.scratchpads/ledger.md"
+new_wiki
+echo '| 2026-01-30-old | x | done | no PR |' | put_log
 done_row 2026-02-01-f 30; done_row 2026-02-02-c 10; done_row 2026-02-03-r 20
 guard land-order fix
 [[ $code -eq 0 ]] || fail "guard: a feat run that landed last exits $code: $(cat "$tmp/err")"
-printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
+new_wiki
 done_row 2026-02-02-c 10; done_row 2026-02-01-f 20; done_row 2026-02-03-r 30; done_row 2026-02-03-r 31
 guard two-rows fix
 [[ $code -eq 0 ]] || fail "guard: a run with two done rows counts twice: exit $code: $(cat "$tmp/err")"
@@ -405,12 +460,12 @@ guard bad-type feature
 # and `done, PR <n>, ...` in the Status cell. The audit counter and the feature guard read all three, and the
 # PR number comes from the URL, else from the Status cell. The rows below are not in PR order.
 mixed_ledger() { # mixed_ledger <product runs after the architecture run>
-  { printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n'
-    printf '| 2026-02-01-p1 | x | done: PR #141, a..b: x | y |\n| 2026-02-02-p2 | x | done | https://x/pull/142, a..b: x |\n'
+  new_wiki
+  { printf '| 2026-02-01-p1 | x | done: PR #141, a..b: x | y |\n| 2026-02-02-p2 | x | done | https://x/pull/142, a..b: x |\n'
     printf '| 2026-02-03-p3 | x | done | https://x/pull/130, a..b: x |\n| 2026-02-04-p4 | x | done: PR #131, a..b: x |\n'
     printf '| 2026-02-05-p5 | x | done | https://x/pull/132, a..b: x |\n| 2026-02-06-architecture-x | x | done, PR 143, v0.3.1 | y |\n'
     local i; for i in $(seq "$1"); do printf '| 2026-02-%02d-q%d | x | done, PR %d, v0.3.1 | y |\n' $((6 + i)) "$i" $((143 + i)); done
-  } > "$repo/.scratchpads/ledger.md"
+  } | put_log
   for i in $(seq "$1"); do
     mkdir -p "$repo/.scratchpads/runs/$(printf '2026-02-%02d-q%d' $((6 + i)) "$i")"
     printf '# Run\n\n- Branch: feat/x\n' > "$repo/.scratchpads/runs/$(printf '2026-02-%02d-q%d' $((6 + i)) "$i")/run.md"
@@ -423,8 +478,8 @@ grep -q 'architecture audit due: 5 product runs' "$tmp/err" || fail "no reminder
 grep -q 'scripts/' "$tmp/err" && grep -q '\.githooks' "$tmp/err" || fail "the reminder does not name scripts/ and .githooks: $(cat "$tmp/err")"
 # mixed_guard <type of the PR 143 run>: PR 143 (a done, PR row) and PR 142 (a URL row) are the newest lands.
 mixed_guard() {
-  printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n' > "$repo/.scratchpads/ledger.md"
-  printf '| 2026-02-03-g3 | x | done, PR 143, v0.3.1 | y |\n| 2026-02-02-g2 | x | done | https://x/pull/142, a..b: x |\n| 2026-02-01-g1 | x | done: PR #141, a..b: x | y |\n' >> "$repo/.scratchpads/ledger.md"
+  new_wiki
+  printf '| 2026-02-03-g3 | x | done, PR 143, v0.3.1 | y |\n| 2026-02-02-g2 | x | done | https://x/pull/142, a..b: x |\n| 2026-02-01-g1 | x | done: PR #141, a..b: x | y |\n' | put_log
   local r t
   for r in g1:feat g2:docs g3:"$1"; do
     t="${r#*:}" r="2026-02-0${r:1:1}-${r%%:*}"

@@ -31,6 +31,8 @@
 #   names no F-ID; an empty line fails. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
 #   Package.swift, Package.resolved, or Support/ needs the line. A `feat/` branch that changes
 #   Sources/ cannot write `- Lands: none`: scripts/tag-release.sh needs a done row for its run number.
+# - With a run folder, scripts/check-eval-keys.sh passes on this tree: each evals.md key that the
+#   branch adds or changes has an eval folder of the run with its exact key text and a scores.tsv line.
 # - The done runs of the holdout stop are the ledger statuses `done`, `done:`, and `done,`.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
@@ -259,6 +261,11 @@ if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
 fi
 if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2
+    fail=1
+fi
+# Each evals.md key that this branch adds or changes has a graded eval folder in the run folder.
+if [[ -n "$run" ]] && ! "$here/check-eval-keys.sh" "$base" "$run" "$PWD"; then
+    echo "check-governance: check-eval-keys.sh $run failed" >&2
     fail=1
 fi
 exit "$fail"

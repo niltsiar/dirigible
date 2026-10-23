@@ -428,6 +428,13 @@ rm -rf "$s/runs/2026-01-02-b/eval"
 hold 2026-01-02-b H6
 refuse 'a holdout fail in this run and the newest run with the status done, PR 2' 'H6 failed in this run and in 2026-01-02-b' "$me"
 
+# A branch that adds an evals.md key needs a graded eval folder in the run folder (check-eval-keys.sh).
+new_repo
+printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n| E4 | policy | s | q | (a) new. | `a.md` | - | - |\n' > "$tmp/r/docs/workflow/evals.md"; commit
+refuse 'an evals.md key with no graded eval folder' 'E4 has a new or changed key' "$tmp/run"
+mkdir "$tmp/run/eval"; printf '## E4\n(a) new.\n\n' > "$tmp/run/eval/keys.md"; printf 'p7\tE4\tpolicy\ta\t1\tPASS\t\n' > "$tmp/run/eval/scores.tsv"
+pass 'an evals.md key with a graded eval folder' "$tmp/run"
+
 # The script that counts the words has its own test; this test runs it, so make test-hooks covers it.
 ww_out="$(bash "$(dirname "$script")/workflow-words.test.sh" 2>&1)" || fail "workflow-words.test.sh: $ww_out"
 

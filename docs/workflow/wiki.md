@@ -18,8 +18,8 @@ The backlog, the run log, and the lessons are in a local wiki: a git repo of Mar
 
 - `Item` pages: one backlog item each, with a status (next, later, done, dropped). `list`, `show`, `add`, `edit`, `move`, `take`, `wait`, and `unwait` read and change them. Only an open run holds an item: `take` refuses an item that another open run holds, and takes it over from a run that is done, dropped, or has no folder.
 - `Lesson` pages: the learning lines of one cause key. `lesson` appends, and `lessons --seen-once` lists.
-- `Log` pages: the run rows and the log lines of one month. `log` appends, and `runs` prints them.
-- `now`: the counts, the items that wait for the user, the taken items, the open runs, and the last 15 log lines.
+- `Log` pages: the run rows and the log lines of one month. `log` appends, and `runs` prints them. The last row of a run wins. Reflect writes the `open` row, and `scripts/land.sh` writes `| <run> | <goal> | done | <PR URL> (<range>) |` after the merge.
+- `now`: the counts, the items that wait for the user, the taken items, the open runs (last row `open`, and a `run.md` with no done or dropped status), and the last 15 log lines. It is computed at each call.
 - The decision numbers: `reserve` adds an entry, and `numbers` prints them.
 - Each `index.md` and `now.md` is generated. `scripts/wiki.py lint` fails on a page that no index links.
 

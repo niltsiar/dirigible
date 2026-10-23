@@ -77,7 +77,7 @@ EOF
 # text, and moves origin/main in each when FAKE_MERGE_MOVE is set. FAKE_MERGE=late merges in the
 # first call and then fails it with "Merge already in progress". FAKE_MERGE=slow fails the first
 # call with a 502 text and merges as GitHub does (github-merge) right after the next state read.
-# FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
+# FAKE_WIKI_GONE=1 removes the wiki in `pr merge`. FAKE_LOOKUP=502 fails `pr list`, and FAKE_STATE=502 fails `pr view`, with a GitHub 502 text.
 # FAKE_LIST=merge merges the PR right after `pr list` prints. `pr view` with more than the state in
 # --json prints the whole line of the PR. `pr merge`, `pr edit`, and `pr view` fail when their
 # selector is not the URL of the PR of this land (the OPEN line, else the newest line whose head
@@ -127,6 +127,8 @@ case "$1 $2" in
   "pr edit") sel "$3" 'pr edit' ;;
   "pr merge")
     sel "$3" 'pr merge'
+    # FAKE_WIKI_GONE=1: the wiki is gone after the checks, before the done row.
+    [[ "${FAKE_WIKI_GONE:-}" != 1 ]] || rm -rf "$DIRIGIBLE_WIKI"
     calls=$(($(cat "$LAND_LOG.merges" 2>/dev/null || echo 0) + 1))
     echo "$calls" > "$LAND_LOG.merges"
     case "${FAKE_MERGE:-}" in
@@ -223,6 +225,40 @@ grep -qx "range: $old..$new" "$c/out" || fail "happy: no commit range $old..$new
 grep -qx 'stamp: none (no stamp)' "$c/out" || fail "happy: no stamp line: $(cat "$c/out")"
 [[ "$(cat "$c/log.view")" == 'gh pr list --head feat/x --state all --json state,url,headRefOid,mergeCommit,commits --jq .[]|[.state,.url,.headRefOid,(.mergeCommit.oid // "-"),(.commits|length)]|@tsv' ]] ||
   fail "happy: the lookup differs: $(cat "$c/log.view")"
+
+# The run log: after the merge the land writes `| <run> | <goal> | done | <PR URL> (<range>) |` with
+# scripts/wiki.py. A missing wiki, a refused write, or a run.md with no Goal line gives a warning on
+# stderr and leaves the exit status 0.
+row_case() {
+  setup
+  old="$(git -C "$c/other" rev-parse HEAD)"
+  [[ "$1" != nogoal ]] || printf '# Run case\n\n- Status: open\n' > "$c/run.md"
+  [[ "$1" == nogoal ]] || printf '# Run case\n\n- Status: open\n- Goal: demo-goal\n- Branch: feat/x\n' > "$c/run.md"
+  export DIRIGIBLE_WIKI="$tmp/wiki-$1"
+  "$here/wiki.py" init > /dev/null || fail "row $1: wiki init"
+  [[ "$1" != nowiki ]] || export FAKE_WIKI_GONE=1
+  [[ "$1" != dirty ]] || echo stray > "$DIRIGIBLE_WIKI/stray.txt"
+  land_in "Add x" "$c/pr.md"
+  code=$?
+  new="$(git -C "$c/origin.git" rev-parse main)"
+  [[ $code -eq 0 ]] || fail "row $1: exit $code: $(cat "$c/out")"
+  grep -qx "range: $old..$new" "$c/out" || fail "row $1: no commit range: $(cat "$c/out")"
+  unset FAKE_WIKI_GONE
+  rows="$("$here/wiki.py" runs 2>/dev/null)"
+}
+row_case ok
+[[ "$rows" == *"| case | demo-goal | done | https://github.com/o/r/pull/7 ($old..$new) |"* ]] ||
+  fail "row ok: the done row is missing: [$rows]"
+! grep -q 'warning' "$c/out" || fail "row ok: a warning: $(cat "$c/out")"
+row_case nowiki
+grep -q 'land.sh: warning: the done row is not written' "$c/out" || fail "row nowiki: no warning: $(cat "$c/out")"
+row_case dirty
+grep -q 'land.sh: warning: the done row is not written' "$c/out" || fail "row dirty: no warning: $(cat "$c/out")"
+[[ "$rows" != *"| done |"* ]] || fail "row dirty: a row was written: [$rows]"
+row_case nogoal
+grep -q 'land.sh: warning: the done row is not written' "$c/out" || fail "row nogoal: no warning: $(cat "$c/out")"
+[[ "$rows" != *"| done |"* ]] || fail "row nogoal: a row was written: [$rows]"
+export DIRIGIBLE_WIKI="$tmp/wiki"
 
 # Another worktree holds main: the land prints the range before it touches main, skips the
 # switch, and stays on the branch (git switch main exits 128 in this state).

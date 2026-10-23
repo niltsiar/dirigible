@@ -3,19 +3,20 @@ import DirigibleCore
 import SwiftUI
 
 /// The values of the Go to Take Time sheet (decision 0061): the takes with audio, the take of the
-/// popup, the typed time, and the reason that the last OK did not move the playhead.
+/// popup, the typed time, and the reason that the last OK did not move the playhead. A change of
+/// the take or of the text clears the reason, because the reason judged the old input.
 struct TakeTimeDraft: Equatable {
     enum Refusal: Equatable {
         /// The text is not `H:MM:SS.mmm`, `M:SS`, or seconds.
         case format
-        /// No clip plays that take time: an edit removed it, or the take has no audio there.
-        case removed
+        /// No clip plays that time of `take`: an edit removed it, or the take has no audio there.
+        case removed(take: Int)
     }
 
     /// The takes with audio, in take order.
     let takes: [Int]
-    var take: Int
-    var text = ""
+    var take: Int { didSet { if take != oldValue { refusal = nil } } }
+    var text = "" { didSet { if text != oldValue { refusal = nil } } }
     var refusal: Refusal?
 }
 
@@ -99,7 +100,7 @@ struct TakeTimeSheet: View {
     private func refusalText(_ refusal: TakeTimeDraft.Refusal) -> String {
         switch refusal {
         case .format: L10n.sheetTakeTimeFormat.text
-        case .removed: L10n.sheetTakeTimeRemoved.format(draft.take)
+        case .removed(let take): L10n.sheetTakeTimeRemoved.format(take)
         }
     }
 
@@ -143,7 +144,7 @@ extension SessionWindow {
             return
         }
         guard let place = studio.takeMap.map.timeline(atTake: frame, take: draft.take).first else {
-            takeTimeDraft?.refusal = .removed
+            takeTimeDraft?.refusal = .removed(take: draft.take)
             return
         }
         takeTimeDraft = nil

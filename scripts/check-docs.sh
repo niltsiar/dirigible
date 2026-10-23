@@ -245,7 +245,7 @@ else
 fi
 
 # A loaded workflow doc holds no date: the story of a rule (the date, the run) stays in
-# decisions.tsv, learnings.md, and the commit body. A `Source:` line can give its fetch date.
+# decisions.tsv, the wiki lessons, and the commit body. A `Source:` line can give its fetch date.
 for f in "${workflow_docs[@]}"; do
     [[ -f "$f" ]] || continue
     while IFS= read -r hit; do err "${f#"$root"/}:${hit%%:*}: a date in a loaded doc; put the story in the commit body"; done \

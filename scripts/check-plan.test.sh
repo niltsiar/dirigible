@@ -18,6 +18,15 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
+# The decision numbers come from the wiki of scripts/wiki.py. DIRIGIBLE_WIKI names a temp wiki, so
+# no case reads or writes the real one. The identity of the wiki commits is in the environment,
+# because the git config of the machine is not a test input.
+wiki_tool="$(dirname "$script")/wiki.py"
+export DIRIGIBLE_WIKI="$tmp/wiki"
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+new_wiki() { rm -rf "$DIRIGIBLE_WIKI"; "$wiki_tool" init > /dev/null || fail 'wiki init'; }
+new_wiki
+
 run="$tmp/run"
 # A good run folder: each Unknowns row is answered with a row time, the split row has a child, a
 # cell has an escaped bar, and each slice has a check line.
@@ -389,11 +398,11 @@ refuse 'a run whose first row is at the cutoff' 'criterion C2'
 printf '2026-10-21T10:00\t2\tplan written\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
 refuse 'a run whose first row is after the cutoff' 'criterion C2'
 
-# The decision number of a record that the plan makes. A fixture repo holds a copy of the script,
-# docs/decisions/0042-old.md on origin/main, and .scratchpads/ledger.md beside runs/.
+# The decision number of a record that the plan makes. A fixture repo holds a copy of the script and
+# of wiki.py, and docs/decisions/0042-old.md on origin/main. The temp wiki holds the numbers.
 repo="$tmp/repo"
 mkdir -p "$repo/scripts" "$repo/docs/decisions" "$repo/.scratchpads/runs"
-cp "$script" "$repo/scripts/"
+cp "$script" "$wiki_tool" "$repo/scripts/"
 echo old > "$repo/docs/decisions/0042-old.md"
 git -C "$repo" init -q && git -C "$repo" add docs \
   && git -C "$repo" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q -m one \
@@ -401,13 +410,18 @@ git -C "$repo" init -q && git -C "$repo" add docs \
 rm "$repo/docs/decisions/0042-old.md" # only origin/main has it now
 saved_script="$script" saved_run="$run"
 script="$repo/scripts/check-plan.sh" run="$repo/.scratchpads/runs/2026-10-14-new-thing"
-ledger="$repo/.scratchpads/ledger.md"
-reserve() { printf '# Run ledger\n\nDecision numbers taken or reserved (reserve at Phase 2): 0042 old (run 2026-10-01-old, landed), %s\n' "$1" > "$ledger"; }
+# reserve <entries>: the register page holds the line of the old files, as the import copies it. A
+# note after the run folder is not an entry that `wiki.py reserve` takes, so the page is written.
+reserve() {
+  new_wiki
+  printf -- '---\ntype: Register\n---\n\nDecision numbers taken or reserved (reserve at Phase 2): 0042 old (run 2026-10-01-old, landed), %s\n' "$1" > "$DIRIGIBLE_WIKI/wiki/decision-numbers.md"
+  git -C "$DIRIGIBLE_WIKI" commit -q -a -m fixture || fail 'wiki fixture commit'
+}
 makes() { good && printf -- '\n- Modules: `%s` (the new record).\n' "$1" >> "$run/plan.md"; }
 
 reserve '0043 other-title (run 2026-10-13-other)'
 makes docs/decisions/0044-new-thing.md
-refuse 'a new record with no ledger entry' 'reserve 0044 on the Decision numbers line'
+refuse 'a new record with no entry' 'reserve 0044 with scripts/wiki.py reserve --from <file>'
 reserve '0044 new-thing (run 2026-10-13-other)'
 makes docs/decisions/0044-new-thing.md
 refuse 'a number that another run holds' 'reserved for another run: 0044 new-thing (run 2026-10-13-other)'
@@ -425,7 +439,7 @@ makes docs/decisions/0042-mine.md
 refuse 'another record with the number on origin/main' 'docs/decisions/0042-old.md has the number 0042'
 makes docs/decisions/0045-local.md
 echo local > "$repo/docs/decisions/0045-local.md"
-refuse 'the own record in the worktree with no reservation' 'reserve 0045 on the Decision numbers line'
+refuse 'the own record in the worktree with no reservation' 'reserve 0045 with scripts/wiki.py reserve --from <file>'
 reserve '0045 local (run 2026-10-14-new-thing)'
 pass 'the own record in the worktree with its reservation'
 rm "$repo/docs/decisions/0045-local.md"
@@ -438,9 +452,17 @@ reserve '0044 new-thing (run 2026-10-14-new-thing)'
 makes docs/decisions/0044-new-thing.md
 printf '\nIt amends decision 0046, cites 0047 (run 10), and has 2048 characters.\n' >> "$run/plan.md"
 pass 'cited numbers with no record file path'
-rm "$ledger"
+# An entry that wiki.py reserve writes counts: the file holds the line, the tool removes it.
+new_wiki
 makes docs/decisions/0044-new-thing.md
-refuse 'no ledger' 'no ledger.md'
+printf '0044 new-thing (run 2026-10-14-new-thing)\n' > "$tmp/entry.txt"
+"$wiki_tool" reserve --from "$tmp/entry.txt" || fail 'wiki reserve'
+pass 'a number that wiki.py reserve wrote for this run'
+export DIRIGIBLE_WIKI="$tmp/missing"
+for w in "$tmp/missing" 'scripts/wiki.py init' DIRIGIBLE_WIKI; do refuse "no wiki, a record: [$w]" "$w"; done
+good
+pass 'no wiki, a plan that makes no record'
+export DIRIGIBLE_WIKI="$tmp/wiki"
 makes docs/decisions/0044-new-thing.md
 row 3 'plan gate round 1'
 pass 'a run whose plan gate came before the rule'

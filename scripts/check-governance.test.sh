@@ -6,7 +6,7 @@
 # agents than the merge base, more than one rules.tsv removal in a docs-only branch of a run with a
 # reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
-# taken item of the run in ## Next of the backlog after the reflect row (phase 8), a features.md row
+# taken item of the run with status next in the wiki after the reflect row (phase 8), a features.md row
 # of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
 # fix, or perf run that changes app code with no `- Lands:` line. Each case uses a temporary repo with a base commit on main
 # and a branch.
@@ -18,6 +18,25 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE FILTER
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
+
+# The taken items and the done runs come from the wiki of scripts/wiki.py. DIRIGIBLE_WIKI names a
+# temp wiki, so no case reads or writes the real one. The identity of the wiki commits is in the
+# environment, because the git config of the machine is not a test input.
+wiki_tool="$(dirname "$script")/wiki.py"
+export DIRIGIBLE_WIKI="$tmp/wiki"
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+new_wiki() { rm -rf "$DIRIGIBLE_WIKI"; "$wiki_tool" init > /dev/null || fail 'wiki init'; }
+# put_log: the lines on stdin go to the log of the wiki.
+put_log() { cat > "$tmp/put-log.txt"; "$wiki_tool" log --from "$tmp/put-log.txt" || fail 'wiki log'; }
+# take_item <status> <run>: add one item with the status, taken by the run. It prints the ID.
+take_item() {
+  local id
+  printf 'an item\nx\n\nbody\n' > "$tmp/take-item.txt"
+  id="$("$wiki_tool" add "$1" --from "$tmp/take-item.txt")" || fail "wiki add $1"
+  "$wiki_tool" take "$id" "$2" || fail "wiki take $id"
+  echo "$id"
+}
+new_wiki
 
 g() { git -C "$tmp/r" -c user.name=t -c user.email=t@t -c commit.gpgsign=false "$@"; }
 budgets="$tmp/r/docs/workflow/budgets.tsv"
@@ -227,36 +246,36 @@ pass 'a run research file whose copy a base commit changed on the run date' "$ru
 later_landing '2026-10-17T23:59:30'
 refuse 'a run research file whose copy a base commit changed before the run date' 'research-topic.md has no docs/research/topic.md that this branch adds or changes' "$run3"
 
-# A run moves its own taken items out of ## Next of the main-checkout backlog before the land, so
-# ## Next stays short (each run reads it at Phase 0). A taken item of another run, a taken item in
-# ## Later, and no backlog file pass. In a worktree, the backlog of the main checkout counts.
+# A run moves its own taken items out of the next list of the wiki before the land, so the list
+# stays short (each run reads it at Phase 0). A next item taken by another run, a later item taken
+# by the run, and a next item of a run whose name starts with this run name pass. The wiki is the
+# same from a worktree. With no wiki the check fails, and the message names the path, init, and
+# DIRIGIBLE_WIKI.
 # The check runs only after the reflect row (phase 8): Phase 7 runs it before Phase 8 moves the
 # taken items out, and land.sh runs it after Phase 8.
 new_repo; echo x > "$tmp/r/x.md"; commit
-run2="$tmp/2026-01-01-x"; rm -rf "$run2"; cp -R "$tmp/run" "$run2"; mkdir -p "$tmp/r/.scratchpads"
-printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
+run2="$tmp/2026-01-01-x"; rm -rf "$run2"; cp -R "$tmp/run" "$run2"
+new_wiki; id="$(take_item next 2026-01-01-x)"
 pass 'a taken item of the run with no reflect row' "$run2"
 out="$(cd "$tmp/r" && GOVERNANCE_LAND=1 "$script" main "$run2" 2>&1)" && fail 'a taken item at the land with no reflect row: expected a nonzero exit'
-[[ "$out" == *'## Next has a taken item of 2026-01-01-x'* ]] || fail "a taken item at the land with no reflect row: $out"
+[[ "$out" == *"wiki item $id is next and taken by 2026-01-01-x"* ]] || fail "a taken item at the land with no reflect row: $out"
 printf '2026-10-01T01:00\t8\treflect\tw\te\tr\n' >> "$run2/decisions.tsv"
-refuse 'a taken item of the run with a reflect row' '## Next has a taken item of 2026-01-01-x' "$run2"
-rm "$tmp/r/.scratchpads/backlog.md"
-pass 'no backlog file' "$run2"
-printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x) an item\n\n## Later\n\n- b\n' > "$tmp/r/.scratchpads/backlog.md"
-refuse 'a taken item of the run in ## Next' '## Next has a taken item of 2026-01-01-x' "$run2"
+refuse 'a taken item of the run with a reflect row' "wiki item $id is next and taken by 2026-01-01-x" "$run2"
+out="$(cd "$tmp/r" && DIRIGIBLE_WIKI="$tmp/missing" "$script" main "$run2" 2>&1)" && fail 'no wiki: expected a nonzero exit'
+for w in "$tmp/missing" 'scripts/wiki.py init' DIRIGIBLE_WIKI; do
+  [[ "$out" == *"$w"* ]] || fail "no wiki: the message lacks [$w]: $out"
+done
+[[ ! -e "$tmp/missing" ]] || fail 'no wiki: the check made the wiki'
 g worktree add -q "$tmp/wt" -b feat/wt 2>/dev/null
 out="$(cd "$tmp/wt" && "$script" main "$run2" 2>&1)" && fail 'a taken item of the run in a worktree: expected a nonzero exit'
-[[ "$out" == *'## Next has a taken item of 2026-01-01-x'* ]] || fail "a taken item of the run in a worktree: $out"
-printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-z) an item\n\n## Later\n\n- (taken: run 2026-01-01-x) b\n' > "$tmp/r/.scratchpads/backlog.md"
-pass 'a taken item of another run, and one in ## Later' "$run2"
-# The run name ends at a space, a comma, or a parenthesis, so a run x-2 is another run. A backlog
-# with no ## Next heading fails closed (code gate item C).
-printf '# Backlog\n\n## Next\n\n- (taken: run 2026-01-01-x-2) an item\n' > "$tmp/r/.scratchpads/backlog.md"
+[[ "$out" == *"wiki item $id is next and taken by 2026-01-01-x"* ]] || fail "a taken item of the run in a worktree: $out"
+"$wiki_tool" move "$id" done || fail 'wiki move'
+pass 'a taken item of the run that is done' "$run2"
+new_wiki; take_item next 2026-01-01-z > /dev/null; take_item later 2026-01-01-x > /dev/null
+pass 'a next item of another run, and a later item of the run' "$run2"
+# The run name is the whole value of the taken field, so a run x-2 is another run.
+new_wiki; take_item next 2026-01-01-x-2 > /dev/null
 pass 'a taken item of a run whose name starts with the run name' "$run2"
-printf '# Backlog\n\n## Next (short)\n\n- (taken: run 2026-01-01-x, S3) an item\n' > "$tmp/r/.scratchpads/backlog.md"
-refuse 'a taken item of the run with a slice' '## Next has a taken item of 2026-01-01-x' "$run2"
-printf '# Backlog\n\n## Now\n\n- (taken: run 2026-01-01-x) an item\n' > "$tmp/r/.scratchpads/backlog.md"
-refuse 'a backlog with no ## Next heading' 'backlog.md has no line that starts with ## Next' "$run2"
 
 # features.md keeps each row of the base: the ID, Feature, and Req cells of an `| F<n> |` row must stay.
 # A drop sets Dropped (<reason>); a new idea gets a new ID. The Req cell stays too. A base with no features.md has no rows to keep.
@@ -400,7 +419,8 @@ new_repo
 s="$tmp/s"
 rm -rf "$s" && mkdir -p "$s/runs/2026-01-01-a" "$s/runs/2026-01-02-b"
 cp -R "$tmp/run" "$s/runs/2026-01-03-me"
-printf '# Run ledger\n\n| Run | Goal | Status | Result |\n|---|---|---|---|\n| 2026-01-01-a | a | done | x |\n| 2026-01-02-b | b | done: PR #2 | x |\n| 2026-01-03-me | me | open | |\n' > "$s/ledger.md"
+new_wiki
+printf '| 2026-01-01-a | a | done | x |\n| 2026-01-02-b | b | done: PR #2 | x |\n| 2026-01-03-me | me | open | |\n' | put_log
 # ran <run> <holdout>: the eval of the run scored the holdout. hold <run> <holdout>: its verdict failed it.
 ran() { mkdir -p "$s/runs/$1/eval"; printf 'tag\tscenario\ttype\tset\trun\tresult\tmissing\nt\t%s\tretention\told\t1\tPASS\t\n' "$2" >> "$s/runs/$1/eval/scores.tsv"; }
 hold() { ran "$1" "$2"; printf 'holdout fail %s: no changed text\n' "$2" >> "$s/runs/$1/eval/holdout-fails.txt"; }
@@ -422,11 +442,17 @@ pass 'a fail of another holdout in the newest done run' "$me"
 rm -rf "$s/runs/2026-01-01-a/eval" "$s/runs/2026-01-02-b/eval"
 printf '2026-01-01T01:00\t7\tholdout fail H6: no changed text\tw\te\tr\n' >> "$s/runs/2026-01-02-b/decisions.tsv"
 pass 'a hand row of the newest done run with no verdict file' "$me"
-# A ledger status of the form `done, PR <n>, ...` is a done run too.
-sed -i '' 's/| done: PR #2 |/| done, PR 2, x |/' "$s/ledger.md"
+# A log status of the form `done, PR <n>, ...` is a done run too. A later row of a run replaces its
+# earlier rows: a run that a later row opens again is not done, so the compare goes to the run before it.
+echo '| 2026-01-02-b | b | done, PR 2, x | x |' | put_log
 rm -rf "$s/runs/2026-01-02-b/eval"
 hold 2026-01-02-b H6
 refuse 'a holdout fail in this run and the newest run with the status done, PR 2' 'H6 failed in this run and in 2026-01-02-b' "$me"
+echo '| 2026-01-02-b | b | open | |' | put_log
+hold 2026-01-01-a H6
+refuse 'a holdout fail in this run, a run that a later row opened again, and an older done run' 'H6 failed in this run and in 2026-01-01-a' "$me"
+out="$(cd "$tmp/r" && DIRIGIBLE_WIKI="$tmp/missing" "$script" main "$me" 2>&1)" && fail 'a holdout fail with no wiki: expected a nonzero exit'
+[[ "$out" == *'scripts/wiki.py init'* ]] || fail "a holdout fail with no wiki: no init hint: $out"
 
 # A branch that adds an evals.md key needs a graded eval folder in the run folder (check-eval-keys.sh).
 new_repo

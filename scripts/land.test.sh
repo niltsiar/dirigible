@@ -43,6 +43,9 @@ export LAND_MERGE_WAIT=0
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER CHECK_RISK
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+# The governance check of the land reads the wiki: an empty temp wiki, so no case reads the real one.
+export DIRIGIBLE_WIKI="$tmp/wiki"
+"$here/wiki.py" init > /dev/null || fail 'wiki init'
 
 bin="$tmp/bin"
 mkdir "$bin"
@@ -969,7 +972,7 @@ rows="$(tail -n +2 "$c/decisions.tsv")"
 stub_land() {
   setup
   mkdir -p "$c/stub" "$c/.claude/skills/deliver/scripts"
-  cp "$here"/*.sh "$c/stub/"
+  cp "$here"/*.sh "$here/wiki.py" "$c/stub/"
   cp "$here/../Makefile" "$c/Makefile"
   printf '#!/bin/bash\n%s\n' "$1" > "$c/.claude/skills/deliver/scripts/log-decision.sh"
   chmod +x "$c/.claude/skills/deliver/scripts/log-decision.sh"

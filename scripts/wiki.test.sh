@@ -175,7 +175,6 @@ want_out "the page changed; run scripts/wiki.py show 0001 again" "a stale edit"
 [[ "$h" == "$(head_of)" && "$n" == "$(commits_of)" ]] || fail "a stale edit made a commit"
 [[ "$page_before" == "$(shasum "$DIRIGIBLE_WIKI/wiki/items/0001.md")" ]] || fail "a stale edit changed the page"
 [[ -f "$tmp/e1.txt" ]] || fail "a stale edit removed the --from file"
-run "$script" take 0001 2026-10-23-demo2; [[ $rc -ne 0 ]] || fail "take of a taken item by another run exits 0"
 run "$script" move 0001 done; want_rc 0 "move"
 run "$script" count next; [[ "$out" == 0 ]] || fail "count next after a move: [$out]"
 run "$script" list done; want_out "0001 First item" "list done"
@@ -788,6 +787,41 @@ for bad in "item:9999" "soon" "run:Bad_Name" "item:"; do
 done
 git -C "$DIRIGIBLE_WIKI" checkout -q -- wiki/items/0006.md
 run "$wt" lint; want_rc 0 "lint after the bad waits value is gone"
+
+# --- take: an open run holds an item, a closed run or a run with no folder does not
+export DIRIGIBLE_WIKI="$tmp/takes"
+"$wt" init >/dev/null 2>&1 || fail "take: init"
+for n in 1 2 3; do
+    put_item "$tmp/t$n.txt" "Take item $n" "Description of take item $n" "body $n"
+    "$wt" add next --from "$tmp/t$n.txt" >/dev/null 2>&1 || fail "take: add $n"
+done
+other=2026-10-23-other
+set_run_status open
+run "$wt" take 0001 "$waitrun"; want_rc 0 "take by a run"
+h="$(head_of)"; page_before="$(shasum "$DIRIGIBLE_WIKI/wiki/items/0001.md")"
+run "$wt" take 0001 "$other"; want_rc 1 "take of an item that an open run holds"
+want_out "taken by $waitrun" "take of an item that an open run holds"
+[[ "$h" == "$(head_of)" && "$page_before" == "$(shasum "$DIRIGIBLE_WIKI/wiki/items/0001.md")" ]] || fail "a refused take wrote"
+set_run_status done
+run "$wt" take 0001 "$other"; want_rc 0 "take of an item that a done run holds"
+run "$wt" list next --taken "$other"; want_out "0001 Take item 1" "a takeover lists the item for the new run"
+run "$wt" list next --taken "$waitrun"; [[ -z "$out" ]] || fail "the old holder still holds the item: [$out]"
+run "$wt" show 0001; want_out "runs: $waitrun, $other" "a takeover keeps the runs of the item"
+set_run_status open
+run "$wt" take 0002 "$waitrun"; want_rc 0 "take of a second item"
+set_run_status dropped
+run "$wt" take 0002 "$other"; want_rc 0 "take of an item that a dropped run holds"
+run "$wt" take 0003 2026-10-23-ghost; want_rc 0 "take by a run with no folder"
+run "$wt" take 0003 "$waitrun"; want_rc 0 "take of an item that a run with no folder holds"
+run "$wt" list next --taken "$waitrun"; want_out "0003 Take item 3" "takeover of a holder with no folder"
+set_run_status open
+put_item "$tmp/t4.txt" "Take item 4" "Description of take item 4" "body 4"
+"$wt" add next --from "$tmp/t4.txt" >/dev/null 2>&1
+run "$wt" take 0004 "$waitrun"; want_rc 0 "take by an open run"
+run "$wt" now
+want_out "- 0004 (taken: $waitrun) Take item 4" "now lists an item that an open run holds"
+[[ "$out" != *"0001 (taken"* && "$out" != *"0002 (taken"* ]] || fail "now lists an item that a closed run holds: $out"
+run "$wt" lint; want_rc 0 "lint after the takeovers"
 
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"

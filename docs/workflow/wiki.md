@@ -16,7 +16,7 @@ The backlog, the run log, and the lessons are in a local wiki: a git repo of Mar
 
 ## What it holds
 
-- `Item` pages: one backlog item each, with a status (next, later, done, dropped). `list`, `show`, `add`, `edit`, `move`, `take`, `wait`, and `unwait` read and change them.
+- `Item` pages: one backlog item each, with a status (next, later, done, dropped). `list`, `show`, `add`, `edit`, `move`, `take`, `wait`, and `unwait` read and change them. Only an open run holds an item: `take` refuses an item that another open run holds, and takes it over from a run that is done, dropped, or has no folder.
 - `Lesson` pages: the learning lines of one cause key. `lesson` appends, and `lessons --seen-once` lists.
 - `Log` pages: the run rows and the log lines of one month. `log` appends, and `runs` prints them.
 - `now`: the counts, the items that wait for the user, the taken items, the open runs, and the last 15 log lines.

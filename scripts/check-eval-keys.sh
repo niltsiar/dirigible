@@ -1,9 +1,10 @@
 #!/bin/bash
 # Refuse an ungraded eval key. A Scenarios row of docs/workflow/evals.md that the branch adds, or
-# whose key points the branch changes, needs an eval folder of the run (<run folder>/eval*/) with
-# two parts: a keys.md that holds the exact key text under `## <ID>`, and a scores.tsv line of the
-# ID. The text counts, not a commit hash, so a rebased branch passes. A holdout and a row of type
-# agent are skipped. log-decision.sh (each phase 6 row) and check-governance.sh (the land) run it.
+# whose key points the branch changes, needs an eval folder in the run folder (at any depth: the
+# folder that scripts/eval/run.sh wrote) with two parts: a keys.md that holds the exact key text
+# under `## <ID>`, and a scores.tsv line of the ID in the same folder. The text counts, not a
+# commit hash, so a rebased branch passes. A holdout and a row of type agent are skipped.
+# log-decision.sh (each phase 6 row) and check-governance.sh (the land) run it.
 # The lead grades a key: the refusal says so, and a run agent returns to the lead.
 # Usage: scripts/check-eval-keys.sh <base> <run folder> [<tree>]
 # The check diffs evals.md from `git merge-base <base> HEAD` to the HEAD of the run tree, so a key
@@ -41,7 +42,6 @@ git -C "$tree" show "$merge_base:docs/workflow/evals.md" > "$tmp/old.md" 2>/dev/
 git -C "$tree" show "HEAD:docs/workflow/evals.md" > "$tmp/new.md" 2>/dev/null || : > "$tmp/new.md"
 
 python3 -I - "$tmp/old.md" "$tmp/new.md" "$run" <<'PY'
-import glob
 import os
 import re
 import sys
@@ -79,7 +79,7 @@ def graded(folder):
 
 
 before, after = rows(old_md), rows(new_md)
-folders = [graded(d) for d in sorted(glob.glob(run + "/eval*/")) if os.path.isdir(d)]
+folders = [graded(d) for d, _, names in sorted(os.walk(run)) if "keys.md" in names]
 bad = 0
 for sid, (kind, key) in after.items():
     if kind == "agent" or "(holdout)" in key or (sid in before and before[sid][1] == key):

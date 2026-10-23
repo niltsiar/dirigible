@@ -6,7 +6,8 @@
 # main checkout. It exits 2 with the branch name when no worktree holds the run branch, and when
 # the branch of the last `- Branch:` line is landed (no commit off the base). With two `- Branch:`
 # lines it checks the last one, or the tree that the caller names. The refusal of an ungraded key
-# names the lead as the step that grades.
+# names the lead as the step that grades. It finds keys.md in any folder of the run, and takes
+# scores.tsv from the same folder.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-eval-keys.sh"
@@ -81,6 +82,13 @@ rm -rf "$run/eval"; eval_folder eval E4 '(a) new.'
 check 'a folder with the exact key text and a scores.tsv line' 0 '' main "$run"
 eval_folder eval-b E7 '(a) other.'
 check 'a second folder for another ID' 0 '' main "$run"
+
+# scripts/eval/run.sh writes keys.md in the eval folder that the caller names, at any depth of the run folder.
+fresh; branch_evals "$tmp/wt1" '(a) base.' "$(row E4 '(a) new.')"
+eval_folder logs/old/deep E4 '(a) new.'
+check 'a graded folder nested in the run folder' 0 '' main "$run"
+rm -rf "$run/logs"; eval_folder logs/a E4 '(a) new.' noscore; eval_folder logs/b E4 '(a) other.'
+check 'keys.md and the scores.tsv line in two folders' 1 'E4' main "$run"
 
 fresh; branch_evals "$tmp/wt1" '(b) re-keyed.'
 check 'a re-keyed row with no eval folder' 1 'E1' main "$run"

@@ -6,7 +6,11 @@
 # Running it again for the slug of an open run, on any day, returns the same folder and changes
 # nothing. It prints the later count, the upkeep items of status next, the size of the next list
 # (a warning over 3000 words), a due architecture audit, and a due consolidation (the workflow doc
-# words over TOTAL x 1.03 of docs/workflow/budgets.tsv) on stderr.
+# words over TOTAL x 1.03 of docs/workflow/budgets.tsv) on stderr. It also prints one health line:
+# the product and the workflow PRs of the runs with a done row and a run name dated in the last 7
+# days (the log rows have no date), the seconds of the newest "test-shards: ... <s> s" line in the
+# push-check.log of a done run, and the minutes of the hold lines of dirigible-build-holds.log
+# (git common dir) that start in the last 7 days. A part with no source says none.
 # A new run gets `- Branch: <type>/<slug>` in run.md. The script refuses a third non-feature run
 # in a row (exit 2, no folder, no log row): the two runs with the highest PR numbers in their
 # done log rows (each run once, by its last row) have a run.md branch type other than feat (the
@@ -105,11 +109,15 @@ echo "upkeep items: $upkeep" >&2
 # open audit has not audited yet. A run has an open and a done row, and its last row counts. A
 # product run has a run.md branch of type feat, fix, or perf, and a slug with no hardening. The
 # current run does not count.
+is_product_run() {
+    [[ "$1" != *hardening* ]] || return 1
+    local t
+    t="$(sed -n 's/^- Branch: \([^/]*\)\/.*/\1/p' "$root/runs/$1/run.md" 2>/dev/null | head -n 1)" || true
+    [[ "$t" == feat || "$t" == fix || "$t" == perf ]]
+}
 product=0
 while IFS= read -r r; do
-    [[ "$r" != *hardening* ]] || continue
-    t="$(sed -n 's/^- Branch: \([^/]*\)\/.*/\1/p' "$root/runs/$r/run.md" 2>/dev/null | head -n 1)" || true
-    [[ "$t" != feat && "$t" != fix && "$t" != perf ]] || product=$((product + 1))
+    if is_product_run "$r"; then product=$((product + 1)); fi
 done < <(awk -F'|' -v cur="$run" '
     { name = $2; gsub(/ /, "", name); state = $4; gsub(/ /, "", state) }
     name !~ /^[0-9]{4}-/ { next }
@@ -120,6 +128,28 @@ done < <(awk -F'|' -v cur="$run" '
     "audit the module boundaries, the files near 400 lines, the copies, and the red flags of" \
     ".claude/skills/architect/references/design-red-flags.md, and the tooling (scripts/, .claude/hooks," \
     ".claude/skills/*/scripts, .githooks, the Makefile): see docs/workflow/release-cycle.md" >&2
+# The health line. rows holds the last row of each run, so a run counts once.
+week_ago=$(( $(date +%s) - 7 * 86400 ))
+since_day="$(date -r "$week_ago" +%F)"
+done_runs="$(awk -F'|' '{ n = $2; gsub(/ /, "", n); st = $4; gsub(/ /, "", st) }
+    n ~ /^[0-9]{4}-/ && st ~ /^done([,:]|$)/ { print n }' <<<"$rows")"
+product_prs=0 workflow_prs=0
+while IFS= read -r r; do
+    [[ -n "$r" ]] && ! [[ "${r:0:10}" < "$since_day" ]] || continue
+    if is_product_run "$r"; then product_prs=$((product_prs + 1)); else workflow_prs=$((workflow_prs + 1)); fi
+done <<<"$done_runs"
+shards=none
+while IFS= read -r r; do
+    secs="$(awk '/^test-shards: / && $NF == "s" && $(NF - 1) ~ /^[0-9]+$/ { v = $(NF - 1) } END { print v }' \
+        "$root/runs/$r/logs/push-check.log" 2>/dev/null)" || true
+    [[ -z "$secs" ]] || { shards="$secs s"; break; }
+done < <(tail -r <<<"$done_runs")
+holds="$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-build-holds.log"
+held=none
+if [[ -f "$holds" ]]; then
+    held="$(awk -F'\t' -v from="$(date -r "$week_ago" +%FT%T)" '$1 >= from { s += $2 } END { printf "%d", s / 60 + 0.5 }' "$holds") min"
+fi
+echo "health: 7 days: $product_prs product PRs, $workflow_prs workflow PRs; test-shards $shards; lock held $held" >&2
 # Decision 0028, Word budgets: a consolidation is due when the workflow doc words pass TOTAL x 1.03.
 top="$(git rev-parse --show-toplevel)"
 total="$(awk -F'\t' '$1 == "TOTAL" { print $2 }' "$top/docs/workflow/budgets.tsv" 2>/dev/null || true)"

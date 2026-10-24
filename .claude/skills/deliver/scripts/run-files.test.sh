@@ -492,5 +492,27 @@ mixed_guard docs; guard mixed-docs fix
 mixed_guard feat; guard mixed-feat fix
 [[ $code -eq 0 ]] || fail "guard: a feat run at PR 143 exits $code: $(cat "$tmp/err")"
 
+# It prints one health line on stderr: the product and the workflow PRs of the runs with a done row
+# and a name dated in the last 7 days, the newest test-shards seconds of a done run's push-check.log,
+# and the minutes of the hold lines in the last 7 days. A missing source prints none, and the exit is 0.
+days_ago() { date -r $(( $(date +%s) - $1 * 86400 )) +%FT%T; }
+new_wiki
+old="$(days_ago 8 | cut -c1-10)-ho" prod="$(days_ago 1 | cut -c1-10)-hp" flow="$(days_ago 2 | cut -c1-10)-hw"
+printf '| %s | x | open | |\n| %s | x | done | https://x/pull/1 |\n| %s | x | done | https://x/pull/2 |\n| %s | x | done | https://x/pull/3 |\n' \
+  "$old" "$old" "$prod" "$flow" | put_log
+for r in "$old:feat" "$prod:feat" "$flow:chore"; do
+  mkdir -p "$repo/.scratchpads/runs/${r%%:*}/logs"
+  printf '# Run\n\n- Branch: %s/x\n' "${r#*:}" > "$repo/.scratchpads/runs/${r%%:*}/run.md"
+done
+printf 'test-shards: 999 of 999 tests in 999 s\n' > "$repo/.scratchpads/runs/$old/logs/push-check.log"
+printf 'test-shards: shard 1 (/x/shard-1.log)\ntest-shards: 512 of 520 tests in 512 s\nlater line\n' > "$repo/.scratchpads/runs/$prod/logs/push-check.log"
+holds="$repo/.git/dirigible-build-holds.log"
+printf '%s\t600\tmake test\t/t\n%s\t1200\tmake dmg\t/t\tlimit\n%s\t900\tmake test\t/t\n' "$(days_ago 1)" "$(days_ago 2)" "$(days_ago 8)" > "$holds"
+(cd "$repo" && "$new_run" health-line feat > /dev/null 2> "$tmp/err") || fail "health: new-run exits $?"
+grep -qxF 'health: 7 days: 1 product PRs, 1 workflow PRs; test-shards 512 s; lock held 30 min' "$tmp/err" || fail "health: wrong line: $(cat "$tmp/err")"
+rm "$holds" "$repo/.scratchpads/runs/$prod/logs/push-check.log" "$repo/.scratchpads/runs/$old/logs/push-check.log"
+(cd "$repo" && "$new_run" health-none feat > /dev/null 2> "$tmp/err") || fail "health: new-run with no source exits $?"
+grep -qxF 'health: 7 days: 1 product PRs, 1 workflow PRs; test-shards none; lock held none' "$tmp/err" || fail "health: wrong line with no source: $(cat "$tmp/err")"
+
 [[ $failures -eq 0 ]] && echo "run-files tests: all passed"
 exit $((failures > 0))

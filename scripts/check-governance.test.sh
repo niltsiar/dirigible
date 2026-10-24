@@ -316,6 +316,8 @@ lands_repo() {
   g switch -q -C feat/x
   printf '%b' "$1" > "$tmp/run/run.md"
   mkdir -p "$tmp/r/$(dirname "${2:-Sources/A.swift}")"; echo x > "$tmp/r/${2:-Sources/A.swift}"
+  # HEAD sits on the first `- Branch:` line, the branch that lands.
+  g switch -q -C "$(sed -n 's/^- Branch: *`\{0,1\}\([^ ,`]*\).*/\1/p' "$tmp/run/run.md" | head -n 1)"
 }
 set_done() { sed -i '' "s/^\(| $1 | [^|]*| [^|]*| \)[^|]*|/\1done, Release 4 run ${2:-1} |/" "$features"; }
 lands_repo '# Run\n\n- Branch: feat/x, from origin/main\n- Lands: F35, F89\n'; commit
@@ -347,15 +349,22 @@ lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n' Support/Info.plist; comm
 pass 'a feat run that changes only Support/ and writes Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n'; commit
 refuse 'a feat run that changes Sources/ and writes Lands: none' 'scripts/tag-release.sh' "$tmp/run"
-# The last `- Branch:` line decides, as in check-eval-keys.sh: a run of several landings writes the line of its next landing.
+# The branch that lands decides: HEAD of the tree under check. A run of several landings may write its later
+# `- Branch:` lines ahead. The last `- Branch:` line decides only on a detached HEAD.
 lands_repo '# Run\n\n- Branch: feat/x\n- Branch: fix/y\n- Lands: none\n'; commit
-pass 'a feat/ Branch line, then a fix/ line, with Lands: none and a Sources/ change' "$tmp/run"
+refuse 'a feat/ Branch line, then a fix/ line written ahead, HEAD on feat/x, with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
+lands_repo '# Run\n\n- Branch: fix/y\n- Branch: feat/x\n- Lands: none\n'; g switch -q -C feat/x; commit
+refuse 'a fix/ Branch line, then a feat/ line, HEAD on feat/x, with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/y\n- Branch: feat/x\n- Lands: none\n'; commit
-refuse 'a fix/ Branch line, then a feat/ line, with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
-lands_repo '# Run\n\n- Branch: `feat/x`\n- Lands: none\n'; commit
-refuse 'a backtick Branch line with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
-lands_repo '# Run\n\n- Branch: `feat/x`\n- Requirements: F35\n'; commit
-refuse 'a backtick feat/ Branch line with no Lands line and a Sources/ change' 'name the F-IDs of this land in - Lands: of run.md' "$tmp/run"
+pass 'a feat/ line written last, HEAD on fix/y, with Lands: none and a Sources/ change' "$tmp/run"
+lands_repo '# Run\n\n- Branch: feat/x\n- Branch: fix/y\n- Lands: none\n'; commit; g switch -q --detach
+pass 'a detached HEAD, the last Branch line fix/y, with Lands: none and a Sources/ change' "$tmp/run"
+lands_repo '# Run\n\n- Branch: fix/y\n- Branch: feat/x\n- Lands: none\n'; commit; g switch -q --detach
+refuse 'a detached HEAD, the last Branch line feat/x, with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
+lands_repo '# Run\n\n- Branch: `feat/x`\n- Lands: none\n'; commit; g switch -q --detach
+refuse 'a detached HEAD, a backtick Branch line with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
+lands_repo '# Run\n\n- Branch: `feat/x`\n- Requirements: F35\n'; commit; g switch -q --detach
+refuse 'a detached HEAD, a backtick feat/ Branch line with no Lands line and a Sources/ change' 'name the F-IDs of this land in - Lands: of run.md' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: F77\n' Support/Info.plist; set_done F77; commit
 pass 'a feat run that changes only Support/ and sets its Lands state' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/x\n- Lands: F35\n'; commit

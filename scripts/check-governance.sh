@@ -31,7 +31,8 @@
 #   names no F-ID; an empty line fails. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
 #   Package.swift, Package.resolved, or Support/ needs the line. A `feat/` branch that changes
 #   Sources/ cannot write `- Lands: none`: scripts/tag-release.sh needs a done row for its run number.
-#   The last `- Branch:` line of run.md gives the branch type, with backticks and a note after it removed.
+#   The branch of HEAD gives the branch type. On a detached HEAD, the last `- Branch:` line of run.md
+#   gives it, with backticks and a note after it removed.
 # - With a run folder, scripts/check-eval-keys.sh passes on this tree: each evals.md key that the
 #   branch adds or changes has an eval folder of the run with its exact key text and a scores.tsv line.
 # - The done runs of the holdout stop are the log statuses `done`, `done:`, and `done,`.
@@ -193,8 +194,10 @@ fi
 lands_state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
 if [[ -n "$run" && -f "$run/run.md" ]]; then
     line="$(grep '^- Lands:' "$run/run.md" | tail -n 1 || true)"
-    # The last `- Branch:` line names the landing, as in check-eval-keys.sh.
-    branch="$(grep '^- Branch:' "$run/run.md" | tail -n 1 | sed -E 's/^- Branch: *//; s/[ ,].*$//; s/`//g' || true)"
+    # HEAD names the landing. A run of several landings may write its later branches ahead, so the
+    # last `- Branch:` line counts only on a detached HEAD.
+    branch="$(git symbolic-ref --short -q HEAD || true)"
+    [[ -n "$branch" ]] || branch="$(grep '^- Branch:' "$run/run.md" | tail -n 1 | sed -E 's/^- Branch: *//; s/[ ,].*$//; s/`//g' || true)"
     if [[ -z "$line" ]]; then
         if [[ "$branch" =~ ^(feat|fix|perf)/ ]] \
             && git diff --name-only "$base...HEAD" | grep -qE '^(Sources/|Package\.swift$|Package\.resolved$|Support/)'; then

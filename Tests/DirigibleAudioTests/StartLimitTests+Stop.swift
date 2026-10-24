@@ -65,34 +65,40 @@ extension StartLimitTests {
         await studio.settle()
     }
 
-    /// A main-actor job that waits behind the stop holds the main actor 0.55 s, past the stop
-    /// deadline, before the waits that the stop starts can run. The healthy `mic` writer still
-    /// answers in time, so only the held `box` writer is late.
-    @Test func aMainActorHoldAtTheStopLeavesTheHealthyWriterOnTime() async throws {
+    /// A main-actor job that waits behind the stop holds the main actor past the stop deadline,
+    /// then queues a job that releases the held `box` writer. The deadline resumes the stop during
+    /// the hold, so the stop takes the answers before that job: `box` is late and `mic` is on time.
+    /// A deadline that needs the main actor resumes the stop after the release, and `box` answers.
+    /// The hold past the deadline is longer than a pool hop under load.
+    @Test func aMainActorHoldAtTheStopDoesNotDelayItsDeadline() async throws {
         let hal = hal()
         defer { hal.releaseAttach("box") }
-        let studio = try await studio(hal, stop: limit)
+        let studio = try await studio(hal, stop: .milliseconds(100))
         let inputs = [play(hal, "mic"), play(hal, "box")]
         _ = try await start(studio, ["t1", "t2"]) {}
         try await Task.sleep(for: .seconds(1))
         try await holdComeBack(studio.writer("box"), hal, "box")
 
-        let watch = ContinuousClock.now
         let stopping = Task { @MainActor () -> StudioError? in
             do throws(StudioError) { try await studio.stopRecording() } catch { return error }
             return nil
         }
-        Task { @MainActor in usleep(550_000) }
+        let hold = Task { @MainActor in
+            usleep(700_000)
+            return Task { @MainActor in
+                hal.releaseAttach("box")
+                // The late answer of `box` arrives while the main actor is still held.
+                usleep(200_000)
+            }
+        }
         let error = await stopping.value
-        let took = ContinuousClock.now - watch
+        await hold.value.value
         let late = studio.unfinishedWriters.map(\.uid)
 
-        hal.releaseAttach("box")
         for input in inputs { await input.wait() }
         try await studio.retryFinalize()
         #expect(late == ["box"], "late writers: \(late)")
         #expect(error == .writerDidNotStop("Box"))
-        #expect(took < limit * 3 / 2, "the stop threw after \(took)")
         await studio.settle()
     }
 

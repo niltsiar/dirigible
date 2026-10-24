@@ -10,7 +10,9 @@
 #   stay at or below their value at the merge base of the base and HEAD (decision 0028, Word
 #   budgets).
 # - When the run folder has a reflect row (phase 8) in decisions.tsv and the only class of the
-#   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7).
+#   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7). A run.md
+#   with a `- Cut run: <item id>` line has no cap: each such row then needs `class:` and `found by:`
+#   in its reason.
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes,
 #   or that a commit of the base changed on or after the run start date (the YYYY-MM-DD prefix of
@@ -160,11 +162,18 @@ if [[ -f "$rules" ]] && reflected; then
     paths="$(git diff --name-only --no-renames "$base...HEAD")"$'\n'"$(git diff --name-only --no-renames HEAD)"$'\n'"$(git ls-files --others --exclude-standard)"
     out="$("$here/check-changed.sh" --paths <<<"$paths")" || die "check-changed.sh --paths failed"
     if [[ "$(sed -n 's/^classes: //p' <<<"$out")" == docs ]]; then
-        removed="$(at_base "$rules" | awk -F'\t' '
+        changed="$(at_base "$rules" | awk -F'\t' '
             NR == FNR { if (FNR > 1) old[$1] = $3; next }
-            FNR > 1 && $3 ~ /^(delete|merge)$/ && old[$1] !~ /^(delete|merge)$/ { n++ }
-            END { print n + 0 }' - "$rules")"
-        if [[ "$removed" -gt 1 ]]; then
+            FNR > 1 && $3 ~ /^(delete|merge)$/ && old[$1] !~ /^(delete|merge)$/ { print $1 "\t" $5 }' - "$rules")"
+        removed="$(grep -c . <<<"$changed" || true)"
+        if grep -qE '^- Cut run: [^[:space:]]' "$run/run.md" 2>/dev/null; then
+            while IFS=$'\t' read -r id reason; do
+                [[ -n "$id" ]] || continue
+                [[ "$reason" =~ class:[[:space:]]*[^[:space:]] && "$reason" =~ found\ by:[[:space:]]*[^[:space:]] ]] && continue
+                echo "check-governance: rules.tsv: $id changes to delete or merge in a cut run; its reason needs class: and found by:" >&2
+                fail=1
+            done <<<"$changed"
+        elif [[ "$removed" -gt 1 ]]; then
             echo "check-governance: rules.tsv: $removed rows change to delete or merge; a reflect run removes at most one rule" >&2
             fail=1
         fi

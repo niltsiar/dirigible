@@ -4,7 +4,7 @@
 # TOTAL change that is not near the sum of the workflow docs, more always-on words (AGENTS.md, CLAUDE.md,
 # the files they import, the descriptions of the skills and agents) than the merge base, more skills plus
 # agents than the merge base, more than one rules.tsv removal in a docs-only branch of a run with a
-# reflect row, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
+# reflect row (in a cut run, a removal row with no class: or found by: instead), a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run with status next in the wiki after the reflect row (phase 8), a features.md row
 # of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
@@ -215,6 +215,18 @@ pass 'a rerun that check-changed.sh refuses' "$tmp/run"
 three() { printf '%s\nA-1\ta.md\tdelete\t\tr\ts\t\tx\nA-2\ta.md\tmerge\tA-1\tr\ts\t\tx\nA-3\ta.md\tdelete\t\tr\ts\t\tx\n' "$head_rules" > "$rules"; }
 new_repo; reflect_row; three; commit
 refuse 'three removals with no user decision row' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
+# A cut run (`- Cut run: <item id>` in run.md) has no one-removal cap; each removal row needs class: and found by:.
+fields='class: a rule that no check needed; found by: check-x'
+three_cut() { printf '%s\nA-1\ta.md\tdelete\t\t%s\ts\t\tx\nA-2\ta.md\tmerge\tA-1\t%s\ts\t\tx\nA-3\ta.md\tdelete\t\t%s\ts\t\tx\n' "$head_rules" "$1" "$1" "${2:-$1}" > "$rules"; }
+cut_run() { printf -- '- Status: open\n- Cut run: 1234\n' > "$tmp/run/run.md"; }
+new_repo; reflect_row; cut_run; three_cut "$fields"; commit
+pass 'three removals with fields in a cut run' "$tmp/run"
+new_repo; reflect_row; cut_run; three_cut "$fields" 'class: a rule that no check needed'; commit
+refuse 'a removal with no found by in a cut run' 'A-3' "$tmp/run"
+new_repo; reflect_row; cut_run; three_cut "$fields" 'found by: check-x'; commit
+refuse 'a removal with no class in a cut run' 'A-3' "$tmp/run"
+new_repo; reflect_row; printf -- '- Status: open\n' > "$tmp/run/run.md"; three_cut "$fields"; commit
+refuse 'three removals with fields and no cut run line' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
 
 # The plan check of the run folder (check-plan.sh) runs with the other checks.
 new_repo

@@ -24,7 +24,7 @@
 #   such variable, so a run with phase 4 rows and no review-plan file passes it.
 # - With CHECK_PLAN_AT_PHASE4=1 only, when a round file review-plan-<n>.md (a per-lens name is none)
 #   has a numbered item under `## Act on`, the round file with the highest number has a `## Fix check`
-#   heading (lead-judgment.md, Fix check). A last round file older than the rule needs none.
+#   heading (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -244,7 +244,7 @@ else
             say "the last phase 2 row of decisions.tsv has no phase 3 row after it: the plan gate is not closed; run the plan gate (deliver Phase 3), write review-plan-<n>.md, and log a new phase 3 row before the first phase 4 row"
         fi
         # Round files are review-plan-<n>.md: a per-lens file such as review-plan-1-premortem.md is none.
-        # 2026-10-24T10:09, the commit that added the fix check rule: an older last round file needs none.
+        # Cutoff 2026-10-24T10:09, the commit that added the fix check rule: a run that started earlier needs none.
         last=0 acts=0
         for file in "$run"/review-plan-*.md; do
             [[ "${file##*/}" =~ ^review-plan-([0-9]+)\.md$ ]] || continue
@@ -252,7 +252,7 @@ else
             ((n > last)) && { last=$n; last_file="$file"; }
             awk '/^## / { act = ($0 ~ /^## Act on/); next } act && /^[0-9]+\. / { found = 1 } END { exit !found }' "$file" && acts=1
         done
-        if ((acts)) && (($(stat -f %m "$last_file") >= 1792829360)) && ! grep -q '^## Fix check' "$last_file"; then
+        if ((acts)) && [[ -z "$start" || ! "$start" < 2026-10-24T10:09 ]] && ! grep -q '^## Fix check' "$last_file"; then
             say "${last_file##*/} has no ## Fix check, and a round file has a numbered Act on item; run the fix check after the last round (lead-judgment.md, Fix check) and write its result under ## Fix check"
         fi
     fi

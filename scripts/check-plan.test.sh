@@ -476,7 +476,8 @@ closed() { good; row 2 'plan written'; row 3 'plan gate'; }
 round() { printf '## Act on\n\n%s\n\n## Consider\n\n- none\n%s' "$2" "${3:-}" > "$run/review-plan-$1.md"; }
 ACT=$'1. (warning, x) A fix.\n   Invariant: i. Siblings: s.'
 FIX=$'\n## Fix check\n\nDone.\n'
-export CHECK_PLAN_AT_PHASE4=1
+# The rule reads the start of decisions.tsv, as the other rules do: ROW_AT dates the rows of this part.
+export CHECK_PLAN_AT_PHASE4=1 ROW_AT=2026-10-24T11:00
 closed; round 1 "$ACT"
 refuse 'the last round file has an Act on item and no Fix check' 'review-plan-1.md has no ## Fix check'
 unset CHECK_PLAN_AT_PHASE4
@@ -493,9 +494,9 @@ printf '## Act on\n\n%s\n' "$ACT" > "$run/review-plan-1-premortem.md"
 printf '## Act on\n\n%s\n' "$ACT" > "$run/review-plan-harness-1.md"
 printf '## Act on\n\n%s\n' "$ACT" > "$run/review-plan-panel-1.md"
 pass 'a per-lens file with an Act on item is no round file'
-closed; round 1 "$ACT"; touch -t 202610010000 "$run/review-plan-1.md"
-pass 'a last round file from before the rule'
-unset CHECK_PLAN_AT_PHASE4
+ROW_AT=2026-10-01T10:00 closed; round 1 "$ACT"
+pass 'a run that started before the rule, with a round file that a later note changed'
+unset CHECK_PLAN_AT_PHASE4 ROW_AT
 
 # A feat/ Landings row with Lands none and a Sources/ path in the Check line of one of its slices
 # is refused: scripts/tag-release.sh needs an F-ID (DLV-196). The columns come from the header names.

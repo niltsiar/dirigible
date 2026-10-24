@@ -26,9 +26,12 @@
 # - a dynamic_tool item that is truncated, is not complete JSON, names a tool other than Read, or
 #   has no AbsolutePath or path field;
 # - a command_execution item that is truncated with no newline in its text (a first line may be
-#   cut), or whose first line ends with a backslash, opens a heredoc, or has an open quote;
+#   cut), or whose first line ends with a backslash or with `&&`, `||`, `|`, `;`, `(`, `{`, or
+#   `$(`, opens a heredoc, or has an open quote;
 # - positions that are not 0, 1, 2, ... or a count that differs from thread.itemCount (a dropped
 #   item), and a file whose last item except a checkpoint is not an assistant_message.
+# One case passes: a second command on line 2 after a plain newline. A one-line output has no
+# trailing \r, so line 2 of a real item looks like it, and a rule on line 2 voids real files.
 # Exit 0: each path is allowed. Exit 1: it prints each failure. Exit 2: usage, no sqlite3, no
 # database, no main checkout, a title that is not <run>/<gate>/<lens>, no session, or two sessions
 # for a title. In the --t3 mode, exit 2 is also no python3, no file, or no thread object.
@@ -325,7 +328,7 @@ for i in ordered:
         line = text.split("\n", 1)[0]
         if line.startswith("$ "):
             line = line[2:]
-        if line.rstrip().endswith("\\") or re.search(r"<<(?!<)", line) or open_quote(line):
+        if line.rstrip().endswith("\\") or re.search(r"(&&|\|\||[|;({])\s*$", line) or re.search(r"<<(?!<)", line) or open_quote(line):
             emit("FAIL", where + " has a first line that may go on in the next lines: " + line)
             continue
         emit("S", line)

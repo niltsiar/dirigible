@@ -28,6 +28,8 @@
 # - a command_execution item that is truncated with no newline in its text (a first line may be
 #   cut), or whose first line ends with a backslash or with `&&`, `||`, `|`, `;`, `(`, `{`, or
 #   `$(`, opens a heredoc, or has an open quote;
+# - an item of a type other than dynamic_tool, command_execution, user_message, assistant_message,
+#   or checkpoint;
 # - positions that are not 0, 1, 2, ... or a count that differs from thread.itemCount (a dropped
 #   item), and a file whose last item except a checkpoint is not an assistant_message.
 # One case passes: a second command on line 2 after a plain newline. A one-line output has no
@@ -241,6 +243,7 @@ t3_read() {
 import json, re, sys
 
 KNOWN_TOOLS = {"Read"}
+KNOWN_ITEMS = {"dynamic_tool", "command_execution", "user_message", "assistant_message", "checkpoint"}
 PATH_FIELDS = ("AbsolutePath", "path")
 
 
@@ -332,6 +335,8 @@ for i in ordered:
             emit("FAIL", where + " has a first line that may go on in the next lines: " + line)
             continue
         emit("S", line)
+    elif kind not in KNOWN_ITEMS:
+        emit("FAIL", where + " is an item of the unknown type " + str(kind))
 PY
 }
 

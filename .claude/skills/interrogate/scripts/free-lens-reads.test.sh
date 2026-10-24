@@ -8,7 +8,9 @@
 # session_message, with tool parts in the content of assistant rows. A session that starts in the
 # main checkout, names its path, or runs a search that skips .gitignore (rg -uu, rg --no-ignore),
 # a recursive grep with no path, or an rg or recursive grep of a root, home, or parent folder also
-# fails, also when quoted or in Code Mode code. Run by `make test-hooks`.
+# fails, also when quoted or in Code Mode code. The --t3 mode reads a saved activity view of a T3
+# thread (the shape of a real Antigravity child thread): it passes the inputs of an isolation
+# worktree and fails closed on an item that it cannot read in full. Run by `make test-hooks`.
 set -uo pipefail
 audit="$(cd "$(dirname "$0")" && pwd)/free-lens-reads.sh"
 failures=0
@@ -173,6 +175,88 @@ OPENCODE_DB="$tmp/missing.db" "$audit" r/g/ok runs/r/brief.txt > /dev/null 2>&1;
 
 run
 [[ $code -eq 2 ]] || fail "no argument: expected exit 2, got $code"
+
+# The --t3 mode. The fixture has the shape of a real activity view of an Antigravity child thread:
+# a truncated user_message at position 0, a command_execution item for the workspace, dynamic_tool
+# Read items, command_execution items whose first line is whole and whose output is cut, a closing
+# assistant_message, and a checkpoint. thread.itemCount is the item count.
+wt=/home/u/.t3/worktrees/repo/t3-1
+# t3 <name> [<python statement that changes d>]: write $tmp/<name>.json
+t3() {
+  python3 -I -c '
+import json, sys
+wt = sys.argv[2]
+def read(path, **extra):
+    return json.dumps({"toolName": "Read", "input": {"AbsolutePath": path, "path": path, **extra}}, indent=2)
+def item(pos, kind, text, cut=False):
+    return {"position": pos, "type": kind, "status": "completed", "text": text, "textTruncated": cut, "nextTextOffset": 400 if cut else None}
+d = {"thread": {"worktreePath": wt, "itemCount": 8}, "nextPosition": 7, "hasMore": False, "items": [
+    item(0, "user_message", "Act as the review sub-agent", True),
+    item(1, "command_execution", "$ Preparing workspace\nWorkspace preparation completed."),
+    item(2, "dynamic_tool", read(wt + "/Sources/A.swift")),
+    item(3, "dynamic_tool", read(wt + "/.scratchpads/runs/r/brief.txt")),
+    item(4, "command_execution", "$ rg -n stopGrace Sources\n<truncated 3 lines>\nSources/A.swift:1:x", True),
+    item(5, "command_execution", "$ cat " + wt + "/Sources/A.swift\nline"),
+    item(6, "assistant_message", "major | S1 | text", True),
+    item(7, "checkpoint", "[]")]}
+exec(sys.argv[3])
+json.dump(d, open(sys.argv[1], "w"))
+' "$tmp/$1.json" "$wt" "${2:-pass}"
+}
+runt3() { FREE_LENS_MAIN="${MAIN:-/main}" "$audit" --t3 "$tmp/$1.json" "${@:2}" > "$tmp/out" 2>&1; code=$?; }
+# t3deny <name> <python statement> <text of the failure line>: one fail-closed case
+t3deny() {
+  t3 "$1" "$2"
+  runt3 "$1" runs/r/brief.txt
+  [[ $code -eq 1 ]] || fail "--t3 $1: expected exit 1, got $code: $(cat "$tmp/out")"
+  grep -qF -- "$3" "$tmp/out" || fail "--t3 $1: no failure line with '$3': $(cat "$tmp/out")"
+}
+
+t3 t3ok
+runt3 t3ok runs/r/brief.txt
+[[ $code -eq 0 ]] || fail "--t3 a thread of an isolation worktree: expected exit 0, got $code: $(cat "$tmp/out")"
+grep -qF 'clean' "$tmp/out" || fail "--t3 a clean thread: no clean line: $(cat "$tmp/out")"
+
+t3deny t3main 'd["items"][2]["text"] = read("/main/Sources/A.swift")' '/main/Sources/A.swift'
+t3deny t3nowt 'd["thread"]["worktreePath"] = None' 'worktreePath'
+t3deny t3inmain 'd["thread"]["worktreePath"] = "/main"' 'starts in the main checkout'
+t3deny t3scratch 'd["items"][5]["text"] = "$ cat " + wt + "/.scratchpads/runs/old/run.md\nout"' '.scratchpads/runs/old/run.md'
+t3deny t3mainscratch 'd["items"][5]["text"] = "$ rg -n x /main/.scratchpads/runs/old/run.md\nout"' '.scratchpads/runs/old/run.md'
+t3deny t3uu 'd["items"][5]["text"] = "$ rg -uu x\nout"' 'rg -uu'
+t3deny t3rgparent 'd["items"][5]["text"] = "$ rg x ..\nout"' 'reaches the main'
+t3deny t3grepnopath 'd["items"][5]["text"] = "$ grep -rn x\nout"' 'grep -r with no path'
+t3deny t3input 'd["items"][2]["text"] = read(wt + "/Sources/A.swift", query="rg -uu x")' 'rg -uu'
+t3deny t3inputpath 'd["items"][2]["text"] = read(wt + "/Sources/A.swift", extra="/main/AGENTS.md")' '/main/AGENTS.md'
+
+# A path that two items name is one failure, and a failure after it is still printed.
+t3deny t3dup 'd["items"][3]["text"] = read(wt + "/.scratchpads/runs/old/run.md"); d["items"][4]["text"] = "$ cat " + wt + "/.scratchpads/runs/old/run.md\nout"; d["items"][5]["text"] = "$ rg -uu x\nout"' 'rg -uu'
+
+# The output of a command never counts: a path that only the output quotes passes.
+t3 t3outquote 'd["items"][5]["text"] = "$ cat " + wt + "/Sources/A.swift\n/main/AGENTS.md and .scratchpads/runs/old/run.md"'
+runt3 t3outquote runs/r/brief.txt
+[[ $code -eq 0 ]] || fail "--t3 a path that only an output quotes: expected exit 0, got $code: $(cat "$tmp/out")"
+
+# Fail closed: an item that the audit cannot read in full.
+t3deny t3badjson 'd["items"][2]["text"] = "{\"toolName\": \"Read\", \"inp"' 'complete JSON'
+t3deny t3dtcut 'd["items"][2]["textTruncated"] = True' 'truncated'
+t3deny t3tool 'd["items"][2]["text"] = json.dumps({"toolName": "Grep", "input": {"path": wt}})' 'Grep'
+t3deny t3nopath 'd["items"][2]["text"] = json.dumps({"toolName": "Read", "input": {"StartLine": 1}})' 'path field'
+t3deny t3cmdcut 'd["items"][5]["text"] = "$ cat " + wt; d["items"][5]["textTruncated"] = True' 'truncated'
+t3deny t3backslash 'd["items"][5]["text"] = "$ cat a \\\nb\nout"' 'first line'
+t3deny t3heredoc 'd["items"][5]["text"] = "$ cat <<EOF\nrg -uu x\nEOF"' 'first line'
+t3deny t3quote 'd["items"][5]["text"] = "$ echo \"a\nrg -uu x\""' 'first line'
+t3deny t3gap 'd["items"][5]["position"] = 9' 'positions'
+t3deny t3count 'd["thread"]["itemCount"] = 9' 'itemCount'
+t3deny t3dropped 'del d["items"][3]' 'itemCount'
+t3deny t3noclose 'd["items"][6]["type"] = "user_message"' 'closing'
+echo '{"items": []}' > "$tmp/t3nothread.json"
+runt3 t3nothread runs/r/brief.txt
+[[ $code -eq 2 ]] || fail "--t3 a file with no thread object: expected exit 2, got $code: $(cat "$tmp/out")"
+echo 'not json' > "$tmp/t3garbage.json"
+runt3 t3garbage runs/r/brief.txt
+[[ $code -eq 2 ]] || fail "--t3 a file that is not JSON: expected exit 2, got $code: $(cat "$tmp/out")"
+FREE_LENS_MAIN=/main "$audit" --t3 "$tmp/missing.json" > /dev/null 2>&1; code=$?
+[[ $code -eq 2 ]] || fail "--t3 no file: expected exit 2, got $code"
 
 [[ $failures -eq 0 ]] && echo "free-lens-reads tests: all passed"
 exit $((failures > 0))

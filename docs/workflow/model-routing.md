@@ -24,22 +24,24 @@ The hook `.claude/hooks/usage-hook.sh` gives the usage mode as context at each `
 
 ## Free jobs
 
-Free jobs run on the free models of OpenCode Zen. They are optional extras. A job has no result when it hits the rate limit, its audit fails, it has no answer when the Claude steps end, or the lead has no `delegate_task`. A row says if its Claude step runs always, or only on no result.
+Free jobs run on the free models of OpenCode Zen and on the Antigravity models of T3. They are optional extras. A job has no result when it hits the rate limit, returns an error, has its isolation refused, its audit fails, it has no answer when the Claude steps end, or the lead has no `delegate_task`. A row says if its Claude step runs always, or only on no result.
 
-Any free model can get repo text and train on it: the project goes open source (user, 2026-10-16). No credential, personal data, or real-voice recording goes to a model.
+Any free model can get repo text and train on it: the project goes open source (user, 2026-10-16). The Antigravity models take the same rule. No credential, personal data, or real-voice recording goes to a model.
 
 | Job | Model | Claude step | Use |
 |---|---|---|---|
 | Extra review lens at a gate | space-bunny-free, then deepseek-v4.1-flash-free | always | Beside the Claude lenses |
-| Translation check | muse-spark-1.3-contributor-free | no result | A result replaces the Claude check |
-| First read of a red push-check log | muse-spark-1.3-contributor-free | no result | A result replaces the first read of the lead |
+| Extra review lens at a gate | antigravity/gemini-4-argon | always | Beside space-bunny-free and the Claude lenses |
+| Translation check | muse-spark-1.3-contributor-free, then antigravity/gemini-3.8-flash | no result | A result replaces the Claude check |
+| First read of a red push-check log | muse-spark-1.3-contributor-free, then antigravity/gemini-3.8-flash | no result | A result replaces the first read of the lead |
 | Second opinion on the panel findings | muse-spark-1.3-contributor-free | always | Beside the skeptic |
+| Extra cold reader | antigravity/gemini-3.8-flash | always | Beside the Sonnet cold reader |
 
 Explore, the implementer, and the skeptic stay on Claude.
 
-Only the lead thread has `delegate_task`. With no such tool, the job has no result. Call it with `mode: "async"`, `role: "review"`, `isolation: "worktree"`, `target: { providerInstanceId: "opencode", model: "opencode/<model>", options: { variant: "high" } }`, and a new `title` of the form `<run>/<gate>/<lens>`. The OpenCode session gets that title. The call returns no session id.
+Only the lead thread has `delegate_task`. With no such tool, the job has no result. Call it with `mode: "async"`, `role: "review"`, `isolation: "worktree"`, `target: { providerInstanceId: "opencode", model: "opencode/<model>", options: { variant: "high" } }`, and a new `title` of the form `<run>/<gate>/<lens>`. The OpenCode session gets that title. The call returns no session id. An Antigravity job has the target `{ providerInstanceId: "antigravity", model: "<id>" }` with no options. Read its child thread with `t3_thread_read`, `view: "activity"`, and `maxCharsPerItem` 50000, and save the whole output with the Write tool to `<run>/logs/<lens>-activity.json`.
 
 1. The gate never waits for a free job. When the Claude steps are done, judge with the results that are in: a job with no answer has no result.
-2. On "Rate limit exceeded", the job has no result: log a `decisions.tsv` row with the result `skipped: rate limit`. Zen publishes no cap for the account, but about 25 sessions in one afternoon reached it. Keep bench and trial sessions off gate days.
+2. On "Rate limit exceeded", an error, or a refused isolation, the job has no result: log a `decisions.tsv` row with the result `skipped: rate limit` or `skipped: <the error>`. Zen publishes no cap for the account, but about 25 sessions in one afternoon reached it. Keep bench and trial sessions off gate days. The Antigravity quota is unknown, so each such failure of an Antigravity call is no result, never a reason to wait.
 3. The `worktree` isolation gives the session its own checkout with an empty `.scratchpads/`. Put the brief in the task text: the model reads the run diff with `git diff origin/main...<branch>`, and returns its answer as the task result. Name in the brief the only paths that it can read. `AGENTS.md` sends a model to the ledger and the backlog, and a bench model read an earlier review (the answer key) when it could.
-4. Before you judge a free result, run `.claude/skills/interrogate/scripts/free-lens-reads.sh <run>/<gate>/<lens> <allowed file>...`. It finds the session by its title: exactly one row has it (else exit 2), and its directory is not the main checkout (the worktree is under `~/.t3/worktrees/<repo>/`). The audit also fails a path of the main checkout, `rg -uu`, `rg --no-ignore`, `grep -r` with no path, and an `rg` or `grep -r` of `/`, `~`, `$HOME`, `..`, or a parent of the main checkout. A non-zero exit voids the result, which is no result: log it, and judge without it.
+4. Before you judge a free result, run `.claude/skills/interrogate/scripts/free-lens-reads.sh <run>/<gate>/<lens> <allowed file>...`. It finds the session by its title: exactly one row has it (else exit 2), and its directory is not the main checkout (the worktree is under `~/.t3/worktrees/<repo>/`). The audit also fails a path of the main checkout, `rg -uu`, `rg --no-ignore`, `grep -r` with no path, and an `rg` or `grep -r` of `/`, `~`, `$HOME`, `..`, or a parent of the main checkout. A non-zero exit voids the result, which is no result: log it, and judge without it. For an Antigravity job, run `.claude/skills/interrogate/scripts/free-lens-reads.sh --t3 <run>/logs/<lens>-activity.json <allowed file>...` in place of the title form. It fails a thread with no worktree or one in the main checkout, and a tool input or command with the same failures. It also fails an item that it cannot read in full: a truncated or unknown tool item, a gap in the positions, or no closing answer. After you judge the result, remove the child worktree and branch of the thread: run `git status --porcelain` in the worktree, then `git worktree remove <path>` and `git branch -d <branch>`.

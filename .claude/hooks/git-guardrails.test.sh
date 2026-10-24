@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that git-guardrails.sh blocks and allows the right commands, and that the post-commit hook
 # of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the Agent
-# tool, and usage-hook.sh, the hook that gives the usage mode at an agent start. Run by `make check`.
+# tool, usage-hook.sh, the hook that gives the usage mode at an agent start, and handback-guard.sh,
+# the hook that refuses a hand-back while a background task runs. Run by `make check`.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -927,6 +928,109 @@ done
 for tool in SendMessage mcp__t3-code__delegate_task; do
   matcher_covers "$tmp/old-settings.json" "$tool" && { echo "FAIL: the matcher check passed a settings file with no $tool"; failures=$((failures + 1)); }
 done
+
+# The fourth hook, handback-guard.sh, refuses a SubagentHandback call while a background task of the
+# agent runs. It reads the transcript of the subagent: <dir>/s.jsonl is the session file and
+# <dir>/s/subagents/agent-a1.jsonl is the agent file. Timestamps come from the clock of this test.
+guard_hook="$(dirname "$0")/handback-guard.sh"
+hb_now="$(date +%s)"
+hb_iso() { date -u -r $((hb_now - $1 * 60)) +%Y-%m-%dT%H:%M:%S.000Z; }
+# hb_line <role> <minutes ago> <content JSON>: one line of a transcript
+hb_line() { printf '{"type":"%s","timestamp":"%s","message":{"role":"%s","content":%s}}\n' "$1" "$(hb_iso "$2")" "$1" "$3"; }
+# hb_text <role> <minutes ago> <text>: an entry with a text content
+hb_text() { local t="${3//\\/\\\\}"; hb_line "$1" "$2" "\"${t//\"/\\\"}\""; }
+# hb_use <minutes ago> <use id> <tool> <input JSON>: an assistant tool call
+hb_use() { hb_line assistant "$1" "[{\"type\":\"tool_use\",\"id\":\"$2\",\"name\":\"$3\",\"input\":$4}]"; }
+# hb_result <minutes ago> <use id> <text>: the result of a tool call
+hb_result() { hb_line user "$1" "[{\"type\":\"tool_result\",\"tool_use_id\":\"$2\",\"content\":\"$3\"}]"; }
+# hb_session <name>: write stdin as the agent transcript, and name its folder in hb_dir
+hb_session() { hb_dir="$tmp/$1"; mkdir -p "$hb_dir/s/subagents"; : > "$hb_dir/s.jsonl"; cat > "$hb_dir/s/subagents/agent-a1.jsonl"; }
+# hb_in <tool> [<tool_input JSON>]: the hook input of agent a1
+hb_in() {
+  local ti="${2-}"
+  [[ -n "$ti" ]] || ti='{}'
+  printf '{"transcript_path":"%s/s.jsonl","agent_id":"a1","tool_name":"%s","tool_input":%s}' "$hb_dir" "$1" "$ti"
+}
+# hb_expect <hook> <want exit> <label> <hook input>; the stderr stays in $tmp/hb-err
+hb_expect() {
+  local code
+  printf '%s' "$4" | "$1" 2>"$tmp/hb-err"
+  code=$?
+  [[ $code -eq $2 ]] || { echo "FAIL: $(basename "$1") $3: expected exit $2, got $code"; failures=$((failures + 1)); }
+}
+hb_err_has() {
+  grep -qF -- "$2" "$tmp/hb-err" || { echo "FAIL: $1: stderr has no '$2': $(cat "$tmp/hb-err")"; failures=$((failures + 1)); }
+}
+hb_bg_start() {
+  hb_use 12 u1 Bash '{"command":"sleep 300","run_in_background":true}'
+  hb_result 12 u1 'Command running in background with ID: b1. Output is being written to: /x'
+}
+hb_mon_start() {
+  hb_use "$1" u3 Monitor '{"command":"x"}'
+  hb_result "$1" u3 'Monitor started (task m1, expires in 30m. Output is being written to: /x'
+}
+
+hb_session running < <(hb_bg_start)
+hb_expect "$guard_hook" 2 'a running background Bash' "$(hb_in SubagentHandback)"
+hb_err_has 'a running background Bash' 'b1 (shell)'
+hb_err_has 'a running background Bash' 'TaskStop b1'
+hb_err_has 'a running background Bash' 'handback-guard.sh'
+hb_err="$(cat "$tmp/hb-err")"
+[[ "${hb_err%%TaskStop b1*}" != *[Ww]ait* ]] ||
+  { echo "FAIL: the hand-back refusal says wait before it names TaskStop b1: $hb_err"; failures=$((failures + 1)); }
+[[ "$(sed 's/Never stop a task with pkill -f\.//' "$tmp/hb-err")" != *pkill* ]] ||
+  { echo "FAIL: the hand-back refusal names pkill other than in a never rule: $hb_err"; failures=$((failures + 1)); }
+running_dir="$hb_dir"
+
+for status in completed failed killed; do
+  hb_session "end-$status" < <(hb_bg_start; hb_text user 3 "<task-notification><task-id>b1</task-id><status>$status</status></task-notification>")
+  hb_expect "$guard_hook" 0 "a $status notification ends the task" "$(hb_in SubagentHandback)"
+done
+hb_session taskstop < <(hb_bg_start; hb_use 3 u2 TaskStop '{"task_id":"b1"}'; hb_result 3 u2 'Error: No task found with ID: b1')
+hb_expect "$guard_hook" 0 'a TaskStop call ends the task' "$(hb_in SubagentHandback)"
+hb_session mon-expired < <(hb_mon_start 20; hb_text user 2 '<task-notification><task-id>m1</task-id><summary>s</summary><event>[Monitor expired after 30m, stopped]</event></task-notification>')
+hb_expect "$guard_hook" 0 'a Monitor expiry event ends the monitor' "$(hb_in SubagentHandback)"
+hb_session mon-old < <(hb_mon_start 31)
+hb_expect "$guard_hook" 0 'a Monitor older than its expiry time ends' "$(hb_in SubagentHandback)"
+hb_session child < <(
+  hb_use 9 u4 Agent '{"prompt":"p"}'
+  hb_line user 9 '[{"type":"tool_result","tool_use_id":"u4","content":[{"type":"text","text":"Async agent launched successfully.\nagentId: c1 (internal)"}]}]'
+  hb_text user 2 '<agent-message from="c1"> [Subagent hand-back] done'
+)
+hb_expect "$guard_hook" 0 'a child hand-back message ends the agent task' "$(hb_in SubagentHandback)"
+
+hb_session mon-event < <(hb_mon_start 5; hb_text user 2 '<task-notification><task-id>m1</task-id><summary>s</summary><event>a line</event></task-notification>')
+hb_expect "$guard_hook" 2 'a Monitor event with no status does not end the monitor' "$(hb_in SubagentHandback)"
+hb_err_has 'a Monitor event with no status' 'm1 (monitor)'
+hb_session quoted < <(hb_bg_start; hb_line assistant 3 '[{"type":"text","text":"<task-notification><task-id>b1</task-id><status>completed</status></task-notification>"}]')
+hb_expect "$guard_hook" 2 'an assistant text that quotes a notification does not end the task' "$(hb_in SubagentHandback)"
+hb_session mon-new < <(hb_mon_start 10)
+hb_expect "$guard_hook" 2 'a Monitor before its expiry time still runs' "$(hb_in SubagentHandback)"
+
+# The guard fails open: a refusal with no way out loses the report.
+hb_dir="$running_dir"
+hb_expect "$guard_hook" 0 'no agent_id (the lead)' "$(printf '{"transcript_path":"%s/s.jsonl","tool_name":"SubagentHandback"}' "$hb_dir")"
+hb_expect "$guard_hook" 0 'another tool' "$(hb_in Bash '{"command":"ls"}')"
+hb_expect "$guard_hook" 0 'no transcript file' "$(printf '{"transcript_path":"%s/none/s.jsonl","agent_id":"a1","tool_name":"SubagentHandback"}' "$tmp")"
+hb_expect "$guard_hook" 0 'input that is not JSON' 'not json'
+
+# hook_registered <settings file> <hook script> <tool name>: a PreToolUse entry runs the script for the tool
+hook_registered() {
+  python3 -c '
+import json, re, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
+def covers(matcher):
+    return matcher in (None, "", "*") or re.fullmatch(matcher, sys.argv[3]) is not None
+ok = any(covers(e.get("matcher"))
+         and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[2]) for h in e.get("hooks", []))
+         for e in entries)
+sys.exit(0 if ok else 1)
+' "$1" "$2" "$3" 2>/dev/null
+}
+hook_registered "$settings" handback-guard.sh SubagentHandback ||
+  { echo "FAIL: .claude/settings.json does not register handback-guard.sh for SubagentHandback"; failures=$((failures + 1)); }
+hook_registered "$tmp/old-settings.json" handback-guard.sh SubagentHandback &&
+  { echo "FAIL: the registration check passed a settings file with no handback-guard.sh"; failures=$((failures + 1)); }
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

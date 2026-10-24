@@ -114,6 +114,15 @@
         ]
       },
       {
+        "matcher": "SubagentHandback",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/handback-guard.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Agent|Workflow|SendMessage|mcp__t3-code__delegate_task",
         "hooks": [
           {

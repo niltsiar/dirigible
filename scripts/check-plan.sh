@@ -49,8 +49,9 @@
 # - A table row of plan.md whose Branch (or Branch and worktree) cell starts with `feat/` and whose
 #   Lands cell starts with `none` has no Sources/ word in the `- Check:` lines of its slices:
 #   scripts/tag-release.sh needs an F-ID (check-governance.sh refuses it at the land). The Slices cell
-#   lists slice IDs or a range `L2-S1 to L2-S3`; with no Slices column the rule reads each `- Check:`
-#   line of the plan. A run whose first decisions.tsv row is older than the rule is not checked.
+#   lists slice IDs or a range `L2-S1 to L2-S3`, with backticks dropped; a colon after the ID of a
+#   `###` heading is dropped, and the `## Slices` heading may have a suffix. With no Slices column the
+#   rule reads each `- Check:` line of the plan. A run whose first decisions.tsv row is older than the rule is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -203,8 +204,8 @@ else
                 }
                 return 0
             }
-            /^## / { inslices = ($0 ~ /^## Slices[[:space:]]*$/); table = 0 }
-            inslices && /^### / { slice = $2; ids[slice] = 1; next }
+            /^## / { inslices = ($0 ~ /^## Slices([[:space:]].*)?$/); table = 0 }
+            inslices && /^### / { slice = $2; gsub(/`/, "", slice); sub(/:$/, "", slice); ids[slice] = 1; next }
             inslices && /^- Check:/ { p = sources($0); paths[slice] = paths[slice] p; all = all p; next }
             /^\|/ {
                 line = $0; gsub(/\\\|/, "\001", line); n = split(line, cell, "|")
@@ -221,7 +222,7 @@ else
                 if (!bc || !lc || cell[2] ~ /^-+$/) next
                 branch = cell[bc]; gsub(/`/, "", branch)
                 if (branch !~ /^feat\// || cell[lc] !~ /^none/) next
-                rows++; name[rows] = cell[2]; br[rows] = branch; spec[rows] = sc ? cell[sc] : ""
+                rows++; name[rows] = cell[2]; br[rows] = branch; spec[rows] = sc ? cell[sc] : ""; gsub(/`/, "", spec[rows])
                 next
             }
             !/^### / { table = 0 }

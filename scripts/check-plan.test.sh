@@ -230,7 +230,7 @@ gate() {
   printf '\n## Plan gate changes (review-plan-1.md)\n\n%s\n\n## After\n\n- not an item\n' "$1" >> "$run/plan.md"
 }
 # row <phase> <decision>: append a decisions.tsv row.
-row() { printf '2026-10-01T10:00\t%s\t%s\twhy\tevidence\tdone\n' "$1" "$2" >> "$run/decisions.tsv"; }
+row() { printf '%s\t%s\t%s\twhy\tevidence\tdone\n' "${ROW_AT:-2026-10-01T10:00}" "$1" "$2" >> "$run/decisions.tsv"; }
 gate $'1. S2: a new case.\n   Criteria: none'
 pass 'a plan gate change with Criteria: none'
 gate $'1. S2: a new case.'
@@ -511,9 +511,9 @@ landings() {
     printf '# Plan: x\n\nAgents: B = L1-S1 to L2-S3.\n\n## Landings\n\n%s\n|---|---|---|---|---|\n' "$1"
     shift
     printf '%s\n' "$@"
-    printf '\n## Slices\n\n### L1-S1 one\n\n- Check: `scripts/check-changed.sh --paths <<<$'"'"'Support/Info.plist\\nTests/A.swift'"'"'`\n'
-    printf '\n### L1-S2 two\n\n- Check: `scripts/check-changed.sh --paths <<<$'"'"'Tests/A.swift'"'"'`\n'
-    printf '\n### L2-S3 three\n\n'
+    printf '\n%s\n\n### L1-S1%s one\n\n- Check: `scripts/check-changed.sh --paths <<<$'"'"'Support/Info.plist\\nTests/A.swift'"'"'`\n' "${SLICES_H:-## Slices}" "${SEP:-}"
+    printf '\n### L1-S2%s two\n\n- Check: `scripts/check-changed.sh --paths <<<$'"'"'Tests/A.swift'"'"'`\n' "${SEP:-}"
+    printf '\n### L2-S3%s three\n\n' "${SEP:-}"
     cat "$tmp/l2s3-check"
   } > "$run/plan.md"
 }
@@ -532,6 +532,15 @@ landings '| Landing | Items | Criteria | Lands | Branch and worktree |' '| L1 | 
 pass 'a table with a Branch and worktree header and an F-ID'
 landings '| Landing | Items | Criteria | Lands | Branch and worktree |' '| L1 | one | C1 | none | `feat/agent-pack`, from origin/main |'
 refuse 'a Branch and worktree header with Lands none and no Slices column' "$reason"
+# A colon after the slice ID of a heading, backticks in the Slices cell, and a suffix of the Slices
+# heading do not change which slices a row names.
+ONE='| L1 one | L1-S1 to L1-S2 | `feat/a` | no | 1 round | none |'
+SEP=: landings "$HEAD6" "$ONE"
+pass 'a feat/ row of Support/ and Tests/ slices, with a colon after each slice ID of the headings'
+landings "$HEAD6" '| L1 one | `L1-S1` to `L1-S2` | `feat/a` | no | 1 round | none |'
+pass 'a feat/ row of Support/ and Tests/ slices, with backticks in the Slices cell'
+SLICES_H='## Slices (serial)' landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small-items` | no | 1 round | none |'
+refuse 'a Slices heading with a suffix, a feat/ row with Lands none, and a Sources/ path' "$reason"
 # A run that started before the rule (2026-10-24T10:00) is not checked.
 landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small-items` | no | 1 round | none |'
 printf '2026-10-01T10:00\t1\tstart\twhy\tevidence\tdone\n' > "$run/decisions.tsv"

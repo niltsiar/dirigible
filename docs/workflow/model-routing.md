@@ -8,7 +8,7 @@ The hook `.claude/hooks/usage-hook.sh` gives the usage mode as context at each `
 
 | Mode | Change |
 |---|---|
-| stop | The hook gives the context `stop` at each start and denies nothing. Start no new job, except the reflect agent and a job that the user approved past the stop. Stop at a safe point and write the handoff. |
+| stop | The hook denies nothing. Start no new job, except the reflect agent and a job that the user approved past the stop. Stop at a safe point and write the handoff. |
 | save | A code-reading question for a plan goes to space-bunny-free first. On no result, a Claude agent takes it. Each new `run-agent` takes effort `medium` in place of `high`, except a `risk: yes` slice. A typed agent keeps its frontmatter. |
 | spend | Start the queued Opus jobs first. A `risk: no` slice can take Opus. |
 | normal | The tables below. |

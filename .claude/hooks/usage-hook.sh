@@ -1,8 +1,7 @@
 #!/bin/bash
 # PreToolUse hook for the Agent, Workflow, SendMessage, and delegate_task tools: give the usage mode
-# of docs/workflow/model-routing.md to the model as context, at every mode. The hook denies nothing,
-# reads no field of its input, and always exits 0: a free-model job or the reflect agent can still
-# start at stop. A failure of usage-mode.sh gives the normal text.
+# of docs/workflow/model-routing.md as context. It denies nothing and exits 0 at every mode: a
+# free-model job or the reflect agent can still start at stop.
 cat > /dev/null
 here="$(cd "$(dirname "$0")" && pwd)"
 mode="$("$here/../skills/deliver/scripts/usage-mode.sh" 2> /dev/null)" || mode=normal

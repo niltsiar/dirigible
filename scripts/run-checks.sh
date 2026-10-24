@@ -144,10 +144,9 @@ wiki_pages() {
         return 0
     fi
     for name in $1; do
-        # grep exits 1 with no match: a flake that passed on rerun must stay exit 0.
         while IFS= read -r page; do
             echo "wiki: $name: ${page#"$dir/wiki/"}"
-        done < <({ grep -rlF --exclude-dir=.obsidian -- "$name" "$dir/wiki" || true; } | sort)
+        done < <(grep -rlF --exclude-dir=.obsidian -- "$name" "$dir/wiki" | sort)
     done
 }
 # triage: retry, then name the wiki pages of the tests that failed before it (retry empties the

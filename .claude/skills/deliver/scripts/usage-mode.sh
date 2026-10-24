@@ -7,7 +7,7 @@
 # in-process subagent does not update it. With no file, the mode is normal. The first rule that fits wins:
 # - no file, no five_hour row, a resetsAt in the past (a new window), or a percentUsed that is not
 #   a number or a resetsAt that is not an ISO date: normal.
-# - percentUsed 80 or more: stop, also when the file is stale (a lead agent often starts with a stale file).
+# - percentUsed 80 or more: stop, also when the file is stale.
 # - written_at more than 15 min ago, with a future resetsAt: save (the percent is out of date).
 # - percentUsed 75 or more: save.
 # - the reset is 60 min or less away, and percentUsed is 70 or less: spend.

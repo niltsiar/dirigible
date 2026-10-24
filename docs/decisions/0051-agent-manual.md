@@ -10,6 +10,7 @@
 - Amended: 2026-10-17, run `2026-10-17-agent-pack`. `add-sound` shapes the clip in one `import` call, and places more parts of one file with `clip_place` and the file ID, because each import converts the whole file. `add-chapter` names `chapters_import`. `prepare-for-publishing` names `chapters_export` with a `.txt` file and `file_prune` with `dry_run`. `cut-a-range` heals the splits that stay with `clip_heal`. The reading lines name `session_info` with `compact`. The whole text stays at 6000 characters.
 - Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (see 0060). Eight recipes: `lower-music` (produce) lowers a music clip under a voice with `clip_gain_range`. The core and the whole text are at their caps, so `clip_envelope` is in the tool list only.
 - Amended: 2026-10-23, run `2026-10-23-read-by-time` (see 0062). The core says "`silences`, `nearest_pause`, and `meter` read audio by time." in place of the rule that no tool reads the audio by time.
+- Amended: 2026-10-24, run `2026-10-23-read-by-time`. The core ends its edit rule with "Saves keep backups: `backup_list`." The `backup_list` and `backup_revert` texts and `dirigible backup list --help` give the rule of 0043 with the values of `BackupPolicy`.
 
 ## Context
 

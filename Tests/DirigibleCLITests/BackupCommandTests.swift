@@ -45,6 +45,17 @@ struct BackupCommandTests {
         #expect(result == CLIResult(status: 0, stdout: "\(Self.new)\n\(Self.middle)\n\(Self.old)\n", stderr: ""))
     }
 
+    /// The help gives the rule of the tools, with the values of `BackupPolicy` (C16).
+    @Test func listHelpStatesTheRule() async throws {
+        let help = try await dirigible("backup", "list", "--help")
+        let text = help.stdout.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let minutes = RecordRequest.units(BackupPolicy.interval / 60_000, "minute")
+        let rule =
+            "Dirigible keeps a backup of session.xml before a save when the newest backup is \(minutes) old or older, "
+            + "and when the window of the session closes. It keeps the \(BackupPolicy.count) newest backups."
+        #expect(help.status == 0 && text.contains(rule), "\(text)")
+    }
+
     @Test func listOfAPackageWithNoBackupPrintsNothing() async throws {
         try FileManager.default.removeItem(at: folder)
 

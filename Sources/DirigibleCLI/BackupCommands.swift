@@ -10,7 +10,8 @@ struct BackupCommand: ParsableCommand {
         subcommands: [List.self, Revert.self])
 
     struct List: ParsableCommand {
-        static let configuration = CommandConfiguration(abstract: "Write the backup file names, newest first.")
+        static let configuration = CommandConfiguration(
+            abstract: "Write the backup file names, newest first.", discussion: backupRule)
         @OptionGroup var package: PackageArgument
 
         func run() throws {

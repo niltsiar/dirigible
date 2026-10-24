@@ -281,12 +281,22 @@ private let backupName = Param.required(
     "name", "The backup file name, as backup_list gives it.",
     Kind(schema: ["type": "string"], expected: backupNameExpected) { ($0 as? String).flatMap(Backup.init(fileName:)) })
 
+/// When a save keeps a backup and how many stay, from `BackupPolicy` (decision 0043), for the two
+/// backup tools and for `dirigible backup list --help`.
+package let backupRule =
+    "Dirigible keeps a backup of session.xml before a save when the newest backup is "
+    + "\(RecordRequest.units(BackupPolicy.interval / 60_000, "minute")) old or older, and when the window of the "
+    + "session closes. It keeps the \(BackupPolicy.count) newest backups."
+
 let backupTools = [
-    Tool("backup_list", "Give the backup file names of the session, newest first.", [], saves: false) { _ in
+    Tool(
+        "backup_list", "Give the backup file names of the session, newest first. " + backupRule, [], saves: false
+    ) { _ in
         .backups
     }.hinted(.readOnly),
     Tool(
-        "backup_revert", "Revert the session to a backup. It keeps a backup of the replaced session first.",
+        "backup_revert",
+        "Revert the session to a backup. It keeps a backup of the replaced session first. " + backupRule,
         [backupName]
     ) { a throws(ToolError) in .revert(try a[backupName]) },
 ]

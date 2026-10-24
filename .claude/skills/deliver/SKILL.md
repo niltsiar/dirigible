@@ -30,7 +30,7 @@ One run takes one goal (a requirement, a slice, or a bug) to a merged pull reque
 Write `analysis.md`:
 
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO (the base) and other editors behave, with sources.
-- Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value. Before the plan gate, run each criterion command that must print nothing at the base, with a glob that leaves out the tests that assert the absence, and write each hit that stays; run each planned grader once on a known-red input.
+- Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value. Before the plan gate, run each criterion command that must print nothing at the base. Use a glob that leaves out the tests that assert the absence, and write each hit that stays. Run each planned grader once on a known-red input.
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion, under its original conditions (a test probe runs in the test runner). Before the plan gate, check each numeric plan rule (a curve, a threshold, a time rule) with a probe or a worked fixture. Replay a new check on past inputs. Log each probe and replay.
 - What is out of scope, as items with status later (`scripts/wiki.py add later --from <file>`).
@@ -53,8 +53,10 @@ Write `plan.md`:
 
 | Run | Plan gate and code gate |
 |---|---|
-| Small (`risk: no`) | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering` (a workflow upkeep run: the doc lenses, reflect step 4); tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
+| Small (`risk: no`) | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
+
+A workflow upkeep run uses the doc lenses of interrogate Step 3 in place of one doc lens.
 
 - The red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. `docs/decisions/0028-proportional-checks-and-reflect-governance.md` says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.
 - Each gate has `maxRounds: 2`; round 2 runs only on a critical item. The lead fixes each warning, and the fix check covers it.

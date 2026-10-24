@@ -892,7 +892,8 @@ assert h["hookEventName"] == "PreToolUse", "event name"
 assert "Usage mode: " + mode + "." in h["additionalContext"], "context names the mode"
 assert "permissionDecision" not in h and "permissionDecisionReason" not in h, "no deny"
 if mode == "stop":
-    assert "stop at a safe point" in h["additionalContext"], "stop text"
+    assert "Stop at a safe point" in h["additionalContext"], "stop text"
+    assert "except a free-model job, the reflect agent," in h["additionalContext"], "stop text names the free-job exception"
 ' "$mode" 2>"$tmp/usage-err" || { echo "FAIL: usage-hook $mode: $(tail -n 1 "$tmp/usage-err") (output: $out)"; failures=$((failures + 1)); }
 }
 expect_usage normal 10 120

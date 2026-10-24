@@ -144,8 +144,9 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 | R8 | Noise reduction, hum removal, a render of a range through an effect, a render link, and a repair set: rumble, clipped peaks, and harsh "s" sounds (F35, F77, F89, F110, F98, F99, F100). |
 | R9 | Part: a leveler that rides the gain inside a clip (F38 part). |
 | R10 | Part: voice match, and the leveler (F37 part, F38 part), a text chapter list (F160), and track roles and the duck of the music under speech (F72, F34). |
+| R11 | Part: a warning in an export to MP3 or M4A with no episode title (F166). |
 | R12 | Part: the meter and the permission state of an armed app track before a take (F114). |
-| R13 | More UI languages (F113). |
+| R13 | More UI languages (F113), and the export title warning of the window (F166). |
 | R16 | Part: the agent pack, an import in one call, a reuse of the same audio, a compact session read, and the reads by time (F157, F158, F159, F165). |
 
 1. **More UI languages (F113).** Portuguese, German, French, Italian, and Dutch, with the language preference of Release 2 (0010).
@@ -166,6 +167,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 16. **Gain envelope (F75, moved from Release 7).** Gain points on each clip and range gains with ramps, in playback, export, `session.xml` version 10, the `dirigible` CLI, and the MCP tools. The app draws the curve, and the user edits the points with the mouse, the keyboard, and the inspector. Run: `2026-10-18-envelope-ducking` landings 1 and 2.
 17. **Track roles and ducking (F72, F34, moved from Release 7).** A dialogue, music, or effects role on a track, with a color strip and a letter in its header, in `session.xml` version 11. Tools > Duck Music Under Speech... lowers the music under the speech in one undo step, and so do `dirigible duck` and the `duck` MCP tool. Run: `2026-10-18-envelope-ducking` landing 3.
 18. **Agent reads by time (F165).** `dirigible silences`, `dirigible nearest-pause`, and `dirigible meter`, and their MCP tools, give the silences of a range, the best cut point near a frame, and the loudness and the peaks of the heard stereo mix of a range, with no export. On a session that is open in the app, they read the session of the window. Run: `2026-10-23-read-by-time` landing 1.
+19. **Export title warning (F166).** An export to MP3 or M4A with no episode title warns that the file has no title tag. Run: `2026-10-23-read-by-time` landing 2.
 
 ## Release 5: edit by text
 

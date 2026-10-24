@@ -9,6 +9,7 @@
 # criterion ID of a field has a criterion change row from Phase 4 on.
 # Check that CHECK_PLAN_AT_PHASE4=1 needs a review-plan-<n>.md file and a phase 3 row after the last
 # phase 2 row, and that the land check without it does not.
+# Check that with CHECK_PLAN_AT_PHASE4=1 the last round file has a ## Fix check when a round file has an Act on item.
 # Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
 # Run by `make test-hooks`.
 set -uo pipefail
@@ -467,6 +468,34 @@ makes docs/decisions/0044-new-thing.md
 row 3 'plan gate round 1'
 pass 'a run whose plan gate came before the rule'
 script="$saved_script" run="$saved_run"
+
+# With CHECK_PLAN_AT_PHASE4=1, the last round file review-plan-<n>.md has a Fix check when any round file
+# has a numbered Act on item (lead-judgment.md, Fix check). A per-lens file is no round file.
+# closed: a good folder with a closed plan gate. round <n> <Act on text> [<tail>]: review-plan-<n>.md.
+closed() { good; row 2 'plan written'; row 3 'plan gate'; }
+round() { printf '## Act on\n\n%s\n\n## Consider\n\n- none\n%s' "$2" "${3:-}" > "$run/review-plan-$1.md"; }
+ACT=$'1. (warning, x) A fix.\n   Invariant: i. Siblings: s.'
+FIX=$'\n## Fix check\n\nDone.\n'
+export CHECK_PLAN_AT_PHASE4=1
+closed; round 1 "$ACT"
+refuse 'the last round file has an Act on item and no Fix check' 'review-plan-1.md has no ## Fix check'
+unset CHECK_PLAN_AT_PHASE4
+pass 'the same run at the land check'
+export CHECK_PLAN_AT_PHASE4=1
+closed; round 1 "$ACT" "$FIX"; round 2 'None.'
+refuse 'round 1 has the Fix check, round 2 is the last round file and has none' 'review-plan-2.md has no ## Fix check'
+closed; round 1 "$ACT"; round 2 'None.' $'\n## Fix check result\n\nDone.\n'
+pass 'a Fix check result in the last round file'
+closed; round 2 "$ACT"; round 10 'None.' "$FIX"; round 9 "$ACT"
+pass 'rounds 9 and 10: the last round file by number has the Fix check'
+closed; round 1 'None.'
+printf '## Act on\n\n%s\n' "$ACT" > "$run/review-plan-1-premortem.md"
+printf '## Act on\n\n%s\n' "$ACT" > "$run/review-plan-harness-1.md"
+printf '## Act on\n\n%s\n' "$ACT" > "$run/review-plan-panel-1.md"
+pass 'a per-lens file with an Act on item is no round file'
+closed; round 1 "$ACT"; touch -t 202610010000 "$run/review-plan-1.md"
+pass 'a last round file from before the rule'
+unset CHECK_PLAN_AT_PHASE4
 
 # A feat/ Landings row with Lands none and a Sources/ path in the Check line of one of its slices
 # is refused: scripts/tag-release.sh needs an F-ID (DLV-196). The columns come from the header names.

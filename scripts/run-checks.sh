@@ -8,6 +8,10 @@
 # a rerun prints the flake line and appends '<HEAD> <name> load <1-min load>' to dirigible-flakes
 # in the git common dir: the load at the end of the check, not at the failure. land.sh writes a
 # flake row for each line, and flake-triage.md still applies (decision 0028).
+# After the reruns, on a pass (a flake) and on red, it prints one line `wiki: <test>: <page>` for each
+# failed test and each wiki page that holds its name (scripts/wiki.py path; pages under .obsidian
+# do not count), so the earlier triage of the test is one read away. With no wiki folder it prints
+# one warning line. A blocked rerun and a no-rerun exit print none.
 # No rerun, and exit 1: another red target, a not-remade target other than check, a crash, an
 # issue of no test, a test process that ended before its report (scripts/swift-test.sh: the tests
 # after the end did not run), or a red target with no failed test line.
@@ -129,6 +133,32 @@ retry() {
     echo "run-checks: red after $tries reruns: $(xargs <<<"$fast $slow")" >&2
     return 1
 }
+# wiki_pages <names>: a line `wiki: <name>: <page>` (the page relative to the wiki folder) for each
+# wiki page that holds a name. With no wiki folder, one warning line. wiki.py path prints a path and
+# exits 0 with no wiki, so the folder is checked here.
+wiki_pages() {
+    local dir name page
+    dir="$("$here/wiki.py" path 2>/dev/null || true)"
+    if [[ -z $dir || ! -d "$dir/wiki" ]]; then
+        echo "run-checks: no wiki, so no wiki page of a failed test is named" >&2
+        return 0
+    fi
+    for name in $1; do
+        # grep exits 1 with no match: a flake that passed on rerun must stay exit 0.
+        while IFS= read -r page; do
+            echo "wiki: $name: ${page#"$dir/wiki/"}"
+        done < <({ grep -rlF --exclude-dir=.obsidian -- "$name" "$dir/wiki" || true; } | sort)
+    done
+}
+# triage: retry, then name the wiki pages of the tests that failed before it (retry empties the
+# names on a pass). It returns the status of retry.
+triage() {
+    local names code=0
+    names="$(xargs <<<"$fast $slow")"
+    retry || code=$?
+    wiki_pages "$names"
+    return $code
+}
 # partial <fast names> <slow names>: append the partial stamp line, when the check had a base, the
 # tree was clean at the start and is clean now, and HEAD did not move.
 partial() {
@@ -186,12 +216,12 @@ if [[ ${#goals[@]} -gt 0 ]]; then
         ! grep -q '^left' <<<"$split" || no_rerun 'a failed test line of no red target'
         fast="$(sed -n 's/^fast//p' <<<"$split" | once)"
         slow="$(sed -n 's/^slow//p' <<<"$split" | once)"
-        retry || { partial "$fast $word_fast" "$slow $word_slow"; exit 1; }
+        triage || { partial "$fast $word_fast" "$slow $word_slow"; exit 1; }
     fi
 fi
 if [[ -n $word ]]; then
     load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
     fast="$(once <<<"$word_fast")" slow="$(once <<<"$word_slow")"
-    retry || { partial "$fast" "$slow"; exit 1; }
+    triage || { partial "$fast" "$slow"; exit 1; }
 fi
 exit 0

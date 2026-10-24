@@ -27,5 +27,16 @@ while IFS= read -r page; do pages+=("$page"); done < <(for d in lessons items; d
 [[ ${#pages[@]} -gt 0 ]] || exit 0
 # The awk step drops the front matter (the first two --- lines). -w: the key matches only as a
 # whole key, so DLV-016/hook does not match XDLV-016/hook.
-awk 'FNR == 1 { fences = 0 } fences < 2 { if ($0 == "---") fences++; next } { print FILENAME ":" FNR ":" $0 }' "${pages[@]}" |
-  grep -wF -- "$key" || [[ $? -eq 1 ]]
+body="$(awk 'FNR == 1 { fences = 0 } fences < 2 { if ($0 == "---") fences++; next } { print FILENAME ":" FNR ":" $0 }' "${pages[@]}" |
+  grep -wF -- "$key" || [[ $? -eq 1 ]])"
+[[ -z "$body" ]] || echo "$body"
+# An imported item holds its key in the title only: print that title line when no body line of the page has the key.
+items=()
+for page in "${pages[@]}"; do [[ "$page" == items/* ]] && items+=("$page"); done
+[[ ${#items[@]} -gt 0 ]] || exit 0
+titles="$(awk 'FNR == 1 { fences = 0 } fences < 2 { if ($0 == "---") fences++; else if (fences == 1 && $0 ~ /^title:/) print FILENAME ":" FNR ":" $0; next }' "${items[@]}" |
+  grep -wF -- "$key" || [[ $? -eq 1 ]])"
+while IFS= read -r hit; do
+  [[ -n "$hit" && $'\n'"$body" != *$'\n'"${hit%%:*}:"* ]] && echo "$hit"
+done <<< "$titles"
+exit 0

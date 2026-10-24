@@ -22,7 +22,7 @@ failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # A git or make value of an outer run must not reach the temporary repos of this test.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER SINCE
 
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 today="$(date +%F)"
@@ -211,7 +211,7 @@ got="$(run_in 2> "$tmp/refuse.err")"
 code=$?
 [[ $code -eq 1 ]] || fail "no base, a Swift test, no FILTER: expected exit 1, got $code"
 [[ "$got" == "$(out 'tooling tests' "check-fast test$(hw scripts/b.sh)" no)" ]] || fail "no base: got [$got]"
-for word in FILTER 'push check' 'make test'; do
+for word in FILTER 'push check' 'make test' 'BASE=origin/main'; do
   grep -qF "$word" "$tmp/refuse.err" || fail "no base, no FILTER: no '$word' in the reason: $(cat "$tmp/refuse.err")"
 done
 got="$(FILTER=ClipTests run_in 2>&1)" || fail "no base with FILTER: exit $?"
@@ -733,6 +733,79 @@ hook_repo
 printf '#!/bin/bash\ncase "$1" in\n  --floor) echo Sources/DirigibleCore/SessionWriter.swift ;;\n  --wait-load) exit 0 ;;\n  *) printf "classes: tooling\\ntargets: check-fast HOOK_TESTS=%%s %%s\\nrisk: no\\n" "'$hid_test'" "'$ax_test'" ;;\nesac\n' > "$tmp/r/scripts/check-changed.sh"
 PATH="$tmp/bin:$PATH" make_case 'make check-changed with a space-joined word' ''
 [[ "$(wc -l < "$tmp/hooks.log" | tr -d ' ')" == 1 ]] || fail "a space-joined word: the control did not show one test: [$(tr '\n' ' ' < "$tmp/hooks.log")]"
+
+# SINCE=<ref> is the local mode of a group end: the commits since <ref> and the working tree pick
+# the targets, the HOOK_TESTS word of a local run applies, and no stamp is read or written.
+since_repo() { new_repo; sref="$(g rev-parse HEAD)"; }
+since_repo
+put "$hid_test" x
+put "$ax_test" x
+got="$(SINCE=$sref run_in 2>&1)" || fail "SINCE with a tooling commit: exit $?"
+[[ "$got" == "$(out tooling "check-fast HOOK_TESTS=$hid_test,$ax_test" no)" ]] || fail "SINCE with a tooling commit: got [$got]"
+# Control: the push form of the same commits keeps the full hook list (no word).
+got="$(run_in "$sref" 2>&1)" || fail "the push form after SINCE cases: exit $?"
+[[ "$got" == "$(out tooling check-fast no)" ]] || fail "the push form: got [$got]"
+since_repo
+put "$unnamed" x
+got="$(SINCE=$sref run_in 2>&1)" || fail "SINCE with a path that has no test: exit $?"
+[[ "$got" == "$(out tooling check-fast no)" ]] || fail "SINCE with a path that has no test: got [$got]"
+# --paths reads no SINCE.
+SINCE=no-such-ref expect 'SINCE with --paths' "$(out docs check-docs no)" <<<'docs/guide.md'
+# SINCE with a base exits 2 and names both. A ref that does not exist prints nothing on stdout.
+got="$(SINCE=$sref run_in some-base 2> "$tmp/since.err")"
+code=$?
+[[ $code -eq 2 && -z "$got" ]] || fail "SINCE with a base: exit $code, stdout [$got]"
+grep -q 'SINCE' "$tmp/since.err" && grep -q 'some-base' "$tmp/since.err" || fail "SINCE with a base: the message does not name both: $(cat "$tmp/since.err")"
+got="$(SINCE=no-such-ref run_in 2> /dev/null)" && fail 'SINCE with a ref that does not exist exits 0'
+[[ -z "$got" ]] || fail "SINCE with a ref that does not exist prints [$got]"
+# A ref with no changed path since it: exit 1 with the ref in the message.
+new_repo
+got="$(SINCE=HEAD run_in 2> "$tmp/since.err")"
+code=$?
+[[ $code -eq 1 && -z "$got" ]] || fail "SINCE with no changed path: exit $code, stdout [$got]"
+grep -qF 'no changed paths since HEAD' "$tmp/since.err" || fail "SINCE with no changed path: no ref in the message: $(cat "$tmp/since.err")"
+# Swift sources after the ref: the three lines, exit 1, and a reason that names the local form with
+# FILTER, says that the full suite runs only in the push check, and holds no BASE. FILTER gives test-filter.
+since_repo
+put Sources/DirigibleApp/X.swift x
+got="$(SINCE=$sref run_in 2> "$tmp/since.err")"
+code=$?
+[[ $code -eq 1 && "$got" == "$(out sources test no)" ]] || fail "SINCE with Sources, no FILTER: exit $code, got [$got]"
+grep -qF "make check-changed SINCE=$sref FILTER='" "$tmp/since.err" || fail "SINCE with Sources, no FILTER: no local form in the reason: $(cat "$tmp/since.err")"
+grep -qF 'full suite runs only in the push check' "$tmp/since.err" || fail "SINCE with Sources, no FILTER: no push check in the reason: $(cat "$tmp/since.err")"
+! grep -qF 'BASE' "$tmp/since.err" || fail "SINCE with Sources, no FILTER: the reason names BASE: $(cat "$tmp/since.err")"
+got="$(SINCE=$sref FILTER=ClipTests run_in 2>&1)" || fail "SINCE with Sources and FILTER: exit $?"
+[[ "$got" == "$(out sources test-filter no)" ]] || fail "SINCE with Sources and FILTER: got [$got]"
+# FILTER with a changed path that gives no test: exit 1, and the reason keeps SINCE with no FILTER.
+# A bare make check-changed drops SINCE, finds no path, and reports targets: none with exit 0.
+since_repo
+put "$unnamed" x
+got="$(SINCE=$sref FILTER=ClipTests run_in 2> "$tmp/since.err")"
+code=$?
+[[ $code -eq 1 && "$got" == "$(out tooling check-fast no)" ]] || fail "SINCE and FILTER with no test: exit $code, got [$got]"
+grep -qF "make check-changed SINCE=$sref with no FILTER" "$tmp/since.err" || fail "SINCE and FILTER with no test: no SINCE form in the reason: $(cat "$tmp/since.err")"
+# Through the real Makefile, script, and test-hooks.sh: the targets of SINCE run, no stamp is read or
+# written, and the hook test sees no SINCE (make puts it in the environment and in MAKEFLAGS).
+hook_repo
+sref="$(g rev-parse HEAD)"
+: > "$tmp/since.log"
+for t in hid ax; do
+  printf '#!/bin/bash\necho "${SINCE-unset}" >> "%s"\n' "$tmp/since.log" > "$tmp/r/scripts/$t.test.sh"
+  chmod +x "$tmp/r/scripts/$t.test.sh"
+done
+g add -A
+g commit -q -m faketests
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with SINCE' '' SINCE="$sref"
+[[ "$output" == "check-changed: commit $(g rev-parse HEAD) tree clean base none targets check-fast HOOK_TESTS=$hid_test,$ax_test"$'\n'* ]] ||
+  fail "make check-changed with SINCE: first line: $output"
+[[ "$(cat "$tmp/since.log")" == $'unset\nunset' ]] || fail "make check-changed with SINCE: the hook tests saw [$(tr '\n' ' ' < "$tmp/since.log")]: $output"
+[[ "$(cd "$tmp/r" && scripts/check-stamp.sh read "$sref")" == 'no stamp' ]] || fail 'make check-changed with SINCE: a stamp exists'
+# No context variable of this script reaches a test that it runs: each test file that names this
+# script and unsets BASE, FILTER, or MAKEFLAGS also unsets SINCE.
+for f in $(grep -rl --include='*.test.sh' 'check-changed.sh' "$repo/scripts" "$repo/.claude"); do
+  lines="$(grep -E '^unset .*(BASE|FILTER|MAKEFLAGS)' "$f")" || continue
+  ! grep -qv 'SINCE' <<<"$lines" || fail "${f#"$repo"/}: an unset line of BASE, FILTER, or MAKEFLAGS has no SINCE"
+done
 
 # The stamp: a passing check with BASE appends it, a red check or no BASE does not.
 # A stub script gives the targets stub-ok or stub-red of the copied Makefile.

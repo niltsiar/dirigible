@@ -4,7 +4,8 @@
 #   Only the test-hooks recipe of the Makefile calls it, with the HOOK_TESTS list. An argument can
 #   hold several tests joined with commas: scripts/check-changed.sh gives make one HOOK_TESTS word
 #   for the tests of the changed paths, and make passes that word as one argument. Each part is a
-#   test. A list of some of the tests gets no stamp.
+#   test. A list of some of the tests gets no stamp. The script unsets SINCE (make check-changed
+#   SINCE=<ref> puts it in the environment of each recipe), so no hook test reads that ref.
 # The key is the tree of the work tree with no Sources/, Tests/, docs/, or README.md, plus the
 # existence of each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool
 # versions, and the date: a pass is good for one day. The tree is HEAD with the changes of a dirty
@@ -26,6 +27,7 @@
 # last 40 lines of its output.
 # scripts/test-hooks.test.sh tests it.
 set -uo pipefail
+unset SINCE
 cd "$(git rev-parse --show-toplevel)" || exit 1
 common="$(git rev-parse --path-format=absolute --git-common-dir)" || exit 1
 stamp="$common/dirigible-hooks-stamp"

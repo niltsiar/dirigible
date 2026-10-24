@@ -8,7 +8,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 # A make value of an outer run (make test-hooks) must not reach the stub make.
-unset MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+unset MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE SINCE
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 failures=0

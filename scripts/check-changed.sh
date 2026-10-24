@@ -13,6 +13,9 @@
 #          A partial line still needs the exact commit of <base>.
 #          With risk: yes and no Sources/ or Tests/ path since P, it exits 1 with no targets line.
 #          CHECK_PARTIAL=ignore: the targets with no partial stamp, and the word with each name.
+#        SINCE=<ref> scripts/check-changed.sh   the commits since <ref> and the working tree; the local
+#          targets and the HOOK_TESTS word, for the group end of one agent. It reads and writes no stamp.
+#          With a base too it exits 2. With no changed path it exits 1. Only git mode reads SINCE.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
@@ -29,7 +32,7 @@
 # itself, <name>.test.sh for <name>.sh or <name>.py, the guardrails test for .claude/hooks/*,
 # .claude/settings.json, and .githooks/*, scripts/land.test.sh for .githooks/pre-push, and each entry
 # whose text names the basename of a changed tooling path. A path with no test gives no word: the
-# full list runs. The push never adds the word.
+# full list runs. The push never adds the word. SINCE is local, so it adds the word.
 set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
@@ -171,6 +174,13 @@ case "${1:-}" in
     *) base="$1" push=1 ;;
 esac
 
+since_ref=""
+[[ $mode == git ]] && since_ref="${SINCE:-}"
+if [[ -n "$since_ref" && -n "$base" ]]; then
+    echo "check-changed: SINCE=$since_ref and the base $base cannot both be set: SINCE is the local mode, a base is the push form" >&2
+    exit 2
+fi
+
 if [[ -n "${FILTER:-}" && $push == 1 ]]; then
     echo "check-changed: FILTER is for the tdd loop of a slice; the push check runs with no FILTER" >&2
     exit 1
@@ -183,16 +193,22 @@ else
     # --no-renames lists the old path of a move too, so a moved floor file stays risk: yes.
     committed=""
     [[ -n "$base" ]] && committed="$(git diff --name-only --no-renames "$base...HEAD")"
+    [[ -n "$since_ref" ]] && committed="$(git diff --name-only --no-renames "$since_ref...HEAD")"
     worktree="$(git diff --name-only --no-renames HEAD)"
     untracked="$(git ls-files --others --exclude-standard)"
     paths="$committed"$'\n'"$worktree"$'\n'"$untracked"
     # The old side of the content check: the fork point of the branch, or HEAD.
     from=HEAD
     [[ -n "$base" ]] && from="$(git merge-base "$base" HEAD)"
+    [[ -n "$since_ref" ]] && from="$(git merge-base "$since_ref" HEAD)"
 fi
 paths="$(grep -v '^$' <<<"$paths" | sort -u || true)"
-if [[ -z "$paths" && $push == 1 ]]; then
-    echo "check-changed: no changed paths against ${base:-the paths of stdin}" >&2
+if [[ -z "$paths" && ( $push == 1 || -n "$since_ref" ) ]]; then
+    if [[ -n "$since_ref" ]]; then
+        echo "check-changed: no changed paths since $since_ref" >&2
+    else
+        echo "check-changed: no changed paths against ${base:-the paths of stdin}" >&2
+    fi
     exit 1
 fi
 
@@ -331,10 +347,18 @@ echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"
 echo "risk: $risk"
 if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && $needs_suite == yes ]]; then
-    echo "check-changed: the targets $targets run the full Swift suite. A slice runs make check-changed FILTER='<name> <name>'. The full suite runs only in the push check: make check-changed BASE=origin/main. A bare make test refuses too." >&2
+    if [[ -n "$since_ref" ]]; then
+        echo "check-changed: the targets $targets run the full Swift suite. Run make check-changed SINCE=$since_ref FILTER='<name> <name>' for the tests of the group. The full suite runs only in the push check. A bare make test refuses too." >&2
+    else
+        echo "check-changed: the targets $targets run the full Swift suite. A slice runs make check-changed FILTER='<name> <name>'. The full suite runs only in the push check: make check-changed BASE=origin/main. A bare make test refuses too." >&2
+    fi
     exit 1
 fi
 if [[ $mode == git && -n "${FILTER:-}" && " $targets " != *" test-filter "* ]]; then
-    echo "check-changed: FILTER is set, but the targets $targets run no test. Run make test-filter FILTER='<name> <name>' for the tests, or run make check-changed with no FILTER for these targets." >&2
+    if [[ -n "$since_ref" ]]; then
+        echo "check-changed: FILTER is set, but the targets $targets run no test. Run make test-filter FILTER='<name> <name>' for the tests, or run make check-changed SINCE=$since_ref with no FILTER for these targets." >&2
+    else
+        echo "check-changed: FILTER is set, but the targets $targets run no test. Run make test-filter FILTER='<name> <name>' for the tests, or run make check-changed with no FILTER for these targets." >&2
+    fi
     exit 1
 fi

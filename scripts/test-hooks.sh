@@ -4,8 +4,11 @@
 #   Only the test-hooks recipe of the Makefile calls it, with the HOOK_TESTS list. An argument can
 #   hold several tests joined with commas: scripts/check-changed.sh gives make one HOOK_TESTS word
 #   for the tests of the changed paths, and make passes that word as one argument. Each part is a
-#   test. A list of some of the tests gets no stamp. The script unsets SINCE (make check-changed
-#   SINCE=<ref> puts it in the environment of each recipe), so no hook test reads that ref.
+#   test. A list of some of the tests gets no stamp. Before the first test, the script unsets BASE,
+#   FILTER, SINCE, CHECK_RISK, HOOK_TESTS, MAKEFLAGS, MFLAGS, MAKELEVEL, GIT_DIR, GIT_INDEX_FILE,
+#   GIT_WORK_TREE, and each variable that starts with WITH_LOCK_ or DIRIGIBLE_ (make and the
+#   caller put them in the environment of each recipe), so no hook test reads the context of its
+#   caller. PATH and HOME stay. A test that needs one of them sets it itself.
 # The key is the tree of the work tree with no Sources/, Tests/, docs/, or README.md, plus the
 # existence of each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool
 # versions, and the date: a pass is good for one day. The tree is HEAD with the changes of a dirty
@@ -27,7 +30,6 @@
 # last 40 lines of its output.
 # scripts/test-hooks.test.sh tests it.
 set -uo pipefail
-unset SINCE
 cd "$(git rev-parse --show-toplevel)" || exit 1
 common="$(git rev-parse --path-format=absolute --git-common-dir)" || exit 1
 stamp="$common/dirigible-hooks-stamp"
@@ -84,6 +86,9 @@ if [[ -z $reason ]] && grep -q "^$key " "$stamp" 2>/dev/null; then
     echo "test-hooks: reuse $key"
     exit 0
 fi
+# The key and the stamp are read: remove the context of the caller before the clone and the tests.
+unset BASE FILTER SINCE CHECK_RISK HOOK_TESTS MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+for v in $(compgen -v WITH_LOCK_) $(compgen -v DIRIGIBLE_); do unset "$v"; done
 # A commit of the key tree, so the checkout has a clean status.
 keycommit="$(GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t \
     git commit-tree "$tree" -m key)" || exit 1

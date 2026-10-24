@@ -136,7 +136,7 @@ package enum AgentManual {
         the tracks, clips, files, and markers. The tools take IDs, not names.
         - Times are frames: frame = seconds x sample rate, rounded. A `to` frame is the frame after the last \
         frame. `silences`, `nearest_pause`, and `meter` read audio by time.
-        - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report what it shows.
+        - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report it. Saves keep backups: `backup_list`.
         - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync. Give all \
         the ranges of a cut in one call.
         - On a package open in the app, an edit is one undo step there when Settings > Let Agents Edit Open \

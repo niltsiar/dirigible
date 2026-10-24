@@ -192,9 +192,9 @@ package enum BackupPolicy: Sendable {
     case none
 
     /// Milliseconds from the newest backup to the replaced file (600 s).
-    static let interval: Int64 = 600_000
+    package static let interval: Int64 = 600_000
     /// The backups that a prune keeps.
-    static let count = 20
+    package static let count = 20
 
     /// True when no backup is given, or when `replacing` is `interval` or more after `newest`.
     /// Both are file times, so one clock decides.

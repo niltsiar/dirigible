@@ -25,6 +25,13 @@ struct AgentManualTests {
         #expect(!Self.fitsTheClientLimits(core: text(2048), whole: text(6001)))
     }
 
+    /// The backup rule of decision 0043 is one clause in the core, which has room for it (C16).
+    @Test func theCoreNamesTheBackups() {
+        let core = AgentManual.core(pathLine: AgentManual.pathLine(quoted: Self.longPath))
+        #expect(
+            core.contains("After an edit, read `session_info` again and report it. Saves keep backups: `backup_list`."))
+    }
+
     @Test func thePathIsNamedOnce() {
         let manual = AgentManual.manual(pathLine: AgentManual.pathLine(quoted: Self.longPath))
         #expect(manual.components(separatedBy: Self.longPath).count == 2, "the path is not named once")

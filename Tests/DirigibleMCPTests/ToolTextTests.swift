@@ -1,4 +1,5 @@
 import DirigibleAudio
+import DirigibleCore
 import Testing
 
 @testable import DirigibleMCP
@@ -71,5 +72,20 @@ struct ToolTextTests {
             return
         }
         #expect(tooMany == "Too many record requests: a window takes \(rate) at most. Wait, then ask again.")
+    }
+
+    /// The backup tools give the rule of decision 0043 with the values of `BackupPolicy` (C16).
+    @Test func theBackupToolsStateTheRule() throws {
+        #expect((BackupPolicy.interval, BackupPolicy.count) == (600_000, 20), "the values of decision 0043")
+        let minutes = RecordRequest.units(BackupPolicy.interval / 60_000, "minute")
+        let rule =
+            "Dirigible keeps a backup of session.xml before a save when the newest backup is \(minutes) old or older, "
+            + "and when the window of the session closes. It keeps the \(BackupPolicy.count) newest backups."
+        for name in ["backup_list", "backup_revert"] {
+            let text = try #require(Tool.all.first { $0.name == name }).description
+            #expect(text.contains(rule), "\(text)")
+        }
+        let revert = try #require(Tool.all.first { $0.name == "backup_revert" }).description
+        #expect(revert.contains("It keeps a backup of the replaced session first."), "\(revert)")
     }
 }

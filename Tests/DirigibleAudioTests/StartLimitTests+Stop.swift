@@ -35,7 +35,8 @@ extension StartLimitTests {
 
         let (error, took) = await stop(studio) { for (uid, _) in held { hal.releaseAttach(uid) } }
         let stopHost = hostNanosNow()
-        let flake: Comment = "the stop deadline misses under suite load, cause not proven: see backlog FLAKE LINE 40"
+        let flake: Comment =
+            "quarantine: the stop deadline misses under suite load, cause not proven: see backlog FLAKE LINE 40"
         withKnownIssue(flake, isIntermittent: true) {
             #expect(
                 ["Box", "Deck"].prefix(count).contains { error == .writerDidNotStop($0) },

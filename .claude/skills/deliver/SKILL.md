@@ -12,7 +12,7 @@ One run takes one goal (a requirement, a slice, or a bug) to a merged pull reque
 - For reversible work (AGENTS.md, Git), choose a default, log it in `decisions.tsv`, and continue. Its row result starts with `default`; its why and the PR body name what reverses it (`Reverse:`). `scripts/land.sh` needs no question. A privacy prompt of the verify copy: `driving-the-app.md`.
 - A row result starts with its token when one applies: `failed` or `fail` (a check failed, not a planned red), `flake`, `survived` (a mutant), `NOT VERIFIED`, or `missed unknown`. A token wins over `default`; then start the decision with `default`. A changed criterion starts the decision with `criterion change` (`log-decision.sh` checks it).
 - When a check needs hardware you cannot drive, write a manual check in `run.md` and do the closest automated check.
-- Subagents do bulk reading and return conclusions. Start each phase, slice, and gate-fix agent as type `run-agent`, with the model of `docs/workflow/model-routing.md`. A subagent prompt names each run file that it writes as a required ledger file.
+- Subagents do bulk reading and return conclusions. Start each phase, slice, and gate-fix agent as type `run-agent`, with the model of `docs/workflow/model-routing.md`. A subagent prompt names each run file that it writes as a required ledger file. A prompt for an agent that edits `AGENTS.md`, `CODING_STANDARDS.md`, a skill, or an agent also names **writing-for-agents**.
 - Send every research request through the **research** skill. While a loop or a bench runs, each subagent prompt says so: a `swift` ban alone is not enough.
 - Each backlog write names its status (`scripts/wiki.py add <status> --from <file>`, the file written with the Write tool): `next` for a user request or a next-run item, `later` for a "Consider" item and all other deferred work.
 - Before you fake or detect a failure of an external tool, probe it (exit status, stderr, files). Record each result in its `## Unknowns` row. The fake copies each result. Guard on the status and files. For a status with several causes, make your call print a marker text, and guard on that.
@@ -23,14 +23,14 @@ One run takes one goal (a requirement, a slice, or a bug) to a merged pull reque
 2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume one on its branch: read its `run.md` and `decisions.tsv`; compare its handoff with the git output, the last commit, and the PR state; log each difference; continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
 3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug> <type>`.
 4. Run `make check` on `main` only when `main` has commits no run landed. If it is red, the fix is the goal.
-5. Before any file change, create the branch `<type>/<slug>` and write it in `run.md`. Every commit of the run goes on it. A run with several landings adds a `- Branch:` line to `run.md` when each next landing starts: `scripts/check-eval-keys.sh` reads the last line.
+5. Before any file change, create the branch `<type>/<slug>` and write it in `run.md`. Every commit of the run goes on it. A run with several landings adds a `- Branch:` line to `run.md` when each next landing starts: `scripts/check-eval-keys.sh` and `scripts/check-governance.sh` read the last line.
 
 ## Phase 1: Analyze
 
 Write `analysis.md`:
 
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO (the base) and other editors behave, with sources.
-- Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value.
+- Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. For each threshold, write one passing value and one failing value. Before the plan gate, run each criterion command that must print nothing at the base, with a glob that leaves out the tests that assert the absence, and write each hit that stays; run each planned grader once on a known-red input.
 - The `## Unknowns` table (columns: `scripts/check-plan.sh`). The resolver is `code`, `probe`, `research`, `prototype`, `default`, or `user` (only for an irreversible step or a product choice with no reference behavior, and the run continues on a logged default). A question that is not sharp yet gets `split` and child rows. Resolve first the rows whose parent has an answer. A look-and-feel unknown gets `prototype` before the plan gate: a screenshot of a throwaway build in the probe sandbox, judged against the reference app.
 - An untried limit is a guess. Probe a platform or tool limit before it moves a default from the reference behavior, turns a check manual, or weakens a criterion, under its original conditions (a test probe runs in the test runner). Before the plan gate, check each numeric plan rule (a curve, a threshold, a time rule) with a probe or a worked fixture. Replay a new check on past inputs. Log each probe and replay.
 - What is out of scope, as items with status later (`scripts/wiki.py add later --from <file>`).
@@ -53,7 +53,7 @@ Write `plan.md`:
 
 | Run | Plan gate and code gate |
 |---|---|
-| Small (`risk: no`) | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering`; tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
+| Small (`risk: no`) | One subagent runs Phases 1-2 and returns the plan path. The lead runs the plan gate. One subagent runs Phase 4 and returns the commit range and the gate inputs. The lead runs the code gate. Each gate: 1 round of at most two class lenses (docs, comments: one doc lens such as `harness-engineering` (a workflow upkeep run: the doc lenses, reflect step 4); tooling: `premortem`; sources: `architecture`; others: `devils-advocate`). Each Act-on item gets the fix check, critical or not. |
 | `risk: yes` | Step 3 of the **interrogate** skill picks the lenses. |
 
 - The red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. `docs/decisions/0028-proportional-checks-and-reflect-governance.md` says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.

@@ -125,7 +125,7 @@ missed unknowns: 1
 critical findings: 4
 friction: 9
 window: 2026-09-20T08:20 to 2026-09-20T11:30
-lock: no Worktree line in run.md
+lock: no tree for the Branch or Worktree line of run.md
 agents: 3
 workflows: 1
 idle: 12 min in 1 gaps over 5 min
@@ -315,6 +315,62 @@ printf '2026-09-20T08:30:00\t1800\tmake test\t%s\n2026-09-20T08:40:00\t300\tmake
   "$mine" "$mine" > "$tmp/tree/.git/dirigible-build-holds.log"
 out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$lockrun" 2>&1)" || fail "lock minutes: exit $?: $out"
 grep -qxF 'lock: 10 min wait, 30 min hold' <<<"$out" || fail "lock minutes: $(grep -E '^lock|awk|error' <<<"$out")"
+
+# The lock line also reads the worktree of each `- Branch:` line (its first word, backticks removed;
+# a note can follow the name) and each `- Worktree:` line, and sums the seconds of all trees before
+# it divides by 60. A tree that two lines name counts once. A run with no tree prints one line.
+# lock_repo <name> [<branch>...]: a repo with one commit and a worktree for each branch; the tops
+# of the trees are in $lock_trees.
+lock_repo() {
+  local name="$1" b
+  shift
+  mkdir -p "$tmp/$name"
+  git -C "$tmp/$name" init -q
+  git -C "$tmp/$name" commit -q --allow-empty -m init
+  lock_trees=()
+  for b in "$@"; do
+    git -C "$tmp/$name" worktree add -q -b "$b" "$tmp/$name-${b##*/}"
+    lock_trees+=("$(git -C "$tmp/$name-${b##*/}" rev-parse --show-toplevel)")
+  done
+}
+# lock_lines <repo> <tree> <wait s> <hold s>: a wait line and a hold line of the tree, in the window.
+lock_lines() {
+  printf '2026-09-20T08:10:00\t%s\tmake test\tmake test\t%s\n' "$3" "$2" >> "$tmp/$1/.git/dirigible-build-waits.log"
+  printf '2026-09-20T08:30:00\t%s\tmake test\t%s\n' "$4" "$2" >> "$tmp/$1/.git/dirigible-build-holds.log"
+}
+# lock_is <repo> <run.md text> <want>: cost.sh of a run folder in the repo prints the lock line <want>.
+lock_n=0
+lock_is() {
+  local d out
+  lock_n=$((lock_n + 1)) d="$tmp/$1/.scratchpads/runs/2026-09-20-lock-$lock_n"
+  mkdir -p "$d"
+  printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-09-20T08:00\t4\ta\tw\te\tdone\n2026-09-20T09:00\t4\tb\tw\te\tdone\n' > "$d/decisions.tsv"
+  printf '%s\n' "$2" > "$d/run.md"
+  out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$d" 2>&1)" || fail "lock line of [$2]: exit $?: $out"
+  [[ "$(grep '^lock:' <<<"$out")" == "$3" ]] || fail "lock line of [$2]: want [$3]: $(grep -E '^lock|error' <<<"$out")"
+}
+lock_repo lk-a feat/lk-a
+lock_lines lk-a "${lock_trees[0]}" 600 1800
+lock_lines lk-a /other/tree 1200 300
+printf '2026-09-20T07:00:00\t3600\tmake test\tmake test\t%s\n' "${lock_trees[0]}" >> "$tmp/lk-a/.git/dirigible-build-waits.log"
+lock_is lk-a '- Branch: feat/lk-a (from origin/main abc1234)' 'lock: 10 min wait, 30 min hold'
+lock_is lk-a '- Branch: `feat/lk-a`, worktree ../x' 'lock: 10 min wait, 30 min hold'
+lock_is lk-a "$(printf -- '- Branch: feat/lk-a\n- Worktree: %s' "${lock_trees[0]}")" 'lock: 10 min wait, 30 min hold'
+# Two trees give the sum of both: 50 s each is 1 min in all, and 0 min if each tree is divided first.
+lock_repo lk-b feat/lk-b
+lock_lines lk-b "${lock_trees[0]}" 50 50
+lock_repo lk-c feat/lk-c  # lk-b names this tree in a Worktree line
+lock_lines lk-c "${lock_trees[0]}" 50 50
+lock_is lk-b "$(printf -- '- Branch: feat/lk-b\n- Worktree: %s' "${lock_trees[0]}")" 'lock: 1 min wait, 1 min hold'
+lock_repo lk-d feat/lk-d1 feat/lk-d2
+lock_lines lk-d "${lock_trees[0]}" 50 50
+lock_lines lk-d "${lock_trees[1]}" 50 50
+lock_is lk-d "$(printf -- '- Branch: feat/lk-d1\n- Branch: feat/lk-d2')" 'lock: 1 min wait, 1 min hold'
+lock_repo lk-e feat/lk-e
+# No tree: a Branch that no worktree holds, and a run.md with neither line.
+no_tree='lock: no tree for the Branch or Worktree line of run.md'
+lock_is lk-e '- Branch: feat/no-such-branch' "$no_tree"
+lock_is lk-e '- Goal: x' "$no_tree"
 
 # The tokens: each reply once by message.id and requestId (a reply line can repeat), each
 # usage.iterations entry under its own model (an advisor_message names the advisor model), the cache

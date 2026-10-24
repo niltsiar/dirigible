@@ -42,9 +42,12 @@
 #   each), the commands that ran more than once (the 3 most), and its gaps over 5 min. The other
 #   files are unattributed.
 # - lock: the minutes of wait and of hold in the lock logs (dirigible-build-waits.log and
-#   dirigible-build-holds.log of the git common dir) for the tree of the `- Worktree:` line of
-#   run.md (a relative path starts at the checkout that holds the run folder), for the lines that
-#   start in the window. A line of another tree, and a wait line of 4 columns (no tree), do not count.
+#   dirigible-build-holds.log of the git common dir of each tree) for the lines that start in the
+#   window. The trees are the worktree of each `- Branch:` line of run.md (the first word of the
+#   line, backticks removed) and each `- Worktree:` line (a relative path starts at the checkout
+#   that holds the run folder). A tree that two lines name counts once, and the seconds of all trees
+#   add up before the division by 60. A line of another tree, and a wait line of 4 columns (no
+#   tree), do not count. With no tree the line says so.
 # - tokens: one line for each model, `tokens: <model> in <i> out <o> cache-read <r>
 #   cache-write-5m <w5> cache-write-1h <w1>`, for the replies of the transcript in the window and
 #   of the attributed subagents. Each reply counts once by message.id and requestId, and each
@@ -139,24 +142,35 @@ else
     from="$(stat -f %B "$run")" to="$(date +%s)"
 fi
 echo "window: ${first:-$open} to ${last:-now}"
-# The lock minutes of the run tree: the logs hold local ISO times and the tree of each call.
-worktree="$(sed -n 's/^- Worktree: \([^ ]*\).*/\1/p' "$run/run.md" 2>/dev/null | head -n 1 || true)"
-if [[ -z "$worktree" ]]; then
-    echo "lock: no Worktree line in run.md"
+# The lock minutes of the trees of the run: the worktree of each `- Branch:` line and each
+# `- Worktree:` line. The logs hold local ISO times and the tree of each call.
+checkout="$(git -C "$run" rev-parse --show-toplevel 2>/dev/null || echo "$run")"
+worktrees="$(git -C "$run" worktree list --porcelain 2>/dev/null || true)"
+candidates="$(sed -n 's/^- Worktree: *\([^ ]*\).*/\1/p' "$run/run.md" 2>/dev/null || true)"
+while IFS= read -r b; do
+    [[ -n "$b" ]] || continue
+    candidates+=$'\n'"$(awk -v ref="refs/heads/$b" '/^worktree /{ p = substr($0, 10) } $1 == "branch" && $2 == ref { print p; exit }' <<<"$worktrees")"
+done < <(sed -n 's/^- Branch: *//p' "$run/run.md" 2>/dev/null | sed -E 's/[ ,].*$//; s/`//g')
+lock_wait=0 lock_hold=0 counted=""
+while IFS= read -r w; do
+    [[ -n "$w" ]] || continue
+    [[ "$w" == /* ]] || w="$checkout/$w"
+    tree="$(git -C "$w" rev-parse --show-toplevel 2>/dev/null)" || continue
+    common="$(git -C "$w" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
+    ! grep -qxF -- "$tree" <<<"$counted" || continue
+    counted+="$tree"$'\n'
+    # lock_sec <log> <tree column>: the seconds of the lines of this tree that start in the window.
+    lock_sec() {
+        awk -F'\t' -v tree="$tree" -v col="$2" -v from="$(date -r "$from" +%FT%T)" -v to="$(date -r "$to" +%FT%T)" \
+            '$1 >= from && $1 <= to && $col == tree { sum += $2 } END { printf "%d", sum }' "$1" 2>/dev/null || printf 0
+    }
+    lock_wait=$((lock_wait + $(lock_sec "$common/dirigible-build-waits.log" 5)))
+    lock_hold=$((lock_hold + $(lock_sec "$common/dirigible-build-holds.log" 4)))
+done <<<"$candidates"
+if [[ -z "$counted" ]]; then
+    echo "lock: no tree for the Branch or Worktree line of run.md"
 else
-    [[ "$worktree" == /* ]] || worktree="$(git -C "$run" rev-parse --show-toplevel 2>/dev/null || echo "$run")/$worktree"
-    tree="$(git -C "$worktree" rev-parse --show-toplevel 2>/dev/null || true)"
-    common="$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-    if [[ -z "$tree" || -z "$common" ]]; then
-        echo "lock: no git tree at the Worktree line of run.md"
-    else
-        # lock_min <log> <tree column>: the minutes of the lines of this tree that start in the window.
-        lock_min() {
-            awk -F'\t' -v tree="$tree" -v col="$2" -v from="$(date -r "$from" +%FT%T)" -v to="$(date -r "$to" +%FT%T)" \
-                '$1 >= from && $1 <= to && $col == tree { sum += $2 } END { printf "%d", sum / 60 }' "$1" 2>/dev/null || printf 0
-        }
-        echo "lock: $(lock_min "$common/dirigible-build-waits.log" 5) min wait, $(lock_min "$common/dirigible-build-holds.log" 4) min hold"
-    fi
+    echo "lock: $((lock_wait / 60)) min wait, $((lock_hold / 60)) min hold"
 fi
 if [[ -n "$transcript" && -f "$transcript" ]]; then
     jq -r --argjson from "$from" --argjson to "$to" 'select(.timestamp) |

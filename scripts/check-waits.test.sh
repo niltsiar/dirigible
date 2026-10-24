@@ -40,5 +40,15 @@ expect fail 'an allow entry for a file with no raw wait' 'Tests/B/b.swift: an al
 tree; allow 'Tests/B/gone.swift\tthe wait of the test\n'
 expect fail 'an allow entry for a missing file' 'Tests/B/gone.swift: an allow entry for a file with no raw wait'
 
+quarantine() { printf '    withKnownIssue(%s, isIntermittent: true) {\n' "$1" > "$tmp/$2"; }
+tree; quarantine '"quarantine: the stop misses"' Tests/B/b.swift
+expect fail 'a quarantine marker with no FLAKE word' 'Tests/B/b.swift:1: a "quarantine: marker with no FLAKE word'
+tree; quarantine '"quarantine: the stop misses, see backlog FLAKE LINE 40"' Tests/B/b.swift
+expect pass 'a quarantine marker with a FLAKE word'
+tree; quarantine '"quarantine: the stop misses"' Sources/A/a.swift; expect pass 'a quarantine marker outside Tests/'
+tree; quarantine '"quarantine: the stop misses"' Tests/B/b.txt; expect pass 'a quarantine marker in a file that is not Swift'
+tree; quarantine '"quarantine: the stop misses, FLAKEY"' Tests/B/b.swift
+expect fail 'a word that only starts with FLAKE' 'Tests/B/b.swift:1: a "quarantine: marker with no FLAKE word'
+
 [[ $failures -eq 0 ]] && echo "check-waits tests: all passed"
 exit $((failures > 0))

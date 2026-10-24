@@ -25,3 +25,11 @@ In this order:
 - The proof of a flake fix is a mutation that reproduces the exact failure value of the flake: red on the old code, green on the new code. A saturated value (silence, a guard that fired) comes from every cause that trips the same guard.
 - Then show a threshold: fill the suspected resource on purpose (as many holders as the pool is wide, held past the limit), and stay green one step under it (one holder fewer, or a shorter hold). The test and the test runner need that resource too, so prove the hold with a measurement after it (the time past the limit), not with a wait or an assert during it.
 - Commit a flake fix only after the failing command passes as many times in a row as it took to expose the failure. That loop is a regression check, not a proof, and a process sample that shows the holder gone is not a proof either.
+
+## Time box
+
+- A flake hunt stops after 2 h of agent time. Count the time across all agents of the hunt: an agent stops at 90 active minutes (`.claude/hooks/agent-clock.sh`) and hands off, and the next agent adds its time to the count.
+- At the limit, quarantine the flaky assert with `withKnownIssue("quarantine: <reason>, FLAKE <title>", isIntermittent: true)`. Use `.disabled("quarantine: <reason>, FLAKE <title>")` only when each assert of the test is flaky. The other asserts of the test stay on.
+- Add a FLAKE item with status next that names the test, the run, and the triage. `scripts/check-waits.sh` refuses a `"quarantine:` line under `Tests/` with no FLAKE word. `rg '"quarantine:'` lists the quarantines.
+- Name the defect class of the quarantined assert and the test that still finds it. `isIntermittent: true` also passes when the assert fails on every run, so the FLAKE item alone is not a check.
+- An assert that guards the No data loss rule or the Real-time thread rule (`AGENTS.md`) needs a deterministic test of the same behavior that still runs. Name it in the marker: `still checked by <test name>`. With no such test, do not quarantine: the hunt goes to the user as an item with status next.

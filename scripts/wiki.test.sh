@@ -908,6 +908,22 @@ printf 'note\n' > "$DIRIGIBLE_WIKI/wiki/.obsidian-note.md"
 put_item "$tmp/ob3.txt" "Obsidian item three" "Description of the third item" "body"
 run "$script" add next --from "$tmp/ob3.txt"; want_rc 1 "obsidian: add with a file named .obsidian-note.md"
 want_out ".obsidian-note.md" "obsidian: the refusal names the note"
+# git quotes a path with a space in the porcelain status: a quoted path in an .obsidian folder is skipped too.
+newwiki obs4
+g -C "$DIRIGIBLE_WIKI" rm -q .gitignore >/dev/null 2>&1
+mkdir -p "$DIRIGIBLE_WIKI/.obsidian"
+printf '{}\n' > "$DIRIGIBLE_WIKI/.obsidian/app.json"
+g -C "$DIRIGIBLE_WIKI" add .obsidian >/dev/null 2>&1
+g -C "$DIRIGIBLE_WIKI" commit -q -m "track a file of the folder" >/dev/null 2>&1
+printf '{}\n' > "$DIRIGIBLE_WIKI/.obsidian/my file.json"
+[[ "$(status_of)" == *'"'* ]] || fail "obsidian: the fixture path is not quoted: $(status_of)"
+put_item "$tmp/ob4.txt" "Obsidian item five" "Description of the fifth item" "body"
+run "$script" add next --from "$tmp/ob4.txt"; want_rc 0 "obsidian: add with a quoted path in the folder"
+# The lint reads the pages of the wiki, not the notes of the Obsidian folder.
+newwiki obs5
+mkdir -p "$DIRIGIBLE_WIKI/wiki/.obsidian"
+printf 'a note with no front matter\n' > "$DIRIGIBLE_WIKI/wiki/.obsidian/note.md"
+run "$script" lint; want_rc 0 "obsidian: lint with a note in the folder"
 
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"

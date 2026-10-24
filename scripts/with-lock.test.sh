@@ -499,6 +499,15 @@ rm -rf "$lock"
 rm -f "$tmp/order"
 DIRIGIBLE_LOCKED_SCRIPT="$fake/make" capcall "$repo" "$fake/make" test
 [[ $code -eq 0 && -s "$tmp/order" ]] || fail "cap, marker call: exit $code: $out"
+# A release call fills no slot: a make dmg hold line of a third tree and one other builder leave
+# the cap open, so an ordinary call takes the lock.
+reset_builders
+rm -f "$tmp/order" "$tmp/ran"
+capcall "$tc" "$fake/make" dmg
+[[ $code -eq 0 && "$(tail -n 1 "$holds" | awk -F'\t' '{ print $6 }')" == nocap ]] || fail "cap, make dmg hold line: exit $code [$(tail -n 1 "$holds")]: $out"
+holdline 5 "$ta"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, make dmg hold line and one other tree: exit $code: $out"
 # A line ages out after the call starts to wait: the call takes the lock.
 reset_builders
 printf '%s\t0\tmake test\t%s\n' "$(date -r $(($(date +%s) - 30)) +%FT%T)" "$ta" >> "$holds"

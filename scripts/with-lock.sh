@@ -33,7 +33,8 @@
 # ages out. A release call, a nested call, and a DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so
 # does WITH_LOCK_NO_CAP=1 (a read-only scan, long-runs.md): it waits for the lock as any call, takes
 # no slot, and ends its wait and hold lines with the column nocap (the hold line has an empty
-# fifth column unless it has limit). cost.sh counts those minutes.
+# fifth column unless it has limit). A release call also ends its lines with nocap, so a make dmg
+# or a land never fills a slot of the cap. cost.sh counts those minutes.
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
@@ -156,6 +157,7 @@ max="${WITH_LOCK_MAX_WAIT:-120}"
 max=$((10#$max))
 long="" uncapped="" nocap=""
 if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 uncapped=1; fi
+! release_call "$@" || nocap=1
 [[ "${WITH_LOCK_NO_CAP:-}" != 1 ]] || nocap=1 uncapped=1
 [[ $max -ne 0 ]] || long=1
 maxhold="${WITH_LOCK_MAX_HOLD:-}"

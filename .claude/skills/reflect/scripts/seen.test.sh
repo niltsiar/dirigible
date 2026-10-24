@@ -1,6 +1,7 @@
 #!/bin/bash
 # Check that seen.sh prints each line of a lesson page or an item page of the wiki that holds a
-# cause key, with its page and line number, from any folder; skips the front matter of a page;
+# cause key, with its page and line number, from any folder; skips the front matter of a page, except
+# the title line of an item whose body has no line with the key;
 # prints nothing and exits 0 for a key with no match; does not match a longer key; exits 2 for a
 # class that is not on the `Failure classes:` line of synthesizer.md, or for a key that is not
 # <prefix>-<nnn>/<class> or NEW-<prefix>-<slug>/<class>; and exits 1 with the wiki path,
@@ -35,6 +36,8 @@ lesson XDLV-016/hook '- 2026-09-03 seen-once run-c XDLV-016/hook: a longer key.'
 item 'Upkeep DLV-016/hook' 'a queued item' \
   '- upkeep DLV-016/hook: a queued item (earlier: lessons/DLV-016--hook.md:6).' \
   '- upkeep DLV-016/hooks: another class.'
+# The backlog import form: the key is only in the title.
+item 'Upkeep DLV-050/hook: a queued item' 'the body has no key' '- a body line.'
 
 run() { (cd "${SEEN_CWD:-$tmp}" && "$seen" "$@"); }
 
@@ -45,6 +48,10 @@ want=$'lessons/DLV-016--hook.md:6:- 2026-09-01 seen-once run-a DLV-016/hook: the
 # The wiki is the same from each folder.
 out="$(SEEN_CWD="$here" run DLV-016/hook)"; code=$?
 [[ $code -eq 0 && "$out" == "$want" ]] || fail "other folder: exit $code, output: $out"
+
+# A key only in the title of an item prints the title line; a key in the title and the body prints the body lines only.
+out="$(run DLV-050/hook)"; code=$?
+[[ $code -eq 0 && "$out" == 'items/0002.md:3:title: "Upkeep DLV-050/hook: a queued item"' ]] || fail "title only: exit $code, output: $out"
 
 out="$(run NEW-DLV-probe/probe)"; code=$?
 [[ $code -eq 0 && -z "$out" ]] || fail "no match: exit $code, output: $out"

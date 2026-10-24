@@ -151,6 +151,11 @@ while IFS= read -r b; do
     [[ -n "$b" ]] || continue
     candidates+=$'\n'"$(awk -v ref="refs/heads/$b" '/^worktree /{ p = substr($0, 10) } $1 == "branch" && $2 == ref { print p; exit }' <<<"$worktrees")"
 done < <(sed -n 's/^- Branch: *//p' "$run/run.md" 2>/dev/null | sed -E 's/[ ,].*$//; s/`//g')
+# lock_sec <log> <tree column>: the seconds of the lines of $tree that start in the window.
+lock_sec() {
+    awk -F'\t' -v tree="$tree" -v col="$2" -v from="$(date -r "$from" +%FT%T)" -v to="$(date -r "$to" +%FT%T)" \
+        '$1 >= from && $1 <= to && $col == tree { sum += $2 } END { printf "%d", sum }' "$1" 2>/dev/null || printf 0
+}
 lock_wait=0 lock_hold=0 counted=""
 while IFS= read -r w; do
     [[ -n "$w" ]] || continue
@@ -159,11 +164,6 @@ while IFS= read -r w; do
     common="$(git -C "$w" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
     ! grep -qxF -- "$tree" <<<"$counted" || continue
     counted+="$tree"$'\n'
-    # lock_sec <log> <tree column>: the seconds of the lines of this tree that start in the window.
-    lock_sec() {
-        awk -F'\t' -v tree="$tree" -v col="$2" -v from="$(date -r "$from" +%FT%T)" -v to="$(date -r "$to" +%FT%T)" \
-            '$1 >= from && $1 <= to && $col == tree { sum += $2 } END { printf "%d", sum }' "$1" 2>/dev/null || printf 0
-    }
     lock_wait=$((lock_wait + $(lock_sec "$common/dirigible-build-waits.log" 5)))
     lock_hold=$((lock_hold + $(lock_sec "$common/dirigible-build-holds.log" 4)))
 done <<<"$candidates"

@@ -13,10 +13,13 @@
 # - benches: the logs/ files with a `bench:` or `scripts/bench.sh` line; the pairs sets (folders
 #   with a load.txt); repeated: a `bench:` line on a clean tree with an earlier commit and filter.
 # - controls: the logs at the top of controls/.
-# - late on-screen: the phase 7 rows with NOT VERIFIED and "on screen" or "on-screen".
+# - late on-screen: the phase 7 rows whose result starts with NOT VERIFIED (after an optional
+#   criterion ID, as for friction) and that say "on screen" or "on-screen".
 # - missed unknowns: the rows whose result starts with "missed unknown", in any case.
-# - critical findings: the lines of a review-*.md at the top of the run folder with critical in a
-#   parenthesis, in any case. Not an Intent, Panel, Source, or Sources line, not an indented line
+# - critical findings: the lines of a review-*.md at the top of the run folder whose tag has
+#   critical, in any case. The tag is the parenthesis after the item number or ID (`1. (`, `G1 (`);
+#   a tag with `critical: no` does not count, and a later parenthesis does not change the count.
+#   Not an Intent, Panel, Source, or Sources line, not an indented line
 #   (a Fix sub-bullet that quotes the format), and not a line under a ## or ### heading other than
 #   Act on or Act-on, in any case. A deeper heading (### G1 under ## Act on) does not change the
 #   section. A line under no section heading counts (a flat list).
@@ -109,12 +112,20 @@ critical="$(find "$run" -maxdepth 1 -name 'review-*.md' -type f -exec awk '
         level = index($0, " ") - 1
         if (!section || level <= section) { keep = (tolower($0) ~ /^#+ act[- ]on/); section = level; next }
     }
-    keep && !/^[ \t]/ && tolower($0) ~ /\([^)]*critical/ && !/^(- )?(\*\*)?(Intent|Panel|Sources?):/ { n++ }
+    keep && !/^[ \t]/ && !/^(- )?(\*\*)?(Intent|Panel|Sources?):/ {
+        s = tolower($0)
+        if (match(s, /^(#+ +)?(- +|\| +)?(\*\*)?([0-9]+\. +)?(\*\*)?([a-z]+[0-9]+[a-z]? +)?\(/)) {
+            tag = substr(s, RLENGTH + 1)
+            sub(/\).*/, "", tag)
+            if (tag ~ /critical/ && tag !~ /critical: no/) n++
+        }
+    }
     END { print n + 0 }' {} \; | awk '{ n += $1 } END { print n + 0 }')"
 awk -F'\t' -v critical="$critical" '
     function token(s) { return tolower(s) ~ /^([a-z]+[0-9]+[a-z]? (\([a-z]\) )?)?(not verified|survived|flake|failed|fail|missed unknown)([^a-z]|$)/ }
+    function not_verified(s) { return tolower(s) ~ /^([a-z]+[0-9]+[a-z]? (\([a-z]\) )?)?not verified([^a-z]|$)/ }
     NR == 1 { next }
-    $2 == "7" && /NOT VERIFIED/ && tolower($0) ~ /on screen|on-screen/ { late++ }
+    $2 == "7" && not_verified($6) && tolower($0) ~ /on screen|on-screen/ { late++ }
     tolower($6) ~ /^missed unknown/ { missed++ }
     token($6) { friction++ }
     END { printf "late on-screen: %d\nmissed unknowns: %d\ncritical findings: %d\nfriction: %d\n", late, missed, critical, friction + critical }' "$run/decisions.tsv"

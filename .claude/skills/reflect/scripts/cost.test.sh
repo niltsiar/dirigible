@@ -210,6 +210,43 @@ for line in 'checks: no logs folder' 'benches: no logs folder, 0 pairs sets' 'co
 done
 grep -q '^pace: merges per day ' <<<"$out" || fail "no logs and no controls: no pace line: $out"
 
+# The label decides. A phase 7 row is late on-screen when its result starts with NOT VERIFIED (after
+# an optional criterion ID) and the row says on screen; a decision that only lists the word does not
+# count. A review item is critical by its tag, the parenthesis after the number or ID, for the count
+# and the skip: `critical: no` in the tag is no finding, and a later parenthesis changes nothing.
+# label_run <phase> <decision> <result> [<review line under Act on>]: the cost.sh output of a new run.
+label_n=0
+label_run() {
+  local d
+  label_n=$((label_n + 1)) d="$tmp/2026-09-20-label-$label_n"
+  mkdir -p "$d"
+  printf 'ts\tphase\tdecision\twhy\tevidence\tresult\n2026-09-20T08:31\t%s\t%s\tw\te\t%s\n' "$1" "$2" "$3" > "$d/decisions.tsv"
+  [[ -z "${4:-}" ]] || printf '# Plan gate round 1\n\n## Act on\n\n%s\n' "$4" > "$d/review-plan-1.md"
+  touch -t 202609200800 "$d"
+  (cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$d" 2>&1)
+}
+late_is() {
+  local want="$1" out
+  out="$(label_run "$2" "$3" "$4")"
+  grep -qxF "late on-screen: $want" <<<"$out" || fail "late on-screen of ($2) $3 / $4: want $want: $(grep '^late' <<<"$out")"
+}
+late_is 0 7 'C1 on screen: none NOT VERIFIED or INCONCLUSIVE' 'VERIFIED'
+late_is 1 7 'C1 on screen: none NOT VERIFIED or INCONCLUSIVE' 'NOT VERIFIED; back to Phase 4'
+late_is 1 7 'C1 on-screen check' 'C1 NOT VERIFIED'
+late_is 0 4 'C1 on screen: none NOT VERIFIED or INCONCLUSIVE' 'NOT VERIFIED; back to Phase 4'
+crit_is() {
+  local want="$1" out
+  out="$(label_run 4 x done "$2")"
+  grep -qxF "critical findings: $want" <<<"$out" || fail "critical findings of [$2]: want $want: $(grep '^critical' <<<"$out")"
+}
+crit_is 0 'G1 (warning, premortem; critical: no) A label that says critical: no.'
+crit_is 1 'G2 (critical, premortem) A critical item.'
+crit_is 1 'G3 (critical, premortem) The text quotes critical: no.'
+crit_is 0 'G4 (warning, premortem) The text quotes (critical, x).'
+crit_is 1 '1. (critical, premortem and harness) A numbered item.'
+crit_is 1 '1. **(critical, premortem) A numbered item in bold.**'
+crit_is 1 '| G5 (critical) | premortem | A table row. |'
+
 # A block whose first row comes over 30 min after its start (a wait before the work) gets a
 # suffix; 30 min gets none. A bench log with a load wait line counts as a bench, not as a check. The
 # delta check of land.sh (a `stamp: delta` line) counts as a check.

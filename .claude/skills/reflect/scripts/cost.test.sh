@@ -366,6 +366,13 @@ lock_repo lk-d feat/lk-d1 feat/lk-d2
 lock_lines lk-d "${lock_trees[0]}" 50 50
 lock_lines lk-d "${lock_trees[1]}" 50 50
 lock_is lk-d "$(printf -- '- Branch: feat/lk-d1\n- Branch: feat/lk-d2')" 'lock: 1 min wait, 1 min hold'
+# A call with WITH_LOCK_NO_CAP=1 ends its wait and hold lines with the column nocap (the hold line has
+# an empty fifth column): the minutes count as for any call.
+lock_repo lk-f feat/lk-f
+lock_lines lk-f "${lock_trees[0]}" 600 1800
+printf '2026-09-20T08:20:00\t300\ttouch x\tmake test\t%s\tnocap\n' "${lock_trees[0]}" >> "$tmp/lk-f/.git/dirigible-build-waits.log"
+printf '2026-09-20T08:40:00\t600\ttouch x\t%s\t\tnocap\n' "${lock_trees[0]}" >> "$tmp/lk-f/.git/dirigible-build-holds.log"
+lock_is lk-f '- Branch: feat/lk-f' 'lock: 15 min wait, 40 min hold'
 lock_repo lk-e feat/lk-e
 # No tree: a Branch that no worktree holds, and a run.md with neither line.
 no_tree='lock: no tree for the Branch or Worktree line of run.md'

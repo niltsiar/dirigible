@@ -24,7 +24,16 @@
 # tree until it takes the lock or ends. scripts/with-lock.sh --builders prints each tree with a wait
 # or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60), the tree of the
 # live holder, and each live waiter, one per line. A marker of a dead pid is ignored and removed.
-# A wait with 2 or more other trees in that list prints their count: the cap of long-runs.md.
+# A wait with 2 or more other trees in that list prints their count.
+# The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
+# counts the tree of the live holder and the trees of the hold lines in the same window (not a
+# waiter, its own tree, a line or a holder of a call with WITH_LOCK_NO_CAP=1, or a path that is not
+# a folder). It waits as for a held lock, with the same retry, wait limit, and exit 75, and prints
+# once "the cap is 2 building trees" with the trees and the minutes until the oldest hold line
+# ages out. A release call, a nested call, and a DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so
+# does WITH_LOCK_NO_CAP=1 (a read-only scan, long-runs.md): it waits for the lock as any call, takes
+# no slot, and ends its wait and hold lines with the column nocap (the hold line has an empty
+# fifth column unless it has limit). cost.sh counts those minutes.
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
@@ -60,19 +69,21 @@ told="" start="$(date +%s)" held=""
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
 waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-60}"
+# The awk function ep reads a local ISO time as UTC, to add the seconds of a log line.
+ep_awk='
+    function ep(s, y, mo) {
+        y = substr(s, 1, 4) + 0; mo = substr(s, 6, 2) + 0
+        if (mo < 3) { y--; mo += 12 }
+        return (365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * mo - 457) / 5) + substr(s, 9, 2)) * 86400 + substr(s, 12, 2) * 3600 + substr(s, 15, 2) * 60 + substr(s, 18, 2)
+    }'
 # builders: the trees of the wait and hold lines that ended in the last $min minutes, of the live
-# holder, and of each live waiter, one per line. awk reads the ISO times as UTC to add the seconds.
+# holder, and of each live waiter, one per line.
 builders() {
     local cutoff m c
     cutoff="$(date -r $(($(date +%s) - min * 60)) +%FT%T)"
     {
         for m in "$waits:5" "$holds:4"; do
-            awk -F'\t' -v cutoff="$cutoff" -v col="${m##*:}" '
-                function ep(s, y, mo) {
-                    y = substr(s, 1, 4) + 0; mo = substr(s, 6, 2) + 0
-                    if (mo < 3) { y--; mo += 12 }
-                    return (365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * mo - 457) / 5) + substr(s, 9, 2)) * 86400 + substr(s, 12, 2) * 3600 + substr(s, 15, 2) * 60 + substr(s, 18, 2)
-                }
+            awk -F'\t' -v cutoff="$cutoff" -v col="${m##*:}" "$ep_awk"'
                 $col != "" && ep($1) + $2 >= ep(cutoff) { print $col }' "${m%:*}" 2>/dev/null
         done
         m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
@@ -82,6 +93,29 @@ builders() {
             if alive "${m##*/}"; then cat "$m"; else rm -f "$m"; fi
         done
     } | awk 'NF && !seen[$0]++' | sort
+}
+# capped: succeeds when 2 or more other trees build (the cap), and sets cap_line. The live holder
+# comes first, then the trees of the hold lines in the order in which they age out.
+capped() {
+    local cutoff m c t secs trees="" soon="" aged="" live="" n=0 input
+    cutoff="$(date -r $(($(date +%s) - min * 60)) +%FT%T)"
+    m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)" t="$(cat "$lock/tree" 2>/dev/null)"
+    if [[ -n "$t" && ! -e "$lock/nocap" ]] && { alive "$m" || alive "$c" || alive "-$c"; }; then live="$t"; fi
+    input="$(
+        [[ -z "$live" ]] || printf '0\t%s\n' "$live"
+        awk -F'\t' -v cutoff="$cutoff" "$ep_awk"'
+            $4 != "" && $6 != "nocap" && ep($1) + $2 >= ep(cutoff) { e = ep($1) + $2; if (e > end[$4]) end[$4] = e }
+            END { for (t in end) print end[t] - ep(cutoff) "\t" t }' "$holds" 2>/dev/null | sort -n
+    )"
+    while IFS=$'\t' read -r secs t; do
+        [[ -n "$t" && "$t" != "$tree" && -d "$t" ]] || continue
+        ! grep -qxF -- "$t" <<<"$trees" || continue
+        trees+="${trees:+$'\n'}$t" n=$((n + 1))
+        [[ -n "$aged" || "$t" == "$live" ]] || { aged="$t" soon="$secs"; }
+    done <<<"$input"
+    [[ $n -ge 2 ]] || return 1
+    secs=$(((soon + 59) / 60))
+    cap_line="with-lock: the cap is 2 building trees: $(paste -sd, - <<<"$trees" | sed 's/,/, /g'); $((secs > 0 ? secs : 1)) min until $aged ages out"
 }
 # holder_line: the live holder, its seconds of hold, and its limit.
 holder_line() {
@@ -120,8 +154,9 @@ ahead() {
 max="${WITH_LOCK_MAX_WAIT:-120}"
 [[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
 max=$((10#$max))
-long=""
-if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0; fi
+long="" uncapped="" nocap=""
+if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 uncapped=1; fi
+[[ "${WITH_LOCK_NO_CAP:-}" != 1 ]] || nocap=1 uncapped=1
 [[ $max -ne 0 ]] || long=1
 maxhold="${WITH_LOCK_MAX_HOLD:-}"
 if [[ -z "$maxhold" && -z "$long" ]]; then
@@ -138,8 +173,11 @@ if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
     trap 'exit 130' INT
     trap 'exit 143' TERM
 fi
+capsaid="" blocked=""
 while :; do
-    if [[ -n "$ticket" ]] || ! ahead; then
+    blocked=""
+    [[ -n "$uncapped" ]] || ! capped || blocked=1
+    if [[ -z "$blocked" ]] && { [[ -n "$ticket" ]] || ! ahead; }; then
         made="" busy=""
         # A holder can remove the folder after the mkdir of this call failed: try again.
         for _ in 1 2 3; do
@@ -165,7 +203,7 @@ while :; do
         held="$(cat "$lock/command" 2>/dev/null)"
         if [[ -d "$lock" ]]; then
             echo "with-lock: $lock is held by pid ${pid:-unknown (no pid file)} ($held); retry each $retry s" >&2
-        else
+        elif [[ -z "$blocked" ]]; then
             echo "with-lock: a push check, a land, or a DMG build takes $lock first; retry each $retry s" >&2
         fi
         told=1
@@ -179,6 +217,7 @@ while :; do
             echo "with-lock: builders in the last $min min: $n ($(printf '%s\n' "$others" | paste -sd, - | sed 's/,/, /g')); the cap is 2 (long-runs.md)" >&2
         fi
     fi
+    if [[ -n "$blocked" && -z "$capsaid" ]]; then { echo "$cap_line" >&2; capsaid=1; }; fi
     nap="$retry"
     if [[ $max -gt 0 ]]; then
         left=$((max - ($(date +%s) - start)))
@@ -190,16 +229,20 @@ done
 [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
 rm -f ${marker:+"$marker"}
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.
-{ echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree" && echo "$maxhold" > "$lock/maxhold"; } 2>/dev/null ||
+{ echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree" && echo "$maxhold" > "$lock/maxhold" &&
+    { [[ -z "$nocap" ]] || : > "$lock/nocap"; }; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
 taken="$(date +%s)" cmdline="$*"
-[[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" \
+[[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" "${nocap:+$'\tnocap'}" \
     >> "$waits" 2>/dev/null
 child="" watcher=""
 release() {
+    local extra=""
     [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || {
         [[ -z "$watcher" ]] || kill "$watcher" 2>/dev/null
-        printf '%s\t%s\t%s\t%s%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" "$([[ ! -e "$lock/limit" ]] || printf '\tlimit')" >> "$holds" 2>/dev/null
+        [[ ! -e "$lock/limit" ]] || extra=$'\tlimit'
+        [[ -z "$nocap" ]] || extra="${extra:-$'\t'}"$'\tnocap'
+        printf '%s\t%s\t%s\t%s%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" "$extra" >> "$holds" 2>/dev/null
         rm -rf "$lock"
     }
 }

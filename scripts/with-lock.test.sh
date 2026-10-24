@@ -445,6 +445,131 @@ WITH_LOCK_RETRY=0.3 "$repo/scripts/with-lock.sh" touch "$tmp/ran" > "$tmp/wait.o
 [[ -z "$(ls "$waiting" 2>/dev/null)" ]] || fail "a take leaves a marker: $(ls "$waiting")"
 reset_builders
 
+# The cap of 2 building trees. An ordinary call does not take a free lock while 2 other trees
+# build: the live holder and the trees of the hold lines in the window, never a waiting marker, a
+# line of the calling tree, a line with the last column nocap, or a tree path that does not exist.
+# It waits as for a held lock (exit 75 at the wait limit) and prints the cap line once. A release
+# call, a nested call, and a marker call run at the cap; so does a call with WITH_LOCK_NO_CAP=1,
+# which writes its wait and hold lines with the last column nocap. The trees are real folders, as
+# the cap skips a path that does not exist.
+ta="$tmp/ta" tb="$tmp/tb" tc="$tmp/tc"
+mkdir -p "$ta" "$tb" "$tc"
+git -C "$repo" worktree add -q "$tmp/wt2" 2>/dev/null
+# capcall <tree dir> <command...>: an ordinary call from that tree; out and code hold the result.
+capcall() {
+  local dir="$1"
+  shift
+  out="$(cd "$dir" && WITH_LOCK_MAX_WAIT="${WITH_LOCK_MAX_WAIT:-2}" WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$@" 2>&1)"
+  code=$?
+}
+# holdline <minutes ago> <tree>: a hold line of 30 s that started that long ago.
+holdline() { printf '%s\t30\tmake test\t%s\n' "$(ago "$1")" "$2" >> "$holds"; }
+cap_text='the cap is 2 building trees'
+reset_builders
+holdline 5 "$ta"
+holdline 3 "$tb"
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && ! -e "$tmp/ran" ]] || fail "cap: exit $code, ran [$(ls "$tmp/ran" 2>&1)] (want 75, no run): $out"
+[[ "$out" == *"$cap_text: $ta, $tb; 56 min until $ta ages out"* ]] || fail "cap: no cap line with both trees and the minutes: $out"
+[[ "$(grep -c "$cap_text" <<<"$out")" -eq 1 ]] || fail "cap: the cap line is not printed once: $out"
+# One other tree, and the calling tree with one other tree: the command runs.
+reset_builders
+holdline 5 "$ta"
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, one other tree: exit $code: $out"
+reset_builders
+holdline 5 "$repo_tree"
+holdline 4 "$ta"
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, the calling tree and one other: exit $code: $out"
+# With 2 other trees: a release call, a nested call, and a marker call run.
+reset_builders
+holdline 5 "$ta"
+holdline 3 "$tb"
+rm -f "$tmp/order" "$tmp/ran"
+capcall "$repo" "$fake/make" check-changed BASE=x
+[[ $code -eq 0 && -s "$tmp/order" ]] || fail "cap, release call: exit $code: $out"
+mkdir "$lock" && echo 4242 > "$lock/pid"
+DIRIGIBLE_BUILD_LOCK=4242 capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, nested call: exit $code: $out"
+rm -rf "$lock"
+rm -f "$tmp/order"
+DIRIGIBLE_LOCKED_SCRIPT="$fake/make" capcall "$repo" "$fake/make" test
+[[ $code -eq 0 && -s "$tmp/order" ]] || fail "cap, marker call: exit $code: $out"
+# A line ages out after the call starts to wait: the call takes the lock.
+reset_builders
+printf '%s\t0\tmake test\t%s\n' "$(date -r $(($(date +%s) - 30)) +%FT%T)" "$ta" >> "$holds"
+printf '%s\t0\tmake test\t%s\n' "$(date -r $(($(date +%s) - 58)) +%FT%T)" "$tb" >> "$holds"
+rm -f "$tmp/ran"
+WITH_LOCK_BUILDERS_MIN=1 WITH_LOCK_MAX_WAIT=8 capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" && "$out" == *"$cap_text"* ]] || fail "cap, a line ages out: exit $code (want 0 after the cap line): $out"
+# Waiters do not count: 2 live waiting markers of other trees and one fresh hold line, free lock.
+reset_builders
+sleep 60 & other=$!
+sleep 60 & inner=$!
+mkdir -p "$waiting"
+echo "$ta" > "$waiting/$other"
+echo "$tb" > "$waiting/$inner"
+holdline 5 "$tc"
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, two waiters and one hold line: exit $code: $out"
+kill $other $inner 2>/dev/null
+other="" inner=""
+# Three calls from three trees: two run, the third waits at the cap.
+reset_builders
+for dir in "$repo" "$tmp/wt" "$tmp/wt2"; do
+  rm -f "$tmp/ran"
+  capcall "$dir" touch "$tmp/ran"
+  [[ $code -eq 0 && -e "$tmp/ran" ]] || break
+done
+[[ "$dir" == "$tmp/wt2" && $code -eq 75 && ! -e "$tmp/ran" && "$out" == *"$cap_text: "* && "$out" == *"$repo_tree"* && "$out" == *"$wt_tree"* ]] ||
+  fail "cap, three trees: the call of [$dir] has exit $code (want 75 for wt2 after two runs): $out"
+# A hold line whose tree path does not exist does not count.
+reset_builders
+holdline 5 "$ta"
+holdline 4 /t/gone-1
+holdline 3 /t/gone-2
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, trees that do not exist: exit $code: $out"
+# A live holder counts, and a live holder of a call with WITH_LOCK_NO_CAP=1 does not. The lock is
+# held, so the call waits either way: the cap line tells which.
+reset_builders
+hold
+echo "$ta" > "$lock/tree"
+holdline 5 "$tb"
+WITH_LOCK_MAX_WAIT=1 capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && "$out" == *"$cap_text: $ta, $tb;"* ]] || fail "cap, live holder and one hold line: exit $code, no cap line: $out"
+touch "$lock/nocap"
+WITH_LOCK_MAX_WAIT=1 capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && "$out" != *"$cap_text"* ]] || fail "cap, live nocap holder and one hold line: exit $code, a cap line: $out"
+# WITH_LOCK_NO_CAP=1 with 2 other trees: the command runs, and its hold line ends in nocap after an
+# empty fifth column. A later ordinary call from a third tree with that line and one other tree runs.
+reset_builders
+holdline 5 "$ta"
+holdline 3 "$tb"
+rm -f "$tmp/ran"
+WITH_LOCK_NO_CAP=1 capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, WITH_LOCK_NO_CAP=1 with 2 other trees: exit $code: $out"
+[[ "$(tail -n 1 "$holds" | awk -F'\t' -v t="$repo_tree" '{ print NF, ($4 == t), ($5 == ""), $6 }')" == '6 1 1 nocap' ]] ||
+  fail "cap, nocap hold line: [$(tail -n 1 "$holds")]"
+reset_builders
+holdline 5 "$ta"
+WITH_LOCK_NO_CAP=1 capcall "$repo" touch "$tmp/ran"
+rm -f "$tmp/ran"
+capcall "$tmp/wt" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "cap, a nocap line and one other tree: exit $code: $out"
+# A NO_CAP call that waited writes a wait line with the last column nocap.
+reset_builders
+hold_for 1
+WITH_LOCK_NO_CAP=1 WITH_LOCK_MAX_WAIT=5 capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && "$(tail -n 1 "$waits" | awk -F'\t' '{ print NF, $6 }')" == '6 nocap' ]] || fail "cap, nocap wait line: exit $code [$(tail -n 1 "$waits" 2>&1)]: $out"
+reset_builders
+
 # The hold limit WITH_LOCK_MAX_HOLD: a command that runs past it gets TERM on its process group,
 # then KILL after WITH_LOCK_HOLD_GRACE seconds; the lock goes, the hold line gets the fifth column
 # limit, and the call exits 124. A command that ends in time keeps its status, and 0 turns the

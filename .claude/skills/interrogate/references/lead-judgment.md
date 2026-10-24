@@ -51,4 +51,4 @@ After the fixes of the last round that runs (the convergence round, or round 1 o
 
 It answers four questions for each fix. Does the fix answer its finding? Does it add a rule or behavior that no finding asked for? What new failure mode does it add, for example a shared name, path, or constant that concurrent callers collide on? Does its new text contradict another fix, a settled item of the gate, or an `analysis.md` criterion?
 
-Correct a wrong fix. Add an added rule as an item with status later (`scripts/wiki.py add later --from <file>`). The fix check is not a review round, so it opens no new areas.
+Write the result under `## Fix check` in the last `review-<gate>-<n>.md` of the run folder. Correct a wrong fix. Add an added rule as an item with status later (`scripts/wiki.py add later --from <file>`). The fix check is not a review round, so it opens no new areas.

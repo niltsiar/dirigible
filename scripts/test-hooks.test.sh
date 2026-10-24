@@ -290,5 +290,24 @@ same_state 'no git state left after a stopped dirty run'
 git -C "$repo" status --porcelain | cmp -s - "$tmp/status-before" || fail "stopped dirty run: git status changed"
 cmp -s "$repo/.git/index" "$tmp/index-before" || fail "stopped dirty run: the real index changed"
 
+# C17: no variable of the caller reaches a hook test, PATH and HOME do, and the key tree takes its
+# own build lock. The caller sets each variable, and a stub test writes env to a file and then
+# runs the with-lock.sh of the key tree.
+new_repo
+cp "$here/with-lock.sh" "$repo/scripts/"
+printf '#!/bin/bash\nenv > "$ENV_FILE"\nPATH="${PATH#"$FAKE_BIN:"}" scripts/with-lock.sh true\n' > "$repo/t/a.test.sh"
+commit 'env'
+(cd "$repo" && TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" ENV_FILE="$tmp/env" FAKE_BIN="$tmp/bin" \
+    BASE=main FILTER=x SINCE=HEAD CHECK_RISK=1 HOOK_TESTS=t/a.test.sh MFLAGS=-s MAKELEVEL=3 \
+    GIT_DIR="$repo/.git" GIT_WORK_TREE="$repo" GIT_INDEX_FILE="$repo/.git/index" \
+    WITH_LOCK_MAX_WAIT=1 WITH_LOCK_OTHER=1 DIRIGIBLE_BUILD_LOCK=$$ DIRIGIBLE_PUSH_CHECK=1 DIRIGIBLE_OTHER=1 \
+    make -s test-hooks) > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 0 && -f "$tmp/env" ]] || fail "caller context: the run failed: code $code: $(out)"
+caller_vars='^(BASE|FILTER|SINCE|CHECK_RISK|HOOK_TESTS|MAKEFLAGS|MFLAGS|MAKELEVEL|GIT_DIR|GIT_INDEX_FILE|GIT_WORK_TREE|WITH_LOCK_[A-Z_]+|DIRIGIBLE_[A-Z_]+)='
+[[ -z "$(grep -oE "$caller_vars" "$tmp/env")" ]] \
+    || fail "caller context: the stub test saw $(grep -oE "$caller_vars" "$tmp/env" | tr -d '=' | tr '\n' ' ')"
+{ grep -q '^PATH=' "$tmp/env" && grep -q '^HOME=' "$tmp/env"; } || fail 'caller context: PATH or HOME is not in the env of the stub test'
+
 [[ $failures -eq 0 ]] || { echo "$failures failure(s)"; exit 1; }
 echo "test-hooks.test.sh: all passed"

@@ -21,6 +21,7 @@
 - Amended: 2026-10-17 (run `2026-10-17-swift-concurrency-skill`, user decision). A vendored skill has vendored rows in `docs/workflow/budgets.tsv`, outside `TOTAL`.
 - Amended: 2026-10-21 (run `2026-10-21-growth-caps`, user decision on growth control parts 1 and 4). An always-on cap and a count of skills plus agents replace the file and folder rows, `QUOTA`, the 50-word rule, the vendored rows, and the commit-msg word pairs. `TOTAL` is a tripwire at 3 %.
 - Amended: 2026-10-23 (run `2026-10-23-ledger-wiki`, user decision). The backlog, the run log, and the learnings move from files of `.scratchpads/` to a local wiki, one tool `scripts/wiki.py` (`docs/workflow/wiki.md`). A learning line goes to the `Lesson` page of its key, an upkeep item is an item with status next, and `seen.sh` searches the lesson and item pages. The reflect rules keep their meaning.
+- Amended: 2026-10-25 (run `2026-10-24-slowness-batch`, wiki item 0112 (9d) and (10)). Rule 7 has no one-removal cap in a cut run, and each removal row of a cut run names its defect class and the check that still finds it.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -79,7 +80,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 4. Each change updates `docs/workflow/rules.tsv` in the same commit.
 5. Once per upkeep run, before the merge, the review panel reviews the diff of the batch. The lenses come from the paths of the diff. A blocking finding gets a fix commit or a revert commit.
 6. When 8 or more upkeep items wait, the next run is a workflow upkeep run, which applies them all (amended 2026-10-08: 3 before).
-7. A reflect run or an upkeep run removes at most one rule. The reflect skill holds the full removal rule. In a branch whose only class is docs, `scripts/check-governance.sh` refuses more than one removal when the run has a reflect row.
+7. A reflect run or an upkeep run removes at most one rule. The reflect skill holds the full removal rule. In a branch whose only class is docs, `scripts/check-governance.sh` refuses more than one removal when the run has a reflect row. A cut run (the consolidation item of rule 6, with `- Cut run: <item id>` in `run.md`) has no cap: the script then refuses a removal row whose reason lacks `class:` (the defect class that its rule found) or `found by:` (the check that still finds it).
 8. An upkeep run runs once, for the batch, the eval scenarios of `docs/workflow/evals.md` that name a changed file. A scenario that passed before the change and fails after it reverts the change. A changed file with no scenario gets one first, or the commit body says why none applies.
 
 ## Consequences

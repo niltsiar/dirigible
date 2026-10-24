@@ -185,8 +185,9 @@ def check_clean(wiki: Path) -> None:
               "new page. Delete .git/index.lock only when no git process runs in the wiki.")
     if (wiki / ".git" / "index.lock").exists():
         raise Stop(f"{wiki}/.git/index.lock exists. {repair}")
+    # git quotes a path with a space in the porcelain status.
     dirty = [line for line in git(wiki, "status", "--porcelain").stdout.splitlines()
-             if ".obsidian" not in line[3:].split("/")]
+             if ".obsidian" not in line[3:].lstrip('"').split("/")]
     if dirty:
         raise Stop(f"the wiki tree is not clean ({dirty[0]}). {repair}")
 
@@ -1043,7 +1044,8 @@ def cmd_lint(args) -> None:
     root = wiki / "wiki"
     problems: list[str] = []
     linked: set[Path] = set()
-    pages = [p for p in sorted(root.rglob("*.md")) if p.name != "index.md"]
+    notes = [p for p in sorted(root.rglob("*.md")) if ".obsidian" not in p.relative_to(root).parts]
+    pages = [p for p in notes if p.name != "index.md"]
     for path in pages:
         rel = path.relative_to(wiki)
         page = read_page(path)
@@ -1068,7 +1070,7 @@ def cmd_lint(args) -> None:
                     problems.append(f"{rel}: waits {waits!r} is not user, item:<id>, or run:<run folder>")
                 elif parsed[0] == "item" and not (root / "items" / f"{parsed[1]}.md").is_file():
                     problems.append(f"{rel}: waits names the missing item {parsed[1]}")
-    for path in sorted(root.rglob("*.md")):
+    for path in notes:
         prose = re.sub(r"`[^`\n]*`", "", re.sub(r"```.*?```", "", read_text(path), flags=re.S))
         for target in re.findall(r"\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)", prose):
             target = target.split("#")[0]

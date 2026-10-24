@@ -6,9 +6,9 @@
 #   decisions.tsv time (YYYY-MM-DDTHH:MM). A row with the resolver `split` has a child row (a row
 #   whose parent is its id). The columns are id, parent, question, resolver, answer, and row;
 #   the script finds them by the header names. A bar in a cell is written as \|.
-# - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section has a
-#   `- Check:` line. Each research-<name>.md of the run folder has docs/research/<name>.md in
-#   plan.md, so the plan routes the findings before the build (check-governance.sh checks the copy
+# - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section (a suffix such
+#   as `## Slices (serial)` is allowed) has a `- Check:` line. Each research-<name>.md of the run
+#   folder has docs/research/<name>.md in plan.md, so the plan routes the findings before the build (check-governance.sh checks the copy
 #   at the land). A bare research.md is refused: the land check reads only research-<name>.md.
 # - Each item (a line that starts with `- ` or `<n>. `) of a plan.md section whose heading starts
 #   with `## Plan gate changes` or `## Plan gate <n> changes` has a `Criteria:` field: the
@@ -93,7 +93,7 @@ else
     grep -qE '^(- )?Agents:' "$run/plan.md" || say "plan.md has no Agents: line"
     while IFS= read -r msg; do say "$msg"; done < <(awk '
         function close_slice() { if (slice != "" && !checked) print "slice \"" slice "\" has no \"- Check:\" line"; slice = "" }
-        /^## / { close_slice(); inside = ($0 ~ /^## Slices[[:space:]]*$/); next }
+        /^## / { close_slice(); inside = ($0 ~ /^## Slices([[:space:]].*)?$/); next }
         !inside { next }
         /^### / { close_slice(); slice = $0; checked = 0; next }
         /^- Check:/ { checked = 1 }

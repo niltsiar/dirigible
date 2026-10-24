@@ -113,6 +113,20 @@ refuse 'a slice with no check line' 'slice "### S2 two" has no "- Check:" line'
 out="$("$script" "$run" 2>&1)"
 [[ "$out" != *'S1 one'* && "$out" != *'Not a slice'* ]] || fail "a slice with no check line: another heading is named: $out"
 
+# A heading with a suffix (`## Slices (serial)`) is a Slices section, as for the landings rule.
+good
+sed -i '' 's/^## Slices$/## Slices (serial)/' "$run/plan.md"
+sed -i '' '/^- Check: `targets: check-docs`/d' "$run/plan.md"
+refuse 'a slice with no check line under a suffixed heading' 'slice "### S2 two" has no "- Check:" line'
+good
+sed -i '' 's/^## Slices$/## Slices (serial)/' "$run/plan.md"
+pass 'a suffixed Slices heading and every check line'
+good
+sed -i '' 's/^## Slices$/## Slicesx/' "$run/plan.md"
+sed -i '' '/^- Check: `targets: check-docs`/d' "$run/plan.md"
+out="$("$script" "$run" 2>&1)"
+[[ "$out" != *'has no "- Check:" line'* ]] || fail "a heading Slicesx is no Slices section: $out"
+
 good
 sed -i '' '/^Agents:/d' "$run/plan.md"
 refuse 'no Agents: line' 'plan.md has no Agents: line'

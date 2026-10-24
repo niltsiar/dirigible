@@ -877,6 +877,38 @@ printf '%s\n' "| $waitrun | landed goal | done | https://example.test/pull/1 (a.
 run "$wt" log --from "$tmp/or3.txt"; want_rc 0 "open runs: done row"
 run "$wt" now; [[ "$out" != *"- $waitrun ("* ]] || fail "now lists a run whose last row is done: $out"
 
+# --- the Obsidian folder: init ignores it, and the clean check of a write skips it (wiki item 0995)
+newwiki obs1
+git -C "$DIRIGIBLE_WIKI" ls-files --error-unmatch .gitignore >/dev/null 2>&1 || fail "obsidian: init does not commit a .gitignore"
+grep -qxF '.obsidian/' "$DIRIGIBLE_WIKI/.gitignore" 2>/dev/null || fail "obsidian: the .gitignore lacks the line .obsidian/"
+mkdir -p "$DIRIGIBLE_WIKI/wiki/.obsidian"
+printf '{}\n' > "$DIRIGIBLE_WIKI/wiki/.obsidian/workspace.json"
+put_item "$tmp/ob1.txt" "Obsidian item" "Description of the obsidian item" "body"
+run "$script" add next --from "$tmp/ob1.txt"; want_rc 0 "obsidian: add with the folder present"
+git -C "$DIRIGIBLE_WIKI" ls-tree -r HEAD --name-only | grep -q 'obsidian' && fail "obsidian: the commit of add holds the folder"
+# With no .gitignore, git shows the folder as untracked: only the dirty check hides it.
+newwiki obs2
+g -C "$DIRIGIBLE_WIKI" rm -q .gitignore >/dev/null 2>&1
+g -C "$DIRIGIBLE_WIKI" commit -q -m "drop the ignore file" >/dev/null 2>&1
+mkdir -p "$DIRIGIBLE_WIKI/wiki/.obsidian"
+printf '{}\n' > "$DIRIGIBLE_WIKI/wiki/.obsidian/workspace.json"
+[[ "$(status_of)" == *'.obsidian/'* ]] || fail "obsidian: the fixture folder is not untracked: $(status_of)"
+put_item "$tmp/ob2.txt" "Obsidian item two" "Description of the second item" "body"
+run "$script" add next --from "$tmp/ob2.txt"; want_rc 0 "obsidian: add with an untracked folder and no .gitignore"
+git -C "$DIRIGIBLE_WIKI" ls-tree -r HEAD --name-only | grep -q 'obsidian' && fail "obsidian: the commit of add holds the untracked folder"
+# A changed tracked page still refuses, with the folder present.
+printf 'a hand edit\n' >> "$DIRIGIBLE_WIKI/wiki/now.md"
+put_item "$tmp/ob2b.txt" "Obsidian item four" "Description of the fourth item" "body"
+run "$script" add next --from "$tmp/ob2b.txt"; want_rc 1 "obsidian: add with a changed page"
+want_out "the wiki tree is not clean" "obsidian: a changed page"
+want_out "wiki/now.md" "obsidian: the refusal names the changed page, not the folder"
+# Only a folder named .obsidian is skipped.
+newwiki obs3
+printf 'note\n' > "$DIRIGIBLE_WIKI/wiki/.obsidian-note.md"
+put_item "$tmp/ob3.txt" "Obsidian item three" "Description of the third item" "body"
+run "$script" add next --from "$tmp/ob3.txt"; want_rc 1 "obsidian: add with a file named .obsidian-note.md"
+want_out ".obsidian-note.md" "obsidian: the refusal names the note"
+
 if ((failures > 0)); then
     echo "wiki.test.sh: $failures failure(s)"
     exit 1

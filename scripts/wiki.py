@@ -185,9 +185,10 @@ def check_clean(wiki: Path) -> None:
               "new page. Delete .git/index.lock only when no git process runs in the wiki.")
     if (wiki / ".git" / "index.lock").exists():
         raise Stop(f"{wiki}/.git/index.lock exists. {repair}")
-    dirty = git(wiki, "status", "--porcelain").stdout
-    if dirty.strip():
-        raise Stop(f"the wiki tree is not clean ({dirty.splitlines()[0]}). {repair}")
+    dirty = [line for line in git(wiki, "status", "--porcelain").stdout.splitlines()
+             if ".obsidian" not in line[3:].split("/")]
+    if dirty:
+        raise Stop(f"the wiki tree is not clean ({dirty[0]}). {repair}")
 
 
 def commit(wiki: Path, paths: list[str], message: str) -> None:
@@ -378,6 +379,7 @@ def init_files() -> dict[str, str]:
     """The files of a new wiki that generate() does not make."""
     month = this_month()
     return {
+        ".gitignore": ".obsidian/\n",
         "CLAUDE.md": SCHEMA,
         "templates/item.md": ITEM_TEMPLATE,
         "templates/lesson.md": LESSON_TEMPLATE,

@@ -229,9 +229,11 @@ grader_prompt() { # <packet> <result>
     cat <<EOF
 You are a blind grader of a docs eval. Read only this file: $1
 
-For each scenario, each answer (a neutral label), and each key point, decide PASS or FAIL. A key point passes when the quotes (Q lines) of that answer state it, in the same or other words. A quote that states only part of a key point fails that key point. Do not use your own knowledge to fill a gap. Judge each answer alone.
+Each scenario has its question. First, for each scenario and each key point, decide if the question asks for every clause of the key point. A clause is asked when the question asks for it, or when the question cannot be answered without it. For each key point with a clause that the question does not ask, write one object {"scenario": "<ID>", "key": "(a)", "result": "UNASKED", "reason": "<the clause that the question does not ask>"}.
 
-Write one JSON file to $2, with the Write tool, and nothing else. Its shape is a list with one object for each label and key point:
+Then, for each scenario, each answer (a neutral label), and each key point, decide PASS or FAIL. A key point passes when the quotes (Q lines) of that answer state it, in the same or other words. A quote that states only part of a key point fails that key point. Do not use your own knowledge to fill a gap. Judge each answer alone.
+
+Write one JSON file to $2, with the Write tool, and nothing else. Its shape is a list with the UNASKED objects first, then one object for each label and key point:
 
 [{"label": "<label>", "key": "(a)", "result": "PASS", "reason": "<one sentence: the quote that holds it, or what is missing>"}]
 

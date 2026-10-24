@@ -291,7 +291,7 @@ copy_refused 'a folder that holds files' "$tmp/t/full" 'holds files'
 # writes scores.tsv in the eval folder that the call names.
 mkdir -p "$tmp/g/scripts/eval" "$tmp/g/docs/workflow" "$tmp/g/run"
 cp "$eval_dir/grade.py" "$tmp/g/scripts/eval/"
-printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n| E1 | retention | s | q | (a) k | `a.md` | - | - |\n| E23 | policy | s | q | (a) k | `a.md` | - | - |\n' > "$tmp/g/docs/workflow/evals.md"
+printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n| E1 | retention | s | What does E1 ask? | (a) k | `a.md` | - | - |\n| E23 | policy | s | What does E23 ask? | (a) k | `a.md` | - | - |\n| H1 | retention | s | What does H1 ask? | (a) k | `a.md` | - | - |\n' > "$tmp/g/docs/workflow/evals.md"
 printf '## E1\n(a) k\n\n## E23\n(a) k\n' > "$tmp/g/run/keys.md"
 printf 'L1\tt\t1\tE1\tnew\t1\nL2\tt\t1\tE23\tnew\t1\n' > "$tmp/g/run/labels.tsv"
 printf '[{"label": "L1", "key": "(a)", "result": "PASS"}, {"label": "L2", "key": "(a)", "result": "PASS"}]\n' > "$tmp/g/res.json"
@@ -309,6 +309,18 @@ err="$(python3 "$tmp/g/scripts/eval/grade.py" packets "$tmp/g/run" t 1 1 2>&1 >/
 code=$?
 [[ $code -eq 2 && "$err" == *"tag t"* ]] || fail "grade.py packets with a used tag: exit $code: $err"
 [[ "$(shasum -a 256 "$tmp/g/run/scores.tsv" "$tmp/g/run/labels.tsv")" == "$before" ]] || fail 'grade.py with a used tag changed a file'
+
+# An UNASKED object (a scenario and a key, no label) goes to unasked.tsv with its reason, and the
+# rows of scores.tsv stay as measured: a key point that is not PASS is in missing. An UNASKED
+# result on a label object is a FAIL of that key. A tag with no UNASKED object writes no unasked.tsv.
+mkdir -p "$tmp/u"
+printf '## E1\n(a) ka (b) kb\n\n' > "$tmp/u/keys.md"
+printf 'L1\tt\t1\tE1\tnew\t1\nL2\tt\t1\tE1\tnew\t2\n' > "$tmp/u/labels.tsv"
+printf '[{"scenario": "E1", "key": "(b)", "result": "UNASKED", "reason": "the\\nquestion does not ask kb"}, {"label": "L1", "key": "(a)", "result": "PASS"}, {"label": "L1", "key": "(b)", "result": "FAIL"}, {"label": "L2", "key": "(a)", "result": "PASS"}, {"label": "L2", "key": "(b)", "result": "UNASKED"}]\n' > "$tmp/u/res.json"
+python3 "$tmp/g/scripts/eval/grade.py" score "$tmp/u" t "$tmp/u/res.json" > /dev/null || fail "grade.py score with UNASKED: exit $?"
+[[ "$(cat "$tmp/u/unasked.tsv" 2>&1)" == $'t\tE1\t(b)\tthe question does not ask kb' ]] || fail "grade.py unasked.tsv: got [$(cat "$tmp/u/unasked.tsv" 2>&1)]"
+[[ "$(tail -n 2 "$tmp/u/scores.tsv")" == $'t\tE1\tretention\tnew\t1\tFAIL\tb\nt\tE1\tretention\tnew\t2\tFAIL\tb' ]] || fail "grade.py score with UNASKED: scores.tsv got [$(cat "$tmp/u/scores.tsv")]"
+[[ ! -e "$tmp/g/run/unasked.tsv" ]] || fail 'grade.py score with no UNASKED object wrote unasked.tsv'
 
 # grade.py packets labels only the scenarios that the reports of the tag hold (the union of their
 # kept maps), one label for each run. A run with no answer to an asked scenario gets a label with
@@ -335,6 +347,10 @@ packets_case only-h1 '{"kept": {"H1": [{"quote": "q1"}]}}' '{"kept": {"H1": [{"q
 packets_case one-empty '{"kept": {"H1": [{"quote": "q1"}]}}' '{"kept": {}}'
 [[ $code -eq 0 && "$rows" == $'H1\tnew\t1 H1\tnew\t2' ]] || fail "packets with an empty report: exit $code, rows [$rows]"
 grep -qF -- '- (no quotes)' "$tmp/p/one-empty/grade/packet-t-1.md" 2>/dev/null || fail 'packets with an empty report: no answer with no quotes'
+# Each scenario of a packet has its Question cell of the Scenarios table, then its key points.
+packets_case question '{"kept": {"E1": [{"quote": "q1"}]}}'
+[[ "$(grep -A5 '^## Scenario E1$' "$tmp/p/question/grade/packet-t-1.md")" == $'## Scenario E1\n\nQuestion: What does E1 ask?\n\nKey points:\n- (a) k' ]] \
+  || fail "packets question: got [$(cat "$tmp/p/question/grade/packet-t-1.md")]"
 packets_case unknown-id '{"kept": {"H1": [{"quote": "q1"}], "E99": [{"quote": "q9"}]}}'
 [[ $code -eq 0 && "$rows" == $'H1\tnew\t1' ]] || fail "packets with a kept E99: exit $code, rows [$rows]"
 grep -q 'E99' <<<"$err" || fail "packets with a kept E99: no warning names E99: [$err]"
@@ -423,6 +439,54 @@ verdict_case out-of-reach-held 1 'out of reach E8 (c)' 'verdict: FAIL'
 grep -qF 'out of reach E8 (d)' <<<"$out" && fail "verdict out-of-reach-held: a key that one new answer holds is out of reach: [$out]"
 { sc t E23 policy old 0 3; sc t E23 policy new 3 3; } > "$tmp/rows"; verdict_case reach-all 0 'verdict: PASS'
 grep -qF 'out of reach' <<<"$out" && fail "verdict reach-all: an out of reach line with no missing key: [$out]"
+
+# unasked.tsv (written by score) makes a second count that drops the unasked keys. A clause that
+# fails on the first count and passes on the second prints unasked fail <ID>: fix the question or
+# the key, and does not fail the verdict. The second count holds for a tag and scenario only
+# while more than half of its key points are asked: else the base count holds and one
+# unasked majority line prints for the scenario. unasked_case <name> <keys.md text> <unasked.tsv
+# text> <want> <line>... reads $tmp/rows. row <tag> <scenario> <type> <set> <run> <result> <missing>
+# prints one row: a FAIL row has a missing key, as in a real scores.tsv.
+row() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+unasked_case() {
+  local name="$1" keytext="$2" unaskedtext="$3"
+  shift 3
+  mkdir -p "$tmp/v/$name"
+  printf '%s' "$keytext" > "$tmp/v/$name/keys.md"
+  printf '%s' "$unaskedtext" > "$tmp/v/$name/unasked.tsv"
+  verdict_case "$name" "$@"
+}
+keys3=$'## E23\n(a) ka (b) kb (c) kc\n\n'
+{ scm t E23 policy old 3 a,b,c; row t E23 policy new 1 PASS ''; row t E23 policy new 2 FAIL b; row t E23 policy new 3 FAIL b; } > "$tmp/rows"
+unasked_case policy-unasked "$keys3" $'t\tE23\t(b)\tr\n' 0 'policy E23: new 1/3: FAIL' 'unasked E23 (b)' 'unasked fail E23: fix the question or the key' 'verdict: PASS'
+grep -qF 'unasked majority' <<<"$out" && fail "verdict policy-unasked: an unasked majority line for 1 of 3 keys: [$out]"
+{ scm t E23 policy old 3 a,b,c; row t E23 policy new 1 PASS ''; row t E23 policy new 2 FAIL a,b; row t E23 policy new 3 FAIL a,b; } > "$tmp/rows"
+unasked_case policy-asked-missing "$keys3" $'t\tE23\t(b)\tr\n' 1 'policy E23: new 1/3: FAIL' 'unasked E23 (b)' 'verdict: FAIL'
+grep -qF 'unasked fail' <<<"$out" && fail "verdict policy-asked-missing: an unasked fail line for an asked key: [$out]"
+# Retention sum: E2 fails on its unasked key only. The sum prints its line as FAIL, then the unasked fail lines, and the verdict passes.
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; sc t E2 retention old 6 6; scm t E2 retention new 6 b; } > "$tmp/rows"
+unasked_case retention-unasked $'## E1\n(a) ka\n\n## E2\n(a) ka (b) kb (c) kc\n\n' $'t\tE2\t(b)\tr\n' 0 'retention: old 12, new 6, bound 3.5: FAIL' 'unasked fail retention: fix the question or the key' 'below E2: old 6/6, new 0/6: FAIL' 'unasked E2 (b)' 'unasked fail E2: fix the question or the key' 'verdict: PASS'
+# With half or more of the key points unasked, the base count holds: the verdict fails.
+{ scm t E23 policy old 3 a,b,c; row t E23 policy new 1 PASS ''; row t E23 policy new 2 FAIL a,c; row t E23 policy new 3 FAIL a,c; } > "$tmp/rows"
+unasked_case majority-all "$keys3" $'t\tE23\t(a)\tr\nt\tE23\t(b)\tr\nt\tE23\t(c)\tr\n' 1 'unasked majority E23: fix the question or the key' 'verdict: FAIL'
+grep -qF 'unasked fail' <<<"$out" && fail "verdict majority-all: an unasked fail line for a majority: [$out]"
+[[ "$(grep -c '^unasked majority' <<<"$out")" -eq 1 ]] || fail "verdict majority-all: not one majority line: [$out]"
+unasked_case majority-two "$keys3" $'t\tE23\t(a)\tr\nt\tE23\t(c)\tr\n' 1 'unasked majority E23: fix the question or the key' 'verdict: FAIL'
+# The majority is decided for each tag and scenario: tag t has 3 of 3 keys unasked (base count), tag u has 1 of 3 (second count).
+{ scm t E23 policy old 3 a,b,c; row t E23 policy new 1 PASS ''; row t E23 policy new 2 FAIL a,c; row t E23 policy new 3 FAIL a,c; scm u E23 policy old 3 a,b,c; scm u E23 policy new 3 b; } > "$tmp/rows"
+unasked_case majority-per-tag "$keys3" $'t\tE23\t(a)\tr\nt\tE23\t(b)\tr\nt\tE23\t(c)\tr\nu\tE23\t(b)\tr\n' 0 'policy E23: new 1/6: FAIL' 'unasked majority E23: fix the question or the key' 'unasked fail E23: fix the question or the key' 'verdict: PASS'
+# With no unasked.tsv, the output is the output of the grader before UNASKED existed.
+{ sc t E1 retention old 6 6; sc t E1 retention new 6 6; sc t H6 retention old 6 6; sc t H6 retention new 4 6; sc t E23 policy old 0 3; sc t E23 policy new 2 3; scm t E8 policy old 3 c,d; scm t E8 policy new 3 c,d; } > "$tmp/rows"
+verdict_case no-unasked 1
+[[ "$out" == $'retention: old 12, new 10, bound 2.6: PASS\nbelow E1: old 6/6, new 6/6: PASS\nbelow H6: old 6/6, new 4/6: FAIL\nbelow E23: old 0/3, new 2/3: not due\npolicy E23: new 2/3: PASS\nbelow E8: old 0/3, new 0/3: not due\npolicy E8: new 0/3: FAIL\nout of reach E8 (c)\nout of reach E8 (d)\nholdout fail H6: no changed text\nverdict: FAIL' ]] \
+  || fail "verdict no-unasked: the output changed: [$out]"
+
+# The grader prompt gives the UNASKED step: an object with a scenario and a key, before the label objects.
+grader_fn="$(sed -n '/^grader_prompt()/,/^}/p' "$eval_dir/run.sh")"
+prompt="$(eval "$grader_fn"; grader_prompt packet.md result.json)"
+for word in UNASKED scenario packet.md result.json; do
+  [[ "$prompt" == *"$word"* ]] || fail "grader_prompt: no [$word]: [$prompt]"
+done
 
 # questions.py: run r of set a and of set b ask the same questions in the same order, and run 1
 # and run 2 differ. The prompt of each set and run fills the template; with no template argument,

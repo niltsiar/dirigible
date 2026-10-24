@@ -1,8 +1,9 @@
 #!/bin/bash
 # Check that git-guardrails.sh blocks and allows the right commands, and that the post-commit hook
 # of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the Agent
-# tool, usage-hook.sh, the hook that gives the usage mode at an agent start, and handback-guard.sh,
-# the hook that refuses a hand-back while a background task runs. Run by `make check`.
+# tool, usage-hook.sh, the hook that gives the usage mode at an agent start, handback-guard.sh,
+# the hook that refuses a hand-back while a background task runs, and agent-clock.sh, the hook that
+# stops a subagent after 90 active minutes. Run by `make check`.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -1031,6 +1032,63 @@ hook_registered "$settings" handback-guard.sh SubagentHandback ||
   { echo "FAIL: .claude/settings.json does not register handback-guard.sh for SubagentHandback"; failures=$((failures + 1)); }
 hook_registered "$tmp/old-settings.json" handback-guard.sh SubagentHandback &&
   { echo "FAIL: the registration check passed a settings file with no handback-guard.sh"; failures=$((failures + 1)); }
+
+# The fifth hook, agent-clock.sh, refuses the tool calls of a subagent after 90 active minutes. A gap
+# between two entries of the transcript counts at most 15 min.
+clock_hook="$(dirname "$0")/agent-clock.sh"
+# hb_span <from> <to>: one entry for each minute from <from> to <to> minutes ago
+hb_span() { local m; for ((m = $1; m >= $2; m--)); do hb_text user "$m" x; done; }
+# hb_bash <command>: the hook input of a Bash call of agent a1
+hb_bash() { hb_in Bash "{\"command\":\"$1\"}"; }
+
+hb_session over < <(hb_span 91 0)
+hb_expect "$clock_hook" 2 'make build at 91 active minutes' "$(hb_bash 'make build')"
+hb_err_has 'the clock refusal' '90'
+hb_err_has 'the clock refusal' 'run.md'
+hb_err_has 'the clock refusal' 'SubagentHandback'
+hb_session under < <(hb_span 89 0)
+hb_expect "$clock_hook" 0 'make build at 89 active minutes' "$(hb_bash 'make build')"
+hb_session idle < <(hb_span 330 300; hb_span 30 0)
+hb_expect "$clock_hook" 0 'a 5 h gap counts 15 min (75 active minutes)' "$(hb_bash 'make build')"
+hb_session short < <(hb_span 11 0)
+AGENT_CLOCK_MIN=10 hb_expect "$clock_hook" 2 'AGENT_CLOCK_MIN sets the limit' "$(hb_bash 'make build')"
+hb_err_has 'AGENT_CLOCK_MIN' 'limit of 10'
+
+hb_dir="$tmp/over"
+for tool in Read Write Edit ToolSearch TaskStop SubagentHandback; do
+  hb_expect "$clock_hook" 0 "$tool past the limit" "$(hb_in "$tool")"
+done
+for command in 'git status' 'git diff --stat' 'git log -1' 'git add -A' 'git commit -F x' \
+  '.claude/skills/deliver/scripts/log-decision.sh run 4 d w e r' \
+  'cd T && git commit -F x' 'git -C T status' 'cd T && R=x .claude/skills/deliver/scripts/log-decision.sh $R --from f'; do
+  hb_expect "$clock_hook" 0 "Bash '$command' past the limit" "$(hb_bash "$command")"
+done
+for command in 'git push origin x' 'make test' 'cd T && git commit -F x && make test' 'git status && make test' \
+  'git commit -F x; scripts/with-lock.sh make check-fast' 'git status $(make test)' 'git status & make test' \
+  'bash x/log-decision.sh'; do
+  hb_expect "$clock_hook" 2 "Bash '$command' past the limit" "$(hb_bash "$command")"
+done
+
+# A check that started before the limit can finish and be read.
+hb_session check < <(
+  hb_span 91 81
+  hb_use 80 u1 Bash '{"command":"make test","run_in_background":true}'
+  hb_result 80 u1 'Command running in background with ID: b1. Output is being written to: /x'
+  hb_span 79 0
+)
+for tool in Monitor TaskOutput; do
+  hb_expect "$clock_hook" 0 "$tool with a running background task" "$(hb_in "$tool")"
+done
+hb_dir="$tmp/over"
+hb_expect "$clock_hook" 2 'Monitor with no running background task' "$(hb_in Monitor)"
+
+hb_expect "$clock_hook" 0 'no agent_id (the lead)' "$(printf '{"transcript_path":"%s/s.jsonl","tool_name":"Bash","tool_input":{"command":"make test"}}' "$hb_dir")"
+hb_expect "$clock_hook" 0 'no transcript file' "$(printf '{"transcript_path":"%s/none/s.jsonl","agent_id":"a1","tool_name":"Bash","tool_input":{"command":"make test"}}' "$tmp")"
+hb_expect "$clock_hook" 0 'input that is not JSON' 'not json'
+for tool in Bash Read; do
+  hook_registered "$settings" agent-clock.sh "$tool" ||
+    { echo "FAIL: .claude/settings.json does not register agent-clock.sh for $tool"; failures=$((failures + 1)); }
+done
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

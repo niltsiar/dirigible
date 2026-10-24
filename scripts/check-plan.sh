@@ -8,8 +8,8 @@
 #   the script finds them by the header names. A bar in a cell is written as \|.
 # - plan.md has an `Agents:` line, and each ### heading in its `## Slices` section (a suffix such
 #   as `## Slices (serial)` is allowed) has a `- Check:` line. Each research-<name>.md of the run
-#   folder has docs/research/<name>.md in plan.md, so the plan routes the findings before the build (check-governance.sh checks the copy
-#   at the land). A bare research.md is refused: the land check reads only research-<name>.md.
+#   folder has docs/research/<name>.md in plan.md, so the plan routes the findings before the
+#   build (check-governance.sh checks the copy at the land). A bare research.md is refused: the land check reads only research-<name>.md.
 # - Each item (a line that starts with `- ` or `<n>. `) of a plan.md section whose heading starts
 #   with `## Plan gate changes` or `## Plan gate <n> changes` has a `Criteria:` field: the
 #   criterion IDs that the change moves, separated by commas (an ID is capitals, digits, and an

@@ -95,8 +95,7 @@ has_key_point() { [[ $1 =~ (^|[[:space:]])\(a\)\  ]]; }
 key_line() { awk -v id="## $1" '$0 == id { getline; print; exit }' "$2"; }
 # The runs folder of the scratch root, which sits beside the git common dir. A keys.md of an older
 # run folder is the fallback for a holdout key; the folders sort as names, newest first.
-scratch="$(dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)")/.scratch""pads"
-runs_dir="$scratch/ru""ns"
+runs_dir="$(dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)")/.scratch""pads/ru""ns"
 # run_folder_key <ID>: sets found and prints the path of the first keys.md that has the ID.
 run_folder_key() {
     local r ev f line

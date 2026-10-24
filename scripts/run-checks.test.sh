@@ -351,6 +351,13 @@ DIRIGIBLE_WIKI="$wk" run 2 2 "$red_test"
 [[ "$(grep '^wiki:' <<<"$out")" == 'wiki: aFlake: items/0042.md' ]] || fail "wiki, flake path: lines [$(grep '^wiki:' <<<"$out")]: $out"
 DIRIGIBLE_WIKI="$wk" run 9 2 "$red_test"
 [[ $code -eq 1 && "$(grep '^wiki:' <<<"$out")" == 'wiki: aFlake: items/0042.md' ]] || fail "wiki, red after reruns: exit $code, lines [$(grep '^wiki:' <<<"$out")]: $out"
+# A page that holds a longer name (aFlakeMore) is no page of aFlake.
+printf 'The test aFlakeMore is another case.\n' > "$wk/wiki/items/0044.md"
+DIRIGIBLE_WIKI="$wk" run 2 2 "$red_test"
+[[ "$(grep '^wiki:' <<<"$out")" == 'wiki: aFlake: items/0042.md' ]] || fail "wiki, a longer name: lines [$(grep '^wiki:' <<<"$out")]: $out"
+# A check and a RERUN word that both name aFlake print its wiki line once.
+DIRIGIBLE_WIKI="$wk" run 2 2 "$red_test" check "RERUN=$P:fast:aFlake+slow:"
+[[ "$(grep -c '^wiki: aFlake:' <<<"$out")" == 1 ]] || fail "wiki, the same name in the check and the word: lines [$(grep '^wiki:' <<<"$out")]: $out"
 # A wiki with no page for the test: no wiki line, no warning, and the flake pass keeps exit 0.
 mkdir -p "$tmp/wk2/wiki/items"
 printf 'No test name here.\n' > "$tmp/wk2/wiki/items/0001.md"

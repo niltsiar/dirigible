@@ -16,7 +16,7 @@ script="$(cd "$(dirname "$0")" && pwd)/check-governance.sh"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE FILTER
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE FILTER SINCE
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 # The taken items and the done runs come from the wiki of scripts/wiki.py. DIRIGIBLE_WIKI names a

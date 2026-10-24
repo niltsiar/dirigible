@@ -9,7 +9,7 @@ failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 # A git or make value of an outer run (make test-hooks) must not reach the cases.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKEFLAGS MFLAGS MAKELEVEL BASE FILTER SINCE
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }

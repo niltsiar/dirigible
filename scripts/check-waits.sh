@@ -6,8 +6,9 @@
 # loaded test runs slow. An allow line is <path><TAB><reason>, and a line that starts with # is a
 # comment. An entry with no reason, or for a file with no raw wait, also fails, so the list stays
 # true. A line under Tests/ with `"quarantine:` and no FLAKE word also fails: each quarantine of a
-# flaky test names its FLAKE item (flake-triage.md, Time box). The match is one line: a call split
-# over two lines passes.
+# flaky test names its FLAKE item (flake-triage.md, Time box). A Swift file under Tests/ with
+# `isIntermittent: true` and no such `"quarantine:` line with a FLAKE word also fails. The match is
+# one line: a call split over two lines passes.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -41,6 +42,12 @@ while IFS= read -r hit; do
   [[ -n "$hit" ]] || continue
   grep -qw 'FLAKE' <<<"${hit#*:*:}" || problems+="${hit%%:*}:$(cut -d: -f2 <<<"$hit"): a \"quarantine: marker with no FLAKE word; name its FLAKE item"$'\n'
 done < <(cd "$root" && { grep -rnF --include='*.swift' '"quarantine:' Tests 2>/dev/null || true; } | sort)
+
+while IFS= read -r file; do
+  [[ -n "$file" ]] || continue
+  grep -F '"quarantine:' "$root/$file" | grep -qw 'FLAKE' ||
+    problems+="$file: an isIntermittent: true with no \"quarantine: marker that has a FLAKE word; name its FLAKE item"$'\n'
+done < <(cd "$root" && { grep -rlF --include='*.swift' 'isIntermittent: true' Tests 2>/dev/null || true; } | sort)
 
 problems="$(sed '/^$/d' <<<"$problems")"
 [[ -z "$problems" ]] || { sed 's/^/check-waits: /' <<<"$problems" >&2; exit 1; }

@@ -248,6 +248,7 @@ t3deny t3quote 'd["items"][5]["text"] = "$ echo \"a\nrg -uu x\""' 'first line'
 for op in '&&' '||' '|' ';' '(' '{' '$('; do
   t3deny "t3op$(printf '%s' "$op" | od -An -tx1 | tr -d ' \n')" "d[\"items\"][5][\"text\"] = \"\$ cat a $op\\nrg -uu x\\nout\"" 'first line'
 done
+t3deny t3type 'd["items"][5]["type"] = "mcp_tool_call"; d["items"][5]["text"] = read(wt + "/.scratchpads/runs/old/run.md")' 'mcp_tool_call'
 t3deny t3gap 'd["items"][5]["position"] = 9' 'positions'
 t3deny t3count 'd["thread"]["itemCount"] = 9' 'itemCount'
 t3deny t3dropped 'del d["items"][3]' 'itemCount'

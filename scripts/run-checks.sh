@@ -9,8 +9,8 @@
 # in the git common dir: the load at the end of the check, not at the failure. land.sh writes a
 # flake row for each line, and flake-triage.md still applies (decision 0028).
 # After the reruns, on a pass (a flake) and on red, it prints one line `wiki: <test>: <page>` for each
-# failed test and each wiki page that holds its name (scripts/wiki.py path; pages under .obsidian
-# do not count), so the earlier triage of the test is one read away. With no wiki folder it prints
+# failed test (once, also when the check and a RERUN word name it) and each wiki page that holds its
+# name as a whole word (scripts/wiki.py path; pages under .obsidian do not count), so the earlier triage of the test is one read away. With no wiki folder it prints
 # one warning line. A blocked rerun and a no-rerun exit print none.
 # No rerun, and exit 1: another red target, a not-remade target other than check, a crash, an
 # issue of no test, a test process that ended before its report (scripts/swift-test.sh: the tests
@@ -134,8 +134,9 @@ retry() {
     return 1
 }
 # wiki_pages <names>: a line `wiki: <name>: <page>` (the page relative to the wiki folder) for each
-# wiki page that holds a name. With no wiki folder, one warning line. wiki.py path prints a path and
-# exits 0 with no wiki, so the folder is checked here.
+# wiki page that holds a whole-word name, once for each name in the run. With no wiki folder, one
+# warning line. wiki.py path prints a path and exits 0 with no wiki, so the folder is checked here.
+wiki_seen=" "
 wiki_pages() {
     local dir name page
     dir="$("$here/wiki.py" path 2>/dev/null || true)"
@@ -144,9 +145,11 @@ wiki_pages() {
         return 0
     fi
     for name in $1; do
+        [[ "$wiki_seen" != *" $name "* ]] || continue
+        wiki_seen+="$name "
         while IFS= read -r page; do
             echo "wiki: $name: ${page#"$dir/wiki/"}"
-        done < <(grep -rlF --exclude-dir=.obsidian -- "$name" "$dir/wiki" | sort)
+        done < <(grep -rlFw --exclude-dir=.obsidian -- "$name" "$dir/wiki" | sort)
     done
 }
 # triage: retry, then name the wiki pages of the tests that failed before it (retry empties the

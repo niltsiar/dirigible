@@ -173,7 +173,7 @@ if release_call "$@" && mkdir -p "$first/$$" 2>/dev/null; then
     trap 'exit 130' INT
     trap 'exit 143' TERM
 fi
-capsaid="" blocked=""
+capsaid=""
 while :; do
     blocked=""
     [[ -n "$uncapped" ]] || ! capped || blocked=1
@@ -217,7 +217,7 @@ while :; do
             echo "with-lock: builders in the last $min min: $n ($(printf '%s\n' "$others" | paste -sd, - | sed 's/,/, /g')); the cap is 2 (long-runs.md)" >&2
         fi
     fi
-    if [[ -n "$blocked" && -z "$capsaid" ]]; then { echo "$cap_line" >&2; capsaid=1; }; fi
+    if [[ -n "$blocked" && -z "$capsaid" ]]; then echo "$cap_line" >&2; capsaid=1; fi
     nap="$retry"
     if [[ $max -gt 0 ]]; then
         left=$((max - ($(date +%s) - start)))

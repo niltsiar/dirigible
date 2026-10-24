@@ -45,9 +45,28 @@ expect() {
 }
 out() { printf 'classes: %s\ntargets: %s\nrisk: %s' "$1" "$2" "$3"; }
 
+# The hook tests of Makefile HOOK_TESTS, and a second way to find the tests of plain script paths.
+hook_list="$(awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' "$repo/Makefile" | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep .)"
+# hw <path>...: " HOOK_TESTS=<tests>" for plain script paths, from the test files on disk (a second
+# way to find the tests, for the cases whose paths the test file names itself); empty when a path
+# has no test.
+hw() {
+  local p b t found all="" word=""
+  for p in "$@"; do
+    found="" b="${p##*/}"
+    for t in $hook_list; do
+      if [[ $t == "$p" || $t == "${p%.*}.test.sh" ]] || grep -qF -- "$b" "$repo/$t" 2> /dev/null; then found+=" $t"; fi
+    done
+    [[ -n $found ]] || return 0
+    all+="$found"
+  done
+  for t in $hook_list; do [[ " $all " == *" $t "* ]] && word+=",$t"; done
+  [[ -z $word ]] || echo " HOOK_TESTS=${word#,}"
+}
+
 expect 'docs only' "$(out docs check-docs no)" <<<'.claude/skills/tdd/SKILL.md'
-expect 'a probe script' "$(out tooling check-fast no)" <<<'scripts/probe.sh'
-expect 'a skill doc and a skill script' "$(out 'docs tooling' check-fast no)" \
+expect 'a probe script' "$(out tooling "check-fast$(hw scripts/probe.sh)" no)" <<<'scripts/probe.sh'
+expect 'a skill doc and a skill script' "$(out 'docs tooling' "check-fast$(hw .claude/skills/deliver/scripts/new-run.sh)" no)" \
   <<<$'.claude/skills/deliver/SKILL.md\n.claude/skills/deliver/scripts/new-run.sh'
 expect 'Makefile local' "$(out bundle check no)" <<<'Makefile'
 expect 'Makefile before the push' "$(out bundle 'check test-slow-push test-dmg' no)" --push <<<'Makefile'
@@ -107,11 +126,51 @@ FILTER=ClipTests expect 'bundle and sources with FILTER' "$(out 'sources bundle'
   <<<$'Makefile\nSources/DirigibleApp/AppDelegate.swift'
 # With no FILTER, the stdin mode keeps the targets: the refusal is for the local git run.
 expect 'bundle with no FILTER, stdin' "$(out bundle check no)" <<<'Makefile'
-FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 'tooling sources' 'check-fast test-filter' no)" \
+FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 'tooling sources' "check-fast test-filter$(hw scripts/probe.sh)" no)" \
   <<<$'scripts/probe.sh\nSources/DirigibleApp/AppDelegate.swift'
 # FILTER before the push: exit nonzero with the reason, because the push runs the full targets.
 got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fail 'FILTER with --push exits 0'
 [[ "$got" == *"FILTER is for the tdd loop of a slice"* ]] || fail "FILTER with --push: no reason: $got"
+
+# The HOOK_TESTS word. A local run with check-fast names the hook tests that the changed paths
+# need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a
+# <name>.sh or <name>.py, the guardrails test for a hook, settings, or .githooks path, and each
+# entry whose text names the basename of a changed tooling path. A changed path of class tooling
+# or comments with no test gives no word: the full list runs. The word never comes before the push.
+# word_of [--push]: the HOOK_TESTS word of the paths on stdin, or nothing.
+word_of() { (cd "$e" && "$script" --paths "$@") | sed -n 's/^targets: .*HOOK_TESTS=\([^ ]*\).*/\1/p'; }
+# has_test <path> <test>: the word for the path holds the test.
+has_test() {
+  local w
+  w="$(word_of <<<"$1")"
+  [[ ",$w," == *",$2,"* ]] || fail "$1: the word [$w] lacks $2"
+}
+# A path that the test file names whole would make this file a consumer of it, so two names are built from parts.
+seen_sh=".claude/skills/reflect/scripts/se""en.sh"
+unnamed="scripts/no-such""-script.sh"
+expect 'a script with a test' "$(out tooling 'check-fast HOOK_TESTS=.claude/skills/reflect/scripts/seen.test.sh' no)" <<<"$seen_sh"
+expect 'a script with a test, before the push' "$(out tooling check-fast no)" --push <<<"$seen_sh"
+has_test scripts/run-checks.sh scripts/check-changed.test.sh
+has_test .claude/hooks/agent-guard.sh .claude/hooks/git-guardrails.test.sh
+has_test .claude/settings.json .claude/hooks/git-guardrails.test.sh
+has_test .githooks/pre-commit .claude/hooks/git-guardrails.test.sh
+has_test .githooks/pre-push scripts/land.test.sh
+plan_test="scripts/check-pl""an.test.sh"
+expect 'a hook test maps to itself' "$(out tooling "check-fast HOOK_TESTS=$plan_test" no)" <<<"$plan_test"
+# Two paths give both tests in the order of the list, joined with commas, whatever the order of the paths.
+hid_test="scripts/hi""d.test.sh" ax_test="scripts/a""x.test.sh"
+expect 'two hook tests' "$(out tooling "check-fast HOOK_TESTS=$hid_test,$ax_test" no)" <<<"$ax_test"$'\n'"$hid_test"
+# Old value of 'scripts/with-lock.sh': no word. New value: each test of the list that names it.
+w="$(word_of <<<'scripts/with-lock.sh')"
+want=""
+for t in $hook_list; do grep -qF -- 'with-lock.sh' "$repo/$t" && want+=",$t"; done
+[[ -n "$w" && "$w" == "${want#,}" && ",$w," == *",scripts/check-changed.test.sh,"* ]] || fail "scripts/with-lock.sh: the word [$w], want [${want#,}]"
+# A path that no test names gives no word and exit 0 (a search with no match is no failure of the script).
+expect 'a script that no test names' "$(out tooling check-fast no)" <<<"$unnamed"
+# One path with a test and one with no test: the full list runs, so no word.
+expect 'a mapped path and an unnamed path' "$(out tooling check-fast no)" <<<"$seen_sh"$'\n'"$unnamed"
+# A path of class docs needs no test; a change of Swift sources adds the test target, not a hook test.
+expect 'a mapped path and a docs path' "$(out 'docs tooling' 'check-fast HOOK_TESTS=.claude/skills/reflect/scripts/seen.test.sh' no)" <<<"$seen_sh"$'\ndocs/guide.md'
 
 # --paths reads the paths from stdin only. A path argument exits 2 with the usage on stderr and
 # nothing on stdout, so a caller that passes paths does not get a silent `risk: no`.
@@ -151,12 +210,12 @@ printf 't\n' > "$tmp/r/Tests/T.swift"
 got="$(run_in 2> "$tmp/refuse.err")"
 code=$?
 [[ $code -eq 1 ]] || fail "no base, a Swift test, no FILTER: expected exit 1, got $code"
-[[ "$got" == "$(out 'tooling tests' 'check-fast test' no)" ]] || fail "no base: got [$got]"
+[[ "$got" == "$(out 'tooling tests' "check-fast test$(hw scripts/b.sh)" no)" ]] || fail "no base: got [$got]"
 for word in FILTER 'push check' 'make test'; do
   grep -qF "$word" "$tmp/refuse.err" || fail "no base, no FILTER: no '$word' in the reason: $(cat "$tmp/refuse.err")"
 done
 got="$(FILTER=ClipTests run_in 2>&1)" || fail "no base with FILTER: exit $?"
-[[ "$got" == "$(out 'tooling tests' 'check-fast test-filter' no)" ]] || fail "no base with FILTER: got [$got]"
+[[ "$got" == "$(out 'tooling tests' "check-fast test-filter$(hw scripts/b.sh)" no)" ]] || fail "no base with FILTER: got [$got]"
 # Sources and Support, no FILTER: the three lines, then exit 1 with the reason. A docs path exits 0.
 for path in Sources/DirigibleApp/X.swift Support/Info.plist; do
   new_repo
@@ -575,6 +634,10 @@ grep -q 'load 9.50 after 300 s, not under 4.5: run the tests' "$tmp/wait.err" ||
 : > "$tmp/sysctl.log"
 got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast 2>&1)" || fail "--wait-load with docs targets exits $?"
 [[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load with docs targets read the load: [$got] [$(cat "$tmp/sysctl.log")]"
+# A NAME=value word of the targets is no target: the HOOK_TESTS word of a check-fast run reads no load.
+: > "$tmp/sysctl.log"
+got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-fast HOOK_TESTS=a,b 2>&1)" || fail "--wait-load with a HOOK_TESTS word exits $?"
+[[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load with a HOOK_TESTS word read the load: [$got] [$(cat "$tmp/sysctl.log")]"
 
 # A test of another tree (a swiftpm-testing-helper whose command line does not hold
 # <root>/.build/, also a nested worktree) makes the wait go on at a low load. A helper of this
@@ -645,6 +708,31 @@ make -s -C "$tmp/r" check-slow-gates PUSH_SKIP=LoudnessBenchmark > /dev/null 2>&
 # check-slow-gates fails on a PUSH_SKIP name that is not a bench file, also when the file exists.
 got="$(make -s -C "$tmp/r" check-slow-gates PUSH_SKIP='LoudnessBenchmark KeptTests' 2>&1)" && fail 'a PUSH_SKIP name with no Benchmark: exit 0'
 [[ "$got" == *"PUSH_SKIP names KeptTests, which is not a Benchmark file"* ]] || fail "a PUSH_SKIP name with no Benchmark: no reason: $got"
+
+# The HOOK_TESTS word through make check-changed, the real check-changed.sh, and the real test-hooks.sh: two
+# changed hook tests both run. The control is a script that prints the two tests joined with a space: make
+# takes the second as a goal, runs the first only, and exits 0. The Makefile copy has no static gates, and
+# the key tree needs a floor file that exists.
+hook_repo() {
+  make_repo
+  sed -i '' 's/^STATIC_GATES := .*/STATIC_GATES :=/' "$tmp/r/Makefile"
+  cp "$repo/scripts/test-hooks.sh" "$tmp/r/scripts/"
+  g add -A
+  g commit -q -m hooks
+  : > "$tmp/hooks.log"
+  for t in hid ax; do
+    printf '#!/bin/bash\necho %s >> "%s"\n' "$t" "$tmp/hooks.log" > "$tmp/r/scripts/$t.test.sh"
+    chmod +x "$tmp/r/scripts/$t.test.sh"
+  done
+}
+hook_repo
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with two changed hook tests' ''
+[[ "$output" == *"targets: check-fast HOOK_TESTS=$hid_test,$ax_test"* ]] || fail "two changed hook tests: no word: $output"
+[[ "$(sort "$tmp/hooks.log" | tr '\n' ' ')" == 'ax hid ' ]] || fail "two changed hook tests: the log [$(tr '\n' ' ' < "$tmp/hooks.log")] holds not both tests: $output"
+hook_repo
+printf '#!/bin/bash\ncase "$1" in\n  --floor) echo Sources/DirigibleCore/SessionWriter.swift ;;\n  --wait-load) exit 0 ;;\n  *) printf "classes: tooling\\ntargets: check-fast HOOK_TESTS=%%s %%s\\nrisk: no\\n" "'$hid_test'" "'$ax_test'" ;;\nesac\n' > "$tmp/r/scripts/check-changed.sh"
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with a space-joined word' ''
+[[ "$(wc -l < "$tmp/hooks.log" | tr -d ' ')" == 1 ]] || fail "a space-joined word: the control did not show one test: [$(tr '\n' ' ' < "$tmp/hooks.log")]"
 
 # The stamp: a passing check with BASE appends it, a red check or no BASE does not.
 # A stub script gives the targets stub-ok or stub-red of the copied Makefile.

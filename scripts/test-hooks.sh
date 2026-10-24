@@ -1,7 +1,10 @@
 #!/bin/bash
 # Runs the hook and script tests of make test-hooks, and reuses a pass with the same input key.
 # Usage: scripts/test-hooks.sh <test script>...
-#   Only the test-hooks recipe of the Makefile calls it, with the HOOK_TESTS list.
+#   Only the test-hooks recipe of the Makefile calls it, with the HOOK_TESTS list. An argument can
+#   hold several tests joined with commas: scripts/check-changed.sh gives make one HOOK_TESTS word
+#   for the tests of the changed paths, and make passes that word as one argument. Each part is a
+#   test. A list of some of the tests gets no stamp.
 # The key is the tree of the work tree with no Sources/, Tests/, docs/, or README.md, plus the
 # existence of each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool
 # versions, and the date: a pass is good for one day. The tree is HEAD with the changes of a dirty
@@ -31,6 +34,13 @@ today="$(date +%F)"
 # A killed run (no trap) leaves its key tree: remove each one over one hour old. A run takes about
 # 10 min, so the run of another worktree keeps its tree.
 find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60 -exec rm -rf {} +
+
+args=()
+for a in "$@"; do
+    IFS=, read -ra parts <<< "$a"
+    args+=("${parts[@]}")
+done
+set -- ${args[@]+"${args[@]}"}
 
 reason="" flags="${MAKEFLAGS:-}"
 flags="${flags%% *}"

@@ -9,14 +9,15 @@
 # static gates first (a red gate stops the check before test; a gate runs once; a nested make
 # still runs a gate), --flakes (the read route of the flakes file), the partial stamp line, the
 # RERUN word (its two modes, no make call, one flake line for each name), the push check marker
-# that only a run with BASE gives make, and the secret scan that only a run with BASE starts.
-# Run by `make test-hooks`.
+# that only a run with BASE gives make, the secret scan that only a run with BASE starts, and the
+# wiki pages of a failed test (a line wiki: <test>: <page> on the flake path and the red path, no
+# line for a wiki with no page or a page of .obsidian, one warning with no wiki). Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS BASE DIRIGIBLE_PUSH_CHECK
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE MAKE MAKEFLAGS MFLAGS MAKELEVEL CHECK_RISK DIRIGIBLE_SLOW_TESTS BASE DIRIGIBLE_PUSH_CHECK DIRIGIBLE_WIKI
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -337,6 +338,35 @@ BASE=base partial_run 9 0 'ok' "RERUN=$P:fast:aFast+slow:"
 [[ $code -eq 1 && "$(cat "$partial" 2>/dev/null)" == "$head $head failed fast:aFast slow:" ]] || fail "a red RERUN: exit $code, partial [$(cat "$partial" 2>/dev/null)]"
 BASE=base partial_run 9 2 "$red_test" check "RERUN=$P:fast:aFast+slow:aSlow"
 [[ "$(cat "$partial" 2>/dev/null)" == "$head $head failed fast:aFlake,aFast slow:aSlow" ]] || fail "a red check with a word: partial [$(cat "$partial" 2>/dev/null)]"
+
+# The wiki pages of a failed test: the line wiki: <test>: <page> on the flake path and on the red path
+# after the reruns. The fixture wiki is the folder that DIRIGIBLE_WIKI names, with pages in wiki/.
+cp "$repo/scripts/wiki.py" "$w/scripts/wiki.py"
+wk="$tmp/wk"
+mkdir -p "$wk/wiki/items" "$wk/wiki/.obsidian"
+printf 'The flake aFlake needs a triage.\n' > "$wk/wiki/items/0042.md"
+printf 'Another page.\n' > "$wk/wiki/items/0043.md"
+DIRIGIBLE_WIKI="$wk" run 2 2 "$red_test"
+[[ $code -eq 0 ]] || fail "wiki, flake path: exit $code: $out"
+[[ "$(grep '^wiki:' <<<"$out")" == 'wiki: aFlake: items/0042.md' ]] || fail "wiki, flake path: lines [$(grep '^wiki:' <<<"$out")]: $out"
+DIRIGIBLE_WIKI="$wk" run 9 2 "$red_test"
+[[ $code -eq 1 && "$(grep '^wiki:' <<<"$out")" == 'wiki: aFlake: items/0042.md' ]] || fail "wiki, red after reruns: exit $code, lines [$(grep '^wiki:' <<<"$out")]: $out"
+# A wiki with no page for the test: no wiki line, no warning, and the flake pass keeps exit 0.
+mkdir -p "$tmp/wk2/wiki/items"
+printf 'No test name here.\n' > "$tmp/wk2/wiki/items/0001.md"
+DIRIGIBLE_WIKI="$tmp/wk2" run 2 2 "$red_test"
+[[ $code -eq 0 ]] && ! grep -q '^wiki:' <<<"$out" && ! grep -q 'no wiki' <<<"$out" || fail "wiki with no page: exit $code: $out"
+# A page under wiki/.obsidian/ gives no line.
+mkdir -p "$tmp/wk3/wiki/.obsidian"
+printf 'aFlake\n' > "$tmp/wk3/wiki/.obsidian/workspace.json"
+DIRIGIBLE_WIKI="$tmp/wk3" run 2 2 "$red_test"
+[[ $code -eq 0 ]] && ! grep -q '^wiki:' <<<"$out" || fail "wiki page under .obsidian: exit $code: $out"
+# No wiki (a folder that does not exist, or no scripts/wiki.py): one warning line, and the same exit status.
+DIRIGIBLE_WIKI="$tmp/no-wiki" run 2 2 "$red_test"
+[[ $code -eq 0 && "$(grep -c 'run-checks: no wiki' <<<"$out")" == 1 ]] && ! grep -q '^wiki:' <<<"$out" || fail "no wiki folder: exit $code: $out"
+rm "$w/scripts/wiki.py"
+DIRIGIBLE_WIKI="$wk" run 9 2 "$red_test"
+[[ $code -eq 1 && "$(grep -c 'run-checks: no wiki' <<<"$out")" == 1 ]] && ! grep -q '^wiki:' <<<"$out" || fail "no wiki.py, red path: exit $code: $out"
 
 [[ $failures -eq 0 ]] && echo "run-checks tests: all passed"
 exit $((failures > 0))

@@ -4,10 +4,11 @@ The model and effort of each job of a deliver run. Read this file before each `A
 
 ## Usage limits
 
-Before the call, run `.claude/skills/deliver/scripts/usage-mode.sh` on the lead thread. It reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode. The file is optional: Claude Code does not write it, and a Claude Code mod of the user setup (a turn hook) writes it after each main-agent turn. With no file, the mode is `normal`. A non-zero exit is `normal`.
+The hook `.claude/hooks/usage-hook.sh` gives the usage mode as context at each `Agent`, `Workflow`, `SendMessage`, and `delegate_task` start. With no usage-mode line in the tool context, run `.claude/skills/deliver/scripts/usage-mode.sh` before the call. The script reads `~/.claude/usage/limits.json`, holds the thresholds, and prints the mode. The file is optional: Claude Code does not write it, and a Claude Code mod of the user setup (a turn hook) writes it after each main-agent turn. With no file, the mode is `normal`. A non-zero exit is `normal`.
 
 | Mode | Change |
 |---|---|
+| stop | The hook gives the context `stop` at each start and denies nothing. Start no new job, except the reflect agent and a job that the user approved past the stop. Stop at a safe point and write the handoff. |
 | save | A code-reading question for a plan goes to space-bunny-free first. On no result, a Claude agent takes it. Each new `run-agent` takes effort `medium` in place of `high`, except a `risk: yes` slice. A typed agent keeps its frontmatter. |
 | spend | Start the queued Opus jobs first. A `risk: no` slice can take Opus. |
 | normal | The tables below. |

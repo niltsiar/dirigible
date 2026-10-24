@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check that git-guardrails.sh blocks and allows the right commands, and that the post-commit hook
 # of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the Agent
-# tool. Run by `make check`.
+# tool, and usage-hook.sh, the hook that gives the usage mode at an agent start. Run by `make check`.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -868,6 +868,64 @@ ok = any(e.get("matcher") == "Agent"
          for e in entries)
 sys.exit(0 if ok else 1)
 ' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register agent-guard.sh for Agent"; failures=$((failures + 1)); }
+
+# The third hook, usage-hook.sh, gives the usage mode as context at an agent start. It denies nothing
+# and always exits 0. The fixture clock and limits file give each mode.
+usage_hook="$(dirname "$0")/usage-hook.sh"
+usage_now=1792000000
+usage_iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%S.000Z; }
+# expect_usage <mode> <five_hour percent> <minutes to the reset>
+expect_usage() {
+  local mode="$1" out code
+  printf '{"written_at":%s,"rate_limits":[{"kind":"five_hour","percentUsed":%s,"resetsAt":"%s"}]}\n' \
+    $((usage_now * 1000)) "$2" "$(usage_iso $((usage_now + $3 * 60)))" > "$tmp/usage-limits.json"
+  out="$(printf '{"tool_input":{}}' | USAGE_LIMITS_FILE="$tmp/usage-limits.json" USAGE_MODE_NOW=$usage_now "$usage_hook" 2>/dev/null)"
+  code=$?
+  [[ $code -eq 0 ]] || { echo "FAIL: usage-hook $mode: exit $code"; failures=$((failures + 1)); }
+  printf '%s' "$out" | python3 -c '
+import json, sys
+mode = sys.argv[1]
+out = json.load(sys.stdin)
+assert list(out) == ["hookSpecificOutput"], "one hookSpecificOutput object"
+h = out["hookSpecificOutput"]
+assert h["hookEventName"] == "PreToolUse", "event name"
+assert "Usage mode: " + mode + "." in h["additionalContext"], "context names the mode"
+assert "permissionDecision" not in h and "permissionDecisionReason" not in h, "no deny"
+if mode == "stop":
+    assert "stop at a safe point" in h["additionalContext"], "stop text"
+' "$mode" 2>"$tmp/usage-err" || { echo "FAIL: usage-hook $mode: $(tail -n 1 "$tmp/usage-err") (output: $out)"; failures=$((failures + 1)); }
+}
+expect_usage normal 10 120
+expect_usage save 76 120
+expect_usage spend 10 30
+expect_usage stop 85 120
+# A broken usage-mode.sh (no jq, or a non-zero exit) gives the normal text and exit 0.
+mkdir "$tmp/nojq"
+for t in cat dirname date; do ln -s "$(command -v $t)" "$tmp/nojq/$t"; done
+out="$(printf '{}' | PATH="$tmp/nojq" /bin/bash "$usage_hook" 2>/dev/null)"
+[[ $? -eq 0 && "$out" == *"Usage mode: normal."* ]] ||
+  { echo "FAIL: usage-hook with no jq did not give the normal text and exit 0: $out"; failures=$((failures + 1)); }
+
+# The settings register usage-hook.sh for each tool that starts an agent job. The matcher is a
+# regex that must match the whole tool name.
+# matcher_covers <settings file> <tool name>
+matcher_covers() {
+  python3 -c '
+import json, re, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
+ok = any(re.fullmatch(e.get("matcher", ""), sys.argv[2])
+         and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/usage-hook.sh") for h in e.get("hooks", []))
+         for e in entries)
+sys.exit(0 if ok else 1)
+' "$1" "$2" 2>/dev/null
+}
+printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"command","command":"x/.claude/hooks/usage-hook.sh"}]}]}}' > "$tmp/old-settings.json"
+for tool in Agent Workflow SendMessage mcp__t3-code__delegate_task; do
+  matcher_covers "$settings" "$tool" || { echo "FAIL: .claude/settings.json does not register usage-hook.sh for $tool"; failures=$((failures + 1)); }
+done
+for tool in SendMessage mcp__t3-code__delegate_task; do
+  matcher_covers "$tmp/old-settings.json" "$tool" && { echo "FAIL: the matcher check passed a settings file with no $tool"; failures=$((failures + 1)); }
+done
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

@@ -1,8 +1,9 @@
 #!/bin/bash
 # Check the mode that usage-mode.sh prints for a fixture limits.json and a fixed clock: the
-# thresholds at both sides (75 % save; 60 min and 70 % spend), a past reset (normal), a file
-# older than 15 min with a future reset (save), the seven_day row ignored, and no file, no
-# five_hour row, or a bad percentUsed or resetsAt (normal). Run by `make test-hooks`.
+# thresholds at both sides (80 % stop, also for a stale file; 75 % save; 60 min and 70 % spend),
+# a past reset (normal), a file older than 15 min with a future reset (save below 80 %), the
+# seven_day row ignored, and no file, no five_hour row, or a bad percentUsed or resetsAt
+# (normal). Run by `make test-hooks`.
 set -uo pipefail
 mode="$(cd "$(dirname "$0")" && pwd)/usage-mode.sh"
 failures=0
@@ -30,11 +31,16 @@ limits 74 120 0; expect "74 % with 120 min left" normal
 limits 70 60 0; expect "70 % with 60 min left" spend
 limits 70 61 0; expect "70 % with 61 min left" normal
 limits 71 30 0; expect "71 % with 30 min left" normal
-limits 80 30 0; expect "80 % with 30 min left: save wins" save
+limits 79 120 0; expect "79 % with 120 min left" save
+limits 80 120 0; expect "80 % with 120 min left" stop
+limits 80 30 0; expect "80 % with 30 min left: stop wins" stop
 limits 0 30 0; expect "0 % with 30 min left" spend
 limits 90 -10 0; expect "90 % with a reset 10 min in the past" normal
 limits 20 120 15; expect "a file of exactly 15 min" normal
 limits 20 120 16; expect "a file of 16 min with a future reset" save
+limits 79 120 20; expect "a stale file of 79 %: the stored value is a floor" save
+limits 82 120 20; expect "a stale file of 82 %: stop comes before the stale rule" stop
+limits 82 -10 20; expect "a stale file of 82 % with a past reset" normal
 limits 20 -10 16; expect "a file of 16 min with a past reset" normal
 limits 20 120 0 99; expect "a seven_day row of 99 %" normal
 

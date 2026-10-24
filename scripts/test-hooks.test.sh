@@ -107,6 +107,17 @@ run
 [[ $code -eq 0 && $(ran) -eq 3 ]] && ! grep -q reuse "$tmp/out" \
     || fail "(i) the full run after a subset pass did not run each stub: code $code, ran $(ran): $(out)"
 
+# C2 (j): an argument with commas gives one test for each part. A list of two tests of three runs those
+# two and writes no stamp. Make takes the whole word as one value of HOOK_TESTS.
+new_repo
+printf '#!/bin/bash\necho c >> "$HOOKS_LOG"\n' > "$repo/t/c.test.sh"
+chmod +x "$repo/t/c.test.sh"
+printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh \\\n\tt/c.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
+commit three-tests
+run HOOK_TESTS=t/a.test.sh,t/b.test.sh
+[[ $code -eq 0 && $(ran) -eq 2 && $(stamps) -eq 0 && "$(tr '\n' ' ' < "$tmp/log")" == 'a b ' ]] && grep -q '^test-hooks: no stamp (the list is not HOOK_TESTS of the Makefile)$' "$tmp/out" \
+    || fail "(j) a comma list: code $code, ran $(ran), stamps $(stamps): $(out)"
+
 # C3: a change of an excluded path keeps the key. The key holds only the existence of a floor
 # path: each hook test passed with each floor file emptied (run 2026-10-12-pipeline-reuse).
 new_repo

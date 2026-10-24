@@ -23,6 +23,13 @@
 # have test or check prints the three lines and exits 1: the full suite runs only in the push
 # check. A local git run with FILTER whose targets have no test-filter prints the three lines and
 # exits 1: it would run no test. The mode --paths keeps the targets (a probe of the table).
+# A local run with check-fast (and no check) adds the word HOOK_TESTS=<tests>: the tests of the
+# changed paths from Makefile HOOK_TESTS, joined with commas, so make gets one word and
+# scripts/test-hooks.sh splits it. A path of class tooling or comments needs a test: the entry
+# itself, <name>.test.sh for <name>.sh or <name>.py, the guardrails test for .claude/hooks/*,
+# .claude/settings.json, and .githooks/*, scripts/land.test.sh for .githooks/pre-push, and each entry
+# whose text names the basename of a changed tooling path. A path with no test gives no word: the
+# full list runs. The push never adds the word.
 set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
@@ -91,7 +98,8 @@ targets_of() {
 # wait and the tests of a slice fit in one 600 s Bash call), run the tests anyway. The lines go
 # to stderr.
 wait_load() {
-    local rest=" $* " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}"
+    local rest=" " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}"
+    for t in "$@"; do [[ $t == *=* ]] || rest+="$t "; done
     for t in check-docs check-fast none; do rest="${rest// $t / }"; done
     [[ -n "${rest// /}" ]] || return 0
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
@@ -118,6 +126,33 @@ wait_load() {
         sleep 10
         waited=$((waited + 10))
     done
+}
+
+# hook_tests <paths>: the hook tests that the changed paths need, in the order of HOOK_TESTS and
+# joined with commas. It prints nothing when a path of class tooling or comments has no test.
+hook_tests() {
+    local root list p c t base hits all=" " out=""
+    root="$(cd "$(dirname "$0")/.." && pwd)"
+    list="$(awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' "$root/Makefile" | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . || true)"
+    while IFS= read -r p; do
+        [[ -n "$p" ]] || continue
+        if comment_only "$p"; then c=comments; else c="$(class_of "$p")"; fi
+        [[ $c == tooling || $c == comments ]] || continue
+        hits=" "
+        grep -qxF -- "$p" <<<"$list" && hits+="$p "
+        case "$p" in *.sh | *.py) t="${p%.*}.test.sh"; grep -qxF -- "$t" <<<"$list" && hits+="$t " ;; esac
+        case "$p" in .claude/hooks/* | .claude/settings.json | .githooks/*) hits+=".claude/hooks/git-guardrails.test.sh " ;; esac
+        [[ $p == .githooks/pre-push ]] && hits+="scripts/land.test.sh "
+        if [[ $c == tooling ]]; then
+            base="${p##*/}"
+            # A basename that no test names is no failure: grep exits 1 with no match.
+            while IFS= read -r t; do hits+="$t "; done < <(cd "$root" && grep -lsF -- "$base" $list || true)
+        fi
+        [[ "$hits" != " " ]] || return 0
+        all+="${hits# } "
+    done <<<"$1"
+    for t in $list; do [[ "$all" == *" $t "* ]] && out+=",$t"; done
+    echo "${out#,}"
 }
 
 push=0 mode=git base="" from=""
@@ -263,6 +298,12 @@ for t in check-docs check-fast test check test-slow-push test-dmg; do
 done
 
 [[ -n "$run" ]] && targets+=" PUSH_RUN=$(sort -u <<<"${run%$'\n'}" | paste -sd, -)"
+
+# A local check-fast runs only the hook tests that the changed paths need.
+if [[ $push == 0 && " $targets " == *" check-fast "* && " $targets " != *" check "* ]]; then
+    hooks="$(hook_tests "$paths")"
+    [[ -z "$hooks" ]] || targets+=" HOOK_TESTS=$hooks"
+fi
 
 # The word RERUN=<P>:fast:<names>+slow:<names> gives run-checks.sh the failed tests of P. The fast
 # part drops beside check or test, which run each fast test. test-slow-push skips a PUSH_SKIP file

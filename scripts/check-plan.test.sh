@@ -468,6 +468,46 @@ row 3 'plan gate round 1'
 pass 'a run whose plan gate came before the rule'
 script="$saved_script" run="$saved_run"
 
+# A feat/ Landings row with Lands none and a Sources/ path in the Check line of one of its slices
+# is refused: scripts/tag-release.sh needs an F-ID (DLV-196). The columns come from the header names.
+# landings <header> <row>...: a table and three slices: L1-S1 with a Support/ check, L1-S2 with a Tests/
+# check, and L2-S3 with the real Check line of run 2026-10-23-read-by-time, one Sources/ path moved after
+# a Tests/ path.
+cat > "$tmp/l2s3-check" <<'EOF'
+- Check: `scripts/check-changed.sh --paths <<<$'Sources/DirigibleCore/Backup.swift\nSources/DirigibleMCP/AgentManual.swift\nSources/DirigibleMCP/MCPToolTable.swift\nTests/DirigibleCLITests/AgentManualTests.swift\nSources/DirigibleCLI/BackupCommands.swift\nTests/DirigibleCLITests/BackupCommandTests.swift\ndocs/decisions/0051-agent-manual.md'`
+EOF
+landings() {
+  good
+  {
+    printf '# Plan: x\n\nAgents: B = L1-S1 to L2-S3.\n\n## Landings\n\n%s\n|---|---|---|---|---|\n' "$1"
+    shift
+    printf '%s\n' "$@"
+    printf '\n## Slices\n\n### L1-S1 one\n\n- Check: `scripts/check-changed.sh --paths <<<$'"'"'Support/Info.plist\\nTests/A.swift'"'"'`\n'
+    printf '\n### L1-S2 two\n\n- Check: `scripts/check-changed.sh --paths <<<$'"'"'Tests/A.swift'"'"'`\n'
+    printf '\n### L2-S3 three\n\n'
+    cat "$tmp/l2s3-check"
+  } > "$run/plan.md"
+}
+HEAD6='| Landing | Slices | Branch | risk | Code gate | Lands |'
+reason='scripts/tag-release.sh needs a done row in features.md'
+landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small-items` | no | 1 round | none |'
+refuse 'a feat/ row with Lands none whose slice has a Sources/ path after a Tests/ path' "$reason"
+refuse 'the refusal counts the Sources/ paths, also the one after a Tests/ path' 'change 4 Sources/ paths, for example Sources/DirigibleCore/Backup.swift'
+landings "$HEAD6" '| L1 one | L1-S1 to L1-S2 | `feat/a` | no | 1 round | none |' '| L2 two | L2-S3 | `feat/b` | no | 1 round | F9 |'
+pass 'a feat/ row with Lands none whose slices change only Support/ and Tests/, and a feat/ row with an F-ID'
+landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `fix/tester-small-items` | no | 1 round | none |'
+pass 'a fix/ row with Lands none and a Sources/ path'
+landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small-items` | no | 1 round | F9, F10 |'
+pass 'a feat/ row with an F-ID and a Sources/ path'
+landings '| Landing | Items | Criteria | Lands | Branch and worktree |' '| L1 | one | C1 | F122 | `feat/agent-pack`, from origin/main |'
+pass 'a table with a Branch and worktree header and an F-ID'
+landings '| Landing | Items | Criteria | Lands | Branch and worktree |' '| L1 | one | C1 | none | `feat/agent-pack`, from origin/main |'
+refuse 'a Branch and worktree header with Lands none and no Slices column' "$reason"
+# A run that started before the rule (2026-10-24T10:00) is not checked.
+landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small-items` | no | 1 round | none |'
+printf '2026-10-01T10:00\t1\tstart\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
+pass 'a run that started before the Landings rule'
+
 out="$("$script" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "no argument: exit $code: $out"

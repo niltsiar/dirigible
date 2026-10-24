@@ -43,6 +43,11 @@
 #   or `## Plan gate <n> changes` name it as a whole word, or in a range `C2 to C5` or `C2-C5` of
 #   the same prefix (each end may have a suffix: `C4a to C4d`). A run whose first decisions.tsv row
 #   is older than the rule is not checked.
+# - A table row of plan.md whose Branch (or Branch and worktree) cell starts with `feat/` and whose
+#   Lands cell starts with `none` has no Sources/ word in the `- Check:` lines of its slices:
+#   scripts/tag-release.sh needs an F-ID (check-governance.sh refuses it at the land). The Slices cell
+#   lists slice IDs or a range `L2-S1 to L2-S3`; with no Slices column the rule reads each `- Check:`
+#   line of the plan. A run whose first decisions.tsv row is older than the rule is not checked.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -173,6 +178,60 @@ else
                 if (!covered)
                     print "plan.md does not name criterion " id " of analysis.md; name it under ## Slices, ## Criteria map, or ## Plan gate changes (a range such as C2 to C5 counts)"
             }' "$run/analysis.md")
+    fi
+    # Cutoff 2026-10-24T10:00, the commit that added the Landings rule: a run that started earlier passes without it.
+    if [[ -z "$start" || ! "$start" < 2026-10-24T10:00 ]]; then
+        while IFS= read -r msg; do say "$msg"; done < <(awk '
+            # sources(s): each Sources/ word of s; a literal \n of a path list and the quotes break words.
+            function sources(s,  i, k, out) {
+                gsub(/\\n|[$\047"`<>]/, " ", s)
+                k = split(s, w, /[[:space:]]+/)
+                for (i = 1; i <= k; i++) if (w[i] ~ /^Sources\//) out = out " " w[i]
+                return out
+            }
+            function num(id) { match(id, /[0-9]+[a-z]*$/); return substr(id, RSTART, RLENGTH) + 0 }
+            function prefix(id) { sub(/[0-9]+[a-z]*$/, "", id); return id }
+            # listed(id, spec): id is a slice ID of the Slices cell: a listed ID, or inside "A to B" of one prefix.
+            function listed(id, spec,  k, i, t) {
+                gsub(/ to /, " ~ ", spec); k = split(spec, t, /[[:space:],;]+/)
+                for (i = 1; i <= k; i++) {
+                    if (t[i] == id) return 1
+                    if (t[i + 1] == "~" && prefix(t[i]) == prefix(id) && num(id) >= num(t[i]) && num(id) <= num(t[i + 2])) return 1
+                }
+                return 0
+            }
+            /^## / { inslices = ($0 ~ /^## Slices[[:space:]]*$/); table = 0 }
+            inslices && /^### / { slice = $2; ids[slice] = 1; next }
+            inslices && /^- Check:/ { p = sources($0); paths[slice] = paths[slice] p; all = all p; next }
+            /^\|/ {
+                line = $0; gsub(/\\\|/, "\001", line); n = split(line, cell, "|")
+                for (i = 2; i < n; i++) gsub(/^[[:space:]]+|[[:space:]]+$/, "", cell[i])
+                if (!table) {
+                    table = 1; bc = lc = sc = 0
+                    for (i = 2; i < n; i++) {
+                        if (cell[i] == "Branch" || cell[i] == "Branch and worktree") bc = i
+                        if (cell[i] == "Lands") lc = i
+                        if (cell[i] == "Slices") sc = i
+                    }
+                    next
+                }
+                if (!bc || !lc || cell[2] ~ /^-+$/) next
+                branch = cell[bc]; gsub(/`/, "", branch)
+                if (branch !~ /^feat\// || cell[lc] !~ /^none/) next
+                rows++; name[rows] = cell[2]; br[rows] = branch; spec[rows] = sc ? cell[sc] : ""
+                next
+            }
+            !/^### / { table = 0 }
+            END {
+                for (r = 1; r <= rows; r++) {
+                    hit = ""; matched = 0
+                    if (spec[r] != "") for (id in ids) if (listed(id, spec[r])) { matched = 1; hit = hit paths[id] }
+                    if (!matched) hit = all
+                    if (hit == "") continue
+                    k = split(hit, h, " ")
+                    print "plan.md: Landings row \"" name[r] "\" has branch " br[r] " and Lands none, and its slices change " k " Sources/ paths, for example " h[1] "; scripts/tag-release.sh needs a done row in features.md for the run number, so name at least one F-ID in the Lands cell"
+                }
+            }' "$run/plan.md")
     fi
     # Row order, not the clock, decides which phase row is last.
     if [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]]; then

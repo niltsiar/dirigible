@@ -347,6 +347,15 @@ lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n' Support/Info.plist; comm
 pass 'a feat run that changes only Support/ and writes Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: none\n'; commit
 refuse 'a feat run that changes Sources/ and writes Lands: none' 'scripts/tag-release.sh' "$tmp/run"
+# The last `- Branch:` line decides, as in check-eval-keys.sh: a run of several landings writes the line of its next landing.
+lands_repo '# Run\n\n- Branch: feat/x\n- Branch: fix/y\n- Lands: none\n'; commit
+pass 'a feat/ Branch line, then a fix/ line, with Lands: none and a Sources/ change' "$tmp/run"
+lands_repo '# Run\n\n- Branch: fix/y\n- Branch: feat/x\n- Lands: none\n'; commit
+refuse 'a fix/ Branch line, then a feat/ line, with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
+lands_repo '# Run\n\n- Branch: `feat/x`\n- Lands: none\n'; commit
+refuse 'a backtick Branch line with Lands: none and a Sources/ change' 'scripts/tag-release.sh' "$tmp/run"
+lands_repo '# Run\n\n- Branch: `feat/x`\n- Requirements: F35\n'; commit
+refuse 'a backtick feat/ Branch line with no Lands line and a Sources/ change' 'name the F-IDs of this land in - Lands: of run.md' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands: F77\n' Support/Info.plist; set_done F77; commit
 pass 'a feat run that changes only Support/ and sets its Lands state' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/x\n- Lands: F35\n'; commit

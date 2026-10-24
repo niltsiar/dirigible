@@ -49,6 +49,11 @@ tree; quarantine '"quarantine: the stop misses"' Sources/A/a.swift; expect pass 
 tree; quarantine '"quarantine: the stop misses"' Tests/B/b.txt; expect pass 'a quarantine marker in a file that is not Swift'
 tree; quarantine '"quarantine: the stop misses, FLAKEY"' Tests/B/b.swift
 expect fail 'a word that only starts with FLAKE' 'Tests/B/b.swift:1: a "quarantine: marker with no FLAKE word'
+tree; quarantine 'flake' Tests/B/b.swift
+expect fail 'isIntermittent with no quarantine marker' 'Tests/B/b.swift: an isIntermittent: true with no "quarantine: marker that has a FLAKE word'
+tree; quarantine 'flake' Tests/B/b.swift; echo '    "quarantine: the stop misses, see backlog FLAKE LINE 40"' >> "$tmp/Tests/B/b.swift"
+expect pass 'isIntermittent with a quarantine marker on another line'
+tree; quarantine 'flake' Sources/A/a.swift; expect pass 'isIntermittent outside Tests/'
 
 [[ $failures -eq 0 ]] && echo "check-waits tests: all passed"
 exit $((failures > 0))

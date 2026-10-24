@@ -13,7 +13,10 @@
 #   with "byte check end" and its stamp is the resolved commit. Else the runner exits 2.
 #   Each tag has its answers in <eval folder>/answer-<tag>/. A folder with a file exits 2.
 #   keys.md is the Key points cells of the Scenarios table. A holdout row has its key in the first
-#   --holdout-keys file that has a "## <ID>" line, followed by one line of the key points.
+#   --holdout-keys file that has a "## <ID>" line, followed by one line of the key points. With no
+#   such file, the key comes from the newest run folder (by name) of the scratch root whose eval*
+#   folder, the last by name first, has a keys.md with that line; the runner prints its path. Two
+#   runs of one day sort by slug, and eval-10 sorts before eval-2, so an older key can win.
 #   A row of type agent that has a quoted prompt and no task in agent-tasks.sh (E41) runs RUNS
 #   sessions of ANSWER_MODEL, each in a copy of set b under /private/tmp. The same grader scores
 #   them in <eval folder>/agent/. The runner prints the score rows; the pass rule of the row is
@@ -88,6 +91,27 @@ for i in ids:
 ' "$evals_md" "${pos[3]}")" || die 2 "${pos[3]}: see above"
 
 has_key_point() { [[ $1 =~ (^|[[:space:]])\(a\)\  ]]; }
+# key_line <ID> <file>: the line after "## <ID>" in the file.
+key_line() { awk -v id="## $1" '$0 == id { getline; print; exit }' "$2"; }
+# The runs folder of the scratch root, which sits beside the git common dir. A keys.md of an older
+# run folder is the fallback for a holdout key; the folders sort as names, newest first.
+scratch="$(dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)")/.scratch""pads"
+runs_dir="$scratch/ru""ns"
+# run_folder_key <ID>: sets found and prints the path of the first keys.md that has the ID.
+run_folder_key() {
+    local r ev f line
+    while IFS= read -r r; do
+        while IFS= read -r ev; do
+            f="$runs_dir/$r/$ev/keys.md"
+            [[ -f $f ]] || continue
+            line="$(key_line "$1" "$f")"
+            [[ -n $line ]] || continue
+            found="$line"
+            echo "run.sh: the key of $1 comes from $f"
+            return 0
+        done < <(ls -1 "$runs_dir/$r" 2>/dev/null | grep '^eval' | LC_ALL=C sort -r)
+    done < <(ls -1 "$runs_dir" 2>/dev/null | LC_ALL=C sort -r)
+}
 doc_ids=() doc_keys=() agent_id="" agent_key="" agent_prompt=""
 while IFS=$'\037' read -r id type key prompt; do
     if [[ $type == agent ]]; then
@@ -98,10 +122,11 @@ while IFS=$'\037' read -r id type key prompt; do
     elif [[ $key == *'(holdout)'* ]]; then
         found=""
         for f in ${holdout_files[@]+"${holdout_files[@]}"}; do
-            line="$(awk -v id="## $id" '$0 == id { getline; print; exit }' "$f")"
+            line="$(key_line "$id" "$f")"
             if [[ -n $line ]]; then found="$line"; break; fi
         done
-        [[ -n $found ]] || die 2 "$id is a holdout with no key; give a --holdout-keys file that has \"## $id\""
+        [[ -n $found ]] || run_folder_key "$id"
+        [[ -n $found ]] || die 2 "$id is a holdout with no key; give a --holdout-keys file that has \"## $id\", or a keys.md of a run folder"
         has_key_point "$found" || die 2 "the key of $id has no key point \"(a) \""
         doc_ids+=("$id") doc_keys+=("$found")
     else

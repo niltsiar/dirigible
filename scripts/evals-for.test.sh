@@ -743,6 +743,38 @@ for line in open(sys.argv[1]):
   runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold3.md"
   [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout key with no key point: exit $code: $out"
 
+  # With no --holdout-keys file that has the ID, the key comes from the newest run folder (by name)
+  # of the scratch root whose eval folder has a keys.md with the ID, the last eval folder first.
+  # A file that has the ID wins. A folder with no ID is skipped for an older one. The first folder
+  # that has the ID decides, and a key with no key point exits 2.
+  # The path is built from parts, as the self-check at the end of this file asks.
+  runs_dir="$rt/.scratch""pads/ru""ns"
+  mkdir -p "$runs_dir/2026-10-01-old/eval" "$runs_dir/2026-10-02-new/eval" "$runs_dir/2026-10-02-new/eval-2"
+  printf '## H6\n(a) Old one. (b) Old two.\n' > "$runs_dir/2026-10-01-old/eval/keys.md"
+  printf '## H6\n(a) New one. (b) New two.\n' > "$runs_dir/2026-10-02-new/eval/keys.md"
+  printf '## H6\n(a) Newest one. (b) Newest two.\n' > "$runs_dir/2026-10-02-new/eval-2/keys.md"
+  h6_line() { awk '$0 == "## H6" { getline; print }' "$1/keys.md"; }
+  e="$(eval_env holdout-runs)"
+  runner "$e" HEAD HEAD E2,H6 t2
+  [[ $code -eq 0 && "$out" == *"2026-10-02-new/eval-2/keys.md"* ]] || fail "run.sh holdout from run folders: exit $code: $out"
+  [[ "$(h6_line "$e")" == '(a) Newest one. (b) Newest two.' ]] || fail "run.sh holdout from run folders: keys.md has [$(h6_line "$e")]"
+  e="$(eval_env holdout-runs-file)"
+  runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold2.md"
+  [[ $code -eq 0 && "$out" != *keys.md* && "$(h6_line "$e")" == '(a) Hold one. (b) Hold two. (c) Hold three.' ]] || fail "run.sh holdout with a file and run folders: exit $code, keys.md [$(h6_line "$e")]"
+  e="$(eval_env holdout-runs-lacks)"
+  runner "$e" HEAD HEAD E2,H6 t2 --holdout-keys "$tmp/hold1.md"
+  [[ $code -eq 0 && "$(h6_line "$e")" == '(a) Newest one. (b) Newest two.' ]] || fail "run.sh holdout with a file that lacks H6 and run folders: exit $code, keys.md [$(h6_line "$e")]"
+  printf '## H7\n(a) Other.\n' > "$runs_dir/2026-10-02-new/eval-2/keys.md"
+  rm "$runs_dir/2026-10-02-new/eval/keys.md"
+  e="$(eval_env holdout-runs-older)"
+  runner "$e" HEAD HEAD E2,H6 t2
+  [[ $code -eq 0 && "$out" == *"2026-10-01-old/eval/keys.md"* && "$(h6_line "$e")" == '(a) Old one. (b) Old two.' ]] || fail "run.sh holdout from an older run folder: exit $code: $out"
+  printf '## H6\nOld one. Old two.\n' > "$runs_dir/2026-10-01-old/eval/keys.md"
+  e="$(eval_env holdout-runs-nokey)"
+  runner "$e" HEAD HEAD E2,H6 t2
+  [[ $code -eq 2 && "$out" == *H6* && ! -s "$tmp/fake.log" ]] || fail "run.sh holdout from a folder with no key point: exit $code: $out"
+  rm -rf "$rt/.scratch""pads"
+
   # An agent row with a quoted prompt and no task in agent-tasks.sh (E41) runs RUNS sessions in a
   # copy of set b, inside probe.sh, with the temp folders in the run folder, and is scored in
   # agent/ only. E38 has no prompt: it runs through agent-tasks.sh.

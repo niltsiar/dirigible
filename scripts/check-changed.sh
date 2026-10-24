@@ -15,6 +15,8 @@
 #          CHECK_PARTIAL=ignore: the targets with no partial stamp, and the word with each name.
 #        SINCE=<ref> scripts/check-changed.sh   the commits since <ref> and the working tree; the local
 #          targets and the HOOK_TESTS word, for the group end of one agent. It reads and writes no stamp.
+#          The lead records `git rev-parse HEAD` before it starts the agent. That commit is <ref>: the
+#          parent of the first commit of the group. A <ref> that is the first commit drops its paths.
 #          With a base too it exits 2. With no changed path it exits 1. Only git mode reads SINCE.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths

@@ -28,13 +28,15 @@ extension Studio {
             do { try await Task.sleep(for: .milliseconds(50)) } catch { break }
         }
         if generation == mine, transport == .recording(take: take) { try await stopRecording() }
-        // Another stop ended the take; wait for its finalize. The sleep is in a task of its own,
+        // Another stop ended the take; wait for its finalize. A start of another caller sets
+        // `isStarting` before its first suspension and changes `generation` only at `begin`, so
+        // also wait until that start begins its take or fails. The sleep is in a task of its own,
         // so a cancel of this call does not make the wait spin.
-        while generation == mine, transport == .finalizing(take: take) {
+        while generation == mine, transport == .finalizing(take: take) || isStarting {
             await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
         }
         // Another caller can start a new take before this call wakes; that start clears the
-        // result, and a finalize error is then of the new take.
+        // result, and a finalize error is then of the new take. A start that fails keeps both.
         guard generation == mine, let lastTake else { throw .busy }
         if let takeError { throw takeError }
         return lastTake

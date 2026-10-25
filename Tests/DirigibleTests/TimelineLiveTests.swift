@@ -85,15 +85,26 @@ import Testing
             if case .recording = studio.transport { view.lanes.palette.live } else { view.lanes.palette }
         }
 
-        /// The runs of a waveform column with `peak` and `rms` on the -60 dB scale, over the clip color.
+        /// The runs of a waveform column with `peak` and `rms` on the -60 dB scale, over the clip color,
+        /// in a box wide enough for the bar. The finalize draws the bar and its edge row over them. The
+        /// live palette has the clip color for the bar, and the live region has no edge.
         func waveform(peak: Float = 0.5, rms: Float = 0.25) throws -> [Run] {
-            let rows = try #require(view.lanes.surfaces.shown).laneRows
+            let window = try #require(view.lanes.surfaces.shown)
             func height(_ value: Float) -> Int {
-                Int(((20 * log10(Double(value)) + 60) / 60 * Double(rows)).rounded())
+                Int(((20 * log10(Double(value)) + 60) / 60 * Double(window.laneRows)).rounded())
             }
             let palette = self.palette
             let (p, r) = (height(peak), height(rms))
-            return [Run(palette.clip, rows - p), Run(palette.peak, p - r), Run(palette.rms, r)]
+            var column =
+                Array(repeating: palette.clip, count: window.laneRows - p)
+                + Array(repeating: palette.peak, count: p - r)
+                + Array(repeating: palette.rms, count: r)
+            let barRows = Int((ClipLabel.barHeight * window.scale).rounded())
+            for row in 0..<barRows - 1 where column[row] == palette.clip { column[row] = palette.bar }
+            if case .recording = studio.transport {} else { column[barRows - 1] = palette.barEdge }
+            return column.reduce(into: []) { runs, color in
+                if runs.last?.color == color { runs[runs.count - 1].count += 1 } else { runs.append(Run(color, 1)) }
+            }
         }
 
         func close() async {
@@ -323,7 +334,7 @@ import Testing
         let window = try #require(lanes.view.lanes.surfaces.shown)
         let rows = window.rows(of: 0..<1)
         var pixels: [UInt32] = []
-        for row in rows.upperBound - Int(16 * window.scale)..<rows.upperBound {
+        for row in rows.lowerBound..<rows.lowerBound + Int(16 * window.scale) {
             for column in try lanes.column(from)..<lanes.column(to) {
                 pixels.append(try #require(lanes.view.lanes.surfaces.pixel(column: column, row: row)))
             }

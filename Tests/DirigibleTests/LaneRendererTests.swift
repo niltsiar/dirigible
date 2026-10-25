@@ -360,7 +360,8 @@ struct LaneRendererTests {
             // The handles at the fade-in end (x 100) and the fade-out start (x 350).
             let handle = (97..<103).contains(column) || (347..<353).contains(column)
             let lines = Self.rows(pixels, column: column, palette.label).filter { !handle || !(1..<7).contains($0) }
-            return lines != (inFade ? [row] : [0])
+            // The bar edge (row 14) covers a fade line that crosses it.
+            return lines != (inFade ? (row == 14 ? [] : [row]) : [0])
         }
         #expect(misses.isEmpty, "columns with a wrong fade line: \(misses)")
 

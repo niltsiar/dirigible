@@ -5,7 +5,8 @@ import DirigibleTimeline
 
 /// A label of a lane draw: the clip name, or the take label of the live region. One draw builds
 /// the labels once: the renderer leaves the chip free of peak and RMS spans, so the box fill shows
-/// there, and the label pass draws the text on it (run 2026-10-11-ui-polish-header C14).
+/// there, and the label pass draws the text on it (run 2026-10-11-ui-polish-header C14). The chip
+/// is at the top of the box, in the clip bar, between the fade handles of its clip.
 struct ClipLabel {
     /// Nil for the take label.
     let clip: ClipID?
@@ -14,9 +15,12 @@ struct ClipLabel {
     /// The parts of the box where the label draws: an old clip label shows only outside the live
     /// region.
     let shown: [NSRect]
-    /// At the bottom-left of the box, cut at the box end, in document points.
+    /// At the top of the box, between the fade handles, in document points. Empty when no room is
+    /// left for it.
     let chip: NSRect
     let origin: NSPoint
+    /// The squares of the envelope discs that meet the chip: the text leaves them free.
+    let holes: [NSRect]
 
     /// A computed value: an `NSFont` is not `Sendable`.
     static var font: NSFont { .systemFont(ofSize: 11, weight: .medium) }
@@ -25,6 +29,17 @@ struct ClipLabel {
         let font = ClipLabel.font
         return (font.ascender - font.descender + font.leading).rounded(.up) + 1
     }()
+    /// The bar under the chip: 1 pt higher, so the chip lies in it.
+    static let barHeight = height + 1
+
+    /// The distance of the chip from the box start when the start handle is at rest (points).
+    static let inset = LaneGeometry.handleSize + 2
+
+    /// The one width rule of the chip and the bar (points).
+    static func hasChip(width: Double) -> Bool { width >= 60 }
+
+    /// Whether a clip box has a bar: a box with a chip, in a lane of 60 pt or taller.
+    static func hasBar(width: Double, laneHeight: Double) -> Bool { laneHeight >= 60 && hasChip(width: width) }
 
     /// The text widths of the earlier draws. A measure at each draw made a Command-F event at
     /// 60 pt boxes 3 to 4 ms slower than main (decisions.tsv of the run, S5 row).
@@ -39,12 +54,30 @@ struct ClipLabel {
         return width
     }
 
-    @MainActor init(clip: ClipID?, lane: Int, text: String, box: NSRect, shown: [NSRect]) {
-        let width = Self.width(of: text)
-        let chip = NSRect(x: box.minX + 2, y: box.maxY - Self.height, width: width + 6, height: Self.height)
+    /// The chip starts at `start` and ends at `end` at the latest, which are `inset` from the box start
+    /// and the box end when no fade handle of the clip moves them. `discs` are the squares of the
+    /// envelope discs of the clip.
+    @MainActor init(
+        clip: ClipID?, lane: Int, text: String, box: NSRect, shown: [NSRect], start: Double? = nil,
+        end: Double? = nil, discs: [NSRect] = []
+    ) {
+        let (start, end) = (start ?? box.minX + Self.inset, end ?? box.maxX)
+        let width = min(Self.width(of: text) + 6, end - start)
         (self.clip, self.lane, self.text, self.shown) = (clip, lane, text, shown)
-        self.chip = chip.intersection(box)
-        origin = NSPoint(x: chip.minX + 3, y: chip.minY)
+        let chip = width > 0 ? NSRect(x: start, y: box.minY, width: width, height: Self.height) : .zero
+        (self.chip, origin) = (chip, NSPoint(x: start + 3, y: box.minY))
+        // Discs 8 pt apart have squares that overlap: they make one hole, as an even-odd clip needs.
+        var holes: [NSRect] = []
+        for disc in discs {
+            let hole = disc.intersection(chip)
+            guard !hole.isNull, !hole.isEmpty else { continue }
+            if let last = holes.last, last.maxX > hole.minX {
+                holes[holes.count - 1] = last.union(hole)
+            } else {
+                holes.append(hole)
+            }
+        }
+        self.holes = holes
     }
 
     /// The labels of the rect of `region`. It reads only the clips in the frames of the rect, lane
@@ -65,7 +98,7 @@ struct ClipLabel {
             let region = regions[lane]
             for clip in track.clips.clips(overlapping: frames) {
                 let box = NSRect(geometry.box(of: clip, lane: lane))
-                guard box.width >= 60, box.intersects(rect) else { continue }
+                guard hasChip(width: box.width), box.intersects(rect) else { continue }
                 // The parts of the box on each side of the live region.
                 let shown =
                     region.map { live in
@@ -76,7 +109,20 @@ struct ClipLabel {
                 guard !shown.isEmpty else { continue }
                 let name = ClipInspection.name(of: clip, in: inputs.session)
                 let text = TimelineDocumentView.labelText(name, gain: clip.gain, locale: .current)
-                labels.append(ClipLabel(clip: clip.id, lane: lane, text: text, box: box, shown: shown))
+                // The chip lies between the fade handles and leaves the envelope discs free.
+                let index = track.clips.index(holding: clip.start)
+                let handles = index.map { geometry.fadeHandles(of: clip, at: $0, in: track.clips, lane: lane) }
+                let reach = LaneGeometry.pointRadius + 1.5
+                let discs =
+                    index.map {
+                        geometry.envelopePoints(of: clip, at: $0, in: track.clips, trackGain: track.gain, lane: lane)
+                            .map { NSRect(x: $0.x - reach, y: $0.y - reach, width: 2 * reach, height: 2 * reach) }
+                    } ?? []
+                labels.append(
+                    ClipLabel(
+                        clip: clip.id, lane: lane, text: text, box: box, shown: shown,
+                        start: (handles?.start).map { max($0.maxX + 2, box.minX + inset) },
+                        end: (handles?.end).map { $0.minX - 2 }, discs: discs))
             }
             if let region, let live, region.intersects(rect) {
                 labels.append(ClipLabel(clip: nil, lane: lane, text: live.label, box: region, shown: [region]))
@@ -85,11 +131,10 @@ struct ClipLabel {
         return labels
     }
 
-    /// The pixel columns of the chip and its top row, for `LaneRenderer.drawColumns`.
-    func cut(scale: Double) -> (columns: Range<Int>, top: Int) {
-        // A chip outside its box (a box of a few points) is the null rect, with infinite edges.
+    /// The pixel columns of the chip and the row under its bottom, for `LaneRenderer.drawColumns`.
+    func cut(scale: Double) -> (columns: Range<Int>, bottom: Int) {
         guard !chip.isEmpty else { return (0..<0, 0) }
         let columns = Int((chip.minX * scale).rounded(.down))..<Int((chip.maxX * scale).rounded(.up))
-        return (columns, Int((chip.minY * scale).rounded(.down)))
+        return (columns, Int((chip.maxY * scale).rounded(.up)))
     }
 }

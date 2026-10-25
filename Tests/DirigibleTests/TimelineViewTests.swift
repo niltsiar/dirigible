@@ -243,8 +243,10 @@ import Testing
         await window.close()
     }
 
-    /// Code gate 1 item 3: the label of a clip draws at the bottom left of its box, in the lane
-    /// of its track, and not in another lane.
+    /// Code gate 1 item 3: the label of a clip draws at the top left of its box, in the lane
+    /// of its track, and not in another lane. The rects are rows 8 to 13 pt of a lane: the glyph
+    /// bodies under the fade handles (rows 1 to 7 pt) and the 0 dB gain line (row 0), which count as dark pixels. The playhead at x 0 shows in the top rows
+    /// of the test window, so a rect that must have no pixel starts at x 2.
     @Test func aClipLabelDrawsInTheLaneOfItsTrack() throws {
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f1", path: "take1-1-1.wav", layout: .mono, length: 480_000))
@@ -255,9 +257,9 @@ import Testing
         defer { window.close() }
 
         // The box of c1 starts at 93.75 pt; lane 2 is 100 to 200 pt.
-        #expect(try darkPixels(view, in: NSRect(x: 90, y: 184, width: 60, height: 16)) > 20, "the label in lane 2")
-        #expect(try darkPixels(view, in: NSRect(x: 90, y: 84, width: 60, height: 16)) == 0, "no label in lane 1")
-        #expect(try darkPixels(view, in: NSRect(x: 0, y: 184, width: 90, height: 16)) == 0, "no label before c1")
+        #expect(try darkPixels(view, in: NSRect(x: 90, y: 108, width: 60, height: 6)) > 20, "the label in lane 2")
+        #expect(try darkPixels(view, in: NSRect(x: 90, y: 8, width: 60, height: 6)) == 0, "no label in lane 1")
+        #expect(try darkPixels(view, in: NSRect(x: 0, y: 108, width: 90, height: 6)) == 0, "no label before c1")
     }
 
     /// Mouse-edits criterion 17: a clip label draws only in a box of 60 pt or more (probe L1:
@@ -272,8 +274,8 @@ import Testing
         let (window, view) = documentView(session)
         defer { window.close() }
 
-        #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 59, height: 16)) == 0, "no label in 59 pt")
-        #expect(try darkPixels(view, in: NSRect(x: 100, y: 84, width: 60, height: 16)) > 20, "a label in 60 pt")
+        #expect(try darkPixels(view, in: NSRect(x: 2, y: 8, width: 57, height: 6)) == 0, "no label in 59 pt")
+        #expect(try darkPixels(view, in: NSRect(x: 100, y: 8, width: 60, height: 6)) > 20, "a label in 60 pt")
     }
 
     /// A label draws only inside its box, so the dirty rect of a drag event (the columns of the
@@ -289,9 +291,9 @@ import Testing
         let (window, view) = documentView(session)
         defer { window.close() }
 
-        let box = try darkPixels(view, in: NSRect(x: 0, y: 84, width: 60, height: 16))
+        let box = try darkPixels(view, in: NSRect(x: 0, y: 8, width: 60, height: 6))
         #expect(box > 20, "a label in the box")
-        #expect(try darkPixels(view, in: NSRect(x: 0, y: 84, width: 260, height: 16)) == box, "no label after it")
+        #expect(try darkPixels(view, in: NSRect(x: 0, y: 8, width: 260, height: 6)) == box, "no label after it")
     }
 
     /// Mouse-edits code gate 1 item 2: a draw of some lanes (the dirty rect of a drag event on
@@ -354,7 +356,7 @@ import Testing
         #expect(pixels.pixel(Int(right - 1), 300) == LanePalette.light.clip, "1 px inside the right edge")
         #expect(pixels.pixel(Int(right + 1), 300) == LanePalette.light.lane, "1 px outside the right edge")
         #expect(
-            pixels.pixel(300, top + 1) == LanePalette.light.clip && pixels.pixel(300, top - 1) == LanePalette.light.lane
+            pixels.pixel(300, top + 1) == LanePalette.light.bar && pixels.pixel(300, top - 1) == LanePalette.light.lane
         )
         #expect(
             pixels.pixel(300, bottom - 1) == LanePalette.light.clip

@@ -23,7 +23,8 @@ extension TimelineLiveTests {
         lanes.stop(at: 1.05)
         lanes.tick(1.05)
         let finalize = Set(try lanes.runs(at: 0.5, lane: 0).map(\.color))
-        #expect(finalize == [palette.clip, palette.peak, palette.rms], "the finalize: \(finalize)")
+        // The bar covers the clip color above the waveform of this column.
+        #expect(finalize == [palette.bar, palette.barEdge, palette.peak, palette.rms], "the finalize: \(finalize)")
         await lanes.close()
     }
 }

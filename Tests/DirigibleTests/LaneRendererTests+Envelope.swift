@@ -47,7 +47,8 @@ extension LaneRendererTests {
         #expect(Self.rows(pixels, column: 150, palette.label) == [100 - Self.height(dB: -16)])
         let plain = try Self.render(
             Self.inputs(Self.session(length: Self.envelopeLength), peaks: Self.fullPeaks()), width: 400)
-        #expect(Self.drawn(plain, column: 150) == 100, "the control column has no envelope")
+        // The bar edge takes row 14 of the waveform.
+        #expect(Self.drawn(plain, column: 150) == 99, "the control column has no envelope")
     }
 
     /// The line of an envelope clip stays 3 pt under the clip top, where the envelope is 0 dB. The

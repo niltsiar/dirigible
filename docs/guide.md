@@ -124,12 +124,10 @@ Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and *
 ### Remove a mistake
 
 1. Choose **Edit > Deselect All** (Shift-Command-A).
-2. Click the time ruler above the tracks at the start of the mistake. The playhead moves there.
-3. Press I to set the in point.
-4. Click the time ruler at the end of the mistake, then press O to set the out point.
-5. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks.
+2. Drag in the time ruler above the tracks, from the start of the mistake to its end. The drag selects that range on all tracks, and the playhead moves to the start.
+3. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks.
 
-The in point is the start of the selection, and the out point is the end. With no track selected, I and O select all tracks.
+The in point is the start of the selection, and the out point is the end. You can also put the playhead at the start, press I, put the playhead at the end, and press O. With no track selected, I and O select all tracks.
 
 ### Add a chapter
 
@@ -150,7 +148,7 @@ The in point is the start of the selection, and the out point is the end. With n
 
 ### Play and move the playhead
 
-- To move the playhead, click the time ruler. A click in an empty part of a track also moves the playhead.
+- To move the playhead, click the time ruler. A click in an empty part of a track also moves the playhead. A drag in the time ruler moves the playhead to the start of the drag and selects a range (see [Make a selection](#make-a-selection)).
 - The **Transport** menu has the play commands. **Play Forward** plays faster each time that you choose it again: 1x, 2x, then 4x. If you hold its key, the play pauses when you release the key.
 - **Go to Start**, **Go to End**, **Previous Clip Edge**, and **Next Clip Edge** move the playhead.
 - To go to a time of a take, for example a time that you noted from a video clock during the recording, choose **Transport > Go to Take Time** (Command-J). Type the time from the record start of the take as H:MM:SS.mmm, M:SS, or seconds, then click **OK**. A comma can take the place of the period, and a time before the record start starts with a minus sign (-0.2). This is the take time, not the timeline time: the times "on the timeline" in the sync banner and in the Episode inspector are timeline times, so do not type them here. With two or more takes, choose the take in the pop-up menu: it starts at the take under the playhead. The playhead goes to the first place on the timeline that plays that time of the take, also after edits moved the audio. When no clip plays that time, because an edit removed it or the take has no audio there, the sheet stays open and says so. The command is off during a take, while another sheet or alert of the window shows, and in a session with no audio recorded in Dirigible. While its sheet shows, **Duck Music Under Speech** and the export commands are off.
@@ -199,8 +197,9 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 
 - Choose **Edit > Set In Point** and **Edit > Set Out Point** to set the points at the playhead. With no track selected, they select all tracks.
 - Drag in the lower part of a clip, or in an empty part of a track, to select a range on the tracks that you drag across.
-- Click the upper part of a clip to select that clip.
-- Shift-click a track to select from the playhead to the click. Shift-drag to make the selection larger.
+- Drag in the time ruler to select a range from the start of the drag to the pointer. The range is on the selected tracks, or on all tracks when no track is selected. The playhead moves to the start of the range.
+- Click the upper part of a clip to select it as a set of one clip. The clip has no in point and no out point, and the playhead does not move.
+- Shift-click a track to select from the playhead to the click. Shift-drag to make the selection larger. With a set of clips, a Shift-click selects from the playhead to the click on the tracks of the set and the clicked track. A Shift-drag from a set makes a range that holds the span of the set, from the first clip start to the last clip end.
 - Command-click the upper part of a clip to add it to the set of clips or remove it from the set. When a range is selected, the set starts with the clips that the range holds fully.
 - Command-click the lower part of a clip, or an empty part of a track, to add the track to the range or remove it from the range.
 - Click the header of a track, or its name, to select that track. The header shows the selection color, and the track shows a light tint of it. The in point and the out point stay. Command-click a header to add its track or remove it. Shift-click a header to select all tracks from the selected tracks to that track.
@@ -218,16 +217,16 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - **Delete** removes the selection and leaves silence.
 - **Delete and Close Gap** removes the selection from all tracks and moves the audio after it to the left (a ripple delete).
 - **Cut in Selected Tracks** and **Delete and Close Gap in Selected Tracks** close the gap only on the selected tracks. The other tracks do not move, so they can go out of sync with the moved tracks. The markers move with the moved tracks.
-- **Split** cuts the clips at the in point and the out point. When those points cut no clip, for example after a click on a clip, Split cuts at the playhead if it is inside the selection. With no selection, it cuts the clips at the playhead. When Split cuts nothing, Dirigible beeps. It also beeps when Split must wait for an import, Auto Level, a duck, or the end of a take. While a take records, Split does not beep.
+- **Split** cuts the clips at the in point and the out point of a range, and never at the playhead. With no selection, it cuts the clips at the playhead. When Split cuts nothing, for example when the points of a range cut no clip, Dirigible beeps. It also beeps when Split must wait for an import, Auto Level, a duck, or the end of a take. While a take records, Split does not beep.
 - **Nudge Left** and **Nudge Right** move the clips that are fully in the selection, or the set of clips, by 10 ms.
-- **Heal Clips** joins the parts of a split clip again, on the selected tracks. It joins two clips where they touch in the selection, play on in one file at one gain at each frame, the envelope included, and have no fade at the join. A join at the in point or the out point is in the selection. The sound does not change, and a crossfade at the join goes. When no join can heal, Dirigible beeps. With no selection range, the item is off. Heal Clips has no key.
+- **Heal Clips** joins the parts of a split clip again, on the selected tracks. It joins two clips where they touch in the selection, play on in one file at one gain at each frame, the envelope included, and have no fade at the join. A join at the in point or the out point is in the selection. The sound does not change, and a crossfade at the join goes. When no join can heal, Dirigible beeps. With no selection range, the item is off. A set of clips has no range, so the item is off for a set of clips, which a click on a clip selects. Heal Clips has no key.
 - Drag the upper part of a clip to move it. You can drag it to another track of the same type, mono or stereo. The clip replaces the audio under it.
-- Drag a clip of a set of clips, or a clip that a range holds fully with other clips, to move all these clips together. They keep their distances in time and in tracks. When one clip would go to a track of the other type, all clips stay on their tracks and move only in time. After the drag, the moved clips are the set of clips. A click with no drag selects only that clip.
-- With a set of clips, **Copy** copies only the clips of the set. **Cut** copies them and removes them; it leaves silence, and no other clip moves. **Delete** removes the clips and leaves silence. **Split** cuts the clips of the set at the playhead. **Fade**, **Auto Level**, the inspector, and **Show Clips in Finder** act on the clips of the set. **Paste** and **Insert** use the first track of the set. **Cut in Selected Tracks** and the **Delete and Close Gap** commands beep and change nothing.
+- Drag a clip of a set of clips, or a clip that a range holds fully with other clips, to move all these clips together. They keep their distances in time and in tracks. When one clip would go to a track of the other type, all clips stay on their tracks and move only in time. After the drag, the moved clips are the set of clips. A click with no drag selects only that clip, as a set of one clip.
+- With a set of clips, **Copy** copies only the clips of the set. **Cut** copies them and removes them; it leaves silence, and no other clip moves. **Delete** removes the clips and leaves silence. **Split** cuts the clips of the set at the playhead. **Place at Playhead on Selected Track** is off, because a set of clips selects no track. **Fade**, **Auto Level**, the inspector, and **Show Clips in Finder** act on the clips of the set. **Paste** and **Insert** use the first track of the set. **Cut in Selected Tracks** and the **Delete and Close Gap** commands beep and change nothing.
 - **Paste** of a copied set of clips puts the first clip at the playhead. The clips keep their distances in time and in tracks. Each pasted clip replaces only the audio under it, and the pasted clips become the selection. When there are not enough tracks under the first track, the paste does nothing and shows an alert.
 - Drag the edge of a clip to make it shorter or longer. The edge stops at the clip next to it.
 - Hold Option and drag the edge of a clip to make a ripple trim. The audio after the edge moves with it on all tracks, and so do the markers. A shorter clip also removes that part of the other tracks; a longer clip adds silence to them. At the start edge, the clip start stays and the audio slides under it. With Option held over an edge, the pointer shows an arrow that points away from the clip.
-- Control-click or right-click a track to open its menu: **Cut**, **Copy**, **Paste**, **Insert**, **Delete**, **Delete and Close Gap**, **Split**, **Fade**, **Add Marker**, and **Add Chapter**. A right-click on a clip outside the selection selects that clip first; a right-click on a clip of a set of clips keeps the set. The menu shows only the commands that apply.
+- Control-click or right-click a track to open its menu: **Cut**, **Copy**, **Paste**, **Insert**, **Delete**, **Delete and Close Gap**, **Split**, **Fade**, **Add Marker**, and **Add Chapter**. A right-click on a clip outside the selection selects that clip as a set of one clip first; a right-click on a clip of a set of clips keeps the set. The menu shows only the commands that apply.
 - Press Esc during a drag to cancel it.
 
 Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the last edit.
@@ -240,6 +239,7 @@ When you drag a clip, the edge of a clip, or a selection, its edge snaps to a cl
 - Hold Command during a drag to stop snap for that drag. You can press or release Command while you drag. A drag that starts with Command held is a range selection, as before.
 - A clip that is narrower than 12 points on the screen is not a target. At the zoom of the whole session, zoom in to snap to the clip edges.
 - A ripple trim (Option-drag of an edge) does not snap.
+- A drag in the time ruler never snaps to the playhead, because the press moves the playhead to the start of the drag. A range drag in a track does not snap to the playhead when it starts at the playhead. Both drags still snap to clip edges and to markers.
 - If you changed the toolbar before, choose **View > Customize Toolbar** and drag **Snap** to the toolbar.
 
 ### Remove a mistake and close the gap
@@ -357,7 +357,7 @@ Choose **Tools > Duck Music Under Speech** to lower the music while someone spea
 2. Set the depth (-16 dB at first), and the attack and the release (1000 ms at first). The music goes down over the attack before each speech run and comes back over the release after it.
 3. Click **Apply**. With no speech track, no track to duck, or a track in both lists, the sheet gives the reason and **Apply** is off.
 
-The duck reads the speech tracks with mute and solo ignored. Speech is a level over -40 dBFS. A pause that is shorter than the larger of 2 s and the attack plus the release (2 s with the defaults) does not let the music come up. The duck replaces the gain points of each music clip that speech reaches, and keeps the other clips. With a selection, it works only inside the selection range, up to the session end, with a ramp of 500 ms at each range edge. A selection that starts at or after the session end changes nothing and shows an alert. When a speech file is missing or does not read, the duck uses the other speech, and a banner names the file: the music stays up over its speech. With no selection, it works on the whole session. A second duck with the same values gives the same result.
+The duck reads the speech tracks with mute and solo ignored. Speech is a level over -40 dBFS. A pause that is shorter than the larger of 2 s and the attack plus the release (2 s with the defaults) does not let the music come up. The duck replaces the gain points of each music clip that speech reaches, and keeps the other clips. With a range, it works only inside the range, up to the session end, with a ramp of 500 ms inside the range at each edge. With a set of clips, it works from the start of the first clip to the end of the last clip, also on a music clip in a gap between the clips of the set, with a ramp of 500 ms inside that span at each edge. A selection that starts at or after the session end changes nothing and shows an alert. When a speech file is missing or does not read, the duck uses the other speech, and a banner names the file: the music stays up over its speech. With no selection, it works on the whole session. A second duck with the same values gives the same result.
 
 While the duck runs, its banner shows the progress and **Cancel** (Command-period). Cancel stops the duck, and no gain point changes. The duck is one step in the undo history. When the duck finds no speech, a banner says so and nothing changes. The command is off when the session has no clip, during a take, and during an import, a level, or another duck.
 

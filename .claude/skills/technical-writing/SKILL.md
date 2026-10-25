@@ -1,6 +1,6 @@
 ---
 name: technical-writing
-description: "Layered technical-writing standard: Diátaxis structure, Google developer style sentences, ASD-STE100 Simplified Technical English rules, Global English syntax. This repo requires STE100 for all communication. Use when you write or review docs, plans, ledger entries, commit messages, review findings, or UI text."
+description: "Layered technical-writing standard: Diátaxis structure, Google developer style sentences, ASD-STE100 Simplified Technical English rules, Global English syntax. Use when you write or review docs, plans, ledger entries, commit messages, review findings, or UI text."
 ---
 
 # Technical writing

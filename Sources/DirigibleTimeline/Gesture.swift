@@ -86,9 +86,11 @@ extension Place {
 /// The one gesture of the lanes and the ruler (decision 0020). A value type: the scroll view
 /// owns it, gives it each event with the context, and does the effects.
 public struct TimelineGesture: Sendable {
-    /// What a mouse-down holds: a lane zone, a ruler flag (the marker at the down), or a triangle.
+    /// What a mouse-down holds: a lane zone, a ruler flag (the marker at the down), a triangle, or
+    /// the time area of the ruler.
     enum Target: Sendable {
         case lane(LaneHit)
+        case time
         case flag(Marker)
         case point(MarkPoint)
     }
@@ -103,6 +105,8 @@ public struct TimelineGesture: Sendable {
         let clicks: Int
         let selection: Selection
         let base: Session
+        /// False when a range drag has no playhead snap target (`Target.snapsPlayhead`); set at the down.
+        let snapsPlayhead: Bool
 
         /// The range of the selection at the down; no points for a clip set.
         var marks: Marks { selection.rangeMarks(in: base) }
@@ -183,6 +187,7 @@ public struct TimelineGesture: Sendable {
         case .down(let place, let shift, let command, let option, let clicks):
             state = .idle
             let target: Target
+            var effects: [GestureEffect] = []
             switch place {
             case .lanes(let x, let y):
                 let hit = context.geometry.hit(x, y, in: context.session)
@@ -191,16 +196,20 @@ public struct TimelineGesture: Sendable {
             case .ruler(let x, let y):
                 switch rulerTarget(x, y, context) {
                 case .none: return []
-                case .seek(let frame): return [.seek(frame)]
+                case .seek(let frame):
+                    target = .time
+                    effects = [.seek(frame)]
                 case .press(let pressed): target = pressed
                 }
             }
             let (x, y) = place.point
+            let frame = context.geometry.frame(at: x)
             state = .pressed(
                 Press(
-                    target: target, x: x, y: y, frame: context.geometry.frame(at: x), shift: shift, command: command,
-                    option: option, clicks: clicks, selection: context.selection, base: context.session))
-            return []
+                    target: target, x: x, y: y, frame: frame, shift: shift, command: command, option: option,
+                    clicks: clicks, selection: context.selection, base: context.session,
+                    snapsPlayhead: target.snapsPlayhead(at: frame, context)))
+            return effects
         case .drag(let place):
             return drag(place, context)
         case .up(let place):
@@ -217,7 +226,8 @@ public struct TimelineGesture: Sendable {
             case .fading(let press, let fade): return commit(press, fade, context)
             case .crossfading(let press, let crossfade): return commit(press, crossfade, context)
             case .markerDrag(let press, let original, let preview): return commit(press, original, preview)
-            case .ranging, .pointDrag: return effects
+            case .ranging(let press, _, _): return press.target.isTime ? rulerRangeUp(effects) : effects
+            case .pointDrag: return effects
             case .idle, .dropped: return []
             }
         case .escape:
@@ -330,6 +340,10 @@ public struct TimelineGesture: Sendable {
             case .lane(.fade(let clip, let edge, let lane)):
                 guard context.canEdit else { return [] }
                 state = handleState(press, clip, edge, lane)
+                return drag(place, context)
+            case .time:
+                guard abs(x - press.x) >= Self.threshold else { return [] }
+                state = rangeState(press, context)
                 return drag(place, context)
             case .lane(.range):
                 state = rangeState(press, context)

@@ -231,6 +231,23 @@ import Testing
         await model.close()
     }
 
+    /// C14 on a real window with View > Snap on and no selection: a drag of 10 pt in the time area
+    /// makes a range on every track from the press frame, and the playhead ends at the in point.
+    @Test func aRulerDragEndsWithThePlayheadAtTheInPoint() async throws {
+        let (model, studio, window, view) = try await lanes()
+        let tracks = Set(studio.session.tracks.map(\.id))
+        try #require(tracks.count == 2)
+
+        try press(view, 300)
+        try drag(view, 310)
+        try release(view, 310)
+        await until("the seek lands") { studio.playhead == 153_600 }
+
+        #expect(model.timeline.marks == Marks(inPoint: 153_600, outPoint: 158_720, tracks: tracks))
+        window.close()
+        await model.close()
+    }
+
     /// The ruler menu at the document x `x`.
     func menu(_ view: TimelineScrollView, _ x: Double) throws -> NSMenu? {
         view.ruler.menu(for: try rulerMouse(.rightMouseDown, x, 10, in: view))

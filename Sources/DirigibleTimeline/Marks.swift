@@ -74,8 +74,12 @@ public struct Marks: Hashable, Sendable {
         let low = max(0, min(lanes.0, lanes.1, last))
         let high = min(max(lanes.0, lanes.1), last)
         guard low <= high else { return Marks() }
-        return Marks(
-            inPoint: min(from, to), outPoint: max(from, to), tracks: Set(session.tracks[low...high].map(\.id)))
+        return drag(from: from, to: to, tracks: Set(session.tracks[low...high].map(\.id)))
+    }
+
+    /// The range between `from` and `to`, in any order, on `tracks`.
+    static func drag(from: Frames, to: Frames, tracks: Set<TrackID>) -> Marks {
+        Marks(inPoint: min(from, to), outPoint: max(from, to), tracks: tracks)
     }
 
     /// Shift-click: the range from the playhead to the click, and the lane joins the tracks.

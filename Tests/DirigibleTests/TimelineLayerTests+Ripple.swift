@@ -76,10 +76,13 @@ extension TimelineLayerTests {
             drawNow(window)
             try check(step, preview: false)
         }
-        // A second drag of the same edge, with c1 selected as the commit leaves it: it draws by a shift.
+        // A second drag of the same edge, with the range of c1 on t1: the out line sits at the dragged
+        // edge, so the shift copies from 1 pt past it and the line stays out of the copy.
+        let c1 = try #require(studio.session.clip("c1")).clip
+        model.timeline.marks = Marks(inPoint: c1.start, outPoint: c1.end, tracks: ["t1"])
         view.update(inputs(model, studio))
         drawNow(window)
-        #expect(view.lanes.inputs?.selection == .clips(ClipSet("c1")), "c1 selected")
+        #expect(view.lanes.inputs?.marks.outPoint == c1.end, "the range of c1 is drawn")
         var marked = [view.lanes.surfaces.shifted]
         let again = try #require(view.lanes.clipFrame("c1"))
         let end = NSPoint(x: again.maxX - 2, y: again.minY + 10)
@@ -92,7 +95,7 @@ extension TimelineLayerTests {
             marked.append(view.lanes.surfaces.shifted)
         }
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: end.x - 12, y: end.y), in: view))
-        #expect(marked == [marked[0], marked[0] + 1, marked[0] + 2], "the Marks on the clip keep the shift")
+        #expect(marked == [marked[0], marked[0] + 1, marked[0] + 2], "a range at the dragged edge keeps the shift")
         // A start edge: the clip start stays, and the audio slides under it.
         let second = try #require(view.lanes.inputs?.session.tracks[0].clips[1])
         let start = try #require(view.lanes.clipFrame(second.id))

@@ -140,17 +140,17 @@ extension SessionWindow {
         duckDraft = DuckDraft(roles: studio.session)
     }
 
-    /// Apply of the sheet: ducks the music of `draft` under its speech in the selection range, else
-    /// in the whole session, in one undo entry (decision 0060). Zero speech runs show the reason in
-    /// a banner, and so does a speech file that did not read, with its path. The banner Cancel
-    /// shows nothing; another error shows the alert.
+    /// Apply of the sheet: ducks the music of `draft` under its speech in the selection range, or in
+    /// the hull of the set clips, else in the whole session, in one undo entry (decision 0060).
+    /// Zero speech runs show the reason in a banner, and so does a speech file that did not read,
+    /// with its path. The banner Cancel shows nothing; another error shows the alert.
     func duck(_ draft: DuckDraft) async {
         duckDraft = nil
         duckReport = nil
         guard let studio = idleStudio else { return }
         let paths = { (files: [FileID]) in files.map { studio.session.files[$0]?.path ?? $0.rawValue } }
         let tracks = studio.session.tracks.map(\.id)
-        let range = timeline.selection.marks?.selection(in: studio.session)?.range
+        let range = timeline.selection.span(in: studio.session)
         duckProgress = 0
         duckPresses += 1
         defer { duckProgress = nil }

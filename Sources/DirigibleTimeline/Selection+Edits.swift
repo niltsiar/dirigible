@@ -139,7 +139,8 @@ extension Selection {
         }
     }
 
-    /// Zoom to Selection: the range, or the span of the set clips (a view, not an edit).
+    /// Zoom to Selection and the duck scope: the range, or the hull of the set clips, from the first
+    /// clip start to the last clip end. Neither loses or copies audio.
     public func span(in session: Session) -> Range<Frames>? {
         switch self {
         case .range(let marks): return marks.selection(in: session)?.range

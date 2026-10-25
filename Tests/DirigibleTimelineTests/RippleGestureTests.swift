@@ -75,7 +75,7 @@ struct RippleGestureTests {
         #expect(commits(effects).count == 1, "one commit, one undo entry")
         #expect(commits(effects).first?.ripple == true, "RIPPLE-G2 an Option trim commit does not declare its ripple")
         #expect(committed(effects) == expected)
-        #expect(commits(effects).first?.selection == .range(Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"])))
+        #expect(commits(effects).first?.selection == .clips(ClipSet("A")))
     }
 
     /// Code gate 2 item 4: the move snaps to whole device columns, so at 2 columns per point a

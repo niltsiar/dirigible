@@ -12,6 +12,7 @@ struct ClipGainGestureTests {
     var gesture = TimelineGesture()
     /// The Marks of the clip range of A.
     let marksOnA = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
+    let setOfA = Selection.clips(ClipSet("A"))
 
     init() throws { session = try Fixture.session() }
 
@@ -45,9 +46,9 @@ struct ClipGainGestureTests {
         return commit.apply(to: &result) ? result : nil
     }
 
-    func commitMarks(_ effects: [GestureEffect]) -> Marks? {
+    func commitSelection(_ effects: [GestureEffect]) -> Selection? {
         guard effects.count == 1, case .commit(let commit) = effects[0] else { return nil }
-        return commit.selection?.marks
+        return commit.selection
     }
 
     mutating func setA(gain: Double = 0, fades: Fades = .zero) throws {
@@ -64,8 +65,33 @@ struct ClipGainGestureTests {
             let result = try #require(committed(effects))
             #expect(result.clip("A")?.clip.gain == Gain(dB: -6))
             #expect(result.clip("C")?.clip.gain == .zero, "C keeps its gain")
-            #expect(commitMarks(effects) == marksOnA)
+            #expect(commitSelection(effects) == setOfA)
         }
+    }
+
+    /// C15: each clip edit of this file's gestures selects the edited clip as a set of one clip.
+    @Test mutating func aClipEditCommitSelectsTheEditedClip() throws {
+        down(150, 2)
+        _ = drag(150, 8)
+        #expect(commitSelection(up(150, 8)) == setOfA, "a gain drag")
+        down(104, 4)
+        _ = drag(150, 4)
+        #expect(commitSelection(up(150, 4)) == setOfA, "a fade drag")
+
+        try setA(gain: -6)
+        down(150, 8, clicks: 2)
+        #expect(commitSelection(up(150, 8)) == setOfA, "a double-click reset")
+
+        // The points at x 125, 150, and 175; the line at x 150 is at y 8, at x 140 it is at y 4.8.
+        try setA()
+        try session.setEnvelope([60_000: Gain(dB: 0)!, 72_000: Gain(dB: -8)!, 84_000: Gain(dB: 0)!], clip: "A")
+        down(150, 8)
+        _ = drag(160, 14)
+        #expect(commitSelection(up(160, 14)) == setOfA, "a point drag")
+        _ = gesture.handle(.down(.lanes(x: 140, y: 4.8), shift: false, command: false, option: true), context())
+        #expect(commitSelection(up(140, 4.8)) == setOfA, "an Option press that adds a point")
+        down(150, 8, clicks: 2)
+        #expect(commitSelection(up(150, 8)) == setOfA, "a double-click that removes a point")
     }
 
     @Test mutating func gainDragRoundsToATenthOfADecibel() {
@@ -77,7 +103,7 @@ struct ClipGainGestureTests {
         _ = up(150, 7.54)
 
         down(150, 2)
-        #expect(up(150, 4.9) == [.marks(marksOnA)], "under 3 pt a press is a click")
+        #expect(up(150, 4.9) == [.clip("A")], "under 3 pt a press is a click")
     }
 
     @Test mutating func gainDragStopsAtTheLimitsAndKeepsAnOutsideStart() throws {
@@ -130,7 +156,7 @@ struct ClipGainGestureTests {
         #expect(drawnA().fades == Fades(fadeIn: 0, fadeOut: 9_600))
         let effects = up(176, 4)
         #expect(try #require(committed(effects)).clip("A")?.clip.fades == Fades(fadeIn: 0, fadeOut: 9_600))
-        #expect(commitMarks(effects) == marksOnA)
+        #expect(commitSelection(effects) == setOfA)
     }
 
     @Test mutating func escapeDropsAGainOrFadeDrag() {
@@ -148,7 +174,7 @@ struct ClipGainGestureTests {
         down(150, 2)
         #expect(drag(150, 8, canEdit: false) == [])
         #expect(gesture.drawn(session) == session, "no preview during a take")
-        #expect(up(150, 8, canEdit: false) == [.marks(marksOnA)])
+        #expect(up(150, 8, canEdit: false) == [.clip("A")])
 
         for (from, to) in [((150.0, 2.0), (150.0, 8.0)), ((104, 4), (150, 4))] {
             down(from.0, from.1)
@@ -166,7 +192,7 @@ struct ClipGainGestureTests {
 
         try setA(gain: 0)
         down(150, 2, clicks: 2)
-        #expect(up(150, 2) == [.marks(marksOnA)], "no change, no commit")
+        #expect(up(150, 2) == [.clip("A")], "no change, no commit")
 
         try setA(fades: Fades(fadeIn: 4_800, fadeOut: 960)!)
         down(110, 4, clicks: 2)
@@ -174,11 +200,11 @@ struct ClipGainGestureTests {
 
         try setA(fades: Fades(fadeIn: 0, fadeOut: 960)!)
         down(104, 4, clicks: 2)
-        #expect(up(104, 4) == [.marks(marksOnA)], "no fade-in, no commit")
+        #expect(up(104, 4) == [.clip("A")], "no fade-in, no commit")
 
         try setA(gain: -6)
         down(150, 8, clicks: 2)
-        #expect(up(150, 8, canEdit: false) == [.marks(marksOnA)], "no commit during a take")
+        #expect(up(150, 8, canEdit: false) == [.clip("A")], "no commit during a take")
     }
 
     @Test mutating func theReadoutFollowsTheDrag() {

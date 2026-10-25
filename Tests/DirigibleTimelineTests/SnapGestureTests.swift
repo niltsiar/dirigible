@@ -77,7 +77,7 @@ struct SnapGestureTests {
         #expect(range("B") == 144_000..<192_000)
         let effects = up(352, 13)
         #expect(committed(effects) == nil)
-        #expect(effects == [.selection(.range(Marks(inPoint: 144_000, outPoint: 192_000, tracks: ["t1"])))])
+        #expect(effects == [.clip("B")])
     }
 
     @Test mutating func aTrimSnapsInsideItsLimits() throws {

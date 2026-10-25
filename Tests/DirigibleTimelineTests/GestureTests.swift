@@ -51,8 +51,9 @@ struct GestureTests {
         session?.clip(id).map { Spot($0.track, $0.clip.range) }
     }
 
-    @Test mutating func aClickOnAClipSelectsItsRangeOnItsTrackWithNoSeek() {
-        let range = [GestureEffect.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))]
+    /// C15: a plain click selects the clip as a set of one clip, with no seek and no range.
+    @Test mutating func aClickOnAClipSelectsItAsAOneClipSet() {
+        let range = [GestureEffect.clip("A")]
         _ = down(150, 10)
         #expect(drag(151, 11) == [])
         #expect(up(152, 11) == range, "the move zone, 2.2 pt of movement")
@@ -64,7 +65,7 @@ struct GestureTests {
     /// Code gate 1 item 1: the jitter of a click (0.5 pt right, 3 pt down) moves and trims nothing.
     /// The time delta applies only from 3 pt of horizontal movement, so a clip keeps its sync.
     @Test mutating func aClickWithJitterIsAClickWithNoEdit() {
-        let range = [GestureEffect.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))]
+        let range = [GestureEffect.clip("A")]
         _ = down(150, 10)
         #expect(up(150.5, 13) == range, "the move zone")
         _ = down(101, 10)
@@ -98,8 +99,19 @@ struct GestureTests {
         #expect(place("A", in: result) == Spot("t1", 96_000..<144_000))
         #expect(result?.clip("A")?.clip.offset == 0 && result?.clip("B")?.clip == Fixture.b)
         guard case .commit(let commit) = effects.first else { return }
-        #expect(commit.selection == .range(Marks(inPoint: 96_000, outPoint: 144_000, tracks: ["t1"])))
+        #expect(commit.selection == .clips(ClipSet("A")))
         #expect(!gesture.isActive && drawn == session)
+    }
+
+    /// C15: a move commit selects the moved clip as a set of one clip, also when B is cut.
+    @Test mutating func aMoveCommitSelectsTheMovedClip() {
+        _ = down(150, 10)
+        _ = drag(362.5, 10)
+        guard case .commit(let commit) = up(362.5, 10).first else {
+            Issue.record("no commit")
+            return
+        }
+        #expect(commit.selection == .clips(ClipSet("A")))
     }
 
     /// Criterion 4: A to 150,000 ..< 198,000 cuts B as `place` does (decision 0003).
@@ -210,7 +222,7 @@ struct GestureTests {
         _ = drag(250, 10, canEdit: false)
 
         #expect(drawn == session)
-        #expect(up(250, 10, canEdit: false) == [.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))])
+        #expect(up(250, 10, canEdit: false) == [.clip("A")])
     }
 
     /// A lost mouse-up (an alert opened during the drag): the next mouse-down starts over.
@@ -259,14 +271,30 @@ struct GestureTests {
         let result = committed(effects)
         #expect(place("A", in: result) == Spot("t1", 57_600..<96_000) && result?.clip("A")?.clip.offset == 9_600)
         guard case .commit(let commit) = effects.first else { return }
-        #expect(commit.selection == .range(Marks(inPoint: 57_600, outPoint: 96_000, tracks: ["t1"])))
+        #expect(commit.selection == .clips(ClipSet("A")))
         #expect(!gesture.isActive && drawn == session)
         _ = down(101, 10)
         _ = drag(121, 10)
         _ = drag(101, 10)
         #expect(
-            up(101, 10) == [.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))],
+            up(101, 10) == [.clip("A")],
             "the edge went back: a click, no commit")
+    }
+
+    /// C15: a trim commit, from each edge and with Option (a ripple trim), selects the trimmed clip
+    /// as a set of one clip.
+    @Test mutating func aTrimCommitSelectsTheTrimmedClip() {
+        for (x, to, option) in [(101.0, 121.0, false), (198.0, 170.0, false), (198.0, 170.0, true)] {
+            gesture = TimelineGesture()
+            _ = gesture.handle(.down(.lanes(x: x, y: 10), shift: false, command: false, option: option), context())
+            _ = drag(to, 10)
+            guard case .commit(let commit) = up(to, 10).first else {
+                Issue.record("no commit at \(x) \(option)")
+                return
+            }
+            #expect(commit.selection == .clips(ClipSet("A")), "from \(x), option \(option)")
+            #expect(commit.ripple == option)
+        }
     }
 
     @Test mutating func escapeDropsATrim() {
@@ -286,7 +314,7 @@ struct GestureTests {
         _ = down(198, 10)
         _ = drag(150, 10, canEdit: false)
         #expect(drawn == session, "no preview when a take runs at the down")
-        #expect(up(150, 10, canEdit: false) == [.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))])
+        #expect(up(150, 10, canEdit: false) == [.clip("A")])
     }
 
     /// Criterion 10: with Shift, a drag from the move zone of A is a range drag. The Marks are the

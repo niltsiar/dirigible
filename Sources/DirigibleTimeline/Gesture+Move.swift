@@ -139,18 +139,16 @@ extension TimelineGesture {
         return []
     }
 
-    /// A mouse-up under the threshold. On a clip: the clip range on its track, no seek; with Command,
+    /// A mouse-up under the threshold. On a clip: the clip as a set of one clip, no seek; with Command,
     /// the clip toggles in the clip set (decision 0038). In the range zone (and every press with
     /// Shift), the rules of decision 0017; with Command and a clip set, no change.
     func click(_ press: Press, _ context: GestureContext) -> [GestureEffect] {
         guard case .lane(let hit) = press.target else { return rulerClick(press) }
         switch hit {
-        case .move(let clip, let lane), .trim(let clip, _, let lane), .gain(let clip, let lane),
-            .fade(let clip, _, let lane), .point(let clip, _, let lane):
+        case .move(let clip, _), .trim(let clip, _, _), .gain(let clip, _), .fade(let clip, _, _),
+            .point(let clip, _, _):
             if press.command { return [.selection(context.selection.toggling(clip.id, in: context.session))] }
-            return [
-                .selection(.range(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])))
-            ]
+            return [.selection(.clips(ClipSet(clip.id)))]
         case .range(let lane):
             guard let lane, context.session.tracks.indices.contains(lane) else { return [] }
             let track = context.session.tracks[lane].id
@@ -167,17 +165,17 @@ extension TimelineGesture {
         }
     }
 
-    /// The mouse-up of a move: one commit when the target changed, with the Marks on the new place.
+    /// The mouse-up of a move: one commit when the target changed, with the moved clip selected.
     /// A move back to the start is a click.
     func commit(_ press: Press, _ move: Move, _ context: GestureContext) -> [GestureEffect] {
         guard (move.track, move.start) != (press.base.tracks[move.lane].id, move.clip.start) else {
             return click(press, context)
         }
-        let marks = Marks(inPoint: move.start, outPoint: move.start + move.clip.length, tracks: [move.track])
         return [
             .commit(
                 GestureCommit(
-                    base: press.base, result: move.preview, selection: .range(marks), marker: nil, ripple: false))
+                    base: press.base, result: move.preview, selection: .clips(ClipSet(move.clip.id)), marker: nil,
+                    ripple: false))
         ]
     }
 }

@@ -140,6 +140,12 @@ extension TimelineGesture {
         state = .ranging(press, snap, guide: guide)
         let drag = Marks.drag(
             from: press.frame, to: end, lanes: (geometry.lane(at: press.y), geometry.lane(at: y)), in: context.session)
-        return [.selection(.range(press.shift ? press.marks.extended(by: drag) : drag))]
+        return [.selection(.range(press.shift ? shiftBase(press).extended(by: drag) : drag))]
+    }
+
+    /// What a Shift-drag extends: the range at the down, or the span of a clip set on its tracks.
+    private func shiftBase(_ press: Press) -> Marks {
+        guard case .clips = press.selection, let span = press.selection.span(in: press.base) else { return press.marks }
+        return Marks(inPoint: span.lowerBound, outPoint: span.upperBound, tracks: press.marks.tracks)
     }
 }

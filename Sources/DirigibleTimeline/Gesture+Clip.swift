@@ -237,8 +237,8 @@ extension TimelineGesture {
         return []
     }
 
-    /// The selection after a right-click at `place` (decision 0037, `ui-panel.md` 5): the range of
-    /// the clip under it on its track, as a click gives, when the click is outside the selection.
+    /// The selection after a right-click at `place` (decision 0037, `ui-panel.md` 5): the clip
+    /// under it as a set of one clip, as a click gives, when the click is outside the selection.
     /// Nil inside the selection (also on a clip of a clip set, decision 0038), in a gap, and
     /// outside the lanes: the selection stays.
     public static func contextSelection(at place: Place, _ context: GestureContext) -> Selection? {
@@ -254,14 +254,25 @@ extension TimelineGesture {
             {
                 return nil
             }
-            return .range(Marks(inPoint: clip.start, outPoint: clip.end, tracks: [track]))
+            return .clips(ClipSet(clip.id))
         case .range: return nil
         }
     }
 
-    /// The commit of a clip edit, with the Marks on the clip range on its track.
+    /// The commit of a clip edit, with the edited clip selected as a set of one clip.
     func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
-        let marks = Marks(inPoint: clip.start, outPoint: clip.end, tracks: [press.base.tracks[lane].id])
-        return GestureCommit(base: press.base, result: result, selection: .range(marks), marker: nil, ripple: false)
+        GestureCommit(base: press.base, result: result, selection: .clips(ClipSet(clip.id)), marker: nil, ripple: false)
+    }
+
+    /// The mouse-up of a trim: one commit when the range changed, with the trimmed clip selected.
+    /// An edge back at its start is a click.
+    func commit(_ press: Press, _ trim: Trim, _ context: GestureContext) -> [GestureEffect] {
+        guard trim.range != trim.clip.range else { return click(press, context) }
+        return [
+            .commit(
+                GestureCommit(
+                    base: press.base, result: trim.preview, selection: .clips(ClipSet(trim.clip.id)), marker: nil,
+                    ripple: trim.ripple))
+        ]
     }
 }

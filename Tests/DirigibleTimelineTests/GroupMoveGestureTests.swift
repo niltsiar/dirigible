@@ -152,6 +152,6 @@ struct GroupMoveGestureTests {
     @Test mutating func aRangeOfOneClipMovesThatClipAlone() throws {
         g.selection = .range(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
         let result = try #require(g.committed(g.move(from: (150, 10), to: (200, 10))))
-        #expect(result.selection == .range(Marks(inPoint: 72_000, outPoint: 120_000, tracks: ["t1"])))
+        #expect(result.selection == .clips(ClipSet("A")))
     }
 }

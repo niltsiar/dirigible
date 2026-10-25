@@ -131,8 +131,8 @@ extension Selection {
         rangeMarks(in: session).settingOut(playhead, in: session)
     }
 
-    /// The Marks of I and O: the range, or no points on the tracks of a clip set.
-    private func rangeMarks(in session: Session) -> Marks {
+    /// The range Marks of the selection: the range, or no points on the tracks of a clip set.
+    func rangeMarks(in session: Session) -> Marks {
         switch self {
         case .range(let marks): marks
         case .clips: Marks(tracks: tracks(of: selectedClips(in: session), in: session))

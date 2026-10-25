@@ -25,8 +25,8 @@ public struct GestureContext: Sendable {
             (session, selection, playhead, geometry, canEdit, canRipple)
     }
 
-    /// The range of the selection; no Marks for a clip set.
-    var marks: Marks { selection.marks ?? Marks() }
+    /// The range of the selection; no points for a clip set.
+    var marks: Marks { selection.rangeMarks(in: session) }
 }
 
 /// A mouse event of the lanes, Esc, or a change of the session under an active gesture. `clicks`
@@ -104,8 +104,8 @@ public struct TimelineGesture: Sendable {
         let selection: Selection
         let base: Session
 
-        /// The range of the selection at the down; no Marks for a clip set.
-        var marks: Marks { selection.marks ?? Marks() }
+        /// The range of the selection at the down; no points for a clip set.
+        var marks: Marks { selection.rangeMarks(in: base) }
 
         /// The frames from the down to `x`: zero under the threshold of horizontal movement, so the
         /// jitter of a click or a drag to another lane never changes the time of an edit.
@@ -382,18 +382,5 @@ public struct TimelineGesture: Sendable {
         case .pointDrag(let press, let point):
             return pointDrag(press, point, x, context)
         }
-    }
-
-    /// The mouse-up of a trim: one commit when the range changed, with the Marks on the new range.
-    /// An edge back at its start is a click.
-    private func commit(_ press: Press, _ trim: Trim, _ context: GestureContext) -> [GestureEffect] {
-        guard trim.range != trim.clip.range else { return click(press, context) }
-        let marks = Marks(
-            inPoint: trim.range.lowerBound, outPoint: trim.range.upperBound, tracks: [press.base.tracks[trim.lane].id])
-        return [
-            .commit(
-                GestureCommit(
-                    base: press.base, result: trim.preview, selection: .range(marks), marker: nil, ripple: trim.ripple))
-        ]
     }
 }

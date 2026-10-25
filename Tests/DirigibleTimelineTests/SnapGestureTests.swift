@@ -131,6 +131,27 @@ struct SnapGestureTests {
             drag(316, 50) == [.selection(.range(Marks(inPoint: 48_000, outPoint: Self.frame(320), tracks: ["t1"])))])
     }
 
+    /// C14: a lane range drag from the playhead frame has no playhead target, so 3 pt makes a range,
+    /// also after a session change. With the playhead at another frame at the down, the end snaps to it.
+    @Test mutating func aRangeDragFromThePlayheadHasNoPlayheadTarget() throws {
+        playhead = Self.frame(250)
+        down(250, 50)
+        #expect(
+            drag(253, 50) == [.selection(.range(Marks(inPoint: 120_000, outPoint: Self.frame(253), tracks: ["t1"])))])
+        _ = gesture.handle(.sessionChanged, context)
+        #expect(
+            drag(253, 50) == [.selection(.range(Marks(inPoint: 120_000, outPoint: Self.frame(253), tracks: ["t1"])))],
+            "the rebuild keeps the flag of the down")
+        _ = up(253, 50)
+
+        playhead = Self.frame(257)
+        down(250, 50)
+        #expect(
+            drag(253, 50) == [.selection(.range(Marks(inPoint: 120_000, outPoint: Self.frame(257), tracks: ["t1"])))],
+            "the playhead 4 pt from the end")
+        #expect(gesture.guide == Self.frame(257))
+    }
+
     /// Plan gate 1 item 2: a vertical range drag across lanes keeps the raw frames, also with a
     /// target 1 pt from the press.
     @Test mutating func aVerticalRangeDragNeverSnaps() {

@@ -2,7 +2,8 @@ import DirigibleCore
 import Foundation
 
 /// The ruler part of the gesture (mouse-edits criteria 11 to 13): a flag drag moves a marker in
-/// one undo entry, a triangle drag moves the in or the out point, and the time area seeks.
+/// one undo entry, a triangle drag moves the in or the out point, and the time area seeks at the
+/// down and makes a range with a drag.
 extension TimelineGesture {
     /// What a ruler mouse-down does.
     enum RulerDown {
@@ -67,8 +68,14 @@ extension TimelineGesture {
         case .flag(let marker): [.currentMarker(marker.id), .seek(marker.position)]
         case .point(.inPoint): press.marks.inPoint.map { [.seek($0)] } ?? []
         case .point(.outPoint): press.marks.outPoint.map { [.seek($0)] } ?? []
-        case .lane: []
+        case .lane, .time: []
         }
+    }
+
+    /// The mouse-up of a time-area range drag: the playhead goes to the in point.
+    func rulerRangeUp(_ effects: [GestureEffect]) -> [GestureEffect] {
+        guard case .selection(.range(let marks)) = effects.last, let inPoint = marks.inPoint else { return effects }
+        return effects + [.seek(inPoint)]
     }
 
     /// The mouse-up of a flag drag: one commit when the marker moved, and it becomes the current
@@ -101,8 +108,19 @@ extension TimelineGesture.Target {
         switch self {
         case .lane(let hit): hit.clip != nil
         case .flag: true
-        case .point: false
+        case .point, .time: false
         }
+    }
+
+    var isTime: Bool {
+        if case .time = self { true } else { false }
+    }
+
+    /// Whether a range drag from `frame` has the playhead as a snap target. A time-area drag never
+    /// does: its press seeks to the press frame, and the async seek lands there or later. A lane
+    /// drag does not when the playhead is at the press frame.
+    func snapsPlayhead(at frame: Frames, _ context: GestureContext) -> Bool {
+        !isTime && context.playhead != frame
     }
 }
 

@@ -10,6 +10,9 @@ struct RulerGestureTests {
     let session: Session
     let marks = Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"])
     var gesture = TimelineGesture()
+    var selection = Selection.range(Marks(inPoint: 48_000, outPoint: 192_000, tracks: ["t1"]))
+    var playhead = Frames(1000)
+    var snaps = false
 
     init() throws {
         var session = try Fixture.session()
@@ -18,9 +21,11 @@ struct RulerGestureTests {
     }
 
     func context(_ session: Session? = nil, canEdit: Bool = true) -> GestureContext {
-        GestureContext(
-            session: session ?? self.session, selection: .range(marks), playhead: 1000, geometry: Fixture.geometry,
+        var context = GestureContext(
+            session: session ?? self.session, selection: selection, playhead: playhead, geometry: Fixture.geometry,
             canEdit: canEdit, canRipple: true)
+        context.snaps = snaps
+        return context
     }
 
     mutating func down(_ x: Double, _ y: Double) -> [GestureEffect] {
@@ -150,10 +155,75 @@ struct RulerGestureTests {
     /// The time area seeks at the down, as before the mouse-edits run; the corner over the track
     /// headers does nothing.
     @Test mutating func aTimeAreaPressSeeksAtTheDown() {
-        #expect(down(700, 10) == [.seek(336_000)] && !gesture.isActive)
+        #expect(down(700, 10) == [.seek(336_000)])
+        #expect(up(700, 10) == [] && !gesture.isActive, "a click makes no second seek")
         #expect(gesture.cursor(at: .ruler(x: 700, y: 10), context()) == .arrow)
         #expect(gesture.cursor(at: .ruler(x: 201, y: 10), context()) == .resizeLeftRight)
         #expect(down(-5, 10) == [] && !gesture.isActive)
+    }
+
+    /// C14: a time-area drag of 3 pt makes a range from the press frame to the pointer frame, on
+    /// the header tracks of a range, else on all tracks; a drag to the left orders the points; the
+    /// up seeks to the in point. Press x 250 is frame 120,000 (480 frames per point).
+    @Test mutating func aRulerDragMakesARangeOnTheSelectedTracksOrAll() throws {
+        let all: Set<TrackID> = ["t1", "t2", "t3"]
+        let clipSet = try #require(ClipSet(["A"]))
+        let rows: [(Selection, Double, Frames, Frames, Set<TrackID>)] = [
+            (.range(marks), 253, 120_000, 121_440, ["t1"]),
+            (.none, 253, 120_000, 121_440, all),
+            (.clips(clipSet), 253, 120_000, 121_440, all),
+            (.range(Marks(inPoint: 1, outPoint: 2)), 253, 120_000, 121_440, all),
+            (.range(marks), 247, 118_560, 120_000, ["t1"]),
+        ]
+        for (start, end, low, high, tracks) in rows {
+            selection = start
+            let range = GestureEffect.marks(Marks(inPoint: low, outPoint: high, tracks: tracks))
+            #expect(down(250, 10) == [.seek(120_000)])
+            #expect(drag(end, 10) == [range], "\(start) to \(end)")
+            #expect(gesture.cursor(at: .ruler(x: end, y: 10), context()) == .iBeam)
+            #expect(up(end, 10) == [range, .seek(low)], "the playhead goes to the in point")
+        }
+        selection = .range(marks)
+        _ = gesture.handle(.down(.ruler(x: 250, y: 10), shift: true, command: false), context())
+        #expect(drag(253, 10) == [.marks(marks)], "Shift extends the range of the down with the same tracks")
+    }
+
+    /// C14 with View > Snap on: a ruler drag has no playhead target, so a playhead at the press
+    /// frame, or 2 pt past it (a play after the seek), keeps the range. Markers still snap.
+    @Test mutating func aRulerDragWithSnapOnHasNoPlayheadTarget() {
+        snaps = true
+        selection = .none
+        let all: Set<TrackID> = ["t1", "t2", "t3"]
+        for playhead in [Frames(120_000), 120_960] {
+            self.playhead = playhead
+            _ = down(250, 10)
+            #expect(
+                drag(253, 10) == [.marks(Marks(inPoint: 120_000, outPoint: 121_440, tracks: all))],
+                "the playhead at \(playhead)")
+            _ = up(253, 10)
+        }
+        playhead = 1000
+        _ = down(191, 10)
+        #expect(
+            drag(194.5, 10) == [.marks(Marks(inPoint: 91_680, outPoint: 96_000, tracks: all))],
+            "the end snaps to m1 and the end of A")
+        _ = up(194.5, 10)
+    }
+
+    /// C14: under 3 pt of horizontal movement a time-area press only seeks, also with a long
+    /// vertical movement.
+    @Test mutating func aRulerClickUnderThreePointsOnlySeeks() {
+        #expect(down(250, 10) == [.seek(120_000)])
+        #expect(drag(252.9, 10) == [] && drag(250, 40) == [] && up(252.9, 40) == [])
+        #expect(!gesture.isActive)
+    }
+
+    /// C14: Esc during a ruler drag gives back the selection of the down, and the up seeks nowhere.
+    @Test mutating func escapeEndsARulerDragWithTheOldSelection() {
+        _ = down(250, 10)
+        _ = drag(260, 10)
+        #expect(gesture.handle(.escape, context()) == [.marks(marks)])
+        #expect(up(270, 10) == [] && !gesture.isActive)
     }
 
     /// Criterion 13: the ruler menu acts at the clicked frame, on the flag under the pointer (also

@@ -2,7 +2,8 @@ import DirigibleCore
 import Foundation
 
 /// The snap targets of one drag (decision 0020): the clip edges of every lane except the clips of
-/// `excluded`, the markers and chapters, and the playhead of each event. A clip narrower than
+/// `excluded`, the markers and chapters, and the playhead of each event, except in a range drag
+/// that has no playhead target (`Press.snapsPlayhead`). A clip narrower than
 /// `LaneGeometry.grabWidth` on screen gives no target, so a drag at fit zoom does not stop at each
 /// clip that the user cannot see. The in and out points are never targets.
 struct Snap: Sendable {
@@ -14,10 +15,12 @@ struct Snap: Sendable {
     /// The marker and chapter positions, sorted once at the drag start.
     let markers: [Frames]
     let geometry: LaneGeometry
+    let snapsPlayhead: Bool
 
-    init(_ session: Session, excluding excluded: Set<ClipID> = [], geometry: LaneGeometry) {
+    init(_ session: Session, excluding excluded: Set<ClipID> = [], snapsPlayhead: Bool = true, geometry: LaneGeometry) {
         lanes = session.tracks.map(\.clips)
         self.excluded = excluded
+        self.snapsPlayhead = snapsPlayhead
         markers = session.markers.values.map(\.position).sorted()
         self.geometry = geometry
     }
@@ -36,7 +39,7 @@ struct Snap: Sendable {
             best = (distance, rank, edge, target)
         }
         for edge in edges {
-            offer(edge, playhead, rank: 0)
+            if snapsPlayhead { offer(edge, playhead, rank: 0) }
             for marker in nearestMarkers(to: edge) { offer(edge, marker, rank: 1) }
             for clips in lanes { clipEdges(near: edge, reach: reach, in: clips) { offer(edge, $0, rank: 2) } }
         }
@@ -122,7 +125,8 @@ extension TimelineGesture {
 
     /// A range drag with the snap targets of the session at the down, or after a session change.
     func rangeState(_ press: Press, _ context: GestureContext) -> State {
-        .ranging(press, Snap(context.session, geometry: context.geometry), guide: nil)
+        .ranging(
+            press, Snap(context.session, snapsPlayhead: press.snapsPlayhead, geometry: context.geometry), guide: nil)
     }
 
     /// A range drag event. The pointer end snaps after 3 pt of horizontal movement from the press,
@@ -138,9 +142,19 @@ extension TimelineGesture {
         let (delta, guide) = Snap.snapped(snap, moved, [press.frame], context)
         let end = moved == .zero ? raw : press.frame + delta
         state = .ranging(press, snap, guide: guide)
-        let drag = Marks.drag(
-            from: press.frame, to: end, lanes: (geometry.lane(at: press.y), geometry.lane(at: y)), in: context.session)
+        let drag =
+            press.target.isTime
+            ? Marks.drag(from: press.frame, to: end, tracks: timeTracks(press))
+            : Marks.drag(
+                from: press.frame, to: end, lanes: (geometry.lane(at: press.y), geometry.lane(at: y)),
+                in: context.session)
         return [.selection(.range(press.shift ? shiftBase(press).extended(by: drag) : drag))]
+    }
+
+    /// The tracks of a time-area range drag: the header tracks of the selection at the down, else all.
+    private func timeTracks(_ press: Press) -> Set<TrackID> {
+        let selected = press.selection.headerTracks(in: press.base)
+        return Set(selected.isEmpty ? press.base.tracks.map(\.id) : selected)
     }
 
     /// What a Shift-drag extends: the range at the down, or the span of a clip set on its tracks.

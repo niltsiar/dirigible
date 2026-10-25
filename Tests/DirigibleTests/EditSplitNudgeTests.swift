@@ -102,6 +102,23 @@ extension EditCommandWindowTests {
         await model.close()
     }
 
+    /// C16: a range whose points cut no clip, with the playhead inside it, beeps once and changes
+    /// nothing. Control: the same playhead with no selection cuts.
+    @Test func splitOfARangeThatCutsNoClipBeeps() async throws {
+        let (model, studio, _, _) = try await open()
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 2_880_000, tracks: ["t1"])
+        await studio.perform(.seek(.frame(240_000)))
+        model.run(.split)
+        #expect(beeps == 1 && studio.session == before && !studio.canUndo)
+        model.timeline.marks = Marks()
+        model.run(.split)
+        #expect(beeps == 1 && studio.session != before, "the control cuts")
+        await model.close()
+    }
+
     /// Code gate 1 nit 1: a Split that a busy studio refuses beeps once per press during a level, a
     /// placement, and a finalize, and changes nothing. Control: on the idle studio, the same Split cuts.
     @Test func aSplitThatABusyStudioRefusesBeeps() async throws {

@@ -160,22 +160,22 @@ struct MarksTests {
         }
     }
 
-    /// Run split-no-cut criteria C2 and C3: when the in and out points cut no clip on the range
-    /// tracks, the playhead strictly inside the range splits. c1 is 0..<480,000 on t1. Controls: a
-    /// point inside a clip keeps both points; the playhead on an edge keeps them too.
-    @Test func aRangeThatCutsNothingSplitsAtThePlayheadInside() throws {
+    /// C16: a range splits only at its in and out points, whether or not they cut a clip. c1 is
+    /// 0..<480,000 on t1. Controls: a point inside a clip keeps both points; no selection keeps
+    /// the playhead.
+    @Test func splitOfARangeThatCutsNoClipHasNoPoints() throws {
         var session = try Self.session(tracks: 2)
         let clipRange = Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1"])
         let both = Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1", "t2"])
         let rows: [(Marks, Frames, [Frames], [TrackID])] = [
             (clipRange, 0, [0, 480_000], ["t1"]),
-            (clipRange, 1, [1], ["t1"]),
-            (clipRange, 479_999, [479_999], ["t1"]),
+            (clipRange, 1, [0, 480_000], ["t1"]),
+            (clipRange, 479_999, [0, 480_000], ["t1"]),
             (clipRange, 480_000, [0, 480_000], ["t1"]),
             (Marks(inPoint: 100, outPoint: 200, tracks: ["t1"]), 150, [100, 200], ["t1"]),
-            (Marks.all(in: session), 50, [50], ["t1", "t2"]),
-            (Marks(inPoint: 0, outPoint: 600_000, tracks: ["t1"]), 50, [50], ["t1"]),
-            (both, 50, [50], ["t1", "t2"]),
+            (Marks.all(in: session), 50, [0, 480_000], ["t1", "t2"]),
+            (Marks(inPoint: 0, outPoint: 600_000, tracks: ["t1"]), 50, [0, 600_000], ["t1"]),
+            (both, 50, [0, 480_000], ["t1", "t2"]),
         ]
         for (marks, playhead, frames, tracks) in rows {
             let points = marks.splitPoints(playhead: playhead, in: session)

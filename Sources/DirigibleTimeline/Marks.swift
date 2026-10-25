@@ -133,17 +133,11 @@ public struct Marks: Hashable, Sendable {
     }
 
     /// The frames and tracks of a split (decision 0018): with a selection, its in and out points on
-    /// its tracks, or the playhead strictly inside the selection when the points cut no clip there
-    /// (as after a click on a clip). With no selection, the playhead on the selected tracks, or on
-    /// every track when none is selected.
+    /// its tracks, and never the playhead. With no selection, the playhead on the selected tracks,
+    /// or on every track when none is selected.
     public func splitPoints(playhead: Frames, in session: Session) -> (frames: [Frames], tracks: [TrackID]) {
         if let selection = selection(in: session) {
-            let points = [selection.range.lowerBound, selection.range.upperBound]
-            let cuts = selection.tracks.contains { track in
-                points.contains { session.track(track)?.clips.index(cutting: $0) != nil }
-            }
-            let inside = points[0] < playhead && playhead < points[1]
-            return (!cuts && inside ? [playhead] : points, selection.tracks)
+            return ([selection.range.lowerBound, selection.range.upperBound], selection.tracks)
         }
         let all = session.tracks.map(\.id)
         let selected = all.filter(tracks.contains)

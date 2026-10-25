@@ -28,8 +28,8 @@ In this order:
 
 ## Time box
 
-- A flake hunt stops after 2 h of agent time. Count the time across all agents of the hunt: an agent stops at 90 active minutes (`.claude/hooks/agent-clock.sh`) and hands off, and the next agent adds its time to the count.
+- A flake hunt stops after 2 h of agent time. Count the time across all agents of the hunt, also after a hand-off.
 - At the limit, quarantine the flaky assert with `withKnownIssue("quarantine: <reason>, FLAKE <title>", isIntermittent: true)`. Use `.disabled("quarantine: <reason>, FLAKE <title>")` only when each assert of the test is flaky. The other asserts of the test stay on.
 - Add a FLAKE item with status next that names the test, the run, and the triage. `scripts/check-waits.sh` refuses a `"quarantine:` line under `Tests/` with no FLAKE word, and a file with `isIntermittent: true` and no such line. `rg '"quarantine:'` lists the quarantines.
-- Name the defect class of the quarantined assert and the test that still finds it. `isIntermittent: true` also passes when the assert fails on every run, so the FLAKE item alone is not a check.
+- Write the defect class of the quarantined assert and the test that still finds it in the FLAKE item. `isIntermittent: true` also passes when the assert fails on every run, so the FLAKE item alone is not a check.
 - An assert that guards the No data loss rule or the Real-time thread rule (`AGENTS.md`) needs a deterministic test of the same behavior that still runs. Name it in the marker: `still checked by <test name>`. With no such test, do not quarantine: the hunt goes to the user as an item with status next.

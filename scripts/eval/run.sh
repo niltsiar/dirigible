@@ -229,7 +229,7 @@ grader_prompt() { # <packet> <result>
     cat <<EOF
 You are a blind grader of a docs eval. Read only this file: $1
 
-Each scenario has its question. First, for each scenario and each key point, decide if the question asks for every clause of the key point. A clause is asked when the question asks for it, or when the question cannot be answered without it. For each key point with a clause that the question does not ask, write one object {"scenario": "<ID>", "key": "(a)", "result": "UNASKED", "reason": "<the clause that the question does not ask>"}.
+Each scenario has its question. First, for each scenario and each key point, decide if the question asks any clause of the key point. A clause is asked when the question asks for it, or when the question cannot be answered without it. For each key point of which the question asks no clause, write one object {"scenario": "<ID>", "key": "(a)", "result": "UNASKED", "reason": "<why the question asks no clause of it>"}. A key point with an asked clause is not UNASKED, also when it has another clause that the question does not ask: grade it as usual.
 
 Then, for each scenario, each answer (a neutral label), and each key point, decide PASS or FAIL. A key point passes when the quotes (Q lines) of that answer state it, in the same or other words. A quote that states only part of a key point fails that key point. Do not use your own knowledge to fill a gap. Judge each answer alone.
 

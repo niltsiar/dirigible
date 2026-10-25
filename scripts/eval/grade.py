@@ -21,7 +21,7 @@ score:   grade.py score <eval> <tag> <result.json> ...
   scores.tsv already holds exits 2. The type is the Type
   cell of the Scenarios table of docs/workflow/evals.md in the tree of this script.
   An object {"scenario", "key", "result": "UNASKED", "reason"} says that the question of the
-  scenario does not ask a clause of that key point. It adds a row (tag, scenario, key,
+  scenario asks no clause of that key point. It adds a row (tag, scenario, key,
   reason) to unasked.tsv. It changes no row of scores.tsv.
 verdict: grade.py verdict <eval> <old set> <new set>
   Reads scores.tsv of all tags and counts passes and runs per scenario and set. A set

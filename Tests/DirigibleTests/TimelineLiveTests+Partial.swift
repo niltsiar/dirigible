@@ -48,7 +48,7 @@ extension TimelineLiveTests {
 
         #expect(differ == 0, "\(differ) pixels differ from a full draw")
         let palette = lanes.view.lanes.palette
-        // Before the take label chip, which starts 2 pt after the take start (ClipLabel).
+        // Before the take label chip, which starts 10 pt after the take start (ClipLabel).
         #expect(try lanes.runs(at: 0.005, lane: 1) == [Run(palette.lane, rows)], "the gap before the first span")
         await lanes.close()
     }

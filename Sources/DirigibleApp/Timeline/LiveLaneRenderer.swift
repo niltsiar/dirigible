@@ -109,7 +109,16 @@ extension LaneRenderer {
             let end = covered.last?.upperBound ?? origin
             // A lost device or a failed write leaves a gap: the box goes on with the next span.
             if !take.finalizing, state == .recording, end < take.head { boxes.append(end..<take.head) }
-            for box in boxes { region.fill(palette.clip, columns: columns(box, .down), rows: rows) }
+            // The bar of a box that is wide enough: the normal color in the finalize, the clip color while it records.
+            func barColumns(_ box: Range<Frames>) -> Range<Int>? {
+                let width = geometry.x(of: box.upperBound) - geometry.x(of: box.lowerBound)
+                return ClipLabel.hasBar(width: width, laneHeight: inputs.laneHeight) ? columns(box, .down) : nil
+            }
+            let barRows = rows.lowerBound..<rows.lowerBound + Int((ClipLabel.barHeight * scale).rounded())
+            for box in boxes {
+                region.fill(palette.clip, columns: columns(box, .down), rows: rows)
+                if let bar = barColumns(box) { region.fill(palette.bar, columns: bar, rows: barRows) }
+            }
             for frames in covered {
                 let range = columns(frames, .up).clamped(to: region.rect.columns)
                 guard !range.isEmpty else { continue }
@@ -117,6 +126,13 @@ extension LaneRenderer {
                 peaks.fill(
                     &values, from: Double(range.lowerBound) * pixelFrames - Double(origin.count), step: pixelFrames)
                 drawColumns(range, gain: track.gain.dB, bottom: rows.upperBound - 1, chip: chip, palette, into: region)
+            }
+            // The edge shows only when the take finalizes, as it shows on the clips after the hand-off.
+            if take.finalizing {
+                for box in boxes {
+                    guard let bar = barColumns(box) else { continue }
+                    region.fill(palette.barEdge, columns: bar, rows: barRows.upperBound - 1..<barRows.upperBound)
+                }
             }
         }
     }

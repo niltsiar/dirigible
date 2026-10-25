@@ -64,7 +64,9 @@ struct CrossfadeRendererTests {
     /// waveform in its own box only.
     @Test func theWaveformTakesTheCrossfadeCurve() throws {
         let pixels = try Self.render(try Self.inputs())
-        let top = try #require((0..<200).first { pixels.pixel(197, $0) != LanePalette.light.clip })
+        // The waveform can reach into the bar (15 pt), so the top is the first waveform row.
+        let top = try #require(
+            (0..<200).first { [LanePalette.light.peak, LanePalette.light.rms].contains(pixels.pixel(197, $0)) })
         #expect(abs(top - Self.row(Self.a(197 * 128))) <= 1, "top row \(top)")
         for column in 198...201 {
             #expect(

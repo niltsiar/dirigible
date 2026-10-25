@@ -37,6 +37,10 @@ struct LanePalette: Equatable {
     /// The 2 pt join at a cut between two clips. Light: 3.05:1 on the clip color; the lane color
     /// gives 1.21:1 there. Dark: the lane color.
     var join: UInt32 = 0xFF5A_7BA6
+    /// The clip bar at the top of a clip box, and the 1 pt edge in its bottom row: 3:1 or more
+    /// against the clip and 1.5:1 or more against the peak color.
+    var bar: UInt32 = 0xFFA9_C6EC
+    var barEdge: UInt32 = 0xFF5A_7BA6
 
     static let light = LanePalette(
         lane: 0xFFE8_ECF2, clip: 0xFFC4_DAF5, peak: 0xFF7A_A7E0, rms: 0xFF1F_4F9E, missing: 0xFFF4_C4C4,
@@ -59,6 +63,7 @@ struct LanePalette: Equatable {
         (palette.liveClip, palette.livePeak, palette.liveRms) = (0xFF7A_2020, 0xFFE0_6E6E, 0xFFF2_A9A9)
         (palette.accent, palette.outline) = (accent, accent)
         palette.join = palette.lane
+        (palette.bar, palette.barEdge) = (0xFF22_324A, 0xFFA8_C4EA)
         return palette
     }
 
@@ -73,7 +78,7 @@ struct LanePalette: Equatable {
     /// so its pixels equal the clips after the hand-off.
     var live: LanePalette {
         var palette = self
-        (palette.clip, palette.peak, palette.rms) = (liveClip, livePeak, liveRms)
+        (palette.clip, palette.peak, palette.rms, palette.bar) = (liveClip, livePeak, liveRms, liveClip)
         return palette
     }
 
@@ -110,14 +115,14 @@ struct LanePalette: Equatable {
 }
 
 /// Draws the lanes into a caller's pixels (decisions 0017 and 0022, probe D2): a background pattern
-/// per row, then the clip boxes, the missing-media tint, and the waveform as column spans, rectified
-/// on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track gain and the
-/// fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the fade lines of
-/// the crossfade halves outside the boxes (decision 0036), the gain lines and handles, the joins
-/// between clips that touch, the selection band and the marker, chapter, in, and out lines. One
-/// per document view, on the main thread. It writes every pixel of the rect of the region, and the
-/// region refuses every pixel outside it. Each edge rounds in absolute document pixels, so two
-/// partial draws agree with one full draw on each pixel. It keeps no pixel state. A drag event
+/// per row, then the clip boxes with their bars, the missing-media tint, and the waveform as column
+/// spans, rectified on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track
+/// gain and the fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the fade
+/// lines of the crossfade halves outside the boxes (decision 0036), the bar edges, the gain lines and
+/// handles, the joins between clips that touch, the selection band and the marker, chapter, in, and
+/// out lines. One per document view, on the main thread. It writes every pixel of the rect of the
+/// region, and the region refuses every pixel outside it. Each edge rounds in absolute document pixels,
+/// so two partial draws agree with one full draw on each pixel. It keeps no pixel state. A drag event
 /// redraws only the columns that `changedFrames` gives, so each Session value drawn here needs a
 /// compare there (decision 0020, the invariant).
 final class LaneRenderer {
@@ -126,6 +131,9 @@ final class LaneRenderer {
     /// The clips with a crossfade that the fade-line pass draws, with their lanes, reused. The
     /// waveform pass collects them, so a draw with no crossfade scans no lane again.
     var crossfaded: [(lane: Int, clip: Clip)] = []
+    /// The pixel columns of each clip bar of the draw and the first row of its lane, reused. The box
+    /// pass fills the bars and collects them, and the edge pass draws their bottom rows.
+    var bars: [(columns: Range<Int>, top: Int)] = []
 
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
@@ -150,6 +158,8 @@ final class LaneRenderer {
         let visible = Frames(Int(Double(first) * pixelFrames))..<Frames(Int(Double(end) * pixelFrames) + 1)
 
         // First the boxes of every lane, then the waveforms, so a span that passes its lane shows.
+        bars.removeAll(keepingCapacity: true)
+        let barRows = Int((ClipLabel.barHeight * scale).rounded())
         for lane in drawn {
             let track = tracks[lane]
             let rows = window.rows(of: lane..<lane + 1)
@@ -158,6 +168,7 @@ final class LaneRenderer {
             // The columns of adjacent clips that are not filled yet: one fill for a run of clips,
             // not one per clip (2,000 clips of 1 or 2 columns took 14 ms at fit zoom).
             var run: Range<Int>?
+            let firstBar = bars.count
             func fillRun() {
                 if let run { region.fill(palette.clip, columns: run, rows: rows) }
                 run = nil
@@ -178,6 +189,11 @@ final class LaneRenderer {
                 case .short(let real): red = clamped(column(clip.start + real - clip.offset).rounded(.up))
                 case nil: break
                 }
+                // The bar runs to the red column: the missing tint covers the rest.
+                if ClipLabel.hasBar(width: geometry.box(of: clip, lane: lane).width, laneHeight: inputs.laneHeight) {
+                    let barEnd = red.map { min(max($0, range.lowerBound), range.upperBound) } ?? range.upperBound
+                    if barEnd > range.lowerBound { bars.append((range.lowerBound..<barEnd, rows.lowerBound)) }
+                }
                 if let red, red < range.upperBound {
                     // The tint goes over the clip color, so the run fills first.
                     fillRun()
@@ -190,9 +206,12 @@ final class LaneRenderer {
             }
             fillRun()
             region.fill(palette.lane, columns: gap..<end, rows: rows)
+            for bar in bars[firstBar...] {
+                region.fill(palette.bar, columns: bar.columns, rows: bar.top..<bar.top + barRows)
+            }
         }
         crossfaded.removeAll(keepingCapacity: true)
-        var chips: [ClipID: (columns: Range<Int>, top: Int)] = [:]
+        var chips: [ClipID: (columns: Range<Int>, bottom: Int)] = [:]
         for label in labels { if let clip = label.clip { chips[clip] = label.cut(scale: scale) } }
         for lane in drawn {
             let track = tracks[lane]
@@ -244,6 +263,10 @@ final class LaneRenderer {
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
         // (decision 0036).
         for (lane, clip) in crossfaded { drawCrossfadeLines(clip, tracks[lane], lane, geometry, palette, into: region) }
+        // The bar edge, over the waveform, under the controls and the joins.
+        for bar in bars {
+            region.fill(palette.barEdge, columns: bar.columns, rows: bar.top + barRows - 1..<bar.top + barRows)
+        }
         // The gain line and the fade handles (run 11b-1) after the waveforms, from the `Clip` and
         // `Track` fields only: a clip with no peaks or missing media draws them too, as the hit
         // test finds them.
@@ -311,11 +334,11 @@ final class LaneRenderer {
     /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor,
     /// and a column of a clip with an `envelope` adds the highest gain of the envelope over its
     /// frames; the fade line of such a clip stays under the top of the box (`lineClamp`).
-    /// `chip`: the columns of a label chip and its top row; the peak and RMS spans of those columns
-    /// end above it. The fade line still draws.
+    /// `chip`: the columns of a label chip and the row under its bottom; the peak and RMS spans of
+    /// those columns start there, so the bar shows under the text. The fade line still draws.
     func drawColumns(
         _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, envelope: ColumnEnvelope? = nil, bottom: Int,
-        chip: (columns: Range<Int>, top: Int)? = nil, _ palette: LanePalette, into region: borrowing PixelRegion
+        chip: (columns: Range<Int>, bottom: Int)? = nil, _ palette: LanePalette, into region: borrowing PixelRegion
     ) {
         let laneRows = region.window.laneRows
         let clamp = envelope == nil ? 0 : Self.lineClamp(scale: region.window.scale)
@@ -340,12 +363,11 @@ final class LaneRenderer {
                     // A cache file can hold an RMS over its peak; the span never inverts.
                     let rms = min(height(values[index].rms, columnGain), peak)
                     // A column span is a strided fill: one call, not one Swift step per pixel.
-                    // The end of the spans: the chip top in a chip column.
-                    let end =
-                        chip.map { $0.columns.contains(column) ? min($0.top, bottom + 1) : bottom + 1 } ?? bottom + 1
-                    let (top, middle) = (min(bottom - peak + 1, end), min(bottom - rms + 1, end))
+                    // The start of the spans: the row under the chip in a chip column.
+                    let floor = chip.map { $0.columns.contains(column) ? $0.bottom : 0 } ?? 0
+                    let (top, middle) = (max(bottom - peak + 1, floor), max(bottom - rms + 1, floor))
                     region.span(palette.peak, column: column, rows: top..<middle)
-                    region.span(palette.rms, column: column, rows: middle..<end)
+                    region.span(palette.rms, column: column, rows: middle..<bottom + 1)
                     if factor != nil, fades?.line == true {
                         let row = Self.lineRow(columnGain, bottom: bottom, laneRows: laneRows, clamp: clamp)
                         region.span(palette.label, column: column, rows: row..<row + 1)

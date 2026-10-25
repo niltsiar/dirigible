@@ -17,7 +17,8 @@ extension TimelineDocumentView {
     }
 
     /// The clip label: its file path without `.wav` (Release 1 clips have no name), on its chip at
-    /// the bottom left of the box, cut at the box end. It draws only in the rect of `region`.
+    /// the top left of the box, in the bar, between the fade handles. It draws only in the rect of
+    /// `region`.
     static func drawLabels(_ labels: [ClipLabel], _ palette: LanePalette, into region: borrowing PixelRegion) {
         guard !labels.isEmpty else { return }
         let attributes: [NSAttributedString.Key: Any] = [.font: ClipLabel.font, .foregroundColor: palette.labelColor]
@@ -26,9 +27,15 @@ extension TimelineDocumentView {
             NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
             defer { NSGraphicsContext.current = previous }
             for label in labels {
-                // Only in its box: the dirty rect of a drag event holds the boxes it changes.
+                // Only in its box: the dirty rect of a drag event holds the boxes it changes. And only
+                // in its chip, with a hole at each envelope disc.
                 context.saveGState()
                 context.clip(to: label.shown)
+                let chip = CGMutablePath()
+                chip.addRect(label.chip)
+                chip.addRects(label.holes)
+                context.addPath(chip)
+                context.clip(using: .evenOdd)
                 label.text.draw(at: label.origin, withAttributes: attributes)
                 context.restoreGState()
             }

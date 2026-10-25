@@ -138,14 +138,14 @@ extension TimelineLiveTests {
     /// handles (run 11b-1), and the live take has none.
     func takePixels(_ lanes: Lanes, seconds: Double) throws -> [[UInt32]] {
         let window = try #require(lanes.view.lanes.surfaces.shown)
-        // Each label chip of lane 0 ends before 110 pt: a chip starts 2 pt after its box at 0 pt,
+        // Each label chip of lane 0 ends before 110 pt: a chip starts 10 pt after its box at 0 pt,
         // and it is 6 pt wider than its text.
         let session = laneInputs(lanes.model, lanes.studio, selection: lanes.model.timeline.selection).session
         let clips = session.tracks[0].clips.map {
             TimelineDocumentView.labelText(ClipInspection.name(of: $0, in: session), gain: $0.gain, locale: .current)
         }
         let texts = clips + [L10n.takeRecording.format(1), L10n.takeFinishing.format(1)]
-        let chipEnd = texts.map { 8 + ClipLabel.width(of: $0) }.max() ?? 0
+        let chipEnd = texts.map { 16 + ClipLabel.width(of: $0) }.max() ?? 0
         #expect(chipEnd < 110, "a label chip ends at \(chipEnd) pt: \(texts)")
         let first = Int(110 * window.scale) - window.pixels.columns.lowerBound
         let end = try lanes.column(seconds) - 1 - window.pixels.columns.lowerBound
@@ -220,6 +220,26 @@ extension TimelineLiveTests {
         await lanes.close()
     }
 
+    /// Two covered boxes with a gap of 0.34 s between them: 60.2 pt and 59.8 pt wide at 128 frames per
+    /// point. The take is quiet, so the bar shows. Columns 1 pt inside each box, left of the take
+    /// label.
+    @Test func aFinalizingTakeDrawsTheBarOnEachWideCoveredBox() async throws {
+        let lanes = try await take()
+        lanes.report(0, 0.1605, peak: 0.0001, rms: 0.0001)
+        lanes.report(0.5, 0.6595, peak: 0.0001, rms: 0.0001)
+        lanes.tick(0.7)
+        lanes.stop(at: 0.7)
+        lanes.tick(0.7)
+
+        let window = try #require(lanes.view.lanes.surfaces.shown)
+        let (palette, rows) = (lanes.palette, window.laneRows)
+        let barRows = Int((ClipLabel.barHeight * window.scale).rounded())
+        let bar = [Run(palette.bar, barRows - 1), Run(palette.barEdge, 1), Run(palette.clip, rows - barRows)]
+        #expect(try lanes.runs(at: 0.004, lane: 0) == bar, "the bar on the box of 60.2 pt")
+        #expect(try lanes.runs(at: 0.504, lane: 0) == [Run(palette.clip, rows)], "no bar on the box of 59.8 pt")
+        await lanes.close()
+    }
+
     @Test func unavailablePeaksShowNoLiveWaveform() async throws {
         let (lanes, _) = try await stoppedTake()
         try lanes.handOff(seconds: 2, at: 2)
@@ -229,8 +249,12 @@ extension TimelineLiveTests {
 
         let rows = try #require(lanes.view.lanes.surfaces.shown).laneRows
         let palette = lanes.view.lanes.palette
-        let runs = [Run(palette.label, 1), Run(palette.clip, rows - 1)]
-        #expect(try lanes.runs(at: 1.5, lane: 0) == runs, "the 0 dB line of run 11b-1 on the top row")
+        let barRows = Int((ClipLabel.barHeight * (try #require(lanes.view.lanes.surfaces.shown)).scale).rounded())
+        let runs = [
+            Run(palette.label, 1), Run(palette.bar, barRows - 2), Run(palette.barEdge, 1),
+            Run(palette.clip, rows - barRows),
+        ]
+        #expect(try lanes.runs(at: 1.5, lane: 0) == runs, "the 0 dB line of run 11b-1 on the top row, then the bar")
         await lanes.close()
     }
 

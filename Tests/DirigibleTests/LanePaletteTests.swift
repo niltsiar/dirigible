@@ -36,7 +36,18 @@ struct LanePaletteTests {
         for palette in palettes + palettes.map(\.live) {
             let ratio = contrast(palette.label, palette.clip)
             #expect(ratio >= 7, "label contrast \(ratio)")
+            let onBar = contrast(palette.label, palette.bar)
+            #expect(onBar >= 7, "label contrast on the bar \(onBar)")
         }
+    }
+
+    /// The bar edge (timeline clarity C25) stands out against the clip fill and the peak color, in
+    /// both modes: a loud waveform under it does not hide it, and a bar on a quiet clip shows.
+    @Test(arguments: [LanePalette.light, .dark(accent: 0xFF00_7AFF)])
+    func theBarEdgeMeetsTheContrastFloors(palette: LanePalette) {
+        let (onClip, onPeak) = (contrast(palette.barEdge, palette.clip), contrast(palette.barEdge, palette.peak))
+        #expect(onClip >= 3, "edge contrast on the clip \(onClip)")
+        #expect(onPeak >= 1.5, "edge contrast on the peak \(onPeak)")
     }
 
     /// The live palette reads as red, its fill stays apart from the missing-media fill (CIE76

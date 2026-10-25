@@ -1046,6 +1046,7 @@ hb_expect "$clock_hook" 2 'make build at 91 active minutes' "$(hb_bash 'make bui
 hb_err_has 'the clock refusal' '90'
 hb_err_has 'the clock refusal' 'run.md'
 hb_err_has 'the clock refusal' 'SubagentHandback'
+hb_err_has 'the clock refusal' 'git add <paths> && git commit -F <file>'
 hb_session under < <(hb_span 89 0)
 hb_expect "$clock_hook" 0 'make build at 89 active minutes' "$(hb_bash 'make build')"
 hb_session idle < <(hb_span 330 300; hb_span 30 0)
@@ -1060,12 +1061,14 @@ for tool in Read Write Edit ToolSearch TaskStop SubagentHandback; do
 done
 for command in 'git status' 'git diff --stat' 'git log -1' 'git add -A' 'git commit -F x' \
   '.claude/skills/deliver/scripts/log-decision.sh run 4 d w e r' \
+  'git commit -F x 2>&1' 'git -c core.pager=cat log -1' \
   'cd T && git commit -F x' 'git -C T status' 'cd T && R=x .claude/skills/deliver/scripts/log-decision.sh $R --from f'; do
   hb_expect "$clock_hook" 0 "Bash '$command' past the limit" "$(hb_bash "$command")"
 done
 for command in 'git push origin x' 'make test' 'cd T && git commit -F x && make test' 'git status && make test' \
   'git commit -F x; scripts/with-lock.sh make check-fast' 'git status $(make test)' 'git status & make test' \
-  'bash x/log-decision.sh'; do
+  'bash x/log-decision.sh' 'x/log-decision.sh run 4 d w e r' 'git status `make test`' 'git diff <(make test)' \
+  'git diff >(make test)'; do
   hb_expect "$clock_hook" 2 "Bash '$command' past the limit" "$(hb_bash "$command")"
 done
 

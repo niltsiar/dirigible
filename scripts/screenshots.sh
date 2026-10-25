@@ -197,7 +197,7 @@ key 124 --shift
 # The View menu title is macOS text, so the press path is the title of the item, from the table.
 zoom_in="$(plutil -convert json -o - "$repo/Support/Resources/$lang.lproj/Localizable.strings" |
     python3 -I -c 'import json, sys; print(json.load(sys.stdin)["menu.view.zoom.in"])')"
-for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "$zoom_in" >/dev/null; done
+for _ in 1 2 3 4 5 6; do swift "$repo/scripts/ax.swift" press "$zoom_in" --role AXMenuItem >/dev/null; done
 sleep 1
 shot screenshot-crossfade.png
 # Command-Comma opens Settings (its menu title is localized): the image is the Settings window

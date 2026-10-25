@@ -172,6 +172,7 @@ You can play the session faster or slower, and the voices keep their pitch. This
 - Choose **View > Zoom to Selection or Session** to show the selection. With no selection, it shows the whole session. Choose it again to go back to the view before.
 - Choose **View > Zoom Back** and **View > Zoom Forward** to go through the zoom history of the window.
 - Where two clips touch, a join of 2 points marks the cut on the track. The join shows when both clips are 12 points wide or wider on the screen, so zoom in to see the joins of short clips.
+- In a track that is 60 points or taller, each clip that is 60 points or wider has a darker bar at the top, with the clip name. A loud part of the waveform draws over the bar. The name never covers a fade handle or an envelope point.
 - Double-tap with two fingers on a trackpad for smart zoom. When the whole session is in view, smart zoom zooms in at the pointer. In other views, it shows the whole session.
 
 ### Use the Session overview

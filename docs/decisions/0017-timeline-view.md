@@ -19,6 +19,7 @@
 - Amended: 2026-10-05, ui-polish run: a click on a track header selects its track (`Selection.clickingHeader`). Command toggles the track, and Shift spans from the selected tracks. A range keeps its points. The selected header shows the source list selection color. A click on the name selects; a double-click, Track > Rename Track (Return), or the Rename action starts the rename.
 - Amended: 2026-10-17, run `2026-10-16-timeline-clarity` (F153). A lane counts as in view when half of its height or more shows. The record-over warning is a chip over the track headers (see 0023).
 - Amended: 2026-10-17, run `2026-10-16-timeline-clarity` (F154). A 2 pt join marks each cut between two clips. The playhead line is neutral, with a head on the ruler, and is red only as the record head of a take (**Joins and playhead**).
+- Amended: 2026-10-25, run `2026-10-16-timeline-clarity` (F155). A click on the upper part of a clip, the commit of a move or a trim, and a right-click on a clip outside the selection select the clip as a set of one clip, with no in point and no out point. The time area of the ruler seeks at the down, and a drag of 3 pt or more there makes a range from the press frame, on the header tracks, or on all tracks when none is selected. The up seeks to the in point. A Shift-click from a clip set goes from the playhead to the click, on the set tracks and the click track. A Shift-drag from a clip set extends the span of the set (see 0020 and 0038).
 
 ## Context
 

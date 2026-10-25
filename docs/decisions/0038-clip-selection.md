@@ -5,6 +5,7 @@
 - Accepted: 2026-10-04, after plan gate 1 of run `2026-10-04-multi-clip-selection`. The gate added the live IDs of every Core call on a clip set, Command-F on a set through `Marks.faded` per run, and the lane-only nudge guard.
 - Amends: 0017 (Command-click on the upper part of a clip), 0018 (a second selection kind; the nudge of a clip set), 0020 (Command at the mouse-down on a clip; the group move and its commit).
 - Amended: 2026-10-05, run `2026-10-05-clip-set-clipboard`. Copy and Cut act on a clip set through `Session.excerpt(of:)`: whole clips with their time and track offsets. A set paste clears only the frames under each pasted clip. Cut of a set is no ripple. After Paste or Insert of a set excerpt, the selection is the pasted clips. The lane menu shows Cut and Copy on a set. CLI: `dirigible clip paste-clips`.
+- Amended: 2026-10-25, run `2026-10-16-timeline-clarity` (F155). A plain click on a clip, the commit of a move, trim, gain, fade, crossfade, or envelope point edit, and a right-click on a clip select the clip as a set of one clip. A ruler drag leaves the clip kind. The one public hull is `Selection.span`, for Zoom to Selection and the duck scope (0060). A Shift-drag from a clip set extends the span of the set, and a Shift-click goes from the playhead to the click. Heal Clips and Place at Playhead are off for a clip set.
 
 ## Context
 
@@ -23,20 +24,21 @@ public enum Selection: Hashable, Sendable {
 }
 ```
 
-- `Marks` stays the range payload with no change. `Selection.marks` is nil for a clip set, so a range edit cannot read a clip set as a range. No public hull exists.
+- `Marks` stays the range payload with no change. `Selection.marks` is nil for a clip set, so a range edit cannot read a clip set as a range. The one public hull is `Selection.span`, for Zoom to Selection and the duck scope (0060). It loses and copies no audio.
 - `selectedClips(in:)` is the one read of the clips: the set clips for a clip set, the clips that the range holds whole for a range (`Marks.heldClips(in:)`, the nudge rule of 0018).
 - A stale ID drops at the read, as `Marks.selection(in:)` drops a removed track. An undo does not repair the set. Every Core call on a clip set takes its IDs from `selectedClips(in:)`, never from `ClipSet.ids`, because Core throws `.unknownClip` on a stale ID.
-- The two kinds are never active together. I, O, Select All, a range drag, Esc, and Deselect All leave the clip kind.
+- The two kinds are never active together. I, O, Select All, a range drag, a ruler drag, Esc, and Deselect All leave the clip kind.
 
 **Gesture rules (amends 0020).**
 
 | Press | Click (under 3 pt) | Drag |
 |---|---|---|
-| Upper part of a clip, no modifier, clip in `selectedClips`, 2 or more clips | That clip alone (its range), no seek | Group move |
-| Upper part of a clip, no modifier, other cases | That clip alone | Single move (`Session.move`) |
+| Upper part of a clip, no modifier, clip in `selectedClips`, 2 or more clips | That clip alone, as a set of one clip, no seek | Group move |
+| Upper part of a clip, no modifier, other cases | That clip alone, as a set of one clip | Single move (`Session.move`) |
 | Upper part of a clip, Command | `toggling(clip)`; the start set is `selectedClips` | Range drag |
 | Lower part or gap, Command | Range: the track toggle of 0017. Clip set: no change | Range drag |
-| Any, Shift | The Shift rules of 0017 | Range drag |
+| Any, Shift | The Shift rules of 0017 | Range drag; from a clip set, it extends the span of the set |
+| Time area of the ruler | Seek at the down | Range drag; the playhead is no snap target |
 | Trim, gain, or fade zone of a set clip | The rules of today | That clip only |
 
 - A Command-click on the last clip of the set gives no selection. During a take (`canEdit` false), a Command-click changes the selection and no drag edits.
@@ -52,6 +54,7 @@ public enum Selection: Hashable, Sendable {
 | Delete | `removeClips` of the set; the gaps stay; the selection is empty |
 | Copy | `Session.excerpt(of:)` of the live set clips, kind `.clips`; no change to the session |
 | Cut | One edit: the set excerpt and `removeClips`; the gaps stay; the playhead stays; the selection is empty. No ripple, so a pending or split take does not block it |
+| Heal Clips | Off: a clip set has no range |
 | Delete and Close Gap, the two "in Selected Tracks" items | Beep (a ripple needs a range scope, 0037) |
 | Paste, Insert | The first track (session order) with a set clip, at the playhead. After a set excerpt, the selection is the pasted clips |
 | Split | The playhead, only on the tracks where a set clip holds it |
@@ -60,6 +63,7 @@ public enum Selection: Hashable, Sendable {
 | Auto Level, the inspector (Mixed), Show Clips in Finder | The set clips |
 | Remove Track, Export Selection, Place at Playhead | Nothing: a clip pick is not a track pick, and a hull exports clips that the user did not pick |
 | Zoom to Selection | The span of the set (a view, not an edit) |
+| Duck Music Under Speech | The hull of the set (`Selection.span`), on the time axis only (0060) |
 | Lane menu | A right-click on a set clip keeps the set. Cut and Copy show and are enabled; Cut shows also under a pending or split take |
 
 **Core.** `Session.nudge(_:by:lanes:)` moves N clips by a frame offset and a lane offset. Pass 1 reads and checks: a target track past the last track throws the new `SessionError.laneOutOfRange`, a target of the other layout throws `.layoutMismatch`, and a frame out of range throws `.frameOutOfRange`. Pass 2, on a copy, takes every moving clip out of every lane, then clears and inserts on each target lane. Only an offset of 0 with a lane offset of 0 changes nothing. `ClipLane` repairs a broken crossfade join (0036), so two joined clips that move together keep their crossfade. `Session.removeClips(_:)` removes clips and leaves gaps; an unknown ID throws. A throw changes nothing.

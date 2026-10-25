@@ -207,7 +207,7 @@ extension TimelineGesture {
         // A trim excludes its own clip, so a start edge never stops at its own end.
         let snap = press.option ? nil : Snap(press.base, excluding: [clip.id], geometry: context.geometry)
         return Trim(
-            clip: clip, edge: edge, lane: lane, ripple: press.option, limits: limits, range: clip.range,
+            clip: clip, edge: edge, ripple: press.option, limits: limits, range: clip.range,
             preview: press.base, snap: snap)
     }
 

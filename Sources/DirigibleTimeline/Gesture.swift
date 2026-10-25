@@ -124,7 +124,6 @@ public struct TimelineGesture: Sendable {
     struct Trim: Sendable {
         let clip: Clip
         let edge: Edge
-        let lane: Int
         let ripple: Bool
         let limits: ClosedRange<Frames>
         var range: Range<Frames>

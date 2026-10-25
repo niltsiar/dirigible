@@ -139,37 +139,40 @@ import Testing
 
     /// C17: after a clip click the selection is a clip set, and the duck works from the first set
     /// clip start to the last set clip end only (decision 0060, scope of a set), never on the whole
-    /// session. Row 1: one set clip at 1 s to 3 s on t3 and music over the whole session, so the
-    /// music changes only inside 1 s to 3 s, with a 500 ms ramp inside it at each edge. Row 2: the
-    /// set holds the clips at 1 s to 3 s and 50 s to 52 s, so the music clip at 20 s to 30 s ducks
-    /// and the music clip at 55 s to 58 s keeps its envelope (a per-clip scope fails the first).
-    @Test func aDuckWithAClipSetWorksOnlyInTheSpanOfItsClips() async throws {
+    /// session. One set clip at 1 s to 3 s on t3 and music over the whole session: the music
+    /// changes only inside 1 s to 3 s, with a 500 ms ramp inside it at each edge.
+    @Test func aDuckWithOneSetClipRampsInsideItsSpanOnly() async throws {
         let (model, studio) = try await openSixty(in: "one", clips: [("t2", "c2", 0, 60), ("t3", "s1", 1, 3)])
         model.timeline.selection = .clips(try #require(ClipSet(["s1"])))
         model.run(.duck)
         await model.duck(try #require(model.duckDraft, "the item opened no sheet"))
         let envelope = try #require(studio.session.clip("c2")?.clip.envelope, "the music clip is gone")
-        #expect(envelope.gain(at: 0) == 0 && envelope.gain(at: 47_999) == 0, "the music ducks before 1 s")
+        #expect(envelope.gain(at: 0) == 0 && envelope.gain(at: 47_999) == 0, "the music changes before 1 s")
         #expect(envelope.gain(at: 48_000) == 0, "the duck has no ramp at 1 s")
         #expect(envelope.gain(at: 60_000) == -8, "no 500 ms ramp inside the start edge")
         #expect(envelope.gain(at: 72_000) == -16 && envelope.gain(at: 96_000) == -16, "the music does not duck inside")
         #expect(envelope.gain(at: 132_000) == -8, "no 500 ms ramp inside the end edge")
-        #expect(envelope.gain(at: 144_000) == 0 && envelope.gain(at: 1_440_000) == 0, "the music ducks after 3 s")
+        #expect(envelope.gain(at: 144_000) == 0 && envelope.gain(at: 1_440_000) == 0, "the music changes after 3 s")
         await model.close()
+    }
 
-        let (hull, hullStudio) = try await openSixty(
+    /// C17: a set of the clips at 1 s to 3 s and 50 s to 52 s ducks the music clip at 20 s to 30 s
+    /// (inside the hull) and keeps the envelope of the music clip at 55 s to 58 s (outside it). A
+    /// per-clip scope fails the first.
+    @Test func aDuckWithTwoSetClipsDucksTheMusicInTheirHull() async throws {
+        let (model, studio) = try await openSixty(
             in: "hull",
             clips: [
                 ("t2", "m1", 1, 3), ("t2", "m2", 20, 30), ("t2", "m3", 50, 52), ("t2", "m4", 55, 58),
                 ("t3", "s1", 1, 3), ("t3", "s2", 50, 52),
             ])
-        hull.timeline.selection = .clips(try #require(ClipSet(["s1", "s2"])))
-        hull.run(.duck)
-        await hull.duck(try #require(hull.duckDraft, "the item opened no sheet"))
-        let ducked = { (id: ClipID) in hullStudio.session.clip(id)?.clip.envelope.isEmpty == false }
-        #expect(ducked("m1") && ducked("m2") && ducked("m3"), "a music clip inside the hull keeps its envelope")
+        model.timeline.selection = .clips(try #require(ClipSet(["s1", "s2"])))
+        model.run(.duck)
+        await model.duck(try #require(model.duckDraft, "the item opened no sheet"))
+        let ducked = { (id: ClipID) in studio.session.clip(id)?.clip.envelope.isEmpty == false }
+        #expect(ducked("m1") && ducked("m2") && ducked("m3"), "a music clip inside the hull has no duck")
         #expect(!ducked("m4"), "a music clip outside the hull ducks")
-        await hull.close()
+        await model.close()
     }
 
     /// A selection after the session end: the alert names the range, and the duck changes nothing.

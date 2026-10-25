@@ -1056,9 +1056,13 @@ AGENT_CLOCK_MIN=10 hb_expect "$clock_hook" 2 'AGENT_CLOCK_MIN sets the limit' "$
 hb_err_has 'AGENT_CLOCK_MIN' 'limit of 10'
 
 hb_dir="$tmp/over"
-for tool in Read Write Edit ToolSearch TaskStop SubagentHandback; do
+for tool in Read ToolSearch TaskStop SubagentHandback; do
   hb_expect "$clock_hook" 0 "$tool past the limit" "$(hb_in "$tool")"
 done
+hb_expect "$clock_hook" 2 'Edit of a Sources/ path past the limit' "$(hb_in Edit '{"file_path":"/t/Sources/A/a.swift"}')"
+hb_expect "$clock_hook" 2 'Write with no file_path past the limit' "$(hb_in Write)"
+hb_expect "$clock_hook" 0 'Write of .scratchpads/commit-msg.txt past the limit' "$(hb_in Write '{"file_path":"/t/.scratchpads/commit-msg.txt"}')"
+hb_expect "$clock_hook" 0 'Edit of run.md under .scratchpads past the limit' "$(hb_in Edit '{"file_path":"/t/.scratchpads/runs/r/run.md"}')"
 for command in 'git status' 'git diff --stat' 'git log -1' 'git add -A' 'git commit -F x' \
   '.claude/skills/deliver/scripts/log-decision.sh run 4 d w e r' \
   'git commit -F x 2>&1' 'git -c core.pager=cat log -1' \

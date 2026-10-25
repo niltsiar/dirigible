@@ -484,7 +484,7 @@ verdict_case no-unasked 1
 # The grader prompt gives the UNASKED step: an object with a scenario and a key, before the label objects.
 grader_fn="$(sed -n '/^grader_prompt()/,/^}/p' "$eval_dir/run.sh")"
 prompt="$(eval "$grader_fn"; grader_prompt packet.md result.json)"
-for word in UNASKED scenario packet.md result.json; do
+for word in UNASKED scenario packet.md result.json 'asks no clause' 'grade it as usual'; do
   [[ "$prompt" == *"$word"* ]] || fail "grader_prompt: no [$word]: [$prompt]"
 done
 

@@ -20,15 +20,15 @@ public enum GestureReadout: Equatable, Sendable {
 /// on either resets it. Each makes one Core edit
 /// on the session of the mouse-down, as a trim does, and the commit selects the clip.
 extension TimelineGesture {
-    /// A gain drag: the clip at the down, its lane, the gain, and the session with that gain.
+    /// A gain drag: the clip at the down, the gain, and the session with that gain.
     struct GainDrag: Sendable {
         let clip: Clip
         var gain: Gain
         var preview: Session
     }
 
-    /// A fade-handle drag: the clip at the down, the edge, its lane, the fades, and the session
-    /// with those fades.
+    /// A fade-handle drag: the clip at the down, the edge, the fades, and the session with those
+    /// fades.
     struct FadeDrag: Sendable {
         let clip: Clip
         let edge: Edge
@@ -36,9 +36,9 @@ extension TimelineGesture {
         var preview: Session
     }
 
-    /// A crossfade-handle drag (decision 0036): the clip at the down, the edge of the handle, its
-    /// lane, the left clip of the join, the limit of the join at the down, the length, and the
-    /// session with that length.
+    /// A crossfade-handle drag (decision 0036): the clip at the down, the edge of the handle, the
+    /// left clip of the join, the limit of the join at the down, the length, and the session with
+    /// that length.
     struct CrossfadeDrag: Sendable {
         let clip: Clip
         let edge: Edge

@@ -116,7 +116,7 @@ def main():
     print(
         f"BLOCKED by .claude/hooks/agent-clock.sh: this agent has run {minutes:.0f} active minutes, over the limit of {limit:g} "
         "(docs/workflow/model-routing.md). Write the handoff in run.md (next step, each check result from its log), "
-        "commit or leave the working tree as it is, then call SubagentHandback.",
+        "commit with git add <paths> && git commit -F <file>, or leave the working tree as it is, then call SubagentHandback.",
         file=sys.stderr,
     )
     sys.exit(2)

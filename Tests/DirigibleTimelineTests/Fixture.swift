@@ -29,6 +29,8 @@ enum Fixture {
 /// Test shims of decision 0038: the range tests write a range selection as Marks.
 extension GestureEffect {
     static func marks(_ marks: Marks) -> GestureEffect { .selection(.range(marks)) }
+    /// A click on a clip selects it as a set of one clip (decision 0038).
+    static func clip(_ id: ClipID) -> GestureEffect { .selection(.clips(ClipSet(id))) }
 }
 
 extension ClipInspection {

@@ -6,7 +6,7 @@ import Foundation
 public enum Selection: Hashable, Sendable {
     /// `.range(Marks())` is no selection.
     case range(Marks)
-    /// The clips of Command-click.
+    /// The clips of a click on a clip, or of Command-click.
     case clips(ClipSet)
 
     public static let none = Selection.range(Marks())
@@ -80,4 +80,7 @@ public struct ClipSet: Hashable, Sendable {
         guard !ids.isEmpty else { return nil }
         self.ids = ids
     }
+
+    /// The set of one clip.
+    public init(_ id: ClipID) { ids = [id] }
 }

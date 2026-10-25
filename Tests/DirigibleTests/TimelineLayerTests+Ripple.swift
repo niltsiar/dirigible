@@ -76,10 +76,10 @@ extension TimelineLayerTests {
             drawNow(window)
             try check(step, preview: false)
         }
-        // A second drag of the same edge, with the Marks of the commit on c1: it draws by a shift.
+        // A second drag of the same edge, with c1 selected as the commit leaves it: it draws by a shift.
         view.update(inputs(model, studio))
         drawNow(window)
-        #expect(view.lanes.inputs?.marks.outPoint == view.lanes.inputs?.session.clip("c1")?.clip.end, "Marks on c1")
+        #expect(view.lanes.inputs?.selection == .clips(ClipSet("c1")), "c1 selected")
         var marked = [view.lanes.surfaces.shifted]
         let again = try #require(view.lanes.clipFrame("c1"))
         let end = NSPoint(x: again.maxX - 2, y: again.minY + 10)

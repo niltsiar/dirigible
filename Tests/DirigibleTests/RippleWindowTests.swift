@@ -31,9 +31,9 @@ import Testing
         studio.session.track(track).map { $0.clips.map(\.start) } ?? []
     }
 
-    /// C2: the Marks of a click on c1@48000 (its range on t1). Control: the scope of the Marks
-    /// tracks moves only t1.
-    @Test func aClipClickThenRippleDeleteKeepsEveryTrackInSync() async throws {
+    /// C2: the Marks of the range of c1@48000 on t1. Control: the scope of the Marks tracks moves
+    /// only t1.
+    @Test func aRangeRippleDeleteKeepsEveryTrackInSync() async throws {
         let (model, studio, _, _) = try await open()
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])
 

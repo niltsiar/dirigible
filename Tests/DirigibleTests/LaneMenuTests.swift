@@ -185,11 +185,11 @@ import Testing
         let (model, _, _, view) = try await lanes()
         model.timeline.marks = Marks(inPoint: 0, outPoint: 1_000, tracks: ["t2"])
         _ = try menu(view, 120, 10)
-        #expect(model.timeline.marks == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
+        #expect(model.timeline.selection == .clips(ClipSet("c1@48000")))
         await model.close()
     }
 
-    /// Run split-no-cut criterion C5: a right-click on c1@48000 selects its range, and Split shows
+    /// Run split-no-cut criterion C5: a right-click on c1@48000 selects it as a clip set, and Split shows
     /// when the playhead is inside the clip. Control: with the playhead after the clip, Split hides.
     @Test func aRightClickOnAClipShowsSplitWithThePlayheadInIt() async throws {
         let (model, studio, _, view) = try await lanes()
@@ -265,7 +265,7 @@ extension LaneMenuTests {
                 "-", "menu.markers.add", "menu.markers.add.chapter",
             ])
         _ = try menu(view, 50, 110)
-        #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 48_000, tracks: ["t2"]), "c2 is not in the set")
+        #expect(model.timeline.selection == .clips(ClipSet("c2")), "c2 is not in the set")
         await model.close()
     }
 }

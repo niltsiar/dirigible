@@ -71,7 +71,7 @@ import Testing
     /// sets the playhead with no suspension, and the main actor runs its tasks in order.
     func settle() async { await Task { @MainActor in }.value }
 
-    /// Criterion 2: a click on the upper part of c1 selects its range on t1 and does not seek.
+    /// Criterion 2: a click on the upper part of c1 selects it as a clip set and does not seek.
     @Test func aClickOnAClipSelectsItAndKeepsThePlayhead() async throws {
         let (model, studio, window, view) = try await lanes()
         await studio.perform(.seek(.frame(10_000)))
@@ -80,7 +80,7 @@ import Testing
         try release(view, 101, 10)
         await settle()
 
-        #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 960_000, tracks: ["t1"]))
+        #expect(model.timeline.selection == .clips(ClipSet("c1")))
         #expect(studio.playhead == 10_000 && !studio.canUndo)
         window.close()
         await model.close()
@@ -97,7 +97,7 @@ import Testing
         await settle()
 
         #expect(studio.session == before && !studio.canUndo)
-        #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 960_000, tracks: ["t1"]))
+        #expect(model.timeline.selection == .clips(ClipSet("c1")))
         window.close()
         await model.close()
     }
@@ -118,7 +118,7 @@ import Testing
 
         let moved = try #require(studio.session.clip("c1"))
         #expect(moved.track == "t1" && moved.clip.range == 51_200..<1_011_200 && moved.clip.offset == 0)
-        #expect(model.timeline.marks == Marks(inPoint: 51_200, outPoint: 1_011_200, tracks: ["t1"]))
+        #expect(model.timeline.selection == .clips(ClipSet("c1")))
         #expect(view.lanes.inputs?.session == studio.session, "the lanes draw the committed session")
         model.undo()
         #expect(studio.session == before && !studio.canUndo, "one undo entry")
@@ -249,7 +249,7 @@ import Testing
         #expect(studio.session == trimmed)
         try release(view, 2000, 10)
         #expect(studio.session.clip("c1")?.clip.range == 102_400..<960_000 && model.alert == nil)
-        #expect(model.timeline.marks == Marks(inPoint: 102_400, outPoint: 960_000, tracks: ["t1"]))
+        #expect(model.timeline.selection == .clips(ClipSet("c1")))
 
         try press(view, 202, 10)
         try drag(view, 0, 10)
@@ -282,21 +282,21 @@ import Testing
     }
 
     /// The tester steps of run 2026-10-15-split-no-cut: t1 has a cut at 480,000 (x 937.5 pt). A
-    /// click on the right part of t1, a click on its in triangle (a seek to the cut), and a click on
-    /// c2 select c2 with the playhead inside it. Split then cuts c2 at the playhead.
+    /// click on the right part of t1, a ruler click at the cut (a seek to it), and a click on c2
+    /// select c2 with the playhead inside it. Split then cuts c2 at the playhead.
     @Test func splitAfterAClickOnAClipCutsTheClipAtThePlayhead() async throws {
         let (model, studio, window, view) = try await lanes()
         try studio.edit(ripple: false) { s throws(SessionError) in _ = try s.splitClips(at: [480_000], on: ["t1"]) }
         try press(view, 1000, 10)
         try release(view, 1000, 10)
-        try #require(model.timeline.marks == Marks(inPoint: 480_000, outPoint: 960_000, tracks: ["t1"]))
+        try #require(model.timeline.selection == .clips(ClipSet("c1@480000")))
         view.ruler.mouseDown(with: try rulerMouse(.leftMouseDown, 937.5, 20, in: view))
         view.ruler.mouseUp(with: try rulerMouse(.leftMouseUp, 937.5, 20, in: view))
         await settle()
         try #require(studio.playhead == 480_000)
         try press(view, 600, 110)
         try release(view, 600, 110)
-        try #require(model.timeline.marks == Marks(inPoint: 0, outPoint: 960_000, tracks: ["t2"]))
+        try #require(model.timeline.selection == .clips(ClipSet("c2")))
 
         model.run(.split)
 

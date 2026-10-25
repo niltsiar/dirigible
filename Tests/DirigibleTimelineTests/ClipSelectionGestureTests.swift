@@ -19,7 +19,7 @@ struct ClipSelectionGestureTests {
     /// C2. Control: the Command range press of today gives a track toggle, not a clip set.
     @Test mutating func aCommandClickAddsAndRemovesAClip() throws {
         g.selection = try #require(Self.selection(g.click(150, 10)))
-        #expect(g.selection == .range(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])))
+        #expect(g.selection == GroupGesture.clips(["A"]))
         g.selection = try #require(Self.selection(g.click(150, 70, command: true)))
         #expect(g.selection == GroupGesture.clips(["A", "B"]))
         g.selection = try #require(Self.selection(g.click(150, 70, command: true)))
@@ -54,10 +54,35 @@ struct ClipSelectionGestureTests {
         #expect(g.click(700, 10, command: true) == [], "(g) a gap keeps the clip set")
     }
 
-    /// C4: a click with no drag on a clip of the set selects that clip alone.
+    /// C4: a click with no drag on a clip of the set selects that clip alone, as a one-clip set.
     @Test mutating func aClickOnASelectedClipSelectsOnlyThatClip() {
         g.selection = GroupGesture.clips(["A", "B"])
-        #expect(g.click(150, 10) == [.marks(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))])
+        #expect(g.click(150, 10) == [.clip("A")])
+    }
+
+    /// C17: from the set of A (t1, 1 s to 2 s) and D (t3, 5 s to 6 s) with the playhead at 0.5 s,
+    /// a Shift-click at 6 s in a gap of t2 gives 0.5 s to 6 s on t1, t2, and t3.
+    @Test mutating func aShiftClickFromAClipSetExtendsOnItsTracks() {
+        g.selection = GroupGesture.clips(["A", "D"])
+        let context = GestureContext(
+            session: g.session, selection: g.selection, playhead: 24_000, geometry: Fixture.geometry, canEdit: true,
+            canRipple: true)
+        _ = g.gesture.handle(.down(.lanes(x: 600, y: 90), shift: true, command: false), context)
+
+        let effects = g.gesture.handle(.up(.lanes(x: 600, y: 90)), context)
+
+        #expect(effects == [.marks(Marks(inPoint: 24_000, outPoint: 288_000, tracks: ["t1", "t2", "t3"]))])
+    }
+
+    /// C17: from the set of A (t1, 1 s to 2 s), a Shift-drag on t1 from 5 s to 6 s gives 1 s to 6 s
+    /// on t1: the hull of the set span and the drag range.
+    @Test mutating func aShiftDragFromAClipSetExtendsItsSpan() {
+        g.selection = GroupGesture.clips(["A"])
+        _ = g.gesture.handle(.down(.lanes(x: 500, y: 10), shift: true, command: false), g.context)
+
+        let effects = g.gesture.handle(.drag(.lanes(x: 600, y: 10)), g.context)
+
+        #expect(effects == [.marks(Marks(inPoint: 48_000, outPoint: 288_000, tracks: ["t1"]))])
     }
 
     /// A Command-drag from a clip stays a range drag (decision 0020).

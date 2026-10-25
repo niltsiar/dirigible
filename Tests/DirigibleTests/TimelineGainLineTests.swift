@@ -62,7 +62,7 @@ import Testing
         try send(.leftMouseUp, view, 250, 13)
 
         #expect(studio.session.clip("c1")?.clip.gain == Gain(dB: -6))
-        #expect(model.timeline.marks == Marks(inPoint: 102_400, outPoint: 153_600, tracks: ["t1"]))
+        #expect(model.timeline.selection == .clips(ClipSet("c1")))
         model.undo()
         #expect(studio.session == before, "one undo entry")
         window.close()

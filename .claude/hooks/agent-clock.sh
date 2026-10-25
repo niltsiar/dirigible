@@ -9,7 +9,9 @@
 # line. The hook exits 0 in bash, before Python starts, when the input has no "agent_id": the lead
 # never gets a refusal.
 # Past the limit these calls pass, so the agent can write its handoff and hand back:
-#   - the tools Read, Write, Edit, ToolSearch, TaskStop, and SubagentHandback;
+#   - the tools Read, ToolSearch, TaskStop, and SubagentHandback;
+#   - Edit and Write when `file_path` has a `/.scratchpads/` part (run.md, commit-msg.txt), so an
+#     agent past the limit writes only its handoff files;
 #   - Monitor and TaskOutput while the transcript has a running background task (background-tasks.py,
 #     the parser that handback-guard.sh also uses), so a check that started before the limit can
 #     finish and be read;
@@ -31,7 +33,7 @@ import sys
 from datetime import datetime
 
 GAP_MAX = 15 * 60
-PASS_TOOLS = {"Read", "Write", "Edit", "ToolSearch", "TaskStop", "SubagentHandback"}
+PASS_TOOLS = {"Read", "ToolSearch", "TaskStop", "SubagentHandback"}
 GIT_PASS = {"status", "diff", "log", "add", "commit"}
 LOG_DECISION = ".claude/skills/deliver/scripts/log-decision.sh"
 
@@ -106,6 +108,11 @@ def main():
     tool = hook.get("tool_name")
     if tool in PASS_TOOLS:
         return
+    if tool in ("Edit", "Write"):
+        tool_input = hook.get("tool_input")
+        file_path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+        if isinstance(file_path, str) and "/.scratchpads/" in file_path:
+            return
     if tool in ("Monitor", "TaskOutput") and tasks.running_tasks(path):
         return
     if tool == "Bash":

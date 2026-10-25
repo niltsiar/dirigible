@@ -23,7 +23,6 @@ extension TimelineGesture {
     /// A gain drag: the clip at the down, its lane, the gain, and the session with that gain.
     struct GainDrag: Sendable {
         let clip: Clip
-        let lane: Int
         var gain: Gain
         var preview: Session
     }
@@ -33,7 +32,6 @@ extension TimelineGesture {
     struct FadeDrag: Sendable {
         let clip: Clip
         let edge: Edge
-        let lane: Int
         var fades: Fades
         var preview: Session
     }
@@ -44,7 +42,6 @@ extension TimelineGesture {
     struct CrossfadeDrag: Sendable {
         let clip: Clip
         let edge: Edge
-        let lane: Int
         let left: ClipID
         let limit: Frames
         var length: Frames
@@ -72,13 +69,13 @@ extension TimelineGesture {
         let clips = press.base.tracks[lane].clips
         let length = clip.crossfades[edge]
         guard length != .zero, let left = Self.joinLeft(of: clip, edge, in: clips) else {
-            return .fading(press, FadeDrag(clip: clip, edge: edge, lane: lane, fades: clip.fades, preview: press.base))
+            return .fading(press, FadeDrag(clip: clip, edge: edge, fades: clip.fades, preview: press.base))
         }
         let limit = press.base.crossfadeLimit(after: left, in: clips) ?? length
         return .crossfading(
             press,
             CrossfadeDrag(
-                clip: clip, edge: edge, lane: lane, left: clips[left].id, limit: limit, length: length,
+                clip: clip, edge: edge, left: clips[left].id, limit: limit, length: length,
                 preview: press.base))
     }
 
@@ -155,19 +152,19 @@ extension TimelineGesture {
     /// The mouse-up of a gain drag: one commit when the gain changed; else a click.
     func commit(_ press: Press, _ drag: GainDrag, _ context: GestureContext) -> [GestureEffect] {
         guard drag.gain != drag.clip.gain else { return click(press, context) }
-        return [.commit(commit(press, drag.clip, drag.lane, drag.preview))]
+        return [.commit(commit(press, drag.clip, drag.preview))]
     }
 
     /// The mouse-up of a fade-handle drag: one commit when the fades changed; else a click.
     func commit(_ press: Press, _ drag: FadeDrag, _ context: GestureContext) -> [GestureEffect] {
         guard drag.fades != drag.clip.fades else { return click(press, context) }
-        return [.commit(commit(press, drag.clip, drag.lane, drag.preview))]
+        return [.commit(commit(press, drag.clip, drag.preview))]
     }
 
     /// The mouse-up of a crossfade-handle drag: one commit when the length changed; else a click.
     func commit(_ press: Press, _ drag: CrossfadeDrag, _ context: GestureContext) -> [GestureEffect] {
         guard drag.length != drag.clip.crossfades[drag.edge] else { return click(press, context) }
-        return [.commit(commit(press, drag.clip, drag.lane, drag.preview))]
+        return [.commit(commit(press, drag.clip, drag.preview))]
     }
 
     /// The mouse-up of a double-click on the gain band or a handle: one commit that sets the gain
@@ -177,22 +174,22 @@ extension TimelineGesture {
         guard press.clicks >= 2, context.canEdit, case .lane(let hit) = press.target else { return nil }
         var result = press.base
         switch hit {
-        case .gain(let clip, let lane):
+        case .gain(let clip, _):
             guard clip.gain != .zero, (try? result.setGain(.zero, clip: clip.id)) != nil else { return nil }
-            return [.commit(commit(press, clip, lane, result))]
+            return [.commit(commit(press, clip, result))]
         case .fade(let clip, let edge, let lane) where clip.crossfades[edge] != .zero:
             let clips = press.base.tracks[lane].clips
             guard let left = Self.joinLeft(of: clip, edge, in: clips),
                 (try? result.setCrossfades([clips[left].id: .zero])) != nil
             else { return nil }
-            return [.commit(commit(press, clip, lane, result))]
-        case .fade(let clip, let edge, let lane):
+            return [.commit(commit(press, clip, result))]
+        case .fade(let clip, let edge, _):
             let old = clip.fades
             let fades = clip.fades(setting: edge, to: .zero)
             guard let fades, fades != old, (try? result.setFades([clip.id: fades])) != nil else { return nil }
-            return [.commit(commit(press, clip, lane, result))]
-        case .point(let clip, let index, let lane):
-            return removePoint(press, clip, index, lane, context)
+            return [.commit(commit(press, clip, result))]
+        case .point(let clip, let index, _):
+            return removePoint(press, clip, index, context)
         case .move, .trim, .range:
             return nil
         }
@@ -260,7 +257,7 @@ extension TimelineGesture {
     }
 
     /// The commit of a clip edit, with the edited clip selected as a set of one clip.
-    func commit(_ press: Press, _ clip: Clip, _ lane: Int, _ result: Session) -> GestureCommit {
+    func commit(_ press: Press, _ clip: Clip, _ result: Session) -> GestureCommit {
         GestureCommit(base: press.base, result: result, selection: .clips(ClipSet(clip.id)), marker: nil, ripple: false)
     }
 

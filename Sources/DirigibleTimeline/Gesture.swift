@@ -333,8 +333,8 @@ public struct TimelineGesture: Sendable {
                 guard context.canEdit else { return [] }
                 state = gainState(press, clip, lane)
                 return drag(place, context)
-            case .lane(.point(let clip, let index, let lane)):
-                guard context.canEdit, let pointing = pointState(press, clip, lane, index: index) else { return [] }
+            case .lane(.point(let clip, let index, _)):
+                guard context.canEdit, let pointing = pointState(press, clip, index: index) else { return [] }
                 state = pointing
                 return drag(place, context)
             case .lane(.fade(let clip, let edge, let lane)):

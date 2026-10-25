@@ -11,7 +11,6 @@ extension TimelineGesture {
     /// press made, so the mouse-up commits it with no move.
     struct PointDrag: Sendable {
         let clip: Clip
-        let lane: Int
         let index: Int
         let added: Bool
         var point: GainEnvelope.Point
@@ -55,30 +54,30 @@ extension TimelineGesture {
     }
 
     /// The drag state of a press on a point, or of an Option press on the gain line (a new point).
-    func pointState(_ press: Press, _ clip: Clip, _ lane: Int, index: Int?) -> State? {
+    func pointState(_ press: Press, _ clip: Clip, index: Int?) -> State? {
         if let index {
             return .pointing(
                 press,
                 PointDrag(
-                    clip: clip, lane: lane, index: index, added: false, point: clip.envelope.points[index],
+                    clip: clip, index: index, added: false, point: clip.envelope.points[index],
                     preview: press.base))
         }
         guard let (new, index, preview) = Self.adding(at: press.frame, to: clip, in: press.base) else { return nil }
         return .pointing(
             press,
             PointDrag(
-                clip: new, lane: lane, index: index, added: true, point: new.envelope.points[index], preview: preview))
+                clip: new, index: index, added: true, point: new.envelope.points[index], preview: preview))
     }
 
     /// The drag state of a press on the gain line: a new point with Option, a range gain inside a
     /// range, else a clip gain drag.
     func gainState(_ press: Press, _ clip: Clip, _ lane: Int) -> State {
-        if press.option, let pointing = pointState(press, clip, lane, index: nil) { return pointing }
+        if press.option, let pointing = pointState(press, clip, index: nil) { return pointing }
         if let range = gainRange(press, clip, lane) {
             return .rangeGaining(
                 press, RangeGainDrag(clip: clip, lane: lane, range: range, gain: .zero, preview: press.base))
         }
-        return .gaining(press, GainDrag(clip: clip, lane: lane, gain: clip.gain, preview: press.base))
+        return .gaining(press, GainDrag(clip: clip, gain: clip.gain, preview: press.base))
     }
 
     /// A point drag event: the point follows the pointer in time, between its neighbors and inside the
@@ -119,29 +118,27 @@ extension TimelineGesture {
     /// The mouse-up of a point drag: one commit when the point moved or was added; else a click.
     func commit(_ press: Press, _ drag: PointDrag, _ context: GestureContext) -> [GestureEffect] {
         guard drag.added || drag.point != drag.clip.envelope.points[drag.index] else { return click(press, context) }
-        return [.commit(commit(press, drag.clip, drag.lane, drag.preview))]
+        return [.commit(commit(press, drag.clip, drag.preview))]
     }
 
     /// The mouse-up of an Option press on the gain line, with no drag: one commit that adds a point
     /// there. Nil (a click) with no Option, off the gain line, with a point at that frame, or during
     /// a take.
     func addPoint(_ press: Press, _ context: GestureContext) -> [GestureEffect]? {
-        guard press.option, context.canEdit, case .lane(.gain(let clip, let lane)) = press.target,
+        guard press.option, context.canEdit, case .lane(.gain(let clip, _)) = press.target,
             let (new, _, result) = Self.adding(at: press.frame, to: clip, in: press.base)
         else { return nil }
-        return [.commit(commit(press, new, lane, result))]
+        return [.commit(commit(press, new, result))]
     }
 
     /// The mouse-up of a double-click on a point: one commit that removes it. Nil when a take runs.
-    func removePoint(_ press: Press, _ clip: Clip, _ index: Int, _ lane: Int, _ context: GestureContext)
-        -> [GestureEffect]?
-    {
+    func removePoint(_ press: Press, _ clip: Clip, _ index: Int, _ context: GestureContext) -> [GestureEffect]? {
         var points = clip.envelope.points
         points.remove(at: index)
         guard context.canEdit, let result = Self.setting(GainEnvelope(points), of: clip, in: press.base) else {
             return nil
         }
-        return [.commit(commit(press, clip, lane, result))]
+        return [.commit(commit(press, clip, result))]
     }
 
     /// The range of a range gain: the selected range, when it is inside `clip` and not the whole

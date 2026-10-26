@@ -33,8 +33,11 @@
 # scripts/test-hooks.sh splits it. A path of class tooling or comments needs a test: the entry
 # itself, <name>.test.sh for <name>.sh or <name>.py, the guardrails test for .claude/hooks/*,
 # .claude/settings.json, and .githooks/*, scripts/land.test.sh for .githooks/pre-push, and each entry
-# whose text names the basename of a changed tooling path. A path with no test gives no word: the
-# full list runs. The push never adds the word. SINCE is local, so it adds the word.
+# whose text names the basename of a changed tooling path. A path with no test gives the word
+# DIRIGIBLE_HOOKS_ALL=1 in place of HOOK_TESTS: scripts/test-hooks.sh runs the whole list only with
+# that word (or the switches of the push check and of a person). The same word comes from a
+# check-fast that comes from check with FILTER, and from tests that are every entry of the list.
+# The push never adds either word. SINCE is local, so it adds them.
 set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
@@ -133,15 +136,22 @@ wait_load() {
     done
 }
 
+# hook_list: the tests of Makefile HOOK_TESTS, one for each line.
+hook_list() {
+    awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' "$(dirname "$0")/../Makefile" | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . || true
+}
+
 # hook_tests <paths>: the hook tests that the changed paths need, in the order of HOOK_TESTS and
 # joined with commas. It prints nothing when a path of class tooling or comments has no test.
 hook_tests() {
     local root list p c t base hits all=" " out=""
     root="$(cd "$(dirname "$0")/.." && pwd)"
-    list="$(awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' "$root/Makefile" | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . || true)"
+    list="$(hook_list)"
     while IFS= read -r p; do
         [[ -n "$p" ]] || continue
         if comment_only "$p"; then c=comments; else c="$(class_of "$p")"; fi
+        # As classify: a Makefile with only comment changes is class docs and needs no test.
+        [[ $c == comments && $p == Makefile ]] && c=docs
         [[ $c == tooling || $c == comments ]] || continue
         hits=" "
         grep -qxF -- "$p" <<<"$list" && hits+="$p "
@@ -320,6 +330,8 @@ done
 # A local check-fast runs only the hook tests that the changed paths need.
 if [[ $push == 0 && " $targets " == *" check-fast "* && " $targets " != *" check "* ]]; then
     hooks="$(hook_tests "$paths")"
+    # The tests of every entry are the whole list: test-hooks.sh refuses that as a word.
+    [[ "$hooks" != "$(hook_list | paste -sd, -)" ]] || hooks=""
     [[ -z "$hooks" ]] || targets+=" HOOK_TESTS=$hooks"
 fi
 
@@ -344,6 +356,11 @@ needs_suite=no
 [[ " $targets " == *" test "* || " $targets " == *" check "* ]] && needs_suite=yes
 if [[ -n "${FILTER:-}" ]]; then
     targets="$(sed -E 's/(^| )check( |$)/\1check-fast test-filter test-app\2/; s/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
+fi
+# A local check-fast with no HOOK_TESTS word runs the whole list, which test-hooks.sh runs only with a
+# switch. The FILTER rewrite makes check-fast of check, so this comes after it.
+if [[ $push == 0 && " $targets " == *" check-fast "* && " $targets " != *" HOOK_TESTS="* ]]; then
+    targets+=" DIRIGIBLE_HOOKS_ALL=1"
 fi
 echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"

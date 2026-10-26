@@ -3,12 +3,16 @@
 # a new run after a change of each key input (C2), a reuse after a change of an excluded path
 # (C3), a key from the work tree on a dirty tree (C16), no stamp after a red test or a make flag
 # (C4), and a run from a key tree that fails on a read outside the key and leaves no git state
-# (C5). Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
+# (C5), and a refusal of the whole list outside the push check, with no stamp reuse before it
+# (C6). Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
 # xcodebuild, jq, sw_vers, and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 # A make value of an outer run (make test-hooks) must not reach the stub make.
-unset MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE SINCE
+unset MAKEFLAGS MFLAGS MAKELEVEL GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE SINCE DIRIGIBLE_PUSH_CHECK DIRIGIBLE_HOOKS_ALL
+# The whole list runs only with a switch. The cases of C1 to C5 run it, so they hold the switch of a
+# person; the cases of C6 take it away.
+export DIRIGIBLE_FULL_SUITE=1
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 failures=0
@@ -52,6 +56,16 @@ run() {
     (cd "$repo" && TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" make -s test-hooks "$@") > "$tmp/out" 2>&1
     code=$?
 }
+# run_with <VAR=value>... [make arguments]: as run, and the environment of make holds only the switches
+# given (the first words that hold =, up to --). Without a word, no switch is set.
+run_with() {
+    local env_words=()
+    while [[ $# -gt 0 && $1 != -- ]]; do env_words+=("$1"); shift; done
+    [[ $# -eq 0 ]] || shift
+    (cd "$repo" && env -u DIRIGIBLE_FULL_SUITE ${env_words[@]+"${env_words[@]}"} TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" \
+        make -s test-hooks "$@") > "$tmp/out" 2>&1
+    code=$?
+}
 # ran: the number of stub test runs so far.
 ran() { if [[ -f "$tmp/log" ]]; then wc -l < "$tmp/log" | tr -d ' '; else echo 0; fi; }
 stamps() { if [[ -f "$stamp" ]]; then wc -l < "$stamp" | tr -d ' '; else echo 0; fi; }
@@ -65,6 +79,39 @@ run
 run
 [[ $code -eq 0 && $(ran) -eq 2 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
     || fail "same key: the second run did not reuse the pass: code $code, ran $(ran): $(out)"
+
+# C6: the whole HOOK_TESTS list with no switch exits nonzero before any test, and the message names
+# make check-changed before DIRIGIBLE_FULL_SUITE=1.
+new_repo
+run_with --
+refusal="$(tr '\n' ' ' < "$tmp/out")"
+[[ $code -ne 0 && $(ran) -eq 0 && $(stamps) -eq 0 ]] && [[ $refusal == *'the whole HOOK_TESTS list runs only in the push check'* ]] \
+    || fail "(C6) the whole list, no switch: code $code, ran $(ran): $(out)"
+before_switch="${refusal%%DIRIGIBLE_FULL_SUITE=1*}"
+[[ $refusal == *DIRIGIBLE_FULL_SUITE=1* && $before_switch == *'make check-changed'* ]] \
+    || fail "(C6) the message does not name make check-changed before DIRIGIBLE_FULL_SUITE=1: $(out)"
+# Each of the three switches runs the whole list.
+for sw in DIRIGIBLE_PUSH_CHECK DIRIGIBLE_FULL_SUITE DIRIGIBLE_HOOKS_ALL; do
+    new_repo
+    run_with "$sw=1" --
+    [[ $code -eq 0 && $(ran) -eq 2 ]] || fail "(C6) $sw=1: the whole list did not run: code $code, ran $(ran): $(out)"
+done
+# A pass stamp of the same key does not skip the refusal, and no reuse line prints.
+new_repo
+run_with DIRIGIBLE_FULL_SUITE=1 --
+run_with --
+[[ $code -ne 0 && $(ran) -eq 2 && $(stamps) -eq 1 ]] && ! grep -q reuse "$tmp/out" \
+    || fail "(C6) a stamp of the key: the refusal did not come first: code $code, ran $(ran): $(out)"
+# A list of all tests but one runs with no switch; a comma word that holds the whole list refuses.
+new_repo
+printf '#!/bin/bash\necho c >> "$HOOKS_LOG"\n' > "$repo/t/c.test.sh"
+chmod +x "$repo/t/c.test.sh"
+printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh \\\n\tt/c.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
+commit three-tests
+run_with -- HOOK_TESTS=t/a.test.sh,t/b.test.sh
+[[ $code -eq 0 && $(ran) -eq 2 ]] || fail "(C6) all tests but one, no switch: code $code, ran $(ran): $(out)"
+run_with -- HOOK_TESTS=t/a.test.sh,t/b.test.sh,t/c.test.sh
+[[ $code -ne 0 && $(ran) -eq 2 ]] || fail "(C6) a comma word of the whole list, no switch: code $code, ran $(ran): $(out)"
 
 # C2: after a change of each key input, each stub test runs again and no reuse line prints.
 # expect_rerun <name> <change function>: a pass, the change, then the next run.

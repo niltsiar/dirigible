@@ -178,7 +178,7 @@ static: $(STATIC_GATES)
 
 check: $(STATIC_GATES) test test-hooks test-app
 
-# The checks with no Swift test: for a change to scripts, hooks, or workflows.
+# The checks with no Swift test: for a change to scripts, hooks, or workflows. A local run: make check-changed.
 check-fast: $(STATIC_GATES) test-hooks
 
 # Runs the targets that scripts/check-changed.sh picks for the changed paths (decision 0028).

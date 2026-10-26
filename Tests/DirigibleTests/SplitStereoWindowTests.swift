@@ -150,7 +150,8 @@ import Testing
     }
 
     /// C7 and C20: each split error shows its key, a full disk the space text, a transcript that
-    /// did not load the text that names it, and another session refusal the session text.
+    /// did not load the text that names it, and another session refusal the session text. A
+    /// transcript cut refusal shows the same transcript text.
     @Test func eachSplitErrorShowsItsKey() {
         let cases: [(SplitError, String)] = [
             (.space(needed: 2, free: 1), L10n.errorSplitSpace.text),
@@ -165,5 +166,8 @@ import Testing
             #expect(L10n.message(for: .split(error)) == text, "\(error)")
         }
         #expect(L10n.message(for: .splitYielded) == L10n.errorSplitYielded.text)
+        #expect(
+            L10n.message(for: .session(.transcriptNotLoaded([TranscriptID(1)]))) == L10n.errorTranscriptUnloaded.text,
+            "a transcript cut refusal")
     }
 }

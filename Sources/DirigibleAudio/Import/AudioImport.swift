@@ -243,6 +243,14 @@ func convertToWAV(
 /// name in `Clips/`, a segment stem in `Capture/`, or a stem in `taken` uses, in any case, gets
 /// " 2", " 3", and so on.
 func importStem(of source: URL, in session: Session, package: URL, taken: Set<String>) -> String {
+    importStems(of: source, suffixes: [""], in: session, package: package, taken: taken)[0]
+}
+
+/// The stems "<stem><suffix>" of `source` for each of `suffixes`, by the rule of `importStem`, with
+/// one number for all of them: the first that leaves each stem free.
+func importStems(of source: URL, suffixes: [String], in session: Session, package: URL, taken: Set<String>)
+    -> [String]
+{
     var base = String(
         String.UnicodeScalarView(
             source.deletingPathExtension().lastPathComponent.unicodeScalars.filter {
@@ -258,12 +266,12 @@ func importStem(of source: URL, in session: Session, package: URL, taken: Set<St
     let names: [String] =
         pool + session.tracks.flatMap(\.clips).map(\.id.rawValue) + listing(clipsFolderName) + segments
     let used = Set((names + taken).map { $0.lowercased() })
-    var (stem, number) = (base, 2)
-    while used.contains(stem.lowercased()) || used.contains("\(stem).wav".lowercased()) {
-        stem = "\(base) \(number)"
+    func stems(_ number: Int) -> [String] { suffixes.map { number == 1 ? "\(base)\($0)" : "\(base)\($0) \(number)" } }
+    var number = 1
+    while stems(number).contains(where: { used.contains($0.lowercased()) || used.contains("\($0).wav".lowercased()) }) {
         number += 1
     }
-    return stem
+    return stems(number)
 }
 
 /// True unless `url` is an iCloud or File Provider item whose data is not on this Mac

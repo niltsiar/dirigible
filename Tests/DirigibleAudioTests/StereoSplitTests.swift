@@ -121,7 +121,8 @@ struct StereoSplitTests {
         #expect(session.files[file]?.length == 1_680_000, "0 s to 35 s: the two spans and their handles")
     }
 
-    /// C4d: two runs of one file get two stems, and no new file takes a name in `Clips/`.
+    /// C4d: two runs of one file get two stems, and no new file takes a name in `Clips/`. The two
+    /// files of a pair share one number, the first that is free for both names.
     @Test func twoRunsOfOneFileGetTwoStems() throws {
         let fixture = try SplitFixture(seconds: 90, clips: [("c1", 240_000, 240_000), ("c2", 3_360_000, 240_000)])
         let stray = fixture.package.url.appending(path: "\(clipsFolderName)/f1 L.wav")
@@ -130,9 +131,10 @@ struct StereoSplitTests {
         let (session, parts, _) = try fixture.split(["c1", "c2"])
 
         let files = parts.flatMap { [session.clip($0.left)?.clip.file, session.clip($0.right)?.clip.file] }
-        #expect(files == ["f1 L 2", "f1 R", "f1 L 3", "f1 R 2"])
+        #expect(files == ["f1 L 2", "f1 R 2", "f1 L 3", "f1 R 3"])
         #expect(FileManager.default.contents(atPath: stray.path) == Data([1, 2, 3]), "the stray file keeps its bytes")
-        #expect(try fixture.listing() == ["f1 L 2.wav", "f1 L 3.wav", "f1 L.wav", "f1 R 2.wav", "f1 R.wav", "f1.wav"])
+        #expect(
+            try fixture.listing() == ["f1 L 2.wav", "f1 L 3.wav", "f1 L.wav", "f1 R 2.wav", "f1 R 3.wav", "f1.wav"])
     }
 
     /// C5: the need is 2 x 3 bytes for each frame of the spans, plus the margin, checked before any

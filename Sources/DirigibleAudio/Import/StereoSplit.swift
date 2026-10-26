@@ -25,13 +25,14 @@ public enum SplitError: Error, Hashable, Sendable {
 /// that it renamed. It never writes `session.xml`, and it blocks: never call it on the main actor.
 ///
 /// The order: the source checks, one space check (`freeBytes`, 2 x 3 bytes for each frame of the
-/// spans), the stems "<source stem> L" and "<source stem> R" by the stem rule of 0040, the session
-/// split on a copy, the conversions into `.<stem>.wav.tmp`, a check that each WAV has the frames of
-/// its span, the renames, and one flush of `Clips/` (`NewClipFiles`). So a session refusal writes
-/// no file, and a throw before the renames leaves no new file. After the renames, a flush fault
-/// keeps the WAVs as unused files, and a cancel removes them (`removeMadeFiles`). `isCancelled` is
-/// read before each side, before each block, before the renames, and after them. `progress` rises
-/// with the frames written and gives 1 only at the end of the last side.
+/// spans), the stems "<source stem> L" and "<source stem> R" by the stem rule of 0040 with one
+/// number for the pair, the session split on a copy, the conversions into `.<stem>.wav.tmp`, a
+/// check that each WAV has the frames of its span, the renames, and one flush of `Clips/`
+/// (`NewClipFiles`). So a session refusal writes no file, and a throw before the renames leaves no
+/// new file. After the renames, a flush fault keeps the WAVs as unused files, and a cancel removes
+/// them (`removeMadeFiles`). `isCancelled` is read before each side, before each block, before the
+/// renames, and after them. `progress` rises with the frames written and gives 1 only at the end
+/// of the last side.
 ///
 /// shortcut: two reads of each source span, one for each side; write a one-pass deinterleave when
 /// the bench shows the split of a long file too slow.
@@ -63,12 +64,13 @@ public func splitStereo(
     var pairs: [MonoPair] = []
     var temporaries: [(left: URL, right: URL)] = []
     for (run, source) in runs {
-        let base = URL(filePath: source.path).deletingPathExtension().lastPathComponent
+        let stems = importStems(
+            of: URL(filePath: source.path), suffixes: [" L", " R"], in: session, package: package, taken: files.stems)
         do throws(NewClipFault) {
-            let left = try files.add(stemOf: URL(filePath: "\(base) L.wav"), in: session)
-            let right = try files.add(stemOf: URL(filePath: "\(base) R.wav"), in: session)
-            pairs.append(MonoPair(run: run, leftStem: left.stem, rightStem: right.stem))
-            temporaries.append((left.temporary, right.temporary))
+            let left = try files.add(stem: stems[0])
+            let right = try files.add(stem: stems[1])
+            pairs.append(MonoPair(run: run, leftStem: stems[0], rightStem: stems[1]))
+            temporaries.append((left, right))
         } catch {
             throw SplitError(error)
         }

@@ -52,6 +52,8 @@ enum ToolWork: Sendable {
     case duck(DuckWork)
     /// `import`: a conversion and an edit under the lock, as `dirigible import`.
     case importFile(ImportWork)
+    /// `clip_split_stereo`: a pair writer and an edit under the lock, as `dirigible clip split-stereo`.
+    case splitStereo(SplitWork)
     /// `chapters_export`: no lock, as `dirigible chapters export`.
     case chapters(ChaptersWork)
     /// `transcript_export`: no lock, as `dirigible transcript export` (decision 0061).
@@ -64,7 +66,7 @@ enum ToolWork: Sendable {
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .level, .duck, .importFile, .chapters, .transcriptExport, .read: true
+        case .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters, .transcriptExport, .read: true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
             .record, .words,
             .takeMap:

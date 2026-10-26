@@ -114,6 +114,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try work.run(package, path: path, control: control)
     case .importFile(let work):
         return try work.run(package, path: path, control: control)
+    case .splitStereo(let work):
+        return try work.run(package, path: path, control: control)
     case .chapters(let work):
         return try work.run(package, path: path)
     case .transcriptExport(let work):

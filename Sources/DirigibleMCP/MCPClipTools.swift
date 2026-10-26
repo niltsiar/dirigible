@@ -104,6 +104,17 @@ let clipTools = [
         }
     },
     Tool(
+        "clip_split_stereo",
+        "Split stereo clips into two mono tracks, as dirigible clip split-stereo: for each run of clips of one file, "
+            + "two mono 24-bit WAVs in Clips/ with a handle of 10 s on each side, and under each source track two mono "
+            + "tracks named \"<name> L\" and \"<name> R\". The source clips go; the source track and its file stay. "
+            + "A clip on a mono track is refused. Give one line for each clip: the left clip, the right clip, the "
+            + "left track, and the right track, with a tab between them." + editCancelNote("no track is added"),
+        [clips]
+    ) { a throws(ToolError) in
+        .splitStereo(SplitWork(clips: try a[clips].map { ClipID($0) }))
+    },
+    Tool(
         "clip_paste",
         "Copy a range of tracks and paste it at a frame over the clips there. Give the pasted IDs." + sourceNote,
         [Arg.from, Arg.to, tracks, at, onto, source]

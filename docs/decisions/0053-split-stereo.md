@@ -28,6 +28,7 @@ A clip has no channel field, and a clip file layout must equal its track layout 
 
 - No session version change. A split keeps `fileVersion`, except when a crossfade whose partner was not split goes. A session after a split opens in each older build that reads its version.
 - A split writes the merged spans with their handles: a 10 s clip in the middle of a long file writes 30 s for each side, and a dense edit writes at most the source length for each side. A 2 h clip at 48 kHz writes 2.07 GB and needs that much plus the 1 GB margin of free space.
+- Each split writes a new pair, also a split after Undo: no split uses the pair files of an undone split again. So each retry writes its runs again. Remove Unused Files frees the pair files of an undone split when no redo entry and no backup names them (0047).
 - A trim can extend a new clip up to the edges of its pair file: at least its 10 s handle, and more for a clip inside a run. A longer extension needs the source clip (Undo).
 - A voice that was on one side plays in the center after the split, because a mono clip plays on both channels. A mono export of a one-side voice gets 6 dB louder (0.5 L before, L after). The split changes no gain.
 - Each later reader of clip audio (stems, render through an effect, EQ) reads a mono file and needs no channel rule.

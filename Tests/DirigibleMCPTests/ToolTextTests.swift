@@ -17,9 +17,9 @@ struct ToolTextTests {
         #expect(!Tool.all.contains { $0.description.contains("No undo: each call saves the package.") })
     }
 
-    /// A late cancel of `level`, `import`, or `clip_split_stereo` keeps the change, so the text tells
+    /// A late cancel of `level`, `import`, `clip_split_stereo`, or `clip_denoise` keeps the change, so the text tells
     /// the agent to read the session before a retry (decision 0049, code gate 3 item 1).
-    @Test(arguments: ["level", "import", "clip_split_stereo"])
+    @Test(arguments: ["level", "import", "clip_split_stereo", "clip_denoise"])
     func anEditCancelTextTellsTheAgentToReadTheSession(name: String) throws {
         let tool = try #require(Tool.all.first { $0.name == name })
         #expect(

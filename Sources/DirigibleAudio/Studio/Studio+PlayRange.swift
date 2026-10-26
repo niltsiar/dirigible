@@ -30,25 +30,18 @@ public enum PlayEnd: Hashable, Sendable {
     }
 }
 
-/// A request of the `run` core of the transport: a command of the window or the keys, or an
-/// agent play with an end.
-enum TransportRequest: Hashable, Sendable {
-    case command(TransportCommand)
-    case playRange(from: Frames?, to: Frames?)
-}
-
 extension Studio {
     /// Plays forward at 1x at the window speed from `from` (else the playhead) and stops at `to`
     /// (else the session end).
     public func play(from: Frames?, to: Frames?) async throws(StudioError) -> TransportOutcome {
         try checkIdle()
-        return await run(.playRange(from: from, to: to))
+        return await playRange(from: from, to: to)
     }
 
     /// Moves the playhead to `frame`, as a click does. A play goes on from there in its shuttle.
     public func locate(_ frame: Frames) async throws(StudioError) -> TransportOutcome {
         try checkIdle()
-        return await run(.command(.seek(.frame(frame))))
+        return await run(.seek(.frame(frame)))
     }
 
     /// Stops a play. It throws `.busy` only while a take starts, records, or finalizes, and never
@@ -59,17 +52,32 @@ extension Studio {
         default: guard !isStarting else { throw .busy }
         }
         guard play.playback != .stopped else { return .state(.stopped(at: play.playhead)) }
-        return await run(.command(.pause))
+        return await run(.pause)
     }
-}
 
-/// The media check of `Studio.checkMedia` and `Studio.exportFaults`, off the main actor, in the
-/// package that the lock holds now. Nil when the package left its volume or the process has no
-/// free descriptor.
-@concurrent nonisolated func mediaFaults(
-    _ session: Session, lock: PackageLock, source: ExportSource? = nil, before: @Sendable () async -> Void = {}
-) async -> [FileID: MediaFault]? {
-    await before()
-    guard let package = try? lock.package() else { return nil }
-    return try? checkMedia(session, package: package, source: source)
+    /// An agent play (C4, C4c, C5, C5b): forward 1x at the window speed from `from` (else the
+    /// playhead of the last poll) to the smaller of `to` and the session end. A start at or after
+    /// that end changes nothing.
+    private func playRange(from: Frames?, to: Frames?) async -> TransportOutcome {
+        let start = from ?? play.playhead
+        let end = to.flatMap { $0 < session.end ? PlayEnd.to($0) : nil } ?? .session(session.end)
+        guard start < end.frame else { return .pastEnd(start: start, end: end) }
+        let forward = Shuttle(direction: .forward, rate: .one)
+        let current = play.playback.shuttle
+        if current == forward, from == nil, to == nil { return .state(state(from: play.playhead)) }
+        let bound = to.map { min($0, session.end) }
+        play.playback = .playing(forward)
+        var number = play.feed + 1
+        if current != nil {
+            number = await endFeed(stop: false)
+            guard play.feed == number else { return .superseded }
+        } else {
+            play.feed = number
+        }
+        // Before the media check: a user seek in the check keeps the end (C8, C18).
+        (play.playhead, play.startPoint) = (start, start)
+        play.end = bound.map { (number, $0) }
+        guard current == nil else { return await startPlay(forward, from: start, number: number, end: bound) }
+        return await startFromStopped(forward, number: number, end: bound)
+    }
 }

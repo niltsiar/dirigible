@@ -122,6 +122,12 @@ extension Selection {
         }
     }
 
+    /// The input of Split Stereo to Mono: the selected clips on a stereo track, in session order.
+    /// A range gives the stereo clips that it holds whole.
+    public func stereoClips(in session: Session) -> [ClipID] {
+        selectedClips(in: session).filter { session.tracks[$0.lane].layout == .stereo }.map(\.clip.id)
+    }
+
     /// I and O: a clip set gives a range on its tracks.
     public func settingIn(_ playhead: Frames, in session: Session) -> Marks {
         rangeMarks(in: session).settingIn(playhead, in: session)

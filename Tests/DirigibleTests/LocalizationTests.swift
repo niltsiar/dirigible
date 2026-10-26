@@ -204,6 +204,7 @@ func stringsTable(_ language: String) throws -> [String: String] {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
+        "split.suffix.left", "split.suffix.right",
         "inspector.tab.clip", "inspector.tab.marker", "marker.name", "marker.url", "episode.details",
         "episode.copyright", "episode.links", "episode.guid", "alert.ok", "track.name", "track.role.dialogue.letter",
         "track.role.effects.letter", "track.role.music.letter", "track.mute.letter",
@@ -259,6 +260,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt",
     ],
     "nl": [
+        "split.suffix.left", "split.suffix.right",
         "agent.mark", "alert.ok", "dock.badge.recording", "episode.copyright", "episode.details",
         "episode.guid", "episode.links", "export.chapter.intro", "inspector.clip", "inspector.clips",
         "inspector.decibels", "inspector.gain", "inspector.milliseconds", "inspector.tab.clip",

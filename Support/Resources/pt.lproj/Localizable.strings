@@ -43,6 +43,7 @@
 "menu.tools.level.all" = "Nivelamento Automático de Todos os Clipes";
 "menu.tools.level.track.all" = "Nivelamento Automático por Pista (Todos os Clipes)";
 "menu.tools.duck" = "Abaixar Música sob a Voz…";
+"menu.tools.split.stereo" = "Dividir Estéreo em Mono";
 
 /* Errors */
 "error.studio.busy" = "Uma tomada está sendo gravada ou finalizada. Aguarde até que ela termine.";
@@ -176,6 +177,9 @@
 "paste.banner" = "Colando de “%@”";
 "paste.done" = "Colado.";
 "split.banner" = "Dividindo clipes estéreo em faixas mono";
+"split.done" = "Dividido em duas faixas mono.";
+"split.suffix.left" = "E";
+"split.suffix.right" = "D";
 "error.split.space" = "O Dirigible não pode dividir os clipes estéreo. O disco desta sessão não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
 "error.split.write" = "O Dirigible não pode dividir os clipes estéreo. O Dirigible não consegue escrever na pasta Clips da sessão (erro %lld). Verifique o disco e tente novamente.";
 "error.split.unreadable" = "O Dirigible não pode dividir os clipes estéreo. Não foi possível ler o arquivo de áudio “%1$@” (erro %2$lld). Verifique o disco e tente novamente.";

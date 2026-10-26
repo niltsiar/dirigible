@@ -43,6 +43,7 @@
 "menu.tools.level.all" = "Auto Level All Clips";
 "menu.tools.level.track.all" = "Auto Level per Track (All)";
 "menu.tools.duck" = "Duck Music Under Speech…";
+"menu.tools.split.stereo" = "Split Stereo to Mono";
 
 /* Errors */
 "error.studio.busy" = "A take records or finishes. Wait until it ends.";
@@ -176,6 +177,9 @@
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
 "split.banner" = "Splitting stereo clips into mono tracks";
+"split.done" = "Split into two mono tracks.";
+"split.suffix.left" = "L";
+"split.suffix.right" = "R";
 "error.split.space" = "Dirigible cannot split the stereo clips. The disk of this session does not have enough free space. Free some disk space and try again.";
 "error.split.write" = "Dirigible cannot split the stereo clips. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
 "error.split.unreadable" = "Dirigible cannot split the stereo clips. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";

@@ -43,6 +43,7 @@
 "menu.tools.level.all" = "Auto-Pegel für alle Clips";
 "menu.tools.level.track.all" = "Auto-Pegel pro Spur (alle)";
 "menu.tools.duck" = "Musik unter Sprache absenken …";
+"menu.tools.split.stereo" = "Stereo in Mono aufteilen";
 
 /* Errors */
 "error.studio.busy" = "Ein Take wird gerade aufgenommen oder abgeschlossen. Warte, bis er endet.";
@@ -176,6 +177,9 @@
 "paste.banner" = "Aus „%@“ wird eingesetzt";
 "paste.done" = "Eingesetzt.";
 "split.banner" = "Stereo-Clips werden in Mono-Spuren geteilt";
+"split.done" = "In zwei Mono-Spuren geteilt.";
+"split.suffix.left" = "L";
+"split.suffix.right" = "R";
 "error.split.space" = "Dirigible kann die Stereo-Clips nicht teilen. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.split.write" = "Dirigible kann die Stereo-Clips nicht teilen. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
 "error.split.unreadable" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";

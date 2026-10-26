@@ -16,9 +16,10 @@ enum LaneMenu {
     }
 
     /// The groups of the menu, with no empty group. `split` is true when a clip is at the split
-    /// frames; `clips` is true for a clip set with a clip.
+    /// frames; `clips` is true for a clip set with a clip; `stereo` is true when the selection holds a
+    /// stereo clip.
     static func groups(
-        selection: Bool, clips: Bool, clipboard: Bool, split: Bool, canEdit: Bool, canRipple: Bool
+        selection: Bool, clips: Bool, stereo: Bool, clipboard: Bool, split: Bool, canEdit: Bool, canRipple: Bool
     ) -> [[Item]] {
         let ripple = canEdit && canRipple
         let range = selection && !clips
@@ -32,6 +33,7 @@ enum LaneMenu {
                 selection ? Item(command: .delete, enabled: true) : nil,
                 ripple && range ? Item(command: .deleteCloseGap, enabled: true) : nil,
                 split ? Item(command: .split, enabled: true) : nil,
+                stereo ? Item(command: .splitStereo, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
             ],
         ]
@@ -54,6 +56,7 @@ extension TimelineScrollView {
         let split = (try? copy.splitClips(at: points.frames, on: points.tracks))?.isEmpty == false
         let groups = LaneMenu.groups(
             selection: !selection.isEmpty(in: session), clips: selection.marks == nil,
+            stereo: !selection.stereoClips(in: session).isEmpty,
             clipboard: model.clipboard != nil,
             split: split,
             canEdit: model.canEdit, canRipple: context.canRipple)

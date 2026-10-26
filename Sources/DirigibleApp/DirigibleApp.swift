@@ -132,6 +132,11 @@ struct DirigibleApp: App {
                         ForEach(TimelineCommand.toolItems, id: \.command) { item in menuButton(item) }
                         Divider()
                         Button(L10n.menuToolsDuck.key) { app.timeline(.duck) }.disabled(app.key?.isOn(.duck) != true)
+                        Divider()
+                        let split = TimelineCommand.splitStereoItem
+                        Button(split.title.key) { app.timeline(split.command) }
+                            .keyboardShortcut(split.key, modifiers: split.modifiers)
+                            .disabled(app.key?.isOn(split.command) != true)
                     }
                     CommandGroup(before: .windowList) {
                         Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)

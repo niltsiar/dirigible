@@ -43,6 +43,7 @@
 "menu.tools.level.all" = "Automatische niveaus voor alle clips";
 "menu.tools.level.track.all" = "Automatische niveaus per spoor (alle)";
 "menu.tools.duck" = "Verlaag muziek onder spraak…";
+"menu.tools.split.stereo" = "Stereo splitsen naar mono";
 
 /* Errors */
 "error.studio.busy" = "Er wordt een take opgenomen of afgerond. Wacht tot die klaar is.";
@@ -176,6 +177,9 @@
 "paste.banner" = "Plakken uit '%@'";
 "paste.done" = "Geplakt.";
 "split.banner" = "Stereoclips worden gesplitst in monosporen";
+"split.done" = "Gesplitst in twee monosporen.";
+"split.suffix.left" = "L";
+"split.suffix.right" = "R";
 "error.split.space" = "Dirigible kan de stereoclips niet splitsen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.split.write" = "Dirigible kan de stereoclips niet splitsen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
 "error.split.unreadable" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";

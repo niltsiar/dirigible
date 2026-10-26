@@ -72,7 +72,7 @@ enum TimelineCommand: Hashable {
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
-    case autoLevel, autoLevelPerTrack, duck
+    case autoLevel, autoLevelPerTrack, duck, splitStereo
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -117,6 +117,9 @@ enum TimelineCommand: Hashable {
         case .autoLevel, .autoLevelPerTrack: false
         // Duck Music Under Speech... has no key (plan gate 1 item 3).
         case .duck: false
+        // A text field does nothing with Shift-Command-D, so the key splits the stereo clips of the
+        // selection with the focus in a track name field, as Insert does with Command-I.
+        case .splitStereo: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
         case .addGainPoint, .previousGainPoint, .nextGainPoint: true
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
@@ -241,6 +244,10 @@ enum TimelineCommand: Hashable {
         MenuItem(command: .autoLevel, title: .menuToolsLevel, key: "l", modifiers: .command),
         MenuItem(command: .autoLevelPerTrack, title: .menuToolsLevelTrack, key: "l", modifiers: [.command, .option]),
     ]
+
+    /// Tools > Split Stereo to Mono (decision 0053): its own group at the end of the Tools menu.
+    static let splitStereoItem = MenuItem(
+        command: .splitStereo, title: .menuToolsSplitStereo, key: "d", modifiers: [.command, .shift])
 
     /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the
     /// File menu.
@@ -373,6 +380,7 @@ extension SessionWindow {
         case .autoLevel: Task { await level(.eachClip) }
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
         case .duck: startDuck()
+        case .splitStereo: splitStereo()
         }
     }
 }

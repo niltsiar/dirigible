@@ -86,8 +86,9 @@ extension Studio {
         let current = play.playback.shuttle
         if case .seek(let seek) = command {
             guard let target = frame(of: seek) else { return .state(state(from: play.playhead)) }
-            // Read before `endFeed` takes the new number, which drops the end.
-            let bound = playEnd
+            // Read before `endFeed` takes the new number, which drops the end. No clamp: the Player
+            // clamps, and an undo can move the session end back after the bound (C8).
+            let bound = play.bound
             // A forward play stops at a target at or after the session end (C7).
             let stops = current?.direction == .forward && target >= session.end
             var number = play.feed + 1

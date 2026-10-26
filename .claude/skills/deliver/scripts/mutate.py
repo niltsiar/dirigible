@@ -35,7 +35,8 @@ that the test cannot print exits 2 before any change. Swift Testing prints each 
 outermost comparison of an #expect with its value, for example (rows(model) → [...]) == [], so a
 text that spans an operand and its operator never prints: copy the text from the failure output.
 The refusal applies only to the #expect and #require conditions of the --exact names of the test
-command, found under Tests/, and only when the text is in no string literal under Tests/. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
+command, found under Tests/, and only when the text is in no string literal under Tests/.
+A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
 that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
 in <file>: one mutant in two files, with each file hashed and restored. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.

@@ -242,6 +242,24 @@ struct LiveTransportTests {
         #expect(studio.playback == .stopped && studio.playhead == 144_000)
     }
 
+    /// C8: a trim of `c1` to 60 000 during a play with the end 100 000. The Player stops at
+    /// 60 000, so a play with neither argument and a locate before 60 000 name 60 000.
+    @Test func anEditThatShortensTheSessionMovesTheEnd() async throws {
+        let studio = try await open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        _ = try await studio.play(from: 24_000, to: 100_000)
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.trim("c1", to: 0..<60_000) }
+        try #require(studio.session.end == 60_000, "the edit shortens the session")
+
+        let kept = await call("transport_play", on: folder.socket)
+        let moved = await call("transport_locate", ["at": 30_000], on: folder.socket)
+
+        #expect(kept == reply("Playing from 24000 to 60000."), "\(kept)")
+        #expect(moved == reply("Playing from 30000 to 60000."), "\(moved)")
+        await studio.settle()
+    }
+
     @Test func locateDuringAReversePlay() async throws {
         let studio = try await open()
         let (server, folder) = try liveServer(studio)

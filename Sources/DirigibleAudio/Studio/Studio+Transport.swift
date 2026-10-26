@@ -87,7 +87,7 @@ extension Studio {
         if case .seek(let seek) = command {
             guard let target = frame(of: seek) else { return .state(state(from: play.playhead)) }
             // Read before `endFeed` takes the new number, which drops the end.
-            let bound = play.bound
+            let bound = playEnd
             // A forward play stops at a target at or after the session end (C7).
             let stops = current?.direction == .forward && target >= session.end
             var number = play.feed + 1
@@ -145,9 +145,13 @@ extension Studio {
     /// The state that plays now, from `start`. The end of a reverse play is 0.
     func state(from start: Frames) -> TransportState {
         guard let shuttle = play.playback.shuttle else { return .stopped(at: play.playhead) }
-        let end = shuttle.direction == .reverse ? .zero : play.bound ?? session.end
+        let end = shuttle.direction == .reverse ? .zero : playEnd ?? session.end
         return .playing(from: start, to: end, shuttle: shuttle)
     }
+
+    /// The end of the running play, at most the session end: the Player stops at an edit that
+    /// moves the session end before it (C8).
+    private var playEnd: Frames? { play.bound.map { min($0, session.end) } }
 
     /// A speed change now acts: no take starts, records, or finalizes, and the unit exists. The
     /// window reads it to store the last speed before the change (decision 0052).

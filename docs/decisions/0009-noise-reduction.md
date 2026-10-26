@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). The session stores no effect and no dial: the unit renders offline once into a new WAV, not at each play, and the session XML gets no `<effect>` element. The Voice model runs on every macOS. The dial is dB of reduction, 12 dB in the first landing.
 
 ## Context
 

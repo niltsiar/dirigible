@@ -117,6 +117,13 @@ public struct GainEnvelope: Hashable, Sendable {
         return GainEnvelope(valid: scaled)
     }
 
+    /// The envelope of a clip that moves to a file whose frame 0 is `shift` frames from frame 0 of the
+    /// old file (decisions 0053 and 0054): each point moves by `shift`, so the gain at each old frame
+    /// stays, and the edge rule applies at the edges of the new file, which is `fileLength` long.
+    func moved(by shift: Frames, fileLength: Frames) -> GainEnvelope {
+        Self.fitted(points.map { (frame: ($0.frame + shift).count, dB: $0.gain.dB) }, fileLength: fileLength)
+    }
+
     /// The edge rule (decision 0060) of a write that computes a function on the file map of a clip
     /// (range gain, duck). The frames of `corners` ascend strictly and can lie outside the file. The
     /// result drops each corner outside `0...fileLength`. Then it puts a point at frame 0 and at

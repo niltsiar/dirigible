@@ -1,7 +1,6 @@
 import AVFoundation
 import CoreAudio
 import DirigibleCore
-import IOKit.pwr_mgt
 
 /// True when this macOS has process taps (14.2 or later, decision 0006). An app route needs it.
 public var processTapsAvailable: Bool {
@@ -162,6 +161,15 @@ struct CaptureEnvironment: Sendable {
     /// A step after the work of a file import returns, before its run reads the cancel flag
     /// (decision 0049). Tests cancel there.
     var importWorkDone: @Sendable () async -> Void = {}
+    /// A fault or a thread record at the block reads of a clip render (decision 0054); `live` has
+    /// none.
+    var clipRenderRead: ReadFault?
+    /// A step after the render of a clip render returns, before its run reads the cancel flag
+    /// (decision 0049). Tests hold or cancel the render there.
+    var clipRenderWorkDone: @Sendable () async -> Void = {}
+    /// The reason of the activity that each blocking run holds (decision 0040). Tests set a UUID
+    /// text, so the IOPM list of the process shows the activity of one studio.
+    var blockingRunReason = "Dirigible imports or changes audio files"
     /// A step on the thread of each block of `Studio.measureLoudness` and of the read of a level or
     /// a duck (`Studio.runReadJob`, decision 0049). Tests hold the read with it.
     var loudnessBlock: @Sendable () -> Void = {}
@@ -179,43 +187,6 @@ struct CaptureEnvironment: Sendable {
         freeBytes: { $0.freeBytes() }, diskCheckInterval: .seconds(1),
         saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) },
         listenOutput: .live)
-}
-
-/// A latency-critical `ProcessInfo` activity for the life of the value, so App Nap does not slow
-/// the drain of a hidden app (decisions 0014 and 0015). It lets the system sleep (probe P3).
-package final class LatencyActivity: Sendable {
-    /// `ProcessInfo` gives an `NSObjectProtocol` token that is only passed back to `endActivity`.
-    nonisolated(unsafe) private let activity: any NSObjectProtocol
-
-    package init(reason: String) {
-        activity = ProcessInfo.processInfo.beginActivity(
-            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: reason)
-    }
-
-    deinit { ProcessInfo.processInfo.endActivity(activity) }
-}
-
-/// `kIOPMAssertPreventUserIdleSystemSleep` for the life of the value (decision 0004). A refused
-/// assertion gives no ID, and the take goes on without it. It also holds a latency activity
-/// (decision 0014), so the IOPM assertion stays the only sleep assertion (probe P3).
-final class SleepAssertion: Sendable {
-    /// The reason of the activity. It is not the name of the IOPM assertion, so a test can tell
-    /// them apart.
-    static let activityReason = "Dirigible records a take"
-    let id: IOPMAssertionID?
-    private let activity = LatencyActivity(reason: activityReason)
-
-    init() {
-        var id = IOPMAssertionID(0)
-        let status = IOPMAssertionCreateWithName(
-            kIOPMAssertPreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
-            "Dirigible is recording" as CFString, &id)
-        self.id = status == kIOReturnSuccess ? id : nil
-    }
-
-    deinit {
-        if let id { IOPMAssertionRelease(id) }
-    }
 }
 
 /// An armed track with its arm number (1-based), channels, and device, after the route checks.

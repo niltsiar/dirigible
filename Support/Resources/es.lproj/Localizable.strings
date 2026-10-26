@@ -185,6 +185,16 @@
 "error.split.unreadable" = "Dirigible no puede dividir los clips estéreo. El archivo de audio «%1$@» no se pudo leer (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
 "error.split.missing" = "Dirigible no puede dividir los clips estéreo. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelva a poner el archivo en esa carpeta e inténtelo de nuevo.";
 "error.split.yielded" = "La división se detuvo por una toma en otra ventana. Vuelva a dividir después de la toma.";
+"denoise.banner" = "Reduciendo ruido";
+"error.denoise.space" = "Dirigible no puede reducir el ruido. El disco de esta sesión no tiene espacio libre suficiente. Libere espacio en el disco y vuelva a intentarlo.";
+"error.denoise.write" = "Dirigible no puede reducir el ruido. Dirigible no puede escribir en la carpeta Clips de la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";
+"error.denoise.unreadable" = "Dirigible no puede reducir el ruido. El archivo de audio «%1$@» no se pudo leer (error %2$lld). Compruebe el disco y vuelva a intentarlo.";
+"error.denoise.missing" = "Dirigible no puede reducir el ruido. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelva a poner el archivo en esa carpeta e inténtelo de nuevo.";
+"error.denoise.not.downloaded" = "Dirigible no puede reducir el ruido. El archivo de audio «%@» no está en este Mac. Descargue el archivo primero.";
+"error.denoise.track.role" = "Dirigible no puede reducir el ruido de un clip en una pista de Música o Efectos. Seleccione clips de otras pistas y vuelva a intentarlo.";
+"error.denoise.unavailable" = "Dirigible no puede reducir el ruido. La reducción de ruido de macOS no se cargó (error %lld).";
+"error.denoise.engine" = "Dirigible no puede reducir el ruido. El motor de audio se detuvo (error %lld). Vuelva a intentarlo.";
+"error.denoise.yielded" = "La reducción de ruido se detuvo por una toma en otra ventana. Vuelva a reducir el ruido después de la toma.";
 "reverted.to" = "Se restauró la copia de seguridad de %@";
 
 /* Window, panels, and alerts */

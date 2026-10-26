@@ -185,6 +185,16 @@
 "error.split.unreadable" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
 "error.split.missing" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.split.yielded" = "Das Teilen wurde für einen Take in einem anderen Fenster gestoppt. Teile nach dem Take erneut.";
+"denoise.banner" = "Rauschen wird reduziert";
+"error.denoise.space" = "Dirigible kann das Rauschen nicht reduzieren. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
+"error.denoise.write" = "Dirigible kann das Rauschen nicht reduzieren. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
+"error.denoise.unreadable" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
+"error.denoise.missing" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.denoise.not.downloaded" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%@“ ist nicht auf diesem Mac. Lade die Datei zuerst.";
+"error.denoise.track.role" = "Dirigible kann das Rauschen eines Clips auf einer Spur „Musik“ oder „Effekte“ nicht reduzieren. Wähle Clips auf anderen Spuren und versuche es erneut.";
+"error.denoise.unavailable" = "Dirigible kann das Rauschen nicht reduzieren. Die Rauschreduzierung von macOS wurde nicht geladen (Fehler %lld).";
+"error.denoise.engine" = "Dirigible kann das Rauschen nicht reduzieren. Die Audio-Engine wurde gestoppt (Fehler %lld). Versuche es erneut.";
+"error.denoise.yielded" = "Die Rauschreduzierung wurde für einen Take in einem anderen Fenster gestoppt. Reduziere das Rauschen nach dem Take erneut.";
 "reverted.to" = "Auf das Backup von %@ zurückgesetzt";
 
 /* Window, panels, and alerts */

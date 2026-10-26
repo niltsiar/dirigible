@@ -49,6 +49,11 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A take in another studio ended a stereo split (decisions 0019 and 0053). The session did not
     /// change.
     case splitYielded
+    /// A clip render failed or was cancelled (decision 0054). The session did not change.
+    case clipRender(ClipRenderError)
+    /// A take in another studio ended a clip render (decisions 0019 and 0054). The session did not
+    /// change.
+    case clipRenderYielded
     /// A ripple under a pending or split take (decision 0037). Nothing changed.
     case rippleBlocked
     /// The artwork import refused the image or failed (decision 0045). The session did not change.

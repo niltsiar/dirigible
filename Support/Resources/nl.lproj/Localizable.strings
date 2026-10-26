@@ -185,6 +185,16 @@
 "error.split.unreadable" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
 "error.split.missing" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.split.yielded" = "Het splitsen is gestopt vanwege een take in een ander venster. Splits opnieuw na de take.";
+"denoise.banner" = "Ruis wordt verminderd";
+"error.denoise.space" = "Dirigible kan de ruis niet verminderen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
+"error.denoise.write" = "Dirigible kan de ruis niet verminderen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
+"error.denoise.unreadable" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
+"error.denoise.missing" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
+"error.denoise.not.downloaded" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%@' staat niet op deze Mac. Download het bestand eerst.";
+"error.denoise.track.role" = "Dirigible kan de ruis van een clip op een spoor Muziek of Effecten niet verminderen. Selecteer clips op andere sporen en probeer het opnieuw.";
+"error.denoise.unavailable" = "Dirigible kan de ruis niet verminderen. De ruisvermindering van macOS is niet geladen (fout %lld).";
+"error.denoise.engine" = "Dirigible kan de ruis niet verminderen. De audio-engine is gestopt (fout %lld). Probeer het opnieuw.";
+"error.denoise.yielded" = "De ruisvermindering is gestopt vanwege een take in een ander venster. Verminder de ruis opnieuw na de take.";
 "reverted.to" = "Teruggezet naar de reservekopie van %@";
 
 /* Window, panels, and alerts */

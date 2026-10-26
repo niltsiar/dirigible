@@ -8,7 +8,8 @@ struct ClipCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
-            Place.self, Clear.self, Split.self, SplitAt.self, Paste.self, PasteClips.self, Nudge.self, Remove.self,
+            Place.self, Clear.self, Split.self, SplitAt.self, SplitStereo.self, Paste.self, PasteClips.self, Nudge.self,
+            Remove.self,
             Move.self, Trim.self,
             SetGain.self, Envelope.self, GainRange.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self,
             RippleInsert.self, RippleTrim.self,

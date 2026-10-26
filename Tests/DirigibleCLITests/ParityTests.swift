@@ -35,6 +35,7 @@ struct ParityTests {
         "trim": ["clip trim"],
         "paste": ["clip paste", "clip paste-clips"],
         "splitClips": ["clip split-at"],
+        "splitStereo": ["clip split-stereo"],
         "nudge": ["clip nudge"],
         "removeClips": ["clip remove"],
         "setFades": ["clip fade"],
@@ -59,7 +60,6 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
-        "splitStereo": "L1-S3 maps it to clip split-stereo.",
     ]
 
     /// The commands with no MCP tool (decision 0041).

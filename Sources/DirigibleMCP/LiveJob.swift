@@ -41,6 +41,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveDuck(work, studio: studio, call: call, report: report)
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
+    case .splitStereo(let work):
+        return await liveSplit(work, studio: studio, call: call, report: report)
     case .chapters(let work):
         if let busy = exportBusy(studio) { return .result(text: busy.message(package: call.path), isError: true) }
         if let busy = target.sheetCause() { return .result(text: busy.message(package: call.path), isError: true) }
@@ -215,6 +217,33 @@ private func liveImport(
     }
 }
 
+/// `clip_split_stereo` through `Studio.splitStereo`: one undo step with the agent name, and the tracks
+/// "<name> L" and "<name> R". The banner Cancel or a cancel of the call ends it with no track and no new
+/// WAV (decision 0049).
+@MainActor
+private func liveSplit(
+    _ work: SplitWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    let revision = studio.sessionRevision
+    do throws(StudioError) {
+        let parts = try await studio.splitStereo(
+            work.clips, names: SplitWork.names, agent: call.agent, progress: report)
+        let note = TakeWork.note(studio, after: revision, agent: call.agent)
+        return .result(text: (SplitWork.lines(parts) + note).joined(separator: "\n"), isError: false)
+    } catch .split(.cancelled) {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text = Task.isCancelled ? cancelledMessage : stopMessage(studio.importStop, noun: "split", nothing: noTrack)
+        return .result(text: text, isError: true)
+    } catch .splitYielded {
+        return .result(text: stopMessage(.take, noun: "split", nothing: noTrack), isError: true)
+    } catch .busy {
+        let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
+        return .result(text: busy.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
 /// `chapters_export` through `Studio.exportChapters`: the session of the window, written off the
 /// main actor. It has no progress and no cancel: the job writes a small file and its images.
 @MainActor
@@ -251,8 +280,9 @@ private func liveTranscriptExport(_ work: TranscriptExportWork, studio: Studio) 
 @concurrent private func checkTarget(_ work: ChaptersWork) async throws(ToolError) { try work.checkTarget() }
 
 private let noClip = "No clip was added."
+private let noTrack = "No track was added."
 
-/// The text of an export or an import that the app stopped: the agent must not try again before
+/// The text of an export, an import, or a split that the app stopped: the agent must not try again before
 /// it asks the user.
 private func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "No file was written.") -> String {
     switch stop {
@@ -271,6 +301,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
     case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
+    case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
     case .read: "Dirigible stopped its agent server, so the read stopped."

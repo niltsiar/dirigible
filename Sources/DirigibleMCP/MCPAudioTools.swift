@@ -111,7 +111,7 @@ private let cancelNote =
     " A cancel stops it, and no file is written; a cancel at the end can be late, so check the output file."
 
 /// The end of the description of a tool that edits the session: a late cancel keeps the change.
-private func editCancelNote(_ nothing: String) -> String {
+func editCancelNote(_ nothing: String) -> String {
     " A cancel stops it, and \(nothing). A cancel at the end can be late, so read session_info before a retry."
 }
 

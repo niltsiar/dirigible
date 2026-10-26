@@ -97,8 +97,11 @@ struct StudioPlayRangeTests {
             #expect(studio.playback == .playing(forward))
             await studio.perform(.pause)
         } else {
-            #expect(outcome == .pastEnd(start: 96_000, end: 96_000))
+            #expect(outcome == .pastEnd(start: 96_000, end: .session(96_000)))
             #expect(studio.playback == .stopped && studio.playhead == 1000 && studio.play.feed == feed)
+            // A `to` at the session end names the session end; one frame before it names `to`.
+            #expect(try await studio.play(from: 96_000, to: 96_000) == .pastEnd(start: 96_000, end: .session(96_000)))
+            #expect(try await studio.play(from: 96_000, to: 95_999) == .pastEnd(start: 96_000, end: .to(95_999)))
         }
     }
 
@@ -117,7 +120,7 @@ struct StudioPlayRangeTests {
 
         let outcome = try await studio.play(from: nil, to: start)
 
-        #expect(outcome == .pastEnd(start: start, end: start))
+        #expect(outcome == .pastEnd(start: start, end: .to(start)))
         #expect(studio.play.feed == feed && studio.playhead == start)
         #expect(studio.playback == (playing ? .playing(forward) : .stopped))
         if !playing {

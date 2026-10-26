@@ -11,10 +11,23 @@ public enum TransportState: Hashable, Sendable {
 public enum TransportOutcome: Hashable, Sendable {
     case state(TransportState)
     /// The start is at or after the end of the play: nothing changed.
-    case pastEnd(start: Frames, end: Frames)
+    case pastEnd(start: Frames, end: PlayEnd)
     /// A later transport command took the feed number during the awaits of the call.
     case superseded
     case failed(PlaybackStop)
+}
+
+/// The end of an agent play: the `to` of the call when it is before the session end, else the
+/// session end.
+public enum PlayEnd: Hashable, Sendable {
+    case to(Frames)
+    case session(Frames)
+
+    var frame: Frames {
+        switch self {
+        case .to(let frame), .session(let frame): frame
+        }
+    }
 }
 
 /// A request of the `run` core of the transport: a command of the window or the keys, or an

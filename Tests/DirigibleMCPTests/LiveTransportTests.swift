@@ -120,9 +120,30 @@ struct LiveTransportTests {
 
         let outcome = await call("transport_play", on: folder.socket)
 
-        let text = "Nothing plays: frame 144000 is at or after the end of the play (144000)."
+        let text =
+            "Nothing changed: frame 144000 is at or after the end of the session (144000). Pass a from before that "
+            + "end, or call transport_locate first."
         #expect(outcome == reply(text, isError: true), "\(outcome)")
         #expect(studio.playback == .stopped)
+    }
+
+    /// During a play, a `to` before the playhead changes nothing: the reply names `to`, and the
+    /// play goes on with the same feed number.
+    @Test func aToBeforeThePlayheadDuringAPlayChangesNothing() async throws {
+        let studio = try await open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        _ = try await studio.play(from: 24_000, to: 50_000)
+        let feed = studio.play.feed
+
+        let outcome = await call("transport_play", ["to": 10_000], on: folder.socket)
+
+        let text =
+            "Nothing changed: frame 24000 is at or after to (10000). Pass a from before that end, or call "
+            + "transport_locate first."
+        #expect(outcome == reply(text, isError: true), "\(outcome)")
+        #expect(studio.playback == .playing(forward) && studio.play.feed == feed)
+        await studio.settle()
     }
 
     /// One case with `to`: a new play with the new end. One case with neither: the feed number
@@ -320,7 +341,16 @@ struct LiveTransportTests {
                 .state(.playing(from: 7, to: 9, shuttle: Shuttle(direction: .forward, rate: .half))),
                 "Playing from 7 to 9, forward at 0.5x."
             ),
-            (.pastEnd(start: 9, end: 9), "Nothing plays: frame 9 is at or after the end of the play (9)."),
+            (
+                .pastEnd(start: 9, end: .session(9)),
+                "Nothing changed: frame 9 is at or after the end of the session (9). Pass a from before that end, or "
+                    + "call transport_locate first."
+            ),
+            (
+                .pastEnd(start: 9, end: .to(5)),
+                "Nothing changed: frame 9 is at or after to (5). Pass a from before that end, or call "
+                    + "transport_locate first."
+            ),
             (
                 .superseded,
                 "The user or another call changed the transport during this call. A new transport_play plays again."

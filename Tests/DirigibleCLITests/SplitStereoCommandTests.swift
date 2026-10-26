@@ -58,7 +58,8 @@ struct SplitStereoCommandTests {
         #expect(session.files["f1 L"]?.layout == .mono && session.files["f1 L"]?.length == 192_000)
     }
 
-    /// C8: a mono clip exits 1 with the text of the session, and nothing changes.
+    /// C8: a mono clip exits 1 with the text of the session, and nothing changes. The mono check
+    /// comes before the source check, so a mono clip with no WAV exits 1 too.
     @Test func monoClipExits1() async throws {
         let package = try Self.package()
         let before = (try package.xml(), Self.clips(package))
@@ -68,6 +69,10 @@ struct SplitStereoCommandTests {
         let text = "clip \"m1\" is on a mono track, so it has no two sides to split."
         #expect(result == CLIResult(status: 1, stdout: "", stderr: "Error: \(text)\n"), "mono clip: \(result)")
         #expect(try package.xml() == before.0 && Self.clips(package) == before.1, "a refused split changed the package")
+
+        try FileManager.default.removeItem(at: package.url.appending(path: "Clips/m1.wav"))
+        let missing = try await package.run("clip", "split-stereo", "PKG", "c1", "m1")
+        #expect(missing == CLIResult(status: 1, stdout: "", stderr: "Error: \(text)\n"), "no WAV: \(missing)")
     }
 
     @Test func noClipIsAnArgumentError() async throws {

@@ -24,15 +24,15 @@ public enum SplitError: Error, Hashable, Sendable {
 /// their stems and the track suffixes `names`. Returns the split session, its parts, and the WAVs
 /// that it renamed. It never writes `session.xml`, and it blocks: never call it on the main actor.
 ///
-/// The order: the source checks, one space check (`freeBytes`, 2 x 3 bytes for each frame of the
-/// spans), the stems "<source stem> L" and "<source stem> R" by the stem rule of 0040 with one
-/// number for the pair, the session split on a copy, the conversions into `.<stem>.wav.tmp`, a
-/// check that each WAV has the frames of its span, the renames, and one flush of `Clips/`
-/// (`NewClipFiles`). So a session refusal writes no file, and a throw before the renames leaves no
-/// new file. After the renames, a flush fault keeps the WAVs as unused files, and a cancel removes
-/// them (`removeMadeFiles`). `isCancelled` is read before each side, before each block, before the
-/// renames, and after them. `progress` rises with the frames written and gives 1 only at the end
-/// of the last side.
+/// The order: the refusal of a clip on a mono track, the source checks, one space check
+/// (`freeBytes`, 2 x 3 bytes for each frame of the spans), the stems "<source stem> L" and
+/// "<source stem> R" by the stem rule of 0040 with one number for the pair, the session split on a
+/// copy, the conversions into `.<stem>.wav.tmp`, a check that each WAV has the frames of its span,
+/// the renames, and one flush of `Clips/` (`NewClipFiles`). So a session refusal writes no file,
+/// and a throw before the renames leaves no new file. After the renames, a flush fault keeps the
+/// WAVs as unused files, and a cancel removes them (`removeMadeFiles`). `isCancelled` is read
+/// before each side, before each block, before the renames, and after them. `progress` rises with
+/// the frames written and gives 1 only at the end of the last side.
 ///
 /// shortcut: two reads of each source span, one for each side; write a one-pass deinterleave when
 /// the bench shows the split of a long file too slow.
@@ -47,6 +47,7 @@ public func splitStereo(
             guard let source = session.files[run.file] else { throw .unknownFile(run.file) }
             return (run, source)
         }
+        try session.checkStereo(clips)
     } catch {
         throw .session(error)
     }

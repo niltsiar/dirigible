@@ -38,7 +38,7 @@ import Testing
     /// Control: another order, or one group.
     @Test func theGroupsAreInOrder() {
         let groups = LaneMenu.groups(
-            selection: true, clips: false, clipboard: true, split: true, canEdit: true, canRipple: true)
+            selection: true, clips: false, stereo: false, clipboard: true, split: true, canEdit: true, canRipple: true)
         #expect(
             groups.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste, .insert], [.delete, .deleteCloseGap, .split, .fade], [.addMarker, .addChapter],
@@ -63,13 +63,14 @@ import Testing
     /// Only Cut, Copy, and Paste dim; the others hide. Control: a shown Delete with no selection.
     @Test func itemsThatDoNotApplyHide() {
         let none = LaneMenu.groups(
-            selection: false, clips: false, clipboard: false, split: false, canEdit: true, canRipple: true)
+            selection: false, clips: false, stereo: false, clipboard: false, split: false, canEdit: true,
+            canRipple: true)
         #expect(
             none.map { $0.map(\.command) } == [[.cut, .copy, .paste], [.addMarker, .addChapter]],
             "no selection, no clipboard, no clip at the playhead")
         #expect(none[0].map(\.enabled) == [false, false, false], "Cut, Copy, and Paste dim")
         let split = LaneMenu.groups(
-            selection: false, clips: false, clipboard: true, split: true, canEdit: true, canRipple: true)
+            selection: false, clips: false, stereo: false, clipboard: true, split: true, canEdit: true, canRipple: true)
         #expect(
             split.map { $0.map(\.command) } == [[.cut, .copy, .paste, .insert], [.split], [.addMarker, .addChapter]])
     }
@@ -77,7 +78,8 @@ import Testing
     /// During a take, only the marker group shows. Control: a shown edit item.
     @Test func aTakeHidesTheEditItems() {
         let take = LaneMenu.groups(
-            selection: true, clips: false, clipboard: true, split: true, canEdit: false, canRipple: false)
+            selection: true, clips: false, stereo: false, clipboard: true, split: true, canEdit: false, canRipple: false
+        )
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
@@ -99,7 +101,7 @@ import Testing
     /// ripple item.
     @Test func aPendingTakeHidesTheRippleItems() {
         let blocked = LaneMenu.groups(
-            selection: true, clips: false, clipboard: true, split: true, canEdit: true, canRipple: false)
+            selection: true, clips: false, stereo: false, clipboard: true, split: true, canEdit: true, canRipple: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
                 [.copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],
@@ -161,7 +163,7 @@ import Testing
     /// before this run have no Cut and no Copy for a set.
     @Test func aClipSetShowsCutAndCopy() {
         let set = LaneMenu.groups(
-            selection: true, clips: true, clipboard: true, split: true, canEdit: true, canRipple: true)
+            selection: true, clips: true, stereo: false, clipboard: true, split: true, canEdit: true, canRipple: true)
         #expect(
             set.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste, .insert], [.delete, .split, .fade], [.addMarker, .addChapter],
@@ -169,13 +171,13 @@ import Testing
         let enabled = set.joined().allSatisfy { $0.enabled }
         #expect(enabled, "Cut and Copy are enabled")
         let blocked = LaneMenu.groups(
-            selection: true, clips: true, clipboard: true, split: true, canEdit: true, canRipple: false)
+            selection: true, clips: true, stereo: false, clipboard: true, split: true, canEdit: true, canRipple: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],
             ])
         let take = LaneMenu.groups(
-            selection: true, clips: true, clipboard: true, split: true, canEdit: false, canRipple: false)
+            selection: true, clips: true, stereo: false, clipboard: true, split: true, canEdit: false, canRipple: false)
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
@@ -250,6 +252,23 @@ import Testing
 }
 
 extension LaneMenuTests {
+    /// C18: Split Stereo to Mono follows Split in group 2 only with a stereo clip, and hides with the
+    /// edit items during a take. Control: the same call with `stereo` false.
+    @Test func splitStereoShowsOnlyWithAStereoClip() {
+        func commands(stereo: Bool, canEdit: Bool = true) -> [[TimelineCommand]] {
+            LaneMenu.groups(
+                selection: true, clips: true, stereo: stereo, clipboard: false, split: true, canEdit: canEdit,
+                canRipple: true
+            ).map { $0.map(\.command) }
+        }
+        #expect(
+            commands(stereo: true) == [
+                [.cut, .copy, .paste], [.delete, .split, .splitStereo, .fade], [.addMarker, .addChapter],
+            ])
+        #expect(commands(stereo: false)[1] == [.delete, .split, .fade])
+        #expect(commands(stereo: true, canEdit: false) == [[.addMarker, .addChapter]])
+    }
+
     /// Multi-clip-selection U11 and clip-set-clipboard C11: a right-click on a clip of the set keeps
     /// the set, and the menu has Cut, Copy, Delete, and Fade but no Delete and Close Gap. Control:
     /// a right-click on a clip outside the set selects that clip.

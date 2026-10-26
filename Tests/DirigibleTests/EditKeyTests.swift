@@ -55,6 +55,9 @@ import Testing
                 "autoLevel l \(command)", "autoLevelPerTrack l \(EventModifiers([.command, .option]).rawValue)",
             ])
         #expect(
+            [TimelineCommand.splitStereoItem].map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
+                == ["splitStereo d \(EventModifiers([.command, .shift]).rawValue)"])
+        #expect(
             TimelineCommand.gainPointSeekItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
                 == [
                     "previousGainPoint ; \(EventModifiers.option.rawValue)",
@@ -62,7 +65,8 @@ import Testing
                 ])
         let items =
             TimelineCommand.viewItems + edit + TimelineCommand.markerItems + TimelineCommand.trackItems
-            + TimelineCommand.fileItems + TimelineCommand.toolItems + TimelineCommand.gainPointSeekItems
+            + TimelineCommand.fileItems + TimelineCommand.toolItems + [TimelineCommand.splitStereoItem]
+            + TimelineCommand.gainPointSeekItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         #expect(KeyRule.problems(keys) == [])

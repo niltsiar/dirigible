@@ -418,9 +418,9 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 
 ### Split a stereo clip into two mono tracks
 
-A split gives each channel of a stereo clip its own mono track, so you can cut, level, and mute each voice alone. In Terminal, `dirigible clip split-stereo <package> <clip>...` splits the clips, and an agent uses the tool `clip_split_stereo`.
+A split gives each channel of a stereo clip its own mono track, so you can cut, level, and mute each voice alone. In the app, select a stereo clip with a click, or select a range that holds it whole, then choose **Tools > Split Stereo to Mono** (**Dividir estéreo en mono**, Shift-Command-D). The command is also in the menu of a right-click on a stereo clip. It is off with no stereo clip in the selection, during a take, and while an import, a paste, or a split runs. At the end, the new clips are selected. In Terminal, `dirigible clip split-stereo <package> <clip>...` splits the clips, and an agent uses the tool `clip_split_stereo`.
 
-- Under each source track, Dirigible adds two mono tracks, the left one first. An agent or a `dirigible` command names them `<name> L` and `<name> R`. The tracks copy the gain, mute, solo, and role of the source track. The source clips go. The source track and its file stay.
+- Under each source track, Dirigible adds two mono tracks, the left one first. An agent or a `dirigible` command names them `<name> L` and `<name> R`. The app uses the letters of its language: `<name> I` and `<name> D` in Spanish. The tracks copy the gain, mute, solo, and role of the source track. The source clips go. The source track and its file stay.
 - Each new clip keeps the start, the length, the gain, the fades, and the gain points of its source clip. A crossfade between two split clips stays. A crossfade to a clip that you did not split goes.
 - The split writes two mono WAVs in `Clips` for each run of clips of one file. A run is the clips whose parts of the file, with 10 s on each side, touch or overlap. A WAV holds the run and 10 s on each side, so you can trim a new clip by at least 10 s. A trim can go only up to the edge of its new file. For a longer trim, undo the split.
 - A voice on one side only plays in the center after the split, because a mono clip plays on both channels. In a mono export, that voice is 6 dB louder.
@@ -815,6 +815,7 @@ The **Tools** menu (**Herramientas**).
 | **Auto Level All Clips** | **Nivelar automáticamente todos los clips** | Command-L |
 | **Auto Level per Track (All)** | **Nivelar automáticamente por pista (todos)** | Option-Command-L |
 | **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
+| **Split Stereo to Mono** | **Dividir estéreo en mono** | Shift-Command-D |
 
 ### Transport
 

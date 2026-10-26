@@ -43,6 +43,7 @@
 "menu.tools.level.all" = "Nivellement automatique de tous les clips";
 "menu.tools.level.track.all" = "Nivellement automatique par piste (tous)";
 "menu.tools.duck" = "Atténuer la musique sous la voix…";
+"menu.tools.split.stereo" = "Séparer le stéréo en mono";
 
 /* Errors */
 "error.studio.busy" = "Une prise est en cours d’enregistrement ou de finalisation. Attendez qu’elle se termine.";
@@ -176,6 +177,9 @@
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";
 "split.banner" = "Séparation des clips stéréo en pistes mono";
+"split.done" = "Séparé en deux pistes mono.";
+"split.suffix.left" = "G";
+"split.suffix.right" = "D";
 "error.split.space" = "Dirigible ne peut pas séparer les clips stéréo. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
 "error.split.write" = "Dirigible ne peut pas séparer les clips stéréo. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
 "error.split.unreadable" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";

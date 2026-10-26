@@ -133,4 +133,22 @@ struct SelectionClipEditTests {
             Selection(pasted: ["A@500"], of: range, at: 500, on: ["t3"])
                 == .range(Marks(inPoint: 500, outPoint: 48_500, tracks: ["t3"])))
     }
+
+    /// C16: the input of Split Stereo to Mono is the selected clips on stereo tracks: a one-clip set,
+    /// a set with a mono clip, and a range that holds a stereo clip whole. Control: a range that cuts
+    /// the clip, and a mono set.
+    @Test func stereoClipsAreTheSelectedClipsOnStereoTracks() throws {
+        var session = session
+        try session.addFile(AudioFile(id: "fs", path: "fs.wav", layout: .stereo, length: 480_000))
+        try session.addTrack("t4", name: "T4", layout: .stereo)
+        try session.place(Clip(id: "S", file: "fs", start: 0, offset: 0, length: 48_000), on: "t4")
+        let whole = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1", "t4"])
+        #expect(Self.clips(["S"]).stereoClips(in: session) == ["S"], "a click")
+        #expect(Self.clips(["A", "S", "B"]).stereoClips(in: session) == ["S"], "the mono clips drop out")
+        #expect(Selection.range(whole).stereoClips(in: session) == ["S"], "a range that holds S whole")
+        let cut = Marks(inPoint: 100, outPoint: 48_000, tracks: ["t4"])
+        #expect(Selection.range(cut).stereoClips(in: session) == [], "a range that cuts S")
+        #expect(set.stereoClips(in: session) == [], "a mono set")
+        #expect(Self.clips(["gone"]).stereoClips(in: session) == [], "a stale set")
+    }
 }

@@ -5,6 +5,7 @@
 - Accepted: 2026-10-03, after the architect synthesis of run `2026-10-03-loudness` and plan gates 1 and 2 of run `2026-10-03-auto-level`.
 - Amends: 0008 (a clip with no measurement keeps its gain; at stop the take clips of one track share one delta).
 - Amended: 2026-10-12, run 2026-10-12-autolevel-fader. Cmd-L levels every clip with no selection, shows a result banner, and never changes the track fader. A change under 0.05 dB keeps the old gain. `dirigible level` prints a report line on stderr and does not write an unchanged session.
+- Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). The Tools menu has a last group after Duck Music Under Speech, with Split Stereo to Mono (Shift-Command-D). It is off with no stereo clip in the selection, during a take, and during an import, paste, or split run.
 
 ## Context
 

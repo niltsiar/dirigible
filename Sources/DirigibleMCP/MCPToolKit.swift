@@ -42,6 +42,8 @@ enum ToolWork: Sendable {
     case prune(dryRun: Bool)
     /// `record`: only the app records, after the consent of the user (decision 0048).
     case record(RecordRequest)
+    /// `transport_play`, `transport_stop`, and `transport_locate`: only the app has a playhead.
+    case transport(TransportWork)
     /// `loudness`: no lock, as `dirigible loudness`; an empty list is every clip (decision 0049).
     case loudness(clips: [String])
     /// `export` and `render`: no lock, as `dirigible export` and `dirigible render`.
@@ -68,7 +70,7 @@ enum ToolWork: Sendable {
         switch self {
         case .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters, .transcriptExport, .read: true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
-            .record, .words,
+            .record, .transport, .words,
             .takeMap:
             false
         }

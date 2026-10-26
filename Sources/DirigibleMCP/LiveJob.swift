@@ -63,7 +63,7 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveRead(work, studio: studio, call: call, report: report)
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
-        .record, .words,
+        .record, .transport, .words,
         .takeMap:
         return .notOpen
     }
@@ -308,7 +308,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode,
         .marker,
         .episodeInfo,
-        .prune, .record,
+        .prune, .record, .transport,
         .words, .takeMap:
         "Dirigible stopped its agent server, so the call stopped."
     }

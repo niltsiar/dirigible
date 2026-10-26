@@ -104,6 +104,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return text
     case .record:
         throw ToolError(recordOnFilesMessage(path))
+    case .transport:
+        throw ToolError(transportOnFilesMessage(path))
     case .loudness(let ids):
         return try loudness(package, path: path, ids: ids, control: control)
     case .export(let work):

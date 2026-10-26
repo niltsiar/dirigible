@@ -44,6 +44,7 @@
 "menu.tools.level.track.all" = "Automatische niveaus per spoor (alle)";
 "menu.tools.duck" = "Verlaag muziek onder spraak…";
 "menu.tools.split.stereo" = "Stereo splitsen naar mono";
+"menu.tools.reduce.noise" = "Ruis verminderen";
 
 /* Errors */
 "error.studio.busy" = "Er wordt een take opgenomen of afgerond. Wacht tot die klaar is.";
@@ -186,6 +187,9 @@
 "error.split.missing" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.split.yielded" = "Het splitsen is gestopt vanwege een take in een ander venster. Splits opnieuw na de take.";
 "denoise.banner" = "Ruis wordt verminderd";
+"denoise.done.one" = "Ruis verminderd in 1 clip met %lld dB.";
+"denoise.done.many" = "Ruis verminderd in %1$lld clips met %2$lld dB.";
+"denoise.canceled" = "Ruisvermindering geannuleerd. Geen clip is gewijzigd.";
 "error.denoise.space" = "Dirigible kan de ruis niet verminderen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.denoise.write" = "Dirigible kan de ruis niet verminderen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
 "error.denoise.unreadable" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";

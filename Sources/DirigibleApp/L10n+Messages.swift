@@ -230,6 +230,14 @@ extension L10n {
         return parts.joined(separator: " ")
     }
 
+    /// The result banner of a Reduce Noise run: "Reduced noise in 3 clips by 12 dB.", with one form for
+    /// a single clip. `text` gives the value of a key, so a test can read a table.
+    static func denoiseResult(clips: Int, decibels: Int, text: (L10n) -> String = { $0.text }) -> String {
+        clips == 1
+            ? String(format: text(.denoiseDoneOne), locale: .current, decibels)
+            : String(format: text(.denoiseDoneMany), locale: .current, clips, decibels)
+    }
+
     /// The text of a stop of playback that the user did not ask for.
     static func message(for stop: PlaybackStop) -> String {
         switch stop {

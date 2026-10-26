@@ -44,6 +44,7 @@
 "menu.tools.level.track.all" = "Livellamento automatico per traccia (tutti)";
 "menu.tools.duck" = "Abbassa la musica sotto la voce…";
 "menu.tools.split.stereo" = "Suddividi stereo in mono";
+"menu.tools.reduce.noise" = "Riduci rumore";
 
 /* Errors */
 "error.studio.busy" = "Un take è in registrazione o in finalizzazione. Attendi che termini.";
@@ -186,6 +187,9 @@
 "error.split.missing" = "Dirigible non può suddividere le clip stereo. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
 "error.split.yielded" = "La suddivisione si è interrotta a causa di un take in un’altra finestra. Suddividi di nuovo dopo il take.";
 "denoise.banner" = "Riduzione del rumore in corso";
+"denoise.done.one" = "Rumore ridotto in 1 clip di %lld dB.";
+"denoise.done.many" = "Rumore ridotto in %1$lld clip di %2$lld dB.";
+"denoise.canceled" = "Riduzione del rumore annullata. Nessun clip è cambiato.";
 "error.denoise.space" = "Dirigible non può ridurre il rumore. Il disco di questa sessione non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
 "error.denoise.write" = "Dirigible non può ridurre il rumore. Dirigible non può scrivere nella cartella Clips della sessione (errore %lld). Controlla il disco e riprova.";
 "error.denoise.unreadable" = "Dirigible non può ridurre il rumore. Impossibile leggere il file audio “%1$@” (errore %2$lld). Controlla il disco e riprova.";

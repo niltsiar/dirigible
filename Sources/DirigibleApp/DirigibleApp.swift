@@ -137,6 +137,8 @@ struct DirigibleApp: App {
                         Button(split.title.key) { app.timeline(split.command) }
                             .keyboardShortcut(split.key, modifiers: split.modifiers)
                             .disabled(app.key?.isOn(split.command) != true)
+                        Button(L10n.menuToolsReduceNoise.key) { app.timeline(.reduceNoise) }
+                            .disabled(app.key?.isOn(.reduceNoise) != true)
                     }
                     CommandGroup(before: .windowList) {
                         Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)

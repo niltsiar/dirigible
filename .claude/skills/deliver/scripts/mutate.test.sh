@@ -5,8 +5,11 @@
 # restores the file, counts a test past --timeout as a kill, refuses an unknown option (the removed
 # replay mode), reports a run of no test as NO TESTS, applies --in=<file> pairs to a second
 # file, restores the file on SIGINT, SIGTERM, and SIGHUP, also when killpg raises EPERM, and in a
-# git tree holds a lock that a second run refuses. Run by `make test-hooks`.
+# git tree holds a lock that a second run refuses, refuses an --expect text that Swift Testing never
+# prints before the build, and reports an exit 75 of the build or test as LOCK WAIT. A lone call
+# runs under scripts/with-lock.sh once. Run by `make test-hooks`.
 set -uo pipefail
+unset MUTATION_PASS_HELD
 mutate="$(cd "$(dirname "$0")" && pwd)/mutate.py"
 failures=0
 tmp="$(mktemp -d)"
@@ -106,6 +109,102 @@ check '5:NO TESTS' 'a Swift Testing run of 0 tests' "$file" 'b = 1' 'b = 2' "$tm
   "echo '✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.'"
 check '1:survived' 'a run of 1 test that passes' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
   "echo '✔ Test run with 1 test in 1 suite passed after 0.001 seconds.'"
+
+# --expect: a text that Swift Testing can never print exits 2 before the build (the fake build leaves
+# no marker file). Swift Testing prints each operand of the outermost comparison with its value
+# ((rows(model) → [...]) == []), so the source text of the comparison is never in the output. Only
+# the #expect and #require conditions of the --exact names of the test command are read, under Tests/.
+mkdir -p "$tmp/Tests/Suite"
+cat > "$tmp/Tests/Suite/CutTests.swift" <<'SWIFT'
+@Suite struct CutTests {
+    @Test func aUserCutShowsNoRow() { #expect(rows(model) == []) }
+    @Test func aNestedComma() { #expect(f(a, b) == c) }
+    @Test func aTwoBodyName() { #expect(ready) }
+    @Test func anAndCondition() { #expect(x == 1 && y == 2) }
+    @Test func aTryCondition() { #expect(try await load() == 3) }
+    @Test func aLiteralLeft() { #expect([] == rows(model)) }
+    @Test func aCommentArgument() { #expect(a == b, "a == b") }
+    @Test func aHelperMessage() { check("before the first tick") }
+    func check(_ step: String) { #expect(ok, "\(step): edge") }
+}
+@Suite struct OtherTests {
+    @Test func aTwoBodyName() { #expect(count(x) == 3) }
+}
+SWIFT
+marker="$tmp/built"
+mbuild="touch '$marker'"
+# refuses <name> <text> <names>: exit 2, a reason about the printed form, and no build.
+refuses() {
+  local name="$1" text="$2" names="$3" got code
+  rm -f "$marker"
+  got="$("$mutate" --expect "$text" "$file" 'b = 1' 'b = 2' "$tmp/log" "$mbuild" "echo boom; exit 1 # --exact $names" 2>&1)"
+  code=$?
+  [[ $code -eq 2 && "$got" == *'Swift Testing prints each operand'* && "$got" == *'copy the text from the failure output'* ]] \
+    || { echo "FAIL: $name: exit $code: $got"; failures=$((failures + 1)); }
+  [[ ! -e "$marker" ]] || { echo "FAIL: $name: the build ran"; failures=$((failures + 1)); }
+  [[ "$(shasum -a 256 "$file")" == "$before" ]] || { echo "FAIL: file changed after: $name"; failures=$((failures + 1)); }
+}
+# allows <name> <text> <test command>: the build ran, so the text was not refused.
+allows() {
+  local name="$1" text="$2" tcommand="$3" got
+  rm -f "$marker"
+  got="$("$mutate" --expect "$text" "$file" 'b = 1' 'b = 2' "$tmp/log" "$mbuild" "$tcommand" 2>&1)"
+  [[ -e "$marker" ]] || { echo "FAIL: $name: the build did not run: $got"; failures=$((failures + 1)); }
+  [[ "$(shasum -a 256 "$file")" == "$before" ]] || { echo "FAIL: file changed after: $name"; failures=$((failures + 1)); }
+}
+refuses 'the source of a comparison' 'rows(model) == []' aUserCutShowsNoRow
+refuses 'a comparison in the second body of one name' 'count(x) == 3' aTwoBodyName
+refuses 'a comparison with a comma in its operand' 'f(a, b) == c' aNestedComma
+arrow=$'\xe2\x86\x92'
+fail_with() { echo "echo 'boom'; exit 1 # --exact $1"; }
+allows 'a printed operand with its value' "(rows(model) $arrow " "$(fail_with aUserCutShowsNoRow)"
+allows 'Caught error' 'Caught error' "$(fail_with aUserCutShowsNoRow)"
+allows 'none was thrown' 'none was thrown' "$(fail_with aUserCutShowsNoRow)"
+allows 'Expectation failed:' 'Expectation failed:' "$(fail_with aUserCutShowsNoRow)"
+allows 'the interpolated message of a helper' 'before the first tick: edge' "$(fail_with aHelperMessage)"
+allows 'the same text in the comment argument' 'a == b' "$(fail_with aCommentArgument)"
+allows 'an operand of a top-level &&' 'x == 1' "$(fail_with anAndCondition)"
+allows 'a condition with try and await' 'load() == 3' "$(fail_with aTryCondition)"
+allows 'a literal left operand' '[] == rows' "$(fail_with aLiteralLeft)"
+allows 'a test command with no --exact' 'rows(model) == []' 'echo boom; exit 1'
+allows 'the recorded issue form' 'aUserCutShowsNoRow() recorded an issue' "$(fail_with aUserCutShowsNoRow)"
+# In a --schema batch the refused mutant prints its line and no build runs.
+mkdir -p "$tmp/refusal"
+printf '%s\0' --expect 'rows(model) == []' --switch expr "$file" 'b = 1' 'b = 2' "$tmp/log" "$mbuild" "echo boom; exit 1 # --exact aUserCutShowsNoRow" > "$tmp/refusal/1"
+rm -f "$marker"
+got="$("$mutate" --schema "$tmp/refusal" 1 2>&1)"
+[[ "$got" == '1 mutate: Swift Testing prints each operand'* && ! -e "$marker" ]] || { echo "FAIL: a refused text in --schema: [$got]"; failures=$((failures + 1)); }
+rm -rf "$tmp/Tests" "$tmp/refusal"
+
+# An exit 75 of the build or the test is the exit of a with-lock.sh wait over its limit. Nothing was
+# tested: LOCK WAIT with exit 75, never BUILD FAILED or killed. Exit 2 of the build stays BUILD FAILED.
+check '75:LOCK WAIT' 'a build that waits for the lock' "$file" 'b = 1' 'b = 2' "$tmp/log" 'exit 75' "$test"
+check '75:LOCK WAIT' 'a test that waits for the lock' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" 'exit 75'
+check '2:BUILD FAILED' 'a build that exits 2' "$file" 'b = 1' 'b = 2' "$tmp/log" 'exit 2' "$test"
+
+# A lone call in a git tree with scripts/with-lock.sh runs itself under it once, before any edit;
+# MUTATION_PASS_HELD=1 (mutation-pass.sh holds the lock) takes no lock. The shim counts its calls.
+git init -q "$tmp/locked"
+mkdir "$tmp/locked/scripts"
+printf '#!/bin/bash\necho call >> "$LOCK_COUNT"\nexec "$@"\n' > "$tmp/locked/scripts/with-lock.sh"
+chmod +x "$tmp/locked/scripts/with-lock.sh"
+cp "$file" "$tmp/locked/x.txt"
+export LOCK_COUNT="$tmp/lock-count"
+: > "$LOCK_COUNT"
+lbuild="[[ \$MUTATION_PASS_HELD == 1 ]] && grep -q 'a =' x.txt"
+got="$(cd "$tmp/locked" && "$mutate" x.txt 'a = 1' 'a = 2' "$tmp/log" "$lbuild" "grep -q 'a = 1' x.txt" 2>&1)"
+[[ $? -eq 0 && "$got" == killed* && "$(wc -l < "$LOCK_COUNT" | tr -d ' ')" == 1 ]] \
+  || { echo "FAIL: a lone call: result [$got], with-lock.sh calls $(wc -l < "$LOCK_COUNT" | tr -d ' '), not 1"; failures=$((failures + 1)); }
+: > "$LOCK_COUNT"
+got="$(cd "$tmp/locked" && MUTATION_PASS_HELD=1 "$mutate" x.txt 'a = 1' 'a = 2' "$tmp/log" "$lbuild" "grep -q 'a = 1' x.txt" 2>&1)"
+[[ $? -eq 0 && "$got" == killed* && ! -s "$LOCK_COUNT" ]] \
+  || { echo "FAIL: a call with MUTATION_PASS_HELD=1: result [$got], with-lock.sh calls $(wc -l < "$LOCK_COUNT" | tr -d ' '), not 0"; failures=$((failures + 1)); }
+# The shim fails to run the command (a wait over its limit): the file has no mutant in it.
+printf '#!/bin/bash\necho call >> "$LOCK_COUNT"\nexit 75\n' > "$tmp/locked/scripts/with-lock.sh"
+got="$(cd "$tmp/locked" && "$mutate" x.txt 'a = 1' 'a = 2' "$tmp/log" "$lbuild" "grep -q 'a = 1' x.txt" 2>&1)"
+[[ $? -eq 75 && "$(cat "$tmp/locked/x.txt")" == "$(cat "$file")" ]] || { echo "FAIL: a lock wait over its limit: exit $?, [$got]"; failures=$((failures + 1)); }
+unset LOCK_COUNT
+rm -rf "$tmp/locked"
 
 # --in=<file>: one mutant in two files. The first edit alone survives; the edit in the second file
 # kills it. Both files are restored.

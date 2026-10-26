@@ -16,6 +16,8 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4); it prints
                 up to 10 compared lines that hold ✘, failed, or error
   NO TESTS      the test passed, but it ran no test: the filter matched nothing (exit 5)
+  LOCK WAIT     the build or the test exited 75, the exit of a scripts/with-lock.sh wait over its
+                limit: nothing was tested, run it again (exit 75)
   stopped       SIGINT, SIGTERM, or SIGHUP stopped the run; the files are restored (exit 130)
 With --expect, a kill counts only when the output of the test has <text>, for example the
 message of the assertion that the control must break. A progress line (a test started or passed)
@@ -26,8 +28,14 @@ limit inside the test can stop. With --expect too, a hang is a kill only when <t
 the kill: a failure report that hangs (a large value in an assert message) prints no text and
 gives WRONG FAILURE. --switch marks a mutant for --schema; one mutant ignores it. Another option
 before <file> exits 2: each mutant runs once (mutation-pass.sh), so there is no replay mode.
-A missing or repeated <old text>, or an extra old text with no new text, exits 2 before any
-change. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
+A lone call (no MUTATION_PASS_HELD) in a git tree with scripts/with-lock.sh runs itself again under
+it, before any change, so the build and the test hold the build lock once; mutation-pass.sh sets the
+variable. A missing or repeated <old text>, an extra old text with no new text, or an --expect text
+that the test cannot print exits 2 before any change. Swift Testing prints each operand of the
+outermost comparison of an #expect with its value, for example (rows(model) → [...]) == [], so a
+text that spans an operand and its operator never prints: copy the text from the failure output.
+The refusal applies only to the #expect and #require conditions of the --exact names of the test
+command, found under Tests/, and only when the text is in no string literal under Tests/. A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
 that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
 in <file>: one mutant in two files, with each file hashed and restored. Do not nest mutate.py in the test command: the outer
 result line then gives the verdict of the inner script, not of the mutant.
@@ -60,7 +68,7 @@ whole call), 3 (a failed restore), and 130 (stopped, after the restore).
 In a git tree, a run holds the lock <git dir>/dirigible-mutate.lock (a folder with the pid), so two
 runs never mutate one tree; a second run exits 2, and the lock of a dead process is taken over.
 """
-import hashlib, os, re, shutil, signal, subprocess, sys
+import functools, hashlib, os, re, shutil, signal, subprocess, sys
 
 SWITCH = ('\n// The switch of the mutation pass (mutate.py --schema); the restore removes it.\nimport Foundation\n'
           'private let dirigibleMutant = Int(ProcessInfo.processInfo.environment["DIRIGIBLE_MUTANT"] ?? "") ?? 0\n')
@@ -104,6 +112,9 @@ class Mutant:
             else:
                 self.edits[current].append((rest[0], rest[1]))
                 rest = rest[2:]
+        reason = self.expected is not None and expect_refusal(self.expected, self.test, 'Tests')
+        if reason:
+            raise Refused(reason)
 
     def header(self, out, switch=None):
         out.write(f'# mutation of {self.path}\n')
@@ -126,6 +137,128 @@ class Mutant:
 def once(text, old, name):
     if text.count(old) != 1:
         raise Refused(f'the old text is in {name} {text.count(old)} times, not once: {old!r}')
+
+
+ARROW = '→'
+COMPARISONS = ('===', '!==', '==', '!=', '<=', '>=', ' < ', ' > ')
+
+
+def skip_string(text, i):
+    """The index of the quote that closes the string literal that opens at text[i]."""
+    i += 1
+    while i < len(text) and text[i] != '"':
+        i += 2 if text[i] == '\\' else 1
+    return i
+
+
+def closing(text, start):
+    """The index after the bracket that closes text[start], skipping string literals."""
+    depth, i = 0, start
+    while i < len(text):
+        if text[i] == '"':
+            i = skip_string(text, i)
+        elif text[i] in '({[':
+            depth += 1
+        elif text[i] in ')}]':
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return len(text)
+
+
+def top_level(text):
+    """The indexes of the characters of text outside every bracket and string literal."""
+    depth, i, found = 0, 0, []
+    while i < len(text):
+        if text[i] == '"':
+            i = skip_string(text, i)
+        elif text[i] in '({[':
+            depth += 1
+        elif text[i] in ')}]':
+            depth -= 1
+        elif depth == 0:
+            found.append(i)
+        i += 1
+    return found
+
+
+def conditions(body):
+    """The condition (the text up to the first top-level comma) of each #expect and #require in body."""
+    found = []
+    for opening in re.finditer(r'#(expect|require)\(', body):
+        arguments = body[opening.end():closing(body, opening.end() - 1) - 1]
+        commas = [i for i in top_level(arguments) if arguments[i] == ',']
+        condition = arguments[:commas[0]] if commas else arguments
+        if not condition.lstrip().startswith('throws:'):
+            found.append(condition)
+    return found
+
+
+def spans_comparison(text, condition):
+    """True when `text` is in `condition` and spans a top-level comparison and the end of its left operand."""
+    top = set(top_level(condition))
+    outside = ''.join(c if i in top else ' ' for i, c in enumerate(condition))
+    if re.search(r'\b(try|await)\b', condition) or re.search(r'&&|\|\||\?\?| \? ', outside):
+        return False
+    operators, i = [], 0
+    while i < len(condition):
+        for operator in COMPARISONS:
+            if i in top and condition.startswith(operator, i):
+                start = i + operator.index(operator.strip())
+                operators.append((start, start + len(operator.strip()), condition[:start].strip()))
+                i += len(operator) - 1
+                break
+        i += 1
+    at = condition.find(text)
+    while at != -1:
+        for start, end, left in operators:
+            literal = not re.search(r'[A-Za-z_]', left) or re.match(r'[."\d\[]', left)
+            if not literal and at <= len(condition[:start].rstrip()) - 1 and at + len(text) >= end:
+                return True
+        at = condition.find(text, at + 1)
+    return False
+
+
+@functools.lru_cache(maxsize=None)
+def swift_tests(folder):
+    """The text of each .swift file under folder, and the contents of each one-line string literal in them."""
+    texts = []
+    for here, _, names in os.walk(folder):
+        for name in names:
+            if name.endswith('.swift'):
+                with open(os.path.join(here, name), errors='replace') as source:
+                    texts.append(source.read())
+    return texts, [lit for t in texts for lit in re.findall(r'"((?:[^"\\\n]|\\.)*)"', t)]
+
+
+def expect_refusal(text, test_command, tests_folder):
+    """The reason why `text` can never print in a failure of the test command, or None.
+
+    Swift Testing splits only the outermost operator of a condition and prints each operand with its
+    value, so a text refuses only when all of these hold: it has no arrow; it is in a condition of an
+    #expect or #require in the bodies of the --exact names of the command (with no --exact a sibling
+    test can hold the same text alone); that condition has no try, await, or top-level &&, ||, ??, or
+    ? (Swift Testing prints an operand of && as written); the text spans a top-level comparison
+    operator and the end of its left operand, which is not a literal; and no string literal under the
+    tests folder holds the text (a message prints as written)."""
+    if ARROW in text or '--exact' not in test_command:
+        return None
+    names = [w.strip('\'"') for w in test_command.split('--exact', 1)[1].split()
+             if re.fullmatch(r'[\'"]?[A-Za-z_][A-Za-z0-9_]*[\'"]?', w)]
+    texts, literals = swift_tests(tests_folder)
+    if any(text in literal for literal in literals):
+        return None
+    for name in names:
+        for source in texts:
+            for declared in re.finditer(r'\bfunc\s+' + re.escape(name) + r'\s*\(', source):
+                brace = source.find('{', declared.end())
+                body = source[brace:closing(source, brace)] if brace != -1 else ''
+                for condition in conditions(body):
+                    if spans_comparison(text, condition):
+                        return (f'Swift Testing prints each operand of {condition.strip()!r} with its value, '
+                                f'so {text!r} never prints; copy the text from the failure output of the test')
+    return None
 
 
 def descendants(pid):
@@ -172,10 +305,12 @@ def kill_tree(process):
     process.wait()
 
 
-def verdict(log, test_start, built, status, expected):
+def verdict(log, test_start, built, status, expected, build_status=None):
     """The result, the exit code, and the compared failure lines of a WRONG FAILURE."""
     if status is None:
         result, code = 'killed (hang)', 0
+    elif build_status == 75 or (built and status == 75):
+        result, code = 'LOCK WAIT', 75
     else:
         result, code = ('BUILD FAILED', 2) if not built else (('survived', 1) if status == 0 else ('killed', 0))
     with open(log, errors='replace') as done:
@@ -260,9 +395,22 @@ def guarded(backups, digests, work):
     return stopped
 
 
+def hold_lock():
+    """Runs a lone call again under scripts/with-lock.sh, so its build and test hold the build lock once
+    and a wait for it ends the call before any edit. mutation-pass.sh holds the lock and sets the variable."""
+    if os.environ.get('MUTATION_PASS_HELD'):
+        return
+    top = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
+    lock = os.path.join(top.stdout.strip(), 'scripts', 'with-lock.sh')
+    if top.returncode == 0 and os.access(lock, os.X_OK):
+        os.execve(lock, [lock, sys.executable, os.path.abspath(__file__)] + sys.argv[1:],
+                  {**os.environ, 'MUTATION_PASS_HELD': '1'})
+
+
 def one(args):
     try:
         mutant = Mutant(args)
+        hold_lock()
         digests, texts = {}, {}
         for name, pairs in mutant.edits.items():
             original = open(name, 'rb').read()
@@ -279,16 +427,17 @@ def one(args):
         sys.exit(2)
     log = mutant.log
     backups = {name: log + '.orig' + (str(n) if n else '') for n, name in enumerate(mutant.edits)}
-    built, status, start = False, 1, 0
+    built, build_status, status, start = False, None, 1, 0
 
     def work():
-        nonlocal built, status, start
+        nonlocal built, build_status, status, start
         for name, text in texts.items():
             with open(name, 'w') as out:
                 out.write(text)
         with open(log, 'w') as out:
             mutant.header(out)
-            built = run(mutant.build, out) == 0
+            build_status = run(mutant.build, out)
+            built = build_status == 0
             out.flush()
             start = out.tell()
             if built:
@@ -299,7 +448,7 @@ def one(args):
             out.write('# result: stopped\n')
         print(f'stopped: {log}')
         sys.exit(130)
-    result, code, compared = verdict(log, start, built, status, mutant.expected)
+    result, code, compared = verdict(log, start, built, status, mutant.expected, build_status)
     print(f'{result}: {log}')
     if compared:
         # The compared failure lines, so the next --expect copies their printed form.
@@ -466,7 +615,8 @@ def schema(folder, names):
         sys.exit(130)
 
 
-if sys.argv[1:2] == ['--schema']:
-    schema(sys.argv[2] if len(sys.argv) > 2 else '', sys.argv[3:])
-else:
-    one(sys.argv[1:])
+if __name__ == '__main__':
+    if sys.argv[1:2] == ['--schema']:
+        schema(sys.argv[2] if len(sys.argv) > 2 else '', sys.argv[3:])
+    else:
+        one(sys.argv[1:])

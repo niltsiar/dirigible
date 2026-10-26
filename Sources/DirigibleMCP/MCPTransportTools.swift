@@ -27,7 +27,8 @@ extension TransportOutcome {
             .result(text: "Playing from \(from.count) to \(end.count)\(shuttle.suffix).", isError: false)
         case .pastEnd(let start, let end):
             .result(
-                text: "Nothing plays: frame \(start.count) is at or after the end of the play (\(end.count)).",
+                text: "Nothing changed: frame \(start.count) is at or after \(end.text). Pass a from before that "
+                    + "end, or call transport_locate first.",
                 isError: true)
         case .superseded:
             .result(
@@ -35,6 +36,16 @@ extension TransportOutcome {
                     + "again.",
                 isError: true)
         case .failed(let stop): .result(text: "Nothing plays: \(stop.reason).", isError: true)
+        }
+    }
+}
+
+extension PlayEnd {
+    /// The name and the frame of the end in a reply.
+    fileprivate var text: String {
+        switch self {
+        case .to(let frame): "to (\(frame.count))"
+        case .session(let frame): "the end of the session (\(frame.count))"
         }
     }
 }

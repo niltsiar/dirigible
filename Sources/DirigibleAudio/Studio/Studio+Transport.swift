@@ -140,8 +140,8 @@ extension Studio {
     /// that end changes nothing.
     private func playRange(from: Frames?, to: Frames?) async -> TransportOutcome {
         let start = from ?? play.playhead
-        let end = min(to ?? session.end, session.end)
-        guard start < end else { return .pastEnd(start: start, end: end) }
+        let end = to.flatMap { $0 < session.end ? PlayEnd.to($0) : nil } ?? .session(session.end)
+        guard start < end.frame else { return .pastEnd(start: start, end: end) }
         let forward = Shuttle(direction: .forward, rate: .one)
         let current = play.playback.shuttle
         if current == forward, from == nil, to == nil { return .state(state(from: play.playhead)) }

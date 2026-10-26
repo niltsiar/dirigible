@@ -271,6 +271,32 @@ struct StudioPlayRangeTests {
         #expect(studio.playhead == 50_000)
     }
 
+    /// An agent play or a locate to 12 000 during a play from 24 000, with a take start in the
+    /// feed end of the call: the call gives `.superseded`, and the take starts at 24 000. The
+    /// take task runs at the first await of the call; the gate holds its Player stop.
+    @Test(arguments: [false, true])
+    func aTakeInTheFeedEndOfACallSupersedesIt(locate: Bool) async throws {
+        let studio = try await studio()
+        let gate = AsyncGate()
+        defer { gate.open() }
+        await studio.perform(.seek(.frame(24_000)))
+        await studio.perform(.playStop)
+        studio.environment.beforePlayerStop = { await gate.wait() }
+
+        let take = Task { @MainActor in
+            _ = try await studio.startTake(armed: ["t1"], devices: [mic], hostTimeNanos: takeStart)
+        }
+        let outcome = try await locate ? studio.locate(12_000) : studio.play(from: 12_000, to: 50_000)
+
+        #expect(outcome == .superseded)
+        #expect(studio.playhead == 24_000, "the call moved the playhead in the take start")
+        gate.open()
+        try await take.value
+        #expect(studio.session.recording?.playheadFrame == 24_000, "the take starts at the play position")
+        #expect(await studio.play.player?.reading().running != true, "the call played into the take")
+        try await studio.stopRecording()
+    }
+
     @Test func anEngineFailureGivesTheCause() async throws {
         let studio = try await studio()
         studio.environment.startEngine = { _ in throw NSError(domain: NSOSStatusErrorDomain, code: -10_851) }

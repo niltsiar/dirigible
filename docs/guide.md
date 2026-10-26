@@ -434,6 +434,7 @@ A split gives each channel of a stereo clip its own mono track, so you can cut, 
 
 Reduce Noise takes background noise out of a clip by 12 dB. It uses the noise reduction of macOS. In the app, select clips, a range, or a track, then choose **Tools > Reduce Noise** (**Reducir ruido**). The command is also in the menu of a right-click on a clip. It has no key. It is off when no clip is selected, during a take, and while an import, a paste, a split, or another Reduce Noise runs. In Terminal, `dirigible clip denoise <package> <clip>...` reduces the noise in the clips, and an agent uses the tool `clip_denoise`.
 
+- A range takes each whole clip that it touches, on all tracks when no track is selected.
 - Reduce Noise skips the clips of tracks with the Music or Effects role, because the noise reduction removes music and effects. It takes the clips of tracks with no role or the Dialogue role. When the selection holds both, the music stays as it was. The command and the tool refuse a clip of a Music or Effects track. To reduce the noise of such a clip, give its track no role.
 - Each clip keeps its start, length, fades, and crossfades. It plays a new 24-bit WAV in `Clips` in place of its old file. The old WAV stays in the package until **File > Remove Unused Files** moves it, because **Edit > Undo** and the backups use it.
 - One **Edit > Undo** gives back the old file for all clips of the run. **Edit > Redo** swaps them again with no new render.

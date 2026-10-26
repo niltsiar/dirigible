@@ -153,7 +153,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 2. **Markers during a take (F107).** Add a marker while the take runs.
 3. **Empty session drop and lane click (F108, F109).** A drop of files on an empty session makes one track for each file. A click in an empty lane selects its track.
 4. **Split stereo to mono (F25).** Split a stereo clip into two mono clips, each with a menu item, a key, a `dirigible` command, and an MCP tool. Run: `2026-10-13-replace-roomtone-split` L1.
-5. **Noise reduction and the clip render (F35, F89).** One control for noise reduction, on the render of a clip through an effect. Run: `2026-10-13-render-denoise` L1.
+5. **Noise reduction and the clip render (F35, F89).** Noise reduction on the render of a clip through an effect: L1 has a fixed 12 dB, and L2 adds the one control, a dial in dB. Run: `2026-10-13-render-denoise` L1.
 6. **Render link (F110).** A rendered clip keeps a link to its original, so that the user changes the amount of the effect later or restores the original. Run: `2026-10-14-render-link`.
 7. **Hum removal and the dial (F77).** Hum removal at 50 or 60 Hz, and the preview dial of the noise reduction. Run: `2026-10-13-render-denoise` L2.
 8. **The leveler (F38 part).** Gain riding inside a clip, as a render effect. Run: `2026-10-14-leveler`.

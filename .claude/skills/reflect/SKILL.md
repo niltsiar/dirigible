@@ -54,7 +54,7 @@ A deliver run with the goal "apply the upkeep items". If the user asked for a ch
 - Make one commit per changed doc file, with its `rules.tsv` rows and the check that replaces its prose.
 - Write a lesson line with the date, the key, and the commit hash (`scripts/wiki.py lesson <key> --from <file>`), and move the item to done (`scripts/wiki.py move <id> done`).
 
-Then, once for the batch: the eval pass of rule 8, and the `review-panel` workflow on the diff (`target: "diff"`, `maxRounds: 2`, and the `risk`, the doc lenses, and `paths` of Step 3 of the **interrogate** skill, also in a small run). Each Act on finding gets a fix commit or a revert commit before the merge.
+Then, once for the batch: the eval pass of rule 8, and the `review-panel` workflow on the diff (`target: "diff"`, `maxRounds: 2`, and the `risk` and `paths` of Step 3 of the **interrogate** skill). Its lenses are those of the upkeep line under the **deliver** class table. Each Act on finding gets a fix commit or a revert commit before the merge.
 
 ### 5. Summarize
 

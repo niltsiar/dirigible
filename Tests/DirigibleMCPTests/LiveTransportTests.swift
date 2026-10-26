@@ -323,7 +323,7 @@ struct LiveTransportTests {
             (.pastEnd(start: 9, end: 9), "Nothing plays: frame 9 is at or after the end of the play (9)."),
             (
                 .superseded,
-                "A later transport command replaced this call. transport_stop gives the state now."
+                "The user or another call changed the transport during this call. A new transport_play plays again."
             ),
             (.failed(.outputUnavailable(-10851)), "Nothing plays: the audio output did not start (error -10851)."),
             (.failed(.packageUnavailable), "Nothing plays: the session package is not available."),

@@ -427,6 +427,7 @@ A split gives each channel of a stereo clip its own mono track, so you can cut, 
 - A split clip has no take time, so **Go to Take Time** and a transcript import with a take skip it. The words of a transcript show on both new tracks.
 - **File > Remove Unused Files** right after a split does not offer the source WAV while a backup names it. The file stays until no backup names it.
 - A split of a long file takes time. In the app, a banner shows the progress, and **Cancel** stops the split with no new track and no new file. A cancel at the very end can come too late; then the change stays, and **Edit > Undo** removes it. Undo keeps the new WAVs in the package.
+- Each split writes new WAVs, also a split after **Edit > Undo**: a split does not use the WAVs of an undone split again. So each try needs the disk space of its runs again. **File > Remove Unused Files** moves the WAVs of an undone split to the Trash when no Redo step and no backup uses them.
 
 ### Mute and solo tracks
 

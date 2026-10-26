@@ -30,7 +30,7 @@ let chapterTools = [
             + "JSON Chapters 1.2.0 file, with each chapter image beside it; a .txt out gives a text list, one line "
             + "HH:MM:SS and the title for each chapter, for an episode description. The text is the warning lines, "
             + "or OK. A range with no chapter writes no file.",
-        [out, from, to, replace], saves: false
+        [out, from, to, replace], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let (first, end, replaces) = (try a[from], try a[to], try a[replace])
         let path = try outPath(a, out)
@@ -43,7 +43,7 @@ let chapterTools = [
             + "no image. Give the ID of the marker of each file chapter, in file order, one on each line, then the "
             + "warning lines. With replace, a chapter with toc false can give the ID of an existing plain marker. A "
             + "bad file or a failed call changes nothing.",
-        [importPath, importAt, importReplace]
+        [importPath, importAt, importReplace], batch: .alone
     ) { a throws(ToolError) in
         let (location, first, replaces) = (try a[importPath], try a[importAt], try a[importReplace])
         guard location.hasPrefix("/") else { throw ToolError("The argument \"path\" must be an absolute path.") }

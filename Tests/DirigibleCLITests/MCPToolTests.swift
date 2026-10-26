@@ -286,7 +286,7 @@ struct MCPToolTests {
                 "transcript_words", "transcript_cut", "transcript_export", "take_map", "backup_list",
                 "backup_revert", "record", "transport_play", "transport_stop", "transport_locate", "loudness", "export",
                 "render", "level", "duck", "import", "silences", "nearest_pause", "meter", "chapters_export",
-                "chapters_import", "devices", "apps",
+                "chapters_import", "devices", "apps", "batch",
             ])
         for tool in tools {
             let name = tool["name"] as? String ?? ""

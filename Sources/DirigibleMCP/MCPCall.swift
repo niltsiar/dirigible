@@ -113,6 +113,12 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         let text = (output.lines + output.failed).joined(separator: "\n")
         guard output.failed.isEmpty else { throw ToolError(text) }
         return text
+    case .batch(let work):
+        do throws(EditFailure<BatchWork.Failure>) {
+            return try work.runOnFiles(package).joined(separator: "\n")
+        } catch {
+            throw ToolError(error.message(package: path))
+        }
     case .record:
         throw ToolError(recordOnFilesMessage(path))
     case .transport:

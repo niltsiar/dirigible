@@ -75,7 +75,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .create, .record, .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender,
             .chapters,
             .transcriptExport,
-            .read:
+            .read, .batch:
             return .notOpen
         }
     } catch .busy {

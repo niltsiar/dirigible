@@ -106,7 +106,7 @@ let transportTools = [
             + "Return, J, K, L, and a speed change drop the end: a forward play that goes on runs to the end of the "
             + "session. After the play, the playhead stays where the play stopped, and the next take starts there. A "
             + "call during a take, or while Dirigible is busy, gives an error and plays nothing." + appOnly,
-        [playFrom, playTo], saves: false
+        [playFrom, playTo], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let from = try a[playFrom].map { value throws(ToolError) in try frame(value, "from") }
         let to = try a[playTo].map { value throws(ToolError) in try frame(value, "to") }
@@ -118,7 +118,7 @@ let transportTools = [
         "Stop the play in Dirigible. With nothing playing, the call changes nothing and gives the playhead. It "
             + "never stops a take: during a take it gives an error, and the user stops the take in Dirigible."
             + appOnly,
-        [], saves: false
+        [], saves: false, batch: .alone
     ) { _ throws(ToolError) in .transport(.stop) },
     Tool(
         "transport_locate",
@@ -126,6 +126,6 @@ let transportTools = [
             + "take starts there. During a play, the play goes on from at. In a play that transport_play started with "
             + "to, a frame before to keeps to, and a frame at or after to plays on to the end of the session. During "
             + "a forward play, a frame at or after the end of the session stops the play there." + appOnly,
-        [locateAt], saves: false
+        [locateAt], saves: false, batch: .alone
     ) { a throws(ToolError) in .transport(.locate(try frame(a[locateAt], "at"))) },
 ]

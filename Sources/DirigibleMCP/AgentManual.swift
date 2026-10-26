@@ -201,7 +201,10 @@ package enum AgentManual {
             With no MCP server, run the command of a tool in place of the tool. The tool arguments are options \
             of the command, with - in place of _; some, such as clip IDs, come after the package with no option \
             name. `dirigible help <command>` gives the exact form. For `session_info`, run \
-            `dirigible info <package> --json`.
+            `dirigible info <package> --json`. For `batch`, run `dirigible batch <package> <file>`: the file holds \
+            the `calls` array. A batch is one undo step in the app and one save on the files. A step edits \
+            session.xml only, with no file argument. A later step names a new object by the ID that the earlier \
+            step gave; `clip_split_at` and `clip_paste` give theirs in the result lines.
 
             | Tool | Command |
             |---|---|

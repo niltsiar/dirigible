@@ -3,14 +3,14 @@ import DirigibleCore
 import Foundation
 
 /// The tools of `dirigible mcp`, in a fixed order: session, track, marker, pool, clip, ripple,
-/// transcript, take, backup, record, transport, audio, chapter, source (decisions 0041, 0043, 0048, 0049, 0055,
-/// and 0061). The name of an edit tool is its command words with `_` for each space and hyphen, and
+/// transcript, take, backup, record, transport, audio, chapter, source, batch (decisions 0041, 0043, 0048, 0049,
+/// 0055, 0061, and 0063). The name of an edit tool is its command words with `_` for each space and hyphen, and
 /// its arguments have the option names of the command.
 extension Tool {
     static let all =
         sessionTools + trackTools + markerTools + episodeTools + poolTools + clipTools + envelopeTools + rippleTools
         + transcriptTools + takeTools
-        + backupTools + recordTools + transportTools + audioTools + chapterTools + sourceTools
+        + backupTools + recordTools + transportTools + audioTools + chapterTools + sourceTools + batchTools
 }
 
 /// The parameters that more than one tool has.
@@ -42,7 +42,8 @@ private let infoCompact = Param.defaulted(
     false)
 
 let sessionTools = [
-    Tool("session_create", "Make an empty session package.", [sampleRate], saves: false) { a throws(ToolError) in
+    Tool("session_create", "Make an empty session package.", [sampleRate], saves: false, batch: .alone) {
+        a throws(ToolError) in
         guard EditRules.isPackagePath(a.package) else { throw ToolError("The package path must end in .dirigible.") }
         guard let rate = EditRules.sampleRate(try a[sampleRate]) else {
             throw ToolError("The sample rate must be more than 0.")
@@ -56,7 +57,7 @@ let sessionTools = [
             + "overview: each track with its clip count, the end frame, and the marker count. With compact, the JSON "
             + "has only sampleRate, tracks with their clips, and markers, so a read costs fewer tokens. episode_get "
             + "reads the episode of any session.",
-        [infoTracks, infoFrom, infoTo, infoCompact], saves: false
+        [infoTracks, infoFrom, infoTo, infoCompact], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let (from, to) = (try a[infoFrom], try a[infoTo])
         var range: Range<Frames>?
@@ -86,7 +87,8 @@ private let trackRole = Param<Track.Role?>.required(
     "role", "dialogue, music, effects, or none. none removes the role.", .choice(EditRules.roleWords, EditRules.role))
 
 let trackTools = [
-    Tool("track_add", "Add a track and give its ID.", [Arg.name, Arg.layout, trackID]) { a throws(ToolError) in
+    Tool("track_add", "Add a track and give its ID.", [Arg.name, Arg.layout, trackID], batch: .step) {
+        a throws(ToolError) in
         let (id, name, layout) = (try a[trackID].map { TrackID($0) } ?? TrackID(), try a[Arg.name], try a[Arg.layout])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.addTrack(id, name: name, layout: layout)
@@ -95,7 +97,7 @@ let trackTools = [
     },
     Tool(
         "track_add_call", "Add the mono tracks Host and Guest of a call, and give their IDs.",
-        [hostDevice, hostChannels, guestApp, hostID, guestID]
+        [hostDevice, hostChannels, guestApp, hostID, guestID], batch: .step
     ) { a throws(ToolError) in
         let app = try a[guestApp]
         var device: (uid: String, channel: Int)?
@@ -117,21 +119,21 @@ let trackTools = [
             return [host.rawValue, guest.rawValue]
         }
     },
-    Tool("track_remove", "Remove a track and its clips.", [Arg.track]) { a throws(ToolError) in
+    Tool("track_remove", "Remove a track and its clips.", [Arg.track], batch: .step) { a throws(ToolError) in
         let track = TrackID(try a[Arg.track])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.removeTrack(track)
             return []
         }
     },
-    Tool("track_rename", "Rename a track.", [Arg.track, Arg.name]) { a throws(ToolError) in
+    Tool("track_rename", "Rename a track.", [Arg.track, Arg.name], batch: .step) { a throws(ToolError) in
         let (track, name) = (TrackID(try a[Arg.track]), try a[Arg.name])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.renameTrack(track, to: name)
             return []
         }
     },
-    Tool("track_gain", "Set the gain of a track.", [Arg.track, Arg.gain]) { a throws(ToolError) in
+    Tool("track_gain", "Set the gain of a track.", [Arg.track, Arg.gain], batch: .step) { a throws(ToolError) in
         let (track, gain) = (TrackID(try a[Arg.track]), try a[Arg.gain])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.setGain(gain, track: track)
@@ -140,7 +142,7 @@ let trackTools = [
     },
     Tool(
         "track_route", "Set the route of a track: device with channels, app, or none.",
-        [Arg.track, Arg.device, Arg.channels, Arg.app, Arg.noRoute]
+        [Arg.track, Arg.device, Arg.channels, Arg.app, Arg.noRoute], batch: .step
     ) { a throws(ToolError) in
         let (track, route) = (TrackID(try a[Arg.track]), try routeArgument(a))
         return .edit(ripple: false) { session throws(SessionError) in
@@ -150,7 +152,7 @@ let trackTools = [
     },
     Tool(
         "track_layout", "Set the layout and the route of a track in one edit.",
-        [Arg.track, Arg.layout, Arg.device, Arg.channels, Arg.app, Arg.noRoute]
+        [Arg.track, Arg.layout, Arg.device, Arg.channels, Arg.app, Arg.noRoute], batch: .step
     ) { a throws(ToolError) in
         let (track, layout, route) = (TrackID(try a[Arg.track]), try a[Arg.layout], try routeArgument(a))
         return .edit(ripple: false) { session throws(SessionError) in
@@ -159,7 +161,8 @@ let trackTools = [
         }
     },
     Tool(
-        "track_mute", "Mute tracks: the mix, the export, and the render leave them out.", [trackIDs, Arg.off]
+        "track_mute", "Mute tracks: the mix, the export, and the render leave them out.", [trackIDs, Arg.off],
+        batch: .step
     ) { a throws(ToolError) in
         let (tracks, off) = (try a[trackIDs].map { TrackID($0) }, try a[Arg.off])
         return .edit(ripple: false) { session throws(SessionError) in
@@ -170,7 +173,7 @@ let trackTools = [
     Tool(
         "track_solo",
         "Solo tracks: while a track is soloed, only the soloed tracks that are not muted are heard.",
-        [trackIDs, Arg.off]
+        [trackIDs, Arg.off], batch: .step
     ) { a throws(ToolError) in
         let (tracks, off) = (try a[trackIDs].map { TrackID($0) }, try a[Arg.off])
         return .edit(ripple: false) { session throws(SessionError) in
@@ -178,7 +181,10 @@ let trackTools = [
             return []
         }
     },
-    Tool("track_role", "Set the role of a track: dialogue, music, effects, or none.", [Arg.track, trackRole]) {
+    Tool(
+        "track_role", "Set the role of a track: dialogue, music, effects, or none.", [Arg.track, trackRole],
+        batch: .step
+    ) {
         a throws(ToolError) in
         let (track, role) = (TrackID(try a[Arg.track]), try a[trackRole])
         return .edit(ripple: false) { session throws(SessionError) in
@@ -226,7 +232,7 @@ let markerTools = [
         "marker_set",
         "Add a marker, or change the marker with its ID, and give its ID. For an existing marker, each argument "
             + "that is not given keeps its value.",
-        [markerName, markerAt, markerKind, markerID, markerURL, markerImage]
+        [markerName, markerAt, markerKind, markerID, markerURL, markerImage], batch: .step
     ) { a throws(ToolError) in
         let image = try a[markerImage]
         if let image, !image.isEmpty, !image.hasPrefix("/") {
@@ -237,7 +243,7 @@ let markerTools = [
             url: try a[markerURL], image: image)
         do throws(MarkerEditError) { return .marker(try fields.work()) } catch { throw ToolError(error.message) }
     },
-    Tool("marker_remove", "Remove a marker.", [marker]) { a throws(ToolError) in
+    Tool("marker_remove", "Remove a marker.", [marker], batch: .step) { a throws(ToolError) in
         let id = MarkerID(try a[marker])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.removeMarker(id)
@@ -252,14 +258,14 @@ private let file = Param.required("file", "The file ID.", .string)
 /// `capture add` and `file add` have no tool: they write raw clock data and a file record with no
 /// audio read (ParityTests.toolExemptions).
 let poolTools = [
-    Tool("capture_remove", "Remove a capture that no file uses.", [capture]) { a throws(ToolError) in
+    Tool("capture_remove", "Remove a capture that no file uses.", [capture], batch: .step) { a throws(ToolError) in
         let id = CaptureID(try a[capture])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.removeCapture(id)
             return []
         }
     },
-    Tool("file_remove", "Remove a file that no clip uses.", [file]) { a throws(ToolError) in
+    Tool("file_remove", "Remove a file that no clip uses.", [file], batch: .step) { a throws(ToolError) in
         let id = FileID(try a[file])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.removeFile(id)
@@ -271,7 +277,7 @@ let poolTools = [
         "Move the clip files that no clip uses to the Trash, as dirigible file prune does. A file that a clip of a "
             + "backup uses stays. The tool cannot see the clipboard of an app window. A package that is open in the app "
             + "is refused: use File > Remove Unused Files there.",
-        [dryRun], saves: false
+        [dryRun], saves: false, batch: .alone
     ) { a throws(ToolError) in .prune(dryRun: try a[dryRun]) },
 ]
 
@@ -290,14 +296,15 @@ package let backupRule =
 
 let backupTools = [
     Tool(
-        "backup_list", "Give the backup file names of the session, newest first. " + backupRule, [], saves: false
+        "backup_list", "Give the backup file names of the session, newest first. " + backupRule, [], saves: false,
+        batch: .alone
     ) { _ in
         .backups
     }.hinted(.readOnly),
     Tool(
         "backup_revert",
         "Revert the session to a backup. It keeps a backup of the replaced session first. " + backupRule,
-        [backupName]
+        [backupName], batch: .alone
     ) { a throws(ToolError) in .revert(try a[backupName]) },
 ]
 
@@ -331,7 +338,7 @@ let episodeTools = [
             episodeParams.date, episodeParams.language, episodeParams.copyright, episodeParams.explicit,
             episodeParams.summary, episodeParams.notes, episodeParams.episodeURL, episodeParams.feedURL,
             episodeParams.guid, episodeParams.artwork,
-        ]
+        ], batch: .step
     ) { a throws(ToolError) in
         let p = episodeParams
         let fields = EpisodeFields(
@@ -349,6 +356,6 @@ let episodeTools = [
         "episode_get",
         "Read the episode fields as compact JSON, the JSON of dirigible episode show. The keys are the argument "
             + "names of episode_set, and only the set fields are in it. artwork is the path in the package.",
-        [], saves: false
+        [], saves: false, batch: .alone
     ) { _ throws(ToolError) in .episodeInfo }.hinted(.readOnly),
 ]

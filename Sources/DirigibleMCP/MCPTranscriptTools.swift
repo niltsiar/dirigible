@@ -46,7 +46,7 @@ let transcriptTools = [
             + "clips carry the words. Give the transcript ID and the count of words. A word with no clip of the track "
             + "under it, or with no time, is skipped. A new import replaces the words of an earlier one in the same "
             + "span. With take, the transcript is of the original take, not of an export.",
-        [path, text, importTrack, at, take, name]
+        [path, text, importTrack, at, take, name], batch: .alone
     ) { a throws(ToolError) in
         // Each argument is checked before the source, so a bad argument gets its own text.
         let (track, frame, given) = (TrackID(try a[importTrack]), Frames(try a[at]), try a[name])
@@ -81,7 +81,7 @@ let transcriptTools = [
         "transcript_words",
         "Give the transcript words over the clips, one row each: occurrence, start, end, track, text. The frames "
             + "are timeline frames. Find a passage with match, or read a range with from and to.",
-        [from, to, match, wordsTrack, limit, json], saves: false
+        [from, to, match, wordsTrack, limit, json], saves: false, batch: .alone
     ) { a throws(ToolError) in
         .words(
             try TranscriptQuery(
@@ -92,7 +92,7 @@ let transcriptTools = [
         "transcript_cut",
         "Cut the words with these occurrences from all tracks, and close each gap, in one edit. Words next to each "
             + "other cut as one range. Give the frames of each cut range.",
-        [occurrences]
+        [occurrences], batch: .step
     ) { a throws(ToolError) in
         let words = try TranscriptWork.occurrences(try a[occurrences])
         return .edit(ripple: true) { session throws(SessionError) in
@@ -104,7 +104,7 @@ let transcriptTools = [
         "Write the transcript as subtitles on the timeline now, as dirigible transcript export: one cue for each "
             + "word or cue of the transcript, in timeline order. A .srt out gives SubRip, a .vtt out gives WebVTT. "
             + "The text is the warning lines, or OK.",
-        [exportOut, exportTranscript, exportReplace], saves: false
+        [exportOut, exportTranscript, exportReplace], saves: false, batch: .alone
     ) { a throws(ToolError) in
         // Each argument is checked before `out`, so a bad argument gets its own text.
         let (transcript, replace) = (try a[exportTranscript], try a[exportReplace])

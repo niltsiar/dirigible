@@ -74,9 +74,12 @@ import Testing
         let field = try await focusName(in: window)
         field.string = "Typed"
         app.timeline(.splitStereo, event: try cgKey(2, [.maskCommand, .maskShift]), in: window)
+        // All windows of the test process share one SwiftUI field editor, and a field of a parallel
+        // suite can take it during a wait. So read the text with no await after the key.
+        let text = field.string
         await until("the split ends") { model.importJob == nil }
         #expect(studio.session.tracks.count == 5, "the key splits with a name field in focus")
-        #expect(field.string == "Typed", "the field text stays")
+        #expect(text == "Typed", "the field text stays")
         await model.close()
 
         // A take that waits for its finalize makes the split refuse with `.busy`: the item is off,

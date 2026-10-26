@@ -87,8 +87,8 @@ let transportTools = [
         "transport_play",
         "Play the session in Dirigible, forward at 1x at the speed of the window, from the frame from to the frame "
             + "to. With neither, the play starts at the playhead and runs to the end of the session. The play stops "
-            + "at to. During a play, the call starts a new play. A call during a take, or while Dirigible is busy, gives an error "
-            + "and plays nothing." + appOnly,
+            + "at to. During a play, the call starts a new play. A call during a take, or while Dirigible is busy, "
+            + "gives an error and plays nothing." + appOnly,
         [playFrom, playTo], saves: false
     ) { a throws(ToolError) in
         let from = try a[playFrom].map { value throws(ToolError) in try frame(value, "from") }

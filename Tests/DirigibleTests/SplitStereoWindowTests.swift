@@ -46,7 +46,7 @@ import Testing
     func set(_ ids: ClipID...) -> Selection { ClipSet(Set(ids)).map { .clips($0) } ?? .none }
 
     /// C16: the item is on with a stereo clip in the selection and an idle studio. Control: only mono
-    /// clips, a range that cuts the stereo clip, a take, and an import run turn it off. A name field
+    /// clips, a range that cuts the stereo clip, a take, a pending take, and an import run turn it off. A name field
     /// in focus does not stop the key.
     @Test func menuStateForEachStartState() async throws {
         let (model, studio, window) = try await open()
@@ -78,6 +78,26 @@ import Testing
         #expect(studio.session.tracks.count == 5, "the key splits with a name field in focus")
         #expect(field.string == "Typed", "the field text stays")
         await model.close()
+
+        // A take that waits for its finalize makes the split refuse with `.busy`: the item is off,
+        // and the lane menu shows it dimmed.
+        let pending = folder.url.appending(path: "pending")
+        try FileManager.default.createDirectory(at: pending, withIntermediateDirectories: false)
+        let url = try await Self.stereoPackage(in: pending)
+        var session = try Session(contentsOf: url)
+        try session.setRecording(Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1, armedTracks: ["t1"]))
+        try session.write(to: url)
+        FileManager.default.createFile(atPath: url.appending(path: "recovery-attempt").path, contents: nil)
+        let (held, heldStudio) = try await timelineModel(url, app: app)
+        let (heldWindow, view) = standaloneLanes(held, heldStudio)
+        try #require(heldStudio.pendingTake != nil)
+        held.timeline.selection = set("s1")
+        #expect(!held.isOn(.splitStereo), "a pending take")
+        let menu = try #require(view.lanes.menu(for: try mouse(.rightMouseDown, NSPoint(x: 120, y: 210), in: view)))
+        let item = menu.items.first { $0.title == L10n.menuToolsSplitStereo.text }
+        #expect(item?.isEnabled == false, "the lane menu item dims under a pending take")
+        heldWindow.close()
+        await held.close()
     }
     /// C17: after a split, the selection is the new clips, on tracks "Voice <left>" and "Voice
     /// <right>" with the suffixes of the UI language. Under `swift test` a suffix is its key, which

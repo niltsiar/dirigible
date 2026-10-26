@@ -53,7 +53,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F32 | Fade in and fade out | Hindenburg PRO, GarageBand, Logic Pro | done, Release 2 runs 11a and 11b-1 | R7 |
 | F33 | Crossfades | Hindenburg PRO, Logic Pro | done, Release 2 runs 11c-1 and 11c-2 | R7 |
 | F34 | Ducking music under speech | Hindenburg PRO, Logic Pro | done, Release 4 run 9 (moved from Release 7) | R10 |
-| F35 | Noise reduction, one control | Hindenburg PRO | Release 4 | R8 |
+| F35 | Noise reduction, one control | Hindenburg PRO | done, Release 4 run 19 | R8 |
 | F36 | EQ and one-dial compressor per track | Hindenburg PRO, Logic Pro | Later | R7 |
 | F37 | Voice Profiler: learned EQ per voice | Hindenburg PRO | Release 4 (voice match; a profile per voice and a voice reference that is a range of a clip stay Later) | R10 |
 | F38 | Magic Levels: bleed, gain riding, auto duck | Hindenburg PRO | Release 4 (the leveler; bleed and auto duck are F42 and F34) | R10 |
@@ -100,7 +100,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F86 | Help tags that show the key equivalent | Logic | Later | R1 |
 | F87 | Remove unused clip files | GarageBand, Logic | done, Release 3 run 8 (v0.3.8) | R5 |
 | F88 | Session alternatives | Logic | Later | R5 |
-| F89 | Render a range through an effect | Logic | Release 4 (the clip render; a range cut at the range edges stays Later) | R8, R10 |
+| F89 | Render a range through an effect | Logic | done, Release 4 run 19 (the clip render; a range cut at the range edges stays Later) | R8, R10 |
 | F90 | Lock a track | GarageBand | Later | R7 |
 | F91 | Take folders and comps for punch-in | Logic | Later | R7 |
 | F92 | Time display format and a large time window | Logic | Later (also: the selection length in the time display, as in Hindenburg, and a click on the time to type a time) | R7 |

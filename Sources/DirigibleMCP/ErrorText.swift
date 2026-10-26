@@ -257,6 +257,7 @@ extension SessionError {
         case .duckRangePastEnd(let range, let end):
             "the range \(range.lowerBound)..<\(range.upperBound) starts at or after the session end at frame "
                 + "\(end), so the duck changed nothing."
+        case .notStereo(let id): "clip \"\(id)\" is on a mono track, so it has no two sides to split."
         }
     }
 }

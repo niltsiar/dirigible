@@ -363,4 +363,6 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A duck range starts at or after the session end, so it holds no frame to read (decision
     /// 0060). It changes nothing.
     case duckRangePastEnd(Range<Frames>, end: Frames)
+    /// A split names a clip on a mono track (decision 0053). It changes nothing.
+    case notStereo(ClipID)
 }

@@ -60,6 +60,7 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
+        "repoint": "It moves clips onto a file that a render made. The command clip denoise calls it (decision 0054).",
     ]
 
     /// The commands with no MCP tool (decision 0041).

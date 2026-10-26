@@ -122,11 +122,11 @@ extension Session {
     /// The clip on one side: the file of the side, the offset in the run file, and the envelope at
     /// the frames of that file. The edge rule of decision 0060 keeps its gain at the edges of the run.
     private static func monoClip(of clip: Clip, side: Side, placement: Placement, id: ClipID) -> Clip {
-        let corners = clip.envelope.points.map { (frame: ($0.frame - placement.spanStart).count, dB: $0.gain.dB) }
-        return Clip(
+        Clip(
             id: id, file: side == .left ? placement.left : placement.right, start: clip.start,
             offset: clip.offset - placement.spanStart, length: clip.length, gain: clip.gain, fades: clip.fades,
-            crossfades: clip.crossfades, envelope: .fitted(corners, fileLength: placement.spanLength))
+            crossfades: clip.crossfades,
+            envelope: clip.envelope.moved(by: .zero - placement.spanStart, fileLength: placement.spanLength))
     }
 
     /// "<id> L" or "<id> R", else the first free one of "<id> L 2", "<id> L 3", and so on. It goes

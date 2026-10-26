@@ -25,7 +25,8 @@
 // A menu item line also shows its key: MenuItemCmdChar, MenuItemCmdModifiers (0 Command, 1 Shift,
 // 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
 // character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
-// type three periods for the ellipsis character in a press path. A menu item with a check mark shows MenuItemMarkChar=✓.
+// type three periods for the ellipsis character in a press path. A menu item with a check mark
+// shows MenuItemMarkChar=✓.
 // Each line ends in Enabled= (1 or 0) when the element has the attribute; a closed menu shows
 // the current state too. To open a menu, press its title with --role AXMenuBarItem: in English,
 // the Record menu has a Record item, so "press Record" alone matches both and is refused.

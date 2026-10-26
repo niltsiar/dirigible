@@ -31,7 +31,8 @@ extension TransportOutcome {
                 isError: true)
         case .superseded:
             .result(
-                text: "A later transport command replaced this call. transport_stop gives the state now.",
+                text: "The user or another call changed the transport during this call. A new transport_play plays "
+                    + "again.",
                 isError: true)
         case .failed(let stop): .result(text: "Nothing plays: \(stop.reason).", isError: true)
         }

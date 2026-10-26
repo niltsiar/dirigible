@@ -266,7 +266,7 @@ struct MCPToolTests {
         #expect(kept == before, "the new backup holds the replaced session")
     }
 
-    /// 60 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// 63 tools in a fixed order, each with a description and a closed schema with `package`,
     /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
@@ -284,7 +284,8 @@ struct MCPToolTests {
                 "clip_ripple_insert", "clip_ripple_trim",
                 "transcript_import",
                 "transcript_words", "transcript_cut", "transcript_export", "take_map", "backup_list",
-                "backup_revert", "record", "loudness", "export", "render", "level", "duck", "import", "silences",
+                "backup_revert", "record", "transport_play", "transport_stop", "transport_locate", "loudness", "export",
+                "render", "level", "duck", "import", "silences",
                 "nearest_pause", "meter", "chapters_export",
                 "chapters_import", "devices", "apps",
             ])

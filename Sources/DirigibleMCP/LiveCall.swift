@@ -71,8 +71,8 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
         case .paste, .revert, .prune: return refusedOpen
-        // `AgentServer` sends `record` to `liveRecord`, and long work to `liveJob`.
-        case .create, .record, .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters,
+        // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, and long work to `liveJob`.
+        case .create, .record, .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters,
             .transcriptExport,
             .read:
             return .notOpen
@@ -85,7 +85,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
 }
 
 /// Asks the window of the package to record (decision 0048). The reply waits for the answer of
-/// the user, so it is the one async live call. A target with no consent sheet runs on the files,
+/// the user, so it is an async live call, as `liveTransport`. A target with no consent sheet runs on the files,
 /// which refuse it.
 @MainActor
 func liveRecord(_ request: RecordRequest, _ call: AgentCall, target: AgentTarget) async -> AgentReply {

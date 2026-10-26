@@ -1081,7 +1081,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 60 tools, in groups:
+The 63 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`.
@@ -1094,6 +1094,7 @@ The 60 tools, in groups:
 - Take: `take_map`. It gives the text of `dirigible take map`. On a session that is open in Dirigible, it maps the session of the window.
 - Backup: `backup_list`, `backup_revert`.
 - Record: `record`.
+- Transport: `transport_play`, `transport_stop`, `transport_locate`. They play, stop, and move the playhead in the window of the session. They work only in Dirigible.
 - Audio: `loudness`, `export`, `render`, `level`, `duck`, `import`. Each one gives the text of its `dirigible` command. The agent can cancel it.
 - Read by time: `silences`, `nearest_pause`, `meter`. They give the text of `dirigible silences`, `nearest-pause`, and `meter`, so the agent can place a cut, a marker, or a duck with no export. The agent can cancel them.
 - Chapters: `chapters_export`, `chapters_import`. They give the text of `dirigible chapters export` and `import`. `chapters_export` with an `out` that ends in `.txt` writes the chapter list. `clip_heal` gives the ID of each healed clip.
@@ -1106,6 +1107,7 @@ The 60 tools, in groups:
 - A tool call on a closed session has no undo. Each call saves the package. The package keeps backups of the session, and `backup_revert` goes back to one. For a copy outside the package, copy the session before an agent edits it.
 - `clip_paste` and `clip_paste_clips` take `source`, the absolute path of another session package, with `onto`. In the terminal, `dirigible clip paste` and `dirigible clip paste-clips` take `--source` and `--onto`. The call copies the audio files of the clips into the package, or converts them at another sample rate. A long copy or conversion runs to the end and saves, also when the agent stops waiting, so the agent reads `session_info` before a retry.
 - `record` records only in the app, after you agree. On a closed session, or with Let Agents Edit Open Sessions off, it gives an error and records nothing.
+- `transport_play`, `transport_stop`, and `transport_locate` work only on a session that is open in Dirigible, with Let Agents Edit Open Sessions on. On a closed session, or with the switch off, they give an error and read no package. Each one gives the state after the call: `Playing from 24000 to 50000.` or `Stopped at 24000.`. `transport_play` with `to` stops there. A later `transport_play`, a stop, or a transport key replaces the end. A click or a `transport_locate` before the end keeps it, and one at or after the end stops the play there. They are no edit, so they are no undo step and they save nothing. During a take they refuse, and `transport_stop` never stops a take: stop it in Dirigible. `transport_locate` moves the playhead, so the next take starts there, as after a click.
 - `loudness`, `export`, `render`, `level`, `duck`, `import`, `clip_split_stereo`, `silences`, `nearest_pause`, and `meter` can run for minutes. When the agent app asks for progress, the tool sends it, and the agent app can show it. The agent app can also cancel the call. A cancelled `export` or `render` writes no file, a cancelled `level` changes no gain, a cancelled `duck` changes no envelope, a cancelled `import` adds no clip and leaves no file in the package, and a cancelled `clip_split_stereo` adds no track and leaves no file in the package. A cancel at the very end can come too late, and then the change stays. After a late cancel of `export` or `render`, the agent checks the output file. After a late cancel of `level`, `duck`, `import`, or `clip_split_stereo`, the agent reads `session_info`. Then it tries again only when the change is not there.
 - On a session that is open in Dirigible, `export` and `render` run in the app, and the window shows the export sheet. **Cancel** in the sheet stops the call, and a take start also stops it. The agent gets a text that says why.
 - While the window shows an alert, a sheet, or a panel (for example the save panel of **File > Export**), `export`, `render`, and `chapters_export` refuse at once. The agent gets a text that asks you to finish or close it in Dirigible. Do that, then tell the agent to try again. While the window runs an export or checks its files, the agent gets a text that says an export runs.

@@ -23,6 +23,7 @@
 - Amended: 2026-10-23 (run `2026-10-23-ledger-wiki`, user decision). The backlog, the run log, and the learnings move from files of `.scratchpads/` to a local wiki, one tool `scripts/wiki.py` (`docs/workflow/wiki.md`). A learning line goes to the `Lesson` page of its key, an upkeep item is an item with status next, and `seen.sh` searches the lesson and item pages. The reflect rules keep their meaning.
 - Amended: 2026-10-25 (run `2026-10-24-slowness-batch`, wiki item 0112 (9d) and (10)). Rule 7 has no one-removal cap in a cut run, and each removal row of a cut run names its defect class and the check that still finds it.
 - Amended: 2026-10-25 (run `2026-10-25-upkeep-third`, lesson DLV-120/scope). The lead rules on each warning. The agent that applies the fixes reads the code, then writes each fix and each lead ruling; the fix check covers each fix. The line of 2026-10-15 above stays as the record.
+- Amended: 2026-10-26 (run `2026-10-25-upkeep-third`, wiki item 0065). The mutation pass trial is closed with the cap kept: the pass runs the mutants of the 2026-10-13 line, and `mutation-controls.md` has no `## Measure` section.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context
@@ -88,7 +89,7 @@ The workflow docs grew by one rule for each learning. The reflect skill added a 
 
 - A docs commit runs `check-docs` in seconds, not the full suite. The push runs the targets that `scripts/check-changed.sh <base>` prints, or reuses a stamp.
 - A commit can break a test that no loop ran. The push check finds it.
-- A guard with no pick in the pass can land with a weak red-first test. The next 5 risk runs measure the picks in the next item "mutation pass trial" of the wiki; a defect that a mutant of a left-out guard kills brings back one mutant per guard. An upkeep run closes the trial.
+- A guard with no pick in the pass can land with a weak red-first test. A defect that a mutant of a left-out guard kills brings back one mutant per guard.
 - The path table is one place to change. A wrong class lets a red commit through, so its test compares the whole output for each class and checks the fail-closed exits.
 - Fewer mutation controls run. A defect in a guard outside the risk floor can land when its failing-before test is weak. The plan can raise such a guard to risk.
 - The workflow docs stop growing by one rule for each learning. Always-on text does not grow; the other docs grow until the `TOTAL` tripwire starts a consolidation.

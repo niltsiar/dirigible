@@ -86,9 +86,13 @@ let transportTools = [
     Tool(
         "transport_play",
         "Play the session in Dirigible, forward at 1x at the speed of the window, from the frame from to the frame "
-            + "to. With neither, the play starts at the playhead and runs to the end of the session. The play stops "
-            + "at to. During a play, the call starts a new play. A call during a take, or while Dirigible is busy, "
-            + "gives an error and plays nothing." + appOnly,
+            + "to, and stop at to. With no from, the play starts at the playhead. With no to, it stops at the end of "
+            + "the session. During a forward 1x play, a call with neither from nor to changes nothing and gives the "
+            + "end of the running play. A call with from or to starts a new play with the new end. During the play, "
+            + "a transport_locate or a click before its end keeps the end. One at or after the end plays on to the "
+            + "end of the session, and one at or after the end of the session stops the play there. Space, Stop and "
+            + "Return, J, K, L, and a speed change drop the end: a play that goes on runs to the end of the session. "
+            + "A call during a take, or while Dirigible is busy, gives an error and plays nothing." + appOnly,
         [playFrom, playTo], saves: false
     ) { a throws(ToolError) in
         let from = try a[playFrom].map { value throws(ToolError) in try frame(value, "from") }
@@ -106,8 +110,9 @@ let transportTools = [
     Tool(
         "transport_locate",
         "Move the playhead in Dirigible to at, as a click in the ruler does. Stopped, the playhead moves and the next "
-            + "take starts there. During a play, the play goes on from at; an at after the end of the session stops "
-            + "the play there." + appOnly,
+            + "take starts there. During a play, the play goes on from at. In a play that transport_play started with "
+            + "to, a frame before to keeps to, and a frame at or after to plays on to the end of the session. During "
+            + "a forward play, a frame at or after the end of the session stops the play there." + appOnly,
         [locateAt], saves: false
     ) { a throws(ToolError) in .transport(.locate(try frame(a[locateAt], "at"))) },
 ]

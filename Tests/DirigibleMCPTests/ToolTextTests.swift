@@ -88,4 +88,27 @@ struct ToolTextTests {
         let revert = try #require(Tool.all.first { $0.name == "backup_revert" }).description
         #expect(revert.contains("It keeps a backup of the replaced session first."), "\(revert)")
     }
+
+    /// The end rules of a play (C5, C7, C8): a play with neither argument keeps a running end, a
+    /// seek at or after the end plays on, and the other transport commands drop the end.
+    @Test func theTransportToolsStateTheEndRules() throws {
+        let play = try #require(Tool.all.first { $0.name == "transport_play" }).description
+        let locate = try #require(Tool.all.first { $0.name == "transport_locate" }).description
+        for part in [
+            "During a forward 1x play, a call with neither from nor to changes nothing and gives the end of the "
+                + "running play.",
+            "A call with from or to starts a new play with the new end.",
+            "before its end keeps the end", "One at or after the end plays on to the end of the session",
+            "Space, Stop and Return, J, K, L, and a speed change drop the end",
+        ] {
+            #expect(play.contains(part), "\(part)")
+        }
+        #expect(!play.contains("With neither, the play starts at the playhead and runs to the end of the session"))
+        for part in [
+            "a frame before to keeps to, and a frame at or after to plays on to the end of the session",
+            "During a forward play, a frame at or after the end of the session stops the play there.",
+        ] {
+            #expect(locate.contains(part), "\(part)")
+        }
+    }
 }

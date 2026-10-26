@@ -175,6 +175,12 @@
 "error.writer.did.not.stop" = "Dirigible non è riuscito a fermare %1$@. L’audio è al sicuro sul disco. Fai clic su %2$@ per riprovare, oppure esci da Dirigible: il prossimo avvio ripristina il take.";
 "paste.banner" = "Operazione Incolla da “%@” in corso";
 "paste.done" = "Incollato.";
+"split.banner" = "Suddivisione delle clip stereo in tracce mono in corso";
+"error.split.space" = "Dirigible non può suddividere le clip stereo. Il disco di questa sessione non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
+"error.split.write" = "Dirigible non può suddividere le clip stereo. Dirigible non può scrivere nella cartella Clips della sessione (errore %lld). Controlla il disco e riprova.";
+"error.split.unreadable" = "Dirigible non può suddividere le clip stereo. Impossibile leggere il file audio “%1$@” (errore %2$lld). Controlla il disco e riprova.";
+"error.split.missing" = "Dirigible non può suddividere le clip stereo. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
+"error.split.yielded" = "La suddivisione si è interrotta a causa di un take in un’altra finestra. Suddividi di nuovo dopo il take.";
 "reverted.to" = "Backup del %@ ripristinato";
 
 /* Window, panels, and alerts */

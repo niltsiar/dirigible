@@ -175,6 +175,12 @@
 "error.writer.did.not.stop" = "Dirigible n’a pas pu arrêter %1$@. L’audio est en sécurité sur le disque. Cliquez sur %2$@ pour réessayer, ou quittez Dirigible. Le prochain lancement restaure la prise.";
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";
+"split.banner" = "Séparation des clips stéréo en pistes mono";
+"error.split.space" = "Dirigible ne peut pas séparer les clips stéréo. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
+"error.split.write" = "Dirigible ne peut pas séparer les clips stéréo. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
+"error.split.unreadable" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";
+"error.split.missing" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
+"error.split.yielded" = "La séparation s’est arrêtée à cause d’une prise dans une autre fenêtre. Séparez à nouveau après la prise.";
 "reverted.to" = "Copie de secours du %@ restaurée";
 
 /* Window, panels, and alerts */

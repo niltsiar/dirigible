@@ -21,6 +21,11 @@ struct ClipConversion {
     var progress: (Double) -> Void = { _ in }
     /// Read before each block and before the read-back. When it is true, `convert` returns nil.
     var isCancelled: () -> Bool = { false }
+    /// With a stereo input into 1 channel, the WAV takes only this side, not 0.5 L + 0.5 R
+    /// (decision 0053).
+    var pick: Side? = nil
+    /// The input frames to convert. Nil converts the whole input from its position.
+    var span: Range<AVAudioFramePosition>? = nil
 
     /// Reads `input` (open at `descriptor` too) in blocks, maps its channels to `channels`,
     /// converts it from `source` to `rate` through one converter when the rates differ, and
@@ -34,6 +39,7 @@ struct ClipConversion {
     func convert(
         _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL
     ) throws(FinalizeError) -> (length: Int, gain: Gain)? {
+        if let span { input.framePosition = span.lowerBound }
         guard
             var result = try pass(
                 input, file: descriptor, from: source, to: rate, into: url, scale: 1, progress: { progress($0 / 2) })
@@ -45,7 +51,7 @@ struct ClipConversion {
         // than its source.
         let scale = Float(ceiling / Double(result.peak))
         if result.peak > 1, let scaled = Gain(clamping: -20 * log10(Double(scale))) {
-            input.framePosition = 0
+            input.framePosition = span?.lowerBound ?? 0
             guard
                 let second = try pass(
                     input, file: descriptor, from: source, to: rate, into: url, scale: scale,
@@ -84,8 +90,9 @@ struct ClipConversion {
         try createClipsFolder(in: package)
         let writer = try ClipWriter(url: url, file: wav, format: output)
         let reader = BlockReader(
-            input: input, descriptor: descriptor, buffer: read, fault: readFault, progress: progress,
-            isCancelled: isCancelled)
+            input: input, descriptor: descriptor, buffer: read, span: span ?? input.framePosition..<input.length,
+            fault: readFault, progress: progress, isCancelled: isCancelled)
+        reader.pick = pick.map { $0 == .left ? 0 : 1 }
         var length = 0
         var peak: Float = 0
         // The peak and the scale act on the buffer that goes to the writer.
@@ -152,40 +159,45 @@ private func scaleInPlace(_ buffer: AVAudioPCMBuffer, by scale: Float) -> Float 
     return peak
 }
 
-/// Reads a file in blocks into one buffer. A read error that `ioErrno` gives an errno sets
-/// `failure`; any other read error, or a read of no frames before the end, sets `unreadable`. A
-/// cancel before a read sets `cancelled`.
+/// Reads the frames `span` of a file in blocks into one buffer. A read error that `ioErrno` gives
+/// an errno sets `failure`; any other read error, or a read of no frames before the end, sets
+/// `unreadable`. A cancel before a read sets `cancelled`.
 /// `@unchecked Sendable`: the converter input block is `@Sendable`, but the converter calls it
 /// synchronously inside `convert`, so one thread at a time uses the reader.
 private final class BlockReader: @unchecked Sendable {
     let input: AVAudioFile
     let descriptor: Int32
     let buffer: AVAudioPCMBuffer
+    let span: Range<AVAudioFramePosition>
     let fault: ReadFault?
     let progress: (Double) -> Void
     let isCancelled: () -> Bool
     /// A buffer at the source rate with the output channels that gets a copy of each block.
     var relabeled: AVAudioPCMBuffer?
+    /// The input channel that a 2 into 1 copy takes, or nil for 0.5 L + 0.5 R.
+    var pick: Int?
     private var block = 0
     private(set) var failure: Int32?
     private(set) var unreadable = false
     private(set) var cancelled = false
 
     init(
-        input: AVAudioFile, descriptor: Int32, buffer: AVAudioPCMBuffer, fault: ReadFault?,
-        progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool
+        input: AVAudioFile, descriptor: Int32, buffer: AVAudioPCMBuffer, span: Range<AVAudioFramePosition>,
+        fault: ReadFault?, progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool
     ) {
         self.input = input
         self.descriptor = descriptor
         self.buffer = buffer
+        self.span = span
         self.fault = fault
         self.progress = progress
         self.isCancelled = isCancelled
     }
 
-    /// False at the end of the file, after an error, or after a cancel.
+    /// False at the end of the span, after an error, or after a cancel.
     func next() -> Bool {
-        guard failure == nil, !unreadable, !cancelled, input.framePosition < input.length else { return false }
+        let position = input.framePosition
+        guard failure == nil, !unreadable, !cancelled, position < span.upperBound else { return false }
         if isCancelled() {
             cancelled = true
             return false
@@ -193,19 +205,21 @@ private final class BlockReader: @unchecked Sendable {
         defer { block += 1 }
         do {
             if let fault, fault.block == block { try fault.before() }
-            try input.read(into: buffer, frameCount: buffer.frameCapacity)
+            try input.read(
+                into: buffer, frameCount: min(buffer.frameCapacity, AVAudioFrameCount(span.upperBound - position)))
         } catch {
             if let code = ioErrno(of: error, file: descriptor) { failure = code } else { unreadable = true }
             return false
         }
         // A read of no frames before the end would give a short clip.
         if buffer.frameLength == 0 { unreadable = true }
-        progress(min(1, Double(input.framePosition) / Double(input.length)))
+        let count = span.upperBound - span.lowerBound
+        progress(min(1, Double(input.framePosition - span.lowerBound) / Double(count)))
         return !unreadable
     }
 
-    /// The next block, copied into `relabeled` with its channels: 2 into 1 is 0.5 L + 0.5 R, and 1
-    /// into 2 goes to both. Nil at the end of the file, after an error, or after a cancel.
+    /// The next block, copied into `relabeled` with its channels: 2 into 1 is `pick` or 0.5 L + 0.5 R,
+    /// and 1 into 2 goes to both. Nil at the end of the span, after an error, or after a cancel.
     func nextRelabeled() -> AVAudioPCMBuffer? {
         guard let relabeled, next(), let source = buffer.floatChannelData, let target = relabeled.floatChannelData
         else { return nil }
@@ -213,7 +227,9 @@ private final class BlockReader: @unchecked Sendable {
             Int(buffer.frameLength), Int(buffer.format.channelCount), Int(relabeled.format.channelCount)
         )
         relabeled.frameLength = buffer.frameLength
-        if inputs == 2, outputs == 1 {
+        if inputs == 2, outputs == 1, let pick {
+            target[0].update(from: source[pick], count: frames)
+        } else if inputs == 2, outputs == 1 {
             var half: Float = 0.5
             vDSP_vasm(source[0], 1, source[1], 1, &half, target[0], 1, vDSP_Length(frames))
         } else {

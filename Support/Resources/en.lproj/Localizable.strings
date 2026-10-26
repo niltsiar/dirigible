@@ -175,6 +175,12 @@
 "error.writer.did.not.stop" = "Dirigible could not stop %1$@. The audio is safe on disk. Click %2$@ to try again, or quit Dirigible: the next launch restores the take.";
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
+"split.banner" = "Splitting stereo clips into mono tracks";
+"error.split.space" = "Dirigible cannot split the stereo clips. The disk of this session does not have enough free space. Free some disk space and try again.";
+"error.split.write" = "Dirigible cannot split the stereo clips. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
+"error.split.unreadable" = "Dirigible cannot split the stereo clips. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
+"error.split.missing" = "Dirigible cannot split the stereo clips. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.split.yielded" = "The split stopped for a take in another window. Split again after the take.";
 "reverted.to" = "Reverted to the backup of %@";
 
 /* Window, panels, and alerts */

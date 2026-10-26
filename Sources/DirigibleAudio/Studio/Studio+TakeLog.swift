@@ -102,6 +102,8 @@ extension StudioError {
         case .importYielded: "importYielded"
         case .paste: "paste"
         case .pasteYielded: "pasteYielded"
+        case .split: "split"
+        case .splitYielded: "splitYielded"
         case .rippleBlocked: "rippleBlocked"
         case .artwork: "artwork"
         case .unusedFiles: "unusedFiles"

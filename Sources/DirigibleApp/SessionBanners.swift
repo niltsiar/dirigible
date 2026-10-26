@@ -225,6 +225,7 @@ extension ImportRun {
         switch kind {
         case .file: L10n.importBanner.format(name)
         case .paste: L10n.pasteBanner.format(name)
+        case .split: L10n.splitBanner.text
         }
     }
 }

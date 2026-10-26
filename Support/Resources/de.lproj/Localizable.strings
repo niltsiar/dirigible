@@ -175,6 +175,12 @@
 "error.writer.did.not.stop" = "Dirigible konnte %1$@ nicht stoppen. Das Audio ist sicher auf der Festplatte. Klicke auf „%2$@“, um es erneut zu versuchen, oder beende Dirigible: Beim nächsten Start wird der Take wiederhergestellt.";
 "paste.banner" = "Aus „%@“ wird eingesetzt";
 "paste.done" = "Eingesetzt.";
+"split.banner" = "Stereo-Clips werden in Mono-Spuren geteilt";
+"error.split.space" = "Dirigible kann die Stereo-Clips nicht teilen. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
+"error.split.write" = "Dirigible kann die Stereo-Clips nicht teilen. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
+"error.split.unreadable" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
+"error.split.missing" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.split.yielded" = "Das Teilen wurde für einen Take in einem anderen Fenster gestoppt. Teile nach dem Take erneut.";
 "reverted.to" = "Auf das Backup von %@ zurückgesetzt";
 
 /* Window, panels, and alerts */

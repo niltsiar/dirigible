@@ -35,7 +35,8 @@ that the test cannot print exits 2 before any change. Swift Testing prints each 
 outermost comparison of an #expect with its value, for example (rows(model) → [...]) == [], so a
 text that spans an operand and its operator never prints: copy the text from the failure output.
 The refusal applies only to the #expect and #require conditions of the --exact names of the test
-command, found under Tests/, and only when the text is in no string literal under Tests/.
+command, found under Tests/, and only when the text is in no string literal under Tests/ and no
+condition of those bodies can print it (a copy that starts at the paren after the left operand prints).
 A failed restore exits 3. A control that needs two edits (a guard mutant and the fault
 that trips it) is one call with two pairs. An extra argument --in=<file> puts the pairs after it
 in <file>: one mutant in two files, with each file hashed and restored. Do not nest mutate.py in the test command: the outer
@@ -197,11 +198,18 @@ def conditions(body):
 
 
 def spans_comparison(text, condition):
-    """True when `text` is in `condition` and spans a top-level comparison and the end of its left operand."""
+    """One flag for each copy of `text` in `condition`: True when the copy spans a top-level comparison
+    and the end of its left operand, so the failure output never prints it. The paren that closes the
+    left operand is the wrapper that Swift Testing prints before the operator: a copy that starts there
+    prints."""
     top = set(top_level(condition))
     outside = ''.join(c if i in top else ' ' for i, c in enumerate(condition))
+    copies, at = [], condition.find(text)
+    while at != -1:
+        copies.append(at)
+        at = condition.find(text, at + 1)
     if re.search(r'\b(try|await)\b', condition) or re.search(r'&&|\|\||\?\?| \? ', outside):
-        return False
+        return [False] * len(copies)
     operators, i = [], 0
     while i < len(condition):
         for operator in COMPARISONS:
@@ -211,14 +219,16 @@ def spans_comparison(text, condition):
                 i += len(operator) - 1
                 break
         i += 1
-    at = condition.find(text)
-    while at != -1:
+    flags = []
+    for at in copies:
+        spans = False
         for start, end, left in operators:
+            last = len(condition[:start].rstrip()) - 1
             literal = not re.search(r'[A-Za-z_]', left) or re.match(r'[."\d\[]', left)
-            if not literal and at <= len(condition[:start].rstrip()) - 1 and at + len(text) >= end:
-                return True
-        at = condition.find(text, at + 1)
-    return False
+            wrapper = at == last and condition[at] == ')'
+            spans = spans or (not literal and not wrapper and at <= last and at + len(text) >= end)
+        flags.append(spans)
+    return flags
 
 
 @functools.lru_cache(maxsize=None)
@@ -241,8 +251,10 @@ def expect_refusal(text, test_command, tests_folder):
     #expect or #require in the bodies of the --exact names of the command (with no --exact a sibling
     test can hold the same text alone); that condition has no try, await, or top-level &&, ||, ??, or
     ? (Swift Testing prints an operand of && as written); the text spans a top-level comparison
-    operator and the end of its left operand, which is not a literal; and no string literal under the
-    tests folder holds the text (a message prints as written)."""
+    operator and the end of its left operand, which is not a literal, and does not start at the paren
+    that closes that operand (the wrapper prints before the operator); no string literal under the
+    tests folder holds the text (a message prints as written); and no other condition of those
+    bodies can print the text."""
     if ARROW in text or '--exact' not in test_command:
         return None
     names = [w.strip('\'"') for w in test_command.split('--exact', 1)[1].split()
@@ -250,15 +262,21 @@ def expect_refusal(text, test_command, tests_folder):
     texts, literals = swift_tests(tests_folder)
     if any(text in literal for literal in literals):
         return None
+    spanning = None
     for name in names:
         for source in texts:
             for declared in re.finditer(r'\bfunc\s+' + re.escape(name) + r'\s*\(', source):
                 brace = source.find('{', declared.end())
                 body = source[brace:closing(source, brace)] if brace != -1 else ''
                 for condition in conditions(body):
-                    if spans_comparison(text, condition):
-                        return (f'Swift Testing prints each operand of {condition.strip()!r} with its value, '
-                                f'so {text!r} never prints; copy the text from the failure output of the test')
+                    flags = spans_comparison(text, condition)
+                    if not all(flags):
+                        return None
+                    if flags:
+                        spanning = condition
+    if spanning:
+        return (f'Swift Testing prints each operand of {spanning.strip()!r} with its value, '
+                f'so {text!r} never prints; copy the text from the failure output of the test')
     return None
 
 

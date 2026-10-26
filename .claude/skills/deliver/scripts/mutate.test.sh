@@ -124,6 +124,8 @@ cat > "$tmp/Tests/Suite/CutTests.swift" <<'SWIFT'
     @Test func aTryCondition() { #expect(try await load() == 3) }
     @Test func aLiteralLeft() { #expect([] == rows(model)) }
     @Test func aCommentArgument() { #expect(a == b, "a == b") }
+    @Test func aCountBesideAnd() { #expect(rows.count == 0); #expect(ready && rows.count == 0) }
+    @Test func aLoadBesideTry() { #expect(load() == 3); #expect(try await load() == 3) }
     @Test func aHelperMessage() { check("before the first tick") }
     func check(_ step: String) { #expect(ok, "\(step): edge") }
 }
@@ -165,6 +167,9 @@ allows 'the interpolated message of a helper' 'before the first tick: edge' "$(f
 allows 'the same text in the comment argument' 'a == b' "$(fail_with aCommentArgument)"
 allows 'an operand of a top-level &&' 'x == 1' "$(fail_with anAndCondition)"
 allows 'a condition with try and await' 'load() == 3' "$(fail_with aTryCondition)"
+allows 'a comparison that an operand of && also holds' 'rows.count == 0' "$(fail_with aCountBesideAnd)"
+allows 'a comparison that a condition with try also holds' 'load() == 3' "$(fail_with aLoadBesideTry)"
+allows 'the paren that closes the left operand' ') == []' "$(fail_with aUserCutShowsNoRow)"
 allows 'a literal left operand' '[] == rows' "$(fail_with aLiteralLeft)"
 allows 'a test command with no --exact' 'rows(model) == []' 'echo boom; exit 1'
 allows 'the recorded issue form' 'aUserCutShowsNoRow() recorded an issue' "$(fail_with aUserCutShowsNoRow)"

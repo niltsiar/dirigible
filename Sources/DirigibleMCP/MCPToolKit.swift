@@ -67,6 +67,8 @@ enum ToolWork: Sendable {
     case takeMap(TakeMapQuery)
     /// `silences`, `nearest_pause`, and `meter`: no lock, as their commands (decision 0062).
     case read(ReadWork)
+    /// `batch`: many steps in one edit, one undo step in the app and one save on the files (decision 0063).
+    case batch(BatchWork)
 
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
@@ -76,7 +78,7 @@ enum ToolWork: Sendable {
             true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
             .record, .transport, .words,
-            .takeMap:
+            .takeMap, .batch:
             false
         }
     }
@@ -239,7 +241,7 @@ struct Param<Value: Sendable>: ParamInfo {
     }
 }
 
-private func parse<T>(_ value: Any, _ key: String, _ kind: Kind<T>) throws(ToolError) -> T {
+func parse<T>(_ value: Any, _ key: String, _ kind: Kind<T>) throws(ToolError) -> T {
     guard let parsed = kind.parse(value) else { throw ToolError("The argument \"\(key)\" must be \(kind.expected).") }
     return parsed
 }
@@ -313,9 +315,17 @@ struct Tool: Sendable {
         }
     }
 
+    /// Whether a call of the tool can be a step of a batch (decision 0063). Each package tool names
+    /// it at its definition, with no default value; a local tool is `.alone`.
+    enum BatchRole: Sendable {
+        case step
+        case alone
+    }
+
     let name: String
     let description: String
     let body: Body
+    let batch: BatchRole
     private(set) var hints = Hints.none
 
     /// This tool with `hints`.
@@ -345,17 +355,18 @@ struct Tool: Sendable {
 
     /// An edit tool (`saves`) says in its description how the call can be undone.
     init(
-        _ name: String, _ description: String, _ params: [any ParamInfo], saves: Bool = true,
+        _ name: String, _ description: String, _ params: [any ParamInfo], saves: Bool = true, batch: BatchRole,
         make: @escaping @Sendable (Arguments) throws(ToolError) -> ToolWork
     ) {
         self.name = name
         self.description = saves ? description + Self.undoNote : description
         self.body = .package(params: params, make: make)
+        self.batch = batch
     }
 
     /// A local tool that gives `text`.
     init(_ name: String, _ description: String, text: @escaping @Sendable () -> String) {
-        (self.name, self.description, self.body) = (name, description, .local(text))
+        (self.name, self.description, self.body, self.batch) = (name, description, .local(text), .alone)
     }
 
     var inputSchema: [String: Any] {

@@ -1117,6 +1117,7 @@ The 64 tools, in groups:
 - Read by time: `silences`, `nearest_pause`, `meter`. They give the text of `dirigible silences`, `nearest-pause`, and `meter`, so the agent can place a cut, a marker, or a duck with no export. The agent can cancel them.
 - Chapters: `chapters_export`, `chapters_import`. They give the text of `dirigible chapters export` and `import`. `chapters_export` with an `out` that ends in `.txt` writes the chapter list. `clip_heal` gives the ID of each healed clip.
 - Source: `devices`, `apps`. They give the lines of `dirigible devices` and `dirigible apps`: the input devices and the apps of this Mac that can be a track source. They take no argument.
+- Batch: `batch`. It runs 1 to 100 edit calls as one edit: one save on a closed session, and no change if a call fails. The command is `dirigible batch`, with a file of calls.
 
 `session_info` gives the JSON of `dirigible info --json` on one line. The JSON of a long edited session is too large for the agent, so a `session_info` answer over a size limit is an overview: each track with its clip count, the end frame, and the marker count. Then the agent reads the session in parts: `from` and `to` give only the clips and markers that touch that frame range, and `tracks` gives only those tracks. With a filter, the answer has only the files and captures of the clips in it. With `compact` true (and `dirigible info --json --compact`), the JSON has only `sampleRate`, `tracks` with their clips, and `markers`: an agent that edits needs no more, and the read costs fewer tokens.
 

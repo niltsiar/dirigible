@@ -129,7 +129,7 @@ let audioTools = [
         "Show the integrated loudness of each clip, the text of dirigible loudness: one line for each clip, the "
             + "clip ID, a tab, and the BS.1770 loudness with the clip gain, \"none\", \"missing\", or \"unreadable\". "
             + "It writes nothing. A cancel stops the measure.",
-        [loudnessClips], saves: false
+        [loudnessClips], saves: false, batch: .alone
     ) { a throws(ToolError) in .loudness(clips: try a[loudnessClips] ?? []) }.hinted(.readOnly),
     Tool(
         "export",
@@ -137,7 +137,8 @@ let audioTools = [
             + "the format. The text is the loudness line with a loudness target, then the warning lines, or OK. A "
             + "file in the range that is missing, short, or unreadable refuses the export, unless allow_missing."
             + cancelNote,
-        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing], saves: false
+        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing], saves: false,
+        batch: .alone
     ) { a throws(ToolError) in
         // The type of each argument first, then the path, then the option rules.
         let (depth, kbits, folds, hertz, target) = (
@@ -159,7 +160,7 @@ let audioTools = [
         "Render the session mix to a 32-bit float stereo CAF file at the session rate, as dirigible render. A "
             + "missing or short file renders as silence, with a warning line. The text is the warning lines, or OK."
             + cancelNote,
-        [renderOut, from, to], saves: false
+        [renderOut, from, to], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let (first, end) = (try a[from], try a[to])
         let path = try outPath(a, renderOut)
@@ -174,7 +175,7 @@ let audioTools = [
             + "stereo track and -19 LUFS for a mono track, within -20...20 dB. The text is one line for each clip, "
             + "the clip ID, a tab, and the new gain, \"none\", or \"unreadable\", then the report line. A level that "
             + "changes no gain writes nothing." + editCancelNote("no gain changes"),
-        [chosenClips, perTrack]
+        [chosenClips, perTrack], batch: .alone
     ) { a throws(ToolError) in .level(LevelWork(clips: try a[chosenClips] ?? [], perTrack: try a[perTrack])) },
     Tool(
         "duck",
@@ -185,7 +186,8 @@ let audioTools = [
             + "runs, ducked clips, unchanged clips, kept clips, speech files that did not read), then the report line. The scope ends at the session end. A from at or "
             + "after the session end, or no speech over the threshold, changes nothing."
             + editCancelNote("no envelope changes"),
-        [duckSpeech, duckMusic, duckFrom, duckTo, duckDepth, duckAttack, duckRelease, duckThreshold, duckHold]
+        [duckSpeech, duckMusic, duckFrom, duckTo, duckDepth, duckAttack, duckRelease, duckThreshold, duckHold],
+        batch: .alone
     ) { a throws(ToolError) in
         let (speech, music, first, end) = (
             try a[duckSpeech] ?? [], try a[duckMusic] ?? [], try a[duckFrom], try a[duckTo]
@@ -209,7 +211,7 @@ let audioTools = [
         [
             importFile, importTrack, importAt, noLevel, importID, importOffset, importLength, importGain, importFadeIn,
             importFadeOut,
-        ]
+        ], batch: .alone
     ) { a throws(ToolError) in
         let (path, track, start, keeps) = (try a[importFile], try a[importTrack], try a[importAt], try a[noLevel])
         let (id, first, count, gain) = (try a[importID], try a[importOffset], try a[importLength], try a[importGain])
@@ -234,7 +236,7 @@ let audioTools = [
             + "meets the range is given whole, up to 60 s past the range: a silence that goes on past that limit "
             + "stops there, with a warning line first. A missing, short, or unreadable file refuses the read. It writes "
             + "nothing. A cancel stops the read.",
-        [readFrom, readTo, readTracks, readThreshold, silenceLength], saves: false
+        [readFrom, readTo, readTracks, readThreshold, silenceLength], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let (first, end, ids, level, minimum) = (
             try a[readFrom], try a[readTo], try a[readTracks] ?? [], try a[readThreshold], try a[silenceLength]
@@ -251,7 +253,7 @@ let audioTools = [
             + "level (-inf dBFS for digital silence). A silence that meets the search range is given whole, up to 60 s "
             + "past the range: a silence that goes on past that limit stops there, with a warning line first. A "
             + "missing, short, or unreadable file refuses the read. It writes nothing. A cancel stops the read.",
-        [pauseAt, pauseWindow, readTracks, readThreshold, pauseLength], saves: false
+        [pauseAt, pauseWindow, readTracks, readThreshold, pauseLength], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let (at, window, ids, level, minimum) = (
             try a[pauseAt], try a[pauseWindow], try a[readTracks] ?? [], try a[readThreshold], try a[pauseLength]
@@ -267,7 +269,7 @@ let audioTools = [
             + "the RMS level, and the peak, in dBFS (-inf dBFS for digital silence). A missing, short, or "
             + "unreadable file reads as silence. The warning lines of a stereo export come first: the files that "
             + "read as silence, and the muted or not soloed tracks. It writes nothing. A cancel stops the read.",
-        [readFrom, readTo, readTracks, meterStep], saves: false
+        [readFrom, readTo, readTracks, meterStep], saves: false, batch: .alone
     ) { a throws(ToolError) in
         let (first, end, ids, step) = (try a[readFrom], try a[readTo], try a[readTracks] ?? [], try a[meterStep])
         return try readWork(ReadWork.meter(from: first, to: end, tracks: ids, step: step))

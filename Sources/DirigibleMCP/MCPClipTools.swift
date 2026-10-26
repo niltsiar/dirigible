@@ -70,7 +70,7 @@ extension Arguments {
 let clipTools = [
     Tool(
         "clip_place", "Place a clip and give its ID. The clip overwrites the clips under it.",
-        [Arg.track, file, start, length, offset, clipGain, clipID]
+        [Arg.track, file, start, length, offset, clipGain, clipID], batch: .step
     ) { a throws(ToolError) in
         let placed = Clip(
             id: try a[clipID].map { ClipID($0) } ?? ClipID(), file: FileID(try a[file]), start: Frames(try a[start]),
@@ -83,7 +83,7 @@ let clipTools = [
     },
     Tool(
         "clip_clear", "Remove the frames in a range on each track and leave a gap. One save for all tracks.",
-        [tracks, Arg.from, Arg.to]
+        [tracks, Arg.from, Arg.to], batch: .step
     ) { a throws(ToolError) in
         let (range, targets) = (try a.range(), try a[tracks].map { TrackID($0) })
         return .edit(ripple: false) { session throws(SessionError) in
@@ -91,7 +91,8 @@ let clipTools = [
             return []
         }
     },
-    Tool("clip_split", "Split a clip and give the ID of the right part.", [clip, at, rightID]) { a throws(ToolError) in
+    Tool("clip_split", "Split a clip and give the ID of the right part.", [clip, at, rightID], batch: .step) {
+        a throws(ToolError) in
         let (id, frame, right) = (ClipID(try a[clip]), Frames(try a[at]), try a[rightID].map { ClipID($0) })
         return .edit(ripple: false) { session throws(SessionError) in
             [try session.split(id, at: frame, rightID: right).rawValue]
@@ -99,7 +100,7 @@ let clipTools = [
     },
     Tool(
         "clip_split_at", "Split each clip that holds a frame inside it, and give the IDs of the right parts.",
-        [tracks, ats]
+        [tracks, ats], batch: .step
     ) { a throws(ToolError) in
         let (frames, targets) = (try a[ats].map { Frames($0) }, try a[tracks].map { TrackID($0) })
         return .edit(ripple: false) { session throws(SessionError) in
@@ -113,14 +114,14 @@ let clipTools = [
             + "tracks named \"<name> L\" and \"<name> R\". The source clips go; the source track and its file stay. "
             + "A clip on a mono track is refused. Give one line for each clip: the left clip, the right clip, the "
             + "left track, and the right track, with a tab between them." + editCancelNote("no track is added"),
-        [clips]
+        [clips], batch: .alone
     ) { a throws(ToolError) in
         .splitStereo(SplitWork(clips: try a[clips].map { ClipID($0) }))
     },
     Tool(
         "clip_paste",
         "Copy a range of tracks and paste it at a frame over the clips there. Give the pasted IDs." + sourceNote,
-        [Arg.from, Arg.to, tracks, at, onto, source]
+        [Arg.from, Arg.to, tracks, at, onto, source], batch: .step
     ) { a throws(ToolError) in
         let (range, sources, frame) = (try a.range(), try a[tracks], Frames(try a[at]))
         guard let targets = EditRules.pasteTargets(sources: sources, onto: try a[onto]) else {
@@ -138,7 +139,7 @@ let clipTools = [
         "clip_paste_clips",
         "Copy whole clips with their time and track offsets, and paste them at a frame over the clips under "
             + "them. Give the pasted IDs." + sourceNote,
-        [clips, at, onto, source]
+        [clips, at, onto, source], batch: .step
     ) { a throws(ToolError) in
         let (ids, frame, targets) = (try a[clips].map { ClipID($0) }, Frames(try a[at]), try a[onto])
         if let work = try a.paste(.clips(ids), at: frame, onto: targets) { return .paste(work) }
@@ -150,7 +151,7 @@ let clipTools = [
     },
     Tool(
         "clip_nudge", "Move clips by a number of frames and tracks. They overwrite the clips under them.",
-        [someClips, by, lanes]
+        [someClips, by, lanes], batch: .step
     ) { a throws(ToolError) in
         let (ids, frames, count) = (try a[someClips].map { ClipID($0) }, Frames(try a[by]), try a[lanes])
         return .edit(ripple: false) { session throws(SessionError) in
@@ -158,7 +159,7 @@ let clipTools = [
             return []
         }
     },
-    Tool("clip_remove", "Remove clips and leave gaps.", [someClips]) { a throws(ToolError) in
+    Tool("clip_remove", "Remove clips and leave gaps.", [someClips], batch: .step) { a throws(ToolError) in
         let ids = try a[someClips].map { ClipID($0) }
         return .edit(ripple: false) { session throws(SessionError) in
             try session.removeClips(ids)
@@ -166,7 +167,8 @@ let clipTools = [
         }
     },
     Tool(
-        "clip_move", "Move a clip. It overwrites the clips under it at the new place.", [clip, Arg.track, start]
+        "clip_move", "Move a clip. It overwrites the clips under it at the new place.", [clip, Arg.track, start],
+        batch: .step
     ) { a throws(ToolError) in
         let (id, track, frame) = (ClipID(try a[clip]), TrackID(try a[Arg.track]), Frames(try a[start]))
         return .edit(ripple: false) { session throws(SessionError) in
@@ -174,14 +176,16 @@ let clipTools = [
             return []
         }
     },
-    Tool("clip_trim", "Give a clip a new timeline range.", [clip, Arg.from, Arg.to]) { a throws(ToolError) in
+    Tool("clip_trim", "Give a clip a new timeline range.", [clip, Arg.from, Arg.to], batch: .step) {
+        a throws(ToolError) in
         let (id, range) = (ClipID(try a[clip]), try a.range())
         return .edit(ripple: false) { session throws(SessionError) in
             try session.trim(id, to: range)
             return []
         }
     },
-    Tool("clip_gain", "Set the gain of one or more clips in one edit.", [clips, Arg.gain]) { a throws(ToolError) in
+    Tool("clip_gain", "Set the gain of one or more clips in one edit.", [clips, Arg.gain], batch: .step) {
+        a throws(ToolError) in
         let (ids, gain) = (try a[clips], try a[Arg.gain])
         // V16: Dictionary(uniqueKeysWithValues:) traps on an ID that is given twice.
         if let twice = EditRules.firstRepeat(ids) { throw ToolError("Clip \"\(twice)\" is given twice.") }
@@ -192,7 +196,8 @@ let clipTools = [
         }
     },
     Tool(
-        "clip_fade", "Set the fade-in or the fade-out of a clip in frames. 0 removes a fade.", [clip, fadeIn, fadeOut]
+        "clip_fade", "Set the fade-in or the fade-out of a clip in frames. 0 removes a fade.", [clip, fadeIn, fadeOut],
+        batch: .step
     ) { a throws(ToolError) in
         let (id, newIn, newOut) = (ClipID(try a[clip]), try a[fadeIn], try a[fadeOut])
         guard EditRules.fadeGiven(fadeIn: newIn, fadeOut: newOut) else { throw ToolError("Give in, out, or both.") }
@@ -220,7 +225,7 @@ let clipTools = [
     Tool(
         "clip_crossfade",
         "Set the crossfade at the end of a clip and the start of the clip that touches it, in frames. 0 removes it.",
-        [clip, crossfade]
+        [clip, crossfade], batch: .step
     ) { a throws(ToolError) in
         let id = ClipID(try a[clip])
         guard let frames = EditRules.crossfadeLength(try a[crossfade]) else {
@@ -235,7 +240,7 @@ let clipTools = [
         "clip_heal",
         "Join the clips that touch and play on in one file at one gain at each frame, the envelope included, with "
             + "no fade at the join. The sound does not change: it undoes a split. Give the ID of each healed clip.",
-        [healTracks, healFrom, healTo]
+        [healTracks, healFrom, healTo], batch: .step
     ) { a throws(ToolError) in
         let targets = try a[healTracks]?.map { TrackID($0) }
         let range: ClosedRange<Frames>?

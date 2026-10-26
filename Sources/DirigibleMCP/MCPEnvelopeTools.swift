@@ -36,7 +36,7 @@ let envelopeTools = [
         "Set the gain points of a clip inside its window, in timeline frames. The points outside the window stay, "
             + "and after [] they still set the gain at the clip edges. To make the clip flat, set a 0 dB point at the "
             + "first frame and at the last frame of the clip.",
-        [clip, points]
+        [clip, points], batch: .step
     ) { a throws(ToolError) in
         let (id, given) = (ClipID(try a[clip]), try a[points])
         if let twice = EditRules.firstRepeat(given.map(\.frame)) { throw ToolError("Frame \(twice) is given twice.") }
@@ -50,7 +50,7 @@ let envelopeTools = [
         "clip_gain_range",
         "Add a gain to a range of tracks, with ramps outside the range, on top of the gain points. Give the ID of "
             + "each changed clip.",
-        [tracks, Arg.from, Arg.to, Arg.gain, ramp]
+        [tracks, Arg.from, Arg.to, Arg.gain, ramp], batch: .step
     ) { a throws(ToolError) in
         let (targets, gain, frames) = (try a[tracks].map { TrackID($0) }, try a[Arg.gain], try a[ramp])
         guard let range = EditRules.gainRange(from: try a[Arg.from], to: try a[Arg.to]) else {

@@ -20,7 +20,7 @@ let takeTools = [
         "Give the timeline frames of take frames, as dirigible take map. Take frame 0 is the record start of the "
             + "take. One line for each frame: the frame, then track:frame for each clip that plays it, or cut when "
             + "an edit removed it. With timeline, the frame, then track:take frame for each track, or none.",
-        [frames, take, timeline, tracks], saves: false
+        [frames, take, timeline, tracks], saves: false, batch: .alone
     ) { a throws(ToolError) in
         .takeMap(
             try TakeMapQuery(

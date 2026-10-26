@@ -177,7 +177,7 @@ let recordTools = [
             + "show the sheet. A take after a click can be up to "
             + "\(RecordRequest.units(Int64(RecordRequest.takeLimit / 3600), "hour")) long. A window takes "
             + "\(RecordRequest.askText) at most.",
-        [seconds, arm, playhead], saves: false
+        [seconds, arm, playhead], saves: false, batch: .alone
     ) { a throws(ToolError) in
         guard let length = EditRules.takeSeconds(try a[seconds]) else {
             throw ToolError("The seconds must be more than 0 and 86400 (24 h) or less.")

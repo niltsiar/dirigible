@@ -20,7 +20,7 @@ let rippleTools = [
         "clip_ripple_delete",
         "Remove the frames in one or more ranges and move the later clips and the markers left to close the gap. "
             + "A marker in a range goes to its start. Ranges that overlap or touch cut as one range.",
-        [froms, tos, scope]
+        [froms, tos, scope], batch: .step
     ) { a throws(ToolError) in
         let (from, to) = (try a[froms], try a[tos])
         let ranges: [Range<Frames>]
@@ -40,7 +40,7 @@ let rippleTools = [
     Tool(
         "clip_ripple_insert",
         "Insert silence: split the clips at a frame, and move the later clips and the markers right.",
-        [at, length, scope]
+        [at, length, scope], batch: .step
     ) { a throws(ToolError) in
         let (frame, frames, ids) = (Frames(try a[at]), Frames(try a[length]), try a[scope])
         return .edit(ripple: true) { session throws(SessionError) in
@@ -52,7 +52,7 @@ let rippleTools = [
         "clip_ripple_trim",
         "Move one edge of a clip and ripple the span on the tracks: the later clips and the markers move with the "
             + "edge. The clip start stays. The track of the clip always ripples.",
-        [clip, edge, by, scope]
+        [clip, edge, by, scope], batch: .step
     ) { a throws(ToolError) in
         let (id, side, frames, ids) = (ClipID(try a[clip]), try a[edge], Frames(try a[by]), try a[scope])
         return .edit(ripple: true) { session throws(SessionError) in

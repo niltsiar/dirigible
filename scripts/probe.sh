@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run a probe in its own folder. The probe can write only in that folder, the system
-# temporary folders, and /dev. A probe once deleted files in the home folder, so the
+# Run a probe in its own folder. The probe can write only in that folder, /private/var/folders
+# (the TMPDIR of the user), and /dev. A probe once deleted files in the home folder, so the
 # sandbox refuses a write anywhere else, also a relative path and an unlink() in C.
 # Usage: scripts/probe.sh [--no-audio] <folder> <command> [args...]
 # --no-audio also refuses the audio server, so the command sees no audio device and cannot record.
@@ -25,8 +25,16 @@
 # under .build/bench/.build, before you build (scripts/bench.sh does it for its copy). In a
 # command-line Swift probe, a top-level `Task {}` inherits the main actor: when the main thread
 # then blocks (a semaphore), use `Task.detached`, or the probe hangs.
-# The sandbox refuses writes under /Volumes, so `hdiutil create -srcfolder` fails with "Operation
-# not permitted". Create a blank image and attach it with `-mountpoint` in the probe folder.
+# Each refusal below ends a step with "Operation not permitted" or another error. Run that step
+# outside the probe, and log it:
+# - a write under /Volumes: `hdiutil create -srcfolder` fails; create a blank image and attach it
+#   with `-mountpoint` in the probe folder;
+# - a write in /private/tmp outside the folder, also with a /private/tmp folder (only that folder
+#   is open);
+# - a write under ~/.claude, so a nested `claude -p` fails;
+# - a write to the system Versions store;
+# - an exec of a setuid tool, for example /bin/ps;
+# - the xctrace Time Profiler template, which exits 33.
 #
 # An app in a probe: the user can have it open. Open only an app that is not running (check with
 # `pgrep -x <name>` first), record the PID of the app that you open, and at the end quit only that

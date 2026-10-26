@@ -26,6 +26,17 @@ echo keep > "$root/outside/c.txt"
 "$probe" "$root/p" /bin/mv "$root/outside/c.txt" "$root/p/c.txt" 2>/dev/null
 [[ -f "$root/outside/c.txt" ]] || fail "a rename out of a folder outside was allowed"
 
+# The header names the refusal of a write in /private/tmp outside the folder, and the open
+# /private/var/folders (the TMPDIR of the user). A new file in each shows both.
+outside_tmp="/private/tmp/probe-test-outside.$$"
+err="$("$probe" "$root/p" /bin/sh -c "echo x > '$outside_tmp'" 2>&1)"
+[[ ! -e "$outside_tmp" && "$err" == *"Operation not permitted"* ]] || fail "a new file in /private/tmp outside the folder: [$err]"
+rm -f "$outside_tmp"
+user_tmp="$(cd "$(getconf DARWIN_USER_TEMP_DIR)" && pwd -P)/probe-test-inside.$$"
+"$probe" "$root/p" /bin/sh -c "echo x > '$user_tmp'" || fail "a write under /private/var/folders was refused"
+[[ -f "$user_tmp" ]] || fail "a write under /private/var/folders did not land"
+rm -f "$user_tmp"
+
 # A folder outside .scratchpads/ and /private/tmp is refused before the command runs.
 "$probe" "$HOME" /usr/bin/true 2>/dev/null
 [[ $? -eq 2 ]] || fail "the home folder was accepted as a probe folder"

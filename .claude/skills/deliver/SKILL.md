@@ -59,7 +59,7 @@ Write `plan.md`:
 A workflow upkeep run uses the doc lenses of interrogate Step 3 in place of one doc lens. This holds at the plan gate and the code gate, for `risk: no` and `risk: yes`.
 
 - The red-first log of a slice is its control, plus a screenshot or AX check per visible criterion of a sources change: no mutation control at slice time. `docs/decisions/0028-proportional-checks-and-reflect-governance.md` says when a plan raises a guard to risk. A tooling control is a failing case in its `.test.sh`.
-- Each gate has `maxRounds: 2`; round 2 runs only on a critical item. The lead rules on each warning. The agent that applies the fixes reads the code, then writes each fix and each lead ruling; the fix check covers each fix.
+- Each gate has `maxRounds: 2`; round 2 runs only on a critical item. The lead rules on each warning. The agent that applies the fixes reads the code, then writes each fix and each lead ruling under its item in the last `review-<gate>-<n>.md`; the fix check covers each fix.
 - Light path: in a run whose classes are only `docs`, `comments`, or `tooling`, resume the agent that wrote the gate target (the Phase 1-2 agent, or the last implementer) with `SendMessage` for the gate fixes, and start no gate-fix agent. When it cannot resume, or its context is over the 150k line of `docs/workflow/model-routing.md`, the lead applies the plan gate fixes and a new agent of the slice model applies the code gate fixes. The Phase 7 agent is the last implementer, resumed; when it cannot resume or is over the 150k line, it is a new agent of the slice model. This holds also when the code gate has no Act-on item.
 
 ## Phase 3: Plan gate

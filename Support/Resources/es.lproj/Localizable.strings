@@ -44,6 +44,7 @@
 "menu.tools.level.track.all" = "Nivelar automáticamente por pista (todos)";
 "menu.tools.duck" = "Atenuar la música bajo la voz…";
 "menu.tools.split.stereo" = "Dividir estéreo en mono";
+"menu.tools.reduce.noise" = "Reducir ruido";
 
 /* Errores */
 "error.studio.busy" = "Hay una toma en curso o terminando. Espera a que termine.";
@@ -186,6 +187,9 @@
 "error.split.missing" = "Dirigible no puede dividir los clips estéreo. El archivo de audio «%@» no está en la carpeta Clips de la sesión. Vuelva a poner el archivo en esa carpeta e inténtelo de nuevo.";
 "error.split.yielded" = "La división se detuvo por una toma en otra ventana. Vuelva a dividir después de la toma.";
 "denoise.banner" = "Reduciendo ruido";
+"denoise.done.one" = "Ruido reducido en 1 clip, %lld dB.";
+"denoise.done.many" = "Ruido reducido en %1$lld clips, %2$lld dB.";
+"denoise.canceled" = "Reducción de ruido cancelada. Ningún clip cambió.";
 "error.denoise.space" = "Dirigible no puede reducir el ruido. El disco de esta sesión no tiene espacio libre suficiente. Libere espacio en el disco y vuelva a intentarlo.";
 "error.denoise.write" = "Dirigible no puede reducir el ruido. Dirigible no puede escribir en la carpeta Clips de la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";
 "error.denoise.unreadable" = "Dirigible no puede reducir el ruido. El archivo de audio «%1$@» no se pudo leer (error %2$lld). Compruebe el disco y vuelva a intentarlo.";

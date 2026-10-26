@@ -17,9 +17,10 @@ enum LaneMenu {
 
     /// The groups of the menu, with no empty group. `split` is true when a clip is at the split
     /// frames; `clips` is true for a clip set with a clip; `stereo` is true when the selection holds a
-    /// stereo clip.
+    /// stereo clip; `denoise` is true when it holds a clip that Reduce Noise takes.
     static func groups(
-        selection: Bool, clips: Bool, stereo: Bool, clipboard: Bool, split: Bool, canEdit: Bool, canRipple: Bool
+        selection: Bool, clips: Bool, stereo: Bool, denoise: Bool, clipboard: Bool, split: Bool, canEdit: Bool,
+        canRipple: Bool
     ) -> [[Item]] {
         let ripple = canEdit && canRipple
         let range = selection && !clips
@@ -34,6 +35,7 @@ enum LaneMenu {
                 ripple && range ? Item(command: .deleteCloseGap, enabled: true) : nil,
                 split ? Item(command: .split, enabled: true) : nil,
                 stereo ? Item(command: .splitStereo, enabled: true) : nil,
+                denoise ? Item(command: .reduceNoise, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
             ],
         ]
@@ -57,6 +59,7 @@ extension TimelineScrollView {
         let groups = LaneMenu.groups(
             selection: !selection.isEmpty(in: session), clips: selection.marks == nil,
             stereo: !selection.stereoClips(in: session).isEmpty,
+            denoise: !model.denoiseClips(in: session).isEmpty,
             clipboard: model.clipboard != nil,
             split: split,
             canEdit: model.canEdit, canRipple: context.canRipple)
@@ -65,7 +68,10 @@ extension TimelineScrollView {
         for (index, group) in groups.enumerated() {
             if index > 0 { menu.addItem(.separator()) }
             for item in group {
-                guard let title = TimelineCommand.menuItems[item.command]?.title else { continue }
+                guard
+                    let title = TimelineCommand.menuItems[item.command]?.title
+                        ?? TimelineCommand.keylessTitles[item.command]
+                else { continue }
                 let menuItem = NSMenuItem(title: title.text, action: #selector(laneMenuItem(_:)), keyEquivalent: "")
                 (menuItem.target, menuItem.representedObject, menuItem.isEnabled) = (
                     self, item.command, item.enabled && model.isOn(item.command)

@@ -72,7 +72,7 @@ enum TimelineCommand: Hashable {
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
-    case autoLevel, autoLevelPerTrack, duck, splitStereo
+    case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -120,6 +120,8 @@ enum TimelineCommand: Hashable {
         // A text field does nothing with Shift-Command-D, so the key splits the stereo clips of the
         // selection with the focus in a track name field, as Insert does with Command-I.
         case .splitStereo: false
+        // Reduce Noise has no key (ui-panel.md): a rare, slow command.
+        case .reduceNoise: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
         case .addGainPoint, .previousGainPoint, .nextGainPoint: true
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
@@ -248,6 +250,9 @@ enum TimelineCommand: Hashable {
     /// Tools > Split Stereo to Mono (decision 0053): its own group at the end of the Tools menu.
     static let splitStereoItem = MenuItem(
         command: .splitStereo, title: .menuToolsSplitStereo, key: "d", modifiers: [.command, .shift])
+
+    /// The title of a menu item with no key; the lane menu reads it as it reads `menuItems`.
+    static let keylessTitles: [TimelineCommand: L10n] = [.reduceNoise: .menuToolsReduceNoise]
 
     /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the
     /// File menu.
@@ -381,6 +386,7 @@ extension SessionWindow {
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
         case .duck: startDuck()
         case .splitStereo: splitStereo()
+        case .reduceNoise: reduceNoise()
         }
     }
 }

@@ -44,6 +44,7 @@
 "menu.tools.level.track.all" = "Nivelamento Automático por Pista (Todos os Clipes)";
 "menu.tools.duck" = "Abaixar Música sob a Voz…";
 "menu.tools.split.stereo" = "Dividir Estéreo em Mono";
+"menu.tools.reduce.noise" = "Reduzir Ruído";
 
 /* Errors */
 "error.studio.busy" = "Uma tomada está sendo gravada ou finalizada. Aguarde até que ela termine.";
@@ -186,6 +187,9 @@
 "error.split.missing" = "O Dirigible não pode dividir os clipes estéreo. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
 "error.split.yielded" = "A divisão foi interrompida por uma tomada em outra janela. Divida novamente depois da tomada.";
 "denoise.banner" = "Reduzindo ruído";
+"denoise.done.one" = "Ruído reduzido em 1 clipe, %lld dB.";
+"denoise.done.many" = "Ruído reduzido em %1$lld clipes, %2$lld dB.";
+"denoise.canceled" = "Redução de ruído cancelada. Nenhum clipe mudou.";
 "error.denoise.space" = "O Dirigible não pode reduzir o ruído. O disco desta sessão não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
 "error.denoise.write" = "O Dirigible não pode reduzir o ruído. O Dirigible não consegue escrever na pasta Clips da sessão (erro %lld). Verifique o disco e tente novamente.";
 "error.denoise.unreadable" = "O Dirigible não pode reduzir o ruído. Não foi possível ler o arquivo de áudio “%1$@” (erro %2$lld). Verifique o disco e tente novamente.";

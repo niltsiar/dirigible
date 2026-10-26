@@ -8,6 +8,7 @@
 - Amended: 2026-10-10, run 2026-10-10-studio-edit-preconditions. Studio owns the ripple check of the window (see the No ripple rule).
 - Amended: 2026-10-13, run 2026-10-13-ripple-ranges (research: `docs/research/multi-range-delete.md`). `Session.rippleDelete(_ ranges:on:)` takes several ranges in one edit and one undo entry. It checks each range first. Then it merges the overlapping and touching ranges, and cuts from the last merged range to the first. The one-range form calls it. `clip ripple-delete` takes `--from` and `--to` more than once, paired by order. No range or a count mismatch exits 64. With several pairs, the refusal of a bad pair names its number, for example "--from must be less than --to (range 2)."
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). The lane menu has Split Stereo to Mono after Split in group 2, only with a stereo clip in the selection. It is no ripple, so a pending or split take does not hide it.
+- Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). The lane menu has Reduce Noise after Split Stereo to Mono in group 2, when the selection holds a clip on a track with no role or the dialogue role. It is no ripple, so a pending or split take does not hide it.
 
 ## Context
 

@@ -430,6 +430,20 @@ A split gives each channel of a stereo clip its own mono track, so you can cut, 
 - A split of a long file takes time. In the app, a banner shows the progress, and **Cancel** stops the split with no new track and no new file. A cancel at the very end can come too late; then the change stays, and **Edit > Undo** removes it. Undo keeps the new WAVs in the package.
 - Each split writes new WAVs, also a split after **Edit > Undo**: a split does not use the WAVs of an undone split again. So each try needs the disk space of its runs again. **File > Remove Unused Files** moves the WAVs of an undone split to the Trash when no Redo step and no backup uses them.
 
+### Reduce noise
+
+Reduce Noise takes background noise out of a clip by 12 dB. It uses the noise reduction of macOS. In the app, select clips, a range, or a track, then choose **Tools > Reduce Noise** (**Reducir ruido**). The command is also in the menu of a right-click on a clip. It has no key. It is off when no clip is selected, during a take, and while an import, a paste, a split, or another Reduce Noise runs. In Terminal, `dirigible clip denoise <package> <clip>...` reduces the noise in the clips, and an agent uses the tool `clip_denoise`.
+
+- Reduce Noise skips the clips of tracks with the Music or Effects role, because the noise reduction removes music and effects. It takes the clips of tracks with no role or the Dialogue role. When the selection holds both, the music stays as it was. The command and the tool refuse a clip of a Music or Effects track. To reduce the noise of such a clip, give its track no role.
+- Each clip keeps its start, length, fades, and crossfades. It plays a new 24-bit WAV in `Clips` in place of its old file. The old WAV stays in the package until **File > Remove Unused Files** moves it, because **Edit > Undo** and the backups use it.
+- One **Edit > Undo** gives back the old file for all clips of the run. **Edit > Redo** swaps them again with no new render.
+- At the end, a banner says how many clips changed, for example "Reduced noise in 3 clips by 12 dB."
+- A second Reduce Noise on the same clip reduces the noise of the new file again, so the reductions stack.
+- A reduced clip can trim out only to the edges of its new file: at least 10 s on each side of the run. For a longer trim, undo the reduction.
+- A reduced clip has no take time, so **Go to Take Time** and a transcript import with a take skip it.
+- A long clip takes time. In the app, a banner shows the progress, and **Cancel** stops the run with no changed clip and no new file. A render needs the disk space of its new WAVs: about 518 MB for 1 h of one mono channel at 48 kHz.
+- A fault while Dirigible moves the new WAVs into `Clips` changes no clip. The WAVs that were moved stay as unused files, and **File > Remove Unused Files** moves them to the Trash.
+
 ### Mute and solo tracks
 
 Each track header has the buttons **M** (mute) and **S** (solo), after the arm button and the Monitor button. During a take, a button that is on keeps its color, and a button that is off is dim.
@@ -818,6 +832,7 @@ The **Tools** menu (**Herramientas**).
 | **Auto Level per Track (All)** | **Nivelar automáticamente por pista (todos)** | Option-Command-L |
 | **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
 | **Split Stereo to Mono** | **Dividir estéreo en mono** | Shift-Command-D |
+| **Reduce Noise** | **Reducir ruido** | None |
 
 ### Transport
 

@@ -44,6 +44,7 @@
 "menu.tools.level.track.all" = "Nivellement automatique par piste (tous)";
 "menu.tools.duck" = "Atténuer la musique sous la voix…";
 "menu.tools.split.stereo" = "Séparer le stéréo en mono";
+"menu.tools.reduce.noise" = "Réduire le bruit";
 
 /* Errors */
 "error.studio.busy" = "Une prise est en cours d’enregistrement ou de finalisation. Attendez qu’elle se termine.";
@@ -186,6 +187,9 @@
 "error.split.missing" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
 "error.split.yielded" = "La séparation s’est arrêtée à cause d’une prise dans une autre fenêtre. Séparez à nouveau après la prise.";
 "denoise.banner" = "Réduction du bruit";
+"denoise.done.one" = "Bruit réduit dans 1 clip de %lld dB.";
+"denoise.done.many" = "Bruit réduit dans %1$lld clips de %2$lld dB.";
+"denoise.canceled" = "Réduction du bruit annulée. Aucun clip modifié.";
 "error.denoise.space" = "Dirigible ne peut pas réduire le bruit. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
 "error.denoise.write" = "Dirigible ne peut pas réduire le bruit. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
 "error.denoise.unreadable" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";

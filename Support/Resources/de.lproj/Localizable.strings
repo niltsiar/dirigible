@@ -44,6 +44,7 @@
 "menu.tools.level.track.all" = "Auto-Pegel pro Spur (alle)";
 "menu.tools.duck" = "Musik unter Sprache absenken …";
 "menu.tools.split.stereo" = "Stereo in Mono aufteilen";
+"menu.tools.reduce.noise" = "Rauschen reduzieren";
 
 /* Errors */
 "error.studio.busy" = "Ein Take wird gerade aufgenommen oder abgeschlossen. Warte, bis er endet.";
@@ -186,6 +187,9 @@
 "error.split.missing" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.split.yielded" = "Das Teilen wurde für einen Take in einem anderen Fenster gestoppt. Teile nach dem Take erneut.";
 "denoise.banner" = "Rauschen wird reduziert";
+"denoise.done.one" = "Rauschen in 1 Clip um %lld dB reduziert.";
+"denoise.done.many" = "Rauschen in %1$lld Clips um %2$lld dB reduziert.";
+"denoise.canceled" = "Rauschreduzierung abgebrochen. Kein Clip wurde geändert.";
 "error.denoise.space" = "Dirigible kann das Rauschen nicht reduzieren. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.denoise.write" = "Dirigible kann das Rauschen nicht reduzieren. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
 "error.denoise.unreadable" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";

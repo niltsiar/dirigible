@@ -19,6 +19,9 @@ extension ChromeState {
         if let shown = model.levelReport, shown.revision == studio.sessionRevision {
             banners.append(.levelReport(shown.report, press: shown.press))
         }
+        if let shown = model.denoiseReport, shown.revision == studio.sessionRevision {
+            banners.append(.noiseReduced(clips: shown.clips, decibels: shown.decibels, press: shown.press))
+        }
         if let shown = model.duckReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
             let moved = shown.report.moved.map(\.item.bytes)

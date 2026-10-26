@@ -17,7 +17,10 @@ struct ClipConversion {
     /// The channel count of the WAV. A stereo input into 1 channel is 0.5 L + 0.5 R; a mono input
     /// into 2 channels goes to both.
     let channels: AVAudioChannelCount
-    /// Gets a non-decreasing fraction in 0...1: pass 1 gives 0...0.5, pass 2 0.5...1, and the end 1.
+    /// Gets a non-decreasing fraction in 0...1, and 1 only at the end, after the read-back. A
+    /// same-rate copy of integer PCM never exceeds full scale, so its one pass gives 0..<1. Else
+    /// pass 1 gives 0...0.5 and pass 2 0.5..<1: a float input or a resample can exceed full scale
+    /// (A11).
     var progress: (Double) -> Void = { _ in }
     /// Read before each block and before the read-back. When it is true, `convert` returns nil.
     var isCancelled: () -> Bool = { false }
@@ -40,9 +43,15 @@ struct ClipConversion {
         _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL
     ) throws(FinalizeError) -> (length: Int, gain: Gain)? {
         if let span { input.framePosition = span.lowerBound }
+        let format = input.fileFormat.streamDescription.pointee
+        let integer = format.mFormatID == kAudioFormatLinearPCM && format.mFormatFlags & kAudioFormatFlagIsFloat == 0
+        let share = source == rate && integer ? 1.0 : 0.5
+        // The last block of a pass comes before the flush and the read-back, so a pass never gives 1.
+        let report = { (fraction: Double) in if fraction < 1 { progress(fraction) } }
         guard
             var result = try pass(
-                input, file: descriptor, from: source, to: rate, into: url, scale: 1, progress: { progress($0 / 2) })
+                input, file: descriptor, from: source, to: rate, into: url, scale: 1,
+                progress: { report($0 * share) })
         else { return nil }
         var gain = Gain.zero
         // An infinite peak gives no finite gain, so it keeps the one pass. A finite peak always gets
@@ -55,7 +64,7 @@ struct ClipConversion {
             guard
                 let second = try pass(
                     input, file: descriptor, from: source, to: rate, into: url, scale: scale,
-                    progress: { progress(0.5 + $0 / 2) })
+                    progress: { report(0.5 + $0 / 2) })
             else { return nil }
             result = second
             gain = scaled

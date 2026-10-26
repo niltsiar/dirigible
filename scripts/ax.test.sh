@@ -80,7 +80,7 @@ expect_press() {
     shift 4
     local out err extra=()
     [[ -n "${ROLE:-}" ]] && extra=(--role "$ROLE")
-    out="$(swift "$ax" press "$path" --tree "$tree/dump.txt" ${extra[@]+"${extra[@]}"} 2>"$tree/err")"
+    out="$(swift "$ax" press "$path" --tree "$tree/${DUMP:-dump.txt}" ${extra[@]+"${extra[@]}"} 2>"$tree/err")"
     local code=$?
     err="$(cat "$tree/err")"
     [[ $code -eq $want_code ]] || fail "$name: exit $code, not $want_code: $err"
@@ -120,6 +120,28 @@ expect_press "a part of a title" "clear" 1 "" "Paths that hold the title:" \
     "Dirigible > Welcome to Dirigible > Clear Menu" "Dirigible > File > Open Recent > Clear Menu"
 expect_press "a title that no element holds" "Zork" 1 "" "No element matches"
 [[ "$(cat "$tree/err")" != *"Paths that hold"* ]] || fail "a title that no element holds: a path list: $(cat "$tree/err")"
+
+# A menu title that ends in the ellipsis character (U+2026) matches a press path part of three
+# periods, as a person types it. The character comes from an escape: the typography hook refuses it
+# in a command. A part that ends in two periods, or a title with no ellipsis, does not match.
+ell=$'\xe2\x80\xa6'
+cat >"$tree/ell.txt" <<'DUMP'
+Role=AXApplication RoleDescription=application Title=Dirigible
+ Role=AXMenuBar RoleDescription=menu bar
+  Role=AXMenuBarItem RoleDescription=menu bar item Title=File MenuItemCmdModifiers=0
+   Role=AXMenu RoleDescription=menu
+    Role=AXMenuItem RoleDescription=menu item Title=Export TranscriptELL MenuItemCmdModifiers=0
+    Role=AXMenuItem RoleDescription=menu item Title=SettingsELL MenuItemCmdModifiers=0
+    Role=AXMenuItem RoleDescription=menu item Title=Dots... MenuItemCmdModifiers=0
+DUMP
+sed -i '' "s/ELL/$ell/" "$tree/ell.txt"
+printf 'Role=AXApplication RoleDescription=application Title=Dirigible\n Role=AXMenuBar RoleDescription=menu bar\n  Role=AXMenuBarItem RoleDescription=menu bar item Title=File\n   Role=AXMenu RoleDescription=menu\n    Role=AXMenuItem RoleDescription=menu item Title=Settings\n' >"$tree/plain.txt"
+DUMP=ell.txt expect_press "three periods for the ellipsis" "File > Export Transcript..." 0 "match: Dirigible > File > Export Transcript$ell"
+DUMP=ell.txt expect_press "three periods on another item" "File > Settings..." 0 "match: Dirigible > File > Settings$ell"
+DUMP=ell.txt expect_press "the ellipsis character itself" "File > Settings$ell" 0 "match: Dirigible > File > Settings$ell"
+DUMP=ell.txt expect_press "two periods" "File > Settings.." 1 "" "No element matches"
+DUMP=ell.txt expect_press "a title with three real periods" "File > Dots..." 0 "match: Dirigible > File > Dots..."
+DUMP=plain.txt expect_press "three periods for a title with no ellipsis" "File > Settings..." 1 "" "No element matches"
 
 # dump --tree prints the lines of a dump file. --witness <text> exits 1 when no line of the same
 # dump has the text, so a read in a transient state that already ended is void, not a pass.

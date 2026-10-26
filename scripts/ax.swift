@@ -25,7 +25,7 @@
 // A menu item line also shows its key: MenuItemCmdChar, MenuItemCmdModifiers (0 Command, 1 Shift,
 // 2 Option, 4 Control, 8 no Command; add the values), and MenuItemCmdVirtualKey (for a key with no
 // character, for example 36 Return or 123 Left Arrow). A menu title can end in the "…" character:
-// copy the title from the dump for press. A menu item with a check mark shows MenuItemMarkChar=✓.
+// type three periods for the ellipsis character in a press path. A menu item with a check mark shows MenuItemMarkChar=✓.
 // Each line ends in Enabled= (1 or 0) when the element has the attribute; a closed menu shows
 // the current state too. To open a menu, press its title with --role AXMenuBarItem: in English,
 // the Record menu has a Record item, so "press Record" alone matches both and is refused.
@@ -172,14 +172,21 @@ func tree(fromDump text: String) -> Node? {
     return parse(0).first
 }
 
+/// True when a part of a press path names a title: the same text, or a part that ends in three periods
+/// for a title that ends in the ellipsis character.
+func sameTitle(_ part: String?, _ title: String?) -> Bool {
+    guard let part, let title else { return false }
+    return part == title || (part.hasSuffix("...") && title == String(part.dropLast(3)) + "\u{2026}")
+}
+
 /// Each element with the last title of the path whose other titles come in order among the titles
 /// above it, with its own path of titles.
 func matches(_ path: [String], _ node: Node, _ above: [String]) -> [(node: Node, titles: [String])] {
     if node.role == "AXMenuBarItem", node.title == "Apple", path.first != "Apple" { return [] }
     var rest = path.dropLast()[...]
-    for title in above where title == rest.first { rest.removeFirst() }
+    for title in above where sameTitle(rest.first, title) { rest.removeFirst() }
     let titles = above + [node.title].compactMap { $0 }.filter { !$0.isEmpty }
-    let own = node.title == path.last && rest.isEmpty ? [(node: node, titles: titles)] : []
+    let own = sameTitle(path.last, node.title) && rest.isEmpty ? [(node: node, titles: titles)] : []
     return own + node.children.flatMap { matches(path, $0, titles) }
 }
 

@@ -18,7 +18,7 @@ struct Dirigible: AsyncParsableCommand {
             PeaksCommand.self, LoudnessCommand.self, SilencesCommand.self, NearestPauseCommand.self, MeterCommand.self,
             LevelCommand.self, DuckCommand.self, ImportCommand.self,
             TranscriptCommand.self,
-            BackupCommand.self,
+            BackupCommand.self, TransportGroup.self,
             MCPCommand.self, SkillCommand.self, DiagnosticsCommand.self,
         ])
 

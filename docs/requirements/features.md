@@ -167,7 +167,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F153 | The record-over warning is a chip over the track headers, with a menu to go to the end, show the clip, or turn off record | tester 2026-10-15 | done, Release 4 run 3 | R7 |
 | F154 | A join at each cut between two clips, and a neutral playhead with a head on the ruler | tester 2026-10-15 | done, Release 4 run 3 | R7 |
 | F155 | A drag on the ruler makes a range, and a click on a clip selects it as a set of clips | tester 2026-10-15 | done, Release 4 run 15 | R7 |
-| F156 | A bar with the clip name at the top of each clip | tester 2026-10-15 | Release 4 | R7 |
+| F156 | A bar with the clip name at the top of each clip | tester 2026-10-15 | done, Release 4 run 16 | R7 |
 | F157 | An import shapes its clip in one call: the part of the file, the gain, the fades, and the clip ID | tester 2026-10-16 | done, Release 4 run 4 | R16 |
 | F158 | An import of the same audio again reuses the WAV in the session | tester 2026-10-16 | done, Release 4 run 4 | R16 |
 | F159 | A compact session read for agents | tester 2026-10-16 | done, Release 4 run 4 | R16 |

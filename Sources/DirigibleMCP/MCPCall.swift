@@ -6,6 +6,17 @@ import Foundation
 /// whether it is an error. A bad argument, a refused edit, a held lock, and a pending take give
 /// the English text of the CLI line (decision 0041).
 extension Tool {
+    /// Runs one call where it belongs: in the app through `route` (a nil route or a nil result
+    /// means that no app has the package), else on the files. A local tool reads this Mac, so its
+    /// call never goes to the app. `MCPServer` and the `dirigible transport` commands use it.
+    func run(_ json: [String: Any], client: ClientInfo, control: CallControl, route: MCPServer.Route?) -> (
+        text: String, isError: Bool
+    ) {
+        var routed: (text: String, isError: Bool)?
+        if case .package = body { routed = route?(name, json, client, control) }
+        return routed ?? call(json, control: control)
+    }
+
     func call(_ json: [String: Any], control: CallControl) -> (text: String, isError: Bool) {
         do throws(ToolError) {
             switch body {
@@ -215,4 +226,17 @@ private func overview(of view: SessionView, in whole: SessionView, size: Int, fi
         "sampleRate": whole.sampleRate, "end": end, "markers": whole.markers.count,
         "tracks": view.tracks.map { ["id": $0.id, "name": $0.name, "clips": $0.clips.count] },
     ])
+}
+
+extension MCPServer {
+    /// One call of the tool `name`, with no MCP session: the commands of the CLI that need the
+    /// app (`dirigible transport`) run their tool here, so they get the replies and the files
+    /// refusals of `dirigible mcp` with no copy of them.
+    package static func run(tool name: String, _ arguments: [String: Any], client: ClientInfo, route: Route?) -> (
+        text: String, isError: Bool
+    ) {
+        guard let tool = Tool.all.first(where: { $0.name == name }) else { return ("no tool \(name).", true) }
+        let control = CallControl(token: nil, interval: .seconds(1), send: { _ in }, poll: { _ in false }, step: {})
+        return tool.run(arguments, client: client, control: control, route: route)
+    }
 }

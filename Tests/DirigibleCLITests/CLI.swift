@@ -16,11 +16,12 @@ struct CLIResult: Equatable {
 func dirigible(_ arguments: String...) async throws -> CLIResult { try await dirigible(arguments) }
 
 /// With `input`, the child reads that file on stdin. With `socket`, `dirigible mcp` connects to
-/// that app socket. With `logs`, the child writes its journal there (decision 0059).
-func dirigible(_ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil) async throws
-    -> CLIResult
-{
-    try await run(dirigibleBinary, arguments, input: input, socket: socket, logs: logs)
+/// that app socket. With `logs`, the child writes its journal there (decision 0059). With
+/// `directory`, the child runs in that folder, for a relative path.
+func dirigible(
+    _ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil, directory: URL? = nil
+) async throws -> CLIResult {
+    try await run(dirigibleBinary, arguments, input: input, socket: socket, logs: logs, directory: directory)
 }
 
 /// The `dirigible` binary that `swift test` builds next to the test bundle.
@@ -58,7 +59,7 @@ func dirigible(shell script: String, _ arguments: String..., slots: Slots = .sha
 /// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
 private func run(
     _ executable: URL, _ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil,
-    slots: Slots = .shared
+    directory: URL? = nil, slots: Slots = .shared
 ) async throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -69,6 +70,7 @@ private func run(
     FileManager.default.createFile(atPath: errors.path, contents: nil)
 
     let process = childProcess(executable, arguments, in: folder, socket: socket, logs: logs)
+    if let directory { process.currentDirectoryURL = directory }
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
     if let input { process.standardInput = try FileHandle(forReadingFrom: input) }

@@ -96,10 +96,7 @@ package struct MCPServer {
             let control = CallControl(
                 token: meta(params)?["progressToken"], interval: pollInterval, send: send,
                 poll: { read in requestID.map { pollCancel($0, read) } ?? false }, step: step)
-            // A local tool reads this Mac, so its call never goes to the app.
-            var routed: (text: String, isError: Bool)?
-            if case .package = tool.body { routed = route?(name, arguments, client, control) }
-            let (text, isError) = routed ?? tool.call(arguments, control: control)
+            let (text, isError) = tool.run(arguments, client: client, control: control, route: route)
             // MCP 2026-07-28: no response for a cancelled request.
             if control.cancelSeen { return nil }
             return reply(id, ["content": [["type": "text", "text": text]], "isError": isError])

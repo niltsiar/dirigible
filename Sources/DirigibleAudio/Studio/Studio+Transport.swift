@@ -284,7 +284,7 @@ extension Studio {
         if session.track(preview.track)?.gain != preview.gain { sendSession() }
     }
 
-    /// Starts the feed `number`, then reads the Player once with the fault rule of the poll.
+    /// Starts the feed `number`, then takes one reading of the Player as the poll does.
     func startPlay(_ shuttle: Shuttle, from: Frames, number: Int, end: Frames?) async -> TransportOutcome {
         let player =
             play.player
@@ -297,7 +297,7 @@ extension Studio {
         await player.update(session, revision: play.revision)
         await player.apply(.play(from: from, shuttle: shuttle, speed: play.speed, end: end), number: number)
         let reading = await player.reading()
-        if play.feed == number, reading.played == number, let stop = endOnFault(reading) {
+        if play.feed == number, reading.played == number, let stop = accept(reading) {
             await player.apply(.stop, number: play.feed)
             return .failed(stop)
         }
@@ -313,10 +313,15 @@ extension Studio {
         return .state(state(from: from))
     }
 
-    /// The fault rule of the poll and of a play start: a stop that the user did not ask for, or
-    /// an engine that does not run. It ends the play with no await and returns the cause; the
-    /// caller stops the Player.
-    private func endOnFault(_ reading: Player.Reading) -> PlaybackStop? {
+    /// Takes a reading of the running feed, for the poll and a play start: the loudness and the
+    /// media faults, then the fault rule. A stop that the user did not ask for, or an engine that
+    /// does not run, ends the play with no await and returns the cause; the caller stops the
+    /// Player.
+    private func accept(_ reading: Player.Reading) -> PlaybackStop? {
+        // Each branch of the poll keeps the last values: a play that ends before a poll ran has its I.
+        loudness = reading.loudness
+        // Only a fault writes: the view of the lanes reads `missingMedia` (decision 0017).
+        if !reading.faults.isEmpty { missingMedia.merge(reading.faults) { $1 } }
         guard let stop = reading.stop ?? (reading.running ? nil : .outputChanged) else { return nil }
         play.playbackStop = stop
         play.playback = .stopped
@@ -332,13 +337,9 @@ extension Studio {
             let number = play.feed
             let reading = await player.reading()
             if play.feed == number, reading.played == number {
-                // Each branch keeps the last values: a play that ends before a poll ran has its I.
-                loudness = reading.loudness
-                // Only a fault writes: the view of the lanes reads `missingMedia` (decision 0017).
-                if !reading.faults.isEmpty { missingMedia.merge(reading.faults) { $1 } }
                 // The engine stops before the system posts the change, so its position can be
                 // gone: the playhead keeps the last poll.
-                if endOnFault(reading) != nil {
+                if accept(reading) != nil {
                     await player.apply(.stop, number: play.feed)
                 } else if reading.ended {
                     // At 2x and 4x the Player position can pass the end by less than the rate.

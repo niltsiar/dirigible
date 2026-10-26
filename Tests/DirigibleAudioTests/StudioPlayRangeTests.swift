@@ -251,6 +251,29 @@ struct StudioPlayRangeTests {
         #expect(studio.playback == .stopped && studio.playbackStop == .outputUnavailable(-10_851))
     }
 
+    /// The first reading of a start has a stop and a media fault: the play fails with the stop,
+    /// and the lanes get the fault (decision 0017). The Player opens `f1` with `.missing` and
+    /// `f2` with EMFILE; the media check before the start reads the real files and finds no fault.
+    @Test func aStartFaultKeepsTheMediaFaults() async throws {
+        try package.addFile("f2", channels: [[Float](repeating: 0.25, count: 96_000)])
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 96_000)
+        try package.session.write(to: package.url)
+        let studio = try await studio()
+        let url = package.url
+        studio.play.player = Player(
+            package: { url }, output: .offline, session: studio.session,
+            open: { file, clips, rate throws(POSIXError) in
+                if file.id == "f2" { throw POSIXError(.EMFILE) }
+                if file.id == "f1" { return (nil, .missing, nil) }
+                return try openMedia(file, in: clips, rate: rate)
+            })
+
+        let outcome = try await studio.play(from: 0, to: 50_000)
+
+        #expect(outcome == .failed(.noFreeDescriptor(Int(EMFILE))))
+        #expect(studio.missingMedia == ["f1": .missing])
+    }
+
     // MARK: C10, C11
 
     /// A level that holds its first block read: play and locate throw `.busy`, and the stop

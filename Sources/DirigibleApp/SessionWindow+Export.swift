@@ -63,8 +63,8 @@ extension SessionWindow {
     /// they cannot run. Their keys have Command, so the plain-key rule does not apply. During an
     /// import, the edit items whose key no text field uses are off. Auto Level and Duck Music Under
     /// Speech are also off with no clip or a busy studio, Split Stereo to Mono with no stereo clip in the
-    /// selection or a busy studio, and Heal Clips with no range or a busy
-    /// studio. The other items are never off: a field uses their keys (0018 K1).
+    /// selection or when Import Audio is off (a pending take too), and Heal Clips with no range or a
+    /// busy studio. The other items are never off: a field uses their keys (0018 K1).
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {
         case .export: canExport
@@ -78,7 +78,7 @@ extension SessionWindow {
         // Off while the Go to Take Time sheet shows: one dialog at a time.
         case .duck: takeTimeDraft == nil && isOn(.autoLevel)
         case .splitStereo:
-            importJob == nil && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
+            canImport && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
         case .heal:
             importJob == nil && idleStudio.flatMap { timeline.selection.marks?.selection(in: $0.session) } != nil
         case .zoomBack: timeline.canGoBack

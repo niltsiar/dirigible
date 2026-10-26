@@ -31,7 +31,3 @@ The red-first log of each slice and each fix is its control (tdd steps 4 and 7),
 - Misaimed: the mutant does not reach the planned path. Fix the mutant once, and log the misaimed one.
 - Each other survivor is the red step of a new test. Write the test; the killed log is its proof.
 - When only the test process has the mechanism that hides the mutant (Return reaches a list action there that a real Return does not), retire the mutant with that reason in `decisions.tsv`, and prove the path on the built app. Never change a product mechanism only so that a mutant can kill it.
-
-## Measure
-
-For the next 5 `risk: yes` runs, add a phase 7 `decisions.tsv` row (decision `pass measure`) with the picks, the guards left out, the results, and the minutes, and add the run to the wiki item "mutation pass trial" (`scripts/wiki.py show <id>`, then `scripts/wiki.py edit <id> --expect <hash> --from <file>`). For each code gate or `NOT VERIFIED` defect in a guard that the pass left out, run the mutant of that guard on the commit of the pass. When no test kills it, the pass missed the defect: go back to one mutant per guard, with no cap. After the 5th run, an upkeep run decides whether to keep the cap and removes this section.

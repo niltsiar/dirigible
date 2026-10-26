@@ -150,19 +150,19 @@ struct MCPBatchToolTests {
         #expect(try snapshot() == before)
     }
 
-    /// C7: 1 and 100 calls pass. 0 and 101 are refused with the text of the argument, and the
+    /// C7: 1 and 20 calls pass. 0 and 21 are refused with the text of the argument, and the
     /// schema shows both limits.
-    @Test func theCountLimitIsOneToAHundred() async throws {
+    @Test func theCountLimitIsOneToTwenty() async throws {
         let rename = { (name: String) in Self.call("track_rename", ["track": "V", "name": name]) }
         let one = try await batch([rename("One")])
         #expect(one == ("calls[0] track_rename: OK", false), "\(one)")
-        let hundred = try await batch((0..<100).map { rename("N\($0)") })
-        #expect(!hundred.isError && hundred.text.split(separator: "\n").count == 100, "\(hundred.text.prefix(200))")
-        #expect(try package.read().track("V")?.name == "N99")
+        let twenty = try await batch((0..<20).map { rename("N\($0)") })
+        #expect(!twenty.isError && twenty.text.split(separator: "\n").count == 20, "\(twenty.text.prefix(200))")
+        #expect(try package.read().track("V")?.name == "N19")
 
         let before = try snapshot()
-        let text = "The argument \"calls\" must be an array of 1 to 100 calls."
-        for count in [0, 101] {
+        let text = "The argument \"calls\" must be an array of 1 to 20 calls."
+        for count in [0, 21] {
             let refused = try await batch((0..<count).map { rename("R\($0)") })
             #expect(refused == (text, true), "BATCH-S2-4 \(count) calls: \(refused)")
         }
@@ -172,7 +172,7 @@ struct MCPBatchToolTests {
         let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
         let schema = tools.first { $0["name"] as? String == "batch" }?["inputSchema"] as? [String: Any]
         let calls = (schema?["properties"] as? [String: Any])?["calls"] as? [String: Any]
-        #expect(calls?["minItems"] as? Int == 1 && calls?["maxItems"] as? Int == 100, "\(String(describing: calls))")
+        #expect(calls?["minItems"] as? Int == 1 && calls?["maxItems"] as? Int == 20, "\(String(describing: calls))")
     }
 
     /// Take 1 with a 2.0 s segment on `t1` and on `t2`, finalized, so both are placed. The clip of

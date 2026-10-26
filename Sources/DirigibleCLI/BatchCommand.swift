@@ -11,7 +11,7 @@ struct BatchCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "batch",
         abstract:
-            "Apply 1 to 100 edit calls in one save. If a call fails, the package does not change. Print one line "
+            "Apply \(BatchWork.limit.lowerBound) to \(BatchWork.limit.upperBound) edit calls in one save. If a call fails, the package does not change. Print one line "
             + "for each result line.",
         discussion:
             "The file holds the calls array of the tool batch: [{\"tool\": \"clip_trim\", \"arguments\": "

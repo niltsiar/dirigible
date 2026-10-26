@@ -7,7 +7,7 @@ import Foundation
 /// changes nothing. A step is a pure edit of the session value: it has no package and no lock.
 package struct BatchWork: Sendable {
     /// The count of calls in a batch.
-    static let limit = 1...100
+    package static let limit = 1...20
 
     /// One item of `calls`: the tool name and the JSON bytes of its arguments object.
     package struct Call: Sendable {
@@ -61,7 +61,7 @@ package struct BatchWork: Sendable {
 
     let steps: [Step]
 
-    /// The one Kind of `calls`: 1 to 100 objects with a string `tool` and an object `arguments`.
+    /// The one Kind of `calls`: 1 to 20 objects with a string `tool` and an object `arguments`.
     static let calls = Kind<[Call]>(
         schema: [
             "type": "array", "items": callSchema, "minItems": limit.lowerBound, "maxItems": limit.upperBound,

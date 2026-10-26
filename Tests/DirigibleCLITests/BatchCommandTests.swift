@@ -75,9 +75,9 @@ struct BatchCommandTests {
     /// count text is the text of the tool.
     @Test(arguments: [
         ("not json", "Error: calls.json is not JSON.\n"),
-        ("{}", "Error: The argument \"calls\" must be an array of 1 to 100 calls.\n"),
-        ("[]", "Error: The argument \"calls\" must be an array of 1 to 100 calls.\n"),
-        ("[1]", "Error: The argument \"calls\" must be an array of 1 to 100 calls.\n"),
+        ("{}", "Error: The argument \"calls\" must be an array of 1 to 20 calls.\n"),
+        ("[]", "Error: The argument \"calls\" must be an array of 1 to 20 calls.\n"),
+        ("[1]", "Error: The argument \"calls\" must be an array of 1 to 20 calls.\n"),
         (
             #"[{"tool":"track_add","arguments":{"name":"A","layout":"mono"}},{"tool":"export","arguments":{}}]"#,
             "Error: calls[1] export failed, so the batch changed nothing: export cannot run in a batch: a step is an "

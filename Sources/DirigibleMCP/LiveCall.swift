@@ -2,6 +2,12 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
+/// The two refusals of a live batch: a `StudioError` of the core has no index, a failed call has.
+private enum LiveBatchError: Error {
+    case studio(StudioError)
+    case batch(BatchWork.Failure)
+}
+
 /// Runs one agent call on the studio of an open window (decision 0046 Live tools). An edit is one
 /// `Studio.edit`: one undo entry with the agent name and one autosave. A read reads the studio. A
 /// call that copies files, and `file_prune` (decision 0047), give the "open in Dirigible" error,
@@ -70,12 +76,35 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .backups:
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
+        case .batch(let work):
+            if target.busy != nil { throw .busy }
+            let revision = studio.sessionRevision
+            let results: [[String]]
+            do throws(LiveBatchError) {
+                results = try studio.edit(agent: call.agent, refused: LiveBatchError.studio) {
+                    session throws(LiveBatchError) in
+                    do throws(BatchWork.Failure) {
+                        return try work.run(&session, canRipple: { studio.canRipple($0) })
+                    } catch {
+                        throw .batch(error)
+                    }
+                }
+            } catch {
+                switch error {
+                case .studio(let error): throw error
+                case .batch(let failure):
+                    let split = StudioError.rippleBlocked.message(package: path)
+                    return .result(text: failure.message(rippleBlocked: split), isError: true)
+                }
+            }
+            let note = TakeWork.note(studio, after: revision, agent: call.agent)
+            return .result(text: (work.lines(results) + note).joined(separator: "\n"), isError: false)
         case .paste, .revert, .prune: return refusedOpen
         // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, and long work to `liveJob`.
         case .create, .record, .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender,
             .chapters,
             .transcriptExport,
-            .read, .batch:
+            .read:
             return .notOpen
         }
     } catch .busy {

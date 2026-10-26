@@ -7,7 +7,7 @@ private let calls = Param.required(
 let batchTools = [
     Tool(
         "batch",
-        "Apply 1 to 100 edit calls, in order, as one edit: one undo step in the app, and one save on a closed "
+        "Apply \(BatchWork.limit.lowerBound) to \(BatchWork.limit.upperBound) edit calls, in order, as one edit: one undo step in the app, and one save on a closed "
             + "package. If a call fails, the batch changes nothing. A call is a step when its tool edits session.xml "
             + "only: the track, marker, episode, clip, ripple, and transcript_cut tools, file_remove, and "
             + "capture_remove, with no file argument (a source, an image, or an artwork). A call to any other tool "

@@ -239,7 +239,7 @@ extension L10n {
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo:
             return errorSessionOther.text
-        // A split refuses it before any write (decision 0053).
+        // A transcript cut and a split (decision 0053) refuse it while a transcript did not load.
         case .transcriptNotLoaded: return errorTranscriptUnloaded.text
         case .noSpeechTrack: return errorDuckNoSpeechTrack.text
         case .noDuckedTrack: return errorDuckNoDuckedTrack.text

@@ -225,5 +225,15 @@ struct StereoSplitTests {
         #expect(fractions.count > 8 && fractions == fractions.sorted(), "\(fractions)")
         #expect(fractions.last == 1 && fractions.dropLast().allSatisfy { $0 < 1 }, "\(fractions)")
         #expect(fractions.contains { $0 > 0.2 && $0 < 0.5 }, "the sides between the first and the last")
+
+        // One run of 960,000 frames: 15 blocks of 65,536 frames on each side, so the 8th block of
+        // the left side ends near 0.25, and no step is over the share of one block.
+        let one = try SplitFixture(seconds: 30, clips: [("c1", 960_000, 240_000)])
+        var single: [Double] = []
+        _ = try one.split(["c1"], progress: { single.append($0) })
+        let block = 65_536.0 / (2 * 960_000)
+        try #require(single.count > 7, "\(single)")
+        #expect(abs(single[7] - 0.25) < block, "the middle of the left side: \(single)")
+        #expect(zip(single.dropFirst(), single).allSatisfy { $0 - $1 <= block + 1e-9 }, "\(single)")
     }
 }

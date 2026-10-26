@@ -22,9 +22,7 @@ import Observation
     public var unplacedSegments: [SegmentName] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
     /// False under a pending or split take (decision 0037): then a ripple must not move the
     /// timeline. A segment whose CAF opens but is not audio can never place, so it does not block.
-    public var canRipple: Bool {
-        !rippleBlocked(segments: unplacedSegments.filter { !notAudioSegments.contains($0) }, session: session)
-    }
+    public var canRipple: Bool { canRipple(session) }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
     /// The agent of the change that Undo reverts, or nil for a user change (decision 0046).
@@ -38,8 +36,8 @@ import Observation
 
     private(set) var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
-    private var segmentsWithAudio: [SegmentName]
-    private var notAudioSegments: Set<SegmentName>
+    private(set) var segmentsWithAudio: [SegmentName]
+    private(set) var notAudioSegments: Set<SegmentName>
     /// The live state of each armed track of the take or of the monitor (decision 0015), from
     /// the reports of the drain. Empty while no take records and no monitor runs.
     public internal(set) var liveTracks: [TrackID: LiveTrack] = [:] {
@@ -202,18 +200,16 @@ import Observation
         return studio
     }
 
-    /// Runs `body` on a copy of the session and records one undo entry if it changed. A change
-    /// schedules one autosave of the new session; `edit` does not wait for it. A caller declares a
-    /// ripple with `ripple`: under a pending or split take, it throws `.rippleBlocked` (decision 0037).
-    /// `agent` names the agent of an MCP edit in its undo entry (decision 0046).
-    public func edit<Result>(
-        ripple: Bool, agent: AgentName? = nil, _ body: (inout Session) throws(SessionError) -> Result
-    ) throws(StudioError) -> Result {
-        try checkIdle()
-        if ripple { try checkRipple() }
+    /// The one edit core: runs `body` on a copy of the session and records one undo entry if it
+    /// changed. A change schedules one autosave of the new session; `edit` does not wait for it.
+    /// A busy studio throws `refused(.busy)`; a throw of `body` changes nothing. `agent` names the
+    /// agent of an MCP edit in its undo entry (decision 0046). `body` reads only its copy.
+    public func edit<Result, Failure: Error>(
+        agent: AgentName?, refused: (StudioError) -> Failure, _ body: (inout Session) throws(Failure) -> Result
+    ) throws(Failure) -> Result {
+        do { try checkIdle() } catch { throw refused(error) }
         let (before, revision) = (session, sessionRevision)
-        let result: Result
-        do { result = try history.edit(agent: agent, body) } catch { throw .session(error) }
+        let result = try history.edit(agent: agent, body)
         if session != before { scheduleSave() }
         // A no-op edit keeps the revision, which a level or a duck can have moved with no change.
         if sessionRevision != revision { poolChanged(from: before.files, agent: agent) }

@@ -92,7 +92,8 @@ let transportTools = [
             + "a transport_locate or a click before its end keeps the end. One at or after the end plays on to the "
             + "end of the session, and one at or after the end of the session stops the play there. Space, Stop and "
             + "Return, J, K, L, and a speed change drop the end: a play that goes on runs to the end of the session. "
-            + "A call during a take, or while Dirigible is busy, gives an error and plays nothing." + appOnly,
+            + "After the play, the playhead stays where the play stopped, and the next take starts there. A call "
+            + "during a take, or while Dirigible is busy, gives an error and plays nothing." + appOnly,
         [playFrom, playTo], saves: false
     ) { a throws(ToolError) in
         let from = try a[playFrom].map { value throws(ToolError) in try frame(value, "from") }

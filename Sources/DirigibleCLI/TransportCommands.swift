@@ -39,8 +39,8 @@ struct TransportPlay: ParsableCommand {
             no --from, the play starts at the playhead. With no --to, it stops at the end of the session. \
             During a forward 1x play, a call with neither changes nothing and writes the end of the \
             running play. A locate or a click before --to keeps it; one at or after --to plays on to the \
-            end of the session. Space, Stop and Return, J, K, L, and a speed change drop --to. \
-            It writes the state after the call, for example Playing from 24000 to 50000. Exit 1 when the \
+            end of the session. Space, Stop and Return, J, K, L, and a speed change drop --to. After \
+            the play, the playhead stays where the play stopped, and the next take starts there. It writes the state after the call, for example Playing from 24000 to 50000. Exit 1 when the \
             app refuses (a take, a busy window, a start at or after the end, or an engine fault) or is \
             not there. Exit 64 when --to is not more than --from, or a frame is not in 0...2^40.
             """)

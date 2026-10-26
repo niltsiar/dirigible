@@ -285,8 +285,7 @@ struct MCPToolTests {
                 "transcript_import",
                 "transcript_words", "transcript_cut", "transcript_export", "take_map", "backup_list",
                 "backup_revert", "record", "transport_play", "transport_stop", "transport_locate", "loudness", "export",
-                "render", "level", "duck", "import", "silences",
-                "nearest_pause", "meter", "chapters_export",
+                "render", "level", "duck", "import", "silences", "nearest_pause", "meter", "chapters_export",
                 "chapters_import", "devices", "apps",
             ])
         for tool in tools {

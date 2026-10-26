@@ -10,8 +10,8 @@ struct ImportJob {
     /// The index of the file of a chain that `progress` is for. A paste is file 0.
     var file = 0
     var task: Task<Void, Never>?
-    /// False until the banner shows: a paste shows it only after 0.5 s, so a clone shows none
-    /// (`ui-panel.md` item 1). An import shows it at once.
+    /// False until the banner shows: a paste and a split show it only after 0.5 s, so a clone or a
+    /// short split shows none (`ui-panel.md` item 1). An import shows it at once.
     var visible = true
 }
 

@@ -122,6 +122,41 @@ import Testing
         await model.close()
     }
 
+    /// Decision 0053: a split that ends before the banner wait shows no banner and is not
+    /// announced. A split that runs past the wait shows the banner, and VoiceOver reads its start
+    /// and its end.
+    @Test func theBannerShowsOnlyAfterTheWait() async throws {
+        let (model, studio, _) = try await open()
+        var heard: [String] = []
+        model.chrome?.announce = { text, _ in heard.append(text) }
+        // The banner wait ends only when the test says so, so a loaded suite cannot pass 0.5 s on
+        // the wall clock before the asserts.
+        let release = LockedFlag()
+        defer { release.value = true }
+        model.bannerWait = { while !release.value { try? await Task.sleep(for: .milliseconds(10)) } }
+        model.timeline.selection = set("s1")
+
+        model.run(.splitStereo)
+        await until("the short split ends") { model.importJob == nil }
+        #expect(heard.isEmpty, "a short split shows no banner and is not announced")
+        try studio.undo()
+
+        let hold = BlockHold()
+        defer { hold.release() }
+        studio.environment.importStep = { hold.step() }
+        model.timeline.selection = set("s1")
+        model.run(.splitStereo)
+        await until("the split holds") { hold.held }
+        #expect(model.importJob?.visible == false && heard.isEmpty, "no banner before the wait ends")
+        release.value = true
+        await until("the banner shows after the wait") { model.importJob?.visible == true }
+        #expect(studio.importRun?.kind == .split && heard == [L10n.splitBanner.text])
+        hold.release()
+        await until("the split ends") { model.importJob == nil }
+        #expect(heard == [L10n.splitBanner.text, L10n.splitDone.text] && model.alert == nil, "\(heard)")
+        await model.close()
+    }
+
     /// C20 and U22: the suffix pair of each UI language.
     @Test func eachLanguageHasItsSuffixPair() throws {
         let pairs = [

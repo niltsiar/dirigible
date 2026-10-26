@@ -75,6 +75,22 @@ struct SplitStereoTests {
         #expect(session == before)
     }
 
+    /// C1. The mono check comes before the transcript check of the new files: with a transcript
+    /// that did not load, a mono clip still throws `.notStereo`.
+    @Test func monoClipRefusedBeforeTheTranscriptCheck() throws {
+        var session = try session(clips: [("A", 1_000_000, 100_000)])
+        try session.addTrack("m", name: "Guest", layout: .mono)
+        try session.addFile(AudioFile(id: "g", path: "g.wav", layout: .mono, length: 1_000_000))
+        try session.place(Clip(id: "M", file: "g", start: 0, offset: 0, length: 1_000), on: "m")
+        session.transcripts[TranscriptID(1)] = Transcript(id: TranscriptID(1), name: "t1", words: nil)
+        let before = session
+
+        #expect(throws: SessionError.notStereo("M")) {
+            try session.splitStereo(self.pairs(session, ["A", "M"]), names: ("L", "R"))
+        }
+        #expect(session == before)
+    }
+
     /// C1. A new clip plays the gain of the source clip at each source frame: the envelope moves by
     /// the pair start, a point outside the pair becomes a point at the pair edge with the source gain
     /// there (decision 0060), and an empty envelope stays empty.

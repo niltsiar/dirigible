@@ -200,6 +200,7 @@ struct StereoSplitTests {
 
     /// C6: a session refusal comes before the first write. A list with a mono clip, and a
     /// transcript that did not load, leave `Clips/` as it was; the same split with no refusal writes.
+    /// The mono refusal comes before the space check.
     @Test func sessionRefusalLeavesNoFile() throws {
         let fixture = try SplitFixture(seconds: 30, clips: [("c1", 960_000, 240_000)])
         try fixture.package.addFile("m1", channels: [ramp(frames: 48_000)])
@@ -209,6 +210,9 @@ struct StereoSplitTests {
         let before = try fixture.hashes()
 
         #expect(throws: SplitError.session(.notStereo("m"))) { try fixture.split(["c1", "m"]) }
+        #expect(throws: SplitError.session(.notStereo("m")), "a full disk") {
+            try fixture.split(["c1", "m"], freeBytes: 0)
+        }
         #expect(try fixture.hashes() == before)
         #expect(throws: SplitError.session(.transcriptNotLoaded([TranscriptID(1)]))) {
             try fixture.split(["c1"], of: unloaded)

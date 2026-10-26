@@ -50,6 +50,13 @@ extension Session {
         return parts
     }
 
+    /// Throws `.notStereo` for the first of `clips` on a track that is not stereo. A split calls it
+    /// before any check of the disk, the files, or the transcripts.
+    package func checkStereo(_ clips: [ClipID]) throws(SessionError) {
+        let mono = Set(tracks.lazy.filter { $0.layout != .stereo }.flatMap(\.clips).map(\.id))
+        if let id = clips.first(where: mono.contains) { throw .notStereo(id) }
+    }
+
     /// The mono files of the run of a moved clip, and the start and length of the run.
     private struct Placement {
         let left: FileID
@@ -63,6 +70,7 @@ extension Session {
     {
         let runs = try clipRuns(of: pairs.flatMap(\.run.clips))
         guard runs.count == pairs.count, Set(runs) == Set(pairs.map(\.run)) else { throw .frameOutOfRange }
+        try checkStereo(pairs.flatMap(\.run.clips))
         var placements: [ClipID: Placement] = [:]
         for pair in pairs {
             let left = try addDerivedFile(from: pair.run, stem: pair.leftStem, layout: .mono)
@@ -74,8 +82,6 @@ extension Session {
             }
         }
         let sources = tracks.filter { $0.clips.contains { placements[$0.id] != nil } }
-        let mono = Set(sources.lazy.filter { $0.layout != .stereo }.flatMap(\.clips).map(\.id))
-        if let id = pairs.lazy.flatMap(\.run.clips).first(where: mono.contains) { throw .notStereo(id) }
 
         var taken = clipIDs
         var parts: [SplitPart] = []

@@ -14,7 +14,8 @@
 # Check that the recipe waits for a load under the core count before Swift tests, stops the wait
 # at CHECK_LOAD_WAIT, and reads no load for docs targets. Check the delta after a pass stamp, and
 # the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
-# ignore mode. Run by `make test-hooks`.
+# ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word.
+# Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 script="$repo/scripts/check-changed.sh"
@@ -44,6 +45,8 @@ expect() {
   [[ "$got" == "$want" ]] || fail "$name: got [$got], want [$want]"
 }
 out() { printf 'classes: %s\ntargets: %s\nrisk: %s' "$1" "$2" "$3"; }
+# The word of a local check-fast with no HOOK_TESTS word: test-hooks.sh runs the whole list for it.
+all_hooks=' DIRIGIBLE_HOOKS_ALL=1'
 
 # The hook tests of Makefile HOOK_TESTS, and a second way to find the tests of plain script paths.
 hook_list="$(awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' "$repo/Makefile" | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep .)"
@@ -120,9 +123,9 @@ got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift')" || fail "outsi
 # FILTER: the tests of the slice in place of all tests. The other targets do not change.
 FILTER=ClipTests expect 'tests with FILTER' "$(out tests test-filter no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 FILTER=ClipTests expect 'docs with FILTER' "$(out docs check-docs no)" <<<'docs/guide.md'
-FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle 'check-fast test-filter test-app' no)" <<<'Makefile'
-FILTER=ClipTests expect 'build with FILTER' "$(out build 'check-fast test-filter test-app' no)" <<<'Package.swift'
-FILTER=ClipTests expect 'bundle and sources with FILTER' "$(out 'sources bundle' 'check-fast test-filter test-app' no)" \
+FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle "check-fast test-filter test-app$all_hooks" no)" <<<'Makefile'
+FILTER=ClipTests expect 'build with FILTER' "$(out build "check-fast test-filter test-app$all_hooks" no)" <<<'Package.swift'
+FILTER=ClipTests expect 'bundle and sources with FILTER' "$(out 'sources bundle' "check-fast test-filter test-app$all_hooks" no)" \
   <<<$'Makefile\nSources/DirigibleApp/AppDelegate.swift'
 # With no FILTER, the stdin mode keeps the targets: the refusal is for the local git run.
 expect 'bundle with no FILTER, stdin' "$(out bundle check no)" <<<'Makefile'
@@ -136,7 +139,8 @@ got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fa
 # need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a
 # <name>.sh or <name>.py, the guardrails test for a hook, settings, or .githooks path, and each
 # entry whose text names the basename of a changed tooling path. A changed path of class tooling
-# or comments with no test gives no word: the full list runs. The word never comes before the push.
+# or comments with no test gives the word DIRIGIBLE_HOOKS_ALL=1: test-hooks.sh refuses the whole
+# list with no word. The HOOK_TESTS word never comes before the push.
 # word_of [--push]: the HOOK_TESTS word of the paths on stdin, or nothing.
 word_of() { (cd "$e" && "$script" --paths "$@") | sed -n 's/^targets: .*HOOK_TESTS=\([^ ]*\).*/\1/p'; }
 # has_test <path> <test>: the word for the path holds the test.
@@ -165,10 +169,18 @@ w="$(word_of <<<'scripts/with-lock.sh')"
 want=""
 for t in $hook_list; do grep -qF -- 'with-lock.sh' "$repo/$t" && want+=",$t"; done
 [[ -n "$w" && "$w" == "${want#,}" && ",$w," == *",scripts/check-changed.test.sh,"* ]] || fail "scripts/with-lock.sh: the word [$w], want [${want#,}]"
-# A path that no test names gives no word and exit 0 (a search with no match is no failure of the script).
-expect 'a script that no test names' "$(out tooling check-fast no)" <<<"$unnamed"
-# One path with a test and one with no test: the full list runs, so no word.
-expect 'a mapped path and an unnamed path' "$(out tooling check-fast no)" <<<"$seen_sh"$'\n'"$unnamed"
+# A path that no test names gives the switch word and exit 0 (a search with no match is no failure of the script).
+expect 'a script that no test names' "$(out tooling "check-fast$all_hooks" no)" <<<"$unnamed"
+expect 'a new script that no test names' "$(out tooling "check-fast$all_hooks" no)" <<<"scripts/new-f""oo.sh"
+# One path with a test and one with no test: the full list runs, so the switch word and no HOOK_TESTS word.
+expect 'a mapped path and an unnamed path' "$(out tooling "check-fast$all_hooks" no)" <<<"$seen_sh"$'\n'"$unnamed"
+# Before the push the word never comes: the push check runs the full list with its own switch.
+expect 'a script that no test names, before the push' "$(out tooling check-fast no)" --push <<<"$unnamed"
+# A path set that maps to every hook test gives the switch word, not the whole list as one word, which
+# test-hooks.sh would refuse.
+expect 'every hook test as a path' "$(out tooling "check-fast$all_hooks" no)" <<<"$hook_list"
+# A path with a test keeps its HOOK_TESTS word and gets no switch word.
+[[ "$(cd "$e" && "$script" --paths <<<"$seen_sh")" != *DIRIGIBLE_HOOKS_ALL* ]] || fail 'a script with a test: the switch word'
 # A path of class docs needs no test; a change of Swift sources adds the test target, not a hook test.
 expect 'a mapped path and a docs path' "$(out 'docs tooling' 'check-fast HOOK_TESTS=.claude/skills/reflect/scripts/seen.test.sh' no)" <<<"$seen_sh"$'\ndocs/guide.md'
 
@@ -313,11 +325,11 @@ content_case() {
 }
 sw=Sources/DirigibleCore/SessionWriter.swift app=Sources/DirigibleApp/A.swift
 # A Swift change of only // lines and blank lines is class comments, also in a risk floor file.
-content_case 'a comment in a floor file' $sw $'let a = 1\n' $'let a = 1\n// note\n' "$(out comments check-fast no)"
+content_case 'a comment in a floor file' $sw $'let a = 1\n' $'let a = 1\n// note\n' "$(out comments "check-fast$all_hooks" no)"
 content_case 'code in a floor file' $sw $'let a = 1\n' $'let a = 1\nlet y = 1\n' "$(out sources-risk test yes)"
-content_case 'a comment and a blank line' $app $'let a = 1\n' $'let a = 1\n\n  // note\n' "$(out comments check-fast no)"
+content_case 'a comment and a blank line' $app $'let a = 1\n' $'let a = 1\n\n  // note\n' "$(out comments "check-fast$all_hooks" no)"
 content_case 'a comment and a code line' $app $'let a = 1\n' $'let a = 1\n// note\nlet x = 1\n' "$(out sources test no)"
-content_case 'a doc comment' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc f() {}\n' "$(out comments check-fast no)"
+content_case 'a doc comment' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc f() {}\n' "$(out comments "check-fast$all_hooks" no)"
 content_case 'a doc comment and a name' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc g() {}\n' "$(out sources test no)"
 # A code line with a comment, a // in a string, #if, and a block comment stay code.
 content_case 'a code line with a comment' $app $'let x = 1 // a\n' $'let x = 2 // a\n' "$(out sources test no)"
@@ -734,6 +746,36 @@ printf '#!/bin/bash\ncase "$1" in\n  --floor) echo Sources/DirigibleCore/Session
 PATH="$tmp/bin:$PATH" make_case 'make check-changed with a space-joined word' ''
 [[ "$(wc -l < "$tmp/hooks.log" | tr -d ' ')" == 1 ]] || fail "a space-joined word: the control did not show one test: [$(tr '\n' ' ' < "$tmp/hooks.log")]"
 
+# A tooling path that no test names gives the switch word, so the real test-hooks.sh runs the whole
+# list of the fixture Makefile (two fake tests) and does not refuse it. The control is a script that
+# prints no switch word: test-hooks.sh refuses, and no fake test runs.
+two_fake_hook_repo() {
+  hook_repo
+  awk -v list="HOOK_TESTS = $hid_test $ax_test" '/^HOOK_TESTS *=/ { print list; skip = 1 } skip { if (!/\\$/) skip = 0; next } { print }' \
+    "$tmp/r/Makefile" > "$tmp/Makefile.new" && mv "$tmp/Makefile.new" "$tmp/r/Makefile"
+  g add -A
+  g commit -q -m 'two fake hook tests'
+  : > "$tmp/hooks.log"
+  printf '#!/bin/bash\n:\n' > "$tmp/r/$unnamed"
+}
+two_fake_hook_repo
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with a path that no test names' ''
+[[ "$output" == *"targets: check-fast$all_hooks"* ]] || fail "a path that no test names: no switch word: $output"
+[[ "$output" != *'runs only in the push check'* ]] || fail "a path that no test names: the whole list was refused: $output"
+[[ "$(sort "$tmp/hooks.log" | tr '\n' ' ')" == 'ax hid ' ]] || fail "a path that no test names: the log [$(tr '\n' ' ' < "$tmp/hooks.log")] holds not both fake tests: $output"
+two_fake_hook_repo
+printf '#!/bin/bash\ncase "$1" in\n  --floor) echo Sources/DirigibleCore/SessionWriter.swift ;;\n  --wait-load) exit 0 ;;\n  *) printf "classes: tooling\\ntargets: check-fast\\nrisk: no\\n" ;;\nesac\n' > "$tmp/r/scripts/check-changed.sh"
+PATH="$tmp/bin:$PATH" make_case 'make check-changed with no switch word' 'the whole HOOK_TESTS list runs only in the push check'
+[[ ! -s "$tmp/hooks.log" ]] || fail "no switch word: a fake test ran: [$(tr '\n' ' ' < "$tmp/hooks.log")]"
+
+# A Makefile change of only comment lines is class docs and needs no hook test: the tooling path decides
+# the word, and the switch word does not come.
+make_repo
+printf '# a comment\n' >> "$tmp/r/Makefile"
+printf 'x\n' > "$tmp/r/$hid_test"
+got="$(run_in 2>&1)" || fail "a Makefile comment and a hook test: exit $?"
+[[ "$got" == "$(out 'docs tooling' "check-fast HOOK_TESTS=$hid_test" no)" ]] || fail "a Makefile comment and a hook test: got [$got]"
+
 # SINCE=<ref> is the local mode of a group end: the commits since <ref> and the working tree pick
 # the targets, the HOOK_TESTS word of a local run applies, and no stamp is read or written.
 since_repo() { new_repo; sref="$(g rev-parse HEAD)"; }
@@ -748,7 +790,7 @@ got="$(run_in "$sref" 2>&1)" || fail "the push form after SINCE cases: exit $?"
 since_repo
 put "$unnamed" x
 got="$(SINCE=$sref run_in 2>&1)" || fail "SINCE with a path that has no test: exit $?"
-[[ "$got" == "$(out tooling check-fast no)" ]] || fail "SINCE with a path that has no test: got [$got]"
+[[ "$got" == "$(out tooling "check-fast$all_hooks" no)" ]] || fail "SINCE with a path that has no test: got [$got]"
 # --paths reads no SINCE.
 SINCE=no-such-ref expect 'SINCE with --paths' "$(out docs check-docs no)" <<<'docs/guide.md'
 # SINCE with a base exits 2 and names both. A ref that does not exist prints nothing on stdout.
@@ -782,7 +824,7 @@ since_repo
 put "$unnamed" x
 got="$(SINCE=$sref FILTER=ClipTests run_in 2> "$tmp/since.err")"
 code=$?
-[[ $code -eq 1 && "$got" == "$(out tooling check-fast no)" ]] || fail "SINCE and FILTER with no test: exit $code, got [$got]"
+[[ $code -eq 1 && "$got" == "$(out tooling "check-fast$all_hooks" no)" ]] || fail "SINCE and FILTER with no test: exit $code, got [$got]"
 grep -qF "make check-changed SINCE=$sref with no FILTER" "$tmp/since.err" || fail "SINCE and FILTER with no test: no SINCE form in the reason: $(cat "$tmp/since.err")"
 # Through the real Makefile, script, and test-hooks.sh: the targets of SINCE run, no stamp is read or
 # written, and the hook test sees no SINCE (make puts it in the environment and in MAKEFLAGS).

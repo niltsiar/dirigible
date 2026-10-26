@@ -4,7 +4,11 @@
 #   Only the test-hooks recipe of the Makefile calls it, with the HOOK_TESTS list. An argument can
 #   hold several tests joined with commas: scripts/check-changed.sh gives make one HOOK_TESTS word
 #   for the tests of the changed paths, and make passes that word as one argument. Each part is a
-#   test. A list of some of the tests gets no stamp. Before the first test, the script unsets BASE,
+#   test. A list of some of the tests gets no stamp. The whole list runs only when one of
+#   DIRIGIBLE_PUSH_CHECK=1 (the push check), DIRIGIBLE_FULL_SUITE=1 (a person), or
+#   DIRIGIBLE_HOOKS_ALL=1 (scripts/check-changed.sh gives it to a local run that needs the whole
+#   list) is set. Else the script prints the reason and exits 1, before the key and the stamp
+#   reuse. Before the first test, the script unsets BASE,
 #   FILTER, SINCE, CHECK_RISK, HOOK_TESTS, MAKEFLAGS, MFLAGS, MAKELEVEL, GIT_DIR, GIT_INDEX_FILE,
 #   GIT_WORK_TREE, and each variable that starts with WITH_LOCK_ or DIRIGIBLE_ (make and the
 #   caller put them in the environment of each recipe), so no hook test reads the context of its
@@ -51,8 +55,14 @@ flags="${flags%% *}"
 [[ $flags == *=* ]] && flags=""
 listed="$(git show "$sha:Makefile" | awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' \
     | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . | sort)"
+whole=no
+[[ "$(printf '%s\n' "$@" | sort)" == "$listed" ]] && whole=yes
+if [[ $whole == yes && -z "${DIRIGIBLE_PUSH_CHECK:-}${DIRIGIBLE_FULL_SUITE:-}${DIRIGIBLE_HOOKS_ALL:-}" ]]; then
+    echo "test-hooks: the whole HOOK_TESTS list runs only in the push check. Run make check-changed: it runs the hook tests of the changed paths. A person who needs the whole list sets DIRIGIBLE_FULL_SUITE=1." >&2
+    exit 1
+fi
 if [[ $flags == *[ntiq]* ]]; then reason="make ran with -n, -t, -i, or -q"
-elif [[ "$(printf '%s\n' "$@" | sort)" != "$listed" ]]; then reason="the list is not HOOK_TESTS of the Makefile"
+elif [[ $whole == no ]]; then reason="the list is not HOOK_TESTS of the Makefile"
 fi
 
 # Not in TMPDIR: probe.test.sh needs a repo outside /private/var/folders, where the probe.sh

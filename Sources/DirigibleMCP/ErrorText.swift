@@ -154,6 +154,20 @@ extension PasteError {
     }
 }
 
+extension SplitError {
+    /// No `default` case: a new error case does not compile until it has a message.
+    package var message: String {
+        switch self {
+        case .space(let needed, let free): "the split needs \(needed) free bytes, and the disk has \(free)."
+        case .write(let file, let code): "the split cannot write \"\(file)\" (errno \(code))."
+        case .sourceUnreadable(let file, let code): "the split cannot read the source \"\(file)\" (errno \(code))."
+        case .sourceMissing(let file): "the split cannot find the source \"\(file)\" in Clips/."
+        case .cancelled: "the split was cancelled."
+        case .session(let error): error.message
+        }
+    }
+}
+
 extension TranscriptFileError {
     package var message: String {
         switch self {
@@ -341,6 +355,8 @@ extension StudioError {
         case .importYielded: "a take in another studio stopped the import."
         case .paste(let error, _): "the paste failed (\(error))."
         case .pasteYielded: "a take in another studio stopped the paste."
+        case .split(let error): error.message
+        case .splitYielded: "a take in another studio stopped the split."
         case .rippleBlocked: "a ripple cannot move the timeline under a pending or split take."
         // No command sets the artwork through Studio; `episode set --artwork` calls `importArtwork`.
         case .artwork(let error): error.message

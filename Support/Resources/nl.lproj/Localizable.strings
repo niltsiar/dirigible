@@ -175,6 +175,12 @@
 "error.writer.did.not.stop" = "Dirigible kon %1$@ niet stoppen. De audio staat veilig op de schijf. Klik op '%2$@' om het opnieuw te proberen, of stop Dirigible: bij de volgende start wordt de take hersteld.";
 "paste.banner" = "Plakken uit '%@'";
 "paste.done" = "Geplakt.";
+"split.banner" = "Stereoclips worden gesplitst in monosporen";
+"error.split.space" = "Dirigible kan de stereoclips niet splitsen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
+"error.split.write" = "Dirigible kan de stereoclips niet splitsen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
+"error.split.unreadable" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
+"error.split.missing" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
+"error.split.yielded" = "Het splitsen is gestopt vanwege een take in een ander venster. Splits opnieuw na de take.";
 "reverted.to" = "Teruggezet naar de reservekopie van %@";
 
 /* Window, panels, and alerts */

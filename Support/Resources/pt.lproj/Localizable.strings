@@ -175,6 +175,12 @@
 "error.writer.did.not.stop" = "O Dirigible não conseguiu parar %1$@. O áudio está seguro no disco. Clique em %2$@ para tentar novamente ou encerre o Dirigible: a próxima abertura restaura a tomada.";
 "paste.banner" = "Colando de “%@”";
 "paste.done" = "Colado.";
+"split.banner" = "Dividindo clipes estéreo em faixas mono";
+"error.split.space" = "O Dirigible não pode dividir os clipes estéreo. O disco desta sessão não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
+"error.split.write" = "O Dirigible não pode dividir os clipes estéreo. O Dirigible não consegue escrever na pasta Clips da sessão (erro %lld). Verifique o disco e tente novamente.";
+"error.split.unreadable" = "O Dirigible não pode dividir os clipes estéreo. Não foi possível ler o arquivo de áudio “%1$@” (erro %2$lld). Verifique o disco e tente novamente.";
+"error.split.missing" = "O Dirigible não pode dividir os clipes estéreo. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
+"error.split.yielded" = "A divisão foi interrompida por uma tomada em outra janela. Divida novamente depois da tomada.";
 "reverted.to" = "Revertido para o backup de %@";
 
 /* Window, panels, and alerts */

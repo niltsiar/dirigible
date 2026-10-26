@@ -6,11 +6,12 @@ import os
 /// stores nothing for it. It is equal by the identity of its flags, so the transport stays
 /// Hashable.
 public struct ImportRun: Hashable, Sendable {
-    /// What the run converts or copies: a file (decision 0040) or the clips of a paste from
-    /// another package (decision 0042).
-    public enum Kind: Hashable, Sendable { case file, paste }
+    /// What the run converts or copies: a file (decision 0040), the clips of a paste from another
+    /// package (decision 0042), or the stereo clips of a split (decision 0053).
+    public enum Kind: Hashable, Sendable { case file, paste, split }
 
-    /// The file name, or the name of the source package of a paste.
+    /// The file name, the name of the source package of a paste, or the name of the package of a
+    /// split.
     public let name: String
     public let kind: Kind
     let flags: ImportFlags

@@ -40,6 +40,9 @@ extension L10n {
         case .paste(.session(let error), _): return message(for: error, name: name)
         case .paste(let error, let source): return message(for: error, source: source)
         case .pasteYielded(let source): return errorPasteYielded.format(source)
+        case .split(.session(let error)): return message(for: error, name: name)
+        case .split(let error): return message(for: error)
+        case .splitYielded: return errorSplitYielded.text
         // The window beeps for it and shows no alert.
         case .rippleBlocked: return errorSessionOther.text
         // The banner Cancel ends a level or a duck, so the window shows no alert for it (decision 0049).
@@ -100,6 +103,18 @@ extension L10n {
         case .space, .write(_, ENOSPC): errorPasteSpace.format(source)
         case .write(_, let code): errorPasteCopy.format(source, Int(code))
         case .convert(_, let code): errorPasteConvert.format(source, Int(code))
+        case .cancelled, .session: errorSessionOther.text
+        }
+    }
+
+    /// The text of a split error (decision 0053). The window shows no alert for a cancel, and a
+    /// session refusal has the session text.
+    private static func message(for error: SplitError) -> String {
+        switch error {
+        case .space, .write(_, ENOSPC): errorSplitSpace.text
+        case .write(_, let code): errorSplitWrite.format(Int(code))
+        case .sourceUnreadable(let file, let code): errorSplitUnreadable.format(file, Int(code))
+        case .sourceMissing(let file): errorSplitMissing.format(file)
         case .cancelled, .session: errorSessionOther.text
         }
     }
@@ -222,9 +237,10 @@ extension L10n {
             .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .crossfadeAtEqualGains, .fadeAtCrossfade, .laneOutOfRange,
             .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
-            .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
-            .nothingToHeal, .notStereo:
+            .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo:
             return errorSessionOther.text
+        // A split refuses it before any write (decision 0053).
+        case .transcriptNotLoaded: return errorTranscriptUnloaded.text
         case .noSpeechTrack: return errorDuckNoSpeechTrack.text
         case .noDuckedTrack: return errorDuckNoDuckedTrack.text
         case .trackInBothDuckLists(let track): return errorDuckBothLists.format(name(track))

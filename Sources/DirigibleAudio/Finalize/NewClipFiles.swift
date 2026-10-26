@@ -118,3 +118,14 @@ extension PasteError {
         }
     }
 }
+
+extension SplitError {
+    init(_ fault: NewClipFault) {
+        switch fault {
+        case .space(let needed, let free): self = .space(needed: needed, free: free)
+        case .folder(let code), .flush(let code): self = .write(file: clipsFolderName, errno: code)
+        case .move(let name, let code): self = .write(file: name, errno: code)
+        case .taken(let stem): self = .write(file: "\(stem).wav", errno: EEXIST)
+        }
+    }
+}

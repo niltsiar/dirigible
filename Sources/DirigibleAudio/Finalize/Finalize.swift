@@ -42,9 +42,9 @@ public enum SegmentFault: Error, Hashable, Sendable {
     case session(SessionError)
 }
 
-/// A test seam: `before` runs before the read of block `block` (0-based) of one segment, and an
-/// error that it throws is the read error. Only tests pass it; `Studio` and the CLI never do.
-struct ReadFault: Sendable {
+/// A test seam: `before` runs before the read of block `block` (0-based) of one segment or of one
+/// run of a clip render, and an error that it throws is the read error. Only tests make one.
+package struct ReadFault: Sendable {
     var stem: String
     var block: Int
     var before: @Sendable () throws -> Void

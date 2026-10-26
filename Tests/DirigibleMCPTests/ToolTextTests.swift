@@ -111,4 +111,11 @@ struct ToolTextTests {
             #expect(locate.contains(part), "\(part)")
         }
     }
+
+    /// U17: the playhead stays where an agent play stopped, so the next take of the user starts there.
+    @Test func transportPlayNamesWhereTheNextTakeStarts() throws {
+        let play = try #require(Tool.all.first { $0.name == "transport_play" }).description
+        #expect(
+            play.contains("After the play, the playhead stays where the play stopped, and the next take starts there."))
+    }
 }

@@ -198,9 +198,35 @@ struct StereoSplitTests {
         #expect(try fixture.listing() == before, "the left temp file is gone")
     }
 
+    /// 0040: a move fault after the left rename keeps the renamed left WAV as an unused file,
+    /// unlinks the right temp file, and replaces no file. An item at the right name, made while the
+    /// right side is written, makes the right move fail.
+    @Test func moveFaultKeepsTheRenamedLeftFile() throws {
+        let fixture = try SplitFixture(seconds: 30, clips: [("c1", 960_000, 240_000)])
+        let planted = fixture.package.url.appending(path: "\(clipsFolderName)/f1 R.wav")
+        let before = try fixture.listing()
+        var fault: SplitError?
+
+        do throws(SplitError) {
+            _ = try fixture.split(
+                ["c1"],
+                progress: { _ in
+                    guard fixture.has(".f1 R.wav.tmp"), !fixture.has("f1 R.wav") else { return }
+                    FileManager.default.createFile(atPath: planted.path, contents: Data("planted".utf8))
+                })
+        } catch {
+            fault = error
+        }
+
+        #expect(fault == .write(file: "f1 R.wav", errno: EEXIST))
+        #expect(fixture.has("f1 L.wav"), "the renamed left WAV stays")
+        #expect(try fixture.listing() == (before + ["f1 L.wav", "f1 R.wav"]).sorted(), "no temp file stays")
+        #expect(FileManager.default.contents(atPath: planted.path) == Data("planted".utf8))
+    }
+
     /// C6: a session refusal comes before the first write. A list with a mono clip, and a
-    /// transcript that did not load, leave `Clips/` as it was; the same split with no refusal writes.
-    /// The mono refusal comes before the space check.
+    /// transcript that did not load, leave `Clips/` as it was and read no progress and no cancel;
+    /// the same split with no refusal writes. The mono refusal comes before the space check.
     @Test func sessionRefusalLeavesNoFile() throws {
         let fixture = try SplitFixture(seconds: 30, clips: [("c1", 960_000, 240_000)])
         try fixture.package.addFile("m1", channels: [ramp(frames: 48_000)])
@@ -208,16 +234,25 @@ struct StereoSplitTests {
         var unloaded = fixture.package.session
         unloaded.transcripts[TranscriptID(1)] = Transcript(id: TranscriptID(1), name: "t1", words: nil)
         let before = try fixture.hashes()
+        var reads = 0
+        let progress: (Double) -> Void = { _ in reads += 1 }
+        let isCancelled: () -> Bool = {
+            reads += 1
+            return false
+        }
 
-        #expect(throws: SplitError.session(.notStereo("m"))) { try fixture.split(["c1", "m"]) }
+        #expect(throws: SplitError.session(.notStereo("m"))) {
+            try fixture.split(["c1", "m"], progress: progress, isCancelled: isCancelled)
+        }
         #expect(throws: SplitError.session(.notStereo("m")), "a full disk") {
-            try fixture.split(["c1", "m"], freeBytes: 0)
+            try fixture.split(["c1", "m"], freeBytes: 0, progress: progress, isCancelled: isCancelled)
         }
         #expect(try fixture.hashes() == before)
         #expect(throws: SplitError.session(.transcriptNotLoaded([TranscriptID(1)]))) {
-            try fixture.split(["c1"], of: unloaded)
+            try fixture.split(["c1"], of: unloaded, progress: progress, isCancelled: isCancelled)
         }
         #expect(try fixture.hashes() == before)
+        #expect(reads == 0, "a refused split converts no frame")
         #expect(try fixture.split(["c1"]).made.count == 2, "the split with no refusal writes")
     }
 

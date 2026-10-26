@@ -178,3 +178,4 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F164 | Take time map and sync state: map take time to the edited timeline, and tell the agent when an edit breaks the sync with the take | tester 2026-10-16 | done, Release 4 runs 10 and 12 | R7, R16 |
 | F165 | Agent reads by time: silences, the nearest pause, and the level and loudness of a range | tester 2026-10-16 | done, Release 4 run 13 | R16, R10 |
 | F166 | An export to MP3 or M4A with no episode title warns that the file has no title tag | tester 2026-10-16 | done, Release 4 run 14 | R11, R13 |
+| F167 | Agent transport: play a range, stop, and locate in the running app | tester 2026-10-16 | done, Release 4 run 17 | R16 |

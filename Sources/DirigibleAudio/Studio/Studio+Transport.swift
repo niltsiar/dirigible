@@ -68,24 +68,21 @@ extension Studio {
     /// The transport commands of the window and the keys (decision 0016). It never throws: a
     /// command that the state refuses does nothing.
     public func perform(_ command: TransportCommand) async {
-        _ = await run(.command(command))
+        _ = await run(command)
     }
 
-    /// The one path of the feed number (decision 0016), for `perform` and the agent calls. While
-    /// a take starts, records, or finalizes, only Space acts: it stops the take. A new feed number
+    /// A transport command of `perform`, `locate(_:)`, or `stopPlayback()` (decision 0016). The
+    /// agent play `playRange` is the other path: both end a running feed with `endFeed`, start a
+    /// feed with `startPlay`, and keep an end with its feed number in `PlayState.end`. While a
+    /// take starts, records, or finalizes, only Space acts: it stops the take. A new feed number
     /// and `playback` change with no await first, so the next request sees them. Each outcome is
     /// built after the last await, with a check of the feed number and no await between.
-    func run(_ request: TransportRequest) async -> TransportOutcome {
-        if request == .command(.playStop), case .recording = transport, !isStarting {
+    func run(_ command: TransportCommand) async -> TransportOutcome {
+        if command == .playStop, case .recording = transport, !isStarting {
             try? await stopRecording()
             return .state(.stopped(at: play.playhead))
         }
         guard isIdle else { return .state(state(from: play.playhead)) }
-        let command: TransportCommand
-        switch request {
-        case .playRange(let from, let to): return await playRange(from: from, to: to)
-        case .command(let given): command = given
-        }
         let current = play.playback.shuttle
         if case .seek(let seek) = command {
             guard let target = frame(of: seek) else { return .state(state(from: play.playhead)) }
@@ -135,34 +132,8 @@ extension Studio {
         return await startFromStopped(next, number: number, end: nil)
     }
 
-    /// An agent play (C4, C4c, C5, C5b): forward 1x at the window speed from `from` (else the
-    /// playhead of the last poll) to the smaller of `to` and the session end. A start at or after
-    /// that end changes nothing.
-    private func playRange(from: Frames?, to: Frames?) async -> TransportOutcome {
-        let start = from ?? play.playhead
-        let end = to.flatMap { $0 < session.end ? PlayEnd.to($0) : nil } ?? .session(session.end)
-        guard start < end.frame else { return .pastEnd(start: start, end: end) }
-        let forward = Shuttle(direction: .forward, rate: .one)
-        let current = play.playback.shuttle
-        if current == forward, from == nil, to == nil { return .state(state(from: play.playhead)) }
-        let bound = to.map { min($0, session.end) }
-        play.playback = .playing(forward)
-        var number = play.feed + 1
-        if current != nil {
-            number = await endFeed(stop: false)
-            guard play.feed == number else { return .superseded }
-        } else {
-            play.feed = number
-        }
-        // Before the media check: a user seek in the check keeps the end (C8, C18).
-        (play.playhead, play.startPoint) = (start, start)
-        play.end = bound.map { (number, $0) }
-        guard current == nil else { return await startPlay(forward, from: start, number: number, end: bound) }
-        return await startFromStopped(forward, number: number, end: bound)
-    }
-
     /// A play from stopped: the media check, then the feed `number` from the playhead.
-    private func startFromStopped(_ shuttle: Shuttle, number: Int, end: Frames?) async -> TransportOutcome {
+    func startFromStopped(_ shuttle: Shuttle, number: Int, end: Frames?) async -> TransportOutcome {
         play.playbackStop = nil
         // Only a play from stopped checks the media, not each shuttle key (plan gate 1 item 7).
         await checkMedia()
@@ -172,7 +143,7 @@ extension Studio {
     }
 
     /// The state that plays now, from `start`. The end of a reverse play is 0.
-    private func state(from start: Frames) -> TransportState {
+    func state(from start: Frames) -> TransportState {
         guard let shuttle = play.playback.shuttle else { return .stopped(at: play.playhead) }
         let end = shuttle.direction == .reverse ? .zero : play.bound ?? session.end
         return .playing(from: start, to: end, shuttle: shuttle)
@@ -256,7 +227,7 @@ extension Studio {
     /// Takes a new feed number for the end of the running feed. It sets the playhead to the
     /// Player position when the Player started that feed and no later command came. With
     /// `stop`, the Player stops first. Returns the new number.
-    private func endFeed(stop: Bool) async -> Int {
+    func endFeed(stop: Bool) async -> Int {
         let stopped = play.feed
         play.feed += 1
         let number = play.feed
@@ -310,7 +281,7 @@ extension Studio {
     }
 
     /// Starts the feed `number`, then reads the Player once with the fault rule of the poll.
-    private func startPlay(_ shuttle: Shuttle, from: Frames, number: Int, end: Frames?) async -> TransportOutcome {
+    func startPlay(_ shuttle: Shuttle, from: Frames, number: Int, end: Frames?) async -> TransportOutcome {
         let player =
             play.player
             ?? Player(
@@ -392,4 +363,15 @@ extension Studio {
         case .frame(let frame): max(.zero, frame)
         }
     }
+}
+
+/// The media check of `Studio.checkMedia` and `Studio.exportFaults`, off the main actor, in the
+/// package that the lock holds now. Nil when the package left its volume or the process has no
+/// free descriptor.
+@concurrent nonisolated func mediaFaults(
+    _ session: Session, lock: PackageLock, source: ExportSource? = nil, before: @Sendable () async -> Void = {}
+) async -> [FileID: MediaFault]? {
+    await before()
+    guard let package = try? lock.package() else { return nil }
+    return try? checkMedia(session, package: package, source: source)
 }

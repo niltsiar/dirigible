@@ -185,6 +185,16 @@
 "error.split.unreadable" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.split.missing" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
 "error.split.yielded" = "La séparation s’est arrêtée à cause d’une prise dans une autre fenêtre. Séparez à nouveau après la prise.";
+"denoise.banner" = "Réduction du bruit";
+"error.denoise.space" = "Dirigible ne peut pas réduire le bruit. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
+"error.denoise.write" = "Dirigible ne peut pas réduire le bruit. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
+"error.denoise.unreadable" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";
+"error.denoise.missing" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
+"error.denoise.not.downloaded" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %@ » n’est pas sur ce Mac. Téléchargez d’abord le fichier.";
+"error.denoise.track.role" = "Dirigible ne peut pas réduire le bruit d’un clip sur une piste Musique ou Effets. Sélectionnez des clips sur d’autres pistes et réessayez.";
+"error.denoise.unavailable" = "Dirigible ne peut pas réduire le bruit. La réduction du bruit de macOS ne s’est pas chargée (erreur %lld).";
+"error.denoise.engine" = "Dirigible ne peut pas réduire le bruit. Le moteur audio s’est arrêté (erreur %lld). Réessayez.";
+"error.denoise.yielded" = "La réduction du bruit s’est arrêtée à cause d’une prise dans une autre fenêtre. Réduisez à nouveau le bruit après la prise.";
 "reverted.to" = "Copie de secours du %@ restaurée";
 
 /* Window, panels, and alerts */

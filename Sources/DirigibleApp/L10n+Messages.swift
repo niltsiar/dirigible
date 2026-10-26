@@ -43,6 +43,9 @@ extension L10n {
         case .split(.session(let error)): return message(for: error, name: name)
         case .split(let error): return message(for: error)
         case .splitYielded: return errorSplitYielded.text
+        case .clipRender(.session(let error)): return message(for: error, name: name)
+        case .clipRender(let error): return message(for: error)
+        case .clipRenderYielded: return errorDenoiseYielded.text
         // The window beeps for it and shows no alert.
         case .rippleBlocked: return errorSessionOther.text
         // The banner Cancel ends a level or a duck, so the window shows no alert for it (decision 0049).
@@ -115,6 +118,21 @@ extension L10n {
         case .write(_, let code): errorSplitWrite.format(Int(code))
         case .sourceUnreadable(let file, let code): errorSplitUnreadable.format(file, Int(code))
         case .sourceMissing(let file): errorSplitMissing.format(file)
+        case .cancelled, .session: errorSessionOther.text
+        }
+    }
+
+    /// The text of a clip render error (decision 0054), as a split error.
+    private static func message(for error: ClipRenderError) -> String {
+        switch error {
+        case .space, .write(_, ENOSPC): errorDenoiseSpace.text
+        case .write(_, let code): errorDenoiseWrite.format(Int(code))
+        case .sourceUnreadable(let file, let code): errorDenoiseUnreadable.format(file, Int(code))
+        case .sourceMissing(let file): errorDenoiseMissing.format(file)
+        case .notDownloaded(let file): errorDenoiseNotDownloaded.format(file)
+        case .trackRole: errorDenoiseTrackRole.text
+        case .effectUnavailable(let status): errorDenoiseUnavailable.format(Int(status))
+        case .engine(let status): errorDenoiseEngine.format(Int(status))
         case .cancelled, .session: errorSessionOther.text
         }
     }
@@ -239,7 +257,7 @@ extension L10n {
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo:
             return errorSessionOther.text
-        // A transcript cut and a split (decision 0053) refuse it while a transcript did not load.
+        // A transcript cut, a split (0053), and a clip render (0054) refuse it while a transcript did not load.
         case .transcriptNotLoaded: return errorTranscriptUnloaded.text
         case .noSpeechTrack: return errorDuckNoSpeechTrack.text
         case .noDuckedTrack: return errorDuckNoDuckedTrack.text

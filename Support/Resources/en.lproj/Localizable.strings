@@ -185,6 +185,16 @@
 "error.split.unreadable" = "Dirigible cannot split the stereo clips. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
 "error.split.missing" = "Dirigible cannot split the stereo clips. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
 "error.split.yielded" = "The split stopped for a take in another window. Split again after the take.";
+"denoise.banner" = "Reducing noise";
+"error.denoise.space" = "Dirigible cannot reduce the noise. The disk of this session does not have enough free space. Free some disk space and try again.";
+"error.denoise.write" = "Dirigible cannot reduce the noise. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
+"error.denoise.unreadable" = "Dirigible cannot reduce the noise. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
+"error.denoise.missing" = "Dirigible cannot reduce the noise. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.denoise.not.downloaded" = "Dirigible cannot reduce the noise. The audio file “%@” is not on this Mac. Download the file first.";
+"error.denoise.track.role" = "Dirigible cannot reduce the noise of a clip on a Music or Effects track. Select clips on other tracks and try again.";
+"error.denoise.unavailable" = "Dirigible cannot reduce the noise. The noise reduction of macOS did not load (error %lld).";
+"error.denoise.engine" = "Dirigible cannot reduce the noise. The audio engine stopped (error %lld). Try again.";
+"error.denoise.yielded" = "The noise reduction stopped for a take in another window. Reduce the noise again after the take.";
 "reverted.to" = "Reverted to the backup of %@";
 
 /* Window, panels, and alerts */

@@ -7,11 +7,12 @@ import os
 /// Hashable.
 public struct ImportRun: Hashable, Sendable {
     /// What the run converts or copies: a file (decision 0040), the clips of a paste from another
-    /// package (decision 0042), or the stereo clips of a split (decision 0053).
-    public enum Kind: Hashable, Sendable { case file, paste, split }
+    /// package (decision 0042), the stereo clips of a split (decision 0053), or the clips of a
+    /// clip render (decision 0054).
+    public enum Kind: Hashable, Sendable { case file, paste, split, clipRender }
 
     /// The file name, the name of the source package of a paste, or the name of the package of a
-    /// split.
+    /// split or a clip render.
     public let name: String
     public let kind: Kind
     let flags: ImportFlags
@@ -88,7 +89,8 @@ extension Studio {
     /// (decision 0049). The import ends at its next block, and the renamed WAV goes.
     public func cancelImport() { endImport(.user) }
 
-    /// The blocking run of an import or a paste from another package (decisions 0040 and 0042):
+    /// The blocking run of an import, a paste from another package, a split, or a clip render
+    /// (decisions 0040, 0042, 0053, and 0054):
     /// `checkIdle`, `.rippleBlocked` for a `ripple` under a pending or split take (decision 0037),
     /// `.busy` during a pending take and during `settle()`, the stop of play, the
     /// transport `.importing`, and `work` in one turn of the write chain. A cancel of the calling
@@ -96,7 +98,8 @@ extension Studio {
     /// the files that it made; after it, a set flag removes them with `removeMadeFiles`, writes
     /// nothing, and throws `cancelled`, or `yielded` for a take in another studio (decision 0049).
     /// Else the run saves, records one undo entry with `agent`, and loads the peaks of new files.
-    /// `importProgress` starts at 0 for each run.
+    /// `importProgress` starts at 0 for each run. From the end of the refusals to its end, the run
+    /// holds a user-initiated activity that stops idle sleep and App Nap (decision 0040).
     func blockingRun<Value: Sendable>(
         name: String, kind: ImportRun.Kind, cancelled: StudioError, yielded: StudioError, ripple: Bool,
         agent: AgentName? = nil,
@@ -110,12 +113,17 @@ extension Studio {
         guard pendingTake == nil, !settling else { throw .busy }
         let stopped = endPlayForTake()
         let flags = ImportFlags()
+        let activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .idleSystemSleepDisabled], reason: environment.blockingRunReason)
         let task = Task {
             await blockingTurn(flags, stopped, cancelled: cancelled, yielded: yielded, agent: agent, work: work)
         }
         (importProgress, importStop) = (0, nil)
         transport = .importing(ImportRun(name: name, kind: kind, flags: flags))
-        defer { transport = .idle }
+        defer {
+            transport = .idle
+            ProcessInfo.processInfo.endActivity(activity)
+        }
         let result = await withTaskCancellationHandler {
             await task.value
         } onCancel: {

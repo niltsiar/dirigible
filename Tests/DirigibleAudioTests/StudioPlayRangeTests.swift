@@ -50,6 +50,16 @@ struct StudioPlayRangeTests {
         try #require(await studio.play.player?.reading().frame)
     }
 
+    /// Waits until an edit reaches the Player: the edit sends the session in a task.
+    func untilThePlayerEnds(at end: Frames, _ studio: Studio) async throws {
+        let clock = ContinuousClock()
+        let limit = clock.now + .seconds(10)
+        while await studio.play.player?.session.end != end, clock.now < limit {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await studio.play.player?.session.end == end, "the edit reaches the Player")
+    }
+
     // MARK: C4, C9
 
     /// The worked fixture of C4: F = 24 000, T = 50 000 (not on a chunk edge).
@@ -200,16 +210,36 @@ struct StudioPlayRangeTests {
         _ = await studio.renderOffline(frames: 4800)
 
         try studio.edit(ripple: false) { session throws(SessionError) in try session.trim("c1", to: 0..<40_000) }
-        let clock = ContinuousClock()
-        let limit = clock.now + .seconds(10)
-        while await studio.play.player?.session.end != 40_000, clock.now < limit {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(await studio.play.player?.session.end == 40_000, "the edit reaches the Player")
+        try await untilThePlayerEnds(at: 40_000, studio)
 
         _ = await studio.renderOffline(frames: 3 * 4800)
         await untilStopped(studio)
         #expect(studio.playhead == 40_000)
+    }
+
+    /// The agent locate and a user seek to 30 000 after a trim of `c1` to 40 000 during a play
+    /// with the end 50 000, then an undo: the reply names 40 000, and the play goes on to 50 000.
+    @Test(arguments: [false, true])
+    func anUndoAfterASeekGivesBackTheEnd(agent: Bool) async throws {
+        let studio = try await studio()
+        _ = try await studio.play(from: 24_000, to: 50_000)
+        _ = await studio.renderOffline(frames: 4800)
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.trim("c1", to: 0..<40_000) }
+
+        if agent {
+            let outcome = try await studio.locate(30_000)
+            #expect(outcome == .state(.playing(from: 30_000, to: 40_000, shuttle: forward)))
+        } else {
+            await studio.perform(.seek(.frame(30_000)))
+        }
+        try studio.undo()
+        try await untilThePlayerEnds(at: 96_000, studio)
+
+        let out = await studio.renderOffline(frames: 6 * 4800)
+        expectMix(slice(out, 0..<20_000), try package.mix(30_000..<50_000), "the mix to the end")
+        expectSilence(slice(out, 20_000..<6 * 4800), "no mix after the end")
+        await untilStopped(studio)
+        #expect(studio.playhead == 50_000)
     }
 
     // MARK: C14, C18

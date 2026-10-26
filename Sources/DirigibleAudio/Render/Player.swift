@@ -15,8 +15,9 @@ actor Player {
     enum Output { case device, offline }
     /// Only these change the feed number. A seek or a shuttle change is a new play.
     enum Command: Sendable {
-        /// `speed` applies only at the shuttle rate 1x (decision 0052).
-        case play(from: Frames, shuttle: Shuttle, speed: Speed = .one)
+        /// `speed` applies only at the shuttle rate 1x (decision 0052). A forward play stops at
+        /// `end`, else at the session end.
+        case play(from: Frames, shuttle: Shuttle, speed: Speed = .one, end: Frames? = nil)
         case stop
     }
 
@@ -52,6 +53,8 @@ actor Player {
     struct Feed {
         let anchor: Frames
         let shuttle: Shuttle
+        /// The frame where a forward feed stops before the session end; nil: the session end.
+        let end: Frames?
         /// The vari-speed that the unit plays: 1x at a tape rate, with no unit, or when the unit
         /// refuses the rate. `scheduled` counts node frames, which are source frames at any
         /// speed (probe S3).
@@ -145,7 +148,7 @@ actor Player {
         // The unit keeps the frames of the old position; a new play must not hear them.
         graph?.unit?.reset()
         feed = nil
-        guard case .play(let start, let shuttle, let speed) = command else {
+        guard case .play(let start, let shuttle, let speed, let end) = command else {
             graph?.engine.stop()
             return
         }
@@ -173,7 +176,7 @@ actor Player {
             ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded())
             : offlineLatency
         feed = Feed(
-            anchor: start, shuttle: shuttle, speed: feedSpeed,
+            anchor: start, shuttle: shuttle, end: end, speed: feedSpeed,
             mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
@@ -230,8 +233,8 @@ actor Player {
             loudness.restart(scheduled: scheduled)
             graph.node.stop()
             feed = Feed(
-                anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, speed: feed.speed, mix: feed.mix,
-                fadeFrom: feed.fadeFrom)
+                anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, end: feed.end, speed: feed.speed,
+                mix: feed.mix, fadeFrom: feed.fadeFrom)
             self.feed = feed
         }
         defer { if dry { graph.node.play() } }

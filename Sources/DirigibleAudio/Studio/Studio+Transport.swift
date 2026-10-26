@@ -56,63 +56,7 @@ extension Studio {
     }
 }
 
-/// The playback state of a studio (decision 0016). `Studio` stores one value of it.
-struct PlayState {
-    var playback: Playback = .stopped
-    /// At open: the session end, so Record in a reopened session appends. Not saved.
-    var playhead: Frames {
-        didSet { playheadTime = .now }
-    }
-    /// The instant of the last write of `playhead`: a poll, a seek, or a stop. The timeline draws
-    /// the playhead line from it between two polls (decision 0017).
-    var playheadTime = ContinuousClock.now
-    /// Where Shift-Space goes: set by a play from stopped and by a seek.
-    var startPoint: Frames
-    var playbackStop: PlaybackStop?
-    /// The last feed number. Only a play, a stop, a seek, and a shuttle change take a new one.
-    var feed = 0
-    /// The last session revision sent to the Player. An edit takes a revision, not a feed number.
-    var revision = 0
-    /// The gain of a fader drag: each session that the Player gets has it, until `endPreview`.
-    var preview: (track: TrackID, gain: Gain)?
-    /// The vari-speed of a 1x play (decision 0052): window state, 1x at open.
-    var speed = Speed.one
-    /// Made at the first play from `environment.playerOutput`.
-    var player: Player?
-    /// Reads the Player every 33 ms while `playback` is `.playing`.
-    var poll: Task<Void, Never>?
-
-    init(at playhead: Frames) {
-        self.playhead = playhead
-        startPoint = playhead
-    }
-}
-
 extension Studio {
-    public var playback: Playback { play.playback }
-    /// Live while playing: the poll sets it every 33 ms.
-    public var playhead: Frames { play.playhead }
-    /// The instant of the last poll or set of `playhead`.
-    public var playheadTime: ContinuousClock.Instant { play.playheadTime }
-    /// The last stop of playback that the user did not ask for. A new play clears it.
-    public var playbackStop: PlaybackStop? { play.playbackStop }
-    /// The vari-speed of a 1x play (decision 0052).
-    public var speed: Speed { play.speed }
-    /// The system has the speed unit; else the speed stays 1 (decision 0052). One lookup for each
-    /// environment, with no instance, so the main actor loads no audio unit.
-    public var canChangeSpeed: Bool {
-        if let found = speedUnitFound { return found }
-        let found = environment.speedUnit() != nil
-        speedUnitFound = found
-        return found
-    }
-    /// The frame that Previous Clip and Previous Marker look before. During play it is 0.5 s
-    /// before the playhead: the playhead is past an edge or a marker when the user hears it, so
-    /// a press just after it goes to the one before it (code gate 1).
-    public var previousFrom: Frames {
-        play.playback == .stopped ? play.playhead : play.playhead - Frames(session.sampleRate / 2)
-    }
-
     /// Checks each pool file off the main actor (decision 0016). The window calls it at focus;
     /// `open`, a finalize, and a play from stopped check too. A package that left its volume
     /// keeps the last state: the check cannot read it.
@@ -121,25 +65,47 @@ extension Studio {
         missingMedia = faults
     }
 
-    /// The one entry of the transport commands (decision 0016). It never throws: a command that
-    /// the state refuses does nothing. While a take starts, records, or finalizes, only Space
-    /// acts: it stops the take. A new feed number and `playback` change with no await first, so
-    /// the next command sees them.
+    /// The transport commands of the window and the keys (decision 0016). It never throws: a
+    /// command that the state refuses does nothing.
     public func perform(_ command: TransportCommand) async {
-        if command == .playStop, case .recording = transport, !isStarting {
+        _ = await run(.command(command))
+    }
+
+    /// The one path of the feed number (decision 0016), for `perform` and the agent calls. While
+    /// a take starts, records, or finalizes, only Space acts: it stops the take. A new feed number
+    /// and `playback` change with no await first, so the next request sees them. Each outcome is
+    /// built after the last await, with a check of the feed number and no await between.
+    func run(_ request: TransportRequest) async -> TransportOutcome {
+        if request == .command(.playStop), case .recording = transport, !isStarting {
             try? await stopRecording()
-            return
+            return .state(.stopped(at: play.playhead))
         }
-        guard isIdle else { return }
+        guard isIdle else { return .state(state(from: play.playhead)) }
+        let command: TransportCommand
+        switch request {
+        case .playRange(let from, let to): return await playRange(from: from, to: to)
+        case .command(let given): command = given
+        }
         let current = play.playback.shuttle
         if case .seek(let seek) = command {
-            guard let target = frame(of: seek) else { return }
+            guard let target = frame(of: seek) else { return .state(state(from: play.playhead)) }
+            // Read before `endFeed` takes the new number, which drops the end.
+            let bound = play.bound
+            // A forward play stops at a target at or after the session end (C7).
+            let stops = current?.direction == .forward && target >= session.end
             var number = play.feed + 1
-            if current != nil { number = await endFeed(stop: false) } else { play.feed = number }
-            guard play.feed == number else { return }
+            if current != nil {
+                if stops { play.playback = .stopped }
+                number = await endFeed(stop: stops)
+            } else {
+                play.feed = number
+            }
+            guard play.feed == number else { return .superseded }
             (play.playhead, play.startPoint) = (target, target)
-            if let current { await startPlay(current, from: target, number: number) }
-            return
+            guard let current, !stops else { return .state(.stopped(at: target)) }
+            let end = bound.flatMap { target < $0 ? $0 : nil }
+            play.end = end.map { (number, $0) }
+            return await startPlay(current, from: target, number: number, end: end)
         }
         guard let next = Shuttle.after(command, current: current) else {
             var number = play.feed
@@ -147,30 +113,69 @@ extension Studio {
                 play.playback = .stopped
                 number = await endFeed(stop: true)
             }
-            if command == .stopAndReturn, play.feed == number { play.playhead = play.startPoint }
-            return
+            guard play.feed == number else { return .superseded }
+            if command == .stopAndReturn { play.playhead = play.startPoint }
+            return .state(.stopped(at: play.playhead))
         }
-        guard next != current else { return }
+        guard next != current else { return .state(state(from: play.playhead)) }
         play.playback = .playing(next)
         guard current == nil else {
             let number = await endFeed(stop: false)
-            if play.feed == number { await startPlay(next, from: play.playhead, number: number) }
-            return
+            guard play.feed == number else { return .superseded }
+            return await startPlay(next, from: play.playhead, number: number, end: nil)
         }
         // A play from stopped with no frames in its direction changes nothing.
         guard next.direction == .forward ? play.playhead < session.end : play.playhead > .zero else {
             play.playback = .stopped
-            return
+            return .state(.stopped(at: play.playhead))
         }
         play.feed += 1
         let number = play.feed
         play.startPoint = play.playhead
+        return await startFromStopped(next, number: number, end: nil)
+    }
+
+    /// An agent play (C4, C4c, C5, C5b): forward 1x at the window speed from `from` (else the
+    /// playhead of the last poll) to the smaller of `to` and the session end. A start at or after
+    /// that end changes nothing.
+    private func playRange(from: Frames?, to: Frames?) async -> TransportOutcome {
+        let start = from ?? play.playhead
+        let end = min(to ?? session.end, session.end)
+        guard start < end else { return .pastEnd(start: start, end: end) }
+        let forward = Shuttle(direction: .forward, rate: .one)
+        let current = play.playback.shuttle
+        if current == forward, from == nil, to == nil { return .state(state(from: play.playhead)) }
+        let bound = to.map { min($0, session.end) }
+        play.playback = .playing(forward)
+        var number = play.feed + 1
+        if current != nil {
+            number = await endFeed(stop: false)
+            guard play.feed == number else { return .superseded }
+        } else {
+            play.feed = number
+        }
+        // Before the media check: a user seek in the check keeps the end (C8, C18).
+        (play.playhead, play.startPoint) = (start, start)
+        play.end = bound.map { (number, $0) }
+        guard current == nil else { return await startPlay(forward, from: start, number: number, end: bound) }
+        return await startFromStopped(forward, number: number, end: bound)
+    }
+
+    /// A play from stopped: the media check, then the feed `number` from the playhead.
+    private func startFromStopped(_ shuttle: Shuttle, number: Int, end: Frames?) async -> TransportOutcome {
         play.playbackStop = nil
         // Only a play from stopped checks the media, not each shuttle key (plan gate 1 item 7).
         await checkMedia()
         // A stop, a seek, a shuttle change, or Record in the check makes this play old.
-        guard play.feed == number else { return }
-        await startPlay(next, from: play.playhead, number: number)
+        guard play.feed == number else { return .superseded }
+        return await startPlay(shuttle, from: play.playhead, number: number, end: end)
+    }
+
+    /// The state that plays now, from `start`. The end of a reverse play is 0.
+    private func state(from start: Frames) -> TransportState {
+        guard let shuttle = play.playback.shuttle else { return .stopped(at: play.playhead) }
+        let end = shuttle.direction == .reverse ? .zero : play.bound ?? session.end
+        return .playing(from: start, to: end, shuttle: shuttle)
     }
 
     /// A speed change now acts: no take starts, records, or finalizes, and the unit exists. The
@@ -180,21 +185,22 @@ extension Studio {
     /// Sets the vari-speed (decision 0052). It does nothing during a take or when the unit does
     /// not load. Stopped or at a tape rate, a change sets only the next 1x play. During a 1x play
     /// the play goes on from the heard frame: a change between two speeds other than 1 sets only
-    /// the rate of the unit; another change is a new play, as a shuttle change (S6). The speed
-    /// changes with no await first, as a feed number does in `perform`.
+    /// the rate of the unit, except in a play with an end, which plays again with no end (C8);
+    /// another change is a new play, as a shuttle change (S6). The speed changes with no await
+    /// first, as a feed number does in `run`.
     public func changeSpeed(to new: Speed) async {
         let old = play.speed
         guard takesSpeedChange, new != old else { return }
         play.speed = new
         guard let shuttle = play.playback.shuttle, shuttle.rate == .one else { return }
-        if old != .one, new != .one, let player = play.player {
+        if old != .one, new != .one, play.bound == nil, let player = play.player {
             let before = play.feed
             if await player.setSpeed(new) { return }
             // A stop, a seek, or Record in the await ended this play: no new play.
             guard play.feed == before, isIdle else { return }
         }
         let number = await endFeed(stop: false)
-        if play.feed == number { await startPlay(shuttle, from: play.playhead, number: number) }
+        if play.feed == number { _ = await startPlay(shuttle, from: play.playhead, number: number, end: nil) }
     }
 
     /// Tests only: pulls frames from the offline Player.
@@ -303,7 +309,8 @@ extension Studio {
         if session.track(preview.track)?.gain != preview.gain { sendSession() }
     }
 
-    private func startPlay(_ shuttle: Shuttle, from: Frames, number: Int) async {
+    /// Starts the feed `number`, then reads the Player once with the fault rule of the poll.
+    private func startPlay(_ shuttle: Shuttle, from: Frames, number: Int, end: Frames?) async -> TransportOutcome {
         let player =
             play.player
             ?? Player(
@@ -313,14 +320,34 @@ extension Studio {
         // Awaited, so a play after a take hears the take (plan gate 2 item 5).
         play.revision += 1
         await player.update(session, revision: play.revision)
-        await player.apply(.play(from: from, shuttle: shuttle, speed: play.speed), number: number)
-        guard play.poll == nil else { return }
-        play.poll = Task { [weak self] in
-            while true {
-                try? await Task.sleep(for: .milliseconds(33))
-                guard let self, await self.pollPlayer() else { return }
+        await player.apply(.play(from: from, shuttle: shuttle, speed: play.speed, end: end), number: number)
+        let reading = await player.reading()
+        if play.feed == number, reading.played == number, let stop = endOnFault(reading) {
+            await player.apply(.stop, number: play.feed)
+            return .failed(stop)
+        }
+        if play.poll == nil {
+            play.poll = Task { [weak self] in
+                while true {
+                    try? await Task.sleep(for: .milliseconds(33))
+                    guard let self, await self.pollPlayer() else { return }
+                }
             }
         }
+        guard play.feed == number else { return .superseded }
+        return .state(state(from: from))
+    }
+
+    /// The fault rule of the poll and of a play start: a stop that the user did not ask for, or
+    /// an engine that does not run. It ends the play with no await and returns the cause; the
+    /// caller stops the Player.
+    private func endOnFault(_ reading: Player.Reading) -> PlaybackStop? {
+        guard let stop = reading.stop ?? (reading.running ? nil : .outputChanged) else { return nil }
+        play.playbackStop = stop
+        play.playback = .stopped
+        play.feed += 1
+        holdLoudness()
+        return stop
     }
 
     /// One poll: the playhead from the Player, and the end of the material. False ends the
@@ -336,11 +363,7 @@ extension Studio {
                 if !reading.faults.isEmpty { missingMedia.merge(reading.faults) { $1 } }
                 // The engine stops before the system posts the change, so its position can be
                 // gone: the playhead keeps the last poll.
-                if let stop = reading.stop ?? (reading.running ? nil : .outputChanged) {
-                    play.playbackStop = stop
-                    play.playback = .stopped
-                    play.feed += 1
-                    holdLoudness()
+                if endOnFault(reading) != nil {
                     await player.apply(.stop, number: play.feed)
                 } else if reading.ended {
                     // At 2x and 4x the Player position can pass the end by less than the rate.
@@ -369,15 +392,4 @@ extension Studio {
         case .frame(let frame): max(.zero, frame)
         }
     }
-}
-
-/// The media check of `Studio.checkMedia` and `Studio.exportFaults`, off the main actor, in the
-/// package that the lock holds now. Nil when the package left its volume or the process has no
-/// free descriptor.
-@concurrent nonisolated func mediaFaults(
-    _ session: Session, lock: PackageLock, source: ExportSource? = nil, before: @Sendable () async -> Void = {}
-) async -> [FileID: MediaFault]? {
-    await before()
-    guard let package = try? lock.package() else { return nil }
-    return try? checkMedia(session, package: package, source: source)
 }

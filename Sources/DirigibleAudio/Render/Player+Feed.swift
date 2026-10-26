@@ -11,9 +11,11 @@ extension Player {
             || gains(old) != gains(new)
     }
 
-    /// The output frames of the whole feed: to the session end (forward) or to 0 (reverse).
+    /// The output frames of the whole feed: to the end of the play or the session end, the smaller
+    /// one (forward), or to 0 (reverse).
     func length(_ feed: Feed) -> Int {
-        let distance = feed.shuttle.direction == .forward ? feed.mix.session.end - feed.anchor : feed.anchor
+        let end = min(feed.end ?? feed.mix.session.end, feed.mix.session.end)
+        let distance = feed.shuttle.direction == .forward ? end - feed.anchor : feed.anchor
         return max(0, Int((Double(distance.count) / feed.shuttle.rate.rawValue).rounded(.up)))
     }
 

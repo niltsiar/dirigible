@@ -44,7 +44,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F22 | Clipboard with groups (bins) | Hindenburg PRO | Release 7 (also: a paste near the last track adds tracks, as in Audition) | R7, R10 |
 | F23 | Favorites: a clipboard shared by all sessions | Hindenburg PRO | Release 7 | R10 |
 | F24 | Group or link tracks; merge clips | Hindenburg PRO | Later | R7 |
-| F25 | Split a stereo clip into two mono clips | Hindenburg PRO | Release 4 | R7 |
+| F25 | Split a stereo clip into two mono clips | Hindenburg PRO | done, Release 4 run 17 | R7 |
 | F26 | Silence removal | Logic Pro | Release 5 | R10 |
 | F27 | Transcript and text-based editing | Hindenburg PRO | Release 5 (the text pane; the import and the cut by words are done, Release 3 run 10, v0.3.10) | R7 |
 | F28 | Time stretch | Hindenburg PRO | Later | R7 |

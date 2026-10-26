@@ -223,7 +223,7 @@ extension L10n {
             .foreignFile,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .transcriptNotLoaded, .chapterOutOfRange, .chapterImageNotKept,
-            .nothingToHeal:
+            .nothingToHeal, .notStereo:
             return errorSessionOther.text
         case .noSpeechTrack: return errorDuckNoSpeechTrack.text
         case .noDuckedTrack: return errorDuckNoDuckedTrack.text

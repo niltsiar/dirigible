@@ -272,13 +272,13 @@ struct AgentManualTests {
 
     /// W10: the manual says what does not exist yet, until a tool or a command for it exists.
     @Test func theManualSaysWhatDoesNotExist() {
-        #expect(Self.core.contains("Dirigible has no noise reduction and no voice profile yet: tell the user."))
+        #expect(Self.core.contains("Dirigible has no voice profile yet: tell the user."))
         // The words of the span scan hold each tool name, argument, and command word.
         #expect(
             Self.notYetNames(ManualScan.words.sorted()).isEmpty,
-            "A noise or voice feature exists: change the not-yet line of AgentManual.core and of docs/guide.md")
-        // The control: a fixture name list with a denoise tool is found.
-        #expect(Self.notYetNames(["clip_gain", "clip_denoise"]) == ["clip_denoise"])
+            "A voice feature exists: change the not-yet line of AgentManual.core and of docs/guide.md")
+        // The control: a fixture name list with a voice tool is found.
+        #expect(Self.notYetNames(["clip_gain", "voice_match"]) == ["voice_match"])
     }
 
     /// W11: the recipes name the tools of run 7b, not their commands.
@@ -309,9 +309,9 @@ struct AgentManualTests {
 
     static func warnsAtImport(_ line: String) -> Bool { line.contains("replaces the clips under it") }
 
-    /// The names of a noise reduction or voice profile feature.
+    /// The names of a voice profile feature.
     static func notYetNames(_ names: [String]) -> [String] {
-        names.filter { name in ["noise", "denoise", "voice"].contains { name.contains($0) } }
+        names.filter { $0.contains("voice") }
     }
 
     /// The lines that have a `dirigible record ...` span.

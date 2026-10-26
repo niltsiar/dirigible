@@ -12,6 +12,7 @@
 - Amended: 2026-10-23, run `2026-10-23-read-by-time` (see 0062). The core says "`silences`, `nearest_pause`, and `meter` read audio by time." in place of the rule that no tool reads the audio by time.
 - Amended: 2026-10-24, run `2026-10-23-read-by-time`. The core ends its edit rule with "Saves keep backups: `backup_list`." The `backup_list` and `backup_revert` texts and `dirigible backup list --help` give the rule of 0043 with the values of `BackupPolicy`.
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). `clip_split_stereo` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it.
+- Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). `clip_denoise` is in the tool list only: no recipe names it, because the core and the whole text have no room. The not-yet line of the core says "Dirigible has no voice profile yet: tell the user."
 
 ## Context
 

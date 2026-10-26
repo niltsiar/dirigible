@@ -72,7 +72,8 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
         case .paste, .revert, .prune: return refusedOpen
         // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, and long work to `liveJob`.
-        case .create, .record, .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters,
+        case .create, .record, .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender,
+            .chapters,
             .transcriptExport,
             .read:
             return .notOpen

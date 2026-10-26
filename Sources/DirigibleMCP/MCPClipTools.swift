@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -23,6 +24,8 @@ private let source = Param<String?>.optional(
 private let sourceNote =
     " With source, the call copies or converts files; it runs to the end and saves, also when the client stops "
     + "waiting. Read session_info before a retry."
+private let reduction = Param.defaulted(
+    "reduction", "The noise reduction in dB, 1 to 30.", .reduction, NoiseReduction.standard.decibels)
 private let someClips = Param.defaulted("clips", "The clip IDs.", .strings(), [String]())
 private let clips = Param.required("clips", "The clip IDs: one or more.", .strings(minItems: 1))
 private let by = Param.required("by", "The frames to move; negative moves left.", .integer())
@@ -202,6 +205,17 @@ let clipTools = [
             try session.setFades([id: fades])
             return []
         }
+    },
+    Tool(
+        "clip_denoise",
+        "Reduce the noise in clips, as dirigible clip denoise: for each run of clips of one file, one new 24-bit WAV "
+            + "in Clips/ with a handle of 10 s on each side, made by the noise reduction of macOS, and the clips move "
+            + "onto it. The source file stays. A clip on a music or effects track is refused. A second call reduces "
+            + "the noise again. Give one line for each clip: the clip and its new file, with a tab between them."
+            + editCancelNote("no clip changes"),
+        [clips, reduction]
+    ) { a throws(ToolError) in
+        .clipRender(ClipRenderWork(clips: try a[clips].map { ClipID($0) }, reduction: try a[reduction]))
     },
     Tool(
         "clip_crossfade",

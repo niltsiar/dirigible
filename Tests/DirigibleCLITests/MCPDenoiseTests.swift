@@ -1,0 +1,110 @@
+import AudioToolbox
+import DirigibleCore
+import Foundation
+import Testing
+import os
+
+@testable import DirigibleAudio
+@testable import DirigibleMCP
+
+/// The `clip_denoise` tool of `dirigible mcp` on the files (decisions 0049 and 0054, criteria C10,
+/// C12, and C13). The package of `DenoiseCommandTests`; the tool and the command each get their own
+/// copy.
+struct MCPDenoiseTests {
+    /// C12: the tool gives the lines of the command and the same session. A clip on a music track and
+    /// a reduction outside 1...30 give the texts of the command and of the schema.
+    @Test func toolMatchesCommand() async throws {
+        let (cli, tool) = (try DenoiseCommandTests.package(), try DenoiseCommandTests.package())
+
+        let run = try await cli.run("clip", "denoise", "PKG", "c1", "c2", "--reduction", "6")
+        let answers = try await mcp([
+            toolCall(1, "clip_denoise", ["package": tool.path, "clips": ["c1", "c2"], "reduction": 6])
+        ])
+
+        #expect(toolResult(answer(answers, id: 1)) == (String(run.stdout.dropLast()), false), "\(answers)")
+        #expect(run.status == 0, "\(run)")
+        #expect(try cli.holdsTheSameSession(as: tool), "the tool and the command differ")
+        #expect(DenoiseCommandTests.clips(tool) == DenoiseCommandTests.clips(cli))
+
+        let (music, musicTool) = (try DenoiseCommandTests.package(), try DenoiseCommandTests.package())
+        let refused = try await music.run("clip", "denoise", "PKG", "m1")
+        let toolRefused = try await mcp([toolCall(1, "clip_denoise", ["package": musicTool.path, "clips": ["m1"]])])
+        #expect(refused.status == 1 && toolResult(answer(toolRefused, id: 1)) == (errorText(refused), true))
+
+        let bad = try await mcp([
+            toolCall(1, "clip_denoise", ["package": tool.path, "clips": ["c1"], "reduction": 31])
+        ])
+        let text = "The argument \"reduction\" must be an integer from 1 to 30."
+        #expect(toolResult(answer(bad, id: 1)) == (text, true), "\(bad)")
+    }
+
+    /// C12: a cancel before the render, after its renames, and after its return leaves no new WAV and
+    /// the same `session.xml`. The poll finds the cancel at the first read (`readsAfterTheRename` 0),
+    /// at the read of `renderClips` after the renames (1), or at the read of the work after the
+    /// return (2).
+    @Test(arguments: [0, 1, 2]) func cancelWritesNothing(readsAfterTheRename: Int) throws {
+        let package = try DenoiseCommandTests.package()
+        let before = (try package.xml(), DenoiseCommandTests.clips(package))
+        let renamed = package.url.appending(path: "Clips/f1 NR.wav").path
+        let reads = OSAllocatedUnfairLock(initialState: 0)
+        let control = CallControl(
+            token: nil, interval: .zero, send: { _ in },
+            poll: { _ in
+                reads.withLock { count in
+                    if readsAfterTheRename == 0 { return true }
+                    if FileManager.default.fileExists(atPath: renamed) { count += 1 }
+                    return count >= readsAfterTheRename
+                }
+            }, step: {})
+        let work = ClipRenderWork(clips: ["c1", "c2"], reduction: .standard)
+
+        let thrown = #expect(throws: ToolError.self) {
+            try work.run(package.url, path: package.path, control: control)
+        }
+
+        #expect(thrown?.message == "the noise reduction was cancelled.", "\(String(describing: thrown))")
+        #expect(reads.withLock { $0 } == readsAfterTheRename, "the cancel came at another read")
+        #expect(DenoiseCommandTests.clips(package) == before.1, "the cancel left \(DenoiseCommandTests.clips(package))")
+        #expect(try package.xml() == before.0, "a cancelled render changed session.xml")
+    }
+
+    /// C10: each text of the render names the noise reduction, and none is a text of an import. The
+    /// text of a role refusal names the clip and the role.
+    @Test func eachRenderErrorNamesTheRender() {
+        let cases: [ClipRenderError] = [
+            .space(needed: 9, free: 3), .write(file: "f1 NR.wav", errno: ENOSPC),
+            .sourceUnreadable(file: "f1.wav", errno: EIO), .sourceMissing(file: "f1.wav"),
+            .notDownloaded(file: "f1.wav"), .cancelled, .trackRole(clip: "m1", role: .music),
+            .trackRole(clip: "e1", role: .effects), .effectUnavailable(status: -3000), .engine(status: -50),
+        ]
+        for error in cases { #expect(error.message.hasPrefix("the noise reduction "), "\(error.message)") }
+        let imports: [ImportError] = [
+            .space(file: "f1.wav", needed: 9, free: 3), .unreadable(file: "f1.wav", errno: EIO), .cancelled,
+        ]
+        let importTexts = Set(imports.map { ImportWork.message($0, file: "f1.wav", package: "p") })
+        #expect(importTexts.isDisjoint(with: cases.map(\.message)), "a render text is an import text")
+        #expect(ClipRenderError.session(.unknownClip("zz")).message == SessionError.unknownClip("zz").message)
+        let role = ClipRenderError.trackRole(clip: "m1", role: .music).message
+        #expect(role.contains("\"m1\"") && role.contains("music"), Comment(rawValue: role))
+    }
+
+    /// C10: a unit that does not load gives the status in a text of the render and writes no file.
+    @Test func unavailableNamesTheCause() throws {
+        let package = try DenoiseCommandTests.package()
+        let before = (try package.xml(), DenoiseCommandTests.clips(package))
+        var work = ClipRenderWork(clips: ["c1"], reduction: .standard)
+        work.component = AudioComponentDescription(
+            componentType: kAudioUnitType_Effect, componentSubType: 0x6E6F_6E65, componentManufacturer: 0,
+            componentFlags: 0, componentFlagsMask: 0)
+        let control = CallControl(token: nil, interval: .zero, send: { _ in }, poll: { _ in false }, step: {})
+
+        let thrown = #expect(throws: ToolError.self) {
+            try work.run(package.url, path: package.path, control: control)
+        }
+
+        let text = "the noise reduction of macOS (AUSoundIsolation) did not load (status -3000)."
+        #expect(thrown?.message == text, "\(String(describing: thrown))")
+        #expect(DenoiseCommandTests.clips(package) == before.1)
+        #expect(try package.xml() == before.0)
+    }
+}

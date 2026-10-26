@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -56,6 +57,8 @@ enum ToolWork: Sendable {
     case importFile(ImportWork)
     /// `clip_split_stereo`: a pair writer and an edit under the lock, as `dirigible clip split-stereo`.
     case splitStereo(SplitWork)
+    /// `clip_denoise`: a render and an edit under the lock, as `dirigible clip denoise` (decision 0054).
+    case clipRender(ClipRenderWork)
     /// `chapters_export`: no lock, as `dirigible chapters export`.
     case chapters(ChaptersWork)
     /// `transcript_export`: no lock, as `dirigible transcript export` (decision 0061).
@@ -68,7 +71,9 @@ enum ToolWork: Sendable {
     /// Long audio work: in the app it runs in `liveJob`, with progress and cancel (decision 0049).
     var isLong: Bool {
         switch self {
-        case .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters, .transcriptExport, .read: true
+        case .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender, .chapters, .transcriptExport,
+            .read:
+            true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
             .record, .transport, .words,
             .takeMap:
@@ -127,6 +132,16 @@ extension Kind where T == Gain {
     static let level = Kind(
         schema: ["type": "number", "minimum": Gain.range.lowerBound, "exclusiveMaximum": 0.0],
         expected: "a number of dB under 0, \(Int(Gain.range.lowerBound)) or more", parse: gain.parse)
+}
+
+extension Kind where T == NoiseReduction {
+    /// A whole number of dB in `NoiseReduction.range`.
+    static let reduction = Kind(
+        schema: [
+            "type": "integer", "minimum": NoiseReduction.range.lowerBound, "maximum": NoiseReduction.range.upperBound,
+        ],
+        expected: ClipRenderWork.reductionExpected
+    ) { value in exactInteger(value).flatMap { NoiseReduction(decibels: $0) } }
 }
 
 extension Kind where T == [String] {

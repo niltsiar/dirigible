@@ -112,6 +112,28 @@ run_with -- HOOK_TESTS=t/a.test.sh,t/b.test.sh
 [[ $code -eq 0 && $(ran) -eq 2 ]] || fail "(C6) all tests but one, no switch: code $code, ran $(ran): $(out)"
 run_with -- HOOK_TESTS=t/a.test.sh,t/b.test.sh,t/c.test.sh
 [[ $code -ne 0 && $(ran) -eq 2 ]] || fail "(C6) a comma word of the whole list, no switch: code $code, ran $(ran): $(out)"
+# A switch is on only at the value 1: the value 0 refuses, also for each switch alone, and one switch
+# at 1 beside another at 0 runs.
+for sw in DIRIGIBLE_PUSH_CHECK DIRIGIBLE_FULL_SUITE DIRIGIBLE_HOOKS_ALL; do
+    new_repo
+    run_with "$sw=0" --
+    [[ $code -ne 0 && $(ran) -eq 0 ]] || fail "(C6) $sw=0: the whole list was not refused: code $code, ran $(ran): $(out)"
+done
+new_repo
+run_with DIRIGIBLE_FULL_SUITE=0 DIRIGIBLE_PUSH_CHECK=1 --
+[[ $code -eq 0 && $(ran) -eq 2 ]] || fail "(C6) one switch at 1 beside one at 0: code $code, ran $(ran): $(out)"
+# A HOOK_TESTS entry that only the work tree Makefile holds is part of the whole list: the list of HEAD
+# does not decide the refusal.
+new_repo
+printf '#!/bin/bash\necho c >> "$HOOKS_LOG"\n' > "$repo/t/c.test.sh"
+chmod +x "$repo/t/c.test.sh"
+commit c-test
+printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh \\\n\tt/c.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
+run_with --
+[[ $code -ne 0 && $(ran) -eq 0 ]] && grep -q 'the whole HOOK_TESTS list runs only in the push check' "$tmp/out" \
+    || fail "(C6) an uncommitted HOOK_TESTS entry, no switch: code $code, ran $(ran): $(out)"
+run_with DIRIGIBLE_FULL_SUITE=1 --
+[[ $code -eq 0 && $(ran) -eq 3 && $(stamps) -eq 0 ]] || fail "(C6) an uncommitted HOOK_TESTS entry, with a switch: code $code, ran $(ran), stamps $(stamps): $(out)"
 
 # C2: after a change of each key input, each stub test runs again and no reuse line prints.
 # expect_rerun <name> <change function>: a pass, the change, then the next run.

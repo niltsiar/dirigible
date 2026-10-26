@@ -4,15 +4,16 @@
 #   Only the test-hooks recipe of the Makefile calls it, with the HOOK_TESTS list. An argument can
 #   hold several tests joined with commas: scripts/check-changed.sh gives make one HOOK_TESTS word
 #   for the tests of the changed paths, and make passes that word as one argument. Each part is a
-#   test. A list of some of the tests gets no stamp. The whole list runs only when one of
-#   DIRIGIBLE_PUSH_CHECK=1 (the push check), DIRIGIBLE_FULL_SUITE=1 (a person), or
-#   DIRIGIBLE_HOOKS_ALL=1 (scripts/check-changed.sh gives it to a local run that needs the whole
-#   list) is set. Else the script prints the reason and exits 1, before the key and the stamp
-#   reuse. Before the first test, the script unsets BASE,
-#   FILTER, SINCE, CHECK_RISK, HOOK_TESTS, MAKEFLAGS, MFLAGS, MAKELEVEL, GIT_DIR, GIT_INDEX_FILE,
-#   GIT_WORK_TREE, and each variable that starts with WITH_LOCK_ or DIRIGIBLE_ (make and the
-#   caller put them in the environment of each recipe), so no hook test reads the context of its
-#   caller. PATH and HOME stay. A test that needs one of them sets it itself.
+#   test. A list of some of the tests gets no stamp. The whole list (that of the Makefile at HEAD,
+#   or that of the Makefile in the work tree) runs only when one of these is set to 1:
+#   DIRIGIBLE_PUSH_CHECK (the push check), DIRIGIBLE_FULL_SUITE (a person), or DIRIGIBLE_HOOKS_ALL
+#   (scripts/check-changed.sh gives it to a local run that needs the whole list). Else the script
+#   prints the reason and exits 1, before the key and the stamp reuse. Before the first test, the
+#   script unsets BASE, FILTER, SINCE, CHECK_RISK, HOOK_TESTS, MAKEFLAGS, MFLAGS, MAKELEVEL,
+#   GIT_DIR, GIT_INDEX_FILE, GIT_WORK_TREE, and each variable that starts with WITH_LOCK_ or
+#   DIRIGIBLE_ (make and the caller put them in the environment of each recipe), so no hook test
+#   reads the context of its caller. PATH and HOME stay. A test that needs one of them sets it
+#   itself.
 # The key is the tree of the work tree with no Sources/, Tests/, docs/, or README.md, plus the
 # existence of each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool
 # versions, and the date: a pass is good for one day. The tree is HEAD with the changes of a dirty
@@ -53,11 +54,15 @@ set -- ${args[@]+"${args[@]}"}
 reason="" flags="${MAKEFLAGS:-}"
 flags="${flags%% *}"
 [[ $flags == *=* ]] && flags=""
-listed="$(git show "$sha:Makefile" | awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' \
-    | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . | sort)"
+hook_list() { awk '/^HOOK_TESTS *=/ { on = 1 } on { print; if (!/\\$/) exit }' \
+    | sed 's/^HOOK_TESTS *=//; s/\\$//' | tr -s ' \t' '\n' | grep . | sort; }
+listed="$(git show "$sha:Makefile" | hook_list)"
+current="$(hook_list < Makefile)"
+given="$(printf '%s\n' "$@" | sort)"
 whole=no
-[[ "$(printf '%s\n' "$@" | sort)" == "$listed" ]] && whole=yes
-if [[ $whole == yes && -z "${DIRIGIBLE_PUSH_CHECK:-}${DIRIGIBLE_FULL_SUITE:-}${DIRIGIBLE_HOOKS_ALL:-}" ]]; then
+[[ $given == "$listed" ]] && whole=yes
+if [[ $given == "$listed" || $given == "$current" ]] \
+    && [[ ${DIRIGIBLE_PUSH_CHECK:-} != 1 && ${DIRIGIBLE_FULL_SUITE:-} != 1 && ${DIRIGIBLE_HOOKS_ALL:-} != 1 ]]; then
     echo "test-hooks: the whole HOOK_TESTS list runs only in the push check. Run make check-changed: it runs the hook tests of the changed paths. A person who needs the whole list sets DIRIGIBLE_FULL_SUITE=1." >&2
     exit 1
 fi

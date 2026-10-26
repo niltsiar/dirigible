@@ -36,7 +36,10 @@ struct TransportPlay: ParsableCommand {
         abstract: "Play the window of a session forward at 1x, and stop at --to.",
         discussion: """
             The command needs the app with the package open and Let Agents Edit Open Sessions on. With \
-            no --from, the play starts at the playhead. With no --to, it runs to the end of the session. \
+            no --from, the play starts at the playhead. With no --to, it stops at the end of the session. \
+            During a forward 1x play, a call with neither changes nothing and writes the end of the \
+            running play. A locate or a click before --to keeps it; one at or after --to plays on to the \
+            end of the session. Space, Stop and Return, J, K, L, and a speed change drop --to. \
             It writes the state after the call, for example Playing from 24000 to 50000. Exit 1 when the \
             app refuses (a take, a busy window, a start at or after the end, or an engine fault) or is \
             not there. Exit 64 when --to is not more than --from, or a frame is not in 0...2^40.
@@ -81,8 +84,9 @@ struct TransportLocate: ParsableCommand {
         abstract: "Move the playhead of the window of a session to a frame.",
         discussion: """
             The command needs the app with the package open and Let Agents Edit Open Sessions on. A \
-            play goes on from the frame; a frame at or after the end of the session stops it there. \
-            The next take starts at the playhead. It writes the state after the call. Exit 1 when the \
+            play goes on from the frame. In a play with --to, a frame before --to keeps it, and a \
+            frame at or after --to plays on to the end of the session. During a forward play, a frame \
+            at or after the end of the session stops it there. The next take starts at the playhead. It writes the state after the call. Exit 1 when the \
             app refuses or is not there. Exit 64 when the frame is not in 0...2^40.
             """)
 

@@ -2,9 +2,6 @@ import ArgumentParser
 import DirigibleMCP
 import Foundation
 
-/// The exit code for a batch file or call that does not pass the checks (decision 0011).
-private let usageError: Int32 = 64
-
 /// `dirigible batch` (decision 0063): many edit calls as one read-edit-save. It reads the `calls`
 /// array of the tool `batch`, checks it with the same code, and runs it with `runOnFiles`.
 struct BatchCommand: ParsableCommand {
@@ -26,7 +23,7 @@ struct BatchCommand: ParsableCommand {
             data =
                 file == "-" ? FileHandle.standardInput.readDataToEndOfFile() : try Data(contentsOf: URL(filePath: file))
         } catch {
-            throw fail("cannot read \(file): \(error.localizedDescription)", code: usageError)
+            throw fail("cannot read \(file): \(error.localizedDescription)", code: ExitCode.validationFailure.rawValue)
         }
         let calls: [BatchWork.Call]
         do throws(ToolError) {
@@ -35,14 +32,15 @@ struct BatchCommand: ParsableCommand {
             }
             calls = try BatchWork.parse(json)
         } catch {
-            throw fail(error.message, code: usageError)
+            throw fail(error.message, code: ExitCode.validationFailure.rawValue)
         }
         let work: BatchWork
         do throws(BatchWork.Failure) {
             // The checks read an absolute path of the package, as the tool does.
             work = try BatchWork.check(calls, package: package.url.absoluteURL.path)
         } catch {
-            throw fail(error.message(rippleBlocked: splitTakeMessage(package.path)), code: usageError)
+            throw fail(
+                error.message(rippleBlocked: splitTakeMessage(package.path)), code: ExitCode.validationFailure.rawValue)
         }
         do throws(EditFailure<BatchWork.Failure>) {
             print(try work.runOnFiles(package.url).joined(separator: "\n"))
@@ -59,7 +57,7 @@ struct BatchCommand: ParsableCommand {
         case .splitTake: unplacedAudio
         case .body(let failure):
             switch failure.cause {
-            case .check: usageError
+            case .check: ExitCode.validationFailure.rawValue
             case .step: editRefused
             case .rippleBlocked: unplacedAudio
             }

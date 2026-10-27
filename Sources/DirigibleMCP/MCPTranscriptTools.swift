@@ -92,7 +92,7 @@ let transcriptTools = [
         "transcript_cut",
         "Cut the words with these occurrences from all tracks, and close each gap, in one edit. Words next to each "
             + "other cut as one range. Give the frames of each cut range.",
-        [occurrences], batch: .step
+        [occurrences], batch: .alone
     ) { a throws(ToolError) in
         let words = try TranscriptWork.occurrences(try a[occurrences])
         return .edit(ripple: true) { session throws(SessionError) in

@@ -203,10 +203,11 @@ package enum AgentManual {
             name. `dirigible help <command>` gives the exact form. For `session_info`, run \
             `dirigible info <package> --json`. For `batch`, run `dirigible batch <package> <file>`: the file holds \
             the `calls` array. A batch is one undo step in the app and one save on the files. A step edits \
-            session.xml only, with no file argument. A later step names a new object by the ID that the earlier \
-            step gave; `clip_split_at` and `clip_paste` give theirs in the result lines. Each step sees the session \
-            after the earlier steps: a ripple moves the later frames, and the right part of a cut clip gets a new \
-            ID. Send ripple cuts from the last to the first, or use one call with many ranges.
+            session.xml only, with no file argument, and `transcript_cut` is not a step. A later step names a new \
+            object by the ID that the earlier step gave; `clip_split_at` and `clip_paste` give theirs in the result \
+            lines. Each step sees the session after the earlier steps: a ripple moves the later frames, and the \
+            right part of a cut clip gets a new ID. Send ripple cuts from the last to the first, or use one call \
+            with many ranges.
 
             | Tool | Command |
             |---|---|

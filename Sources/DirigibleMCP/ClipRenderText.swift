@@ -17,7 +17,8 @@ extension ClipRenderError {
         case .cancelled: "the noise reduction was cancelled."
         case .session(let error): error.message
         case .trackRole(let clip, let role):
-            "the noise reduction refuses clip \"\(clip)\" on a \(role.rawValue) track: it keeps only voices."
+            "the noise reduction refuses clip \"\(clip)\": its track has the role \(role.rawValue), "
+                + "and the noise reduction keeps only voices."
         case .mixedTreatments(let clips):
             "the noise reduction refuses clips \(clips.map { "\"\($0)\"" }.joined(separator: ", ")): they share "
                 + "one new file but have different amounts."

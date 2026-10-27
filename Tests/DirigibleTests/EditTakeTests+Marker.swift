@@ -9,16 +9,6 @@ import Testing
 /// F107 C8b: the feedback of a take marker. The ruler highlights the new flag for 0.3 s unless
 /// Reduce Motion is on, and VoiceOver hears the marker name once at low priority.
 extension EditTakeTests {
-    /// A window with its lanes and a take that records.
-    func recordingLanes() async throws -> (SessionWindow, Studio, NSWindow, TimelineRuler) {
-        let (model, studio, window, view) = try await openLanes(app, try await package())
-        studio.environment = hal.environment
-        await model.record()
-        #expect(studio.transport == .recording(take: 1))
-        await hal.feed(seconds: 0.2)
-        return (model, studio, window, view.ruler)
-    }
-
     /// The flag is lit at the press and 0.29 s later, and not at 0.30 s. With Reduce Motion on, no
     /// flag is lit. Controls: an add while idle lights nothing.
     @Test func theNewTakeFlagHighlightsUnlessReduceMotion() async throws {
@@ -56,7 +46,11 @@ extension EditTakeTests {
     /// One key-down and its key repeat make one announcement: the name of the marker, at low
     /// priority. Control: a second key-down is a second announcement.
     @Test func aTakeMarkerAnnouncesItsName() async throws {
-        let (model, studio, window, _) = try await recordingLanes()
+        let (model, studio, window, _) = try await openLanes(app, try await package())
+        studio.environment = hal.environment
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        await hal.feed(seconds: 0.2)
         var heard: [(String, NSAccessibilityPriorityLevel)] = []
         model.chrome?.announce = { text, priority in heard.append((text, priority)) }
 

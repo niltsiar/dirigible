@@ -232,6 +232,7 @@ overlap() {
         echo "check-changed: OVERLAP_GH_TIMEOUT=$timeout is not a whole number of seconds" >&2
         exit 2
     fi
+    timeout=$((10#$timeout))
     cd "$(git rev-parse --show-toplevel)"
     top="$(pwd -P)"
     ovtmp="$(mktemp -d)"
@@ -244,7 +245,8 @@ overlap() {
     { git diff --name-only --no-renames "$mb"; git ls-files --others --exclude-standard; } | ov_keep > "$ovtmp/mine"
     cur="$(git branch --show-current)"
     if command -v gh > /dev/null; then
-        gh pr list --state open --limit 200 --json number,headRefName,files > "$ovtmp/gh.out" 2> "$ovtmp/gh.err" < /dev/null &
+        gh pr list --state open --limit 200 --json number,headRefName,files --jq '.[] | [.number, .headRefName] + [.files[].path] | @tsv' \
+            > "$ovtmp/prs" 2> "$ovtmp/gh.err" < /dev/null &
         gh_pid=$!
     fi
 
@@ -291,10 +293,9 @@ overlap() {
             notes+="overlap: gh: no answer"$'\n'
         elif ! wait "$gh_pid"; then
             notes+="overlap: open PRs not read ($(head -n 1 "$ovtmp/gh.err"))"$'\n'
-        elif ! jq -r --arg cur "$cur" '.[] | select(.headRefName != $cur) | [.number, .headRefName] + [.files[].path] | @tsv' "$ovtmp/gh.out" > "$ovtmp/prs" 2> /dev/null; then
-            notes+="overlap: open PRs not read (the answer of gh is no list of PRs)"$'\n'
         else
             while IFS=$'\t' read -r -a rec; do
+                [[ "${rec[1]:-}" != "$cur" ]] || continue
                 printf '%s\n' "${rec[@]:2}" | ov_keep > "$ovtmp/other"
                 shared="$(ov_shared "$ovtmp/mine" "$ovtmp/other")"
                 [[ -z "$shared" ]] || lines+="overlap: PR #${rec[0]} (${rec[1]}): $shared"$'\n'

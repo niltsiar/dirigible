@@ -1004,10 +1004,10 @@ got="$(run_in --wait-load none 2>&1)" || fail "past origin/main with --wait-load
 # The mode --overlap <base> names other work that changes a Sources/ or Tests/ file of this branch:
 # the commits of <base> since the merge base, each other worktree (commits, working tree, and
 # untracked files), and each open PR of gh. It is information: exit 0 in each case but the usage
-# line (exit 2). Every case runs with a stub gh that prints [] first on PATH and with GH_REPO and
+# line (exit 2). Every case runs with a stub gh that prints nothing first on PATH and with GH_REPO and
 # GH_HOST unset, so no case calls the real gh; a case that needs another gh puts its folder in OV_GH.
 mkdir -p "$tmp/ovbin"
-printf '#!/bin/bash\necho "[]"\n' > "$tmp/ovbin/gh"
+printf '#!/bin/bash\nexit 0\n' > "$tmp/ovbin/gh"
 chmod +x "$tmp/ovbin/gh"
 ov() { (unset GH_REPO GH_HOST; PATH="${OV_GH:-$tmp/ovbin}:$PATH"; run_in --overlap "$@"); }
 # ov_is <name> <want> [base]: the whole stdout is <want> and the exit is 0.
@@ -1077,10 +1077,15 @@ g worktree prune
 # Open PRs: the PR of the current branch gives no line.
 ov_repo
 put Sources/DirigibleCore/X.swift branch
-json='[{"number":7,"headRefName":"feat/o","files":[{"path":"Sources/DirigibleCore/X.swift"}]},{"number":9,"headRefName":"feat/other","files":[{"path":"Sources/DirigibleCore/X.swift"},{"path":"docs/z.md"}]},{"number":10,"headRefName":"feat/docs","files":[{"path":"docs/z.md"}]}]'
-fake_gh "$tmp/ovgh" "printf '%s\\n' '$json'; echo \"\$*\" > '$tmp/gh.args'"
+# The fake gh prints what gh prints with the --jq filter of the script: one line for each PR with
+# its number, branch, and file paths, with tabs between.
+tsv=$'7\tfeat/o\tSources/DirigibleCore/X.swift\n9\tfeat/other\tSources/DirigibleCore/X.swift\tdocs/z.md\n10\tfeat/docs\tdocs/z.md'
+fake_gh "$tmp/ovgh" "printf '%s\\n' '$tsv'; echo \"\$*\" > '$tmp/gh.args'"
 OV_GH="$tmp/ovgh" ov_is 'two open PRs' 'overlap: PR #9 (feat/other): Sources/DirigibleCore/X.swift'
 grep -qF -- '--limit 200' "$tmp/gh.args" || fail "overlap: gh got [$(cat "$tmp/gh.args")], want --limit 200"
+grep -qF -- '--jq' "$tmp/gh.args" || fail "overlap: gh got [$(cat "$tmp/gh.args")], want --jq"
+fake_gh "$tmp/ovgh" "sleep 0.3; printf '%s\\n' '$tsv'"
+OVERLAP_GH_TIMEOUT=08 OV_GH="$tmp/ovgh" ov_is 'a timeout with a leading zero' 'overlap: PR #9 (feat/other): Sources/DirigibleCore/X.swift'
 fake_gh "$tmp/ovgh" 'echo "gh: not logged in" >&2; echo "second line" >&2; exit 1'
 OV_GH="$tmp/ovgh" ov_is 'gh fails' $'overlap: none\noverlap: open PRs not read (gh: not logged in)'
 # A gh that does not answer: the mode stops it after OVERLAP_GH_TIMEOUT seconds and goes on.

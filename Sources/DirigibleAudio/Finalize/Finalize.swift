@@ -182,9 +182,14 @@ func rippleBlocked(segments: [SegmentName], session: Session) -> Bool {
 /// `rippleBlocked(segments:session:)` with the segments in `Capture/` of `package`. A segment
 /// whose CAF opens but is not audio can never place, so it does not block. It reads files, so
 /// call it off the main actor.
-public func rippleBlocked(in package: URL, session: Session) -> Bool {
+public func rippleBlocked(in package: URL, session: Session) -> Bool { rippleBlocked(in: package)(session) }
+
+/// `rippleBlocked(in:session:)` with one scan of `Capture/` at the call: the rule that it gives
+/// reads no file, so a caller can ask it of many session values while `Capture/` cannot change.
+public func rippleBlocked(in package: URL) -> @Sendable (Session) -> Bool {
     let scan = scanSegments(in: package)
-    return rippleBlocked(segments: scan.withAudio.filter { !scan.notAudio.contains($0) }, session: session)
+    let segments = scan.withAudio.filter { !scan.notAudio.contains($0) }
+    return { rippleBlocked(segments: segments, session: $0) }
 }
 
 /// The segment names of the CAFs in `Capture/`, in name order. A missing folder has none.

@@ -206,11 +206,15 @@ package struct BatchWork: Sendable {
     }
 
     /// The one files entry, for the tool and the command: one `editPackageCore`, the steps, and the
-    /// take sync note once. The result lines on success.
-    package func runOnFiles(_ package: URL) throws(EditFailure<Failure>) -> [String] {
+    /// take sync note once. The result lines on success. `scan` gives the ripple rule of the package,
+    /// once under the lock: a step cannot change `Capture/`.
+    package func runOnFiles(
+        _ package: URL, scan: (URL) -> (Session) -> Bool = rippleBlocked(in:)
+    ) throws(EditFailure<Failure>) -> [String] {
         let (results, note) = try editPackageCore(package, ripple: false) { session, _ throws(Failure) in
-            try TakeWork.noted(&session, package: package) { session throws(Failure) in
-                try run(&session, canRipple: { !rippleBlocked(in: package, session: $0) })
+            let blocked = steps.contains(where: \.ripple) ? scan(package) : { _ in false }
+            return try TakeWork.noted(&session, package: package) { session throws(Failure) in
+                try run(&session, canRipple: { !blocked($0) })
             }
         }
         return lines(results) + note

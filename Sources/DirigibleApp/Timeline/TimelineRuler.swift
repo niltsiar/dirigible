@@ -54,6 +54,8 @@ final class TimelineRuler: NSRulerView {
     /// The draws and the rect of the last draw, for the ruler guard of a page turn (live take G5).
     private(set) var draws = 0
     private(set) var drawnRect = NSRect.zero
+    /// The outline draws of a lit flag, for the tests of the highlight.
+    private(set) var highlightDraws = 0
     /// The head of the playhead, a layer over the times.
     let head = PlayheadHead()
 
@@ -152,6 +154,7 @@ final class TimelineRuler: NSRulerView {
         outline.lineWidth = Self.highlightLine
         NSColor.labelColor.setStroke()
         outline.stroke()
+        highlightDraws += 1
     }
 
     static let highlightLine = 2.0

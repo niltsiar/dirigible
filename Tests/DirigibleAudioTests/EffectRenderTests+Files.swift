@@ -201,6 +201,19 @@ struct EffectRenderFileTests {
         #expect(try fixture.hashes() == before)
     }
 
+    /// A new WAV that does not read back stops the render with the errno, and no file stays. The
+    /// temp WAV goes to mode 0 at the first block read; its writer keeps the open file.
+    @Test func readBackFaultLeavesNoFile() throws {
+        let fixture = try fixture()
+        let temporary = fixture.package.url.appending(path: "\(clipsFolderName)/\(temporaryWAV(of: "f1 NR"))")
+        let before = try fixture.hashes()
+
+        #expect(throws: ClipRenderError.write(file: "\(clipsFolderName)/f1 NR.wav", errno: EACCES)) {
+            try fixture.render(["c1"], readFault: ReadFault(stem: "f1 NR", block: 0) { chmod(temporary.path, 0) })
+        }
+        #expect(try fixture.hashes() == before)
+    }
+
     /// C7b: a missing source refuses before the first write.
     @Test func missingSourceRefused() throws {
         let fixture = try fixture()

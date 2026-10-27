@@ -21,6 +21,8 @@ public enum ClipRenderError: Error, Hashable, Sendable {
     case session(SessionError)
     /// The treatment does not take a clip on a track with this role (`Treatment.accepts`).
     case trackRole(clip: ClipID, role: Track.Role)
+    /// The clips of one run, which one new file holds, come from groups with different treatments.
+    case mixedTreatments(clips: [ClipID])
     /// The effect unit did not load, with the status of the load: -3000 (`invalidComponentID`)
     /// when no component matches.
     case effectUnavailable(status: Int32)
@@ -36,8 +38,9 @@ package struct ClipRenderOutcome: Sendable {
 }
 
 /// Renders the clips of each group through the effects of its treatment into new WAVs in
-/// `Clips/` (decision 0054): one WAV for each run of `clipRuns(of:)`, and `Session.repoint` onto
-/// them. It never writes `session.xml`, and it blocks: never call it on the main actor.
+/// `Clips/` (decision 0054): one WAV for each run of `clipRuns(of:)` over the clips of all groups,
+/// and `Session.repoint` onto them. A run whose clips have two treatments throws
+/// `.mixedTreatments`. It never writes `session.xml`, and it blocks: never call it on the main actor.
 ///
 /// The order: the runs, the role check of each clip (`Treatment.accepts`), the source checks, the
 /// unit load, one space check (`freeBytes`), the stems "<source stem> NR" by the stem rule of
@@ -56,16 +59,19 @@ package func renderClips(
     readFault: ReadFault? = nil, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
     progress: @escaping (Double) -> Void = { _ in }, isCancelled: @escaping () -> Bool = { false }
 ) throws(ClipRenderError) -> ClipRenderOutcome {
+    // `repoint` takes the runs of all clips, so the runs come from the clips of all groups at once.
+    let named = groups.flatMap { group in group.clips.map { (clip: $0, treatment: group.treatment) } }
+    let found: [ClipRun]
+    do throws(SessionError) { found = try session.clipRuns(of: named.map(\.clip)) } catch { throw .session(error) }
     var runs: [(run: ClipRun, source: AudioFile, treatment: Treatment)] = []
-    do throws(SessionError) {
-        for group in groups {
-            for run in try session.clipRuns(of: group.clips) {
-                guard let source = session.files[run.file] else { throw .unknownFile(run.file) }
-                runs.append((run, source, group.treatment))
-            }
+    for run in found {
+        let members = Set(run.clips)
+        let treatments = Set(named.filter { members.contains($0.clip) }.map(\.treatment))
+        guard treatments.count == 1, let treatment = treatments.first else {
+            throw .mixedTreatments(clips: run.clips)
         }
-    } catch {
-        throw .session(error)
+        guard let source = session.files[run.file] else { throw .session(.unknownFile(run.file)) }
+        runs.append((run, source, treatment))
     }
     for (run, _, treatment) in runs {
         for clip in run.clips {

@@ -196,6 +196,7 @@
 "error.denoise.missing" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.denoise.not.downloaded" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%@“ ist nicht auf diesem Mac. Lade die Datei zuerst.";
 "error.denoise.track.role" = "Dirigible kann das Rauschen eines Clips auf einer Spur „Musik“ oder „Effekte“ nicht reduzieren. Wähle Clips auf anderen Spuren und versuche es erneut.";
+"error.denoise.mixed" = "Dirigible kann das Rauschen nicht reduzieren. Clips mit gemeinsamem Audio haben verschiedene Werte erhalten. Verwende einen Wert für diese Clips und versuche es erneut.";
 "error.denoise.unavailable" = "Dirigible kann das Rauschen nicht reduzieren. Die Rauschreduzierung von macOS wurde nicht geladen (Fehler %lld).";
 "error.denoise.engine" = "Dirigible kann das Rauschen nicht reduzieren. Die Audio-Engine wurde gestoppt (Fehler %lld). Versuche es erneut.";
 "error.denoise.yielded" = "Die Rauschreduzierung wurde für einen Take in einem anderen Fenster gestoppt. Reduziere das Rauschen nach dem Take erneut.";

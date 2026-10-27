@@ -18,6 +18,9 @@ extension ClipRenderError {
         case .session(let error): error.message
         case .trackRole(let clip, let role):
             "the noise reduction refuses clip \"\(clip)\" on a \(role.rawValue) track: it keeps only voices."
+        case .mixedTreatments(let clips):
+            "the noise reduction refuses clips \(clips.map { "\"\($0)\"" }.joined(separator: ", ")): they share "
+                + "one new file but have different amounts."
         case .effectUnavailable(let status):
             "the noise reduction of macOS (AUSoundIsolation) did not load (status \(status))."
         case .engine(let status): "the noise reduction stopped: the audio engine failed (status \(status))."

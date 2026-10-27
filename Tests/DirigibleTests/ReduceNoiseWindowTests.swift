@@ -174,6 +174,7 @@ import Testing
             (.sourceMissing(file: "f1.wav"), L10n.errorDenoiseMissing.format("f1.wav")),
             (.notDownloaded(file: "f1.wav"), L10n.errorDenoiseNotDownloaded.format("f1.wav")),
             (.trackRole(clip: "c1", role: .music), L10n.errorDenoiseTrackRole.text),
+            (.mixedTreatments(clips: ["a", "b"]), L10n.errorDenoiseMixed.text),
             (.effectUnavailable(status: -3000), L10n.errorDenoiseUnavailable.format(-3000)),
             (.engine(status: -10868), L10n.errorDenoiseEngine.format(-10868)),
             (.session(.transcriptNotLoaded([TranscriptID(1)])), L10n.errorTranscriptUnloaded.text),

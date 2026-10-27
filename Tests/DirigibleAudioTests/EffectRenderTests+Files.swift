@@ -31,6 +31,31 @@ struct EffectRenderFileTests {
         #expect(try fixture.render(["c1"], freeBytes: needed).made.count == 1)
     }
 
+    /// Groups render as the runs of all their clips: a clip in two groups, and two groups whose
+    /// clips 5 s apart share one handle, give one file. Two treatments in one run refuse before any
+    /// write.
+    @Test func groupsRenderTheRunsOfAllTheirClips() throws {
+        let fixture = try RenderFixture()
+        try fixture.add(
+            "f1", [seededNoise(frames: 2_400_000, level: 0.01, seed: 16)], track: "t1",
+            clips: [("a", 720_000, 48_000), ("b", 1_008_000, 48_000)])
+        let (twelve, six) = (Treatment(.noise(.standard)), Treatment(.noise(try #require(NoiseReduction(decibels: 6)))))
+        func render(_ groups: [(clips: [ClipID], treatment: Treatment)]) throws(ClipRenderError) -> ClipRenderOutcome {
+            try renderClips(
+                groups, of: fixture.package.session, in: fixture.package.url, freeBytes: { .max },
+                isDownloaded: { _ in true })
+        }
+        let before = try fixture.hashes()
+
+        #expect(throws: ClipRenderError.mixedTreatments(clips: ["a", "b"])) {
+            try render([(["a"], twelve), (["b"], six)])
+        }
+        #expect(try fixture.hashes() == before)
+        let outcome = try render([(["a"], twelve), (["b", "a"], twelve)])
+        #expect(outcome.made.map(\.lastPathComponent) == ["f1 NR.wav"], "fail value: .frameOutOfRange")
+        #expect(outcome.clips.map(\.clip) == ["a", "b"])
+    }
+
     /// C7: a cancel before the first run and a cancel between two runs leave `Clips/` as it was.
     @Test func cancelLeavesNoFile() throws {
         let fixture = try fixture()

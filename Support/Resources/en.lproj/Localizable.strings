@@ -196,6 +196,7 @@
 "error.denoise.missing" = "Dirigible cannot reduce the noise. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
 "error.denoise.not.downloaded" = "Dirigible cannot reduce the noise. The audio file “%@” is not on this Mac. Download the file first.";
 "error.denoise.track.role" = "Dirigible cannot reduce the noise of a clip on a Music or Effects track. Select clips on other tracks and try again.";
+"error.denoise.mixed" = "Dirigible cannot reduce the noise. Clips that share audio got different amounts. Use one amount for these clips and try again.";
 "error.denoise.unavailable" = "Dirigible cannot reduce the noise. The noise reduction of macOS did not load (error %lld).";
 "error.denoise.engine" = "Dirigible cannot reduce the noise. The audio engine stopped (error %lld). Try again.";
 "error.denoise.yielded" = "The noise reduction stopped for a take in another window. Reduce the noise again after the take.";

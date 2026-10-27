@@ -196,6 +196,7 @@
 "error.denoise.missing" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.denoise.not.downloaded" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%@' staat niet op deze Mac. Download het bestand eerst.";
 "error.denoise.track.role" = "Dirigible kan de ruis van een clip op een spoor Muziek of Effecten niet verminderen. Selecteer clips op andere sporen en probeer het opnieuw.";
+"error.denoise.mixed" = "Dirigible kan de ruis niet verminderen. Clips die audio delen kregen verschillende waarden. Gebruik één waarde voor deze clips en probeer het opnieuw.";
 "error.denoise.unavailable" = "Dirigible kan de ruis niet verminderen. De ruisvermindering van macOS is niet geladen (fout %lld).";
 "error.denoise.engine" = "Dirigible kan de ruis niet verminderen. De audio-engine is gestopt (fout %lld). Probeer het opnieuw.";
 "error.denoise.yielded" = "De ruisvermindering is gestopt vanwege een take in een ander venster. Verminder de ruis opnieuw na de take.";

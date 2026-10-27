@@ -77,11 +77,11 @@ struct GestureTests {
         #expect(place("A", in: drawn) == Spot("t1", 49_440..<97_440), "3 pt of horizontal movement")
     }
 
-    @Test mutating func aClickInTheRangeZoneSeeksAndEmptiesTheMarks() {
+    @Test mutating func aClickInTheRangeZoneSeeksAndSelectsItsTrack() {
         _ = down(150, 50)
-        #expect(up(150, 50) == [.marks(Marks()), .seek(72_000)], "the lower third of A")
+        #expect(up(150, 50) == [.marks(Marks(tracks: ["t1"])), .seek(72_000)], "the lower third of A")
         _ = down(250, 10)
-        #expect(up(250, 10) == [.marks(Marks()), .seek(120_000)], "the gap after A")
+        #expect(up(250, 10) == [.marks(Marks(tracks: ["t1"])), .seek(120_000)], "the gap after A")
         _ = down(150, 200)
         #expect(up(150, 200) == [], "under the last lane")
     }
@@ -233,7 +233,7 @@ struct GestureTests {
         _ = down(250, 50)
 
         #expect(drawn == session)
-        #expect(up(250, 50) == [.marks(Marks()), .seek(120_000)])
+        #expect(up(250, 50) == [.marks(Marks(tracks: ["t1"])), .seek(120_000)])
     }
 
     /// The session after one drag of `edge` from `from` to `to` pt at y 10, on `session`.

@@ -140,8 +140,10 @@ extension TimelineGesture {
     }
 
     /// A mouse-up under the threshold. On a clip: the clip as a set of one clip, no seek; with Command,
-    /// the clip toggles in the clip set (decision 0038). In the range zone (and every press with
-    /// Shift), the rules of decision 0017; with Command and a clip set, no change.
+    /// the clip toggles in the clip set (decision 0038). In the range zone, a plain click selects
+    /// its track with no in or out point and seeks; with Shift, and with Command, the rules of
+    /// decision 0017 (with Command and a clip set, no change). Under the last lane, a click changes
+    /// nothing and a double-click clears the selection.
     func click(_ press: Press, _ context: GestureContext) -> [GestureEffect] {
         guard case .lane(let hit) = press.target else { return rulerClick(press) }
         switch hit {
@@ -150,7 +152,9 @@ extension TimelineGesture {
             if press.command { return [.selection(context.selection.toggling(clip.id, in: context.session))] }
             return [.selection(.clips(ClipSet(clip.id)))]
         case .range(let lane):
-            guard let lane, context.session.tracks.indices.contains(lane) else { return [] }
+            guard let lane, context.session.tracks.indices.contains(lane) else {
+                return press.clicks >= 2 ? [.selection(.none)] : []
+            }
             let track = context.session.tracks[lane].id
             if press.shift {
                 return [
@@ -161,7 +165,7 @@ extension TimelineGesture {
                 guard case .range(let marks) = context.selection else { return [] }
                 return [.selection(.range(marks.toggled(track)))]
             }
-            return [.selection(.none), .seek(press.frame)]
+            return [.selection(.range(Marks(tracks: [track]))), .seek(press.frame)]
         }
     }
 

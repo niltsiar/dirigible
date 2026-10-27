@@ -19,7 +19,7 @@ Do each pass once, in order, over the whole text.
    2. Replace each commit hash with the change in words. The PR Commits tab lists them.
    3. Keep a resolvable ID only in parentheses after its words.
    4. Define each term that the run made up, at its first use.
-2. **Skim layer.** The first two or three sentences say what changed for the user or the maintainer, why, and the risk.
+2. **Skim layer.** The opening sentences follow the Summary rule of the **pr** skill.
 3. **Actors and actions.** Find each abstract noun that hides a verb behind an empty verb (make, perform, occur). Then:
    1. Change the noun to its verb.
    2. Make the actor the subject of that verb (the Active voice rule of the **unslop** skill).

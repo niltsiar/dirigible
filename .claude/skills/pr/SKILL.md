@@ -14,6 +14,8 @@ Use this template for writing the PR body:
 ```markdown
 ## Summary
 
+<one sentence: the problem, in the words of the user or the tester who asked, in English and close to the original when they wrote in another language; with no such person, the symptom that started the run>
+
 <two or three sentences: what changed for the user or the maintainer, why, and the risk>
 
 <optional: diagram, diff-sketch, or tree>

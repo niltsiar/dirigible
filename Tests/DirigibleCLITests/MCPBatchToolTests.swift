@@ -274,6 +274,28 @@ struct MCPBatchToolTests {
         }
     }
 
+    /// Each call sees the session after the earlier calls, so a ripple moves the frames of a later
+    /// call: ripple cuts sent from the last to the first cut what one call with the same ranges cuts.
+    @Test func aRippleCallMovesTheFramesOfTheLaterCalls() async throws {
+        let ripple = { (from: Int, to: Int) in Self.call("clip_ripple_delete", ["from": [from], "to": [to]]) }
+        let oneCall = MCPBatchToolTests(package: try Self.fixture())
+        let lastFirst = MCPBatchToolTests(package: try Self.fixture())
+        let firstLast = MCPBatchToolTests(package: try Self.fixture())
+        let placements = { (test: MCPBatchToolTests) throws in
+            try test.package.read().track("V")?.clips.map { "\($0.file) \($0.start) \($0.offset) \($0.length)" }
+        }
+
+        _ = try await oneCall.tool("clip_ripple_delete", ["from": [12_000, 48_000], "to": [24_000, 60_000]])
+        _ = try await lastFirst.batch([ripple(48_000, 60_000), ripple(12_000, 24_000)])
+        _ = try await firstLast.batch([ripple(12_000, 24_000), ripple(48_000, 60_000)])
+
+        let (one, last, first) = (try placements(oneCall), try placements(lastFirst), try placements(firstLast))
+        let expected = ["f 0 0 12000", "f 12000 24000 24000", "f 36000 60000 36000"]
+        #expect(one == expected && last == expected, "\(String(describing: one)) \(String(describing: last))")
+        let moved = ["f 0 0 12000", "f 12000 24000 36000", "f 48000 72000 24000"]
+        #expect(first == moved, "\(String(describing: first))")
+    }
+
     /// C9: a pending take refuses the whole batch with the text of one call and no index.
     @Test func aPendingTakeRefusesTheBatch() async throws {
         try package.edit {

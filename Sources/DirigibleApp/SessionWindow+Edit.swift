@@ -31,8 +31,8 @@ extension SessionWindow {
     /// Delete and Close Gap ripple the selection out of all tracks, or of the selected tracks for
     /// a twin; the Marks clear and the playhead goes to the start of the range. Cut puts the
     /// selected tracks on the clipboard. Insert moves all tracks right by the clipboard length at
-    /// the playhead and pastes there, as Paste does. With no range selection (none or a clip set),
-    /// a beep; with an empty range, nothing. Insert with no clipboard does nothing. During a take,
+    /// the playhead and pastes there, as Paste does. With no range selection (none, a clip set, or
+    /// a range with no points), a beep; with an empty range, nothing. Insert with no clipboard does nothing. During a take,
     /// nothing. Under a pending or split take, Studio refuses the ripple (`.rippleBlocked`), and the
     /// window beeps; Insert beeps then also with no clipboard. Cut of a clip set is no ripple
     /// (`cutClips`).
@@ -41,8 +41,11 @@ extension SessionWindow {
         if command == .insert { return insert(studio) }
         if command == .cut, case .clips = timeline.selection { return cutClips(studio) }
         let selectedOnly = command == .cutSelectedTracks || command == .deleteCloseGapSelectedTracks
-        // A ripple needs a range scope (decision 0037), so a clip set beeps (decision 0038).
-        guard let marks = timeline.selection.marks else { return beep() }
+        // A ripple needs a range scope (decision 0037), so a clip set (decision 0038) and the track
+        // of a lane click, with no points (decision 0017), beep.
+        guard let marks = timeline.selection.marks, marks.inPoint != nil || marks.outPoint != nil else {
+            return beep()
+        }
         guard let scope = marks.rippleScope(selectedOnly: selectedOnly, in: studio.session) else { return }
         let cuts = command == .cut || command == .cutSelectedTracks
         let done = edit(ripple: true) { session throws(SessionError) -> Excerpt? in

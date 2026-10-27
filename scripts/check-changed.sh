@@ -220,7 +220,7 @@ ov_shared() { comm -12 "$1" "$2" | paste -sd, - | sed 's/,/, /g'; }
 # result is information, so a failed read gives a line and never a failure.
 overlap() {
     local base="${1:-}" timeout="${OVERLAP_GH_TIMEOUT:-20}" top cur mb shared line wt_path wt_name wt_head
-    local gh_pid="" waited=0 notes="" lines="" rec
+    local gh_pid="" waited=0 notes="" lines="" wt_mb rec
     if (($# != 1)) || [[ -z "$base" ]]; then
         echo "usage: scripts/check-changed.sh --overlap <base> (information only; OVERLAP_GH_TIMEOUT seconds for gh)" >&2
         exit 2
@@ -259,10 +259,10 @@ overlap() {
             "")
                 if [[ -n "$wt_path" && -n "$wt_head" && -d "$wt_path" && "$(cd "$wt_path" && pwd -P)" != "$top" ]]; then
                     [[ -n "$wt_name" ]] || wt_name="$(git rev-parse --short "$wt_head")"
-                    rec="$(git merge-base "$base" "$wt_head" 2> /dev/null)" || rec=""
-                    if [[ -n "$rec" ]]; then
+                    wt_mb="$(git merge-base "$base" "$wt_head" 2> /dev/null)" || wt_mb=""
+                    if [[ -n "$wt_mb" ]]; then
                         {
-                            git diff --name-only --no-renames "$rec" "$wt_head"
+                            git diff --name-only --no-renames "$wt_mb" "$wt_head"
                             git --no-optional-locks -C "$wt_path" diff --name-only --no-renames HEAD
                             git --no-optional-locks -C "$wt_path" ls-files --others --exclude-standard
                         } 2> /dev/null | ov_keep > "$ovtmp/other" || true

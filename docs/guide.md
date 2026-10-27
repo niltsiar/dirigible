@@ -207,7 +207,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - Click the header of a track, or its name, to select that track. The header shows the selection color, and the track shows a light tint of it. The in point and the out point stay. Command-click a header to add its track or remove it. Shift-click a header to select all tracks from the selected tracks to that track.
 - Click an empty part of a track, or the lower part of a clip, to select that track and move the playhead there. The in point and the out point go. Other commands then act on that track: for example **Split**, **Set In Point**, and **Paste**.
 - Drag a triangle in the time ruler to move the in point or the out point.
-- Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, press Esc, or double-click below the last track, to clear the selection.
+- Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, press Esc, or double-click below the last track, to clear the selection. One click or a drag below the last track does not change the selection.
 - **Set In Point**, **Set Out Point**, **Select All**, and a drag that selects a range replace a set of clips with a range.
 
 ### Change the audio

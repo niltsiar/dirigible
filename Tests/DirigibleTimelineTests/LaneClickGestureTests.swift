@@ -98,4 +98,25 @@ struct LaneClickGestureTests {
             #expect(g.click(150, 300) == [], "one click keeps \(selection)")
         }
     }
+
+    /// A press under the last lane starts no range. A drag of 50 pt from there, plain, with
+    /// Shift, or with Command, gives no effect, so the selection stays. Control: the same drag in
+    /// the gap of t4 makes a range on t4.
+    @Test mutating func aDragFromBelowTheLastLaneChangesNoSelection() {
+        _ = g.down(150, 230)
+        _ = g.drag(200, 230)
+        guard case .range(let marks)? = Self.selection(g.up(200, 230)) else {
+            Issue.record("the control drag made no range")
+            return
+        }
+        #expect(marks.tracks == ["t4"] && marks.inPoint != nil && marks.outPoint != nil, "the control in t4")
+
+        g.selection = Self.track("t2")
+        for (shift, command) in [(false, false), (true, false), (false, true)] {
+            var effects = g.gesture.handle(.down(.lanes(x: 150, y: 300), shift: shift, command: command), g.context)
+            effects += g.gesture.handle(.drag(.lanes(x: 200, y: 300)), g.context)
+            effects += g.gesture.handle(.up(.lanes(x: 200, y: 300)), g.context)
+            #expect(effects == [], "Shift \(shift), Command \(command): \(effects)")
+        }
+    }
 }

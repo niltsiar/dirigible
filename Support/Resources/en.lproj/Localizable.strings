@@ -199,6 +199,7 @@
 "error.denoise.mixed" = "Dirigible cannot reduce the noise. Clips that share audio got different amounts. Use one amount for these clips and try again.";
 "error.denoise.unavailable" = "Dirigible cannot reduce the noise. The noise reduction of macOS did not load (error %lld).";
 "error.denoise.engine" = "Dirigible cannot reduce the noise. The audio engine stopped (error %lld). Try again.";
+"error.denoise.over.full.scale" = "Dirigible cannot reduce the noise. The new audio file “%@” is louder than full scale, so it clips. Try again.";
 "error.denoise.yielded" = "The noise reduction stopped for a take in another window. Reduce the noise again after the take.";
 "reverted.to" = "Reverted to the backup of %@";
 

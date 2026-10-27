@@ -134,6 +134,7 @@ extension L10n {
         case .mixedTreatments: errorDenoiseMixed.text
         case .effectUnavailable(let status): errorDenoiseUnavailable.format(Int(status))
         case .engine(let status): errorDenoiseEngine.format(Int(status))
+        case .stillOverFullScale(let file): errorDenoiseOverFullScale.format(file)
         case .cancelled, .session: errorSessionOther.text
         }
     }

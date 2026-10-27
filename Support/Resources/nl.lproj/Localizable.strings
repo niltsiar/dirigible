@@ -199,6 +199,7 @@
 "error.denoise.mixed" = "Dirigible kan de ruis niet verminderen. Clips die audio delen kregen verschillende waarden. Gebruik één waarde voor deze clips en probeer het opnieuw.";
 "error.denoise.unavailable" = "Dirigible kan de ruis niet verminderen. De ruisvermindering van macOS is niet geladen (fout %lld).";
 "error.denoise.engine" = "Dirigible kan de ruis niet verminderen. De audio-engine is gestopt (fout %lld). Probeer het opnieuw.";
+"error.denoise.over.full.scale" = "Dirigible kan de ruis niet verminderen. Het nieuwe audiobestand '%@' is luider dan volle schaal en vervormt. Probeer het opnieuw.";
 "error.denoise.yielded" = "De ruisvermindering is gestopt vanwege een take in een ander venster. Verminder de ruis opnieuw na de take.";
 "reverted.to" = "Teruggezet naar de reservekopie van %@";
 

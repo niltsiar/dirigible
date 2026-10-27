@@ -199,6 +199,7 @@
 "error.denoise.mixed" = "O Dirigible não pode reduzir o ruído. Clipes que compartilham áudio receberam valores diferentes. Use um só valor para esses clipes e tente novamente.";
 "error.denoise.unavailable" = "O Dirigible não pode reduzir o ruído. A redução de ruído do macOS não foi carregada (erro %lld).";
 "error.denoise.engine" = "O Dirigible não pode reduzir o ruído. O mecanismo de áudio parou (erro %lld). Tente novamente.";
+"error.denoise.over.full.scale" = "O Dirigible não pode reduzir o ruído. O novo arquivo de áudio “%@” passa da escala total e satura. Tente novamente.";
 "error.denoise.yielded" = "A redução de ruído foi interrompida por uma tomada em outra janela. Reduza o ruído novamente depois da tomada.";
 "reverted.to" = "Revertido para o backup de %@";
 

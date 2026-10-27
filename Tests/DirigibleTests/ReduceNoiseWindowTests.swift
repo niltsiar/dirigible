@@ -177,6 +177,7 @@ import Testing
             (.mixedTreatments(clips: ["a", "b"]), L10n.errorDenoiseMixed.text),
             (.effectUnavailable(status: -3000), L10n.errorDenoiseUnavailable.format(-3000)),
             (.engine(status: -10868), L10n.errorDenoiseEngine.format(-10868)),
+            (.stillOverFullScale(file: "Clips/f1 NR.wav"), L10n.errorDenoiseOverFullScale.format("Clips/f1 NR.wav")),
             (.session(.transcriptNotLoaded([TranscriptID(1)])), L10n.errorTranscriptUnloaded.text),
             (.session(.unknownClip("c1")), L10n.errorSessionOther.text),
         ]

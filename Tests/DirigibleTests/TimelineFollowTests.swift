@@ -110,7 +110,6 @@ import os
     /// Criterion 14: a user scroll during play holds the follow, and the play goes on.
     @Test func aUserScrollDuringPlayHoldsTheFollowAndThePlayGoesOn() async throws {
         let (model, studio, lanesWindow, view) = try await lanes()
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         view.tick(playhead: 0, playback: studio.playback)
@@ -195,7 +194,6 @@ import os
         let studio = try #require(await window.opened() ? window.studio : nil)
         await until("the window shows the lanes") { (window.timelineView?.updates ?? 0) > 0 }
         let view = try #require(window.timelineView)
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         let updates = view.updates

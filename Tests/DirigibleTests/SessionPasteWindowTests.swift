@@ -24,7 +24,6 @@ import Testing
 
     func open(_ url: URL) async throws -> (SessionWindow, Studio, NSWindow) {
         let (model, studio, window, view) = try await openLanes(app, url)
-        studio.environment.playerOutput = .offline
         #expect(window.makeFirstResponder(view.lanes))
         return (model, studio, window)
     }

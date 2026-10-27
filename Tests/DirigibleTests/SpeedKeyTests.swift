@@ -77,7 +77,6 @@ import Testing
     @Test func overlappingSpeedKeysKeepTheLastPick() async throws {
         let (model, studio) = try await timelineModel(
             try await timelinePackage(in: folder.url, tracks: 1, seconds: 2, audio: true), app: app)
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         #expect(studio.playback != .stopped)

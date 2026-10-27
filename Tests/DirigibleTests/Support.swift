@@ -84,12 +84,14 @@ final class TemporaryFolder {
 
 extension SessionWindow {
     /// Waits until the open of the package ends with a studio. The studio gets the offline
-    /// listen output, so no test plays to the real speakers (`ListenSafetyTests`), and the free
-    /// bytes of `fixFreeSpace()`, so no test depends on the free space of the Mac that runs it.
+    /// listen and player outputs, so no test plays to the real speakers or opens the default
+    /// output (`ListenSafetyTests`), and the free bytes of `fixFreeSpace()`, so no test depends on
+    /// the free space of the Mac that runs it.
     func opened() async -> Bool {
         await until("the window opens its package") { studio != nil }
         if studio == nil { Issue.record("The phase is \(phase)") }
         studio?.environment.listenOutput = .offline()
+        studio?.environment.playerOutput = .offline
         await fixFreeSpace()
         return studio != nil
     }

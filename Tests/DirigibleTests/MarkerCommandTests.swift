@@ -115,7 +115,6 @@ import Testing
     /// gives m3; the 0.5 s also when stopped gives m1 at the first press.
     @Test func previousDuringPlayPassesTheMarkerJustPlayed() async throws {
         let (model, studio, _) = try await open(audio: true)
-        studio.environment.playerOutput = .offline
         try threeMarkers(studio)
         await seek(studio, 100_800)
         model.run(.previousMarker)
@@ -293,7 +292,6 @@ import Testing
     /// play goes on.
     @Test func addMarkerDuringPlayUsesThePlayhead() async throws {
         let (model, studio, _) = try await open(audio: true)
-        studio.environment.playerOutput = .offline
         await seek(studio, 0)
         await studio.perform(.playStop)
         _ = await studio.renderOffline(frames: 9_600)

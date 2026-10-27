@@ -177,7 +177,6 @@ import os
     @Test func anEditDuringPlayKeepsThePlayGoing() async throws {
         let model = await app.open(try await timelinePackage(in: folder.url, tracks: 2, seconds: 10, audio: true))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         model.timeline.marks = Marks(inPoint: 0, outPoint: 24_000, tracks: ["t1"])
@@ -235,7 +234,6 @@ import os
     @Test func aMoveDuringPlayKeepsThePlay() async throws {
         let (model, studio, _, view) = try await openLanes(
             app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 10, audio: true))
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
 

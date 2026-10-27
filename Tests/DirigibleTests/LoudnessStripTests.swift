@@ -121,7 +121,6 @@ import Testing
         try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
         let model = await app.open(try await timelinePackage(in: package, tracks: 1, seconds: 3, audio: true))
         let studio = try #require(await model.opened() ? model.studio : nil)
-        studio.environment.playerOutput = .offline
         await until("the window shows the lanes") { (model.timelineView?.updates ?? 0) > 0 }
         return (model, studio)
     }

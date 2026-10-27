@@ -31,7 +31,6 @@ import Testing
         view.headers.host.rootView = AnyView(TrackHeaders(model: model, studio: studio, laneHeight: 100, selected: []))
         drawNow(window)
         try #require(window.backingScaleFactor == 2, "this display has scale \(window.backingScaleFactor)")
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         try #require(studio.play.player != nil && studio.playback != .stopped, "the play runs")

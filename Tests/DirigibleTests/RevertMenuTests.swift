@@ -99,7 +99,6 @@ import Testing
         await until("the take ends") { studio.isIdle }
         #expect(RevertMenu(model).enabled, "idle after the take")
 
-        studio.environment.playerOutput = .offline
         let hold = DispatchSemaphore(value: 0)
         let entered = LockedFlag()
         studio.environment.importStep = {

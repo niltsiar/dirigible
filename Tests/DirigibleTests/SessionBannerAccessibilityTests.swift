@@ -30,7 +30,6 @@ import Testing
     func importing() async throws -> (SessionWindow, Studio, NSWindow, DispatchSemaphore) {
         let package = try await timelinePackage(in: folder.url, tracks: 2, seconds: 2, audio: true)
         let (model, studio, window, _) = try await openLanes(app, package)
-        studio.environment.playerOutput = .offline
         let hold = DispatchSemaphore(value: 0)
         let entered = LockedFlag()
         studio.environment.importStep = {
@@ -81,7 +80,6 @@ import Testing
         let tracks = TimelineViewTests.tracksThatDoNotFit
         let package = try await timelinePackage(in: folder.url, tracks: tracks, seconds: 20, audio: true)
         let (model, studio, _, view) = try await openLanes(app, package)
-        studio.environment.playerOutput = .offline
         view.viewWillMove(toWindow: nil)
         let chrome = try #require(model.chrome)
         let heard = Heard()

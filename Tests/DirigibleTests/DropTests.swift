@@ -33,7 +33,6 @@ import Testing
                 try await timelinePackage(in: folder.url, tracks: tracks, seconds: seconds)
             }
         let (model, studio, _, view) = try await openLanes(app, package)
-        studio.environment.playerOutput = .offline
         await until("the first view is fitted") { view.fitted }
         model.timeline.scale = TimelineScale(framesPerPoint: 480)
         model.timeline.laneHeight = .fixed(laneHeight)
@@ -340,7 +339,6 @@ import Testing
         first.run(.copy)
         await first.close()
         let (second, studio, _, _) = try await openLanes(app, packages[1])
-        studio.environment.playerOutput = .offline
         second.timeline.selection = .range(Marks(tracks: ["t2"]))
         second.drafts["t1"] = "Typed"
 

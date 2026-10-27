@@ -298,13 +298,10 @@ struct StudioPlaybackTests {
 
     /// An offline play opens no output device. The audio server adds the device
     /// `CADefaultDeviceAggregate-<pid>-0` for the process life when a process opens the default
-    /// output, and the device list of every window then changes. An earlier test of the process
-    /// can have added it, so the test compares the list before and after. Control: the play renders
-    /// the mix.
+    /// output, and the device list of every window then changes. No test plays to a device, so
+    /// the process has no such device: the test reads all devices, of each direction. Control:
+    /// the play renders the mix.
     @Test func anOfflinePlayAddsNoAudioDevice() async throws {
-        let aggregate = "CADefaultDeviceAggregate-\(getpid())-"
-        func aggregates() -> Set<String> { Set(InputDevice.all().map(\.uid).filter { $0.hasPrefix(aggregate) }) }
-        let before = aggregates()
         let studio = try await studio()
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
@@ -313,7 +310,10 @@ struct StudioPlaybackTests {
         for (a, b) in zip(out, try package.mix(0..<9600)) { #expect(maxError(a, b) <= 1e-6, "the mix from 0") }
         await studio.perform(.playStop)
 
-        let added = aggregates().subtracting(before)
-        #expect(added.isEmpty, "the play added \(added)")
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        let devices = try readArray(system, kAudioHardwarePropertyDevices, as: AudioObjectID.self)
+        let added = devices.compactMap { readString($0, kAudioDevicePropertyDeviceUID) }
+            .filter { $0.hasPrefix("CADefaultDeviceAggregate-\(getpid())-") }
+        #expect(added.isEmpty, "a play added \(added)")
     }
 }

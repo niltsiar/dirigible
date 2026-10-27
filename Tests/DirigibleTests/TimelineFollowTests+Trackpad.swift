@@ -102,7 +102,6 @@ extension TimelineFollowTests {
     /// The sibling of the take test during play, at 512 frames per point.
     @Test func aTrackpadScrollBackDuringPlayHoldsTheFollow() async throws {
         let (model, studio, window, view) = try await lanes()
-        studio.environment.playerOutput = .offline
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
         let playback = studio.playback

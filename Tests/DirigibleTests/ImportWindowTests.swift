@@ -31,7 +31,6 @@ import Testing
     func open() async throws -> (SessionWindow, Studio, NSWindow) {
         let package = try await timelinePackage(in: folder.url, tracks: 2, seconds: 2, audio: true)
         let (model, studio, window, _) = try await openLanes(app, package)
-        studio.environment.playerOutput = .offline
         return (model, studio, window)
     }
 

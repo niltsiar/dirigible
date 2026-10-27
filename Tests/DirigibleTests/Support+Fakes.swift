@@ -18,8 +18,8 @@ final class CountingHAL: Sendable {
     var attaches: Int { counts.withLock { $0.attaches } }
     var isFree: Bool { counts.withLock { $0.attaches == $0.cleanDetaches } }
 
-    /// The live environment with this HAL, the access granted, no free-space limit, and a
-    /// watchdog limit of 60 s, so a device with no records is never lost in a test.
+    /// The live environment with this HAL, the access granted, no free-space limit, the offline
+    /// outputs, and a watchdog limit of 60 s, so a device with no records is never lost in a test.
     var environment: CaptureEnvironment {
         let duo = InputDevice(
             uid: "duo", name: "Duo", nominalRate: 48_000, availableRates: [48_000...48_000], channelsPerBuffer: [2],
@@ -40,6 +40,7 @@ final class CountingHAL: Sendable {
         environment.microphoneAccess = { nil }
         environment.freeBytes = { _ in .max }
         environment.listenOutput = .offline()
+        environment.playerOutput = .offline
         environment.silenceLimit = noWatchdog
         environment.firstRecordLimit = noWatchdog
         return environment

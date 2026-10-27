@@ -148,11 +148,19 @@ final class TimelineRuler: NSRulerView {
     private func drawHighlight(of marker: Marker, at x: Double) {
         let text = typeset(marker.name, color: .black, font: .systemFont(ofSize: 10, weight: .semibold))
         let width = CTLineGetTypographicBounds(text.line, nil, nil, nil)
-        let outline = NSBezierPath(
-            roundedRect: NSRect(x: x + 2, y: 6, width: width + 12, height: 20), xRadius: 5, yRadius: 5)
-        outline.lineWidth = 2
+        let outline = NSBezierPath(roundedRect: Self.highlightRect(at: x, nameWidth: width), xRadius: 5, yRadius: 5)
+        outline.lineWidth = Self.highlightLine
         NSColor.labelColor.setStroke()
         outline.stroke()
+    }
+
+    static let highlightLine = 2.0
+
+    /// The path of the outline of a lit flag at the ruler x `x` with a name `nameWidth` wide. It
+    /// holds the flag box and the pill of the current marker, and its stroke ends at the ruler
+    /// bottom, so the bottom edge meets the pill.
+    static func highlightRect(at x: Double, nameWidth: Double) -> NSRect {
+        NSRect(x: x - 3, y: 7, width: nameWidth + 17, height: thickness - 7 - highlightLine / 2)
     }
 
     /// The typeset lines of the ruler text, by text, font, color, and appearance. A ripple drag

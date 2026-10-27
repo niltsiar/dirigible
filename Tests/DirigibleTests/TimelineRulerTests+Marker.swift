@@ -121,4 +121,23 @@ extension TimelineRulerTests {
         window.close()
         await model.close()
     }
+
+    /// F107 code gate 1 item 2: the outline of a lit flag holds the flag box, the name, and the
+    /// pill of the current marker, its stroke does not cross the flag box, and the whole stroke is
+    /// inside the 24 pt ruler. The box, name, and pill rects are those of `drawHashMarksAndLabels`.
+    @Test(arguments: [0.0, 1.5, 38.0, 240.0]) func theHighlightOutlineHoldsTheFlagInsideTheRuler(nameWidth: Double) {
+        let x = 100.0
+        let outline = TimelineRuler.highlightRect(at: x, nameWidth: nameWidth)
+        let half = TimelineRuler.highlightLine / 2
+        let font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        let box = RulerGeometry.flagReach.upperBound
+        let flag = NSRect(x: x, y: 12, width: box, height: box)
+        let name = NSRect(x: x + 8, y: 10, width: nameWidth, height: font.ascender - font.descender)
+        let pill = NSRect(x: x + 5, y: 9, width: nameWidth + 6, height: 14)
+        let ruler = NSRect(x: 0, y: 0, width: 1_000, height: TimelineRuler.thickness)
+
+        #expect(ruler.contains(outline.insetBy(dx: -half, dy: -half)), "the stroke leaves the ruler: \(outline)")
+        #expect(outline.insetBy(dx: half, dy: half).contains(flag), "the stroke crosses the flag box: \(outline)")
+        #expect(outline.contains(name) && outline.contains(pill), "the outline cuts the name: \(outline)")
+    }
 }

@@ -279,4 +279,31 @@ struct TakeMarkerTests {
         #expect(studio.saveError == nil, "the finalize kept the save error \(String(describing: studio.saveError))")
         #expect(try Session(contentsOf: url).markers[marker.id] == marker, "session.xml has no take marker")
     }
+
+    /// The kept error makes the close write the take marker again.
+    @Test func aFailedFinalizeKeepsATakeMarkerSaveError() async throws {
+        let studio = try await studio()
+        let hal = try await start(studio)
+        studio.environment.saveSession = { _, _ throws(SessionFileError) in throw .writeFailed(step: "test", errno: EIO)
+        }
+        await play(hal, ["mic"], seconds: 1, dBFS: -.infinity)
+        let marker = try studio.addMarkerAtRecordHead(.marker, name: "Marker 1", atHostNanos: Self.inTake)
+        await studio.serialized {}
+        #expect(studio.saveError != nil, "control: the save of the take marker did not fail")
+        let clips = url.appending(path: "Clips")
+        chmod(clips.path, 0o500)
+        defer { chmod(clips.path, 0o755) }
+
+        // -54 is permErr, the ExtAudioFile status for a folder with no write access.
+        await #expect(throws: StudioError.finalize(.writeFailed(file: "Clips/take1-1-1.wav", status: -54))) {
+            try await studio.stopRecording()
+        }
+
+        #expect(studio.saveError != nil, "the failed finalize cleared the save error")
+        chmod(clips.path, 0o755)
+        studio.environment.saveSession = CaptureEnvironment.live.saveSession
+        #expect(try Session(contentsOf: url).markers.isEmpty, "control: session.xml has the marker before the close")
+        await studio.settle()
+        #expect(try Session(contentsOf: url).markers[marker.id] == marker, "the close wrote no take marker")
+    }
 }

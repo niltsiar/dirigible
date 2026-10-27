@@ -43,7 +43,7 @@ new_repo() {
     for n in a b; do printf '#!/bin/bash\necho %s >> "$HOOKS_LOG"\n' "$n" > "$repo/t/$n.test.sh"; done
     chmod +x "$repo/t/"*.sh
     for f in Sources/DirigibleAudio/A.swift Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift \
-        Sources/DirigibleCore/PackageLock.swift Sources/Other/O.swift Tests/T.swift docs/d.md README.md .claude/settings.json Support/s.txt; do
+        Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/Other/O.swift Tests/T.swift docs/d.md README.md .claude/settings.json Support/s.txt; do
         echo x > "$repo/$f"
     done
     commit init

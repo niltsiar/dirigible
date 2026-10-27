@@ -35,12 +35,11 @@ struct BatchCommand: ParsableCommand {
             throw fail(error.message, code: ExitCode.validationFailure.rawValue)
         }
         let work: BatchWork
-        do throws(BatchWork.Failure) {
+        do throws(BatchWork.CheckFailure) {
             // The checks read an absolute path of the package, as the tool does.
             work = try BatchWork.check(calls, package: package.url.absoluteURL.path)
         } catch {
-            throw fail(
-                error.message(rippleBlocked: splitTakeMessage(package.path)), code: ExitCode.validationFailure.rawValue)
+            throw fail(error.message, code: ExitCode.validationFailure.rawValue)
         }
         do throws(EditFailure<BatchWork.Failure>) {
             print(try work.runOnFiles(package.url).joined(separator: "\n"))
@@ -57,7 +56,6 @@ struct BatchCommand: ParsableCommand {
         case .splitTake: unplacedAudio
         case .body(let failure):
             switch failure.cause {
-            case .check: ExitCode.validationFailure.rawValue
             case .step: editRefused
             case .rippleBlocked: unplacedAudio
             }

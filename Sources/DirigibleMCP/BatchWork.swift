@@ -34,11 +34,19 @@ package struct BatchWork: Sendable {
         let edit: @Sendable (inout Session) throws(StepError) -> [String]
     }
 
-    /// The call that failed, by index and tool, and why. A busy studio and a pending take on the
-    /// files have no index, so they are not a `Failure`.
+    /// A call that the check refused, by index and tool: no step ran.
+    package struct CheckFailure: Error {
+        package let index: Int
+        package let tool: String
+        package let error: ToolError
+
+        package var message: String { failureLine(index: index, tool: tool, error.message) }
+    }
+
+    /// The step that failed in the run, by index and tool, and why. A busy studio and a pending
+    /// take on the files have no index, so they are not a `Failure`.
     package struct Failure: Error {
         package enum Cause {
-            case check(ToolError)
             case step(StepError)
             case rippleBlocked
         }
@@ -51,12 +59,16 @@ package struct BatchWork: Sendable {
         package func message(rippleBlocked: String) -> String {
             let text =
                 switch cause {
-                case .check(let error): error.message
                 case .step(let error): error.message
                 case .rippleBlocked: rippleBlocked
                 }
-            return "calls[\(index)] \(tool) failed, so the batch changed nothing: \(text)"
+            return failureLine(index: index, tool: tool, text)
         }
+    }
+
+    /// The one failure line of a call, for a check failure and a step failure (decision 0063).
+    private static func failureLine(index: Int, tool: String, _ text: String) -> String {
+        "calls[\(index)] \(tool) failed, so the batch changed nothing: \(text)"
     }
 
     let steps: [Step]
@@ -115,13 +127,13 @@ package struct BatchWork: Sendable {
     /// Checks the calls in order. An unknown tool, an inner `package`, a tool with the role `.alone`,
     /// and a call that copies a file are refused before any step runs. A `.step` tool runs its make
     /// with the package of the batch; its work is a step when it is an edit of the session value.
-    package static func check(_ calls: [Call], package: String) throws(Failure) -> BatchWork {
+    package static func check(_ calls: [Call], package: String) throws(CheckFailure) -> BatchWork {
         var steps: [Step] = []
         for (index, call) in calls.enumerated() {
             do throws(ToolError) {
                 steps.append(try step(call, package: package))
             } catch {
-                throw Failure(index: index, tool: call.tool, cause: .check(error))
+                throw CheckFailure(index: index, tool: call.tool, error: error)
             }
         }
         return BatchWork(steps: steps)

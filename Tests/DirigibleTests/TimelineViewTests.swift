@@ -37,7 +37,8 @@ import Testing
     }
 
     /// Criterion 16: a click at x = 200 pt on lane 2 seeks to 102,400 (± one point of frames) and
-    /// selects lane 2 with no in or out point; a Command-click toggles the lane under the pointer.
+    /// selects lane 2 with no in or out point; a Command-click toggles the lane under the pointer,
+    /// so it adds lane 1, and then removes lane 2.
     /// The plain click is in the lower third of the clip (the range zone): a click on the upper
     /// part selects the clip (mouse-edits criterion 2). The Command-click is in the lower third
     /// too: on the upper part it toggles the clip (decision 0038).
@@ -56,6 +57,9 @@ import Testing
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 80), in: view, flags: .command))
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 80), in: view, flags: .command))
         #expect(model.timeline.marks?.tracks == ["t1", "t2"])
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 300, y: 180), in: view, flags: .command))
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 180), in: view, flags: .command))
+        #expect(model.timeline.marks?.tracks == ["t1"], "Command-click on the track of the plain click removes it")
         lanesWindow.close()
         await model.close()
     }

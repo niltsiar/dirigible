@@ -148,6 +148,31 @@ import Testing
         await model.close()
     }
 
+    /// K20 through the hit test: under the last lane, one click keeps the track of a lane click,
+    /// and a double-click clears the selection. The events go to the hit view of the frame view, as
+    /// `NSWindow.sendEvent` sends them in a key window.
+    @Test func aDoubleClickBelowTheLastLaneClearsTheSelection() async throws {
+        let (model, _, view) = try await open()
+        let window = try #require(view.window)
+        try click(view, 200, 70)
+        try #require(model.timeline.selection == .range(Marks(tracks: ["t2"])), "the lane click selects t2")
+        let below = NSPoint(x: 200, y: 270)
+        try #require(view.shown.maxY > below.y, "the view shows y \(below.y) under the 4 lanes")
+        drawNow(window)
+        let hit = try #require(window.contentView?.superview?.hitTest(view.lanes.convert(below, to: nil)))
+        try #require(hit.isDescendant(of: view.contentView), "the point is in the timeline area, not in \(hit)")
+
+        hit.mouseDown(with: try mouse(.leftMouseDown, below, in: view))
+        hit.mouseUp(with: try mouse(.leftMouseUp, below, in: view))
+        #expect(model.timeline.selection == .range(Marks(tracks: ["t2"])), "one click keeps the track")
+        hit.mouseDown(with: try mouse(.leftMouseDown, below, in: view, clicks: 2))
+        hit.mouseUp(with: try mouse(.leftMouseUp, below, in: view, clicks: 2))
+
+        #expect(model.timeline.selection == .none, "the double-click clears the selection")
+        #expect(view.lanes.shownCursor == .arrow, "no tracking area under the lanes resets an I-beam")
+        await model.close()
+    }
+
     /// K21: Remove Track after a click asks first, and removes the track only after the confirmation.
     @Test func aRemoveTrackAfterALaneClickAsksFirst() async throws {
         let (model, studio, view) = try await open()

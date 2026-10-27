@@ -58,7 +58,7 @@ struct HitTestTests {
         #expect(LaneHit.fade(Fixture.a, .start, lane: 0).cursor == .resizeLeftRight)
         #expect(LaneHit.fade(Fixture.a, .end, lane: 0).cursor == .resizeLeftRight)
         #expect(LaneHit.range(lane: 0).cursor == .iBeam)
-        #expect(LaneHit.range(lane: nil).cursor == .iBeam)
+        #expect(LaneHit.range(lane: nil).cursor == .arrow, "under the last lane")
         #expect(RulerHit.flag("m1").cursor == .resizeLeftRight)
         #expect(RulerHit.triangle(.inPoint).cursor == .resizeLeftRight)
         #expect(RulerHit.triangle(.outPoint).cursor == .resizeLeftRight)

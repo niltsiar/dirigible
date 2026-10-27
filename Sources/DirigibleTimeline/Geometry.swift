@@ -273,12 +273,12 @@ enum LaneHit: Equatable, Sendable {
         }
     }
 
-    /// The cursor over the zone, with no gesture.
+    /// The cursor over the zone, with no gesture. Under the last lane it is the arrow of the clip view.
     var cursor: TimelineCursor {
         switch self {
         case .trim, .fade: .resizeLeftRight
         case .gain: .resizeUpDown
-        case .move: .arrow
+        case .move, .range(lane: nil): .arrow
         case .point: .openHand
         case .range: .iBeam
         }

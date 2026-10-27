@@ -2,8 +2,16 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 
-/// The gesture questions of the window: the cursor and the ruler menu (decision 0020).
+/// The gesture questions of the window: the hit view, the cursor, and the ruler menu (decision 0020).
 extension TimelineScrollView {
+    /// The lanes take a mouse event in the shown part of the clip view under the last lane, so the
+    /// gesture gets that point (K20: a double-click there clears the selection).
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        guard hit === contentView, shown.contains(lanes.convert(point, from: superview)) else { return hit }
+        return lanes
+    }
+
     /// The cursor of the gesture at a lane or ruler point; `option` is the state of the Option key.
     func cursor(at place: Place, option: Bool = false) -> TimelineCursor {
         guard let source, let context = context(source) else { return .arrow }

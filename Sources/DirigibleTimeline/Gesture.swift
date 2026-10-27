@@ -302,7 +302,7 @@ public struct TimelineGesture: Sendable {
         case .pressed(let press):
             guard hypot(x - press.x, y - press.y) >= Self.threshold else { return [] }
             // A Command-drag from a clip stays a range drag (decision 0020).
-            if press.command, case .lane = press.target {
+            if press.command, case .lane(let hit) = press.target, hit != .range(lane: nil) {
                 state = rangeState(press, context)
                 return drag(place, context)
             }
@@ -344,8 +344,9 @@ public struct TimelineGesture: Sendable {
                 guard abs(x - press.x) >= Self.threshold else { return [] }
                 state = rangeState(press, context)
                 return drag(place, context)
-            case .lane(.range):
-                state = rangeState(press, context)
+            case .lane(.range(let lane)):
+                // A drag from under the last lane changes nothing (decision 0017).
+                state = lane == nil ? .dropped : rangeState(press, context)
                 return drag(place, context)
             }
         case .moving(let press, let move):

@@ -356,13 +356,15 @@ actor Player {
         let unit = speedUnit().map { AVAudioUnitTimeEffect(audioComponentDescription: $0) }
         engine.attach(node)
         if let unit { engine.attach(unit) }
-        engine.connect(node, to: engine.mainMixerNode, format: format)
+        // Before the first read of `mainMixerNode`: that read binds the output node to the default
+        // device, and the audio server then adds a device for the process life.
         if output == .offline {
             guard
                 (try? engine.enableManualRenderingMode(
                     .offline, format: format, maximumFrameCount: AVAudioFrameCount(chunk))) != nil
             else { return nil }
         }
+        engine.connect(node, to: engine.mainMixerNode, format: format)
         observer = Observer(
             NotificationCenter.default.addObserver(
                 forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil, using: Self.changed(self)))

@@ -604,10 +604,26 @@ echo "\$*" >> "$tmp/pgrep.log"
 line="\$(head -n 1 "$tmp/procs")"
 [[ \$(wc -l < "$tmp/procs") -gt 1 ]] && sed -i '' 1d "$tmp/procs"
 [[ -n "\$line" ]] || exit 1
+grep -Eq -- "\$2" <<< "\$line" || exit 1
 echo "\$line"
 EOF
-: > "$tmp/procs"
-chmod +x "$tmp/bin/sysctl" "$tmp/bin/sleep" "$tmp/bin/pgrep"
+# A fake lsof prints the cwd of the PID after -p, from the lines "<pid> <cwd>" of $tmp/cwds; a fake
+# ps prints the parent of the PID after -p, from the lines "<pid> <ppid>" of $tmp/ppids.
+cat > "$tmp/bin/lsof" <<EOF
+#!/bin/bash
+echo "\$*" >> "$tmp/lsof.log"
+while [[ \$# -gt 0 ]]; do [[ "\$1" == -p ]] && pid="\$2"; shift; done
+cwd="\$(awk -v p="\$pid" '\$1 == p { print \$2 }' "$tmp/cwds")"
+[[ -n "\$cwd" ]] || exit 1
+printf 'p%s\nfcwd\nn%s\n' "\$pid" "\$cwd"
+EOF
+cat > "$tmp/bin/ps" <<EOF
+#!/bin/bash
+[[ "\$1 \$2" == "-o ppid=" ]] || exec /bin/ps "\$@"
+awk -v p="\$4" '\$1 == p { print \$2 }' "$tmp/ppids"
+EOF
+: > "$tmp/procs"; : > "$tmp/cwds"; : > "$tmp/ppids"
+chmod +x "$tmp/bin/sysctl" "$tmp/bin/sleep" "$tmp/bin/pgrep" "$tmp/bin/lsof" "$tmp/bin/ps"
 echo 1.00 > "$tmp/load"
 PATH="$tmp/bin:$PATH" make_case 'make check-changed with FILTER' '' "FILTER=ATests BTests"
 [[ "$output" == *"targets: test-filter"* ]] || fail "make check-changed with FILTER: no test-filter target: $output"
@@ -678,6 +694,64 @@ CHECK_LOAD_WAIT=20 wait_case || fail "a test of another tree that stays: exit $?
 [[ "$(cat "$tmp/sleep.log")" == $'10\n10' ]] || fail "a test of another tree that stays: sleeps [$(cat "$tmp/sleep.log")]"
 [[ "$(tail -n 1 "$tmp/wait.err")" == "check-changed: a test of another tree runs after 20 s (pid ${other/ /: }): run the tests" ]] || fail "a test of another tree that stays: last line: $(tail -n 1 "$tmp/wait.err")"
 : > "$tmp/procs"
+
+# A bench (--wait-load bench) and a push check (BASE in the environment) also wait for a toolchain
+# swift-build or swift-test, and for a test-hooks.sh, whose tree is not this one. The tree of a cwd
+# is its git top level, or the cwd itself when it is no git tree. A test-hooks.sh runs in a clone of
+# its own, so the tree is the cwd of its parent (make). A slice check (no BASE) keeps the helper
+# rule only: its lock wait, load wait, and tests must fit in one 600 s call.
+toolchain=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+mkdir -p "$tmp/o" "$tmp/plain" "$tmp/r-other" "$tmp/r/.build/bench" "$tmp/r/Sources"
+git init -q "$tmp/o"
+git init -q "$tmp/r-other"
+git -C "$tmp/r" worktree add -q "$tmp/r/.claude/worktrees/x" 2>/dev/null
+top() { git -C "$1" rev-parse --show-toplevel 2>/dev/null || echo "$1"; }
+# tree_case <name> <wait|none> <tree> <wait-load argument>...: the fake process of procs and cwds
+# is there; CHECK_LOAD_WAIT=10 gives one wait of 10 s. A wait line names the pid and the tree.
+tree_case() {
+  local name="$1" want="$2" tree="$3" lines
+  shift 3
+  : > "$tmp/sleep.log"; echo 1.00 > "$tmp/load"
+  got="$(cd "$tmp/r" && CHECK_LOAD_WAIT=10 PATH="$tmp/bin:$PATH" "$script" --wait-load "$@" 2> "$tmp/wait.err")" || fail "$name: exit $?"
+  lines="$(grep -c 'wait 10 s' "$tmp/wait.err")"
+  if [[ $want == wait ]]; then
+    [[ "$lines" == 1 ]] && grep -q "pid 4242" "$tmp/wait.err" && grep -qF "$tree" "$tmp/wait.err" && [[ "$(tail -n 1 "$tmp/wait.err")" == *"run the tests" ]] ||
+      fail "$name: no wait line with pid 4242 and $tree, then run the tests: $(cat "$tmp/wait.err")"
+  else
+    [[ "$lines" == 0 && ! -s "$tmp/sleep.log" ]] || fail "$name: it waited: $(cat "$tmp/wait.err")"
+  fi
+}
+# one_proc <command line> <cwd>: the one process 4242, with no parent line.
+one_proc() { printf '4242 %s\n' "$1" > "$tmp/procs"; printf '4242 %s\n' "$2" > "$tmp/cwds"; : > "$tmp/ppids"; }
+one_proc "$toolchain/swift-build --package-path $tmp/o" "$tmp/o"
+tree_case 'bench: a swift-build of another tree' wait "$(top "$tmp/o")" bench
+BASE=origin/main tree_case 'push check: a swift-build of another tree' wait "$(top "$tmp/o")" test
+tree_case 'slice check: a swift-build of another tree' none "" test
+one_proc "$toolchain/swift-test --skip X" "$tmp/o"
+tree_case 'bench: a swift-test of another tree' wait "$(top "$tmp/o")" bench
+one_proc "$toolchain/swift-test --skip X" "$tmp/plain"
+tree_case 'bench: a swift-test in a folder with no git tree' wait "$tmp/plain" bench
+one_proc "$toolchain/swift-build" "$tmp/r-other"
+tree_case 'bench: a swift-build of a folder next to the root' wait "$(top "$tmp/r-other")" bench
+one_proc "$toolchain/swift-build" "$tmp/r/.claude/worktrees/x"
+tree_case 'bench: a swift-build of a worktree under the root' wait "$(top "$tmp/r/.claude/worktrees/x")" bench
+for cwd in "$tmp/r" "$tmp/r/.build/bench" "$tmp/r/Sources"; do
+  one_proc "$toolchain/swift-build" "$cwd"
+  tree_case "bench: a swift-build of this tree ($cwd)" none "" bench
+done
+one_proc "/usr/bin/less $tmp/o/swift-build.log" "$tmp/o"
+tree_case 'bench: a command that only names swift-build' none "" bench
+# A test-hooks.sh runs in a clone of its own: the cwd of its parent names its tree.
+mkdir -p "$tmp/hooks-tree"
+printf '4242 /bin/bash scripts/test-hooks.sh a,b\n' > "$tmp/procs"
+printf '4242 %s\n4243 %s\n' "$tmp/hooks-tree" "$tmp/o" > "$tmp/cwds"
+printf '4242 4243\n' > "$tmp/ppids"
+tree_case 'bench: a test-hooks.sh whose parent is in another tree' wait "$(top "$tmp/o")" bench
+BASE=origin/main tree_case 'push check: a test-hooks.sh whose parent is in another tree' wait "$(top "$tmp/o")" test
+tree_case 'slice check: a test-hooks.sh whose parent is in another tree' none "" test
+printf '4242 %s\n4243 %s\n' "$tmp/hooks-tree" "$tmp/r" > "$tmp/cwds"
+tree_case 'bench: a test-hooks.sh whose parent is in this tree' none "" bench
+: > "$tmp/procs"; : > "$tmp/cwds"; : > "$tmp/ppids"
 
 # make test-slow and make test-slow-push write the date of today after a pass, and nothing after
 # a red run. The temporary repo has no bench file, so PUSH_SKIP is empty on the command line.

@@ -17,7 +17,7 @@ let batchTools = [
             + "Each result line is calls[<index>] <tool>: <line>.",
         [calls], batch: .alone
     ) { a throws(ToolError) in
-        let list = try a[calls]
+        let list = try BatchWork.calls(of: a[calls])
         do throws(BatchWork.Failure) {
             return .batch(try BatchWork.check(list, package: a.path))
         } catch {

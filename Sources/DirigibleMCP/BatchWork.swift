@@ -61,21 +61,36 @@ package struct BatchWork: Sendable {
 
     let steps: [Step]
 
-    /// The one Kind of `calls`: 1 to 20 objects with a string `tool` and an object `arguments`.
-    static let calls = Kind<[Call]>(
+    /// The one Kind of `calls`: an array of 1 to 20 items. An item that is not a call is nil here,
+    /// so `calls(of:)` can name its index.
+    static let calls = Kind<[Call?]>(
         schema: [
             "type": "array", "items": callSchema, "minItems": limit.lowerBound, "maxItems": limit.upperBound,
         ],
         expected: "an array of \(limit.lowerBound) to \(limit.upperBound) calls"
     ) { value in
         guard let items = value as? [Any], limit.contains(items.count) else { return nil }
+        return items.map(call(of:))
+    }
+
+    /// The call of one item, as the item schema says. A JSON null counts as absent.
+    private static func call(of item: Any) -> Call? {
+        guard let object = item as? [String: Any], let tool = object["tool"] as? String,
+            let arguments = object["arguments"] as? [String: Any],
+            object.allSatisfy({ ["tool", "arguments"].contains($0.key) || $0.value is NSNull }),
+            let data = try? JSONSerialization.data(withJSONObject: arguments)
+        else { return nil }
+        return Call(tool: tool, arguments: data)
+    }
+
+    /// The calls of a parsed `calls` value. The first item that is not a call is refused by its index.
+    package static func calls(of items: [Call?]) throws(ToolError) -> [Call] {
         var calls: [Call] = []
-        for item in items {
-            guard let object = item as? [String: Any], let tool = object["tool"] as? String,
-                let arguments = object["arguments"] as? [String: Any],
-                let data = try? JSONSerialization.data(withJSONObject: arguments)
-            else { return nil }
-            calls.append(Call(tool: tool, arguments: data))
+        for (index, item) in items.enumerated() {
+            guard let item else {
+                throw ToolError(#"calls[\#(index)]: an item must be {"tool": <name>, "arguments": {...}}."#)
+            }
+            calls.append(item)
         }
         return calls
     }
@@ -94,7 +109,7 @@ package struct BatchWork: Sendable {
 
     /// `calls` as `batch` and `dirigible batch` read it, with the one Kind, so both give one text.
     package static func parse(_ value: Any) throws(ToolError) -> [Call] {
-        try DirigibleMCP.parse(value, "calls", calls)
+        try calls(of: DirigibleMCP.parse(value, "calls", calls))
     }
 
     /// Checks the calls in order. An unknown tool, an inner `package`, a tool with the role `.alone`,
@@ -122,7 +137,7 @@ package struct BatchWork: Sendable {
         guard var json = (try? JSONSerialization.jsonObject(with: call.arguments)) as? [String: Any] else {
             throw ToolError("The argument \"arguments\" must be an object.")
         }
-        guard json["package"] == nil else {
+        if let inner = json["package"], !(inner is NSNull) {
             throw ToolError("The argument \"package\" belongs to the batch, not to a call.")
         }
         json["package"] = package

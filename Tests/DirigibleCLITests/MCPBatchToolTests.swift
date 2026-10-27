@@ -41,7 +41,7 @@ struct MCPBatchToolTests {
         return Snapshot(xml: try package.xml(), backups: (backups ?? []).sorted())
     }
 
-    func batch(_ calls: [[String: Any]]) async throws -> (text: String, isError: Bool) {
+    func batch(_ calls: [Any]) async throws -> (text: String, isError: Bool) {
         try await tool("batch", ["calls": calls])
     }
 
@@ -148,6 +148,31 @@ struct MCPBatchToolTests {
         let reason = "The argument \"package\" belongs to the batch, not to a call."
         #expect(inner == ("calls[0] track_add failed, so the batch changed nothing: \(reason)", true), "\(inner)")
         #expect(try snapshot() == before)
+    }
+
+    /// An item that is not `{"tool": <name>, "arguments": {...}}` is refused at its index, as the
+    /// item schema says: an unknown key, no `arguments`, not an object, a `tool` that is not a string.
+    @Test(arguments: [
+        #"{"tool": "clip_fade", "arguments": {"clip": "a", "in": 480}, "package": "/Other.dirigible"}"#,
+        #"{"tool": "clip_heal"}"#, #""clip_heal""#, #"{"tool": 3, "arguments": {}}"#,
+    ]) func aBadItemIsRefusedAtItsIndex(item: String) async throws {
+        let before = try snapshot()
+        let bad = try JSONSerialization.jsonObject(with: Data(item.utf8), options: .fragmentsAllowed)
+
+        let result = try await batch([Self.addT2, bad])
+
+        let text = #"calls[1]: an item must be {"tool": <name>, "arguments": {...}}."#
+        #expect(result == (text, true), "\(result)")
+        #expect(try snapshot() == before)
+    }
+
+    /// A JSON null in an item or in its arguments counts as absent, as in the arguments of one call.
+    @Test func aNullKeyOfAnItemCountsAsAbsent() async throws {
+        let arguments: [String: Any] = ["package": NSNull(), "id": "T2", "name": "A", "layout": "mono"]
+        let result = try await batch([["tool": "track_add", "arguments": arguments, "note": NSNull()]])
+
+        #expect(result == ("calls[0] track_add: T2", false), "\(result)")
+        #expect(try package.read().track("T2")?.name == "A")
     }
 
     /// C7: 1 and 20 calls pass. 0 and 21 are refused with the text of the argument, and the

@@ -102,10 +102,23 @@ struct AgentManualTests {
         #expect(titles.count == order.count && titles == titles.sorted(), "the skill has no phase sections in order")
     }
 
+    /// Item 0141: an agent renamed a track that the task did not name. The first rule of the core
+    /// says to change only what the user asks for, and the skill and the manual carry it.
+    @Test func theCoreChangesOnlyWhatTheUserAsksFor() {
+        let rule = "- Change only what the user asks for. Ask before other changes."
+        let lines = Self.core.split(separator: "\n").map(String.init)
+        let start = lines.firstIndex(of: "Rules:")
+        #expect(start != nil, "the core has no Rules: line")
+        #expect(lines.dropFirst((start ?? lines.count) + 1).first == rule, "the first rule is not the change rule")
+        #expect(AgentManual.skill.contains(rule))
+        #expect(AgentManual.manual(pathLine: "x").contains(rule))
+    }
+
     /// Decision 0062: the time rule names the tools that read audio by time. RR11: a cut gives all
     /// its ranges in one call.
     @Test func theTimeRuleNamesTheReads() {
         #expect(!Self.core.contains("ask the user for the frame") && !Self.core.contains("No tool reads the audio"))
+        #expect(!Self.core.contains("A `to` frame is"))
         let time = Self.core.split(separator: "\n").first { $0.hasPrefix("- Times are frames") } ?? ""
         #expect(
             time.contains("frame = seconds x sample rate, rounded")

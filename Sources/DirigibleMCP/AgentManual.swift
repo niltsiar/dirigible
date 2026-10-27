@@ -132,10 +132,10 @@ package enum AgentManual {
         \(pathLine)
 
         Rules:
+        - Change only what the user asks for. Ask before other changes.
         - Give `package` as an absolute path. Call `session_info` first: it gives the sample rate and the IDs of \
         the tracks, clips, files, and markers. The tools take IDs, not names.
-        - Times are frames: frame = seconds x sample rate, rounded. A `to` frame is the frame after the last \
-        frame. `silences`, `nearest_pause`, and `meter` read audio by time.
+        - Times are frames: frame = seconds x sample rate, rounded. `silences`, `nearest_pause`, and `meter` read audio by time.
         - A split or a ripple gives new clip IDs. After an edit, read `session_info` again and report it. Saves keep backups: `backup_list`.
         - The ripple tools move the later clips and markers. Give no `track` to keep all tracks in sync. Give all \
         the ranges of a cut in one call.

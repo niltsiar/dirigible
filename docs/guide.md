@@ -34,7 +34,7 @@ Do these steps on the Mac of the recording before the show. The Spanish menu nam
 4. Use the Zoom app or the Teams app. For Google Meet, use Chrome or Firefox. Safari, Safari Technology Preview, and FaceTime cannot be a track source. A Chrome or Firefox track records all the tabs of the browser, so close the other tabs that play sound.
 5. Join the call before you record. In the audio settings of the call app, set the speaker to the output of macOS. Tell the guest that you record: Dirigible gives the call no notice.
 6. Choose **Track > Add Call Tracks** and the call app. **Host** records the default input of macOS: check the input name in the **Host** header. Add one track for each other microphone ([Set up the tracks](#set-up-the-tracks)).
-7. Choose **Record > Input Levels**. Speak into each microphone, and make sure that the meter of its track moves.
+7. Choose **Record > Input Levels**. Speak into each microphone, and make sure that the meter of its track moves. While the call app plays sound, the **Guest** meter moves too. When macOS asks for System Audio Recording, click **Allow**.
 8. Record a test take of 1 minute while the guest speaks. When macOS asks for the microphone or for System Audio Recording, click **Allow**. After **Stop**, make sure that each track, also **Guest**, shows a waveform.
 9. Connect the power cable and keep the lid open. The app keeps the Mac awake during a take, an import, a split, and Reduce Noise, but a closed lid puts a laptop to sleep. `dirigible clip denoise` in Terminal does not keep the Mac awake. If a banner says that less than 3 hr of record time is left, free up disk space. Each hour needs about 1.2 GB for each channel at 48 kHz (2.4 GB at 96 kHz), plus 1 GB.
 10. During the show, do not change the privacy settings. Before each new take, choose **Transport > Go to End** (End, or Fn-Right Arrow on a laptop), so that Record does not replace audio. To start a take, click the Dirigible session window first, then choose **Record > Record** (Command-R). Make sure that the window shows **Recording take 1** (with the number of the take). When the call app is in front, Command-R goes to the call app.
@@ -72,10 +72,10 @@ A track records only when its arm button is on. Click the button to turn it on o
 ### Check the levels
 
 1. Choose **Record > Input Levels** (Shift-Command-M). The toolbar button is **Levels**.
-2. If macOS asks for access to the microphone, click **Allow**.
+2. If macOS asks for access to the microphone or for System Audio Recording, click **Allow**.
 3. Speak into each microphone. The meter in the header of its track moves. After 3 s, the header also shows the loudness of the last 3 s, in LUFS (for example **-17**), when the header is 262 pt or wider, or the lane is tall enough for two lines.
 
-**Input Levels** shows the level of each armed microphone track. An app track shows no level before you record: make a short test take to check it ([Record a call or another app](#record-a-call-or-another-app)). **Input Levels** does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
+**Input Levels** shows the level of each armed track, also of a track that records an app ([Record a call or another app](#record-a-call-or-another-app)). macOS asks for System Audio Recording the first time that **Input Levels** taps an app: when you turn **Input Levels** on, arm an app track, or route an armed track to an app, also when the app does not run yet. While Dirigible taps the app, macOS shows a purple dot in the menu bar. **Input Levels** does not send the sound to your headphones. To hear a microphone in your headphones, use **Track > Monitor Track** ([Hear a track while you record](#hear-a-track-while-you-record)).
 
 ### Record a take
 

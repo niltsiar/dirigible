@@ -221,7 +221,7 @@ func checkRoutes(_ session: Session, armed: [TrackID], devices: [InputDevice]) t
         let (uid, channels, app): (String, Route.Channels, String?) =
             switch route {
             case .device(let uid, let channels): (uid, channels, nil)
-            case .app(let bundleID): (appUID(bundleID), track.layout == .mono ? .mono(1) : .stereo(1, 2), bundleID)
+            case .app(let bundleID): (appUID(bundleID), appChannels(track.layout), bundleID)
             }
         guard let device = devices.first(where: { $0.uid == uid }) else { throw .deviceMissing(id) }
         for channel in channels.numbers {
@@ -314,6 +314,9 @@ nonisolated func checkTake(
 
 /// The device UID of an app source in the capture header and `<capture>` (decision 0029).
 func appUID(_ bundleID: String) -> String { "app:\(bundleID)" }
+
+/// The channels of an app route in the tap mixdown: the track layout (decision 0029).
+func appChannels(_ layout: ChannelLayout) -> Route.Channels { layout == .mono ? .mono(1) : .stereo(1, 2) }
 
 /// Steps 2 to 5 of the start order of decision 0013, off the main actor: `checkTake`, the disk
 /// check, and the save. Then the list entry, before the attach (decision 0004). `endExport` runs

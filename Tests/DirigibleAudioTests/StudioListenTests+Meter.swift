@@ -9,12 +9,14 @@ extension StudioListenTests {
     @Test func aListenedTrackGetsAMeter() async throws {
         let (folder, url) = try await package()
         let hal = TestHAL([duo, usb])
+        hal.setApp(Self.zoom, AppTakeTests.found())
         let studio = try await open(url, hal)
         try await studio.listen(to: ["t1", "t4"])
         try await studio.monitor(armed: [])
         #expect(studio.monitorWriter("duo") != nil, "a listened track has no meter")
         #expect(studio.liveTracks["t1"]?.state == .monitoring, "a listened track has no meter")
         #expect(studio.liveTracks["t4"] == nil, "an app route has no meter")
+        #expect(!hal.calls.contains { $0.hasPrefix("makeTap") }, "a listened app route has a tap")
         try await studio.monitor(armed: ["t1"])
         #expect(studio.monitors["duo"]?.tracks.map(\.id) == ["t1"], "an armed and listened track gets two meters")
 

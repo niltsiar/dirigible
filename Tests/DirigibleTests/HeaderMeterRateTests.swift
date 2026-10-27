@@ -96,7 +96,7 @@ import Testing
             device: device, tracks: [(arm: 1, channels: .mono(1)), (arm: 2, channels: .mono(1))], files: nil,
             hal: CountingHAL().environment.hal)
         studio.monitors["mic"] = Monitor(
-            writer: writer,
+            writer: writer, source: .device(uid: "mic"),
             tracks: [MonitoredTrack(id: "t1", channels: .mono(1)), MonitoredTrack(id: "t2", channels: .mono(1))],
             number: 1)
         for id in ["t1", "t2"] as [TrackID] {

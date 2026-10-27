@@ -157,6 +157,22 @@ struct EffectRenderFileTests {
         #expect(try #require(outcome.session.clip("h")?.clip).gain.dB > 0, "the hot run renders a second pass")
     }
 
+    /// C2b: a second pass that still peaks at a 24-bit end code, as from a unit that renders louder
+    /// the second time, throws, and no file stays. The probe gate1-a4-a7 found two instances equal.
+    @Test func secondPassOverFullScaleFails() throws {
+        let fixture = try RenderFixture()
+        let voice = try hotVoice(in: fixture.package.folder.url)
+        try fixture.add("f1", [voice], track: "t1", clips: [("c1", 0, voice.count)])
+        let before = try fixture.hashes()
+
+        #expect(throws: ClipRenderError.stillOverFullScale(file: "Clips/f1 NR.wav")) {
+            try renderClips(
+                [(["c1"], Treatment(.noise(.standard)))], of: fixture.package.session, in: fixture.package.url,
+                freeBytes: { .max }, isDownloaded: { _ in true }, secondPassGain: 1.001)
+        }
+        #expect(try fixture.hashes() == before)
+    }
+
     /// C7b: a block read that throws stops the render with the errno, and no file stays.
     @Test func sourceReadFaultFails() throws {
         let fixture = try fixture()

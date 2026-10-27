@@ -49,7 +49,7 @@ extension ClipCommand {
             switch error {
             case .cancelled: ExitCode(128 + SIGINT)
             case .session, .trackRole, .mixedTreatments, .effectUnavailable: fail(error.message, code: editRefused)
-            case .space, .write, .sourceUnreadable, .sourceMissing, .notDownloaded, .engine:
+            case .space, .write, .sourceUnreadable, .sourceMissing, .notDownloaded, .engine, .stillOverFullScale:
                 fail(error.message, code: packageError)
             }
         }

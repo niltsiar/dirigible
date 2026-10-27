@@ -24,6 +24,7 @@ extension ClipRenderError {
         case .effectUnavailable(let status):
             "the noise reduction of macOS (AUSoundIsolation) did not load (status \(status))."
         case .engine(let status): "the noise reduction stopped: the audio engine failed (status \(status))."
+        case .stillOverFullScale(let file): "the noise reduction made \"\(file)\" louder than full scale, so it clips."
         }
     }
 }

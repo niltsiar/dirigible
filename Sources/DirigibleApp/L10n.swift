@@ -562,6 +562,7 @@ enum L10n: String, CaseIterable {
     case errorDenoiseMixed = "error.denoise.mixed"
     case errorDenoiseUnavailable = "error.denoise.unavailable"
     case errorDenoiseEngine = "error.denoise.engine"
+    case errorDenoiseOverFullScale = "error.denoise.over.full.scale"
     case errorDenoiseYielded = "error.denoise.yielded"
     case revertedTo = "reverted.to"
     case reportTitle = "report.title"

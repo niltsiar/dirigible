@@ -199,6 +199,7 @@
 "error.denoise.mixed" = "Dirigible ne peut pas réduire le bruit. Des clips qui partagent un audio ont reçu des valeurs différentes. Utilisez une seule valeur pour ces clips et réessayez.";
 "error.denoise.unavailable" = "Dirigible ne peut pas réduire le bruit. La réduction du bruit de macOS ne s’est pas chargée (erreur %lld).";
 "error.denoise.engine" = "Dirigible ne peut pas réduire le bruit. Le moteur audio s’est arrêté (erreur %lld). Réessayez.";
+"error.denoise.over.full.scale" = "Dirigible ne peut pas réduire le bruit. Le nouveau fichier audio « %@ » dépasse la pleine échelle et sature. Réessayez.";
 "error.denoise.yielded" = "La réduction du bruit s’est arrêtée à cause d’une prise dans une autre fenêtre. Réduisez à nouveau le bruit après la prise.";
 "reverted.to" = "Copie de secours du %@ restaurée";
 

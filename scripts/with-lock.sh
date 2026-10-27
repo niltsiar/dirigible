@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run a command while this call holds the shared build lock, so two worktrees never build, test,
-# or bench at the same time.
+# or bench at the same time (a lock-free call, below, takes no lock).
 # Usage: scripts/with-lock.sh <command> [<argument>...]
 # The lock is the folder <git common dir>/dirigible-build.lock of the repo that holds this script,
 # so each worktree sees the same lock. The call takes it with mkdir, writes its pid, runs the
@@ -56,6 +56,14 @@
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
 # waits never removes the lock of another process. INT or TERM stops the process group of the
 # command first. The call exits with the status of the command.
+# A lock-free call runs its command at once, with no lock, no wait line, and no hold line, and one
+# stderr line "with-lock: lock-free targets (<targets>): no lock". It is make check-changed with no
+# BASE= word, when scripts/check-changed.sh (with the NAME=value words of the call in its
+# environment) gives only check-docs, check-fast, lint, format, none, or a word with =; and make
+# test-hooks with a HOOK_TESTS= word. A check-changed.sh failure, a FILTER with test-filter, and
+# every other target keep the lock. The call still waits while the live holder is a release call,
+# a bench, a mutation pass, or a flake loop (long-runs.md); it does not wait for another build or
+# test.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -155,6 +163,51 @@ ahead() {
     done
     return 1
 }
+# lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift: make
+# check-changed with no BASE= word, when scripts/check-changed.sh gives only check-docs, check-fast,
+# lint, format, none, or a word with =; and make test-hooks with a HOOK_TESTS= word. Any other
+# command, goal, or check-changed.sh failure is not lock-free (fail closed).
+lock_free() {
+    local w goal="" assign=() out="" hooks=""
+    [[ "${1##*/}" == make ]] || return 1
+    for w in "${@:2}"; do
+        case "$w" in
+            BASE=?*) return 1 ;;
+            HOOK_TESTS=?*) assign+=("$w"); hooks=1 ;;
+            *=*) assign+=("$w") ;;
+            check-changed | test-hooks) [[ -z "$goal" ]] || return 1; goal="$w" ;;
+            *) return 1 ;;
+        esac
+    done
+    case "$goal" in
+        test-hooks) [[ -n "$hooks" ]] || return 1; free_targets=test-hooks ;;
+        check-changed)
+            out="$(env ${assign[@]+"${assign[@]}"} "$here/check-changed.sh" 2>/dev/null)" || return 1
+            free_targets="$(sed -n 's/^targets: //p' <<<"$out")"
+            [[ -n "$free_targets" ]] || return 1
+            for w in $free_targets; do
+                case "$w" in check-docs | check-fast | lint | format | none | *=*) ;; *) return 1 ;; esac
+            done
+            ;;
+        *) return 1 ;;
+    esac
+}
+# long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, or a
+# flake loop (long-runs.md): a lock-free call still waits for it.
+long_holder() {
+    local m c
+    m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
+    alive "$m" || alive "$c" || alive "-$c" || return 1
+    case "$(cat "$lock/command" 2>/dev/null)" in
+        *check-changed*BASE=* | *land.sh* | *make\ dmg* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh*) return 0 ;;
+    esac
+    return 1
+}
+free_targets=""
+if lock_free "$@" && ! long_holder; then
+    echo "with-lock: lock-free targets ($free_targets): no lock" >&2
+    exec "$@"
+fi
 max="${WITH_LOCK_MAX_WAIT:-120}"
 [[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
 max=$((10#$max))

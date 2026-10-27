@@ -6,11 +6,15 @@
 # copies of two trees and refuses, and a stop in one tree resets the grants of the other copy.
 # The script does not build the app: run `make app` first.
 #
-# usage: verify-copy.sh start [<package>] [-- <open arguments>]
+# usage: verify-copy.sh start [--agents] [<package>] [-- <open arguments>]
 #                                  stop a running copy, clean up, copy build/Dirigible.app, set
-#                                  the bundle ID, sign it, open it, and print its PID; while the
-#                                  copy of another worktree runs, wait for the screen lock up to
-#                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1
+#                                  the bundle ID, sign it, open it with its own MCP socket
+#                                  (DIRIGIBLE_MCP_SOCKET=build/verify/mcp.sock), and print its PID
+#                                  and a DIRIGIBLE_MCP_SOCKET line for an MCP client; --agents
+#                                  turns the agents switch on; while the copy of another
+#                                  worktree runs, wait for the screen lock up to
+#                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1; a socket
+#                                  path of 104 bytes or more exits 1 (sun_path holds 103)
 #        verify-copy.sh id         print the bundle ID of the copy of this worktree (no build);
 #                                  call it by the absolute path of the tree that runs the copy
 #        verify-copy.sh ax <ax.swift arguments>
@@ -32,7 +36,7 @@
 # Exit: 0 done, 1 a failed step (the message names it), 2 usage or a pgrep error.
 set -euo pipefail
 
-usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
+usage="usage: verify-copy.sh start [--agents] [<package>] [-- <open arguments>]
        verify-copy.sh id
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>
@@ -43,6 +47,7 @@ usage="usage: verify-copy.sh start [<package>] [-- <open arguments>]
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 real_app="$root/build/Dirigible.app"
 copy="$root/build/verify/Dirigible-verify.app"
+socket="$root/build/verify/mcp.sock"
 copy_id="com.delineas.dirigible.verify-$(printf '%s' "$root" | shasum | cut -c1-8)"
 exe="$copy/Contents/MacOS/Dirigible"
 # The pattern matches the executable path at the start of the command line, then a space or the
@@ -152,7 +157,8 @@ release_screen() {
 }
 
 start() {
-    local open_args=() pid="" out
+    local open_args=() pid="" out agents=0 arg has_args=0 bytes
+    if [[ "${1:-}" == --agents ]]; then agents=1 && shift; fi
     if [[ $# -gt 0 && "$1" != -- ]]; then open_args+=("$1") && shift; fi
     if [[ $# -gt 0 ]]; then
         [[ "$1" == -- ]] || { echo "$usage" >&2 && exit 2; }
@@ -160,6 +166,11 @@ start() {
         open_args+=("$@")
     fi
     [[ -d "$real_app" ]] || { echo "verify-copy.sh: no $real_app: run make app first." >&2 && exit 1; }
+    bytes="$(printf '%s' "$socket" | wc -c | tr -d ' ')"
+    if [[ $bytes -ge 104 ]]; then
+        echo "verify-copy.sh: the socket path $socket is $bytes bytes; a socket path holds 103 bytes. Move the checkout to a shorter path." >&2
+        exit 1
+    fi
     take_screen
     stop_copy >/dev/null
     cleanup
@@ -168,7 +179,12 @@ start() {
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $copy_id" "$copy/Contents/Info.plist"
     stat -f %m "$real_app/Contents/MacOS/Dirigible" >"$root/build/verify/source-mtime"
     out="$(codesign --force --sign - "$copy" 2>&1)" || { echo "verify-copy.sh: codesign failed: $out" >&2 && exit 1; }
-    open -a "$copy" ${open_args[@]+"${open_args[@]}"}
+    for arg in ${open_args[@]+"${open_args[@]}"}; do [[ "$arg" != --args ]] || has_args=1; done
+    if [[ $agents -eq 1 ]]; then
+        [[ $has_args -eq 1 ]] || open_args+=(--args)
+        open_args+=(-agents.edit.open.sessions YES)
+    fi
+    open -a "$copy" --env "DIRIGIBLE_MCP_SOCKET=$socket" ${open_args[@]+"${open_args[@]}"}
     for _ in $(seq 50); do
         pid="$(copy_pids)"
         [[ -z "$pid" ]] || break
@@ -178,6 +194,7 @@ start() {
     pid="$(printf '%s\n' "$pid" | head -1)"
     echo "$pid" >"$screen/pid"
     echo "$pid"
+    echo "DIRIGIBLE_MCP_SOCKET=$socket"
 }
 
 # One poll: find the prompt window of UserNotificationCenter, check that its text names the app,

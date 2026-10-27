@@ -6,7 +6,8 @@
 # 2026-10-01-verify-copy, U14 and U15). Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
-tmp="$(cd "$(mktemp -d)" && pwd -P)"
+# A short root: TMPDIR is long, and the socket path of a copy may hold 103 bytes only.
+tmp="$(cd "$(mktemp -d /tmp/verify-copy.XXXXXX)" && pwd -P)"
 # Run from the temp folder, not from a repo: a script that finds the root in the working folder
 # then fails, and never acts on the real build/.
 cd "$tmp" || exit 1
@@ -117,11 +118,22 @@ chmod +x "$tmp"/bin/* "$tmp/badpgrep/pgrep" "$tmp/badcodesign/codesign"
 
 # new_case <name>: a fresh temp repo with a copy of the script, a fake build/Dirigible.app, and
 # a fake HOME. It sets repo, copy, exe, real, and state, and exports the state for the fakes.
+# With SOCK_LEN set, the folder of the repo gets a name that makes the socket path of the copy
+# SOCK_LEN bytes long; with SOCK_MULTIBYTE also set, the name holds one two-byte character.
+sock_tail=/build/verify/mcp.sock
 n=0
 new_case() {
     n=$((n + 1))
-    local dir="$tmp/case-$n"
-    repo="$dir/repo" state="$dir/state"
+    local dir="$tmp/case-$n" name=repo pad
+    if [[ -n "${SOCK_LEN:-}" ]]; then
+        pad=$((SOCK_LEN - ${#sock_tail} - ${#dir} - 1))
+        if [[ -n "${SOCK_MULTIBYTE:-}" ]]; then
+            name="$(printf 'x%.0s' $(seq $((pad - 2))))é"
+        else
+            name="$(printf 'x%.0s' $(seq "$pad"))"
+        fi
+    fi
+    repo="$dir/$name" state="$dir/state"
     mkdir -p "$repo/scripts" "$repo/Sources" "$repo/Support" "$state" "$dir/home"
     echo "// x" >"$repo/Sources/x.swift"
     echo x >"$repo/Support/x.txt"
@@ -152,11 +164,14 @@ PLIST
     copy_id="$("$script" id 2>/dev/null)"
 }
 
-# run <args...>: run the script; set out, err, and code.
+# run <args...>: run the script; set out, err, and code. out1 and out2 are the first two lines of
+# out: start prints the PID, then the DIRIGIBLE_MCP_SOCKET line.
 run() {
     out="$("$script" "$@" 2>"$tmp/err")"
     code=$?
     err="$(cat "$tmp/err")"
+    out1="${out%%$'\n'*}"
+    out2="$(sed -n 2p <<<"$out")"
 }
 
 # dummy <path>: start the compiled dummy at <path> in a subshell, so launchd reaps it when it dies
@@ -195,7 +210,7 @@ run start
 # C3 start new, with and without a package
 new_case
 run start
-pid="$out"
+pid="$out1"
 [[ $code -eq 0 ]] || fail "start new: exit $code: $err"
 is_copy "$pid" || fail "start new: '$pid' is not the PID of the copy"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$copy/Contents/Info.plist" 2>&1)" == "$copy_id" ]] ||
@@ -203,11 +218,13 @@ is_copy "$pid" || fail "start new: '$pid' is not the PID of the copy"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$real/Contents/Info.plist" 2>&1)" == "$real_id" ]] ||
     fail "start new: the bundle ID of build/Dirigible.app changed"
 codesign --verify "$copy" 2>/dev/null || fail "start new: codesign --verify of the copy failed"
-[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy" ]] || fail "start new: open got: $(cat "$state/open.log" 2>/dev/null)"
+sock="$repo/build/verify/mcp.sock"
+[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock" ]] || fail "start new: open got: $(cat "$state/open.log" 2>/dev/null)"
+[[ "$out2" == "DIRIGIBLE_MCP_SOCKET=$sock" && "$(grep -c . <<<"$out")" == 2 ]] || fail "start new: stdout is not the PID and the socket line: $out"
 run stop
 run start "$repo/Pilot.dirigible"
-[[ $code -eq 0 ]] && is_copy "$out" || fail "start new with a package: exit $code: $err"
-[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy $repo/Pilot.dirigible" ]] ||
+[[ $code -eq 0 ]] && is_copy "$out1" || fail "start new with a package: exit $code: $err"
+[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock $repo/Pilot.dirigible" ]] ||
     fail "start new with a package: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
 run stop
 
@@ -218,8 +235,8 @@ mkdir -p "$pkg"
 printf '<session><tracks><track name="Host"><route device="BuiltInMicrophoneDevice" channels="1"/></track></tracks></session>\n' >"$pkg/session.xml"
 : >"$state/open.log"
 run start "$pkg"
-[[ $code -eq 0 ]] && is_copy "$out" || fail "device route: exit $code: $err"
-[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy $pkg" ]] ||
+[[ $code -eq 0 ]] && is_copy "$out1" || fail "device route: exit $code: $err"
+[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock $pkg" ]] ||
     fail "device route: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
 run stop
 : >"$state/open.log"
@@ -230,20 +247,57 @@ run start --live-input c3 "$pkg"
 # C3b start with arguments
 new_case
 run start -- --args -AppleLanguages "(es)"
-pid="$out"
+pid="$out1"
 [[ $code -eq 0 ]] || fail "start with arguments: exit $code: $err"
-[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy --args -AppleLanguages (es)" ]] ||
+[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$repo/build/verify/mcp.sock --args -AppleLanguages (es)" ]] ||
     fail "start with arguments: open got: $(cat "$state/open.log" 2>/dev/null)"
 [[ "$pid" =~ ^[0-9]+$ && "$(ps -o command= -p "$pid")" == "$exe -AppleLanguages (es)" ]] ||
     fail "start with arguments: '$pid' is not the copy with the arguments"
 run stop
 [[ $code -eq 0 ]] && gone "$pid" || fail "start with arguments: stop did not kill $pid: $err"
 
+# C3e the socket path of the copy is at most 103 bytes (sun_path with its NUL): 103 starts, 104
+# exits 1 before the screen lock and before open, also when a two-byte character makes the path
+# 103 characters.
+SOCK_LEN=103 new_case
+run start
+[[ $code -eq 0 && "$(head -1 "$state/open.log")" == *"--env DIRIGIBLE_MCP_SOCKET=$repo/build/verify/mcp.sock"* ]] ||
+    fail "socket path of 103 bytes: exit $code: $err"
+run stop
+for variant in ascii multibyte; do
+    if [[ $variant == multibyte ]]; then export SOCK_MULTIBYTE=1; fi
+    SOCK_LEN=104 new_case
+    unset SOCK_MULTIBYTE
+    run start
+    [[ $code -eq 1 && "$err" == *"$repo/build/verify/mcp.sock"* && "$err" == *"103 bytes"* ]] ||
+        fail "socket path of 104 bytes ($variant): exit $code: $err"
+    [[ ! -s "$state/open.log" && ! -e "$repo/.git/dirigible-screen" && ! -e "$repo/build/verify" ]] ||
+        fail "socket path of 104 bytes ($variant): open, the screen lock, or build/verify was made"
+done
+
+# C3f start --agents turns the agents switch on: after --args, in the one --args list, and only
+# when asked.
+new_case
+sock="$repo/build/verify/mcp.sock"
+run start --agents
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock --args -agents.edit.open.sessions YES" ]] ||
+    fail "start --agents: exit $code: $err: $(cat "$state/open.log")"
+run stop
+: >"$state/open.log"
+run start --agents "$repo/Pilot.dirigible" -- --args -AppleLanguages "(es)"
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock $repo/Pilot.dirigible --args -AppleLanguages (es) -agents.edit.open.sessions YES" ]] ||
+    fail "start --agents with a package and arguments: exit $code: $err: $(cat "$state/open.log")"
+run stop
+: >"$state/open.log"
+run start "$repo/Pilot.dirigible"
+[[ $code -eq 0 && "$(cat "$state/open.log")" != *agents.edit* ]] || fail "start with no --agents: open got: $(cat "$state/open.log")"
+run stop
+
 # C3c start from another folder
 new_case
 out="$(cd / && "$script" start 2>"$tmp/err")"
 code=$?
-pid="$out"
+pid="$(head -1 <<<"$out")"
 [[ $code -eq 0 ]] && is_copy "$pid" || fail "start from another folder: exit $code: $(cat "$tmp/err")"
 [[ -d "$copy" ]] || fail "start from another folder: no copy in build/verify of the repo"
 (cd / && "$script" stop >/dev/null 2>&1)
@@ -277,10 +331,10 @@ run stop
 # C5 start running
 new_case
 run start
-first="$out"
+first="$out1"
 run start
 [[ $code -eq 0 ]] || fail "start running: exit $code: $err"
-is_copy "$out" && [[ "$out" != "$first" ]] || fail "start running: no new copy: '$out'"
+is_copy "$out1" && [[ "$out1" != "$first" ]] || fail "start running: no new copy: '$out1'"
 gone "$first" || fail "start running: the old copy $first still runs"
 run stop
 
@@ -313,7 +367,7 @@ run stop
 # C15 stop
 new_case
 run start
-pid="$out"
+pid="$out1"
 mkdir -p "$saved/$copy_id.savedState"
 run stop
 [[ $code -eq 0 ]] || fail "stop: exit $code: $err"
@@ -362,7 +416,7 @@ done
 for tool in defaults tccutil; do
     new_case
     run start
-    pid="$out"
+    pid="$out1"
     mkdir -p "$saved/$copy_id.savedState"
     if [[ $tool == defaults ]]; then
         echo "Could not write domain $copy_id; exiting" >"$state/defaults.fail"
@@ -475,7 +529,7 @@ doctor_case() {
     touch -t 202601010000 "$repo/Sources/x.swift" "$repo/Support/x.txt" "$repo/Package.swift" "$repo/Sources" "$repo/Support"
     touch -t 202609010000 "$real/Contents/MacOS/Dirigible"
     run start
-    pid="$out"
+    pid="$out1"
 }
 # expect_doctor_fail <case> <fact> [<text>]: doctor exits 1 and names the fact (and the text).
 expect_doctor_fail() {
@@ -567,7 +621,7 @@ mkdir -p "$wt/build"
 cp -R "$real" "$wt/build/Dirigible.app"
 script2="$wt/scripts/verify-copy.sh"
 run start
-first_pid="$out"
+first_pid="$out1"
 [[ $code -eq 0 ]] || fail "screen lock: the first start: exit $code: $err"
 VERIFY_COPY_SCREEN_WAIT=2 "$script2" start >"$tmp/out2" 2>"$tmp/err2" &
 second=$!
@@ -594,8 +648,8 @@ VERIFY_COPY_SCREEN_WAIT=1 "$script2" start >"$tmp/out2" 2>"$tmp/err2"
 code=$?
 [[ $code -eq 0 ]] || fail "screen lock: a start after the first stop: exit $code: $(cat "$tmp/err2")"
 # A lock whose copy is dead is taken over.
-kill -9 "$(cat "$tmp/out2")" 2>/dev/null
-gone "$(cat "$tmp/out2")" || fail "screen lock: the copy of the second tree did not end"
+kill -9 "$(head -1 "$tmp/out2")" 2>/dev/null
+gone "$(head -1 "$tmp/out2")" || fail "screen lock: the copy of the second tree did not end"
 VERIFY_COPY_SCREEN_WAIT=1 run start
 [[ $code -eq 0 ]] || fail "screen lock: the lock of a dead copy was not taken over: exit $code: $err"
 run stop

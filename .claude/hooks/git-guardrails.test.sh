@@ -291,12 +291,15 @@ write_forms+=(
   "f=@P@; export f; python3 -c 'import os; os.rmdir(os.environ[\"f\"])'"
   "f=@P@; declare -x f; python3 -c 'import os; os.rmdir(os.environ[\"f\"])'"
   'ls @P@ && make test'
+  'cd /x && rmdir @P@' 'cd /x > f && ls @P@' 'cd /x /y && ls @P@' 'cd /x && N=$(rmdir @P@) && ls @P@'
+  'PATH=/tmp/x && ls @P@' 'N=1 rmdir @P@'
 )
 read_forms=(
   'ls @P@ | wc -l' 'cat @P@/* | grep pid' 'ls @P@ 2>/dev/null | head -3' 'ls @P@ 2>&1 | tail -2'
   'cat @P@ && echo ok' 'f=@P@; [ -d "$f" ] && echo present || echo absent'
   'f=@P@; test -d "$f" && cat "$f"/pid' 'for x in @P@/*; do cat "$x"; done'
   'f=@P@; for x in "$f"/*; do echo "$x: $(cat $x)"; done'
+  'cd /x && ls @P@' 'cd /x && cat @P@/tree' 'N=1 && ls @P@' 'cd /x && N=a/b.c:1 && ls @P@ | wc -l'
 )
 expect_each_write() {
   local form
@@ -404,6 +407,11 @@ expect allow 'grep -c . "$(git rev-parse --git-common-dir)/dirigible-hooks-stamp
 for guarded in .git/dirigible-flakes .git/dirigible-check-partial .git/dirigible-check-running/5 \
   .git/dirigible-build.lock .git/dirigible-screen .git/dirigible-hooks-stamp; do
   expect_each_read "$guarded"
+done
+# A plain assignment must not let a read tool run another program: these names block.
+for name in PATH IFS ENV BASH_ENV CDPATH SHELLOPTS LD_PRELOAD DYLD_INSERT_LIBRARIES GIT_PAGER \
+  RIPGREP_CONFIG_PATH HOME PAGER; do
+  expect block "$name=x && ls .git/dirigible-build.lock"
 done
 # A loop over the lock files, a test of the lock, and a quoted pattern with a pipe are reads.
 expect allow 'L=.git/dirigible-build.lock; [ -d "$L" ]'

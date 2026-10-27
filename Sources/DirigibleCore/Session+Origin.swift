@@ -25,6 +25,22 @@ extension Session {
         return used
     }
 
+    /// Removes each file of `ids` as `removeFile` does, each rendered file before its source, so the
+    /// order of the set does not matter. It throws `.fileIsSource` when a file outside `ids` names a
+    /// file of `ids` as its source. A throw changes nothing.
+    mutating func removeFiles(_ ids: Set<FileID>) throws(SessionError) {
+        func depth(_ id: FileID) -> Int {
+            var (count, next) = (0, files[id]?.origin)
+            while let origin = next { (count, next) = (count + 1, files[origin.source]?.origin) }
+            return count
+        }
+        let ordered = ids.map { (id: $0, depth: depth($0)) }
+            .sorted { $0.depth != $1.depth ? $0.depth > $1.depth : $0.id < $1.id }
+        var copy = self
+        for file in ordered { try copy.removeFile(file.id) }
+        self = copy
+    }
+
     /// The root of the chain of `file` and the sum of the origin offsets. A file with no origin
     /// gives itself and 0.
     func root(of file: FileID) -> (file: FileID, offset: Frames) {

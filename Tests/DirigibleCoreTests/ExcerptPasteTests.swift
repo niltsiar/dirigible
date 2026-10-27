@@ -165,6 +165,24 @@ struct ExcerptPasteTests {
         try empty.addTrack("a", name: "A", layout: .mono)
         #expect(throws: SessionError.unknownFile("f")) { try empty.paste(excerpt, at: 0, on: ["a"]) }
     }
+
+    /// Render-link C8 (decision 0057): a paste in the same package keeps the record of a rendered
+    /// file, so Restore Original of the pasted clip goes back to the source.
+    @Test mutating func samePackageKeepsTheOrigin() throws {
+        let origin = RenderOrigin(source: "f", offset: 1_000, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        try session.addFile(AudioFile(id: "f NR", path: "f NR.wav", layout: .mono, length: 48_000, origin: origin))
+        try session.place(Clip(id: "R", file: "f NR", start: 200_000, offset: 0, length: 48_000), on: "a")
+        let excerpt = try session.excerpt(of: ["R"])
+
+        let pasted = try session.paste(excerpt, at: 300_000, on: ["b"])
+
+        #expect(pasted == ["R@300000"] && session.clip("R@300000")?.clip.file == "f NR")
+        #expect(session.files["f NR"]?.origin == origin)
+        try session.restoreOriginals(pasted)
+        #expect(
+            session.clip("R@300000")?.clip
+                == Clip(id: "R@300000", file: "f", start: 300_000, offset: 1_000, length: 48_000))
+    }
 }
 
 /// Tracks "a" and "b" (mono) and "s" (stereo); files "f" (mono) and "g" (stereo), 480 000 frames each.

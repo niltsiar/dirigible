@@ -2,10 +2,10 @@ import Foundation
 
 /// The clip files that no clip uses (decision 0047): the pool entries that no clip of the session
 /// uses, and the stray WAVs at the top level of `Clips/` that no pool path names. A file that a
-/// clip of a keeper uses stays: the `session.xml` on the disk (the prune save can make it a
-/// backup), each readable backup, and the keepers that the caller gives (the undo and redo
-/// entries, the clipboard files). Also each transcript file in `Transcripts/` that the session
-/// and these holders do not name (decision 0055). The scan is the one place of this rule.
+/// clip of a keeper uses stays, with each file of its origin chain (decision 0057): the
+/// `session.xml` on the disk (the prune save can make it a backup), each readable backup, and the
+/// keepers that the caller gives (the undo and redo entries, the clipboard files). Also each
+/// transcript file in `Transcripts/` that the session and these holders do not name (decision 0055). The scan is the one place of this rule.
 public struct UnusedFiles: Hashable, Sendable {
     public struct Item: Hashable, Sendable {
         public enum Kind: Hashable, Sendable {
@@ -207,7 +207,7 @@ public struct UnusedFiles: Hashable, Sendable {
         guard !items.isEmpty else { return nil }
         var pruned = session
         do throws(SessionError) {
-            for id in poolIDs(session) { try pruned.removeFile(id) }
+            try pruned.removeFiles(poolIDs(session))
         } catch {
             // An in-memory conflict, not a write: only a failed write is a save error.
             throw .changedDuringPrune
@@ -338,6 +338,6 @@ private func normalized(_ path: String) -> String {
 }
 
 extension Session {
-    /// The pool paths of the files that a clip uses.
-    fileprivate var usedPaths: [String] { tracks.flatMap { $0.clips.compactMap { files[$0.file]?.path } } }
+    /// The pool paths of the files that a clip uses, and of the files of their origin chains.
+    fileprivate var usedPaths: [String] { filesInUse.compactMap { files[$0]?.path } }
 }

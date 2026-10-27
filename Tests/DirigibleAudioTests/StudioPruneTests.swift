@@ -172,6 +172,35 @@ struct StudioPruneTests {
         await studio.settle()
     }
 
+    /// Render-link C14 (decision 0057): a clipboard of this package with a clip on a rendered file
+    /// keeps the file and its source. Only the clipboard holds the render: no clip of the session
+    /// or of an entry uses it.
+    @Test func clipboardKeepsTheChain() async throws {
+        let rendered = FileID("rendered-\(UUID().uuidString)")
+        let renderedName = "\(rendered.rawValue).wav"
+        try FileManager.default.copyItem(at: clips.appending(path: spareName), to: clips.appending(path: renderedName))
+        let origin = RenderOrigin(source: spare, offset: 0, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        try package.session.addFile(
+            AudioFile(id: rendered, path: renderedName, layout: .mono, length: 4_800, origin: origin))
+        try package.session.write(to: package.url)
+        let studio = try await open()
+        var copied = studio.session
+        try copied.place(Clip(id: "B", file: rendered, start: 10_000, offset: 0, length: 4_800), on: "t1")
+        let excerpt = try copied.excerpt(of: ["B"])
+        let own = Clipboard(excerpt, package: package.url, origin: studio.identity)
+        let other = Clipboard(excerpt, package: package.url, origin: nil)
+
+        let kept = try await studio.unusedFiles(clipboard: own)
+        let listed = try await studio.unusedFiles(clipboard: other)
+
+        #expect(kept.items.map(\.path) == [stray] && kept.kept.count == 2)
+        #expect(listed.items.map(\.path) == [renderedName, spareName, stray].sorted())
+        let report = try await studio.removeUnusedFiles(listed, clipboard: own)
+        defer { cleanUp(report) }
+        #expect(report.moved.map(\.item.path) == [stray] && exists(spareName) && exists(renderedName))
+        await studio.settle()
+    }
+
     /// Review item 1: a prune that writes nothing keeps the error of a failed autosave, so the
     /// close still saves again.
     @Test func emptyPruneKeepsSaveError() async throws {

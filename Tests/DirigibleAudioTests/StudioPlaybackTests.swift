@@ -295,4 +295,25 @@ struct StudioPlaybackTests {
 
         #expect(studio.play.player == nil)
     }
+
+    /// An offline play opens no output device. The audio server adds the device
+    /// `CADefaultDeviceAggregate-<pid>-0` for the process life when a process opens the default
+    /// output, and the device list of every window then changes. An earlier test of the process
+    /// can have added it, so the test compares the list before and after. Control: the play renders
+    /// the mix.
+    @Test func anOfflinePlayAddsNoAudioDevice() async throws {
+        let aggregate = "CADefaultDeviceAggregate-\(getpid())-"
+        func aggregates() -> Set<String> { Set(InputDevice.all().map(\.uid).filter { $0.hasPrefix(aggregate) }) }
+        let before = aggregates()
+        let studio = try await studio()
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+        let out = await studio.renderOffline(frames: 9600)
+        try #require(out.count == 2, "the play renders two channels")
+        for (a, b) in zip(out, try package.mix(0..<9600)) { #expect(maxError(a, b) <= 1e-6, "the mix from 0") }
+        await studio.perform(.playStop)
+
+        let added = aggregates().subtracting(before)
+        #expect(added.isEmpty, "the play added \(added)")
+    }
 }

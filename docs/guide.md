@@ -205,8 +205,9 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - Command-click the upper part of a clip to add it to the set of clips or remove it from the set. When a range is selected, the set starts with the clips that the range holds fully.
 - Command-click the lower part of a clip, or an empty part of a track, to add the track to the range or remove it from the range.
 - Click the header of a track, or its name, to select that track. The header shows the selection color, and the track shows a light tint of it. The in point and the out point stay. Command-click a header to add its track or remove it. Shift-click a header to select all tracks from the selected tracks to that track.
+- Click an empty part of a track, or the lower part of a clip, to select that track and move the playhead there. The in point and the out point go. Other commands then act on that track: for example **Split**, **Set In Point**, and **Paste**.
 - Drag a triangle in the time ruler to move the in point or the out point.
-- Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, or press Esc, to clear the selection.
+- Choose **Edit > Select All** to select the whole session. Choose **Edit > Deselect All**, press Esc, or double-click below the last track, to clear the selection.
 - **Set In Point**, **Set Out Point**, **Select All**, and a drag that selects a range replace a set of clips with a range.
 
 ### Change the audio
@@ -214,7 +215,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - **Cut** copies the selection, removes it from all tracks, and closes the gap.
 - **Copy** copies the selection. The app has one copy for all windows, and it stays when you close the window of the copy. It is not on the macOS clipboard, so you cannot paste it in another app.
 - **Paste** in the window of another session copies the audio files of the clips into that session first. The copy of a file gets a new name when the session has a file with that name (for example "take1-mic 2"). On one APFS disk the copy is instant and takes no disk space. From another disk, or from a session at another sample rate, the copy takes time: after 0.5 s a banner shows "Pasting from" the session name, a bar, and **Cancel** (or press Command-period). Dirigible converts a file of another sample rate to the rate of this session, as an import does. With no track selected, the paste makes new tracks with the names of the tracks that you copied from. **Edit > Undo** removes the pasted clips; the copied files stay in the session. If the other session moved or was deleted after the copy, Dirigible shows an alert: open the session and copy again.
-- **Paste** puts the copy at the playhead on the selected tracks. With no track selected, it uses the tracks that you copied from. The copy replaces the audio under it.
+- **Paste** puts the copy at the playhead on the selected tracks. With no track selected, it uses the tracks that you copied from. The copy replaces the audio under it. After you click an empty part of a track, the copy goes to that track, and a copy of several tracks goes to the tracks under it.
 - **Insert** moves the audio at the playhead and after it to the right on all tracks, by the length of the copy. Then it puts the copy at the playhead, as **Paste** does. Paste and Insert act at the playhead, not at the selection.
 - **Delete** removes the selection and leaves silence.
 - **Delete and Close Gap** removes the selection from all tracks and moves the audio after it to the left (a ripple delete).

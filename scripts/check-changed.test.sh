@@ -1066,6 +1066,16 @@ got="$(cd "$tmp/w1" && unset GH_REPO GH_HOST && PATH="$tmp/ovbin:$PATH" "$script
 [[ "$got" == 'overlap: worktree feat/o: Tests/T.swift, Tests/U.swift' ]] || fail "overlap: from a linked worktree: got [$got]"
 rm -rf "$tmp/w1"
 g worktree prune
+# A worktree made from this branch names only the files of the commits that this branch lacks.
+ov_repo
+put Tests/T.swift branch
+put Sources/DirigibleCore/X.swift branch
+g worktree add -q "$tmp/w1" -b feat/w1
+printf 'w\n' >> "$tmp/w1/Sources/DirigibleCore/X.swift"
+gw commit -q -am wt
+ov_is 'a worktree made from this branch with one more commit' 'overlap: worktree feat/w1: Sources/DirigibleCore/X.swift'
+rm -rf "$tmp/w1"
+g worktree prune
 # A detached worktree is named by its short HEAD.
 ov_repo
 put Tests/T.swift branch

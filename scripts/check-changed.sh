@@ -30,8 +30,9 @@
 #          (for a bench and a push check: no build or test of another tree)
 #        scripts/check-changed.sh --overlap <base>   information only, exit 0: name other work that changes a
 #          Sources/ or Tests/ file of this branch: `overlap: <base>: <files>` for the commits of <base>
-#          since the merge base, `overlap: worktree <branch>: <files>` for each other worktree (commits,
-#          working tree, untracked files), `overlap: PR #<n> (<branch>): <files>` for each open PR of gh
+#          since the merge base, `overlap: worktree <branch>: <files>` for each other worktree (its
+#          commits that HEAD and <base> lack, working tree, untracked files), `overlap: PR #<n>
+#          (<branch>): <files>` for each open PR of gh
 #          (--limit 200), or `overlap: none`. A gh that gives no answer in OVERLAP_GH_TIMEOUT seconds
 #          (default 20) gives `overlap: gh: no answer`. It runs no git fetch and takes no git lock.
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
@@ -267,7 +268,7 @@ overlap() {
                     wt_mb="$(git merge-base "$base" "$wt_head" 2> /dev/null)" || wt_mb=""
                     if [[ -n "$wt_mb" ]]; then
                         {
-                            git diff --name-only --no-renames "$wt_mb" "$wt_head"
+                            git log --format= --name-only --no-renames "$wt_head" ^HEAD ^"$base"
                             git --no-optional-locks -C "$wt_path" diff --name-only --no-renames HEAD
                             git --no-optional-locks -C "$wt_path" ls-files --others --exclude-standard
                         } 2> /dev/null | ov_keep > "$ovtmp/other" || true

@@ -54,7 +54,7 @@ final class LaneDrop {
             row.lineWidth = width
             let inset = CGRect(origin: .zero, size: frame.size).insetBy(dx: width / 2, dy: width / 2)
             row.path = CGPath(roundedRect: inset, cornerWidth: 4, cornerHeight: 4, transform: nil)
-            let label = files == 1 ? L10n.dropNewTrack.text : L10n.dropNewTracks.format(files)
+            let label = Self.label(files: files)
             // A new string renders the text again, so only a new count sets it.
             if text.string as? String != label { text.string = label }
             text.contentsScale = scale
@@ -67,6 +67,11 @@ final class LaneDrop {
         CATransaction.commit()
     }
 
+    /// The label of the cue of new tracks: "New Track" for one file, else the count.
+    static func label(files: Int) -> String {
+        files == 1 ? L10n.dropNewTrack.text : L10n.dropNewTracks.format(files)
+    }
+
     func hide() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -74,18 +79,20 @@ final class LaneDrop {
         CATransaction.commit()
     }
 
-    /// The accent fill is 8 % in light mode and 12 % in Dark Mode. Only the dark palette blends
-    /// the selection band toward the accent, so `accent` tells the two apart.
     private func setColors() {
-        let (accent, fill) = (
-            cgColor(palette.outline), cgColor(palette.outline, alpha: palette.accent == nil ? 0.08 : 0.12)
-        )
+        let (accent, fill) = (cgColor(palette.outline), palette.dropFill)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         (tint.backgroundColor, tint.borderColor, line.backgroundColor) = (fill, accent, accent)
         (row.fillColor, row.strokeColor, text.foregroundColor) = (fill, accent, cgColor(palette.label))
         CATransaction.commit()
     }
+}
+
+extension LanePalette {
+    /// The accent fill of a drop cue is 8 % in light mode and 12 % in Dark Mode. Only the dark
+    /// palette blends the selection band toward the accent, so `accent` tells the two apart.
+    var dropFill: CGColor { cgColor(outline, alpha: accent == nil ? 0.08 : 0.12) }
 }
 
 /// The color of a palette pixel (0xAARRGGBB) with `alpha`.

@@ -418,7 +418,7 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 - Drop one file on a track to put the clip on that track. The clip starts at the pointer, not at the playhead.
 - Drop one file below the last track, or at the bottom edge of the tracks when they fill the window, to add a new track.
 - Drop two or more files to add one new track for each file. All clips start at the pointer.
-- Drop audio files on a session with no tracks to add one track for each file, in the order of the drag. Each clip starts at the start of the session.
+- Drop audio files on a session with no tracks to add one track for each file, in the order of the drag. Each clip starts at the start of the session. During the drag, a colored outline and the **New Track** label show over the window.
 - Dirigible imports the files one after the other. One **Edit > Undo** removes the last file. Dirigible skips a file that is not audio, has more than 2 channels, or is not on this Mac. A full disk or Cancel stops the import. At the end, an alert names each file that did not import.
 
 ### Split a stereo clip into two mono tracks

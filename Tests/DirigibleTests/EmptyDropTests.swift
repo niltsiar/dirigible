@@ -230,4 +230,57 @@ import Testing
         #expect(studio.session.tracks.isEmpty, "nothing imports")
         await model.close()
     }
+
+    /// D11: the cue shows during an accepted drag, with the 13c label for the files, 2 pt lines
+    /// with Increase Contrast, and the label color of the palette of the window. A refused drag,
+    /// an exit, an import, and a drop hide it.
+    @Test func theEmptyCueFollowsTheDragAndThePalette() async throws {
+        let (model, _, window) = try await openEmpty()
+        let host = try #require(try await host(in: window) as? EmptyDropView)
+        let voice = try wav("Voice.wav")
+        #expect(host.cue.isHidden, "no cue before a drag")
+
+        let one = fileDrag([voice])
+        #expect(host.draggingEntered(one) == .copy)
+        #expect(!host.cue.isHidden && host.cue.borderWidth == 1, "the cue of one file")
+        #expect(host.cueLabel.string as? String == L10n.dropNewTrack.text, "the label of one file")
+        host.draggingExited(one)
+        #expect(host.cue.isHidden, "an exit hides the cue")
+
+        let three = fileDrag([voice, try wav("b.wav"), try wav("c.wav")])
+        #expect(host.draggingEntered(three) == .copy)
+        #expect(host.cueLabel.string as? String == L10n.dropNewTracks.format(3), "the label of three files")
+        host.draggingEnded(three)
+
+        host.increasesContrast = true
+        _ = host.draggingEntered(fileDrag([voice]))
+        #expect(host.cue.borderWidth == 2, "2 pt with Increase Contrast")
+        host.increasesContrast = false
+
+        for (name, label) in [
+            (NSAppearance.Name.aqua, LanePalette.light.label), (.darkAqua, LanePalette.dark(accent: 0).label),
+        ] {
+            host.appearance = NSAppearance(named: name)
+            #expect(host.cueLabel.foregroundColor == cgColor(label), "the label color of \(name.rawValue)")
+        }
+
+        let text = folder.url.appending(path: "notes.txt")
+        try Data("hello".utf8).write(to: text)
+        let refused = fileDrag([text])
+        #expect(host.draggingEntered(refused) == [])
+        #expect(host.cue.isHidden, "a refused drag shows no cue")
+
+        let busy = fileDrag([voice])
+        #expect(host.draggingEntered(busy) == .copy && !host.cue.isHidden)
+        model.importJob = ImportJob()
+        #expect(host.draggingUpdated(busy) == [] && host.cue.isHidden, "an import hides the cue")
+        model.importJob = nil
+
+        let drop = fileDrag([voice])
+        _ = host.draggingEntered(drop)
+        #expect(host.performDragOperation(drop))
+        #expect(host.cue.isHidden, "a drop hides the cue")
+        await until("the import ends") { model.importJob == nil }
+        await model.close()
+    }
 }

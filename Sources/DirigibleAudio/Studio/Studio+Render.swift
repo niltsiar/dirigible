@@ -1,10 +1,11 @@
 import DirigibleCore
 import Foundation
 
-/// The end of a clip render: each moved clip with its new file, and the noise reduction in dB.
+/// The end of a clip render: each moved clip with its new file, and the noise reduction of the
+/// treatment, nil when it has no noise effect.
 public struct ClipRenderReport: Sendable {
     public let clips: [RenderedClip]
-    public let decibels: Int
+    public let noise: NoiseReduction?
 }
 
 extension Studio {
@@ -36,7 +37,7 @@ extension Studio {
             await environment.clipRenderWorkDone()
             return done.map { ($0.session, $0.clips, made: $0.made) }
         }
-        return ClipRenderReport(clips: rendered, decibels: treatment.noise?.decibels ?? 0)
+        return ClipRenderReport(clips: rendered, noise: treatment.noise)
     }
 }
 

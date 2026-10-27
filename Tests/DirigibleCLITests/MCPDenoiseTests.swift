@@ -76,6 +76,7 @@ struct MCPDenoiseTests {
             .sourceUnreadable(file: "f1.wav", errno: EIO), .sourceMissing(file: "f1.wav"),
             .notDownloaded(file: "f1.wav"), .cancelled, .trackRole(clip: "m1", role: .music),
             .trackRole(clip: "e1", role: .effects), .effectUnavailable(status: -3000), .engine(status: -50),
+            .mixedTreatments(clips: ["a", "b"]), .stillOverFullScale(file: "Clips/f1 NR.wav"),
         ]
         for error in cases { #expect(error.message.hasPrefix("the noise reduction "), "\(error.message)") }
         let imports: [ImportError] = [

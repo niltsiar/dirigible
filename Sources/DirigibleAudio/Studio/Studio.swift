@@ -88,7 +88,7 @@ import Observation
     @ObservationIgnored var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
     public internal(set) var isStarting = false
-    /// The last autosave error. Nil after a good save.
+    /// The last autosave error. Nil after a good save, finalize, or placement write.
     public internal(set) var saveError: StudioError?
     @ObservationIgnored var diskWatcher: Task<Void, Never>?
     /// The stop of a timed take (decision 0048). Each stop cancels it.
@@ -208,12 +208,7 @@ import Observation
         agent: AgentName?, refused: (StudioError) -> Failure, _ body: (inout Session) throws(Failure) -> Result
     ) throws(Failure) -> Result {
         do { try checkIdle() } catch { throw refused(error) }
-        let (before, revision) = (session, sessionRevision)
-        let result = try history.edit(agent: agent, body)
-        if session != before { scheduleSave() }
-        // A no-op edit keeps the revision, which a level or a duck can have moved with no change.
-        if sessionRevision != revision { poolChanged(from: before.files, agent: agent) }
-        return result
+        return try recordEdit(agent: agent, body)
     }
 
     /// Runs `body` as a part of the last recorded edit (`History.amend`), with the autosave of
@@ -319,19 +314,6 @@ import Observation
         for writer in writers.values where writer.app == nil { writer.start() }  // Apps: `startApps` (A5).
     }
 
-    /// Finalize, the marker, the save, and the level of a stop off the main actor, then the outcome.
-    /// Call it only in a `serialized` turn, so its save does not race another package write.
-    func complete(_ take: Int, leavingUnreadable: Bool = false, level: Bool = false) async throws(StudioError) {
-        transport = .finalizing(take: take)
-        await environment.beforeFinalize()
-        let outcome = await completeTake(
-            of: session, lock: lock, recordings: recordings, previous: url, leavingUnreadable: leavingUnreadable,
-            level: level)
-        takeError = outcome.error
-        if outcome.error == nil { takeEnded(outcome.session) } else { dropLiveTake() }
-        try apply(outcome)
-    }
-
     /// The end of a finalize or a placement, on the main actor: the package path, the disk facts,
     /// and the transport; then the error, or the undo entries of the take and of its level (0031).
     func apply(_ outcome: TakeOutcome) throws(StudioError) {
@@ -343,6 +325,7 @@ import Observation
         if let backups = outcome.backups { self.backups = backups }
         if let anchors = outcome.takeAnchors { takeSyncState.store(anchors, session: session) }
         if let error = outcome.error { throw error }
+        saveError = nil
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }
         history.edit { $0 = outcome.session }
@@ -369,6 +352,19 @@ import Observation
 
     /// Tests only: the calls that wait for their turn of the package writes.
     var writesWaiting: Int { writes.waiters }
+
+    /// The steps of `edit` after its busy check: one undo entry and one autosave when `body`
+    /// changes the session, then the pool check. The take marker calls it during a take.
+    func recordEdit<Result, Failure: Error>(
+        agent: AgentName?, _ body: (inout Session) throws(Failure) -> Result
+    ) throws(Failure) -> Result {
+        let (before, revision) = (session, sessionRevision)
+        let result = try history.edit(agent: agent, body)
+        if session != before { scheduleSave() }
+        // A no-op edit keeps the revision, which a level or a duck can have moved with no change.
+        if sessionRevision != revision { poolChanged(from: before.files, agent: agent) }
+        return result
+    }
 
     /// Writes the session off the main actor, after the previous package write. It takes its
     /// ticket now, so a later start or finalize writes after it. A save that waits for its turn

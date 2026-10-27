@@ -238,6 +238,19 @@ extension Studio {
         if let error { throw error }
     }
 
+    /// Finalize, the marker, the save, and the level of a stop off the main actor, then the outcome.
+    /// Call it only in a `serialized` turn, so its save does not race another package write.
+    func complete(_ take: Int, leavingUnreadable: Bool = false, level: Bool = false) async throws(StudioError) {
+        transport = .finalizing(take: take)
+        await environment.beforeFinalize()
+        let outcome = await completeTake(
+            of: session, lock: lock, recordings: recordings, previous: url, leavingUnreadable: leavingUnreadable,
+            level: level)
+        takeError = outcome.error
+        if outcome.error == nil { takeEnded(outcome.session) } else { dropLiveTake() }
+        try apply(outcome)
+    }
+
     /// Places an unplaced segment (decision 0021): on the track of its arm at its recorded time
     /// (the take anchor), or on `track` and at `start` when given. A negative `start` throws
     /// `.segment(segment, .session(.frameOutOfRange))`. A running play stops first, as

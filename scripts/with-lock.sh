@@ -23,8 +23,9 @@
 # start time, the hold seconds, the command, and the tree. The take writes the tree into the lock
 # folder (<lock>/tree), and a waiting call keeps the marker dirigible-build-waiting/<pid> with its
 # tree until it takes the lock or ends. scripts/with-lock.sh --builders prints each tree with a wait
-# or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60), the tree of the
-# live holder, and each live waiter, one per line. A marker of a dead pid is ignored and removed.
+# or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60; a lock-free wait
+# line, below, is no sign of a building tree), the tree of the live holder, and each live waiter,
+# one per line. A marker of a dead pid is ignored and removed.
 # A wait with 2 or more other trees in that list prints their count.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
@@ -70,7 +71,8 @@
 # does not wait for another build or test. While a release call, a bench, a mutation pass, or a
 # flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a live
 # ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
-# and then runs. That wait keeps no marker and no ticket, and appends one wait line that ends with nocap.
+# and then runs. That wait keeps no marker and no ticket, and appends one wait line that ends with
+# lockfree. cost.sh counts its minutes.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -101,7 +103,7 @@ builders() {
     {
         for m in "$waits:5" "$holds:4"; do
             awk -F'\t' -v cutoff="$cutoff" -v col="${m##*:}" "$ep_awk"'
-                $col != "" && ep($1) + $2 >= ep(cutoff) { print $col }' "${m%:*}" 2>/dev/null
+                $col != "" && $6 != "lockfree" && ep($1) + $2 >= ep(cutoff) { print $col }' "${m%:*}" 2>/dev/null
         done
         m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
         if alive "$m" || alive "$c" || alive "-$c"; then cat "$lock/tree" 2>/dev/null; fi
@@ -251,7 +253,7 @@ if lock_free "$@"; then
         held="$(cat "$lock/command" 2>/dev/null)"
         echo "with-lock: $lock is held by pid $(cat "$lock/pid" 2>/dev/null) ($held); retry each $retry s" >&2
         while long_holder || ahead; do pause; done
-        printf '%s\t%s\t%s\t%s\t%s\tnocap\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
+        printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
     fi
     echo "with-lock: lock-free targets ($free_targets): no lock" >&2
     exec "$@"

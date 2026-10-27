@@ -499,8 +499,10 @@ lf_finish 80
     fail "lock-free wait: exit $code after $elapsed s, state [$(cat "$tmp/state" 2>/dev/null | paste -sd, -)]: $out"
 [[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
 [[ ! -e "$holds" ]] || fail "lock-free wait: a hold line: $(cat "$holds")"
-[[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg nocap' ]] ||
+[[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg lockfree' ]] ||
     fail "lock-free wait: the wait line: [$(cat "$waits" 2>/dev/null)]"
+# The wait line is no sign of a building tree: --builders lists no tree after it.
+[[ -z "$("$repo/scripts/with-lock.sh" --builders 2>&1)" ]] || fail "lock-free wait: --builders lists [$("$repo/scripts/with-lock.sh" --builders 2>&1)]"
 # (2) A holder that stays: exit 75 at the limit, no command, no log line, and the holder as it was.
 lf_holder 'make dmg'
 lf_start env WITH_LOCK_MAX_WAIT=2

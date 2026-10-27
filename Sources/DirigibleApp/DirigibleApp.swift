@@ -218,6 +218,6 @@ struct DirigibleApp: App {
     private func menuButton(_ item: TimelineCommand.MenuItem) -> some View {
         Button((app.levelTitle(item.command, for: app.key) ?? item.title).key) { app.timeline(item.command) }
             .keyboardShortcut(item.key, modifiers: item.modifiers, localization: item.command.keyLocalization)
-            .disabled(app.key?.isOn(item.command) == false)
+            .disabled(!app.isOn(item.command))
     }
 }

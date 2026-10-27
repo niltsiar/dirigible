@@ -65,18 +65,21 @@ import Testing
         await model.close()
     }
 
-    /// C8: Shift-Backspace from the lanes ripples the selection. No selection: nothing.
+    /// C8: Shift-Backspace from the lanes ripples the selection. No selection: a beep, and no change.
     @Test func shiftBackspaceRipplesFromTheLanes() async throws {
         let (model, studio, window, _) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
         model.timeline.marks = Marks()
         let before = studio.session
         app.timeline(.deleteCloseGap, event: try cgKey(51, .maskShift), in: window)
-        #expect(studio.session == before && !studio.canUndo, "no selection: nothing")
+        #expect(beeps == 1 && studio.session == before && !studio.canUndo, "no selection: beeps \(beeps)")
 
         model.timeline.marks = Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t2"])
         app.timeline(.deleteCloseGap, event: try cgKey(51, .maskShift), in: window)
 
         #expect(starts(studio, "t1") == [0, 48_000] && starts(studio, "t2") == [0, 48_000])
+        #expect(beeps == 1, "a ripple of a range gives no beep")
         await model.close()
     }
 

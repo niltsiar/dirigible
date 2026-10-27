@@ -977,10 +977,23 @@ got="$(FILTER=X run_in 2> "$tmp/bare.err")"
 code=$?
 [[ $code -eq 1 && "$got" == "$(out none none no)" && "$(cat "$tmp/bare.err")" == *'FILTER is set'* && "$(cat "$tmp/bare.err")" != *'give SINCE'* ]] ||
   fail "past origin/main with FILTER: exit $code, got [$got], stderr [$(cat "$tmp/bare.err")]"
+# A changed path keeps the targets and exit 0, and the commits that the run does not check get one
+# stderr note. SINCE, FILTER, and a run at origin/main get none.
 printf 'x\n' > "$tmp/r/docs/d.md"
-got="$(run_in 2>&1)" || fail "past origin/main with a changed file: exit $?"
-[[ "$got" == "$(out docs check-docs no)" ]] || fail "past origin/main with a changed file: got [$got]"
+got="$(run_in 2> "$tmp/bare.err")" || fail "a dirty doc plus commits past origin/main: exit $?"
+[[ "$got" == "$(out docs check-docs no)" ]] || fail "a dirty doc plus commits past origin/main: got [$got]"
+[[ "$(cat "$tmp/bare.err")" == "check-changed: 1 commits past origin/main are not checked: give SINCE=$mb" ]] ||
+  fail "a dirty doc plus commits past origin/main: stderr [$(cat "$tmp/bare.err")]"
+got="$(SINCE=$mb run_in 2>&1)" || fail "a dirty doc, commits past origin/main, SINCE: exit $?"
+[[ "$got" == "$(out docs check-docs no)" ]] || fail "a dirty doc, commits past origin/main, SINCE: got [$got]"
+got="$(FILTER=X run_in 2> "$tmp/bare.err")"
+[[ "$(cat "$tmp/bare.err")" != *'are not checked'* ]] || fail "a dirty doc, commits past origin/main, FILTER: a note [$(cat "$tmp/bare.err")]"
 rm "$tmp/r/docs/d.md"
+ahead_repo 0
+printf 'x\n' > "$tmp/r/docs/d.md"
+got="$(run_in 2>&1)" || fail "a dirty doc at origin/main: exit $?"
+[[ "$got" == "$(out docs check-docs no)" ]] || fail "a dirty doc at origin/main: got [$got]"
+ahead_repo 1
 got="$(run_in --paths 2>&1 < /dev/null)" || fail "past origin/main with --paths: exit $?"
 [[ "$got" == "$(out none none no)" ]] || fail "past origin/main with --paths: got [$got]"
 got="$(run_in --floor 2>&1)" || fail "past origin/main with --floor: exit $?"

@@ -21,10 +21,10 @@ let batchTools = [
         [calls], batch: .alone
     ) { a throws(ToolError) in
         let list = try BatchWork.calls(of: a[calls])
-        do throws(BatchWork.Failure) {
+        do throws(BatchWork.CheckFailure) {
             return .batch(try BatchWork.check(list, package: a.path))
         } catch {
-            throw ToolError(error.message(rippleBlocked: splitTakeMessage(a.path)))
+            throw ToolError(error.message)
         }
     }
 ]

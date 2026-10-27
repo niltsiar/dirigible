@@ -152,4 +152,25 @@ struct TranscriptPasteTests {
         try paste(try source.excerpt(of: ["H"]), into: &target)
         #expect(target.transcripts.isEmpty && target.track("t")?.clips.count == 1)
     }
+
+    /// C12. A clip on a rendered file of "h" from frame 100 000 copies the words of the root inside
+    /// its file: word 2 is clamped to the file start, and word 1, with its midpoint before it, stays
+    /// out. The paste into another package saves and reads back.
+    @Test func renderedEdgeWordIsClamped() throws {
+        var source = try source()
+        let origin = RenderOrigin(
+            source: "h", offset: 100_000, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        try source.addFile(AudioFile(id: "h NR", path: "h NR.wav", layout: .mono, length: 200_000, origin: origin))
+        try source.addTrack("r", name: "R", layout: .mono)
+        try source.place(Clip(id: "R", file: "h NR", start: 0, offset: 0, length: 200_000), on: "r")
+        var target = try target()
+        let record = try #require(target.files["h2"])
+
+        try target.paste(try source.excerpt(of: ["R"]).mapped(to: ["h NR": record]), at: 0, on: ["t"])
+
+        #expect(target.words().map(\.text) == ["world"] && target.words().map(\.range) == [0..<44_000])
+        #expect(target.transcripts[TranscriptID(1)]?.words?["h2"]?.all.map(\.range) == [0..<44_000])
+        let same = try target.reopened() == target
+        #expect(same, "the target saves")
+    }
 }

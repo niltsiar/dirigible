@@ -31,7 +31,14 @@ extension Session {
         var captures: [Capture] = []
         for node in root.children("captures", "capture") { captures.append(try Capture(node)) }
         var files: [AudioFile] = []
-        for node in root.children("files", "file") { files.append(try AudioFile(node)) }
+        var origins: [FileID: RenderOrigin] = [:]
+        for node in root.children("files", "file") {
+            let file = try AudioFile(node)
+            files.append(file)
+            let list = node.sessionElements("origin")
+            guard list.count <= 1 else { throw .invalidValue(element: "origin", attribute: "count") }
+            if let origin = list.first { origins[file.id] = try RenderOrigin(origin, version: version) }
+        }
         var tracks: [ParsedTrack] = []
         for node in root.children("tracks", "track") { tracks.append(try ParsedTrack(node, version: version)) }
         var markers: [Marker] = []
@@ -53,6 +60,7 @@ extension Session {
         do throws(SessionError) {
             for capture in captures { try addCapture(capture) }
             for file in files { try addFile(file) }
+            try setOrigins(origins)
             for track in tracks {
                 try addTrack(track.id, name: track.name, layout: track.layout)
                 try setGain(track.gain, track: track.id)
@@ -151,6 +159,28 @@ extension AudioFile {
         self.init(
             id: FileID(try node.string("id")), path: try node.string("path"), layout: layout,
             length: try node.frames("length"), capture: node.optionalString("capture").map { CaptureID($0) })
+    }
+}
+
+extension RenderOrigin {
+    /// `<origin source offset gain>` from version 12 on (decision 0057 D9), with one `<noise
+    /// decibels>` element. It refuses an unknown element, no effect, and a repeated kind.
+    fileprivate init(_ node: XMLElement, version: Int) throws(SessionFileError) {
+        guard version >= 12 else { throw .invalidValue(element: "origin", attribute: "version") }
+        var effects: [Effect] = []
+        for case let child as XMLElement in node.children ?? [] {
+            guard child.localName == "noise", child.uri == sessionNamespace,
+                let amount = NoiseReduction(decibels: try child.value("decibels"))
+            else { throw .invalidValue(element: child.localName ?? "", attribute: "decibels") }
+            effects.append(.noise(amount))
+        }
+        guard let treatment = Treatment(effects) else { throw .invalidValue(element: "origin", attribute: "effects") }
+        guard let gain = Gain(dB: try node.value("gain")) else {
+            throw .invalidValue(element: "origin", attribute: "gain")
+        }
+        self.init(
+            source: FileID(try node.string("source")), offset: try node.frames("offset"), treatment: treatment,
+            addedGain: gain)
     }
 }
 

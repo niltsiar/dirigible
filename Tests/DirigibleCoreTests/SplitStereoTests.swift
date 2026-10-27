@@ -309,4 +309,44 @@ struct SplitStereoTests {
         #expect(parts[1].leftTrack == session.tracks[4].id && parts[1].rightTrack == session.tracks[5].id)
         #expect(session.clip("A L")?.track == "v", "the clip that held the ID stays")
     }
+
+    /// The session of `clips` with each clip rendered by `repoint` into "f NR", 1 dB added.
+    func rendered(clips: [(ClipID, Frames, Frames)]) throws -> Session {
+        var session = try session(clips: clips)
+        let runs = try session.clipRuns(of: clips.map(\.0)).map {
+            RenderedRun(run: $0, stem: "f NR", treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        }
+        _ = try session.repoint(runs)
+        return session
+    }
+
+    /// C11. A split to mono of a rendered stereo file gives files with no origin.
+    @Test func splitFilesHaveNoOrigin() throws {
+        var session = try rendered(clips: [("A", 1_000_000, 100_000)])
+        #expect(session.files["f NR"]?.origin != nil)
+
+        _ = try session.splitStereo(try pairs(session, ["A"]), names: ("L", "R"))
+
+        let added = session.files.values.filter { $0.layout == .mono }
+        #expect(added.count == 2 && added.allSatisfy { $0.origin == nil })
+        #expect(session.tracks.flatMap(\.clips).allSatisfy { session.origins(of: $0.id).isEmpty })
+    }
+
+    /// C11. Each mono clip of a split of a rendered clip shows the words of the root at the same
+    /// timeline range, and a cut by words cuts the same frames.
+    @Test func splitOfRenderedClipKeepsTheWords() throws {
+        var session = try self.session(clips: [("A", 1_000_000, 100_000)])
+        session.addWords([(1, 1_010_000..<1_020_000, "Hello")], file: "f")
+        let runs = try session.clipRuns(of: ["A"]).map {
+            RenderedRun(run: $0, stem: "f NR", treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        }
+        _ = try session.repoint(runs)
+
+        _ = try session.splitStereo(try pairs(session, ["A"]), names: ("L", "R"))
+
+        let words = session.words()
+        #expect(words.map(\.text) == ["Hello", "Hello"] && words.allSatisfy { $0.range == 10_000..<20_000 })
+        var cut = session
+        #expect(try cut.cutWords([try #require(words.first).occurrence]) == [10_000..<20_000])
+    }
 }

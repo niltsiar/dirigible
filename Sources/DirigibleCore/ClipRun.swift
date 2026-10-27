@@ -39,13 +39,16 @@ extension Session {
     }
 
     /// Adds the file `stem` at "<stem>.wav", made from `run.span` of `run.file`: the span length,
-    /// the capture of the source, and the words of the span (decision 0056). It refuses an unknown
+    /// the capture of the source, and `origin`. A file with no origin gets the words of the span
+    /// (decision 0056); a file with an origin gets none, because its words stay on the root
+    /// (decision 0057). It refuses an unknown
     /// source (`.unknownFile`), an empty span or a span past the source (`.frameOutOfRange`), a
     /// transcript that did not load (`.transcriptNotLoaded`), a taken ID, an equal record too, or a
     /// path that another record has in any case (`.duplicateID`), and each refusal of `addFile`. A
     /// throw changes nothing. No layout check: the caller owns it.
     @discardableResult
-    mutating func addDerivedFile(from run: ClipRun, stem: String, layout: ChannelLayout) throws(SessionError) -> FileID
+    mutating func addDerivedFile(from run: ClipRun, stem: String, layout: ChannelLayout, origin: RenderOrigin?)
+        throws(SessionError) -> FileID
     {
         guard let source = files[run.file] else { throw .unknownFile(run.file) }
         let span = run.span
@@ -59,8 +62,13 @@ extension Session {
             throw .duplicateID(path)
         }
         let length = span.upperBound - span.lowerBound
-        try addFile(AudioFile(id: id, path: path, layout: layout, length: length, capture: source.capture))
-        copyWords(of: run.file, span: span, shift: .zero - span.lowerBound, to: [id])
+        try addFile(
+            AudioFile(id: id, path: path, layout: layout, length: length, capture: source.capture, origin: origin))
+        if origin == nil {
+            for (transcript, anchors) in copiedWords(from: run.file, span: span) {
+                setWords(anchors, file: id, transcript: transcript)
+            }
+        }
         return id
     }
 }

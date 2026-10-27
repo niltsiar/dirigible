@@ -102,8 +102,7 @@ extension Session {
         }
         return Excerpt(
             kind: .range, length: range.upperBound - range.lowerBound, lanes: lanes, sampleRate: sampleRate,
-            pool: files,
-            transcripts: transcripts)
+            pool: files, transcripts: transcripts(copiedFor: Set(lanes.flatMap { $0.clips.map(\.file) })))
     }
 
     /// The whole clips of a clip set (decision 0038). The starts are relative to the first start,
@@ -131,7 +130,7 @@ extension Session {
         }
         return Excerpt(
             kind: .clips, length: end - start, lanes: lanes, sampleRate: sampleRate, pool: files,
-            transcripts: transcripts)
+            transcripts: transcripts(copiedFor: Set(lanes.flatMap { $0.clips.map(\.file) })))
     }
 
     /// Lane i goes to `tracks[i]`. A range excerpt clears the whole block `start..<start + length`

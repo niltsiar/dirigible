@@ -189,18 +189,41 @@ public struct AudioFile: Identifiable, Hashable, Sendable {
     public var length: Frames
     /// Nil for an imported file.
     public var capture: CaptureID?
+    /// Nil for a recorded, imported, pasted, or split file (decision 0057).
+    public var origin: RenderOrigin?
 
-    public init(id: FileID, path: String, layout: ChannelLayout, length: Frames, capture: CaptureID? = nil) {
+    public init(
+        id: FileID, path: String, layout: ChannelLayout, length: Frames, capture: CaptureID? = nil,
+        origin: RenderOrigin? = nil
+    ) {
         self.id = id
         self.path = path
         self.layout = layout
         self.length = length
         self.capture = capture
+        self.origin = origin
     }
 
     /// A file that finalize made: its capture ID equals its file ID (decision 0061). Only such a
     /// file has a take time.
     public var isTakeFile: Bool { capture?.rawValue == id.rawValue }
+}
+
+/// How a rendered file was made (decision 0057). File frame i is frame `offset + i` of `source`.
+public struct RenderOrigin: Hashable, Sendable {
+    /// The direct input: a plain file or another rendered file.
+    public let source: FileID
+    public let offset: Frames
+    public let treatment: Treatment
+    /// The dB of the second-pass scale of decision 0054, which the render added to each clip of the run.
+    public let addedGain: Gain
+
+    public init(source: FileID, offset: Frames, treatment: Treatment, addedGain: Gain) {
+        self.source = source
+        self.offset = offset
+        self.treatment = treatment
+        self.addedGain = addedGain
+    }
 }
 
 /// A part of a file on the timeline of a track.

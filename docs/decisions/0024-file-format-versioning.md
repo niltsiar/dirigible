@@ -20,6 +20,7 @@
 - Amended: 2026-10-18, run `2026-10-17-agent-pack` (see 0036). `session.xml` is version 9 when a clip has a crossfade at a seamless join. A file of version 8 or lower with one is refused.
 - Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (see 0060). `session.xml` is version 10 when a clip has a gain envelope point. A file of version 9 or lower with an `<envelope>` element is refused.
 - Amended: 2026-10-22, run `2026-10-18-envelope-ducking` (see 0060). `session.xml` is version 11 when a track has a role. A file of version 10 or lower with a track `role` is refused.
+- Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). `session.xml` is version 12 when a file has an origin.
 
 ## Context
 
@@ -64,7 +65,7 @@ Release 2 run 6 writes `session.xml` version 2. The policy must be in place befo
 
 | File | Version marker | Current | Newer version in an older build |
 |---|---|---|---|
-| `session.xml` | `version` attribute | 11 with a track role (0060), else 10 with a gain envelope point (0060), else 9 with a crossfade at a seamless join (0036), else 8 with a transcript reference (0055), else 7 with a marker URL or image, else 6 with episode data (0045), else 5 with a muted or soloed track (0039), else 4 with a crossfade (0036), else 3 with a fade (0035), else 2 with an app route (0029), else 1 | Refused (P3). No change to the package (P4). |
+| `session.xml` | `version` attribute | 12 with a file origin (0057), else 11 with a track role (0060), else 10 with a gain envelope point (0060), else 9 with a crossfade at a seamless join (0036), else 8 with a transcript reference (0055), else 7 with a marker URL or image, else 6 with episode data (0045), else 5 with a muted or soloed track (0039), else 4 with a crossfade (0036), else 3 with a fade (0035), else 2 with an app route (0029), else 1 | Refused (P3). No change to the package (P4). |
 | `Capture/<stem>.sidecar` | magic `DRGSIDE` + digit | 1 | A per-segment "newer version" fault, not "missing or damaged". The take ends and the segment stays unplaced; "leave unreadable" does not treat it as unreadable. The sidecar and the CAF are never written, moved, or deleted. The anchor keeps the recorded time, so a newer build places the segment with `capture place`. A placement in the older build is refused. |
 | `Capture/take<n>.anchor` | magic `DRGANCH` + digit | 1 | A placement that needs the anchor gives a per-segment "newer version" fault. A placement with a track and a start does not read the anchor. A finalize of that take keeps the anchor bytes, writes no anchor, places the segments from `<recording>`, and ends the take. No newer file keeps a take pending. An anchor that the finalize cannot read (an errno other than ENOENT) keeps the take pending with a read error that names the file, before any WAV is written: the build does not write over a file that it cannot identify (P4). |
 | `Backups/session-<time>.xml` | `version` attribute of the copy | The version of the copied `session.xml` | A revert refuses it (P3). A prune never deletes it (P4). A name that does not parse stays (P10). |

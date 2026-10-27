@@ -73,7 +73,7 @@ struct TakeOriginTests {
             try session.addFile(AudioFile(id: "take1-2-1", path: "take1-2-1.wav", layout: .mono, length: 48_000))
         case .derivedFile:
             let run = try #require(session.clipRuns(of: ["take1-1-1"]).first)
-            added = try session.addDerivedFile(from: run, stem: "take1-1-1-part", layout: .mono)
+            added = try session.addDerivedFile(from: run, stem: "take1-1-1-part", layout: .mono, origin: nil)
         case .noAnchorFile:
             try FileManager.default.removeItem(at: anchor)
         case .newerAnchor:

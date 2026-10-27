@@ -59,14 +59,40 @@ public struct Session: Hashable, Sendable {
         guard Self.isInsideClips(file.path) else { throw .invalidPath(file.path) }
         guard file.length.isInRange else { throw .frameOutOfRange }
         if let capture = file.capture, captures[capture] == nil { throw .unknownCapture(capture) }
+        if let origin = file.origin { try check(origin, of: file) }
         files[file.id] = file
     }
 
+    /// Sets the origins after all files, so the file order of `session.xml` does not matter
+    /// (decision 0057 D9). It refuses each origin that `addFile` refuses, and a cycle. A throw
+    /// changes nothing.
+    mutating func setOrigins(_ origins: [FileID: RenderOrigin]) throws(SessionError) {
+        var copy = self
+        for (id, origin) in origins {
+            guard copy.files[id] != nil else { throw .unknownFile(id) }
+            copy.files[id]?.origin = origin
+        }
+        for file in copy.files.values {
+            guard let origin = file.origin else { continue }
+            try copy.check(origin, of: file)
+            var seen: Set<FileID> = [file.id]
+            var next = origin.source
+            while let up = copy.files[next]?.origin {
+                guard seen.insert(next).inserted else { throw .invalidOrigin(file.id) }
+                next = up.source
+            }
+        }
+        self = copy
+    }
+
     /// Removes the file record and the transcript words of the file, and a transcript with no word
-    /// left (decision 0055).
+    /// left (decision 0055). It refuses a file that a clip uses or that an origin names (decision 0057).
     public mutating func removeFile(_ id: FileID) throws(SessionError) {
         guard files[id] != nil else { throw .unknownFile(id) }
         guard !tracks.contains(where: { $0.clips.contains { $0.file == id } }) else { throw .fileInUse(id) }
+        if let named = files.values.filter({ $0.origin?.source == id }).map(\.id).min() {
+            throw .fileIsSource(id, of: named)
+        }
         files[id] = nil
         for transcript in transcripts.keys { setWords([], file: id, transcript: transcript) }
     }
@@ -195,13 +221,14 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): 11 with a track role,
-    /// else 10 with a gain envelope point (decision 0060), else 9 with a crossfade at a seamless
+    /// The `session.xml` version that holds this session (decision 0024 P6): 12 with a file origin
+    /// (decision 0057), else 11 with a track role, else 10 with a gain envelope point (decision 0060), else 9 with a crossfade at a seamless
     /// join (decision 0036), else 8 with a transcript (decision 0055), else 7 with a marker URL or
     /// image, else 6 with episode data (decision 0045), else 5 with a muted or soloed track
     /// (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade (decision 0035),
     /// else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
+        if files.values.contains(where: { $0.origin != nil }) { return 12 }
         if tracks.contains(where: { $0.role != nil }) { return 11 }
         if tracks.contains(where: { $0.clips.contains { !$0.envelope.isEmpty } }) { return 10 }
         if tracks.contains(where: { $0.clips.seamlessCrossfade != nil }) { return 9 }
@@ -284,6 +311,10 @@ public enum SessionError: Error, Hashable, Sendable {
     case captureInUse(CaptureID)
     case invalidCapture(CaptureID)
     case fileInUse(FileID)
+    /// The first file is the source of the origin of the second file (decision 0057).
+    case fileIsSource(FileID, of: FileID)
+    /// The origin of the file names no other file of the pool with its layout, or a range past it.
+    case invalidOrigin(FileID)
     case trackInRecording(TrackID)
     case layoutMismatch(TrackID, LayoutConflict)
     /// A device channel less than 1, or an empty app ID.

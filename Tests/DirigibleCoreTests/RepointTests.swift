@@ -6,6 +6,8 @@ import Testing
 /// A clip moves onto the file that a render made from its run (decision 0054). At 48 kHz the handle
 /// on each side of a clip is 10 s, 480 000 frames.
 struct RepointTests {
+    let noise = Treatment(.noise(.standard))
+
     /// A 48 kHz session with the stereo track "t" and the stereo file "f" of `length` frames, with
     /// the clips (id, offset in "f", length) one after the other on "t".
     func session(length: Frames = 10_000_000, at first: Frames = .zero, clips: [(ClipID, Frames, Frames)]) throws
@@ -25,7 +27,9 @@ struct RepointTests {
     /// One `RenderedRun` for each run of `clips`, with the stems "<file> NR", "<file> NR 2", and so on.
     func rendered(_ session: Session, _ clips: [ClipID]) throws -> [RenderedRun] {
         try session.clipRuns(of: clips).enumerated().map { index, run in
-            RenderedRun(run: run, stem: "\(run.file) NR\(index == 0 ? "" : " \(index + 1)")")
+            RenderedRun(
+                run: run, stem: "\(run.file) NR\(index == 0 ? "" : " \(index + 1)")", treatment: noise, addedGain: .zero
+            )
         }
     }
 
@@ -51,9 +55,14 @@ struct RepointTests {
                     RenderedClip(clip: "A", file: "f NR"), RenderedClip(clip: "B", file: "f NR"),
                     RenderedClip(clip: "C", file: "g NR 2"), RenderedClip(clip: "D", file: "g NR 2"),
                 ])
-        #expect(session.files["f NR"] == AudioFile(id: "f NR", path: "f NR.wav", layout: .stereo, length: 1_170_000))
+        let fOrigin = RenderOrigin(source: "f", offset: 520_000, treatment: noise, addedGain: .zero)
+        let gOrigin = RenderOrigin(source: "g", offset: 1_520_000, treatment: noise, addedGain: .zero)
         #expect(
-            session.files["g NR 2"] == AudioFile(id: "g NR 2", path: "g NR 2.wav", layout: .stereo, length: 1_100_000))
+            session.files["f NR"]
+                == AudioFile(id: "f NR", path: "f NR.wav", layout: .stereo, length: 1_170_000, origin: fOrigin))
+        #expect(
+            session.files["g NR 2"]
+                == AudioFile(id: "g NR 2", path: "g NR 2.wav", layout: .stereo, length: 1_100_000, origin: gOrigin))
         #expect(session.files["f"] != nil && session.files["g"] != nil, "the source files stay")
         let offsets = [480_000, 640_000, 480_000, 560_000]
         for (index, old) in before.enumerated() {
@@ -65,8 +74,8 @@ struct RepointTests {
         }
     }
 
-    /// C1. The new file names the capture of its source file, so the capture stays after the source
-    /// file goes.
+    /// C1. The new file names the capture of its source file. The source file stays while the
+    /// origin of the new file names it (decision 0057 D7).
     @Test func newFileKeepsCapture() throws {
         var session = Session(sampleRate: 48_000)
         try session.addCapture(
@@ -80,8 +89,7 @@ struct RepointTests {
         _ = try session.repoint(rendered(session, ["A"]))
 
         #expect(session.files["f NR"]?.capture == "k1")
-        try session.removeFile("f")
-        #expect(throws: SessionError.captureInUse("k1")) { try session.removeCapture("k1") }
+        #expect(throws: SessionError.fileIsSource("f", of: "f NR")) { try session.removeFile("f") }
     }
 
     /// C1. A moved clip trims out to the edges of its new file, which is the handle for a one-clip
@@ -157,10 +165,11 @@ struct RepointTests {
         #expect(session.tracks[0].clips.canHeal(after: 0) == heals)
     }
 
-    /// C1. A session with an envelope point and a crossfade at a seamless join keeps its version
-    /// through the move: 10, and 11 with a role on the track. The saved file reads back equal.
+    /// C9. A session with an envelope point and a crossfade at a seamless join (version 10, and 11
+    /// with a role on the track) is version 12 after the move, because the new file has an origin
+    /// (decision 0057). The saved file reads back equal.
     @Test(arguments: [(false, 10), (true, 11)])
-    func versionUnchanged(role: Bool, version: Int) throws {
+    func originRaisesTheVersion(role: Bool, version: Int) throws {
         var session = try session(clips: [])
         try session.place(Clip(id: "A", file: "f", start: 0, offset: 1_000_000, length: 100_000), on: "t")
         try session.place(
@@ -174,10 +183,11 @@ struct RepointTests {
 
         _ = try session.repoint(rendered(session, ["A", "B"]))
 
-        #expect(session.fileVersion == version)
+        #expect(session.fileVersion == 12)
         let data = try session.checkedData()
-        #expect(String(decoding: data, as: UTF8.self).contains(#"version="\#(version)""#))
-        #expect(try Session(xml: data, newest: 11) == session)
+        #expect(String(decoding: data, as: UTF8.self).contains(#"version="12""#))
+        #expect(try Session(xml: data) == session)
+        #expect(throws: SessionFileError.unsupportedVersion(12)) { try Session(xml: data, newest: 11) }
     }
 
     /// C1. A run that is not the run of its clips throws `.frameOutOfRange` and changes nothing: a
@@ -189,7 +199,7 @@ struct RepointTests {
         let short = ClipRun(file: "f", span: 600_000..<1_580_000, clips: ["A"])
 
         #expect(throws: SessionError.frameOutOfRange) {
-            try session.repoint([RenderedRun(run: short, stem: "x"), runs[1]])
+            try session.repoint([RenderedRun(run: short, stem: "x", treatment: noise, addedGain: .zero), runs[1]])
         }
         #expect(throws: SessionError.frameOutOfRange) {
             try session.repoint([runs[0], runs[0]])
@@ -206,7 +216,8 @@ struct RepointTests {
         let before = session
         let runs = try session.clipRuns(of: ["A", "B"])
         func call(_ stems: [String]) throws(SessionError) {
-            _ = try session.repoint(zip(runs, stems).map { RenderedRun(run: $0, stem: $1) })
+            _ = try session.repoint(
+                zip(runs, stems).map { RenderedRun(run: $0, stem: $1, treatment: noise, addedGain: .zero) })
         }
 
         #expect(throws: SessionError.duplicateID("taken id")) { try call(["ok", "taken id"]) }

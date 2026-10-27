@@ -2,7 +2,8 @@ import Foundation
 
 /// The transcript queries and edits (decision 0055). A word shows under each clip, on any track,
 /// whose file range `offset ..< offset + length` holds the midpoint of its anchor, so each clip edit
-/// moves the words with no transcript code.
+/// moves the words with no transcript code. The anchors of a rendered file are on the root of its
+/// chain, in root frames (decision 0057 D11).
 extension Session {
     /// The shown words in timeline order (start, then word, then track). `range` keeps the words
     /// that touch it. `phrase` keeps each run of adjacent words of one track whose words equal the
@@ -15,11 +16,12 @@ extension Session {
         for (lane, track) in self.tracks.enumerated() where tracks?.contains(track.id) ?? true {
             var words: [SpokenWord] = []
             for clip in track.clips {
-                let file = clip.offset..<(clip.offset + clip.length)
+                let root = self.root(of: clip.file)
+                let file = (clip.offset + root.offset)..<(clip.offset + root.offset + clip.length)
                 for transcript in transcripts.values {
-                    for anchor in transcript.words?[clip.file]?.anchors(midpointIn: file) ?? [] {
-                        let start = clip.start + max(anchor.range.lowerBound, file.lowerBound) - clip.offset
-                        let end = clip.start + min(anchor.range.upperBound, file.upperBound) - clip.offset
+                    for anchor in transcript.words?[root.file]?.anchors(midpointIn: file) ?? [] {
+                        let start = clip.start + max(anchor.range.lowerBound, file.lowerBound) - file.lowerBound
+                        let end = clip.start + min(anchor.range.upperBound, file.upperBound) - file.lowerBound
                         words.append(
                             SpokenWord(
                                 occurrence: WordOccurrence(
@@ -142,7 +144,8 @@ extension Session {
     /// of take `n` and whose take range holds the midpoint, so a unit in audio that an edit removed
     /// is skipped. A word is stored at its range in the file, not clamped to that clip, so it does
     /// not depend on which other clips of the file the timeline plays. A track with no clip of
-    /// take `n` throws `.noTakeAudio`.
+    /// take `n` throws `.noTakeAudio`. In both time bases, a word over a clip on a rendered file goes
+    /// to the root of its chain, in root frames (decision 0057 D11).
     @discardableResult
     public mutating func importTranscript(
         _ file: TranscriptFile, name: String, track: TrackID, at: Frames, time: TranscriptTime = .timeline
@@ -170,18 +173,26 @@ extension Session {
             return valid.contains(frame) ? frame : nil
         }
         /// The clip under `midpoint`, the frame range of the unit time base that a stored word is
-        /// clamped to, and the shift from that time base to file frames.
-        func located(at midpoint: Int) -> (clip: Clip, bounds: Range<Int>, shift: Int)? {
+        /// clamped to, the root file of the clip, and the shift from that time base to root frames.
+        func located(at midpoint: Int) -> (clip: Clip, bounds: Range<Int>, root: FileID, shift: Int)? {
             switch time {
             case .timeline:
                 guard let index = clips.index(holding: Frames(midpoint)) else { return nil }
                 let clip = clips[index]
-                return (clip, clip.start.count..<clip.end.count, clip.offset.count - clip.start.count)
+                let root = self.root(of: clip.file)
+                return (
+                    clip, clip.start.count..<clip.end.count, root.file,
+                    clip.offset.count - clip.start.count + root.offset.count
+                )
             case .take(let take, let map):
                 guard let piece = map.playing(atTake: midpoint, take: take, on: track).first,
                     let file = files[piece.clip.file]
                 else { return nil }
-                return (piece.clip, piece.origin.frame..<(piece.origin.frame + file.length.count), -piece.origin.frame)
+                let root = self.root(of: piece.clip.file)
+                return (
+                    piece.clip, piece.origin.frame..<(piece.origin.frame + file.length.count), root.file,
+                    root.offset.count - piece.origin.frame
+                )
             }
         }
         var untimed = file.untimed
@@ -197,7 +208,7 @@ extension Session {
             }
             number += 1
             let midpoint = (start + end) / 2
-            guard let (clip, bounds, shift) = located(at: midpoint) else {
+            guard let (clip, bounds, root, shift) = located(at: midpoint) else {
                 skipped += 1
                 continue
             }
@@ -205,8 +216,9 @@ extension Session {
             // A take time names the file frame, so a take import has no repeat.
             if case .timeline = time {
                 let repeated = heard.values.contains { other in
-                    other.id != clip.id && other.file == clip.file
-                        && (other.offset..<(other.offset + other.length)).contains(Frames(midpoint + shift))
+                    let start = other.offset + self.root(of: other.file).offset
+                    return other.id != clip.id && self.root(of: other.file).file == root
+                        && (start..<(start + other.length)).contains(Frames(midpoint + shift))
                 }
                 guard !repeated else {
                     repeats += 1
@@ -215,7 +227,7 @@ extension Session {
                 heard[clip.id] = clip
             }
             let range = Frames(max(start, bounds.lowerBound) + shift)..<Frames(min(end, bounds.upperBound) + shift)
-            added[clip.file, default: []].append(Anchor(number: number, range: range, text: unit.text))
+            added[root, default: []].append(Anchor(number: number, range: range, text: unit.text))
         }
         guard !added.isEmpty else { throw .noWordOnTrack(track) }
         // The ID comes before the replace, so a re-import never gives the ID of a transcript that it empties.
@@ -240,23 +252,6 @@ extension Session {
         if transcripts[id]?.words?.isEmpty == true { transcripts[id] = nil }
     }
 
-    /// Copies each anchor of `file` whose midpoint is in `span` to each file of `targets`, at its
-    /// range clamped to `span` plus `shift`, with the same transcript and number.
-    mutating func copyWords(of file: FileID, span: Range<Frames>, shift: Frames, to targets: [FileID]) {
-        for id in transcripts.keys {
-            guard let anchors = transcripts[id]?.words?[file]?.anchors(midpointIn: span) else { continue }
-            let copied = anchors.map { anchor in
-                let range = anchor.range.clamped(to: span)
-                return Anchor(
-                    number: anchor.number, range: (range.lowerBound + shift)..<(range.upperBound + shift),
-                    text: anchor.text)
-            }
-            for target in targets {
-                setWords((transcripts[id]?.words?[target]?.all ?? []) + copied, file: target, transcript: id)
-            }
-        }
-    }
-
     /// The transcripts by ID, with their names.
     public var transcriptNames: [(id: TranscriptID, name: String)] {
         transcripts.values.sorted { $0.id < $1.id }.map { ($0.id, $0.name) }
@@ -269,7 +264,8 @@ extension Session {
 
     /// The ID of a new transcript: one more than the largest ID.
     // shortcut: an undo, or a removeFile that empties the top transcript, lets a later import take
-    // its ID again, because session.xml keeps no counter; add one when the format next changes.
+    // its ID again, because session.xml keeps no counter; add one in the run that changes how a
+    // transcript gets its ID.
     var nextTranscriptID: TranscriptID { TranscriptID((transcripts.keys.map(\.number).max() ?? 0) + 1) }
 
     /// Puts a new transcript in the store: a new ID and a storable name. The reader, the import,
@@ -284,12 +280,14 @@ extension Session {
     /// `checkWords`. The value keeps the file name of its reference, so an open and a save with no
     /// edit keep the file (decision 0055). The words of a file that is not in the pool (a
     /// `removeFile` while the transcript did not load) go, which gives a new file name; a
-    /// transcript with no word left goes.
+    /// transcript with no word left goes. A word of a file with an origin keeps the transcript
+    /// unloaded: the words of a rendered file are on its root (decision 0057 D11).
     mutating func resolveTranscripts(_ words: (Transcript) -> [FileID: Anchors]?) {
         for transcript in transcripts.values where transcript.words == nil {
             guard let found = words(transcript), !found.isEmpty else { continue }
             let kept = found.filter { files[$0.key] != nil }
-            guard (try? checkWords(kept)) != nil else { continue }
+            guard !kept.keys.contains(where: { files[$0]?.origin != nil }), (try? checkWords(kept)) != nil
+            else { continue }
             var loaded = Transcript(id: transcript.id, name: transcript.name, file: transcript.file, words: found)
             loaded.words = kept
             transcripts[transcript.id] = kept.isEmpty ? nil : loaded

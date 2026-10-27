@@ -205,8 +205,8 @@ struct StudioRenderTests {
         await studio.settle()
     }
 
-    /// C1: the new file keeps the capture of the take, so after a prune of the source WAV the take
-    /// is not offered for Place.
+    /// C1: the new file keeps the capture of the take, so the take is not offered for Place. The
+    /// source WAV is the origin of the new file, so a prune keeps it (decision 0057).
     @Test func pruneAfterRenderKeepsTakePlaced() async throws {
         let segment = SegmentName(take: 1, arm: 1, segment: 1)
         let package = try await StudioSplitTests.takePackage(segment)
@@ -214,17 +214,15 @@ struct StudioRenderTests {
         _ = try await first?.renderClips(["c1"], treatment: noise) { _ in }
         await first?.settle()
         first = nil  // The close: the next open takes the lock.
-        // The backup of the save before the render names f1, so the prune keeps f1 until it goes.
+        // The backup of the save before the render names f1: without it, only the origin keeps f1.
         try FileManager.default.removeItem(at: package.url.appending(path: backupsFolderName))
         let studio = try await open(package)
         #expect(unplacedSegments([segment], session: Session(sampleRate: 48_000)) == [segment], "control")
 
         let scan = try await studio.unusedFiles()
-        try #require(scan.items.map(\.path) == ["f1.wav"])
-        let report = try await studio.removeUnusedFiles(scan)
-        defer { for moved in report.moved { try? FileManager.default.removeItem(at: moved.trashURL) } }
 
-        #expect(report.moved.map(\.item.path) == ["f1.wav"] && studio.session.files["f1"] == nil)
+        #expect(scan.items.isEmpty, "the source of the rendered file is in use")
+        #expect(studio.session.files["f1"] != nil && studio.session.files["f1 NR"]?.origin?.source == "f1")
         #expect(studio.unplacedSegments == [], "the take is not offered for Place")
         await studio.settle()
     }

@@ -119,8 +119,8 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F105 | Click repair | Audition, Audacity | Later | R8 |
 | F106 | Health check of a session and its files | SoundCraft | Later | R5 |
 | F107 | Markers during a take | Hindenburg; user 2026-10-14 | done, Release 4 run 21 | R7 |
-| F108 | A drop of files on an empty session makes one track for each file | Logic; user 2026-10-14 | Release 4 | R7 |
-| F109 | A click in an empty lane selects its track | user 2026-10-14 | Release 4 | R7 |
+| F108 | A drop of files on an empty session makes one track for each file | Logic; user 2026-10-14 | done, Release 4 run 22 | R7 |
+| F109 | A click in an empty lane selects its track | user 2026-10-14 | done, Release 4 run 22 | R7 |
 | F110 | Render link: change the amount of a rendered effect later, or restore the original | user 2026-10-14 | Release 4 | R8 |
 | F111 | Transcript cut edges at the word edges | Descript, Hindenburg; user 2026-10-14 | Release 5 | R7 |
 | F112 | Transcription in the app (whisper.cpp) | Hindenburg; user 2026-10-15 | Release 5 | R7 |

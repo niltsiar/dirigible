@@ -55,7 +55,7 @@ package struct ClipRenderOutcome: Sendable {
 /// new stem that it names (tests and `CaptureEnvironment.clipRenderRead`).
 package func renderClips(
     _ groups: [(clips: [ClipID], treatment: Treatment)], of session: Session, in package: URL,
-    freeBytes: () -> Int64, component: AudioComponentDescription = .soundIsolation,
+    freeBytes: () -> Int64, component: (Int) -> AudioComponentDescription = { _ in .soundIsolation },
     readFault: ReadFault? = nil, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
     progress: @escaping (Double) -> Void = { _ in }, isCancelled: @escaping () -> Bool = { false }
 ) throws(ClipRenderError) -> ClipRenderOutcome {
@@ -87,10 +87,17 @@ package func renderClips(
         }
         guard isDownloaded(url) else { throw .notDownloaded(file: source.path) }
     }
-    guard let first = runs.first else { return ClipRenderOutcome(session: session, made: [], clips: []) }
+    guard !runs.isEmpty else { return ClipRenderOutcome(session: session, made: [], clips: []) }
     let rate = Double(session.sampleRate)
-    var loaded: EffectChain? = try EffectChain(
-        first.treatment, scale: 1, rate: rate, channels: first.source.layout.channelCount, component: component)
+    // The first run of each channel count loads its chain here, so a load failure of any layout
+    // throws before the first write.
+    var loaded: [Int: EffectChain] = [:]
+    var counts: Set<Int> = []
+    for (index, (_, source, treatment)) in runs.enumerated() where counts.insert(source.layout.channelCount).inserted {
+        let channels = source.layout.channelCount
+        loaded[index] = try EffectChain(
+            treatment, scale: 1, rate: rate, channels: channels, component: component(channels))
+    }
 
     let frames = runs.map { Int64(($0.run.span.upperBound - $0.run.span.lowerBound).count) }
     let bytes = zip(runs, frames).reduce(Int64(0)) {
@@ -140,10 +147,11 @@ package func renderClips(
         let wav = "\(clipsFolderName)/\(stems[index]).wav"
         func pass(_ scale: Float, progress: (Int) -> Void) throws(ClipRenderError) -> (length: Int, peak: Float) {
             let chain: EffectChain
-            if let ready = loaded.take() {
+            if let ready = loaded.removeValue(forKey: index) {
                 chain = ready
             } else {
-                chain = try EffectChain(treatment, scale: scale, rate: rate, channels: channels, component: component)
+                chain = try EffectChain(
+                    treatment, scale: scale, rate: rate, channels: channels, component: component(channels))
             }
             let writer: ClipWriter
             do throws(FinalizeError) {

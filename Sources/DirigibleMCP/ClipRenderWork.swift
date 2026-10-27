@@ -35,8 +35,8 @@ package struct ClipRenderWork: Sendable {
         isCancelled: @escaping () -> Bool
     ) throws(ClipRenderError) -> [RenderedClip] {
         let outcome = try renderClips(
-            [(clips, treatment)], of: session, in: package, freeBytes: { lock.freeBytes() }, component: component,
-            progress: progress, isCancelled: isCancelled)
+            [(clips, treatment)], of: session, in: package, freeBytes: { lock.freeBytes() },
+            component: { _ in component }, progress: progress, isCancelled: isCancelled)
         if isCancelled() {
             removeMadeFiles(outcome.made)
             throw .cancelled

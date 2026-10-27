@@ -13,7 +13,7 @@
 - Amended: 2026-10-24, run `2026-10-23-read-by-time`. The core ends its edit rule with "Saves keep backups: `backup_list`." The `backup_list` and `backup_revert` texts and `dirigible backup list --help` give the rule of 0043 with the values of `BackupPolicy`.
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). `clip_split_stereo` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it.
 - Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). `clip_denoise` is in the tool list only: no recipe names it, because the core and the whole text have no room. The not-yet line of the core says "Dirigible has no voice profile yet: tell the user."
-- Amended: 2026-10-27, run `2026-10-27-agent-change-only-asked`. The core starts its rules with "Change only what the user asks for. Ask before other changes." The time rule drops the sentence on the `to` frame, which each `to` argument states. The core is 2040 of 2048 characters and the whole text 5974 of 6000 (the Swift `count` of `theCoreFitsTheClientLimit`).
+- Amended: 2026-10-27, run `2026-10-27-agent-change-only-asked`. The core starts its rules with "Change only what the user asks for. Ask before other changes." The time rule drops the sentence on the `to` frame. Each exclusive `to` argument states the rule. `clip_heal` and the `session_info` filter are not exclusive (item 1093). The core is 2040 of 2048 characters and the whole text 5974 of 6000 (the Swift `count` of `theCoreFitsTheClientLimit`).
 
 ## Context
 

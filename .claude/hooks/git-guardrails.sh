@@ -240,7 +240,8 @@ mask_quoted_pipes() {
 #     the name (quotes and a $(...) part are part of the path, and the path stops at `*` and `[`);
 #   - a segment that does not name <name>: `cd <one word>` with no redirect; one plain NAME=word
 #     (word of letters, digits, and _./:@%+,=-) whose NAME is none of PATH, IFS, ENV, BASH_ENV,
-#     CDPATH, SHELLOPTS, HOME, PAGER, RIPGREP_CONFIG_PATH, or a GIT_, LD_, or DYLD_ name, because
+#     CDPATH, SHELLOPTS, HOME, PAGER, RIPGREP_CONFIG_PATH, or a GIT_, LD_, or DYLD_ name, in any
+#     case (the zsh arrays path and cdpath set PATH and CDPATH), because
 #     such a name makes a read tool run another program; or a first word cat, ls, echo, test, [,
 #     wc, grep, head, tail, or cut, with no < or > except 2>/dev/null and 2>&1.
 # A substitution other than $(git rev-parse ...), $(cat ...), and $(ls ...), a backtick, <(, and >(
@@ -248,12 +249,12 @@ mask_quoted_pipes() {
 # into xargs. A path that starts with ../ or / and has no .git in it is a folder of that name (a
 # worktree), not the file. The read tools awk, sed, rg, sort, and git grep can run a program.
 reads_only() {
-  local name="$1" line first second token named any=0 i rest sep=$'\002' bar=$'\003'
+  local name="$1" line first second token named any=0 i rest assigned sep=$'\002' bar=$'\003'
   local redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
   local value="[\"']?(\\\$\\(git rev-parse [^()\`<>&;|]*\\))?[^][:space:]()\`\$<>&;|\"']*$1[^][:space:]()\`\$<>&;|\"']*[\"']?"
   local cd_form='^cd[[:space:]]+[^[:space:]<>]+$'
   local plain_assign='^([A-Za-z_][A-Za-z0-9_]*)=[A-Za-z0-9_./:@%+,=-]*$'
-  local program_names='^(PATH|IFS|ENV|BASH_ENV|CDPATH|SHELLOPTS|HOME|PAGER|RIPGREP_CONFIG_PATH|GIT_.*|LD_.*|DYLD_.*)$'
+  local program_names='^(path|ifs|env|bash_env|cdpath|shellopts|home|pager|ripgrep_config_path|git_.*|ld_.*|dyld_.*)$'
   local -a segs=() kinds=()
   while IFS= read -r line; do
     line="${line//$sep/&}"
@@ -295,7 +296,8 @@ reads_only() {
       if [[ "$line" =~ $cd_form ]]; then
         continue
       elif [[ "$line" =~ $plain_assign ]]; then
-        [[ "${BASH_REMATCH[1]}" =~ $program_names ]] && return 1
+        assigned="$(tr '[:upper:]' '[:lower:]' <<< "${BASH_REMATCH[1]}")"
+        [[ "$assigned" =~ $program_names ]] && return 1
         continue
       fi
       case "$first" in
@@ -348,16 +350,49 @@ if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$chained_data"; then
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 
-# A subagent never runs the unlimited lock wait: after a second exit 75 it returns to the lead,
+# A subagent never runs a lock wait with no limit: after a second exit 75 it returns to the lead,
 # which runs the wait in the background (AGENTS.md, Commands). The input of a subagent holds
-# agent_id; the input of the lead does not. The rule matches WITH_LOCK_MAX_WAIT set to zeros at a
-# command start, as the rule above does, and after export.
+# agent_id; the input of the lead does not. The wait has no limit with WITH_LOCK_MAX_WAIT set to
+# zeros, with a with-lock.sh call of land.sh, make dmg, or make check-changed with BASE (a word,
+# or a BASE= word before it), and with mutation-pass.sh (it wraps itself). Each segment of the
+# chain is read from its start, after the prefix words (NAME=value, export, env, time, bash,
+# with-lock.sh, sh -c or bash -c with its quote), so text in a quote of rg or echo is data. A
+# bench and a flake loop pass: a slice runs a bench in the foreground.
 agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
 if [[ -n "$agent" ]]; then
-  agent_start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh )*"
+  agent_way="After a second exit 75, return to the lead: the lead runs the unlimited wait in the background."
+  shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
+  agent_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |$shell_c|bash |[^[:space:]]*with-lock\.sh )*"
+  agent_start="(^|[;|&(]|"$'\n'") ?$agent_pre"
   if [[ "$chained_data" =~ ${agent_start}WITH_LOCK_MAX_WAIT=[\"\']?0+[\"\']?([^0-9A-Za-z_.\"\'-]|$) ]]; then
-    block "sets WITH_LOCK_MAX_WAIT=0 in a subagent" "After a second exit 75, return to the lead: the lead runs the unlimited wait in the background."
+    block "sets WITH_LOCK_MAX_WAIT=0 in a subagent" "$agent_way"
   fi
+  base_env=""
+  while IFS= read -r segment; do
+    [[ "$segment" =~ ^[[:space:]]?($agent_pre)(.*)$ ]] || continue
+    prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+    [[ "$prefix" =~ (^|[[:space:]])BASE=[^[:space:]] ]] && base_env=1
+    read -ra words <<< "$rest"
+    [[ ${#words[@]} -gt 0 ]] || continue
+    [[ "${words[0]}" == BASE=?* ]] && base_env=1
+    wait_goal="" wait_base="$base_env"
+    case "${words[0]##*/}" in
+      mutation-pass.sh) wait_goal=1 ;;
+      land.sh) [[ "$prefix" == *with-lock.sh* ]] && wait_goal=1 ;;
+      make)
+        [[ "$prefix" == *with-lock.sh* ]] || continue
+        for goal in "${words[@]:1}"; do
+          goal="${goal//[\)\"\'\`]/}"
+          case "$goal" in dmg) wait_goal=1 ;; check-changed) has_check=1 ;; BASE=?*) wait_base=1 ;; esac
+        done
+        [[ -n "${has_check:-}" && -n "$wait_base" ]] && wait_goal=1
+        has_check=""
+        ;;
+    esac
+    if [[ -n "$wait_goal" ]]; then
+      block "runs a with-lock.sh call with no wait limit in a subagent (a land, a push check, make dmg, or a mutation pass)" "$agent_way"
+    fi
+  done < <(awk '{ gsub(/&&|\|\||[;&|(`]/, "\n"); print }' <<< "$chained_data")
 fi
 
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or

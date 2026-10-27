@@ -125,6 +125,13 @@ final class EmptyDropView: NSView {
         super.viewDidChangeEffectiveAppearance()
         palette = LanePalette.pick(for: effectiveAppearance)
     }
+
+    /// A view of an app in Dark Mode is dark before it enters its window, so the move gives no
+    /// appearance change (probe Q6).
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        palette = LanePalette.pick(for: effectiveAppearance)
+    }
 }
 
 /// The empty content of a session, with the file drop of `EmptyDropView` around it.

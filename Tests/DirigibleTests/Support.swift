@@ -128,6 +128,14 @@ func cgKey(_ code: UInt16, _ flags: CGEventFlags = []) throws -> NSEvent {
         charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
 }
 
+/// Command-Return, or Shift-Command-Return, as a key-down, also the repeat of a held key.
+@MainActor func returnKey(in window: NSWindow, shift: Bool = false, repeats: Bool = false) -> NSEvent {
+    NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: shift ? [.command, .shift] : .command, timestamp: 0,
+        windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r",
+        isARepeat: repeats, keyCode: 36)!
+}
+
 /// A real session window of `package` with its lanes, as the key window of `app`.
 @MainActor func openLanes(_ app: AppDelegate, _ package: URL) async throws
     -> (SessionWindow, Studio, NSWindow, TimelineScrollView)

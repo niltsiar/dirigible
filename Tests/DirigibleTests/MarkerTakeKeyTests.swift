@@ -48,14 +48,6 @@ import Testing
         await model.close()
     }
 
-    /// Command-Return, or Shift-Command-Return, as a key-down, also the repeat of a held key.
-    func returnKey(in window: NSWindow, shift: Bool = false, repeats: Bool = false) -> NSEvent {
-        NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: shift ? [.command, .shift] : .command, timestamp: 0,
-            windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r",
-            isARepeat: repeats, keyCode: 36)!
-    }
-
     /// C9a: the lanes have the focus. Control: the marker is at the record head, not at the playhead.
     @Test func theKeyMarksTheTakeFromTheLanes() async throws {
         let (model, studio, window, view) = try await recording()

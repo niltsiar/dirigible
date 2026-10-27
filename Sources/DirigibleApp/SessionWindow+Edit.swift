@@ -183,11 +183,15 @@ extension SessionWindow {
     }
 
     /// Adds a marker or a chapter at the record head of the take (F107) and makes it the current
-    /// marker. A `.busy` throw does nothing, with no beep and no alert; another error shows its alert.
+    /// marker. The ruler lights the new flag, and VoiceOver says its name at low priority. A `.busy`
+    /// throw does nothing, with no beep and no alert; another error shows its alert.
     private func addTakeMarker(_ kind: Marker.Kind, _ studio: Studio) {
         let name = newMarkerName(kind, in: studio.session)
         do throws(StudioError) {
-            timeline.marker = try studio.addMarkerAtRecordHead(kind, name: name.key.format(name.number)).id
+            let marker = try studio.addMarkerAtRecordHead(kind, name: name.key.format(name.number))
+            timeline.marker = marker.id
+            timelineView?.ruler.highlight(marker.id)
+            chrome?.announce(marker.name, .low)
         } catch .busy {
             return
         } catch {

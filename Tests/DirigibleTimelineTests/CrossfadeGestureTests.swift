@@ -21,7 +21,7 @@ struct CrossfadeGestureTests {
     func context(canEdit: Bool = true) -> GestureContext {
         GestureContext(
             session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
-            canRipple: true)
+            canRipple: true, snaps: false)
     }
 
     mutating func down(_ x: Double, clicks: Int = 1, shift: Bool = false) {

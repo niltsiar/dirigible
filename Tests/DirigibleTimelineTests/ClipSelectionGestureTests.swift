@@ -66,7 +66,7 @@ struct ClipSelectionGestureTests {
         g.selection = GroupGesture.clips(["A", "D"])
         let context = GestureContext(
             session: g.session, selection: g.selection, playhead: 24_000, geometry: Fixture.geometry, canEdit: true,
-            canRipple: true)
+            canRipple: true, snaps: false)
         _ = g.gesture.handle(.down(.lanes(x: 600, y: 90), shift: true, command: false), context)
 
         let effects = g.gesture.handle(.up(.lanes(x: 600, y: 90)), context)

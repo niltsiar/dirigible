@@ -21,11 +21,9 @@ struct RulerGestureTests {
     }
 
     func context(_ session: Session? = nil, canEdit: Bool = true) -> GestureContext {
-        var context = GestureContext(
+        GestureContext(
             session: session ?? self.session, selection: selection, playhead: playhead, geometry: Fixture.geometry,
-            canEdit: canEdit, canRipple: true)
-        context.snaps = snaps
-        return context
+            canEdit: canEdit, canRipple: true, snaps: snaps)
     }
 
     mutating func down(_ x: Double, _ y: Double) -> [GestureEffect] {

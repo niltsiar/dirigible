@@ -36,9 +36,8 @@ extension TimelineScrollView {
         var context = GestureContext(
             session: inputs.session, selection: model.timeline.selection, playhead: studio.playhead, geometry: geometry,
             canEdit: model.canEdit,
-            canRipple: studio.canRipple)
+            canRipple: studio.canRipple, snaps: model.snaps && !lanes.commandHeld)
         context.columnsPerPoint = Double(window?.backingScaleFactor ?? 2)
-        context.snaps = model.snaps && !lanes.commandHeld
         return context
     }
 }

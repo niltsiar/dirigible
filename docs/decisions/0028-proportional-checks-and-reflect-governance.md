@@ -24,6 +24,7 @@
 - Amended: 2026-10-25 (run `2026-10-24-slowness-batch`, wiki item 0112 (9d) and (10)). Rule 7 has no one-removal cap in a cut run, and each removal row of a cut run names its defect class and the check that still finds it.
 - Amended: 2026-10-25 (run `2026-10-25-upkeep-third`, lesson DLV-120/scope). The lead rules on each warning. The agent that applies the fixes reads the code, then writes each fix and each lead ruling under its item in the last `review-<gate>-<n>.md`; the fix check covers each fix. The line of 2026-10-15 above stays as the record.
 - Amended: 2026-10-26 (run `2026-10-25-upkeep-third`, wiki item 0065). The mutation pass trial is closed with the cap kept: the pass runs the mutants of the 2026-10-13 line, and `mutation-controls.md` has no `## Measure` section.
+- Amended: 2026-10-27 (run `2026-10-27-tstack-workflow`, wiki item 1039). `scripts/check-changed.sh --overlap <base>` is a mode that reads no change class. It names the `Sources/` and `Tests/` files that the branch shares with the commits of `<base>`, with each other worktree, and with each open PR. It is information only, and exit 0 in each case.
 - Supersedes: the check rule of `AGENTS.md` ("Run it before every commit" in the `make check` row, and "One commit is one logical change that builds and passes `make check`" in Git). The new text of `AGENTS.md` comes in a later commit of the same run. Until then, this record and the plan of that run apply.
 
 ## Context

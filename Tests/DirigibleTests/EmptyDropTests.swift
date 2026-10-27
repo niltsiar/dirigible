@@ -2,6 +2,7 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -280,6 +281,28 @@ import Testing
         #expect(host.performDragOperation(drop))
         #expect(host.cue.isHidden, "a drop hides the cue")
         await until("the import ends") { model.importJob == nil }
+        await model.close()
+    }
+
+    /// An app in Dark Mode makes the host dark before it enters its dark window, so the move
+    /// gives no appearance change. The cue still has the dark palette at its first draw. The test
+    /// window is dark before the host exists; the app is dark when the Mac is in Dark Mode.
+    @Test func aHostThatEntersADarkWindowHasTheDarkCue() async throws {
+        let (model, _, _) = try await openEmpty()
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.borderless], backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .darkAqua)
+        let host = EmptyDropView(model: model, content: Text("empty"))
+        let app = NSApp.effectiveAppearance.name.rawValue
+
+        window.contentView?.addSubview(host)
+
+        try #require(host.effectiveAppearance.name == .darkAqua, "the host is dark in the window")
+        #expect(
+            host.cueLabel.foregroundColor == cgColor(LanePalette.dark(accent: 0).label), "the dark label, app \(app)")
+        window.close()
         await model.close()
     }
 }

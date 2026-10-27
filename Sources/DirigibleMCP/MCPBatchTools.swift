@@ -8,7 +8,10 @@ let batchTools = [
     Tool(
         "batch",
         "Apply \(BatchWork.limit.lowerBound) to \(BatchWork.limit.upperBound) edit calls, in order, as one edit: one undo step in the app, and one save on a closed "
-            + "package. If a call fails, the batch changes nothing. A call is a step when its tool edits session.xml "
+            + "package. If a call fails, the batch changes nothing. Each call sees the session after the earlier "
+            + "calls: a ripple moves the later frames, and the right part of a cut clip gets a new ID. Send ripple "
+            + "cuts from the last to the first, or use one call with many ranges. A call is a step when its tool "
+            + "edits session.xml "
             + "only: the track, marker, episode, clip, ripple, and transcript_cut tools, file_remove, and "
             + "capture_remove, with no file argument (a source, an image, or an artwork). A call to any other tool "
             + "is refused. To name a new object in a later step, the earlier step gives its ID: track_add id, "

@@ -157,6 +157,23 @@ struct EffectRenderFileTests {
         #expect(try #require(outcome.session.clip("h")?.clip).gain.dB > 0, "the hot run renders a second pass")
     }
 
+    /// A render reports progress only when the fraction rises by 0.1 % or more, and 1 at the end,
+    /// so a long render makes 1,000 calls or fewer, not one for each pull of 4096 frames: 104 s of
+    /// audio is 1,221 pulls.
+    @Test func progressCallsStayBounded() throws {
+        let fixture = try RenderFixture()
+        try fixture.add(
+            "long", [seededNoise(frames: 5_000_000, level: 0.01, seed: 17)], track: "t1",
+            clips: [("l", 0, 5_000_000)])
+        var fractions: [Double] = []
+
+        _ = try fixture.render(["l"], progress: { fractions.append($0) })
+
+        #expect(fractions.count <= 1000 && fractions.last == 1, "\(fractions.count) calls")
+        #expect(fractions.count > 500, "the bar still moves: \(fractions.count) calls")
+        #expect(zip(fractions.dropFirst(), fractions).dropLast().allSatisfy { $0 - $1 >= 0.001 })
+    }
+
     /// C2b: a second pass that still peaks at a 24-bit end code, as from a unit that renders louder
     /// the second time, throws, and no file stays. The probe gate1-a4-a7 found two instances equal.
     @Test func secondPassOverFullScaleFails() throws {

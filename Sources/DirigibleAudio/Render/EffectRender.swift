@@ -53,7 +53,7 @@ package struct ClipRenderOutcome: Sendable {
 /// no audio and writes no file, and a throw before the renames leaves no new file. A fault in the
 /// renames keeps the renamed WAVs as unused files (0040), and a cancel after them removes them
 /// (`removeMadeFiles`). `isCancelled` is read before each run, each block, and the renames, and
-/// after them. `progress` rises with the frames written, holds during a second pass, and gives 1
+/// after them. `progress` rises by 0.1 % or more at each step, holds during a second pass, and gives 1
 /// only after the read-back of the last run. `readFault` runs at the block reads of the run of the
 /// new stem that it names (tests and `CaptureEnvironment.clipRenderRead`).
 /// `secondPassGain` multiplies the scale of a second pass (tests only: a unit that renders louder
@@ -135,6 +135,7 @@ package func renderClips(
 
     let total = Double(frames.reduce(0, +))
     var done: Int64 = 0
+    var reported = 0.0
     var gains: [ClipID: Gain] = [:]
     for (index, (run, source, treatment)) in runs.enumerated() {
         guard !isCancelled() else { throw .cancelled }
@@ -172,7 +173,10 @@ package func renderClips(
         let base = Double(done)
         var result = try pass(1) { written in
             let fraction = (base + Double(written)) / total
-            if fraction < 1 { progress(fraction) }
+            // A rise of less than 0.1 % is not reported: each call can make a main-actor task.
+            guard fraction < 1, fraction - reported >= 0.001 else { return }
+            reported = fraction
+            progress(fraction)
         }
         if let scale = fullScaleRepair(result.peak) {
             result = try pass(scale * secondPassGain) { _ in }

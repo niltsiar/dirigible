@@ -298,11 +298,12 @@ struct EffectRenderTests {
     }
 
     /// C4: at 12 dB, noise with no voice goes down 11 to 13 dB, and a voice keeps its level within
-    /// 1 dB.
-    @Test func twelveDecibelsOfReduction() throws {
-        let fixture = try RenderFixture()
-        let noise = seededNoise(frames: 480_000, level: 0.0562, seed: 8)
-        let voice = try spokenVoice(rate: 48_000, peak: 0.5, in: fixture.package.folder.url)
+    /// 1 dB, at 48 and 44.1 kHz.
+    @Test(arguments: [48_000, 44_100])
+    func twelveDecibelsOfReduction(rate: Int) throws {
+        let fixture = try RenderFixture(rate: rate)
+        let noise = seededNoise(frames: 10 * rate, level: 0.0562, seed: 8)
+        let voice = try spokenVoice(rate: rate, peak: 0.5, in: fixture.package.folder.url)
         try fixture.add("noise", [noise], track: "t1", clips: [("n", 0, noise.count)])
         try fixture.add("voice", [voice], track: "t2", clips: [("v", 0, voice.count)])
 
@@ -310,18 +311,19 @@ struct EffectRenderTests {
 
         let noiseOut = try fixture.samples(try #require(outcome.session.clip("n")?.clip.file), in: outcome.session)
         let voiceOut = try fixture.samples(try #require(outcome.session.clip("v")?.clip.file), in: outcome.session)
-        let cut = rmsDecibels(noise, from: 48_000) - rmsDecibels(noiseOut, from: 48_000)
+        let cut = rmsDecibels(noise, from: rate) - rmsDecibels(noiseOut, from: rate)
         let change = rmsDecibels(voiceOut) - rmsDecibels(voice)
         #expect(cut >= 11 && cut <= 13, "noise cut \(cut) dB; fail value 6.0")
         #expect(abs(change) <= 1, "voice change \(change) dB; fail value 2.0")
     }
 
     /// C5: stereo is joint: equal channels stay equal after the first unit latency, and a silent
-    /// channel stays silent. The unit itself makes up to 0.0212 of L-R in its first render call,
-    /// inside the latency; a pull of 8192 frames gives 0.23 past it.
-    @Test func stereoStaysJoint() throws {
-        let fixture = try RenderFixture()
-        let noisy = try spokenVoice(rate: 48_000, peak: 0.4, in: fixture.package.folder.url)
+    /// channel stays silent. The unit itself makes up to 0.0212 (48 kHz) and 0.0414 (44.1 kHz) of
+    /// L-R in its first render call, inside the latency; a pull of 8192 frames gives 0.23 past it.
+    @Test(arguments: [48_000, 44_100])
+    func stereoStaysJoint(rate: Int) throws {
+        let fixture = try RenderFixture(rate: rate)
+        let noisy = try spokenVoice(rate: rate, peak: 0.4, in: fixture.package.folder.url)
             .enumerated().map { $1 + 0.02 * Float(sin(Double($0) * 0.37)) }
         try fixture.add("equal", [noisy, noisy], track: "t1", clips: [("e", 0, noisy.count)])
         try fixture.add(
@@ -333,10 +335,12 @@ struct EffectRenderTests {
         let silent = try fixture.samples(try #require(outcome.session.clip("s")?.clip.file), in: outcome.session)
         let gaps: [Float] = stride(from: 0, to: equal.count, by: 2).map { abs(equal[$0] - equal[$0 + 1]) }
         let right = stride(from: 1, to: silent.count, by: 2).map { abs(silent[$0]) }.max() ?? 1
-        let latency = 3665
+        let latency = try EffectChain(
+            wetDryMixPercent: 0, scale: 1, rate: Double(rate), channels: 2, component: .soundIsolation
+        ).latency
         let worst = gaps.indices.max { gaps[$0] < gaps[$1] } ?? 0
         #expect((gaps[latency...].max() ?? 1) <= 1e-6, "worst frame \(worst) of \(gaps.count)")
-        #expect((gaps[..<latency].max() ?? 1) <= 0.03, "worst frame \(worst); fail value 0.23")
+        #expect((gaps[..<latency].max() ?? 1) <= 0.05, "worst frame \(worst); fail value 0.23")
         #expect(right <= 1e-6)
         #expect(rmsDecibels(equal) > -40, "the render keeps the voice")
     }

@@ -285,8 +285,9 @@ import Testing
     }
 
     /// An app in Dark Mode makes the host dark before it enters its dark window, so the move
-    /// gives no appearance change. The cue still has the dark palette at its first draw. The test
-    /// window is dark before the host exists; the app is dark when the Mac is in Dark Mode.
+    /// gives no appearance change. The cue still has the dark palette at its first draw. The host
+    /// has its own dark appearance and the light palette, as before any pick (`LaneAppearanceTests`),
+    /// so the test does not depend on the appearance of the Mac.
     @Test func aHostThatEntersADarkWindowHasTheDarkCue() async throws {
         let (model, _, _) = try await openEmpty()
         let window = NSWindow(
@@ -295,7 +296,12 @@ import Testing
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .darkAqua)
         let host = EmptyDropView(model: model, content: Text("empty"))
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.palette = .light
         let app = NSApp.effectiveAppearance.name.rawValue
+        try #require(host.effectiveAppearance.name == .darkAqua, "the host is dark before the window")
+        try #require(
+            host.cueLabel.foregroundColor == cgColor(LanePalette.light.label), "the light label before the move")
 
         window.contentView?.addSubview(host)
 

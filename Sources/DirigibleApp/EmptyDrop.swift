@@ -16,7 +16,7 @@ final class EmptyDropView: NSView {
     let cueLabel = CATextLayer()
     /// The lines of the cue are 2 pt, else 1 pt.
     var increasesContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-    private var palette = LanePalette.light {
+    var palette = LanePalette.light {
         didSet { setColors() }
     }
 

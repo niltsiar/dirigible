@@ -217,6 +217,24 @@ struct EffectRenderTests {
         #expect(start.offset == .zero)
     }
 
+    /// C4 at the ends of the range: 6 dB and 30 dB cut noise with no voice by the amount within
+    /// 1 dB. The raw unit gives 6.00 and 30.00 (probe gate1-a4-a7).
+    @Test(arguments: [6, 30])
+    func reductionAtTheEndsOfTheRange(decibels: Int) throws {
+        let fixture = try RenderFixture()
+        let noise = seededNoise(frames: 480_000, level: 0.0562, seed: 8)
+        try fixture.add("noise", [noise], track: "t1", clips: [("n", 0, noise.count)])
+        let amount = try #require(NoiseReduction(decibels: decibels))
+
+        let outcome = try renderClips(
+            [(["n"], Treatment(.noise(amount)))], of: fixture.package.session, in: fixture.package.url,
+            freeBytes: { .max }, isDownloaded: { _ in true })
+
+        let out = try fixture.samples(try #require(outcome.session.clip("n")?.clip.file), in: outcome.session)
+        let cut = rmsDecibels(noise, from: 48_000) - rmsDecibels(out, from: 48_000)
+        #expect(abs(cut - Double(decibels)) <= 1, "noise cut \(cut) dB at \(decibels) dB")
+    }
+
     /// C2: two clips 5 s apart share one file; 60 s apart they get two, `f1 NR` and `f1 NR 2`.
     @Test func nearClipsShareAFile() throws {
         let fixture = try RenderFixture()

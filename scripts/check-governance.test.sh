@@ -4,7 +4,7 @@
 # TOTAL change that is not near the sum of the workflow docs, more always-on words (AGENTS.md, CLAUDE.md,
 # the files they import, the descriptions of the skills and agents) than the merge base, more skills plus
 # agents than the merge base, more than one rules.tsv removal in a docs-only branch of a run with a
-# reflect row (in a cut run, a removal row with no class: or found by: instead), a run folder that check-plan.sh refuses (an open Unknowns row), a run research
+# reflect row (in a cut run, a removal row with no class: or found by: instead), a rules.tsv row that changes to delete with a reason that does not start with stale: or no-op:, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run with status next in the wiki after the reflect row (phase 8), a features.md row
 # of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
@@ -75,7 +75,8 @@ new_repo() {
 }
 commit() { g add -A && g commit -q -m change; }
 row() { printf 'path\twords\tdecision\na.md\t%s\t%s\nb.md\t100\tbaseline\nTOTAL\t%s\tbaseline\n' "$1" "$2" "$sum0" > "$budgets"; }
-verdicts() { printf '%s\nA-1\ta.md\t%s\ta.md\tr\ts\t\tx\nA-2\ta.md\t%s\tA-1\tr\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "$1" "$2" > "$rules"; }
+why() { if [[ "$1" == delete ]]; then echo 'stale: r'; else echo r; fi; }
+verdicts() { printf '%s\nA-1\ta.md\t%s\ta.md\t%s\ts\t\tx\nA-2\ta.md\t%s\tA-1\t%s\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "$1" "$(why "$1")" "$2" "$(why "$2")" > "$rules"; }
 
 # pass <name> [args]: exit 0. refuse <name> <reason> [args]: a nonzero exit and the reason.
 pass() {
@@ -212,21 +213,45 @@ printf '%s %s failed fast:SomeTest slow:\n' "$(g rev-parse HEAD)" "$(g rev-parse
 refusal="$(cd "$tmp/r" && "$(dirname "$script")/check-changed.sh" main 2>&1 >/dev/null)" && fail 'a refused rerun: check-changed.sh did not refuse'
 [[ "$refusal" == *'fix the test first'* ]] || fail "a refused rerun: not the rerun refusal: $refusal"
 pass 'a rerun that check-changed.sh refuses' "$tmp/run"
-three() { printf '%s\nA-1\ta.md\tdelete\t\tr\ts\t\tx\nA-2\ta.md\tmerge\tA-1\tr\ts\t\tx\nA-3\ta.md\tdelete\t\tr\ts\t\tx\n' "$head_rules" > "$rules"; }
+three() { printf '%s\nA-1\ta.md\tdelete\t\tstale: r\ts\t\tx\nA-2\ta.md\tmerge\tA-1\tr\ts\t\tx\nA-3\ta.md\tdelete\t\tstale: r\ts\t\tx\n' "$head_rules" > "$rules"; }
 new_repo; reflect_row; three; commit
 refuse 'three removals with no user decision row' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
 # A cut run (`- Cut run: <item id>` in run.md) has no one-removal cap; each removal row needs class: and found by:.
-fields='class: a rule that no check needed; found by: check-x'
+fields='stale: x; class: a rule that no check needed; found by: check-x'
 three_cut() { printf '%s\nA-1\ta.md\tdelete\t\t%s\ts\t\tx\nA-2\ta.md\tmerge\tA-1\t%s\ts\t\tx\nA-3\ta.md\tdelete\t\t%s\ts\t\tx\n' "$head_rules" "$1" "$1" "${2:-$1}" > "$rules"; }
 cut_run() { printf -- '- Status: open\n- Cut run: 1234\n' > "$tmp/run/run.md"; }
 new_repo; reflect_row; cut_run; three_cut "$fields"; commit
 pass 'three removals with fields in a cut run' "$tmp/run"
-new_repo; reflect_row; cut_run; three_cut "$fields" 'class: a rule that no check needed'; commit
-refuse 'a removal with no found by in a cut run' 'A-3' "$tmp/run"
-new_repo; reflect_row; cut_run; three_cut "$fields" 'found by: check-x'; commit
-refuse 'a removal with no class in a cut run' 'A-3' "$tmp/run"
+new_repo; reflect_row; cut_run; three_cut "$fields" 'stale: x; class: a rule that no check needed'; commit
+refuse 'a removal with no found by in a cut run' 'A-3 changes to delete or merge in a cut run' "$tmp/run"
+new_repo; reflect_row; cut_run; three_cut "$fields" 'stale: x; found by: check-x'; commit
+refuse 'a removal with no class in a cut run' 'A-3 changes to delete or merge in a cut run' "$tmp/run"
 new_repo; reflect_row; printf -- '- Status: open\n' > "$tmp/run/run.md"; three_cut "$fields"; commit
 refuse 'three removals with fields and no cut run line' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
+
+# A row that changes to delete has a reason that starts with stale: or no-op: and gives the evidence
+# (reflect rule 7), on any branch. A merge row and a row that was delete at the base are free.
+row1() { printf '%s\nA-1\ta.md\t%s\ta.md\t%s\ts\t\tx\nA-2\ta.md\tkeep\ta.md\tr\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "$1" "$2" > "$rules"; }
+bad='A-1 changes to delete; its reason must start with stale: or no-op:'
+new_repo; reflect_row; row1 delete 'no eval scenario names it'; commit
+refuse 'a delete with a reason that names no cause' "$bad" "$tmp/run"
+new_repo; row1 delete 'no eval scenario names it'; commit
+refuse 'a delete with no run folder' "$bad"
+new_repo; reflect_row; mkdir -p "$tmp/r/scripts"; echo x > "$tmp/r/scripts/x.sh"; row1 delete unused; commit
+refuse 'a delete in a docs tooling branch with the reason unused' "$bad" "$tmp/run"
+new_repo; row1 delete 'stale:'; commit
+refuse 'a delete with an empty stale reason' "$bad"
+new_repo; row1 delete 'no-op:   '; commit
+refuse 'a delete with an empty no-op reason' "$bad"
+new_repo; reflect_row; row1 delete 'stale: step 3 no longer exists'; commit
+pass 'a delete with a stale reason' "$tmp/run"
+new_repo; row1 delete 'no-op: the model does this by default'; commit
+pass 'a delete with a no-op reason'
+new_repo; row1 merge 'duplicate of A-2'; commit
+pass 'a merge with any reason'
+new_repo; g switch -q main; row1 delete 'old reason'; g commit -qam 'delete at base'; g switch -q -C feat/x
+row1 delete 'another reason'; commit
+pass 'a row that is delete at the merge base with another reason'
 
 # The plan check of the run folder (check-plan.sh) runs with the other checks.
 new_repo

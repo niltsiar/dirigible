@@ -13,6 +13,9 @@
 #   branch is docs, at most one rules.tsv row changes to delete or merge (reflect rule 7). A run.md
 #   with a `- Cut run: <item id>` line has no cap: each such row then needs `class:` and `found by:`
 #   in its reason.
+# - On every branch, the reason of a rules.tsv row that changes to delete starts with `stale:` or
+#   `no-op:` and has text after it (reflect rule 7). A merge row and a row that was delete at the
+#   base are free.
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes,
 #   or that a commit of the base changed on or after the run start date (the YYYY-MM-DD prefix of
@@ -178,6 +181,18 @@ if [[ -f "$rules" ]] && reflected; then
             fail=1
         fi
     fi
+fi
+# A row that changes to delete against the base has a reason that starts with stale: or no-op: and
+# gives the evidence (reflect rule 7), on every branch.
+if [[ -f "$rules" ]]; then
+    while IFS=$'\t' read -r id reason; do
+        [[ -n "$id" ]] || continue
+        [[ "$reason" =~ ^(stale|no-op):[[:space:]]*[^[:space:]] ]] && continue
+        echo "check-governance: rules.tsv: $id changes to delete; its reason must start with stale: or no-op: and give the evidence (reflect rule 7)" >&2
+        fail=1
+    done < <(at_base "$rules" | awk -F'\t' '
+        NR == FNR { if (FNR > 1) old[$1] = $3; next }
+        FNR > 1 && $3 == "delete" && old[$1] != "delete" { print $1 "\t" $5 }' - "$rules")
 fi
 if [[ -n "$run" ]]; then
     # since is the run start date, the YYYY-MM-DD prefix of the run folder name, or empty.

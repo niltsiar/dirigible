@@ -62,6 +62,10 @@ package struct EpisodeWork: Sendable {
         if artwork == "" { episode.artwork = nil }
         return episode
     }
+
+    /// Sets the episode of this edit in `session`, with no image file read. The live path and a
+    /// batch step run it in `Studio.edit`.
+    package func edit(_ session: inout Session) { session.setEpisode(episode(from: session.episode)) }
 }
 
 /// The JSON of an episode: the argument names of `episode_set`, and only the set fields.

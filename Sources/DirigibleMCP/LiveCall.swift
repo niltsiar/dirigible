@@ -2,10 +2,11 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// The two refusals of a live batch: a `StudioError` of the core has no index, a failed call has.
-private enum LiveBatchError: Error {
+/// The two refusals of a live edit whose body has its own error: a `StudioError` of the core,
+/// and the error of the body.
+private enum LiveEditError<Body: Error>: Error {
     case studio(StudioError)
-    case batch(BatchWork.Failure)
+    case body(Body)
 }
 
 /// Runs one agent call on the studio of an open window (decision 0046 Live tools). An edit is one
@@ -24,6 +25,25 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         try refuseBusy()
         return try studio.edit(ripple: ripple, agent: call.agent, body)
     }
+    /// A live edit whose body has its own error: a studio refusal throws, and a body error comes
+    /// back as `.failure`, so the case gives its own text.
+    func edit<Value, Body: Error>(_ body: (inout Session) throws(Body) -> Value) throws(StudioError)
+        -> Swift.Result<Value, Body>
+    {
+        try refuseBusy()
+        do throws(LiveEditError<Body>) {
+            return .success(
+                try studio.edit(agent: call.agent, refused: LiveEditError.studio) {
+                    session throws(LiveEditError<Body>) in
+                    do throws(Body) { return try body(&session) } catch { throw .body(error) }
+                })
+        } catch {
+            switch error {
+            case .studio(let error): throw error
+            case .body(let error): return .failure(error)
+            }
+        }
+    }
     do throws(StudioError) {
         switch call.work {
         case .edit(let ripple, let body):
@@ -40,15 +60,14 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             return .result(text: lines.joined(separator: "\n"), isError: false)
         case .marker(let work):
             if let image = work.image, !image.isEmpty { return refusedOpen }
-            let marker: Marker
-            do throws(MarkerEditError) { marker = try work.marker(from: studio.session.markers[work.id]) } catch {
-                return .result(text: error.message, isError: true)
+            let set = try edit { session throws(MarkerEditError) in try work.edit(&session) }
+            switch set {
+            case .success(let id): return .result(text: id.rawValue, isError: false)
+            case .failure(let error): return .result(text: error.message, isError: true)
             }
-            try edit(ripple: false) { session throws(SessionError) in try session.setMarker(marker) }
-            return .result(text: marker.id.rawValue, isError: false)
         case .episode(let work):
             if let artwork = work.artwork, !artwork.isEmpty { return refusedOpen }
-            try edit(ripple: false) { session in session.setEpisode(work.episode(from: session.episode)) }
+            try edit(ripple: false) { session in work.edit(&session) }
             return .result(text: "OK", isError: false)
         case .info(let tracks, let range, let compact):
             do throws(ToolError) {
@@ -79,25 +98,16 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
         case .batch(let work):
-            try refuseBusy()
             let revision = studio.sessionRevision
             let results: [[String]]
-            do throws(LiveBatchError) {
-                results = try studio.edit(agent: call.agent, refused: LiveBatchError.studio) {
-                    session throws(LiveBatchError) in
-                    do throws(BatchWork.Failure) {
-                        return try work.run(&session, canRipple: { studio.canRipple($0) })
-                    } catch {
-                        throw .batch(error)
-                    }
-                }
-            } catch {
-                switch error {
-                case .studio(let error): throw error
-                case .batch(let failure):
-                    let split = StudioError.rippleBlocked.message(package: path)
-                    return .result(text: failure.message(rippleBlocked: split), isError: true)
-                }
+            let ran = try edit { session throws(BatchWork.Failure) in
+                try work.run(&session, canRipple: { studio.canRipple($0) })
+            }
+            switch ran {
+            case .success(let value): results = value
+            case .failure(let failure):
+                let split = StudioError.rippleBlocked.message(package: path)
+                return .result(text: failure.message(rippleBlocked: split), isError: true)
             }
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (work.lines(results) + note).joined(separator: "\n"), isError: false)

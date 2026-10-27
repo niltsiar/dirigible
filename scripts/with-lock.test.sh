@@ -371,6 +371,36 @@ out="$(cd "$tmp/wt" && "$repo/scripts/with-lock.sh" bash -c "cat '$lock/tree'" 2
 mkdir "$lock" && echo "$dead_pid" > "$lock/pid" && echo /old/tree > "$lock/tree"
 out="$(cd "$tmp/wt" && "$repo/scripts/with-lock.sh" bash -c "cat '$lock/tree'" 2>&1)"
 [[ "$out" == *"$wt_tree" && "$out" != *'/old/tree'* ]] || fail "takeover: the lock tree is [$out], not [$wt_tree]"
+# A mutation pass counts for the tree that it builds (its first argument), not for the tree of the
+# caller: the lock tree, the hold line, and the wait line name that tree. Another command, and a
+# first argument that is not a git tree, keep the tree of the caller.
+mtree="$tmp/mtree" plain="$tmp/plain"
+git init -q "$mtree" && mkdir -p "$plain"
+mtree="$(git -C "$mtree" rev-parse --show-toplevel)"
+mkdir -p "$fake/x"
+printf '#!/bin/bash\ncat "%s/tree" > "%s"\nsleep 0.5\n' "$lock" "$tmp/mp.tree" > "$fake/x/mutation-pass.sh"
+cp "$fake/x/mutation-pass.sh" "$fake/x/other-pass.sh"
+chmod +x "$fake/x/mutation-pass.sh" "$fake/x/other-pass.sh"
+reset_builders
+"$repo/scripts/with-lock.sh" "$fake/x/mutation-pass.sh" "$mtree" batch > /dev/null 2>&1
+[[ "$(cat "$tmp/mp.tree")" == "$mtree" ]] || fail "mutation pass: the lock tree is [$(cat "$tmp/mp.tree")], not [$mtree]"
+[[ "$(awk -F'\t' '{ print $4 }' "$holds")" == "$mtree" ]] || fail "mutation pass: the hold line tree is [$(awk -F'\t' '{ print $4 }' "$holds")], not [$mtree]"
+reset_builders
+hold
+"$repo/scripts/with-lock.sh" "$fake/x/mutation-pass.sh" "$mtree" batch > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail "mutation pass: no wait line: $(cat "$tmp/wait.out")"
+rm -rf "$lock"
+wait "$waiter"
+waiter=""
+[[ "$(awk -F'\t' '{ print $5 }' "$waits")" == "$mtree" ]] || fail "mutation pass: the wait line tree is [$(awk -F'\t' '{ print $5 }' "$waits")], not [$mtree]"
+for words in "$fake/x/other-pass.sh $mtree batch" "$fake/x/mutation-pass.sh $plain batch"; do
+    reset_builders
+    # shellcheck disable=SC2086
+    "$repo/scripts/with-lock.sh" $words > /dev/null 2>&1
+    [[ "$(cat "$tmp/mp.tree")" == "$repo_tree" ]] || fail "the tree of [$words] is [$(cat "$tmp/mp.tree")], not the caller tree [$repo_tree]"
+done
+reset_builders
 # The window: a hold that ended 59 min ago counts, one that ended 61 min ago does not. A wait line
 # counts as a hold line, and the old wait line of 4 columns has no tree.
 reset_builders

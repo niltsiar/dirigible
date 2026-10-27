@@ -4,11 +4,15 @@ import DirigibleTimeline
 
 /// The gesture questions of the window: the hit view, the cursor, and the ruler menu (decision 0020).
 extension TimelineScrollView {
-    /// The lanes take a mouse event in the shown part of the clip view under the last lane, so the
-    /// gesture gets that point (K20: a double-click there clears the selection).
+    /// The lanes take a mouse event in the shown part of the clip view under the last lane, inside
+    /// the width of the lanes, so the gesture gets that point (K20: a double-click there clears the
+    /// selection). The gap of an overscroll above lane 0 or left of x 0 stays with the clip view.
     override func hitTest(_ point: NSPoint) -> NSView? {
         let hit = super.hitTest(point)
-        guard hit === contentView, shown.contains(lanes.convert(point, from: superview)) else { return hit }
+        let lanePoint = lanes.convert(point, from: superview)
+        guard hit === contentView, shown.contains(lanePoint), lanePoint.y >= lanes.bounds.maxY,
+            lanePoint.x >= lanes.bounds.minX, lanePoint.x < lanes.bounds.maxX
+        else { return hit }
         return lanes
     }
 

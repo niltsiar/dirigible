@@ -21,6 +21,9 @@
 #        A bare run (no base, SINCE, or FILTER) with no changed path exits 3 with one stderr line and no
 #          stdout when HEAD has commits past the merge base of origin/main: give SINCE=<merge base> or
 #          BASE=<ref>. At or behind origin/main, or with no origin/main, it prints targets: none.
+#          With a changed path and commits past origin/main, a bare run prints the targets of the
+#          path and one stderr note: `check-changed: <n> commits past origin/main are not checked:
+#          give SINCE=<merge base>`.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
@@ -355,16 +358,21 @@ if [[ -z "$paths" && ( $push == 1 || -n "$since_ref" ) ]]; then
     fi
     exit 1
 fi
-# A bare run with no changed path whose HEAD has commits past the merge base with origin/main would
-# report targets: none for those commits. A missing ref, or no common commit, goes on as before.
-if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && -z "$paths" ]]; then
+# A bare git run (no base, SINCE, or FILTER) whose HEAD has commits past the merge base with
+# origin/main checks none of those commits. With no changed path it would report targets: none, so
+# it exits 3 (with-lock.sh passes status 3 through at once). With a changed path it prints one stderr
+# note. A missing ref, or no common commit, goes on as before.
+if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && -z "$since_ref" ]]; then
     origin="$(git rev-parse --verify -q 'origin/main^{commit}' 2>/dev/null || true)"
     merge_base="" count=0
     [[ -z "$origin" ]] || merge_base="$(git merge-base "$origin" HEAD 2>/dev/null || true)"
     [[ -z "$merge_base" ]] || count="$(git rev-list --count "$origin..HEAD" 2>/dev/null || echo 0)"
     if ((count > 0)); then
-        echo "check-changed: no changed path, and HEAD has commits past the merge base $merge_base of origin/main (count: $count): give SINCE=$merge_base or BASE=<ref>" >&2
-        exit 3
+        if [[ -z "$paths" ]]; then
+            echo "check-changed: no changed path, and HEAD has commits past the merge base $merge_base of origin/main (count: $count): give SINCE=$merge_base or BASE=<ref>" >&2
+            exit 3
+        fi
+        echo "check-changed: $count commits past origin/main are not checked: give SINCE=$merge_base" >&2
     fi
 fi
 

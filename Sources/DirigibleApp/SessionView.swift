@@ -115,6 +115,35 @@ struct SessionView: View {
         }
     }
 
+    /// The text and the buttons of a session with no tracks. The first action has its button
+    /// (ux-decisions 14): Add Track is the one prominent action, above Add Call Tracks, at one
+    /// width. The full frame centers them in the area beside the inspector, also under a banner
+    /// (ui-polish-chrome U2).
+    private var emptyContent: some View {
+        ContentUnavailableView {
+            Label(L10n.emptyTitle.key, systemImage: "waveform")
+        } description: {
+            Text(L10n.emptySteps.key)
+        } actions: {
+            VStack {
+                Button {
+                    model.run(.addTrack)
+                } label: {
+                    Text(L10n.menuTrackAdd.key).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                Menu {
+                    CallTracksItems(model: model)
+                } label: {
+                    Text(L10n.menuTrackAddCall.key).frame(maxWidth: .infinity)
+                }
+                .menuStyle(.button).buttonStyle(.bordered)
+            }
+            .fixedSize().disabled(!model.canEdit)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     /// The banners, the lanes, and the loudness strip of an open session.
     private func lanes(_ studio: Studio) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -129,31 +158,7 @@ struct SessionView: View {
             TakeBanner(model: model, studio: studio)
             WindowBanners(model: model)
             if studio.session.tracks.isEmpty {
-                // The first action has its button (ux-decisions 14). Add Track is the one prominent
-                // action, above Add Call Tracks, at one width. The full frame centers the content
-                // in the area beside the inspector, also under a banner (ui-polish-chrome U2).
-                ContentUnavailableView {
-                    Label(L10n.emptyTitle.key, systemImage: "waveform")
-                } description: {
-                    Text(L10n.emptySteps.key)
-                } actions: {
-                    VStack {
-                        Button {
-                            model.run(.addTrack)
-                        } label: {
-                            Text(L10n.menuTrackAdd.key).frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        Menu {
-                            CallTracksItems(model: model)
-                        } label: {
-                            Text(L10n.menuTrackAddCall.key).frame(maxWidth: .infinity)
-                        }
-                        .menuStyle(.button).buttonStyle(.bordered)
-                    }
-                    .fixedSize().disabled(!model.canEdit)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                EmptyDropHost(model: model, content: emptyContent).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // An overlay, not a row: the lanes do not move when it shows or goes. It shows in the
                 // ruler band over the track headers, so it covers no ruler time (0025).

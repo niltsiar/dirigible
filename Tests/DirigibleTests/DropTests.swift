@@ -23,11 +23,15 @@ import Testing
     }
 
     /// A key window with the lanes of tracks t1 to t<tracks> (T1 to T<tracks>, a clip from 0 each)
-    /// at 480 frames per point and `laneHeight` pt lanes, at origin 0.
-    func open(tracks: Int = 2, seconds: Int = 2, laneHeight: Double = 60) async throws
+    /// at 480 frames per point and `laneHeight` pt lanes, at origin 0. A `package` replaces the
+    /// tracks.
+    func open(tracks: Int = 2, seconds: Int = 2, laneHeight: Double = 60, package: URL? = nil) async throws
         -> (SessionWindow, Studio, TimelineScrollView)
     {
-        let package = try await timelinePackage(in: folder.url, tracks: tracks, seconds: seconds)
+        let package =
+            if let package { package } else {
+                try await timelinePackage(in: folder.url, tracks: tracks, seconds: seconds)
+            }
         let (model, studio, _, view) = try await openLanes(app, package)
         studio.environment.playerOutput = .offline
         await until("the first view is fitted") { view.fitted }
@@ -161,6 +165,27 @@ import Testing
         #expect(studio.session.track("t2")?.name == "T2", "a track with no draft keeps its name")
         model.undo()
         #expect(studio.session.clip("Voice") == nil, "one Undo removes the clip")
+        await model.close()
+    }
+
+    /// D10 (run empty-drop-lane-click): tracks with no clips still show the lanes, so a drop on a
+    /// lane goes on that track and makes no new track.
+    @Test func aDropOnALaneOfTracksWithNoClips() async throws {
+        let url = folder.url.appending(path: "bare.dirigible")
+        try await Task.detached {
+            try Session.create(at: url, sampleRate: 48_000)
+            var session = Session(sampleRate: 48_000)
+            try session.addTrack("t1", name: "T1", layout: .mono)
+            try session.addTrack("t2", name: "T2", layout: .mono)
+            try session.write(to: url)
+        }.value
+        let (model, studio, view) = try await open(package: url)
+
+        #expect(await drop([try wav("Voice.wav")], at: NSPoint(x: 100, y: 90), in: view, model))
+
+        let placed = studio.session.clip("Voice")
+        #expect(placed?.track == "t2" && placed?.clip.start == 48_000, "the clip is on t2 at 48,000")
+        #expect(studio.session.tracks.count == 2, "no new track")
         await model.close()
     }
 

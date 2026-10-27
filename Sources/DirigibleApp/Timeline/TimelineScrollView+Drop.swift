@@ -8,12 +8,7 @@ import DirigibleTimeline
 /// drop, or the end of the drag.
 extension TimelineScrollView {
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        let types = AppDelegate.importTypes.map(\.identifier)
-        lanes.drop.urls =
-            sender.draggingPasteboard.readObjects(
-                forClasses: [NSURL.self],
-                options: [.urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: types]
-            ) as? [URL] ?? []
+        lanes.drop.urls = AppDelegate.audioFiles(on: sender.draggingPasteboard)
         sender.numberOfValidItemsForDrop = lanes.drop.urls.count
         return draggingUpdated(sender)
     }

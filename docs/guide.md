@@ -48,7 +48,7 @@ In this tutorial, you record an interview with two microphones, remove a mistake
 
 1. Connect the USB microphone, then open Dirigible. The start window shows.
 2. Under **New Session**, type a name for the episode in **Name**, or keep the name that Dirigible gives, for example **Episode 1**. A name cannot start with a period or contain “/” or “:”.
-3. Click **Create**, or press Return. A window opens. It shows **No Tracks** and an **Add Track** button.
+3. Click **Create**, or press Return. A window opens. It shows **No Tracks** and an **Add Track** button. To start with audio files, drag them from Finder onto this window.
 
 Dirigible saves the session in the Music folder, in the Dirigible folder. To use another folder, click **Change…** and choose the folder. Dirigible uses that folder for the next sessions too. To show the start window again, choose **File > New Session** (Command-N) or **Window > Start Window** (Shift-Command-1).
 
@@ -418,6 +418,7 @@ You can also drag audio files from Finder onto the tracks. During the drag, a li
 - Drop one file on a track to put the clip on that track. The clip starts at the pointer, not at the playhead.
 - Drop one file below the last track, or at the bottom edge of the tracks when they fill the window, to add a new track.
 - Drop two or more files to add one new track for each file. All clips start at the pointer.
+- Drop audio files on a session with no tracks to add one track for each file, in the order of the drag. Each clip starts at the start of the session.
 - Dirigible imports the files one after the other. One **Edit > Undo** removes the last file. Dirigible skips a file that is not audio, has more than 2 channels, or is not on this Mac. A full disk or Cancel stops the import. At the end, an alert names each file that did not import.
 
 ### Split a stereo clip into two mono tracks

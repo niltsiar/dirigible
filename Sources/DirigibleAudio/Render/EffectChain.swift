@@ -21,7 +21,7 @@ struct EffectChain {
     static let blockFrames = 65_536
     /// The frames of each engine pull. The unit output depends on the pull pattern: a first pull of
     /// 2048 or 3200 frames, or pulls of 8192, change it, so every full pull has this size. A short
-    /// last pull gives the same frames as a full one (`lastPullHasTheFullSize`).
+    /// last pull gives the same frames as a full one (`shortLastPullKeepsTheTail`).
     static let pullFrames: AVAudioFrameCount = 4096
 
     private let engine: AVAudioEngine

@@ -180,10 +180,10 @@ struct EffectRenderTests {
         #expect(rmsDecibels(Array(rendered[tail])) > -30, "the tail holds the noise, not silence")
     }
 
-    /// The unit output depends on the size of each pull, so each pull has the same size: at 12 dB
-    /// the last 4096 frames of a span equal the same frames of a span 4096 frames longer, over a
-    /// source that is silent past the span. 96,000 frames and the latency end in a pull of 401.
-    @Test func lastPullHasTheFullSize() throws {
+    /// A short last pull keeps the tail: 96,000 frames and the latency end in a pull of 401, and at
+    /// 12 dB the last 4096 frames of the span equal the same frames of a span 4096 frames longer,
+    /// over a source that is silent past the span.
+    @Test func shortLastPullKeepsTheTail() throws {
         let fixture = try RenderFixture()
         let voice = try spokenVoice(rate: 48_000, peak: 0.5, in: fixture.package.folder.url).prefix(96_000)
         try fixture.package.addFile("f1", channels: [Array(voice) + [Float](repeating: 0, count: 8192)])

@@ -7,7 +7,7 @@
 
 ## Context
 
-R8 asks for noise reduction; F35 asks for one control, F77 for hum removal at 50 or 60 Hz, and `releases.md` run 20 for a render into a new file as one undo entry. 0009 chose AUSoundIsolation and said that the session stores the effect and renders it at each play. The research of this run (`.scratchpads/research/render-denoise/findings.md`, probes on macOS 15.7.9, Intel) found: the unit isolates voice, so it also removes hum and music; its wet/dry mix is linear (a reduction of -20 log10(1 - wet) dB); its latency depends on the channel count (56.35 ms mono, 76.35 ms stereo at 48 kHz); the dry path at wet 0 is exact after the latency trim; with 2 channels it applies one mask and moves no audio between channels; it renders at about 8x real time. Hindenburg PRO has one noise reduction dial; Logic Selection-Based Processing, Audition Waveform effects, and Audacity render to new audio.
+R8 asks for noise reduction; F35 asks for one control, F77 for hum removal at 50 or 60 Hz, and `releases.md` run 20 for a render into a new file as one undo entry. 0009 chose AUSoundIsolation and said that the session stores the effect and renders it at each play. The research of this run (`docs/research/render-denoise.md`, probes on macOS 15.7.9, Intel) found: the unit isolates voice, so it also removes hum and music; its wet/dry mix is linear (a reduction of -20 log10(1 - wet) dB); its latency depends on the channel count (56.35 ms mono, 76.35 ms stereo at 48 kHz); the dry path at wet 0 is exact after the latency trim; with 2 channels it applies one mask and moves no audio between channels; it renders at about 8x real time. Hindenburg PRO has one noise reduction dial; Logic Selection-Based Processing, Audition Waveform effects, and Audacity render to new audio.
 
 ## Decision
 
@@ -43,7 +43,7 @@ R8 asks for noise reduction; F35 asks for one control, F77 for hum removal at 50
 
 ## Sources
 
-- `.scratchpads/research/render-denoise/findings.md` and the probes of run `2026-10-13-render-denoise` (`probe/stereo`, `probe/null`).
+- `docs/research/render-denoise.md`: the latency, the linear wet/dry mix, the null, the stereo mask, and the pull size.
 - SDK headers `AUComponent.h`, `AudioUnitParameters.h` (AUSoundIsolation).
 - https://support.apple.com/guide/final-cut-pro/enhance-audio-verc1fab873/mac
 - https://manual.audacityteam.org/man/noise_reduction.html

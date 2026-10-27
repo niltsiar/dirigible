@@ -188,17 +188,36 @@ struct EffectRenderFileTests {
         #expect(try fixture.hashes() == before)
     }
 
+    /// A component that no unit matches.
+    static let noUnit = AudioComponentDescription(
+        componentType: kAudioUnitType_Effect, componentSubType: 0x6E6F_6E65, componentManufacturer: 0,
+        componentFlags: 0, componentFlagsMask: 0)
+
     /// C10: a unit that does not load refuses with its status before the first write.
     @Test func unitLoadFailure() throws {
         let fixture = try fixture()
         let before = try fixture.hashes()
-        let none = AudioComponentDescription(
-            componentType: kAudioUnitType_Effect, componentSubType: 0x6E6F_6E65, componentManufacturer: 0,
-            componentFlags: 0, componentFlagsMask: 0)
 
         #expect(throws: ClipRenderError.effectUnavailable(status: -3000)) {
-            try fixture.render(["c1"], component: none)
+            try fixture.render(["c1"], component: { _ in Self.noUnit })
         }
+        #expect(try fixture.hashes() == before)
+    }
+
+    /// C10, the 0054 order: the unit loads for each channel count before the first write, so a
+    /// stereo load failure after a mono run renders no frame.
+    @Test func stereoLoadFailureRendersNothing() throws {
+        let fixture = try fixture()
+        let noise = seededNoise(frames: 480_000, level: 0.01, seed: 18)
+        try fixture.add("s1", [noise, noise], track: "t2", clips: [("s", 0, 96_000)])
+        let before = try fixture.hashes()
+        var written = 0
+
+        #expect(throws: ClipRenderError.effectUnavailable(status: -3000)) {
+            try fixture.render(
+                ["c1", "s"], component: { $0 == 2 ? Self.noUnit : .soundIsolation }, progress: { _ in written += 1 })
+        }
+        #expect(written == 0, "the mono run rendered first")
         #expect(try fixture.hashes() == before)
     }
 }

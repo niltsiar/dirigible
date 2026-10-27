@@ -72,7 +72,7 @@ struct RenderFixture {
 
     func render(
         _ clips: [ClipID], of session: Session? = nil, freeBytes: Int64 = .max,
-        component: AudioComponentDescription = .soundIsolation, readFault: ReadFault? = nil,
+        component: (Int) -> AudioComponentDescription = { _ in .soundIsolation }, readFault: ReadFault? = nil,
         isDownloaded: (URL) -> Bool = { _ in true }, progress: @escaping (Double) -> Void = { _ in },
         isCancelled: @escaping () -> Bool = { false }
     ) throws(ClipRenderError) -> ClipRenderOutcome {

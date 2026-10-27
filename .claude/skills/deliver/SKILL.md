@@ -114,4 +114,4 @@ The closing agent (on the light path, the lead) runs the **reflect** skill on th
 
 ## Long autonomous runs
 
-When one session runs several goals or an unattended loop, read `references/long-runs.md` before the first run.
+When one session runs several goals or an unattended loop, or faces a wait over 4 h, read `references/long-runs.md` before the first run or the wait.

@@ -62,7 +62,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, macOS 15.7.9, Swift 6.2.
 - `ParityTests` maps `paste`, `splitClips`, and `nudge`.
 - Tests that press a key through the menu build the event from `CGEvent` (E4).
 - Each nudge press is one undo entry. `Studio.scheduleSave` coalesces the queued writes, so a fast run of presses (auto-repeat) makes far fewer package writes than presses.
-- During a take, Add Marker and Add Chapter are on and the other edit items are off (`SessionWindow.isOn`).
+- While a take records, Add Marker and Add Chapter are on and the other edit items are off (`SessionWindow.isOn`).
 - Derived paste IDs grow with each copy of a copy (`a@500@900`).
 
 ## Alternatives considered

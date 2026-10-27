@@ -4,8 +4,8 @@ import DirigibleCore
 import DirigibleTimeline
 
 /// The edit commands of the session window (decision 0018). Each command reads the selection once
-/// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing; the
-/// one exception is Add Marker and Add Chapter (`runMarker`).
+/// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing. A
+/// take marker does not use `edit`: it goes to `Studio.addMarkerAtRecordHead` (`addTakeMarker`).
 extension SessionWindow {
     /// Copy, Paste, and Delete. With no selection, Copy and Delete do nothing. The clipboard
     /// changes only after a Copy that ran, or a Cut of `runRipple` that ran. On a clip set, Copy

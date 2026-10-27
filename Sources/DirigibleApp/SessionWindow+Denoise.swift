@@ -52,8 +52,9 @@ extension SessionWindow {
     }
 
     private func showDenoiseReport(_ report: ClipRenderReport, revision: Int) {
+        guard let noise = report.noise else { return }
         denoisePresses += 1
         denoiseReport = DenoiseReportShown(
-            clips: report.clips.count, decibels: report.decibels, revision: revision, press: denoisePresses)
+            clips: report.clips.count, decibels: noise.decibels, revision: revision, press: denoisePresses)
     }
 }

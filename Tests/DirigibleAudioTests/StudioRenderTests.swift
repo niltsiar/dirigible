@@ -63,7 +63,7 @@ struct StudioRenderTests {
         let saved = try Session(contentsOf: fixture.package.url)
         let moved = try #require(studio.session.clip("c1")?.clip)
         #expect(saved == studio.session && report.clips == [RenderedClip(clip: "c1", file: moved.file)])
-        #expect(report.decibels == 12 && studio.session.files[moved.file]?.path == "f1 NR.wav")
+        #expect(report.noise == .standard && studio.session.files[moved.file]?.path == "f1 NR.wav")
         #expect(studio.undoAgent == agent, "the undo entry names the agent")
         let files = ["f1 NR.wav", "f1.wav"]
         #expect(try listing(fixture.package) == files)

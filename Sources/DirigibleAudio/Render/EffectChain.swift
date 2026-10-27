@@ -4,6 +4,9 @@ import AudioToolbox
 import DirigibleCore
 import Foundation
 
+/// The description of an effect unit, named here so DirigibleMCP needs no AudioToolbox import (decision 0046).
+package typealias EffectUnit = AudioComponentDescription
+
 extension AudioComponentDescription {
     /// AUSoundIsolation of Apple, the unit of the noise effect (decision 0054).
     package static let soundIsolation = AudioComponentDescription(

@@ -1,4 +1,3 @@
-import AudioToolbox
 import DirigibleAudio
 import DirigibleCore
 import Foundation
@@ -10,7 +9,7 @@ package struct ClipRenderWork: Sendable {
     let clips: [ClipID]
     let reduction: NoiseReduction
     /// The effect unit to load. Tests set one that does not exist.
-    package var component = AudioComponentDescription.soundIsolation
+    package var component: EffectUnit = .soundIsolation
 
     package init(clips: [ClipID], reduction: NoiseReduction) {
         (self.clips, self.reduction) = (clips, reduction)

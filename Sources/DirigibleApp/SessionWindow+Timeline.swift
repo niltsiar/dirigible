@@ -120,7 +120,7 @@ enum TimelineCommand: Hashable {
         // A text field does nothing with Shift-Command-D, so the key splits the stereo clips of the
         // selection with the focus in a track name field, as Insert does with Command-I.
         case .splitStereo: false
-        // Reduce Noise has no key (ui-panel.md): a rare, slow command.
+        // Reduce Noise has no key: a rare, slow command.
         case .reduceNoise: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
         case .addGainPoint, .previousGainPoint, .nextGainPoint: true

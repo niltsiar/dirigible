@@ -33,6 +33,7 @@
 - Amended: 2026-10-23, run `2026-10-23-read-by-time`. `DirigibleAudio/DSP/` also holds the window scan of the mix (`MixLevels.swift`) and the range meter (`RangeMeter.swift`). `DirigibleCore/LevelSeries.swift` holds the window series and the silence and pause rules (see 0062).
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split`. `DirigibleAudio/Import/` also holds the stereo split (`StereoSplit.swift`) (see 0053).
 - Amended: 2026-10-26, run `2026-10-13-render-denoise`. `DirigibleAudio/Render/` also holds the clip render through an effect: `NoiseReduction.swift`, `Treatment.swift`, `EffectChain.swift`, and `EffectRender.swift`. `Studio/Studio+Render.swift` runs it, and `DirigibleMCP/ClipRenderText.swift` has its texts (see 0054).
+- Amended: 2026-10-27, run `2026-10-14-render-link`. `DirigibleCore/Treatment.swift` holds the stored render values `Effect`, `Treatment`, and `NoiseReduction`, because the session reader parses them. `Render/Treatment.swift` and `Render/NoiseReduction.swift` keep only the DSP extensions (see 0057).
 
 ## Context
 

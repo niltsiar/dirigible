@@ -178,8 +178,8 @@ package struct BatchWork: Sendable {
                 return ["OK"]
             }
         case .takeImport, .info, .create, .paste, .backups, .revert, .episodeInfo, .words, .prune, .record,
-            .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .chapters, .transcriptExport,
-            .takeMap, .read, .batch:
+            .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender, .chapters,
+            .transcriptExport, .takeMap, .read, .batch:
             throw notAStep(tool.name)
         }
     }

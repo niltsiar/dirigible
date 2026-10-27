@@ -218,7 +218,7 @@ let clipTools = [
             + "onto it. The source file stays. A clip on a music or effects track is refused. A second call reduces "
             + "the noise again. Give one line for each clip: the clip and its new file, with a tab between them."
             + editCancelNote("no clip changes"),
-        [clips, reduction]
+        [clips, reduction], batch: .alone
     ) { a throws(ToolError) in
         .clipRender(ClipRenderWork(clips: try a[clips].map { ClipID($0) }, reduction: try a[reduction]))
     },

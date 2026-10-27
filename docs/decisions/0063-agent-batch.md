@@ -39,7 +39,7 @@ Research: `docs/research/undo-grouping.md`.
 
 - One undo restores the session before the batch; one redo applies the whole batch again.
 - A user edit or another agent call never lands between two steps.
-- A batch cannot hold work that writes or reads files (import, level, duck, split, paste from another package, image, artwork, backup revert, chapters and transcript import), or `transcript_cut`. Each such call stays one undo step alone.
+- A batch cannot hold work that writes or reads files (import, level, duck, split, noise reduction, paste from another package, image, artwork, backup revert, chapters and transcript import), or `transcript_cut`. Each such call stays one undo step alone.
 - An agent maps each new ID to its call by the index.
 - One live batch of 20 calls of `clip_gain_range` on a session of 6 tracks of 201 clips takes 224 ms (round trip, minimum of 3 runs; probe P3, on the machine of the Count limit). The cost of `clip_gain_range` grows with the calls on the same clips (100 calls: 3462 ms), so the limit is a count and not a time bound. Other steps are faster: 100 calls of `clip_ripple_insert` took 264 to 277 ms.
 - A new tool names its batch role, and the role test fails until the step list or the alone list names it.

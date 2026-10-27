@@ -15,13 +15,13 @@ struct BatchRoleTests {
         "clip_ripple_trim",
     ]
 
-    /// The 30 tools that are never a step.
+    /// The 31 tools that are never a step.
     static let alone: Set<String> = [
         "session_create", "session_info", "episode_get", "file_prune", "backup_list", "backup_revert",
-        "clip_split_stereo", "transcript_import", "transcript_words", "transcript_cut", "transcript_export",
-        "take_map", "record", "transport_play", "transport_stop", "transport_locate", "loudness", "export", "render",
-        "level", "duck", "import", "silences", "nearest_pause", "meter", "chapters_export", "chapters_import",
-        "devices", "apps", "batch",
+        "clip_split_stereo", "clip_denoise", "transcript_import", "transcript_words", "transcript_cut",
+        "transcript_export", "take_map", "record", "transport_play", "transport_stop", "transport_locate",
+        "loudness", "export", "render", "level", "duck", "import", "silences", "nearest_pause", "meter",
+        "chapters_export", "chapters_import", "devices", "apps", "batch",
     ]
 
     /// The `batch` description names its steps by tool family. Each tool of a named family is a
@@ -77,7 +77,7 @@ struct BatchRoleTests {
     }
 
     @Test func eachToolHasItsBatchRole() {
-        #expect(Self.steps.count == 34 && Self.alone.count == 30 && Self.steps.isDisjoint(with: Self.alone))
+        #expect(Self.steps.count == 34 && Self.alone.count == 31 && Self.steps.isDisjoint(with: Self.alone))
         let names = Tool.all.map(\.name)
         let unlisted = Set(names).subtracting(Self.steps).subtracting(Self.alone)
         #expect(unlisted.isEmpty, "BATCH-S2-6 tools in neither list: \(unlisted.sorted())")

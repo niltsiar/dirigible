@@ -127,7 +127,7 @@ extension TimelineRulerTests {
     /// inside the 24 pt ruler. The box, name, and pill rects are those of `drawHashMarksAndLabels`.
     @Test(arguments: [0.0, 1.5, 38.0, 240.0]) func theHighlightOutlineHoldsTheFlagInsideTheRuler(nameWidth: Double) {
         let x = 100.0
-        let outline = TimelineRuler.highlightRect(at: x, nameWidth: nameWidth)
+        let outline = TimelineRuler.highlightRect(at: x, nameWidth: nameWidth, left: 0)
         let half = TimelineRuler.highlightLine / 2
         let font = NSFont.systemFont(ofSize: 10, weight: .semibold)
         let box = RulerGeometry.flagReach.upperBound
@@ -139,5 +139,27 @@ extension TimelineRulerTests {
         #expect(ruler.contains(outline.insetBy(dx: -half, dy: -half)), "the stroke leaves the ruler: \(outline)")
         #expect(outline.insetBy(dx: half, dy: half).contains(flag), "the stroke crosses the flag box: \(outline)")
         #expect(outline.contains(name) && outline.contains(pill), "the outline cuts the name: \(outline)")
+    }
+
+    /// F107 code gate 1 item 2, fix check: the ruler draws only right of the left edge of the
+    /// lanes, so at that edge the whole stroke stays right of it, and the stroke and the path still
+    /// hold the flag box, the name, and the pill. A flag far left of the edge draws no stroke there.
+    @Test(arguments: [(0.0, 0.0), (0.0, 1.0), (180.0, 180.0), (180.0, 181.0)])
+    func theHighlightOutlineStaysRightOfTheLaneEdge(left: Double, x: Double) {
+        let nameWidth = 38.0
+        let outline = TimelineRuler.highlightRect(at: x, nameWidth: nameWidth, left: left)
+        let half = TimelineRuler.highlightLine / 2
+        let font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        let box = RulerGeometry.flagReach.upperBound
+        let flag = NSRect(x: x, y: 12, width: box, height: box)
+        let name = NSRect(x: x + 8, y: 10, width: nameWidth, height: font.ascender - font.descender)
+        let pill = NSRect(x: x + 5, y: 9, width: nameWidth + 6, height: 14)
+        let drawn = NSRect(x: left, y: 0, width: 1_000, height: TimelineRuler.thickness)
+
+        #expect(drawn.contains(outline.insetBy(dx: -half, dy: -half)), "the stroke leaves the lanes: \(outline)")
+        #expect(outline.insetBy(dx: -half, dy: -half).contains(flag), "the outline cuts the flag box: \(outline)")
+        #expect(outline.contains(name) && outline.contains(pill), "the outline cuts the name: \(outline)")
+        let gone = TimelineRuler.highlightRect(at: left - 100, nameWidth: nameWidth, left: left)
+        #expect(gone.width >= 0 && gone.maxX + half <= left, "a flag out of view strokes the edge: \(gone)")
     }
 }

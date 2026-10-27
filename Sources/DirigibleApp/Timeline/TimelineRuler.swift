@@ -122,7 +122,7 @@ final class TimelineRuler: NSRulerView {
             let color: NSColor = marker.kind == .marker ? .systemOrange : .systemPurple
             let at = x(of: inputs.geometry.x(of: marker.position))
             let isCurrent = marker.id == current
-            defer { if highlights(marker.id) { drawHighlight(of: marker, at: at) } }
+            defer { if highlights(marker.id) { drawHighlight(of: marker, at: at, left: left) } }
             color.setFill()
             NSRect(x: at, y: 0, width: isCurrent ? 2 : 1, height: Self.thickness).fill()
             let box = RulerGeometry.flagReach.upperBound
@@ -147,10 +147,11 @@ final class TimelineRuler: NSRulerView {
     }
 
     /// A 2 pt outline in the label color around the flag and its name.
-    private func drawHighlight(of marker: Marker, at x: Double) {
+    private func drawHighlight(of marker: Marker, at x: Double, left: Double) {
         let text = typeset(marker.name, color: .black, font: .systemFont(ofSize: 10, weight: .semibold))
         let width = CTLineGetTypographicBounds(text.line, nil, nil, nil)
-        let outline = NSBezierPath(roundedRect: Self.highlightRect(at: x, nameWidth: width), xRadius: 5, yRadius: 5)
+        let outline = NSBezierPath(
+            roundedRect: Self.highlightRect(at: x, nameWidth: width, left: left), xRadius: 5, yRadius: 5)
         outline.lineWidth = Self.highlightLine
         NSColor.labelColor.setStroke()
         outline.stroke()
@@ -161,9 +162,12 @@ final class TimelineRuler: NSRulerView {
 
     /// The path of the outline of a lit flag at the ruler x `x` with a name `nameWidth` wide. It
     /// holds the flag box and the pill of the current marker, and its stroke ends at the ruler
-    /// bottom, so the bottom edge meets the pill.
-    static func highlightRect(at x: Double, nameWidth: Double) -> NSRect {
-        NSRect(x: x - 3, y: 7, width: nameWidth + 17, height: thickness - 7 - highlightLine / 2)
+    /// bottom, so the bottom edge meets the pill. The ruler draws only right of `left`, the left
+    /// edge of the lanes, so the left stroke stops there and covers the edge of a flag box at it.
+    static func highlightRect(at x: Double, nameWidth: Double, left: Double) -> NSRect {
+        let maxX = x + nameWidth + 14
+        let minX = min(max(x - 3, left + highlightLine / 2), maxX)
+        return NSRect(x: minX, y: 7, width: maxX - minX, height: thickness - 7 - highlightLine / 2)
     }
 
     /// The typeset lines of the ruler text, by text, font, color, and appearance. A ripple drag

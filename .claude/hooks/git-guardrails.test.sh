@@ -24,6 +24,20 @@ expect() {
   [[ "$got" == "$want" ]] || { echo "FAIL: expected $want, got $got: $command"; failures=$((failures + 1)); }
 }
 
+# expect_agent <want> <command>: as expect, with agent_id in the input, as in the input of a subagent.
+# The message of a block goes to $tmp/agent.err.
+expect_agent() {
+  local want="$1" command="$2" got
+  plutil -create xml1 "$input"
+  plutil -insert agent_id -string a1 "$input"
+  plutil -insert tool_input -dictionary "$input"
+  plutil -insert tool_input.command -string "$command" "$input"
+  plutil -convert json "$input"
+  "$hook" < "$input" 2>"$tmp/agent.err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == "$want" ]] || { echo "FAIL: subagent expected $want, got $got: $command"; failures=$((failures + 1)); }
+}
+
 expect block 'git push --force origin feat/x'
 expect block 'git push -f origin feat/x'
 expect block 'git push origin +feat/x'
@@ -347,6 +361,23 @@ expect block ': > "$(git rev-parse --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$d"/dirigible-check-running/5'
 expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
+# A subagent never runs the unlimited lock wait (WITH_LOCK_MAX_WAIT=0): after a second exit 75 it
+# returns to the lead. The lead runs it, so the input with no agent_id allows each form.
+unlimited_forms=(
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed'
+  'WITH_LOCK_MAX_WAIT=00 scripts/with-lock.sh make check-changed'
+  'export WITH_LOCK_MAX_WAIT=0; scripts/with-lock.sh make x'
+  'env WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make x'
+  '(WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed) &'
+)
+for form in "${unlimited_forms[@]}"; do
+  expect_agent block "$form"
+  grep -q 'return to the lead' "$tmp/agent.err" || { echo "FAIL: the subagent block says nothing of the lead: $form"; failures=$((failures + 1)); }
+  expect allow "$form"
+done
+expect_agent allow 'WITH_LOCK_MAX_WAIT=120 scripts/with-lock.sh make x'
+expect_agent allow 'scripts/with-lock.sh make check-changed'
+expect_agent allow "rg -n 'WITH_LOCK_MAX_WAIT=0' AGENTS.md"
 # Only scripts/with-lock.sh takes and removes the build lock, after its own take: a hand-written
 # mkdir and rmdir chain removed the lock of another agent three times. A read is allowed.
 expect_each_write .git/dirigible-build.lock

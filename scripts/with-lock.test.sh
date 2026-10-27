@@ -359,12 +359,13 @@ reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$fir
 # lock, no wait line, and no hold line, while an ordinary build or test holds the lock. While a
 # release call, a bench, a mutation pass, or a flake loop holds the lock, they wait without taking
 # the lock (the cases below). The fake check-changed.sh prints $FAKE_TARGETS, logs the FILTER
-# value, and exits $FAKE_EXIT.
+# value, prints $FAKE_STDERR on stderr, and exits $FAKE_EXIT.
 cat > "$repo/scripts/check-changed.sh" << 'EOF'
 #!/bin/bash
 echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"
 echo "classes: tooling"
 echo "targets: $FAKE_TARGETS"
+[[ -z "${FAKE_STDERR:-}" ]] || echo "$FAKE_STDERR" >&2
 exit "${FAKE_EXIT:-0}"
 EOF
 chmod +x "$repo/scripts/check-changed.sh"
@@ -574,6 +575,25 @@ lf_holder 'make dmg' 3
 lf_start env WITH_LOCK_MAX_WAIT=2 DIRIGIBLE_LOCKED_SCRIPT=1
 lf_finish 80
 [[ $code -eq 0 && -s "$tmp/state" ]] || fail "lock-free DIRIGIBLE_LOCKED_SCRIPT: exit $code after $elapsed s: $out"
+reset_builders
+
+# The refusal of check-changed.sh for a clean tree with commits past origin/main (exit 1, one line
+# that starts with the marker prefix) passes through at once: no lock, no wait, no ticket, no log
+# line, no command, also behind a long holder. Any other failure keeps the wait and prints nothing.
+refusal='check-changed: no changed path, and HEAD has commits past the merge base abc of origin/main (count: 2): give SINCE=abc or BASE=<ref>'
+for holder_command in none 'make dmg'; do
+    lf_holder "$holder_command"
+    [[ $holder_command != none ]] || rm -rf "$lock"
+    lf_start env FAKE_EXIT=1 FAKE_STDERR="$refusal" WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+    lf_finish 80
+    [[ $code -eq 1 && $elapsed -le 4 && "$out" == "$refusal" && ! -e "$tmp/state" ]] || fail "refusal, holder [$holder_command]: exit $code after $elapsed s: $out"
+    [[ ! -e "$waits" && ! -e "$holds" && -z "$(ls -A "$waiting" 2>/dev/null)$(ls -A "$first" 2>/dev/null)" ]] || fail "refusal, holder [$holder_command]: a log line, marker, or ticket"
+    [[ $holder_command == none || "$(cat "$lock/pid")" == "$holder" ]] || fail "refusal, holder [$holder_command]: the holder changed"
+done
+lf_holder 'make dmg'
+lf_start env FAKE_EXIT=1 FAKE_STDERR='check-changed: FILTER is set, but the targets none run no test.' WITH_LOCK_MAX_WAIT=2
+lf_finish 80
+[[ $code -eq 75 && ! -e "$tmp/state" && "$out" != *'FILTER is set'* ]] || fail "failure with no marker: exit $code: $out"
 reset_builders
 
 # ago <minutes>: the ISO time of that many minutes ago, as the logs write it.

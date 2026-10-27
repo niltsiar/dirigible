@@ -18,6 +18,9 @@
 #          The lead records `git rev-parse HEAD` before it starts the agent. That commit is <ref>: the
 #          parent of the first commit of the group. A <ref> that is the first commit drops its paths.
 #          With a base too it exits 2. With no changed path it exits 1. Only git mode reads SINCE.
+#        A bare run (no base, SINCE, or FILTER) with no changed path exits 1 with one stderr line and no
+#          stdout when HEAD has commits past the merge base of origin/main: give SINCE=<merge base> or
+#          BASE=<ref>. At or behind origin/main, or with no origin/main, it prints targets: none.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
@@ -255,6 +258,18 @@ if [[ -z "$paths" && ( $push == 1 || -n "$since_ref" ) ]]; then
         echo "check-changed: no changed paths against ${base:-the paths of stdin}" >&2
     fi
     exit 1
+fi
+# A bare run with no changed path whose HEAD has commits past the merge base with origin/main would
+# report targets: none for those commits. A missing ref, or no common commit, goes on as before.
+if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && -z "$paths" ]]; then
+    origin="$(git rev-parse --verify -q 'origin/main^{commit}' 2>/dev/null || true)"
+    merge_base="" count=0
+    [[ -z "$origin" ]] || merge_base="$(git merge-base "$origin" HEAD 2>/dev/null || true)"
+    [[ -z "$merge_base" ]] || count="$(git rev-list --count "$origin..HEAD" 2>/dev/null || echo 0)"
+    if ((count > 0)); then
+        echo "check-changed: no changed path, and HEAD has commits past the merge base $merge_base of origin/main (count: $count): give SINCE=$merge_base or BASE=<ref>" >&2
+        exit 1
+    fi
 fi
 
 # classify <paths>: sets found (the classes) and kept (the paths that keep their path class; the

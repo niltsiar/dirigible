@@ -17,7 +17,8 @@
 # DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
 # scripts/run-checks.sh and scripts/flake-monitor/loop.sh set the 0, so an exit 75 never reads as
 # a red test. loop.sh runs itself under this script with the marker and sets WITH_LOCK_MAX_HOLD.
-# Each wait line has the tree of the call as its fifth column (git rev-parse --show-toplevel). At
+# Each wait line has the tree of the call as its fifth column (git rev-parse --show-toplevel; for
+# mutation-pass.sh, the toplevel of its first argument, the tree that it builds). At
 # its release, a call appends one line to dirigible-build-holds.log in the git common dir: the
 # start time, the hold seconds, the command, and the tree. The take writes the tree into the lock
 # folder (<lock>/tree), and a waiting call keeps the marker dirigible-build-waiting/<pid> with its
@@ -130,6 +131,8 @@ holder_line() {
 [[ "$1" != --builders ]] || { builders; holder_line; exit 0; }
 [[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# A mutation pass builds the tree of its first argument, whatever the working directory is.
+if [[ "${1##*/}" == mutation-pass.sh && $# -ge 2 ]]; then tree="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || echo "$tree")"; fi
 # release_call <command>: a push check (make check-changed BASE=<ref>), a land (land.sh), or a DMG
 # build (make dmg).
 release_call() {

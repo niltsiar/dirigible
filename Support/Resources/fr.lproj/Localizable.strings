@@ -196,6 +196,7 @@
 "error.denoise.missing" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
 "error.denoise.not.downloaded" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %@ » n’est pas sur ce Mac. Téléchargez d’abord le fichier.";
 "error.denoise.track.role" = "Dirigible ne peut pas réduire le bruit d’un clip sur une piste Musique ou Effets. Sélectionnez des clips sur d’autres pistes et réessayez.";
+"error.denoise.mixed" = "Dirigible ne peut pas réduire le bruit. Des clips qui partagent un audio ont reçu des valeurs différentes. Utilisez une seule valeur pour ces clips et réessayez.";
 "error.denoise.unavailable" = "Dirigible ne peut pas réduire le bruit. La réduction du bruit de macOS ne s’est pas chargée (erreur %lld).";
 "error.denoise.engine" = "Dirigible ne peut pas réduire le bruit. Le moteur audio s’est arrêté (erreur %lld). Réessayez.";
 "error.denoise.yielded" = "La réduction du bruit s’est arrêtée à cause d’une prise dans une autre fenêtre. Réduisez à nouveau le bruit après la prise.";

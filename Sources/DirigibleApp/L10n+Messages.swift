@@ -131,6 +131,7 @@ extension L10n {
         case .sourceMissing(let file): errorDenoiseMissing.format(file)
         case .notDownloaded(let file): errorDenoiseNotDownloaded.format(file)
         case .trackRole: errorDenoiseTrackRole.text
+        case .mixedTreatments: errorDenoiseMixed.text
         case .effectUnavailable(let status): errorDenoiseUnavailable.format(Int(status))
         case .engine(let status): errorDenoiseEngine.format(Int(status))
         case .cancelled, .session: errorSessionOther.text

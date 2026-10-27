@@ -196,6 +196,7 @@
 "error.denoise.missing" = "O Dirigible não pode reduzir o ruído. O arquivo de áudio “%@” não está na pasta Clips da sessão. Coloque o arquivo de volta nessa pasta e tente novamente.";
 "error.denoise.not.downloaded" = "O Dirigible não pode reduzir o ruído. O arquivo de áudio “%@” não está neste Mac. Baixe o arquivo primeiro.";
 "error.denoise.track.role" = "O Dirigible não pode reduzir o ruído de um clipe em uma faixa de Música ou Efeitos. Selecione clipes de outras faixas e tente novamente.";
+"error.denoise.mixed" = "O Dirigible não pode reduzir o ruído. Clipes que compartilham áudio receberam valores diferentes. Use um só valor para esses clipes e tente novamente.";
 "error.denoise.unavailable" = "O Dirigible não pode reduzir o ruído. A redução de ruído do macOS não foi carregada (erro %lld).";
 "error.denoise.engine" = "O Dirigible não pode reduzir o ruído. O mecanismo de áudio parou (erro %lld). Tente novamente.";
 "error.denoise.yielded" = "A redução de ruído foi interrompida por uma tomada em outra janela. Reduza o ruído novamente depois da tomada.";

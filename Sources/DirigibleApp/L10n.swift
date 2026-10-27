@@ -559,6 +559,7 @@ enum L10n: String, CaseIterable {
     case errorDenoiseMissing = "error.denoise.missing"
     case errorDenoiseNotDownloaded = "error.denoise.not.downloaded"
     case errorDenoiseTrackRole = "error.denoise.track.role"
+    case errorDenoiseMixed = "error.denoise.mixed"
     case errorDenoiseUnavailable = "error.denoise.unavailable"
     case errorDenoiseEngine = "error.denoise.engine"
     case errorDenoiseYielded = "error.denoise.yielded"

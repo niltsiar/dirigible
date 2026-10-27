@@ -894,7 +894,8 @@ grep -qF 'full suite runs only in the push check' "$tmp/since.err" || fail "SINC
 got="$(SINCE=$sref FILTER=ClipTests run_in 2>&1)" || fail "SINCE with Sources and FILTER: exit $?"
 [[ "$got" == "$(out sources test-filter no)" ]] || fail "SINCE with Sources and FILTER: got [$got]"
 # FILTER with a changed path that gives no test: exit 1, and the reason keeps SINCE with no FILTER.
-# A bare make check-changed drops SINCE, finds no path, and reports targets: none with exit 0.
+# A bare make check-changed drops SINCE, finds no path, and reports targets: none with exit 0 (a repo
+# with no origin/main; with commits past origin/main it refuses, see the cases after the SINCE cases).
 since_repo
 put "$unnamed" x
 got="$(SINCE=$sref FILTER=ClipTests run_in 2> "$tmp/since.err")"
@@ -917,6 +918,74 @@ PATH="$tmp/bin:$PATH" make_case 'make check-changed with SINCE' '' SINCE="$sref"
   fail "make check-changed with SINCE: first line: $output"
 [[ "$(cat "$tmp/since.log")" == $'unset\nunset' ]] || fail "make check-changed with SINCE: the hook tests saw [$(tr '\n' ' ' < "$tmp/since.log")]: $output"
 [[ "$(cd "$tmp/r" && scripts/check-stamp.sh read "$sref")" == 'no stamp' ]] || fail 'make check-changed with SINCE: a stamp exists'
+# A bare run on a clean tree whose HEAD has commits past the merge base with origin/main exits 1
+# with one stderr line (the count, the merge base, and the SINCE or BASE form) and prints nothing on
+# stdout: the commits would otherwise report targets: none. A clean tree at or behind origin/main,
+# with no origin/main, or with an origin/main that shares no commit with HEAD keeps the three lines
+# and exit 0. SINCE, a base, FILTER, a changed file, and the modes --paths, --floor, and --wait-load
+# keep their result.
+ahead_repo() {
+  local i
+  new_repo
+  g update-ref refs/remotes/origin/main HEAD
+  for ((i = 1; i <= $1; i++)); do put "docs/c$i.md" x; done
+  mb="$(g merge-base origin/main HEAD)"
+}
+refusal_line() { echo "check-changed: no changed path, and HEAD has commits past the merge base $mb of origin/main (count: $1): give SINCE=$mb or BASE=<ref>"; }
+# refused <name> <count>: a bare run in the repo of ahead_repo.
+refused() {
+  got="$(run_in 2> "$tmp/bare.err")"
+  code=$?
+  [[ $code -eq 1 && -z "$got" ]] || fail "$1: exit $code, stdout [$got]"
+  [[ "$(cat "$tmp/bare.err")" == "$(refusal_line "$2")" ]] || fail "$1: stderr [$(cat "$tmp/bare.err")], want [$(refusal_line "$2")]"
+}
+# kept <name>: the three lines of no change, exit 0, and no stderr.
+kept() {
+  got="$(run_in 2>&1)" || fail "$1: exit $?"
+  [[ "$got" == "$(out none none no)" ]] || fail "$1: got [$got]"
+}
+ahead_repo 1
+refused 'a clean tree 1 commit past origin/main' 1
+ahead_repo 3
+refused 'a clean tree 3 commits past origin/main' 3
+make_repo
+g update-ref refs/remotes/origin/main HEAD
+put docs/c1.md x
+mb="$(g merge-base origin/main HEAD)"
+make_case 'make check-changed on a clean tree past origin/main' "$(refusal_line 1)"
+ahead_repo 0
+kept 'a clean tree at origin/main'
+ahead_repo 1
+g update-ref refs/remotes/origin/main HEAD
+g reset -q --hard HEAD~1
+kept 'a clean tree behind origin/main'
+new_repo
+kept 'a clean tree with no origin/main'
+new_repo
+g update-ref refs/remotes/origin/main "$(g commit-tree -m unrelated "$(g rev-parse 'HEAD^{tree}')")"
+put docs/c1.md x
+kept 'a clean tree past an origin/main with no common commit'
+ahead_repo 1
+got="$(SINCE=$mb run_in 2>&1)" || fail "past origin/main with SINCE: exit $?"
+[[ "$got" == "$(out docs check-docs no)" ]] || fail "past origin/main with SINCE: got [$got]"
+got="$(run_in main 2> "$tmp/bare.err")"
+code=$?
+[[ $code -eq 1 && "$(cat "$tmp/bare.err")" == 'check-changed: no changed paths against main' ]] || fail "past origin/main with a base: exit $code, stderr [$(cat "$tmp/bare.err")]"
+got="$(FILTER=X run_in 2> "$tmp/bare.err")"
+code=$?
+[[ $code -eq 1 && "$got" == "$(out none none no)" && "$(cat "$tmp/bare.err")" == *'FILTER is set'* && "$(cat "$tmp/bare.err")" != *'give SINCE'* ]] ||
+  fail "past origin/main with FILTER: exit $code, got [$got], stderr [$(cat "$tmp/bare.err")]"
+printf 'x\n' > "$tmp/r/docs/d.md"
+got="$(run_in 2>&1)" || fail "past origin/main with a changed file: exit $?"
+[[ "$got" == "$(out docs check-docs no)" ]] || fail "past origin/main with a changed file: got [$got]"
+rm "$tmp/r/docs/d.md"
+got="$(run_in --paths 2>&1 < /dev/null)" || fail "past origin/main with --paths: exit $?"
+[[ "$got" == "$(out none none no)" ]] || fail "past origin/main with --paths: got [$got]"
+got="$(run_in --floor 2>&1)" || fail "past origin/main with --floor: exit $?"
+[[ "$got" == "$("$script" --floor)" && "$got" == *SessionWriter.swift* ]] || fail "past origin/main with --floor: got [$got]"
+got="$(run_in --wait-load none 2>&1)" || fail "past origin/main with --wait-load: exit $?"
+[[ -z "$got" ]] || fail "past origin/main with --wait-load: got [$got]"
+
 # No context variable of this script reaches a test that it runs: each test file that names this
 # script and unsets BASE, FILTER, or MAKEFLAGS also unsets SINCE.
 for f in $(grep -rl --include='*.test.sh' 'check-changed.sh' "$repo/scripts" "$repo/.claude"); do

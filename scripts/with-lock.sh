@@ -63,12 +63,14 @@
 # release call), when scripts/check-changed.sh (with the NAME=value words of the call in its
 # environment) gives only check-docs, check-fast, lint, format, none, or a word with =; and make
 # test-hooks with a HOOK_TESTS= word. A check-changed.sh failure, a FILTER with test-filter, and
-# every other target keep the lock. With no long holder it also writes no wait line and runs at
-# once: it does not wait for another build or test. While a release call, a bench, a mutation pass,
-# or a flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a
-# live ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit
-# above, and then runs. That wait keeps no marker and no ticket, and appends one wait line that
-# ends with nocap.
+# every other target keep the lock. The refusal of a bare check-changed.sh on a clean tree with
+# commits past origin/main (exit 1) runs no command: the call prints its line and exits 1 at once,
+# with no lock, wait, ticket, or log line, also behind a long holder. With no long holder, a
+# lock-free call also writes no wait line and runs at once: it does not wait for another build or
+# test. While a release call, a bench, a mutation pass, or a flake loop holds the lock
+# (long-runs.md), and, after it waited, while a release call has a live ticket in
+# dirigible-build-first/, it waits without taking the lock, under the wait limit above, and then
+# runs. That wait keeps no marker and no ticket, and appends one wait line that ends with nocap.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -177,9 +179,11 @@ ahead() {
 # check-changed with no BASE= word and no BASE from push_env, when scripts/check-changed.sh gives
 # only check-docs, check-fast, lint, format, none, or a word with =; and make test-hooks with a
 # HOOK_TESTS= word. Any other command, goal, or check-changed.sh failure is not lock-free (fail
-# closed).
+# closed), except the refusal of a bare check-changed.sh on a clean tree with commits past
+# origin/main (exit 1, a line that starts with $refusal): it prints that line and exits 1 at once.
+refusal='check-changed: no changed path, and HEAD has commits past'
 lock_free() {
-    local w goal="" assign=() out="" hooks=""
+    local w goal="" assign=() out="" hooks="" status=0 line
     [[ "${1##*/}" == make ]] || return 1
     ! push_env || return 1
     for w in "${@:2}"; do
@@ -194,7 +198,12 @@ lock_free() {
     case "$goal" in
         test-hooks) [[ -n "$hooks" ]] || return 1; free_targets=test-hooks ;;
         check-changed)
-            out="$(env ${assign[@]+"${assign[@]}"} "$here/check-changed.sh" 2>/dev/null)" || return 1
+            out="$(env ${assign[@]+"${assign[@]}"} "$here/check-changed.sh" 2>&1)" || status=$?
+            if [[ $status -eq 1 ]] && line="$(grep -m1 -- "^$refusal" <<<"$out")"; then
+                echo "$line" >&2
+                exit 1
+            fi
+            [[ $status -eq 0 ]] || return 1
             free_targets="$(sed -n 's/^targets: //p' <<<"$out")"
             [[ -n "$free_targets" ]] || return 1
             for w in $free_targets; do

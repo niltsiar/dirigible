@@ -256,6 +256,7 @@
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Vereist macOS 14.2 of nieuwer";
 "track.no.sound.settings" = "Open privacyinstellingen";
+"track.input.level" = "Invoerniveau";
 "track.no.sound.privacy" = "Privacy…";
 "track.state.device.lost" = "Apparaat viel weg";
 "track.state.write.failed" = "Schrijffout";

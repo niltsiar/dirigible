@@ -67,6 +67,16 @@ extension Studio {
         await monitorTurns.run { await applyMonitor() }
     }
 
+    /// Taps again each monitor app writer whose track shows **No sound from**: after a grant in
+    /// System Settings, the new tap gets sound (decision 0015). A writer with no warning keeps its
+    /// tap, because each rebuild keeps one of its 64 inputs.
+    public func rebuildSilentAppMonitors() {
+        for monitor in monitors.values
+        where monitor.writer.app != nil && monitor.tracks.contains(where: { liveTracks[$0.id]?.state == .noSound }) {
+            monitor.writer.retapIfSilent()
+        }
+    }
+
     /// The monitor writer of `uid`. For tests.
     func monitorWriter(_ uid: String) -> DeviceWriter? { monitors[uid]?.writer }
 

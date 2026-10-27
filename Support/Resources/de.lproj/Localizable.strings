@@ -256,6 +256,7 @@
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Benötigt macOS 14.2 oder neuer";
 "track.no.sound.settings" = "Datenschutzeinstellungen öffnen";
+"track.input.level" = "Eingangspegel";
 "track.no.sound.privacy" = "Datenschutz …";
 "track.state.device.lost" = "Gerät getrennt";
 "track.state.write.failed" = "Schreibfehler";

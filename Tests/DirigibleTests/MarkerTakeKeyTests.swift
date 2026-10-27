@@ -98,15 +98,24 @@ import Testing
         await finish(model, studio)
     }
 
-    /// C9d: no session window is key (the Settings window or the start window), so the key adds no
-    /// marker. Control of C9e.
+    /// C9d: a window that is no session window is key (the Settings window or the start window).
+    /// Add Marker and Add Chapter are off, the items whose key a field uses stay on (0018 K1), and
+    /// the key adds no marker. Control: with the session window key again, the key adds a marker.
     @Test func noKeySessionWindowTakesNoMarker() async throws {
         let (model, studio, window, _) = try await recording()
+        let settings = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled], backing: .buffered,
+            defer: true)
         app.key = nil
 
-        app.timeline(.addMarker, event: returnKey(in: window), in: window)
+        app.timeline(.addMarker, event: returnKey(in: settings), in: settings)
 
+        #expect(!app.isOn(.addMarker) && !app.isOn(.addChapter), "an Add item is on with no key session window")
+        #expect(app.isOn(.setIn) && app.isOn(.split), "an item whose key a field uses is off")
         #expect(studio.session.markers.isEmpty)
+        app.key = model
+        app.timeline(.addMarker, event: returnKey(in: window), in: window)
+        #expect(app.isOn(.addMarker) && studio.session.markers.count == 1)
         await finish(model, studio)
     }
 

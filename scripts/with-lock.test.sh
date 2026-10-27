@@ -19,7 +19,7 @@ tmp="$(mktemp -d)"
 holder="" child="" waiter="" inner="" other=""
 trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 # The value of an outer with-lock.sh call names another lock.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD BASE MAKEFLAGS SINCE
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
@@ -289,11 +289,13 @@ code=$?
 [[ $code -eq 0 && -e "$tmp/ran" ]] || fail "limit, holder of 1 s under 3 s: exit $code: $(cat "$tmp/wait.out")"
 clear_hold
 # These calls wait past a limit of 2 s for a holder of 3 s.
-for kind in release mark mutation zero; do
+for kind in release envbase makeflags mark mutation zero; do
   hold_for 3
   rm -f "$tmp/ran" "$tmp/order"
   case "$kind" in
     release) WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed BASE=origin/main ;;
+    envbase) BASE=origin/main WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed ;;
+    makeflags) MAKEFLAGS='w -- BASE=origin/main' WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed ;;
     mark) DIRIGIBLE_LOCKED_SCRIPT="$fake/make" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" test ;;
     mutation) WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/mutation-pass.sh" x ;;
     zero) WITH_LOCK_MAX_WAIT=0 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" test ;;
@@ -405,6 +407,34 @@ FAKE_TARGETS="check-docs" "$repo/scripts/with-lock.sh" "$fake/make" check-change
 code=$?
 [[ $code -eq 0 && -s "$tmp/order" && "$(cat "$tmp/wait.out")" != *'lock-free'* && "$(awk -F'\t' '{ print $3 }' "$holds")" == *'BASE=origin/main' ]] ||
     fail "lock-free, push check: exit $code, hold [$(cat "$holds" 2>/dev/null)]: $(cat "$tmp/wait.out")"
+# BASE in the environment or in MAKEFLAGS (make exports a BASE= word of its command line to the
+# recipe) is a push check as well: never lock-free, and a release call with no wait limit. An empty
+# BASE is no push check.
+for envword in BASE=origin/main 'MAKEFLAGS= BASE=origin/main' 'MAKEFLAGS=w -- BASE=origin/main'; do
+    reset_builders
+    rm -f "$tmp/order"
+    hold_for 4
+    FAKE_TARGETS="check-docs" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 env "$envword" "$repo/scripts/with-lock.sh" "$fake/make" check-changed > "$tmp/wait.out" 2>&1
+    code=$?
+    [[ $code -eq 0 && -s "$tmp/order" && "$(cat "$tmp/wait.out")" != *'lock-free'* && "$(awk -F'\t' '{ print $3 }' "$holds")" == *'check-changed' ]] ||
+        fail "lock-free, push check from [$envword]: exit $code, hold [$(cat "$holds" 2>/dev/null)]: $(cat "$tmp/wait.out")"
+done
+FAKE_TARGETS="check-docs" BASE= lockfree run "an empty BASE in the environment" "$fake/make" check-changed
+FAKE_TARGETS="check-docs" MAKEFLAGS='w -- SINCE=main' lockfree run "MAKEFLAGS with no BASE" "$fake/make" check-changed
+# A live holder that is a push check by its environment keeps the wait of a lock-free call.
+reset_builders
+mkdir "$fake/slow"
+printf '#!/bin/bash\nsleep 6\n' > "$fake/slow/make"
+chmod +x "$fake/slow/make"
+BASE=origin/main "$repo/scripts/with-lock.sh" "$fake/slow/make" check-changed > /dev/null 2>&1 &
+other=$!
+until_true 50 test -s "$lock/child" || fail 'lock-free, push check holder: the holder did not start'
+rm -f "$tmp/order"
+out="$(FAKE_TARGETS="check-docs" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -s "$tmp/order" && "$out" != *'lock-free targets'* ]] ||
+    fail "lock-free, holder with BASE in its environment: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+reset_builders
 # make test-hooks: a HOOK_TESTS= word runs at once; the bare goal waits.
 lockfree run "test-hooks with HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=a,b
 lockfree wait "test-hooks with no HOOK_TESTS" "$fake/make" test-hooks

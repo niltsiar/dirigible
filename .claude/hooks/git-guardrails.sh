@@ -238,8 +238,11 @@ mask_quoted_pipes() {
 #   - a segment that names <name>: its first word is cat, grep, head, tail, wc, ls, stat, test, [,
 #     rg, awk, sort (no -o), sed (with -n and no -i), or git grep, and no redirect path runs up to
 #     the name (quotes and a $(...) part are part of the path, and the path stops at `*` and `[`);
-#   - a segment that does not name <name>: its first word is cat, ls, echo, test, [, wc, grep, head,
-#     tail, or cut, and it has no < or > except 2>/dev/null and 2>&1.
+#   - a segment that does not name <name>: `cd <one word>` with no redirect; one plain NAME=word
+#     (word of letters, digits, and _./:@%+,=-) whose NAME is none of PATH, IFS, ENV, BASH_ENV,
+#     CDPATH, SHELLOPTS, HOME, PAGER, RIPGREP_CONFIG_PATH, or a GIT_, LD_, or DYLD_ name, because
+#     such a name makes a read tool run another program; or a first word cat, ls, echo, test, [,
+#     wc, grep, head, tail, or cut, with no < or > except 2>/dev/null and 2>&1.
 # A substitution other than $(git rev-parse ...), $(cat ...), and $(ls ...), a backtick, <(, and >(
 # block. An allowlist, because a list of write forms missed sed -i, dd of=, a variable, and a pipe
 # into xargs. A path that starts with ../ or / and has no .git in it is a folder of that name (a
@@ -248,6 +251,9 @@ reads_only() {
   local name="$1" line first second token named any=0 i rest sep=$'\002' bar=$'\003'
   local redirect=">[>|]?[[:space:]]*[\"']?(\\\$\\([^)]*\\))?[^;&|[:space:]*[]*$1"
   local value="[\"']?(\\\$\\(git rev-parse [^()\`<>&;|]*\\))?[^][:space:]()\`\$<>&;|\"']*$1[^][:space:]()\`\$<>&;|\"']*[\"']?"
+  local cd_form='^cd[[:space:]]+[^[:space:]<>]+$'
+  local plain_assign='^([A-Za-z_][A-Za-z0-9_]*)=[A-Za-z0-9_./:@%+,=-]*$'
+  local program_names='^(PATH|IFS|ENV|BASH_ENV|CDPATH|SHELLOPTS|HOME|PAGER|RIPGREP_CONFIG_PATH|GIT_.*|LD_.*|DYLD_.*)$'
   local -a segs=() kinds=()
   while IFS= read -r line; do
     line="${line//$sep/&}"
@@ -286,6 +292,12 @@ reads_only() {
       esac
       grep -qE "$redirect" <<< "$line" && return 1
     else
+      if [[ "$line" =~ $cd_form ]]; then
+        continue
+      elif [[ "$line" =~ $plain_assign ]]; then
+        [[ "${BASH_REMATCH[1]}" =~ $program_names ]] && return 1
+        continue
+      fi
       case "$first" in
         cat | ls | echo | test | '[' | wc | grep | head | tail | cut) ;;
         *) return 1 ;;
@@ -317,7 +329,7 @@ fi
 # Only scripts/with-lock.sh takes and removes the build lock, and only after its own take, so a
 # hand-written mkdir and rmdir chain cannot remove the lock of another agent. A read is allowed.
 if ! reads_only dirigible-build.lock; then
-  block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat)"
+  block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat, joined only with cd or a plain assignment)"
 fi
 # Only scripts/verify-copy.sh start takes the screen lock and stop removes it, so a hand-written
 # remove cannot free the screen for a second verify copy. A read is allowed.

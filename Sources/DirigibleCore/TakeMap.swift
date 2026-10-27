@@ -68,10 +68,10 @@ public struct TakeMap: Sendable {
     /// Each take frame that the map can give: an origin plus a file frame.
     public static let takeFrames = -originBound...(originBound + Frames.limit.count)
 
-    /// `recordings` holds the take anchor of each capture. A file has an origin only when its
-    /// capture ID equals its file ID, so a file that finalize did not make (an import, a paste
-    /// from another package, a derived file) has none. An origin outside `originBound` comes from a
-    /// damaged `session.xml` and is no take time.
+    /// `recordings` holds the take anchor of each capture. A file has an origin when its capture ID
+    /// equals its file ID, and a rendered file has the origin of its root plus the sum of the origin
+    /// offsets (decision 0057). So an import, a paste from another package, and a split file have
+    /// none. An origin outside `originBound` comes from a damaged `session.xml` and is no take time.
     public init(_ session: Session, recordings: [CaptureID: Recording]) {
         let bound = Self.originBound
         var origins: [FileID: Origin] = [:]
@@ -86,6 +86,11 @@ public struct TakeMap: Sendable {
                 (-bound...bound).contains(frame)
             else { continue }
             origins[file.id] = Origin(take: recording.take, frame: frame)
+        }
+        for file in session.files.values where file.origin != nil {
+            let root = session.root(of: file.id)
+            guard let base = origins[root.file] else { continue }
+            origins[file.id] = Origin(take: base.take, frame: base.frame + root.offset.count)
         }
         let pieces = session.tracks.enumerated().flatMap { order, track in
             track.clips.compactMap { clip in

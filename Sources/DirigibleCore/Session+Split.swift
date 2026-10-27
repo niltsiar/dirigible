@@ -73,8 +73,8 @@ extension Session {
         try checkStereo(pairs.flatMap(\.run.clips))
         var placements: [ClipID: Placement] = [:]
         for pair in pairs {
-            let left = try addDerivedFile(from: pair.run, stem: pair.leftStem, layout: .mono)
-            let right = try addDerivedFile(from: pair.run, stem: pair.rightStem, layout: .mono)
+            let left = try addDerivedFile(from: pair.run, stem: pair.leftStem, layout: .mono, origin: nil)
+            let right = try addDerivedFile(from: pair.run, stem: pair.rightStem, layout: .mono, origin: nil)
             let span = pair.run.span
             for id in pair.run.clips {
                 placements[id] = Placement(

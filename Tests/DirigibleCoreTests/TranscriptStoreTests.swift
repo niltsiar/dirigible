@@ -297,4 +297,22 @@ struct TranscriptStoreTests {
         #expect(loaded.words().map(\.text) == ["Hello", "there"])
         #expect(loaded.transcripts[one]?.file != session.transcripts[one]?.file, "the pruned words get a new name")
     }
+
+    /// C12. A word keyed by a file with an origin does not load: no render writes one, and the
+    /// words of a rendered file stay on its root (decision 0057 D11). The session still opens.
+    @Test func wordOnRenderedFileIsNotLoaded() throws {
+        var session = try session()
+        let origin = RenderOrigin(source: "h", offset: 0, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        try session.addFile(AudioFile(id: "h NR", path: "h NR.wav", layout: .mono, length: 500_000, origin: origin))
+        try session.write(to: package)
+        let url = folder.appending(path: "\(try #require(session.transcripts[one]?.file)).xml")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let damaged = text.replacing(#"file="h""#, with: #"file="h NR""#)
+        #expect(damaged != text, "the fixture moves the words of h to h NR")
+        try Data(damaged.utf8).write(to: url)
+
+        let opened = try Session(contentsOf: package)
+
+        #expect(opened.transcriptsNotLoaded.map(\.id) == [one] && opened.words().isEmpty)
+    }
 }

@@ -101,7 +101,7 @@ struct DerivedFileTests {
         try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .stereo, length: 1_000_000, capture: "k1"))
 
         let id = try session.addDerivedFile(
-            from: ClipRun(file: "f", span: 100_000..<300_000, clips: []), stem: "f L", layout: .mono)
+            from: ClipRun(file: "f", span: 100_000..<300_000, clips: []), stem: "f L", layout: .mono, origin: nil)
 
         #expect(id == "f L")
         #expect(
@@ -118,10 +118,11 @@ struct DerivedFileTests {
         let before = session
 
         #expect(throws: SessionError.duplicateID("f NR")) {
-            try session.addDerivedFile(from: run, stem: "f NR", layout: .mono)
+            try session.addDerivedFile(from: run, stem: "f NR", layout: .mono, origin: nil)
         }
         #expect(throws: SessionError.unknownFile("g")) {
-            try session.addDerivedFile(from: ClipRun(file: "g", span: run.span, clips: []), stem: "g NR", layout: .mono)
+            try session.addDerivedFile(
+                from: ClipRun(file: "g", span: run.span, clips: []), stem: "g NR", layout: .mono, origin: nil)
         }
         #expect(session == before)
     }
@@ -136,7 +137,7 @@ struct DerivedFileTests {
 
         for stem in ["f NR", "f nr"] {
             #expect(throws: SessionError.duplicateID("\(stem).wav")) {
-                try session.addDerivedFile(from: run, stem: stem, layout: .mono)
+                try session.addDerivedFile(from: run, stem: stem, layout: .mono, origin: nil)
             }
         }
         #expect(session == before)
@@ -149,7 +150,8 @@ struct DerivedFileTests {
 
         for span: Range<Frames> in [500_000..<500_000, 900_000..<1_000_001] {
             #expect(throws: SessionError.frameOutOfRange) {
-                try session.addDerivedFile(from: ClipRun(file: "f", span: span, clips: []), stem: "f NR", layout: .mono)
+                try session.addDerivedFile(
+                    from: ClipRun(file: "f", span: span, clips: []), stem: "f NR", layout: .mono, origin: nil)
             }
         }
         #expect(session == before)
@@ -166,7 +168,7 @@ struct DerivedFileTests {
 
         #expect(throws: SessionError.transcriptNotLoaded([TranscriptID(2)])) {
             try session.addDerivedFile(
-                from: ClipRun(file: "f", span: 100_000..<200_000, clips: []), stem: "f NR", layout: .mono)
+                from: ClipRun(file: "f", span: 100_000..<200_000, clips: []), stem: "f NR", layout: .mono, origin: nil)
         }
         #expect(session == before)
     }
@@ -181,7 +183,7 @@ struct DerivedFileTests {
         session.addWords([(7, 120_000..<130_000, "other")], file: "f", transcript: 2)
 
         try session.addDerivedFile(
-            from: ClipRun(file: "f", span: 100_000..<200_000, clips: []), stem: "f NR", layout: .mono)
+            from: ClipRun(file: "f", span: 100_000..<200_000, clips: []), stem: "f NR", layout: .mono, origin: nil)
 
         #expect(
             session.transcripts[TranscriptID(1)]?.words?["f NR"]?.all == [
@@ -193,5 +195,20 @@ struct DerivedFileTests {
                 Anchor(number: 7, range: 20_000..<30_000, text: "other")
             ])
         #expect(session.transcripts[TranscriptID(1)]?.words?["f"]?.all.count == 3, "the source keeps its words")
+    }
+
+    /// C12. A file with an origin gets no word: its words stay on the root (decision 0057 D11).
+    @Test func aRenderedFileGetsNoWords() throws {
+        var session = try session(length: 1_000_000, clips: [])
+        session.addWords([(2, 150_000..<160_000, "inside")], file: "f")
+        let origin = RenderOrigin(
+            source: "f", offset: 100_000, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+
+        try session.addDerivedFile(
+            from: ClipRun(file: "f", span: 100_000..<200_000, clips: []), stem: "f NR", layout: .mono, origin: origin)
+
+        #expect(session.files["f NR"]?.origin == origin)
+        #expect(session.transcripts[TranscriptID(1)]?.words?["f NR"] == nil)
+        #expect(session.transcripts[TranscriptID(1)]?.words?["f"]?.all.count == 1, "the root keeps its words")
     }
 }

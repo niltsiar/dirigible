@@ -258,7 +258,8 @@ extension L10n {
         case .trackCount(let count): return errorSessionTrackCount.format(count)
         // The window never makes these edits: they are bugs, not user errors.
         case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
-            .captureInUse, .invalidCapture, .fileInUse, .invalidRoute, .invalidPath, .frameOutOfRange,
+            .captureInUse, .invalidCapture, .fileInUse, .fileIsSource, .invalidOrigin, .invalidRoute, .invalidPath,
+            .frameOutOfRange,
             .markerURLTooLong,
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .pointOutsideClip, .fadeOutsideClip,
             .crossfadeOutsideFile,

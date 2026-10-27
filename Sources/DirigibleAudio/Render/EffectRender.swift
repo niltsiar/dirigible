@@ -46,10 +46,11 @@ package struct ClipRenderOutcome: Sendable {
 ///
 /// The order: the runs, the role check of each clip (`Treatment.accepts`), the source checks, the
 /// unit load, one space check (`freeBytes`), the stems "<source stem> NR" by the stem rule of
-/// 0040, `repoint` on a session copy, then each run through a new chain into `.<stem>.wav.tmp`,
-/// with a second pass at a scale when its peak is over full scale (`.stillOverFullScale` when the
-/// second pass still peaks at the largest 24-bit sample), the read-back, `setGains` of
-/// the scaled clips, the renames, and one flush of `Clips/` (`NewClipFiles`). So a refusal reads
+/// 0040, `repoint` on a session copy with 0 dB, then each run through a new chain into
+/// `.<stem>.wav.tmp`, with a second pass at a scale when its peak is over full scale
+/// (`.stillOverFullScale` when the second pass still peaks at the largest 24-bit sample), the
+/// read-back, `repoint` on the input session with the dB of each second-pass scale as the added
+/// gain of its run (decision 0057), the renames, and one flush of `Clips/` (`NewClipFiles`). So a refusal reads
 /// no audio and writes no file, and a throw before the renames leaves no new file. A fault in the
 /// renames keeps the renamed WAVs as unused files (0040), and a cancel after them removes them
 /// (`removeMadeFiles`). `isCancelled` is read before each run, each block, and the renames, and
@@ -125,10 +126,15 @@ package func renderClips(
         do throws(NewClipFault) { temporaries.append(try files.add(stem: stem)) } catch { throw ClipRenderError(error) }
         stems.append(stem)
     }
-    var rendered = session
+    func renderedRuns(_ gains: [Gain]) -> [RenderedRun] {
+        zip(runs, zip(stems, gains)).map {
+            RenderedRun(run: $0.run, stem: $1.0, treatment: $0.treatment, addedGain: $1.1)
+        }
+    }
     let clips: [RenderedClip]
     do throws(SessionError) {
-        clips = try rendered.repoint(zip(runs, stems).map { RenderedRun(run: $0.run, stem: $1) })
+        var checked = session
+        clips = try checked.repoint(renderedRuns(runs.map { _ in .zero }))
     } catch {
         throw .session(error)
     }
@@ -136,7 +142,7 @@ package func renderClips(
     let total = Double(frames.reduce(0, +))
     var done: Int64 = 0
     var reported = 0.0
-    var gains: [ClipID: Gain] = [:]
+    var addedGains = runs.map { _ in Gain.zero }
     for (index, (run, source, treatment)) in runs.enumerated() {
         guard !isCancelled() else { throw .cancelled }
         let channels = source.layout.channelCount
@@ -181,21 +187,15 @@ package func renderClips(
         if let scale = fullScaleRepair(result.peak) {
             result = try pass(scale * secondPassGain) { _ in }
             guard result.peak < largestSample else { throw .stillOverFullScale(file: wav) }
-            for clip in run.clips {
-                guard let gain = rendered.clip(clip)?.clip.gain.dB,
-                    let scaled = Gain(clamping: gain - 20 * log10(Double(scale)))
-                else { continue }
-                gains[clip] = scaled
-            }
+            if let added = Gain(clamping: -20 * log10(Double(scale))) { addedGains[index] = added }
         }
         guard result.length == span.count, try readBack(temporaries[index], wav: wav) == span.count else {
             throw .sourceUnreadable(file: source.path, errno: EIO)
         }
         done += Int64(span.count)
     }
-    if !gains.isEmpty {
-        do throws(SessionError) { try rendered.setGains(gains) } catch { throw .session(error) }
-    }
+    var rendered = session
+    do throws(SessionError) { _ = try rendered.repoint(renderedRuns(addedGains)) } catch { throw .session(error) }
     progress(1)
     guard !isCancelled() else { throw .cancelled }
     do throws(NewClipFault) { try files.commit() } catch { throw ClipRenderError(error) }

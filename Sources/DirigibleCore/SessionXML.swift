@@ -27,6 +27,7 @@ extension Session {
                 "file", ("id", file.id.rawValue), ("path", file.path), ("channels", String(file.layout.channelCount)),
                 ("length", file.length.description))
             if let capture = file.capture { add(("capture", capture.rawValue), to: node) }
+            if let origin = file.origin { node.addChild(originElement(origin)) }
             fileList.addChild(node)
         }
         root.addChild(fileList)
@@ -118,6 +119,19 @@ extension Session {
         }
         return list
     }
+}
+
+/// `<origin source offset gain>` (decision 0057), with one element for each effect, in chain order.
+private func originElement(_ origin: RenderOrigin) -> XMLElement {
+    let node = element(
+        "origin", ("source", origin.source.rawValue), ("offset", origin.offset.description),
+        ("gain", text(origin.addedGain.dB)))
+    for effect in origin.treatment.effects {
+        switch effect {
+        case .noise(let amount): node.addChild(element("noise", ("decibels", String(amount.decibels))))
+        }
+    }
+    return node
 }
 
 /// `<episode>` (decision 0045): each set field as an attribute, and `summary` and `notes` as

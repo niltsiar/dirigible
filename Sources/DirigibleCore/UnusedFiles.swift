@@ -74,7 +74,7 @@ public struct UnusedFiles: Hashable, Sendable {
         let own = Holders(session.usedPaths, in: clips)
         let others = Holders((held + keepers).flatMap(\.usedPaths) + keptFiles, in: clips)
         let poolNames = Set(session.files.values.map { normalized($0.path) })
-        let used = Set(session.tracks.flatMap { $0.clips.map(\.file) })
+        let used = session.filesInUse
         let realClips = clips.resolvingSymlinksInPath().path
 
         var candidates: [(Item.Kind, String)] = session.files.values
@@ -187,7 +187,7 @@ public struct UnusedFiles: Hashable, Sendable {
     /// An edit after the scan keeps a pool item that the pool no longer has, a file that a clip now
     /// uses through any pool entry, and a stray WAV that a pool entry now names.
     public func unused(in session: Session) -> UnusedFiles {
-        let used = Set(session.tracks.flatMap { $0.clips.map(\.file) })
+        let used = session.filesInUse
         let named = Set(session.files.values.map { normalized($0.path) })
         let usedNames = Set(session.files.values.filter { used.contains($0.id) }.map { normalized($0.path) })
         let transcriptFiles = session.transcriptFiles

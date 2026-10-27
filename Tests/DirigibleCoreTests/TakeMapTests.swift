@@ -200,3 +200,45 @@ struct TakeMapTests {
         }
     }
 }
+
+/// The take time of a rendered file (decision 0057 C16).
+extension TakeMapTests {
+    /// A take clip at 1000 with file offset 600 000 and origin 500, and the map of a take frame.
+    func takeClip() throws -> TakeSession {
+        var fixture = try TakeSession(tracks: 1)
+        let file = try fixture.addTakeFile(take: 1, arm: 1, origin: 500, length: 2_000_000)
+        try fixture.session.place(Clip(id: "c", file: file, start: 1000, offset: 600_000, length: 100_000), on: "t1")
+        return fixture
+    }
+
+    /// C16. A render and a restore keep the take time of the clip and the sync of the take.
+    @Test func renderedClipKeepsItsTakeTime() throws {
+        var fixture = try takeClip()
+        let before = fixture.map
+        let take = before.take(atTimeline: 50_000, on: "t1")
+        #expect(take == TakeMap.TakeTime(take: 1, frame: 649_500))
+        let runs = try fixture.session.clipRuns(of: ["c"]).map {
+            RenderedRun(run: $0, stem: "take1-1-1 NR", treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        }
+        _ = try fixture.session.repoint(runs)
+        #expect(fixture.session.clip("c")?.clip.file == "take1-1-1 NR")
+
+        let rendered = fixture.map
+        #expect(rendered.take(atTimeline: 50_000, on: "t1") == take)
+        #expect(rendered.timeline(atTake: 649_500, take: 1) == before.timeline(atTake: 649_500, take: 1))
+        #expect(rendered.sync == before.sync)
+
+        try fixture.session.restoreOriginals(["c"])
+        #expect(fixture.map.take(atTimeline: 50_000, on: "t1") == take && fixture.map.sync == before.sync)
+    }
+
+    /// C16. A file with no origin made from a take file (a split to mono) has no take time.
+    @Test func splitFileHasNoTakeTime() throws {
+        var fixture = try takeClip()
+        let run = try #require(fixture.session.clipRuns(of: ["c"]).first)
+        let file = try fixture.session.addDerivedFile(from: run, stem: "take1-1-1 L", layout: .mono, origin: nil)
+        try fixture.session.place(Clip(id: "d", file: file, start: 200_000, offset: 0, length: 1000), on: "t1")
+
+        #expect(fixture.map.origins[file] == nil && fixture.map.take(atTimeline: 200_000, on: "t1") == nil)
+    }
+}

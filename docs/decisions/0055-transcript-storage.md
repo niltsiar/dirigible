@@ -6,6 +6,7 @@
 - Changed: 2026-10-14, by the user decision A10 of run `2026-10-13-transcript-1`: the words move from `session.xml` to a write-once file per transcript in `Transcripts/`.
 - Amended: 2026-10-23. `TranscriptFile` also reads SRT (see 0061).
 - Amends: 0003 (the `<transcripts>` element), 0024 (version 8 and its formats row), 0042 (an excerpt carries the words of its files), 0047 (a removed file takes its words), 0011 (the `transcript` commands), 0041 (three tools), 0051 (the `cut-from-transcript` recipe).
+- Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). The anchor file of a word is the root of the file of the clip. A clip on a rendered file reads the words of its root through the sum of the origin offsets. A transcript with a word of a file that has an origin does not load.
 
 ## Context
 

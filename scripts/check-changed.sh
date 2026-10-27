@@ -21,6 +21,7 @@
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
+#          (for a bench and a push check: no build or test of another tree)
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
 # test-filter, and the local target check becomes check-fast test-filter test-app. FILTER before
@@ -102,23 +103,55 @@ targets_of() {
 # A build or a test in another worktree makes timing tests fail (DLV-157). Before a target other
 # than check-docs and check-fast, wait until the 1-minute load is under CHECK_LOAD_MAX (default:
 # the core count) and no swiftpm-testing-helper of another tree runs (its command line does not
-# hold <root>/.build/). Read both each 10 s. After CHECK_LOAD_WAIT seconds (default 300, so the
-# wait and the tests of a slice fit in one 600 s Bash call), run the tests anyway. The lines go
-# to stderr.
+# hold <root>/.build/). A bench (the target bench) and a push check (BASE in the environment: make
+# check-changed BASE=<ref> and land.sh export it) also wait for a toolchain swift-build or
+# swift-test, and for a test-hooks.sh, of another tree. The tree of a process is the git top level
+# of its cwd, or the cwd when that is no git tree; a test-hooks.sh runs in a clone of its own, so
+# its tree is the tree of the cwd of its parent (make). A slice check keeps the first rule only, so
+# its lock wait, load wait, and tests fit in one 600 s Bash call. Read all each 10 s. After
+# CHECK_LOAD_WAIT seconds (default 300, so the wait and the tests of a slice fit in one 600 s Bash
+# call), run the tests anyway. The lines go to stderr.
+# cwd_tree <pid>: the tree of the cwd of a process; nothing when the process or its folder is gone.
+cwd_tree() {
+    local cwd
+    cwd="$(lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+    [[ -d "$cwd" ]] || return 0
+    git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || echo "$cwd"
+}
+# other_tree_process <root> <pgrep lines>: print "pid <pid>: <command>" (with " in <tree>" for a
+# build or a hook run) for the first process that is not of the tree <root>.
+other_tree_process() {
+    local root="$1" line pid cmd word second tree
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        pid="${line%% *}" cmd="${line#* }" word="${cmd%% *}" second="${cmd#* }" second="${second%% *}"
+        if [[ "$cmd" == *"/swiftpm-testing-helper "* ]]; then
+            [[ "$cmd" == *"$root/.build/"* ]] || { echo "pid ${line/ /: }"; return 0; }
+        elif [[ "$word" == */swift-build || "$word" == */swift-test ]]; then
+            tree="$(cwd_tree "$pid")"
+        elif [[ "$word" == *test-hooks.sh || ("$word" == */bash && "$second" == *test-hooks.sh) ]]; then
+            tree="$(cwd_tree "$(ps -o ppid= -p "$pid" | tr -d ' ')")"
+        else
+            continue
+        fi
+        [[ -z "$tree" || "$tree" == "$root" ]] || { echo "pid ${line/ /: } in $tree"; return 0; }
+    done <<<"$2"
+    return 1
+}
 wait_load() {
-    local rest=" " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}"
+    local rest=" " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}" pattern='/swiftpm-testing-helper '
     for t in "$@"; do [[ $t == *=* ]] || rest+="$t "; done
     for t in check-docs check-fast none; do rest="${rest// $t / }"; done
     [[ -n "${rest// /}" ]] || return 0
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
     root="$(git rev-parse --show-toplevel)"
+    if [[ "$rest" == *" bench "* || -n "${BASE:-}" ]]; then pattern+='|/swift-(build|test)( |$)|test-hooks\.sh( |$)'; fi
     while :; do
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
-        # pgrep and grep exit 1 with no match, so the pipeline stays in a condition (set -e).
-        if other="$(pgrep -lf '/swiftpm-testing-helper ' | grep -vF "$root/.build/")"; then
+        # pgrep exits 1 with no match, and other_tree_process prints nothing then.
+        other="$(other_tree_process "$root" "$(pgrep -lf "$pattern" || true)" || true)"
+        if [[ -n "$other" ]]; then
             # The command line names the tree of the helper, so a stale helper can be stopped.
-            other="${other%%$'\n'*}"
-            other="pid ${other/ /: }"
             why="a test of another tree runs ($other)" stop="a test of another tree runs after $waited s ($other)"
         elif awk -v l="$load" -v m="$max" 'BEGIN { exit !(l < m) }'; then
             echo "check-changed: load $load, under $max: run the tests" >&2

@@ -66,9 +66,9 @@ cd "$copy"
 sed -i '' -e 's/\.executableTarget(/.target(/' -e '/\.executable(name:/d' Package.swift
 grep -rl '^@main$' Sources | xargs sed -i '' 's/^@main$//'
 swift build -c release -Xswiftc -enable-testing --build-tests
-# Another tree that builds or tests slows the timed run (DLV-157): wait for no test of another
-# tree and a load under the core count (the build above just raised the load, so a lower maximum
-# waits the full cap). The load lines show what the run had.
+# Another tree that builds or tests slows the timed run (DLV-157): wait for no build or test of
+# another tree and a load under the core count (the build above just raised the load, so a lower
+# maximum waits the full cap). The load lines show what the run had.
 "$root/scripts/check-changed.sh" --wait-load bench
 load() { echo "bench: load $(sysctl -n vm.loadavg | awk '{ print $2 }')"; }
 load

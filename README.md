@@ -31,7 +31,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Play forward and backward with the J, K, and L keys, at slow and fast speeds.
 - Play faster or slower with the voices at their pitch, from 0.75x to 2x.
 - Find your way in a long session with the Session overview, zoom to the selection, and a zoom history.
-- Add markers and chapters in the time ruler. Give each chapter a link and an image in the inspector (Markers > Marker Info). The MP3 and M4A exports contain the chapters, and File > Export Chapters writes a chapters.json file for your podcast host.
+- Add markers and chapters in the time ruler, or during a take with Command-Return and Shift-Command-Return to mark a mistake. Give each chapter a link and an image in the inspector (Markers > Marker Info). The MP3 and M4A exports contain the chapters, and File > Export Chapters writes a chapters.json file for your podcast host.
 - Export WAV, AAC (.m4a), MP3, or FLAC, in mono or stereo, at 44.1 kHz or 48 kHz, at a loudness target such as -16 LUFS for a podcast, with the true peak at or under -1 dBTP.
 - Add the episode details and the artwork in the inspector (File > Episode Info). The MP3 and M4A exports contain them.
 

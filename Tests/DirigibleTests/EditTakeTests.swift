@@ -36,8 +36,8 @@ import os
         return url
     }
 
-    /// Cut, Paste, Delete, Split, Nudge, the marker edits, and Remove Track change nothing and show no alert
-    /// while a take records; Rename Marker opens no alert; a refused Cut keeps the clipboard, and a
+    /// Cut, Paste, Delete, Split, Nudge, Move Marker, Delete Marker, and Remove Track change nothing and
+    /// show no alert while a take records; Rename Marker opens no alert; a refused Cut keeps the clipboard, and a
     /// refused Delete Marker keeps the current marker. No marker command beeps. Copy runs. The take goes on: after the stop, each track has a take
     /// clip with frames. Controls: an edit with no idle check shows the `.busy` alert; a clipboard
     /// set before the edit changes on the refused Cut.
@@ -65,9 +65,7 @@ import os
         model.beep = { beeps += 1 }
         model.run(.split)
         #expect(beeps == 0, "Split beeps during the take (run split-no-cut criterion C6)")
-        for command in [
-            TimelineCommand.addMarker, .addChapter, .moveMarker, .markerInfo, .deleteMarker, .removeTrack,
-        ] {
+        for command in [TimelineCommand.moveMarker, .markerInfo, .deleteMarker, .removeTrack] {
             model.run(command)
         }
         model.timeline.marker = nil
@@ -86,6 +84,51 @@ import os
         for track in studio.session.tracks {
             #expect(track.clips.contains { $0.file != "f1" && $0.length > .zero }, "\(track.id) has no take clip")
         }
+        await model.close()
+    }
+
+    /// F107 C8: Add Marker and Add Chapter during a take add "Marker N" and "Chapter N" at a frame
+    /// between the record head before and after the press, make it the current marker, and beep
+    /// and alert nothing. Controls: a given frame (`addMarker(_:at:)`) adds no marker during the
+    /// take, and neither does a press while the take finalizes.
+    @Test func addMarkerDuringATakeMarksTheRecordHead() async throws {
+        let (model, studio) = try await openWithHAL()
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        await model.record()
+        #expect(studio.transport == .recording(take: 1))
+        await hal.feed(seconds: 0.5)
+
+        let before = try #require(studio.liveHead())
+        model.run(.addMarker)
+        let after = try #require(studio.liveHead())
+
+        let marker = try #require(studio.session.markers.values.first)
+        #expect(studio.session.markers.count == 1 && marker.kind == .marker)
+        #expect(marker.name == L10n.markerDefaultName.format(1) && model.timeline.marker == marker.id)
+        #expect(before > .zero && (before...after).contains(marker.position), "\(before) \(marker.position) \(after)")
+        model.run(.addChapter)
+        #expect(studio.session.markers.count == 2)
+        #expect(
+            studio.session.markers.values.contains {
+                $0.kind == .chapter && $0.name == L10n.chapterDefaultName.format(2)
+            })
+
+        model.addMarker(.marker, at: 400_000)
+        #expect(studio.session.markers.count == 2, "a given frame added a marker during the take")
+        #expect(beeps == 0 && model.alert == nil)
+
+        let gate = AsyncGate()
+        studio.environment.beforeFinalize = { await gate.wait() }
+        let stopping = Task { await model.stop() }
+        await gate.entered()
+        model.run(.addMarker)
+        #expect(studio.session.markers.count == 2, "a press while the take finalizes added a marker")
+        #expect(beeps == 0 && model.alert == nil)
+        gate.open()
+        await stopping.value
+        await until("the take finalizes") { studio.transport == .idle }
+        #expect(studio.session.markers.count == 2)
         await model.close()
     }
 

@@ -336,6 +336,18 @@ if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$chained_data"; then
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 
+# A subagent never runs the unlimited lock wait: after a second exit 75 it returns to the lead,
+# which runs the wait in the background (AGENTS.md, Commands). The input of a subagent holds
+# agent_id; the input of the lead does not. The rule matches WITH_LOCK_MAX_WAIT set to zeros at a
+# command start, as the rule above does, and after export.
+agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
+if [[ -n "$agent" ]]; then
+  agent_start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh )*"
+  if [[ "$chained_data" =~ ${agent_start}WITH_LOCK_MAX_WAIT=[\"\']?0+[\"\']?([^0-9A-Za-z_.\"\'-]|$) ]]; then
+    block "sets WITH_LOCK_MAX_WAIT=0 in a subagent" "After a second exit 75, return to the lead: the lead runs the unlimited wait in the background."
+  fi
+fi
+
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or
 # size change of a Finder window moves the windows of the user. The rule reads the whole command
 # with each new line as a space and in lower case, so a heredoc, a multi-line -e, and the three -e

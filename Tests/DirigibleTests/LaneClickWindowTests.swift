@@ -186,6 +186,28 @@ import Testing
         await model.close()
     }
 
+    /// After a lane click the selection has no points, so each ripple item beeps and changes
+    /// nothing, and the track stays selected. Control: with an in point and an out point, Cut in
+    /// Selected Tracks cuts with no beep.
+    @Test func aRippleAfterALaneClickBeeps() async throws {
+        let (model, studio, view) = try await open()
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        try click(view, 200, 70)
+        try #require(model.timeline.selection == .range(Marks(tracks: ["t2"])), "the lane click selects t2")
+        let before = studio.session
+        let commands: [TimelineCommand] = [.cut, .deleteCloseGap, .cutSelectedTracks, .deleteCloseGapSelectedTracks]
+
+        for command in commands { model.run(command) }
+
+        #expect(beeps == commands.count && studio.session == before && model.clipboard == nil, "beeps \(beeps)")
+        #expect(model.timeline.selection == .range(Marks(tracks: ["t2"])), "the track stays selected")
+        model.timeline.selection = .range(Marks(inPoint: 0, outPoint: 24_000, tracks: ["t2"]))
+        model.run(.cutSelectedTracks)
+        #expect(beeps == commands.count && studio.session != before, "the control cuts")
+        await model.close()
+    }
+
     /// Only the area under the last lane, inside the width of the lanes, goes to the lanes. The gap
     /// of an elastic overscroll above lane 0 and left of x 0 stays with the clip view. A clip view
     /// clamps a bounds change outside a scroll gesture, so the test clip view keeps the overscroll.

@@ -195,12 +195,18 @@ lock_free() {
 # long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, or a
 # flake loop (long-runs.md): a lock-free call still waits for it.
 long_holder() {
-    local m c
+    local m c cmd w words make=""
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
     alive "$m" || alive "$c" || alive "-$c" || return 1
-    case "$(cat "$lock/command" 2>/dev/null)" in
-        *check-changed*BASE=* | *land.sh* | *make\ dmg* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh*) return 0 ;;
+    cmd="$(cat "$lock/command" 2>/dev/null)"
+    case "$cmd" in
+        *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh*) return 0 ;;
     esac
+    # The goal bench or dmg of make, also after a NAME=value word (make bench FILTER=X, make FILTER=X bench).
+    read -ra words <<<"$cmd"
+    for w in ${words[@]+"${words[@]}"}; do
+        if [[ "${w##*/}" == make ]]; then make=1; elif [[ -n "$make" && ($w == bench || $w == dmg) ]]; then return 0; fi
+    done
     return 1
 }
 free_targets=""

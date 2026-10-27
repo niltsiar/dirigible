@@ -412,10 +412,13 @@ lockfree wait "test-hooks with an empty HOOK_TESTS" "$fake/make" test-hooks HOOK
 # A holder that is a release call, a bench, a mutation pass, or a flake loop keeps the wait; an
 # ordinary build or test does not.
 for holder_command in "make check-changed BASE=origin/main" "$repo/scripts/land.sh x" "make dmg" "$repo/scripts/bench.sh x" "$repo/scripts/bench-pairs.sh x" \
-    "$repo/scripts/mutation-pass.sh $repo batch" "$repo/scripts/flake-monitor/loop.sh x"; do
+    "$repo/scripts/mutation-pass.sh $repo batch" "$repo/scripts/flake-monitor/loop.sh x" "bash $repo/scripts/flake-monitor/loop.sh x" \
+    "make bench FILTER=HeaderDragBenchmark" "make bench FILTER=ATests BTests" "make FILTER=ATests bench" "make DMG_X=1 dmg"; do
     FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree wait "holder $holder_command" "$fake/make" check-changed
 done
-FAKE_TARGETS="check-docs" HOLDER_COMMAND="make test-filter ATests" lockfree run "holder make test-filter" "$fake/make" check-changed
+for holder_command in "make test-filter ATests" "make test-filter FILTER=bench" "make benchmark-gate"; do
+    FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree run "holder $holder_command" "$fake/make" check-changed
+done
 reset_builders
 
 # ago <minutes>: the ISO time of that many minutes ago, as the logs write it.

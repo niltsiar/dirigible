@@ -16,10 +16,12 @@ private enum LiveBatchError: Error {
 func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     let (studio, path) = (target.studio, call.path)
     let refusedOpen = AgentReply.result(text: openInAppMessage(path), isError: true)
+    /// The one busy guard of a live edit.
+    func refuseBusy() throws(StudioError) { if target.busy != nil { throw .busy } }
     func edit<Result>(ripple: Bool, _ body: (inout Session) throws(SessionError) -> Result) throws(StudioError)
         -> Result
     {
-        if target.busy != nil { throw .busy }
+        try refuseBusy()
         return try studio.edit(ripple: ripple, agent: call.agent, body)
     }
     do throws(StudioError) {
@@ -77,7 +79,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let names = studio.backups.map(\.fileName)
             return .result(text: names.isEmpty ? "No backups." : names.joined(separator: "\n"), isError: false)
         case .batch(let work):
-            if target.busy != nil { throw .busy }
+            try refuseBusy()
             let revision = studio.sessionRevision
             let results: [[String]]
             do throws(LiveBatchError) {

@@ -241,7 +241,7 @@ final class TimelineRuler: NSRulerView {
 
     /// Add Marker and Add Chapter at the clicked frame, and Delete Marker on a flag (mouse-edits
     /// criterion 13). No menu during a gesture or over the track headers. The add items are off
-    /// during a take, as in the Markers menu.
+    /// during a take, because they add at a clicked frame and a take marker goes to the record head.
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let place = place(event), overLanes(place), case .ruler(let x, _) = place,
             let target = timeline?.menuTarget(at: x)
@@ -249,9 +249,10 @@ final class TimelineRuler: NSRulerView {
         let menu = NSMenu()
         menu.autoenablesItems = false
         let isOn = { (command: TimelineCommand) in self.model?.isOn(command) == true }
+        let canEdit = model?.canEdit == true
         let items: [(L10n, Selector, Any, Bool)] = [
-            (.menuMarkersAdd, #selector(addMarkerItem(_:)), target.frame.count, isOn(.addMarker)),
-            (.menuMarkersAddChapter, #selector(addChapterItem(_:)), target.frame.count, isOn(.addChapter)),
+            (.menuMarkersAdd, #selector(addMarkerItem(_:)), target.frame.count, canEdit),
+            (.menuMarkersAddChapter, #selector(addChapterItem(_:)), target.frame.count, canEdit),
             (
                 .menuMarkersDelete, #selector(deleteMarkerItem(_:)), target.marker?.rawValue ?? "",
                 target.marker != nil && isOn(.deleteMarker)

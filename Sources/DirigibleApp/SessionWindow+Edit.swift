@@ -4,7 +4,8 @@ import DirigibleCore
 import DirigibleTimeline
 
 /// The edit commands of the session window (decision 0018). Each command reads the selection once
-/// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing.
+/// and calls `edit` at most once, so it is one undo entry. During a take `edit` does nothing; the
+/// one exception is Add Marker and Add Chapter (`runMarker`).
 extension SessionWindow {
     /// Copy, Paste, and Delete. With no selection, Copy and Delete do nothing. The clipboard
     /// changes only after a Copy that ran, or a Cut of `runRipple` that ran. On a clip set, Copy
@@ -143,11 +144,15 @@ extension SessionWindow {
     /// and chapters + 1, and makes it the current marker. Next and Previous seek and set the current
     /// marker. Move and Delete act on the current marker when the session has it, else they beep;
     /// Move with the marker at the playhead beeps too. Marker Info… shows the Marker pane. During a
-    /// take they do nothing and do not beep, as no edit command acts then (decision 0018).
+    /// take, Add adds at the record head (`addTakeMarker`) while the take records. The other commands,
+    /// and Add during a take start or a finalize, do nothing and do not beep, as no edit command
+    /// acts then (decision 0018).
     func runMarker(_ command: TimelineCommand, _ studio: Studio) {
         let (session, playhead) = (studio.session, studio.playhead)
         switch command {
-        case .addMarker, .addChapter: addMarker(command == .addChapter ? .chapter : .marker, at: playhead)
+        case .addMarker, .addChapter:
+            let kind: Marker.Kind = command == .addChapter ? .chapter : .marker
+            if studio.canAddTakeMarker { addTakeMarker(kind, studio) } else { addMarker(kind, at: playhead) }
         case .previousMarker, .nextMarker:
             let found =
                 command == .nextMarker
@@ -174,6 +179,19 @@ extension SessionWindow {
             default: return
             }
         default: return
+        }
+    }
+
+    /// Adds a marker or a chapter at the record head of the take (F107) and makes it the current
+    /// marker. A `.busy` throw does nothing, with no beep and no alert; another error shows its alert.
+    private func addTakeMarker(_ kind: Marker.Kind, _ studio: Studio) {
+        let name = newMarkerName(kind, in: studio.session)
+        do throws(StudioError) {
+            timeline.marker = try studio.addMarkerAtRecordHead(kind, name: name.key.format(name.number)).id
+        } catch .busy {
+            return
+        } catch {
+            alert = .error(error)
         }
     }
 

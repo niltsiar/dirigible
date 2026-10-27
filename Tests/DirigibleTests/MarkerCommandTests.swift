@@ -51,15 +51,22 @@ import Testing
         await model.close()
     }
 
-    /// Add, Add Chapter, Move, and Delete change nothing during a take, so their items are off then.
-    @Test func theMarkerEditsAreOffDuringATake() async throws {
+    /// While a take records, Add and Add Chapter add at the record head, so their items are on;
+    /// Move and Delete change nothing then, so their items are off. While a take starts and while it
+    /// finalizes, all four are off.
+    @Test func onlyTheAddItemsAreOnDuringATake() async throws {
         let (model, studio, _) = try await open()
         let edits: [TimelineCommand] = [.addMarker, .addChapter, .moveMarker, .deleteMarker]
         #expect(edits.map(model.isOn) == [true, true, true, true], "no take: the items are on")
+        defer { (studio.transport, studio.isStarting) = (.idle, false) }
 
         studio.transport = .recording(take: 1)
-        defer { studio.transport = .idle }
-        #expect(edits.map(model.isOn) == [false, false, false, false], "during a take: the items are off")
+        #expect(edits.map(model.isOn) == [true, true, false, false], "a take records")
+        studio.transport = .finalizing(take: 1)
+        #expect(edits.map(model.isOn) == [false, false, false, false], "the take finalizes")
+        studio.transport = .idle
+        studio.isStarting = true
+        #expect(edits.map(model.isOn) == [false, false, false, false], "the take starts")
         await model.close()
     }
 

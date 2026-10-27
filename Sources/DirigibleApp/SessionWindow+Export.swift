@@ -88,7 +88,9 @@ extension SessionWindow {
         // No text field uses their keys, so they can be off during a take.
         case .raiseVolume, .lowerVolume, .resetVolume, .addGainPoint: canEdit
         // During a take the inspector is off and the name field goes, so no field takes their keys.
-        case .addMarker, .addChapter, .moveMarker, .deleteMarker: canEdit
+        // Add Marker and Add Chapter also act while a take records (F107).
+        case .addMarker, .addChapter: canEdit || studio?.canAddTakeMarker == true
+        case .moveMarker, .deleteMarker: canEdit
         default: true
         }
     }

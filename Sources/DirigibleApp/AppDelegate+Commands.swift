@@ -58,6 +58,10 @@ extension AppDelegate {
             if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }
             return
         }
+        // A held Command-Return marks once, as a held N toggles once.
+        if command == .addMarker || command == .addChapter, let event, event.type == .keyDown, event.isARepeat {
+            return
+        }
         key?.run(command)
     }
 }

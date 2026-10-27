@@ -87,16 +87,16 @@ import Testing
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
-    /// The lane menu reads the rule of the Markers menu, so the marker items are off during a take.
-    /// Control: on with no take.
-    @Test func aTakeTurnsTheMarkerItemsOff() async throws {
+    /// The lane menu reads the rule of the Markers menu, so the marker items are on while a take
+    /// records. Control: on with no take.
+    @Test func aTakeKeepsTheMarkerItemsOn() async throws {
         let (model, studio, window, view) = try await lanes()
         let marker = [L10n.menuMarkersAdd.text, L10n.menuMarkersAddChapter.text]
         #expect(Array(titles(try menu(view, 120, 10)).suffix(2)) == marker, "no take")
 
         studio.transport = .recording(take: 1)
         defer { studio.transport = .idle }
-        #expect(titles(try menu(view, 120, 10)) == marker.map { $0 + " (off)" }, "during a take")
+        #expect(titles(try menu(view, 120, 10)) == marker, "during a take")
         window.close()
         await model.close()
     }

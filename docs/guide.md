@@ -85,7 +85,7 @@ A track records only when its arm button is on. Click the button to turn it on o
 
 A take is one recording, from Record to Stop. After Stop, Dirigible finalizes the take: it writes the audio of each track into clips. A clip is one piece of audio on a track. The playhead is the vertical line that shows the play position. The line is white in dark mode and black in light mode, so it shows over a selected track too. The head is in the time ruler. Only the record head of a take is red. With **Increase Contrast** on in the macOS settings, the line is thicker. When the playhead is near a time in the ruler, the head covers part of that time. After a take, the playhead is at the end of the take.
 
-After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. When Dirigible leveled the take, the first Undo removes the level and keeps the take. A take with no change of gain, for example a silent take, gets no level, and the first Undo removes the take.
+After Stop, Dirigible also levels the new clips: it sets the gain of each clip so that it plays at -16 LUFS on a stereo track and -19 LUFS on a mono track. The clips of the take on one track get the same change. The audio files do not change. When Dirigible leveled the take, the first Undo removes the level and keeps the take. A take with no change of gain, for example a silent take, gets no level, and the first Undo removes the take. The markers and chapters that you added during the take stay after this Undo, and each next Undo removes one of them.
 
 When you close the window during a take, Dirigible asks first. Press Return to stop the take and close the window, or press Esc to go on recording.
 
@@ -369,7 +369,9 @@ A marker is a flag in the time ruler. A chapter is a marker for a new part of th
 
 - Choose **Markers > Add Marker** or **Markers > Add Chapter** to add a flag at the playhead. The number in the name counts the markers and the chapters together, for example **Marker 1**, then **Chapter 2**.
 - Control-click the time ruler and choose **Add Marker** or **Add Chapter** to add a flag at that point.
-- During a take, you cannot add a marker: **Add Marker** and **Add Chapter** are off. Write down the time of the toolbar clock, and add the marker after the take.
+- During a take, **Add Marker** (Command-Return) and **Add Chapter** (Shift-Command-Return) add a flag at the record head, the point that Dirigible records now. Use them to mark a mistake and cut it after the take. The flag shows in the time ruler at once and becomes the current marker. A held key adds one flag. The menu of the time ruler stays off during a take, because it adds a flag at the point that you click.
+- While the take starts, before the record time runs, and while it finalizes after Stop, the key adds no flag, and Dirigible keeps no queue of presses. Press the key again.
+- Dirigible saves each flag of a take when you add it, so the flags stay after a crash. Each flag is one step of **Edit > Undo**. After the take, the Undo of the take keeps the flags of the take, and each next Undo removes one flag.
 - Control-click a flag and choose **Delete Marker** to delete it.
 - Click a flag to move the playhead to it. The flag becomes the current marker.
 - Drag a flag to move it. The flag becomes the current marker.

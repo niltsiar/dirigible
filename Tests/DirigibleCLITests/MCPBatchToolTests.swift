@@ -248,6 +248,32 @@ struct MCPBatchToolTests {
         #expect(removed == ("OK", false) && ripple == (splitTakeMessage(take.package.path), true), "\(ripple)")
     }
 
+    /// The files path scans `Capture/` once for a batch with two ripple steps: a step changes only
+    /// the session value, so `Capture/` cannot change. The rule of that scan decides each step.
+    @Test func aBatchScansCaptureOnce() throws {
+        let ripple = { (from: Int, to: Int) in Self.call("clip_ripple_delete", ["from": [from], "to": [to]]) }
+        let work = try BatchWork.check(
+            BatchWork.parse([ripple(48_000, 60_000), ripple(12_000, 24_000)]), package: package.path)
+        let before = try snapshot()
+
+        var scans = 0
+        let lines = try work.runOnFiles(package.url) { _ in
+            scans += 1
+            return { _ in false }
+        }
+        #expect(scans == 1 && lines.count == 2, "BATCH-A2 \(scans) scans: \(lines)")
+        #expect(try snapshot().xml != before.xml)
+
+        let blocked = try BatchWork.check(BatchWork.parse([Self.addT2, ripple(0, 4_800)]), package: package.path)
+        let text = "calls[1] clip_ripple_delete failed, so the batch changed nothing: \(splitTakeMessage(package.path))"
+        do throws(EditFailure<BatchWork.Failure>) {
+            _ = try blocked.runOnFiles(package.url) { _ in { _ in true } }
+            Issue.record("a blocked ripple step ran")
+        } catch {
+            #expect(error.message(package: package.path) == text, "\(error.message(package: package.path))")
+        }
+    }
+
     /// C9: a pending take refuses the whole batch with the text of one call and no index.
     @Test func aPendingTakeRefusesTheBatch() async throws {
         try package.edit {

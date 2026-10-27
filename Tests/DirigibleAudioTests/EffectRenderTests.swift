@@ -180,6 +180,23 @@ struct EffectRenderTests {
         #expect(rmsDecibels(Array(rendered[tail])) > -30, "the tail holds the noise, not silence")
     }
 
+    /// The unit output depends on the size of each pull, so each pull has the same size: at 12 dB
+    /// the last 4096 frames of a span equal the same frames of a span 4096 frames longer, over a
+    /// source that is silent past the span. 96,000 frames and the latency end in a pull of 401.
+    @Test func lastPullHasTheFullSize() throws {
+        let fixture = try RenderFixture()
+        let voice = try spokenVoice(rate: 48_000, peak: 0.5, in: fixture.package.folder.url).prefix(96_000)
+        try fixture.package.addFile("f1", channels: [Array(voice) + [Float](repeating: 0, count: 8192)])
+        let wet = NoiseReduction.standard.wetDryMixPercent
+
+        let short = try fixture.chainRender("f1", span: 0..<96_000, wet: wet, name: "short")
+        let long = try fixture.chainRender("f1", span: 0..<100_096, wet: wet, name: "long")
+
+        let tail = 91_904..<96_000
+        #expect(maxError(Array(short.samples[tail]), Array(long.samples[tail])) <= 1e-6)
+        #expect(rmsDecibels(Array(short.samples[tail])) > -60, "the tail holds the voice")
+    }
+
     /// C2: one 10 s clip at 25 s of a 60 s file writes 30 s from 15 s, not the whole file, and the
     /// new offset is 10 s. At offset 0 the handle stops at the file start.
     @Test func writesTheRunSpan() throws {

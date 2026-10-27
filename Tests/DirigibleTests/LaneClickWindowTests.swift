@@ -185,4 +185,35 @@ import Testing
         #expect(studio.session.tracks.map(\.id) == ["t1", "t3", "t4"])
         await model.close()
     }
+
+    /// Only the area under the last lane, inside the width of the lanes, goes to the lanes. The gap
+    /// of an elastic overscroll above lane 0 and left of x 0 stays with the clip view. A clip view
+    /// clamps a bounds change outside a scroll gesture, so the test clip view keeps the overscroll.
+    /// Control: a point under the last lane goes to the lanes.
+    @Test func onlyThePointsUnderTheLastLaneGoToTheLanes() async throws {
+        let (model, _, view) = try await open()
+        let window = try #require(view.window)
+        func hit(_ x: Double, _ y: Double) -> NSView? {
+            window.contentView?.superview?.hitTest(view.lanes.convert(NSPoint(x: x, y: y), to: nil))
+        }
+        let clip = OverscrollClipView(frame: view.contentView.frame)
+        (clip.automaticallyAdjustsContentInsets, clip.contentInsets) = (false, view.contentView.contentInsets)
+        let (lanes, origin) = (view.lanes, view.contentView.bounds.origin)
+        view.contentView = clip
+        clip.documentView = lanes
+        clip.setBoundsOrigin(origin)
+        #expect(hit(200, 270) === view.lanes, "under the last lane")
+
+        clip.setBoundsOrigin(NSPoint(x: origin.x - 40, y: origin.y - 40))
+        try #require(view.shown.minX == -40 && view.shown.minY == -40, "the overscroll shows \(view.shown)")
+
+        #expect(hit(200, -10) === clip, "above lane 0")
+        #expect(hit(-10, 100) === clip, "left of x 0")
+        await model.close()
+    }
+}
+
+/// A clip view that keeps any bounds, as during the elastic overscroll of a scroll gesture.
+private final class OverscrollClipView: NSClipView {
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect { proposedBounds }
 }

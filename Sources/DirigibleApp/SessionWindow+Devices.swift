@@ -33,6 +33,21 @@ extension SessionWindow {
         }
     }
 
+    /// When Dirigible becomes the active app again with Input Levels on, the studio taps again
+    /// each app track that shows **No sound from**: after a grant in System Settings, the meter
+    /// moves with no toggle (decision 0015).
+    func followActivation() {
+        guard activeObserver == nil else { return }
+        activeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.monitoring, case .open(let studio) = self.phase else { return }
+                studio.rebuildSilentAppMonitors()
+            }
+        }
+    }
+
     func openPrivacySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
         else { return }

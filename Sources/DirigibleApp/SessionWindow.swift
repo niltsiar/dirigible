@@ -96,6 +96,8 @@ import SwiftUI
     /// The body runs of the inspector, for the tests. A tree check shows only that a hidden pane
     /// is gone; this count also shows one run per Marks change of a shown pane (W7).
     @ObservationIgnored var inspectorRuns = 0
+    /// The observer of `NSApplication.didBecomeActiveNotification` (`followActivation()`).
+    @ObservationIgnored var activeObserver: (any NSObjectProtocol)?
     /// The wait before the banner of a paste from another package shows (`ui-panel.md` item 1:
     /// 0.5 s, so a clone shows none). Tests give a wait that they end.
     @ObservationIgnored var bannerWait: @MainActor () async -> Void = { try? await Task.sleep(for: .milliseconds(500)) }
@@ -273,6 +275,7 @@ import SwiftUI
         phase = .open(studio)
         follow(studio)
         followMonitor(studio)
+        followActivation()
         followTakeError(studio)
     }
 
@@ -350,6 +353,8 @@ import SwiftUI
     /// Drops the studio, so its lock goes, and breaks the cycle of the window and its view.
     private func finishClose() {
         phase = .closed
+        activeObserver.map(NotificationCenter.default.removeObserver)
+        activeObserver = nil
         // The pool releases the view now, not at the end of the main-queue job, so the studio
         // and its lock go before this call returns, and an open right after it works.
         autoreleasepool {

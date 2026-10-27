@@ -44,8 +44,10 @@ final class DeviceWriter: @unchecked Sendable {
     /// The last running state that an app writer reported: `.waitingForApp` while its app has no
     /// process, else `.recording`.
     var appState = LiveTrack.State.recording
-    /// The silence check of an app track for the take (A9).
-    var silence = SilenceCheck()
+    /// The silence check of an app track (A9): the monitor rule for a writer with no take.
+    var silence: SilenceCheck
+    /// The rebuilds of `retapSilent()`.
+    var silentRetaps = 0
     /// The ring of an attach that threw before its IOProc existed: no call can reach it.
     var spare: CaptureRing?
     private var unwatch: Detach?
@@ -91,6 +93,7 @@ final class DeviceWriter: @unchecked Sendable {
         self.firstRecordLimit = firstRecordLimit
         self.ringSeconds = ringSeconds
         self.keepLimit = keepLimit
+        silence = SilenceCheck(files == nil ? .monitor : .take)
         name = device.name
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(tracks.map(\.arm).min() ?? 0)")
         self.tracks = TrackSegments(
@@ -135,6 +138,9 @@ final class DeviceWriter: @unchecked Sendable {
         }
         queue.async { [self] in handle(event, from: sender) }
     }
+
+    /// Sends `retapSilent()` to the queue.
+    func retapIfSilent() { queue.async { [self] in retapSilent() } }
 
     /// Detaches, writes the rest of the ring, closes every segment, and ends the timer. Returns
     /// the gaps of the take. A second call returns the same gaps.

@@ -83,7 +83,7 @@ Use a DMG that `make dmg` built, or a DMG that the maintainer of the project gav
 2. Drag **Dirigible** to **Applications**.
 3. Open Dirigible from the Applications folder.
 
-Each DMG has a new ad-hoc signature. So after each update, macOS can ask again for access to the microphone and to System Audio Recording. Make a short test take after each update, with each microphone and the call app, before you record a show. The guide tells what to do when an app track records no sound ([Record a call or another app](docs/guide.md#record-a-call-or-another-app)).
+Each DMG has a new ad-hoc signature. So after each update, macOS asks again for access to System Audio Recording, and it can ask again for access to the microphone. After each update, before you record a show, turn on **Input Levels** with the call app track armed, and click **Allow** when macOS asks. Then make a short test take with each microphone and the call app. The guide tells what to do when an app track records no sound ([Record a call or another app](docs/guide.md#record-a-call-or-another-app)).
 
 To report a bug, give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build. `dirigible --version` prints the same version. A release version has the form `0.<release>.<run>`, for example `0.3.4`. A build after the last release tag adds `-<commits>-g<commit>`, and a build with uncommitted changes adds `-dirty`. The rule is in [Versions](docs/requirements/releases.md#versions).
 

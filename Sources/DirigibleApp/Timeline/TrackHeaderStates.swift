@@ -31,7 +31,7 @@ struct CompactLiveStateContent: View {
     let showsLoudness: Bool
 
     var body: some View {
-        ProgressView(value: meterLevel(live)).frame(width: 16)
+        ProgressView(value: meterLevel(live)).frame(width: 16).inputLevelAccessibility(live)
         if showsLoudness, let loudness = LoudnessText.header(live) { loudnessText(loudness) }
         if let fault {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
@@ -83,7 +83,7 @@ struct LiveStateContent: View {
     let openSettings: () -> Void
 
     var body: some View {
-        ProgressView(value: meterLevel(live)).frame(width: 60)
+        ProgressView(value: meterLevel(live)).frame(width: 60).inputLevelAccessibility(live)
         if let loudness = LoudnessText.header(live) { loudnessText(loudness) }
         switch live.state {
         case .recording, .monitoring: EmptyView()
@@ -109,6 +109,14 @@ struct LiveStateContent: View {
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)
         }
+    }
+}
+
+extension View {
+    /// VoiceOver for a header meter: "Input level" and the level on the meter scale.
+    func inputLevelAccessibility(_ live: LiveTrack) -> some View {
+        accessibilityLabel(L10n.trackInputLevel.key)
+            .accessibilityValue(Text(meterLevel(live), format: .percent.precision(.fractionLength(0))))
     }
 }
 

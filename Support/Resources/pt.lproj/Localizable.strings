@@ -256,6 +256,7 @@
 "track.route.apps" = "Apps";
 "track.route.apps.unavailable" = "Requer o macOS 14.2 ou posterior";
 "track.no.sound.settings" = "Abrir Ajustes de Privacidade";
+"track.input.level" = "Nível de entrada";
 "track.no.sound.privacy" = "Privacidade…";
 "track.state.device.lost" = "Dispositivo ausente";
 "track.state.write.failed" = "Erro de escrita";

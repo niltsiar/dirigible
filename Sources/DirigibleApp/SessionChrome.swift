@@ -37,6 +37,11 @@ import Observation
     /// The tracks of the last record-over warning that was announced. Only a different, not empty
     /// set of tracks announces again: a play across a clip end changes the clip, not the tracks.
     private var announcedRecordOver: [TrackID] = []
+    /// The tracks whose **No sound from** was announced, and the take state of that time. A track
+    /// leaves the set with its live entry, at a take start or end (new writers), and when it
+    /// leaves `.noSound` with a sound. So a rearm or a come back with no sound announces nothing.
+    private var announcedNoSound: Set<TrackID> = []
+    private var announcedInTake = false
     /// The reads that started and that ended, written or dropped, for the tests.
     private(set) var recordTimeReadsStarted = 0
     private(set) var recordTimeReads = 0
@@ -174,7 +179,14 @@ import Observation
                 agentMark.removeFromParent()
             }
         }
-        guard let model, model.shown != state.shown else { return }
+        guard let model else { return }
+        if model.canStop != announcedInTake {
+            announcedInTake = model.canStop
+            announcedNoSound = []
+        }
+        if let studio = model.studio { announcedNoSound = announcedNoSound.filter { studio.liveStates[$0] != nil } }
+        guard model.shown != state.shown else { return }
+        announceNoSound(state.shown.noSound, before: model.shown.noSound, model: model)
         // A banner of a kind that did not show is announced once.
         for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {
             if let priority = banner.announcement { announce(banner.text, priority) }
@@ -185,6 +197,21 @@ import Observation
             announce(state.shown.recordOver.detail, .high)
         }
         model.shown = state.shown
+    }
+
+    /// Announces each app track that enters `.noSound` and was not announced. A track that
+    /// leaves it with a live peak above 0 can announce again: the drain reports the levels first.
+    private func announceNoSound(_ tracks: Set<TrackID>, before: Set<TrackID>, model: SessionWindow) {
+        guard let studio = model.studio else { return }
+        for track in before.subtracting(tracks) where (studio.liveTracks[track]?.peak ?? 0) > 0 {
+            announcedNoSound.remove(track)
+        }
+        let entered = tracks.subtracting(before).subtracting(announcedNoSound)
+        for track in studio.session.tracks where entered.contains(track.id) {
+            guard case .app(let bundleID) = track.route else { continue }
+            announcedNoSound.insert(track.id)
+            announce(HeaderStateText.noSound(model.appName(bundleID)).full, .high)
+        }
     }
 
     private func apply(_ state: ChromeState, to item: NSToolbarItem) {

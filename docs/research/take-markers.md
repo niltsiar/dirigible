@@ -16,8 +16,8 @@ This document records how Hindenburg PRO and three Apple apps add a marker while
 
 ## Open questions
 
-- Hindenburg PRO behavior during a recording: does Command-Return add a marker at the record head, and does the marker show at once? A check needs Hindenburg PRO, which is not installed (unconfirmed).
-- Logic Pro: does Create Marker work during a recording, and where does the marker go? The local Logic Pro 12.3.1 can answer it with a manual check; this run did not do it.
+- Hindenburg PRO behavior during a recording: does Command-Return add a marker at the record head, and does the marker show at once? A manual check in Hindenburg PRO can answer it.
+- Logic Pro: does Create Marker work during a recording, and where does the marker go? A manual check in Logic Pro can answer it.
 
 ## Sources
 

@@ -25,6 +25,32 @@ final class TimelineRuler: NSRulerView {
     var current: MarkerID? {
         didSet { if current != oldValue { needsDisplay = true } }
     }
+    /// The flag of a take marker that shows a highlight until `end` (F107). Tests give their own
+    /// `now` and `reducesMotion`.
+    private(set) var highlight: (marker: MarkerID, end: ContinuousClock.Instant)?
+    var now: () -> ContinuousClock.Instant = { .now }
+    var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+
+    private static let highlightTime = Duration.milliseconds(300)
+    private var clearing: Task<Void, Never>?
+
+    /// Lights the flag of `marker` for 0.3 s. With Reduce Motion on, it lights nothing.
+    func highlight(_ marker: MarkerID) {
+        guard !reducesMotion() else { return }
+        highlight = (marker, now() + Self.highlightTime)
+        needsDisplay = true
+        clearing?.cancel()
+        clearing = Task { [weak self] in
+            try? await Task.sleep(for: Self.highlightTime)
+            if !Task.isCancelled { self?.needsDisplay = true }
+        }
+    }
+
+    func highlights(_ marker: MarkerID) -> Bool {
+        guard let highlight, highlight.marker == marker else { return false }
+        return now() < highlight.end
+    }
+
     /// The draws and the rect of the last draw, for the ruler guard of a page turn (live take G5).
     private(set) var draws = 0
     private(set) var drawnRect = NSRect.zero
@@ -94,6 +120,7 @@ final class TimelineRuler: NSRulerView {
             let color: NSColor = marker.kind == .marker ? .systemOrange : .systemPurple
             let at = x(of: inputs.geometry.x(of: marker.position))
             let isCurrent = marker.id == current
+            defer { if highlights(marker.id) { drawHighlight(of: marker, at: at) } }
             color.setFill()
             NSRect(x: at, y: 0, width: isCurrent ? 2 : 1, height: Self.thickness).fill()
             let box = RulerGeometry.flagReach.upperBound
@@ -115,6 +142,17 @@ final class TimelineRuler: NSRulerView {
         }
         triangle(inputs.marks.inPoint, inputs.geometry, .systemGreen)
         triangle(inputs.marks.outPoint, inputs.geometry, .systemRed)
+    }
+
+    /// A 2 pt outline in the label color around the flag and its name.
+    private func drawHighlight(of marker: Marker, at x: Double) {
+        let text = typeset(marker.name, color: .black, font: .systemFont(ofSize: 10, weight: .semibold))
+        let width = CTLineGetTypographicBounds(text.line, nil, nil, nil)
+        let outline = NSBezierPath(
+            roundedRect: NSRect(x: x + 2, y: 6, width: width + 12, height: 20), xRadius: 5, yRadius: 5)
+        outline.lineWidth = 2
+        NSColor.labelColor.setStroke()
+        outline.stroke()
     }
 
     /// The typeset lines of the ruler text, by text, font, color, and appearance. A ripple drag

@@ -15,6 +15,8 @@
 # at CHECK_LOAD_WAIT, and reads no load for docs targets. Check the delta after a pass stamp, and
 # the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
 # ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word.
+# Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
+# the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit.
 # Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -985,6 +987,101 @@ got="$(run_in --floor 2>&1)" || fail "past origin/main with --floor: exit $?"
 [[ "$got" == "$("$script" --floor)" && "$got" == *SessionWriter.swift* ]] || fail "past origin/main with --floor: got [$got]"
 got="$(run_in --wait-load none 2>&1)" || fail "past origin/main with --wait-load: exit $?"
 [[ -z "$got" ]] || fail "past origin/main with --wait-load: got [$got]"
+
+# The mode --overlap <base> names other work that changes a Sources/ or Tests/ file of this branch:
+# the commits of <base> since the merge base, each other worktree (commits, working tree, and
+# untracked files), and each open PR of gh. It is information: exit 0 in each case but the usage
+# line (exit 2). Every case runs with a stub gh that prints [] first on PATH and with GH_REPO and
+# GH_HOST unset, so no case calls the real gh; a case that needs another gh puts its folder in OV_GH.
+mkdir -p "$tmp/ovbin"
+printf '#!/bin/bash\necho "[]"\n' > "$tmp/ovbin/gh"
+chmod +x "$tmp/ovbin/gh"
+ov() { (unset GH_REPO GH_HOST; PATH="${OV_GH:-$tmp/ovbin}:$PATH"; run_in --overlap "$@"); }
+# ov_is <name> <want> [base]: the whole stdout is <want> and the exit is 0.
+ov_is() {
+  local name="$1" want="$2"
+  shift 2
+  got="$(ov "${@:-main}" 2> "$tmp/ov.err")"
+  code=$?
+  [[ $code -eq 0 && "$got" == "$want" ]] || fail "overlap: $name: exit $code, got [$got], want [$want], stderr [$(cat "$tmp/ov.err")]"
+}
+# fake_gh <folder> <script body>
+fake_gh() { mkdir -p "$1" && printf '#!/bin/bash\n%s\n' "$2" > "$1/gh" && chmod +x "$1/gh"; }
+gw() { git -C "$tmp/w1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false "$@"; }
+# ov_repo: main has Sources/.../X.swift and Tests/T.swift; the branch feat/o forks from it.
+ov_repo() {
+  new_repo
+  put Sources/DirigibleCore/X.swift base
+  put Tests/T.swift base
+  g switch -q -c feat/o
+  rm -rf "$tmp/w1"
+  g worktree prune
+}
+ov_repo
+g switch -q main
+put Sources/DirigibleCore/X.swift main
+g switch -q feat/o
+put Sources/DirigibleCore/X.swift branch
+ov_is 'base moved on a shared Sources file' 'overlap: main: Sources/DirigibleCore/X.swift'
+ov_repo
+g switch -q main
+put docs/a.md main
+g switch -q feat/o
+put docs/a.md branch
+ov_is 'a shared docs file only' 'overlap: none'
+ov_repo
+put Tests/T.swift branch
+ov_is 'the own worktree gives no line' 'overlap: none'
+# Another worktree: a committed change, then an uncommitted change with a held index.lock.
+ov_repo
+g worktree add -q "$tmp/w1" -b feat/w1
+put Tests/T.swift branch
+put Sources/DirigibleCore/X.swift branch
+printf 'w\n' >> "$tmp/w1/Tests/T.swift"
+gw commit -q -am wt
+ov_is 'a committed change of another worktree' 'overlap: worktree feat/w1: Tests/T.swift'
+gw reset -q --hard HEAD~1
+printf 'w\n' >> "$tmp/w1/Tests/T.swift"
+printf 'u\n' > "$tmp/w1/Tests/U.swift"
+printf 'u\n' > "$tmp/r/Tests/U.swift"
+: > "$tmp/r/.git/worktrees/w1/index.lock"
+ov_is 'an uncommitted change of another worktree' 'overlap: worktree feat/w1: Tests/T.swift, Tests/U.swift'
+[[ -e "$tmp/r/.git/worktrees/w1/index.lock" ]] || fail 'overlap: the index.lock of the other worktree is gone'
+rm -f "$tmp/r/.git/worktrees/w1/index.lock"
+# From the linked worktree, the main worktree gives the line and the linked one gives none.
+got="$(cd "$tmp/w1" && unset GH_REPO GH_HOST && PATH="$tmp/ovbin:$PATH" "$script" --overlap main 2>&1)" || fail "overlap: from a linked worktree: exit $?"
+[[ "$got" == 'overlap: worktree feat/o: Tests/T.swift, Tests/U.swift' ]] || fail "overlap: from a linked worktree: got [$got]"
+rm -rf "$tmp/w1"
+g worktree prune
+# A detached worktree is named by its short HEAD.
+ov_repo
+put Tests/T.swift branch
+g worktree add -q --detach "$tmp/w1"
+printf 'd\n' >> "$tmp/w1/Tests/T.swift"
+ov_is 'a detached worktree' "overlap: worktree $(gw rev-parse --short HEAD): Tests/T.swift"
+rm -rf "$tmp/w1"
+g worktree prune
+# Open PRs: the PR of the current branch gives no line.
+ov_repo
+put Sources/DirigibleCore/X.swift branch
+json='[{"number":7,"headRefName":"feat/o","files":[{"path":"Sources/DirigibleCore/X.swift"}]},{"number":9,"headRefName":"feat/other","files":[{"path":"Sources/DirigibleCore/X.swift"},{"path":"docs/z.md"}]},{"number":10,"headRefName":"feat/docs","files":[{"path":"docs/z.md"}]}]'
+fake_gh "$tmp/ovgh" "printf '%s\\n' '$json'; echo \"\$*\" > '$tmp/gh.args'"
+OV_GH="$tmp/ovgh" ov_is 'two open PRs' 'overlap: PR #9 (feat/other): Sources/DirigibleCore/X.swift'
+grep -qF -- '--limit 200' "$tmp/gh.args" || fail "overlap: gh got [$(cat "$tmp/gh.args")], want --limit 200"
+fake_gh "$tmp/ovgh" 'echo "gh: not logged in" >&2; echo "second line" >&2; exit 1'
+OV_GH="$tmp/ovgh" ov_is 'gh fails' $'overlap: none\noverlap: open PRs not read (gh: not logged in)'
+# A gh that does not answer: the mode stops it after OVERLAP_GH_TIMEOUT seconds and goes on.
+fake_gh "$tmp/ovgh" "echo \$\$ > '$tmp/gh.pid'; exec sleep 30"
+SECONDS=0
+OVERLAP_GH_TIMEOUT=1 OV_GH="$tmp/ovgh" ov_is 'gh gives no answer' $'overlap: none\noverlap: gh: no answer'
+((SECONDS < 5)) || fail "overlap: gh gives no answer: took $SECONDS s"
+! kill -0 "$(cat "$tmp/gh.pid")" 2> /dev/null || fail 'overlap: the fake gh is still running'
+# A base that git cannot read, and no base.
+ov_is 'a base that git cannot read' 'overlap: base nope not read' nope
+got="$(ov 2> "$tmp/ov.err")"
+code=$?
+[[ $code -eq 2 && -z "$got" ]] && grep -q 'usage:' "$tmp/ov.err" || fail "overlap: no base: exit $code, stdout [$got], stderr [$(cat "$tmp/ov.err")]"
+ov_repo
 
 # No context variable of this script reaches a test that it runs: each test file that names this
 # script and unsets BASE, FILTER, or MAKEFLAGS also unsets SINCE.

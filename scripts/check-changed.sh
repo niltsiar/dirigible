@@ -25,6 +25,12 @@
 #        scripts/check-changed.sh --floor       print the risk floor paths
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
 #          (for a bench and a push check: no build or test of another tree)
+#        scripts/check-changed.sh --overlap <base>   information only, exit 0: name other work that changes a
+#          Sources/ or Tests/ file of this branch: `overlap: <base>: <files>` for the commits of <base>
+#          since the merge base, `overlap: worktree <branch>: <files>` for each other worktree (commits,
+#          working tree, untracked files), `overlap: PR #<n> (<branch>): <files>` for each open PR of gh
+#          (--limit 200), or `overlap: none`. A gh that gives no answer in OVERLAP_GH_TIMEOUT seconds
+#          (default 20) gives `overlap: gh: no answer`. It runs no git fetch and takes no git lock.
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
 # test-filter, and the local target check becomes check-fast test-filter test-app. FILTER before
@@ -206,10 +212,100 @@ hook_tests() {
     echo "${out#,}"
 }
 
+# The Sources/ and Tests/ paths of stdin, sorted and unique; the shared names of two such files.
+ov_keep() { { grep -E '^(Sources|Tests)/' || true; } | sort -u; }
+ov_shared() { comm -12 "$1" "$2" | paste -sd, - | sed 's/,/, /g'; }
+
+# overlap <base>: see the usage block. Every read is local, except gh, which has a time limit. The
+# result is information, so a failed read gives a line and never a failure.
+overlap() {
+    local base="${1:-}" timeout="${OVERLAP_GH_TIMEOUT:-20}" top cur mb shared line wt_path wt_name wt_head
+    local gh_pid="" waited=0 notes="" lines="" rec
+    if (($# != 1)) || [[ -z "$base" ]]; then
+        echo "usage: scripts/check-changed.sh --overlap <base> (information only; OVERLAP_GH_TIMEOUT seconds for gh)" >&2
+        exit 2
+    fi
+    if [[ ! "$timeout" =~ ^[0-9]+$ ]]; then
+        echo "check-changed: OVERLAP_GH_TIMEOUT=$timeout is not a whole number of seconds" >&2
+        exit 2
+    fi
+    cd "$(git rev-parse --show-toplevel)"
+    top="$(pwd -P)"
+    ovtmp="$(mktemp -d)"
+    trap 'rm -rf "$ovtmp"' EXIT
+    mb="$(git merge-base "$base" HEAD 2> /dev/null)" || mb=""
+    if [[ -z "$mb" ]]; then
+        echo "overlap: base $base not read"
+        return 0
+    fi
+    { git diff --name-only --no-renames "$mb"; git ls-files --others --exclude-standard; } | ov_keep > "$ovtmp/mine"
+    cur="$(git branch --show-current)"
+    if command -v gh > /dev/null; then
+        gh pr list --state open --limit 200 --json number,headRefName,files > "$ovtmp/gh.out" 2> "$ovtmp/gh.err" < /dev/null &
+        gh_pid=$!
+    fi
+
+    git diff --name-only --no-renames "$mb" "$base" | ov_keep > "$ovtmp/other"
+    shared="$(ov_shared "$ovtmp/mine" "$ovtmp/other")"
+    [[ -z "$shared" ]] || lines+="overlap: $base: $shared"$'\n'
+
+    # One record for each worktree in the porcelain list; a blank line ends it.
+    wt_path="" wt_name="" wt_head=""
+    while IFS= read -r line; do
+        case "$line" in
+            "worktree "*) wt_path="${line#worktree }" ;;
+            "HEAD "*) wt_head="${line#HEAD }" ;;
+            "branch "*) wt_name="${line#branch refs/heads/}" ;;
+            "")
+                if [[ -n "$wt_path" && -n "$wt_head" && -d "$wt_path" && "$(cd "$wt_path" && pwd -P)" != "$top" ]]; then
+                    [[ -n "$wt_name" ]] || wt_name="$(git rev-parse --short "$wt_head")"
+                    rec="$(git merge-base "$base" "$wt_head" 2> /dev/null)" || rec=""
+                    if [[ -n "$rec" ]]; then
+                        {
+                            git diff --name-only --no-renames "$rec" "$wt_head"
+                            git --no-optional-locks -C "$wt_path" diff --name-only --no-renames HEAD
+                            git --no-optional-locks -C "$wt_path" ls-files --others --exclude-standard
+                        } 2> /dev/null | ov_keep > "$ovtmp/other" || true
+                        shared="$(ov_shared "$ovtmp/mine" "$ovtmp/other")"
+                        [[ -z "$shared" ]] || lines+="overlap: worktree $wt_name: $shared"$'\n'
+                    fi
+                fi
+                wt_path="" wt_name="" wt_head=""
+                ;;
+        esac
+    done < <(git worktree list --porcelain; echo)
+
+    if [[ -z "$gh_pid" ]]; then
+        notes+="overlap: open PRs not read (gh not found)"$'\n'
+    else
+        while kill -0 "$gh_pid" 2> /dev/null && ((waited < timeout * 10)); do
+            sleep 0.1
+            waited=$((waited + 1))
+        done
+        if kill -0 "$gh_pid" 2> /dev/null; then
+            kill "$gh_pid" 2> /dev/null || true
+            wait "$gh_pid" 2> /dev/null || true
+            notes+="overlap: gh: no answer"$'\n'
+        elif ! wait "$gh_pid"; then
+            notes+="overlap: open PRs not read ($(head -n 1 "$ovtmp/gh.err"))"$'\n'
+        elif ! jq -r --arg cur "$cur" '.[] | select(.headRefName != $cur) | [.number, .headRefName] + [.files[].path] | @tsv' "$ovtmp/gh.out" > "$ovtmp/prs" 2> /dev/null; then
+            notes+="overlap: open PRs not read (the answer of gh is no list of PRs)"$'\n'
+        else
+            while IFS=$'\t' read -r -a rec; do
+                printf '%s\n' "${rec[@]:2}" | ov_keep > "$ovtmp/other"
+                shared="$(ov_shared "$ovtmp/mine" "$ovtmp/other")"
+                [[ -z "$shared" ]] || lines+="overlap: PR #${rec[0]} (${rec[1]}): $shared"$'\n'
+            done < "$ovtmp/prs"
+        fi
+    fi
+    printf '%s' "${lines:-overlap: none$'\n'}" "$notes"
+}
+
 push=0 mode=git base="" from=""
 case "${1:-}" in
     --floor) printf '%s\n' $floor; exit 0 ;;
     --wait-load) shift; wait_load "$@"; exit 0 ;;
+    --overlap) shift; overlap "$@"; exit 0 ;;
     --paths)
         mode=stdin
         [[ "${2:-}" == --push ]] && push=1

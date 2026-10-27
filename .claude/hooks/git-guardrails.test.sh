@@ -293,6 +293,7 @@ write_forms+=(
   'ls @P@ && make test'
   'cd /x && rmdir @P@' 'cd /x > f && ls @P@' 'cd /x /y && ls @P@' 'cd /x && N=$(rmdir @P@) && ls @P@'
   'PATH=/tmp/x && ls @P@' 'N=1 rmdir @P@'
+  'path=/tmp/x && ls @P@' 'cdpath=/x && ls @P@' 'ld_library_path=/x && ls @P@'
 )
 read_forms=(
   'ls @P@ | wc -l' 'cat @P@/* | grep pid' 'ls @P@ 2>/dev/null | head -3' 'ls @P@ 2>&1 | tail -2'
@@ -364,14 +365,35 @@ expect block ': > "$(git rev-parse --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirigible-check-running/5"'
 expect block 'echo 1 >> "$d"/dirigible-check-running/5'
 expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
-# A subagent never runs the unlimited lock wait (WITH_LOCK_MAX_WAIT=0): after a second exit 75 it
-# returns to the lead. The lead runs it, so the input with no agent_id allows each form.
+# A subagent never runs a lock wait with no limit: WITH_LOCK_MAX_WAIT=0, a land, a push check (a
+# BASE= word, or BASE in the environment), make dmg, or a mutation pass, also inside bash -c and
+# sh -c. After a second exit 75 it returns to the lead. The lead runs the wait, so the input with
+# no agent_id allows each form.
 unlimited_forms=(
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed'
   'WITH_LOCK_MAX_WAIT=00 scripts/with-lock.sh make check-changed'
   'export WITH_LOCK_MAX_WAIT=0; scripts/with-lock.sh make x'
   'env WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make x'
   '(WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed) &'
+  'scripts/with-lock.sh scripts/land.sh "feat: x" .scratchpads/body.md'
+  'scripts/with-lock.sh make check-changed BASE=origin/main'
+  'scripts/with-lock.sh make check-changed FILTER=ATests BASE=origin/main'
+  'scripts/with-lock.sh make BASE=origin/main check-changed'
+  'BASE=origin/main scripts/with-lock.sh make check-changed'
+  'export BASE=origin/main; scripts/with-lock.sh make check-changed'
+  'scripts/with-lock.sh make dmg'
+  'cd /x && scripts/with-lock.sh make dmg'
+  '(scripts/with-lock.sh make dmg) &'
+  'scripts/with-lock.sh .claude/skills/deliver/scripts/mutation-pass.sh /tmp/tree /tmp/batch'
+  '.claude/skills/deliver/scripts/mutation-pass.sh /tmp/tree /tmp/batch'
+  'bash .claude/skills/deliver/scripts/mutation-pass.sh /tmp/tree /tmp/batch'
+  "bash -c 'scripts/with-lock.sh make dmg'"
+  "bash -lc 'scripts/with-lock.sh make check-changed BASE=origin/main'"
+  'sh -c "scripts/with-lock.sh scripts/land.sh t b"'
+  "sh -c 'cd /x; scripts/with-lock.sh make dmg'"
+  "sh -c 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make x'"
+  "/bin/bash -c 'export WITH_LOCK_MAX_WAIT=0; scripts/with-lock.sh make x'"
+  "env bash -c 'scripts/with-lock.sh make dmg'"
 )
 for form in "${unlimited_forms[@]}"; do
   expect_agent block "$form"
@@ -380,7 +402,15 @@ for form in "${unlimited_forms[@]}"; do
 done
 expect_agent allow 'WITH_LOCK_MAX_WAIT=120 scripts/with-lock.sh make x'
 expect_agent allow 'scripts/with-lock.sh make check-changed'
+expect_agent allow 'scripts/with-lock.sh make check-changed FILTER=ATests'
+expect_agent allow 'scripts/with-lock.sh make test-filter FILTER=ATests'
+expect_agent allow 'scripts/with-lock.sh make check-changed BASE='
+expect_agent allow "bash -c 'scripts/with-lock.sh make check-changed'"
 expect_agent allow "rg -n 'WITH_LOCK_MAX_WAIT=0' AGENTS.md"
+expect_agent allow "rg -n 'with-lock.sh make dmg' AGENTS.md"
+expect_agent allow "echo 'scripts/with-lock.sh make dmg'"
+expect_agent allow 'git commit -m "docs: say scripts/with-lock.sh make dmg is for the lead"'
+expect_agent allow 'scripts/land.sh --help'
 # Only scripts/with-lock.sh takes and removes the build lock, after its own take: a hand-written
 # mkdir and rmdir chain removed the lock of another agent three times. A read is allowed.
 expect_each_write .git/dirigible-build.lock

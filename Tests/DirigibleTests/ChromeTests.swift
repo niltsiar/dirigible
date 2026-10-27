@@ -43,7 +43,6 @@ struct TimeTextTests {
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
         studio.environment = hal.environment
-        studio.environment.playerOutput = .offline
         let chrome = try #require(model.chrome)
         await until("the toolbar has its items") { chrome.time != nil }
         return (model, studio, chrome)

@@ -31,7 +31,6 @@ import Testing
         try await Task.detached { try Session.create(at: url, sampleRate: 48_000) }.value
         let model = await app.open(url)
         let studio = try #require(await model.opened() ? model.studio : nil)
-        studio.environment.playerOutput = .offline
         return (model, studio, try #require(model.window))
     }
 

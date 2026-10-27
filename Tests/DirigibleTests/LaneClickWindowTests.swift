@@ -20,7 +20,6 @@ import Testing
     func open(seconds: Int = 1, audio: Bool = false) async throws -> (SessionWindow, Studio, TimelineScrollView) {
         let package = try await timelinePackage(in: folder.url, tracks: 4, seconds: seconds, audio: audio)
         let (model, studio, _, view) = try await openLanes(app, package)
-        studio.environment.playerOutput = .offline
         await until("the first view is fitted") { view.fitted }
         model.timeline.scale = TimelineScale(framesPerPoint: 480)
         model.timeline.laneHeight = .fixed(60)

@@ -70,7 +70,6 @@ struct ToolbarMenuTests {
         let url = try await timelinePackage(in: folder.url, tracks: 2, seconds: 10, audio: true, device: "duo")
         let (model, studio, window, _) = try await openLanes(app, url)
         studio.environment = hal.environment
-        studio.environment.playerOutput = .offline
         let chrome = try #require(model.chrome)
         await until("the toolbar has its items") { chrome.time != nil }
         return (model, studio, window, chrome)

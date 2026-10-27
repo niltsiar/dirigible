@@ -67,6 +67,15 @@ extension Arguments {
     }
 }
 
+/// Restore Original of `clips` (decision 0057), for `dirigible clip restore` and `clip_restore`: the
+/// IDs of the clips on a rendered file, which move to the roots of their chains, or "No rendered
+/// clip." when there is none.
+package func restoredClips(_ clips: [ClipID], in session: inout Session) throws(SessionError) -> [String] {
+    let rendered = clips.filter { !session.origins(of: $0).isEmpty }
+    try session.restoreOriginals(clips)
+    return rendered.isEmpty ? ["No rendered clip."] : rendered.map(\.rawValue)
+}
+
 let clipTools = [
     Tool(
         "clip_place", "Place a clip and give its ID. The clip overwrites the clips under it.",
@@ -221,6 +230,18 @@ let clipTools = [
         [clips, reduction], batch: .alone
     ) { a throws(ToolError) in
         .clipRender(ClipRenderWork(clips: try a[clips].map { ClipID($0) }, reduction: try a[reduction]))
+    },
+    Tool(
+        "clip_restore",
+        "Put rendered clips back on their original files, as dirigible clip restore: each clip goes to the root of "
+            + "its render chain at the frame that it played, with the added gain taken off. No audio is read or "
+            + "written. Give the ID of each restored clip, or No rendered clip.",
+        [clips], batch: .step
+    ) { a throws(ToolError) in
+        let ids = try a[clips]
+        if let twice = EditRules.firstRepeat(ids) { throw ToolError("Clip \"\(twice)\" is given twice.") }
+        let restored = ids.map { ClipID($0) }
+        return .edit(ripple: false) { session throws(SessionError) in try restoredClips(restored, in: &session) }
     },
     Tool(
         "clip_crossfade",

@@ -14,6 +14,7 @@
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). `clip_split_stereo` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it.
 - Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). `clip_denoise` is in the tool list only: no recipe names it, because the core and the whole text have no room. The not-yet line of the core says "Dirigible has no voice profile yet: tell the user."
 - Amended: 2026-10-27, run `2026-10-27-agent-change-only-asked`. The core starts its rules with "Change only what the user asks for. Ask before other changes." The time rule drops the sentence on the `to` frame. Each exclusive `to` argument states the rule. `clip_heal` and the `session_info` filter are not exclusive (item 1093). The core is 2040 of 2048 characters and the whole text 5974 of 6000 (the Swift `count` of `theCoreFitsTheClientLimit`).
+- Amended: 2026-10-28, run `2026-10-14-render-link` (see 0057). `clip_restore` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it, because the core and the whole text have no room.
 
 ## Context
 

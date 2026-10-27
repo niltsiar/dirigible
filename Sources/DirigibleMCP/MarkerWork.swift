@@ -72,6 +72,14 @@ package struct MarkerWork: Sendable {
         return marker
     }
 
+    /// Sets the marker of this edit in `session`, with no image file read. The live path and a
+    /// batch step run it in `Studio.edit`.
+    package func edit(_ session: inout Session) throws(MarkerEditError) -> MarkerID {
+        let marker = try marker(from: session.markers[id])
+        do throws(SessionError) { try session.setMarker(marker) } catch { throw .session(error) }
+        return id
+    }
+
     package func run(_ session: inout Session, package: URL) throws(MarkerEditError) -> MarkerID {
         var marker = try marker(from: session.markers[id])
         if let image, !image.isEmpty {

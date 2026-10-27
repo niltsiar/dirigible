@@ -167,17 +167,14 @@ package struct BatchWork: Sendable {
         case .marker(let marker):
             if let image = marker.image, !image.isEmpty { throw notAStep(tool.name) }
             return Step(tool: tool.name, ripple: false) { session throws(StepError) in
-                let edited: Marker
-                do throws(MarkerEditError) { edited = try marker.marker(from: session.markers[marker.id]) } catch {
+                do throws(MarkerEditError) { return [try marker.edit(&session).rawValue] } catch {
                     throw .marker(error)
                 }
-                do throws(SessionError) { try session.setMarker(edited) } catch { throw .session(error) }
-                return [edited.id.rawValue]
             }
         case .episode(let episode):
             if let artwork = episode.artwork, !artwork.isEmpty { throw notAStep(tool.name) }
             return Step(tool: tool.name, ripple: false) { session throws(StepError) in
-                session.setEpisode(episode.episode(from: session.episode))
+                episode.edit(&session)
                 return ["OK"]
             }
         case .takeImport, .info, .create, .paste, .backups, .revert, .episodeInfo, .words, .prune, .record,

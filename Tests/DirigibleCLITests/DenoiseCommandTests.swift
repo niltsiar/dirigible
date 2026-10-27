@@ -6,14 +6,14 @@ import Testing
 /// `dirigible clip denoise` (decision 0054, criteria C11 and C13). Track `t1` "Host" (no role) holds
 /// `c1` and `c2` of the 4 s mono file `f1`; track `t2` "Bed" (music) holds `m1` of the 1 s file `m1`.
 struct DenoiseCommandTests {
-    static func package(seconds: Double = 4) throws -> TemporaryPackage {
+    static func package(seconds: Double = 4, bedRole: Track.Role = .music) throws -> TemporaryPackage {
         let frames = Frames(Int(seconds * 48_000))
         var session = Session(sampleRate: 48_000)
         try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: frames))
         try session.addFile(AudioFile(id: "m1", path: "m1.wav", layout: .mono, length: 48_000))
         try session.addTrack("t1", name: "Host", layout: .mono)
         try session.addTrack("t2", name: "Bed", layout: .mono)
-        try session.setRole(.music, tracks: ["t2"])
+        try session.setRole(bedRole, tracks: ["t2"])
         try session.place(Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 48_000), on: "t1")
         try session.place(Clip(id: "c2", file: "f1", start: 96_000, offset: 96_000, length: 48_000), on: "t1")
         try session.place(Clip(id: "m1", file: "m1", start: 0, offset: 0, length: 48_000), on: "t2")
@@ -78,15 +78,17 @@ struct DenoiseCommandTests {
         #expect(try package.xml() == before.0 && Self.clips(package) == before.1, "a refused call changed the package")
     }
 
-    /// C13: a clip on a music track exits 1 with the text of the role refusal and writes nothing,
+    /// C13: a clip on a music or effects track exits 1 with the text of the role refusal and writes nothing,
     /// also when a clip of a voice track comes with it. The help says so.
-    @Test func musicClipExits1() async throws {
-        let package = try Self.package()
+    @Test(arguments: [Track.Role.music, .effects]) func nonVoiceClipExits1(role: Track.Role) async throws {
+        let package = try Self.package(bedRole: role)
         let before = (try package.xml(), Self.clips(package))
 
         let result = try await package.run("clip", "denoise", "PKG", "c1", "m1")
 
-        let text = "the noise reduction refuses clip \"m1\" on a music track: it keeps only voices."
+        let text =
+            "the noise reduction refuses clip \"m1\": its track has the role \(role.rawValue), "
+            + "and the noise reduction keeps only voices."
         #expect(result == CLIResult(status: 1, stdout: "", stderr: "Error: \(text)\n"), "music clip: \(result)")
         #expect(try package.xml() == before.0 && Self.clips(package) == before.1, "a refused call changed the package")
         let help = try await dirigible("clip", "denoise", "--help")

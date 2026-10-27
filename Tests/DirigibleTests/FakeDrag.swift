@@ -8,9 +8,14 @@ import Foundation
 
 /// A drag of `urls` at the lane point `point` of `view`.
 @MainActor func fileDrag(_ urls: [URL], at point: NSPoint, in view: TimelineScrollView) -> FakeDrag {
+    fileDrag(urls, atWindowPoint: view.lanes.convert(point, to: nil))
+}
+
+/// A drag of `urls` at the window point `point`.
+@MainActor func fileDrag(_ urls: [URL], atWindowPoint point: NSPoint = .zero) -> FakeDrag {
     dropBoard.clearContents()
     dropBoard.writeObjects(urls.map { $0 as NSURL })
-    return FakeDrag(dropBoard, at: view.lanes.convert(point, to: nil))
+    return FakeDrag(dropBoard, at: point)
 }
 
 /// A drag that AppKit would give, with a pasteboard and a window point only (probe P5).
@@ -45,21 +50,21 @@ import Foundation
     func resetSpringLoading() {}
 }
 
-/// A 16-bit WAV of 1 s of silence at 48 kHz with `channels` channels.
-func writeSilentWAV(_ url: URL, channels: Int) throws {
+/// A 16-bit WAV of 1 s of silence at `rate` Hz with `channels` channels.
+func writeSilentWAV(_ url: URL, channels: Int, rate: Int = 48_000) throws {
     var data = Data()
     func append<T: FixedWidthInteger>(_ value: T) {
         withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) }
     }
-    let bytes = 48_000 * channels * 2
+    let bytes = rate * channels * 2
     data.append(contentsOf: Array("RIFF".utf8))
     append(UInt32(36 + bytes))
     data.append(contentsOf: Array("WAVEfmt ".utf8))
     append(UInt32(16))
     append(UInt16(1))
     append(UInt16(channels))
-    append(UInt32(48_000))
-    append(UInt32(48_000 * channels * 2))
+    append(UInt32(rate))
+    append(UInt32(rate * channels * 2))
     append(UInt16(channels * 2))
     append(UInt16(16))
     data.append(contentsOf: Array("data".utf8))

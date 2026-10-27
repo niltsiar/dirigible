@@ -51,6 +51,7 @@ struct ParityTests {
         "cutWords": ["transcript cut"],
         "importChapters": ["chapters import"],
         "heal": ["clip heal"],
+        "restoreOriginals": ["clip restore"],
         "repoint": ["clip denoise"],
         "duck": ["duck"],
     ]
@@ -61,7 +62,6 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
-        "restoreOriginals": "The clip restore command that maps it is not built yet (decision 0057).",
     ]
 
     /// The commands with no MCP tool (decision 0041).

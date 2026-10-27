@@ -29,6 +29,7 @@ package struct SessionView: Encodable {
         let media: String
         /// The real length of a short file.
         let mediaLength: Int?
+        let origin: OriginView?
     }
 
     /// A device route has `device` and `channels`; an app route has only `app`.
@@ -189,7 +190,7 @@ package struct SessionView: Encodable {
             FileView(
                 id: $0.id.rawValue, path: $0.path, layout: $0.layout.rawValue, length: $0.length.count,
                 capture: $0.capture?.rawValue, media: media[$0.id].map(\.word) ?? "ok",
-                mediaLength: media[$0.id].flatMap(\.length))
+                mediaLength: media[$0.id].flatMap(\.length), origin: $0.origin.map(OriginView.init))
         }
         tracks = session.tracks.map { track in
             TrackView(
@@ -303,7 +304,8 @@ package func summary(
         let capture = file.capture.map { " capture \($0)" } ?? ""
         let state = media[file.id].map { " media \($0.word)" + ($0.length.map { " \($0)" } ?? "") } ?? ""
         lines.append(
-            "file \(file.id) \(quoted(file.path)) \(file.layout.rawValue) length \(file.length)\(capture)\(state)")
+            "file \(file.id) \(quoted(file.path)) \(file.layout.rawValue) length \(file.length)\(capture)"
+                + "\(originText(of: file))\(state)")
     }
     for capture in session.sortedCaptures {
         var line =

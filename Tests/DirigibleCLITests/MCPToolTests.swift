@@ -279,7 +279,7 @@ struct MCPToolTests {
                 "capture_remove", "file_remove", "file_prune", "clip_place", "clip_clear", "clip_split",
                 "clip_split_at", "clip_split_stereo", "clip_paste", "clip_paste_clips", "clip_nudge", "clip_remove",
                 "clip_move",
-                "clip_trim", "clip_gain", "clip_fade", "clip_denoise",
+                "clip_trim", "clip_gain", "clip_fade", "clip_denoise", "clip_restore",
                 "clip_crossfade", "clip_heal", "clip_envelope", "clip_gain_range", "clip_ripple_delete",
                 "clip_ripple_insert", "clip_ripple_trim",
                 "transcript_import",

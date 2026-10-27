@@ -325,4 +325,23 @@ struct MCPBatchToolTests {
         let tracks = try await batch([Self.addT2, Self.call("track_rename", ["track": "T2", "name": "B"])])
         #expect(tracks == ("calls[0] track_add: T2\ncalls[1] track_rename: OK", false), "\(tracks)")
     }
+
+    /// Render-link C6 (decision 0057): `clip_restore` is a step. A failed later call leaves the file as
+    /// it was; with `clip_gain`, the restore takes the added gains off the new gain in one save.
+    @Test func restoreIsAStep() async throws {
+        let rendered = Self(package: try TemporaryPackage(try ClipRestoreCommandTests.rendered()))
+        let before = try rendered.snapshot()
+        let restore = Self.call("clip_restore", ["clips": ["A"]])
+
+        let refused = try await rendered.batch([restore, Self.badRename])
+        #expect(refused.isError, "\(refused)")
+        #expect(try rendered.snapshot() == before, "the failed batch changed the file")
+
+        let result = try await rendered.batch([Self.call("clip_gain", ["clips": ["A"], "db": 6]), restore])
+
+        #expect(result == ("calls[0] clip_gain: OK\ncalls[1] clip_restore: A", false), "\(result)")
+        let clip = try rendered.package.read().clip("A")?.clip
+        #expect(clip?.file == "f" && clip?.gain == Gain(dB: 3))
+        #expect(try rendered.snapshot().backups.count <= before.backups.count + 1, "one save")
+    }
 }

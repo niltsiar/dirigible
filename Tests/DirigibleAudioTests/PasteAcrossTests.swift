@@ -284,4 +284,23 @@ struct PasteAcrossTests {
         try FileManager.default.removeItem(at: source)
         #expect(copyFault(ENOENT, from: source, record: record, copy: copy) == .sourceMissing(file: "take1-mic.wav"))
     }
+
+    /// Render-link C8 (decision 0057): a paste into another package copies a rendered file as a
+    /// plain file. The copy has no origin, and the source file does not come along.
+    @Test func foreignPasteDropsTheOrigin() throws {
+        let origin = RenderOrigin(
+            source: "take1-mic", offset: 0, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        try p.addFile("take1-mic NR", channels: [sine(seconds: 1, rate: 48_000, frequency: 440)], origin: origin)
+        try p.session.place(Clip(id: "N", file: "take1-mic NR", start: 96_000, offset: 0, length: 48_000), on: "t2")
+        let clipboard = Clipboard(
+            try p.session.excerpt(of: ["N"]), package: p.url, origin: PackageID(lockFileOf: p.url))
+
+        let (session, clips, _) = try paste(clipboard, on: .tracks(["u1"]))
+
+        #expect(try names(q) == ["take1-mic NR.wav", "take1-mic.wav"], "one copy: the rendered file")
+        #expect(
+            session.files["take1-mic NR"]
+                == AudioFile(id: "take1-mic NR", path: "take1-mic NR.wav", layout: .mono, length: 48_000))
+        #expect(clips == ["N@480000"] && session.clip("N@480000")?.clip.file == "take1-mic NR")
+    }
 }

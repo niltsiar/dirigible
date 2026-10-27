@@ -37,14 +37,15 @@ public struct History: Hashable, Sendable {
     /// Removes the pool entries `ids(session)` from the session and from each undo and redo entry,
     /// with no new entry, so no undo brings back a pool entry of a file in the Trash (decision 0047
     /// D3). The revision goes up by one. Throws `.fileInUse` and changes nothing when a clip of the
-    /// session or of an entry uses an ID. When the session still equals `saved.before`, it becomes
+    /// session or of an entry uses an ID, and `.fileIsSource` when a file that is not removed names
+    /// an ID as its source (decision 0057). When the session still equals `saved.before`, it becomes
     /// `saved.pruned`, so the saved transcript file names stay and the next save writes no copy.
     public mutating func removeUnusedFiles(
         _ ids: (Session) -> Set<FileID>, saved: (before: Session, pruned: Session)? = nil
     ) throws(SessionError) {
         func removed(_ value: Session) throws(SessionError) -> Session {
             var copy = value
-            for id in ids(value) where copy.files[id] != nil { try copy.removeFile(id) }
+            try copy.removeFiles(ids(value).filter { value.files[$0] != nil })
             return copy
         }
         func removed(_ entry: Entry) throws(SessionError) -> Entry {

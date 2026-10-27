@@ -258,4 +258,32 @@ struct HistoryTests {
         try history.undo()
         #expect(history.session.files["z"] == nil && history.session.files["h"] != nil)
     }
+
+    /// Render-link C13 (decision 0057): the prune removes a rendered file and its source from the
+    /// session and from each entry in any order of the set (20 chains with new IDs). A source that
+    /// a file outside the set names throws and changes nothing.
+    @Test func removeUnusedChain() throws {
+        for run in 0..<20 {
+            let (rendered, source) = (FileID("r\(run)"), FileID("s\(run)"))
+            let origin = RenderOrigin(
+                source: source, offset: 0, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+            var history = History(Session(sampleRate: 48_000))
+            try history.edit {
+                try $0.addFile(AudioFile(id: source, path: "s\(run).wav", layout: .mono, length: 48_000))
+                try $0.addFile(
+                    AudioFile(id: rendered, path: "r\(run).wav", layout: .mono, length: 48_000, origin: origin))
+            }
+            try history.edit { try $0.addTrack("a", name: "A", layout: .mono) }
+            let before = history
+
+            #expect(throws: SessionError.fileIsSource(source, of: rendered)) {
+                try history.removeUnusedFiles { _ in [source] }
+            }
+            #expect(history == before, "run \(run): a refused removal changes nothing")
+
+            try history.removeUnusedFiles { _ in [rendered, source] }
+
+            #expect(([history.session] + history.entries).allSatisfy { $0.files.isEmpty }, "run \(run)")
+        }
+    }
 }

@@ -26,8 +26,8 @@ final class MixPackage {
         session = Session(sampleRate: sampleRate)
     }
 
-    /// Writes a 24-bit WAV with the finalize writer and adds it to the pool.
-    func addFile(_ id: FileID, channels: [[Float]], rate: Int? = nil) throws {
+    /// Writes a 24-bit WAV with the finalize writer and adds it to the pool with `origin`.
+    func addFile(_ id: FileID, channels: [[Float]], rate: Int? = nil, origin: RenderOrigin? = nil) throws {
         let rate = rate ?? session.sampleRate
         let format = try #require(
             AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: AVAudioChannelCount(channels.count)))
@@ -44,7 +44,7 @@ final class MixPackage {
         try session.addFile(
             AudioFile(
                 id: id, path: path, layout: ChannelLayout(channelCount: channels.count)!,
-                length: Frames(channels[0].count)))
+                length: Frames(channels[0].count), origin: origin))
     }
 
     /// Adds a track with one clip.

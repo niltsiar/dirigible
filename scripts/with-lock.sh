@@ -57,15 +57,18 @@
 # lock, and the trap removes it only while the pid file holds this pid: a call that stops while it
 # waits never removes the lock of another process. INT or TERM stops the process group of the
 # command first. The call exits with the status of the command.
-# A lock-free call runs its command at once, with no lock, no wait line, and no hold line, and one
-# stderr line "with-lock: lock-free targets (<targets>): no lock". It is make check-changed with no
+# A lock-free call takes no lock and writes no hold line, and prints one stderr line
+# "with-lock: lock-free targets (<targets>): no lock". It is make check-changed with no
 # BASE= word and no BASE in the environment or in MAKEFLAGS (both make a push check, and so a
 # release call), when scripts/check-changed.sh (with the NAME=value words of the call in its
 # environment) gives only check-docs, check-fast, lint, format, none, or a word with =; and make
 # test-hooks with a HOOK_TESTS= word. A check-changed.sh failure, a FILTER with test-filter, and
-# every other target keep the lock. The call still waits while the live holder is a release call,
-# a bench, a mutation pass, or a flake loop (long-runs.md); it does not wait for another build or
-# test.
+# every other target keep the lock. With no long holder it also writes no wait line and runs at
+# once: it does not wait for another build or test. While a release call, a bench, a mutation pass,
+# or a flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a
+# live ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit
+# above, and then runs. That wait keeps no marker and no ticket, and appends one wait line that
+# ends with nocap.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -219,16 +222,40 @@ long_holder() {
     done
     return 1
 }
+# wait_limit <command>: sets max (seconds of wait before exit 75, 0 for none) and uncapped.
+uncapped=""
+wait_limit() {
+    max="${WITH_LOCK_MAX_WAIT:-120}"
+    [[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
+    max=$((10#$max))
+    if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 uncapped=1; fi
+}
+# pause: sleeps one retry, cut to the seconds that are left of the wait limit; at the limit it exits 75.
+pause() {
+    local left nap="$retry"
+    if [[ $max -gt 0 ]]; then
+        left=$((max - ($(date +%s) - start)))
+        [[ $left -gt 0 ]] || { echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2; exit 75; }
+        nap="$(awk -v r="$retry" -v l="$left" 'BEGIN { print (l < r) ? l : r }')"
+    fi
+    sleep "$nap"
+}
+# A lock-free call that starts behind a long holder waits here, with no lock, marker, or ticket,
+# until one poll finds no long holder and no live ticket of a release call.
 free_targets=""
-if lock_free "$@" && ! long_holder; then
+if lock_free "$@"; then
+    if long_holder; then
+        wait_limit "$@"
+        held="$(cat "$lock/command" 2>/dev/null)"
+        echo "with-lock: $lock is held by pid $(cat "$lock/pid" 2>/dev/null) ($held); retry each $retry s" >&2
+        while long_holder || ahead; do pause; done
+        printf '%s\t%s\t%s\t%s\t%s\tnocap\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
+    fi
     echo "with-lock: lock-free targets ($free_targets): no lock" >&2
     exec "$@"
 fi
-max="${WITH_LOCK_MAX_WAIT:-120}"
-[[ "$max" =~ ^[0-9]+$ ]] || { echo "with-lock: WITH_LOCK_MAX_WAIT is '$max'; give whole seconds, or 0 for no limit" >&2; exit 2; }
-max=$((10#$max))
-long="" uncapped="" nocap=""
-if release_call "$@" || [[ -n "${DIRIGIBLE_LOCKED_SCRIPT:-}" || "${1##*/}" == mutation-pass.sh ]]; then max=0 uncapped=1; fi
+wait_limit "$@"
+long="" nocap=""
 ! release_call "$@" || nocap=1
 [[ "${WITH_LOCK_NO_CAP:-}" != 1 ]] || nocap=1 uncapped=1
 [[ $max -ne 0 ]] || long=1
@@ -292,13 +319,7 @@ while :; do
         fi
     fi
     if [[ -n "$blocked" && -z "$capsaid" ]]; then echo "$cap_line" >&2; capsaid=1; fi
-    nap="$retry"
-    if [[ $max -gt 0 ]]; then
-        left=$((max - ($(date +%s) - start)))
-        [[ $left -gt 0 ]] || { echo "with-lock: still waiting after $max s (WITH_LOCK_MAX_WAIT); run the same command again" >&2; exit 75; }
-        nap="$(awk -v r="$retry" -v l="$left" 'BEGIN { print (l < r) ? l : r }')"
-    fi
-    sleep "$nap"
+    pause
 done
 [[ -z "$ticket" ]] || rmdir "$ticket" 2>/dev/null
 rm -f ${marker:+"$marker"}

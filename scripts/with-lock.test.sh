@@ -356,9 +356,10 @@ holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build
 reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
 # A make check-changed call whose targets build no Swift (check-docs, check-fast, lint, format,
 # none, or a word with =), and a make test-hooks call with a HOOK_TESTS= word, run at once with no
-# lock, no wait line, and no hold line, while an ordinary build or test holds the lock. They still
-# wait for a release call, a bench, a mutation pass, or a flake loop. The fake check-changed.sh
-# prints $FAKE_TARGETS, logs the FILTER value, and exits $FAKE_EXIT.
+# lock, no wait line, and no hold line, while an ordinary build or test holds the lock. While a
+# release call, a bench, a mutation pass, or a flake loop holds the lock, they wait without taking
+# the lock (the cases below). The fake check-changed.sh prints $FAKE_TARGETS, logs the FILTER
+# value, and exits $FAKE_EXIT.
 cat > "$repo/scripts/check-changed.sh" << 'EOF'
 #!/bin/bash
 echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"
@@ -449,6 +450,130 @@ done
 for holder_command in "make test-filter ATests" "make test-filter FILTER=bench" "make benchmark-gate"; do
     FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree run "holder $holder_command" "$fake/make" check-changed
 done
+reset_builders
+
+# A lock-free call that starts behind a long holder waits with no lock (no marker, no ticket, no
+# hold line), under the wait limit of an ordinary call, and runs its command with no lock when the
+# holder ends and no release call has a live ticket. It writes one wait line with the column nocap.
+# The fake make logs whether the lock folder exists, DIRIGIBLE_BUILD_LOCK, and whether the ticket
+# pid lives. lf_start runs the call in the background; lf_finish waits for it (<tenths of a second>).
+mkdir "$fake/probe"
+cat > "$fake/probe/make" << 'EOF'
+#!/bin/bash
+{ [[ -d "$FAKE_LOCK" ]] && echo lock || echo nolock; echo "${DIRIGIBLE_BUILD_LOCK-unset}"
+  if [[ -n "${FAKE_TICKET:-}" ]] && kill -0 "$FAKE_TICKET" 2>/dev/null; then echo ticket-live; else echo ticket-gone; fi; } > "$FAKE_STATE"
+EOF
+chmod +x "$fake/probe/make"
+export FAKE_LOCK="$lock" FAKE_STATE="$tmp/state"
+lf_start() {
+    rm -f "$tmp/state" "$tmp/wait.out"
+    t0=$(date +%s)
+    FAKE_TARGETS=check-docs "$@" "$repo/scripts/with-lock.sh" "$fake/probe/make" check-changed > "$tmp/wait.out" 2>&1 &
+    waiter=$!
+}
+lf_finish() {
+    until_true "$1" dead "$waiter" || true
+    { wait "$waiter"; } 2>/dev/null
+    code=$?
+    elapsed=$(($(date +%s) - t0))
+    waiter=""
+    out="$(cat "$tmp/wait.out")"
+}
+# lf_holder <command of the holder> [seconds until the lock folder goes]
+lf_holder() {
+    reset_builders
+    if [[ -n "${2:-}" ]]; then hold_for "$2"; else hold; fi
+    echo "$1" > "$lock/command"
+}
+# (1) The holder ends during the wait: the command runs with no lock, and the wait leaves one line.
+lf_holder 'make dmg' 1
+lf_start env WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail "lock-free wait: no holder line: $(cat "$tmp/wait.out")"
+sleep 0.3
+[[ -z "$(ls -A "$waiting" 2>/dev/null)" ]] || fail "lock-free wait: a marker while it waits: $(ls "$waiting")"
+lf_finish 80
+[[ $code -eq 0 && $elapsed -le 4 && "$(cat "$tmp/state" 2>/dev/null)" == $'nolock\nunset\nticket-gone' ]] ||
+    fail "lock-free wait: exit $code after $elapsed s, state [$(cat "$tmp/state" 2>/dev/null | paste -sd, -)]: $out"
+[[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
+[[ ! -e "$holds" ]] || fail "lock-free wait: a hold line: $(cat "$holds")"
+[[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg nocap' ]] ||
+    fail "lock-free wait: the wait line: [$(cat "$waits" 2>/dev/null)]"
+# (2) A holder that stays: exit 75 at the limit, no command, no log line, and the holder as it was.
+lf_holder 'make dmg'
+lf_start env WITH_LOCK_MAX_WAIT=2
+lf_finish 80
+[[ $code -eq 75 && ! -e "$tmp/state" && "$out" == *'still waiting after 2 s (WITH_LOCK_MAX_WAIT); run the same command again'* && "$out" != *'lock-free targets'* ]] ||
+    fail "lock-free limit: exit $code after $elapsed s: $out"
+[[ ! -e "$waits" && ! -e "$holds" && "$(cat "$lock/pid")" == "$holder" && "$(cat "$lock/command")" == 'make dmg' ]] ||
+    fail "lock-free limit: a log line or a change of the holder: $(cat "$waits" "$holds" 2>/dev/null)"
+# (3) No limit: WITH_LOCK_MAX_WAIT=0 waits for a holder that ends after 3 s.
+lf_holder 'make dmg' 3
+lf_start env WITH_LOCK_MAX_WAIT=0
+lf_finish 80
+[[ $code -eq 0 && -s "$tmp/state" && $elapsed -ge 2 ]] || fail "lock-free no limit: exit $code after $elapsed s: $out"
+# (4) A limit that is not whole seconds, behind a long holder: exit 2 and no command.
+lf_holder 'make dmg'
+lf_start env WITH_LOCK_MAX_WAIT=abc
+lf_finish 80
+[[ $code -eq 2 && ! -e "$tmp/state" && "$out" == *"WITH_LOCK_MAX_WAIT is 'abc'"* ]] || fail "lock-free bad limit: exit $code: $out"
+# (5) The holder is replaced by an ordinary build or test: the call runs at the next poll, with no lock.
+lf_holder 'make dmg'
+( sleep 1; echo 'make test' > "$lock/command" ) > /dev/null 2>&1 & inner=$!
+lf_start env WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+lf_finish 80
+wait "$inner" 2>/dev/null
+inner=""
+[[ $code -eq 0 && $elapsed -le 4 && "$(sed -n 1p "$tmp/state" 2>/dev/null)" == lock && "$(sed -n 2p "$tmp/state" 2>/dev/null)" == unset && "$(cat "$lock/pid")" == "$holder" ]] ||
+    fail "lock-free replaced holder: exit $code after $elapsed s, state [$(paste -sd, - < "$tmp/state" 2>/dev/null)]: $out"
+# (6) The holder dies and leaves its lock folder: the call runs, and the dead lock stays.
+lf_holder 'make dmg'
+( sleep 1; kill -9 "$holder" ) > /dev/null 2>&1 & inner=$!
+lf_start env WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+lf_finish 80
+wait "$inner" 2>/dev/null
+inner=""
+{ wait "$holder"; } 2>/dev/null
+[[ $code -eq 0 && $elapsed -le 4 && -d "$lock" && "$(cat "$lock/pid")" == "$holder" && "$out" != *'took over'* && ! -e "$holds" ]] ||
+    fail "lock-free dead holder: exit $code after $elapsed s, lock [$(ls "$lock" 2>/dev/null | paste -sd, -)]: $out"
+# (7) TERM to the waiting call: the lock, the pid file, and the command of the holder stay.
+lf_holder 'make dmg'
+lf_start env WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+until_true 50 grep -q 'held by pid' "$tmp/wait.out" || fail "lock-free TERM: no holder line: $(cat "$tmp/wait.out")"
+kill -TERM "$waiter"
+lf_finish 20
+[[ $code -eq 143 && ! -e "$tmp/state" && "$(cat "$lock/pid")" == "$holder" && "$(cat "$lock/command")" == 'make dmg' && ! -e "$holds" ]] ||
+    fail "lock-free TERM: exit $code: $out"
+# (8) The holder ends while a release call has a live ticket: the call keeps waiting, under the limit.
+lf_holder 'make dmg' 1
+sleep 60 & inner=$!
+mkdir -p "$first/$inner"
+lf_start env WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=0.1
+lf_finish 80
+[[ $code -eq 75 && ! -e "$tmp/state" && -d "$first/$inner" ]] || fail "lock-free ticket, stays: exit $code after $elapsed s, ticket [$(ls "$first" 2>/dev/null)]: $out"
+kill "$inner" 2>/dev/null
+wait "$inner" 2>/dev/null
+inner=""
+# (9) The ticket goes after 2 s: the call runs after it, with no lock.
+lf_holder 'make dmg' 1
+sleep 2 & inner=$!
+mkdir -p "$first/$inner"
+FAKE_TICKET="$inner" lf_start env WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+lf_finish 100
+wait "$inner" 2>/dev/null
+[[ $code -eq 0 && "$(cat "$tmp/state" 2>/dev/null)" == $'nolock\nunset\nticket-gone' ]] ||
+    fail "lock-free ticket, goes: exit $code after $elapsed s, state [$(paste -sd, - < "$tmp/state" 2>/dev/null)]: $out"
+inner=""
+rm -rf "$first"
+# (10) With no long holder, a bad limit is not read: the call runs at once.
+lf_holder 'make test'
+lf_start env WITH_LOCK_MAX_WAIT=abc
+lf_finish 80
+[[ $code -eq 0 && "$(sed -n 1p "$tmp/state" 2>/dev/null)" == lock && ! -e "$waits" ]] || fail "lock-free bad limit, no long holder: exit $code: $out"
+# (11) DIRIGIBLE_LOCKED_SCRIPT has no limit, also for a lock-free call.
+lf_holder 'make dmg' 3
+lf_start env WITH_LOCK_MAX_WAIT=2 DIRIGIBLE_LOCKED_SCRIPT=1
+lf_finish 80
+[[ $code -eq 0 && -s "$tmp/state" ]] || fail "lock-free DIRIGIBLE_LOCKED_SCRIPT: exit $code after $elapsed s: $out"
 reset_builders
 
 # ago <minutes>: the ISO time of that many minutes ago, as the logs write it.

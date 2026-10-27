@@ -363,8 +363,10 @@ reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$fir
 cat > "$repo/scripts/check-changed.sh" << 'EOF'
 #!/bin/bash
 echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"
-echo "classes: tooling"
-echo "targets: $FAKE_TARGETS"
+if [[ "${FAKE_EXIT:-0}" != 3 ]]; then # exit 3 is the refusal: no stdout
+    echo "classes: tooling"
+    echo "targets: $FAKE_TARGETS"
+fi
 [[ -z "${FAKE_STDERR:-}" ]] || echo "$FAKE_STDERR" >&2
 exit "${FAKE_EXIT:-0}"
 EOF
@@ -577,23 +579,51 @@ lf_finish 80
 [[ $code -eq 0 && -s "$tmp/state" ]] || fail "lock-free DIRIGIBLE_LOCKED_SCRIPT: exit $code after $elapsed s: $out"
 reset_builders
 
-# The refusal of check-changed.sh for a clean tree with commits past origin/main (exit 1, one line
-# that starts with the marker prefix) passes through at once: no lock, no wait, no ticket, no log
-# line, no command, also behind a long holder. Any other failure keeps the wait and prints nothing.
+# The refusal of check-changed.sh for a clean tree with commits past origin/main (exit 3, one line)
+# passes through at once: no lock, no wait, no ticket, no log line, no command, also behind a long
+# holder. Any other failure, also an exit 1 with the same words, keeps the wait and prints nothing.
 refusal='check-changed: no changed path, and HEAD has commits past the merge base abc of origin/main (count: 2): give SINCE=abc or BASE=<ref>'
 for holder_command in none 'make dmg'; do
     lf_holder "$holder_command"
     [[ $holder_command != none ]] || rm -rf "$lock"
-    lf_start env FAKE_EXIT=1 FAKE_STDERR="$refusal" WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
+    lf_start env FAKE_EXIT=3 FAKE_STDERR="$refusal" WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1
     lf_finish 80
-    [[ $code -eq 1 && $elapsed -le 4 && "$out" == "$refusal" && ! -e "$tmp/state" ]] || fail "refusal, holder [$holder_command]: exit $code after $elapsed s: $out"
+    [[ $code -eq 3 && $elapsed -le 4 && "$out" == "$refusal" && ! -e "$tmp/state" ]] || fail "refusal, holder [$holder_command]: exit $code after $elapsed s: $out"
     [[ ! -e "$waits" && ! -e "$holds" && -z "$(ls -A "$waiting" 2>/dev/null)$(ls -A "$first" 2>/dev/null)" ]] || fail "refusal, holder [$holder_command]: a log line, marker, or ticket"
     [[ $holder_command == none || "$(cat "$lock/pid")" == "$holder" ]] || fail "refusal, holder [$holder_command]: the holder changed"
 done
-lf_holder 'make dmg'
-lf_start env FAKE_EXIT=1 FAKE_STDERR='check-changed: FILTER is set, but the targets none run no test.' WITH_LOCK_MAX_WAIT=2
-lf_finish 80
-[[ $code -eq 75 && ! -e "$tmp/state" && "$out" != *'FILTER is set'* ]] || fail "failure with no marker: exit $code: $out"
+for status in 1 2; do
+    lf_holder 'make dmg'
+    lf_start env FAKE_EXIT=$status FAKE_STDERR="$refusal" WITH_LOCK_MAX_WAIT=2
+    lf_finish 80
+    [[ $code -eq 75 && ! -e "$tmp/state" && "$out" != *"$refusal"* ]] || fail "exit $status with the words of the refusal: exit $code: $out"
+done
+reset_builders
+# The real check-changed.sh and with-lock.sh as a pair, in a repo whose HEAD is a commit past
+# origin/main: the call exits 3 with the one line, also behind a long holder, and logs nothing.
+pair="$tmp/pair"
+mkdir -p "$pair/scripts"
+cp "$script" "$(dirname "$script")/check-changed.sh" "$pair/scripts/"
+git -C "$pair" init -q && git -C "$pair" add -A &&
+    git -C "$pair" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base &&
+    git -C "$pair" update-ref refs/remotes/origin/main HEAD &&
+    git -C "$pair" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m ahead
+plock="$pair/.git/dirigible-build.lock"
+for holder_command in none 'make dmg'; do
+    rm -rf "$plock" "$pair/.git/dirigible-build-waits.log"
+    if [[ $holder_command != none ]]; then
+        sleep 60 & inner=$!
+        mkdir "$plock" && echo "$inner" > "$plock/pid" && echo "$holder_command" > "$plock/command"
+    fi
+    t0=$(date +%s)
+    out="$(cd "$pair" && WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1 scripts/with-lock.sh "$fake/make" check-changed 2>&1)"
+    code=$?
+    elapsed=$(($(date +%s) - t0))
+    [[ $code -eq 3 && $elapsed -le 4 && "$out" == 'check-changed: no changed path, and HEAD has commits past the merge base '*'give SINCE='* && "$(wc -l <<<"$out" | tr -d ' ')" == 1 ]] ||
+        fail "real pair, holder [$holder_command]: exit $code after $elapsed s: $out"
+    [[ ! -e "$pair/.git/dirigible-build-waits.log" && ! -e "$pair/.git/dirigible-build-holds.log" ]] || fail "real pair, holder [$holder_command]: a log line"
+    [[ -z "$inner" ]] || { kill "$inner" 2>/dev/null; wait "$inner" 2>/dev/null; inner=""; }
+done
 reset_builders
 
 # ago <minutes>: the ISO time of that many minutes ago, as the logs write it.

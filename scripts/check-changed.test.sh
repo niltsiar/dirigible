@@ -920,7 +920,7 @@ PATH="$tmp/bin:$PATH" make_case 'make check-changed with SINCE' '' SINCE="$sref"
   fail "make check-changed with SINCE: first line: $output"
 [[ "$(cat "$tmp/since.log")" == $'unset\nunset' ]] || fail "make check-changed with SINCE: the hook tests saw [$(tr '\n' ' ' < "$tmp/since.log")]: $output"
 [[ "$(cd "$tmp/r" && scripts/check-stamp.sh read "$sref")" == 'no stamp' ]] || fail 'make check-changed with SINCE: a stamp exists'
-# A bare run on a clean tree whose HEAD has commits past the merge base with origin/main exits 1
+# A bare run on a clean tree whose HEAD has commits past the merge base with origin/main exits 3
 # with one stderr line (the count, the merge base, and the SINCE or BASE form) and prints nothing on
 # stdout: the commits would otherwise report targets: none. A clean tree at or behind origin/main,
 # with no origin/main, or with an origin/main that shares no commit with HEAD keeps the three lines
@@ -938,7 +938,7 @@ refusal_line() { echo "check-changed: no changed path, and HEAD has commits past
 refused() {
   got="$(run_in 2> "$tmp/bare.err")"
   code=$?
-  [[ $code -eq 1 && -z "$got" ]] || fail "$1: exit $code, stdout [$got]"
+  [[ $code -eq 3 && -z "$got" ]] || fail "$1: exit $code, stdout [$got]"
   [[ "$(cat "$tmp/bare.err")" == "$(refusal_line "$2")" ]] || fail "$1: stderr [$(cat "$tmp/bare.err")], want [$(refusal_line "$2")]"
 }
 # kept <name>: the three lines of no change, exit 0, and no stderr.

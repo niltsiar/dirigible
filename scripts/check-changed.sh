@@ -18,7 +18,7 @@
 #          The lead records `git rev-parse HEAD` before it starts the agent. That commit is <ref>: the
 #          parent of the first commit of the group. A <ref> that is the first commit drops its paths.
 #          With a base too it exits 2. With no changed path it exits 1. Only git mode reads SINCE.
-#        A bare run (no base, SINCE, or FILTER) with no changed path exits 1 with one stderr line and no
+#        A bare run (no base, SINCE, or FILTER) with no changed path exits 3 with one stderr line and no
 #          stdout when HEAD has commits past the merge base of origin/main: give SINCE=<merge base> or
 #          BASE=<ref>. At or behind origin/main, or with no origin/main, it prints targets: none.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
@@ -364,7 +364,7 @@ if [[ $mode == git && $push == 0 && -z "${FILTER:-}" && -z "$paths" ]]; then
     [[ -z "$merge_base" ]] || count="$(git rev-list --count "$origin..HEAD" 2>/dev/null || echo 0)"
     if ((count > 0)); then
         echo "check-changed: no changed path, and HEAD has commits past the merge base $merge_base of origin/main (count: $count): give SINCE=$merge_base or BASE=<ref>" >&2
-        exit 1
+        exit 3
     fi
 fi
 

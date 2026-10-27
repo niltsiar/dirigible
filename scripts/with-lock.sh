@@ -63,14 +63,14 @@
 # release call), when scripts/check-changed.sh (with the NAME=value words of the call in its
 # environment) gives only check-docs, check-fast, lint, format, none, or a word with =; and make
 # test-hooks with a HOOK_TESTS= word. A check-changed.sh failure, a FILTER with test-filter, and
-# every other target keep the lock. The refusal of a bare check-changed.sh on a clean tree with
-# commits past origin/main (exit 1) runs no command: the call prints its line and exits 1 at once,
-# with no lock, wait, ticket, or log line, also behind a long holder. With no long holder, a
-# lock-free call also writes no wait line and runs at once: it does not wait for another build or
-# test. While a release call, a bench, a mutation pass, or a flake loop holds the lock
-# (long-runs.md), and, after it waited, while a release call has a live ticket in
-# dirigible-build-first/, it waits without taking the lock, under the wait limit above, and then
-# runs. That wait keeps no marker and no ticket, and appends one wait line that ends with nocap.
+# every other target keep the lock. Exit 3 of check-changed.sh (its refusal of a bare run with no
+# changed path and commits past origin/main) runs no command: the call prints the output of
+# check-changed.sh and exits 3 at once, with no lock, wait, ticket, or log line, also behind a
+# long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
+# does not wait for another build or test. While a release call, a bench, a mutation pass, or a
+# flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a live
+# ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
+# and then runs. That wait keeps no marker and no ticket, and appends one wait line that ends with nocap.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -175,15 +175,11 @@ ahead() {
     done
     return 1
 }
-# lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift: make
-# check-changed with no BASE= word and no BASE from push_env, when scripts/check-changed.sh gives
-# only check-docs, check-fast, lint, format, none, or a word with =; and make test-hooks with a
-# HOOK_TESTS= word. Any other command, goal, or check-changed.sh failure is not lock-free (fail
-# closed), except the refusal of a bare check-changed.sh on a clean tree with commits past
-# origin/main (exit 1, a line that starts with $refusal): it prints that line and exits 1 at once.
-refusal='check-changed: no changed path, and HEAD has commits past'
+# lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift (the header
+# lists them). Any other command, goal, or check-changed.sh failure is not lock-free (fail closed),
+# except status 3 of check-changed.sh: it prints the output and exits 3 at once.
 lock_free() {
-    local w goal="" assign=() out="" hooks="" status=0 line
+    local w goal="" assign=() out="" hooks="" status=0
     [[ "${1##*/}" == make ]] || return 1
     ! push_env || return 1
     for w in "${@:2}"; do
@@ -199,10 +195,7 @@ lock_free() {
         test-hooks) [[ -n "$hooks" ]] || return 1; free_targets=test-hooks ;;
         check-changed)
             out="$(env ${assign[@]+"${assign[@]}"} "$here/check-changed.sh" 2>&1)" || status=$?
-            if [[ $status -eq 1 ]] && line="$(grep -m1 -- "^$refusal" <<<"$out")"; then
-                echo "$line" >&2
-                exit 1
-            fi
+            [[ $status -ne 3 ]] || { echo "$out" >&2; exit 3; }
             [[ $status -eq 0 ]] || return 1
             free_targets="$(sed -n 's/^targets: //p' <<<"$out")"
             [[ -n "$free_targets" ]] || return 1

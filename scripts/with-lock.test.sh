@@ -352,6 +352,72 @@ clear_hold
 # the live holder, and each live waiter. A wait with 2 or more other trees prints the count.
 holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build-waiting"
 reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
+# A make check-changed call whose targets build no Swift (check-docs, check-fast, lint, format,
+# none, or a word with =), and a make test-hooks call with a HOOK_TESTS= word, run at once with no
+# lock, no wait line, and no hold line, while an ordinary build or test holds the lock. They still
+# wait for a release call, a bench, a mutation pass, or a flake loop. The fake check-changed.sh
+# prints $FAKE_TARGETS, logs the FILTER value, and exits $FAKE_EXIT.
+cat > "$repo/scripts/check-changed.sh" << 'EOF'
+#!/bin/bash
+echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"
+echo "classes: tooling"
+echo "targets: $FAKE_TARGETS"
+exit "${FAKE_EXIT:-0}"
+EOF
+chmod +x "$repo/scripts/check-changed.sh"
+export FAKE_FILTER_LOG="$tmp/filter.log"
+# lockfree <expect> <label> <command...>: with a live holder, the call runs at once (run) or waits
+# until the limit of 2 s (wait). It leaves the holder, the wait log, and the hold log as they were.
+lockfree() {
+    local expect="$1" label="$2"
+    shift 2
+    reset_builders
+    rm -f "$tmp/order" "$FAKE_FILTER_LOG"
+    hold
+    [[ -z "${HOLDER_COMMAND:-}" ]] || echo "$HOLDER_COMMAND" > "$lock/command"
+    out="$(WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$@" 2>&1)"
+    code=$?
+    if [[ $expect == run ]]; then
+        [[ $code -eq 0 && -s "$tmp/order" && "$out" == *'lock-free targets'* ]] || fail "lock-free, $label: exit $code, order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+        [[ ! -e "$waits" && ! -e "$holds" && "$(cat "$lock/pid")" == "$holder" ]] ||
+            fail "lock-free, $label: a log line or a change of the lock: $(cat "$waits" "$holds" 2>/dev/null)"
+    else
+        [[ $code -eq 75 && ! -s "$tmp/order" && "$out" != *'lock-free targets'* ]] || fail "lock-free, $label: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+    fi
+}
+for targets in "check-fast HOOK_TESTS=a" "check-docs" "none" "check-fast DIRIGIBLE_HOOKS_ALL=1" "lint format"; do
+    FAKE_TARGETS="$targets" lockfree run "targets $targets" "$fake/make" check-changed
+done
+for targets in "check-fast test-filter test-app" "test" "check-docs test"; do
+    FAKE_TARGETS="$targets" lockfree wait "targets $targets" "$fake/make" check-changed
+done
+FAKE_TARGETS="check-fast test-filter test-app" lockfree wait "a FILTER word" "$fake/make" check-changed FILTER=ATests
+[[ "$(cat "$FAKE_FILTER_LOG")" == ATests ]] || fail "lock-free: check-changed.sh got FILTER [$(cat "$FAKE_FILTER_LOG")], not ATests"
+FAKE_TARGETS="check-fast" lockfree run "a make word with =" "$fake/make" check-changed SINCE=main
+FAKE_TARGETS="check-fast" FAKE_EXIT=1 lockfree wait "check-changed.sh exit 1" "$fake/make" check-changed
+FAKE_TARGETS="" lockfree wait "no targets" "$fake/make" check-changed
+FAKE_TARGETS="check-fast" lockfree wait "another goal" "$fake/make" check-changed test
+# A release call keeps its ticket and the lock, also with lock-free targets.
+reset_builders
+rm -f "$tmp/order"
+hold_for 2
+FAKE_TARGETS="check-docs" "$repo/scripts/with-lock.sh" "$fake/make" check-changed BASE=origin/main > "$tmp/wait.out" 2>&1
+code=$?
+[[ $code -eq 0 && -s "$tmp/order" && "$(cat "$tmp/wait.out")" != *'lock-free'* && "$(awk -F'\t' '{ print $3 }' "$holds")" == *'BASE=origin/main' ]] ||
+    fail "lock-free, push check: exit $code, hold [$(cat "$holds" 2>/dev/null)]: $(cat "$tmp/wait.out")"
+# make test-hooks: a HOOK_TESTS= word runs at once; the bare goal waits.
+lockfree run "test-hooks with HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=a,b
+lockfree wait "test-hooks with no HOOK_TESTS" "$fake/make" test-hooks
+lockfree wait "test-hooks with an empty HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=
+# A holder that is a release call, a bench, a mutation pass, or a flake loop keeps the wait; an
+# ordinary build or test does not.
+for holder_command in "make check-changed BASE=origin/main" "$repo/scripts/land.sh x" "make dmg" "$repo/scripts/bench.sh x" "$repo/scripts/bench-pairs.sh x" \
+    "$repo/scripts/mutation-pass.sh $repo batch" "$repo/scripts/flake-monitor/loop.sh x"; do
+    FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree wait "holder $holder_command" "$fake/make" check-changed
+done
+FAKE_TARGETS="check-docs" HOLDER_COMMAND="make test-filter ATests" lockfree run "holder make test-filter" "$fake/make" check-changed
+reset_builders
+
 # ago <minutes>: the ISO time of that many minutes ago, as the logs write it.
 ago() { date -r $(($(date +%s) - $1 * 60)) +%FT%T; }
 /usr/bin/true &

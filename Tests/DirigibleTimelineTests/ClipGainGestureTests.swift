@@ -19,7 +19,7 @@ struct ClipGainGestureTests {
     func context(marks: Marks = Marks(), canEdit: Bool = true) -> GestureContext {
         GestureContext(
             session: session, selection: .range(marks), playhead: 1000, geometry: Fixture.geometry, canEdit: canEdit,
-            canRipple: true)
+            canRipple: true, snaps: false)
     }
 
     mutating func down(_ x: Double, _ y: Double, clicks: Int = 1, marks: Marks = Marks()) {

@@ -30,7 +30,7 @@ struct GroupGesture {
     var context: GestureContext {
         GestureContext(
             session: session, selection: selection, playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
-            canRipple: true)
+            canRipple: true, snaps: false)
     }
 
     mutating func down(_ x: Double, _ y: Double, command: Bool = false) -> [GestureEffect] {

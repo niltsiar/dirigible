@@ -20,7 +20,7 @@ struct RippleGestureTests {
     func context(canEdit: Bool = true, canRipple: Bool = true) -> GestureContext {
         GestureContext(
             session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: canEdit,
-            canRipple: canRipple)
+            canRipple: canRipple, snaps: false)
     }
 
     mutating func down(_ x: Double, option: Bool = true, shift: Bool = false, canRipple: Bool = true) {
@@ -105,7 +105,8 @@ struct RippleGestureTests {
         try session.place(Clip(id: "Z", file: "fb", start: 0, offset: 4_800, length: 24_000), on: "t2")
         var gesture = TimelineGesture()
         let context = GestureContext(
-            session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: true, canRipple: true)
+            session: session, selection: .none, playhead: 0, geometry: Fixture.geometry, canEdit: true, canRipple: true,
+            snaps: false)
         _ = gesture.handle(.down(.lanes(x: 1, y: 70), shift: false, command: false, option: true), context)
         _ = gesture.handle(.drag(.lanes(x: -19, y: 70)), context)
         #expect(

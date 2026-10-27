@@ -19,11 +19,9 @@ struct SnapGestureTests {
     static func frame(_ x: Double) -> Frames { Frames(Int(x * 480)) }
 
     var context: GestureContext {
-        var context = GestureContext(
+        GestureContext(
             session: session, selection: selection, playhead: playhead, geometry: Fixture.geometry, canEdit: true,
-            canRipple: true)
-        context.snaps = snaps
-        return context
+            canRipple: true, snaps: snaps)
     }
 
     mutating func down(_ x: Double, _ y: Double, shift: Bool = false, option: Bool = false) {

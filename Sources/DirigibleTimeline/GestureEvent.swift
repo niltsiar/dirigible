@@ -15,14 +15,14 @@ public struct GestureContext: Sendable {
     public var columnsPerPoint = 1.0
     /// True when a move, a trim, or a range drag snaps (decision 0020): the app preference is on and
     /// Command is not held at this event.
-    public var snaps = false
+    public var snaps: Bool
 
     public init(
         session: Session, selection: Selection, playhead: Frames, geometry: LaneGeometry, canEdit: Bool,
-        canRipple: Bool
+        canRipple: Bool, snaps: Bool
     ) {
-        (self.session, self.selection, self.playhead, self.geometry, self.canEdit, self.canRipple) =
-            (session, selection, playhead, geometry, canEdit, canRipple)
+        (self.session, self.selection, self.playhead, self.geometry, self.canEdit, self.canRipple, self.snaps) =
+            (session, selection, playhead, geometry, canEdit, canRipple, snaps)
     }
 
     /// The range of the selection; no points for a clip set.

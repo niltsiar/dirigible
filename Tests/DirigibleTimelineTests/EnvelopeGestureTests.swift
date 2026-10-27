@@ -25,7 +25,7 @@ struct EnvelopeGestureTests {
     func context(marks: Marks = Marks()) -> GestureContext {
         GestureContext(
             session: session, selection: .range(marks), playhead: 1000, geometry: Fixture.geometry, canEdit: true,
-            canRipple: true)
+            canRipple: true, snaps: false)
     }
 
     mutating func down(

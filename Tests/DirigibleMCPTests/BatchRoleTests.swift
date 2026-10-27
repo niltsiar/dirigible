@@ -40,33 +40,40 @@ struct BatchRoleTests {
         }
     }
 
-    /// An agent reads each tool name after "except" in the `batch` description as refused, and each
-    /// other tool name as a step. The word "batch" in the text is the tool itself, not a step.
-    @Test func aToolAfterExceptIsRefusedAndEachOtherNamedToolIsAStep() throws {
+    /// An agent reads as refused each tool name of a sentence that says "refused", and each tool name
+    /// after "except" up to the first word that is not a name, "and", a comma, or a colon. It reads
+    /// each other tool name as a step. The word "batch" in the text is the tool itself, not a step.
+    @Test func aToolThatTheTextRefusesIsAloneAndEachOtherNamedToolIsAStep() throws {
         let description = try #require(Tool.all.first { $0.name == "batch" }).description
         let names = Self.steps.union(Self.alone).subtracting(["batch"])
-        let tokens = description.matches(of: /\w+|[^\w\s]/).map { String($0.output) }
-        var excepted: Set<String> = []
+        var refused: Set<String> = []
         var named: Set<String> = []
-        var index = 0
-        while index < tokens.count {
-            guard tokens[index] == "except" else {
-                if names.contains(tokens[index]) { named.insert(tokens[index]) }
+        for sentence in description.split(separator: ". ") {
+            let tokens = sentence.matches(of: /\w+|[^\w\s]/).map { String($0.output) }
+            let refuses = tokens.contains("refused")
+            var index = 0
+            while index < tokens.count {
+                guard tokens[index] == "except" else {
+                    if names.contains(tokens[index]) {
+                        if refuses { refused.insert(tokens[index]) } else { named.insert(tokens[index]) }
+                    }
+                    index += 1
+                    continue
+                }
                 index += 1
-                continue
-            }
-            index += 1
-            while index < tokens.count, names.contains(tokens[index]) {
-                excepted.insert(tokens[index])
-                index += 1
-                while index < tokens.count, [",", "and"].contains(tokens[index]) { index += 1 }
+                while index < tokens.count, names.contains(tokens[index]) {
+                    refused.insert(tokens[index])
+                    index += 1
+                    while index < tokens.count, [",", "and", ":"].contains(tokens[index]) { index += 1 }
+                }
             }
         }
-        #expect(!excepted.isEmpty && !named.isEmpty, "the scan found no tool names")
-        let steps = excepted.subtracting(Self.alone)
-        #expect(steps.isEmpty, "BATCH-A6 steps that the text names after except: \(steps.sorted())")
-        let refused = named.subtracting(Self.steps)
-        #expect(refused.isEmpty, "BATCH-A6 refused tools that the text names as steps: \(refused.sorted())")
+        #expect(refused.contains("transcript_cut"), "BATCH-A6 the text does not name transcript_cut as refused")
+        #expect(!named.isEmpty, "the scan found no step names")
+        let steps = refused.subtracting(Self.alone)
+        #expect(steps.isEmpty, "BATCH-A6 steps that the text names as refused: \(steps.sorted())")
+        let alone = named.subtracting(Self.steps)
+        #expect(alone.isEmpty, "BATCH-A6 refused tools that the text names as steps: \(alone.sorted())")
     }
 
     @Test func eachToolHasItsBatchRole() {

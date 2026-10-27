@@ -40,6 +40,35 @@ struct BatchRoleTests {
         }
     }
 
+    /// An agent reads each tool name after "except" in the `batch` description as refused, and each
+    /// other tool name as a step. The word "batch" in the text is the tool itself, not a step.
+    @Test func aToolAfterExceptIsRefusedAndEachOtherNamedToolIsAStep() throws {
+        let description = try #require(Tool.all.first { $0.name == "batch" }).description
+        let names = Self.steps.union(Self.alone).subtracting(["batch"])
+        let tokens = description.matches(of: /\w+|[^\w\s]/).map { String($0.output) }
+        var excepted: Set<String> = []
+        var named: Set<String> = []
+        var index = 0
+        while index < tokens.count {
+            guard tokens[index] == "except" else {
+                if names.contains(tokens[index]) { named.insert(tokens[index]) }
+                index += 1
+                continue
+            }
+            index += 1
+            while index < tokens.count, names.contains(tokens[index]) {
+                excepted.insert(tokens[index])
+                index += 1
+                while index < tokens.count, [",", "and"].contains(tokens[index]) { index += 1 }
+            }
+        }
+        #expect(!excepted.isEmpty && !named.isEmpty, "the scan found no tool names")
+        let steps = excepted.subtracting(Self.alone)
+        #expect(steps.isEmpty, "BATCH-A6 steps that the text names after except: \(steps.sorted())")
+        let refused = named.subtracting(Self.steps)
+        #expect(refused.isEmpty, "BATCH-A6 refused tools that the text names as steps: \(refused.sorted())")
+    }
+
     @Test func eachToolHasItsBatchRole() {
         #expect(Self.steps.count == 34 && Self.alone.count == 30 && Self.steps.isDisjoint(with: Self.alone))
         let names = Tool.all.map(\.name)

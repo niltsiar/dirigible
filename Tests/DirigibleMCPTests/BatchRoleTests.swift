@@ -24,6 +24,22 @@ struct BatchRoleTests {
         "batch",
     ]
 
+    /// The `batch` description names its steps by tool family. Each tool of a named family is a
+    /// step, or the description names it as an exception.
+    @Test func theBatchDescriptionMatchesTheRoles() throws {
+        let description = try #require(Tool.all.first { $0.name == "batch" }).description
+        for family in ["track", "marker", "episode", "clip", "ripple"] {
+            #expect(description.contains(family), "the description does not name the \(family) tools")
+            let alone = Tool.all.filter {
+                $0.name.split(separator: "_").contains(Substring(family)) && $0.batch == .alone
+            }
+            let unnamed = alone.map(\.name).filter { !description.contains($0) }
+            #expect(
+                unnamed.isEmpty,
+                "BATCH-A6 \(family) tools that are not steps and that the text does not name: \(unnamed)")
+        }
+    }
+
     @Test func eachToolHasItsBatchRole() {
         #expect(Self.steps.count == 35 && Self.alone.count == 29 && Self.steps.isDisjoint(with: Self.alone))
         let names = Tool.all.map(\.name)

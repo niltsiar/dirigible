@@ -43,7 +43,8 @@
 # check-changed BASE= line with no limit column) in the hold log, at least 3600 s. 0 turns the
 # limit off. The lock folder keeps the limit in <lock>/maxhold, and --builders ends with the line
 # "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
-# A release call (make check-changed BASE=<ref>, land.sh, make dmg) holds the ticket folder
+# A release call (make check-changed with BASE=<ref> as a word, in the environment, or in MAKEFLAGS;
+# land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
 # ordinary call does not take the lock while a ticket of a live pid is there, so a release call
 # that starts later still runs first. A ticket of a dead pid does not block.
@@ -58,7 +59,8 @@
 # command first. The call exits with the status of the command.
 # A lock-free call runs its command at once, with no lock, no wait line, and no hold line, and one
 # stderr line "with-lock: lock-free targets (<targets>): no lock". It is make check-changed with no
-# BASE= word, when scripts/check-changed.sh (with the NAME=value words of the call in its
+# BASE= word and no BASE in the environment or in MAKEFLAGS (both make a push check, and so a
+# release call), when scripts/check-changed.sh (with the NAME=value words of the call in its
 # environment) gives only check-docs, check-fast, lint, format, none, or a word with =; and make
 # test-hooks with a HOOK_TESTS= word. A check-changed.sh failure, a FILTER with test-filter, and
 # every other target keep the lock. The call still waits while the live holder is a release call,
@@ -141,12 +143,17 @@ holder_line() {
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # A mutation pass builds the tree of its first argument, whatever the working directory is.
 if [[ "${1##*/}" == mutation-pass.sh && $# -ge 2 ]]; then tree="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || echo "$tree")"; fi
-# release_call <command>: a push check (make check-changed BASE=<ref>), a land (land.sh), or a DMG
-# build (make dmg).
+# push_env: succeeds when BASE has a value in the environment or in a BASE= word of MAKEFLAGS (the
+# Makefile reads $(BASE), and make puts a variable of its command line into the environment and
+# MAKEFLAGS of the recipe).
+push_env() { [[ -n "${BASE:-}" || " ${MAKEFLAGS:-}" =~ [[:space:]]BASE=[^[:space:]] ]]; }
+# release_call <command>: a push check (make check-changed with a BASE= word, or with BASE from
+# push_env), a land (land.sh), or a DMG build (make dmg).
 release_call() {
     local w goal="" base=""
     [[ "${1##*/}" == land.sh ]] && return 0
     [[ "${1##*/}" == make ]] || return 1
+    ! push_env || base=1
     for w in "${@:2}"; do
         case "$w" in BASE=?*) base=1 ;; dmg) goal=dmg ;; check-changed) [[ $goal == dmg ]] || goal=check ;; esac
     done
@@ -164,12 +171,14 @@ ahead() {
     return 1
 }
 # lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift: make
-# check-changed with no BASE= word, when scripts/check-changed.sh gives only check-docs, check-fast,
-# lint, format, none, or a word with =; and make test-hooks with a HOOK_TESTS= word. Any other
-# command, goal, or check-changed.sh failure is not lock-free (fail closed).
+# check-changed with no BASE= word and no BASE from push_env, when scripts/check-changed.sh gives
+# only check-docs, check-fast, lint, format, none, or a word with =; and make test-hooks with a
+# HOOK_TESTS= word. Any other command, goal, or check-changed.sh failure is not lock-free (fail
+# closed).
 lock_free() {
     local w goal="" assign=() out="" hooks=""
     [[ "${1##*/}" == make ]] || return 1
+    ! push_env || return 1
     for w in "${@:2}"; do
         case "$w" in
             BASE=?*) return 1 ;;
@@ -198,6 +207,7 @@ long_holder() {
     local m c cmd w words make=""
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
     alive "$m" || alive "$c" || alive "-$c" || return 1
+    [[ ! -e "$lock/release" ]] || return 0
     cmd="$(cat "$lock/command" 2>/dev/null)"
     case "$cmd" in
         *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh*) return 0 ;;
@@ -294,7 +304,7 @@ done
 rm -f ${marker:+"$marker"}
 # A pid write can fail after the mkdir (a full disk): remove the lock, so no call waits on it.
 { echo $$ > "$lock/pid" && echo "$*" > "$lock/command" && echo "$tree" > "$lock/tree" && echo "$maxhold" > "$lock/maxhold" &&
-    { [[ -z "$nocap" ]] || : > "$lock/nocap"; }; } 2>/dev/null ||
+    { [[ -z "$nocap" ]] || : > "$lock/nocap"; } && { ! release_call "$@" || : > "$lock/release"; }; } 2>/dev/null ||
     { rm -rf "$lock"; echo "with-lock: cannot write the pid into $lock; check the disk" >&2; exit 2; }
 taken="$(date +%s)" cmdline="$*"
 [[ -z "$told" ]] || printf '%s\t%s\t%s\t%s\t%s%s\n' "$(date -r "$start" +%FT%T)" "$((taken - start))" "$cmdline" "$held" "$tree" "${nocap:+$'\tnocap'}" \

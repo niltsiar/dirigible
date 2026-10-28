@@ -479,6 +479,30 @@ if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$chained_data"; then
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 
+# A repo .test.sh runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare run takes no lock
+# and adds load to a push check (DLV-157/flake). Each segment of the chain (split on ; & | ( and a
+# backtick) is read from its start, after the prefix words (NAME=value, time, env, probe.sh <folder>,
+# and the like). It blocks a shell word (sh, bash, zsh, with a path) with flags other than -n and then
+# a .test.sh path, and a bare .test.sh path. A with-lock.sh word in the prefix, bash -n, and a path
+# under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a wrapper word that the prefix
+# does not hold (nice, nohup, caffeinate).
+test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
+test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
+test_segments="$chained_data"
+for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
+while IFS= read -r segment; do
+  [[ "$segment" =~ ^[[:space:]]?($test_pre)(.*)$ ]] || continue
+  prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+  [[ "$prefix" == *with-lock.sh* ]] && continue
+  if [[ "$rest" =~ ^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+(.*)$ ]]; then
+    [[ "${BASH_REMATCH[3]}" == *n* ]] && continue
+    rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+  fi
+  if [[ "$rest" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then
+    block "runs a repo .test.sh with no lock" "Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
+  fi
+done <<< "$test_segments"
+
 # A subagent never runs a lock wait with no limit: after a second exit 75 it returns to the lead,
 # which runs the wait in the background (AGENTS.md, Commands). The input of a subagent holds
 # agent_id; the input of the lead does not. The wait has no limit with WITH_LOCK_MAX_WAIT set to

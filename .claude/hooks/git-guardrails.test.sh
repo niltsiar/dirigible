@@ -272,7 +272,7 @@ expect block 'cp x "$(git rev-parse --git-path dirigible-check-stamp)"'
 expect block 'scripts/check-stamp.sh write abc clean def check'
 expect block 'bash scripts/check-stamp.sh  write abc clean def check'
 expect allow 'scripts/check-stamp.sh read origin/main'
-expect allow 'scripts/check-stamp.test.sh'
+expect allow 'scripts/with-lock.sh scripts/check-stamp.test.sh'
 # Only a passing make test-slow or test-slow-push writes the slow-run date. A direct write skips the daily slow run.
 expect block 'date +%F > .git/dirigible-slow-date'
 expect block 'echo 2026-01-01 > "$(git rev-parse --git-common-dir)/dirigible-slow-date"'
@@ -326,7 +326,7 @@ expect_each_read() {
 # Only run-checks.sh appends to the flakes file and only land.sh removes its lines, so a flake row
 # cannot be erased between the push check and the land.
 expect block 'rm "$(git rev-parse --git-common-dir)/dirigible-flakes"'
-expect allow 'scripts/run-checks.test.sh'
+expect allow 'scripts/with-lock.sh scripts/run-checks.test.sh'
 expect allow 'scripts/run-checks.sh --flakes'
 # Each simple command that names the flakes file must be a read: a read tool first, no -i, and no
 # redirect into the name (quotes and a $(...) path too). A grep whose quoted pattern holds a > is
@@ -477,7 +477,7 @@ plutil -convert json "$input"
 message="$("$hook" < "$input" 2>&1 >/dev/null)"
 [[ "$message" == *'read it with scripts/run-checks.sh --flakes'* ]] ||
   { echo "FAIL: the flakes block message names no read route: $message"; failures=$((failures + 1)); }
-expect allow 'scripts/check-changed.test.sh'
+expect allow 'scripts/with-lock.sh scripts/check-changed.test.sh'
 
 # The body of a heredoc that goes to a file (cat or tee, a plain file) is data: no rule reads it. The
 # marker ends the first line, or only a redirect to a plain file follows it, and an exact end line
@@ -889,6 +889,30 @@ for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m
   'scripts/with-lock.sh make test-filter FILTER=X' 'scripts/with-lock.sh swift test' \
   'scripts/with-lock.sh scripts/probe.sh f swift build' "scripts/with-lock.sh scripts/probe.sh '/x y/f' swift build"; do
   expect_each_join "$first" "$ld"
+done
+
+# A repo hook or script test runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare bash run
+# of a .test.sh file ran beside three push checks (DLV-157/flake). Each run form after the prefix
+# words blocks: a shell word with flags other than -n, or the bare path.
+for run in 'bash scripts/with-lock.test.sh' 'bash a.test.sh & bash b.test.sh' 'bash a.test.sh; bash b.test.sh' \
+  'cd ../wt && bash scripts/land.test.sh' 'scripts/land.test.sh' './scripts/land.test.sh' '../wt/scripts/land.test.sh' \
+  'sh scripts/land.test.sh' '/bin/bash scripts/land.test.sh' '/bin/sh scripts/land.test.sh' 'bash -x scripts/land.test.sh' \
+  'bash -ex scripts/land.test.sh' 'VAR=1 bash scripts/land.test.sh' 'time bash scripts/land.test.sh' \
+  '(bash scripts/land.test.sh)' '{ bash scripts/land.test.sh; }' 'for t in a; do bash scripts/land.test.sh; done' \
+  'if true; then bash scripts/land.test.sh; fi' 'scripts/probe.sh f bash scripts/land.test.sh' \
+  'bash scripts/land.test.sh > log 2>&1' 'bash scripts/land.test.sh 2>&1 | tail -3' 'bash "scripts/land.test.sh"' \
+  'bash .claude/hooks/git-guardrails.test.sh; bash scripts/land.test.sh' $'echo x\nbash scripts/land.test.sh' \
+  'env X=1 scripts/land.test.sh' 'bash   scripts/land.test.sh'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+for run in "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh'" 'scripts/with-lock.sh bash scripts/land.test.sh' \
+  'WITH_LOCK_MAX_WAIT=5 scripts/with-lock.sh bash scripts/land.test.sh' 'scripts/with-lock.sh scripts/probe.sh f bash scripts/land.test.sh' \
+  'scripts/with-lock.sh scripts/land.test.sh' 'bash -n scripts/land.test.sh' 'sh -n scripts/land.test.sh' 'bash -nx scripts/land.test.sh' \
+  'rg -n case scripts/land.test.sh' 'sed -n 1,5p scripts/land.test.sh' 'echo bash scripts/land.test.sh' \
+  'git add scripts/land.test.sh && git commit -F .scratchpads/commit-msg.txt' 'chmod +x scripts/land.test.sh' \
+  'bash .scratchpads/run-tests.sh' 'bash .scratchpads/x/land.test.sh' 'bash scripts/land.sh' \
+  $'cat > notes.txt <<\'EOF\'\nbash scripts/land.test.sh\nEOF'; do
+  expect allow "$run"
 done
 
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.

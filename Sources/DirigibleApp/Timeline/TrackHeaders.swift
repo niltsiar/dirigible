@@ -303,7 +303,7 @@ private struct TrackRow: View {
     }
 
     /// Line 3 of a row of 80 pt or more: the short state on one line, then the "Privacy…" button of
-    /// an app track that gets no sound. The full sentence wrapped to 3 to 13 lines (run
+    /// an app track with no sound or no access. The full sentence wrapped to 3 to 13 lines (run
     /// 2026-10-11-ui-polish-header U5).
     @ViewBuilder private func stateLine(_ liveState: LiveTrack.State?) -> some View {
         let app = HeaderStateText.app(liveState, sourceLabel)

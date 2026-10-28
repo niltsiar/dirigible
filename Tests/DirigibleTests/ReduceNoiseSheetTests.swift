@@ -279,6 +279,26 @@ extension DenoiseDraft {
         await model.close()
     }
 
+    /// Code gate 2 item 2: a preview fault keeps the sheet open with the fault line, shows no
+    /// alert, and stops the preview (fail: the sheet closes and the alert shows).
+    @Test func previewFaultKeepsTheSheet() async throws {
+        let (model, studio) = try await open()
+        studio.environment.clipRenderRead = ReadFault(stem: "f1", block: 0) { throw CocoaError(.fileReadUnknown) }
+        model.timeline.selection = set("c1")
+        model.run(.reduceNoise)
+        let draft = try #require(model.denoiseDraft)
+
+        await model.previewDenoise(draft, listen: .result)
+
+        #expect(model.denoiseDraft?.previewFault != nil && model.alert == nil, "\(String(describing: model.alert))")
+        #expect(studio.effectPreviewState == .stopped)
+        let english = try #require(try stringsTable("en")[L10n.sheetDenoisePreviewFailed.rawValue])
+        let line = String(format: english, "The file f1.wav did not read.")
+        #expect(line == "Preview stopped. The file f1.wav did not read.")
+        model.cancelDenoise()
+        await model.close()
+    }
+
     /// C21: the accessibility value of the dial in English and Spanish.
     @Test func dialAccessibilityValue() throws {
         let tables = try ["en", "es"].map { try stringsTable($0) }

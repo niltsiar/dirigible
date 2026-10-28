@@ -215,6 +215,7 @@
 "sheet.denoise.result" = "Result";
 "sheet.denoise.removed" = "Removed Sound";
 "sheet.denoise.playing" = "Preview updated.";
+"sheet.denoise.preview.failed" = "Preview stopped. %@";
 "sheet.denoise.apply" = "Reduce Noise";
 "error.denoise.space" = "Dirigible cannot reduce the noise. The disk of this session does not have enough free space. Free some disk space and try again.";
 "error.denoise.write" = "Dirigible cannot reduce the noise. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";

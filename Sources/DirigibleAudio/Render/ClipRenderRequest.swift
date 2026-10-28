@@ -1,0 +1,62 @@
+import DirigibleCore
+
+/// One effect of a render request, in the form that the user asks for (decision 0057). The
+/// measure phase of a render turns it into the stored `Effect`.
+public enum EffectRequest: Hashable, Sendable {
+    /// An effect that needs no measure: the stored form as it is.
+    case effect(Effect)
+
+    public var kind: Effect.Kind {
+        switch self {
+        case .effect(let effect): effect.kind
+        }
+    }
+}
+
+/// What a render request asks for: one or more effects, each kind once, in chain order. A stored
+/// level enters a render plan as `ClipRenderRequest(stored)`, so the merge, the removal, and the
+/// compare of the levels are operations of this type only (decision 0057).
+public struct ClipRenderRequest: Hashable, Sendable {
+    public let effects: [EffectRequest]
+
+    public init(_ treatment: Treatment) { effects = treatment.effects.map(EffectRequest.effect) }
+
+    /// No check: each caller gives effects of distinct kinds in chain order.
+    private init(sorted effects: [EffectRequest]) { self.effects = effects }
+
+    /// The kinds of the effects.
+    var kinds: Set<Effect.Kind> { Set(effects.map(\.kind)) }
+
+    /// This request with each effect of `other` in place of the effect of its kind, or added.
+    func replacing(with other: ClipRenderRequest) -> ClipRenderRequest {
+        let kept = effects.filter { !other.kinds.contains($0.kind) }
+        return ClipRenderRequest(sorted: (kept + other.effects).sorted { $0.kind.rawValue < $1.kind.rawValue })
+    }
+
+    /// This request with no effect of `kinds`, or nil when no effect is left: the level goes.
+    func removing(_ kinds: Set<Effect.Kind>) -> ClipRenderRequest? {
+        let kept = effects.filter { !kinds.contains($0.kind) }
+        return kept.isEmpty ? nil : ClipRenderRequest(sorted: kept)
+    }
+
+    /// True when each effect equals the stored effect of its kind in `stored`. Only an effect that
+    /// reads no clip gain can be unchanged: a later kind that reads it (the ride, the match) is
+    /// never unchanged.
+    func isUnchanged(from stored: Treatment) -> Bool {
+        effects.allSatisfy { request in
+            switch request {
+            case .effect(let effect): stored.effects.contains(effect)
+            }
+        }
+    }
+
+    /// The stored form, as the measure phase gives it.
+    var treatment: Treatment {
+        Treatment(
+            effects.map { request in
+                switch request {
+                case .effect(let effect): effect
+                }
+            })!
+    }
+}

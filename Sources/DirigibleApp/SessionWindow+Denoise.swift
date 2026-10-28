@@ -35,7 +35,8 @@ extension SessionWindow {
         }
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
-                let report = try await studio.renderClips(clips, treatment: Self.denoiseTreatment) { [weak self] in
+                let report = try await studio.renderClips(clips, request: ClipRenderRequest(Self.denoiseTreatment)) {
+                    [weak self] in
                     self?.importProgressed($0)
                 }
                 shown.cancel()
@@ -52,7 +53,7 @@ extension SessionWindow {
     }
 
     private func showDenoiseReport(_ report: ClipRenderReport, revision: Int) {
-        guard let noise = report.noise else { return }
+        guard let noise = report.noise, !report.clips.isEmpty else { return }
         denoisePresses += 1
         denoiseReport = DenoiseReportShown(
             clips: report.clips.count, decibels: noise.decibels, revision: revision, press: denoisePresses)

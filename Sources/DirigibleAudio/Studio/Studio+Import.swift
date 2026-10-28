@@ -97,7 +97,8 @@ extension Studio {
     /// task sets the flag. `work` gets the session of its turn, the lock, and the flags, and gives
     /// the files that it made; after it, a set flag removes them with `removeMadeFiles`, writes
     /// nothing, and throws `cancelled`, or `yielded` for a take in another studio (decision 0049).
-    /// Else the run saves, records one undo entry with `agent`, and loads the peaks of new files.
+    /// Else the run saves, records one undo entry with `agent`, and loads the peaks of new files,
+    /// unless `work` gives the session of its turn back: then it saves nothing and records nothing.
     /// `importProgress` starts at 0 for each run. From the end of the refusals to its end, the run
     /// holds a user-initiated activity that stops idle sleep and App Nap (decision 0040).
     func blockingRun<Value: Sendable>(
@@ -147,7 +148,7 @@ extension Studio {
 
     /// One turn of the write chain: the Player stops, the work, the save, the undo entry, and the
     /// peaks of the new files. A flag that is set after the work removes the made files and writes
-    /// nothing.
+    /// nothing. A work session equal to the session of the turn gets no save and no undo entry.
     private func blockingTurn<Value: Sendable>(
         _ flags: ImportFlags, _ stopped: Int?, cancelled: StudioError, yielded: StudioError, agent: AgentName?,
         work: @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value, made: [URL]), StudioError>
@@ -165,6 +166,7 @@ extension Studio {
             case .success(let result): (edited, value) = (result.0, result.1)
             case .failure(let error): return .failure(error)
             }
+            if edited == before { return .success(value) }
             switch await writeSession(
                 edited, lock: lock, previous: url, recordings: recordings, environment.saveSession)
             {

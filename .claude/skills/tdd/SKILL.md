@@ -38,7 +38,7 @@ Prefer no new test over a bad test: one that mostly tests mocks, encodes impleme
 - Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`. `make test-slow` runs it.
 - Add one seeded random test beside the literal tests, with values built through the public edits and no new library: the round-trip (write, read, `==`) for a writer and reader pair; else its strongest property: inverse (edit, then undo), invariant (output under a limit), or oracle (a simpler reference).
 - Read `references/waits-and-limits.md` when a test waits, sets a product timer, holds a gate or OS resource, stops work, or asserts a thread or priority.
-- Read `references/flake-triage.md` when a test fails only sometimes, fails on each full-suite run but passes alone, or fails with other wait-limit failures, or when you change a shared helper or the suite speed.
+- Read `references/flake-triage.md` first when a test fails on each full-suite run but passes alone, fails only sometimes, or fails with other wait-limit failures, or when you change a shared helper or the suite speed.
 
 ## Final response
 

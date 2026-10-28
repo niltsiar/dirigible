@@ -530,6 +530,16 @@ expect block "python3 -c 'import os; os.rmdir(\".git/dirigible-build.lock\")'"
 expect block "node -e 'require(\"fs\").rmdirSync(\".git/dirigible-build.lock\")'"
 expect block "perl -e 'rmdir \".git/dirigible-build.lock\"'"
 expect block "ruby -e 'Dir.rmdir(\".git/dirigible-build.lock\")'"
+# After one `cd <word> &&`, a cat, tee, or python3 - body is data as without the prefix. A ; join,
+# a bash body, an unquoted marker with $( in the body, and a python3 body that pushes main block.
+expect allow $'cd /x && cat > f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
+expect allow $'cd /x && tee f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
+expect allow $'cd /x && cat > f.txt <<\'EOF\'\ngit push origin main\nEOF'
+expect allow $'cd /x && python3 - <<\'EOF\'\ns = \'DIRIGIBLE_LOCKED_SCRIPT="$0" exec\'\nEOF'
+expect block $'cd /x && bash <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
+expect block $'cd /x; cat > f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
+expect block $'cd /x && cat > f.txt <<EOF\nDIRIGIBLE_LOCKED_SCRIPT=$(date) exec\nEOF'
+expect block $'cd /x && python3 - <<\'EOF\'\nimport os; os.system(\'git push origin main\')\nEOF'
 
 # A text rule of osascript must hold for each shell form, not only for the forms that a gate found
 # one at a time (run 2026-10-08-upkeep-batch-6). expect_each_form <want> <line>... runs one
@@ -731,6 +741,14 @@ expect_message 'in its own command' "swift build; $ld"
 # NAME=value, time, with-lock.sh, and probe.sh <folder>. The word make in row text is data.
 expect allow $'printf \'4\\twe make the row\\n\' > row.txt; .claude/skills/deliver/scripts/log-decision.sh r --from row.txt'
 expect allow $'cat > row.txt <<\'EOF\'\n4\nwe make the row\nEOF\n.claude/skills/deliver/scripts/log-decision.sh r --from row.txt'
+# The rule fires only when log-decision.sh starts a command, so a read of the script passes.
+expect allow 'git commit --amend --no-edit -q; cat .claude/skills/deliver/scripts/log-decision.sh | head -5'
+expect allow 'git commit -q -m x; sed -n 1,5p .claude/skills/deliver/scripts/log-decision.sh'
+expect allow 'make lint; head -3 .claude/skills/deliver/scripts/log-decision.sh'
+expect block $'make check-docs\n.claude/skills/deliver/scripts/log-decision.sh r --from row.txt'
+expect block 'make check-docs | tee x.log; bash .claude/skills/deliver/scripts/log-decision.sh r --from row.txt'
+expect block 'swift build & .claude/skills/deliver/scripts/log-decision.sh r --from row.txt'
+expect allow 'git commit -q -m x && .claude/skills/deliver/scripts/log-decision.sh r --from row.txt'
 expect block "X=1 make x; $ld"
 expect block "time make x; $ld"
 expect block "(make x); $ld"

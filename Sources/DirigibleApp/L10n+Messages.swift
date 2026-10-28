@@ -233,16 +233,16 @@ extension L10n {
     }
 
     /// The result banner of a Reduce Noise run: "Reduced noise in 3 clips by 12 dB.", with one form for
-    /// a single clip, and the forms with hum. A nil `decibels` is hum alone. `text` gives the value of
-    /// a key, so a test can read a table.
+    /// a single clip, and the forms with hum. A treatment with no noise reduction is hum alone. `text`
+    /// gives the value of a key, so a test can read a table.
     static func denoiseResult(
-        clips: Int, decibels: Int?, hum: Bool = false, text: (L10n) -> String = { $0.text }
+        clips: Int, treatment: Treatment, text: (L10n) -> String = { $0.text }
     ) -> String {
         func fill(_ key: L10n, _ values: Int...) -> String {
             String(format: text(key), locale: .current, arguments: values)
         }
         let one = clips == 1
-        switch (decibels, hum) {
+        switch (treatment.noise?.decibels, treatment.hum != nil) {
         case (nil, _): return one ? fill(.denoiseHumOne) : fill(.denoiseHumMany, clips)
         case (let decibels?, true):
             return one ? fill(.denoiseBothOne, decibels) : fill(.denoiseBothMany, clips, decibels)

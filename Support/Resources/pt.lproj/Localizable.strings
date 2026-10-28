@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Abaixar Música sob a Voz…";
 "menu.tools.split.stereo" = "Dividir Estéreo em Mono";
 "menu.tools.reduce.noise" = "Reduzir Ruído";
+"menu.tools.restore.original" = "Restaurar Áudio Original";
 
 /* Errors */
 "error.studio.busy" = "Uma tomada está sendo gravada ou finalizada. Aguarde até que ela termine.";
@@ -190,6 +191,7 @@
 "denoise.done.one" = "Ruído reduzido em 1 clipe, %lld dB.";
 "denoise.done.many" = "Ruído reduzido em %1$lld clipes, %2$lld dB.";
 "denoise.canceled" = "Redução de ruído cancelada. Nenhum clipe mudou.";
+"denoise.unchanged" = "Nada a alterar.";
 "error.denoise.space" = "O Dirigible não pode reduzir o ruído. O disco desta sessão não tem espaço livre suficiente. Libere espaço em disco e tente novamente.";
 "error.denoise.write" = "O Dirigible não pode reduzir o ruído. O Dirigible não consegue escrever na pasta Clips da sessão (erro %lld). Verifique o disco e tente novamente.";
 "error.denoise.unreadable" = "O Dirigible não pode reduzir o ruído. Não foi possível ler o arquivo de áudio “%1$@” (erro %2$lld). Verifique o disco e tente novamente.";
@@ -368,6 +370,8 @@
 "inspector.fade.in" = "Fade-in";
 "inspector.fade.out" = "Fade-out";
 "inspector.mixed" = "Misto";
+"inspector.effects" = "Efeitos";
+"inspector.effect.noise" = "Reduzir Ruído %lld dB";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Medidor de loudness";

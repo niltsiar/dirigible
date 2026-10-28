@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Duck Music Under Speech…";
 "menu.tools.split.stereo" = "Split Stereo to Mono";
 "menu.tools.reduce.noise" = "Reduce Noise";
+"menu.tools.restore.original" = "Restore Original Audio";
 
 /* Errors */
 "error.studio.busy" = "A take records or finishes. Wait until it ends.";
@@ -190,6 +191,7 @@
 "denoise.done.one" = "Reduced noise in 1 clip by %lld dB.";
 "denoise.done.many" = "Reduced noise in %1$lld clips by %2$lld dB.";
 "denoise.canceled" = "Noise reduction canceled. No clip changed.";
+"denoise.unchanged" = "Nothing to change.";
 "error.denoise.space" = "Dirigible cannot reduce the noise. The disk of this session does not have enough free space. Free some disk space and try again.";
 "error.denoise.write" = "Dirigible cannot reduce the noise. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
 "error.denoise.unreadable" = "Dirigible cannot reduce the noise. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
@@ -368,6 +370,8 @@
 "inspector.fade.in" = "Fade In";
 "inspector.fade.out" = "Fade Out";
 "inspector.mixed" = "Mixed";
+"inspector.effects" = "Effects";
+"inspector.effect.noise" = "Reduce Noise %lld dB";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Loudness meter";

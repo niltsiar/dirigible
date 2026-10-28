@@ -156,6 +156,7 @@ enum WindowBanner: Equatable {
         case .titleMissing(let file): L10n.bannerExportTitleMissing.format(file)
         case .transcriptLeftOut(let count, let file): L10n.bannerTranscriptLeftOut.format(file, count)
         case .levelReport(let report, _): L10n.message(for: report)
+        case .noiseReduced(0, _, _): L10n.denoiseUnchanged.text
         case .noiseReduced(let clips, let decibels, _): L10n.denoiseResult(clips: clips, decibels: decibels)
         case .unusedFilesMoved(let count, let bytes): L10n.bannerUnusedMoved.format(count, L10n.bytes(bytes))
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))

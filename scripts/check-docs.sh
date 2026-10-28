@@ -155,7 +155,7 @@ if [[ -f "$root/Support/Resources/en.lproj/Localizable.strings" ]]; then
         for lang in en es; do
             while IFS= read -r name; do
                 grep -qF "**$name**" "$guide" || err "docs/guide.md: no **$name** ($lang menu name)"
-            done < <(sed -nE 's/^"menu\.[^"]*" = "(.*)";$/\1/p' "$root/Support/Resources/$lang.lproj/Localizable.strings" | sed 's/…$//' | sort -u)
+            done < <(sed -nE 's/^"menu\.[^"]*" = "(.*)";$/\1/p' "$root/Support/Resources/$lang.lproj/Localizable.strings" | sed 's/\\U2026$//' | sed 's/…$//' | sort -u)
         done
     fi
 fi

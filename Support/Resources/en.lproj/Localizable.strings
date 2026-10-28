@@ -44,7 +44,7 @@
 "menu.tools.level.track.all" = "Auto Level per Track (All)";
 "menu.tools.duck" = "Duck Music Under Speech…";
 "menu.tools.split.stereo" = "Split Stereo to Mono";
-"menu.tools.reduce.noise" = "Reduce Noise";
+"menu.tools.reduce.noise" = "Reduce Noise\U2026";
 "menu.tools.restore.original" = "Restore Original Audio";
 
 /* Errors */
@@ -192,6 +192,30 @@
 "denoise.done.many" = "Reduced noise in %1$lld clips by %2$lld dB.";
 "denoise.canceled" = "Noise reduction canceled. No clip changed.";
 "denoise.unchanged" = "Nothing to change.";
+"denoise.hum.one" = "Removed hum in 1 clip.";
+"denoise.hum.many" = "Removed hum in %lld clips.";
+"denoise.both.one" = "Reduced noise in 1 clip by %lld dB and removed hum.";
+"denoise.both.many" = "Reduced noise in %1$lld clips by %2$lld dB and removed hum.";
+"inspector.hertz" = "Hz";
+"sheet.denoise.title" = "Reduce Noise";
+"sheet.denoise.noise" = "Reduce noise";
+"sheet.denoise.hum" = "Remove hum";
+"sheet.denoise.hum.frequency" = "Hum frequency";
+"sheet.denoise.value" = "%lld decibels";
+"sheet.denoise.mixed.amounts" = "The clips have different amounts (%1$lld to %2$lld dB).";
+"sheet.denoise.mixed.hum" = "The clips have different hum frequencies (50 and 60 Hz).";
+"sheet.denoise.skipped.one" = "%lld music or effects clip gets no noise reduction.";
+"sheet.denoise.skipped.many" = "%lld music and effects clips get no noise reduction.";
+"sheet.denoise.skipped.hum.one" = "%lld music or effects clip gets no noise reduction and no hum removal.";
+"sheet.denoise.skipped.hum.many" = "%lld music and effects clips get no noise reduction and no hum removal.";
+"sheet.denoise.preview" = "Preview";
+"sheet.denoise.updating" = "Updating";
+"sheet.denoise.stop" = "Stop";
+"sheet.denoise.listen" = "Listen to";
+"sheet.denoise.result" = "Result";
+"sheet.denoise.removed" = "Removed Sound";
+"sheet.denoise.playing" = "Preview updated.";
+"sheet.denoise.apply" = "Reduce Noise";
 "error.denoise.space" = "Dirigible cannot reduce the noise. The disk of this session does not have enough free space. Free some disk space and try again.";
 "error.denoise.write" = "Dirigible cannot reduce the noise. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
 "error.denoise.unreadable" = "Dirigible cannot reduce the noise. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";

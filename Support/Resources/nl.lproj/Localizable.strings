@@ -44,7 +44,7 @@
 "menu.tools.level.track.all" = "Automatische niveaus per spoor (alle)";
 "menu.tools.duck" = "Verlaag muziek onder spraak…";
 "menu.tools.split.stereo" = "Stereo splitsen naar mono";
-"menu.tools.reduce.noise" = "Ruis verminderen";
+"menu.tools.reduce.noise" = "Ruis verminderen\U2026";
 "menu.tools.restore.original" = "Originele audio herstellen";
 
 /* Errors */
@@ -192,6 +192,30 @@
 "denoise.done.many" = "Ruis verminderd in %1$lld clips met %2$lld dB.";
 "denoise.canceled" = "Ruisvermindering geannuleerd. Geen clip is gewijzigd.";
 "denoise.unchanged" = "Niets te wijzigen.";
+"denoise.hum.one" = "Brom verwijderd in 1 clip.";
+"denoise.hum.many" = "Brom verwijderd in %lld clips.";
+"denoise.both.one" = "Ruis verminderd in 1 clip met %lld dB en brom verwijderd.";
+"denoise.both.many" = "Ruis verminderd in %1$lld clips met %2$lld dB en brom verwijderd.";
+"inspector.hertz" = "Hz";
+"sheet.denoise.title" = "Ruis verminderen";
+"sheet.denoise.noise" = "Ruis verminderen";
+"sheet.denoise.hum" = "Brom verwijderen";
+"sheet.denoise.hum.frequency" = "Bromfrequentie";
+"sheet.denoise.value" = "%lld decibel";
+"sheet.denoise.mixed.amounts" = "De clips hebben verschillende waarden (%1$lld tot %2$lld dB).";
+"sheet.denoise.mixed.hum" = "De clips hebben verschillende bromfrequenties (50 en 60 Hz).";
+"sheet.denoise.skipped.one" = "%lld muziek- of effectenclip krijgt geen ruisvermindering.";
+"sheet.denoise.skipped.many" = "%lld muziek- en effectenclips krijgen geen ruisvermindering.";
+"sheet.denoise.skipped.hum.one" = "%lld muziek- of effectenclip krijgt geen ruisvermindering en geen bromverwijdering.";
+"sheet.denoise.skipped.hum.many" = "%lld muziek- en effectenclips krijgen geen ruisvermindering en geen bromverwijdering.";
+"sheet.denoise.preview" = "Voorbeeld";
+"sheet.denoise.updating" = "Bijwerken";
+"sheet.denoise.stop" = "Stoppen";
+"sheet.denoise.listen" = "Beluisteren";
+"sheet.denoise.result" = "Resultaat";
+"sheet.denoise.removed" = "Verwijderd geluid";
+"sheet.denoise.playing" = "Voorbeeld bijgewerkt.";
+"sheet.denoise.apply" = "Ruis verminderen";
 "error.denoise.space" = "Dirigible kan de ruis niet verminderen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.denoise.write" = "Dirigible kan de ruis niet verminderen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
 "error.denoise.unreadable" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";

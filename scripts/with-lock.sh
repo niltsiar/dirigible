@@ -17,7 +17,8 @@
 # DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
 # scripts/flake-monitor/loop.sh sets the 0, and scripts/run-checks.sh sets it for a push check (BASE
 # set), so an exit 75 never reads as a red test. A run-checks.sh call with no BASE keeps the limit,
-# and ends in exit 75 at it. loop.sh runs itself under this script with the marker and sets WITH_LOCK_MAX_HOLD.
+# and ends in exit 75 at it; a lock-free make check-changed call (below) then exits 75 as well.
+# loop.sh runs itself under this script with the marker and sets WITH_LOCK_MAX_HOLD.
 # Each wait line has the tree of the call as its fifth column (git rev-parse --show-toplevel; for
 # mutation-pass.sh, the toplevel of its first argument, the tree that it builds). At
 # its release, a call appends one line to dirigible-build-holds.log in the git common dir: the
@@ -76,7 +77,10 @@
 # flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a live
 # ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
 # and then runs. That wait keeps no marker and no ticket, and appends one wait line that ends with
-# lockfree. cost.sh counts its minutes.
+# lockfree. cost.sh counts its minutes. A lock-free call runs its command as a child. TERM or INT
+# stops the process group of the command. make exits 2 for a recipe that exits 75, so the call exits
+# 75 when the command fails and its stderr has the make line "Error 75" of the check-changed target:
+# the recipe passes the 75 of scripts/run-checks.sh (a lock wait of a swift-test.sh call over its limit).
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -249,6 +253,27 @@ pause() {
     fi
     sleep "$nap"
 }
+# run_lock_free <command>: runs the command with no lock, as a child with its own process group,
+# and exits with its status. make exits 2 for a recipe that exits 75 and prints the line
+# "*** [check-changed] Error 75" (run-checks.sh: a lock wait of a swift-test.sh call ended at its
+# limit), so the call exits 75 when that line is in the stderr of a failed command.
+free_child=""
+stop_free() { [[ -z "$free_child" ]] || { kill -TERM -- "-$free_child" 2>/dev/null; wait "$free_child"; }; exit "$1"; }
+run_lock_free() {
+    local err status
+    err="$(mktemp)"
+    trap 'rm -f "$err"' EXIT
+    trap 'stop_free 130' INT
+    trap 'stop_free 143' TERM
+    set -m
+    (set +m; "$@" 2>&1 >&3 3>&- | tee "$err" >&2 3>&-; exit "${PIPESTATUS[0]}") 3>&1 <&0 &
+    free_child=$!
+    set +m
+    wait "$free_child"
+    status=$?
+    if [[ $status -ne 0 ]] && grep -qE '^[A-Za-z0-9_./-]+(\[[0-9]+\])?: \*\*\* \[check-changed\] Error 75$' "$err"; then exit 75; fi
+    exit "$status"
+}
 # A lock-free call that starts behind a long holder waits here, with no lock, marker, or ticket,
 # until one poll finds no long holder and no live ticket of a release call.
 free_targets=""
@@ -261,7 +286,7 @@ if lock_free "$@"; then
         printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
     fi
     echo "with-lock: lock-free targets ($free_targets): no lock" >&2
-    exec "$@"
+    run_lock_free "$@"
 fi
 wait_limit "$@"
 long="" nocap=""

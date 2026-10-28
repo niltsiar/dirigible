@@ -9,7 +9,7 @@
 # holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
 # with no wait), a lock folder that goes between a failed mkdir and the test for it (the call
 # tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
-# default with a fake clock, and run-checks.sh: no limit only for a push check). Each case uses a temporary repo with a worktree, so the lock of an outer
+# default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -335,11 +335,11 @@ code=$?
 clear_hold
 # run-checks.sh exports WITH_LOCK_MAX_WAIT=0 only for a push check (BASE set), so the recipe call of
 # a slice test keeps the wait limit and run-checks.sh ends in exit 75. The fake make calls
-# with-lock.sh as the recipe does.
+# with-lock.sh as the recipe does, and prints the make error line of a failed recipe.
 cp "$(dirname "$script")/run-checks.sh" "$repo/scripts/run-checks.sh"
 printf '#!/bin/bash\nexit 0\n' > "$repo/scripts/check-changed.sh"
 printf '#!/bin/bash\nexit 0\n' > "$repo/scripts/check-commits.sh"
-printf '#!/bin/bash\nexec %q touch %q\n' "$repo/scripts/with-lock.sh" "$tmp/ran" > "$fake/rcmake"
+printf '#!/bin/bash\n%q touch %q || { c=$?; echo "make: *** [test] Error $c" >&2; exit 2; }\n' "$repo/scripts/with-lock.sh" "$tmp/ran" > "$fake/rcmake"
 chmod +x "$repo/scripts/check-changed.sh" "$repo/scripts/check-commits.sh" "$fake/rcmake"
 hold
 rm -f "$tmp/ran"
@@ -452,6 +452,40 @@ reset_builders
 lockfree run "test-hooks with HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=a,b
 lockfree wait "test-hooks with no HOOK_TESTS" "$fake/make" test-hooks
 lockfree wait "test-hooks with an empty HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=
+# The slice call of an agent, make check-changed FILTER=x, is lock-free. A recipe that exits 75 gives
+# the make line "Error 75" and make exits 2, so the call turns that line back into exit 75. The
+# case runs the real make, the check-changed recipe of the Makefile, and run-checks.sh; the test-filter
+# recipe is a with-lock.sh call (as swift-test.sh is) that waits behind a live holder. A recipe that
+# fails for another reason keeps exit 2.
+reset_builders
+{ printf 'FILTER ?=\nBASE ?=\nRECIPE ?= %s touch %s\n' "$repo/scripts/with-lock.sh" "$tmp/ran"
+  awk '/^check-changed:/ { p = 1 } p { print } p && /^$/ { exit }' "$(dirname "$script")/../Makefile"
+  printf 'test-filter:\n\t@$(RECIPE)\n'; } > "$repo/Makefile"
+hold
+rm -f "$tmp/ran"
+out="$(cd "$repo" && FAKE_TARGETS=test-filter WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/with-lock.sh make check-changed FILTER=x 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -e "$tmp/ran" && "$out" == *'lock-free targets (test-filter)'* && "$out" == *'still waiting after 2 s'* ]] ||
+    fail "lock-free, check-changed FILTER with a lock wait in the recipe: exit $code (want 75): $out"
+out="$(cd "$repo" && FAKE_TARGETS=test-filter scripts/with-lock.sh make check-changed FILTER=x 'RECIPE=exit 1' 2>&1)"
+code=$?
+[[ $code -eq 2 && "$out" == *'lock-free targets (test-filter)'* ]] ||
+    fail "lock-free, check-changed FILTER with a red recipe: exit $code (want 2): $out"
+clear_hold
+rm -f "$repo/Makefile"
+# A TERM to a lock-free call stops the command and its children, which the call runs as a child.
+printf '#!/bin/bash\nsleep 30 &\necho "$$ $!" > "%s"\nwait\n' "$tmp/freepid" > "$fake/slow/make"
+rm -f "$tmp/freepid"
+FAKE_TARGETS=check-docs "$repo/scripts/with-lock.sh" "$fake/slow/make" check-changed > "$tmp/wait.out" 2>&1 &
+waiter=$!
+until_true 50 test -s "$tmp/freepid" || fail "lock-free TERM of the command: the command did not start: $(cat "$tmp/wait.out")"
+kill -TERM "$waiter"
+wait "$waiter" 2>/dev/null
+code=$?
+sleep 0.3
+read -r make_pid sleep_pid < "$tmp/freepid"
+{ [[ $code -eq 143 ]] && dead "$make_pid" && dead "$sleep_pid"; } || fail "lock-free TERM of the command: exit $code, command pids [$make_pid $sleep_pid] alive"
+waiter=""
 # A holder that is a release call, a bench, a mutation pass, or a flake loop keeps the wait; an
 # ordinary build or test does not.
 for holder_command in "make check-changed BASE=origin/main" "$repo/scripts/land.sh x" "make dmg" "$repo/scripts/bench.sh x" "$repo/scripts/bench-pairs.sh x" \

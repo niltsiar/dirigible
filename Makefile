@@ -192,6 +192,8 @@ check-fast: $(STATIC_GATES) test-hooks
 # scripts/run-checks.sh runs the targets with -k and reruns only the failed Swift tests of a red
 # test or test-slow-push target, 1 time at most with risk: yes. A pass on a rerun writes the stamp.
 # A PUSH_RUN=<names> word of the targets line goes to make as a variable of test-slow-push.
+# The recipe keeps the status of run-checks.sh: its 75 (a lock wait over its limit) gives the make
+# line "Error 75", which scripts/with-lock.sh turns into its own exit 75.
 BASE ?=
 FILTER ?=
 check-changed:
@@ -205,7 +207,7 @@ check-changed:
 	printf '%s\n' "$$out"; \
 	if [ "$$targets" = none ]; then exit 0; fi; \
 	risk="$$(printf '%s\n' "$$out" | sed -n 's/^risk: //p')"; \
-	MAKE='$(MAKE)' CHECK_RISK="$$risk" scripts/run-checks.sh $$targets FILTER='$(FILTER)' || exit 1; \
+	MAKE='$(MAKE)' CHECK_RISK="$$risk" scripts/run-checks.sh $$targets FILTER='$(FILTER)' || exit $$?; \
 	if [ -n '$(BASE)' ]; then scripts/check-stamp.sh write "$$head" "$$tree" "$$base" $$targets; fi
 
 clean:

@@ -98,7 +98,8 @@ extension Studio {
     /// the files that it made; after it, a set flag removes them with `removeMadeFiles`, writes
     /// nothing, and throws `cancelled`, or `yielded` for a take in another studio (decision 0049).
     /// Else the run saves, records one undo entry with `agent`, and loads the peaks of new files,
-    /// unless `work` gives the session of its turn back: then it saves nothing and records nothing.
+    /// unless `work` gives the session of its turn back: then it saves nothing, records nothing, and
+    /// removes the made files.
     /// `importProgress` starts at 0 for each run. From the end of the refusals to its end, the run
     /// holds a user-initiated activity that stops idle sleep and App Nap (decision 0040).
     func blockingRun<Value: Sendable>(
@@ -148,7 +149,8 @@ extension Studio {
 
     /// One turn of the write chain: the Player stops, the work, the save, the undo entry, and the
     /// peaks of the new files. A flag that is set after the work removes the made files and writes
-    /// nothing. A work session equal to the session of the turn gets no save and no undo entry.
+    /// nothing. A work session equal to the session of the turn gets no save and no undo entry, and
+    /// its made files go.
     private func blockingTurn<Value: Sendable>(
         _ flags: ImportFlags, _ stopped: Int?, cancelled: StudioError, yielded: StudioError, agent: AgentName?,
         work: @Sendable (Session, PackageLock, ImportFlags) async -> Result<(Session, Value, made: [URL]), StudioError>
@@ -161,12 +163,15 @@ extension Studio {
                 if case .success(let result) = done { await removeMadeFilesOffMain(result.made) }
                 return .failure(flags.isYielded ? yielded : cancelled)
             }
-            let (edited, value): (Session, Value)
+            let (edited, value, made): (Session, Value, [URL])
             switch done {
-            case .success(let result): (edited, value) = (result.0, result.1)
+            case .success(let result): (edited, value, made) = result
             case .failure(let error): return .failure(error)
             }
-            if edited == before { return .success(value) }
+            if edited == before {
+                await removeMadeFilesOffMain(made)
+                return .success(value)
+            }
             switch await writeSession(
                 edited, lock: lock, previous: url, recordings: recordings, environment.saveSession)
             {

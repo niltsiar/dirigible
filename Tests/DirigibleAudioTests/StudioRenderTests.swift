@@ -155,6 +155,29 @@ struct StudioRenderTests {
         await studio.settle()
     }
 
+    /// A blocking run whose work gives the session of its turn back removes the files that the
+    /// work made.
+    @Test func unchangedTurnRemovesItsFiles() async throws {
+        let fixture = try await StudioSplitTests.make()
+        let studio = try await open(fixture.package)
+        let before = try listing(fixture.package)
+        let made = fixture.package.url.appending(path: clipsFolderName).appending(path: "f1 NR.wav")
+        let created = LockedBox<Bool>()
+
+        let value = try await studio.blockingRun(
+            name: "f1", kind: .clipRender, cancelled: .clipRender(.cancelled), yielded: .clipRenderYielded,
+            ripple: false
+        ) { session, _, _ in
+            created.value = FileManager.default.createFile(atPath: made.path, contents: Data([0]))
+            return .success((session, 7, made: [made]))
+        }
+
+        try #require(value == 7 && created.value == true, "the work made no file")
+        let after = try listing(fixture.package)
+        #expect(after == before && !studio.canUndo, "the turn left \(after)")
+        await studio.settle()
+    }
+
     /// C9: a render during a take is busy and writes nothing; the take goes on.
     @Test func busyDuringTake() async throws {
         let fixture = try await ExportStudioFixture.make()

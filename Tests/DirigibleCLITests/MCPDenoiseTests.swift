@@ -38,6 +38,44 @@ struct MCPDenoiseTests {
         #expect(toolResult(answer(bad, id: 1)) == (text, true), "\(bad)")
     }
 
+    /// C20: `hum` with `noise` false gives the lines and the session of `--hum --no-noise`, also
+    /// for a clip on a music track.
+    @Test func humMatchesCommand() async throws {
+        let (cli, tool) = (try DenoiseCommandTests.package(), try DenoiseCommandTests.package())
+
+        let run = try await cli.run("clip", "denoise", "PKG", "c1", "m1", "--hum", "50", "--no-noise")
+        let answers = try await mcp([
+            toolCall(1, "clip_denoise", ["package": tool.path, "clips": ["c1", "m1"], "hum": 50, "noise": false])
+        ])
+
+        try #require(run.status == 0, "\(run)")
+        #expect(toolResult(answer(answers, id: 1)) == (String(run.stdout.dropLast()), false), "\(answers)")
+        #expect(try cli.holdsTheSameSession(as: tool), "the tool and the command differ")
+        #expect(DenoiseCommandTests.clips(tool) == DenoiseCommandTests.clips(cli))
+        #expect(try DenoiseCommandTests.played("c1", in: tool).path == "f1 HR.wav")
+    }
+
+    /// C20: a hum that is not 50 or 60, `noise` false with no hum, and a reduction with `noise`
+    /// false give an argument error and change nothing.
+    @Test(
+        arguments: [
+            (["hum": 55], "The argument \"hum\" must be an integer, 50 or 60."),
+            (["hum": "50"], "The argument \"hum\" must be an integer, 50 or 60."),
+            (["noise": false], "Give a hum of 50 or 60 when the noise reduction is off."),
+            (["hum": 50, "noise": false, "reduction": 6], "A reduction needs the noise reduction on."),
+            (["hum": 50, "noise": "no"], "The argument \"noise\" must be true or false."),
+        ] as [([String: any Sendable], String)])
+    func badHumArgumentRefused(extra: [String: any Sendable], text: String) async throws {
+        let package = try DenoiseCommandTests.package()
+        let before = (try package.xml(), DenoiseCommandTests.clips(package))
+        let arguments: [String: any Sendable] = ["package": package.path, "clips": ["c1"]]
+
+        let answers = try await mcp([toolCall(1, "clip_denoise", arguments.merging(extra) { $1 })])
+
+        #expect(toolResult(answer(answers, id: 1)) == (text, true), "\(extra): \(answers)")
+        #expect(try package.xml() == before.0 && DenoiseCommandTests.clips(package) == before.1)
+    }
+
     /// C5: the amount of the level again gives "Nothing to change." and writes no file and no
     /// `session.xml`.
     @Test func equalAmountWritesNothing() async throws {

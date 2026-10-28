@@ -57,6 +57,25 @@ struct LiveDenoiseTests {
         await studio.settle()
     }
 
+    /// C20: `hum` with `noise` false runs in the Studio as one undo step, and the clip plays the
+    /// ` HR` file.
+    @Test func humRunsInTheStudio() async throws {
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "clip_denoise", arguments.merging(["hum": 50, "noise": false]) { $1 })
+
+        let file = try #require(studio.session.clip("n1")?.clip.file)
+        let lines = ClipRenderWork.lines([RenderedClip(clip: "n1", file: file)])
+        #expect(outcome == .reply(.result(text: lines.joined(separator: "\n"), isError: false)), "\(outcome)")
+        #expect(studio.session.files[file]?.path == "nv HR.wav", "the clip plays \(file)")
+        #expect(try names() == ["nv HR.wav", "nv.wav"])
+        try studio.undo()
+        #expect(studio.session.clip("n1")?.clip.file == "nv" && !studio.canUndo)
+        await studio.settle()
+    }
+
     /// The Cancel of the banner ends an agent render with no clip changed and no new WAV, and the
     /// agent gets the text of the user cancel.
     @Test func cancelChangesNoClip() async throws {

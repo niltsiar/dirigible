@@ -31,10 +31,8 @@ func clipRenderPlan(
     var unchanged: [ClipID] = []
     var seen: Set<ClipID> = []
     for clip in clips where seen.insert(clip).inserted {
-        // Top level first, so the lowest level of a requested kind is the last match.
         let chain = session.origins(of: clip)
-        guard let lowest = chain.lastIndex(where: { $0.treatment.effects.contains { kinds.contains($0.kind) } })
-        else {
+        guard let lowest = levelHolding(kinds, of: clip, in: session) else {
             renders.append((clip, [request]))
             continue
         }
@@ -69,6 +67,14 @@ func clipRenderPlan(
         return entries
     }
     return ClipRenderPlan(lowered: lowered, levels: levels, unchanged: unchanged)
+}
+
+/// The index in `session.origins(of: clip)` of the lowest level whose treatment holds a kind of
+/// `kinds`, or nil: the render puts a new level on top. `clipRenderPlan` and the preview window
+/// call it; only `clipRenderPlan` applies the unchanged rule.
+func levelHolding(_ kinds: Set<Effect.Kind>, of clip: ClipID, in session: Session) -> Int? {
+    // Top level first, so the lowest level of a requested kind is the last match.
+    session.origins(of: clip).lastIndex { $0.treatment.effects.contains { kinds.contains($0.kind) } }
 }
 
 /// Renders the levels of `plan` in order, with one `renderClips` call for each entry: two

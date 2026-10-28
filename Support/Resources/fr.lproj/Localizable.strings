@@ -265,6 +265,8 @@
 "track.state.not.started" = "Pas démarré";
 "track.state.no.sound" = "Aucun son de %1$@. Si %1$@ émet du son, cliquez sur Confidentialité… et autorisez Dirigible à enregistrer l’audio système.";
 "track.state.no.sound.short" = "Aucun son de %@";
+"track.state.no.access" = "Aucun accès à %1$@. Cliquez sur Confidentialité…, autorisez Dirigible à enregistrer l’audio système, puis revenez dans Dirigible.";
+"track.state.no.access.short" = "Aucun accès à %@";
 "track.listen.quiet" = "Aucun son de monitoring. Désactivez et réactivez Monitoring de la piste.";
 "track.listen.quiet.short" = "Monitoring sans son";
 "track.listen.loopback" = "Aucun son de monitoring : la sortie peut alimenter cette entrée. Choisissez une autre sortie.";

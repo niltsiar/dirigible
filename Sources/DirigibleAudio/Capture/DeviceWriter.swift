@@ -44,6 +44,9 @@ final class DeviceWriter: @unchecked Sendable {
     /// The last running state that an app writer reported: `.waitingForApp` while its app has no
     /// process, else `.recording`.
     var appState = LiveTrack.State.recording
+    /// True after a grant check of a monitor app tap gave `'!hog'`, until a noErr check or a
+    /// sample that is not zero (decision 0006).
+    var noAccess = false
     /// The silence check of an app track (A9): the monitor rule for a writer with no take.
     var silence: SilenceCheck
     /// The rebuilds of `retapSilent()`.
@@ -268,9 +271,11 @@ final class DeviceWriter: @unchecked Sendable {
         if lost > 0 { drops.add(Int64(lost), at: .now) }
         wavByteCount.store(tracks.wavBytes, ordering: .relaxed)
         let levels = tracks.takeLevels()
+        let heard = levels.values.contains { $0.peak > 0 }
+        if heard { noAccess = false }
         if app != nil, let hosts {
             silence.take(
-                firstHost: hosts.first, lastHost: hosts.last, heard: levels.values.contains { $0.peak > 0 },
+                firstHost: hosts.first, lastHost: hosts.last, heard: heard,
                 hasProcess: input?.key?.processes.isEmpty == false)
         }
         report(

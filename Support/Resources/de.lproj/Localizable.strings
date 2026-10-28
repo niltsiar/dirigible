@@ -265,6 +265,8 @@
 "track.state.not.started" = "Nicht gestartet";
 "track.state.no.sound" = "Kein Ton von %1$@. Wenn %1$@ Ton wiedergibt, klicke auf „Datenschutz …“ und erlaube Dirigible, Systemaudio aufzunehmen.";
 "track.state.no.sound.short" = "Kein Ton von %@";
+"track.state.no.access" = "Kein Zugriff auf %1$@. Klicke auf „Datenschutz …“, erlaube Dirigible, Systemaudio aufzunehmen, und kehre dann zu Dirigible zurück.";
+"track.state.no.access.short" = "Kein Zugriff auf %@";
 "track.listen.quiet" = "Kein Monitor-Ton. Schalte „Spur-Monitoring“ aus und ein.";
 "track.listen.quiet.short" = "Kein Monitor-Ton";
 "track.listen.loopback" = "Kein Monitor-Ton: Der Ausgang kann in diesen Eingang zurückfließen. Wähle einen anderen Ausgang.";

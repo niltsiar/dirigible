@@ -1,3 +1,4 @@
+import CoreAudio
 import DirigibleCore
 
 /// The app source of a writer (decision 0030): its process, output, and silence events. They run
@@ -61,12 +62,35 @@ extension DeviceWriter {
         rebuild(cause: "active")
     }
 
-    /// Reports `.waitingForApp` when the app of the current tap has no process, `.noSound` while
-    /// the silence warning shows, and `.recording` else: one report for each change.
+    /// The grant check of a monitor app tap after each attach (decision 0006). A take writer runs
+    /// none, so no check runs beside the aggregate of a take. `'!hog'` sets `noAccess`, noErr
+    /// clears it, and another status changes nothing.
+    func checkAccess() {
+        guard let app, silence.rule == .monitor, let key = input?.key, !key.processes.isEmpty else { return }
+        let span = log.begin(.tap, "access-begin", ["app": .text(app)])
+        let status = hal.tapAccess(key.processes, ChannelLayout(channelCount: tracks.routedWidth) ?? .mono)
+        span.end("access", level: status == noErr ? .notice : .error, ["status": .status(status)])
+        switch status {
+        case kAudioDevicePermissionsError: noAccess = true
+        case noErr: noAccess = false
+        default: break
+        }
+    }
+
+    /// The state of the current appearance: `.recording` for a device. For an app,
+    /// `.waitingForApp` with no process, `.noAccess` after a failed grant check, `.noSound` while
+    /// the silence warning shows, and `.recording` else.
+    var runningState: LiveTrack.State {
+        guard let key = input?.key else { return .recording }
+        if key.processes.isEmpty { return .waitingForApp }
+        if noAccess { return .noAccess }
+        return silence.warns ? .noSound : .recording
+    }
+
+    /// Reports `runningState` of an app writer: one report for each change.
     func reportAppState() {
-        guard app != nil, let key = input?.key else { return }
-        let state: LiveTrack.State =
-            key.processes.isEmpty ? .waitingForApp : silence.warns ? .noSound : .recording
+        guard app != nil, input?.key != nil else { return }
+        let state = runningState
         guard state != appState else { return }
         appState = state
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, state, status: nil)) }

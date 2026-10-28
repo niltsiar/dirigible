@@ -43,6 +43,9 @@ struct DeviceHAL: Sendable {
         @Sendable (_ found: AppFound, _ log: DiagnosticLog) throws(HALError) -> (
             id: AudioObjectID, device: InputDevice, teardown: Detach
         ) = { _, _ throws(HALError) in throw .status(kAudioHardwareUnsupportedOperationError) }
+    /// The grant check of an app tap (decision 0006): the status of a description set on a
+    /// throwaway tap of `processes`. It takes no tap object, so it cannot reach the recorded tap.
+    var tapAccess: @Sendable (_ processes: [AudioObjectID], _ layout: ChannelLayout) -> OSStatus = { _, _ in noErr }
     /// The name of an app, else its bundle ID.
     var appName: @Sendable (_ bundleID: String) -> String = { $0 }
     /// True when a device with `uid` is in the device list (an output device too).
@@ -216,6 +219,10 @@ extension DeviceHAL {
         makeTap: { found, log throws(HALError) in
             guard #available(macOS 14.2, *) else { throw .status(kAudioHardwareUnsupportedOperationError) }
             return try DirigibleAudio.makeTap(found, log: log)
+        },
+        tapAccess: { processes, layout in
+            guard #available(macOS 14.2, *) else { return kAudioHardwareUnsupportedOperationError }
+            return DirigibleAudio.tapAccess(processes, layout: layout)
         },
         appName: { DirigibleAudio.appName($0) }, deviceExists: { InputDevice.objectID(uid: $0) != nil },
         loopback: { device in

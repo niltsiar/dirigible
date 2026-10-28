@@ -113,7 +113,9 @@ extension MonitorWindowTests {
             studio.liveTracks["guest"] = LiveTrack(state: state, droppedFrames: 0, peak: peak)
         }
         func shows(_ noSound: Bool) async {
-            await until("the chrome does not follow the state") { window.shown.noSound.contains("guest") == noSound }
+            await until("the chrome does not follow the state") {
+                (window.shown.appWarnings["guest"] == .noSound) == noSound
+            }
         }
         func toggle() async {
             window.monitoring = false
@@ -155,5 +157,32 @@ extension MonitorWindowTests {
         set(.noSound)
         await shows(true)
         #expect(announced.texts.count == 6, "no announcement after the take")
+    }
+
+    /// **No access** is announced as **No sound from** is. A come back with no sound announces
+    /// nothing; **No sound from** after a grant with no sound yet announces its own text.
+    @Test func noAccessIsAnnounced() async throws {
+        let taps = OSAllocatedUnfairLock(initialState: 0)
+        let (window, studio) = try await appWindow(taps)
+        let announced = Announced()
+        try #require(window.chrome).announce = { text, _ in announced.texts.append(text) }
+        await meterGuest(window, studio, taps)
+        await studio.monitorWriter("app:\(Self.zoom)")?.finish()
+        func set(_ state: LiveTrack.State) async {
+            studio.liveTracks["guest"] = LiveTrack(state: state, droppedFrames: 0, peak: 0)
+            await until("the chrome does not follow \(state)") {
+                window.shown.appWarnings["guest"] == (state == .monitoring ? nil : state)
+            }
+        }
+        let name = window.appName(Self.zoom)
+
+        await set(.noAccess)
+        #expect(announced.texts == [HeaderStateText.noAccess(name).full])
+        await set(.monitoring)
+        await set(.noAccess)
+        #expect(announced.texts.count == 1, "a come back with no sound announces again")
+        await set(.monitoring)
+        await set(.noSound)
+        #expect(announced.texts == [HeaderStateText.noAccess(name).full, HeaderStateText.noSound(name).full])
     }
 }

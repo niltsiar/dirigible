@@ -62,14 +62,15 @@ extension DeviceWriter {
         lastValid = .now
         hasRecord = false
         outcome = .attached
+        checkAccess()
         if before == .notAttached { reportFirst() }
         return true
     }
 
     /// The first report of the writer, at its first attach: `.recording` for a device, and for an
-    /// app `.waitingForApp` while it has no process. It replaces the state of the take start.
+    /// app its `runningState`. It replaces the state of the take start.
     private func reportFirst() {
-        appState = input?.key?.processes.isEmpty == true ? .waitingForApp : .recording
+        appState = runningState
         for arm in tracks.arms { report(.state(take: tracks.take, arm: arm, appState, status: nil)) }
     }
 

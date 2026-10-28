@@ -421,17 +421,18 @@ def segments(text):
     return segs
 def blank(m):
     return " \"\" " if re.search(r"\s", m.group(0)[1:-1]) else m.group(0)
-gvars = set()
+gvars = {}
 for m in re.finditer(r"\b([A-Za-z_]\w*)=(\"[^\"]*\"|\x27[^\x27]*\x27|[^\s;&|]*)", text):
-    if name_rx.search("=" + m.group(2).strip("\"\x27") + " "):
-        gvars.add(m.group(1))
+    n = name_rx.search("=" + m.group(2).strip("\"\x27") + " ")
+    if n:
+        gvars[m.group(1)] = n.group(2) + ".md"
 var_rx = r"\$\{?(%s)\b" % "|".join(gvars) if gvars else None
 def named(s):
     m = name_rx.search(s)
     if m:
         return m.group(2) + ".md"
     m = var_rx and re.search(var_rx, s)
-    return m and re.search(r"(run|plan|analysis)\.md", re.search(r"\b" + m.group(1) + r"=\S*", text).group(0)).group(0)
+    return m and gvars[m.group(1)]
 def writes(seg):
     if re.search(word + r"(sed|perl)\s", seg) and re.search(r"\s(-[A-Za-z]*i\S*|--in-place\S*)(\s|$)", seg):
         return True

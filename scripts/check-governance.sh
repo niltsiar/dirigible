@@ -213,10 +213,10 @@ if [[ -n "$run" ]]; then
 fi
 # A run.md with a `- Lands:` line names the F-IDs of this land, on any branch type: each one gets a
 # done state that the base lacks. `- Lands: none` names no F-ID. The value is `none` or a comma list
-# of F-IDs, so a note on the line fails. A run that lands in steps replaces
-# the line before each land, so the last line counts. A feat, fix, or perf run that changes app code
-# (the paths of the DMG rule) must have the line, because a run can land in steps. A hardening run
-# (fix/) that lands no feature writes `- Lands: none`.
+# of F-IDs, so a note on the line fails. A run that lands in steps replaces the line before each
+# land, so the last line counts. A feat, fix, or perf run that changes app code (the paths of the
+# DMG rule) must have the line, because a run can land in steps. A hardening run (fix/) that lands
+# no feature writes `- Lands: none`.
 lands_state() { awk -F'|' -v id="$1" '{ i = $2; gsub(/ /, "", i) } i == id { s = $5; gsub(/^ +| +$/, "", s); print s }'; }
 if [[ -n "$run" && -f "$run/run.md" ]]; then
     line="$(grep '^- Lands:' "$run/run.md" | tail -n 1 || true)"

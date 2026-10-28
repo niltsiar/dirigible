@@ -356,11 +356,11 @@ holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build
 reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
 # A make check-changed call whose targets build no Swift or lock each Swift call themselves
 # (check-docs, check-fast, lint, format, none, test, test-filter, or a word with =), and a make
-# test-hooks call with a HOOK_TESTS= word, run at once with no lock, no wait line, and no hold
-# line, while an ordinary build or test holds the lock. While a
-# release call, a bench, a mutation pass, or a flake loop holds the lock, they wait without taking
-# the lock (the cases below). The fake check-changed.sh prints $FAKE_TARGETS, logs the FILTER
-# value, prints $FAKE_STDERR on stderr, and exits $FAKE_EXIT.
+# test-hooks call with a HOOK_TESTS= word, run at once with no lock, no wait line, and no hold line,
+# while an ordinary build or test holds the lock. While a release call, a bench, a mutation pass, or
+# a flake loop holds the lock, they wait without taking the lock (the cases below). The fake
+# check-changed.sh prints $FAKE_TARGETS, logs the FILTER value, prints $FAKE_STDERR on stderr, and
+# exits $FAKE_EXIT.
 cat > "$repo/scripts/check-changed.sh" << 'EOF'
 #!/bin/bash
 echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"

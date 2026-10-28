@@ -23,12 +23,13 @@
 # the risk of origin/main. A land that stops keeps its stamp commit in the file
 # dirigible-land-stamp-<branch with / as -> of the common git dir, until the merge. It prints the
 # stamp line.
-# After the rebase and the governance check, check-commits.sh refuses a commit of the branch that
-# a tool made (author, committer, or Co-Authored-By trailer) or that holds a secret (gitleaks),
-# also when the stamp is reused. Then it prints each file of another open run (a folder of
-# .scratchpads/runs beside the git common dir whose run.md has `- Status: open`) that cites <path>:<line> of a path that the land changes, so that run
-# can check its cites; this never changes the exit status. Limits: only the path is tested, not
-# whether the land changed the cited line; a cite that holds a space is not found.
+# After the rebase and the governance check, check-commits.sh refuses a commit of the branch that a
+# tool made (author, committer, or Co-Authored-By trailer) or that holds a secret (gitleaks), also
+# when the stamp is reused. Then it prints each file of another open run (a folder of
+# .scratchpads/runs beside the git common dir whose run.md has `- Status: open`) that cites
+# <path>:<line> of a path that the land changes, so that run can check its cites; this never changes
+# the exit status. Limits: only the path is tested, not whether the land changed the cited line; a
+# cite that holds a space is not found.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,

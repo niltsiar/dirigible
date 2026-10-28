@@ -1,0 +1,65 @@
+# The armed app track: the level meter and the permission state before a take
+
+Date: 2026-10-27
+
+Question: how do Hindenburg PRO, Logic Pro, GarageBand, and Audio Hijack show the level of an armed source and its permission before a take? Does macOS have a public API that reads the System Audio Recording grant (`kTCCServiceAudioCapture`)?
+
+Run: `2026-10-27-armed-app-track` (F114, brief R12). Earlier research that this file uses: `docs/research/process-taps.md`, `docs/research/capture.md`, `docs/research/track-header.md`, `docs/research/record-monitor.md`, `docs/research/document-window.md`.
+
+## Findings
+
+1. **Hindenburg PRO meters an armed track before the take.** "Prepare (Arm) the track for recording. The small meter will show input levels" [HJ] p. 19. A vertical green meter strip at the edge of the header shows the input of the armed track [HJ] p. 19 (`track-header.md` section 2).
+2. **Hindenburg PRO records an app through a virtual device, not a process tap.** Its feature page says: "Route system and application audio directly into your session" and "Record Zoom, Google Meet, browsers or streaming sources" [HB-F]. An older review names it a virtual audio device that replaces Soundflower [PVC]. Inference: in Hindenburg, an app source is an input device, so its armed track shows the level as a microphone does, and the macOS permission is the microphone permission of an input device. No Hindenburg page names a System Audio Recording permission state [HB-F] [HB-T].
+3. **Logic Pro shows the input level before a take, and has no app source.** "You can turn on input monitoring to monitor audio tracks that are not enabled for recording. This is useful for setting levels or practicing parts before you commit to recording" [LP-IM]. "The input level meters display a clipping warning if an overload occurs" [LP-IM]. Observed on Logic Pro 12.3.1: an armed track has a solid red R and a green level inside its volume slider (`track-header.md` section 2, [L-screen]). The Logic guide names no source that records another app (Inference from the guide table of contents [LP-IM]).
+4. **GarageBand sets the input level before a take, and has no app source.** "Be sure to set the input source, input volume level, and monitoring for the track" [GB-BR]. The Monitoring button in the track header turns input monitoring on [GB-IM]. The guide names no app source [GB-BR].
+5. **Apple apps show a missing microphone grant through a meter that does not move.** "When trying to record, an alert might say that audio input isn't accessible. Or you might not hear sound, see waveforms, or see audio meters move when recording" [AS-MIC]. The fix is a switch in Privacy & Security > Microphone, then a relaunch [AS-MIC].
+6. **Audio Hijack asks for the app-audio permission at the first launch, in its own window.** "When you first run Audio Hijack, you'll be prompted to provide System Audio Access. This permission must be enabled to use Audio Hijack. The Permissions window will guide you through the process" [RA-ARK]. "Audio Hijack's Permissions window is shown on first launch, and can also be accessed from the Audio Hijack menu" [RA-PERM]. The manual does not say how the window shows a granted or a missing permission [RA-PERM]. "On MacOS 14.4 and higher, Audio Hijack uses a new audio capture backend" [RA-ARK].
+7. **Audio Hijack shows the audio when the session runs.** "When a session is activated by clicking the Run button, audio from the sources selected will flow through the blocks" and "The audio is shown in orange as it flows through the audio pipeline" [RA-SES]. "Meter blocks provide visual meters so you can see how audio is flowing" [RA-SES]. A paused Recorder block keeps the audio flow: "audio continues to pass through your session, but it is not added to the file you're saving" [RA-REC]. Inference: a user can see the level of an app source with no file write, as with a meter before a take.
+8. **macOS shows a purple dot while an app captures system audio.** "This purple dot is displayed by MacOS to indicate that an application is capturing the system's audio via software" and "The display of the purple dot is entirely controlled by Apple" [RA-ARK].
+9. **No public API reads or requests the System Audio Recording grant.** An Apple engineer: "There is no API to determine whether an app still has permission to capture system audio. Please use Feedback Assistant to submit an enhancement request for such functionality" [AF756783]. "The first time an app starts an aggregate device that contains a Core Audio tap, the system prompts the user to grant the app system audio recording permission" [AF756783]. The Apple sample says the same about the prompt [APS]. A developer article (June, year not stated): "There's no `requestAuthorization`-style API for audio capture". Its app builds a throwaway pipeline to show the prompt [DEV].
+10. **A denied tap gives zeros and no error.** The Apple engineer: "If you are getting silent buffers, this could be an indication that the user might have revoked the app's permission" [AF756783]. Two measured reports and probe P4 of run `2026-10-02-app-sources` give the same result: noErr, a running IOProc, and only zero samples (`process-taps.md` finding 6). The developer article: "every buffer is zeros", with no error status [DEV].
+11. **AudioCap reads and requests the grant through private TCC functions.** `AudioRecordingPermission.swift` loads `TCCAccessPreflight` and `TCCAccessRequest` with `dlsym`, calls them with `"kTCCServiceAudioCapture"`, maps 0 to authorized, 1 to denied, and any other value to unknown, and reads the status again at each `NSApplication.didBecomeActiveNotification` [AC-RP]. Without the build flag `ENABLE_TCC_SPI`, it sets the status to authorized [AC-RP]. Probe P3 of run `2026-10-02-app-sources`: `TCCAccessPreflight` returned 2 (not determined) for a shell, with no prompt.
+12. **A tap description set shows the grant, on macOS 15.8.1.** A forum user (not Apple, December 2024): "Updating kAudioTapPropertyDescription will return kAudioDevicePermissionsError when System Audio Recording Only is disabled. That is the only reliable way I have found" [AF756783]. The SDK defines `kAudioDevicePermissionsError = '!hog'` [SDK-AHB]. Probe P10 of run `2026-10-02-app-sources` got `!hog` from that set in three tap states, with no grant. Probe P1 of this run (macOS 15.8.1, Intel, an ad-hoc signed probe app opened with `open`) set the same description (a stereo mixdown of one `afplay` process) on a throwaway tap, with no aggregate [P1]:
+    - Granted: noErr. Denied (Don't Allow): `'!hog'`. A 3 s IOProc of a tap aggregate got a peak of 0.5 granted and only zeros denied.
+    - The same set while a second tap of the same process ran in a started aggregate gave the same status, with 0 sample-time gaps and a peak of 0.5 on the running tap.
+    - A set with a dead process object in the list gives `'!obj'` granted and denied, so only the set of the same description tells the grant.
+    - With no answer yet, the set itself shows the prompt and blocks the calling thread until the answer. A wait of 51 s returned 0x10004003 (`MACH_RCV_TIMED_OUT`), not noErr.
+13. **The prompt blocks the IOProc create, before any start (macOS 15.8.1).** With no answer yet, the prompt blocks `AudioDeviceCreateIOProcID` of a tap aggregate. Two aggregates of one process gave one prompt. After Allow, a start on a second thread and a start on the main thread 2 s later each returned in 0.224 s or less, and both IOProcs got a peak of 0.5 [P1].
+14. **An ad-hoc signed update asks again.** A new code hash with the same bundle ID made macOS show the System Audio Recording prompt again [P1]. `tccutil reset AudioCapture <bundle ID>` resets the grant: the prompt showed again after it. The reset fails with -10814 for a bundle ID that LaunchServices does not know yet [P1].
+15. **Two taps of one process both get samples.** Two private mixdown taps of one `afplay` process, each in its own private aggregate with tap auto start false, got peaks of 0.50 and 0.51 at the same time, with 0 gaps [P2].
+
+## Summary for the run
+
+- Each reference app shows the level of an armed source before the take. Hindenburg, Logic Pro, and GarageBand meter an input device. None of them meters another app through a process tap: Hindenburg uses a virtual device (finding 2), and Logic Pro and GarageBand have no app source.
+- No reference app shows a live System Audio Recording state from a public API, because no public API exists (finding 9). Audio Hijack asks at the first launch in a Permissions window (finding 6). AudioCap uses private TCC functions (finding 11).
+- The public signals are: the prompt at the first IOProc create of a tap aggregate (findings 9 and 13), zero samples while the app plays (finding 10), and, on macOS 15.8.1, the status of a set of the same tap description on a throwaway tap (finding 12).
+
+## Open questions
+
+- After Don't Allow, a grant in System Settings: does a running tap, or a new tap of the same process, get sound with no relaunch? The switch in **System Audio Recording Only** asks for Touch ID or a password, so probe P1 leg G did not apply the grant.
+- Does the set of finding 12 give the same statuses on macOS 14.2 to 14.x and on macOS 26? P1 ran on macOS 15.8.1 only.
+- Does the set of finding 12 give the same statuses for a mono mixdown, and for a tap of two or more processes? P1 set only a stereo mixdown of one process.
+- How the Audio Hijack Permissions window shows a missing permission: the manual has only a screenshot [RA-PERM]. No screen check ran: Audio Hijack and Hindenburg are not installed on the probe host (checked 2026-10-27). GarageBand and Logic Pro are installed.
+
+## Sources
+
+- [HJ] Hindenburg Journalist 1.21 guide, as cited in `docs/research/track-header.md` and `document-window.md`.
+- [HB-F] Hindenburg PRO features: https://hindenburg.com/products/radio-podcast/features/ (read 2026-10-27).
+- [HB-T] Hindenburg PRO, Tracking: https://hindenburg.com/hindenburg-pro-features/tracking/ (read 2026-10-27).
+- [PVC] ProVideo Coalition, "Hindenburg replaces Soundflower with its own virtual audio device": https://www.provideocoalition.com/hindenburg-replaces-soundflower-with-its-own-virtual-audio-device/ (search result text only).
+- [LP-IM] Logic Pro for Mac 12.3, "Use input monitoring with tracks": https://support.apple.com/guide/logicpro/turn-on-input-monitoring-for-audio-tracks-lgcpbfbefa96/mac (read 2026-10-27, body text from the HTML).
+- [L-screen] Logic Pro 12.3.1 screenshots of run 2026-10-11, as cited in `docs/research/track-header.md`.
+- [GB-BR] GarageBand for Mac 10.4.14, "Before recording audio": https://support.apple.com/guide/garageband/before-recording-audio-gbnd4c2cc43e/mac (read 2026-10-27).
+- [GB-IM] GarageBand for Mac, "Use input monitoring": https://support.apple.com/en-ie/guide/garageband/gbnd4bc15233/mac (read 2026-10-27).
+- [AS-MIC] Apple Support 102071, "If you can't record audio on a Mac using macOS Mojave or later": https://support.apple.com/en-us/102071 (read 2026-10-27).
+- [RA-ARK] Rogue Amoeba, "Details on Audio Hijack's audio capture on MacOS 14 and higher": https://rogueamoeba.com/support/knowledgebase/?showArticle=Misc-ARK-Audio-Capture-Details&product=Audio+Hijack (read 2026-10-27).
+- [RA-PERM] Audio Hijack manual, Permissions: https://rogueamoeba.com/support/manuals/audiohijack/?page=Permissions (read 2026-10-27).
+- [RA-SES] Audio Hijack manual, Mastering sessions: https://rogueamoeba.com/support/manuals/audiohijack/?page=masteringsessions (read 2026-10-27).
+- [RA-REC] Audio Hijack manual, Recorder block: https://rogueamoeba.com/support/manuals/audiohijack/?page=recorderblock (read 2026-10-27).
+- [AF756783] Apple Developer Forums thread 756783, accepted answer by an Apple engineer (June 2024) and a reply by existentialaudio (December 2024): https://developer.apple.com/forums/thread/756783 (read 2026-10-27).
+- [APS] Apple, "Capturing system audio with Core Audio taps": https://developer.apple.com/documentation/coreaudio/capturing-system-audio-with-core-audio-taps (as cited in `docs/research/capture.md`).
+- [DEV] "2000 buffers of nothing", DEV Community: https://dev.to/nickdelv/2000-buffers-of-nothing-3i8 (read 2026-10-27).
+- [AC-RP] insidegui/AudioCap, `AudioCap/ProcessTap/AudioRecordingPermission.swift`: https://github.com/insidegui/AudioCap/blob/main/AudioCap/ProcessTap/AudioRecordingPermission.swift (read 2026-10-27).
+- [SDK-AHB] MacOSX.sdk of Xcode 26.3, `CoreAudio.framework/Headers/AudioHardwareBase.h:166`: `kAudioDevicePermissionsError = '!hog'` (read 2026-10-27).
+- [P1] Probe P1 of run `2026-10-27-armed-app-track`, macOS 15.8.1 (24H32), Intel: a probe app with its own bundle ID, legs A (not asked), B (Allow), C (`tccutil reset`, Don't Allow), D (a 3 s IOProc), E (the set while a second tap runs), F (a new code hash), G (a grant in System Settings, not applied), and H (two aggregates at one prompt) (run 2026-10-27).
+- [P2] Probe P2 of run `2026-10-27-armed-app-track`, macOS 15.8.1: two taps of one process, each in its own aggregate, 3 s (run 2026-10-27).

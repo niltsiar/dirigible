@@ -6,7 +6,7 @@
 - A check that writes preferences or a recent list, or answers a privacy prompt, runs on the verify copy. Run `make app`, then `scripts/verify-copy.sh start` with a Bash `timeout` of 600000, and `doctor`, then `ax` and `prompt Allow`, then `stop`. Press the prompt by name, never with `hid.swift`.
 - A live MCP check: `scripts/verify-copy.sh start --agents`, and give the MCP client the `DIRIGIBLE_MCP_SOCKET` line that start prints.
 - `scripts/screenshots.sh` writes `docs/images` and the preferences of the real app, so it is not a check.
-- For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults.
+- For a light or a Spanish capture on a Mac in Dark Mode or in English, pass launch arguments (`open -a "$PWD/build/Dirigible.app" <package> --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "(es)"`); do not write user defaults. The global accent is the one user default that a script writes and restores: for an accent check (Graphite: -1), run `scripts/verify-copy.sh start --accent <n>`; it writes the global accent, and `stop` puts the old value back. Increase Contrast stays a manual check.
 - The speakers are real. Before a play-only check, mute each track of a fixture copy with `dirigible track mute <package> <track>` (no HID, no undo entry), also after an import. A check that needs signal (export, loudness, meter) sets a low `dirigible track gain` and does not mute.
 
 ## Capture

@@ -670,6 +670,21 @@ for holder_command in none 'make dmg'; do
     [[ -z "$inner" ]] || { kill "$inner" 2>/dev/null; wait "$inner" 2>/dev/null; inner=""; }
 done
 reset_builders
+# A script that builds nothing and only reads files (cost.sh, wiki.py) exits 2 at once with a live
+# holder: it names DLV-157 and the bare command, and writes no wait line. Any other command waits.
+for readonly in .claude/skills/reflect/scripts/cost.sh scripts/wiki.py; do
+    hold
+    out="$(WITH_LOCK_MAX_WAIT=10 "$repo/scripts/with-lock.sh" "$readonly" --since 1 2>&1)"
+    code=$?
+    [[ $code -eq 2 && "$out" == *DLV-157* && "$out" == *"$readonly builds nothing"* && ! -e "$waits" ]] ||
+        fail "read-only script $readonly: exit $code (want 2), wait line [$(cat "$waits" 2>/dev/null)]: $out"
+    clear_hold
+done
+hold
+out="$(WITH_LOCK_MAX_WAIT=1 "$repo/scripts/with-lock.sh" touch "$tmp/ran" 2>&1)"
+code=$?
+[[ $code -eq 75 ]] || fail "a command that is not read-only waits: exit $code (want 75): $out"
+reset_builders
 
 # ago <minutes>: the ISO time of that many minutes ago, as the logs write it.
 ago() { date -r $(($(date +%s) - $1 * 60)) +%FT%T; }

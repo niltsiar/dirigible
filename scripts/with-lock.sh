@@ -84,6 +84,8 @@
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
+# cost.sh and wiki.py build nothing: the call exits 2 at once with a message, before any wait, so a
+# transcript scan never queues behind a push check (DLV-157).
 # The guardrail hook blocks each command that names the lock and is not a read.
 # scripts/with-lock.test.sh tests it.
 set -uo pipefail
@@ -154,6 +156,11 @@ holder_line() {
     echo
 }
 [[ "$1" != --builders ]] || { builders; holder_line; exit 0; }
+case "${1##*/}" in
+    cost.sh | wiki.py)
+        echo "with-lock: $1 builds nothing and needs no lock; run it without scripts/with-lock.sh (DLV-157: work that builds nothing may run beside a push check)" >&2
+        exit 2 ;;
+esac
 [[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # A mutation pass builds the tree of its first argument, whatever the working directory is.

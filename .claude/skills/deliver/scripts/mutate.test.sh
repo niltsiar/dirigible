@@ -233,10 +233,12 @@ check '0:killed (hang)' 'a hang after the expect text' --expect 'expected a = 1'
   "$tmp/log" "$build" "echo 'expected a = 1'; sleep 30 | cat"
 
 # Succeeds when the process <pid> ends in [tenths] tenths of a second (default 50). A killed
-# orphan exists until launchd reaps it, so one check at once is not enough.
+# orphan stays a zombie until launchd reaps it. A zombie does not run, so it has ended.
 ended() {
+  local state
   for _ in $(seq "${2:-50}"); do
-    kill -0 "$1" 2>/dev/null || return 0
+    state="$(ps -o stat= -p "$1" 2>/dev/null)"
+    [[ -z "$state" || "$state" == Z* ]] && return 0
     sleep 0.1
   done
   return 1
@@ -251,6 +253,19 @@ sleep 30 &
 late=$!
 ! ended "$late" 3 || { echo "FAIL: a process that lives past the bound has ended"; failures=$((failures + 1)); }
 { kill "$late" && wait "$late"; } 2>/dev/null
+# A killed process whose parent has not reaped it is a zombie: it does not run, so it has ended.
+# The parent holds the zombie for 5 s, longer than the bound of this check (a loaded launchd
+# reaps a killed orphan late).
+python3 -c 'import os, time
+pid = os.fork()
+if pid == 0:
+    os._exit(0)
+print(pid, flush=True)
+time.sleep(5)' > "$tmp/zombie.pid" &
+holder=$!
+for _ in $(seq 50); do [[ -s "$tmp/zombie.pid" ]] && break; sleep 0.1; done
+ended "$(cat "$tmp/zombie.pid")" 8 || { echo "FAIL: a zombie has not ended"; failures=$((failures + 1)); }
+{ kill "$holder" && wait "$holder"; } 2>/dev/null
 
 # A stop by SIGTERM (not only SIGINT) restores the file and ends the test (start-window Phase 7: a
 # replay ran for hours, and SIGTERM skipped the restore).

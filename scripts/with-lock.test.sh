@@ -354,9 +354,10 @@ clear_hold
 # the live holder, and each live waiter. A wait with 2 or more other trees prints the count.
 holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build-waiting"
 reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
-# A make check-changed call whose targets build no Swift (check-docs, check-fast, lint, format,
-# none, or a word with =), and a make test-hooks call with a HOOK_TESTS= word, run at once with no
-# lock, no wait line, and no hold line, while an ordinary build or test holds the lock. While a
+# A make check-changed call whose targets build no Swift or lock each Swift call themselves
+# (check-docs, check-fast, lint, format, none, test, test-filter, or a word with =), and a make
+# test-hooks call with a HOOK_TESTS= word, run at once with no lock, no wait line, and no hold
+# line, while an ordinary build or test holds the lock. While a
 # release call, a bench, a mutation pass, or a flake loop holds the lock, they wait without taking
 # the lock (the cases below). The fake check-changed.sh prints $FAKE_TARGETS, logs the FILTER
 # value, prints $FAKE_STDERR on stderr, and exits $FAKE_EXIT.
@@ -391,13 +392,14 @@ lockfree() {
         [[ $code -eq 75 && ! -s "$tmp/order" && "$out" != *'lock-free targets'* ]] || fail "lock-free, $label: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
     fi
 }
-for targets in "check-fast HOOK_TESTS=a" "check-docs" "none" "check-fast DIRIGIBLE_HOOKS_ALL=1" "lint format"; do
+for targets in "check-fast HOOK_TESTS=a" "check-docs" "none" "check-fast DIRIGIBLE_HOOKS_ALL=1" "lint format" \
+    "test" "check-docs test" "check-fast HOOK_TESTS=a test-filter"; do
     FAKE_TARGETS="$targets" lockfree run "targets $targets" "$fake/make" check-changed
 done
-for targets in "check-fast test-filter test-app" "test" "check-docs test"; do
-    FAKE_TARGETS="$targets" lockfree wait "targets $targets" "$fake/make" check-changed
-done
-FAKE_TARGETS="check-fast test-filter test-app" lockfree wait "a FILTER word" "$fake/make" check-changed FILTER=ATests
+FAKE_TARGETS="check-fast test-filter" lockfree run "test-filter with a FILTER word" "$fake/make" check-changed FILTER=ATests
+[[ "$(cat "$FAKE_FILTER_LOG")" == ATests ]] || fail "lock-free: check-changed.sh got FILTER [$(cat "$FAKE_FILTER_LOG")], not ATests"
+FAKE_TARGETS="check-fast test-filter test-app" lockfree wait "targets check-fast test-filter test-app" "$fake/make" check-changed
+FAKE_TARGETS="check-fast test-filter test-app" lockfree wait "test-app with a FILTER word" "$fake/make" check-changed FILTER=ATests
 [[ "$(cat "$FAKE_FILTER_LOG")" == ATests ]] || fail "lock-free: check-changed.sh got FILTER [$(cat "$FAKE_FILTER_LOG")], not ATests"
 FAKE_TARGETS="check-fast" lockfree run "a make word with =" "$fake/make" check-changed SINCE=main
 FAKE_TARGETS="check-fast" FAKE_EXIT=1 lockfree wait "check-changed.sh exit 1" "$fake/make" check-changed

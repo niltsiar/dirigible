@@ -62,9 +62,12 @@
 # "with-lock: lock-free targets (<targets>): no lock". It is make check-changed with no
 # BASE= word and no BASE in the environment or in MAKEFLAGS (both make a push check, and so a
 # release call), when scripts/check-changed.sh (with the NAME=value words of the call in its
-# environment) gives only check-docs, check-fast, lint, format, none, or a word with =; and make
-# test-hooks with a HOOK_TESTS= word. A check-changed.sh failure, a FILTER with test-filter, and
-# every other target keep the lock. Exit 3 of check-changed.sh (its refusal of a bare run with no
+# environment) gives only check-docs, check-fast, lint, format, none, test, test-filter, or a word
+# with =; and make test-hooks with a HOOK_TESTS= word. test and test-filter take the lock
+# themselves through scripts/swift-test.sh (test-shards.sh holds it once for its build and shards),
+# so the outer call holds nothing while the hook tests run. A check-changed.sh failure, test-app
+# (its app recipe runs swift build through scripts/bundle.sh with no lock), and every other target
+# keep the lock. Exit 3 of check-changed.sh (its refusal of a bare run with no
 # changed path and commits past origin/main) runs no command: the call prints the output of
 # check-changed.sh and exits 3 at once, with no lock, wait, ticket, or log line, also behind a
 # long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
@@ -177,8 +180,9 @@ ahead() {
     done
     return 1
 }
-# lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift (the header
-# lists them). Any other command, goal, or check-changed.sh failure is not lock-free (fail closed),
+# lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift, or whose
+# Swift calls take the lock themselves (the header lists them). Any other command, goal, or
+# check-changed.sh failure is not lock-free (fail closed),
 # except status 3 of check-changed.sh: it prints the output and exits 3 at once.
 lock_free() {
     local w goal="" assign=() out="" hooks="" status=0
@@ -202,7 +206,7 @@ lock_free() {
             free_targets="$(sed -n 's/^targets: //p' <<<"$out")"
             [[ -n "$free_targets" ]] || return 1
             for w in $free_targets; do
-                case "$w" in check-docs | check-fast | lint | format | none | *=*) ;; *) return 1 ;; esac
+                case "$w" in check-docs | check-fast | lint | format | none | test | test-filter | *=*) ;; *) return 1 ;; esac
             done
             ;;
         *) return 1 ;;

@@ -39,21 +39,25 @@ extension DiagnosticLogTests {
 
     /// C8: a `hang` line and a `fault` line drain at user-interactive QoS behind the lines
     /// before them, so they never wait for the `.utility` queue under load. A line block on the
-    /// queue reads the priority of its thread until it rises, at most 5 s.
+    /// queue reads the priority of its thread until it rises or the noter has queued the line. A
+    /// read after the queued line sees the raise, so a slow test task cannot end the reads first.
     @Test(arguments: [false, true]) func aHangOrFaultLineRaisesThePriorityOfTheQueuedLines(fault: Bool) async throws {
         let queue = DispatchQueue(label: "test.journal.utility", qos: .utility)
         let log = DiagnosticLog.start(
             .app, folder: folder.url, version: "0.4.9", commit: "abc1234", now: date("2026-10-16T19:20:00Z"),
             queue: queue)
-        let drain = OSAllocatedUnfairLock(initialState: (started: false, raised: false, done: false))
+        let drain = OSAllocatedUnfairLock(
+            initialState: (started: false, noted: false, stopped: false, raised: false, done: false))
+        defer { drain.withLock { $0.stopped = true } }
         queue.async {
             let start = threadPriority()
             drain.withLock { $0.started = true }
-            let deadline = ContinuousClock.now + .seconds(5)
             var raised = false
-            while !raised, ContinuousClock.now < deadline {
+            while !raised {
+                let (noted, stopped) = drain.withLock { ($0.noted, $0.stopped) }
                 let now = threadPriority()
                 raised = now.base > start.base || now.current > start.current
+                if noted || stopped { break }
             }
             drain.withLock { [raised] in
                 $0.raised = raised
@@ -65,6 +69,7 @@ extension DiagnosticLogTests {
         // The watchdog queue is user-interactive, and the main thread notes the fault lines.
         let noter = Thread {
             if fault { log.note(.device, "lost", level: .fault) } else { log.note(.hang, "start") }
+            drain.withLock { $0.noted = true }
         }
         noter.qualityOfService = .userInteractive
         noter.start()

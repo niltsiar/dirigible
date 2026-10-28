@@ -214,4 +214,37 @@ import Testing
         }
         #expect(L10n.message(for: .clipRenderYielded) == L10n.errorDenoiseYielded.text)
     }
+
+    /// Code gate 2 item 4: one dialog at a time in a window. With each dialog open, Reduce Noise,
+    /// Duck Music Under Speech, and Export are off, and the two sheet items open nothing (fail: a
+    /// second sheet opens over the first). `export(_:)` reads the guard of `isOn(.export)`.
+    @Test func oneDialogAtATime() async throws {
+        let (model, studio, _) = try await open()
+        model.timeline.selection = set("c2")
+        let dialogs: [(String, () -> Void)] = [
+            (
+                "the Reduce Noise sheet",
+                { model.denoiseDraft = DenoiseDraft(clips: ["c2"], in: studio.session, defaults: nil, region: nil) }
+            ),
+            ("the duck sheet", { model.duckDraft = DuckDraft(roles: studio.session) }),
+            ("the save panel", { model.exportStep = .choosing }),
+            ("the take time sheet", { model.takeTimeDraft = TakeTimeDraft(takes: [1], take: 1) }),
+            (
+                "the unused files sheet",
+                { model.unusedFiles = try? UnusedFiles(scanning: studio.session, keptBy: [], in: studio.url) }
+            ),
+        ]
+        for (name, show) in dialogs {
+            #expect(model.isOn(.reduceNoise) && model.isOn(.duck) && model.isOn(.export), "before \(name)")
+            show()
+            #expect(!model.isOn(.reduceNoise) && !model.isOn(.duck) && !model.isOn(.export), "\(name)")
+            let (denoise, duck) = (model.denoiseDraft, model.duckDraft)
+            model.reduceNoise()
+            model.startDuck()
+            #expect(model.denoiseDraft == denoise && model.duckDraft == duck, "\(name)")
+            (model.denoiseDraft, model.duckDraft, model.exportStep, model.takeTimeDraft) = (nil, nil, nil, nil)
+            model.unusedFiles = nil
+        }
+        await model.close()
+    }
 }

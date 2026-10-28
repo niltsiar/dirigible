@@ -133,10 +133,10 @@ struct DuckSheet: View {
 
 extension SessionWindow {
     /// Tools > Duck Music Under Speech...: opens the sheet with the lists from the roles. A typed
-    /// track name saves first. With a busy studio, it does nothing.
+    /// track name saves first. With a busy studio or a dialog, it does nothing.
     func startDuck() {
         commitDrafts()
-        guard let studio = idleStudio else { return }
+        guard !dialogShowing, let studio = idleStudio else { return }
         duckDraft = DuckDraft(roles: studio.session)
     }
 

@@ -14,9 +14,10 @@ extension SessionWindow {
         return session.tracks.flatMap { $0.clips.map(\.id) }.filter(selected.contains)
     }
 
-    /// Opens the sheet on the clips of the selection. A selection with no clip beeps.
+    /// Opens the sheet on the clips of the selection. A selection with no clip beeps. With a
+    /// dialog, it does nothing.
     func reduceNoise() {
-        guard importJob == nil, denoiseDraft == nil, let studio = idleStudio else { return }
+        guard importJob == nil, !dialogShowing, let studio = idleStudio else { return }
         let clips = denoiseClips(in: studio.session)
         guard !clips.isEmpty else { return beep() }
         commitDrafts()

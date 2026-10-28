@@ -30,6 +30,8 @@
 # lock wait that ends at its limit is no red test and gets no rerun: this script ends in exit 75.
 # The sign is the make line "Error 75" of a target (and no other make error), or the exit 75 of a
 # rerun. It reads no free text of the log: the output of a red hook test can quote the limit line.
+# The check-changed recipe of the Makefile keeps this 75, and a lock-free scripts/with-lock.sh call
+# of make check-changed turns the make line "Error 75" into its own exit 75.
 # With BASE, it first runs check-commits.sh --secrets (the gitleaks scan of BASE..HEAD); a finding
 # or a missing gitleaks ends the run before any target.
 # With BASE (the push check), it exports DIRIGIBLE_PUSH_CHECK=1, which test-shards.sh needs to run

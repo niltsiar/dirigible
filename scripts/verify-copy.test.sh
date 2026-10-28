@@ -187,6 +187,10 @@ new_case() {
 PLIST
     copy="$repo/build/verify/Dirigible-verify.app"
     exe="$copy/Contents/MacOS/Dirigible"
+    # The --env words of the open line: the socket and the journal folder, then the no-device mode.
+    sock="$repo/build/verify/mcp.sock" logs="$repo/build/verify/logs"
+    envs="--env DIRIGIBLE_MCP_SOCKET=$sock --env DIRIGIBLE_LOG_FOLDER=$logs"
+    noaudio="--env DIRIGIBLE_AUDIO_OUTPUT=none"
     export FAKE_STATE="$state" FAKE_COPY="$copy" HOME="$dir/home"
     export PATH="$tmp/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     script="$repo/scripts/verify-copy.sh"
@@ -248,13 +252,12 @@ is_copy "$pid" || fail "start new: '$pid' is not the PID of the copy"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$real/Contents/Info.plist" 2>&1)" == "$real_id" ]] ||
     fail "start new: the bundle ID of build/Dirigible.app changed"
 codesign --verify "$copy" 2>/dev/null || fail "start new: codesign --verify of the copy failed"
-sock="$repo/build/verify/mcp.sock"
-[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock" ]] || fail "start new: open got: $(cat "$state/open.log" 2>/dev/null)"
+[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy $envs $noaudio" ]] || fail "start new: open got: $(cat "$state/open.log" 2>/dev/null)"
 [[ "$out2" == "DIRIGIBLE_MCP_SOCKET=$sock" && "$(grep -c . <<<"$out")" == 2 ]] || fail "start new: stdout is not the PID and the socket line: $out"
 run stop
 run start "$repo/Pilot.dirigible"
 [[ $code -eq 0 ]] && is_copy "$out1" || fail "start new with a package: exit $code: $err"
-[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock $repo/Pilot.dirigible" ]] ||
+[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy $envs $noaudio $repo/Pilot.dirigible" ]] ||
     fail "start new with a package: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
 run stop
 
@@ -266,7 +269,7 @@ printf '<session><tracks><track name="Host"><route device="BuiltInMicrophoneDevi
 : >"$state/open.log"
 run start "$pkg"
 [[ $code -eq 0 ]] && is_copy "$out1" || fail "device route: exit $code: $err"
-[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock $pkg" ]] ||
+[[ "$(tail -1 "$state/open.log" 2>/dev/null)" == "-a $copy $envs $noaudio $pkg" ]] ||
     fail "device route: open got: $(tail -1 "$state/open.log" 2>/dev/null)"
 run stop
 : >"$state/open.log"
@@ -279,7 +282,7 @@ new_case
 run start -- --args -AppleLanguages "(es)"
 pid="$out1"
 [[ $code -eq 0 ]] || fail "start with arguments: exit $code: $err"
-[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$repo/build/verify/mcp.sock --args -AppleLanguages (es)" ]] ||
+[[ "$(cat "$state/open.log" 2>/dev/null)" == "-a $copy $envs $noaudio --args -AppleLanguages (es)" ]] ||
     fail "start with arguments: open got: $(cat "$state/open.log" 2>/dev/null)"
 [[ "$pid" =~ ^[0-9]+$ && "$(ps -o command= -p "$pid")" == "$exe -AppleLanguages (es)" ]] ||
     fail "start with arguments: '$pid' is not the copy with the arguments"
@@ -308,20 +311,50 @@ done
 # C3f start --agents turns the agents switch on: after --args, in the one --args list, and only
 # when asked.
 new_case
-sock="$repo/build/verify/mcp.sock"
 run start --agents
-[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock --args -agents.edit.open.sessions YES" ]] ||
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy $envs $noaudio --args -agents.edit.open.sessions YES" ]] ||
     fail "start --agents: exit $code: $err: $(cat "$state/open.log")"
 run stop
 : >"$state/open.log"
 run start --agents "$repo/Pilot.dirigible" -- --args -AppleLanguages "(es)"
-[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy --env DIRIGIBLE_MCP_SOCKET=$sock $repo/Pilot.dirigible --args -AppleLanguages (es) -agents.edit.open.sessions YES" ]] ||
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy $envs $noaudio $repo/Pilot.dirigible --args -AppleLanguages (es) -agents.edit.open.sessions YES" ]] ||
     fail "start --agents with a package and arguments: exit $code: $err: $(cat "$state/open.log")"
 run stop
 : >"$state/open.log"
 run start "$repo/Pilot.dirigible"
 [[ $code -eq 0 && "$(cat "$state/open.log")" != *agents.edit* ]] || fail "start with no --agents: open got: $(cat "$state/open.log")"
 run stop
+
+# C12 start plays to no device unless --audible; each start sets the journal folder. The two flags
+# come before the package, in any order.
+new_case
+run start
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy $envs $noaudio" ]] ||
+    fail "C12 start plays to no device: exit $code: $err: $(cat "$state/open.log")"
+[[ "$(cat "$state/open.log")" == *"--env DIRIGIBLE_LOG_FOLDER=$repo/build/verify/logs"* ]] ||
+    fail "C12 start sets the journal folder: $(cat "$state/open.log")"
+run stop
+: >"$state/open.log"
+run start --audible
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy $envs" ]] ||
+    fail "C12 start --audible: exit $code: $err: $(cat "$state/open.log")"
+run stop
+for flags in "--agents --audible" "--audible --agents"; do
+    : >"$state/open.log"
+    run start $flags
+    [[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy $envs --args -agents.edit.open.sessions YES" ]] ||
+        fail "C12 start $flags: exit $code: $err: $(cat "$state/open.log")"
+    run stop
+done
+: >"$state/open.log"
+run start --audible "$repo/Pilot.dirigible" -- --args -AppleLanguages "(es)"
+[[ $code -eq 0 && "$(cat "$state/open.log")" == "-a $copy $envs $repo/Pilot.dirigible --args -AppleLanguages (es)" ]] ||
+    fail "C12 start --audible with a package and arguments: exit $code: $err: $(cat "$state/open.log")"
+run stop
+: >"$state/open.log"
+run start --audible --live-input "$repo/Pilot.dirigible"
+[[ $code -eq 2 && "$err" == *"usage: verify-copy.sh"* && ! -s "$state/open.log" ]] ||
+    fail "C12 start --audible --live-input: exit $code: $err: $(cat "$state/open.log")"
 
 # C3c start from another folder
 new_case
@@ -427,6 +460,71 @@ while IFS= read -r line; do
     words=(${line#*: })
     [[ ${#words[@]} -ge 3 ]] || fail "only the copy: tccutil with no bundle ID: $line"
 done < <(cat "$state/tccutil.log" 2>/dev/null)
+
+# copy_state <id>: the state folders of a bundle ID in the fake HOME, each with one file.
+copy_state() {
+    mkdir -p "$HOME/Library/Application Support/$1" "$HOME/Library/Caches/$1/Peaks"
+    echo x >"$HOME/Library/Application Support/$1/active-recordings.plist"
+    echo x >"$HOME/Library/Caches/$1/Peaks/p.peaks"
+}
+# has_copy_state <id>: true when both folders of the ID exist.
+has_copy_state() { [[ -d "$HOME/Library/Application Support/$1" && -d "$HOME/Library/Caches/$1" ]]; }
+# no_copy_state <id>: true when neither folder of the ID exists.
+no_copy_state() { [[ ! -e "$HOME/Library/Application Support/$1" && ! -e "$HOME/Library/Caches/$1" ]]; }
+
+# C13 only stop deletes the state of the copy ID: its two folders and build/verify/logs. The two
+# folders of the real ID stay. start keeps the folders and the logs.
+new_case
+run start
+copy_state "$copy_id"
+copy_state "$real_id"
+mkdir -p "$logs"
+echo x >"$logs/app.log"
+run start
+[[ $code -eq 0 ]] || fail "C13 second start: exit $code: $err"
+has_copy_state "$copy_id" || fail "C13 start deleted a copy ID folder"
+[[ -f "$logs/app.log" ]] || fail "C13 start deleted the logs"
+run stop
+[[ $code -eq 0 ]] || fail "C13 stop: exit $code: $err"
+no_copy_state "$copy_id" || fail "C13 stop left a copy ID folder"
+[[ ! -e "$logs" && ! -e "$repo/build/verify" ]] || fail "C13 stop left build/verify/logs"
+has_copy_state "$real_id" || fail "C13 stop deleted a folder of the real ID"
+
+# C14 after kill -9 of the copy, stop exits 0 and C13 holds.
+new_case
+run start
+pid="$out1"
+copy_state "$copy_id"
+copy_state "$real_id"
+mkdir -p "$logs"
+echo x >"$logs/app.log"
+kill -9 "$pid"
+gone "$pid" || fail "C14 the copy $pid did not end"
+run stop
+[[ $code -eq 0 ]] || fail "C14 stop after kill -9: exit $code: $err"
+no_copy_state "$copy_id" || fail "C14 stop left a copy ID folder"
+[[ ! -e "$logs" ]] || fail "C14 stop left the logs"
+has_copy_state "$real_id" || fail "C14 stop deleted a folder of the real ID"
+
+# C14b after kill -9 of the copy, start keeps the recovery hint and the journal, and deletes the
+# old socket.
+new_case
+run start
+pid="$out1"
+copy_state "$copy_id"
+echo "/x/Pilot.dirigible" >"$HOME/Library/Application Support/$copy_id/active-recordings.plist"
+mkdir -p "$logs"
+echo x >"$logs/app.log"
+kill -9 "$pid"
+gone "$pid" || fail "C14b the copy $pid did not end"
+touch "$sock"
+run start
+[[ $code -eq 0 ]] || fail "C14b start after kill -9: exit $code: $err"
+grep -q 'Pilot.dirigible' "$HOME/Library/Application Support/$copy_id/active-recordings.plist" 2>/dev/null ||
+    fail "C14b start deleted the recovery hint"
+[[ -f "$logs/app.log" ]] || fail "C14b start deleted the journal"
+[[ ! -e "$sock" ]] || fail "C14b start kept the old socket"
+run stop
 
 # C16 stop idle: tccutil exits 0 (U14 probe), then with the no-bundle text
 for variant in success no-bundle; do
@@ -847,13 +945,17 @@ for order in "--agents --accent 2" "--accent 2 --agents"; do
     run stop
 done
 
-# C17: no stop by name, and each recursive delete acts on build/verify or the saved state of the copy.
+# C17: no stop by name, and each recursive delete acts on build/verify, the copy bundle, or the state
+# folders of the copy ID.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"
 grep -q 'rm -rf' "$here/verify-copy.sh" 2>/dev/null || fail "C17: no rm -rf line"
 while IFS= read -r line; do
     operand="${line#*rm -rf }"
-    [[ "$operand" == '"$root/build/verify"' || "$operand" == '"$HOME/Library/Saved Application State/$copy_id.savedState"' ]] ||
-        fail "C17: rm -rf of another path: $line"
+    case "$operand" in
+        '"$root/build/verify"' | '"$HOME/Library/Saved Application State/$copy_id.savedState"' | '"$copy"') ;;
+        '"$HOME/Library/Application Support/$copy_id"' | '"$HOME/Library/Caches/$copy_id"') ;;
+        *) fail "C17: rm -rf of another path: $line" ;;
+    esac
 done < <(grep -h 'rm -rf' "$here/verify-copy.sh" 2>/dev/null)
 
 [[ $failures -eq 0 ]] && echo "verify-copy tests: all passed" || { echo "verify-copy tests: $failures failed"; exit 1; }

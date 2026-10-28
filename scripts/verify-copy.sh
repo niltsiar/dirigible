@@ -6,19 +6,25 @@
 # copies of two trees and refuses, and a stop in one tree resets the grants of the other copy.
 # The script does not build the app: run `make app` first.
 #
-# usage: verify-copy.sh start [--agents] [--accent <n>] [<package>] [-- <open arguments>]
-#                                  stop a running copy, clean up, copy build/Dirigible.app, set
+# usage: verify-copy.sh start [--agents] [--audible] [--accent <n>] [<package>] [-- <open arguments>]
+#                                  stop a running copy, reset its grants, preferences, and saved
+#                                  state, delete the old copy bundle, copy build/Dirigible.app, set
 #                                  the bundle ID, sign it, open it with its own MCP socket
-#                                  (DIRIGIBLE_MCP_SOCKET=build/verify/mcp.sock), and print its PID
-#                                  and a DIRIGIBLE_MCP_SOCKET line for an MCP client; --agents
-#                                  turns the agents switch on; --accent <n> (-1 Graphite to 6)
-#                                  writes the global accent (defaults -g AppleAccentColor) before
-#                                  the open, after it saves the old value in the file
-#                                  dirigible-screen-accent-old beside the screen lock (only when
-#                                  the file is absent); while the copy of another worktree runs,
-#                                  wait for the screen lock up to VERIFY_COPY_SCREEN_WAIT s
-#                                  (default 480), then exit 1; a socket path of 104 bytes or more
-#                                  exits 1 (sun_path holds 103)
+#                                  (DIRIGIBLE_MCP_SOCKET=build/verify/mcp.sock) and its own journal
+#                                  folder (DIRIGIBLE_LOG_FOLDER=build/verify/logs), and print its
+#                                  PID and a DIRIGIBLE_MCP_SOCKET line for an MCP client. The copy
+#                                  plays to no device (DIRIGIBLE_AUDIO_OUTPUT=none); --audible
+#                                  plays to the real output. --agents turns the agents switch on;
+#                                  --accent <n> (-1 Graphite to 6) writes the global accent
+#                                  (defaults -g AppleAccentColor) before the open, after it saves
+#                                  the old value in the file dirigible-screen-accent-old beside
+#                                  the screen lock (only when the file is absent). start keeps the
+#                                  recovery hint and the cache of the copy ID and build/verify/logs,
+#                                  so a kill -9 and a start keep them; only stop deletes them. The
+#                                  flags come before the package, in any order. While the copy of
+#                                  another worktree runs, wait for the screen lock up to
+#                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1; a socket
+#                                  path of 104 bytes or more exits 1 (sun_path holds 103)
 #        verify-copy.sh id         print the bundle ID of the copy of this worktree (no build);
 #                                  call it by the absolute path of the tree that runs the copy
 #        verify-copy.sh ax <ax.swift arguments>
@@ -32,7 +38,8 @@
 #                                  copy shows a window, (e) with Accessibility trust; (f) the
 #                                  screen is unlocked
 #        verify-copy.sh stop       stop the copy and clean up its TCC grants, its preferences,
-#                                  its saved state, and build/verify; put back the saved global
+#                                  its saved state, its Application Support and Caches folders,
+#                                  and build/verify with the journal; put back the saved global
 #                                  accent, then remove the screen lock
 #
 # Only the tree that holds the screen lock puts back the saved accent: at stop, and at its next
@@ -40,12 +47,13 @@
 #
 # Safety: the script finds the copy only by the absolute path of its executable (pgrep -f with an
 # anchor), and kills only those PIDs. It never stops a process by name. Each recursive delete acts
-# only on build/verify or the saved state of the copy ID. tccutil and defaults get only the copy ID,
-# apart from the defaults calls of the global accent.
+# only on build/verify, the copy bundle, or the saved state, Application Support folder, and Caches
+# folder of the copy ID. tccutil and defaults get only the copy ID, apart from the defaults calls
+# of the global accent.
 # Exit: 0 done, 1 a failed step (the message names it), 2 usage or a pgrep error.
 set -euo pipefail
 
-usage="usage: verify-copy.sh start [--agents] [--accent <n>] [<package>] [-- <open arguments>]
+usage="usage: verify-copy.sh start [--agents] [--audible] [--accent <n>] [<package>] [-- <open arguments>]
        verify-copy.sh id
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>
@@ -95,12 +103,13 @@ stop_copy() {
     done
 }
 
-# Reset the copy ID: its TCC grants, its preferences, its saved state, and build/verify. tccutil
-# runs before the delete of build/verify, so LaunchServices still finds the bundle. Accept only the
-# known results for no data: tccutil "No such bundle identifier" when the copy bundle is absent,
-# and defaults exit 1 with "Domain (<id>) not found." Another failure still deletes the folders,
-# then returns 1 and names the tool.
-cleanup() {
+# Reset the copy ID: its TCC grants, its preferences, and its saved state, then delete the copy
+# bundle, the socket, and the build time. The recovery hint, the caches, and the journal stay: only
+# stop deletes them. tccutil runs before the delete of the bundle, so LaunchServices still finds
+# it. Accept only the known results for no data: tccutil "No such bundle identifier" when the copy
+# bundle is absent, and defaults exit 1 with "Domain (<id>) not found." Another failure still
+# deletes the files, then returns 1 and names the tool.
+reset_copy() {
     local out rc failed=""
     rc=0
     out="$(tccutil reset All "$copy_id" 2>&1)" || rc=$?
@@ -115,11 +124,23 @@ cleanup() {
         failed+=" defaults"
     fi
     rm -rf "$HOME/Library/Saved Application State/$copy_id.savedState"
-    rm -rf "$root/build/verify"
+    rm -rf "$copy"
+    rm -f "$socket" "$root/build/verify/source-mtime"
     if [[ -n "$failed" ]]; then
         echo "verify-copy.sh: the cleanup failed:$failed" >&2
         return 1
     fi
+}
+
+# Reset the copy ID, then delete all its state: build/verify with the journal, and the Application
+# Support and Caches folders of the copy ID. A failed reset still deletes them, then returns 1.
+cleanup() {
+    local rc=0
+    reset_copy || rc=$?
+    rm -rf "$root/build/verify"
+    rm -rf "$HOME/Library/Application Support/$copy_id"
+    rm -rf "$HOME/Library/Caches/$copy_id"
+    return $rc
 }
 
 # The screen lock: one verify copy on the screen at a time, for all worktrees. The folder
@@ -210,10 +231,11 @@ set_accent() {
 }
 
 start() {
-    local open_args=() pid="" out agents=0 accent="" arg has_args=0 bytes
+    local open_args=() env_args=() pid="" out agents=0 audible=0 accent="" arg has_args=0 bytes
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --agents) agents=1 && shift ;;
+            --audible) audible=1 && shift ;;
             --accent)
                 [[ $# -ge 2 && "$2" =~ ^(-1|[0-6])$ ]] || { echo "$usage" >&2 && exit 2; }
                 accent="$2" && shift 2 ;;
@@ -235,7 +257,7 @@ start() {
     take_screen
     restore_accent || exit 1
     stop_copy >/dev/null
-    cleanup
+    reset_copy
     mkdir -p "$root/build/verify"
     if [[ -n "$accent" ]]; then
         # A failed start puts the old accent back; a good start clears the trap.
@@ -251,7 +273,9 @@ start() {
         [[ $has_args -eq 1 ]] || open_args+=(--args)
         open_args+=(-agents.edit.open.sessions YES)
     fi
-    open -a "$copy" --env "DIRIGIBLE_MCP_SOCKET=$socket" ${open_args[@]+"${open_args[@]}"}
+    env_args=(--env "DIRIGIBLE_MCP_SOCKET=$socket" --env "DIRIGIBLE_LOG_FOLDER=$root/build/verify/logs")
+    [[ $audible -eq 1 ]] || env_args+=(--env DIRIGIBLE_AUDIO_OUTPUT=none)
+    open -a "$copy" "${env_args[@]}" ${open_args[@]+"${open_args[@]}"}
     for _ in $(seq 50); do
         pid="$(copy_pids)"
         [[ -z "$pid" ]] || break

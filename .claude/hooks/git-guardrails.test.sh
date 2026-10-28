@@ -832,6 +832,13 @@ expect allow $'F=x; F=.scratchpads/runs/r/run.md; cat "$F"'
 expect allow $'F="a b/run.md"; cat "$F"'
 expect block $'F=x; F=.scratchpads/runs/r/run.md; echo x >> "$F"'
 expect block $'F="a b/run.md"; echo x >> "$F"'
+# The read that the block message recommends passes when its pattern is a write word.
+expect allow $'rg -n tee .scratchpads/runs/x/run.md'
+expect allow $'rg -c truncate .scratchpads/runs/x/analysis.md'
+expect allow $'rg -n "rm" plan.md'
+expect block $'echo x | tee -a run.md'
+expect block $'time rm run.md'
+expect block $'for f in a; do rm plan.md; done'
 expect block "X=1 make x; $ld"
 expect block "time make x; $ld"
 expect block "(make x); $ld"

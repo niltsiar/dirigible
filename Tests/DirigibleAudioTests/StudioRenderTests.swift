@@ -63,7 +63,8 @@ struct StudioRenderTests {
         let saved = try Session(contentsOf: fixture.package.url)
         let moved = try #require(studio.session.clip("c1")?.clip)
         #expect(saved == studio.session && report.clips == [RenderedClip(clip: "c1", file: moved.file)])
-        #expect(report.noise == .standard && studio.session.files[moved.file]?.path == "f1 NR.wav")
+        #expect(
+            report.treatment == Treatment(.noise(.standard)) && studio.session.files[moved.file]?.path == "f1 NR.wav")
         #expect(studio.undoAgent == agent, "the undo entry names the agent")
         let files = ["f1 NR.wav", "f1.wav"]
         #expect(try listing(fixture.package) == files)
@@ -331,6 +332,20 @@ struct StudioRenderTests {
         #expect(scan.items.isEmpty, "the source of the rendered file is in use")
         #expect(studio.session.files["f1"] != nil && studio.session.files["f1 NR"]?.origin?.source == "f1")
         #expect(studio.unplacedSegments == [], "the take is not offered for Place")
+        await studio.settle()
+    }
+
+    /// C21: the report carries the treatment of the request, so a hum render has a hum fact.
+    @Test func reportCarriesTheTreatment() async throws {
+        let fixture = try await StudioSplitTests.make()
+        let studio = try await open(fixture.package)
+
+        let report = try await studio.renderClips(["c1"], request: ClipRenderRequest(Treatment(.hum(.hz50)))) { _ in }
+
+        let moved = try #require(studio.session.clip("c1")?.clip)
+        #expect(report.treatment == Treatment(.hum(.hz50)) && report.treatment.hum == .hz50)
+        #expect(report.treatment.noise == nil && report.clips == [RenderedClip(clip: "c1", file: moved.file)])
+        #expect(studio.session.files[moved.file]?.path == "f1 HR.wav")
         await studio.settle()
     }
 }

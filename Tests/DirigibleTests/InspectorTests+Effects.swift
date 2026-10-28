@@ -16,22 +16,28 @@ extension InspectorTests {
             let origin = RenderOrigin(source: "f", offset: 0, treatment: Treatment(.noise(noise)), addedGain: .zero)
             return AudioFile(id: id, path: "Clips/\(id.rawValue).wav", layout: .mono, length: 480_000, origin: origin)
         }
+        func hum(_ id: FileID, _ hum: Hum) throws -> AudioFile {
+            let origin = RenderOrigin(source: "f", offset: 0, treatment: Treatment(.hum(hum)), addedGain: .zero)
+            return AudioFile(id: id, path: "Clips/\(id.rawValue).wav", layout: .mono, length: 480_000, origin: origin)
+        }
         for file in [
             AudioFile(id: "f", path: "f.wav", layout: .mono, length: 480_000), try render("f NR", 12),
-            try render("f NR 2", 12), try render("f NR 3", 20),
+            try render("f NR 2", 12), try render("f NR 3", 20), try hum("f HR", .hz50), try hum("f HR 2", .hz60),
         ] {
             try session.addFile(file)
         }
         for (id, file, start) in [
             ("P", "f", 0), ("Q", "f", 1), ("A", "f NR", 2), ("B", "f NR 2", 3), ("C", "f NR 3", 4),
+            ("H", "f HR", 5), ("I", "f HR 2", 6),
         ]
             as [(ClipID, FileID, Int)]
         {
             try session.place(
                 Clip(id: id, file: file, start: Frames(start * 48_000), offset: 0, length: 48_000), on: "t1")
         }
-        for (language, value, mixed) in [
-            ("en", "Reduce Noise 12 dB", "Mixed"), ("es", "Reducir ruido 12 dB", "Varios"),
+        for (language, value, mixed, hum) in [
+            ("en", "Reduce Noise 12 dB", "Mixed", "Remove Hum 50 Hz"),
+            ("es", "Reducir ruido 12 dB", "Varios", "Eliminar zumbido 50 Hz"),
         ] {
             let table = try stringsTable(language)
             func text(_ clips: [ClipID]) -> String? {
@@ -43,6 +49,8 @@ extension InspectorTests {
             #expect(text(["A", "B"]) == value, "\(language) two renders of one amount")
             #expect(text(["A", "C"]) == mixed, "\(language) two amounts")
             #expect(text(["P", "A"]) == mixed, "\(language) a render and a plain clip")
+            #expect(text(["H"]) == hum, "\(language) hum")
+            #expect(text(["H", "I"]) == mixed, "\(language) two hum frequencies")
         }
     }
 }

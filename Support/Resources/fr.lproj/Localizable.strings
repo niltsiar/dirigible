@@ -375,6 +375,7 @@
 "inspector.mixed" = "Mixte";
 "inspector.effects" = "Effets";
 "inspector.effect.noise" = "Réduire le bruit %lld dB";
+"inspector.effect.hum" = "Supprimer le ronflement %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Indicateur de sonie";

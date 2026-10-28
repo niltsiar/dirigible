@@ -375,6 +375,7 @@
 "inspector.mixed" = "Misto";
 "inspector.effects" = "Effetti";
 "inspector.effect.noise" = "Riduci rumore %lld dB";
+"inspector.effect.hum" = "Rimuovi ronzio %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Misuratore di intensità";

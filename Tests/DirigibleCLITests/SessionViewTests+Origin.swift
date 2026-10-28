@@ -50,4 +50,38 @@ extension SessionViewTests {
         #expect(!tool.isError)
         #expect(!compact.contains("origin") && !compact.isEmpty, "\(compact)")
     }
+
+    /// C22: a hum origin shows its frequency in the `info` text, in `info --json`, and in
+    /// `session_info`.
+    @Test func humOrigin() async throws {
+        var session = try ClipRestoreCommandTests.rendered()
+        let both = try #require(Treatment([.hum(.hz60), .noise(.standard)]))
+        try session.addFile(
+            AudioFile(
+                id: "g HR", path: "g HR.wav", layout: .mono, length: 300_000,
+                origin: RenderOrigin(source: "g", offset: 0, treatment: Treatment(.hum(.hz50)), addedGain: .zero)))
+        try session.addFile(
+            AudioFile(
+                id: "g NR", path: "g NR.wav", layout: .mono, length: 300_000,
+                origin: RenderOrigin(source: "g", offset: 0, treatment: both, addedGain: .zero)))
+        let package = try TemporaryPackage(session)
+
+        let text = try await dirigible("info", package.path).stdout
+        let json = try await dirigible("info", "--json", package.path).stdout
+        let tool = toolResult(answer(try await mcp([toolCall(1, "session_info", ["package": package.path])]), id: 1))
+
+        let lines = text.split(separator: "\n").filter { $0.hasPrefix("file g HR") || $0.hasPrefix("file g NR") }
+        #expect(
+            lines == [
+                #"file g HR "g HR.wav" mono length 300000 origin g offset 0 added gain 0.0 dB hum 50 Hz media missing"#,
+                #"file g NR "g NR.wav" mono length 300000 origin g offset 0 added gain 0.0 dB hum 60 Hz, noise 12 dB media missing"#,
+            ], "\(text)")
+        for view in [json, tool.text] {
+            let files = try Self.files(view)
+            let alone = (files["g HR"]?["origin"] as? NSDictionary)?["effects"] as? NSArray
+            let pair = (files["g NR"]?["origin"] as? NSDictionary)?["effects"] as? NSArray
+            #expect(alone == [["kind": "hum", "hz": 50]] as NSArray, "\(view)")
+            #expect(pair == [["kind": "hum", "hz": 60], ["kind": "noise", "decibels": 12]] as NSArray, "\(view)")
+        }
+    }
 }

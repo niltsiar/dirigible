@@ -5,9 +5,12 @@ extension SessionView {
     /// first frame, the gain that the render added to its clips, and the effects as rendered.
     struct OriginView: Encodable {
         struct EffectView: Encodable {
-            /// "noise".
+            /// "hum" or "noise".
             let kind: String
-            let decibels: Int
+            /// The mains frequency of a hum.
+            var hz: Int?
+            /// The reduction of a noise.
+            var decibels: Int?
         }
 
         let source: String
@@ -21,6 +24,7 @@ extension SessionView {
             addedGain = origin.addedGain.dB
             effects = origin.treatment.effects.map { effect in
                 switch effect {
+                case .hum(let hertz): EffectView(kind: "hum", hz: hertz.rawValue)
                 case .noise(let reduction): EffectView(kind: "noise", decibels: reduction.decibels)
                 }
             }
@@ -33,6 +37,7 @@ func originText(of file: AudioFile) -> String {
     guard let origin = file.origin else { return "" }
     let effects = origin.treatment.effects.map { effect in
         switch effect {
+        case .hum(let hertz): "hum \(hertz.rawValue) Hz"
         case .noise(let reduction): "noise \(reduction.decibels) dB"
         }
     }

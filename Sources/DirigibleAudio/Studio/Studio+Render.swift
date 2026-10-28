@@ -1,11 +1,11 @@
 import DirigibleCore
 import Foundation
 
-/// The end of a clip render: each moved clip with its new file, the noise reduction of the
-/// request, nil when it has no noise effect, and each clip that needed no render (decision 0057).
+/// The end of a clip render: each moved clip with its new file, the treatment of the request, and
+/// each clip that needed no render (decision 0057).
 public struct ClipRenderReport: Sendable {
     public let clips: [RenderedClip]
-    public let noise: NoiseReduction?
+    public let treatment: Treatment
     public let unchanged: [ClipID]
 }
 
@@ -40,7 +40,7 @@ extension Studio {
             await environment.clipRenderWorkDone()
             return done.map { ($0.session, (clips: $0.clips, unchanged: $0.unchanged), made: $0.made) }
         }
-        return ClipRenderReport(clips: rendered.clips, noise: request.treatment.noise, unchanged: rendered.unchanged)
+        return ClipRenderReport(clips: rendered.clips, treatment: request.treatment, unchanged: rendered.unchanged)
     }
 }
 

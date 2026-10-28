@@ -1,9 +1,10 @@
 #!/bin/bash
 # Check that git-guardrails.sh blocks and allows the right commands, and that the post-commit hook
-# of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the Agent
-# tool, usage-hook.sh, the hook that gives the usage mode at an agent start, handback-guard.sh,
-# the hook that refuses a hand-back while a background task runs, and agent-clock.sh, the hook that
-# stops a subagent after 90 active minutes. Run by `make check`.
+# of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the tools
+# that brief an agent, usage-hook.sh, the hook that gives the usage mode at an agent start,
+# handback-guard.sh, the hook that refuses a hand-back while a background task runs, agent-clock.sh,
+# the hook that stops a subagent after 90 active minutes, and write-guard.sh, the hook that refuses a
+# Write over an existing run file. Run by `make check`.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -1008,7 +1009,8 @@ want_id=E37 key_refused -m 'cut the rerun'
 gc "$k" -m $'cut the rerun\n\nEval keys: E37' 2>"$tmp/err" || msg_fail "a cut with an Eval keys line was refused: $(cat "$tmp/err")"
 
 # The second hook, agent-guard.sh, refuses an Agent call with worktree isolation: such a worktree does
-# not fit the run layout, and its creation can set the hooks path of the shared git config.
+# not fit the run layout, and its creation can set the hooks path of the shared git config. It also
+# refuses a brief of Agent, SendMessage, or delegate_task with a wrong commit message path.
 agent_hook="$(dirname "$0")/agent-guard.sh"
 expect_agent() {
   local want="$1" json="$2" got
@@ -1023,11 +1025,47 @@ expect_agent allow '{"tool_input":{"description":"d","prompt":"p"}}'
 python3 -c '
 import json, sys
 entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
-ok = any(e.get("matcher") == "Agent"
+ok = any(e.get("matcher") == "Agent|SendMessage|mcp__t3-code__delegate_task"
          and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/agent-guard.sh") for h in e.get("hooks", []))
          for e in entries)
 sys.exit(0 if ok else 1)
-' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register agent-guard.sh for Agent"; failures=$((failures + 1)); }
+' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register agent-guard.sh for Agent, SendMessage, and delegate_task"; failures=$((failures + 1)); }
+
+# A brief with a git commit -F or --file path of a commit-msg.txt or a .scratchpads/ file other
+# than .scratchpads/commit-msg.txt blocks, in the field of each tool. A placeholder, another file
+# name, and the correct path in backticks or before a ; or . pass.
+# expect_brief <want> <tool name, or - for none> <field> <text> [isolation]
+expect_brief() {
+  local want="$1" got
+  plutil -create xml1 "$input"
+  [[ "$2" == - ]] || plutil -insert tool_name -string "$2" "$input"
+  plutil -insert tool_input -dictionary "$input"
+  plutil -insert "tool_input.$3" -string "$4" "$input"
+  [[ -z "${5:-}" ]] || plutil -insert tool_input.isolation -string "$5" "$input"
+  plutil -convert json "$input"
+  "$agent_hook" < "$input" 2>"$tmp/agent-err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == "$want" ]] || { echo "FAIL: agent-guard: expected $want, got $got: $2 $3: $4"; failures=$((failures + 1)); }
+}
+expect_brief block Agent prompt $'Commit:\nrun git commit -F .scratchpads/runs/x/commit-msg.txt'
+grep -qF 'git commit -F .scratchpads/commit-msg.txt' "$tmp/agent-err" && grep -qF 'put the text in a file in the run folder' "$tmp/agent-err" ||
+  { echo "FAIL: the agent-guard brief message does not name the path and the data route: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+for text in 'git commit -F /abs/.scratchpads/commit-msg.txt' 'git commit --file=.scratchpads/runs/x/commit-msg.txt' \
+  'git commit -q --no-verify -F .scratchpads/runs/x/commit-msg.txt' 'Run `git commit -F .scratchpads/runs/x/commit-msg.txt` at the end.'; do
+  expect_brief block Agent prompt "$text"
+done
+expect_brief block SendMessage message 'Then git commit -F .scratchpads/runs/x/commit-msg.txt.'
+expect_brief block mcp__t3-code__delegate_task task 'git commit -F /abs/.scratchpads/commit-msg.txt'
+expect_brief block - prompt 'git commit -F .scratchpads/runs/x/commit-msg.txt'
+for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scratchpads/commit-msg.txt' \
+  'Run `git commit -F .scratchpads/commit-msg.txt`; never commit a .scratchpads file.' \
+  'Commit with `git commit -F .scratchpads/commit-msg.txt`.' 'Use `git commit -F` with the message file.' \
+  'git commit -F <file>' 'git commit -F <file in the run folder>' 'git commit -F <msgfile>' 'git commit -F RUN/msg-3a.txt' \
+  'git commit -F msg.txt' 'git commit --file=msg.txt' 'Read run.md and continue at S6.'; do
+  expect_brief allow Agent prompt "$text"
+done
+expect_brief allow SendMessage message 'git commit -F .scratchpads/commit-msg.txt, then hand back.'
+expect_brief allow mcp__t3-code__delegate_task task 'Fix the tests and commit.' worktree
 
 # The third hook, usage-hook.sh, gives the usage mode as context at an agent start. It denies nothing
 # and always exits 0. The fixture clock and limits file give each mode.
@@ -1204,7 +1242,7 @@ hb_expect "$clock_hook" 2 'make build at 91 active minutes' "$(hb_bash 'make bui
 hb_err_has 'the clock refusal' '90'
 hb_err_has 'the clock refusal' 'run.md'
 hb_err_has 'the clock refusal' 'SubagentHandback'
-hb_err_has 'the clock refusal' 'git add <paths> && git commit -F <file>'
+hb_err_has 'the clock refusal' 'git add <paths> && git commit -F .scratchpads/commit-msg.txt'
 hb_session under < <(hb_span 89 0)
 hb_expect "$clock_hook" 0 'make build at 89 active minutes' "$(hb_bash 'make build')"
 hb_session idle < <(hb_span 330 300; hb_span 30 0)

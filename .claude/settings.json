@@ -105,7 +105,7 @@
         ]
       },
       {
-        "matcher": "Agent",
+        "matcher": "Agent|SendMessage|mcp__t3-code__delegate_task",
         "hooks": [
           {
             "type": "command",

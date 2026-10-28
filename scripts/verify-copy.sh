@@ -162,13 +162,15 @@ take_screen() {
 }
 
 # When this tree holds the screen lock and an accent is saved, put it back, then remove the file.
-# A failed write keeps the file and returns 1.
+# A failed write keeps the file and returns 1. For unset, a key that is already gone is restored:
+# a delete of it exits 1 ("Domain (kCFPreferencesAnyApplication) not found"), and a read tells.
 restore_accent() {
     local old out rc=0
     [[ "$(cat "$screen/root" 2>/dev/null)" == "$root" && -f "$saved_accent" ]] || return 0
     old="$(cat "$saved_accent")"
     if [[ "$old" == unset ]]; then
         out="$(defaults delete -g AppleAccentColor 2>&1)" || rc=$?
+        [[ $rc -eq 0 || "$(defaults read -g AppleAccentColor 2>&1)" != *"does not exist"* ]] || rc=0
     else
         out="$(defaults write -g AppleAccentColor -int "$old" 2>&1)" || rc=$?
     fi

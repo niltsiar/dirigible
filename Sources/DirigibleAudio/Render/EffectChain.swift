@@ -133,31 +133,43 @@ struct EffectChain {
         into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, file: String, stem: String,
         readFault: ReadFault?, isCancelled: () -> Bool, rendered: (Int) -> Void
     ) throws(ClipRenderError) -> (length: Int, peak: Float) {
-        let count = Int(span.upperBound - span.lowerBound)
+        source.framePosition = span.lowerBound
+        var block = 0
+        return try render(count: Int(span.upperBound - span.lowerBound), into: sink, rendered: rendered) {
+            frames throws(ClipRenderError) in
+            guard !isCancelled() else { throw .cancelled }
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: source.processingFormat, frameCapacity: frames) else {
+                throw .engine(status: kAudio_MemFullError)
+            }
+            do {
+                if let readFault, readFault.stem == stem, readFault.block == block { try readFault.before() }
+                try source.read(into: buffer, frameCount: frames)
+            } catch {
+                throw .sourceUnreadable(file: file, errno: ioErrno(of: error, file: descriptor) ?? EIO)
+            }
+            guard buffer.frameLength > 0 else { throw .sourceUnreadable(file: file, errno: EIO) }
+            block += 1
+            return buffer
+        }
+    }
+
+    /// The pull loop of a render of `count` frames: `next` gives the next source block of at most
+    /// the frames that it gets.
+    private func render(
+        count: Int, into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, rendered: (Int) -> Void,
+        next: (AVAudioFrameCount) throws(ClipRenderError) -> AVAudioPCMBuffer
+    ) throws(ClipRenderError) -> (length: Int, peak: Float) {
         let total = count + latency
         guard let output = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: Self.pullFrames),
             let kept = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: Self.pullFrames)
         else { throw .engine(status: kAudio_MemFullError) }
-        source.framePosition = span.lowerBound
-        var (scheduled, pulled, block, length, peak) = (0, 0, 0, 0, Float(0))
+        var (scheduled, pulled, length, peak) = (0, 0, 0, Float(0))
         while pulled < total {
             // The next block goes in when one block or less waits, so at most two wait.
             while scheduled < count, scheduled - pulled <= Self.blockFrames {
-                guard !isCancelled() else { throw .cancelled }
-                let frames = AVAudioFrameCount(min(Self.blockFrames, count - scheduled))
-                guard let buffer = AVAudioPCMBuffer(pcmFormat: source.processingFormat, frameCapacity: frames) else {
-                    throw .engine(status: kAudio_MemFullError)
-                }
-                do {
-                    if let readFault, readFault.stem == stem, readFault.block == block { try readFault.before() }
-                    try source.read(into: buffer, frameCount: frames)
-                } catch {
-                    throw .sourceUnreadable(file: file, errno: ioErrno(of: error, file: descriptor) ?? EIO)
-                }
-                guard buffer.frameLength > 0 else { throw .sourceUnreadable(file: file, errno: EIO) }
+                let buffer = try next(AVAudioFrameCount(min(Self.blockFrames, count - scheduled)))
                 player.scheduleBuffer(buffer)
                 scheduled += Int(buffer.frameLength)
-                block += 1
             }
             let frames = min(Int(Self.pullFrames), total - pulled)
             let status: AVAudioEngineManualRenderingStatus

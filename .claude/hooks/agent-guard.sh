@@ -30,7 +30,8 @@ if [[ "$tool" != mcp__t3-code__delegate_task && "$isolation" == worktree ]]; the
   exit 2
 fi
 text="$(plutil -extract "tool_input.$field" raw -o - "$input" 2>/dev/null)"
-# commit_files: the path of the first -F or --file after each "git commit" of the input lines.
+# commit_files: the path of the first -F or --file after each "git commit" of the input lines, up to
+# the first ; & | , or sentence end outside quotes (git-guardrails.sh has the same function).
 commit_files() {
   awk '{
     s = $0
@@ -38,6 +39,13 @@ commit_files() {
       s = substr(s, i + 10)
       chunk = s
       if ((j = index(s, "git commit")) > 0) chunk = substr(s, 1, j - 1)
+      q = ""
+      for (k = 1; k <= length(chunk); k++) {
+        c = substr(chunk, k, 1)
+        if (q != "") { if (c == q) q = "" }
+        else if (c == "\"" || c == "\047") q = c
+        else if (c ~ /[;&|,]/ || (c == "." && substr(chunk, k + 1, 1) == " ")) { chunk = substr(chunk, 1, k - 1); break }
+      }
       if (match(chunk, /(^| )(-F ?|--file[= ])[^ ]+/)) {
         t = substr(chunk, RSTART, RLENGTH)
         sub(/^ ?(-F ?|--file[= ])/, "", t)

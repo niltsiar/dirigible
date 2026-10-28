@@ -35,7 +35,7 @@ R12 records the audio of another app to its own track, as a device (0006). A tra
 
 **One track for each app.** The route check of a take keys an app by `app:BUNDLEID`, so a second armed track on the same app is refused as a channel in use.
 
-**Monitor.** Input Levels (0015) meters an armed app track with a tap. So macOS shows the System Audio Recording prompt at the first tap of an armed app track while Input Levels is on: when the user turns Input Levels on, arms an app track, or routes an armed track to an app, also for the tap of an app that does not run yet. Each is a user act. With Input Levels off, an arm makes no tap. A listened app track gets no tap (0044).
+**Monitor.** Input Levels (0015) meters an armed app track with a tap. So macOS shows the System Audio Recording prompt at the first tap of an armed app track while Input Levels is on: when the user turns Input Levels on, arms an app track, or routes an armed track to an app. Each is a user act. With Input Levels off, an arm makes no tap. A listened app track gets no tap (0044).
 
 **CLI.** `dirigible track route` and `track layout` take `--app <bundle ID>` as a third route form beside `--device` with `--channels` and `--none`. Two forms together are a usage error (exit 64). `info --json` shows the session version. On macOS 14.0 and 14.1 (no process taps) `--app` exits 1 and changes nothing.
 

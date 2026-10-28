@@ -172,9 +172,16 @@ func renderClips(
             } catch {
                 throw ClipRenderError(error, wav: wav)
             }
-            return try chain.render(
-                opened.file, descriptor: opened.descriptor, span: span, into: writer, file: source.path, wav: wav,
-                stem: stems[index], readFault: readFault, isCancelled: isCancelled, rendered: progress)
+            let result = try chain.render(
+                opened.file, descriptor: opened.descriptor, span: span,
+                into: { buffer throws(ClipRenderError) in
+                    do throws(FinalizeError) { try writer.write(buffer) } catch {
+                        throw ClipRenderError(error, wav: wav)
+                    }
+                }, file: source.path, stem: stems[index], readFault: readFault, isCancelled: isCancelled,
+                rendered: progress)
+            do throws(FinalizeError) { try writer.close() } catch { throw ClipRenderError(error, wav: wav) }
+            return result
         }
         let base = Double(done)
         var result = try pass(1) { written in

@@ -47,12 +47,17 @@ struct TranscriptLeftOutShown: Equatable {
 }
 
 extension SessionWindow {
-    /// The studio when an export can start: idle, no pending take, no export step, no export, and
-    /// no Go to Take Time sheet.
+    /// A dialog of the window shows: a sheet, an export step, or the export progress. Each item
+    /// that opens a dialog is off while one shows: one dialog at a time. An alert is not in it:
+    /// Export is on while the alert of a failed export shows (criterion 28).
+    var dialogShowing: Bool {
+        takeTimeDraft != nil || exportStep != nil || duckDraft != nil || denoiseDraft != nil || unusedFiles != nil
+            || studio?.exportProgress != nil
+    }
+
+    /// The studio when an export can start: idle, no pending take, and no dialog.
     private var exportStudio: Studio? {
-        guard exportStep == nil, takeTimeDraft == nil, let studio = idleStudio, studio.pendingTake == nil,
-            studio.exportProgress == nil
-        else { return nil }
+        guard !dialogShowing, let studio = idleStudio, studio.pendingTake == nil else { return nil }
         return studio
     }
 
@@ -77,12 +82,11 @@ extension SessionWindow {
         case .insert, .cutSelectedTracks, .fade: importJob == nil
         case .autoLevel, .autoLevelPerTrack:
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true
-        // Off while the Go to Take Time sheet shows: one dialog at a time.
-        case .duck: takeTimeDraft == nil && isOn(.autoLevel)
+        case .duck: !dialogShowing && isOn(.autoLevel)
         case .splitStereo:
             canImport && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
         case .reduceNoise:
-            canImport && idleStudio.map { !denoiseClips(in: $0.session).isEmpty } == true
+            !dialogShowing && canImport && idleStudio.map { !denoiseClips(in: $0.session).isEmpty } == true
         case .restoreOriginal:
             importJob == nil && idleStudio.map { !restoreClips(in: $0.session).isEmpty } == true
         case .heal:

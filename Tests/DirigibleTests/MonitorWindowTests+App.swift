@@ -153,7 +153,12 @@ extension MonitorWindowTests {
 
         let tapped = taps.withLock { $0 }
         await window.record()
-        await until("no take") { window.canStop && studio.liveTracks["guest"]?.state == .recording }
+        // The first report of the take writer replaces the state of the take start, so the test
+        // waits for that report before it sets the state.
+        await until("no take") {
+            window.canStop && studio.liveTracks["guest"]?.state == .recording && taps.withLock { $0 } >= tapped + 1
+        }
+        await studio.armed.first { $0.id == "guest" }?.writer.started()
         set(.noSound)
         await shows(true)
         #expect(announced.texts.count == 5, "no announcement in the take")

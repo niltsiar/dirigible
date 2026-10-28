@@ -6,8 +6,10 @@
 # red governance check, `risk: yes` with and with no mutation pass row, a body that pr-terms.sh flags
 # (before the fetch), a body that lost a number of logs/pr-draft.md, a pr-terms.sh error, a
 # missing body file, and no arguments. The stamp cases: a matching stamp runs no check, a delta
-# after the stamp runs the targets of the delta after the load wait, and no usable stamp runs the
-# full push check; the governance and the ancestor checks still run. The land reads the stamp
+# after the stamp runs the targets of the delta after the load wait, and a stamp with the reason
+# `base moved` runs no check: the land prints the push check command and exits 4, and the second call
+# reuses the stamp of the rebased HEAD. No stamp, or a stamp that is not an ancestor, runs the full
+# push check; the governance and the ancestor checks still run. The land reads the stamp
 # before its rebase: the delta is the tree diff to the rebased HEAD, with the test target for a
 # file that a code line of a Swift test names whole, and a second land of a stopped branch reuses
 # the stamp commit. The ratchet case runs the real make check-changed first, so the land runs no
@@ -28,6 +30,8 @@
 # GitHub finishes during the wait (the retry sees the rebased copies on origin/main, reads MERGED,
 # and runs the tail), three failures (the message names the resume and the stamp file stays), a
 # state read that fails, and an origin/main that moves between two attempts.
+# The last cases test teardown-run.sh: the scope, the merged and clean worktree, the scratch move, the
+# file rules (delete, trash, keep), and the trash sweep.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -1320,6 +1324,166 @@ code=$?
 [[ $code -eq 1 ]] || fail "land with a secret: exit $code: $(cat "$c/out")"
 grep -q 'found a secret' "$c/out" && grep -q 'nothing is pushed' "$c/out" || fail "land with a secret: no reason: $(cat "$c/out")"
 no_side_effects 'land with a secret'
+
+# teardown-run.sh: remove the worktree of a landed run and free the heavy files of its folder.
+# td_setup <name> builds a main checkout with .scratchpads/runs/r, a bare origin, and the worktree
+# $t/wt on chore/x, a branch with no commit past origin/main (merged). td runs the script from
+# the main checkout, or from $td_dir.
+td_setup() {
+  t="$tmp/td-$1"
+  rm -rf "$t"
+  mkdir -p "$t"
+  git init -q -b main "$t/main"
+  printf '.scratchpads/\n' > "$t/main/.gitignore"
+  git -C "$t/main" add .gitignore && git -C "$t/main" commit -q -m base
+  git init -q --bare -b main "$t/origin.git"
+  git -C "$t/main" remote add origin "$t/origin.git"
+  git -C "$t/main" push -q origin main
+  git -C "$t/main" worktree add -q -b chore/x "$t/wt"
+  run="$t/main/.scratchpads/runs/r"
+  mkdir -p "$run/logs"
+  printf '# Run r\n\n- Status: done\n- Branch: chore/x\n' > "$run/run.md"
+}
+td() {
+  (cd "${td_dir:-$t/main}" && "$here/teardown-run.sh" "$@") > "$t/out" 2>&1
+  code=$?
+}
+mk() { mkdir -p "$(dirname "$1")" && dd if=/dev/zero of="$1" bs=1048576 count="${2:-6}" 2> /dev/null; }
+ago() { date -v-"$1"d +%F 2> /dev/null || date -d "$1 days ago" +%F; }
+
+td_setup clean
+td "$run"
+[[ $code -eq 0 ]] || fail "teardown, merged and clean: exit $code: $(cat "$t/out")"
+[[ ! -d "$t/wt" ]] && ! git -C "$t/main" worktree list | grep -q '/td-clean/wt' || fail 'teardown, merged and clean: the worktree stays'
+for pattern in '^free before: [0-9]+ KiB$' '^free after: [0-9]+ KiB$' '^worktree removed: .*/td-clean/wt$' '^trash folder: ' '^moved: 0 items, 0 KiB$' '^deleted: 0 items, 0 KiB$'; do
+  grep -qE "$pattern" "$t/out" || fail "teardown, merged and clean: no line [$pattern]: $(cat "$t/out")"
+done
+
+# A refusal removes nothing: the worktree and a 6 MB file of the run folder stay.
+td_refused() { # <name> <exit> <text of the message>
+  [[ $code -eq $2 ]] || fail "teardown, $1: exit $code, want $2: $(cat "$t/out")"
+  grep -qF -- "$3" "$t/out" || fail "teardown, $1: no [$3]: $(cat "$t/out")"
+  [[ -d "$t/wt" && -f "$run/trace.bin" ]] || fail "teardown, $1: something was removed"
+}
+td_setup dirty
+mk "$run/trace.bin"
+echo y > "$t/wt/untracked.txt"
+td "$run"
+td_refused 'an untracked file' 1 'has changes'
+td_setup changed
+mk "$run/trace.bin"
+echo y >> "$t/wt/.gitignore"
+td "$run"
+td_refused 'a changed tracked file' 1 'has changes'
+td_setup unmerged
+mk "$run/trace.bin"
+echo y > "$t/wt/y.txt" && git -C "$t/wt" add y.txt && git -C "$t/wt" commit -q -m y
+td "$run"
+td_refused 'a commit that origin/main lacks' 1 'origin/main'
+td_setup cwd
+mk "$run/trace.bin"
+td_dir="$t/wt" td "$run"
+td_refused 'a working directory in the worktree' 2 'working directory'
+td_setup notdone
+mk "$run/trace.bin"
+printf '# Run r\n\n- Status: open\n- Branch: chore/x\n' > "$run/run.md"
+td "$run"
+td_refused 'a run that is not done' 2 'Status: done'
+td_setup scope
+mk "$run/trace.bin"
+mkdir -p "$t/main/.scratchpads/corpus/x" "$t/main/.scratchpads/tester-2026-10-21"
+for arg in .scratchpads/corpus/x .scratchpads/tester-2026-10-21 .scratchpads/runs .scratchpads/runs/r/..; do
+  td "$arg"
+  td_refused "the folder $arg" 2 'direct child'
+done
+
+# The ignored files of the worktree scratch move to worktree-scratch/ of the run folder. A path
+# that is there already stops the call: both files and the worktree stay.
+td_setup scratch
+mkdir -p "$t/wt/.scratchpads/p"
+head -c 1024 /dev/zero > "$t/wt/.scratchpads/p/x.txt"
+mkdir -p "$run/worktree-scratch/p"
+echo old > "$run/worktree-scratch/p/x.txt"
+td "$run"
+[[ $code -eq 1 && -d "$t/wt" && -s "$t/wt/.scratchpads/p/x.txt" && "$(cat "$run/worktree-scratch/p/x.txt")" == old ]] ||
+  fail "teardown, scratch path there already: exit $code: $(cat "$t/out")"
+rm "$run/worktree-scratch/p/x.txt"
+td "$run"
+[[ $code -eq 0 && ! -d "$t/wt" && "$(wc -c < "$run/worktree-scratch/p/x.txt" | tr -d ' ')" == 1024 ]] ||
+  fail "teardown, scratch move: exit $code: $(cat "$t/out")"
+# With the worktree gone, the file step runs; with the ref gone too, the call exits 2 and names the branch.
+td_setup gone
+git -C "$t/main" worktree remove "$t/wt"
+mk "$run/trace.bin"
+td "$run"
+[[ $code -eq 0 && ! -e "$run/trace.bin" ]] || fail "teardown, worktree gone: exit $code: $(cat "$t/out")"
+td_setup noref
+git -C "$t/main" worktree remove "$t/wt" && git -C "$t/main" branch -q -D chore/x
+mk "$run/trace.bin"
+td "$run"
+[[ $code -eq 2 && -f "$run/trace.bin" ]] && grep -qF 'chore/x' "$t/out" || fail "teardown, no branch ref: exit $code: $(cat "$t/out")"
+
+# The file rules. Each branch has an input on each side of it.
+td_setup files
+today="$(date +%F)"
+trash="$t/main/.scratchpads/trash/$today/r"
+printf '# Run r\n\n- Status: done\n- Branch: chore/x\n\nKept: named.wav, kept/K.dirigible, eval/Dirigible.app, named-dir/.\n' > "$run/run.md"
+for f in decisions.tsv analysis.md plan.md review-plan-1.md pr.md; do yes x | head -c 6291456 > "$run/$f"; done
+mk "$run/logs/big.wav"
+mk "$run/verify/copy/pkg.bin"; mk "$run/probes/p1/out.bin"; mk "$run/trace.bin"
+mk "$run/Dirigible.app/bin"; mk "$run/eval/Dirigible.app/bin"; mk "$run/a.dmg"; mk "$run/.build/x/o.bin"
+mk "$run/take.wav"; mk "$run/take.caf"; mk "$run/take.pcm"; mk "$run/small.wav" 1; mk "$run/screen.mov" 1; mk "$run/verify/live-1/long.wav"
+mkdir -p "$run/shots/Ep.dirigible/Clips"
+printf '<s>Clips/a.wav</s>\n' > "$run/shots/Ep.dirigible/session.xml"
+mk "$run/shots/Ep.dirigible/Clips/a.wav" 1; mk "$run/shots/Ep.dirigible/Clips/b.wav" 1
+mk "$run/named.wav"; mk "$run/set/clip.wav"; printf 'clip.wav\n' > "$run/set/manifest.tsv"
+mk "$run/took/b.wav" 1; printf '<s>Clips/b.wav</s>\n' > "$run/took/session.xml"
+mk "$run/kept/K.dirigible/session.xml" 1
+mk "$run/named-dir/big.bin"; mk "$run/named-dir/t.wav" 1; mk "$run/small.bin" 1
+mkdir -p "$t/main/.scratchpads/corpus" && mk "$t/main/.scratchpads/corpus/c.wav" 1
+ln -s "$t/main/.scratchpads/corpus/c.wav" "$run/link.wav"
+td "$run"
+[[ $code -eq 0 ]] || fail "teardown, files: exit $code: $(cat "$t/out")"
+for gone in verify/copy/pkg.bin probes/p1/out.bin trace.bin Dirigible.app eval/Dirigible.app a.dmg .build take.wav take.caf take.pcm small.wav screen.mov verify/live-1/long.wav shots/Ep.dirigible; do
+  [[ ! -e "$run/$gone" ]] || fail "teardown, files: $gone stays"
+done
+for deleted in verify/copy/pkg.bin probes/p1/out.bin trace.bin Dirigible.app eval/Dirigible.app a.dmg .build; do
+  [[ ! -e "$trash/$deleted" ]] || fail "teardown, files: $deleted is in the trash, not deleted"
+done
+for moved in take.wav take.caf take.pcm small.wav screen.mov verify/live-1/long.wav shots/Ep.dirigible/session.xml shots/Ep.dirigible/Clips/a.wav shots/Ep.dirigible/Clips/b.wav; do
+  [[ -f "$trash/$moved" ]] || fail "teardown, files: $moved is not in the trash"
+  grep -qF "$moved" "$t/out" || [[ "$moved" == shots/Ep.dirigible/* ]] || fail "teardown, files: the output names no moved path $moved"
+done
+for kept in run.md decisions.tsv analysis.md plan.md review-plan-1.md pr.md logs/big.wav named.wav set/clip.wav took/b.wav kept/K.dirigible/session.xml named-dir/big.bin named-dir/t.wav small.bin; do
+  [[ -f "$run/$kept" ]] || fail "teardown, files: $kept is gone"
+done
+[[ -L "$run/link.wav" && -f "$t/main/.scratchpads/corpus/c.wav" ]] || fail 'teardown, files: the link or its target is gone'
+grep -qE '^moved: 7 items, ' "$t/out" && grep -qE '^deleted: 7 items, ' "$t/out" || fail "teardown, files: wrong counts: $(cat "$t/out")"
+# A second teardown with the same run name and file name: the name gets -2, the first file stays.
+echo second > "$run/take.wav"
+td "$run"
+[[ $code -eq 0 && "$(wc -c < "$trash/take.wav" | tr -d ' ')" == 6291456 && "$(cat "$trash/take-2.wav")" == second ]] ||
+  fail "teardown, a second take.wav: exit $code: $(cat "$t/out")"
+# TEARDOWN_MIN_MB moves the size line.
+td_setup minmb
+mk "$run/two.bin" 2
+(cd "$t/main" && TEARDOWN_MIN_MB=1 "$here/teardown-run.sh" "$run") > "$t/out" 2>&1
+[[ ! -e "$run/two.bin" ]] || fail 'teardown, TEARDOWN_MIN_MB=1: a 2 MB file stays'
+
+# The trash sweep deletes the date folders more than 14 days old and keeps the others.
+td_setup sweep
+trash_root="$t/main/.scratchpads/trash"
+mkdir -p "$trash_root/$(ago 15)/r" "$trash_root/$(ago 14)/r" "$trash_root/notes"
+echo x > "$trash_root/$(ago 15)/r/f"
+td "$run"
+grep -qE '^trash: 1 folders older than 14 days; run scripts/teardown-run.sh --sweep-trash$' "$t/out" || fail "teardown, an old trash folder: no trash line: $(cat "$t/out")"
+td --sweep-trash
+[[ $code -eq 0 && ! -e "$trash_root/$(ago 15)" && -d "$trash_root/$(ago 14)" && -d "$trash_root/notes" ]] || fail "teardown, sweep: exit $code: $(cat "$t/out")"
+grep -qF "sweep: $(ago 15)" "$t/out" && grep -qE '^free before: [0-9]+ KiB$' "$t/out" && grep -qE '^free after: [0-9]+ KiB$' "$t/out" || fail "teardown, sweep: wrong output: $(cat "$t/out")"
+td_setup sweep14
+mkdir -p "$t/main/.scratchpads/trash/$(ago 14)/r"
+td "$run"
+! grep -q '^trash: ' "$t/out" || fail "teardown, a 14 day old trash folder: a trash line: $(cat "$t/out")"
 
 [[ $failures -eq 0 ]] && echo "land tests: all passed"
 exit $((failures > 0))

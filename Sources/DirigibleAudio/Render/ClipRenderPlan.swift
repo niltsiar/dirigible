@@ -145,8 +145,9 @@ private func runSize(_ clips: [ClipID], in session: Session) throws(ClipRenderEr
     return size
 }
 
-/// The one entry of a render request (decision 0057): `clipRenderPlan` on `session`, then
-/// `renderLevels`. A request that needs no render gives `session`, no file, and `unchanged`.
+/// The one entry of a render request (decision 0057): `clipRenderPlan` on `session`, the role
+/// check of each clip of `clips`, also of an unchanged clip, then `renderLevels`. A request that
+/// needs no render gives `session`, no file, and `unchanged`.
 /// `Studio.renderClips` and `ClipRenderWork` call it. It blocks: never call it on the main actor.
 package func renderRequest(
     _ clips: [ClipID], request: ClipRenderRequest, of session: Session, in package: URL,
@@ -158,6 +159,7 @@ package func renderRequest(
     do throws(SessionError) { plan = try clipRenderPlan(clips, request: request, in: session) } catch {
         throw .session(error)
     }
+    try request.treatment.checkRoles(of: clips, in: session)
     return try renderLevels(
         plan, in: package, freeBytes: freeBytes, component: component, readFault: readFault,
         isDownloaded: isDownloaded, progress: progress, isCancelled: isCancelled)

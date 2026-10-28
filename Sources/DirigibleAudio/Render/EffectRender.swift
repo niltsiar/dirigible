@@ -83,12 +83,7 @@ func renderClips(
         guard let source = session.files[run.file] else { throw .session(.unknownFile(run.file)) }
         runs.append((run, source, treatment))
     }
-    for (run, _, treatment) in runs {
-        for clip in run.clips {
-            let role = session.clip(clip).flatMap { session.track($0.track)?.role }
-            if let role, !treatment.accepts(role) { throw .trackRole(clip: clip, role: role) }
-        }
-    }
+    for (run, _, treatment) in runs { try treatment.checkRoles(of: run.clips, in: session) }
     for (_, source, _) in runs {
         let url = sourceURL(source, in: package)
         guard access(url.path, F_OK) == 0 else {

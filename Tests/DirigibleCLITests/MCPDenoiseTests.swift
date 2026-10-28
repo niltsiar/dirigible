@@ -53,6 +53,24 @@ struct MCPDenoiseTests {
         #expect(try package.xml() == before.0 && DenoiseCommandTests.clips(package) == before.1)
     }
 
+    /// C13: the tool gives the role refusal for a clip that needs no render: `m1` is reduced on a
+    /// voice track, and then its track gets the music role.
+    @Test func unchangedMusicClipIsRefused() async throws {
+        let package = try DenoiseCommandTests.package(bedRole: .dialogue)
+        let call = toolCall(1, "clip_denoise", ["package": package.path, "clips": ["m1"]])
+        let first = try await mcp([call])
+        try #require(toolResult(answer(first, id: 1)).1 == false, "\(first)")
+        let role = try await package.run("track", "role", "PKG", "t2", "music")
+        try #require(role.status == 0, "\(role)")
+        let before = (try package.xml(), DenoiseCommandTests.clips(package))
+
+        let again = try await mcp([call])
+
+        let text = ClipRenderError.trackRole(clip: "m1", role: .music).message
+        #expect(toolResult(answer(again, id: 1)) == (text, true), "\(again)")
+        #expect(try package.xml() == before.0 && DenoiseCommandTests.clips(package) == before.1)
+    }
+
     /// C12: a cancel before the render, after its renames, and after its return leaves no new WAV and
     /// the same `session.xml`. The poll finds the cancel at the first read (`readsAfterTheRename` 0),
     /// at the read of `renderClips` after the renames (1), or at the read of the work after the

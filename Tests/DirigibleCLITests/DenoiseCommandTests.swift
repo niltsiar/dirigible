@@ -110,6 +110,25 @@ struct DenoiseCommandTests {
         #expect(words.contains("music or effects track"), "the help does not name the role rule: \(help.stdout)")
     }
 
+    /// C13: a clip that needs no render still gets the role refusal: `m1` is reduced on a voice
+    /// track, and then its track gets the music role.
+    @Test func unchangedMusicClipExits1() async throws {
+        let package = try Self.package(bedRole: .dialogue)
+        let first = try await package.run("clip", "denoise", "PKG", "m1")
+        try #require(first.status == 0, "\(first)")
+        let role = try await package.run("track", "role", "PKG", "t2", "music")
+        try #require(role.status == 0, "\(role)")
+        let before = (try package.xml(), Self.clips(package))
+
+        let result = try await package.run("clip", "denoise", "PKG", "m1")
+
+        let text =
+            "the noise reduction refuses clip \"m1\": its track has the role music, "
+            + "and the noise reduction keeps only voices."
+        #expect(result == CLIResult(status: 1, stdout: "", stderr: "Error: \(text)\n"), "\(result)")
+        #expect(try package.xml() == before.0 && Self.clips(package) == before.1, "a refused call changed the package")
+    }
+
     /// C11: Control-C during the render leaves no new file, no temporary file, and the same
     /// `session.xml`, and exits 130 with nothing on stdout.
     @Test func interruptWritesNothing() async throws {

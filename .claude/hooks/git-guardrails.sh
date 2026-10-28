@@ -18,6 +18,16 @@ block_merge() {
   exit 2
 }
 
+# matches <ere> <text>: 0 when a line of the text matches, as grep -qE does on a here-string. A
+# pattern with ^ or $ anchors each line, so the text is read line by line.
+matches() {
+  local line
+  while IFS= read -r line; do
+    [[ "$line" =~ $1 ]] && return 0
+  done <<< "$2"
+  return 1
+}
+
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
 trap 'rm -f "$input"' EXIT
@@ -143,12 +153,14 @@ DANGEROUS_PATTERNS=(
 # `xargs git config core.hooksPath` is a write. The key matches in
 # any case. Each command of a chain or a substitution is one line; a line that is not one of the
 # two forms and names the key is a change. A direct write of .git/config is not checked.
-hooks_rest="$(sed -E 's/[Cc][Oo][Rr][Ee]\.[Hh][Oo][Oo][Kk][Ss][Pp][Aa][Tt][Hh]/core.hookspath/g' <<< "$joined" |
-  tr -s '\t ' '  ' | awk '{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }' |
-  grep -vE '^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$' |
-  grep -vE '^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$')"
-if grep -q 'core\.hookspath' <<< "$hooks_rest"; then
-  block "changes core.hooksPath"
+hooks_key='[Cc][Oo][Rr][Ee]\.[Hh][Oo][Oo][Kk][Ss][Pp][Aa][Tt][Hh]'
+if [[ "$joined" =~ $hooks_key ]]; then
+  hooks_read='^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$'
+  hooks_set='^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$'
+  while IFS= read -r line; do
+    [[ "$line" == *core.hookspath* && ! "$line" =~ $hooks_read && ! "$line" =~ $hooks_set ]] && block "changes core.hooksPath"
+  done < <(sed -E "s/$hooks_key/core.hookspath/g" <<< "$joined" |
+    tr -s '\t ' '  ' | awk '{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }')
 fi
 
 # The joined text with one space for each run of tabs and spaces, the git global options removed,
@@ -157,7 +169,7 @@ chain_text() {
   tr -s '\t ' '  ' <<< "${1//\\$'\n'/ }" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g"
 }
 chained="$(chain_text "$SINK_CUT")"
-chained_data="$(chain_text "$DATA_CUT")"
+if [[ "$DATA_CUT" == "$SINK_CUT" ]]; then chained_data="$chained"; else chained_data="$(chain_text "$DATA_CUT")"; fi
 
 # Put $1 without && and the redirects (2>&1, &>, >&), which are not background jobs, in $stripped.
 # A variable, not $(...): a command substitution drops a new line at the end.
@@ -204,13 +216,13 @@ fi
 
 # Only the check-changed recipe of the Makefile writes the pass stamp that land.sh reuses, so a
 # direct write cannot skip the land check. A command that names the stamp file is blocked too.
-if grep -qE 'dirigible-check-stamp|check-stamp\.sh write' <<< "$NORMALIZED"; then
+if [[ "$NORMALIZED" == *dirigible-check-stamp* || "$NORMALIZED" == *'check-stamp.sh write'* ]]; then
   block "names the pass stamp or writes it (only make check-changed writes it; read it with scripts/check-stamp.sh read origin/main)"
 fi
 # Only a passing make test-slow or test-slow-push writes the slow-run date that
 # scripts/check-changed.sh reads, so a direct write cannot skip the daily slow run. A command that
 # names the date file is blocked too.
-if grep -qE 'dirigible-slow-date' <<< "$NORMALIZED"; then
+if [[ "$NORMALIZED" == *dirigible-slow-date* ]]; then
   block "names the slow-run date file (only a passing make test-slow or make test-slow-push writes it)"
 fi
 # mask_quoted_pipes <text>: print the text with each | inside single quotes as \003, so a quoted
@@ -262,6 +274,8 @@ reads_only() {
   local plain_assign='^([A-Za-z_][A-Za-z0-9_]*)=[A-Za-z0-9_./:@%+,=-]*$'
   local program_names='^(path|ifs|env|bash_env|cdpath|shellopts|home|pager|ripgrep_config_path|git_.*|ld_.*|dyld_.*)$'
   local -a segs=() kinds=()
+  local name_re="[^[:space:]]*$name([^A-Za-z0-9_.-]|\$)" flag_o='(^|[[:space:]])-[a-zA-Z]*o' flag_i='(^|[[:space:]])-[a-zA-Z]*i' flag_n='(^|[[:space:]])-[a-zA-Z]*n'
+  [[ "$MASKED" == *"${name%%.*}"* ]] || return 0
   while IFS= read -r line; do
     line="${line//$sep/&}"
     line="${line//$bar/|}"
@@ -271,10 +285,13 @@ reads_only() {
   done < <(sed -E "s/\\\\\\|/ /g; s/&>/${sep}>/g; s/>&/>${sep}/g" <<< "$MASKED" | awk '{ gsub(/&&|\|\||;|\||&/, "\n"); print }')
   for line in "${segs[@]}"; do
     named=0
-    while IFS= read -r token; do
+    rest="$line"
+    while [[ "$rest" =~ $name_re ]]; do
+      token="${BASH_REMATCH[0]}"
+      rest="${rest#*"$token"}"
       token="${token#[\"\']}"
       [[ -n "$token" && "$token" =~ ^(\.\./|/) && "$token" != *.git* ]] || named=1
-    done < <(grep -oE "[^[:space:]]*$name([^A-Za-z0-9_.-]|\$)" <<< "$line")
+    done
     kinds+=("$named")
     any=$((any + named))
   done
@@ -291,13 +308,13 @@ reads_only() {
     if [[ $named -eq 1 ]]; then
       case "$first" in
         cat | grep | head | tail | wc | ls | stat | test | '[' | rg | awk) ;;
-        sort) grep -qE '(^|[[:space:]])-[a-zA-Z]*o' <<< "$line" && return 1 ;;
-        sed) grep -qE '(^|[[:space:]])-[a-zA-Z]*i' <<< "$line" && return 1
-          grep -qE '(^|[[:space:]])-[a-zA-Z]*n' <<< "$line" || return 1 ;;
+        sort) [[ "$line" =~ $flag_o ]] && return 1 ;;
+        sed) [[ "$line" =~ $flag_i ]] && return 1
+          [[ "$line" =~ $flag_n ]] || return 1 ;;
         git) [[ "$second" == grep ]] || return 1 ;;
         *) return 1 ;;
       esac
-      grep -qE "$redirect" <<< "$line" && return 1
+      [[ "$line" =~ $redirect ]] && return 1
     else
       if [[ "$line" =~ $cd_form ]]; then
         continue
@@ -475,7 +492,7 @@ case $? in
 esac
 # Only with-lock.sh, bench.sh, bench-pairs.sh, and sanitize.sh set the lock reuse values: a value
 # set by hand runs a build beside the holder of the lock.
-if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$chained_data"; then
+if [[ "$chained_data" == *DIRIGIBLE_BUILD_LOCK=* || "$chained_data" == *DIRIGIBLE_LOCKED_SCRIPT=* ]]; then
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 
@@ -511,7 +528,10 @@ done <<< "$test_segments"
 # chain is read from its start, after the prefix words (NAME=value, export, env, time, bash,
 # with-lock.sh, sh -c or bash -c with its quote), so text in a quote of rg or echo is data. A
 # bench and a flake loop pass: a slice runs a bench in the foreground.
-agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
+agent=""
+if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.sh* || "$chained_data" == *mutation-pass.sh* ]]; then
+  agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
+fi
 if [[ -n "$agent" ]]; then
   agent_way="After a second exit 75, return to the lead: the lead runs the unlimited wait in the background."
   shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
@@ -548,6 +568,7 @@ if [[ -n "$agent" ]]; then
   done < <(awk '{ gsub(/&&|\|\||[;&|(`]/, "\n"); print }' <<< "$chained_data")
 fi
 
+osascript_re='[Oo][Ss][Aa][Ss][Cc][Rr][Ii][Pp][Tt]'
 # A new Finder window opens as a tab of the window group of the user, so a bounds, position, or
 # size change of a Finder window moves the windows of the user. The rule reads the whole command
 # with each new line as a space and in lower case, so a heredoc, a multi-line -e, and the three -e
@@ -559,7 +580,7 @@ fi
 # "of ... process "Finder"" with no quote in the gap. A set after the end tell of a Finder tell
 # also blocks: the safe side. A text rule does not see a script file (osascript <file>), JXA, or
 # a window name with quotes before 'of process "Finder"' in rule (b).
-if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' |
+if [[ "$COMMAND" =~ $osascript_re ]] && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' |
   awk '{ gsub(/osascript|tell (app|application|process) /, "\n&"); print }' | awk '
   /set (the )?(bounds|position|size) of [^"\047]*process \\?"finder/ { found = 1 }
   /^tell (app|application|(application )?process) (id )?\\?"(com\.apple\.)?finder\\?"/ && /set (the )?(bounds|position|size)([^a-z0-9_]|$)/ { found = 1 }
@@ -577,7 +598,7 @@ fi
 # file (osascript <file>), JXA, or an app name that is not a string. A data string with "app" and
 # then a space and a quote (display dialog "Quit the app " & x) also blocks: the safe side; such a
 # script goes in a file.
-if grep -qi osascript <<< "$COMMAND" && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
+if [[ "$COMMAND" =~ $osascript_re ]] && tr '\n\t' '  ' <<< "$COMMAND" | tr -s ' ' | tr '[:upper:]' '[:lower:]' | awk '
   { s = $0
     while (match(s, /(^|[^a-z0-9_.-])(app|application) (id )?\\?"[^"\\]*/)) {
       name = substr(s, RSTART, RLENGTH)
@@ -593,7 +614,7 @@ fi
 # A quit by name (killall, pkill -x) also quits the copy of the user, with its unsaved work
 # (AGT-120). A bare pkill -f (the mutation stop of deliver Phase 7) stays allowed. A text rule does
 # not see a quit in a script file.
-if grep -qE '(^|[^[:alnum:]_.-])(killall( |$)|pkill( +-[^ ]+)* +-[a-zA-Z]*x)' <<< "$NORMALIZED"; then
+if matches '(^|[^[:alnum:]_.-])(killall( |$)|pkill( +-[^ ]+)* +-[a-zA-Z]*x)' "$NORMALIZED"; then
   block "quits each process with a name (killall, pkill -x), so it also quits the copy of the user, with its unsaved work" \
     "Find the PID with pgrep, record the PID of the process that the probe started, and quit only that PID (kill <pid>)."
 fi
@@ -625,37 +646,61 @@ commit_files() {
     }
   }'
 }
-while IFS= read -r file; do
-  file="${file#[\'\"]}"
-  file="${file%[\'\"]}"
-  if [[ "$file" == *commit-msg.txt || "$file" == *.scratchpads/* ]] && [[ "$file" != .scratchpads/commit-msg.txt ]]; then
-    block "reads a commit message file that can be the file of another work tree; write .scratchpads/commit-msg.txt in the work tree that commits and pass that relative path"
-  fi
-done < <(commit_files <<< "$NORMALIZED")
+if [[ "$NORMALIZED" == *"git commit"* ]]; then
+  while IFS= read -r file; do
+    file="${file#[\'\"]}"
+    file="${file%[\'\"]}"
+    if [[ "$file" == *commit-msg.txt || "$file" == *.scratchpads/* ]] && [[ "$file" != .scratchpads/commit-msg.txt ]]; then
+      block "reads a commit message file that can be the file of another work tree; write .scratchpads/commit-msg.txt in the work tree that commits and pass that relative path"
+    fi
+  done < <(commit_files <<< "$NORMALIZED")
+fi
 
+# tccutil_user_id <text>: 0 when a line with tccutil reset still names the app ID of the user after
+# each verify copy ID is cut (one pass, as sed s///g).
+tccutil_user_id() {
+  local line rest out copy_re='com\.delineas\.dirigible\.verify-[0-9a-f]+' tccutil_re='(^|[^[:alnum:]_.-])tccutil +reset( |$)'
+  while IFS= read -r line; do
+    [[ "$line" =~ $tccutil_re ]] || continue
+    out="" rest="$line"
+    while [[ "$rest" =~ $copy_re ]]; do
+      out+="${rest%%"${BASH_REMATCH[0]}"*}"
+      rest="${rest#*"${BASH_REMATCH[0]}"}"
+    done
+    [[ "$out$rest" == *com.delineas.dirigible* ]] && return 0
+  done <<< "$1"
+  return 1
+}
 # A privacy reset of com.delineas.dirigible removes the grants of each build of the user (VER-084:
 # one reset removed 11 records). Only the ID of the verify copy, com.delineas.dirigible.verify-<hash>,
 # may be reset.
-if grep -E '(^|[^[:alnum:]_.-])tccutil +reset( |$)' <<< "$NORMALIZED" |
-  sed -E 's/com\.delineas\.dirigible\.verify-[0-9a-f]+//g' | grep -q 'com\.delineas\.dirigible'; then
+if tccutil_user_id "$NORMALIZED"; then
   block "resets the privacy grants of the app ID of the user (com.delineas.dirigible), and so of each build of the user" \
     "Reset only the copy of the check: scripts/verify-copy.sh stop runs tccutil reset All with the copy ID, and scripts/verify-copy.sh id prints it."
 fi
 
 # A reset with no bundle ID removes the grants of every app (Zoom and Teams too), and a bundle ID
 # from a variable or a substitution can name the ID of the user. Both block.
-while IFS= read -r reset; do
-  rest="${reset#*reset}"
-  read -ra words <<< "${rest%[;&|]}"
-  if [[ ${#words[@]} -lt 2 || "${words[1]}" == *[\$\`]* ]]; then
-    block "resets the privacy grants of every app (tccutil reset with no bundle ID, or with a bundle ID that holds \$ or a backtick)" \
-      "Reset only the copy of the check: scripts/verify-copy.sh stop runs tccutil reset All with the copy ID, and scripts/verify-copy.sh id prints it."
-  fi
-done < <(sed -E 's/[0-9]*>&[0-9-]*//g' <<< "$NORMALIZED" |
-  grep -oE '(^|[^[:alnum:]_.-])tccutil +reset( [^;&|]*)?($|[;&|])')
+if [[ "$NORMALIZED" == *tccutil* ]]; then
+  reset_re='(^|[^[:alnum:]_.-])tccutil +reset( [^;&|]*)?($|[;&|])'
+  while IFS= read -r line; do
+    while [[ "$line" =~ $reset_re ]]; do
+      reset="${BASH_REMATCH[0]}"
+      # The leading "a" stands for the text already read, so ^ and the character before tccutil
+      # match as in grep -o.
+      line="a${line#*"$reset"}"
+      rest="${reset#*reset}"
+      read -ra words <<< "${rest%[;&|]}"
+      if [[ ${#words[@]} -lt 2 || "${words[1]}" == *[\$\`]* ]]; then
+        block "resets the privacy grants of every app (tccutil reset with no bundle ID, or with a bundle ID that holds \$ or a backtick)" \
+          "Reset only the copy of the check: scripts/verify-copy.sh stop runs tccutil reset All with the copy ID, and scripts/verify-copy.sh id prints it."
+      fi
+    done
+  done < <(sed -E 's/[0-9]*>&[0-9-]*//g' <<< "$NORMALIZED")
+fi
 
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
-  if grep -qE -- "$pattern" <<< "$NORMALIZED"; then
+  if matches "$pattern" "$NORMALIZED"; then
     block "matches '$pattern'"
   fi
 done
@@ -671,20 +716,29 @@ is_route() { [[ "$1" =~ $route && "$1" != *'$('* && "$1" != *'`'* && "$1" != *'<
 merge_text=""
 while IFS= read -r line; do is_route "$line" || merge_text+="$line"$'\n'; done <<< "$NORMALIZED"
 flat="${UNSPLIT//$'\n'/ }"
-if [[ "$(wc -l <<< "$NORMALIZED")" -eq 1 ]] && is_route "$UNSPLIT"; then flat=""; fi
+if [[ "$NORMALIZED" != *$'\n'* ]] && is_route "$UNSPLIT"; then flat=""; fi
 # Drop the repo flags of gh (-R <repo>, --repo <repo>) before or after pr, api, or alias, so
 # `gh -R o/r pr merge` reads as `gh pr merge`. One pass drops the flags of one position.
 drop_repo_flags() {
   local text="$1" next
+  [[ "$text" == *gh* ]] || { printf '%s\n' "$text"; return; }
   while next="$(sed -E 's/(^|[^[:alnum:]_-])(gh( +(pr|api|alias))?)( +(-R[ =]?|--repo[ =])[^ ]+)+/\1\2/g' <<< "$text")"; [[ "$next" != "$text" ]]; do text="$next"; done
   printf '%s\n' "$text"
 }
 merge_text="$(drop_repo_flags "$merge_text")"
 flat="$(drop_repo_flags "$flat")"
-if grep -qE 'gh pr merge( |$)' <<< "$merge_text" ||
-  grep -E 'gh api .*pulls/[^/ ]+/merge' <<< "$merge_text" | grep -qiE -- '(-X ?PUT|--method[ =]PUT)' ||
-  grep -qE 'gh api .*(mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat" ||
-  grep -qE 'gh alias set .*(pr merge|pulls/[^/ ]+/merge|mergePullRequest|enablePullRequestAutoMerge)' <<< "$flat"; then
+# merge_put <text>: 0 when a line is a gh api call to a pulls/<n>/merge path with a PUT (any case).
+merge_put() {
+  local line api_re='gh api .*pulls/[^/ ]+/merge' put_re='(-[Xx] ?[Pp][Uu][Tt]|--[Mm][Ee][Tt][Hh][Oo][Dd][ =][Pp][Uu][Tt])'
+  while IFS= read -r line; do
+    [[ "$line" =~ $api_re && "$line" =~ $put_re ]] && return 0
+  done <<< "$1"
+  return 1
+}
+if matches 'gh pr merge( |$)' "$merge_text" ||
+  merge_put "$merge_text" ||
+  matches 'gh api .*(mergePullRequest|enablePullRequestAutoMerge)' "$flat" ||
+  matches 'gh alias set .*(pr merge|pulls/[^/ ]+/merge|mergePullRequest|enablePullRequestAutoMerge)' "$flat"; then
   block_merge
 fi
 
@@ -698,12 +752,16 @@ tag_way="Tag a release with scripts/tag-release.sh <version> <commit> <message>:
 # make a tag when a name follows and no list flag does, so they read only with no name.
 tag_reads() {
   local rest="$1" word
-  ! grep -qE '(^| )(-[a-zA-Z]*[adsfmF][a-zA-Z]*|--delete|--annotate|--sign|--force|--message|--file)( |=|$)' <<< "$rest" || return 1
-  ! grep -qE '(^| )(-l[n0-9]*|--list|--points-at|--contains|--no-contains|--merged|--no-merged|-n[0-9]*|-v|--verify)( |=|$)' <<< "$rest" || return 0
+  local change_re='(^| )(-[a-zA-Z]*[adsfmF][a-zA-Z]*|--delete|--annotate|--sign|--force|--message|--file)( |=|$)'
+  local list_re='(^| )(-l[n0-9]*|--list|--points-at|--contains|--no-contains|--merged|--no-merged|-n[0-9]*|-v|--verify)( |=|$)'
+  local format_re='(^| )--(sort|format|column)( |=|$)'
+  [[ "$rest" =~ $change_re ]] && return 1
+  [[ "$rest" =~ $list_re ]] && return 0
   rest="$(sed -E "s/--(sort|format)=(\"[^\"]*\"|'[^']*')//g" <<< "$rest")"
   for word in $rest; do [[ "$word" == -* ]] || return 1; done
-  grep -qE '(^| )--(sort|format|column)( |=|$)' <<< "$rest"
+  [[ "$rest" =~ $format_re ]]
 }
+tag_push_re="(^|[ (])git push( .*)? (--tags|[^ ]*refs/tags/|[\"']?v[0-9])"
 while IFS= read -r line; do
   if [[ "$line" =~ (^|[ \(])git\ tag(\ |$)(.*) ]]; then
     rest="${BASH_REMATCH[3]}"
@@ -711,7 +769,7 @@ while IFS= read -r line; do
       block "makes, deletes, or moves a tag by hand" "$tag_way"
     fi
   fi
-  if grep -qE "(^|[ (])git push( .*)? (--tags|[^ ]*refs/tags/|[\"']?v[0-9])" <<< "$line"; then
+  if [[ "$line" =~ $tag_push_re ]]; then
     block "pushes a tag by hand" "$tag_way"
   fi
 done <<< "$NORMALIZED"

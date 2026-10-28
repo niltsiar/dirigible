@@ -31,10 +31,11 @@ fi
 # data. A body is data when the first line is `cat` or `tee` with a redirect or a file argument to a
 # plain file, and only the marker (or the marker and one `> file`) ends that line. In mode all, the
 # body of python3, node, perl, or ruby with no -c or -e goes too: only the lock-value rule and the
-# log-decision rule skip it, because an interpreter runs its body. A body stays when the end line is
-# missing or not exact, when the first line has a second marker, a here-string, a pipe, or a list,
-# and when an unquoted marker has `$(` or a backtick in the body (the shell runs them). After a
-# line that it can not read, it cuts no more.
+# log-decision rule skip it, because an interpreter runs its body. One `cd <word> &&` before the
+# first word is not part of that line. A body stays when the end line is missing or not exact, when
+# the first line has a second marker, a here-string, a pipe, or another list, and when an unquoted
+# marker has `$(` or a backtick in the body (the shell runs them). After a line that it can not
+# read, it cuts no more.
 cut_bodies() {
   local mode="$1" line head tail marker dash quoted body i j k n ones kind has_arg name w out="" cut
   local bt='`' lines=() ws=()
@@ -76,6 +77,7 @@ cut_bodies() {
       break
     fi
     kind=none
+    [[ "$head" =~ ^[[:space:]]*cd[[:space:]]+[^[:space:]\;\&\|\<\>]+[[:space:]]*\&\&(.*)$ ]] && head="${BASH_REMATCH[1]}"
     if [[ "$head" =~ $sink_re ]]; then
       name="${BASH_REMATCH[1]}"
     else
@@ -182,13 +184,16 @@ fi
 # The rule matches git commit, make, or swift only at a command start: the text start, or after
 # `;`, `|`, `&`, `(`, or a new line, then the prefix words `{`, `!`, if, then, do, else, while,
 # NAME=value, time, env, bash, with-lock.sh, and probe.sh <folder>, in any order. So the word make
-# in row text is data. Limits: in quoted data, git commit, make, or swift after `;`, `|`, `&`, `(`,
+# in row text is data. log-decision.sh also counts only at a command start, after the same prefix
+# words, so a read of the script (cat, sed -n, head) after a commit or a build passes. Limits: in quoted data, git commit, make, or swift after `;`, `|`, `&`, `(`,
 # or a new line still blocks: write the row file with the Write tool and log it with
 # log-decision.sh --from <file>. A command after another wrapper word (nice, nohup, caffeinate,
 # xcrun) or after a quote character is not blocked.
 word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
 start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
-if [[ "$chained_data" =~ $start(git\ commit|make|swift)([[:space:]]|$)(.*)log-decision\.sh ]]; then
+if [[ "$chained_data" =~ $start(git\ commit|make|swift)([[:space:]].*)?$start[^[:space:]]*log-decision\.sh ]]; then
+  # Group 6 is optional, so the start before log-decision.sh can take a new line right after make.
+  # Group 7 is that separator: it stays in the test below.
   middle="${BASH_REMATCH[6]}${BASH_REMATCH[7]}"
   drop_safe_joins "${middle//||/}"
   if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then

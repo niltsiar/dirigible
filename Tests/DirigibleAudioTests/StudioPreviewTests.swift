@@ -87,4 +87,37 @@ struct StudioPreviewTests {
         }
         await studio.settle()
     }
+
+    /// Code gate 2 item 3: a configuration change while a new window renders stops the preview,
+    /// and that render starts no loop (fail: `.playing` after the render ends).
+    @Test func outputChangeDuringARenderStops() async throws {
+        let studio = try await Studio.open(package.url)
+        studio.environment = .test(TestHAL([mic]))
+        let (armed, gate) = (LockedBox<Bool>(), Gate(limit: nil))
+        defer { gate.open() }
+        studio.environment.clipRenderRead = ReadFault(stem: "f1", block: 0) {
+            if armed.value == true { gate.waitOnce() }
+        }
+        await studio.perform(.seek(.start))
+        try await studio.startEffectPreview(ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", listen: .result)
+        try #require(studio.effectPreviewState == .playing)
+        armed.value = true
+        let twenty = ClipRenderRequest(Treatment(.noise(NoiseReduction(decibels: 20)!)))
+        let started = Task { try await studio.startEffectPreview(twenty, of: "c1", listen: .result) }
+        await gate.entered()
+        try #require(studio.effectPreviewState == .updating)
+
+        await studio.effectPreview.engine?.postConfigurationChange()
+        await until(limit: .seconds(17), "the output change did not stop the preview") {
+            studio.effectPreviewState == .stopped
+        }
+        gate.open()
+        try await started.value
+
+        #expect(studio.effectPreviewState == .stopped)
+        let engine = try #require(studio.effectPreview.engine)
+        let looped = await engine.renderOffline(frames: 48_000)
+        #expect(looped.allSatisfy { $0.allSatisfy { $0 == 0 } }, "the new window loops")
+        await studio.settle()
+    }
 }

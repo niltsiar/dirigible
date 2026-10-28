@@ -217,9 +217,16 @@ actor EffectPreview {
     }
 
     /// A configuration change of the engine: the loop stops, and `ended` gets the newest number.
+    /// The newest number goes up by one at once, so a window render in flight ends at its next
+    /// block before `ended` reaches the main actor. The stop number that `Studio` then takes is
+    /// that same number.
     func outputChanged() {
         halt()
-        ended(latest.withLock { $0 })
+        ended(
+            latest.withLock { number in
+                defer { number += 1 }
+                return number
+            })
     }
 
     private func halt() {

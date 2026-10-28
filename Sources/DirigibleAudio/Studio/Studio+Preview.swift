@@ -84,8 +84,10 @@ extension Studio {
         return engine
     }
 
-    /// A configuration change of the preview output stopped the loop of the call `number`.
+    /// A configuration change of the preview output stopped the loop of the call `number`. It
+    /// takes the stop number as each other stop does, so a window render in flight starts no loop.
     private func effectPreviewEnded(_ number: Int) {
-        if effectPreview.number == number { effectPreview.state = .stopped }
+        guard effectPreview.number == number else { return }
+        _ = takeEffectPreviewStop()
     }
 }

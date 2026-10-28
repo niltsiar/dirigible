@@ -106,9 +106,11 @@ extension Studio {
     /// writer, and a source whose tracks changed or went is finished. The caller holds a monitor
     /// turn. With take writers, it changes nothing. It makes the whole state change before its
     /// first await and then waits for the finish of each released writer, so a take that begins
-    /// meanwhile keeps its entries of `liveTracks`. The device of a writer that a stop left
-    /// unfinished gets no monitor writer: its queue can wait in a HAL call of that device. A new
-    /// device writer starts in the turn; a new app writer starts in `startAppMonitors`.
+    /// meanwhile keeps its entries of `liveTracks`. A released app writer that did not attach
+    /// finishes later with no wait: its attach can wait at the System Audio Recording prompt, and
+    /// the hand-over of a take waits for this turn (decision 0030 Start). The device of a writer
+    /// that a stop left unfinished gets no monitor writer: its queue can wait in a HAL call of that
+    /// device. A new device writer starts in the turn; a new app writer starts in `startAppMonitors`.
     func applyMonitor() async {
         guard writers.isEmpty else { return }
         let held = Set(unfinishedWriters.map(\.uid))
@@ -137,9 +139,11 @@ extension Studio {
             if writer.app == nil { writer.start() } else { apps.append(writer) }
         }
         if !apps.isEmpty { startAppMonitors(apps) }
+        let waits = released.filter { $0.app == nil || $0.startState == .attached }
+        for writer in released where !waits.contains(where: { $0 === writer }) { writer.finishLater() }
         // A monitor writer has no file, so one that does not finish in time loses no audio.
-        let answers = await boundedEach(released, by: ContinuousClock.now + environment.stopLimit) { await $0.finish() }
-        for writer in released where answers[ObjectIdentifier(writer)] == nil { writer.finishLater() }
+        let answers = await boundedEach(waits, by: ContinuousClock.now + environment.stopLimit) { await $0.finish() }
+        for writer in waits where answers[ObjectIdentifier(writer)] == nil { writer.finishLater() }
     }
 
     /// Starts the app writers `apps` after the first attach try of each device monitor writer,

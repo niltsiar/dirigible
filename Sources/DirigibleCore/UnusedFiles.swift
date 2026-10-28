@@ -5,7 +5,8 @@ import Foundation
 /// clip of a keeper uses stays, with each file of its origin chain (decision 0057): the
 /// `session.xml` on the disk (the prune save can make it a backup), each readable backup, and the
 /// keepers that the caller gives (the undo and redo entries, the clipboard files). Also each
-/// transcript file in `Transcripts/` that the session and these holders do not name (decision 0055). The scan is the one place of this rule.
+/// transcript file in `Transcripts/` that the session and these holders do not name
+/// (decision 0055). The scan is the one place of this rule.
 public struct UnusedFiles: Hashable, Sendable {
     public struct Item: Hashable, Sendable {
         public enum Kind: Hashable, Sendable {

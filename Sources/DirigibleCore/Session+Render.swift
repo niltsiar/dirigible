@@ -30,13 +30,13 @@ public struct RenderedClip: Hashable, Sendable {
 extension Session {
     /// Moves the clips of `runs` onto the files that a render made from the spans of their runs
     /// (decision 0054). The caller writes the files and gives their stems. For each run, a new file
-    /// "<stem>.wav" with the layout of the source file, the length of the span, the `capture` of the
-    /// source, and the origin of the run (decision 0057), with no words. Each clip of the run points
-    /// at that file at (old offset - run start), gets the added gain on its gain (clamped to
-    /// `Gain.range`), and keeps its ID, start, length, fades, and crossfades. Its envelope keeps the
-    /// gain at each source frame (`GainEnvelope.moved`). The source files stay in the pool. The result lists
-    /// each moved clip with its new file, in the order of `runs`, and inside a run in the order of
-    /// `run.clips`.
+    /// "<stem>.wav" with the layout of the source file, the length of the span, the `capture` of
+    /// the source, and the origin of the run (decision 0057), with no words. Each clip of the run
+    /// points at that file at (old offset - run start), gets the added gain on its gain (clamped to
+    /// `Gain.range`), and keeps its ID, start, length, fades, and crossfades. Its envelope keeps
+    /// the gain at each source frame (`GainEnvelope.moved`). The source files stay in the pool. The
+    /// result lists each moved clip with its new file, in the order of `runs`, and inside a run in
+    /// the order of `run.clips`.
     ///
     /// The runs must be the runs that `clipRuns(of:)` gives for the clips of all runs, else it
     /// throws `.frameOutOfRange`. A stem that a file of the pool has, an ID or a path, a stem that

@@ -92,12 +92,12 @@ extension DenoiseDraft {
         await until("the render ends") { model.importJob == nil }
 
         let draft = draft(["c1", "c2"], in: studio)
-        #expect(draft.decibels == 20 && draft.mixedAmounts == nil, "\(draft)")
+        #expect(draft.noise && draft.decibels == 20 && draft.mixedNoise == nil, "\(draft)")
         await model.close()
     }
 
     /// C18 and U45: clips stored at 12 and 20 dB open the dial at the preference, 15, and the
-    /// sheet gives the range for its line.
+    /// mixed line counts 2 of 2 clips with noise reduction.
     @Test func mixedAmountsStartAtThePreference() async throws {
         let (model, studio) = try await open()
         model.timeline.selection = set("c1")
@@ -111,12 +111,13 @@ extension DenoiseDraft {
 
         let draft = draft(["c1", "c2"], in: studio, defaults: defaults)
 
-        #expect(draft.decibels == 15 && draft.mixedAmounts == 12...20, "\(draft)")
+        #expect(draft.decibels == 15 && draft.mixedNoise == DenoiseDraft.Mixed(holding: 2, of: 2), "\(draft)")
         await model.close()
     }
 
     /// C18 (plan gate 4 item 2): a clip stored at hum 60 with a preference of 50 Hz opens with
     /// Remove hum on at 60 Hz; clips at 50 and 60 Hz open at the preference with the mixed line.
+    /// The mixed line counts the clips with hum.
     @Test func storedHumStartsTheSheet() async throws {
         let (model, studio) = try await open()
         model.timeline.selection = set("c1")
@@ -126,13 +127,68 @@ extension DenoiseDraft {
         defaults.set(50, forKey: "denoise.humHz")
 
         let stored = draft(["c1"], in: studio, defaults: defaults)
-        #expect(stored.hum && stored.frequency == .hz60 && stored.mixedFrequencies.isEmpty, "\(stored)")
+        #expect(stored.hum && stored.frequency == .hz60 && stored.mixedHum == nil, "\(stored)")
 
         model.timeline.selection = set("c2")
         try model.reduceNoiseFromSheet { $0 = DenoiseDraft.edited($0, noise: false, decibels: 12, hum: true, .hz50) }
         await until("the second render ends") { model.importJob == nil }
         let mixed = draft(["c1", "c2"], in: studio, defaults: defaults)
-        #expect(mixed.frequency == .hz50 && mixed.mixedFrequencies == [.hz50, .hz60], "\(mixed)")
+        #expect(
+            !mixed.hum && mixed.frequency == .hz50 && mixed.mixedHum == DenoiseDraft.Mixed(holding: 2, of: 2),
+            "\(mixed)")
+        await model.close()
+    }
+
+    /// C18: a cleared Remove hum on a clip stored at hum 50 and 12 dB renders the clip with the
+    /// noise reduction alone (fail: "Nothing to change.").
+    @Test func clearedBoxRemovesTheStoredEffect() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = set("c1")
+        try model.reduceNoiseFromSheet { $0 = DenoiseDraft.edited($0, noise: true, decibels: 12, hum: true, .hz50) }
+        await until("the first render ends") { model.importJob == nil }
+
+        try model.reduceNoiseFromSheet { $0.hum = false }
+        await until("the second render ends") { model.importJob == nil }
+
+        let effects = studio.session.origins(of: "c1").flatMap(\.treatment.effects)
+        #expect(effects == [.noise(.standard)], "\(effects)")
+        #expect(model.alert == nil && path(of: "c1", studio) == "f1 NR 2.wav", "\(path(of: "c1", studio))")
+        await model.close()
+    }
+
+    /// C18: one of two clips stored with hum at 60 Hz opens Remove hum off at the preference, 50 Hz
+    /// (fail: on at 60 Hz).
+    @Test func partialHumStartsAtThePreference() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = set("c1")
+        try model.reduceNoiseFromSheet { $0 = DenoiseDraft.edited($0, noise: false, decibels: 12, hum: true, .hz60) }
+        await until("the render ends") { model.importJob == nil }
+        let defaults = try defaults()
+        defaults.set(50, forKey: "denoise.humHz")
+
+        let partial = draft(["c1", "c2"], in: studio, defaults: defaults)
+
+        #expect(!partial.hum && partial.frequency == .hz50, "\(partial)")
+        #expect(partial.mixedHum == DenoiseDraft.Mixed(holding: 1, of: 2), "\(partial)")
+        await model.close()
+    }
+
+    /// C13 and C18: a clip stored at 12 dB whose track then gets the music role takes hum alone,
+    /// and the render removes the stored noise (fail: the track role refusal).
+    @Test func humAloneRemovesTheStoredNoise() async throws {
+        let (model, studio) = try await open()
+        model.timeline.selection = set("c1")
+        try model.reduceNoiseFromSheet { $0 = DenoiseDraft.edited($0, noise: true, decibels: 12, hum: false, .hz50) }
+        await until("the first render ends") { model.importJob == nil }
+        model.setRole(.music, tracks: ["t1"])
+        await until("the role is set") { studio.session.track("t1")?.role == .music }
+
+        try model.reduceNoiseFromSheet { $0 = DenoiseDraft.edited($0, noise: false, decibels: 12, hum: true, .hz50) }
+        await until("the second render ends") { model.importJob == nil }
+
+        #expect(model.alert == nil, "\(String(describing: model.alert))")
+        let effects = studio.session.origins(of: "c1").flatMap(\.treatment.effects)
+        #expect(effects == [.hum(.hz50)] && path(of: "c1", studio).hasSuffix(" HR.wav"), "\(effects)")
         await model.close()
     }
 
@@ -149,6 +205,9 @@ extension DenoiseDraft {
         music.noise = false
         music.hum = true
         #expect(music.canApply(in: studio.session), "hum alone takes a music clip")
+        var both = draft(["c4", "c3"], in: studio)
+        (both.noise, both.hum) = (false, true)
+        #expect(both.previewClip(in: studio.session) == "c3", "hum alone previews in track order")
         model.timeline.selection = set("c1")
         model.run(.reduceNoise)
         var open = try #require(model.denoiseDraft)

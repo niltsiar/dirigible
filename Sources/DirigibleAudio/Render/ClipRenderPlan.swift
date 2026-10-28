@@ -2,11 +2,9 @@ import AudioToolbox
 import DirigibleCore
 import Foundation
 
-/// The renders of one request (decision 0057). For each clip, the lowest level of its origin chain
-/// whose treatment holds a requested kind is rebuilt with `ClipRenderRequest(stored)
-/// .replacing(with: request)`, each level above it renders again with `ClipRenderRequest(stored)
-/// .removing(kinds)`, and a level with no effect left goes. A chain with no such level gets one new
-/// level on top. So each kind is in one level at most.
+/// The renders of one request (decision 0057): for each clip, the levels of `levelRequests`, or
+/// one new level on top when no level holds a kind that the request sets or removes. So each kind
+/// is in one level at most.
 struct ClipRenderPlan {
     /// The session with each clip of `levels` moved below the lowest level that it renders again.
     /// Each other clip keeps its file, offset, gain, and envelope.
@@ -18,28 +16,31 @@ struct ClipRenderPlan {
 }
 
 /// The plan of `request` on `clips`. A clip is unchanged when the request equals the stored
-/// effects of its lowest level (`ClipRenderRequest.isUnchanged(from:)`) and its file covers the
+/// effects of its lowest level (`ClipRenderRequest.isUnchanged(from:)`), no level above holds a kind
+/// that the request sets or removes, and its file covers the
 /// span with handles that `clipRuns` gives for it on the source of that level. So a trim in, a
 /// split half, or a deleted middle needs no render, and a trim out to the edge of the rendered file
 /// renders again. It throws the refusals of `Session.lower`.
 func clipRenderPlan(
     _ clips: [ClipID], request: ClipRenderRequest, in session: Session
 ) throws(SessionError) -> ClipRenderPlan {
-    let kinds = request.kinds
+    let touched = request.touched
     var lowered = session
     var renders: [(clip: ClipID, requests: [ClipRenderRequest])] = []
     var unchanged: [ClipID] = []
     var seen: Set<ClipID> = []
     for clip in clips where seen.insert(clip).inserted {
         let chain = session.origins(of: clip)
-        guard let lowest = levelHolding(kinds, of: clip, in: session) else {
+        guard let rebuilt = levelRequests(request, of: clip, in: session) else {
             renders.append((clip, [request]))
             continue
         }
+        let (lowest, requests) = rebuilt
         var below = lowered
         try below.lower([clip], levels: lowest + 1)
-        if request.isUnchanged(from: chain[lowest].treatment), let file = session.clip(clip)?.clip.file,
-            let length = session.files[file]?.length
+        if request.isUnchanged(from: chain[lowest].treatment),
+            !chain[..<lowest].contains(where: { $0.treatment.effects.contains { touched.contains($0.kind) } }),
+            let file = session.clip(clip)?.clip.file, let length = session.files[file]?.length
         {
             // The frames of the file of the clip, in the frames of the source of the level.
             let start = chain[...lowest].reduce(Frames.zero) { $0 + $1.offset }
@@ -50,8 +51,7 @@ func clipRenderPlan(
             }
         }
         lowered = below
-        let above = chain[..<lowest].reversed().compactMap { ClipRenderRequest($0.treatment).removing(kinds) }
-        renders.append((clip, [ClipRenderRequest(chain[lowest].treatment).replacing(with: request)] + above))
+        renders.append((clip, requests))
     }
     let depth = renders.map(\.requests.count).max() ?? 0
     let levels = (0..<depth).map { index in
@@ -69,12 +69,23 @@ func clipRenderPlan(
     return ClipRenderPlan(lowered: lowered, levels: levels, unchanged: unchanged)
 }
 
-/// The index in `session.origins(of: clip)` of the lowest level whose treatment holds a kind of
-/// `kinds`, or nil: the render puts a new level on top. `clipRenderPlan` and the preview window
-/// call it; only `clipRenderPlan` applies the unchanged rule.
-func levelHolding(_ kinds: Set<Effect.Kind>, of clip: ClipID, in session: Session) -> Int? {
-    // Top level first, so the lowest level of a requested kind is the last match.
-    session.origins(of: clip).lastIndex { $0.treatment.effects.contains { kinds.contains($0.kind) } }
+/// The levels that a render of `request` on `clip` builds again (decision 0057 D4), or nil when no
+/// level of the origin chain holds a kind that the request sets or removes: then the render puts a
+/// new level on top. `lowest` is the index in `session.origins(of: clip)` of the lowest level with
+/// such a kind. `requests` are, bottom first, that level with `ClipRenderRequest(stored)
+/// .replacing(with: request)` and each level above with `removing(request.touched)`; a level with
+/// no effect left goes. `clipRenderPlan` and the preview window call it; only `clipRenderPlan`
+/// applies the unchanged rule.
+func levelRequests(
+    _ request: ClipRenderRequest, of clip: ClipID, in session: Session
+) -> (lowest: Int, requests: [ClipRenderRequest])? {
+    let touched = request.touched
+    let chain = session.origins(of: clip)
+    // Top level first, so the lowest level of a touched kind is the last match.
+    guard let lowest = chain.lastIndex(where: { $0.treatment.effects.contains { touched.contains($0.kind) } })
+    else { return nil }
+    let above = chain[..<lowest].reversed().compactMap { ClipRenderRequest($0.treatment).removing(touched) }
+    return (lowest, [ClipRenderRequest(chain[lowest].treatment).replacing(with: request)] + above)
 }
 
 /// Renders the levels of `plan` in order, with one `renderClips` call for each entry: two

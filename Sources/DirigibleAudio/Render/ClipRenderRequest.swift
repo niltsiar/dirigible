@@ -18,18 +18,30 @@ public enum EffectRequest: Hashable, Sendable {
 /// compare of the levels are operations of this type only (decision 0057).
 public struct ClipRenderRequest: Hashable, Sendable {
     public let effects: [EffectRequest]
+    /// The kinds that the render takes out of the stored levels of each clip. It holds no kind of
+    /// `effects`.
+    public let removed: Set<Effect.Kind>
 
-    public init(_ treatment: Treatment) { effects = treatment.effects.map(EffectRequest.effect) }
+    /// The effects of `treatment`, and each kind of `removing` that `treatment` does not hold as a
+    /// removal.
+    public init(_ treatment: Treatment, removing: Set<Effect.Kind> = []) {
+        effects = treatment.effects.map(EffectRequest.effect)
+        removed = removing.subtracting(treatment.effects.map(\.kind))
+    }
 
     /// No check: each caller gives effects of distinct kinds in chain order.
-    private init(sorted effects: [EffectRequest]) { self.effects = effects }
+    private init(sorted effects: [EffectRequest]) { (self.effects, removed) = (effects, []) }
 
     /// The kinds of the effects.
     var kinds: Set<Effect.Kind> { Set(effects.map(\.kind)) }
 
-    /// This request with each effect of `other` in place of the effect of its kind, or added.
+    /// The kinds that a render of this request sets or removes.
+    var touched: Set<Effect.Kind> { kinds.union(removed) }
+
+    /// This request with each effect of `other` in place of the effect of its kind, or added, and
+    /// with no effect of a kind that `other` removes.
     func replacing(with other: ClipRenderRequest) -> ClipRenderRequest {
-        let kept = effects.filter { !other.kinds.contains($0.kind) }
+        let kept = effects.filter { !other.touched.contains($0.kind) }
         return ClipRenderRequest(sorted: (kept + other.effects).sorted { $0.kind.rawValue < $1.kind.rawValue })
     }
 
@@ -39,15 +51,16 @@ public struct ClipRenderRequest: Hashable, Sendable {
         return kept.isEmpty ? nil : ClipRenderRequest(sorted: kept)
     }
 
-    /// True when each effect equals the stored effect of its kind in `stored`. Only an effect that
-    /// reads no clip gain can be unchanged: a later kind that reads it (the ride, the match) is
-    /// never unchanged.
+    /// True when each effect equals the stored effect of its kind in `stored`, and `stored` holds
+    /// no removed kind. Only an effect that reads no clip gain can be unchanged: a later kind that
+    /// reads it (the ride, the match) is never unchanged.
     func isUnchanged(from stored: Treatment) -> Bool {
-        effects.allSatisfy { request in
-            switch request {
-            case .effect(let effect): stored.effects.contains(effect)
+        !stored.effects.contains { removed.contains($0.kind) }
+            && effects.allSatisfy { request in
+                switch request {
+                case .effect(let effect): stored.effects.contains(effect)
+                }
             }
-        }
     }
 
     /// The stored form, as the measure phase gives it.

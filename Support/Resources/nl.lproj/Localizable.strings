@@ -202,8 +202,8 @@
 "sheet.denoise.hum" = "Brom verwijderen";
 "sheet.denoise.hum.frequency" = "Bromfrequentie";
 "sheet.denoise.value" = "%lld decibel";
-"sheet.denoise.mixed.amounts" = "De clips hebben verschillende waarden (%1$lld tot %2$lld dB).";
-"sheet.denoise.mixed.hum" = "De clips hebben verschillende bromfrequenties (50 en 60 Hz).";
+"sheet.denoise.mixed.noise" = "Clips met ruisvermindering: %1$lld van %2$lld. Ruis verminderen past de aangevinkte effecten toe op elke clip.";
+"sheet.denoise.mixed.hum" = "Clips met bromverwijdering: %1$lld van %2$lld. Ruis verminderen past de aangevinkte effecten toe op elke clip.";
 "sheet.denoise.skipped.one" = "%lld muziek- of effectenclip krijgt geen ruisvermindering.";
 "sheet.denoise.skipped.many" = "%lld muziek- en effectenclips krijgen geen ruisvermindering.";
 "sheet.denoise.skipped.hum.one" = "%lld muziek- of effectenclip krijgt geen ruisvermindering en geen bromverwijdering.";

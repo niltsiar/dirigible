@@ -3,9 +3,9 @@ import DirigibleCore
 import SwiftUI
 
 /// The values of the Reduce Noise sheet (decision 0054): the noise reduction with its dial, the
-/// hum removal with its frequency, and the clips of the selection. The start values come from the
-/// levels that the clips hold, else from the last Reduce Noise button press, else from the first
-/// use values: 12 dB, noise on, hum off.
+/// hum removal with its frequency, and the clips of the selection. Each check box starts on at the
+/// stored value when each clip that it reads holds its kind at that one value. Else it starts at
+/// the last Reduce Noise button press, else at the first use values: 12 dB, noise on, hum off.
 struct DenoiseDraft: Equatable {
     static let noiseKey = "denoise.noise"
     static let decibelsKey = "denoise.decibels"
@@ -28,10 +28,17 @@ struct DenoiseDraft: Equatable {
     var frequency: Hum
     /// The clips of the selection by the rule of Auto Level (decision 0031), whatever their role.
     let clips: Set<ClipID>
-    /// The least and the greatest stored amount, when the clips with a noise level hold different ones.
-    let mixedAmounts: ClosedRange<Int>?
-    /// The stored hum frequencies, when the clips with a hum level hold different ones (50 and 60 Hz).
-    let mixedFrequencies: [Hum]
+    /// The mixed line of the noise, read on the clips that the noise accepts.
+    let mixedNoise: Mixed?
+    /// The mixed line of the hum, read on each clip.
+    let mixedHum: Mixed?
+
+    /// The clips that hold a kind, of the clips that a check box reads, when they do not all hold
+    /// it at one value.
+    struct Mixed: Equatable {
+        let holding: Int
+        let of: Int
+    }
 
     init(clips: Set<ClipID>, in session: Session, defaults: UserDefaults?, region: Locale.Region?) {
         self.clips = clips
@@ -44,26 +51,32 @@ struct DenoiseDraft: Equatable {
             ?? (region.map { Self.hz60Regions.contains($0.identifier) } == true ? .hz60 : .hz50)
 
         let accepted = Treatment(.noise(.standard))
-        var amounts: [Set<Int>] = []
-        var frequencies: Set<Hum> = []
+        var amounts: [Int?] = []
+        var hums: [Hum?] = []
         for id in clips {
             guard let found = session.clip(id) else { continue }
             let effects = session.origins(of: id).flatMap(\.treatment.effects)
             if accepted.accepts(session.track(found.track)?.role) {
-                amounts.append(Set(effects.compactMap { if case .noise(let n) = $0 { n.decibels } else { nil } }))
+                amounts.append(effects.lazy.compactMap { if case .noise(let n) = $0 { n.decibels } else { nil } }.first)
             }
-            for case .hum(let stored) in effects { frequencies.insert(stored) }
+            hums.append(effects.lazy.compactMap { if case .hum(let h) = $0 { h } else { nil } }.first)
         }
-        let stored = Set(amounts.flatMap { $0 })
-        if amounts.allSatisfy({ $0.count == 1 }), stored.count == 1, let only = stored.first { decibels = only }
-        if let least = stored.min(), let greatest = stored.max(), least < greatest {
-            mixedAmounts = least...greatest
-        } else {
-            mixedAmounts = nil
-        }
-        if frequencies.count == 1, let only = frequencies.first { (hum, frequency) = (true, only) }
-        mixedFrequencies = frequencies.count > 1 ? frequencies.sorted { $0.rawValue < $1.rawValue } : []
+        let noiseStart = Self.start(amounts)
+        if let only = noiseStart.value { (noise, decibels) = (true, only) }
+        let humStart = Self.start(hums)
+        if let only = humStart.value { (hum, frequency) = (true, only) }
+        (mixedNoise, mixedHum) = (noiseStart.mixed, humStart.mixed)
         (self.decibels, self.frequency) = (decibels, frequency)
+    }
+
+    /// The start of a check box from the stored value of each clip that it reads: the one value
+    /// when each clip holds it, no value when no clip holds the kind, else no value and the mixed
+    /// line.
+    private static func start<Value: Hashable>(_ stored: [Value?]) -> (value: Value?, mixed: Mixed?) {
+        let held = stored.compactMap { $0 }
+        if held.isEmpty { return (nil, nil) }
+        if held.count == stored.count, Set(held).count == 1 { return (held[0], nil) }
+        return (nil, Mixed(holding: held.count, of: stored.count))
     }
 
     /// The treatment of the check boxes, or nil when both are off or the dial is out of range.
@@ -76,6 +89,11 @@ struct DenoiseDraft: Equatable {
         }
         return Treatment(effects)
     }
+
+    /// The request of Reduce Noise and Preview: the effects of the check boxes, and the kind of
+    /// each cleared box removed from the stored levels, so each clip gets exactly the checked
+    /// effects.
+    var request: ClipRenderRequest? { treatment.map { ClipRenderRequest($0, removing: [.hum, .noise]) } }
 
     /// The clips that the treatment takes, in track order and then in clip order.
     func accepted(in session: Session) -> [ClipID] {
@@ -91,10 +109,8 @@ struct DenoiseDraft: Equatable {
 
     func canApply(in session: Session) -> Bool { !accepted(in: session).isEmpty }
 
-    /// The clip that Preview plays.
-    func previewClip(in session: Session) -> ClipID? {
-        treatment.flatMap { DirigibleAudio.previewClip(clips, treatment: $0, in: session) }
-    }
+    /// The clip that Preview plays: the first accepted clip, or nil, and then Preview is off.
+    func previewClip(in session: Session) -> ClipID? { accepted(in: session).first }
 
     func remember(in defaults: UserDefaults?) {
         defaults?.set(noise, forKey: Self.noiseKey)
@@ -127,8 +143,8 @@ struct ReduceNoiseSheet: View {
             Text(L10n.sheetDenoiseTitle.key).font(.headline)
             Toggle(L10n.sheetDenoiseNoise.key, isOn: $draft.noise).toggleStyle(.checkbox)
             dial.disabled(!draft.noise).padding(.leading, 20)
-            if let range = draft.mixedAmounts {
-                note(L10n.sheetDenoiseMixedAmounts.format(range.lowerBound, range.upperBound)).padding(.leading, 20)
+            if let mixed = draft.mixedNoise {
+                note(L10n.sheetDenoiseMixedNoise.format(mixed.holding, mixed.of)).padding(.leading, 20)
             }
             HStack {
                 Toggle(L10n.sheetDenoiseHum.key, isOn: $draft.hum).toggleStyle(.checkbox)
@@ -139,8 +155,8 @@ struct ReduceNoiseSheet: View {
                 }
                 .labelsHidden().fixedSize().disabled(!draft.hum)
             }
-            if draft.mixedFrequencies.count > 1 {
-                note(L10n.sheetDenoiseMixedHum.text).padding(.leading, 20)
+            if let mixed = draft.mixedHum {
+                note(L10n.sheetDenoiseMixedHum.format(mixed.holding, mixed.of)).padding(.leading, 20)
             }
             if let line = skippedLine { note(line) }
             Divider()
@@ -167,7 +183,7 @@ struct ReduceNoiseSheet: View {
     }
 
     private var dial: some View {
-        let help = draft.mixedAmounts.map { L10n.sheetDenoiseMixedAmounts.format($0.lowerBound, $0.upperBound) }
+        let help = draft.mixedNoise.map { L10n.sheetDenoiseMixedNoise.format($0.holding, $0.of) }
         return HStack {
             Slider(
                 value: Binding(get: { Double(draft.decibels) }, set: { draft.decibels = Int($0) }),

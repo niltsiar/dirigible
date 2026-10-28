@@ -7,15 +7,6 @@ import os
 /// What the effect preview loops: the render of the window, or the sound that the render removes.
 public enum Listen: Hashable, Sendable { case result, removedSound }
 
-/// The first clip of `clips`, in track order and then in the clip order of the track, that
-/// `treatment` accepts (`Treatment.accepts`), or nil: then Preview is off (decision 0054).
-public func previewClip(_ clips: Set<ClipID>, treatment: Treatment, in session: Session) -> ClipID? {
-    for track in session.tracks where treatment.accepts(track.role) {
-        if let clip = track.clips.first(where: { clips.contains($0.id) }) { return clip.id }
-    }
-    return nil
-}
-
 /// The audio that a preview renders: frames `span` of `file`, the first `leadIn` of which the
 /// preview drops, through one chain for each request of `levels`, bottom first.
 struct PreviewWindow: Hashable, Sendable {
@@ -25,27 +16,21 @@ struct PreviewWindow: Hashable, Sendable {
     let levels: [ClipRenderRequest]
 }
 
-/// The window of a preview of `request` on `clip` (decision 0054). On a clip whose chain has a
-/// level that holds a requested kind, it reads the source of that level at the origin offset
-/// (`levelHolding`, at any setting: a preview has no unchanged rule), so a preview never stacks;
-/// else the clip file. The levels are those of `clipRenderPlan`: that level with
-/// `ClipRenderRequest(stored).replacing(with: request)`, then each level above with
-/// `removing(kinds)`, so a stored kind that the request does not name stays in the Result. The
-/// window starts at `playhead` when it is inside the clip, else at the clip start, and ends 10 s
-/// later or at the clip end. It reads up to 1 s of lead-in before the start, to the file start.
+/// The window of a preview of `request` on `clip` (decision 0054). The levels are those of
+/// `levelRequests`, as the clip render builds them, at any setting: a preview has no unchanged
+/// rule. On a clip with such levels, it reads the source of the lowest one at the origin offset,
+/// so a preview never stacks; else the clip file. The window starts at `playhead` when it is inside
+/// the clip, else at the clip start, and ends 10 s later or at the clip end. It reads up to 1 s of
+/// lead-in before the start, to the file start.
 func previewWindow(
     of clip: ClipID, request: ClipRenderRequest, playhead: Frames, in session: Session
 ) throws(SessionError) -> PreviewWindow {
     guard let placed = session.clip(clip)?.clip else { throw .unknownClip(clip) }
-    let kinds = request.kinds
     var source = session
     var levels = [request]
-    if let lowest = levelHolding(kinds, of: clip, in: session) {
-        let chain = session.origins(of: clip)
-        try source.lower([clip], levels: lowest + 1)
-        levels =
-            [ClipRenderRequest(chain[lowest].treatment).replacing(with: request)]
-            + chain[..<lowest].reversed().compactMap { ClipRenderRequest($0.treatment).removing(kinds) }
+    if let rebuilt = levelRequests(request, of: clip, in: session) {
+        try source.lower([clip], levels: rebuilt.lowest + 1)
+        levels = rebuilt.requests
     }
     guard let lowered = source.clip(clip)?.clip else { throw .unknownClip(clip) }
     let rate = session.sampleRate

@@ -202,8 +202,8 @@
 "sheet.denoise.hum" = "Brummen entfernen";
 "sheet.denoise.hum.frequency" = "Brummfrequenz";
 "sheet.denoise.value" = "%lld Dezibel";
-"sheet.denoise.mixed.amounts" = "Die Clips haben unterschiedliche Werte (%1$lld bis %2$lld dB).";
-"sheet.denoise.mixed.hum" = "Die Clips haben unterschiedliche Brummfrequenzen (50 und 60 Hz).";
+"sheet.denoise.mixed.noise" = "Clips mit Rauschreduzierung: %1$lld von %2$lld. Rauschen reduzieren wendet die markierten Effekte auf jeden Clip an.";
+"sheet.denoise.mixed.hum" = "Clips mit Brummentfernung: %1$lld von %2$lld. Rauschen reduzieren wendet die markierten Effekte auf jeden Clip an.";
 "sheet.denoise.skipped.one" = "%lld Musik- oder Effekt-Clip erhält keine Rauschreduzierung.";
 "sheet.denoise.skipped.many" = "%lld Musik- und Effekt-Clips erhalten keine Rauschreduzierung.";
 "sheet.denoise.skipped.hum.one" = "%lld Musik- oder Effekt-Clip erhält weder Rauschreduzierung noch Brummentfernung.";

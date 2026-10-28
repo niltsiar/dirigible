@@ -202,8 +202,8 @@
 "sheet.denoise.hum" = "Rimuovi ronzio";
 "sheet.denoise.hum.frequency" = "Frequenza del ronzio";
 "sheet.denoise.value" = "%lld decibel";
-"sheet.denoise.mixed.amounts" = "Le clip hanno valori diversi (da %1$lld a %2$lld dB).";
-"sheet.denoise.mixed.hum" = "Le clip hanno frequenze di ronzio diverse (50 e 60 Hz).";
+"sheet.denoise.mixed.noise" = "Clip con riduzione del rumore: %1$lld su %2$lld. Riduci rumore applica gli effetti selezionati a ogni clip.";
+"sheet.denoise.mixed.hum" = "Clip con rimozione del ronzio: %1$lld su %2$lld. Riduci rumore applica gli effetti selezionati a ogni clip.";
 "sheet.denoise.skipped.one" = "%lld clip di musica o effetti non riceve la riduzione del rumore.";
 "sheet.denoise.skipped.many" = "%lld clip di musica ed effetti non ricevono la riduzione del rumore.";
 "sheet.denoise.skipped.hum.one" = "%lld clip di musica o effetti non riceve né la riduzione del rumore né la rimozione del ronzio.";

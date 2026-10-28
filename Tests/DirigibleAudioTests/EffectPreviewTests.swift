@@ -105,22 +105,6 @@ struct EffectPreviewTests {
         }
     }
 
-    /// C19, plan gate 4 item 8: a music clip first and a voice clip second give the voice clip with
-    /// noise on and the music clip with hum alone; a music clip alone with noise gives no clip.
-    @Test func previewTakesTheFirstAcceptedClip() throws {
-        let fixture = try RenderFixture()
-        try fixture.add(
-            "f1", [seededNoise(frames: 96_000, level: 0.05, seed: 1)], track: "m", role: .music,
-            clips: [("m1", 0, 48_000)])
-        try fixture.add(
-            "f2", [seededNoise(frames: 96_000, level: 0.05, seed: 2)], track: "v", clips: [("v1", 0, 48_000)])
-        let session = fixture.package.session
-
-        #expect(previewClip(["v1", "m1"], treatment: Treatment(.noise(.standard)), in: session) == "v1")
-        #expect(previewClip(["v1", "m1"], treatment: Treatment(.hum(.hz50)), in: session) == "m1")
-        #expect(previewClip(["m1"], treatment: Treatment(.noise(.standard)), in: session) == nil)
-    }
-
     /// C19: the window starts at the playhead inside the clip, else at the clip start, and the
     /// Result drops the 1 s of lead-in.
     @Test func windowStartsAtThePlayhead() throws {

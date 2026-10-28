@@ -35,8 +35,7 @@ extension SessionWindow {
     /// shows its alert, because an alert waits behind a sheet.
     func previewDenoise(_ draft: DenoiseDraft, listen: Listen) async {
         guard let studio = idleStudio else { return }
-        guard let request = draft.treatment.map(ClipRenderRequest.init),
-            let clip = draft.previewClip(in: studio.session)
+        guard let request = draft.request, let clip = draft.previewClip(in: studio.session)
         else { return studio.stopEffectPreview() }
         do throws(StudioError) {
             try await studio.startEffectPreview(request, of: clip, listen: listen)
@@ -53,7 +52,7 @@ extension SessionWindow {
     /// banner shows until the next change of the session: "Nothing to change." when each clip
     /// needed no render (decision 0057).
     func applyDenoise(_ draft: DenoiseDraft) {
-        guard importJob == nil, let studio = idleStudio, let treatment = draft.treatment else { return }
+        guard importJob == nil, let studio = idleStudio, let request = draft.request else { return }
         let clips = draft.accepted(in: studio.session)
         guard !clips.isEmpty else { return }
         cancelDenoise()
@@ -69,7 +68,7 @@ extension SessionWindow {
         }
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
-                let report = try await studio.renderClips(clips, request: ClipRenderRequest(treatment)) {
+                let report = try await studio.renderClips(clips, request: request) {
                     [weak self] in
                     self?.importProgressed($0)
                 }

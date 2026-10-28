@@ -40,9 +40,8 @@ struct HumRemovalTests {
     }
 
     /// C17 at 50 Hz: each band goes down 30 dB or more, 0.2 Hz off a band 20 dB or more, 75 Hz
-    /// stays within 1.0 dB, and 1 kHz within 0.5 dB. Probe U38 on the raw unit: 146.8, 24.8,
-    /// -0.41, and -0.01 dB; bands at 2f to 5f cut 50 Hz by 0.03 dB, and 0.05 octaves cuts 50.2 Hz
-    /// by 13.0 dB. The band cuts are a record value of the narrow harmonic bands.
+    /// stays within 1.0 dB, and 1 kHz within 0.5 dB. The render at `humOctaves`: 68 to 111 dB,
+    /// 24.8, 0.12, and 0.0002 dB. The band cuts are a record value of the narrow harmonic bands.
     @Test(arguments: [(1, 48_000), (2, 48_000), (1, 44_100), (2, 44_100)])
     func humRemoval50(channels: Int, rate: Int) throws {
         let cuts = try Self.cuts(
@@ -56,9 +55,9 @@ struct HumRemovalTests {
         print("C17 record: hum 50 band cuts \([50.0, 100, 150, 200].map { cuts[$0, default: .nan] }) dB, \(label)")
     }
 
-    /// C17 at 60 Hz: the bands 60 to 240 Hz 30 dB or more, 59.8 and 60.2 Hz 20 dB or more (probe:
-    /// 26.4; 0.05 octaves gives 14.5), 90 Hz within 1.0 dB (probe: -0.41), and 1 kHz within 0.5 dB.
-    /// The band cuts are a record value of the narrow harmonic bands.
+    /// C17 at 60 Hz: the bands 60 to 240 Hz 30 dB or more, 59.8 and 60.2 Hz 20 dB or more, 90 Hz
+    /// within 1.0 dB, and 1 kHz within 0.5 dB. The render at `humOctaves`: 80 to 123 dB, 26.4,
+    /// 0.12, and 0.0004 dB. The band cuts are a record value of the narrow harmonic bands.
     @Test(arguments: [(1, 48_000), (2, 48_000), (1, 44_100), (2, 44_100)])
     func humRemoval60(channels: Int, rate: Int) throws {
         let cuts = try Self.cuts(
@@ -83,6 +82,47 @@ struct HumRemovalTests {
         let label = "channels \(channels) at \(rate) Hz"
         #expect(abs(at50[180, default: 99]) <= 0.5, "180 Hz with hum 50: \(at50); \(label)")
         #expect(abs(at60[210, default: 99]) <= 0.5, "210 Hz with hum 60: \(at60); \(label)")
+    }
+
+    /// C17: each hum band holds its type, frequency, width, and bypass in the unit after setup,
+    /// while other threads make and release hum and voice units. The render reads only the unit
+    /// values.
+    @Test func eachHumBandHoldsItsParametersWhileOtherThreadsReleaseUnits() throws {
+        final class Misses: @unchecked Sendable {
+            let lock = NSLock()
+            var found: [String] = []
+        }
+        let misses = Misses()
+        DispatchQueue.concurrentPerform(iterations: 8) { thread in
+            for index in 0..<3_000 {
+                if (thread + index) % 2 == 1 {
+                    _ = try? EffectChain.voiceUnit(wet: 100, component: .soundIsolation)
+                    continue
+                }
+                let hum: Hum = index % 4 < 2 ? .hz50 : .hz60
+                let expected: [[Float]] = (0..<4).map {
+                    [0, 6, Float(hum.rawValue * ($0 + 1)), $0 == 0 ? 0.2 : 0.015]
+                }
+                let filter = try? EffectChain.humFilter(hum)
+                // AUNBandEQ: bypass, filter type, frequency, and bandwidth of band b are 1000 + b,
+                // 2000 + b, 3000 + b, and 5000 + b.
+                let stored: [[Float]] = (0..<4).map { band in
+                    [1000, 2000, 3000, 5000].map { base in
+                        var value: Float = .nan
+                        if let filter {
+                            AudioUnitGetParameter(
+                                filter.audioUnit, AudioUnitParameterID(base + band), kAudioUnitScope_Global, 0, &value)
+                        }
+                        return value
+                    }
+                }
+                guard stored != expected else { continue }
+                misses.lock.lock()
+                misses.found.append("hum \(hum.rawValue): \(stored)")
+                misses.lock.unlock()
+            }
+        }
+        #expect(misses.found.isEmpty, "\(misses.found.count) of 12000 hum stages: \(misses.found.prefix(3))")
     }
 
     /// C17b: hum alone loads no voice unit: with a description that finds no component, the clip

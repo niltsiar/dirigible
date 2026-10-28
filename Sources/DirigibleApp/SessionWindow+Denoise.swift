@@ -19,7 +19,8 @@ extension SessionWindow {
     /// Reduces the noise of the clips that it takes. A selection with no such clip beeps. A render
     /// that runs past the banner wait shows the banner with the progress and Cancel. A cancel
     /// changes no clip, shows no alert, and VoiceOver reads the cancel text; another error shows
-    /// its alert. At the end, a result banner shows until the next change of the session.
+    /// its alert. At the end, a result banner shows until the next change of the session: "Nothing
+    /// to change." when each clip needed no render (decision 0057).
     func reduceNoise() {
         guard importJob == nil, let studio = idleStudio else { return }
         let clips = denoiseClips(in: studio.session)
@@ -53,7 +54,7 @@ extension SessionWindow {
     }
 
     private func showDenoiseReport(_ report: ClipRenderReport, revision: Int) {
-        guard let noise = report.noise, !report.clips.isEmpty else { return }
+        guard let noise = report.noise, !report.clips.isEmpty || !report.unchanged.isEmpty else { return }
         denoisePresses += 1
         denoiseReport = DenoiseReportShown(
             clips: report.clips.count, decibels: noise.decibels, revision: revision, press: denoisePresses)

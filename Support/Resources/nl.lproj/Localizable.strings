@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Verlaag muziek onder spraak…";
 "menu.tools.split.stereo" = "Stereo splitsen naar mono";
 "menu.tools.reduce.noise" = "Ruis verminderen";
+"menu.tools.restore.original" = "Originele audio herstellen";
 
 /* Errors */
 "error.studio.busy" = "Er wordt een take opgenomen of afgerond. Wacht tot die klaar is.";
@@ -190,6 +191,7 @@
 "denoise.done.one" = "Ruis verminderd in 1 clip met %lld dB.";
 "denoise.done.many" = "Ruis verminderd in %1$lld clips met %2$lld dB.";
 "denoise.canceled" = "Ruisvermindering geannuleerd. Geen clip is gewijzigd.";
+"denoise.unchanged" = "Niets te wijzigen.";
 "error.denoise.space" = "Dirigible kan de ruis niet verminderen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.denoise.write" = "Dirigible kan de ruis niet verminderen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
 "error.denoise.unreadable" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
@@ -368,6 +370,8 @@
 "inspector.fade.in" = "Fade-in";
 "inspector.fade.out" = "Fade-out";
 "inspector.mixed" = "Gemengd";
+"inspector.effects" = "Effecten";
+"inspector.effect.noise" = "Ruis verminderen %lld dB";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Luidheidsmeter";

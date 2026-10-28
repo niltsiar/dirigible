@@ -107,6 +107,31 @@ import Testing
         await model.close()
     }
 
+    /// C5 (decision 0057): a second Reduce Noise at the same amount on the reduced clip renders
+    /// nothing. The banner says "Nothing to change.", the session stays, and no undo entry is
+    /// added: one Undo goes back to before the first render.
+    @Test func secondRenderShowsNothingToChange() async throws {
+        let (model, studio, _) = try await open()
+        let before = studio.session
+        model.timeline.selection = set("c2")
+        model.run(.reduceNoise)
+        await until("the first render ends") { model.importJob == nil }
+        let rendered = studio.session
+        #expect(fileOf("c2", studio) != "f1")
+
+        model.run(.reduceNoise)
+        await until("the second press ends") { model.importJob == nil }
+
+        #expect(studio.session == rendered && model.alert == nil)
+        #expect(model.denoiseReport?.clips == 0, "\(String(describing: model.denoiseReport))")
+        await until("the banner shows") { model.shown.banners.contains { $0.key == "denoiseReport.2" } }
+        let banner = try #require(model.shown.banners.first { $0.key == "denoiseReport.2" })
+        #expect(banner.kind == .info && banner.text == L10n.denoiseUnchanged.text, "\(banner.text)")
+        try studio.undo()
+        #expect(studio.session == before && !studio.canUndo, "one undo entry")
+        await model.close()
+    }
+
     /// C14: the result banner text in English and Spanish, with the one clip form, and the cancel
     /// text.
     @Test func resultBanner() throws {
@@ -120,6 +145,8 @@ import Testing
         #expect(text(1, tables[1]) == "Ruido reducido en 1 clip, 12 dB.")
         #expect(tables[0][L10n.denoiseCanceled.rawValue] == "Noise reduction canceled. No clip changed.")
         #expect(tables[1][L10n.denoiseCanceled.rawValue] == "Reducción de ruido cancelada. Ningún clip cambió.")
+        #expect(tables[0][L10n.denoiseUnchanged.rawValue] == "Nothing to change.")
+        #expect(tables[1][L10n.denoiseUnchanged.rawValue] == "No hay nada que cambiar.")
     }
 
     /// C14: the banner Cancel changes no clip, adds no file and no undo step, shows no alert, and

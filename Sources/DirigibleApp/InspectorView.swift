@@ -39,7 +39,8 @@ struct InspectorDraft: Equatable {
 }
 
 /// The clip inspector (run 11b-2): Gain, Fade In, and Fade Out of the clips that the selection
-/// touches, with Mixed for different values. At the trailing edge of the window; its handle sets
+/// touches, with Mixed for different values, and the read-only Effects row of rendered clips
+/// (decision 0057). At the trailing edge of the window; its handle sets
 /// the width (`InspectorHandle`).
 /// Return commits and gives the focus to the lanes, Tab commits and goes to the next field, a
 /// focus loss commits, and Esc puts back the shown text.
@@ -86,6 +87,7 @@ struct InspectorView: View {
                 }
                 .disabled(!model.canEdit)
                 PointGainField(model: model, studio: studio, focus: $focus, alwaysShown: true)
+                effectsRow(inspection)
                 Spacer()
             } else {
                 // A selected track with no range has no clip fields, but Add Gain Point acts on it.

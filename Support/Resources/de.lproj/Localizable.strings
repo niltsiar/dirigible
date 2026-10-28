@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Musik unter Sprache absenken …";
 "menu.tools.split.stereo" = "Stereo in Mono aufteilen";
 "menu.tools.reduce.noise" = "Rauschen reduzieren";
+"menu.tools.restore.original" = "Originalaudio wiederherstellen";
 
 /* Errors */
 "error.studio.busy" = "Ein Take wird gerade aufgenommen oder abgeschlossen. Warte, bis er endet.";
@@ -190,6 +191,7 @@
 "denoise.done.one" = "Rauschen in 1 Clip um %lld dB reduziert.";
 "denoise.done.many" = "Rauschen in %1$lld Clips um %2$lld dB reduziert.";
 "denoise.canceled" = "Rauschreduzierung abgebrochen. Kein Clip wurde geändert.";
+"denoise.unchanged" = "Nichts zu ändern.";
 "error.denoise.space" = "Dirigible kann das Rauschen nicht reduzieren. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.denoise.write" = "Dirigible kann das Rauschen nicht reduzieren. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
 "error.denoise.unreadable" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
@@ -368,6 +370,8 @@
 "inspector.fade.in" = "Fade-In";
 "inspector.fade.out" = "Fade-Out";
 "inspector.mixed" = "Gemischt";
+"inspector.effects" = "Effekte";
+"inspector.effect.noise" = "Rauschen reduzieren %lld dB";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Loudness-Anzeige";

@@ -173,7 +173,7 @@ extension TimelineCommand {
     /// The menu item of each timeline command, from the menu tables.
     static let menuItems = Dictionary(
         (viewItems + pasteboardItems + rippleItems + editItems + gainPointSeekItems + markerItems + trackItems
-            + fileItems + toolItems + [splitStereoItem])
+            + fileItems + toolItems + [splitStereoItem, restoreOriginalItem])
             .map {
                 ($0.command, $0)
             },

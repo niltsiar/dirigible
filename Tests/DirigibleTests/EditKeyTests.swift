@@ -57,6 +57,11 @@ import Testing
         #expect(
             [TimelineCommand.splitStereoItem].map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
                 == ["splitStereo d \(EventModifiers([.command, .shift]).rawValue)"])
+        // Decision 0057 D6: Tools > Restore Original Audio, a menu item with its key.
+        #expect(
+            [TimelineCommand.restoreOriginalItem].map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
+                == ["restoreOriginal o \(EventModifiers([.command, .shift]).rawValue)"])
+        #expect(TimelineCommand.menuItems[.restoreOriginal]?.title == .menuToolsRestoreOriginal)
         #expect(
             TimelineCommand.gainPointSeekItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }
                 == [
@@ -66,7 +71,7 @@ import Testing
         let items =
             TimelineCommand.viewItems + edit + TimelineCommand.markerItems + TimelineCommand.trackItems
             + TimelineCommand.fileItems + TimelineCommand.toolItems + [TimelineCommand.splitStereoItem]
-            + TimelineCommand.gainPointSeekItems
+            + [TimelineCommand.restoreOriginalItem] + TimelineCommand.gainPointSeekItems
         #expect(Set(items.map(\.title)).count == items.count)
         let keys = items.map { KeyboardShortcut($0.key, modifiers: $0.modifiers) } + MenuKeys.all
         #expect(KeyRule.problems(keys) == [])

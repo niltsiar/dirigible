@@ -141,6 +141,11 @@ struct DirigibleApp: App {
                             Button(title.key) { app.timeline(.reduceNoise) }
                                 .disabled(app.key?.isOn(.reduceNoise) != true)
                         }
+                        Divider()
+                        let restore = TimelineCommand.restoreOriginalItem
+                        Button(restore.title.key) { app.timeline(restore.command) }
+                            .keyboardShortcut(restore.key, modifiers: restore.modifiers)
+                            .disabled(app.key?.isOn(restore.command) != true)
                     }
                     CommandGroup(before: .windowList) {
                         Button(L10n.menuWindowStart.key) { app.showStart() }.keyboardShortcut(MenuKeys.startWindow)

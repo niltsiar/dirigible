@@ -174,7 +174,7 @@ struct LocalizationTests {
 private let inspectorRooms: [(name: String, size: Double, room: Double, keys: [L10n])] = [
     ("clip labels", 11, 50, [.inspectorGain, .inspectorFadeIn, .inspectorFadeOut]),
     ("clip units", 11, 16, [.inspectorDecibels, .inspectorMilliseconds]),
-    ("clip wide label", 11, 190, [.inspectorGainAtPlayhead]),
+    ("clip wide label", 11, 190, [.inspectorGainAtPlayhead, .inspectorEffects, .inspectorEffectNoise]),
     (
         "episode labels", 11, 59,
         [

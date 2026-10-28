@@ -33,9 +33,10 @@ echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo f
 EOF
 # The stub runner: --list-tests prints the list. Else it runs the IDs of the list that match its
 # --filter (an extended regex, as Swift Testing matches the ID), and prints the lines of Swift
-# Testing. A name in FAKE_CRASH, FAKE_FAIL, FAKE_SHORT, FAKE_NOREPORT, FAKE_HANG, or FAKE_JOURNAL
-# changes the run of the shard that has it: exit 132 with no report, a failed test, one test fewer
-# in the report, exit 0 with no report, a wait of 60 s, or a journal in DIRIGIBLE_LOG_FOLDER.
+# Testing. A name in FAKE_CRASH, FAKE_FAIL, FAKE_SHORT, FAKE_NOREPORT, FAKE_HANG, FAKE_SLOW, or
+# FAKE_JOURNAL changes the run of the shard that has it: exit 132 with no report, a failed test,
+# one test fewer in the report, exit 0 with no report, a wait of 60 s, a wait of 1 s before the
+# tests, or a journal in DIRIGIBLE_LOG_FOLDER.
 cat > "$root/scripts/test-helper.sh" <<'EOF'
 #!/bin/bash
 echo "runner $*" >> "$FAKE_DIR/args.log"
@@ -55,6 +56,7 @@ for s in ${skips[@]+"${skips[@]}"}; do ids="$(grep -vE -- "$s" <<<"$ids")"; done
 has() { [[ -n "$1" ]] && grep -q "$1" <<<"$ids"; }
 [[ -n "$ids" ]] || { echo "✔ Test run with 0 tests in 0 suites passed after 0.001 seconds."; exit 69; }
 if has "${FAKE_HANG:-}"; then echo $$ >> "$FAKE_DIR/hang.pid"; echo "◇ Test hang() started."; sleep 60; fi
+has "${FAKE_SLOW:-}" && sleep 1
 has "${FAKE_CRASH:-}" && { echo "◇ Test crash() started."; exit 132; }
 has "${FAKE_JOURNAL:-}" && : > "${DIRIGIBLE_LOG_FOLDER:-/nonexistent}/2026-10-16-192000-app-1.tsv"
 n=0 code=0
@@ -225,11 +227,19 @@ grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args
 : > "$tmp/hang.pid"
 : > "$tmp/args.log" && : > "$tmp/lock.log"
 # The lock marker skips the with-lock.sh wrap, so the TERM and the exit code are the script's own.
-(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 DIRIGIBLE_FULL_SUITE=1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
+(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 FAKE_SLOW=d1 DIRIGIBLE_FULL_SUITE=1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
     "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1 &
 pid=$!
 for _ in $(seq 100); do [[ -s "$tmp/hang.pid" ]] && break; sleep 0.1; done
 [[ -s "$tmp/hang.pid" ]] || fail "term: the hanging shard did not start"
+# The TERM comes after each other shard wrote its report, so only the hanging shard still runs.
+settled() {
+    local f
+    [[ "$(ls "$root/.build/test-shards"/shard-*.log 2>/dev/null | wc -l)" -eq 3 ]] || return 1
+    for f in "$root/.build/test-shards"/shard-*.log; do grep -qE 'Test run with|Test hang\(\) started' "$f" || return 1; done
+}
+for _ in $(seq 600); do settled && break; sleep 0.1; done
+settled || fail "term: a shard neither ended nor hung"
 kill -TERM "$pid"
 wait "$pid"
 code=$?

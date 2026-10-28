@@ -153,10 +153,33 @@ struct EffectChain {
         }
     }
 
+    /// Renders each frame of `input`, in the format of the chain, into `sink`, as the file render
+    /// does. `isCancelled` is read before each block.
+    func render(
+        _ input: AVAudioPCMBuffer, into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void,
+        isCancelled: () -> Bool
+    ) throws(ClipRenderError) -> (length: Int, peak: Float) {
+        var start = 0
+        return try render(count: Int(input.frameLength), into: sink) {
+            frames throws(ClipRenderError) in
+            guard !isCancelled() else { throw .cancelled }
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames) else {
+                throw .engine(status: kAudio_MemFullError)
+            }
+            buffer.frameLength = frames
+            for channel in 0..<Int(format.channelCount) {
+                buffer.floatChannelData![channel].update(
+                    from: input.floatChannelData![channel] + start, count: Int(frames))
+            }
+            start += Int(frames)
+            return buffer
+        }
+    }
+
     /// The pull loop of a render of `count` frames: `next` gives the next source block of at most
     /// the frames that it gets.
     private func render(
-        count: Int, into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, rendered: (Int) -> Void,
+        count: Int, into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, rendered: (Int) -> Void = { _ in },
         next: (AVAudioFrameCount) throws(ClipRenderError) -> AVAudioPCMBuffer
     ) throws(ClipRenderError) -> (length: Int, peak: Float) {
         let total = count + latency

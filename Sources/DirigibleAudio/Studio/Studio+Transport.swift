@@ -190,10 +190,11 @@ extension Studio {
         _ = await endFeed(stop: true)
     }
 
-    /// The first part of every take start, with no await (decision 0016): a new feed number
-    /// and `.stopped`, so no play starts into the take. Returns the feed number of the play
-    /// that it ended, or nil.
+    /// The first part of every take start and blocking run, with no await (decision 0016): the
+    /// effect preview stops, and a new feed number and `.stopped`, so no play starts into the take.
+    /// Returns the feed number of the play that it ended, or nil.
     func endPlayForTake() -> Int? {
+        stopEffectPreview()
         guard play.playback != .stopped else { return nil }
         let stopped = play.feed
         play.feed += 1
@@ -288,6 +289,7 @@ extension Studio {
 
     /// Starts the feed `number`, then takes one reading of the Player as the poll does.
     func startPlay(_ shuttle: Shuttle, from: Frames, number: Int, end: Frames?) async -> TransportOutcome {
+        stopEffectPreview()
         let player =
             play.player
             ?? Player(

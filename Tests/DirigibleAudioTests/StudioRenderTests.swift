@@ -76,8 +76,9 @@ struct StudioRenderTests {
         await studio.settle()
     }
 
-    /// C5: during a play, the amount of the level again gives the clip as unchanged, with no save,
-    /// no undo level, and no stop of the play. Undo still goes back to before the first render.
+    /// C5: during a play, the amount of the level again gives the clip as unchanged, with no save
+    /// and no undo level. It is a blocking run, so the play stops. Undo still goes back to before
+    /// the first render.
     @Test func equalAmountRecordsNothing() async throws {
         let fixture = try await StudioSplitTests.make()
         let studio = try await open(fixture.package)
@@ -85,14 +86,13 @@ struct StudioRenderTests {
         let first = try await studio.renderClips(["c1"], request: noise) { _ in }
         try #require(first.clips.count == 1, "the first render moves the clip")
         _ = try await studio.play(from: 0, to: nil)
-        let playing = studio.playback
-        try #require(playing != .stopped)
+        try #require(studio.playback != .stopped)
         let before = (studio.session, xml(fixture.package), try listing(fixture.package))
 
         let report = try await studio.renderClips(["c1"], request: noise) { _ in }
 
         #expect(report.unchanged == ["c1"] && report.clips.isEmpty)
-        #expect(studio.playback == playing, "the play goes on")
+        #expect(studio.playback == .stopped, "the blocking run stops the play")
         #expect(studio.session == before.0 && xml(fixture.package) == before.1)
         #expect(try listing(fixture.package) == before.2)
         try studio.undo()
@@ -178,11 +178,16 @@ struct StudioRenderTests {
         await studio.settle()
     }
 
-    /// C9: a render during a take is busy and writes nothing; the take goes on.
-    @Test func busyDuringTake() async throws {
+    /// C9: a render during a take is busy and writes nothing, also when the clip is `unchanged`
+    /// (item 1131); the take goes on.
+    @Test(arguments: [false, true]) func busyDuringTake(unchanged: Bool) async throws {
         let fixture = try await ExportStudioFixture.make()
         let hal = TestHAL([fixture.mic])
         let studio = try await fixture.open(hal)
+        if unchanged {
+            let first = try await studio.renderClips(["c1"], request: noise) { _ in }
+            try #require(first.clips.count == 1, "the first render moves the clip")
+        }
         let clips = fixture.package.url.appending(path: clipsFolderName)
         let before = try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted()
         _ = try await studio.startTake(armed: ["t1"], devices: [fixture.mic], hostTimeNanos: takeStart)

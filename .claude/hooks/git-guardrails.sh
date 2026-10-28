@@ -358,7 +358,9 @@ fi
 # read with each quoted string that holds a space blanked (a printf row is data): sed or perl with
 # -i, -i<suffix>, or --in-place; a > or >> redirect into the name or into such a variable; tee; rm;
 # truncate; dd of=<name>; mv or cp without -n onto the name; python with -c, -, or a heredoc; node,
-# perl, or ruby with -e, --eval, -, or a heredoc. A list of write forms, not of reads: the names occur
+# perl, or ruby with -e, --eval, -, or a heredoc. The command word of sed, perl, tee, rm, truncate, dd,
+# mv, and cp counts only at the start of a segment (after time, env, sudo, an assignment, do, then, and
+# the like), so rg -n tee run.md reads. A list of write forms, not of reads: the names occur
 # in many data texts (rows, briefs, rg patterns). Out of scope: a script file that holds the name
 # (python3 fix.py), a write inside $(...), a backtick, sh -c, bash -c, xargs, or find -exec, mv of a
 # guarded file to another name, git checkout or restore, awk -i inplace, ed, sponge, and a variable
@@ -371,7 +373,7 @@ text = sys.stdin.read().replace("\\\n", " ")
 name_rx = re.compile(r"(^|[/\"\x27\s=])(run|plan|analysis)\.md([^A-Za-z0-9_.-]|$)")
 marker_rx = re.compile(r"<<-?\s*[\x27\"\\]?(\w+)[\x27\"]?")
 interp_rx = re.compile(r"(^|[\s;&|(])(python3?(?:\.\d+)?|node|perl|ruby)(\s|$)")
-word = r"(^|[\s;&|(])"
+word = r"(^(?:[\s({]|(?:do|then|else|if|while|time|env|sudo|command|exec|nohup|xargs|builtin|!|\{)\s|[A-Za-z_]\w*=\S*\s)*)"
 def split_ops(line):
     parts, cur, q, i = [], "", "", 0
     while i < len(line):

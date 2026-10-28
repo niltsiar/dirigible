@@ -821,6 +821,12 @@ expect allow $'git fetch -q origin && git log --oneline -1 origin/main; ls .scra
 expect allow $'cat ~/.claude/usage/limits.json | python3 -I -c \'import json,sys; d=json.load(sys.stdin); print([(r["kind"],r["percentUsed"]) for r in d["rate_limits"]])\'; R=/repo/.scratchpads/runs/2026-10-15-workflow-upkeep-3; wc -w $R/plan.md $R/analysis.md; rg -n \'^## |^### |^- \\*\\*(T|D)[0-9]\' $R/plan.md | cut -c1-200 | head -30'
 expect_message 'can write it' 'rm plan.md'
 expect_message 'change it with the Edit tool' 'mv x run.md'
+# A variable that the command assigns twice, or assigns a quoted value with a space, still reads
+# (the guard needs no second search of the assignment). A write through it blocks.
+expect allow $'F=x; F=.scratchpads/runs/r/run.md; cat "$F"'
+expect allow $'F="a b/run.md"; cat "$F"'
+expect block $'F=x; F=.scratchpads/runs/r/run.md; echo x >> "$F"'
+expect block $'F="a b/run.md"; echo x >> "$F"'
 expect block "X=1 make x; $ld"
 expect block "time make x; $ld"
 expect block "(make x); $ld"

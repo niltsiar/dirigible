@@ -84,6 +84,20 @@ struct HumRemovalTests {
         #expect(abs(at60[210, default: 99]) <= 0.5, "210 Hz with hum 60: \(at60); \(label)")
     }
 
+    /// C17: the 3f band keeps its 0.015 octave width in the render. `kAUNBandEQParam_Bandwidth`
+    /// documents 0.05 to 5.0 octaves, and a unit that clamps to 0.05 can keep 0.015 in its store.
+    /// 152 Hz (hum 50) and 182.4 Hz (hum 60) are 0.019 octaves above 3f. Probe probe-l2-guard:
+    /// 0.015 octaves cut them by 0.64 dB, 0.05 octaves by 4.37 dB (also the render at 0.05).
+    @Test(arguments: [(1, 48_000), (2, 48_000), (1, 44_100), (2, 44_100)])
+    func aSineNearAHarmonicBandStays(channels: Int, rate: Int) throws {
+        let at50 = try Self.cuts([152], hum: .hz50, channels: channels, rate: rate)
+        let at60 = try Self.cuts([182.4], hum: .hz60, channels: channels, rate: rate)
+
+        let label = "channels \(channels) at \(rate) Hz"
+        #expect(abs(at50[152, default: 99]) <= 1.5, "152 Hz with hum 50: \(at50); \(label)")
+        #expect(abs(at60[182.4, default: 99]) <= 1.5, "182.4 Hz with hum 60: \(at60); \(label)")
+    }
+
     /// C17: each hum band holds its type, frequency, width, and bypass in the unit after setup,
     /// while other threads make and release hum and voice units. The render reads only the unit
     /// values.

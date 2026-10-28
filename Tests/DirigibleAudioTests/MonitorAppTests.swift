@@ -181,9 +181,9 @@ struct MonitorAppTests {
         try await studio.monitor(armed: ["guest"])
         await until(limit: busy, "the app attach is not at the prompt") { hal.heldAttachCount(Self.zoomUID) == 1 }
         let first = try #require(studio.monitorWriter(Self.zoomUID))
-        let off = ContinuousClock.now
+        let watch = Stopwatch()
         try await studio.monitor(armed: [])
-        #expect(ContinuousClock.now - off < .seconds(5), "Input Levels off waits for the prompt")
+        #expect(watch.elapsed < .seconds(5), "Input Levels off waits for the prompt (wall \(watch.wall))")
         #expect(studio.liveTracks["guest"] == nil)
         try await studio.monitor(armed: ["guest"])
         await until(limit: busy, "the second app attach is not at the prompt") {

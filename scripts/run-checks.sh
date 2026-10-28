@@ -25,8 +25,10 @@
 # Usage: [CHECK_RISK=yes] scripts/run-checks.sh <make args> [RERUN=<P>:fast:<names>+slow:<names>]
 #        scripts/run-checks.sh --flakes   print the lines of dirigible-flakes (nothing with no file)
 #          and run no make. The guardrail hook blocks each other command that names the file, except a read.
-# It sets WITH_LOCK_MAX_WAIT=0, so a with-lock.sh call of a make recipe (swift-test.sh) waits with
-# no limit and never ends in exit 75, which would read as a red test.
+# With BASE (the push check), it sets the wait limit of with-lock.sh to 0, so a call of a make
+# recipe (swift-test.sh) waits with no limit. With no BASE, such a call keeps its wait limit. A
+# lock wait that ends at its limit (the line "with-lock: still waiting after") is no red test and
+# gets no rerun: this script ends in exit 75, also when the wait is in a rerun.
 # With BASE, it first runs check-commits.sh --secrets (the gitleaks scan of BASE..HEAD); a finding
 # or a missing gitleaks ends the run before any target.
 # With BASE (the push check), it exports DIRIGIBLE_PUSH_CHECK=1, which test-shards.sh needs to run
@@ -37,8 +39,7 @@ if [[ "${1:-}" == --flakes ]]; then
     cat "$(git rev-parse --path-format=absolute --git-common-dir)/dirigible-flakes" 2>/dev/null || true
     exit 0
 fi
-export WITH_LOCK_MAX_WAIT=0
-[[ -z "${BASE:-}" ]] || export DIRIGIBLE_PUSH_CHECK=1
+[[ -z "${BASE:-}" ]] || export WITH_LOCK_MAX_WAIT=0 DIRIGIBLE_PUSH_CHECK=1
 word="" args=()
 for a in "$@"; do
     if [[ $a == RERUN=* ]]; then word="${a#RERUN=}"; else args+=("$a"); fi
@@ -89,14 +90,19 @@ blocked() {
 # once: the words of stdin on one line, each once.
 once() { tr ' ' '\n' | awk 'NF && !s[$0]++' | xargs; }
 
+lock_limit='with-lock: still waiting after'
 # rerun <names> <command>: prints each name with a failed line or with no pass line in the output
 # of the command (none: all passed). A test that did not run stays red, and so does a name of two
 # suites with one red suite. A crash, an issue of no test, or a red command in which each name
-# passed returns 1.
+# passed returns 1. A lock wait that ended at its limit returns 75.
 rerun() {
     local names="$1" code=0 why left="" name cases='[(][^)]*[)]( with [0-9]+ test cases)?'
     shift
     "$@" 2>&1 | tee "$log.rerun" >&2 || code=$?
+    if grep -qF "$lock_limit" "$log.rerun"; then
+        echo "run-checks: the rerun stopped: a lock wait ended at its limit; run the same command again" >&2
+        return 75
+    fi
     why="$(blocked "$log.rerun")"
     for name in $names; do
         if grep -qE "✘ Test $name$cases failed after" "$log.rerun" ||
@@ -117,8 +123,8 @@ retry() {
     for ((try = 1; try <= tries; try++)); do
         echo "run-checks: rerun $try of $tries: $(xargs <<<"$fast $slow")"
         "$here/check-changed.sh" --wait-load test || exit 1
-        [[ -z "$fast" ]] || fast="$(rerun "$fast" env -u DIRIGIBLE_SLOW_TESTS "$here/test-filter.sh" --exact $fast)" || exit 1
-        [[ -z "$slow" ]] || slow="$(rerun "$slow" env DIRIGIBLE_SLOW_TESTS=1 "$here/test-filter.sh" --exact --no-parallel $slow)" || exit 1
+        [[ -z "$fast" ]] || fast="$(rerun "$fast" env -u DIRIGIBLE_SLOW_TESTS "$here/test-filter.sh" --exact $fast)" || exit $?
+        [[ -z "$slow" ]] || slow="$(rerun "$slow" env DIRIGIBLE_SLOW_TESTS=1 "$here/test-filter.sh" --exact --no-parallel $slow)" || exit $?
         if [[ -z "$fast$slow" ]]; then
             head="$(git rev-parse HEAD)"
             for name in $all; do
@@ -195,6 +201,10 @@ if [[ ${#goals[@]} -gt 0 ]]; then
     if ! "${MAKE:-make}" -k ${skip[@]+"${skip[@]}"} "$@" 2>&1 | tee "$log"; then
         # The load at the end of the check: make -k runs the later targets after a red test.
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
+        if grep -qF "$lock_limit" "$log"; then
+            echo "run-checks: a lock wait ended at its limit; run the same command again" >&2
+            exit 75
+        fi
         errors="$(grep -E "$prefix\*\*\* " "$log" || true)"
         ours="$prefix\*\*\* \[(test|test-slow-push)\] Error"
         grep -qE "$ours" <<<"$errors" || no_rerun 'no red test or test-slow-push target'

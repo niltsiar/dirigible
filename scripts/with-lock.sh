@@ -15,8 +15,9 @@
 # .claude/agents/run-agent.md. The wait sleeps the seconds that are left, so the call stops at the
 # limit. These calls have no limit: WITH_LOCK_MAX_WAIT=0, a release call (below), a call with the
 # DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
-# scripts/run-checks.sh and scripts/flake-monitor/loop.sh set the 0, so an exit 75 never reads as
-# a red test. loop.sh runs itself under this script with the marker and sets WITH_LOCK_MAX_HOLD.
+# scripts/flake-monitor/loop.sh sets the 0, and scripts/run-checks.sh sets it for a push check (BASE
+# set), so an exit 75 never reads as a red test. A run-checks.sh call with no BASE keeps the limit,
+# and ends in exit 75 at it. loop.sh runs itself under this script with the marker and sets WITH_LOCK_MAX_HOLD.
 # Each wait line has the tree of the call as its fifth column (git rev-parse --show-toplevel; for
 # mutation-pass.sh, the toplevel of its first argument, the tree that it builds). At
 # its release, a call appends one line to dirigible-build-holds.log in the git common dir: the

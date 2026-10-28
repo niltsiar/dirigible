@@ -288,9 +288,9 @@ code=$?
 new="$(git -C "$c/origin.git" rev-parse main)"
 [[ $code -eq 0 ]] || fail "open runs: exit $code: $(cat "$c/out")"
 grep -qx "range: $old..$new" "$c/out" || fail "open runs: no commit range: $(cat "$c/out")"
-want="open run open1: analysis.md cites a.txt:40
-open run open1: plan.md cites src/a.txt:12"
-[[ "$(grep '^open run ' "$c/out" | sort)" == "$want" ]] || fail "open runs: the lines differ: $(cat "$c/out")"
+want="land.sh: open run open1: analysis.md cites a.txt:40, and this land changes src/a.txt
+land.sh: open run open1: plan.md cites src/a.txt:12, and this land changes src/a.txt"
+[[ "$(grep '^land.sh: open run ' "$c/out" | sort)" == "$want" ]] || fail "open runs: the lines differ: $(cat "$c/out")"
 
 # Another worktree holds main: the land prints the range before it touches main, skips the
 # switch, and stays on the branch (git switch main exits 128 in this state).

@@ -4,7 +4,11 @@ extension Session {
     /// The origin chain of the file of `clip`, top level first (decision 0057). Empty for a clip on
     /// a file with no origin, and for an unknown clip.
     public func origins(of clip: ClipID) -> [RenderOrigin] {
-        guard let file = self.clip(clip)?.clip.file else { return [] }
+        self.clip(clip).map { origins(ofFile: $0.clip.file) } ?? []
+    }
+
+    /// The origin chain of `file`, top level first. Empty for a file with no origin.
+    public func origins(ofFile file: FileID) -> [RenderOrigin] {
         var levels: [RenderOrigin] = []
         var next = files[file]?.origin
         while let origin = next {
@@ -29,12 +33,7 @@ extension Session {
     /// order of the set does not matter. It throws `.fileIsSource` when a file outside `ids` names a
     /// file of `ids` as its source. A throw changes nothing.
     mutating func removeFiles(_ ids: Set<FileID>) throws(SessionError) {
-        func depth(_ id: FileID) -> Int {
-            var (count, next) = (0, files[id]?.origin)
-            while let origin = next { (count, next) = (count + 1, files[origin.source]?.origin) }
-            return count
-        }
-        let ordered = ids.map { (id: $0, depth: depth($0)) }
+        let ordered = ids.map { (id: $0, depth: origins(ofFile: $0).count) }
             .sorted { $0.depth != $1.depth ? $0.depth > $1.depth : $0.id < $1.id }
         var copy = self
         for file in ordered { try copy.removeFile(file.id) }

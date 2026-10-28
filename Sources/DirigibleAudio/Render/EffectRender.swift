@@ -48,13 +48,12 @@ package struct ClipRenderOutcome: Sendable {
 ///
 /// The order: the runs, the role check of each clip (`Treatment.accepts`), the source checks, the
 /// unit load, one space check (`freeBytes`) for `bytes`, or for the bytes of the runs when it is
-/// nil, the stems "<source stem> NR" by the stem rule of
-/// 0040, `repoint` on a session copy with 0 dB, then each run through a new chain into
-/// `.<stem>.wav.tmp`, with a second pass at a scale when its peak is over full scale
-/// (`.stillOverFullScale` when the second pass still peaks at the largest 24-bit sample), the
-/// read-back, `repoint` on the input session with the dB of each second-pass scale as the added
-/// gain of its run (decision 0057), the renames, and one flush of `Clips/` (`NewClipFiles`). So a refusal reads
-/// no audio and writes no file, and a throw before the renames leaves no new file. A fault in the
+/// nil, the stems "<source stem> NR" by the stem rule of 0040, `repoint` on a session copy with
+/// 0 dB, then each run through a new chain into `.<stem>.wav.tmp`, with a second pass at a scale
+/// when its peak is over full scale (`.stillOverFullScale` when the second pass still peaks at the
+/// largest 24-bit sample), the read-back, `repoint` on the input session with the dB of each
+/// second-pass scale as the added gain of its run (decision 0057), the renames, and one flush of
+/// `Clips/` (`NewClipFiles`). So a refusal reads no audio and writes no file, and a throw before the renames leaves no new file. A fault in the
 /// renames keeps the renamed WAVs as unused files (0040), and a cancel after them removes them
 /// (`removeMadeFiles`). `isCancelled` is read before each run, each block, and the renames, and
 /// after them. `progress` rises by 0.1 % or more at each step, holds during a second pass, and gives 1

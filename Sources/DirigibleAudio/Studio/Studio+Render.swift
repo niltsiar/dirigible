@@ -14,12 +14,12 @@ extension Studio {
     /// WAVs in `Clips/`, and the clips move onto them. It saves `session.xml` and records one undo
     /// entry with `agent`. A request that needs no render on the current session gives each clip in
     /// `unchanged` and starts no blocking run: no stop of the Player, no save, and no undo entry.
-    /// Else it is a blocking run, as a split (`blockingRun`): `.busy` during a take, a
-    /// pending take, an import, a paste or split run, or `settle()`; a cancel of the calling task or
-    /// of the banner throws `.clipRender(.cancelled)`, and a take in another studio
-    /// `.clipRenderYielded`. Then the renamed WAVs go. A throw changes nothing in memory; after a
-    /// failed save, the WAVs stay as unused files. Undo keeps them. `progress` and
-    /// `importProgress` get the fraction on the main actor.
+    /// Else it is a blocking run, as a split (`blockingRun`): `.busy` during a take, a pending
+    /// take, an import, a paste or split run, or `settle()`; a cancel of the calling task or of the
+    /// banner throws `.clipRender(.cancelled)`, and a take in another studio `.clipRenderYielded`.
+    /// Then the renamed WAVs go. A throw changes nothing in memory; after a failed save, the WAVs
+    /// stay as unused files. Undo keeps them. `progress` and `importProgress` get the fraction on
+    /// the main actor.
     public func renderClips(
         _ clips: [ClipID], request: ClipRenderRequest, agent: AgentName? = nil,
         progress: @escaping @MainActor @Sendable (Double) -> Void

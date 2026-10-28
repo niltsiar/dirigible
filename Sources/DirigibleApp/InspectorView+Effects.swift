@@ -25,13 +25,7 @@ extension InspectorView {
         let files = Dictionary(
             session.tracks.flatMap(\.clips).map { ($0.id, $0.file) }, uniquingKeysWith: { a, _ in a })
         let chains = clips.map { clip in
-            var levels: [RenderOrigin] = []
-            var next = files[clip].flatMap { session.files[$0]?.origin }
-            while let origin = next {
-                levels.insert(origin, at: 0)
-                next = session.files[origin.source]?.origin
-            }
-            return levels.flatMap(\.treatment.effects)
+            files[clip].map { session.origins(ofFile: $0).reversed().flatMap(\.treatment.effects) } ?? []
         }
         guard chains.contains(where: { !$0.isEmpty }) else { return nil }
         guard let first = chains.first, chains.allSatisfy({ $0 == first }) else { return text(.inspectorMixed) }

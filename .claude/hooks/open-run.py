@@ -1,4 +1,4 @@
-# Find the open deliver run of a working directory. Read by stop-guard.sh.
+# Find the open deliver run of a working directory. Read by stop-guard.sh and pre-compact.sh, so both hooks use one rule.
 # open_run(cwd) returns (run folder, how) or None.
 # A run is open when the run.md in .scratchpads/runs/<name>/ of the main checkout has a `- Status: open`
 # line. The main checkout is the parent of the git common dir, so a run worktree finds the same runs.
@@ -54,7 +54,7 @@ def open_run(cwd):
             open_runs[os.path.join(runs, name)] = text
     top = git(cwd, "rev-parse", "--show-toplevel")
     if top and os.path.realpath(top) != os.path.realpath(main):
-        branch = git(cwd, "rev-parse", "--abbrev-ref", "HEAD")
+        branch = git(cwd, "symbolic-ref", "--short", "HEAD")
         named = [f for f, text in open_runs.items() if (re.findall(r"^- Branch: *(\S+)", text, re.M) or [""])[-1] == branch]
         how = "branch"
     else:
@@ -66,6 +66,34 @@ def open_run(cwd):
     if not named:
         return None
     return max(named, key=lambda f: (newest_row(f), os.path.getmtime(os.path.join(f, "run.md")))), how
+
+
+def worktree_of(cwd, branch):
+    """The worktree path where `branch` is checked out, or an empty string."""
+    path = ""
+    for line in git(cwd, "worktree", "list", "--porcelain").splitlines():
+        if line.startswith("worktree "):
+            path = line[len("worktree "):]
+        elif line == "branch refs/heads/" + branch:
+            return path
+    return ""
+
+
+def first_unticked(folder):
+    """The first unticked line of the Slices section of run.md, else of the whole file."""
+    text = read(os.path.join(folder, "run.md"))
+    section = re.search(r"^## Slices\s*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    for scope in (section.group(1) if section else "", text):
+        found = re.search(r"^\s*- \[ \] .*$", scope, re.M)
+        if found:
+            return found.group(0).strip()
+    return ""
+
+
+def run_branch(folder):
+    """The value of the last `- Branch:` line of run.md, or an empty string."""
+    found = re.findall(r"^- Branch: *(\S+)", read(os.path.join(folder, "run.md")), re.M)
+    return found[-1] if found else ""
 
 
 def run_state(folder):

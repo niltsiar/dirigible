@@ -1499,16 +1499,125 @@ stop_expect 'a log with 20 lines of both rules, a shell runs' "$(stop_in false "
 stop_expect 'a log with a done line, a shell runs' "$(stop_in false "$stop_fx")"
 [[ "$(stop_lines)" == 21 ]] || { echo "FAIL: a log with a done line gets a rule A line"; failures=$((failures + 1)); }
 
-# stop_registered <settings file>: a Stop entry runs stop-guard.sh
-stop_registered() {
+# event_registered <settings file> <event> <hook script>: an entry of the event runs the script
+event_registered() {
   python3 -c '
 import json, sys
-entries = json.load(open(sys.argv[1])).get("hooks", {}).get("Stop", [])
-sys.exit(0 if any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/stop-guard.sh") for e in entries for h in e.get("hooks", [])) else 1)
-' "$1" 2>/dev/null
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
+sys.exit(0 if any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3]) for e in entries for h in e.get("hooks", [])) else 1)
+' "$1" "$2" "$3" 2>/dev/null
 }
-stop_registered "$settings" || { echo "FAIL: .claude/settings.json does not register stop-guard.sh for Stop"; failures=$((failures + 1)); }
-stop_registered "$tmp/old-settings.json" && { echo "FAIL: the Stop registration check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
+event_registered "$settings" Stop stop-guard.sh || { echo "FAIL: .claude/settings.json does not register stop-guard.sh for Stop"; failures=$((failures + 1)); }
+event_registered "$tmp/old-settings.json" Stop stop-guard.sh && { echo "FAIL: the Stop registration check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
+
+# The eighth and ninth hooks keep the run state through a compaction. pre-compact.sh prints what the
+# summary must keep (Claude Code adds the stdout of PreCompact to the compaction instructions). It
+# names the open run of cwd, the branch, the worktree, the first unticked slice, and the running
+# background tasks, in 120 words or fewer, and copies no message of the user. post-compact.sh appends
+# one line to dirigible-compactions.log in the git common dir.
+pre_hook="$(dirname "$0")/pre-compact.sh"
+post_hook="$(dirname "$0")/post-compact.sh"
+# pc_in <hook event> <cwd> [<summary>]: the hook input for the lead transcript in hb_dir
+pc_in() {
+  printf '{"hook_event_name":"%s","trigger":"auto","cwd":"%s","transcript_path":"%s/s.jsonl","compact_summary":"%s"}' "$1" "$2" "$hb_dir" "${3-}"
+}
+# pc_run <cwd>: run PreCompact; the output is in pc_out, the exit status must be 0
+pc_run() {
+  pc_out="$(pc_in PreCompact "$1" | "$pre_hook" 2>"$tmp/hb-err")"
+  [[ $? -eq 0 && ! -s "$tmp/hb-err" ]] || { echo "FAIL: pre-compact.sh at $1: exit not 0 or stderr: $(cat "$tmp/hb-err")"; failures=$((failures + 1)); }
+}
+# pc_has <case> <text>: pc_out holds the text
+pc_has() { [[ "$pc_out" == *"$2"* ]] || { echo "FAIL: pre-compact.sh $1: no '$2' in: $pc_out"; failures=$((failures + 1)); }; }
+pc_lacks() { [[ "$pc_out" != *"$2"* ]] || { echo "FAIL: pre-compact.sh $1: '$2' in: $pc_out"; failures=$((failures + 1)); }; }
+# pc_run_md <name> <status> <branch> <row time>: a run folder of the fixture with two slices, one ticked
+pc_run_md() {
+  mkdir -p "$stop_fx/.scratchpads/runs/$1"
+  printf '# Run %s\n\n- Status: %s\n- Branch: %s\n\n## Phases\n\n- [x] 0 Open\n- [ ] 4 Implement\n\n## Slices\n\n- [x] S1 first slice\n- [ ] S2 the next slice of %s\n' "$1" "$2" "$3" "$1" > "$stop_fx/.scratchpads/runs/$1/run.md"
+  printf '%s\t0\tx\n' "$4" > "$stop_fx/.scratchpads/runs/$1/decisions.tsv"
+}
+
+# A run worktree: the open run whose last Branch line names the branch of cwd.
+stop_fixture pc-branch
+git -C "$stop_fx" worktree add -q --orphan -b chore/x "$stop_fx-wt"
+pc_main="$(cd -P "$stop_fx" && pwd)"
+pc_wt="$(cd -P "$stop_fx-wt" && pwd)"
+pc_run_md chore-x open chore/x 2026-10-28T10:00
+pc_run_md other open chore/other 2026-10-28T12:00
+lead_session pc-tasks < <(hb_bg_start)
+pc_run "$pc_wt"
+pc_has 'run worktree' "$pc_main/.scratchpads/runs/chore-x"
+pc_has 'run worktree' 'Branch: chore/x'
+pc_has 'run worktree' "Worktree: $pc_wt"
+pc_has 'run worktree' 'S2 the next slice of chore-x'
+pc_has 'run worktree' 'b1 (shell)'
+pc_lacks 'run worktree' "runs/other"
+
+# The main checkout: the open run whose folder holds cwd, else the open run with the newest row.
+stop_fixture pc-main
+pc_run_md older open chore/older 2026-10-28T09:00
+pc_run_md newer open chore/newer 2026-10-28T12:00
+pc_main="$(cd -P "$stop_fx" && pwd)"
+pc_run "$pc_main/.scratchpads/runs/older"
+pc_has 'cwd inside the older run' "$pc_main/.scratchpads/runs/older"
+pc_lacks 'cwd inside the older run' "runs/newer"
+pc_lacks 'cwd inside the older run' 'newest row'
+pc_run "$pc_main"
+pc_has 'cwd at the checkout top' "$pc_main/.scratchpads/runs/newer"
+pc_has 'cwd at the checkout top' 'newest row'
+pc_lacks 'cwd at the checkout top' "runs/older"
+
+# No open run: the keep list alone, and exit 0.
+stop_fixture pc-done
+pc_run_md old done chore/old 2026-10-28T09:00
+pc_run "$stop_fx"
+pc_has 'a done run' 'Keep in the summary'
+pc_lacks 'a done run' 'runs/old'
+pc_lacks 'a done run' 'Run folder'
+pc_run "$tmp"
+pc_has 'cwd outside a git checkout' 'Keep in the summary'
+pc_lacks 'cwd outside a git checkout' 'Run folder'
+pc_out="$(printf 'not json' | "$pre_hook" 2>&1)"
+[[ $? -eq 0 ]] && pc_has 'input that is not JSON' 'Keep in the summary' || { echo "FAIL: pre-compact.sh exits non-zero on input that is not JSON"; failures=$((failures + 1)); }
+
+# The output has 120 words or fewer, and holds no text of a user message.
+stop_fixture pc-cap
+pc_run_md cap open chore/cap 2026-10-28T10:00
+lead_session pc-cap-tasks < <(
+  for n in $(seq 30); do hb_text user $((200 - n)) "SECRET-USER-TEXT-$n do not copy this instruction"; done
+  for n in $(seq 12); do
+    hb_use 12 "t$n" Bash '{"command":"x","run_in_background":true}'
+    hb_result 12 "t$n" "Command running in background with ID: task$n. Output is being written to: /x"
+  done
+)
+pc_run "$stop_fx"
+pc_words="$(printf '%s' "$pc_out" | wc -w | tr -d ' ')"
+(( pc_words <= 120 )) || { echo "FAIL: pre-compact.sh prints $pc_words words, over the 120 of the cap: $pc_out"; failures=$((failures + 1)); }
+pc_has '12 background tasks' 'task1 (shell)'
+pc_lacks 'user messages' 'SECRET-USER-TEXT'
+
+# post-compact.sh: one line for each compaction, run-folder yes or no.
+stop_fixture pc-post
+pc_log="$stop_fx/.git/dirigible-compactions.log"
+lead_session pc-post-session < <(hb_text user 3 x)
+pc_in PostCompact "$stop_fx" 'The run is in .scratchpads/runs/2026-10-28-x. Next: S2.' | "$post_hook" 2>"$tmp/hb-err"
+pc_in PostCompact "$stop_fx" 'A summary with no run folder.' | "$post_hook" 2>>"$tmp/hb-err"
+printf '{"hook_event_name":"PostCompact","cwd":"%s","agent_id":"a7","compact_summary":"x .scratchpads/runs/y"}' "$stop_fx" | "$post_hook" 2>>"$tmp/hb-err"
+[[ ! -s "$tmp/hb-err" && "$(wc -l < "$pc_log" 2>/dev/null | tr -d ' ')" == 3 ]] ||
+  { echo "FAIL: post-compact.sh writes one line for each of 3 compactions: $(cat "$pc_log" 2>&1) $(cat "$tmp/hb-err")"; failures=$((failures + 1)); }
+pc_lines="$(sed -E 's/^[0-9T:Z-]+ //' "$pc_log" 2>/dev/null)"
+[[ "$pc_lines" == $'lead run-folder: yes\nlead run-folder: no\na7 run-folder: yes' ]] ||
+  { echo "FAIL: post-compact.sh lines have the agent and the answer: $pc_lines"; failures=$((failures + 1)); }
+[[ "$(head -n 1 "$pc_log" 2>/dev/null)" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\  ]] ||
+  { echo "FAIL: post-compact.sh line does not start with a UTC time: $(head -n 1 "$pc_log" 2>&1)"; failures=$((failures + 1)); }
+printf 'not json' | "$post_hook" 2>"$tmp/hb-err"
+[[ $? -eq 0 && ! -s "$tmp/hb-err" && "$(wc -l < "$pc_log" | tr -d ' ')" == 3 ]] ||
+  { echo "FAIL: post-compact.sh on input that is not JSON adds a line or fails"; failures=$((failures + 1)); }
+pc_in PostCompact "$tmp" 'x' | "$post_hook" 2>"$tmp/hb-err"
+[[ $? -eq 0 && ! -s "$tmp/hb-err" ]] || { echo "FAIL: post-compact.sh outside a git checkout fails"; failures=$((failures + 1)); }
+
+event_registered "$settings" PreCompact pre-compact.sh || { echo "FAIL: .claude/settings.json does not register pre-compact.sh for PreCompact"; failures=$((failures + 1)); }
+event_registered "$settings" PostCompact post-compact.sh || { echo "FAIL: .claude/settings.json does not register post-compact.sh for PostCompact"; failures=$((failures + 1)); }
+event_registered "$tmp/old-settings.json" PreCompact pre-compact.sh && { echo "FAIL: the PreCompact registration check passed a settings file with no pre-compact.sh"; failures=$((failures + 1)); }
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

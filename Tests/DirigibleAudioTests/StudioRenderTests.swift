@@ -100,6 +100,28 @@ struct StudioRenderTests {
         await studio.settle()
     }
 
+    /// C3: a change of the amount on a rendered clip is one undo entry: Undo puts back the file of
+    /// the old amount, and a second Undo puts back the source.
+    @Test func changeIsOneUndoEntry() async throws {
+        let fixture = try await StudioSplitTests.make()
+        let studio = try await open(fixture.package)
+        let source = studio.session
+        let first = try await studio.renderClips(["c1"], request: noise) { _ in }
+        try #require(first.clips.count == 1, "the first render moves the clip")
+        let rendered = studio.session
+        let twenty = ClipRenderRequest(Treatment(.noise(NoiseReduction(decibels: 20)!)))
+
+        let report = try await studio.renderClips(["c1"], request: twenty) { _ in }
+
+        try #require(report.clips.count == 1 && report.unchanged.isEmpty, "the change moves the clip")
+        try studio.undo()
+        #expect(studio.session == rendered, "one Undo puts back the file of 12 dB")
+        #expect(try listing(fixture.package).contains("f1 NR.wav"), "the file of 12 dB stays")
+        try studio.undo()
+        #expect(studio.session == source && !studio.canUndo, "the change records one undo entry")
+        await studio.settle()
+    }
+
     /// C5: a blocking run whose work gives the session of its turn back saves nothing and records
     /// no undo level.
     @Test func unchangedTurnWritesNothing() async throws {

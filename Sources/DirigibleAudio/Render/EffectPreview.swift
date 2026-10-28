@@ -19,9 +19,10 @@ struct PreviewWindow: Hashable, Sendable {
 /// The window of a preview of `request` on `clip` (decision 0054). The levels are those of
 /// `levelRequests`, as the clip render builds them, at any setting: a preview has no unchanged
 /// rule. On a clip with such levels, it reads the source of the lowest one at the origin offset,
-/// so a preview never stacks; else the clip file. The window starts at `playhead` when it is inside
-/// the clip, else at the clip start, and ends 10 s later or at the clip end. It reads up to 1 s of
-/// lead-in before the start, to the file start.
+/// so a preview never stacks; else the clip file. The window is 10 s long, or the whole clip when
+/// the clip is shorter. It starts at `playhead` when it is inside the clip, else at the clip start,
+/// and moves back when it would pass the clip end. It reads up to 1 s of lead-in before the start,
+/// to the file start.
 func previewWindow(
     of clip: ClipID, request: ClipRenderRequest, playhead: Frames, in session: Session
 ) throws(SessionError) -> PreviewWindow {
@@ -34,8 +35,10 @@ func previewWindow(
     }
     guard let lowered = source.clip(clip)?.clip else { throw .unknownClip(clip) }
     let rate = session.sampleRate
-    let start = lowered.offset + (placed.range.contains(playhead) ? playhead - placed.start : .zero)
-    let end = Frames(min(start.count + 10 * rate, (lowered.offset + lowered.length).count))
+    let length = min(10 * rate, lowered.length.count)
+    let wanted = lowered.offset + (placed.range.contains(playhead) ? playhead - placed.start : .zero)
+    let start = Frames(min(wanted.count, (lowered.offset + lowered.length).count - length))
+    let end = start + Frames(length)
     let leadIn = min(start.count, rate)
     return PreviewWindow(file: lowered.file, span: (start - Frames(leadIn))..<end, leadIn: leadIn, levels: levels)
 }

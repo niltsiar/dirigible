@@ -9,7 +9,7 @@
 # holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
 # with no wait), a lock folder that goes between a failed mkdir and the test for it (the call
 # tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
-# default with a fake clock, and the export of run-checks.sh). Each case uses a temporary repo with a worktree, so the lock of an outer
+# default with a fake clock, and run-checks.sh: no limit only for a push check). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -333,18 +333,25 @@ out="$(env -u WITH_LOCK_MAX_WAIT PATH="$tmp/clockbin:$PATH" FAKE_CLOCK="$tmp/clo
 code=$?
 [[ $code -eq 0 && "$(cat "$tmp/clock")" -ge 1000119 ]] || fail "default limit, holder goes at 119 s: exit $code at $(($(cat "$tmp/clock") - 1000000)) s: $out"
 clear_hold
-# run-checks.sh exports WITH_LOCK_MAX_WAIT=0, so a with-lock.sh call of a make recipe (swift-test.sh)
-# under a push check waits past the limit of the caller. The fake make calls with-lock.sh as that
-# recipe does.
+# run-checks.sh exports WITH_LOCK_MAX_WAIT=0 only for a push check (BASE set), so the recipe call of
+# a slice test keeps the wait limit and run-checks.sh ends in exit 75. The fake make calls
+# with-lock.sh as the recipe does.
 cp "$(dirname "$script")/run-checks.sh" "$repo/scripts/run-checks.sh"
 printf '#!/bin/bash\nexit 0\n' > "$repo/scripts/check-changed.sh"
+printf '#!/bin/bash\nexit 0\n' > "$repo/scripts/check-commits.sh"
 printf '#!/bin/bash\nexec %q touch %q\n' "$repo/scripts/with-lock.sh" "$tmp/ran" > "$fake/rcmake"
-chmod +x "$repo/scripts/check-changed.sh" "$fake/rcmake"
-hold_for 4
+chmod +x "$repo/scripts/check-changed.sh" "$repo/scripts/check-commits.sh" "$fake/rcmake"
+hold
 rm -f "$tmp/ran"
 out="$(cd "$repo" && env -u BASE MAKE="$fake/rcmake" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/run-checks.sh test 2>&1)"
 code=$?
-[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "run-checks.sh: the recipe call stops at the limit of the caller: exit $code: $out"
+[[ $code -eq 75 && ! -e "$tmp/ran" && "$out" == *'still waiting after 2 s'* ]] || fail "run-checks.sh, no BASE: the recipe call keeps the wait limit: exit $code (want 75): $out"
+clear_hold
+hold_for 4
+rm -f "$tmp/ran"
+out="$(cd "$repo" && BASE=HEAD MAKE="$fake/rcmake" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/run-checks.sh test 2>&1)"
+code=$?
+[[ $code -eq 0 && -e "$tmp/ran" ]] || fail "run-checks.sh, BASE set: the recipe call stops at the limit of the caller: exit $code: $out"
 clear_hold
 
 # Builders. A release appends one hold line to dirigible-build-holds.log: the start, the hold

@@ -44,6 +44,10 @@ red=0
 ((n < FAKE_PASS_AT)) && red=1
 for a in "$@"; do
   [[ $a == --* || $a == "${FAKE_SILENT:-}" ]] && continue
+  if [[ -n "${FAKE_LOCK75:-}" ]]; then
+    echo "with-lock: still waiting after 120 s (WITH_LOCK_MAX_WAIT); run the same command again" >&2
+    exit 75
+  fi
   if [[ $a == "${FAKE_SKIP:-}" && "${DIRIGIBLE_SLOW_TESTS:-}" != 1 ]]; then echo "➜ Test $a() skipped"; continue; fi
   if ((red)) && [[ -z "${FAKE_AGAIN:-}" || $a == "$FAKE_AGAIN" ]]; then
     echo "✘ Test $a() failed after 1.0 seconds with 1 issue."
@@ -100,6 +104,15 @@ run 1 0 'ok'
 [[ $code -eq 0 ]] || fail "a pass: exit $code: $out"
 # The load wait comes after the static gates and before the main make.
 [[ "$(cat "$tmp/log")" == $'make -k static\ncheck-changed --wait-load check\nmake -k -o lint -o check-sizes check' ]] || fail "a pass: calls [$(cat "$tmp/log")]"
+
+# A lock wait that ends at its limit (exit 75 of with-lock.sh) is no red test: run-checks.sh ends
+# in exit 75, with no rerun, whether the wait is in the main make or in a rerun.
+lock_line=$'2:with-lock: still waiting after 120 s (WITH_LOCK_MAX_WAIT); run the same command again\n2:make[1]: *** [test] Error 75\n2:make[1]: Target `check\' not remade because of errors.'
+run 1 2 "$lock_line"
+[[ $code -eq 75 && -z "$(filters)" ]] || fail "a lock wait in the main make: exit $code (want 75, no rerun): $out"
+FAKE_LOCK75=1 run 2 2 "$red_test"
+[[ $code -eq 75 && "$(filters | wc -l | tr -d ' ')" == 1 ]] || fail "a lock wait in a rerun: exit $code (want 75, one rerun call): $out"
+unset FAKE_LOCK75
 
 # A test failure that passes on rerun 2: the load wait before each rerun, a flake line, and one
 # dirigible-flakes line with HEAD and the load.

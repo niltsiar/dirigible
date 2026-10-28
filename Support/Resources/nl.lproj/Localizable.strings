@@ -375,6 +375,7 @@
 "inspector.mixed" = "Gemengd";
 "inspector.effects" = "Effecten";
 "inspector.effect.noise" = "Ruis verminderen %lld dB";
+"inspector.effect.hum" = "Brom verwijderen %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Luidheidsmeter";

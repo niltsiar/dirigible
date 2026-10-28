@@ -163,16 +163,30 @@ extension AudioFile {
 }
 
 extension RenderOrigin {
-    /// `<origin source offset gain>` from version 12 on (decision 0057 D9), with one `<noise
-    /// decibels>` element. It refuses an unknown element, no effect, and a repeated kind.
+    /// `<origin source offset gain>` from version 12 on (decision 0057 D9), with one element for
+    /// each effect: `<hum hz>` from version 13 on, 50 or 60, and `<noise decibels>`. It refuses an
+    /// unknown element, no effect, and a repeated kind.
     fileprivate init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         guard version >= 12 else { throw .invalidValue(element: "origin", attribute: "version") }
         var effects: [Effect] = []
         for case let child as XMLElement in node.children ?? [] {
-            guard child.localName == "noise", child.uri == sessionNamespace,
-                let amount = NoiseReduction(decibels: try child.value("decibels"))
-            else { throw .invalidValue(element: child.localName ?? "", attribute: "decibels") }
-            effects.append(.noise(amount))
+            guard child.uri == sessionNamespace else {
+                throw .invalidValue(element: child.localName ?? "", attribute: "namespace")
+            }
+            switch child.localName {
+            case "hum":
+                guard version >= 13 else { throw .invalidValue(element: "hum", attribute: "version") }
+                guard let hertz = Hum(rawValue: try child.value("hz")) else {
+                    throw .invalidValue(element: "hum", attribute: "hz")
+                }
+                effects.append(.hum(hertz))
+            case "noise":
+                guard let amount = NoiseReduction(decibels: try child.value("decibels")) else {
+                    throw .invalidValue(element: "noise", attribute: "decibels")
+                }
+                effects.append(.noise(amount))
+            default: throw .invalidValue(element: child.localName ?? "", attribute: "element")
+            }
         }
         guard let treatment = Treatment(effects) else { throw .invalidValue(element: "origin", attribute: "effects") }
         guard let gain = Gain(dB: try node.value("gain")) else {

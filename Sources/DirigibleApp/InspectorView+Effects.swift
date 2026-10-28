@@ -31,6 +31,7 @@ extension InspectorView {
         guard let first = chains.first, chains.allSatisfy({ $0 == first }) else { return text(.inspectorMixed) }
         return first.map { effect in
             switch effect {
+            case .hum(let hum): String(format: text(.inspectorEffectHum), locale: .current, hum.rawValue)
             case .noise(let noise): String(format: text(.inspectorEffectNoise), locale: .current, noise.decibels)
             }
         }.joined(separator: ", ")

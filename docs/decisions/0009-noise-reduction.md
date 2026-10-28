@@ -4,6 +4,7 @@
 - Date: 2026-09-24
 - Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). The session stores no effect and no dial: the unit renders offline once into a new WAV, not at each play, and the session XML gets no `<effect>` element. The Voice model runs on every macOS. The dial is dB of reduction, 12 dB in the first landing.
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). The session stores the effect as rendered in the origin of the rendered file, not as a live effect.
+- Amended: 2026-10-28, run `2026-10-13-render-denoise`, landing 2 (see 0054). Hum removal is the `AVAudioUnitEQ` band-stop of 0054, not `vDSP.Biquad` notches: a probe of the band-stop met each hum criterion. `vDSP.Biquad` stays the fallback of 0054.
 
 ## Context
 

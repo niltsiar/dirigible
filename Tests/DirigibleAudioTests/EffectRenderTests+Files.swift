@@ -297,4 +297,13 @@ struct TreatmentTests {
         #expect(noise.accepts(nil) && noise.accepts(.dialogue))
         #expect(!noise.accepts(.music) && !noise.accepts(.effects))
     }
+
+    /// C17b: the stem suffix is " HR" for hum alone, and " NR" for noise and for noise with hum.
+    @Test func humAloneSuffixIsHR() throws {
+        let both = try #require(Treatment([.hum(.hz60), .noise(.standard)]))
+        #expect(Treatment(.hum(.hz50)).suffix == " HR")
+        #expect(Treatment(.noise(.standard)).suffix == " NR" && both.suffix == " NR")
+        #expect(Treatment(.hum(.hz50)).accepts(.music) && Treatment(.hum(.hz50)).accepts(.effects))
+        #expect(!both.accepts(.music), "noise with hum refuses music")
+    }
 }

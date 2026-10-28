@@ -4,6 +4,7 @@
 - Date: 2026-10-14
 - Accepted: 2026-10-27, after plan gates 1 to 3 of run `2026-10-14-render-link`.
 - Amends: 0055 (the words of a transcript anchor to the root file of a chain), 0061 (a rendered file of a take file has the take origin of its root), 0002 (`DirigibleCore` owns the stored render settings), 0009 (the session stores the effect as rendered, in the origin), 0056 (`addDerivedFile` copies no word into a file with an origin), 0003 (a `<file>` can hold one `<origin>`), 0024 (`session.xml` version 12 with an origin), 0042 (a copy into another package has no origin), 0047 (the origin chain of a held file holds its sources), 0054 (a render writes an origin; a second render of one kind replaces, it does not stack; `repoint` writes the second-pass gain).
+- Amended: 2026-10-28, run `2026-10-13-render-denoise`, landing 2 (see 0054). D9: an origin with hum holds `<hum hz>` (50 or 60) before `<noise>`, and `session.xml` is version 13 when an origin holds hum. The reader refuses `<hum>` in a file of version 12 or lower, and `hz` other than 50 and 60.
 
 ## Context
 

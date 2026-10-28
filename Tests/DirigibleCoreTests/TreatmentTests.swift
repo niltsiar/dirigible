@@ -12,4 +12,12 @@ struct TreatmentTests {
         #expect(Treatment([]) == nil)
         #expect(Treatment([six])?.effects == [six] && Treatment(twelve).effects == [twelve])
     }
+
+    /// C17b: the chain order is hum, then noise, whatever the input order.
+    @Test func humComesBeforeNoise() throws {
+        let effects = try #require(Treatment([.noise(.standard), .hum(.hz50)])).effects
+        #expect(effects == [.hum(.hz50), .noise(.standard)])
+        #expect(Treatment([.hum(.hz50), .hum(.hz60)]) == nil, "hum twice")
+        #expect(Hum(rawValue: 50) == .hz50 && Hum(rawValue: 60) == .hz60 && Hum(rawValue: 55) == nil)
+    }
 }

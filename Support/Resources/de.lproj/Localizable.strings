@@ -375,6 +375,7 @@
 "inspector.mixed" = "Gemischt";
 "inspector.effects" = "Effekte";
 "inspector.effect.noise" = "Rauschen reduzieren %lld dB";
+"inspector.effect.hum" = "Brummen entfernen %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Loudness-Anzeige";

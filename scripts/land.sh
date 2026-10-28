@@ -19,8 +19,14 @@
 # load wait of check-changed.sh. A file outside Sources/ and Tests/ that a code line of Tests/
 # names as a whole string-literal path adds the target of that test file: `test-app` for
 # AppBundleTests, `test-dmg` for DiskImageTests (`make test` skips both), else `test`. With no
-# stamp, it runs `make check-changed BASE=origin/main`. The delta runs through run-checks.sh with
-# the risk of origin/main. A land that stops keeps its stamp commit in the file
+# stamp, it runs `make check-changed BASE=origin/main`, except when the reason is `base moved`
+# (the stamp has an older base, or the file has no line of this branch): then it runs no check,
+# prints `stamp: none (base moved)` and the line `push check: cd <worktree> && ... make
+# check-changed BASE=origin/main > <run folder>/logs/push-check.log 2>&1`, and exits 4 with
+# nothing pushed. The branch stays rebased, so the lead runs that line as its own background step
+# (it stamps the rebased HEAD), then runs land.sh again with the same arguments; the second call
+# reads that stamp before its rebase and reuses it, or runs the delta when origin/main moved again.
+# The delta runs through run-checks.sh with the risk of origin/main. A land that stops keeps its stamp commit in the file
 # dirigible-land-stamp-<branch with / as -> of the common git dir, until the merge. It prints the
 # stamp line.
 # After the rebase and the governance check, check-commits.sh refuses a commit of the branch that a
@@ -293,6 +299,11 @@ if [[ -n "$stamp_commit" ]]; then
     fi
 else
     echo "stamp: none ($stamp)"
+    if [[ "$stamp" == 'base moved' ]]; then
+        echo "push check: cd $(git rev-parse --show-toplevel) && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > $(cd "$run" && pwd)/logs/push-check.log 2>&1"
+        echo "land.sh: no pass stamp has the base of origin/main. Run the push check command above as its own background step (AGENTS.md, Commands), then run land.sh again with the same arguments. Nothing is pushed." >&2
+        exit 4
+    fi
     make check-changed BASE=origin/main || die "the checks failed; nothing is pushed"
 fi
 # A test that passed only on a rerun of run-checks.sh gets a flake row (flake-triage.md). The file

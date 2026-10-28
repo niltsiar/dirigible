@@ -552,7 +552,18 @@ commit_file docs/a.md
 stamp_case 'base moved on main' 'stamp: delta check-docs' 'make -k check-docs'
 stamp_setup
 stamp HEAD
-stamp_case 'base off main' 'stamp: none (base moved)' 'make check-changed BASE=origin/main'
+land_in "Add x" "$c/pr.md"
+code=$?
+want="push check: cd $(git -C "$c/work" rev-parse --show-toplevel) && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > $c/logs/push-check.log 2>&1"
+[[ $code -eq 4 ]] || fail "base off main, first call: exit $code, want 4: $(cat "$c/out")"
+grep -qx 'stamp: none (base moved)' "$c/out" || fail "base off main, first call: no stamp line: $(cat "$c/out")"
+grep -qxF "$want" "$c/out" || fail "base off main, first call: no push check line [$want]: $(cat "$c/out")"
+[[ -z "$(makes)" ]] || fail "base off main, first call: make calls [$(makes)], want none"
+! grep -q '^gh pr \(create\|edit\|merge\)' "$c/log" || fail "base off main, first call: a PR call ran: $(cat "$c/log")"
+! git -C "$c/origin.git" show-ref -q --verify refs/heads/feat/x || fail 'base off main, first call: the branch is on origin'
+# The lead runs the printed command; its pass stamps the rebased HEAD, and the second call reuses it.
+stamp origin/main
+stamp_case 'base off main, second call' "stamp: reuse $(git -C "$c/work" rev-parse HEAD)" ''
 # main_commit <path> [<text>]: origin/main gets a commit of one file, as another run that landed.
 main_commit() {
   mkdir -p "$(dirname "$c/other/$1")"

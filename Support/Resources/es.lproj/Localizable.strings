@@ -265,6 +265,8 @@
 "track.state.not.started" = "No se inició";
 "track.state.no.sound" = "No hay sonido de %1$@. Si %1$@ reproduce sonido, haz clic en Privacidad… y permite que Dirigible grabe el audio del sistema.";
 "track.state.no.sound.short" = "Sin sonido de %@";
+"track.state.no.access" = "Sin acceso a %1$@. Haz clic en Privacidad… y permite que Dirigible grabe el audio del sistema; luego vuelve a Dirigible.";
+"track.state.no.access.short" = "Sin acceso a %@";
 "track.listen.quiet" = "Sin sonido de monitor. Desactiva y activa Monitorizar pista.";
 "track.listen.quiet.short" = "Sin sonido de monitor";
 "track.listen.loopback" = "Sin sonido de monitor: la salida puede llegar a esta entrada. Elige otra salida.";

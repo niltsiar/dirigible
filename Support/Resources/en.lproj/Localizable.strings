@@ -265,6 +265,8 @@
 "track.state.not.started" = "Did not start";
 "track.state.no.sound" = "No sound from %1$@. If %1$@ plays sound, click Privacy… and allow Dirigible to record system audio.";
 "track.state.no.sound.short" = "No sound from %@";
+"track.state.no.access" = "No access to %1$@. Click Privacy… and allow Dirigible to record system audio, then come back to Dirigible.";
+"track.state.no.access.short" = "No access to %@";
 "track.listen.quiet" = "No monitor sound. Turn Monitor Track off and on.";
 "track.listen.quiet.short" = "No monitor sound";
 "track.listen.loopback" = "No monitor sound: the output can feed this input. Choose another output.";

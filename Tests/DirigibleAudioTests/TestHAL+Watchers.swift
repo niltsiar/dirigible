@@ -40,3 +40,18 @@ final class DeviceListWatchers: @unchecked Sendable {
         for writer in writers { writer.post(.devicesChanged, from: nil) }
     }
 }
+
+extension TestHAL {
+    /// A successful attach or a clean detach of one input.
+    enum Event: Equatable {
+        case attach(DeviceInput)
+        case detach(DeviceInput)
+
+        static func == (a: Event, b: Event) -> Bool {
+            switch (a, b) {
+            case (.attach(let x), .attach(let y)), (.detach(let x), .detach(let y)): x === y
+            default: false
+            }
+        }
+    }
+}

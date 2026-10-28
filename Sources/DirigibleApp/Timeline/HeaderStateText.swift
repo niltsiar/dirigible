@@ -11,6 +11,20 @@ struct HeaderStateText: Equatable {
         Self(row: L10n.trackStateNoSoundShort.format(app), full: L10n.trackStateNoSound.format(app))
     }
 
+    /// An app track whose tap macOS does not allow (decision 0006).
+    static func noAccess(_ app: String) -> Self {
+        Self(row: L10n.trackStateNoAccessShort.format(app), full: L10n.trackStateNoAccess.format(app))
+    }
+
+    /// The text of an app track that gets no sound or has no access, else nil.
+    static func app(_ state: LiveTrack.State?, _ app: String) -> Self? {
+        switch state {
+        case .noSound: noSound(app)
+        case .noAccess: noAccess(app)
+        default: nil
+        }
+    }
+
     /// A listened track that plays no monitor sound (decision 0044), or nil.
     static func quiet(state: LiveTrack.State?, quiet: Bool, loopback: Bool) -> Self? {
         listenQuietText(state: state, quiet: quiet, loopback: loopback).map {

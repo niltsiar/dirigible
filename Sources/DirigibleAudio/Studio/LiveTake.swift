@@ -25,6 +25,9 @@ public struct LiveTrack: Hashable, Sendable {
         /// An app track got only zeros for 5 s while its app plays: the System Audio Recording
         /// access can be missing (A9).
         case noSound
+        /// A monitor app tap got `'!hog'` from its grant check and no sound since: macOS does
+        /// not allow System Audio Recording (decision 0006).
+        case noAccess
         /// The device did not answer its first attach by the start deadline; the other tracks
         /// record, and the first report of its writer replaces this state.
         case notStarted

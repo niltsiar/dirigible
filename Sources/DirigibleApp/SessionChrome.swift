@@ -37,10 +37,11 @@ import Observation
     /// The tracks of the last record-over warning that was announced. Only a different, not empty
     /// set of tracks announces again: a play across a clip end changes the clip, not the tracks.
     private var announcedRecordOver: [TrackID] = []
-    /// The tracks whose **No sound from** was announced, and the take state of that time. A track
-    /// leaves the set with its live entry, at a take start or end (new writers), and when it
-    /// leaves `.noSound` with a sound. So a rearm or a come back with no sound announces nothing.
-    private var announcedNoSound: Set<TrackID> = []
+    /// The tracks whose **No sound from** or **No access** was announced, with that state, and the
+    /// take state of that time. A track leaves the map with its live entry, at a take start or end
+    /// (new writers), and when it leaves the warning with a sound. So a rearm or a come back with
+    /// no sound announces nothing, and only a change to the other warning announces again.
+    private var announcedWarnings: [TrackID: LiveTrack.State] = [:]
     private var announcedInTake = false
     /// The reads that started and that ended, written or dropped, for the tests.
     private(set) var recordTimeReadsStarted = 0
@@ -182,11 +183,13 @@ import Observation
         guard let model else { return }
         if model.canStop != announcedInTake {
             announcedInTake = model.canStop
-            announcedNoSound = []
+            announcedWarnings = [:]
         }
-        if let studio = model.studio { announcedNoSound = announcedNoSound.filter { studio.liveStates[$0] != nil } }
+        if let studio = model.studio {
+            announcedWarnings = announcedWarnings.filter { studio.liveStates[$0.key] != nil }
+        }
         guard model.shown != state.shown else { return }
-        announceNoSound(state.shown.noSound, before: model.shown.noSound, model: model)
+        announceAppWarnings(state.shown.appWarnings, before: model.shown.appWarnings, model: model)
         // A banner of a kind that did not show is announced once.
         for banner in state.shown.banners where !model.shown.banners.contains(where: { $0.key == banner.key }) {
             if let priority = banner.announcement { announce(banner.text, priority) }
@@ -199,18 +202,22 @@ import Observation
         model.shown = state.shown
     }
 
-    /// Announces each app track that enters `.noSound` and was not announced. A track that
-    /// leaves it with a live peak above 0 can announce again: the drain reports the levels first.
-    private func announceNoSound(_ tracks: Set<TrackID>, before: Set<TrackID>, model: SessionWindow) {
+    /// Announces each app track that enters `.noSound` or `.noAccess` and was not announced in
+    /// that state. A track that leaves the warning with a live peak above 0 can announce again:
+    /// the drain reports the levels first.
+    private func announceAppWarnings(
+        _ warnings: [TrackID: LiveTrack.State], before: [TrackID: LiveTrack.State], model: SessionWindow
+    ) {
         guard let studio = model.studio else { return }
-        for track in before.subtracting(tracks) where (studio.liveTracks[track]?.peak ?? 0) > 0 {
-            announcedNoSound.remove(track)
+        for track in before.keys where warnings[track] == nil && (studio.liveTracks[track]?.peak ?? 0) > 0 {
+            announcedWarnings[track] = nil
         }
-        let entered = tracks.subtracting(before).subtracting(announcedNoSound)
-        for track in studio.session.tracks where entered.contains(track.id) {
-            guard case .app(let bundleID) = track.route else { continue }
-            announcedNoSound.insert(track.id)
-            announce(HeaderStateText.noSound(model.appName(bundleID)).full, .high)
+        for track in studio.session.tracks {
+            guard let state = warnings[track.id], state != before[track.id], state != announcedWarnings[track.id],
+                case .app(let bundleID) = track.route, let text = HeaderStateText.app(state, model.appName(bundleID))
+            else { continue }
+            announcedWarnings[track.id] = state
+            announce(text.full, .high)
         }
     }
 

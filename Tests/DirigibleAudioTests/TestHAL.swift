@@ -40,6 +40,7 @@ final class TestHAL: @unchecked Sendable {
     private var deviceGates: [String: DispatchSemaphore] = [:]
     private var heldAttaches: [String: Int] = [:]
     private var callLog: [String] = []
+    private var tapAccessStatus: [String: OSStatus] = [:]
     private var tapGate: DispatchSemaphore?
     /// The output devices that left the device list (`deviceExists` is false for them).
     private var goneDevices: Set<String> = []
@@ -57,19 +58,6 @@ final class TestHAL: @unchecked Sendable {
     private var attachAggregates: [String: (subdevices: [AudioObjectID], virtual: Set<AudioObjectID>)] = [:]
     private var listenDetaches: [String: Int] = [:]
     let watchers = DeviceListWatchers()
-
-    /// A successful attach or a clean detach of one input.
-    enum Event: Equatable {
-        case attach(DeviceInput)
-        case detach(DeviceInput)
-
-        static func == (a: Event, b: Event) -> Bool {
-            switch (a, b) {
-            case (.attach(let x), .attach(let y)), (.detach(let x), .detach(let y)): x === y
-            default: false
-            }
-        }
-    }
 
     init(_ devices: [InputDevice]) {
         for (index, device) in devices.enumerated() {
@@ -91,6 +79,13 @@ final class TestHAL: @unchecked Sendable {
                 }
             },
             makeTap: { [self] found, _ in makeTap(found) },
+            tapAccess: { [self] processes, _ in
+                lock.withLock {
+                    let app = apps.first { $0.value.key.processes == processes }
+                    callLog.append("tapAccess \(app?.value.device.uid ?? "\(processes)")")
+                    return app.flatMap { tapAccessStatus[$0.key] } ?? noErr
+                }
+            },
             appName: { [self] bundleID in lock.withLock { names[bundleID] ?? bundleID } },
             deviceExists: { [self] uid in lock.withLock { !goneDevices.contains(uid) } },
             loopback: { [self] id in
@@ -269,6 +264,9 @@ final class TestHAL: @unchecked Sendable {
             if let name { names[bundleID] = name }
         }
     }
+
+    /// The status that the grant check of `bundleID` returns from now on; noErr when not set.
+    func setTapAccess(_ bundleID: String, _ status: OSStatus) { lock.withLock { tapAccessStatus[bundleID] = status } }
 
     /// The input layout of the next tap aggregates of `uid` (`app:<bundle ID>`), for example a
     /// headset microphone before the tap stream (probe P13).

@@ -306,12 +306,12 @@ private struct TrackRow: View {
     /// an app track that gets no sound. The full sentence wrapped to 3 to 13 lines (run
     /// 2026-10-11-ui-polish-header U5).
     @ViewBuilder private func stateLine(_ liveState: LiveTrack.State?) -> some View {
-        let noSound = liveState == .noSound
-        if let state = noSound ? HeaderStateText.noSound(sourceLabel) : quiet {
+        let app = HeaderStateText.app(liveState, sourceLabel)
+        if let state = app ?? quiet {
             HStack(spacing: 8) {
                 Text(verbatim: state.row).foregroundStyle(.orange).lineLimit(1).truncationMode(.tail)
                     .help(Text(verbatim: state.full)).accessibilityLabel(Text(verbatim: state.full))
-                if noSound {
+                if app != nil {
                     // A short title; the full name is the help and the VoiceOver name.
                     Button(L10n.trackNoSoundPrivacy.text, action: model.openAudioCaptureSettings)
                         .fixedSize()

@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-09-24
 - Amended: 2026-10-02. The processes of an app are each process object whose bundle ID is the app ID or starts with the app ID and a dot, or whose executable is inside the app bundle. A helper that starts rebuilds the tap and its aggregate into a new segment, because a live update of the tap process list gives `!hog`. The aggregate has auto start false. The silence warning comes after 5.0 s of zeros while a matched process plays, with rebuilds at the warning, 10 s after it, and 40 s after it (see 0030).
+- Amended: 2026-10-28, run `2026-10-27-armed-app-track`. The grant check: after each attach of a monitor app writer (the first attach and each rebuild), a throwaway tap of the same processes, with the same description and no aggregate, gets the set of `kAudioTapPropertyDescription` with that description. On macOS 15.8.1 (probe P1, form 1, a stereo mixdown), the set gives noErr with the grant and `'!hog'` with no grant, also while the recorded tap runs, with no gap in it. `'!hog'` shows **No access** until a noErr check or a sample that is not zero; another status changes nothing. The recorded tap never gets the set. A take writer runs no check, so a take shows only the silence warning. Before an answer to the prompt, the set shows the prompt and waits, so the check runs only after the attach.
 
 ## Context
 
@@ -18,7 +19,7 @@ A process tap can only be read through an aggregate device. The user confirmed o
 - The main sub-device of the tap aggregate is the output device of the tapped process (`kAudioProcessPropertyDevices`), or the default output device if the process reports none. Set `kAudioSubTapDriftCompensationKey` to true on the sub-tap. When the main sub-device goes away or the process changes its output, rebuild the aggregate on the new device and start a new segment (0004). The guest track keeps recording.
 - The user picks an app, not a process. Tap every process of the app: its bundle ID is the app ID or starts with the app ID and a dot, or its executable is inside the app bundle (0030). Watch `kAudioHardwarePropertyProcessObjectList` and rebuild the tap when a helper process starts (0030). Call apps often play audio from a helper process.
 - Add `NSAudioCaptureUsageDescription` to `Support/Info.plist` in English and to `es.lproj/InfoPlist.strings` in Spanish. `AppBundleTests` checks both.
-- No public API reads the System Audio Recording permission. A denied tap gives silence. If a tap gives only zero samples for 5.0 s while the app plays audio (`IsRunningOutput` is 1), show a warning with a link to the privacy settings, and rebuild the tap (0030).
+- No public API reads the System Audio Recording permission. A denied tap gives silence. If a tap gives only zero samples for 5.0 s while the app plays audio (`IsRunningOutput` is 1), show a warning with a link to the privacy settings, and rebuild the tap (0030). A monitor app writer also runs the grant check of the 2026-10-28 amendment, which shows **No access** before this warning.
 - On macOS 14.0 and 14.1, which have no process taps, the app source is not available. The app tells the user to update macOS.
 - Release 2 builds this (see `docs/requirements/releases.md`).
 

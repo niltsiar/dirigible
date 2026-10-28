@@ -265,6 +265,8 @@
 "track.state.not.started" = "Niet gestart";
 "track.state.no.sound" = "Geen geluid van %1$@. Speelt %1$@ geluid af? Klik op 'Privacy…' en sta Dirigible toe systeemaudio op te nemen.";
 "track.state.no.sound.short" = "Geen geluid: %@";
+"track.state.no.access" = "Geen toegang tot %1$@. Klik op 'Privacy…', sta Dirigible toe systeemaudio op te nemen en ga dan terug naar Dirigible.";
+"track.state.no.access.short" = "Geen toegang: %@";
 "track.listen.quiet" = "Geen monitorgeluid. Zet 'Spoormonitor' uit en aan.";
 "track.listen.quiet.short" = "Geen monitorgeluid";
 "track.listen.loopback" = "Geen monitorgeluid: de uitvoer kan terugkomen in deze invoer. Kies een andere uitvoer.";

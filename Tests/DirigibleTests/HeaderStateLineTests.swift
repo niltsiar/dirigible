@@ -94,35 +94,42 @@ import Testing
         model.setAppRoute("com.microsoft.teams2", track: "t2")
         #expect(studio.session.track("t2")?.route == .app(bundleID: "com.microsoft.teams2"))
         studio.liveTracks["t1"] = LiveTrack(state: .recording, droppedFrames: 0, peak: 0.2)
-        studio.liveTracks["t2"] = LiveTrack(state: .noSound, droppedFrames: 0, peak: 0)
         let header = try HeaderRowTests()
-        for language in AppLanguage.allCases.map(\.rawValue) {
-            try await withStrings(language) {
-                #expect(L10n.trackStateNoSound.format("A").count > 60, "the \(language) table is in use")
-                for lane in [80.0, 100, 200] {
-                    for width in [180.0, 340] {
-                        let label = "\(language), \(lane) pt lanes at \(width) pt"
-                        let (window, host) = header.rows(model, studio, laneHeight: lane, width: width)
-                        window.orderFront(nil)
-                        drawNow(window)
-                        try await Task.sleep(for: .milliseconds(200))
-                        let arm = try #require(header.flagBoxes(host, in: host).first { $0.midY > lane })
-                        let orange = try await orangeRows(host, window, lane: lane, arm: arm, width: width)
-                        #expect(Self.bands(orange) == 1, "one line of state text: \(label)")
-                        #expect(!orange.suffix(4).contains(true), "no orange in the last 2 pt of the row: \(label)")
-                        let privacy = try #require(Self.lowestButton(host, lane: lane), "a button on line 3: \(label)")
-                        // The route menu is the highest route-kind host of row 1; the button is under it.
-                        let menus = header.controls(host, in: host).filter { $0.kind == "route" }.map(\.frame)
-                        let row = menus.filter { $0.midY > lane && $0.midY < 2 * lane }
-                        let route = try #require(row.min { $0.minY < $1.minY }).maxY
-                        #expect(
-                            privacy.minY >= route && privacy.minX >= 8 && privacy.maxX <= width - 8,
-                            "the Privacy button is on line 3, inside the row: \(label): \(privacy)")
-                        window.close()
-                    }
+        for (state, text) in [(LiveTrack.State.noSound, L10n.trackStateNoSound), (.noAccess, .trackStateNoAccess)] {
+            studio.liveTracks["t2"] = LiveTrack(state: state, droppedFrames: 0, peak: 0)
+            for language in AppLanguage.allCases.map(\.rawValue) {
+                try await withStrings(language) {
+                    #expect(text.format("A").count > 60, "the \(language) table is in use")
+                    try await checkLines(model, studio, header, "\(state), \(language)")
                 }
             }
         }
         await model.close()
+    }
+
+    /// One line of state text and the Privacy button on line 3 of row 1, at each lane and width.
+    func checkLines(_ model: SessionWindow, _ studio: Studio, _ header: HeaderRowTests, _ name: String) async throws {
+        for lane in [80.0, 100, 200] {
+            for width in [180.0, 340] {
+                let label = "\(name), \(lane) pt lanes at \(width) pt"
+                let (window, host) = header.rows(model, studio, laneHeight: lane, width: width)
+                window.orderFront(nil)
+                drawNow(window)
+                try await Task.sleep(for: .milliseconds(200))
+                let arm = try #require(header.flagBoxes(host, in: host).first { $0.midY > lane })
+                let orange = try await orangeRows(host, window, lane: lane, arm: arm, width: width)
+                #expect(Self.bands(orange) == 1, "one line of state text: \(label)")
+                #expect(!orange.suffix(4).contains(true), "no orange in the last 2 pt of the row: \(label)")
+                let privacy = try #require(Self.lowestButton(host, lane: lane), "a button on line 3: \(label)")
+                // The route menu is the highest route-kind host of row 1; the button is under it.
+                let menus = header.controls(host, in: host).filter { $0.kind == "route" }.map(\.frame)
+                let row = menus.filter { $0.midY > lane && $0.midY < 2 * lane }
+                let route = try #require(row.min { $0.minY < $1.minY }).maxY
+                #expect(
+                    privacy.minY >= route && privacy.minX >= 8 && privacy.maxX <= width - 8,
+                    "the Privacy button is on line 3, inside the row: \(label): \(privacy)")
+                window.close()
+            }
+        }
     }
 }

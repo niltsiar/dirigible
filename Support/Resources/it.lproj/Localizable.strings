@@ -265,6 +265,8 @@
 "track.state.not.started" = "Non avviato";
 "track.state.no.sound" = "Nessun suono da %1$@. Se %1$@ riproduce audio, fai clic su Privacy… e consenti a Dirigible di registrare l’audio di sistema.";
 "track.state.no.sound.short" = "Nessun suono: %@";
+"track.state.no.access" = "Nessun accesso a %1$@. Fai clic su Privacy…, consenti a Dirigible di registrare l’audio di sistema, poi torna a Dirigible.";
+"track.state.no.access.short" = "Nessun accesso: %@";
 "track.listen.quiet" = "Nessun suono di monitoraggio. Disattiva e riattiva Monitoraggio traccia.";
 "track.listen.quiet.short" = "Monitor senza suono";
 "track.listen.loopback" = "Nessun suono di monitoraggio: l’uscita può rientrare in questo ingresso. Scegli un’altra uscita.";

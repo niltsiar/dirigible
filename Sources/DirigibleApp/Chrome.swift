@@ -225,8 +225,9 @@ struct ShownChrome: Equatable {
     /// Speed read them (decision 0052).
     var speed = Speed.one
     var canChangeSpeed = false
-    /// The tracks that show **No sound from**: `SessionChrome` announces each change to it.
-    var noSound: Set<TrackID> = []
+    /// The tracks that show **No sound from** (`.noSound`) or **No access** (`.noAccess`), with
+    /// that state: `SessionChrome` announces each change to it.
+    var appWarnings: [TrackID: LiveTrack.State] = [:]
 }
 
 /// Everything that the AppKit chrome of a window shows, derived from the window state in one
@@ -301,7 +302,7 @@ struct ChromeState: Equatable {
         shown = ShownChrome(
             recordOver: model.showsRecordOver, banners: banners, recordTime: subtitleLeft != nil,
             isRunning: recording || playing, speed: studio.speed, canChangeSpeed: studio.canChangeSpeed,
-            noSound: Set(studio.liveStates.filter { $0.value == .noSound }.keys))
+            appWarnings: studio.liveStates.filter { $0.value == .noSound || $0.value == .noAccess })
     }
 }
 

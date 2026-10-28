@@ -309,6 +309,8 @@ enum L10n: String, CaseIterable {
     case trackStateNotStarted = "track.state.not.started"
     case trackStateNoSound = "track.state.no.sound"
     case trackStateNoSoundShort = "track.state.no.sound.short"
+    case trackStateNoAccess = "track.state.no.access"
+    case trackStateNoAccessShort = "track.state.no.access.short"
     case trackListenQuiet = "track.listen.quiet"
     case trackListenQuietShort = "track.listen.quiet.short"
     case trackListenLoopback = "track.listen.loopback"

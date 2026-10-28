@@ -51,6 +51,7 @@ struct CompactLiveStateContent: View {
         case .retryStopped: L10n.trackStateRetryStopped.text
         case .waitingForApp: L10n.trackStateWaitingForApp.format(source)
         case .noSound: L10n.trackStateNoSound.format(source)
+        case .noAccess: L10n.trackStateNoAccess.format(source)
         case .notStarted: L10n.trackStateNotStarted.text
         }
     }
@@ -92,19 +93,19 @@ struct LiveStateContent: View {
         case .retryStopped: Text(verbatim: L10n.trackStateRetryStopped.text).foregroundStyle(.red)
         case .notStarted: Text(verbatim: L10n.trackStateNotStarted.text).foregroundStyle(.red)
         case .waitingForApp: Text(verbatim: L10n.trackStateWaitingForApp.format(source)).foregroundStyle(.secondary)
-        case .noSound where showsNoSound:
+        case .noSound, .noAccess:
             // A row of 56 to 79 pt has no room for the text and the "Privacy…" button.
-            let full = HeaderStateText.noSound(source).full
-            Button(action: openSettings) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            if showsNoSound, let text = HeaderStateText.app(live.state, source) {
+                Button(action: openSettings) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .buttonStyle(.borderless)
+                .help(Text(verbatim: text.full))
+                // VoiceOver: the label names the action; the value gives the state also with hints off.
+                .accessibilityLabel(L10n.trackNoSoundSettings.key)
+                .accessibilityValue(Text(verbatim: text.row))
+                .accessibilityHint(Text(verbatim: text.full))
             }
-            .buttonStyle(.borderless)
-            .help(Text(verbatim: full))
-            // VoiceOver: the label names the action; the value gives the state also with hints off.
-            .accessibilityLabel(L10n.trackNoSoundSettings.key)
-            .accessibilityValue(Text(verbatim: HeaderStateText.noSound(source).row))
-            .accessibilityHint(Text(verbatim: full))
-        case .noSound: EmptyView()
         }
         if live.droppedFrames > 0 {
             Text(verbatim: L10n.trackDropped.format(live.droppedFrames)).foregroundStyle(.orange)

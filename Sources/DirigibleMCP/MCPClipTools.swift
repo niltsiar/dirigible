@@ -224,9 +224,10 @@ let clipTools = [
         "clip_denoise",
         "Reduce the noise in clips, as dirigible clip denoise: for each run of clips of one file, one new 24-bit WAV "
             + "in Clips/ with a handle of 10 s on each side, made by the noise reduction of macOS, and the clips move "
-            + "onto it. The source file stays. A clip on a music or effects track is refused. A second call on a reduced "
-            + "clip renders again from its source, and the same amount gives \"Nothing to change.\". Give one line for "
-            + "each clip: the clip and its new file, with a tab between them."
+            + "onto it. The source file stays. A clip on a music or effects track is refused. A second call on a clip "
+            + "that this version reduced renders again from its source, and the same amount gives \"Nothing to "
+            + "change.\". A clip that an older version reduced has no link, so a second call reduces it again. Give "
+            + "one line for each clip: the clip and its new file, with a tab between them."
             + editCancelNote("no clip changes"),
         [clips, reduction], batch: .alone
     ) { a throws(ToolError) in

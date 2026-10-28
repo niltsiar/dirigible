@@ -71,6 +71,21 @@ struct MCPDenoiseTests {
         #expect(try package.xml() == before.0 && DenoiseCommandTests.clips(package) == before.1)
     }
 
+    /// The tool text and the command help limit the render again from the source to a clip that
+    /// this version reduced: a clip that an older version reduced has no link (decision 0057).
+    @Test func eachTextSaysThatAnOlderClipIsReducedAgain() async throws {
+        let answers = try await mcp([modernRequest(1, "tools/list")])
+        let tools = result(answer(answers, id: 1))["tools"] as? [[String: Any]] ?? []
+        let tool = tools.first { $0["name"] as? String == "clip_denoise" }?["description"] as? String ?? ""
+        let help = try await dirigible("clip", "denoise", "--help")
+        for (name, text) in ["tool": tool, "help": help.stdout] {
+            let words = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            #expect(
+                words.contains("a clip that this version reduced")
+                    && words.contains("A clip that an older version reduced has no link"), "\(name): \(words)")
+        }
+    }
+
     /// C12: a cancel before the render, after its renames, and after its return leaves no new WAV and
     /// the same `session.xml`. The poll finds the cancel at the first read (`readsAfterTheRename` 0),
     /// at the read of `renderClips` after the renames (1), or at the read of the work after the

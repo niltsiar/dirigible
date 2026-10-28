@@ -65,7 +65,7 @@ struct EffectChain {
         hum: Hum?, wet: Float?, scale: Float, rate: Double, channels: Int, component: AudioComponentDescription
     ) throws(ClipRenderError) {
         var stages: [AVAudioUnit] = []
-        if let hum { stages.append(Self.humFilter(hum)) }
+        if let hum { stages.append(try Self.humFilter(hum)) }
         if let wet { stages.append(try Self.voiceUnit(wet: wet, component: component)) }
         guard let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: AVAudioChannelCount(channels))
         else { throw .effectUnavailable(status: kAudio_ParamError) }
@@ -91,21 +91,28 @@ struct EffectChain {
     }
 
     /// The band-stop of `hum`: one `bandStop` band at f, 2f, 3f, and 4f, with the widths of
-    /// `humOctaves`.
-    private static func humFilter(_ hum: Hum) -> AVAudioUnitEQ {
+    /// `humOctaves`. The writes go to the unit: a write through `bands` passes the parameter tree of
+    /// the AU bridge, and a tree rebuild on another thread can drop it.
+    static func humFilter(_ hum: Hum) throws(ClipRenderError) -> AVAudioUnitEQ {
         let filter = AVAudioUnitEQ(numberOfBands: 4)
-        for (index, band) in filter.bands.enumerated() {
-            band.filterType = .bandStop
-            band.frequency = Float(hum.rawValue * (index + 1))
-            band.bandwidth = index == 0 ? humOctaves.fundamental : humOctaves.harmonic
-            // A band of `AVAudioUnitEQ` starts bypassed.
-            band.bypass = false
+        for band in 0..<4 {
+            for (parameter, value) in [
+                (kAUNBandEQParam_FilterType, Float(kAUNBandEQFilterType_BandStop)),
+                (kAUNBandEQParam_Frequency, Float(hum.rawValue * (band + 1))),
+                (kAUNBandEQParam_Bandwidth, band == 0 ? humOctaves.fundamental : humOctaves.harmonic),
+                // A band of `AVAudioUnitEQ` starts bypassed.
+                (kAUNBandEQParam_BypassBand, 0),
+            ] {
+                let status = AudioUnitSetParameter(
+                    filter.audioUnit, parameter + AudioUnitParameterID(band), kAudioUnitScope_Global, 0, value, 0)
+                guard status == noErr else { throw .effectUnavailable(status: status) }
+            }
         }
         return filter
     }
 
     /// AUSoundIsolation of `component` with the Voice model at `wet`.
-    private static func voiceUnit(wet: Float, component: AudioComponentDescription) throws(ClipRenderError)
+    static func voiceUnit(wet: Float, component: AudioComponentDescription) throws(ClipRenderError)
         -> AVAudioUnitEffect
     {
         var description = component

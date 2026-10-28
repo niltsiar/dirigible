@@ -117,7 +117,8 @@ extension SessionWindow {
     /// Go to Take Time is off with no take audio, while the studio is busy (for example during a
     /// take), and while a dialog of the window shows: one dialog at a time.
     var canGoToTakeTime: Bool {
-        guard takeTimeDraft == nil, exportStep == nil, duckDraft == nil, unusedFiles == nil, alert == nil,
+        guard takeTimeDraft == nil, exportStep == nil, duckDraft == nil, denoiseDraft == nil, unusedFiles == nil,
+            alert == nil,
             let studio = idleStudio, studio.exportProgress == nil
         else { return false }
         return !studio.takeMap.map.sync.isEmpty

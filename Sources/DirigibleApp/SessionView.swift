@@ -104,6 +104,12 @@ struct SessionView: View {
                     }
                 }
             }
+            // Tools > Reduce Noise... (decision 0054). Only its buttons close it.
+            .background {
+                Color.clear.sheet(isPresented: Binding(get: { model.denoiseDraft != nil }, set: { _ in })) {
+                    if let draft = model.denoiseDraft { ReduceNoiseSheet(model: model, studio: studio, draft: draft) }
+                }
+            }
             // Transport > Go to Take Time... (decision 0061). Only its buttons close it.
             .background {
                 Color.clear.sheet(isPresented: Binding(get: { model.takeTimeDraft != nil }, set: { _ in })) {

@@ -36,18 +36,18 @@ import Testing
 
     func fileOf(_ clip: ClipID, _ studio: Studio) -> FileID? { studio.session.clip(clip)?.clip.file }
 
-    /// C13: the item is on with an idle studio and a selection that holds a clip on a track with no
-    /// role or the dialogue role. Control: an empty selection, a range or a clip set with only music
-    /// and effects clips, a range past the clips, a take, and an import run turn it off.
+    /// C13: the item is on with an idle studio and a selection that holds a clip of any track role
+    /// (hum alone takes music and effects clips). Control: an empty selection, a range past the
+    /// clips, a take, and an import run turn it off.
     @Test func menuStateForEachStartState() async throws {
         let (model, studio, _) = try await open()
         let cases: [(String, Selection, Bool)] = [
             ("no selection", .none, false), ("a click on a clip with no role", set("c1"), true),
-            ("a dialogue clip", set("c2"), true), ("a music clip", set("c3"), false),
-            ("an effects clip", set("c4"), false), ("music and effects clips", set("c3", "c4"), false),
+            ("a dialogue clip", set("c2"), true), ("a music clip", set("c3"), true),
+            ("an effects clip", set("c4"), true), ("music and effects clips", set("c3", "c4"), true),
             ("a mixed set", set("c1", "c3"), true),
             ("a range on a track with a clip", .range(Marks(inPoint: 0, outPoint: 1000, tracks: ["t1"])), true),
-            ("a range on the music track", .range(Marks(inPoint: 0, outPoint: 1000, tracks: ["t3"])), false),
+            ("a range on the music track", .range(Marks(inPoint: 0, outPoint: 1000, tracks: ["t3"])), true),
             ("a range past the clips", .range(Marks(inPoint: 2_000_000, outPoint: 2_000_010, tracks: ["t1"])), false),
             ("a track", .range(Marks(tracks: ["t2"])), true),
         ]
@@ -66,17 +66,19 @@ import Testing
         await model.close()
     }
 
-    /// C13: a selection with no clip, or with music clips only, beeps and changes nothing.
+    /// C13: a selection with no clip beeps and changes nothing; a selection of music clips only
+    /// opens the sheet.
     @Test func noClipBeeps() async throws {
         let (model, studio, _) = try await open()
         var beeps = 0
         model.beep = { beeps += 1 }
         let before = studio.session
-        for selection in [Selection.none, set("c3", "c4")] {
-            model.timeline.selection = selection
-            model.run(.reduceNoise)
-        }
-        #expect(beeps == 2 && model.importJob == nil && studio.session == before, "beeps \(beeps)")
+        model.timeline.selection = .none
+        model.run(.reduceNoise)
+        #expect(beeps == 1 && model.denoiseDraft == nil && model.importJob == nil, "beeps \(beeps)")
+        model.timeline.selection = set("c3", "c4")
+        model.run(.reduceNoise)
+        #expect(beeps == 1 && model.denoiseDraft != nil && studio.session == before, "beeps \(beeps)")
         await model.close()
     }
 
@@ -87,7 +89,7 @@ import Testing
         let before = studio.session
         model.timeline.selection = set("c2", "c3")
 
-        model.run(.reduceNoise)
+        try model.reduceNoiseFromSheet()
         await until("the render ends") { model.importJob == nil }
 
         let (file, music) = (fileOf("c2", studio), fileOf("c3", studio))
@@ -114,12 +116,12 @@ import Testing
         let (model, studio, _) = try await open()
         let before = studio.session
         model.timeline.selection = set("c2")
-        model.run(.reduceNoise)
+        try model.reduceNoiseFromSheet()
         await until("the first render ends") { model.importJob == nil }
         let rendered = studio.session
         #expect(fileOf("c2", studio) != "f1")
 
-        model.run(.reduceNoise)
+        try model.reduceNoiseFromSheet()
         await until("the second press ends") { model.importJob == nil }
 
         #expect(studio.session == rendered && model.alert == nil)
@@ -161,7 +163,7 @@ import Testing
         let before = studio.session
         model.timeline.selection = set("c1")
 
-        model.run(.reduceNoise)
+        try model.reduceNoiseFromSheet()
         await until("the render holds") { hold.held }
         model.cancelImport()
         hold.release()
@@ -175,7 +177,7 @@ import Testing
         await model.close()
     }
 
-    /// C13: a right-click on a clip with no role shows the item, on; on a music clip it shows none.
+    /// C13: a right-click on a clip with no role shows the item, on; on a music clip it shows it too.
     @Test func theLaneMenuShowsTheItem() async throws {
         let (model, studio) = try await timelineModel(try await Self.rolesPackage(in: folder.url), app: app)
         let (window, view) = standaloneLanes(model, studio)
@@ -184,7 +186,7 @@ import Testing
             return menu.items.first { $0.title == L10n.menuToolsReduceNoise.text }
         }
         #expect(try item(y: 10)?.isEnabled == true, "a clip with no role")
-        #expect(try item(y: 210) == nil, "a music clip")
+        #expect(try item(y: 210)?.isEnabled == true, "a music clip")
         window.close()
         await model.close()
     }

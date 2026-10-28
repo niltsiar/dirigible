@@ -44,7 +44,7 @@
 "menu.tools.level.track.all" = "Nivellement automatique par piste (tous)";
 "menu.tools.duck" = "Atténuer la musique sous la voix…";
 "menu.tools.split.stereo" = "Séparer le stéréo en mono";
-"menu.tools.reduce.noise" = "Réduire le bruit";
+"menu.tools.reduce.noise" = "Réduire le bruit\U2026";
 "menu.tools.restore.original" = "Restaurer l'audio d'origine";
 
 /* Errors */
@@ -192,6 +192,30 @@
 "denoise.done.many" = "Bruit réduit dans %1$lld clips de %2$lld dB.";
 "denoise.canceled" = "Réduction du bruit annulée. Aucun clip modifié.";
 "denoise.unchanged" = "Rien à modifier.";
+"denoise.hum.one" = "Ronflement supprimé dans 1 clip.";
+"denoise.hum.many" = "Ronflement supprimé dans %lld clips.";
+"denoise.both.one" = "Bruit réduit dans 1 clip de %lld dB et ronflement supprimé.";
+"denoise.both.many" = "Bruit réduit dans %1$lld clips de %2$lld dB et ronflement supprimé.";
+"inspector.hertz" = "Hz";
+"sheet.denoise.title" = "Réduire le bruit";
+"sheet.denoise.noise" = "Réduire le bruit";
+"sheet.denoise.hum" = "Supprimer le ronflement";
+"sheet.denoise.hum.frequency" = "Fréquence du ronflement";
+"sheet.denoise.value" = "%lld décibels";
+"sheet.denoise.mixed.amounts" = "Les clips ont des valeurs différentes (de %1$lld à %2$lld dB).";
+"sheet.denoise.mixed.hum" = "Les clips ont des fréquences de ronflement différentes (50 et 60 Hz).";
+"sheet.denoise.skipped.one" = "%lld clip de musique ou d\U2019effets ne reçoit pas de réduction du bruit.";
+"sheet.denoise.skipped.many" = "%lld clips de musique et d\U2019effets ne reçoivent pas de réduction du bruit.";
+"sheet.denoise.skipped.hum.one" = "%lld clip de musique ou d\U2019effets ne reçoit ni réduction du bruit ni suppression du ronflement.";
+"sheet.denoise.skipped.hum.many" = "%lld clips de musique et d\U2019effets ne reçoivent ni réduction du bruit ni suppression du ronflement.";
+"sheet.denoise.preview" = "Aperçu";
+"sheet.denoise.updating" = "Mise à jour";
+"sheet.denoise.stop" = "Arrêter";
+"sheet.denoise.listen" = "Écouter";
+"sheet.denoise.result" = "Résultat";
+"sheet.denoise.removed" = "Son supprimé";
+"sheet.denoise.playing" = "Aperçu mis à jour.";
+"sheet.denoise.apply" = "Réduire le bruit";
 "error.denoise.space" = "Dirigible ne peut pas réduire le bruit. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
 "error.denoise.write" = "Dirigible ne peut pas réduire le bruit. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
 "error.denoise.unreadable" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";

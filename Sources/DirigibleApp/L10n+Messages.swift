@@ -233,11 +233,22 @@ extension L10n {
     }
 
     /// The result banner of a Reduce Noise run: "Reduced noise in 3 clips by 12 dB.", with one form for
-    /// a single clip. `text` gives the value of a key, so a test can read a table.
-    static func denoiseResult(clips: Int, decibels: Int, text: (L10n) -> String = { $0.text }) -> String {
-        clips == 1
-            ? String(format: text(.denoiseDoneOne), locale: .current, decibels)
-            : String(format: text(.denoiseDoneMany), locale: .current, clips, decibels)
+    /// a single clip, and the forms with hum. A nil `decibels` is hum alone. `text` gives the value of
+    /// a key, so a test can read a table.
+    static func denoiseResult(
+        clips: Int, decibels: Int?, hum: Bool = false, text: (L10n) -> String = { $0.text }
+    ) -> String {
+        func fill(_ key: L10n, _ values: Int...) -> String {
+            String(format: text(key), locale: .current, arguments: values)
+        }
+        let one = clips == 1
+        switch (decibels, hum) {
+        case (nil, _): return one ? fill(.denoiseHumOne) : fill(.denoiseHumMany, clips)
+        case (let decibels?, true):
+            return one ? fill(.denoiseBothOne, decibels) : fill(.denoiseBothMany, clips, decibels)
+        case (let decibels?, false):
+            return one ? fill(.denoiseDoneOne, decibels) : fill(.denoiseDoneMany, clips, decibels)
+        }
     }
 
     /// The text of a stop of playback that the user did not ask for.

@@ -44,7 +44,7 @@
 "menu.tools.level.track.all" = "Auto-Pegel pro Spur (alle)";
 "menu.tools.duck" = "Musik unter Sprache absenken …";
 "menu.tools.split.stereo" = "Stereo in Mono aufteilen";
-"menu.tools.reduce.noise" = "Rauschen reduzieren";
+"menu.tools.reduce.noise" = "Rauschen reduzieren \U2026";
 "menu.tools.restore.original" = "Originalaudio wiederherstellen";
 
 /* Errors */
@@ -192,6 +192,30 @@
 "denoise.done.many" = "Rauschen in %1$lld Clips um %2$lld dB reduziert.";
 "denoise.canceled" = "Rauschreduzierung abgebrochen. Kein Clip wurde geändert.";
 "denoise.unchanged" = "Nichts zu ändern.";
+"denoise.hum.one" = "Brummen in 1 Clip entfernt.";
+"denoise.hum.many" = "Brummen in %lld Clips entfernt.";
+"denoise.both.one" = "Rauschen in 1 Clip um %lld dB reduziert und Brummen entfernt.";
+"denoise.both.many" = "Rauschen in %1$lld Clips um %2$lld dB reduziert und Brummen entfernt.";
+"inspector.hertz" = "Hz";
+"sheet.denoise.title" = "Rauschen reduzieren";
+"sheet.denoise.noise" = "Rauschen reduzieren";
+"sheet.denoise.hum" = "Brummen entfernen";
+"sheet.denoise.hum.frequency" = "Brummfrequenz";
+"sheet.denoise.value" = "%lld Dezibel";
+"sheet.denoise.mixed.amounts" = "Die Clips haben unterschiedliche Werte (%1$lld bis %2$lld dB).";
+"sheet.denoise.mixed.hum" = "Die Clips haben unterschiedliche Brummfrequenzen (50 und 60 Hz).";
+"sheet.denoise.skipped.one" = "%lld Musik- oder Effekt-Clip erhält keine Rauschreduzierung.";
+"sheet.denoise.skipped.many" = "%lld Musik- und Effekt-Clips erhalten keine Rauschreduzierung.";
+"sheet.denoise.skipped.hum.one" = "%lld Musik- oder Effekt-Clip erhält weder Rauschreduzierung noch Brummentfernung.";
+"sheet.denoise.skipped.hum.many" = "%lld Musik- und Effekt-Clips erhalten weder Rauschreduzierung noch Brummentfernung.";
+"sheet.denoise.preview" = "Vorschau";
+"sheet.denoise.updating" = "Wird aktualisiert";
+"sheet.denoise.stop" = "Stopp";
+"sheet.denoise.listen" = "Anhören";
+"sheet.denoise.result" = "Ergebnis";
+"sheet.denoise.removed" = "Entfernter Klang";
+"sheet.denoise.playing" = "Vorschau aktualisiert.";
+"sheet.denoise.apply" = "Rauschen reduzieren";
 "error.denoise.space" = "Dirigible kann das Rauschen nicht reduzieren. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.denoise.write" = "Dirigible kann das Rauschen nicht reduzieren. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
 "error.denoise.unreadable" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";

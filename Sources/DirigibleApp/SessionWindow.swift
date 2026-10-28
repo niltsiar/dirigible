@@ -127,6 +127,8 @@ import SwiftUI
     /// The last Reduce Noise, for its banner at its session revision.
     var denoiseReport: DenoiseReportShown?
     @ObservationIgnored var denoisePresses = 0
+    /// The values of the Reduce Noise sheet while it shows (decision 0054).
+    var denoiseDraft: DenoiseDraft?
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
     /// The values of the Go to Take Time sheet while it shows (decision 0061).
@@ -296,6 +298,7 @@ import SwiftUI
         commitDrafts()
         alert = nil
         unusedFiles = nil
+        denoiseDraft = nil
         closeConsent()
         switch phase {
         case .closing, .closed: return

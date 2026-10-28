@@ -27,9 +27,9 @@ struct EffectChain {
     /// 2048 or 3200 frames, or pulls of 8192, change it, so every full pull has this size. A short
     /// last pull gives the same frames as a full one (`shortLastPullKeepsTheTail`).
     static let pullFrames: AVAudioFrameCount = 4096
-    /// The width of each hum band in octaves: 0.15 to 0.3 meet C17 of decision 0054, and 0.2 has
-    /// the largest margin on both sides (probe U38).
-    static let humOctaves: Float = 0.2
+    /// The widths of the hum bands in octaves: the band at f takes a mains drift of 0.2 Hz (C17 of
+    /// decision 0054); the narrow bands at 2f to 4f keep the voice harmonics between them (M1b).
+    static let humOctaves: (fundamental: Float, harmonic: Float) = (0.2, 0.015)
 
     private let engine: AVAudioEngine
     private let player: AVAudioPlayerNode
@@ -90,13 +90,14 @@ struct EffectChain {
         latency = Int((stages.reduce(0) { $0 + $1.latency } * rate).rounded())
     }
 
-    /// The band-stop of `hum`: one `bandStop` band at f, 2f, 3f, and 4f, each `humOctaves` wide.
+    /// The band-stop of `hum`: one `bandStop` band at f, 2f, 3f, and 4f, with the widths of
+    /// `humOctaves`.
     private static func humFilter(_ hum: Hum) -> AVAudioUnitEQ {
         let filter = AVAudioUnitEQ(numberOfBands: 4)
         for (index, band) in filter.bands.enumerated() {
             band.filterType = .bandStop
             band.frequency = Float(hum.rawValue * (index + 1))
-            band.bandwidth = humOctaves
+            band.bandwidth = index == 0 ? humOctaves.fundamental : humOctaves.harmonic
             // A band of `AVAudioUnitEQ` starts bypassed.
             band.bypass = false
         }

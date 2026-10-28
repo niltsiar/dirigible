@@ -61,7 +61,8 @@ cat >"$tmp/bin/defaults" <<'FAKE'
 # Log the arguments. A delete of a domain that the case did not set gives the text of the real tool.
 # The global accent (-g AppleAccentColor) is the file accent: a read prints it, or exits 1 with the
 # text of the real tool when it is absent, or exits with accent.read.code and the text of
-# accent.read.err; a write sets it, or exits 1 with accent.write.fail; a delete removes it.
+# accent.read.err; a write sets it, or exits 1 with accent.write.fail; a delete removes it, or
+# exits 1 with the text of the real tool when it is absent, or exits 1 with accent.delete.fail.
 echo "$*" >>"$FAKE_STATE/defaults.log"
 echo "defaults $*" >>"$FAKE_STATE/order.log"
 if [[ "${2:-}" == -g ]]; then
@@ -78,7 +79,11 @@ if [[ "${2:-}" == -g ]]; then
             [[ ! -f "$FAKE_STATE/accent.write.fail" ]] || { echo "Could not write domain kCFPreferencesAnyApplication; exiting" >&2 && exit 1; }
             echo "$5" >"$FAKE_STATE/accent"
             exit 0 ;;
-        delete) rm -f "$FAKE_STATE/accent" && exit 0 ;;
+        delete)
+            [[ ! -f "$FAKE_STATE/accent.delete.fail" ]] || { echo "Could not write domain kCFPreferencesAnyApplication; exiting" >&2 && exit 1; }
+            [[ -f "$FAKE_STATE/accent" ]] ||
+                { printf '2026-10-28 02:42:00.799 defaults[86858:75086082] \nDomain (kCFPreferencesAnyApplication) not found.\nDefaults have not been changed.\n' >&2 && exit 1; }
+            rm -f "$FAKE_STATE/accent" && exit 0 ;;
     esac
 fi
 if [[ -f "$FAKE_STATE/defaults.fail" ]]; then
@@ -698,6 +703,34 @@ run start --accent -1
 run stop
 [[ $code -eq 0 && "$(g_calls | tail -1)" == "delete -g AppleAccentColor" && ! -e "$saved_accent" ]] ||
     fail "accent -1: stop: exit $code: $err: $(g_calls)"
+
+# The saved value is unset and the key is already gone: stop removes the file, the delete error
+# does not fail it, and a later start and stop also exit 0.
+accent_case
+run start --accent -1
+rm -f "$state/accent"
+run stop
+[[ $code -eq 0 && ! -e "$saved_accent" && ! -e "$lock" ]] || fail "accent unset, key gone: stop: exit $code: $err: $(g_calls)"
+run start --accent 2
+[[ $code -eq 0 ]] || fail "accent unset, key gone: a later start: exit $code: $err"
+run stop
+[[ $code -eq 0 ]] || fail "accent unset, key gone: a later stop: exit $code: $err"
+# The first write fails with no old value: start exits 1, the file goes, and the next start works.
+accent_case
+touch "$state/accent.write.fail"
+run start --accent -1
+[[ $code -eq 1 && ! -e "$saved_accent" && ! -e "$state/accent" ]] || fail "accent unset, failed write: exit $code: $err: $(g_calls)"
+rm -f "$state/accent.write.fail"
+run start --accent 2
+[[ $code -eq 0 && "$(cat "$saved_accent" 2>/dev/null)" == unset ]] || fail "accent unset, failed write: the next start: exit $code: $err"
+run stop
+# A delete that fails while the key is still set keeps the file and exits 1.
+accent_case
+run start --accent -1
+touch "$state/accent.delete.fail"
+run stop
+[[ $code -eq 1 && "$err" == *"$saved_accent"* && "$(cat "$saved_accent" 2>/dev/null)" == unset ]] ||
+    fail "accent unset, failed delete: exit $code: $err"
 
 # Accent 6 with an old value 3: the file holds 3, and stop writes 3 back and removes the file.
 accent_case

@@ -647,6 +647,11 @@ reset_builders
 # The real check-changed.sh and with-lock.sh as a pair, in a repo whose HEAD is a commit past
 # origin/main: the call exits 3 with the one line, also behind a long holder, and logs nothing.
 pair="$tmp/pair"
+# pair_in_time <seconds>: the call ran below WITH_LOCK_MAX_WAIT=10, the wait that it must not do.
+# A loaded machine took 8 s (item 1217), so 8 s passes and 10 s fails.
+pair_in_time() { [[ $1 -lt 10 ]]; }
+pair_in_time 8 || fail 'pair bound: 8 s (a loaded call) fails'
+! pair_in_time 10 || fail 'pair bound: 10 s (the wait limit) passes'
 mkdir -p "$pair/scripts"
 cp "$script" "$(dirname "$script")/check-changed.sh" "$pair/scripts/"
 git -C "$pair" init -q && git -C "$pair" add -A &&
@@ -664,7 +669,7 @@ for holder_command in none 'make dmg'; do
     out="$(cd "$pair" && WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1 scripts/with-lock.sh "$fake/make" check-changed 2>&1)"
     code=$?
     elapsed=$(($(date +%s) - t0))
-    [[ $code -eq 3 && $elapsed -le 4 && "$out" == 'check-changed: no changed path, and HEAD has commits past the merge base '*'give SINCE='* && "$(wc -l <<<"$out" | tr -d ' ')" == 1 ]] ||
+    [[ $code -eq 3 ]] && pair_in_time "$elapsed" && [[ "$out" == 'check-changed: no changed path, and HEAD has commits past the merge base '*'give SINCE='* && "$(wc -l <<<"$out" | tr -d ' ')" == 1 ]] ||
         fail "real pair, holder [$holder_command]: exit $code after $elapsed s: $out"
     [[ ! -e "$pair/.git/dirigible-build-waits.log" && ! -e "$pair/.git/dirigible-build-holds.log" ]] || fail "real pair, holder [$holder_command]: a log line"
     [[ -z "$inner" ]] || { kill "$inner" 2>/dev/null; wait "$inner" 2>/dev/null; inner=""; }

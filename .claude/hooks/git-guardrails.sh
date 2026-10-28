@@ -349,6 +349,124 @@ fi
 if ! reads_only dirigible-hooks-stamp; then
   block "names the hooks pass stamp in a command that is not a read (only scripts/test-hooks.sh appends to it after a pass; read it with cat or grep)"
 fi
+# run.md, plan.md, and analysis.md of a run change only with the Edit tool (AGENTS.md, Run ledger).
+# run_file_write prints the name and exits 2 when a segment of $SINK_CUT (split on && || ; | & and a
+# new line, outside quotes; an interpreter heredoc body stays with its segment) names one of them and
+# holds a write form. A segment names the file when (^|[/"'[:space:]=])<name>([^A-Za-z0-9_.-]|$)
+# matches, or when it uses a variable whose assignment in the command holds the name. Write forms,
+# read with each quoted string that holds a space blanked (a printf row is data): sed or perl with
+# -i, -i<suffix>, or --in-place; a > or >> redirect into the name or into such a variable; tee; rm;
+# truncate; dd of=<name>; mv or cp without -n onto the name; python with -c, -, or a heredoc; node,
+# perl, or ruby with -e, --eval, -, or a heredoc. A list of write forms, not of reads: the names occur
+# in many data texts (rows, briefs, rg patterns). Out of scope: a script file that holds the name
+# (python3 fix.py), a write inside $(...), a backtick, sh -c, bash -c, xargs, or find -exec, mv of a
+# guarded file to another name, git checkout or restore, awk -i inplace, ed, sponge, and a variable
+# of an earlier Bash call. python3 runs only when the text holds a name.
+run_file_write() {
+  [[ "$SINK_CUT" =~ (run|plan|analysis)\.md ]] || return 0
+  printf '%s' "$SINK_CUT" | python3 -I -c '
+import re, sys
+text = sys.stdin.read().replace("\\\n", " ")
+name_rx = re.compile(r"(^|[/\"\x27\s=])(run|plan|analysis)\.md([^A-Za-z0-9_.-]|$)")
+marker_rx = re.compile(r"<<-?\s*[\x27\"\\]?(\w+)[\x27\"]?")
+interp_rx = re.compile(r"(^|[\s;&|(])(python3?(?:\.\d+)?|node|perl|ruby)(\s|$)")
+word = r"(^|[\s;&|(])"
+def split_ops(line):
+    parts, cur, q, i = [], "", "", 0
+    while i < len(line):
+        c = line[i]
+        if q:
+            cur += c
+            if c == q:
+                q = ""
+            elif c == "\\" and q == "\"" and i + 1 < len(line):
+                cur += line[i + 1]
+                i += 1
+        elif c in "\x27\"":
+            q = c
+            cur += c
+        elif c == "\\" and i + 1 < len(line):
+            cur += c + line[i + 1]
+            i += 1
+        elif c in ";|&":
+            if c == "&" and (line[i + 1:i + 2] == ">" or line[i - 1:i] in (">", "<")):
+                cur += c
+            else:
+                parts.append(cur)
+                cur = ""
+                if line[i + 1:i + 2] == c and c != ";":
+                    i += 1
+        else:
+            cur += c
+        i += 1
+    parts.append(cur)
+    return parts
+def segments(text):
+    lines, segs, i = text.split("\n"), [], 0
+    while i < len(lines):
+        line, body = lines[i], ""
+        i += 1
+        m = marker_rx.search(line)
+        if m:
+            j = i
+            while j < len(lines) and lines[j].strip() != m.group(1):
+                j += 1
+            if j < len(lines):
+                body = "\n".join(lines[i:j])
+                i = j + 1
+        parts = split_ops(line)
+        owner = next((k for k, p in enumerate(parts) if "<<" in p), len(parts) - 1)
+        segs += [(p, body if k == owner else "") for k, p in enumerate(parts) if p.strip()]
+    return segs
+def blank(m):
+    return " \"\" " if re.search(r"\s", m.group(0)[1:-1]) else m.group(0)
+gvars = set()
+for m in re.finditer(r"\b([A-Za-z_]\w*)=(\"[^\"]*\"|\x27[^\x27]*\x27|[^\s;&|]*)", text):
+    if name_rx.search("=" + m.group(2).strip("\"\x27") + " "):
+        gvars.add(m.group(1))
+var_rx = r"\$\{?(%s)\b" % "|".join(gvars) if gvars else None
+def named(s):
+    m = name_rx.search(s)
+    if m:
+        return m.group(2) + ".md"
+    m = var_rx and re.search(var_rx, s)
+    return m and re.search(r"(run|plan|analysis)\.md", re.search(r"\b" + m.group(1) + r"=\S*", text).group(0)).group(0)
+def writes(seg):
+    if re.search(word + r"(sed|perl)\s", seg) and re.search(r"\s(-[A-Za-z]*i\S*|--in-place\S*)(\s|$)", seg):
+        return True
+    redir = r"(?<![<>&0-9])>>?\|?\s*[\"\x27]?(?:[^\s;|&<>]*/)?(run|plan|analysis)\.md(?![A-Za-z0-9_.-])"
+    if re.search(redir, seg) or (var_rx and re.search(r"(?<![<>&0-9])>>?\|?\s*[\"\x27]?" + var_rx, seg)):
+        return True
+    if re.search(word + r"(tee|rm|truncate)\s", seg):
+        return True
+    m = re.search(r"\bof=\S*", seg)
+    if re.search(word + r"dd\s", seg) and m and (name_rx.search(m.group(0) + " ") or (var_rx and re.search(var_rx, m.group(0)))):
+        return True
+    m = re.search(word + r"(mv|cp)\s+([^\n]*)", seg)
+    if m:
+        words = m.group(3).split()
+        args = [w for w in words if not w.startswith("-")]
+        keep = any(re.fullmatch(r"-[A-Za-z]*n[A-Za-z]*", w) for w in words if w.startswith("-"))
+        if args and not keep and (name_rx.search(" " + args[-1] + " ") or (var_rx and re.search(var_rx, args[-1]))):
+            return True
+    m = interp_rx.search(seg)
+    if m:
+        flag = r"\s-[A-Za-z]*c(\s|$)" if m.group(2).startswith("python") else r"\s(-[A-Za-z]*e|--eval)(\s|$)"
+        return bool(re.search(flag, seg) or re.search(r"\s-(\s|$)", seg) or "<<" in seg)
+    return False
+for head, body in segments(text):
+    name = named(head + "\n" + body)
+    if name and writes(re.sub(r"\"[^\"]*\"|\x27[^\x27]*\x27", blank, head)):
+        print(name)
+        sys.exit(2)
+'
+}
+run_file="$(run_file_write)"
+case $? in
+  0) ;;
+  2) block "names $run_file in a command that can write it (sed -i, a redirect, tee, rm, truncate, dd, mv, cp, or an interpreter)" "Read it with rg, cat, or the Read tool, and change it with the Edit tool (AGENTS.md, Run ledger)." ;;
+  *) block "cannot be checked for a write of run.md, plan.md, or analysis.md (python3 failed)" ;;
+esac
 # Only with-lock.sh, bench.sh, bench-pairs.sh, and sanitize.sh set the lock reuse values: a value
 # set by hand runs a build beside the holder of the lock.
 if grep -qE 'DIRIGIBLE_(BUILD_LOCK|LOCKED_SCRIPT)=' <<< "$chained_data"; then

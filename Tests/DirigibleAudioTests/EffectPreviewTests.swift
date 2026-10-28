@@ -105,19 +105,40 @@ struct EffectPreviewTests {
         }
     }
 
+    /// The 26 s mono noise file "f1" and the clip "c1" of 15 s at 2 s on "t1".
+    func longFixture() throws -> RenderFixture {
+        let fixture = try RenderFixture()
+        try fixture.add(
+            "f1", [seededNoise(frames: 1_248_000, level: 0.05, seed: 7)], track: "t1",
+            clips: [("c1", 96_000, 720_000)])
+        return fixture
+    }
+
     /// C19: the window starts at the playhead inside the clip, else at the clip start, and the
     /// Result drops the 1 s of lead-in.
     @Test func windowStartsAtThePlayhead() throws {
-        let fixture = try fixture()
+        let fixture = try longFixture()
         let session = fixture.package.session
 
-        let inside = try previewWindow(of: "c1", request: twelve, playhead: 600_000, in: session)
+        let inside = try previewWindow(of: "c1", request: twelve, playhead: 192_000, in: session)
         let outside = try previewWindow(of: "c1", request: twelve, playhead: 900_000, in: session)
 
-        #expect(inside == PreviewWindow(file: "f1", span: 552_000..<720_000, leadIn: 48_000, levels: [twelve]))
-        #expect(outside == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, levels: [twelve]))
+        #expect(inside == PreviewWindow(file: "f1", span: 144_000..<672_000, leadIn: 48_000, levels: [twelve]))
+        #expect(outside == PreviewWindow(file: "f1", span: 48_000..<576_000, leadIn: 48_000, levels: [twelve]))
         let audio = try renderPreview(inside, of: session, in: fixture.package.url, readFault: nil) { false }
-        #expect(audio.result[0].count == 120_000 && audio.removed[0].count == 120_000)
+        #expect(audio.result[0].count == 480_000 && audio.removed[0].count == 480_000)
+    }
+
+    /// Code gate 2 item 5: a playhead 10 ms before the clip end moves the window back, so it holds
+    /// 10 s of a long clip and the whole of a short clip (fail: a window of 10 ms).
+    @Test func windowNearTheClipEndMovesBack() throws {
+        let longClip = try longFixture().package.session
+        let shortClip = try fixture().package.session
+        let long = try previewWindow(of: "c1", request: twelve, playhead: 815_520, in: longClip)
+        let short = try previewWindow(of: "c1", request: twelve, playhead: 719_520, in: shortClip)
+
+        #expect(long == PreviewWindow(file: "f1", span: 288_000..<816_000, leadIn: 48_000, levels: [twelve]))
+        #expect(short == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, levels: [twelve]))
     }
 
     /// C19, plan gate 4 item 4: a window renders into memory: `Clips/` has the same names after.

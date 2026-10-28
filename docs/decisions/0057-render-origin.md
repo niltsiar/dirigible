@@ -47,7 +47,7 @@ Reference apps ([research](../research/render-link.md)): Final Cut Pro (Voice Is
 - A split to mono of a rendered stereo file keeps the rendered audio and loses the link.
 - The previous build refuses a session with an origin as made by a newer version (0024 P3).
 - A re-render of a ride reads the current clip spans and gains.
-- A clip rendered before this record is on a root with no link: it goes back only with Undo. The guide says so.
+- A clip rendered before this record is on a root with no link: it goes back only with Undo. A new Reduce Noise on it adds a second pass on top of the first, and Undo is the way back. The guide says so.
 - Each later effect kind raises the `session.xml` version once.
 - A restore of a clip whose gain was within the added gain of 96 dB gives a lower gain. Only a CLI or MCP gain reaches it: the inspector clamps at 20 dB.
 

@@ -12,10 +12,10 @@ public struct ClipRenderReport: Sendable {
 extension Studio {
     /// Renders the clips `clips` for `request` with `renderRequest` (decisions 0054 and 0057): new
     /// WAVs in `Clips/`, and the clips move onto them. It saves `session.xml` and records one undo
-    /// entry with `agent`. A request that needs no render on the current session gives each clip in
-    /// `unchanged` and starts no blocking run: no stop of the Player, no save, and no undo entry.
-    /// Else it is a blocking run, as a split (`blockingRun`): `.busy` during a take, a pending
-    /// take, an import, a paste or split run, or `settle()`; a cancel of the calling task or of the
+    /// entry with `agent`. It is a blocking run, as a split (`blockingRun`): the Player stops, and
+    /// `.busy` during a take, a pending take, an import, a paste or split run, or `settle()`. A
+    /// request that needs no render on the session of its turn gives each clip in `unchanged`, with
+    /// no save and no undo entry. A cancel of the calling task or of the
     /// banner throws `.clipRender(.cancelled)`, and a take in another studio `.clipRenderYielded`.
     /// Then the renamed WAVs go. A throw changes nothing in memory; after a failed save, the WAVs
     /// stay as unused files. Undo keeps them. `progress` and `importProgress` get the fraction on
@@ -24,9 +24,6 @@ extension Studio {
         _ clips: [ClipID], request: ClipRenderRequest, agent: AgentName? = nil,
         progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) -> ClipRenderReport {
-        if let plan = try? clipRenderPlan(clips, request: request, in: session), plan.levels.isEmpty {
-            return ClipRenderReport(clips: [], noise: request.treatment.noise, unchanged: plan.unchanged)
-        }
         let environment = environment
         let rendered = try await blockingRun(
             name: url.deletingPathExtension().lastPathComponent, kind: .clipRender,

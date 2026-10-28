@@ -710,6 +710,21 @@ for line in open(sys.argv[1]):
   RUNS=1 ANSWER_MODEL=haiku runner "$e" HEAD HEAD E2 t1
   [[ $code -eq 0 && "$(calls '"kind": "answer".*"--model", "haiku"')" -eq 2 && "$(calls '"kind": "grader".*"--model", "opus"')" -eq 1 ]] \
     || fail "run.sh with ANSWER_MODEL=haiku: exit $code: $(cat "$tmp/fake.log")"
+  # Rows of one scenario stay in one eval folder (a name that starts with eval). The pool folder is the
+  # run folder of the case, so the other cases stay clear of the rule. A second folder of
+  # the run folder at the same new commit, with scored b rows of an asked ID in the first, exits 2
+  # before any session and names the first folder and a new tag. Another new commit passes.
+  e_a="$(eval_env pool/eval-a)"
+  RUNS=1 runner "$e_a" HEAD HEAD E2 t1
+  [[ $code -eq 0 ]] || fail "run.sh, first eval folder of a pair: exit $code: $out"
+  e_b="$(eval_env pool/eval-b)"
+  RUNS=1 runner "$e_b" HEAD HEAD E2 t2
+  [[ $code -eq 2 && "$out" == *eval-a* && "$out" == *'new tag'* && "$(calls '"kind"')" -eq 0 ]] ||
+    fail "run.sh, a second eval folder for a scored scenario: exit $code, $(calls '"kind"') calls: $out"
+  e_c="$(eval_env pool/eval-c)"
+  git -C "$rt" rev-parse HEAD~1 > "$e_c/logs/build-b.commit"
+  RUNS=1 runner "$e_c" HEAD HEAD~1 E2 t3
+  [[ $code -eq 0 ]] || fail "run.sh, a second eval folder at another new commit: exit $code: $out"
 
   [[ ! -e "$e/.run-lock" ]] || fail 'run.sh: the lock of the eval folder stays after a call'
   # An ID that no grader scored stops the call before a verdict (exit 3, the packets log named).

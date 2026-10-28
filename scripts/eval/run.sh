@@ -12,6 +12,8 @@
 #   Each docs copy has a stamp logs/build-<set>.commit. A copy is not built again when its log ends
 #   with "byte check end" and its stamp is the resolved commit. Else the runner exits 2.
 #   Each tag has its answers in <eval folder>/answer-<tag>/. A folder with a file exits 2.
+#   Another eval* folder of the same run folder with scored b rows of an asked ID at the same new
+#   commit exits 2: run again in that folder with a new tag, so the rows of a scenario stay together.
 #   keys.md is the Key points cells of the Scenarios table. A holdout row has its key in the first
 #   --holdout-keys file that has a "## <ID>" line, followed by one line of the key points. With no
 #   such file, the key comes from the newest run folder (by name) of the scratch root whose eval*
@@ -158,6 +160,18 @@ fresh() { # <eval folder>: refuse a used tag and an answer folder that holds a f
 }
 [[ ${#doc_ids[@]} -eq 0 ]] || fresh "$eval_dir"
 [[ -z $agent_id ]] || fresh "$eval_dir/agent"
+
+# The rows of a scenario stay in one eval folder: two folders at the same new commit each hold too
+# few rows for a verdict. Another eval* folder of the run folder with scored b rows of an asked ID
+# exits 2 and names a new tag for the folder that already holds them.
+for ev in "$(dirname "$eval_dir")"/eval*; do
+    [[ -d $ev && $ev != "$eval_dir" && -f $ev/logs/build-b.commit && "$(cat "$ev/logs/build-b.commit")" == "$hash_b" ]] || continue
+    for sc in "$ev/scores.tsv" "$ev/agent/scores.tsv"; do
+        [[ -f $sc ]] || continue
+        ! awk -F'\t' -v ids=",${pos[3]}," 'index(ids, "," $2 ",") && $4 == "b" { f = 1 } END { exit !f }' "$sc" ||
+            die 2 "$ev already holds scored rows of ${pos[3]} at this commit; run again in $ev with a new tag, not in $eval_dir"
+    done
+done
 
 # The docs copies. A copy is keyed to its commit by the stamp beside the build log.
 mkdir -p "$eval_dir/logs"

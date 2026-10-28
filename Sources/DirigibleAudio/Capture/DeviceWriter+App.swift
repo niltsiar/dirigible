@@ -54,8 +54,8 @@ extension DeviceWriter {
     }
 
     /// The come back from System Settings (decision 0015): a new tap for a running monitor writer
-    /// whose track shows the silence warning, at most `silentRetapLimit` times for the life of
-    /// the writer. Then the Input Levels toggle makes a new writer.
+    /// whose track shows the silence warning or `.noAccess`, at most `silentRetapLimit` times for
+    /// the life of the writer. Then the Input Levels toggle makes a new writer.
     func retapSilent() {
         guard phase == .running, silentRetaps < Self.silentRetapLimit else { return }
         silentRetaps += 1

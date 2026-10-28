@@ -34,8 +34,8 @@ extension SessionWindow {
     }
 
     /// When Dirigible becomes the active app again with Input Levels on, the studio taps again
-    /// each app track that shows **No sound from**: after a grant in System Settings, the meter
-    /// moves with no toggle (decision 0015).
+    /// each app track that shows **No sound from** or **No access**: after a grant in System
+    /// Settings, the meter moves with no toggle (decisions 0015 and 0006).
     func followActivation() {
         guard activeObserver == nil else { return }
         activeObserver = NotificationCenter.default.addObserver(

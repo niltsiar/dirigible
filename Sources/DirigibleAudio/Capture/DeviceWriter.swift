@@ -41,8 +41,8 @@ final class DeviceWriter: @unchecked Sendable {
     var kept = 0
     /// True after the writer reported `.retryStopped`.
     var retryStopped = false
-    /// The last running state that an app writer reported: `.waitingForApp` while its app has no
-    /// process, else `.recording`.
+    /// The last `runningState` that an app writer reported: `.waitingForApp`, `.noAccess`,
+    /// `.noSound`, or `.recording`.
     var appState = LiveTrack.State.recording
     /// True after a grant check of a monitor app tap gave `'!hog'`, until a noErr check or a
     /// sample that is not zero (decision 0006).

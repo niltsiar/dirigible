@@ -123,6 +123,15 @@
         ]
       },
       {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/write-guard.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Agent|Workflow|SendMessage|mcp__t3-code__delegate_task",
         "hooks": [
           {

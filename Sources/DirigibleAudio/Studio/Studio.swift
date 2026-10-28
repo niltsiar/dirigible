@@ -128,7 +128,8 @@ import Observation
     /// One more for each Listener, so a late report of a released one changes nothing.
     @ObservationIgnored var listenNumber = 0
     /// The listen order (decision 0044): each change of the Listeners runs in one turn. It is not
-    /// the monitor order, where the hand-over can wait for a prompt.
+    /// the monitor order, where a turn can wait for a monitor writer until the stop limit or the
+    /// start deadline.
     @ObservationIgnored let listenTurns = TurnQueue()
     /// The last report of the current Listener of each device UID, when it is not `.playing`.
     var deviceReports: [String: ListenReport] = [:]

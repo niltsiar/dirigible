@@ -53,7 +53,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F32 | Fade in and fade out | Hindenburg PRO, GarageBand, Logic Pro | done, Release 2 runs 11a and 11b-1 | R7 |
 | F33 | Crossfades | Hindenburg PRO, Logic Pro | done, Release 2 runs 11c-1 and 11c-2 | R7 |
 | F34 | Ducking music under speech | Hindenburg PRO, Logic Pro | done, Release 4 run 9 (moved from Release 7) | R10 |
-| F35 | Noise reduction, one control | Hindenburg PRO | Release 4 (run 19 landed a fixed 12 dB; the dial is landing 2) | R8 |
+| F35 | Noise reduction, one control | Hindenburg PRO | done, Release 4 run 25 (run 19 landed a fixed 12 dB) | R8 |
 | F36 | EQ and one-dial compressor per track | Hindenburg PRO, Logic Pro | Later | R7 |
 | F37 | Voice Profiler: learned EQ per voice | Hindenburg PRO | Release 4 (voice match; a profile per voice and a voice reference that is a range of a clip stay Later) | R10 |
 | F38 | Magic Levels: bleed, gain riding, auto duck | Hindenburg PRO | Release 4 (the leveler; bleed and auto duck are F42 and F34) | R10 |
@@ -88,7 +88,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F74 | Sync a clip to another track by its audio waveform | FCP | Release 6 (also an outside recording with its own clock) | R7 |
 | F75 | Gain envelope per clip; a range gain makes ramps | FCP | done, Release 4 runs 7 and 8 (moved from Release 7) | R7 |
 | F76 | Session index: a list of clips, markers, and chapters with search | FCP | Release 6 | R7 |
-| F77 | Hum removal at 50 or 60 Hz | FCP | Release 4 | R8 |
+| F77 | Hum removal at 50 or 60 Hz | FCP | done, Release 4 run 25 | R8 |
 | F78 | Waveform vertical zoom | FCP | Release 6 | R7 |
 | F79 | No feature: the catalog skipped this ID | - | Dropped (ID not used) | - |
 | F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | Logic | Release 6 | R7 |

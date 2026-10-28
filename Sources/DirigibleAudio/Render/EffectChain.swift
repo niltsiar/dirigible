@@ -122,16 +122,16 @@ struct EffectChain {
         return effect
     }
 
-    /// Renders the frames `span` of `source` (open at `descriptor` too) into `writer`, and closes
-    /// it: span + `latency` frames, with the first `latency` frames dropped, each frame times
-    /// `scale`. `isCancelled` is read before each block read, and `readFault` runs before block
-    /// `block` of the file `stem` (tests only). `rendered` gets the frames written. Returns the
-    /// frames written and the peak of all channels after the scale. `file` and `wav` name the
-    /// source and the new WAV in errors.
+    /// Renders the frames `span` of `source` (open at `descriptor` too) into `sink`: span +
+    /// `latency` frames, with the first `latency` frames dropped, each frame times `scale`. `sink`
+    /// gets each pull in one reused buffer, valid only during the call. `isCancelled` is read
+    /// before each block read, and `readFault` runs before block `block` of the file `stem` (tests
+    /// only). `rendered` gets the frames given to `sink`. Returns those frames and the peak of all
+    /// channels after the scale. `file` names the source in errors.
     func render(
-        _ source: AVAudioFile, descriptor: Int32, span: Range<AVAudioFramePosition>, into writer: ClipWriter,
-        file: String, wav: String, stem: String, readFault: ReadFault?, isCancelled: () -> Bool,
-        rendered: (Int) -> Void
+        _ source: AVAudioFile, descriptor: Int32, span: Range<AVAudioFramePosition>,
+        into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, file: String, stem: String,
+        readFault: ReadFault?, isCancelled: () -> Bool, rendered: (Int) -> Void
     ) throws(ClipRenderError) -> (length: Int, peak: Float) {
         let count = Int(span.upperBound - span.lowerBound)
         let total = count + latency
@@ -173,11 +173,10 @@ struct EffectChain {
             pulled += frames
             guard drop < frames else { continue }
             peak = max(peak, copy(output, from: drop, into: kept))
-            do throws(FinalizeError) { try writer.write(kept) } catch { throw ClipRenderError(error, wav: wav) }
+            try sink(kept)
             length += Int(kept.frameLength)
             rendered(length)
         }
-        do throws(FinalizeError) { try writer.close() } catch { throw ClipRenderError(error, wav: wav) }
         return (length, peak)
     }
 

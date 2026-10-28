@@ -128,8 +128,11 @@ struct RenderFixture {
         let out = package.url.appending(path: "\(clipsFolderName)/\(name).wav")
         let writer = try ClipWriter(url: out, file: name, format: source.processingFormat)
         let result = try chain.render(
-            source, descriptor: descriptor, span: Int64(span.lowerBound)..<Int64(span.upperBound), into: writer,
-            file: file.rawValue, wav: name, stem: name, readFault: nil, isCancelled: { false }, rendered: { _ in })
+            source, descriptor: descriptor, span: Int64(span.lowerBound)..<Int64(span.upperBound),
+            into: { buffer throws(ClipRenderError) in
+                do throws(FinalizeError) { try writer.write(buffer) } catch { throw ClipRenderError(error, wav: name) }
+            }, file: file.rawValue, stem: name, readFault: nil, isCancelled: { false }, rendered: { _ in })
+        try writer.close()
         #expect(result.length == span.count)
         return (try samples("\(name).wav"), result.peak)
     }

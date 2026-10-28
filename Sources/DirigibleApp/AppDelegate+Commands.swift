@@ -70,11 +70,14 @@ extension AppDelegate {
     /// File > Remove Unused Files… is on while the key session window takes an edit (decision 0047).
     var canRemoveUnusedFiles: Bool { key?.canEdit == true }
 
-    /// The state of a timeline menu item (`SessionWindow.isOn`). With no key session window, Add
-    /// Marker and Add Chapter are off, because their key adds no marker then (F107 C9d); the other
-    /// items stay on, as a field uses their keys (0018 K1).
+    /// The state of a timeline menu item (`SessionWindow.isOn`). With no key session window (a sheet
+    /// of the window, the Settings window, or the start window is key), only the items whose key a
+    /// field uses (0018 K1) and the items that send a selector stay on. Add Marker and Add Chapter
+    /// are off, because their key adds no marker then (F107 C9d).
     func isOn(_ command: TimelineCommand) -> Bool {
-        guard let key else { return command != .addMarker && command != .addChapter }
+        guard let key else {
+            return command.selector != nil || (command.forwardsKey && command != .addMarker && command != .addChapter)
+        }
         return key.isOn(command)
     }
 }

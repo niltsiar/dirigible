@@ -66,6 +66,24 @@ import Testing
         await model.close()
     }
 
+    /// Gate 2 item 4: the open sheet takes the key window from the session window, so the menu
+    /// bar has no key session window. The File items that only the session window runs are off, as
+    /// the toolbar Export is. Control: the same items are on before the sheet opens.
+    @Test func theSheetTurnsTheFileItemsOff() async throws {
+        let (model, _, window) = try await open()
+        model.timeline.selection = .range(Marks(inPoint: 0, outPoint: 48_000, tracks: ["t2"]))
+        let items: [TimelineCommand] = [.export, .exportSelection, .importAudio, .episodeInfo]
+        #expect(items.allSatisfy { app.isOn($0) }, "an item is off before the sheet")
+
+        model.run(.reduceNoise)
+        model.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: window))
+
+        #expect(model.denoiseDraft != nil && app.key == nil, "the sheet did not open or the window stayed key")
+        #expect(items.allSatisfy { !app.isOn($0) }, "on: \(items.filter { app.isOn($0) })")
+        #expect(app.isOn(.setIn) && app.isOn(.copy), "an item whose key a field uses is off")
+        await model.close()
+    }
+
     /// C13: a selection with no clip beeps and changes nothing; a selection of music clips only
     /// opens the sheet.
     @Test func noClipBeeps() async throws {

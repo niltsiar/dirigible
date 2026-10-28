@@ -11,9 +11,10 @@ extension ClipCommand {
             discussion: """
                 The command renders each run of clips of one file through the noise reduction of macOS into \
                 a new 24-bit WAV in Clips/, with a 10 s handle on each side of the run, and moves the clips \
-                onto it. The source file stays. On a reduced clip, the command renders again from the \
-                source of the reduction, and the same amount prints "Nothing to change." and writes \
-                nothing. --reduction is a whole number of dB from 1 to 30; the \
+                onto it. The source file stays. On a clip that this version reduced, the command renders \
+                again from the source of the reduction, and the same amount prints "Nothing to change." and \
+                writes nothing. A clip that an older version reduced has no link, so the command reduces it \
+                again. --reduction is a whole number of dB from 1 to 30; the \
                 default is 12. A line has the clip and its new file, with a tab between them. The command \
                 refuses a clip on a music or effects track. Exit 1 when a clip is unknown, a clip is on a \
                 music or effects track, or the noise reduction does not load. Exit 2 when the package cannot \

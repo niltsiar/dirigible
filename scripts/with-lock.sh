@@ -182,8 +182,8 @@ ahead() {
 }
 # lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift, or whose
 # Swift calls take the lock themselves (the header lists them). Any other command, goal, or
-# check-changed.sh failure is not lock-free (fail closed),
-# except status 3 of check-changed.sh: it prints the output and exits 3 at once.
+# check-changed.sh failure is not lock-free (fail closed), except status 3 of check-changed.sh: it
+# prints the output and exits 3 at once.
 lock_free() {
     local w goal="" assign=() out="" hooks="" status=0
     [[ "${1##*/}" == make ]] || return 1

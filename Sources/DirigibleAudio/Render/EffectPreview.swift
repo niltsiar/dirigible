@@ -300,8 +300,8 @@ actor EffectPreview {
     }
 }
 
-/// `renderPreview` on a utility GCD thread, as `renderOffMain` runs a clip render. It ends at the
-/// next block when `latest` is no longer `number`.
+/// `renderPreview` on a user-initiated GCD thread, off the actor, as `renderOffMain` runs a clip
+/// render on a utility thread. It ends at the next block when `latest` is no longer `number`.
 @concurrent nonisolated private func renderOffActor(
     _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?,
     latest: OSAllocatedUnfairLock<Int>, number: Int

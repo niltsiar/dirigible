@@ -33,7 +33,8 @@
 #   Release at the base. Each run number of a done State at the base stays in its row.
 # - With a run folder whose run.md has a `- Lands:` line, each F-ID of the newest (last) such line has a
 #   done state in features.md that differs from its state at the base, on any branch type. `- Lands: none`
-#   names no F-ID; an empty line fails. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
+#   names no F-ID; an empty line fails. The value is `none` or a comma list of F-IDs (`F35, F89`); a
+#   note goes on its own line. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
 #   Package.swift, Package.resolved, or Support/ needs the line. A `feat/` branch that changes
 #   Sources/ cannot write `- Lands: none`: scripts/tag-release.sh needs a done row for its run number.
 #   The branch of HEAD gives the branch type. On a detached HEAD, the last `- Branch:` line of run.md
@@ -211,7 +212,8 @@ if [[ -n "$run" ]]; then
     done
 fi
 # A run.md with a `- Lands:` line names the F-IDs of this land, on any branch type: each one gets a
-# done state that the base lacks. `- Lands: none` names no F-ID. A run that lands in steps replaces
+# done state that the base lacks. `- Lands: none` names no F-ID. The value is `none` or a comma list
+# of F-IDs, so a note on the line fails. A run that lands in steps replaces
 # the line before each land, so the last line counts. A feat, fix, or perf run that changes app code
 # (the paths of the DMG rule) must have the line, because a run can land in steps. A hardening run
 # (fix/) that lands no feature writes `- Lands: none`.
@@ -233,6 +235,11 @@ if [[ -n "$run" && -f "$run/run.md" ]]; then
         value="$(sed 's/^- Lands: *//; s/ *$//' <<<"$line")"
         if [[ -z "$ids" && "$value" != none ]]; then
             echo "check-governance: run.md has a - Lands: line with no F-ID; name the F-IDs of this land, or write - Lands: none" >&2
+            fail=1
+        fi
+        lands_format='^(none|F[0-9]+[a-z]?(, *F[0-9]+[a-z]?)*)$'
+        if [[ -n "$value" && ! "$value" =~ $lands_format ]]; then
+            echo "check-governance: the - Lands: value '$value' is not none or a comma list of F-IDs; put a note on its own line after - Lands:" >&2
             fail=1
         fi
         if [[ "$value" == none && "$branch" == feat/* ]] \

@@ -202,8 +202,8 @@
 "sheet.denoise.hum" = "Remover zumbido";
 "sheet.denoise.hum.frequency" = "Frequência do zumbido";
 "sheet.denoise.value" = "%lld decibéis";
-"sheet.denoise.mixed.amounts" = "Os clipes têm valores diferentes (de %1$lld a %2$lld dB).";
-"sheet.denoise.mixed.hum" = "Os clipes têm frequências de zumbido diferentes (50 e 60 Hz).";
+"sheet.denoise.mixed.noise" = "Clipes com redução de ruído: %1$lld de %2$lld. Reduzir ruído aplica os efeitos marcados a cada clipe.";
+"sheet.denoise.mixed.hum" = "Clipes com remoção de zumbido: %1$lld de %2$lld. Reduzir ruído aplica os efeitos marcados a cada clipe.";
 "sheet.denoise.skipped.one" = "%lld clipe de música ou efeitos não recebe redução de ruído.";
 "sheet.denoise.skipped.many" = "%lld clipes de música e efeitos não recebem redução de ruído.";
 "sheet.denoise.skipped.hum.one" = "%lld clipe de música ou efeitos não recebe redução de ruído nem remoção de zumbido.";

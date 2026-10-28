@@ -202,8 +202,8 @@
 "sheet.denoise.hum" = "Remove hum";
 "sheet.denoise.hum.frequency" = "Hum frequency";
 "sheet.denoise.value" = "%lld decibels";
-"sheet.denoise.mixed.amounts" = "The clips have different amounts (%1$lld to %2$lld dB).";
-"sheet.denoise.mixed.hum" = "The clips have different hum frequencies (50 and 60 Hz).";
+"sheet.denoise.mixed.noise" = "Clips with noise reduction: %1$lld of %2$lld. Reduce Noise sets the checked effects on each clip.";
+"sheet.denoise.mixed.hum" = "Clips with hum removal: %1$lld of %2$lld. Reduce Noise sets the checked effects on each clip.";
 "sheet.denoise.skipped.one" = "%lld music or effects clip gets no noise reduction.";
 "sheet.denoise.skipped.many" = "%lld music and effects clips get no noise reduction.";
 "sheet.denoise.skipped.hum.one" = "%lld music or effects clip gets no noise reduction and no hum removal.";

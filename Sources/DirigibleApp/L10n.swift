@@ -571,7 +571,7 @@ enum L10n: String, CaseIterable {
     case sheetDenoiseHum = "sheet.denoise.hum"
     case sheetDenoiseHumFrequency = "sheet.denoise.hum.frequency"
     case sheetDenoiseValue = "sheet.denoise.value"
-    case sheetDenoiseMixedAmounts = "sheet.denoise.mixed.amounts"
+    case sheetDenoiseMixedNoise = "sheet.denoise.mixed.noise"
     case sheetDenoiseMixedHum = "sheet.denoise.mixed.hum"
     case sheetDenoiseSkippedOne = "sheet.denoise.skipped.one"
     case sheetDenoiseSkippedMany = "sheet.denoise.skipped.many"

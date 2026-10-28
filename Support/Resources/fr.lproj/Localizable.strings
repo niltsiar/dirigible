@@ -202,8 +202,8 @@
 "sheet.denoise.hum" = "Supprimer le ronflement";
 "sheet.denoise.hum.frequency" = "Fréquence du ronflement";
 "sheet.denoise.value" = "%lld décibels";
-"sheet.denoise.mixed.amounts" = "Les clips ont des valeurs différentes (de %1$lld à %2$lld dB).";
-"sheet.denoise.mixed.hum" = "Les clips ont des fréquences de ronflement différentes (50 et 60 Hz).";
+"sheet.denoise.mixed.noise" = "Clips avec réduction du bruit : %1$lld sur %2$lld. Réduire le bruit applique les effets cochés à chaque clip.";
+"sheet.denoise.mixed.hum" = "Clips avec suppression du ronflement : %1$lld sur %2$lld. Réduire le bruit applique les effets cochés à chaque clip.";
 "sheet.denoise.skipped.one" = "%lld clip de musique ou d\U2019effets ne reçoit pas de réduction du bruit.";
 "sheet.denoise.skipped.many" = "%lld clips de musique et d\U2019effets ne reçoivent pas de réduction du bruit.";
 "sheet.denoise.skipped.hum.one" = "%lld clip de musique ou d\U2019effets ne reçoit ni réduction du bruit ni suppression du ronflement.";

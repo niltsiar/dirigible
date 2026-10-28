@@ -16,8 +16,9 @@ extension ClipCommand {
                 writes nothing. A clip that an older version reduced has no link, so the command reduces it \
                 again. --reduction is a whole number of dB from 1 to 30; the \
                 default is 12. --hum 50 or --hum 60 also removes mains hum at that frequency and its \
-                harmonics, before the noise reduction. --no-noise with --hum removes only the hum: the new \
-                file ends in HR, and the clip can be on any track. A line has the clip and its new file, \
+                harmonics, before the noise reduction. --no-noise with --hum removes only the hum, and it \
+                also removes a stored noise reduction of the clip: the new file ends in HR, and the clip \
+                can be on any track. A line has the clip and its new file, \
                 with a tab between them. With the noise reduction on, the command refuses a clip on a music \
                 or effects track. Exit 64 when --no-noise has no --hum or comes with --reduction. Exit 1 when a clip is unknown, a clip is on a \
                 music or effects track, or the noise reduction does not load. Exit 2 when the package cannot \
@@ -37,7 +38,10 @@ extension ClipCommand {
             parsing: .unconditional, help: "Remove mains hum at 50 or 60 Hz and its harmonics.",
             transform: parseHum)
         var hum: Hum?
-        @Flag(name: .customLong("no-noise"), help: "Do not reduce the noise. Needs --hum.")
+        @Flag(
+            name: .customLong("no-noise"),
+            help: "Do not reduce the noise, and remove a stored noise reduction. Needs --hum."
+        )
         var noNoise = false
 
         func validate() throws {

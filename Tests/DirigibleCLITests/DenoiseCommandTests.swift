@@ -71,6 +71,22 @@ struct DenoiseCommandTests {
         #expect(Self.clips(package).contains("f1 HR.wav"), "\(Self.clips(package))")
     }
 
+    /// C20: `--no-noise --hum 50` on a clip with a stored noise level removes that noise: the new
+    /// file ends in ` HR`, and its origin holds the hum alone.
+    @Test func noNoiseRemovesTheStoredNoise() async throws {
+        let package = try Self.package()
+        let first = try await package.run("clip", "denoise", "PKG", "c1")
+        try #require(first.status == 0, "\(first)")
+
+        let result = try await package.run("clip", "denoise", "PKG", "c1", "--hum", "50", "--no-noise")
+
+        let file = try Self.played("c1", in: package)
+        #expect(result == CLIResult(status: 0, stdout: "c1\t\(file.id)\n", stderr: ""), "\(result)")
+        #expect(file.path == "f1 HR.wav", "the new file: \(file)")
+        let effects = try package.read().origins(of: "c1").flatMap(\.treatment.effects)
+        #expect(effects == [.hum(.hz50)], "\(effects)")
+    }
+
     /// C20: `--hum 60` with the noise on makes an ` NR` file.
     @Test func humAndNoise() async throws {
         let package = try Self.package()

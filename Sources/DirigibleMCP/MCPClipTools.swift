@@ -29,7 +29,8 @@ private let reduction = Param<NoiseReduction?>.optional(
 private let hum = Param<Hum?>.optional(
     "hum", "Remove mains hum at this frequency in Hz, 50 or 60, and its harmonics. The default is no hum removal.",
     .hum)
-private let noise = Param.defaulted("noise", "Reduce the noise. False needs hum.", .boolean, true)
+private let noise = Param.defaulted(
+    "noise", "Reduce the noise. False needs hum and removes a stored noise reduction.", .boolean, true)
 private let someClips = Param.defaulted("clips", "The clip IDs.", .strings(), [String]())
 private let clips = Param.required("clips", "The clip IDs: one or more.", .strings(minItems: 1))
 private let by = Param.required("by", "The frames to move; negative moves left.", .integer())
@@ -229,8 +230,8 @@ let clipTools = [
         "Reduce the noise or remove the hum in clips, as dirigible clip denoise: for each run of clips of one file, "
             + "one new 24-bit WAV in Clips/ with a handle of 10 s on each side, made by the noise reduction of macOS, "
             + "and the clips move onto it. The source file stays. With hum 50 or 60, the render first removes mains "
-            + "hum at that frequency and its harmonics; with noise false, it removes only the hum, and a clip on any "
-            + "track is allowed. The noise reduction refuses a clip on a music or effects track. A second call on a "
+            + "hum at that frequency and its harmonics; with noise false, it removes only the hum and also a stored "
+            + "noise reduction, and a clip on any track is allowed. The noise reduction refuses a clip on a music or effects track. A second call on a "
             + "clip that this version reduced renders again from its source, and the same amount gives \"Nothing to "
             + "change.\". A clip that an older version reduced has no link, so a second call reduces it again. Give "
             + "one line for each clip: the clip and its new file, with a tab between them."

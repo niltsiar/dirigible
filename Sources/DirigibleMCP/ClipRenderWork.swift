@@ -29,7 +29,8 @@ package struct ClipRenderWork: Sendable {
     }
 
     /// The one parse of the options of the command and of the tool into a request. The noise is on
-    /// unless `noise` is false; `reduction` is nil for the standard amount.
+    /// unless `noise` is false, and then the request removes a stored noise level; `reduction` is
+    /// nil for the standard amount.
     package static func request(noise: Bool, reduction: NoiseReduction?, hum: Hum?) throws(Refusal)
         -> ClipRenderRequest
     {
@@ -37,7 +38,7 @@ package struct ClipRenderWork: Sendable {
         var effects = hum.map { [Effect.hum($0)] } ?? []
         if noise { effects.append(.noise(reduction ?? .standard)) }
         guard let treatment = Treatment(effects) else { throw .nothingToDo }
-        return ClipRenderRequest(treatment)
+        return ClipRenderRequest(treatment, removing: noise ? [] : [.noise])
     }
 
     /// One line for each moved clip: the clip and its new file, with a tab between them. No moved

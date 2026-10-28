@@ -19,7 +19,9 @@
 # of the land: the review files have their fields. A criterion change row skips that check. A phase
 # 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
 # origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a
-# graded eval folder. Else the script appends nothing and exits 2.
+# graded eval folder. The first phase 7 row of a run folder with a plan.md needs a passing
+# scripts/check-plan.sh (CHECK_PLAN_AT_PHASE7=1): the Fix check has a line for each Act on item of
+# each review-diff-<n>.md round. Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -68,6 +70,13 @@ fi
 if [[ "$1" == 6 && -f "${file%/*}/plan.md" && "$(lower "$2")" != "criterion change"* ]]; then
     if ! out="$("$plan_check" "${file%/*}" 2>&1)"; then
         printf '%s\na phase 6 row needs a passing check-plan.sh: fix the review file or the plan, then log this row\n' "$out" >&2
+        exit 2
+    fi
+fi
+# The first phase 7 row: the Fix check of the last review round has a line for each Act on item.
+if [[ "$1" == 7 && -f "${file%/*}/plan.md" ]] && ! awk -F'\t' '$2 == "7" { f = 1 } END { exit !f }' "$file"; then
+    if ! out="$(CHECK_PLAN_AT_PHASE7=1 "$plan_check" "${file%/*}" 2>&1)"; then
+        printf '%s\nthe first phase 7 row needs a passing check-plan.sh: add the Fix check lines, then log this row\n' "$out" >&2
         exit 2
     fi
 fi

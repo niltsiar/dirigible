@@ -1255,6 +1255,32 @@ for tool in Bash Read; do
     { echo "FAIL: .claude/settings.json does not register agent-clock.sh for $tool"; failures=$((failures + 1)); }
 done
 
+# The sixth hook, write-guard.sh, refuses a Write over an existing run.md, plan.md, or analysis.md
+# of a run folder: the Edit tool changes such a file. A new file and each other name pass.
+write_hook="$(dirname "$0")/write-guard.sh"
+wg_dir="$tmp/wg/.scratchpads/runs/r"
+mkdir -p "$wg_dir" "$tmp/wg/docs"
+for name in run.md plan.md analysis.md pr.md review-plan-1.md; do echo x > "$wg_dir/$name"; done
+echo x > "$tmp/wg/docs/run.md"
+# wg_expect <exit status> <path>: a Write input for the path gives the exit status.
+wg_expect() {
+  local code
+  printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"y"}}' "$2" | "$write_hook" 2>"$tmp/write-err"
+  code=$?
+  [[ $code -eq $1 ]] || { echo "FAIL: write-guard: expected exit $1, got $code: $2"; failures=$((failures + 1)); }
+}
+for name in run.md plan.md analysis.md; do
+  wg_expect 2 "$wg_dir/$name"
+  grep -q 'with the Edit tool' "$tmp/write-err" ||
+    { echo "FAIL: the write-guard message for $name does not name the Edit tool: $(cat "$tmp/write-err")"; failures=$((failures + 1)); }
+done
+wg_expect 0 "$wg_dir/pr.md"
+wg_expect 0 "$wg_dir/review-plan-1.md"
+wg_expect 0 "$tmp/wg/.scratchpads/runs/new/run.md"
+wg_expect 0 "$tmp/wg/docs/run.md"
+hook_registered "$settings" write-guard.sh Write ||
+  { echo "FAIL: .claude/settings.json does not register write-guard.sh for Write"; failures=$((failures + 1)); }
+
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }

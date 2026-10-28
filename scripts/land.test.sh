@@ -260,6 +260,38 @@ grep -q 'land.sh: warning: the done row is not written' "$c/out" || fail "row no
 [[ "$rows" != *"| done |"* ]] || fail "row nogoal: a row was written: [$rows]"
 export DIRIGIBLE_WIKI="$tmp/wiki"
 
+# Open runs: the land prints one stdout line for each file and cite of another open run (run.md
+# `- Status: open`) in the runs folder beside the git common dir that cites <path>:<line> of a path
+# that the land changes, whole or as the file name after a /. A done run, an unchanged path, a cite
+# with no line, and the run folder of the land print nothing; the land still exits 0 and merges.
+setup
+runs="$c/work/.scratchpads/runs"
+echo '.scratchpads/' >> "$c/work/.git/info/exclude"
+mkdir -p "$c/work/src" "$runs/open1" "$runs/done1" "$runs/open2" "$runs/self"
+echo a > "$c/work/src/a.txt"
+git -C "$c/work" add src/a.txt
+git -C "$c/work" commit -q -m 'add a'
+printf '# Run open1\n\n- Status: open\n' > "$runs/open1/run.md"
+printf 'See src/a.txt:12, and src/a.txt:12 again.\n' > "$runs/open1/plan.md"
+printf 'The cite a.txt:40 names the file only.\n' > "$runs/open1/analysis.md"
+printf '# Run done1\n\n- Status: done\n' > "$runs/done1/run.md"
+printf 'See src/a.txt:12.\n' > "$runs/done1/plan.md"
+printf '# Run open2\n\n- Status: open\n' > "$runs/open2/run.md"
+printf 'See other.txt:3, src/a.txt with no line, and xa.txt:5.\n' > "$runs/open2/plan.md"
+printf '# Run self\n\n- Status: open\n' > "$runs/self/run.md"
+cp "$c/analysis.md" "$runs/self/analysis.md"
+{ cat "$c/plan.md"; printf '\nSee src/a.txt:12.\n'; } > "$runs/self/plan.md"
+printf 'body\n' > "$runs/self/pr.md"
+old="$(git -C "$c/other" rev-parse HEAD)"
+land_in "Add x" "$runs/self/pr.md"
+code=$?
+new="$(git -C "$c/origin.git" rev-parse main)"
+[[ $code -eq 0 ]] || fail "open runs: exit $code: $(cat "$c/out")"
+grep -qx "range: $old..$new" "$c/out" || fail "open runs: no commit range: $(cat "$c/out")"
+want="open run open1: analysis.md cites a.txt:40
+open run open1: plan.md cites src/a.txt:12"
+[[ "$(grep '^open run ' "$c/out" | sort)" == "$want" ]] || fail "open runs: the lines differ: $(cat "$c/out")"
+
 # Another worktree holds main: the land prints the range before it touches main, skips the
 # switch, and stays on the branch (git switch main exits 128 in this state).
 setup

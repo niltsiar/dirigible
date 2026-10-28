@@ -25,7 +25,10 @@
 # stamp line.
 # After the rebase and the governance check, check-commits.sh refuses a commit of the branch that
 # a tool made (author, committer, or Co-Authored-By trailer) or that holds a secret (gitleaks),
-# also when the stamp is reused.
+# also when the stamp is reused. Then it prints each file of another open run (a folder of
+# .scratchpads/runs beside the git common dir whose run.md has `- Status: open`) that cites <path>:<line> of a path that the land changes, so that run
+# can check its cites; this never changes the exit status. Limits: only the path is tested, not
+# whether the land changed the cited line; a cite that holds a space is not found.
 # Before the push, it writes one flake row (phase 7) for each dirigible-flakes line of
 # run-checks.sh whose commit is an ancestor of HEAD before or after the rebase, and removes those
 # lines. Then it pushes the branch, creates the pull request,
@@ -116,6 +119,32 @@ finish_if_merged() {
     exit 0
 }
 
+# open_run_cites: prints "open run <name>: <file> cites <path>:<line>" once for each *.md file
+# (depth 1) of an open run and each cite in it whose path is a changed path, or its end after a /.
+open_run_cites() {
+    local runs changed self d f
+    runs="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.scratchpads/runs"
+    changed="$(git diff --name-only --no-renames origin/main HEAD)"
+    self="$(cd "$run" && pwd -P)"
+    for d in "$runs"/*/; do
+        [[ -d "$d" ]] || continue
+        d="$(cd "$d" && pwd -P)"
+        [[ "$d" != "$self" ]] && grep -qE '^- Status: open( |$)' "$d/run.md" 2>/dev/null || continue
+        for f in "$d"/*.md; do
+            [[ -f "$f" ]] || continue
+            awk -v head="open run ${d##*/}: ${f##*/} cites " '
+                NR == FNR { if (NF) changed[$0] = 1; next }
+                seen[$0]++ { next }
+                {
+                    p = $0; sub(/:[0-9]+$/, "", p)
+                    hit = (p in changed)
+                    for (c in changed) if (!hit && length(c) > length(p) && substr(c, length(c) - length(p)) == "/" p) hit = 1
+                    if (hit) print head $0
+                }' <(printf '%s\n' "$changed") <(grep -oE '[A-Za-z0-9_./+-]+:[0-9]+' "$f")
+        done
+    done
+}
+
 [[ $# -eq 2 || $# -eq 3 ]] || { echo "usage: scripts/land.sh <title> <body-file> [<decisions.tsv time>]" >&2; exit 2; }
 title="$1" body="$2" why="${3:-}"
 [[ -f "$body" ]] || die "no body file $body; write it with the pr skill first"
@@ -203,6 +232,7 @@ fi
 # GOVERNANCE_LAND: the taken-item check runs also when the run has no reflect row.
 GOVERNANCE_LAND=1 "$here/check-governance.sh" origin/main "$run" || die "the governance check failed; nothing is pushed"
 "$here/check-commits.sh" origin/main || die "check-commits.sh failed; nothing is pushed"
+open_run_cites || true
 out="$("$here/check-changed.sh" origin/main)" || die "check-changed.sh origin/main failed; nothing is pushed"
 risk="$(sed -n 's/^risk: //p' <<<"$out")"
 if [[ "$risk" == yes ]]; then

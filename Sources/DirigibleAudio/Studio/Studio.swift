@@ -76,6 +76,8 @@ import Observation
     public var log: DiagnosticLog { environment.log }
     /// The speed lookup of `environment` found the unit: one lookup, not one at each chrome read.
     @ObservationIgnored var speedUnitFound: Bool?
+    /// The effect preview of decision 0054, in `Studio+Preview.swift`.
+    var effectPreview = EffectPreviewSlot()
     /// The playback state (decision 0016), in `Studio+Transport.swift`.
     var play: PlayState
     /// The loudness of the heard frame (decision 0033). Only the display tick reads it, so no
@@ -252,6 +254,7 @@ import Observation
         await endExport(.close)
         await readsEnded()
         await stopPlay()
+        await endEffectPreview()
         // The monitor order does not wait for a finalize in progress.
         monitorRequest = []
         await monitorTurns.run { await applyMonitor() }

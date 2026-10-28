@@ -32,7 +32,7 @@ func clipRenderPlan(
     for clip in clips where seen.insert(clip).inserted {
         let chain = session.origins(of: clip)
         guard let rebuilt = levelRequests(request, of: clip, in: session) else {
-            renders.append((clip, [request]))
+            renders.append((clip, [ClipRenderRequest(request.treatment)]))
             continue
         }
         let (lowest, requests) = rebuilt

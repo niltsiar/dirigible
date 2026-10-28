@@ -96,6 +96,26 @@ struct ClipRenderPlanTests {
         #expect(outcome.session.origins(of: "b").map(\.treatment) == [amount(20).treatment])
     }
 
+    /// C21: with a request that removes a kind, a clip with a stored level and a clip with none, in
+    /// one run of one file, get one treatment and render into one file (fail: two files).
+    @Test func removingRequestRendersOneRunIntoOneFile() throws {
+        let fixture = try RenderFixture()
+        try fixture.add(
+            "f1", [seededNoise(frames: 1_248_000, level: 0.01, seed: 24)], track: "t1",
+            clips: [("a", 576_000, 48_000), ("b", 624_000, 48_000)])
+        let stored = try request(
+            fixture, ["b"], ClipRenderRequest(Treatment(.hum(.hz50))), of: fixture.package.session)
+        let humOnly = ClipRenderRequest(Treatment(.hum(.hz60)), removing: [.noise])
+
+        let outcome = try request(fixture, ["a", "b"], humOnly, of: stored.session)
+
+        #expect(outcome.made.count == 1)
+        let a = outcome.session.clip("a")?.clip.file
+        let b = outcome.session.clip("b")?.clip.file
+        #expect(a != nil && a == b, "a: \(String(describing: a)), b: \(String(describing: b))")
+        #expect(outcome.session.origins(of: "b").map(\.treatment) == [Treatment(.hum(.hz60))])
+    }
+
     /// C5: the amount of the level again renders nothing: no file, the same session, and the clip
     /// in `unchanged`. Another amount renders.
     @Test func equalSettingMakesNothing() throws {

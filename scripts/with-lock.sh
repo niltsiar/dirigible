@@ -254,9 +254,7 @@ pause() {
     sleep "$nap"
 }
 # run_lock_free <command>: runs the command with no lock, as a child with its own process group,
-# and exits with its status. make exits 2 for a recipe that exits 75 and prints the line
-# "*** [check-changed] Error 75" (run-checks.sh: a lock wait of a swift-test.sh call ended at its
-# limit), so the call exits 75 when that line is in the stderr of a failed command.
+# and exits with its status, or with 75 for the make line "Error 75" (see the header).
 free_child=""
 stop_free() { [[ -z "$free_child" ]] || { kill -TERM -- "-$free_child" 2>/dev/null; wait "$free_child"; }; exit "$1"; }
 run_lock_free() {

@@ -204,8 +204,7 @@ if [[ ${#goals[@]} -gt 0 ]]; then
         # The load at the end of the check: make -k runs the later targets after a red test.
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
         errors="$(grep -E "$prefix\*\*\* " "$log" || true)"
-        # A recipe that exits 75 gives the make line "Error 75". Free text in the log is no sign:
-        # the output of a red hook test can quote the limit line.
+        # The sign of a lock wait at its limit is the make line "Error 75" only (see the header).
         if [[ -z "${BASE:-}" ]] && grep -qE "$prefix\*\*\* \[[^]]*\] Error 75\$" <<<"$errors" &&
             ! grep -vqE "$prefix\*\*\* \[[^]]*\] Error 75\$" <<<"$errors"; then
             echo "run-checks: a lock wait ended at its limit; run the same command again" >&2

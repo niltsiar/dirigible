@@ -42,7 +42,7 @@ struct HumRemovalTests {
     /// C17 at 50 Hz: each band goes down 30 dB or more, 0.2 Hz off a band 20 dB or more, 75 Hz
     /// stays within 1.0 dB, and 1 kHz within 0.5 dB. Probe U38 on the raw unit: 146.8, 24.8,
     /// -0.41, and -0.01 dB; bands at 2f to 5f cut 50 Hz by 0.03 dB, and 0.05 octaves cuts 50.2 Hz
-    /// by 13.0 dB. The cut at 180 Hz is a record value with no threshold.
+    /// by 13.0 dB. The band cuts are a record value of the narrow harmonic bands.
     @Test(arguments: [(1, 48_000), (2, 48_000), (1, 44_100), (2, 44_100)])
     func humRemoval50(channels: Int, rate: Int) throws {
         let cuts = try Self.cuts(
@@ -53,12 +53,12 @@ struct HumRemovalTests {
         for near in [49.8, 50.2] { #expect(cuts[near, default: 0] >= 20, "\(near) Hz; \(label)") }
         #expect(abs(cuts[75, default: 99]) <= 1.0, "75 Hz; \(label)")
         #expect(abs(cuts[1_000, default: 99]) <= 0.5, "1 kHz; \(label)")
-        print("C17 record: hum 50 cuts 180 Hz by \(cuts[180, default: .nan]) dB, \(channels) ch at \(rate) Hz")
+        print("C17 record: hum 50 band cuts \([50.0, 100, 150, 200].map { cuts[$0, default: .nan] }) dB, \(label)")
     }
 
     /// C17 at 60 Hz: the bands 60 to 240 Hz 30 dB or more, 59.8 and 60.2 Hz 20 dB or more (probe:
     /// 26.4; 0.05 octaves gives 14.5), 90 Hz within 1.0 dB (probe: -0.41), and 1 kHz within 0.5 dB.
-    /// The cut at 210 Hz is a record value with no threshold.
+    /// The band cuts are a record value of the narrow harmonic bands.
     @Test(arguments: [(1, 48_000), (2, 48_000), (1, 44_100), (2, 44_100)])
     func humRemoval60(channels: Int, rate: Int) throws {
         let cuts = try Self.cuts(
@@ -69,7 +69,20 @@ struct HumRemovalTests {
         for near in [59.8, 60.2] { #expect(cuts[near, default: 0] >= 20, "\(near) Hz; \(label)") }
         #expect(abs(cuts[90, default: 99]) <= 1.0, "90 Hz; \(label)")
         #expect(abs(cuts[1_000, default: 99]) <= 0.5, "1 kHz; \(label)")
-        print("C17 record: hum 60 cuts 210 Hz by \(cuts[210, default: .nan]) dB, \(channels) ch at \(rate) Hz")
+        print("C17 record: hum 60 band cuts \([60.0, 120, 180, 240].map { cuts[$0, default: .nan] }) dB, \(label)")
+    }
+
+    /// C17 and M1b: a voice harmonic between the hum bands stays within 0.5 dB, so hum alone keeps
+    /// the voice. Probe probe-m1b-band: 0.015 octaves at 2f to 4f cut 180 Hz (hum 50) and 210 Hz
+    /// (hum 60) by 0.02 dB; 0.2 octaves at each band cut them by 2.20 and 1.90 dB.
+    @Test(arguments: [(1, 48_000), (2, 48_000), (1, 44_100), (2, 44_100)])
+    func aSineBetweenTheBandsStays(channels: Int, rate: Int) throws {
+        let at50 = try Self.cuts([180], hum: .hz50, channels: channels, rate: rate)
+        let at60 = try Self.cuts([210], hum: .hz60, channels: channels, rate: rate)
+
+        let label = "channels \(channels) at \(rate) Hz"
+        #expect(abs(at50[180, default: 99]) <= 0.5, "180 Hz with hum 50: \(at50); \(label)")
+        #expect(abs(at60[210, default: 99]) <= 0.5, "210 Hz with hum 60: \(at60); \(label)")
     }
 
     /// C17b: hum alone loads no voice unit: with a description that finds no component, the clip

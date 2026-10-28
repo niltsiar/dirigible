@@ -410,6 +410,25 @@ lands_repo '# Run\n\n- Branch: fix/x\n- Lands: F35\n'; set_done F35; commit
 pass 'a fix run with a Lands line and its state done' "$tmp/run"
 lands_repo '# Run\n\n- Branch: docs/x\n- Lands: F35\n'; rm "$tmp/r/Sources/A.swift"; echo x > "$tmp/r/B.md"; commit
 refuse 'a docs run with a Lands line and no state change' 'run.md lands F35, but features.md keeps its state Release 4' "$tmp/run"
+# The Lands value is none or a comma list of F-IDs: a note goes on its own line.
+# lands_docs <value> [<ID to set done>...]: a docs run with that Lands value.
+lands_docs() {
+  lands_repo "# Run\n\n- Branch: docs/x\n- Lands: $1\n"; rm "$tmp/r/Sources/A.swift"; echo x > "$tmp/r/B.md"
+  local id; for id in "${@:2}"; do set_done "$id"; done
+  commit
+}
+for value in 'none (F102 is another feature)' 'F89 (F35 stays open)' 'F35 and F89 (Release 4 run 6)' 'F35, F89. Heal stays for L2'; do
+  lands_docs "$value" F35 F89
+  refuse "a Lands value with a note: $value" 'put a note on its own line after - Lands:' "$tmp/run"
+done
+lands_docs none
+pass 'a docs run with Lands: none' "$tmp/run"
+lands_docs F89 F89
+pass 'a Lands value of one F-ID' "$tmp/run"
+lands_docs 'F35, F89' F35 F89
+pass 'a Lands value of two F-IDs' "$tmp/run"
+lands_docs 'F89 ' F89
+pass 'a Lands value with a trailing space' "$tmp/run"
 lands_repo '# Run\n\n- Branch: feat/x\n- Lands:\n'; commit
 refuse 'a feat run with an empty Lands line' 'run.md has a - Lands: line with no F-ID; name the F-IDs of this land, or write - Lands: none' "$tmp/run"
 lands_repo '# Run\n\n- Branch: fix/x\n- Lands:   \n'; commit

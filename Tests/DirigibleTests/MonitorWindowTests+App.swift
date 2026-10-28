@@ -151,13 +151,20 @@ extension MonitorWindowTests {
         await shows(true)
         #expect(announced.texts.count == 4, "no announcement after a toggle while the track monitors")
 
+        let tapped = taps.withLock { $0 }
         await window.record()
         await until("no take") { window.canStop && studio.liveTracks["guest"]?.state == .recording }
         set(.noSound)
         await shows(true)
         #expect(announced.texts.count == 5, "no announcement in the take")
         await window.stop()
-        await until("no monitor after the take") { !window.canStop && studio.liveTracks["guest"]?.state == .monitoring }
+        // The take tap and the come back tap. The attach report of the come back writer sets
+        // `.monitoring`, so the test finishes that writer before it sets the state.
+        await until("no monitor after the take") {
+            !window.canStop && studio.liveTracks["guest"]?.state == .monitoring && taps.withLock { $0 } >= tapped + 2
+        }
+        await studio.monitorWriter("app:\(Self.zoom)")?.started()
+        await studio.monitorWriter("app:\(Self.zoom)")?.finish()
         set(.noSound)
         await shows(true)
         #expect(announced.texts.count == 6, "no announcement after the take")

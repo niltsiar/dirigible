@@ -115,6 +115,10 @@ good; sed -i '' 's/\*\*Cut\*\* //' "$tmp/docs/guide.md"; expect fail 'English me
 good; sed -i '' 's/\*\*Cortar\*\* //' "$tmp/docs/guide.md"; expect fail 'Spanish menu name missing' 'docs/guide.md: no **Cortar** (es menu name)'
 good; printf '"menu.view.zoom.selection" = "Zoom to Selection or Session";\n' >> "$tmp/Support/Resources/en.lproj/Localizable.strings"
 printf '**Zoom to Selection**\n' >> "$tmp/docs/guide.md"; expect fail 'renamed menu name' 'docs/guide.md: no **Zoom to Selection or Session** (en menu name)'
+good; printf '"menu.tools.reduceNoise" = "Reduce Noise\\U2026";\n' >> "$tmp/Support/Resources/en.lproj/Localizable.strings"
+printf '**Reduce Noise**\n' >> "$tmp/docs/guide.md"; expect pass 'menu name that ends in an escaped ellipsis'
+good; printf '"menu.tools.reduceNoise" = "Reduce Noise\\U2026";\n' >> "$tmp/Support/Resources/en.lproj/Localizable.strings"
+expect fail 'escaped ellipsis menu name missing' 'docs/guide.md: no **Reduce Noise** (en menu name)'
 good; rm "$tmp/docs/guide.md"; expect fail 'no guide' 'docs/guide.md is missing'
 good; sed -i '' 's/src="docs\/images\/x.png"/src="docs\/images\/light.png"/' "$tmp/README.md"; expect fail 'missing src file' 'README.md: link to a missing file: docs/images/light.png'
 good; sed -i '' 's/srcset="docs\/images\/x.png"/srcset="docs\/images\/dark.png"/' "$tmp/README.md"; expect fail 'missing srcset file' 'README.md: link to a missing file: docs/images/dark.png'

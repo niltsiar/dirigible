@@ -47,9 +47,9 @@ struct TranscriptLeftOutShown: Equatable {
 }
 
 extension SessionWindow {
-    /// A dialog of the window shows: a sheet, an export step, or the export progress. Each item
-    /// that opens a dialog is off while one shows: one dialog at a time. An alert is not in it:
-    /// Export is on while the alert of a failed export shows (criterion 28).
+    /// A dialog of the window shows: a sheet, an export step, or the export progress. Reduce Noise,
+    /// Duck Music Under Speech, Export, and Go to Take Time are off while one shows. An alert is
+    /// not in it: Export is on while the alert of a failed export shows (criterion 28).
     var dialogShowing: Bool {
         takeTimeDraft != nil || exportStep != nil || duckDraft != nil || denoiseDraft != nil || unusedFiles != nil
             || studio?.exportProgress != nil

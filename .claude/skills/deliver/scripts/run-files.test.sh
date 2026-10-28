@@ -187,6 +187,33 @@ printf '# V\n\n## Act on\n\n1. (warning, x, read) A case is missing. Invariant: 
 "$log" "$p6" 2 'plan changed late' why evidence done || fail "p6: the late phase 2 row exits $?"
 "$log" "$p6" 6 'fix item 2' 'the plan gate has no row after the late phase 2 row' evidence fixed || fail "p6: a phase 6 row after a late phase 2 row exits $?"
 
+# The first phase 7 row of a run with a plan.md needs a line in the ## Fix check of the last
+# review-diff-<n>.md for each Act on item of each round (a line that has the whole word <round>.<item>).
+# A run with no Act on item, and a run whose first row is older than the rule, need none.
+p7_run() { # <name> <first row time>: a run folder with a plan and two review rounds
+  local d="$tmp/$1"
+  mkdir "$d"
+  printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$d/analysis.md"
+  printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n' > "$d/plan.md"
+  printf '%s\t2\tplan written\twhy\tevidence\tdone\n' "$2" > "$d/decisions.tsv"
+  printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none.\n2. (warning, x, read) Two. Invariant: a. Siblings: none.\n3. (warning, x, read) Three. Invariant: a. Siblings: none.\n' > "$d/review-diff-1.md"
+  printf '# V\n\n## Act on\n\n1. (warning, x, read) Again. Invariant: a. Siblings: none.\n\n## Fix check\n\n- 1.1 OK: done\n- 1.2 OK: done\n- 2.1 OK: done\n- 11.3 OK: another item\n' > "$d/review-diff-2.md"
+}
+p7_run p7 "$(date +%FT%R)"
+before="$(shasum -a 256 "$tmp/p7/decisions.tsv")"
+err="$("$log" "$tmp/p7" 7 'criterion 1 verified' why evidence done 2>&1)"
+code=$?
+[[ $code -eq 2 && "$err" == *1.3* && "$err" != *1.1* ]] || fail "p7: a Fix check with no line for item 1.3: exit $code: $err"
+[[ "$(shasum -a 256 "$tmp/p7/decisions.tsv")" == "$before" ]] || fail 'p7: the refused phase 7 row changed decisions.tsv'
+printf -- '- 1.3 OK: done\n' >> "$tmp/p7/review-diff-2.md"
+"$log" "$tmp/p7" 7 'criterion 1 verified' why evidence done || fail "p7: a Fix check with a line for each item exits $?"
+p7_run p7-none "$(date +%FT%R)"
+printf '# V\n\n## Consider\n\n- a nit\n' > "$tmp/p7-none/review-diff-1.md"
+printf '# V\n\n## Consider\n\n- a nit\n' > "$tmp/p7-none/review-diff-2.md"
+"$log" "$tmp/p7-none" 7 'criterion 1 verified' why evidence done || fail "p7: a run with no Act on item exits $?"
+p7_run p7-old 2026-10-01T10:00
+"$log" "$tmp/p7-old" 7 'criterion 1 verified' why evidence done || fail "p7: a run older than the rule exits $?"
+
 # A phase 6 row of a run whose branch adds an evals.md key with no graded eval folder is refused
 # (scripts/check-eval-keys.sh, against origin/main, with the worktree of the last - Branch: line),
 # and the --from file stays. A run folder with no run.md is not checked.

@@ -25,6 +25,10 @@
 # - With CHECK_PLAN_AT_PHASE4=1 only, when a round file review-plan-<n>.md (a per-lens name is none)
 #   has a numbered item under `## Act on`, the round file with the highest number has a `## Fix check`
 #   heading (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
+# - With CHECK_PLAN_AT_PHASE7=1 only (log-decision.sh sets it before the first phase 7 row), the
+#   `## Fix check` of the review-diff-<n>.md file with the highest number has a line with the whole
+#   word <round>.<item> for each numbered item under `## Act on` of each review-diff-<n>.md file
+#   (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -236,6 +240,27 @@ else
                     print "plan.md: Landings row \"" name[r] "\" has branch " br[r] " and Lands none, and its slices change " k " Sources/ paths, for example " h[1] "; scripts/tag-release.sh needs a done row in features.md for the run number, so name at least one F-ID in the Lands cell"
                 }
             }' "$run/plan.md")
+    fi
+    # Cutoff 2026-10-28T23:50, the commit that added the Fix check line rule: a run that started earlier needs none.
+    if [[ -n "${CHECK_PLAN_AT_PHASE7:-}" && ( -z "$start" || ! "$start" < 2026-10-28T23:50 ) ]]; then
+        last=0 missing=""
+        for file in "$run"/review-diff-*.md; do
+            [[ "${file##*/}" =~ ^review-diff-([0-9]+)\.md$ ]] || continue
+            n=$((10#${BASH_REMATCH[1]}))
+            ((n > last)) && { last=$n; last_file="$file"; }
+        done
+        if ((last)); then
+            fix="$(awk '/^## / { on = ($0 ~ /^## Fix check/); next } on' "$last_file")"
+            for file in "$run"/review-diff-*.md; do
+                [[ "${file##*/}" =~ ^review-diff-([0-9]+)\.md$ ]] || continue
+                n=$((10#${BASH_REMATCH[1]}))
+                while IFS= read -r k; do
+                    grep -qE "(^|[^0-9.])$n\\.$k([^0-9]|\$)" <<<"$fix" || missing+=" $n.$k"
+                done < <(awk '/^## / { act = ($0 ~ /^## Act on/); next } act && /^[0-9]+\. / { k = $0; sub(/\..*/, "", k); print k }' "$file")
+            done
+            [[ -z "$missing" ]] ||
+                say "${last_file##*/} has no ## Fix check line for the Act on item(s)$missing; write one line for each item of each round, starting with its <round>.<item> (lead-judgment.md, Fix check)"
+        fi
     fi
     # Row order, not the clock, decides which phase row is last.
     if [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]]; then

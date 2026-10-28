@@ -27,6 +27,20 @@ struct ToolTextTests {
             "\(tool.description)")
     }
 
+    /// C20 and W10: `clip_denoise` lists `hum` (50 or 60) and `noise`, says that hum alone takes a
+    /// clip on any track, and holds no word "voice".
+    @Test func clipDenoiseListsTheHumArguments() throws {
+        let tool = try #require(Tool.all.first { $0.name == "clip_denoise" })
+        let properties = try #require(tool.inputSchema["properties"] as? [String: [String: Any]])
+
+        #expect(properties["hum"]?["enum"] as? [Int] == [50, 60], "\(String(describing: properties["hum"]))")
+        #expect(properties["noise"]?["default"] as? Bool == true, "\(String(describing: properties["noise"]))")
+        #expect(properties["reduction"]?["minimum"] as? Int == 1, "reduction is not an optional argument")
+        #expect(tool.description.contains("with noise false"), Comment(rawValue: tool.description))
+        let texts = [tool.description] + properties.values.compactMap { $0["description"] as? String }
+        #expect(!texts.contains { $0.lowercased().contains("voice") }, "\(texts)")
+    }
+
     /// The CLI keeps its busy text; a live edit names why the app refuses it (C4).
     @Test func busyTextsNameTheCause() {
         #expect(StudioError.busy.message(package: "p") == "p is busy with a take.")

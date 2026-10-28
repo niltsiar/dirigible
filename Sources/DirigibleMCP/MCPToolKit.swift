@@ -146,6 +146,13 @@ extension Kind where T == NoiseReduction {
     ) { value in exactInteger(value).flatMap { NoiseReduction(decibels: $0) } }
 }
 
+extension Kind where T == Hum {
+    /// 50 or 60 Hz.
+    static let hum = Kind(
+        schema: ["type": "integer", "enum": Hum.allCases.map(\.rawValue)], expected: ClipRenderWork.humExpected
+    ) { value in exactInteger(value).flatMap { Hum(rawValue: $0) } }
+}
+
 extension Kind where T == [String] {
     static func strings(minItems: Int = 0) -> Kind {
         let schema: Schema = ["type": "array", "items": ["type": "string"], "minItems": minItems]

@@ -7,7 +7,7 @@ import Foundation
 extension ClipCommand {
     struct Denoise: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Reduce the noise in clips and write one line for each clip.",
+            abstract: "Reduce the noise or remove the hum in clips and write one line for each clip.",
             discussion: """
                 The command renders each run of clips of one file through the noise reduction of macOS into \
                 a new 24-bit WAV in Clips/, with a 10 s handle on each side of the run, and moves the clips \
@@ -15,8 +15,11 @@ extension ClipCommand {
                 again from the source of the reduction, and the same amount prints "Nothing to change." and \
                 writes nothing. A clip that an older version reduced has no link, so the command reduces it \
                 again. --reduction is a whole number of dB from 1 to 30; the \
-                default is 12. A line has the clip and its new file, with a tab between them. The command \
-                refuses a clip on a music or effects track. Exit 1 when a clip is unknown, a clip is on a \
+                default is 12. --hum 50 or --hum 60 also removes mains hum at that frequency and its \
+                harmonics, before the noise reduction. --no-noise with --hum removes only the hum: the new \
+                file ends in HR, and the clip can be on any track. A line has the clip and its new file, \
+                with a tab between them. With the noise reduction on, the command refuses a clip on a music \
+                or effects track. Exit 64 when --no-noise has no --hum or comes with --reduction. Exit 1 when a clip is unknown, a clip is on a \
                 music or effects track, or the noise reduction does not load. Exit 2 when the package cannot \
                 be read or written, is locked, has a take that is not finalized, has a source WAV that is \
                 missing or unreadable, has too little free disk space, or the render fails. Control-C \
@@ -24,19 +27,35 @@ extension ClipCommand {
                 """)
 
         @OptionGroup var package: PackageArgument
-        @Argument(help: "A clip on a track with no role or the dialogue role. Give one or more.")
+        @Argument(help: "A clip. For the noise reduction its track has no role or the dialogue role. Give one or more.")
         var clips: [String] = []
         @Option(
-            parsing: .unconditional, help: "The noise reduction in dB, 1 to 30.", transform: parseReduction)
-        var reduction = NoiseReduction.standard
+            parsing: .unconditional, help: "The noise reduction in dB, 1 to 30. The default is 12.",
+            transform: parseReduction)
+        var reduction: NoiseReduction?
+        @Option(
+            parsing: .unconditional, help: "Remove mains hum at 50 or 60 Hz and its harmonics.",
+            transform: parseHum)
+        var hum: Hum?
+        @Flag(name: .customLong("no-noise"), help: "Do not reduce the noise. Needs --hum.")
+        var noNoise = false
 
         func validate() throws {
             guard !clips.isEmpty else { throw ValidationError("Give one or more clips.") }
+            _ = try request()
+        }
+
+        /// The request of the options. A combination that `ClipRenderWork.request` refuses exits 64.
+        private func request() throws -> ClipRenderRequest {
+            do throws(ClipRenderWork.Refusal) {
+                return try ClipRenderWork.request(noise: !noNoise, reduction: reduction, hum: hum)
+            } catch {
+                throw ValidationError(error.rawValue)
+            }
         }
 
         func run() throws {
-            let work = ClipRenderWork(
-                clips: clips.map { ClipID($0) }, request: ClipRenderRequest(Treatment(.noise(reduction))))
+            let work = ClipRenderWork(clips: clips.map { ClipID($0) }, request: try request())
             let interrupt = cancelOnInterrupt()
             defer { interrupt.source.cancel() }
             let moved = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
@@ -67,4 +86,12 @@ private func parseReduction(_ text: String) throws -> NoiseReduction {
         throw ValidationError("A reduction is \(ClipRenderWork.reductionExpected).")
     }
     return reduction
+}
+
+/// `Hum(rawValue:)` refuses a value that is not 50 or 60, and a text that is not a whole number.
+private func parseHum(_ text: String) throws -> Hum {
+    guard let hertz = Int(text), let hum = Hum(rawValue: hertz) else {
+        throw ValidationError("A hum is \(ClipRenderWork.humExpected).")
+    }
+    return hum
 }

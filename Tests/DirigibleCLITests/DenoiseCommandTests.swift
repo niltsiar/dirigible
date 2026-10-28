@@ -51,6 +51,67 @@ struct DenoiseCommandTests {
         #expect(wav.length == file.length.count && file.layout == .mono, "\(wav.length) frames, \(file)")
     }
 
+    /// The ID and the path of the file that `clip` plays.
+    static func played(_ clip: String, in package: TemporaryPackage) throws -> (id: FileID, path: String) {
+        let session = try package.read()
+        let id = try #require(session.clip(ClipID(clip))?.clip.file)
+        return (id, try #require(session.files[id]).path)
+    }
+
+    /// C20: `--hum 50 --no-noise` renders the hum removal alone: the line has the clip and its
+    /// ` HR` file, exit 0.
+    @Test func humOnly() async throws {
+        let package = try Self.package()
+
+        let result = try await package.run("clip", "denoise", "PKG", "c1", "--hum", "50", "--no-noise")
+
+        let file = try Self.played("c1", in: package)
+        #expect(file.path == "f1 HR.wav", "the new file: \(file)")
+        #expect(result == CLIResult(status: 0, stdout: "c1\t\(file.id)\n", stderr: ""), "hum only: \(result)")
+        #expect(Self.clips(package).contains("f1 HR.wav"), "\(Self.clips(package))")
+    }
+
+    /// C20: `--hum 60` with the noise on makes an ` NR` file.
+    @Test func humAndNoise() async throws {
+        let package = try Self.package()
+
+        let result = try await package.run("clip", "denoise", "PKG", "c1", "--hum", "60", "--reduction", "6")
+
+        let file = try Self.played("c1", in: package)
+        #expect(result == CLIResult(status: 0, stdout: "c1\t\(file.id)\n", stderr: ""), "hum and noise: \(result)")
+        #expect(file.path == "f1 NR.wav", "the new file: \(file)")
+    }
+
+    /// C20: hum alone takes a clip on a music or effects track, which the noise reduction refuses.
+    @Test(arguments: [Track.Role.music, .effects]) func humAloneTakesMusic(role: Track.Role) async throws {
+        let package = try Self.package(bedRole: role)
+
+        let result = try await package.run("clip", "denoise", "PKG", "m1", "--hum", "60", "--no-noise")
+
+        let file = try Self.played("m1", in: package)
+        #expect(result == CLIResult(status: 0, stdout: "m1\t\(file.id)\n", stderr: ""), "music clip: \(result)")
+        #expect(file.path == "m1 HR.wav", "the new file: \(file)")
+    }
+
+    /// C20: a call with nothing to do, a reduction with the noise off, and a hum that is not 50 or
+    /// 60 exit 64 with the reason and change nothing.
+    @Test(arguments: [
+        (["--no-noise"], "Give a hum of 50 or 60 when the noise reduction is off."),
+        (["--hum", "50", "--no-noise", "--reduction", "6"], "A reduction needs the noise reduction on."),
+        (["--hum", "55"], "A hum is an integer, 50 or 60."),
+        (["--hum", "abc", "--no-noise"], "A hum is an integer, 50 or 60."),
+    ])
+    func refusedOptionsExit64(options: [String], reason: String) async throws {
+        let package = try Self.package()
+        let before = (try package.xml(), Self.clips(package))
+
+        let result = try await package.run(["clip", "denoise", "PKG", "c1"] + options)
+
+        #expect(result.status == 64 && result.stdout == "", "\(options): \(result)")
+        #expect(result.stderr.contains(reason), "\(options): \(result.stderr)")
+        #expect(try package.xml() == before.0 && Self.clips(package) == before.1, "a refused call changed the package")
+    }
+
     /// C5: the amount of the level again prints "Nothing to change.", exits 0, and writes no file
     /// and no `session.xml`.
     @Test func equalAmountPrintsNothingToChange() async throws {

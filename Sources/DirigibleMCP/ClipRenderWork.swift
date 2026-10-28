@@ -19,6 +19,27 @@ package struct ClipRenderWork: Sendable {
     package static let reductionExpected =
         "an integer from \(NoiseReduction.range.lowerBound) to \(NoiseReduction.range.upperBound)"
 
+    /// The form of a hum for the command and the tool.
+    package static let humExpected = "an integer, 50 or 60"
+
+    /// A combination of options that asks for no render, or for a reduction with the noise off.
+    package enum Refusal: String, Error {
+        case nothingToDo = "Give a hum of 50 or 60 when the noise reduction is off."
+        case reductionWithoutNoise = "A reduction needs the noise reduction on."
+    }
+
+    /// The one parse of the options of the command and of the tool into a request. The noise is on
+    /// unless `noise` is false; `reduction` is nil for the standard amount.
+    package static func request(noise: Bool, reduction: NoiseReduction?, hum: Hum?) throws(Refusal)
+        -> ClipRenderRequest
+    {
+        if !noise, reduction != nil { throw .reductionWithoutNoise }
+        var effects = hum.map { [Effect.hum($0)] } ?? []
+        if noise { effects.append(.noise(reduction ?? .standard)) }
+        guard let treatment = Treatment(effects) else { throw .nothingToDo }
+        return ClipRenderRequest(treatment)
+    }
+
     /// One line for each moved clip: the clip and its new file, with a tab between them. No moved
     /// clip: "Nothing to change.", because each clip was unchanged (decision 0057).
     package static func lines(_ clips: [RenderedClip]) -> [String] {

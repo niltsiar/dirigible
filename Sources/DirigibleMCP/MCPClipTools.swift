@@ -24,8 +24,12 @@ private let source = Param<String?>.optional(
 private let sourceNote =
     " With source, the call copies or converts files; it runs to the end and saves, also when the client stops "
     + "waiting. Read session_info before a retry."
-private let reduction = Param.defaulted(
-    "reduction", "The noise reduction in dB, 1 to 30.", .reduction, NoiseReduction.standard.decibels)
+private let reduction = Param<NoiseReduction?>.optional(
+    "reduction", "The noise reduction in dB, 1 to 30. The default is 12. Not with noise false.", .reduction)
+private let hum = Param<Hum?>.optional(
+    "hum", "Remove mains hum at this frequency in Hz, 50 or 60, and its harmonics. The default is no hum removal.",
+    .hum)
+private let noise = Param.defaulted("noise", "Reduce the noise. False needs hum.", .boolean, true)
 private let someClips = Param.defaulted("clips", "The clip IDs.", .strings(), [String]())
 private let clips = Param.required("clips", "The clip IDs: one or more.", .strings(minItems: 1))
 private let by = Param.required("by", "The frames to move; negative moves left.", .integer())
@@ -222,19 +226,25 @@ let clipTools = [
     },
     Tool(
         "clip_denoise",
-        "Reduce the noise in clips, as dirigible clip denoise: for each run of clips of one file, one new 24-bit WAV "
-            + "in Clips/ with a handle of 10 s on each side, made by the noise reduction of macOS, and the clips move "
-            + "onto it. The source file stays. A clip on a music or effects track is refused. A second call on a clip "
-            + "that this version reduced renders again from its source, and the same amount gives \"Nothing to "
+        "Reduce the noise or remove the hum in clips, as dirigible clip denoise: for each run of clips of one file, "
+            + "one new 24-bit WAV in Clips/ with a handle of 10 s on each side, made by the noise reduction of macOS, "
+            + "and the clips move onto it. The source file stays. With hum 50 or 60, the render first removes mains "
+            + "hum at that frequency and its harmonics; with noise false, it removes only the hum, and a clip on any "
+            + "track is allowed. The noise reduction refuses a clip on a music or effects track. A second call on a "
+            + "clip that this version reduced renders again from its source, and the same amount gives \"Nothing to "
             + "change.\". A clip that an older version reduced has no link, so a second call reduces it again. Give "
             + "one line for each clip: the clip and its new file, with a tab between them."
             + editCancelNote("no clip changes"),
-        [clips, reduction], batch: .alone
+        [clips, reduction, hum, noise], batch: .alone
     ) { a throws(ToolError) in
-        .clipRender(
-            ClipRenderWork(
-                clips: try a[clips].map { ClipID($0) }, request: ClipRenderRequest(Treatment(.noise(try a[reduction]))))
-        )
+        let (withNoise, amount, hertz) = (try a[noise], try a[reduction], try a[hum])
+        let request: ClipRenderRequest
+        do throws(ClipRenderWork.Refusal) {
+            request = try ClipRenderWork.request(noise: withNoise, reduction: amount, hum: hertz)
+        } catch {
+            throw ToolError(error.rawValue)
+        }
+        return .clipRender(ClipRenderWork(clips: try a[clips].map { ClipID($0) }, request: request))
     },
     Tool(
         "clip_restore",

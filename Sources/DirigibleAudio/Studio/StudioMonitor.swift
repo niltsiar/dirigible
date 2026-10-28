@@ -67,9 +67,9 @@ extension Studio {
         await monitorTurns.run { await applyMonitor() }
     }
 
-    /// Taps again each monitor app writer whose track shows **No sound from** or **No access**:
-    /// after a grant in System Settings, the new tap gets sound (decisions 0015 and 0006). A writer
-    /// with no warning keeps its tap, because each rebuild keeps one of its 64 inputs.
+    /// Taps again each monitor app writer whose track shows **No sound from** or **No access**,
+    /// for example after a change in System Settings (decisions 0015 and 0006). A writer with no
+    /// warning keeps its tap, because each rebuild keeps one of its 64 inputs.
     public func rebuildSilentAppMonitors() {
         let warns: Set<LiveTrack.State> = [.noSound, .noAccess]
         for monitor in monitors.values

@@ -73,6 +73,30 @@ extension MonitorAppTests {
         _ = folder
     }
 
+    @Test func aMonitorTapAtThePromptDoesNotDelayTheStart() async throws {
+        let hal = hal()
+        hal.holdAttach(Self.zoomUID)
+        defer { hal.releaseAttach(Self.zoomUID) }
+        let studio = try await studio(hal)
+        studio.environment.startLimit = .seconds(10)
+        studio.environment.stopLimit = .seconds(5)
+        try await studio.monitor(armed: ["host", "guest"])
+        await until(limit: busy, "the app attach is not at the prompt") { hal.heldAttachCount(Self.zoomUID) == 1 }
+
+        let called = ContinuousClock.now
+        try await studio.startRecording(armed: ["host", "guest"], playhead: 0)
+
+        // A wait for the held monitor attach ends only at the start limit (10 s).
+        #expect(ContinuousClock.now - called < .seconds(5), "the start waits for the monitor app writer")
+        let input = playTake(hal, "mic", attach: 2)
+        await input.wait()
+        try await passTakeTime(studio, seconds: 0.6)
+        try await studio.stopRecording()
+        #expect(clips(studio, "host").count == 1)
+        await studio.settle()
+        _ = folder
+    }
+
     /// A take that starts while the monitor task waits for the microphone gets the only tap.
     @Test func aTakeDuringTheMonitorWaitStartsNoMonitorTap() async throws {
         let hal = hal()

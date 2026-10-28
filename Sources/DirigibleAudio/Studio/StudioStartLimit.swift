@@ -172,9 +172,11 @@ extension Studio {
     }
 
     /// The hand-over to a take (decision 0015), after `startApps`: in one monitor turn, it
-    /// finishes each monitor writer, so the device keeps running (probe Q1). Each wait ends at the
-    /// start deadline or at a stop. A turn that comes after them waits for no writer: it finishes
-    /// each monitor writer later. `begin` replaced the entries of `liveTracks` already.
+    /// finishes each monitor device writer, so the device keeps running (probe Q1). Each wait ends
+    /// at the start deadline or at a stop. A monitor app writer finishes later with no wait: its
+    /// attach can wait at the System Audio Recording prompt (decision 0030 Start). A turn that
+    /// comes after the deadline waits for no writer: it finishes each monitor writer later.
+    /// `begin` replaced the entries of `liveTracks` already.
     func handOver(by deadline: ContinuousClock.Instant, cut: WaitCut) async {
         let span = environment.log.begin(.take, "hand-over-begin")
         defer { span.end("hand-over") }
@@ -182,9 +184,11 @@ extension Studio {
             await monitorTurns.run {
                 let released = monitors.values.map(\.writer)
                 monitors = [:]
+                for writer in released where writer.app != nil { writer.finishLater() }
+                let devices = released.filter { $0.app == nil }
                 let late = cut.isCut || ContinuousClock.now >= deadline
-                let answers = late ? [:] : await boundedEach(released, by: deadline, cut: cut) { await $0.finish() }
-                for writer in released where answers[ObjectIdentifier(writer)] == nil { writer.finishLater() }
+                let answers = late ? [:] : await boundedEach(devices, by: deadline, cut: cut) { await $0.finish() }
+                for writer in devices where answers[ObjectIdentifier(writer)] == nil { writer.finishLater() }
             }
         }
         _ = await bounded(by: deadline, cut: cut) { await turn.value }

@@ -316,14 +316,15 @@ extension DenoiseDraft {
         await until("the render ends") { model.importJob == nil }
 
         let report = try #require(model.denoiseReport)
-        #expect(report.clips == 2 && report.decibels == nil && report.hum, "\(report)")
+        #expect(report.clips == 2 && report.treatment == Treatment(.hum(.hz50)), "\(report)")
         await until("the banner shows") { model.shown.banners.contains { $0.key.hasPrefix("denoiseReport") } }
         let banner = try #require(model.shown.banners.first { $0.key.hasPrefix("denoiseReport") })
-        #expect(banner.text == L10n.denoiseResult(clips: 2, decibels: nil, hum: true), "\(banner.text)")
+        #expect(banner.text == L10n.denoiseResult(clips: 2, treatment: Treatment(.hum(.hz50))), "\(banner.text)")
 
         let tables = try ["en", "es"].map { try stringsTable($0) }
         func text(_ clips: Int, _ decibels: Int?, _ language: Int) -> String {
-            L10n.denoiseResult(clips: clips, decibels: decibels, hum: true) {
+            let noise = decibels.flatMap(NoiseReduction.init(decibels:)).map { [Effect.noise($0)] } ?? []
+            return L10n.denoiseResult(clips: clips, treatment: Treatment([.hum(.hz50)] + noise)!) {
                 tables[language][$0.rawValue] ?? $0.rawValue
             }
         }

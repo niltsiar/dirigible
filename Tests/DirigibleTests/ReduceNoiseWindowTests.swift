@@ -97,7 +97,8 @@ import Testing
             file != "f1" && music == "f1", "dialogue \(String(describing: file)), music \(String(describing: music))")
         #expect(model.alert == nil)
         let report = model.denoiseReport
-        #expect(report?.clips == 1 && report?.decibels == 12, "\(String(describing: report))")
+        #expect(
+            report?.clips == 1 && report?.treatment == Treatment(.noise(.standard)), "\(String(describing: report))")
         await until("the banner shows") { model.shown.banners.contains { $0.key.hasPrefix("denoiseReport") } }
         let banner = try #require(model.shown.banners.first { $0.key.hasPrefix("denoiseReport") })
         #expect(banner.kind == .info && banner.announcement == .medium)
@@ -139,7 +140,9 @@ import Testing
     @Test func resultBanner() throws {
         let tables = try ["en", "es"].map { try stringsTable($0) }
         func text(_ clips: Int, _ table: [String: String]) -> String {
-            L10n.denoiseResult(clips: clips, decibels: 12) { table[$0.rawValue] ?? $0.rawValue }
+            L10n.denoiseResult(clips: clips, treatment: Treatment(.noise(.standard))) {
+                table[$0.rawValue] ?? $0.rawValue
+            }
         }
         #expect(text(3, tables[0]) == "Reduced noise in 3 clips by 12 dB.")
         #expect(text(1, tables[0]) == "Reduced noise in 1 clip by 12 dB.")

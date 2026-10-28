@@ -93,7 +93,6 @@ extension SessionWindow {
         guard !report.clips.isEmpty || !report.unchanged.isEmpty else { return }
         denoisePresses += 1
         denoiseReport = DenoiseReportShown(
-            clips: report.clips.count, decibels: report.treatment.noise?.decibels, hum: report.treatment.hum != nil,
-            revision: revision, press: denoisePresses)
+            clips: report.clips.count, treatment: report.treatment, revision: revision, press: denoisePresses)
     }
 }

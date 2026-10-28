@@ -9,8 +9,9 @@
 # - A brief whose text holds a git commit -F or --file path other than .scratchpads/commit-msg.txt
 #   that names a commit-msg.txt or a .scratchpads/ file is refused: the agent would commit with the
 #   message file of another work tree (git-guardrails.sh blocks that path in a Bash command). The
-#   match and the word are those of git-guardrails.sh, line by line; then backticks, < and > go,
-#   and the leading quotes and the trailing ) ; : . , and quotes. A placeholder (-F <file>) or
+#   match is that of git-guardrails.sh: the first -F or --file after each git commit of a line, so
+#   a later -F of another command does not count. Then backticks, < and > go, and the leading
+#   quotes and the trailing ) ; : . , and quotes. A placeholder (-F <file>) or
 #   another file name passes. A git -C <dir> commit -F form stays out, as in git-guardrails.sh.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
@@ -29,6 +30,22 @@ if [[ "$tool" != mcp__t3-code__delegate_task && "$isolation" == worktree ]]; the
   exit 2
 fi
 text="$(plutil -extract "tool_input.$field" raw -o - "$input" 2>/dev/null)"
+# commit_files: the path of the first -F or --file after each "git commit" of the input lines.
+commit_files() {
+  awk '{
+    s = $0
+    while ((i = index(s, "git commit")) > 0) {
+      s = substr(s, i + 10)
+      chunk = s
+      if ((j = index(s, "git commit")) > 0) chunk = substr(s, 1, j - 1)
+      if (match(chunk, /(^| )(-F ?|--file[= ])[^ ]+/)) {
+        t = substr(chunk, RSTART, RLENGTH)
+        sub(/^ ?(-F ?|--file[= ])/, "", t)
+        print t
+      }
+    }
+  }'
+}
 while IFS= read -r file; do
   file="$(sed -E "s/[\`<>]//g; s/^[\"']+//; s/[);:.,\"']+\$//" <<< "$file")"
   [[ -n "$file" ]] || continue
@@ -36,5 +53,5 @@ while IFS= read -r file; do
     echo "BLOCKED by .claude/hooks/agent-guard.sh: the brief tells the agent to commit with git commit -F $file, which can be the message file of another work tree. Tell it to write .scratchpads/commit-msg.txt in its work tree and run git commit -F .scratchpads/commit-msg.txt. If the path is only quoted data, put the text in a file in the run folder and name that file in the brief." >&2
     exit 2
   fi
-done < <(grep -oE "git commit( .*)? (-F ?|--file[= ])[^ ]+" <<< "$text" | sed -E 's/.*(-F ?|--file[= ])//')
+done < <(commit_files <<< "$text")
 exit 0

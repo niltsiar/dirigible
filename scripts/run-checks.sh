@@ -27,8 +27,9 @@
 #          and run no make. The guardrail hook blocks each other command that names the file, except a read.
 # With BASE (the push check), it sets the wait limit of with-lock.sh to 0, so a call of a make
 # recipe (swift-test.sh) waits with no limit. With no BASE, such a call keeps its wait limit. A
-# lock wait that ends at its limit (the line "with-lock: still waiting after") is no red test and
-# gets no rerun: this script ends in exit 75, also when the wait is in a rerun.
+# lock wait that ends at its limit is no red test and gets no rerun: this script ends in exit 75.
+# The sign is the make line "Error 75" of a target (and no other make error), or the exit 75 of a
+# rerun. It reads no free text of the log: the output of a red hook test can quote the limit line.
 # With BASE, it first runs check-commits.sh --secrets (the gitleaks scan of BASE..HEAD); a finding
 # or a missing gitleaks ends the run before any target.
 # With BASE (the push check), it exports DIRIGIBLE_PUSH_CHECK=1, which test-shards.sh needs to run
@@ -90,16 +91,15 @@ blocked() {
 # once: the words of stdin on one line, each once.
 once() { tr ' ' '\n' | awk 'NF && !s[$0]++' | xargs; }
 
-lock_limit='with-lock: still waiting after'
 # rerun <names> <command>: prints each name with a failed line or with no pass line in the output
 # of the command (none: all passed). A test that did not run stays red, and so does a name of two
 # suites with one red suite. A crash, an issue of no test, or a red command in which each name
-# passed returns 1. A lock wait that ended at its limit returns 75.
+# passed returns 1. A command that exits 75 (a lock wait that ended at its limit) returns 75.
 rerun() {
     local names="$1" code=0 why left="" name cases='[(][^)]*[)]( with [0-9]+ test cases)?'
     shift
     "$@" 2>&1 | tee "$log.rerun" >&2 || code=$?
-    if grep -qF "$lock_limit" "$log.rerun"; then
+    if [[ $code -eq 75 ]]; then
         echo "run-checks: the rerun stopped: a lock wait ended at its limit; run the same command again" >&2
         return 75
     fi
@@ -201,11 +201,14 @@ if [[ ${#goals[@]} -gt 0 ]]; then
     if ! "${MAKE:-make}" -k ${skip[@]+"${skip[@]}"} "$@" 2>&1 | tee "$log"; then
         # The load at the end of the check: make -k runs the later targets after a red test.
         load="$(sysctl -n vm.loadavg | awk '{ print $2 }')"
-        if grep -qF "$lock_limit" "$log"; then
+        errors="$(grep -E "$prefix\*\*\* " "$log" || true)"
+        # A recipe that exits 75 gives the make line "Error 75". Free text in the log is no sign:
+        # the output of a red hook test can quote the limit line.
+        if [[ -z "${BASE:-}" ]] && grep -qE "$prefix\*\*\* \[[^]]*\] Error 75\$" <<<"$errors" &&
+            ! grep -vqE "$prefix\*\*\* \[[^]]*\] Error 75\$" <<<"$errors"; then
             echo "run-checks: a lock wait ended at its limit; run the same command again" >&2
             exit 75
         fi
-        errors="$(grep -E "$prefix\*\*\* " "$log" || true)"
         ours="$prefix\*\*\* \[(test|test-slow-push)\] Error"
         grep -qE "$ours" <<<"$errors" || no_rerun 'no red test or test-slow-push target'
         ! grep -vqE "$ours" <<<"$errors" || no_rerun 'a target other than test and test-slow-push failed'

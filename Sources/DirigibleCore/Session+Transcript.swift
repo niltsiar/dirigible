@@ -200,7 +200,8 @@ extension Session {
         var skipped = 0
         var repeats = 0
         var added: [FileID: [Anchor]] = [:]
-        var heard: [ClipID: Clip] = [:]
+        // Each clip that gave a word: its root file and its frames in that root.
+        var heard: [ClipID: (root: FileID, span: Range<Frames>)] = [:]
         for unit in file.units {
             guard let start = frame(unit.start), let end = frame(unit.end) else {
                 untimed += 1
@@ -215,16 +216,14 @@ extension Session {
             // A repeat of audio that another clip of the file gave already shows there: no second anchor.
             // A take time names the file frame, so a take import has no repeat.
             if case .timeline = time {
-                let repeated = heard.values.contains { other in
-                    let start = other.offset + self.root(of: other.file).offset
-                    return other.id != clip.id && self.root(of: other.file).file == root
-                        && (start..<(start + other.length)).contains(Frames(midpoint + shift))
+                let repeated = heard.contains { id, other in
+                    id != clip.id && other.root == root && other.span.contains(Frames(midpoint + shift))
                 }
                 guard !repeated else {
                     repeats += 1
                     continue
                 }
-                heard[clip.id] = clip
+                heard[clip.id] = (root, Frames(bounds.lowerBound + shift)..<Frames(bounds.upperBound + shift))
             }
             let range = Frames(max(start, bounds.lowerBound) + shift)..<Frames(min(end, bounds.upperBound) + shift)
             added[root, default: []].append(Anchor(number: number, range: range, text: unit.text))

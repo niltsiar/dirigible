@@ -214,6 +214,61 @@ printf '# V\n\n## Consider\n\n- a nit\n' > "$tmp/p7-none/review-diff-2.md"
 p7_run p7-old 2026-10-01T10:00
 "$log" "$tmp/p7-old" 7 'criterion 1 verified' why evidence done || fail "p7: a run older than the rule exits $?"
 
+# The first phase 4 row copies analysis.md to analysis-gate.md when that file is absent and the run
+# has no phase 4 row. After that, a criterion line of analysis.md that differs from the copy, or
+# is gone, needs a criterion change row that names its ID as a whole word, logged after the first
+# phase 4 row. A run with phase 4 rows and no copy is older than the rule and needs none.
+g10_run() { # <name>: a run folder that is ready for its first phase 4 row
+  local d="$tmp/$1"
+  mkdir "$d"
+  printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n\n## Acceptance criteria\n\n- C1: the meter moves.\n- C12: the file is saved.\n- C2: the file is read.\n\n## Other\n\n- C9: not a criterion.\n' > "$d/analysis.md"
+  printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: C1 C2 C3 C12\n' > "$d/plan.md"
+  : > "$d/decisions.tsv"
+  : > "$d/review-plan-1.md"
+  "$log" "$d" 2 'plan written' why evidence done || fail "g10: the phase 2 row exits $?"
+  "$log" "$d" 3 'plan gate closed' why evidence done || fail "g10: the phase 3 row exits $?"
+}
+g10_run g10
+[[ ! -e "$tmp/g10/analysis-gate.md" ]] || fail 'g10: analysis-gate.md exists before the first phase 4 row'
+"$log" "$tmp/g10" 4 'Slice S1 committed' why evidence done || fail "g10: the first phase 4 row exits $?"
+cmp -s "$tmp/g10/analysis.md" "$tmp/g10/analysis-gate.md" || fail 'g10: the first phase 4 row did not copy analysis.md to analysis-gate.md'
+sed 's/^- C1: the meter moves\./- C1: the meter moves at 24 fps./' "$tmp/g10/analysis-gate.md" > "$tmp/g10/analysis.md"
+before="$(shasum -a 256 "$tmp/g10/decisions.tsv")"
+err="$("$log" "$tmp/g10" 4 'Slice S3 committed' why evidence done 2>&1)"
+code=$?
+[[ $code -eq 2 && "$err" == *'criterion C1 '* && "$err" != *'criterion C12 '* && "$err" != *'criterion C2 '* && "$err" == *'a default, a wording pick, a fix'* ]] ||
+  fail "g10: a changed C1 with no row: exit $code: $err"
+[[ "$(shasum -a 256 "$tmp/g10/decisions.tsv")" == "$before" ]] || fail 'g10: the refused phase 4 row changed decisions.tsv'
+"$log" "$tmp/g10" 6 'fix item 1' why evidence fixed 2>/dev/null
+[[ $? -eq 2 ]] || fail 'g10: a phase 6 row with a changed C1 and no row was not refused'
+touch "$tmp/g10/analysis.md"
+touch -t 200001010000 "$tmp/g10/decisions.tsv"
+"$log" "$tmp/g10" 4 'criterion change C12: old saved, new saved twice' why evidence done || fail "g10: the criterion change row for C12 exits $?"
+err="$("$log" "$tmp/g10" 4 'Slice S3 committed' why evidence done 2>&1)"
+code=$?
+[[ $code -eq 2 && "$err" == *'criterion C1 '* ]] || fail "g10: a row for C12 stood for the changed C1: exit $code: $err"
+touch "$tmp/g10/analysis.md"
+touch -t 200001010000 "$tmp/g10/decisions.tsv"
+"$log" "$tmp/g10" 4 'criterion change C1: old the meter moves, new the meter moves at 24 fps' why evidence done ||
+  fail "g10: the criterion change row for C1 exits $?"
+"$log" "$tmp/g10" 4 'Slice S3 committed' why evidence done || fail "g10: a phase 4 row after the C1 row exits $?"
+sed '/^- C2: /d' "$tmp/g10/analysis.md" > "$tmp/g10/analysis.new" && mv "$tmp/g10/analysis.new" "$tmp/g10/analysis.md"
+err="$("$log" "$tmp/g10" 4 'Slice S4 committed' why evidence done 2>&1)"
+code=$?
+[[ $code -eq 2 && "$err" == *'criterion C2 '* && "$err" != *'criterion C1 '* ]] || fail "g10: a removed C2 with no row: exit $code: $err"
+touch "$tmp/g10/analysis.md"
+touch -t 200001010000 "$tmp/g10/decisions.tsv"
+"$log" "$tmp/g10" 6 'criterion change C2: old the file is read, new gone' why evidence done || fail "g10: the criterion change row for C2 exits $?"
+"$log" "$tmp/g10" 4 'Slice S4 committed' why evidence done || fail "g10: a phase 4 row after the C2 row exits $?"
+printf -- '- C3: a new criterion.\n' >> "$tmp/g10/analysis.md"
+sed -i.bak 's/^- C9: not a criterion\./- C9: another text./' "$tmp/g10/analysis.md" && rm "$tmp/g10/analysis.md.bak"
+"$log" "$tmp/g10" 4 'Slice S5 committed' why evidence done || fail "g10: a new criterion C3 and a changed line outside the section exit $?"
+g10_run g10-old
+printf '2026-10-01T10:00\t4\tSlice S1 committed\twhy\tevidence\tdone\n' >> "$tmp/g10-old/decisions.tsv"
+sed -i.bak 's/^- C1: the meter moves\./- C1: the meter moves at 24 fps./' "$tmp/g10-old/analysis.md" && rm "$tmp/g10-old/analysis.md.bak"
+"$log" "$tmp/g10-old" 4 'Slice S2 committed' why evidence done || fail "g10: a run with phase 4 rows and no copy exits $?"
+[[ ! -e "$tmp/g10-old/analysis-gate.md" ]] || fail 'g10: a run with phase 4 rows got an analysis-gate.md'
+
 # A phase 6 row of a run whose branch adds an evals.md key with no graded eval folder is refused
 # (scripts/check-eval-keys.sh, against origin/main, with the worktree of the last - Branch: line),
 # and the --from file stays. A run folder with no run.md is not checked.

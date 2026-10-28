@@ -19,7 +19,9 @@
 # of the land: the review files have their fields. A criterion change row skips that check. A phase
 # 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
 # origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a
-# graded eval folder. The first phase 7 row of a run folder with a plan.md needs a passing
+# graded eval folder. The first phase 4 row copies analysis.md to analysis-gate.md; check-plan.sh then
+# needs a criterion change row for each criterion line that differs from the copy. A phase 4 row
+# that is a criterion change row skips the plan check once the copy exists. The first phase 7 row of a run folder with a plan.md needs a passing
 # scripts/check-plan.sh (CHECK_PLAN_AT_PHASE7=1): the Fix check has a line for each Act on item of
 # each review-diff-<n>.md round. Else the script appends nothing and exits 2.
 set -euo pipefail
@@ -58,11 +60,16 @@ fi
 
 plan_check="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/check-plan.sh"
 # A phase 4 row: the plan gate is closed, so plan.md must pass check-plan.sh now.
-if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]]; then
+if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! [[ "$(lower "$2")" == "criterion change"* && -f "${file%/*}/analysis-gate.md" ]]; then
     if ! out="$(CHECK_PLAN_AT_PHASE4=1 "$plan_check" "${file%/*}" 2>&1)"; then
         printf '%s\na phase 4 row needs a passing check-plan.sh: fix plan.md or log the rows above, then log this row\n' "$out" >&2
         exit 2
     fi
+fi
+# The first phase 4 row: analysis.md is copied to analysis-gate.md, so check-plan.sh can find a criterion
+# that a later row changes. A run that has phase 4 rows and no copy is older than the rule.
+if [[ "$1" == 4 && -f "${file%/*}/analysis.md" && ! -e "${file%/*}/analysis-gate.md" ]] && ! awk -F'\t' '$2 == "4" { f = 1 } END { exit !f }' "$file"; then
+    cp "${file%/*}/analysis.md" "${file%/*}/analysis-gate.md"
 fi
 # A phase 6 row: check-plan.sh passes as the land check runs it (no plan gate test), so the review
 # fields are complete before the fixer starts. The criterion change row repairs a missing criterion

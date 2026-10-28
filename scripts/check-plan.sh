@@ -29,6 +29,11 @@
 #   `## Fix check` of the review-diff-<n>.md file with the highest number has a line with the whole
 #   word <round>.<item> for each numbered item under `## Act on` of each review-diff-<n>.md file
 #   (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
+# - When analysis-gate.md exists (log-decision.sh copies analysis.md to it at the first phase 4 row)
+#   and the run has a phase 4 row (or CHECK_PLAN_AT_PHASE4=1), each criterion line of its
+#   `## Acceptance criteria` section whose line differs in analysis.md, or is gone, needs a
+#   decisions.tsv row after the first phase 4 row whose decision starts with `criterion change` and
+#   names the ID as a whole word. A run with phase 4 rows and no analysis-gate.md needs none.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -261,6 +266,41 @@ else
             [[ -z "$missing" ]] ||
                 say "${last_file##*/} has no ## Fix check line for the Act on item(s)$missing; write one line for each item of each round, starting with its <round>.<item> (lead-judgment.md, Fix check)"
         fi
+    fi
+    # Each criterion of analysis-gate.md (the copy that log-decision.sh makes at the first phase 4 row)
+    # whose line changed or is gone needs a criterion change row after the first phase 4 row.
+    if [[ -f "$run/analysis-gate.md" && -f "$run/analysis.md" ]] &&
+        { [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]] || awk -F'\t' '$2 == "4" { f = 1 } END { exit !f }' "$run/decisions.tsv" 2>/dev/null; }; then
+        while IFS= read -r msg; do say "$msg"; done < <(awk -v rows="$run/decisions.tsv" -v run="$run" '
+            function criteria(file, isgate,  line, t, id, on) {
+                while ((getline line < file) > 0) {
+                    if (line ~ /^## /) { on = (line ~ /^## Acceptance criteria[[:space:]]*$/); continue }
+                    if (!on || line !~ /^(- |[0-9]+\. |\|)/) continue
+                    t = line; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                    if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) continue
+                    id = substr(t, 1, RLENGTH)
+                    if (isgate) { if (!(id in gate)) { gate[id] = line; gid[++ng] = id } }
+                    else if (!(id in now)) now[id] = line
+                }
+                close(file)
+            }
+            BEGIN {
+                criteria(run "/analysis-gate.md", 1)
+                criteria(run "/analysis.md", 0)
+                while ((getline line < rows) > 0) {
+                    split(line, c, "\t")
+                    if (c[2] == "4") seen4 = 1
+                    if (seen4 && tolower(c[3]) ~ /^criterion change/) changes[++m] = c[3]
+                }
+                for (i = 1; i <= ng; i++) {
+                    id = gid[i]
+                    if (id in now && now[id] == gate[id]) continue
+                    found = 0
+                    for (k = 1; k <= m; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) found = 1
+                    if (!found)
+                        print "analysis.md: criterion " id (id in now ? " differs from" : " is gone since") " analysis-gate.md and no criterion change row follows the first phase 4 row; a default, a wording pick, a fix, or a new value changes a criterion; edit analysis.md first, then log it: .claude/skills/deliver/scripts/log-decision.sh " run " 4 \"criterion change " id ": old ..., new ...\" <why> <evidence> <result>"
+                }
+            }' </dev/null)
     fi
     # Row order, not the clock, decides which phase row is last.
     if [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]]; then

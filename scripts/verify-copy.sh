@@ -6,15 +6,19 @@
 # copies of two trees and refuses, and a stop in one tree resets the grants of the other copy.
 # The script does not build the app: run `make app` first.
 #
-# usage: verify-copy.sh start [--agents] [<package>] [-- <open arguments>]
+# usage: verify-copy.sh start [--agents] [--accent <n>] [<package>] [-- <open arguments>]
 #                                  stop a running copy, clean up, copy build/Dirigible.app, set
 #                                  the bundle ID, sign it, open it with its own MCP socket
 #                                  (DIRIGIBLE_MCP_SOCKET=build/verify/mcp.sock), and print its PID
 #                                  and a DIRIGIBLE_MCP_SOCKET line for an MCP client; --agents
-#                                  turns the agents switch on; while the copy of another
-#                                  worktree runs, wait for the screen lock up to
-#                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1; a socket
-#                                  path of 104 bytes or more exits 1 (sun_path holds 103)
+#                                  turns the agents switch on; --accent <n> (-1 Graphite to 6)
+#                                  writes the global accent (defaults -g AppleAccentColor) before
+#                                  the open, after it saves the old value in the file
+#                                  dirigible-screen-accent-old beside the screen lock (only when
+#                                  the file is absent); while the copy of another worktree runs,
+#                                  wait for the screen lock up to VERIFY_COPY_SCREEN_WAIT s
+#                                  (default 480), then exit 1; a socket path of 104 bytes or more
+#                                  exits 1 (sun_path holds 103)
 #        verify-copy.sh id         print the bundle ID of the copy of this worktree (no build);
 #                                  call it by the absolute path of the tree that runs the copy
 #        verify-copy.sh ax <ax.swift arguments>
@@ -28,15 +32,20 @@
 #                                  copy shows a window, (e) with Accessibility trust; (f) the
 #                                  screen is unlocked
 #        verify-copy.sh stop       stop the copy and clean up its TCC grants, its preferences,
-#                                  its saved state, and build/verify
+#                                  its saved state, and build/verify; put back the saved global
+#                                  accent, then remove the screen lock
+#
+# Only the tree that holds the screen lock puts back the saved accent: at stop, and at its next
+# start (also after the takeover of a dead copy). A failed restore keeps the file and exits 1.
 #
 # Safety: the script finds the copy only by the absolute path of its executable (pgrep -f with an
 # anchor), and kills only those PIDs. It never stops a process by name. Each recursive delete acts
-# only on build/verify or the saved state of the copy ID. tccutil and defaults get only the copy ID.
+# only on build/verify or the saved state of the copy ID. tccutil and defaults get only the copy ID,
+# apart from the defaults calls of the global accent.
 # Exit: 0 done, 1 a failed step (the message names it), 2 usage or a pgrep error.
 set -euo pipefail
 
-usage="usage: verify-copy.sh start [--agents] [<package>] [-- <open arguments>]
+usage="usage: verify-copy.sh start [--agents] [--accent <n>] [<package>] [-- <open arguments>]
        verify-copy.sh id
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>
@@ -117,6 +126,9 @@ cleanup() {
 # dirigible-screen of the git common dir holds the root of the tree and the PID of its copy (the
 # PID of start until the copy runs). A lock with no PID file is held.
 screen="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)/dirigible-screen"
+# The global accent before the first start --accent: a number, or unset. A file beside the lock
+# folder, so release_screen, cleanup, and a worktree removal keep it.
+saved_accent="$screen-accent-old"
 
 # Take the screen lock for this tree. While the copy of another tree runs, print the holder once,
 # poll each second, and exit 1 after VERIFY_COPY_SCREEN_WAIT s (default 480). The lock of a dead
@@ -149,16 +161,63 @@ take_screen() {
     echo $$ >"$screen/pid"
 }
 
-# Remove the screen lock when this tree holds it.
+# When this tree holds the screen lock and an accent is saved, put it back, then remove the file.
+# A failed write keeps the file and returns 1.
+restore_accent() {
+    local old out rc=0
+    [[ "$(cat "$screen/root" 2>/dev/null)" == "$root" && -f "$saved_accent" ]] || return 0
+    old="$(cat "$saved_accent")"
+    if [[ "$old" == unset ]]; then
+        out="$(defaults delete -g AppleAccentColor 2>&1)" || rc=$?
+    else
+        out="$(defaults write -g AppleAccentColor -int "$old" 2>&1)" || rc=$?
+    fi
+    if [[ $rc -ne 0 ]]; then
+        echo "verify-copy.sh: the restore of the global accent $old failed (exit $rc): $out. The value stays in $saved_accent." >&2
+        return 1
+    fi
+    rm -f "$saved_accent"
+}
+
+# Put back the saved accent, then remove the screen lock, when this tree holds it. A failed
+# restore still removes the lock and returns 1.
 release_screen() {
+    local rc=0
     [[ "$(cat "$screen/root" 2>/dev/null)" == "$root" ]] || return 0
+    restore_accent || rc=$?
     rm -f "$screen/root" "$screen/pid"
     rmdir "$screen" 2>/dev/null || true
+    return "$rc"
+}
+
+# Save the old global accent (only when no value is saved), then write the accent $1.
+set_accent() {
+    local out rc=0 old
+    out="$(defaults read -g AppleAccentColor 2>&1)" || rc=$?
+    if [[ $rc -eq 0 && "$out" =~ ^-?[0-9]+$ ]]; then
+        old="$out"
+    elif [[ $rc -eq 1 && "$out" == *"does not exist"* ]]; then
+        old=unset
+    else
+        echo "verify-copy.sh: defaults read -g AppleAccentColor failed (exit $rc): $out" >&2
+        exit 1
+    fi
+    [[ -e "$saved_accent" ]] || echo "$old" >"$saved_accent"
+    out="$(defaults write -g AppleAccentColor -int "$1" 2>&1)" ||
+        { echo "verify-copy.sh: defaults write -g AppleAccentColor -int $1 failed: $out" >&2 && exit 1; }
 }
 
 start() {
-    local open_args=() pid="" out agents=0 arg has_args=0 bytes
-    if [[ "${1:-}" == --agents ]]; then agents=1 && shift; fi
+    local open_args=() pid="" out agents=0 accent="" arg has_args=0 bytes
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agents) agents=1 && shift ;;
+            --accent)
+                [[ $# -ge 2 && "$2" =~ ^(-1|[0-6])$ ]] || { echo "$usage" >&2 && exit 2; }
+                accent="$2" && shift 2 ;;
+            *) break ;;
+        esac
+    done
     if [[ $# -gt 0 && "$1" != -- ]]; then open_args+=("$1") && shift; fi
     if [[ $# -gt 0 ]]; then
         [[ "$1" == -- ]] || { echo "$usage" >&2 && exit 2; }
@@ -172,9 +231,15 @@ start() {
         exit 1
     fi
     take_screen
+    restore_accent || exit 1
     stop_copy >/dev/null
     cleanup
     mkdir -p "$root/build/verify"
+    if [[ -n "$accent" ]]; then
+        # A failed start puts the old accent back; a good start clears the trap.
+        trap 'restore_accent || true' EXIT
+        set_accent "$accent"
+    fi
     cp -R "$real_app" "$copy"
     /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $copy_id" "$copy/Contents/Info.plist"
     stat -f %m "$real_app/Contents/MacOS/Dirigible" >"$root/build/verify/source-mtime"
@@ -193,6 +258,7 @@ start() {
     [[ -n "$pid" ]] || { echo "verify-copy.sh: the copy did not start in 10 s." >&2 && exit 1; }
     pid="$(printf '%s\n' "$pid" | head -1)"
     echo "$pid" >"$screen/pid"
+    trap - EXIT
     echo "$pid"
     echo "DIRIGIBLE_MCP_SOCKET=$socket"
 }
@@ -311,10 +377,13 @@ doctor() {
     [[ -z "$failed" ]] || { echo "verify-copy.sh: doctor failed:$failed" >&2 && exit 1; }
 }
 
+# A failed cleanup does not skip the restore of the accent and the release of the lock.
 stop() {
+    local rc=0
     stop_copy
-    cleanup
-    release_screen
+    cleanup || rc=$?
+    release_screen || rc=$?
+    return "$rc"
 }
 
 case "${1:-}" in

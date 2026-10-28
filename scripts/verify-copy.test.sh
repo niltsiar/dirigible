@@ -28,7 +28,10 @@ mkdir -p "$tmp/bin" "$tmp/badpgrep"
 cat >"$tmp/bin/open" <<'FAKE'
 #!/bin/bash
 # Log the arguments. Start <path after -a>/Contents/MacOS/Dirigible with the arguments after --args.
+# With open.fail, exit 1 and start nothing.
 echo "$*" >>"$FAKE_STATE/open.log"
+echo open >>"$FAKE_STATE/order.log"
+[[ ! -f "$FAKE_STATE/open.fail" ]] || exit 1
 app="" args=() after=0
 while [[ $# -gt 0 ]]; do
     if [[ $after -eq 1 ]]; then args+=("$1")
@@ -56,7 +59,28 @@ FAKE
 cat >"$tmp/bin/defaults" <<'FAKE'
 #!/bin/bash
 # Log the arguments. A delete of a domain that the case did not set gives the text of the real tool.
+# The global accent (-g AppleAccentColor) is the file accent: a read prints it, or exits 1 with the
+# text of the real tool when it is absent, or exits with accent.read.code and the text of
+# accent.read.err; a write sets it, or exits 1 with accent.write.fail; a delete removes it.
 echo "$*" >>"$FAKE_STATE/defaults.log"
+echo "defaults $*" >>"$FAKE_STATE/order.log"
+if [[ "${2:-}" == -g ]]; then
+    case "$1" in
+        read)
+            if [[ -f "$FAKE_STATE/accent.read.code" ]]; then
+                cat "$FAKE_STATE/accent.read.err" >&2
+                exit "$(cat "$FAKE_STATE/accent.read.code")"
+            fi
+            [[ ! -f "$FAKE_STATE/accent" ]] || { cat "$FAKE_STATE/accent" && exit 0; }
+            printf '2026-10-28 01:28:58.378 defaults[53404:70880742] \nThe domain/default pair of (kCFPreferencesAnyApplication, %s) does not exist\n' "$3" >&2
+            exit 1 ;;
+        write)
+            [[ ! -f "$FAKE_STATE/accent.write.fail" ]] || { echo "Could not write domain kCFPreferencesAnyApplication; exiting" >&2 && exit 1; }
+            echo "$5" >"$FAKE_STATE/accent"
+            exit 0 ;;
+        delete) rm -f "$FAKE_STATE/accent" && exit 0 ;;
+    esac
+fi
 if [[ -f "$FAKE_STATE/defaults.fail" ]]; then
     cat "$FAKE_STATE/defaults.fail" >&2
     exit 1
@@ -653,6 +677,141 @@ gone "$(head -1 "$tmp/out2")" || fail "screen lock: the copy of the second tree 
 VERIFY_COPY_SCREEN_WAIT=1 run start
 [[ $code -eq 0 ]] || fail "screen lock: the lock of a dead copy was not taken over: exit $code: $err"
 run stop
+
+# accent_case: a new case; lock is the screen lock folder and saved_accent the file of the old
+# global accent beside it. g_calls prints the defaults calls on the global domain.
+accent_case() {
+    new_case
+    lock="$repo/.git/dirigible-screen" saved_accent="$repo/.git/dirigible-screen-accent-old"
+}
+g_calls() { grep -- '^[a-z]* -g ' "$state/defaults.log" 2>/dev/null; }
+
+# Accent: start --accent -1 reads the old global accent (not set) and writes -1 before open; stop
+# deletes the key that was not set, and removes the saved value.
+accent_case
+run start --accent -1
+[[ $code -eq 0 ]] || fail "accent -1: exit $code: $err"
+[[ "$(g_calls)" == $'read -g AppleAccentColor\nwrite -g AppleAccentColor -int -1' ]] || fail "accent -1: -g calls: $(g_calls)"
+[[ "$(grep -v '^defaults [a-z]* [^-]' "$state/order.log" | tr '\n' '|')" == "defaults read -g AppleAccentColor|defaults write -g AppleAccentColor -int -1|open|" ]] ||
+    fail "accent -1: the write is not before open: $(cat "$state/order.log")"
+[[ "$(cat "$saved_accent" 2>/dev/null)" == unset ]] || fail "accent -1: the saved value is not unset: $(cat "$saved_accent" 2>&1)"
+run stop
+[[ $code -eq 0 && "$(g_calls | tail -1)" == "delete -g AppleAccentColor" && ! -e "$saved_accent" ]] ||
+    fail "accent -1: stop: exit $code: $err: $(g_calls)"
+
+# Accent 6 with an old value 3: the file holds 3, and stop writes 3 back and removes the file.
+accent_case
+echo 3 >"$state/accent"
+run start --accent 6
+[[ $code -eq 0 && "$(cat "$saved_accent" 2>/dev/null)" == 3 && "$(cat "$state/accent")" == 6 ]] ||
+    fail "accent 6: exit $code: $err: saved $(cat "$saved_accent" 2>&1)"
+run stop
+[[ $code -eq 0 && "$(g_calls | tail -1)" == "write -g AppleAccentColor -int 3" && ! -e "$saved_accent" && "$(cat "$state/accent")" == 3 ]] ||
+    fail "accent 6: stop: exit $code: $err: $(g_calls)"
+
+# A value out of -1 to 6, or no value, gets the usage before the screen lock: no defaults or open call.
+for value in 7 -2 x ""; do
+    accent_case
+    if [[ -n "$value" ]]; then run start --accent "$value"; else run start --accent; fi
+    [[ $code -eq 2 && "$err" == *"usage: verify-copy.sh start [--agents] [--accent <n>]"* ]] || fail "accent '$value': exit $code: $err"
+    [[ ! -s "$state/defaults.log" && ! -s "$state/open.log" && ! -e "$lock" ]] ||
+        fail "accent '$value': a defaults call, an open call, or the screen lock"
+done
+
+# A second start of the tree puts the first value back before its own write, with and without
+# --accent; the file keeps the true original.
+accent_case
+echo 3 >"$state/accent"
+run start --accent 2
+run start --accent 5
+[[ $code -eq 0 && "$(g_calls | tail -3 | tr '\n' '|')" == "write -g AppleAccentColor -int 3|read -g AppleAccentColor|write -g AppleAccentColor -int 5|" ]] ||
+    fail "accent second start: exit $code: $err: $(g_calls)"
+[[ "$(cat "$saved_accent" 2>/dev/null)" == 3 ]] || fail "accent second start: the file does not hold 3: $(cat "$saved_accent" 2>&1)"
+run start
+[[ $code -eq 0 && "$(g_calls | tail -1)" == "write -g AppleAccentColor -int 3" && ! -e "$saved_accent" ]] ||
+    fail "accent second start with no --accent: exit $code: $err: $(g_calls)"
+run stop
+[[ "$(g_calls | wc -l | tr -d ' ')" == 6 ]] || fail "accent second start: stop made a -g call with no saved value: $(g_calls)"
+
+# A stop of a tree that does not hold the lock makes no -g call and keeps the file.
+accent_case
+other="$(dummy "$tmp/case-$n/other/Dirigible")"
+started+=("$other")
+mkdir -p "$lock" && echo /other/root >"$lock/root" && echo "$other" >"$lock/pid"
+echo 3 >"$saved_accent"
+run stop
+[[ $code -eq 0 && -z "$(g_calls)" && "$(cat "$saved_accent")" == 3 ]] || fail "accent stop of another tree: exit $code: $err: $(g_calls)"
+# A second tree: start waits for the live holder, exits 1, and makes no -g call.
+VERIFY_COPY_SCREEN_WAIT=1 run start --accent 2
+[[ $code -eq 1 && -z "$(g_calls)" && "$(cat "$saved_accent")" == 3 && ! -s "$state/open.log" ]] ||
+    fail "accent second tree: exit $code: $err: $(g_calls)"
+
+# A failed cleanup at stop still puts the accent back and removes the lock.
+accent_case
+echo 3 >"$state/accent"
+run start --accent 2
+echo "tccutil: Failed to reset All approval status for $copy_id" >"$state/tccutil.fail"
+echo 1 >"$state/tccutil.code"
+run stop
+[[ $code -eq 1 && "$(g_calls | tail -1)" == "write -g AppleAccentColor -int 3" && ! -e "$lock" && ! -e "$saved_accent" ]] ||
+    fail "accent stop with a failed tccutil: exit $code: $err: $(g_calls)"
+
+# A read that fails another way stops start with no write and no open.
+for read_fail in "1:Could not read domain" "2:defaults: bad arguments"; do
+    accent_case
+    echo "${read_fail%%:*}" >"$state/accent.read.code"
+    echo "${read_fail#*:}" >"$state/accent.read.err"
+    run start --accent 2
+    [[ $code -eq 1 && "$err" == *"defaults read -g AppleAccentColor failed"* && "$err" == *"${read_fail#*:}"* ]] ||
+        fail "accent read error ($read_fail): exit $code: $err"
+    [[ "$(g_calls)" == "read -g AppleAccentColor" && ! -s "$state/open.log" && ! -e "$saved_accent" ]] ||
+        fail "accent read error ($read_fail): a write, an open, or a saved value: $(g_calls)"
+done
+
+# A start that fails after the write (open fails) puts the old value back.
+accent_case
+echo 3 >"$state/accent"
+touch "$state/open.fail"
+run start --accent 2
+[[ $code -ne 0 && "$(g_calls | tail -2 | tr '\n' '|')" == "write -g AppleAccentColor -int 2|write -g AppleAccentColor -int 3|" ]] ||
+    fail "accent failed open: exit $code: $err: $(g_calls)"
+[[ "$(cat "$state/accent")" == 3 && ! -e "$saved_accent" ]] || fail "accent failed open: the accent is not 3, or the file stayed"
+
+# A takeover after a dead copy puts the saved value back before its own write.
+accent_case
+sh -c 'exit 0' &
+dead=$!
+wait "$dead"
+mkdir -p "$lock" && echo /other/root >"$lock/root" && echo "$dead" >"$lock/pid"
+echo 3 >"$saved_accent"
+echo 5 >"$state/accent"
+run start --accent 2
+[[ $code -eq 0 && "$(g_calls | tr '\n' '|')" == "write -g AppleAccentColor -int 3|read -g AppleAccentColor|write -g AppleAccentColor -int 2|" ]] ||
+    fail "accent takeover: exit $code: $err: $(g_calls)"
+[[ "$(cat "$saved_accent" 2>/dev/null)" == 3 ]] || fail "accent takeover: the file does not hold 3"
+run stop
+
+# A failed restore keeps the file and exits 1 with no open, at start (also when the read gives
+# another value) and at stop; at stop the lock folder is gone.
+accent_case
+echo 3 >"$state/accent"
+run start --accent 2
+touch "$state/accent.write.fail"
+: >"$state/open.log"
+run start --accent 4
+[[ $code -eq 1 && "$err" == *"$saved_accent"* && "$(cat "$saved_accent" 2>/dev/null)" == 3 && ! -s "$state/open.log" ]] ||
+    fail "accent failed restore at start: exit $code: $err"
+run stop
+[[ $code -eq 1 && "$(cat "$saved_accent" 2>/dev/null)" == 3 && ! -e "$lock" ]] || fail "accent failed restore at stop: exit $code: $err"
+
+# --agents and --accent in each order.
+for order in "--agents --accent 2" "--accent 2 --agents"; do
+    accent_case
+    run start $order
+    [[ $code -eq 0 && "$(cat "$state/open.log")" == *"--args -agents.edit.open.sessions YES" && "$(g_calls | tail -1)" == "write -g AppleAccentColor -int 2" ]] ||
+        fail "accent with --agents ($order): exit $code: $err: $(cat "$state/open.log")"
+    run stop
+done
 
 # C17: no stop by name, and each recursive delete acts on build/verify or the saved state of the copy.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"

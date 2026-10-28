@@ -56,7 +56,7 @@ extension MonitorAppTests {
         defer { hal.releaseAttach(Self.zoomUID) }
         let studio = try await studio(hal)
         studio.environment.startLimit = .seconds(2)
-        studio.environment.stopLimit = .seconds(5)
+        studio.environment.stopLimit = .seconds(10)
         try await studio.monitor(armed: ["host", "guest"])
         await until(limit: busy, "the app attach is not at the prompt") { hal.heldAttachCount(Self.zoomUID) == 1 }
 
@@ -64,10 +64,10 @@ extension MonitorAppTests {
         let input = playTake(hal, "mic", attach: 2)
         await input.wait()
         try await passTakeTime(studio, seconds: 0.6)
-        let called = ContinuousClock.now
+        let watch = Stopwatch()
         try await studio.stopRecording()
 
-        #expect(ContinuousClock.now - called < .seconds(5), "the stop waits for the prompt")
+        #expect(watch.elapsed < .seconds(5), "the stop waits for the prompt (wall \(watch.wall))")
         #expect(clips(studio, "host").count == 1)
         await studio.settle()
         _ = folder
@@ -83,11 +83,11 @@ extension MonitorAppTests {
         try await studio.monitor(armed: ["host", "guest"])
         await until(limit: busy, "the app attach is not at the prompt") { hal.heldAttachCount(Self.zoomUID) == 1 }
 
-        let called = ContinuousClock.now
+        let watch = Stopwatch()
         try await studio.startRecording(armed: ["host", "guest"], playhead: 0)
 
         // A wait for the held monitor attach ends only at the start limit (10 s).
-        #expect(ContinuousClock.now - called < .seconds(5), "the start waits for the monitor app writer")
+        #expect(watch.elapsed < .seconds(5), "the start waits for the monitor app writer (wall \(watch.wall))")
         let input = playTake(hal, "mic", attach: 2)
         await input.wait()
         try await passTakeTime(studio, seconds: 0.6)
@@ -109,11 +109,11 @@ extension MonitorAppTests {
         let disarm = Task { try await studio.monitor(armed: ["host"]) }
         await until(limit: busy, "the disarm turn does not run") { studio.liveTracks["guest"] == nil }
 
-        let called = ContinuousClock.now
+        let watch = Stopwatch()
         try await studio.startRecording(armed: ["host"], playhead: 0)
 
         // A turn that waits for the released app writer holds the hand-over until the stop limit (10 s).
-        #expect(ContinuousClock.now - called < .seconds(5), "the start waits for the released monitor app writer")
+        #expect(watch.elapsed < .seconds(5), "the start waits for the released monitor app writer (wall \(watch.wall))")
         let input = playTake(hal, "mic", attach: 2)
         await input.wait()
         try await passTakeTime(studio, seconds: 0.6)
@@ -130,6 +130,8 @@ extension MonitorAppTests {
         hal.holdAttach("mic")
         defer { hal.releaseAttach("mic") }
         let studio = try await studio(hal)
+        // Longer than a take start in a loaded run, so only a monitor task that ignores the take taps.
+        studio.environment.startLimit = .seconds(120)
         try await studio.monitor(armed: ["host", "guest"])
         await until(limit: busy, "the microphone attach is not held") { hal.heldAttachCount("mic") == 1 }
 
@@ -182,11 +184,11 @@ extension MonitorAppTests {
         hal.holdAttach("mic")
         defer { hal.releaseAttach("mic") }
 
-        let called = ContinuousClock.now
+        let watch = Stopwatch()
         try await studio.stopRecording()
 
         // A wait for the held attach ends only at the start limit (30 s).
-        #expect(ContinuousClock.now - called < .seconds(10), "the stop waits for the monitor attach")
+        #expect(watch.elapsed < .seconds(10), "the stop waits for the monitor attach (wall \(watch.wall))")
         #expect(clips(studio, "host").count == 1)
         await until(limit: busy, "the come back does not attach the microphone") { hal.heldAttachCount("mic") == 1 }
         await studio.settle()
@@ -212,11 +214,11 @@ extension MonitorAppTests {
         defer { hal.releaseAttach("mic") }
         gate.open()
 
-        let called = ContinuousClock.now
+        let watch = Stopwatch()
         try await studio.retryFinalize()
 
         // A wait for the held attach ends only at the start limit (30 s).
-        #expect(ContinuousClock.now - called < .seconds(10), "Retry Finalize waits for the monitor attach")
+        #expect(watch.elapsed < .seconds(10), "Retry Finalize waits for the monitor attach (wall \(watch.wall))")
         #expect(clips(studio, "host").count == 1)
         await until(limit: busy, "the come back does not attach the microphone") { hal.heldAttachCount("mic") == 1 }
         await studio.settle()

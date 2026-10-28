@@ -10,7 +10,7 @@ import Testing
 /// prune.
 @MainActor
 struct StudioRenderTests {
-    let noise = Treatment(.noise(.standard))
+    let noise = ClipRenderRequest(Treatment(.noise(.standard)))
 
     /// A studio on `package` with the test environment, and a reason text of its own.
     func open(_ package: MixPackage, hal: TestHAL = TestHAL([])) async throws -> Studio {
@@ -34,7 +34,7 @@ struct StudioRenderTests {
         let noise = noise
         return Task {
             do throws(StudioError) {
-                _ = try await studio.renderClips(clips, treatment: noise) { _ in }
+                _ = try await studio.renderClips(clips, request: noise) { _ in }
                 return nil
             } catch {
                 return error
@@ -58,7 +58,7 @@ struct StudioRenderTests {
         let before = studio.session
         let agent = AgentName(title: "Test Agent", clientName: nil)
 
-        let report = try await studio.renderClips(["c1"], treatment: noise, agent: agent) { _ in }
+        let report = try await studio.renderClips(["c1"], request: noise, agent: agent) { _ in }
 
         let saved = try Session(contentsOf: fixture.package.url)
         let moved = try #require(studio.session.clip("c1")?.clip)
@@ -76,6 +76,63 @@ struct StudioRenderTests {
         await studio.settle()
     }
 
+    /// C5: during a play, the amount of the level again gives the clip as unchanged, with no save,
+    /// no undo level, and no stop of the play. Undo still goes back to before the first render.
+    @Test func equalAmountRecordsNothing() async throws {
+        let fixture = try await StudioSplitTests.make()
+        let studio = try await open(fixture.package)
+        let source = studio.session
+        let first = try await studio.renderClips(["c1"], request: noise) { _ in }
+        try #require(first.clips.count == 1, "the first render moves the clip")
+        _ = try await studio.play(from: 0, to: nil)
+        let playing = studio.playback
+        try #require(playing != .stopped)
+        let before = (studio.session, xml(fixture.package), try listing(fixture.package))
+
+        let report = try await studio.renderClips(["c1"], request: noise) { _ in }
+
+        #expect(report.unchanged == ["c1"] && report.clips.isEmpty)
+        #expect(studio.playback == playing, "the play goes on")
+        #expect(studio.session == before.0 && xml(fixture.package) == before.1)
+        #expect(try listing(fixture.package) == before.2)
+        try studio.undo()
+        #expect(studio.session == source && !studio.canUndo, "one undo level, of the first render")
+        await studio.settle()
+    }
+
+    /// C5: a blocking run whose work gives the session of its turn back saves nothing and records
+    /// no undo level.
+    @Test func unchangedTurnWritesNothing() async throws {
+        let fixture = try await StudioSplitTests.make()
+        let studio = try await open(fixture.package)
+        let (saves, ran) = (LockedBox<Int>(), LockedBox<Bool>())
+        let save = studio.environment.saveSession
+        studio.environment.saveSession = { session, lock throws(SessionFileError) in
+            saves.value = (saves.value ?? 0) + 1
+            return try await save(session, lock)
+        }
+        func turn(_ edit: @escaping @Sendable (Session) -> Session) async throws(StudioError) -> Int {
+            try await studio.blockingRun(
+                name: "f1", kind: .clipRender, cancelled: .clipRender(.cancelled), yielded: .clipRenderYielded,
+                ripple: false
+            ) { session, _, _ in
+                ran.value = true
+                return .success((edit(session), 7, made: []))
+            }
+        }
+
+        #expect(try await turn { $0 } == 7 && ran.value == true)
+
+        #expect(saves.value == nil && !studio.canUndo, "\(String(describing: saves.value)) saves")
+        _ = try await turn { session in
+            var changed = session
+            try? changed.setGain(Gain(dB: 3)!, clip: "c1")
+            return changed
+        }
+        #expect(saves.value == 1 && studio.canUndo, "control: a changed session saves")
+        await studio.settle()
+    }
+
     /// C9: a render during a take is busy and writes nothing; the take goes on.
     @Test func busyDuringTake() async throws {
         let fixture = try await ExportStudioFixture.make()
@@ -85,7 +142,7 @@ struct StudioRenderTests {
         let before = try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted()
         _ = try await studio.startTake(armed: ["t1"], devices: [fixture.mic], hostTimeNanos: takeStart)
 
-        await #expect(throws: StudioError.busy) { try await studio.renderClips(["c1"], treatment: noise) { _ in } }
+        await #expect(throws: StudioError.busy) { try await studio.renderClips(["c1"], request: noise) { _ in } }
 
         #expect(try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted() == before)
         #expect(studio.transport == .recording(take: 1), "the take goes on")
@@ -199,7 +256,7 @@ struct StudioRenderTests {
         let onMain = LockedBox<Bool>()
         studio.environment.clipRenderRead = ReadFault(stem: "f1 NR", block: 0) { onMain.value = Thread.isMainThread }
 
-        _ = try await studio.renderClips(["c1"], treatment: noise) { _ in }
+        _ = try await studio.renderClips(["c1"], request: noise) { _ in }
 
         #expect(onMain.value == false)
         await studio.settle()
@@ -211,7 +268,7 @@ struct StudioRenderTests {
         let segment = SegmentName(take: 1, arm: 1, segment: 1)
         let package = try await StudioSplitTests.takePackage(segment)
         var first: Studio? = try await open(package)
-        _ = try await first?.renderClips(["c1"], treatment: noise) { _ in }
+        _ = try await first?.renderClips(["c1"], request: noise) { _ in }
         await first?.settle()
         first = nil  // The close: the next open takes the lock.
         // The backup of the save before the render names f1: without it, only the origin keeps f1.

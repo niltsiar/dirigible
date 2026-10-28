@@ -11,7 +11,9 @@ extension ClipCommand {
             discussion: """
                 The command renders each run of clips of one file through the noise reduction of macOS into \
                 a new 24-bit WAV in Clips/, with a 10 s handle on each side of the run, and moves the clips \
-                onto it. The source file stays. --reduction is a whole number of dB from 1 to 30; the \
+                onto it. The source file stays. On a reduced clip, the command renders again from the \
+                source of the reduction, and the same amount prints "Nothing to change." and writes \
+                nothing. --reduction is a whole number of dB from 1 to 30; the \
                 default is 12. A line has the clip and its new file, with a tab between them. The command \
                 refuses a clip on a music or effects track. Exit 1 when a clip is unknown, a clip is on a \
                 music or effects track, or the noise reduction does not load. Exit 2 when the package cannot \
@@ -32,10 +34,11 @@ extension ClipCommand {
         }
 
         func run() throws {
-            let work = ClipRenderWork(clips: clips.map { ClipID($0) }, reduction: reduction)
+            let work = ClipRenderWork(
+                clips: clips.map { ClipID($0) }, request: ClipRenderRequest(Treatment(.noise(reduction))))
             let interrupt = cancelOnInterrupt()
             defer { interrupt.source.cancel() }
-            let moved = try editPackage(package, ripple: false, refused: failure) {
+            let moved = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
                 session, lock throws(ClipRenderError) in
                 try work.render(
                     &session, in: package.url, lock: lock, progress: { _ in }, isCancelled: interrupt.isCancelled)

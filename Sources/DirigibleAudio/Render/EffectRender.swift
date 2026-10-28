@@ -32,11 +32,13 @@ public enum ClipRenderError: Error, Hashable, Sendable {
     case stillOverFullScale(file: String)
 }
 
-/// The session of a clip render, the WAVs that it renamed, and each moved clip with its new file.
+/// The session of a clip render, the WAVs that it renamed, each moved clip with its new file, and
+/// each clip that needed no render (decision 0057).
 package struct ClipRenderOutcome: Sendable {
     package let session: Session
     package let made: [URL]
     package let clips: [RenderedClip]
+    package let unchanged: [ClipID]
 }
 
 /// Renders the clips of each group through the effects of its treatment into new WAVs in
@@ -45,7 +47,8 @@ package struct ClipRenderOutcome: Sendable {
 /// `.mixedTreatments`. It never writes `session.xml`, and it blocks: never call it on the main actor.
 ///
 /// The order: the runs, the role check of each clip (`Treatment.accepts`), the source checks, the
-/// unit load, one space check (`freeBytes`), the stems "<source stem> NR" by the stem rule of
+/// unit load, one space check (`freeBytes`) for `bytes`, or for the bytes of the runs when it is
+/// nil, the stems "<source stem> NR" by the stem rule of
 /// 0040, `repoint` on a session copy with 0 dB, then each run through a new chain into
 /// `.<stem>.wav.tmp`, with a second pass at a scale when its peak is over full scale
 /// (`.stillOverFullScale` when the second pass still peaks at the largest 24-bit sample), the
@@ -58,10 +61,11 @@ package struct ClipRenderOutcome: Sendable {
 /// only after the read-back of the last run. `readFault` runs at the block reads of the run of the
 /// new stem that it names (tests and `CaptureEnvironment.clipRenderRead`).
 /// `secondPassGain` multiplies the scale of a second pass (tests only: a unit that renders louder
-/// the second time).
-package func renderClips(
+/// the second time). The one caller outside tests is `renderLevels`, behind `renderRequest`.
+func renderClips(
     _ groups: [(clips: [ClipID], treatment: Treatment)], of session: Session, in package: URL,
-    freeBytes: () -> Int64, component: (Int) -> AudioComponentDescription = { _ in .soundIsolation },
+    bytes: Int64? = nil, freeBytes: () -> Int64,
+    component: (Int) -> AudioComponentDescription = { _ in .soundIsolation },
     readFault: ReadFault? = nil, isDownloaded: (URL) -> Bool = sourceIsDownloaded,
     progress: @escaping (Double) -> Void = { _ in }, isCancelled: @escaping () -> Bool = { false },
     secondPassGain: Float = 1
@@ -94,7 +98,7 @@ package func renderClips(
         }
         guard isDownloaded(url) else { throw .notDownloaded(file: source.path) }
     }
-    guard !runs.isEmpty else { return ClipRenderOutcome(session: session, made: [], clips: []) }
+    guard !runs.isEmpty else { return ClipRenderOutcome(session: session, made: [], clips: [], unchanged: []) }
     let rate = Double(session.sampleRate)
     // The first run of each channel count loads its chain here, so a load failure of any layout
     // throws before the first write.
@@ -107,12 +111,14 @@ package func renderClips(
     }
 
     let frames = runs.map { Int64(($0.run.span.upperBound - $0.run.span.lowerBound).count) }
-    let bytes = zip(runs, frames).reduce(Int64(0)) {
-        $0 + wavFileBytes(frames: $1.1, channels: $1.0.source.layout.channelCount)
-    }
+    let needed =
+        bytes
+        ?? zip(runs, frames).reduce(Int64(0)) {
+            $0 + wavFileBytes(frames: $1.1, channels: $1.0.source.layout.channelCount)
+        }
     var files: NewClipFiles
     do throws(NewClipFault) {
-        files = try NewClipFiles(in: package, bytes: bytes, freeBytes: freeBytes)
+        files = try NewClipFiles(in: package, bytes: needed, freeBytes: freeBytes)
     } catch {
         throw ClipRenderError(error)
     }
@@ -203,7 +209,7 @@ package func renderClips(
         removeMadeFiles(files.made)
         throw .cancelled
     }
-    return ClipRenderOutcome(session: rendered, made: files.made, clips: clips)
+    return ClipRenderOutcome(session: rendered, made: files.made, clips: clips, unchanged: [])
 }
 
 /// The scale of the second pass of a run whose peak `peak` is over full scale, or nil at full

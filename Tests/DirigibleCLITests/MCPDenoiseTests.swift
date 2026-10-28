@@ -38,6 +38,21 @@ struct MCPDenoiseTests {
         #expect(toolResult(answer(bad, id: 1)) == (text, true), "\(bad)")
     }
 
+    /// C5: the amount of the level again gives "Nothing to change." and writes no file and no
+    /// `session.xml`.
+    @Test func equalAmountWritesNothing() async throws {
+        let package = try DenoiseCommandTests.package()
+        let call = toolCall(1, "clip_denoise", ["package": package.path, "clips": ["c1"], "reduction": 12])
+        let first = try await mcp([call])
+        try #require(toolResult(answer(first, id: 1)).1 == false, "\(first)")
+        let before = (try package.xml(), DenoiseCommandTests.clips(package))
+
+        let again = try await mcp([call])
+
+        #expect(toolResult(answer(again, id: 1)) == ("Nothing to change.", false), "\(again)")
+        #expect(try package.xml() == before.0 && DenoiseCommandTests.clips(package) == before.1)
+    }
+
     /// C12: a cancel before the render, after its renames, and after its return leaves no new WAV and
     /// the same `session.xml`. The poll finds the cancel at the first read (`readsAfterTheRename` 0),
     /// at the read of `renderClips` after the renames (1), or at the read of the work after the
@@ -56,7 +71,7 @@ struct MCPDenoiseTests {
                     return count >= readsAfterTheRename
                 }
             }, step: {})
-        let work = ClipRenderWork(clips: ["c1", "c2"], reduction: .standard)
+        let work = ClipRenderWork(clips: ["c1", "c2"], request: ClipRenderRequest(Treatment(.noise(.standard))))
 
         let thrown = #expect(throws: ToolError.self) {
             try work.run(package.url, path: package.path, control: control)
@@ -93,7 +108,7 @@ struct MCPDenoiseTests {
     @Test func unavailableNamesTheCause() throws {
         let package = try DenoiseCommandTests.package()
         let before = (try package.xml(), DenoiseCommandTests.clips(package))
-        var work = ClipRenderWork(clips: ["c1"], reduction: .standard)
+        var work = ClipRenderWork(clips: ["c1"], request: ClipRenderRequest(Treatment(.noise(.standard))))
         work.component = AudioComponentDescription(
             componentType: kAudioUnitType_Effect, componentSubType: 0x6E6F_6E65, componentManufacturer: 0,
             componentFlags: 0, componentFlagsMask: 0)

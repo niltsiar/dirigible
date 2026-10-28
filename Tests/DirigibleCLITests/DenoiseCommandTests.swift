@@ -51,6 +51,20 @@ struct DenoiseCommandTests {
         #expect(wav.length == file.length.count && file.layout == .mono, "\(wav.length) frames, \(file)")
     }
 
+    /// C5: the amount of the level again prints "Nothing to change.", exits 0, and writes no file
+    /// and no `session.xml`.
+    @Test func equalAmountPrintsNothingToChange() async throws {
+        let package = try Self.package()
+        let first = try await package.run("clip", "denoise", "PKG", "c1", "--reduction", "12")
+        try #require(first.status == 0, "\(first)")
+        let before = (try package.xml(), Self.clips(package))
+
+        let result = try await package.run("clip", "denoise", "PKG", "c1", "--reduction", "12")
+
+        #expect(result == CLIResult(status: 0, stdout: "Nothing to change.\n", stderr: ""), "\(result)")
+        #expect(try package.xml() == before.0 && Self.clips(package) == before.1)
+    }
+
     /// C11: a reduction outside 1...30 and a value that is not a whole number exit 64 and change
     /// nothing.
     @Test(arguments: ["0", "31", "nan"])

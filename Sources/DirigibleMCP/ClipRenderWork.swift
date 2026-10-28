@@ -4,37 +4,36 @@ import Foundation
 
 /// The work of a `clip_denoise` call after its arguments are checked (decisions 0054 and 0049). It
 /// owns the lines and the texts of `dirigible clip denoise` and of the tool. On the files it runs
-/// `renderClips` under the package lock; in the app, `liveJob` runs `Studio.renderClips`.
+/// `renderRequest` under the package lock; in the app, `liveJob` runs `Studio.renderClips`.
 package struct ClipRenderWork: Sendable {
     let clips: [ClipID]
-    let reduction: NoiseReduction
+    let request: ClipRenderRequest
     /// The effect unit to load. Tests set one that does not exist.
     package var component: EffectUnit = .soundIsolation
 
-    package init(clips: [ClipID], reduction: NoiseReduction) {
-        (self.clips, self.reduction) = (clips, reduction)
+    package init(clips: [ClipID], request: ClipRenderRequest) {
+        (self.clips, self.request) = (clips, request)
     }
 
     /// The form of a reduction for the command and the tool.
     package static let reductionExpected =
         "an integer from \(NoiseReduction.range.lowerBound) to \(NoiseReduction.range.upperBound)"
 
-    var treatment: Treatment { Treatment(.noise(reduction)) }
-
-    /// One line for each moved clip: the clip and its new file, with a tab between them.
+    /// One line for each moved clip: the clip and its new file, with a tab between them. No moved
+    /// clip: "Nothing to change.", because each clip was unchanged (decision 0057).
     package static func lines(_ clips: [RenderedClip]) -> [String] {
-        clips.map { "\($0.clip)\t\($0.file)" }
+        clips.isEmpty ? ["Nothing to change."] : clips.map { "\($0.clip)\t\($0.file)" }
     }
 
     /// The render of the files body, in the package that `lock` holds. A cancel read after the
     /// renames removes the new WAVs and changes nothing (decision 0049). `session` changes only on
-    /// success.
+    /// success, and not for a request that needs no render, so the caller saves nothing then.
     package func render(
         _ session: inout Session, in package: URL, lock: PackageLock, progress: @escaping (Double) -> Void,
         isCancelled: @escaping () -> Bool
     ) throws(ClipRenderError) -> [RenderedClip] {
-        let outcome = try renderClips(
-            [(clips, treatment)], of: session, in: package, freeBytes: { lock.freeBytes() },
+        let outcome = try renderRequest(
+            clips, request: request, of: session, in: package, freeBytes: { lock.freeBytes() },
             component: { _ in component }, progress: progress, isCancelled: isCancelled)
         if isCancelled() {
             removeMadeFiles(outcome.made)
@@ -47,7 +46,8 @@ package struct ClipRenderWork: Sendable {
     /// The job of a tool call on the files, under the package lock.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<ClipRenderError>) {
-            let (moved, note) = try editPackageCore(package, ripple: false) { session, lock throws(ClipRenderError) in
+            let (moved, note) = try editPackageCore(package, ripple: false, writeUnchanged: false) {
+                session, lock throws(ClipRenderError) in
                 try TakeWork.noted(&session, package: package) { session throws(ClipRenderError) -> [RenderedClip] in
                     try render(
                         &session, in: package, lock: lock, progress: { control.report($0) },

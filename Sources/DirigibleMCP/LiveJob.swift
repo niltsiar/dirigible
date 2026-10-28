@@ -256,7 +256,7 @@ private func liveDenoise(
     let revision = studio.sessionRevision
     do throws(StudioError) {
         let rendered = try await studio.renderClips(
-            work.clips, treatment: work.treatment, agent: call.agent, progress: report)
+            work.clips, request: work.request, agent: call.agent, progress: report)
         let note = TakeWork.note(studio, after: revision, agent: call.agent)
         return .result(text: (ClipRenderWork.lines(rendered.clips) + note).joined(separator: "\n"), isError: false)
     } catch .clipRender(.cancelled) {

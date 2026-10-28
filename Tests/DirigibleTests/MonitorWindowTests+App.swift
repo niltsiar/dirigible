@@ -33,6 +33,10 @@ extension MonitorWindowTests {
         }.value
         let window = await app.open(package)
         let studio = try #require(await window.opened() ? window.studio : nil)
+        // Not the output of the Mac that runs the test: speakers add the Use Headphones banner.
+        let list = DeviceList(read: { [] }, defaults: { AudioDefaults(speakers: false) })
+        await until("no device read") { list.reads >= 1 }
+        window.deviceList = list
         var environment = hal.environment
         let device = try #require(
             InputDevice(

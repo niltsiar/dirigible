@@ -77,6 +77,10 @@ expect 'Makefile local' "$(out bundle check no)" <<<'Makefile'
 expect 'Makefile before the push' "$(out bundle 'check test-slow-push test-dmg' no)" --push <<<'Makefile'
 expect 'Package.swift local' "$(out build check no)" <<<'Package.swift'
 expect 'Package.swift before the push' "$(out build check no)" --push <<<'Package.swift'
+# The sourcekit-lsp config changes no Swift build, so it is tooling and runs no Swift target.
+got="$(cd "$e" && "$script" --paths <<<'.sourcekit-lsp/config.json')"
+[[ "$(sed -n 1p <<<"$got")" == 'classes: tooling' && "$(sed -n 2p <<<"$got")" == 'targets: check-fast'* ]] ||
+  fail "the sourcekit-lsp config: got [$got], want classes: tooling and a check-fast target"
 expect 'Tests only' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'Tests only before the push' "$(out tests check no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'app sources local' "$(out sources test no)" <<<'Sources/DirigibleApp/AppDelegate.swift'

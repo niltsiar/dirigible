@@ -12,7 +12,7 @@
 
 ## A time budget
 
-- In Phase 1, give each relative budget a time limit that a user feels (50 ms, 3 frames at 60 Hz): it is the absolute part of a relative budget, in each phase. Before a run judges a path that main also runs by that limit, measure main on the same path first, in alternated main and branch runs on one machine (`scripts/bench-pairs.sh` runs them). A miss that main shares is a next item, not a NOT VERIFIED of the run. Each budget clears the A/A spread of that bench.
+- In Phase 1, give each budget a time limit that a user feels (50 ms, 3 frames at 60 Hz). That limit is the absolute part of a relative budget, in each phase. Each budget clears the A/A spread of `scripts/bench-pairs.sh`. Before a run judges a path that main also runs by that limit, compare it with main. Measure main on the same path first, in alternated main and branch runs on one machine (the pairs). A miss that main shares is a next item, not a NOT VERIFIED of the run.
 - Before the plan gate and each fix try, sum the measured parts of the path, name the limiter, and compute the best possible saving. A bound that cannot meet the budget makes the design change a planned slice, or a `criterion change`.
 - Before the first try of a bench miss, run `scripts/bench.sh --trace <run>/logs/<name>.trace --under <wrapper> <name>`, with `<wrapper>` the `@inline(never)` function of the timed span (add one if missing, as `NavigationKeyBenchmark.timedSpan`). The try row names the top frames.
 - A try is one change, `make bench` before and after, and the slice tests. Keep a gain past the A/A spread, else revert in full. One `decisions.tsv` row per try; no pairs.

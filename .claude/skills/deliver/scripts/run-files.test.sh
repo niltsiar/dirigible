@@ -295,6 +295,12 @@ grep -qx '## Slices' "$dir/plan.md" || fail "no plan.md skeleton with ## Slices:
 out="$("$(cd "$(dirname "$log")/../../../.." && pwd)/scripts/check-plan.sh" "$dir" 2>&1)"
 code=$?
 [[ $code -eq 1 && "$out" == *'no ## Unknowns table with rows'* ]] || fail "check-plan.sh on the skeletons: exit $code: $out"
+# The skeletons exist, and write-guard.sh refuses a Write over them: Phase 1 and Phase 2 of the
+# skill name the Edit route.
+skill="$(cd "$(dirname "$log")/.." && pwd)/SKILL.md"
+for f in analysis plan; do
+  grep -qE "^Fill \`$f.md\` with the Edit tool" "$skill" || fail "SKILL.md: the $f.md heading does not name the Edit route: $(grep -n "$f.md\`:" "$skill")"
+done
 echo '| U1 | - | q | code | a | 2026-01-01T00:00 |' >> "$dir/analysis.md"
 echo '### S1' >> "$dir/plan.md"
 before="$(cat "$dir/analysis.md" "$dir/plan.md" | shasum)"

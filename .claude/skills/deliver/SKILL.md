@@ -27,7 +27,7 @@ One run takes one goal (a requirement, a slice, or a bug) to a merged pull reque
 
 ## Phase 1: Analyze
 
-Write `analysis.md`:
+Fill `analysis.md` with the Edit tool (`new-run.sh` made its skeleton):
 
 - The requirement IDs of `docs/requirements/brief.md`, and how Hindenburg PRO (the base) and other editors behave, with sources.
 - Falsifiable acceptance criteria, each with its proving test or command. Each clause gets an assert or a named manual check that fails on the wrong behavior that the clause names. When two paths give one end state (two clocks, a cleanup after a write), assert where they differ: the input that disagrees, or a call count of the writer. A trigger (a command, a key) gets one case per start state: the window closed or shown, the focus in each control. A wait, a retry, or a long check also gets one case per state that another actor (a service, another run) reaches during it. Before the plan gate, run each criterion command that must print nothing at the base. Use a glob that leaves out the tests that assert the absence, and write each hit that stays. Run each planned grader once on a known-red input.
@@ -38,7 +38,7 @@ Write `analysis.md`:
 
 ## Phase 2: Plan
 
-Write `plan.md`:
+Fill `plan.md` with the Edit tool (`new-run.sh` made its skeleton):
 
 - Vertical slices, each ending in a passing test and a commit. The riskiest unknown goes first. Types that reference each other share a slice.
 - For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line that gives its paths on stdin: `scripts/check-changed.sh --paths <<<$'<path>\n<path>'`. Each slice names the criterion IDs that it covers, and the test of its negative control.

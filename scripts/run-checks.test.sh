@@ -4,7 +4,7 @@
 # (probe-make-k of run 2026-10-08-workflow-speed-3): the Error and not-remade lines on stderr, a
 # backtick before the target name, and exit 2. Cases: a pass on rerun 2 (the flake line and one
 # dirigible-flakes line), red on 3 reruns, parameterized names, a level-0 make prefix, each
-# refusal with no rerun (also a crashed shard of test-shards.sh), CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
+# refusal with no rerun (also a crashed shard of test-shards.sh), a lock wait that ends at its limit (exit 75, and no 75 for a red hook test that quotes the limit line), CHECK_RISK=yes (1 rerun), the fast and slow split with the slow env, a
 # later try with only the names that did not pass again, a real make on a stub Makefile, the
 # static gates first (a red gate stops the check before test; a gate runs once; a nested make
 # still runs a gate), --flakes (the read route of the flakes file), the partial stamp line, the
@@ -42,6 +42,7 @@ n=$(($(cat "$FAKE_TRIES") + 1))
 echo "$n" > "$FAKE_TRIES"
 red=0
 ((n < FAKE_PASS_AT)) && red=1
+[[ -z "${FAKE_QUOTE:-}" ]] || echo "with-lock: still waiting after 120 s (quoted by a red test)" >&2
 for a in "$@"; do
   [[ $a == --* || $a == "${FAKE_SILENT:-}" ]] && continue
   if [[ -n "${FAKE_LOCK75:-}" ]]; then
@@ -113,6 +114,23 @@ run 1 2 "$lock_line"
 FAKE_LOCK75=1 run 2 2 "$red_test"
 [[ $code -eq 75 && "$(filters | wc -l | tr -d ' ')" == 1 ]] || fail "a lock wait in a rerun: exit $code (want 75, one rerun call): $out"
 unset FAKE_LOCK75
+# The text of the limit line inside the output of a red hook test is no lock wait: the 75 comes from
+# the make error line of a target, and only when every make error is a 75, or from the exit status
+# of a rerun. With BASE the wait limit is 0, so a push check never ends in 75.
+quoted=$'with-lock: still waiting after 120 s (WITH_LOCK_MAX_WAIT); run the same command again'
+run 1 2 "$quoted"$'\n2:make[1]: *** [test-hooks] Error 1'
+[[ $code -eq 1 && "$out" == *'no rerun: no red test or test-slow-push target'* ]] ||
+  fail "a red test-hooks that quotes the limit line: exit $code (want 1, no 75): $out"
+run 1 2 $'FAIL: a lock case\nmake[1]: *** [test] Error 75\n'"$quoted"$'\n2:make[1]: *** [test-hooks] Error 1'
+[[ $code -eq 1 && "$out" == *'no rerun: a target other than test and test-slow-push failed'* ]] ||
+  fail "a red test-hooks that quotes a make 75 line: exit $code (want 1, no 75): $out"
+BASE=HEAD run 1 2 "$lock_line"
+[[ $code -eq 1 && "$out" == *'no rerun: a red target with no failed test line'* ]] ||
+  fail "a push check with a lock line: exit $code (want 1, no 75): $out"
+FAKE_QUOTE=1 run 9 2 "$red_test"
+[[ $code -eq 1 && "$out" == *'run-checks: red after 3 reruns: aFlake'* ]] ||
+  fail "a red rerun that quotes the limit line: exit $code (want 1, red after 3 reruns): $out"
+unset FAKE_QUOTE
 
 # A test failure that passes on rerun 2: the load wait before each rerun, a flake line, and one
 # dirigible-flakes line with HEAD and the load.

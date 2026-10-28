@@ -171,11 +171,24 @@ actor EffectPreview {
     /// Loops `window` of `session` as `listen` for the call `number`. The window that loops now
     /// only changes what loops; another window renders off the actor first. False when a newer
     /// call came first: then nothing changed. A package that left its volume throws `.file`, and a
-    /// render or engine fault `.clipRender`.
+    /// render or engine fault `.clipRender`; a fault stops the loop first. A fault of a call that a
+    /// newer call superseded gives false, so it never stops the loop of the newer call.
     func play(_ window: PreviewWindow, of session: Session, listen: Listen, number: Int) async throws(StudioError)
         -> Bool
     {
         guard isNewest(number) else { return false }
+        do throws(StudioError) {
+            return try await loop(window, of: session, listen: listen, number: number)
+        } catch {
+            guard isNewest(number) else { return false }
+            halt()
+            throw error
+        }
+    }
+
+    private func loop(_ window: PreviewWindow, of session: Session, listen: Listen, number: Int)
+        async throws(StudioError) -> Bool
+    {
         var audio = shown.flatMap { $0.window == window ? $0.audio : nil }
         if audio == nil {
             let url: URL
@@ -200,17 +213,19 @@ actor EffectPreview {
     /// Stops the loop for the call `number`, unless a newer call came first.
     func stop(_ number: Int) {
         guard isNewest(number) else { return }
-        graph?.node.stop()
-        graph?.engine.stop()
-        shown = nil
+        halt()
     }
 
     /// A configuration change of the engine: the loop stops, and `ended` gets the newest number.
     func outputChanged() {
+        halt()
+        ended(latest.withLock { $0 })
+    }
+
+    private func halt() {
         graph?.node.stop()
         graph?.engine.stop()
         shown = nil
-        ended(latest.withLock { $0 })
     }
 
     private func schedule(_ channels: [[Float]]) throws(ClipRenderError) {

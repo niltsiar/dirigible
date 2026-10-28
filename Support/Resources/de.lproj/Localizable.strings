@@ -215,6 +215,7 @@
 "sheet.denoise.result" = "Ergebnis";
 "sheet.denoise.removed" = "Entfernter Klang";
 "sheet.denoise.playing" = "Vorschau aktualisiert.";
+"sheet.denoise.preview.failed" = "Vorschau gestoppt. %@";
 "sheet.denoise.apply" = "Rauschen reduzieren";
 "error.denoise.space" = "Dirigible kann das Rauschen nicht reduzieren. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
 "error.denoise.write" = "Dirigible kann das Rauschen nicht reduzieren. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";

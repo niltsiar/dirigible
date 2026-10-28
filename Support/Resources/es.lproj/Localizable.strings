@@ -215,6 +215,7 @@
 "sheet.denoise.result" = "Resultado";
 "sheet.denoise.removed" = "Sonido eliminado";
 "sheet.denoise.playing" = "Vista previa actualizada.";
+"sheet.denoise.preview.failed" = "Vista previa detenida. %@";
 "sheet.denoise.apply" = "Reducir ruido";
 "error.denoise.space" = "Dirigible no puede reducir el ruido. El disco de esta sesión no tiene espacio libre suficiente. Libere espacio en el disco y vuelva a intentarlo.";
 "error.denoise.write" = "Dirigible no puede reducir el ruido. Dirigible no puede escribir en la carpeta Clips de la sesión (error %lld). Compruebe el disco y vuelva a intentarlo.";

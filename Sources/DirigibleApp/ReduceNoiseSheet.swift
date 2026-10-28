@@ -32,6 +32,8 @@ struct DenoiseDraft: Equatable {
     let mixedNoise: Mixed?
     /// The mixed line of the hum, read on each clip.
     let mixedHum: Mixed?
+    /// The line of the last preview fault, until the next preview starts.
+    var previewFault: String?
 
     /// The clips that hold a kind, of the clips that a check box reads, when they do not all hold
     /// it at one value.
@@ -161,6 +163,7 @@ struct ReduceNoiseSheet: View {
             if let line = skippedLine { note(line) }
             Divider()
             preview
+            if let fault = model.denoiseDraft?.previewFault { note(fault) }
             HStack {
                 Spacer()
                 Button(L10n.alertCancel.key) { model.cancelDenoise() }.keyboardShortcut(.cancelAction)

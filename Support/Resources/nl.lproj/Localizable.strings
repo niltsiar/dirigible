@@ -215,6 +215,7 @@
 "sheet.denoise.result" = "Resultaat";
 "sheet.denoise.removed" = "Verwijderd geluid";
 "sheet.denoise.playing" = "Voorbeeld bijgewerkt.";
+"sheet.denoise.preview.failed" = "Voorbeeld gestopt. %@";
 "sheet.denoise.apply" = "Ruis verminderen";
 "error.denoise.space" = "Dirigible kan de ruis niet verminderen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
 "error.denoise.write" = "Dirigible kan de ruis niet verminderen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";

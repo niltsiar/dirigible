@@ -31,17 +31,20 @@ extension SessionWindow {
     }
 
     /// Preview of the sheet: loops the first clip that the treatment of `draft` accepts. With no
-    /// such clip, or with both check boxes off, it stops the preview. A fault closes the sheet and
-    /// shows its alert, because an alert waits behind a sheet.
+    /// such clip, or with both check boxes off, it stops the preview. A fault stops the preview
+    /// and keeps the sheet and its values: the sheet shows the fault in one line, and VoiceOver
+    /// reads it. The next preview removes the line.
     func previewDenoise(_ draft: DenoiseDraft, listen: Listen) async {
         guard let studio = idleStudio else { return }
+        if denoiseDraft?.previewFault != nil { denoiseDraft?.previewFault = nil }
         guard let request = draft.request, let clip = draft.previewClip(in: studio.session)
         else { return studio.stopEffectPreview() }
         do throws(StudioError) {
             try await studio.startEffectPreview(request, of: clip, listen: listen)
         } catch {
-            cancelDenoise()
-            alert = .error(error)
+            let line = L10n.sheetDenoisePreviewFailed.format(L10n.message(for: error, session: studio.session))
+            denoiseDraft?.previewFault = line
+            chrome?.announce(line, .medium)
         }
     }
 

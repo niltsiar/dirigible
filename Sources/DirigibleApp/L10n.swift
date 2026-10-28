@@ -584,6 +584,7 @@ enum L10n: String, CaseIterable {
     case sheetDenoiseResult = "sheet.denoise.result"
     case sheetDenoiseRemoved = "sheet.denoise.removed"
     case sheetDenoisePlaying = "sheet.denoise.playing"
+    case sheetDenoisePreviewFailed = "sheet.denoise.preview.failed"
     case sheetDenoiseApply = "sheet.denoise.apply"
     case errorDenoiseSpace = "error.denoise.space"
     case errorDenoiseWrite = "error.denoise.write"

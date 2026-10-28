@@ -161,6 +161,31 @@ struct EffectPreviewTests {
         #expect(maxError(looped[0], await alone.renderOffline(frames: 144_000)[0]) <= 1e-6)
     }
 
+    /// Code gate 2 item 2: a window render that fails throws and stops the loop of the window
+    /// before it: the engine gives no sound (fail: it loops the old window).
+    @Test func failedWindowStopsTheLoop() async throws {
+        let fixture = try fixture()
+        let (session, url) = (fixture.package.session, fixture.package.url)
+        let armed = LockedBox<Bool>()
+        let fault = ReadFault(stem: "f1", block: 0) { if armed.value == true { throw CocoaError(.fileReadUnknown) } }
+        let preview = EffectPreview(package: { url }, output: .offline, rate: 48_000, readFault: fault, ended: { _ in })
+        let windows = try [twelve, amount(20)].map {
+            try previewWindow(of: "c1", request: $0, playhead: .zero, in: session)
+        }
+        preview.supersede(1)
+        let first = try await preview.play(windows[0], of: session, listen: .result, number: 1)
+        try #require(first)
+        armed.value = true
+        preview.supersede(2)
+
+        var failed = false
+        do { _ = try await preview.play(windows[1], of: session, listen: .result, number: 2) } catch { failed = true }
+
+        #expect(failed, "the fault did not throw")
+        let looped = await preview.renderOffline(frames: 48_000)
+        #expect(looped.allSatisfy { $0.allSatisfy { $0 == 0 } }, "the old window loops on")
+    }
+
     /// C19b: the window render runs off the main thread.
     @MainActor
     @Test func windowRendersOffTheMainThread() async throws {

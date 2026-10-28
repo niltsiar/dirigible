@@ -1388,6 +1388,128 @@ wg_expect 0 "$tmp/wg/docs/run.md"
 hook_registered "$settings" write-guard.sh Write ||
   { echo "FAIL: .claude/settings.json does not register write-guard.sh for Write"; failures=$((failures + 1)); }
 
+# The seventh hook, stop-guard.sh, runs when the lead ends a turn. It never blocks: it appends a line to
+# dirigible-stop-shadow.log in the git common dir. Rule A logs the stop while only background shells
+# run (nothing wakes the loop when a shell ends). Rule B logs when no task runs, an open run has an
+# unticked phase, and its run.md has no `waits: user` line.
+stop_hook="$(dirname "$0")/stop-guard.sh"
+# lead_session <name>: write stdin as the lead transcript, and name its folder in hb_dir
+lead_session() { hb_dir="$tmp/$1"; mkdir -p "$hb_dir"; cat > "$hb_dir/s.jsonl"; }
+# stop_in <stop_hook_active> [<cwd>]: the Stop hook input of the lead
+stop_in() { printf '{"hook_event_name":"Stop","transcript_path":"%s/s.jsonl","stop_hook_active":%s,"cwd":"%s"}' "$hb_dir" "$1" "${2:-$tmp}"; }
+hb_agent_start() {
+  hb_use 8 u4 Agent '{"prompt":"x","run_in_background":true}'
+  hb_result 8 u4 'Async agent launched successfully. agentId: a2 (internal ID)'
+}
+# stop_fixture <name>: a git checkout with no commit, and its stop-shadow log path in stop_log
+stop_fixture() { stop_fx="$tmp/$1"; mkdir -p "$stop_fx/.scratchpads/runs"; git init -q "$stop_fx"; stop_log="$stop_fx/.git/dirigible-stop-shadow.log"; }
+# stop_run <name> <status> [<extra run.md line>]: a run folder of the fixture with one unticked phase
+stop_run() {
+  mkdir -p "$stop_fx/.scratchpads/runs/$1"
+  printf '# Run %s\n\n- Status: %s\n- Branch: chore/%s\n%s\n## Phases\n\n- [x] 0 Open\n- [ ] 1 Analyze\n' "$1" "$2" "$1" "${3-}" > "$stop_fx/.scratchpads/runs/$1/run.md"
+  printf '2026-10-28T10:00\t0\tx\n' > "$stop_fx/.scratchpads/runs/$1/decisions.tsv"
+}
+stop_lines() { if [[ -f "$stop_log" ]]; then wc -l < "$stop_log" | tr -d ' '; else echo 0; fi; }
+# stop_expect <case> <input>: the hook exits 0 and prints nothing on stdout or stderr (it never blocks)
+stop_expect() {
+  local out code
+  out="$(printf '%s' "$2" | "$stop_hook" 2>"$tmp/hb-err")"
+  code=$?
+  [[ $code -eq 0 ]] || { echo "FAIL: stop-guard.sh $1: expected exit 0, got $code: $(cat "$tmp/hb-err")"; failures=$((failures + 1)); }
+  [[ -z "$out" && ! -s "$tmp/hb-err" ]] ||
+    { echo "FAIL: stop-guard.sh $1: it printed output, so it blocks or talks: $out $(cat "$tmp/hb-err")"; failures=$((failures + 1)); }
+}
+
+# Rule A: only background shells run. The hook logs one line with its reason and does not block.
+stop_fixture fx-shell
+lead_session stop-shell < <(hb_bg_start)
+stop_expect 'only a background shell runs' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 1 && "$(< "$stop_log")" == *' would-block-shell b1: only background shells run, no Monitor' ]] ||
+  { echo "FAIL: rule A logs one would-block-shell line with its reason: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
+stop_expect 'rule A, second call' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 2 ]] || { echo "FAIL: rule A adds a line for each stop: $(stop_lines)"; failures=$((failures + 1)); }
+stop_expect 'stop_hook_active is true' "$(stop_in true "$stop_fx")"
+[[ "$(stop_lines)" == 2 ]] || { echo "FAIL: a stop with stop_hook_active true adds a line: $(stop_lines)"; failures=$((failures + 1)); }
+stop_expect 'rule A outside a git checkout' "$(stop_in false "$tmp")"
+
+stop_fixture fx-shell-pass
+lead_session stop-shell-monitor < <(hb_bg_start; hb_mon_start 5)
+stop_expect 'a shell and a Monitor' "$(stop_in false "$stop_fx")"
+lead_session stop-shell-agent < <(hb_bg_start; hb_agent_start)
+stop_expect 'a shell and a running agent' "$(stop_in false "$stop_fx")"
+lead_session stop-shell-ended < <(hb_bg_start; hb_text user 3 '<task-notification><task-id>b1</task-id><status>completed</status></task-notification>')
+stop_expect 'the shell ended' "$(stop_in false "$stop_fx")"
+stop_expect 'no transcript file' "$(printf '{"transcript_path":"%s/none/s.jsonl","stop_hook_active":false,"cwd":"%s"}' "$tmp" "$stop_fx")"
+stop_expect 'input that is not JSON' 'not json'
+[[ "$(stop_lines)" == 0 ]] || { echo "FAIL: a pass case of rule A adds a line: $(cat "$stop_log")"; failures=$((failures + 1)); }
+
+# Rule B, with a fixture checkout that holds the runs of the lead. A run is open when its run.md has a
+# `- Status: open` line; the lead in the main checkout gets the run whose folder holds cwd, else the
+# open run with the newest decisions.tsv row.
+lead_session stop-idle < <(hb_text user 3 x)
+
+stop_fixture fx-open
+stop_run r1 open
+stop_expect 'rule B does not block' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 1 && "$(< "$stop_log")" == *' would-block r1 via newest row: - [ ] 1 Analyze' ]] ||
+  { echo "FAIL: rule B logs one would-block line for the open run: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
+stop_expect 'rule B, second call' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 2 ]] || { echo "FAIL: rule B adds a line for each stop: $(stop_lines)"; failures=$((failures + 1)); }
+
+stop_fixture fx-done
+stop_run r1 done
+stop_expect 'a run with status done' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 0 ]] || { echo "FAIL: a done run adds a line to the stop log"; failures=$((failures + 1)); }
+
+stop_fixture fx-waits
+stop_run r1 open 'waits: user (the plan gate)'
+stop_expect 'a run that waits for the user' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 0 ]] || { echo "FAIL: a waits: user line adds a line to the stop log"; failures=$((failures + 1)); }
+
+stop_fixture fx-task
+stop_run r1 open
+lead_session stop-task-monitor < <(hb_bg_start; hb_mon_start 5)
+stop_expect 'a running Monitor' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 0 ]] || { echo "FAIL: rule B logs while a Monitor runs"; failures=$((failures + 1)); }
+
+stop_fixture fx-end20
+stop_run r1 open
+for i in $(seq 20); do echo "2026-10-28T10:00:0${i: -1}Z would-block r1 via newest row: - [ ] 1 Analyze" >> "$stop_log"; done
+lead_session stop-end20 < <(hb_text user 3 x)
+stop_expect 'a log with 20 would-block lines' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 21 && "$(tail -n 1 "$stop_log")" == *' done' ]] ||
+  { echo "FAIL: 20 would-block lines end rule B with one done line: $(tail -n 2 "$stop_log")"; failures=$((failures + 1)); }
+stop_expect 'a log with a done line' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 21 ]] || { echo "FAIL: a log with a done line gets a line"; failures=$((failures + 1)); }
+
+stop_fixture fx-old
+stop_run r1 open
+echo "$(date -u -v-15d +%Y-%m-%dT%H:%M:%SZ) would-block r1 via newest row: - [ ] 1 Analyze" > "$stop_log"
+stop_expect 'a log whose first line is 15 days old' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 2 && "$(tail -n 1 "$stop_log")" == *' done' ]] ||
+  { echo "FAIL: a first line of 15 days ends rule B with one done line: $(tail -n 2 "$stop_log")"; failures=$((failures + 1)); }
+
+stop_fixture fx-end20-shell
+for i in $(seq 10); do echo "2026-10-28T10:00:0${i: -1}Z would-block-shell b1: only background shells run, no Monitor" >> "$stop_log"; done
+for i in $(seq 10); do echo "2026-10-28T10:01:0${i: -1}Z would-block r1 via newest row: - [ ] 1 Analyze" >> "$stop_log"; done
+lead_session stop-end20-shell < <(hb_bg_start)
+stop_expect 'a log with 20 lines of both rules, a shell runs' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 21 && "$(tail -n 1 "$stop_log")" == *' done' ]] ||
+  { echo "FAIL: 20 lines of both rules end rule A with one done line: $(tail -n 2 "$stop_log")"; failures=$((failures + 1)); }
+stop_expect 'a log with a done line, a shell runs' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 21 ]] || { echo "FAIL: a log with a done line gets a rule A line"; failures=$((failures + 1)); }
+
+# stop_registered <settings file>: a Stop entry runs stop-guard.sh
+stop_registered() {
+  python3 -c '
+import json, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get("Stop", [])
+sys.exit(0 if any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/stop-guard.sh") for e in entries for h in e.get("hooks", [])) else 1)
+' "$1" 2>/dev/null
+}
+stop_registered "$settings" || { echo "FAIL: .claude/settings.json does not register stop-guard.sh for Stop"; failures=$((failures + 1)); }
+stop_registered "$tmp/old-settings.json" && { echo "FAIL: the Stop registration check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
+
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }

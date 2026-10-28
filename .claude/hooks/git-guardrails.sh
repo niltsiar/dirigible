@@ -572,14 +572,30 @@ fi
 
 # A message path other than .scratchpads/commit-msg.txt (absolute, relative, ~, or $HOME) can name
 # the file of another work tree, so a commit takes the message of another agent. git -C changes
-# the directory first, so the relative path is per tree.
+# the directory first, so the relative path is per tree. Only the first -F or --file after each
+# git commit of a line counts (agent-guard.sh has the same function).
+commit_files() {
+  awk '{
+    s = $0
+    while ((i = index(s, "git commit")) > 0) {
+      s = substr(s, i + 10)
+      chunk = s
+      if ((j = index(s, "git commit")) > 0) chunk = substr(s, 1, j - 1)
+      if (match(chunk, /(^| )(-F ?|--file[= ])[^ ]+/)) {
+        t = substr(chunk, RSTART, RLENGTH)
+        sub(/^ ?(-F ?|--file[= ])/, "", t)
+        print t
+      }
+    }
+  }'
+}
 while IFS= read -r file; do
   file="${file#[\'\"]}"
   file="${file%[\'\"]}"
   if [[ "$file" == *commit-msg.txt || "$file" == *.scratchpads/* ]] && [[ "$file" != .scratchpads/commit-msg.txt ]]; then
     block "reads a commit message file that can be the file of another work tree; write .scratchpads/commit-msg.txt in the work tree that commits and pass that relative path"
   fi
-done < <(grep -oE "git commit( .*)? (-F ?|--file[= ])[^ ]+" <<< "$NORMALIZED" | sed -E 's/.*(-F ?|--file[= ])//')
+done < <(commit_files <<< "$NORMALIZED")
 
 # A privacy reset of com.delineas.dirigible removes the grants of each build of the user (VER-084:
 # one reset removed 11 records). Only the ID of the verify copy, com.delineas.dirigible.verify-<hash>,

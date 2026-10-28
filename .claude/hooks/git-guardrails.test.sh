@@ -88,6 +88,11 @@ expect block 'git commit -F /tmp/commit-msg.txt'
 expect allow 'git commit --file=.scratchpads/commit-msg.txt'
 expect allow 'git commit -F "/tmp/release notes.txt"'
 expect allow 'git commit -m "read .scratchpads/commit-msg.txt"'
+# Only the -F of the commit counts: a later -F of another command neither hides a wrong path nor
+# blocks a right one.
+expect block 'git commit -F ../main/.scratchpads/commit-msg.txt then rg -F foo bar'
+expect allow 'git commit -F .scratchpads/commit-msg.txt then rg -F .scratchpads/runs/x/rows .gitignore'
+expect block 'git commit -F ../other/.scratchpads/commit-msg.txt then git commit -F .scratchpads/commit-msg.txt'
 
 expect allow 'git push -u origin feat/multitrack-capture'
 expect allow 'git push origin chore/refine-setup'
@@ -1061,6 +1066,9 @@ for text in 'git commit -F /abs/.scratchpads/commit-msg.txt' 'git commit --file=
   expect_brief block Agent prompt "$text"
 done
 expect_brief block SendMessage message 'Then git commit -F .scratchpads/runs/x/commit-msg.txt.'
+expect_brief block Agent prompt 'Commit with git commit -F ../main/.scratchpads/commit-msg.txt, then rg -F foo bar'
+expect_brief block Agent prompt 'git commit -F ../other/.scratchpads/commit-msg.txt then git commit -F .scratchpads/commit-msg.txt'
+expect_brief allow Agent prompt 'git commit -F .scratchpads/commit-msg.txt, and find the row with rg -F .scratchpads/runs/x/rows .gitignore'
 expect_brief block mcp__t3-code__delegate_task task 'git commit -F /abs/.scratchpads/commit-msg.txt'
 expect_brief block - prompt 'git commit -F .scratchpads/runs/x/commit-msg.txt'
 for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scratchpads/commit-msg.txt' \

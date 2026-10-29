@@ -975,6 +975,25 @@ for run in 'make -n test-hooks' 'make --dry-run test-hooks' 'make -n test-hooks>
   expect allow "$run"
 done
 
+# A # at the start of a word, outside quotes, starts a shell comment that ends at the new line (code
+# gate 2 fix check, 1.2): a quote mark in a comment opens no quoted string, so it hides no command on
+# a later line. A # inside a word (a#b, ${x#y}, $#), after a backslash, or in a quote starts no comment.
+for run in $'# it\'s here\nbash scripts/land.test.sh\n# that\'s all' $'# it\'s here\nmake test-hooks\n# that\'s all' \
+  $'# say "hi\nbash scripts/land.test.sh\n# done"' $'# say "hi\nmake test-hooks\n# done"' \
+  $'echo x # it\'s\nbash scripts/land.test.sh\necho y # that\'s' $'# cat > f <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
+  $'echo $(# it\'s\nbash scripts/land.test.sh\n)\n# that\'s all' \
+  'echo ${x#y}; bash scripts/land.test.sh' 'echo a#b; bash scripts/land.test.sh' 'echo $#; bash scripts/land.test.sh' \
+  'echo \#; bash scripts/land.test.sh' "echo '#'; bash scripts/land.test.sh" 'echo "#"; make test-hooks' \
+  'echo a\ #b; bash scripts/land.test.sh'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+for run in $'# run bash scripts/land.test.sh later\necho done' $'# it\'s scripts/land.test.sh\n# that\'s all' \
+  $'# it\'s here\nmake check-docs\n# that\'s all' 'echo "a; scripts/land.test.sh" # it'"'"'s fine' \
+  $'echo x # bash scripts/land.test.sh\necho y' $'#scripts/land.test.sh\necho y' \
+  $'# it\'s here\nscripts/with-lock.sh make test-hooks\n# that\'s all'; do
+  expect allow "$run"
+done
+
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }

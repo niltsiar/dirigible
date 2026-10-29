@@ -25,9 +25,10 @@
 # start time, the hold seconds, the command, and the tree. The take writes the tree into the lock
 # folder (<lock>/tree), and a waiting call keeps the marker dirigible-build-waiting/<pid> with its
 # tree until it takes the lock or ends. scripts/with-lock.sh --builders prints each tree with a wait
-# or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60; a lock-free wait
-# line, below, is no sign of a building tree), the tree of the live holder, and each live waiter,
-# one per line. A marker of a dead pid is ignored and removed.
+# or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 20: the p90 gap between
+# two holds of one tree is 811 s; a lock-free wait line, below, is no sign of a building tree), the
+# tree of the live holder, and each live waiter, one per line. A marker of a dead pid is ignored and
+# removed.
 # A wait with 2 or more other trees in that list prints their count.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
@@ -97,7 +98,7 @@ told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
-waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-60}"
+waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}"
 # The awk function ep reads a local ISO time as UTC, to add the seconds of a log line.
 ep_awk='
     function ep(s, y, mo) {

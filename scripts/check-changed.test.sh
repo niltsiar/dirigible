@@ -16,7 +16,8 @@
 # the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
 # ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word.
 # Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
-# the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit.
+# the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit. Check that
+# .sourcekit-lsp/config.json (or the file that LSP_CONFIG names) sets backgroundIndexing to false.
 # Run by `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -81,6 +82,13 @@ expect 'Package.swift before the push' "$(out build check no)" --push <<<'Packag
 got="$(cd "$e" && "$script" --paths <<<'.sourcekit-lsp/config.json')"
 [[ "$(sed -n 1p <<<"$got")" == 'classes: tooling' && "$(sed -n 2p <<<"$got")" == 'targets: check-fast'* ]] ||
   fail "the sourcekit-lsp config: got [$got], want classes: tooling and a check-fast target"
+# AGT-145: background indexing stays off, so a test run builds nothing outside the lock. LSP_CONFIG
+# names another file for the check.
+lsp_off() { python3 -I -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1])).get("backgroundIndexing") is False else 1)' "$1" 2> /dev/null; }
+lsp_off "${LSP_CONFIG:-$repo/.sourcekit-lsp/config.json}" || fail 'the sourcekit-lsp config does not set backgroundIndexing to false'
+printf '{"backgroundIndexing": true}\n' > "$tmp/lsp-on.json"
+lsp_off "$tmp/lsp-on.json" && fail 'the backgroundIndexing check passes a config with true'
+lsp_off "$tmp/lsp-missing.json" && fail 'the backgroundIndexing check passes a missing config'
 expect 'Tests only' "$(out tests test no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'Tests only before the push' "$(out tests check no)" --push <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 expect 'app sources local' "$(out sources test no)" <<<'Sources/DirigibleApp/AppDelegate.swift'

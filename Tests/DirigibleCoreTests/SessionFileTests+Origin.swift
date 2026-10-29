@@ -71,24 +71,24 @@ extension SessionFileTests {
         return document.xmlData
     }
 
-    /// C17c: a hum origin needs the newest version, and the noise origin alone a lower one. The
-    /// hum element comes before the noise element.
+    /// C17c: a hum origin needs version 13, and the noise origin alone version 12. The hum element
+    /// comes before the noise element.
     @Test func humWritesTheNextVersion() throws {
         let hum = try renderedBeforeSource(try #require(Treatment([.noise(.standard), .hum(.hz50)])))
         let noise = try renderedBeforeSource()
 
         let text = String(decoding: try hum.checkedData(), as: UTF8.self)
-        #expect(hum.fileVersion == sessionVersion && noise.fileVersion < sessionVersion)
-        #expect(text.contains(#"version="\#(sessionVersion)""#), "\(text)")
+        #expect(hum.fileVersion == 13 && noise.fileVersion == 12)
+        #expect(text.contains(#"version="13""#), "\(text)")
         let hum50 = try #require(text.range(of: #"<hum hz="50""#), "\(text)")
         let noise12 = try #require(text.range(of: #"<noise decibels="12""#), "\(text)")
         #expect(hum50.lowerBound < noise12.lowerBound, "\(text)")
     }
 
-    /// C17c: a `<hum>` in a file of the version below `sessionVersion` is refused, with the reason.
+    /// C17c: a `<hum>` in a file of version 12, the version before hum, is refused, with the reason.
     @Test func humInAnOlderVersionRefused() throws {
         let data = try humDocument(try renderedBeforeSource(Treatment(.hum(.hz50)))) { root, _ in
-            root.attribute(forName: "version")?.stringValue = String(sessionVersion - 1)
+            root.attribute(forName: "version")?.stringValue = "12"
         }
         #expect(throws: SessionFileError.invalidValue(element: "hum", attribute: "version")) {
             try Session(xml: data)

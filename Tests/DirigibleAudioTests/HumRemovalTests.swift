@@ -216,8 +216,9 @@ struct HumRemovalTests {
         #expect(difference <= 1e-5, "hum, then noise: \(difference); \(label)")
         print("C17b record: joint against hum then noise max \(difference), \(label)")
         if channels == 2 {
-            let latency = try EffectChain(both, scale: 1, rate: Double(rate), channels: 2, component: .soundIsolation)
-                .latency
+            let latency = try EffectChain(
+                both, scale: 1, rate: Double(rate), channels: 2, component: .soundIsolation, repair: .none
+            ).latency
             let gaps = stride(from: 2 * latency, to: noiseOut.count, by: 2).map { abs(noiseOut[$0] - noiseOut[$0 + 1]) }
             #expect((gaps.max() ?? 1) <= 1e-6, "L-R past the latency; \(label)")
         }

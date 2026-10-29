@@ -227,6 +227,9 @@
 "error.denoise.unavailable" = "Dirigible cannot reduce the noise. The noise reduction of macOS did not load (error %lld).";
 "error.denoise.engine" = "Dirigible cannot reduce the noise. The audio engine stopped (error %lld). Try again.";
 "error.denoise.over.full.scale" = "Dirigible cannot reduce the noise. The new audio file “%@” is louder than full scale, so it clips. Try again.";
+"error.denoise.corner.limit" = "Dirigible cannot render the clips. The frequency %lld Hz is too high for the sample rate of this session: the highest is %lld Hz.";
+"error.denoise.corner.rate" = "Dirigible cannot render the clips. The frequency %lld Hz needs a session sample rate of %lld Hz or more.";
+"error.denoise.non.finite" = "Dirigible cannot render the clips. A sample of the new audio file “%@” is not a number, so Dirigible writes nothing. Try again.";
 "error.denoise.yielded" = "The noise reduction stopped for a take in another window. Reduce the noise again after the take.";
 "reverted.to" = "Reverted to the backup of %@";
 
@@ -401,6 +404,9 @@
 "inspector.effects" = "Effects";
 "inspector.effect.noise" = "Reduce Noise %lld dB";
 "inspector.effect.hum" = "Remove Hum %lld Hz";
+"inspector.effect.declip" = "Repair Clipped Peaks %lld %%";
+"inspector.effect.rumble" = "Reduce Rumble %lld Hz";
+"inspector.effect.deess" = "Soften S Sounds %lld dB at %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Loudness meter";

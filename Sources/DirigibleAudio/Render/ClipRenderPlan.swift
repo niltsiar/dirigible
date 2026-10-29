@@ -93,7 +93,8 @@ func levelRequests(
 /// before the first call, for the bytes of the first level times the number of levels; each later
 /// call checks no space. The progress only rises: each call gets the band of its run frames in
 /// the frames of that bound, and 1 comes once, after the last call. A throw removes the files of
-/// each earlier call. A plan with no level gives `plan.lowered` and no file.
+/// each earlier call. A plan with no level gives `plan.lowered` and no file. The outcome holds the
+/// de-clip results of all calls.
 func renderLevels(
     _ plan: ClipRenderPlan, in package: URL, freeBytes: () -> Int64,
     component: (Int) -> AudioComponentDescription = { _ in .soundIsolation }, readFault: ReadFault? = nil,
@@ -114,6 +115,7 @@ func renderLevels(
     var made: [URL] = []
     var order: [ClipID] = []
     var files: [ClipID: FileID] = [:]
+    var repairs: [ClipID: ClipRepair] = [:]
     var done = 0.0
     var reported = 0.0
     do throws(ClipRenderError) {
@@ -133,6 +135,7 @@ func renderLevels(
                 done += frames
                 session = outcome.session
                 made += outcome.made
+                repairs.merge(outcome.repairs) { $1 }
                 for clip in outcome.clips where files.updateValue(clip.file, forKey: clip.clip) == nil {
                     order.append(clip.clip)
                 }
@@ -145,7 +148,7 @@ func renderLevels(
     progress(1)
     return ClipRenderOutcome(
         session: session, made: made, clips: order.map { RenderedClip(clip: $0, file: files[$0]!) },
-        unchanged: plan.unchanged)
+        unchanged: plan.unchanged, repairs: repairs)
 }
 
 /// The frames and the WAV bytes of the runs of `clips` in `session`.

@@ -75,8 +75,10 @@ extension ClipCommand {
         func failure(_ error: ClipRenderError) -> ExitCode {
             switch error {
             case .cancelled: ExitCode(128 + SIGINT)
-            case .session, .trackRole, .mixedTreatments, .effectUnavailable: fail(error.message, code: editRefused)
-            case .space, .write, .sourceUnreadable, .sourceMissing, .notDownloaded, .engine, .stillOverFullScale:
+            case .session, .trackRole, .mixedTreatments, .effectUnavailable, .cornerTooHigh:
+                fail(error.message, code: editRefused)
+            case .space, .write, .sourceUnreadable, .sourceMissing, .notDownloaded, .engine, .stillOverFullScale,
+                .nonFiniteSample:
                 fail(error.message, code: packageError)
             }
         }

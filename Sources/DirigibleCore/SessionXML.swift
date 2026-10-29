@@ -128,8 +128,12 @@ private func originElement(_ origin: RenderOrigin) -> XMLElement {
         ("gain", text(origin.addedGain.dB)))
     for effect in origin.treatment.effects {
         switch effect {
+        case .declip(let declip): node.addChild(element("declip", ("percent", String(declip.percent))))
+        case .rumble(let rumble): node.addChild(element("rumble", ("hz", String(rumble.hertz))))
         case .hum(let hertz): node.addChild(element("hum", ("hz", String(hertz.rawValue))))
         case .noise(let amount): node.addChild(element("noise", ("decibels", String(amount.decibels))))
+        case .deess(let deess):
+            node.addChild(element("deess", ("hz", String(deess.hertz)), ("decibels", String(deess.decibels))))
         }
     }
     return node

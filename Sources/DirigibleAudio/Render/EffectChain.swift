@@ -15,10 +15,11 @@ extension AudioComponentDescription {
 }
 
 /// One AVAudioEngine in offline manual rendering at the rate and the channel count of a source
-/// (decision 0054): a player node, the hum band-stop when the treatment holds hum, AUSoundIsolation
-/// with the Voice model when it holds noise, and the engine output, then one gain stage of a
-/// constant `scale`. Stereo is joint: one unit for both channels. Make a new chain for each run
-/// and each pass: no engine renders twice.
+/// (decisions 0054, 0064 D1): the pre-stages of the repair setup (the de-clip, then the high-pass)
+/// on each source block, a player node, the hum band-stop when the treatment holds hum,
+/// AUSoundIsolation with the Voice model when it holds noise, and the engine output, then the
+/// post-stages (the de-ess) and one gain stage of a constant `scale`. Stereo is joint: one unit for
+/// both channels. Make a new chain for each run and each pass: no engine renders twice.
 struct EffectChain {
     /// The frames of each source block. The player node holds at most two blocks that it did not
     /// render, so a run of any length holds the same source memory.
@@ -35,34 +36,44 @@ struct EffectChain {
     private let player: AVAudioPlayerNode
     private let format: AVAudioFormat
     private let scale: Float
-    /// The frames that the stages delay their output, read after the engine starts: the unit
-    /// latency depends on the channel count, so no code uses a constant.
+    private let repair: RepairSetup
+    /// The frames that the pre-stages delay the player input.
+    private let preLatency: Int
+    /// The frames that the stages delay their output: the pre-stage latencies plus the unit
+    /// latency, read after the engine starts. The unit latency depends on the channel count, so no
+    /// code uses a constant.
     let latency: Int
 
+    /// The chain of `treatment` with the stages of `repair`, the setup of the same treatment.
     init(
-        _ treatment: Treatment, scale: Float, rate: Double, channels: Int, component: AudioComponentDescription
+        _ treatment: Treatment, scale: Float, rate: Double, channels: Int, component: AudioComponentDescription,
+        repair: RepairSetup
     ) throws(ClipRenderError) {
         var (hum, wet): (Hum?, Float?) = (nil, nil)
         for effect in treatment.effects {
             switch effect {
             case .hum(let hertz): hum = hertz
             case .noise(let amount): wet = amount.wetDryMixPercent
+            case .declip, .rumble, .deess: break
             }
         }
-        try self.init(hum: hum, wet: wet, scale: scale, rate: rate, channels: channels, component: component)
+        try self.init(
+            hum: hum, wet: wet, repair: repair, scale: scale, rate: rate, channels: channels, component: component)
     }
 
     /// The chain with a raw wet value and no hum: tests give 0 for the null of the dry path.
     init(
         wetDryMixPercent wet: Float, scale: Float, rate: Double, channels: Int, component: AudioComponentDescription
     ) throws(ClipRenderError) {
-        try self.init(hum: nil, wet: wet, scale: scale, rate: rate, channels: channels, component: component)
+        try self.init(
+            hum: nil, wet: wet, repair: .none, scale: scale, rate: rate, channels: channels, component: component)
     }
 
     /// The chain with the band-stop of `hum` when it is set, then the voice unit at `wet` when it
     /// is set. Only the voice unit loads `component`.
     private init(
-        hum: Hum?, wet: Float?, scale: Float, rate: Double, channels: Int, component: AudioComponentDescription
+        hum: Hum?, wet: Float?, repair: RepairSetup, scale: Float, rate: Double, channels: Int,
+        component: AudioComponentDescription
     ) throws(ClipRenderError) {
         var stages: [AVAudioUnit] = []
         if let hum { stages.append(try Self.humFilter(hum)) }
@@ -85,9 +96,9 @@ struct EffectChain {
         }
         engine.connect(last, to: engine.outputNode, format: format)
         do { try engine.start() } catch { throw .effectUnavailable(status: Int32((error as NSError).code)) }
-        player.play()
-        (self.engine, self.player, self.format, self.scale) = (engine, player, format, scale)
-        latency = Int((stages.reduce(0) { $0 + $1.latency } * rate).rounded())
+        (self.engine, self.player, self.format, self.scale, self.repair) = (engine, player, format, scale, repair)
+        preLatency = repair.pre.reduce(0) { $0 + $1.latency }
+        latency = preLatency + Int((stages.reduce(0) { $0 + $1.latency } * rate).rounded())
     }
 
     /// The band-stop of `hum`: one `bandStop` band at f, 2f, 3f, and 4f, with the widths of
@@ -131,7 +142,8 @@ struct EffectChain {
     }
 
     /// Renders the frames `span` of `source` (open at `descriptor` too) into `sink`: span +
-    /// `latency` frames, with the first `latency` frames dropped, each frame times `scale`. `sink`
+    /// `latency` frames, with the first `latency` frames dropped, each frame through the
+    /// post-stages and times `scale`. `sink`
     /// gets each pull in one reused buffer, valid only during the call. `isCancelled` is read
     /// before each block read, and `readFault` runs before block `block` of the file `stem` (tests
     /// only). `rendered` gets the frames given to `sink`. Returns those frames and the peak of all
@@ -185,23 +197,30 @@ struct EffectChain {
     }
 
     /// The pull loop of a render of `count` frames: `next` gives the next source block of at most
-    /// the frames that it gets.
+    /// the frames that it gets. Each render runs fresh copies of the stages of `repair`, and the
+    /// player gets `count` + `preLatency` frames: the last source block carries the held frames of
+    /// the pre-stages.
     private func render(
         count: Int, into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, rendered: (Int) -> Void = { _ in },
         next: (AVAudioFrameCount) throws(ClipRenderError) -> AVAudioPCMBuffer
     ) throws(ClipRenderError) -> (length: Int, peak: Float) {
-        let total = count + latency
+        let (fed, total) = (count + preLatency, count + latency)
         guard let output = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: Self.pullFrames),
             let kept = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: Self.pullFrames)
         else { throw .engine(status: kAudio_MemFullError) }
-        var (scheduled, pulled, length, peak) = (0, 0, 0, Float(0))
+        var (pre, post) = (repair.pre, repair.post)
+        var (read, scheduled, pulled, length, peak) = (0, 0, 0, 0, Float(0))
         while pulled < total {
             // The next block goes in when one block or less waits, so at most two wait.
-            while scheduled < count, scheduled - pulled <= Self.blockFrames {
-                let buffer = try next(AVAudioFrameCount(min(Self.blockFrames, count - scheduled)))
+            while scheduled < fed, scheduled - pulled <= Self.blockFrames {
+                let source = try next(AVAudioFrameCount(min(Self.blockFrames, count - read)))
+                read += Int(source.frameLength)
+                let buffer = try pre.isEmpty ? source : staged(source, through: &pre, last: read >= count)
                 player.scheduleBuffer(buffer)
                 scheduled += Int(buffer.frameLength)
             }
+            // Play after the first block is scheduled: a player that starts empty gives a silent first pull.
+            if !player.isPlaying { player.play() }
             let frames = min(Int(Self.pullFrames), total - pulled)
             let status: AVAudioEngineManualRenderingStatus
             do {
@@ -215,7 +234,7 @@ struct EffectChain {
             let drop = min(frames, max(0, latency - pulled))
             pulled += frames
             guard drop < frames else { continue }
-            peak = max(peak, copy(output, from: drop, into: kept))
+            peak = max(peak, copy(output, from: drop, into: kept, through: &post))
             try sink(kept)
             length += Int(kept.frameLength)
             rendered(length)
@@ -223,16 +242,53 @@ struct EffectChain {
         return (length, peak)
     }
 
-    /// Copies the frames of `output` from `start` into `kept`, times `scale`, and returns their peak.
-    private func copy(_ output: AVAudioPCMBuffer, from start: Int, into kept: AVAudioPCMBuffer) -> Float {
+    /// `source` through `stages` in order, in the format of the chain. On the `last` block each
+    /// stage also gives its held frames, which the stages after it process.
+    private func staged(_ source: AVAudioPCMBuffer, through stages: inout [any RenderStage], last: Bool)
+        throws(ClipRenderError) -> AVAudioPCMBuffer
+    {
+        var data = (0..<Int(format.channelCount)).map {
+            Array(UnsafeBufferPointer(start: source.floatChannelData![$0], count: Int(source.frameLength)))
+        }
+        for index in stages.indices {
+            var output = stages[index].process(data)
+            if last { for (channel, tail) in stages[index].finish().enumerated() { output[channel] += tail } }
+            data = output
+        }
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(data[0].count)) else {
+            throw .engine(status: kAudio_MemFullError)
+        }
+        buffer.frameLength = AVAudioFrameCount(data[0].count)
+        for (channel, samples) in data.enumerated() {
+            buffer.floatChannelData![channel].update(from: samples, count: samples.count)
+        }
+        return buffer
+    }
+
+    /// Copies the frames of `output` from `start` into `kept`, through `stages` (each with latency
+    /// 0) and times `scale`, and returns their peak.
+    private func copy(
+        _ output: AVAudioPCMBuffer, from start: Int, into kept: AVAudioPCMBuffer,
+        through stages: inout [any RenderStage]
+    ) -> Float {
         let frames = Int(output.frameLength) - start
         kept.frameLength = AVAudioFrameCount(frames)
+        var data: [[Float]] = []
+        if !stages.isEmpty {
+            data = (0..<Int(format.channelCount)).map {
+                Array(UnsafeBufferPointer(start: output.floatChannelData![$0] + start, count: frames))
+            }
+            for index in stages.indices { data = stages[index].process(data) }
+        }
         var peak: Float = 0
         for channel in 0..<Int(format.channelCount) {
-            let from = output.floatChannelData![channel] + start
             let to = kept.floatChannelData![channel]
             var (factor, level) = (scale, Float(0))
-            vDSP_vsmul(from, 1, &factor, to, 1, vDSP_Length(frames))
+            if data.isEmpty {
+                vDSP_vsmul(output.floatChannelData![channel] + start, 1, &factor, to, 1, vDSP_Length(frames))
+            } else {
+                vDSP_vsmul(data[channel], 1, &factor, to, 1, vDSP_Length(frames))
+            }
             vDSP_maxmgv(to, 1, &level, vDSP_Length(frames))
             peak = max(peak, level)
         }

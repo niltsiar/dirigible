@@ -227,6 +227,9 @@
 "error.denoise.unavailable" = "O Dirigible não pode reduzir o ruído. A redução de ruído do macOS não foi carregada (erro %lld).";
 "error.denoise.engine" = "O Dirigible não pode reduzir o ruído. O motor de áudio parou (erro %lld). Volte a tentar.";
 "error.denoise.over.full.scale" = "O Dirigible não pode reduzir o ruído. O novo ficheiro de áudio “%@” é mais alto do que a escala total, por isso satura. Volte a tentar.";
+"error.denoise.corner.limit" = "O Dirigible não pode processar os clipes. A frequência de %lld Hz é demasiado alta para a taxa de amostragem desta sessão: a máxima é %lld Hz.";
+"error.denoise.corner.rate" = "O Dirigible não pode processar os clipes. A frequência de %lld Hz precisa de uma taxa de amostragem de sessão de %lld Hz ou mais.";
+"error.denoise.non.finite" = "O Dirigible não pode processar os clipes. Uma amostra do novo ficheiro de áudio “%@” não é um número, por isso o Dirigible não escreve nada. Volte a tentar.";
 "error.denoise.yielded" = "A redução de ruído foi interrompida por um excerto noutra janela. Volte a reduzir o ruído depois do excerto.";
 "reverted.to" = "Cópia de segurança de %@ restabelecida";
 
@@ -401,6 +404,9 @@
 "inspector.effects" = "Efeitos";
 "inspector.effect.noise" = "Reduzir ruído %lld dB";
 "inspector.effect.hum" = "Remover zumbido %lld Hz";
+"inspector.effect.declip" = "Reparar picos cortados %lld %%";
+"inspector.effect.rumble" = "Reduzir ronco %lld Hz";
+"inspector.effect.deess" = "Suavizar sons de s %lld dB a %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Medidor de intensidade";

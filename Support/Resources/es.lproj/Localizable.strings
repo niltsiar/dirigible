@@ -227,6 +227,9 @@
 "error.denoise.unavailable" = "Dirigible no puede reducir el ruido. La reducción de ruido de macOS no se cargó (error %lld).";
 "error.denoise.engine" = "Dirigible no puede reducir el ruido. El motor de audio se detuvo (error %lld). Vuelva a intentarlo.";
 "error.denoise.over.full.scale" = "Dirigible no puede reducir el ruido. El nuevo archivo de audio «%@» supera la escala completa y se satura. Vuelva a intentarlo.";
+"error.denoise.corner.limit" = "Dirigible no puede procesar los clips. La frecuencia de %lld Hz es demasiado alta para la frecuencia de muestreo de esta sesión: la máxima es %lld Hz.";
+"error.denoise.corner.rate" = "Dirigible no puede procesar los clips. La frecuencia de %lld Hz necesita una frecuencia de muestreo de sesión de %lld Hz o más.";
+"error.denoise.non.finite" = "Dirigible no puede procesar los clips. Una muestra del nuevo archivo de audio «%@» no es un número, así que Dirigible no escribe nada. Vuelva a intentarlo.";
 "error.denoise.yielded" = "La reducción de ruido se detuvo por una toma en otra ventana. Vuelva a reducir el ruido después de la toma.";
 "reverted.to" = "Se restauró la copia de seguridad de %@";
 
@@ -401,6 +404,9 @@
 "inspector.effects" = "Efectos";
 "inspector.effect.noise" = "Reducir ruido %lld dB";
 "inspector.effect.hum" = "Eliminar zumbido %lld Hz";
+"inspector.effect.declip" = "Reparar picos recortados %lld %%";
+"inspector.effect.rumble" = "Reducir retumbo %lld Hz";
+"inspector.effect.deess" = "Suavizar sonidos de s %lld dB a %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Medidor de sonoridad";

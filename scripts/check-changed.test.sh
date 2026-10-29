@@ -1,6 +1,7 @@
 #!/bin/bash
 # Check that check-changed.sh prints the right three lines for each kind of change, fails closed
-# on a bad or empty base, still sees a moved floor file, and that each risk floor path exists.
+# on a bad or empty base, still sees a moved floor file, that each risk floor path exists, and that each split
+# file of a floor file is on the floor.
 # Check that `make check-changed` of the real Makefile exits nonzero when the script does, and
 # runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
 # gives test-filter in place of test (and check-fast test-filter test-app in place of check), that
@@ -102,6 +103,9 @@ expect 'transcript store' "$(out sources-risk test yes)" <<<'Sources/DirigibleCo
 expect 'unused files' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/UnusedFiles.swift'
 expect 'backups' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/Backup.swift'
 expect 'origin files in use' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/Session+Origin.swift'
+expect 'unused files transcripts' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/UnusedFiles+Transcripts.swift'
+expect 'package edit core' "$(out sources-risk test yes)" <<<'Sources/DirigibleMCP/PackageEditCore.swift'
+expect 'prune work' "$(out sources-risk test yes)" <<<'Sources/DirigibleMCP/PruneWork.swift'
 expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow-push test-dmg' yes)" --push \
   <<<$'Makefile\nSources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'Support' "$(out bundle 'check test-dmg' no)" --push <<<'Support/Info.plist'
@@ -217,6 +221,17 @@ floor="$("$script" --floor)" || fail "--floor exits $?"
 [[ -n "$floor" ]] || fail '--floor prints no path'
 for p in $floor; do
   [[ -e "$repo/$p" ]] || fail "floor path $p does not exist; change the floor in check-changed.sh"
+done
+
+# Floor split files: a file <floor stem>+*.swift of a floor file is on the floor, so a split cannot leave it.
+for p in $floor; do
+  [[ $p == */ ]] && continue
+  base="${p##*/}"
+  while IFS= read -r f; do
+    rel="${f#"$repo"/}"
+    [[ "$(cd "$e" && "$script" --paths <<<"$rel")" == *'classes: sources-risk'* ]] \
+      || fail "floor split files: $rel splits the floor file $p and is not on the floor; add it in check-changed.sh"
+  done < <(find "$repo/Sources" -type f -name "${base%.swift}+*.swift")
 done
 
 # A temporary repo with one commit on main.

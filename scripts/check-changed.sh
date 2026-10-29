@@ -56,7 +56,7 @@ set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
 # comment-only. A path that ends in / is a folder. check-changed.test.sh fails when a floor path does not exist.
-floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/DirigibleCore/TranscriptStore.swift Sources/DirigibleCore/UnusedFiles.swift Sources/DirigibleCore/Backup.swift Sources/DirigibleCore/Session+Origin.swift"
+floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/DirigibleCore/TranscriptStore.swift Sources/DirigibleCore/UnusedFiles.swift Sources/DirigibleCore/Backup.swift Sources/DirigibleCore/Session+Origin.swift Sources/DirigibleCore/UnusedFiles+Transcripts.swift Sources/DirigibleMCP/PackageEditCore.swift Sources/DirigibleMCP/PruneWork.swift"
 
 class_of() {
     local f

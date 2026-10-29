@@ -509,6 +509,8 @@ fi
 # heredoc body is data when no word before the marker is a shell or an interpreter (sh, bash, python3,
 # node, ssh, make, source, and the like) and only a > file follows the marker; an unquoted body with
 # $( or a backtick stays code. The text of a $(...) or a backtick pair inside double quotes stays code.
+# A # at the start of a word, outside quotes, starts a comment that ends at the next new line: the mask
+# blanks it, so a quote mark in a comment opens no string and hides no command on a later line.
 # The text read is the one that keeps the body of an interpreter heredoc (it runs the body).
 # By then chain_text has made each run of tabs one space, so the end line of a <<- heredoc may have
 # leading spaces.
@@ -603,6 +605,17 @@ def bodies(i, pending):
     return i
 
 
+def word_start(i):
+    if i == 0:
+        return True
+    if text[i - 1] not in " \t\n;&|()<>`":
+        return False
+    k = i - 1
+    while k > 0 and text[k - 1] == "\\":
+        k -= 1
+    return (i - 1 - k) % 2 == 0
+
+
 def scan(i, end):
     depth = 0
     seg = ""
@@ -640,6 +653,11 @@ def scan(i, end):
             out.append(m.group(0))
             seg += m.group(0)
             i = m.end()
+        elif c == "#" and word_start(i):
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append("#" + " " * (j - i - 1))
+            i = j
         elif c == "\n":
             out.append(c)
             seg = ""

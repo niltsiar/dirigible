@@ -98,6 +98,10 @@ expect 'capture sources' "$(out sources-risk 'check test-slow-push' yes)" --push
 expect 'capture sources local' "$(out sources-risk test yes)" <<<'Sources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'session writer' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/SessionWriter.swift'
 expect 'session encoder' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/SessionXML.swift'
+expect 'transcript store' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/TranscriptStore.swift'
+expect 'unused files' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/UnusedFiles.swift'
+expect 'backups' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/Backup.swift'
+expect 'origin files in use' "$(out sources-risk test yes)" <<<'Sources/DirigibleCore/Session+Origin.swift'
 expect 'Makefile and capture sources' "$(out 'sources-risk bundle' 'check test-slow-push test-dmg' yes)" --push \
   <<<$'Makefile\nSources/DirigibleAudio/Capture/DeviceWriter.swift'
 expect 'Support' "$(out bundle 'check test-dmg' no)" --push <<<'Support/Info.plist'

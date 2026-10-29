@@ -38,8 +38,8 @@
 # ages out. A release call, a nested call, and a DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so
 # does WITH_LOCK_NO_CAP=1 (a read-only scan, long-runs.md): it waits for the lock as any call, takes
 # no slot, and ends its wait and hold lines with the column nocap (the hold line has an empty
-# fifth column unless it has limit). A release call also ends its lines with nocap, so a make dmg
-# or a land never fills a slot of the cap. cost.sh counts those minutes.
+# fifth column unless it has limit). A release call also ends its lines with nocap, so a make dmg,
+# a land, or the hooks pass never fills a slot of the cap. cost.sh counts those minutes.
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
@@ -48,7 +48,7 @@
 # limit off. The lock folder keeps the limit in <lock>/maxhold, and --builders ends with the line
 # "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
 # A release call (make check-changed with BASE=<ref> as a word, in the environment, or in MAKEFLAGS;
-# land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
+# make test-hooks with DIRIGIBLE_HOOKS_ALL=1 in the same three places; land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
 # dirigible-build-first/<pid> of the git common dir while it waits, and its trap removes it. An
 # ordinary call does not take the lock while a ticket of a live pid is there, so a release call
 # that starts later still runs first. A ticket of a dead pid does not block.
@@ -170,17 +170,30 @@ if [[ "${1##*/}" == mutation-pass.sh && $# -ge 2 ]]; then tree="$(git -C "$2" re
 # Makefile reads $(BASE), and make puts a variable of its command line into the environment and
 # MAKEFLAGS of the recipe).
 push_env() { [[ -n "${BASE:-}" || " ${MAKEFLAGS:-}" =~ [[:space:]]BASE=[^[:space:]] ]]; }
+# hooks_env: succeeds when DIRIGIBLE_HOOKS_ALL is 1 in the environment or in a word of MAKEFLAGS.
+hooks_env() {
+    local re='[[:space:]]DIRIGIBLE_HOOKS_ALL=1([[:space:]]|$)'
+    [[ "${DIRIGIBLE_HOOKS_ALL:-}" == 1 || " ${MAKEFLAGS:-}" =~ $re ]]
+}
 # release_call <command>: a push check (make check-changed with a BASE= word, or with BASE from
-# push_env), a land (land.sh), or a DMG build (make dmg).
+# push_env), the hooks pass of a run (make test-hooks with DIRIGIBLE_HOOKS_ALL=1 as a word, or from
+# hooks_env), a land (land.sh), or a DMG build (make dmg).
 release_call() {
-    local w goal="" base=""
+    local w goal="" base="" hooks=""
     [[ "${1##*/}" == land.sh ]] && return 0
     [[ "${1##*/}" == make ]] || return 1
     ! push_env || base=1
+    ! hooks_env || hooks=1
     for w in "${@:2}"; do
-        case "$w" in BASE=?*) base=1 ;; dmg) goal=dmg ;; check-changed) [[ $goal == dmg ]] || goal=check ;; esac
+        case "$w" in
+            BASE=?*) base=1 ;;
+            DIRIGIBLE_HOOKS_ALL=1) hooks=1 ;;
+            dmg) goal=dmg ;;
+            check-changed) [[ $goal == dmg ]] || goal=check ;;
+            test-hooks) [[ -n $goal ]] || goal=hooks ;;
+        esac
     done
-    [[ $goal == dmg || ($goal == check && -n $base) ]]
+    [[ $goal == dmg || ($goal == check && -n $base) || ($goal == hooks && -n $hooks) ]]
 }
 # ahead: the ticket of a live release call other than this one. A ticket of a dead pid goes.
 first="${lock%/*}/dirigible-build-first" ticket=""

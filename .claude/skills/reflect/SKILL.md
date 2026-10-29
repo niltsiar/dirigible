@@ -50,7 +50,7 @@ Make one `Agent` call (`general-purpose`, `opus`). Pass `references/judgment-rev
 A deliver run with the goal "apply the upkeep items". If the user asked for a checkpoint, show the items first and wait for approval. For each item:
 
 - Edit repo files only (`.claude/skills/`, `.claude/agents/`, `.claude/workflows/`, `AGENTS.md`, `CODING_STANDARDS.md`, `docs/`, `Makefile`, `scripts/`), never user-level files under `~/.claude/`.
-- Edit `.claude/hooks/` only when `make test-hooks` covers it (a chain rule through `expect_each_join`, an AppleScript rule through `expect_each_form`, a guarded file through `expect_each_write`) and keeps each block case. A rule that guards a file name or a command allows a list of read forms, each with an allow case, and blocks all other forms.
+- Edit `.claude/hooks/` only when `make test-hooks` covers it (the `expect_each_*` helper of its rule kind, index at the top of git-guardrails.test.sh) and keeps each block case. A rule that guards a file name or a command allows a list of read forms, each with an allow case, and blocks all other forms.
 - Make one commit per changed doc file, with its `rules.tsv` rows and the check that replaces its prose.
 - Write a lesson line with the date, the key, and the commit hash (`scripts/wiki.py lesson <key> --from <file>`), and move the item to done (`scripts/wiki.py move <id> done`).
 

@@ -5,6 +5,12 @@
 # handback-guard.sh, the hook that refuses a hand-back while a background task runs, agent-clock.sh,
 # the hook that stops a subagent after 90 active minutes, and write-guard.sh, the hook that refuses a
 # Write over an existing run file. Run by `make check`.
+# Each rule kind has one helper that runs its cases over a shared list of forms. Add a form to the
+# list, not a lone case:
+#   chain rule (a command after a command): expect_each_join <first> <second>
+#   AppleScript rule: expect_each_form <want> <line>...
+#   guarded file: expect_each_write <path> (block forms) and expect_each_read <path> (allow forms)
+#   command guard (a command in a shell context): expect_each_context <want> <command>
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -14,11 +20,15 @@ input="$(mktemp)"
 tmp="$(mktemp -d)"
 trap 'rm -f "$input"; rm -rf "$tmp"' EXIT
 
+# expect <want> <command> [<run_in_background> [<timeout>]]: the optional values (true or false, and
+# milliseconds) go to tool_input as the Bash tool gives them.
 expect() {
-  local want="$1" command="$2" got
+  local want="$1" command="$2" background="${3:-}" limit="${4:-}" got
   plutil -create xml1 "$input"
   plutil -insert tool_input -dictionary "$input"
   plutil -insert tool_input.command -string "$command" "$input"
+  [[ -z "$background" ]] || plutil -insert tool_input.run_in_background -bool "$background" "$input"
+  [[ -z "$limit" ]] || plutil -insert tool_input.timeout -integer "$limit" "$input"
   plutil -convert json "$input"
   "$hook" < "$input" 2>/dev/null
   [[ $? -eq 2 ]] && got=block || got=allow
@@ -889,6 +899,35 @@ for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m
   'scripts/with-lock.sh make test-filter FILTER=X' 'scripts/with-lock.sh swift test' \
   'scripts/with-lock.sh scripts/probe.sh f swift build' "scripts/with-lock.sh scripts/probe.sh '/x y/f' swift build"; do
   expect_each_join "$first" "$ld"
+done
+
+# A command guard must hold in each shell context, not only in the contexts that a gate found one at a
+# time (the DLV-210 guard failed open in five review rounds). expect_each_context <block|allow>
+# <command> runs <command> in one shared list: a block context runs it as code (a group, a redirect, a
+# comment line with an apostrophe around it, a shell heredoc, a $(...), a cd prefix), and an allow
+# context holds it as data (quotes, a commit message heredoc, a cat heredoc). @C@ is the command.
+# The two optional values after <command> go to each case (see expect).
+context_block=(
+  '( @C@ )' '{ @C@; }' '@C@ >log' '@C@>log'
+  $'# it\'s here\n@C@\n# that\'s all'
+  $'bash <<\'EOF\'\n@C@\nEOF'
+  'x=$(@C@)' 'echo "$(@C@)"'
+  'cd /x/wt && @C@' "cd '/x y/wt' && @C@"
+)
+context_allow=(
+  "echo '@C@'" 'echo "@C@"'
+  $'git commit -F - <<\'EOF\'\n@C@\nEOF'
+  $'cat <<\'EOF\'\n@C@\nEOF'
+)
+expect_each_context() {
+  local want="$1" cmd="$2" ctx
+  local -a forms=("${context_block[@]}")
+  [[ "$want" == block ]] || forms=("${context_allow[@]}")
+  for ctx in "${forms[@]}"; do expect "$want" "${ctx//@C@/$cmd}" "${@:3}"; done
+}
+for run in 'bash scripts/land.test.sh' 'make test-hooks' 'scripts/test-hooks.sh'; do
+  expect_each_context block "$run"
+  expect_each_context allow "$run"
 done
 
 # A repo hook or script test runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare bash run

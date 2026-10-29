@@ -84,7 +84,7 @@ extension HeaderStateLineTests {
         return (Self.bands(red), low.map { 3 * lane - $0 })
     }
 
-    /// Row texts in the seven languages of the app: no view of a row goes past the right padding,
+    /// Row texts in each language of the app: no view of a row goes past the right padding,
     /// at each gate width, in 50 pt and 100 pt lanes. The retry-stopped text has no line limit: in
     /// the 100 pt lanes, at a width where the English text is whole and ends 2 pt or more above the
     /// lane bottom, the text of each language is whole and ends there too. A width where the

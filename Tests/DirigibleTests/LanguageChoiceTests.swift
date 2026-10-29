@@ -16,6 +16,7 @@ struct LanguageChoiceTests {
         #expect(LanguageChoice.language(.italian).appleLanguages == ["it"])
         #expect(LanguageChoice.language(.dutch).appleLanguages == ["nl"])
         #expect(LanguageChoice.language(.portuguese).appleLanguages == ["pt"])
+        #expect(LanguageChoice.language(.portuguesePortugal).appleLanguages == ["pt-PT"])
     }
 
     /// C8: the pop-up lists the endonyms in the order of `AppLanguage`.
@@ -23,6 +24,7 @@ struct LanguageChoiceTests {
         #expect(
             AppLanguage.allCases.map(\.endonym) == [
                 "Deutsch", "English", "Español", "Français", "Italiano", "Nederlands", "Português (Brasil)",
+                "Português (Portugal)",
             ])
     }
 
@@ -35,7 +37,10 @@ struct LanguageChoiceTests {
         (["fr"], .language(.french)), (["fr", "es"], .language(.french)), (["fr-CA"], .language(.french)),
         (["it-CH"], .language(.italian)),
         (["nl-BE"], .language(.dutch)),
-        (["pt-PT"], .language(.portuguese)), (["pt-BR"], .language(.portuguese)),
+        (["pt-BR"], .language(.portuguese)), (["pt"], .language(.portuguese)),
+        (["pt-PT"], .language(.portuguesePortugal)), (["pt-AO"], .language(.portuguesePortugal)),
+        (["pt-MZ"], .language(.portuguesePortugal)), (["ja", "pt-PT"], .language(.portuguesePortugal)),
+        (["en", "pt-PT"], .language(.english)),
     ])
     func readMapsTheStoredValue(stored: [String], choice: LanguageChoice) {
         #expect(LanguageChoice(stored: stored) == choice)

@@ -98,12 +98,18 @@ struct AppBundleTests {
         let english = try propertyList(at: "Contents/Resources/en.lproj/Localizable.strings")
         let record = [
             "de": "Aufnehmen", "en": "Record", "es": "Grabar", "fr": "Enregistrer", "it": "Registra", "nl": "Neem op",
-            "pt": "Gravar",
+            "pt": "Gravar", "pt-PT": "Gravar",
         ]
         for language in AppLanguage.allCases.map(\.rawValue) {
             let table = try propertyList(at: "Contents/Resources/\(language).lproj/Localizable.strings")
             #expect(table["menu.record.start"] as? String == record[language], "\(language) menu.record.start")
         }
+        // The Gravar pins of pt and pt-PT are the same, so this key is the control that pt-PT is
+        // its own table: a copy of the pt table gives Adicionar Pista.
+        let european = try propertyList(at: "Contents/Resources/pt-PT.lproj/Localizable.strings")
+        let brazilian = try propertyList(at: "Contents/Resources/pt.lproj/Localizable.strings")
+        #expect(european["menu.track.add"] as? String == "Adicionar faixa", "pt-PT menu.track.add")
+        #expect(brazilian["menu.track.add"] as? String == "Adicionar Pista", "pt menu.track.add")
         // App sources (A7, A9, A14, A15).
         let texts: [(key: String, en: String, es: String)] = [
             ("track.state.waiting.app", "Waiting for %@", "Esperando a %@"),

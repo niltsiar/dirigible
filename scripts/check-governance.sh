@@ -45,6 +45,9 @@
 # - With a run folder, scripts/check-eval-keys.sh passes on this tree: each evals.md key that the
 #   branch adds or changes has an eval folder of the run with its exact key text and a scores.tsv line.
 # - The done runs of the holdout stop are the log statuses `done`, `done:`, and `done,`.
+# - With a run folder, each ID in a rerun-due.txt of an eval* folder (grade.py verdict: a policy miss under
+#   six runs that six runs can still pass) has scores.tsv rows in another eval* folder of the run whose
+#   scores.tsv is newer than that rerun-due.txt. A rerun in the same folder replaces its rerun-due.txt.
 # scripts/check-governance.test.sh tests it.
 set -euo pipefail
 
@@ -305,6 +308,23 @@ if [[ -n "$run" && -s "$run/eval/holdout-fails.txt" ]]; then
             break
         done <<<"$done_runs"
     done < <(failed_holdouts "$run/eval/holdout-fails.txt")
+fi
+# A rerun due ID is no fail yet, but the land waits for its pooled verdict: the same folder after a
+# rerun with a new tag (the folder replaces its rerun-due.txt), or a later eval* folder with rows of it.
+if [[ -n "$run" ]]; then
+    for due in "$run"/eval*/rerun-due.txt; do
+        [[ -s "$due" ]] || continue
+        folder="$(dirname "$due")"
+        while read -r kind id _; do
+            [[ "$kind" == policy ]] || continue
+            id="${id%:}" cleared=
+            for scores in "$run"/eval*/scores.tsv; do
+                [[ "$(dirname "$scores")" != "$folder" && "$scores" -nt "$due" ]] || continue
+                awk -F'\t' -v id="$id" '$2 == id { found = 1 } END { exit !found }' "$scores" && { cleared=1; break; }
+            done
+            [[ -n "$cleared" ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; run scripts/eval/run.sh again in that eval folder with a new tag" >&2; fail=1; }
+        done < "$due"
+    done
 fi
 if [[ -n "$run" ]] && ! "$here/check-plan.sh" "$run"; then
     echo "check-governance: check-plan.sh $run failed" >&2

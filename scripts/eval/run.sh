@@ -36,9 +36,9 @@ trap cleanup EXIT
 
 # One call at a time in an eval folder (the lock .run-lock holds the pid). A verdict comes only when
 # each requested ID has RUNS scored rows in both sets.
-# Exit: 0 verdict PASS (or the agent rows scored), 1 verdict FAIL, 2 bad input, 3 a session or a
-# check failed. A failed session stops the sessions that still run. An INT stops them all and
-# exits 130, a TERM exits 143.
+# Exit: 0 verdict PASS (or the agent rows scored), 1 verdict FAIL or RERUN DUE, 2 bad input, 3 a
+# session or a check failed. A failed session stops the sessions that still run. An INT stops them
+# all and exits 130, a TERM exits 143.
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd -P)"

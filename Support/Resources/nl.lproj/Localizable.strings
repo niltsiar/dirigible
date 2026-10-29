@@ -114,6 +114,7 @@
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episode";
 "inspector.tab.marker" = "Marker";
+"inspector.tab.transcript" = "Transcript";
 "marker.none" = "Geen markering";
 "marker.name" = "Naam";
 "marker.url" = "Link";
@@ -415,6 +416,8 @@
 "menu.view.loudness.hide" = "Verberg luidheidsmeter";
 "menu.view.inspector.show" = "Toon infovenster";
 "menu.view.inspector.hide" = "Verberg infovenster";
+"menu.view.transcript.show" = "Toon transcript";
+"menu.view.transcript.hide" = "Verberg transcript";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Geen selectie";
@@ -614,6 +617,7 @@
 "error.transcript.empty" = "Het transcript heeft geen woord op de tijdlijn, dus er zijn geen ondertitels om te schrijven.";
 "error.transcript.gone" = "Het transcript staat niet meer in de sessie, dus er is geen bestand geschreven.";
 "error.transcript.unloaded" = "Het bestand van het transcript ontbreekt of is beschadigd. Importeer het transcript opnieuw met een agent of het commando dirigible.";
+"transcript.notloaded" = "Transcript %lld (%@): het bestand ontbreekt of is beschadigd, dus de woorden worden niet getoond.";
 "menu.file.export.transcript" = "Exporteer transcript…";
 
 /* Start window */

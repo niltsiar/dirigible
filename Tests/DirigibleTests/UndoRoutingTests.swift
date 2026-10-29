@@ -82,6 +82,11 @@ import Testing
         #expect(undoTarget(firstResponder: NSWindow()) == .session)
     }
 
+    /// The read-only text of the Transcript tab is no text for the keys: Command-Z undoes the session.
+    @Test func theTranscriptTextIsTheSessionTarget() {
+        #expect(undoTarget(firstResponder: TranscriptTextView(usingTextLayoutManager: true)) == .session)
+    }
+
     private func openWithOneTrack() async throws -> (SessionWindow, NSWindow) {
         let model = await app.open(try folder.package("undo"))
         let studio = try #require(await model.opened() ? model.studio : nil)

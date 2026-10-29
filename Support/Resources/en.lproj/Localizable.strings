@@ -114,6 +114,7 @@
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episode";
 "inspector.tab.marker" = "Marker";
+"inspector.tab.transcript" = "Transcript";
 "marker.none" = "No Marker";
 "marker.name" = "Name";
 "marker.url" = "Link";
@@ -415,6 +416,8 @@
 "menu.view.loudness.hide" = "Hide Loudness Meter";
 "menu.view.inspector.show" = "Show Inspector";
 "menu.view.inspector.hide" = "Hide Inspector";
+"menu.view.transcript.show" = "Show Transcript";
+"menu.view.transcript.hide" = "Hide Transcript";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "No Selection";
@@ -614,6 +617,7 @@
 "error.transcript.empty" = "The transcript has no word on the timeline, so there are no subtitles to write.";
 "error.transcript.gone" = "The transcript is no longer in the session, so no file was written.";
 "error.transcript.unloaded" = "The file of the transcript is missing or damaged. Import the transcript again with an agent or the dirigible command.";
+"transcript.notloaded" = "Transcript %lld (%@): its file is missing or damaged, so its words do not show.";
 "menu.file.export.transcript" = "Export Transcript…";
 
 /* Start window */

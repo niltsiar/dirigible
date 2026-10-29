@@ -322,6 +322,14 @@ Each add and each typed value is one step in the undo history, and VoiceOver say
 
 Drag the left edge of the inspector to make it wider or narrower, from 240 to 400 pt. In a narrow window, the inspector can be narrower than the width that you set, because the timeline keeps its minimum width. A line in the accent color shows the new edge, and the inspector takes the width when you release the mouse button. New windows keep the width. Double-click the edge to go back to the standard width.
 
+### Read the transcript in the inspector
+
+Choose **View > Show Transcript** (Shift-Command-T) to show the inspector at the **Transcript** tab. The pane shows the words of the transcripts of the session as text, in paragraphs. Each paragraph has a header with the track name and the time of its first word, for example "Host · 0:01:05". A pause of 1.5 seconds on a track, and a change of track, start a new paragraph. A short reply of another track, under 1 second, shows as its own line with the track name, "Guest: Mm-hm.", and does not break the paragraph. The text follows each edit of the audio: a word that you cut goes from the text.
+
+The command moves the keyboard focus to the text, with the text cursor at the first word of the paragraph at the playhead, so VoiceOver reads from there. The **Transcript** tab makes the inspector at least 320 pt wide, and the window gets wider if it needs to. The width that you set does not change, and the other tabs use it. A click on the **Transcript** tab shows the tab and keeps the focus where it was. With the tab shown, the menu item reads **Hide Transcript**, and it hides the inspector. A selection in the lanes does not change the tab.
+
+The keys work as they do in the lanes: Space plays, and Command-Z undoes the session. The text itself is read-only. If a transcript file is missing or damaged, a line above the text names the transcript, and the words of the other transcripts still show.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip in the selection. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
@@ -805,6 +813,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Snap** | **Ajuste** | N |
 | **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |
 | **Show Inspector** / **Hide Inspector** | **Mostrar inspector** / **Ocultar inspector** | Option-Command-I |
+| **Show Transcript** / **Hide Transcript** | **Mostrar transcripción** / **Ocultar transcripción** | Shift-Command-T |
 
 ### Markers
 

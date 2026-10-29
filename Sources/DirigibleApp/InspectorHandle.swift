@@ -31,7 +31,7 @@ final class InspectorHandleView: NSView {
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .splitter }
     override func accessibilityLabel() -> String? { L10n.inspectorHandle.text }
-    override func accessibilityValue() -> Any? { model?.inspectorWidth.points }
+    override func accessibilityValue() -> Any? { model?.shownInspectorWidth }
 
     override func accessibilityPerformIncrement() -> Bool {
         model?.stepInspector(by: 20)
@@ -59,7 +59,7 @@ extension SessionWindow {
         guard let step = inspectorDrag.handle(event, width: inspectorPreview ?? inspectorWidth) else { return }
         if inspectorDrag.isActive {
             // The guide shows from the first drag, so a click shows no line.
-            if case .drag = event { inspectorPreview = fitted(step.width) }
+            if case .drag = event { inspectorPreview = atLeastTranscript(fitted(step.width)) }
         } else {
             inspectorPreview = nil
             setInspectorWidth(step.width, save: step.save)
@@ -78,7 +78,12 @@ extension SessionWindow {
     /// first, so the later mouse-up does not undo the step.
     func stepInspector(by points: Double) {
         _ = cancelInspectorDrag()
-        setInspectorWidth(fitted(InspectorWidth(inspectorWidth.points + points)), save: true)
+        setInspectorWidth(fitted(InspectorWidth(shownInspectorWidth + points)), save: true)
+    }
+
+    /// The target of a drag stops at 320 pt on the Transcript tab (P20).
+    private func atLeastTranscript(_ width: InspectorWidth) -> InspectorWidth {
+        inspectorTab == .transcript ? InspectorWidth(max(width.points, Self.transcriptMinimumWidth)) : width
     }
 
     /// The width inside the room of the window, its content width minus the lanes minimum: the

@@ -54,18 +54,22 @@ struct InspectorView: View {
             Picker(
                 selection: Binding(get: { model.inspectorTab }, set: { model.selectInspectorTab($0) }),
                 content: {
-                    Text(L10n.inspectorTabClip.key).tag(InspectorTab.clip)
-                    Text(L10n.inspectorTabEpisode.key).tag(InspectorTab.episode)
-                    Text(L10n.inspectorTabMarker.key).tag(InspectorTab.marker)
+                    ForEach(InspectorTab.allCases, id: \.self) { tab in
+                        Image(systemName: tab.symbol).accessibilityLabel(Text(tab.title.key)).help(tab.title.key)
+                            .tag(tab)
+                    }
                 }, label: { Text(L10n.inspectorTabs.key) }
             )
             .pickerStyle(.segmented).labelsHidden()
             .id(model.heldTabChanges)
+            Text(model.inspectorTab.title.key).font(.system(size: 13, weight: .semibold))
+                .accessibilityAddTraits(.isHeader)
             Divider()
             switch model.inspectorTab {
             case .clip: clipPane
             case .episode: EpisodeInspector(model: model, studio: studio)
             case .marker: MarkerInspector(model: model, studio: studio)
+            case .transcript: TranscriptPane(model: model, studio: studio)
             }
         }
         .padding(12)
@@ -181,7 +185,9 @@ extension SessionWindow {
         // After the flag: the focus move makes the field send its old text, which `type` ignores.
         commitInspector()
         if markerDraft?.refused == true { markerDraft = nil }
-        if inspectorFocus != nil || episodeFocus != nil || markerFocus != nil {
+        if inspectorFocus != nil || episodeFocus != nil || markerFocus != nil
+            || window?.firstResponder is TranscriptTextView
+        {
             (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
             focusLanes()
         }
@@ -259,11 +265,21 @@ extension SessionWindow {
 
     func countInspector() { inspectorRuns += 1 }
 
+    /// The least width of the Transcript tab: a line at 240 pt holds under 35 characters (P20).
+    static let transcriptMinimumWidth = 320.0
+
+    /// The width that the inspector shows: the saved width, and at least 320 pt on the Transcript
+    /// tab. The saved width does not change by this rule.
+    var shownInspectorWidth: Double {
+        inspectorTab == .transcript
+            ? max(inspectorWidth.points, Self.transcriptMinimumWidth) : inspectorWidth.points
+    }
+
     /// Widens the window to the minimum with the pane, inside the visible screen.
-    private func widenForInspector() {
+    func widenForInspector() {
         guard let window else { return }
         let missing =
-            SessionView.minWidth + inspectorWidth.points - window.contentRect(forFrameRect: window.frame).width
+            SessionView.minWidth + shownInspectorWidth - window.contentRect(forFrameRect: window.frame).width
         guard missing > 0 else { return }
         var frame = window.frame
         frame.size.width += missing

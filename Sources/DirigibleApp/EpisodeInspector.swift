@@ -4,8 +4,28 @@ import DirigibleCore
 import SwiftUI
 
 /// The tab of the inspector.
-enum InspectorTab: Hashable {
-    case clip, episode, marker
+enum InspectorTab: Hashable, CaseIterable {
+    case clip, episode, marker, transcript
+
+    /// The title: the accessibility label and the help tag of the segment, and the heading.
+    var title: L10n {
+        switch self {
+        case .clip: .inspectorTabClip
+        case .episode: .inspectorTabEpisode
+        case .marker: .inspectorTabMarker
+        case .transcript: .inspectorTabTranscript
+        }
+    }
+
+    /// The symbol of the segment: four titles do not fit the 240 pt inspector (0023).
+    var symbol: String {
+        switch self {
+        case .clip: "waveform"
+        case .episode: "mic"
+        case .marker: "flag"
+        case .transcript: "text.alignleft"
+        }
+    }
 }
 
 /// The typed text of an episode field that no commit has saved yet, and the text that the field
@@ -214,6 +234,12 @@ extension SessionWindow {
         commitInspector()
         if markerDraft?.refused == true { markerDraft = nil }
         inspectorTab = tab
+        if showsInspector { widenForInspector() }
+        // A field of another tab goes, so the keys go to the lanes and not to the window.
+        if tab == .transcript, inspectorFocus != nil || episodeFocus != nil || markerFocus != nil {
+            (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
+            focusLanes()
+        }
     }
 
     /// The end rule of a refused draft, as an AppKit formatter that keeps the focus. The draft

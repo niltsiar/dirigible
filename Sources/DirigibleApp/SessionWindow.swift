@@ -77,6 +77,8 @@ import SwiftUI
     @ObservationIgnored var inspectorFocus: InspectorField?
     /// The tab of the inspector. Not saved.
     var inspectorTab = InspectorTab.clip
+    /// The state of the Transcript pane (decision 0023).
+    let transcriptFollow = TranscriptFollow()
     /// The typed text of the episode field that no commit has saved yet.
     var episodeDraft: EpisodeDraft?
     /// The episode field with the focus, from the pane.

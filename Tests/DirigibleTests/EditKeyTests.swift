@@ -78,6 +78,8 @@ import Testing
         // Record monitor run 1b, B13: Track > Monitor Track, next to Shift-Command-M of Input Levels.
         #expect(MenuKeys.monitorTrack == KeyboardShortcut("m", modifiers: [.command, .control]), "Monitor Track")
         #expect(MenuKeys.all.contains(MenuKeys.monitorTrack), "the key rule checks Monitor Track")
+        #expect(MenuKeys.transcript == KeyboardShortcut("t", modifiers: [.command, .shift]), "Show Transcript")
+        #expect(MenuKeys.all.contains(MenuKeys.transcript), "the key rule checks Show Transcript")
     }
 
     /// Timeline-navigation N17 (U6, probe K1, plan gate item 2): a symbol or digit key with Shift

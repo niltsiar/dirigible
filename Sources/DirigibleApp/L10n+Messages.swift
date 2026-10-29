@@ -273,6 +273,25 @@ extension L10n {
         return found + " " + (one ? fill(.repairDropOne, result.drop) : fill(.repairDropMany, result.drop))
     }
 
+    /// The counts banner of Import Transcript: each count that is not zero as "Label: N", then the
+    /// names of the dropped transcripts. Nil when there is nothing to say. `text` gives the value
+    /// of a key, so a test can read a table.
+    static func transcriptImportResult(
+        skipped: Int, untimed: Int, repeated: Int, dropped: [String], text: (L10n) -> String = { $0.text }
+    ) -> String? {
+        func count(_ key: L10n, _ value: Int) -> String? {
+            value > 0 ? String(format: text(key), locale: .current, value) : nil
+        }
+        var parts = [
+            count(.bannerTranscriptSkipped, skipped), count(.bannerTranscriptUntimed, untimed),
+            count(.bannerTranscriptRepeated, repeated),
+        ].compactMap { $0 }
+        if !dropped.isEmpty {
+            parts.append(String(format: text(.bannerTranscriptDropped), dropped.joined(separator: ", ")))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ". ") + "."
+    }
+
     /// The text of a stop of playback that the user did not ask for.
     static func message(for stop: PlaybackStop) -> String {
         switch stop {

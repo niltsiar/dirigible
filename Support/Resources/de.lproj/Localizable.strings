@@ -618,6 +618,16 @@
 "error.transcript.gone" = "Das Transkript ist nicht mehr in der Session, daher wurde keine Datei geschrieben.";
 "error.transcript.unloaded" = "Die Datei des Transkripts fehlt oder ist beschädigt. Importiere das Transkript erneut mit einem Agenten oder dem Befehl dirigible.";
 "transcript.notloaded" = "Transkript %lld (%@): Die Datei fehlt oder ist beschädigt, daher werden die Wörter nicht angezeigt.";
+"menu.file.import.transcript" = "Transkript importieren …";
+"transcript.empty.title" = "Kein Transkript";
+"transcript.empty.hint" = "Importiere eine Whisper-JSON-, WebVTT- oder SRT-Datei für eine Spur.";
+"panel.transcript.track" = "Spur:";
+"alert.transcript.badfile" = "%@ ist keine Whisper-JSON-, WebVTT- oder SRT-Datei mit zeitlich festgelegten Wörtern. Die Sitzung wurde nicht geändert.";
+"alert.transcript.take" = "Das Transkript wurde nicht importiert, weil ein Take gestartet ist.";
+"banner.transcript.skipped" = "Wörter ohne Clip: %lld";
+"banner.transcript.untimed" = "Wörter ohne Zeit: %lld";
+"banner.transcript.repeated" = "Wörter über wiederholtem Audio: %lld";
+"banner.transcript.dropped" = "Verworfene Transkripte: %@";
 "menu.file.export.transcript" = "Transkript exportieren …";
 
 /* Start window */

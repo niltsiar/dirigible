@@ -330,6 +330,14 @@ The command moves the keyboard focus to the text, with the text cursor at the fi
 
 The keys work as they do in the lanes: Space plays, and Command-Z undoes the session. The text itself is read-only. If a transcript file is missing or damaged, a line above the text names the transcript, and the words of the other transcripts still show.
 
+### Import a transcript
+
+Choose **File > Import Transcript** to add the words of a Whisper JSON, WebVTT, or SRT file. The open panel has a **Track** pop-up: choose the track whose clips carry the words. It starts at the first selected track, or at the first track. The times count from the start of the timeline. The import is one step, so Undo takes the words away again. A file that is not a transcript shows an alert and changes nothing.
+
+When the import leaves words out, a banner gives each count that is not zero: **Words with no clip**, **Words with no time**, and **Words over repeated audio**. If the new file replaces a transcript that did not load, the banner names that transcript.
+
+The item is off during a take, during an import, and in a session with no track. With no transcript, the **Transcript** tab says **No transcript** and has an **Import Transcript…** button. The button does what the menu item does, and it has the same state.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip in the selection. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.
@@ -757,6 +765,7 @@ On a laptop keyboard, press Fn with an arrow key for these keys: Page Up is Fn-U
 | **Open Recent** | **Abrir recientes** | None |
 | **Clear Menu** (at the end of **Open Recent**) | **Vaciar menú** | None |
 | **Import Audio** | **Importar audio** | Command-T |
+| **Import Transcript** | **Importar transcripción** | None |
 | **Show Clips in Finder** | **Mostrar clips en el Finder** | Shift-Command-R |
 | **Export** | **Exportar** | Command-E |
 | **Export Selection** | **Exportar selección** | Shift-Command-E |

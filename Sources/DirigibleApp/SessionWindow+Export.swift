@@ -80,6 +80,7 @@ extension SessionWindow {
         case .exportChapters: canExportChapters
         case .exportTranscript: canExportTranscript
         case .importAudio: canImport
+        case .importTranscript: canImportTranscript
         case .insert, .cutSelectedTracks, .fade: importJob == nil
         case .autoLevel, .autoLevelPerTrack:
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true

@@ -128,12 +128,30 @@ struct TranscriptPane: View {
     let studio: Studio
 
     var body: some View {
-        // Both values are read here, so a new revision or a focus request runs `updateNSView`.
-        TranscriptPaneText(
-            model: model, studio: studio, revision: studio.sessionRevision,
-            wantsFocus: model.transcriptFollow.focusRequest
-        )
-        .accessibilityIdentifier("transcript.pane")
+        if studio.session.transcriptNames.isEmpty {
+            empty
+        } else {
+            // Both values are read here, so a new revision or a focus request runs `updateNSView`.
+            TranscriptPaneText(
+                model: model, studio: studio, revision: studio.sessionRevision,
+                wantsFocus: model.transcriptFollow.focusRequest
+            )
+            .accessibilityIdentifier("transcript.pane")
+        }
+    }
+
+    /// With no transcript: the title, the file types, and a button with the state of the menu item (P2).
+    private var empty: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            Text(L10n.transcriptEmptyTitle.key).font(.title3).foregroundStyle(.tertiary)
+            Text(L10n.transcriptEmptyHint.key).font(.system(size: 11)).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            Button(L10n.menuFileImportTranscript.key) { model.run(.importTranscript) }
+                .controlSize(.small).disabled(!model.isOn(.importTranscript))
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

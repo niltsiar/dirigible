@@ -618,6 +618,16 @@
 "error.transcript.gone" = "La transcripción ya no está en la sesión, así que no se escribió ningún archivo.";
 "error.transcript.unloaded" = "Falta el archivo de la transcripción o está dañado. Vuelve a importar la transcripción con un agente o con el comando dirigible.";
 "transcript.notloaded" = "Transcripción %lld (%@): falta su archivo o está dañado, así que no se muestran sus palabras.";
+"menu.file.import.transcript" = "Importar transcripción…";
+"transcript.empty.title" = "Sin transcripción";
+"transcript.empty.hint" = "Importa un archivo JSON de Whisper, WebVTT o SRT para una pista.";
+"panel.transcript.track" = "Pista:";
+"alert.transcript.badfile" = "%@ no es un archivo JSON de Whisper, WebVTT ni SRT con palabras con tiempo. La sesión no cambió.";
+"alert.transcript.take" = "No se importó la transcripción porque empezó una toma.";
+"banner.transcript.skipped" = "Palabras sin clip: %lld";
+"banner.transcript.untimed" = "Palabras sin tiempo: %lld";
+"banner.transcript.repeated" = "Palabras sobre audio repetido: %lld";
+"banner.transcript.dropped" = "Transcripciones descartadas: %@";
 "menu.file.export.transcript" = "Exportar transcripción…";
 
 /* Start window */

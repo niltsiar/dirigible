@@ -16,6 +16,9 @@ extension ChromeState {
         if let shown = model.transcriptLeftOut, shown.revision == studio.sessionRevision {
             banners.append(.transcriptLeftOut(count: shown.count, file: shown.file))
         }
+        if let shown = model.transcriptFollow.importReport, shown.revision == studio.sessionRevision {
+            banners.append(.transcriptImported(shown.text, press: shown.press))
+        }
         if let shown = model.levelReport, shown.revision == studio.sessionRevision {
             banners.append(.levelReport(shown.report, press: shown.press))
         }

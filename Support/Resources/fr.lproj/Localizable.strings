@@ -618,6 +618,16 @@
 "error.transcript.gone" = "La transcription n’est plus dans la session. Aucun fichier n’a été écrit.";
 "error.transcript.unloaded" = "Le fichier de la transcription est manquant ou endommagé. Importez de nouveau la transcription avec un agent ou la commande dirigible.";
 "transcript.notloaded" = "Transcription %lld (%@) : son fichier est manquant ou endommagé, donc ses mots ne s’affichent pas.";
+"menu.file.import.transcript" = "Importer la transcription…";
+"transcript.empty.title" = "Aucune transcription";
+"transcript.empty.hint" = "Importez un fichier JSON Whisper, WebVTT ou SRT pour une piste.";
+"panel.transcript.track" = "Piste :";
+"alert.transcript.badfile" = "%@ n’est pas un fichier JSON Whisper, WebVTT ou SRT avec des mots horodatés. La session n’a pas changé.";
+"alert.transcript.take" = "La transcription n’a pas été importée, car une prise a commencé.";
+"banner.transcript.skipped" = "Mots sans clip : %lld";
+"banner.transcript.untimed" = "Mots sans temps : %lld";
+"banner.transcript.repeated" = "Mots sur de l’audio répété : %lld";
+"banner.transcript.dropped" = "Transcriptions abandonnées : %@";
 "menu.file.export.transcript" = "Exporter la transcription…";
 
 /* Start window */

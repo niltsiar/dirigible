@@ -102,3 +102,61 @@ extension SessionWindow {
     /// file and a paste or an image fills, else the import of an agent in the studio.
     var importBarProgress: Double { importJob?.progress ?? studio?.importProgress ?? 0 }
 }
+
+extension SessionWindow {
+    /// File > Import Transcript… is on like Import Audio, and the session has a track for the words.
+    var canImportTranscript: Bool { canImport && idleStudio?.session.tracks.isEmpty == false }
+
+    /// File > Import Transcript…: the open panel as a sheet of the window, with a Track pop-up that
+    /// starts at the first selected track, else the first track.
+    func chooseTranscriptImport() {
+        guard canImportTranscript, let window, let studio = idleStudio else { return }
+        let tracks = studio.session.tracks.map { (id: $0.id, name: $0.name) }
+        let first = timeline.selection.headerTracks(in: studio.session).first ?? tracks[0].id
+        ExportPanel.beginTranscriptImport(for: window, tracks: tracks, selected: first) { [weak self] target in
+            guard let target else { return }
+            self?.importTranscript(from: target.url, track: target.track)
+        }
+    }
+
+    /// Imports the transcript file at `url` through the clips of `track`, with the times from
+    /// timeline frame 0 (decision 0055). The read and the parse run off the main actor. From the
+    /// panel answer to the edit, the import is a job, so the item and the pane button are off. The
+    /// import is one edit, so it is one undo step; a file that does not parse changes nothing.
+    func importTranscript(from url: URL, track: TrackID) {
+        commitDrafts()
+        guard canImportTranscript else { return }
+        importJob = ImportJob(visible: false)
+        let read = Task.detached { () -> TranscriptFile? in
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            return try? TranscriptFile(data: data)
+        }
+        importJob?.task = Task { [weak self] in
+            let file = await read.value
+            self?.finishTranscriptImport(file, from: url, track: track)
+            self?.importJob = nil
+        }
+    }
+
+    private func finishTranscriptImport(_ file: TranscriptFile?, from url: URL, track: TrackID) {
+        guard let file else {
+            alert = .transcriptImport(L10n.alertTranscriptBadFile.format(url.lastPathComponent))
+            return
+        }
+        guard let studio = idleStudio, studio.pendingTake == nil else {
+            alert = .transcriptImport(L10n.alertTranscriptTake.text)
+            return
+        }
+        let name = url.deletingPathExtension().lastPathComponent
+        let report = edit(ripple: false) { s throws(SessionError) in
+            try s.importTranscript(file, name: name, track: track, at: .zero)
+        }
+        guard let report,
+            let text = L10n.transcriptImportResult(
+                skipped: report.skipped, untimed: report.untimed, repeated: report.repeated, dropped: report.dropped)
+        else { return }
+        transcriptFollow.importPresses += 1
+        transcriptFollow.importReport = TranscriptImportShown(
+            text: text, revision: studio.sessionRevision, press: transcriptFollow.importPresses)
+    }
+}

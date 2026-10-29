@@ -308,6 +308,21 @@ import Testing
         await model.close()
     }
 
+    /// The marquee border follows Increase Contrast like the playhead and the guide: 2 pt on, 1 pt off.
+    @Test func theMarqueeBorderFollowsIncreaseContrast() async throws {
+        let (model, _, window, view) = try await lanes()
+        let layer = view.lanes.marquee
+        for (contrast, width) in [(true, 2.0), (false, 1.0)] {
+            view.lanes.increasesContrast = contrast
+            view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 10), in: view, flags: .shift))
+            view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 300, y: 60), in: view, flags: .shift))
+            #expect(!layer.isHidden && layer.borderWidth == width, "increases contrast \(contrast)")
+            view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 60), in: view, flags: .shift))
+        }
+        window.close()
+        await model.close()
+    }
+
     /// The tester steps of run 2026-10-15-split-no-cut: t1 has a cut at 480,000 (x 937.5 pt). A
     /// click on the right part of t1, a ruler click at the cut (a seek to it), and a click on c2
     /// select c2 with the playhead inside it. Split then cuts c2 at the playhead.

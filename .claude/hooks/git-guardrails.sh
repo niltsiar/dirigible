@@ -510,6 +510,8 @@ fi
 # node, ssh, make, source, and the like) and only a > file follows the marker; an unquoted body with
 # $( or a backtick stays code. The text of a $(...) or a backtick pair inside double quotes stays code.
 # The text read is the one that keeps the body of an interpreter heredoc (it runs the body).
+# By then chain_text has made each run of tabs one space, so the end line of a <<- heredoc may have
+# leading spaces.
 mask_quoted_data() {
   python3 -I -c '
 import re
@@ -588,7 +590,7 @@ def bodies(i, pending):
             end = text.find("\n", pos)
             end = n if end < 0 else end
             line = text[pos:end]
-            if (line.lstrip("\t") if dash else line) == marker:
+            if (line.lstrip(" ") if dash else line) == marker:
                 break
             if end >= n:
                 return i

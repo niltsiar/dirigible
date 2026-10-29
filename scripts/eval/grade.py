@@ -278,10 +278,9 @@ def verdict(old, new):
         print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
         if typ[s] == "policy":
             policy = 3 * pn >= 2 * rn
-            # A miss that the second count passes is an unasked fail: the fix is the question or the key.
             excused = not policy and 3 * passes2.get((s, new), 0) >= 2 * rn
-            # Under six runs, a miss that six runs can still pass (four of six) is due for a rerun, not a fail.
-            # A holdout, an unasked fail, and a scenario with an unasked majority keep their lines.
+            # A rerun is due when six runs can still pass the miss (four of six). A holdout, an unasked
+            # fail, and a scenario with an unasked majority keep their lines.
             due = not policy and not excused and not s.startswith("H") and s not in majority and rn < 6 and pn + 6 - rn >= 4
             if excused:
                 unasked_fail = True

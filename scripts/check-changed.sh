@@ -41,7 +41,8 @@
 # the push exits 1: the push runs the full targets. A local git run with no FILTER whose targets
 # have test or check prints the three lines and exits 1: the full suite runs only in the push
 # check. A local git run with FILTER whose targets have no test-filter prints the three lines and
-# exits 1: it would run no test. The mode --paths keeps the targets (a probe of the table).
+# exits 1: it would run no test. With no changed path, FILTER gives the target test-filter and one
+# stderr note. The mode --paths keeps the targets (a probe of the table).
 # A local run with check-fast (and no check) adds the word HOOK_TESTS=<tests>: the tests of the
 # changed paths from Makefile HOOK_TESTS, joined with commas, so make gets one word and
 # scripts/test-hooks.sh splits it. A path of class tooling or comments needs a test: the entry
@@ -515,6 +516,11 @@ fi
 # switch. The FILTER rewrite makes check-fast of check, so this comes after it.
 if [[ $push == 0 && " $targets " == *" check-fast "* && " $targets " != *" HOOK_TESTS="* ]]; then
     targets+=" DIRIGIBLE_HOOKS_ALL=1"
+fi
+# A local git run with FILTER and no changed path runs the named tests: no path needs another target.
+if [[ $mode == git && $push == 0 && -n "${FILTER:-}" && -z "$paths" ]]; then
+    targets=test-filter
+    echo "check-changed: no changed path; FILTER runs only the named tests" >&2
 fi
 echo "classes: ${classes:-none}"
 echo "targets: ${targets:-none}"

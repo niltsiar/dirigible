@@ -303,8 +303,8 @@ private let sameAsEnglish: [String: Set<String>] = [
 ]
 
 /// The problems of the tables against the keys, in a stable order: per table (by language code),
-/// the missing or empty values, then the extra keys; then the keys whose specifiers differ from
-/// English.
+/// the missing or empty values, then the extra keys; then the keys whose specifiers or final
+/// ellipsis (U+2026) differ from English.
 func tableProblems(_ tables: [String: [String: String]], keys: [String]) -> [String] {
     let ordered = tables.sorted { $0.key < $1.key }
     var problems: [String] = []
@@ -320,6 +320,13 @@ func tableProblems(_ tables: [String: [String: String]], keys: [String]) -> [Str
             guard let reference = english[key], let value = table[key] else { continue }
             let (a, b) = (specifiers(reference), specifiers(value))
             if a != b { problems.append("\(key): specifiers \(a) in en, \(b) in \(language)") }
+            let ellipsis = "\u{2026}"
+            if reference.hasSuffix(ellipsis) != value.hasSuffix(ellipsis) {
+                problems.append(
+                    reference.hasSuffix(ellipsis)
+                        ? "\(key): ellipsis in en, none in \(language)"
+                        : "\(key): no ellipsis in en, one in \(language)")
+            }
         }
     }
     return problems

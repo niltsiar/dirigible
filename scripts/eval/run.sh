@@ -191,10 +191,12 @@ build b "$hash_b"
 # Sessions: start_session runs one command in the background; await_sessions waits for all of them.
 S_NAME=() S_PID=() S_PRE=() S_EXPECT=()
 stop_sessions() {
-    local pid
-    for pid in ${S_PID[@]+"${S_PID[@]}"}; do
-        pkill -TERM -P "$pid" 2>/dev/null
-        kill "$pid" 2>/dev/null
+    local i
+    for i in ${S_PID[@]+"${!S_PID[@]}"}; do
+        # A session that wrote its status has ended and gave its pid back.
+        [[ ! -s ${S_PRE[i]}.status ]] || continue
+        pkill -TERM -P "${S_PID[i]}" 2>/dev/null
+        kill "${S_PID[i]}" 2>/dev/null
     done
     wait
 }

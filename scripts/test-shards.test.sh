@@ -227,7 +227,12 @@ grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args
 : > "$tmp/hang.pid"
 : > "$tmp/args.log" && : > "$tmp/lock.log"
 # The lock marker skips the with-lock.sh wrap, so the TERM and the exit code are the script's own.
-(cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 FAKE_SLOW=d1 DIRIGIBLE_FULL_SUITE=1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
+# kill logs each pid that has ended when a signal goes to it: the number can belong to another process.
+: > "$tmp/stale.log"
+(STALE_LOG="$tmp/stale.log"; export STALE_LOG
+    kill() { local a; if [[ "$1" != -0 ]]; then for a in "$@"; do [[ "$a" =~ ^[0-9]+$ ]] && ! builtin kill -0 "$a" 2>/dev/null && echo "$a" >> "$STALE_LOG"; done; fi; builtin kill "$@"; }
+    export -f kill
+    cd / && exec env PATH="$tmp/bin:$PATH" TEST_SHARDS=3 FAKE_HANG=c1 FAKE_SLOW=d1 DIRIGIBLE_FULL_SUITE=1 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" \
     "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1 &
 pid=$!
 for _ in $(seq 100); do [[ -s "$tmp/hang.pid" ]] && break; sleep 0.1; done
@@ -244,6 +249,7 @@ kill -TERM "$pid"
 wait "$pid"
 code=$?
 [[ $code -eq 143 ]] || fail "term: exit $code, want 143"
+[[ ! -s "$tmp/stale.log" ]] || fail "term: stop signalled a shard that had ended (pid $(tr '\n' ' ' < "$tmp/stale.log"))"
 [[ "$(grep -c '^test-shards: shard .* stopped' "$tmp/out")" -eq 1 ]] || fail "term: not only the running shard named: $(grep stopped "$tmp/out")"
 sleep 0.5
 ! kill -0 "$(cat "$tmp/hang.pid")" 2>/dev/null || fail "term: a test process is alive"

@@ -86,7 +86,10 @@ fi
 pids=() names=()
 stop() {
     local p
-    for p in ${pids[@]+"${pids[@]}"}; do kill -TERM "$p" 2>/dev/null; done
+    # A shard that ended gave its number back: signal a pid only while it is still a child of this shell.
+    for p in ${pids[@]+"${pids[@]}"}; do
+        [[ "$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')" != "$$" ]] || kill -TERM "$p" 2>/dev/null
+    done
     for p in ${pids[@]+"${pids[@]}"}; do wait "$p" 2>/dev/null; done
 }
 interrupted() {

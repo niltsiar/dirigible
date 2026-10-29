@@ -159,10 +159,11 @@ import Testing
     /// C20 and U22: the suffix pair of each UI language.
     @Test func eachLanguageHasItsSuffixPair() throws {
         let pairs = [
-            "en": ["L", "R"], "es": ["I", "D"], "pt": ["E", "D"], "de": ["L", "R"], "fr": ["G", "D"],
-            "it": ["S", "D"], "nl": ["L", "R"],
+            "en": ["L", "R"], "es": ["I", "D"], "pt": ["E", "D"], "pt-PT": ["E", "D"], "de": ["L", "R"],
+            "fr": ["G", "D"], "it": ["S", "D"], "nl": ["L", "R"],
         ]
-        for (language, pair) in pairs {
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let pair = try #require(pairs[language], "\(language) has no suffix pair in this test")
             let table = try stringsTable(language)
             #expect(
                 [table[L10n.splitSuffixLeft.rawValue], table[L10n.splitSuffixRight.rawValue]] == pair, "\(language)")

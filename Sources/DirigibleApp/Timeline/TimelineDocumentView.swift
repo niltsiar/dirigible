@@ -249,9 +249,11 @@ final class TimelineDocumentView: NSView {
             height: bounds.height)
     }
 
-    /// The marquee at `rect` in document points; nil hides it.
+    /// The marquee at `rect` in document points with the width rule of the playhead; nil hides it.
     func showMarquee(_ rect: Rect?) {
-        effectiveAppearance.performAsCurrentDrawingAppearance { marquee.show(rect.map(NSRect.init)) }
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            marquee.show(rect.map(NSRect.init), width: increasesContrast ? 2 : 1)
+        }
     }
 
     /// The box of a clip in the document view: the box of `LaneGeometry` (decision 0020).

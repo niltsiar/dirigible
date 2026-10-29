@@ -7,17 +7,12 @@ description: "Layered technical-writing standard: Diátaxis structure, Google de
 
 The goal is writing a tired engineer understands on the first read. Four layers get you there, one question each: what kind of document is this, how do sentences address the reader, how much does each sentence carry, and can any sentence be read two ways. Apply all four.
 
-In this repo the STE layer is not optional. Every document, plan, commit message, code comment, review finding, and ledger entry follows it.
-
-Three rules sit above the layers:
+Two rules sit above the layers:
 
 - **Cut every word that does no work.** If the sentence survives without a word, the word goes. "In order to" is "to". "It is important to note that" is nothing.
-- **Use the short, everyday word.** "Use", not "utilize". "Help", not "facilitate". "Do", not "perform". A long word has to buy its length with precision.
 - **When a rule makes a sentence worse, fix the sentence another way or leave it alone.** The rules serve the reader. A sentence that follows every rule and sounds like a machine wrote it has failed.
 
 The codebase is the word list. Write the real symbol, file, flag, or command name, not a synonym or a description of it.
-
-Don't invent jargon. Use the words a developer would say out loud: "move", "delete", "a budget that only decreases", not "evacuate", "ratchet", or "endgame". A named pattern is fine when the doc says what it means the first time. Propose a new offender and its replacement as an addition to `unslop`'s abstract-metaphor rule in your reply, with the diff. Don't edit that skill.
 
 ## Vary the rhythm
 
@@ -54,7 +49,6 @@ Source: diataxis.fr, fetched 2026-07-18.
 ## Write sentences to the reader (Google developer style)
 
 - Talk to the reader as "you", in the present tense. "Will" only for things that genuinely happen later.
-- Say who does what: "the compiler checks", not "is checked". Passive is fine only when the actor is unknown or beside the point.
 - Write instructions as commands: "Click Submit." State facts plainly. Never "should be done".
 - Put the condition before the instruction: "To delete the document, click Delete." The reader skips what does not apply.
 - Put the common case first. Exceptions after.
@@ -104,13 +98,3 @@ Source: Kohl, The Global English Style Guide (SAS Press). Guideline text fetched
 - A PR body: the **writing-for-humans** skill.
 - Product UI strings are not documentation, but they follow the STE layer too: short, active, one word per action. The UI languages are in 0010 (English is the default); code, docs, and commits are English.
 - Indent Swift snippets with four spaces, as the code does. Write real paths and real symbols. Make every count or tree claim true at the commit that lands it, and include the command that regenerates it.
-
-## Worked example
-
-Before:
-
-> Configuration of the proto import ratchet budget script parameters is performed via budget.json. Note that it's important to remember that running with --write, which updates the committed budget to reflect the current count, should only be done when lowering it. If exceeded, CI fails.
-
-After:
-
-> `budget.mjs` reads the committed budget from `budget.json` and counts the files that import protos. If the count exceeds the budget, CI fails. Run `budget.mjs --write` only to lower the budget.

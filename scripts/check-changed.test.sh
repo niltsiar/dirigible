@@ -279,13 +279,14 @@ new_repo
 printf 'a2\n' >> "$tmp/r/docs/a.md"
 got="$(run_in)" || fail "a docs path, no FILTER: exit $?"
 [[ "$got" == "$(out docs check-docs no)" ]] || fail "a docs path, no FILTER: got [$got]"
-# FILTER with a change that picks no test (a docs change, or a clean tree): exit 1 with the reason.
-# A FILTER run with only check-docs would pass with no test run. The mode --paths keeps exit 0.
+# FILTER on a clean tree: the named tests run (test-filter), with one stderr note. FILTER with a
+# change that picks no test (a docs change): exit 1 with the reason. A FILTER run with only check-docs
+# would pass with no test run. The mode --paths keeps exit 0.
 new_repo
 got="$(FILTER=ClipTests run_in 2> "$tmp/refuse.err")"
 code=$?
-[[ $code -eq 1 ]] || fail "a clean tree with FILTER: expected exit 1, got $code"
-grep -qF 'make test-filter FILTER=' "$tmp/refuse.err" || fail "a clean tree with FILTER: no reason: $(cat "$tmp/refuse.err")"
+[[ $code -eq 0 && "$got" == "$(out none test-filter no)" ]] || fail "a clean tree with FILTER: expected exit 0 and test-filter, got exit $code and [$got]"
+grep -qF 'FILTER runs only the named tests' "$tmp/refuse.err" || fail "a clean tree with FILTER: no note: $(cat "$tmp/refuse.err")"
 printf 'a3\n' >> "$tmp/r/docs/a.md"
 got="$(FILTER=ClipTests run_in 2> "$tmp/refuse.err")"
 code=$?
@@ -957,8 +958,8 @@ PATH="$tmp/bin:$PATH" make_case 'make check-changed with SINCE' '' SINCE="$sref"
 # with one stderr line (the count, the merge base, and the SINCE or BASE form) and prints nothing on
 # stdout: the commits would otherwise report targets: none. A clean tree at or behind origin/main,
 # with no origin/main, or with an origin/main that shares no commit with HEAD keeps the three lines
-# and exit 0. SINCE, a base, FILTER, a changed file, and the modes --paths, --floor, and --wait-load
-# keep their result.
+# and exit 0. SINCE, a base, a changed file, and the modes --paths, --floor, and --wait-load keep
+# their result. FILTER gives test-filter and exit 0, with one stderr note.
 ahead_repo() {
   local i
   new_repo
@@ -1008,7 +1009,7 @@ code=$?
 [[ $code -eq 1 && "$(cat "$tmp/bare.err")" == 'check-changed: no changed paths against main' ]] || fail "past origin/main with a base: exit $code, stderr [$(cat "$tmp/bare.err")]"
 got="$(FILTER=X run_in 2> "$tmp/bare.err")"
 code=$?
-[[ $code -eq 1 && "$got" == "$(out none none no)" && "$(cat "$tmp/bare.err")" == *'FILTER is set'* && "$(cat "$tmp/bare.err")" != *'give SINCE'* ]] ||
+[[ $code -eq 0 && "$got" == "$(out none test-filter no)" && "$(cat "$tmp/bare.err")" == *'FILTER runs only the named tests'* && "$(cat "$tmp/bare.err")" != *'give SINCE'* ]] ||
   fail "past origin/main with FILTER: exit $code, got [$got], stderr [$(cat "$tmp/bare.err")]"
 # A changed path keeps the targets and exit 0, and the commits that the run does not check get one
 # stderr note. SINCE, FILTER, and a run at origin/main get none.

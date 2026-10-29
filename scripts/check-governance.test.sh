@@ -4,7 +4,8 @@
 # TOTAL change that is not near the sum of the workflow docs, more always-on words (AGENTS.md, CLAUDE.md,
 # the files they import, the descriptions of the skills and agents) than the merge base, more skills plus
 # agents than the merge base, more than one rules.tsv removal in a docs-only branch of a run with a
-# reflect row (in a cut run, a removal row with no class: or found by: instead), a rules.tsv row that changes to delete with a reason that does not start with stale: or no-op:, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
+# reflect row (in a cut run, a removal row with no class: or found by: instead), a cut-run merge row with no kept: text or
+# with a text of fewer than 5 words or a text that no file of its target row holds on one line at HEAD, a rules.tsv row that changes to delete with a reason that does not start with stale: or no-op:, a run folder that check-plan.sh refuses (an open Unknowns row), a run research
 # file with no docs/research copy (a base commit since the run start date also counts), a holdout fail in this run and in the newest done run that ran it, and a
 # taken item of the run with status next in the wiki after the reflect row (phase 8), a features.md row
 # of the base that the branch loses, a run number that is not the next of its release, a done run number of the base that the branch loses, a run.md `- Lands:` line whose F-ID keeps its features.md state, and a feat,
@@ -218,7 +219,10 @@ new_repo; reflect_row; three; commit
 refuse 'three removals with no user decision row' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
 # A cut run (`- Cut run: <item id>` in run.md) has no one-removal cap; each removal row needs class: and found by:.
 fields='stale: x; class: a rule that no check needed; found by: check-x'
-three_cut() { printf '%s\nA-1\ta.md\tdelete\t\t%s\ts\t\tx\nA-2\ta.md\tmerge\tA-1\t%s\ts\t\tx\nA-3\ta.md\tdelete\t\t%s\ts\t\tx\n' "$head_rules" "$1" "$1" "${2:-$1}" > "$rules"; }
+three_cut() {
+  printf '%s\nA-1\tdocs/a.md\tdelete\t\t%s\ts\t\tx\nA-2\ta.md\tmerge\tA-1\t%s; kept: "Rule one keeps this line"\ts\t\tx\nA-3\ta.md\tdelete\t\t%s\ts\t\tx\n' "$head_rules" "$1" "$1" "${2:-$1}" > "$rules"
+  printf 'Rule one keeps this line in the file.\n' > "$tmp/r/docs/a.md"
+}
 cut_run() { printf -- '- Status: open\n- Cut run: 1234\n' > "$tmp/run/run.md"; }
 new_repo; reflect_row; cut_run; three_cut "$fields"; commit
 pass 'three removals with fields in a cut run' "$tmp/run"
@@ -228,6 +232,35 @@ new_repo; reflect_row; cut_run; three_cut "$fields" 'stale: x; found by: check-x
 refuse 'a removal with no class in a cut run' 'A-3 changes to delete or merge in a cut run' "$tmp/run"
 new_repo; reflect_row; printf -- '- Status: open\n' > "$tmp/run/run.md"; three_cut "$fields"; commit
 refuse 'three removals with fields and no cut run line' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
+# In a cut run, with or without a reflect row, a row that changes to merge quotes the text of its target
+# that keeps each removed sentence: kept: "<text>", on one line of a file of the target row on HEAD.
+# kept_cut <reason part> [<target>]: A-2 merges into the target (A-1 by default), a keep row of docs/a.md.
+kept_cut() {
+  printf '%s\nA-1\tdocs/a.md\tkeep\tdocs/a.md\tr\ts\t\tx\nA-2\ta.md\tmerge\t%s\t%s; %s\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "${2:-A-1}" "$fields" "$1" > "$rules"
+  printf 'Rule one keeps this line in the file.\nRule two keeps that other line too.\n' > "$tmp/r/docs/a.md"
+}
+new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"'; commit
+pass 'a cut-run merge whose kept text is in the target file' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"; kept: "Rule two keeps that other line"'; commit
+pass 'a cut-run merge with two kept texts in the target file' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "keeps this line in the"'; commit
+pass 'a cut-run merge whose kept text has exactly 5 words' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "this line in the"'; commit
+refuse 'a cut-run merge whose kept text has fewer than 5 words' 'A-2 quotes kept: "this line in the", which has fewer than 5 words' "$tmp/run"
+new_repo; cut_run; kept_cut 'duplicate of A-1'; commit
+refuse 'a cut-run merge with no kept text' 'A-2 changes to merge in a cut run; its reason needs a kept:' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "a line that is gone"'; commit
+refuse 'a cut-run merge whose kept text is not in the target file' 'A-2 quotes kept: "a line that is gone"' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"; kept: "Rule three says nothing here"'; commit
+refuse 'a cut-run merge whose second kept text is not in the target file' 'A-2 quotes kept: "Rule three says nothing here"' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "this line in the file. Rule two"'; commit
+refuse 'a cut-run merge whose kept text spans two lines' 'A-2 quotes kept: "this line in the file. Rule two"' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "Rule three says nothing here"'; commit; echo 'Rule three says nothing here.' >> "$tmp/r/docs/a.md"
+refuse 'a cut-run merge whose kept text is only in the work tree' 'A-2 quotes kept: "Rule three says nothing here"' "$tmp/run"
+new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"' A-9; commit
+refuse 'a cut-run merge into a target with no row' 'A-2 merges into A-9, which has no row' "$tmp/run"
+new_repo; printf -- '- Status: open\n' > "$tmp/run/run.md"; kept_cut 'duplicate of A-1'; commit
+pass 'a merge with no kept text and no cut run line' "$tmp/run"
 
 # A row that changes to delete has a reason that starts with stale: or no-op: and gives the evidence
 # (reflect rule 7), on any branch. A merge row and a row that was delete at the base are free.

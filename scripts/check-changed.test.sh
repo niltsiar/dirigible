@@ -224,14 +224,16 @@ for p in $floor; do
 done
 
 # Floor split files: a file <floor stem>+*.swift of a floor file is on the floor, so a split cannot leave it.
+# The list comes from git, not the work tree: make test-hooks checks out only the floor paths of Sources/.
 for p in $floor; do
   [[ $p == */ ]] && continue
-  base="${p##*/}"
-  while IFS= read -r f; do
-    rel="${f#"$repo"/}"
+  stem="${p##*/}"
+  stem="${stem%.swift}"
+  while IFS= read -r rel; do
+    [[ "${rel##*/}" == "$stem"+*.swift ]] || continue
     [[ "$(cd "$e" && "$script" --paths <<<"$rel")" == *'classes: sources-risk'* ]] \
       || fail "floor split files: $rel splits the floor file $p and is not on the floor; add it in check-changed.sh"
-  done < <(find "$repo/Sources" -type f -name "${base%.swift}+*.swift")
+  done < <(git -C "$repo" ls-files -- Sources/)
 done
 
 # A temporary repo with one commit on main.

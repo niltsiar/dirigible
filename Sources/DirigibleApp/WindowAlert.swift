@@ -21,4 +21,6 @@ enum WindowAlert: Hashable {
     case noUnusedFiles(UnusedFiles)
     /// File > Export Transcript wrote no file.
     case transcriptExport(TranscriptExportError)
+    /// File > Import Transcript changed nothing: the text of the reason.
+    case transcriptImport(String)
 }

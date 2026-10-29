@@ -618,6 +618,16 @@
 "error.transcript.gone" = "A transcrição não está mais na sessão, então nenhum arquivo foi gravado.";
 "error.transcript.unloaded" = "O arquivo da transcrição está ausente ou danificado. Importe a transcrição de novo com um agente ou com o comando dirigible.";
 "transcript.notloaded" = "Transcrição %lld (%@): o arquivo está ausente ou danificado, então as palavras não aparecem.";
+"menu.file.import.transcript" = "Importar Transcrição…";
+"transcript.empty.title" = "Sem transcrição";
+"transcript.empty.hint" = "Importe um arquivo JSON do Whisper, WebVTT ou SRT para uma faixa.";
+"panel.transcript.track" = "Faixa:";
+"alert.transcript.badfile" = "%@ não é um arquivo JSON do Whisper, WebVTT ou SRT com palavras temporizadas. A sessão não foi alterada.";
+"alert.transcript.take" = "A transcrição não foi importada, porque uma tomada começou.";
+"banner.transcript.skipped" = "Palavras sem clipe: %lld";
+"banner.transcript.untimed" = "Palavras sem tempo: %lld";
+"banner.transcript.repeated" = "Palavras sobre áudio repetido: %lld";
+"banner.transcript.dropped" = "Transcrições descartadas: %@";
 "menu.file.export.transcript" = "Exportar Transcrição…";
 
 /* Start window */

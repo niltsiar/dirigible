@@ -618,6 +618,16 @@
 "error.transcript.gone" = "Het transcript staat niet meer in de sessie, dus er is geen bestand geschreven.";
 "error.transcript.unloaded" = "Het bestand van het transcript ontbreekt of is beschadigd. Importeer het transcript opnieuw met een agent of het commando dirigible.";
 "transcript.notloaded" = "Transcript %lld (%@): het bestand ontbreekt of is beschadigd, dus de woorden worden niet getoond.";
+"menu.file.import.transcript" = "Importeer transcript…";
+"transcript.empty.title" = "Geen transcript";
+"transcript.empty.hint" = "Importeer een Whisper-JSON-, WebVTT- of SRT-bestand voor een spoor.";
+"panel.transcript.track" = "Spoor:";
+"alert.transcript.badfile" = "%@ is geen Whisper-JSON-, WebVTT- of SRT-bestand met woorden met tijden. De sessie is niet gewijzigd.";
+"alert.transcript.take" = "Het transcript is niet geïmporteerd, omdat een take begon.";
+"banner.transcript.skipped" = "Woorden zonder clip: %lld";
+"banner.transcript.untimed" = "Woorden zonder tijd: %lld";
+"banner.transcript.repeated" = "Woorden over herhaalde audio: %lld";
+"banner.transcript.dropped" = "Verworpen transcripts: %@";
 "menu.file.export.transcript" = "Exporteer transcript…";
 
 /* Start window */

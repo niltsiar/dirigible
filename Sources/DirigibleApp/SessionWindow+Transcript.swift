@@ -5,6 +5,9 @@ import Observation
 @Observable @MainActor final class TranscriptFollow {
     /// True from View > Show Transcript until the pane has the focus. The pane may not exist yet.
     var focusRequest = false
+    /// The counts banner of the last Import Transcript.
+    var importReport: TranscriptImportShown?
+    @ObservationIgnored var importPresses = 0
 }
 
 extension SessionWindow {

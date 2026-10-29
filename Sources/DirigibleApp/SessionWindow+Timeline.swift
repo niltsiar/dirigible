@@ -69,7 +69,8 @@ enum TimelineCommand: Hashable {
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
     case split, nudgeLeft, nudgeRight, fade, heal
     case addMarker, addChapter, markerInfo, moveMarker, deleteMarker, previousMarker, nextMarker
-    case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
+    case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, importTranscript, export,
+        exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
     case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, repairSound, restoreOriginal
@@ -112,8 +113,8 @@ enum TimelineCommand: Hashable {
         case .deselectAll, .selectAll, .cut, .copy, .paste: false
         // A text field does nothing with Command-T (run 13a, C9).
         case .importAudio, .export, .exportSelection, .exportChapters, .episodeInfo: false
-        // Export Transcript has no key.
-        case .exportTranscript: false
+        // Export Transcript and Import Transcript have no key.
+        case .exportTranscript, .importTranscript: false
         case .autoLevel, .autoLevelPerTrack: false
         // Duck Music Under Speech... has no key (plan gate 1 item 3).
         case .duck: false
@@ -256,6 +257,7 @@ extension SessionWindow {
         case .raiseVolume, .lowerVolume, .resetVolume: changeVolume(command, studio)
         case .showInFinder: Task { await showClipsInFinder() }
         case .importAudio: chooseImport()
+        case .importTranscript: chooseTranscriptImport()
         case .export: Task { await export(.session) }
         case .exportSelection: Task { await export(.selection) }
         case .exportChapters: exportChapters()

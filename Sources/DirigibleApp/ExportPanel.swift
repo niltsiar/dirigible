@@ -187,6 +187,55 @@ extension ExportPanel {
     }
 }
 
+/// The file and the track that the open panel of Import Transcript answered.
+struct TranscriptImportTarget {
+    let url: URL
+    let track: TrackID
+}
+
+extension ExportPanel {
+    /// The open panel of Import Transcript: a Whisper JSON, WebVTT, or SRT file, and a Track
+    /// pop-up that starts at `selected`.
+    @MainActor static func beginTranscriptImport(
+        for window: NSWindow, tracks: [(id: TrackID, name: String)], selected: TrackID,
+        done: @escaping @MainActor (TranscriptImportTarget?) -> Void
+    ) {
+        let choice = TranscriptImportChoice(track: selected)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json] + ["vtt", "srt"].compactMap { UTType(filenameExtension: $0) }
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.accessoryView = NSHostingView(rootView: TranscriptImportAccessory(choice: choice, tracks: tracks))
+        panel.beginSheetModal(for: window) { response in
+            MainActor.assumeIsolated {
+                guard response == .OK, let url = panel.url else { return done(nil) }
+                done(TranscriptImportTarget(url: url, track: choice.track))
+            }
+        }
+    }
+}
+
+@Observable @MainActor private final class TranscriptImportChoice {
+    var track: TrackID
+
+    init(track: TrackID) { self.track = track }
+}
+
+private struct TranscriptImportAccessory: View {
+    @Bindable var choice: TranscriptImportChoice
+    let tracks: [(id: TrackID, name: String)]
+
+    var body: some View {
+        Form {
+            Picker(L10n.panelTranscriptTrack.key, selection: $choice.track) {
+                ForEach(tracks, id: \.id) { track in Text(verbatim: track.name).tag(track.id) }
+            }
+        }
+        .padding()
+        .frame(width: 420)
+    }
+}
+
 /// The values of the pop-ups of the save panel of Export Transcript.
 @Observable @MainActor private final class TranscriptChoice {
     var format = SubtitleFormat.srt

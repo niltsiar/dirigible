@@ -26,6 +26,13 @@ struct DenoiseReportShown: Equatable {
     let press: Int
 }
 
+/// The counts banner of the last Import Transcript, and the session revision after it.
+struct TranscriptImportShown: Equatable {
+    let text: String
+    let revision: Int
+    let press: Int
+}
+
 /// The banner of the last duck that found no speech or did not read a speech file, and the
 /// session revision after it.
 struct DuckReportShown: Equatable {
@@ -65,6 +72,8 @@ enum WindowBanner: Equatable {
     case noiseReduced(clips: Int, treatment: Treatment, press: Int)
     /// The result of a Repair Sound run (decision 0064). The press number makes a new key for each run.
     case soundRepaired(RepairResult, press: Int)
+    /// What the last Import Transcript skipped or dropped. The press number makes a new key.
+    case transcriptImported(String, press: Int)
     /// The files that Remove Unused Files moved to the Trash: the count and the bytes (decision 0047).
     case unusedFilesMoved(count: Int, bytes: Int64)
     /// The files that Remove Unused Files did not move: they stay in `Clips/`.
@@ -123,6 +132,7 @@ enum WindowBanner: Equatable {
         case .levelReport(_, let press): "levelReport.\(press)"
         case .noiseReduced(_, _, let press): "denoiseReport.\(press)"
         case .soundRepaired(_, let press): "repairReport.\(press)"
+        case .transcriptImported(_, let press): "transcriptImported.\(press)"
         case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
         case .consentExpired: "consentExpired"
@@ -135,7 +145,8 @@ enum WindowBanner: Equatable {
     var kind: Kind {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
-            .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken:
+            .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
+            .transcriptImported:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired: .info
@@ -159,6 +170,7 @@ enum WindowBanner: Equatable {
         case .titleMissing(let file): L10n.bannerExportTitleMissing.format(file)
         case .transcriptLeftOut(let count, let file): L10n.bannerTranscriptLeftOut.format(file, count)
         case .levelReport(let report, _): L10n.message(for: report)
+        case .transcriptImported(let text, _): text
         case .noiseReduced(0, _, _): L10n.denoiseUnchanged.text
         case .noiseReduced(let clips, let treatment, _): L10n.denoiseResult(clips: clips, treatment: treatment)
         case .soundRepaired(let result, _): L10n.repairResult(result)
@@ -180,7 +192,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
-            .levelReport, .noiseReduced, .soundRepaired, .unusedFilesMoved,
+            .levelReport, .noiseReduced, .soundRepaired, .transcriptImported, .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken:
             .medium
         }

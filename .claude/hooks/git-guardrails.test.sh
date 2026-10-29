@@ -942,7 +942,7 @@ bg_jobs=(
   'scripts/land.sh "t" x/pr.md'
   'scripts/mutation-pass.sh wt batch.txt'
   'scripts/swift-test.sh' 'scripts/test-shards.sh' 'scripts/bench.sh Foo' 'scripts/bench-pairs.sh Foo'
-  'scripts/sanitize.sh thread' 'make build' 'swift build'
+  'scripts/sanitize.sh thread' 'scripts/flake-monitor/loop.sh --min-load 4 t 1 5 out' 'make build' 'swift build'
   'bash .scratchpads/loop.sh' 'sh .scratchpads/loop.sh' 'zsh .scratchpads/loop.sh'
 )
 for job in "${bg_jobs[@]}"; do

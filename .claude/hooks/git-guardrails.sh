@@ -501,24 +501,185 @@ fi
 # backtick) is read from its start, after the prefix words (NAME=value, time, env, probe.sh <folder>,
 # and the like). It blocks a shell word (sh, bash, zsh, with a path) with flags other than -n and then
 # a .test.sh path, and a bare .test.sh path. A with-lock.sh word in the prefix, bash -n, and a path
-# under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a wrapper word that the prefix
-# does not hold (nice, nohup, caffeinate).
+# under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a
+# wrapper word that the prefix does not hold (nice, nohup, caffeinate).
+# The segments are read from the text with each separator inside a quoted string, and each data
+# heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. The text
+# of a $(...) or a backtick pair inside double quotes, and a shell heredoc body, stay code.
+mask_quoted_data() {
+  python3 -I -c '
+import re
+import sys
+
+text = sys.stdin.read()
+n = len(text)
+out = []
+SQ = chr(39)
+FREE = re.compile(r"[;&|()`\n]")
+HEAD = re.compile(r"\s*(cat|tee)(\s+[^\s;&|<>()`]+|\s*>>?\s*[^\s;&|<>()`]+)*\s*")
+TAIL = re.compile(r"\s*(>>?\s*[^\s;&|<>()`]+)?\s*")
+HERE = re.compile(r"<<(-?)[ \t]*(\\?[A-Za-z0-9_.-]+|" + SQ + r"[A-Za-z0-9_.-]+" + SQ + r"|\"[A-Za-z0-9_.-]+\")")
+
+
+def neutral(chunk):
+    return FREE.sub(" ", chunk)
+
+
+def single(i):
+    j = text.find(SQ, i + 1)
+    if j < 0:
+        out.append(text[i:])
+        return n
+    out.append(SQ + neutral(text[i + 1 : j]) + SQ)
+    return j + 1
+
+
+def ansi(i):
+    j = i + 2
+    while j < n and text[j] != SQ:
+        j += 2 if text[j] == "\\" else 1
+    if j >= n:
+        out.append(text[i:])
+        return n
+    out.append("$" + SQ + neutral(text[i + 2 : j]) + SQ)
+    return j + 1
+
+
+def double(start):
+    mark = len(out)
+    out.append("\"")
+    i = start + 1
+    while i < n:
+        c = text[i]
+        if c == "\\" and i + 1 < n:
+            out.append(neutral(text[i : i + 2]))
+            i += 2
+        elif c == "\"":
+            out.append(c)
+            return i + 1
+        elif text.startswith("$(", i):
+            out.append("$(")
+            i = scan(i + 2, ")")
+            if i < n:
+                out.append(")")
+            i += 1
+        elif c == "`":
+            out.append(c)
+            i = scan(i + 1, "`")
+            if i < n:
+                out.append(c)
+            i += 1
+        else:
+            out.append(neutral(c))
+            i += 1
+    del out[mark:]
+    out.append(text[start:])
+    return n
+
+
+def bodies(i, pending):
+    for marker, dash, quoted, data in pending:
+        pos = i
+        while True:
+            end = text.find("\n", pos)
+            end = n if end < 0 else end
+            line = text[pos:end]
+            if (line.lstrip("\t") if dash else line) == marker:
+                break
+            if end >= n:
+                return i
+            pos = end + 1
+        after = min(end + 1, n)
+        body = text[i:pos]
+        if not (data and (quoted or ("$(" not in body and "`" not in body))):
+            out.append(text[i:after])
+        i = after
+    return i
+
+
+def scan(i, end):
+    depth = 0
+    seg = ""
+    pending = []
+    while i < n:
+        c = text[i]
+        if c == "\\" and i + 1 < n:
+            out.append(text[i : i + 2])
+            seg += "x"
+            i += 2
+        elif c == SQ:
+            i = single(i)
+            seg += "x"
+        elif c == "\"":
+            i = double(i)
+            seg += "x"
+        elif text.startswith("$" + SQ, i):
+            i = ansi(i)
+            seg += "x"
+        elif text.startswith("$(", i):
+            out.append("$(")
+            i = scan(i + 2, ")")
+            if i < n:
+                out.append(")")
+            i += 1
+            seg = ""
+        elif text.startswith("<<", i) and not text.startswith("<<<", i) and HERE.match(text, i):
+            m = HERE.match(text, i)
+            raw = m.group(2)
+            line_end = text.find("\n", m.end())
+            rest = text[m.end() : n if line_end < 0 else line_end]
+            data = bool(HEAD.fullmatch(seg)) and bool(TAIL.fullmatch(rest))
+            pending.append((raw.lstrip("\\").strip(SQ + "\""), bool(m.group(1)), raw[0] in "\\" + SQ + "\"", data))
+            out.append(m.group(0))
+            seg += m.group(0)
+            i = m.end()
+        elif c == "\n":
+            out.append(c)
+            seg = ""
+            i += 1
+            if pending:
+                i = bodies(i, pending)
+                pending = []
+        elif c == end and depth == 0:
+            return i
+        elif c in ";&|()`":
+            if end == ")" and c == "(":
+                depth += 1
+            elif end == ")" and c == ")":
+                depth -= 1
+            out.append(c)
+            seg = ""
+            i += 1
+        else:
+            out.append(c)
+            seg += c
+            i += 1
+    return n
+
+
+scan(0, None)
+sys.stdout.write("".join(out))
+' || block "cannot be checked for a .test.sh run (python3 failed)"
+}
 test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
-test_segments="$chained_data"
-for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
-while IFS= read -r segment; do
-  [[ "$segment" =~ ^[[:space:]]?($test_pre)(.*)$ ]] || continue
-  prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
-  [[ "$prefix" == *with-lock.sh* ]] && continue
-  if [[ "$rest" =~ ^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+(.*)$ ]]; then
-    [[ "${BASH_REMATCH[3]}" == *n* ]] && continue
-    rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
-  fi
-  if [[ "$rest" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then
-    block "runs a repo .test.sh with no lock" "Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
-  fi
-done <<< "$test_segments"
+lock_way="Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
+if [[ "$chained_data" == *.test.sh* ]]; then
+  test_segments="$(mask_quoted_data <<< "$chained_data")" || exit 2
+  for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
+  while IFS= read -r segment; do
+    [[ "$segment" =~ ^[[:space:]]?($test_pre)(.*)$ ]] || continue
+    prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+    [[ "$prefix" == *with-lock.sh* ]] && continue
+    if [[ "$rest" =~ ^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+(.*)$ ]]; then
+      [[ "${BASH_REMATCH[3]}" == *n* ]] && continue
+      rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+    fi
+    if [[ "$rest" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then
+      block "runs a repo .test.sh with no lock" "$lock_way"
+    fi
+  done <<< "$test_segments"
+fi
 
 # A subagent never runs a lock wait with no limit: after a second exit 75 it returns to the lead,
 # which runs the wait in the background (AGENTS.md, Commands). The input of a subagent holds

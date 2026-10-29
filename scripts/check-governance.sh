@@ -322,7 +322,7 @@ if [[ -n "$run" ]]; then
                 [[ "$(dirname "$scores")" != "$folder" && "$scores" -nt "$due" ]] || continue
                 awk -F'\t' -v id="$id" '$2 == id { found = 1 } END { exit !found }' "$scores" && { cleared=1; break; }
             done
-            [[ -n "$cleared" ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; run scripts/eval/run.sh again in that eval folder with a new tag" >&2; fail=1; }
+            [[ -n "$cleared" ]] || { echo "check-governance: $(basename "$folder")/rerun-due.txt: $id is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, as a background run (AGENTS.md, Commands); a subagent returns to the lead" >&2; fail=1; }
         done < "$due"
     done
 fi

@@ -505,8 +505,11 @@ fi
 # make -n, and a .test.sh path under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a
 # wrapper word that the prefix does not hold (nice, nohup, caffeinate).
 # The segments are read from the text with each separator inside a quoted string, and each data
-# heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. The text
-# of a $(...) or a backtick pair inside double quotes, and a shell heredoc body, stay code.
+# heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. A
+# heredoc body is data when no word before the marker is a shell or an interpreter (sh, bash, python3,
+# node, ssh, make, source, and the like) and only a > file follows the marker; an unquoted body with
+# $( or a backtick stays code. The text of a $(...) or a backtick pair inside double quotes stays code.
+# The text read is the one that keeps the body of an interpreter heredoc (it runs the body).
 mask_quoted_data() {
   python3 -I -c '
 import re
@@ -517,7 +520,7 @@ n = len(text)
 out = []
 SQ = chr(39)
 FREE = re.compile(r"[;&|()`\n]")
-HEAD = re.compile(r"\s*(cat|tee)(\s+[^\s;&|<>()`]+|\s*>>?\s*[^\s;&|<>()`]+)*\s*")
+CODE = re.compile(r"(?:(?:ba|z|da|k)?sh|python[0-9.]*|node|perl|ruby|php|osascript|eval|source|ssh|make|\.)")
 TAIL = re.compile(r"\s*(>>?\s*[^\s;&|<>()`]+)?\s*")
 HERE = re.compile(r"<<(-?)[ \t]*(\\?[A-Za-z0-9_.-]+|" + SQ + r"[A-Za-z0-9_.-]+" + SQ + r"|\"[A-Za-z0-9_.-]+\")")
 
@@ -629,7 +632,8 @@ def scan(i, end):
             raw = m.group(2)
             line_end = text.find("\n", m.end())
             rest = text[m.end() : n if line_end < 0 else line_end]
-            data = bool(HEAD.fullmatch(seg)) and bool(TAIL.fullmatch(rest))
+            code = any(CODE.fullmatch(w.rsplit("/", 1)[-1]) for w in seg.split())
+            data = not code and bool(TAIL.fullmatch(rest))
             pending.append((raw.lstrip("\\").strip(SQ + "\""), bool(m.group(1)), raw[0] in "\\" + SQ + "\"", data))
             out.append(m.group(0))
             seg += m.group(0)
@@ -667,8 +671,8 @@ hooks_path="[\"']?([^[:space:]\"']*/)?test-hooks\.sh[\"']?([[:space:])}<>]|\$)"
 make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
 lock_way="Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
-if [[ "$chained_data" == *.test.sh* || "$chained_data" == *test-hooks* ]]; then
-  test_segments="$(mask_quoted_data <<< "$chained_data")" || exit 2
+if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
+  test_segments="$(mask_quoted_data <<< "$chained")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
   while IFS= read -r segment; do
     [[ "$segment" =~ ^[[:space:]]?($test_pre)(.*)$ ]] || continue

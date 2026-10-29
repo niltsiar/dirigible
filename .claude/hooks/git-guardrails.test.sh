@@ -930,6 +930,27 @@ for run in 'echo "$(bash scripts/land.test.sh)"' $'bash <<\'EOF\'\nbash scripts/
   expect_message "HOOK_TESTS='<names>'" "$run"
 done
 
+# A heredoc body is data when the head word of its line is not a shell or an interpreter (code gate 2
+# of 2026-10-28-upkeep-sixth, Act on 2): a commit message or a pull request body from stdin that
+# names a test file after ( or ; passes, with a quoted or an unquoted marker. A shell, an
+# interpreter, a pipe to a shell, and an unquoted body with $( or a backtick stay code.
+for run in $'git commit -F - <<\'EOF\'\ntest(hooks): the case (bash scripts/land.test.sh) passes; scripts/land.test.sh stays\nEOF' \
+  $'gh pr create --title t --body-file - <<\'EOF\'\nRun (bash scripts/land.test.sh) first\nthen; scripts/land.test.sh\nEOF' \
+  $'git commit -F - <<EOF\nthe case (bash scripts/land.test.sh) passes; scripts/land.test.sh stays\nEOF' \
+  $'git commit -F - <<"EOF"\nthe case (bash scripts/land.test.sh) passes\nEOF' \
+  $'git commit -F - <<-\'EOF\'\n\tthe case (bash scripts/land.test.sh) passes\n\tEOF' \
+  $'git commit -F - <<\'EOF\'\nthe case $(bash scripts/land.test.sh) stays text\nEOF' \
+  $'cd ../wt && git commit -F - <<\'EOF\'\nthe case (bash scripts/land.test.sh) passes\nEOF'; do
+  expect allow "$run"
+done
+for run in $'cat <<\'EOF\' | bash\nbash scripts/land.test.sh\nEOF' $'bash -s <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
+  $'/bin/sh <<\'EOF\'\n(bash scripts/land.test.sh)\nEOF' $'sudo bash <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
+  $'python3 - <<\'EOF\'\n(bash scripts/land.test.sh)\nEOF' \
+  $'git commit -F - <<EOF\nthe case $(bash scripts/land.test.sh) runs\nEOF' \
+  $'git commit -F - <<EOF\nthe case `bash scripts/land.test.sh` runs\nEOF'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+
 # A bare make test-hooks and a bare scripts/test-hooks.sh run every hook test with no lock (Act on 4).
 # A with-lock.sh word in the prefix, bash -n, and a read of the file pass.
 for run in 'make test-hooks' 'make -C ../wt test-hooks' 'DIRIGIBLE_FULL_SUITE=1 make test-hooks' 'make test-hooks 2>&1 | tail -3' \

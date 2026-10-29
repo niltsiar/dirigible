@@ -138,7 +138,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F124 | A second copy of each take on a second disk | REAPER; tester 2026-10-11 | Later | R6 |
 | F125 | Episode metadata in WAV and FLAC, a three-state explicit flag, keywords, and category | Hindenburg | Later | R10 |
 | F126 | Fade curves: linear, S-curve, and -3 dB | Final Cut Pro, Logic | Later | R7 |
-| F127 | Marquee selection of clips | Logic, Final Cut Pro | Release 4 | R7 |
+| F127 | Marquee selection of clips | Logic, Final Cut Pro | done, Release 4 run 27 (moved from Later) | R7 |
 | F128 | A short automatic fade at each cut | Hindenburg | Later | R7 |
 | F129 | An output device choice for playback | brief R7 | Later | R7 |
 | F130 | Snap to a time grid, and snap of a marker drag | Logic, Final Cut Pro; tester 2026-10-04 | Later | R7 |

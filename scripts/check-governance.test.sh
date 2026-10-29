@@ -125,10 +125,10 @@ new_repo; more_refs 500; run_row; total "$(( $(tsum) + 10 ))" "$cite"; commit
 refuse 'a TOTAL raised 2 % over the sum' 'is not the sum of the workflow docs' "$tmp/run"
 new_repo; more_refs 500; run_row; total "$(( $(tsum) + 1 ))" "$cite"; commit
 refuse 'a TOTAL raised to sum + 1 with a valid citation' 'is not the sum of the workflow docs' "$tmp/run"
-new_repo; g switch -q main; more_refs 500; total "$(tsum)" baseline; g commit -qam 'more docs'; g switch -q feat/x
+new_repo; g switch -q main; more_refs 500; total "$(tsum)" baseline; g commit -qam 'more docs'; g switch -q -C feat/x
 printf 'x y\n' > "$tmp/r/.claude/skills/s/references/r.md"; total "$(( $(tsum) + 2 ))" cut; commit
 pass 'a TOTAL lowered to 2.5 % over the sum'
-new_repo; g switch -q main; more_refs 500; total "$(tsum)" baseline; g commit -qam 'more docs'; g switch -q feat/x
+new_repo; g switch -q main; more_refs 500; total "$(tsum)" baseline; g commit -qam 'more docs'; g switch -q -C feat/x
 printf 'x y\n' > "$tmp/r/.claude/skills/s/references/r.md"; total "$(( $(tsum) + 10 ))" cut; commit
 refuse 'a TOTAL lowered to 12 % over the sum' 'is not the sum of the workflow docs'
 new_repo; more_refs 500; run_row; total "$(( $(tsum) - 10 ))" "$cite"; commit

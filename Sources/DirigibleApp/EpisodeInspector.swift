@@ -227,6 +227,12 @@ extension SessionWindow {
     /// The Clip, Episode, or Marker tab of the inspector. The typed text of the panes is saved
     /// first. A refused episode draft keeps the Episode tab; a refused marker draft goes.
     func selectInspectorTab(_ tab: InspectorTab) {
+        // A field of another tab goes first, so the keys go to the lanes and not to the window. A
+        // field that loses the focus after the commit sends its stale text back as a new draft.
+        if tab == .transcript, inspectorFocus != nil || episodeFocus != nil || markerFocus != nil {
+            (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
+            focusLanes()
+        }
         if tab != .episode, holdsRefusedEpisode() {
             heldTabChanges += 1
             return
@@ -235,11 +241,6 @@ extension SessionWindow {
         if markerDraft?.refused == true { markerDraft = nil }
         inspectorTab = tab
         if showsInspector { widenForInspector() }
-        // A field of another tab goes, so the keys go to the lanes and not to the window.
-        if tab == .transcript, inspectorFocus != nil || episodeFocus != nil || markerFocus != nil {
-            (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
-            focusLanes()
-        }
     }
 
     /// The end rule of a refused draft, as an AppKit formatter that keeps the focus. The draft

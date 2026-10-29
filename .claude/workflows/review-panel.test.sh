@@ -2,7 +2,7 @@
 # Run the lens selection of review-panel.js with real args and stub agents: the default lenses and
 # maxRounds of each target, the convergence prompt of each round after round 1, an explicit lens
 # list, a named lens outside its gates, an unknown key,
-# an empty selection, a paths scope with no changed file, the read limits of the lens and skeptic
+# an empty selection, a paths scope with no changed file, paths at a plan gate (ignored, with a log line), the read limits of the lens and skeptic
 # prompts, and the absolute run paths of a worktree call. Check that only warning and critical
 # findings go to a skeptic, that the skeptic is the typed agent of .claude/agents/skeptic.md with a
 # fallback of the model and effort of that file, the fallback for an agent file that a worktree diff
@@ -227,6 +227,14 @@ async function expectThrow(name, args, pattern, files = ['a.sh']) {
   await expectThrow('only an unknown key', { target: 'diff', lenses: ['nope'] }, /no lens/)
   await expectThrow('an empty lens list', { target: 'diff', lenses: [] }, /no lens/)
   await expectThrow('a paths scope with no changed file', { target: 'diff', paths: ['no/such/path'] }, /no changed file/, [])
+  // A plan gate takes the paths of the doc lenses (interrogate Step 3), runs, and logs that it ignores
+  // them: a plan has no diff to limit. A paths value that is not a non-empty list still throws.
+  const DOC = ['context-engineering', 'harness-engineering', 'eval-engineering']
+  const planPaths = await expectKeys('paths at a plan gate', { target: 'plan', lenses: DOC, paths: PATHS }, DOC)
+  if (planPaths && !planPaths.logs.some(m => m.includes('ignores') && m.includes(PATHS[0]))) fail(`paths at a plan gate: no log line names the ignored paths: ${JSON.stringify(planPaths.logs)}`)
+  if (planPaths && planPaths.labels.includes('scope')) fail('paths at a plan gate: the diff scope step ran')
+  await expectThrow('an empty paths list at a plan gate', { target: 'plan', paths: [] }, /non-empty list/)
+  await expectThrow('a paths string at a plan gate', { target: 'plan', paths: 'AGENTS.md' }, /non-empty list/)
   // A diff with no changed file (the main checkout of a branch in a worktree) stops the panel too.
   await expectThrow('a diff with no changed file', { target: 'diff' }, /no changed file/, [])
   await expectNits('a lens with only nits', [finding('nit', 'nit one'), finding('nit', 'nit two')], { verify: false, nits: ['nit one', 'nit two'] })

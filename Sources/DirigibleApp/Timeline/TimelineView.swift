@@ -185,6 +185,7 @@ final class TimelineScrollView: NSScrollView {
         lanes.inputs = drawn
         lanes.showReadout(gesture.readout, at: lanePoint)
         lanes.showGuide(gesture.guide)
+        lanes.showMarquee(gesture.marquee)
         // The strip shows the committed session, never a preview: it renders at the mouse-up.
         if !gesture.isActive, let source {
             let session = source.session

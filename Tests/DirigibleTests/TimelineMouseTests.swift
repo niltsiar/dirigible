@@ -264,19 +264,46 @@ import Testing
         await model.close()
     }
 
-    /// Criterion 10: a Shift-drag from the move zone of c1 extends the Marks and moves nothing.
-    @Test func aShiftDragOnAClipExtendsAndMovesNothing() async throws {
+    /// A Shift-drag from the move zone of c1 draws a marquee (decision 0038): no clip lies whole in
+    /// it, so the selection goes, the Marks stay, and nothing moves.
+    @Test func aShiftDragOnAClipDrawsAMarqueeAndMovesNothing() async throws {
         let (model, studio, window, view) = try await lanes()
         let before = studio.session
-        model.timeline.marks = Marks(inPoint: 0, outPoint: 51_200, tracks: ["t2"])
+        let marks = Marks(inPoint: 0, outPoint: 51_200, tracks: ["t2"])
+        model.timeline.marks = marks
 
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 10), in: view, flags: .shift))
         view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 300, y: 10), in: view, flags: .shift))
         #expect(view.lanes.inputs?.session == before, "no preview")
         view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 10), in: view, flags: .shift))
 
-        #expect(model.timeline.marks == Marks(inPoint: 0, outPoint: 153_600, tracks: ["t1", "t2"]))
+        #expect(model.timeline.selection == .none)
         #expect(studio.session == before && !studio.canUndo)
+        window.close()
+        await model.close()
+    }
+
+    /// C11: the marquee layer shows the rectangle from the press to the pointer at each drag event,
+    /// and hides at the up and at Esc.
+    @Test func theMarqueeLayerFollowsTheDragAndHides() async throws {
+        let (model, _, window, view) = try await lanes()
+        let layer = view.lanes.marquee
+        #expect(layer.isHidden)
+
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 10), in: view, flags: .shift))
+        #expect(layer.isHidden, "a press is no marquee")
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 300, y: 60), in: view, flags: .shift))
+        #expect(!layer.isHidden && layer.frame == CGRect(x: 200, y: 10, width: 100, height: 50))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 150, y: 130), in: view, flags: .shift))
+        #expect(layer.frame == CGRect(x: 150, y: 10, width: 50, height: 120), "left of the press, on lane 2")
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 150, y: 130), in: view, flags: .shift))
+        #expect(layer.isHidden)
+
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, NSPoint(x: 200, y: 10), in: view, flags: .shift))
+        view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: 300, y: 60), in: view, flags: .shift))
+        #expect(view.cancelGesture())
+        #expect(layer.isHidden, "Esc drops the marquee")
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: 300, y: 60), in: view, flags: .shift))
         window.close()
         await model.close()
     }

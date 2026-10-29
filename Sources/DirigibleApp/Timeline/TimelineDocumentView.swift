@@ -18,6 +18,8 @@ final class TimelineDocumentView: NSView {
     let playhead = PlayheadLine()
     /// The snap guide (snap run).
     let guide = GuideLayer()
+    /// The marquee of a Shift-drag (decision 0038).
+    let marquee = MarqueeLayer()
     /// The value of a gain or fade-handle drag at the pointer (run 11b-1).
     let readout = ReadoutLayer()
     /// The live take comes from here at each draw (`LiveLanes`). Weak, as in the scroll view.
@@ -157,6 +159,7 @@ final class TimelineDocumentView: NSView {
         showPlayheadColors()
         layer?.addSublayer(playhead)
         layer?.addSublayer(guide)
+        layer?.addSublayer(marquee)
         readout.zPosition = 20
         layer?.addSublayer(readout)
         setAccessibilityElement(true)
@@ -244,6 +247,11 @@ final class TimelineDocumentView: NSView {
         guide.show(
             at: frame.map { Double($0.count) / framesPerPoint }, width: increasesContrast ? 2 : 1,
             height: bounds.height)
+    }
+
+    /// The marquee at `rect` in document points; nil hides it.
+    func showMarquee(_ rect: Rect?) {
+        effectiveAppearance.performAsCurrentDrawingAppearance { marquee.show(rect.map(NSRect.init)) }
     }
 
     /// The box of a clip in the document view: the box of `LaneGeometry` (decision 0020).

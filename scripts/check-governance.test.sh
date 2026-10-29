@@ -233,7 +233,7 @@ refuse 'a removal with no class in a cut run' 'A-3 changes to delete or merge in
 new_repo; reflect_row; printf -- '- Status: open\n' > "$tmp/run/run.md"; three_cut "$fields"; commit
 refuse 'three removals with fields and no cut run line' 'rules.tsv: 3 rows change to delete or merge' "$tmp/run"
 # In a cut run, with or without a reflect row, a row that changes to merge quotes the text of its target
-# that keeps each removed sentence: kept: "<text>", on one line of a file of the target row on HEAD.
+# that keeps the removed text: kept: "<text>", on one line of a file of the target row on HEAD.
 # kept_cut <reason part> [<target>]: A-2 merges into the target (A-1 by default), a keep row of docs/a.md.
 # The variables a1_verdict and a1_target set the verdict and the target cell of A-1 (keep and docs/a.md).
 kept_cut() {

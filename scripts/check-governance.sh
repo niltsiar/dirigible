@@ -241,7 +241,7 @@ if [[ -f "$rules" && -n "$run" ]] && grep -qE '^- Cut run: [^[:space:]]' "$run/r
             fail=1
         done
         if ((quotes == 0)); then
-            echo "check-governance: rules.tsv: $id changes to merge in a cut run; its reason needs a kept: \"<text>\" quote of $target for each removed sentence (5 words or more of one line of the target file, no double quote)" >&2
+            echo "check-governance: rules.tsv: $id changes to merge in a cut run; its reason needs one kept: \"<text>\" quote of $target (5 words or more of one line of the target file, no double quote)" >&2
             fail=1
         fi
     done < <(at_base "$rules" | awk -F'\t' '

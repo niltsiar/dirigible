@@ -11,8 +11,6 @@ Build and sharpen the domain model of the project while you design. This skill i
 
 Most repos have a single context: one `CONTEXT.md` at the root, and the decision records in `docs/decisions/`.
 
-If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives. Each context has its own `CONTEXT.md` and can have its own `docs/decisions/`. The root `docs/decisions/` keeps the system-wide decisions.
-
 Create files lazily: only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/decisions/` exists, create it when the first decision record is needed.
 
 ## During the session

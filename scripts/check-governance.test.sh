@@ -563,6 +563,33 @@ refuse 'a holdout fail in this run, a run that a later row opened again, and an 
 out="$(cd "$tmp/r" && DIRIGIBLE_WIKI="$tmp/missing" "$script" main "$me" 2>&1)" && fail 'a holdout fail with no wiki: expected a nonzero exit'
 [[ "$out" == *'scripts/wiki.py init'* ]] || fail "a holdout fail with no wiki: no init hint: $out"
 
+# A policy miss that six runs can still pass is a rerun due line in <eval>/rerun-due.txt (grade.py
+# verdict). The land waits until a later eval* folder of the run has scores.tsv rows of that ID, newer
+# than the rerun-due.txt. due <folder> <line>...: the lines go to the rerun-due.txt of the folder.
+# rows <folder> <scenario>...: scores.tsv of the folder, one row for each scenario. stamp <time> <file>...
+# sets the modification time, so the order of the folders does not depend on the clock.
+due() { mkdir -p "$tmp/run/$1"; { (($# < 2)) || printf '%s\n' "${@:2}"; } > "$tmp/run/$1/rerun-due.txt"; }
+rows() {
+  mkdir -p "$tmp/run/$1"
+  { printf 'tag\tscenario\ttype\tset\trun\tresult\tmissing\n'; for id in "${@:2}"; do printf 't\t%s\tpolicy\tb\t1\tPASS\t\n' "$id"; done; } > "$tmp/run/$1/scores.tsv"
+}
+stamp() { touch -t "$1" "${@:2}"; }
+new_repo; due eval-1 'policy E54: new 1/3: rerun due'; rows eval-1 E54; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+refuse 'a rerun due line with no later eval folder' 'eval-1/rerun-due.txt: E54 is rerun due; run scripts/eval/run.sh again in that eval folder with a new tag' "$tmp/run"
+rows eval-2 E54; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+pass 'a rerun due line and a later eval folder that scored its scenario' "$tmp/run"
+rows eval-2 E9; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+refuse 'a rerun due line and a later eval folder with no row of its scenario' 'eval-1/rerun-due.txt: E54 is rerun due' "$tmp/run"
+rows eval-2 E54; stamp 202512312323 "$tmp/run/eval-2/scores.tsv"
+refuse 'a rerun due line and an eval folder that scored its scenario before the line' 'eval-1/rerun-due.txt: E54 is rerun due' "$tmp/run"
+new_repo; due eval-1; rows eval-1 E54
+pass 'an empty rerun-due.txt' "$tmp/run"
+new_repo; due eval-1 'policy E40: new 1/3: rerun due' 'policy E7: new 2/4: rerun due'; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
+rows eval-2 E40; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
+gov_out "$tmp/run"
+[[ $code -ne 0 && "$out" == *'eval-1/rerun-due.txt: E7 is rerun due'* ]] || fail "a later eval folder that scored one of two scenarios: expected the refusal for E7: $out"
+[[ "$out" != *'E40 is rerun due'* ]] || fail "a later eval folder that scored E40: the refusal names E40: $out"
+
 # A branch that adds an evals.md key needs a graded eval folder in the run folder (check-eval-keys.sh).
 new_repo
 printf '## Scenarios\n\n| ID | Type | Source | Question | Key points | Files | Old | New |\n|---|---|---|---|---|---|---|---|\n| E4 | policy | s | q | (a) new. | `a.md` | - | - |\n' > "$tmp/r/docs/workflow/evals.md"; commit

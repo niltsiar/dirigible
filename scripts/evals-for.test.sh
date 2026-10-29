@@ -408,7 +408,33 @@ verdict_case below-fail 1 'retention: old 4, new 4, bound 4.3: PASS' 'below E1: 
 { sc t E1 retention old 2 3; sc t E1 retention new 2 3; sc u E1 retention old 2 3; sc u E1 retention new 2 3; } > "$tmp/rows"
 verdict_case below-pooled 0 'below E1: old 4/6, new 4/6: PASS'
 { sc t E23 policy old 0 3; sc t E23 policy new 2 3; } > "$tmp/rows"; verdict_case policy-pass 0 'policy E23: new 2/3: PASS' 'verdict: PASS'
-{ sc t E23 policy old 0 3; sc t E23 policy new 1 3; } > "$tmp/rows"; verdict_case policy-fail 1 'policy E23: new 1/3: FAIL' 'verdict: FAIL'
+{ sc t E23 policy old 0 3; sc t E23 policy new 0 3; } > "$tmp/rows"; verdict_case policy-fail 1 'policy E23: new 0/3: FAIL' 'verdict: FAIL'
+# A policy miss (not a holdout) under six runs that six runs can still pass (new passes plus the runs
+# left to six reach four) prints rerun due. It is no fail yet: the last line is verdict: RERUN DUE
+# (exit 1), and the line goes to rerun-due.txt of the eval folder (empty for none). due_file <case>
+# <text> checks that file.
+due_file() {
+  [[ -f "$tmp/v/$1/rerun-due.txt" && "$(cat "$tmp/v/$1/rerun-due.txt")" == "$2" ]] || fail "verdict $1: rerun-due.txt is [$(cat "$tmp/v/$1/rerun-due.txt" 2>&1)], want [$2]"
+}
+{ sc t E40 policy old 3 3; sc t E40 policy new 1 3; } > "$tmp/rows"
+verdict_case rerun-due 1 'policy E40: new 1/3: rerun due' 'verdict: RERUN DUE'
+grep -qxF 'verdict: FAIL' <<<"$out" && fail "verdict rerun-due: the last line is FAIL: [$out]"
+due_file rerun-due 'policy E40: new 1/3: rerun due'
+{ sc t E40 policy old 3 3; sc t E40 policy new 0 3; } > "$tmp/rows"
+verdict_case rerun-unreachable 1 'policy E40: new 0/3: FAIL' 'verdict: FAIL'
+due_file rerun-unreachable ''
+{ sc t E40 policy old 3 3; sc t E40 policy new 2 3; } > "$tmp/rows"
+verdict_case rerun-passes 0 'policy E40: new 2/3: PASS' 'verdict: PASS'
+due_file rerun-passes ''
+{ sc t E40 policy old 3 3; sc t E40 policy new 2 3; sc u E40 policy old 3 3; sc u E40 policy new 1 3; } > "$tmp/rows"
+verdict_case rerun-pooled-six 1 'policy E40: new 3/6: FAIL' 'verdict: FAIL'
+due_file rerun-pooled-six ''
+{ sc t E40 policy old 3 3; sc t E40 policy new 1 3; sc t E1 retention old 6 6; sc t E1 retention new 2 6; } > "$tmp/rows"
+verdict_case rerun-and-fail 1 'policy E40: new 1/3: rerun due' 'below E1: old 6/6, new 2/6: FAIL' 'verdict: FAIL'
+due_file rerun-and-fail 'policy E40: new 1/3: rerun due'
+{ sc t H9 policy old 3 3; sc t H9 policy new 1 3; } > "$tmp/rows"
+verdict_case rerun-holdout 1 'policy H9: new 1/3: FAIL' 'verdict: FAIL'
+due_file rerun-holdout ''
 { sc t E1 retention old 3 3; sc t E1 retention new 3 3; sc t H1 retention old 0 3; sc t H1 retention new 0 3; } > "$tmp/rows"
 verdict_case void 0 'void H1' 'retention: old 3, new 3, bound 0.0: PASS' 'verdict: PASS'
 grep -q 'H1:' <<<"$out" && fail "verdict void: a clause line names the void H1: [$out]"
@@ -461,7 +487,7 @@ keys3=$'## E23\n(a) ka (b) kb (c) kc\n\n'
 unasked_case policy-unasked "$keys3" $'t\tE23\t(b)\tr\n' 0 'policy E23: new 1/3: FAIL' 'unasked E23 (b)' 'unasked fail E23: fix the question or the key' 'verdict: PASS'
 grep -qF 'unasked majority' <<<"$out" && fail "verdict policy-unasked: an unasked majority line for 1 of 3 keys: [$out]"
 { scm t E23 policy old 3 a,b,c; row t E23 policy new 1 PASS ''; row t E23 policy new 2 FAIL a,b; row t E23 policy new 3 FAIL a,b; } > "$tmp/rows"
-unasked_case policy-asked-missing "$keys3" $'t\tE23\t(b)\tr\n' 1 'policy E23: new 1/3: FAIL' 'unasked E23 (b)' 'verdict: FAIL'
+unasked_case policy-asked-missing "$keys3" $'t\tE23\t(b)\tr\n' 1 'policy E23: new 1/3: rerun due' 'unasked E23 (b)' 'verdict: RERUN DUE'
 grep -qF 'unasked fail' <<<"$out" && fail "verdict policy-asked-missing: an unasked fail line for an asked key: [$out]"
 # Retention sum: E2 fails on its unasked key only. The sum prints its line as FAIL, then the unasked fail lines, and the verdict passes.
 { sc t E1 retention old 6 6; sc t E1 retention new 6 6; sc t E2 retention old 6 6; scm t E2 retention new 6 b; } > "$tmp/rows"

@@ -137,10 +137,11 @@ struct LocalizationTests {
         #expect(keyTexts == [])
     }
 
-    /// The inspector has no room in pt: a label is `fixedSize`, and a column takes the width of its
-    /// widest label. So a group of texts has a room, the widest text of the group in `en`, `es`,
-    /// and `de` (rounded up), which the on-screen check at 240 pt shows whole. A text wider than
-    /// its room needs a shorter value, or that check in its language and a wider room.
+    /// The inspector has no spare room: a label is `fixedSize`, and a column takes the width of its
+    /// widest label. So a group of texts has a room, which the on-screen check at 240 pt shows
+    /// whole. The text of each `AppLanguage` in the group is at most as wide as the room (rounded
+    /// up). A text wider than its room needs a shorter value, or that check in its language and a
+    /// wider room.
     @Test func eachInspectorTextFitsItsRoom() throws {
         for (name, size, room, keys) in inspectorRooms {
             for language in AppLanguage.allCases.map(\.rawValue) {

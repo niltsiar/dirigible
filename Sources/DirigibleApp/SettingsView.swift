@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A language of the UI (R13, decision 0010). The one list of the `.lproj` folders, of
 /// `CFBundleLocalizations`, of the Settings pop-up, and of the text-rule tests. The order is the
-/// order of the pop-up.
+/// order of the pop-up. The raw value of each case is the name of its `.lproj` folder.
 enum AppLanguage: String, CaseIterable {
     case german = "de"
     case english = "en"
@@ -11,7 +11,9 @@ enum AppLanguage: String, CaseIterable {
     case french = "fr"
     case italian = "it"
     case dutch = "nl"
+    /// Brazilian Portuguese.
     case portuguese = "pt"
+    case portuguesePortugal = "pt-PT"
 
     /// The name of the language in that language, so a user who cannot read the current UI
     /// language still finds theirs.
@@ -24,6 +26,7 @@ enum AppLanguage: String, CaseIterable {
         case .italian: "Italiano"
         case .dutch: "Nederlands"
         case .portuguese: "Português (Brasil)"
+        case .portuguesePortugal: "Português (Portugal)"
         }
     }
 }

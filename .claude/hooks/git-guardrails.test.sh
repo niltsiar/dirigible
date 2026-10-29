@@ -1499,6 +1499,49 @@ stop_expect 'a log with 20 lines of both rules, a shell runs' "$(stop_in false "
 stop_expect 'a log with a done line, a shell runs' "$(stop_in false "$stop_fx")"
 [[ "$(stop_lines)" == 21 ]] || { echo "FAIL: a log with a done line gets a rule A line"; failures=$((failures + 1)); }
 
+# A done log ends the hook before any transcript read. A stub background-tasks.py leaves a marker
+# file when the hook calls it, so no marker means no read.
+real_stop_hook="$stop_hook"
+stub_hooks="$tmp/stub-hooks"; mkdir -p "$stub_hooks"
+cp "$(dirname "$0")/stop-guard.sh" "$(dirname "$0")/open-run.py" "$stub_hooks/"
+printf 'import os\n\n\ndef running_tasks(path, *args, **kwargs):\n    open(os.environ["STUB_MARKER"], "w").close()\n    return {}\n' > "$stub_hooks/background-tasks.py"
+stop_hook="$stub_hooks/stop-guard.sh"
+export STUB_MARKER="$tmp/stub-marker"
+stop_fixture fx-done-first
+stop_run r1 open
+lead_session stop-done-first < <(hb_text user 3 x)
+rm -f "$STUB_MARKER"
+stop_expect 'a log with no done line reads the transcript' "$(stop_in false "$stop_fx")"
+[[ -e "$STUB_MARKER" ]] || { echo "FAIL: the stub background-tasks.py was not called, so the done-first case proves nothing"; failures=$((failures + 1)); }
+echo "2026-10-28T10:00:00Z done" > "$stop_log"
+rm -f "$STUB_MARKER"
+stop_expect 'a done log, a transcript path that does not exist' "$(printf '{"transcript_path":"%s/none/s.jsonl","stop_hook_active":false,"cwd":"%s"}' "$tmp" "$stop_fx")"
+stop_expect 'a done log, a transcript' "$(stop_in false "$stop_fx")"
+[[ ! -e "$STUB_MARKER" && "$(stop_lines)" == 1 ]] || { echo "FAIL: a done log still reads the transcript or adds a line"; failures=$((failures + 1)); }
+unset STUB_MARKER
+stop_hook="$real_stop_hook"
+
+# The lead transcript is read from its last 4 MiB only. A task that starts before the tail is not
+# found; a task that starts in the tail is.
+tail_session() {
+  hb_dir="$tmp/$1"; mkdir -p "$hb_dir"
+  { hb_use 400 old1 Bash '{"command":"sleep 300","run_in_background":true}'
+    hb_result 400 old1 'Command running in background with ID: bold. Output is being written to: /x'
+    python3 -c '
+import json, sys
+line = json.dumps({"type": "user", "message": {"role": "user", "content": "x" * 1000}})
+sys.stdout.write((line + "\n") * 5200)
+'
+    hb_use 2 new1 Bash '{"command":"sleep 300","run_in_background":true}'
+    hb_result 2 new1 'Command running in background with ID: bnew. Output is being written to: /x'
+  } > "$hb_dir/s.jsonl"
+}
+tail_session stop-tail
+stop_fixture fx-tail
+stop_expect 'a transcript over the tail bound' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 1 && "$(< "$stop_log")" == *' would-block-shell bnew: '* ]] ||
+  { echo "FAIL: a transcript over 4 MiB gives the task of its tail alone: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
+
 # event_registered <settings file> <event> <hook script>: an entry of the event runs the script
 event_registered() {
   python3 -c '
@@ -1507,8 +1550,19 @@ entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
 sys.exit(0 if any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3]) for e in entries for h in e.get("hooks", [])) else 1)
 ' "$1" "$2" "$3" 2>/dev/null
 }
+# event_timeout <settings file> <event> <hook script>: the entry of the script sets a timeout of 1 to 120 seconds
+event_timeout() {
+  python3 -c '
+import json, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
+found = [h for e in entries for h in e.get("hooks", []) if h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3])]
+sys.exit(0 if found and all(type(h.get("timeout")) is int and 1 <= h["timeout"] <= 120 for h in found) else 1)
+' "$1" "$2" "$3" 2>/dev/null
+}
 event_registered "$settings" Stop stop-guard.sh || { echo "FAIL: .claude/settings.json does not register stop-guard.sh for Stop"; failures=$((failures + 1)); }
 event_registered "$tmp/old-settings.json" Stop stop-guard.sh && { echo "FAIL: the Stop registration check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
+event_timeout "$settings" Stop stop-guard.sh || { echo "FAIL: .claude/settings.json sets no timeout of 1 to 120 seconds on stop-guard.sh"; failures=$((failures + 1)); }
+event_timeout "$tmp/old-settings.json" Stop stop-guard.sh && { echo "FAIL: the Stop timeout check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
 
 # The eighth and ninth hooks keep the run state through a compaction. pre-compact.sh prints what the
 # summary must keep (Claude Code adds the stdout of PreCompact to the compaction instructions). It
@@ -1595,6 +1649,13 @@ pc_words="$(printf '%s' "$pc_out" | wc -w | tr -d ' ')"
 pc_has '12 background tasks' 'task1 (shell)'
 pc_lacks 'user messages' 'SECRET-USER-TEXT'
 
+# The same 4 MiB tail bounds the transcript read of the compaction hook.
+stop_fixture pc-tail
+tail_session pc-tail-session
+pc_run "$stop_fx"
+pc_has 'a transcript over the tail bound' 'bnew (shell)'
+pc_lacks 'a transcript over the tail bound' 'bold'
+
 # post-compact.sh: one line for each compaction, run-folder yes or no.
 stop_fixture pc-post
 pc_log="$stop_fx/.git/dirigible-compactions.log"
@@ -1618,6 +1679,7 @@ pc_in PostCompact "$tmp" 'x' | "$post_hook" 2>"$tmp/hb-err"
 event_registered "$settings" PreCompact pre-compact.sh || { echo "FAIL: .claude/settings.json does not register pre-compact.sh for PreCompact"; failures=$((failures + 1)); }
 event_registered "$settings" PostCompact post-compact.sh || { echo "FAIL: .claude/settings.json does not register post-compact.sh for PostCompact"; failures=$((failures + 1)); }
 event_registered "$tmp/old-settings.json" PreCompact pre-compact.sh && { echo "FAIL: the PreCompact registration check passed a settings file with no pre-compact.sh"; failures=$((failures + 1)); }
+event_timeout "$settings" PreCompact pre-compact.sh || { echo "FAIL: .claude/settings.json sets no timeout of 1 to 120 seconds on pre-compact.sh"; failures=$((failures + 1)); }
 
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null

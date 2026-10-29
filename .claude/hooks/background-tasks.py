@@ -15,6 +15,9 @@
 # event has no <status> and does not end the task. A changed text of a newer Claude Code makes
 # no task start, so the hooks pass: they fail open. No file, no line that parses, or an unknown
 # text prints nothing and exits 0.
+# running_tasks(path, tail=n) reads only the last n bytes of the file and drops the line that the cut
+# splits. The hooks of the lead turn pass 4 MiB, so the work stays bounded on a transcript of hundreds of
+# MB; a task that starts before the tail is not found. With no tail the whole file is read.
 import json
 import re
 import sys
@@ -48,12 +51,22 @@ def stamp(entry, now):
         return now
 
 
-def running_tasks(path, now=None):
+def read_lines(path, tail):
+    """The lines of the file at `path`, or of its last `tail` bytes without the line that the cut splits."""
+    with open(path, "rb") as handle:
+        cut = 0
+        if tail is not None:
+            cut = max(0, handle.seek(0, 2) - tail)
+            handle.seek(cut)
+        lines = handle.read().decode("utf-8", errors="replace").splitlines()
+    return lines[1:] if cut else lines
+
+
+def running_tasks(path, now=None, tail=None):
     """The running tasks of the transcript at `path` as an id -> kind dict, in start order."""
     now = time.time() if now is None else now
     try:
-        with open(path, encoding="utf-8", errors="replace") as handle:
-            lines = handle.read().splitlines()
+        lines = read_lines(path, tail)
     except OSError:
         return {}
     uses, running, deadline = {}, {}, {}

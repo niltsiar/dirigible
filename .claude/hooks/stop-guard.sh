@@ -11,6 +11,9 @@
 # After 20 lines of both rules, or 14 days after the first line, the hook appends one `done` line,
 # then no line. A reader reads the log and decides on a block: a replay of the lead transcripts found
 # that a block on rule A stops most turn ends while one long shell lives.
+# The hook runs at each lead turn, so its work is bounded: it reads the log first and ends on `done`
+# before it reads the transcript, it reads only the last 4 MiB of the transcript, and settings.json
+# sets a timeout.
 # The hook always exits 0, so a changed text of a newer Claude Code fails open.
 here="$(cd "$(dirname "$0")" && pwd)"
 input="$(cat)"
@@ -41,9 +44,20 @@ if not isinstance(hook, dict) or hook.get("stop_hook_active"):
 cwd = hook.get("cwd")
 if not isinstance(cwd, str):
     sys.exit(0)
-transcript = hook.get("transcript_path")
-tasks = load("background_tasks", "background-tasks.py").running_tasks(transcript) if isinstance(transcript, str) else {}
 open_run = load("open_run", "open-run.py")
+common = open_run.git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
+if not common:
+    sys.exit(0)
+log = os.path.join(common, "dirigible-stop-shadow.log")
+try:
+    with open(log, encoding="utf-8") as handle:
+        lines = handle.read().splitlines()
+except OSError:
+    lines = []
+if any(line.split()[1:2] == ["done"] for line in lines):
+    sys.exit(0)
+transcript = hook.get("transcript_path")
+tasks = load("background_tasks", "background-tasks.py").running_tasks(transcript, tail=4 << 20) if isinstance(transcript, str) else {}
 if tasks:
     if set(tasks.values()) != {"shell"}:
         sys.exit(0)
@@ -57,17 +71,6 @@ else:
     if not phase or waits:
         sys.exit(0)
     entry = "would-block " + os.path.basename(folder) + " via " + how + ": " + phase
-common = open_run.git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
-if not common:
-    sys.exit(0)
-log = os.path.join(common, "dirigible-stop-shadow.log")
-try:
-    with open(log, encoding="utf-8") as handle:
-        lines = handle.read().splitlines()
-except OSError:
-    lines = []
-if any(line.split()[1:2] == ["done"] for line in lines):
-    sys.exit(0)
 now = datetime.now(timezone.utc)
 first = None
 if lines:

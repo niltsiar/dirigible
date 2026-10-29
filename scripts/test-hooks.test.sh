@@ -41,7 +41,9 @@ new_repo() {
     printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
     for n in a b; do printf '#!/bin/bash\necho %s >> "$HOOKS_LOG"\n' "$n" > "$repo/t/$n.test.sh"; done
     chmod +x "$repo/t/"*.sh
-    for f in $("$here/check-changed.sh" --floor); do
+    local floor_paths
+    floor_paths="$("$here/check-changed.sh" --floor)"
+    for f in $floor_paths; do
         [[ $f == */ ]] && f="${f}A.swift"
         mkdir -p "$repo/$(dirname "$f")"
         echo x > "$repo/$f"
@@ -50,7 +52,7 @@ new_repo() {
         echo x > "$repo/$f"
     done
     # Guards the stub setup above, not a hook case: each floor path exists in the stub repo.
-    for p in $("$here/check-changed.sh" --floor); do
+    for p in $floor_paths; do
         if [[ $p == */ ]]; then
             [[ -n $(find "$repo/$p" -type f 2> /dev/null) ]] || fail "stub setup: no file in the floor folder $p"
         else

@@ -59,11 +59,13 @@ package struct SessionView: Encodable {
         /// Left out at 0, as in `session.xml` (decision 0036).
         let crossfadeIn: Int?
         let crossfadeOut: Int?
-        /// The gain points inside the clip window as [timeline frame, dB], and the count of the
-        /// points outside it; each left out with none (decision 0060).
+        /// The gain points inside the clip window as [timeline frame, dB], the count of the points
+        /// outside it, and with a point outside, the envelope gain at the first and the last frame of
+        /// the window; each left out with none (decision 0060).
         var envelope: [PointView]?
         var pointsOutside: Int?
-        /// Only with `compact`, in place of the two keys above: the count of all points.
+        var windowEdges: [PointView]?
+        /// Only with `compact`, in place of the three keys above: the count of all points.
         var points: Int?
 
         init(_ clip: Clip) {
@@ -81,12 +83,15 @@ package struct SessionView: Encodable {
             envelope = inside.isEmpty ? nil : inside.map { PointView(frame: $0.frame.count, dB: $0.gain.dB) }
             let outside = clip.envelope.points.count - inside.count
             pointsOutside = outside == 0 ? nil : outside
+            windowEdges = outside == 0 ? nil : [clip.windowEdges.first, clip.windowEdges.last]
         }
 
         var compacted: ClipView {
             var clip = self
             let count = (envelope?.count ?? 0) + (pointsOutside ?? 0)
-            (clip.envelope, clip.pointsOutside, clip.points) = (nil, nil, count == 0 ? nil : count)
+            (clip.envelope, clip.pointsOutside, clip.windowEdges, clip.points) = (
+                nil, nil, nil, count == 0 ? nil : count
+            )
             return clip
         }
     }
@@ -334,13 +339,16 @@ package func summary(
 }
 
 /// The gain points of a clip in the `info` text: the points inside the clip window as
-/// `<timeline frame>:<dB>`, as `clip envelope` takes them, and the count of the points outside it.
+/// `<timeline frame>:<dB>`, as `clip envelope` takes them, the count of the points outside it, and
+/// with a point outside, the gain at the first and the last frame of the window.
 private func envelopeText(of clip: Clip) -> String {
     let inside = clip.pointsInWindow
     let outside = clip.envelope.points.count - inside.count
     var parts = inside.isEmpty ? [] : [" envelope " + inside.map { "\($0.frame):\($0.gain.dB)" }.joined(separator: " ")]
     if outside > 0 {
         parts.append("\(inside.isEmpty ? " " : ", ")\(outside) \(outside == 1 ? "point" : "points") outside the clip")
+        let edges = clip.windowEdges
+        parts.append(", window edges \(edges.first.frame):\(edges.first.dB) \(edges.last.frame):\(edges.last.dB)")
     }
     return parts.joined()
 }
@@ -377,5 +385,15 @@ extension Clip {
     fileprivate var pointsInWindow: [(frame: Frames, gain: Gain)] {
         let window = offset..<(offset + length)
         return envelope.points.filter { window.contains($0.frame) }.map { ($0.frame - offset + start, $0.gain) }
+    }
+
+    /// The envelope gain at the first and the last frame of the clip window, at timeline frames
+    /// `start` and `start + length - 1`, rounded to 0.01 dB. The `+ 0.0` turns a negative zero into 0.
+    fileprivate var windowEdges: (first: SessionView.PointView, last: SessionView.PointView) {
+        func edge(_ frames: Frames) -> SessionView.PointView {
+            let dB = envelope.gain(at: offset + frames)
+            return SessionView.PointView(frame: (start + frames).count, dB: (dB * 100).rounded() / 100 + 0.0)
+        }
+        return (edge(.zero), edge(length - 1))
     }
 }

@@ -26,7 +26,8 @@ struct MCPEnvelopeToolTests {
     }
 
     /// C6: a set and a clear by the tool keep the points outside the clip window, and
-    /// `session_info` gives the points inside the window in timeline frames and the count outside.
+    /// `session_info` gives the points inside the window in timeline frames, the count outside, and
+    /// the gain at the first and the last frame of the window.
     @Test func aSetKeepsThePointsOutsideTheClipWindow() async throws {
         let answers = try await mcp([
             toolCall(
@@ -38,15 +39,24 @@ struct MCPEnvelopeToolTests {
         #expect(try filePoints() == [[5_000, -3], [10_000, 0], [20_000, -12], [70_000, -9]])
         let info = toolResult(answer(answers, id: 2)).text
         #expect(
-            info.contains(#""envelope":[[20000,0],[30000,-12]]"#) && info.contains(#""pointsOutside":2"#), "\(info)")
+            info.contains(#""envelope":[[20000,0],[30000,-12]]"#) && info.contains(#""pointsOutside":2"#)
+                && info.contains(#""windowEdges":[[20000,0],[59999,-10.2]]"#),
+            "\(info)")
         let compact = toolResult(answer(answers, id: 3)).text
-        #expect(compact.contains(#""points":4"#) && !compact.contains("envelope"), "\(compact)")
+        #expect(
+            compact.contains(#""points":4"#) && !compact.contains("envelope") && !compact.contains("windowEdges"),
+            "\(compact)")
 
         let cleared = try await mcp([
-            toolCall(1, "clip_envelope", ["package": package.path, "clip": "c1", "points": [[Any]]()])
+            toolCall(1, "clip_envelope", ["package": package.path, "clip": "c1", "points": [[Any]]()]),
+            toolCall(2, "session_info", ["package": package.path]),
         ])
         #expect(toolResult(answer(cleared, id: 1)) == ("OK", false))
         #expect(try filePoints() == [[5_000, -3], [70_000, -9]])
+        let held = toolResult(answer(cleared, id: 2)).text
+        #expect(
+            held.contains(#""pointsOutside":2"#) && held.contains(#""windowEdges":[[20000,-3.46],[59999,-7.15]]"#),
+            "\(held)")
     }
 
     /// The tool refuses a point that is not a pair of a frame and a gain, a frame given twice, and a

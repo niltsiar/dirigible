@@ -19,7 +19,7 @@ tmp="$(mktemp -d)"
 holder="" child="" waiter="" inner="" other=""
 trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 # The value of an outer with-lock.sh call names another lock.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD BASE MAKEFLAGS SINCE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD WITH_LOCK_BUILDERS_MIN BASE MAKEFLAGS SINCE
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # A pid variable can outlive its child, and the kernel can give the number to a process of another
@@ -384,7 +384,7 @@ clear_hold
 # Builders. A release appends one hold line to dirigible-build-holds.log: the start, the hold
 # seconds, the command, and the tree. The lock folder keeps $lock/tree while a call holds it, and a
 # waiting call keeps the marker dirigible-build-waiting/<pid> with its tree. --builders prints each
-# tree with a wait or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 60),
+# tree with a wait or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 20),
 # the live holder, and each live waiter. A wait with 2 or more other trees prints the count.
 holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build-waiting"
 reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
@@ -767,11 +767,11 @@ for words in "$fake/x/other-pass.sh $mtree batch" "$fake/x/mutation-pass.sh $pla
     [[ "$(cat "$tmp/mp.tree")" == "$repo_tree" ]] || fail "the tree of [$words] is [$(cat "$tmp/mp.tree")], not the caller tree [$repo_tree]"
 done
 reset_builders
-# The window: a hold that ended 59 min ago counts, one that ended 61 min ago does not. A wait line
+# The window: a hold that ended 19 min ago counts, one that ended 21 min ago does not. A wait line
 # counts as a hold line, and the old wait line of 4 columns has no tree.
 reset_builders
-printf '%s\t30\tmake test\t/t/in\n%s\t30\tmake test\t/t/out\n' "$(ago 60)" "$(ago 62)" > "$holds"
-printf '%s\t30\ttouch x\tmake test\t/t/wait-in\n%s\t30\ttouch x\tmake test\t/t/wait-out\n%s\t30\ttouch x\tmake test\n' "$(ago 60)" "$(ago 62)" "$(ago 5)" > "$waits"
+printf '%s\t30\tmake test\t/t/in\n%s\t30\tmake test\t/t/out\n' "$(ago 20)" "$(ago 22)" > "$holds"
+printf '%s\t30\ttouch x\tmake test\t/t/wait-in\n%s\t30\ttouch x\tmake test\t/t/wait-out\n%s\t30\ttouch x\tmake test\n' "$(ago 20)" "$(ago 22)" "$(ago 5)" > "$waits"
 out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
 [[ "$out" == "$(printf '/t/in\n/t/wait-in')" ]] || fail "--builders window: [$out]"
 out="$(WITH_LOCK_BUILDERS_MIN=90 "$repo/scripts/with-lock.sh" --builders 2>&1)"
@@ -793,7 +793,7 @@ cd "$tmp/wt" || exit 2
 waiter=$!
 cd "$repo" || exit 2
 until_true 50 grep -q 'the cap is 2' "$tmp/wait.out" || fail "builders line: none for 2 other trees: $(cat "$tmp/wait.out")"
-grep -qF 'builders in the last 60 min: 2 (/t/holder, /t/waiter); the cap is 2 (long-runs.md)' "$tmp/wait.out" || fail "builders line: $(cat "$tmp/wait.out")"
+grep -qF 'builders in the last 20 min: 2 (/t/holder, /t/waiter); the cap is 2 (long-runs.md)' "$tmp/wait.out" || fail "builders line: $(cat "$tmp/wait.out")"
 [[ "$(cat "$waiting/$waiter" 2>/dev/null)" == "$wt_tree" ]] || fail 'wait marker: no marker with the tree of the waiting call'
 wpid=$waiter
 kill -TERM "$waiter"
@@ -867,8 +867,24 @@ holdline 3 "$tb"
 rm -f "$tmp/ran"
 capcall "$repo" touch "$tmp/ran"
 [[ $code -eq 75 && ! -e "$tmp/ran" ]] || fail "cap: exit $code, ran [$(ls "$tmp/ran" 2>&1)] (want 75, no run): $out"
-[[ "$out" == *"$cap_text: $ta, $tb; 56 min until $ta ages out"* ]] || fail "cap: no cap line with both trees and the minutes: $out"
+[[ "$out" == *"$cap_text: $ta, $tb; 16 min until $ta ages out"* ]] || fail "cap: no cap line with both trees and the minutes: $out"
 [[ "$(grep -c "$cap_text" <<<"$out")" -eq 1 ]] || fail "cap: the cap line is not printed once: $out"
+# The window is 20 min with no WITH_LOCK_BUILDERS_MIN: 2 other trees whose hold lines ended 19 min
+# ago fill the cap, and 2 whose hold lines ended 21 min ago do not.
+reset_builders
+holdline 20 "$ta"
+holdline 20 "$tb"
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 75 && ! -e "$tmp/ran" && "$out" == *"$cap_text: "* && "$out" == *"$ta"* && "$out" == *"$tb"* ]] ||
+  fail "cap, hold lines that ended 19 min ago: exit $code, ran [$(ls "$tmp/ran" 2>&1)] (want 75, no run): $out"
+reset_builders
+holdline 22 "$ta"
+holdline 22 "$tb"
+rm -f "$tmp/ran"
+capcall "$repo" touch "$tmp/ran"
+[[ $code -eq 0 && -e "$tmp/ran" && "$out" != *"$cap_text"* ]] ||
+  fail "cap, hold lines that ended 21 min ago: exit $code (want 0 at once, no cap line): $out"
 # One other tree, and the calling tree with one other tree: the command runs.
 reset_builders
 holdline 5 "$ta"

@@ -74,15 +74,14 @@ struct ClipSelectionGestureTests {
         #expect(effects == [.marks(Marks(inPoint: 24_000, outPoint: 288_000, tracks: ["t1", "t2", "t3"]))])
     }
 
-    /// C17: from the set of A (t1, 1 s to 2 s), a Shift-drag on t1 from 5 s to 6 s gives 1 s to 6 s
-    /// on t1: the hull of the set span and the drag range.
-    @Test mutating func aShiftDragFromAClipSetExtendsItsSpan() {
+    /// From the set of A (t1), a Shift-drag on t1 from 5 s to 6 s draws a marquee that replaces the
+    /// set: no clip lies whole there on t1, and a drag on down to t3 holds D.
+    @Test mutating func aShiftDragFromAClipSetReplacesItWithTheMarquee() {
         g.selection = GroupGesture.clips(["A"])
         _ = g.gesture.handle(.down(.lanes(x: 500, y: 10), shift: true, command: false), g.context)
 
-        let effects = g.gesture.handle(.drag(.lanes(x: 600, y: 10)), g.context)
-
-        #expect(effects == [.marks(Marks(inPoint: 48_000, outPoint: 288_000, tracks: ["t1"]))])
+        #expect(g.gesture.handle(.drag(.lanes(x: 600, y: 10)), g.context) == [.selection(.none)])
+        #expect(g.gesture.handle(.drag(.lanes(x: 600, y: 130)), g.context) == [.selection(GroupGesture.clips(["D"]))])
     }
 
     /// A Command-drag from a clip stays a range drag (decision 0020).

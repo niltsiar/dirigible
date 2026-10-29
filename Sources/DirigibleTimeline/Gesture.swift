@@ -70,6 +70,9 @@ public struct TimelineGesture: Sendable {
         case crossfading(Press, CrossfadeDrag)
         /// A range drag, with its snap targets and the target that the pointer end is on.
         case ranging(Press, Snap, guide: Frames?)
+        /// A Shift-drag on the lanes (decision 0038): the press and the pointer. The selection is the
+        /// clips that the rectangle holds whole, and the session never changes.
+        case marqueeing(Press, x: Double, y: Double)
         /// A flag drag: the marker at the down, and the session with the marker moved.
         case markerDrag(Press, Marker, preview: Session)
         /// A drag of the in or the out triangle: it changes the Marks only.
@@ -90,11 +93,11 @@ public struct TimelineGesture: Sendable {
         return true
     }
 
-    /// True in a drag that follows the pointer: a move, a trim, a fade handle, a range, a flag, or
-    /// a triangle. Autoscroll runs only then (decision 0025).
+    /// True in a drag that follows the pointer: a move, a trim, a fade handle, a range, a marquee, a
+    /// flag, or a triangle. Autoscroll runs only then (decision 0025).
     public var autoscrolls: Bool {
         switch state {
-        case .moving, .grouping, .trimming, .fading, .crossfading, .ranging, .markerDrag, .pointDrag: true
+        case .moving, .grouping, .trimming, .fading, .crossfading, .ranging, .marqueeing, .markerDrag, .pointDrag: true
         case .idle, .dropped, .pressed, .gaining, .pointing, .rangeGaining: false
         }
     }
@@ -108,7 +111,8 @@ public struct TimelineGesture: Sendable {
             switch place {
             case .lanes(let x, let y):
                 let hit = context.geometry.hit(x, y, in: context.session)
-                // Command on a clip keeps the clip for a toggle at the up (decision 0038).
+                // Shift makes a range press whose drag is a marquee (decision 0038). Command on a clip
+                // keeps the clip for a toggle at the up.
                 target = .lane(shift || (command && hit.clip == nil) ? .range(lane: hit.lane) : hit)
             case .ruler(let x, let y):
                 switch rulerTarget(x, y, context) {
@@ -144,7 +148,7 @@ public struct TimelineGesture: Sendable {
             case .crossfading(let press, let crossfade): return commit(press, crossfade, context)
             case .markerDrag(let press, let original, let preview): return commit(press, original, preview)
             case .ranging(let press, _, _): return press.target.isTime ? rulerRangeUp(effects) : effects
-            case .pointDrag: return effects
+            case .marqueeing, .pointDrag: return effects
             case .idle, .dropped: return []
             }
         case .escape:
@@ -156,7 +160,7 @@ public struct TimelineGesture: Sendable {
             case .moving, .grouping, .trimming, .gaining, .pointing, .rangeGaining, .fading, .crossfading, .markerDrag:
                 state = .dropped
                 return []
-            case .ranging(let press, _, _), .pointDrag(let press, _):
+            case .ranging(let press, _, _), .marqueeing(let press, _, _), .pointDrag(let press, _):
                 state = .dropped
                 return [.selection(press.selection)]
             }
@@ -200,6 +204,7 @@ public struct TimelineGesture: Sendable {
         case .gaining, .rangeGaining: return .resizeUpDown
         case .pointing: return .closedHand
         case .ranging: return .iBeam
+        case .marqueeing: return .arrow
         case .idle, .dropped, .pressed: break
         }
         switch place {
@@ -263,8 +268,10 @@ public struct TimelineGesture: Sendable {
                 state = rangeState(press, context)
                 return drag(place, context)
             case .lane(.range(let lane)):
-                // A drag from under the last lane changes nothing (decision 0017).
-                state = lane == nil ? .dropped : rangeState(press, context)
+                // A drag from under the last lane changes nothing (decision 0017). Shift draws a
+                // marquee; a Shift-Command press took the Command branch above.
+                state =
+                    lane == nil ? .dropped : press.shift ? .marqueeing(press, x: x, y: y) : rangeState(press, context)
                 return drag(place, context)
             }
         case .moving(let press, let move):
@@ -309,6 +316,8 @@ public struct TimelineGesture: Sendable {
             return crossfadeDrag(press, crossfade, x, context)
         case .ranging(let press, let snap, _):
             return rangeDrag(press, snap, x, y, context)
+        case .marqueeing(let press, _, _):
+            return marqueeDrag(press, x, y, context)
         case .markerDrag(let press, let original, _):
             return markerDrag(press, original, x, context)
         case .pointDrag(let press, let point):

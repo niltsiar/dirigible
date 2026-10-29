@@ -157,7 +157,8 @@ extension TimelineGesture {
         return Set(selected.isEmpty ? press.base.tracks.map(\.id) : selected)
     }
 
-    /// What a Shift-drag extends: the range at the down, or the span of a clip set on its tracks.
+    /// What a Shift-drag on the ruler or a Shift-Command drag on the lanes extends: the range at the down,
+    /// or the span of a clip set on its tracks.
     private func shiftBase(_ press: Press) -> Marks {
         guard case .clips = press.selection, let span = press.selection.span(in: press.base) else { return press.marks }
         return Marks(inPoint: span.lowerBound, outPoint: span.upperBound, tracks: press.marks.tracks)

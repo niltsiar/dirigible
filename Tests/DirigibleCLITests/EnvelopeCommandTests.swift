@@ -109,7 +109,8 @@ struct EnvelopeCommandTests {
     }
 
     /// C6: a set and a clear by the CLI keep the points outside the clip window in `session.xml`,
-    /// and `info` shows the points inside the window in timeline frames and the count outside it.
+    /// and `info` shows the points inside the window in timeline frames, the count outside it, and
+    /// the gain at the first and the last frame of the window.
     @Test func aSetKeepsThePointsOutsideTheClipWindow() async throws {
         // The clip plays file frames 10 000..<50 000 at timeline frame 10 000.
         let points = [(5_000, -3.0), (20_000, -6), (70_000, -9)].map {
@@ -130,12 +131,73 @@ struct EnvelopeCommandTests {
                 [5_000, -3], [15_000, -12], [70_000, -9],
             ])
         let info = try await package.run("info", "PKG")
-        #expect(info.stdout.contains("0.0 dB envelope 15000:-12.0, 2 points outside the clip\n"), "\(info.stdout)")
+        let edges = "2 points outside the clip, window edges 10000:-7.5 49999:-10.09\n"
+        #expect(info.stdout.contains("0.0 dB envelope 15000:-12.0, " + edges), "\(info.stdout)")
         let json = try await package.run("info", "PKG", "--json", "--compact")
-        #expect(json.stdout.contains(#""points" : 3,"#), "\(json.stdout)")
+        #expect(json.stdout.contains(#""points" : 3,"#) && !json.stdout.contains("windowEdges"), "\(json.stdout)")
 
         let clear = try await package.run("clip", "envelope", "PKG", "c1", "--clear")
         #expect(clear.status == 0, "\(clear)")
         #expect(try package.read().clip("c1")?.clip.envelope.points.map(\.frame.count) == [5_000, 70_000])
+        let cleared = try await package.run("info", "PKG")
+        #expect(
+            cleared.stdout.contains("0.0 dB 2 points outside the clip, window edges 10000:-3.46 49999:-7.15\n"),
+            "\(cleared.stdout)")
+    }
+
+    /// The window edges of the first `info` clip line and of its JSON, as the key `windowEdges`.
+    private func windowEdges(of clip: String) async throws -> (text: String, json: [[Double]]?) {
+        struct View: Decodable {
+            struct Track: Decodable {
+                struct Clip: Decodable {
+                    let id: String
+                    let windowEdges: [[Double]]?
+                }
+                let clips: [Clip]
+            }
+            let tracks: [Track]
+        }
+        let text = try await package.run("info", "PKG")
+        let json = try await package.run("info", "PKG", "--json")
+        try #require(text.status == 0 && json.status == 0)
+        let view = try JSONDecoder().decode(View.self, from: Data(json.stdout.utf8))
+        let line = text.stdout.split(separator: "\n").first { $0.contains("clip \(clip) ") }
+        return (String(try #require(line)), view.tracks.flatMap(\.clips).first { $0.id == clip }?.windowEdges)
+    }
+
+    /// C4: a clip with its points all inside the window, and a clip with no point, show no window
+    /// edges in the text or in the JSON.
+    @Test func anInsideOnlyEnvelopeShowsNoWindowEdges() async throws {
+        let inside = GainEnvelope([GainEnvelope.Point(frame: 20_000, gain: Gain(dB: -6)!)])!
+        try package.edit { session in
+            try session.removeClips(["c1"])
+            try session.place(
+                Clip(id: "c1", file: "f1", start: 10_000, offset: 10_000, length: 40_000, envelope: inside), on: "t1")
+            try session.place(Clip(id: "c2", file: "f1", start: 60_000, offset: 60_000, length: 40_000), on: "t1")
+        }
+        for id in ["c1", "c2"] {
+            let (text, json) = try await windowEdges(of: id)
+            #expect(!text.contains("window edges") && json == nil, "\(id): \(text) \(String(describing: json))")
+        }
+    }
+
+    /// C6: an edge gain that rounds to zero shows 0.0 in the text and 0 in the JSON, not a
+    /// negative zero. At file frame 10 000 the envelope is -0.004 dB, and at 49 999 it is -0.02 dB.
+    @Test func aWindowEdgeNearZeroShowsZero() async throws {
+        let points = [(0, 0.0), (100_000, -0.04)].map {
+            GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!)
+        }
+        try package.edit { session in
+            try session.removeClips(["c1"])
+            try session.place(
+                Clip(
+                    id: "c1", file: "f1", start: 10_000, offset: 10_000, length: 40_000,
+                    envelope: GainEnvelope(points)!),
+                on: "t1")
+        }
+        let (text, json) = try await windowEdges(of: "c1")
+        #expect(text.hasSuffix("2 points outside the clip, window edges 10000:0.0 49999:-0.02"), "\(text)")
+        let edges = try #require(json)
+        #expect(edges == [[10_000, 0], [49_999, -0.02]] && edges[0][1].sign == .plus, "\(edges)")
     }
 }

@@ -122,11 +122,11 @@ struct SnapGestureTests {
         #expect(effects == [.selection(.range(Marks(inPoint: 120_000, outPoint: Self.frame(320), tracks: ["t1"])))])
         #expect(gesture.guide == Self.frame(320))
         _ = up(316, 50)
-        // A Shift-drag extension snaps its pointer end the same way.
+        // A Shift-drag on the lanes draws a marquee, which never snaps (decision 0038).
         selection = .range(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
         down(250, 50, shift: true)
-        #expect(
-            drag(316, 50) == [.selection(.range(Marks(inPoint: 48_000, outPoint: Self.frame(320), tracks: ["t1"])))])
+        #expect(drag(316, 50) == [.selection(.none)])
+        #expect(gesture.guide == nil)
     }
 
     /// C14: a lane range drag from the playhead frame has no playhead target, so 3 pt makes a range,

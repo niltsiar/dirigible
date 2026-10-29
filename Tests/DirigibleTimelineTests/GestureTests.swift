@@ -317,17 +317,17 @@ struct GestureTests {
         #expect(up(150, 10, canEdit: false) == [.clip("A")])
     }
 
-    /// Criterion 10: with Shift, a drag from the move zone of A is a range drag. The Marks are the
-    /// hull of the Marks at the down and the drag range, on the union of the tracks.
-    @Test mutating func aShiftDragExtendsTheMarks() {
+    /// With Shift, a drag from the move zone of A draws a marquee (decision 0038): no clip lies whole
+    /// in 72,000 ..< 120,000 on t1, so the selection goes, and the range at the down does not extend.
+    @Test mutating func aShiftDragFromAClipDrawsAMarquee() {
         let marks = Marks(inPoint: 0, outPoint: 1000, tracks: ["t2"])
         _ = gesture.handle(.down(.lanes(x: 150, y: 10), shift: true, command: false), context(marks: marks))
 
         let effects = gesture.handle(.drag(.lanes(x: 250, y: 10)), context(marks: marks))
 
-        #expect(effects == [.marks(Marks(inPoint: 0, outPoint: 120_000, tracks: ["t1", "t2"]))])
-        #expect(drawn == session && gesture.cursor(at: .lanes(x: 150, y: 10), context()) == .iBeam)
-        #expect(up(250, 10) == [.marks(Marks(inPoint: 0, outPoint: 120_000, tracks: ["t1", "t2"]))])
+        #expect(effects == [.selection(.none)])
+        #expect(drawn == session && gesture.cursor(at: .lanes(x: 150, y: 10), context()) == .arrow)
+        #expect(up(250, 10) == [.selection(.none)])
     }
 
     /// Criterion 10: a Shift press on a clip is a range press; its click keeps the Shift-click

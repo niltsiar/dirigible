@@ -16,6 +16,10 @@
 # - On every branch, the reason of a rules.tsv row that changes to delete starts with `stale:` or
 #   `no-op:` and has text after it (reflect rule 7). A merge row and a row that was delete at the
 #   base are free.
+# - With a run folder whose run.md has a `- Cut run:` line, each rules.tsv row that changes to merge
+#   has one or more `kept: "<text>"` parts in its reason. Each text has no double quote and at least
+#   5 words, and is on one line of a file of the target row at HEAD: its file cell, or its target cell
+#   when that names a file. This proves that the quoted line exists, not that it keeps the meaning.
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes,
 #   or that a commit of the base changed on or after the run start date (the YYYY-MM-DD prefix of
@@ -205,6 +209,44 @@ if [[ -f "$rules" ]]; then
     done < <(at_base "$rules" | awk -F'\t' '
         NR == FNR { if (FNR > 1) old[$1] = $3; next }
         FNR > 1 && $3 == "delete" && old[$1] != "delete" { print $1 "\t" $5 }' - "$rules")
+fi
+# In a cut run, a row that changes to merge quotes the text of its target that keeps each removed
+# sentence (reflect rule 7): a fixed string on one line of a file of the target row on HEAD. A reflect
+# row and the class of the branch do not matter, so Phase 7 finds a gap before the land.
+kept_re='kept:[[:space:]]*"([^"]+)"'
+if [[ -f "$rules" && -n "$run" ]] && grep -qE '^- Cut run: [^[:space:]]' "$run/run.md" 2>/dev/null; then
+    while IFS=$'\t' read -r id target reason; do
+        [[ -n "$id" ]] || continue
+        # The file cell of the target row, and its target cell (a path in a keep, new, or move row).
+        files="$(awk -F'\t' -v t="$target" 'FNR > 1 && $1 == t { print $2; print $4; exit }' "$rules")"
+        if [[ -z "$files" ]]; then
+            echo "check-governance: rules.tsv: $id merges into $target, which has no row" >&2
+            fail=1
+            continue
+        fi
+        rest="$reason" quotes=0
+        while [[ "$rest" =~ $kept_re ]]; do
+            quote="${BASH_REMATCH[1]}" rest="${rest#*"${BASH_REMATCH[0]}"}" quotes=$((quotes + 1)) found=""
+            read -ra words <<<"$quote"
+            if ((${#words[@]} < 5)); then
+                echo "check-governance: rules.tsv: $id quotes kept: \"$quote\", which has fewer than 5 words; quote 5 words or more of one line of $target" >&2
+                fail=1
+                continue
+            fi
+            while IFS= read -r f; do
+                [[ -n "$f" ]] && text="$(git cat-file blob "HEAD:$f" 2>/dev/null)" && grep -qF -- "$quote" <<<"$text" && { found=1; break; }
+            done <<<"$files"
+            [[ -n "$found" ]] && continue
+            echo "check-governance: rules.tsv: $id quotes kept: \"$quote\", which no file of $target holds on one line at HEAD; quote one line of the target that keeps the removed sentence, or keep the sentence" >&2
+            fail=1
+        done
+        if ((quotes == 0)); then
+            echo "check-governance: rules.tsv: $id changes to merge in a cut run; its reason needs a kept: \"<text>\" quote of $target for each removed sentence (5 words or more of one line of the target file, no double quote)" >&2
+            fail=1
+        fi
+    done < <(at_base "$rules" | awk -F'\t' '
+        NR == FNR { if (FNR > 1) old[$1] = $3; next }
+        FNR > 1 && $3 == "merge" && old[$1] != "merge" { print $1 "\t" $4 "\t" $5 }' - "$rules")
 fi
 if [[ -n "$run" ]]; then
     # since is the run start date, the YYYY-MM-DD prefix of the run folder name, or empty.

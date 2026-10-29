@@ -58,10 +58,10 @@ import Testing
                 let label = "\(path.name), \(zoom)"
                 view.lanes.mouseDown(with: try mouse(.leftMouseDown, Self.down, in: view, flags: .shift))
                 var selections: [Selection] = []
-                let event: (Int) throws -> NSEvent = { n in
+                let event: (Int) throws -> NSEvent = { index in
                     selections.append(model.timeline.selection)
                     return try mouse(
-                        .leftMouseDragged, NSPoint(x: Self.x(n, path, framesPerPoint: framesPerPoint), y: path.y),
+                        .leftMouseDragged, NSPoint(x: Self.x(index, path, framesPerPoint: framesPerPoint), y: path.y),
                         in: view, flags: .shift)
                 }
                 let sorted =

@@ -59,9 +59,10 @@ package struct SessionView: Encodable {
         /// Left out at 0, as in `session.xml` (decision 0036).
         let crossfadeIn: Int?
         let crossfadeOut: Int?
-        /// The gain points inside the clip window as [timeline frame, dB], the count of the points
-        /// outside it, and with a point outside, the envelope gain at the first and the last frame of
-        /// the window; each left out with none (decision 0060).
+        /// The gain points inside the clip window as [timeline frame, dB] at full precision, the count
+        /// of the points outside it, and with a point outside, the envelope gain at the first and the
+        /// last frame of the window, rounded to 0.01 dB (only these two values are rounded); each left
+        /// out with none (decision 0060).
         var envelope: [PointView]?
         var pointsOutside: Int?
         var windowEdges: [PointView]?

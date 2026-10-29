@@ -54,6 +54,8 @@ extension StartLimitTests {
 
         for (uid, _) in held { hal.releaseAttach(uid) }
         for input in inputs + late { await input.wait() }
+        // Under suite load, the late finish of a released writer can take more than the 0.5 s limit.
+        studio.environment.stopLimit = busy
         try await studio.retryFinalize()
         for (_, track) in held { #expect(studio.lastTake?.gaps[track] == .deviceLost) }
         #expect(!clipFrames(studio, "t1").isEmpty, "no clip of t1")

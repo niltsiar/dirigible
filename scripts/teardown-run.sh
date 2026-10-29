@@ -19,18 +19,19 @@
 #    *.app, or a .build/ folder, is an audio file (.wav .caf .pcm .aif .aiff .m4a .mp3 .flac) or a
 #    video file (.mov .mp4 .m4v) of any size, is a .dmg file, or is a file of TEARDOWN_MIN_MB MB
 #    (default 5) or more. For each candidate, the first rule that matches wins:
-#    a) build output (*.app, .build/, *.dmg) is deleted, named or not;
+#    a) build output (*.app, .build/, *.dmg) is deleted, named or not: it is the only thing that
+#       the script deletes;
 #    b) a named item stays in place;
-#    c) an audio file, a video file, or a package moves to .scratchpads/trash/<date>/<run>/ of the
-#       main checkout at the same run-relative path (-2, -3 before the extension when that path is
-#       there already; no move overwrites a file), and the script prints each moved path;
-#    d) each other candidate is deleted.
+#    c) each other candidate moves to .scratchpads/trash/<date>/<run>/ of the main checkout at the
+#       same run-relative path (-2, -3 before the extension when that path is there already; no
+#       move overwrites a file), and the script prints each moved path.
 #    Named: a text file of the run folder outside a package, an *.app, or a .build/ folder (.md
 #    .tsv .txt .json .csv .log .xml) holds the run-relative path of the item, the base name of a
 #    file, or the run-relative path of a folder that holds the item (not the top-level verify/ or
 #    probes/), as a whole token: no letter, digit, `-`, `_`, or `.` comes before or after it.
-#    So no step deletes an audio or video file outside build output, a file of a package, or a file
-#    in a named folder. A recording of a real voice that no text file names goes to the trash.
+#    So no step deletes a file outside build output, a file of a package, or a file in a named
+#    folder. A recording of a real voice in any format (.f32, .raw, .opus, and the like), even when
+#    no text file names it, goes to the trash.
 # 4. It prints the removed worktree, the trash folder, the count and size of the moved and of the
 #    deleted items, and `free after:`. When the trash holds a date folder more than 14 days old, it
 #    prints a `trash:` line with the sweep command.
@@ -153,18 +154,18 @@ handle() { # <path> <rel> <file|dir>
     ext="$(tr '[:upper:]' '[:lower:]' <<<"${name##*.}")"
     kb="$(du -sk "$path" | cut -f1)"
     if [[ "$kind" == dir ]]; then
-        case "$name" in *.app | .build) action=delete ;; *) action=pkg ;; esac
+        case "$name" in *.app | .build) action=delete ;; *) action=move ;; esac
     else
         action=none
         case "$ext" in
-            wav | caf | pcm | aif | aiff | m4a | mp3 | flac | mov | mp4 | m4v) action=media ;;
+            wav | caf | pcm | aif | aiff | m4a | mp3 | flac | mov | mp4 | m4v) action=move ;;
             dmg) action=delete ;;
-            *) if [[ "$rel" == verify/* || "$rel" == probes/* || "$(wc -c < "$path")" -ge $((min_mb * 1048576)) ]]; then action=other; fi ;;
+            *) if [[ "$rel" == verify/* || "$rel" == probes/* || "$(wc -c < "$path")" -ge $((min_mb * 1048576)) ]]; then action=move; fi ;;
         esac
     fi
     [[ "$action" != none ]] || return 0
     if [[ "$action" != delete ]] && is_named "$rel" "$kind"; then return 0; fi
-    if [[ "$action" == media || "$action" == pkg ]]; then
+    if [[ "$action" == move ]]; then
         dest="$trash_dir/$rel"
         mkdir -p "${dest%/*}"
         if [[ -e "$dest" || -L "$dest" ]]; then

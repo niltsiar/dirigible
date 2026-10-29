@@ -1424,6 +1424,8 @@ td "$run"
 [[ $code -eq 2 && -f "$run/trace.bin" ]] && grep -qF 'chore/x' "$t/out" || fail "teardown, no branch ref: exit $code: $(cat "$t/out")"
 
 # The file rules. Each branch has an input on each side of it.
+# Only build output (*.app, .build/, *.dmg) is deleted: any other candidate, an unnamed raw audio
+# file of 5 MB (.f32, .opus) included, moves to the trash.
 td_setup files
 today="$(date +%F)"
 trash="$t/main/.scratchpads/trash/$today/r"
@@ -1436,7 +1438,7 @@ mk "$run/take.wav"; mk "$run/take.caf"; mk "$run/take.pcm"; mk "$run/small.wav" 
 mkdir -p "$run/shots/Ep.dirigible/Clips"
 printf '<s>Clips/a.wav</s>\n' > "$run/shots/Ep.dirigible/session.xml"
 mk "$run/shots/Ep.dirigible/Clips/a.wav" 1; mk "$run/shots/Ep.dirigible/Clips/b.wav" 1
-mk "$run/named.wav"; mk "$run/set/clip.wav"; printf 'clip.wav\n' > "$run/set/manifest.tsv"
+mk "$run/voice.f32" 5; mk "$run/take.opus" 5; mk "$run/named.wav"; mk "$run/set/clip.wav"; printf 'clip.wav\n' > "$run/set/manifest.tsv"
 mk "$run/took/b.wav" 1; printf '<s>Clips/b.wav</s>\n' > "$run/took/session.xml"
 mk "$run/kept/K.dirigible/session.xml" 1
 mk "$run/named-dir/big.bin"; mk "$run/named-dir/t.wav" 1; mk "$run/small.bin" 1
@@ -1444,13 +1446,13 @@ mkdir -p "$t/main/.scratchpads/corpus" && mk "$t/main/.scratchpads/corpus/c.wav"
 ln -s "$t/main/.scratchpads/corpus/c.wav" "$run/link.wav"
 td "$run"
 [[ $code -eq 0 ]] || fail "teardown, files: exit $code: $(cat "$t/out")"
-for gone in verify/copy/pkg.bin probes/p1/out.bin trace.bin Dirigible.app eval/Dirigible.app a.dmg .build take.wav take.caf take.pcm small.wav screen.mov verify/live-1/long.wav shots/Ep.dirigible; do
+for gone in verify/copy/pkg.bin probes/p1/out.bin trace.bin voice.f32 take.opus Dirigible.app eval/Dirigible.app a.dmg .build take.wav take.caf take.pcm small.wav screen.mov verify/live-1/long.wav shots/Ep.dirigible; do
   [[ ! -e "$run/$gone" ]] || fail "teardown, files: $gone stays"
 done
-for deleted in verify/copy/pkg.bin probes/p1/out.bin trace.bin Dirigible.app eval/Dirigible.app a.dmg .build; do
+for deleted in Dirigible.app eval/Dirigible.app a.dmg .build; do
   [[ ! -e "$trash/$deleted" ]] || fail "teardown, files: $deleted is in the trash, not deleted"
 done
-for moved in take.wav take.caf take.pcm small.wav screen.mov verify/live-1/long.wav shots/Ep.dirigible/session.xml shots/Ep.dirigible/Clips/a.wav shots/Ep.dirigible/Clips/b.wav; do
+for moved in verify/copy/pkg.bin probes/p1/out.bin trace.bin voice.f32 take.opus take.wav take.caf take.pcm small.wav screen.mov verify/live-1/long.wav shots/Ep.dirigible/session.xml shots/Ep.dirigible/Clips/a.wav shots/Ep.dirigible/Clips/b.wav; do
   [[ -f "$trash/$moved" ]] || fail "teardown, files: $moved is not in the trash"
   grep -qF "$moved" "$t/out" || [[ "$moved" == shots/Ep.dirigible/* ]] || fail "teardown, files: the output names no moved path $moved"
 done
@@ -1458,7 +1460,7 @@ for kept in run.md decisions.tsv analysis.md plan.md review-plan-1.md pr.md logs
   [[ -f "$run/$kept" ]] || fail "teardown, files: $kept is gone"
 done
 [[ -L "$run/link.wav" && -f "$t/main/.scratchpads/corpus/c.wav" ]] || fail 'teardown, files: the link or its target is gone'
-grep -qE '^moved: 7 items, ' "$t/out" && grep -qE '^deleted: 7 items, ' "$t/out" || fail "teardown, files: wrong counts: $(cat "$t/out")"
+grep -qE '^moved: 12 items, ' "$t/out" && grep -qE '^deleted: 4 items, ' "$t/out" || fail "teardown, files: wrong counts: $(cat "$t/out")"
 # A second teardown with the same run name and file name: the name gets -2, the first file stays.
 echo second > "$run/take.wav"
 td "$run"
@@ -1468,7 +1470,7 @@ td "$run"
 td_setup minmb
 mk "$run/two.bin" 2
 (cd "$t/main" && TEARDOWN_MIN_MB=1 "$here/teardown-run.sh" "$run") > "$t/out" 2>&1
-[[ ! -e "$run/two.bin" ]] || fail 'teardown, TEARDOWN_MIN_MB=1: a 2 MB file stays'
+[[ ! -e "$run/two.bin" && -f "$t/main/.scratchpads/trash/$today/r/two.bin" ]] || fail 'teardown, TEARDOWN_MIN_MB=1: a 2 MB file stays or is not in the trash'
 
 # The trash sweep deletes the date folders more than 14 days old and keeps the others.
 td_setup sweep

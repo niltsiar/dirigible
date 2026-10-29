@@ -97,13 +97,15 @@ struct LocalizationTests {
             "a": "Salvar", "b": "Guardar", "c": "A salvaguarda", "d": "Exportando", "e": "A exportar", "f": "Mídias",
             "g": "Tem certeza de que quer sair?",
         ]
-        #expect(try brazilianWordHits(in: inline) == ["a: Salvar", "d: Exportando", "g: Tem certeza"])
+        let inlineHits = try brazilianWordHits(in: inline)
+        #expect(inlineHits == ["a: Salvar", "d: Exportando", "g: Tem certeza"])
 
         var table = try stringsTable("pt-PT")
         let infoPlist = resourcesFolder.appending(path: "pt-PT.lproj/InfoPlist.strings")
         let permissions = try PropertyListSerialization.propertyList(from: Data(contentsOf: infoPlist), format: nil)
         table.merge(try #require(permissions as? [String: String])) { first, _ in first }
-        #expect(try brazilianWordHits(in: table) == [])
+        let hits = try brazilianWordHits(in: table)
+        #expect(hits.isEmpty, "\(hits)")
     }
 
     /// The Mute and Solo boxes of a track header are 18 x 16 pt (decision 0039).

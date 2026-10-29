@@ -12,7 +12,7 @@ import Testing
 /// c1 is trimmed to x 200 to 300 pt on lane 1; c2 and c3 are x 0 to 1875 pt, wider than the view.
 extension TimelineMouseTests {
     enum DragKind: String, CaseIterable {
-        case move, trim, flag, gain, fade, crossfade, ripple, group, range, triangle
+        case move, trim, flag, gain, fade, crossfade, ripple, group, range, triangle, marquee
         case endMove = "end move"
         case wideMove = "wide move"
         case wideLaneChange = "wide lane change"
@@ -49,6 +49,7 @@ extension TimelineMouseTests {
             case .fade: NSPoint(x: 204, y: 4)
             case .crossfade: NSPoint(x: 280, y: 4)
             case .range: NSPoint(x: 250, y: 80)
+            case .marquee: NSPoint(x: 150, y: 10)
             case .triangle: NSPoint(x: 300, y: 20)
             case .endMove: NSPoint(x: 1865, y: 110)
             case .wideMove, .wideLaneChange: NSPoint(x: 300, y: 110)
@@ -63,14 +64,15 @@ extension TimelineMouseTests {
             case .trim, .ripple, .crossfade: NSPoint(x: x - Double(3 + n), y: y)
             case .gain: NSPoint(x: x, y: y + (odd ? 20 : 10))
             case .range, .wideLaneChange: NSPoint(x: x + Double(3 + n), y: y + (odd ? 100 : 0))
+            case .marquee: NSPoint(x: odd ? 350 : 250, y: y)
             default: NSPoint(x: x + Double(3 + n), y: y)
             }
         }
 
         var onRuler: Bool { self == .flag || self == .triangle }
-        /// The range and triangle drags change the Marks of the window model, so SwiftUI updates
-        /// the lanes, as in the benches.
-        var swiftUI: Bool { self == .range || self == .triangle }
+        /// The range and triangle drags change the Marks, and the marquee changes the selection, of
+        /// the window model, so SwiftUI updates the lanes, as in the benches.
+        var swiftUI: Bool { self == .range || self == .triangle || self == .marquee }
     }
 
     /// The `pacedDrags` assert of the drag benches (C1 of run 2026-10-08-bench-asserts): each of 3
@@ -102,7 +104,7 @@ extension TimelineMouseTests {
         func event(_ type: NSEvent.EventType, _ point: NSPoint) throws -> NSEvent {
             try kind.onRuler
                 ? rulerMouse(type, point.x, point.y, in: view)
-                : mouse(type, point, in: view, flags: kind == .ripple ? .option : [])
+                : mouse(type, point, in: view, flags: kind == .ripple ? .option : kind == .marquee ? .shift : [])
         }
         target.mouseDown(with: try event(.leftMouseDown, kind.press))
 

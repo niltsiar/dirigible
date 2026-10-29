@@ -114,6 +114,7 @@
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episodio";
 "inspector.tab.marker" = "Marcador";
+"inspector.tab.transcript" = "Transcripción";
 "marker.none" = "Ningún marcador";
 "marker.name" = "Nombre";
 "marker.url" = "Enlace";
@@ -415,6 +416,8 @@
 "menu.view.loudness.hide" = "Ocultar medidor de sonoridad";
 "menu.view.inspector.show" = "Mostrar inspector";
 "menu.view.inspector.hide" = "Ocultar inspector";
+"menu.view.transcript.show" = "Mostrar transcripción";
+"menu.view.transcript.hide" = "Ocultar transcripción";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Sin selección";
@@ -614,6 +617,7 @@
 "error.transcript.empty" = "La transcripción no tiene ninguna palabra en la línea de tiempo, así que no hay subtítulos que escribir.";
 "error.transcript.gone" = "La transcripción ya no está en la sesión, así que no se escribió ningún archivo.";
 "error.transcript.unloaded" = "Falta el archivo de la transcripción o está dañado. Vuelve a importar la transcripción con un agente o con el comando dirigible.";
+"transcript.notloaded" = "Transcripción %lld (%@): falta su archivo o está dañado, así que no se muestran sus palabras.";
 "menu.file.export.transcript" = "Exportar transcripción…";
 
 /* Start window */

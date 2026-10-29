@@ -114,6 +114,7 @@
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Episodio";
 "inspector.tab.marker" = "Marker";
+"inspector.tab.transcript" = "Trascrizione";
 "marker.none" = "Nessun marcatore";
 "marker.name" = "Nome";
 "marker.url" = "Link";
@@ -415,6 +416,8 @@
 "menu.view.loudness.hide" = "Nascondi misuratore di intensità";
 "menu.view.inspector.show" = "Mostra inspector";
 "menu.view.inspector.hide" = "Nascondi inspector";
+"menu.view.transcript.show" = "Mostra trascrizione";
+"menu.view.transcript.hide" = "Nascondi trascrizione";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clip: %d";
 "inspector.none" = "Nessuna selezione";
@@ -614,6 +617,7 @@
 "error.transcript.empty" = "La trascrizione non ha parole sulla timeline, quindi non ci sono sottotitoli da scrivere.";
 "error.transcript.gone" = "La trascrizione non è più nella sessione, quindi nessun file è stato scritto.";
 "error.transcript.unloaded" = "Il file della trascrizione manca o è danneggiato. Importa di nuovo la trascrizione con un agente o con il comando dirigible.";
+"transcript.notloaded" = "Trascrizione %lld (%@): il file manca o è danneggiato, quindi le sue parole non vengono mostrate.";
 "menu.file.export.transcript" = "Esporta trascrizione…";
 
 /* Start window */

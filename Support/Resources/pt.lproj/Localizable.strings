@@ -114,6 +114,7 @@
 "inspector.tab.clip" = "Clipe";
 "inspector.tab.episode" = "Episódio";
 "inspector.tab.marker" = "Marcador";
+"inspector.tab.transcript" = "Transcrição";
 "marker.none" = "Nenhum Marcador";
 "marker.name" = "Nome";
 "marker.url" = "Link";
@@ -415,6 +416,8 @@
 "menu.view.loudness.hide" = "Ocultar Medidor de Loudness";
 "menu.view.inspector.show" = "Mostrar Inspetor";
 "menu.view.inspector.hide" = "Ocultar Inspetor";
+"menu.view.transcript.show" = "Mostrar Transcrição";
+"menu.view.transcript.hide" = "Ocultar Transcrição";
 "inspector.clip" = "Clipe";
 "inspector.clips" = "Clipes: %d";
 "inspector.none" = "Nenhuma Seleção";
@@ -614,6 +617,7 @@
 "error.transcript.empty" = "A transcrição não tem nenhuma palavra na linha do tempo, então não há legendas para gravar.";
 "error.transcript.gone" = "A transcrição não está mais na sessão, então nenhum arquivo foi gravado.";
 "error.transcript.unloaded" = "O arquivo da transcrição está ausente ou danificado. Importe a transcrição de novo com um agente ou com o comando dirigible.";
+"transcript.notloaded" = "Transcrição %lld (%@): o arquivo está ausente ou danificado, então as palavras não aparecem.";
 "menu.file.export.transcript" = "Exportar Transcrição…";
 
 /* Start window */

@@ -114,6 +114,7 @@
 "inspector.tab.clip" = "Clip";
 "inspector.tab.episode" = "Folge";
 "inspector.tab.marker" = "Marker";
+"inspector.tab.transcript" = "Transkript";
 "marker.none" = "Kein Marker";
 "marker.name" = "Name";
 "marker.url" = "Link";
@@ -415,6 +416,8 @@
 "menu.view.loudness.hide" = "Loudness-Anzeige ausblenden";
 "menu.view.inspector.show" = "Informationen einblenden";
 "menu.view.inspector.hide" = "Informationen ausblenden";
+"menu.view.transcript.show" = "Transkript einblenden";
+"menu.view.transcript.hide" = "Transkript ausblenden";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Keine Auswahl";
@@ -614,6 +617,7 @@
 "error.transcript.empty" = "Das Transkript hat kein Wort in der Timeline, daher gibt es keine Untertitel zu schreiben.";
 "error.transcript.gone" = "Das Transkript ist nicht mehr in der Session, daher wurde keine Datei geschrieben.";
 "error.transcript.unloaded" = "Die Datei des Transkripts fehlt oder ist beschädigt. Importiere das Transkript erneut mit einem Agenten oder dem Befehl dirigible.";
+"transcript.notloaded" = "Transkript %lld (%@): Die Datei fehlt oder ist beschädigt, daher werden die Wörter nicht angezeigt.";
 "menu.file.export.transcript" = "Transkript exportieren …";
 
 /* Start window */

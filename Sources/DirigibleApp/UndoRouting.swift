@@ -10,8 +10,11 @@ enum UndoTarget: Equatable {
     case session
 }
 
-/// A focused text field makes the field editor (an `NSText`) the first responder.
-func undoTarget(firstResponder: NSResponder?) -> UndoTarget { firstResponder is NSText ? .text : .session }
+/// A focused text field makes the field editor (an `NSText`) the first responder. The read-only
+/// text of the Transcript tab is not text for the keys (0016).
+func undoTarget(firstResponder: NSResponder?) -> UndoTarget {
+    firstResponder is NSText && !(firstResponder is TranscriptTextView) ? .text : .session
+}
 
 /// The session window. The default Undo and Redo items send `undo:` and `redo:` along the
 /// responder chain (P12), and the window is on that chain also when it is the first responder

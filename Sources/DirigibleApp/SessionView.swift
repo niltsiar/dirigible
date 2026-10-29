@@ -16,7 +16,7 @@ struct SessionView: View {
         content
             // 720 pt keeps the transport and the time display in the toolbar (probe P1c). The
             // inspector adds its width (run 11b-2).
-            .frame(minWidth: Self.minWidth + (model.showsInspector ? model.inspectorWidth.points : 0), minHeight: 360)
+            .frame(minWidth: Self.minWidth + (model.showsInspector ? model.shownInspectorWidth : 0), minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),
@@ -83,7 +83,7 @@ struct SessionView: View {
                     }
                     // Leading: a pane wider than the column overflows at the window edge, and the
                     // divider stays on the lanes edge.
-                    .frame(width: model.inspectorWidth.points, alignment: .leading)
+                    .frame(width: model.shownInspectorWidth, alignment: .leading)
                 }
             }
             // An AppKit sheet: the close button is off while it shows (probe S1).

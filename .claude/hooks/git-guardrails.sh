@@ -692,8 +692,8 @@ sys.stdout.write("".join(out))
 # lost. A string test for a lock word opens the rule, so a Bash call with no lock word makes no read
 # of the two keys. Each segment of the chain (the masked text of the hook test rule below) is read from
 # its start, after the prefix words. A lock job has a with-lock.sh word in the prefix; or land.sh,
-# mutation-pass.sh, swift-test.sh, test-shards.sh, bench.sh, bench-pairs.sh, sanitize.sh, make, or
-# swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command. Misses: a
+# mutation-pass.sh, swift-test.sh, test-shards.sh, bench.sh, bench-pairs.sh, sanitize.sh, loop.sh,
+# make, or swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command. Misses: a
 # wrapper word that the prefix does not hold (nice, nohup, caffeinate) and a path in a variable.
 bg_gate='\.sh([^[:alnum:]]|$)|(^|[^[:alnum:]_.-])((ba|z|da)?sh|make|swift)([^[:alnum:]_.-]|$)'
 if [[ "$chained" =~ $bg_gate ]]; then
@@ -712,7 +712,7 @@ if [[ "$chained" =~ $bg_gate ]]; then
       lock_job=""
       [[ "$prefix" == *with-lock.sh* ]] && lock_job=1
       case "${words[0]:+${words[0]##*/}}" in
-        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|make|swift) lock_job=1 ;;
+        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|make|swift) lock_job=1 ;;
       esac
       [[ "$rest" =~ $bg_shell ]] && lock_job=1
       if [[ -n "$lock_job" ]]; then

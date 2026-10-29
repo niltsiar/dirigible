@@ -5,12 +5,14 @@ extension SessionView {
     /// first frame, the gain that the render added to its clips, and the effects as rendered.
     struct OriginView: Encodable {
         struct EffectView: Encodable {
-            /// "hum" or "noise".
+            /// "declip", "rumble", "hum", "noise", or "deess".
             let kind: String
-            /// The mains frequency of a hum.
+            /// The mains frequency of a hum, the corner of a rumble or a de-ess.
             var hz: Int?
-            /// The reduction of a noise.
+            /// The reduction of a noise, the largest cut of a de-ess.
             var decibels: Int?
+            /// The candidate level of a de-clip, in percent of the channel peak.
+            var percent: Int?
         }
 
         let source: String
@@ -24,8 +26,11 @@ extension SessionView {
             addedGain = origin.addedGain.dB
             effects = origin.treatment.effects.map { effect in
                 switch effect {
+                case .declip(let declip): EffectView(kind: "declip", percent: declip.percent)
+                case .rumble(let rumble): EffectView(kind: "rumble", hz: rumble.hertz)
                 case .hum(let hertz): EffectView(kind: "hum", hz: hertz.rawValue)
                 case .noise(let reduction): EffectView(kind: "noise", decibels: reduction.decibels)
+                case .deess(let deess): EffectView(kind: "deess", hz: deess.hertz, decibels: deess.decibels)
                 }
             }
         }
@@ -37,8 +42,11 @@ func originText(of file: AudioFile) -> String {
     guard let origin = file.origin else { return "" }
     let effects = origin.treatment.effects.map { effect in
         switch effect {
+        case .declip(let declip): "declip \(declip.percent) %"
+        case .rumble(let rumble): "rumble \(rumble.hertz) Hz"
         case .hum(let hertz): "hum \(hertz.rawValue) Hz"
         case .noise(let reduction): "noise \(reduction.decibels) dB"
+        case .deess(let deess): "deess \(deess.decibels) dB at \(deess.hertz) Hz"
         }
     }
     return " origin \(origin.source) offset \(origin.offset) added gain \(origin.addedGain) "

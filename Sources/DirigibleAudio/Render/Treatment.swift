@@ -2,8 +2,8 @@ import DirigibleCore
 
 extension Treatment {
     /// The suffix of the stem of each new file: " NR" when the effects hold noise, " HR" when they
-    /// hold hum and no noise.
-    var suffix: String { usesSoundIsolation ? " NR" : hum != nil ? " HR" : "" }
+    /// hold hum and no noise, else " RP" (a repair).
+    var suffix: String { usesSoundIsolation ? " NR" : hum != nil ? " HR" : " RP" }
 
     /// True when the effects hold noise, so the chain loads AUSoundIsolation.
     var usesSoundIsolation: Bool { noise != nil }
@@ -17,6 +17,15 @@ extension Treatment {
     public var hum: Hum? {
         effects.lazy.compactMap { if case .hum(let hertz) = $0 { hertz } else { nil } }.first
     }
+
+    /// The de-clip, when the effects hold one.
+    var declip: Declip? { effects.lazy.compactMap { if case .declip(let value) = $0 { value } else { nil } }.first }
+
+    /// The high-pass, when the effects hold one.
+    var rumble: Rumble? { effects.lazy.compactMap { if case .rumble(let value) = $0 { value } else { nil } }.first }
+
+    /// The de-ess, when the effects hold one.
+    var deess: DeEss? { effects.lazy.compactMap { if case .deess(let value) = $0 { value } else { nil } }.first }
 
     /// False for a `.music` or `.effects` track when the effects hold noise, because the voice unit
     /// removes music and effects; else true. Nil, the default role of every track (decision 0060),

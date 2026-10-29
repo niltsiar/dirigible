@@ -26,6 +26,12 @@ extension ClipRenderError {
             "the noise reduction of macOS (AUSoundIsolation) did not load (status \(status))."
         case .engine(let status): "the noise reduction stopped: the audio engine failed (status \(status))."
         case .stillOverFullScale(let file): "the noise reduction made \"\(file)\" louder than full scale, so it clips."
+        case .cornerTooHigh(let hertz, .hertz(let limit)):
+            "the clip render refuses \(hertz) Hz: the session rate takes a filter corner of \(limit) Hz at most."
+        case .cornerTooHigh(let hertz, .lowestRate(let rate)):
+            "the clip render refuses \(hertz) Hz: the effect needs a session rate of \(rate) Hz or more."
+        case .nonFiniteSample(let file):
+            "the clip render refuses \"\(file)\": a rendered sample is not a number, so it writes nothing."
         }
     }
 }

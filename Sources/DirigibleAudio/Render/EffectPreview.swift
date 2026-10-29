@@ -75,8 +75,10 @@ func renderPreview(
     else { throw .sourceUnreadable(file: file.path, errno: EIO) }
     var below: AVAudioPCMBuffer?
     for level in window.levels {
+        // A de-clip needs the measure of the clip span, so the preview plays no de-clip.
         let chain = try EffectChain(
-            level.treatment, scale: 1, rate: rate, channels: channels, component: .soundIsolation)
+            level.treatment, scale: 1, rate: rate, channels: channels, component: .soundIsolation,
+            repair: try RepairSetup.unmeasured(level.treatment, rate: rate, channels: channels))
         guard let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)) else {
             throw .engine(status: kAudio_MemFullError)
         }

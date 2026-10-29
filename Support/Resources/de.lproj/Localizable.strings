@@ -227,6 +227,9 @@
 "error.denoise.unavailable" = "Dirigible kann das Rauschen nicht reduzieren. Die Rauschreduzierung von macOS wurde nicht geladen (Fehler %lld).";
 "error.denoise.engine" = "Dirigible kann das Rauschen nicht reduzieren. Die Audio-Engine wurde gestoppt (Fehler %lld). Versuche es erneut.";
 "error.denoise.over.full.scale" = "Dirigible kann das Rauschen nicht reduzieren. Die neue Audiodatei „%@“ ist lauter als Vollaussteuerung und übersteuert. Versuche es erneut.";
+"error.denoise.corner.limit" = "Dirigible kann die Clips nicht berechnen. Die Frequenz %lld Hz ist zu hoch für die Abtastrate dieser Session: Das Maximum ist %lld Hz.";
+"error.denoise.corner.rate" = "Dirigible kann die Clips nicht berechnen. Die Frequenz %lld Hz braucht eine Abtastrate der Session von %lld Hz oder mehr.";
+"error.denoise.non.finite" = "Dirigible kann die Clips nicht berechnen. Ein Sample der neuen Audiodatei „%@“ ist keine Zahl, daher schreibt Dirigible nichts. Versuche es erneut.";
 "error.denoise.yielded" = "Die Rauschreduzierung wurde für einen Take in einem anderen Fenster gestoppt. Reduziere das Rauschen nach dem Take erneut.";
 "reverted.to" = "Auf das Backup von %@ zurückgesetzt";
 
@@ -401,6 +404,9 @@
 "inspector.effects" = "Effekte";
 "inspector.effect.noise" = "Rauschen reduzieren %lld dB";
 "inspector.effect.hum" = "Brummen entfernen %lld Hz";
+"inspector.effect.declip" = "Übersteuerte Spitzen reparieren %lld %%";
+"inspector.effect.rumble" = "Rumpeln reduzieren %lld Hz";
+"inspector.effect.deess" = "S-Laute abschwächen %lld dB bei %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Loudness-Anzeige";

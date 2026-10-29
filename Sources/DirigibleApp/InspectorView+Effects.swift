@@ -31,8 +31,13 @@ extension InspectorView {
         guard let first = chains.first, chains.allSatisfy({ $0 == first }) else { return text(.inspectorMixed) }
         return first.map { effect in
             switch effect {
+            case .declip(let declip):
+                String(format: text(.inspectorEffectDeclip), locale: .current, declip.percent)
+            case .rumble(let rumble): String(format: text(.inspectorEffectRumble), locale: .current, rumble.hertz)
             case .hum(let hum): String(format: text(.inspectorEffectHum), locale: .current, hum.rawValue)
             case .noise(let noise): String(format: text(.inspectorEffectNoise), locale: .current, noise.decibels)
+            case .deess(let deess):
+                String(format: text(.inspectorEffectDeess), locale: .current, deess.decibels, deess.hertz)
             }
         }.joined(separator: ", ")
     }

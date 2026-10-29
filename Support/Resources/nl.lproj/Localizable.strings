@@ -227,6 +227,9 @@
 "error.denoise.unavailable" = "Dirigible kan de ruis niet verminderen. De ruisvermindering van macOS is niet geladen (fout %lld).";
 "error.denoise.engine" = "Dirigible kan de ruis niet verminderen. De audio-engine is gestopt (fout %lld). Probeer het opnieuw.";
 "error.denoise.over.full.scale" = "Dirigible kan de ruis niet verminderen. Het nieuwe audiobestand '%@' is luider dan volle schaal en vervormt. Probeer het opnieuw.";
+"error.denoise.corner.limit" = "Dirigible kan de clips niet verwerken. De frequentie van %lld Hz is te hoog voor de samplefrequentie van deze sessie: het maximum is %lld Hz.";
+"error.denoise.corner.rate" = "Dirigible kan de clips niet verwerken. De frequentie van %lld Hz vraagt een samplefrequentie van de sessie van %lld Hz of meer.";
+"error.denoise.non.finite" = "Dirigible kan de clips niet verwerken. Een sample van het nieuwe audiobestand '%@' is geen getal, dus Dirigible schrijft niets. Probeer het opnieuw.";
 "error.denoise.yielded" = "De ruisvermindering is gestopt vanwege een take in een ander venster. Verminder de ruis opnieuw na de take.";
 "reverted.to" = "Teruggezet naar de reservekopie van %@";
 
@@ -401,6 +404,9 @@
 "inspector.effects" = "Effecten";
 "inspector.effect.noise" = "Ruis verminderen %lld dB";
 "inspector.effect.hum" = "Brom verwijderen %lld Hz";
+"inspector.effect.declip" = "Afgekapte pieken herstellen %lld %%";
+"inspector.effect.rumble" = "Gerommel verminderen %lld Hz";
+"inspector.effect.deess" = "S-klanken verzachten %lld dB bij %lld Hz";
 "inspector.decibels" = "dB";
 "inspector.milliseconds" = "ms";
 "loudness.meter" = "Luidheidsmeter";

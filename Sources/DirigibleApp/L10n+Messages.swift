@@ -135,6 +135,9 @@ extension L10n {
         case .effectUnavailable(let status): errorDenoiseUnavailable.format(Int(status))
         case .engine(let status): errorDenoiseEngine.format(Int(status))
         case .stillOverFullScale(let file): errorDenoiseOverFullScale.format(file)
+        case .cornerTooHigh(let hertz, .hertz(let limit)): errorDenoiseCornerLimit.format(hertz, limit)
+        case .cornerTooHigh(let hertz, .lowestRate(let rate)): errorDenoiseCornerRate.format(hertz, rate)
+        case .nonFiniteSample(let file): errorDenoiseNonFinite.format(file)
         case .cancelled, .session: errorSessionOther.text
         }
     }

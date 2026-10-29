@@ -59,29 +59,34 @@ extension ClipCommand {
         }
 
         func run() throws {
-            let work = ClipRenderWork(clips: clips.map { ClipID($0) }, request: try request())
-            let interrupt = cancelOnInterrupt()
-            defer { interrupt.source.cancel() }
-            let moved = try editPackage(package, ripple: false, writeUnchanged: false, refused: failure) {
-                session, lock throws(ClipRenderError) in
-                try work.render(
-                    &session, in: package.url, lock: lock, progress: { _ in }, isCancelled: interrupt.isCancelled)
-            }
-            for line in ClipRenderWork.lines(moved) { print(line) }
+            try runClipRender(ClipRenderWork(clips: clips.map { ClipID($0) }, request: try request()), in: package)
         }
+    }
+}
 
-        /// The error line and the exit code of a render that changed nothing. Control-C gives the
-        /// status of the default action, with no message.
-        func failure(_ error: ClipRenderError) -> ExitCode {
-            switch error {
-            case .cancelled: ExitCode(128 + SIGINT)
-            case .session, .trackRole, .mixedTreatments, .effectUnavailable, .cornerTooHigh:
-                fail(error.message, code: editRefused)
-            case .space, .write, .sourceUnreadable, .sourceMissing, .notDownloaded, .engine, .stillOverFullScale,
-                .nonFiniteSample:
-                fail(error.message, code: packageError)
-            }
-        }
+/// Renders `work` in the package and prints one line for each moved clip. A failure prints its error
+/// line and exits with its code.
+func runClipRender(_ work: ClipRenderWork, in package: PackageArgument) throws {
+    let interrupt = cancelOnInterrupt()
+    defer { interrupt.source.cancel() }
+    let moved = try editPackage(package, ripple: false, writeUnchanged: false, refused: clipRenderFailure) {
+        session, lock throws(ClipRenderError) in
+        try work.render(
+            &session, in: package.url, lock: lock, progress: { _ in }, isCancelled: interrupt.isCancelled)
+    }
+    for line in ClipRenderWork.lines(moved) { print(line) }
+}
+
+/// The error line and the exit code of a render that changed nothing. Control-C gives the status of
+/// the default action, with no message.
+private func clipRenderFailure(_ error: ClipRenderError) -> ExitCode {
+    switch error {
+    case .cancelled: ExitCode(128 + SIGINT)
+    case .session, .trackRole, .mixedTreatments, .effectUnavailable, .cornerTooHigh:
+        fail(error.message, code: editRefused)
+    case .space, .write, .sourceUnreadable, .sourceMissing, .notDownloaded, .engine, .stillOverFullScale,
+        .nonFiniteSample:
+        fail(error.message, code: packageError)
     }
 }
 

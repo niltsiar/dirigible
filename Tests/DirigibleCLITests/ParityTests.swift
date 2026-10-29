@@ -52,7 +52,7 @@ struct ParityTests {
         "importChapters": ["chapters import"],
         "heal": ["clip heal"],
         "restoreOriginals": ["clip restore"],
-        "repoint": ["clip denoise"],
+        "repoint": ["clip denoise", "clip repair"],
         "duck": ["duck"],
     ]
 

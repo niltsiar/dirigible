@@ -246,7 +246,7 @@ private func liveSplit(
     }
 }
 
-/// `clip_denoise` through `Studio.renderClips`: one undo step with the agent name, and the clips on the
+/// `clip_denoise` and `clip_repair` through `Studio.renderClips`: one undo step with the agent name, and the clips on the
 /// new files. The banner Cancel or a cancel of the call ends it with no clip changed and no new WAV
 /// (decision 0049).
 @MainActor
@@ -263,10 +263,10 @@ private func liveDenoise(
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         let text =
             Task.isCancelled
-            ? cancelledMessage : stopMessage(studio.importStop, noun: "noise reduction", nothing: noChange)
+            ? cancelledMessage : stopMessage(studio.importStop, noun: work.noun, nothing: noChange)
         return .result(text: text, isError: true)
     } catch .clipRenderYielded {
-        return .result(text: stopMessage(.take, noun: "noise reduction", nothing: noChange), isError: true)
+        return .result(text: stopMessage(.take, noun: work.noun, nothing: noChange), isError: true)
     } catch .busy {
         let busy: AgentBusy = studio.pendingTake != nil ? .pendingTake : .task
         return .result(text: busy.message(package: call.path), isError: true)
@@ -334,7 +334,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."
-    case .clipRender: "Dirigible stopped its agent server, so the noise reduction stopped. No clip changed."
+    case .clipRender(let render): "Dirigible stopped its agent server, so the \(render.noun) stopped. No clip changed."
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
     case .read: "Dirigible stopped its agent server, so the read stopped."

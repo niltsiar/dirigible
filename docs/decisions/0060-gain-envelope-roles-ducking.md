@@ -8,6 +8,7 @@
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). A split stereo moves a clip to another file: each point moves by the start of the run and the edge rule applies at the edges of the new file, so the gain at each source frame stays.
 - Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). A role also picks the clips of Reduce Noise: it skips the clips of music and effects tracks (`Treatment.accepts`). No role changes the sound.
 - Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). `Session.repoint` moves a clip to the file of a render through `GainEnvelope.moved(by:fileLength:)`, which the split also calls: each point moves by the start of the run and the edge rule applies at the edges of the new file, so the gain at each source frame stays.
+- Amended: 2026-10-28, run `2026-10-28-envelope-edge-gain`. When a clip has a point outside its window, `info` and `session_info` also show the envelope gain at the first and the last frame of the window, rounded to 0.01 dB.
 - Amends: 0003 and 0024 (session.xml version 10 with an envelope, version 11 with a role), 0035 (the fade factor multiplies the envelope factor), 0036 (the sounding clip reads the envelope in its handles; `canHeal` and so the **Seamless join** rule need equal gain at each frame of the joined range, envelopes included), 0016 (the mix applies the envelope; 0019 keeps its rule, as `MixReader` still reads `Session.heardTracks(in:)`), 0039 (the duck detection ignores mute and solo, as Auto Level), 0017 and 0022 (the gain line draws the envelope), 0011 (the new commands and tools).
 
 ## Context
@@ -98,7 +99,7 @@ Rejected: **a live side chain at play and export** (GarageBand 09 ducking, which
 | `track role <pkg> <track> <dialogue\|music\|effects\|none>` | `track_role(track, role)` | Sets the role. |
 | `duck <pkg> [--speech <t>]... [--music <t>]... [--from <f> --to <f>] [--depth --attack --release --threshold --hold]` | `duck(...)` | The duck, with a report of the speech runs, the points written, and the clips it kept because no run reaches them. |
 
-`info` and `session_info` show the role of each track and the envelope points of each clip in timeline frames: the points inside the clip window, and the count of the points outside it. `info --json --compact` shows the point count only.
+`info` and `session_info` show the role of each track and the envelope points of each clip in timeline frames: the points inside the clip window, the count of the points outside it, and, when a point lies outside it, the gain at the first and the last frame of the window, on top of the clip gain (`window edges`, JSON `windowEdges`), rounded to 0.01 dB. `info --json --compact` shows the point count only.
 
 ## Consequences
 

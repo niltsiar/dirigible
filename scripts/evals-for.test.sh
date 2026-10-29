@@ -785,7 +785,15 @@ for line in open(sys.argv[1]):
   # A failed session stops the sessions that still run, and a TERM stops them all.
   e="$(eval_env killfail)"
   SECONDS=0
+  # kill logs each pid that has ended when a signal goes to it: the number can belong to another process.
+  export STALE_LOG="$tmp/stale.log"
+  : > "$STALE_LOG"
+  kill() { local a; if [[ "$1" != -0 ]]; then for a in "$@"; do [[ "$a" =~ ^[0-9]+$ ]] && ! builtin kill -0 "$a" 2>/dev/null && echo "$a" >> "$STALE_LOG"; done; fi; builtin kill "$@"; }
+  export -f kill
   FAKE_SLEEP=60 FAKE_MODE=exit1:b-2 runner "$e" HEAD HEAD E2 t1
+  export -nf kill
+  unset -f kill
+  [[ ! -s "$STALE_LOG" ]] || fail "run.sh with a failed session: it signalled a session that had ended (pid $(tr '\n' ' ' < "$STALE_LOG"))"
   [[ $code -eq 3 && $SECONDS -lt 40 ]] || fail "run.sh with a failed session: exit $code after $SECONDS s"
   no_fake_left || { pkill -f "$fake/claude"; fail 'run.sh with a failed session: a session still runs'; }
   e="$(eval_env killterm)"

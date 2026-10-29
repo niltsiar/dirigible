@@ -334,7 +334,14 @@ start_holder() {
     for i in $(seq 1 100); do [[ -s "$tmp/$1.held" ]] && return 0; sleep 0.1; done
     fail "the holder $1 did not take the lock"
 }
-stop_holder() { kill -9 "$1"; { wait "$1"; } 2>/dev/null; return 0; }
+stop_holder() {
+    local p keep=()
+    kill -9 "$1"
+    { wait "$1"; } 2>/dev/null
+    for p in ${holders[@]+"${holders[@]}"}; do [[ "$p" == "$1" ]] || keep+=("$p"); done
+    holders=(${keep[@]+"${keep[@]}"})
+    return 0
+}
 newwiki lock1
 put_item "$tmp/k.txt" "After the kill" "A write after a killed holder" "body"
 start_holder h1 wiki/items/0777.md

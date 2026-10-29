@@ -22,6 +22,33 @@ trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD BASE MAKEFLAGS SINCE
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
+# A pid variable can outlive its child, and the kernel can give the number to a process of another
+# tree. kill below signals a pid only when it descends from this shell (kill -0 stays a plain probe).
+mine() {
+  local p n=0
+  p="$(ps -o ppid= -p "$1" 2>/dev/null | tr -d ' ')"
+  while [[ "$p" =~ ^[0-9]+$ && $p -gt 1 && $((n++)) -lt 8 ]]; do
+    [[ "$p" == "$$" ]] && return 0
+    p="$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')"
+  done
+  return 1
+}
+kill() {
+  local sig=-TERM arg pid sent=1
+  local -a pids=()
+  for arg in "$@"; do
+    case "$arg" in
+      --) ;;
+      -*) sig="$arg" ;;
+      *) pids+=("$arg") ;;
+    esac
+  done
+  if [[ "$sig" == -0 ]]; then builtin kill -0 ${pids[@]+"${pids[@]}"}; return; fi
+  for pid in ${pids[@]+"${pids[@]}"}; do
+    mine "$pid" && builtin kill "$sig" "$pid" 2>/dev/null && sent=0
+  done
+  return $sent
+}
 
 repo="$tmp/repo" lock="$tmp/repo/.git/dirigible-build.lock" waits="$tmp/repo/.git/dirigible-build-waits.log"
 mkdir -p "$repo/scripts"
@@ -1011,6 +1038,25 @@ touch -t "$(date -r $(($(date +%s) - 100)) +%Y%m%d%H%M.%S)" "$lock/pid"
 out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
 [[ "$out" =~ holder:\ /t/holder\ held\ (99|100|101|102)\ s\ of\ 1800\ s ]] || fail "--builders, hold seconds: [$out]"
 reset_builders
+
+# A pid variable that outlives its child can name a stranger when the kernel reuses the pid. A
+# stranger is a process that is not a descendant of this shell: until_true and clear_hold (and so the
+# EXIT trap) must leave it alone, and still stop a real child.
+running() { local s; s="$(ps -o stat= -p "$1" 2>/dev/null)"; [[ -n "$s" && "$s" != Z* ]]; }
+( sleep 30 & echo $! > "$tmp/stranger" )
+stranger="$(cat "$tmp/stranger")"
+waiter=$stranger
+until_true 1 false
+waiter=""
+holder=$stranger
+clear_hold
+for _ in $(seq 10); do running "$stranger" || break; sleep 0.1; done
+running "$stranger" || fail 'stale pid: until_true or clear_hold signalled a process that is not a child'
+sleep 30 & mine=$!
+holder=$mine
+clear_hold
+dead "$mine" || fail 'stale pid: clear_hold left a child of this shell running'
+builtin kill "$stranger" 2>/dev/null
 
 [[ $failures -eq 0 ]] && echo "with-lock tests: all passed"
 exit $((failures > 0))

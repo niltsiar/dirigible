@@ -12,8 +12,9 @@ tmp="$(cd "$(mktemp -d /tmp/verify-copy.XXXXXX)" && pwd -P)"
 # then fails, and never acts on the real build/.
 cd "$tmp" || exit 1
 started=()
-# Kill each process that the test or a fake open started, then remove the temp folders.
-trap 'for p in "${started[@]}" $(cat "$tmp"/case-*/state/pids 2>/dev/null); do kill -9 "$p" 2>/dev/null; done; rm -rf "$tmp"' EXIT
+# Kill each process that the test or a fake open started and that still runs a file of the temp
+# folder (a pid of an ended process can belong to another process), then remove the temp folders.
+trap 'for p in "${started[@]}" $(cat "$tmp"/case-*/state/pids 2>/dev/null); do [[ "$(ps -o command= -p "$p" 2>/dev/null)" != *"$tmp"* ]] || kill -9 "$p" 2>/dev/null; done; rm -rf "$tmp"' EXIT
 failures=0
 # Each case repo has its own copy ID (verify-copy.sh id); new_case sets copy_id.
 real_id=com.delineas.dirigible

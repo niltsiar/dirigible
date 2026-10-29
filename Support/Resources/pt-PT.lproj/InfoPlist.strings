@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "O Dirigible grava o áudio dos seus microfones e interfaces de áudio.";
+"Dirigible Session" = "Sessão do Dirigible";
+"NSAudioCaptureUsageDescription" = "O Dirigible grava o som das aplicações que escolher como fontes das faixas, por exemplo uma chamada.";

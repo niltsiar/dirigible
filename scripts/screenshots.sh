@@ -1,8 +1,8 @@
 #!/bin/bash
 # Make the screenshots of the README and the guide from the scripted "Demo Episode" session.
 # Usage: scripts/screenshots.sh <folder> [<lang>]. The script builds the app and the CLI of this tree
-# first. <lang> is a folder of Support/Resources (<lang>.lproj), by default en. The script refuses any
-# other value with exit 2, before it builds.
+# first. <lang> is a folder of Support/Resources (<lang>.lproj), by default en: a language code, or a
+# code with a region such as pt-PT. The script refuses any other value with exit 2, before it builds.
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in the language (the number format of its locale) and light
@@ -19,13 +19,13 @@ set -euo pipefail
 folder="${1:?usage: screenshots.sh <folder> [<lang>]}"
 lang="${2:-en}"
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
-[[ "$lang" =~ ^[a-z]{2,3}$ && -d "$repo/Support/Resources/$lang.lproj" ]] || {
+[[ "$lang" =~ ^[a-z]{2,3}(-[A-Z]{2})?$ && -d "$repo/Support/Resources/$lang.lproj" ]] || {
     echo "screenshots.sh: no language '$lang': Support/Resources/$lang.lproj is missing." >&2
     exit 2
 }
 case "$lang" in
 de) locale=de_DE ;; en) locale=en_US ;; es) locale=es_ES ;; fr) locale=fr_FR ;; it) locale=it_IT ;;
-nl) locale=nl_NL ;; pt) locale=pt_BR ;;
+nl) locale=nl_NL ;; pt) locale=pt_BR ;; pt-PT) locale=pt_PT ;;
 *) echo "screenshots.sh: no locale for '$lang': add it to this script." >&2; exit 2 ;;
 esac
 refuse_running() {

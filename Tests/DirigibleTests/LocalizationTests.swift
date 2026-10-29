@@ -195,11 +195,13 @@ private let inspectorRooms: [(name: String, size: Double, room: Double, keys: [L
         ]
     ),
     ("episode link labels", 11, 89, [.episodeURL, .episodeFeedURL, .episodeGUID]),
-    ("marker labels", 11, 42, [.markerName, .markerURL]),
+    // The rooms of marker labels, Links, and Choose are the width of the pt-PT text (Hiperligação,
+    // Hiperligações, Escolher). The other languages are narrower.
+    ("marker labels", 11, 66, [.markerName, .markerURL]),
     ("tab titles", Double(NSFont.systemFontSize), 58, [.inspectorTabClip, .inspectorTabEpisode, .inspectorTabMarker]),
     ("Explicit", 11, 45, [.episodeExplicit]),
-    ("Links", 11, 41, [.episodeLinks]),
-    ("Choose", 11, 51, [.episodeArtworkChoose]),
+    ("Links", 11, 72, [.episodeLinks]),
+    ("Choose", 11, 54, [.episodeArtworkChoose]),
     ("Remove", 11, 51, [.episodeArtworkRemove]),
 ]
 

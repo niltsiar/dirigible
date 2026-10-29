@@ -35,16 +35,27 @@ stamp="$repo/.git/dirigible-hooks-stamp"
 # check-changed.sh --floor, and one file in each excluded path.
 new_repo() {
     rm -rf "$repo" "$tmp/log" "$tmp/own"
-    mkdir -p "$tmp/own" "$repo/scripts" "$repo/t" "$repo/.claude" "$repo/Support" "$repo/Tests" "$repo/docs" \
-        "$repo/Sources/DirigibleAudio" "$repo/Sources/DirigibleCore" "$repo/Sources/Other"
+    mkdir -p "$tmp/own" "$repo/scripts" "$repo/t" "$repo/.claude" "$repo/Support" "$repo/Tests" "$repo/docs" "$repo/Sources/Other"
     git -C "$repo" init -q -b main
     cp "$here/test-hooks.sh" "$here/check-changed.sh" "$repo/scripts/"
     printf 'HOOK_TESTS = \\\n\tt/a.test.sh \\\n\tt/b.test.sh\n\ntest-hooks:\n\tscripts/test-hooks.sh $(HOOK_TESTS)\n' > "$repo/Makefile"
     for n in a b; do printf '#!/bin/bash\necho %s >> "$HOOKS_LOG"\n' "$n" > "$repo/t/$n.test.sh"; done
     chmod +x "$repo/t/"*.sh
-    for f in Sources/DirigibleAudio/A.swift Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift \
-        Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/Other/O.swift Tests/T.swift docs/d.md README.md .claude/settings.json Support/s.txt; do
+    for f in $("$here/check-changed.sh" --floor); do
+        [[ $f == */ ]] && f="${f}A.swift"
+        mkdir -p "$repo/$(dirname "$f")"
         echo x > "$repo/$f"
+    done
+    for f in Sources/Other/O.swift Tests/T.swift docs/d.md README.md .claude/settings.json Support/s.txt; do
+        echo x > "$repo/$f"
+    done
+    # Guards the stub setup above, not a hook case: each floor path exists in the stub repo.
+    for p in $("$here/check-changed.sh" --floor); do
+        if [[ $p == */ ]]; then
+            [[ -n $(find "$repo/$p" -type f 2> /dev/null) ]] || fail "stub setup: no file in the floor folder $p"
+        else
+            [[ -f "$repo/$p" ]] || fail "stub setup: no file at the floor path $p"
+        fi
     done
     commit init
     export FAKE_SWIFT=6.2.4 FAKE_JQ=1.7.1 FAKE_DATE=2026-10-12

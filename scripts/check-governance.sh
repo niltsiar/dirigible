@@ -19,7 +19,7 @@
 # - With a run folder whose run.md has a `- Cut run:` line, each rules.tsv row that changes to merge
 #   has one or more `kept: "<text>"` parts in its reason. Each text has no double quote and at least
 #   5 words, and is on one line of a file of the target row at HEAD: its file cell, or its target cell
-#   when that names a file. This proves that the quoted line exists, not that it keeps the meaning.
+#   when its verdict is keep, new, or move. This proves that the quoted line exists, not that it keeps the meaning.
 # - With a run folder, check-plan.sh passes on it (the Unknowns table and the plan), and each
 #   research-<name>.md of the run folder has a docs/research/<name>.md that the branch adds or changes,
 #   or that a commit of the base changed on or after the run start date (the YYYY-MM-DD prefix of
@@ -218,7 +218,7 @@ if [[ -f "$rules" && -n "$run" ]] && grep -qE '^- Cut run: [^[:space:]]' "$run/r
     while IFS=$'\t' read -r id target reason; do
         [[ -n "$id" ]] || continue
         # The file cell of the target row, and its target cell (a path in a keep, new, or move row).
-        files="$(awk -F'\t' -v t="$target" 'FNR > 1 && $1 == t { print $2; print $4; exit }' "$rules")"
+        files="$(awk -F'\t' -v t="$target" 'FNR > 1 && $1 == t { print $2; if ($3 ~ /^(keep|new|move)$/) print $4; exit }' "$rules")"
         if [[ -z "$files" ]]; then
             echo "check-governance: rules.tsv: $id merges into $target, which has no row" >&2
             fail=1

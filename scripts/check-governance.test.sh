@@ -235,8 +235,9 @@ refuse 'three removals with fields and no cut run line' 'rules.tsv: 3 rows chang
 # In a cut run, with or without a reflect row, a row that changes to merge quotes the text of its target
 # that keeps each removed sentence: kept: "<text>", on one line of a file of the target row on HEAD.
 # kept_cut <reason part> [<target>]: A-2 merges into the target (A-1 by default), a keep row of docs/a.md.
+# The variables a1_verdict and a1_target set the verdict and the target cell of A-1 (keep and docs/a.md).
 kept_cut() {
-  printf '%s\nA-1\tdocs/a.md\tkeep\tdocs/a.md\tr\ts\t\tx\nA-2\ta.md\tmerge\t%s\t%s; %s\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "${2:-A-1}" "$fields" "$1" > "$rules"
+  printf '%s\nA-1\tdocs/a.md\t%s\t%s\tr\ts\t\tx\nA-2\ta.md\tmerge\t%s\t%s; %s\ts\t\tx\nA-3\ta.md\tkeep\ta.md\tr\ts\t\tx\n' "$head_rules" "${a1_verdict:-keep}" "${a1_target:-docs/a.md}" "${2:-A-1}" "$fields" "$1" > "$rules"
   printf 'Rule one keeps this line in the file.\nRule two keeps that other line too.\n' > "$tmp/r/docs/a.md"
 }
 new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"'; commit
@@ -259,6 +260,13 @@ new_repo; cut_run; kept_cut 'kept: "Rule three says nothing here"'; commit; echo
 refuse 'a cut-run merge whose kept text is only in the work tree' 'A-2 quotes kept: "Rule three says nothing here"' "$tmp/run"
 new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"' A-9; commit
 refuse 'a cut-run merge into a target with no row' 'A-2 merges into A-9, which has no row' "$tmp/run"
+# The target cell of an enforced row is its test, not a rule doc: a quote that only the test holds is refused.
+new_repo; cut_run; a1_verdict=enforced a1_target=docs/t.sh kept_cut 'kept: "Rule three says nothing here"'
+echo 'Rule three says nothing here.' > "$tmp/r/docs/t.sh"; commit
+refuse 'a cut-run merge whose kept text is only in the test of an enforced target' 'A-2 quotes kept: "Rule three says nothing here"' "$tmp/run"
+new_repo; cut_run; a1_target=docs/b.md kept_cut 'kept: "Rule three says nothing here"'
+echo 'Rule three says nothing here.' > "$tmp/r/docs/b.md"; commit
+pass 'a cut-run merge whose kept text is in the target cell of a keep row' "$tmp/run"
 new_repo; printf -- '- Status: open\n' > "$tmp/run/run.md"; kept_cut 'duplicate of A-1'; commit
 pass 'a merge with no kept text and no cut run line' "$tmp/run"
 

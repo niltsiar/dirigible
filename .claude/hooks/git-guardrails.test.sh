@@ -1550,8 +1550,10 @@ stop_expect 'a done log, a transcript' "$(stop_in false "$stop_fx")"
 unset STUB_MARKER
 stop_hook="$real_stop_hook"
 
-# The lead transcript is read from its last 4 MiB only. A task that starts before the tail is not
-# found; a task that starts in the tail is.
+# The lead transcript is read from its last 8 MiB only (the longest measured span of a background
+# shell is 7.1 MiB). A task that starts before the tail is not found; a task that starts in the tail,
+# 4 to 8 MiB before the end, is.
+# tail_session <name> <filler lines>: a shell starts, about 1 KB for each filler line, a second shell starts
 tail_session() {
   hb_dir="$tmp/$1"; mkdir -p "$hb_dir"
   { hb_use 400 old1 Bash '{"command":"sleep 300","run_in_background":true}'
@@ -1559,17 +1561,22 @@ tail_session() {
     python3 -c '
 import json, sys
 line = json.dumps({"type": "user", "message": {"role": "user", "content": "x" * 1000}})
-sys.stdout.write((line + "\n") * 5200)
-'
+sys.stdout.write((line + "\n") * int(sys.argv[1]))
+' "$2"
     hb_use 2 new1 Bash '{"command":"sleep 300","run_in_background":true}'
     hb_result 2 new1 'Command running in background with ID: bnew. Output is being written to: /x'
   } > "$hb_dir/s.jsonl"
 }
-tail_session stop-tail
+tail_session stop-tail 9000
 stop_fixture fx-tail
 stop_expect 'a transcript over the tail bound' "$(stop_in false "$stop_fx")"
 [[ "$(stop_lines)" == 1 && "$(< "$stop_log")" == *' would-block-shell bnew: '* ]] ||
-  { echo "FAIL: a transcript over 4 MiB gives the task of its tail alone: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
+  { echo "FAIL: a transcript over 8 MiB gives the task of its tail alone: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
+tail_session stop-tail-in 6500
+stop_fixture fx-tail-in
+stop_expect 'a task 6 MiB before the end' "$(stop_in false "$stop_fx")"
+[[ "$(stop_lines)" == 1 && "$(< "$stop_log")" == *' would-block-shell bold,bnew: '* ]] ||
+  { echo "FAIL: a shell that starts 6 MiB before the end is found: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
 
 # event_registered <settings file> <event> <hook script>: an entry of the event runs the script
 event_registered() {
@@ -1678,12 +1685,17 @@ pc_words="$(printf '%s' "$pc_out" | wc -w | tr -d ' ')"
 pc_has '12 background tasks' 'task1 (shell)'
 pc_lacks 'user messages' 'SECRET-USER-TEXT'
 
-# The same 4 MiB tail bounds the transcript read of the compaction hook.
+# The same 8 MiB tail bounds the transcript read of the compaction hook.
 stop_fixture pc-tail
-tail_session pc-tail-session
+tail_session pc-tail-session 9000
 pc_run "$stop_fx"
 pc_has 'a transcript over the tail bound' 'bnew (shell)'
 pc_lacks 'a transcript over the tail bound' 'bold'
+stop_fixture pc-tail-in
+tail_session pc-tail-in-session 6500
+pc_run "$stop_fx"
+pc_has 'a task 6 MiB before the end' 'bold (shell)'
+pc_has 'a task 6 MiB before the end' 'bnew (shell)'
 
 # post-compact.sh: one line for each compaction, run-folder yes or no.
 stop_fixture pc-post

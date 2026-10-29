@@ -16,8 +16,9 @@
 # no task start, so the hooks pass: they fail open. No file, no line that parses, or an unknown
 # text prints nothing and exits 0.
 # running_tasks(path, tail=n) reads only the last n bytes of the file and drops the line that the cut
-# splits. The hooks of the lead turn pass 4 MiB, so the work stays bounded on a transcript of hundreds of
-# MB; a task that starts before the tail is not found. With no tail the whole file is read.
+# splits. The hooks of the lead turn pass 8 MiB (the longest of 229 measured shells spans 7.1 MiB),
+# so the work stays bounded on a transcript of hundreds of MB; a task that starts before the tail is
+# not found. With no tail the whole file is read.
 import json
 import re
 import sys

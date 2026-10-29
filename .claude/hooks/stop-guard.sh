@@ -12,7 +12,7 @@
 # then no line. A reader reads the log and decides on a block: a replay of the lead transcripts found
 # that a block on rule A stops most turn ends while one long shell lives.
 # The hook runs at each lead turn, so its work is bounded: it reads the log first and ends on `done`
-# before it reads the transcript, it reads only the last 4 MiB of the transcript, and settings.json
+# before it reads the transcript, it reads only the last 8 MiB of the transcript, and settings.json
 # sets a timeout.
 # The hook always exits 0, so a changed text of a newer Claude Code fails open.
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -57,7 +57,7 @@ except OSError:
 if any(line.split()[1:2] == ["done"] for line in lines):
     sys.exit(0)
 transcript = hook.get("transcript_path")
-tasks = load("background_tasks", "background-tasks.py").running_tasks(transcript, tail=4 << 20) if isinstance(transcript, str) else {}
+tasks = load("background_tasks", "background-tasks.py").running_tasks(transcript, tail=8 << 20) if isinstance(transcript, str) else {}
 if tasks:
     if set(tasks.values()) != {"shell"}:
         sys.exit(0)

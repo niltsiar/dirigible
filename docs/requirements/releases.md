@@ -146,7 +146,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 | R10 | Part: voice match, and the leveler (F37 part, F38 part), a text chapter list (F160), and track roles and the duck of the music under speech (F72, F34). |
 | R11 | Part: a warning in an export to MP3 or M4A with no episode title (F166). |
 | R12 | Part: the meter and the permission state of an armed app track before a take (F114). |
-| R13 | More UI languages (F113), and the export title warning of the window (F166). |
+| R13 | More UI languages (F113), the export title warning of the window (F166), and European Portuguese beside Brazilian Portuguese (F169). |
 | R16 | Part: the agent pack, an import in one call, a reuse of the same audio, a compact session read, and the reads by time (F157, F158, F159, F165). |
 
 1. **More UI languages (F113).** Portuguese, German, French, Italian, and Dutch, with the language preference of Release 2 (0010).
@@ -169,6 +169,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 18. **Agent reads by time (F165).** `dirigible silences`, `dirigible nearest-pause`, and `dirigible meter`, and their MCP tools, give the silences of a range, the best cut point near a frame, and the loudness and the peaks of the heard stereo mix of a range, with no export. On a session that is open in the app, they read the session of the window. Run: `2026-10-23-read-by-time` landing 1.
 19. **Export title warning (F166).** An export to MP3 or M4A with no episode title warns that the file has no title tag. Run: `2026-10-23-read-by-time` landing 2.
 20. **Marquee selection (F127).** A Shift-drag on the lanes selects the clips that the rectangle holds whole. Tester 2026-10-15. Run: `2026-10-29-marquee-select`.
+21. **European Portuguese UI (F169).** A `pt-PT` table beside the Brazilian `pt` table, with its own item in the language pop-up (0010). User 2026-10-16. Run: `2026-10-29-pt-pt-ui`.
 
 ## Release 5: edit by text
 

@@ -1,9 +1,8 @@
 #!/bin/bash
 # PostCompact hook: append one line to dirigible-compactions.log in the git common dir:
 # `<time> <agent id or lead> run-folder: yes|no`. The answer is yes when the compaction summary holds a
-# .scratchpads/runs/ path. A reader counts the summaries that lost the run folder (19 of 140 did when
-# the log was missing). Input that does not parse, and a cwd outside a git checkout, add no line. The
-# hook always exits 0.
+# .scratchpads/runs/ path. A reader counts the summaries that lost the run folder. Input that does
+# not parse, and a cwd outside a git checkout, add no line. The hook always exits 0.
 python3 -I -c '
 import json
 import os

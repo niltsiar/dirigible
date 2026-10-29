@@ -1,7 +1,6 @@
 #!/bin/bash
 # PreCompact hook: print what the compaction summary must keep. Claude Code appends the stdout of this
-# hook to the compaction instructions (probe: logs/s4-probe.log of run 2026-10-28-upkeep-sixth), so a
-# summary that would drop the run state keeps it: 19 of 140 summaries missed the run folder.
+# hook to the compaction instructions, so a summary keeps the run state.
 # The text is 120 words or fewer. It holds a fixed list of what to keep, then the facts of the open run
 # of cwd (open-run.py): its folder, branch, and worktree, the first unticked line of run.md, and the
 # running background tasks of the transcript (background-tasks.py). It copies no message of the user:

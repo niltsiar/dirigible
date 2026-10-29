@@ -102,4 +102,3 @@ def run_state(folder):
     unticked = re.findall(r"^\s*- \[ \] .*$", text, re.M)
     waits = re.search(r"^\s*(- )?waits: user", text, re.M) is not None
     return (unticked[0].strip() if unticked else ""), waits
-

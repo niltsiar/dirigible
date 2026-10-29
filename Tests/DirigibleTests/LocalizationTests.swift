@@ -89,6 +89,23 @@ struct LocalizationTests {
         }
     }
 
+    /// A pt-PT value has no word of the Brazil-only list: the pt table has them, and a copy of its
+    /// text is the likely mistake. The list is words, not a `-ndo` pattern, because that also ends
+    /// `quando` and `segundo`. `docs/research/pt-pt-ui.md` names the source of the list.
+    @Test func theEuropeanTableHasNoBrazilianWord() throws {
+        let inline = [
+            "a": "Salvar", "b": "Guardar", "c": "A salvaguarda", "d": "Exportando", "e": "A exportar", "f": "Mídias",
+            "g": "Tem certeza de que quer sair?",
+        ]
+        #expect(try brazilianWordHits(in: inline) == ["a: Salvar", "d: Exportando", "g: Tem certeza"])
+
+        var table = try stringsTable("pt-PT")
+        let infoPlist = resourcesFolder.appending(path: "pt-PT.lproj/InfoPlist.strings")
+        let permissions = try PropertyListSerialization.propertyList(from: Data(contentsOf: infoPlist), format: nil)
+        table.merge(try #require(permissions as? [String: String])) { first, _ in first }
+        #expect(try brazilianWordHits(in: table) == [])
+    }
+
     /// The Mute and Solo boxes of a track header are 18 x 16 pt (decision 0039).
     @Test func eachHeaderLetterIsOneCharacter() throws {
         for language in AppLanguage.allCases.map(\.rawValue) {
@@ -313,6 +330,26 @@ private let sameAsEnglish: [String: Set<String>] = [
         "track.role.music.letter", "track.route", "track.solo.letter", "track.volume.value",
     ],
 ]
+
+/// Words and phrases that Brazilian Portuguese uses and Apple's European Portuguese never does:
+/// Brazil-only nouns, `gravando` and `salvando`, and the progressive gerunds and verbs that the pt
+/// table has (a European progress text reads `A <infinitive>`).
+private let brazilianWords = [
+    "você", "arquivo", "arquivos", "salvar", "salvo", "salvando", "tela", "telas", "usuário", "usuários",
+    "trilha", "trilhas", "pista", "pistas", "mídia", "download", "gravando", "tem certeza",
+    "reduzindo", "recuperando", "preparando", "posicionando", "nivelando", "importando", "finalizando",
+    "exportando", "dividindo", "colando", "aguardando", "abaixando", "encerrar", "exibir", "atualizando",
+    "carregando", "processando",
+]
+
+/// `key: word` for each whole-word hit of `brazilianWords` in a value, in the order of the keys. A
+/// word inside another word (`salvaguarda`) is no hit; the case does not matter.
+private func brazilianWordHits(in table: [String: String]) throws -> [String] {
+    let words = try Regex("\\b(?:" + brazilianWords.joined(separator: "|") + ")\\b").ignoresCase()
+    return table.sorted { $0.key < $1.key }.flatMap { key, value in
+        value.matches(of: words).map { "\(key): \(value[$0.range])" }
+    }
+}
 
 /// The problems of the tables against the keys, in a stable order: per table (by language code),
 /// the missing or empty values, then the extra keys; then the keys whose specifiers or final

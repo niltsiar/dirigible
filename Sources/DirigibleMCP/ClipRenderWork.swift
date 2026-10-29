@@ -2,9 +2,10 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// The work of a `clip_denoise` call after its arguments are checked (decisions 0054 and 0049). It
-/// owns the lines and the texts of `dirigible clip denoise` and of the tool. On the files it runs
-/// `renderRequest` under the package lock; in the app, `liveJob` runs `Studio.renderClips`.
+/// The work of a `clip_denoise` or `clip_repair` call after its arguments are checked (decisions 0054,
+/// 0049, and 0064). It owns the lines and the texts of `dirigible clip denoise`, `dirigible clip repair`,
+/// and the tools. On the files it runs `renderRequest` under the package lock; in the app, `liveJob`
+/// runs `Studio.renderClips`.
 package struct ClipRenderWork: Sendable {
     let clips: [ClipID]
     let request: ClipRenderRequest
@@ -39,6 +40,67 @@ package struct ClipRenderWork: Sendable {
         if noise { effects.append(.noise(reduction ?? .standard)) }
         guard let treatment = Treatment(effects) else { throw .nothingToDo }
         return ClipRenderRequest(treatment, removing: noise ? [] : [.noise])
+    }
+
+    /// A combination of repair options that asks for no render, or a value outside its range. The
+    /// text is the same for the command and for the tool.
+    package enum RepairRefusal: Error, Equatable {
+        case nothingToDo
+        case sibilanceHertzWithoutSibilance
+        case rumble
+        case clipping
+        case sibilance
+        case sibilanceHertz
+
+        package var text: String {
+            switch self {
+            case .nothingToDo: "Give at least one repair: rumble, clipping, or sibilance."
+            case .sibilanceHertzWithoutSibilance: "A sibilance frequency needs a sibilance."
+            case .rumble: "A rumble is \(ClipRenderWork.integerForm(Rumble.range))."
+            case .clipping: "A clipping is \(ClipRenderWork.integerForm(Declip.range))."
+            case .sibilance: "A sibilance is \(ClipRenderWork.integerForm(DeEss.decibelRange))."
+            case .sibilanceHertz: "A sibilance frequency is \(ClipRenderWork.integerForm(DeEss.hertzRange))."
+            }
+        }
+    }
+
+    /// The form of a whole number in `range`, for the texts and the schema of a repair option.
+    package static func integerForm(_ range: ClosedRange<Int>) -> String {
+        "an integer from \(range.lowerBound) to \(range.upperBound)"
+    }
+
+    /// The one parse of the repair options of the command and of the tool into a request: a nil value
+    /// leaves its effect out. The frequency needs a sibilance, and a sibilance with no frequency uses
+    /// the standard frequency.
+    package static func repairRequest(rumble: Int?, clipping: Int?, sibilance: Int?, sibilanceHertz: Int?)
+        throws(RepairRefusal) -> ClipRenderRequest
+    {
+        var effects: [Effect] = []
+        if let clipping {
+            guard let declip = Declip(percent: clipping) else { throw .clipping }
+            effects.append(.declip(declip))
+        }
+        if let rumble {
+            guard let high = Rumble(hertz: rumble) else { throw .rumble }
+            effects.append(.rumble(high))
+        }
+        if let sibilance {
+            let hertz = sibilanceHertz ?? DeEss.standard.hertz
+            guard DeEss.decibelRange.contains(sibilance) else { throw .sibilance }
+            guard DeEss.hertzRange.contains(hertz) else { throw .sibilanceHertz }
+            effects.append(.deess(DeEss(hertz: hertz, decibels: sibilance)!))
+        } else if sibilanceHertz != nil {
+            throw .sibilanceHertzWithoutSibilance
+        }
+        guard let treatment = Treatment(effects) else { throw .nothingToDo }
+        return ClipRenderRequest(treatment)
+    }
+
+    /// The name of this render in the stop text of a long call: the noise reduction when the request
+    /// sets or removes the noise, else a repair.
+    package var noun: String {
+        let noise = request.effects.contains { $0.kind == .noise } || request.removed.contains(.noise)
+        return noise ? "noise reduction" : "repair"
     }
 
     /// One line for each moved clip: the clip and its new file, with a tab between them. No moved

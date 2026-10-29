@@ -31,6 +31,28 @@ private let hum = Param<Hum?>.optional(
     .hum)
 private let noise = Param.defaulted(
     "noise", "Reduce the noise. False needs hum and removes a stored noise reduction.", .boolean, true)
+private let rumble = Param<Int?>.optional(
+    "rumble",
+    "Reduce rumble with a high-pass filter at this frequency in Hz, \(Rumble.range.lowerBound) to "
+        + "\(Rumble.range.upperBound). The standard value is \(Rumble.standard.hertz). The default is no rumble reduction.",
+    .integer(in: Rumble.range))
+private let clipping = Param<Int?>.optional(
+    "clipping",
+    "Repair clipped peaks. A sample at or over this percent of the peak of the run, \(Declip.range.lowerBound) to "
+        + "\(Declip.range.upperBound), is a clip candidate. The standard value is \(Declip.standard.percent). The "
+        + "default is no repair of clipped peaks.",
+    .integer(in: Declip.range))
+private let sibilance = Param<Int?>.optional(
+    "sibilance",
+    "Soften \"s\" sounds by a largest cut in dB, \(DeEss.decibelRange.lowerBound) to "
+        + "\(DeEss.decibelRange.upperBound). The standard value is \(DeEss.standard.decibels). The default is no "
+        + "softening.",
+    .integer(in: DeEss.decibelRange))
+private let sibilanceHertz = Param<Int?>.optional(
+    "sibilance_hz",
+    "The frequency of the sibilance repair in Hz, \(DeEss.hertzRange.lowerBound) to \(DeEss.hertzRange.upperBound). "
+        + "The standard value is \(DeEss.standard.hertz). Needs sibilance.",
+    .integer(in: DeEss.hertzRange))
 private let someClips = Param.defaulted("clips", "The clip IDs.", .strings(), [String]())
 private let clips = Param.required("clips", "The clip IDs: one or more.", .strings(minItems: 1))
 private let by = Param.required("by", "The frames to move; negative moves left.", .integer())
@@ -246,6 +268,30 @@ let clipTools = [
             throw ToolError(error.rawValue)
         }
         return .clipRender(ClipRenderWork(clips: try a[clips].map { ClipID($0) }, request: request))
+    },
+    Tool(
+        "clip_repair",
+        "Repair clips, as dirigible clip repair: reduce rumble with a high-pass filter, repair clipped peaks, and "
+            + "soften harsh \"s\" sounds. Give at least one of rumble, clipping, and sibilance. For each run of clips "
+            + "of one file, one new 24-bit WAV in Clips/ with a handle of 10 s on each side, and the clips move onto "
+            + "it. The source file stays. Repairing clipped peaks makes the clip quieter: use clip_gain to bring it "
+            + "back. A call or a compressed track can show no clipped peak. A second call on a clip that this version "
+            + "rendered renders again from its source, and the same values give \"Nothing to change.\". A filter "
+            + "corner (rumble or sibilance_hz) over 0.45 times the session rate is refused. Give one line for each "
+            + "clip: the clip and its new file, with a tab between them."
+            + editCancelNote("no clip changes"),
+        [clips, rumble, clipping, sibilance, sibilanceHertz], batch: .alone
+    ) { a throws(ToolError) in
+        let ids = try a[clips].map { ClipID($0) }
+        let (high, declip, deess, hertz) = (try a[rumble], try a[clipping], try a[sibilance], try a[sibilanceHertz])
+        let request: ClipRenderRequest
+        do throws(ClipRenderWork.RepairRefusal) {
+            request = try ClipRenderWork.repairRequest(
+                rumble: high, clipping: declip, sibilance: deess, sibilanceHertz: hertz)
+        } catch {
+            throw ToolError(error.text)
+        }
+        return .clipRender(ClipRenderWork(clips: ids, request: request))
     },
     Tool(
         "clip_restore",

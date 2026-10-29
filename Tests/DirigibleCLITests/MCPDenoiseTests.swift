@@ -148,14 +148,15 @@ struct MCPDenoiseTests {
             try work.run(package.url, path: package.path, control: control)
         }
 
-        #expect(thrown?.message == "the noise reduction was cancelled.", "\(String(describing: thrown))")
+        #expect(thrown?.message == "the clip render was cancelled.", "\(String(describing: thrown))")
         #expect(reads.withLock { $0 } == readsAfterTheRename, "the cancel came at another read")
         #expect(DenoiseCommandTests.clips(package) == before.1, "the cancel left \(DenoiseCommandTests.clips(package))")
         #expect(try package.xml() == before.0, "a cancelled render changed session.xml")
     }
 
-    /// C10: each text of the render names the noise reduction, and none is a text of an import. The
-    /// text of a role refusal names the clip and the role.
+    /// C10: each text of the render names the clip render, or the noise reduction for the two cases of
+    /// the unit and the role, and none is a text of an import. The text of a role refusal names the
+    /// clip and the role.
     @Test func eachRenderErrorNamesTheRender() {
         let cases: [ClipRenderError] = [
             .space(needed: 9, free: 3), .write(file: "f1 NR.wav", errno: ENOSPC),
@@ -164,7 +165,14 @@ struct MCPDenoiseTests {
             .trackRole(clip: "e1", role: .effects), .effectUnavailable(status: -3000), .engine(status: -50),
             .mixedTreatments(clips: ["a", "b"]), .stillOverFullScale(file: "Clips/f1 NR.wav"),
         ]
-        for error in cases { #expect(error.message.hasPrefix("the noise reduction "), "\(error.message)") }
+        for error in cases {
+            let name =
+                switch error {
+                case .effectUnavailable, .trackRole: "the noise reduction "
+                default: "the clip render "
+                }
+            #expect(error.message.hasPrefix(name), "\(error.message)")
+        }
         let imports: [ImportError] = [
             .space(file: "f1.wav", needed: 9, free: 3), .unreadable(file: "f1.wav", errno: EIO), .cancelled,
         ]

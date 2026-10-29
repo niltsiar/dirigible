@@ -13,7 +13,7 @@ let batchTools = [
             + "cuts from the last to the first, or use one call with many ranges. A call is a step when its tool "
             + "edits session.xml only and has no file argument (a source, an image, or an artwork): file_remove, "
             + "capture_remove, the track and marker tools, the episode tools except episode_get, and the clip and "
-            + "ripple tools except clip_split_stereo and clip_denoise. A call to transcript_cut or to any other "
+            + "ripple tools except clip_split_stereo, clip_denoise, and clip_repair. A call to transcript_cut or to any other "
             + "tool is refused. To name a new object in a later step, the earlier step gives its ID: track_add id, "
             + "track_add_call host_id and guest_id, clip_place id, clip_split right_id, marker_set id. A tool with "
             + "no ID argument, for example clip_split_at or clip_paste, gives its new IDs in its result lines. "

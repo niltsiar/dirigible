@@ -1,5 +1,6 @@
 import DirigibleAudio
 import DirigibleCore
+import Foundation
 import Testing
 
 @testable import DirigibleMCP
@@ -17,9 +18,9 @@ struct ToolTextTests {
         #expect(!Tool.all.contains { $0.description.contains("No undo: each call saves the package.") })
     }
 
-    /// A late cancel of `level`, `import`, `clip_split_stereo`, or `clip_denoise` keeps the change, so the text tells
-    /// the agent to read the session before a retry (decision 0049, code gate 3 item 1).
-    @Test(arguments: ["level", "import", "clip_split_stereo", "clip_denoise"])
+    /// A late cancel of `level`, `import`, `clip_split_stereo`, `clip_denoise`, or `clip_repair` keeps the change,
+    /// so the text tells the agent to read the session before a retry (decision 0049, code gate 3 item 1).
+    @Test(arguments: ["level", "import", "clip_split_stereo", "clip_denoise", "clip_repair"])
     func anEditCancelTextTellsTheAgentToReadTheSession(name: String) throws {
         let tool = try #require(Tool.all.first { $0.name == name })
         #expect(
@@ -39,6 +40,49 @@ struct ToolTextTests {
         #expect(tool.description.contains("with noise false"), Comment(rawValue: tool.description))
         let texts = [tool.description] + properties.values.compactMap { $0["description"] as? String }
         #expect(!texts.contains { $0.lowercased().contains("voice") }, "\(texts)")
+    }
+
+    /// C14: the texts of a clip render error name the clip render, so a repair does not read as a noise
+    /// reduction. The two cases of the noise reduction keep its name (fail: the L1 texts).
+    @Test func clipRenderTextsAreNeutral() {
+        let neutral: [(ClipRenderError, String)] = [
+            (.space(needed: 9, free: 3), "the clip render needs 9 free bytes, and the disk has 3."),
+            (.write(file: "f1 NR.wav", errno: ENOSPC), "the clip render cannot write \"f1 NR.wav\" (errno 28)."),
+            (
+                .sourceUnreadable(file: "f1.wav", errno: EIO),
+                "the clip render cannot read the source \"f1.wav\" (errno 5)."
+            ),
+            (.sourceMissing(file: "f1.wav"), "the clip render cannot find the source \"f1.wav\" in Clips/."),
+            (
+                .notDownloaded(file: "f1.wav"),
+                "the clip render cannot read the source \"f1.wav\": it is not on this Mac. Download it first."
+            ),
+            (.cancelled, "the clip render was cancelled."),
+            (
+                .mixedTreatments(clips: ["a", "b"]),
+                "the clip render refuses clips \"a\", \"b\": they share one new file but have different settings."
+            ),
+            (.engine(status: -50), "the clip render stopped: the audio engine failed (status -50)."),
+            (
+                .stillOverFullScale(file: "Clips/f1 NR.wav"),
+                "the clip render made \"Clips/f1 NR.wav\" louder than full scale, so it clips."
+            ),
+            (
+                .cornerTooHigh(hertz: 9_923, limit: .hertz(9_922)),
+                "the clip render refuses 9923 Hz: the session rate takes a filter corner of 9922 Hz at most."
+            ),
+            (
+                .cornerTooHigh(hertz: 2_000, limit: .lowestRate(4_445)),
+                "the clip render refuses 2000 Hz: the effect needs a session rate of 4445 Hz or more."
+            ),
+            (
+                .nonFiniteSample(file: "f1 DC.wav"),
+                "the clip render refuses \"f1 DC.wav\": a rendered sample is not a number, so it writes nothing."
+            ),
+        ]
+        for (error, text) in neutral { #expect(error.message == text, "\(error)") }
+        let noise: [ClipRenderError] = [.effectUnavailable(status: -3000), .trackRole(clip: "m1", role: .music)]
+        for error in noise { #expect(error.message.hasPrefix("the noise reduction "), "\(error.message)") }
     }
 
     /// The CLI keeps its busy text; a live edit names why the app refuses it (C4).

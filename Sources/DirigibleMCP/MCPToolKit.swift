@@ -57,7 +57,8 @@ enum ToolWork: Sendable {
     case importFile(ImportWork)
     /// `clip_split_stereo`: a pair writer and an edit under the lock, as `dirigible clip split-stereo`.
     case splitStereo(SplitWork)
-    /// `clip_denoise`: a render and an edit under the lock, as `dirigible clip denoise` (decision 0054).
+    /// `clip_denoise` and `clip_repair`: a render and an edit under the lock, as `dirigible clip denoise` and
+    /// `dirigible clip repair` (decisions 0054 and 0064).
     case clipRender(ClipRenderWork)
     /// `chapters_export`: no lock, as `dirigible chapters export`.
     case chapters(ChaptersWork)
@@ -199,7 +200,7 @@ extension Kind {
 private func isBoolean(_ number: NSNumber) -> Bool { CFGetTypeID(number) == CFBooleanGetTypeID() }
 
 /// An exact JSON integer in -2^53...2^53. Not `true`, not 1.5, not "1".
-private func exactInteger(_ value: Any) -> Int? {
+func exactInteger(_ value: Any) -> Int? {
     guard let number = value as? NSNumber, !isBoolean(number), NSNumber(value: number.int64Value) == number,
         (-(1 << 53)...(1 << 53)).contains(number.int64Value)
     else { return nil }

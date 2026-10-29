@@ -247,7 +247,7 @@ extension StudioError {
         case .split(let error): error.message
         case .splitYielded: "a take in another studio stopped the split."
         case .clipRender(let error): error.message
-        case .clipRenderYielded: "a take in another studio stopped the noise reduction."
+        case .clipRenderYielded: "a take in another studio stopped the clip render."
         case .rippleBlocked: "a ripple cannot move the timeline under a pending or split take."
         // No command sets the artwork through Studio; `episode set --artwork` calls `importArtwork`.
         case .artwork(let error): error.message

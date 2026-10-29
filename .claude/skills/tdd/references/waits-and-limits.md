@@ -7,7 +7,7 @@
 - Compute one deadline per public call and pass it down to each nested wait: limits per step add up. An expired limit never continues into the success path.
 - Prove the failure message with a mutation that forces the miss, and read the message in the output. A shorter outer limit hides the message of an inner wait.
 - Keep every limit below the time of one full suite run: a longer limit cannot find a hang.
-- A change to a display or run-loop callback (`updateLayer`, `draw(_:)`, `layout`) can loop on the main thread, and then no limit in the test fires. Run such a test the first time in the background or with an outer limit. When it hangs, find the loop with `pgrep -fl swiftpm-testing-helper` and `sample <pid> 1` before you change the code. Make its control with `mutate.py --timeout`.
+- A change to a display or run-loop callback (`updateLayer`, `draw(_:)`, `layout`) can loop on the main thread, and then no limit in the test fires. Run such a test the first time in the foreground with a Bash timeout of 10 min or less. When it hangs, find the loop with `pgrep -fl swiftpm-testing-helper` and `sample <pid> 1` before you change the code. Make its control with `mutate.py --timeout`.
 
 ## Wait for a signal, not for time
 

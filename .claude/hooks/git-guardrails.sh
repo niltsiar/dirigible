@@ -686,6 +686,42 @@ scan(0, None)
 sys.stdout.write("".join(out))
 ' || block "cannot be checked for a hook test run (python3 failed)"
 }
+
+# A background lock job needs a Bash timeout of 7200000 (AGENTS.md, Commands): the Bash tool stops a
+# background call at 30 min by default and the result of a land, a push check, or a mutation pass is
+# lost. A string test for a lock word opens the rule, so a Bash call with no lock word makes no read
+# of the two keys. Each segment of the chain (the masked text of the hook test rule below) is read from
+# its start, after the prefix words. A lock job has a with-lock.sh word in the prefix; or land.sh,
+# mutation-pass.sh, swift-test.sh, test-shards.sh, bench.sh, bench-pairs.sh, sanitize.sh, make, or
+# swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command. Misses: a
+# wrapper word that the prefix does not hold (nice, nohup, caffeinate) and a path in a variable.
+bg_gate='\.sh([^[:alnum:]]|$)|(^|[^[:alnum:]_.-])((ba|z|da)?sh|make|swift)([^[:alnum:]_.-]|$)'
+if [[ "$chained" =~ $bg_gate ]]; then
+  background="$(plutil -extract tool_input.run_in_background raw -o - "$input" 2>/dev/null)" || background=""
+  limit="$(plutil -extract tool_input.timeout raw -o - "$input" 2>/dev/null)" || limit=""
+  [[ "$limit" =~ ^[0-9]+$ ]] || limit=0
+  if [[ "$background" == true ]] && ((10#$limit < 7200000)); then
+    bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
+    bg_shell="^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+[^-<[:space:]]"
+    bg_segments="$(mask_quoted_data <<< "$chained")" || exit 2
+    for sep in ';' '&' '|' '(' '`'; do bg_segments="${bg_segments//"$sep"/$'\n'}"; done
+    while IFS= read -r segment; do
+      [[ "$segment" =~ ^[[:space:]]?($bg_pre)(.*)$ ]] || continue
+      prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+      read -ra words <<< "$rest"
+      lock_job=""
+      [[ "$prefix" == *with-lock.sh* ]] && lock_job=1
+      case "${words[0]:+${words[0]##*/}}" in
+        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|make|swift) lock_job=1 ;;
+      esac
+      [[ "$rest" =~ $bg_shell ]] && lock_job=1
+      if [[ -n "$lock_job" ]]; then
+        block "runs a lock job in the background with a Bash timeout under 7200000" "A background Bash call stops at 30 min by default. The lead: set the Bash timeout to 7200000 (AGENTS.md, Commands). A subagent: run the step in the foreground for 10 min or less, or return to the lead."
+      fi
+    done <<< "$bg_segments"
+  fi
+fi
+
 test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
 hooks_path="[\"']?([^[:space:]\"']*/)?test-hooks\.sh[\"']?([[:space:])}<>]|\$)"
 make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"

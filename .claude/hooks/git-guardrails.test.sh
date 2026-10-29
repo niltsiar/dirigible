@@ -968,6 +968,12 @@ for run in 'scripts/with-lock.sh make test-hooks' "scripts/with-lock.sh make tes
   expect allow "$run"
 done
 
+# make -n and make --dry-run print the recipe and run no test (code gate 2, Act on 5).
+for run in 'make -n test-hooks' 'make --dry-run test-hooks' 'make -n test-hooks>log' '(make -n test-hooks)' \
+  'make -C ../wt --dry-run test-hooks'; do
+  expect allow "$run"
+done
+
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }

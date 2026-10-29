@@ -140,7 +140,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 |---|---|
 | R1 | Part: the record time and its warning only under 3 hours (F152). |
 | R2, R3, R12, R13 | Part: diagnostics: a local journal of each launch, a hang watchdog, and a problem report that the user sends by hand (F162). |
-| R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono, and timeline clarity (F107, F108, F109, F25, F153, F154, F155, F156), heal of touching pieces (F161), and a gain envelope on a clip with range gains (F75). |
+| R7 | Part: markers during a take, a drop of files on an empty session, a click in an empty lane that selects its track, and split stereo to mono, and timeline clarity (F107, F108, F109, F25, F153, F154, F155, F156), heal of touching pieces (F161), a gain envelope on a clip with range gains (F75), and marquee selection of clips (F127). |
 | R8 | Noise reduction, hum removal, a render of a range through an effect, a render link, and a repair set: rumble, clipped peaks, and harsh "s" sounds (F35, F77, F89, F110, F98, F99, F100). |
 | R9 | Part: a leveler that rides the gain inside a clip (F38 part). |
 | R10 | Part: voice match, and the leveler (F37 part, F38 part), a text chapter list (F160), and track roles and the duck of the music under speech (F72, F34). |
@@ -168,6 +168,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 17. **Track roles and ducking (F72, F34, moved from Release 7).** A dialogue, music, or effects role on a track, with a color strip and a letter in its header, in `session.xml` version 11. Tools > Duck Music Under Speech... lowers the music under the speech in one undo step, and so do `dirigible duck` and the `duck` MCP tool. Run: `2026-10-18-envelope-ducking` landing 3.
 18. **Agent reads by time (F165).** `dirigible silences`, `dirigible nearest-pause`, and `dirigible meter`, and their MCP tools, give the silences of a range, the best cut point near a frame, and the loudness and the peaks of the heard stereo mix of a range, with no export. On a session that is open in the app, they read the session of the window. Run: `2026-10-23-read-by-time` landing 1.
 19. **Export title warning (F166).** An export to MP3 or M4A with no episode title warns that the file has no title tag. Run: `2026-10-23-read-by-time` landing 2.
+20. **Marquee selection (F127).** A Shift-drag on the lanes selects the clips that the rectangle holds whole. Tester 2026-10-15. Run: `2026-10-29-marquee-select`.
 
 ## Release 5: edit by text
 

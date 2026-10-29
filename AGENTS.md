@@ -38,7 +38,7 @@ Use the **deliver** skill for every feature, requirement, or bug. The principles
 - The `decisions.tsv` of a run is append-only. Add rows only with `.claude/skills/deliver/scripts/log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>`, also in a subagent. With `<run folder> --from <file>`, the file has the five fields on five lines. A wrong row gets a new row that corrects it. Change any other existing `.scratchpads/` file with the Edit tool: it refuses an anchor that is not unique.
 - Keep recordings of real voices in `.scratchpads/`, never in git.
 - Run every probe with `scripts/probe.sh <folder> <command>`, in a new folder under `.scratchpads/` (in a worktree, also of the main checkout) or the session scratchpad. Its sandbox refuses a write outside the folder. Read its header first: the Swift build flags, and the app rule (never quit an app by name).
-- Run a loop from a script: `bash <file>`. macOS has no `timeout` command: use the Bash tool timeout parameter, or `run_in_background`.
+- Run a loop from a script: `bash <file>`. macOS has no `timeout` command: use the Bash tool timeout parameter.
 
 ## Git
 

@@ -13,7 +13,7 @@ The red-first log of each slice and each fix is its control (tdd steps 4 and 7),
 
 ## Run the pass
 
-- Write each mutant as one `mutant <file> <old> <new> <log> <build> <test>` line of a batch file. Put `--switch expr` (whole expressions) or `--switch stmt` (whole statements) first, with each old text once in its file; these share one build. A declaration, a real-time callback, and an app or screen test get no `--switch`. Run `.claude/skills/deliver/scripts/mutation-pass.sh <worktree> <batch file>` once, with `run_in_background`: it holds the build lock once for the batch.
+- Write each mutant as one `mutant <file> <old> <new> <log> <build> <test>` line of a batch file. Put `--switch expr` (whole expressions) or `--switch stmt` (whole statements) first, with each old text once in its file; these share one build. A declaration, a real-time callback, and an app or screen test get no `--switch`. Run `.claude/skills/deliver/scripts/mutation-pass.sh <worktree> <batch file>` once, with `run_in_background` and a Bash `timeout` of 7200000: it holds the build lock once for the batch.
 - The build command is `scripts/with-lock.sh swift build --build-tests`, with no pipe. The test command is `scripts/test-filter.sh --skip-build --exact <name>`.
 - A mutant with two edits (a guard mutant and the fault that trips it) is one call with two old/new pairs. Put `--in=<file>` before the pairs of a second file. Never apply an edit with a script in the build or test command.
 - Do not nest mutate.py in its test command. After `NO TESTS` or `BUILD FAILED`, correct the filter or the mutant and run it again.

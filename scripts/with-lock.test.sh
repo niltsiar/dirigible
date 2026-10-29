@@ -911,6 +911,41 @@ rm -rf "$lock"
 rm -f "$tmp/order"
 DIRIGIBLE_LOCKED_SCRIPT="$fake/make" capcall "$repo" "$fake/make" test
 [[ $code -eq 0 && -s "$tmp/order" ]] || fail "cap, marker call: exit $code: $out"
+# The hooks pass of Phase 7 (make test-hooks with DIRIGIBLE_HOOKS_ALL=1 as a word, in the
+# environment, or in MAKEFLAGS) is a release call: with 2 other trees it takes the free lock, marks
+# it release and nocap, ends its hold line with nocap, and a lock-free call waits during it. The
+# fake make holds the lock until $tmp/hp.go exists.
+mkdir -p "$fake/hp"
+printf '#!/bin/bash\nwhile [[ ! -e "%s" ]]; do sleep 0.1; done\n' "$tmp/hp.go" > "$fake/hp/make"
+chmod +x "$fake/hp/make"
+for hp_env in '' DIRIGIBLE_HOOKS_ALL=1 'MAKEFLAGS=w -- DIRIGIBLE_HOOKS_ALL=1'; do
+  reset_builders
+  holdline 5 "$ta"
+  holdline 3 "$tb"
+  rm -f "$tmp/hp.go" "$tmp/order"
+  hp_word=""
+  [[ -n "$hp_env" ]] || hp_word=DIRIGIBLE_HOOKS_ALL=1
+  (cd "$repo" && exec env ${hp_env:+"$hp_env"} WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=0.1 "$repo/scripts/with-lock.sh" "$fake/hp/make" test-hooks $hp_word) > "$tmp/wait.out" 2>&1 &
+  waiter=$!
+  until_true 50 test -e "$lock/release" || fail "cap, hooks pass [$hp_env$hp_word]: it did not take the lock at the cap: $(cat "$tmp/wait.out")"
+  [[ -e "$lock/nocap" ]] || fail "cap, hooks pass [$hp_env$hp_word]: the lock folder has no nocap mark"
+  out="$(FAKE_TARGETS=check-docs WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed 2>&1)"
+  code=$?
+  [[ $code -eq 75 && ! -s "$tmp/order" ]] || fail "cap, hooks pass [$hp_env$hp_word]: a lock-free call during it: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+  touch "$tmp/hp.go"
+  wait "$waiter"
+  code=$?
+  waiter=""
+  [[ $code -eq 0 && "$(tail -n 1 "$holds" | awk -F'\t' '{ print NF, ($3 ~ /test-hooks/), $6 }')" == '6 1 nocap' ]] ||
+    fail "cap, hooks pass [$hp_env$hp_word]: exit $code, hold line [$(tail -n 1 "$holds")]"
+done
+# A make test-hooks call with no DIRIGIBLE_HOOKS_ALL=1 is an ordinary call: the cap holds it.
+reset_builders
+holdline 5 "$ta"
+holdline 3 "$tb"
+rm -f "$tmp/ran"
+capcall "$repo" "$fake/make" test-hooks
+[[ $code -eq 75 && "$out" == *"$cap_text"* ]] || fail "cap, test-hooks with no DIRIGIBLE_HOOKS_ALL: exit $code (want 75): $out"
 # A release call fills no slot: a make dmg hold line of a third tree and one other builder leave
 # the cap open, so an ordinary call takes the lock.
 reset_builders

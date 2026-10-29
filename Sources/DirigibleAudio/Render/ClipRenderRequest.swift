@@ -38,29 +38,19 @@ public struct ClipRenderRequest: Hashable, Sendable {
     /// The kinds that a render of this request sets or removes.
     var touched: Set<Effect.Kind> { kinds.union(removed) }
 
-    /// This request with each effect of `other` in place of the effect of its kind, or added, and
-    /// with no effect of a kind that `other` removes.
-    func replacing(with other: ClipRenderRequest) -> ClipRenderRequest {
-        let kept = effects.filter { !other.touched.contains($0.kind) }
-        return ClipRenderRequest(sorted: (kept + other.effects).sorted { $0.kind.rawValue < $1.kind.rawValue })
+    /// The stored level `stored` in a render of this request that puts the effects of `kinds` there:
+    /// each stored effect of a kind that this request does not set or remove, and each effect of
+    /// `kinds`. Nil when no effect is left: the level goes.
+    func level(_ stored: Treatment, taking kinds: Set<Effect.Kind>) -> ClipRenderRequest? {
+        let kept = stored.effects.filter { !touched.contains($0.kind) }.map(EffectRequest.effect)
+        let all = (kept + effects.filter { kinds.contains($0.kind) }).sorted { $0.kind.rawValue < $1.kind.rawValue }
+        return all.isEmpty ? nil : ClipRenderRequest(sorted: all)
     }
 
     /// This request with no effect of `kinds`, or nil when no effect is left: the level goes.
     func removing(_ kinds: Set<Effect.Kind>) -> ClipRenderRequest? {
         let kept = effects.filter { !kinds.contains($0.kind) }
         return kept.isEmpty ? nil : ClipRenderRequest(sorted: kept)
-    }
-
-    /// True when each effect equals the stored effect of its kind in `stored`, and `stored` holds
-    /// no removed kind. Only an effect that reads no clip gain can be unchanged: a later kind that
-    /// reads it (the ride, the match) is never unchanged.
-    func isUnchanged(from stored: Treatment) -> Bool {
-        !stored.effects.contains { removed.contains($0.kind) }
-            && effects.allSatisfy { request in
-                switch request {
-                case .effect(let effect): stored.effects.contains(effect)
-                }
-            }
     }
 
     /// The stored form, as the measure phase gives it.

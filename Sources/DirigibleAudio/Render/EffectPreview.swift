@@ -29,7 +29,7 @@ func previewWindow(
     guard let placed = session.clip(clip)?.clip else { throw .unknownClip(clip) }
     var source = session
     var levels = [request]
-    if let rebuilt = levelRequests(request, of: clip, in: session) {
+    if let rebuilt = levelRequests(request, on: session.origins(of: clip).map(\.treatment)) {
         try source.lower([clip], levels: rebuilt.lowest + 1)
         levels = rebuilt.requests
     }

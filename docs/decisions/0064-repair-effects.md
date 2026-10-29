@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-10-27
 - Accepted: 2026-10-29, after plan gates 1 and 2 of run `2026-10-27-repair-set`.
-- Amends: 0054 (the chain has stages before and after the engine; a de-clip keeps the product of its pass scales as a level loss), 0057 (the level rule for a kind with no level; `isUnchanged` for the repair kinds; three origin elements)
+- Amends: 0054 (the chain has stages before and after the engine; a de-clip keeps the product of its pass scales as a level loss), 0057 (the level rule for a kind with no level; the unchanged rule for the repair kinds; three origin elements)
 
 ## Context
 
@@ -23,7 +23,7 @@ macOS has no de-esser unit and no de-clip unit; it has AUHipass, AUNBandEQ, `AVA
 
 **D5. Soften "S" Sounds.** A split-band de-esser: the high band is a 2nd-order high-pass at a whole frequency of 2,000 to 16,000 Hz (standard 6,000); peak envelopes (attack 0.5 ms, release 60 ms) of the high band and of the full band of the loudest channel give the ratio; the cut is the ratio in dB plus 10, clamped to 0 and to a whole largest cut of 1 to 40 dB (standard 10), and it is 0 while the full-band envelope is under -100 dBFS, so digital silence passes unchanged; the output is the input minus (1 - g) times the high band, with one g for all channels. The 60 ms release holds a cut on a vowel after an "s" for up to 131 ms (a known limit).
 
-**D6. The level rule (0057 D4 amended).** One rule for each requested kind k. A kind with a level gets its new value in that level. A kind with no level joins the lowest level that holds a kind after k in chain order; with no such level, k goes in one new level on top, which each such kind of the request shares. So one request can change two levels, with one undo entry, and bottom to top each kind of a level comes after each kind of the levels below it. `clipRenderPlan` enforces the order; the origin reader refuses no order. `isUnchanged` holds for declip, rumble, and deess too: they read only file samples.
+**D6. The level rule (0057 D4 amended).** One rule for each requested kind k. A kind with a level gets its new value in that level. A kind with no level joins the lowest level that holds a kind after k in chain order; with no such level, k goes in one new level on top, which each such kind of the request shares. So one request can change two levels, with one undo entry, and bottom to top each kind of a level comes after each kind of the levels below it. `clipRenderPlan` enforces the order; the origin reader refuses no order. The unchanged rule holds for declip, rumble, and deess too: they read only file samples. A clip is unchanged when each level that the rule rebuilds equals its stored level.
 **D7. Format.** `<declip percent>`, `<rumble hz>`, and `<deess hz decibels>` in an `<origin>`, in chain order, from `session.xml` version 14: one version for the three. An origin with one of them makes the file version 14. The reader refuses a value outside its type.
 
 **D8. Commands and the app item.** One command, `dirigible clip repair`, with `--rumble`, `--clipping`, `--sibilance`, and `--sibilance-hz`; one tool, `clip_repair`; one app item, Tools > Repair Sound..., a sheet in the DuckSheet pattern with the button Repair (UI council D1 to D3). Each role is accepted.

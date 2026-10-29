@@ -14,7 +14,7 @@ A review applies these rules, the **Safety rules** of `AGENTS.md`, and the decis
 ## Concurrency
 
 - **Isolation.** UI state is `@MainActor`. File I/O and DSP run off the main actor. Each capture device has its own writer.
-- **Actors.** Each `await` lets another call run. Make the whole state change before the first `await`, or check the guard again after each `await`.
+- **Actors.** Each `await` lets another call run. Make the whole state change before the first `await`, or check the guard again after each `await`. The test of a recheck queues a competing actor call first, so that call runs inside the `await`.
 - **Skill.** `.claude/skills/swift-concurrency/SKILL.md` has the Swift Concurrency patterns. The rules here win over it.
 
 ## Files

@@ -496,12 +496,13 @@ if [[ "$chained_data" == *DIRIGIBLE_BUILD_LOCK=* || "$chained_data" == *DIRIGIBL
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 
-# A repo .test.sh runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare run takes no lock
+# A repo hook test runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare run takes no lock
 # and adds load to a push check (DLV-157/flake). Each segment of the chain (split on ; & | ( and a
 # backtick) is read from its start, after the prefix words (NAME=value, time, env, probe.sh <folder>,
 # and the like). It blocks a shell word (sh, bash, zsh, with a path) with flags other than -n and then
-# a .test.sh path, and a bare .test.sh path. A with-lock.sh word in the prefix, bash -n, and a path
-# under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a
+# a .test.sh path, a bare .test.sh path, and make test-hooks or scripts/test-hooks.sh (any path, with
+# or without HOOK_TESTS), which run every hook test. A with-lock.sh word in the prefix, bash -n,
+# make -n, and a .test.sh path under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a
 # wrapper word that the prefix does not hold (nice, nohup, caffeinate).
 # The segments are read from the text with each separator inside a quoted string, and each data
 # heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. The text
@@ -659,12 +660,14 @@ def scan(i, end):
 
 scan(0, None)
 sys.stdout.write("".join(out))
-' || block "cannot be checked for a .test.sh run (python3 failed)"
+' || block "cannot be checked for a hook test run (python3 failed)"
 }
 test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
+hooks_path="[\"']?([^[:space:]\"']*/)?test-hooks\.sh[\"']?([[:space:])}<>]|\$)"
+make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:]]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
 lock_way="Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
-if [[ "$chained_data" == *.test.sh* ]]; then
+if [[ "$chained_data" == *.test.sh* || "$chained_data" == *test-hooks* ]]; then
   test_segments="$(mask_quoted_data <<< "$chained_data")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
   while IFS= read -r segment; do
@@ -677,6 +680,14 @@ if [[ "$chained_data" == *.test.sh* ]]; then
     fi
     if [[ "$rest" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then
       block "runs a repo .test.sh with no lock" "$lock_way"
+    fi
+    if [[ "$rest" =~ ^$hooks_path ]]; then
+      block "runs every repo hook test with no lock (scripts/test-hooks.sh)" "$lock_way"
+    fi
+    if [[ "$rest" =~ $make_hooks ]]; then
+      words=" ${BASH_REMATCH[2]} "
+      [[ "$words" == *" -n "* || "$words" == *" --dry-run "* ]] && continue
+      block "runs every repo hook test with no lock (make test-hooks)" "$lock_way"
     fi
   done <<< "$test_segments"
 fi

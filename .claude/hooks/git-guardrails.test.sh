@@ -930,6 +930,20 @@ for run in 'echo "$(bash scripts/land.test.sh)"' $'bash <<\'EOF\'\nbash scripts/
   expect_message "HOOK_TESTS='<names>'" "$run"
 done
 
+# A bare make test-hooks and a bare scripts/test-hooks.sh run every hook test with no lock (Act on 4).
+# A with-lock.sh word in the prefix, bash -n, and a read of the file pass.
+for run in 'make test-hooks' 'make -C ../wt test-hooks' 'DIRIGIBLE_FULL_SUITE=1 make test-hooks' 'make test-hooks 2>&1 | tail -3' \
+  'make test-hooks HOOK_TESTS=scripts/land.test.sh' 'scripts/test-hooks.sh' './scripts/test-hooks.sh' 'bash scripts/test-hooks.sh' \
+  '../wt/scripts/test-hooks.sh scripts/land.test.sh' 'cd ../wt && make test-hooks' 'time make test-hooks'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+for run in 'scripts/with-lock.sh make test-hooks' "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh'" \
+  'DIRIGIBLE_FULL_SUITE=1 scripts/with-lock.sh make test-hooks' 'scripts/with-lock.sh scripts/test-hooks.sh' \
+  'scripts/with-lock.sh bash scripts/test-hooks.sh' 'bash -n scripts/test-hooks.sh' 'rg -n test-hooks Makefile' \
+  'sed -n 1,5p scripts/test-hooks.sh' 'echo make test-hooks' 'make check-docs' 'git add scripts/test-hooks.sh'; do
+  expect allow "$run"
+done
+
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }

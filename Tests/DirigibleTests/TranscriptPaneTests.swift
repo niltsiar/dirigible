@@ -134,6 +134,9 @@ import Testing
         #expect(model.inspectorTab == .transcript, "(c)")
         _ = try await waitForPane(window)
         #expect(studio.session.episode.title?.text == "Episode 1", "(c) the draft committed")
+        // The field goes with the tab change and sends its text: no new draft comes from that.
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(model.episodeDraft == nil, "(c) no draft is left")
 
         // (d) a refused draft: the Episode tab stays, with a beep.
         var beeps = 0
@@ -333,7 +336,8 @@ import Testing
     // MARK: P4b, P14
 
     /// P4b: the pane builds its text only when the session revision changes. A play tick and a seek
-    /// build nothing, a gain edit builds once and replaces no storage, because no unit changes.
+    /// build nothing, a gain edit builds once and replaces no storage, because no unit changes, and
+    /// a ripple delete replaces the storage once.
     @Test func buildsOnlyOnANewRevision() async throws {
         let (model, studio, window, _) = try await open(try await package())
         model.showTranscript()
@@ -345,6 +349,11 @@ import Testing
         try studio.edit(ripple: false) { s throws(SessionError) in try s.setGains(["A": Gain(dB: -3)!]) }
         await until("the pane builds for the new revision") { pane.builds == builds + 1 }
         #expect(pane.replacements == replacements, "a gain edit replaces no storage")
+        // The ripple delete of "Second part" removes two units and moves the later header.
+        try studio.edit(ripple: true) { s throws(SessionError) in try s.rippleDelete(288_000..<336_000, on: ["t1"]) }
+        await until("the pane builds again") { pane.builds == builds + 2 }
+        #expect(pane.replacements == replacements + 1, "a ripple delete replaces the storage once")
+        #expect(!pane.string.contains("Second"), "the cut words are gone")
         await model.close()
     }
 

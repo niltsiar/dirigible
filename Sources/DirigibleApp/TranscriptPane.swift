@@ -90,6 +90,24 @@ final class TranscriptTextView: NSTextView {
         model?.transcriptFollow.focusRequest = false
     }
 
+    /// The scroll view with the text view of the pane, as the Transcript tab shows it.
+    static func scrollView() -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        let text = TranscriptTextView(usingTextLayoutManager: true)
+        text.isEditable = false
+        text.isSelectable = true
+        text.drawsBackground = false
+        text.isVerticallyResizable = true
+        text.isHorizontallyResizable = false
+        text.autoresizingMask = [.width]
+        text.textContainer?.widthTracksTextView = true
+        text.setAccessibilityLabel(L10n.inspectorTabTranscript.text)
+        scroll.documentView = text
+        return scroll
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if focusPending { Task { @MainActor [weak self] in self?.takeFocus() } }
@@ -125,22 +143,7 @@ private struct TranscriptPaneText: NSViewRepresentable {
     let revision: Int
     let wantsFocus: Bool
 
-    func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSScrollView()
-        scroll.hasVerticalScroller = true
-        scroll.drawsBackground = false
-        let text = TranscriptTextView(usingTextLayoutManager: true)
-        text.isEditable = false
-        text.isSelectable = true
-        text.drawsBackground = false
-        text.isVerticallyResizable = true
-        text.isHorizontallyResizable = false
-        text.autoresizingMask = [.width]
-        text.textContainer?.widthTracksTextView = true
-        text.setAccessibilityLabel(L10n.inspectorTabTranscript.text)
-        scroll.documentView = text
-        return scroll
-    }
+    func makeNSView(context: Context) -> NSScrollView { TranscriptTextView.scrollView() }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let text = scroll.documentView as? TranscriptTextView else { return }

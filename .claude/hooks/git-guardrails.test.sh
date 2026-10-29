@@ -934,13 +934,16 @@ done
 # A with-lock.sh word in the prefix, bash -n, and a read of the file pass.
 for run in 'make test-hooks' 'make -C ../wt test-hooks' 'DIRIGIBLE_FULL_SUITE=1 make test-hooks' 'make test-hooks 2>&1 | tail -3' \
   'make test-hooks HOOK_TESTS=scripts/land.test.sh' 'scripts/test-hooks.sh' './scripts/test-hooks.sh' 'bash scripts/test-hooks.sh' \
-  '../wt/scripts/test-hooks.sh scripts/land.test.sh' 'cd ../wt && make test-hooks' 'time make test-hooks'; do
+  '../wt/scripts/test-hooks.sh scripts/land.test.sh' 'cd ../wt && make test-hooks' 'time make test-hooks' \
+  '(make test-hooks)' '(cd ../wt && make test-hooks)' 'make test-hooks>log' 'make test-hooks>log 2>&1' \
+  'make -C ../wt test-hooks>log' '(make test-hooks) 2>&1' 'make test-hooks<in'; do
   expect_message "HOOK_TESTS='<names>'" "$run"
 done
 for run in 'scripts/with-lock.sh make test-hooks' "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh'" \
   'DIRIGIBLE_FULL_SUITE=1 scripts/with-lock.sh make test-hooks' 'scripts/with-lock.sh scripts/test-hooks.sh' \
   'scripts/with-lock.sh bash scripts/test-hooks.sh' 'bash -n scripts/test-hooks.sh' 'rg -n test-hooks Makefile' \
-  'sed -n 1,5p scripts/test-hooks.sh' 'echo make test-hooks' 'make check-docs' 'git add scripts/test-hooks.sh'; do
+  'sed -n 1,5p scripts/test-hooks.sh' 'echo make test-hooks' 'make check-docs' 'git add scripts/test-hooks.sh' \
+  'scripts/with-lock.sh make test-hooks>log' '(scripts/with-lock.sh make test-hooks)'; do
   expect allow "$run"
 done
 

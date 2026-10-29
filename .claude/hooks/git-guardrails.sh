@@ -664,7 +664,7 @@ sys.stdout.write("".join(out))
 }
 test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
 hooks_path="[\"']?([^[:space:]\"']*/)?test-hooks\.sh[\"']?([[:space:])}<>]|\$)"
-make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:]]|\$)"
+make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
 lock_way="Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
 if [[ "$chained_data" == *.test.sh* || "$chained_data" == *test-hooks* ]]; then

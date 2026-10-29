@@ -693,7 +693,9 @@ sys.stdout.write("".join(out))
 # of the two keys. Each segment of the chain (the masked text of the hook test rule below) is read from
 # its start, after the prefix words. A lock job has a with-lock.sh word in the prefix; or land.sh,
 # mutation-pass.sh, swift-test.sh, test-shards.sh, bench.sh, bench-pairs.sh, sanitize.sh, loop.sh,
-# make, or swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command. Misses: a
+# make, or swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command.
+# make with one target that takes no lock (check-docs, check-fast, lint, format: AGENTS.md, Commands)
+# and no other word but a redirection is no lock job. Misses: a
 # wrapper word that the prefix does not hold (nice, nohup, caffeinate) and a path in a variable.
 bg_gate='\.sh([^[:alnum:]]|$)|(^|[^[:alnum:]_.-])((ba|z|da)?sh|make|swift)([^[:alnum:]_.-]|$)'
 if [[ "$chained" =~ $bg_gate ]]; then
@@ -703,6 +705,7 @@ if [[ "$chained" =~ $bg_gate ]]; then
   if [[ "$background" == true ]] && ((10#$limit < 7200000)); then
     bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
     bg_shell="^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+[^-<[:space:]]"
+    bg_free_make="^([^[:space:]]*/)?make[[:space:]]+(check-docs|check-fast|lint|format)(([[:space:]]+[0-9]*|[[:space:]]*)>>?[[:space:]]*[^[:space:]>)}\"]*)*[[:space:])}\"]*$"
     bg_segments="$(mask_quoted_data <<< "$chained")" || exit 2
     for sep in ';' '&' '|' '(' '`'; do bg_segments="${bg_segments//"$sep"/$'\n'}"; done
     while IFS= read -r segment; do
@@ -712,7 +715,8 @@ if [[ "$chained" =~ $bg_gate ]]; then
       lock_job=""
       [[ "$prefix" == *with-lock.sh* ]] && lock_job=1
       case "${words[0]:+${words[0]##*/}}" in
-        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|make|swift) lock_job=1 ;;
+        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|swift) lock_job=1 ;;
+        make) [[ "$rest" =~ $bg_free_make ]] || lock_job=1 ;;
       esac
       [[ "$rest" =~ $bg_shell ]] && lock_job=1
       if [[ -n "$lock_job" ]]; then

@@ -959,6 +959,17 @@ for job in 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=or
   expect_each_context block "$job" true 7199999
   expect_each_context allow "$job" true
 done
+# The make targets that take no lock (AGENTS.md, Commands) run in the background with no timeout, alone
+# or with a redirection, in each shell context. Another word after the target keeps the block.
+for job in 'make check-docs' 'make check-fast' 'make lint' 'make format' 'make check-docs > x.log 2>&1' 'make lint | tail -n 5'; do
+  expect allow "$job" true
+  expect allow "$job" true 1800000
+done
+for ctx in "${context_block[@]}"; do expect allow "${ctx//@C@/make check-docs}" true; done
+for job in 'make' 'make lint build' 'make check-docs > x.log check' 'make -C . lint' 'make check-changed' 'make check-docsx' 'scripts/with-lock.sh make lint'; do
+  expect block "$job" true
+done
+expect_each_context block 'make lint build' true
 expect allow 'sleep 5' true
 expect allow 'rg -n with-lock.sh AGENTS.md' true
 expect allow 'git status' true

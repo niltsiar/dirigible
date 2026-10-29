@@ -575,7 +575,7 @@ rows() {
 }
 stamp() { touch -t "$1" "${@:2}"; }
 new_repo; due eval-1 'policy E54: new 1/3: rerun due'; rows eval-1 E54; stamp 202601010101 "$tmp/run/eval-1/rerun-due.txt"
-refuse 'a rerun due line with no later eval folder' 'eval-1/rerun-due.txt: E54 is rerun due; run scripts/eval/run.sh again in that eval folder with a new tag' "$tmp/run"
+refuse 'a rerun due line with no later eval folder' 'eval-1/rerun-due.txt: E54 is rerun due; the lead runs scripts/eval/run.sh again in that eval folder with a new tag, as a background run (AGENTS.md, Commands); a subagent returns to the lead' "$tmp/run"
 rows eval-2 E54; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"
 pass 'a rerun due line and a later eval folder that scored its scenario' "$tmp/run"
 rows eval-2 E9; stamp 202601010202 "$tmp/run/eval-2/scores.tsv"

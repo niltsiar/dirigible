@@ -915,6 +915,21 @@ for run in "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.s
   expect allow "$run"
 done
 
+# A quoted string and a data heredoc body are data, not commands (code gate 1 of 2026-10-28-upkeep-sixth,
+# Act on 2): a test file named after ( ; & | in a decision row, a commit message, a pull request body,
+# an echo, or an rg pattern passes. Code in a $(...) of a quote, and the body of a shell, still block.
+for run in '.claude/skills/deliver/scripts/log-decision.sh .scratchpads/runs/x 4 "S1 green (scripts/land.test.sh)" "why; bash scripts/land.test.sh ran" "logs/s1.log" "done"' \
+  'git commit -m "test(hooks): the case (bash scripts/land.test.sh) passes; scripts/land.test.sh stays"' \
+  $'gh pr create --title t --body "$(cat <<\'EOF\'\nRun (bash scripts/land.test.sh) first\nthen; scripts/land.test.sh\nEOF\n)"' \
+  'echo "a | scripts/land.test.sh"' \
+  "rg -n '(scripts/land.test.sh|bash scripts/land.test.sh)' docs"; do
+  expect allow "$run"
+done
+for run in 'echo "$(bash scripts/land.test.sh)"' $'bash <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
+  'echo "x y" && bash scripts/land.test.sh' "echo 'x; y'; bash scripts/land.test.sh"; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
 settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }

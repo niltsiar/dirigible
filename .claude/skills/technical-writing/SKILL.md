@@ -14,6 +14,8 @@ Two rules sit above the layers:
 
 The codebase is the word list. Write the real symbol, file, flag, or command name, not a synonym or a description of it.
 
+A named pattern is fine when the doc says what it means the first time.
+
 ## Vary the rhythm
 
 The layers decide what a document says and how much each sentence carries. A doc can obey all of them and still read machine-written: every sentence clipped short, no view anywhere, nothing specific.

@@ -3,7 +3,7 @@
 # hook to the compaction instructions, so a summary keeps the run state.
 # The text is 120 words or fewer. It holds a fixed list of what to keep, then the facts of the open run
 # of cwd (open-run.py): its folder, branch, and worktree, the first unticked line of run.md, and the
-# running background tasks of the last 4 MiB of the transcript (background-tasks.py). It copies no message of the user:
+# running background tasks of the last 8 MiB of the transcript (background-tasks.py). It copies no message of the user:
 # the compaction model keeps the instructions of the user in its own summary. With no open run the
 # text is the list alone. The hook always exits 0.
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -46,7 +46,7 @@ try:
         out += " Worktree: " + (open_run.worktree_of(cwd, branch) or "none") + "."
         out += " First unticked: " + cut(open_run.first_unticked(folder), 25) + "."
     if isinstance(transcript, str):
-        tasks = load("background_tasks", "background-tasks.py").running_tasks(transcript, tail=4 << 20)
+        tasks = load("background_tasks", "background-tasks.py").running_tasks(transcript, tail=8 << 20)
         if tasks:
             ids = [task + " (" + kind + ")" for task, kind in tasks.items()]
             out += " Background tasks: " + ", ".join(ids[:12]) + (" and " + str(len(ids) - 12) + " more" if len(ids) > 12 else "") + "."

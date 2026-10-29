@@ -35,14 +35,16 @@ expect() {
   [[ "$got" == "$want" ]] || { echo "FAIL: expected $want, got $got: $command"; failures=$((failures + 1)); }
 }
 
-# expect_agent <want> <command>: as expect, with agent_id in the input, as in the input of a subagent.
-# The message of a block goes to $tmp/agent.err.
+# expect_agent <want> <command> [<run_in_background> [<timeout>]]: as expect, with agent_id in the
+# input, as in the input of a subagent. The message of a block goes to $tmp/agent.err.
 expect_agent() {
-  local want="$1" command="$2" got
+  local want="$1" command="$2" background="${3:-}" limit="${4:-}" got
   plutil -create xml1 "$input"
   plutil -insert agent_id -string a1 "$input"
   plutil -insert tool_input -dictionary "$input"
   plutil -insert tool_input.command -string "$command" "$input"
+  [[ -z "$background" ]] || plutil -insert tool_input.run_in_background -bool "$background" "$input"
+  [[ -z "$limit" ]] || plutil -insert tool_input.timeout -integer "$limit" "$input"
   plutil -convert json "$input"
   "$hook" < "$input" 2>"$tmp/agent.err"
   [[ $? -eq 2 ]] && got=block || got=allow
@@ -929,6 +931,66 @@ for run in 'bash scripts/land.test.sh' 'make test-hooks' 'scripts/test-hooks.sh'
   expect_each_context block "$run"
   expect_each_context allow "$run"
 done
+
+# A background lock job needs a Bash timeout of 7200000 (AGENTS.md, Commands): the Bash tool stops a
+# background call at 30 min by default and the result of a land, a push check, or a mutation pass is
+# lost. Each lock word blocks with the flag true and a timeout below 7200000. The same commands pass
+# with 7200000, with no flag, and with the flag false. Three of them also run in each shell context.
+bg_jobs=(
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main'
+  'scripts/with-lock.sh make test-filter FILTER=X'
+  'scripts/land.sh "t" x/pr.md'
+  'scripts/mutation-pass.sh wt batch.txt'
+  'scripts/swift-test.sh' 'scripts/test-shards.sh' 'scripts/bench.sh Foo' 'scripts/bench-pairs.sh Foo'
+  'scripts/sanitize.sh thread' 'make build' 'swift build'
+  'bash .scratchpads/loop.sh' 'sh .scratchpads/loop.sh' 'zsh .scratchpads/loop.sh'
+)
+for job in "${bg_jobs[@]}"; do
+  expect block "$job" true
+  expect block "$job" true 1800000
+  expect block "$job" true 7199999
+  expect allow "$job" true 7200000
+  expect allow "$job"
+  expect allow "$job" false
+done
+for job in 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main' 'scripts/land.sh "t" x/pr.md' 'bash .scratchpads/loop.sh'; do
+  expect_each_context block "$job" true
+  expect_each_context block "$job" true 1800000
+  expect_each_context block "$job" true 7199999
+  expect_each_context allow "$job" true
+done
+expect allow 'sleep 5' true
+expect allow 'rg -n with-lock.sh AGENTS.md' true
+expect allow 'git status' true
+expect_agent block 'scripts/with-lock.sh make test-filter FILTER=X' true
+expect_agent block 'scripts/land.sh "t" x/pr.md' true 1800000
+grep -q '7200000' "$tmp/agent.err" && grep -q 'AGENTS.md' "$tmp/agent.err" ||
+  { echo "FAIL: the background block names no 7200000 or no AGENTS.md"; failures=$((failures + 1)); }
+expect_agent allow 'scripts/with-lock.sh make test-filter FILTER=X' true 7200000
+expect_agent allow 'scripts/with-lock.sh make test-filter FILTER=X'
+
+# A Bash call with no lock word makes no read of the two keys (hook latency, item 1222): a plutil shim
+# first in PATH logs each call. A lock-word call reads each key once.
+mkdir "$tmp/shim"
+printf '#!/bin/bash\necho "$*" >> "$PLUTIL_LOG"\nexec %s "$@"\n' "$(command -v plutil)" > "$tmp/shim/plutil"
+chmod +x "$tmp/shim/plutil"
+expect_key_reads() {
+  local command="$1" want_flag="$2" want_limit="$3" flag_reads limit_reads
+  plutil -create xml1 "$input"
+  plutil -insert tool_input -dictionary "$input"
+  plutil -insert tool_input.command -string "$command" "$input"
+  plutil -convert json "$input"
+  : > "$tmp/plutil.log"
+  PLUTIL_LOG="$tmp/plutil.log" PATH="$tmp/shim:$PATH" "$hook" < "$input" > /dev/null 2>&1
+  flag_reads="$(grep -c 'tool_input.run_in_background' "$tmp/plutil.log")"
+  limit_reads="$(grep -c 'tool_input.timeout' "$tmp/plutil.log")"
+  [[ "$flag_reads $limit_reads" == "$want_flag $want_limit" ]] ||
+    { echo "FAIL: expected $want_flag and $want_limit reads of the two keys, got $flag_reads and $limit_reads: $command"; failures=$((failures + 1)); }
+}
+expect_key_reads 'ls' 0 0
+expect_key_reads 'git status' 0 0
+expect_key_reads 'bash scripts/land.test.sh' 1 1
+expect_key_reads 'scripts/with-lock.sh make test-filter FILTER=X' 1 1
 
 # A repo hook or script test runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare bash run
 # of a .test.sh file ran beside three push checks (DLV-157/flake). Each run form after the prefix

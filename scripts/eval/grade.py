@@ -36,7 +36,12 @@ verdict: grade.py verdict <eval> <old set> <new set>
   A fail of holdouts only (a below fail of an H, or a sum fail that the sum
   with no H does not have) prints holdout fail <H>: no changed text, once for each H, and does
   not fail the verdict, and the same lines go to <eval>/holdout-fails.txt (empty for none; each
-  verdict replaces it). The last line is verdict: PASS (exit 0) or verdict: FAIL (exit 1).
+  verdict replaces it). A policy miss of a scenario that is not a holdout, under 6 new runs, where
+  the new passes plus the runs left to 6 reach 4, prints policy <id>: new <p>/<r>: rerun due
+  instead of FAIL. It is no fail yet. The lines go to <eval>/rerun-due.txt (empty for none; each
+  verdict replaces it), and the land waits for a later scored run of each ID (check-governance.sh).
+  The last line is verdict: PASS (exit 0), verdict: FAIL (exit 1), or verdict: RERUN DUE (exit 1,
+  when rerun due lines are the only fails).
   unasked.tsv (from score) makes a second count. A row passes in it when its missing keys are
   all unasked keys of its tag and scenario. unasked <ID> (<key>) lists the keys after the lines
   of the scenario. A clause of the retention sum, below, or policy that fails on the first count
@@ -245,7 +250,7 @@ def verdict(old, new):
     word = {True: "PASS", False: "FAIL"}
     fix = "fix the question or the key"
     # A fail of holdouts only does not fail the verdict: check-governance.sh stops the second in a row.
-    held = []
+    held, reruns = [], []
     kept = [s for s in live if typ[s] == "retention"]
     old_sum, new_sum, bound = drop(kept, passes)
     print(f"retention: old {old_sum}, new {new_sum}, bound {bound:.1f}: {word[old_sum - new_sum <= bound]}")
@@ -273,11 +278,17 @@ def verdict(old, new):
         print(f"below {s}: old {po}/{ro}, new {pn}/{rn}: {result}")
         if typ[s] == "policy":
             policy = 3 * pn >= 2 * rn
+            # Under six runs, a miss that six runs can still pass (four of six) is due for a rerun, not a fail.
+            # A holdout and a scenario with an unasked majority (the fix is the question or the key) keep FAIL.
+            due = not policy and not s.startswith("H") and s not in majority and rn < 6 and pn + 6 - rn >= 4
             if not policy and 3 * passes2.get((s, new), 0) >= 2 * rn:
                 unasked_fail = True
-            else:
+            elif not due:
                 ok &= policy
-            print(f"policy {s}: new {pn}/{rn}: {word[policy]}")
+            line = f"policy {s}: new {pn}/{rn}: {'rerun due' if due else word[policy]}"
+            print(line)
+            if due:
+                reruns.append(line)
         for key in sorted(out_of_reach[s]):
             print(f"out of reach {s} ({key})")
         for key in sorted(listed.get(s, ())):
@@ -292,8 +303,11 @@ def verdict(old, new):
     # check-governance.sh reads this file: two holdout fails in a row stop the land with no hand step.
     with open(os.path.join(EVAL, "holdout-fails.txt"), "w", encoding="utf-8") as f:
         f.write("".join(line + "\n" for line in fails))
-    print(f"verdict: {word[ok]}")
-    sys.exit(0 if ok else 1)
+    # check-governance.sh reads this file: the land waits for a later scored run of each rerun due ID.
+    with open(os.path.join(EVAL, "rerun-due.txt"), "w", encoding="utf-8") as f:
+        f.write("".join(line + "\n" for line in reruns))
+    print(f"verdict: {'FAIL' if not ok else 'RERUN DUE' if reruns else 'PASS'}")
+    sys.exit(0 if ok and not reruns else 1)
 
 
 if __name__ == "__main__":

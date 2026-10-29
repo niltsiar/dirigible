@@ -42,6 +42,18 @@ struct LocalizationTests {
         #expect(problems == [])
     }
 
+    /// A value ends in the ellipsis character (U+2026) exactly when its English value does: a menu
+    /// title that opens a window keeps it in each language.
+    @Test func checkerFindsALostEllipsis() {
+        let english = ["a.open": "Open\u{2026}", "a.save": "Save"]
+        let lost = tableProblems(
+            ["en": english, "de": ["a.open": "Öffnen", "a.save": "Sichern\u{2026}"]], keys: ["a.open", "a.save"])
+        #expect(lost == ["a.open: ellipsis in en, none in de", "a.save: no ellipsis in en, one in de"])
+        let kept = tableProblems(
+            ["en": english, "de": ["a.open": "Öffnen\u{2026}", "a.save": "Sichern"]], keys: ["a.open", "a.save"])
+        #expect(kept == [])
+    }
+
     /// Each `*.lproj` folder of `Support/Resources` is a language of `AppLanguage`, with the
     /// files that the build needs (decision 0010): no `.stringsdict`, and an `InfoPlist.strings`
     /// in each folder but English.

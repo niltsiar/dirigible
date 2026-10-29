@@ -186,6 +186,14 @@ struct RulerGestureTests {
         #expect(drag(253, 10) == [.marks(marks)], "Shift extends the range of the down with the same tracks")
     }
 
+    /// A Shift-drag on the ruler from the set of A (48,000 ..< 96,000 on t1) extends the span of the set:
+    /// the range runs from the first clip start to the pointer frame, on all tracks (decision 0038).
+    @Test mutating func aShiftRulerDragFromAClipSetExtendsItsSpan() throws {
+        selection = .clips(try #require(ClipSet(["A"])))
+        _ = gesture.handle(.down(.ruler(x: 250, y: 10), shift: true, command: false), context())
+        #expect(drag(253, 10) == [.marks(Marks(inPoint: 48_000, outPoint: 121_440, tracks: ["t1", "t2", "t3"]))])
+    }
+
     /// C14 with View > Snap on: a ruler drag has no playhead target, so a playhead at the press
     /// frame, or 2 pt past it (a play after the seek), keeps the range. Markers still snap.
     @Test mutating func aRulerDragWithSnapOnHasNoPlayheadTarget() {

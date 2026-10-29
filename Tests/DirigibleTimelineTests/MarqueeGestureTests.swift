@@ -82,6 +82,15 @@ struct MarqueeGestureTests {
         #expect(gesture.marquee == nil)
     }
 
+    /// From the set of A (48,000 ..< 96,000 on t1), a Shift-Command drag on the lanes from inside A to
+    /// 120,000 extends the span of the set: the range runs from the first clip start (decision 0038).
+    @Test mutating func aShiftCommandDragFromAClipSetExtendsItsSpan() {
+        selection = .clips(ClipSet("A"))
+        down(150, 30, command: true)
+        #expect(drag(250, 30) == [.marks(Marks(inPoint: 48_000, outPoint: 120_000, tracks: ["t1"]))])
+        #expect(gesture.marquee == nil)
+    }
+
     @Test mutating func aShiftDragFromBelowTheLastLaneChangesNothing() {
         #expect(marquee(from: (150, 200), to: (300, 50)) == [])
         #expect(up(300, 50) == [])

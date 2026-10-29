@@ -6,7 +6,7 @@
 # copies of two trees and refuses, and a stop in one tree resets the grants of the other copy.
 # The script does not build the app: run `make app` first.
 #
-# usage: verify-copy.sh start [--agents] [--audible] [--accent <n>] [<package>] [-- <open arguments>]
+# usage: verify-copy.sh start [--agents] [--accent <n>] [--audible] [<package>] [-- <open arguments>]
 #                                  stop a running copy, reset its grants, preferences, and saved
 #                                  state, delete the old copy bundle, copy build/Dirigible.app, set
 #                                  the bundle ID, sign it, open it with its own MCP socket
@@ -53,7 +53,7 @@
 # Exit: 0 done, 1 a failed step (the message names it), 2 usage or a pgrep error.
 set -euo pipefail
 
-usage="usage: verify-copy.sh start [--agents] [--audible] [--accent <n>] [<package>] [-- <open arguments>]
+usage="usage: verify-copy.sh start [--agents] [--accent <n>] [--audible] [<package>] [-- <open arguments>]
        verify-copy.sh id
        verify-copy.sh ax <ax.swift arguments>
        verify-copy.sh prompt <button>

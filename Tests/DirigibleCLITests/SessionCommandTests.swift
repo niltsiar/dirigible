@@ -60,13 +60,13 @@ struct SessionCommandTests {
 
     /// A save whose write of session.xml fails (EFBIG under a file size limit of 0) exits 2, names
     /// the write step, and keeps session.xml with no temporary file. The limit covers the child
-    /// only: its stderr goes through a pipe, because the limit also covers a regular file.
+    /// only: its stdout and stderr go through pipes, because the limit also covers a regular file.
     @Test func aFailedSessionWriteKeepsTheSessionFile() async throws {
         let package = try TemporaryPackage(Session(sampleRate: 48_000))
         let before = try package.xml()
         let script =
-            #"set -o pipefail; (trap "" XFSZ; ulimit -f 0; exec "$1" marker set "$2" --name X --at 0) "#
-            + #"2>&1 >/dev/null | cat >&2"#
+            #"set -o pipefail; ( (trap "" XFSZ; ulimit -f 0; exec "$1" marker set "$2" --name X --at 0) "#
+            + #"2>&1 1>&4 | cat >&2 ) 4>&1 | cat"#
 
         #expect(
             try await dirigible(shell: script, "sh", dirigibleBinary.path, package.path)

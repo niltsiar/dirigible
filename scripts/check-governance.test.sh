@@ -249,7 +249,7 @@ pass 'a cut-run merge whose kept text has exactly 5 words' "$tmp/run"
 new_repo; cut_run; kept_cut 'kept: "this line in the"'; commit
 refuse 'a cut-run merge whose kept text has fewer than 5 words' 'A-2 quotes kept: "this line in the", which has fewer than 5 words' "$tmp/run"
 new_repo; cut_run; kept_cut 'duplicate of A-1'; commit
-refuse 'a cut-run merge with no kept text' 'A-2 changes to merge in a cut run; its reason needs a kept:' "$tmp/run"
+refuse 'a cut-run merge with no kept text' 'A-2 changes to merge in a cut run; its reason needs one kept:' "$tmp/run"
 new_repo; cut_run; kept_cut 'kept: "a line that is gone"'; commit
 refuse 'a cut-run merge whose kept text is not in the target file' 'A-2 quotes kept: "a line that is gone"' "$tmp/run"
 new_repo; cut_run; kept_cut 'kept: "Rule one keeps this line"; kept: "Rule three says nothing here"'; commit

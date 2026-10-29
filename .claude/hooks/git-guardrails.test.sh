@@ -945,6 +945,7 @@ for run in $'git commit -F - <<\'EOF\'\ntest(hooks): the case (bash scripts/land
 done
 for run in $'cat <<\'EOF\' | bash\nbash scripts/land.test.sh\nEOF' $'bash -s <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
   $'/bin/sh <<\'EOF\'\n(bash scripts/land.test.sh)\nEOF' $'sudo bash <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
+  $'bash <<-\'EOF\'\n\t(bash scripts/land.test.sh)\n\tEOF' \
   $'python3 - <<\'EOF\'\n(bash scripts/land.test.sh)\nEOF' \
   $'git commit -F - <<EOF\nthe case $(bash scripts/land.test.sh) runs\nEOF' \
   $'git commit -F - <<EOF\nthe case `bash scripts/land.test.sh` runs\nEOF'; do

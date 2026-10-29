@@ -12,13 +12,13 @@ This guide shows how to record, edit, and export a podcast episode with Dirigibl
 
 ### Change the language
 
-Dirigible shows its menus and windows in English, Spanish, German, French, Italian, Dutch, or Portuguese. By default, it uses the language of macOS.
+Dirigible shows its menus and windows in English, Spanish, German, French, Italian, Dutch, Brazilian Portuguese, or European Portuguese. By default, it uses the language of macOS.
 
 1. Choose **Dirigible > Settings…** (Command-Comma). In Spanish, the menu item is **Ajustes…**.
-2. In **Language** (**Idioma**), choose **System Language** (**Idioma del sistema**), **Deutsch**, **English**, **Español**, **Français**, **Italiano**, **Nederlands**, or **Português (Brasil)**.
+2. In **Language** (**Idioma**), choose **System Language** (**Idioma del sistema**), **Deutsch**, **English**, **Español**, **Français**, **Italiano**, **Nederlands**, **Português (Brasil)**, or **Português (Portugal)**.
 3. Quit Dirigible and open it again. The new language shows only after the restart.
 
-The Portuguese text is Brazilian Portuguese. No native speaker has checked the German, French, Italian, Dutch, and Portuguese texts yet. To report a wrong text, give the language, the window, the wrong text, and the text that you expect. The README tells how to report a bug.
+Português (Brasil) is Brazilian Portuguese, and Português (Portugal) is European Portuguese. No native speaker has checked the German, French, Italian, Dutch, and Portuguese (Brazil and Portugal) texts yet. To report a wrong text, give the language, the window, the wrong text, and the text that you expect. The README tells how to report a bug.
 
 ### What Dirigible does not do yet
 

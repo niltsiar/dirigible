@@ -8,7 +8,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 <img src="docs/images/screenshot-edit.png" width="800" alt="The Dirigible window with the Demo Episode session: the Host and Guest tracks, the marker Intro, the chapter Interview, a clip at -6 dB, and the loudness meter below the tracks.">
 
 - macOS 14 Sonoma or later, on Apple silicon or Intel
-- English, Spanish, German, French, Italian, Dutch, and Portuguese (Dirigible > Settings)
+- English, Spanish, German, French, Italian, Dutch, Brazilian Portuguese, and European Portuguese (Dirigible > Settings)
 - Apache License 2.0
 
 ## Features
@@ -87,7 +87,7 @@ Each DMG has a new ad-hoc signature. So after each update, macOS asks again for 
 
 To report a bug, give the text of **Dirigible > About Dirigible**: the version and, in parentheses, the commit of the build. `dirigible --version` prints the same version. A release version has the form `0.<release>.<run>`, for example `0.3.4`. A build after the last release tag adds `-<commits>-g<commit>`, and a build with uncommitted changes adds `-dirty`. The rule is in [Versions](docs/requirements/releases.md#versions).
 
-No native speaker has checked the German, French, Italian, Dutch, and Portuguese texts yet. To report a wrong text, give the language, the window, the wrong text, and the text that you expect.
+No native speaker has checked the German, French, Italian, Dutch, and Portuguese (Brazil and Portugal) texts yet. To report a wrong text, give the language, the window, the wrong text, and the text that you expect.
 
 `make dmg` also writes `Dirigible-<version>.dmg.sha256`. To check a DMG against this file, put both files in one folder and run `shasum -a 256 -c Dirigible-<version>.dmg.sha256` there. The result must be `OK`.
 

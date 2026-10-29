@@ -180,3 +180,4 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F166 | An export to MP3 or M4A with no episode title warns that the file has no title tag | tester 2026-10-16 | done, Release 4 run 14 | R11, R13 |
 | F167 | Agent transport: play a range, stop, and locate in the running app | tester 2026-10-16 | done, Release 4 run 18 | R16 |
 | F168 | Agent batch: many edit calls as one undo step in the app and one save on the files | tester 2026-10-16 | done, Release 4 run 20 | R16 |
+| F169 | European Portuguese UI (pt-PT) beside Brazilian Portuguese | user 2026-10-16 | Release 4 | R13 |

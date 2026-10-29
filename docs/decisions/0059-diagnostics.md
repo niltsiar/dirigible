@@ -55,7 +55,7 @@ A beta tester pressed Record during a call, the window showed the busy cursor, a
 - The app server writes `agent call` with `tool`, `ms`, and `error` for each call that `dirigible mcp` sends to the app, and never an argument.
 - The command line: `dirigible diagnostics collect <zip> [--days <n>] [--logs <folder>] [--reports <folder>]...`, exit 0, 2 (the zip exists or cannot be written), or 64. Nothing leaves the Mac: the user sends the file.
 
-**Report window.** Help > Report a Problem... has its own group under Dirigible Help, no key (Command-? stays with the Help search field), and keys `menu.help.report` and `report.*` in the seven tables (0010).
+**Report window.** Help > Report a Problem... has its own group under Dirigible Help, no key (Command-? stays with the Help search field), and keys `menu.help.report` and `report.*` in each table (0010).
 
 - One sheet on the key window, else on the start window, else an app-modal window. It says first what the file does not hold, and that the app sends nothing. A disclosure lists the four groups. Cancel has Escape, Save Report... has Return. There is no check box: a producer leaves all on, and the list gives the trust.
 - Save Report... closes the sheet, then a save panel opens on the Desktop with the name `Dirigible Report <yyyy-MM-dd>.zip`. The panel asks before it replaces a file. The collect writes to a hidden file with a new name next to the chosen name, and the app replaces the chosen file with it only when the collect succeeds, so a failed or cancelled report never deletes a file.

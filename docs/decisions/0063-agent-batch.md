@@ -51,4 +51,4 @@ Research: `docs/research/undo-grouping.md`.
 - **One ripple check before the batch:** rejected. A `file_remove` step can split a take, and a later ripple step then moves a split take (0037).
 - **structuredContent with an outputSchema:** deferred. No tool of Dirigible has one, and text keeps one rule for all tools.
 - **A parity exception** (a tool with no command): rejected. `ParityTests` refuses it, and scripts get the one-save edit from the command.
-- **A batch Undo title** ("Undo <name> Edits"): deferred to a later run with the UI panel and seven tables (0010).
+- **A batch Undo title** ("Undo <name> Edits"): deferred to a later run with the UI panel and each table (0010).

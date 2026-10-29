@@ -27,12 +27,15 @@
 #   wiki has no item with status next that this run took (`scripts/wiki.py list next --taken
 #   <run folder name>`). A later item that the run took passes. With no wiki the check fails:
 #   wiki.py names the path, `scripts/wiki.py init`, and DIRIGIBLE_WIKI.
-# - Each `| F<n> |` row of docs/requirements/features.md at the base keeps its ID, Feature, and Req cells
+# - The base files of these checks (budgets.tsv, rules.tsv, features.md) are read at the merge base of
+#   the base and HEAD, so a branch that is behind its base is not blamed for what the base changed
+#   after the branch point. Only the top run number of a release reads the base tip.
+# - Each `| F<n> |` row of docs/requirements/features.md at the merge base keeps its ID, Feature, and Req cells
 #   in the work tree file: a drop sets `Dropped (<reason>)`, and a new idea gets a new ID.
 # - A run number that HEAD adds to a done State of features.md is 1 + the highest run number of its
-#   Release at the base. Each run number of a done State at the base stays in its row.
+#   Release at the base tip. Each run number of a done State at the merge base stays in its row.
 # - With a run folder whose run.md has a `- Lands:` line, each F-ID of the newest (last) such line has a
-#   done state in features.md that differs from its state at the base, on any branch type. `- Lands: none`
+#   done state in features.md that differs from its state at the merge base, on any branch type. `- Lands: none`
 #   names no F-ID; an empty line fails. The value is `none` or a comma list of F-IDs (`F35, F89`); a
 #   note goes on its own line. A `feat/`, `fix/`, or `perf/` branch that changes Sources/,
 #   Package.swift, Package.resolved, or Support/ needs the line. A `feat/` branch that changes
@@ -54,8 +57,10 @@ cd "$(git rev-parse --show-toplevel)"
 git rev-parse -q --verify "$base^{commit}" > /dev/null || die "no commit $base"
 fail=0
 
-# The file at the base, or nothing when the base has no such file.
-at_base() { git show "$base:$1" 2>/dev/null || true; }
+# The file at the merge base of the base and HEAD, or nothing when it has no such file. The work tree
+# is the branch as it lands, and the tip of the base can hold changes that the branch lacks.
+mb="$(git merge-base "$base" HEAD)" || die "no merge base of $base and HEAD"
+at_base() { git show "$mb:$1" 2>/dev/null || true; }
 
 budgets=docs/workflow/budgets.tsv
 words="$here/workflow-words.sh"
@@ -97,9 +102,7 @@ if [[ -f "$budgets" ]]; then
     fi
 fi
 
-# The always-on words and the count of skills plus agents stay at or below the merge base: the work
-# tree is the branch as it lands, and the tip of the base can hold changes that the branch lacks.
-mb="$(git merge-base "$base" HEAD)" || die "no merge base of $base and HEAD"
+# The always-on words and the count of skills plus agents stay at or below the merge base.
 base_words="$("$words" always-on --rev "$mb")" tree_words="$("$words" always-on)"
 if ((tree_words > base_words)); then
     echo "check-governance: the always-on words go from $base_words at the merge base to $tree_words (the start files, which are AGENTS.md, CLAUDE.md, .claude/CLAUDE.md, the .claude/rules files with no paths:, and the files they import; and the description lines of the skills and agents); move a whole part to a references file and leave a one-line pointer; do not trim the words of a rule" >&2
@@ -137,21 +140,26 @@ runs() {
         }
     }'
 }
-# A run number that HEAD adds to a row is 1 + the highest run number of its release at the base. A
-# land adds one number to each release, so all new parts of the land share it. A run number of the
-# base stays in its row. A base with no features.md has no number to continue or keep. The printf
-# gives each awk input a first line, so an empty list does not read the next input as the first.
+# A run number that HEAD adds to a row (one that the merge base lacks) is 1 + the highest run number
+# of its release at the base tip, so a collision shows before the land rebase. A land adds one number
+# to each release, so all new parts of the land share it. A run number of the merge base stays in its
+# row. A merge base with no features.md has no number to continue or keep. Each list line gets a tag
+# (T tip, O merge base, H HEAD), so one awk reads the three lists.
 if [[ -n "$(at_base "$features")" ]]; then
     base_runs="$(at_base "$features" | runs | sort)"
+    tip_runs="$(git show "$base:$features" 2>/dev/null | runs | sort || true)"
     head_runs="$([[ ! -f "$features" ]] || runs < "$features" | sort)"
     while IFS= read -r msg; do
         [[ -z "$msg" ]] || { echo "check-governance: $msg" >&2; fail=1; }
     done < <(awk -F'|' '
-        NR == FNR { old[$0] = 1; n = $3 + 0; if (!($2 in top) || n > top[$2]) top[$2] = n; next }
-        NF >= 3 && !($0 in old) {
-            want = ($2 in top ? top[$2] : 0) + 1
-            if ($3 "" != want "") print "features.md: " $1 " has Release " $2 " run " $3 ", but the next run number of Release " $2 " is " want
-        }' <(printf '%s\n' "$base_runs") <(printf '%s\n' "$head_runs"))
+        NF >= 4 && ($1 == "T" || $1 == "O") {
+            if ($1 == "O") old[$2 "|" $3 "|" $4] = 1
+            n = $4 + 0; if (!($3 in top) || n > top[$3]) top[$3] = n
+        }
+        NF >= 4 && $1 == "H" && !(($2 "|" $3 "|" $4) in old) {
+            want = ($3 in top ? top[$3] : 0) + 1
+            if ($4 "" != want "") print "features.md: " $2 " has Release " $3 " run " $4 ", but the next run number of Release " $3 " is " want
+        }' <(sed 's/^/T|/' <<<"$tip_runs") <(sed 's/^/O|/' <<<"$base_runs") <(sed 's/^/H|/' <<<"$head_runs"))
     while IFS='|' read -r id r n; do
         [[ -z "$id" ]] || { echo "check-governance: features.md lost or changed the done part Release $r run $n of $id; a done state stays" >&2; fail=1; }
     done < <(comm -23 <(printf '%s\n' "$base_runs") <(printf '%s\n' "$head_runs"))

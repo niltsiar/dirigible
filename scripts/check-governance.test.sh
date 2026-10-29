@@ -485,6 +485,41 @@ refuse 'a done part that moves to another release' 'features.md lost or changed 
 runs_repo; sed -i '' 's/; Later: a part//' "$features"; commit
 pass 'a done row that drops its Later part'
 
+# A branch that is behind its base is read at the merge base: what the base changed after the branch
+# point is not a loss of the branch. The top run number of a release still reads the base tip.
+# behind_repo: F01 is done in Release 4 run 21 and F02 is open at the branch point; main then marks F02
+# done in run 22, adds the row F03, and cuts TOTAL with the same decision cell; the branch adds a file.
+behind_repo() {
+  new_repo
+  g switch -q main
+  mkdir -p "$tmp/r/docs/requirements"
+  printf '# Features\n\n| ID | Feature | From | State | Req |\n|---|---|---|---|---|\n| F01 | One | Logic | done, Release 4 run 21 | R1 |\n| F02 | Two | Logic | Release 4 | R2 |\n' > "$features"
+  g add -A && g commit -q -m features
+  g switch -q -C feat/x
+  echo x > "$tmp/r/other.txt"; commit
+  g switch -q main
+  sed -i '' 's/| Release 4 | R2 |/| done, Release 4 run 22 | R2 |/' "$features"
+  printf '| F03 | Three | Logic | Later | R3 |\n' >> "$features"
+  total "$((sum0 - 1))" baseline
+  commit
+  g switch -q feat/x
+}
+# gov_out [args]: run the script against main, and set out and code.
+gov_out() { out="$(cd "$tmp/r" && "$script" main "$@" 2>&1)" && code=0 || code=$?; }
+behind_repo
+pass 'a branch behind a base that marked a feature done, added a row, and cut TOTAL'
+behind_repo; sed -i '' 's/| done, Release 4 run 21 | R1 |/| done, Release 4 runs 21 and 22 | R1 |/' "$features"; commit
+gov_out
+[[ $code -ne 0 && "$out" == *'features.md: F01 has Release 4 run 22, but the next run number of Release 4 is 23'* ]] \
+  || fail "a run number that the base tip has: expected the refusal for run 23: $out"
+[[ "$out" != *'lost or changed the done part'* ]] || fail "a run number that the base tip has: the refusal names a done part of the base tip: $out"
+behind_repo; sed -i '' 's/| done, Release 4 run 21 | R1 |/| done, Release 4 runs 21 and 23 | R1 |/' "$features"; commit
+pass 'a run number that is the next of the base tip'
+behind_repo; sed -i '' 's/| done, Release 4 run 21 | R1 |/| Later | R1 |/' "$features"; commit
+refuse 'a branch behind its base that drops a done part of the merge base' 'features.md lost or changed the done part Release 4 run 21 of F01'
+behind_repo; total "$((sum0 + 1))" baseline; commit
+refuse 'a branch behind its base that raises TOTAL and keeps the cell of the merge base' 'its decision cell is the cell of the base'
+
 # Two holdout fails in a row stop the land. grade.py verdict writes its fail lines to
 # eval/holdout-fails.txt of the run, so no hand row is needed. The run to compare is the newest done
 # run of the ledger beside runs/ whose eval/scores.tsv has a row of the holdout: a run that did not

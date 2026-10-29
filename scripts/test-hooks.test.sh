@@ -43,6 +43,8 @@ new_repo() {
     chmod +x "$repo/t/"*.sh
     local floor_paths
     floor_paths="$("$here/check-changed.sh" --floor)"
+    # Guards the stub setup, not a hook case: with no floor path, the loop below makes no floor stub.
+    [[ -n $floor_paths ]] || fail "stub setup: --floor prints no path"
     for f in $floor_paths; do
         [[ $f == */ ]] && f="${f}A.swift"
         mkdir -p "$repo/$(dirname "$f")"
@@ -50,14 +52,6 @@ new_repo() {
     done
     for f in Sources/Other/O.swift Tests/T.swift docs/d.md README.md .claude/settings.json Support/s.txt; do
         echo x > "$repo/$f"
-    done
-    # Guards the stub setup above, not a hook case: each floor path exists in the stub repo.
-    for p in $floor_paths; do
-        if [[ $p == */ ]]; then
-            [[ -n $(find "$repo/$p" -type f 2> /dev/null) ]] || fail "stub setup: no file in the floor folder $p"
-        else
-            [[ -f "$repo/$p" ]] || fail "stub setup: no file at the floor path $p"
-        fi
     done
     commit init
     export FAKE_SWIFT=6.2.4 FAKE_JQ=1.7.1 FAKE_DATE=2026-10-12

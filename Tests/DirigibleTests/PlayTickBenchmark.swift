@@ -15,6 +15,8 @@ import Testing
 /// track armed, so the record-over rule reads the clips of each tick. Run 9b criterion 17: the
 /// loudness strip shows under the lanes, and `Studio.loudness` has a new value at each tick; its
 /// texts change at least 20 times and at most 4 times for each second of the loop (the 4 Hz gate).
+/// Transcript criterion P4b: a real pane at the 320 pt width shows 27 000 units of two tracks, and
+/// each tick calls `transcriptTick(frame:)` in the timed block, so the budget holds the underline.
 @MainActor struct PlayTickBenchmark {
     static let forward = Playback.playing(Shuttle(direction: .forward, rate: .one))
 
@@ -22,7 +24,11 @@ import Testing
     func aPlayTickFitsOneFrameAtTwoHours() async throws {
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
-        let (session, peaks) = try MouseEventBenchmark.fixture()
+        var (session, peaks) = try MouseEventBenchmark.fixture()
+        // 27 000 units on two tracks, shown by a real pane at the Transcript tab (P4b).
+        for track in ["t1", "t3"] as [TrackID] {
+            try session.importTranscript(try TranscriptTextBenchmark.transcript(), name: "Speaker", track: track, at: 0)
+        }
         for (n, (zoom, framesPerPoint)) in MouseEventBenchmark.zooms.enumerated() {
             let package = folder.url.appending(path: "\(n)")
             try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
@@ -57,7 +63,16 @@ import Testing
             view.update(inputs)
             model.timeline.scale = inputs.scale
             let chrome = SessionChrome(model: model, window: window)
+            let scroll = TranscriptTextView.scrollView()
+            scroll.frame = NSRect(x: content.width - 320, y: content.height - 600, width: 320, height: 600)
+            window.contentView?.addSubview(scroll)
+            let text = try #require(scroll.documentView as? TranscriptTextView)
+            text.model = model
+            model.transcriptFollow.pane = text
             window.orderFront(nil)
+            #expect(text.begin(revision: 1))
+            text.apply(await TranscriptTextView.build(session, notices: [], revision: 1))
+            try #require(text.shown?.text.units.count == 27_000, "the pane shows 27 000 units")
             drawNow(window)
             // The ticks here, not the display link.
             view.viewWillMove(toWindow: nil)
@@ -83,11 +98,14 @@ import Testing
                 chrome.update()
                 view.tick(playhead: Double(playhead.count), playback: Self.forward)
                 model.loudnessTick(studio)
+                model.transcriptTick(frame: playhead)
                 drawNow(window)
                 // The first 10 ticks are not timed (the draw after the window shows).
                 if tick > 10 { times.append(ContinuousClock.now - start) }
             }
             studio.play.playback = .stopped
+            #expect(text.builds == 1 && text.replacements == 1, "the ticks built no text")
+            #expect(text.underlines.count > 0, "the ticks reached the underline")
             let loop = (ContinuousClock.now - loopStart) / .seconds(1)
             let sorted = times.sorted()
             print("PlayTickBenchmark \(zoom): p50 \(sorted[300]), p95 \(sorted[570]) (target 2 ms)")

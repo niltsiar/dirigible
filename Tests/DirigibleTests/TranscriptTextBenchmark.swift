@@ -22,6 +22,15 @@ import Testing
     #endif
     static let frames = Frames(345_600_000)
 
+    /// 13 500 words over 6 750 s; a 2 s pause after each 40 words makes a paragraph.
+    static func transcript() throws -> TranscriptFile {
+        let words = (0..<13_500).map { word in
+            let start = Double(word) * 0.45 + Double(word / 40) * 2
+            return #"{"word":"word\#(word % 97)","start":\#(start),"end":\#(start + 0.4)}"#
+        }
+        return try TranscriptFile(data: Data(#"{"words":[\#(words.joined(separator: ","))]}"#.utf8))
+    }
+
     /// 13 500 words on each of two tracks over 6 750 s of a 7 200 s file; a 2 s pause after each
     /// 40 words makes a paragraph. The second session ends the clip of track 2 at 6 000 s.
     static func sessions() throws -> (full: Session, trimmed: Session) {
@@ -31,12 +40,7 @@ import Testing
             try session.addFile(AudioFile(id: file, path: "h\(n).wav", layout: .mono, length: frames))
             try session.addTrack(track, name: "Speaker \(n)", layout: .mono)
             try session.place(Clip(id: clip, file: file, start: 0, offset: 0, length: frames), on: track)
-            let words = (0..<13_500).map { word in
-                let start = Double(word) * 0.45 + Double(word / 40) * 2
-                return #"{"word":"word\#(word % 97)","start":\#(start),"end":\#(start + 0.4)}"#
-            }
-            let transcript = try TranscriptFile(data: Data(#"{"words":[\#(words.joined(separator: ","))]}"#.utf8))
-            try session.importTranscript(transcript, name: "Speaker \(n)", track: track, at: 0)
+            try session.importTranscript(try Self.transcript(), name: "Speaker \(n)", track: track, at: 0)
         }
         let noise = Treatment(.noise(.standard))
         for stem in ["h1 NR", "h1 NR NR"] {

@@ -338,6 +338,14 @@ Click a word to put the playhead at its start. A stopped play stays stopped, and
 
 VoiceOver reads the text as **Transcript**. Each paragraph header is a heading, so the Headings rotor of VoiceOver jumps from header to header. The action **Go to Word** puts the playhead at the word at the text cursor, or at the first word under a header. The play does not make VoiceOver speak.
 
+### Select and cut by words
+
+Drag over words in the **Transcript** tab to select them. The selection takes whole words. It selects the same time in the lanes, on all tracks, from the start of the first word to the end of the last word. With the text cursor in the text, Shift-Right Arrow adds the next word, and Shift-Left Arrow takes the last word off. Shift-Down Arrow goes to the end of the next sentence, and Shift-Up Arrow goes back to the end of the sentence before. VoiceOver says how many words are selected. With the focus in the lanes, Shift-Left Arrow and Shift-Right Arrow stay **Previous Clip** and **Next Clip**.
+
+A range in the lanes shows in the text as a tint behind its words. A word of a track of the range has the tint when its middle is in the range. A new range from the lanes, or a clear of the range, removes the text selection.
+
+With the focus in the text, Delete removes the selected time from all tracks and closes the gap, as **Delete and Close Gap** does. **Edit > Cut** (Command-X) does the same and puts the range on the clipboard. **Edit > Copy** (Command-C) copies the range, as in the lanes. Copy and Cut also put the words as plain text on the clipboard of the system, so you can paste them in another app, for example in your show notes. One **Undo** puts the audio back.
+
 ### Import a transcript
 
 Choose **File > Import Transcript** to add the words of a Whisper JSON, WebVTT, or SRT file. The open panel has a **Track** pop-up: choose the track whose clips carry the words. It starts at the first selected track, or at the first track. The times count from the start of the timeline. The import is one step, so Undo takes the words away again. A file that is not a transcript shows an alert and changes nothing.

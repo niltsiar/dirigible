@@ -11,8 +11,15 @@ extension AppDelegate {
         transport(command, event: NSApp.currentEvent, in: NSApp.keyWindow)
     }
 
+    /// With the focus in the Transcript pane, the Shift-Left and Shift-Right keys of Previous Clip
+    /// and Next Clip move the end of the pane selection (P8).
     func transport(_ command: TransportCommand, event: NSEvent?, in keyWindow: NSWindow?) {
         if let event, forwardTypingKey(event, in: keyWindow) { return }
+        if event?.type == .keyDown, let pane = keyWindow?.firstResponder as? TranscriptTextView,
+            case .seek(let seek) = command, seek == .previousClip || seek == .nextClip
+        {
+            return pane.moveSelectionEnd(by: seek == .nextClip ? 1 : -1)
+        }
         key?.transport(command)
     }
 

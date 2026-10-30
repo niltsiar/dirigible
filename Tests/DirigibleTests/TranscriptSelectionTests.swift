@@ -24,7 +24,14 @@ import Testing
         .range(Marks(inPoint: start, outPoint: end, tracks: tracks))
     }
 
-    func package() async throws -> URL {
+    static let hostWords: [(Double, Double, String)] = [
+        (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
+    ]
+
+    /// The package, with `host` on t1, and `guest` on t2 when it has words.
+    func package(host: [(Double, Double, String)] = hostWords, guest: [(Double, Double, String)] = [])
+        async throws -> URL
+    {
         let url = base.folder.url.appending(path: "s.dirigible")
         try await Task.detached {
             try Session.create(at: url, sampleRate: 48_000)
@@ -37,22 +44,28 @@ import Testing
                     Clip(id: ClipID(file), file: FileID(file), start: 0, offset: 0, length: 960_000), on: TrackID(track)
                 )
             }
-            let words: [(Double, Double, String)] = [
-                (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
-            ]
-            let json =
-                #"{"words":["#
-                + words.map { #"{"word":" \#($0.2)","start":\#($0.0),"end":\#($0.1)}"# }
-                .joined(separator: ",") + "]}"
-            try session.importTranscript(TranscriptFile(data: Data(json.utf8)), name: "Host", track: "t1", at: 0)
+            for (words, name, track) in [(host, "Host", TrackID("t1")), (guest, "Guest", TrackID("t2"))]
+            where !words.isEmpty {
+                try session.importTranscript(try Self.transcript(words), name: name, track: track, at: 0)
+            }
             try session.write(to: url)
         }.value
         return url
     }
 
+    /// A Whisper JSON transcript of `words`: the start, the end, and the text of each word.
+    nonisolated static func transcript(_ words: [(Double, Double, String)]) throws -> TranscriptFile {
+        let json =
+            #"{"words":["#
+            + words.map { #"{"word":" \#($0.2)","start":\#($0.0),"end":\#($0.1)}"# }.joined(separator: ",") + "]}"
+        return try TranscriptFile(data: Data(json.utf8))
+    }
+
     /// The window with the Transcript tab shown and the focus in the pane.
-    func shown() async throws -> (SessionWindow, Studio, NSWindow, TimelineScrollView, TranscriptTextView) {
-        let (model, studio, window, view) = try await base.open(try await package())
+    func shown(guest: [(Double, Double, String)] = []) async throws -> (
+        SessionWindow, Studio, NSWindow, TimelineScrollView, TranscriptTextView
+    ) {
+        let (model, studio, window, view) = try await base.open(try await package(guest: guest))
         model.showTranscript()
         return (model, studio, window, view, try await base.waitForPane(window))
     }

@@ -40,6 +40,35 @@ extension TranscriptPaneTests {
         await model.close()
     }
 
+    /// P5, P9: a click on a unit seeks and keeps the timeline range: a lanes range, and the range
+    /// that a pane selection wrote. A click is the seek of `mouseDown` and the insertion point that
+    /// the text view then puts at the unit.
+    @Test func clickKeepsTheRange() async throws {
+        let (model, studio, _, pane) = try await opened("keep")
+        let units = try #require(pane.shown).text.units
+        func click(_ unit: TranscriptText.Unit) async throws {
+            pane.click(at: try point(at: unit.text, in: pane))
+            pane.setSelectedRange(NSRange(location: pane.noticeLength + unit.text.lowerBound, length: 0))
+            await model.settleTransport()
+        }
+        let lanes = Selection.range(Marks(inPoint: 528_000, outPoint: 552_000, tracks: ["t1"]))
+        model.timeline.selection = lanes
+
+        try await click(units[3])
+        #expect(studio.playhead == units[3].frames.lowerBound)
+        #expect(model.timeline.selection == lanes, "a click keeps a lanes range")
+
+        let start = units[0].text.lowerBound
+        pane.setSelectedRange(NSRange(location: pane.noticeLength + start, length: units[1].text.upperBound - start))
+        let written = model.timeline.selection
+        try #require(written != lanes)
+        try await click(units[4])
+        #expect(studio.playhead == units[4].frames.lowerBound)
+        #expect(pane.selectedRange().length == 0, "the click puts the insertion point")
+        #expect(model.timeline.selection == written, "and keeps the range of the pane selection")
+        await model.close()
+    }
+
     /// P5: a click on a header or in the space after a paragraph does not seek.
     @Test func clickOnAHeaderDoesNotSeek() async throws {
         let (model, studio, _, pane) = try await opened("header")

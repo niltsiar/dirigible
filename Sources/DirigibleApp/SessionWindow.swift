@@ -192,6 +192,8 @@ import SwiftUI
     var idleRecordTimeLeft: Duration?
     /// The commands that reach a leaf of the window, for the tests. Nil: no record.
     @ObservationIgnored var leafCalls: [String]?
+    /// The work of the last transport or speed key, for `settleTransport()`.
+    @ObservationIgnored var transportWork: Task<Void, Never>?
     /// The lanes of the window, for the zoom commands.
     @ObservationIgnored weak var timelineView: TimelineScrollView?
     /// The zoom history and the toggles of the window (decision 0025). The window owns it, so a

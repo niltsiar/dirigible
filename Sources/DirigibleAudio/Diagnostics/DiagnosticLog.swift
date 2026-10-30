@@ -58,36 +58,39 @@ public final class DiagnosticLog: Sendable {
     /// line, the header, and the `app launch` line with the build facts of the front end. Then the
     /// queue reads the salt, checks the end of the earlier app journal, and deletes the oldest
     /// journals past the limits. When the journal cannot open, it writes one `fault` line to the
-    /// system log and returns `disabled`. A `DIRIGIBLE_AUDIO_OUTPUT` of `none` adds an
-    /// `audio-output` notice line after `app launch`; an unknown value adds an error line.
-    public static func start(
-        _ kind: Kind, folder: URL, version: String, commit: String, now: Date = .now,
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> DiagnosticLog {
-        start(
-            kind, folder: folder, version: version, commit: commit, now: now, queue: Journal.makeQueue(),
-            environment: environment)
+    /// system log and returns `disabled`.
+    public static func start(_ kind: Kind, folder: URL, version: String, commit: String, now: Date = .now)
+        -> DiagnosticLog
+    {
+        start(kind, folder: folder, version: version, commit: commit, now: now, queue: Journal.makeQueue())
     }
 
     /// `start` on `queue`, with a part limit of `partLimit` bytes. Tests hold the queue or rotate early.
     static func start(
         _ kind: Kind, folder: URL, version: String, commit: String, now: Date, queue: DispatchQueue,
-        partLimit: Int = Journal.partLimit, environment: [String: String] = ProcessInfo.processInfo.environment
+        partLimit: Int = Journal.partLimit
     ) -> DiagnosticLog {
         let launch = Entry(.app, "launch", launchFields(version: version, commit: commit), date: now)
         do throws(JournalOpenError) {
             let journal = try Journal.open(
                 kind, folder: folder, now: now, launch: launch, queue: queue, partLimit: partLimit)
-            let log = DiagnosticLog(journal: journal)
-            switch AudioOutputSetting(environment: environment) {
-            case .device: break
-            case .noDevice: log.note(.app, "audio-output", ["mode": .text("none")])
-            case .unknown(let value): log.note(.app, "audio-output", level: .error, ["unknown": .text(value)])
-            }
-            return log
+            return DiagnosticLog(journal: journal)
         } catch {
             diagnosticsLog.fault("The diagnostics journal did not open: \(error.description, privacy: .public)")
             return .disabled
+        }
+    }
+
+    /// Writes the `audio-output` line of the app journal (decision 0059): a notice for a
+    /// `DIRIGIBLE_AUDIO_OUTPUT` of `none`, an error for an unknown value, nothing for the device.
+    /// It reads the value that sets the output of the live environment.
+    public func noteAudioOutput() { noteAudioOutput(AudioOutputSetting.live) }
+
+    func noteAudioOutput(_ setting: AudioOutputSetting) {
+        switch setting {
+        case .device: break
+        case .noDevice: note(.app, "audio-output", ["mode": .text("none")])
+        case .unknown(let value): note(.app, "audio-output", level: .error, ["unknown": .text(value)])
         }
     }
 

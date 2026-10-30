@@ -348,6 +348,7 @@ import UniformTypeIdentifiers
     func applicationWillFinishLaunching(_ notification: Notification) {
         let facts = Self.buildFacts
         log = DiagnosticLog.start(.app, folder: logFolder, version: facts.version, commit: facts.commit)
+        log.noteAudioOutput()
         if watchesHangs { watchdog = HangWatchdog.start(log: log) }
     }
 

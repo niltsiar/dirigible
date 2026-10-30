@@ -3,7 +3,7 @@
 - Status: proposed
 - Date: 2026-10-16
 - Amended: 2026-10-22, run 2026-10-22-watchdog-hangs.
-- Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. `scripts/verify-copy.sh start` sets `DIRIGIBLE_LOG_FOLDER` to `build/verify/logs`, so the journal of the verify copy is not in the folder of the real app; only `stop` deletes it. `DIRIGIBLE_AUDIO_OUTPUT=none` adds one `audio-output` notice line after `app launch`, and an unknown value adds an error line.
+- Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. `scripts/verify-copy.sh start` sets `DIRIGIBLE_LOG_FOLDER` to `build/verify/logs`, so the journal of the verify copy is not in the folder of the real app; only `stop` deletes it. For `DIRIGIBLE_AUDIO_OUTPUT=none`, the app writes one `audio-output` notice line after `app launch`, and for an unknown value an error line. A CLI journal has no such line.
 
 ## Context
 

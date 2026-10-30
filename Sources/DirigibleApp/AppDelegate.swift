@@ -151,11 +151,10 @@ import UniformTypeIdentifiers
 
     /// The app: the list of active recordings and the peak cache in the folders of its bundle ID.
     override convenience init() {
-        let id = Bundle.main.bundleIdentifier!
+        let folders = Self.folders(
+            bundleID: Bundle.main.bundleIdentifier, support: .applicationSupportDirectory, caches: .cachesDirectory)
         self.init(
-            recordings: ActiveRecordings(
-                file: ActiveRecordings.file(bundleID: id, support: .applicationSupportDirectory)),
-            peakCache: PeakFile.folder(bundleID: id, caches: .cachesDirectory), defaults: .standard,
+            recordings: ActiveRecordings(file: folders.recordings), peakCache: folders.peakCache, defaults: .standard,
             defaultFolder: FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
                 .appending(path: "Dirigible", directoryHint: .isDirectory), watchesHangs: true)
     }

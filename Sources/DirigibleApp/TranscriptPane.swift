@@ -17,13 +17,6 @@ final class TranscriptTextView: NSTextView {
         let notices: [String]
     }
 
-    /// A value built off the main actor for the session revision `revision`.
-    struct Built {
-        let revision: Int
-        let shown: Shown
-        let attributed: NSAttributedString
-    }
-
     weak var model: SessionWindow?
     private(set) var shown: Shown?
     /// The shown text, only while it is of the current session revision. After an edit and before
@@ -40,9 +33,7 @@ final class TranscriptTextView: NSTextView {
     private(set) var builds = 0
     private(set) var replacements = 0
     private var focusPending = false
-    /// True while a build runs, and the revision that waits for it to end.
-    private var building = false
-    private var waiting: (session: Session, notices: [String], revision: Int)?
+    private var queue = TranscriptBuilds()
     /// The observers that the pane added while it shows in a window.
     private var observers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
     var observerCount: Int { observers.count }
@@ -73,23 +64,20 @@ final class TranscriptTextView: NSTextView {
     var moveEnds: (anchor: Int, active: Int, range: NSRange)?
 
     /// Builds the text for `session` off the main actor when `revision` is new (P13), then applies
-    /// it. At most one build runs: a revision that arrives during a build waits, and replaces any
-    /// revision that waited before it.
+    /// it. The queue lets one build run at a time.
     func update(session: Session, revision: Int) {
-        guard revision != (waiting?.revision ?? builtRevision) else { return }
+        guard revision != (queue.waitingRevision ?? builtRevision) else { return }
         let notices = session.transcriptsNotLoaded.map { L10n.transcriptNotLoaded.format($0.id.number, $0.name) }
-        guard !building else {
-            waiting = (session, notices, revision)
-            return
+        if let request = queue.submit(.init(session: session, notices: notices, revision: revision)) {
+            start(request)
         }
-        start(session, notices: notices, revision: revision)
     }
 
-    private func start(_ session: Session, notices: [String], revision: Int) {
-        guard begin(revision: revision) else { return }
-        building = true
+    private func start(_ request: TranscriptBuilds.Request) {
+        let began = begin(revision: request.revision)
+        assert(began, "the queue starts a build only for a revision that is not the built one")
         Task { [weak self] in
-            let built = await Self.build(session, notices: notices, revision: revision)
+            let built = await Self.build(request.session, notices: request.notices, revision: request.revision)
             self?.finish(built)
         }
     }
@@ -97,11 +85,8 @@ final class TranscriptTextView: NSTextView {
     /// Ends a build. With a newer revision waiting, the result is stale: drop it and build the
     /// newer revision. Else apply it.
     private func finish(_ built: Built) {
-        building = false
-        let next = waiting
-        waiting = nil
-        if let next, next.revision != built.revision {
-            return start(next.session, notices: next.notices, revision: next.revision)
+        if let next = queue.finish(revision: built.revision) {
+            return start(next)
         }
         apply(built)
     }

@@ -1,2 +1,3 @@
 # The Swift files over 400 lines that make check-sizes lets pass: <path><TAB><reason>.
 Sources/DirigibleApp/L10n.swift	One enum holds every UI string key, and Swift cannot put enum cases in an extension (decision 0010).
+Sources/DirigibleApp/TranscriptPane.swift	The text view keeps the build state, the underline layers, and the window observers as private state that an extension in another file cannot reach (decision 0023).

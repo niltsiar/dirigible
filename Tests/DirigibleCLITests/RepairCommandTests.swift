@@ -1,6 +1,9 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+
+@testable import DirigibleAudio
 
 /// `dirigible clip repair` (decision 0064, criteria C12 and C19). Most tests use the package of
 /// `DenoiseCommandTests`.
@@ -45,9 +48,46 @@ struct RepairCommandTests {
         let result = try await package.run(["clip", "repair", "PKG", "c1"] + options)
 
         let file = try DenoiseCommandTests.played("c1", in: package)
-        #expect(result == CLIResult(status: 0, stdout: "c1\t\(file.id)\n", stderr: ""), "\(options): \(result)")
+        let repair = effects.contains { $0.kind == .declip } ? "c1: 0 clipped runs repaired, level drop 0.0 dB\n" : ""
+        #expect(
+            result == CLIResult(status: 0, stdout: "c1\t\(file.id)\n" + repair, stderr: ""), "\(options): \(result)")
         #expect(try Self.effects(of: package) == effects, "\(options)")
         #expect(DenoiseCommandTests.clips(package).contains(file.path), "\(DenoiseCommandTests.clips(package))")
+    }
+
+    /// `DenoiseCommandTests.package()` with the file `f1` rewritten as 4 s of a 440 Hz sine of 1.4
+    /// clipped at 0.99, so the de-clip finds runs in `c1`.
+    static func clippedPackage() throws -> TemporaryPackage {
+        let package = try DenoiseCommandTests.package()
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let file = try AVAudioFile(forWriting: package.url.appending(path: "Clips/f1.wav"), settings: format.settings)
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 192_000))
+        buffer.frameLength = 192_000
+        for frame in 0..<192_000 {
+            buffer.floatChannelData![0][frame] = Float(
+                max(-0.99, min(0.99, 1.4 * sin(2 * .pi * 440 * Double(frame) / 48_000))))
+        }
+        try file.write(from: buffer)
+        return package
+    }
+
+    /// Decision 0011 (CLI parity): a clip with a de-clip gets a line with its clipped runs and its
+    /// level drop in dB, the values of the render that the app banner names. The runs and the drop
+    /// are those of `renderRequest` on the same package. Fail: no line (the output of gate 1, which
+    /// told the user to use clip gain with no number).
+    @Test func clippingPrintsTheRunsAndTheLevelDrop() async throws {
+        let (command, direct) = (try Self.clippedPackage(), try Self.clippedPackage())
+
+        let result = try await command.run("clip", "repair", "PKG", "c1", "--clipping")
+
+        let outcome = try renderRequest(
+            ["c1"], request: ClipRenderRequest(Treatment(.declip(.standard))), of: try direct.read(), in: direct.url,
+            freeBytes: { .max }, isDownloaded: { _ in true })
+        let repair = try #require(outcome.repairs["c1"])
+        let file = try DenoiseCommandTests.played("c1", in: command)
+        let text = "c1: \(repair.runs) clipped runs repaired, level drop \(String(format: "%.1f", repair.levelDrop)) dB"
+        #expect(repair.runs > 1 && repair.levelDrop > 0.1, "\(repair)")
+        #expect(result == CLIResult(status: 0, stdout: "c1\t\(file.id)\n\(text)\n", stderr: ""), "\(result)")
     }
 
     /// C12: no effect exits 64 and changes nothing. The sibilance frequency alone is no effect.

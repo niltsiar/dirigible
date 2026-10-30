@@ -12,13 +12,15 @@ extension ClipCommand {
                 The command renders each run of clips of one file through the chosen repairs into a new \
                 24-bit WAV in Clips/, with a 10 s handle on each side of the run, and moves the clips onto it. \
                 The source file stays. A line has the clip and its new file, with a tab between them. \
+                With --clipping, one more line for each clip names the clipped runs that the render \
+                repaired and the level drop in dB, as the banner of the app does. \
                 A clip that this version rendered renders again from its source; the same values print \
                 "Nothing to change." and write nothing.
 
                 --rumble is a high-pass filter at a whole number of Hz from 20 to 300; the default is 80. \
                 --clipping repairs clipped peaks: a sample at or over this percent of the peak of the run, \
-                from 90 to 100, is a clip candidate; the default is 99. The repair makes the clip quieter; \
-                use clip gain to bring it back. A call or a compressed track can show no clipped peak. \
+                from 90 to 100, is a clip candidate; the default is 99. The repair makes the clip quieter \
+                by the level drop that its line names; set the clip gain to that many dB to bring it back. A call or a compressed track can show no clipped peak. \
                 --sibilance softens "s" sounds by a largest cut of 1 to 40 dB; the default is 10. \
                 --sibilance-hz is the frequency of the cut, from 2000 to 16000 Hz; the default is 6000. It \
                 needs --sibilance. A filter corner has a limit: 0.45 times the session rate. Give the \

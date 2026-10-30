@@ -74,7 +74,7 @@ func runClipRender(_ work: ClipRenderWork, in package: PackageArgument) throws {
         try work.render(
             &session, in: package.url, lock: lock, progress: { _ in }, isCancelled: interrupt.isCancelled)
     }
-    for line in ClipRenderWork.lines(moved) { print(line) }
+    for line in ClipRenderWork.lines(moved.clips, repairs: moved.repairs) { print(line) }
 }
 
 /// The error line and the exit code of a render that changed nothing. Control-C gives the status of

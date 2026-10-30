@@ -274,11 +274,12 @@ let clipTools = [
         "Repair clips, as dirigible clip repair: reduce rumble with a high-pass filter, repair clipped peaks, and "
             + "soften harsh \"s\" sounds. Give at least one of rumble, clipping, and sibilance. For each run of clips "
             + "of one file, one new 24-bit WAV in Clips/ with a handle of 10 s on each side, and the clips move onto "
-            + "it. The source file stays. Repairing clipped peaks makes the clip quieter: use clip_gain to bring it "
-            + "back. A call or a compressed track can show no clipped peak. A second call on a clip that this version "
+            + "it. The source file stays. Repairing clipped peaks makes the clip quieter by the level drop that "
+            + "its line names: set clip_gain to that many dB to bring it back. A call or a compressed track can show no clipped peak. A second call on a clip that this version "
             + "rendered renders again from its source, and the same values give \"Nothing to change.\". A filter "
             + "corner (rumble or sibilance_hz) over 0.45 times the session rate is refused. Give one line for each "
-            + "clip: the clip and its new file, with a tab between them."
+            + "clip: the clip and its new file, with a tab between them. With clipping, one more line for each clip: "
+            + "the clip, its repaired clipped runs, and its level drop in dB."
             + editCancelNote("no clip changes"),
         [clips, rumble, clipping, sibilance, sibilanceHertz], batch: .alone
     ) { a throws(ToolError) in

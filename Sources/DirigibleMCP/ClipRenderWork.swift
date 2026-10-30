@@ -104,18 +104,28 @@ package struct ClipRenderWork: Sendable {
     }
 
     /// One line for each moved clip: the clip and its new file, with a tab between them. No moved
-    /// clip: "Nothing to change.", because each clip was unchanged (decision 0057).
-    package static func lines(_ clips: [RenderedClip]) -> [String] {
-        clips.isEmpty ? ["Nothing to change."] : clips.map { "\($0.clip)\t\($0.file)" }
+    /// clip: "Nothing to change.", because each clip was unchanged (decision 0057). Then, for each
+    /// moved clip in `repairs` (a clip of a run with a de-clip), the clipped runs that the render
+    /// repaired and the level drop in dB: the values that the app banner names (decision 0064 D4).
+    package static func lines(_ clips: [RenderedClip], repairs: [ClipID: ClipRepair] = [:]) -> [String] {
+        guard !clips.isEmpty else { return ["Nothing to change."] }
+        let repaired = clips.compactMap { clip in
+            repairs[clip.clip].map {
+                let runs = "\($0.runs) clipped \($0.runs == 1 ? "run" : "runs")"
+                return "\(clip.clip): \(runs) repaired, level drop \(String(format: "%.1f", $0.levelDrop)) dB"
+            }
+        }
+        return clips.map { "\($0.clip)\t\($0.file)" } + repaired
     }
 
     /// The render of the files body, in the package that `lock` holds. A cancel read after the
     /// renames removes the new WAVs and changes nothing (decision 0049). `session` changes only on
-    /// success, and not for a request that needs no render, so the caller saves nothing then.
+    /// success, and not for a request that needs no render, so the caller saves nothing then. It
+    /// gives the moved clips and the de-clip result of each clip of a run with a de-clip.
     package func render(
         _ session: inout Session, in package: URL, lock: PackageLock, progress: @escaping (Double) -> Void,
         isCancelled: @escaping () -> Bool
-    ) throws(ClipRenderError) -> [RenderedClip] {
+    ) throws(ClipRenderError) -> (clips: [RenderedClip], repairs: [ClipID: ClipRepair]) {
         let outcome = try renderRequest(
             clips, request: request, of: session, in: package, freeBytes: { lock.freeBytes() },
             component: { _ in component }, progress: progress, isCancelled: isCancelled)
@@ -124,7 +134,7 @@ package struct ClipRenderWork: Sendable {
             throw .cancelled
         }
         session = outcome.session
-        return outcome.clips
+        return (outcome.clips, outcome.repairs)
     }
 
     /// The job of a tool call on the files, under the package lock.
@@ -132,13 +142,13 @@ package struct ClipRenderWork: Sendable {
         do throws(EditFailure<ClipRenderError>) {
             let (moved, note) = try editPackageCore(package, ripple: false, writeUnchanged: false) {
                 session, lock throws(ClipRenderError) in
-                try TakeWork.noted(&session, package: package) { session throws(ClipRenderError) -> [RenderedClip] in
+                try TakeWork.noted(&session, package: package) { session throws(ClipRenderError) in
                     try render(
                         &session, in: package, lock: lock, progress: { control.report($0) },
                         isCancelled: { control.isCancelled() })
                 }
             }
-            return (Self.lines(moved) + note).joined(separator: "\n")
+            return (Self.lines(moved.clips, repairs: moved.repairs) + note).joined(separator: "\n")
         } catch {
             let message =
                 switch error {

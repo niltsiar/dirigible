@@ -258,7 +258,9 @@ private func liveDenoise(
         let rendered = try await studio.renderClips(
             work.clips, request: work.request, agent: call.agent, progress: report)
         let note = TakeWork.note(studio, after: revision, agent: call.agent)
-        return .result(text: (ClipRenderWork.lines(rendered.clips) + note).joined(separator: "\n"), isError: false)
+        return .result(
+            text: (ClipRenderWork.lines(rendered.clips, repairs: rendered.repairs) + note).joined(separator: "\n"),
+            isError: false)
     } catch .clipRender(.cancelled) {
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         let text =

@@ -57,6 +57,40 @@ struct LiveDenoiseTests {
         await studio.settle()
     }
 
+    /// `clip_repair` with a de-clip in the Studio names the clipped runs and the level drop of the
+    /// clip in its reply, as the command does. `nv.wav` holds a 440 Hz sine of 1.4 clipped at 0.99.
+    @Test func repairNamesTheRunsInTheStudio() async throws {
+        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 144_000))
+        buffer.frameLength = 144_000
+        for frame in 0..<144_000 {
+            buffer.floatChannelData![0][frame] = Float(
+                max(-0.99, min(0.99, 1.4 * sin(2 * .pi * 440 * Double(frame) / 48_000))))
+        }
+        // The file closes, and its header gets the length, at the end of this scope.
+        do {
+            let file = try AVAudioFile(forWriting: clips.appending(path: "nv.wav"), settings: format.settings)
+            try file.write(from: buffer)
+        }
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "clip_repair", arguments.merging(["clipping": 99]) { $1 })
+
+        guard case .reply(.result(let text, false)) = outcome else {
+            Issue.record("\(outcome)")
+            return
+        }
+        let lines = text.split(separator: "\n").map(String.init)
+        let repair = lines.last ?? ""
+        #expect(
+            lines.count == 2 && repair.hasPrefix("n1: ") && repair.contains(" clipped runs repaired, level drop "),
+            "\(text)")
+        #expect(!repair.hasPrefix("n1: 0 ") && !repair.hasSuffix(" 0.0 dB"), "\(text)")
+        await studio.settle()
+    }
+
     /// C20: `hum` with `noise` false runs in the Studio as one undo step, and the clip plays the
     /// ` HR` file.
     @Test func humRunsInTheStudio() async throws {

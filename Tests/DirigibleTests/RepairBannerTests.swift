@@ -4,6 +4,7 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 @testable import DirigibleCore
+@testable import DirigibleMCP
 
 /// The banner after Repair Sound (decision 0064 D4, criterion C13): the level drop of a de-clip in
 /// whole dB, and "No clipped peaks found.".
@@ -41,6 +42,22 @@ struct RepairBannerTests {
                 == "Repaired clipped peaks in 2 clips. The level is up to 5 dB lower.")
         #expect(
             try text(declip, ["c1": (2, 0.2)]) == "Repaired clipped peaks in 1 clip.", "a drop of 0 dB has no sentence")
+    }
+
+    /// Decision 0011 (CLI parity): the lines of `clip repair` and the banner name the same values for
+    /// the same clips: the clips that had runs, and the largest level drop in whole dB. Fail: lines
+    /// with no runs or no drop (the output of gate 1).
+    @Test func commandLinesNameTheValuesOfTheBanner() throws {
+        let clips = report(declip, ["c1": (3, 3.6), "c2": (0, 0), "c3": (1, 2.2)])
+        let lines = ClipRenderWork.lines(clips.clips, repairs: clips.repairs)
+        let banner = RepairResult(clips)
+
+        #expect(
+            lines.suffix(3) == [
+                "c1: 3 clipped runs repaired, level drop 3.6 dB", "c2: 0 clipped runs repaired, level drop 0.0 dB",
+                "c3: 1 clipped run repaired, level drop 2.2 dB",
+            ])
+        #expect((banner.repaired, banner.drop) == (2, 4), "\(banner)")
     }
 
     /// C13: a de-clip that found no run says so. Fail: the banner of a render that found runs; and a

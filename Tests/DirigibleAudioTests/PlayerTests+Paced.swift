@@ -37,14 +37,15 @@ extension PlayerTests {
         return Player(package: { url }, output: .paced, session: long.session, now: now)
     }
 
-    /// Polls `condition` each 5 ms. False after the hang guard of 10 s.
+    /// Polls `condition` each 5 ms. False after the hang guard of 10 s. It checks once more after
+    /// the guard, so a stall of the test task past the guard does not fail a condition that holds.
     func within10Seconds(_ condition: () async -> Bool) async -> Bool {
         let end = ContinuousClock.now + .seconds(10)
         while ContinuousClock.now < end {
             if await condition() { return true }
             try? await Task.sleep(for: .milliseconds(5))
         }
-        return false
+        return await condition()
     }
 
     @Test func pacedPlayMovesWithNoPull() async throws {

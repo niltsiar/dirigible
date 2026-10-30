@@ -4,8 +4,9 @@ import DirigibleCore
 import DirigibleTimeline
 import SwiftUI
 
-/// The text of the Transcript tab (decision 0023): read-only, selectable, TextKit 2 only. A key
-/// that a read-only text has no use for does what it does with the focus in the lanes.
+/// The text of the Transcript tab (decision 0023): read-only, selectable, TextKit 2 only. Every key
+/// with a menu item does what it does with the focus in the lanes, except Shift-Left and Shift-Right
+/// (they move the end of the selection) and Return in a header (it seeks).
 final class TranscriptTextView: NSTextView {
     nonisolated static var headerFont: NSFont { NSFont.systemFont(ofSize: 11, weight: .semibold) }
     nonisolated static var bodyFont: NSFont { NSFont.systemFont(ofSize: NSFont.systemFontSize) }

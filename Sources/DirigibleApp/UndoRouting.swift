@@ -11,7 +11,8 @@ enum UndoTarget: Equatable {
 }
 
 /// A focused text field makes the field editor (an `NSText`) the first responder. The read-only
-/// text of the Transcript tab is not text for the keys (0016).
+/// text of the Transcript tab is not text for the keys: each key with a menu item acts as in the
+/// lanes, except Shift-Left, Shift-Right, and Return in a header (0016).
 func undoTarget(firstResponder: NSResponder?) -> UndoTarget {
     firstResponder is NSText && !(firstResponder is TranscriptTextView) ? .text : .session
 }

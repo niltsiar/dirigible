@@ -69,6 +69,10 @@ extension AppDelegate {
         if command == .addMarker || command == .addChapter, let event, event.type == .keyDown, event.isARepeat {
             return
         }
+        // Return in a header of the Transcript pane seeks. A click on the menu item is no key press.
+        if command == .renameTrack, event?.type == .keyDown, key?.transcriptFollow.pane?.returnInHeader() == true {
+            return
+        }
         key?.run(command)
     }
 }

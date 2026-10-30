@@ -134,4 +134,27 @@ extension TranscriptPaneTests {
         #expect(studio.playhead == 100_000, "no seek")
         await model.close()
     }
+
+    /// A mouse click on Track > Rename Track is no key press: the pane does not seek, and the
+    /// lanes action runs.
+    @Test func renameTrackFromTheMenuDoesNotSeekInAHeader() async throws {
+        let (model, studio, window, pane) = try await opened("menu")
+        let text = try #require(pane.shown).text
+        await seek(studio, to: 100_000)
+        model.clickHeader("t1", flags: [])
+        #expect(window.makeFirstResponder(pane))
+        pane.setSelectedRange(NSRange(location: pane.noticeLength + text.headers[2].range.lowerBound + 1, length: 0))
+        app.key = model
+        let click = try #require(
+            NSEvent.mouseEvent(
+                with: .leftMouseUp, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: 0))
+
+        app.timeline(.renameTrack, event: click, in: window)
+        await model.settleTransport()
+
+        #expect(studio.playhead == 100_000, "no seek")
+        #expect(model.renamingTrack == "t1", "the lanes action runs")
+        await model.close()
+    }
 }

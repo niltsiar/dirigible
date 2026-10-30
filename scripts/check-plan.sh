@@ -39,6 +39,12 @@
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
 #   `no behavior change` needs no field. A review file older than the rule is not checked; one
 #   older than the nit rule needs no field for a nit.
+# - Before the first phase 4 row only: each Swift path under Sources/ or Tests/ of a slice `- Check:`
+#   line that has the check-sizes.sh limit minus 20 lines or more at origin/main, and that
+#   scripts/check-sizes.allow at origin/main does not list, needs a `- Split:` line in that slice
+#   that names the file name and either a target .swift file or scripts/check-sizes.allow with a
+#   reason. A path that is not on origin/main is new and passes. A run whose first decisions.tsv
+#   row is older than the rule is not checked.
 # - Each record file `docs/decisions/<n>-<name>.md` that plan.md names, and that is not on
 #   origin/main, is a record that the plan makes (also when the run has written it in the work
 #   tree). Its number needs an entry "<n> <title> (run <run folder>" on the `Decision numbers`
@@ -245,6 +251,46 @@ else
                     print "plan.md: Landings row \"" name[r] "\" has branch " br[r] " and Lands none, and its slices change " k " Sources/ paths, for example " h[1] "; scripts/tag-release.sh needs a done row in features.md for the run number, so name at least one F-ID in the Lands cell"
                 }
             }' "$run/plan.md")
+    fi
+    # Cutoff 2026-10-30T15:22, the commit that added the size rule: a run that started earlier passes without it.
+    size_cutoff=2026-10-30T15:22
+    if [[ -z "$start" || ! "$start" < "$size_cutoff" ]] &&
+        ! awk -F'\t' '$2 == "4" { f = 1 } END { exit !f }' "$run/decisions.tsv" 2>/dev/null; then
+        root="$(cd "$(dirname "$0")/.." && pwd)"
+        while IFS=$'\t' read -r slice paths splits; do
+            limit="$(sed -n 's/^limit=\([0-9]*\)$/\1/p' "$root/scripts/check-sizes.sh" 2>/dev/null)"
+            if [[ -z "$limit" ]]; then
+                say "plan.md: slice $slice names a Swift file, and $root/scripts/check-sizes.sh has no limit= line to compare it with"
+                break
+            fi
+            for p in $paths; do
+                n="$(git -C "$root" show "origin/main:$p" 2>/dev/null | wc -l | tr -d ' ' || true)"
+                ((${n:-0} >= limit - 20)) || continue
+                if git -C "$root" show origin/main:scripts/check-sizes.allow 2>/dev/null | cut -f1 | grep -qxF "$p"; then continue; fi
+                base="${p##*/}" ok=""
+                IFS=$'\001' read -r -a split_lines <<<"$splits"
+                for l in ${split_lines[@]+"${split_lines[@]}"}; do
+                    [[ "$l" =~ (^|[^A-Za-z0-9_+])${base//./\\.}([^A-Za-z0-9_+]|$) ]] || continue
+                    rest="${l//$base/}"
+                    if [[ "$rest" =~ [A-Za-z0-9_+]+\.swift ]] || [[ "$rest" =~ scripts/check-sizes\.allow[^A-Za-z0-9]*[A-Za-z]{3,} ]]; then ok=1; fi
+                done
+                [[ -n "$ok" ]] ||
+                    say "plan.md: slice $slice names $p, which has $n lines at origin/main (limit $limit; a file of $((limit - 20)) lines or more is near it); before the first phase 4 row add a \"- Split:\" line to the slice that names $base and a target .swift file, or names scripts/check-sizes.allow with a reason (the file also passes when scripts/check-sizes.allow lists it at origin/main)"
+            done
+        done < <(awk '
+            # swift(s): each Sources/ or Tests/ Swift word of s; a literal \n of a path list and the quotes break words.
+            function swift(s,  i, k, out, w) {
+                gsub(/\\n|[$\047"`<>]/, " ", s); k = split(s, w, /[[:space:]]+/)
+                for (i = 1; i <= k; i++) if (w[i] ~ /^(Sources|Tests)\/.*\.swift$/) out = out " " w[i]
+                return out
+            }
+            function flush() { if (paths != "") print slice "\t" paths "\t" splits; slice = paths = splits = "" }
+            /^## / { flush(); inslices = ($0 ~ /^## Slices([[:space:]].*)?$/); next }
+            inslices && /^### / { flush(); slice = $2; gsub(/`/, "", slice); sub(/:$/, "", slice); next }
+            slice == "" { next }
+            /^- Check:/ { paths = paths swift($0) }
+            /^- Split:/ { splits = splits "\001" $0 }
+            END { flush() }' "$run/plan.md")
     fi
     # Cutoff 2026-10-28T23:50, the commit that added the Fix check line rule: a run that started earlier needs none.
     if [[ -n "${CHECK_PLAN_AT_PHASE7:-}" && ( -z "$start" || ! "$start" < 2026-10-28T23:50 ) ]]; then

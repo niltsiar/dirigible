@@ -561,6 +561,92 @@ landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small
 printf '2026-10-01T10:00\t1\tstart\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
 pass 'a run that started before the Landings rule'
 
+# A slice whose Check line names a Swift file near the size limit needs a Split line, before the first
+# phase 4 row (AGT-097). A fixture repo holds the script, check-sizes.sh, and Swift files of known
+# length on origin/main. The cutoff pair takes its dates from the size_cutoff line of the script,
+# because a lead step moves that line before the land.
+repo="$tmp/size-repo"
+mkdir -p "$repo/scripts" "$repo/Sources/A" "$repo/.scratchpads/runs"
+cp "$script" "$(dirname "$script")/check-sizes.sh" "$repo/scripts/"
+lines() { seq 1 "$2" > "$repo/Sources/A/$1.swift"; }
+lines Big 380; lines Edge 379; lines Mid 280; lines Full 400; lines Allowed 400
+printf '# list\nSources/A/Allowed.swift\tone type holds the whole format\n' > "$repo/scripts/check-sizes.allow"
+git -C "$repo" init -q && git -C "$repo" add . \
+  && git -C "$repo" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q -m one \
+  && git -C "$repo" update-ref refs/remotes/origin/main HEAD
+saved_script="$script" saved_run="$run"
+script="$repo/scripts/check-plan.sh" run="$repo/.scratchpads/runs/2026-10-31-size"
+size_cut="$(sed -n 's/^ *size_cutoff=\(.*\)$/\1/p' "$script")"
+[[ -n "$size_cut" ]] || { fail 'check-plan.sh has no size_cutoff= line'; size_cut=2026-10-30T15:30; }
+AFTER="$(date -j -v+1d -f %Y-%m-%dT%H:%M "$size_cut" +%Y-%m-%dT%H:%M)"
+BEFORE="$(date -j -v-1d -f %Y-%m-%dT%H:%M "$size_cut" +%Y-%m-%dT%H:%M)"
+# sized <paths> [<line before the Check line of S2>]: slice S2 checks the paths (separated by a literal
+# \n). S1_PATH and S1_SPLIT set the Check path and an extra line of slice S1.
+sized() {
+  good
+  {
+    printf '# Plan: x\n\nAgents: B = S1, S2.\n\n## Slices\n\n### S1 one\n\n'
+    [[ -z "${S1_SPLIT:-}" ]] || printf '%s\n\n' "$S1_SPLIT"
+    printf -- '- Check: `scripts/check-changed.sh --paths <<<$'"'"'%s'"'"'`.\n\n### S2 two\n\n' "${S1_PATH:-docs/x.md}"
+    [[ -z "${2:-}" ]] || printf '%s\n\n' "$2"
+    printf -- '- Check: `scripts/check-changed.sh --paths <<<$'"'"'%s'"'"'`.\n' "$1"
+  } > "$run/plan.md"
+  ROW_AT="$AFTER" row 2 'plan written'
+}
+BIG='Sources/A/Big.swift'
+sized "$BIG"
+refuse 'a slice that names a file of 380 lines, with no Split line' 'Sources/A/Big.swift'
+refuse 'the refusal names the line count' '380 lines'
+refuse 'the refusal names the limit' 'limit 400'
+refuse 'the refusal names the Split choice' '- Split:'
+refuse 'the refusal names the allow list choice' 'scripts/check-sizes.allow'
+sized 'Sources/A/Edge.swift'
+pass 'a file of 379 lines'
+sized 'Sources/A/Mid.swift'
+pass 'a file of 280 lines under the limit of 400'
+sed -i '' 's/^limit=400$/limit=300/' "$repo/scripts/check-sizes.sh"
+refuse 'a file of 280 lines under limit=300 in check-sizes.sh' 'Sources/A/Mid.swift'
+sed -i '' 's/^limit=300$/limit=400/' "$repo/scripts/check-sizes.sh"
+sized "$BIG" '- Split: Big.swift moves the parser to BigParser.swift.'
+pass 'a Split line with the file name and a target .swift file'
+sized "$BIG" '- Split: Other.swift moves the parser to OtherParser.swift.'
+refuse 'a Split line that names another file' 'Sources/A/Big.swift'
+sized "$BIG" '- Split: NotBig.swift moves the parser to NotBigParser.swift.'
+refuse 'a Split line that names a file with a longer name' 'Sources/A/Big.swift'
+sized "$BIG" '- Split: Big.swift, later.'
+refuse 'a Split line with the file name and no target' 'Sources/A/Big.swift'
+sized "$BIG" '- Split: Big.swift gets an entry in scripts/check-sizes.allow: one parser type holds the whole format.'
+pass 'a Split line with the file name, the allow list, and a reason'
+sized "$BIG" '- Split: Big.swift in scripts/check-sizes.allow'
+refuse 'a Split line with the file name and the allow list, with no reason' 'Sources/A/Big.swift'
+sized "$BIG" 'The file can go in scripts/check-sizes.allow.'
+refuse 'a slice that names the allow list only in other text' 'Sources/A/Big.swift'
+sized 'Sources/A/Allowed.swift'
+pass 'a file of 400 lines that the allow list at origin/main names'
+sized 'Sources/A/Full.swift'
+refuse 'a file of 400 lines that the allow list at origin/main does not name' 'Sources/A/Full.swift'
+sized 'Sources/A/New.swift'
+pass 'a path that is not on origin/main'
+S1_PATH=Sources/A/Full.swift S1_SPLIT='- Split: Full.swift moves the parser to FullParser.swift.' sized 'Sources/A/Edge.swift'
+pass 'a file of 400 lines in another slice, with its own Split line'
+S1_PATH=Sources/A/Edge.swift sized "$BIG"
+out="$("$script" "$run" 2>&1)"
+[[ "$out" == *'slice S2'* && "$out" != *'slice S1'* ]] || fail "the size refusal names slice S2 only: $out"
+# Start states: the rule runs before the first phase 4 row, with or without CHECK_PLAN_AT_PHASE4.
+export CHECK_PLAN_AT_PHASE4=1
+sized "$BIG"; ROW_AT="$AFTER" row 3 'plan gate'; round 1 'None.'
+refuse 'CHECK_PLAN_AT_PHASE4=1 with no phase 4 row' 'Sources/A/Big.swift'
+ROW_AT="$AFTER" row 4 'implement'
+pass 'CHECK_PLAN_AT_PHASE4=1 with a phase 4 row'
+unset CHECK_PLAN_AT_PHASE4
+pass 'a phase 4 row at the land check'
+# The cutoff pair on one plan: a run that started before the rule date is not checked.
+sized "$BIG"; rm "$run/decisions.tsv"; ROW_AT="$BEFORE" row 2 'plan written'
+pass 'a first row one day before the size_cutoff line'
+rm "$run/decisions.tsv"; ROW_AT="$AFTER" row 2 'plan written'
+refuse 'a first row one day after the size_cutoff line' 'Sources/A/Big.swift'
+script="$saved_script" run="$saved_run"
+
 out="$("$script" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "no argument: exit $code: $out"

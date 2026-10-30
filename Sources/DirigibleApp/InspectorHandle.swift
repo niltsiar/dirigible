@@ -48,23 +48,44 @@ extension SessionWindow {
     /// An event of the inspector handle. A drag moves the guide line, the up sets and saves a
     /// changed width, Esc gives the start width, and a double-click gives 270 pt (0023). Fallback 1
     /// of 0023: a live width missed the 16 ms budget at 2 h (p95 26 ms, C16), so the pane and the
-    /// lanes keep their width until the up.
+    /// lanes keep their width until the up. The press starts at the shown width, so the Transcript
+    /// tab minimum never changes the saved width (P20).
     func dragInspector(_ event: PaneDragEvent) {
         // A down first commits the typed text and ends the text focus, as the header handle does:
         // a focused field takes Esc. A drag with no mouse-up leaves an old target: drop it.
         if case .down = event {
             endNameEdit()
             inspectorPreview = nil
+            inspectorRequest = nil
         }
-        guard let step = inspectorDrag.handle(event, width: inspectorPreview ?? inspectorWidth) else { return }
+        let width = inspectorRequest ?? InspectorWidth(shownInspectorWidth)
+        guard let step = inspectorDrag.handle(event, width: width) else { return }
         if inspectorDrag.isActive {
             // The guide shows from the first drag, so a click shows no line.
-            if case .drag = event { inspectorPreview = atLeastTranscript(fitted(step.width)) }
+            if case .drag = event {
+                inspectorRequest = fitted(step.width)
+                inspectorPreview = atLeastTranscript(fitted(step.width))
+            }
         } else {
             inspectorPreview = nil
-            setInspectorWidth(step.width, save: step.save)
+            inspectorRequest = nil
+            endInspectorDrag(event, step)
         }
         showInspectorGuide()
+    }
+
+    /// Sets the width of an ended press. On the Transcript tab an up or Esc at or under 320 pt
+    /// leaves the saved width, except an up that narrows a saved width above 320 pt to 320 pt.
+    private func endInspectorDrag(_ event: PaneDragEvent, _ step: PaneDragStep<InspectorWidth>) {
+        let least = Self.transcriptMinimumWidth
+        guard inspectorTab == .transcript, step.width.points <= least else {
+            return setInspectorWidth(step.width, save: step.save)
+        }
+        switch event {
+        case .up where inspectorWidth.points > least && step.save: setInspectorWidth(InspectorWidth(least), save: true)
+        case .down: setInspectorWidth(step.width, save: step.save)
+        default: break
+        }
     }
 
     /// Esc: true when an inspector drag ran and Esc ended it with the start width.
@@ -74,11 +95,14 @@ extension SessionWindow {
         return true
     }
 
-    /// An AX step of the splitter: the width changes and saves at once. A step ends a pointer drag
+    /// An AX step of the splitter: the width changes and saves at once. A decrement starts at the
+    /// lower of the shown and the saved width, an increment at the shown width, so a step never
+    /// moves the saved width against its direction. A step ends a pointer drag
     /// first, so the later mouse-up does not undo the step.
     func stepInspector(by points: Double) {
         _ = cancelInspectorDrag()
-        setInspectorWidth(fitted(InspectorWidth(shownInspectorWidth + points)), save: true)
+        let from = points < 0 ? min(shownInspectorWidth, inspectorWidth.points) : shownInspectorWidth
+        setInspectorWidth(fitted(InspectorWidth(from + points)), save: true)
     }
 
     /// The target of a drag stops at 320 pt on the Transcript tab (P20).

@@ -69,6 +69,9 @@ import SwiftUI
     /// The target width of an inspector drag, nil when idle. Not observed: a drag event runs no
     /// SwiftUI body (C16).
     @ObservationIgnored var inspectorPreview: InspectorWidth?
+    /// The fitted width that the pointer asks for in an inspector drag, before the Transcript tab
+    /// minimum: the up saves it. Nil when idle or before the first drag.
+    @ObservationIgnored var inspectorRequest: InspectorWidth?
     /// The line at the target edge during an inspector drag, over the window content.
     @ObservationIgnored let inspectorGuide = CALayer()
     /// The typed text of the inspector field that no commit has saved yet.

@@ -303,10 +303,10 @@ import Testing
         model.selectInspectorTab(.transcript)
         #expect(contentWidth() >= SessionView.minWidth + 320, "(d)")
 
-        // (e) A step of the handle to 250 pt stops at 320 pt, and the saved value is the request.
+        // (e) A step down from a saved 240 pt stays at 240 pt: a step never moves the saved width up.
         model.stepInspector(by: -70)
         #expect(model.shownInspectorWidth == 320, "(e)")
-        #expect(model.inspectorWidth.points == 250, "(e) the saved width is the request")
+        #expect(model.inspectorWidth.points == 240, "(e) the saved width does not rise")
         await model.close()
     }
 

@@ -46,24 +46,37 @@ extension TranscriptPaneTests {
         await model.close()
     }
 
-    /// A wide saved width that a drag narrows below the tab minimum ends at the minimum.
-    @Test func dragBelowTheMinimumNarrowsAWideSavedWidth() async throws {
+    /// One rule for the drag and the step: a request at or under 320 pt saves the lower of the
+    /// saved width and 320; a request above 320 pt saves the request.
+    @Test func dragThatNarrowsAWideSavedWidthSavesTheMinimum() async throws {
         let (model, _) = try await wideTranscriptTab(saved: 400)
         model.dragInspector(.down(x: 0, clicks: 1))
-        model.dragInspector(.drag(x: -100))
+        model.dragInspector(.drag(x: -150))
+        #expect(model.inspectorPreview?.points == 320)
         model.dragInspector(.up)
-        #expect(model.inspectorWidth.points == 320)
+        #expect(model.inspectorWidth.points == 320, "a drag to 250 saves 320")
         #expect(defaults.object(forKey: InspectorWidth.defaultsKey) as? Double == 320)
         await model.close()
     }
 
-    /// A step moves the saved width in its direction: down from the saved width, up from the shown one.
-    @Test func stepOnTheTranscriptTabMovesTheSavedWidthWithItsDirection() async throws {
-        let (model, _) = try await wideTranscriptTab(saved: 300)
-        model.stepInspector(by: -20)
-        #expect(model.inspectorWidth.points == 280, "a decrement lowers the saved width")
-        model.stepInspector(by: 20)
-        #expect(model.inspectorWidth.points == 340, "an increment starts at the shown 320")
+    @Test func dragThatNarrowsANarrowSavedWidthKeepsIt() async throws {
+        let (model, _) = try await wideTranscriptTab(saved: 240)
+        model.dragInspector(.down(x: 0, clicks: 1))
+        model.dragInspector(.drag(x: -70))
+        model.dragInspector(.up)
+        #expect(model.inspectorWidth.points == 240, "a drag to 250 keeps 240")
+        #expect(defaults.object(forKey: InspectorWidth.defaultsKey) == nil)
+        await model.close()
+    }
+
+    /// The step uses the rule of the drag: from the shown width, saved by the same function.
+    @Test func stepOnTheTranscriptTabFollowsTheWidthRule() async throws {
+        let (model, _) = try await wideTranscriptTab(saved: 400)
+        for (saved, step, expected) in [(400.0, -20.0, 380.0), (330, -20, 320), (240, -20, 240), (240, 20, 340)] {
+            model.inspectorWidth = InspectorWidth(saved)
+            model.stepInspector(by: step)
+            #expect(model.inspectorWidth.points == expected, "saved \(saved), step \(step)")
+        }
         await model.close()
     }
 }

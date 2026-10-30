@@ -26,7 +26,7 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 1. **Failing test** at the seam that reaches the bug: unit, integration, or e2e.
 2. **Offline render**: feed a generated fixture (sine, noise, silence) through the DSP or file path with no device; assert the output samples, level, or length.
 3. **Audio file facts**: run `afinfo`, `ffprobe`, or `ffmpeg -af astats`/`ebur128` on the output file; diff against a known-good value.
-4. **App run**: `make run`, drive the case, capture it with `scripts/screenshot.sh`.
+4. **App run**: `make run`, drive the case, capture it with `scripts/screenshot.sh`. A case that plays audio runs on `scripts/verify-copy.sh start` (`--audible` for a case of device output).
 5. **Replay a capture.** Replay a saved device event log, session file, or `dirigible` command through the code path.
 6. **Throwaway harness.** Call the bug code path in one function call, with the rest faked.
 7. **Property / fuzz loop.** For "sometimes wrong output", run 1000 random inputs and find the failure mode.

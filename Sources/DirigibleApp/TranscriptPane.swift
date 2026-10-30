@@ -98,11 +98,11 @@ final class TranscriptTextView: NSTextView {
     /// newer revision. Else apply it.
     private func finish(_ built: Built) {
         building = false
-        if let next = waiting, next.revision != built.revision {
-            waiting = nil
+        let next = waiting
+        waiting = nil
+        if let next, next.revision != built.revision {
             return start(next.session, notices: next.notices, revision: next.revision)
         }
-        waiting = nil
         apply(built)
     }
 

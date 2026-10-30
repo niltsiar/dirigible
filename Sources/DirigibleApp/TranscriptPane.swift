@@ -124,7 +124,7 @@ final class TranscriptTextView: NSTextView {
     }
 
     /// The text location of the notices, which come before the text of the value.
-    private var noticeLength: Int { shown.map { $0.notices.reduce(0) { $0 + $1.utf16.count + 1 } } ?? 0 }
+    var noticeLength: Int { shown.map { $0.notices.reduce(0) { $0 + $1.utf16.count + 1 } } ?? 0 }
 
     /// Takes the focus, and puts the insertion point at the first unit of the paragraph of the
     /// playhead (P1). With no unit, the insertion point stays. Waits for the window if there is none.
@@ -197,7 +197,7 @@ final class TranscriptTextView: NSTextView {
     }
 
     /// The line fragments of the text range `range` of the value, in the coordinates of the view.
-    private func segmentFrames(of range: Range<Int>) -> [CGRect] {
+    func segmentFrames(of range: Range<Int>) -> [CGRect] {
         guard let manager = textLayoutManager, let content = manager.textContentManager else { return [] }
         let offset = noticeLength + range.lowerBound
         guard let start = content.location(manager.documentRange.location, offsetBy: offset),

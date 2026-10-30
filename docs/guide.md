@@ -332,6 +332,8 @@ The keys work as they do in the lanes: Space plays, and Command-Z undoes the ses
 
 The word at the playhead has a line under it, in the color of the playhead line of the lanes. It moves with the playhead during play and after a seek. Two words that overlap on two tracks both have the line. With **Increase Contrast** on in System Settings, the line is thicker.
 
+Click a word to put the playhead at its start. A stopped play stays stopped, and a play goes on from there. A click on a header, on a track name, or after the end of a line does not move the playhead, and a click does not select a range in the lanes. During a take, a click does nothing. With the text cursor in a header, press Return to put the playhead at the first word of that paragraph. In a word, Return renames the track, as in the lanes.
+
 ### Import a transcript
 
 Choose **File > Import Transcript** to add the words of a Whisper JSON, WebVTT, or SRT file. The open panel has a **Track** pop-up: choose the track whose clips carry the words. It starts at the first selected track, or at the first track. The times count from the start of the timeline. The import is one step, so Undo takes the words away again. A file that is not a transcript shows an alert and changes nothing.

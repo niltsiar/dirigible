@@ -271,4 +271,16 @@ struct ActiveRecordingsTests {
         #expect(waited >= .milliseconds(900), "the set waited \(waited)")
         #expect(try onDisk() == [other, entry], "the set wrote with no file lock")
     }
+
+    /// A verify copy has its own list, and the real ID keeps the path of earlier versions.
+    @Test func theFileFollowsTheBundleID() {
+        let support = URL(filePath: "/Users/u/Library/Application Support")
+        #expect(
+            ActiveRecordings.file(bundleID: "com.delineas.dirigible.verify-0123abcd", support: support).path
+                == "/Users/u/Library/Application Support/com.delineas.dirigible.verify-0123abcd/active-recordings.plist"
+        )
+        #expect(
+            ActiveRecordings.file(bundleID: "com.delineas.dirigible", support: support).path
+                == "/Users/u/Library/Application Support/com.delineas.dirigible/active-recordings.plist")
+    }
 }

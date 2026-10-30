@@ -5,8 +5,13 @@ import Foundation
 /// of each level as a UInt16 peak and a UInt16 RMS. The cache file is a boundary: the reader
 /// refuses a file whose fields do not match the WAV, and a refusal is a miss.
 public enum PeakFile {
-    /// The one cache folder of the app and the command-line front end.
-    public static let folder = URL.cachesDirectory.appending(path: "com.delineas.dirigible/Peaks")
+    /// The cache folder of the command-line front end, the folder of the app of the real ID.
+    public static let folder = folder(bundleID: "com.delineas.dirigible", caches: .cachesDirectory)
+
+    /// The cache folder of the app with `bundleID` in the Caches folder `caches`.
+    public static func folder(bundleID: String, caches: URL) -> URL {
+        caches.appending(path: "\(bundleID)/Peaks")
+    }
 
     static let magic = Array("DIRPEAKS".utf8)
     static let version: UInt32 = 1

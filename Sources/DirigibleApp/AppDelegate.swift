@@ -149,13 +149,13 @@ import UniformTypeIdentifiers
         (NSWindow, String, [(id: TranscriptID, name: String)], @escaping @MainActor (TranscriptTarget?) -> Void)
             -> Void = { ExportPanel.beginTranscript(for: $0, name: $1, transcripts: $2, done: $3) }
 
-    /// The app: the list of active recordings in Application Support.
+    /// The app: the list of active recordings and the peak cache in the folders of its bundle ID.
     override convenience init() {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let id = Bundle.main.bundleIdentifier!
         self.init(
             recordings: ActiveRecordings(
-                file: support.appending(path: "com.delineas.dirigible/active-recordings.plist")),
-            peakCache: PeakFile.folder, defaults: .standard,
+                file: ActiveRecordings.file(bundleID: id, support: .applicationSupportDirectory)),
+            peakCache: PeakFile.folder(bundleID: id, caches: .cachesDirectory), defaults: .standard,
             defaultFolder: FileManager.default.urls(for: .musicDirectory, in: .userDomainMask)[0]
                 .appending(path: "Dirigible", directoryHint: .isDirectory), watchesHangs: true)
     }

@@ -623,6 +623,7 @@
 "transcript.empty.title" = "Sem transcrição";
 "transcript.empty.hint" = "Importe um arquivo JSON do Whisper, WebVTT ou SRT para uma faixa.";
 "transcript.follow" = "Seguir o cursor";
+"transcript.gotoword" = "Ir para a palavra";
 "panel.transcript.track" = "Faixa:";
 "alert.transcript.badfile" = "%@ não é um arquivo JSON do Whisper, WebVTT ou SRT com palavras temporizadas. A sessão não foi alterada.";
 "alert.transcript.take" = "A transcrição não foi importada, porque uma tomada começou.";

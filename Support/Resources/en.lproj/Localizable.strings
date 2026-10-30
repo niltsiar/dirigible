@@ -623,6 +623,7 @@
 "transcript.empty.title" = "No transcript";
 "transcript.empty.hint" = "Import a Whisper JSON, WebVTT, or SRT file for a track.";
 "transcript.follow" = "Follow Playhead";
+"transcript.gotoword" = "Go to Word";
 "panel.transcript.track" = "Track:";
 "alert.transcript.badfile" = "%@ is not a Whisper JSON, WebVTT, or SRT file with timed words. The session did not change.";
 "alert.transcript.take" = "The transcript was not imported, because a take started.";

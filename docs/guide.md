@@ -336,6 +336,8 @@ The pane follows the playhead: the word at the playhead stays about one third fr
 
 Click a word to put the playhead at its start. A stopped play stays stopped, and a play goes on from there. A click on a header, on a track name, or after the end of a line does not move the playhead, and a click does not select a range in the lanes. During a take, a click does nothing. With the text cursor in a header, press Return to put the playhead at the first word of that paragraph. In a word, Return renames the track, as in the lanes.
 
+VoiceOver reads the text as **Transcript**. Each paragraph header is a heading, so the Headings rotor of VoiceOver jumps from header to header. The action **Go to Word** puts the playhead at the word at the text cursor, or at the first word under a header. The play does not make VoiceOver speak.
+
 ### Import a transcript
 
 Choose **File > Import Transcript** to add the words of a Whisper JSON, WebVTT, or SRT file. The open panel has a **Track** pop-up: choose the track whose clips carry the words. It starts at the first selected track, or at the first track. The times count from the start of the timeline. The import is one step, so Undo takes the words away again. A file that is not a transcript shows an alert and changes nothing.

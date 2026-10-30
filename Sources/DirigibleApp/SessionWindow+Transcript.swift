@@ -1,4 +1,5 @@
 import AppKit
+import DirigibleCore
 import Observation
 
 /// The state of the Transcript pane that the window keeps (decision 0023).
@@ -8,6 +9,8 @@ import Observation
     /// The counts banner of the last Import Transcript.
     var importReport: TranscriptImportShown?
     @ObservationIgnored var importPresses = 0
+    /// The pane that shows, held weakly so a removed pane and its text are freed (P4).
+    @ObservationIgnored weak var pane: TranscriptTextView?
 }
 
 extension SessionWindow {
@@ -20,6 +23,9 @@ extension SessionWindow {
         if !showsInspector { toggleInspector() }
         transcriptFollow.focusRequest = true
     }
+
+    /// The display tick: marks the units that hold `frame` in the pane, when it shows (P4).
+    func transcriptTick(frame: Frames) { transcriptFollow.pane?.highlight(frame: frame) }
 
     /// The View item: Hide Transcript hides the inspector while the Transcript tab shows.
     func toggleTranscript() {

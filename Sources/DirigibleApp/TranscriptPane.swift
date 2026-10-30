@@ -33,6 +33,16 @@ final class TranscriptTextView: NSTextView {
     private(set) var builds = 0
     private(set) var replacements = 0
     private var focusPending = false
+    /// The underline layers of the current units (P4): one for each line fragment of a unit.
+    private(set) var underlines: [CALayer] = []
+    private var spareUnderlines: [CALayer] = []
+    /// The text ranges of the marked units, in the text of the value.
+    private var marked: [Range<Int>] = []
+    private var markedFrame: Frames?
+    /// True with Increase Contrast: the underline is 3 pt (P4).
+    var increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast {
+        didSet { if increaseContrast != oldValue { styleUnderlines() } }
+    }
     /// The focus came before the build of its revision: the apply puts the insertion point.
     private var caretPending = false
 
@@ -76,6 +86,8 @@ final class TranscriptTextView: NSTextView {
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: "")
         storage.append(built.attributed)
         storage.endEditing()
+        if let frame = markedFrame { marked = built.shown.text.units(at: frame).map(\.text) }
+        placeUnderlines()
     }
 
     nonisolated private static func range(_ range: Range<Int>) -> NSRange {
@@ -137,6 +149,84 @@ final class TranscriptTextView: NSTextView {
         }
     }
 
+    // MARK: The current unit (P4)
+
+    /// Marks the units that hold `frame` with an underline under each line fragment. A tick with
+    /// the same units changes nothing; a tick with other units moves layer frames, never the text.
+    func highlight(frame: Frames) {
+        markedFrame = frame
+        let ranges = shown?.text.units(at: frame).map(\.text) ?? []
+        guard ranges != marked else { return }
+        marked = ranges
+        placeUnderlines()
+    }
+
+    private func placeUnderlines() {
+        let frames = marked.flatMap { segmentFrames(of: $0) }
+        while underlines.count > frames.count { spareUnderlines.append(underlines.removeLast()) }
+        while underlines.count < frames.count {
+            let layer = spareUnderlines.popLast() ?? Self.underlineLayer()
+            underlines.append(layer)
+        }
+        for (layer, segment) in zip(underlines, frames) {
+            layer.frame = CGRect(x: segment.minX, y: segment.maxY + 1, width: segment.width, height: underlineWidth)
+            if layer.superlayer == nil { self.layer?.addSublayer(layer) }
+        }
+        for layer in spareUnderlines { layer.removeFromSuperlayer() }
+        styleUnderlines()
+    }
+
+    private var underlineWidth: Double { increaseContrast ? 3 : 2 }
+
+    /// Sets the color and the width again. The color is the core of the playhead of the lanes.
+    private func styleUnderlines() {
+        let color = PlayheadColors(appearance: effectiveAppearance, taking: false).core
+        for layer in underlines {
+            layer.backgroundColor = color
+            layer.cornerRadius = underlineWidth / 2
+            layer.frame.size.height = underlineWidth
+        }
+    }
+
+    private static func underlineLayer() -> CALayer {
+        let layer = CALayer()
+        layer.actions = [
+            "position": NSNull(), "bounds": NSNull(), "backgroundColor": NSNull(), "cornerRadius": NSNull(),
+        ]
+        return layer
+    }
+
+    /// The line fragments of the text range `range` of the value, in the coordinates of the view.
+    private func segmentFrames(of range: Range<Int>) -> [CGRect] {
+        guard let manager = textLayoutManager, let content = manager.textContentManager else { return [] }
+        let offset = noticeLength + range.lowerBound
+        guard let start = content.location(manager.documentRange.location, offsetBy: offset),
+            let end = content.location(start, offsetBy: range.count),
+            let span = NSTextRange(location: start, end: end)
+        else { return [] }
+        var found: [CGRect] = []
+        manager.enumerateTextSegments(in: span, type: .standard, options: []) { _, frame, _, _ in
+            found.append(frame.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
+            return true
+        }
+        return found
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        styleUnderlines()
+    }
+
+    @objc private func displayOptionsChanged(_ note: Notification) {
+        increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        styleUnderlines()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        if !marked.isEmpty { placeUnderlines() }
+    }
+
     /// The scroll view with the text view of the pane, as the Transcript tab shows it.
     static func scrollView() -> NSScrollView {
         let scroll = NSScrollView()
@@ -157,6 +247,15 @@ final class TranscriptTextView: NSTextView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        wantsLayer = true
+        NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(displayOptionsChanged), name: NSColor.systemColorsDidChangeNotification,
+            object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(displayOptionsChanged),
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         if focusPending { Task { @MainActor [weak self] in self?.takeFocus() } }
     }
 
@@ -213,6 +312,7 @@ private struct TranscriptPaneText: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let text = scroll.documentView as? TranscriptTextView else { return }
         text.model = model
+        model.transcriptFollow.pane = text
         text.update(session: studio.session, revision: revision)
         if wantsFocus { Task { @MainActor [weak text] in text?.takeFocus() } }
     }

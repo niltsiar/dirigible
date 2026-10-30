@@ -46,7 +46,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F24 | Group or link tracks; merge clips | Hindenburg PRO | Later | R7 |
 | F25 | Split a stereo clip into two mono clips | Hindenburg PRO | done, Release 4 run 17 | R7 |
 | F26 | Silence removal | Logic Pro | Release 5 | R10 |
-| F27 | Transcript and text-based editing | Hindenburg PRO | Release 5 (the text pane; the import and the cut by words are done, Release 3 run 10, v0.3.10) | R7 |
+| F27 | Transcript and text-based editing | Hindenburg PRO | done, Release 5 run 1 (the Transcript tab: read, follow, select, and cut by words; the import and the cut by words came in Release 3 run 10, v0.3.10) | R7 |
 | F28 | Time stretch | Hindenburg PRO | Later | R7 |
 | F30 | Auto level per clip on record and import | Hindenburg PRO | done, Release 2 run 8 | R9 |
 | F31 | Clip gain | GarageBand, Logic Pro | done, Release 2 run 11b-1 | R7 |

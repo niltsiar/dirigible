@@ -35,7 +35,7 @@ extension TranscriptTextView: @MainActor NSAccessibilityCustomRotorItemSearchDel
     /// Puts the playhead at the start of the word at the insertion point (also at its end), or of
     /// the first word under a header. False when the insertion point is in no word.
     func goToWord() -> Bool {
-        guard let text = shown?.text else { return false }
+        guard let text = currentText else { return false }
         let at = selectedRange().location - noticeLength
         guard
             let unit = text.headerUnit(atTextLocation: at)

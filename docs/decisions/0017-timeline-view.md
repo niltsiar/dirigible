@@ -56,7 +56,7 @@ Probes on 2026-09-25 (MacBook Pro 2018, Intel i5-8259U, Iris Plus 655, macOS 15.
 
 **Keys.** View: Zoom In (Command-plus), Zoom Out (Command-minus), Zoom to Session (Command-0), Zoom to Selection (H), Automatic Scroll (Option-Command-F). Edit: Set In Point (I), Set Out Point (O), Deselect All (Shift-Command-A), Select All (the system item). Esc empties the selection through `cancelOperation(_:)`; it has no menu item, because a menu item would take Esc from alerts and sheets.
 
-**CLI (0011).** The peak compute reads the audio files of a package, so the 0011 clause for a feature that operates on an audio file applies. `dirigible peaks <package>` reads the cache and writes nothing: for each pool file, `hit` with the bin count, `miss`, or `missing`. It reads the cache only through the public function `peakCacheStates(of:package:cache:)`. It takes no lock and starts no compute. The app and the CLI use one definition of the cache folder.
+**CLI (0011).** The peak compute reads the audio files of a package, so the 0011 clause for a feature that operates on an audio file applies. `dirigible peaks <package>` reads the cache and writes nothing: for each pool file, `hit` with the bin count, `miss`, or `missing`. It reads the cache only through the public function `peakCacheStates(of:package:cache:)`. It takes no lock and starts no compute. The app uses the folder of its own bundle ID, so a verify copy with another ID has its own cache. With no `--cache`, the CLI reads the folder of the real app (`com.delineas.dirigible`). `--cache <folder>` changes it.
 
 ## Consequences
 

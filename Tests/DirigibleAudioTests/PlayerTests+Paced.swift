@@ -151,6 +151,7 @@ extension PlayerTests {
         let stopped = await within10Seconds { await player.reading().stop == .packageUnavailable }
         #expect(stopped, "the refill found no package")
         let pulled = await player.pacedPulled
-        #expect(pulled <= 2 * 4800, "the pull rendered \(pulled) frames, more than two chunks")
+        let chunk = long.session.sampleRate / 10
+        #expect(pulled <= 2 * chunk, "the pull rendered \(pulled) frames, more than two chunks")
     }
 }

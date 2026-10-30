@@ -1334,8 +1334,11 @@ td_setup() {
   rm -rf "$t"
   mkdir -p "$t"
   git init -q -b main "$t/main"
-  printf '.scratchpads/\n' > "$t/main/.gitignore"
-  git -C "$t/main" add .gitignore && git -C "$t/main" commit -q -m base
+  printf '.scratchpads/\nbuild/\n' > "$t/main/.gitignore"
+  mkdir -p "$t/main/scripts"
+  printf '#!/bin/bash\necho "$*" >> "%s/verify-copy.calls"\nexit "${STUB_EXIT:-0}"\n' "$t" > "$t/main/scripts/verify-copy.sh"
+  chmod +x "$t/main/scripts/verify-copy.sh"
+  git -C "$t/main" add .gitignore scripts && git -C "$t/main" commit -q -m base
   git init -q --bare -b main "$t/origin.git"
   git -C "$t/main" remote add origin "$t/origin.git"
   git -C "$t/main" push -q origin main
@@ -1358,6 +1361,19 @@ td "$run"
 for pattern in '^free before: [0-9]+ KiB$' '^free after: [0-9]+ KiB$' '^worktree removed: .*/td-clean/wt$' '^trash folder: ' '^moved: 0 items, 0 KiB$' '^deleted: 0 items, 0 KiB$'; do
   grep -qE "$pattern" "$t/out" || fail "teardown, merged and clean: no line [$pattern]: $(cat "$t/out")"
 done
+[[ ! -e "$t/verify-copy.calls" ]] || fail "teardown with no build/verify ran verify-copy.sh"
+
+# A worktree with build/verify gets `verify-copy.sh stop` before it goes, so the copy ID folders in
+# ~/Library do not stay. A stop that fails does not hold the teardown back.
+td_setup verify
+mkdir -p "$t/wt/build/verify"
+td "$run"
+[[ $code -eq 0 && "$(cat "$t/verify-copy.calls" 2> /dev/null)" == stop && ! -d "$t/wt" ]] || fail "teardown with build/verify: exit $code, calls [$(cat "$t/verify-copy.calls" 2> /dev/null)]: $(cat "$t/out")"
+td_setup verify-fails
+mkdir -p "$t/wt/build/verify"
+STUB_EXIT=1 td "$run"
+[[ $code -eq 0 && "$(cat "$t/verify-copy.calls" 2> /dev/null)" == stop && ! -d "$t/wt" ]] || fail "teardown with a failing stop: exit $code: $(cat "$t/out")"
+grep -q 'verify-copy.sh stop' "$t/out" || fail "teardown with a failing stop: no message: $(cat "$t/out")"
 
 # A refusal removes nothing: the worktree and a 6 MB file of the run folder stay.
 td_refused() { # <name> <exit> <text of the message>

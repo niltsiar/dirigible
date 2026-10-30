@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Musik unter Sprache absenken …";
 "menu.tools.split.stereo" = "Stereo in Mono aufteilen";
 "menu.tools.reduce.noise" = "Rauschen reduzieren \U2026";
+"menu.tools.repair.sound" = "Ton reparieren \U2026";
 "menu.tools.restore.original" = "Originalaudio wiederherstellen";
 
 /* Errors */
@@ -187,7 +188,7 @@
 "error.split.unreadable" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
 "error.split.missing" = "Dirigible kann die Stereo-Clips nicht teilen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
 "error.split.yielded" = "Das Teilen wurde für einen Take in einem anderen Fenster gestoppt. Teile nach dem Take erneut.";
-"denoise.banner" = "Rauschen wird reduziert";
+"denoise.banner" = "Clips werden berechnet";
 "denoise.done.one" = "Rauschen in 1 Clip um %lld dB reduziert.";
 "denoise.done.many" = "Rauschen in %1$lld Clips um %2$lld dB reduziert.";
 "denoise.canceled" = "Rauschreduzierung abgebrochen. Kein Clip wurde geändert.";
@@ -217,20 +218,41 @@
 "sheet.denoise.playing" = "Vorschau aktualisiert.";
 "sheet.denoise.preview.failed" = "Vorschau gestoppt. %@";
 "sheet.denoise.apply" = "Rauschen reduzieren";
-"error.denoise.space" = "Dirigible kann das Rauschen nicht reduzieren. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
-"error.denoise.write" = "Dirigible kann das Rauschen nicht reduzieren. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
-"error.denoise.unreadable" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
-"error.denoise.missing" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
-"error.denoise.not.downloaded" = "Dirigible kann das Rauschen nicht reduzieren. Die Audiodatei „%@“ ist nicht auf diesem Mac. Lade die Datei zuerst.";
+"error.denoise.space" = "Dirigible kann die Clips nicht berechnen. Die Festplatte dieser Session hat nicht genug freien Speicherplatz. Gib Speicherplatz frei und versuche es erneut.";
+"error.denoise.write" = "Dirigible kann die Clips nicht berechnen. Dirigible kann nicht in den Clips-Ordner der Session schreiben (Fehler %lld). Prüfe die Festplatte und versuche es erneut.";
+"error.denoise.unreadable" = "Dirigible kann die Clips nicht berechnen. Die Audiodatei „%1$@“ konnte nicht gelesen werden (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
+"error.denoise.missing" = "Dirigible kann die Clips nicht berechnen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.denoise.not.downloaded" = "Dirigible kann die Clips nicht berechnen. Die Audiodatei „%@“ ist nicht auf diesem Mac. Lade die Datei zuerst.";
 "error.denoise.track.role" = "Dirigible kann das Rauschen eines Clips auf einer Spur „Musik“ oder „Effekte“ nicht reduzieren. Wähle Clips auf anderen Spuren und versuche es erneut.";
-"error.denoise.mixed" = "Dirigible kann das Rauschen nicht reduzieren. Clips mit gemeinsamem Audio haben verschiedene Werte erhalten. Verwende einen Wert für diese Clips und versuche es erneut.";
+"error.denoise.mixed" = "Dirigible kann die Clips nicht berechnen. Clips mit gemeinsamem Audio haben verschiedene Werte erhalten. Verwende einen Wert für diese Clips und versuche es erneut.";
 "error.denoise.unavailable" = "Dirigible kann das Rauschen nicht reduzieren. Die Rauschreduzierung von macOS wurde nicht geladen (Fehler %lld).";
-"error.denoise.engine" = "Dirigible kann das Rauschen nicht reduzieren. Die Audio-Engine wurde gestoppt (Fehler %lld). Versuche es erneut.";
-"error.denoise.over.full.scale" = "Dirigible kann das Rauschen nicht reduzieren. Die neue Audiodatei „%@“ ist lauter als Vollaussteuerung und übersteuert. Versuche es erneut.";
+"error.denoise.engine" = "Dirigible kann die Clips nicht berechnen. Die Audio-Engine wurde gestoppt (Fehler %lld). Versuche es erneut.";
+"error.denoise.over.full.scale" = "Dirigible kann die Clips nicht berechnen. Die neue Audiodatei „%@“ ist lauter als Vollaussteuerung und übersteuert. Versuche es erneut.";
 "error.denoise.corner.limit" = "Dirigible kann die Clips nicht berechnen. Die Frequenz %lld Hz ist zu hoch für die Abtastrate dieser Session: Das Maximum ist %lld Hz.";
 "error.denoise.corner.rate" = "Dirigible kann die Clips nicht berechnen. Die Frequenz %lld Hz braucht eine Abtastrate der Session von %lld Hz oder mehr.";
 "error.denoise.non.finite" = "Dirigible kann die Clips nicht berechnen. Ein Sample der neuen Audiodatei „%@“ ist keine Zahl, daher schreibt Dirigible nichts. Versuche es erneut.";
-"error.denoise.yielded" = "Die Rauschreduzierung wurde für einen Take in einem anderen Fenster gestoppt. Reduziere das Rauschen nach dem Take erneut.";
+"error.denoise.yielded" = "Die Clip-Berechnung wurde für einen Take in einem anderen Fenster gestoppt. Starte sie nach dem Take erneut.";
+"sheet.repair.title.one" = "Ton reparieren: 1 Clip";
+"sheet.repair.title.many" = "Ton reparieren: %lld Clips";
+"sheet.repair.declip" = "Übersteuerte Spitzen reparieren";
+"sheet.repair.declip.note" = "Findet abgeflachte Spitzen, wie bei einer Direktaufnahme. Ein Anruf oder eine komprimierte Spur kann keine zeigen. Der Clip wird leiser. Mit Auto-Pegel holst du ihn zurück.";
+"sheet.repair.rumble" = "Rumpeln reduzieren";
+"sheet.repair.rumble.note" = "Schneidet Schall unter %lld Hz ab, etwa Poltern und Wind.";
+"sheet.repair.deess" = "Scharfe \U201ES\U201C-Laute abschwächen";
+"sheet.repair.deess.note" = "Schwächt scharfe \U201ES\U201C-Laute um bis zu %lld dB ab.";
+"sheet.repair.amount" = "Stärke";
+"sheet.repair.more" = "Mehr";
+"sheet.repair.frequency" = "Frequenz";
+"sheet.repair.none" = "Aktiviere mindestens eine Reparatur.";
+"sheet.repair.apply" = "Reparieren";
+"repair.peaks.one" = "Übersteuerte Spitzen in 1 Clip repariert.";
+"repair.peaks.many" = "Übersteuerte Spitzen in %lld Clips repariert.";
+"repair.drop.one" = "Der Pegel ist %lld dB niedriger.";
+"repair.drop.many" = "Der Pegel ist um bis zu %lld dB niedriger.";
+"repair.none" = "Keine übersteuerten Spitzen gefunden.";
+"repair.sound.one" = "Ton von 1 Clip repariert.";
+"repair.sound.many" = "Ton von %lld Clips repariert.";
+"repair.canceled" = "Reparatur abgebrochen. Kein Clip wurde geändert.";
 "reverted.to" = "Auf das Backup von %@ zurückgesetzt";
 
 /* Window, panels, and alerts */

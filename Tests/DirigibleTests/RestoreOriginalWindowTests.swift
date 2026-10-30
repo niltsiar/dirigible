@@ -123,7 +123,8 @@ import Testing
         let restore = L10n.menuToolsRestoreOriginal.text
         let rendered = try titles(y: 10)
         let at = try #require(rendered.firstIndex(of: L10n.menuToolsReduceNoise.text), "\(rendered)")
-        #expect(rendered.dropFirst(at + 1).first == restore, "\(rendered)")
+        #expect(rendered.dropFirst(at + 1).first == L10n.menuToolsRepairSound.text, "\(rendered)")
+        #expect(rendered.dropFirst(at + 2).first == restore, "\(rendered)")
         let plain = try titles(y: 110)
         #expect(plain.contains(L10n.menuToolsReduceNoise.text) && !plain.contains(restore), "\(plain)")
         window.close()

@@ -3,6 +3,19 @@ import Accelerate
 import DirigibleCore
 import Foundation
 
+/// The highest whole Hz of a rumble or de-ess corner that a session at `rate` takes: under 0.45 x
+/// the rate (decision 0064 C19). Whole numbers only: 0.45 x 100 is not 45 in Double.
+package func cornerLimit(rate: Int) -> Int { (9 * rate - 1) / 20 }
+
+/// What step 2 of `RepairSetup` measured for a de-clip: the values that a caller keeps while the
+/// span, the de-clip percent, and the rumble corner stay the same. It holds no stage.
+struct RepairMeasure: Hashable, Sendable {
+    let peaks: [Float]
+    let carriedBits: Int
+    let scale: Float
+    let runs: Int
+}
+
 /// The repair stages of one run and the guards of the clip render and the preview (decision 0064
 /// D9): the one owner, so that each caller applies each guard. Step 1 is `check`, which reads no
 /// audio. Step 2 is `repairSetup`, which reads the span only for a de-clip.
@@ -27,14 +40,13 @@ struct RepairSetup {
     /// Step 1: refuses a rumble or de-ess corner at or over 0.45 x `rate` with `.cornerTooHigh`,
     /// before any read, with no clamp. The bound is the highest whole Hz under 0.45 x `rate`, or,
     /// when that is under the range of the type, the lowest whole rate that takes the lowest value.
-    /// Whole numbers only: 0.45 x 100 is not 45 in Double.
     static func check(_ treatment: Treatment, rate: Int) throws(ClipRenderError) {
         let corners = [
             treatment.rumble.map { ($0.hertz, Rumble.range.lowerBound) },
             treatment.deess.map { ($0.hertz, DeEss.hertzRange.lowerBound) },
         ]
-        for case (let hertz, let lowest)? in corners where 20 * hertz >= 9 * rate {
-            let limit = (9 * rate - 1) / 20
+        let limit = cornerLimit(rate: rate)
+        for case (let hertz, let lowest)? in corners where hertz > limit {
             let bound: ClipRenderError.CornerLimit = limit >= lowest ? .hertz(limit) : .lowestRate(20 * lowest / 9 + 1)
             throw .cornerTooHigh(hertz: hertz, limit: bound)
         }
@@ -48,6 +60,22 @@ struct RepairSetup {
             vDSP_svemg(buffer.floatChannelData![channel], 1, &sum, vDSP_Length(buffer.frameLength))
             guard sum.isFinite else { throw .nonFiniteSample(file: file) }
         }
+    }
+
+    var measure: RepairMeasure { RepairMeasure(peaks: peaks, carriedBits: carriedBits, scale: scale, runs: runs) }
+
+    /// The setup of `treatment` with the values of `measure`, and new stages: for a caller that keeps
+    /// a measure and runs the stages again. Step 1 runs first.
+    static func measured(_ measure: RepairMeasure, _ treatment: Treatment, rate: Double, channels: Int)
+        throws(ClipRenderError) -> RepairSetup
+    {
+        let rest = try unmeasured(treatment, rate: rate, channels: channels)
+        guard let declip = treatment.declip else { return rest }
+        let first = DeclipStage(
+            percent: declip.percent, peaks: measure.peaks, carriedBits: measure.carriedBits, rate: rate)
+        return RepairSetup(
+            peaks: measure.peaks, carriedBits: measure.carriedBits, pre: [first] + rest.pre, post: rest.post,
+            scale: measure.scale, runs: measure.runs)
     }
 
     /// Step 1, then the high-pass and the de-ess of `treatment` with no read, and no de-clip.

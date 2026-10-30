@@ -137,9 +137,11 @@ struct DirigibleApp: App {
                         Button(split.title.key) { app.timeline(split.command) }
                             .keyboardShortcut(split.key, modifiers: split.modifiers)
                             .disabled(app.key?.isOn(split.command) != true)
-                        if let title = TimelineCommand.keylessTitles[.reduceNoise] {
-                            Button(title.key) { app.timeline(.reduceNoise) }
-                                .disabled(app.key?.isOn(.reduceNoise) != true)
+                        ForEach([TimelineCommand.reduceNoise, .repairSound], id: \.self) { command in
+                            if let title = TimelineCommand.keylessTitles[command] {
+                                Button(title.key) { app.timeline(command) }
+                                    .disabled(app.key?.isOn(command) != true)
+                            }
                         }
                         Divider()
                         let restore = TimelineCommand.restoreOriginalItem

@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Atténuer la musique sous la voix…";
 "menu.tools.split.stereo" = "Séparer le stéréo en mono";
 "menu.tools.reduce.noise" = "Réduire le bruit\U2026";
+"menu.tools.repair.sound" = "Réparer le son\U2026";
 "menu.tools.restore.original" = "Restaurer l'audio d'origine";
 
 /* Errors */
@@ -187,7 +188,7 @@
 "error.split.unreadable" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.split.missing" = "Dirigible ne peut pas séparer les clips stéréo. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
 "error.split.yielded" = "La séparation s’est arrêtée à cause d’une prise dans une autre fenêtre. Séparez à nouveau après la prise.";
-"denoise.banner" = "Réduction du bruit";
+"denoise.banner" = "Traitement des clips";
 "denoise.done.one" = "Bruit réduit dans 1 clip de %lld dB.";
 "denoise.done.many" = "Bruit réduit dans %1$lld clips de %2$lld dB.";
 "denoise.canceled" = "Réduction du bruit annulée. Aucun clip modifié.";
@@ -217,20 +218,41 @@
 "sheet.denoise.playing" = "Aperçu mis à jour.";
 "sheet.denoise.preview.failed" = "Aperçu arrêté. %@";
 "sheet.denoise.apply" = "Réduire le bruit";
-"error.denoise.space" = "Dirigible ne peut pas réduire le bruit. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
-"error.denoise.write" = "Dirigible ne peut pas réduire le bruit. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
-"error.denoise.unreadable" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";
-"error.denoise.missing" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
-"error.denoise.not.downloaded" = "Dirigible ne peut pas réduire le bruit. Le fichier audio « %@ » n’est pas sur ce Mac. Téléchargez d’abord le fichier.";
+"error.denoise.space" = "Dirigible ne peut pas traiter les clips. Le disque de cette session n’a pas assez d’espace libre. Libérez de l’espace disque et réessayez.";
+"error.denoise.write" = "Dirigible ne peut pas traiter les clips. Dirigible ne peut pas écrire dans le dossier Clips de la session (erreur %lld). Vérifiez le disque et réessayez.";
+"error.denoise.unreadable" = "Dirigible ne peut pas traiter les clips. Le fichier audio « %1$@ » n’a pas pu être lu (erreur %2$lld). Vérifiez le disque et réessayez.";
+"error.denoise.missing" = "Dirigible ne peut pas traiter les clips. Le fichier audio « %@ » n’est pas dans le dossier Clips de la session. Remettez le fichier dans ce dossier et réessayez.";
+"error.denoise.not.downloaded" = "Dirigible ne peut pas traiter les clips. Le fichier audio « %@ » n’est pas sur ce Mac. Téléchargez d’abord le fichier.";
 "error.denoise.track.role" = "Dirigible ne peut pas réduire le bruit d’un clip sur une piste Musique ou Effets. Sélectionnez des clips sur d’autres pistes et réessayez.";
-"error.denoise.mixed" = "Dirigible ne peut pas réduire le bruit. Des clips qui partagent un audio ont reçu des valeurs différentes. Utilisez une seule valeur pour ces clips et réessayez.";
+"error.denoise.mixed" = "Dirigible ne peut pas traiter les clips. Des clips qui partagent un audio ont reçu des valeurs différentes. Utilisez une seule valeur pour ces clips et réessayez.";
 "error.denoise.unavailable" = "Dirigible ne peut pas réduire le bruit. La réduction du bruit de macOS ne s’est pas chargée (erreur %lld).";
-"error.denoise.engine" = "Dirigible ne peut pas réduire le bruit. Le moteur audio s’est arrêté (erreur %lld). Réessayez.";
-"error.denoise.over.full.scale" = "Dirigible ne peut pas réduire le bruit. Le nouveau fichier audio « %@ » dépasse la pleine échelle et sature. Réessayez.";
+"error.denoise.engine" = "Dirigible ne peut pas traiter les clips. Le moteur audio s’est arrêté (erreur %lld). Réessayez.";
+"error.denoise.over.full.scale" = "Dirigible ne peut pas traiter les clips. Le nouveau fichier audio « %@ » dépasse la pleine échelle et sature. Réessayez.";
 "error.denoise.corner.limit" = "Dirigible ne peut pas traiter les clips. La fréquence de %lld Hz est trop élevée pour la fréquence d’échantillonnage de cette session : le maximum est %lld Hz.";
 "error.denoise.corner.rate" = "Dirigible ne peut pas traiter les clips. La fréquence de %lld Hz demande une fréquence d’échantillonnage de session de %lld Hz ou plus.";
 "error.denoise.non.finite" = "Dirigible ne peut pas traiter les clips. Un échantillon du nouveau fichier audio « %@ » n’est pas un nombre, donc Dirigible n’écrit rien. Réessayez.";
-"error.denoise.yielded" = "La réduction du bruit s’est arrêtée à cause d’une prise dans une autre fenêtre. Réduisez à nouveau le bruit après la prise.";
+"error.denoise.yielded" = "Le traitement des clips s\U2019est arrêté à cause d\U2019une prise dans une autre fenêtre. Relancez-le après la prise.";
+"sheet.repair.title.one" = "Réparer le son : 1 clip";
+"sheet.repair.title.many" = "Réparer le son : %lld clips";
+"sheet.repair.declip" = "Réparer les pics écrêtés";
+"sheet.repair.declip.note" = "Trouve les pics aplatis, comme dans un enregistrement direct. Un appel ou une piste compressée peut n\U2019en montrer aucun. Le clip devient plus faible. Utilisez Nivellement automatique pour le remonter.";
+"sheet.repair.rumble" = "Réduire les grondements";
+"sheet.repair.rumble.note" = "Coupe le son sous %lld Hz, comme les chocs et le vent.";
+"sheet.repair.deess" = "Adoucir les sons \U00AB\U00A0s\U00A0\U00BB";
+"sheet.repair.deess.note" = "Adoucit les sons \U00AB\U00A0s\U00A0\U00BB durs jusqu\U2019à %lld dB.";
+"sheet.repair.amount" = "Quantité";
+"sheet.repair.more" = "Plus";
+"sheet.repair.frequency" = "Fréquence";
+"sheet.repair.none" = "Activez au moins une réparation.";
+"sheet.repair.apply" = "Réparer";
+"repair.peaks.one" = "Pics écrêtés réparés dans 1 clip.";
+"repair.peaks.many" = "Pics écrêtés réparés dans %lld clips.";
+"repair.drop.one" = "Le niveau est plus bas de %lld dB.";
+"repair.drop.many" = "Le niveau est plus bas de %lld dB au plus.";
+"repair.none" = "Aucun pic écrêté trouvé.";
+"repair.sound.one" = "Son réparé dans 1 clip.";
+"repair.sound.many" = "Son réparé dans %lld clips.";
+"repair.canceled" = "Réparation annulée. Aucun clip modifié.";
 "reverted.to" = "Copie de secours du %@ restaurée";
 
 /* Window, panels, and alerts */

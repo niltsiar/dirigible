@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Duck Music Under Speech…";
 "menu.tools.split.stereo" = "Split Stereo to Mono";
 "menu.tools.reduce.noise" = "Reduce Noise\U2026";
+"menu.tools.repair.sound" = "Repair Sound\U2026";
 "menu.tools.restore.original" = "Restore Original Audio";
 
 /* Errors */
@@ -187,7 +188,7 @@
 "error.split.unreadable" = "Dirigible cannot split the stereo clips. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
 "error.split.missing" = "Dirigible cannot split the stereo clips. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
 "error.split.yielded" = "The split stopped for a take in another window. Split again after the take.";
-"denoise.banner" = "Reducing noise";
+"denoise.banner" = "Rendering clips";
 "denoise.done.one" = "Reduced noise in 1 clip by %lld dB.";
 "denoise.done.many" = "Reduced noise in %1$lld clips by %2$lld dB.";
 "denoise.canceled" = "Noise reduction canceled. No clip changed.";
@@ -217,20 +218,41 @@
 "sheet.denoise.playing" = "Preview updated.";
 "sheet.denoise.preview.failed" = "Preview stopped. %@";
 "sheet.denoise.apply" = "Reduce Noise";
-"error.denoise.space" = "Dirigible cannot reduce the noise. The disk of this session does not have enough free space. Free some disk space and try again.";
-"error.denoise.write" = "Dirigible cannot reduce the noise. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
-"error.denoise.unreadable" = "Dirigible cannot reduce the noise. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
-"error.denoise.missing" = "Dirigible cannot reduce the noise. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
-"error.denoise.not.downloaded" = "Dirigible cannot reduce the noise. The audio file “%@” is not on this Mac. Download the file first.";
+"error.denoise.space" = "Dirigible cannot render the clips. The disk of this session does not have enough free space. Free some disk space and try again.";
+"error.denoise.write" = "Dirigible cannot render the clips. Dirigible cannot write to the Clips folder of the session (error %lld). Check the disk and try again.";
+"error.denoise.unreadable" = "Dirigible cannot render the clips. The audio file “%1$@” did not read (error %2$lld). Check the disk and try again.";
+"error.denoise.missing" = "Dirigible cannot render the clips. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.denoise.not.downloaded" = "Dirigible cannot render the clips. The audio file “%@” is not on this Mac. Download the file first.";
 "error.denoise.track.role" = "Dirigible cannot reduce the noise of a clip on a Music or Effects track. Select clips on other tracks and try again.";
-"error.denoise.mixed" = "Dirigible cannot reduce the noise. Clips that share audio got different amounts. Use one amount for these clips and try again.";
+"error.denoise.mixed" = "Dirigible cannot render the clips. Clips that share audio got different settings. Use one setting for these clips and try again.";
 "error.denoise.unavailable" = "Dirigible cannot reduce the noise. The noise reduction of macOS did not load (error %lld).";
-"error.denoise.engine" = "Dirigible cannot reduce the noise. The audio engine stopped (error %lld). Try again.";
-"error.denoise.over.full.scale" = "Dirigible cannot reduce the noise. The new audio file “%@” is louder than full scale, so it clips. Try again.";
+"error.denoise.engine" = "Dirigible cannot render the clips. The audio engine stopped (error %lld). Try again.";
+"error.denoise.over.full.scale" = "Dirigible cannot render the clips. The new audio file “%@” is louder than full scale, so it clips. Try again.";
 "error.denoise.corner.limit" = "Dirigible cannot render the clips. The frequency %lld Hz is too high for the sample rate of this session: the highest is %lld Hz.";
 "error.denoise.corner.rate" = "Dirigible cannot render the clips. The frequency %lld Hz needs a session sample rate of %lld Hz or more.";
 "error.denoise.non.finite" = "Dirigible cannot render the clips. A sample of the new audio file “%@” is not a number, so Dirigible writes nothing. Try again.";
-"error.denoise.yielded" = "The noise reduction stopped for a take in another window. Reduce the noise again after the take.";
+"error.denoise.yielded" = "The clip render stopped for a take in another window. Run it again after the take.";
+"sheet.repair.title.one" = "Repair Sound: 1 clip";
+"sheet.repair.title.many" = "Repair Sound: %lld clips";
+"sheet.repair.declip" = "Repair clipped peaks";
+"sheet.repair.declip.note" = "Finds flat peaks, as in a direct recording. A call or a compressed track can show none. The clip gets quieter. Use Auto Level to bring it back.";
+"sheet.repair.rumble" = "Reduce rumble";
+"sheet.repair.rumble.note" = "Cuts sound below %lld Hz, such as thumps and wind.";
+"sheet.repair.deess" = "Soften \U201Cs\U201D sounds";
+"sheet.repair.deess.note" = "Softens harsh \U201Cs\U201D sounds by up to %lld dB.";
+"sheet.repair.amount" = "Amount";
+"sheet.repair.more" = "More";
+"sheet.repair.frequency" = "Frequency";
+"sheet.repair.none" = "Turn on at least one repair.";
+"sheet.repair.apply" = "Repair";
+"repair.peaks.one" = "Repaired clipped peaks in 1 clip.";
+"repair.peaks.many" = "Repaired clipped peaks in %lld clips.";
+"repair.drop.one" = "The level is %lld dB lower.";
+"repair.drop.many" = "The level is up to %lld dB lower.";
+"repair.none" = "No clipped peaks found.";
+"repair.sound.one" = "Repaired the sound of 1 clip.";
+"repair.sound.many" = "Repaired the sound of %lld clips.";
+"repair.canceled" = "Repair canceled. No clip changed.";
 "reverted.to" = "Reverted to the backup of %@";
 
 /* Window, panels, and alerts */

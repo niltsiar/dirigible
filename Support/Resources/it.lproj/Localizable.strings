@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Abbassa la musica sotto la voce…";
 "menu.tools.split.stereo" = "Suddividi stereo in mono";
 "menu.tools.reduce.noise" = "Riduci rumore\U2026";
+"menu.tools.repair.sound" = "Ripara audio\U2026";
 "menu.tools.restore.original" = "Ripristina audio originale";
 
 /* Errors */
@@ -187,7 +188,7 @@
 "error.split.unreadable" = "Dirigible non può suddividere le clip stereo. Impossibile leggere il file audio “%1$@” (errore %2$lld). Controlla il disco e riprova.";
 "error.split.missing" = "Dirigible non può suddividere le clip stereo. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
 "error.split.yielded" = "La suddivisione si è interrotta a causa di un take in un’altra finestra. Suddividi di nuovo dopo il take.";
-"denoise.banner" = "Riduzione del rumore in corso";
+"denoise.banner" = "Elaborazione delle clip";
 "denoise.done.one" = "Rumore ridotto in 1 clip di %lld dB.";
 "denoise.done.many" = "Rumore ridotto in %1$lld clip di %2$lld dB.";
 "denoise.canceled" = "Riduzione del rumore annullata. Nessun clip è cambiato.";
@@ -217,20 +218,41 @@
 "sheet.denoise.playing" = "Anteprima aggiornata.";
 "sheet.denoise.preview.failed" = "Anteprima interrotta. %@";
 "sheet.denoise.apply" = "Riduci rumore";
-"error.denoise.space" = "Dirigible non può ridurre il rumore. Il disco di questa sessione non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
-"error.denoise.write" = "Dirigible non può ridurre il rumore. Dirigible non può scrivere nella cartella Clips della sessione (errore %lld). Controlla il disco e riprova.";
-"error.denoise.unreadable" = "Dirigible non può ridurre il rumore. Impossibile leggere il file audio “%1$@” (errore %2$lld). Controlla il disco e riprova.";
-"error.denoise.missing" = "Dirigible non può ridurre il rumore. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
-"error.denoise.not.downloaded" = "Dirigible non può ridurre il rumore. Il file audio “%@” non è su questo Mac. Scarica prima il file.";
+"error.denoise.space" = "Dirigible non può elaborare le clip. Il disco di questa sessione non ha abbastanza spazio libero. Libera spazio su disco e riprova.";
+"error.denoise.write" = "Dirigible non può elaborare le clip. Dirigible non può scrivere nella cartella Clips della sessione (errore %lld). Controlla il disco e riprova.";
+"error.denoise.unreadable" = "Dirigible non può elaborare le clip. Impossibile leggere il file audio “%1$@” (errore %2$lld). Controlla il disco e riprova.";
+"error.denoise.missing" = "Dirigible non può elaborare le clip. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
+"error.denoise.not.downloaded" = "Dirigible non può elaborare le clip. Il file audio “%@” non è su questo Mac. Scarica prima il file.";
 "error.denoise.track.role" = "Dirigible non può ridurre il rumore di una clip su una traccia Musica o Effetti. Seleziona clip su altre tracce e riprova.";
-"error.denoise.mixed" = "Dirigible non può ridurre il rumore. Clip che condividono l’audio hanno ricevuto valori diversi. Usa un solo valore per queste clip e riprova.";
+"error.denoise.mixed" = "Dirigible non può elaborare le clip. Clip che condividono l’audio hanno ricevuto valori diversi. Usa un solo valore per queste clip e riprova.";
 "error.denoise.unavailable" = "Dirigible non può ridurre il rumore. La riduzione del rumore di macOS non è stata caricata (errore %lld).";
-"error.denoise.engine" = "Dirigible non può ridurre il rumore. Il motore audio si è fermato (errore %lld). Riprova.";
-"error.denoise.over.full.scale" = "Dirigible non può ridurre il rumore. Il nuovo file audio “%@” supera il fondo scala e satura. Riprova.";
+"error.denoise.engine" = "Dirigible non può elaborare le clip. Il motore audio si è fermato (errore %lld). Riprova.";
+"error.denoise.over.full.scale" = "Dirigible non può elaborare le clip. Il nuovo file audio “%@” supera il fondo scala e satura. Riprova.";
 "error.denoise.corner.limit" = "Dirigible non può elaborare le clip. La frequenza di %lld Hz è troppo alta per la frequenza di campionamento di questa sessione: il massimo è %lld Hz.";
 "error.denoise.corner.rate" = "Dirigible non può elaborare le clip. La frequenza di %lld Hz richiede una frequenza di campionamento della sessione di %lld Hz o più.";
 "error.denoise.non.finite" = "Dirigible non può elaborare le clip. Un campione del nuovo file audio “%@” non è un numero, quindi Dirigible non scrive nulla. Riprova.";
-"error.denoise.yielded" = "La riduzione del rumore si è interrotta a causa di un take in un’altra finestra. Riduci di nuovo il rumore dopo il take.";
+"error.denoise.yielded" = "L\U2019elaborazione delle clip si è interrotta a causa di un take in un\U2019altra finestra. Riavviala dopo il take.";
+"sheet.repair.title.one" = "Ripara audio: 1 clip";
+"sheet.repair.title.many" = "Ripara audio: %lld clip";
+"sheet.repair.declip" = "Ripara i picchi tagliati";
+"sheet.repair.declip.note" = "Trova picchi piatti, come in una registrazione diretta. Una chiamata o una traccia compressa può non mostrarne. La clip diventa più bassa. Usa Livellamento automatico per riportarla su.";
+"sheet.repair.rumble" = "Riduci il rimbombo";
+"sheet.repair.rumble.note" = "Taglia il suono sotto %lld Hz, come urti e vento.";
+"sheet.repair.deess" = "Attenua i suoni \U201Cs\U201D";
+"sheet.repair.deess.note" = "Attenua i suoni \U201Cs\U201D aspri fino a %lld dB.";
+"sheet.repair.amount" = "Quantità";
+"sheet.repair.more" = "Altro";
+"sheet.repair.frequency" = "Frequenza";
+"sheet.repair.none" = "Attiva almeno una riparazione.";
+"sheet.repair.apply" = "Ripara";
+"repair.peaks.one" = "Picchi tagliati riparati in 1 clip.";
+"repair.peaks.many" = "Picchi tagliati riparati in %lld clip.";
+"repair.drop.one" = "Il livello è più basso di %lld dB.";
+"repair.drop.many" = "Il livello è più basso fino a %lld dB.";
+"repair.none" = "Nessun picco tagliato trovato.";
+"repair.sound.one" = "Audio riparato in 1 clip.";
+"repair.sound.many" = "Audio riparato in %lld clip.";
+"repair.canceled" = "Riparazione annullata. Nessun clip è cambiato.";
 "reverted.to" = "Backup del %@ ripristinato";
 
 /* Window, panels, and alerts */

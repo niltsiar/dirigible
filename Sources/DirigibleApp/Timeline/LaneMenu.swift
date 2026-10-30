@@ -17,7 +17,7 @@ enum LaneMenu {
 
     /// The groups of the menu, with no empty group. `split` is true when a clip is at the split
     /// frames; `clips` is true for a clip set with a clip; `stereo` is true when the selection holds a
-    /// stereo clip; `denoise` is true when it holds a clip that Reduce Noise takes; `restore` is true
+    /// stereo clip; `denoise` is true when it holds a clip that Reduce Noise and Repair Sound take; `restore` is true
     /// when it holds a clip on a rendered file.
     static func groups(
         selection: Bool, clips: Bool, stereo: Bool, denoise: Bool, restore: Bool, clipboard: Bool, split: Bool,
@@ -37,6 +37,7 @@ enum LaneMenu {
                 split ? Item(command: .split, enabled: true) : nil,
                 stereo ? Item(command: .splitStereo, enabled: true) : nil,
                 denoise ? Item(command: .reduceNoise, enabled: true) : nil,
+                denoise ? Item(command: .repairSound, enabled: true) : nil,
                 restore ? Item(command: .restoreOriginal, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
             ],

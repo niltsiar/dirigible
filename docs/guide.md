@@ -456,6 +456,21 @@ Reduce Noise takes background noise out of a clip, and Remove hum takes out main
 - A long clip takes time. In the app, a banner shows the progress, and **Cancel** stops the run with no changed clip and no new file. A render needs the disk space of its new WAVs: about 518 MB for 1 h of one mono channel at 48 kHz.
 - A fault while Dirigible moves the new WAVs into `Clips` changes no clip. The WAVs that were moved stay as unused files, and **File > Remove Unused Files** moves them to the Trash.
 
+### Repair sound
+
+Repair Sound makes three repairs on a clip: it repairs clipped peaks, it reduces rumble, and it softens harsh "s" sounds. In the app, select clips, a range, or a track, then choose **Tools > Repair Sound** (**Reparar sonido**). The command is also in the menu of a right-click on a clip. It has no key. It is off when no clip is selected, during a take, and while an import, a paste, a split, or a render runs. It takes clips of tracks with any role. In Terminal, `dirigible clip repair <package> <clip>...` makes the same repairs, and an agent uses the tool `clip_repair`.
+
+![The sheet Repair Sound: 1 clip, with the check boxes Repair clipped peaks, Reduce rumble at 80 Hz, and Soften "s" sounds at 10 dB, the open group More with a frequency of 6000 Hz, the buttons Preview, Result, and Removed Sound, and the buttons Cancel and Repair.](images/screenshot-repair-sound.png)
+
+- The sheet title shows the number of clips. The sheet has one check box for each repair, in the order that Dirigible applies them: **Repair clipped peaks**, **Reduce rumble**, and **Soften "s" sounds**. Each box starts off. Each repair has one line under its name. **Reduce rumble** has a slider for the cutoff, from 20 Hz to 300 Hz, and **Soften "s" sounds** has a slider for the largest cut, from 1 dB to 40 dB. The group **More** is closed at first. It holds the frequency of the "s" cut, from 2000 Hz up to 16000 Hz. After the first use, the sheet starts with the values of your last Repair.
+- The frequency slider stops under 0.45 times the sample rate of the session, so the render never refuses a value of the sheet. A session at 22050 Hz stops at 9922 Hz. A session of 4444 Hz or less takes no "s" cut, and the sheet says which sample rate it needs.
+- **Repair** is off, and the sheet says "Turn on at least one repair.", while no box is on. **Preview**, **Result**, and **Removed Sound** work as in Reduce Noise. Preview of **Repair clipped peaks** reads the clip once, and a change of the "s" amount does not read it again.
+- **Repair clipped peaks** finds flat peaks, as in a direct recording that was too loud. A call or a compressed track, for example an MP3 or a voice message, can show none, because the codec rounds the flat peaks. The clip gets quieter, because the repaired peaks go over full scale and Dirigible lowers the clip so that it does not clip again. Use **Tools > Auto Level** (**Nivelar automáticamente**) to bring the level back.
+- At the end, a banner says what happened, for example "Repaired clipped peaks in 2 clips. The level is up to 4 dB lower." The number is the largest drop of the clips in whole dB. When the repair finds no flat peak, the banner says "No clipped peaks found." and the sound stays the same.
+- Repair Sound adds its repairs to the repairs that a clip already has, and it never removes one. A clear box means that the sheet does not change that repair. Dirigible applies the repairs in the order of the sheet, so clipped peaks come first. A request for hum removal with no noise reduction joins the noise level of the clip and does not add a second level.
+- The new file keeps a link to the old file. One **Edit > Undo** gives back the old file for all clips of the run. **Tools > Restore Original Audio** (**Restaurar audio original**) gives back the old file at any time and takes all repairs off the clip.
+- A long clip takes time. In the app, a banner shows the progress, and **Cancel** stops the run with no changed clip and no new file.
+
 ### Mute and solo tracks
 
 Each track header has the buttons **M** (mute) and **S** (solo), after the arm button and the Monitor button. During a take, a button that is on keeps its color, and a button that is off is dim.
@@ -846,6 +861,7 @@ The **Tools** menu (**Herramientas**).
 | **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
 | **Split Stereo to Mono** | **Dividir estéreo en mono** | Shift-Command-D |
 | **Reduce Noise** | **Reducir ruido** | None |
+| **Repair Sound** | **Reparar sonido** | None |
 | **Restore Original Audio** | **Restaurar audio original** | Shift-Command-O |
 
 ### Transport

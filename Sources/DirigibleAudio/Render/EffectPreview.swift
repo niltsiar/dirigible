@@ -7,13 +7,26 @@ import os
 /// What the effect preview loops: the render of the window, or the sound that the render removes.
 public enum Listen: Hashable, Sendable { case result, removedSound }
 
+/// The values that a measure of the de-clip depends on (decision 0064 C17): the file, the clip run
+/// that the render measures, the de-clip percent, and the rumble corner.
+struct PreviewMeasure: Hashable, Sendable {
+    let file: FileID
+    let run: Range<Frames>
+    let declip: Int
+    let rumble: Int?
+}
+
 /// The audio that a preview renders: frames `span` of `file`, the first `leadIn` of which the
-/// preview drops, through one chain for each request of `levels`, bottom first.
+/// preview drops, through one chain for each request of `levels`, bottom first. The chain also
+/// reads `tail` frames past `span` and drops them, so a clipped run across the window end gets the
+/// fill of the render. `measure` is set when the lowest level holds a de-clip.
 struct PreviewWindow: Hashable, Sendable {
     let file: FileID
     let span: Range<Frames>
     let leadIn: Int
+    var tail = 0
     let levels: [ClipRenderRequest]
+    var measure: PreviewMeasure?
 }
 
 /// The window of a preview of `request` on `clip` (decision 0054). The levels are those of
@@ -22,7 +35,7 @@ struct PreviewWindow: Hashable, Sendable {
 /// so a preview never stacks; else the clip file. The window is 10 s long, or the whole clip when
 /// the clip is shorter. It starts at `playhead` when it is inside the clip, else at the clip start,
 /// and moves back when it would pass the clip end. It reads up to 1 s of lead-in before the start,
-/// to the file start.
+/// to the file start, and up to 1 s of tail past the end, to the end of the clip run.
 func previewWindow(
     of clip: ClipID, request: ClipRenderRequest, playhead: Frames, in session: Session
 ) throws(SessionError) -> PreviewWindow {
@@ -40,22 +53,35 @@ func previewWindow(
     let start = Frames(min(wanted.count, (lowered.offset + lowered.length).count - length))
     let end = start + Frames(length)
     let leadIn = min(start.count, rate)
-    return PreviewWindow(file: lowered.file, span: (start - Frames(leadIn))..<end, leadIn: leadIn, levels: levels)
+    let run = try source.clipRuns(of: [clip]).first { $0.clips.contains(clip) }?.span ?? end..<end
+    let lowest = levels[0].treatment
+    return PreviewWindow(
+        file: lowered.file, span: (start - Frames(leadIn))..<end, leadIn: leadIn,
+        tail: min(rate, max(0, (run.upperBound - end).count)), levels: levels,
+        measure: lowest.declip.map {
+            PreviewMeasure(file: lowered.file, run: run, declip: $0.percent, rumble: lowest.rumble?.hertz)
+        })
 }
 
 /// The two loops of a window, each in two channels: a mono window plays in both.
 struct PreviewAudio: Sendable {
     let result: [[Float]]
     let removed: [[Float]]
+    /// The measure of the de-clip that the render used, for the caller to keep.
+    var measure: RepairMeasure?
 }
 
 /// Renders `window` of `session` in `package` into memory (decision 0054): a new chain for each
 /// level, bottom first, the lowest on the window of the file and each other one on the output of
 /// the level below. The Result drops the lead-in; the Removed Sound is the aligned input minus the
 /// Result. It writes no file, and it blocks: never call it on the main actor. `readFault` runs at
-/// the block reads of the window file, by the stem of that file (tests only).
+/// the block reads of the window file, by the stem of that file (tests only). A window with a
+/// `measure` runs step 2 of `RepairSetup` on its clip run unless `kept` holds the measure. Every
+/// block of every level is checked for a non-finite sample before the audio is given.
+/// `addedStage` runs after the post-stages of the last level (tests only).
 func renderPreview(
-    _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?, isCancelled: () -> Bool
+    _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?,
+    kept: RepairMeasure? = nil, addedStage: (any RenderStage)? = nil, isCancelled: () -> Bool
 ) throws(ClipRenderError) -> PreviewAudio {
     guard let file = session.files[window.file] else { throw .session(.unknownFile(window.file)) }
     let channels = file.layout.channelCount
@@ -70,26 +96,43 @@ func renderPreview(
     let span = AVAudioFramePosition(window.span.lowerBound.count)..<AVAudioFramePosition(window.span.upperBound.count)
     let format = opened.file.processingFormat
     let count = Int(span.upperBound - span.lowerBound)
-    guard Int(format.channelCount) == channels, format.sampleRate == rate, opened.file.length >= span.upperBound,
+    let read = span.lowerBound..<span.upperBound + AVAudioFramePosition(window.tail)
+    let stem = URL(filePath: file.path).deletingPathExtension().lastPathComponent
+    guard Int(format.channelCount) == channels, format.sampleRate == rate, opened.file.length >= read.upperBound,
         let input = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count))
     else { throw .sourceUnreadable(file: file.path, errno: EIO) }
-    var below: AVAudioPCMBuffer?
-    for level in window.levels {
-        // A de-clip needs the measure of the clip span, so the preview plays no de-clip.
-        let chain = try EffectChain(
-            level.treatment, scale: 1, rate: rate, channels: channels, component: .soundIsolation,
-            repair: try RepairSetup.unmeasured(level.treatment, rate: rate, channels: channels))
-        guard let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)) else {
-            throw .engine(status: kAudio_MemFullError)
+    var (below, measure): (AVAudioPCMBuffer?, RepairMeasure?) = (nil, kept)
+    for (index, level) in window.levels.enumerated() {
+        var setup: RepairSetup
+        if index == 0, let key = window.measure {
+            if measure == nil {
+                let run =
+                    AVAudioFramePosition(key.run.lowerBound.count)..<AVAudioFramePosition(key.run.upperBound.count)
+                measure = try repairSetup(
+                    span: run, of: opened.file, descriptor: opened.descriptor, treatment: level.treatment,
+                    file: file.path, stem: stem, readFault: readFault, isCancelled: isCancelled
+                ).measure
+            }
+            setup = try .measured(measure!, level.treatment, rate: rate, channels: channels)
+        } else {
+            setup = try .unmeasured(level.treatment, rate: rate, channels: channels)
         }
-        let sink = { (buffer: AVAudioPCMBuffer) throws(ClipRenderError) in append(buffer, to: output) }
+        if index == window.levels.count - 1, let addedStage { setup.post.append(addedStage) }
+        let chain = try EffectChain(
+            level.treatment, scale: setup.scale, rate: rate, channels: channels, component: .soundIsolation,
+            repair: setup)
+        guard let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count + window.tail))
+        else { throw .engine(status: kAudio_MemFullError) }
+        let sink = { (buffer: AVAudioPCMBuffer) throws(ClipRenderError) in
+            try RepairSetup.checkFinite(buffer, file: file.path)
+            append(buffer, to: output)
+        }
         if let below {
             _ = try chain.render(below, into: sink, isCancelled: isCancelled)
         } else {
             _ = try chain.render(
-                opened.file, descriptor: opened.descriptor, span: span, into: sink, file: file.path,
-                stem: URL(filePath: file.path).deletingPathExtension().lastPathComponent, readFault: readFault,
-                isCancelled: isCancelled, rendered: { _ in })
+                opened.file, descriptor: opened.descriptor, span: read, into: sink, file: file.path, stem: stem,
+                readFault: readFault, isCancelled: isCancelled, rendered: { _ in })
         }
         below = output
     }
@@ -97,7 +140,7 @@ func renderPreview(
     do { try opened.file.read(into: input, frameCount: AVAudioFrameCount(count)) } catch {
         throw .sourceUnreadable(file: file.path, errno: ioErrno(of: error, file: opened.descriptor) ?? EIO)
     }
-    guard let below, Int(below.frameLength) == count, Int(input.frameLength) == count else {
+    guard let below, Int(below.frameLength) == count + window.tail, Int(input.frameLength) == count else {
         throw .sourceUnreadable(file: file.path, errno: EIO)
     }
     let frames = count - window.leadIn
@@ -109,7 +152,7 @@ func renderPreview(
         result.append(Array(rendered))
         removed.append(vDSP.subtract(source, rendered))
     }
-    return PreviewAudio(result: result, removed: removed)
+    return PreviewAudio(result: result, removed: removed, measure: window.measure == nil ? nil : measure)
 }
 
 /// Appends the frames of `buffer` to `output`. The render gives at most the frames of its span.
@@ -145,21 +188,28 @@ actor EffectPreview {
     private let rate: Int
     private let start: @Sendable (AVAudioEngine) throws -> Void
     private let readFault: ReadFault?
+    /// Makes the stage that runs after the last level (tests only).
+    private let addedStage: (@Sendable () -> any RenderStage)?
     /// Gets the number of the newest call when a configuration change of the engine stops the loop.
     private let ended: @Sendable (Int) -> Void
     private(set) var graph: Graph?
     private var observer: Player.Observer?
     /// The window that the node loops, and its audio.
     private var shown: (window: PreviewWindow, audio: PreviewAudio)?
-    /// Tests only: the windows that a render made.
+    /// The last measure of a de-clip with its key. A file never changes under its ID, so the key
+    /// holds the values that the measure depends on.
+    private var kept: (key: PreviewMeasure, measure: RepairMeasure)?
+    /// Tests only: the windows that a render made, and the measures that a render ran.
     private(set) var windows = 0
+    private(set) var measures = 0
 
     /// Stores values only. The engine is made at the first play.
     init(
         package: @escaping @Sendable () throws(SessionFileError) -> URL, output: Player.Output, rate: Int,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }, readFault: ReadFault? = nil,
-        ended: @escaping @Sendable (Int) -> Void
+        addedStage: (@Sendable () -> any RenderStage)? = nil, ended: @escaping @Sendable (Int) -> Void
     ) {
+        self.addedStage = addedStage
         self.package = package
         self.output = output
         self.rate = rate
@@ -198,14 +248,20 @@ actor EffectPreview {
         if audio == nil {
             let url: URL
             do throws(SessionFileError) { url = try package() } catch { throw .file(error) }
+            let known = kept.flatMap { $0.key == window.measure ? $0.measure : nil }
             let made = await renderOffActor(
-                window, of: session, in: url, readFault: readFault, latest: latest, number: number)
+                window, of: session, in: url, readFault: readFault, kept: known, addedStage: addedStage,
+                latest: latest, number: number)
             switch made {
             case .success(let made): audio = made
             case .failure(.cancelled): return false
             case .failure(let error): throw .clipRender(error)
             }
             windows += 1
+            if known == nil, let key = window.measure, let measure = audio?.measure {
+                kept = (key, measure)
+                measures += 1
+            }
         }
         guard isNewest(number), let audio else { return false }
         shown = (window, audio)
@@ -315,15 +371,15 @@ actor EffectPreview {
 /// `renderPreview` on a user-initiated GCD thread, off the actor, as `renderOffMain` runs a clip
 /// render on a utility thread. It ends at the next block when `latest` is no longer `number`.
 @concurrent nonisolated private func renderOffActor(
-    _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?,
-    latest: OSAllocatedUnfairLock<Int>, number: Int
+    _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?, kept: RepairMeasure?,
+    addedStage: (@Sendable () -> any RenderStage)?, latest: OSAllocatedUnfairLock<Int>, number: Int
 ) async -> Result<PreviewAudio, ClipRenderError> {
     await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
             dispatchPrecondition(condition: .notOnQueue(.main))
             do throws(ClipRenderError) {
                 let audio = try renderPreview(
-                    window, of: session, in: package, readFault: readFault,
+                    window, of: session, in: package, readFault: readFault, kept: kept, addedStage: addedStage?(),
                     isCancelled: { latest.withLock { $0 } != number })
                 continuation.resume(returning: .success(audio))
             } catch {

@@ -115,8 +115,9 @@ private func append(_ buffer: AVAudioPCMBuffer, to output: AVAudioPCMBuffer) {
 }
 
 /// Loops the preview of a clip render (decision 0054): one `AVAudioEngine` with one
-/// `AVAudioPlayerNode`, on the system default output or in offline manual rendering, as the
-/// Player. An actor, so the engine work never runs on the main actor. The node plays the window
+/// `AVAudioPlayerNode`, on the system default output or in offline manual rendering. Only a test
+/// pulls the offline engine: with the paced output, the loop plays no frame and opens no device.
+/// An actor, so the engine work never runs on the main actor. The node plays the window
 /// with `.loops`. When a new window is ready, the node stops and plays it from its first frame in
 /// one turn of the actor, so the old loop plays until then and the new loop starts aligned with
 /// the window. No completion handler and no render block of this type runs on the audio

@@ -253,7 +253,6 @@ extension SessionWindow {
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
         case .renameTrack:
-            if transcriptFollow.pane?.returnInHeader() == true { return }
             // The first track that the headers show as selected; a clip set picks no track.
             guard let track = timeline.selection.headerTracks(in: studio.session).first else { return beep() }
             startRename(track)

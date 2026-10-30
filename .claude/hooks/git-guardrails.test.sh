@@ -98,12 +98,39 @@ expect block 'git commit -F "$HOME/repo/.scratchpads/commit-msg.txt"'
 expect block 'git commit --file ../wt/.scratchpads/notes.txt'
 expect block 'git commit -F /tmp/commit-msg.txt'
 expect allow 'git commit --file=.scratchpads/commit-msg.txt'
-expect allow 'git commit -F "/tmp/release notes.txt"'
 expect allow 'git commit -m "read .scratchpads/commit-msg.txt"'
-# Only the -F of the commit counts: a later -F of another command neither hides a wrong path nor
-# blocks a right one.
+# The message path is an allow list: only .scratchpads/commit-msg.txt and - (stdin) pass, so a path
+# in the run folder, the temp folder, or the tree of another run blocks (AGT-058).
+expect block 'git commit -F "/tmp/release notes.txt"'
+expect block 'git commit -q -F $R/logs/s4-msg.txt'
+expect block 'git commit -F msg.txt'
+expect block 'git commit --file=notes/msg.txt'
+expect block 'git -C ../tree commit -F msg.txt'
+expect block 'git commit -F ""'
+expect block 'git commit -F " msg.txt"'
+expect block 'git commit -F ./.scratchpads/commit-msg.txt'
+expect allow 'git commit -F .scratchpads/commit-msg.txt'
+expect allow 'git commit -aF .scratchpads/commit-msg.txt'
+expect allow 'git commit -F ".scratchpads/commit-msg.txt"'
+expect allow "git commit -F '.scratchpads/commit-msg.txt'"
+expect allow $'git commit -F - <<\'EOF\'\nfix: a thing\nEOF'
+# A short-option cluster that ends in F, an attached value, and the prefix --fil are message-file
+# options too.
+expect block 'git commit -aF msg.txt'
+expect block 'git commit -qF msg.txt'
+expect block 'git commit --fil=msg.txt'
+expect block 'git commit --file msg.txt'
+expect block 'git commit -Fmsg.txt'
+# A grep for the text "git commit -F" runs no commit: the lone quote is the end of the quoted text.
+expect allow "rg -n 'git commit -F' .claude"
+expect allow 'rg -n "git commit -F" .claude'
+# git reads the last message-file option, so a commit with two blocks.
+expect block 'git commit -F .scratchpads/commit-msg.txt -F msg.txt'
+expect block 'git commit -F .scratchpads/commit-msg.txt --file=msg.txt'
+# The word then is no separator, so a later -F is a second option of the commit. A real separator
+# ends the commit (below).
 expect block 'git commit -F ../main/.scratchpads/commit-msg.txt then rg -F foo bar'
-expect allow 'git commit -F .scratchpads/commit-msg.txt then rg -F .scratchpads/runs/x/rows .gitignore'
+expect block 'git commit -F .scratchpads/commit-msg.txt then rg -F .scratchpads/runs/x/rows .gitignore'
 expect block 'git commit -F ../other/.scratchpads/commit-msg.txt then git commit -F .scratchpads/commit-msg.txt'
 # The commit ends at the first command separator, so a commit with no -F does not take the -F of a
 # later command.
@@ -261,8 +288,8 @@ got="$(printf '{"tool_input":{"command":"git reset --hard"}}' | "$hook" 2>&1)"
   { echo "FAIL: another block message lost its Write tool line: $got"; failures=$((failures + 1)); }
 # One segment of a chained command must not match a pattern with a word of the next segment.
 expect allow 'git push -u origin feat/x && gh pr create --base main --title x'
-expect allow 'git commit -F msg.txt; sed -n 1p file'
-expect allow 'git commit -F msg.txt && sed -n 1p file'
+expect allow 'git commit -F .scratchpads/commit-msg.txt; sed -n 1p file'
+expect allow 'git commit -F .scratchpads/commit-msg.txt && sed -n 1p file'
 expect allow 'git push -u origin feat/x || gh pr view --json baseRefName | grep main'
 
 # A commit in one command with make check runs only after a green check: only && joins them.
@@ -271,13 +298,13 @@ expect block 'make check || true && git commit -m "x"'
 expect block 'make check | tail -3 && git commit -m "x"'
 expect block $'make check\ngit commit -m "x"'
 expect allow 'make check && git commit -m "x"'
-expect allow 'git add a && make check > log 2>&1 && grep -c ok log && git commit -F msg.txt'
+expect allow 'git add a && make check > log 2>&1 && grep -c ok log && git commit -F .scratchpads/commit-msg.txt'
 expect allow $'make check > log 2>&1 \\\n  && git commit -m "x"'
 # The regex matches make check as a prefix, so make check-changed gets the same rule.
 expect block 'make check-changed; git commit -m "x"'
 expect allow 'make check-changed > log 2>&1 && git commit -m "x"'
 # The inner-commit check of a slice: FILTER is test names with spaces between them.
-expect allow "make check-changed FILTER='ClipTests TrackTests' > log 2>&1 && git commit -F m.txt"
+expect allow "make check-changed FILTER='ClipTests TrackTests' > log 2>&1 && git commit -F .scratchpads/commit-msg.txt"
 # Only the check-changed recipe writes the pass stamp. A direct write skips the land check.
 expect block 'echo abc >> .git/dirigible-check-stamp'
 expect block 'cp x "$(git rev-parse --git-path dirigible-check-stamp)"'
@@ -1283,9 +1310,8 @@ ok = any(e.get("matcher") == "Agent|SendMessage|mcp__t3-code__delegate_task"
 sys.exit(0 if ok else 1)
 ' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register agent-guard.sh for Agent, SendMessage, and delegate_task"; failures=$((failures + 1)); }
 
-# A brief with a git commit -F or --file path of a commit-msg.txt or a .scratchpads/ file other
-# than .scratchpads/commit-msg.txt blocks, in the field of each tool. A placeholder, another file
-# name, and the correct path in backticks or before a ; or . pass.
+# A brief with a git commit -F or --file path other than .scratchpads/commit-msg.txt blocks, in the field of each tool. The correct path (also in
+# backticks or before a ; or .), - (stdin), and text with no path pass.
 # expect_brief <want> <tool name, or - for none> <field> <text> [isolation]
 expect_brief() {
   local want="$1" got
@@ -1317,11 +1343,21 @@ expect_brief allow Agent prompt 'Run git commit -m fix && rg -F .scratchpads/run
 expect_brief block Agent prompt 'Run git commit -m "fix; thing" -F ../main/.scratchpads/commit-msg.txt'
 expect_brief block mcp__t3-code__delegate_task task 'git commit -F /abs/.scratchpads/commit-msg.txt'
 expect_brief block - prompt 'git commit -F .scratchpads/runs/x/commit-msg.txt'
+# Any other path blocks, also a placeholder (the agent would commit with the file of the run folder).
+for text in 'git commit -F <file>' 'git commit -F <file in the run folder>' 'git commit -F <msgfile>' 'git commit -F RUN/msg-3a.txt' \
+  'git commit -F msg.txt' 'git commit --file=msg.txt' 'Commit with git commit -F $R/logs/s4-msg.txt.' \
+  'Commit with git commit -F $R/logs/x.txt.' 'Commit with git commit -aF msg.txt.' \
+  'Run git -C /x/wt commit -F .scratchpads/runs/x/msg.txt at the end.' 'Run git -C ../wt commit -F msg.txt at the end.' \
+  'Commit with git commit -F .scratchpads/commit-msg.txt -F msg.txt at the end.' 'Commit with git commit -F "" at the end.' \
+  'Commit with git commit -F " msg.txt" at the end.'; do
+  expect_brief block Agent prompt "$text"
+done
 for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scratchpads/commit-msg.txt' \
   'Run `git commit -F .scratchpads/commit-msg.txt`; never commit a .scratchpads file.' \
   'Commit with `git commit -F .scratchpads/commit-msg.txt`.' 'Use `git commit -F` with the message file.' \
-  'git commit -F <file>' 'git commit -F <file in the run folder>' 'git commit -F <msgfile>' 'git commit -F RUN/msg-3a.txt' \
-  'git commit -F msg.txt' 'git commit --file=msg.txt' 'Read run.md and continue at S6.'; do
+  'Commit with git commit -aF .scratchpads/commit-msg.txt.' 'Commit with git commit -F ".scratchpads/commit-msg.txt" at the end.' \
+  'Run git -C /x/wt commit -F .scratchpads/commit-msg.txt at the end.' 'Commit with git commit -F - and a heredoc.' \
+  "Find the old text with rg -n 'git commit -F' .claude first." 'Read run.md and continue at S6.'; do
   expect_brief allow Agent prompt "$text"
 done
 expect_brief allow SendMessage message 'git commit -F .scratchpads/commit-msg.txt, then hand back.'

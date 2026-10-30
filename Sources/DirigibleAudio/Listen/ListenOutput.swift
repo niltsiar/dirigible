@@ -26,9 +26,9 @@ struct ListenOutput: Sendable {
     /// The default output of `offline`: no test device has this ID, so it is never a loopback.
     static let offlineOutput: AudioObjectID = 999
 
-    /// For tests: no unit and no HAL call. The flag is `speakers`, stored through the same
-    /// refresh, and the pull is 512 frames. With `startFails`, each start throws. A test renders
-    /// with `ring.pull`.
+    /// For tests and `DIRIGIBLE_AUDIO_OUTPUT=none`: no unit and no HAL call. The flag is
+    /// `speakers`, stored through the same refresh, and the pull is 512 frames. With `startFails`,
+    /// each start throws. A test renders with `ring.pull`.
     static func offline(speakers: Bool = false, startFails: Bool = false) -> ListenOutput {
         ListenOutput(
             watch: {

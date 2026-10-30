@@ -3,8 +3,8 @@ import os
 
 /// The hint of decision 0004: the packages whose `session.xml` has `<recording>`, so that the app
 /// can open them again at launch. `session.xml` stays the truth. The file is a plist array of
-/// paths in `packageIdentity` form. One lock for the process and the file lock
-/// `active-recordings.lock` beside the list guard each read-modify-write, and each write is atomic.
+/// paths in `packageIdentity` form. A lock in the process and the file lock `active-recordings.lock`
+/// beside the list guard each read-modify-write, and each write is atomic.
 /// A wait for the file lock stops after 1 s, and the write goes on with no file lock. A file error
 /// is logged, not thrown: a lost hint loses only the reopen at launch. Every call runs off the main
 /// actor, so the main actor never waits on the lock.

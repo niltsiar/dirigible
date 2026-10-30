@@ -20,8 +20,9 @@ struct RepairSheetTests {
         return defaults
     }
 
-    /// C13: the first open has the three boxes off with the standard values; after a Repair press the
-    /// next open has the last values. Fail: boxes that start on, and values that the press forgot.
+    /// C13 and council D1: the first open has the three boxes off with the standard values; after a
+    /// Repair press with boxes on, the next open has every box off and the last slider values. Fail:
+    /// a box that starts on, and a slider value that the press forgot.
     @Test func defaultsAndLastValues() throws {
         let defaults = try defaults()
         let first = draft(defaults: defaults)
@@ -29,13 +30,13 @@ struct RepairSheetTests {
         #expect(first.rumbleHertz == 80 && first.deessDecibels == 10 && first.deessHertz == 6_000, "\(first)")
 
         var changed = first
-        (changed.rumble, changed.rumbleHertz, changed.deess, changed.deessDecibels, changed.deessHertz) =
-            (true, 120, true, 15, 7_000)
+        (changed.declip, changed.rumble, changed.deess) = (true, true, true)
+        (changed.rumbleHertz, changed.deessDecibels, changed.deessHertz) = (120, 15, 7_000)
         changed.remember(in: defaults)
 
         let second = draft(defaults: defaults)
-        #expect(!second.declip && second.rumble && second.rumbleHertz == 120, "\(second)")
-        #expect(second.deess && second.deessDecibels == 15 && second.deessHertz == 7_000, "\(second)")
+        #expect(!second.declip && !second.rumble && !second.deess, "\(second)")
+        #expect(second.rumbleHertz == 120 && second.deessDecibels == 15 && second.deessHertz == 7_000, "\(second)")
     }
 
     /// C13: with no box on, Repair is off and the reason is "Turn on at least one repair."; with a

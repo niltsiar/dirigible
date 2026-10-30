@@ -3,14 +3,11 @@ import DirigibleCore
 import SwiftUI
 
 /// The values of the Repair Sound sheet (decision 0064): the three repairs in chain order, each
-/// with a check box that starts off, and the clips of the selection. The values start at the last
-/// Repair press, else at the standard values. The corner sliders stop at the highest whole Hz that
+/// with a check box that starts off, and the clips of the selection. The sliders start at the values
+/// of the last Repair press, else at the standard values. The corner sliders stop at the highest whole Hz that
 /// the session rate takes (C19), so a value of the sheet is never refused by the render.
 struct RepairDraft: Equatable {
-    static let declipKey = "repair.declip"
-    static let rumbleKey = "repair.rumble"
     static let rumbleHertzKey = "repair.rumbleHz"
-    static let deessKey = "repair.deess"
     static let deessDecibelsKey = "repair.deessDb"
     static let deessHertzKey = "repair.deessHz"
 
@@ -30,10 +27,10 @@ struct RepairDraft: Equatable {
     /// The clips of the selection by the rule of Auto Level (decision 0031), whatever their role.
     let clips: [ClipID]
     let sampleRate: Int
-    var declip: Bool
-    var rumble: Bool
+    var declip = false
+    var rumble = false
     var rumbleHertz: Int
-    var deess: Bool
+    var deess = false
     var deessDecibels: Int
     var deessHertz: Int
     /// True when the More group of the de-ess row shows; it starts collapsed.
@@ -43,21 +40,14 @@ struct RepairDraft: Equatable {
 
     init(clips: [ClipID], sampleRate: Int, defaults: UserDefaults?) {
         (self.clips, self.sampleRate) = (clips, sampleRate)
-        declip = defaults?.object(forKey: Self.declipKey) as? Bool ?? false
-        rumble = defaults?.object(forKey: Self.rumbleKey) as? Bool ?? false
         rumbleHertz =
             (defaults?.object(forKey: Self.rumbleHertzKey) as? Int).flatMap(Rumble.init(hertz:))?.hertz
             ?? Rumble.standard.hertz
-        deess = defaults?.object(forKey: Self.deessKey) as? Bool ?? false
         deessDecibels =
             (defaults?.object(forKey: Self.deessDecibelsKey) as? Int)
             .flatMap { DeEss(hertz: DeEss.standard.hertz, decibels: $0) }?.decibels ?? DeEss.standard.decibels
         deessHertz = defaults?.object(forKey: Self.deessHertzKey) as? Int ?? DeEss.standard.hertz
-        if let top = rumbleMax {
-            rumbleHertz = min(max(rumbleHertz, Rumble.range.lowerBound), top)
-        } else {
-            rumble = false
-        }
+        if let top = rumbleMax { rumbleHertz = min(max(rumbleHertz, Rumble.range.lowerBound), top) }
         if let top = frequencyMax {
             deessHertz = min(max(deessHertz, DeEss.hertzRange.lowerBound), top)
         } else {
@@ -109,10 +99,7 @@ struct RepairDraft: Equatable {
     var previewClip: ClipID? { treatment == nil ? nil : clips.first }
 
     func remember(in defaults: UserDefaults?) {
-        defaults?.set(declip, forKey: Self.declipKey)
-        defaults?.set(rumble, forKey: Self.rumbleKey)
         defaults?.set(rumbleHertz, forKey: Self.rumbleHertzKey)
-        defaults?.set(deess, forKey: Self.deessKey)
         defaults?.set(deessDecibels, forKey: Self.deessDecibelsKey)
         defaults?.set(deessHertz, forKey: Self.deessHertzKey)
     }

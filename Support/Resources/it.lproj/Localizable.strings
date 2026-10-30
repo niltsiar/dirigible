@@ -624,6 +624,7 @@
 "transcript.empty.hint" = "Importa un file JSON di Whisper, WebVTT o SRT per una traccia.";
 "transcript.follow" = "Segui la testina";
 "transcript.gotoword" = "Vai alla parola";
+"transcript.selected" = "Parole selezionate: %lld";
 "panel.transcript.track" = "Traccia:";
 "alert.transcript.badfile" = "%@ non è un file JSON di Whisper, WebVTT o SRT con parole temporizzate. La sessione non è cambiata.";
 "alert.transcript.take" = "La trascrizione non è stata importata perché è iniziato un take.";

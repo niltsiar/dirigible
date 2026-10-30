@@ -624,6 +624,7 @@
 "transcript.empty.hint" = "Importe um ficheiro JSON do Whisper, WebVTT ou SRT para uma faixa.";
 "transcript.follow" = "Seguir o cursor";
 "transcript.gotoword" = "Ir para a palavra";
+"transcript.selected" = "Palavras selecionadas: %lld";
 "panel.transcript.track" = "Faixa:";
 "alert.transcript.badfile" = "%@ não é um ficheiro JSON do Whisper, WebVTT ou SRT com palavras temporizadas. A sessão não foi alterada.";
 "alert.transcript.take" = "A transcrição não foi importada, porque começou um excerto.";

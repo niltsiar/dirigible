@@ -47,6 +47,17 @@ final class TranscriptTextView: NSTextView {
     }
     /// The focus came before the build of its revision: the apply puts the insertion point.
     private var caretPending = false
+    /// The pasteboard of the text of Copy and Cut (P16). A test sets its own.
+    var pasteboard = NSPasteboard.general
+    /// The word count of the last key move, as VoiceOver says it (P7).
+    var announced: Int?
+    /// The timeline selection that the pane wrote last, and the one that it shows (P9).
+    var wrote: Selection?
+    var shownSelection: Selection?
+    /// True while the pane sets its own selection: it writes no timeline selection then.
+    var selfSelecting = false
+    /// The unit boundaries of the last key move and the selection that it made (P8).
+    var moveEnds: (anchor: Int, active: Int, range: NSRange)?
 
     /// Builds the text for `session` off the main actor when `revision` is new (P13), then applies it.
     func update(session: Session, revision: Int) {
@@ -84,10 +95,15 @@ final class TranscriptTextView: NSTextView {
         replacements += 1
         // A replace in a storage that holds text inserts each attribute run apart (290 ms at 27 000
         // units, P13); an insert into an empty storage takes 7 ms.
+        selfSelecting = true
         storage.beginEditing()
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: "")
         storage.append(built.attributed)
         storage.endEditing()
+        selfSelecting = false
+        wrote = nil
+        moveEnds = nil
+        tint()
         if let frame = markedFrame { marked = built.shown.text.units(at: frame).map(\.text) }
         placeUnderlines()
         restoreScroll()
@@ -200,14 +216,18 @@ final class TranscriptTextView: NSTextView {
         return layer
     }
 
+    /// The text range `range` of the value, as a range of the layout manager.
+    func textRange(of range: Range<Int>) -> NSTextRange? {
+        guard let manager = textLayoutManager, let content = manager.textContentManager,
+            let start = content.location(manager.documentRange.location, offsetBy: noticeLength + range.lowerBound),
+            let end = content.location(start, offsetBy: range.count)
+        else { return nil }
+        return NSTextRange(location: start, end: end)
+    }
+
     /// The line fragments of the text range `range` of the value, in the coordinates of the view.
     func segmentFrames(of range: Range<Int>) -> [CGRect] {
-        guard let manager = textLayoutManager, let content = manager.textContentManager else { return [] }
-        let offset = noticeLength + range.lowerBound
-        guard let start = content.location(manager.documentRange.location, offsetBy: offset),
-            let end = content.location(start, offsetBy: range.count),
-            let span = NSTextRange(location: start, end: end)
-        else { return [] }
+        guard let manager = textLayoutManager, let span = textRange(of: range) else { return [] }
         var found: [CGRect] = []
         manager.enumerateTextSegments(in: span, type: .standard, options: []) { _, frame, _, _ in
             found.append(frame.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y))
@@ -272,10 +292,8 @@ final class TranscriptTextView: NSTextView {
     }
 
     // The Edit items send their selector to the first responder (probes E2, E3), so a read-only
-    // text view runs the window command (P14, P10).
+    // text view runs the window command (P14, P10). Copy and Cut are in TranscriptPane+Selection.
     override func selectAll(_ sender: Any?) { model?.run(.selectAll) }
-    override func copy(_ sender: Any?) { model?.run(.copy) }
-    override func cut(_ sender: Any?) { model?.run(.cut) }
     override func paste(_ sender: Any?) { model?.run(.paste) }
     override func delete(_ sender: Any?) { model?.run(.deleteCloseGap) }
 }
@@ -291,10 +309,11 @@ struct TranscriptPane: View {
         } else {
             VStack(spacing: 0) {
                 followToggle
-                // Both values are read here, so a new revision or a focus request runs `updateNSView`.
+                // The values are read here, so a new revision, a focus request, or a timeline change
+                // runs `updateNSView`.
                 TranscriptPaneText(
                     model: model, studio: studio, revision: studio.sessionRevision,
-                    wantsFocus: model.transcriptFollow.focusRequest
+                    wantsFocus: model.transcriptFollow.focusRequest, selection: model.timeline.selection
                 )
                 .accessibilityIdentifier("transcript.pane")
             }
@@ -333,6 +352,7 @@ private struct TranscriptPaneText: NSViewRepresentable {
     let studio: Studio
     let revision: Int
     let wantsFocus: Bool
+    let selection: Selection
 
     func makeNSView(context: Context) -> NSScrollView { TranscriptTextView.scrollView() }
 
@@ -341,6 +361,7 @@ private struct TranscriptPaneText: NSViewRepresentable {
         text.model = model
         model.transcriptFollow.pane = text
         text.update(session: studio.session, revision: revision)
+        text.show(selection)
         if wantsFocus { Task { @MainActor [weak text] in text?.takeFocus() } }
     }
 }

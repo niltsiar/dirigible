@@ -57,6 +57,8 @@ extension TranscriptPaneTests {
         window.setFrame(NSRect(x: 100, y: 100, width: 1400, height: 800), display: true)
         model.showTranscript()
         let pane = try await waitForPane(window)
+        // Copy and Cut in the pane write the words: never to the clipboard of the user (P16).
+        pane.pasteboard = NSPasteboard.withUniqueName()
         window.contentView?.layoutSubtreeIfNeeded()
         model.timeline.scale = TimelineScale(framesPerPoint: 1_000)
         model.timeline.selection = .range(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
@@ -74,6 +76,8 @@ extension TranscriptPaneTests {
 
     /// Delete runs Delete and Close Gap in the pane (P10).
     static let paneExceptions: Set<TimelineCommand> = [.delete]
+    /// Shift-Left and Shift-Right move the end of the pane selection (P8).
+    static let paneTransportExceptions: [TransportCommand] = [.seek(.previousClip), .seek(.nextClip)]
 
     /// The keys of the table, each with its name and the call of its menu action.
     var keyTable: [(name: String, send: (NSEvent, NSWindow) -> Void)] {
@@ -88,7 +92,8 @@ extension TranscriptPaneTests {
                 }
             )
         }
-        let transport = TransportMenu.groups.joined().map { item in
+        let transport = TransportMenu.groups.joined().filter { !Self.paneTransportExceptions.contains($0.command) }.map
+        { item in
             (
                 name: "\(item.command)",
                 send: { (event: NSEvent, window: NSWindow) in

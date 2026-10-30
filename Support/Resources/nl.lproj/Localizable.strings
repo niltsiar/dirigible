@@ -624,6 +624,7 @@
 "transcript.empty.hint" = "Importeer een Whisper-JSON-, WebVTT- of SRT-bestand voor een spoor.";
 "transcript.follow" = "Volg afspeelkop";
 "transcript.gotoword" = "Ga naar woord";
+"transcript.selected" = "Geselecteerde woorden: %lld";
 "panel.transcript.track" = "Spoor:";
 "alert.transcript.badfile" = "%@ is geen Whisper-JSON-, WebVTT- of SRT-bestand met woorden met tijden. De sessie is niet gewijzigd.";
 "alert.transcript.take" = "Het transcript is niet geïmporteerd, omdat een take begon.";

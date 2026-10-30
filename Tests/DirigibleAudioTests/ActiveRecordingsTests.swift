@@ -152,28 +152,23 @@ struct ActiveRecordingsTests {
         try PropertyListDecoder().decode([String].self, from: Data(contentsOf: list.file))
     }
 
-    /// Runs `set` on a dispatch thread, so a waiting `set` holds no thread of the pool. The result
-    /// is the time that `set` took, once it ended.
-    func startSet() -> OSAllocatedUnfairLock<Duration?> {
+    /// Runs `set` of `package` (default: the test package) on a dispatch thread, so a waiting `set`
+    /// holds no thread of the pool. The result is the time that `set` took, once it ended.
+    func startSet(_ package: URL? = nil, active: Bool = true) -> OSAllocatedUnfairLock<Duration?> {
         let took = OSAllocatedUnfairLock<Duration?>(initialState: nil)
-        let (list, package) = (list, packageIdentity(url))
+        let (list, package) = (list, package ?? packageIdentity(url))
         DispatchQueue.global().async {
             let start = ContinuousClock.now
-            list.set(package, active: true)
+            list.set(package, active: active)
             took.withLock { $0 = ContinuousClock.now - start }
         }
         return took
     }
 
-    /// Runs `set` on a dispatch thread and returns when it ends.
+    /// Runs `set` on a dispatch thread and returns when it ends, or after the hang guard of 10 s.
     func setOffMain(active: Bool) async {
-        let (list, package) = (list, packageIdentity(url))
-        await withCheckedContinuation { done in
-            DispatchQueue.global().async {
-                list.set(package, active: active)
-                done.resume()
-            }
-        }
+        let took = startSet(active: active)
+        await until(limit: .seconds(10), "the set ended") { took.withLock { $0 } != nil }
     }
 
     /// What `holdDuringSet` saw while it held the lock of another process.
@@ -238,17 +233,46 @@ struct ActiveRecordingsTests {
         #expect(info.st_ino == first, "the lock file is the same file after the second write")
     }
 
-    @Test func aSetWithNoChangeReleasesTheLock() async throws {
+    /// C4b: a set with no change takes no lock and makes no lock file, and a set with a change
+    /// leaves the lock free. Each wait has the hang guard of 10 s.
+    @Test func aSetWithNoChangeTakesNoLock() async throws {
         func probe() -> Bool {
             let descriptor = open(lockPath, O_RDWR | O_CREAT | O_CLOEXEC | O_EXLOCK | O_NONBLOCK, 0o644)
             defer { if descriptor >= 0 { close(descriptor) } }
             return descriptor >= 0
         }
         await setOffMain(active: false)
-        try #require(FileManager.default.fileExists(atPath: lockPath), "the set took the lock file")
-        #expect(probe(), "a set with no change leaves the lock free")
+        #expect(!FileManager.default.fileExists(atPath: lockPath), "a set with no change makes no lock file")
         await setOffMain(active: true)
         #expect(probe(), "a set with a change leaves the lock free")
+        #expect(try onDisk() == [other, entry])
+    }
+
+    @Test func aSetWithNoChangeDoesNotWaitForTheLock() async throws {
+        let held = try holdLock()
+        defer { close(held) }
+        let took = startSet(active: false)
+
+        await until(limit: .seconds(10), "the set with no change ended") { took.withLock { $0 } != nil }
+        let waited = try #require(took.withLock { $0 })
+        #expect(waited < .milliseconds(500), "the set with no change waited \(waited)")
+    }
+
+    /// C4c: a second set does not wait for the first set and then for the lock: each call waits at
+    /// most 1 s in all.
+    @Test func twoSetsWaitAtMostOneSecondEach() async throws {
+        let held = try holdLock()
+        defer { close(held) }
+        let first = startSet()
+        let second = startSet(packageIdentity(folder.url.appending(path: "Second.dirigible")))
+
+        await until(limit: .seconds(10), "both sets ended") {
+            first.withLock { $0 } != nil && second.withLock { $0 } != nil
+        }
+        for took in [first, second] {
+            let waited = try #require(took.withLock { $0 })
+            #expect(waited < .milliseconds(1_500), "a set waited \(waited)")
+        }
     }
 
     @Test func setStopsWaitingAfterOneSecond() async throws {

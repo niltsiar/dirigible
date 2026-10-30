@@ -40,6 +40,9 @@ final class TranscriptTextView: NSTextView {
     private(set) var builds = 0
     private(set) var replacements = 0
     private var focusPending = false
+    /// True while a build runs, and the revision that waits for it to end.
+    private var building = false
+    private var waiting: (session: Session, notices: [String], revision: Int)?
     /// The observers that the pane added while it shows in a window.
     private var observers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
     var observerCount: Int { observers.count }
@@ -69,14 +72,38 @@ final class TranscriptTextView: NSTextView {
     /// The unit boundaries of the last key move and the selection that it made (P8).
     var moveEnds: (anchor: Int, active: Int, range: NSRange)?
 
-    /// Builds the text for `session` off the main actor when `revision` is new (P13), then applies it.
+    /// Builds the text for `session` off the main actor when `revision` is new (P13), then applies
+    /// it. At most one build runs: a revision that arrives during a build waits, and replaces any
+    /// revision that waited before it.
     func update(session: Session, revision: Int) {
-        guard begin(revision: revision) else { return }
+        guard revision != (waiting?.revision ?? builtRevision) else { return }
         let notices = session.transcriptsNotLoaded.map { L10n.transcriptNotLoaded.format($0.id.number, $0.name) }
+        guard !building else {
+            waiting = (session, notices, revision)
+            return
+        }
+        start(session, notices: notices, revision: revision)
+    }
+
+    private func start(_ session: Session, notices: [String], revision: Int) {
+        guard begin(revision: revision) else { return }
+        building = true
         Task { [weak self] in
             let built = await Self.build(session, notices: notices, revision: revision)
-            self?.apply(built)
+            self?.finish(built)
         }
+    }
+
+    /// Ends a build. With a newer revision waiting, the result is stale: drop it and build the
+    /// newer revision. Else apply it.
+    private func finish(_ built: Built) {
+        building = false
+        if let next = waiting, next.revision != built.revision {
+            waiting = nil
+            return start(next.session, notices: next.notices, revision: next.revision)
+        }
+        waiting = nil
+        apply(built)
     }
 
     /// Counts a build for a new `revision`. False when the revision is the built one.

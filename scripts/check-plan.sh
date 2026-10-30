@@ -67,6 +67,10 @@
 #   lists slice IDs or a range `L2-S1 to L2-S3`, with backticks dropped; a colon after the ID of a
 #   `###` heading is dropped, and the `## Slices` heading may have a suffix. With no Slices column the
 #   rule reads each `- Check:` line of the plan. A run whose first decisions.tsv row is older than the rule is not checked.
+# - A round file review-plan-<n>.md or review-diff-<n>.md has no `## ` heading that starts with an
+#   item ID (`## G1:`, `## R2 (`, `## 3.`), also next to `## Act on`, and no `## Fix check` without
+#   a `## Act on` heading: each finding is a numbered item under `## Act on` or another verdict
+#   section. A round file older than the rule is not checked; a per-lens file is none.
 # It prints each failure and exits 1. scripts/check-plan.test.sh tests it.
 set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: scripts/check-plan.sh <run folder>" >&2; exit 2; }
@@ -400,10 +404,22 @@ fi
 cutoff=1791222684
 # 2026-10-09, the commit that added the nit rule (INT-042): an older review file keeps the nit exempt.
 nit_cutoff=1791510511
+# 2026-10-30, the commit that added the round file heading rule (INT-043): an older round file is not read by it.
+round_cutoff=1793398876
 for review in "$run"/review-*.md; do
     [[ -f "$review" ]] || continue
     mtime=$(stat -f %m "$review")
     ((mtime >= cutoff)) || continue
+    if [[ "${review##*/}" =~ ^review-(plan|diff)-[0-9]+\.md$ ]] && ((mtime >= round_cutoff)); then
+        while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" '
+            /^## / {
+                if ($0 ~ /^## ([A-Z]+[0-9]+[a-z]?|[0-9]+\.)([: (]|$)/)
+                    print file ": the heading \"" $0 "\" is an item; write each finding as a numbered item under ## Act on (lead-judgment.md)"
+                if ($0 ~ /^## Act on/) act = 1
+                if ($0 ~ /^## Fix check/) fix = 1
+            }
+            END { if (fix && !act) print file ": has ## Fix check and no ## Act on heading; write ## Act on with a numbered item for each finding, or None. (lead-judgment.md)" }' "$review")
+    fi
     while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) '
         # missing <what>: print each field that text does not have.
         function missing(what) {

@@ -12,7 +12,7 @@ extension TranscriptTextView {
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
         let spans = ranges.map(\.rangeValue)
         let (lower, upper) = (spans.map(\.location).min() ?? 0, spans.map(NSMaxRange).max() ?? 0)
-        guard !selfSelecting, upper > lower, let text = shown?.text, let session = model?.studio?.session else {
+        guard !selfSelecting, upper > lower, let text = currentText, let session = model?.studio?.session else {
             return super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
         }
         let value = max(0, lower - noticeLength)..<max(0, upper - noticeLength)
@@ -72,19 +72,19 @@ extension TranscriptTextView {
     func moveSelectionEnd(by step: Int) { moveEnd { $0 + step } }
 
     override func moveUpAndModifySelection(_ sender: Any?) {
-        guard let text = shown?.text else { return super.moveUpAndModifySelection(sender) }
+        guard let text = currentText else { return super.moveUpAndModifySelection(sender) }
         moveEnd { text.previousSentenceBoundary(before: $0) }
     }
 
     override func moveDownAndModifySelection(_ sender: Any?) {
-        guard let text = shown?.text else { return super.moveDownAndModifySelection(sender) }
+        guard let text = currentText else { return super.moveDownAndModifySelection(sender) }
         moveEnd { text.nextSentenceBoundary(after: $0) }
     }
 
     /// Moves the active end to the unit boundary that `move` gives, and says the word count. A
     /// move that leaves no unit puts the insertion point there and clears the range.
     private func moveEnd(_ move: (Int) -> Int) {
-        guard let text = shown?.text, !text.units.isEmpty else { return }
+        guard let text = currentText, !text.units.isEmpty else { return }
         let selected = selectedRange()
         let ends: (anchor: Int, active: Int)
         if let last = moveEnds, last.range == selected {
@@ -138,7 +138,7 @@ extension TranscriptTextView {
 
     /// The text of the units that the timeline range tints, or nil with no range or no such unit.
     private func rangeText() -> String? {
-        guard shownRevision == builtRevision, let text = shown?.text, let model, let session = model.studio?.session,
+        guard let text = currentText, let model, let session = model.studio?.session,
             let range = model.timeline.selection.marks?.selection(in: session)
         else { return nil }
         return text.copyText(range.range, tracks: Set(range.tracks))

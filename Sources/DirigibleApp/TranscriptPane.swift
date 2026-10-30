@@ -25,6 +25,12 @@ final class TranscriptTextView: NSTextView {
 
     weak var model: SessionWindow?
     private(set) var shown: Shown?
+    /// The shown text, only while it is of the current session revision. After an edit and before
+    /// the apply of the rebuild it is nil, so the pane writes no range and no seek from old text.
+    var currentText: TranscriptText? {
+        guard let revision = model?.studio?.sessionRevision, revision == shownRevision else { return nil }
+        return shown?.text
+    }
     /// The session revision of `shown`. The pane builds again only when it changes.
     private(set) var builtRevision: Int?
     /// The revision of the last applied build: equal to `builtRevision` when no build is pending.

@@ -14,7 +14,7 @@ extension TranscriptTextView {
     /// The unit that has a line fragment at `point`. The point past the end of a line gives the
     /// character before it, so the line fragment decides.
     private func unit(at point: NSPoint) -> TranscriptText.Unit? {
-        guard let text = shown?.text else { return nil }
+        guard let text = currentText else { return nil }
         let index = characterIndexForInsertion(at: point) - noticeLength
         return [index, index - 1].lazy.compactMap { text.unit(atTextLocation: $0) }
             .first { unit in segmentFrames(of: unit.text).contains { $0.contains(point) } }
@@ -65,7 +65,7 @@ extension TranscriptTextView {
     func returnInHeader() -> Bool {
         let selection = selectedRange()
         guard window?.firstResponder === self, selection.length == 0,
-            let text = shown?.text, selection.location >= noticeLength,
+            let text = currentText, selection.location >= noticeLength,
             let unit = text.headerUnit(atTextLocation: selection.location - noticeLength)
         else { return false }
         model?.transport(.seek(.frame(unit.frames.lowerBound)))

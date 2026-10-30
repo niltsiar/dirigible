@@ -10,7 +10,9 @@
 # Steps, in order:
 # 1. It prints `free before:` (df -k of the run folder volume).
 # 2. Each file of <worktree>/.scratchpads/ (ignored by git) moves to <run folder>/worktree-scratch/
-#    at the same relative path, with no overwrite. Then `git worktree remove` (no --force).
+#    at the same relative path, with no overwrite. When <worktree>/build/verify exists, it runs
+#    `<worktree>/scripts/verify-copy.sh stop` (a failure only prints a line). Then
+#    `git worktree remove` (no --force).
 # 3. The file step walks the run folder, with worktree-scratch/: it follows no symbolic link and
 #    moves or removes no link. It skips logs/ and the ledgers (run.md,
 #    decisions.tsv, analysis.md, plan.md, review-*.md, pr.md) at the top level. A *.dirigible
@@ -109,6 +111,9 @@ if [[ -n "$wt" ]]; then
             mkdir -p "$(dirname "$dest")"
             mv -n "$file" "$dest"
         done < <(find -P "$scratch" -type f -print0)
+    fi
+    if [[ -d "$wt/build/verify" ]]; then
+        "$wt/scripts/verify-copy.sh" stop || echo "teardown-run: verify-copy.sh stop exited $?; go on" >&2
     fi
     git -C "$main" worktree remove "$wt" || die 1 "git worktree remove $wt failed"
     echo "worktree removed: $wt"

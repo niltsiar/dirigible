@@ -80,6 +80,26 @@ extension TranscriptPaneTests {
         await model.close()
     }
 
+    /// P6: a take that records while the file parses gives the take alert; a level run gives the busy alert.
+    @Test func recordingDuringTheParseGivesTheTakeAlert() async throws {
+        let (model, studio, _, _) = try await open(try await package(spoken: false))
+        let file = try transcriptFile([(1, 1.5, "Hello")])
+        for (transport, expected) in [
+            (Studio.Transport.recording(take: 1), L10n.alertTranscriptTake),
+            (.finalizing(take: 1), L10n.alertTranscriptTake),
+            (.leveling, L10n.alertTranscriptBusy),
+        ] {
+            model.alert = nil
+            model.importTranscript(from: file, track: "t1")
+            studio.transport = transport
+            await finishImport(model)
+            #expect(model.alert == .transcriptImport(expected.text), "\(transport)")
+            studio.transport = .idle
+        }
+        #expect(studio.session.transcriptNames.isEmpty, "nothing imported")
+        await model.close()
+    }
+
     /// P6: a take that starts between the panel answer and the edit refuses the import with an alert.
     @Test func takeDuringTheParseRefusesTheImport() async throws {
         let (model, studio, _, _) = try await open(try await package(spoken: false))

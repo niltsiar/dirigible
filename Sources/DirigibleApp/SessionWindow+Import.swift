@@ -169,12 +169,17 @@ extension SessionWindow {
             return
         }
         guard case .open(let studio) = phase else { return }
-        guard studio.isIdle else {
-            alert = .transcriptImport(L10n.alertTranscriptBusy.text)
+        let takeRuns =
+            switch studio.transport {
+            case .recording, .finalizing: true
+            default: false
+            }
+        guard !takeRuns, studio.pendingTake == nil else {
+            alert = .transcriptImport(L10n.alertTranscriptTake.text)
             return
         }
-        guard studio.pendingTake == nil else {
-            alert = .transcriptImport(L10n.alertTranscriptTake.text)
+        guard studio.isIdle else {
+            alert = .transcriptImport(L10n.alertTranscriptBusy.text)
             return
         }
         let name = url.deletingPathExtension().lastPathComponent

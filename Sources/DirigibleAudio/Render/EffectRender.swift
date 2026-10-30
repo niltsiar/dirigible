@@ -74,9 +74,9 @@ package struct ClipRenderOutcome: Sendable {
 /// kind (`repairSetup`, which reads only for a de-clip), the unit load, then each run through a new
 /// chain into `.<stem>.wav.tmp` at the scale s1 of its setup, with a second pass at s1 x s2 when its
 /// peak is over full scale (`.stillOverFullScale` when the second pass still peaks at the largest
-/// 24-bit sample), the read-back, `repoint` on the input session with the dB of each second-pass
-/// scale s2 as the added gain of its run (decision 0057), or 0 dB for a run with a de-clip, whose
-/// scales stay a level loss (decision 0064 D4), the renames, and one flush of `Clips/`
+/// 24-bit sample), the read-back, `repoint` on the input session with the dB of the scale s1 x s2
+/// of each run as its added gain (decision 0057), or 0 dB for a run whose de-clip filled a run,
+/// whose scales stay a level loss (decision 0064 D4), the renames, and one flush of `Clips/`
 /// (`NewClipFiles`). Each block goes through `RepairSetup.checkFinite` before its write. So a
 /// refusal that the values or the free space decide reads no audio and writes no file, and a throw
 /// before the renames leaves no new file. A fault in the renames keeps the renamed WAVs as unused
@@ -259,13 +259,16 @@ func renderClips(
             result = try pass(scale * second * secondPassGain) { _ in }
             guard result.peak < largestSample else { throw .stillOverFullScale(file: wav) }
             scale *= second
-            if treatment.declip == nil, let added = Gain(clamping: -20 * log10(Double(second))) {
-                addedGains[index] = added
-            }
+        }
+        // Only a de-clip that filled a run keeps s1 x s2 as a level loss (decision 0064 D4).
+        let filled = treatment.declip != nil && setups[index].runs > 0
+        if !filled, scale < 1, let added = Gain(clamping: -20 * log10(Double(scale))) {
+            addedGains[index] = added
         }
         if treatment.declip != nil {
             for clip in run.clips {
-                repairs[clip] = ClipRepair(runs: setups[index].runs, levelDrop: 20 * log10(1 / Double(scale)))
+                repairs[clip] = ClipRepair(
+                    runs: setups[index].runs, levelDrop: filled ? 20 * log10(1 / Double(scale)) : 0)
             }
         }
         guard result.length == span.count, try readBack(temporaries[index], wav: wav) == span.count else {
@@ -287,8 +290,8 @@ func renderClips(
 
 /// The scale that puts the peak `peak` at the import ceiling, two 24-bit steps under full scale,
 /// or nil at full scale or under. A peak over full scale saturates in 24 bits (A11 of import), so a
-/// second pass renders at this scale, and the clip gain gives the level back, except for a run with
-/// a de-clip (decision 0064 D4). The measure step takes it for s1 of a filled peak.
+/// second pass renders at this scale, and the clip gain gives the level back, except for a run whose
+/// de-clip filled a run (decision 0064 D4). The measure step takes it for s1 of a filled peak.
 func fullScaleRepair(_ peak: Float) -> Float? {
     peak > 1 ? Float((1 - 0x1p-22) / Double(peak)) : nil
 }

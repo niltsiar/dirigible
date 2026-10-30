@@ -291,6 +291,28 @@ extension EffectRenderTests {
         #expect(throws: ClipRenderError.cancelled) { try measure(cancelAt: 2) }
     }
 
+    /// C18: the de-clip measure of a float source refuses an infinite sample with `.nonFiniteSample`
+    /// and does not trap, and a finite sample of 2^41 (past the Int64 range on the 24-bit grid)
+    /// gives the 24-bit depth. Fail: `Int64(abs(code))`, which traps on both.
+    @Test func measureRefusesAnInfiniteSample() throws {
+        let fixture = try RenderFixture()
+        func measure(_ value: Float, name: String) throws -> RepairSetup {
+            var samples = seededNoise(frames: 48_000, level: 0.1, seed: 33)
+            samples[20_000] = value
+            let url = fixture.package.url.appending(path: "\(clipsFolderName)/\(name).wav")
+            try writeSource(url, .wavFloat, rate: 48_000, channels: [samples])
+            let source = try AVAudioFile(forReading: url)
+            let descriptor = open(url.path, O_RDONLY)
+            defer { close(descriptor) }
+            return try repairSetup(
+                span: 0..<48_000, of: source, descriptor: descriptor, treatment: Treatment(.declip(.standard)),
+                file: "\(name).wav", stem: "\(name) RP", readFault: nil, isCancelled: { false })
+        }
+
+        #expect(throws: ClipRenderError.nonFiniteSample(file: "inf.wav")) { try measure(.infinity, name: "inf") }
+        #expect(try measure(0x1p41, name: "big").carriedBits == 24)
+    }
+
     /// C18: a stage that gives one NaN makes the render throw `.nonFiniteSample` before the write,
     /// and `Clips/` keeps its files; the same stage with no NaN renders. Fail: the 0054 render,
     /// which writes the NaN.

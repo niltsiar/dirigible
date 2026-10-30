@@ -7,48 +7,82 @@ import SwiftUI
 /// The text of the Transcript tab (decision 0023): read-only, selectable, TextKit 2 only. A key
 /// that a read-only text has no use for does what it does with the focus in the lanes.
 final class TranscriptTextView: NSTextView {
-    static let headerFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
-    static let bodyFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    nonisolated static var headerFont: NSFont { NSFont.systemFont(ofSize: 11, weight: .semibold) }
+    nonisolated static var bodyFont: NSFont { NSFont.systemFont(ofSize: NSFont.systemFontSize) }
 
     /// What the storage shows: the text value and the lines of the transcripts that did not load.
-    struct Shown: Equatable {
+    struct Shown: Equatable, Sendable {
         let text: TranscriptText
         let notices: [String]
+    }
+
+    /// A value built off the main actor for the session revision `revision`.
+    struct Built {
+        let revision: Int
+        let shown: Shown
+        let attributed: NSAttributedString
     }
 
     weak var model: SessionWindow?
     private(set) var shown: Shown?
     /// The session revision of `shown`. The pane builds again only when it changes.
     private(set) var builtRevision: Int?
+    /// The revision of the last applied build: equal to `builtRevision` when no build is pending.
+    private(set) var shownRevision: Int?
     /// The builds and the storage replacements, for the tests (P4b).
     private(set) var builds = 0
     private(set) var replacements = 0
     private var focusPending = false
+    /// The focus came before the build of its revision: the apply puts the insertion point.
+    private var caretPending = false
 
-    /// Builds the text for `session` when `revision` is new, and replaces the storage only when
-    /// the value differs from the shown value.
+    /// Builds the text for `session` off the main actor when `revision` is new (P13), then applies it.
     func update(session: Session, revision: Int) {
-        guard builtRevision != revision else { return }
+        guard begin(revision: revision) else { return }
+        let notices = session.transcriptsNotLoaded.map { L10n.transcriptNotLoaded.format($0.id.number, $0.name) }
+        Task { [weak self] in
+            let built = await Self.build(session, notices: notices, revision: revision)
+            self?.apply(built)
+        }
+    }
+
+    /// Counts a build for a new `revision`. False when the revision is the built one.
+    func begin(revision: Int) -> Bool {
+        guard builtRevision != revision else { return false }
         builtRevision = revision
         builds += 1
-        let notices = session.transcriptsNotLoaded.map { L10n.transcriptNotLoaded.format($0.id.number, $0.name) }
-        let next = Shown(text: TranscriptText(session: session), notices: notices)
-        guard next != shown, let storage = textStorage else { return }
-        shown = next
+        return true
+    }
+
+    @concurrent nonisolated static func build(_ session: Session, notices: [String], revision: Int) async
+        -> sending Built
+    {
+        let shown = Shown(text: TranscriptText(session: session), notices: notices)
+        return Built(revision: revision, shown: shown, attributed: attributed(shown))
+    }
+
+    /// Replaces the storage with `built` only when its revision is still the built one and its
+    /// value differs from the shown value. An older build is dropped.
+    func apply(_ built: Built) {
+        guard built.revision == builtRevision else { return }
+        shownRevision = built.revision
+        defer { if caretPending { placeCaret() } }
+        guard built.shown != shown, let storage = textStorage else { return }
+        shown = built.shown
         replacements += 1
         // A replace in a storage that holds text inserts each attribute run apart (290 ms at 27 000
         // units, P13); an insert into an empty storage takes 7 ms.
         storage.beginEditing()
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: "")
-        storage.append(Self.attributed(next))
+        storage.append(built.attributed)
         storage.endEditing()
     }
 
-    private static func range(_ range: Range<Int>) -> NSRange {
+    nonisolated private static func range(_ range: Range<Int>) -> NSRange {
         NSRange(location: range.lowerBound, length: range.count)
     }
 
-    private static func attributed(_ shown: Shown) -> NSAttributedString {
+    nonisolated private static func attributed(_ shown: Shown) -> NSAttributedString {
         let out = NSMutableAttributedString()
         for notice in shown.notices {
             out.append(
@@ -89,10 +123,18 @@ final class TranscriptTextView: NSTextView {
         }
         focusPending = false
         window.makeFirstResponder(self)
+        placeCaret()
+        model?.transcriptFollow.focusRequest = false
+    }
+
+    /// Puts the insertion point at the first unit of the paragraph of the playhead, or waits for
+    /// the apply while a build is pending.
+    private func placeCaret() {
+        caretPending = shownRevision != builtRevision
+        guard !caretPending else { return }
         if let frame = model?.studio?.playhead, let start = shown?.text.paragraphStart(at: frame) {
             setSelectedRange(NSRange(location: noticeLength + start, length: 0))
         }
-        model?.transcriptFollow.focusRequest = false
     }
 
     /// The scroll view with the text view of the pane, as the Transcript tab shows it.

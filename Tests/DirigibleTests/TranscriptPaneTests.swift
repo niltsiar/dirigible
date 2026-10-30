@@ -72,7 +72,7 @@ import Testing
     func waitForPane(_ window: NSWindow, focused: Bool = true) async throws -> TranscriptTextView {
         await until(limit: .seconds(10), "the pane shows and takes the focus") {
             window.contentView?.layoutSubtreeIfNeeded()
-            guard let pane = pane(window) else { return false }
+            guard let pane = pane(window), pane.shownRevision == pane.builtRevision else { return false }
             return !focused || window.firstResponder === pane
         }
         return try #require(pane(window))
@@ -347,11 +347,13 @@ import Testing
         for n in 1...20 { await seek(studio, to: Frames(n * 1_000)) }
         #expect(pane.builds == builds, "a seek builds nothing")
         try studio.edit(ripple: false) { s throws(SessionError) in try s.setGains(["A": Gain(dB: -3)!]) }
-        await until("the pane builds for the new revision") { pane.builds == builds + 1 }
+        await until("the pane applies the new revision") {
+            pane.builds == builds + 1 && pane.shownRevision == pane.builtRevision
+        }
         #expect(pane.replacements == replacements, "a gain edit replaces no storage")
         // The ripple delete of "Second part" removes two units and moves the later header.
         try studio.edit(ripple: true) { s throws(SessionError) in try s.rippleDelete(288_000..<336_000, on: ["t1"]) }
-        await until("the pane builds again") { pane.builds == builds + 2 }
+        await until("the pane applies again") { pane.builds == builds + 2 && pane.shownRevision == pane.builtRevision }
         #expect(pane.replacements == replacements + 1, "a ripple delete replaces the storage once")
         #expect(!pane.string.contains("Second"), "the cut words are gone")
         await model.close()

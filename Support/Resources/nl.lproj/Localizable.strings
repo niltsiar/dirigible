@@ -628,6 +628,8 @@
 "panel.transcript.track" = "Spoor:";
 "alert.transcript.badfile" = "%@ is geen Whisper-JSON-, WebVTT- of SRT-bestand met woorden met tijden. De sessie is niet gewijzigd.";
 "alert.transcript.take" = "Het transcript is niet geïmporteerd, omdat een take begon.";
+"alert.transcript.unreadable" = "%@ kon niet worden gelezen. %@ De sessie is niet gewijzigd.";
+"alert.transcript.busy" = "Het transcript is niet geïmporteerd, omdat de sessie bezig was.";
 "banner.transcript.skipped" = "Woorden zonder clip: %lld";
 "banner.transcript.untimed" = "Woorden zonder tijd: %lld";
 "banner.transcript.repeated" = "Woorden over herhaalde audio: %lld";

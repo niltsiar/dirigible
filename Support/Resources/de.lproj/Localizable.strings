@@ -628,6 +628,8 @@
 "panel.transcript.track" = "Spur:";
 "alert.transcript.badfile" = "%@ ist keine Whisper-JSON-, WebVTT- oder SRT-Datei mit zeitlich festgelegten Wörtern. Die Sitzung wurde nicht geändert.";
 "alert.transcript.take" = "Das Transkript wurde nicht importiert, weil ein Take gestartet ist.";
+"alert.transcript.unreadable" = "%@ konnte nicht gelesen werden. %@ Die Sitzung wurde nicht geändert.";
+"alert.transcript.busy" = "Das Transkript wurde nicht importiert, weil die Sitzung beschäftigt war.";
 "banner.transcript.skipped" = "Wörter ohne Clip: %lld";
 "banner.transcript.untimed" = "Wörter ohne Zeit: %lld";
 "banner.transcript.repeated" = "Wörter über wiederholtem Audio: %lld";

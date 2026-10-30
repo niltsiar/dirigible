@@ -628,6 +628,8 @@
 "panel.transcript.track" = "Track:";
 "alert.transcript.badfile" = "%@ is not a Whisper JSON, WebVTT, or SRT file with timed words. The session did not change.";
 "alert.transcript.take" = "The transcript was not imported, because a take started.";
+"alert.transcript.unreadable" = "%@ could not be read. %@ The session did not change.";
+"alert.transcript.busy" = "The transcript was not imported, because the session was busy.";
 "banner.transcript.skipped" = "Words with no clip: %lld";
 "banner.transcript.untimed" = "Words with no time: %lld";
 "banner.transcript.repeated" = "Words over repeated audio: %lld";

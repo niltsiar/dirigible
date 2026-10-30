@@ -495,6 +495,8 @@ enum L10n: String, CaseIterable {
     case panelTranscriptTrack = "panel.transcript.track"
     case alertTranscriptBadFile = "alert.transcript.badfile"
     case alertTranscriptTake = "alert.transcript.take"
+    case alertTranscriptUnreadable = "alert.transcript.unreadable"
+    case alertTranscriptBusy = "alert.transcript.busy"
     case bannerTranscriptSkipped = "banner.transcript.skipped"
     case bannerTranscriptUntimed = "banner.transcript.untimed"
     case bannerTranscriptRepeated = "banner.transcript.repeated"

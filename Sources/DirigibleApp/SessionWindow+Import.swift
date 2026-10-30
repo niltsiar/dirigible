@@ -103,6 +103,13 @@ extension SessionWindow {
     var importBarProgress: Double { importJob?.progress ?? studio?.importProgress ?? 0 }
 }
 
+/// Why a file gave no transcript: the system could not read it (`reason` is its text), or its
+/// content is no transcript.
+enum TranscriptReadError: Error, Sendable {
+    case unreadable(reason: String)
+    case notTranscript
+}
+
 extension SessionWindow {
     /// File > Import Transcript… is on like Import Audio, and the session has a track for the words.
     var canImportTranscript: Bool { canImport && idleStudio?.session.tracks.isEmpty == false }
@@ -127,23 +134,46 @@ extension SessionWindow {
         commitDrafts()
         guard canImportTranscript else { return }
         importJob = ImportJob(visible: false)
-        let read = Task.detached { () -> TranscriptFile? in
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return try? TranscriptFile(data: data)
+        let read = Task.detached { () -> Result<TranscriptFile, TranscriptReadError> in
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch {
+                let reason = (error as NSError).localizedFailureReason ?? error.localizedDescription
+                return .failure(.unreadable(reason: reason))
+            }
+            do throws(TranscriptFileError) {
+                return .success(try TranscriptFile(data: data))
+            } catch {
+                return .failure(.notTranscript)
+            }
         }
         importJob?.task = Task { [weak self] in
-            let file = await read.value
-            self?.finishTranscriptImport(file, from: url, track: track)
+            let result = await read.value
+            self?.finishTranscriptImport(result, from: url, track: track)
             self?.importJob = nil
         }
     }
 
-    private func finishTranscriptImport(_ file: TranscriptFile?, from url: URL, track: TrackID) {
-        guard let file else {
+    private func finishTranscriptImport(
+        _ result: Result<TranscriptFile, TranscriptReadError>, from url: URL, track: TrackID
+    ) {
+        let file: TranscriptFile
+        switch result {
+        case .success(let parsed): file = parsed
+        case .failure(.unreadable(let reason)):
+            alert = .transcriptImport(L10n.alertTranscriptUnreadable.format(url.lastPathComponent, reason))
+            return
+        case .failure(.notTranscript):
             alert = .transcriptImport(L10n.alertTranscriptBadFile.format(url.lastPathComponent))
             return
         }
-        guard let studio = idleStudio, studio.pendingTake == nil else {
+        guard case .open(let studio) = phase else { return }
+        guard studio.isIdle else {
+            alert = .transcriptImport(L10n.alertTranscriptBusy.text)
+            return
+        }
+        guard studio.pendingTake == nil else {
             alert = .transcriptImport(L10n.alertTranscriptTake.text)
             return
         }

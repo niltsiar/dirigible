@@ -55,6 +55,31 @@ extension TranscriptPaneTests {
         await model.close()
     }
 
+    /// P6: a file that the system cannot read gets its own alert, not "not a transcript file".
+    @Test func unreadableImportNamesTheReadFailure() async throws {
+        let (model, studio, _, _) = try await open(try await package(spoken: false))
+        let before = studio.session
+        model.importTranscript(from: folder.url.appending(path: "gone.json"), track: "t1")
+        await finishImport(model)
+        #expect(model.alert == .transcriptImport(L10n.alertTranscriptUnreadable.format("gone.json", "")))
+        #expect(model.alert != .transcriptImport(L10n.alertTranscriptBadFile.format("gone.json")))
+        #expect(studio.session == before && !studio.canUndo)
+        await model.close()
+    }
+
+    /// P6: a start that is no pending take refuses the import with the busy alert, not the take alert.
+    @Test func busyStudioDuringTheParseGivesTheBusyAlert() async throws {
+        let (model, studio, _, _) = try await open(try await package(spoken: false))
+        model.importTranscript(from: try transcriptFile([(1, 1.5, "Hello")]), track: "t1")
+        studio.isStarting = true
+        await finishImport(model)
+        #expect(model.alert == .transcriptImport(L10n.alertTranscriptBusy.text))
+        #expect(model.alert != .transcriptImport(L10n.alertTranscriptTake.text))
+        studio.isStarting = false
+        #expect(studio.session.transcriptNames.isEmpty, "nothing imported")
+        await model.close()
+    }
+
     /// P6: a take that starts between the panel answer and the edit refuses the import with an alert.
     @Test func takeDuringTheParseRefusesTheImport() async throws {
         let (model, studio, _, _) = try await open(try await package(spoken: false))

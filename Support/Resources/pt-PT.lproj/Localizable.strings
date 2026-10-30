@@ -628,6 +628,8 @@
 "panel.transcript.track" = "Faixa:";
 "alert.transcript.badfile" = "%@ não é um ficheiro JSON do Whisper, WebVTT ou SRT com palavras temporizadas. A sessão não foi alterada.";
 "alert.transcript.take" = "A transcrição não foi importada, porque começou um excerto.";
+"alert.transcript.unreadable" = "Não foi possível ler %@. %@ A sessão não foi alterada.";
+"alert.transcript.busy" = "A transcrição não foi importada, porque a sessão estava ocupada.";
 "banner.transcript.skipped" = "Palavras sem clipe: %lld";
 "banner.transcript.untimed" = "Palavras sem tempo: %lld";
 "banner.transcript.repeated" = "Palavras sobre áudio repetido: %lld";

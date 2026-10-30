@@ -628,6 +628,8 @@
 "panel.transcript.track" = "Piste :";
 "alert.transcript.badfile" = "%@ n’est pas un fichier JSON Whisper, WebVTT ou SRT avec des mots horodatés. La session n’a pas changé.";
 "alert.transcript.take" = "La transcription n’a pas été importée, car une prise a commencé.";
+"alert.transcript.unreadable" = "%@ n’a pas pu être lu. %@ La session n’a pas changé.";
+"alert.transcript.busy" = "La transcription n’a pas été importée, car la session était occupée.";
 "banner.transcript.skipped" = "Mots sans clip : %lld";
 "banner.transcript.untimed" = "Mots sans temps : %lld";
 "banner.transcript.repeated" = "Mots sur de l’audio répété : %lld";

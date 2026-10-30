@@ -68,7 +68,7 @@ struct RepairDraft: Equatable {
     var frequencyMax: Int? { top(of: DeEss.hertzRange) }
 
     /// The lowest session rate that takes the lowest de-ess frequency, for the line of a row that is off.
-    static var lowestDeessRate: Int { 20 * DeEss.hertzRange.lowerBound / 9 + 1 }
+    static var lowestDeessRate: Int { lowestRate(takingCorner: DeEss.hertzRange.lowerBound) }
 
     /// The effects of the checked boxes, or nil when no box is on.
     var treatment: Treatment? {

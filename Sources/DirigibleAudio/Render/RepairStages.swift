@@ -167,8 +167,8 @@ func allpassSum(_ channels: [[Float]], hertz: Int, rate: Double) -> [[Float]] {
 /// slopes from 4 input samples on each side, and a filled sample keeps at least the run level. A run
 /// with fewer than 5 frames before it or after it in the span stays as it is.
 struct DeclipStage: RenderStage {
-    /// `maxRun` + 4: a candidate closes at most `maxRun` frames after its first frame, and its fill
-    /// reads 4 frames after the run.
+    /// `maxRun` + 4: the fill of a run of at most `maxRun` frames reads 4 frames after the run. A
+    /// longer candidate stays open past this delay, and `close` refuses it on its count before it reads.
     let latency: Int
     /// The clipped runs that the stage filled.
     private(set) var runs = 0

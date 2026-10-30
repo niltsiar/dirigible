@@ -95,13 +95,50 @@ extension TranscriptPaneTests {
         #expect(pane.underlines.map(\.frame) == segments.map { underline($0, width: system ? 2 : 3) })
         NSWorkspace.shared.notificationCenter.post(
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
-        #expect(pane.increaseContrast == system, "the notification reads the system setting")
+        await until("the notification reads the system setting") { pane.increaseContrast == system }
         #expect(pane.underlines.map(\.frame) == segments.map { underline($0, width: system ? 3 : 2) })
 
         let ink = CGColor(srgbRed: 0x1D / 255, green: 0x1D / 255, blue: 0x1F / 255, alpha: 1)
         for layer in pane.underlines { layer.backgroundColor = CGColor(gray: 0.5, alpha: 1) }
         NotificationCenter.default.post(name: NSColor.systemColorsDidChangeNotification, object: nil)
-        #expect(pane.underlines.allSatisfy { $0.backgroundColor == ink }, "the system colors set the color again")
+        await until("the system colors set the color again") {
+            pane.underlines.allSatisfy { $0.backgroundColor == ink }
+        }
         await model.close()
     }
+
+    /// The pane removes only the observers that it added: one that another owner registered for the
+    /// pane stays, a window change adds none twice, and a pane in no window holds none.
+    @Test func paneRemovesOnlyItsOwnObservers() throws {
+        let name = Notification.Name("TranscriptPaneTests.foreign.\(UUID().uuidString)")
+        let scroll = TranscriptTextView.scrollView()
+        let pane = try #require(scroll.documentView as? TranscriptTextView)
+        NotificationCenter.default.addObserver(
+            pane, selector: #selector(TranscriptTextView.foreignNotification(_:)), name: name, object: nil)
+        defer { NotificationCenter.default.removeObserver(pane) }
+        ForeignProbe.calls = 0
+        #expect(pane.observerCount == 0, "no window, no observer")
+
+        let first = NSWindow(contentViewController: NSViewController())
+        first.contentView = scroll
+        let attached = pane.observerCount
+        #expect(attached > 0)
+        let second = NSWindow(contentViewController: NSViewController())
+        second.contentView = scroll
+        #expect(pane.observerCount == attached, "a new window adds no second set")
+
+        second.contentView = NSView()
+        #expect(pane.observerCount == 0, "a pane that leaves its window holds no observer")
+        NotificationCenter.default.post(name: name, object: nil)
+        #expect(ForeignProbe.calls == 1, "the observer of another owner stays")
+    }
+}
+
+/// The calls of an observer that a test registers for a pane, as AppKit registers its own.
+@MainActor enum ForeignProbe {
+    static var calls = 0
+}
+
+extension TranscriptTextView {
+    @objc func foreignNotification(_ note: Notification) { ForeignProbe.calls += 1 }
 }

@@ -39,6 +39,9 @@ final class TranscriptTextView: NSTextView {
     private(set) var builds = 0
     private(set) var replacements = 0
     private var focusPending = false
+    /// The observers that the pane added while it shows in a window.
+    private var observers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
+    var observerCount: Int { observers.count }
     /// The first apply of a pane puts the scroll position of the last pane back (P4).
     var scrollRestored = false
     /// The underline layers of the current units (P4): one for each line fragment of a unit.
@@ -247,7 +250,7 @@ final class TranscriptTextView: NSTextView {
         styleUnderlines()
     }
 
-    @objc private func displayOptionsChanged(_ note: Notification) {
+    private func displayOptionsChanged() {
         increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         styleUnderlines()
     }
@@ -283,18 +286,29 @@ final class TranscriptTextView: NSTextView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         wantsLayer = true
-        NotificationCenter.default.removeObserver(self)
-        NSWorkspace.shared.notificationCenter.removeObserver(self)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(displayOptionsChanged), name: NSColor.systemColorsDidChangeNotification,
-            object: nil)
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self, selector: #selector(displayOptionsChanged),
-            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(userScrolled), name: NSScrollView.willStartLiveScrollNotification,
-            object: enclosingScrollView)
+        for (center, token) in observers { center.removeObserver(token) }
+        observers = []
+        guard window != nil else { return }
+        observe(NotificationCenter.default, NSColor.systemColorsDidChangeNotification) { $0.displayOptionsChanged() }
+        observe(NSWorkspace.shared.notificationCenter, NSWorkspace.accessibilityDisplayOptionsDidChangeNotification) {
+            $0.displayOptionsChanged()
+        }
+        observe(NotificationCenter.default, NSScrollView.willStartLiveScrollNotification, enclosingScrollView) {
+            $0.userScrolled()
+        }
         if focusPending { Task { @MainActor [weak self] in self?.takeFocus() } }
+    }
+
+    /// Adds an observer that runs `action` on the main queue while the pane lives, and keeps its
+    /// token, so a window change removes this observer and no other.
+    private func observe(
+        _ center: NotificationCenter, _ name: Notification.Name, _ object: AnyObject? = nil,
+        _ action: @escaping @MainActor (TranscriptTextView) -> Void
+    ) {
+        let token = center.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { if let self { action(self) } }
+        }
+        observers.append((center, token))
     }
 
     // The Edit items send their selector to the first responder (probes E2, E3), so a read-only

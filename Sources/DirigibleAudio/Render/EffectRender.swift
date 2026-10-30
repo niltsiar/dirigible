@@ -79,12 +79,12 @@ package struct ClipRenderOutcome: Sendable {
 /// scales stay a level loss (decision 0064 D4), the renames, and one flush of `Clips/`
 /// (`NewClipFiles`). Each block goes through `RepairSetup.checkFinite` before its write. So a
 /// refusal that the values or the free space decide reads no audio and writes no file, and a throw
-/// before the renames leaves no new file. A fault in the
-/// renames keeps the renamed WAVs as unused files (0040), and a cancel after them removes them
-/// (`removeMadeFiles`). `isCancelled` is read before each run, each block, and the renames, and
-/// after them. `progress` rises by 0.1 % or more at each step, holds during a second pass, and gives 1
-/// only after the read-back of the last run. `readFault` runs at the block reads of the run of the
-/// new stem that it names (tests and `CaptureEnvironment.clipRenderRead`).
+/// before the renames leaves no new file. A fault in the renames keeps the renamed WAVs as unused
+/// files (0040), and a cancel after them removes them (`removeMadeFiles`). `isCancelled` is read
+/// before each run, each block, and the renames, and after them. `progress` rises by 0.1 % or more
+/// at each step, holds during a second pass, and gives 1 only after the read-back of the last run.
+/// `readFault` runs at the block reads of the run of the new stem that it names (tests and
+/// `CaptureEnvironment.clipRenderRead`).
 /// `secondPassGain` multiplies the scale of a second pass (tests only: a unit that renders louder
 /// the second time), and `addedStage` runs after the post-stages of each chain (tests only: a stage
 /// that renders louder or not finite). The one caller outside tests is `renderLevels`, behind

@@ -13,6 +13,20 @@ protocol RenderStage {
     mutating func finish() -> [[Float]]
 }
 
+extension Array where Element == any RenderStage {
+    /// `block` through the stages in order. On the `last` block each stage also gives its held
+    /// frames, which the stages after it process.
+    mutating func process(_ block: [[Float]], last: Bool = false) -> [[Float]] {
+        var data = block
+        for index in indices {
+            var output = self[index].process(data)
+            if last { for (channel, tail) in self[index].finish().enumerated() { output[channel] += tail } }
+            data = output
+        }
+        return data
+    }
+}
+
 /// The RBJ high-pass at `hertz`, Q 0.70711 (a 2nd-order Butterworth), for one channel. It runs in
 /// Double, sample by sample, with its state kept across blocks, so each split of a stream into
 /// blocks gives the same output; a Float `vDSP.Biquad` does not (1.3e-4 at 80 Hz, C1). Its response

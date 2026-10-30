@@ -7,6 +7,15 @@ import Foundation
 /// the rate (decision 0064 C19). Whole numbers only: 0.45 x 100 is not 45 in Double.
 package func cornerLimit(rate: Int) -> Int { (9 * rate - 1) / 20 }
 
+extension AVAudioPCMBuffer {
+    /// The samples of each channel, from the frame `start` to the end of the buffer.
+    func samples(from start: Int = 0) -> [[Float]] {
+        (0..<Int(format.channelCount)).map {
+            Array(UnsafeBufferPointer(start: floatChannelData![$0] + start, count: Int(frameLength) - start))
+        }
+    }
+}
+
 /// What step 2 of `RepairSetup` measured for a de-clip: the values that a caller keeps while the
 /// span, the de-clip percent, and the rumble corner stay the same. It holds no stage.
 struct RepairMeasure: Hashable, Sendable {
@@ -121,10 +130,7 @@ func repairSetup(
             guard buffer.frameLength > 0 else { throw .sourceUnreadable(file: file, errno: EIO) }
             left -= Int(buffer.frameLength)
             block += 1
-            body(
-                (0..<channels).map {
-                    Array(UnsafeBufferPointer(start: buffer.floatChannelData![$0], count: Int(buffer.frameLength)))
-                }, left == 0)
+            body(buffer.samples(), left == 0)
         }
     }
     var peaks = [Float](repeating: 0, count: channels)
@@ -144,13 +150,7 @@ func repairSetup(
     var stages: [any RenderStage] = [first] + unmeasured.pre
     var filled: Float = 0
     try blocks { block, last in
-        var data = block
-        for index in stages.indices {
-            var output = stages[index].process(data)
-            if last { for (channel, tail) in stages[index].finish().enumerated() { output[channel] += tail } }
-            data = output
-        }
-        for samples in data { filled = max(filled, vDSP.maximumMagnitude(samples)) }
+        for samples in stages.process(block, last: last) { filled = max(filled, vDSP.maximumMagnitude(samples)) }
     }
     return RepairSetup(
         peaks: peaks, carriedBits: carriedBits, pre: [first] + unmeasured.pre, post: unmeasured.post,

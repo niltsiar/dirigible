@@ -246,9 +246,9 @@ private func liveSplit(
     }
 }
 
-/// `clip_denoise` and `clip_repair` through `Studio.renderClips`: one undo step with the agent name, and the clips on the
-/// new files. The banner Cancel or a cancel of the call ends it with no clip changed and no new WAV
-/// (decision 0049).
+/// `clip_denoise` and `clip_repair` through `Studio.renderClips`: one undo step with the agent name,
+/// and the clips on the new files. The banner Cancel or a cancel of the call ends it with no clip
+/// changed and no new WAV (decision 0049).
 @MainActor
 private func liveDenoise(
     _ work: ClipRenderWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void

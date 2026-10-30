@@ -12,11 +12,9 @@ struct RepairResult: Equatable {
     let others: Bool
     let repaired: Int
     let drop: Int
+}
 
-    init(clips: Int, declip: Bool, others: Bool, repaired: Int, drop: Int) {
-        (self.clips, self.declip, self.others, self.repaired, self.drop) = (clips, declip, others, repaired, drop)
-    }
-
+extension RepairResult {
     init(_ report: ClipRenderReport) {
         let found = report.repairs.values.filter { $0.runs > 0 }
         self.init(

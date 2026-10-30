@@ -25,9 +25,6 @@ struct RepairDraft: Equatable {
             case .deess: .deess
             }
         }
-
-        /// True when the row keeps a control in its collapsed More group: the de-ess frequency.
-        var hasMore: Bool { self == .deess }
     }
 
     /// The clips of the selection by the rule of Auto Level (decision 0031), whatever their role.

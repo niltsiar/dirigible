@@ -143,11 +143,10 @@ struct EffectChain {
 
     /// Renders the frames `span` of `source` (open at `descriptor` too) into `sink`: span +
     /// `latency` frames, with the first `latency` frames dropped, each frame through the
-    /// post-stages and times `scale`. `sink`
-    /// gets each pull in one reused buffer, valid only during the call. `isCancelled` is read
-    /// before each block read, and `readFault` runs before block `block` of the file `stem` (tests
-    /// only). `rendered` gets the frames given to `sink`. Returns those frames and the peak of all
-    /// channels after the scale. `file` names the source in errors.
+    /// post-stages and times `scale`. `sink` gets each pull in one reused buffer, valid only during
+    /// the call. `isCancelled` is read before each block read, and `readFault` runs before block
+    /// `block` of the file `stem` (tests only). `rendered` gets the frames given to `sink`. Returns
+    /// those frames and the peak of all channels after the scale. `file` names the source in errors.
     func render(
         _ source: AVAudioFile, descriptor: Int32, span: Range<AVAudioFramePosition>,
         into sink: (AVAudioPCMBuffer) throws(ClipRenderError) -> Void, file: String, stem: String,
@@ -247,14 +246,7 @@ struct EffectChain {
     private func staged(_ source: AVAudioPCMBuffer, through stages: inout [any RenderStage], last: Bool)
         throws(ClipRenderError) -> AVAudioPCMBuffer
     {
-        var data = (0..<Int(format.channelCount)).map {
-            Array(UnsafeBufferPointer(start: source.floatChannelData![$0], count: Int(source.frameLength)))
-        }
-        for index in stages.indices {
-            var output = stages[index].process(data)
-            if last { for (channel, tail) in stages[index].finish().enumerated() { output[channel] += tail } }
-            data = output
-        }
+        let data = stages.process(source.samples(), last: last)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(data[0].count)) else {
             throw .engine(status: kAudio_MemFullError)
         }
@@ -273,13 +265,7 @@ struct EffectChain {
     ) -> Float {
         let frames = Int(output.frameLength) - start
         kept.frameLength = AVAudioFrameCount(frames)
-        var data: [[Float]] = []
-        if !stages.isEmpty {
-            data = (0..<Int(format.channelCount)).map {
-                Array(UnsafeBufferPointer(start: output.floatChannelData![$0] + start, count: frames))
-            }
-            for index in stages.indices { data = stages[index].process(data) }
-        }
+        let data = stages.isEmpty ? [] : stages.process(output.samples(from: start))
         var peak: Float = 0
         for channel in 0..<Int(format.channelCount) {
             let to = kept.floatChannelData![channel]

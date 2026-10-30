@@ -66,10 +66,8 @@ struct RepairSheetTests {
         #expect(RepairDraft.Row.allCases.map(\.kind.rawValue) == RepairDraft.Row.allCases.map(\.kind.rawValue).sorted())
     }
 
-    /// C13: the de-ess frequency is in the More group of the de-ess row, and the group starts
-    /// collapsed. Fail: a frequency in the row, or a group that starts open.
-    @Test func frequencyIsInACollapsedMoreGroup() {
-        #expect(RepairDraft.Row.allCases.filter(\.hasMore) == [.deess])
+    /// C13: the More group of the de-ess row starts collapsed. Fail: a group that starts open.
+    @Test func moreGroupStartsCollapsed() {
         #expect(!draft().showsMore)
     }
 

@@ -81,10 +81,7 @@ import Testing
                 valueTimes.append(ContinuousClock.now - value)
             }
             let start = ContinuousClock.now
-            text.update(session: session, revision: run + 1)
-            window.contentView?.layoutSubtreeIfNeeded()
-            text.textLayoutManager?.textViewportLayoutController.layoutViewport()
-            scroll.displayIfNeeded()
+            Self.timedSpan(text, session, run + 1, scroll)
             let time = ContinuousClock.now - start
             if text.replacements != replacements + 1 { unchanged.append(run) }
             // Run 0 builds the first layout and is not timed.
@@ -97,5 +94,15 @@ import Testing
                 + "words() and value p90 \(valueTimes.sorted()[8]), runs \(times.sorted())")
         expectWithinBudget(p90, Self.budget, "build and apply of 27 000 units p90 \(p90)")
         window.close()
+    }
+
+    /// The timed span of one run, as one frame for a trace
+    /// (`scripts/bench.sh --trace <file> --under timedSpan`).
+    @inline(never)
+    static func timedSpan(_ text: TranscriptTextView, _ session: Session, _ revision: Int, _ scroll: NSScrollView) {
+        text.update(session: session, revision: revision)
+        scroll.window?.contentView?.layoutSubtreeIfNeeded()
+        text.textLayoutManager?.textViewportLayoutController.layoutViewport()
+        scroll.displayIfNeeded()
     }
 }

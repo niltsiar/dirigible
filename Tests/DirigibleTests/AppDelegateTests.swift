@@ -317,6 +317,18 @@ import os
         await window.close()
     }
 
+    /// An executable with no Info.plist gets the folders of the real app; a verify copy gets its own.
+    @Test func theFoldersFollowTheBundleID() {
+        let (support, caches) = (URL(filePath: "/S"), URL(filePath: "/C"))
+        let real = AppDelegate.folders(bundleID: nil, support: support, caches: caches)
+        #expect(real.recordings.path == "/S/com.delineas.dirigible/active-recordings.plist")
+        #expect(real.peakCache.path == "/C/com.delineas.dirigible/Peaks")
+        let id = "com.delineas.dirigible.verify-0123abcd"
+        let copy = AppDelegate.folders(bundleID: id, support: support, caches: caches)
+        #expect(copy.recordings.path == "/S/\(id)/active-recordings.plist")
+        #expect(copy.peakCache.path == "/C/\(id)/Peaks")
+    }
+
     private func closeAll() async {
         for window in app.windows.values { await window.close() }
     }

@@ -17,19 +17,21 @@ extension Studio {
     public var effectPreviewState: EffectPreviewState { effectPreview.state }
 
     /// Loops a 10 s window of `clip` rendered with `request`, as `listen` (decision 0054): from the
-    /// playhead when it is inside the clip, else from the clip start. A play stops first. A newer
-    /// call wins: an older render ends and changes nothing, and the old loop plays until the new
-    /// window is ready. Play, a take start, a blocking run, `settle()`, and a configuration change
+    /// playhead when it is inside the clip, else from the clip start. `clips` are the clips that
+    /// the request renders, `clip` among them, so a de-clip measures the run of the render. A play
+    /// stops first. A newer call wins: an older render ends and changes nothing, and the old loop
+    /// plays until the new window is ready. Play, a take start, a blocking run, `settle()`, and a configuration change
     /// of the preview output stop it. It throws `.busy` when the studio is not idle, and a render
     /// fault stops the preview and throws it.
-    public func startEffectPreview(_ request: ClipRenderRequest, of clip: ClipID, listen: Listen)
+    public func startEffectPreview(_ request: ClipRenderRequest, of clip: ClipID, among clips: [ClipID], listen: Listen)
         async throws(StudioError)
     {
         try checkIdle()
         let session = session
         let window: PreviewWindow
         do throws(SessionError) {
-            window = try previewWindow(of: clip, request: request, playhead: play.playhead, in: session)
+            window = try previewWindow(
+                of: clip, among: clips, request: request, playhead: play.playhead, in: session)
         } catch {
             throw .clipRender(.session(error))
         }

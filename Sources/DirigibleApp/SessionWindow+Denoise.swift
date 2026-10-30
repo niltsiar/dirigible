@@ -37,19 +37,24 @@ extension SessionWindow {
     /// reads it. The next preview removes the line.
     func previewDenoise(_ draft: DenoiseDraft, listen: Listen) async {
         guard let studio = idleStudio else { return }
-        await preview(draft.request, of: draft.previewClip(in: studio.session), listen: listen) {
+        let clips = draft.accepted(in: studio.session)
+        await preview(draft.request, of: clips.first, among: clips, listen: listen) {
             if self.denoiseDraft?.previewFault != $0 { self.denoiseDraft?.previewFault = $0 }
         }
     }
 
-    /// The preview of a sheet for `request` on `clip`: nil in either stops it. `fault` gets the line
-    /// of a fault, and nil when the next preview starts.
-    func preview(_ request: ClipRenderRequest?, of clip: ClipID?, listen: Listen, fault: (String?) -> Void) async {
+    /// The preview of a sheet for `request` on `clip`, one of the clips `clips` that the sheet
+    /// renders: nil in either stops it. `fault` gets the line of a fault, and nil when the next
+    /// preview starts.
+    func preview(
+        _ request: ClipRenderRequest?, of clip: ClipID?, among clips: [ClipID], listen: Listen,
+        fault: (String?) -> Void
+    ) async {
         guard let studio = idleStudio else { return }
         fault(nil)
         guard let request, let clip else { return studio.stopEffectPreview() }
         do throws(StudioError) {
-            try await studio.startEffectPreview(request, of: clip, listen: listen)
+            try await studio.startEffectPreview(request, of: clip, among: clips, listen: listen)
         } catch {
             let line = L10n.sheetDenoisePreviewFailed.format(L10n.message(for: error, session: studio.session))
             fault(line)

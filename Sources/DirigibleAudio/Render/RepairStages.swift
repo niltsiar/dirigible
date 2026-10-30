@@ -148,6 +148,17 @@ struct DeEssStage: RenderStage {
     }
 }
 
+/// The output of a `DeEssStage` at `hertz` that cuts nothing, for each channel of `channels`: the
+/// allpass sum of the low band and the high band of its split.
+func allpassSum(_ channels: [[Float]], hertz: Int, rate: Double) -> [[Float]] {
+    channels.map { samples in
+        var filters = [true, true, false, false].map { Butterworth(hertz: hertz, rate: rate, high: $0) }
+        let high = filters[1].apply(filters[0].apply(samples))
+        let low = filters[3].apply(filters[2].apply(samples))
+        return zip(low, high).map { Float($0 + $1) }
+    }
+}
+
 /// Repair Clipped Peaks (decision 0064 D4), for each channel alone. A candidate is a run of samples
 /// of one sign at or over `percent` of the channel peak of the span. A clipped run is each stretch
 /// of 3 or more samples of a candidate within max(1e-6 x the candidate level, 2 LSB of

@@ -157,4 +157,17 @@ extension TranscriptPaneTests {
         #expect(model.renamingTrack == "t1", "the lanes action runs")
         await model.close()
     }
+
+    /// A mouse gesture seeks only as a single click with no Shift that leaves a caret. A drag, a
+    /// double click, and a Shift-click select words, and the follow must not scroll the text under them.
+    @Test func onlyASingleCollapsedClickSeeks() {
+        let (caret, words) = (NSRange(location: 4, length: 0), NSRange(location: 4, length: 3))
+        func seeks(_ clicks: Int, shift: Bool = false, _ selection: NSRange) -> Bool {
+            TranscriptTextView.seeksOnClick(clickCount: clicks, shift: shift, selection: selection)
+        }
+        #expect(seeks(1, caret))
+        #expect(!seeks(1, words), "a drag")
+        #expect(!seeks(2, caret) && !seeks(3, caret), "a double click and a triple click")
+        #expect(!seeks(1, shift: true, caret), "a Shift-click")
+    }
 }

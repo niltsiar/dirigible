@@ -72,8 +72,21 @@ extension TranscriptTextView {
         return true
     }
 
+    /// A click seeks only as a single click with no Shift that leaves a caret. A drag, a double
+    /// click, and a Shift-click select words.
+    static func seeksOnClick(clickCount: Int, shift: Bool, selection: NSRange) -> Bool {
+        clickCount == 1 && !shift && selection.length == 0
+    }
+
+    /// `super.mouseDown` runs the whole gesture, so the seek comes after it: a seek while the
+    /// button is down turns the follow on and scrolls the text under the drag.
     override func mouseDown(with event: NSEvent) {
-        click(at: convert(event.locationInWindow, from: nil))
+        let point = convert(event.locationInWindow, from: nil)
         super.mouseDown(with: event)
+        if Self.seeksOnClick(
+            clickCount: event.clickCount, shift: event.modifierFlags.contains(.shift), selection: selectedRange())
+        {
+            click(at: point)
+        }
     }
 }

@@ -28,7 +28,8 @@ struct StudioPreviewTests {
         let studio = try await Studio.open(package.url)
         studio.environment = .test(TestHAL([mic]))
         await studio.perform(.seek(.start))
-        try await studio.startEffectPreview(ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", listen: .result)
+        try await studio.startEffectPreview(
+            ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", among: ["c1"], listen: .result)
         try #require(studio.effectPreviewState == .playing)
         return studio
     }
@@ -49,7 +50,8 @@ struct StudioPreviewTests {
         await studio.perform(.playStop)
         try #require(studio.playback != .stopped)
 
-        try await studio.startEffectPreview(ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", listen: .result)
+        try await studio.startEffectPreview(
+            ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", among: ["c1"], listen: .result)
 
         #expect(studio.playback == .stopped && studio.effectPreviewState == .playing)
         await studio.settle()
@@ -99,11 +101,12 @@ struct StudioPreviewTests {
             if armed.value == true { gate.waitOnce() }
         }
         await studio.perform(.seek(.start))
-        try await studio.startEffectPreview(ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", listen: .result)
+        try await studio.startEffectPreview(
+            ClipRenderRequest(Treatment(.noise(.standard))), of: "c1", among: ["c1"], listen: .result)
         try #require(studio.effectPreviewState == .playing)
         armed.value = true
         let twenty = ClipRenderRequest(Treatment(.noise(NoiseReduction(decibels: 20)!)))
-        let started = Task { try await studio.startEffectPreview(twenty, of: "c1", listen: .result) }
+        let started = Task { try await studio.startEffectPreview(twenty, of: "c1", among: ["c1"], listen: .result) }
         await gate.entered()
         try #require(studio.effectPreviewState == .updating)
 

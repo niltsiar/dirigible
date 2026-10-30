@@ -48,7 +48,7 @@ struct EffectPreviewTests {
     @Test func removedSoundIsTheDifference() async throws {
         let fixture = try fixture()
         let session = fixture.package.session
-        let window = try previewWindow(of: "c1", request: twelve, playhead: .zero, in: session)
+        let window = try previewWindow(of: "c1", among: ["c1"], request: twelve, playhead: .zero, in: session)
         let preview = engine(fixture)
 
         preview.supersede(1)
@@ -71,7 +71,7 @@ struct EffectPreviewTests {
         let session = try rendered(fixture, [twelve])
         try #require(session.clip("c1")?.clip.file != "f1")
 
-        let window = try previewWindow(of: "c1", request: amount(20), playhead: .zero, in: session)
+        let window = try previewWindow(of: "c1", among: ["c1"], request: amount(20), playhead: .zero, in: session)
 
         #expect(
             window
@@ -96,7 +96,7 @@ struct EffectPreviewTests {
             let fixture = try fixture()
             let session = try rendered(fixture, stored)
 
-            let window = try previewWindow(of: "c1", request: request, playhead: .zero, in: session)
+            let window = try previewWindow(of: "c1", among: ["c1"], request: request, playhead: .zero, in: session)
 
             #expect(
                 window
@@ -125,8 +125,8 @@ struct EffectPreviewTests {
         let fixture = try longFixture()
         let session = fixture.package.session
 
-        let inside = try previewWindow(of: "c1", request: twelve, playhead: 192_000, in: session)
-        let outside = try previewWindow(of: "c1", request: twelve, playhead: 900_000, in: session)
+        let inside = try previewWindow(of: "c1", among: ["c1"], request: twelve, playhead: 192_000, in: session)
+        let outside = try previewWindow(of: "c1", among: ["c1"], request: twelve, playhead: 900_000, in: session)
 
         #expect(
             inside == PreviewWindow(file: "f1", span: 144_000..<672_000, leadIn: 48_000, tail: 48_000, levels: [twelve])
@@ -143,8 +143,8 @@ struct EffectPreviewTests {
     @Test func windowNearTheClipEndMovesBack() throws {
         let longClip = try longFixture().package.session
         let shortClip = try fixture().package.session
-        let long = try previewWindow(of: "c1", request: twelve, playhead: 815_520, in: longClip)
-        let short = try previewWindow(of: "c1", request: twelve, playhead: 719_520, in: shortClip)
+        let long = try previewWindow(of: "c1", among: ["c1"], request: twelve, playhead: 815_520, in: longClip)
+        let short = try previewWindow(of: "c1", among: ["c1"], request: twelve, playhead: 719_520, in: shortClip)
 
         #expect(
             long == PreviewWindow(file: "f1", span: 288_000..<816_000, leadIn: 48_000, tail: 48_000, levels: [twelve]))
@@ -158,7 +158,7 @@ struct EffectPreviewTests {
         let session = try rendered(fixture, [twelve])
         let before = try fixture.listing()
         let preview = engine(fixture)
-        let window = try previewWindow(of: "c1", request: amount(20), playhead: .zero, in: session)
+        let window = try previewWindow(of: "c1", among: ["c1"], request: amount(20), playhead: .zero, in: session)
 
         preview.supersede(1)
         #expect(try await preview.play(window, of: session, listen: .result, number: 1))
@@ -172,7 +172,7 @@ struct EffectPreviewTests {
         let fixture = try fixture()
         let session = fixture.package.session
         let windows = try [twelve, amount(20), amount(6)].map {
-            try previewWindow(of: "c1", request: $0, playhead: .zero, in: session)
+            try previewWindow(of: "c1", among: ["c1"], request: $0, playhead: .zero, in: session)
         }
         let preview = engine(fixture)
         preview.supersede(1)
@@ -202,7 +202,7 @@ struct EffectPreviewTests {
         let fault = ReadFault(stem: "f1", block: 0) { if armed.value == true { throw CocoaError(.fileReadUnknown) } }
         let preview = EffectPreview(package: { url }, output: .offline, rate: 48_000, readFault: fault, ended: { _ in })
         let windows = try [twelve, amount(20)].map {
-            try previewWindow(of: "c1", request: $0, playhead: .zero, in: session)
+            try previewWindow(of: "c1", among: ["c1"], request: $0, playhead: .zero, in: session)
         }
         preview.supersede(1)
         let first = try await preview.play(windows[0], of: session, listen: .result, number: 1)
@@ -227,7 +227,7 @@ struct EffectPreviewTests {
         let onMain = LockedBox<Bool>()
         studio.environment.clipRenderRead = ReadFault(stem: "f1", block: 0) { onMain.value = Thread.isMainThread }
 
-        try await studio.startEffectPreview(twelve, of: "c1", listen: .result)
+        try await studio.startEffectPreview(twelve, of: "c1", among: ["c1"], listen: .result)
 
         #expect(onMain.value == false && studio.effectPreviewState == .playing)
         await studio.settle()

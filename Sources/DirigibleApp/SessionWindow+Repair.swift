@@ -54,7 +54,7 @@ extension SessionWindow {
     /// Preview of the sheet: loops the first clip with the checked repairs. A fault shows in one
     /// line in the sheet, as in Reduce Noise.
     func previewRepair(_ draft: RepairDraft, listen: Listen) async {
-        await preview(draft.request, of: draft.previewClip, listen: listen) {
+        await preview(draft.request, of: draft.previewClip, among: draft.clips, listen: listen) {
             if self.repairDraft?.previewFault != $0 { self.repairDraft?.previewFault = $0 }
         }
     }

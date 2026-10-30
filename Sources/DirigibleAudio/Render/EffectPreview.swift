@@ -29,15 +29,18 @@ struct PreviewWindow: Hashable, Sendable {
     var measure: PreviewMeasure?
 }
 
-/// The window of a preview of `request` on `clip` (decision 0054). The levels are those of
-/// `levelRequests`, as the clip render builds them, at any setting: a preview has no unchanged
-/// rule. On a clip with such levels, it reads the source of the lowest one at the origin offset,
-/// so a preview never stacks; else the clip file. The window is 10 s long, or the whole clip when
-/// the clip is shorter. It starts at `playhead` when it is inside the clip, else at the clip start,
-/// and moves back when it would pass the clip end. It reads up to 1 s of lead-in before the start,
-/// to the file start, and up to 1 s of tail past the end, to the end of the clip run.
+/// The window of a preview of `request` on `clip`, one of the clips `clips` that the request
+/// renders (decision 0054). The levels are those of `levelRequests`, as the clip render builds
+/// them, at any setting: a preview has no unchanged rule. On a clip with such levels, it reads the
+/// source of the lowest one at the origin offset, so a preview never stacks; else the clip file.
+/// The window is 10 s long, or the whole clip when the clip is shorter. It starts at `playhead`
+/// when it is inside the clip, else at the clip start, and moves back when it would pass the clip
+/// end. It reads up to 1 s of lead-in before the start, to the file start, and up to 1 s of tail
+/// past the end, to the end of the clip run. With a de-clip in the lowest level, the clip run is
+/// the run that the render of `clips` measures (decision 0064 D9): the run of `clipRenderPlan`
+/// that holds `clip` in its first level, with the clips of the same first-level request.
 func previewWindow(
-    of clip: ClipID, request: ClipRenderRequest, playhead: Frames, in session: Session
+    of clip: ClipID, among clips: [ClipID], request: ClipRenderRequest, playhead: Frames, in session: Session
 ) throws(SessionError) -> PreviewWindow {
     guard let placed = session.clip(clip)?.clip else { throw .unknownClip(clip) }
     var source = session
@@ -53,8 +56,14 @@ func previewWindow(
     let start = Frames(min(wanted.count, (lowered.offset + lowered.length).count - length))
     let end = start + Frames(length)
     let leadIn = min(start.count, rate)
-    let run = try source.clipRuns(of: [clip]).first { $0.clips.contains(clip) }?.span ?? end..<end
     let lowest = levels[0].treatment
+    var runs = try source.clipRuns(of: [clip])
+    if lowest.declip != nil {
+        let plan = try clipRenderPlan(clips, request: request, in: session)
+        let entry = plan.levels.first?.first { $0.clips.contains(clip) }
+        runs = try plan.lowered.clipRuns(of: entry?.clips ?? [])
+    }
+    let run = runs.first { $0.clips.contains(clip) }?.span ?? end..<end
     return PreviewWindow(
         file: lowered.file, span: (start - Frames(leadIn))..<end, leadIn: leadIn,
         tail: min(rate, max(0, (run.upperBound - end).count)), levels: levels,

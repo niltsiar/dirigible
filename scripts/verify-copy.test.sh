@@ -945,17 +945,19 @@ for order in "--agents --accent 2" "--accent 2 --agents"; do
     run stop
 done
 
-# C17: no stop by name, and each recursive delete acts on build/verify, the copy bundle, or the state
-# folders of the copy ID.
+# C17: no stop by name, and each delete acts on build/verify, the copy bundle, the state folders of
+# the copy ID, the socket, or the files of the screen lock and of the saved accent.
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"
 grep -q 'rm -rf' "$here/verify-copy.sh" 2>/dev/null || fail "C17: no rm -rf line"
 while IFS= read -r line; do
-    operand="${line#*rm -rf }"
-    case "$operand" in
+    operands="$(sed -E 's/.*rm -r?f //' <<<"$line")"
+    case "$operands" in
         '"$root/build/verify"' | '"$HOME/Library/Saved Application State/$copy_id.savedState"' | '"$copy"') ;;
         '"$HOME/Library/Application Support/$copy_id"' | '"$HOME/Library/Caches/$copy_id"') ;;
-        *) fail "C17: rm -rf of another path: $line" ;;
+        '"$socket" "$root/build/verify/source-mtime"' | '"$saved_accent"' | '"$screen/root" "$screen/pid"') ;;
+        '"$errf"'\'' EXIT') ;;
+        *) fail "C17: a delete of another path: $line" ;;
     esac
-done < <(grep -h 'rm -rf' "$here/verify-copy.sh" 2>/dev/null)
+done < <(grep -hE 'rm -r?f ' "$here/verify-copy.sh" 2>/dev/null)
 
 [[ $failures -eq 0 ]] && echo "verify-copy tests: all passed" || { echo "verify-copy tests: $failures failed"; exit 1; }

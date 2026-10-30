@@ -950,7 +950,7 @@ done
 grep -nE 'pkill|killall' "$here/verify-copy.sh" && fail "C17: a stop by name"
 grep -q 'rm -rf' "$here/verify-copy.sh" 2>/dev/null || fail "C17: no rm -rf line"
 while IFS= read -r line; do
-    operands="$(sed -E 's/.*rm -r?f //' <<<"$line")"
+    operands="$(sed -E 's/.*rm( +-[a-zA-Z]+)+ +//' <<<"$line")"
     case "$operands" in
         '"$root/build/verify"' | '"$HOME/Library/Saved Application State/$copy_id.savedState"' | '"$copy"') ;;
         '"$HOME/Library/Application Support/$copy_id"' | '"$HOME/Library/Caches/$copy_id"') ;;
@@ -958,6 +958,6 @@ while IFS= read -r line; do
         '"$errf"'\'' EXIT') ;;
         *) fail "C17: a delete of another path: $line" ;;
     esac
-done < <(grep -hE 'rm -r?f ' "$here/verify-copy.sh" 2>/dev/null)
+done < <(grep -hE 'rm( +-[a-zA-Z]+)+ ' "$here/verify-copy.sh" 2>/dev/null)
 
 [[ $failures -eq 0 ]] && echo "verify-copy tests: all passed" || { echo "verify-copy tests: $failures failed"; exit 1; }

@@ -72,7 +72,7 @@ enum TimelineCommand: Hashable {
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, export, exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
-    case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, restoreOriginal
+    case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, repairSound, restoreOriginal
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -122,6 +122,8 @@ enum TimelineCommand: Hashable {
         case .splitStereo: false
         // Reduce Noise has no key: a rare, slow command.
         case .reduceNoise: false
+        // Repair Sound has no key: a rare, slow command, as Reduce Noise.
+        case .repairSound: false
         // A text field does nothing with Shift-Command-O.
         case .restoreOriginal: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
@@ -254,7 +256,9 @@ enum TimelineCommand: Hashable {
         command: .splitStereo, title: .menuToolsSplitStereo, key: "d", modifiers: [.command, .shift])
 
     /// The title of a menu item with no key; the lane menu reads it as it reads `menuItems`.
-    static let keylessTitles: [TimelineCommand: L10n] = [.reduceNoise: .menuToolsReduceNoise]
+    static let keylessTitles: [TimelineCommand: L10n] = [
+        .reduceNoise: .menuToolsReduceNoise, .repairSound: .menuToolsRepairSound,
+    ]
 
     /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the
     /// File menu.
@@ -389,6 +393,7 @@ extension SessionWindow {
         case .duck: startDuck()
         case .splitStereo: splitStereo()
         case .reduceNoise: reduceNoise()
+        case .repairSound: repairSound()
         case .restoreOriginal: restoreOriginal()
         }
     }

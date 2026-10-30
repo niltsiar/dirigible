@@ -73,7 +73,10 @@ struct EffectPreviewTests {
 
         let window = try previewWindow(of: "c1", request: amount(20), playhead: .zero, in: session)
 
-        #expect(window == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, levels: [amount(20)]))
+        #expect(
+            window
+                == PreviewWindow(
+                    file: "f1", span: 528_000..<720_000, leadIn: 48_000, tail: 48_000, levels: [amount(20)]))
     }
 
     /// C19, plan gate 4 item 10: a request equal to the stored setting reads the level source too;
@@ -95,11 +98,13 @@ struct EffectPreviewTests {
 
             let window = try previewWindow(of: "c1", request: request, playhead: .zero, in: session)
 
-            #expect(window == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, levels: levels))
+            #expect(
+                window
+                    == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, tail: 48_000, levels: levels))
             guard levels.count == 2 else { continue }
             let url = fixture.package.url
             let two = try renderPreview(window, of: session, in: url, readFault: nil) { false }
-            let lowest = PreviewWindow(file: "f1", span: window.span, leadIn: 48_000, levels: [hum60])
+            let lowest = PreviewWindow(file: "f1", span: window.span, leadIn: 48_000, tail: 48_000, levels: [hum60])
             let one = try renderPreview(lowest, of: session, in: url, readFault: nil) { false }
             #expect(two.result[0].count == 144_000 && maxError(two.result[0], one.result[0]) > 1e-3)
         }
@@ -123,8 +128,12 @@ struct EffectPreviewTests {
         let inside = try previewWindow(of: "c1", request: twelve, playhead: 192_000, in: session)
         let outside = try previewWindow(of: "c1", request: twelve, playhead: 900_000, in: session)
 
-        #expect(inside == PreviewWindow(file: "f1", span: 144_000..<672_000, leadIn: 48_000, levels: [twelve]))
-        #expect(outside == PreviewWindow(file: "f1", span: 48_000..<576_000, leadIn: 48_000, levels: [twelve]))
+        #expect(
+            inside == PreviewWindow(file: "f1", span: 144_000..<672_000, leadIn: 48_000, tail: 48_000, levels: [twelve])
+        )
+        #expect(
+            outside == PreviewWindow(file: "f1", span: 48_000..<576_000, leadIn: 48_000, tail: 48_000, levels: [twelve])
+        )
         let audio = try renderPreview(inside, of: session, in: fixture.package.url, readFault: nil) { false }
         #expect(audio.result[0].count == 480_000 && audio.removed[0].count == 480_000)
     }
@@ -137,8 +146,10 @@ struct EffectPreviewTests {
         let long = try previewWindow(of: "c1", request: twelve, playhead: 815_520, in: longClip)
         let short = try previewWindow(of: "c1", request: twelve, playhead: 719_520, in: shortClip)
 
-        #expect(long == PreviewWindow(file: "f1", span: 288_000..<816_000, leadIn: 48_000, levels: [twelve]))
-        #expect(short == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, levels: [twelve]))
+        #expect(
+            long == PreviewWindow(file: "f1", span: 288_000..<816_000, leadIn: 48_000, tail: 48_000, levels: [twelve]))
+        #expect(
+            short == PreviewWindow(file: "f1", span: 528_000..<720_000, leadIn: 48_000, tail: 48_000, levels: [twelve]))
     }
 
     /// C19, plan gate 4 item 4: a window renders into memory: `Clips/` has the same names after.

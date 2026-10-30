@@ -254,6 +254,25 @@ extension L10n {
         }
     }
 
+    /// The result banner of a Repair Sound run (decision 0064 D4): "Repaired clipped peaks in 2 clips.
+    /// The level is up to 4 dB lower." for a de-clip that found runs, "No clipped peaks found." for
+    /// a de-clip alone that found none, and "Repaired the sound of 3 clips." for the other repairs.
+    /// The drop sentence has no dB value of 0. `text` gives the value of a key.
+    static func repairResult(_ result: RepairResult, text: (L10n) -> String = { $0.text }) -> String {
+        func fill(_ key: L10n, _ values: Int...) -> String {
+            String(format: text(key), locale: .current, arguments: values)
+        }
+        guard result.clips > 0 else { return text(.denoiseUnchanged) }
+        guard result.declip, result.repaired > 0 else {
+            if result.declip, !result.others { return text(.repairNone) }
+            return result.clips == 1 ? fill(.repairSoundOne) : fill(.repairSoundMany, result.clips)
+        }
+        let one = result.repaired == 1
+        let found = one ? fill(.repairPeaksOne) : fill(.repairPeaksMany, result.repaired)
+        guard result.drop > 0 else { return found }
+        return found + " " + (one ? fill(.repairDropOne, result.drop) : fill(.repairDropMany, result.drop))
+    }
+
     /// The text of a stop of playback that the user did not ask for.
     static func message(for stop: PlaybackStop) -> String {
         switch stop {

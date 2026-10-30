@@ -2,11 +2,13 @@ import DirigibleCore
 import Foundation
 
 /// The end of a clip render: each moved clip with its new file, the treatment of the request, and
-/// each clip that needed no render (decision 0057).
+/// each clip that needed no render (decision 0057). `repairs` holds the de-clip result of each
+/// clip of a run with a de-clip (decision 0064).
 public struct ClipRenderReport: Sendable {
     public let clips: [RenderedClip]
     public let treatment: Treatment
     public let unchanged: [ClipID]
+    package let repairs: [ClipID: ClipRepair]
 }
 
 extension Studio {
@@ -38,9 +40,13 @@ extension Studio {
                     }
                 })
             await environment.clipRenderWorkDone()
-            return done.map { ($0.session, (clips: $0.clips, unchanged: $0.unchanged), made: $0.made) }
+            return done.map {
+                ($0.session, (clips: $0.clips, unchanged: $0.unchanged, repairs: $0.repairs), made: $0.made)
+            }
         }
-        return ClipRenderReport(clips: rendered.clips, treatment: request.treatment, unchanged: rendered.unchanged)
+        return ClipRenderReport(
+            clips: rendered.clips, treatment: request.treatment, unchanged: rendered.unchanged,
+            repairs: rendered.repairs)
     }
 }
 

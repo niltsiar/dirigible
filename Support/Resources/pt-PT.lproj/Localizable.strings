@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Atenuar música sob a voz…";
 "menu.tools.split.stereo" = "Dividir estéreo em mono";
 "menu.tools.reduce.noise" = "Reduzir ruído\U2026";
+"menu.tools.repair.sound" = "Reparar som\U2026";
 "menu.tools.restore.original" = "Restaurar áudio original";
 
 /* Errors */
@@ -187,7 +188,7 @@
 "error.split.unreadable" = "O Dirigible não pode dividir os clipes estéreo. Não foi possível ler o ficheiro de áudio “%1$@” (erro %2$lld). Verifique o disco e volte a tentar.";
 "error.split.missing" = "O Dirigible não pode dividir os clipes estéreo. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
 "error.split.yielded" = "A divisão foi interrompida por um excerto noutra janela. Volte a dividir depois do excerto.";
-"denoise.banner" = "A reduzir ruído";
+"denoise.banner" = "A processar clipes";
 "denoise.done.one" = "Ruído reduzido em %lld dB em 1 clipe.";
 "denoise.done.many" = "Ruído reduzido em %2$lld dB em %1$lld clipes.";
 "denoise.canceled" = "Redução de ruído cancelada. Nenhum clipe mudou.";
@@ -217,20 +218,41 @@
 "sheet.denoise.playing" = "Pré-visualização atualizada.";
 "sheet.denoise.preview.failed" = "Pré-visualização interrompida. %@";
 "sheet.denoise.apply" = "Reduzir ruído";
-"error.denoise.space" = "O Dirigible não pode reduzir o ruído. O disco desta sessão não tem espaço livre suficiente. Liberte espaço no disco e volte a tentar.";
-"error.denoise.write" = "O Dirigible não pode reduzir o ruído. O Dirigible não consegue escrever na pasta Clips da sessão (erro %lld). Verifique o disco e volte a tentar.";
-"error.denoise.unreadable" = "O Dirigible não pode reduzir o ruído. Não foi possível ler o ficheiro de áudio “%1$@” (erro %2$lld). Verifique o disco e volte a tentar.";
-"error.denoise.missing" = "O Dirigible não pode reduzir o ruído. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
-"error.denoise.not.downloaded" = "O Dirigible não pode reduzir o ruído. O ficheiro de áudio “%@” não está neste Mac. Descarregue primeiro o ficheiro.";
+"error.denoise.space" = "O Dirigible não pode processar os clipes. O disco desta sessão não tem espaço livre suficiente. Liberte espaço no disco e volte a tentar.";
+"error.denoise.write" = "O Dirigible não pode processar os clipes. O Dirigible não consegue escrever na pasta Clips da sessão (erro %lld). Verifique o disco e volte a tentar.";
+"error.denoise.unreadable" = "O Dirigible não pode processar os clipes. Não foi possível ler o ficheiro de áudio “%1$@” (erro %2$lld). Verifique o disco e volte a tentar.";
+"error.denoise.missing" = "O Dirigible não pode processar os clipes. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
+"error.denoise.not.downloaded" = "O Dirigible não pode processar os clipes. O ficheiro de áudio “%@” não está neste Mac. Descarregue primeiro o ficheiro.";
 "error.denoise.track.role" = "O Dirigible não pode reduzir o ruído de um clipe numa faixa de Música ou Efeitos. Selecione clipes de outras faixas e volte a tentar.";
-"error.denoise.mixed" = "O Dirigible não pode reduzir o ruído. Clipes que partilham áudio receberam valores diferentes. Utilize um só valor para estes clipes e volte a tentar.";
+"error.denoise.mixed" = "O Dirigible não pode processar os clipes. Clipes que partilham áudio receberam valores diferentes. Utilize um só valor para estes clipes e volte a tentar.";
 "error.denoise.unavailable" = "O Dirigible não pode reduzir o ruído. A redução de ruído do macOS não foi carregada (erro %lld).";
-"error.denoise.engine" = "O Dirigible não pode reduzir o ruído. O motor de áudio parou (erro %lld). Volte a tentar.";
-"error.denoise.over.full.scale" = "O Dirigible não pode reduzir o ruído. O novo ficheiro de áudio “%@” é mais alto do que a escala total, por isso satura. Volte a tentar.";
+"error.denoise.engine" = "O Dirigible não pode processar os clipes. O motor de áudio parou (erro %lld). Volte a tentar.";
+"error.denoise.over.full.scale" = "O Dirigible não pode processar os clipes. O novo ficheiro de áudio “%@” é mais alto do que a escala total, por isso satura. Volte a tentar.";
 "error.denoise.corner.limit" = "O Dirigible não pode processar os clipes. A frequência de %lld Hz é demasiado alta para a taxa de amostragem desta sessão: a máxima é %lld Hz.";
 "error.denoise.corner.rate" = "O Dirigible não pode processar os clipes. A frequência de %lld Hz precisa de uma taxa de amostragem de sessão de %lld Hz ou mais.";
 "error.denoise.non.finite" = "O Dirigible não pode processar os clipes. Uma amostra do novo ficheiro de áudio “%@” não é um número, por isso o Dirigible não escreve nada. Volte a tentar.";
-"error.denoise.yielded" = "A redução de ruído foi interrompida por um excerto noutra janela. Volte a reduzir o ruído depois do excerto.";
+"error.denoise.yielded" = "O processamento dos clipes foi interrompido por um excerto noutra janela. Volte a executá-lo depois do excerto.";
+"sheet.repair.title.one" = "Reparar som: 1 clipe";
+"sheet.repair.title.many" = "Reparar som: %lld clipes";
+"sheet.repair.declip" = "Reparar picos cortados";
+"sheet.repair.declip.note" = "Encontra picos achatados, como numa gravação direta. Uma chamada ou uma faixa comprimida pode não mostrar nenhum. O clipe fica mais baixo. Utilize Nivelamento automático para o repor.";
+"sheet.repair.rumble" = "Reduzir estrondo";
+"sheet.repair.rumble.note" = "Corta o som abaixo de %lld Hz, como pancadas e vento.";
+"sheet.repair.deess" = "Suavizar sons de \U201Cs\U201D";
+"sheet.repair.deess.note" = "Suaviza sons de \U201Cs\U201D ásperos até %lld dB.";
+"sheet.repair.amount" = "Quantidade";
+"sheet.repair.more" = "Mais";
+"sheet.repair.frequency" = "Frequência";
+"sheet.repair.none" = "Ative pelo menos uma reparação.";
+"sheet.repair.apply" = "Reparar";
+"repair.peaks.one" = "Picos cortados reparados em 1 clipe.";
+"repair.peaks.many" = "Picos cortados reparados em %lld clipes.";
+"repair.drop.one" = "O nível está %lld dB mais baixo.";
+"repair.drop.many" = "O nível está até %lld dB mais baixo.";
+"repair.none" = "Nenhum pico cortado encontrado.";
+"repair.sound.one" = "Som reparado em 1 clipe.";
+"repair.sound.many" = "Som reparado em %lld clipes.";
+"repair.canceled" = "Reparação cancelada. Nenhum clipe mudou.";
 "reverted.to" = "Cópia de segurança de %@ restabelecida";
 
 /* Window, panels, and alerts */

@@ -110,6 +110,12 @@ struct SessionView: View {
                     if let draft = model.denoiseDraft { ReduceNoiseSheet(model: model, studio: studio, draft: draft) }
                 }
             }
+            // Tools > Repair Sound... (decision 0064). Only its buttons close it.
+            .background {
+                Color.clear.sheet(isPresented: Binding(get: { model.repairDraft != nil }, set: { _ in })) {
+                    if let draft = model.repairDraft { RepairSheet(model: model, studio: studio, draft: draft) }
+                }
+            }
             // Transport > Go to Take Time... (decision 0061). Only its buttons close it.
             .background {
                 Color.clear.sheet(isPresented: Binding(get: { model.takeTimeDraft != nil }, set: { _ in })) {

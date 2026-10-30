@@ -19,13 +19,17 @@ extension Treatment {
     }
 
     /// The de-clip, when the effects hold one.
-    var declip: Declip? { effects.lazy.compactMap { if case .declip(let value) = $0 { value } else { nil } }.first }
+    public var declip: Declip? {
+        effects.lazy.compactMap { if case .declip(let value) = $0 { value } else { nil } }.first
+    }
 
     /// The high-pass, when the effects hold one.
-    var rumble: Rumble? { effects.lazy.compactMap { if case .rumble(let value) = $0 { value } else { nil } }.first }
+    public var rumble: Rumble? {
+        effects.lazy.compactMap { if case .rumble(let value) = $0 { value } else { nil } }.first
+    }
 
     /// The de-ess, when the effects hold one.
-    var deess: DeEss? { effects.lazy.compactMap { if case .deess(let value) = $0 { value } else { nil } }.first }
+    public var deess: DeEss? { effects.lazy.compactMap { if case .deess(let value) = $0 { value } else { nil } }.first }
 
     /// False for a `.music` or `.effects` track when the effects hold noise, because the voice unit
     /// removes music and effects; else true. Nil, the default role of every track (decision 0060),

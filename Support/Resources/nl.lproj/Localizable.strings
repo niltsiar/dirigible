@@ -45,6 +45,7 @@
 "menu.tools.duck" = "Verlaag muziek onder spraak…";
 "menu.tools.split.stereo" = "Stereo splitsen naar mono";
 "menu.tools.reduce.noise" = "Ruis verminderen\U2026";
+"menu.tools.repair.sound" = "Geluid herstellen\U2026";
 "menu.tools.restore.original" = "Originele audio herstellen";
 
 /* Errors */
@@ -187,7 +188,7 @@
 "error.split.unreadable" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
 "error.split.missing" = "Dirigible kan de stereoclips niet splitsen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
 "error.split.yielded" = "Het splitsen is gestopt vanwege een take in een ander venster. Splits opnieuw na de take.";
-"denoise.banner" = "Ruis wordt verminderd";
+"denoise.banner" = "Clips worden verwerkt";
 "denoise.done.one" = "Ruis verminderd in 1 clip met %lld dB.";
 "denoise.done.many" = "Ruis verminderd in %1$lld clips met %2$lld dB.";
 "denoise.canceled" = "Ruisvermindering geannuleerd. Geen clip is gewijzigd.";
@@ -217,20 +218,41 @@
 "sheet.denoise.playing" = "Voorbeeld bijgewerkt.";
 "sheet.denoise.preview.failed" = "Voorbeeld gestopt. %@";
 "sheet.denoise.apply" = "Ruis verminderen";
-"error.denoise.space" = "Dirigible kan de ruis niet verminderen. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
-"error.denoise.write" = "Dirigible kan de ruis niet verminderen. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
-"error.denoise.unreadable" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
-"error.denoise.missing" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
-"error.denoise.not.downloaded" = "Dirigible kan de ruis niet verminderen. Het audiobestand '%@' staat niet op deze Mac. Download het bestand eerst.";
+"error.denoise.space" = "Dirigible kan de clips niet verwerken. De schijf van deze sessie heeft niet genoeg vrije ruimte. Maak schijfruimte vrij en probeer het opnieuw.";
+"error.denoise.write" = "Dirigible kan de clips niet verwerken. Dirigible kan niet schrijven naar de map Clips van de sessie (fout %lld). Controleer de schijf en probeer het opnieuw.";
+"error.denoise.unreadable" = "Dirigible kan de clips niet verwerken. Het audiobestand '%1$@' kon niet worden gelezen (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
+"error.denoise.missing" = "Dirigible kan de clips niet verwerken. Het audiobestand '%@' staat niet in de map Clips van de sessie. Zet het bestand terug in die map en probeer het opnieuw.";
+"error.denoise.not.downloaded" = "Dirigible kan de clips niet verwerken. Het audiobestand '%@' staat niet op deze Mac. Download het bestand eerst.";
 "error.denoise.track.role" = "Dirigible kan de ruis van een clip op een spoor Muziek of Effecten niet verminderen. Selecteer clips op andere sporen en probeer het opnieuw.";
-"error.denoise.mixed" = "Dirigible kan de ruis niet verminderen. Clips die audio delen kregen verschillende waarden. Gebruik één waarde voor deze clips en probeer het opnieuw.";
+"error.denoise.mixed" = "Dirigible kan de clips niet verwerken. Clips die audio delen kregen verschillende waarden. Gebruik één waarde voor deze clips en probeer het opnieuw.";
 "error.denoise.unavailable" = "Dirigible kan de ruis niet verminderen. De ruisvermindering van macOS is niet geladen (fout %lld).";
-"error.denoise.engine" = "Dirigible kan de ruis niet verminderen. De audio-engine is gestopt (fout %lld). Probeer het opnieuw.";
-"error.denoise.over.full.scale" = "Dirigible kan de ruis niet verminderen. Het nieuwe audiobestand '%@' is luider dan volle schaal en vervormt. Probeer het opnieuw.";
+"error.denoise.engine" = "Dirigible kan de clips niet verwerken. De audio-engine is gestopt (fout %lld). Probeer het opnieuw.";
+"error.denoise.over.full.scale" = "Dirigible kan de clips niet verwerken. Het nieuwe audiobestand '%@' is luider dan volle schaal en vervormt. Probeer het opnieuw.";
 "error.denoise.corner.limit" = "Dirigible kan de clips niet verwerken. De frequentie van %lld Hz is te hoog voor de samplefrequentie van deze sessie: het maximum is %lld Hz.";
 "error.denoise.corner.rate" = "Dirigible kan de clips niet verwerken. De frequentie van %lld Hz vraagt een samplefrequentie van de sessie van %lld Hz of meer.";
 "error.denoise.non.finite" = "Dirigible kan de clips niet verwerken. Een sample van het nieuwe audiobestand '%@' is geen getal, dus Dirigible schrijft niets. Probeer het opnieuw.";
-"error.denoise.yielded" = "De ruisvermindering is gestopt vanwege een take in een ander venster. Verminder de ruis opnieuw na de take.";
+"error.denoise.yielded" = "De clipverwerking is gestopt vanwege een take in een ander venster. Start haar opnieuw na de take.";
+"sheet.repair.title.one" = "Geluid herstellen: 1 clip";
+"sheet.repair.title.many" = "Geluid herstellen: %lld clips";
+"sheet.repair.declip" = "Afgekapte pieken herstellen";
+"sheet.repair.declip.note" = "Vindt platte pieken, zoals bij een directe opname. Een gesprek of gecomprimeerd spoor kan er geen tonen. De clip wordt zachter. Gebruik Automatische niveaus om hem terug te halen.";
+"sheet.repair.rumble" = "Gerommel verminderen";
+"sheet.repair.rumble.note" = "Knipt geluid onder %lld Hz weg, zoals bonken en wind.";
+"sheet.repair.deess" = "Scherpe 's'-klanken verzachten";
+"sheet.repair.deess.note" = "Verzacht scherpe 's'-klanken met maximaal %lld dB.";
+"sheet.repair.amount" = "Hoeveelheid";
+"sheet.repair.more" = "Meer";
+"sheet.repair.frequency" = "Frequentie";
+"sheet.repair.none" = "Zet minstens één herstelactie aan.";
+"sheet.repair.apply" = "Herstellen";
+"repair.peaks.one" = "Afgekapte pieken hersteld in 1 clip.";
+"repair.peaks.many" = "Afgekapte pieken hersteld in %lld clips.";
+"repair.drop.one" = "Het niveau is %lld dB lager.";
+"repair.drop.many" = "Het niveau is tot %lld dB lager.";
+"repair.none" = "Geen afgekapte pieken gevonden.";
+"repair.sound.one" = "Geluid hersteld in 1 clip.";
+"repair.sound.many" = "Geluid hersteld in %lld clips.";
+"repair.canceled" = "Herstel geannuleerd. Geen clip is gewijzigd.";
 "reverted.to" = "Teruggezet naar de reservekopie van %@";
 
 /* Window, panels, and alerts */

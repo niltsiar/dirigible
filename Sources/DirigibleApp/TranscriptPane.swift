@@ -58,6 +58,8 @@ final class TranscriptTextView: NSTextView {
     /// The timeline selection that the pane wrote last, and the one that it shows (P9).
     var wrote: Selection?
     var shownSelection: Selection?
+    /// The text ranges that carry the tint now, in the text of the value.
+    var tinted: [Range<Int>] = []
     /// True while the pane sets its own selection: it writes no timeline selection then.
     var selfSelecting = false
     /// The unit boundaries of the last key move and the selection that it made (P8).
@@ -125,7 +127,7 @@ final class TranscriptTextView: NSTextView {
         selfSelecting = false
         wrote = nil
         moveEnds = nil
-        tint()
+        tint(replaced: true)
         if let frame = markedFrame { marked = built.shown.text.units(at: frame).map(\.text) }
         placeUnderlines()
         restoreScroll()
@@ -236,15 +238,6 @@ final class TranscriptTextView: NSTextView {
             "position": NSNull(), "bounds": NSNull(), "backgroundColor": NSNull(), "cornerRadius": NSNull(),
         ]
         return layer
-    }
-
-    /// The text range `range` of the value, as a range of the layout manager.
-    func textRange(of range: Range<Int>) -> NSTextRange? {
-        guard let manager = textLayoutManager, let content = manager.textContentManager,
-            let start = content.location(manager.documentRange.location, offsetBy: noticeLength + range.lowerBound),
-            let end = content.location(start, offsetBy: range.count)
-        else { return nil }
-        return NSTextRange(location: start, end: end)
     }
 
     /// The line fragments of the text range `range` of the value, in the coordinates of the view.

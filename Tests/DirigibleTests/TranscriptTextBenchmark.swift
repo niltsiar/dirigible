@@ -105,4 +105,121 @@ import Testing
         text.textLayoutManager?.textViewportLayoutController.layoutViewport()
         scroll.displayIfNeeded()
     }
+
+    // MARK: Selection (P7 to P9, P16)
+
+    #if DEBUG
+        static let selectionBudget = Duration.milliseconds(300)
+    #else
+        static let selectionBudget = Duration.milliseconds(16)
+    #endif
+
+    /// A package of the session of `transcript()` on two tracks: 27 000 units.
+    static func package(in folder: TemporaryFolder) async throws -> URL {
+        let url = folder.url.appending(path: "big.dirigible")
+        var session = Session(sampleRate: 48_000)
+        for n in 1...2 {
+            let (file, track) = ("f\(n)", TrackID("t\(n)"))
+            try session.addFile(AudioFile(id: FileID(file), path: file + ".wav", layout: .mono, length: frames))
+            try session.addTrack(track, name: "Speaker \(n)", layout: .mono)
+            try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: track)
+            try session.place(
+                Clip(id: ClipID(file), file: FileID(file), start: 0, offset: 0, length: frames), on: track)
+            try session.importTranscript(try Self.transcript(), name: "Speaker \(n)", track: track, at: 0)
+        }
+        let written = session
+        try await Task.detached {
+            try Session.create(at: url, sampleRate: 48_000)
+            try written.write(to: url)
+        }.value
+        return url
+    }
+
+    static func milliseconds(_ duration: Duration) -> Double {
+        Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) / 1e15
+    }
+
+    static func p90(_ values: [Double]) -> Double { values.sorted()[values.count * 9 / 10] }
+
+    /// One selection change at 27 000 units takes 16 ms p90 or less with -O: a drag step (the pane
+    /// write while the mouse is down, then the show of the timeline selection that tints the range)
+    /// over 200 steps that widen the range from unit 1 000 to the last unit, and a Shift-Right
+    /// word move over 50 steps from a range of 40 units. The report prints the time of the layout and
+    /// display after each change apart, the moves from a range of 12 000 units (AppKit sets a
+    /// selection in time that grows with its length), and the time of Select All, which have no
+    /// budget.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aSelectionChangeOfTwentySevenThousandUnitsFitsSixteenMilliseconds() async throws {
+        let base = try TranscriptPaneTests()
+        let (model, _, window, _) = try await base.open(try await Self.package(in: base.folder))
+        model.showTranscript()
+        let pane = try await base.waitForPane(window)
+        let text = try #require(pane.shown?.text)
+        #expect(text.units.count == 27_000, "\(text.units.count) units")
+        func draw() {
+            window.contentView?.layoutSubtreeIfNeeded()
+            pane.textLayoutManager?.textViewportLayoutController.layoutViewport()
+            pane.displayIfNeeded()
+        }
+
+        let anchor = text.units[1_000].text.lowerBound + pane.noticeLength
+        var (drag, dragDraw) = ([Double](), [Double]())
+        let count = 200
+        for step in 1...count {
+            let unit = 1_000 + (text.units.count - 1_000) * step / count - 1
+            let end = text.units[unit].text.upperBound + pane.noticeLength
+            let start = ContinuousClock.now
+            pane.setSelectedRanges(
+                [NSValue(range: NSRange(location: anchor, length: end - anchor))], affinity: .downstream,
+                stillSelecting: step < count)
+            pane.show(model.timeline.selection)
+            let shown = ContinuousClock.now
+            draw()
+            (drag, dragDraw) = (drag + [Self.milliseconds(shown - start)], dragDraw + [Self.milliseconds(.now - shown)])
+        }
+        #expect(pane.selectedRange().length == text.units[26_999].text.upperBound - text.units[1_000].text.lowerBound)
+
+        /// `count` Shift-Right moves from a selection of `size` units that starts at unit 1 000.
+        func shiftRight(from size: Int, count: Int) -> (step: [Double], draw: [Double]) {
+            let first = text.units[1_000].text.lowerBound + pane.noticeLength
+            pane.setSelectedRange(NSRange(location: first, length: 0))
+            pane.setSelectedRange(
+                NSRange(location: first, length: text.units[999 + size].text.upperBound + pane.noticeLength - first))
+            pane.show(model.timeline.selection)
+            draw()
+            var (step, drawn) = ([Double](), [Double]())
+            for _ in 1...count {
+                let start = ContinuousClock.now
+                pane.moveSelectionEnd(by: 1)
+                pane.show(model.timeline.selection)
+                let shown = ContinuousClock.now
+                draw()
+                (step, drawn) = (step + [Self.milliseconds(shown - start)], drawn + [Self.milliseconds(.now - shown)])
+            }
+            return (step, drawn)
+        }
+        let moves = shiftRight(from: 40, count: 50)
+        let wide = shiftRight(from: 12_000, count: 10)
+
+        model.timeline.selection = .none
+        pane.show(.none)
+        let all = ContinuousClock.now
+        model.run(.selectAll)
+        pane.show(model.timeline.selection)
+        let allTime = Self.milliseconds(.now - all)
+        print(
+            "bench report: TranscriptTextBenchmark selection change over \(text.units.count) units: "
+                + "drag step p90 \(Self.p90(drag)) ms (max \(drag.max() ?? 0), draw p90 \(Self.p90(dragDraw))), "
+                + "Shift-Right move from 40 units p90 \(Self.p90(moves.step)) ms (max \(moves.step.max() ?? 0), "
+                + "draw p90 \(Self.p90(moves.draw))), from 12 000 units p90 \(Self.p90(wide.step)) ms "
+                + "(max \(wide.step.max() ?? 0), draw p90 \(Self.p90(wide.draw))), "
+                + "Select All \(allTime) ms")
+        let budget = Self.selectionBudget
+        expectWithinBudget(
+            .milliseconds(Self.p90(drag)), budget, "drag step at 27 000 units p90 \(Self.p90(drag)) ms")
+        expectWithinBudget(
+            .milliseconds(Self.p90(moves.step)), budget,
+            "Shift-Right move at 27 000 units p90 \(Self.p90(moves.step)) ms")
+        window.close()
+    }
 }

@@ -135,9 +135,6 @@ extension TranscriptText {
         return out
     }
 
-    /// True when the units `first` and `second` (later in text order) are on one line.
-    private func sameLine(_ first: Int, _ second: Int) -> Bool {
-        let gap = NSRange(units[first].text.upperBound..<units[second].text.lowerBound)
-        return (string as NSString).rangeOfCharacter(from: .newlines, options: [], range: gap).location == NSNotFound
-    }
+    /// True when the units `first` and `second` are on one line.
+    private func sameLine(_ first: Int, _ second: Int) -> Bool { lines[first] == lines[second] }
 }

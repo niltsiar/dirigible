@@ -109,9 +109,9 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F95 | Export one file for each chapter or marker | Audition, Audacity; user 2026-10-14 | Release 5 | R11 |
 | F96 | Silence tool with a review list: shorten, mute, or mark each long pause | Audition, Audacity; user 2026-10-14 | Release 5 | R10 |
 | F97 | Clip audio type (voice, music, call) that sets the defaults | Audition; user 2026-10-14 | Later | R10 |
-| F98 | Reduce rumble (a high-pass filter) | Audition; user 2026-10-14 | Release 4 | R8 |
-| F99 | Repair clipped peaks (de-clip) | Audition; user 2026-10-14 | Release 4 | R8 |
-| F100 | Soften harsh "s" sounds (de-ess) | SoundCraft; user 2026-10-14 | Release 4 | R8 |
+| F98 | Reduce rumble (a high-pass filter) | Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |
+| F99 | Repair clipped peaks (de-clip) | Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |
+| F100 | Soften harsh "s" sounds (de-ess) | SoundCraft; user 2026-10-14 | done, Release 4 run 29 | R8 |
 | F101 | Fit a music bed to a duration | Audition; user 2026-10-14 | Later | R7 |
 | F102 | Agent tools on files outside the session folder (MCP roots) | SoundCraft; user 2026-10-14 | Later | R16 |
 | F103 | Match the loudness of files outside a session | Audition | Later | R9 |

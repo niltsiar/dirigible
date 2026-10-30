@@ -32,6 +32,21 @@ import Testing
         #expect(lines.last?.split(separator: "\t").dropFirst(4).prefix(2) == ["app", "quit"])
     }
 
+    /// C7b: the launch asks the journal for the `audio-output` line.
+    @Test func theLaunchNotesAnAudioOutputOfNone() throws {
+        let app = AppDelegate(
+            recordings: nil, logFolder: logs, audioEnvironment: ["DIRIGIBLE_AUDIO_OUTPUT": "none"])
+        app.applicationWillFinishLaunching(Notification(name: NSApplication.willFinishLaunchingNotification))
+        app.log.drain()
+
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: logs.path)) ?? []).filter {
+            $0.hasSuffix(".tsv")
+        }
+        let file = logs.appending(path: try #require(names.first))
+        let text = String(decoding: try Data(contentsOf: file), as: UTF8.self)
+        #expect(text.contains("\tapp\taudio-output\tmode=none"), "journal: \(text)")
+    }
+
     @Test func theStudioOfAWindowAndOfNewSessionGetsTheAppLog() async throws {
         app.applicationWillFinishLaunching(Notification(name: NSApplication.willFinishLaunchingNotification))
         #expect(app.log.isEnabled)

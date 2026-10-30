@@ -9,7 +9,7 @@ enum AudioOutputSetting: Equatable {
     case unknown(String)
 
     static let variable = "DIRIGIBLE_AUDIO_OUTPUT"
-    /// The value of this process: the live environment and the app journal read this one parse.
+    /// The value of this process, for the live environment.
     static let live = AudioOutputSetting(environment: ProcessInfo.processInfo.environment)
 
     init(environment: [String: String]) {

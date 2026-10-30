@@ -25,25 +25,32 @@ extension Player {
     /// Pulls `elapsed x rate - pulled` frames, in pieces of at most one chunk, and drops the
     /// samples. One tick pulls at most 1 s of frames: when more are due (a system sleep, a debugger
     /// stop), the base moves forward by the rest, and the playhead pauses over the gap as a device
-    /// output does. Runs on the queue of the Player, not on an audio thread.
-    func pacedPull() {
-        guard output == .paced, let engine = graph?.engine, engine.isRunning, let base = pacedBase else { return }
+    /// output does. A stop of the refill ends the pull. A failed render returns its stop: the code
+    /// of the thrown error, or the status. Runs on the queue of the Player, not on an audio thread.
+    func pacedPull() -> PlaybackStop? {
+        guard output == .paced, let engine = graph?.engine, engine.isRunning, let base = pacedBase else { return nil }
         let rate = session.sampleRate
         let due = Int((now() - base) / .seconds(1) * Double(rate)) - pacedPulled
-        guard due > 0 else { return }
+        guard due > 0 else { return nil }
         if due > rate { pacedBase = base + .seconds(Double(due - rate) / Double(rate)) }
         if pacedBuffer == nil {
             pacedBuffer = AVAudioPCMBuffer(
                 pcmFormat: engine.manualRenderingFormat, frameCapacity: AVAudioFrameCount(chunk))
         }
-        guard let buffer = pacedBuffer else { return }
+        guard let buffer = pacedBuffer else { return nil }
         var left = min(due, rate)
         while left > 0 {
             refill()
+            guard stop == nil else { return nil }
             let count = min(left, chunk)
-            guard (try? engine.renderOffline(AVAudioFrameCount(count), to: buffer)) == .success else { return }
+            let status: AVAudioEngineManualRenderingStatus
+            do { status = try pacedRender(engine, AVAudioFrameCount(count), buffer) } catch {
+                return .outputUnavailable((error as NSError).code)
+            }
+            guard status == .success else { return .outputUnavailable(status.rawValue) }
             left -= count
             pacedPulled += count
         }
+        return nil
     }
 }

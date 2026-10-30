@@ -15,7 +15,8 @@ public enum Playback: Hashable, Sendable {
 public enum PlaybackStop: Hashable, Sendable {
     /// The output device changed or went away. The user presses Space again.
     case outputChanged
-    /// The engine did not start; the value is the error code.
+    /// The engine did not start, or the paced output did not render; the value is the error code
+    /// or the render status.
     case outputUnavailable(Int)
     /// The package left its volume or was deleted (decision 0016).
     case packageUnavailable

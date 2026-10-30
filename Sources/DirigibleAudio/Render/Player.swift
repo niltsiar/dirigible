@@ -86,6 +86,9 @@ actor Player {
     private let offlineLatency: Int
     /// The host clock of the paced pull. Tests give one that they move.
     let now: @Sendable () -> ContinuousClock.Instant
+    /// Renders the frames of the paced pull. Tests give one that fails.
+    let pacedRender:
+        @Sendable (AVAudioEngine, AVAudioFrameCount, AVAudioPCMBuffer) throws -> AVAudioEngineManualRenderingStatus
     /// The parameter that sets the unit rate. Tests change it to one that the unit refuses.
     var rateParameter = kTimePitchParam_Rate
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
@@ -98,7 +101,7 @@ actor Player {
     private(set) var frame: Frames = .zero
     private(set) var graph: Graph?
     private(set) var feed: Feed?
-    private var stop: PlaybackStop?
+    private(set) var stop: PlaybackStop?
     /// The output presentation latency in session frames, read at each play start. The node
     /// frames run ahead of the heard frames by this much. 0 in offline rendering.
     private(set) var latency = 0
@@ -125,7 +128,10 @@ actor Player {
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
         open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit,
-        offlineLatency: Int = 0, now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
+        offlineLatency: Int = 0, now: @escaping @Sendable () -> ContinuousClock.Instant = { .now },
+        pacedRender:
+            @escaping @Sendable (AVAudioEngine, AVAudioFrameCount, AVAudioPCMBuffer) throws
+            -> AVAudioEngineManualRenderingStatus = { try $0.renderOffline($1, to: $2) }
     ) {
         self.package = package
         self.output = output
@@ -135,6 +141,7 @@ actor Player {
         self.speedUnit = speedUnit
         self.offlineLatency = offlineLatency
         self.now = now
+        self.pacedRender = pacedRender
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
     }
@@ -355,7 +362,7 @@ actor Player {
         guard ticker != nil, stop == nil else { return }
         ticks += 1
         refill()
-        pacedPull()
+        if let failure = pacedPull() { stop = failure }
         loudness.heard(heardFrames())
     }
 

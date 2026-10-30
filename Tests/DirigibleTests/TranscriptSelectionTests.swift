@@ -232,6 +232,29 @@ import Testing
         await model.close()
     }
 
+    /// P9: a change of the range to another range leaves the tint of the new range only: the runs
+    /// of the old range go, a run that both ranges share stays, and a longer run replaces its
+    /// shorter one.
+    @Test func tintFollowsEachChangeOfTheRange() async throws {
+        let (model, _, window, _, pane) = try await shown()
+        let hello = try range("Hello", "there", in: pane)
+        let secondPart = try range("Second", "part", in: pane)
+        let third = try range("Third", in: pane)
+        func show(_ start: Frames, _ end: Frames, _ expected: [NSRange]) async {
+            model.timeline.selection = .range(Marks(inPoint: start, outPoint: end, tracks: ["t1"]))
+            await until("the tint shows \(expected)") {
+                settle(window)
+                return tinted(pane) == expected
+            }
+        }
+        await show(48_000, 100_000, [hello])
+        await show(280_000, 340_000, [secondPart])
+        await show(280_000, 600_000, [secondPart, third])
+        await show(48_000, 600_000, [hello, secondPart, third])
+        await show(280_000, 340_000, [secondPart])
+        await model.close()
+    }
+
     // MARK: P10, P16
 
     /// P10: Delete with the focus in the pane ripples the pane range out of all tracks, in one

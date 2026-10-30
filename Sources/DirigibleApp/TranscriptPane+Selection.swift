@@ -51,18 +51,41 @@ extension TranscriptTextView {
     }
 
     /// Tints each unit of a range track whose midpoint is inside the range (P9), with the
-    /// selection color of the lanes. A rendering attribute changes no text and no selection.
-    func tint() {
+    /// selection color of the lanes. A rendering attribute changes no text and no selection. Only
+    /// the runs that differ from the runs on screen change, so a drag step costs the size of the
+    /// step. `replaced` is true after a storage replacement, which drops all attributes.
+    func tint(replaced: Bool = false) {
         guard let manager = textLayoutManager else { return }
-        manager.removeRenderingAttribute(.backgroundColor, for: manager.documentRange)
-        guard let text = shown?.text, let session = model?.studio?.session,
-            let range = shownSelection?.marks?.selection(in: session)
-        else { return }
-        for run in text.tintRuns(range.range, tracks: Set(range.tracks)) {
-            guard let span = textRange(of: run) else { continue }
-            manager.addRenderingAttribute(
-                .backgroundColor, value: NSColor.unemphasizedSelectedContentBackgroundColor, for: span)
+        if replaced {
+            manager.removeRenderingAttribute(.backgroundColor, for: manager.documentRange)
+            tinted = []
         }
+        var runs: [Range<Int>] = []
+        if let text = shown?.text, let session = model?.studio?.session,
+            let range = shownSelection?.marks?.selection(in: session)
+        {
+            runs = text.tintRuns(range.range, tracks: Set(range.tracks))
+        }
+        let (old, new) = (Set(tinted), Set(runs))
+        for run in tinted where !new.contains(run) {
+            if let span = textRange(of: run) { manager.removeRenderingAttribute(.backgroundColor, for: span) }
+        }
+        for run in runs where !old.contains(run) {
+            if let span = textRange(of: run) {
+                manager.addRenderingAttribute(
+                    .backgroundColor, value: NSColor.unemphasizedSelectedContentBackgroundColor, for: span)
+            }
+        }
+        tinted = runs
+    }
+
+    /// The text range `range` of the value, as a range of the layout manager.
+    func textRange(of range: Range<Int>) -> NSTextRange? {
+        guard let manager = textLayoutManager, let content = manager.textContentManager,
+            let start = content.location(manager.documentRange.location, offsetBy: noticeLength + range.lowerBound),
+            let end = content.location(start, offsetBy: range.count)
+        else { return nil }
+        return NSTextRange(location: start, end: end)
     }
 
     // MARK: Key moves (P8)

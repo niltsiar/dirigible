@@ -33,6 +33,8 @@ public struct TranscriptText: Equatable, Sendable {
     /// Indexes into `units` in start order, and the largest end among the units up to each one.
     private let startOrder: [Int]
     private let latestEnd: [Frames]
+    /// The line of each unit, counted from 0: two units are on one line when the numbers are equal.
+    let lines: [Int]
 
     public init(session: Session) {
         let names = Dictionary(uniqueKeysWithValues: session.tracks.map { ($0.id, $0.name) })
@@ -40,9 +42,12 @@ public struct TranscriptText: Equatable, Sendable {
         var headers: [Header] = []
         var backchannels: [Backchannel] = []
         var units: [Unit] = []
+        var lines: [Int] = []
 
         func add(_ words: [SpokenWord]) {
+            let line = (lines.last ?? -1) + 1
             for (index, word) in words.enumerated() {
+                lines.append(line)
                 if index > 0 { text.append(" ") }
                 units.append(
                     Unit(
@@ -76,6 +81,7 @@ public struct TranscriptText: Equatable, Sendable {
         self.headers = headers
         self.backchannels = backchannels
         self.units = units
+        self.lines = lines
         self.startOrder = startOrder
         latestEnd = startOrder.map {
             latest = max(latest, units[$0].frames.upperBound)

@@ -33,11 +33,13 @@ final class TranscriptTextView: NSTextView {
     private(set) var builds = 0
     private(set) var replacements = 0
     private var focusPending = false
+    /// The first apply of a pane puts the scroll position of the last pane back (P4).
+    var scrollRestored = false
     /// The underline layers of the current units (P4): one for each line fragment of a unit.
     private(set) var underlines: [CALayer] = []
     private var spareUnderlines: [CALayer] = []
     /// The text ranges of the marked units, in the text of the value.
-    private var marked: [Range<Int>] = []
+    private(set) var marked: [Range<Int>] = []
     private var markedFrame: Frames?
     /// True with Increase Contrast: the underline is 3 pt (P4).
     var increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast {
@@ -88,6 +90,7 @@ final class TranscriptTextView: NSTextView {
         storage.endEditing()
         if let frame = markedFrame { marked = built.shown.text.units(at: frame).map(\.text) }
         placeUnderlines()
+        restoreScroll()
     }
 
     nonisolated private static func range(_ range: Range<Int>) -> NSRange {
@@ -159,6 +162,7 @@ final class TranscriptTextView: NSTextView {
         guard ranges != marked else { return }
         marked = ranges
         placeUnderlines()
+        if model?.transcriptFollow.isOn == true { scrollToCurrent() }
     }
 
     private func placeUnderlines() {
@@ -245,6 +249,11 @@ final class TranscriptTextView: NSTextView {
         return scroll
     }
 
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { model?.transcriptFollow.scrollOrigin = scrollOrigin }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         wantsLayer = true
@@ -256,6 +265,9 @@ final class TranscriptTextView: NSTextView {
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(displayOptionsChanged),
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(userScrolled), name: NSScrollView.willStartLiveScrollNotification,
+            object: enclosingScrollView)
         if focusPending { Task { @MainActor [weak self] in self?.takeFocus() } }
     }
 
@@ -277,13 +289,28 @@ struct TranscriptPane: View {
         if studio.session.transcriptNames.isEmpty {
             empty
         } else {
-            // Both values are read here, so a new revision or a focus request runs `updateNSView`.
-            TranscriptPaneText(
-                model: model, studio: studio, revision: studio.sessionRevision,
-                wantsFocus: model.transcriptFollow.focusRequest
-            )
-            .accessibilityIdentifier("transcript.pane")
+            VStack(spacing: 0) {
+                followToggle
+                // Both values are read here, so a new revision or a focus request runs `updateNSView`.
+                TranscriptPaneText(
+                    model: model, studio: studio, revision: studio.sessionRevision,
+                    wantsFocus: model.transcriptFollow.focusRequest
+                )
+                .accessibilityIdentifier("transcript.pane")
+            }
         }
+    }
+
+    /// The state of the follow at all times (P18), apart from View > Automatic Scroll.
+    private var followToggle: some View {
+        Toggle(
+            L10n.transcriptFollow.key,
+            isOn: Binding(
+                get: { model.transcriptFollow.isOn }, set: { _ in model.toggleTranscriptFollow() })
+        )
+        .toggleStyle(.checkbox).controlSize(.small).font(.system(size: 11))
+        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 8).padding(.vertical, 4)
+        .accessibilityIdentifier("transcript.follow")
     }
 
     /// With no transcript: the title, the file types, and a button with the state of the menu item (P2).

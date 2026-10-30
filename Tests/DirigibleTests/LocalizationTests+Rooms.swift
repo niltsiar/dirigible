@@ -58,4 +58,6 @@ let inspectorRooms: [(name: String, size: Double, weight: NSFont.Weight, room: D
         [.transcriptEmptyTitle]
     ),
     ("Import Transcript", 11, .regular, 136, [.menuFileImportTranscript]),
+    // The Follow Playhead check box of the pane header (P18), a small control.
+    ("Follow Playhead", 11, .regular, 117, [.transcriptFollow]),
 ]

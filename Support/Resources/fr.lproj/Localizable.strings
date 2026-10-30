@@ -418,6 +418,7 @@
 "menu.view.inspector.hide" = "Masquer l’inspecteur";
 "menu.view.transcript.show" = "Afficher la transcription";
 "menu.view.transcript.hide" = "Masquer la transcription";
+"menu.view.transcript.follow" = "Suivre la tête de lecture dans la transcription";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips : %d";
 "inspector.none" = "Aucune sélection";
@@ -621,6 +622,7 @@
 "menu.file.import.transcript" = "Importer la transcription…";
 "transcript.empty.title" = "Aucune transcription";
 "transcript.empty.hint" = "Importez un fichier JSON Whisper, WebVTT ou SRT pour une piste.";
+"transcript.follow" = "Suivre la lecture";
 "panel.transcript.track" = "Piste :";
 "alert.transcript.badfile" = "%@ n’est pas un fichier JSON Whisper, WebVTT ou SRT avec des mots horodatés. La session n’a pas changé.";
 "alert.transcript.take" = "La transcription n’a pas été importée, car une prise a commencé.";

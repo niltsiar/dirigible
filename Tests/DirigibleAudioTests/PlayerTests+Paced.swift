@@ -1,6 +1,8 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -117,5 +119,38 @@ extension PlayerTests {
         let player = pacedPlayer(long)
         await player.apply(.play(from: 0, shuttle: forward), number: 1)
         #expect(await within10Seconds { await player.reading().loudness.seconds > 0 }, "the meter measured")
+    }
+
+    @Test func aFailedPacedRenderEndsThePlay() async throws {
+        let long = try longPackage(seconds: 10)
+        defer { withExtendedLifetime(long) {} }
+        let url = long.url
+        let player = Player(
+            package: { url }, output: .paced, session: long.session, pacedRender: { _, _, _ in .error })
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        let stopped = await within10Seconds { await player.reading().stop != nil }
+        #expect(stopped, "the failed render ended the play")
+        let code = AVAudioEngineManualRenderingStatus.error.rawValue
+        #expect(await player.reading().stop == .outputUnavailable(code))
+    }
+
+    @Test func aRefillStopEndsThePacedPull() async throws {
+        let long = try longPackage(seconds: 30)
+        defer { withExtendedLifetime(long) {} }
+        let url = long.url
+        let gone = OSAllocatedUnfairLock(initialState: false)
+        let clock = FrozenClock()
+        let player = Player(
+            package: {
+                if gone.withLock({ $0 }) { throw CocoaError(.fileNoSuchFile) }
+                return url
+            }, output: .paced, session: long.session, now: { clock.now })
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        gone.withLock { $0 = true }
+        clock.advance(.seconds(1))
+        let stopped = await within10Seconds { await player.reading().stop == .packageUnavailable }
+        #expect(stopped, "the refill found no package")
+        let pulled = await player.pacedPulled
+        #expect(pulled <= 2 * 4800, "the pull rendered \(pulled) frames, more than two chunks")
     }
 }

@@ -66,6 +66,60 @@ extension EffectPreviewTests {
         #expect(abs(20 * log10(1 / Double(scale)) - repair.levelDrop) < 1e-3, "s1 \(scale), drop \(repair.levelDrop)")
     }
 
+    /// D9: a clip whose stored de-clip equals the request is unchanged, and the preview still measures
+    /// its run, so s1 equals the level drop of the render that made the stored file. Fail: a preview
+    /// with no run for an unchanged clip (runs 0, s1 = 1, the clipped source plays with no fill).
+    @Test func previewMeasuresTheRunOfAnUnchangedClip() throws {
+        let (fixture, _) = try clippedFixture()
+        let request = ClipRenderRequest(Treatment(.declip(.standard)))
+        let first = try renderRequest(
+            ["c1"], request: request, of: fixture.package.session, in: fixture.package.url, freeBytes: { .max },
+            isDownloaded: { _ in true })
+        let session = first.session
+        let drop = try #require(first.repairs["c1"]).levelDrop
+        #expect(try clipRenderPlan(["c1"], request: request, in: session).unchanged == ["c1"])
+
+        let window = try previewWindow(of: "c1", among: ["c1"], request: request, playhead: .zero, in: session)
+        let audio = try renderPreview(window, of: session, in: fixture.package.url, readFault: nil) { false }
+
+        let measure = try #require(audio.measure)
+        #expect(window.measure?.run.isEmpty == false, "run \(String(describing: window.measure?.run))")
+        #expect(measure.runs > 0 && measure.scale < 1, "\(measure)")
+        #expect(abs(20 * log10(1 / Double(measure.scale)) - drop) < 1e-3, "s1 \(measure.scale), drop \(drop)")
+    }
+
+    /// The same with the first sheet clip unchanged and the second clip changed: c1 is rendered,
+    /// then the request goes to c1 and c2. The preview of each clip measures the run of the render.
+    @Test func previewMeasuresAnUnchangedAndAChangedClip() throws {
+        var source = clippedVowel(level: 0.3, seconds: 60)
+        source.replaceSubrange(0..<48_000, with: clippedVowel(level: 0.99))
+        source.replaceSubrange(2_400_000..<2_448_000, with: clippedVowel(level: 0.99))
+        let fixture = try RenderFixture()
+        try fixture.add("f1", [source], track: "t1", clips: [("c1", 0, 384_000), ("c2", 2_400_000, 384_000)])
+        let request = ClipRenderRequest(Treatment(.declip(.standard)))
+        let first = try renderRequest(
+            ["c1"], request: request, of: fixture.package.session, in: fixture.package.url, freeBytes: { .max },
+            isDownloaded: { _ in true })
+        let session = first.session
+        let dropOfC1 = try #require(first.repairs["c1"]).levelDrop
+        #expect(try clipRenderPlan(["c1", "c2"], request: request, in: session).unchanged == ["c1"])
+
+        let outcome = try renderRequest(
+            ["c1", "c2"], request: request, of: session, in: fixture.package.url, freeBytes: { .max },
+            isDownloaded: { _ in true })
+        let dropOfC2 = try #require(outcome.repairs["c2"]).levelDrop
+        for (clip, drop) in [("c1" as ClipID, dropOfC1), ("c2", dropOfC2)] {
+            let window = try previewWindow(
+                of: clip, among: ["c1", "c2"], request: request, playhead: .zero, in: session)
+            let audio = try renderPreview(window, of: session, in: fixture.package.url, readFault: nil) { false }
+            let measure = try #require(audio.measure)
+            #expect(window.measure?.run.isEmpty == false, "\(clip) run \(String(describing: window.measure?.run))")
+            #expect(measure.runs > 0 && measure.scale < 1, "\(clip) \(measure)")
+            let heard = 20 * log10(1 / Double(measure.scale))
+            #expect(abs(heard - drop) < 1e-3, "\(clip) s1 \(measure.scale), drop \(drop)")
+        }
+    }
+
     /// The Removed Sound of a one-level preview of `request` on c1 at the frame 0, over the mono
     /// file "f1" of `source`, with `kept` as the de-clip measure.
     func removedSound(_ source: [Float], _ request: ClipRenderRequest, kept: RepairMeasure? = nil) throws

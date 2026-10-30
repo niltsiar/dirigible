@@ -31,7 +31,8 @@ struct PreviewWindow: Hashable, Sendable {
 /// is inside the clip, else at the clip start, and moves back when it would pass the clip end. It
 /// reads up to 1 s of lead-in before the start, to the file start. With a de-clip in the lowest
 /// level, it also reads up to 1 s of tail past the end, to the end of the clip run that the render
-/// measures (0064 D9): the run of the first-level entry of `clipRenderPlan` that holds `clip`.
+/// measures (0064 D9): the run of the first-level entry of `clipRenderPlan` that holds `clip`, or
+/// the run of `clip` alone when the request leaves it unchanged, since the render keeps its file.
 func previewWindow(
     of clip: ClipID, among clips: [ClipID], request: ClipRenderRequest, playhead: Frames, in session: Session
 ) throws(SessionError) -> PreviewWindow {
@@ -53,8 +54,13 @@ func previewWindow(
     var window = PreviewWindow(file: lowered.file, span: (start - Frames(leadIn))..<end, leadIn: leadIn, levels: levels)
     if let declip = lowest.declip {
         let plan = try clipRenderPlan(clips, request: request, in: session)
-        let runs = try plan.lowered.clipRuns(of: plan.levels.first?.first { $0.clips.contains(clip) }?.clips ?? [])
-        let run = runs.first { $0.clips.contains(clip) }?.span ?? end..<end
+        let run: Range<Frames>
+        if plan.unchanged.contains(clip) {
+            run = try source.clipRuns(of: [clip])[0].span
+        } else {
+            let runs = try plan.lowered.clipRuns(of: plan.levels.first?.first { $0.clips.contains(clip) }?.clips ?? [])
+            run = runs.first { $0.clips.contains(clip) }?.span ?? end..<end
+        }
         window.tail = min(rate, max(0, (run.upperBound - end).count))
         window.measure = PreviewMeasure(file: lowered.file, run: run, declip: declip.percent)
     }

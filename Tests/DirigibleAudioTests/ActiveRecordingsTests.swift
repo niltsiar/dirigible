@@ -209,23 +209,13 @@ struct ActiveRecordingsTests {
         }
     }
 
-    /// Polls `condition` each 5 ms. False after the hang guard of 10 s.
-    func within10Seconds(_ condition: () -> Bool) async -> Bool {
-        let end = ContinuousClock.now + .seconds(10)
-        while ContinuousClock.now < end {
-            if condition() { return true }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return false
-    }
-
     @Test func setWaitsForTheLockOfAnotherProcess() async throws {
         let hold = await holdDuringSet()
         try #require(hold.took, "the test holds the lock")
         #expect(!hold.endedWhileHeld, "the set waits while another process holds the lock")
         #expect(hold.listWhileHeld == [other], "the list is unchanged while the lock is held")
 
-        #expect(await within10Seconds { hold.ended.withLock { $0 } }, "the set ended after the release")
+        await until(limit: .seconds(10), "the set ended after the release") { hold.ended.withLock { $0 } }
         #expect(try onDisk() == [other, entry])
     }
 
@@ -234,7 +224,7 @@ struct ActiveRecordingsTests {
         let hold = await holdDuringSet(writing: [other, written])
         try #require(hold.took, "the test holds the lock")
 
-        #expect(await within10Seconds { hold.ended.withLock { $0 } }, "the set ended")
+        await until(limit: .seconds(10), "the set ended") { hold.ended.withLock { $0 } }
         #expect(try onDisk() == [other, written, entry])
     }
 
@@ -266,7 +256,7 @@ struct ActiveRecordingsTests {
         defer { close(held) }
         let took = startSet()
 
-        #expect(await within10Seconds { took.withLock { $0 } != nil }, "the set ended with the lock still held")
+        await until(limit: .seconds(10), "the set ended with the lock still held") { took.withLock { $0 } != nil }
         let waited = try #require(took.withLock { $0 })
         #expect(waited >= .milliseconds(900), "the set waited \(waited)")
         #expect(try onDisk() == [other, entry], "the set wrote with no file lock")

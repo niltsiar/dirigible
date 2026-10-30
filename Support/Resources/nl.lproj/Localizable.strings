@@ -418,6 +418,7 @@
 "menu.view.inspector.hide" = "Verberg infovenster";
 "menu.view.transcript.show" = "Toon transcript";
 "menu.view.transcript.hide" = "Verberg transcript";
+"menu.view.transcript.follow" = "Volg afspeelkop in transcript";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Geen selectie";
@@ -621,6 +622,7 @@
 "menu.file.import.transcript" = "Importeer transcript…";
 "transcript.empty.title" = "Geen transcript";
 "transcript.empty.hint" = "Importeer een Whisper-JSON-, WebVTT- of SRT-bestand voor een spoor.";
+"transcript.follow" = "Volg afspeelkop";
 "panel.transcript.track" = "Spoor:";
 "alert.transcript.badfile" = "%@ is geen Whisper-JSON-, WebVTT- of SRT-bestand met woorden met tijden. De sessie is niet gewijzigd.";
 "alert.transcript.take" = "Het transcript is niet geïmporteerd, omdat een take begon.";

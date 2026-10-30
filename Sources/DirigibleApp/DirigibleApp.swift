@@ -83,6 +83,12 @@ struct DirigibleApp: App {
                         .keyboardShortcut(MenuKeys.inspector).disabled(!app.inspectorItem.enabled)
                     Button(app.transcriptItem.title.key) { app.key?.toggleTranscript() }
                         .keyboardShortcut(MenuKeys.transcript).disabled(!app.transcriptItem.enabled)
+                    Toggle(
+                        L10n.menuViewTranscriptFollow.key,
+                        isOn: Binding(
+                            get: { app.transcriptFollowItem.checked },
+                            set: { _ in app.key?.toggleTranscriptFollow() })
+                    ).disabled(!app.transcriptFollowItem.enabled)
                 }
                 // The Edit group replaces the system items, so Delete has Backspace (probe E6).
                 CommandGroup(replacing: .pasteboard) {

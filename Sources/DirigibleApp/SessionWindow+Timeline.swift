@@ -45,7 +45,9 @@ extension SessionWindow {
         for effect in effects {
             switch effect {
             case .selection(let selection): timeline.selection = selection
-            case .seek(let frame): Task { await studio.perform(.seek(.frame(frame))) }
+            case .seek(let frame):
+                resumeTranscriptFollow()
+                Task { await studio.perform(.seek(.frame(frame))) }
             case .currentMarker(let id): timeline.marker = id
             case .beep: beep()
             case .commit(let commit):
@@ -177,6 +179,7 @@ extension SessionWindow {
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
         commitInspector()
+        if startsOrSeeks(command) { resumeTranscriptFollow() }
         transportWork = Task { await studio?.perform(command) }
     }
 

@@ -29,7 +29,10 @@ import Testing
 
     /// A package with the track and the clip, and with the transcript when `spoken` is true. A
     /// transcript file that `damaged` names is written, then removed.
-    func package(spoken: Bool = true, name: String = "a", trackName: String = "Host") async throws -> URL {
+    func package(
+        spoken: Bool = true, name: String = "a", trackName: String = "Host",
+        words custom: [(Double, Double, String)]? = nil
+    ) async throws -> URL {
         let url = folder.url.appending(path: "\(name).dirigible")
         try await Task.detached {
             try Session.create(at: url, sampleRate: 48_000)
@@ -39,9 +42,10 @@ import Testing
             try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
             try session.place(Clip(id: "A", file: "f1", start: 0, offset: 0, length: 960_000), on: "t1")
             if spoken {
-                let words: [(Double, Double, String)] = [
-                    (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
-                ]
+                let words: [(Double, Double, String)] =
+                    custom ?? [
+                        (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
+                    ]
                 let json =
                     #"{"words":["#
                     + words.map { #"{"word":" \#($0.2)","start":\#($0.0),"end":\#($0.1)}"# }

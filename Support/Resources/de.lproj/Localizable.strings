@@ -418,6 +418,7 @@
 "menu.view.inspector.hide" = "Informationen ausblenden";
 "menu.view.transcript.show" = "Transkript einblenden";
 "menu.view.transcript.hide" = "Transkript ausblenden";
+"menu.view.transcript.follow" = "Abspielposition im Transkript folgen";
 "inspector.clip" = "Clip";
 "inspector.clips" = "Clips: %d";
 "inspector.none" = "Keine Auswahl";
@@ -621,6 +622,7 @@
 "menu.file.import.transcript" = "Transkript importieren …";
 "transcript.empty.title" = "Kein Transkript";
 "transcript.empty.hint" = "Importiere eine Whisper-JSON-, WebVTT- oder SRT-Datei für eine Spur.";
+"transcript.follow" = "Abspielposition folgen";
 "panel.transcript.track" = "Spur:";
 "alert.transcript.badfile" = "%@ ist keine Whisper-JSON-, WebVTT- oder SRT-Datei mit zeitlich festgelegten Wörtern. Die Sitzung wurde nicht geändert.";
 "alert.transcript.take" = "Das Transkript wurde nicht importiert, weil ein Take gestartet ist.";

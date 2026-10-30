@@ -26,4 +26,22 @@ extension TranscriptPaneTests {
         #expect(text.replacements == 1 && !text.string.contains("Second"), "an older build that ends last is dropped")
         await model.close()
     }
+
+    /// P4b: 100 display ticks that move the playhead to other units build nothing and replace no
+    /// storage. The ticks reach the underline, so the check is not vacuous.
+    @Test func ticksBuildNothing() async throws {
+        let (model, _, window, _) = try await open(try await package(name: "ticks"))
+        model.showTranscript()
+        let pane = try await waitForPane(window)
+        let (builds, replacements) = (pane.builds, pane.replacements)
+        var moved = Set<String>()
+        for tick in 0..<100 {
+            let frame = Frames(tick * 12_000)
+            model.transcriptTick(frame: frame)
+            moved.insert("\(pane.underlines.map(\.frame))")
+        }
+        #expect(moved.count > 2, "the ticks moved the underline over \(moved.count) places")
+        #expect((pane.builds, pane.replacements) == (builds, replacements), "a tick builds nothing")
+        await model.close()
+    }
 }

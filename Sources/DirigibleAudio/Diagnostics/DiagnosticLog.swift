@@ -83,8 +83,9 @@ public final class DiagnosticLog: Sendable {
 
     /// Writes the `audio-output` line of the app journal (decision 0059): a notice for a
     /// `DIRIGIBLE_AUDIO_OUTPUT` of `none`, an error for an unknown value, nothing for the device.
-    /// It reads the value that sets the output of the live environment.
-    public func noteAudioOutput() { noteAudioOutput(AudioOutputSetting.live) }
+    public func noteAudioOutput(environment: [String: String]) {
+        noteAudioOutput(AudioOutputSetting(environment: environment))
+    }
 
     func noteAudioOutput(_ setting: AudioOutputSetting) {
         switch setting {

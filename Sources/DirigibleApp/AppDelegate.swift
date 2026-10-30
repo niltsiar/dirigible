@@ -55,6 +55,8 @@ import UniformTypeIdentifiers
     @ObservationIgnored let agentSocket: URL
     /// The folder of the journal (decision 0059). Tests give a temporary folder.
     @ObservationIgnored let logFolder: URL
+    /// The environment that sets the `audio-output` line of the journal. Tests give their own.
+    @ObservationIgnored let audioEnvironment: [String: String]
     /// The journal of this launch: `applicationWillFinishLaunching` starts it, and each studio of
     /// the app gets it.
     @ObservationIgnored private(set) var log = DiagnosticLog.disabled
@@ -161,8 +163,10 @@ import UniformTypeIdentifiers
 
     init(
         recordings: ActiveRecordings?, peakCache: URL? = nil, defaults: UserDefaults? = nil, defaultFolder: URL? = nil,
-        agentSocket: URL = agentSocketPath(), logFolder: URL = DiagnosticLog.folder(), watchesHangs: Bool = false
+        agentSocket: URL = agentSocketPath(), logFolder: URL = DiagnosticLog.folder(), watchesHangs: Bool = false,
+        audioEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) {
+        self.audioEnvironment = audioEnvironment
         self.recordings = recordings
         self.watchesHangs = watchesHangs
         self.agentSocket = agentSocket
@@ -348,7 +352,7 @@ import UniformTypeIdentifiers
     func applicationWillFinishLaunching(_ notification: Notification) {
         let facts = Self.buildFacts
         log = DiagnosticLog.start(.app, folder: logFolder, version: facts.version, commit: facts.commit)
-        log.noteAudioOutput()
+        log.noteAudioOutput(environment: audioEnvironment)
         if watchesHangs { watchdog = HangWatchdog.start(log: log) }
     }
 

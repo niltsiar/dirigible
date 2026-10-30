@@ -7,13 +7,13 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// Transcript criterion P13: one build and apply of the pane text for a 2 h session of 2 tracks
-/// and 27 000 units takes 50 ms p90 or less over 10 runs with -O (`make bench
-/// FILTER=TranscriptTextBenchmark`); 1 s in debug, a proxy. The time covers `Session.words()`, the
-/// `TranscriptText` value, the storage replacement, and the layout of the visible part at a 320 pt
-/// pane. Track 1 plays a rendered file with an origin chain of two levels, so the root walk of
-/// `Session.words()` is in the time. Each run swaps between two sessions that differ in their
-/// words, so each run replaces the storage.
+/// Transcript criterion P13: the main-actor part of one build and apply of the pane text for a 2 h
+/// session of 2 tracks and 27 000 units takes 50 ms p90 or less over 10 runs with -O (`make bench
+/// FILTER=TranscriptTextBenchmark`); 1 s in debug, a proxy. The value and its attributed text build
+/// off the main actor (`Session.words()` with the root walk of the origin chain of two levels on
+/// track 1, and `TranscriptText`); the time covers the storage replacement and the layout of the
+/// visible part at a 320 pt pane, and the report prints the off-main time apart. Each run swaps
+/// between two sessions that differ in their words, so each run replaces the storage.
 @MainActor struct TranscriptTextBenchmark {
     #if DEBUG
         static let budget = Duration.seconds(1)
@@ -51,7 +51,7 @@ import Testing
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aBuildAndApplyOfTwentySevenThousandUnitsFitsFiftyMilliseconds() throws {
+    func aBuildAndApplyOfTwentySevenThousandUnitsFitsFiftyMilliseconds() async throws {
         let (full, trimmed) = try Self.sessions()
         #expect(full.words().count == 27_000, "\(full.words().count) words")
         #expect(full.files["h1 NR NR"]?.origin?.source == "h1 NR", "the chain has two levels")
@@ -67,40 +67,36 @@ import Testing
         let text = try #require(scroll.documentView as? TranscriptTextView)
 
         var times: [Duration] = []
-        var (wordTimes, valueTimes): ([Duration], [Duration]) = ([], [])
+        var builds: [Duration] = []
         var unchanged: [Int] = []
         for run in 0...10 {
             let replacements = text.replacements
             let session = run.isMultiple(of: 2) ? full : trimmed
-            if run > 0 {
-                let words = ContinuousClock.now
-                _ = session.words()
-                wordTimes.append(ContinuousClock.now - words)
-                let value = ContinuousClock.now
-                _ = TranscriptText(session: session)
-                valueTimes.append(ContinuousClock.now - value)
-            }
+            #expect(text.begin(revision: run + 1))
+            let off = ContinuousClock.now
+            let built = await TranscriptTextView.build(session, notices: [], revision: run + 1)
+            let build = ContinuousClock.now - off
             let start = ContinuousClock.now
-            Self.timedSpan(text, session, run + 1, scroll)
+            Self.timedSpan(text, built, scroll)
             let time = ContinuousClock.now - start
             if text.replacements != replacements + 1 { unchanged.append(run) }
             // Run 0 builds the first layout and is not timed.
-            if run > 0 { times.append(time) }
+            if run > 0 { (times, builds) = (times + [time], builds + [build]) }
         }
         #expect(unchanged.isEmpty, "runs that replaced no storage: \(unchanged)")
         let p90 = times.sorted()[8]
         print(
-            "bench report: TranscriptTextBenchmark build and apply p90 \(p90), words() p90 \(wordTimes.sorted()[8]), "
-                + "words() and value p90 \(valueTimes.sorted()[8]), runs \(times.sorted())")
-        expectWithinBudget(p90, Self.budget, "build and apply of 27 000 units p90 \(p90)")
+            "bench report: TranscriptTextBenchmark main-actor apply p90 \(p90), off-main build p90 \(builds.sorted()[8]), "
+                + "runs \(times.sorted())")
+        expectWithinBudget(p90, Self.budget, "main-actor apply of 27 000 units p90 \(p90)")
         window.close()
     }
 
     /// The timed span of one run, as one frame for a trace
     /// (`scripts/bench.sh --trace <file> --under timedSpan`).
     @inline(never)
-    static func timedSpan(_ text: TranscriptTextView, _ session: Session, _ revision: Int, _ scroll: NSScrollView) {
-        text.update(session: session, revision: revision)
+    static func timedSpan(_ text: TranscriptTextView, _ built: TranscriptTextView.Built, _ scroll: NSScrollView) {
+        text.apply(built)
         scroll.window?.contentView?.layoutSubtreeIfNeeded()
         text.textLayoutManager?.textViewportLayoutController.layoutViewport()
         scroll.displayIfNeeded()

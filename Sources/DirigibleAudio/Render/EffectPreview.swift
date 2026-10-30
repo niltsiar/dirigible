@@ -274,7 +274,7 @@ actor EffectPreview {
         let node = AVAudioPlayerNode()
         engine.attach(node)
         // Before the first read of `mainMixerNode`, as the Player.
-        if output == .offline {
+        if output != .device {
             guard (try? engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: 4096)) != nil
             else { return nil }
         }

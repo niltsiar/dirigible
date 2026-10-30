@@ -138,6 +138,29 @@ struct DiagnosticLogTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: locked.path) == [])
     }
 
+    /// C7b: `none` writes one notice line and an unknown value one error line, after `app launch`;
+    /// a device or unset value writes none.
+    @Test(
+        arguments: [
+            ("none", ["notice", "app", "audio-output", "mode=none"]),
+            ("loud", ["error", "app", "audio-output", "unknown=loud"]),
+            ("device", nil),
+            (nil, nil),
+        ] as [(String?, [String]?)])
+    func aSetAudioOutputWritesOneLaunchLine(value: String?, line: [String]?) throws {
+        let log = DiagnosticLog.start(
+            .app, folder: folder.url, version: "0.4.9", commit: "abc1234", now: date("2026-10-16T19:20:00Z"),
+            queue: Journal.makeQueue(), environment: value.map { ["DIRIGIBLE_AUDIO_OUTPUT": $0] } ?? [:])
+        log.drain()
+
+        let lines = try journalLines(of: try #require(journalFiles(in: folder.url).first))
+        try #require(lines.count == (line == nil ? 3 : 4), "lines: \(lines)")
+        if let line {
+            let columns = lines[3].split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            #expect(Array(columns[3...]) == line)
+        }
+    }
+
     /// C44.
     @Test func theFolderComesFromTheEnvironment() {
         let home = URL(filePath: NSHomeDirectory()).appending(path: "Library/Logs/Dirigible").path

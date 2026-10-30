@@ -4,15 +4,16 @@ import DirigibleCore
 import Foundation
 
 /// Plays the session mix (decision 0016): one `AVAudioEngine` with one `AVAudioPlayerNode` into
-/// the main mixer, on the system default output or in offline manual rendering. An actor, so
-/// the engine start and the file reads never run on the main actor.
+/// the main mixer, on the system default output, in offline manual rendering, or in paced manual
+/// rendering (no device, the tick pulls at the host clock; `DIRIGIBLE_AUDIO_OUTPUT=none`). An
+/// actor, so the engine start and the file reads never run on the main actor.
 ///
 /// A play schedules chunks of 0.1 s ahead of the node. A tick on the queue of the actor runs the
 /// refill each half chunk, and the refill reads the node position. The next command ends the
 /// tick. The tick does not wait for the `.dataConsumed` handler: AVFAudio delivers it on a queue
 /// that a full cooperative pool delays (decision 0016, amended 2026-10-03).
 actor Player {
-    enum Output { case device, offline }
+    enum Output { case device, offline, paced }
     /// Only these change the feed number. A seek or a shuttle change is a new play.
     enum Command: Sendable {
         /// `speed` applies only at the shuttle rate 1x (decision 0052). A forward play stops at
@@ -73,7 +74,7 @@ actor Player {
     nonisolated var unownedExecutor: UnownedSerialExecutor { queue.asUnownedSerialExecutor() }
 
     private let package: @Sendable () throws -> URL
-    private let output: Output
+    let output: Output
     /// Starts the engine. Tests give one that throws.
     private let start: @Sendable (AVAudioEngine) throws -> Void
     /// Opens a pool file. Tests give one that fails.
@@ -83,6 +84,8 @@ actor Player {
     /// The output latency of offline rendering, in session frames. Tests give one; the device
     /// output reads its own at each play.
     private let offlineLatency: Int
+    /// The host clock of the paced pull. Tests give one that they move.
+    let now: @Sendable () -> ContinuousClock.Instant
     /// The parameter that sets the unit rate. Tests change it to one that the unit refuses.
     var rateParameter = kTimePitchParam_Rate
     /// The output frames of one chunk: 0.1 s at the session rate (a calibration knob).
@@ -111,13 +114,18 @@ actor Player {
     private var fadeBuffer: AVAudioPCMBuffer?
     /// The meter of the heard mix (decision 0033).
     private(set) var loudness: PlayerLoudness
+    /// The paced pull (`Player+Paced.swift`): the instant that frame 0 of the pull is owed from,
+    /// the frames pulled since, and the buffer that the pull renders into.
+    var pacedBase: ContinuousClock.Instant?
+    var pacedPulled = 0
+    var pacedBuffer: AVAudioPCMBuffer?
 
     /// Stores values only. The engine is made at the first play.
     init(
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
         open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit,
-        offlineLatency: Int = 0
+        offlineLatency: Int = 0, now: @escaping @Sendable () -> ContinuousClock.Instant = { .now }
     ) {
         self.package = package
         self.output = output
@@ -126,6 +134,7 @@ actor Player {
         self.open = open
         self.speedUnit = speedUnit
         self.offlineLatency = offlineLatency
+        self.now = now
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
     }
@@ -180,6 +189,8 @@ actor Player {
             mix: MixReader(package: url, session: session, open: open))
         refill()
         graph.node.play()
+        pacedBase = now()
+        pacedPulled = 0
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
 
@@ -212,7 +223,7 @@ actor Player {
 
     /// Schedules chunks until the feed is `depth` chunks ahead of the node, or at its end. The
     /// chunks read the package that the lock holds now; a package that left its volume stops.
-    private func refill() {
+    func refill() {
         guard var feed, let graph else { return }
         // An underrun (a late refill, a slow disk): the node ran dry and its time went on, so
         // the next buffer would play later than its frames say, and the playhead would run
@@ -344,6 +355,7 @@ actor Player {
         guard ticker != nil, stop == nil else { return }
         ticks += 1
         refill()
+        pacedPull()
         loudness.heard(heardFrames())
     }
 
@@ -358,7 +370,7 @@ actor Player {
         if let unit { engine.attach(unit) }
         // Before the first read of `mainMixerNode`: that read binds the output node to the default
         // device, and the audio server then adds a device for the process life.
-        if output == .offline {
+        if output != .device {
             guard
                 (try? engine.enableManualRenderingMode(
                     .offline, format: format, maximumFrameCount: AVAudioFrameCount(chunk))) != nil

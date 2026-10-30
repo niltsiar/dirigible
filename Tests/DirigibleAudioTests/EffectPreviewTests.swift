@@ -4,6 +4,11 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleCore
 
+extension EffectPreview {
+    /// True when the engine renders manually, so it binds no output device.
+    var rendersManually: Bool { graph?.engine.isInManualRenderingMode == true }
+}
+
 /// The preview of a clip render (decision 0054): the clip, the window and its source, the levels,
 /// the loop of the Result or the Removed Sound, and the thread of the render. The engine renders
 /// offline, and each noise render runs AUSoundIsolation.
@@ -41,6 +46,20 @@ struct EffectPreviewTests {
     func engine(_ fixture: RenderFixture) -> EffectPreview {
         let url = fixture.package.url
         return EffectPreview(package: { url }, output: .offline, rate: 48_000, ended: { _ in })
+    }
+
+    /// The paced output of `DIRIGIBLE_AUDIO_OUTPUT=none` makes the preview engine render offline,
+    /// so it never binds the default output device.
+    @Test func aPacedPreviewOpensNoDevice() async throws {
+        let fixture = try fixture()
+        let session = fixture.package.session
+        let window = try previewWindow(of: "c1", among: ["c1"], request: twelve, playhead: .zero, in: session)
+        let url = fixture.package.url
+        let preview = EffectPreview(package: { url }, output: .paced, rate: 48_000, ended: { _ in })
+
+        preview.supersede(1)
+        #expect(try await preview.play(window, of: session, listen: .result, number: 1))
+        #expect(await preview.rendersManually)
     }
 
     /// C19: the Removed Sound loop is the aligned source minus the Result loop within 1e-4, frame for

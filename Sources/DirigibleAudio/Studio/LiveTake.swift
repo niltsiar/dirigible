@@ -119,7 +119,8 @@ struct CaptureEnvironment: Sendable {
     /// A step at the block reads of each placement (decision 0021). Tests hold a placement or
     /// check its thread with it; `live` has none.
     var placeRead: ReadFault?
-    /// The output of the Player that the next play makes (decision 0016). Tests render offline.
+    /// The output of the Player that the next play makes (decision 0016). Tests render offline;
+    /// `DIRIGIBLE_AUDIO_OUTPUT=none` gives `.paced` (`live(environment:)`).
     var playerOutput: Player.Output = .device
     /// A step before the Player stop of a take start, off the main actor. Tests hold it.
     var beforePlayerStop: @Sendable () async -> Void = {}
@@ -177,19 +178,28 @@ struct CaptureEnvironment: Sendable {
     /// a duck (`Studio.runReadJob`, decision 0049). Tests hold the read with it.
     var loudnessBlock: @Sendable () -> Void = {}
 
-    static let live = CaptureEnvironment(
-        hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
-        microphoneAccess: {
-            switch AVCaptureDevice.authorizationStatus(for: .audio) {
-            case .authorized: nil
-            case .notDetermined: .notDetermined
-            case .restricted: .restricted
-            default: .denied
-            }
-        },
-        freeBytes: { $0.freeBytes() }, diskCheckInterval: .seconds(1),
-        saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) },
-        listenOutput: .live)
+    static let live = live(environment: ProcessInfo.processInfo.environment)
+
+    /// The live environment. `DIRIGIBLE_AUDIO_OUTPUT=none` plays and monitors to no device
+    /// (decision 0016, amended); any other value plays to the device.
+    static func live(environment: [String: String]) -> CaptureEnvironment {
+        let noDevice = AudioOutputSetting(environment: environment) == .noDevice
+        var built = CaptureEnvironment(
+            hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
+            microphoneAccess: {
+                switch AVCaptureDevice.authorizationStatus(for: .audio) {
+                case .authorized: nil
+                case .notDetermined: .notDetermined
+                case .restricted: .restricted
+                default: .denied
+                }
+            },
+            freeBytes: { $0.freeBytes() }, diskCheckInterval: .seconds(1),
+            saveSession: { session, lock throws(SessionFileError) in try session.write(under: lock) },
+            listenOutput: noDevice ? .offline() : .live)
+        if noDevice { built.playerOutput = .paced }
+        return built
+    }
 }
 
 /// An armed track with its arm number (1-based), channels, and device, after the route checks.

@@ -6,14 +6,16 @@ import Testing
 /// (decision 0016, amended).
 struct CaptureEnvironmentTests {
     @Test func onlyNonePlaysToNoDevice() {
-        let environment = CaptureEnvironment.live(environment: ["DIRIGIBLE_AUDIO_OUTPUT": "none"])
+        let environment = CaptureEnvironment.live(
+            output: AudioOutputSetting(environment: ["DIRIGIBLE_AUDIO_OUTPUT": "none"]))
         #expect(environment.playerOutput == .paced)
         #expect(!environment.listenOutput.isLive)
     }
 
     @Test(arguments: [nil, "", "device", "nnone", "Device", "None"] as [String?])
     func unsetEmptyDeviceAndUnknownValuesPlayToTheDevice(value: String?) {
-        let environment = CaptureEnvironment.live(environment: value.map { ["DIRIGIBLE_AUDIO_OUTPUT": $0] } ?? [:])
+        let environment = CaptureEnvironment.live(
+            output: AudioOutputSetting(environment: value.map { ["DIRIGIBLE_AUDIO_OUTPUT": $0] } ?? [:]))
         #expect(environment.playerOutput == .device)
         #expect(environment.listenOutput.isLive)
     }

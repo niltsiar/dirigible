@@ -178,12 +178,12 @@ struct CaptureEnvironment: Sendable {
     /// a duck (`Studio.runReadJob`, decision 0049). Tests hold the read with it.
     var loudnessBlock: @Sendable () -> Void = {}
 
-    static let live = live(environment: ProcessInfo.processInfo.environment)
+    static let live = live(output: .live)
 
-    /// The live environment. `DIRIGIBLE_AUDIO_OUTPUT=none` plays and monitors to no device
-    /// (decision 0016, amended); any other value plays to the device.
-    static func live(environment: [String: String]) -> CaptureEnvironment {
-        let noDevice = AudioOutputSetting(environment: environment) == .noDevice
+    /// The live environment. An output of `noDevice` (`DIRIGIBLE_AUDIO_OUTPUT=none`) plays and
+    /// monitors to no device (decision 0016, amended); any other value plays to the device.
+    static func live(output: AudioOutputSetting) -> CaptureEnvironment {
+        let noDevice = output == .noDevice
         var built = CaptureEnvironment(
             hal: .live, silenceLimit: .seconds(2), firstRecordLimit: .seconds(10),
             microphoneAccess: {

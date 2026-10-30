@@ -288,16 +288,6 @@ import SwiftUI
         followTakeError(studio)
     }
 
-    /// The close button and Close: during a take, ask first.
-    func requestClose() {
-        if case .closing = phase { return }
-        if isTakeRunning {
-            alert = .confirmStopAndClose
-            return
-        }
-        Task { await close() }
-    }
-
     /// Waits for the open, stops a take, and waits for every write. When the last save failed,
     /// it asks before it closes.
     func close() async {

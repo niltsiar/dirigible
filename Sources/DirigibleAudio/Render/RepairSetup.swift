@@ -104,7 +104,8 @@ struct RepairSetup {
 /// depth, and a second read through the de-clip and the high-pass for the filled peak, its scale
 /// s1 (`fullScaleRepair`), and the run count. Each read holds one block of the chain. `isCancelled`
 /// is read before each block; `readFault` runs before block `block` of a read when `stem` is its
-/// stem (tests only). With no de-clip it reads nothing. `file` names the source in errors.
+/// stem (tests only). With no de-clip it reads nothing. A NaN or an infinity in the span gives
+/// `.nonFiniteSample` after the first read. `file` names the source in errors.
 func repairSetup(
     span: Range<AVAudioFramePosition>, of source: AVAudioFile, descriptor: Int32, treatment: Treatment,
     file: String, stem: String, readFault: ReadFault?, isCancelled: () -> Bool
@@ -134,16 +135,23 @@ func repairSetup(
         }
     }
     var peaks = [Float](repeating: 0, count: channels)
-    var (codes, offGrid) = (Int64(0), false)
+    var (codes, offGrid, finite) = (Int64(0), false, true)
     try blocks { block, _ in
         for (channel, samples) in block.enumerated() {
             peaks[channel] = max(peaks[channel], vDSP.maximumMagnitude(samples))
             for sample in samples {
+                finite = finite && sample.isFinite
+                // A code of 2^63 or more (a sample of 2^40 or more) is off the grid of each depth.
                 let code = Double(sample) * 0x1p23
-                if code.rounded() == code { codes |= Int64(abs(code)) } else { offGrid = true }
+                if code.rounded() == code, let whole = Int64(exactly: abs(code)) {
+                    codes |= whole
+                } else {
+                    offGrid = true
+                }
             }
         }
     }
+    guard finite else { throw .nonFiniteSample(file: file) }
     // The smallest depth b whose grid 1 / 2^(b - 1) holds each sample, or 24 off the 24-bit grid.
     let carriedBits = offGrid || codes == 0 ? 24 : max(1, 24 - codes.trailingZeroBitCount)
     let first = DeclipStage(percent: declip.percent, peaks: peaks, carriedBits: carriedBits, rate: rate)

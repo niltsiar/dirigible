@@ -71,6 +71,6 @@ extension AppDelegate {
 
     func transcriptItem(for model: SessionWindow?) -> (title: L10n, enabled: Bool) {
         let shown = model?.showsInspector == true && model?.inspectorTab == .transcript
-        return (shown ? .menuViewTranscriptHide : .menuViewTranscriptShow, model != nil)
+        return (shown ? .menuViewTranscriptHide : .menuViewTranscriptShow, model?.studio != nil)
     }
 }

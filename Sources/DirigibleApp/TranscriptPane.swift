@@ -33,10 +33,15 @@ final class TranscriptTextView: NSTextView {
         builds += 1
         let notices = session.transcriptsNotLoaded.map { L10n.transcriptNotLoaded.format($0.id.number, $0.name) }
         let next = Shown(text: TranscriptText(session: session), notices: notices)
-        guard next != shown else { return }
+        guard next != shown, let storage = textStorage else { return }
         shown = next
         replacements += 1
-        textStorage?.setAttributedString(Self.attributed(next))
+        // A replace in a storage that holds text inserts each attribute run apart (290 ms at 27 000
+        // units, P13); an insert into an empty storage takes 7 ms.
+        storage.beginEditing()
+        storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: "")
+        storage.append(Self.attributed(next))
+        storage.endEditing()
     }
 
     private static func range(_ range: Range<Int>) -> NSRange {

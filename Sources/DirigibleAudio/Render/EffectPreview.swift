@@ -29,16 +29,15 @@ struct PreviewWindow: Hashable, Sendable {
     var measure: PreviewMeasure?
 }
 
-/// The window of a preview of `request` on `clip`, one of the clips `clips` that the request
-/// renders (decision 0054). The levels are those of `levelRequests`, as the clip render builds
-/// them, at any setting: a preview has no unchanged rule. On a clip with such levels, it reads the
-/// source of the lowest one at the origin offset, so a preview never stacks; else the clip file.
-/// The window is 10 s long, or the whole clip when the clip is shorter. It starts at `playhead`
-/// when it is inside the clip, else at the clip start, and moves back when it would pass the clip
-/// end. It reads up to 1 s of lead-in before the start, to the file start, and up to 1 s of tail
-/// past the end, to the end of the clip run. With a de-clip in the lowest level, the clip run is
-/// the run that the render of `clips` measures (decision 0064 D9): the run of `clipRenderPlan`
-/// that holds `clip` in its first level, with the clips of the same first-level request.
+/// The window of a preview of `request` on `clip`, one of the clips `clips` of the request
+/// (decision 0054). The levels are those of `levelRequests`, as the clip render builds them, at
+/// any setting: a preview has no unchanged rule. On a clip with such levels, it reads the source
+/// of the lowest one at the origin offset, so a preview never stacks; else the clip file. The
+/// window is 10 s long, or the whole clip when the clip is shorter. It starts at `playhead` when it
+/// is inside the clip, else at the clip start, and moves back when it would pass the clip end. It
+/// reads up to 1 s of lead-in before the start, to the file start, and up to 1 s of tail past the
+/// end, to the end of the clip run: with a de-clip in the lowest level, the run that the render
+/// measures (0064 D9), from the first-level entry of `clipRenderPlan` that holds `clip`.
 func previewWindow(
     of clip: ClipID, among clips: [ClipID], request: ClipRenderRequest, playhead: Frames, in session: Session
 ) throws(SessionError) -> PreviewWindow {
@@ -60,8 +59,7 @@ func previewWindow(
     var runs = try source.clipRuns(of: [clip])
     if lowest.declip != nil {
         let plan = try clipRenderPlan(clips, request: request, in: session)
-        let entry = plan.levels.first?.first { $0.clips.contains(clip) }
-        runs = try plan.lowered.clipRuns(of: entry?.clips ?? [])
+        runs = try plan.lowered.clipRuns(of: plan.levels.first?.first { $0.clips.contains(clip) }?.clips ?? [])
     }
     let run = runs.first { $0.clips.contains(clip) }?.span ?? end..<end
     return PreviewWindow(
@@ -82,12 +80,13 @@ struct PreviewAudio: Sendable {
 
 /// Renders `window` of `session` in `package` into memory (decision 0054): a new chain for each
 /// level, bottom first, the lowest on the window of the file and each other one on the output of
-/// the level below. The Result drops the lead-in; the Removed Sound is the aligned input minus the
-/// Result. It writes no file, and it blocks: never call it on the main actor. `readFault` runs at
-/// the block reads of the window file, by the stem of that file (tests only). A window with a
-/// `measure` runs step 2 of `RepairSetup` on its clip run unless `kept` holds the measure. Every
-/// block of every level is checked for a non-finite sample before the audio is given.
-/// `addedStage` runs after the post-stages of the last level (tests only).
+/// the level below. The Result drops the lead-in. The Removed Sound is the aligned input (with a
+/// de-ess, its `allpassSum`) minus the Result over its scale s1: what the effects changed, at the
+/// input scale. It writes no file, and it blocks: never call it on the main actor. `readFault` runs
+/// at the block reads of the window file, by its stem (tests only). A window with a `measure` runs
+/// step 2 of `RepairSetup` on its clip run unless `kept` holds the measure. Every block of every
+/// level is checked for a non-finite sample before the audio is given. `addedStage` runs after the
+/// post-stages of the last level (tests only).
 func renderPreview(
     _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?,
     kept: RepairMeasure? = nil, addedStage: (any RenderStage)? = nil, isCancelled: () -> Bool
@@ -110,7 +109,7 @@ func renderPreview(
     guard Int(format.channelCount) == channels, format.sampleRate == rate, opened.file.length >= read.upperBound,
         let input = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count))
     else { throw .sourceUnreadable(file: file.path, errno: EIO) }
-    var (below, measure): (AVAudioPCMBuffer?, RepairMeasure?) = (nil, kept)
+    var (below, measure, scale): (AVAudioPCMBuffer?, RepairMeasure?, Float) = (nil, kept, 1)
     for (index, level) in window.levels.enumerated() {
         var setup: RepairSetup
         if index == 0, let key = window.measure {
@@ -127,6 +126,7 @@ func renderPreview(
             setup = try .unmeasured(level.treatment, rate: rate, channels: channels)
         }
         if index == window.levels.count - 1, let addedStage { setup.post.append(addedStage) }
+        scale *= setup.scale
         let chain = try EffectChain(
             level.treatment, scale: setup.scale, rate: rate, channels: channels, component: .soundIsolation,
             repair: setup)
@@ -153,13 +153,14 @@ func renderPreview(
         throw .sourceUnreadable(file: file.path, errno: EIO)
     }
     let frames = count - window.leadIn
+    let deess = window.levels.lazy.compactMap(\.treatment.deess).first
+    let reference = deess.map { allpassSum(input.samples(), hertz: $0.hertz, rate: rate) } ?? input.samples()
     var (result, removed): ([[Float]], [[Float]]) = ([], [])
     for channel in 0..<2 {
         let from = min(channel, channels - 1)
         let rendered = UnsafeBufferPointer(start: below.floatChannelData![from] + window.leadIn, count: frames)
-        let source = UnsafeBufferPointer(start: input.floatChannelData![from] + window.leadIn, count: frames)
         result.append(Array(rendered))
-        removed.append(vDSP.subtract(source, rendered))
+        removed.append(vDSP.subtract(reference[from][window.leadIn...], vDSP.divide(rendered, scale)))
     }
     return PreviewAudio(result: result, removed: removed, measure: window.measure == nil ? nil : measure)
 }

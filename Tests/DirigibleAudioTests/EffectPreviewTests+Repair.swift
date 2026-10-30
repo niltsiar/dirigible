@@ -66,6 +66,65 @@ extension EffectPreviewTests {
         #expect(abs(20 * log10(1 / Double(scale)) - repair.levelDrop) < 1e-3, "s1 \(scale), drop \(repair.levelDrop)")
     }
 
+    /// The Removed Sound of a one-level preview of `request` on c1 at the frame 0, over the mono
+    /// file "f1" of `source`, with `kept` as the de-clip measure.
+    func removedSound(_ source: [Float], _ request: ClipRenderRequest, kept: RepairMeasure? = nil) throws
+        -> [Float]
+    {
+        let fixture = try RenderFixture()
+        try fixture.add("f1", [source], track: "t1", clips: [("c1", 0, source.count)])
+        let session = fixture.package.session
+        let window = try previewWindow(of: "c1", among: ["c1"], request: request, playhead: .zero, in: session)
+        return try renderPreview(window, of: session, in: fixture.package.url, readFault: nil, kept: kept) { false }
+            .removed[0]
+    }
+
+    /// The root mean square of `samples`.
+    func rms(_ samples: [Float]) -> Double {
+        (samples.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(samples.count)).squareRoot()
+    }
+
+    /// Removed Sound holds only what the effects changed, at the input scale: a de-clip with s1 of
+    /// 0.7 and no clipped run on a 440 Hz sine of 0.6, and a 10 dB de-ess at 6 kHz of a 2 kHz tone of
+    /// 0.3 (the detector stays 19 dB under the full band, so no cut), give a removed loop under 1e-5
+    /// and 1e-4 RMS (66 dB under the tone). Fail: the removed loop of the scaled Result (0.3 of the
+    /// sine), and the input as the reference of the de-ess (the phase of the split at 2 kHz).
+    @Test func removedSoundOfAnEffectThatChangesNothingIsSilent() throws {
+        let sine = (0..<96_000).map { Float(0.6 * sin(2 * Double.pi * 440 * Double($0) / 48_000)) }
+        let tone = (0..<96_000).map { Float(0.3 * sin(2 * Double.pi * 2_000 * Double($0) / 48_000)) }
+        let deess = try #require(DeEss(hertz: 6_000, decibels: 10))
+        let measure = RepairMeasure(peaks: [0.6], carriedBits: 24, scale: 0.7, runs: 0)
+
+        let declipped = try removedSound(sine, ClipRenderRequest(Treatment(.declip(.standard))), kept: measure)
+        let softened = try removedSound(tone, ClipRenderRequest(Treatment(.deess(deess))))
+
+        #expect(rms(declipped) < 1e-5, "de-clip removed RMS \(rms(declipped))")
+        #expect(rms(softened) < 1e-4, "de-ess removed RMS \(rms(softened))")
+    }
+
+    /// The Removed Sound of a de-clip of the clipped vowel holds the fills: its energy equals the
+    /// energy of the fills of a `DeclipStage` over the same source to 0.1 dB. Fail: the removed loop
+    /// of the scaled Result, which adds 1 - s1 of the voice.
+    @Test func removedSoundOfADeclipIsTheFill() throws {
+        let (fixture, source) = try clippedFixture()
+        let session = fixture.package.session
+        let request = ClipRenderRequest(Treatment(.declip(.standard)))
+        let window = try previewWindow(of: "c1", among: ["c1"], request: request, playhead: .zero, in: session)
+
+        let audio = try renderPreview(window, of: session, in: fixture.package.url, readFault: nil) { false }
+
+        let measure = try #require(audio.measure)
+        var stages: [any RenderStage] = [
+            DeclipStage(percent: 99, peaks: measure.peaks, carriedBits: measure.carriedBits, rate: 48_000)
+        ]
+        let filled = Array(stages.process([source], last: true)[0].dropFirst(stages[0].latency))
+        let frames = audio.removed[0].count
+        let fill = rms(zip(filled.prefix(frames), source.prefix(frames)).map { $0 - $1 })
+        let removed = rms(audio.removed[0])
+        #expect(measure.runs > 0 && measure.scale < 1 && fill > 1e-3, "\(measure), fill RMS \(fill)")
+        #expect(abs(20 * log10(removed / fill)) < 0.1, "removed RMS \(removed), fill RMS \(fill)")
+    }
+
     /// C17 and C19: on a 22,050 Hz package a de-ess at 9,923 Hz is refused with the limit 9,922 Hz,
     /// before the loop starts, and the loop plays nothing. A de-ess at 9,922 Hz plays. Fail: a
     /// preview that clamps the corner or that checks it in `renderClips` only.

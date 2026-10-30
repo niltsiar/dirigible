@@ -205,6 +205,8 @@ import Testing
 
     @Test func showTranscriptIsOffWithNoSession() {
         #expect(app.transcriptItem(for: nil).enabled == false)
+        let opening = SessionWindow(url: folder.url, recordings: nil, app: app)
+        #expect(opening.studio == nil && !app.transcriptItem(for: opening).enabled, "a window that is opening")
     }
 
     // MARK: P12

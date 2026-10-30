@@ -217,4 +217,17 @@ struct PeakFileTests {
         #expect(PeakFile.read(path: "take1-1-1.wav", stamp: other, channels: 1, rate: 48_000, in: cache) == otherPeaks)
         #expect(PeakFile.read(path: "take1-1-1.wav", stamp: Self.stamp, channels: 1, rate: 48_000, in: cache) == peaks)
     }
+
+    /// A verify copy has its own cache, and the real ID and the command-line front end keep the
+    /// folder of earlier versions.
+    @Test func theFolderFollowsTheBundleID() {
+        let caches = URL(filePath: "/Users/u/Library/Caches")
+        #expect(
+            PeakFile.folder(bundleID: "com.delineas.dirigible.verify-0123abcd", caches: caches).path
+                == "/Users/u/Library/Caches/com.delineas.dirigible.verify-0123abcd/Peaks")
+        #expect(
+            PeakFile.folder(bundleID: "com.delineas.dirigible", caches: caches).path
+                == "/Users/u/Library/Caches/com.delineas.dirigible/Peaks")
+        #expect(PeakFile.folder.path == URL.cachesDirectory.path + "/com.delineas.dirigible/Peaks")
+    }
 }

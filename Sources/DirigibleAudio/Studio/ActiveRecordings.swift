@@ -15,6 +15,11 @@ public struct ActiveRecordings: Sendable {
 
     public init(file: URL) { self.file = file }
 
+    /// The list of the app with `bundleID` in the Application Support folder `support`.
+    public static func file(bundleID: String, support: URL) -> URL {
+        support.appending(path: "\(bundleID)/active-recordings.plist")
+    }
+
     /// The listed packages. A missing or bad file lists none.
     public func packages() -> [URL] {
         dispatchPrecondition(condition: .notOnQueue(.main))

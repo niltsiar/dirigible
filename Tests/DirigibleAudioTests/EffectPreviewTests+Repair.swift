@@ -179,6 +179,38 @@ extension EffectPreviewTests {
         #expect(await preview.measures == 2, "a new de-clip percent did not measure again")
     }
 
+    /// C17: a rumble step with the de-clip on does not read the clip run again. The first play reads
+    /// the run twice for the measure and the window once; the step reads the window only, and its
+    /// measure is the one of the first play. A window with no de-clip has no tail. Fail: a rumble
+    /// corner in the key of the measure (3 more reads for each step).
+    @Test func rumbleStepKeepsTheDeclipMeasure() async throws {
+        let (fixture, _) = try clippedFixture()
+        let (session, url) = (fixture.package.session, fixture.package.url)
+        let reads = LockedBox<Int>()
+        let fault = ReadFault(stem: "f1", block: 0) { reads.value = (reads.value ?? 0) + 1 }
+        let preview = EffectPreview(package: { url }, output: .offline, rate: 48_000, readFault: fault, ended: { _ in })
+        func play(_ number: Int, hertz: Int) async throws -> PreviewWindow {
+            let rumble = try #require(Rumble(hertz: hertz))
+            let request = ClipRenderRequest(try #require(Treatment([.declip(.standard), .rumble(rumble)])))
+            let window = try previewWindow(of: "c1", among: ["c1"], request: request, playhead: .zero, in: session)
+            preview.supersede(number)
+            #expect(try await preview.play(window, of: session, listen: .result, number: number))
+            return window
+        }
+
+        let first = try await play(1, hertz: 80)
+        let afterFirst = reads.value
+        let second = try await play(2, hertz: 120)
+
+        #expect(first.measure == second.measure && first.measure != nil)
+        #expect(afterFirst == 3 && reads.value == 4, "reads \(afterFirst ?? -1), then \(reads.value ?? -1)")
+        let measures = await preview.measures
+        #expect(measures == 1, "measures \(measures)")
+        let hum = try previewWindow(
+            of: "c1", among: ["c1"], request: request([.rumble(.standard)]), playhead: .zero, in: session)
+        #expect(hum.tail == 0 && hum.measure == nil)
+    }
+
     /// C18: a stage that gives a NaN makes the window refuse with `.nonFiniteSample`, and the loop
     /// plays nothing. Fail: a check in `renderClips` only.
     @Test func nonFiniteWindowIsNotPlayed() async throws {

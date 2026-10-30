@@ -17,7 +17,7 @@ extension AVAudioPCMBuffer {
 }
 
 /// What step 2 of `RepairSetup` measured for a de-clip: the values that a caller keeps while the
-/// span, the de-clip percent, and the rumble corner stay the same. It holds no stage.
+/// span and the treatment that it measured stay the same. It holds no stage.
 struct RepairMeasure: Hashable, Sendable {
     let peaks: [Float]
     let carriedBits: Int

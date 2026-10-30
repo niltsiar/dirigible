@@ -7,69 +7,6 @@ import os
 /// What the effect preview loops: the render of the window, or the sound that the render removes.
 public enum Listen: Hashable, Sendable { case result, removedSound }
 
-/// The values that a measure of the de-clip depends on (decision 0064 C17): the file, the clip run
-/// that the render measures, the de-clip percent, and the rumble corner.
-struct PreviewMeasure: Hashable, Sendable {
-    let file: FileID
-    let run: Range<Frames>
-    let declip: Int
-    let rumble: Int?
-}
-
-/// The audio that a preview renders: frames `span` of `file`, the first `leadIn` of which the
-/// preview drops, through one chain for each request of `levels`, bottom first. The chain also
-/// reads `tail` frames past `span` and drops them, so a clipped run across the window end gets the
-/// fill of the render. `measure` is set when the lowest level holds a de-clip.
-struct PreviewWindow: Hashable, Sendable {
-    let file: FileID
-    let span: Range<Frames>
-    let leadIn: Int
-    var tail = 0
-    let levels: [ClipRenderRequest]
-    var measure: PreviewMeasure?
-}
-
-/// The window of a preview of `request` on `clip`, one of the clips `clips` of the request
-/// (decision 0054). The levels are those of `levelRequests`, as the clip render builds them, at
-/// any setting: a preview has no unchanged rule. On a clip with such levels, it reads the source
-/// of the lowest one at the origin offset, so a preview never stacks; else the clip file. The
-/// window is 10 s long, or the whole clip when the clip is shorter. It starts at `playhead` when it
-/// is inside the clip, else at the clip start, and moves back when it would pass the clip end. It
-/// reads up to 1 s of lead-in before the start, to the file start, and up to 1 s of tail past the
-/// end, to the end of the clip run: with a de-clip in the lowest level, the run that the render
-/// measures (0064 D9), from the first-level entry of `clipRenderPlan` that holds `clip`.
-func previewWindow(
-    of clip: ClipID, among clips: [ClipID], request: ClipRenderRequest, playhead: Frames, in session: Session
-) throws(SessionError) -> PreviewWindow {
-    guard let placed = session.clip(clip)?.clip else { throw .unknownClip(clip) }
-    var source = session
-    var levels = [request]
-    if let rebuilt = levelRequests(request, on: session.origins(of: clip).map(\.treatment)) {
-        try source.lower([clip], levels: rebuilt.lowest + 1)
-        levels = rebuilt.requests
-    }
-    guard let lowered = source.clip(clip)?.clip else { throw .unknownClip(clip) }
-    let rate = session.sampleRate
-    let length = min(10 * rate, lowered.length.count)
-    let wanted = lowered.offset + (placed.range.contains(playhead) ? playhead - placed.start : .zero)
-    let start = Frames(min(wanted.count, (lowered.offset + lowered.length).count - length))
-    let end = start + Frames(length)
-    let leadIn = min(start.count, rate)
-    let lowest = levels[0].treatment
-    var runs = try source.clipRuns(of: [clip])
-    if lowest.declip != nil {
-        let plan = try clipRenderPlan(clips, request: request, in: session)
-        runs = try plan.lowered.clipRuns(of: plan.levels.first?.first { $0.clips.contains(clip) }?.clips ?? [])
-    }
-    let run = runs.first { $0.clips.contains(clip) }?.span ?? end..<end
-    return PreviewWindow(
-        file: lowered.file, span: (start - Frames(leadIn))..<end, leadIn: leadIn,
-        tail: min(rate, max(0, (run.upperBound - end).count)), levels: levels,
-        measure: lowest.declip.map {
-            PreviewMeasure(file: lowered.file, run: run, declip: $0.percent, rumble: lowest.rumble?.hertz)
-        })
-}
-
 /// The two loops of a window, each in two channels: a mono window plays in both.
 struct PreviewAudio: Sendable {
     let result: [[Float]]
@@ -84,9 +21,11 @@ struct PreviewAudio: Sendable {
 /// de-ess, its `allpassSum`) minus the Result over its scale s1: what the effects changed, at the
 /// input scale. It writes no file, and it blocks: never call it on the main actor. `readFault` runs
 /// at the block reads of the window file, by its stem (tests only). A window with a `measure` runs
-/// step 2 of `RepairSetup` on its clip run unless `kept` holds the measure. Every block of every
-/// level is checked for a non-finite sample before the audio is given. `addedStage` runs after the
-/// post-stages of the last level (tests only).
+/// step 2 of `RepairSetup` on its clip run, for the de-clip alone, unless `kept` holds the measure:
+/// its s1 leaves out the overshoot of a high-pass after the de-clip (a gap of the render scale only,
+/// decision 0064 D9), and a rumble step reads only the window. Every block of every level is checked
+/// for a non-finite sample before the audio is given. `addedStage` runs after the post-stages of
+/// the last level (tests only).
 func renderPreview(
     _ window: PreviewWindow, of session: Session, in package: URL, readFault: ReadFault?,
     kept: RepairMeasure? = nil, addedStage: (any RenderStage)? = nil, isCancelled: () -> Bool
@@ -112,12 +51,13 @@ func renderPreview(
     var (below, measure, scale): (AVAudioPCMBuffer?, RepairMeasure?, Float) = (nil, kept, 1)
     for (index, level) in window.levels.enumerated() {
         var setup: RepairSetup
-        if index == 0, let key = window.measure {
+        if index == 0, let key = window.measure, let declip = level.treatment.declip {
+            try RepairSetup.check(level.treatment, rate: Int(rate))
             if measure == nil {
                 let run =
                     AVAudioFramePosition(key.run.lowerBound.count)..<AVAudioFramePosition(key.run.upperBound.count)
                 measure = try repairSetup(
-                    span: run, of: opened.file, descriptor: opened.descriptor, treatment: level.treatment,
+                    span: run, of: opened.file, descriptor: opened.descriptor, treatment: Treatment(.declip(declip)),
                     file: file.path, stem: stem, readFault: readFault, isCancelled: isCancelled
                 ).measure
             }

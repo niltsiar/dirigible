@@ -177,8 +177,12 @@ extension SessionWindow {
     func transport(_ command: TransportCommand) {
         leafCalls?.append("\(command)")
         commitInspector()
-        Task { await studio?.perform(command) }
+        transportWork = Task { await studio?.perform(command) }
     }
+
+    /// Returns when the work of the last transport or speed key ends. The playhead of a seek
+    /// that stops a play is final only then.
+    func settleTransport() async { await transportWork?.value }
 
     /// A vari-speed change from a key, the menu, or the pop-up (decision 0052). The app owns the
     /// last speed: the window resolves the change to one speed and stores it with no await before
@@ -187,7 +191,7 @@ extension SessionWindow {
         leafCalls?.append("\(change)")
         commitInspector()
         guard let studio else { return }
-        Task {
+        transportWork = Task {
             let target = change.target(from: studio.speed, last: app?.lastSpeed ?? .x150)
             if target != .one, studio.takesSpeedChange { app?.lastSpeed = target }
             await studio.changeSpeed(to: target)

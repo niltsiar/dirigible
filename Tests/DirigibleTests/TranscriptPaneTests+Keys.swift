@@ -118,8 +118,7 @@ extension TranscriptPaneTests {
         var previous = keyState(model, studio)
         for (name, send) in keyTable {
             send(key(.keyDown, "x", code: 7, in: window), window)
-            // A seek is async: the studio takes the new playhead a moment later.
-            try await Task.sleep(for: .milliseconds(60))
+            await model.settleTransport()
             states[name] = keyState(model, studio)
             if states[name] != previous { changes += 1 }
             previous = keyState(model, studio)
@@ -144,6 +143,22 @@ extension TranscriptPaneTests {
         }
         #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
         #expect(lanes.changes >= 10, "only \(lanes.changes) keys changed the lanes window: the table must act")
+    }
+
+    /// A transport key starts async work. `settleTransport` returns when that work ends, so a
+    /// test reads the playhead of a seek that stops a play with no fixed wait.
+    @Test func settleTransportWaitsForASeekThatStopsAPlay() async throws {
+        let (model, studio, _, _, _) = try await keyWindow("settle", focus: false)
+        model.transport(.playStop)
+        await model.settleTransport()
+        try #require(studio.playback != .stopped, "the play started")
+
+        model.transport(.seek(.end))
+        await model.settleTransport()
+
+        #expect(studio.playback == .stopped)
+        #expect(studio.playhead == studio.session.end)
+        await model.close()
     }
 
     /// P14: an editable field keeps its keys. Space types in the Episode Title field, and

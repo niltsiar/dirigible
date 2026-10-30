@@ -7,6 +7,9 @@ import Foundation
 /// the rate (decision 0064 C19). Whole numbers only: 0.45 x 100 is not 45 in Double.
 package func cornerLimit(rate: Int) -> Int { (9 * rate - 1) / 20 }
 
+/// The lowest whole session rate that takes the corner `hertz`: the inverse of `cornerLimit`.
+package func lowestRate(takingCorner hertz: Int) -> Int { 20 * hertz / 9 + 1 }
+
 extension AVAudioPCMBuffer {
     /// The samples of each channel, from the frame `start` to the end of the buffer.
     func samples(from start: Int = 0) -> [[Float]] {
@@ -56,7 +59,8 @@ struct RepairSetup {
         ]
         let limit = cornerLimit(rate: rate)
         for case (let hertz, let lowest)? in corners where hertz > limit {
-            let bound: ClipRenderError.CornerLimit = limit >= lowest ? .hertz(limit) : .lowestRate(20 * lowest / 9 + 1)
+            let bound: ClipRenderError.CornerLimit =
+                limit >= lowest ? .hertz(limit) : .lowestRate(lowestRate(takingCorner: lowest))
             throw .cornerTooHigh(hertz: hertz, limit: bound)
         }
     }
@@ -160,7 +164,8 @@ func repairSetup(
     try blocks { block, last in
         for samples in stages.process(block, last: last) { filled = max(filled, vDSP.maximumMagnitude(samples)) }
     }
-    return RepairSetup(
-        peaks: peaks, carriedBits: carriedBits, pre: [first] + unmeasured.pre, post: unmeasured.post,
-        scale: fullScaleRepair(filled) ?? 1, runs: (stages.first as? DeclipStage)?.runs ?? 0)
+    let measure = RepairMeasure(
+        peaks: peaks, carriedBits: carriedBits, scale: fullScaleRepair(filled) ?? 1,
+        runs: (stages.first as? DeclipStage)?.runs ?? 0)
+    return try RepairSetup.measured(measure, treatment, rate: rate, channels: channels)
 }

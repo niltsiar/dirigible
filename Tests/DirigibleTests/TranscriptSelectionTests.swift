@@ -24,15 +24,12 @@ import Testing
         .range(Marks(inPoint: start, outPoint: end, tracks: tracks))
     }
 
-    static let hostWords: [(Double, Double, String)] = [
-        (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
-    ]
-
-    /// The package, with `host` on t1, and `guest` on t2 when it has words.
-    func package(host: [(Double, Double, String)] = hostWords, guest: [(Double, Double, String)] = [])
-        async throws -> URL
-    {
+    /// The package, with the words of the suite on t1, and `guest` on t2 when it has words.
+    func package(guest: [(Double, Double, String)] = []) async throws -> URL {
         let url = base.folder.url.appending(path: "s.dirigible")
+        let host: [(Double, Double, String)] = [
+            (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
+        ]
         try await Task.detached {
             try Session.create(at: url, sampleRate: 48_000)
             var session = Session(sampleRate: 48_000)

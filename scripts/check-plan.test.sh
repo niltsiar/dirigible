@@ -647,6 +647,37 @@ rm "$run/decisions.tsv"; ROW_AT="$AFTER" row 2 'plan written'
 refuse 'a first row one day after the size_cutoff line' 'Sources/A/Big.swift'
 script="$saved_script" run="$saved_run"
 
+# A round file review-plan-<n>.md or review-diff-<n>.md writes each finding as a numbered item under
+# ## Act on (INT-043): an item-ID heading refuses, also next to ## Act on, and so does a ## Fix check
+# with no ## Act on. A per-lens file and a file from before the round_cutoff line are none.
+# roundfile <name> <text>: a good folder with the one review file <name>; \n in <text> is a newline.
+roundfile() { good; printf '%b' "$2" > "$run/$1"; }
+roundfile review-diff-1.md '# Code gate 1\n\n## G1: the hand-over waits for a writer (architecture warning)\n\nFixed in abc123.\n\n## Fix check\n\n- 1.1 OK\n'
+refuse 'a round file with an item heading and no Act on' 'review-diff-1.md: '
+refuse 'the refusal names the item heading' '## G1:'
+refuse 'the refusal names Act on' '## Act on'
+roundfile review-diff-1.md '# Code gate 1\n\n## Fix check\n\n- none\n'
+refuse 'a round file with a Fix check and no Act on' 'review-diff-1.md: '
+roundfile review-plan-1.md '## Act on\n\nNone.\n\n## N9: a nit\n\nText.\n'
+refuse 'an item heading N9 next to Act on' '## N9:'
+roundfile review-plan-1.md '## 3. a numbered heading\n\nText.\n'
+refuse 'a numbered item heading' '## 3.'
+roundfile review-plan-1.md '## R2 (warning) a finding\n\nText.\n'
+refuse 'an item heading R2 with a parenthesis' '## R2 ('
+roundfile review-diff-2.md '# Code gate 2\n\n## Act on\n\nNone.\n\n## G1: the hand-over waits for a writer (architecture warning)\n\nFixed in abc123.\n'
+refuse 'an item heading next to an empty Act on' 'review-diff-2.md: '
+roundfile review-diff-1.md '## Act on\n\nNone.\n\n## Fix check\n\n- none\n'
+pass 'an empty Act on and a Fix check'
+roundfile review-diff-1.md '## Notes\n\n- x\n'
+pass 'a round file with a Notes heading only'
+roundfile review-diff-1.md ''
+pass 'an empty round file'
+roundfile review-diff-1-code-review.md '## 1. warning\n\nText.\n'
+pass 'a per-lens file with a numbered heading'
+roundfile review-diff-1.md '## G1: a finding\n\n## Fix check\n\n- none\n'
+touch -t 202610290000 "$run/review-diff-1.md"
+pass 'a round file older than the round_cutoff line'
+
 out="$("$script" 2>&1)"
 code=$?
 [[ $code -eq 2 && "$out" == usage:* ]] || fail "no argument: exit $code: $out"

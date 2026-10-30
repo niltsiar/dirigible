@@ -27,26 +27,27 @@ extension Array where Element == any RenderStage {
     }
 }
 
-/// The RBJ high-pass at `hertz`, Q 0.70711 (a 2nd-order Butterworth), for one channel. It runs in
-/// Double, sample by sample, with its state kept across blocks, so each split of a stream into
-/// blocks gives the same output; a Float `vDSP.Biquad` does not (1.3e-4 at 80 Hz, C1). Its response
-/// equals `AVAudioUnitEQ` `.highPass` to 0.01 dB.
-private struct HighPass {
+/// The RBJ high-pass or low-pass at `hertz`, Q 0.70711 (a 2nd-order Butterworth), for one channel.
+/// It runs in Double, sample by sample, with its state kept across blocks, so each split of a stream
+/// into blocks gives the same output; a Float `vDSP.Biquad` does not (1.3e-4 at 80 Hz, C1). The
+/// high-pass response equals `AVAudioUnitEQ` `.highPass` to 0.01 dB.
+private struct Butterworth {
     private let b0: Double
     private let b1: Double
     private let a1: Double
     private let a2: Double
     private var (x1, x2, y1, y2) = (0.0, 0.0, 0.0, 0.0)
 
-    init(hertz: Int, rate: Double) {
+    init(hertz: Int, rate: Double, high: Bool) {
         let omega = 2 * Double.pi * Double(hertz) / rate
         let (alpha, cosine) = (sin(omega) / (2 * 0.70711), cos(omega))
         let a0 = 1 + alpha
-        (b0, b1) = ((1 + cosine) / 2 / a0, -(1 + cosine) / a0)
+        (b0, b1) = high ? ((1 + cosine) / 2 / a0, -(1 + cosine) / a0) : ((1 - cosine) / 2 / a0, (1 - cosine) / a0)
         (a1, a2) = (-2 * cosine / a0, (1 - alpha) / a0)
     }
 
-    mutating func apply(_ samples: [Float]) -> [Double] {
+    mutating func apply<Samples: Collection>(_ samples: Samples) -> [Double]
+    where Samples.Element: BinaryFloatingPoint {
         var output: [Double] = []
         output.reserveCapacity(samples.count)
         for sample in samples {
@@ -64,10 +65,10 @@ private struct HighPass {
 struct RumbleStage: RenderStage {
     let latency = 0
     let held = 0
-    private var filters: [HighPass]
+    private var filters: [Butterworth]
 
     init(hertz: Int, rate: Double, channels: Int) {
-        filters = Array(repeating: HighPass(hertz: hertz, rate: rate), count: channels)
+        filters = Array(repeating: Butterworth(hertz: hertz, rate: rate, high: true), count: channels)
     }
 
     mutating func process(_ block: [[Float]]) -> [[Float]] {
@@ -79,24 +80,30 @@ struct RumbleStage: RenderStage {
     mutating func finish() -> [[Float]] { filters.map { _ in [] } }
 }
 
-/// Soften "S" Sounds (decision 0064 D5): a split-band de-esser. The high band is a 2nd-order
-/// high-pass at `hertz`. Peak envelopes (attack 0.5 ms, release 60 ms) of the high band and of the
-/// full band of the channel with the largest full-band envelope give the ratio; the cut is the
-/// ratio in dB plus 10, clamped to 0 and `decibels`, and 0 while that full-band envelope is under
-/// -100 dBFS (digital silence). The output is x - (1 - g) x high, with one g for all channels, so a
-/// frame with no cut is the input.
+/// Soften "S" Sounds (decision 0064 D5): a split-band de-esser. A Linkwitz-Riley split at `hertz`
+/// (each band two 2nd-order filters) gives a low band and a high band in phase at each frequency,
+/// whose levels add up to the input level. Peak envelopes (attack 0.5 ms, release 60 ms) of the
+/// first high-pass of the split and of the full band of the channel with the largest full-band
+/// envelope give the ratio; the cut is (the ratio in dB plus 10) x `decibels` / 10, clamped to 0
+/// and `decibels`, and 0 while that full-band envelope is under -100 dBFS (digital silence). The
+/// output is low + g x high, with one g for all channels: no frequency gets louder, and a frame with
+/// no cut is the allpass sum of the bands, with the level of the input at each frequency.
 struct DeEssStage: RenderStage {
     let latency = 0
     let held = 0
     private let decibels: Double
     private let attack: Double
     private let release: Double
-    private var filters: [HighPass]
+    /// For each channel: the two high-passes, then the two low-passes of the split.
+    private var filters: [[Butterworth]]
     private var full: [Double]
     private var high: [Double]
 
     init(hertz: Int, decibels: Int, rate: Double, channels: Int) {
-        filters = Array(repeating: HighPass(hertz: hertz, rate: rate), count: channels)
+        let (highPass, lowPass) = (
+            Butterworth(hertz: hertz, rate: rate, high: true), Butterworth(hertz: hertz, rate: rate, high: false)
+        )
+        filters = Array(repeating: [highPass, highPass, lowPass, lowPass], count: channels)
         self.decibels = Double(decibels)
         attack = exp(-1 / (0.0005 * rate))
         release = exp(-1 / (0.060 * rate))
@@ -105,23 +112,28 @@ struct DeEssStage: RenderStage {
     }
 
     mutating func process(_ block: [[Float]]) -> [[Float]] {
-        var bands: [[Double]] = []
-        for channel in block.indices { bands.append(filters[channel].apply(block[channel])) }
+        var (detected, highBands, lowBands): ([[Double]], [[Double]], [[Double]]) = ([], [], [])
+        for channel in block.indices {
+            detected.append(filters[channel][0].apply(block[channel]))
+            highBands.append(filters[channel][1].apply(detected[channel]))
+            lowBands.append(filters[channel][3].apply(filters[channel][2].apply(block[channel])))
+        }
         var output = block
         for frame in block[0].indices {
             var loudest = 0
             for channel in block.indices {
                 full[channel] = follow(full[channel], Double(abs(block[channel][frame])))
-                high[channel] = follow(high[channel], abs(bands[channel][frame]))
+                high[channel] = follow(high[channel], abs(detected[channel][frame]))
                 if full[channel] > full[loudest] { loudest = channel }
             }
+            var gain = 1.0
             // -100 dBFS: under it, log10 of the envelopes can give -inf minus -inf.
-            guard full[loudest] >= 1e-5 else { continue }
-            let cut = min(max(20 * log10(high[loudest] / full[loudest]) + 10, 0), decibels)
-            guard cut > 0 else { continue }
-            let loss = 1 - pow(10, -cut / 20)
+            if full[loudest] >= 1e-5 {
+                let ratio = 20 * log10(high[loudest] / full[loudest])
+                gain = pow(10, -min(max((ratio + 10) * decibels / 10, 0), decibels) / 20)
+            }
             for channel in block.indices {
-                output[channel][frame] = Float(Double(block[channel][frame]) - loss * bands[channel][frame])
+                output[channel][frame] = Float(lowBands[channel][frame] + gain * highBands[channel][frame])
             }
         }
         return output

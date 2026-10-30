@@ -47,53 +47,89 @@ struct RepairStageTests {
         }
     }
 
-    /// C5: on the first vowel (harmonics to 7,920 Hz, onset included) the output equals the input
-    /// in each frame; the "s" is cut; from 181.3 ms after the "s" ends (frame 39,903), the second
-    /// vowel equals the input again (the 60 ms release holds the cut to 130.0 ms in the probe).
-    /// Fail: a threshold of -15 dB (2.49 dB cut on the first vowel), a 120 ms release (cut to
-    /// 261.1 ms).
+    /// C5: on the first vowel (harmonics to 7,920 Hz, onset included) the output equals the sum of
+    /// the split bands of the input (no cut) in each frame, to 1e-6; the "s" is cut; from 181.3 ms
+    /// after the "s" ends (frame 39,903), the second vowel equals that sum again (the 60 ms release
+    /// holds the cut to 130.0 ms in the probe). Fail: a threshold of -15 dB (2.49 dB cut on the
+    /// first vowel), a 120 ms release (cut to 261.1 ms).
     @Test func deessNullOnAVowel() {
         let input = sibilantSpeech()
         var stage = DeEssStage(hertz: 6_000, decibels: 10, rate: 48_000, channels: 1)
         let output = render(&stage, [input])[0]
 
-        let change = zip(input, output).map { abs($0 - $1) }
+        let change = zip(splitSum(input), output).map { abs($0 - $1) }
         #expect(change[24_000..<31_200].max() ?? 0 > 0.01, "the s is not cut")
-        #expect(change[..<24_000].max() == 0, "first vowel: \(change[..<24_000].max() ?? -1)")
-        let last = (31_200..<55_200).last { change[$0] != 0 }
-        #expect(change[39_903...].max() == 0, "second vowel: last change at frame \(last ?? -1)")
+        #expect(change[..<24_000].max() ?? 1 <= 1e-6, "first vowel: \(change[..<24_000].max() ?? -1)")
+        let last = (31_200..<55_200).last { change[$0] > 1e-6 }
+        #expect(change[39_903...].max() ?? 1 <= 1e-6, "second vowel: last change at frame \(last ?? -1)")
     }
 
-    /// C5: the mean cut of the "s" at the standard 10 dB is 9 dB or more (probe: 9.89 dB), and no
-    /// frame is cut by more than 10 dB. Fail: the -6 dB threshold (5.9 dB).
+    /// C5: no frequency gets louder, and the cut grows with the setting. Steady sines of 0.02 at
+    /// 4.5, 6, 8, and 10 kHz, with a sine of 0.7 at 16 kHz that holds the cut on, read in one DFT bin
+    /// over the second second: no bin is over +0.01 dB at 10, 20, or 40 dB; at 8, 10, and 16 kHz
+    /// each setting cuts 1 dB more than the setting before it; at 10 dB the 16 kHz sine is cut by
+    /// 8 dB or more. Fail: the output x - (1 - g) x high (+1.4 dB at 4.5 kHz), and the cut of the
+    /// ratio plus 10 dB (20 and 40 dB cut as 10 dB does).
+    @Test func deessNeverBoostsAndFollowsTheSetting() {
+        let tones: [(hertz: Double, level: Double)] = [
+            (4_500, 0.02), (6_000, 0.02), (8_000, 0.02), (10_000, 0.02), (16_000, 0.7),
+        ]
+        let input = (0..<96_000).map { frame in
+            Float(tones.reduce(0.0) { $0 + $1.level * sin(2 * .pi * $1.hertz * Double(frame) / 48_000) })
+        }
+        var cuts: [Int: [Double: Double]] = [:]
+        for decibels in [10, 20, 40] {
+            var stage = DeEssStage(hertz: 6_000, decibels: decibels, rate: 48_000, channels: 1)
+            let output = render(&stage, [input])[0]
+            cuts[decibels] = Dictionary(
+                uniqueKeysWithValues: tones.map {
+                    ($0.hertz, -binGain(input, output, hertz: $0.hertz, frames: 48_000..<96_000))
+                })
+        }
+
+        let label = "\(cuts.sorted { $0.key < $1.key }.map { ($0.key, $0.value.sorted { $0.key < $1.key }) })"
+        let least = cuts.values.flatMap(\.values).min() ?? -99
+        #expect(least >= -0.01, "a bin got louder; \(label)")
+        for hertz in [8_000.0, 10_000, 16_000] {
+            let steps = [10, 20, 40].map { cuts[$0]?[hertz] ?? 0 }
+            #expect(steps[1] >= steps[0] + 1 && steps[2] >= steps[1] + 1, "\(hertz) Hz; \(label)")
+        }
+        #expect(cuts[10]?[16_000] ?? 0 >= 8, "16 kHz at 10 dB; \(label)")
+    }
+
+    /// C5: the RMS cut of the "s" (frames 24,000 to 31,200) grows with the setting and stays under
+    /// it: 10 dB cuts 6 dB or more, 20 dB cuts 3 dB more than 10 dB, 40 dB 1 dB more than 20 dB.
+    /// Fail: the cut of the ratio plus 10 dB, where 20 and 40 dB cut as 10 dB does.
     @Test func deessCutsTheBurst() {
         let input = sibilantSpeech()
-        var stage = DeEssStage(hertz: 6_000, decibels: 10, rate: 48_000, channels: 1)
-        let output = render(&stage, [input])[0]
+        var cuts: [Double] = []
+        for decibels in [10, 20, 40] {
+            var stage = DeEssStage(hertz: 6_000, decibels: decibels, rate: 48_000, channels: 1)
+            cuts.append(-rmsGain(input, render(&stage, [input])[0], frames: 24_000..<31_200))
+        }
 
-        let cuts = deessCuts(input, output, minimum: 0.01).filter { (24_000..<31_200).contains($0.key) }.map(\.value)
-        let mean = cuts.reduce(0, +) / Double(max(1, cuts.count))
-        #expect(cuts.count >= 5_000 && mean >= 9, "\(cuts.count) frames, mean cut \(mean) dB")
-        #expect(cuts.max() ?? 99 <= 10.01, "max cut \(cuts.max() ?? -1) dB")
+        #expect(cuts[0] >= 6 && cuts[1] >= cuts[0] + 3 && cuts[2] >= cuts[1] + 1, "cuts at 10, 20, 40 dB: \(cuts)")
+        #expect(cuts[0] <= 10 && cuts[1] <= 20 && cuts[2] <= 40, "cuts at 10, 20, 40 dB: \(cuts)")
     }
 
-    /// C5: the cut does not follow the file level: the speech at -6 and at -26 dBFS gets the same
-    /// cut in each frame, to 0.01 dB. Fail: the absolute detector of SoundCraft (-30 dBFS), which
-    /// cuts 19.0 % of the frames at -6 dBFS and none at -26 dBFS.
+    /// C5: the cut does not follow the file level: the output of the speech at -26 dBFS is the
+    /// output at -6 dBFS over 10 in each frame, to 5e-6, and the "s" at -6 dBFS is cut by 6 dB or
+    /// more. Fail: the absolute detector of SoundCraft (-30 dBFS), which cuts 19.0 % of the frames
+    /// at -6 dBFS and none at -26 dBFS.
     @Test func deessFollowsNoLevel() {
         let speech = sibilantSpeech()
         let peak = Double(largest(speech))
-        var cuts: [[Int: Double]] = []
+        var (inputs, outputs): ([[Float]], [[Float]]) = ([], [])
         for target in [0.5, 0.05] {
             let input = speech.map { Float(Double($0) / peak * target) }
             var stage = DeEssStage(hertz: 6_000, decibels: 10, rate: 48_000, channels: 1)
-            cuts.append(deessCuts(input, render(&stage, [input])[0], minimum: target * 2e-2))
+            inputs.append(input)
+            outputs.append(render(&stage, [input])[0])
         }
 
-        let pairs = cuts[1].compactMap { frame, quiet in cuts[0][frame].map { (loud: $0, quiet: quiet) } }
-        let worst = pairs.map { abs($0.loud - $0.quiet) }.max() ?? 99
-        let most = pairs.map(\.loud).max() ?? 0
-        #expect(pairs.count >= 1_000 && most >= 9 && worst <= 0.01, "\(pairs.count) frames, max \(most), diff \(worst)")
+        let worst = zip(outputs[0], outputs[1]).map { abs(Double($0) - 10 * Double($1)) }.max() ?? 99
+        let cut = -rmsGain(inputs[0], outputs[0], frames: 24_000..<31_200)
+        #expect(worst <= 5e-6 && cut >= 6, "difference \(worst), cut \(cut) dB")
     }
 
     /// C5: digital silence passes unchanged: no non-finite sample, the leading 0.5 s of zeros stays
@@ -118,8 +154,8 @@ struct RepairStageTests {
 
     /// C5: one gain for all channels, from the loudest channel: the left channel (vowel, "s",
     /// vowel) gets the cut of a mono stage, and the right channel (the vowel at 0.1, no "s") gets
-    /// the same gain during the "s". Fail: a gain for each channel, which leaves the right channel
-    /// as it is.
+    /// the same gain during the "s" and no cut in the first vowel. Fail: a gain for each channel,
+    /// which leaves the right channel with no cut.
     @Test func deessLinksTheChannels() {
         let left = sibilantSpeech()
         let right = sibilantVowel(frames: left.count, start: 0).map { Float(0.1 * $0) }
@@ -129,11 +165,11 @@ struct RepairStageTests {
         let output = render(&stereo, [left, right])
 
         let leftChange = zip(alone, output[0]).map { abs($0 - $1) }.max() ?? 1
-        let rightCut = zip(right[24_000..<31_200], output[1][24_000..<31_200]).map { abs($0 - $1) }.max() ?? 0
+        let rightChange = zip(splitSum(right), output[1]).map { abs($0 - $1) }
         #expect(leftChange <= 1e-6, "left differs from the mono stage by \(leftChange)")
+        let (rightCut, rightKept) = (rightChange[24_000..<31_200].max() ?? 0, rightChange[..<24_000].max() ?? 1)
         #expect(rightCut > 1e-5, "right channel in the s: max change \(rightCut)")
-        let rightKept = output[1][..<24_000] == right[..<24_000]
-        #expect(rightKept, "right channel changed in the first vowel")
+        #expect(rightKept <= 1e-6, "right channel in the first vowel: max change \(rightKept)")
     }
 
     /// C15: after each `process` call, each stage holds at most its latency in frames (484 for the

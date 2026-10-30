@@ -132,13 +132,46 @@ func sibilantSpeech() -> [Float] {
         .map { Float($0) }
 }
 
-/// The cut in dB of each frame of `output` whose high band (6 kHz, from `input`) is `minimum` or
-/// more: output = input - (1 - g) x high, so g = 1 - (input - output) / high.
-func deessCuts(_ input: [Float], _ output: [Float], minimum: Double) -> [Int: Double] {
-    let high = highPassed(input.map(Double.init), hertz: 6_000)
-    var cuts: [Int: Double] = [:]
-    for index in input.indices where abs(high[index]) >= minimum {
-        cuts[index] = -20 * log10(1 - (Double(input[index]) - Double(output[index])) / high[index])
+/// The RBJ low-pass at `hertz`, Q 0.70711, in Double: the low half of the de-ess split.
+func lowPassed(_ samples: [Double], hertz: Double, rate: Double = 48_000) -> [Double] {
+    let omega = 2 * .pi * hertz / rate
+    let (alpha, cosine) = (sin(omega) / (2 * 0.70711), cos(omega))
+    let a0 = 1 + alpha
+    let (b0, b1, a1, a2) = ((1 - cosine) / 2 / a0, (1 - cosine) / a0, -2 * cosine / a0, (1 - alpha) / a0)
+    var (x1, x2, y1, y2) = (0.0, 0.0, 0.0, 0.0)
+    return samples.map { x in
+        let y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2
+        (x2, x1, y2, y1) = (x1, x, y1, y)
+        return y
     }
-    return cuts
+}
+
+/// The de-ess output with no cut at `hertz`: the sum of the two Linkwitz-Riley bands (each band two
+/// RBJ filters), an allpass of `samples`.
+func splitSum(_ samples: [Float], hertz: Double = 6_000) -> [Float] {
+    let input = samples.map(Double.init)
+    let low = lowPassed(lowPassed(input, hertz: hertz), hertz: hertz)
+    let high = highPassed(highPassed(input, hertz: hertz), hertz: hertz)
+    return zip(low, high).map { Float($0 + $1) }
+}
+
+/// The level in dB of `output` over `input` at `hertz`, from one DFT bin over `frames` (a whole
+/// number of cycles at 48 kHz for a whole `hertz` and 48,000 frames).
+func binGain(_ input: [Float], _ output: [Float], hertz: Double, frames: Range<Int>) -> Double {
+    func magnitude(_ samples: [Float]) -> Double {
+        var (real, imaginary) = (0.0, 0.0)
+        for frame in frames {
+            let angle = 2 * .pi * hertz * Double(frame) / 48_000
+            real += Double(samples[frame]) * cos(angle)
+            imaginary += Double(samples[frame]) * sin(angle)
+        }
+        return (real * real + imaginary * imaginary).squareRoot()
+    }
+    return 20 * log10(magnitude(output) / magnitude(input))
+}
+
+/// The RMS of `output` over `input` in the frames `frames`, in dB.
+func rmsGain(_ input: [Float], _ output: [Float], frames: Range<Int>) -> Double {
+    func energy(_ samples: [Float]) -> Double { frames.reduce(0) { $0 + Double(samples[$1]) * Double(samples[$1]) } }
+    return 10 * log10(energy(output) / energy(input))
 }

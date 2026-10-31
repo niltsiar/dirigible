@@ -282,11 +282,31 @@ struct WhisperModelStoreTests {
         sameSize[0] ^= 0xFF
         for bad in [sameSize, Data([1])] {
             try bad.write(to: file)
-            #expect(throws: TranscribeError.vadModelMissing(tried: [file.path])) {
+            #expect(throws: TranscribeError.vadModelChecksum(file: file.path)) {
                 try vadModel(resources: nil, executable: nil, models: models)
             }
         }
         try Data(contentsOf: Self.bundledVAD).write(to: file)
         #expect(try vadModel(resources: nil, executable: nil, models: models) == file)
+    }
+
+    /// Gate 1 item 3. A network error gives the network text, a file error gives the folder and
+    /// its errno, and a download that fails the catalog check gives its own case.
+    @Test func eachModelErrorNamesItsCause() {
+        let folder = URL(filePath: "/Models", directoryHint: .isDirectory)
+        let underlying = NSError(
+            domain: NSCocoaErrorDomain, code: CocoaError.fileWriteUnknown.rawValue,
+            userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES))])
+        let cases: [(any Error, TranscribeError)] = [
+            (URLError(.notConnectedToInternet), .modelDownload),
+            (URLError(.badServerResponse), .modelDownload),
+            (POSIXError(.ENOSPC), .modelWrite(folder: folder.path, errno: ENOSPC)),
+            (CocoaError(.fileWriteOutOfSpace), .modelWrite(folder: folder.path, errno: ENOSPC)),
+            (underlying, .modelWrite(folder: folder.path, errno: EACCES)),
+            (WhisperModelStoreError.checksumMismatch, .modelDownloadChecksum),
+        ]
+        for (error, expected) in cases {
+            #expect(modelError(error, folder: folder) == expected, "\(error)")
+        }
     }
 }

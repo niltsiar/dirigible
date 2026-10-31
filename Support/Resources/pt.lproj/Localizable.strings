@@ -700,6 +700,8 @@
 "transcribe.canceled" = "Transcrição cancelada. A faixa não mudou.";
 "error.transcribe.load" = "O modelo de voz não carregou. Apague o arquivo dele em ~/Library/Application Support/Dirigible/Models e tente de novo.";
 "error.transcribe.download" = "O download do modelo falhou. Verifique sua conexão com a internet e tente de novo.";
+"error.transcribe.folder" = "O Dirigible não conseguiu gravar o modelo de voz em %1$@ (erro %2$lld). Verifique se o disco tem espaço livre e se você pode gravar nessa pasta, e tente de novo.";
+"error.transcribe.download.checksum" = "O modelo de voz baixado não é o arquivo esperado, então o Dirigible o apagou. Tente de novo mais tarde.";
 "error.transcribe.checksum" = "O arquivo do modelo de voz está danificado ou não é o esperado. Apague o arquivo em ~/Library/Application Support/Dirigible/Models e tente de novo.";
 "error.transcribe.audio" = "O Dirigible não conseguiu ler o arquivo de áudio %1$@ (erro %2$lld). A faixa não mudou.";
 "error.transcribe.vad" = "Falta uma parte do Dirigible: o modelo que detecta a voz. Instale o Dirigible de novo.";

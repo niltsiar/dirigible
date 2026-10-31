@@ -688,6 +688,8 @@ enum L10n: String, CaseIterable {
     case transcribeCanceled = "transcribe.canceled"
     case errorTranscribeLoad = "error.transcribe.load"
     case errorTranscribeDownload = "error.transcribe.download"
+    case errorTranscribeFolder = "error.transcribe.folder"
+    case errorTranscribeDownloadChecksum = "error.transcribe.download.checksum"
     case errorTranscribeChecksum = "error.transcribe.checksum"
     case errorTranscribeAudio = "error.transcribe.audio"
     case errorTranscribeVad = "error.transcribe.vad"

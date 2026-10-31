@@ -44,10 +44,12 @@ public enum WhisperModel: String, CaseIterable, Sendable {
 }
 
 /// True when the file at `url` has `byteCount` bytes and the SHA-256 `sha256`: the check of each
-/// file that a ggml loader reads from a folder that the user can write.
+/// file that a ggml loader reads from a folder that the user can write. A link counts with its
+/// target, which the loader reads.
 func fileMatches(_ url: URL, byteCount: Int, sha256: String) -> Bool {
-    guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == byteCount,
-        let handle = try? FileHandle(forReadingFrom: url)
+    let target = url.resolvingSymlinksInPath()
+    guard let size = try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == byteCount,
+        let handle = try? FileHandle(forReadingFrom: target)
     else { return false }
     defer { try? handle.close() }
     var hash = SHA256()

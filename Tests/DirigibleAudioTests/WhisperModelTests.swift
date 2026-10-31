@@ -33,4 +33,13 @@ struct WhisperModelTests {
         try bytes.write(to: copy)
         #expect(WhisperModel.tinyQ51.checked(at: copy) == nil)
     }
+
+    /// Gate 1 item 3. A link in the model folder counts with the size and the hash of its target,
+    /// not with the size of the link.
+    @Test func aLinkToAGoodFileMatchesWithItsTarget() throws {
+        let folder = try TemporaryFolder()
+        let link = folder.url.appending(path: vadFileName)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: WhisperModelStoreTests.bundledVAD)
+        #expect(fileMatches(link, byteCount: vadByteCount, sha256: vadSHA256))
+    }
 }

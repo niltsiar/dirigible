@@ -30,8 +30,8 @@ let vadSHA256 = "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb698
 /// links of `executable` resolved (the CLI in `Contents/Helpers`), and `models` (decision 0065 D2).
 /// The file in `models` counts only with the pinned byte count and SHA-256: the user can write
 /// that folder, and the ggml loader aborts the app on a bad file. The two bundle copies are signed
-/// with the app. With none, it throws `.vadModelMissing` with the paths it tried: a job with no
-/// VAD gives words on silence.
+/// with the app. With none, it throws `.vadModelChecksum` when the file in `models` exists, else
+/// `.vadModelMissing` with the paths it tried: a job with no VAD gives words on silence.
 func vadModel(resources: URL?, executable: URL?, models: URL) throws(TranscribeError) -> URL {
     let helpers = executable?.resolvingSymlinksInPath().deletingLastPathComponent()
     let folders = [resources, helpers?.deletingLastPathComponent().appending(path: "Resources"), models]
@@ -43,6 +43,7 @@ func vadModel(resources: URL?, executable: URL?, models: URL) throws(TranscribeE
             : FileManager.default.fileExists(atPath: url.path)
     }
     guard let found = tried.first(where: usable) else {
+        if FileManager.default.fileExists(atPath: inModels.path) { throw .vadModelChecksum(file: inModels.path) }
         throw .vadModelMissing(tried: tried.map(\.path))
     }
     return found
@@ -99,30 +100,32 @@ func transcribeSpans(
     return TranscribedWords(words: mapped.words, untimed: mapped.untimed, language: result.language)
 }
 
-/// The work of a job off the main actor (decision 0065 D5): the leftover sweep and the download
-/// when the model file is missing, with the stop check of `run`; then, on one `.userInitiated` GCD
-/// thread, the model check, a read of the flags, and the engine. Nil for a stop.
+/// The work of a job off the main actor (decision 0065 D5): the model check, and when it fails,
+/// the leftover sweep, the removal of a catalog file that fails the check, and the download, with
+/// the stop check of `run`; then a read of the flags and the engine. The model check and the engine
+/// run on a `.userInitiated` GCD thread. Nil for a stop.
 @concurrent nonisolated func transcribeWork(
     _ map: SpanMap, session: Session, lock: PackageLock, language: WhisperLanguage, model: WhisperModel,
     environment: CaptureEnvironment, run: ReadRun, progress: @escaping @Sendable (TranscribeProgress) -> Void
 ) async -> Result<TranscribedWords?, StudioError> {
     let store = environment.modelStore
     let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
-    do {
-        try store.removeLeftovers()
-        if !FileManager.default.fileExists(atPath: store.folder.appending(path: model.fileName).path) {
+    let file = store.folder.appending(path: model.fileName)
+    let check = { await onJobThread { environment.checkModel(model, store.folder) } }
+    var checked = FileManager.default.fileExists(atPath: file.path) ? await check() : nil
+    if checked == nil {
+        do {
+            try store.removeLeftovers()
+            if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
             try await store.download(model, stop: stopped) { progress(.download($0)) }
+        } catch {
+            if stopped() { return .success(nil) }
+            return .failure(.transcription(modelError(error, folder: store.folder)))
         }
-    } catch {
-        if stopped() { return .success(nil) }
-        return .failure(
-            .transcription(error as? WhisperModelStoreError == .checksumMismatch ? .modelChecksum : .modelDownload))
+        checked = await check()
     }
-    @Sendable func engineWork() -> Result<TranscribedWords?, StudioError> {
-        dispatchPrecondition(condition: .notOnQueue(.main))
-        guard let checked = environment.checkModel(model, store.folder) else {
-            return .failure(.transcription(.modelChecksum))
-        }
+    guard let checked else { return .failure(.transcription(.modelChecksum)) }
+    return await onJobThread { () -> Result<TranscribedWords?, StudioError> in
         guard !stopped() else { return .success(nil) }
         let package: URL
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
@@ -136,9 +139,28 @@ func transcribeSpans(
             return .failure(.transcription(error))
         }
     }
-    return await withCheckedContinuation { continuation in
-        DispatchQueue.global(qos: .userInitiated).async { continuation.resume(returning: engineWork()) }
+}
+
+/// `body` on a `.userInitiated` GCD thread: the model hash and the engine block for seconds, so
+/// they stay off the cooperative pool.
+private func onJobThread<T: Sendable>(_ body: @escaping @Sendable () -> T) async -> T {
+    await withCheckedContinuation { continuation in
+        DispatchQueue.global(qos: .userInitiated).async {
+            dispatchPrecondition(condition: .notOnQueue(.main))
+            continuation.resume(returning: body())
+        }
     }
+}
+
+/// The error of the model download step of a job in `folder`: a `URLError` is the network, a
+/// download that fails the catalog check has its own case, and each other error is a file step in
+/// `folder`, with the POSIX code under it, else EIO.
+func modelError(_ error: any Error, folder: URL) -> TranscribeError {
+    if error as? WhisperModelStoreError == .checksumMismatch { return .modelDownloadChecksum }
+    if error is URLError { return .modelDownload }
+    if let code = posixCode(of: error) { return .modelWrite(folder: folder.path, errno: code) }
+    let full = (error as? CocoaError)?.code == .fileWriteOutOfSpace
+    return .modelWrite(folder: folder.path, errno: full ? ENOSPC : EIO)
 }
 
 /// Reads the concatenated audio of a `SpanMap` from the pool files of `package` (decision 0065 D3).

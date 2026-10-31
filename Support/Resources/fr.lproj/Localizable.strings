@@ -700,6 +700,8 @@
 "transcribe.canceled" = "Transcription annulée. La piste n’a pas changé.";
 "error.transcribe.load" = "Le modèle vocal ne s’est pas chargé. Supprimez son fichier dans ~/Library/Application Support/Dirigible/Models, puis réessayez.";
 "error.transcribe.download" = "Le téléchargement du modèle a échoué. Vérifiez votre connexion internet, puis réessayez.";
+"error.transcribe.folder" = "Dirigible n’a pas pu écrire le modèle vocal dans %1$@ (erreur %2$lld). Vérifiez que le disque a de l’espace libre et que vous pouvez écrire dans ce dossier, puis réessayez.";
+"error.transcribe.download.checksum" = "Le modèle vocal téléchargé n’est pas le fichier attendu, Dirigible l’a donc supprimé. Réessayez plus tard.";
 "error.transcribe.checksum" = "Le fichier du modèle vocal est endommagé ou n’est pas celui attendu. Supprimez-le dans ~/Library/Application Support/Dirigible/Models, puis réessayez.";
 "error.transcribe.audio" = "Dirigible n’a pas pu lire le fichier audio %1$@ (erreur %2$lld). La piste n’a pas changé.";
 "error.transcribe.vad" = "Une partie de Dirigible manque : le modèle qui détecte la voix. Réinstallez Dirigible.";

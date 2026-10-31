@@ -700,6 +700,8 @@
 "transcribe.canceled" = "Transkription abgebrochen. Die Spur ist unverändert.";
 "error.transcribe.load" = "Das Sprachmodell wurde nicht geladen. Lösche seine Datei in ~/Library/Application Support/Dirigible/Models und versuche es erneut.";
 "error.transcribe.download" = "Der Download des Modells ist fehlgeschlagen. Prüfe deine Internetverbindung und versuche es erneut.";
+"error.transcribe.folder" = "Dirigible konnte das Sprachmodell nicht in %1$@ schreiben (Fehler %2$lld). Prüfe, ob das Volume freien Speicherplatz hat und ob du in diesen Ordner schreiben darfst, und versuche es erneut.";
+"error.transcribe.download.checksum" = "Das geladene Sprachmodell ist nicht die erwartete Datei, daher hat Dirigible es gelöscht. Versuche es später erneut.";
 "error.transcribe.checksum" = "Die Datei des Sprachmodells ist beschädigt oder nicht die erwartete. Lösche sie in ~/Library/Application Support/Dirigible/Models und versuche es erneut.";
 "error.transcribe.audio" = "Dirigible konnte die Audiodatei %1$@ nicht lesen (Fehler %2$lld). Die Spur ist unverändert.";
 "error.transcribe.vad" = "Ein Teil von Dirigible fehlt: das Modell, das Sprache erkennt. Installiere Dirigible erneut.";

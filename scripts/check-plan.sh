@@ -261,40 +261,60 @@ else
     if [[ -z "$start" || ! "$start" < "$size_cutoff" ]] &&
         ! awk -F'\t' '$2 == "4" { f = 1 } END { exit !f }' "$run/decisions.tsv" 2>/dev/null; then
         root="$(cd "$(dirname "$0")/.." && pwd)"
-        while IFS=$'\t' read -r slice paths splits; do
-            limit="$(sed -n 's/^limit=\([0-9]*\)$/\1/p' "$root/scripts/check-sizes.sh" 2>/dev/null)"
-            if [[ -z "$limit" ]]; then
-                say "plan.md: slice $slice names a Swift file, and $root/scripts/check-sizes.sh has no limit= line to compare it with"
-                break
-            fi
+        # size_slice: the checks of one slice (slice, paths, and split_lines). The file name goes into the
+        # pattern with each ERE metacharacter escaped, so a Split line names it as fixed text.
+        size_slice() {
+            local p n base base_re ok l rest
             for p in $paths; do
                 n="$(git -C "$root" show "origin/main:$p" 2>/dev/null | wc -l | tr -d ' ' || true)"
                 ((${n:-0} >= limit - 20)) || continue
                 if git -C "$root" show origin/main:scripts/check-sizes.allow 2>/dev/null | cut -f1 | grep -qxF "$p"; then continue; fi
                 base="${p##*/}" ok=""
-                IFS=$'\001' read -r -a split_lines <<<"$splits"
+                base_re="$(sed 's/[][\\.*^$+?(){}|]/\\&/g' <<<"$base")"
                 for l in ${split_lines[@]+"${split_lines[@]}"}; do
-                    [[ "$l" =~ (^|[^A-Za-z0-9_+])${base//./\\.}([^A-Za-z0-9_+]|$) ]] || continue
-                    rest="${l//$base/}"
+                    [[ "$l" =~ (^|[^A-Za-z0-9_+])${base_re}([^A-Za-z0-9_+]|$) ]] || continue
+                    rest="${l//"$base"/}"
                     if [[ "$rest" =~ [A-Za-z0-9_+]+\.swift ]] || [[ "$rest" =~ scripts/check-sizes\.allow[^A-Za-z0-9]*[A-Za-z]{3,} ]]; then ok=1; fi
                 done
                 [[ -n "$ok" ]] ||
                     say "plan.md: slice $slice names $p, which has $n lines at origin/main (limit $limit; a file of $((limit - 20)) lines or more is near it); before the first phase 4 row add a \"- Split:\" line to the slice that names $base and a target .swift file, or names scripts/check-sizes.allow with a reason (the file also passes when scripts/check-sizes.allow lists it at origin/main)"
             done
-        done < <(awk '
+        }
+        # The awk prints "P<TAB>slice<TAB>paths" for a slice and "S<TAB>line" for each of its Split lines:
+        # one record per line, because bash 3.2 does not split on a \001 separator.
+        size_in="$(awk '
             # swift(s): each Sources/ or Tests/ Swift word of s; a literal \n of a path list and the quotes break words.
             function swift(s,  i, k, out, w) {
                 gsub(/\\n|[$\047"`<>]/, " ", s); k = split(s, w, /[[:space:]]+/)
                 for (i = 1; i <= k; i++) if (w[i] ~ /^(Sources|Tests)\/.*\.swift$/) out = out " " w[i]
                 return out
             }
-            function flush() { if (paths != "") print slice "\t" paths "\t" splits; slice = paths = splits = "" }
+            function flush(  i) {
+                if (paths != "") { print "P\t" slice "\t" paths; for (i = 1; i <= ns; i++) print "S\t" splits[i] }
+                slice = paths = ""; ns = 0
+            }
             /^## / { flush(); inslices = ($0 ~ /^## Slices([[:space:]].*)?$/); next }
             inslices && /^### / { flush(); slice = $2; gsub(/`/, "", slice); sub(/:$/, "", slice); next }
             slice == "" { next }
             /^- Check:/ { paths = paths swift($0) }
-            /^- Split:/ { splits = splits "\001" $0 }
-            END { flush() }' "$run/plan.md")
+            /^- Split:/ { splits[++ns] = $0 }
+            END { flush() }' "$run/plan.md")"
+        limit="$(sed -n 's/^limit=\([0-9]*\)$/\1/p' "$root/scripts/check-sizes.sh" 2>/dev/null || true)"
+        if [[ -n "$size_in" && -z "$limit" ]]; then
+            say "plan.md: a slice names a Swift file, and $root/scripts/check-sizes.sh has no limit= line to compare it with"
+        elif [[ -n "$size_in" ]]; then
+            slice="" paths="" split_lines=()
+            while IFS= read -r record; do
+                if [[ "$record" == P$'\t'* ]]; then
+                    [[ -z "$paths" ]] || size_slice
+                    record="${record#P$'\t'}"
+                    slice="${record%%$'\t'*}" paths="${record#*$'\t'}" split_lines=()
+                else
+                    split_lines+=("${record#S$'\t'}")
+                fi
+            done <<<"$size_in"
+            size_slice
+        fi
     fi
     # Cutoff 2026-10-28T23:50, the commit that added the Fix check line rule: a run that started earlier needs none.
     if [[ -n "${CHECK_PLAN_AT_PHASE7:-}" && ( -z "$start" || ! "$start" < 2026-10-28T23:50 ) ]]; then

@@ -75,7 +75,7 @@ enum TimelineCommand: Hashable {
         exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
-    case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, repairSound, restoreOriginal
+    case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, repairSound, restoreOriginal, transcribe
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -129,6 +129,8 @@ enum TimelineCommand: Hashable {
         case .repairSound: false
         // A text field does nothing with Shift-Command-O.
         case .restoreOriginal: false
+        // Transcribe Track has no key: a rare, slow command.
+        case .transcribe: false
         // A text field types a symbol with Option-K, Option-;, and Option-'.
         case .addGainPoint, .previousGainPoint, .nextGainPoint: true
         // Probe K1: a focused track name field ignores Command-F, so Fade acts on the selection.
@@ -277,6 +279,7 @@ extension SessionWindow {
         case .splitStereo: splitStereo()
         case .reduceNoise: reduceNoise()
         case .repairSound: repairSound()
+        case .transcribe: transcribeTrack()
         case .restoreOriginal: restoreOriginal()
         }
     }

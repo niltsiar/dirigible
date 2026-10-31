@@ -113,7 +113,7 @@ extension TimelineCommand {
 
     /// The title of a menu item with no key; the lane menu reads it as it reads `menuItems`.
     static let keylessTitles: [TimelineCommand: L10n] = [
-        .reduceNoise: .menuToolsReduceNoise, .repairSound: .menuToolsRepairSound,
+        .reduceNoise: .menuToolsReduceNoise, .repairSound: .menuToolsRepairSound, .transcribe: .menuToolsTranscribe,
     ]
 
     /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the

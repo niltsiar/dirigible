@@ -52,7 +52,7 @@ extension SessionWindow {
     /// not in it: Export is on while the alert of a failed export shows (criterion 28).
     var dialogShowing: Bool {
         takeTimeDraft != nil || exportStep != nil || duckDraft != nil || denoiseDraft != nil || repairDraft != nil
-            || unusedFiles != nil
+            || transcribe.draft != nil || unusedFiles != nil
             || studio?.exportProgress != nil
     }
 
@@ -89,6 +89,7 @@ extension SessionWindow {
             canImport && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
         case .reduceNoise, .repairSound:
             !dialogShowing && canImport && idleStudio.map { !denoiseClips(in: $0.session).isEmpty } == true
+        case .transcribe: canTranscribe
         case .restoreOriginal:
             importJob == nil && idleStudio.map { !restoreClips(in: $0.session).isEmpty } == true
         case .heal:

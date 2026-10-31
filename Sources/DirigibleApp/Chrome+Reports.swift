@@ -34,6 +34,13 @@ extension ChromeState {
             banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))
             if !shown.report.failed.isEmpty { banners.append(.unusedFilesFailed(shown.report.failed.map(\.item.path))) }
         }
+        switch model.transcribe.notice {
+        case .stopped(let request, let revision, let press) where revision == studio.sessionRevision:
+            banners.append(.transcriptionStopped(request, press: press))
+        case .noWords(let revision, let press) where revision == studio.sessionRevision:
+            banners.append(.noWordsFound(press: press))
+        default: break
+        }
         if let shown = model.consentExpired, shown.revision == studio.sessionRevision {
             banners.append(.consentExpired(agent: shown.agent))
         }

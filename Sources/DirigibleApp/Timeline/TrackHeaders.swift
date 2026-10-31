@@ -175,6 +175,8 @@ private struct TrackRow: View {
             Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track.id) }
                 .onAppear { model.showHeaderMenu(track.id) }
             Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track.id) }
+            Divider()
+            Button(L10n.menuToolsTranscribe.key) { model.transcribeTrack(track.id) }.disabled(!model.canTranscribe)
         }
     }
 

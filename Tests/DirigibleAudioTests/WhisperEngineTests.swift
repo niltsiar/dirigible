@@ -44,6 +44,23 @@ enum WhisperFixture {
 }
 
 struct WhisperEngineTests {
+    /// Gate 1 item 4. Piece n at p % is (n + p / 100) / count, and a value passes only when its
+    /// whole percent grows, so a job gives at most about 100 values and ends at 1.
+    @Test func eachPieceReportsItsPercentAndTheJobGrowsOncePerPercent() {
+        var half: [Double] = []
+        PieceProgress(count: 2) { half.append($0) }.update(piece: 0, percent: 50)
+        #expect(half == [0.25])
+
+        var values: [Double] = []
+        let progress = PieceProgress(count: 3) { values.append($0) }
+        for piece in 0..<3 {
+            for percent in 0...100 { progress.update(piece: piece, percent: percent) }
+            progress.update(piece: piece, percent: 100)
+        }
+        #expect(values.count <= 101 && values.last == 1)
+        #expect(zip(values, values.dropFirst()).allSatisfy { $0 < $1 }, "\(values)")
+        #expect(values.contains { $0 > 0 && $0 < 1.0 / 3 }, "a value inside piece 0")
+    }
 
     @Test func aNonZeroCodeWithTheStopFlagIsAStop() {
         for code: Int32 in [-6, -3, -8, -9] {

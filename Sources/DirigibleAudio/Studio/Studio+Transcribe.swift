@@ -31,7 +31,7 @@ public struct TranscribeReport: Hashable, Sendable {
 public enum TranscribeProgress: Hashable, Sendable {
     /// The model download: the received bytes over the catalog byte count.
     case download(Double)
-    /// The engine: the pieces done over the piece count.
+    /// The engine: the values of `PieceProgress`.
     case transcribe(Double)
 }
 

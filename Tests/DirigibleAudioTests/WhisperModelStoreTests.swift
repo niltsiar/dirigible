@@ -144,6 +144,27 @@ struct WhisperModelStoreTests {
         #expect(fractions.withLock { $0 } == expected)
     }
 
+    /// Gate 1 item 4. A download of many small chunks reports only when the whole percent grows:
+    /// 50 chunks of 0.1 % give the values of 0, 1, 2, 3, and 4 %.
+    @Test func aDownloadOfSmallChunksReportsOncePerPercent() async throws {
+        let folder = try TemporaryFolder()
+        let chunk = Data(count: WhisperModel.tinyQ51.byteCount / 1000)
+        let store = WhisperModelStore(folder: folder.url) { _ in
+            AsyncThrowingStream { continuation in
+                for _ in 0..<50 { continuation.yield(chunk) }
+                continuation.finish()
+            }
+        }
+        let fractions = OSAllocatedUnfairLock<[Double]>(initialState: [])
+
+        await #expect(throws: WhisperModelStoreError.checksumMismatch) {
+            try await store.download(
+                .tinyQ51, stop: { false }, progress: { fraction in fractions.withLock { $0.append(fraction) } })
+        }
+
+        #expect(fractions.withLock { $0 }.map { Int($0 * 100) } == [0, 1, 2, 3, 4])
+    }
+
     @Test func aCancelAtHalfLeavesNoFile() async throws {
         let source = try TemporaryFolder()
         let bytes = source.url.appending(path: "zeros.bin")

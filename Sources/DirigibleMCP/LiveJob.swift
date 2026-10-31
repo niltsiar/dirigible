@@ -164,11 +164,7 @@ private func liveTranscribe(
     do throws(StudioError) {
         let done = try await studio.transcribe(
             track: work.track, language: work.language, model: work.model, name: work.name, agent: call.agent
-        ) { stage in
-            switch stage {
-            case .download(let fraction), .transcribe(let fraction): report(fraction)
-            }
-        }
+        ) { stage in report(toolFraction(stage)) }
         let lines = TranscribeWork.lines(
             id: done.id, kept: done.kept, skipped: done.skipped, untimed: done.untimed, dropped: done.dropped)
         return .result(text: lines.joined(separator: "\n"), isError: false)
@@ -185,6 +181,15 @@ private func liveTranscribe(
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
     } catch {
         return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
+/// The tool scale of a transcription stage: the download from 0 to 0.2, the transcription from
+/// 0.2 to 1. MCP progress must grow, so the second stage does not start again at 0.
+func toolFraction(_ stage: TranscribeProgress) -> Double {
+    switch stage {
+    case .download(let fraction): 0.2 * fraction
+    case .transcribe(let fraction): 0.2 + 0.8 * fraction
     }
 }
 

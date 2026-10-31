@@ -39,6 +39,14 @@ import os
             return studio
         }
 
+        /// Gate 1 item 4. MCP progress must grow, so the tool has one scale for both stages: the
+        /// download from 0 to 0.2, the transcription from 0.2 to 1.
+        @Test func theToolScaleGrowsFromTheDownloadIntoTheTranscription() {
+            #expect(toolFraction(.download(0)) == 0 && toolFraction(.download(1)) == 0.2)
+            #expect(toolFraction(.transcribe(0)) == 0.2 && toolFraction(.transcribe(1)) == 1)
+            #expect(toolFraction(.download(0.99)) < toolFraction(.transcribe(0.01)))
+        }
+
         @Test func theToolAddsTheWordsInTheWindow() async throws {
             let language = OSAllocatedUnfairLock<WhisperLanguage?>(initialState: nil)
             let words = [TimedWord(text: "hola", start: 50, end: 100), TimedWord(text: "mundo", start: 150, end: 200)]

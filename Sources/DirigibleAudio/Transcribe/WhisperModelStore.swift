@@ -55,9 +55,7 @@ public struct WhisperModelStore: Sendable {
             var values = URLResourceValues()
             values.isExcludedFromBackup = true
             try temporary.setResourceValues(values)
-            try await Self.write(load(model.url), to: temporary, stop: stop) { received in
-                progress(Double(received) / Double(model.byteCount))
-            }
+            try await Self.write(load(model.url), to: temporary, total: model.byteCount, stop: stop, progress: progress)
             guard model.checked(at: temporary) != nil else { throw WhisperModelStoreError.checksumMismatch }
             guard rename(temporary.path, folder.appending(path: model.fileName).path) == 0 else {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
@@ -68,22 +66,26 @@ public struct WhisperModelStore: Sendable {
         }
     }
 
-    /// Appends each chunk to `file` until the stream ends, and gives `received` the byte count so
-    /// far. A second task reads `stop` every 0.25 s, so a stall of the loader does not hide a stop.
+    /// Appends each chunk to `file` until the stream ends, and gives `progress` the byte count so
+    /// far over `total` when its whole percent grows: at most 101 main-actor hops per download. A
+    /// second task reads `stop` every 0.25 s, so a stall of the loader does not hide a stop.
     private static func write(
-        _ chunks: AsyncThrowingStream<Data, any Error>, to file: URL, stop: @escaping @Sendable () -> Bool,
-        received: @escaping @Sendable (Int) -> Void
+        _ chunks: AsyncThrowingStream<Data, any Error>, to file: URL, total: Int, stop: @escaping @Sendable () -> Bool,
+        progress: @escaping @Sendable (Double) -> Void
     ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 let handle = try FileHandle(forWritingTo: file)
                 defer { try? handle.close() }
-                var count = 0
+                var (count, reported) = (0, -1)
                 for try await chunk in chunks {
                     guard !stop() else { throw WhisperModelStoreError.stopped }
                     try handle.write(contentsOf: chunk)
                     count += chunk.count
-                    received(count)
+                    let fraction = Double(count) / Double(total)
+                    guard Int(fraction * 100) > reported else { continue }
+                    reported = Int(fraction * 100)
+                    progress(fraction)
                 }
                 // The stream gives no error when the stop task cancels this task.
                 try Task.checkCancellation()

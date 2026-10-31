@@ -569,7 +569,7 @@ repo="$tmp/size-repo"
 mkdir -p "$repo/scripts" "$repo/Sources/A" "$repo/.scratchpads/runs"
 cp "$script" "$(dirname "$script")/check-sizes.sh" "$repo/scripts/"
 lines() { seq 1 "$2" > "$repo/Sources/A/$1.swift"; }
-lines Big 380; lines Edge 379; lines Mid 280; lines Full 400; lines Allowed 400
+lines Big 380; lines Big2 380; lines Edge 379; lines Mid 280; lines Full 400; lines Allowed 400; lines 'A+B' 380; lines AB 380
 printf '# list\nSources/A/Allowed.swift\tone type holds the whole format\n' > "$repo/scripts/check-sizes.allow"
 git -C "$repo" init -q && git -C "$repo" add . \
   && git -C "$repo" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q -m one \
@@ -619,6 +619,17 @@ sized "$BIG" '- Split: Big.swift gets an entry in scripts/check-sizes.allow: one
 pass 'a Split line with the file name, the allow list, and a reason'
 sized "$BIG" '- Split: Big.swift in scripts/check-sizes.allow'
 refuse 'a Split line with the file name and the allow list, with no reason' 'Sources/A/Big.swift'
+# A Split line names exactly the file that it names: + stays text, and each near-limit file of a slice
+# needs a Split line of its own (the target of one line covers no other file).
+sized 'Sources/A/A+B.swift' '- Split: A+B.swift moves the parser to ABParser.swift.'
+pass 'a Split line for a file name with a +'
+sized 'Sources/A/A+B.swift' '- Split: AB.swift moves the parser to ABParser.swift.'
+refuse 'a Split line for AB.swift does not cover A+B.swift' 'Sources/A/A+B.swift'
+TWO='Sources/A/Big.swift\nSources/A/Big2.swift'
+sized "$TWO" $'- Split: Big.swift moves the parser to BigParser.swift.\n\n- Split: Big2.swift moves the parser to Big2Parser.swift.'
+pass 'two near-limit files, each with its own Split line'
+sized "$TWO" $'- Split: Big2.swift moves the parser to Big2Parser.swift.\n\n- Split: Big.swift, later.'
+refuse 'the target of the Split line of Big2.swift does not cover Big.swift' 'Sources/A/Big.swift'
 sized "$BIG" 'The file can go in scripts/check-sizes.allow.'
 refuse 'a slice that names the allow list only in other text' 'Sources/A/Big.swift'
 sized 'Sources/A/Allowed.swift'

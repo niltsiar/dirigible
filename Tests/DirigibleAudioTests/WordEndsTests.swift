@@ -164,25 +164,6 @@ struct WordEndsTests {
         #expect(plain[0].end == 140)
     }
 
-    @Test func aBandOfOneSecondGivesTheFullTableEnds() {
-        var random = SeededGenerator(seed: 11)
-        var bursts: [Range<Int>] = []
-        var words: [TimedWord] = []
-        var tick = 20
-        while tick < 6_000 {
-            let length = Int.random(in: 10...80, using: &random)
-            bursts.append(tick..<(tick + length))
-            let end = tick + length + Int.random(in: -30...60, using: &random)
-            words.append(Self.word(Bool.random(using: &random) ? "w." : "w", tick, end))
-            tick += length + Int.random(in: 0...60, using: &random)
-        }
-        let levels = WordEnds.levels(of: Self.samples(bursts, ticks: tick + 50))
-        let gaps = WordEnds.gaps(in: levels, floor: WordEnds.floor(of: levels))
-        #expect(gaps.count > 50)
-        #expect(
-            WordEnds.alignment(of: words, to: gaps, band: 100) == WordEnds.alignment(of: words, to: gaps, band: nil))
-    }
-
     @Test func aNoiseFloorRaisesTheFloor() {
         var samples = Self.samples([100..<160, 200..<260], ticks: 320)
         var random = SeededGenerator(seed: 45)

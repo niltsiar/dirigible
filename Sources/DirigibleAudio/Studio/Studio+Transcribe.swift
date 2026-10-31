@@ -71,49 +71,55 @@ extension Studio {
             ProcessInfo.processInfo.endActivity(activity)
         }
         let hop: @Sendable (TranscribeProgress) -> Void = { stage in Task { @MainActor in progress(stage) } }
-        let work = await withTaskCancellationHandler {
-            await transcribeWork(
+        // The work, the step after it, and the wait for idle up to the edit: a cancel of the caller
+        // in any of them sets the flags that the end turn reads.
+        func job() async throws(StudioError) -> TranscribeReport {
+            let work = await transcribeWork(
                 map, session: snapshot, lock: lock, language: language, model: model, environment: environment,
                 run: run, progress: hop)
+            await environment.transcribeWorkDone()
+            // The end turn. A set flag decides the exit, also after an engine error.
+            while true {
+                if run.cancelled.withLock({ $0 }) {
+                    throw run.end.withLock { $0 } == .take ? .transcriptionYielded : .transcriptionCancelled
+                }
+                let words: TranscribedWords
+                switch work {
+                case .success(let done?): words = done
+                // No flag and no words: the engine part saw a flag that the end turn reads above.
+                case .success(nil): throw .transcriptionCancelled
+                case .failure(let error): throw error
+                }
+                if isIdle, !settling {
+                    // No `await` from the flag read to the edit, so the whole change comes before the save.
+                    let derived = transcribing?.splits ?? []
+                    let added: (id: TranscriptID?, kept: Int, skipped: Int, dropped: [String])
+                    do throws(SessionError) {
+                        added = try recordEdit(agent: agent) { (session: inout Session) throws(SessionError) in
+                            try session.addTranscript(words.words, name: name ?? track.name, derived: derived)
+                        }
+                    } catch {
+                        throw .session(error)
+                    }
+                    leaveTranscription(run)
+                    await serialized {}
+                    return TranscribeReport(
+                        id: added.id, kept: added.kept, skipped: added.skipped, untimed: words.untimed,
+                        dropped: added.dropped, language: words.language)
+                }
+                // A level, a duck, an import, a paste, a split, a render, a placement, or a take start of
+                // this studio runs. The sleep is in a task of its own, so a cancel of the caller does not
+                // make the wait spin; `serialized {}` returns with no suspension after a `blockingRun`
+                // turn, so the main actor would spin.
+                await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
+            }
+        }
+        let outcome = await withTaskCancellationHandler { () async -> Result<TranscribeReport, StudioError> in
+            do throws(StudioError) { return .success(try await job()) } catch { return .failure(error) }
         } onCancel: {
             run.cancel()
         }
-        await environment.transcribeWorkDone()
-        // The end turn. A set flag decides the exit, also after an engine error.
-        while true {
-            if run.cancelled.withLock({ $0 }) {
-                throw run.end.withLock { $0 } == .take ? .transcriptionYielded : .transcriptionCancelled
-            }
-            let words: TranscribedWords
-            switch work {
-            case .success(let done?): words = done
-            // No flag and no words: the engine part saw a flag that the end turn reads above.
-            case .success(nil): throw .transcriptionCancelled
-            case .failure(let error): throw error
-            }
-            if isIdle, !settling {
-                // No `await` from the flag read to the edit, so the whole change comes before the save.
-                let derived = transcribing?.splits ?? []
-                let added: (id: TranscriptID?, kept: Int, skipped: Int, dropped: [String])
-                do throws(SessionError) {
-                    added = try recordEdit(agent: agent) { (session: inout Session) throws(SessionError) in
-                        try session.addTranscript(words.words, name: name ?? track.name, derived: derived)
-                    }
-                } catch {
-                    throw .session(error)
-                }
-                leaveTranscription(run)
-                await serialized {}
-                return TranscribeReport(
-                    id: added.id, kept: added.kept, skipped: added.skipped, untimed: words.untimed,
-                    dropped: added.dropped, language: words.language)
-            }
-            // A level, a duck, an import, a paste, a split, a render, a placement, or a take start of
-            // this studio runs. The sleep is in a task of its own, so a cancel of the caller does not
-            // make the wait spin; `serialized {}` returns with no suspension after a `blockingRun`
-            // turn, so the main actor would spin.
-            await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
-        }
+        return try outcome.get()
     }
 
     /// The Cancel of the Transcribe banner: sets the flags of the running job, with no wait. The job

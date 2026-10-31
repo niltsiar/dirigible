@@ -218,6 +218,57 @@ import Testing
             await second.settle()
         }
 
+        /// Gate 1 item 5. A task cancel while the end turn waits for a level stores no transcript; the
+        /// level keeps its gain.
+        @Test func aCancelDuringTheWaitForIdleWritesNoWord() async throws {
+            let fixture = try await ExportStudioFixture.make()
+            let gate = Gate(limit: Gate.openLimit)
+            let studio = try await T.open(fixture.package, engine: T.engine(gate: gate))
+            let (saving, done) = (AsyncGate(), AsyncGate())
+            done.open()
+            studio.environment.transcribeWorkDone = { await done.wait() }
+            let save = studio.environment.saveSession
+            studio.environment.saveSession = { session, lock throws(SessionFileError) in
+                await saving.wait()
+                return try await save(session, lock)
+            }
+            let job = T.job(studio)
+            await gate.entered()
+            let level = Task { try await studio.level(["c1"], .eachClip) }
+            await saving.entered()
+            gate.open()
+            await done.entered()
+            try await Task.sleep(for: .milliseconds(50))
+
+            job.cancel()
+            saving.open()
+
+            _ = try await level.value
+            #expect(await job.value.failure == .transcriptionCancelled)
+            #expect(studio.session.transcripts.isEmpty)
+            #expect(studio.session.clip("c1")?.clip.gain != .zero, "the level gain stays")
+            await studio.settle()
+        }
+
+        /// Gate 1 item 5. A task cancel after the engine part returns, before the end turn, writes
+        /// nothing.
+        @Test func aCancelAfterTheEnginePartWritesNothing() async throws {
+            let fixture = try await ExportStudioFixture.make()
+            let studio = try await T.open(fixture.package)
+            let done = AsyncGate()
+            studio.environment.transcribeWorkDone = { await done.wait() }
+            let before = (studio.session, T.xml(fixture.package))
+            let job = T.job(studio)
+            await done.entered()
+
+            job.cancel()
+            done.open()
+
+            #expect(await job.value.failure == .transcriptionCancelled)
+            #expect(studio.session == before.0 && T.xml(fixture.package) == before.1)
+            await studio.settle()
+        }
+
         /// C26: a job holds one activity from its refusals to each exit (the end, a Cancel, an engine
         /// error), a refused job holds none, and the engine part runs at user-initiated QoS.
         @Test func theJobHoldsOneActivityAndRunsAtUserInitiated() async throws {

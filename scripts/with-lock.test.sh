@@ -1091,11 +1091,9 @@ out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
 [[ "$out" =~ holder:\ /t/holder\ held\ (99|100|101|102)\ s\ of\ 1800\ s ]] || fail "--builders, hold seconds: [$out]"
 reset_builders
 
-# --release-holder exits 0 and prints "holder: <command>" while a release call holds the lock (the
-# marker <lock>/release and a live pid), or "ticket: <pid>" for a live release ticket. Else it
-# exits 1 with no output and removes a ticket of a dead pid. It takes no lock, writes no wait or hold
-# line, and keeps no waiting marker. Inside a locked process tree (DIRIGIBLE_BUILD_LOCK holds the
-# pid of the lock folder) it never reaches the exec of the command.
+# --release-holder (header of with-lock.sh) takes no lock, writes no wait or hold line, and keeps no
+# waiting marker. Inside a locked process tree (DIRIGIBLE_BUILD_LOCK holds the pid of the lock
+# folder) it never reaches the exec of the command.
 ( : ) & rh_dead=$!
 wait "$rh_dead"
 rh_state() { # <kind>: write the lock state of a case

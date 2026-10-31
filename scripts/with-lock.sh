@@ -163,8 +163,7 @@ holder_line() {
 }
 [[ "$1" != --builders ]] || { builders; holder_line; exit 0; }
 first="${lock%/*}/dirigible-build-first"
-# release_holder: the command of a live holder of a release call, or the pid of a live release
-# ticket, and succeeds. Else it fails, and a ticket of a dead pid goes. It takes no lock.
+# release_holder: the --release-holder query (header).
 release_holder() {
     local m c t
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"

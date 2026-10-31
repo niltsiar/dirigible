@@ -57,7 +57,7 @@ struct StudioTranscribeTests {
         }
         studio.environment.modelStore = WhisperModelStore(folder: folder, load: load)
         studio.environment.checkModel = { model, folder in
-            CheckedModel(model: model, url: folder.appending(path: model.fileName))
+            CheckedModel.unchecked(model, at: folder.appending(path: model.fileName))
         }
         return studio
     }

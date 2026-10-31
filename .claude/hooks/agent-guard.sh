@@ -47,11 +47,12 @@ lock_targets='setup|build|app|icon-preview|test|test-filter|test-asan|test-tsan|
 lock_scripts='swift-test|test-shards|bench|bench-pairs|sanitize'
 lock_swift='build|test|run'
 steps="$(sed -E 's/with-lock\.sh +--(builders|release-holder)//g' <<< "$text")"
-# make words before the target: an option with an optional separate argument, or NAME=value.
+# make words before the target: an option with an optional separate argument, NAME=value, or a lock-free target.
+free_targets='check-docs|check-fast|lint|format'
 sq="'"
 make_opt='-[^[:space:]]*([[:space:]]+[^-[:space:]][^[:space:]]*)?'
 make_set="[A-Za-z_][A-Za-z0-9_]*=($sq[^$sq]*$sq|\"[^\"]*\"|[^[:space:]]*)"
-lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make([[:space:]]+($make_opt|$make_set))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($lock_scripts)\.sh|(^|[^A-Za-z0-9_-])swift +($lock_swift)([^A-Za-z0-9_-]|\$)"
+lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make([[:space:]]+($make_opt|$make_set|($free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($lock_scripts)\.sh|(^|[^A-Za-z0-9_-])swift +($lock_swift)([^A-Za-z0-9_-]|\$)"
 if grep -qE "$lock_re" <<< "$steps" && ! grep -qE '^[[:space:]]*([-*>][[:space:]]+)?Build lock: none' <<< "$text"; then
   if holder="$("$(dirname "$0")/../../scripts/with-lock.sh" --release-holder 2>/dev/null)"; then
     echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent takes no lock (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own." >&2

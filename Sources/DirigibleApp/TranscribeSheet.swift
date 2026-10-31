@@ -28,14 +28,17 @@ struct TranscribeDraft: Equatable {
     let onDisk: Set<WhisperModel>
     var track: TrackID
     var language: WhisperLanguage
-    var model = WhisperModel.base
+    var model: WhisperModel
 
-    /// Nil with no track. `selected` is the first track when it is nil or not in `tracks`.
+    /// Nil with no track. `selected` is the first track when it is nil or not in `tracks`. Spanish
+    /// starts at More Accurate: in the C27 probe it made fewer errors than Standard, at 0.7 times
+    /// the clip length on an Intel Mac. Other languages start at Standard.
     init?(tracks: [Choice], selected: TrackID?, onDisk: Set<WhisperModel>, language: WhisperLanguage) {
         guard let first = tracks.first else { return nil }
         self.tracks = tracks
         self.onDisk = onDisk
         self.language = language
+        model = language == .code("es") ? .smallQ51 : .base
         track = tracks.contains { $0.id == selected } ? selected ?? first.id : first.id
     }
 

@@ -194,16 +194,19 @@ struct WhisperModelStoreTests {
         await until(limit: .seconds(5), "chunk 1 is on disk") { fileSize(temporary) == 1 << 20 }
         stop.set()
         let start = ContinuousClock.now
-        // The limit of the test: a store that waits for a chunk throws only when the stream ends.
+        // A store that waits for a chunk throws only when the stream ends. The limit is 3 times the
+        // worst stop to throw with 11 other suites in the process: 3.83 s (run whisper-in-app, S5).
+        let endedByTest = StopSwitch()
         let limit = Task {
-            try await Task.sleep(for: .seconds(1.5))
+            try await Task.sleep(for: .seconds(12))
+            endedByTest.set()
             loader.end()
         }
         defer { limit.cancel() }
         let result = await download.result
         let elapsed = ContinuousClock.now - start
 
-        #expect(elapsed <= .seconds(1), "stop to throw \(elapsed)")
+        #expect(!endedByTest.isSet, "the store threw before the test ended the stream (\(elapsed))")
         #expect(throws: WhisperModelStoreError.stopped) { try result.get() }
         #expect(loader.ended, "the store ended the stream")
         #expect(try fileNames(folder.url) == [])

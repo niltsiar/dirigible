@@ -62,6 +62,7 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
+        "addTranscript": "S6 adds dirigible transcribe",
     ]
 
     /// The commands with no MCP tool (decision 0041).

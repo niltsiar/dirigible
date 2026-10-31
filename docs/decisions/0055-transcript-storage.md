@@ -7,6 +7,7 @@
 - Amended: 2026-10-23. `TranscriptFile` also reads SRT (see 0061).
 - Amends: 0003 (the `<transcripts>` element), 0024 (version 8 and its formats row), 0042 (an excerpt carries the words of its files), 0047 (a removed file takes its words), 0011 (the `transcript` commands), 0041 (three tools), 0051 (the `cut-from-transcript` recipe).
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). The anchor file of a word is the root of the file of the clip. A clip on a rendered file reads the words of its root through the sum of the origin offsets. A transcript with a word of a file that has an origin does not load.
+- Amended: 2026-10-31, run `2026-10-28-whisper-in-app` (see 0065). `Session.addTranscript` adds a transcript from file words, with no storage change. It ends in the same internal function as the import.
 
 ## Context
 
@@ -78,7 +79,7 @@ The three bump tests of 0024: a version 8 file reads; a session with no transcri
 - An autosave of a session with a 27 000-word transcript writes only the reference. A change of the words makes a new name, and its first save encodes, checks, and writes about 0.9 MB once. At 3 h, optimized p90 (`TranscriptSaveBenchmark`, budgets 5 ms and 300 ms): the undo compare of an edit 0.009 ms, an autosave 47 ms, the first save after a change of the words 220 ms, and an open 103 ms. A backup grows by one line per transcript.
 - A version 7 build refuses a session with a transcript (0024 P3).
 - Split stereo shows the words on both new tracks. A word cut on one track ripples all tracks.
-- Later parsers (SRT, Podcasting 2.0 JSON, whisper.cpp) give a `TranscriptFile` and need no storage change. Speakers and text corrections need a format change.
+- Later parsers (SRT, Podcasting 2.0 JSON) give a `TranscriptFile` and need no storage change. whisper.cpp in the app gives file words through `Session.addTranscript` (0065), with no storage change. Speakers and text corrections need a format change.
 
 ## Alternatives considered
 

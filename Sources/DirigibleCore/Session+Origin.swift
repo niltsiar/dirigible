@@ -51,12 +51,14 @@ extension Session {
     /// The anchors of each transcript that `span` of `file` plays, read on the root of `file`
     /// (decision 0057 D11): each root anchor whose midpoint is in the span, clamped to it, in frames
     /// from the span start, with the same number. Each copy of words into another file uses it, so
-    /// no copy stores a word outside its file.
-    func copiedWords(from file: FileID, span: Range<Frames>) -> [TranscriptID: [Anchor]] {
+    /// no copy stores a word outside its file. `only` limits the copy to one transcript.
+    func copiedWords(from file: FileID, span: Range<Frames>, transcript only: TranscriptID? = nil)
+        -> [TranscriptID: [Anchor]]
+    {
         let root = self.root(of: file)
         let rootSpan = (span.lowerBound + root.offset)..<(span.upperBound + root.offset)
         var copied: [TranscriptID: [Anchor]] = [:]
-        for (id, transcript) in transcripts {
+        for (id, transcript) in transcripts where only == nil || id == only {
             guard let anchors = transcript.words?[root.file]?.anchors(midpointIn: rootSpan), !anchors.isEmpty
             else { continue }
             copied[id] = anchors.map { anchor in

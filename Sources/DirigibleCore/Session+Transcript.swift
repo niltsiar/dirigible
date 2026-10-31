@@ -229,19 +229,40 @@ extension Session {
             added[root, default: []].append(Anchor(number: number, range: range, text: unit.text))
         }
         guard !added.isEmpty else { throw .noWordOnTrack(track) }
+        let (id, dropped) = try storeTranscript(added, name: name, derived: [])
+        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed, repeats, dropped)
+    }
+
+    /// The end of `importTranscript` and `addTranscript`, in this order: a new ID, the drop of each
+    /// transcript that did not load, the insert of the transcript of `added`, a copy of its words
+    /// to each derived file of `derived` that is in the pool and has no origin, in list order, and
+    /// last, the drop from each other transcript of the old words whose midpoint is in the span of
+    /// the new words of a file, the derived files included. Returns the ID and the names of the
+    /// dropped transcripts.
+    mutating func storeTranscript(
+        _ added: [FileID: [Anchor]], name: String, derived: [(source: FileID, derived: FileID, span: Range<Frames>)]
+    ) throws(SessionError) -> (id: TranscriptID, dropped: [String]) {
         // The ID comes before the replace, so a re-import never gives the ID of a transcript that it empties.
         let id = nextTranscriptID
         let dropped = transcriptsNotLoaded
         for transcript in dropped { transcripts[transcript.id] = nil }
-        for (fileID, anchors) in added {
+        try insertTranscript(Transcript(id: id, name: name, words: added.mapValues(Anchors.init)))
+        var new = added
+        for entry in derived {
+            guard let file = files[entry.derived], file.origin == nil,
+                let copied = copiedWords(from: entry.source, span: entry.span, transcript: id)[id]
+            else { continue }
+            setWords(copied, file: entry.derived, transcript: id)
+            new[entry.derived] = copied
+        }
+        for (fileID, anchors) in new {
             let span = anchors.map(\.range.lowerBound).min()!...anchors.map(\.range.upperBound).max()!
-            for old in transcripts.keys {
+            for old in transcripts.keys where old != id {
                 guard let words = transcripts[old]?.words?[fileID] else { continue }
                 setWords(words.all.filter { !span.contains($0.midpoint) }, file: fileID, transcript: old)
             }
         }
-        try insertTranscript(Transcript(id: id, name: name, words: added.mapValues(Anchors.init)))
-        return (id, added.values.map(\.count).reduce(0, +), skipped, untimed, repeats, dropped.map(\.name))
+        return (id, dropped.map(\.name))
     }
 
     /// Sets the words of `file` in transcript `id`. No word removes the file from the transcript,

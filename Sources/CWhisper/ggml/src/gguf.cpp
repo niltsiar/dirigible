@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior. See README.dirigible.
 #include "ggml.h"
 #include "ggml-backend.h"
 #include "ggml-impl.h"
@@ -619,7 +620,7 @@ static struct gguf_context * gguf_init_from_reader(const struct gguf_reader & gr
         }
         GGML_ASSERT(int64_t(ctx->kv.size()) == n_kv);
 
-        const int alignment_idx = gguf_find_key(ctx, GGUF_KEY_GENERAL_ALIGNMENT);
+        const int alignment_idx = (int)(gguf_find_key(ctx, GGUF_KEY_GENERAL_ALIGNMENT));
         if (alignment_idx != -1 && gguf_get_kv_type(ctx, alignment_idx) != GGUF_TYPE_UINT32) {
             GGML_LOG_ERROR("%s: key '%s' must be of type %s but is %s\n",
                 __func__, GGUF_KEY_GENERAL_ALIGNMENT, gguf_type_name(GGUF_TYPE_UINT32),

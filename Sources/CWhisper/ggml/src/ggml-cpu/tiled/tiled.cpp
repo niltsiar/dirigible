@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior. See README.dirigible.
 #include "tiled.h"
 #include "tiled-kernel.h"
 
@@ -792,7 +793,7 @@ static void tiled_mmid_gemm_window(struct ggml_tensor * dst, const struct ggml_t
             const int kstart = (int) (k0 / TILED_TILE_K);
             // activation: one 16-row band (nrows <= 16). Unpack the whole k_extent chunk (all
             // slabs) so each activation row is a long stream, then repack each slab in place
-            tiled_unpack_src1_q8_K(rows, nrows, &ws->src1, kstart, num_k);
+            tiled_unpack_src1_q8_K(rows, (int)(nrows), &ws->src1, kstart, num_k);
             // repack the whole k_extent chunk in place: num_k slabs x 4 tiles, 16 rows, row stride num_k*256
             tiled_repack_src1(&ws->src1, 0, num_k, ACTBIAS);
             // weight groups (16 at a time): unpack the k_extent chunk of the group (the long per-row
@@ -814,7 +815,7 @@ static void tiled_mmid_gemm_window(struct ggml_tensor * dst, const struct ggml_t
             const int kblk = (int) (ib / TILED_TILE_K);
             tiled_unpack_src0((const B *) (src0_cur + r * src0->nb[1] + kblk * src0_bs), src0_stride, n_src0, &ws->src0, 1);
             tiled_repack_src0<SUBBLK>(&ws->src0, n_src0, 1, BIAS, ACTBIAS);
-            tiled_unpack_src1_q8_K(rows, nrows, &ws->src1, kblk, 1);
+            tiled_unpack_src1_q8_K(rows, (int)(nrows), &ws->src1, kblk, 1);
             // 16x16 microtiles sweeping the window; repack each src1 band just-in-time
             // (j0-outer) so only the bands actually used are repacked and each is L1-hot
             for (int64_t ir1 = 0; ir1 < nrows; ir1 += TILED_MICRO) {
@@ -828,7 +829,7 @@ static void tiled_mmid_gemm_window(struct ggml_tensor * dst, const struct ggml_t
         }
     }
 
-    tiled_store_window_scatter(ws->acc, n_src0, nrows, TILED_TILE_ROWS, col_ptrs);
+    tiled_store_window_scatter(ws->acc, n_src0, (int)(nrows), TILED_TILE_ROWS, col_ptrs);
 }
 
 // one expert of MUL_MAT_ID: each k window's dispatched rows are pointed at by a per-window

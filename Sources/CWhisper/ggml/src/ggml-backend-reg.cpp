@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior; no backend loads from a path in the environment. See README.dirigible.
 #include "ggml-backend-impl.h"
 #include "ggml-backend.h"
 #include "ggml-backend-dl.h"
@@ -404,7 +405,7 @@ static fs::path get_executable_path() {
     std::vector<char> path;
     uint32_t size;
     while (true) {
-        size = path.size();
+        size = (uint32_t)(path.size());
         if (_NSGetExecutablePath(path.data(), &size) == 0) {
             break;
         }
@@ -597,9 +598,4 @@ void ggml_backend_load_all_from_path(const char * dir_path) {
     ggml_backend_load_best("musa", silent, dir_path);
     ggml_backend_load_best("openvino", silent, dir_path);
     ggml_backend_load_best("cpu", silent, dir_path);
-    // check the environment variable GGML_BACKEND_PATH to load an out-of-tree backend
-    const char * backend_path = std::getenv("GGML_BACKEND_PATH");
-    if (backend_path) {
-        ggml_backend_load(backend_path);
-    }
 }

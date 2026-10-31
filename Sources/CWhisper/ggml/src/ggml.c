@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior; on Apple, an assert prints the native backtrace and starts no debugger. See README.dirigible.
 #define _CRT_SECURE_NO_DEPRECATE // Disables "unsafe" warnings on Windows
 #define _USE_MATH_DEFINES // For M_PI on MSVC
 
@@ -165,15 +166,8 @@ void ggml_print_backtrace(void) {
     // 1. libdispatch "poisons" forked child processes
     // 2. lldb has issues attaching to parent from forked child
     // Use simple backtrace() instead to avoid Terminal.app crashes
-    const char * GGML_BACKTRACE_LLDB = getenv("GGML_BACKTRACE_LLDB");
-    if (!GGML_BACKTRACE_LLDB) {
-        fprintf(stderr, "WARNING: Using native backtrace. Set GGML_BACKTRACE_LLDB for more info.\n");
-        fprintf(stderr, "WARNING: GGML_BACKTRACE_LLDB may cause native MacOS Terminal.app to crash.\n");
-        fprintf(stderr, "See: https://github.com/ggml-org/llama.cpp/pull/17869\n");
-        ggml_print_backtrace_symbols();
-        return;
-    }
-#endif
+    ggml_print_backtrace_symbols();
+#else
 #if defined(__linux__)
     FILE * f = fopen("/proc/self/status", "r");
     size_t size = 0;
@@ -234,6 +228,7 @@ void ggml_print_backtrace(void) {
 #endif
         waitpid(child_pid, NULL, 0);
     }
+#endif
 }
 #else
 void ggml_print_backtrace(void) {
@@ -2199,7 +2194,7 @@ static struct ggml_tensor * ggml_acc_impl(
 
     struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
 
-    int32_t params[] = { nb1, nb2, nb3, offset, inplace ? 1 : 0 };
+    int32_t params[] = { (int32_t)(nb1), (int32_t)(nb2), (int32_t)(nb3), (int32_t)(offset), inplace ? 1 : 0 };
     ggml_set_op_params(result, params, sizeof(params));
 
     result->op     = GGML_OP_ACC;
@@ -3520,7 +3515,7 @@ static struct ggml_tensor * ggml_set_impl(
     struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
 
     GGML_ASSERT(offset < (size_t)(1 << 30));
-    int32_t params[] = { nb1, nb2, nb3, offset, inplace ? 1 : 0 };
+    int32_t params[] = { (int32_t)(nb1), (int32_t)(nb2), (int32_t)(nb3), (int32_t)(offset), inplace ? 1 : 0 };
     ggml_set_op_params(result, params, sizeof(params));
 
     result->op     = GGML_OP_SET;
@@ -4649,7 +4644,7 @@ struct ggml_tensor* ggml_conv_1d_ph(
         struct ggml_tensor  * b,
         int                   s,
         int                   d) {
-    return ggml_conv_1d(ctx, a, b, s, a->ne[0] / 2, d);
+    return ggml_conv_1d(ctx, a, b, s, (int)(a->ne[0] / 2), d);
 }
 
 // ggml_conv_1d_dw
@@ -4680,7 +4675,7 @@ struct ggml_tensor * ggml_conv_1d_dw_ph(
         struct ggml_tensor  * b,
         int                   s0,
         int                   d0) {
-    return ggml_conv_1d_dw(ctx, a, b, s0, a->ne[0] / 2, d0);
+    return ggml_conv_1d_dw(ctx, a, b, s0, (int)(a->ne[0] / 2), d0);
 }
 
 // ggml_col2im_1d
@@ -4874,7 +4869,7 @@ struct ggml_tensor * ggml_conv_2d_sk_p0(
         struct ggml_context * ctx,
         struct ggml_tensor  * a,
         struct ggml_tensor  * b) {
-    return ggml_conv_2d(ctx, a, b, a->ne[0], a->ne[1], 0, 0, 1, 1);
+    return ggml_conv_2d(ctx, a, b, (int)(a->ne[0]), (int)(a->ne[1]), 0, 0, 1, 1);
 }
 
 // ggml_conv_2d_s1_ph
@@ -4883,7 +4878,7 @@ struct ggml_tensor * ggml_conv_2d_s1_ph(
         struct ggml_context * ctx,
         struct ggml_tensor  * a,
         struct ggml_tensor  * b) {
-    return ggml_conv_2d(ctx, a, b, 1, 1, a->ne[0] / 2, a->ne[1] / 2, 1, 1);
+    return ggml_conv_2d(ctx, a, b, 1, 1, (int)(a->ne[0] / 2), (int)(a->ne[1] / 2), 1, 1);
 }
 
 // ggml_conv_2d_dw
@@ -5775,8 +5770,8 @@ struct ggml_tensor * ggml_win_part(
     const int px = (w - a->ne[1]%w)%w;
     const int py = (w - a->ne[2]%w)%w;
 
-    const int npx = (px + a->ne[1])/w;
-    const int npy = (py + a->ne[2])/w;
+    const int npx = (int)((px + a->ne[1])/w);
+    const int npy = (int)((py + a->ne[2])/w);
     const int np  = npx*npy;
 
     const int64_t ne[4] = { a->ne[0], w, w, np, };
@@ -7506,7 +7501,7 @@ struct ggml_cgraph * ggml_new_graph_custom(struct ggml_context * ctx, size_t siz
     assert(obj_size == (size_t)((char *)p - (char *)cgraph));
 
     *cgraph = (struct ggml_cgraph) {
-        /*.size         =*/ size,
+        /*.size         =*/ (int)(size),
         /*.n_nodes      =*/ 0,
         /*.n_leafs      =*/ 0,
         /*.nodes        =*/ nodes_ptr,

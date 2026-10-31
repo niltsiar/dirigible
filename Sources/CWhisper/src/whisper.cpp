@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior; the ANEForge encoder removed; abort checks in the graph compute, VAD, the mel, and the signal energy. See README.dirigible.
 #include "whisper.h"
 #include "whisper-arch.h"
 
@@ -197,11 +198,18 @@ static bool ggml_graph_compute_helper(
       ggml_backend_sched_t   sched,
         struct ggml_cgraph * graph,
                        int   n_threads,
+       ggml_abort_callback   abort_callback,
+                      void * abort_callback_data,
                       bool   sched_reset = true) {
     for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
         ggml_backend_t backend = ggml_backend_sched_get_backend(sched, i);
         ggml_backend_dev_t dev = ggml_backend_get_device(backend);
         ggml_backend_reg_t reg = dev ? ggml_backend_dev_backend_reg(dev) : nullptr;
+
+        auto * fn_set_abort_callback = (ggml_backend_set_abort_callback_t) ggml_backend_reg_get_proc_address(reg, "ggml_backend_set_abort_callback");
+        if (fn_set_abort_callback) {
+            fn_set_abort_callback(backend, abort_callback, abort_callback_data);
+        }
 
         auto * fn_set_n_threads = (ggml_backend_set_n_threads_t) ggml_backend_reg_get_proc_address(reg, "ggml_backend_set_n_threads");
         if (fn_set_n_threads) {
@@ -561,7 +569,7 @@ static bool whisper_sched_graph_init(struct whisper_sched & allocr, std::vector<
     auto & sched = allocr.sched;
     auto & meta  = allocr.meta;
 
-    sched = ggml_backend_sched_new(backends.data(), nullptr, backends.size(), WHISPER_MAX_NODES, false, true);
+    sched = ggml_backend_sched_new(backends.data(), nullptr, (int)(backends.size()), WHISPER_MAX_NODES, false, true);
 
     meta.resize(ggml_tensor_overhead()*WHISPER_MAX_NODES + ggml_graph_overhead());
 
@@ -1233,7 +1241,7 @@ static bool aheads_masks_init(
     }
 
     for (int64_t il = 0; il < n_text_layer; ++il) {
-        auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
+        auto aheads = get_alignment_heads_by_layer(cparams, (int)(il), n_text_layer, n_head);
         if (!aheads.empty()) {
             aheads_masks.m.push_back(ggml_new_tensor_2d(aheads_masks.ctx, GGML_TYPE_F32, n_head, aheads.size()));
         } else {
@@ -1260,7 +1268,7 @@ static bool aheads_masks_init(
     std::vector<float> mask_data;
     for (int64_t il = 0; il < n_text_layer; ++il) {
         if (aheads_masks.m[il] != nullptr) {
-            auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
+            auto aheads = get_alignment_heads_by_layer(cparams, (int)(il), n_text_layer, n_head);
 
             size_t data_size = aheads_masks.m[il]->ne[0] * aheads_masks.m[il]->ne[1];
             size_t data_size_bytes = data_size * sizeof(float);
@@ -2447,15 +2455,12 @@ static bool whisper_encode_internal(
         }
 
         if (!whisper_encode_external(wstate)) {
-            if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
+            if (!ggml_graph_compute_helper(sched, gf, n_threads, abort_callback, abort_callback_data)) {
                 return false;
             }
         } else {
             ggml_backend_sched_reset(sched);
 
-            if (wstate.ctx_aneforge != nullptr) {
-                whisper_aneforge_encode(wstate.ctx_aneforge, mel->ne[0], mel->ne[1], (float *) mel->data, (float *) wstate.embd_enc->data);
-            } else {
 #if defined(WHISPER_USE_COREML)
                 whisper_coreml_encode(wstate.ctx_coreml, mel->ne[0], mel->ne[1], (float *) mel->data, (float *) wstate.embd_enc->data);
 #elif defined(WHISPER_USE_VITISAI)
@@ -2476,7 +2481,6 @@ static bool whisper_encode_internal(
 #elif defined(WHISPER_USE_OPENVINO)
                 whisper_openvino_encode(wstate.ctx_openvino, mel, wstate.embd_enc);
 #endif
-            }
         }
     }
 
@@ -2491,7 +2495,7 @@ static bool whisper_encode_internal(
             return false;
         }
 
-        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
+        if (!ggml_graph_compute_helper(sched, gf, n_threads, abort_callback, abort_callback_data)) {
             return false;
         }
     }
@@ -2507,7 +2511,7 @@ static bool whisper_encode_internal(
             return false;
         }
 
-        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
+        if (!ggml_graph_compute_helper(sched, gf, n_threads, abort_callback, abort_callback_data)) {
             return false;
         }
     }
@@ -3004,7 +3008,7 @@ static bool whisper_decode_internal(
 
         logits = ggml_graph_node(gf, -1);
 
-        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
+        if (!ggml_graph_compute_helper(sched, gf, n_threads, abort_callback, abort_callback_data)) {
             return false;
         }
     }
@@ -3164,9 +3168,13 @@ static void fft(float* in, int N, float* out) {
     }
 }
 
+#define WHISPER_MEL_ABORT_STRIDE 32
+
 static void log_mel_spectrogram_worker_thread(int ith, const float * hann, const std::vector<float> & samples,
                                               int n_samples, int frame_size, int frame_step, int n_threads,
-                                              const whisper_filters & filters, whisper_mel & mel) {
+                                              const whisper_filters & filters, whisper_mel & mel,
+                                              ggml_abort_callback abort_callback, void * abort_callback_data,
+                                              std::atomic<bool> & aborted) {
     std::vector<float> fft_in(frame_size * 2, 0.0);
     std::vector<float> fft_out(frame_size * 2 * 2 * 2);
 
@@ -3178,6 +3186,14 @@ static void log_mel_spectrogram_worker_thread(int ith, const float * hann, const
 
     // calculate FFT only when fft_in are not all zero
     for (; i < std::min(n_samples / frame_step + 1, mel.n_len); i += n_threads) {
+        // Only the calling thread (ith 0) runs the user callback; the other threads read the flag.
+        if (ith == 0 && abort_callback && (i / n_threads) % WHISPER_MEL_ABORT_STRIDE == 0 && abort_callback(abort_callback_data)) {
+            aborted.store(true, std::memory_order_relaxed);
+        }
+        if (aborted.load(std::memory_order_relaxed)) {
+            return;
+        }
+
         const int offset = i * frame_step;
 
         // apply Hann window (~10% faster)
@@ -3241,7 +3257,10 @@ static bool log_mel_spectrogram(
               const int   n_threads,
               const whisper_filters & filters,
               const bool   debug,
-              whisper_mel & mel) {
+              whisper_mel & mel,
+    ggml_abort_callback   abort_callback,
+                   void * abort_callback_data,
+                    bool & aborted_out) {
     const int64_t t_start_us = ggml_time_us();
 
     // Hann window
@@ -3270,26 +3289,33 @@ static bool log_mel_spectrogram(
     mel.n_mel     = n_mel;
     // https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/SpectralOps.cpp#L936
     // Calculate number of frames + remove the last frame
-    mel.n_len     = (samples_padded.size() - frame_size) / frame_step;
+    mel.n_len     = (int)((samples_padded.size() - frame_size) / frame_step);
     // Calculate semi-padded sample length to ensure compatibility
-    mel.n_len_org = 1 + (n_samples + stage_2_pad - frame_size) / frame_step;
+    mel.n_len_org = (int)(1 + (n_samples + stage_2_pad - frame_size) / frame_step);
     mel.data.resize(mel.n_mel * mel.n_len);
 
+    std::atomic<bool> aborted { false };
     {
         std::vector<std::thread> workers(n_threads - 1);
         for (int iw = 0; iw < n_threads - 1; ++iw) {
             workers[iw] = std::thread(
                     log_mel_spectrogram_worker_thread, iw + 1, hann, std::cref(samples_padded),
                     n_samples + stage_2_pad, frame_size, frame_step, n_threads,
-                    std::cref(filters), std::ref(mel));
+                    std::cref(filters), std::ref(mel), nullptr, nullptr, std::ref(aborted));
         }
 
         // main thread
-        log_mel_spectrogram_worker_thread(0, hann, samples_padded, n_samples + stage_2_pad, frame_size, frame_step, n_threads, filters, mel);
+        log_mel_spectrogram_worker_thread(0, hann, samples_padded, (int)(n_samples + stage_2_pad), frame_size, frame_step, n_threads, filters, mel,
+                abort_callback, abort_callback_data, aborted);
 
         for (int iw = 0; iw < n_threads - 1; ++iw) {
             workers[iw].join();
         }
+    }
+
+    if (aborted.load()) {
+        aborted_out = true;
+        return false;
     }
 
     // clamping and normalization
@@ -3361,7 +3387,7 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
         if (word.empty()) continue;
 
         int i = 0;
-        int n = word.size();
+        int n = (int)(word.size());
         while (i < n) {
             int j = n;
             bool found = false;
@@ -3549,18 +3575,6 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         WHISPER_LOG_INFO("%s: Vitis AI encoder model loaded\n", __func__);
     }
 #endif
-
-    if (const char * aneforge_dir = getenv("ANEFORGE_ENCODER")) {
-        WHISPER_LOG_INFO("%s: loading ANEForge encoder from '%s'\n", __func__, aneforge_dir);
-        WHISPER_LOG_INFO("%s: compiling for the ANE (one time) ...\n", __func__);
-        state->ctx_aneforge = whisper_aneforge_init(aneforge_dir);
-        if (!state->ctx_aneforge) {
-            WHISPER_LOG_ERROR("%s: failed to load ANEForge encoder from '%s'\n", __func__, aneforge_dir);
-            whisper_free_state(state);
-            return nullptr;
-        }
-        WHISPER_LOG_INFO("%s: ANEForge encoder loaded\n", __func__);
-    }
 
     state->logits.reserve(ctx->vocab.n_vocab * ctx->model.hparams.n_text_ctx);
 
@@ -3937,11 +3951,6 @@ void whisper_free_state(struct whisper_state * state) {
         }
 #endif
 
-        if (state->ctx_aneforge != nullptr) {
-            whisper_aneforge_free(state->ctx_aneforge);
-            state->ctx_aneforge = nullptr;
-        }
-
 #ifdef WHISPER_USE_OPENVINO
         if (state->ctx_openvino != nullptr) {
             whisper_openvino_free(state->ctx_openvino);
@@ -4007,13 +4016,24 @@ void whisper_free_params(struct whisper_full_params * params) {
     }
 }
 
-int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
-    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, ctx->model.filters.n_mel, n_threads, ctx->model.filters, false, state->mel)) {
+// Returns 0 on success, -1 on failure, -6 when abort_callback returned true.
+static int whisper_pcm_to_mel_abortable(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads,
+        ggml_abort_callback abort_callback, void * abort_callback_data) {
+    bool aborted = false;
+    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, ctx->model.filters.n_mel, n_threads, ctx->model.filters, false, state->mel,
+                abort_callback, abort_callback_data, aborted)) {
+        if (aborted) {
+            return -6;
+        }
         WHISPER_LOG_ERROR("%s: failed to compute mel spectrogram\n", __func__);
         return -1;
     }
 
     return 0;
+}
+
+int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
+    return whisper_pcm_to_mel_abortable(ctx, state, samples, n_samples, n_threads, nullptr, nullptr) == 0 ? 0 : -1;
 }
 
 int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
@@ -4101,7 +4121,7 @@ int whisper_tokenize(struct whisper_context * ctx, const char * text, whisper_to
         tokens[i] = res[i];
     }
 
-    return res.size();
+    return (int)(res.size());
 }
 
 int whisper_token_count(struct whisper_context * ctx, const char * text) {
@@ -4181,7 +4201,7 @@ static int whisper_lang_auto_detect_internal(
 
     const std::vector<whisper_token> prompt = { whisper_token_sot(ctx) };
 
-    whisper_batch_prep_legacy(state->batch, prompt.data(), prompt.size(), 0, 0);
+    whisper_batch_prep_legacy(state->batch, prompt.data(), (int)(prompt.size()), 0, 0);
 
     whisper_kv_cache_seq_rm(state->kv_self, 0, 0, -1);
 
@@ -4583,7 +4603,14 @@ struct whisper_vad_context {
     struct ggml_tensor * h_state;
     struct ggml_tensor * c_state;
     std::vector<float>   probs;
+
+    // Set by whisper_vad() for the call of whisper_full; checked every WHISPER_VAD_ABORT_STRIDE windows.
+    ggml_abort_callback  abort_callback      = nullptr;
+    void *               abort_callback_data = nullptr;
+    bool                 aborted             = false;
 };
+
+#define WHISPER_VAD_ABORT_STRIDE 32
 
 struct whisper_vad_context_params whisper_vad_default_context_params(void) {
     whisper_vad_context_params result = {
@@ -4683,7 +4710,7 @@ static ggml_tensor * whisper_vad_build_stft_layer(ggml_context * ctx0,
     struct ggml_tensor * stft = ggml_conv_1d(ctx0, model.stft_forward_basis, padded, model.hparams.lstm_input_size, 0, 1);
 
     // Calculate cutoff for real/imaginary parts
-    int cutoff = model.stft_forward_basis->ne[2] / 2;
+    int cutoff = (int)(model.stft_forward_basis->ne[2] / 2);
 
     // Extract real part (first half of the STFT output).
     struct ggml_tensor * real_part = ggml_view_2d(ctx0, stft, 4, cutoff, stft->nb[1], 0);
@@ -5294,6 +5321,12 @@ bool whisper_vad_detect_speech_no_reset(
     const int64_t t_start_vad_us = ggml_time_us();
 
     for (int i = 0; i < n_chunks; i++) {
+        if (vctx->abort_callback && i % WHISPER_VAD_ABORT_STRIDE == 0 && vctx->abort_callback(vctx->abort_callback_data)) {
+            vctx->aborted = true;
+            ggml_backend_sched_reset(sched);
+            return false;
+        }
+
         const int idx_start = i * vctx->n_window;
         const int idx_end = std::min(idx_start + vctx->n_window, n_samples);
 
@@ -5321,7 +5354,7 @@ bool whisper_vad_detect_speech_no_reset(
         ggml_backend_tensor_set(frame, window.data(), 0, ggml_nelements(frame) * sizeof(float));
 
         // do not reset the scheduler - we will reuse the graph in the next chunk
-        if (!ggml_graph_compute_helper(sched, gf, vctx->n_threads, false)) {
+        if (!ggml_graph_compute_helper(sched, gf, vctx->n_threads, nullptr, nullptr, false)) {
             WHISPER_LOG_ERROR("%s: failed to compute VAD graph\n", __func__);
             break;
         }
@@ -5349,7 +5382,7 @@ bool whisper_vad_detect_speech(
 }
 
 int whisper_vad_segments_n_segments(struct whisper_vad_segments * segments) {
-    return segments->data.size();
+    return (int)(segments->data.size());
 }
 
 float whisper_vad_segments_get_segment_t0(struct whisper_vad_segments * segments, int i_segment) {
@@ -5361,7 +5394,7 @@ float whisper_vad_segments_get_segment_t1(struct whisper_vad_segments * segments
 }
 
 int whisper_vad_n_probs(struct whisper_vad_context * vctx) {
-    return vctx->probs.size();
+    return (int)(vctx->probs.size());
 }
 
 float * whisper_vad_probs(struct whisper_vad_context * vctx) {
@@ -6195,7 +6228,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 }
 
 // forward declarations
-static std::vector<float> get_signal_energy(const float * signal, int n_samples, int n_samples_per_half_window);
+static std::vector<float> get_signal_energy(const float * signal, int n_samples, int n_samples_per_half_window,
+                                            ggml_abort_callback abort_callback, void * abort_callback_data, bool & aborted);
 static void whisper_exp_compute_token_level_timestamps(
         struct whisper_context & ctx,
           struct whisper_state & state,
@@ -6345,7 +6379,7 @@ static void whisper_process_logits(
     const auto & tokens_cur = decoder.sequence.tokens;
 
     const bool is_initial = tokens_cur.size() == 0;
-    const int  n_logits   = vocab.id_to_token.size();
+    const int  n_logits   = (int)(vocab.id_to_token.size());
 
     WHISPER_ASSERT(n_logits == ctx.vocab.n_vocab);
 
@@ -6413,14 +6447,14 @@ static void whisper_process_logits(
 
         // suppress lang tokens
         for (size_t i = 0; i < g_lang.size(); ++i) {
-            logits[whisper_token_lang(&ctx, i)] = -INFINITY;
+            logits[whisper_token_lang(&ctx, (int)(i))] = -INFINITY;
         }
 
         // suppress prev token
         logits[vocab.token_prev] = -INFINITY;
 
         if (params.logits_filter_callback) {
-            params.logits_filter_callback(&ctx, &state, tokens_cur.data(), tokens_cur.size(), logits.data(), params.logits_filter_callback_user_data);
+            params.logits_filter_callback(&ctx, &state, tokens_cur.data(), (int)(tokens_cur.size()), logits.data(), params.logits_filter_callback_user_data);
         }
 
         // suppress any tokens matching a regular expression
@@ -6617,7 +6651,7 @@ static bool whisper_sequence_tokens_equal(const whisper_sequence & a, const whis
         return false;
     }
     // sequences are more likely to diverge at the end
-    for (int i = a.tokens.size() - 1; i >= 0; i--) {
+    for (int i = (int)(a.tokens.size() - 1); i >= 0; i--) {
         if (a.tokens[i].id != b.tokens[i].id) {
             return false;
         }
@@ -6835,7 +6869,14 @@ static bool whisper_vad(
 
     const whisper_vad_params & vad_params = params.vad_params;
 
+    vctx->abort_callback      = params.abort_callback;
+    vctx->abort_callback_data = params.abort_callback_user_data;
+    vctx->aborted             = false;
+
     whisper_vad_segments * vad_segments = whisper_vad_segments_from_samples(vctx, vad_params, samples, n_samples);
+
+    vctx->abort_callback      = nullptr;
+    vctx->abort_callback_data = nullptr;
 
     if (!vad_segments) {
         return false;
@@ -6872,7 +6913,7 @@ static bool whisper_vad(
         }
 
         int silence_samples = 0.1 * WHISPER_SAMPLE_RATE;
-        int total_silence_samples = (vad_segments->data.size() > 1) ? (vad_segments->data.size() - 1) * silence_samples : 0;
+        int total_silence_samples = (vad_segments->data.size() > 1) ? (int)((vad_segments->data.size() - 1) * silence_samples) : 0;
         int total_samples_needed = filtered_n_samples + total_silence_samples;
 
         WHISPER_LOG_INFO("%s: total duration of speech segments: %.2f seconds\n",
@@ -6983,7 +7024,11 @@ int whisper_full_with_state(
 
     if (n_samples > 0) {
         // compute log mel spectrogram
-        if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
+        const int mel_ret = whisper_pcm_to_mel_abortable(ctx, state, samples, n_samples, params.n_threads, params.abort_callback, params.abort_callback_user_data);
+        if (mel_ret == -6) {
+            return -6;
+        }
+        if (mel_ret != 0) {
             WHISPER_LOG_ERROR("%s: failed to compute log mel spectrogram\n", __func__);
             return -2;
         }
@@ -7019,7 +7064,11 @@ int whisper_full_with_state(
         state->t_last   = 0;
         state->tid_last = 0;
         if (n_samples > 0) {
-            state->energy = get_signal_energy(samples, n_samples, 32);
+            bool energy_aborted = false;
+            state->energy = get_signal_energy(samples, n_samples, 32, params.abort_callback, params.abort_callback_user_data, energy_aborted);
+            if (energy_aborted) {
+                return -6;
+            }
         }
     }
 
@@ -7107,14 +7156,14 @@ int whisper_full_with_state(
         // tokenize the initial prompt
         if (!params.prompt_tokens && params.initial_prompt) {
             prompt_tokens.resize(1024);
-            int n_needed = whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), prompt_tokens.size());
+            int n_needed = whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), (int)(prompt_tokens.size()));
             if (n_needed < 0) {
                 prompt_tokens.resize(-n_needed);
-                n_needed = whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), prompt_tokens.size());
+                n_needed = whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), (int)(prompt_tokens.size()));
             }
             prompt_tokens.resize(n_needed);
             params.prompt_tokens   = prompt_tokens.data();
-            params.prompt_n_tokens = prompt_tokens.size();
+            params.prompt_n_tokens = (int)(prompt_tokens.size());
         }
         if (params.prompt_tokens && params.prompt_n_tokens > 0) {
             if (params.carry_initial_prompt) {
@@ -7293,12 +7342,12 @@ int whisper_full_with_state(
                         // Take static tokens (initial prompt) first
                         int n_take0 = 0;
                         if (can_take0) {
-                            n_take0 = prompt_past0.size();
+                            n_take0 = (int)(prompt_past0.size());
                             prompt.insert(prompt.end(), prompt_past0.end() - n_take0, prompt_past0.end());
                         }
 
                         // Fill remaining budget with dynamic tokens (rolling context)
-                        const int n_take1 = std::min<int>(max_prompt_ctx - n_take0 - 1, prompt_past1.size());
+                        const int n_take1 = std::min<int>(max_prompt_ctx - n_take0 - 1, (int)(prompt_past1.size()));
                         prompt.insert(prompt.end(), prompt_past1.end() - n_take1, prompt_past1.end());
                     }
                 }
@@ -7336,7 +7385,7 @@ int whisper_full_with_state(
 
                 whisper_kv_cache_clear(state->kv_self);
 
-                whisper_batch_prep_legacy(state->batch, prompt.data(), prompt.size(), 0, 0);
+                whisper_batch_prep_legacy(state->batch, prompt.data(), (int)(prompt.size()), 0, 0);
 
                 if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, false, params.abort_callback, params.abort_callback_user_data)) {
                     WHISPER_LOG_ERROR("%s: failed to decode\n", __func__);
@@ -7346,7 +7395,7 @@ int whisper_full_with_state(
                 // Calculate no_speech probability after first decode.
                 // This has to be done before any logit filtering. Hence we cannot use the probs from the whisper_process_logits.
                 {
-                    const int n_logits = ctx->vocab.id_to_token.size();
+                    const int n_logits = (int)(ctx->vocab.id_to_token.size());
                     std::vector<float> logprobs(n_logits);
                     std::vector<float> probs(n_logits);
 
@@ -7358,7 +7407,7 @@ int whisper_full_with_state(
                 {
                     const int64_t t_start_sample_us = ggml_time_us();
 
-                    state->decoders[0].i_batch = prompt.size() - 1;
+                    state->decoders[0].i_batch = (int)(prompt.size() - 1);
 
                     whisper_process_logits(*ctx, *state, state->decoders[0], params, t_cur);
 
@@ -7627,7 +7676,7 @@ int whisper_full_with_state(
 
                     batch.n_tokens = 0;
 
-                    const int n_past = prompt.size() + i;
+                    const int n_past = (int)(prompt.size() + i);
 
                     for (int j = 0; j < n_decoders_cur; ++j) {
                         auto & decoder = state->decoders[j];
@@ -7843,7 +7892,7 @@ int whisper_full_with_state(
 
                             if (params.token_timestamps) {
                                 whisper_exp_compute_token_level_timestamps(
-                                        *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
+                                        *ctx, *state, (int)(result_all.size() - 1), params.thold_pt, params.thold_ptsum);
 
                                 if (params.max_len > 0) {
                                     n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
@@ -7891,7 +7940,7 @@ int whisper_full_with_state(
 
                     if (params.token_timestamps) {
                         whisper_exp_compute_token_level_timestamps(
-                                *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
+                                *ctx, *state, (int)(result_all.size() - 1), params.thold_pt, params.thold_ptsum);
 
                         if (params.max_len > 0) {
                             n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
@@ -7906,11 +7955,11 @@ int whisper_full_with_state(
             // FIXME: will timestamp offsets be correct?
             // [EXPERIMENTAL] Token-level timestamps with DTW
             {
-                const int n_segments = state->result_all.size() - n_segments_before;
+                const int n_segments = (int)(state->result_all.size() - n_segments_before);
                 if (ctx->params.dtw_token_timestamps && n_segments) {
                     const int n_frames = std::min(std::min(WHISPER_CHUNK_SIZE * 100, seek_delta), seek_end - seek);
                     whisper_exp_compute_token_level_timestamps_dtw(
-                            ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
+                            ctx, state, params, (int)(result_all.size() - n_segments), n_segments, seek, n_frames, 7, params.n_threads);
                     if (params.new_segment_callback) {
                         for (int seg = (int) result_all.size() - n_segments; seg < n_segments; seg++) {
                             params.new_segment_callback(ctx, state, seg, params.new_segment_callback_user_data);
@@ -7953,6 +8002,9 @@ int whisper_full(
     if (params.vad) {
         WHISPER_LOG_INFO("%s: VAD is enabled, processing speech segments only\n", __func__);
         if (!whisper_vad(ctx, ctx->state, params, samples, n_samples, vad_samples)) {
+            if (ctx->state->vad_context && ctx->state->vad_context->aborted) {
+                return -6;
+            }
             WHISPER_LOG_ERROR("%s: failed to compute VAD\n", __func__);
             return -1;
         }
@@ -7961,7 +8013,7 @@ int whisper_full(
             return 0;
         }
         samples = vad_samples.data();
-        n_samples = vad_samples.size();
+        n_samples = (int)(vad_samples.size());
     }
     return whisper_full_with_state(ctx, ctx->state, params, samples, n_samples);
 }
@@ -7988,7 +8040,7 @@ int whisper_full_parallel(
             return 0;
         }
         samples = vad_samples.data();
-        n_samples = vad_samples.size();
+        n_samples = (int)(vad_samples.size());
     }
     int ret = 0;
 
@@ -8102,11 +8154,11 @@ int whisper_full_parallel(
 }
 
 int whisper_full_n_segments_from_state(struct whisper_state * state) {
-    return state->result_all.size();
+    return (int)(state->result_all.size());
 }
 
 int whisper_full_n_segments(struct whisper_context * ctx) {
-    return ctx->state->result_all.size();
+    return (int)(ctx->state->result_all.size());
 }
 
 int whisper_full_lang_id_from_state(struct whisper_state * state) {
@@ -8223,11 +8275,11 @@ const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_s
 }
 
 int whisper_full_n_tokens_from_state(struct whisper_state * state, int i_segment) {
-    return state->result_all[i_segment].tokens.size();
+    return (int)(state->result_all[i_segment].tokens.size());
 }
 
 int whisper_full_n_tokens(struct whisper_context * ctx, int i_segment) {
-    return ctx->state->result_all[i_segment].tokens.size();
+    return (int)(ctx->state->result_all[i_segment].tokens.size());
 }
 
 const char * whisper_full_get_token_text_from_state(struct whisper_context * ctx, struct whisper_state * state, int i_segment, int i_token) {
@@ -8751,12 +8803,20 @@ static float voice_length(const std::string & text) {
 }
 
 // average the fabs of the signal
-static std::vector<float> get_signal_energy(const float * signal, int n_samples, int n_samples_per_half_window) {
+#define WHISPER_ENERGY_ABORT_STRIDE 65536
+
+static std::vector<float> get_signal_energy(const float * signal, int n_samples, int n_samples_per_half_window,
+                                            ggml_abort_callback abort_callback, void * abort_callback_data, bool & aborted) {
     const int hw = n_samples_per_half_window;
 
     std::vector<float> result(n_samples);
 
     for (int i = 0; i < n_samples; i++) {
+        if (abort_callback && i % WHISPER_ENERGY_ABORT_STRIDE == 0 && abort_callback(abort_callback_data)) {
+            aborted = true;
+            return result;
+        }
+
         float sum = 0;
         for (int j = -hw; j <= hw; j++) {
             if (i + j >= 0 && i + j < n_samples) {
@@ -8790,7 +8850,7 @@ static void whisper_exp_compute_token_level_timestamps(
     auto & segment = state.result_all[i_segment];
     auto & tokens  = segment.tokens;
 
-    const int n_samples = state.energy.size();
+    const int n_samples = (int)(state.energy.size());
 
     if (n_samples == 0) {
         WHISPER_LOG_ERROR("%s: no signal data available\n", __func__);
@@ -8800,7 +8860,7 @@ static void whisper_exp_compute_token_level_timestamps(
     const int64_t t0 = segment.t0;
     const int64_t t1 = segment.t1;
 
-    const int n = tokens.size();
+    const int n = (int)(tokens.size());
 
     if (n == 0) {
         return;
@@ -9087,12 +9147,12 @@ static ggml_tensor * dtw_and_backtrace(ggml_context * ctx, ggml_tensor * x) {
     //trace[:, 0] = 1;
     for (int64_t i = 0; i < N + 1; ++i)
         whisper_set_i32_nd(trace, i, 0, 0, 0, 1);
-    int bt_row_idx = BT_MAX_ROWS - 1;
+    int bt_row_idx = (int)(BT_MAX_ROWS - 1);
     int64_t i = N;
     int64_t j = M;
     while (i > 0 || j > 0) {
-        whisper_set_i32_nd(bt, bt_row_idx, 0, 0, 0, i - 1);
-        whisper_set_i32_nd(bt, bt_row_idx, 1, 0, 0, j - 1);
+        whisper_set_i32_nd(bt, bt_row_idx, 0, 0, 0, (int32_t)(i - 1));
+        whisper_set_i32_nd(bt, bt_row_idx, 1, 0, 0, (int32_t)(j - 1));
         --bt_row_idx;
 
         int32_t t = whisper_get_i32_nd(trace, i, j, 0, 0);
@@ -9215,7 +9275,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // Decoder already returns only alignment head QKs, already concatenated in
     // one tensor.
     whisper_kv_cache_clear(state->kv_self);
-    whisper_batch_prep_legacy(state->batch, tokens.data(), tokens.size(), 0, 0);
+    whisper_batch_prep_legacy(state->batch, tokens.data(), (int)(tokens.size()), 0, 0);
     whisper_kv_cache_seq_rm(state->kv_self, 0, 0, -1);
     if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, true, nullptr, nullptr)) {
         WHISPER_LOG_INFO("DECODER FAILED\n");

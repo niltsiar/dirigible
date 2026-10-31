@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check that check-warnings.sh passes a good manifest and fails each manifest that lets a warning
 # through. Run by `make check`. dump-package reads only the manifest, so the fixtures need no
-# build and no network. Only the C cases make a source folder with a .c file.
+# build and no network. Only the C and C++ cases make a source folder with a source file.
 set -uo pipefail
 check="$(cd "$(dirname "$0")" && pwd)/check-warnings.sh"
 failures=0
@@ -9,10 +9,10 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 # Writes a manifest with a library target A and a test target B, with these Swift settings, and
-# optional C settings for A.
+# optional C and C++ settings for A.
 manifest() {
-  printf '// swift-tools-version: 6.2\nimport PackageDescription\nlet package = Package(\n    name: "F",\n    targets: [\n        .target(name: "A", cSettings: [%s], swiftSettings: [%s]),\n        .testTarget(name: "B", swiftSettings: [%s]),\n    ])\n' \
-    "${3:-}" "$1" "$2" > "$tmp/Package.swift"
+  printf '// swift-tools-version: 6.2\nimport PackageDescription\nlet package = Package(\n    name: "F",\n    targets: [\n        .target(name: "A", cSettings: [%s], cxxSettings: [%s], swiftSettings: [%s]),\n        .testTarget(name: "B", swiftSettings: [%s]),\n    ])\n' \
+    "${3:-}" "${4:-}" "$1" "$2" > "$tmp/Package.swift"
 }
 
 # expect pass <name>, or expect fail <name> <message>. A failure counts only with its rule
@@ -45,6 +45,17 @@ manifest "$strict" "$strict"; expect fail 'a C target with only the Swift settin
 manifest "$strict" "$strict" "$strict"; expect pass 'a C target with the C setting'
 manifest "$strict" "$strict" "$strict, .disableWarning(\"shorten-64-to-32\")"
 expect fail 'a disableWarning setting' 'A: the disableWarning setting'
+
+# A target with a C++ or Objective-C++ file in its folder needs the setting for C++ too.
+rm "$tmp/Sources/A/a.c"
+for ext in cpp cc mm; do
+  touch "$tmp/Sources/A/a.$ext"
+  manifest "$strict" "$strict" "$strict"
+  expect fail "a .$ext target with no C++ setting" 'A: no treatAllWarnings(as: .error) for C++'
+  rm "$tmp/Sources/A/a.$ext"
+done
+touch "$tmp/Sources/A/a.cpp"
+manifest "$strict" "$strict" '' "$strict"; expect pass 'a C++ target with the C++ setting'
 
 [[ $failures -eq 0 ]] && echo "check-warnings tests: all passed"
 exit $((failures > 0))

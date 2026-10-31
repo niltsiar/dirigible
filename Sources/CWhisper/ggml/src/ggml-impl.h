@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: the SDK token text for MIN, MAX, and static_assert, and casts, to remove compiler warnings, with no change of behavior. See README.dirigible.
 #pragma once
 
 // GGML internal header
@@ -33,11 +34,11 @@ void ggml_print_backtrace(void);
 uint64_t ggml_graph_next_uid(void);
 
 #ifndef MIN
-#    define MIN(a, b) ((a) < (b) ? (a) : (b))
+#    define MIN(a, b) (((a)<(b))?(a):(b))
 #endif
 
 #ifndef MAX
-#    define MAX(a, b) ((a) > (b) ? (a) : (b))
+#    define MAX(a, b) (((a)>(b))?(a):(b))
 #endif
 
 // required for mmap as gguf only guarantees 32-byte alignment
@@ -50,7 +51,7 @@ uint64_t ggml_graph_next_uid(void);
 #ifndef __cplusplus
     #ifndef static_assert
         #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201100L)
-            #define static_assert(cond, msg) _Static_assert(cond, msg)
+            #define static_assert _Static_assert
         #else
             #define static_assert(cond, msg) struct global_scope_noop_trick
         #endif
@@ -771,7 +772,7 @@ inline bool ggml_can_fuse_subgraph(const struct ggml_cgraph *          cgraph,
                                    int                                 start_idx,
                                    std::initializer_list<enum ggml_op> ops,
                                    std::initializer_list<int>          outputs = {}) {
-    return ggml_can_fuse_subgraph(cgraph, start_idx, ops.size(), ops.begin(), outputs.begin(), outputs.size());
+    return ggml_can_fuse_subgraph(cgraph, start_idx, (int)(ops.size()), ops.begin(), outputs.begin(), (int)(outputs.size()));
 }
 
 // Return true if the edges in the graph match expectations.

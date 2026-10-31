@@ -10,10 +10,11 @@
 # start time, the wait seconds, the command, and the command of the holder, with tabs between.
 # A call that an agent starts directly stops after WITH_LOCK_MAX_WAIT seconds of wait (default 120):
 # it prints the limit and "run the same command again", leaves the lock of the holder, and exits
-# 75. The default is min(120, 600 - B) with B = 457 s, the worst build plus slice tests of one call
-# (an Intel i5-8259U, 8 logical CPUs, 16 GiB, macOS 15), and 600 s the foreground limit of
-# .claude/agents/run-agent.md. The wait sleeps the seconds that are left, so the call stops at the
-# limit. These calls have no limit: WITH_LOCK_MAX_WAIT=0, a release call (below), a call with the
+# 75. The default is the floor of 120 s. min(120, 600 - B) is negative: B = 666 s, the cold build
+# plus the slice tests of one call (an Intel i5-8259U, 8 logical CPUs, 16 GiB, macOS 15), and 600 s
+# is the foreground limit of .claude/agents/run-agent.md. A cold build of an agent runs in the
+# background (AGENTS.md: a step over 10 min). The wait sleeps the seconds that are left, so the call
+# stops at the limit. These calls have no limit: WITH_LOCK_MAX_WAIT=0, a release call (below), a call with the
 # DIRIGIBLE_LOCKED_SCRIPT marker (a script that runs itself under this one), and mutation-pass.sh.
 # scripts/flake-monitor/loop.sh sets the 0, and scripts/run-checks.sh sets it for a push check (BASE
 # set), so an exit 75 never reads as a red test. A run-checks.sh call with no BASE keeps the limit,

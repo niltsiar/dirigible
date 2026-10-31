@@ -62,8 +62,7 @@ package enum TranscriptWork {
     }
 
     /// The lines of `importLines` with no take for stdout and for stderr: the lines up to and with
-    /// the `Imported` line, then the others. It does not split by position, because a report with
-    /// no ID has no ID line.
+    /// the `Imported` line, then the others. A report with no ID has no ID line.
     package static func importOutput(_ lines: [String]) -> (stdout: [String], stderr: [String]) {
         let end = (lines.firstIndex { $0.hasPrefix("Imported ") } ?? -1) + 1
         return (Array(lines[..<end]), Array(lines[end...]))

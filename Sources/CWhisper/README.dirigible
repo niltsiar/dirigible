@@ -26,9 +26,9 @@ Changed files. Each has a dated notice line at its top.
    Each cast wraps the whole converted expression in its target type, under the invariant of
    its group. No group needs a type change.
    Invariant T: CWhisper runs only the graphs of whisper.cpp for the catalog models (base,
-   small-q5_1, tiny-q5_1) and the Silero VAD model. Each tensor of them has fewer than 2^31
-   elements and fewer than 2^31 bytes. The largest is the small-q5_1 token embedding, with
-   39,832,320 elements.
+   small-q5_1, large-v3-turbo-q5_0, tiny-q5_1) and the Silero VAD model. Each tensor of them
+   has fewer than 2^31 elements and fewer than 2^31 bytes. The largest weight is the
+   large-v3-turbo-q5_0 token embedding, with 66,388,480 elements.
    - W1 tensor sizes into int locals, 141 sites (T): ops.cpp 128, ggml-cpu.c 4, repack.cpp 4,
      ggml-blas.cpp 3, whisper.cpp 2.
    - W2 index and partition arithmetic, 92 sites (T: each index is below the element count of

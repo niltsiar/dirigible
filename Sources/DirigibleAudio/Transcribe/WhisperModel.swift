@@ -6,6 +6,7 @@ import Foundation
 public enum WhisperModel: String, CaseIterable, Sendable {
     case base
     case smallQ51 = "small-q5_1"
+    case largeV3TurboQ50 = "large-v3-turbo-q5_0"
     case tinyQ51 = "tiny-q5_1"
 
     public var fileName: String { "ggml-\(rawValue).bin" }
@@ -14,6 +15,7 @@ public enum WhisperModel: String, CaseIterable, Sendable {
         switch self {
         case .base: 147_951_465
         case .smallQ51: 190_085_487
+        case .largeV3TurboQ50: 574_041_195
         case .tinyQ51: 32_152_673
         }
     }
@@ -22,6 +24,7 @@ public enum WhisperModel: String, CaseIterable, Sendable {
         switch self {
         case .base: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"
         case .smallQ51: "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb"
+        case .largeV3TurboQ50: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
         case .tinyQ51: "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7"
         }
     }

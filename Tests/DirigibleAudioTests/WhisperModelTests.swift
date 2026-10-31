@@ -4,6 +4,17 @@ import Testing
 @testable import DirigibleAudio
 
 struct WhisperModelTests {
+    /// C27: the count and the SHA-256 (LFS oid) of the file at the pinned revision 5359861c.
+    @Test func theTurboEntryHasTheCountAndTheHashOfThePinnedRevision() throws {
+        let turbo = try #require(WhisperModel(rawValue: "large-v3-turbo-q5_0"))
+        #expect(turbo.byteCount == 574_041_195)
+        #expect(turbo.sha256 == "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2")
+        #expect(
+            turbo.url.absoluteString
+                == "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin"
+        )
+    }
+
     @Test func aFileOfTheWrongSizeGivesNoCheckedModel() throws {
         let folder = try TemporaryFolder()
         try Data(count: 1_000).write(to: folder.url.appending(path: WhisperModel.tinyQ51.fileName))

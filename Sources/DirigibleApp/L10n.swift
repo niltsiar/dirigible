@@ -673,6 +673,7 @@ enum L10n: String, CaseIterable {
     case sheetTranscribeModel = "sheet.transcribe.model"
     case sheetTranscribeStandard = "sheet.transcribe.standard"
     case sheetTranscribeAccurate = "sheet.transcribe.accurate"
+    case sheetTranscribeMostAccurate = "sheet.transcribe.most.accurate"
     case sheetTranscribeStart = "sheet.transcribe.start"
     case sheetTranscribeDownload = "sheet.transcribe.download"
     case sheetTranscribeReplace = "sheet.transcribe.replace"

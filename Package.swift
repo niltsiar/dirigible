@@ -58,7 +58,9 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
         .testTarget(name: "DirigibleCoreTests", dependencies: ["DirigibleCore"]),
-        .testTarget(name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore", "CMainStack"]),
+        .testTarget(
+            name: "DirigibleAudioTests", dependencies: ["DirigibleAudio", "DirigibleCore", "CMainStack", "CWhisper"],
+            exclude: ["Fixtures"]),
         .testTarget(
             name: "DirigibleCLITests",
             dependencies: ["DirigibleCLI", "DirigibleMCP", "DirigibleCore", "DirigibleAudio"]),

@@ -1485,6 +1485,7 @@ lock_blocks=("$lock_step"
   'Run make -j4 test.' 'Run `make -C . build`.' 'Run make -C dir test-filter FILTER=x.' 'Run make -j 4 -C . test.'
   'Run make FILTER=x -C . test-filter.' "Run make FILTER='A B' test-filter." $'Run make  -j4\t test.' $'Run make\t-C\tdir\tbuild.'
   'Run make --jobs=4 check.' 'Run make -- test.'
+  'Run make lint test.' 'Run make check-docs build.' 'Run make -C . format test-filter FILTER=x.'
   "$lock_step"$'\n`Build lock: none`' "$lock_step"$'\n-Build lock: none')
 lock_allows=($'Run `swift build`.\nBuild lock: none'
   'Read the swift tests folder and the swift testing notes.' 'Run swift format lint on the file.'
@@ -1497,7 +1498,7 @@ lock_allows=($'Run `swift build`.\nBuild lock: none'
   'Run `scripts/with-lock.sh --release-holder` first.' 'Run make check-docs and make lint.' 'Run make check-fast.'
   'Read the Makefile target make-check-docs.' 'The tests build a remake test fixture.'
   'Run make -C . check-docs.' 'Run make -j4 lint.' 'Run make -C dir format.' 'Run make -s check-fast.' $'Run make\t-C\t.\tlint.'
-  'Run make FILTER=x check-docs.' 'Run make -n.')
+  'Run make FILTER=x check-docs.' 'Run make -n.' 'Run make lint check-docs.' 'Run make format check-fast.')
 # A live release holder and a live release ticket with a free lock refuse a lock-step brief.
 for state in release ticket; do
   for text in "${lock_blocks[@]}"; do expect_lock_brief block "$state" Agent prompt "$text"; done

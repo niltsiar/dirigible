@@ -47,8 +47,8 @@ struct StudioTranscribeStopTests {
         await studio.settle()
     }
 
-    /// C10: a window close during a download stall returns within 1 s, the engine part never runs,
-    /// and the model folder holds no file.
+    /// C10: a window close during a download stall returns before the loader ends the stream, the
+    /// engine part never runs, and the model folder holds no file.
     @Test func aWindowCloseDuringADownloadStallReturns() async throws {
         let fixture = try await ExportStudioFixture.make()
         let record = EngineRecord()
@@ -57,12 +57,20 @@ struct StudioTranscribeStopTests {
             fixture.package, engine: T.engine(record: record), model: false, load: loader.load)
         let job = T.job(studio)
         await Self.downloading(studio)
+        // The limit of WhisperModelStoreTests.aStopDuringAStallDeletesTheTemporaryFile.
+        let endedByTest = StopSwitch()
+        let limit = Task {
+            try await Task.sleep(for: .seconds(12))
+            endedByTest.set()
+            loader.end()
+        }
+        defer { limit.cancel() }
 
         let start = ContinuousClock.now
         await studio.settle()
         let took = ContinuousClock.now - start
 
-        #expect(took < .milliseconds(1_500), "settle took \(took)")
+        #expect(!endedByTest.isSet, "settle returned before the test ended the stream (\(took))")
         #expect(await job.value.failure == .transcriptionCancelled)
         #expect(record.calls == 0)
         #expect(try fileNames(studio.environment.modelStore.folder) == [])

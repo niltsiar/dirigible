@@ -123,9 +123,10 @@ def main():
     print(
         f"BLOCKED by .claude/hooks/agent-clock.sh: this agent has run {minutes:.0f} active minutes, over the limit of {limit:g} "
         "(docs/workflow/model-routing.md). Write the handoff in run.md (next step, each check result from its log), "
-        "commit with git add <paths> && git commit -F .scratchpads/commit-msg.txt, or leave the working tree as it is. "
-        "Log each pending decisions.tsv row first: .claude/skills/deliver/scripts/log-decision.sh <run folder> --from <file in .scratchpads/> "
-        "still passes (write that file under .scratchpads/ with the Write tool). Then call SubagentHandback.",
+        "Log each pending decisions.tsv row with .claude/skills/deliver/scripts/log-decision.sh <run folder> --from <file in .scratchpads/> "
+        "(write that file under .scratchpads/ with the Write tool). "
+        "Then commit with git add <paths> && git commit -F .scratchpads/commit-msg.txt, or leave the working tree as it is. "
+        "Then call SubagentHandback.",
         file=sys.stderr,
     )
     sys.exit(2)

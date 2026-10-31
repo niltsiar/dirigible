@@ -1749,6 +1749,13 @@ hb_err_has 'the clock refusal' 'SubagentHandback'
 hb_err_has 'the clock refusal' 'git add <paths> && git commit -F .scratchpads/commit-msg.txt'
 hb_err_has 'the clock refusal' 'log-decision.sh <run folder> --from <file in .scratchpads/>'
 hb_err_has 'the clock refusal' '.claude/skills/deliver/scripts/log-decision.sh'
+# The steps run in this order: handoff, log rows, commit or leave the tree, then SubagentHandback.
+hb_rest="$(cat "$tmp/hb-err")"
+for hb_part in 'Write the handoff in run.md' 'log-decision.sh <run folder> --from' 'git add <paths>' 'leave the working tree' 'call SubagentHandback'; do
+  [[ "$hb_rest" == *"$hb_part"* ]] || { echo "FAIL: the clock refusal: '$hb_part' is missing or out of order: $hb_rest"; failures=$((failures + 1)); break; }
+  hb_rest="${hb_rest#*"$hb_part"}"
+done
+[[ "$(cat "$tmp/hb-err")" != *'still passes'* ]] || { echo "FAIL: the clock refusal says 'still passes'"; failures=$((failures + 1)); }
 hb_session under < <(hb_span 89 0)
 hb_expect "$clock_hook" 0 'make build at 89 active minutes' "$(hb_bash 'make build')"
 hb_session idle < <(hb_span 330 300; hb_span 30 0)

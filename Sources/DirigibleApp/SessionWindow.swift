@@ -156,6 +156,8 @@ import SwiftUI
     @ObservationIgnored var duckPresses = 0
     /// The running import (decision 0040). Nil: no import.
     var importJob: ImportJob?
+    /// The Transcribe sheet, job, and notice (decision 0065).
+    let transcribe = TranscribeState()
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?
@@ -300,6 +302,7 @@ import SwiftUI
         unusedFiles = nil
         denoiseDraft = nil
         repairDraft = nil
+        transcribe.draft = nil
         closeConsent()
         switch phase {
         case .closing, .closed: return

@@ -51,8 +51,10 @@ extension L10n {
         // The banner Cancel ends a level or a duck, so the window shows no alert for it (decision 0049).
         // Only an agent read gives `readYielded` and `readClosed`, and the agent gets its text (decision 0062).
         case .levelCancelled, .duckCancelled, .readYielded, .readClosed: return errorSessionOther.text
-        // The Transcribe banner gets its own texts with its sheet.
-        case .transcription, .transcriptionYielded, .transcriptionCancelled: return errorSessionOther.text
+        // The window shows no alert for a stop or a cancel: the banner and the announcement say it.
+        case .transcriptionYielded: return transcribeStopped.text
+        case .transcriptionCancelled: return transcribeCanceled.text
+        case .transcription(let error): return message(for: error)
         case .duckRead(let code): return errorDuckRead.format(Int(code))
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
@@ -60,6 +62,18 @@ extension L10n {
         case .unusedFiles(let error): return message(for: error)
         // Retry Finalize is the control that finishes the pending take, so the text names it.
         case .writerDidNotStop(let name): return errorWriterDidNotStop.format(name, menuRecordRetry.text)
+        }
+    }
+
+    /// The text of a failed transcription job. The switch has no `default`.
+    static func message(for error: TranscribeError) -> String {
+        switch error {
+        case .modelLoad: errorTranscribeLoad.text
+        case .modelDownload: errorTranscribeDownload.text
+        case .modelChecksum: errorTranscribeChecksum.text
+        case .audioRead(let file, let code): errorTranscribeAudio.format(file, Int(code))
+        case .vadModelMissing: errorTranscribeVad.text
+        case .engine(let code): errorTranscribeEngine.format(Int(code))
         }
     }
 

@@ -354,6 +354,22 @@ When the import leaves words out, a banner gives each count that is not zero: **
 
 The item is off during a take, during an import, and in a session with no track. With no transcript, the **Transcript** tab says **No transcript** and has an **Import Transcript…** button. The button does what the menu item does, and it has the same state.
 
+### Transcribe a track
+
+Dirigible can write the words of a track for you. It runs whisper.cpp on this Mac. Choose **Tools > Transcribe Track** (**Transcribir pista**), or right-click a track header and choose **Transcribe Track**. The command has no key. It is off during a take, during an import, while a job runs, and in a session with no track. In Terminal, `dirigible transcribe` does the same job, and an agent uses the tool `transcribe`.
+
+![The sheet Transcribe Track: the pop-ups Track, Language, and Model with Standard - 148 MB, the line that the model downloads once and that the audio never leaves the Mac, and the buttons Cancel and Download and Transcribe.](images/screenshot-transcribe.png)
+
+- The sheet has a **Track** pop-up, a **Language** pop-up, and a **Model** pop-up. **Track** starts at the first selected track, or at the first track. **Language** lists Automatic, then the preferred languages of your Mac that whisper supports, then all languages by name. The first time, it starts at the language of the app when whisper supports it, and else at Automatic. After that, it starts at your last choice. Automatic can pick a wrong language from silence or from people who talk at once, and then you must run the job again. **Model** has **Standard** (148 MB) and **More Accurate** (190.1 MB, slower).
+- The audio stays on your Mac. The only network call of the feature is the download of the model. The first time you use a model, the button reads **Download and Transcribe**. Dirigible downloads that model once into `~/Library/Application Support/Dirigible/Models`, checks its size and its SHA-256, and keeps it there. A job after that makes no network call.
+- The job runs in the window. A banner shows the stage, the percent, and the time that has passed, with a **Cancel** button. First it shows the download, then the transcription. The window stays editable: an edit during the job keeps the place of the words. **Cancel** stops the job and changes nothing. A take that starts in this window or in another window stops the job too.
+- When the track has words, the button reads **Replace**, and a line in the sheet gives the count of words. The new words replace the old words in one step, so one **Edit > Undo** brings the old words back.
+- When the job finds no word, a banner says "No words found. The track is unchanged." and the old words stay.
+- When a take starts, the banner says "Transcription stopped because recording started." and has a **Transcribe Again** button. The button runs the same job again. It is off while a take records.
+- In fast speech with less than 0.2 s of silence between words, the end of a word can be up to 0.42 s off (0.095 s on average). A cut at that word can keep or lose a part of it.
+- Rarely, whisper gives a word no length. Dirigible then takes the end of that word from the sound level, at most 1.0 s after its start. A cut at that word can keep or lose up to 1.0 s of audio.
+- The words show in the **Transcript** tab when the job ends.
+
 ### Level the clips
 
 Choose **Tools > Auto Level** (Command-L) to set the gain of each clip in the selection. The whole clip gets the level, also when the selection covers only a part of it. A stereo clip gets -16 LUFS and a mono clip gets -19 LUFS. The gain changes by 20 dB or less. A clip of silence keeps its gain.

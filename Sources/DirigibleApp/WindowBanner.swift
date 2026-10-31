@@ -90,6 +90,11 @@ enum WindowBanner: Equatable {
     /// its recording from the timeline frame `from` at `rate` (decision 0061). Nil: the agent gave
     /// no name. `revision` is the session revision of the edit, which its Undo button undoes.
     case takeSyncBroken(take: Int, from: Frames, rate: Int, agent: String?, revision: Int)
+    /// A take started during a transcription job (decision 0065, UI council C-7). Its button runs
+    /// the same job again. The press number makes a new key for each stop.
+    case transcriptionStopped(TranscribeRequest, press: Int)
+    /// A transcription job kept no word, so the track is unchanged.
+    case noWordsFound(press: Int)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -139,6 +144,8 @@ enum WindowBanner: Equatable {
         case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
         case .duckUnread(_, let press): "duckUnread.\(press)"
         case .takeSyncBroken(let take, _, _, _, _): "takeSyncBroken.\(take)"
+        case .transcriptionStopped(_, let press): "transcriptionStopped.\(press)"
+        case .noWordsFound(let press): "noWordsFound.\(press)"
         }
     }
 
@@ -146,10 +153,10 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
-            .transcriptImported:
+            .transcriptImported, .transcriptionStopped:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
-        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired: .info
+        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound: .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
@@ -184,6 +191,8 @@ enum WindowBanner: Equatable {
         case .duckUnread(let paths, _): L10n.bannerDuckUnread.format(paths.joined(separator: ", "))
         case .takeSyncBroken(let take, let from, let rate, let agent, _):
             takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
+        case .transcriptionStopped: L10n.transcribeStopped.text
+        case .noWordsFound: L10n.transcribeNoWords.text
         }
     }
 
@@ -193,7 +202,8 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseReduced, .soundRepaired, .transcriptImported, .unusedFilesMoved,
-            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken:
+            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
+            .transcriptionStopped, .noWordsFound:
             .medium
         }
     }

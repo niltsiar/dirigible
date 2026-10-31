@@ -9,3 +9,4 @@ Tests/DirigibleTests/RevertMenuTests.swift	a raw 30 s hold of product work; a te
 Tests/DirigibleTests/SessionBannerAccessibilityTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (a later item of the wiki backlog, the Gate.openLimit item)
 Tests/DirigibleTests/SessionPasteWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (a later item of the wiki backlog, the Gate.openLimit item)
 Tests/DirigibleTests/LevelReportWindowTests.swift	a raw 30 s hold of product work; a tests run moves it to Gate (a later item of the wiki backlog, the Gate.openLimit item)
+Tests/DirigibleTests/TranscribeWindowTests.swift	a raw 30 s hold of the engine part on a GCD thread; the Gate of DirigibleAudioTests is not in this target (as SessionBannerAccessibilityTests)

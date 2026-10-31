@@ -116,6 +116,12 @@ struct SessionView: View {
                     if let draft = model.repairDraft { RepairSheet(model: model, studio: studio, draft: draft) }
                 }
             }
+            // Tools > Transcribe Track... (decision 0065). Only its buttons close it.
+            .background {
+                Color.clear.sheet(isPresented: Binding(get: { model.transcribe.draft != nil }, set: { _ in })) {
+                    if let draft = model.transcribe.draft { TranscribeSheet(model: model, draft: draft) }
+                }
+            }
             // Transport > Go to Take Time... (decision 0061). Only its buttons close it.
             .background {
                 Color.clear.sheet(isPresented: Binding(get: { model.takeTimeDraft != nil }, set: { _ in })) {
@@ -168,6 +174,7 @@ struct SessionView: View {
                     text: L10n.bannerSaveError.format(L10n.message(for: error, session: studio.session)))
             }
             TakeBanner(model: model, studio: studio)
+            TranscribeBanner(model: model)
             WindowBanners(model: model)
             if studio.session.tracks.isEmpty {
                 EmptyDropHost(model: model, content: emptyContent).frame(maxWidth: .infinity, maxHeight: .infinity)

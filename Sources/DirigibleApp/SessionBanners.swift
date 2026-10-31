@@ -61,8 +61,31 @@ struct WindowBanners: View {
                     .disabled(!model.canUndoAgentEdit(revision: revision))
                     Button(L10n.bannerTakeSyncShow.key) { model.transport(.seek(.frame(from))) }
                 }
+            } else if case .transcriptionStopped = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.transcribeAgain.key) { model.transcribeAgain() }.disabled(!model.canTranscribe)
+                }
             } else {
                 BannerRow(kind: banner.kind, text: banner.text)
+            }
+        }
+    }
+}
+
+/// The running job of Tools > Transcribe Track... (decision 0065, UI council C-4): the stage, the
+/// percent, the elapsed time, a bar, and Cancel. The window stays editable.
+struct TranscribeBanner: View {
+    let model: SessionWindow
+
+    var body: some View {
+        if let job = model.transcribe.job {
+            TimelineView(.periodic(from: .now, by: model.bannerTick)) { _ in
+                let text = job.text + "  " + TakeBanner.elapsed(since: job.since)
+                BannerRow(kind: .info, text: text) {
+                    ProgressView(value: job.fraction).frame(width: 160).accessibilityLabel(Text(verbatim: text))
+                    Button(L10n.importCancel.key) { model.cancelTranscribe() }.keyboardShortcut(
+                        ".", modifiers: .command)
+                }
             }
         }
     }

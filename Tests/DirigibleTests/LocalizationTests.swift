@@ -195,6 +195,7 @@ func stringsTable(_ language: String) throws -> [String: String] {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
+        "sheet.transcribe.standard",
         "split.suffix.left", "split.suffix.right",
         "inspector.tab.clip", "inspector.tab.marker", "marker.name", "marker.url", "episode.details",
         "episode.copyright", "episode.links", "episode.guid", "alert.ok", "track.name", "track.role.dialogue.letter",
@@ -223,6 +224,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
+        "sheet.transcribe.standard",
         "agent.mark", "alert.ok", "banner.kind.info", "dock.badge.recording", "episode.copyright",
         "episode.date", "episode.description", "episode.guid", "episode.notes", "export.chapter.intro",
         "inspector.clip", "inspector.decibels", "inspector.gain", "inspector.milliseconds",
@@ -238,6 +240,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "sheet.transcribe.standard",
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "export.chapter.intro",
         "inspector.clip", "inspector.decibels", "inspector.gain", "inspector.milliseconds",
         "inspector.tab.clip", "inspector.tab.marker", "marker.url", "panel.export.bitrate.value",
@@ -251,6 +254,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "nl": [
+        "sheet.transcribe.model",
         "split.suffix.left", "split.suffix.right",
         "agent.mark", "alert.ok", "dock.badge.recording", "episode.copyright", "episode.details",
         "episode.guid", "episode.links", "export.chapter.intro", "inspector.clip", "inspector.clips",

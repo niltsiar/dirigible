@@ -145,6 +145,9 @@ final class WhisperLog: Sendable {
 }
 
 extension WhisperLanguage {
+    /// The codes of `whisper_lang_str`, for example "es", in the order of whisper.cpp.
+    public static var codes: [String] { (0...whisper_lang_max_id()).map { String(cString: whisper_lang_str($0)) } }
+
     /// "auto", or a code of `whisper_lang_str`, for example "es". Nil for any other text. It does not
     /// call `whisper_lang_id`, which logs an unknown code to stderr.
     public init?(_ text: String) {

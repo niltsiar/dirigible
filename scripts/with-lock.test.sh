@@ -9,7 +9,8 @@
 # holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
 # with no wait), a lock folder that goes between a failed mkdir and the test for it (the call
 # tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
-# default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make). Each case uses a temporary repo with a worktree, so the lock of an outer
+# default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make), and --release-holder (a live
+# release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -1088,6 +1089,53 @@ echo 1800 > "$lock/maxhold"
 touch -t "$(date -r $(($(date +%s) - 100)) +%Y%m%d%H%M.%S)" "$lock/pid"
 out="$("$repo/scripts/with-lock.sh" --builders 2>&1)"
 [[ "$out" =~ holder:\ /t/holder\ held\ (99|100|101|102)\ s\ of\ 1800\ s ]] || fail "--builders, hold seconds: [$out]"
+reset_builders
+
+# --release-holder exits 0 and prints "holder: <command>" while a release call holds the lock (the
+# marker <lock>/release and a live pid), or "ticket: <pid>" for a live release ticket. Else it
+# exits 1 with no output and removes a ticket of a dead pid. It takes no lock, writes no wait or hold
+# line, and keeps no waiting marker. Inside a locked process tree (DIRIGIBLE_BUILD_LOCK holds the
+# pid of the lock folder) it never reaches the exec of the command.
+( : ) & rh_dead=$!
+wait "$rh_dead"
+rh_state() { # <kind>: write the lock state of a case
+  reset_builders
+  case "$1" in
+    release | dead-release | ordinary | bench)
+      mkdir -p "$lock"
+      if [[ $1 == dead-release ]]; then echo "$rh_dead" > "$lock/pid"; else echo "$$" > "$lock/pid"; fi
+      case "$1" in
+        ordinary) echo 'make build' > "$lock/command" ;;
+        bench) echo 'scripts/bench.sh' > "$lock/command" ;;
+        *) : > "$lock/release"; echo 'make check-changed BASE=origin/main' > "$lock/command" ;;
+      esac ;;
+    ticket) mkdir -p "$first/$$" ;;
+    dead-ticket) mkdir -p "$first/$rh_dead" ;;
+  esac
+}
+rh_check() { # <state> <want exit> <want stdout> [VAR=value...]
+  local state="$1" want="$2" wout="$3" out code
+  shift 3
+  rh_state "$state"
+  out="$(env WITH_LOCK_MAX_WAIT=2 "$@" "$repo/scripts/with-lock.sh" --release-holder 2> "$tmp/rh.err")"
+  code=$?
+  [[ $code -eq $want && "$out" == "$wout" ]] || fail "--release-holder, $state $*: exit $code, stdout [$out], want exit $want, stdout [$wout]"
+  [[ ! -s "$tmp/rh.err" ]] || fail "--release-holder, $state $*: stderr [$(cat "$tmp/rh.err")]"
+  [[ ! -e "$waits" && ! -e "$holds" && -z "$(ls "$waiting" 2>/dev/null)" ]] ||
+    fail "--release-holder, $state $*: a wait line, a hold line, or a waiting marker"
+}
+rh_cmd='make check-changed BASE=origin/main'
+rh_check release 0 "holder: $rh_cmd"
+rh_check dead-release 1 ''
+rh_check ordinary 1 ''
+rh_check bench 1 ''
+rh_check free 1 ''
+rh_check ticket 0 "ticket: $$"
+rh_check dead-ticket 1 ''
+[[ ! -e "$first/$rh_dead" ]] || fail '--release-holder: the ticket of a dead pid stays'
+rh_check release 0 "holder: $rh_cmd" DIRIGIBLE_BUILD_LOCK=$$
+rh_check ordinary 1 '' DIRIGIBLE_BUILD_LOCK=$$
+rh_check dead-release 1 '' DIRIGIBLE_BUILD_LOCK=$rh_dead
 reset_builders
 
 # A pid variable that outlives its child can name a stranger when the kernel reuses the pid. A

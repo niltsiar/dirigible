@@ -30,6 +30,11 @@
 # tree of the live holder, and each live waiter, one per line. A marker of a dead pid is ignored and
 # removed.
 # A wait with 2 or more other trees in that list prints their count.
+# scripts/with-lock.sh --release-holder takes no lock and runs no command, also inside a locked
+# process tree. It prints "holder: <command>" and exits 0 while a release call (below) holds the
+# lock with a live pid, child, or child group, or "ticket: <pid>" and exits 0 for a live release
+# ticket; else it prints nothing, exits 1, and removes the ticket of a dead pid. A bench, a mutation
+# pass, a flake loop, and an ordinary call give exit 1. .claude/hooks/agent-guard.sh calls it.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
 # waiter, its own tree, a line or a holder of a call with WITH_LOCK_NO_CAP=1, or a path that is not
@@ -157,6 +162,24 @@ holder_line() {
     echo
 }
 [[ "$1" != --builders ]] || { builders; holder_line; exit 0; }
+first="${lock%/*}/dirigible-build-first"
+# release_holder: the command of a live holder of a release call, or the pid of a live release
+# ticket, and succeeds. Else it fails, and a ticket of a dead pid goes. It takes no lock.
+release_holder() {
+    local m c t
+    m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
+    if [[ -e "$lock/release" ]] && { alive "$m" || alive "$c" || alive "-$c"; }; then
+        echo "holder: $(cat "$lock/command" 2>/dev/null)"
+        return 0
+    fi
+    for t in "$first"/*; do
+        [[ -d "$t" ]] || continue
+        if alive "${t##*/}"; then echo "ticket: ${t##*/}"; return 0; fi
+        rmdir "$t" 2>/dev/null
+    done
+    return 1
+}
+[[ "$1" != --release-holder ]] || { release_holder; exit; }
 case "${1##*/}" in
     cost.sh | wiki.py)
         echo "with-lock: $1 builds nothing and needs no lock; run it without scripts/with-lock.sh (DLV-157: work that builds nothing may run beside a push check)" >&2
@@ -196,7 +219,7 @@ release_call() {
     [[ $goal == dmg || ($goal == check && -n $base) || ($goal == hooks && -n $hooks) ]]
 }
 # ahead: the ticket of a live release call other than this one. A ticket of a dead pid goes.
-first="${lock%/*}/dirigible-build-first" ticket=""
+ticket=""
 ahead() {
     local t
     for t in "$first"/*; do

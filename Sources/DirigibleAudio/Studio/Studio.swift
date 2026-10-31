@@ -155,6 +155,8 @@ import Observation
     @ObservationIgnored var readRuns: [ReadRun] = []
     /// The waits of `readsEnded()`, resumed when the last read ends.
     @ObservationIgnored var readWaiters: [CheckedContinuation<Void, Never>] = []
+    /// The running transcription job (decision 0065), in `Studio+Transcribe.swift`.
+    @ObservationIgnored var transcribing: TranscribeRun?
     /// The number of the export that a take of another studio ended.
     @ObservationIgnored var yieldedExport: Int?
     /// Why the last export stopped before its end, read after its `.export(.cancelled)`. Nil

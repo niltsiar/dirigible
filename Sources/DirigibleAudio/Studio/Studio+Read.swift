@@ -5,7 +5,8 @@ import os
 /// The flags of one running agent read (decision 0062). A cancel of the caller sets `cancelled`;
 /// a take start or the close of the window sets `end`, the first cause, and then `cancelled`. The
 /// read sets `observed` when it sees `cancelled` at a block, so a read that completed before the
-/// end keeps its result.
+/// end keeps its result. A transcription job (decision 0065 D5) is a read run too: `stop` is the
+/// flag that the abort callback of whisper.cpp reads, and each stop source sets it with `cancelled`.
 final class ReadRun: Sendable {
     /// Why the app ended the read: a take start, or the close of the window (`settle()`).
     enum End: Sendable { case take, close }
@@ -13,6 +14,13 @@ final class ReadRun: Sendable {
     let cancelled = OSAllocatedUnfairLock(initialState: false)
     let end = OSAllocatedUnfairLock<End?>(initialState: nil)
     let observed = OSAllocatedUnfairLock(initialState: false)
+    let stop = StopFlag()
+
+    /// Sets `cancelled` and `stop`: a cancel of the caller or of the banner.
+    func cancel() {
+        cancelled.withLock { $0 = true }
+        stop.set()
+    }
 }
 
 extension Studio {
@@ -36,13 +44,7 @@ extension Studio {
         try checkIdle()
         let (session, lock, step, run) = (session, lock, environment.loudnessBlock, ReadRun())
         readRuns.append(run)
-        defer {
-            readRuns.removeAll { $0 === run }
-            if readRuns.isEmpty {
-                for waiter in readWaiters { waiter.resume() }
-                readWaiters = []
-            }
-        }
+        defer { endRead(run) }
         let hop: @Sendable (Double) -> Void = { fraction in Task { @MainActor in progress(fraction) } }
         // On a GCD thread `Task.isCancelled` is false, so a cancel of the caller sets a flag that
         // the read reads at each block, as `measureLoudness`.
@@ -75,7 +77,16 @@ extension Studio {
     func endReads(_ end: ReadRun.End) {
         for run in readRuns {
             run.end.withLock { $0 = $0 ?? end }
-            run.cancelled.withLock { $0 = true }
+            run.cancel()
+        }
+    }
+
+    /// Takes `run` out of `readRuns`. After the last run, the waits of `readsEnded()` resume.
+    func endRead(_ run: ReadRun) {
+        readRuns.removeAll { $0 === run }
+        if readRuns.isEmpty {
+            for waiter in readWaiters { waiter.resume() }
+            readWaiters = []
         }
     }
 

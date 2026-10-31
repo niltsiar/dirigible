@@ -48,12 +48,8 @@ public enum WhisperModel: String, CaseIterable, Sendable {
 }
 
 /// A model file whose byte count and SHA-256 match the catalog: the only input of `WhisperEngine`.
+/// Outside the tests, only `WhisperModel.checked(at:)` makes one.
 public struct CheckedModel: Hashable, Sendable {
     public let model: WhisperModel
     let url: URL
-
-    fileprivate init(model: WhisperModel, url: URL) {
-        self.model = model
-        self.url = url
-    }
 }

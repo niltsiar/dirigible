@@ -177,6 +177,19 @@ struct CaptureEnvironment: Sendable {
     /// A step on the thread of each block of `Studio.measureLoudness` and of the read of a level or
     /// a duck (`Studio.runReadJob`, decision 0049). Tests hold the read with it.
     var loudnessBlock: @Sendable () -> Void = {}
+    /// The engine part of a transcription job (decision 0065 D6), on the GCD thread of the job.
+    /// `live` runs one `WhisperEngine`; tests give a scripted closure.
+    var transcribe: TranscribeEngine = liveTranscribe
+    /// The model check of a job on its GCD thread: `checked(in:)` on the model folder. Tests give
+    /// one that needs no catalog file.
+    var checkModel: @Sendable (WhisperModel, URL) -> CheckedModel? = { $0.checked(in: $1) }
+    /// The model folder and the download of a job (decision 0065 D2). Tests give their own.
+    var modelStore = WhisperModelStore.live
+    /// The reason of the activity of a transcription job. Tests set a UUID text.
+    var transcribeReason = "Dirigible transcribes audio"
+    /// A step after the engine part of a job returns, before the end turn reads the stop flags.
+    /// Tests start a take or hold the job there.
+    var transcribeWorkDone: @Sendable () async -> Void = {}
 
     static let live = live(output: .live)
 

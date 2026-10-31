@@ -39,8 +39,12 @@ public struct WhisperModelStore: Sendable {
     /// Downloads `model` from its catalog URL to its catalog file name in the folder. It reads
     /// `stop` at each chunk, and every 0.25 s while it waits for a chunk. A set stop ends the stream
     /// and throws `.stopped`; a file that fails the catalog check throws `.checksumMismatch`. Each
-    /// throw deletes the temporary file. The next call downloads again from byte 0.
-    @concurrent public func download(_ model: WhisperModel, stop: @escaping @Sendable () -> Bool) async throws {
+    /// throw deletes the temporary file. The next call downloads again from byte 0. `progress` gets
+    /// the received bytes over the catalog byte count after each chunk.
+    @concurrent public func download(
+        _ model: WhisperModel, stop: @escaping @Sendable () -> Bool,
+        progress: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async throws {
         let files = FileManager.default
         try files.createDirectory(at: folder, withIntermediateDirectories: true)
         var temporary = folder.appending(path: model.fileName + ".download")
@@ -51,7 +55,9 @@ public struct WhisperModelStore: Sendable {
             var values = URLResourceValues()
             values.isExcludedFromBackup = true
             try temporary.setResourceValues(values)
-            try await Self.write(load(model.url), to: temporary, stop: stop)
+            try await Self.write(load(model.url), to: temporary, stop: stop) { received in
+                progress(Double(received) / Double(model.byteCount))
+            }
             guard model.checked(at: temporary) != nil else { throw WhisperModelStoreError.checksumMismatch }
             guard rename(temporary.path, folder.appending(path: model.fileName).path) == 0 else {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
@@ -62,18 +68,22 @@ public struct WhisperModelStore: Sendable {
         }
     }
 
-    /// Appends each chunk to `file` until the stream ends. A second task reads `stop` every 0.25 s,
-    /// so a stall of the loader does not hide a stop.
+    /// Appends each chunk to `file` until the stream ends, and gives `received` the byte count so
+    /// far. A second task reads `stop` every 0.25 s, so a stall of the loader does not hide a stop.
     private static func write(
-        _ chunks: AsyncThrowingStream<Data, any Error>, to file: URL, stop: @escaping @Sendable () -> Bool
+        _ chunks: AsyncThrowingStream<Data, any Error>, to file: URL, stop: @escaping @Sendable () -> Bool,
+        received: @escaping @Sendable (Int) -> Void
     ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 let handle = try FileHandle(forWritingTo: file)
                 defer { try? handle.close() }
+                var count = 0
                 for try await chunk in chunks {
                     guard !stop() else { throw WhisperModelStoreError.stopped }
                     try handle.write(contentsOf: chunk)
+                    count += chunk.count
+                    received(count)
                 }
                 // The stream gives no error when the stop task cancels this task.
                 try Task.checkCancellation()

@@ -154,7 +154,7 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded,
         .split, .splitYielded, .clipRender, .clipRenderYielded, .artwork, .unusedFiles, .levelCancelled,
-        .duckCancelled, .readYielded, .readClosed,
+        .duckCancelled, .readYielded, .readClosed, .transcription, .transcriptionYielded, .transcriptionCancelled,
         .duckRead,
         .writerDidNotStop:
         packageError

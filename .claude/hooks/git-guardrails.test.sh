@@ -1715,6 +1715,8 @@ hb_err_has 'the clock refusal' '90'
 hb_err_has 'the clock refusal' 'run.md'
 hb_err_has 'the clock refusal' 'SubagentHandback'
 hb_err_has 'the clock refusal' 'git add <paths> && git commit -F .scratchpads/commit-msg.txt'
+hb_err_has 'the clock refusal' 'log-decision.sh <run folder> --from <file in .scratchpads/>'
+hb_err_has 'the clock refusal' '.claude/skills/deliver/scripts/log-decision.sh'
 hb_session under < <(hb_span 89 0)
 hb_expect "$clock_hook" 0 'make build at 89 active minutes' "$(hb_bash 'make build')"
 hb_session idle < <(hb_span 330 300; hb_span 30 0)
@@ -1731,6 +1733,8 @@ hb_expect "$clock_hook" 2 'Edit of a Sources/ path past the limit' "$(hb_in Edit
 hb_expect "$clock_hook" 2 'Write with no file_path past the limit' "$(hb_in Write)"
 hb_expect "$clock_hook" 0 'Write of .scratchpads/commit-msg.txt past the limit' "$(hb_in Write '{"file_path":"/t/.scratchpads/commit-msg.txt"}')"
 hb_expect "$clock_hook" 0 'Edit of run.md under .scratchpads past the limit' "$(hb_in Edit '{"file_path":"/t/.scratchpads/runs/r/run.md"}')"
+hb_expect "$clock_hook" 0 'Write of a row file under .scratchpads/runs past the limit' "$(hb_in Write '{"file_path":"/t/.scratchpads/runs/x/row.txt"}')"
+hb_expect "$clock_hook" 2 'Write of a file in the tree root past the limit' "$(hb_in Write '{"file_path":"/t/row.txt"}')"
 for command in 'git status' 'git diff --stat' 'git log -1' 'git add -A' 'git commit -F x' \
   '.claude/skills/deliver/scripts/log-decision.sh run 4 d w e r' \
   'git commit -F x 2>&1' 'git -c core.pager=cat log -1' \

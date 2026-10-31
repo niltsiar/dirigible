@@ -121,9 +121,25 @@ expect block 'git commit -qF msg.txt'
 expect block 'git commit --fil=msg.txt'
 expect block 'git commit --file msg.txt'
 expect block 'git commit -Fmsg.txt'
-# A grep for the text "git commit -F" runs no commit: the lone quote is the end of the quoted text.
+# A grep for the text "git commit -F" runs no commit: the text is inside quotes.
 expect allow "rg -n 'git commit -F' .claude"
 expect allow 'rg -n "git commit -F" .claude'
+expect allow "rg -n 'git commit -F <file>' docs"
+# Text inside a quoted string or a heredoc body is data, not an option of the commit. A real option
+# after the quoted text still counts.
+expect allow 'git commit -m "test: rg -F case"'
+expect allow "git commit -m 'allow --file=x'"
+expect allow $'git commit -m "fix: a thing\n\ngit commit -F msg.txt is blocked."'
+expect allow $'git commit -F - <<\'EOF\'\nfix: a thing\n\ngit commit -F msg.txt is blocked.\nEOF'
+expect block 'git commit -m "a -F b" -F msg.txt'
+# A - message comes from a heredoc on the commit. A < file, a pipe, or no heredoc can take the message
+# file of another work tree.
+expect block 'git commit -F - < /tmp/other/.scratchpads/commit-msg.txt'
+expect block 'git commit -F - </tmp/other/msg.txt'
+expect block 'cat /tmp/other/.scratchpads/commit-msg.txt | git commit -F -'
+expect block $'cat <<\'EOF\' | git commit -q -F -\nfix: a thing\nEOF'
+expect block 'git commit -F -'
+expect allow $'git commit -F - <<EOF\nfix: a thing\nEOF'
 # git reads the last message-file option, so a commit with two blocks.
 expect block 'git commit -F .scratchpads/commit-msg.txt -F msg.txt'
 expect block 'git commit -F .scratchpads/commit-msg.txt --file=msg.txt'
@@ -1349,7 +1365,9 @@ for text in 'git commit -F <file>' 'git commit -F <file in the run folder>' 'git
   'Commit with git commit -F $R/logs/x.txt.' 'Commit with git commit -aF msg.txt.' \
   'Run git -C /x/wt commit -F .scratchpads/runs/x/msg.txt at the end.' 'Run git -C ../wt commit -F msg.txt at the end.' \
   'Commit with git commit -F .scratchpads/commit-msg.txt -F msg.txt at the end.' 'Commit with git commit -F "" at the end.' \
-  'Commit with git commit -F " msg.txt" at the end.'; do
+  'Commit with git commit -F " msg.txt" at the end.' \
+  'Run git commit -F - < /x/other/msg.txt at the end.' 'Run cat /x/msg.txt | git commit -F - at the end.' \
+  "Don't commit the way of the user's note: git commit -F ../x/msg.txt at the end."; do
   expect_brief block Agent prompt "$text"
 done
 for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scratchpads/commit-msg.txt' \
@@ -1357,7 +1375,9 @@ for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scra
   'Commit with `git commit -F .scratchpads/commit-msg.txt`.' 'Use `git commit -F` with the message file.' \
   'Commit with git commit -aF .scratchpads/commit-msg.txt.' 'Commit with git commit -F ".scratchpads/commit-msg.txt" at the end.' \
   'Run git -C /x/wt commit -F .scratchpads/commit-msg.txt at the end.' 'Commit with git commit -F - and a heredoc.' \
-  "Find the old text with rg -n 'git commit -F' .claude first." 'Read run.md and continue at S6.'; do
+  "Find the old text with rg -n 'git commit -F' .claude first." "Find the old text with rg -n 'git commit -F <file>' docs." \
+  'Run `git commit` then search with rg -F foo bar.' 'Commit with git commit -m "rg -F case" at the end.' \
+  'Read run.md and continue at S6.'; do
   expect_brief allow Agent prompt "$text"
 done
 expect_brief allow SendMessage message 'git commit -F .scratchpads/commit-msg.txt, then hand back.'

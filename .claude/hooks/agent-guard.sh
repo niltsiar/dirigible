@@ -9,13 +9,14 @@
 # - A brief whose text holds a git commit -F or --file path other than .scratchpads/commit-msg.txt
 #   or - (stdin) is refused: the agent would commit with the message file of another work tree
 #   (git-guardrails.sh blocks that path in a Bash command), also a file of the run folder or a
-#   placeholder (-F <file>). The match is that of git-guardrails.sh: the message-file option after
-#   each git commit of a line (-F in a short-option cluster that ends in F, such as -aF, or --fil or
-#   --file with = or a space), so a later -F of another command does not count; git -C <dir> and
-#   -c <key=value> go first. A commit with more than one such option is refused, because git reads
-#   the last one. Then backticks, < and > go. An empty value or a lone quote (the end of a quoted
-#   text, or `git commit -F` in backticks) passes. The leading quotes and the trailing ) ; : . , and
-#   quotes go before the comparison, so -F "" is refused.
+#   placeholder (-F <file>). The match is that of git-guardrails.sh (commit-files.awk, which has the
+#   rules): the message-file option after each git commit of a line (-F in a short-option cluster
+#   that ends in F, such as -aF, or --fil or --file with = or a space), so a later -F of another
+#   command does not count, and text inside a quoted string is data; git -C <dir> and -c <key=value>
+#   go first. A commit with more than one such option is refused, because git reads the last one,
+#   and so is -F - with a < file or a pipe on its left. Then backticks, < and > go. An empty value
+#   or a lone quote (`git commit -F` in backticks) passes. The leading quotes and the trailing
+#   ) ; : . , and quotes go before the comparison, so -F "" is refused.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
@@ -33,45 +34,18 @@ if [[ "$tool" != mcp__t3-code__delegate_task && "$isolation" == worktree ]]; the
   exit 2
 fi
 text="$(plutil -extract "tool_input.$field" raw -o - "$input" 2>/dev/null)"
-# commit_files: the value of the message-file option after each "git commit" of the input lines, up
-# to the first ; & | , or sentence end outside quotes; one \001 line for a commit with more than one
-# such option (git-guardrails.sh has the same function). A quote after a space opens the value.
 commit_files() {
-  awk '{
-    s = $0
-    while ((i = index(s, "git commit")) > 0) {
-      s = substr(s, i + 10)
-      chunk = s
-      if ((j = index(s, "git commit")) > 0) chunk = substr(s, 1, j - 1)
-      q = ""
-      for (k = 1; k <= length(chunk); k++) {
-        c = substr(chunk, k, 1)
-        if (q != "") { if (c == q) q = "" }
-        else if (c == "\"" || c == "\047") q = c
-        else if (c ~ /[;&|,]/ || (c == "." && substr(chunk, k + 1, 1) == " ")) { chunk = substr(chunk, 1, k - 1); break }
-      }
-      n = 0; rest = chunk
-      while (match(rest, /(^| )(-[a-zA-EG-Z]*F ?|--fil(e)?[= ])[^ ]+/)) {
-        t = substr(rest, RSTART, RLENGTH)
-        rest = substr(rest, RSTART + RLENGTH)
-        v = t
-        sub(/^ ?(-[a-zA-EG-Z]*F ?|--fil(e)?[= ])/, "", v)
-        if ((v == "\"" || v == "\047") && substr(t, length(t) - 1, 1) == " " && (e = index(rest, v)) > 0) {
-          v = v substr(rest, 1, e)
-          rest = substr(rest, e + 1)
-        }
-        if (++n == 1) first = v
-      }
-      if (n > 1) print "\001"
-      else if (n == 1) print first
-    }
-  }'
+  awk -v brief=1 -f "$(dirname "$0")/commit-files.awk"
 }
 # Drop git -C <dir> and -c <key=value> as git-guardrails.sh does, so git -C wt commit reads as git commit.
 text="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$text")"
 while IFS= read -r file; do
   if [[ "$file" == $'\001' ]]; then
     echo "BLOCKED by .claude/hooks/agent-guard.sh: the brief tells the agent to commit with more than one message file option, and git reads the last one. Tell it to write .scratchpads/commit-msg.txt in its work tree and run git commit -F .scratchpads/commit-msg.txt." >&2
+    exit 2
+  fi
+  if [[ "$file" == $'\002' ]]; then
+    echo "BLOCKED by .claude/hooks/agent-guard.sh: the brief tells the agent to commit with git commit -F - and a < file or a pipe on stdin, and the file can belong to another work tree. Tell it to write .scratchpads/commit-msg.txt in its work tree and run git commit -F .scratchpads/commit-msg.txt, or to pass the text in a heredoc." >&2
     exit 2
   fi
   file="$(sed -E "s/[\`<>]//g" <<< "$file")"

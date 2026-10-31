@@ -855,51 +855,25 @@ if matches '(^|[^[:alnum:]_.-])(killall( |$)|pkill( +-[^ ]+)* +-[a-zA-Z]*x)' "$N
     "Find the PID with pgrep, record the PID of the process that the probe started, and quit only that PID (kill <pid>)."
 fi
 
-# Only .scratchpads/commit-msg.txt and - (stdin) pass as a message file. Any other path (absolute,
-# relative, ~, $HOME, a run folder file) can name the file of another work tree, so a commit takes
-# the message of another agent; git -C changes the directory first, so the relative path is per tree.
-# commit_files prints the value of the message-file option after each git commit of a line, up to the
-# first ; & | , or sentence end outside quotes. The option is -F in a short-option cluster that ends
-# in F (-aF, -Fmsg.txt), or --fil or --file with = or a space. A lone quote value is the end of a
-# quoted text (rg 'git commit -F' .claude) and passes; a quote after a space opens the value. A
-# commit with more than one such option prints one \001 line, because git reads the last one
-# (agent-guard.sh has the same function).
+# Only .scratchpads/commit-msg.txt and - (stdin from a heredoc) pass as a message source. Any other
+# path (absolute, relative, ~, $HOME, a run folder file) can name the file of another work tree, so a
+# commit takes the message of another agent; git -C changes the directory first, so the relative path
+# is per tree. A - whose stdin is a < file or a pipe is such a file too. commit-files.awk reads the
+# text (the rules of the match are in its header), after mask_quoted_data has cut each data heredoc
+# body (a commit message that quotes a rule is data) and masked the separators in quoted strings.
 commit_files() {
-  awk '{
-    s = $0
-    while ((i = index(s, "git commit")) > 0) {
-      s = substr(s, i + 10)
-      chunk = s
-      if ((j = index(s, "git commit")) > 0) chunk = substr(s, 1, j - 1)
-      q = ""
-      for (k = 1; k <= length(chunk); k++) {
-        c = substr(chunk, k, 1)
-        if (q != "") { if (c == q) q = "" }
-        else if (c == "\"" || c == "\047") q = c
-        else if (c ~ /[;&|,]/ || (c == "." && substr(chunk, k + 1, 1) == " ")) { chunk = substr(chunk, 1, k - 1); break }
-      }
-      n = 0; rest = chunk
-      while (match(rest, /(^| )(-[a-zA-EG-Z]*F ?|--fil(e)?[= ])[^ ]+/)) {
-        t = substr(rest, RSTART, RLENGTH)
-        rest = substr(rest, RSTART + RLENGTH)
-        v = t
-        sub(/^ ?(-[a-zA-EG-Z]*F ?|--fil(e)?[= ])/, "", v)
-        if ((v == "\"" || v == "\047") && substr(t, length(t) - 1, 1) == " " && (e = index(rest, v)) > 0) {
-          v = v substr(rest, 1, e)
-          rest = substr(rest, e + 1)
-        }
-        if (++n == 1) first = v
-      }
-      if (n > 1) print "\001"
-      else if (n == 1) print first
-    }
-  }'
+  awk -v brief=0 -f "$(dirname "$0")/commit-files.awk"
 }
 if [[ "$NORMALIZED" == *"git commit"* ]]; then
+  masked="$(mask_quoted_data <<< "$UNSPLIT")" || exit 2
   while IFS= read -r file; do
     if [[ "$file" == $'\001' ]]; then
       block "has more than one message file option, and git reads the last one" \
         "Pass one message file: write .scratchpads/commit-msg.txt in the work tree that commits and run git commit -F .scratchpads/commit-msg.txt (or git commit -F - with a heredoc)."
+    fi
+    if [[ "$file" == $'\002' ]]; then
+      block "reads the commit message from stdin with a < file, a pipe, or no heredoc, and the file can belong to another work tree" \
+        "Write .scratchpads/commit-msg.txt in the work tree that commits and run git commit -F .scratchpads/commit-msg.txt, or pass the text in a heredoc on the commit: git commit -F - <<'EOF'."
     fi
     [[ "$file" == "'" || "$file" == '"' ]] && continue
     file="${file#[\'\"]}"
@@ -908,7 +882,7 @@ if [[ "$NORMALIZED" == *"git commit"* ]]; then
       block "reads a commit message file other than .scratchpads/commit-msg.txt, which can be the file of another work tree" \
         "Write .scratchpads/commit-msg.txt in the work tree that commits and pass that relative path (git commit -F .scratchpads/commit-msg.txt), or pass the message on stdin (git commit -F - with a heredoc)."
     fi
-  done < <(commit_files <<< "$NORMALIZED")
+  done < <(commit_files <<< "$masked")
 fi
 
 # tccutil_user_id <text>: 0 when a line with tccutil reset still names the app ID of the user after

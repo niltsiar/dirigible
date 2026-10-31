@@ -11,12 +11,30 @@ typealias TranscribeEngine =
         _ read: (Int) throws(TranscribeError) -> [Float], StopFlag, _ progress: (Double) -> Void
     ) throws(TranscribeError) -> Transcription?
 
-/// One `WhisperEngine` for the job, with the VAD model of the app bundle (`Contents/Resources`).
-/// With no bundle file, as in `swift run`, the engine runs with no VAD.
+/// One `WhisperEngine` for the job, with the VAD model of `vadModel`.
 let liveTranscribe: TranscribeEngine = { model, language, count, log, read, stop, progress throws(TranscribeError) in
-    let vad = Bundle.main.url(forResource: "ggml-silero-v6.2.0", withExtension: "bin")
+    let vad = try vadModel(
+        resources: Bundle.main.resourceURL, executable: Bundle.main.executableURL,
+        models: WhisperModelStore.folder())
     let engine = try WhisperEngine(model: model, vad: vad, log: log)
     return try engine.transcribe(pieceCount: count, language: language, stop: stop, read: read, progress: progress)
+}
+
+/// The file name of the VAD model that `scripts/bundle.sh` copies to `Contents/Resources`.
+let vadFileName = "ggml-silero-v6.2.0.bin"
+
+/// The first VAD model file of: `resources` (the app), `<executable folder>/../Resources` with the
+/// links of `executable` resolved (the CLI in `Contents/Helpers`), and `models` (decision 0065 D2).
+/// With none, it throws `.vadModelMissing` with the paths it tried: a job with no VAD gives words
+/// on silence.
+func vadModel(resources: URL?, executable: URL?, models: URL) throws(TranscribeError) -> URL {
+    let helpers = executable?.resolvingSymlinksInPath().deletingLastPathComponent()
+    let folders = [resources, helpers?.deletingLastPathComponent().appending(path: "Resources"), models]
+    let tried = folders.compactMap { $0?.appending(path: vadFileName) }
+    guard let found = tried.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
+        throw .vadModelMissing(tried: tried.map(\.path))
+    }
+    return found
 }
 
 /// The words of a job in file frames, the untimed count of `SpanMap`, and the language.

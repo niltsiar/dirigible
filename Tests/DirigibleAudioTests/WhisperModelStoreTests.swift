@@ -225,4 +225,45 @@ struct WhisperModelStoreTests {
 
         #expect(try fileNames(folder.url) == ["ggml-base.bin"])
     }
+
+    enum VADPlace: CaseIterable { case bundle, besideTheCLI, models, none }
+
+    /// The VAD model is in the bundle resources, in `<executable folder>/../Resources` of the CLI
+    /// that a link in `bin` starts (README), or in the model folder; with none of them, the error
+    /// names the three paths.
+    @Test(arguments: VADPlace.allCases) func theVADModelIsFoundInEachPlace(place: VADPlace) throws {
+        let folder = try TemporaryFolder()
+        let root = folder.url.resolvingSymlinksInPath()
+        let bundle = root.appending(path: "Bundle/Resources")
+        let helper = root.appending(path: "Dirigible.app/Contents/Helpers/dirigible")
+        let executable = root.appending(path: "bin/dirigible")
+        try FileManager.default.createDirectory(
+            at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data().write(to: helper)
+        try FileManager.default.createDirectory(
+            at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: executable, withDestinationURL: helper)
+        let models = root.appending(path: "Models")
+        let paths = [
+            bundle.appending(path: vadFileName),
+            root.appending(path: "Dirigible.app/Contents/Resources/\(vadFileName)"),
+            models.appending(path: vadFileName),
+        ]
+        let index = VADPlace.allCases.firstIndex(of: place)!
+        if index < paths.count {
+            try FileManager.default.createDirectory(
+                at: paths[index].deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data([1]).write(to: paths[index])
+        }
+
+        let found = Result { () throws(TranscribeError) in
+            try vadModel(resources: bundle, executable: executable, models: models)
+        }
+
+        if index < paths.count {
+            #expect(try found.get().path == paths[index].path)
+        } else {
+            #expect(throws: TranscribeError.vadModelMissing(tried: paths.map(\.path))) { try found.get() }
+        }
+    }
 }

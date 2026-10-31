@@ -132,6 +132,10 @@ expect allow "git commit -m 'allow --file=x'"
 expect allow $'git commit -m "fix: a thing\n\ngit commit -F msg.txt is blocked."'
 expect allow $'git commit -F - <<\'EOF\'\nfix: a thing\n\ngit commit -F msg.txt is blocked.\nEOF'
 expect block 'git commit -m "a -F b" -F msg.txt'
+# In an ANSI-C string ($'...') a backslash escapes the apostrophe, so the string goes on to the next
+# apostrophe.
+expect block "git commit -m \$'it\\'s' -F /tmp/o/m"
+expect allow "git commit -m \$'it\\'s -F x'"
 # A - message comes from a heredoc on the commit. A < file, a pipe, or no heredoc can take the message
 # file of another work tree.
 expect block 'git commit -F - < /tmp/other/.scratchpads/commit-msg.txt'
@@ -140,6 +144,14 @@ expect block 'cat /tmp/other/.scratchpads/commit-msg.txt | git commit -F -'
 expect block $'cat <<\'EOF\' | git commit -q -F -\nfix: a thing\nEOF'
 expect block 'git commit -F -'
 expect allow $'git commit -F - <<EOF\nfix: a thing\nEOF'
+# An & that is part of a redirect (2>&1, >&2, &>, &>>) does not end the commit; && and a trailing & do.
+expect allow $'git commit -F - 2>&1 <<\'EOF\'\nfix: a thing\nEOF'
+expect allow $'git commit -F - >&2 <<\'EOF\'\nfix: a thing\nEOF'
+expect allow $'git commit -q -F - &>/dev/null <<\'EOF\'\nfix: a thing\nEOF'
+# The body of a heredoc that the hook keeps as code (an interpreter body) can hold an apostrophe: the
+# quote state ends at the end line, so a later commit with a wrong path still blocks.
+expect block $'python3 - <<\'EOF\'\n# don\'t mind\nprint(1)\nEOF\ngit commit -F /tmp/o/m'
+expect block $'cat <<EOF > /tmp/x\nit\'s $(date)\nEOF\ngit commit -F /tmp/o/m'
 # git reads the last message-file option, so a commit with two blocks.
 expect block 'git commit -F .scratchpads/commit-msg.txt -F msg.txt'
 expect block 'git commit -F .scratchpads/commit-msg.txt --file=msg.txt'
@@ -1367,7 +1379,8 @@ for text in 'git commit -F <file>' 'git commit -F <file in the run folder>' 'git
   'Commit with git commit -F .scratchpads/commit-msg.txt -F msg.txt at the end.' 'Commit with git commit -F "" at the end.' \
   'Commit with git commit -F " msg.txt" at the end.' \
   'Run git commit -F - < /x/other/msg.txt at the end.' 'Run cat /x/msg.txt | git commit -F - at the end.' \
-  "Don't commit the way of the user's note: git commit -F ../x/msg.txt at the end."; do
+  "Don't commit the way of the user's note: git commit -F ../x/msg.txt at the end." \
+  'Commit with "git commit -F ../x/msg.txt" at the end.' "Tell the agent: 'run git commit -F ../x/m when you finish'."; do
   expect_brief block Agent prompt "$text"
 done
 for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scratchpads/commit-msg.txt' \

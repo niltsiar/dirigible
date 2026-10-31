@@ -14,12 +14,14 @@ enum WordEnds {
     static let missCost = 30
     static let punctuatedMissCost = 100
 
-    /// Each word with start < end, never a zero length. A word that takes a gap ends at the gap
-    /// start; the word after it starts at the gap end. A word whose end is then not after its start
-    /// keeps its token times and gives its gap back. A word that still has end <= start (an empty
-    /// token interval) ends at the first quiet frame after its start, capped at the next word start,
-    /// at its start + 1.0 s, and at the piece end, or one tick after its start when that cap is not
-    /// after it.
+    /// Each word with start < end, never a zero length, and each end at or before the next start.
+    /// A word that takes a gap ends at the gap start; the word after it starts at the gap end. A
+    /// word whose end is then not after its start keeps its token times and gives its gap back.
+    /// Then, in time order, a word that starts before the end of the word before it starts at that
+    /// end, and an end after the next start moves to the next start. A word that still has
+    /// end <= start (an empty token interval) ends at the first quiet frame after its start, capped
+    /// at the next word start, at its start + 1.0 s, and at the piece end, or one tick after its
+    /// start when that cap is not after it.
     static func place(_ words: [TimedWord], samples: [Float]) -> [TimedWord] {
         let levels = levels(of: samples)
         let floor = floor(of: levels)
@@ -39,9 +41,12 @@ enum WordEnds {
             placed.append(out)
             previousGap = gap
         }
-        for k in placed.indices where placed[k].end <= placed[k].start {
-            let start = placed[k].start
+        for k in placed.indices {
+            if k > 0 { placed[k].start = max(placed[k].start, placed[k - 1].end) }
             let next = k + 1 < placed.count ? placed[k + 1].start : Int.max
+            placed[k].end = min(placed[k].end, next)
+            guard placed[k].end <= placed[k].start else { continue }
+            let start = placed[k].start
             let cap = min(levels.count, start + bandTicks, next)
             if cap > start {
                 let quiet = levels.indices.dropFirst(max(start + 1, 0)).first { levels[$0] <= floor } ?? levels.count

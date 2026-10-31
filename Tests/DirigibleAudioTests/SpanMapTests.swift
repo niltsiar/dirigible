@@ -26,7 +26,7 @@ struct SpanMapTests {
                 clip("A", "h", start: 0, offset: 0, length: 1_000),
                 clip("B", "h", start: 5_000, offset: 0, length: 1_000),
                 clip("C", "h", start: 7_000, offset: 1_000, length: 500),
-            ], sampleRate: Self.rate)
+            ], session: Session(sampleRate: Self.rate))
 
         #expect(map.spans == [span("h", 0..<1_500, time: 0)])
         #expect(map.length == 1_500)
@@ -39,7 +39,7 @@ struct SpanMapTests {
                 clip("C", "b", start: 4_000, offset: 5_000, length: 1_000),
                 clip("A", "b", start: 0, offset: 0, length: 1_000),
                 clip("B", "a", start: 2_000, offset: 0, length: 500),
-            ], sampleRate: Self.rate)
+            ], session: Session(sampleRate: Self.rate))
 
         #expect(
             map.spans == [
@@ -55,7 +55,7 @@ struct SpanMapTests {
             clips: [
                 clip("B", "b", start: 0, offset: 10_000, length: 48_000),
                 clip("A", "a", start: 100_000, offset: 200_000, length: 48_000),
-            ], sampleRate: Self.rate)
+            ], session: Session(sampleRate: Self.rate))
         let result = map.fileWords([[TimedWord(text: "edge", start: 90, end: 120)]], in: [0..<96_000])
 
         #expect(result.untimed == 0)
@@ -66,7 +66,8 @@ struct SpanMapTests {
     /// Plan gate 3 Y1 and round 2 Z3. A word with end < start, a word with end == start, and a
     /// last word that starts at the piece end give no file word, and each counts as untimed.
     @Test func aWordWithNoLengthIsDroppedAndCounted() {
-        let map = SpanMap(clips: [clip("A", "h", start: 0, offset: 0, length: 48_000)], sampleRate: Self.rate)
+        let map = SpanMap(
+            clips: [clip("A", "h", start: 0, offset: 0, length: 48_000)], session: Session(sampleRate: Self.rate))
         for word in [
             TimedWord(text: "back", start: 20, end: 10), TimedWord(text: "flat", start: 20, end: 20),
             TimedWord(text: "late", start: 100, end: 101),
@@ -91,7 +92,7 @@ struct SpanMapTests {
                 clips.append(clip("C\(index)", file, start: start, offset: index * 600_000, length: length))
                 start += length + Int.random(in: 0...50_000, using: &generator)
             }
-            let map = SpanMap(clips: clips, sampleRate: Self.rate)
+            let map = SpanMap(clips: clips, session: Session(sampleRate: Self.rate))
             let total = map.length.count
             let cut = Int.random(in: 1..<total, using: &generator)
             let ranges: [Range<Frames>] = [0..<Frames(cut), Frames(cut)..<map.length]
@@ -143,7 +144,7 @@ struct SpanMapTests {
             clips: [
                 clip("A", "a", start: 0, offset: 0, length: 96_000),
                 clip("B", "b", start: 200_000, offset: 48_000, length: 48_000),
-            ], sampleRate: Self.rate)
+            ], session: Session(sampleRate: Self.rate))
         let ticks = map.length.count / 480
         var words = [TimedWord(text: "last", start: ticks, end: ticks + 1)]
         for index in 0..<500 {
@@ -162,7 +163,8 @@ struct SpanMapTests {
     /// gives for a point 2 s before the limit, with a window of 2 s.
     @Test func piecesAreAtMostTenMinutesCutAtTheNearestPause() {
         let minute = 60 * Self.rate
-        let map = SpanMap(clips: [clip("A", "h", start: 0, offset: 0, length: 25 * minute)], sampleRate: Self.rate)
+        let map = SpanMap(
+            clips: [clip("A", "h", start: 0, offset: 0, length: 25 * minute)], session: Session(sampleRate: Self.rate))
         var asked: [(at: Frames, window: Frames)] = []
         let pieces = map.pieces { at, window in
             asked.append((at, window))
@@ -187,7 +189,7 @@ struct SpanMapTests {
         }
         try session.place(clip("H", "h", start: 0, offset: 0, length: 48_000), on: "host")
         try session.place(clip("G", "g", start: 100_000, offset: 0, length: 48_000), on: "host")
-        let map = SpanMap(clips: try #require(session.track("host")).clips, sampleRate: Self.rate)
+        let map = SpanMap(clips: try #require(session.track("host")).clips, session: session)
         let words = [
             TimedWord(text: "uno", start: 10, end: 20), TimedWord(text: "dos", start: 30, end: 40),
             TimedWord(text: "tres", start: 110, end: 120),
@@ -197,5 +199,29 @@ struct SpanMapTests {
 
         let shown = session.words().map { "\($0.text) \($0.occurrence.word.number)@\($0.occurrence.clip)" }
         #expect(shown == ["uno 1@H", "dos 2@H", "tres 3@G"])
+    }
+
+    /// Gate 1 item 7 (decision 0057 D11). Clip A plays root h at 90 000 ..< 130 000, and clip B plays
+    /// the render r of h at 100 000 ..< 150 000 in root frames. The overlap reads once, from A, the
+    /// first clip; the rest of B reads from r. A word in the overlap shows once under each clip.
+    @Test func aRenderAndItsRootReadEachRootFrameOnce() throws {
+        var session = Session(sampleRate: Self.rate)
+        try session.addTrack("host", name: "host", layout: .mono)
+        try session.addFile(AudioFile(id: "h", path: "h.wav", layout: .mono, length: 1_000_000))
+        let origin = RenderOrigin(
+            source: "h", offset: 100_000, treatment: Treatment(.noise(.standard)), addedGain: .zero)
+        try session.addFile(AudioFile(id: "r", path: "r.wav", layout: .mono, length: 50_000, origin: origin))
+        try session.place(clip("A", "h", start: 0, offset: 90_000, length: 40_000), on: "host")
+        try session.place(clip("B", "r", start: 100_000, offset: 0, length: 50_000), on: "host")
+        let map = SpanMap(clips: try #require(session.track("host")).clips, session: session)
+
+        #expect(map.spans == [span("h", 90_000..<130_000, time: 0), span("r", 30_000..<50_000, time: 40_000)])
+        #expect(map.length == 60_000)
+        let words = [TimedWord(text: "both", start: 45, end: 50), TimedWord(text: "late", start: 100, end: 110)]
+        let result = map.fileWords([words], in: [0..<map.length])
+        try session.addTranscript(result.words, name: "t", derived: [])
+        let shown = session.words().map { "\($0.text) \($0.occurrence.word.number)@\($0.occurrence.clip)" }
+        #expect(Set(shown) == ["both 1@A", "both 1@B", "late 2@B"])
+        #expect(shown.count == 3)
     }
 }

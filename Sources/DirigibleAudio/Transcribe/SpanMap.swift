@@ -14,34 +14,83 @@ struct SpanMap: Hashable, Sendable {
     let spans: [Span]
     let sampleRate: Int
 
-    /// The distinct file spans of `clips`: the file range `offset ..< offset + length` of each clip,
-    /// merged per file when ranges touch or overlap, in the timeline order of the first clip of
-    /// each span. A gap between clips gives no span, and a duplicated region gives one.
-    init(clips: some Sequence<Clip>, sampleRate: Int) {
-        var merged: [(file: FileID, frames: Range<Frames>, first: Int)] = []
-        let ordered = clips.sorted { $0.start < $1.start }.enumerated()
-        for (file, group) in Dictionary(grouping: ordered, by: \.element.file) {
-            let ranges = group.map {
-                (frames: $0.element.offset..<($0.element.offset + $0.element.length), first: $0.offset)
-            }
-            var current: (frames: Range<Frames>, first: Int)?
-            for range in ranges.sorted(by: { $0.frames.lowerBound < $1.frames.lowerBound }) {
-                if let last = current, range.frames.lowerBound <= last.frames.upperBound {
-                    let end = max(last.frames.upperBound, range.frames.upperBound)
-                    current = (last.frames.lowerBound..<end, min(last.first, range.first))
+    /// One clip as a range of the root of its file (decision 0057 D11): `shift` is the sum of the
+    /// origin offsets, so a root frame minus `shift` is a frame of `file`.
+    private struct Part {
+        let file: FileID
+        let shift: Frames
+        let root: Range<Frames>
+        let first: Int
+    }
+
+    /// The distinct file spans of `clips`. Each clip plays the root range of its file range
+    /// `offset ..< offset + length` (decision 0057 D11). Root ranges merge per root file when they
+    /// touch or overlap, in the timeline order of the first clip of each merged range. Each root
+    /// frame reads from the file of the first clip in timeline order that plays it, so a render and
+    /// its root never both give a frame. A gap between clips gives no span, and a duplicated
+    /// region gives one.
+    init(clips: some Sequence<Clip>, session: Session) {
+        var groups: [FileID: [Part]] = [:]
+        for (index, clip) in clips.sorted(by: { $0.start < $1.start }).enumerated() {
+            let chain = session.origins(ofFile: clip.file)
+            let shift = chain.reduce(Frames.zero) { $0 + $1.offset }
+            let root = (clip.offset + shift)..<(clip.offset + clip.length + shift)
+            groups[chain.last?.source ?? clip.file, default: []].append(
+                Part(file: clip.file, shift: shift, root: root, first: index))
+        }
+        var merged: [(parts: [Part], first: Int)] = []
+        for parts in groups.values {
+            var current: (parts: [Part], end: Frames)?
+            for part in parts.sorted(by: { $0.root.lowerBound < $1.root.lowerBound }) {
+                if let last = current, part.root.lowerBound <= last.end {
+                    current = (last.parts + [part], max(last.end, part.root.upperBound))
                 } else {
-                    if let last = current { merged.append((file, last.frames, last.first)) }
-                    current = range
+                    if let last = current { merged.append((last.parts, last.parts.map(\.first).min()!)) }
+                    current = ([part], part.root.upperBound)
                 }
             }
-            if let last = current { merged.append((file, last.frames, last.first)) }
+            if let last = current { merged.append((last.parts, last.parts.map(\.first).min()!)) }
         }
         var time = Frames.zero
-        spans = merged.sorted { $0.first < $1.first }.map { span in
-            defer { time = time + (span.frames.upperBound - span.frames.lowerBound) }
-            return Span(file: span.file, frames: span.frames, time: time)
+        var spans: [Span] = []
+        for range in merged.sorted(by: { $0.first < $1.first }) {
+            for (part, root) in Self.readers(of: range.parts) {
+                spans.append(
+                    Span(
+                        file: part.file, frames: (root.lowerBound - part.shift)..<(root.upperBound - part.shift),
+                        time: time))
+                time = time + (root.upperBound - root.lowerBound)
+            }
         }
-        self.sampleRate = sampleRate
+        self.spans = spans
+        sampleRate = session.sampleRate
+    }
+
+    /// The root ranges of `parts`, which touch or overlap, each with the part that reads it: the
+    /// part with the lowest `first` that holds the frame. Touching ranges of one file join, and the
+    /// ranges come in root order, so the audio stays continuous.
+    private static func readers(of parts: [Part]) -> [(part: Part, root: Range<Frames>)] {
+        var owned: [(part: Part, root: Range<Frames>)] = []
+        for part in parts.sorted(by: { $0.first < $1.first }) {
+            var low = part.root.lowerBound
+            for taken in owned.map(\.root).sorted(by: { $0.lowerBound < $1.lowerBound }) {
+                guard taken.lowerBound < part.root.upperBound else { break }
+                guard taken.upperBound > low else { continue }
+                if taken.lowerBound > low { owned.append((part, low..<taken.lowerBound)) }
+                low = taken.upperBound
+            }
+            if low < part.root.upperBound { owned.append((part, low..<part.root.upperBound)) }
+        }
+        var joined: [(part: Part, root: Range<Frames>)] = []
+        for entry in owned.sorted(by: { $0.root.lowerBound < $1.root.lowerBound }) {
+            if let last = joined.last, last.part.file == entry.part.file, last.root.upperBound == entry.root.lowerBound
+            {
+                joined[joined.count - 1].root = last.root.lowerBound..<entry.root.upperBound
+            } else {
+                joined.append(entry)
+            }
+        }
+        return joined
     }
 
     /// The length of the concatenated audio.

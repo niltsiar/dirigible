@@ -62,6 +62,26 @@ struct WhisperEngineTests {
         #expect(values.contains { $0 > 0 && $0 < 1.0 / 3 }, "a value inside piece 0")
     }
 
+    /// Fix check 1.4 (c). The engine sets the whisper progress callback, so a piece of more than
+    /// 30 s gives a value inside (0, 1) before the piece ends. With no callback, the only value is 1.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aPieceOfMoreThanThirtySecondsReportsInsideThePiece() throws {
+        let english = WhisperEngineBenchmark.english
+        let speech = try WhisperEngineBenchmark.say(english + " " + english, voice: "Samantha", language: "en")
+        try #require(speech.count > 32 * 16_000, "\(speech.count) samples of speech")
+        let engine = try WhisperEngine(
+            model: WhisperFixture.model(.tinyQ51), vad: WhisperFixture.vad, log: .disabled)
+        var values: [Double] = []
+
+        let result = try engine.transcribe(
+            pieceCount: 1, language: .code("en"), stop: StopFlag(), read: { _ in speech },
+            progress: { values.append($0) })
+
+        #expect(result != nil)
+        #expect(values.last == 1, "\(values)")
+        #expect(values.dropLast().contains { $0 > 0 && $0 < 1 }, "no value inside the piece: \(values)")
+    }
+
     @Test func aNonZeroCodeWithTheStopFlagIsAStop() {
         for code: Int32 in [-6, -3, -8, -9] {
             #expect(whisperOutcome(code: code, stopFlagSet: true) == .stopped, "code \(code)")

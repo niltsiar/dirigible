@@ -40,16 +40,16 @@ struct SpanMap: Hashable, Sendable {
         }
         var merged: [(parts: [Part], first: Int)] = []
         for parts in groups.values {
-            var current: (parts: [Part], end: Frames)?
+            var current: (parts: [Part], end: Frames, first: Int)?
             for part in parts.sorted(by: { $0.root.lowerBound < $1.root.lowerBound }) {
                 if let last = current, part.root.lowerBound <= last.end {
-                    current = (last.parts + [part], max(last.end, part.root.upperBound))
+                    current = (last.parts + [part], max(last.end, part.root.upperBound), min(last.first, part.first))
                 } else {
-                    if let last = current { merged.append((last.parts, last.parts.map(\.first).min()!)) }
-                    current = ([part], part.root.upperBound)
+                    if let last = current { merged.append((last.parts, last.first)) }
+                    current = ([part], part.root.upperBound, part.first)
                 }
             }
-            if let last = current { merged.append((last.parts, last.parts.map(\.first).min()!)) }
+            if let last = current { merged.append((last.parts, last.first)) }
         }
         var time = Frames.zero
         var spans: [Span] = []

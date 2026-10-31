@@ -37,7 +37,7 @@ public enum TranscribeProgress: Hashable, Sendable {
 
 extension Studio {
     /// Transcribes the clips of track `id` with `model` (decision 0065 D5) and adds the words as the
-    /// transcript of the track name, in one undo entry with `agent`. It downloads the model first
+    /// transcript `name`, else of the track name, in one undo entry with `agent`. It downloads the model first
     /// when the model folder does not have it. The job runs beside the write chain: edits go on, and
     /// the words anchor to the files, so an edit during the job keeps its place. It throws `.busy`
     /// during a take, a pending take, a take start, a level, a duck, an import, or `settle()`, while
@@ -48,7 +48,8 @@ extension Studio {
     /// nothing and gives no ID. It returns after the save of the new session. `progress` gets the
     /// stage and the fraction on the main actor.
     public func transcribe(
-        track id: TrackID, language: WhisperLanguage, model: WhisperModel, agent: AgentName? = nil,
+        track id: TrackID, language: WhisperLanguage, model: WhisperModel, name: String? = nil,
+        agent: AgentName? = nil,
         progress: @escaping @MainActor @Sendable (TranscribeProgress) -> Void = { _ in }
     ) async throws(StudioError) -> TranscribeReport {
         try checkIdle()
@@ -96,7 +97,7 @@ extension Studio {
                 let added: (id: TranscriptID?, kept: Int, skipped: Int, dropped: [String])
                 do throws(SessionError) {
                     added = try recordEdit(agent: agent) { (session: inout Session) throws(SessionError) in
-                        try session.addTranscript(words.words, name: track.name, derived: derived)
+                        try session.addTranscript(words.words, name: name ?? track.name, derived: derived)
                     }
                 } catch {
                     throw .session(error)

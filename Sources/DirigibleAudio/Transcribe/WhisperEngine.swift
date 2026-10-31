@@ -143,3 +143,18 @@ final class WhisperLog: Sendable {
         log.note(.app, "whisper log", level: .error, ["text": .text(line)])
     }
 }
+
+extension WhisperLanguage {
+    /// "auto", or a code of `whisper_lang_str`, for example "es". Nil for any other text. It does not
+    /// call `whisper_lang_id`, which logs an unknown code to stderr.
+    public init?(_ text: String) {
+        if text == "auto" {
+            self = .automatic
+            return
+        }
+        guard (0...whisper_lang_max_id()).contains(where: { String(cString: whisper_lang_str($0)) == text }) else {
+            return nil
+        }
+        self = .code(text)
+    }
+}

@@ -52,8 +52,8 @@ package enum AgentManual {
             summary: "Find words in a transcript with word times, and cut them from all tracks in sync.",
             steps: RecordRequest.loudnessRule + " The transcript is of an `export` of the current session from "
                 + "frame 0 with each track heard, or of one take: give `take`, and time 0 is its record start. "
-                + "`export` a .wav file for a tool like Whisper; if the export says that a track is muted or not "
-                + "soloed, stop and ask the user. Turn on word timestamps (Whisper). For a transcript of the user, "
+                + "`export` a .wav file for Whisper, or `transcribe` the track; if the export says that a track is "
+                + "muted or not soloed, stop and ask the user. Turn on word timestamps (Whisper). For a transcript of the user, "
                 + "ask which it is. Run `transcript_import` with the `path` of the Whisper JSON, WebVTT, or SRT file "
                 + "and a `track`; give `text` only for a short transcript. Many skipped words mean a wrong `take`. "
                 + "Import the transcript once, on one track. When `transcript_import` reports cues, stop and ask the "

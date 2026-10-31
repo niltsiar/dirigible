@@ -179,7 +179,7 @@ package struct BatchWork: Sendable {
             }
         case .takeImport, .info, .create, .paste, .backups, .revert, .episodeInfo, .words, .prune, .record,
             .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender, .chapters,
-            .transcriptExport, .takeMap, .read, .batch:
+            .transcriptExport, .takeMap, .read, .transcribe, .batch:
             throw notAStep(tool.name)
         }
     }

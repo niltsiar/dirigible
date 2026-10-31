@@ -68,6 +68,8 @@ enum ToolWork: Sendable {
     case takeMap(TakeMapQuery)
     /// `silences`, `nearest_pause`, and `meter`: no lock, as their commands (decision 0062).
     case read(ReadWork)
+    /// `transcribe`: the engine and an edit under the lock, as `dirigible transcribe` (decision 0065).
+    case transcribe(TranscribeWork)
     /// `batch`: many steps in one edit, one undo step in the app and one save on the files (decision 0063).
     case batch(BatchWork)
 
@@ -75,7 +77,7 @@ enum ToolWork: Sendable {
     var isLong: Bool {
         switch self {
         case .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender, .chapters, .transcriptExport,
-            .read:
+            .read, .transcribe:
             true
         case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
             .record, .transport, .words,

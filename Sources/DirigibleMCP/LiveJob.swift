@@ -63,6 +63,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         }
     case .read(let work):
         return await liveRead(work, studio: studio, call: call, report: report)
+    case .transcribe(let work):
+        return await liveTranscribe(work, studio: studio, call: call, report: report)
     // `AgentServer` sends only long work here.
     case .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode, .marker, .episodeInfo, .prune,
         .record, .transport, .words,
@@ -149,6 +151,40 @@ private func liveRead(
     switch result {
     case .success(let output): return .result(text: output.text, isError: false)
     case .failure(let error): return .result(text: error.message, isError: true)
+    }
+}
+
+/// `transcribe` through `Studio.transcribe`: one undo step with the agent name, after a download of
+/// a missing model. A take start, the banner Cancel, the close of the window, or a cancel of the
+/// call ends it with no word added (decision 0065). `report` gets the fraction of each stage.
+@MainActor
+private func liveTranscribe(
+    _ work: TranscribeWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    do throws(StudioError) {
+        let done = try await studio.transcribe(
+            track: work.track, language: work.language, model: work.model, name: work.name, agent: call.agent
+        ) { stage in
+            switch stage {
+            case .download(let fraction), .transcribe(let fraction): report(fraction)
+            }
+        }
+        let lines = TranscribeWork.lines(
+            id: done.id, kept: done.kept, skipped: done.skipped, untimed: done.untimed, dropped: done.dropped)
+        return .result(text: lines.joined(separator: "\n"), isError: false)
+    } catch .transcriptionYielded {
+        return .result(text: "Dirigible started a take, so the transcription stopped. \(noWords)", isError: true)
+    } catch .transcriptionCancelled {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text =
+            Task.isCancelled
+            ? cancelledMessage
+            : "The user cancelled the transcription, or closed the session window, in Dirigible. \(noWords)"
+        return .result(text: text, isError: true)
+    } catch .busy {
+        return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
     }
 }
 
@@ -315,6 +351,7 @@ private func liveTranscriptExport(_ work: TranscriptExportWork, studio: Studio) 
 private let noClip = "No clip was added."
 private let noTrack = "No track was added."
 private let noChange = "No clip changed."
+private let noWords = "No words were added."
 
 /// The text of an export, an import, or a split that the app stopped: the agent must not try again before
 /// it asks the user.
@@ -340,6 +377,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
     case .loudness: "Dirigible stopped its agent server, so the loudness measure stopped."
     // `AgentServer` gives this text only for long work, and a chapters export does not cancel.
     case .read: "Dirigible stopped its agent server, so the read stopped."
+    case .transcribe: "Dirigible stopped its agent server, so the transcription stopped. No words were added."
     case .chapters, .transcriptExport, .edit, .takeImport, .info, .create, .paste, .backups, .revert, .episode,
         .marker,
         .episodeInfo,

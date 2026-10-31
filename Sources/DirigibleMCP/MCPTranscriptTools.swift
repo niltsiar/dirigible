@@ -29,6 +29,15 @@ private let occurrences = Param.required(
     "occurrences", "The word occurrences to cut: the first column of transcript_words. Give all in one call.",
     .strings(minItems: 1))
 
+private let transcribeTrack = Param.required("track", "The track whose clips to transcribe.", .string)
+private let language = Param.defaulted(
+    "language", "auto, or a whisper language code, for example es. auto detects it from the first 30 s of speech.",
+    .string, "auto")
+private let model = Param.defaulted(
+    "model", "The model name: base, or small-q5_1 (more accurate and slower).", .string, "base")
+private let transcribeName = Param<String?>.optional(
+    "name", "The transcript name. The default is the track name.", .string)
+
 private let exportOut = Param.required(
     "out",
     "The absolute path of the subtitle file, outside each session package: .srt or .vtt. It must not exist, unless "
@@ -37,8 +46,8 @@ private let exportTranscript = Param<Int?>.optional(
     "transcript", "The transcript number. Leave it out when the session has one transcript.", .integer(minimum: 1))
 private let exportReplace = Param.defaulted("replace", "Replace the file when it exists.", .boolean, false)
 
-/// The transcript tools (decision 0055): `dirigible transcript import`, `words`, and `cut`; and
-/// `export` (decision 0061).
+/// The transcript tools (decision 0055): `dirigible transcript import`, `words`, and `cut`;
+/// `export` (decision 0061); and `dirigible transcribe` (decision 0065).
 let transcriptTools = [
     Tool(
         "transcript_import",
@@ -98,6 +107,19 @@ let transcriptTools = [
         return .edit(ripple: true) { session throws(SessionError) in
             TranscriptWork.cutLines(try session.cutWords(words))
         }
+    },
+    Tool(
+        "transcribe",
+        "Transcribe the clips of a track with whisper.cpp on this Mac, as dirigible transcribe, and add the words as "
+            + "a transcript, with the lines of transcript_import. No kept word changes nothing and gives only "
+            + "\"Imported 0 words.\" and the skip lines. In the app, a missing model downloads first; on the files, "
+            + "the model must be in the model folder." + editCancelNote("no words are added"),
+        [transcribeTrack, language, model, transcribeName], batch: .alone
+    ) { a throws(ToolError) in
+        .transcribe(
+            try TranscribeWork(
+                track: try a[transcribeTrack], language: try a[language], model: try a[model],
+                name: try a[transcribeName]))
     },
     Tool(
         "transcript_export",

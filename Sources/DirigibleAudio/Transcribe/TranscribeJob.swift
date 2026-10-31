@@ -38,10 +38,54 @@ func vadModel(resources: URL?, executable: URL?, models: URL) throws(TranscribeE
 }
 
 /// The words of a job in file frames, the untimed count of `SpanMap`, and the language.
-struct TranscribedWords: Sendable {
-    let words: FileWords
-    let untimed: Int
-    let language: String
+public struct TranscribedWords: Sendable {
+    public let words: FileWords
+    public let untimed: Int
+    public let language: String
+}
+
+/// Transcribes the clips of `track` from the pool files of `package` with `model`, on the calling
+/// thread, with the live engine (decision 0065 D3, D6): the work of `dirigible transcribe` and of
+/// the tool `transcribe` on the files. `isCancelled` is read before and after each piece. Nil for
+/// a cancel.
+public func transcribeTrack(
+    _ track: Track, of session: Session, package: URL, language: WhisperLanguage, model: CheckedModel,
+    log: DiagnosticLog, isCancelled: @escaping @Sendable () -> Bool = { false },
+    progress: @escaping (Double) -> Void = { _ in }
+) throws(TranscribeError) -> TranscribedWords? {
+    let stop = StopFlag()
+    let map = SpanMap(clips: track.clips, sampleRate: session.sampleRate)
+    return try transcribeSpans(
+        map, session: session, package: package, model: model, language: language, engine: liveTranscribe, log: log,
+        stop: stop
+    ) {
+        if isCancelled() { stop.set() }
+    } progress: { fraction in
+        if isCancelled() { stop.set() }
+        progress(fraction)
+    }
+}
+
+/// The pieces of `map`, the engine part `engine` on them, and the file words of its result. Nil
+/// for a stop. `beforeRead` runs before the read of each piece.
+func transcribeSpans(
+    _ map: SpanMap, session: Session, package: URL, model: CheckedModel, language: WhisperLanguage,
+    engine: TranscribeEngine, log: DiagnosticLog, stop: StopFlag, beforeRead: @escaping () -> Void = {},
+    progress: @escaping (Double) -> Void
+) throws(TranscribeError) -> TranscribedWords? {
+    let reader = SpanReader(map: map, session: session, package: package)
+    let pieces = map.pieces { at, window in reader.cut(at: at, window: window) }
+    guard
+        let result = try engine(
+            model, language, pieces.count, log,
+            { n throws(TranscribeError) in
+                beforeRead()
+                return try reader.samples(pieces[n])
+            },
+            stop, progress)
+    else { return nil }
+    let mapped = map.fileWords(result.pieces, in: pieces)
+    return TranscribedWords(words: mapped.words, untimed: mapped.untimed, language: result.language)
 }
 
 /// The work of a job off the main actor (decision 0065 D5): the leftover sweep and the download
@@ -71,17 +115,12 @@ struct TranscribedWords: Sendable {
         guard !stopped() else { return .success(nil) }
         let package: URL
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
-        let reader = SpanReader(map: map, session: session, package: package)
-        let pieces = map.pieces { at, window in reader.cut(at: at, window: window) }
         do throws(TranscribeError) {
-            guard
-                let result = try environment.transcribe(
-                    checked, language, pieces.count, environment.log,
-                    { n throws(TranscribeError) in try reader.samples(pieces[n]) }, run.stop,
-                    { progress(.transcribe($0)) })
-            else { return .success(nil) }
-            let mapped = map.fileWords(result.pieces, in: pieces)
-            return .success(TranscribedWords(words: mapped.words, untimed: mapped.untimed, language: result.language))
+            return .success(
+                try transcribeSpans(
+                    map, session: session, package: package, model: checked, language: language,
+                    engine: environment.transcribe, log: environment.log, stop: run.stop
+                ) { progress(.transcribe($0)) })
         } catch {
             return .failure(.transcription(error))
         }
@@ -180,15 +219,20 @@ struct SpanReader {
             let buffer = AVAudioPCMBuffer(pcmFormat: audio.processingFormat, frameCapacity: AVAudioFrameCount(count))
         else { throw .audioRead(file: file.path, errno: EIO) }
         audio.framePosition = AVAudioFramePosition(start)
-        do { try audio.read(into: buffer, frameCount: AVAudioFrameCount(count)) } catch {
-            throw .audioRead(file: file.path, errno: EIO)
-        }
-        guard Int(buffer.frameLength) == count, let data = buffer.floatChannelData else {
-            throw .audioRead(file: file.path, errno: EIO)
-        }
         var mono = [Float](repeating: 0, count: count)
-        for channel in 0..<channels {
-            for index in 0..<count { mono[index] += data[channel][index] }
+        var done = 0
+        // A large read can give fewer frames than it asks for (4,319,232 of 4,320,000), so it reads
+        // again until it has `count`.
+        while done < count {
+            do { try audio.read(into: buffer, frameCount: AVAudioFrameCount(count - done)) } catch {
+                throw .audioRead(file: file.path, errno: EIO)
+            }
+            let got = Int(buffer.frameLength)
+            guard got > 0, let data = buffer.floatChannelData else { throw .audioRead(file: file.path, errno: EIO) }
+            for channel in 0..<channels {
+                for index in 0..<got { mono[done + index] += data[channel][index] }
+            }
+            done += got
         }
         if channels > 1 {
             let scale = 1 / Float(channels)

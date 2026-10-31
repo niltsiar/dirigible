@@ -61,4 +61,20 @@ struct WhisperWordsTests {
         ]
         #expect(WhisperWords.join(tokens) == [TimedWord(text: "\"Hola", start: 20, end: 40)])
     }
+
+    /// Gate 1 item 1. A control character or U+FFFF inside a word breaks the word, so each text
+    /// passes the session text rule. A greedy run can repeat such a token in each run of a track.
+    @Test func aControlCharacterInsideAWordBreaksTheWord() {
+        let tokens = [
+            WhisperToken(bytes: Array(" Hola\nqué".utf8), start: 10, end: 30, isSpecial: false),
+            WhisperToken(bytes: Array("\t".utf8), start: 30, end: 35, isSpecial: false),
+            WhisperToken(bytes: Array("tal".utf8), start: 35, end: 50, isSpecial: false),
+            WhisperToken(bytes: Array(" sí\u{FFFF}no".utf8), start: 60, end: 80, isSpecial: false),
+        ]
+        let words = WhisperWords.join(tokens)
+
+        #expect(words.map(\.text) == ["Hola", "qué", "tal", "sí", "no"])
+        #expect(words.allSatisfy { $0.text.unicodeScalars.allSatisfy(\.isStorableInSession) })
+        #expect(words.first { $0.text == "tal" } == TimedWord(text: "tal", start: 35, end: 50))
+    }
 }

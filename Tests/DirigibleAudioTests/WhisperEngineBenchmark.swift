@@ -9,7 +9,6 @@ import os
 /// C15, C16, and the NaN case run; the cases that take a minute or more skip with a printed reason,
 /// and no time bound asserts.
 struct WhisperEngineBenchmark {
-    static let slow = ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"
     static let english = """
         The morning train left the station at seven, carrying commuters who read newspapers and drank \
         coffee from paper cups. Outside the windows, fields of wheat moved gently in the wind, and a farmer \
@@ -97,7 +96,8 @@ struct WhisperEngineBenchmark {
 
     // MARK: Cases that run in the debug build
 
-    @Test(.enabled(if: slow)) func c15TheFirstWordStartsAtTheOnset() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func c15TheFirstWordStartsAtTheOnset() throws {
         let speech = try Self.say("Hello everyone, and welcome to the show.", voice: "Samantha", language: "en")
         let piece = [Float](repeating: 0, count: 16_000) + speech
         let onset = try #require(piece.firstIndex { abs($0) > 0.01 })
@@ -107,14 +107,16 @@ struct WhisperEngineBenchmark {
         #expect(words.words.allSatisfy { $0.start < $0.end })
     }
 
-    @Test(.enabled(if: slow)) func c16SilenceAndNoiseGiveNoWord() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func c16SilenceAndNoiseGiveNoWord() throws {
         let piece =
             [Float](repeating: 0, count: 60 * 16_000) + WhisperFixture.pinkNoise(seconds: 30, rms: -40, seed: 16)
         let words = try Self.words(Self.engine().transcribe(piece: piece, language: .code("en"), stop: StopFlag()))
         #expect(words.words.isEmpty, "\(words.words.map(\.text))")
     }
 
-    @Test(.enabled(if: slow)) func aPieceWithNaNSamplesTranscribes() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aPieceWithNaNSamplesTranscribes() throws {
         var piece = try Self.say("Hello everyone, and welcome to the show.", voice: "Samantha", language: "en")
         for n in stride(from: 0, to: piece.count, by: 997) { piece[n] = n % 2 == 0 ? .nan : .infinity }
         let words = try Self.words(
@@ -124,7 +126,8 @@ struct WhisperEngineBenchmark {
 
     // MARK: Cases of the optimized build
 
-    @Test(.enabled(if: slow)) func c13AutomaticDetectsSpanish() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func c13AutomaticDetectsSpanish() throws {
         if Self.skipInDebug("C13 takes about 60 s") { return }
         let piece = try Self.say(Self.spanish, voice: "Mónica", language: "es")
         #expect(
@@ -132,7 +135,8 @@ struct WhisperEngineBenchmark {
                 == "es")
     }
 
-    @Test(.enabled(if: slow)) func c14TheWordErrorRateIsAtMostFifteenPercent() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func c14TheWordErrorRateIsAtMostFifteenPercent() throws {
         if Self.skipInDebug("C14 takes about 54 s") { return }
         let engine = try Self.engine()
         for (text, voice, language, seven) in [
@@ -163,7 +167,9 @@ struct WhisperEngineBenchmark {
         return (samples, ends)
     }
 
-    @Test(.enabled(if: slow), arguments: [nil, -45.0, -35.0])
+    static let noises: [Double?] = [nil, -45, -35]
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"), arguments: Self.noises)
     func c24WordEndsAreWithinTheBound(noise: Double?) throws {
         if Self.skipInDebug("C24 takes about 84 s") { return }
         var (piece, ends) = try Self.c24Fixture()
@@ -188,7 +194,9 @@ struct WhisperEngineBenchmark {
     }
 
     /// C10: the time from the flag set to the return of `whisper_full` is at most 2 s.
-    @Test(.enabled(if: slow), arguments: [(600, true, 0.0), (600, false, 0.0), (180, true, 0.3)])
+    static let stops = [(600, true, 0.0), (600, false, 0.0), (180, true, 0.3)]
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"), arguments: Self.stops)
     func c10AStopReturnsWithinTwoSeconds(seconds: Int, vad: Bool, at fraction: Double) throws {
         if Self.skipInDebug("the C10 stop cases take 29 s to 141 s") { return }
         let speech = try Self.say(Self.spanish, voice: "Mónica", language: "es")

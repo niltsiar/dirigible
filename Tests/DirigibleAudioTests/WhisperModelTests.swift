@@ -11,7 +11,8 @@ struct WhisperModelTests {
         #expect(WhisperModel.base.checked(in: folder.url) == nil)
     }
 
-    @Test(.enabled(if: WhisperEngineTests.slow)) func aModelFileWithOneChangedByteGivesNoCheckedModel() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aModelFileWithOneChangedByteGivesNoCheckedModel() throws {
         let fixture = try WhisperFixture.model(.tinyQ51)
         let folder = try TemporaryFolder()
         let copy = folder.url.appending(path: WhisperModel.tinyQ51.fileName)

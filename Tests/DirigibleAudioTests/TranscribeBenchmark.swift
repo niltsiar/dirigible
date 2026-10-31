@@ -9,7 +9,8 @@ import Testing
 struct TranscribeBenchmark {
     static let budget = Duration.seconds(30 * 60)
 
-    @Test(.enabled(if: WhisperEngineBenchmark.slow)) func anHourOfSpanishTakesAtMostThirtyMinutes() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func anHourOfSpanishTakesAtMostThirtyMinutes() throws {
         #if DEBUG
             print("TranscribeBenchmark skip in the debug build: the decode of 1 h takes hours unoptimized")
         #else

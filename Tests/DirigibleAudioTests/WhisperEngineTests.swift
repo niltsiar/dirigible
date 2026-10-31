@@ -44,7 +44,6 @@ enum WhisperFixture {
 }
 
 struct WhisperEngineTests {
-    static let slow = ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"
 
     @Test func aNonZeroCodeWithTheStopFlagIsAStop() {
         for code: Int32 in [-6, -3, -8, -9] {
@@ -86,7 +85,8 @@ struct WhisperEngineTests {
     /// The push guard of the abort patch: with the flag set before `whisper_full`, the VAD stage
     /// stops at its first check. Without the patch, VAD runs over the whole piece first (about 10 s
     /// in the debug build for 120 s).
-    @Test(.enabled(if: slow)) func aStopFlagSetBeforeTheRunStopsWithinFiveSeconds() throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aStopFlagSetBeforeTheRunStopsWithinFiveSeconds() throws {
         let engine = try WhisperEngine(
             model: WhisperFixture.model(.tinyQ51), vad: WhisperFixture.vad, log: .disabled)
         let piece = WhisperFixture.pinkNoise(seconds: 120, rms: -40, seed: 120)

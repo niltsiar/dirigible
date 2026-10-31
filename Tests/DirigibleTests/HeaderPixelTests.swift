@@ -66,18 +66,21 @@ import Testing
             return (rows, Int(rect.minX * scale)..<Int(rect.maxX * scale))
         }
 
-        /// The BGRA pixels in `rect` (window points), as `TimelineRulerTests.pixels`. The rect must
-        /// be in the capture: a read outside it reads memory outside the image.
-        func pixels(_ rect: NSRect) throws -> [UInt32] {
+        /// The BGRA pixels in `rect` (window points) outside the `skip` rects, as
+        /// `TimelineRulerTests.pixels`. The rect must be in the capture: a read outside it reads
+        /// memory outside the image.
+        func pixels(_ rect: NSRect, skip: [NSRect] = []) throws -> [UInt32] {
             let bytes = try #require(CFDataGetBytePtr(data))
             let (rows, columns) = area(rect)
             try #require(
                 rows.clamped(to: 0..<image.height) == rows && columns.clamped(to: 0..<image.width) == columns,
                 "the rect \(rect) is in the capture of \(image.width) x \(image.height) pixels")
+            let cuts = skip.map(area)
             var pixels: [UInt32] = []
             pixels.reserveCapacity(rows.count * columns.count)
             for y in rows {
-                for x in columns {
+                let cutsOfRow = cuts.filter { $0.rows.contains(y) }
+                for x in columns where !cutsOfRow.contains(where: { $0.columns.contains(x) }) {
                     pixels.append(
                         UnsafeRawPointer(bytes + y * image.bytesPerRow + x * 4).loadUnaligned(as: UInt32.self))
                 }
@@ -182,10 +185,12 @@ import Testing
             let x = scene.view.headers.convert(NSPoint(x: width, y: 0), to: nil).x
             let rows = NSRect(x: 0, y: scene.lanes.minY, width: 1, height: scene.lanes.height)
                 .insetBy(dx: 0, dy: 4)
-            let inside = try capture.pixels(rows.offsetBy(dx: x - 1, dy: 0))
-            let beside = try capture.pixels(rows.offsetBy(dx: x, dy: 0))
+            // An overlay scroller knob covers the bottom rows of the lanes, as in the checks above.
+            let inside = try capture.pixels(rows.offsetBy(dx: x - 1, dy: 0), skip: skip)
+            let beside = try capture.pixels(rows.offsetBy(dx: x, dy: 0), skip: skip)
             #expect(
-                !inside.contains(where: Self.isLane) && beside.allSatisfy(Self.isLane),
+                !inside.isEmpty && !beside.isEmpty && !inside.contains(where: Self.isLane)
+                    && beside.allSatisfy(Self.isLane),
                 "the capture shows the width \(width) at \(step)")
         case .scroll, .page:
             let old = try #require(old)

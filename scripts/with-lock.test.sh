@@ -1096,12 +1096,23 @@ reset_builders
 # folder) it never reaches the exec of the command.
 ( : ) & rh_dead=$!
 wait "$rh_dead"
+# A dead group leader with a live member: kill -0 on the leader pid fails, kill -0 on -<leader> works.
+set -m
+( sleep 60 > /dev/null 2>&1 & echo $! > "$tmp/rh.member" ) &
+rh_leader=$!
+set +m
+wait "$rh_leader"
+rh_member="$(cat "$tmp/rh.member")"
 rh_state() { # <kind>: write the lock state of a case
   reset_builders
   case "$1" in
-    release | dead-release | ordinary | bench)
+    release | dead-release | dead-release-child | dead-release-group | ordinary | bench)
       mkdir -p "$lock"
-      if [[ $1 == dead-release ]]; then echo "$rh_dead" > "$lock/pid"; else echo "$$" > "$lock/pid"; fi
+      case "$1" in dead-release*) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
+      case "$1" in
+        dead-release-child) echo "$$" > "$lock/child" ;;
+        dead-release-group) echo "$rh_leader" > "$lock/child" ;;
+      esac
       case "$1" in
         ordinary) echo 'make build' > "$lock/command" ;;
         bench) echo 'scripts/bench.sh' > "$lock/command" ;;
@@ -1125,6 +1136,9 @@ rh_check() { # <state> <want exit> <want stdout> [VAR=value...]
 rh_cmd='make check-changed BASE=origin/main'
 rh_check release 0 "holder: $rh_cmd"
 rh_check dead-release 1 ''
+rh_check dead-release-child 0 "holder: $rh_cmd"
+rh_check dead-release-group 0 "holder: $rh_cmd"
+builtin kill "$rh_member" 2>/dev/null
 rh_check ordinary 1 ''
 rh_check bench 1 ''
 rh_check free 1 ''

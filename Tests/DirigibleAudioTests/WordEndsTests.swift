@@ -20,21 +20,26 @@ struct WordEndsTests {
         TimedWord(text: text, start: start, end: end)
     }
 
-    /// Checks the contract of the step on one input: each word has start < end. A word that took
-    /// the empty-interval clause ends at most at the next start, the piece end, and its start + 1 s,
-    /// or one tick after its start when that cap is not after it. Any other word ends at its token
-    /// end or at the start of a gap within 1 s of its token end.
+    /// Checks the contract of the step on one input: each word has start < end, and ends at or
+    /// before the start of the next word. A word that took the empty-interval clause ends at most
+    /// at the next start, the piece end, and its start + 1 s, or one tick after its start when that
+    /// cap is not after it. Any other word ends at its token end, at the start of a gap within 1 s
+    /// of its token end, or at the next start.
     static func checkContract(_ words: [TimedWord], samples: [Float], _ comment: Comment) {
         let placed = WordEnds.place(words, samples: samples)
         let levels = WordEnds.levels(of: samples)
         let gaps = WordEnds.gaps(in: levels, floor: WordEnds.floor(of: levels))
         #expect(placed.count == words.count, comment)
         for (k, (word, out)) in zip(words, placed).enumerated() {
+            let next = k + 1 < placed.count ? placed[k + 1].start : Int.max
             #expect(out.start < out.end, "\(comment): word \(k) \(word) gives \(out)")
+            #expect(out.end <= next, "\(comment): word \(k) \(word) gives \(out), next start \(next)")
             let gapEnd = gaps.contains { $0.lowerBound == out.end && WordEnds.distance(word.end, $0) <= 100 }
-            let cap = min(k + 1 < placed.count ? placed[k + 1].start : Int.max, levels.count, out.start + 100)
+            let cap = min(next, levels.count, out.start + 100)
             let clauseEnd = cap > out.start ? out.end <= cap : out.end == out.start + 1
-            #expect(out.end == word.end || gapEnd || clauseEnd, "\(comment): word \(k) \(word) gives \(out)")
+            #expect(
+                out.end == word.end || gapEnd || clauseEnd || out.end == next,
+                "\(comment): word \(k) \(word) gives \(out)")
         }
     }
 
@@ -76,6 +81,16 @@ struct WordEndsTests {
             }
             Self.checkContract(words, samples: Self.samples(bursts, ticks: tick + 20), "trial \(trial)")
         }
+    }
+
+    /// Gate 1 item 2. "Yes," takes the pause after "I", whose token end is before that pause, so
+    /// "I" keeps its token times. "Yes," then ends at the start of "I": a cut of "Yes," keeps "I".
+    @Test func aWordEndsAtOrBeforeTheNextStart() {
+        let samples = Self.samples([100..<170, 260..<330], ticks: 330)
+        let words = [Self.word("Yes,", 100, 150), Self.word("I", 152, 165), Self.word("go", 260, 330)]
+        #expect(WordEnds.alignment(of: words, to: [170..<260]) == [0, nil, nil])
+        let placed = WordEnds.place(words, samples: samples)
+        #expect(placed == [Self.word("Yes,", 100, 152), Self.word("I", 152, 165), Self.word("go", 260, 330)])
     }
 
     @Test func aLateTokenEndMovesToTheGapStart() {

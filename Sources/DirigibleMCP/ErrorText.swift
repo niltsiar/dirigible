@@ -259,6 +259,9 @@ extension StudioError {
         // No command reads through Studio; the read commands call `ReadWork.read`.
         case .readYielded: "a take stopped the read."
         case .readClosed: "the close of the window stopped the read."
+        case .transcription(let error): error.message
+        case .transcriptionYielded: "a take stopped the transcription."
+        case .transcriptionCancelled: "the transcription was cancelled."
         case .duckRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
         case .writerDidNotStop(let name):
             "\(name) did not stop in time. The audio is safe in \(package)/Capture; open the package in "
@@ -281,6 +284,19 @@ extension UnusedFilesError {
                 + " The scan cannot know the clips of that backup, so no file moves until that backup goes."
         case .save(let error): error.message(package: package) + " No file moved."
         case .changedDuringPrune: "an edit during the prune uses a listed file. No file moved."
+        }
+    }
+}
+
+extension TranscribeError {
+    var message: String {
+        switch self {
+        case .modelLoad: "whisper.cpp did not load the model."
+        case .engine(let code): "whisper.cpp failed with code \(code)."
+        case .modelDownload: "the model download failed."
+        case .modelChecksum: "the model file does not have the size and the SHA-256 of the catalog."
+        case .audioRead(let file, let code):
+            "\(file): \(audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)))"
         }
     }
 }

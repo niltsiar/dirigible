@@ -124,6 +124,26 @@ struct WhisperModelStoreTests {
         #expect(try model.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
     }
 
+    /// The progress of a download is the received bytes over the catalog byte count, after each
+    /// chunk.
+    @Test func aDownloadReportsTheReceivedBytes() async throws {
+        let source = try TemporaryFolder()
+        let bytes = source.url.appending(path: "zeros.bin")
+        try Data(count: 3 << 20).write(to: bytes)
+        let folder = try TemporaryFolder()
+        let store = WhisperModelStore(folder: folder.url, load: FileLoader([WhisperModel.tinyQ51.url: bytes]).load)
+        let fractions = OSAllocatedUnfairLock<[Double]>(initialState: [])
+
+        await #expect(throws: WhisperModelStoreError.checksumMismatch) {
+            try await store.download(
+                .tinyQ51, stop: { false }, progress: { fraction in fractions.withLock { $0.append(fraction) } })
+        }
+
+        let total = Double(WhisperModel.tinyQ51.byteCount)
+        let expected: [Double] = [1, 2, 3].map { Double($0 << 20) / total }
+        #expect(fractions.withLock { $0 } == expected)
+    }
+
     @Test func aCancelAtHalfLeavesNoFile() async throws {
         let source = try TemporaryFolder()
         let bytes = source.url.appending(path: "zeros.bin")

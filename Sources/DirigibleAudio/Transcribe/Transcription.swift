@@ -49,6 +49,12 @@ enum PieceOutcome: Hashable, Sendable {
 public enum TranscribeError: Error, Hashable, Sendable {
     /// `whisper_init` gave no context for a checked model file.
     case modelLoad
+    /// The model download or the model folder failed: the network, the server, or a file write.
+    case modelDownload
+    /// The model file does not have the byte count and the SHA-256 of the catalog.
+    case modelChecksum
+    /// An audio file of the track did not read: its pool path and the errno.
+    case audioRead(file: String, errno: Int32)
     /// `whisper_full` returned this non-zero code with the stop flag clear.
     case engine(code: Int32)
 }

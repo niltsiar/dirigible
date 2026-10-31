@@ -61,7 +61,7 @@ extension Studio {
         // The start turn: no `await` from the refusals to the join of `readRuns`, so the `exportEnd()`
         // of each later take start sees the job.
         let (map, snapshot, environment, lock, run) =
-            (SpanMap(clips: track.clips, sampleRate: session.sampleRate), session, environment, lock, ReadRun())
+            (SpanMap(clips: track.clips, session: session), session, environment, lock, ReadRun())
         readRuns.append(run)
         transcribing = TranscribeRun(run: run)
         let activity = ProcessInfo.processInfo.beginActivity(

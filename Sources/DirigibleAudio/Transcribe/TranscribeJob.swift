@@ -65,7 +65,7 @@ public func transcribeTrack(
     progress: @escaping (Double) -> Void = { _ in }
 ) throws(TranscribeError) -> TranscribedWords? {
     let stop = StopFlag()
-    let map = SpanMap(clips: track.clips, sampleRate: session.sampleRate)
+    let map = SpanMap(clips: track.clips, session: session)
     return try transcribeSpans(
         map, session: session, package: package, model: model, language: language, engine: liveTranscribe, log: log,
         stop: stop

@@ -24,7 +24,11 @@ struct TranscribeCommand: ParsableCommand {
     @OptionGroup var package: PackageArgument
     @Option(help: "The track whose clips to transcribe.") var track: String
     @Option(help: "auto, or a whisper language code, for example es.") var language = "auto"
-    @Option(help: "The model: base, or small-q5_1 (more accurate and slower).") var model = "base"
+    @Option(
+        help:
+            "The model: base, small-q5_1 (more accurate and slower), or large-v3-turbo-q5_0 (most accurate and slowest)."
+    )
+    var model = "base"
     @Option(help: "The transcript name. The default is the track name.") var name: String?
 
     func validate() throws { _ = try work() }

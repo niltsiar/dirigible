@@ -685,6 +685,7 @@
 "sheet.transcribe.model" = "Modell";
 "sheet.transcribe.standard" = "Standard - %@";
 "sheet.transcribe.accurate" = "Genauer - %@, langsamer";
+"sheet.transcribe.most.accurate" = "Am genauesten - %@, am langsamsten";
 "sheet.transcribe.start" = "Transkribieren";
 "sheet.transcribe.download" = "Laden und transkribieren";
 "sheet.transcribe.replace" = "Ersetzen";

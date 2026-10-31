@@ -34,7 +34,9 @@ private let language = Param.defaulted(
     "language", "auto, or a whisper language code, for example es. auto detects it from the first 30 s of speech.",
     .string, "auto")
 private let model = Param.defaulted(
-    "model", "The model name: base, or small-q5_1 (more accurate and slower).", .string, "base")
+    "model",
+    "The model name: base, small-q5_1 (more accurate and slower), or large-v3-turbo-q5_0 (most accurate and slowest).",
+    .string, "base")
 private let transcribeName = Param<String?>.optional(
     "name", "The transcript name. The default is the track name.", .string)
 

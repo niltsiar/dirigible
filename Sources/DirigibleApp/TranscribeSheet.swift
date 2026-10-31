@@ -65,13 +65,18 @@ struct TranscribeDraft: Equatable {
         switch model {
         case .base: .sheetTranscribeStandard
         case .smallQ51: .sheetTranscribeAccurate
+        case .largeV3TurboQ50: .sheetTranscribeMostAccurate
         case .tinyQ51: nil
         }
     }
 
-    /// "Standard - 148 MB" or "More Accurate - 190.1 MB, slower".
-    static func title(of model: WhisperModel) -> String {
-        title(key: model)?.format(size(of: model)) ?? model.rawValue
+    /// "Standard - 148 MB", "More Accurate - 190.1 MB, slower", or "Most Accurate - 574 MB, slowest".
+    /// `text` gives the table value of a key.
+    static func title(
+        of model: WhisperModel, locale: Locale = .current, text: (L10n) -> String = { $0.text }
+    ) -> String {
+        guard let key = title(key: model) else { return model.rawValue }
+        return String(format: text(key), locale: locale, size(of: model, locale: locale))
     }
 
     func remember(in defaults: UserDefaults?) {

@@ -53,7 +53,19 @@ struct TranscribeSheetTests {
         let english = Locale(identifier: "en_US")
         #expect(TranscribeDraft.size(of: .base, locale: english) == "148 MB")
         #expect(TranscribeDraft.size(of: .smallQ51, locale: english) == "190.1 MB")
-        #expect(TranscribeDraft.models == [.base, .smallQ51], "tiny is for tests")
+    }
+
+    /// C27, C-5: the pop-up offers the three user models in catalog order, each with its English title.
+    @Test func thePopUpOffersThreeModelsWithTheirTitles() throws {
+        let turbo = try #require(WhisperModel(rawValue: "large-v3-turbo-q5_0"))
+        #expect(TranscribeDraft.models == [.base, .smallQ51, turbo], "tiny is for tests")
+        let table = try stringsTable("en")
+        func title(_ model: WhisperModel) -> String {
+            TranscribeDraft.title(of: model, locale: Locale(identifier: "en_US")) { table[$0.rawValue] ?? "" }
+        }
+        #expect(title(.base) == "Standard - 148 MB")
+        #expect(title(.smallQ51) == "More Accurate - 190.1 MB, slower")
+        #expect(title(turbo) == "Most Accurate - 574 MB, slowest")
     }
 
     /// U21: the stored choice wins; else the app language when whisper supports it; else Automatic.

@@ -42,6 +42,12 @@ struct TranscribeCommandTests {
         let expected = "Error: no whisper model at \(models.appending(path: "ggml-base.bin").path)\n"
         #expect(result == CLIResult(status: 1, stdout: "", stderr: expected), "\(result)")
         #expect(!Self.transcripts(package), "a failed transcribe wrote a Transcripts folder")
+
+        let turbo = try await Self.transcribe(
+            package, models: models, "--track", "t1", "--model", "large-v3-turbo-q5_0")
+        let turboFile = models.appending(path: "ggml-large-v3-turbo-q5_0.bin").path
+        #expect(
+            turbo == CLIResult(status: 1, stdout: "", stderr: "Error: no whisper model at \(turboFile)\n"), "\(turbo)")
     }
 
     @Test func aBadLanguageExits64() async throws {

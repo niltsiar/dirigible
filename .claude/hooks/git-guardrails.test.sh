@@ -1317,10 +1317,20 @@ gc "$k" -m $'cut the rerun\n\nEval keys: E37' 2>"$tmp/err" || msg_fail "a cut wi
 
 # The second hook, agent-guard.sh, refuses an Agent call with worktree isolation: such a worktree does
 # not fit the run layout, and its creation can set the hooks path of the shared git config. It also
-# refuses a brief of Agent, SendMessage, or delegate_task with a wrong commit message path.
+# refuses a brief of Agent, SendMessage, or delegate_task with a wrong commit message path, and a
+# brief with a lock step while a release call holds the build lock.
 agent_hook="$(dirname "$0")/agent-guard.sh"
+# The hooks pass and the push check run this file as a release call, so a case of the real repo
+# must name no lock step: the real --release-holder would see that holder. The pattern is that of
+# agent-guard.sh, built from its three lists.
+guard_list() { sed -n "s/^$1='\(.*\)'\$/\1/p" "$(dirname "$0")/agent-guard.sh"; }
+real_lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make +([A-Z_]+=[^ ]* +)*($(guard_list lock_targets))([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($(guard_list lock_scripts))\.sh|(^|[^A-Za-z0-9_-])swift +($(guard_list lock_swift))([^A-Za-z0-9_-]|\$)"
+no_lock_step() { # <text>
+  ! grep -qE "$real_lock_re" <<< "$1" || { echo "FAIL: agent-guard: a real-repo brief case names a lock word: $1"; failures=$((failures + 1)); }
+}
 expect_agent() {
   local want="$1" json="$2" got
+  no_lock_step "$json"
   printf '%s' "$json" | "$agent_hook" 2>"$tmp/agent-err"
   [[ $? -eq 2 ]] && got=block || got=allow
   [[ "$got" == "$want" ]] || { echo "FAIL: agent-guard: expected $want, got $got: $json"; failures=$((failures + 1)); }
@@ -1343,6 +1353,7 @@ sys.exit(0 if ok else 1)
 # expect_brief <want> <tool name, or - for none> <field> <text> [isolation]
 expect_brief() {
   local want="$1" got
+  no_lock_step "$4"
   plutil -create xml1 "$input"
   [[ "$2" == - ]] || plutil -insert tool_name -string "$2" "$input"
   plutil -insert tool_input -dictionary "$input"
@@ -1395,6 +1406,138 @@ for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scra
 done
 expect_brief allow SendMessage message 'git commit -F .scratchpads/commit-msg.txt, then hand back.'
 expect_brief allow mcp__t3-code__delegate_task task 'Fix the tests and commit.' worktree
+
+# Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)
+# While a release call holds the build lock or waits first for it, agent-guard.sh refuses a brief
+# that names a lock step, unless a line of the brief says Build lock: none. The cases run a copy of
+# the hook in a temp repo: the hooks pass and the push check run this file as a release call, so the
+# real lock has a release holder then.
+lock_dir_src="$(cd "$(dirname "$0")" && pwd)"
+lock_repo="$tmp/lock-repo" lock_dir="$tmp/lock-repo/.git/dirigible-build.lock" lock_first="$tmp/lock-repo/.git/dirigible-build-first"
+mkdir -p "$lock_repo/.claude/hooks" "$lock_repo/scripts"
+git -C "$lock_repo" init -q
+cp "$lock_dir_src/agent-guard.sh" "$lock_dir_src/commit-files.awk" "$lock_repo/.claude/hooks/"
+cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_repo/scripts/"
+( : ) & lock_dead=$!
+wait "$lock_dead"
+# lock_state <release|dead-release|ordinary|bench|ticket|dead-ticket|free>: the live pid is that of
+# this shell; the dead pid is that of an ended subshell.
+lock_state() {
+  rm -rf "$lock_dir" "$lock_first"
+  case "$1" in
+    release | dead-release | ordinary | bench)
+      mkdir -p "$lock_dir"
+      if [[ "$1" == dead-release ]]; then echo "$lock_dead" > "$lock_dir/pid"; else echo "$$" > "$lock_dir/pid"; fi
+      case "$1" in
+        ordinary) echo 'make build' > "$lock_dir/command" ;;
+        bench) echo 'scripts/bench.sh' > "$lock_dir/command" ;;
+        *) : > "$lock_dir/release"; echo 'make check-changed BASE=origin/main' > "$lock_dir/command" ;;
+      esac ;;
+    ticket) mkdir -p "$lock_first/$$" ;;
+    dead-ticket) mkdir -p "$lock_first/$lock_dead" ;;
+  esac
+}
+# expect_lock_brief <want> <lock state> <tool name> <field> <text>
+expect_lock_brief() {
+  local want="$1" got
+  lock_state "$2"
+  plutil -create xml1 "$input"
+  plutil -insert tool_name -string "$3" "$input"
+  plutil -insert tool_input -dictionary "$input"
+  plutil -insert "tool_input.$4" -string "$5" "$input"
+  plutil -convert json "$input"
+  env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE "$lock_repo/.claude/hooks/agent-guard.sh" < "$input" 2>"$tmp/agent-err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == "$want" ]] || { echo "FAIL: agent-guard lock step, $2: expected $want, got $got: $3 $4: ${5//$'\n'/\\n}"; failures=$((failures + 1)); }
+}
+lock_step='Run `scripts/with-lock.sh make test-filter FILTER=X` for the slice.'
+lock_blocks=("$lock_step"
+  'Run each build and test as `scripts/with-lock.sh <command>`.' 'Builds go through `scripts/with-lock.sh` only.'
+  'Then run make test-hooks HOOK_TESTS=scripts/x.test.sh.' 'Run `make check-changed FILTER=ATests`.'
+  "Say Build lock: none here. $lock_step" 'No build. Never call scripts/with-lock.sh.'
+  'Then run make app and open the bundle.' 'Run `make test-slow` for the slice.' 'Run make test-asan, then make test-tsan.'
+  'Run make check-warnings before the commit.' 'Run scripts/bench-pairs.sh for the pairs.'
+  'Run scripts/swift-test.sh and scripts/sanitize.sh.' 'Run BASE=origin/main make check-changed.'
+  'Run `swift build` in the tree, then `swift test --filter X`.' 'Start it with swift run dirigible --help.'
+  'No swift build here. Read the files.'
+  "$lock_step"$'\n`Build lock: none`' "$lock_step"$'\n-Build lock: none')
+lock_allows=($'Run `swift build`.\nBuild lock: none'
+  'Read the swift tests folder and the swift testing notes.' 'Run swift format lint on the file.'
+  'Use a swift build-free route (swift run-free reading).'
+  "$lock_step"$'\n- Build lock: none' "$lock_step"$'\n* Build lock: none' "$lock_step"$'\n  Build lock: none'
+  "$lock_step"$'\n> Build lock: none' "$lock_step"$'\n  - Build lock: none, because the agent only reads.'
+  "$lock_step"$'\nBuild lock: none' $'Build lock: none.\nNever call scripts/with-lock.sh.'
+  'Run make lint and make format.' 'Read scripts/bench-pairs.test.sh and the makefile text.'
+  'Read plan.md and review it.' 'Run `scripts/with-lock.sh --builders` to list the trees.'
+  'Run `scripts/with-lock.sh --release-holder` first.' 'Run make check-docs and make lint.' 'Run make check-fast.'
+  'Read the Makefile target make-check-docs.' 'The tests build a remake test fixture.')
+# A live release holder and a live release ticket with a free lock refuse a lock-step brief.
+for state in release ticket; do
+  for text in "${lock_blocks[@]}"; do expect_lock_brief block "$state" Agent prompt "$text"; done
+  expect_lock_brief block "$state" SendMessage message "$lock_step"
+  expect_lock_brief block "$state" mcp__t3-code__delegate_task task "$lock_step"
+  for text in "${lock_allows[@]}"; do expect_lock_brief allow "$state" Agent prompt "$text"; done
+done
+# No release holder and no live ticket: the brief keeps its verdict. A bench holder has no marker.
+for state in dead-release ordinary bench dead-ticket free; do
+  expect_lock_brief allow "$state" Agent prompt "$lock_step"
+  expect_lock_brief allow "$state" SendMessage message "$lock_step"
+done
+expect_lock_brief block release Agent prompt "$lock_step"
+grep -qF 'Build lock: none' "$tmp/agent-err" && grep -qF 'scripts/with-lock.sh --builders' "$tmp/agent-err" && grep -qF 'check-changed BASE=origin/main' "$tmp/agent-err" ||
+  { echo "FAIL: the lock-step message does not name the pass line, --builders, and the holder: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+expect_lock_brief allow dead-ticket Agent prompt "$lock_step"
+[[ ! -e "$lock_first/$lock_dead" ]] || { echo 'FAIL: agent-guard: the ticket of a dead pid stays'; failures=$((failures + 1)); }
+# The commit message rule keeps its verdicts with a free lock and with a release holder.
+for state in free release; do
+  expect_lock_brief block "$state" Agent prompt 'Commit with git commit -F msg.txt at the end.'
+  expect_lock_brief allow "$state" Agent prompt 'Commit with git commit -F .scratchpads/commit-msg.txt at the end.'
+done
+# A query that exits other than 0 or 1 (a failing or a missing with-lock.sh) lets the brief pass.
+for stub in 'exit 2' 'exit 127'; do
+  printf '#!/bin/bash\n%s\n' "$stub" > "$lock_repo/scripts/with-lock.sh"
+  expect_lock_brief allow release Agent prompt "$lock_step"
+done
+rm -f "$lock_repo/scripts/with-lock.sh"
+expect_lock_brief allow release Agent prompt "$lock_step"
+cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_repo/scripts/"
+# The lists of the hook equal their sources: lock_targets the Makefile .PHONY line minus the four
+# make targets that take no lock, and lock_scripts the scripts that AGENTS.md says take the lock
+# themselves. A new make target is then a lock step the day it exists. An empty source fails.
+# lock_lists_equal <Makefile> <AGENTS.md> <agent-guard.sh>
+lock_lists_equal() {
+  local want_t have_t want_s have_s
+  want_t="$(sed -n 's/^\.PHONY: //p' "$1" | tr ' ' '\n' | grep -vxE 'check-docs|check-fast|lint|format' | sort)"
+  have_t="$(sed -n "s/^lock_targets='\(.*\)'\$/\1/p" "$3" | tr '|' '\n' | sort)"
+  want_s="$(python3 -I -c '
+import re, sys
+m = re.search(r"((?:`scripts/[\w-]+\.sh`(?:,? and |, )?)+) take the lock themselves", open(sys.argv[1], encoding="utf-8").read())
+print("\n".join(sorted(re.findall(r"scripts/([\w-]+)\.sh", m.group(1)))) if m else "")
+' "$2")"
+  have_s="$(sed -n "s/^lock_scripts='\(.*\)'\$/\1/p" "$3" | tr '|' '\n' | sort)"
+  [[ -n "$want_t" && "$want_t" == "$have_t" && -n "$want_s" && "$want_s" == "$have_s" ]]
+}
+# expect_lock_lists <equal|differ> <name> <Makefile> <AGENTS.md> <agent-guard.sh>
+expect_lock_lists() {
+  local got
+  lock_lists_equal "$3" "$4" "$5" && got=equal || got=differ
+  [[ "$got" == "$1" ]] || { echo "FAIL: agent-guard lock lists, $2: expected $1, got $got"; failures=$((failures + 1)); }
+}
+lock_real="$lock_dir_src/../.." lock_mut="$tmp/lock-mut"
+mkdir -p "$lock_mut"
+expect_lock_lists equal 'the real files' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
+sed 's/^\(\.PHONY: .*\)$/\1 newtarget/' "$lock_real/Makefile" > "$lock_mut/Makefile.new-target"
+expect_lock_lists differ 'the Makefile gains a target' "$lock_mut/Makefile.new-target" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
+sed 's/^\(\.PHONY: .*\) static /\1 /' "$lock_real/Makefile" > "$lock_mut/Makefile.no-static"
+expect_lock_lists differ 'the Makefile loses static' "$lock_mut/Makefile.no-static" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
+sed 's/|dmg|/|/' "$lock_dir_src/agent-guard.sh" > "$lock_mut/hook.no-dmg"
+expect_lock_lists differ 'the hook list loses dmg' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-dmg"
+sed 's/`scripts\/sanitize.sh` take the lock/`scripts\/other.sh` take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.new-script"
+expect_lock_lists differ 'AGENTS.md names another script' "$lock_real/Makefile" "$lock_mut/AGENTS.new-script" "$lock_dir_src/agent-guard.sh"
+sed 's/take the lock themselves/take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.no-sentence"
+expect_lock_lists differ 'the AGENTS.md sentence is gone' "$lock_real/Makefile" "$lock_mut/AGENTS.no-sentence" "$lock_dir_src/agent-guard.sh"
+sed 's/^\.PHONY: .*$//' "$lock_real/Makefile" > "$lock_mut/Makefile.no-phony"
+expect_lock_lists differ 'the Makefile has no .PHONY line' "$lock_mut/Makefile.no-phony" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
 
 # The third hook, usage-hook.sh, gives the usage mode as context at an agent start. It denies nothing
 # and always exits 0. The fixture clock and limits file give each mode.

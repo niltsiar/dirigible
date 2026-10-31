@@ -322,6 +322,29 @@ import os
             await studio.settle()
         }
 
+        /// Follow-up 5 of gate 1. The full heal path: a file of the catalog name with bad bytes, a
+        /// download of the good model, stored words, and a model file that then passes its check.
+        @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+        func aBadModelFileHealsAndTheJobStoresWords() async throws {
+            let good = try WhisperFixture.model(.base)
+            let fixture = try await ExportStudioFixture.make()
+            let studio = try await Self.open(
+                fixture.package, model: false, load: FileLoader([WhisperModel.base.url: good.url]).load)
+            studio.environment.checkModel = { $0.checked(in: $1) }
+            let folder = studio.environment.modelStore.folder
+            let file = folder.appending(path: WhisperModel.base.fileName)
+            try Data(count: 1 << 20).write(to: file)
+            try #require(WhisperModel.base.checked(at: file) == nil, "the bad file fails its check")
+
+            let report = try await Self.job(studio).value.get()
+
+            #expect(report.kept == 3)
+            #expect(studio.session.words(on: ["t1"]).map(\.text) == ["uno", "dos", "tres"])
+            #expect(WhisperModel.base.checked(at: file) != nil, "the model file now passes its check")
+            #expect(try fileNames(folder) == [WhisperModel.base.fileName])
+            await studio.settle()
+        }
+
         /// Fix check 1.3, decision 0065 D2 and D5. A job start removes the `*.download` leftover of a
         /// crash, also when the chosen model passes its check and no download starts.
         @Test func aJobStartRemovesADownloadLeftoverWhenTheModelPasses() async throws {

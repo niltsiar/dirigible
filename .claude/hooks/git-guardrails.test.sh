@@ -1431,14 +1431,25 @@ cp "$lock_dir_src/agent-guard.sh" "$lock_dir_src/commit-files.awk" "$lock_repo/.
 cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_repo/scripts/"
 ( : ) & lock_dead=$!
 wait "$lock_dead"
-# lock_state <release|dead-release|ordinary|bench|ticket|dead-ticket|free>: the live pid is that of
-# this shell; the dead pid is that of an ended subshell.
+# A dead group leader with a live member: kill -0 on the leader pid fails, kill -0 on -<leader> works.
+set -m
+( sleep 60 > /dev/null 2>&1 & echo $! > "$tmp/lock-member" ) &
+lock_leader=$!
+set +m
+wait "$lock_leader"
+lock_member="$(cat "$tmp/lock-member")"
+# lock_state <release|dead-release|dead-release-child|dead-release-group|ordinary|bench|ticket|dead-ticket|free>:
+# the live pid is that of this shell; the dead pid is that of an ended subshell.
 lock_state() {
   rm -rf "$lock_dir" "$lock_first"
   case "$1" in
-    release | dead-release | ordinary | bench)
+    release | dead-release | dead-release-child | dead-release-group | ordinary | bench)
       mkdir -p "$lock_dir"
-      if [[ "$1" == dead-release ]]; then echo "$lock_dead" > "$lock_dir/pid"; else echo "$$" > "$lock_dir/pid"; fi
+      case "$1" in dead-release*) echo "$lock_dead" > "$lock_dir/pid" ;; *) echo "$$" > "$lock_dir/pid" ;; esac
+      case "$1" in
+        dead-release-child) echo "$$" > "$lock_dir/child" ;;
+        dead-release-group) echo "$lock_leader" > "$lock_dir/child" ;;
+      esac
       case "$1" in
         ordinary) echo 'make build' > "$lock_dir/command" ;;
         bench) echo 'scripts/bench.sh' > "$lock_dir/command" ;;
@@ -1499,6 +1510,11 @@ for state in dead-release ordinary bench dead-ticket free; do
   expect_lock_brief allow "$state" Agent prompt "$lock_step"
   expect_lock_brief allow "$state" SendMessage message "$lock_step"
 done
+# A holder pid that is dead, with a live child or a live child group, still holds the lock.
+for state in dead-release-child dead-release-group; do
+  expect_lock_brief block "$state" Agent prompt "$lock_step"
+done
+builtin kill "$lock_member" 2>/dev/null
 expect_lock_brief block release Agent prompt "$lock_step"
 grep -qF 'Build lock: none' "$tmp/agent-err" && grep -qF 'scripts/with-lock.sh --builders' "$tmp/agent-err" && grep -qF 'check-changed BASE=origin/main' "$tmp/agent-err" ||
   { echo "FAIL: the lock-step message does not name the pass line, --builders, and the holder: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }

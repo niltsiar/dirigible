@@ -1422,8 +1422,7 @@ expect_brief allow mcp__t3-code__delegate_task task 'Fix the tests and commit.' 
 # Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)
 # While a release call holds the build lock or waits first for it, agent-guard.sh refuses a brief
 # that names a lock step, unless a line of the brief says Build lock: none. The cases run a copy of
-# the hook in a temp repo: the hooks pass and the push check run this file as a release call, so the
-# real lock has a release holder then.
+# the hook in a temp repo, so the real lock state does not change them.
 lock_dir_src="$(cd "$(dirname "$0")" && pwd)"
 lock_repo="$tmp/lock-repo" lock_dir="$tmp/lock-repo/.git/dirigible-build.lock" lock_first="$tmp/lock-repo/.git/dirigible-build-first"
 mkdir -p "$lock_repo/.claude/hooks" "$lock_repo/scripts"

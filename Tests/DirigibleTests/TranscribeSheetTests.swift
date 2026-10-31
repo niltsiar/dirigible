@@ -68,6 +68,14 @@ struct TranscribeSheetTests {
         #expect(title(turbo) == "Most Accurate - 574 MB, slowest")
     }
 
+    /// Lead ruling C27: a sheet that opens with Spanish starts at More Accurate (small-q5_1), and a
+    /// sheet with another language starts at Standard (base).
+    @Test(arguments: [(WhisperLanguage.code("es"), WhisperModel.smallQ51), (.code("en"), .base), (.automatic, .base)])
+    func theFirstModelFollowsTheLanguage(language: WhisperLanguage, model: WhisperModel) throws {
+        let draft = try #require(TranscribeDraft(tracks: [Self.host], selected: nil, onDisk: [], language: language))
+        #expect(draft.model == model)
+    }
+
     /// U21: the stored choice wins; else the app language when whisper supports it; else Automatic.
     @Test func theFirstLanguageFollowsTheRule() {
         let supported = ["en", "es", "pt"]

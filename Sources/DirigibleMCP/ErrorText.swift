@@ -297,6 +297,8 @@ extension TranscribeError {
         case .modelChecksum: "the model file does not have the size and the SHA-256 of the catalog."
         case .audioRead(let file, let code):
             "\(file): \(audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)))"
+        case .vadModelMissing(let tried):
+            "the VAD model is not at \(tried.joined(separator: ", ")). Transcription needs it to skip silence."
         }
     }
 }

@@ -55,6 +55,8 @@ public enum TranscribeError: Error, Hashable, Sendable {
     case modelChecksum
     /// An audio file of the track did not read: its pool path and the errno.
     case audioRead(file: String, errno: Int32)
+    /// No VAD model file is at these paths.
+    case vadModelMissing(tried: [String])
     /// `whisper_full` returned this non-zero code with the stop flag clear.
     case engine(code: Int32)
 }

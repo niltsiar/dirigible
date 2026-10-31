@@ -27,14 +27,25 @@ struct WhisperEngineBenchmark {
     ]
 
     /// 16 kHz mono speech of `say`. A missing voice fails with `no say voice for <language>`.
+    /// `say` starts through `posix_spawn`: `Process` gives each argument in NFD, and `say` reads an NFD
+    /// voice name ("Mónica") as an unknown voice and speaks with the default voice, with exit 0.
     static func say(_ text: String, voice: String, language: String) throws -> [Float] {
         let voices = try run("/usr/bin/say", ["-v", "?"])
         try #require(
             voices.split(separator: "\n").contains { $0.hasPrefix(voice + " ") }, "no say voice for \(language)")
         let folder = try TemporaryFolder()
         let file = folder.url.appending(path: "say.wav")
-        _ = try run(
-            "/usr/bin/say", ["-v", voice, "--file-format=WAVE", "--data-format=LEF32@16000", "-o", file.path, text])
+        let arguments: [String] = [
+            "/usr/bin/say", "-v", voice, "--file-format=WAVE", "--data-format=LEF32@16000", "-o", file.path, text,
+        ]
+        let argv: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) }
+        defer { for pointer in argv { free(pointer) } }
+        var pid = pid_t()
+        let spawn = posix_spawn(&pid, "/usr/bin/say", nil, nil, argv + [nil], environ)
+        try #require(spawn == 0, "posix_spawn say: \(spawn)")
+        var status: Int32 = 0
+        try #require(waitpid(pid, &status, 0) == pid)
+        try #require(status == 0, "say wait status \(status)")
         let audio = try readAudio(file)
         try #require(audio.rate == 16_000)
         return audio.samples
@@ -95,6 +106,22 @@ struct WhisperEngineBenchmark {
     }
 
     // MARK: Cases that run in the debug build
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func sayReadsWithTheVoiceOfANameWithAnAccent() throws {
+        let phrase = "Hola, buenas tardes."
+        let folder = try TemporaryFolder()
+        let file = folder.url.appending(path: "reference.wav")
+        // The octal escapes give say the NFC bytes of "Mónica" with no argument conversion of Process.
+        let script = """
+            /usr/bin/say -v "$(printf 'M\\303\\263nica')" --file-format=WAVE --data-format=LEF32@16000 -o "$0" "$1"
+            """
+        _ = try Self.run("/bin/sh", ["-c", script, file.path, phrase])
+        let reference = try readAudio(file).samples
+        let samples = try Self.say(phrase, voice: "Mónica", language: "es")
+        let same = samples.count == reference.count && zip(samples, reference).allSatisfy { abs($0 - $1) <= 1e-6 }
+        #expect(same, "\(samples.count) samples of the helper, \(reference.count) of Mónica")
+    }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func c15TheFirstWordStartsAtTheOnset() throws {

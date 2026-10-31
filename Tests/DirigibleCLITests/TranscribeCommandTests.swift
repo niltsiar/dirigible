@@ -20,13 +20,14 @@ struct TranscribeCommandTests {
     }
 
     /// Runs `dirigible transcribe PKG <arguments>` with `models` as the model folder. Each argument
-    /// is one shell word with no quote.
-    static func transcribe(_ package: TemporaryPackage, models: URL, _ arguments: String...) async throws
-        -> CLIResult
-    {
+    /// is one shell word with no quote. A case that runs the engine gives `limit` of 120 s: the debug
+    /// engine took 18 s of the 30 s default at load 3.
+    static func transcribe(
+        _ package: TemporaryPackage, models: URL, limit: Duration = .seconds(30), _ arguments: String...
+    ) async throws -> CLIResult {
         try await dirigible(
             shell: "DIRIGIBLE_MODELS_FOLDER=\"$1\" exec \"$0\" transcribe \"$2\" " + arguments.joined(separator: " "),
-            dirigibleBinary.path, models.path, package.path)
+            dirigibleBinary.path, models.path, package.path, limit: limit)
     }
 
     static func transcripts(_ package: TemporaryPackage) -> Bool {
@@ -153,12 +154,13 @@ struct TranscribeCommandTests {
         return noise.map(Float.init)
     }
 
-    /// The test model `tiny-q5_1` keeps the run of the debug engine under the 30 s limit of a child.
+    /// The test model `tiny-q5_1` keeps the run of the debug engine under the 120 s limit of a child.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aSpeechTrackGivesItsWords() async throws {
         let package = try Self.package(samples: try Self.speech("The morning train left the station at seven."))
         let result = try await Self.transcribe(
-            package, models: Self.fetched, "--track", "t1", "--language", "en", "--model", "tiny-q5_1")
+            package, models: Self.fetched, limit: .seconds(120),
+            "--track", "t1", "--language", "en", "--model", "tiny-q5_1")
         #expect(result.status == 0 && result.stderr.isEmpty, "\(result)")
         #expect(result.stdout.wholeMatch(of: #/1\nImported [1-9][0-9]* words?\.\n/#) != nil, "\(result)")
         let words = try package.read().words().map(\.text).joined(separator: " ").lowercased()
@@ -178,7 +180,7 @@ struct TranscribeCommandTests {
             try FileManager.default.attributesOfItem(atPath: package.sessionXML.path)[.modificationDate] as? Date
         }
         let dateBefore = try date()
-        let result = try await Self.transcribe(package, models: Self.fetched, "--track", "t1")
+        let result = try await Self.transcribe(package, models: Self.fetched, limit: .seconds(120), "--track", "t1")
         #expect(result == CLIResult(status: 0, stdout: "Imported 0 words.\n", stderr: ""), "\(result)")
         #expect(try package.xml() == before, "session.xml bytes changed")
         #expect(try date() == dateBefore, "session.xml was written again")

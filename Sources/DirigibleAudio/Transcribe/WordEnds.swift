@@ -20,11 +20,11 @@ enum WordEnds {
     /// token interval) ends at the first quiet frame after its start, capped at the next word start,
     /// at its start + 1.0 s, and at the piece end, or one tick after its start when that cap is not
     /// after it.
-    static func place(_ words: [TimedWord], samples: [Float], band: Int? = bandTicks) -> [TimedWord] {
+    static func place(_ words: [TimedWord], samples: [Float]) -> [TimedWord] {
         let levels = levels(of: samples)
         let floor = floor(of: levels)
         let gaps = gaps(in: levels, floor: floor)
-        let taken = alignment(of: words, to: gaps, band: band)
+        let taken = alignment(of: words, to: gaps)
         var placed: [TimedWord] = []
         var previousGap: Int?
         for (word, gap) in zip(words, taken) {
@@ -94,9 +94,9 @@ enum WordEnds {
     /// The gap index that each word takes, or nil: dynamic programming over the words and the gaps,
     /// both in time order, each gap to at most one word. A word that takes a gap costs the distance
     /// from its token end to the gap; a word with no gap costs 0.3 s, or 1.0 s when its text ends in
-    /// punctuation (whisper.cpp writes one at a pause it hears). With a band, a gap farther than the
-    /// band from the token end is not allowed.
-    static func alignment(of words: [TimedWord], to gaps: [Range<Int>], band: Int? = bandTicks) -> [Int?] {
+    /// punctuation (whisper.cpp writes one at a pause it hears). A gap farther than 1.0 s from the token
+    /// end is not allowed.
+    static func alignment(of words: [TimedWord], to gaps: [Range<Int>]) -> [Int?] {
         enum Step { case miss, gap, carry }
         let n = words.count
         let m = gaps.count
@@ -113,7 +113,7 @@ enum WordEnds {
                 back[cell] = .miss
                 guard j >= 1 else { continue }
                 let d = distance(word.end, gaps[j - 1])
-                if band.map({ d <= $0 }) ?? true, best[cell - width - 1] + d < best[cell] {
+                if d <= bandTicks, best[cell - width - 1] + d < best[cell] {
                     best[cell] = best[cell - width - 1] + d
                     back[cell] = .gap
                 }

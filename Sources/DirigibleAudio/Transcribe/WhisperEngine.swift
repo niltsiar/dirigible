@@ -22,16 +22,14 @@ func whisperOutcome(code: Int32, stopFlagSet: Bool) -> WhisperRunOutcome {
 final class WhisperEngine {
     private let context: OpaquePointer
     private let vadPath: String?
-    private let threads: Int32
 
-    init(model: CheckedModel, vad: URL?, log: DiagnosticLog, threads: Int32 = 4) throws(TranscribeError) {
+    init(model: CheckedModel, vad: URL?, log: DiagnosticLog) throws(TranscribeError) {
         WhisperLog.shared.route(to: log)
         var params = whisper_context_default_params()
         params.use_gpu = false
         guard let context = whisper_init_from_file_with_params(model.url.path, params) else { throw .modelLoad }
         self.context = context
         vadPath = vad?.path
-        self.threads = threads
     }
 
     deinit { whisper_free(context) }
@@ -70,7 +68,7 @@ final class WhisperEngine {
     {
         let samples = piece.map { $0.isFinite ? $0 : 0 }
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
-        params.n_threads = threads
+        params.n_threads = 4
         params.print_progress = false
         params.print_realtime = false
         params.print_timestamps = false

@@ -100,9 +100,9 @@ func transcribeSpans(
     return TranscribedWords(words: mapped.words, untimed: mapped.untimed, language: result.language)
 }
 
-/// The work of a job off the main actor (decision 0065 D5): the model check, and when it fails,
-/// the leftover sweep, the removal of a catalog file that fails the check, and the download, with
-/// the stop check of `run`; then a read of the flags and the engine. The model check and the engine
+/// The work of a job off the main actor (decision 0065 D5): the leftover sweep, the model check, and
+/// when it fails, the removal of a catalog file that fails the check and the download, with the
+/// stop check of `run`; then a read of the flags and the engine. The model check and the engine
 /// run on a `.userInitiated` GCD thread. Nil for a stop.
 @concurrent nonisolated func transcribeWork(
     _ map: SpanMap, session: Session, lock: PackageLock, language: WhisperLanguage, model: WhisperModel,
@@ -112,17 +112,18 @@ func transcribeSpans(
     let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
     let file = store.folder.appending(path: model.fileName)
     let check = { await onJobThread { environment.checkModel(model, store.folder) } }
-    var checked = FileManager.default.fileExists(atPath: file.path) ? await check() : nil
-    if checked == nil {
-        do {
-            try store.removeLeftovers()
+    var checked: CheckedModel?
+    do {
+        try store.removeLeftovers()
+        if FileManager.default.fileExists(atPath: file.path) { checked = await check() }
+        if checked == nil {
             if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
             try await store.download(model, stop: stopped) { progress(.download($0)) }
-        } catch {
-            if stopped() { return .success(nil) }
-            return .failure(.transcription(modelError(error, folder: store.folder)))
+            checked = await check()
         }
-        checked = await check()
+    } catch {
+        if stopped() { return .success(nil) }
+        return .failure(.transcription(modelError(error, folder: store.folder)))
     }
     guard let checked else { return .failure(.transcription(.modelChecksum)) }
     return await onJobThread { () -> Result<TranscribedWords?, StudioError> in

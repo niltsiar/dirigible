@@ -322,6 +322,20 @@ import os
             await studio.settle()
         }
 
+        /// Fix check 1.3, decision 0065 D2 and D5. A job start removes the `*.download` leftover of a
+        /// crash, also when the chosen model passes its check and no download starts.
+        @Test func aJobStartRemovesADownloadLeftoverWhenTheModelPasses() async throws {
+            let fixture = try await ExportStudioFixture.make()
+            let studio = try await Self.open(fixture.package)
+            let folder = studio.environment.modelStore.folder
+            try Data(count: 1 << 16).write(to: folder.appending(path: "ggml-small-q5_1.bin.download"))
+
+            _ = try await Self.job(studio).value.get()
+
+            #expect(try fileNames(folder) == [WhisperModel.base.fileName])
+            await studio.settle()
+        }
+
         /// Gate 1 item 3. A model folder that takes no file gives the folder and the errno, not the
         /// network text.
         @Test func aModelFolderThatTakesNoFileNamesTheFolder() async throws {

@@ -11,6 +11,7 @@
 #   AppleScript rule: expect_each_form <want> <line>...
 #   guarded file: expect_each_write <path> (block forms) and expect_each_read <path> (allow forms)
 #   command guard (a command in a shell context): expect_each_context <want> <command>
+#   commit message file (an option value): expect_each_value <want> <path> <command with @V@>
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -51,6 +52,25 @@ expect_agent() {
   [[ "$got" == "$want" ]] || { echo "FAIL: subagent expected $want, got $got: $command"; failures=$((failures + 1)); }
 }
 
+# The forms of a commit message file option and its value, for expect_each_value: @P@ is the path.
+# The hook does not decode an ANSI-C string ($'...'), so it fails closed on that form of any path.
+value_forms=(
+  '-F @P@' "-F '@P@'" '-F "@P@"' "-F \$'@P@'" '-F@P@' '--file=@P@' '--file @P@' '-aF @P@' '-qF @P@'
+  '--fil=@P@' '-F @P@ 2>&1' '-F @P@ >&2' '-F @P@ &>/dev/null' '2>&1 -F @P@' '>&2 -F @P@'
+  '&>/dev/null -F @P@' $'<<MARK -F @P@\nbody\nMARK' "-m \$'it\\'s' -F @P@" "-m \$'it\\'s -F x' -F @P@"
+  "-m 'a -F b' -F @P@" $'-F @P@ <<MARK\nbody\nMARK' $'-F @P@ <<-MARK\n\tbody\n\tMARK'
+  $'-F @P@ <<A <<B\na\nA\nb\nB'
+)
+# expect_each_value <want> <path> <command with @V@>: @V@ becomes each form in value_forms.
+expect_each_value() {
+  local form want
+  for form in "${value_forms[@]}"; do
+    want="$1"
+    [[ "$form" == *"\$'@P@'"* ]] && want=block
+    expect "$want" "${3//@V@/${form//@P@/$2}}"
+  done
+}
+
 expect block 'git push --force origin feat/x'
 expect block 'git push -f origin feat/x'
 expect block 'git push origin +feat/x'
@@ -86,41 +106,33 @@ expect block 'git status; git reset --hard'
 expect block 'env X=1 git push -f origin feat/x'
 expect block 'bash -c "git push -f origin feat/x"'
 expect block 'git commit -n -m x | cat'
+# The message path is an allow list: only .scratchpads/commit-msg.txt and - (stdin) pass, in each
+# form of the option and with a -C, a cd, or no prefix. A path in the run folder, the temp folder,
+# or the tree of another run blocks (AGT-058, run flakes-2).
+expect_each_value allow .scratchpads/commit-msg.txt 'git commit @V@'
+expect_each_value allow .scratchpads/commit-msg.txt 'git -C /Users/x/wt commit @V@'
+expect_each_value allow .scratchpads/commit-msg.txt 'cd /x && git commit @V@'
+expect_each_value block msg.txt 'git commit @V@'
+expect_each_value block /Users/x/repo/.scratchpads/commit-msg.txt 'git commit @V@'
+expect_each_value block ../repo/.scratchpads/commit-msg.txt 'git commit @V@'
+expect_each_value block '~/repo/.scratchpads/commit-msg.txt' 'git commit @V@'
+expect_each_value block /tmp/commit-msg.txt 'git commit @V@'
+expect_each_value block .scratchpads/runs/x/msg.txt 'git commit @V@'
+expect_each_value block ./.scratchpads/commit-msg.txt 'git commit @V@'
+expect_each_value block msg.txt 'git -C ../tree commit -q @V@'
 # An absolute message path can name the file of another work tree (run flakes-2).
-expect block 'git commit -F /Users/x/repo/.scratchpads/commit-msg.txt'
 expect block 'git -C /Users/x/wt commit -F /Users/x/repo/.scratchpads/commit-msg.txt'
-expect block 'git commit --file=/Users/x/repo/.scratchpads/commit-msg.txt'
-expect allow 'git -C /Users/x/wt commit -F .scratchpads/commit-msg.txt'
 # Only that relative path: a relative, ~, or $HOME path can name another tree too (code gate 1).
-expect block 'git commit -F ../repo/.scratchpads/commit-msg.txt'
-expect block 'git commit -F ~/repo/.scratchpads/commit-msg.txt'
 expect block 'git commit -F "$HOME/repo/.scratchpads/commit-msg.txt"'
 expect block 'git commit --file ../wt/.scratchpads/notes.txt'
-expect block 'git commit -F /tmp/commit-msg.txt'
-expect allow 'git commit --file=.scratchpads/commit-msg.txt'
 expect allow 'git commit -m "read .scratchpads/commit-msg.txt"'
-# The message path is an allow list: only .scratchpads/commit-msg.txt and - (stdin) pass, so a path
-# in the run folder, the temp folder, or the tree of another run blocks (AGT-058).
 expect block 'git commit -F "/tmp/release notes.txt"'
 expect block 'git commit -q -F $R/logs/s4-msg.txt'
-expect block 'git commit -F msg.txt'
 expect block 'git commit --file=notes/msg.txt'
 expect block 'git -C ../tree commit -F msg.txt'
 expect block 'git commit -F ""'
 expect block 'git commit -F " msg.txt"'
-expect block 'git commit -F ./.scratchpads/commit-msg.txt'
-expect allow 'git commit -F .scratchpads/commit-msg.txt'
-expect allow 'git commit -aF .scratchpads/commit-msg.txt'
-expect allow 'git commit -F ".scratchpads/commit-msg.txt"'
-expect allow "git commit -F '.scratchpads/commit-msg.txt'"
 expect allow $'git commit -F - <<\'EOF\'\nfix: a thing\nEOF'
-# A short-option cluster that ends in F, an attached value, and the prefix --fil are message-file
-# options too.
-expect block 'git commit -aF msg.txt'
-expect block 'git commit -qF msg.txt'
-expect block 'git commit --fil=msg.txt'
-expect block 'git commit --file msg.txt'
-expect block 'git commit -Fmsg.txt'
 # A grep for the text "git commit -F" runs no commit: the text is inside quotes.
 expect allow "rg -n 'git commit -F' .claude"
 expect allow 'rg -n "git commit -F" .claude'

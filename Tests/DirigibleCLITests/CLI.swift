@@ -12,7 +12,7 @@ struct CLIResult: Equatable {
 
 /// Runs the `dirigible` binary that `swift test` builds next to the test bundle. stdout and
 /// stderr go to files, not pipes, so a large output cannot block the child process. A run over
-/// 30 s is stopped and fails the test, so a hang cannot stop the suite.
+/// 30 s (the default `limit` of the shell form) is stopped and fails the test, so a hang cannot stop the suite.
 func dirigible(_ arguments: String...) async throws -> CLIResult { try await dirigible(arguments) }
 
 /// With `input`, the child reads that file on stdin. With `socket`, `dirigible mcp` connects to
@@ -51,15 +51,17 @@ func childProcess(_ executable: URL, _ arguments: [String], in folder: URL, sock
 
 /// Runs `/bin/sh -c script` with `arguments` as `$0`, `$1`, and so on, for example to set a
 /// resource limit before an `exec` of the binary. The child takes a slot of `slots`.
-func dirigible(shell script: String, _ arguments: String..., slots: Slots = .shared) async throws -> CLIResult {
-    try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments, slots: slots)
+func dirigible(
+    shell script: String, _ arguments: String..., slots: Slots = .shared, limit: Duration = .seconds(30)
+) async throws -> CLIResult {
+    try await run(URL(filePath: "/bin/sh"), ["-c", script] + arguments, slots: slots, limit: limit)
 }
 
 /// Runs `executable` and waits for its exit without a thread: the termination handler resumes the
 /// wait. A run over `limit` is stopped and records an issue, so a hang cannot stop the suite.
 private func run(
     _ executable: URL, _ arguments: [String], input: URL? = nil, socket: URL? = nil, logs: URL? = nil,
-    directory: URL? = nil, slots: Slots = .shared
+    directory: URL? = nil, slots: Slots = .shared, limit: Duration = .seconds(30)
 ) async throws -> CLIResult {
     let folder = FileManager.default.temporaryDirectory.appending(path: "dirigible-run-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -74,7 +76,6 @@ private func run(
     process.standardOutput = try FileHandle(forWritingTo: output)
     process.standardError = try FileHandle(forWritingTo: errors)
     if let input { process.standardInput = try FileHandle(forReadingFrom: input) }
-    let limit = Duration.seconds(30)
     // Take the slot before the limit task: the limit must not stop a child that has not started.
     await slots.started()
     let child = Child(process)

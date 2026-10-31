@@ -256,8 +256,8 @@ else
                 }
             }' "$run/plan.md")
     fi
-    # Cutoff 2026-10-30T15:22, the commit that added the size rule: a run that started earlier passes without it.
-    size_cutoff=2026-10-30T15:22
+    # Cutoff 2026-10-31T06:19, the land time of the size rule: a run that started earlier passes without it.
+    size_cutoff=2026-10-31T06:19
     if [[ -z "$start" || ! "$start" < "$size_cutoff" ]] &&
         ! awk -F'\t' '$2 == "4" { f = 1 } END { exit !f }' "$run/decisions.tsv" 2>/dev/null; then
         root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -424,8 +424,8 @@ fi
 cutoff=1791222684
 # 2026-10-09, the commit that added the nit rule (INT-042): an older review file keeps the nit exempt.
 nit_cutoff=1791510511
-# 2026-10-30, the commit that added the round file heading rule (INT-043): an older round file is not read by it.
-round_cutoff=1793398876
+# 2026-10-31, the land time of the round file heading rule (INT-043): an older round file is not read by it.
+round_cutoff=1793423981
 for review in "$run"/review-*.md; do
     [[ -f "$review" ]] || continue
     mtime=$(stat -f %m "$review")

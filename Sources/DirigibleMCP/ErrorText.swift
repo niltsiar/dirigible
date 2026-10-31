@@ -293,12 +293,18 @@ extension TranscribeError {
         switch self {
         case .modelLoad: "whisper.cpp did not load the model."
         case .engine(let code): "whisper.cpp failed with code \(code)."
-        case .modelDownload: "the model download failed."
+        case .modelDownload: "the model download failed in the network or at the server."
+        case .modelWrite(let folder, let code):
+            "cannot write the model in \(folder): \(String(cString: strerror(code)))."
+        case .modelDownloadChecksum:
+            "the downloaded model does not have the size and the SHA-256 of the catalog, so it was deleted."
         case .modelChecksum: "the model file does not have the size and the SHA-256 of the catalog."
         case .audioRead(let file, let code):
             "\(file): \(audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)))"
         case .vadModelMissing(let tried):
             "the VAD model is not at \(tried.joined(separator: ", ")). Transcription needs it to skip silence."
+        case .vadModelChecksum(let file):
+            "the VAD model at \(file) does not have the size and the SHA-256 that Dirigible pins. Transcription needs it to skip silence."
         }
     }
 }

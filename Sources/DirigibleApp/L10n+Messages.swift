@@ -70,9 +70,12 @@ extension L10n {
         switch error {
         case .modelLoad: errorTranscribeLoad.text
         case .modelDownload: errorTranscribeDownload.text
+        case .modelWrite(let folder, let code): errorTranscribeFolder.format(folder, Int(code))
+        case .modelDownloadChecksum: errorTranscribeDownloadChecksum.text
         case .modelChecksum: errorTranscribeChecksum.text
         case .audioRead(let file, let code): errorTranscribeAudio.format(file, Int(code))
-        case .vadModelMissing: errorTranscribeVad.text
+        // The app finds the VAD model in its bundle first, so either case means a damaged install.
+        case .vadModelMissing, .vadModelChecksum: errorTranscribeVad.text
         case .engine(let code): errorTranscribeEngine.format(Int(code))
         }
     }

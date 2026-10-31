@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 @testable import DirigibleCore
@@ -296,6 +297,42 @@ import Testing
             #expect(studio.session == before.0 && studio.sessionRevision == before.1)
             #expect(Self.xml(fixture.package) == before.2)
             #expect(studio.session.words(on: ["t1"]).count == 3, "the old words stay")
+            await studio.settle()
+        }
+
+        /// Gate 1 item 3. A model file that fails the check does not block the job: the job deletes it
+        /// and downloads the model once, and the download has its own catalog check.
+        @Test func aModelFileThatFailsTheCheckDownloadsAgain() async throws {
+            let fixture = try await ExportStudioFixture.make()
+            let loads = OSAllocatedUnfairLock(initialState: 0)
+            let studio = try await Self.open(
+                fixture.package,
+                load: { _ in
+                    loads.withLock { $0 += 1 }
+                    return AsyncThrowingStream {
+                        $0.yield(Data([1, 2, 3]))
+                        $0.finish()
+                    }
+                })
+            studio.environment.checkModel = { $0.checked(in: $1) }
+
+            #expect(await Self.job(studio).value.failure == .transcription(.modelDownloadChecksum))
+            #expect(loads.withLock { $0 } == 1, "one download")
+            #expect(try fileNames(studio.environment.modelStore.folder) == [], "the bad file and the download are gone")
+            await studio.settle()
+        }
+
+        /// Gate 1 item 3. A model folder that takes no file gives the folder and the errno, not the
+        /// network text.
+        @Test func aModelFolderThatTakesNoFileNamesTheFolder() async throws {
+            let fixture = try await ExportStudioFixture.make()
+            let studio = try await Self.open(fixture.package, model: false)
+            let folder = studio.environment.modelStore.folder
+            try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folder.path)
+            defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path) }
+
+            let failure = await Self.job(studio).value.failure
+            #expect(failure == .transcription(.modelWrite(folder: folder.path, errno: EACCES)))
             await studio.settle()
         }
     }

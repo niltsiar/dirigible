@@ -48,9 +48,9 @@ public struct WhisperModelStore: Sendable {
         let files = FileManager.default
         try files.createDirectory(at: folder, withIntermediateDirectories: true)
         var temporary = folder.appending(path: model.fileName + ".download")
-        guard files.createFile(atPath: temporary.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: temporary.path])
-        }
+        let descriptor = open(temporary.path, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
+        guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        close(descriptor)
         do {
             var values = URLResourceValues()
             values.isExcludedFromBackup = true

@@ -700,6 +700,8 @@
 "transcribe.canceled" = "Transcriptie geannuleerd. Het spoor is niet gewijzigd.";
 "error.transcribe.load" = "Het spraakmodel is niet geladen. Verwijder het bestand in ~/Library/Application Support/Dirigible/Models en probeer het opnieuw.";
 "error.transcribe.download" = "Het downloaden van het model is mislukt. Controleer je internetverbinding en probeer het opnieuw.";
+"error.transcribe.folder" = "Dirigible kon het spraakmodel niet in %1$@ schrijven (fout %2$lld). Controleer of de schijf vrije ruimte heeft en of je in die map mag schrijven, en probeer het opnieuw.";
+"error.transcribe.download.checksum" = "Het gedownloade spraakmodel is niet het verwachte bestand, dus Dirigible heeft het verwijderd. Probeer het later opnieuw.";
 "error.transcribe.checksum" = "Het bestand van het spraakmodel is beschadigd of niet het verwachte. Verwijder het in ~/Library/Application Support/Dirigible/Models en probeer het opnieuw.";
 "error.transcribe.audio" = "Dirigible kon het audiobestand %1$@ niet lezen (fout %2$lld). Het spoor is niet gewijzigd.";
 "error.transcribe.vad" = "Een onderdeel van Dirigible ontbreekt: het model dat spraak herkent. Installeer Dirigible opnieuw.";

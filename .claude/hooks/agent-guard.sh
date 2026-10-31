@@ -17,6 +17,13 @@
 #   and so is -F - with a < file or a pipe on its left. Then backticks, < and > go. An empty value
 #   or a lone quote (`git commit -F` in backticks) passes. The leading quotes and the trailing
 #   ) ; : . , and quotes go before the comparison, so -F "" is refused.
+# - A brief that names a lock step is refused while a release call (a push check, the hooks pass, a
+#   land, or make dmg) holds the build lock or waits first for it, because the agent would wait for
+#   the lock on its 90 min clock. A lock step is with-lock.sh, a make target that takes the lock, a
+#   script that takes the lock itself, or swift build, test, or run (AGENTS.md, Commands). The
+#   state comes from scripts/with-lock.sh --release-holder, and an exit other than 0 or 1 of that
+#   query lets the brief pass. A line that starts with Build lock: none (after spaces and one -, *,
+#   or > marker) passes a brief of an agent that takes no lock.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
@@ -34,6 +41,19 @@ if [[ "$tool" != mcp__t3-code__delegate_task && "$isolation" == worktree ]]; the
   exit 2
 fi
 text="$(plutil -extract "tool_input.$field" raw -o - "$input" 2>/dev/null)"
+# The lock-step lists equal the Makefile .PHONY line minus the four targets that take no lock and the
+# scripts that AGENTS.md says take the lock themselves; git-guardrails.test.sh keeps them equal.
+lock_targets='setup|build|app|icon-preview|test|test-filter|test-asan|test-tsan|test-slow|test-slow-push|check-slow-gates|check-warnings|check-sizes|bench|test-app|dmg|test-dmg|test-hooks|run|static|check|check-changed|clean'
+lock_scripts='swift-test|test-shards|bench|bench-pairs|sanitize'
+lock_swift='build|test|run'
+steps="$(sed -E 's/with-lock\.sh +--(builders|release-holder)//g' <<< "$text")"
+lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make +([A-Z_]+=[^ ]* +)*($lock_targets)([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($lock_scripts)\.sh|(^|[^A-Za-z0-9_-])swift +($lock_swift)([^A-Za-z0-9_-]|\$)"
+if grep -qE "$lock_re" <<< "$steps" && ! grep -qE '^[[:space:]]*([-*>][[:space:]]+)?Build lock: none' <<< "$text"; then
+  if holder="$("$(dirname "$0")/../../scripts/with-lock.sh" --release-holder 2>/dev/null)"; then
+    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent takes no lock (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own." >&2
+    exit 2
+  fi
+fi
 commit_files() {
   awk -v brief=1 -f "$(dirname "$0")/commit-files.awk"
 }

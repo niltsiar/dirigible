@@ -17,6 +17,30 @@ func whisperOutcome(code: Int32, stopFlagSet: Bool) -> WhisperRunOutcome {
     return code == 0 ? .finished : .failed(.engine(code: code))
 }
 
+/// The fraction of a job from the whole percent of each piece (decision 0065 D6): piece n at p %
+/// is (n + p / 100) / count. A value passes only when its whole percent grows, so a job of any
+/// length gives at most 101 values. Only the thread of `whisper_full` uses it.
+final class PieceProgress {
+    private let count: Int
+    private let report: (Double) -> Void
+    private var reported = -1
+    /// The piece that `whisper_full` runs now.
+    var current = 0
+
+    init(count: Int, report: @escaping (Double) -> Void) {
+        self.count = count
+        self.report = report
+    }
+
+    func update(piece n: Int, percent: Int) {
+        let fraction = (Double(n) + Double(min(max(percent, 0), 100)) / 100) / Double(count)
+        let whole = Int(fraction * 100)
+        guard whole > reported else { return }
+        reported = whole
+        report(fraction)
+    }
+}
+
 /// One `whisper_context` (decision 0065, D6). Run it on one thread that is not the main actor: each
 /// call blocks for the whole decode.
 final class WhisperEngine {
@@ -36,35 +60,39 @@ final class WhisperEngine {
 
     /// The pieces in order. The flag is read before each piece, and a set flag returns nil with no
     /// `whisper_full` call. With `.automatic`, the language of the first piece that gives a word
-    /// goes to each later piece.
+    /// goes to each later piece. `progress` gets the values of `PieceProgress`, also inside a piece.
     func transcribe(
         pieceCount: Int, language: WhisperLanguage, stop: StopFlag, read: (Int) throws(TranscribeError) -> [Float],
         progress: (Double) -> Void
     ) throws(TranscribeError) -> Transcription? {
-        var chosen = language
-        var detected = "auto"
-        var pieces: [[TimedWord]] = []
-        for n in 0..<pieceCount {
-            if stop.isSet { return nil }
-            switch try transcribe(piece: read(n), language: chosen, stop: stop) {
-            case .stopped: return nil
-            case .words(let words, let code):
-                pieces.append(words)
-                if chosen == .automatic { detected = code }
-                if chosen == .automatic && !words.isEmpty { chosen = .code(code) }
+        try withoutActuallyEscaping(progress) { progress throws(TranscribeError) -> Transcription? in
+            let tracker = PieceProgress(count: pieceCount, report: progress)
+            var chosen = language
+            var detected = "auto"
+            var pieces: [[TimedWord]] = []
+            for n in 0..<pieceCount {
+                if stop.isSet { return nil }
+                tracker.current = n
+                switch try transcribe(piece: read(n), language: chosen, stop: stop, progress: tracker) {
+                case .stopped: return nil
+                case .words(let words, let code):
+                    pieces.append(words)
+                    if chosen == .automatic { detected = code }
+                    if chosen == .automatic && !words.isEmpty { chosen = .code(code) }
+                }
+                tracker.update(piece: n, percent: 100)
             }
-            progress(Double(n + 1) / Double(pieceCount))
-        }
-        switch chosen {
-        case .automatic: return Transcription(pieces: pieces, language: detected)
-        case .code(let code): return Transcription(pieces: pieces, language: code)
+            switch chosen {
+            case .automatic: return Transcription(pieces: pieces, language: detected)
+            case .code(let code): return Transcription(pieces: pieces, language: code)
+            }
         }
     }
 
     /// One piece of 16 kHz mono samples. It does not read the flag before `whisper_full`, so a set
     /// flag reaches the abort checks. Each NaN or infinite sample is 0.
-    func transcribe(piece: [Float], language: WhisperLanguage, stop: StopFlag) throws(TranscribeError)
-        -> PieceOutcome
+    func transcribe(piece: [Float], language: WhisperLanguage, stop: StopFlag, progress: PieceProgress? = nil)
+        throws(TranscribeError) -> PieceOutcome
     {
         let samples = piece.map { $0.isFinite ? $0 : 0 }
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
@@ -76,18 +104,29 @@ final class WhisperEngine {
         params.token_timestamps = true
         params.abort_callback = stop.abortCallback
         params.abort_callback_user_data = stop.userData
+        if let progress {
+            // whisper.cpp calls it on this thread once per 30 s window, with the percent of the piece.
+            params.progress_callback = { _, _, percent, data in
+                guard let data else { return }
+                let progress = Unmanaged<PieceProgress>.fromOpaque(data).takeUnretainedValue()
+                progress.update(piece: progress.current, percent: Int(percent))
+            }
+            params.progress_callback_user_data = Unmanaged.passUnretained(progress).toOpaque()
+        }
         let code: String
         switch language {
         case .automatic: code = "auto"
         case .code(let value): code = value
         }
-        let result = code.withCString { language in
-            params.language = language
-            guard let vadPath else { return whisper_full(context, params, samples, Int32(samples.count)) }
-            return vadPath.withCString { vad in
-                params.vad = true
-                params.vad_model_path = vad
-                return whisper_full(context, params, samples, Int32(samples.count))
+        let result = withExtendedLifetime(progress) {
+            code.withCString { language in
+                params.language = language
+                guard let vadPath else { return whisper_full(context, params, samples, Int32(samples.count)) }
+                return vadPath.withCString { vad in
+                    params.vad = true
+                    params.vad_model_path = vad
+                    return whisper_full(context, params, samples, Int32(samples.count))
+                }
             }
         }
         switch whisperOutcome(code: result, stopFlagSet: stop.isSet) {

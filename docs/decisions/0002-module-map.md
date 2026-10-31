@@ -34,6 +34,7 @@
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split`. `DirigibleAudio/Import/` also holds the stereo split (`StereoSplit.swift`) (see 0053).
 - Amended: 2026-10-26, run `2026-10-13-render-denoise`. `DirigibleAudio/Render/` also holds the clip render through an effect: `NoiseReduction.swift`, `Treatment.swift`, `EffectChain.swift`, and `EffectRender.swift`. `Studio/Studio+Render.swift` runs it, and `DirigibleMCP/ClipRenderText.swift` has its texts (see 0054).
 - Amended: 2026-10-27, run `2026-10-14-render-link`. `DirigibleCore/Treatment.swift` holds the stored render values `Effect`, `Treatment`, and `NoiseReduction`, because the session reader parses them. `Render/Treatment.swift` and `Render/NoiseReduction.swift` keep only the DSP extensions (see 0057).
+- Amended: 2026-10-31, run `2026-10-28-whisper-in-app`. The C and C++ target `CWhisper` holds whisper.cpp v1.9.5 and its ggml for the CPU, with C and C++ warnings as errors, and the stop flag of a transcription. `DirigibleAudio` depends on it (see 0065).
 
 ## Context
 
@@ -50,11 +51,12 @@ Two designs were compared: few targets, and one target for each capability (capt
 | `DirigibleTimeline` | The timeline selection (`Marks`, `TimelineScale`), the lane and ruler geometry, the gesture model (0020) | Foundation, `DirigibleCore` | 1 |
 | `CLame` | libmp3lame of LAME 4.0 with no decoder, C warnings as errors (0007, 0034) | none | 2 |
 | `CMainStack` | The stack walk of the main thread and the image list of the hang watchdog, C warnings as errors (0059) | none | 4 |
+| `CWhisper` | whisper.cpp v1.9.5 and ggml for the CPU with Accelerate, and the stop flag of a transcription, C and C++ warnings as errors (0034, 0065) | Accelerate | 5 |
 | `DirigibleApp` (executable) | SwiftUI views, menus and key equivalents, the timeline view, `.lproj` strings (0010), wiring | SwiftUI, AppKit, the four libraries | 1 |
 | `DirigibleMCP` | The MCP server and its tool table (0041, 0046), the app server and the live executor, the bridge client, the locked read-edit-save step, the argument rules, the error text, the text and JSON views of a session, the marker, episode, paste, and backup work of the CLI and the tools, and the agent manual (0051) | Foundation, Observation, os (the logger), `DirigibleCore`, `DirigibleAudio` | 3 |
 | `DirigibleCLI` (executable, product `dirigible`) | Argument parsing, the exit codes, the commands, and the stdin loop of `dirigible mcp`. No logic that the app needs | Foundation, AVFoundation (the microphone access request), `ArgumentParser` (swift-argument-parser), `DirigibleCore`, `DirigibleAudio`, `DirigibleMCP` | CLI run |
 
-Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, `DirigibleAudio` to `CLame` and `CMainStack`, `DirigibleApp` to `DirigibleTimeline` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleMCP` depends on `DirigibleCore` and `DirigibleAudio`. `DirigibleCLI` depends on `DirigibleCore`, `DirigibleAudio` (0012), and `DirigibleMCP` (0046). `DirigibleCore` depends on no target.
+Dependencies go one way: `DirigibleApp` to `DirigibleAudio` to `DirigibleCore`, `DirigibleAudio` to `CLame`, `CMainStack`, and `CWhisper`, `DirigibleApp` to `DirigibleTimeline` to `DirigibleCore`, and `DirigibleApp` to `DirigibleCore`. `DirigibleMCP` depends on `DirigibleCore` and `DirigibleAudio`. `DirigibleCLI` depends on `DirigibleCore`, `DirigibleAudio` (0012), and `DirigibleMCP` (0046). `DirigibleCore` depends on no target.
 
 Test targets: `DirigibleCoreTests`, `DirigibleAudioTests`, `DirigibleCLITests` (runs the `dirigible` binary), `DirigibleTimelineTests`, `DirigibleMCPTests` (the app server, the live tools, and the bridge, over a real socket), and `DirigibleTests` (bundle, localization, import rule).
 

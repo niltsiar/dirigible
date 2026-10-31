@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior. See README.dirigible.
 #pragma once
 
 // Computes C[M x N] += A[M x K] * B[K x N]
@@ -125,7 +126,7 @@ static void simd_gemm(
             simd_gemm_ukernel<GEMM_RM, 1>(C + jj, A, B + jj, K, N);
         }
         if (jj < N) {
-            simd_gemm_ukernel_tail<GEMM_RM>(C + jj, A, B + jj, K, N, N - jj);
+            simd_gemm_ukernel_tail<GEMM_RM>(C + jj, A, B + jj, K, N, (int)(N - jj));
         }
 
         A += GEMM_RM * K;
@@ -142,7 +143,7 @@ static void simd_gemm(
             simd_gemm_ukernel<1, 1>(C + jj, A, B + jj, K, N);
         }
         if (jj < N) {
-            simd_gemm_ukernel_tail<1>(C + jj, A, B + jj, K, N, N - jj);
+            simd_gemm_ukernel_tail<1>(C + jj, A, B + jj, K, N, (int)(N - jj));
         }
 
         A += K;

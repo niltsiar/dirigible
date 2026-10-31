@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior, and a pragma that turns off a warning removed. See README.dirigible.
 #define GGML_COMMON_IMPL_CPP
 #define GGML_COMMON_DECL_CPP
 #include "ggml-common.h"
@@ -19,7 +20,6 @@
 #include "../../repack.h"
 
 #if defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Woverlength-strings"
 #endif
 
 #define UNUSED GGML_UNUSED
@@ -69,7 +69,7 @@ static inline int8x16_t ggml_q1_0_unpack_pair(uint8_t bits0, uint8_t bits1) {
 void ggml_quantize_mat_q8_0_4x4(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+    const int nb = (int)(k / QK8_0);
 
     block_q8_0x4 * GGML_RESTRICT y = (block_q8_0x4 *) vy;
 
@@ -137,7 +137,7 @@ void ggml_quantize_mat_q8_0_4x4(const float * GGML_RESTRICT x, void * GGML_RESTR
 void ggml_quantize_mat_q8_0_4x8(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+    const int nb = (int)(k / QK8_0);
 
     block_q8_0x4 * GGML_RESTRICT y = (block_q8_0x4 *) vy;
 
@@ -3653,7 +3653,7 @@ void ggml_gemm_q4_K_8x4_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const vo
                 int row = y * q8_k_blocklen + i;
                 for (int j = 0; j < 2; j++) {
                     int col    = x * ncols_interleaved + j * 4;
-                    int offset = row * bs + col;
+                    int offset = (int)(row * bs + col);
                     vst1q_f32(s + offset, acc_f32[2 * i + j]);
                 }
             }
@@ -3882,7 +3882,7 @@ void ggml_gemm_q5_K_8x4_q8_K(int                        n,
                 int row = y * q8_k_blocklen + i;
                 for (int j = 0; j < 2; j++) {
                     int col    = x * ncols_interleaved + j * 4;
-                    int offset = row * bs + col;
+                    int offset = (int)(row * bs + col);
                     vst1q_f32(s + offset, acc_f32[2 * i + j]);
                 }
             }
@@ -4851,7 +4851,7 @@ void ggml_gemm_q6_K_8x4_q8_K(int                        n,
                 int row = y * q8_k_blocklen + i;
                 for (int j = 0; j < 2; j++) {
                     int col    = x * ncols_interleaved + j * 4;
-                    int offset = row * bs + col;
+                    int offset = (int)(row * bs + col);
                     vst1q_f32(s + offset, acc_f32[2 * i + j]);
                 }
             }

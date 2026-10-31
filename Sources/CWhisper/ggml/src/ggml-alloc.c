@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: the token text of the SDK macro for MAX, to remove a compiler warning, with no change of behavior. See README.dirigible.
 #include "ggml-alloc.h"
 #include "ggml-backend-impl.h"
 #include "ggml.h"
@@ -10,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MAX(a, b) (((a)>(b))?(a):(b))
 #define MAX_FREE_BLOCKS 256
 
 //#define GGML_ALLOCATOR_DEBUG

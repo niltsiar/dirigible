@@ -1,0 +1,83 @@
+CWhisper: the whisper.cpp speech recognition library in Dirigible
+
+Source: whisper.cpp v1.9.5 (ggml 0.26.0),
+https://codeload.github.com/ggml-org/whisper.cpp/tar.gz/refs/tags/v1.9.5
+SHA-256 of the tarball: ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720
+License: MIT. The text is in LICENSE and in Support/Resources/whisper.cpp-LICENSE.txt.
+
+What this folder holds:
+- The files of a CPU build with Accelerate BLAS: src/whisper.cpp, src/whisper-arch.h,
+  src/aneforge/ (excluded from the target: its header stays for the types of whisper.cpp), the
+  ggml core of ggml/src, ggml/src/ggml-cpu (with amx/, tiled/, and arch/x86 and arch/arm),
+  ggml/src/ggml-blas, and the public headers of include/ and ggml/include in include/.
+- Files from Dirigible, not from whisper.cpp:
+  - ggml/src/ggml-version.h: the version defines that CMake makes.
+  - include/module.modulemap: the module CWhisper, with whisper.h and cwhisper_stop.h.
+  - ggml/src/ggml-cpu/arch-x86-quants.c, arch-x86-repack.cpp, arch-arm-quants.c, and
+    arch-arm-repack.cpp: each includes one arch file under its arch macro, because the x86 and
+    arm files define the same symbols. The arch folder is excluded from the target.
+  - cwhisper_stop.c and include/cwhisper_stop.h: the stop flag of one transcription, one
+    atomic_bool, and the abort callback of whisper_full that reads it.
+  - This file.
+
+Changed files. Each has a dated notice line at its top.
+
+1. Casts (530 -Wshorten-64-to-32 sites, which the XCBuild build of scripts/bundle.sh gives).
+   Each cast wraps the whole converted expression in its target type, under the invariant of
+   its group. No group needs a type change.
+   Invariant T: CWhisper runs only the graphs of whisper.cpp for the catalog models (base,
+   small-q5_1, tiny-q5_1) and the Silero VAD model. Each tensor of them has fewer than 2^31
+   elements and fewer than 2^31 bytes. The largest is the small-q5_1 token embedding, with
+   39,832,320 elements.
+   - W1 tensor sizes into int locals, 141 sites (T): ops.cpp 128, ggml-cpu.c 4, repack.cpp 4,
+     ggml-blas.cpp 3, whisper.cpp 2.
+   - W2 index and partition arithmetic, 92 sites (T: each index is below the element count of
+     its tensor): ops.cpp 92.
+   - W3 shape value to an int parameter, 131 sites (T): ops.cpp 91, ggml-cpu.c 19, repack.cpp 7,
+     ggml.c 6, tiled.cpp 3, simd-gemm.h 2, ggml-quants.c 2, whisper.cpp 1.
+   - W4 quant blocks of a row, 68 sites (T: the count is the element count of one row): cpu
+     repack.cpp 34, ggml-quants.c 26, and 2 each in arch/arm/quants.c, arch/arm/repack.cpp,
+     arch/x86/quants.c, and arch/x86/repack.cpp.
+   - W5 byte strides and offsets, 22 sites (T in bytes): ops.cpp 14, ggml.c 8. Two of the ggml.c
+     sites store strides in the int32 op params of ggml_acc and ggml_set, the upstream format.
+   - W6 container sizes, 44 sites (a bound per container: at most 448 tokens, a vocabulary of
+     51,865, at most 100 languages, at most 9,600,000 samples in a piece of 10 min, at most 2
+     backends, a path under PATH_MAX): whisper.cpp 34, ggml-backend-meta.cpp 6, ggml-impl.h 2,
+     ggml-backend-reg.cpp 1, ggml.c 1.
+   - W7 thread and task counts, 3 sites (at most n_threads): ggml-cpu.c 3.
+   - W8 local value ranges, 18 sites (a local bound at each site, for example a ternary quant
+     value of 0 to 2, an index inside one block, or an hparam that the model file stores as
+     int32): whisper.cpp 5, ggml-quants.c 4, arch/arm/repack.cpp 3, ops.cpp 2, ggml.c 2,
+     ggml-opt.cpp 1, gguf.cpp 1.
+   - W9 expert counts of MUL_MAT_ID, 7 sites (T; whisper builds no MUL_MAT_ID): ggml-cpu.c 4,
+     repack.cpp 3.
+   - W10 head counts as uint32, 4 sites (T: at most 12 heads): ops.cpp 4.
+2. Macro text (25 -Wambiguous-macro sites on each arch). SwiftPM builds C with clang modules, so
+   the SDK macros and the ggml macros are both visible. MIN and MAX in ggml-impl.h, and the
+   unguarded MAX of ggml-alloc.c, get the token text of the SDK macros. static_assert in
+   ggml-impl.h and ggml-common.h is defined as _Static_assert, the SDK text. Same expansion.
+3. Pragmas: the 5 "#pragma GCC diagnostic" lines that ignore a warning, in amx/mmq.cpp (-Wpedantic,
+   -Wunused-local-typedefs) and in the three repack.cpp files (-Woverlength-strings) are
+   removed. The build enables none of these warnings, so the strict build proves that they hide
+   nothing.
+4. No code path loads a library or starts a program from an environment variable:
+   - src/whisper.cpp: the ANEForge encoder is removed: the environment read and the init call in
+     whisper_init_state, the encode branch in whisper_encode_internal (the other branch stays),
+     and the free call in whisper_free_state. Package.swift excludes
+     src/aneforge/whisper-aneforge.cpp.
+   - ggml/src/ggml-backend-reg.cpp: ggml_backend_load_all_from_path no longer reads a backend
+     path from the environment.
+   - ggml/src/ggml.c: on Apple, ggml_print_backtrace prints the native backtrace
+     (ggml_print_backtrace_symbols) and returns. The environment read and its two warning lines
+     are removed, and the fork and exec of gdb or lldb are under #if !defined(__APPLE__).
+5. Abort checks, in src/whisper.cpp: whisper_full passes its abort_callback to the scheduler
+   overload of ggml_graph_compute_helper for the encoder, the cross, and the decoder graphs.
+   The VAD graph gets no callback, and the VAD window loop checks the callback every 32
+   windows. The mel frame loop checks it every 32 frames of thread 0, and get_signal_energy
+   every 65,536 samples. Without these checks a stop waits for the running 30 s window.
+
+To update whisper.cpp: copy the same files from the new tarball. Apply the casts again: the
+clang source ranges of the warnings (-fdiagnostics-print-source-range-info) give the expression
+of each site, and each new site needs a group with an invariant. Apply changes 2 to 5 again.
+Check the define list of Package.swift against ggml/src/CMakeLists.txt. Build with
+`make build`, `swift build --arch arm64`, and `make app`: each build must give zero warnings.

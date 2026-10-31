@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior. See README.dirigible.
 #define GGML_COMMON_IMPL_C
 #include "ggml-common.h"
 #include "ggml-quants.h"
@@ -41,7 +42,7 @@ static const uint64_t table_b2b_1[1 << 8] = { B8(10, 00) }; // (!b) << 4
 void quantize_row_q8_0(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+    const int nb = (int)(k / QK8_0);
 
     block_q8_0 * GGML_RESTRICT y = vy;
 
@@ -84,7 +85,7 @@ void quantize_row_q8_0(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, i
 
 void quantize_row_q8_1(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(k % QK8_1 == 0);
-    const int nb = k / QK8_1;
+    const int nb = (int)(k / QK8_1);
 
     block_q8_1 * GGML_RESTRICT y = vy;
 #if defined(__ARM_NEON)

@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior. See README.dirigible.
 #include "ggml-opt.h"
 
 #include "ggml.h"
@@ -1031,7 +1032,7 @@ void ggml_opt_fit(
     params.ctx_compute     = ctx_compute;
     params.inputs          = inputs;
     params.outputs         = outputs;
-    params.opt_period      = opt_period;
+    params.opt_period      = (int32_t)(opt_period);
     params.get_opt_pars    = get_opt_pars;
     params.get_opt_pars_ud = &epoch;
     params.optimizer       = optimizer;

@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior, and a pragma that turns off a warning removed. See README.dirigible.
 #define GGML_COMMON_IMPL_CPP
 #define GGML_COMMON_DECL_CPP
 #include "ggml-common.h"
@@ -19,7 +20,6 @@
 #include "repack.h"
 
 #if defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Woverlength-strings"
 #endif
 
 #define UNUSED GGML_UNUSED
@@ -135,7 +135,7 @@ void ggml_quantize_mat_q8_K_4x1_generic(const float * GGML_RESTRICT x, void * GG
 void ggml_quantize_mat_q8_0_4x4_generic(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+    const int nb = (int)(k / QK8_0);
 
     block_q8_0x4 * GGML_RESTRICT y = (block_q8_0x4 *) vy;
 
@@ -173,7 +173,7 @@ void ggml_quantize_mat_q8_0_4x4_generic(const float * GGML_RESTRICT x, void * GG
 void ggml_quantize_mat_q8_0_4x8_generic(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+    const int nb = (int)(k / QK8_0);
 
     block_q8_0x4 * GGML_RESTRICT y = (block_q8_0x4 *) vy;
 
@@ -211,7 +211,7 @@ void ggml_quantize_mat_q8_0_4x8_generic(const float * GGML_RESTRICT x, void * GG
 void ggml_quantize_mat_q8_K_4x4_generic(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK_K == 256);
     assert(k % QK_K == 0);
-    const int nb = k / QK_K;
+    const int nb = (int)(k / QK_K);
 
     block_q8_Kx4 * GGML_RESTRICT y = (block_q8_Kx4 *) vy;
 
@@ -262,7 +262,7 @@ void ggml_quantize_mat_q8_K_4x4_generic(const float * GGML_RESTRICT x, void * GG
 void ggml_quantize_mat_q8_K_4x8_generic(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(QK_K == 256);
     assert(k % QK_K == 0);
-    const int nb = k / QK_K;
+    const int nb = (int)(k / QK_K);
 
     block_q8_Kx4 * GGML_RESTRICT y = (block_q8_Kx4 *) vy;
 
@@ -3546,8 +3546,8 @@ static int repack_q4_0_to_q4_0_4_bl(struct ggml_tensor * t, int interleave_block
     block_q4_0x4 * dst = (block_q4_0x4 *)t->data;
     const block_q4_0 * src = (const block_q4_0 *)data;
     block_q4_0 dst_tmp[4];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK4_0;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK4_0);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_0));
 
@@ -3577,8 +3577,8 @@ static int repack_q4_K_to_q4_K_8_bl(struct ggml_tensor * t, int interleave_block
     block_q4_Kx8 * dst = (block_q4_Kx8*)t->data;
     const block_q4_K * src = (const block_q4_K*) data;
     block_q4_K dst_tmp[8];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK_K;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK_K);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_K));
 
@@ -3607,8 +3607,8 @@ static int repack_q4_K_to_q4_K_16_bl(struct ggml_tensor * t, int interleave_bloc
     block_q4_Kx16 * dst = (block_q4_Kx16*)t->data;
     const block_q4_K * src = (const block_q4_K*) data;
     block_q4_K dst_tmp[16];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK_K;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK_K);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_K));
 
@@ -3638,8 +3638,8 @@ static int repack_q2_K_to_q2_K_8_bl(struct ggml_tensor * t, int interleave_block
     block_q2_Kx8 * dst = (block_q2_Kx8*)t->data;
     const block_q2_K * src = (const block_q2_K*) data;
     block_q2_K dst_tmp[8];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK_K;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK_K);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q2_K));
 
@@ -3670,8 +3670,8 @@ static int repack_q2_K_to_q2_K_16_bl(struct ggml_tensor * t, int interleave_bloc
 
     block_q2_K dst_tmp[nrows_interleaved];
 
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK_K;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK_K);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q2_K));
 
@@ -3703,8 +3703,8 @@ static int repack_q4_0_to_q4_0_16_bl(struct ggml_tensor * t, int interleave_bloc
     block_q4_0x16 * dst = (block_q4_0x16*)t->data;
     const block_q4_0 * src = (const block_q4_0*) data;
     block_q4_0 dst_tmp[16];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK4_0;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK4_0);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_0));
 
@@ -3737,8 +3737,8 @@ static int repack_q5_K_to_q5_K_8_bl(struct ggml_tensor *       t,
     block_q5_Kx8 *     dst = (block_q5_Kx8 *) t->data;
     const block_q5_K * src = (const block_q5_K *) data;
     block_q5_K         dst_tmp[8];
-    int                nrow    = ggml_nrows(t);
-    int                nblocks = t->ne[0] / QK_K;
+    int                nrow    = (int)(ggml_nrows(t));
+    int                nblocks = (int)(t->ne[0] / QK_K);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q5_K));
 
@@ -3766,8 +3766,8 @@ static int repack_q6_K_to_q6_K_8_bl(struct ggml_tensor * t, int interleave_block
     block_q6_Kx8 * dst = (block_q6_Kx8 *)t->data;
     const block_q6_K * src = (const block_q6_K *) data;
     block_q6_K dst_tmp[8];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK_K;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK_K);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q6_K));
 
@@ -3795,8 +3795,8 @@ static int repack_q4_0_to_q4_0_8_bl(struct ggml_tensor * t, int interleave_block
     block_q4_0x8 * dst = (block_q4_0x8*)t->data;
     const block_q4_0 * src = (const block_q4_0*) data;
     block_q4_0 dst_tmp[8];
-    int nrow = ggml_nrows(t);
-    int nblocks = t->ne[0] / QK4_0;
+    int nrow = (int)(ggml_nrows(t));
+    int nblocks = (int)(t->ne[0] / QK4_0);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q4_0));
 
@@ -3829,8 +3829,8 @@ static int repack_q8_0_to_q8_0_4_bl(struct ggml_tensor *       t,
     block_q8_0x4 *     dst = (block_q8_0x4 *) t->data;
     const block_q8_0 * src = (const block_q8_0 *) data;
     block_q8_0         dst_tmp[4];
-    int                nrow    = ggml_nrows(t);
-    int                nblocks = t->ne[0] / QK8_0;
+    int                nrow    = (int)(ggml_nrows(t));
+    int                nblocks = (int)(t->ne[0] / QK8_0);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q8_0));
 
@@ -3861,8 +3861,8 @@ static int repack_q1_0_to_q1_0_4_bl(struct ggml_tensor *       t,
     block_q1_0x4 *     dst = (block_q1_0x4 *) t->data;
     const block_q1_0 * src = (const block_q1_0 *) data;
     block_q1_0         dst_tmp[4];
-    int                nrow    = ggml_nrows(t);
-    int                nblocks = t->ne[0] / QK1_0;
+    int                nrow    = (int)(ggml_nrows(t));
+    int                nblocks = (int)(t->ne[0] / QK1_0);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q1_0));
 
@@ -3915,8 +3915,8 @@ static int repack_q8_0_to_q8_0_16_bl(struct ggml_tensor *       t,
     block_q8_0x16 *     dst = (block_q8_0x16 *) t->data;
     const block_q8_0 * src = (const block_q8_0 *) data;
     block_q8_0         dst_tmp[16];
-    int                nrow    = ggml_nrows(t);
-    int                nblocks = t->ne[0] / QK8_0;
+    int                nrow    = (int)(ggml_nrows(t));
+    int                nblocks = (int)(t->ne[0] / QK8_0);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_q8_0));
 
@@ -3980,9 +3980,9 @@ static int repack_iq4_nl_to_iq4_nl_4_bl(struct ggml_tensor * t, int interleave_b
 
     block_iq4_nl dst_tmp[4];
 
-    int nrow = ggml_nrows(t);
+    int nrow = (int)(ggml_nrows(t));
     int nrows_interleaved = 4;
-    int nblocks = t->ne[0] / QK4_NL;
+    int nblocks = (int)(t->ne[0] / QK4_NL);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_iq4_nl));
 
@@ -4037,9 +4037,9 @@ static int repack_iq4_nl_to_iq4_nl_8_bl(struct ggml_tensor * t, int interleave_b
 
     block_iq4_nl dst_tmp[8];
 
-    int nrow = ggml_nrows(t);
+    int nrow = (int)(ggml_nrows(t));
     int nrows_interleaved = 8;
-    int nblocks = t->ne[0] / QK4_NL;
+    int nblocks = (int)(t->ne[0] / QK4_NL);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_iq4_nl));
 
@@ -4094,9 +4094,9 @@ static int repack_iq4_nl_to_iq4_nl_16_bl(struct ggml_tensor * t, int interleave_
 
     block_iq4_nl dst_tmp[16];
 
-    int nrow = ggml_nrows(t);
+    int nrow = (int)(ggml_nrows(t));
     int nrows_interleaved = 16;
-    int nblocks = t->ne[0] / QK4_NL;
+    int nblocks = (int)(t->ne[0] / QK4_NL);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_iq4_nl));
 
@@ -4151,9 +4151,9 @@ static int repack_mxfp4_to_mxfp4_4_bl(struct ggml_tensor * t, int interleave_blo
 
     block_mxfp4 dst_tmp[4];
 
-    int nrow = ggml_nrows(t);
+    int nrow = (int)(ggml_nrows(t));
     int nrows_interleaved = 4;
-    int nblocks = t->ne[0] / QK_MXFP4;
+    int nblocks = (int)(t->ne[0] / QK_MXFP4);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_mxfp4));
 
@@ -4208,9 +4208,9 @@ static int repack_mxfp4_to_mxfp4_8_bl(struct ggml_tensor * t, int interleave_blo
 
     block_mxfp4 dst_tmp[8];
 
-    int nrow = ggml_nrows(t);
+    int nrow = (int)(ggml_nrows(t));
     int nrows_interleaved = 8;
-    int nblocks = t->ne[0] / QK_MXFP4;
+    int nblocks = (int)(t->ne[0] / QK_MXFP4);
 
     GGML_ASSERT(data_size == nrow * nblocks * sizeof(block_mxfp4));
 
@@ -4636,14 +4636,14 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
 
         // If there are more than three rows in src1, use gemm; otherwise, use gemv.
         if (nrows > 3) {
-            gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, (float *) (dst_ptr) + src0_start, nb1 / nb0,
+            gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>((int)(ne00), (float *) (dst_ptr) + src0_start, nb1 / nb0,
                                                              src0_ptr + src0_start * nb01, src1_ptr,
-                                                             nrows - (nrows % 4), ncols);
+                                                             (int)(nrows - (nrows % 4)), (int)(ncols));
         }
-        for (int iter = nrows - (nrows % 4); iter < nrows; iter++) {
-            gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, (float *) (dst_ptr + (iter * nb1)) + src0_start,
+        for (int iter = (int)(nrows - (nrows % 4)); iter < nrows; iter++) {
+            gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>((int)(ne00), (float *) (dst_ptr + (iter * nb1)) + src0_start,
                                                              ne01, src0_ptr + src0_start * nb01,
-                                                             src1_ptr + (src1_col_stride * iter), 1 /* nrows */, ncols);
+                                                             src1_ptr + (src1_col_stride * iter), 1 /* nrows */, (int)(ncols));
         }
     }
 
@@ -4810,8 +4810,8 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
         GGML_ASSERT(src1->type == GGML_TYPE_F32);
 
         // row groups
-        const int n_ids = ids->ne[0]; // n_expert_used
-        const int n_as  = ne02;       // n_expert
+        const int n_ids = (int)(ids->ne[0]); // n_expert_used
+        const int n_as  = (int)(ne02);       // n_expert
 
         const size_t nbw1 = ggml_row_size(PARAM_TYPE, ne10);
         const size_t nbw2 = nbw1*ne11;
@@ -4906,8 +4906,8 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
                 const auto * src1_col = (const char *) wdata + (i11 * nbw1 + i12 * nbw2);
 
                 gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
-                    ne00, (float *) ((char *) dst->data + (i1 * nb1 + i2 * nb2)) + src0_cur_start, ne01,
-                    src0_cur + src0_cur_start * nb01, src1_col, 1, src0_cur_end - src0_cur_start);
+                    (int)(ne00), (float *) ((char *) dst->data + (i1 * nb1 + i2 * nb2)) + src0_cur_start, ne01,
+                    src0_cur + src0_cur_start * nb01, src1_col, 1, (int)(src0_cur_end - src0_cur_start));
             }
         }
 #undef MMID_MATRIX_ROW

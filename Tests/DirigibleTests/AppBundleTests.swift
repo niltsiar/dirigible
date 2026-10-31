@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 
@@ -305,6 +306,19 @@ struct AppBundleTests {
             #expect(notice.contains(text), "the notice names \(text)")
         }
         #expect(notice.contains(#/Source commit: [0-9a-f]{40}/#), "the notice names the source commit")
+    }
+
+    /// The app links whisper.cpp statically, so the bundle holds its MIT license, and the Silero
+    /// VAD model of whisper.cpp ships as a resource (decision 0065).
+    @Test func theWhisperLicenseAndTheVADModelAreInTheBundle() throws {
+        let resources = app.appending(path: "Contents/Resources")
+        let license = try String(contentsOf: resources.appending(path: "whisper.cpp-LICENSE.txt"), encoding: .utf8)
+        #expect(license.hasPrefix("MIT License"))
+        #expect(license.contains("Copyright (c) 2023-2026 The ggml authors"))
+        let model = try Data(contentsOf: resources.appending(path: "ggml-silero-v6.2.0.bin"))
+        #expect(model.count == 885_098)
+        let hash = SHA256.hash(data: model).map { String(format: "%02x", $0) }.joined()
+        #expect(hash == "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987")
     }
 
     /// Criteria V1 and V2: `CFBundleVersion` stays 1, because Launch Services opens a session

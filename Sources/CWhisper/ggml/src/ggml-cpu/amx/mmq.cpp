@@ -1,6 +1,5 @@
+// Changed by Dirigible on 2026-10-31: two pragmas that turn off warnings removed, with no change of behavior. See README.dirigible.
 #if defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Wpedantic"
-#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 #endif
 
 #include "amx.h"

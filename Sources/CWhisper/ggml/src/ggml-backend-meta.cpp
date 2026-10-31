@@ -1,3 +1,4 @@
+// Changed by Dirigible on 2026-10-31: casts to remove compiler warnings, with no change of behavior. See README.dirigible.
 #include "ggml.h"
 #include "ggml-impl.h"
 #include "ggml-backend.h"
@@ -1703,8 +1704,8 @@ static ggml_backend_buffer_t ggml_backend_meta_buffer_type_alloc_buffer(ggml_bac
         /*.no_alloc   =*/ true,
     };
     ggml_backend_meta_simple_tensor_container stc_static;
-    ggml_backend_meta_simple_tensor_container stc_compute_0(params, n_simple_bufts);
-    ggml_backend_meta_simple_tensor_container stc_compute_1(params, n_simple_bufts);
+    ggml_backend_meta_simple_tensor_container stc_compute_0(params, (int)(n_simple_bufts));
+    ggml_backend_meta_simple_tensor_container stc_compute_1(params, (int)(n_simple_bufts));
 
     size_t max_size = 0;
     std::vector<ggml_backend_buffer_t> bufs;
@@ -1733,9 +1734,9 @@ static ggml_backend_buffer_t ggml_backend_meta_buffer_type_alloc_buffer_n(ggml_b
         /*.mem_buffer =*/ nullptr,
         /*.no_alloc   =*/ true,
     };
-    ggml_backend_meta_simple_tensor_container stc_static   (params_static,  n_simple_bufts);
-    ggml_backend_meta_simple_tensor_container stc_compute_0(params_compute, n_simple_bufts);
-    ggml_backend_meta_simple_tensor_container stc_compute_1(params_compute, n_simple_bufts);
+    ggml_backend_meta_simple_tensor_container stc_static   (params_static,  (int)(n_simple_bufts));
+    ggml_backend_meta_simple_tensor_container stc_compute_0(params_compute, (int)(n_simple_bufts));
+    ggml_backend_meta_simple_tensor_container stc_compute_1(params_compute, (int)(n_simple_bufts));
 
     std::vector<ggml_backend_buffer_t> bufs(n_simple_bufts, nullptr);
     ggml_backend_meta_buffer_context * meta_buf_ctx = new ggml_backend_meta_buffer_context(stc_static, stc_compute_0, stc_compute_1, bufs);
@@ -2282,7 +2283,7 @@ static enum ggml_status ggml_backend_meta_graph_compute(ggml_backend_t backend, 
                 ggml_cgraph * cgraph_ij = bcj.cgraphs[i_graph].cgraph_main;
                 const size_t i_node_start = bcj.cgraphs[i_graph].offset;
                 const size_t i_node_stop = i_graph + 1 < n_subgraphs ? bcj.cgraphs[i_graph + 1].offset : cgraph->n_nodes;
-                cgraph_ij->n_nodes = i_node_stop - i_node_start;
+                cgraph_ij->n_nodes = (int)(i_node_stop - i_node_start);
                 ggml_hash_set_reset(&cgraph_ij->visited_hash_set);
                 for (size_t i_node = i_node_start; i_node < i_node_stop; i_node++) {
                     ggml_tensor * node_ij = bcj.nodes[i_node];

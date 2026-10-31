@@ -36,18 +36,23 @@ public enum WhisperModel: String, CaseIterable, Sendable {
 
     /// The file at `url` when its byte count and SHA-256 are those of this entry, else nil.
     public func checked(at url: URL) -> CheckedModel? {
-        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == byteCount,
-            let handle = try? FileHandle(forReadingFrom: url)
-        else { return nil }
-        defer { try? handle.close() }
-        var hash = SHA256()
-        while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty { hash.update(data: chunk) }
-        let digest = hash.finalize().map { String(format: "%02x", $0) }.joined()
-        return digest == sha256 ? CheckedModel(model: self, url: url) : nil
+        fileMatches(url, byteCount: byteCount, sha256: sha256) ? CheckedModel(model: self, url: url) : nil
     }
 
     /// `checked(at:)` on the catalog file name in `folder`.
     public func checked(in folder: URL) -> CheckedModel? { checked(at: folder.appending(path: fileName)) }
+}
+
+/// True when the file at `url` has `byteCount` bytes and the SHA-256 `sha256`: the check of each
+/// file that a ggml loader reads from a folder that the user can write.
+func fileMatches(_ url: URL, byteCount: Int, sha256: String) -> Bool {
+    guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == byteCount,
+        let handle = try? FileHandle(forReadingFrom: url)
+    else { return false }
+    defer { try? handle.close() }
+    var hash = SHA256()
+    while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty { hash.update(data: chunk) }
+    return hash.finalize().map { String(format: "%02x", $0) }.joined() == sha256
 }
 
 /// A model file whose byte count and SHA-256 match the catalog: the only input of `WhisperEngine`.

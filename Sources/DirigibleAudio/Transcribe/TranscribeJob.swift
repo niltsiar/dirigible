@@ -22,16 +22,27 @@ let liveTranscribe: TranscribeEngine = { model, language, count, log, read, stop
 
 /// The file name of the VAD model that `scripts/bundle.sh` copies to `Contents/Resources`.
 let vadFileName = "ggml-silero-v6.2.0.bin"
+/// The byte count and SHA-256 of `vadFileName`, as `scripts/fetch-whisper-test-model.sh` pins them.
+let vadByteCount = 885_098
+let vadSHA256 = "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987"
 
 /// The first VAD model file of: `resources` (the app), `<executable folder>/../Resources` with the
 /// links of `executable` resolved (the CLI in `Contents/Helpers`), and `models` (decision 0065 D2).
-/// With none, it throws `.vadModelMissing` with the paths it tried: a job with no VAD gives words
-/// on silence.
+/// The file in `models` counts only with the pinned byte count and SHA-256: the user can write
+/// that folder, and the ggml loader aborts the app on a bad file. The two bundle copies are signed
+/// with the app. With none, it throws `.vadModelMissing` with the paths it tried: a job with no
+/// VAD gives words on silence.
 func vadModel(resources: URL?, executable: URL?, models: URL) throws(TranscribeError) -> URL {
     let helpers = executable?.resolvingSymlinksInPath().deletingLastPathComponent()
     let folders = [resources, helpers?.deletingLastPathComponent().appending(path: "Resources"), models]
     let tried = folders.compactMap { $0?.appending(path: vadFileName) }
-    guard let found = tried.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
+    let inModels = models.appending(path: vadFileName)
+    let usable = { (url: URL) in
+        url == inModels
+            ? fileMatches(url, byteCount: vadByteCount, sha256: vadSHA256)
+            : FileManager.default.fileExists(atPath: url.path)
+    }
+    guard let found = tried.first(where: usable) else {
         throw .vadModelMissing(tried: tried.map(\.path))
     }
     return found

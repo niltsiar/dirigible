@@ -253,7 +253,7 @@ struct WhisperModelStoreTests {
         if index < paths.count {
             try FileManager.default.createDirectory(
                 at: paths[index].deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data([1]).write(to: paths[index])
+            try (place == .models ? Data(contentsOf: Self.bundledVAD) : Data([1])).write(to: paths[index])
         }
 
         let found = Result { () throws(TranscribeError) in
@@ -265,5 +265,28 @@ struct WhisperModelStoreTests {
         } else {
             #expect(throws: TranscribeError.vadModelMissing(tried: paths.map(\.path))) { try found.get() }
         }
+    }
+
+    /// The VAD model that `scripts/bundle.sh` copies to the app.
+    static let bundledVAD = URL(filePath: #filePath).deletingLastPathComponent()
+        .appending(path: "../../Support/Resources/\(vadFileName)").standardized
+
+    /// Gate 1 item 6. The model folder is writable by the user, and the ggml loader aborts the app
+    /// on a bad file, so a VAD file there counts only with the pinned byte count and SHA-256.
+    @Test func aVADFileInTheModelFolderCountsOnlyWithThePinnedHash() throws {
+        let folder = try TemporaryFolder()
+        let models = folder.url.appending(path: "Models")
+        try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)
+        let file = models.appending(path: vadFileName)
+        var sameSize = try Data(contentsOf: Self.bundledVAD)
+        sameSize[0] ^= 0xFF
+        for bad in [sameSize, Data([1])] {
+            try bad.write(to: file)
+            #expect(throws: TranscribeError.vadModelMissing(tried: [file.path])) {
+                try vadModel(resources: nil, executable: nil, models: models)
+            }
+        }
+        try Data(contentsOf: Self.bundledVAD).write(to: file)
+        #expect(try vadModel(resources: nil, executable: nil, models: models) == file)
     }
 }

@@ -1333,10 +1333,9 @@ gc "$k" -m $'cut the rerun\n\nEval keys: E37' 2>"$tmp/err" || msg_fail "a cut wi
 # brief with a lock step while a release call holds the build lock.
 agent_hook="$(dirname "$0")/agent-guard.sh"
 # The hooks pass and the push check run this file as a release call, so a case of the real repo
-# must name no lock step: the real --release-holder would see that holder. The pattern is that of
-# agent-guard.sh, built from its three lists.
-guard_list() { sed -n "s/^$1='\(.*\)'\$/\1/p" "$(dirname "$0")/agent-guard.sh"; }
-real_lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make +([A-Z_]+=[^ ]* +)*($(guard_list lock_targets))([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($(guard_list lock_scripts))\.sh|(^|[^A-Za-z0-9_-])swift +($(guard_list lock_swift))([^A-Za-z0-9_-]|\$)"
+# must name no lock step: the real --release-holder would see that holder. The pattern is lock_re of
+# agent-guard.sh, read from its lines.
+real_lock_re="$(bash -c "$(sed -n '/^lock_targets=/,/^lock_re=/p' "$(dirname "$0")/agent-guard.sh" | grep -v '^steps='); printf '%s' \"\$lock_re\"")"
 no_lock_step() { # <text>
   ! grep -qE "$real_lock_re" <<< "$1" || { echo "FAIL: agent-guard: a real-repo brief case names a lock word: $1"; failures=$((failures + 1)); }
 }
@@ -1499,6 +1498,9 @@ lock_allows=($'Run `swift build`.\nBuild lock: none'
   'Read the Makefile target make-check-docs.' 'The tests build a remake test fixture.'
   'Run make -C . check-docs.' 'Run make -j4 lint.' 'Run make -C dir format.' 'Run make -s check-fast.' $'Run make\t-C\t.\tlint.'
   'Run make FILTER=x check-docs.' 'Run make -n.' 'Run make lint check-docs.' 'Run make format check-fast.')
+for text in "${lock_blocks[@]}"; do
+  grep -qE "$real_lock_re" <<< "$text" || { echo "FAIL: real_lock_re misses a lock step of the hook: $text"; failures=$((failures + 1)); }
+done
 # A live release holder and a live release ticket with a free lock refuse a lock-step brief.
 for state in release ticket; do
   for text in "${lock_blocks[@]}"; do expect_lock_brief block "$state" Agent prompt "$text"; done
@@ -1535,13 +1537,14 @@ rm -f "$lock_repo/scripts/with-lock.sh"
 expect_lock_brief allow release Agent prompt "$lock_step"
 cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_repo/scripts/"
 # The lists of the hook equal their sources: lock_targets the Makefile .PHONY line minus the four
-# make targets that take no lock, and lock_scripts the scripts that AGENTS.md says take the lock
+# make targets that take no lock (free_targets), and lock_scripts the scripts that AGENTS.md says take the lock
 # themselves. A new make target is then a lock step the day it exists. An empty source fails.
 # lock_lists_equal <Makefile> <AGENTS.md> <agent-guard.sh>
 lock_lists_equal() {
-  local want_t have_t want_s have_s
-  want_t="$(sed -n 's/^\.PHONY: //p' "$1" | tr ' ' '\n' | grep -vxE 'check-docs|check-fast|lint|format' | sort)"
+  local free='check-docs|check-fast|lint|format' want_t have_t want_s have_s
+  want_t="$(sed -n 's/^\.PHONY: //p' "$1" | tr ' ' '\n' | grep -vxE "$free" | sort)"
   have_t="$(sed -n "s/^lock_targets='\(.*\)'\$/\1/p" "$3" | tr '|' '\n' | sort)"
+  [[ "$(sed -n "s/^free_targets='\(.*\)'\$/\1/p" "$3")" == "$free" ]] || return 1
   want_s="$(python3 -I -c '
 import re, sys
 m = re.search(r"((?:`scripts/[\w-]+\.sh`(?:,? and |, )?)+) take the lock themselves", open(sys.argv[1], encoding="utf-8").read())
@@ -1565,6 +1568,8 @@ sed 's/^\(\.PHONY: .*\) static /\1 /' "$lock_real/Makefile" > "$lock_mut/Makefil
 expect_lock_lists differ 'the Makefile loses static' "$lock_mut/Makefile.no-static" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
 sed 's/|dmg|/|/' "$lock_dir_src/agent-guard.sh" > "$lock_mut/hook.no-dmg"
 expect_lock_lists differ 'the hook list loses dmg' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-dmg"
+sed "s/^free_targets='check-docs|check-fast|lint|format'\$/free_targets='check-docs|check-fast|format'/" "$lock_dir_src/agent-guard.sh" > "$lock_mut/hook.no-free-lint"
+expect_lock_lists differ 'the hook free list loses lint' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-free-lint"
 sed 's/`scripts\/sanitize.sh` take the lock/`scripts\/other.sh` take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.new-script"
 expect_lock_lists differ 'AGENTS.md names another script' "$lock_real/Makefile" "$lock_mut/AGENTS.new-script" "$lock_dir_src/agent-guard.sh"
 sed 's/take the lock themselves/take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.no-sentence"

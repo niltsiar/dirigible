@@ -113,6 +113,11 @@ struct CaptureEnvironment: Sendable {
             return try ModelFileCheck.run(
                 url, helper: ModelFileCheck.helper(executable: executable), passed: passed, stop: stop)
         }
+    /// The SHA-256 of a kept model file of the user for the Transcribe sheet, on the GCD thread of
+    /// its read run, with the stop check of the run (decision 0065, D8, C24). Tests count or hold it.
+    var hashModelFile: @Sendable (URL, @Sendable () -> Bool) throws(ModelFileCheckError) -> String = {
+        url, stop throws(ModelFileCheckError) in try OpenModelFile(url).sha256(stop: stop)
+    }
     /// A step after a passed check of a model file of the user, before the engine part. Tests
     /// change the file there.
     var modelFileCheckDone: @Sendable () async -> Void = {}

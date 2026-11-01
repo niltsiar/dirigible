@@ -88,21 +88,26 @@ extension SessionWindow {
     }
 
     /// The kept file at the sheet open (C24): its status, off the main actor. A missing file shows
-    /// as "(missing)". A new byte count or date hashes the file once, under the refusal of a check:
-    /// the same hash keeps the record with the new status, another hash drops the record.
+    /// as "(missing)". A new byte count or date hashes the file once as a read run of the studio
+    /// (`Studio.hashModelFile`): the same hash keeps the record with the new status, another hash
+    /// or a read error drops the record, and a refusal or a stop keeps the record as it is.
     func readKeptFile() {
         guard let kept = transcribe.draft?.kept else { return }
-        let hash = transcribe.hashFile
         transcribe.keptTask?.cancel()
         transcribe.keptTask = Task { [weak self] in
             let status = await FileStatus.read(kept.url)
             guard let self, transcribe.draft?.kept == kept else { return }
             guard let status else { return transcribe.draft?.keptFileIsMissing() ?? () }
-            guard status != kept.status, let studio, (try? studio.checkModelFileIdle()) != nil else { return }
-            let sha256 = await Task.detached { hash(kept.url) }.value
+            guard status != kept.status, let studio else { return }
             var updated = kept
             (updated.byteCount, updated.modified) = (status.byteCount, status.modified)
-            if sha256 == nil || sha256 != kept.passed?.sha256 { updated.passed = nil }
+            do throws(StudioError) {
+                if try await studio.hashModelFile(kept.url) != kept.passed?.sha256 { updated.passed = nil }
+            } catch .transcription(.modelFile(.unreadable)) {
+                updated.passed = nil
+            } catch {
+                return
+            }
             updated.store(in: app?.defaults)
             if transcribe.draft?.kept == kept { transcribe.draft?.kept = updated }
         }

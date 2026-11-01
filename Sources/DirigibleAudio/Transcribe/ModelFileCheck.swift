@@ -26,7 +26,7 @@ public enum ModelFileCheck {
         let file: WhisperModelFile
         do { file = try WhisperModelFile.read(url) } catch { refuse(message(error)) }
         let hash: String
-        do { hash = try sha256(of: url) } catch { refuse(message(.unreadable(errno: error.errno))) }
+        do { hash = try sha256(of: url) } catch { refuse(message(error)) }
         let record = PassedModelFile(sha256: hash, facts: file.facts)
         do { try trial(CheckedModel(source: .file(record), url: url)) } catch { refuse(message(error)) }
         print(line(record))
@@ -61,6 +61,12 @@ public enum ModelFileCheck {
         case .damaged(let reason): "The model file is damaged: \(reason)."
         case .unreadable(let code): "The model file cannot be read: \(String(cString: strerror(code)))."
         }
+    }
+
+    /// The hash of the helper has no stop, so only `.unreadable` comes.
+    private static func message(_ error: ModelFileCheckError) -> String {
+        guard case .unreadable(let code) = error else { return "\(error)" }
+        return message(ModelFileError.unreadable(errno: code))
     }
 
     private static func message(_ error: TranscribeError) -> String {
@@ -105,16 +111,16 @@ public enum ModelFileCheck {
     }
 
     /// Checks the model file at `url` with `helper` (`<helper> model check <path>`), on the calling
-    /// thread, which it blocks: run it on the job thread, never on the main actor. When the SHA-256
-    /// of the file is the one of `passed`, no helper runs and the facts come from `passed`. Else
-    /// `stop` is read after the hash, before the helper starts, and every `stopPoll` seconds while
-    /// it runs; a set stop ends the helper (SIGTERM, then SIGKILL after `killDelay` seconds) and
-    /// throws `.stopped` after the helper is gone.
+    /// thread, which it blocks: run it on the job thread, never on the main actor. Only a regular
+    /// file opens (EFTYPE). When the SHA-256 of the file is the one of `passed`, no helper runs and
+    /// the facts come from `passed`. `stop` is read before each 1 MiB chunk of the hash, before the
+    /// helper starts, and every `stopPoll` seconds while it runs; a set stop ends the helper
+    /// (SIGTERM, then SIGKILL after `killDelay` seconds) and throws `.stopped` after the helper is
+    /// gone.
     public static func run(_ url: URL, helper: URL, passed: PassedModelFile?, stop: @Sendable () -> Bool)
         throws(ModelFileCheckError) -> CheckedModel
     {
-        let hash: String
-        do { hash = try sha256(of: url) } catch { throw .unreadable(errno: error.errno) }
+        let hash = try OpenModelFile(url).sha256(stop: stop)
         if let passed, passed.sha256 == hash { return CheckedModel(source: .file(passed), url: url) }
         if stop() { throw .stopped }
         guard FileManager.default.fileExists(atPath: helper.path) else { throw .helperMissing(path: helper.path) }
@@ -152,10 +158,6 @@ public enum ModelFileCheck {
         guard record.sha256 == hash else { throw .changedDuringCheck }
         return CheckedModel(source: .file(record), url: url)
     }
-
-    /// The SHA-256 of the file at `url` in lowercase hex, else nil when the file cannot be read.
-    /// It blocks the calling thread for the whole file.
-    public static func fileHash(_ url: URL) -> String? { try? sha256(of: url) }
 
     /// The helper of the process whose executable is `executable`, with its links resolved: for the
     /// executable in `Contents/MacOS` of the app, `Contents/Helpers/dirigible`; else the `dirigible`

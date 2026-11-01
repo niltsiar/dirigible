@@ -39,13 +39,15 @@ extension SessionWindow {
     }
 
     /// Scans the checked tracks over the range of the selection, or the whole session, with the
-    /// settings of the tab. The play stops. Cancel and a read error leave the list as it was.
+    /// settings of the tab. The range that a row click set is no scope: then the scan keeps the
+    /// scope of the list. The play stops. Cancel and a read error leave the list as it was.
     func scanSilences() async {
         guard canScanSilences, let studio = idleStudio else { return }
         let settings = silences.settings
         let session = studio.session
         let rate = session.sampleRate
-        let range = timeline.selection.marks?.selection(in: session)?.range
+        let selected = timeline.selection.marks?.selection(in: session)?.range
+        let range = selected != nil && selected == silences.rowRange ? silences.review?.scan.range : selected
         silences.note = nil
         do throws(StudioError) {
             let scan = try await studio.scanSilences(
@@ -73,6 +75,7 @@ extension SessionWindow {
                 inPoint: row.silence.lowerBound, outPoint: row.silence.upperBound, tracks: Set(session.tracks.map(\.id))
             )
         )
+        silences.rowRange = timeline.selection.marks?.selection(in: session)?.range
         let before = Frames(max(0, row.silence.lowerBound.count - Self.silencePreRoll * session.sampleRate))
         transport(.seek(.frame(before)))
     }

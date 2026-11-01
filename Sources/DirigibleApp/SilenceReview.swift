@@ -239,6 +239,9 @@ struct SilenceNote: Equatable {
     var keepText: String
     var review: SilenceReview?
     var selection: Set<Int> = []
+    /// The range that the last row click set, so the next scan can tell it from a range that the
+    /// user sets.
+    @ObservationIgnored var rowRange: Range<Frames>?
     var note: SilenceNote?
     @ObservationIgnored private let defaults: UserDefaults?
     /// True while the keep field has the focus, from the pane.

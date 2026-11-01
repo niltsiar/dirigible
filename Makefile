@@ -173,7 +173,7 @@ format:
 	swift format format --in-place --recursive $(SWIFT_SOURCES)
 
 # The gates with no Swift test. scripts/run-checks.sh runs them first with make static, so a red
-# gate stops check or check-fast before the Swift targets (decision 0028).
+# gate stops check, check-fast, or static before the Swift targets (decision 0028).
 STATIC_GATES := lint check-docs check-slow-gates check-warnings check-sizes
 static: $(STATIC_GATES)
 

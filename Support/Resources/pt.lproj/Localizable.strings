@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Selecione uma pista a abaixar ou dê a uma pista a função Música.";
 "error.duck.both.lists" = "A pista “%@” não pode ser ao mesmo tempo uma pista de voz e uma pista a abaixar.";
 "error.duck.read" = "Um arquivo de áudio de uma pista de voz não foi lido (erro %lld). Nenhum ponto de ganho mudou.";
+"error.silences.read" = "Um arquivo de áudio não foi lido (erro %lld). A busca não encontrou silêncios.";
+"error.silences.stale" = "As pistas mudaram depois da busca. Busque de novo para aplicar os silêncios.";
+"error.silences.faults" = "Estes arquivos estão faltando ou danificados: %@. Os clipes deles seriam lidos como silêncio, então a busca não mostra silêncios. Restaure os arquivos e busque de novo.";
 "error.duck.past.end" = "A seleção começa no fim da sessão ou depois, então o abaixamento não mudou nenhum ponto de ganho.";
 "banner.duck.unread" = "O abaixamento não conseguiu ler estes arquivos de voz, então a música fica alta sobre a voz deles: %@.";
 "banner.take.sync.broken" = "%1$@ moveu parte do áudio da tomada. A tomada %2$lld está fora de sincronia com a gravação a partir de %3$@ na linha do tempo.";
@@ -331,6 +334,7 @@
 "take.placing" = "Posicionando %@…";
 "take.leveling" = "Nivelando os clipes…";
 "take.ducking" = "Abaixando a música sob a voz…";
+"take.finding.silences" = "Procurando silêncios…";
 "take.pending" = "A tomada %lld não foi finalizada.";
 "take.pending.leave.hint" = "Se o disco não conseguir ler este áudio novamente, finalize a tomada sem ele. O arquivo permanece no pacote, e você poderá posicioná-lo depois.";
 "take.pending.space" = "A finalização precisa de %1$@ de espaço livre. Espaço livre agora: %2$@.";

@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Seleziona una traccia da abbassare o assegna a una traccia il ruolo Musica.";
 "error.duck.both.lists" = "La traccia “%@” non può essere sia una traccia vocale sia una traccia da abbassare.";
 "error.duck.read" = "Non è stato possibile leggere un file audio di una traccia vocale (errore %lld). Nessun punto di gain è cambiato.";
+"error.silences.read" = "Non è stato possibile leggere un file audio (errore %lld). La ricerca non ha trovato silenzi.";
+"error.silences.stale" = "Le tracce sono cambiate dopo la ricerca. Cerca di nuovo per applicare i silenzi.";
+"error.silences.faults" = "Questi file mancano o sono danneggiati: %@. Le loro clip verrebbero lette come silenzio, quindi la ricerca non mostra silenzi. Ripristina i file e cerca di nuovo.";
 "error.duck.past.end" = "La selezione inizia alla fine della sessione o dopo, quindi l’abbassamento non ha cambiato nessun punto di gain.";
 "banner.duck.unread" = "L’abbassamento non ha potuto leggere questi file vocali, quindi la musica resta alta sulla loro voce: %@.";
 "banner.take.sync.broken" = "%1$@ ha spostato una parte dell’audio del take. Il take %2$lld non è più sincronizzato con la registrazione da %3$@ sulla timeline.";
@@ -331,6 +334,7 @@
 "take.placing" = "Posizionamento di %@…";
 "take.leveling" = "Livellamento dei clip…";
 "take.ducking" = "Abbassamento della musica sotto la voce…";
+"take.finding.silences" = "Ricerca dei silenzi…";
 "take.pending" = "Il take %lld non è terminato.";
 "take.pending.leave.hint" = "Se il disco non riesce ancora a leggere questo audio, termina il take senza di esso. Il file resta nel pacchetto, e puoi posizionarlo più tardi.";
 "take.pending.space" = "La finalizzazione richiede %1$@ di spazio libero. Spazio libero ora: %2$@.";

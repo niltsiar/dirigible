@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Sélectionnez une piste à atténuer ou donnez à une piste le rôle Musique.";
 "error.duck.both.lists" = "La piste « %@ » ne peut pas être à la fois une piste de voix et une piste à atténuer.";
 "error.duck.read" = "Un fichier audio d’une piste de voix n’a pas pu être lu (erreur %lld). Aucun point de gain n’a changé.";
+"error.silences.read" = "Un fichier audio n’a pas pu être lu (erreur %lld). La recherche n’a trouvé aucun silence.";
+"error.silences.stale" = "Les pistes ont changé après la recherche. Relancez la recherche pour appliquer les silences.";
+"error.silences.faults" = "Ces fichiers sont manquants ou endommagés : %@. Leurs clips seraient lus comme du silence, donc la recherche n’affiche aucun silence. Restaurez les fichiers et relancez la recherche.";
 "error.duck.past.end" = "La sélection commence à la fin de la session ou après, l’atténuation n’a donc modifié aucun point de gain.";
 "banner.duck.unread" = "L’atténuation n’a pas pu lire ces fichiers de voix, la musique reste donc forte sur leur voix : %@.";
 "banner.take.sync.broken" = "%1$@ a déplacé une partie de l’audio de la prise. La prise %2$lld n’est plus synchronisée avec l’enregistrement à partir de %3$@ sur la timeline.";
@@ -331,6 +334,7 @@
 "take.placing" = "Placement de %@…";
 "take.leveling" = "Nivellement des clips…";
 "take.ducking" = "Atténuation de la musique sous la voix…";
+"take.finding.silences" = "Recherche des silences…";
 "take.pending" = "La prise %lld n’est pas terminée.";
 "take.pending.leave.hint" = "Si le disque ne parvient toujours pas à lire cet audio, terminez la prise sans lui. Le fichier reste dans le paquet, et vous pourrez le placer plus tard.";
 "take.pending.space" = "La finalisation nécessite %1$@ d’espace libre. Espace libre actuel : %2$@.";

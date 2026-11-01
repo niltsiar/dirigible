@@ -146,6 +146,10 @@ struct TakeBanner: View {
                 }
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
             }
+        case .findingSilences:
+            BannerRow(kind: .info, text: L10n.takeFindingSilences.text) {
+                Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)
+            }
         case .importing where model.importJob?.visible == false:
             EmptyView()  // A paste and a split show their banner after 0.5 s.
         case .importing(let run):

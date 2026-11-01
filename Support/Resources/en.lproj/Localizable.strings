@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Select a track to duck, or give a track the Music role.";
 "error.duck.both.lists" = "Track “%@” cannot be a speech track and a track to duck.";
 "error.duck.read" = "An audio file of a speech track did not read (error %lld). No gain point changed.";
+"error.silences.read" = "An audio file did not read (error %lld). The scan found no silence.";
+"error.silences.stale" = "The tracks changed after the scan. Scan again to apply the silences.";
+"error.silences.faults" = "These files are missing or damaged: %@. Their clips would read as silence, so the scan shows no silence. Restore the files and scan again.";
 "error.duck.past.end" = "The selection starts at or after the end of the session, so the duck changed no gain point.";
 "banner.duck.unread" = "The duck did not read these speech files, so the music stays up over their speech: %@.";
 "banner.take.sync.broken" = "%1$@ moved part of the take audio. Take %2$lld is out of sync with the recording from %3$@ on the timeline.";
@@ -331,6 +334,7 @@
 "take.placing" = "Placing %@…";
 "take.leveling" = "Leveling clips…";
 "take.ducking" = "Ducking the music under the speech…";
+"take.finding.silences" = "Finding silences…";
 "take.pending" = "Take %lld is not finished.";
 "take.pending.leave.hint" = "If the disk cannot read this audio again, finish the take without it. The file stays in the package, and you can place it later.";
 "take.pending.space" = "The finish needs %1$@ free. %2$@ is free now.";

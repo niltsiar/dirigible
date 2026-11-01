@@ -119,6 +119,23 @@ struct LevelSeriesTests {
         #expect(pause(before, at: 192_000) == .pause(Self.windows(10, 50), cut: 96_000), "before")
     }
 
+    /// C31: the least threshold that gives a silence of 1 s (20 windows). One -50 dBFS window in a
+    /// -38 dBFS floor is no silence alone, so the level is the floor. A run must meet the range.
+    @Test func theQuietestRunIsTheLeastThresholdOfARow() throws {
+        func dB(_ level: WindowLevel?) -> Double? { level.map { 10 * log10(Double($0.meanSquare)) } }
+        let floor = try Self.series(Self.part(10, -38) + [-50] + Self.part(30, -38))
+        let level = try #require(dB(floor.quietestRun(minLength: 48_000, in: floor.range)))
+        #expect(abs(level + 38) < 0.1, "\(level) dBFS")
+        let short = try Self.series(Self.part(19, -60))
+        #expect(short.quietestRun(minLength: 48_000, in: short.range) == nil, "19 windows give a level")
+        let whole = try Self.series(Self.part(20, -60))
+        let sixty = try #require(dB(whole.quietestRun(minLength: 48_000, in: whole.range)))
+        #expect(abs(sixty + 60) < 0.1, "\(sixty) dBFS")
+        let outside = try Self.series(Self.part(20, -60) + Self.part(20, -30))
+        let late = try #require(dB(outside.quietestRun(minLength: 48_000, in: Self.windows(30, 40))))
+        #expect(abs(late + 30) < 0.1, "a run outside the range counts: \(late) dBFS")
+    }
+
     /// With no silence, the cut is the middle of the quietest window, the earlier on a tie.
     @Test func withNoPauseTheQuietestWindowIsTheCut() throws {
         let levels = try Self.series(Self.part(10, -20) + [-30, -25, -30] + Self.part(10, -20))

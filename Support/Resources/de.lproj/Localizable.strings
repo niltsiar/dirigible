@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";
 "error.duck.both.lists" = "Spur „%@“ kann nicht zugleich Sprachspur und abzusenkende Spur sein.";
 "error.duck.read" = "Eine Audiodatei einer Sprachspur wurde nicht gelesen (Fehler %lld). Kein Pegelpunkt wurde geändert.";
+"error.silences.read" = "Eine Audiodatei wurde nicht gelesen (Fehler %lld). Die Suche hat keine Stille gefunden.";
+"error.silences.stale" = "Die Spuren haben sich nach der Suche geändert. Suche erneut, um die Stille anzuwenden.";
+"error.silences.faults" = "Diese Dateien fehlen oder sind beschädigt: %@. Ihre Clips würden als Stille gelesen, daher zeigt die Suche keine Stille. Stelle die Dateien wieder her und suche erneut.";
 "error.duck.past.end" = "Die Auswahl beginnt am Ende der Session oder danach, daher hat das Absenken keinen Pegelpunkt geändert.";
 "banner.duck.unread" = "Das Absenken konnte diese Sprachdateien nicht lesen, daher bleibt die Musik über ihrer Sprache laut: %@.";
 "banner.take.sync.broken" = "%1$@ hat einen Teil des Take-Audios verschoben. Take %2$lld ist ab %3$@ in der Timeline nicht mehr synchron mit der Aufnahme.";
@@ -331,6 +334,7 @@
 "take.placing" = "%@ wird platziert …";
 "take.leveling" = "Clips werden eingepegelt …";
 "take.ducking" = "Musik wird unter der Sprache abgesenkt …";
+"take.finding.silences" = "Stille wird gesucht …";
 "take.pending" = "Take %lld ist nicht abgeschlossen.";
 "take.pending.leave.hint" = "Wenn die Festplatte dieses Audio nicht wieder lesen kann, schließe den Take ohne es ab. Die Datei bleibt im Paket, und du kannst sie später platzieren.";
 "take.pending.space" = "Der Abschluss benötigt %1$@ freien Speicherplatz. Jetzt sind %2$@ frei.";

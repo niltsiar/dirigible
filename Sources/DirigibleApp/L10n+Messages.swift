@@ -56,6 +56,13 @@ extension L10n {
         case .transcriptionCancelled: return transcribeCanceled.text
         case .transcription(let error): return message(for: error)
         case .duckRead(let code): return errorDuckRead.format(Int(code))
+        // The banner Cancel ends a silence scan, so the window shows no alert for it.
+        case .silencesCancelled: return errorSessionOther.text
+        case .silencesRead(let code): return errorSilencesRead.format(Int(code))
+        case .silencesStale: return errorSilencesStale.text
+        case .silencesFaults(let faults):
+            let names = faults.keys.sorted().map { session?.files[$0]?.path ?? $0.rawValue }
+            return errorSilencesFaults.format(names.joined(separator: ", "))
         case .segment(_, .session(let error)): return message(for: error, name: name)
         case .segment(let segment, let fault): return message(for: fault).format(segment.stem)
         case .artwork(let error): return message(for: error)

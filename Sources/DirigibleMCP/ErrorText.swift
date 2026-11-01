@@ -263,6 +263,13 @@ extension StudioError {
         case .transcriptionYielded: "a take stopped the transcription."
         case .transcriptionCancelled: "the transcription was cancelled."
         case .duckRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
+        // No command or tool scans through Studio; `silences` calls `ReadWork.read`.
+        case .silencesCancelled: "the silence scan was cancelled."
+        case .silencesRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
+        case .silencesStale: "the tracks changed after the silence scan; scan again."
+        case .silencesFaults(let faults):
+            faults.sorted { $0.key < $1.key }.map { "file \($0.key) \(ExportText.describe($0.value))" }
+                .joined(separator: "; ") + "; its clips would read as silence, so the scan gives no silence."
         case .writerDidNotStop(let name):
             "\(name) did not stop in time. The audio is safe in \(package)/Capture; open the package in "
                 + "Dirigible to finish the take."

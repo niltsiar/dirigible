@@ -78,6 +78,17 @@ public enum StudioError: Error, Hashable, Sendable {
     case transcriptionCancelled
     /// A duck could not open an audio file: no free descriptor, with its errno (decision 0016).
     case duckRead(Int32)
+    /// The banner Cancel or a cancel of the caller ended a silence scan (decision 0066).
+    case silencesCancelled
+    /// A silence scan could not open an audio file: no free descriptor, with its errno (decision
+    /// 0066).
+    case silencesRead(Int32)
+    /// The tracks or the pool files changed after the silence scan, so Apply changed nothing and
+    /// the window scans again (decision 0066).
+    case silencesStale
+    /// Files of a silence scan are missing, short, or unreadable: their clips would read as
+    /// silence, so the scan gives no row (decisions 0062 and 0066).
+    case silencesFaults([FileID: MediaFault])
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).
     /// The take stays pending with its audio on disk, and Retry Finalize waits for it again.
     case writerDidNotStop(String)

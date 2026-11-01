@@ -209,6 +209,10 @@ package enum AgentManual {
             right part of a cut clip gets a new ID. Send ripple cuts from the last to the first, or use one call \
             with many ranges.
 
+            `transcribe` takes `model_file`, the absolute path of a ggml whisper model file of the user, in place \
+            of `model`. Before it loads the file, Dirigible checks it in a helper process: \
+            `dirigible model check <path>`. A file that the check refuses gives the reason and changes nothing.
+
             | Tool | Command |
             |---|---|
             \(tools)

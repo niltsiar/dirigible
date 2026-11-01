@@ -1,18 +1,20 @@
 import DirigibleAudio
 
 /// `transcribe` through `Studio.transcribe`: one undo step with the agent name, after a download of
-/// a missing model. A take start, the banner Cancel, the close of the window, or a cancel of the
-/// call ends it with no word added (decision 0065). `report` gets the fraction of each stage.
+/// a missing model or the check of a model file. A take start, the banner Cancel, the close of the
+/// window, or a cancel of the call ends it with no word added (decision 0065). `report` gets the
+/// fraction of each stage.
 @MainActor
 func liveTranscribe(
     _ work: TranscribeWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
 ) async -> AgentReply {
     do throws(StudioError) {
         let done = try await studio.transcribe(
-            track: work.track, language: work.language, model: .catalog(work.model), name: work.name, agent: call.agent
+            track: work.track, language: work.language, model: work.model, name: work.name, agent: call.agent
         ) { stage in report(toolFraction(stage)) }
         let lines = TranscribeWork.lines(
-            id: done.id, kept: done.kept, skipped: done.skipped, untimed: done.untimed, dropped: done.dropped)
+            id: done.id, kept: done.kept, skipped: done.skipped, untimed: done.untimed, dropped: done.dropped,
+            modelFile: done.modelFile)
         return .result(text: lines.joined(separator: "\n"), isError: false)
     } catch .transcriptionYielded {
         return .result(text: "Dirigible started a take, so the transcription stopped. \(noWords)", isError: true)
@@ -31,7 +33,8 @@ func liveTranscribe(
 }
 
 /// The tool scale of a transcription stage: the download from 0 to 0.2, the transcription from
-/// 0.2 to 1. MCP progress must grow, so the second stage does not start again at 0.
+/// 0.2 to 1. MCP progress must grow, so the second stage does not start again at 0. The check of a
+/// model file of the user takes the place of the download at 0, and its end gives no new value.
 func toolFraction(_ stage: TranscribeProgress) -> Double {
     switch stage {
     case .download(let fraction): 0.2 * fraction

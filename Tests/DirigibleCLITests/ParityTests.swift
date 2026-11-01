@@ -203,7 +203,6 @@ struct ParityTests {
         "mcp": "It is the MCP server that sends the manual.",
         "skill show": "It prints the skill itself.",
         "skill path": "The guide names it for the person who links the skill.",
-        "model check": "It is the helper process of the model file check of the app (decision 0065, D8).",
     ]
 
     /// Each tool and each command is named in the manual, a recipe, or the tool table of the skill,

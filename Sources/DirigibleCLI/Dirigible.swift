@@ -19,7 +19,7 @@ struct Dirigible: AsyncParsableCommand {
             NearestPauseCommand.self,
             MeterCommand.self,
             LevelCommand.self, DuckCommand.self, ImportCommand.self,
-            TranscriptCommand.self, TranscribeCommand.self,
+            TranscriptCommand.self, TranscribeCommand.self, ModelCommand.self,
             BackupCommand.self, TransportGroup.self, BatchCommand.self,
             MCPCommand.self, SkillCommand.self, DiagnosticsCommand.self,
         ])

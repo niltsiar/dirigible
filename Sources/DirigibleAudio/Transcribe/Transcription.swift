@@ -67,3 +67,21 @@ public enum TranscribeError: Error, Hashable, Sendable {
     /// `whisper_full` returned this non-zero code with the stop flag clear.
     case engine(code: Int32)
 }
+
+/// Why `ModelFileCheck.run` gives no checked model for a model file of the user (decision 0065, D8).
+public enum ModelFileCheckError: Error, Hashable, Sendable {
+    /// The open or a read of the file for its SHA-256 failed with this errno.
+    case unreadable(errno: Int32)
+    /// No helper file is at this path: a fault of the install.
+    case helperMissing(path: String)
+    /// `Process.run()` of the helper threw: the path and the error domain and code.
+    case helperNotStarted(path: String, domain: String, code: Int)
+    /// The parse or the trial refused the file: the error line of the helper.
+    case refused(String)
+    /// The helper ended by this signal, or exited with 128 + this signal from its handlers.
+    case helperStopped(signal: Int32)
+    /// The helper read the file with another SHA-256 than the hash before the helper.
+    case changedDuringCheck
+    /// The stop check was set before the helper ended.
+    case stopped
+}

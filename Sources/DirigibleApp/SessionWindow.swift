@@ -156,8 +156,9 @@ import SwiftUI
     @ObservationIgnored var duckPresses = 0
     /// The running import (decision 0040). Nil: no import.
     var importJob: ImportJob?
-    /// The Transcribe sheet, job, and notice (decision 0065).
+    /// The Transcribe sheet, job, and notice (decision 0065), and the Silences tab (decision 0066).
     let transcribe = TranscribeState()
+    let silences: SilenceState
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?
@@ -228,6 +229,7 @@ import SwiftUI
         self.url = url
         self.recordings = recordings
         self.app = app
+        silences = SilenceState(defaults: app.defaults)
         showsLoudness = app.defaults?.object(forKey: Self.loudnessKey) as? Bool ?? true
         showsInspector = app.defaults?.bool(forKey: Self.inspectorKey) ?? false
         inspectorWidth = InspectorWidth(stored: app.defaults?.object(forKey: InspectorWidth.defaultsKey))
@@ -333,8 +335,7 @@ import SwiftUI
     }
 
     /// "Close anyway?": Cancel. The window stays open with the same studio, which keeps its lock.
-    /// The settle of the close started no peak pass, so the files of a take that it finalized
-    /// get their peaks now (decision 0017).
+    /// The close settle started no peak pass, so the files of a finalized take get their peaks now (0017).
     func cancelUnsavedClose() {
         alert = nil
         guard case .closing(let studio?) = phase else { return }
@@ -342,8 +343,7 @@ import SwiftUI
         studio.loadPeaks()
     }
 
-    /// For Quit: waits for the open, turns the monitor off, stops a take, and waits for every
-    /// write.
+    /// For Quit: waits for the open, turns the monitor off, stops a take, and waits for every write.
     func settle() async {
         closeConsent()
         await opening?.value

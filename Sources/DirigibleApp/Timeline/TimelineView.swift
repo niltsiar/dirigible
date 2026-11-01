@@ -12,6 +12,8 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
     let studio: Studio
     let inputs: LaneInputs
     let currentMarker: MarkerID?
+    /// The silences of the Silences tab, for the shade over the lanes (decision 0066).
+    let silences: [SilenceBand]
     /// Row n is the header of lane n, with the lane height.
     let headers: Headers
 
@@ -31,6 +33,7 @@ struct TimelineLanes<Headers: View>: NSViewRepresentable {
         view.updates += 1
         view.headers.host.rootView = AnyView(headers)
         view.update(inputs)
+        view.lanes.silenceBands = silences
         view.ruler.current = currentMarker
     }
 }

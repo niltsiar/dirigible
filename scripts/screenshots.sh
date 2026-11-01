@@ -7,7 +7,8 @@
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in the language (the number format of its locale) and light
 # mode, and writes screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png,
-# screenshot-episode.png, screenshot-crossfade.png, and screenshot-settings.png. For en, it writes
+# screenshot-episode.png, screenshot-crossfade.png, screenshot-settings.png, and
+# screenshot-silences.png. For en, it writes
 # them to docs/images. For another language, it writes them to <folder>/images. The app also
 # writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
 # this script as a check.
@@ -143,6 +144,7 @@ SWIFT
 }
 found="$(find_window "Demo Episode")"
 id="${found%% *}"
+session_id="$id"
 size="${found#* }"
 want="1180 x 772"
 [[ "$size" == "$want" ]] || { echo "screenshots.sh: the window is '$size' pt, not $want pt." >&2; exit 1; }
@@ -151,6 +153,7 @@ sleep 1
 # Capture into the folder, and refuse a display scale other than 2x (Retina): it gives images of
 # another size. Only a good capture replaces the image in docs/images.
 width="${size%% *}"
+session_width="$width"
 shot() {
     "$repo/scripts/screenshot.sh" --window "$id" "$folder/$1" >/dev/null
     local px
@@ -213,8 +216,24 @@ sleep 1
 swift "$repo/scripts/settings-fit.swift" "$pid" >/dev/null ||
     { echo "screenshots.sh: Settings clips a text: run scripts/settings-fit.swift $pid." >&2; exit 1; }
 shot screenshot-settings.png
+# Command-W closes Settings. Tools > Find Silences opens the Silences tab and scans the session
+# with the default settings. View > Zoom to Session then fits the episode to the narrower lanes. The
+# step is last because the review stays on the window.
+key 13 --command
+sleep 1
+tools="$(plutil -convert json -o - "$repo/Support/Resources/$lang.lproj/Localizable.strings" |
+    python3 -I -c 'import json, sys; t = json.load(sys.stdin); print((t["menu.tools"] + " > " + t["menu.tools.silences"]).replace("\u2026", "..."))')"
+fit="$(plutil -convert json -o - "$repo/Support/Resources/$lang.lproj/Localizable.strings" |
+    python3 -I -c 'import json, sys; t = json.load(sys.stdin); print(t["menu.view.zoom.fit"])')"
+swift "$repo/scripts/ax.swift" press "$tools" --role AXMenuItem >/dev/null
+sleep 5
+swift "$repo/scripts/ax.swift" press "$fit" --role AXMenuItem >/dev/null
+sleep 2
+id="$session_id"
+width="$session_width"
+shot screenshot-silences.png
 
-for png in "$images"/screenshot-{edit,zoom,inspector,episode,crossfade,settings}.png; do
+for png in "$images"/screenshot-{edit,zoom,inspector,episode,crossfade,settings,silences}.png; do
     [[ "$(stat -f %z "$png")" -le 1000000 ]] || sips --resampleWidth 1600 "$png" >/dev/null
     echo "$png"
 done

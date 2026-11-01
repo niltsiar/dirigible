@@ -26,6 +26,7 @@ Dirigible is a podcast recorder and editor for macOS. It records several microph
 - Let an AI agent do common jobs in few calls: one `import` places a sound with its range, gain, and fades; `chapters_import` reads a chapters file and `chapters_export` writes a text chapter list; `clip_heal` joins the pieces of a split clip; `session_info` with `compact` reads a long session in fewer tokens.
 - Drag the gain line and the fade handles of a clip, press Command-F for a fade or for a crossfade where two clips touch, or type the values in the inspector. Auto Level sets each clip to -16 LUFS (stereo) or -19 LUFS (mono), also after each take.
 - Give each track a role (dialogue, music, or effects), then lower the music under the speech with Tools > Duck Music Under Speech, in one undo step.
+- Find the long silences with Tools > Find Silences, then shorten, mute, or mark each one from a list, in one undo step. An AI agent does the same with `silence_edit`.
 - Split a stereo clip into two mono tracks with Tools > Split Stereo to Mono (Shift-Command-D), then cut, level, and mute each voice alone.
 - Take background noise or mains hum out of a clip with Tools > Reduce Noise, and listen to a preview first. It makes a new file for the clip, and Tools > Restore Original Audio (Shift-Command-O) puts the old file back at any time.
 - Repair a clip with Tools > Repair Sound: repair clipped peaks, reduce rumble, and soften harsh "s" sounds, with a preview first. A repair of clipped peaks makes the clip quieter, and a banner says by how much.

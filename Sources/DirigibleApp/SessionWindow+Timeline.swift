@@ -76,6 +76,7 @@ enum TimelineCommand: Hashable {
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
     case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, repairSound, restoreOriginal, transcribe
+    case findSilences
     case addGainPoint, previousGainPoint, nextGainPoint
 
     /// The selector of an item of the replaced Edit group. The item sends it from the first
@@ -120,6 +121,8 @@ enum TimelineCommand: Hashable {
         case .autoLevel, .autoLevelPerTrack: false
         // Duck Music Under Speech... has no key (plan gate 1 item 3).
         case .duck: false
+        // Find Silences has no key: a rare command, as Duck Music Under Speech.
+        case .findSilences: false
         // A text field does nothing with Shift-Command-D, so the key splits the stereo clips of the
         // selection with the focus in a track name field, as Insert does with Command-I.
         case .splitStereo: false
@@ -276,6 +279,7 @@ extension SessionWindow {
         case .autoLevel: Task { await level(.eachClip) }
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
         case .duck: startDuck()
+        case .findSilences: Task { await findSilences() }
         case .splitStereo: splitStereo()
         case .reduceNoise: reduceNoise()
         case .repairSound: repairSound()

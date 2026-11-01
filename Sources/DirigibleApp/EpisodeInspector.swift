@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The tab of the inspector.
 enum InspectorTab: Hashable, CaseIterable {
-    case clip, episode, marker, transcript
+    case clip, episode, marker, silences, transcript
 
     /// The title: the accessibility label and the help tag of the segment, and the heading.
     var title: L10n {
@@ -13,16 +13,18 @@ enum InspectorTab: Hashable, CaseIterable {
         case .clip: .inspectorTabClip
         case .episode: .inspectorTabEpisode
         case .marker: .inspectorTabMarker
+        case .silences: .inspectorTabSilences
         case .transcript: .inspectorTabTranscript
         }
     }
 
-    /// The symbol of the segment: four titles do not fit the 240 pt inspector (0023).
+    /// The symbol of the segment: five titles do not fit the 240 pt inspector (0023).
     var symbol: String {
         switch self {
         case .clip: "waveform"
         case .episode: "mic"
         case .marker: "flag"
+        case .silences: "waveform.slash"
         case .transcript: "text.alignleft"
         }
     }
@@ -229,8 +231,13 @@ extension SessionWindow {
     func selectInspectorTab(_ tab: InspectorTab) {
         // A field of another tab goes first, so the keys go to the lanes and not to the window. A
         // field that loses the focus after the commit sends its stale text back as a new draft.
-        if tab == .transcript, inspectorFocus != nil || episodeFocus != nil || markerFocus != nil {
+        let inField = inspectorFocus != nil || episodeFocus != nil || markerFocus != nil
+        if tab == .transcript || tab == .silences, inField {
             (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
+            focusLanes()
+        }
+        if tab != .silences, silences.keepFocused {
+            silences.keepFocused = false
             focusLanes()
         }
         if tab != .episode, holdsRefusedEpisode() {

@@ -46,7 +46,7 @@ let inspectorRooms: [(name: String, size: Double, weight: NSFont.Weight, room: D
     // The heading under the tab picker is the 13 pt semibold system font (P22).
     (
         "tab titles", Double(NSFont.systemFontSize), .semibold, 87,
-        [.inspectorTabClip, .inspectorTabEpisode, .inspectorTabMarker, .inspectorTabTranscript]
+        [.inspectorTabClip, .inspectorTabEpisode, .inspectorTabMarker, .inspectorTabSilences, .inspectorTabTranscript]
     ),
     ("Explicit", 11, .regular, 45, [.episodeExplicit]),
     ("Links", 11, .regular, 72, [.episodeLinks]),
@@ -60,4 +60,8 @@ let inspectorRooms: [(name: String, size: Double, weight: NSFont.Weight, room: D
     ("Import Transcript", 11, .regular, 136, [.menuFileImportTranscript]),
     // The Follow Playhead check box of the pane header (P18), a small control.
     ("Follow Playhead", 11, .regular, 117, [.transcriptFollow]),
+    // The Silences tab: the setting labels share one column, and Scan, Scan Again, and Apply are
+    // small buttons in 216 pt.
+    ("silences labels", 11, .regular, 95, [.silencesThreshold, .silencesMinimum, .silencesKeep]),
+    ("silences buttons", 11, .regular, 90, [.silencesScan, .silencesScanAgain, .silencesApply]),
 ]

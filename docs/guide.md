@@ -413,6 +413,34 @@ The duck reads the speech tracks with mute and solo ignored. Speech is a level o
 
 While the duck runs, its banner shows the progress and **Cancel** (Command-period). Cancel stops the duck, and no gain point changes. The duck is one step in the undo history. When the duck finds no speech, a banner says so and nothing changes. The command is off when the session has no clip, during a take, and during an import, a level, or another duck.
 
+### Find and shorten silences
+
+Choose **Tools > Find Silences** to list the long silences of the session and to shorten, mute, or mark each one. The command has no key. It shows the **Silences** tab of the inspector and scans.
+
+![The Silences tab of the inspector: the track list, Threshold -40 dB, Minimum length 1000 ms, Keep 500 ms, the summary line, the list of silences with their start, length, and action, and the buttons Scan Again and Apply.](images/screenshot-silences.png)
+
+1. Set the scan at the top of the tab. **Tracks** lists the tracks: the scan reads the checked tracks, with mute and solo ignored. A silence is a part where all checked tracks are at or under the **Threshold** (-40 dB at first, in steps of 0.5 dB). **Minimum length** is the shortest silence in the list (1000 ms at first). **Keep** is the time that **Shorten** leaves in each silence (500 ms at first). **Keep** must be less than **Minimum length**: when it is not, the tab says so, and **Scan** and **Apply** are off. Dirigible keeps these values for the next scan, also in another window.
+2. Click **Scan**. With a range selected, the scan works only in the range, and a silence at its edge shows whole. A selection of clips scans the whole session. A play stops. The banner shows **Cancel** (Command-period), and the scan changes nothing. The list has no limit of rows.
+3. Choose what each row does. A row shows the start time, the length, and its action. A click on a row selects the silence as the range and puts the playhead 2 s before it, so you hear the end of the sentence before the gap. Shift-click, Command-click, and Command-A select more rows. The **Action** pop-up sets the action of the selected rows, and no other row. The Delete key sets them to **Skip**.
+4. Click **Apply**, or press Return while the list has the focus. All rows that are not **Skip** change the session in one undo step.
+
+The four actions:
+
+- **Shorten** removes the middle of the silence from all tracks, also the tracks that you left unchecked, and closes the gap. **Keep** stays in the silence, half at each side. The markers and the chapters move with the cut. The join gets no crossfade.
+- **Mute** lowers the silence by 96 dB on the checked tracks, with a ramp of 10 ms inside each edge. This is not digital silence. A session with a mute opens only in a build that has gain envelopes.
+- **Mark** adds a marker named "Silence 1", "Silence 2", and so on in the middle of the silence.
+- **Skip** changes nothing.
+
+A row starts as **Shorten**. It starts as **Mark** when a cut would hide a word or remove sound that you did not scan, and the row says why: "Holds a word" means that the cut has the middle of a word of a transcript, and "Sound on a track outside the scan" means that a track that you left unchecked has sound in the cut. You can still set such a row to **Shorten**.
+
+The summary line above the list gives the count of each action, the time that the cuts remove, and the new length of the session. After **Apply**, the tab gives the count of each action and the length before and after. The note stays until the next scan or a change of a setting. A change of a setting after a scan turns **Apply** off until you click **Scan Again**. When you edit the clips or the tracks after the scan, **Apply** stops and asks for a new scan. A marker, a mute, or a solo does not stop it.
+
+**Apply** works while the play is stopped or runs. The play goes on, the range clears, and the playhead moves as the markers do: a playhead after a cut moves left by the cut, and a playhead in a cut goes to the start of the cut. Under a take that is not final or that has some segments on the timeline, **Shorten** is not possible: the computer beeps and nothing changes. **Mute** and **Mark** still work.
+
+When no silence meets the settings, the tab says so and names the quietest level: "No silences of 1 s or more at or under -40 dBFS. The quietest part is -37.9 dBFS." Set the **Threshold** at or over that level to get a row. The command is off when the session has no clip, during a take, an import, a level, a duck, or another scan, and while a sheet shows.
+
+An AI agent does the same with the tool `silence_edit` and the command `dirigible silence-edit` (see [The dirigible tool](#the-dirigible-tool)).
+
 ## Add markers and chapters
 
 A marker is a flag in the time ruler. A chapter is a marker for a new part of the episode.
@@ -910,6 +938,7 @@ The **Tools** menu (**Herramientas**).
 | **Auto Level All Clips** | **Nivelar automáticamente todos los clips** | Command-L |
 | **Auto Level per Track (All)** | **Nivelar automáticamente por pista (todos)** | Option-Command-L |
 | **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
+| **Find Silences** | **Buscar silencios** | - |
 | **Split Stereo to Mono** | **Dividir estéreo en mono** | Shift-Command-D |
 | **Reduce Noise** | **Reducir ruido** | None |
 | **Repair Sound** | **Reparar sonido** | None |
@@ -1275,7 +1304,7 @@ The screenshots of the README and of this guide come from a script. The script m
 3. Run `scripts/screenshots.sh .scratchpads/screens`. The folder must be a new folder under `.scratchpads/`. The script builds the app first. A second argument, a language folder of `Support/Resources` such as `de`, makes the images in that language in `<folder>/images`; only the English run writes `docs/images`.
 4. Do not move the pointer or other windows over the Dirigible window until the script stops.
 
-The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, `docs/images/screenshot-crossfade.png`, and `docs/images/screenshot-settings.png`. The script does not make `docs/images/screenshot-consent.png`, the sheet of an agent record request. Make it in the verify copy (`scripts/verify-copy.sh`): open a session with a Host track on the built-in microphone, send one `record` call of 30 seconds through `dirigible mcp`, and capture the window while the sheet shows. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, when the display scale is not 2x (Retina), and when the Settings window clips a text (`scripts/settings-fit.swift`). The images of the session window are 2360 x 1544 pixels.
+The script writes `docs/images/screenshot-edit.png`, `docs/images/screenshot-zoom.png`, `docs/images/screenshot-inspector.png`, `docs/images/screenshot-episode.png`, `docs/images/screenshot-crossfade.png`, `docs/images/screenshot-settings.png`, and `docs/images/screenshot-silences.png`. The script does not make `docs/images/screenshot-consent.png`, the sheet of an agent record request. Make it in the verify copy (`scripts/verify-copy.sh`): open a session with a Host track on the built-in microphone, send one `record` call of 30 seconds through `dirigible mcp`, and capture the window while the sheet shows. The Demo Episode has episode details, with the app icon as the artwork. It stops with an error when the window is not 1180 x 772 points, for example on a small screen, when the display scale is not 2x (Retina), and when the Settings window clips a text (`scripts/settings-fit.swift`). The images of the session window are 2360 x 1544 pixels.
 
 ### Make the banner again
 

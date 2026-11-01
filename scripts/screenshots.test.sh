@@ -48,4 +48,13 @@ for dir in "$(dirname "$shots")"/../Support/Resources/*.lproj; do
     [[ "$lang" =~ $name_check ]] || fail "Support/Resources/$lang.lproj fails the name check of screenshots.sh"
 done
 
+# Each image that the script shoots is in the final size check and in the header.
+loop="$(sed -n 's/^for png in "\$images"\/screenshot-{\(.*\)}\.png; do$/\1/p' "$shots")"
+[[ -n "$loop" ]] || fail "screenshots.sh has no final size check of the images"
+header="$(sed -n '2,14p' "$shots" | tr -d '\n#')"
+for name in $(sed -n 's/^shot screenshot-\(.*\)\.png$/\1/p' "$shots"); do
+    [[ ",$loop," == *",$name,"* ]] || fail "screenshot-$name.png is not in the final size check"
+    [[ "$header" == *"screenshot-$name.png"* ]] || fail "screenshot-$name.png is not in the header"
+done
+
 [[ $failures -eq 0 ]] && echo "screenshots tests: all passed" || { echo "screenshots tests: $failures failed"; exit 1; }

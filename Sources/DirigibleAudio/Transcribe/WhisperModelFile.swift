@@ -235,15 +235,20 @@ extension WhisperModelFile {
     /// Reads a file with `pread` in chunks of 1 MiB, never with a map: a map of a file that another
     /// process cuts ends the reading process with SIGBUS.
     struct Reader {
-        let descriptor: Int32
         let size: Int
         private(set) var offset = 0
         private var buffer: [UInt8] = []
         private var bufferStart = 0
+        /// A `pread` of the file into the buffer at the offset: the byte count, or -1 with errno.
+        private let pread: (UnsafeMutableRawBufferPointer, off_t) -> Int
+
+        init(size: Int, pread: @escaping (UnsafeMutableRawBufferPointer, off_t) -> Int) {
+            self.size = size
+            self.pread = pread
+        }
 
         init(descriptor: Int32, size: Int) {
-            self.descriptor = descriptor
-            self.size = size
+            self.init(size: size) { Darwin.pread(descriptor, $0.baseAddress, $0.count, $1) }
         }
 
         mutating func take(_ count: Int) throws(ModelFileError) -> ArraySlice<UInt8> {
@@ -263,12 +268,23 @@ extension WhisperModelFile {
             Int32(littleEndian: try take(4).withUnsafeBytes { $0.loadUnaligned(as: Int32.self) })
         }
 
+        /// Reads until `length` bytes or the end of the file: a `pread` can give fewer bytes than
+        /// asked, and EINTR asks for the read again.
         private mutating func fill(_ count: Int) throws(ModelFileError) {
             let length = min(max(count, 1 << 20), size - offset)
             var chunk = [UInt8](repeating: 0, count: length)
-            let read = chunk.withUnsafeMutableBytes { pread(descriptor, $0.baseAddress, length, off_t(offset)) }
-            if read < 0 { throw .unreadable(errno: errno) }
-            guard read == length else { throw .truncated }
+            var filled = 0
+            while filled < length {
+                let read = chunk.withUnsafeMutableBytes {
+                    pread(UnsafeMutableRawBufferPointer(rebasing: $0[filled...]), off_t(offset + filled))
+                }
+                if read < 0 {
+                    if errno == EINTR { continue }
+                    throw .unreadable(errno: errno)
+                }
+                if read == 0 { throw .truncated }
+                filled += read
+            }
             buffer = chunk
             bufferStart = offset
         }

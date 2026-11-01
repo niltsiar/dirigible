@@ -315,6 +315,25 @@ extension WhisperModelFileTests {
         let reason = "\(Self.positional) of type 1 and dimensions [384, 448]"
         #expect(try fixture.read() == .failure(.damaged(reason)))
     }
+
+    /// A read that EINTR ends and reads that give fewer bytes than asked give the bytes of the
+    /// file: the reader reads again.
+    @Test func shortReadsAndEINTRGiveTheBytesOfTheFile() throws {
+        let bytes = (0..<10_000).map { UInt8(truncatingIfNeeded: $0 &* 7) }
+        var calls = 0
+        var reader = WhisperModelFile.Reader(size: bytes.count) { buffer, offset in
+            calls += 1
+            guard calls > 1 else {
+                errno = EINTR
+                return -1
+            }
+            let count = min(buffer.count, 3, bytes.count - Int(offset))
+            buffer.copyBytes(from: bytes[Int(offset)..<Int(offset) + count])
+            return count
+        }
+
+        #expect(Array(try reader.take(bytes.count)) == bytes)
+    }
 }
 
 extension Int32 {

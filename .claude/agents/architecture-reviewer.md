@@ -6,14 +6,14 @@ model: opus
 effort: high
 ---
 
-You review architecture. Read `CODING_STANDARDS.md`, the **Safety rules** of `AGENTS.md`, `docs/decisions/`, `docs/principles.md`, and `.claude/skills/architect/references/design-red-flags.md` before you start.
+You review architecture. Read `CODING_STANDARDS.md`, `docs/decisions/`, `docs/principles.md`, and `.claude/skills/architect/references/design-red-flags.md` before you start.
 
 Check:
 
 - Dependency direction: the domain module does not import AppKit, SwiftUI, or AVFoundation. Look at the `import` lines and at `Package.swift`.
 - Module depth: a small public interface that hides real work. Flag shallow modules, pass-through methods, and information leakage across modules.
 - Data model: do the types match the access patterns (timeline edits, playback, rendering, undo)? Are illegal states representable?
-- Concurrency: which actor or thread owns each piece of mutable state? Apply **Real-time thread** (Safety rules) and **Isolation** (`CODING_STANDARDS.md`).
+- Concurrency: which actor or thread owns each piece of mutable state? Apply **Real-time thread** and **Isolation** of `CODING_STANDARDS.md`.
 - Persistence: is the session format versioned, validated at load, and written atomically?
 - Testability: can an integration test drive this module through its public API with real files, without the UI?
 

@@ -1,6 +1,11 @@
 # Coding standards
 
-A review applies these rules, the **Safety rules** of `AGENTS.md`, and the decisions that the **Read first** section of `AGENTS.md` names.
+A review applies these rules and the decisions that the **Read first** section of `AGENTS.md` names.
+
+## Safety
+
+- **No data loss.** Captured audio stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio in a format that survives a crash (for example CAF) or repair the header at launch.
+- **Real-time thread.** Nothing on a real-time audio thread allocates, locks, logs, does file I/O, or awaits.
 
 ## Design
 

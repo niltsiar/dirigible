@@ -9,6 +9,7 @@
 - Amended: 2026-10-15, run record-time-relevant (F152). The record time is computed before a take; decision 0023 says when the window shows it.
 - Amended: 2026-10-22, run `2026-10-22-take-sync`. `Capture.alignedStart(in:sampleRate:)` is the one owner of the take anchor formula of **Timing**: finalize and the take map of 0061 call it.
 - Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. Each read-modify-write of the active-recordings list takes the file lock `active-recordings.lock` (`O_EXLOCK`) beside the list, so two processes do not lose an entry. A `set` with no change takes no lock. One `set` waits at most 1 s for the lock of the process and the file lock together, and then the write goes on with no lock. The app names the folder of the list by its bundle ID (see 0014).
+- Amended: 2026-11-01, run `2026-11-01-upkeep-thirteenth`. The No data loss and Real-time thread rules are in **Safety** of `CODING_STANDARDS.md`, not in `AGENTS.md`.
 
 ## Context
 

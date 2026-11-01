@@ -55,18 +55,13 @@ Use the **deliver** skill for every feature, requirement, or bug. The principles
 
 ## Read first
 
-- **Coding standards.** Before a review, read `CODING_STANDARDS.md`. Before you add a type, read **Design** there. Before you write actor code, read **Concurrency** there. Before you parse input at a boundary, read **Validate at boundaries** there.
+- **Coding standards.** Before a review, read `CODING_STANDARDS.md`. Before you add a type, read **Design** there. Before you write actor code, read **Concurrency** there. Before you parse input at a boundary, read **Validate at boundaries** there. Before you change capture, a session save, or code on a real-time audio thread, read **Safety** in `CODING_STANDARDS.md`.
 - **Swift Concurrency.** Before you write or review a `Task`, an `await` in an actor, a dispatch-queue to async bridge, or a `@MainActor` method that does file I/O, use the **swift-concurrency** skill.
 - **Module map.** Before you look for a type or a file in `Sources/`, read the Decision table and **Folders** in `docs/decisions/0002-module-map.md`.
 - **Audio callbacks.** Before you write an audio callback (render block, tap, input proc, listener), read **Callbacks** in `docs/decisions/0013-live-capture.md`. Before code branches on an `OSStatus`, read **Status codes** there.
 - **Device clocks.** Before you store or align capture times, read **Timing** in `docs/decisions/0004-capture-pipeline.md`.
 - **Localized UI.** Before you add or change a user-facing string, read `docs/decisions/0010-ui-strings.md`.
 - **CLI parity.** Before you add a public library feature, read **CLI parity** in `docs/decisions/0011-command-line-front-end.md`. `swift run dirigible --help` lists the commands that make, change, and read session packages.
-
-## Safety rules
-
-- **No data loss.** Captured audio stays on disk and readable after a crash, a device unplug, or a full disk. Session saves are atomic. A WAV header gets its data size only when the file closes, so write captured audio in a format that survives a crash (for example CAF) or repair the header at launch.
-- **Real-time thread.** Nothing on a real-time audio thread allocates, locks, logs, does file I/O, or awaits.
 
 ## Testing rules
 

@@ -39,7 +39,7 @@
 
 ## Context
 
-Decision 0001 makes layers SwiftPM targets, so the compiler enforces the dependency direction, and leaves the target names to the first planning run. The rules in `CODING_STANDARDS.md`: the domain imports only Foundation, UI depends on the domain, and the app target is thin. The rule in `AGENTS.md`: nothing on a real-time audio thread allocates, locks, logs, or awaits. The research fixes the mechanisms: one IOProc per device (0004), an SPSC ring with swift-atomics (0005), our own XML file (0003), export through AVAudioFile (0007), our own loudness meter with Accelerate (0008).
+Decision 0001 makes layers SwiftPM targets, so the compiler enforces the dependency direction, and leaves the target names to the first planning run. The rules in `CODING_STANDARDS.md`: the domain imports only Foundation, UI depends on the domain, and the app target is thin. The **Real-time thread** rule of **Safety** in `CODING_STANDARDS.md` applies. The research fixes the mechanisms: one IOProc per device (0004), an SPSC ring with swift-atomics (0005), our own XML file (0003), export through AVAudioFile (0007), our own loudness meter with Accelerate (0008).
 
 Two designs were compared: few targets, and one target for each capability (capture, session I/O, render, playback, DSP, and a facade).
 

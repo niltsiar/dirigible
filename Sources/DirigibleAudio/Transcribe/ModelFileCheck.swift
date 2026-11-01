@@ -49,7 +49,7 @@ public enum ModelFileCheck {
         let hash: String
         do { hash = try opened.sha256 { false } } catch { refuse(message(error)) }
         let record = PassedModelFile(sha256: hash, facts: file.facts)
-        let model = CheckedModel(source: .file(record), url: URL(filePath: path), file: opened)
+        let model = CheckedModel(record, opened: opened, at: URL(filePath: path))
         do { try trial(model) } catch { refuse(message(error)) }
         print(line(record))
         fflush(stdout)
@@ -144,6 +144,15 @@ public enum ModelFileCheck {
         handledSignals.contains(status - 128) ? status - 128 : nil
     }
 
+    /// `run(_:helper:passed:stop:)` with the helper of the running app or tool, found from
+    /// `Bundle.main` with `helper(executable:)`.
+    public static func run(_ url: URL, passed: PassedModelFile?, stop: @Sendable () -> Bool)
+        throws(ModelFileCheckError) -> CheckedModel
+    {
+        guard let executable = Bundle.main.executableURL else { throw .helperMissing(path: "dirigible") }
+        return try run(url, helper: helper(executable: executable), passed: passed, stop: stop)
+    }
+
     /// Checks the model file at `url` with `helper` (`<helper> model check -`), on the calling
     /// thread, which it blocks: run it on the job thread, never on the main actor. Only a regular
     /// file opens (EFTYPE). The file opens once: the hash, the helper (on its standard input), and
@@ -158,7 +167,7 @@ public enum ModelFileCheck {
         let file = try OpenModelFile(url)
         let hash = try file.sha256(stop: stop)
         if let passed, passed.check == version, passed.sha256 == hash {
-            return CheckedModel(source: .file(passed), url: url, file: file)
+            return CheckedModel(passed, opened: file, at: url)
         }
         if stop() { throw .stopped }
         guard FileManager.default.fileExists(atPath: helper.path) else { throw .helperMissing(path: helper.path) }
@@ -197,7 +206,7 @@ public enum ModelFileCheck {
         guard status == 0 else { throw .refused(output.errorLine()) }
         guard let record = record(fromLine: output.outputLine()) else { throw .refused(output.outputLine()) }
         guard record.sha256 == hash else { throw .changedDuringCheck }
-        return CheckedModel(source: .file(record), url: url, file: file)
+        return CheckedModel(record, opened: file, at: url)
     }
 
     /// The helper of the process whose executable is `executable`, with its links resolved: for the

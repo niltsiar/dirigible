@@ -105,28 +105,45 @@ struct ModelFileReadTests {
     /// A helper whose parent exits ends within 1 s, so an app crash or a Force Quit leaves no trial
     /// that runs beside the next take. The parent is a shell that starts the built `dirigible` with a
     /// trial that does not end, and exits when the helper prints that its exit watch runs: the 1 s
-    /// starts after the helper start, which a loaded test run makes slow.
+    /// starts after the helper start, which a loaded test run makes slow. Each wait has a limit, so
+    /// a helper that never prints the line fails the test in seconds.
     @Test func aHelperEndsWithinOneSecondWhenItsParentExits() throws {
         let dirigible = Bundle(for: TemporaryFolder.self).bundleURL.deletingLastPathComponent()
             .appending(path: "dirigible")
-        let (pidFile, ready) = (folder.url.appending(path: "pid"), folder.url.appending(path: "ready"))
+        let (pidFile, out) = (folder.url.appending(path: "pid"), folder.url.appending(path: "out"))
         let parent = try stub(
-            "mkfifo '\(ready.path)'; "
-                + "DIRIGIBLE_MODEL_CHECK_HOLD=1 '\(dirigible.path)' model check '\(model.path)' > '\(ready.path)' & "
-                + "echo $! > '\(pidFile.path)'; read line < '\(ready.path)' && [ \"$line\" = hold ]")
+            "DIRIGIBLE_MODEL_CHECK_HOLD=1 '\(dirigible.path)' model check '\(model.path)' > '\(out.path)' & "
+                + "echo $! > '\(pidFile.path)'; i=0; "
+                + "while ! grep -q '^hold$' '\(out.path)' 2>/dev/null; do "
+                + "i=$((i + 1)); [ $i -gt 400 ] && exit 1; sleep 0.05; done")
         let process = Process()
         process.executableURL = parent
         try process.run()
-        process.waitUntilExit()
-        try #require(process.terminationStatus == 0, "the helper printed no hold line")
-        let pid = try #require(
-            pid_t(String(decoding: Data(contentsOf: pidFile), as: UTF8.self).trimmingCharacters(in: .newlines)))
-        defer { kill(pid, SIGKILL) }
+        defer { if process.isRunning { process.terminate() } }
+        let deadline = ContinuousClock.now + .seconds(30)
+        while process.isRunning, ContinuousClock.now < deadline { usleep(10_000) }
+        let ended = !process.isRunning
+        let written = pidFile.pid()
+        defer { if let written { kill(written, SIGKILL) } }
+        try #require(ended && process.terminationStatus == 0, "the helper printed no hold line within 20 s")
+        let pid = try #require(written, "the parent wrote no process ID")
 
         let limit = ContinuousClock.now + .seconds(1)
         while kill(pid, 0) == 0, ContinuousClock.now < limit { usleep(10_000) }
 
         #expect(kill(pid, 0) == -1 && errno == ESRCH, "the helper \(pid) still runs")
+    }
+
+    /// The job reads the file in the app a counted number of times (decision 0065 D8): a check reads
+    /// it once, with a helper and with a kept record, and the helper reads its own copy of the
+    /// open file on its standard input.
+    @Test(arguments: [false, true]) func aCheckReadsTheFileOnceInTheApp(kept: Bool) async throws {
+        let helper = try stub("cat > /dev/null; echo '\(Check.passLine)'")
+        let record = PassedModelFile(sha256: Check.abc, facts: Check.facts)
+
+        let result = await Self.run(model, helper: helper, passed: kept ? record : nil)
+
+        #expect(try result.get().file?.bytesRead == 3)
     }
 
     private func stub(_ body: String) throws -> URL { try Check.stub(body, in: folder.url) }
@@ -143,5 +160,20 @@ struct ModelFileReadTests {
                     })
             }
         }
+    }
+}
+
+extension URL {
+    /// The process ID that a shell wrote to this file, once the line is complete.
+    fileprivate func pid() -> pid_t? {
+        for _ in 0..<100 {
+            if let text = try? String(contentsOf: self, encoding: .utf8), text.hasSuffix("\n"),
+                let pid = pid_t(text.trimmingCharacters(in: .newlines))
+            {
+                return pid
+            }
+            usleep(50_000)
+        }
+        return nil
     }
 }

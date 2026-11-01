@@ -35,7 +35,7 @@ public enum WhisperModel: String, CaseIterable, Sendable {
 
     /// The file at `url` when its byte count and SHA-256 are those of this entry, else nil.
     public func checked(at url: URL) -> CheckedModel? {
-        fileMatches(url, byteCount: byteCount, sha256: sha256) ? CheckedModel(source: .catalog(self), url: url) : nil
+        fileMatches(url, byteCount: byteCount, sha256: sha256) ? CheckedModel(self, at: url) : nil
     }
 
     /// `checked(at:)` on the catalog file name in `folder`.
@@ -87,19 +87,38 @@ public struct CheckedModel: Hashable, Sendable {
         case file(PassedModelFile)
     }
 
-    public let source: Source
-    let url: URL
-    /// The file that `ModelFileCheck` opened and hashed for a `.file` source: the engine loads it.
-    let file: OpenModelFile?
+    /// What the engine loads: a catalog file by its path, or the file that `ModelFileCheck` opened
+    /// and hashed, which the engine reads and compares with the record.
+    enum Origin: Hashable, Sendable {
+        case catalog(WhisperModel)
+        case file(PassedModelFile, OpenModelFile)
+    }
 
-    init(source: Source, url: URL, file: OpenModelFile? = nil) {
-        (self.source, self.url, self.file) = (source, url, file)
+    let origin: Origin
+    /// The path of the catalog file, or the path that the check of a model file of the user opened.
+    let url: URL
+
+    public var source: Source {
+        switch origin {
+        case .catalog(let model): .catalog(model)
+        case .file(let record, _): .file(record)
+        }
+    }
+
+    init(_ model: WhisperModel, at url: URL) { (origin, self.url) = (.catalog(model), url) }
+
+    init(_ record: PassedModelFile, opened file: OpenModelFile, at url: URL) {
+        (origin, self.url) = (.file(record, file), url)
     }
 
     #if DEBUG
-        /// A model with no check of `url`, for the fake engine of the tests.
-        static func unchecked(_ model: WhisperModel, at url: URL) -> CheckedModel {
-            CheckedModel(source: .catalog(model), url: url)
+        /// The open file of a model file of the user, for the tests of the read count.
+        var file: OpenModelFile? {
+            guard case .file(_, let file) = origin else { return nil }
+            return file
         }
+
+        /// A model with no check of `url`, for the fake engine of the tests.
+        static func unchecked(_ model: WhisperModel, at url: URL) -> CheckedModel { CheckedModel(model, at: url) }
     #endif
 }

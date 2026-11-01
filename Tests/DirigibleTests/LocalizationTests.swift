@@ -195,6 +195,8 @@ func stringsTable(_ language: String) throws -> [String: String] {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.standard",
         "split.suffix.left", "split.suffix.right",
         "inspector.tab.clip", "inspector.tab.marker", "marker.name", "marker.url", "episode.details",
@@ -213,6 +215,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "es": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "banner.kind.error", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.clip",
         "inspector.clips", "inspector.decibels", "inspector.milliseconds", "inspector.tab.clip",
         "panel.export.bitrate.value", "panel.export.channels.mono", "panel.export.format.aac",
@@ -224,6 +228,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.standard", "inspector.tab.silences", "silences.action", "silences.mark.name",
         "agent.mark", "alert.ok", "banner.kind.info", "dock.badge.recording", "episode.copyright",
         "episode.date", "episode.description", "episode.guid", "episode.notes", "export.chapter.intro",
@@ -240,6 +246,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.standard",
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "export.chapter.intro",
         "inspector.clip", "inspector.decibels", "inspector.gain", "inspector.milliseconds",
@@ -254,6 +262,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "nl": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.model",
         "split.suffix.left", "split.suffix.right",
         "agent.mark", "alert.ok", "dock.badge.recording", "episode.copyright", "episode.details",
@@ -273,6 +283,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "panel.transcript.choice", "inspector.hertz",
     ],
     "pt": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "episode.links",
         "inspector.decibels", "inspector.milliseconds", "loudness.short", "marker.url", "menu.edit.fade",
         "panel.export.bitrate.value", "panel.export.channels.mono", "panel.export.format.aac",
@@ -285,6 +297,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "pt-PT": [
+        "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
+        "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.decibels",
         "inspector.hertz", "inspector.milliseconds", "menu.edit.fade", "panel.export.bitrate.value",
         "panel.export.channels.mono", "panel.export.format.aac", "panel.export.format.flac",

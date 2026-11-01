@@ -706,6 +706,13 @@
 "sheet.transcribe.check.layers" = "%lld audio layers";
 "sheet.transcribe.check.take" = "A recording started, so Dirigible stopped the check of the model file.";
 "sheet.transcribe.check.busy" = "A recording blocks the check of the model file. Try again after the recording.";
+"sheet.transcribe.check.changed" = "The model file changed during the check. Try again.";
+"sheet.transcribe.kind.tiny" = "Tiny";
+"sheet.transcribe.kind.base" = "Base";
+"sheet.transcribe.kind.small" = "Small";
+"sheet.transcribe.kind.medium" = "Medium";
+"sheet.transcribe.kind.large" = "Large";
+"sheet.transcribe.file.title" = "%1$@ - %2$@";
 "alert.transcribe.locate" = "Locate…";
 "transcribe.banner.download" = "Downloading the speech model… %lld %%";
 "transcribe.banner.running" = "Transcribing %1$@… %2$lld %%";
@@ -756,6 +763,7 @@
 "silences.help.action" = "Sets the action of the selected rows.";
 "silences.help.mute" = "Lowers the audio by 96 dB. It is not digital silence.";
 "error.transcribe.file.unreadable" = "Dirigible could not read the model file (error %lld).";
+"error.transcribe.file.missing" = "Dirigible could not find the model file %@. It may have moved.";
 "error.transcribe.file.helper.missing" = "A part of Dirigible is missing: the program that checks a model file. Install Dirigible again.";
 "error.transcribe.file.helper.start" = "The program that checks a model file did not start (%1$@ %2$lld). Install Dirigible again.";
 "error.transcribe.file.refused" = "Dirigible cannot use this model file. %@";

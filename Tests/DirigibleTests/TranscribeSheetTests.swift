@@ -24,7 +24,7 @@ struct TranscribeSheetTests {
         #expect(draft.buttonTitle == .sheetTranscribeDownload)
         draft.model = .catalog(.smallQ51)
         #expect(draft.buttonTitle == .sheetTranscribeDownload)
-        #expect(draft.track == "t2" && draft.request.track == "t2" && draft.request.trackName == "Guest")
+        #expect(draft.track == "t2" && draft.request?.track == "t2" && draft.request?.trackName == "Guest")
 
         let withModel = try Self.draft(onDisk: [.base])
         #expect(withModel.buttonTitle == .sheetTranscribeStart)

@@ -706,6 +706,13 @@
 "sheet.transcribe.check.layers" = "%lld capas de audio";
 "sheet.transcribe.check.take" = "Empezó una grabación, así que Dirigible detuvo la comprobación del archivo de modelo.";
 "sheet.transcribe.check.busy" = "Una grabación bloquea la comprobación del archivo de modelo. Vuelve a intentarlo después de la grabación.";
+"sheet.transcribe.check.changed" = "El archivo de modelo cambió durante la comprobación. Inténtalo de nuevo.";
+"sheet.transcribe.kind.tiny" = "Tiny";
+"sheet.transcribe.kind.base" = "Base";
+"sheet.transcribe.kind.small" = "Small";
+"sheet.transcribe.kind.medium" = "Medium";
+"sheet.transcribe.kind.large" = "Large";
+"sheet.transcribe.file.title" = "%1$@ - %2$@";
 "alert.transcribe.locate" = "Localizar…";
 "transcribe.banner.download" = "Descargando el modelo de voz… %lld %%";
 "transcribe.banner.running" = "Transcribiendo %1$@… %2$lld %%";
@@ -756,6 +763,7 @@
 "silences.help.action" = "Define la acción de las filas seleccionadas.";
 "silences.help.mute" = "Baja el audio 96 dB. No es silencio digital.";
 "error.transcribe.file.unreadable" = "Dirigible no pudo leer el archivo de modelo (error %lld).";
+"error.transcribe.file.missing" = "Dirigible no encontró el archivo de modelo %@. Puede que se haya movido.";
 "error.transcribe.file.helper.missing" = "Falta una parte de Dirigible: el programa que comprueba un archivo de modelo. Instala Dirigible de nuevo.";
 "error.transcribe.file.helper.start" = "El programa que comprueba un archivo de modelo no se inició (%1$@ %2$lld). Instala Dirigible de nuevo.";
 "error.transcribe.file.refused" = "Dirigible no puede usar este archivo de modelo. %@";

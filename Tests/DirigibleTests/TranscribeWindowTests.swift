@@ -293,6 +293,25 @@ import Testing
             await model.close()
         }
 
+        /// Code gate 1 item 10: a stalled download that ends with no data is freed with its job. The
+        /// armed hint must not hold the download that holds it.
+        @Test func aStalledDownloadThatEndsWithNoDataIsFreed() async throws {
+            let (model, _, loader, waits) = try await openDownload()
+            try transcribe(model)
+            await until("the first wait") { waits.started == 1 }
+            waits.resumed = 1
+            await until("the hint") { model.transcribe.job?.hint != nil }
+            weak let download = model.transcribe.download
+            #expect(download != nil)
+
+            loader.finish(throwing: URLError(.timedOut))
+            await model.transcribe.task?.value
+
+            #expect(model.transcribe.download == nil && model.alert != nil)
+            await until("the download is freed") { download == nil }
+            await model.close()
+        }
+
         /// C20: the heal path (a catalog file that fails its check) shows the download stage at the
         /// download start and the hint after the wait.
         @Test func theHealPathShowsTheDownloadAndTheHint() async throws {

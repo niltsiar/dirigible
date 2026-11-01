@@ -43,7 +43,10 @@ struct FileStatus: Equatable, Sendable {
 /// the path, the file status at the last check, and the record of the last passed check. A
 /// matching SHA-256 proves the facts of the record, so the sheet does not parse the file.
 struct KeptModelFile: Codable, Equatable {
-    static let key = "transcribe.modelFile"
+    /// The key of the kept file of a language choice (U21): the choice of the model memory.
+    static func key(for choice: WhisperLanguage) -> String {
+        "transcribe.modelFile.\(TranscribeLanguages.stored(choice))"
+    }
 
     let path: String
     var byteCount: Int
@@ -59,20 +62,21 @@ struct KeptModelFile: Codable, Equatable {
         (path, byteCount, modified, self.passed) = (url.path, status.byteCount, status.modified, passed)
     }
 
-    static func load(from defaults: UserDefaults?) -> KeptModelFile? {
-        guard let data = defaults?.data(forKey: key) else { return nil }
+    static func load(for choice: WhisperLanguage, from defaults: UserDefaults?) -> KeptModelFile? {
+        guard let data = defaults?.data(forKey: key(for: choice)) else { return nil }
         return try? JSONDecoder().decode(KeptModelFile.self, from: data)
     }
 
-    func store(in defaults: UserDefaults?) {
+    func store(for choice: WhisperLanguage, in defaults: UserDefaults?) {
         guard let data = try? JSONEncoder().encode(self) else { return }
-        defaults?.set(data, forKey: Self.key)
+        defaults?.set(data, forKey: Self.key(for: choice))
     }
 
     /// "ggml-medium.bin - 1.5 GB" in the units of the Finder, or "ggml-medium.bin (missing)".
-    func title(missing: Bool, locale: Locale = .current) -> String {
+    func title(missing: Bool, locale: Locale = .current, text: (L10n) -> String = { $0.text }) -> String {
         if missing { return L10n.sheetTranscribeMissing.format(name) }
-        return "\(name) - \(Int64(byteCount).formatted(.byteCount(style: .file).locale(locale)))"
+        let size = Int64(byteCount).formatted(.byteCount(style: .file).locale(locale))
+        return String(format: text(.sheetTranscribeFileTitle), locale: locale, name, size)
     }
 }
 
@@ -97,18 +101,18 @@ enum ModelCheckLine: Equatable {
     }
 
     /// "Medium, multilingual" or "Tiny, English only": the kind is the OpenAI model name.
-    static func text(of facts: WhisperModelFacts) -> String {
+    static func text(of facts: WhisperModelFacts, text: (L10n) -> String = { $0.text }) -> String {
         let kind =
             switch facts.kind {
-            case .tiny: "Tiny"
-            case .base: "Base"
-            case .small: "Small"
-            case .medium: "Medium"
-            case .large: "Large"
-            case nil: L10n.sheetTranscribeCheckLayers.format(facts.audioLayers)
+            case .tiny: text(.sheetTranscribeKindTiny)
+            case .base: text(.sheetTranscribeKindBase)
+            case .small: text(.sheetTranscribeKindSmall)
+            case .medium: text(.sheetTranscribeKindMedium)
+            case .large: text(.sheetTranscribeKindLarge)
+            case nil: String(format: text(.sheetTranscribeCheckLayers), facts.audioLayers)
             }
-        return (facts.isMultilingual ? L10n.sheetTranscribeCheckMultilingual : .sheetTranscribeCheckEnglish)
-            .format(kind)
+        let line = facts.isMultilingual ? L10n.sheetTranscribeCheckMultilingual : .sheetTranscribeCheckEnglish
+        return String(format: text(line), kind)
     }
 }
 
@@ -145,11 +149,23 @@ extension TranscribeState {
         return panel
     }
 
-    /// The live open panel: the picked file, else nil for Cancel.
-    static func livePickModelFile() async -> URL? {
+    /// The live open panel as a sheet of `parent`: the picked file, else nil for Cancel. A cancel of
+    /// the calling task closes the panel.
+    static func livePickModelFile(in parent: NSWindow?) async -> URL? {
         let panel = modelPanel()
-        let response = await withCheckedContinuation { continuation in
-            panel.begin { continuation.resume(returning: $0) }
+        let response = await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else {
+                    return continuation.resume(returning: NSApplication.ModalResponse.cancel)
+                }
+                if let parent {
+                    panel.beginSheetModal(for: parent) { continuation.resume(returning: $0) }
+                } else {
+                    panel.begin { continuation.resume(returning: $0) }
+                }
+            }
+        } onCancel: {
+            Task { @MainActor in panel.cancel(nil) }
         }
         return response == .OK ? panel.url : nil
     }

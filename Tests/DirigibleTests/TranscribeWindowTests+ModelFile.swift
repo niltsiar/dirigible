@@ -36,6 +36,18 @@ import os
             let file: URL
             let folder: URL
             let heard: Heard
+
+            /// The language choice that a new sheet opens on: the last one, else the app language.
+            var choice: WhisperLanguage {
+                TranscribeLanguages.first(
+                    stored: defaults.string(forKey: TranscribeDraft.languageKey),
+                    appLanguage: Bundle.main.preferredLocalizations.first)
+            }
+
+            /// The kept file of `choice`.
+            func kept(for choice: WhisperLanguage? = nil) -> KeptModelFile? {
+                KeptModelFile.load(for: choice ?? self.choice, from: defaults)
+            }
         }
 
         @MainActor final class Heard { var texts: [String] = [] }
@@ -73,6 +85,7 @@ import os
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             let suite = "TranscribeWindowTests-\(UUID().uuidString)"
             let defaults = try #require(UserDefaults(suiteName: suite))
+            defaults.set("es", forKey: TranscribeDraft.languageKey)
             let app = AppDelegate(recordings: nil, defaults: defaults)
             let package = try await timelinePackage(in: root, tracks: 2, seconds: 3, audio: true)
             let (model, studio, _, _) = try await openLanes(app, package)
@@ -90,7 +103,7 @@ import os
             studio.environment.checkModelFile = { url, passed, stop throws(ModelFileCheckError) in
                 try ModelFileCheck.run(url, helper: checker, passed: passed, stop: stop)
             }
-            model.transcribe.pickModelFile = { picks.next() }
+            model.transcribe.pickModelFile = { _ in picks.next() }
             let hash = studio.environment.hashModelFile
             studio.environment.hashModelFile = { url, stop throws(ModelFileCheckError) in
                 hashes.withLock { $0 += 1 }
@@ -135,7 +148,7 @@ import os
             let passed = try #require(model.transcribe.draft)
             #expect(passed.check == .passed(Self.tiny) && passed.model == .file && passed.canStart)
             #expect(window.heard.texts == [ModelCheckLine.text(of: Self.tiny)])
-            let kept = try #require(KeptModelFile.load(from: window.defaults))
+            let kept = try #require(window.kept())
             #expect(kept.path == window.file.path && kept.passed == PassedModelFile(sha256: Self.abc, facts: Self.tiny))
             #expect(Self.runs(ran) == 1)
             await model.close()
@@ -158,7 +171,7 @@ import os
             let text = L10n.message(for: ModelFileCheckError.refused("The file is no whisper model."))
             #expect(draft.check == .refused(text) && draft.model == before)
             #expect(window.heard.texts == [text])
-            #expect(KeptModelFile.load(from: window.defaults) == nil && Self.runs(ran) == 1)
+            #expect(window.kept() == nil && Self.runs(ran) == 1)
             await window.model.close()
         }
 
@@ -197,7 +210,7 @@ import os
             #expect(Self.runs(ran) == 1, "the sheet shows the record with no check")
             window.model.selectModel(.choose)
             await until("the second check passes") { window.model.transcribe.draft?.kept?.path == other.path }
-            #expect(KeptModelFile.load(from: window.defaults)?.path == other.path && Self.runs(ran) == 2)
+            #expect(window.kept()?.path == other.path && Self.runs(ran) == 2)
             await window.model.close()
         }
 
@@ -210,7 +223,7 @@ import os
             KeptModelFile(
                 url: gone, status: FileStatus(byteCount: 3, modified: .now),
                 passed: PassedModelFile(sha256: Self.abc, facts: Self.tiny)
-            ).store(in: window.defaults)
+            ).store(for: window.choice, in: window.defaults)
             let before = try sheet(window).model
             await until("the status read ends") { window.model.transcribe.draft?.keptMissing == true }
 
@@ -230,7 +243,7 @@ import os
             let kept = KeptModelFile(
                 url: window.file, status: try #require(FileStatus(of: window.file)),
                 passed: PassedModelFile(sha256: Self.abc, facts: Self.tiny))
-            kept.store(in: window.defaults)
+            kept.store(for: window.choice, in: window.defaults)
             let newDate = Date(timeIntervalSinceNow: -3_600)
             var other: SessionWindow?
             switch status {
@@ -250,7 +263,7 @@ import os
             _ = try sheet(window)
             await window.model.transcribe.keptTask?.value
 
-            let stored = try #require(KeptModelFile.load(from: window.defaults))
+            let stored = try #require(window.kept())
             let expected =
                 switch status {
                 case .same, .missing, .newDateDuringATake: 0
@@ -278,7 +291,7 @@ import os
             KeptModelFile(
                 url: window.file, status: FileStatus(byteCount: 3, modified: Date(timeIntervalSinceNow: -3_600)),
                 passed: PassedModelFile(sha256: Self.abc, facts: Self.tiny)
-            ).store(in: window.defaults)
+            ).store(for: window.choice, in: window.defaults)
             let other = window.folder.appending(path: "other.bin")
             try Data("abc".utf8).write(to: other)
             picks.urls = [other]
@@ -301,7 +314,7 @@ import os
             gate.withLock { $0 = true }
             await window.model.transcribe.keptTask?.value
 
-            #expect(KeptModelFile.load(from: window.defaults)?.path == other.path)
+            #expect(window.kept()?.path == other.path)
             await window.model.close()
         }
 
@@ -345,7 +358,7 @@ import os
                     model.transcribe.draft?.model == before
                         && model.transcribe.draft?.check == .refused(L10n.sheetTranscribeCheckTake.text))
             }
-            #expect(KeptModelFile.load(from: window.defaults) == nil)
+            #expect(window.kept() == nil)
             if stop != .settle { await model.close() }
         }
 
@@ -372,7 +385,7 @@ import os
             #expect(window.model.transcribe.draft?.check == .refused(L10n.sheetTranscribeCheckBusy.text))
             #expect(window.model.transcribe.draft?.model == before)
             #expect(seams.withLock { $0 } == 0 && Self.runs(ran) == 0)
-            #expect(KeptModelFile.load(from: window.defaults) == nil)
+            #expect(window.kept() == nil)
             window.studio.otherStudios = { [] }
             await second.model.close()
             await window.model.close()

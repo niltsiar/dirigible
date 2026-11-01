@@ -20,11 +20,12 @@ extension TranscribeSheetTests {
     }
 
     static func sheet(
-        _ language: WhisperLanguage, kept: KeptModelFile? = nil, remembered: ModelEntry? = nil
+        _ language: WhisperLanguage, kept: KeptModelFile? = nil, remembered: ModelEntry? = nil, words: Int = 0
     ) throws -> TranscribeDraft {
         try #require(
             TranscribeDraft(
-                tracks: [host], selected: nil, onDisk: [.base, .smallQ51], language: language, kept: kept,
+                tracks: [TranscribeDraft.Choice(id: "t1", name: "Host", words: words)], selected: nil,
+                onDisk: [.base, .smallQ51], language: language, kept: kept,
                 remembered: remembered))
     }
 
@@ -49,7 +50,9 @@ extension TranscribeSheetTests {
         let catalog = TranscribeDraft.models.map { ModelEntry.catalog($0) }
         #expect(entries == catalog + [nil, .file, nil, .choose])
         #expect(try Self.sheet(.code("en")).entries == catalog + [nil, .choose])
-        let label = Self.kept().title(missing: false, locale: Locale(identifier: "en_US"))
+        let label = Self.kept().title(
+            missing: false, locale: Locale(identifier: "en_US"),
+            text: { $0 == .sheetTranscribeFileTitle ? "%1$@ - %2$@" : $0.text })
         #expect(label == "ggml-medium.bin - 1.53 GB")
         #expect(Self.kept().title(missing: true) == L10n.sheetTranscribeMissing.format("ggml-medium.bin"))
     }
@@ -127,6 +130,69 @@ extension TranscribeSheetTests {
     @Test func aSheetThatOpensOnAnEnglishOnlyFileLocksTheLanguage() throws {
         let draft = try Self.sheet(.code("es"), kept: Self.kept(Self.englishOnly), remembered: .file)
         #expect(draft.model == .file && draft.language == .code("en") && draft.languageLocked)
-        #expect(draft.request.language == .code("en"))
+        #expect(draft.request?.language == .code("en"))
+    }
+
+    /// Item 11: the replace note shows whenever a replace applies, also while a check line shows.
+    /// Control: a track with no word has no replace note.
+    @Test(arguments: [ModelCheckLine.running(name: "a.bin", byteCount: 1), .passed(medium), .refused("No.")])
+    func theReplaceNoteStaysWhileTheCheckLineShows(line: ModelCheckLine) throws {
+        var one = try Self.sheet(.code("en"), words: 1)
+        one.check = line
+        #expect(one.notes == [L10n.sheetTranscribeNoteReplaceOne.text])
+        var many = try Self.sheet(.code("en"), words: 3)
+        many.check = line
+        #expect(many.notes == [L10n.sheetTranscribeNoteReplaceMany.format(3)])
+        var none = try Self.sheet(.code("en"))
+        none.check = line
+        #expect(none.notes.isEmpty)
+    }
+
+    /// Item 13: the kind names and the title of the kept file come from the tables.
+    @Test func theKindNamesAndTheFileTitleComeFromTheTables() {
+        let table: (L10n) -> String = { key in
+            switch key {
+            case .sheetTranscribeCheckMultilingual: "%@, multi"
+            case .sheetTranscribeFileTitle: "%1$@ / %2$@"
+            default: "<\(key.rawValue)>"
+            }
+        }
+        let layers: [(Int, L10n)] = [
+            (4, .sheetTranscribeKindTiny), (6, .sheetTranscribeKindBase), (12, .sheetTranscribeKindSmall),
+            (24, .sheetTranscribeKindMedium), (32, .sheetTranscribeKindLarge),
+        ]
+        for (count, key) in layers {
+            let facts = WhisperModelFacts(audioLayers: count, textLayers: count, melCount: 80, isMultilingual: true)
+            #expect(ModelCheckLine.text(of: facts, text: table) == "<\(key.rawValue)>, multi")
+        }
+        let title = Self.kept().title(missing: false, locale: Locale(identifier: "en_US"), text: table)
+        #expect(title == "ggml-medium.bin / 1.53 GB")
+    }
+
+    /// Item 15: a file entry with no kept file gives no request and does not start; a file entry
+    /// with its file gives the file in the request.
+    @Test func aFileEntryWithNoKeptFileGivesNoRequest() throws {
+        var empty = try Self.sheet(.code("en"))
+        empty.model = .file
+        #expect(empty.request == nil && !empty.canStart)
+        let kept = Self.kept()
+        var draft = try Self.sheet(.code("en"), kept: kept)
+        draft.select(.file)
+        #expect(draft.request?.model == .file(kept.url, passed: kept.passed) && draft.canStart)
+        draft.select(.choose)
+        #expect(draft.request == nil && !draft.canStart)
+    }
+
+    /// Item 9: a moved file names the file in the Locate... alert; another read error keeps the
+    /// error number.
+    @Test func aMovedFileNamesTheFileInTheLocateAlert() throws {
+        let draft = try Self.sheet(.code("en"), kept: Self.kept(), remembered: .file)
+        let request = try #require(draft.request)
+        func alert(_ code: Int32) -> WindowAlert {
+            WindowAlert.transcribe(.transcription(.modelFile(.unreadable(errno: code))), request)
+        }
+        #expect(alert(ENOENT).text == L10n.errorTranscribeFileMissing.format("ggml-medium.bin"))
+        let denied = StudioError.transcription(.modelFile(.unreadable(errno: EACCES)))
+        #expect(alert(EACCES).text == L10n.message(for: denied))
     }
 }

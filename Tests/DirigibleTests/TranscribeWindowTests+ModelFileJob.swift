@@ -39,7 +39,7 @@ import os
             let kept = KeptModelFile(
                 url: window.file, status: try #require(FileStatus(of: window.file)),
                 passed: passed ? PassedModelFile(sha256: abc, facts: tiny) : nil)
-            kept.store(in: window.defaults)
+            kept.store(for: window.choice, in: window.defaults)
             return kept
         }
 
@@ -96,12 +96,12 @@ import os
                 #expect(calls.withLock { $0 } == [.code("es")] && spoken(window.studio) == Self.words.map(\.text))
                 #expect(Self.runs(ran) == 1)
                 await until("the file is kept") {
-                    KeptModelFile.load(from: window.defaults)?.passed
+                    window.kept()?.passed
                         == PassedModelFile(sha256: Self.abc, facts: Self.tiny)
                 }
             } else {
                 #expect(window.model.transcribe.job == nil && calls.withLock { $0 }.isEmpty && Self.runs(ran) == 0)
-                #expect(KeptModelFile.load(from: window.defaults) == nil)
+                #expect(window.kept() == nil)
             }
             await window.model.close()
         }
@@ -124,12 +124,13 @@ import os
             let alert = try await jobAlert(window)
             let request = try #require(Self.pickRequest(of: alert))
             #expect(alert.pickButton == .alertTranscribeLocate)
+            #expect(alert.text == L10n.errorTranscribeFileMissing.format("user.bin"))
             #expect(request.track == "t2" && request.model == .file(window.file, passed: kept.passed))
             await press(window, request, picks: picks)
 
             #expect(calls.withLock { $0 } == [.code("es")] && spoken(window.studio) == Self.words.map(\.text))
             #expect(Self.runs(ran) == 1)
-            await until("the new file is kept") { KeptModelFile.load(from: window.defaults)?.path == new.path }
+            await until("the new file is kept") { window.kept()?.path == new.path }
             await window.model.close()
         }
 
@@ -150,7 +151,7 @@ import os
             await press(window, request, picks: picks)
 
             #expect(window.model.transcribe.job == nil && calls.withLock { $0 }.isEmpty && Self.runs(ran) == 1)
-            #expect(KeptModelFile.load(from: window.defaults) == kept)
+            #expect(window.kept() == kept)
             await window.model.close()
         }
 
@@ -200,13 +201,14 @@ import os
                 engine: Self.recording(calls, error: .engine(code: 7)))
             window.model.start(
                 TranscribeRequest(
-                    track: "t2", trackName: "t2", language: .code("es"), model: .file(window.file, passed: nil)))
+                    track: "t2", trackName: "t2", language: .code("es"), choice: .code("es"),
+                    model: .file(window.file, passed: nil)))
 
             #expect(try await jobAlert(window) == .error(.transcription(.engine(code: 7))))
             let record = PassedModelFile(sha256: Self.abc, facts: Self.tiny)
-            await until("the file is kept") { KeptModelFile.load(from: window.defaults)?.passed == record }
+            await until("the file is kept") { window.kept()?.passed == record }
             // With no kept file, the next sheet starts a catalog download that never ends.
-            try #require(KeptModelFile.load(from: window.defaults)?.passed == record)
+            try #require(window.kept()?.passed == record)
             window.model.alert = nil
             try await startSheet(window, .file)
             _ = try await jobAlert(window)

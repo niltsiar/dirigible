@@ -273,7 +273,15 @@ extension WindowAlert {
                 } ?? "")
         case .transcriptExport(let error): L10n.message(for: error)
         case .transcriptImport(let text): text
-        case .transcribeFile(let error, _), .transcribeNoData(let error, _): L10n.message(for: error)
+        case .transcribeFile(let error, let request):
+            if case .transcription(.modelFile(.unreadable(errno: ENOENT))) = error,
+                case .file(let url, _) = request.model
+            {
+                L10n.errorTranscribeFileMissing.format(url.lastPathComponent)
+            } else {
+                L10n.message(for: error)
+            }
+        case .transcribeNoData(let error, _): L10n.message(for: error)
         }
     }
 }

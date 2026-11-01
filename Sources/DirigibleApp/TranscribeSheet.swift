@@ -7,6 +7,9 @@ struct TranscribeRequest: Hashable {
     let track: TrackID
     let trackName: String
     let language: WhisperLanguage
+    /// The language choice of the sheet, which the kept file and the model memory follow. It is
+    /// `language` unless an English-only file locked the language.
+    let choice: WhisperLanguage
     let model: WhisperModelChoice
 }
 
@@ -69,9 +72,12 @@ struct TranscribeDraft: Equatable {
         return !onDisk.contains(model)
     }
     var isChecking: Bool { if case .running = check { true } else { false } }
-    var canStart: Bool { model != .choose && !isChecking && !(model == .file && keptMissing) }
+    var canStart: Bool { request != nil && !isChecking && !(model == .file && keptMissing) }
     /// Off while an English-only file is selected (C26).
     var languageLocked: Bool { languageBeforeFile != nil }
+    /// The language choice of the kept file and the model memory: the language before an
+    /// English-only file took the pop-up.
+    var choice: WhisperLanguage { languageBeforeFile ?? language }
 
     /// Selects `entry`. An English-only file sets the language to English and locks it; another
     /// entry gives back the language before the file.
@@ -86,6 +92,13 @@ struct TranscribeDraft: Equatable {
         model = entry
     }
 
+    /// The kept file changed at the sheet open: the language rule of `select(_:)` runs again on the
+    /// selected entry.
+    mutating func keep(_ kept: KeptModelFile) {
+        self.kept = kept
+        select(model)
+    }
+
     /// The kept file is missing at the sheet open: a selection of it gives the language rule.
     mutating func keptFileIsMissing() {
         keptMissing = true
@@ -98,16 +111,16 @@ struct TranscribeDraft: Equatable {
         Self.models.map { .catalog($0) } + (kept == nil ? [] : [nil, .file]) + [nil, .choose]
     }
 
-    /// The notes under the pop-ups; none while a check line shows. A kept file gives the facts of
-    /// its record and the note of a model that is not from the list.
-    var notes: [String] {
-        guard check == nil else { return [] }
+    /// The note of a track with words: Replace swaps them. It shows whenever a replace applies.
+    var replaceNote: String? {
+        guard words > 0 else { return nil }
+        return words == 1 ? L10n.sheetTranscribeNoteReplaceOne.text : L10n.sheetTranscribeNoteReplaceMany.format(words)
+    }
+
+    /// The notes of the model, in the place of the check line: the download, and for a kept file
+    /// the facts of its record and the note of a model that is not from the list.
+    var modelNotes: [String] {
         var notes: [String] = []
-        if words > 0 {
-            notes.append(
-                words == 1
-                    ? L10n.sheetTranscribeNoteReplaceOne.text : L10n.sheetTranscribeNoteReplaceMany.format(words))
-        }
         if needsDownload { notes.append(L10n.sheetTranscribeNoteDownload.text) }
         if model == .file {
             if let facts = kept?.passed?.facts { notes.append(ModelCheckLine.text(of: facts)) }
@@ -116,22 +129,29 @@ struct TranscribeDraft: Equatable {
         return notes
     }
 
+    /// The notes under the pop-ups: the replace note, and the model notes while no check line shows.
+    var notes: [String] { (replaceNote.map { [$0] } ?? []) + (check == nil ? modelNotes : []) }
+
     /// The default button: the download comes first, then Replace for a track with words.
     var buttonTitle: L10n {
         if needsDownload { return .sheetTranscribeDownload }
         return words > 0 ? .sheetTranscribeReplace : .sheetTranscribeStart
     }
 
-    var request: TranscribeRequest {
-        let choice: WhisperModelChoice =
-            switch model {
-            case .catalog(let model): .catalog(model)
-            case .file: kept.map { .file($0.url, passed: $0.passed) } ?? .catalog(Self.languageModel(language))
-            case .choose: .catalog(Self.languageModel(language))
-            }
+    /// Nil while the pop-up has no model to run: Choose Model File... or a file entry with no kept
+    /// file.
+    var request: TranscribeRequest? {
+        let model: WhisperModelChoice
+        switch self.model {
+        case .catalog(let entry): model = .catalog(entry)
+        case .file:
+            guard let kept else { return nil }
+            model = .file(kept.url, passed: kept.passed)
+        case .choose: return nil
+        }
         return TranscribeRequest(
             track: track, trackName: tracks.first { $0.id == track }?.name ?? track.rawValue, language: language,
-            model: choice)
+            choice: choice, model: model)
     }
 
     /// The size of the model file in the units of the Finder, from the catalog byte count.
@@ -162,7 +182,6 @@ struct TranscribeDraft: Equatable {
     /// Keeps the language choice and the model memory of that choice (U21). The choice is the
     /// language before an English-only file.
     func remember(in defaults: UserDefaults?) {
-        let choice = languageBeforeFile ?? language
         defaults?.set(TranscribeLanguages.stored(choice), forKey: Self.languageKey)
         TranscribeModelMemory.remember(model, for: choice, in: defaults)
     }
@@ -222,6 +241,9 @@ enum TranscribeLanguages {
 /// the window changes after the open panel and the check of a model file.
 struct TranscribeSheet: View {
     let model: SessionWindow
+    /// The room of the check line and the model notes: three lines of text, so the sheet has one
+    /// height for each state of the check line (U17).
+    static let lineRegionHeight: CGFloat = 60
 
     private var preferred: [String] { TranscribeLanguages.preferred(Locale.preferredLanguages) }
 
@@ -266,8 +288,15 @@ struct TranscribeSheet: View {
                 }
             }
             .formStyle(.columns)
-            if let check = draft.check { checkLine(check) }
-            ForEach(draft.notes, id: \.self) { note($0) }
+            if let replace = draft.replaceNote { note(replace) }
+            VStack(alignment: .leading, spacing: 6) {
+                if let check = draft.check {
+                    checkLine(check)
+                } else {
+                    ForEach(draft.modelNotes, id: \.self) { note($0) }
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: Self.lineRegionHeight, alignment: .topLeading)
             HStack {
                 Spacer()
                 Button(L10n.alertCancel.key) { model.cancelTranscribeSheet() }.keyboardShortcut(.cancelAction)

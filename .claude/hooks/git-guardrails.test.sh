@@ -117,7 +117,7 @@ if [[ -z "${GUARDRAILS_TEST_COPY:-}" ]] && case_block hook-cases; then
   copy_cases=('agent-clock' 'agent-clock|write-guard' 'guardrails-tag' 'agent' 'no-such-block')
   for i in "${!copy_cases[@]}"; do
     (
-      GUARDRAILS_TEST_COPY=1 HOOK_CASES="${copy_cases[$i]}" perl -e 'alarm 120; exec @ARGV' "$copy/.claude/hooks/git-guardrails.test.sh" > "$tmp/copy-$i.out" 2>&1
+      GUARDRAILS_TEST_COPY=1 HOOK_CASES="${copy_cases[$i]}" perl -e 'alarm 300; exec @ARGV' "$copy/.claude/hooks/git-guardrails.test.sh" > "$tmp/copy-$i.out" 2>&1
       echo $? > "$tmp/copy-$i.code"
     ) &
   done

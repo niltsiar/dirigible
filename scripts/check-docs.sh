@@ -146,6 +146,23 @@ if [[ -f "$root/AGENTS.md" ]]; then
     done
 fi
 
+# The Folders line of the module map names each folder of Sources/<target>/ that holds a Swift file,
+# at any depth: as `<folder>/` for DirigibleAudio (the line scopes its bare names), else as
+# `<target>/<folder>/`.
+map="$root/docs/decisions/0002-module-map.md"
+swift_folders=""
+[[ ! -d "$root/Sources" ]] || swift_folders="$(cd "$root/Sources" && find . -mindepth 3 -name '*.swift' | awk -F/ '{ print $2 "/" $3 }' | sort -u)"
+if [[ -n "$swift_folders" && ! -f "$map" ]]; then
+    err "no docs/decisions/0002-module-map.md for the folders of Sources/"
+elif [[ -n "$swift_folders" ]]; then
+    folders_line="$(grep -m1 '^- \*\*Folders\.\*\*' "$map" || true)"
+    while IFS=/ read -r target folder; do
+        name="$target/$folder"
+        [[ "$target" != DirigibleAudio ]] || name="$folder"
+        [[ "$folders_line" == *"\`$name/\`"* ]] || err "docs/decisions/0002-module-map.md: Folders does not name Sources/$target/$folder/"
+    done <<<"$swift_folders"
+fi
+
 # Every menu name of the app, in English and Spanish, is in bold in the user guide.
 guide="$root/docs/guide.md"
 if [[ -f "$root/Support/Resources/en.lproj/Localizable.strings" ]]; then

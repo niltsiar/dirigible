@@ -36,6 +36,7 @@
 - Amended: 2026-10-27, run `2026-10-14-render-link`. `DirigibleCore/Treatment.swift` holds the stored render values `Effect`, `Treatment`, and `NoiseReduction`, because the session reader parses them. `Render/Treatment.swift` and `Render/NoiseReduction.swift` keep only the DSP extensions (see 0057).
 - Amended: 2026-10-31, run `2026-10-28-whisper-in-app`. The C and C++ target `CWhisper` holds whisper.cpp v1.9.5 and its ggml for the CPU, with C and C++ warnings as errors, and the stop flag of a transcription. `DirigibleAudio` depends on it (see 0065).
 - Amended: 2026-11-01, run `2026-11-01-architecture-audit-4`. **Folders** names `Transcribe/` (0065), and `scripts/check-docs.sh` fails when it does not name a folder of a Swift target. The Imports cells of `DirigibleAudio` and `DirigibleCLI` list each module that their files import.
+- Amended: 2026-11-01, run `2026-10-28-silence-tool`. `DirigibleCore/SilencePlan.swift` holds the silence plan, the silence edit, and the row warnings. `Studio/Studio+Silences.swift` holds the scan and the Apply of the Silences tab (see 0066).
 
 ## Context
 

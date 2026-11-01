@@ -1140,7 +1140,7 @@ expect_key_reads 'bash scripts/land.test.sh' 1 1
 expect_key_reads 'scripts/with-lock.sh make test-filter FILTER=X' 1 1
 
 # A repo hook or script test runs as scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>', which
-# takes no lock (AGENTS.md, Commands): a bare bash run of a .test.sh file ran beside three push checks
+# takes no lock (header of scripts/with-lock.sh): a bare bash run of a .test.sh file ran beside three push checks
 # (DLV-157/flake). Each run form after the prefix words blocks: a shell word with flags other than -n,
 # or the bare path. A with-lock.sh word in the prefix does not change that (item 1375, below).
 for run in 'bash scripts/with-lock.test.sh' 'bash a.test.sh & bash b.test.sh' 'bash a.test.sh; bash b.test.sh' \
@@ -1187,15 +1187,52 @@ for run in 'scripts/with-lock.sh bash scripts/land.test.sh' 'scripts/with-lock.s
   'scripts/with-lock.sh /bin/bash -x scripts/land.test.sh' 'scripts/with-lock.sh scripts/probe.sh f bash scripts/land.test.sh' \
   '../wt/scripts/with-lock.sh bash scripts/land.test.sh' 'scripts/with-lock.sh bash .claude/hooks/git-guardrails.test.sh' \
   'scripts/with-lock.sh .claude/hooks/git-guardrails.test.sh' 'bash scripts/land.test.sh'; do
-  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' 'outside the key tree'
+  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' '(the header of scripts/with-lock.sh)' \
+    'outside the key tree of scripts/test-hooks.sh'
   expect_no_reason 'holds the build lock' "$run"
   expect_no_reason 'outside its lock-free form' "$run"
+  expect_no_reason 'long_holder' "$run"
+  expect_no_reason 'AGENTS.md' "$run"
 done
 for run in 'scripts/with-lock.sh scripts/test-hooks.sh scripts/land.test.sh' 'scripts/with-lock.sh bash scripts/test-hooks.sh' \
   'scripts/test-hooks.sh' 'make test-hooks'; do
-  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' 'outside its lock-free form'
+  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' '(the header of scripts/with-lock.sh)' 'outside its lock-free form'
   expect_no_reason 'holds the build lock' "$run"
   expect_no_reason 'outside the key tree' "$run"
+  expect_no_reason 'long_holder' "$run"
+  expect_no_reason 'AGENTS.md' "$run"
+done
+
+# Inside a with-lock.sh call a make test-hooks segment passes only when each word after make is test-hooks
+# or a NAME=value word other than BASE=<value>, the words that lock_free() in with-lock.sh reads (code gate 1 of
+# upkeep-thirteenth, Act on 1): a make flag, another target, or a BASE value makes with-lock.sh take the lock, and the test then holds a slot
+# of the cap. A quoted value, a redirect, and a pipe after the words do not count as words.
+for run in 'scripts/with-lock.sh make -C ../wt test-hooks HOOK_TESTS=scripts/land.test.sh' \
+  'scripts/with-lock.sh make -s test-hooks HOOK_TESTS=scripts/land.test.sh' \
+  'scripts/with-lock.sh make --no-print-directory test-hooks HOOK_TESTS=scripts/land.test.sh' \
+  'scripts/with-lock.sh make test-hooks -j4 HOOK_TESTS=scripts/land.test.sh' \
+  'scripts/with-lock.sh make test-hooks check-changed HOOK_TESTS=scripts/land.test.sh' \
+  'scripts/with-lock.sh make -n test-hooks' 'scripts/with-lock.sh make -C ../wt test-hooks' \
+  'WITH_LOCK_MAX_WAIT=5 scripts/with-lock.sh make -s test-hooks HOOK_TESTS=scripts/land.test.sh > logs/x.log 2>&1' \
+  'cd ../wt && scripts/with-lock.sh make -C . test-hooks HOOK_TESTS=scripts/land.test.sh' \
+  '(scripts/with-lock.sh make -s test-hooks HOOK_TESTS=scripts/land.test.sh)' \
+  "scripts/with-lock.sh make -s test-hooks HOOK_TESTS='scripts/land.test.sh scripts/with-lock.test.sh'" \
+  'scripts/with-lock.sh make test-hooks BASE=origin/main HOOK_TESTS=scripts/land.test.sh'; do
+  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' '(the header of scripts/with-lock.sh)' 'outside its lock-free form'
+  expect_no_reason 'holds the build lock' "$run"
+  expect_no_reason 'outside the key tree' "$run"
+done
+for run in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts/with-lock.sh make test-hooks' \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh DIRIGIBLE_HOOKS_ALL=1' \
+  "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh scripts/with-lock.test.sh'" \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS="scripts/land.test.sh scripts/with-lock.test.sh"' \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh 2>&1 | tail -3' \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh >logs/x.log 2>&1' \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh 12>&1' \
+  '{ scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh; }' \
+  '../wt/scripts/with-lock.sh /usr/bin/make test-hooks HOOK_TESTS=scripts/land.test.sh' \
+  'time scripts/with-lock.sh env X=1 make test-hooks HOOK_TESTS=scripts/land.test.sh'; do
+  expect allow "$run"
 done
 
 # A quoted string and a data heredoc body are data, not commands (code gate 1 of 2026-10-28-upkeep-sixth,
@@ -1236,8 +1273,8 @@ for run in $'cat <<\'EOF\' | bash\nbash scripts/land.test.sh\nEOF' $'bash -s <<\
 done
 
 # A bare make test-hooks and a scripts/test-hooks.sh run (bare, or inside a with-lock.sh call) run
-# every hook test outside the lock-free form (Act on 4). make test-hooks inside a with-lock.sh call,
-# bash -n, and a read of the file pass.
+# every hook test outside the lock-free form (Act on 4). make test-hooks inside a with-lock.sh call (words
+# below), bash -n, and a read of the file pass.
 for run in 'make test-hooks' 'make -C ../wt test-hooks' 'DIRIGIBLE_FULL_SUITE=1 make test-hooks' 'make test-hooks 2>&1 | tail -3' \
   'make test-hooks HOOK_TESTS=scripts/land.test.sh' 'scripts/test-hooks.sh' './scripts/test-hooks.sh' 'bash scripts/test-hooks.sh' \
   '../wt/scripts/test-hooks.sh scripts/land.test.sh' 'cd ../wt && make test-hooks' 'time make test-hooks' \

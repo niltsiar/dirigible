@@ -22,7 +22,7 @@ struct TranscribeSheetTests {
     @Test func noModelShowsTheDownload() throws {
         var draft = try Self.draft(onDisk: [])
         #expect(draft.buttonTitle == .sheetTranscribeDownload)
-        draft.model = .smallQ51
+        draft.model = .catalog(.smallQ51)
         #expect(draft.buttonTitle == .sheetTranscribeDownload)
         #expect(draft.track == "t2" && draft.request.track == "t2" && draft.request.trackName == "Guest")
 
@@ -39,11 +39,11 @@ struct TranscribeSheetTests {
         draft.track = "t2"
         #expect(draft.buttonTitle == .sheetTranscribeStart && draft.words == 0)
         draft.track = "t1"
-        draft.model = .smallQ51
+        draft.model = .catalog(.smallQ51)
         #expect(draft.buttonTitle == .sheetTranscribeReplace, "both models are on disk")
         let download = try Self.draft([spoken], selected: "t1", onDisk: [.base])
         var other = download
-        other.model = .smallQ51
+        other.model = .catalog(.smallQ51)
         #expect(download.buttonTitle == .sheetTranscribeReplace && other.buttonTitle == .sheetTranscribeDownload)
     }
 
@@ -73,7 +73,7 @@ struct TranscribeSheetTests {
     @Test(arguments: [(WhisperLanguage.code("es"), WhisperModel.smallQ51), (.code("en"), .base), (.automatic, .base)])
     func theFirstModelFollowsTheLanguage(language: WhisperLanguage, model: WhisperModel) throws {
         let draft = try #require(TranscribeDraft(tracks: [Self.host], selected: nil, onDisk: [], language: language))
-        #expect(draft.model == model)
+        #expect(draft.model == .catalog(model))
     }
 
     /// U21: the stored choice wins; else the app language when whisper supports it; else Automatic.

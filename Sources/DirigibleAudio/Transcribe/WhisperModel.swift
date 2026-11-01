@@ -87,7 +87,7 @@ public enum WhisperModelChoice: Hashable, Sendable {
 
 /// The SHA-256 and the facts of a model file of the user that passed the check of
 /// `ModelFileCheck` (decision 0065, D8). A next check of a file with this SHA-256 runs no helper.
-public struct PassedModelFile: Hashable, Sendable {
+public struct PassedModelFile: Hashable, Sendable, Codable {
     public let sha256: String
     public let facts: WhisperModelFacts
 }

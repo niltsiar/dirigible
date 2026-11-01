@@ -164,7 +164,7 @@ import Testing
                 Issue.record("notice \(String(describing: model.transcribe.notice))")
                 return
             }
-            #expect(request.track == "t2" && request.language == .code("es") && request.model == .base)
+            #expect(request.track == "t2" && request.language == .code("es") && request.model == .catalog(.base))
 
             studio.transport = .recording(take: 1)
             model.transcribeAgain()

@@ -135,6 +135,46 @@ extension Studio {
         return try outcome.get()
     }
 
+    /// The check of a model file of the user for the Transcribe sheet (decision 0065, D8): a read
+    /// run of this studio, so a take start in any studio throws `.readYielded`, `settle()` throws
+    /// `.readClosed`, and a cancel of the caller throws `.transcriptionCancelled`. Each of them
+    /// ends the helper. It is no job: a job in another studio does not refuse it. It throws the
+    /// refusal of `checkModelFileIdle()` before any hash.
+    public func checkModelFile(_ url: URL, passed: PassedModelFile?) async throws(StudioError) -> CheckedModel {
+        try checkModelFileIdle()
+        let (environment, run) = (environment, ReadRun())
+        readRuns.append(run)
+        defer { endRead(run) }
+        let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
+        let result = await withTaskCancellationHandler {
+            await onJobThread {
+                Result { () throws(ModelFileCheckError) in try environment.checkModelFile(url, passed, stopped) }
+            }
+        } onCancel: {
+            run.cancel()
+        }
+        switch result {
+        case .success(let model): return model
+        case .failure(let error):
+            guard error == .stopped || stopped() else { throw .transcription(.modelFile(error)) }
+            switch run.end.withLock({ $0 }) {
+            case .take: throw .readYielded
+            case .close: throw .readClosed
+            case nil: throw .transcriptionCancelled
+            }
+        }
+    }
+
+    /// The take part of the refusals of `transcribe`: `.busy` while this studio is not idle or
+    /// records, and while another studio records, has a pending take, or starts a take. No hash
+    /// and no helper of a model file starts then.
+    public func checkModelFileIdle() throws(StudioError) {
+        try checkIdle()
+        guard session.recording == nil,
+            !otherStudios().contains(where: { $0.session.recording != nil || $0.isStarting })
+        else { throw .busy }
+    }
+
     /// The Cancel of the Transcribe banner: sets the flags of the running job, with no wait. The job
     /// ends at its next stop check, throws `.transcriptionCancelled`, and writes nothing.
     public func cancelTranscription() { transcribing?.run.cancel() }

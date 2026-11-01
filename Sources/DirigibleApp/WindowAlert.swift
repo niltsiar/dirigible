@@ -23,4 +23,34 @@ enum WindowAlert: Hashable {
     case transcriptExport(TranscriptExportError)
     /// File > Import Transcript changed nothing: the text of the reason.
     case transcriptImport(String)
+    /// A job with a model file of the user failed because of the file (C28). Locate... starts
+    /// `request` again with a picked file.
+    case transcribeFile(StudioError, TranscribeRequest)
+    /// The model download got no data (C27). Choose Model File... starts `request` with a picked
+    /// file.
+    case transcribeNoData(StudioError, TranscribeRequest)
+
+    /// The alert of a failed transcription job of `request`. Only a fault of the model file of the
+    /// user gives Locate...: a missing helper, a helper that does not start, and an engine error
+    /// are faults of the install or the audio.
+    static func transcribe(_ error: StudioError, _ request: TranscribeRequest) -> WindowAlert {
+        guard case .transcription(let fault) = error else { return .error(error) }
+        switch fault {
+        case .modelDownloadNoData: return .transcribeNoData(error, request)
+        case .modelChanged, .modelFile(.unreadable), .modelFile(.refused), .modelFile(.helperStopped),
+            .modelFile(.changedDuringCheck):
+            guard case .file = request.model else { return .error(error) }
+            return .transcribeFile(error, request)
+        default: return .error(error)
+        }
+    }
+
+    /// The button beside OK that opens the open panel of a model file, else nil.
+    var pickButton: L10n? {
+        switch self {
+        case .transcribeFile: .alertTranscribeLocate
+        case .transcribeNoData: .sheetTranscribeChoose
+        default: nil
+        }
+    }
 }

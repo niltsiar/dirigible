@@ -33,7 +33,7 @@ public enum WhisperModelKind: Hashable, Sendable {
 }
 
 /// The facts of a model file that the sheet and the job read.
-public struct WhisperModelFacts: Hashable, Sendable {
+public struct WhisperModelFacts: Hashable, Sendable, Codable {
     public let audioLayers: Int
     public let textLayers: Int
     public let melCount: Int

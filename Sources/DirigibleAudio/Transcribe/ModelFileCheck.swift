@@ -153,6 +153,10 @@ public enum ModelFileCheck {
         return CheckedModel(source: .file(record), url: url)
     }
 
+    /// The SHA-256 of the file at `url` in lowercase hex, else nil when the file cannot be read.
+    /// It blocks the calling thread for the whole file.
+    public static func fileHash(_ url: URL) -> String? { try? sha256(of: url) }
+
     /// The helper of the process whose executable is `executable`, with its links resolved: for the
     /// executable in `Contents/MacOS` of the app, `Contents/Helpers/dirigible`; else the `dirigible`
     /// beside it, which is the CLI itself or the CLI of a `swift build` folder.

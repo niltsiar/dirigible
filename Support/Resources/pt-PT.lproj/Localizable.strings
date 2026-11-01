@@ -696,6 +696,17 @@
 "sheet.transcribe.note.download" = "O Dirigible transfere este modelo uma vez. O áudio nunca sai deste Mac.";
 "sheet.transcribe.note.replace.one" = "Esta faixa tem 1 palavra. Substituir troca-a pelas palavras novas. Desfazer repõe-a.";
 "sheet.transcribe.note.replace.many" = "Esta faixa tem %lld palavras. Substituir troca-as pelas palavras novas. Desfazer repõe-as.";
+"sheet.transcribe.choose" = "Escolher ficheiro de modelo…";
+"sheet.transcribe.missing" = "%@ (em falta)";
+"sheet.transcribe.note.file" = "Este modelo não é da lista do Dirigible. A velocidade e a precisão podem variar. O áudio nunca sai deste Mac.";
+"sheet.transcribe.check.running" = "A verificar %@…";
+"sheet.transcribe.check.wait" = "Isto pode demorar um minuto.";
+"sheet.transcribe.check.multilingual" = "%@, multilingue";
+"sheet.transcribe.check.english" = "%@, apenas inglês";
+"sheet.transcribe.check.layers" = "%lld camadas de áudio";
+"sheet.transcribe.check.take" = "Começou uma gravação, por isso o Dirigible parou a verificação do ficheiro de modelo.";
+"sheet.transcribe.check.busy" = "Uma gravação bloqueia a verificação do ficheiro de modelo. Tente novamente depois da gravação.";
+"alert.transcribe.locate" = "Localizar…";
 "transcribe.banner.download" = "A transferir o modelo de voz… %lld %%";
 "transcribe.banner.running" = "A transcrever %1$@… %2$lld %%";
 "transcribe.banner.firewall" = "Ainda sem dados de %@. Uma firewall pode bloquear a transferência.";

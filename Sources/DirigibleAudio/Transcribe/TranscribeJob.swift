@@ -227,7 +227,7 @@ private func catalogModel(
 
 /// `body` on a `.userInitiated` GCD thread: the model hash and the engine block for seconds, so
 /// they stay off the cooperative pool.
-private func onJobThread<T: Sendable>(_ body: @escaping @Sendable () -> T) async -> T {
+func onJobThread<T: Sendable>(_ body: @escaping @Sendable () -> T) async -> T {
     await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
             dispatchPrecondition(condition: .notOnQueue(.main))

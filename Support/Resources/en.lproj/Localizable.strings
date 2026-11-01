@@ -696,6 +696,17 @@
 "sheet.transcribe.note.download" = "Dirigible downloads this model once. Your audio never leaves this Mac.";
 "sheet.transcribe.note.replace.one" = "This track has 1 word. Replace swaps it for the new words. Undo brings it back.";
 "sheet.transcribe.note.replace.many" = "This track has %lld words. Replace swaps them for the new words. Undo brings them back.";
+"sheet.transcribe.choose" = "Choose Model File…";
+"sheet.transcribe.missing" = "%@ (missing)";
+"sheet.transcribe.note.file" = "This model is not from the Dirigible list. Its speed and accuracy can differ. Your audio never leaves this Mac.";
+"sheet.transcribe.check.running" = "Checking %@…";
+"sheet.transcribe.check.wait" = "This can take a minute.";
+"sheet.transcribe.check.multilingual" = "%@, multilingual";
+"sheet.transcribe.check.english" = "%@, English only";
+"sheet.transcribe.check.layers" = "%lld audio layers";
+"sheet.transcribe.check.take" = "A recording started, so Dirigible stopped the check of the model file.";
+"sheet.transcribe.check.busy" = "A recording blocks the check of the model file. Try again after the recording.";
+"alert.transcribe.locate" = "Locate…";
 "transcribe.banner.download" = "Downloading the speech model… %lld %%";
 "transcribe.banner.running" = "Transcribing %1$@… %2$lld %%";
 "transcribe.banner.firewall" = "No data from %@ yet. A firewall can block the download.";

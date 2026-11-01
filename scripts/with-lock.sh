@@ -27,11 +27,12 @@
 # its release, a call appends one line to dirigible-build-holds.log in the git common dir: the
 # start time, the hold seconds, the command, and the tree. The take writes the tree into the lock
 # folder (<lock>/tree), and a waiting call keeps the marker dirigible-build-waiting/<pid> with its
-# tree until it takes the lock or ends. scripts/with-lock.sh --builders prints each tree with a wait
-# or hold line that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 20: the p90 gap between
-# two holds of one tree is 811 s; a lock-free wait line, below, is no sign of a building tree), the
-# tree of the live holder, and each live waiter, one per line. A marker of a dead pid is ignored and
-# removed.
+# tree until it takes the lock or ends. scripts/with-lock.sh --builders prints each existing tree
+# whose hold lines that ended in the last WITH_LOCK_BUILDERS_MIN minutes (default 20: the p90 gap
+# between two holds of one tree is 811 s) add up to WITH_LOCK_BUILDERS_FLOOR seconds or more
+# (default 10: a hold of a few seconds is a probe, not a build). A wait line, also a lock-free one,
+# below, is no sign of a building tree. The list also has the tree of the live holder and each live
+# waiter, one per line. A marker of a dead pid is ignored and removed.
 # A wait with 2 or more other trees in that list prints their count.
 # scripts/with-lock.sh --release-holder takes no lock and runs no command, also inside a locked
 # process tree. It prints "holder: <command>" and exits 0 while a release call (below) holds the
@@ -40,13 +41,14 @@
 # pass, a flake loop, and an ordinary call give exit 1. .claude/hooks/agent-guard.sh calls it.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
-# waiter, its own tree, a line or a holder of a call with WITH_LOCK_NO_CAP=1, or a path that is not
-# a folder). It waits as for a held lock, with the same retry, wait limit, and exit 75, and prints
-# once "the cap is 2 building trees" with the trees and the minutes until the oldest hold line
-# ages out. A release call, a nested call, and a DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so
-# does WITH_LOCK_NO_CAP=1 (a read-only scan, long-runs.md): it waits for the lock as any call, takes
-# no slot, and ends its wait and hold lines with the column nocap (the hold line has an empty
-# fifth column unless it has limit). A release call also ends its lines with nocap, so a make dmg,
+# waiter, its own tree, a line or a holder of a call with WITH_LOCK_NO_CAP=1, a path that is not a
+# folder, or a tree under the floor of the list above). It waits as for a held lock, with the same
+# retry, wait limit, and exit 75, and prints once "the cap is 2 building trees" with the trees and
+# the minutes until the first of those trees ages out of the list: a tree leaves when its hold
+# seconds in the window fall under the floor. A release call, a nested call, and a
+# DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so does WITH_LOCK_NO_CAP=1 (a read-only scan,
+# long-runs.md): it waits for the lock as any call, takes no slot, and ends its wait and hold lines
+# with the column nocap (the hold line has an empty fifth column unless it has limit). A release call also ends its lines with nocap, so a make dmg,
 # a land, or the hooks pass never fills a slot of the cap. cost.sh counts those minutes.
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
@@ -105,7 +107,7 @@ told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
-waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}"
+waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}" floor="${WITH_LOCK_BUILDERS_FLOOR:-10}"
 # The awk function ep reads a local ISO time as UTC, to add the seconds of a log line.
 ep_awk='
     function ep(s, y, mo) {
@@ -113,16 +115,16 @@ ep_awk='
         if (mo < 3) { y--; mo += 12 }
         return (365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * mo - 457) / 5) + substr(s, 9, 2)) * 86400 + substr(s, 12, 2) * 3600 + substr(s, 15, 2) * 60 + substr(s, 18, 2)
     }'
-# builders: the trees of the wait and hold lines that ended in the last $min minutes, of the live
-# holder, and of each live waiter, one per line.
+# builders: the existing trees whose hold lines that ended in the last $min minutes add up to $floor
+# seconds or more, the live holder, and each live waiter, one per line.
 builders() {
     local cutoff m c
     cutoff="$(date -r $(($(date +%s) - min * 60)) +%FT%T)"
     {
-        for m in "$waits:5" "$holds:4"; do
-            awk -F'\t' -v cutoff="$cutoff" -v col="${m##*:}" "$ep_awk"'
-                $col != "" && $6 != "lockfree" && ep($1) + $2 >= ep(cutoff) { print $col }' "${m%:*}" 2>/dev/null
-        done
+        awk -F'\t' -v cutoff="$cutoff" -v floor="$floor" "$ep_awk"'
+            $4 != "" && ep($1) + $2 >= ep(cutoff) { sum[$4] += $2 }
+            END { for (t in sum) if (sum[t] >= floor) print t }' "$holds" 2>/dev/null |
+            while IFS= read -r m; do if [[ -d "$m" ]]; then echo "$m"; fi; done
         m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
         if alive "$m" || alive "$c" || alive "-$c"; then cat "$lock/tree" 2>/dev/null; fi
         for m in "$waiting"/*; do
@@ -132,7 +134,9 @@ builders() {
     } | awk 'NF && !seen[$0]++' | sort
 }
 # capped: succeeds when 2 or more other trees build (the cap), and sets cap_line. The live holder
-# comes first, then the trees of the hold lines in the order in which they age out.
+# comes first, then the trees of the hold lines in the order in which they age out. A tree ages out
+# at the first line end after which its later hold seconds in the window are under the floor, or at
+# the end of its last line (at floor 0 no sum is under the floor).
 capped() {
     local cutoff m c t secs trees="" soon="" aged="" live="" n=0 input
     cutoff="$(date -r $(($(date +%s) - min * 60)) +%FT%T)"
@@ -140,9 +144,21 @@ capped() {
     if [[ -n "$t" && ! -e "$lock/nocap" ]] && { alive "$m" || alive "$c" || alive "-$c"; }; then live="$t"; fi
     input="$(
         [[ -z "$live" ]] || printf '0\t%s\n' "$live"
-        awk -F'\t' -v cutoff="$cutoff" "$ep_awk"'
-            $4 != "" && $6 != "nocap" && ep($1) + $2 >= ep(cutoff) { e = ep($1) + $2; if (e > end[$4]) end[$4] = e }
-            END { for (t in end) print end[t] - ep(cutoff) "\t" t }' "$holds" 2>/dev/null | sort -n
+        awk -F'\t' -v cutoff="$cutoff" -v floor="$floor" "$ep_awk"'
+            $4 != "" && $6 != "nocap" && ep($1) + $2 >= ep(cutoff) { t = $4; k = ++n[t]; e[t, k] = ep($1) + $2; s[t, k] = $2; sum[t] += $2 }
+            END {
+                for (t in n) {
+                    if (sum[t] < floor) continue
+                    for (i = 2; i <= n[t]; i++) {
+                        ee = e[t, i]; ss = s[t, i]
+                        for (j = i - 1; j >= 1 && e[t, j] > ee; j--) { e[t, j + 1] = e[t, j]; s[t, j + 1] = s[t, j] }
+                        e[t, j + 1] = ee; s[t, j + 1] = ss
+                    }
+                    rest = sum[t]
+                    for (i = 1; i <= n[t]; i++) { rest -= s[t, i]; if (rest < floor) break }
+                    print e[t, (i > n[t]) ? n[t] : i] - ep(cutoff) "\t" t
+                }
+            }' "$holds" 2>/dev/null | sort -n
     )"
     while IFS=$'\t' read -r secs t; do
         [[ -n "$t" && "$t" != "$tree" && -d "$t" ]] || continue

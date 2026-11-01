@@ -1,10 +1,34 @@
 import Foundation
 
+/// A word anchor shown under `clip`, with the file window of the clip in root frames.
+struct ShownAnchor {
+    let clip: Clip
+    let file: Range<Frames>
+    let transcript: TranscriptID
+    let anchor: Anchor
+}
+
 /// The transcript queries and edits (decision 0055). A word shows under each clip, on any track,
 /// whose file range `offset ..< offset + length` holds the midpoint of its anchor, so each clip edit
 /// moves the words with no transcript code. The anchors of a rendered file are on the root of its
 /// chain, in root frames (decision 0057 D11).
 extension Session {
+    /// The anchors that show under the clips of `track`, clip by clip (decision 0055): those whose
+    /// midpoint is in the root-frame window of the clip.
+    func shownAnchors(on track: Track) -> [ShownAnchor] {
+        var shown: [ShownAnchor] = []
+        for clip in track.clips {
+            let root = self.root(of: clip.file)
+            let file = (clip.offset + root.offset)..<(clip.offset + root.offset + clip.length)
+            for transcript in transcripts.values {
+                for anchor in transcript.words?[root.file]?.anchors(midpointIn: file) ?? [] {
+                    shown.append(ShownAnchor(clip: clip, file: file, transcript: transcript.id, anchor: anchor))
+                }
+            }
+        }
+        return shown
+    }
+
     /// The shown words in timeline order (start, then word, then track). `range` keeps the words
     /// that touch it. `phrase` keeps each run of adjacent words of one track whose words equal the
     /// words of the phrase, with case, diacritics, and the punctuation at word edges ignored. `tracks`
@@ -14,22 +38,15 @@ extension Session {
     {
         var shown: [(word: SpokenWord, lane: Int)] = []
         for (lane, track) in self.tracks.enumerated() where tracks?.contains(track.id) ?? true {
-            var words: [SpokenWord] = []
-            for clip in track.clips {
-                let root = self.root(of: clip.file)
-                let file = (clip.offset + root.offset)..<(clip.offset + root.offset + clip.length)
-                for transcript in transcripts.values {
-                    for anchor in transcript.words?[root.file]?.anchors(midpointIn: file) ?? [] {
-                        let start = clip.start + max(anchor.range.lowerBound, file.lowerBound) - file.lowerBound
-                        let end = clip.start + min(anchor.range.upperBound, file.upperBound) - file.lowerBound
-                        words.append(
-                            SpokenWord(
-                                occurrence: WordOccurrence(
-                                    word: WordID(transcript: transcript.id, number: anchor.number),
-                                    fileStart: anchor.range.lowerBound, clip: clip.id),
-                                track: track.id, text: anchor.text, range: start..<end))
-                    }
-                }
+            var words: [SpokenWord] = shownAnchors(on: track).map { item in
+                let (clip, file, anchor) = (item.clip, item.file, item.anchor)
+                let start = clip.start + max(anchor.range.lowerBound, file.lowerBound) - file.lowerBound
+                let end = clip.start + min(anchor.range.upperBound, file.upperBound) - file.lowerBound
+                return SpokenWord(
+                    occurrence: WordOccurrence(
+                        word: WordID(transcript: item.transcript, number: anchor.number),
+                        fileStart: anchor.range.lowerBound, clip: clip.id),
+                    track: track.id, text: anchor.text, range: start..<end)
             }
             words.sort { ($0.range.lowerBound, $0.occurrence.word) < ($1.range.lowerBound, $1.occurrence.word) }
             if let phrase { words = Self.matches(of: phrase, in: words) }

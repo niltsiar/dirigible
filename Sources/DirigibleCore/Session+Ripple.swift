@@ -109,15 +109,9 @@ extension Session {
         for index in lanes {
             tracks[index].clips.rippleDelete(ranges) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
         }
-        var (next, removed) = (0, Frames.zero)
-        for marker in markers.values.sorted(by: { $0.position < $1.position }) {
-            while next < ranges.count, ranges[next].upperBound <= marker.position {
-                removed = removed + (ranges[next].upperBound - ranges[next].lowerBound)
-                next += 1
-            }
-            let inside = next < ranges.count && ranges[next].lowerBound < marker.position
+        for marker in markers.values {
             var moved = marker
-            moved.position = (inside ? ranges[next].lowerBound : marker.position) - removed
+            moved.position = marker.position.afterRippleDelete(of: ranges)
             if moved.position != marker.position { try setMarker(moved) }
         }
     }
@@ -154,5 +148,25 @@ extension Session {
             if !indices.contains(index) { indices.append(index) }
         }
         return indices
+    }
+}
+
+extension Frames {
+    /// This frame after a ripple delete of `ranges` (Rule M, decision 0037): a frame at or after the
+    /// end of a range moves left by its length, a frame inside a range goes to its start, and a
+    /// frame at the start stays. `ranges` are sorted and do not overlap. The markers of the session
+    /// and the playhead of the window both map through this function.
+    public func afterRippleDelete(of ranges: [Range<Frames>]) -> Frames {
+        var removed = Frames.zero
+        for range in ranges {
+            if self >= range.upperBound {
+                removed = removed + (range.upperBound - range.lowerBound)
+            } else if self > range.lowerBound {
+                return range.lowerBound - removed
+            } else {
+                break
+            }
+        }
+        return self - removed
     }
 }

@@ -278,87 +278,8 @@ package struct SessionView: Encodable {
     }
 }
 
-/// The text summary of `info`: one line for the session, then one line for each object, then the
-/// sync line of each take with audio, and the line of each anchor fault (decision 0061).
-package func summary(
-    of session: Session, name: String, media: [FileID: MediaFault], takeMap: TakeMapRead
-) -> String {
-    var lines = ["\(name): \(session.sampleRate) Hz"]
-    for track in session.tracks {
-        var line = "track \(track.id) \(quoted(track.name)) \(track.layout.rawValue) \(track.gain)"
-        switch track.route {
-        case nil: break
-        case .device(let uid, let channels):
-            line += " route \(quoted(uid)) \(channels.numbers.map(String.init).joined(separator: ","))"
-        case .app(let bundleID): line += " route app \(quoted(bundleID))"
-        }
-        if track.isMuted { line += " muted" }
-        if track.isSoloed { line += " soloed" }
-        if let role = track.role { line += " role \(role.rawValue)" }
-        lines.append(line)
-        for clip in track.clips {
-            lines.append(
-                "  clip \(clip.id) file \(clip.file) start \(clip.start) offset \(clip.offset) length \(clip.length) "
-                    + "\(clip.gain)"
-                    + (clip.fades == .zero ? "" : " fade in \(clip.fades.fadeIn), out \(clip.fades.fadeOut)")
-                    + (clip.crossfades.start == .zero ? "" : " crossfade in \(clip.crossfades.start)")
-                    + (clip.crossfades.end == .zero ? "" : " crossfade out \(clip.crossfades.end)")
-                    + envelopeText(of: clip))
-        }
-    }
-    for file in session.sortedFiles {
-        let capture = file.capture.map { " capture \($0)" } ?? ""
-        let state = media[file.id].map { " media \($0.word)" + ($0.length.map { " \($0)" } ?? "") } ?? ""
-        lines.append(
-            "file \(file.id) \(quoted(file.path)) \(file.layout.rawValue) length \(file.length)\(capture)"
-                + "\(originText(of: file))\(state)")
-    }
-    for capture in session.sortedCaptures {
-        var line =
-            "capture \(capture.id) \(quoted(capture.deviceName)) device \(quoted(capture.deviceUID)) "
-            + "host time \(capture.hostTimeNanos) sample time \(capture.sampleTime) "
-            + "rate \(capture.nominalSampleRate) measured \(capture.measuredSampleRate) latency \(capture.latency)"
-        if let rate = capture.resampledFromRate { line += " resampled from \(rate)" }
-        if !capture.driftCorrected { line += " drift not corrected" }
-        lines.append(line)
-    }
-    for marker in session.sortedMarkers {
-        var line = "marker \(marker.id) \(quoted(marker.name)) \(marker.kind.rawValue) at \(marker.position)"
-        if let url = marker.url { line += " url \(quoted(url.text))" }
-        if let image = marker.image { line += " image \(quoted(image.path))" }
-        lines.append(line)
-    }
-    if let recording = session.recording {
-        let armed = recording.armedTracks.map(\.rawValue).joined(separator: ",")
-        lines.append(
-            "recording take \(recording.take) at \(recording.playheadFrame) "
-                + "host time \(recording.takeStartHostTimeNanos) armed \(armed)")
-    }
-    lines += TakeWork.syncLines(takeMap.map.sync, sampleRate: session.sampleRate)
-    lines += takeMap.faults.map { TakeWork.faultLine($0.error) }
-    return lines.map { $0 + "\n" }.joined()
-}
-
-/// The gain points of a clip in the `info` text: the points inside the clip window as
-/// `<timeline frame>:<dB>`, as `clip envelope` takes them, the count of the points outside it, and
-/// with a point outside, the gain at the first and the last frame of the window.
-private func envelopeText(of clip: Clip) -> String {
-    let inside = clip.pointsInWindow
-    let outside = clip.envelope.points.count - inside.count
-    var parts = inside.isEmpty ? [] : [" envelope " + inside.map { "\($0.frame):\($0.gain.dB)" }.joined(separator: " ")]
-    if outside > 0 {
-        parts.append("\(inside.isEmpty ? " " : ", ")\(outside) \(outside == 1 ? "point" : "points") outside the clip")
-        let edges = clip.windowEdges
-        parts.append(", window edges \(edges.first.frame):\(edges.first.dB) \(edges.last.frame):\(edges.last.dB)")
-    }
-    return parts.joined()
-}
-
-/// Quotes and escapes free text, so a quote or a space in a name keeps one line readable.
-private func quoted(_ text: String) -> String { String(reflecting: text) }
-
 extension MediaFault {
-    fileprivate var word: String {
+    var word: String {
         switch self {
         case .missing: "missing"
         case .short: "short"
@@ -366,7 +287,7 @@ extension MediaFault {
         }
     }
 
-    fileprivate var length: Int? {
+    var length: Int? {
         if case .short(let frames) = self { return frames.count }
         return nil
     }
@@ -377,20 +298,20 @@ extension Frames {
 }
 
 extension Session {
-    fileprivate var sortedCaptures: [Capture] { captures.values.sorted { $0.id < $1.id } }
-    fileprivate var sortedFiles: [AudioFile] { files.values.sorted { $0.id < $1.id } }
+    var sortedCaptures: [Capture] { captures.values.sorted { $0.id < $1.id } }
+    var sortedFiles: [AudioFile] { files.values.sorted { $0.id < $1.id } }
 }
 
 extension Clip {
     /// The gain points inside the clip window, each at its timeline frame (decision 0060).
-    fileprivate var pointsInWindow: [(frame: Frames, gain: Gain)] {
+    var pointsInWindow: [(frame: Frames, gain: Gain)] {
         let window = offset..<(offset + length)
         return envelope.points.filter { window.contains($0.frame) }.map { ($0.frame - offset + start, $0.gain) }
     }
 
     /// The envelope gain at the first and the last frame of the clip window, at timeline frames
     /// `start` and `start + length - 1`, rounded to 0.01 dB. The `+ 0.0` turns a negative zero into 0.
-    fileprivate var windowEdges: (first: SessionView.PointView, last: SessionView.PointView) {
+    var windowEdges: (first: SessionView.PointView, last: SessionView.PointView) {
         func edge(_ frames: Frames) -> SessionView.PointView {
             let dB = envelope.gain(at: offset + frames)
             return SessionView.PointView(frame: (start + frames).count, dB: (dB * 100).rounded() / 100 + 0.0)

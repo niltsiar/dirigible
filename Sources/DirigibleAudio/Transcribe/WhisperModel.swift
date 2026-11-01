@@ -36,7 +36,7 @@ public enum WhisperModel: String, CaseIterable, Sendable {
 
     /// The file at `url` when its byte count and SHA-256 are those of this entry, else nil.
     public func checked(at url: URL) -> CheckedModel? {
-        fileMatches(url, byteCount: byteCount, sha256: sha256) ? CheckedModel(model: self, url: url) : nil
+        fileMatches(url, byteCount: byteCount, sha256: sha256) ? CheckedModel(source: .catalog(self), url: url) : nil
     }
 
     /// `checked(at:)` on the catalog file name in `folder`.
@@ -46,32 +46,62 @@ public enum WhisperModel: String, CaseIterable, Sendable {
 /// True when the file at `url` has `byteCount` bytes and the SHA-256 `sha256`: the check of each
 /// file that a ggml loader reads from a folder that the user can write. A link counts with its
 /// target, which the loader reads.
-func fileMatches(_ url: URL, byteCount: Int, sha256: String) -> Bool {
+func fileMatches(_ url: URL, byteCount: Int, sha256 expected: String) -> Bool {
     let target = url.resolvingSymlinksInPath()
-    guard let size = try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == byteCount,
-        let handle = try? FileHandle(forReadingFrom: target)
-    else { return false }
-    defer { try? handle.close() }
-    var hash = SHA256()
-    while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty { hash.update(data: chunk) }
-    return hash.finalize().map { String(format: "%02x", $0) }.joined() == sha256
+    guard let size = try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize, size == byteCount else {
+        return false
+    }
+    return (try? sha256(of: target)) == expected
 }
 
-/// A model file whose byte count and SHA-256 match the catalog: the only input of `WhisperEngine`.
-/// In a release build, only `WhisperModel.checked(at:)` makes one.
-public struct CheckedModel: Hashable, Sendable {
-    public let model: WhisperModel
-    let url: URL
+/// The errno of a failed open or read.
+struct FileReadError: Error {
+    let errno: Int32
+}
 
-    fileprivate init(model: WhisperModel, url: URL) {
-        self.model = model
-        self.url = url
+/// The SHA-256 of the file at `url` in lowercase hex.
+func sha256(of url: URL) throws(FileReadError) -> String {
+    let descriptor = open(url.path, O_RDONLY)
+    guard descriptor >= 0 else { throw FileReadError(errno: errno) }
+    defer { close(descriptor) }
+    var hash = SHA256()
+    var buffer = [UInt8](repeating: 0, count: 1 << 20)
+    while true {
+        let count = buffer.withUnsafeMutableBytes { read(descriptor, $0.baseAddress, $0.count) }
+        if count < 0 {
+            if errno == EINTR { continue }
+            throw FileReadError(errno: errno)
+        }
+        if count == 0 { break }
+        buffer.withUnsafeBytes { hash.update(bufferPointer: UnsafeRawBufferPointer(rebasing: $0[..<count])) }
     }
+    return hash.finalize().map { String(format: "%02x", $0) }.joined()
+}
+
+/// The SHA-256 and the facts of a model file of the user that passed the check of
+/// `ModelFileCheck` (decision 0065, D8). A next check of a file with this SHA-256 runs no helper.
+public struct PassedModelFile: Hashable, Sendable {
+    public let sha256: String
+    public let facts: WhisperModelFacts
+}
+
+/// A model file that passed its check: the only input of `WhisperEngine`. In a release build, only
+/// `WhisperModel.checked(at:)` (the catalog check of D2) and `ModelFileCheck` (the user file check
+/// of D8) make one.
+public struct CheckedModel: Hashable, Sendable {
+    /// Where the check came from.
+    public enum Source: Hashable, Sendable {
+        case catalog(WhisperModel)
+        case file(PassedModelFile)
+    }
+
+    public let source: Source
+    let url: URL
 
     #if DEBUG
         /// A model with no check of `url`, for the fake engine of the tests.
         static func unchecked(_ model: WhisperModel, at url: URL) -> CheckedModel {
-            CheckedModel(model: model, url: url)
+            CheckedModel(source: .catalog(model), url: url)
         }
     #endif
 }

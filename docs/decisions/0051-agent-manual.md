@@ -16,6 +16,7 @@
 - Amended: 2026-10-27, run `2026-10-27-agent-change-only-asked`. The core starts its rules with "Change only what the user asks for. Ask before other changes." The time rule drops the sentence on the `to` frame. Each exclusive `to` argument states the rule. `clip_heal` and the `session_info` filter are not exclusive (item 1093). The core is 2040 of 2048 characters and the whole text 5974 of 6000 (the Swift `count` of `theCoreFitsTheClientLimit`).
 - Amended: 2026-10-28, run `2026-10-14-render-link` (see 0057). `clip_restore` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it, because the core and the whole text have no room.
 - Amended: 2026-10-29, run `2026-10-27-repair-set` (see 0064). `clip_repair` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it, because the core and the whole text have no room.
+- Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). `silence_edit` is in the tool list only: the core and the whole text have no room.
 
 ## Context
 

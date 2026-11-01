@@ -4,6 +4,7 @@
 - Date: 2026-10-23
 - Accepted: 2026-10-23, after plan gate 1 of run `2026-10-23-read-by-time`.
 - Amends: 0060 (the speech runs of the duck come from the shared window series on the frame 0 grid, cut to the scope), 0039 (`silences` and `nearest_pause` ignore mute and solo; `meter` follows the flags, as the Mix bullet says), 0011 and 0041 (three read commands and tools), 0049 (three more long tools), 0051 (the core rule on reads by time).
+- Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). The Silences tab builds its rows on `LevelSeries.silences`. `checkedMixLevels` holds the media check, the mix, and the fault read, and both `ReadWork.levels` and the scan call it, so a fault refuses both reads with the same files.
 
 ## Context
 

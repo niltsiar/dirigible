@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleTimeline
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -218,6 +219,132 @@ import Testing
             #expect(
                 L10n.message(for: StudioError.transcription(.engine(code: 7))) == L10n.errorTranscribeEngine.format(7))
             await model.close()
+        }
+
+        /// 0.1 % of the base model: a chunk that does not raise the whole percent after the first.
+        static let small = Data(count: WhisperModel.base.byteCount / 1000)
+
+        /// A window with no model file, a download that the test feeds, and hint waits that the
+        /// test resumes.
+        func openDownload(withModel: Bool = false) async throws -> (
+            SessionWindow, Studio, AsyncThrowingStream<Data, any Error>.Continuation, HintWaits
+        ) {
+            let (model, studio) = try await open(withModel: withModel)
+            let (chunks, loader) = AsyncThrowingStream<Data, any Error>.makeStream()
+            studio.environment.modelStore = WhisperModelStore(
+                folder: studio.environment.modelStore.folder, load: { _ in chunks })
+            let waits = HintWaits()
+            model.transcribe.hintWait = { await waits.wait($0) }
+            return (model, studio, loader, waits)
+        }
+
+        /// The button count of the job banner. SwiftUI draws the label, so an `NSButton` here has
+        /// no title in the test runner.
+        func bannerButtons(_ model: SessionWindow) -> Int {
+            let host = NSHostingView(rootView: TranscribeBanner(model: model))
+            host.frame = NSRect(x: 0, y: 0, width: 800, height: 80)
+            host.layoutSubtreeIfNeeded()
+            func buttons(_ view: NSView) -> Int { (view is NSButton ? 1 : 0) + view.subviews.map(buttons).reduce(0, +) }
+            return buttons(host)
+        }
+
+        /// C20: with no byte at the download start, the hint shows only when the wait ends, names
+        /// the host, and leaves the Cancel button alone in the banner.
+        @Test func theHintShowsOnlyAfterAWaitWithNoByte() async throws {
+            let (model, _, _, waits) = try await openDownload()
+            try transcribe(model)
+            await until("the first wait") { waits.started == 1 }
+            #expect(model.transcribe.job?.hint == nil, "no hint before the wait ends")
+            #expect(bannerButtons(model) == 1, "Cancel")
+
+            waits.resumed = 1
+            await until("the hint") { model.transcribe.job?.hint != nil }
+            #expect(model.transcribe.job?.hint == "huggingface.co" && waits.started == 1)
+            #expect(model.transcribe.job?.hintText == L10n.transcribeBannerFirewall.format("huggingface.co"))
+            #expect(bannerButtons(model) == 1, "the hint has no button")
+            #expect(TranscribeHint.delay == .seconds(10))
+            model.cancelTranscribe()
+            await until("the job ends") { model.transcribe.job == nil }
+            await model.close()
+        }
+
+        /// C20 (U19, U27): a chunk under 1 % during the wait gives no hint at its end and a second
+        /// wait; that wait gives the hint in the middle of the download; the next chunk, with no new
+        /// whole percent, removes it and starts the wait again.
+        @Test func aChunkDuringTheWaitWaitsAgainAndTheNextChunkRemovesTheHint() async throws {
+            let (model, _, loader, waits) = try await openDownload()
+            try transcribe(model)
+            await until("the first wait") { waits.started == 1 }
+            loader.yield(Self.small)
+            await until("the chunk progress") { model.transcribe.job?.stage != .download(0) }
+            let stage = model.transcribe.job?.stage
+
+            waits.resumed = 1
+            await until("the second wait") { waits.started == 2 }
+            #expect(model.transcribe.job?.hint == nil, "a chunk came during the first wait")
+            waits.resumed = 2
+            await until("the hint") { model.transcribe.job?.hint != nil }
+            loader.yield(Self.small)
+            await until("the chunk removes the hint") { model.transcribe.job?.hint == nil }
+            #expect(model.transcribe.job?.stage == stage, "no progress call removed it")
+            await until("the third wait") { waits.started == 3 }
+            model.cancelTranscribe()
+            await until("the job ends") { model.transcribe.job == nil }
+            await model.close()
+        }
+
+        /// C20: the heal path (a catalog file that fails its check) shows the download stage at the
+        /// download start and the hint after the wait.
+        @Test func theHealPathShowsTheDownloadAndTheHint() async throws {
+            let (model, studio, _, waits) = try await openDownload(withModel: true)
+            studio.environment.checkModel = { _, _ in nil }
+            try transcribe(model)
+            await until("the download stage") { model.transcribe.job?.stage == .download(0) }
+            await until("the first wait") { waits.started == 1 }
+            waits.resumed = 1
+            await until("the hint") { model.transcribe.job?.hint == "huggingface.co" }
+            model.cancelTranscribe()
+            await until("the job ends") { model.transcribe.job == nil }
+            await model.close()
+        }
+
+        /// C20: a model on disk never starts the wait; a cancel during the wait ends it with the job.
+        @Test func noDownloadStartsNoWaitAndACancelEndsTheWait() async throws {
+            let (model, studio, _, waits) = try await openDownload(withModel: true)
+            try transcribe(model)
+            await until("the job ends") { model.transcribe.job == nil }
+            #expect(spoken(studio) == ["uno", "dos", "tres"] && waits.started == 0)
+
+            try FileManager.default.removeItem(at: studio.environment.modelStore.folder)
+            try transcribe(model)
+            await until("the first wait") { waits.started == 1 }
+            model.cancelTranscribe()
+            await until("the job ends") { model.transcribe.job == nil }
+            await until("the job end ends the wait") { waits.ended == 1 }
+            #expect(waits.started == 1 && model.alert == nil)
+            await model.close()
+        }
+    }
+
+    /// The hint waits of a window. Wait n holds until `resumed` reaches n or its task is cancelled,
+    /// as the sleep of the live wait.
+    @MainActor final class HintWaits {
+        var started = 0
+        var ended = 0
+        var resumed = 0
+
+        func wait(_: ContinuousClock.Instant) async {
+            started += 1
+            let number = started
+            defer { ended += 1 }
+            let end = ContinuousClock.now + .seconds(87)
+            while resumed < number, !Task.isCancelled {
+                guard ContinuousClock.now < end else {
+                    Issue.record("wait \(number) was not resumed")
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(5))
+            }
         }
     }
 #endif

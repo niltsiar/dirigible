@@ -698,12 +698,14 @@
 "sheet.transcribe.note.replace.many" = "Esta faixa tem %lld palavras. Substituir troca as palavras pelas novas. Desfazer as traz de volta.";
 "transcribe.banner.download" = "Baixando o modelo de voz… %lld %%";
 "transcribe.banner.running" = "Transcrevendo %1$@… %2$lld %%";
+"transcribe.banner.firewall" = "Ainda sem dados de %@. Um firewall pode bloquear o download.";
 "transcribe.stopped" = "A transcrição parou porque uma gravação começou.";
 "transcribe.again" = "Transcrever de novo";
 "transcribe.nowords" = "Nenhuma palavra encontrada. A faixa não mudou.";
 "transcribe.canceled" = "Transcrição cancelada. A faixa não mudou.";
 "error.transcribe.load" = "O modelo de voz não carregou. Apague o arquivo dele em ~/Library/Application Support/Dirigible/Models e tente de novo.";
 "error.transcribe.download" = "O download do modelo falhou. Verifique sua conexão com a internet e tente de novo.";
+"error.transcribe.download.nodata" = "O download do modelo não recebeu dados de %@. Um firewall pode bloquear o download. Permita a conexão no seu firewall e tente de novo.";
 "error.transcribe.folder" = "O Dirigible não conseguiu gravar o modelo de voz em %1$@ (erro %2$lld). Verifique se o disco tem espaço livre e se você pode gravar nessa pasta, e tente de novo.";
 "error.transcribe.download.checksum" = "O modelo de voz baixado não é o arquivo esperado, então o Dirigible o apagou. Tente de novo mais tarde.";
 "error.transcribe.checksum" = "O arquivo do modelo de voz está danificado ou não é o esperado. Apague o arquivo em ~/Library/Application Support/Dirigible/Models e tente de novo.";

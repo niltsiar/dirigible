@@ -57,7 +57,7 @@ extension Studio {
     /// stage and the fraction on the main actor.
     public func transcribe(
         track id: TrackID, language: WhisperLanguage, model: WhisperModelChoice, name: String? = nil,
-        agent: AgentName? = nil,
+        agent: AgentName? = nil, download: DownloadActivity = DownloadActivity(),
         progress: @escaping @MainActor @Sendable (TranscribeProgress) -> Void = { _ in }
     ) async throws(StudioError) -> TranscribeReport {
         try checkIdle()
@@ -89,7 +89,7 @@ extension Studio {
         func job() async throws(StudioError) -> TranscribeReport {
             let work = await transcribeWork(
                 map, session: snapshot, lock: lock, language: language, model: model, environment: environment,
-                run: run, announce: announce, progress: hop)
+                run: run, download: download, announce: announce, progress: hop)
             await environment.transcribeWorkDone()
             // The end turn. A set flag decides the exit, also after an engine error.
             while true {

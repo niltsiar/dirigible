@@ -51,6 +51,9 @@ public enum TranscribeError: Error, Hashable, Sendable {
     case modelLoad
     /// The model download failed in the network or at the server: a `URLError`.
     case modelDownload
+    /// The model download got no byte from this host before the request limit ended it: a
+    /// firewall can hold the connection.
+    case modelDownloadNoData(host: String)
     /// A file step in the model folder failed, for example a full disk: the folder and the errno.
     case modelWrite(folder: String, errno: Int32)
     /// The downloaded file does not have the byte count and the SHA-256 of the catalog. The

@@ -9,6 +9,8 @@ import SwiftUI
 struct BannerRow<Actions: View>: View {
     let kind: WindowBanner.Kind
     let text: String
+    /// A second line in the secondary style.
+    var detail: String? = nil
     /// The buttons at the trailing edge, on the tint. They are not in the one element of the text,
     /// so VoiceOver reaches each button (ui-polish-chrome U9).
     @ViewBuilder let actions: Actions
@@ -17,11 +19,14 @@ struct BannerRow<Actions: View>: View {
         HStack(spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: kind.symbol).foregroundStyle(kind.color)
-                Text(verbatim: text)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: text)
+                    if let detail { Text(verbatim: detail).foregroundStyle(.secondary) }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(verbatim: kind.label(text)))
+            .accessibilityLabel(Text(verbatim: kind.label(detail.map { text + " " + $0 } ?? text)))
             actions
         }
         .padding(8)
@@ -81,7 +86,7 @@ struct TranscribeBanner: View {
         if let job = model.transcribe.job {
             TimelineView(.periodic(from: .now, by: model.bannerTick)) { _ in
                 let text = job.text + "  " + TakeBanner.elapsed(since: job.since)
-                BannerRow(kind: .info, text: text) {
+                BannerRow(kind: .info, text: text, detail: job.hintText) {
                     ProgressView(value: job.fraction).frame(width: 160).accessibilityLabel(Text(verbatim: text))
                     Button(L10n.importCancel.key) { model.cancelTranscribe() }.keyboardShortcut(
                         ".", modifiers: .command)

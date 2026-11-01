@@ -273,5 +273,32 @@ import Testing
             #expect(report.language == "en")
             await studio.settle()
         }
+
+        /// C20, C21: on the heal path (a catalog file that fails its check) the job reports the
+        /// download stage at the download start, before any chunk; a timeout with no byte ends the
+        /// job with the no-data error and the host.
+        @Test func theHealPathReportsTheDownloadAtItsStart() async throws {
+            let fixture = try await ExportStudioFixture.make()
+            let (chunks, loader) = AsyncThrowingStream<Data, any Error>.makeStream()
+            let studio = try await T.open(fixture.package, load: { _ in chunks })
+            studio.environment.checkModel = { _, _ in nil }
+            let stages = Stages()
+            let job = Task {
+                do throws(StudioError) {
+                    _ = try await studio.transcribe(track: "t1", language: .code("es"), model: .catalog(.base)) {
+                        stages.all.append($0)
+                    }
+                    return StudioError?.none
+                } catch {
+                    return error
+                }
+            }
+
+            await until(limit: .seconds(30), "the download stage") { !stages.all.isEmpty }
+            #expect(stages.all == [.download(0)])
+            loader.finish(throwing: URLError(.timedOut))
+            #expect(await job.value == .transcription(.modelDownloadNoData(host: "huggingface.co")))
+            await studio.settle()
+        }
     }
 #endif

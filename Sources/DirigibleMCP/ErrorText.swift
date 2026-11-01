@@ -301,6 +301,9 @@ extension TranscribeError {
         case .modelLoad: "whisper.cpp did not load the model."
         case .engine(let code): "whisper.cpp failed with code \(code)."
         case .modelDownload: "the model download failed in the network or at the server."
+        case .modelDownloadNoData(let host):
+            "the model download got no byte from \(host) in the time limit. A firewall can block the download: "
+                + "allow the connections to \(host) and to the hosts under hf.co."
         case .modelWrite(let folder, let code):
             "cannot write the model in \(folder): \(String(cString: strerror(code)))."
         case .modelDownloadChecksum:

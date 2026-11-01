@@ -112,4 +112,19 @@ struct MixLevelsTests {
         ).runs
         #expect(runs == [Frames(1_000)..<Frames(240_000)], "\(runs)")
     }
+
+    /// The public checked read gives a typed error for a range or a track set that no export source
+    /// holds: an empty range, a range past `Frames.limit`, and an empty track set. Fail value: a trap.
+    @Test func aSourceThatNoExportHoldsIsATypedError() throws {
+        let package = try Self.package([(1, -20)])
+        let cases: [(Range<Frames>, Set<TrackID>?)] = [
+            (5..<5, nil), (0..<(Frames.limit + 1), nil), (0..<48_000, Set<TrackID>()),
+        ]
+        for (range, tracks) in cases {
+            #expect(throws: CheckedReadError.badSource, "\(range) \(String(describing: tracks))") {
+                try checkedMixLevels(
+                    of: tracks, in: package.session, package: package.url, range: range, silence: Self.threshold)
+            }
+        }
+    }
 }

@@ -211,7 +211,6 @@ package struct ReadWork: Sendable {
         progress: (Double) -> Void, isCancelled: () -> Bool
     ) throws(ReadFailure) -> LevelSeries {
         do throws(CheckedReadError) {
-            // The range has a frame in the session, and `tracks` is nil or has a track.
             return try checkedMixLevels(
                 of: tracks, in: session, package: package, range: range, silence: threshold, progress: progress,
                 isCancelled: isCancelled)
@@ -226,6 +225,7 @@ package struct ReadWork: Sendable {
         case .check(let error): .refused(mediaCheckMessage(error))
         case .read(let error): error.code == .ECANCELED ? .cancelled : .refused(audioReadMessage(error))
         case .faults(let faults): .refused(faultMessage(faults, in: session))
+        case .badSource: .refused(audioReadMessage(POSIXError(.EINVAL)))
         }
     }
 

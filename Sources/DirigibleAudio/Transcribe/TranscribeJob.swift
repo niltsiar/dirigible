@@ -120,7 +120,7 @@ extension PassedModelFile {
     /// throws `.modelChanged`.
     func checkUnchanged(_ url: URL) throws(TranscribeError) {
         let hash: String
-        do { hash = try DirigibleAudio.sha256(of: url) } catch { throw .modelFile(.unreadable(errno: error.errno)) }
+        do { hash = try DirigibleAudio.sha256(of: url) } catch { throw .modelFile(error) }
         guard hash == sha256 else { throw .modelChanged }
     }
 }

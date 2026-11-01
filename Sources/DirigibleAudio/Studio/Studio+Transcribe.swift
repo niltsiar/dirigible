@@ -141,20 +141,36 @@ extension Studio {
     /// ends the helper. It is no job: a job in another studio does not refuse it. It throws the
     /// refusal of `checkModelFileIdle()` before any hash.
     public func checkModelFile(_ url: URL, passed: PassedModelFile?) async throws(StudioError) -> CheckedModel {
+        try await modelFileRead { environment, stopped throws(ModelFileCheckError) in
+            try environment.checkModelFile(url, passed, stopped)
+        }
+    }
+
+    /// The SHA-256 of a kept model file at the sheet open (C24), as a read run of
+    /// `checkModelFile`: each stop ends it at the next 1 MiB chunk.
+    public func hashModelFile(_ url: URL) async throws(StudioError) -> String {
+        try await modelFileRead { environment, stopped throws(ModelFileCheckError) in
+            try environment.hashModelFile(url, stopped)
+        }
+    }
+
+    /// `body` on the job thread as a read run of this studio, with the stop check of the run.
+    private func modelFileRead<T: Sendable>(
+        _ body:
+            @escaping @Sendable (CaptureEnvironment, @escaping @Sendable () -> Bool) throws(ModelFileCheckError) -> T
+    ) async throws(StudioError) -> T {
         try checkModelFileIdle()
         let (environment, run) = (environment, ReadRun())
         readRuns.append(run)
         defer { endRead(run) }
         let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
         let result = await withTaskCancellationHandler {
-            await onJobThread {
-                Result { () throws(ModelFileCheckError) in try environment.checkModelFile(url, passed, stopped) }
-            }
+            await onJobThread { Result { () throws(ModelFileCheckError) in try body(environment, stopped) } }
         } onCancel: {
             run.cancel()
         }
         switch result {
-        case .success(let model): return model
+        case .success(let value): return value
         case .failure(let error):
             guard error == .stopped || stopped() else { throw .transcription(.modelFile(error)) }
             switch run.end.withLock({ $0 }) {

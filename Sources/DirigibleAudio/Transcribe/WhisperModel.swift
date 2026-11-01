@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// The closed catalog of whisper.cpp models (decision 0065, D2), pinned at Hugging Face revision
@@ -54,29 +53,9 @@ func fileMatches(_ url: URL, byteCount: Int, sha256 expected: String) -> Bool {
     return (try? sha256(of: target)) == expected
 }
 
-/// The errno of a failed open or read.
-struct FileReadError: Error {
-    let errno: Int32
-}
-
-/// The SHA-256 of the file at `url` in lowercase hex.
-func sha256(of url: URL) throws(FileReadError) -> String {
-    let descriptor = open(url.path, O_RDONLY)
-    guard descriptor >= 0 else { throw FileReadError(errno: errno) }
-    defer { close(descriptor) }
-    var hash = SHA256()
-    var buffer = [UInt8](repeating: 0, count: 1 << 20)
-    while true {
-        let count = buffer.withUnsafeMutableBytes { read(descriptor, $0.baseAddress, $0.count) }
-        if count < 0 {
-            if errno == EINTR { continue }
-            throw FileReadError(errno: errno)
-        }
-        if count == 0 { break }
-        buffer.withUnsafeBytes { hash.update(bufferPointer: UnsafeRawBufferPointer(rebasing: $0[..<count])) }
-    }
-    return hash.finalize().map { String(format: "%02x", $0) }.joined()
-}
+/// The SHA-256 of the file at `url` in lowercase hex, with no stop. A file that is not a regular
+/// file throws EFTYPE.
+func sha256(of url: URL) throws(ModelFileCheckError) -> String { try OpenModelFile(url).sha256 { false } }
 
 /// The model of a transcription job: a catalog entry, or a model file of the user with the record
 /// of its last passed check, if any (decision 0065, D8).

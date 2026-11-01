@@ -91,9 +91,10 @@ import os
                 try ModelFileCheck.run(url, helper: checker, passed: passed, stop: stop)
             }
             model.transcribe.pickModelFile = { picks.next() }
-            model.transcribe.hashFile = { url in
+            let hash = studio.environment.hashModelFile
+            studio.environment.hashModelFile = { url, stop throws(ModelFileCheckError) in
                 hashes.withLock { $0 += 1 }
-                return ModelFileCheck.fileHash(url)
+                return try hash(url, stop)
             }
             let heard = Heard()
             model.chrome?.announce = { text, _ in heard.texts.append(text) }

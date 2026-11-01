@@ -67,8 +67,6 @@ enum TranscribeHint {
     @ObservationIgnored var hintTask: Task<Void, Never>?
     /// The open panel of a model file: the picked file, else nil. Tests give their own.
     @ObservationIgnored var pickModelFile: @MainActor () async -> URL? = { await TranscribeState.livePickModelFile() }
-    /// The SHA-256 of the kept file at the sheet open, off the main actor (C24). Tests count it.
-    @ObservationIgnored var hashFile: @Sendable (URL) -> String? = { ModelFileCheck.fileHash($0) }
     /// The open panel and the check of Choose Model File... in the sheet.
     @ObservationIgnored var checkTask: Task<Void, Never>?
     /// The status read of the kept file at the sheet open.

@@ -3,8 +3,8 @@
 # of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the tools
 # that brief an agent, usage-hook.sh, the hook that gives the usage mode at an agent start,
 # handback-guard.sh, the hook that refuses a hand-back while a background task runs, agent-clock.sh,
-# the hook that stops a subagent after 90 active minutes or after a commit at 60, and write-guard.sh, the hook that refuses a
-# Write over an existing run file. Run by `make check`.
+# the hook that stops a subagent after 90 active minutes or after a commit at 60, and write-guard.sh,
+# the hook that refuses a Write over an existing run file. Run by `make check`.
 # Each rule kind has one helper that runs its cases over a shared list of forms. Add a form to the
 # list, not a lone case:
 #   chain rule (a command after a command): expect_each_join <first> <second>

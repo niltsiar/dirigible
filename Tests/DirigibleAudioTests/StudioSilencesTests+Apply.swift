@@ -101,4 +101,25 @@ extension StudioSilencesTests {
         let unchanged = studio.session == before
         #expect(unchanged, "a stale Apply changed the session")
     }
+
+    /// C19: a scan is current for a session with the frames it read, also after a marker add, a mute,
+    /// and a rename; a clip gain change makes it out of date, and an undo makes it current again.
+    @Test func aScanIsCurrentOnlyForTheFramesItRead() async throws {
+        let package = try Self.package([Self.threeSilences()])
+        defer { withExtendedLifetime(package) {} }
+        let studio = try await Studio.open(package.url)
+        let scan = try await Self.scan(studio)
+        #expect(scan.isCurrent(in: studio.session), "the scanned session")
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setMarker(Marker(id: MarkerID(), name: "Later", position: 300_000, kind: .marker))
+            try session.setMuted(true, tracks: ["t1"])
+            try session.renameTrack("t1", to: "Host")
+        }
+        #expect(scan.isCurrent(in: studio.session), "a marker, a mute, and a rename")
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setGain(Gain(dB: -1)!, clip: "c1")
+        }
+        #expect(!scan.isCurrent(in: studio.session), "a clip gain")
+        try studio.undo()
+        #expect(scan.isCurrent(in: studio.session), "the undo")
+    }
 }

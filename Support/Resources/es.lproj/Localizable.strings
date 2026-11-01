@@ -734,7 +734,7 @@
 "silences.empty" = "No hay silencios de %1$@ s o más a %2$@ dBFS o menos.";
 "silences.empty.quietest" = "La parte más silenciosa está a %@ dBFS.";
 "silences.keep.refusal" = "Conservar debe ser menor que la duración mínima.";
-"silences.stale" = "Los ajustes han cambiado. Busca de nuevo para usarlos.";
+"silences.stale" = "Los ajustes o las pistas han cambiado. Busca de nuevo para actualizar la lista.";
 "silences.mark.name" = "Silencio %lld";
 "silences.help.tracks" = "La búsqueda lee las pistas marcadas. Un corte sigue quitando el tiempo en todas las pistas.";
 "silences.help.threshold" = "Una parte de una pista a este nivel o por debajo es silencio. Pasos de 0,5 dB.";

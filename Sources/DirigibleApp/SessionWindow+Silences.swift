@@ -19,12 +19,18 @@ extension SessionWindow {
         return silences.settings.scanned(in: session)?.isEmpty != true
     }
 
-    /// Apply is off with no row to apply, a settings change after the scan, or a keep that is not
-    /// under the minimum.
+    /// Apply is off with no row to apply, a settings change or a clip change after the scan, or a
+    /// keep that is not under the minimum.
     var canApplySilences: Bool {
-        guard idleStudio != nil, let review = silences.review, !silences.isStale, !silences.settings.keepRefused
+        guard let studio = idleStudio, let review = silences.review, !silences.isStale(in: studio),
+            !silences.settings.keepRefused
         else { return false }
         return review.plan != nil
+    }
+
+    /// The shade of the lanes: the rows of a current list, while the Silences tab shows.
+    func silenceBands(in studio: Studio) -> [SilenceBand] {
+        showsInspector && inspectorTab == .silences ? silences.bands(in: studio) : []
     }
 
     /// True when the first responder of `keyWindow` is the Silences list: a table of this window's

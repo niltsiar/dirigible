@@ -171,7 +171,7 @@ extension SilencesInspectorTests {
     @Test func theSettingsStayForTheNextScan() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let music: [Part] = [.quiet(10)]
-        let (first, _) = try await open(try await package(tracks: [Self.voice, music]))
+        let (first, firstStudio) = try await open(try await package(tracks: [Self.voice, music]))
         first.silences.settings.unchecked = ["t2"]
         first.silences.settings.threshold = -35
         first.silences.settings.minimum = 1_500
@@ -179,7 +179,7 @@ extension SilencesInspectorTests {
         await first.scanSilences()
         #expect(first.canApplySilences, "a list with two rows: \(rows(first))")
         first.silences.setKeep("600")
-        #expect(first.silences.isStale && !first.canApplySilences, "a keep change leaves Apply on")
+        #expect(first.silences.isStale(in: firstStudio) && !first.canApplySilences, "a keep change leaves Apply on")
         first.silences.setKeep("700")
         #expect(first.canApplySilences, "the same settings again")
         first.silences.settings.threshold = -36

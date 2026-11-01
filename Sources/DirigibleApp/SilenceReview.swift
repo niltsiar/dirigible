@@ -237,7 +237,9 @@ struct SilenceNote: Equatable {
         }
     }
     var keepText: String
-    var review: SilenceReview?
+    var review: SilenceReview? {
+        didSet { currentMemo = nil }
+    }
     var selection: Set<Int> = []
     /// The range that the last row click set, so the next scan can tell it from a range that the
     /// user sets.
@@ -246,6 +248,8 @@ struct SilenceNote: Equatable {
     @ObservationIgnored private let defaults: UserDefaults?
     /// True while the keep field has the focus, from the pane.
     @ObservationIgnored var keepFocused = false
+    /// `isCurrent` for the session revision that it was last asked for.
+    @ObservationIgnored private var currentMemo: (revision: Int, current: Bool)?
 
     init(defaults: UserDefaults?) {
         self.defaults = defaults
@@ -259,10 +263,25 @@ struct SilenceNote: Equatable {
         settings.keep = Int(text.trimmingCharacters(in: .whitespaces)) ?? -1
     }
 
-    /// The settings of the tab are not the settings of the list: Apply is off until Scan Again.
-    var isStale: Bool { review.map { $0.settings != settings } ?? false }
+    /// True when the session has the frames that the list was scanned on. The check runs once for
+    /// each session revision, not for each body pass.
+    func isCurrent(in studio: Studio) -> Bool {
+        guard let review else { return true }
+        let revision = studio.sessionRevision
+        if let memo = currentMemo, memo.revision == revision { return memo.current }
+        let current = review.scan.isCurrent(in: studio.session)
+        currentMemo = (revision, current)
+        return current
+    }
 
-    var bands: [SilenceBand] { review?.bands ?? [] }
+    /// The settings of the tab are not the settings of the list, or the session outran the list:
+    /// Apply is off until Scan Again.
+    func isStale(in studio: Studio) -> Bool {
+        review.map { $0.settings != settings } == true || !isCurrent(in: studio)
+    }
+
+    /// The lane shade: nothing for a list that the session outran.
+    func bands(in studio: Studio) -> [SilenceBand] { isCurrent(in: studio) ? review?.bands ?? [] : [] }
 
     /// The action of the selected rows when they share one, else nil.
     var selectedAction: SilenceAction? {

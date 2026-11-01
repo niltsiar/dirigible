@@ -734,7 +734,7 @@
 "silences.empty" = "Keine Stille von %1$@ s oder mehr bei höchstens %2$@ dBFS.";
 "silences.empty.quietest" = "Der leiseste Teil liegt bei %@ dBFS.";
 "silences.keep.refusal" = "Der Wert für Behalten muss kleiner als die Mindestlänge sein.";
-"silences.stale" = "Die Einstellungen haben sich geändert. Erneut suchen, um sie zu verwenden.";
+"silences.stale" = "Die Einstellungen oder die Spuren haben sich geändert. Erneut suchen, um die Liste zu aktualisieren.";
 "silences.mark.name" = "Stille %lld";
 "silences.help.tracks" = "Die Suche liest die markierten Spuren. Ein Schnitt entfernt die Zeit weiterhin auf jeder Spur.";
 "silences.help.threshold" = "Ein Teil einer Spur bei oder unter diesem Pegel ist still. Schritte von 0,5 dB.";

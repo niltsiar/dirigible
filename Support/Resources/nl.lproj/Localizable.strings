@@ -734,7 +734,7 @@
 "silences.empty" = "Geen stiltes van %1$@ s of langer op of onder %2$@ dBFS.";
 "silences.empty.quietest" = "Het stilste deel zit op %@ dBFS.";
 "silences.keep.refusal" = "Behouden moet korter zijn dan de minimale duur.";
-"silences.stale" = "De instellingen zijn gewijzigd. Zoek opnieuw om ze te gebruiken.";
+"silences.stale" = "De instellingen of de sporen zijn gewijzigd. Zoek opnieuw om de lijst bij te werken.";
 "silences.mark.name" = "Stilte %lld";
 "silences.help.tracks" = "De zoekactie leest de aangevinkte sporen. Een knip haalt de tijd nog steeds van elk spoor.";
 "silences.help.threshold" = "Een deel van een spoor op of onder dit niveau is stil. Stappen van 0,5 dB.";

@@ -182,7 +182,7 @@ Goal: edit the audio from its transcript, and cut silence with a review list.
 | R11 | Export one file for each chapter or marker (F95). |
 
 1. **The text pane (F27).** Show the transcript beside the lanes, select words, and cut the audio from the text. The import and the cut by words in the CLI landed in Release 3 run 10. Run: `2026-10-13-transcript-1` landing 2.
-2. **Cut edges (F111).** A cut by words lands at the word edges.
+2. **Cut edges (F111).** A cut by words lands at the word edges. Run: `2026-10-28-cut-edges` (the research and the measurement; the cut stays at the word times).
 3. **Transcription in the app (F112).** whisper.cpp in the app, vendored as LAME is (0034).
 4. **The silence tool (F26, F96).** Find the long pauses, and shorten, mute, or mark each one from a review list.
 5. **Export one file for each chapter or marker (F95).**

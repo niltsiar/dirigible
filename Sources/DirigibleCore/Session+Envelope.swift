@@ -91,8 +91,8 @@ extension Session {
                 var hits: [[(frame: Int, weight: Double)]] = []
                 while first < windows.count, Frames(windows[first].low - ramp + 1) < sounding.upperBound {
                     let (low, high) = windows[first]
-                    // The timeline frames where the window is more than 0.
                     first += 1
+                    // The timeline frames where the window is more than 0.
                     guard sounding.overlaps(Frames(low - ramp + 1)..<Frames(high + ramp)) else { continue }
                     hits.append(
                         [(low - ramp, 0.0), (low, 1), (high, 1), (high + ramp, 0)].map { ($0.0 - shift, $0.1) })

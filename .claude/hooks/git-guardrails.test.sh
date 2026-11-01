@@ -12,6 +12,9 @@
 #   guarded file: expect_each_write <path> (block forms) and expect_each_read <path> (allow forms)
 #   command guard (a command in a shell context): expect_each_context <want> <command>
 #   commit message file (an option value): expect_each_value <want> <path> <command with @V@>
+# HOOK_CASES=<label pattern> runs only the case blocks whose label matches the whole value, with no
+# anchors: HOOK_CASES=agent-clock, HOOK_CASES='agent-clock|write-guard'. The `labels` array lists
+# them. Each block is an `if case_block <label>; then` segment; the helpers stay outside.
 set -uo pipefail
 hook="$(dirname "$0")/git-guardrails.sh"
 failures=0
@@ -71,6 +74,67 @@ expect_each_value() {
   done
 }
 
+settings="$(dirname "$0")/../settings.json"
+printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"command","command":"x/.claude/hooks/usage-hook.sh"}]}]}}' > "$tmp/old-settings.json"
+
+# HOOK_CASES=<ERE> runs only the case blocks whose label matches the whole value. The test wraps the
+# value as ^(<value>)$, so write it with no anchors: make drops a trailing $. A block prints its
+# label when it starts. A value that matches no label exits 1.
+labels=(guardrails guardrails-tag guardrails-rules post-commit pre-commit commit-msg agent-guard usage-hook
+  handback-guard agent-clock write-guard stop-guard pre-compact hook-cases)
+cases_pattern="^(${HOOK_CASES:-.*})\$"
+cases_hit=0
+for label in "${labels[@]}"; do [[ "$label" =~ $cases_pattern ]] && cases_hit=1; done
+[[ $cases_hit -eq 1 ]] || { echo "git-guardrails: HOOK_CASES='${HOOK_CASES:-}' matches no case block. Labels: ${labels[*]}" >&2; exit 1; }
+cases_printed=' '
+case_block() { # <label>: true when the block of the label runs
+  [[ "$1" =~ $cases_pattern ]] || return 1
+  [[ "$cases_printed" == *" $1 "* ]] || { echo "$1"; cases_printed+="$1 "; }
+}
+
+# HOOK_CASES self-test. A copy of this folder, with a git-guardrails.sh stub that allows each
+# command, runs filtered only. GUARDRAILS_TEST_COPY skips this block in a copy, so no copy starts a
+# nested run. A guardrails label fails on the copy: its cases expect refusals.
+if [[ -z "${GUARDRAILS_TEST_COPY:-}" ]] && case_block hook-cases; then
+  # outside_cases <file>: each line that calls a case helper outside a case_block segment
+  outside_cases() {
+    awk '/^if .*case_block /{in_block=1; next} /^fi # /{in_block=0; next}
+      !in_block && /^(expect[a-z_]*|hb_expect|hb_err_has|wg_expect|stop_expect|pc_run|pc_has|pc_lacks|hook_registered|matcher_covers|event_registered|event_timeout) / {print FILENAME ":" FNR ": " $0}' "$1"
+  }
+  printf "expect allow 'x'\nif case_block a; then\nexpect allow 'y'\nfi # a\nexpect allow 'z'\n" > "$tmp/stray.sh"
+  [[ "$(outside_cases "$tmp/stray.sh" | wc -l | tr -d ' ')" == 2 ]] ||
+    { echo "FAIL: the outside_cases check misses a case call outside a segment"; failures=$((failures + 1)); }
+  outside="$(outside_cases "$0")"
+  [[ -z "$outside" ]] || { echo "FAIL: a case call is outside a case_block segment: $(head -n 3 <<< "$outside")"; failures=$((failures + 1)); }
+  [[ "$(grep -oE '^if .*case_block [a-z-]+' "$0" | awk '{print $NF}' | sort -u)" == "$(printf '%s\n' "${labels[@]}" | sort)" ]] ||
+    { echo "FAIL: the labels array and the case_block segments name other labels"; failures=$((failures + 1)); }
+
+  copy="$tmp/copy"
+  mkdir -p "$copy/.claude"
+  cp -R "$(dirname "$0")" "$copy/.claude/hooks"
+  cp "$settings" "$copy/.claude/settings.json"
+  printf '#!/bin/bash\nexit 0\n' > "$copy/.claude/hooks/git-guardrails.sh"
+  copy_cases=('agent-clock' 'agent-clock|write-guard' 'guardrails-tag' 'agent' 'no-such-block')
+  for i in "${!copy_cases[@]}"; do
+    (
+      GUARDRAILS_TEST_COPY=1 HOOK_CASES="${copy_cases[$i]}" perl -e 'alarm 120; exec @ARGV' "$copy/.claude/hooks/git-guardrails.test.sh" > "$tmp/copy-$i.out" 2>&1
+      echo $? > "$tmp/copy-$i.code"
+    ) &
+  done
+  wait
+  # copy_is <index> <exit status> <output pattern>: the copy ended with the status, and its output matches
+  copy_is() {
+    [[ "$(cat "$tmp/copy-$1.code")" == "$2" && "$(cat "$tmp/copy-$1.out")" == $3 ]] ||
+      { echo "FAIL: HOOK_CASES=${copy_cases[$1]}: exit $(cat "$tmp/copy-$1.code"), output: $(head -c 300 "$tmp/copy-$1.out")"; failures=$((failures + 1)); }
+  }
+  copy_is 0 0 'agent-clock'
+  copy_is 1 0 $'agent-clock\nwrite-guard'
+  copy_is 2 1 $'guardrails-tag\n*FAIL*'
+  copy_is 3 1 '*HOOK_CASES*guardrails-tag*'
+  copy_is 4 1 '*HOOK_CASES*guardrails-tag*'
+fi # hook-cases
+
+if case_block guardrails; then
 expect block 'git push --force origin feat/x'
 expect block 'git push -f origin feat/x'
 expect block 'git push origin +feat/x'
@@ -229,6 +293,8 @@ expect allow 'make check'
 expect allow 'git -C /repo status'
 expect allow 'git push -u origin feat/main-window'
 expect allow 'git push --follow-tags origin feat/x'
+fi # guardrails
+if case_block guardrails-tag; then
 # A release tag comes only from scripts/tag-release.sh: a hand tag, a tag delete, or a tag push
 # blocks, and the message names the script. A list of the tags passes.
 expect block 'git tag -a v0.3.10 -m x'
@@ -264,6 +330,8 @@ expect allow "rg -n 'git tag -d' scripts"
 got="$(printf '{"tool_input":{"command":"git tag -d v0.3.10"}}' | "$hook" 2>&1)"
 [[ "$got" == *scripts/tag-release.sh* ]] ||
   { echo "FAIL: the tag block message does not name scripts/tag-release.sh: $got"; failures=$((failures + 1)); }
+fi # guardrails-tag
+if case_block guardrails-rules; then
 # A pull request merges only through scripts/land.sh: each merge form in the Bash command text
 # blocks, and the block message names that script. The reads and the land command pass.
 expect block 'gh pr merge --auto --rebase 3'
@@ -1174,7 +1242,6 @@ for run in $'# run bash scripts/land.test.sh later\necho done' $'# it\'s scripts
 done
 
 # The project settings parse, and register this hook as a PreToolUse hook for Bash.
-settings="$(dirname "$0")/../settings.json"
 python3 -m json.tool "$settings" >/dev/null 2>&1 || { echo "FAIL: .claude/settings.json does not parse"; failures=$((failures + 1)); }
 python3 -c '
 import json, sys
@@ -1185,11 +1252,18 @@ ok = any(e.get("matcher") == "Bash"
 sys.exit(0 if ok else 1)
 ' "$settings" 2>/dev/null || { echo "FAIL: .claude/settings.json does not register git-guardrails.sh for Bash"; failures=$((failures + 1)); }
 
+
+# Unreadable input fails closed.
+printf 'not json' | "$hook" 2>/dev/null
+[[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }
+fi # guardrails-rules
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
+gc() { git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty "${@:2}"; }
+
+if case_block post-commit; then
 # The shipped post-commit hook deletes .scratchpads/commit-msg.txt of the work tree that commits, so
 # the next `git commit -F` cannot take a stale message. A worktree uses the hooks folder of the main
 # checkout, and the hook deletes the file of the worktree only. With no file, the hook exits 0.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
-gc() { git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty "${@:2}"; }
 post_fail() { echo "FAIL: post-commit: $1"; failures=$((failures + 1)); }
 git init -q "$tmp/r"
 mkdir -p "$tmp/r/.githooks" "$tmp/r/.scratchpads"
@@ -1208,6 +1282,8 @@ gc "$tmp/w" -F .scratchpads/commit-msg.txt || post_fail 'a commit in the worktre
 [[ ! -e "$tmp/w/.scratchpads/commit-msg.txt" ]] || post_fail 'the worktree message file is still there'
 [[ "$(cat "$tmp/r/.scratchpads/commit-msg.txt" 2>/dev/null)" == main ]] || post_fail 'a worktree commit deleted the file of the main checkout'
 
+fi # post-commit
+if case_block pre-commit; then
 # The shipped pre-commit hook refuses a commit when core.hooksPath is not exactly .githooks: with an
 # absolute path, each worktree runs the hooks of the main checkout. With .githooks, the hook of the
 # worktree runs make lint, which fails here because the repo has no Makefile.
@@ -1270,6 +1346,8 @@ gc "$tmp/pw" -m source-wait 2>"$tmp/err"
 grep -q check-waits "$tmp/err" && pre_fail 'a raw wait under Sources/ failed the wait gate'
 grep -q lint "$tmp/err" || pre_fail "a raw wait under Sources/ did not reach make lint: $(cat "$tmp/err")"
 
+fi # pre-commit
+if case_block commit-msg; then
 # The shipped commit-msg hook has no word pair check: a message with a pair that no staged file shows commits.
 msg_fail() { echo "FAIL: commit-msg: $1"; failures=$((failures + 1)); }
 m="$tmp/m"
@@ -1327,6 +1405,8 @@ git -C "$k" add -A
 want_id=E37 key_refused -m 'cut the rerun'
 gc "$k" -m $'cut the rerun\n\nEval keys: E37' 2>"$tmp/err" || msg_fail "a cut with an Eval keys line was refused: $(cat "$tmp/err")"
 
+fi # commit-msg
+if case_block agent-guard; then
 # The second hook, agent-guard.sh, refuses an Agent call with worktree isolation: such a worktree does
 # not fit the run layout, and its creation can set the hooks path of the shared git config. It also
 # refuses a brief of Agent, SendMessage, or delegate_task with a wrong commit message path, and a
@@ -1577,6 +1657,8 @@ expect_lock_lists differ 'the AGENTS.md sentence is gone' "$lock_real/Makefile" 
 sed 's/^\.PHONY: .*$//' "$lock_real/Makefile" > "$lock_mut/Makefile.no-phony"
 expect_lock_lists differ 'the Makefile has no .PHONY line' "$lock_mut/Makefile.no-phony" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
 
+fi # agent-guard
+if case_block usage-hook; then
 # The third hook, usage-hook.sh, gives the usage mode as context at an agent start. It denies nothing
 # and always exits 0. The fixture clock and limits file give each mode.
 usage_hook="$(dirname "$0")/usage-hook.sh"
@@ -1628,7 +1710,6 @@ ok = any(re.fullmatch(e.get("matcher", ""), sys.argv[2])
 sys.exit(0 if ok else 1)
 ' "$1" "$2" 2>/dev/null
 }
-printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"command","command":"x/.claude/hooks/usage-hook.sh"}]}]}}' > "$tmp/old-settings.json"
 for tool in Agent Workflow SendMessage mcp__t3-code__delegate_task; do
   matcher_covers "$settings" "$tool" || { echo "FAIL: .claude/settings.json does not register usage-hook.sh for $tool"; failures=$((failures + 1)); }
 done
@@ -1636,9 +1717,7 @@ for tool in SendMessage mcp__t3-code__delegate_task; do
   matcher_covers "$tmp/old-settings.json" "$tool" && { echo "FAIL: the matcher check passed a settings file with no $tool"; failures=$((failures + 1)); }
 done
 
-# The fourth hook, handback-guard.sh, refuses a SubagentHandback call while a background task of the
-# agent runs. It reads the transcript of the subagent: <dir>/s.jsonl is the session file and
-# <dir>/s/subagents/agent-a1.jsonl is the agent file. Timestamps come from the clock of this test.
+fi # usage-hook
 guard_hook="$(dirname "$0")/handback-guard.sh"
 hb_now="$(date +%s)"
 hb_iso() { date -u -r $((hb_now - $1 * 60)) +%Y-%m-%dT%H:%M:%S.000Z; }
@@ -1676,6 +1755,25 @@ hb_mon_start() {
   hb_use "$1" u3 Monitor '{"command":"x"}'
   hb_result "$1" u3 'Monitor started (task m1, expires in 30m. Output is being written to: /x'
 }
+
+# hook_registered <settings file> <hook script> <tool name>: a PreToolUse entry runs the script for the tool
+hook_registered() {
+  python3 -c '
+import json, re, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
+def covers(matcher):
+    return matcher in (None, "", "*") or re.fullmatch(matcher, sys.argv[3]) is not None
+ok = any(covers(e.get("matcher"))
+         and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[2]) for h in e.get("hooks", []))
+         for e in entries)
+sys.exit(0 if ok else 1)
+' "$1" "$2" "$3" 2>/dev/null
+}
+
+if case_block handback-guard; then
+# The fourth hook, handback-guard.sh, refuses a SubagentHandback call while a background task of the
+# agent runs. It reads the transcript of the subagent: <dir>/s.jsonl is the session file and
+# <dir>/s/subagents/agent-a1.jsonl is the agent file. Timestamps come from the clock of this test.
 
 hb_session running < <(hb_bg_start)
 hb_expect "$guard_hook" 2 'a running background Bash' "$(hb_in SubagentHandback)"
@@ -1721,24 +1819,13 @@ hb_expect "$guard_hook" 0 'another tool' "$(hb_in Bash '{"command":"ls"}')"
 hb_expect "$guard_hook" 0 'no transcript file' "$(printf '{"transcript_path":"%s/none/s.jsonl","agent_id":"a1","tool_name":"SubagentHandback"}' "$tmp")"
 hb_expect "$guard_hook" 0 'input that is not JSON' 'not json'
 
-# hook_registered <settings file> <hook script> <tool name>: a PreToolUse entry runs the script for the tool
-hook_registered() {
-  python3 -c '
-import json, re, sys
-entries = json.load(open(sys.argv[1])).get("hooks", {}).get("PreToolUse", [])
-def covers(matcher):
-    return matcher in (None, "", "*") or re.fullmatch(matcher, sys.argv[3]) is not None
-ok = any(covers(e.get("matcher"))
-         and any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[2]) for h in e.get("hooks", []))
-         for e in entries)
-sys.exit(0 if ok else 1)
-' "$1" "$2" "$3" 2>/dev/null
-}
 hook_registered "$settings" handback-guard.sh SubagentHandback ||
   { echo "FAIL: .claude/settings.json does not register handback-guard.sh for SubagentHandback"; failures=$((failures + 1)); }
 hook_registered "$tmp/old-settings.json" handback-guard.sh SubagentHandback &&
   { echo "FAIL: the registration check passed a settings file with no handback-guard.sh"; failures=$((failures + 1)); }
 
+fi # handback-guard
+if case_block agent-clock; then
 # The fifth hook, agent-clock.sh, refuses the tool calls of a subagent after 90 active minutes. A gap
 # between two entries of the transcript counts at most 15 min.
 clock_hook="$(dirname "$0")/agent-clock.sh"
@@ -1814,6 +1901,8 @@ for tool in Bash Read; do
     { echo "FAIL: .claude/settings.json does not register agent-clock.sh for $tool"; failures=$((failures + 1)); }
 done
 
+fi # agent-clock
+if case_block write-guard; then
 # The sixth hook, write-guard.sh, refuses a Write over an existing run.md, plan.md, or analysis.md
 # of a run folder: the Edit tool changes such a file. A new file and each other name pass.
 write_hook="$(dirname "$0")/write-guard.sh"
@@ -1840,10 +1929,7 @@ wg_expect 0 "$tmp/wg/docs/run.md"
 hook_registered "$settings" write-guard.sh Write ||
   { echo "FAIL: .claude/settings.json does not register write-guard.sh for Write"; failures=$((failures + 1)); }
 
-# The seventh hook, stop-guard.sh, runs when the lead ends a turn. It never blocks: it appends a line to
-# dirigible-stop-shadow.log in the git common dir. Rule A logs the stop while only background shells
-# run (nothing wakes the loop when a shell ends). Rule B logs when no task runs, an open run has an
-# unticked phase, and its run.md has no `waits: user` line.
+fi # write-guard
 stop_hook="$(dirname "$0")/stop-guard.sh"
 # lead_session <name>: write stdin as the lead transcript, and name its folder in hb_dir
 lead_session() { hb_dir="$tmp/$1"; mkdir -p "$hb_dir"; cat > "$hb_dir/s.jsonl"; }
@@ -1871,6 +1957,45 @@ stop_expect() {
   [[ -z "$out" && ! -s "$tmp/hb-err" ]] ||
     { echo "FAIL: stop-guard.sh $1: it printed output, so it blocks or talks: $out $(cat "$tmp/hb-err")"; failures=$((failures + 1)); }
 }
+
+# tail_session <name> <filler lines>: a shell starts, about 1 KB for each filler line, a second shell starts
+tail_session() {
+  hb_dir="$tmp/$1"; mkdir -p "$hb_dir"
+  { hb_use 400 old1 Bash '{"command":"sleep 300","run_in_background":true}'
+    hb_result 400 old1 'Command running in background with ID: bold. Output is being written to: /x'
+    python3 -c '
+import json, sys
+line = json.dumps({"type": "user", "message": {"role": "user", "content": "x" * 1000}})
+sys.stdout.write((line + "\n") * int(sys.argv[1]))
+' "$2"
+    hb_use 2 new1 Bash '{"command":"sleep 300","run_in_background":true}'
+    hb_result 2 new1 'Command running in background with ID: bnew. Output is being written to: /x'
+  } > "$hb_dir/s.jsonl"
+}
+
+# event_registered <settings file> <event> <hook script>: an entry of the event runs the script
+event_registered() {
+  python3 -c '
+import json, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
+sys.exit(0 if any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3]) for e in entries for h in e.get("hooks", [])) else 1)
+' "$1" "$2" "$3" 2>/dev/null
+}
+# event_timeout <settings file> <event> <hook script>: the entry of the script sets a timeout of 1 to 120 seconds
+event_timeout() {
+  python3 -c '
+import json, sys
+entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
+found = [h for e in entries for h in e.get("hooks", []) if h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3])]
+sys.exit(0 if found and all(type(h.get("timeout")) is int and 1 <= h["timeout"] <= 120 for h in found) else 1)
+' "$1" "$2" "$3" 2>/dev/null
+}
+
+if case_block stop-guard; then
+# The seventh hook, stop-guard.sh, runs when the lead ends a turn. It never blocks: it appends a line to
+# dirigible-stop-shadow.log in the git common dir. Rule A logs the stop while only background shells
+# run (nothing wakes the loop when a shell ends). Rule B logs when no task runs, an open run has an
+# unticked phase, and its run.md has no `waits: user` line.
 
 # Rule A: only background shells run. The hook logs one line with its reason and does not block.
 stop_fixture fx-shell
@@ -1976,20 +2101,6 @@ stop_hook="$real_stop_hook"
 # The lead transcript is read from its last 8 MiB only (the longest measured span of a background
 # shell is 7.1 MiB). A task that starts before the tail is not found; a task that starts in the tail,
 # 4 to 8 MiB before the end, is.
-# tail_session <name> <filler lines>: a shell starts, about 1 KB for each filler line, a second shell starts
-tail_session() {
-  hb_dir="$tmp/$1"; mkdir -p "$hb_dir"
-  { hb_use 400 old1 Bash '{"command":"sleep 300","run_in_background":true}'
-    hb_result 400 old1 'Command running in background with ID: bold. Output is being written to: /x'
-    python3 -c '
-import json, sys
-line = json.dumps({"type": "user", "message": {"role": "user", "content": "x" * 1000}})
-sys.stdout.write((line + "\n") * int(sys.argv[1]))
-' "$2"
-    hb_use 2 new1 Bash '{"command":"sleep 300","run_in_background":true}'
-    hb_result 2 new1 'Command running in background with ID: bnew. Output is being written to: /x'
-  } > "$hb_dir/s.jsonl"
-}
 tail_session stop-tail 9000
 stop_fixture fx-tail
 stop_expect 'a transcript over the tail bound' "$(stop_in false "$stop_fx")"
@@ -2001,28 +2112,13 @@ stop_expect 'a task 6 MiB before the end' "$(stop_in false "$stop_fx")"
 [[ "$(stop_lines)" == 1 && "$(< "$stop_log")" == *' would-block-shell bold,bnew: '* ]] ||
   { echo "FAIL: a shell that starts 6 MiB before the end is found: $(cat "$stop_log" 2>&1)"; failures=$((failures + 1)); }
 
-# event_registered <settings file> <event> <hook script>: an entry of the event runs the script
-event_registered() {
-  python3 -c '
-import json, sys
-entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
-sys.exit(0 if any(h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3]) for e in entries for h in e.get("hooks", [])) else 1)
-' "$1" "$2" "$3" 2>/dev/null
-}
-# event_timeout <settings file> <event> <hook script>: the entry of the script sets a timeout of 1 to 120 seconds
-event_timeout() {
-  python3 -c '
-import json, sys
-entries = json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], [])
-found = [h for e in entries for h in e.get("hooks", []) if h.get("command", "").replace("\"", "").endswith("/.claude/hooks/" + sys.argv[3])]
-sys.exit(0 if found and all(type(h.get("timeout")) is int and 1 <= h["timeout"] <= 120 for h in found) else 1)
-' "$1" "$2" "$3" 2>/dev/null
-}
 event_registered "$settings" Stop stop-guard.sh || { echo "FAIL: .claude/settings.json does not register stop-guard.sh for Stop"; failures=$((failures + 1)); }
 event_registered "$tmp/old-settings.json" Stop stop-guard.sh && { echo "FAIL: the Stop registration check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
 event_timeout "$settings" Stop stop-guard.sh || { echo "FAIL: .claude/settings.json sets no timeout of 1 to 120 seconds on stop-guard.sh"; failures=$((failures + 1)); }
 event_timeout "$tmp/old-settings.json" Stop stop-guard.sh && { echo "FAIL: the Stop timeout check passed a settings file with no stop-guard.sh"; failures=$((failures + 1)); }
 
+fi # stop-guard
+if case_block pre-compact; then
 # The eighth and ninth hooks keep the run state through a compaction. pre-compact.sh prints what the
 # summary must keep (Claude Code adds the stdout of PreCompact to the compaction instructions). It
 # names the open run of cwd, the branch, the worktree, the first unticked slice, and the running
@@ -2145,8 +2241,7 @@ event_registered "$settings" PostCompact post-compact.sh || { echo "FAIL: .claud
 event_registered "$tmp/old-settings.json" PreCompact pre-compact.sh && { echo "FAIL: the PreCompact registration check passed a settings file with no pre-compact.sh"; failures=$((failures + 1)); }
 event_timeout "$settings" PreCompact pre-compact.sh || { echo "FAIL: .claude/settings.json sets no timeout of 1 to 120 seconds on pre-compact.sh"; failures=$((failures + 1)); }
 
-# Unreadable input fails closed.
-printf 'not json' | "$hook" 2>/dev/null
-[[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }
 
-[[ $failures -eq 0 ]] && echo "git-guardrails: all cases pass" || exit 1
+fi # pre-compact
+[[ $failures -eq 0 ]] || exit 1
+[[ -n "${HOOK_CASES:-}" ]] || echo "git-guardrails: all cases pass"

@@ -30,9 +30,13 @@
 # the lines of other days. The next run with the same key prints "test-hooks: reuse <key>" and runs
 # no test. At the start, the script removes each key tree folder over one hour old.
 # No reuse and no stamp: when the list is not the HOOK_TESTS list of the Makefile at HEAD, after a
-# failed test, and when the first word of MAKEFLAGS has -n, -t, -i, or -q (as
-# scripts/check-stamp.sh). After a failed test, the summary names each failed test and prints the
+# failed test, when the first word of MAKEFLAGS has -n, -t, -i, or -q (as scripts/check-stamp.sh),
+# and when HOOK_CASES is set. After a failed test, the summary names each failed test and prints the
 # last 40 lines of its output.
+# HOOK_CASES=<label pattern> reaches the test, which runs only the case blocks that match (the
+# header of .claude/hooks/git-guardrails.test.sh). With DIRIGIBLE_PUSH_CHECK=1 or
+# DIRIGIBLE_HOOKS_ALL=1 the script prints a message that names HOOK_CASES and exits 1, before the
+# key: a push check or a hooks pass runs every case, or fails.
 # scripts/test-hooks.test.sh tests it.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -43,6 +47,11 @@ today="$(date +%F)"
 # A killed run (no trap) leaves its key tree: remove each one over one hour old. A run takes about
 # 10 min, so the run of another worktree keeps its tree.
 find "$common" -maxdepth 1 -type d -name 'dirigible-hooks-tree.*' -mmin +60 -exec rm -rf {} +
+
+if [[ -n ${HOOK_CASES:-} && ( ${DIRIGIBLE_PUSH_CHECK:-} == 1 || ${DIRIGIBLE_HOOKS_ALL:-} == 1 ) ]]; then
+    echo "test-hooks: HOOK_CASES is set, and a push check or a hooks pass runs every hook case. Unset HOOK_CASES." >&2
+    exit 1
+fi
 
 args=()
 for a in "$@"; do
@@ -68,6 +77,7 @@ if [[ $given == "$listed" || $given == "$current" ]] \
 fi
 if [[ $flags == *[ntiq]* ]]; then reason="make ran with -n, -t, -i, or -q"
 elif [[ $whole == no ]]; then reason="the list is not HOOK_TESTS of the Makefile"
+elif [[ -n ${HOOK_CASES:-} ]]; then reason="HOOK_CASES is set"
 fi
 
 # Not in TMPDIR: probe.test.sh needs a repo outside /private/var/folders, where the probe.sh

@@ -3,7 +3,7 @@
 # of .githooks deletes the commit message file. It also checks agent-guard.sh, the hook of the tools
 # that brief an agent, usage-hook.sh, the hook that gives the usage mode at an agent start,
 # handback-guard.sh, the hook that refuses a hand-back while a background task runs, agent-clock.sh,
-# the hook that stops a subagent after 90 active minutes, and write-guard.sh, the hook that refuses a
+# the hook that stops a subagent after 90 active minutes or after a commit at 60, and write-guard.sh, the hook that refuses a
 # Write over an existing run file. Run by `make check`.
 # Each rule kind has one helper that runs its cases over a shared list of forms. Add a form to the
 # list, not a lone case:
@@ -1857,28 +1857,44 @@ hb_session short < <(hb_span 11 0)
 AGENT_CLOCK_MIN=10 hb_expect "$clock_hook" 2 'AGENT_CLOCK_MIN sets the limit' "$(hb_bash 'make build')"
 hb_err_has 'AGENT_CLOCK_MIN' 'limit of 10'
 
-hb_dir="$tmp/over"
-for tool in Read ToolSearch TaskStop SubagentHandback; do
-  hb_expect "$clock_hook" 0 "$tool past the limit" "$(hb_in "$tool")"
-done
-hb_expect "$clock_hook" 2 'Edit of a Sources/ path past the limit' "$(hb_in Edit '{"file_path":"/t/Sources/A/a.swift"}')"
-hb_expect "$clock_hook" 2 'Write with no file_path past the limit' "$(hb_in Write)"
-hb_expect "$clock_hook" 0 'Write of .scratchpads/commit-msg.txt past the limit' "$(hb_in Write '{"file_path":"/t/.scratchpads/commit-msg.txt"}')"
-hb_expect "$clock_hook" 0 'Edit of run.md under .scratchpads past the limit' "$(hb_in Edit '{"file_path":"/t/.scratchpads/runs/r/run.md"}')"
-hb_expect "$clock_hook" 0 'Write of a row file under .scratchpads/runs past the limit' "$(hb_in Write '{"file_path":"/t/.scratchpads/runs/x/row.txt"}')"
-hb_expect "$clock_hook" 2 'Write of a file in the tree root past the limit' "$(hb_in Write '{"file_path":"/t/row.txt"}')"
-for command in 'git status' 'git diff --stat' 'git log -1' 'git add -A' 'git commit -F x' \
-  '.claude/skills/deliver/scripts/log-decision.sh run 4 d w e r' \
-  'git commit -F x 2>&1' 'git -c core.pager=cat log -1' \
-  'cd T && git commit -F x' 'git -C T status' 'cd T && R=x .claude/skills/deliver/scripts/log-decision.sh $R --from f'; do
-  hb_expect "$clock_hook" 0 "Bash '$command' past the limit" "$(hb_bash "$command")"
-done
-for command in 'git push origin x' 'make test' 'cd T && git commit -F x && make test' 'git status && make test' \
-  'git commit -F x; scripts/with-lock.sh make check-fast' 'git status $(make test)' 'git status & make test' \
-  'bash x/log-decision.sh' 'x/log-decision.sh run 4 d w e r' 'git status `make test`' 'git diff <(make test)' \
-  'git diff >(make test)'; do
-  hb_expect "$clock_hook" 2 "Bash '$command' past the limit" "$(hb_bash "$command")"
-done
+# The pass and block forms of a refused agent. Each trigger (the limit, the commit hand-off) runs
+# all of them: add a form here, not to one trigger.
+clock_pass_tools=(Read ToolSearch TaskStop SubagentHandback)
+clock_edit_forms=(
+  '2~Edit~{"file_path":"/t/Sources/A/a.swift"}~Edit of a Sources/ path'
+  '2~Write~~Write with no file_path'
+  '0~Write~{"file_path":"/t/.scratchpads/commit-msg.txt"}~Write of .scratchpads/commit-msg.txt'
+  '0~Edit~{"file_path":"/t/.scratchpads/runs/r/run.md"}~Edit of run.md under .scratchpads'
+  '0~Write~{"file_path":"/t/.scratchpads/runs/x/row.txt"}~Write of a row file under .scratchpads/runs'
+  '2~Write~{"file_path":"/t/row.txt"}~Write of a file in the tree root'
+)
+clock_pass_commands=('git status' 'git diff --stat' 'git log -1' 'git add -A' 'git commit -F x'
+  '.claude/skills/deliver/scripts/log-decision.sh run 4 d w e r'
+  'git commit -F x 2>&1' 'git -c core.pager=cat log -1'
+  'cd T && git commit -F x' 'git -C T status' 'cd T && R=x .claude/skills/deliver/scripts/log-decision.sh $R --from f')
+clock_block_commands=('git push origin x' 'make test' 'cd T && git commit -F x && make test' 'git status && make test'
+  'git commit -F x; scripts/with-lock.sh make check-fast' 'git status $(make test)' 'git status & make test'
+  'bash x/log-decision.sh' 'x/log-decision.sh run 4 d w e r' 'git status `make test`' 'git diff <(make test)'
+  'git diff >(make test)')
+# clock_forms <transcript folder> <trigger name>: each pass and block form against one transcript
+clock_forms() {
+  local form tool want input label command
+  hb_dir="$1"
+  for tool in "${clock_pass_tools[@]}"; do
+    hb_expect "$clock_hook" 0 "$tool past the $2" "$(hb_in "$tool")"
+  done
+  for form in "${clock_edit_forms[@]}"; do
+    IFS='~' read -r want tool input label <<< "$form"
+    hb_expect "$clock_hook" "$want" "$label past the $2" "$(hb_in "$tool" "$input")"
+  done
+  for command in "${clock_pass_commands[@]}"; do
+    hb_expect "$clock_hook" 0 "Bash '$command' past the $2" "$(hb_bash "$command")"
+  done
+  for command in "${clock_block_commands[@]}"; do
+    hb_expect "$clock_hook" 2 "Bash '$command' past the $2" "$(hb_bash "$command")"
+  done
+}
+clock_forms "$tmp/over" 'limit'
 
 # A check that started before the limit can finish and be read.
 hb_session check < <(
@@ -1892,6 +1908,98 @@ for tool in Monitor TaskOutput; do
 done
 hb_dir="$tmp/over"
 hb_expect "$clock_hook" 2 'Monitor with no running background task' "$(hb_in Monitor)"
+
+# The commit hand-off: a Bash call with a git commit segment at 60 active minutes or more, and a new
+# commit in the HEAD history of its work tree, inside the window of the call. The transcript holds
+# 62 minutes of entries, the call 1 min before the end (61 active minutes), the commit 30 s before
+# the end. The temp repos get their commit times from the clock of this test.
+# hb_commit <minutes ago> <use id> <command> <cwd>: an assistant Bash call with a cwd
+hb_commit() {
+  local c="${3//\\/\\\\}"
+  c="${c//\"/\\\"}"
+  printf '{"type":"assistant","timestamp":"%s","cwd":"%s","message":{"role":"assistant","content":[{"type":"tool_use","id":"%s","name":"Bash","input":{"command":"%s"}}]}}\n' \
+    "$(hb_iso "$1")" "$4" "$2" "$c"
+}
+# ct_commit <repo> <committer seconds ago> <author seconds ago> [<git commit option>...]
+ct_commit() {
+  GIT_COMMITTER_DATE="$((hb_now - $2)) +0000" GIT_AUTHOR_DATE="$((hb_now - $3)) +0000" \
+    git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -q --allow-empty -m m "${@:4}"
+}
+# ct_repo <name> <new|old|amend|detached|root>: the repo $ct_tree. new: a base commit 10 min ago and
+# a commit 30 s ago. old: the base commit only, as after a failed commit. amend: the commit has an old
+# author time. detached: new, on a detached HEAD. root: the one commit is the new one.
+ct_repo() {
+  ct_tree="$tmp/ctr-$1"
+  rm -rf "$ct_tree"
+  git init -q "$ct_tree"
+  [[ "$2" == root ]] || ct_commit "$ct_tree" 600 600
+  [[ "$2" != detached ]] || git -C "$ct_tree" checkout -q --detach
+  case "$2" in
+    new | detached | root) ct_commit "$ct_tree" 30 30 ;;
+    amend) ct_commit "$ct_tree" 30 1200 ;;
+  esac
+}
+# ct_session <name> <first minute> <command with @T@> <cwd: tree|elsewhere> <result text>: the transcript
+# of agent a1 with the commit call; the hook input for make build is hb_bash
+ct_session() {
+  local cwd="$tmp"
+  [[ "$4" != tree ]] || cwd="$ct_tree"
+  hb_session "ct-$1" < <(hb_span "$2" 2; hb_commit 1 c1 "${3//@T@/$ct_tree}" "$cwd"; hb_result 0 c1 "$5")
+}
+ct_refused() { # <label>: the hand-off refusal names the commit hand-off, the handoff file, the row route, and the hand-back
+  hb_err_has "$1" 'commit hand-off'
+  hb_err_has "$1" 'run.md'
+  hb_err_has "$1" 'log-decision.sh <run folder> --from <file in .scratchpads/>'
+  hb_err_has "$1" 'SubagentHandback'
+}
+ct_shapes=(
+  'quiet~new~git commit -q -F x; echo exit $?; git log --oneline -1~tree~'
+  'tail~new~git commit -F x 2>&1 | tail -5~tree~[main 1234abc] m'
+  'cd~new~cd @T@ && git commit -m x~elsewhere~[main 1234abc] m'
+  'dash-C~new~git -C @T@ commit -m x~elsewhere~[main 1234abc] m'
+  'env-word~new~GIT_AUTHOR_DATE=2026-10-01 git commit -m x~tree~[main 1234abc] m'
+  'dash-c~new~git -c user.name=x commit -m x~tree~[main 1234abc] m'
+  'amend~amend~git commit --amend --no-edit~tree~[main 1234abc] m'
+  'detached~detached~git commit -m x~tree~[detached HEAD 1234abc] m'
+  'root~root~git commit -m x~tree~[main (root-commit) 1234abc] m'
+)
+for ct_shape in "${ct_shapes[@]}"; do
+  IFS='~' read -r ct_name ct_mode ct_command ct_cwd ct_text <<< "$ct_shape"
+  ct_repo "$ct_name" "$ct_mode"
+  ct_session "$ct_name" 62 "$ct_command" "$ct_cwd" "$ct_text"
+  hb_expect "$clock_hook" 2 "make build after a commit at 61 active minutes: $ct_name" "$(hb_bash 'make build')"
+  ct_refused "the commit hand-off: $ct_name"
+done
+ct_repo at59 new
+ct_session at59 60 'git commit -q -F x' tree ''
+hb_expect "$clock_hook" 0 'make build after a commit at 59 active minutes' "$(hb_bash 'make build')"
+ct_repo failed old
+ct_session failed 62 'git commit -q -F x; echo exit $?' tree 'exit 1'
+hb_expect "$clock_hook" 0 'make build after a failed commit (no new commit in the window)' "$(hb_bash 'make build')"
+ct_repo failed-error old
+ct_session failed-error 62 'git commit -F x 2>&1 | tail -5' tree 'lint: 3 errors'
+hb_expect "$clock_hook" 0 'make build after a failed commit whose output has no error flag' "$(hb_bash 'make build')"
+ct_repo gone new
+ct_session gone 62 'git commit -q -F x' tree ''
+rm -rf "$ct_tree"
+hb_expect "$clock_hook" 0 'make build when the git call fails (the work tree is gone)' "$(hb_bash 'make build')"
+# Text that names a commit is no commit call: a request blob, a prompt snapshot, and a reply text.
+ct_repo text new
+hb_session ct-text < <(
+  hb_span 62 2
+  printf '{"type":"api-request-blob","timestamp":"%s","body":"{\\"type\\":\\"assistant\\",\\"name\\":\\"Bash\\",\\"command\\":\\"git commit -m x\\"}"}\n' "$(hb_iso 1)"
+  printf '{"type":"prompt_snapshot","timestamp":"%s","text":"git commit -m x"}\n' "$(hb_iso 1)"
+  hb_text assistant 1 'Run git commit -m x when done.'
+  hb_text user 0 x
+)
+hb_expect "$clock_hook" 0 'make build when a blob, a snapshot, and a reply only quote git commit' "$(hb_bash 'make build')"
+# A coordinator message after the commit clears the trigger; a task notification does not.
+ct_repo clear new
+hb_session ct-clear < <(hb_span 62 2; hb_commit 1 c1 'git commit -m x' "$ct_tree"; hb_result 0 c1 ''; hb_text user 0 'The coordinator sent a message while you were working: go on')
+hb_expect "$clock_hook" 0 'make build after a coordinator message that follows the commit' "$(hb_bash 'make build')"
+hb_session ct-notify < <(hb_span 62 2; hb_commit 1 c1 'git commit -m x' "$ct_tree"; hb_result 0 c1 ''; hb_text user 0 '[SYSTEM NOTIFICATION] a task ended')
+hb_expect "$clock_hook" 2 'make build after a task notification that follows the commit' "$(hb_bash 'make build')"
+clock_forms "$tmp/ct-quiet" 'commit hand-off'
 
 hb_expect "$clock_hook" 0 'no agent_id (the lead)' "$(printf '{"transcript_path":"%s/s.jsonl","tool_name":"Bash","tool_input":{"command":"make test"}}' "$hb_dir")"
 hb_expect "$clock_hook" 0 'no transcript file' "$(printf '{"transcript_path":"%s/none/s.jsonl","agent_id":"a1","tool_name":"Bash","tool_input":{"command":"make test"}}' "$tmp")"

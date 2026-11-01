@@ -583,7 +583,8 @@ mixed_guard feat; guard mixed-feat fix
 # It prints one health line on stderr: the product and the workflow PRs of the runs with a done row
 # and a name dated in the last 7 days, the newest test-shards seconds of a done run's push-check.log,
 # and the minutes of the hold lines in the last 7 days. A missing source prints none, and the exit is 0.
-days_ago() { date -r $(( $(date +%s) - $1 * 86400 )) +%FT%T; }
+# Calendar days: a step of 86400 s across a daylight saving change lands on the wrong date near midnight.
+days_ago() { date -v-"$1"d +%FT%T; }
 new_wiki
 old="$(days_ago 8 | cut -c1-10)-ho" prod="$(days_ago 1 | cut -c1-10)-hp" flow="$(days_ago 2 | cut -c1-10)-hw"
 printf '| %s | x | open | |\n| %s | x | done | https://x/pull/1 |\n| %s | x | done | https://x/pull/2 |\n| %s | x | done | https://x/pull/3 |\n' \

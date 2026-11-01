@@ -51,11 +51,9 @@ extension SilenceEditTests {
         #expect(session.silenceEditWarnings(cuts: cuts, outside: nil, threshold: threshold) == [[], [], []])
     }
 
-    /// C32 and U18. 1200 shortens of 48 000-frame silences, one each 96 000 frames, on 6 tracks with
-    /// one clip each: one call cuts 24 000 frames from each silence. The test prints the time of the
-    /// call for the slice row. The call takes seconds in a debug build, so it is a slow test.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func aPlanOf1200ShortensOnSixTracksIsOneEdit() throws {
+    /// C32. 1200 shortens of 48 000-frame silences, one each 96 000 frames, on 6 tracks with one
+    /// clip each: one call cuts 24 000 frames from each silence. `EditBenchmark` holds its time.
+    @Test func aPlanOf1200ShortensOnSixTracksIsOneEdit() throws {
         let (count, period, length) = (1_200, 96_000, Frames(1_200 * 96_000))
         var session = Session(sampleRate: 48_000)
         for track in 0..<6 {
@@ -70,10 +68,7 @@ extension SilenceEditTests {
             SilenceEdit(range: Frames(index * period + 24_000)..<Frames(index * period + 72_000), action: .shorten)
         }
         let plan = try SilencePlan(edits, keep: Self.keep)
-        let start = ContinuousClock.now
         let result = try session.editSilences(plan, muting: [])
-        let elapsed = ContinuousClock.now - start
-        print("U18: editSilences of \(count) shortens on 6 tracks took \(elapsed)")
         #expect(result.removed == Frames(count * 24_000) && result.cuts.count == count)
         #expect(session.end == length - Frames(count * 24_000), "the end moves left by the sum of the cuts")
         #expect(session.tracks.allSatisfy { $0.clips.count == count + 1 }, "each track has 1201 clips")

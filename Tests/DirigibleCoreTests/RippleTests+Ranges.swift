@@ -192,3 +192,124 @@ extension RippleTests {
             "each marker moves left by the removed frames before it")
     }
 }
+
+extension RippleTests {
+    /// S1b (C32). Seeded property: one ripple delete of a range set equals `perRangeRipple`. The
+    /// ranges are sorted, some touch, a third of them are one whole clip, and a third of the other
+    /// bounds snap to a clip edge, so a cut meets a crossfade at both of its bounds. Control: a
+    /// repair only after the shift keeps an end crossfade at a range start that meets a start
+    /// crossfade of the same length.
+    @Test(arguments: [1, 2, 3] as [UInt64])
+    func oneRippleOfManyRangesEqualsTheCutsFromTheLast(seed: UInt64) throws {
+        var random = SplitMix(seed: seed)
+        var reached = 0
+        for step in 0..<40 {
+            var start = try seededLanes(&random)
+            let edges = start.tracks.flatMap { $0.clips.flatMap { [$0.start, $0.end] } }.sorted()
+            func frame(from cursor: Frames) -> Frames {
+                if Int.random(in: 0..<3, using: &random) == 0, let edge = edges.first(where: { $0 >= cursor }) {
+                    return edge
+                }
+                return cursor + Frames(Int.random(in: 0...20_000, using: &random))
+            }
+            var ranges: [Range<Frames>] = []
+            var cursor = Frames(Int.random(in: 0...20_000, using: &random))
+            for _ in 0..<Int.random(in: 1...12, using: &random) {
+                let lane = start.tracks.randomElement(using: &random)!.clips
+                if Int.random(in: 0..<3, using: &random) == 0, let clip = lane.first(where: { $0.start >= cursor }) {
+                    ranges.append(clip.range)
+                } else {
+                    let lower = frame(from: cursor)
+                    ranges.append(lower..<frame(from: lower + Frames(1)))
+                }
+                let upper = ranges[ranges.count - 1].upperBound
+                let gap = Bool.random(using: &random) ? 0 : Int.random(in: 1...30_000, using: &random)
+                cursor = upper + Frames(gap)
+            }
+            let first = ranges[0]
+            let inside = first.lowerBound + Frames((first.upperBound - first.lowerBound).count / 2)
+            for (n, at) in [first.lowerBound, first.upperBound, inside, ranges[ranges.count - 1].upperBound]
+                .enumerated()
+            {
+                try start.setMarker(Marker(id: MarkerID("e\(n)"), name: "E", position: at, kind: .marker))
+            }
+            let tracks = start.tracks.map(\.id)
+            let scope = tracks.filter { _ in Bool.random(using: &random) } + [tracks.randomElement(using: &random)!]
+            let crossfadesAtBothBounds = start.tracks.filter { scope.contains($0.id) }.contains { track in
+                Session.merged(ranges).contains { range in
+                    track.clips.contains { $0.end == range.lowerBound && $0.crossfades.end != .zero }
+                        && track.clips.contains { $0.start == range.upperBound && $0.crossfades.start != .zero }
+                }
+            }
+            if crossfadesAtBothBounds { reached += 1 }
+            let oracle = try perRangeRipple(start, ranges, on: scope)
+            var edited = start
+            try edited.rippleDelete(ranges.shuffled(using: &random), on: scope)
+            let same = edited == oracle
+            #expect(same, "seed \(seed) case \(step): \(ranges) on \(scope)")
+            if !same { break }
+        }
+        #expect(reached >= 5, "seed \(seed): \(reached) of 40 cases have a crossfade at both bounds of a range")
+    }
+
+    /// The oracle: the ripple delete before its one pass. For each merged range, from the last to
+    /// the first, one clear and one shift of each lane, then the markers of the range.
+    func perRangeRipple(_ session: Session, _ ranges: [Range<Frames>], on scope: [TrackID]) throws -> Session {
+        var copy = session
+        var taken = session.clipIDs
+        let lanes = try session.trackIndices(scope)
+        for range in Session.merged(ranges).reversed() {
+            let length = range.upperBound - range.lowerBound
+            for index in lanes {
+                copy.tracks[index].clips.clear([range]) { Session.derivedID(of: $0.id, at: $1, taken: &taken) }
+                copy.tracks[index].clips.shift(from: range.upperBound, by: .zero - length)
+            }
+            for marker in copy.markers.values where marker.position > range.lowerBound {
+                var moved = marker
+                moved.position = max(range.lowerBound, marker.position - length)
+                try copy.setMarker(moved)
+            }
+        }
+        return copy
+    }
+
+    /// The tracks of `editFixture` with random clips up to 400 000. Most clips touch the clip
+    /// before them at a butt join (a random file offset) with a crossfade of 960 or 1 920 frames,
+    /// some have fades, track "a" has a gain change, and three markers sit at random frames.
+    func seededLanes(_ random: inout SplitMix) throws -> Session {
+        var session = try editFixture()
+        for (track, file) in [("a", "f"), ("b", "f"), ("s", "g")] {
+            var at = Int.random(in: 0...10_000, using: &random)
+            var (previous, n): (ClipID?, Int) = (nil, 0)
+            while at < 400_000 {
+                let length = Int.random(in: 4_000...40_000, using: &random)
+                let id = ClipID("\(track)\(n)")
+                let offset = Int.random(in: 2_000...(478_000 - length), using: &random)
+                try session.place(
+                    Clip(id: id, file: FileID(file), start: Frames(at), offset: Frames(offset), length: Frames(length)),
+                    on: TrackID(track))
+                if let previous {
+                    _ = try? session.setCrossfades([previous: Frames([960, 1_920].randomElement(using: &random)!)])
+                }
+                if Int.random(in: 0..<3, using: &random) == 0 {
+                    let fades = Fades(
+                        fadeIn: Frames(Int.random(in: 0...3_000, using: &random)),
+                        fadeOut: Frames(Int.random(in: 0...3_000, using: &random)))!
+                    _ = try? session.setFades([id: fades])
+                }
+                let touching = Int.random(in: 0..<5, using: &random) < 3
+                previous = touching ? id : nil
+                at += length + (touching ? 0 : Int.random(in: 1...20_000, using: &random))
+                n += 1
+            }
+        }
+        let gain = Int.random(in: 0..<380_000, using: &random)
+        _ = try session.changeGain(
+            by: Gain(dB: -6)!, in: Frames(gain)..<Frames(gain + 20_000), on: ["a"], ramp: 480)
+        for n in 0..<3 {
+            let at = Frames(Int.random(in: 0..<440_000, using: &random))
+            try session.setMarker(Marker(id: MarkerID("r\(n)"), name: "R", position: at, kind: .marker))
+        }
+        return session
+    }
+}

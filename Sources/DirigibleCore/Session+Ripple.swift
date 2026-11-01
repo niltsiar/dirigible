@@ -5,11 +5,10 @@ import Foundation
 /// every scope (rule M). A track given twice ripples once.
 extension Session {
     /// On each track of `tracks`, removes the frames in each range of `ranges`, in one edit. The
-    /// overlapping and touching ranges merge first, and the cut goes from the last merged range to
-    /// the first, so each range removes the frames that the caller gave. Each cut removes the
-    /// frames of its range (the edge clips are cut by the 0003 ID rule) and moves each clip at or
-    /// after the range end left by the length of the range. Each marker at or after the range end
-    /// moves left by that length, and each marker in the range goes to the range start. An empty
+    /// overlapping and touching ranges merge first, so each range removes the frames that the
+    /// caller gave. The cut removes the frames of each range (the edge clips are cut by the 0003 ID
+    /// rule) and moves each clip left by the length of the ranges before it. Each marker moves left
+    /// by the removed frames before it, so a marker in a range goes to the range start. An empty
     /// range is skipped. No range or an empty track list changes nothing.
     public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID]) throws(SessionError) {
         guard ranges.allSatisfy({ $0.lowerBound.isInRange && $0.upperBound.isInRange }) else {
@@ -20,7 +19,7 @@ extension Session {
         guard !merged.isEmpty, !lanes.isEmpty else { return }
         var copy = self
         var taken = clipIDs
-        for range in merged.reversed() { try copy.rippleDelete(range, lanes: lanes, taken: &taken) }
+        try copy.rippleDelete(merged, lanes: lanes, taken: &taken)
         self = copy
     }
 
@@ -95,26 +94,31 @@ extension Session {
         var taken = clipIDs
         copy.tracks[own].clips.ripple(at: index, with: trimmed)
         if change < .zero {
-            try copy.rippleDelete(edge == .end ? (at - span)..<at : at..<(at + span), lanes: others, taken: &taken)
+            try copy.rippleDelete([edge == .end ? (at - span)..<at : at..<(at + span)], lanes: others, taken: &taken)
         } else {
             try copy.rippleInsert(span, at: at, lanes: others, taken: &taken)
         }
         self = copy
     }
 
-    /// The ripple delete of `lanes` and the markers. The range is not empty and in range.
-    private mutating func rippleDelete(_ range: Range<Frames>, lanes: [Int], taken: inout Set<ClipID>)
+    /// The ripple delete of `lanes` and the markers, in one pass. The ranges are in range and
+    /// merged (`merged`).
+    private mutating func rippleDelete(_ ranges: [Range<Frames>], lanes: [Int], taken: inout Set<ClipID>)
         throws(SessionError)
     {
-        let length = range.upperBound - range.lowerBound
         for index in lanes {
-            tracks[index].clips.clear([range]) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
-            tracks[index].clips.shift(from: range.upperBound, by: .zero - length)
+            tracks[index].clips.rippleDelete(ranges) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
         }
-        for marker in markers.values where marker.position > range.lowerBound {
+        var (next, removed) = (0, Frames.zero)
+        for marker in markers.values.sorted(by: { $0.position < $1.position }) {
+            while next < ranges.count, ranges[next].upperBound <= marker.position {
+                removed = removed + (ranges[next].upperBound - ranges[next].lowerBound)
+                next += 1
+            }
+            let inside = next < ranges.count && ranges[next].lowerBound < marker.position
             var moved = marker
-            moved.position = max(range.lowerBound, marker.position - length)
-            try setMarker(moved)
+            moved.position = (inside ? ranges[next].lowerBound : marker.position) - removed
+            if moved.position != marker.position { try setMarker(moved) }
         }
     }
 

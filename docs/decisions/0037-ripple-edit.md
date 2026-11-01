@@ -10,6 +10,7 @@
 - Amended: 2026-10-26, run `2026-10-13-replace-roomtone-split` (see 0053). The lane menu has Split Stereo to Mono after Split in group 2, only with a stereo clip in the selection. It is no ripple, so a pending or split take does not hide it.
 - Amended: 2026-10-26, run `2026-10-13-render-denoise` (see 0054). The lane menu has Reduce Noise after Split Stereo to Mono in group 2, when the selection holds a clip on a track with no role or the dialogue role. It is no ripple, so a pending or split take does not hide it.
 - Amended: 2026-10-27, run `2026-10-27-take-markers` (F107, see 0018). During a take, Add Marker and Add Chapter of the lane menu act at the record head while the take records, as the Markers menu items do. The ruler menu add items stay off during a take.
+- Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). `Session.rippleDelete(_ ranges:on:)` cuts all merged ranges in one pass over each lane: it clears the ranges, repairs the joins of the lane with the gaps once, and then moves each clip and each marker left by the frames of the ranges before it. The result is the same as the cuts from the last merged range to the first. A plan of 1200 cuts on 6 tracks is one edit of 50 ms or less (decision 0066).
 
 ## Context
 

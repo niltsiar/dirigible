@@ -21,7 +21,7 @@ tmp="$(mktemp -d)"
 holder="" child="" waiter="" inner="" other=""
 trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 # The value of an outer with-lock.sh call names another lock.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD WITH_LOCK_BUILDERS_MIN WITH_LOCK_BUILDERS_FLOOR BASE MAKEFLAGS SINCE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD WITH_LOCK_BUILDERS_MIN WITH_LOCK_BUILDERS_FLOOR WITH_LOCK_RUN_ONLY BASE MAKEFLAGS SINCE
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # A pid variable can outlive its child, and the kernel can give the number to a process of another
@@ -666,6 +666,113 @@ lf_start env WITH_LOCK_MAX_WAIT=2 DIRIGIBLE_LOCKED_SCRIPT=1
 lf_finish 80
 [[ $code -eq 0 && -s "$tmp/state" ]] || fail "lock-free DIRIGIBLE_LOCKED_SCRIPT: exit $code after $elapsed s: $out"
 reset_builders
+
+# Run-only mode: WITH_LOCK_RUN_ONLY=1 takes no lock and waits only for a long holder (a bench, a
+# release call). It runs only a built binary (a path under .build/ or build/Dirigible.app/) or
+# bash <file> or sh <file>, after the words env, time, NAME=value, and probe.sh [--no-audio]
+# <folder>. Every other form exits 2 and runs nothing. A stub of each tool that builds writes
+# $tmp/marker; the stub probe.sh and the stub binary write their arguments there too.
+cd "$repo" || exit 2
+ro="$tmp/ro" marker="$tmp/marker"
+mkdir -p "$ro/bin" "$repo/.build/debug" "$repo/build/Dirigible.app/Contents/MacOS" "$tmp/pf"
+printf '#!/bin/bash\necho "$(basename "$0") $*" >> "%s"\n' "$marker" > "$ro/stub"
+for name in swift swiftc make touch; do cp "$ro/stub" "$ro/bin/$name"; done
+cp "$ro/stub" "$repo/scripts/land.sh"
+cp "$ro/stub" "$repo/scripts/probe.sh"
+cp "$ro/stub" "$repo/.build/debug/dirigible"
+cp "$ro/stub" "$repo/build/Dirigible.app/Contents/MacOS/Dirigible"
+chmod +x "$ro/bin/"* "$repo/scripts/land.sh" "$repo/scripts/probe.sh" "$repo/.build/debug/dirigible" "$repo/build/Dirigible.app/Contents/MacOS/Dirigible"
+printf 'echo script >> "%s"\n' "$marker" > "$repo/run.sh"
+# ro_call <variable value> <command...>: one call beside the holder that is there, with a limit of 2 s.
+ro_call() {
+    local value="$1"
+    shift
+    rm -f "$marker"
+    out="$(PATH="$ro/bin:$PATH" WITH_LOCK_RUN_ONLY="$value" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$@" 2>&1)"
+    code=$?
+}
+ro_idle() { [[ ! -e "$holds" && ! -e "$waits" && -z "$(ls -A "$waiting" 2>/dev/null)$(ls -A "$first" 2>/dev/null)" ]]; }
+# (C5) A live ordinary holder: the call runs at once, with no lock. The same call with no variable
+# waits for the holder and exits 75 at the limit.
+reset_builders
+hold
+ro_call 1 .build/debug/dirigible info
+[[ $code -eq 0 && "$(cat "$marker" 2>/dev/null)" == 'dirigible info' && "$out" == *'lock-free targets (run-only): no lock'* && "$(cat "$lock/pid")" == "$holder" ]] && ro_idle ||
+    fail "run-only, ordinary holder: exit $code, marker [$(cat "$marker" 2>/dev/null)]: $out"
+for value in "" 0; do
+    ro_call "$value" .build/debug/dirigible info
+    [[ $code -eq 75 && ! -e "$marker" && "$out" != *'lock-free targets'* ]] || fail "run-only, variable [$value]: exit $code (want 75), marker [$(cat "$marker" 2>/dev/null)]: $out"
+done
+# (C6) A long holder (a bench, a release call): the call waits with no lock, marker, or ticket, and exits 75 at the limit.
+for holder_command in 'scripts/bench.sh EditBenchmark' 'make dmg'; do
+    lf_holder "$holder_command"
+    ro_call 1 .build/debug/dirigible info
+    [[ $code -eq 75 && ! -e "$marker" && "$out" != *'lock-free targets'* && "$(cat "$lock/pid")" == "$holder" ]] && ro_idle ||
+        fail "run-only, holder [$holder_command]: exit $code (want 75), marker [$(cat "$marker" 2>/dev/null)]: $out"
+done
+# The holder ends during the wait: the command runs with no lock, and one wait line ends with lockfree.
+lf_holder 'scripts/bench.sh EditBenchmark' 1
+rm -f "$marker"
+out="$(PATH="$ro/bin:$PATH" WITH_LOCK_RUN_ONLY=1 WITH_LOCK_MAX_WAIT=10 WITH_LOCK_RETRY=0.1 "$repo/scripts/with-lock.sh" .build/debug/dirigible info 2>&1)"
+code=$?
+[[ $code -eq 0 && "$(cat "$marker" 2>/dev/null)" == 'dirigible info' && ! -e "$holds" && "$(wc -l < "$waits" | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $NF }' "$waits")" == '6 lockfree' ]] ||
+    fail "run-only, the holder ends: exit $code, wait line [$(cat "$waits" 2>/dev/null)]: $out"
+reset_builders
+# (C7) A form that is not allowed exits 2 with a message that names the allowed forms: no command, no lock, no log line.
+no_run() {
+    ro_call 1 "$@"
+    [[ $code -eq 2 && ! -e "$marker" && "$out" == *'a built binary'* && "$out" == *'bash <file>'* ]] && ro_idle ||
+        fail "run-only, refused form [$*]: exit $code (want 2), marker [$(cat "$marker" 2>/dev/null)]: $out"
+}
+no_run swift build
+no_run swiftc x.swift
+no_run make test
+no_run scripts/land.sh
+no_run touch "$tmp/touched"
+no_run env FOO=1 swiftc x.swift
+no_run env FOO=1 touch "$tmp/touched"
+no_run time swift build
+no_run FOO=1 make test
+no_run scripts/probe.sh "$tmp/pf" swiftc x.swift
+no_run scripts/probe.sh "$tmp/pf" swift build
+no_run scripts/probe.sh --no-audio "$tmp/pf" swift run x
+no_run "$repo/scripts/probe.sh" "$tmp/pf" swift build
+no_run env -i swift build
+no_run time -p swift build
+no_run /usr/bin/time -p swift build
+no_run /usr/bin/swift build
+no_run xcrun swift build
+no_run nice swift build
+no_run nohup swift build
+no_run caffeinate swift build
+no_run exec swift build
+no_run command swift build
+no_run sh -c 'swift build'
+no_run bash -c 'swift build'
+no_run bash -x run.sh
+no_run bash
+no_run env
+no_run scripts/probe.sh "$tmp/pf"
+no_run .build/../scripts/land.sh
+no_run build/Dirigible.app/../../scripts/land.sh
+# Near inputs of C7: each one runs.
+ro_run() {
+    local want="$1"
+    shift
+    ro_call 1 "$@"
+    [[ $code -eq 0 && "$(cat "$marker" 2>/dev/null)" == "$want" && "$out" == *'lock-free targets (run-only): no lock'* ]] && ro_idle ||
+        fail "run-only, allowed form [$*]: exit $code, marker [$(cat "$marker" 2>/dev/null)] (want [$want]): $out"
+}
+ro_run 'dirigible info' .build/debug/dirigible info
+ro_run 'dirigible info' "$repo/.build/debug/dirigible" info
+ro_run 'Dirigible info' build/Dirigible.app/Contents/MacOS/Dirigible info
+ro_run 'dirigible info' env FOO=1 .build/debug/dirigible info
+ro_run 'dirigible info' time .build/debug/dirigible info
+ro_run "probe.sh $tmp/pf .build/debug/dirigible info" scripts/probe.sh "$tmp/pf" .build/debug/dirigible info
+ro_run "probe.sh --no-audio $tmp/pf .build/debug/dirigible info" "$repo/scripts/probe.sh" --no-audio "$tmp/pf" .build/debug/dirigible info
+ro_run script bash run.sh
+ro_run script sh run.sh
+ro_run script env FOO=1 bash run.sh
 
 # The refusal of check-changed.sh for a clean tree with commits past origin/main (exit 3, one line)
 # passes through at once: no lock, no wait, no ticket, no log line, no command, also behind a long

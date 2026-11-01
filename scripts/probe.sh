@@ -8,6 +8,10 @@
 # The folder must be under .scratchpads/ of this repo (in a worktree, also of the main checkout)
 # or under /private/tmp.
 # The command runs with the folder as its working directory.
+# A probe that only runs a built binary and times nothing takes no build lock: run it as
+# WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh <folder> <command>. That mode allows
+# only a built binary (a path under .build/ or build/Dirigible.app/) or bash <file>; any other
+# command exits 2. A probe that times something takes the lock, with no variable.
 #
 # A Swift build in a probe: pass `--disable-sandbox` to swift build, test, or package, because
 # SwiftPM cannot start its own sandbox inside this one. A build with two --arch values goes through

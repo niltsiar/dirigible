@@ -1167,12 +1167,9 @@ for run in "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.s
   expect allow "$run"
 done
 
-# Inside a with-lock.sh call a direct run of a hook test blocks too (wiki item 1375, DLV-206/cost): the
-# call holds the build lock and a slot of the 2-tree cap for the length of the test, 200 s or more.
-# A .test.sh form gets the key-tree reason, and a scripts/test-hooks.sh form (with a bare make
-# test-hooks) gets the lock-free-form reason, because test-hooks.sh makes the key tree. Both end with
-# the one form, which takes no lock. No reason says that the call holds the lock: the run-only form
-# WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh bash <test> takes none.
+# Inside a with-lock.sh call a direct run of a hook test blocks too (item 1375, DLV-206/cost). A .test.sh
+# form gets the key-tree reason; a test-hooks.sh form and a bare make test-hooks get the lock-free-form
+# reason, because test-hooks.sh makes the key tree. No reason says that the call holds the lock.
 expect_each_reason() { # <command> <substring>...
   local run="$1" want
   shift

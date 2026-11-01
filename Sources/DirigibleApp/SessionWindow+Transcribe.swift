@@ -14,14 +14,14 @@ struct TranscribeJobShown: Equatable {
         switch stage {
         case .download(let fraction): L10n.transcribeBannerDownload.format(Self.percent(fraction))
         case .transcribe(let fraction): L10n.transcribeBannerRunning.format(request.trackName, Self.percent(fraction))
-        case nil: L10n.transcribeBannerRunning.format(request.trackName, 0)
+        case .check, .checked, nil: L10n.transcribeBannerRunning.format(request.trackName, 0)
         }
     }
 
     var fraction: Double {
         switch stage {
         case .download(let fraction), .transcribe(let fraction): min(1, max(0, fraction))
-        case nil: 0
+        case .check, .checked, nil: 0
         }
     }
 
@@ -109,7 +109,7 @@ extension SessionWindow {
         transcribe.task = Task { [weak self] in
             do throws(StudioError) {
                 let report = try await studio.transcribe(
-                    track: request.track, language: request.language, model: request.model
+                    track: request.track, language: request.language, model: .catalog(request.model)
                 ) { [weak self] in self?.transcribe.job?.stage = $0 }
                 if report.id == nil { self?.notify(in: studio) { .noWords(revision: $0, press: $1) } }
             } catch .transcriptionYielded {

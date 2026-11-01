@@ -742,3 +742,10 @@
 "silences.help.keep" = "De tijd in ms die Inkorten in elke stilte laat staan. Hij is korter dan de minimale duur.";
 "silences.help.action" = "Stelt de actie van de geselecteerde rijen in.";
 "silences.help.mute" = "Verlaagt het geluid met 96 dB. Dit is geen digitale stilte.";
+"error.transcribe.file.unreadable" = "Dirigible kon het modelbestand niet lezen (fout %lld).";
+"error.transcribe.file.helper.missing" = "Een onderdeel van Dirigible ontbreekt: het programma dat een modelbestand controleert. Installeer Dirigible opnieuw.";
+"error.transcribe.file.helper.start" = "Het programma dat een modelbestand controleert, is niet gestart (%1$@ %2$lld). Installeer Dirigible opnieuw.";
+"error.transcribe.file.refused" = "Dirigible kan dit modelbestand niet gebruiken. %@";
+"error.transcribe.file.crashed" = "Het modelbestand heeft het programma gestopt dat het controleert (signaal %lld). Dirigible kan dit bestand niet gebruiken.";
+"error.transcribe.file.changed" = "Het modelbestand is tijdens de transcriptie gewijzigd. Probeer het opnieuw.";
+"error.transcribe.file.english" = "Dit modelbestand kent alleen Engels. Kies Engels of Automatisch als taal.";

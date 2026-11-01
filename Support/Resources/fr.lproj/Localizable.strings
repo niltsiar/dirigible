@@ -742,3 +742,10 @@
 "silences.help.keep" = "Le temps en ms que Raccourcir laisse dans chaque silence. Il est inférieur à la durée minimale.";
 "silences.help.action" = "Définit l’action des lignes sélectionnées.";
 "silences.help.mute" = "Baisse le son de 96 dB. Ce n’est pas un silence numérique.";
+"error.transcribe.file.unreadable" = "Dirigible n’a pas pu lire le fichier de modèle (erreur %lld).";
+"error.transcribe.file.helper.missing" = "Une partie de Dirigible manque : le programme qui vérifie un fichier de modèle. Réinstallez Dirigible.";
+"error.transcribe.file.helper.start" = "Le programme qui vérifie un fichier de modèle n’a pas démarré (%1$@ %2$lld). Réinstallez Dirigible.";
+"error.transcribe.file.refused" = "Dirigible ne peut pas utiliser ce fichier de modèle. %@";
+"error.transcribe.file.crashed" = "Le fichier de modèle a arrêté le programme qui le vérifie (signal %lld). Dirigible ne peut pas utiliser ce fichier.";
+"error.transcribe.file.changed" = "Le fichier de modèle a changé pendant la transcription. Réessayez.";
+"error.transcribe.file.english" = "Ce fichier de modèle ne contient que l’anglais. Choisissez l’anglais ou Automatique comme langue.";

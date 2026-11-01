@@ -103,6 +103,19 @@ struct CaptureEnvironment: Sendable {
     /// The model check of a job on its GCD thread: `checked(in:)` on the model folder. Tests give
     /// one that needs no catalog file.
     var checkModel: @Sendable (WhisperModel, URL) -> CheckedModel? = { $0.checked(in: $1) }
+    /// The check of a model file of the user on the GCD thread of a job (decision 0065, D8): the
+    /// file, the record of its last passed check, and the stop check. `live` starts the helper of
+    /// `ModelFileCheck.helper(executable:)`; tests give a stub helper.
+    var checkModelFile:
+        @Sendable (URL, PassedModelFile?, @Sendable () -> Bool) throws(ModelFileCheckError) -> CheckedModel = {
+            url, passed, stop throws(ModelFileCheckError) in
+            guard let executable = Bundle.main.executableURL else { throw .helperMissing(path: "dirigible") }
+            return try ModelFileCheck.run(
+                url, helper: ModelFileCheck.helper(executable: executable), passed: passed, stop: stop)
+        }
+    /// A step after a passed check of a model file of the user, before the engine part. Tests
+    /// change the file there.
+    var modelFileCheckDone: @Sendable () async -> Void = {}
     /// The model folder and the download of a job (decision 0065 D2). Tests give their own.
     var modelStore = WhisperModelStore.live
     /// The reason of the activity of a transcription job. Tests set a UUID text.

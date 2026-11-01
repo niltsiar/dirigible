@@ -312,6 +312,25 @@ extension TranscribeError {
             "the VAD model is not at \(tried.joined(separator: ", ")). Transcription needs it to skip silence."
         case .vadModelChecksum(let file):
             "the VAD model at \(file) does not have the size and the SHA-256 that Dirigible pins. Transcription needs it to skip silence."
+        case .modelFile(let error): error.message
+        case .modelChanged: "the model file changed after its check."
+        case .languageNotInModel: "the model file has only English: give the language en or auto."
+        }
+    }
+}
+
+extension ModelFileCheckError {
+    /// No `default` case: a new error case does not compile until it has a message.
+    package var message: String {
+        switch self {
+        case .unreadable(let code): "cannot read the model file: \(String(cString: strerror(code)))."
+        case .helperMissing(let path): "the model check helper is not at \(path). Install Dirigible again."
+        case .helperNotStarted(let path, let domain, let code):
+            "the model check helper at \(path) did not start (\(domain) \(code)). Install Dirigible again."
+        case .refused(let line): "the model check refused the file: \(line)"
+        case .helperStopped(let signal): "the model file stopped the model check with signal \(signal)."
+        case .changedDuringCheck: "the model file changed during its check."
+        case .stopped: "the model check was stopped."
         }
     }
 }

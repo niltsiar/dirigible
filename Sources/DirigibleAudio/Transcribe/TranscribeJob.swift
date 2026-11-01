@@ -100,21 +100,95 @@ func transcribeSpans(
     return TranscribedWords(words: mapped.words, untimed: mapped.untimed, language: result.language)
 }
 
-/// The work of a job off the main actor (decision 0065 D5): the leftover sweep, the model check, and
-/// when it fails, the removal of a catalog file that fails the check and the download, with the
-/// stop check of `run`; then a read of the flags and the engine. The model check and the engine
-/// run on a `.userInitiated` GCD thread. Nil for a stop.
+/// The work of a job off the main actor (decision 0065 D5): the leftover sweep, then the model.
+/// For a catalog model: the model check and, when it fails, the removal of a catalog file that fails
+/// the check and the download, with the stop check of `run`. For a model file of the user (D8): the
+/// check of `ModelFileCheck` and `announce` of its record, the language rule of an English-only file,
+/// and a hash of the file again before the engine. Then a read of the flags and the engine. The
+/// checks and the engine run on a `.userInitiated` GCD thread. Nil for a stop.
 @concurrent nonisolated func transcribeWork(
-    _ map: SpanMap, session: Session, lock: PackageLock, language: WhisperLanguage, model: WhisperModel,
-    environment: CaptureEnvironment, run: ReadRun, progress: @escaping @Sendable (TranscribeProgress) -> Void
-) async -> Result<TranscribedWords?, StudioError> {
-    let store = environment.modelStore
+    _ map: SpanMap, session: Session, lock: PackageLock, language: WhisperLanguage, model: WhisperModelChoice,
+    environment: CaptureEnvironment, run: ReadRun, announce: @escaping @Sendable (TranscribeProgress) async -> Void,
+    progress: @escaping @Sendable (TranscribeProgress) -> Void
+) async -> Result<(TranscribedWords, PassedModelFile?)?, StudioError> {
     let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
+    do { try environment.modelStore.removeLeftovers() } catch {
+        if stopped() { return .success(nil) }
+        return .failure(.transcription(modelError(error, folder: environment.modelStore.folder)))
+    }
+    let checked: CheckedModel
+    var language = language
+    var passed: PassedModelFile?
+    switch model {
+    case .catalog(let entry):
+        switch await catalogModel(entry, environment: environment, stopped: stopped, progress: progress) {
+        case .success(let model?): checked = model
+        case .success(nil): return .success(nil)
+        case .failure(let error): return .failure(.transcription(error))
+        }
+    case .file(let url, let record):
+        await announce(.check)
+        let result = await onJobThread {
+            Result { () throws(ModelFileCheckError) in
+                try environment.checkModelFile(url, record, stopped)
+            }
+        }
+        switch result {
+        case .success(let model): checked = model
+        case .failure(let error):
+            if error == .stopped || stopped() { return .success(nil) }
+            return .failure(.transcription(.modelFile(error)))
+        }
+        if case .file(let record) = checked.source {
+            await announce(.checked(record))
+            if !record.facts.isMultilingual {
+                switch language {
+                case .automatic: language = .code("en")
+                case .code("en"): break
+                case .code: return .failure(.transcription(.languageNotInModel))
+                }
+            }
+            passed = record
+        }
+        await environment.modelFileCheckDone()
+    }
+    let (job, file) = (language, passed)
+    return await onJobThread { () -> Result<(TranscribedWords, PassedModelFile?)?, StudioError> in
+        guard !stopped() else { return .success(nil) }
+        if let file {
+            do throws(FileReadError) {
+                guard try sha256(of: checked.url) == file.sha256 else {
+                    return .failure(.transcription(.modelChanged))
+                }
+            } catch {
+                return .failure(.transcription(.modelFile(.unreadable(errno: error.errno))))
+            }
+        }
+        let package: URL
+        do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
+        do throws(TranscribeError) {
+            let words = try transcribeSpans(
+                map, session: session, package: package, model: checked, language: job,
+                engine: environment.transcribe, log: environment.log, stop: run.stop
+            ) { progress(.transcribe($0)) }
+            return .success(words.map { ($0, file) })
+        } catch {
+            return .failure(.transcription(error))
+        }
+    }
+}
+
+/// The catalog model `model` of a job: the model check and, when it fails, the removal of the file
+/// that fails the check and the download. Nil for a stop.
+private func catalogModel(
+    _ model: WhisperModel, environment: CaptureEnvironment, stopped: @escaping @Sendable () -> Bool,
+    progress: @escaping @Sendable (TranscribeProgress) -> Void
+) async -> Result<CheckedModel?, TranscribeError> {
+    let store = environment.modelStore
     let file = store.folder.appending(path: model.fileName)
     let check = { await onJobThread { environment.checkModel(model, store.folder) } }
     var checked: CheckedModel?
     do {
-        try store.removeLeftovers()
         if FileManager.default.fileExists(atPath: file.path) { checked = await check() }
         if checked == nil {
             if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
@@ -123,23 +197,10 @@ func transcribeSpans(
         }
     } catch {
         if stopped() { return .success(nil) }
-        return .failure(.transcription(modelError(error, folder: store.folder)))
+        return .failure(modelError(error, folder: store.folder))
     }
-    guard let checked else { return .failure(.transcription(.modelChecksum)) }
-    return await onJobThread { () -> Result<TranscribedWords?, StudioError> in
-        guard !stopped() else { return .success(nil) }
-        let package: URL
-        do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
-        do throws(TranscribeError) {
-            return .success(
-                try transcribeSpans(
-                    map, session: session, package: package, model: checked, language: language,
-                    engine: environment.transcribe, log: environment.log, stop: run.stop
-                ) { progress(.transcribe($0)) })
-        } catch {
-            return .failure(.transcription(error))
-        }
-    }
+    guard let checked else { return .failure(.modelChecksum) }
+    return .success(checked)
 }
 
 /// `body` on a `.userInitiated` GCD thread: the model hash and the engine block for seconds, so

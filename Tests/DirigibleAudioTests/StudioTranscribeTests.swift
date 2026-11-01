@@ -71,7 +71,8 @@ import os
             Task {
                 do throws(StudioError) {
                     return .success(
-                        try await studio.transcribe(track: track, language: .code("es"), model: .base, agent: agent))
+                        try await studio.transcribe(
+                            track: track, language: .code("es"), model: .catalog(.base), agent: agent))
                 } catch {
                     return .failure(error)
                 }

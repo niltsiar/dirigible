@@ -153,6 +153,15 @@ public enum ModelFileCheck {
         return CheckedModel(source: .file(record), url: url)
     }
 
+    /// The helper of the process whose executable is `executable`, with its links resolved: for the
+    /// executable in `Contents/MacOS` of the app, `Contents/Helpers/dirigible`; else the `dirigible`
+    /// beside it, which is the CLI itself or the CLI of a `swift build` folder.
+    public static func helper(executable: URL) -> URL {
+        let folder = executable.resolvingSymlinksInPath().deletingLastPathComponent()
+        guard folder.lastPathComponent == "MacOS" else { return folder.appending(path: "dirigible") }
+        return folder.deletingLastPathComponent().appending(path: "Helpers/dirigible")
+    }
+
     private static func notStarted(_ helper: URL, _ error: any Error) -> ModelFileCheckError {
         let error = error as NSError
         return .helperNotStarted(path: helper.path, domain: error.domain, code: error.code)

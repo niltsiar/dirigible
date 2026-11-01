@@ -78,6 +78,13 @@ func sha256(of url: URL) throws(FileReadError) -> String {
     return hash.finalize().map { String(format: "%02x", $0) }.joined()
 }
 
+/// The model of a transcription job: a catalog entry, or a model file of the user with the record
+/// of its last passed check, if any (decision 0065, D8).
+public enum WhisperModelChoice: Hashable, Sendable {
+    case catalog(WhisperModel)
+    case file(URL, passed: PassedModelFile?)
+}
+
 /// The SHA-256 and the facts of a model file of the user that passed the check of
 /// `ModelFileCheck` (decision 0065, D8). A next check of a file with this SHA-256 runs no helper.
 public struct PassedModelFile: Hashable, Sendable {

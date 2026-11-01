@@ -742,3 +742,10 @@
 "silences.help.keep" = "The time that Shorten leaves in each silence, in ms. It is less than the minimum length.";
 "silences.help.action" = "Sets the action of the selected rows.";
 "silences.help.mute" = "Lowers the audio by 96 dB. It is not digital silence.";
+"error.transcribe.file.unreadable" = "Dirigible could not read the model file (error %lld).";
+"error.transcribe.file.helper.missing" = "A part of Dirigible is missing: the program that checks a model file. Install Dirigible again.";
+"error.transcribe.file.helper.start" = "The program that checks a model file did not start (%1$@ %2$lld). Install Dirigible again.";
+"error.transcribe.file.refused" = "Dirigible cannot use this model file. %@";
+"error.transcribe.file.crashed" = "The model file stopped the program that checks it (signal %lld). Dirigible cannot use this file.";
+"error.transcribe.file.changed" = "The model file changed during the transcription. Try again.";
+"error.transcribe.file.english" = "This model file has only English. Choose English or Automatic as the language.";

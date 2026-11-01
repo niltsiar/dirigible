@@ -60,6 +60,12 @@ extension AppDelegate {
     }
 
     func timeline(_ command: TimelineCommand, event: NSEvent?, in keyWindow: NSWindow?) {
+        // The menu key equivalents of Return and Delete come before the list sees the key.
+        if command == .renameTrack || command == .delete, event?.type == .keyDown, let model = key,
+            model.silenceListHasFocus(in: keyWindow)
+        {
+            return model.silenceListKey(command)
+        }
         if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
         if let selector = command.selector {
             if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }

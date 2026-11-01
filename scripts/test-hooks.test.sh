@@ -4,7 +4,8 @@
 # (C3), a key from the work tree on a dirty tree (C16), no stamp after a red test or a make flag
 # (C4), and a run from a key tree that fails on a read outside the key and leaves no git state
 # (C5), and a refusal of the whole list outside the push check, with no stamp reuse before it
-# (C6). Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
+# (C6), and HOOK_CASES: no stamp and no reuse, and an exit 1 with a push check or a hooks pass (C10).
+# Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
 # xcodebuild, jq, sw_vers, and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
@@ -141,6 +142,34 @@ run_with --
     || fail "(C6) an uncommitted HOOK_TESTS entry, no switch: code $code, ran $(ran): $(out)"
 run_with DIRIGIBLE_FULL_SUITE=1 --
 [[ $code -eq 0 && $(ran) -eq 3 && $(stamps) -eq 0 ]] || fail "(C6) an uncommitted HOOK_TESTS entry, with a switch: code $code, ran $(ran), stamps $(stamps): $(out)"
+
+# C10: HOOK_CASES thins the cases of a hook test, so a run with it writes no stamp and reuses none,
+# and a push check or a hooks pass with it exits 1 before any test. A stub test writes the value
+# that it gets, so a make command line value reaches the test as it is.
+new_repo
+run_with DIRIGIBLE_FULL_SUITE=1 --
+run_with DIRIGIBLE_FULL_SUITE=1 HOOK_CASES=agent-clock --
+[[ $code -eq 0 && $(ran) -eq 4 && $(stamps) -eq 1 ]] && ! grep -q reuse "$tmp/out" && grep -q '^test-hooks: no stamp' "$tmp/out" \
+    || fail "(C10) HOOK_CASES with a stamp of the key: the run reused it or wrote a stamp: code $code, ran $(ran), stamps $(stamps): $(out)"
+new_repo
+run_with DIRIGIBLE_FULL_SUITE=1 HOOK_CASES=agent-clock --
+[[ $code -eq 0 && $(ran) -eq 2 && $(stamps) -eq 0 ]] \
+    || fail "(C10) HOOK_CASES with no stamp: code $code, ran $(ran), stamps $(stamps): $(out)"
+for sw in DIRIGIBLE_PUSH_CHECK DIRIGIBLE_HOOKS_ALL; do
+    new_repo
+    run_with "$sw=1" HOOK_CASES=agent-clock --
+    [[ $code -ne 0 && $(ran) -eq 0 && $(stamps) -eq 0 ]] && grep -q HOOK_CASES "$tmp/out" \
+        || fail "(C10) $sw=1 with HOOK_CASES: code $code, ran $(ran), stamps $(stamps): $(out)"
+    run_with "$sw=1" --
+    [[ $code -eq 0 && $(ran) -eq 2 && $(stamps) -eq 1 ]] \
+        || fail "(C10) $sw=1 with no HOOK_CASES: code $code, ran $(ran), stamps $(stamps): $(out)"
+done
+new_repo
+printf '#!/bin/bash\nprintf "%%s" "${HOOK_CASES-unset}" > "$HOOKS_LOG.cases"\n' > "$repo/t/a.test.sh"
+commit cases-echo
+run_with DIRIGIBLE_FULL_SUITE=1 -- 'HOOK_CASES=agent-clock|write-guard'
+[[ $code -eq 0 && "$(cat "$tmp/log.cases" 2>/dev/null)" == 'agent-clock|write-guard' ]] \
+    || fail "(C10) make did not pass HOOK_CASES unchanged: code $code, value [$(cat "$tmp/log.cases" 2>&1)]: $(out)"
 
 # C2: after a change of each key input, each stub test runs again and no reuse line prints.
 # expect_rerun <name> <change function>: a pass, the change, then the next run.

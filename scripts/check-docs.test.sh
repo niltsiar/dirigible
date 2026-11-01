@@ -237,5 +237,23 @@ good; sed -i '' 's/(F02)/(F02, F03)/' "$tmp/docs/requirements/releases.md"; expe
 good; sed -i '' 's/^Status: closed$/Status: closed 2026-11-02/' "$tmp/docs/requirements/releases.md"; expect pass 'a closed release section with a date after the status'
 good; sed -i '' 's/^Status: closed$/Status: closedown/' "$tmp/docs/requirements/releases.md"; expect fail 'a status line that only starts with closed' 'releases.md: the Release 1 section names F03, whose state is Later'
 
+# The module map: its Folders line names each folder of a Swift target in the scope of its target.
+folder() { mkdir -p "$tmp/Sources/$1"; printf 'struct X {}\n' > "$tmp/Sources/$1/$2"; }
+map() { printf '# 0002. Map\n\n%s\n' "$1" > "$tmp/docs/decisions/0002-module-map.md"; }
+audio='- **Folders.** Inside `DirigibleAudio`: `Capture/` (the device list), and `Studio/` (the facade). `DirigibleApp/Timeline/` holds the view.'
+good; folder DirigibleAudio/Capture A.swift; map "$audio"; expect pass 'a Swift folder that the Folders line names'
+good; folder DirigibleAudio/Capture A.swift; folder DirigibleAudio/Transcribe B.swift; map "$audio"
+expect fail 'a Swift folder that the Folders line does not name' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/Transcribe/'
+good; folder DirigibleAudio/Capture A.swift; mkdir -p "$tmp/Sources/CLame/src"; : > "$tmp/Sources/CLame/src/a.c"; map "$audio"
+expect pass 'a C folder with no Swift file'
+good; folder DirigibleApp/Timeline T.swift; map "$audio"; expect pass 'a folder of another target named with its target'
+good; folder DirigibleAudio/Transcribe B.swift; map "$audio"$'\n- Amended: 2026-11-01. `Transcribe/` holds the transcription job.'
+expect fail 'a folder that only another line names' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/Transcribe/'
+good; folder DirigibleAudio/Capture A.swift; expect fail 'a Swift folder and no module map' 'no docs/decisions/0002-module-map.md for the folders of Sources/'
+good; folder DirigibleMCP/Capture X.swift; map "$audio"
+expect fail 'a bare folder name for another target' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleMCP/Capture/'
+good; folder DirigibleAudio/New/Sub C.swift; map "$audio"
+expect fail 'a folder with only nested Swift files' 'docs/decisions/0002-module-map.md: Folders does not name Sources/DirigibleAudio/New/'
+
 [[ $failures -eq 0 ]] && echo "check-docs tests: all passed"
 exit $((failures > 0))

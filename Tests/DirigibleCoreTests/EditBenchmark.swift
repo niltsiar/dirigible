@@ -85,26 +85,52 @@ struct EditBenchmark {
         for (name, edit) in ripples { try Self.measure(name, History(marked), edit) }
     }
 
+    static let silenceCount = 1_200
+    static let silencePeriod = 96_000
+
+    /// Six mono tracks with one clip each, as long as 1200 silence periods of 96 000 frames.
+    static func silenceSession() throws -> Session {
+        var session = Session(sampleRate: 48_000)
+        let length = Frames(silenceCount * silencePeriod)
+        for n in 1...6 {
+            let file = FileID("f\(n)")
+            try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: length))
+            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+            try session.place(
+                Clip(id: ClipID("c\(n)"), file: file, start: 0, offset: 0, length: length), on: TrackID("t\(n)"))
+        }
+        return session
+    }
+
+    /// The silence of period `n`: 24 000 ..< 72 000 frames into it.
+    static func silenceEdits(_ action: SilenceEdit.Action) -> [SilenceEdit] {
+        (0..<silenceCount).map {
+            SilenceEdit(
+                range: Frames($0 * silencePeriod + 24_000)..<Frames($0 * silencePeriod + 72_000), action: action)
+        }
+    }
+
     /// Silence-tool C32: one `editSilences` of 1200 shortens on 6 tracks with one clip each, so each
     /// lane gets 1201 clips.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aSilencePlanOf1200ShortensFitsItsBudget() throws {
-        let (count, period) = (1_200, 96_000)
-        var session = Session(sampleRate: 48_000)
-        for n in 1...6 {
-            let file = FileID("f\(n)")
-            try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: Frames(count * period)))
-            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
-            try session.place(
-                Clip(id: ClipID("c\(n)"), file: file, start: 0, offset: 0, length: Frames(count * period)),
-                on: TrackID("t\(n)"))
-        }
-        let edits = (0..<count).map {
-            SilenceEdit(range: Frames($0 * period + 24_000)..<Frames($0 * period + 72_000), action: .shorten)
-        }
-        let plan = try SilencePlan(edits, keep: 24_000)
-        try Self.measure("editSilences of 1,200 shortens on 6 tracks", History(session), within: Self.applyBudget) {
+        let plan = try SilencePlan(Self.silenceEdits(.shorten), keep: 24_000)
+        try Self.measure(
+            "editSilences of 1,200 shortens on 6 tracks", History(try Self.silenceSession()), within: Self.applyBudget
+        ) {
             _ = try $0.editSilences(plan, muting: [])
+        }
+    }
+
+    /// Silence-tool C32: one `editSilences` of 1200 mutes on the 6 tracks. Each mute adds its
+    /// ramp points to the envelope of the one clip of each track.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aSilencePlanOf1200MutesFitsItsBudget() throws {
+        let session = try Self.silenceSession()
+        let plan = try SilencePlan(Self.silenceEdits(.mute), keep: nil)
+        let tracks = session.tracks.map(\.id)
+        try Self.measure("editSilences of 1,200 mutes on 6 tracks", History(session), within: Self.applyBudget) {
+            _ = try $0.editSilences(plan, muting: tracks)
         }
     }
 

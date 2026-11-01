@@ -89,8 +89,9 @@ public enum SilenceWarning: Hashable, Sendable {
 }
 
 extension Session {
-    /// The mute ramp of a silence edit: 10 ms.
-    var silenceRamp: Frames { Frames(sampleRate / 100) }
+    /// The mute ramp of a silence edit: 10 ms, and 1 frame at least, so the windows of two rows do
+    /// not overlap.
+    var silenceRamp: Frames { Frames(max(1, sampleRate / 100)) }
 
     /// Applies `plan` in one edit (decision 0066). First each mark and each mute at the plan frames,
     /// then one ripple delete of the cuts on all tracks, so Rule M moves the new markers too and the
@@ -106,6 +107,7 @@ extension Session {
         let floor = Gain(dB: Gain.range.lowerBound)!
         var copy = self
         var (cuts, markers, skipped) = ([Range<Frames>](), [MarkerID](), [Int]())
+        var mutes: [Range<Frames>] = []
         for (index, edit) in plan.edits.enumerated() {
             let (start, end) = (edit.range.lowerBound, edit.range.upperBound)
             switch edit.action {
@@ -120,7 +122,7 @@ extension Session {
                     skipped.append(index + 1)
                     continue
                 }
-                try copy.changeGain(by: floor, in: (start + ramp)..<(end - ramp), on: tracks, ramp: ramp)
+                mutes.append((start + ramp)..<(end - ramp))
             case .mark(let name):
                 let id = MarkerID()
                 try copy.setMarker(
@@ -128,6 +130,7 @@ extension Session {
                 markers.append(id)
             }
         }
+        try copy.changeGains(by: floor, in: mutes, on: tracks, ramp: ramp)
         try copy.rippleDelete(cuts, on: copy.tracks.map(\.id))
         self = copy
         let removed = cuts.reduce(Frames.zero) { $0 + ($1.upperBound - $1.lowerBound) }

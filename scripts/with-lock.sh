@@ -77,10 +77,10 @@
 # test-filter, or a word with =; and make test-hooks with a HOOK_TESTS= word. test, test-filter, and
 # test-app take the lock themselves through scripts/swift-test.sh (test-shards.sh holds it once for
 # its build and shards) and scripts/bundle.sh, so the outer call holds nothing while the hook tests
-# run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh (its refusal of a bare run with no
-# changed path and commits past origin/main) runs no command: the call prints the output of
-# check-changed.sh and exits 3 at once, with no lock, wait, ticket, or log line, also behind a
-# long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
+# run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh
+# (its refusal of a bare run with no changed path and commits past origin/main) runs no command:
+# the call prints the output of check-changed.sh and exits 3 at once, with no lock, wait, ticket, or
+# log line, also behind a long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
 # does not wait for another build or test. While a release call, a bench, a mutation pass, or a
 # flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a live
 # ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,

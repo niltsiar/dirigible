@@ -4,11 +4,11 @@
 # file of a floor file is on the floor.
 # Check that `make check-changed` of the real Makefile exits nonzero when the script does, and
 # runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
-# gives test-filter in place of test (and check-fast test-filter test-app, or static test-filter test-app when
-# no hook test is needed, in place of check), that
-# a local git run with a Swift test target and no FILTER exits 1 with the reason, and that FILTER
-# reaches the swift calls through make. Check that a
-# passing make check-changed with BASE writes the stamp, and a red one does not. Check that the push
+# gives test-filter in place of test (and check-fast test-filter test-app, or static test-filter
+# test-app when no hook test is needed, in place of check), that a local git run with a Swift test
+# target and no FILTER exits 1 with the reason, and that FILTER reaches the swift calls through
+# make. Check that a passing make check-changed with BASE writes the stamp, and a red one does not.
+# Check that the push
 # adds test-slow-push only for risk, a slow test, a Makefile change, or no passed slow run today,
 # and PUSH_RUN=<names> for a changed PUSH_SKIP file. Check that test-slow-push has no test of a
 # PUSH_SKIP file outside PUSH_RUN, that a passing make test-slow or test-slow-push writes the
@@ -16,8 +16,9 @@
 # Check that the recipe waits for a load under the core count before Swift tests, stops the wait
 # at CHECK_LOAD_WAIT, and reads no load for docs targets. Check the delta after a pass stamp, and
 # the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
-# ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word (a tooling
-# or build path that no hook test names), and the target static, in place of check-fast, when the paths need no hook test.
+# ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word
+# (a tooling or build path that no hook test names), and the target static, in place of check-fast,
+# when the paths need no hook test.
 # Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
 # the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit. Check that
 # .sourcekit-lsp/config.json (or the file that LSP_CONFIG names) sets backgroundIndexing to false.

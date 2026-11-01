@@ -734,7 +734,7 @@
 "silences.empty" = "No silences of %1$@ s or more at or under %2$@ dBFS.";
 "silences.empty.quietest" = "The quietest part is %@ dBFS.";
 "silences.keep.refusal" = "Keep must be less than the minimum length.";
-"silences.stale" = "The settings changed. Scan Again to use them.";
+"silences.stale" = "The settings or the tracks changed. Scan Again to update the list.";
 "silences.mark.name" = "Silence %lld";
 "silences.help.tracks" = "The scan reads the checked tracks. A cut still removes the time on every track.";
 "silences.help.threshold" = "A part of a track at or under this level is silent. Steps of 0.5 dB.";

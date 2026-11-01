@@ -83,8 +83,9 @@ public enum StudioError: Error, Hashable, Sendable {
     /// A silence scan could not open an audio file: no free descriptor, with its errno (decision
     /// 0066).
     case silencesRead(Int32)
-    /// The tracks or the pool files changed after the silence scan, so Apply changed nothing and
-    /// the window scans again (decision 0066).
+    /// The tracks or the pool files changed after the silence scan, so Apply changed nothing. The
+    /// window shows such a list as out of date, with Apply off, until the user scans again (decision
+    /// 0066).
     case silencesStale
     /// Files of a silence scan are missing, short, or unreadable: their clips would read as
     /// silence, so the scan gives no row (decisions 0062 and 0066).

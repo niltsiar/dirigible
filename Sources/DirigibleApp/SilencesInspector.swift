@@ -157,7 +157,7 @@ struct SilencesInspector: View {
         .accessibilityLabel(Text(L10n.inspectorTabSilences.key))
         HStack {
             Button(L10n.silencesApply.key) { model.applySilences() }.disabled(!model.canApplySilences)
-            if state.isStale { Text(L10n.silencesStale.key).foregroundStyle(.secondary) }
+            if state.isStale(in: studio) { Text(L10n.silencesStale.key).foregroundStyle(.secondary) }
         }
     }
 }

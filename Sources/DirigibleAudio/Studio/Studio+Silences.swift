@@ -20,6 +20,11 @@ public struct SilenceScan: Equatable, Sendable {
     public let quietest: WindowLevel?
     /// The session that the scan read.
     let scanned: Session
+
+    /// True when `session` has the tracks (IDs, order, gains, clips) and the pool files that the scan
+    /// read: the frames of the scan still hold. A marker, a mute, a solo, a name, a role, the
+    /// episode, and the transcripts do not count.
+    public func isCurrent(in session: Session) -> Bool { sameFrames(session, scanned) }
 }
 
 extension Studio {
@@ -55,7 +60,7 @@ extension Studio {
     /// (decision 0037). A throw changes nothing.
     @discardableResult
     public func applySilences(_ plan: SilencePlan, scan: SilenceScan) throws(StudioError) -> SilenceResult {
-        guard sameFrames(session, scan.scanned) else { throw .silencesStale }
+        guard scan.isCurrent(in: session) else { throw .silencesStale }
         return try edit(ripple: plan.hasShorten) { session throws(SessionError) in
             try session.editSilences(plan, muting: scan.tracks)
         }

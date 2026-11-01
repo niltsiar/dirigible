@@ -734,7 +734,7 @@
 "silences.empty" = "Nenhum silêncio de %1$@ s ou mais a %2$@ dBFS ou menos.";
 "silences.empty.quietest" = "A parte mais silenciosa está a %@ dBFS.";
 "silences.keep.refusal" = "O valor de Manter tem de ser menor do que a duração mínima.";
-"silences.stale" = "As definições mudaram. Procure de novo para as usar.";
+"silences.stale" = "As definições ou as faixas mudaram. Procure de novo para atualizar a lista.";
 "silences.mark.name" = "Silêncio %lld";
 "silences.help.tracks" = "A procura lê as faixas marcadas. Um corte continua a remover o tempo de todas as faixas.";
 "silences.help.threshold" = "Uma parte de uma faixa neste nível ou abaixo é silêncio. Passos de 0,5 dB.";

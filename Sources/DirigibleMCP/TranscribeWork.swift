@@ -108,13 +108,8 @@ package struct TranscribeWork: Sendable {
             return (track, checked)
         case .file(let url, let passed):
             guard let track = session.track(track) else { throw .session(.unknownTrack(track)) }
-            guard let executable = Bundle.main.executableURL else {
-                throw .engine(.modelFile(.helperMissing(path: "dirigible")))
-            }
             do throws(ModelFileCheckError) {
-                let checked = try ModelFileCheck.run(
-                    url, helper: ModelFileCheck.helper(executable: executable), passed: passed, stop: isCancelled)
-                return (track, checked)
+                return (track, try ModelFileCheck.run(url, passed: passed, stop: isCancelled))
             } catch {
                 switch error {
                 case .unreadable(errno: ENOENT): throw .noModel(url.path)

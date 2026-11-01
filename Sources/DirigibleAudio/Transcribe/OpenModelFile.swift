@@ -1,12 +1,18 @@
 import CWhisper
 import CryptoKit
 import Foundation
+import os
 
 /// A model file, opened once for reading (decision 0065, D8). Only a regular file opens: the open
 /// of a FIFO waits for a writer, and a read of a device can have no end. The hash, the helper, and
 /// the engine read this one descriptor, so a rename over the path cannot give them other bytes.
 final class OpenModelFile: Sendable {
     let descriptor: Int32
+    #if DEBUG
+        private let counted = OSAllocatedUnfairLock(initialState: 0)
+        /// The bytes that this process read from the file, for the tests of the read count.
+        var bytesRead: Int { counted.withLock { $0 } }
+    #endif
 
     /// The bytes of one read: a stop check runs before each of them.
     static let chunk = 1 << 20
@@ -30,6 +36,15 @@ final class OpenModelFile: Sendable {
 
     deinit { close(descriptor) }
 
+    /// `pread` on the file: the one read path of the hash and the engine load.
+    func read(into buffer: UnsafeMutableRawPointer, count: Int, at offset: off_t) -> Int {
+        let got = pread(descriptor, buffer, count, offset)
+        #if DEBUG
+            if got > 0 { counted.withLock { $0 += got } }
+        #endif
+        return got
+    }
+
     /// The SHA-256 of the file in lowercase hex, to the end of the file. It reads `stop` before each
     /// `chunk`, and a set stop throws `.stopped`.
     func sha256(stop: () -> Bool) throws(ModelFileCheckError) -> String {
@@ -45,7 +60,7 @@ final class OpenModelFile: Sendable {
         var offset = offset
         while true {
             if stop() { throw .stopped }
-            let count = buffer.withUnsafeMutableBytes { pread(descriptor, $0.baseAddress, $0.count, offset) }
+            let count = buffer.withUnsafeMutableBytes { read(into: $0.baseAddress!, count: $0.count, at: offset) }
             if count < 0 {
                 if errno == EINTR { continue }
                 throw .unreadable(errno: errno)
@@ -95,7 +110,7 @@ final class ModelFileLoad {
         var filled = 0
         while filled < Self.headerCount {
             let count = header.withUnsafeMutableBytes {
-                pread(file.descriptor, $0.baseAddress! + filled, Self.headerCount - filled, off_t(filled))
+                file.read(into: $0.baseAddress! + filled, count: Self.headerCount - filled, at: off_t(filled))
             }
             if count < 0, errno == EINTR { continue }
             if count < 0 { throw .modelFile(.unreadable(errno: errno)) }
@@ -148,7 +163,7 @@ final class ModelFileLoad {
                 eof = true
                 return size
             }
-            let count = pread(file.descriptor, output + done, min(size - done, OpenModelFile.chunk), off_t(offset))
+            let count = file.read(into: output + done, count: min(size - done, OpenModelFile.chunk), at: off_t(offset))
             if count < 0 {
                 if errno != EINTR { failure = errno }
                 continue

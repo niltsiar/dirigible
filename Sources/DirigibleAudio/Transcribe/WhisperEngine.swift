@@ -53,10 +53,10 @@ final class WhisperEngine {
         WhisperLog.shared.route(to: log)
         var params = whisper_context_default_params()
         params.use_gpu = false
-        if case .file(let record) = model.source {
-            guard let file = model.file else { throw .modelLoad }
+        switch model.origin {
+        case .file(let record, let file):
             context = try ModelFileLoad(file, stop: stop).load(params, sha256: record.sha256)
-        } else {
+        case .catalog:
             guard let context = whisper_init_from_file_with_params(model.url.path, params) else { throw .modelLoad }
             self.context = context
         }

@@ -109,9 +109,7 @@ struct CaptureEnvironment: Sendable {
     var checkModelFile:
         @Sendable (URL, PassedModelFile?, @Sendable () -> Bool) throws(ModelFileCheckError) -> CheckedModel = {
             url, passed, stop throws(ModelFileCheckError) in
-            guard let executable = Bundle.main.executableURL else { throw .helperMissing(path: "dirigible") }
-            return try ModelFileCheck.run(
-                url, helper: ModelFileCheck.helper(executable: executable), passed: passed, stop: stop)
+            try ModelFileCheck.run(url, passed: passed, stop: stop)
         }
     /// The SHA-256 of a kept model file of the user for the Transcribe sheet, on the GCD thread of
     /// its read run, with the stop check of the run (decision 0065, D8, C24). Tests count or hold it.

@@ -74,7 +74,7 @@ import os
             )
             studio.environment.checkModelFile = { url, _, _ throws(ModelFileCheckError) in
                 checks.withLock { $0.append(url) }
-                return CheckedModel(source: .file(record), url: url)
+                return CheckedModel(record, opened: try OpenModelFile(url), at: url)
             }
             studio.environment.transcribe = { model, _, count, _, _, _, _ throws(TranscribeError) in
                 models.withLock { $0.append(model) }
@@ -90,7 +90,7 @@ import os
             let text = "1\nImported 1 word.\nModel file SHA-256: \(hash)"
             #expect(outcome == .reply(.result(text: text, isError: false)), "\(outcome)")
             #expect(checks.withLock { $0 } == [file])
-            #expect(models.withLock { $0 } == [CheckedModel(source: .file(record), url: file)])
+            #expect(models.withLock { $0.map(\.source) } == [.file(record)])
             #expect(studio.session.words().map(\.text) == ["hola"])
             await studio.settle()
         }

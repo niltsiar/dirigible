@@ -22,6 +22,16 @@ struct WhisperEngineModelFileTests {
         }
     }
 
+    /// The job reads the file in the app twice (decision 0065 D8): the hash of the check and the load.
+    @Test func theJobReadsTheFileTwiceInTheApp() throws {
+        let size = WhisperModel.tinyQ51.byteCount
+        #expect(checked.file?.bytesRead == size, "the hash of the check")
+
+        _ = try WhisperEngine(model: checked, vad: nil, log: .disabled)
+
+        #expect(checked.file?.bytesRead == 2 * size, "the hash and the load")
+    }
+
     /// A rename of another file over the path after the check: the engine loads the checked bytes.
     @Test func aRenameOverThePathAfterTheCheckLoadsTheCheckedBytes() throws {
         let other = folder.url.appending(path: "other.bin")

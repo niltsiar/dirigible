@@ -51,8 +51,8 @@ public struct WhisperModelFacts: Hashable, Sendable, Codable {
 public struct WhisperModelFile: Hashable, Sendable {
     public let facts: WhisperModelFacts
     /// The ftype field with its quantization version, for example 1009 for Q5_1.
-    public let ftype: Int32
-    public let byteCount: Int
+    let ftype: Int32
+    let byteCount: Int
 
     static let magic: UInt32 = 0x6767_6d6c
     /// The (width, head count) pairs of the OpenAI models, tiny to large.

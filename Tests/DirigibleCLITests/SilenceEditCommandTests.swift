@@ -142,6 +142,22 @@ struct SilenceEditCommandTests {
         #expect(mute == CLIResult(status: 0, stdout: "mute\t96000\t144000\nremoved 0 frames\n", stderr: ""))
     }
 
+    /// A shorten that cuts nothing is no ripple: under the same take, a call with it and a mute exits
+    /// 0, and a shorten that cuts one frame exits 3. The default keep is 24 000 frames. Fail value:
+    /// exit 3 for the first call.
+    @Test func aShortenThatCutsNothingDoesNotBlockUnderASplitTake() async throws {
+        let fixture = try await PlaceCommandTests()
+        let before = try fixture.package.xml()
+        let nothing = try await fixture.package.run(
+            "silence-edit", "PKG", "--from", "96000", "--to", "120000", "--action", "shorten", "--from", "120000",
+            "--to", "144000", "--action", "mute")
+        #expect(nothing.status == 0 && nothing.stdout.hasPrefix("skipped\t96000\t120000\tshorten\n"), "\(nothing)")
+        #expect(try fixture.package.xml() != before, "the mute changed no gain")
+        let one = try await fixture.package.run(
+            "silence-edit", "PKG", "--from", "96000", "--to", "120001", "--action", "shorten")
+        #expect(one.status == 3, "\(one)")
+    }
+
     /// C26. The tool on files prints the text of the command, the skipped line too, and edits the
     /// package as the command does. The marker ID is new in each run, so the test masks it.
     @Test func theToolOnFilesGivesTheTextOfTheCommand() async throws {

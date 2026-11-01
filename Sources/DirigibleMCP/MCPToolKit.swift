@@ -16,10 +16,18 @@ typealias ToolEdit = @Sendable (inout Session) throws(SessionError) -> [String]
 /// path reads the anchors under the lock and the open window gives its stored map.
 typealias TakeImportEdit = @Sendable (inout Session, TakeMap) throws(SessionError) -> [String]
 
+/// Whether an edit ripples, so that a split take refuses it. A literal is a fixed answer. A plan
+/// whose cuts depend on the sample rate asks the session that the edit opens.
+package struct RippleNeed: ExpressibleByBooleanLiteral, Sendable {
+    let isNeeded: @Sendable (Session) -> Bool
+    package init(booleanLiteral value: Bool) { isNeeded = { _ in value } }
+    package init(_ isNeeded: @escaping @Sendable (Session) -> Bool) { self.isNeeded = isNeeded }
+}
+
 /// What a tool call does after its arguments are checked.
 enum ToolWork: Sendable {
     /// A package edit under the lock. A `ripple` edit also refuses a split take.
-    case edit(ripple: Bool, ToolEdit)
+    case edit(ripple: RippleNeed, ToolEdit)
     /// `transcript_import` with `take`: an edit under the lock that reads the take map (decision 0061).
     case takeImport(take: Int, TakeImportEdit)
     /// `session_info`: no lock, as `dirigible info`. `range` has `from <= to` (V24).

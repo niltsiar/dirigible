@@ -64,7 +64,15 @@ public struct SilencePlan: Hashable, Sendable {
         return (silence.lowerBound + head)..<(silence.upperBound - (keep - head))
     }
 
-    public var hasShorten: Bool { edits.contains { $0.action == .shorten } }
+    /// The frames that a shorten keeps at `sampleRate`: `keep`, else 500 ms.
+    public func keepFrames(sampleRate: Int) -> Frames { keep ?? Frames(sampleRate / 2) }
+
+    /// True when a shorten of the plan cuts at least one frame at `sampleRate`. Only then is the
+    /// plan a ripple (decision 0037): a shorten of `keep` frames or less changes nothing.
+    public func removesFrames(sampleRate: Int) -> Bool {
+        let keep = keepFrames(sampleRate: sampleRate)
+        return edits.contains { $0.action == .shorten && Self.cut(of: $0.range, keep: keep) != nil }
+    }
 }
 
 /// What one `Session.editSilences` call did.
@@ -102,7 +110,7 @@ extension Session {
         -> SilenceResult
     {
         _ = try trackIndices(tracks)
-        let keep = plan.keep ?? Frames(sampleRate / 2)
+        let keep = plan.keepFrames(sampleRate: sampleRate)
         let ramp = silenceRamp
         let floor = Gain(dB: Gain.range.lowerBound)!
         var copy = self

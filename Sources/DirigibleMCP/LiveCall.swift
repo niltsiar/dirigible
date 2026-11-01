@@ -19,11 +19,11 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     let refusedOpen = AgentReply.result(text: openInAppMessage(path), isError: true)
     /// The one busy guard of a live edit.
     func refuseBusy() throws(StudioError) { if target.busy != nil { throw .busy } }
-    func edit<Result>(ripple: Bool, _ body: (inout Session) throws(SessionError) -> Result) throws(StudioError)
+    func edit<Result>(ripple: RippleNeed, _ body: (inout Session) throws(SessionError) -> Result) throws(StudioError)
         -> Result
     {
         try refuseBusy()
-        return try studio.edit(ripple: ripple, agent: call.agent, body)
+        return try studio.edit(ripple: ripple.isNeeded(studio.session), agent: call.agent, body)
     }
     /// A live edit whose body has its own error: a studio refusal throws, and a body error comes
     /// back as `.failure`, so the case gives its own text.

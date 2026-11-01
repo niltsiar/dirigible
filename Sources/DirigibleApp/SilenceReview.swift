@@ -191,20 +191,6 @@ struct SilenceReview {
     static func reasonText(_ reason: SilenceWarning, table: (L10n) -> String = { $0.text }) -> String {
         table(reason == .word ? .silencesReasonWord : .silencesReasonSound)
     }
-
-    /// The playhead after Apply: a frame after a cut moves left by the cut, and a frame in a cut
-    /// goes to its start (Rule M, decision 0037).
-    static func moved(_ frame: Frames, by cuts: [Range<Frames>]) -> Frames {
-        var shift = Frames.zero
-        for cut in cuts.sorted(by: { $0.lowerBound < $1.lowerBound }) {
-            if frame >= cut.upperBound {
-                shift = shift + (cut.upperBound - cut.lowerBound)
-            } else if frame > cut.lowerBound {
-                return cut.lowerBound - shift
-            }
-        }
-        return frame - shift
-    }
 }
 
 /// What the tab says after Apply: the counts, the time removed, and the session length before and

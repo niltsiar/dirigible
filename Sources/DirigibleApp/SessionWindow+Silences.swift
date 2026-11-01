@@ -128,7 +128,7 @@ extension SessionWindow {
             let result = try studio.applySilences(plan, scan: review.scan)
             let summary = review.summary
             timeline.selection = .none
-            let moved = SilenceReview.moved(playhead, by: result.cuts)
+            let moved = playhead.afterRippleDelete(of: result.cuts.sorted { $0.lowerBound < $1.lowerBound })
             if moved != playhead { transport(.seek(.frame(moved))) }
             let note = SilenceNote(
                 shortened: result.cuts.count, muted: summary.counts[.mute] ?? 0, marked: result.markers.count,

@@ -152,19 +152,9 @@ extension Session {
     public func silenceEditWarnings(cuts: [Range<Frames>], outside: LevelSeries?, threshold: Gain)
         -> [Set<SilenceWarning>]
     {
-        var midpoints: [Frames] = []
-        for track in tracks {
-            for clip in track.clips {
-                let root = root(of: clip.file)
-                let file = (clip.offset + root.offset)..<(clip.offset + root.offset + clip.length)
-                for transcript in transcripts.values {
-                    for anchor in transcript.words?[root.file]?.anchors(midpointIn: file) ?? [] {
-                        midpoints.append(clip.start + anchor.midpoint - file.lowerBound)
-                    }
-                }
-            }
-        }
-        midpoints.sort()
+        let midpoints = tracks.flatMap { track in
+            shownAnchors(on: track).map { $0.clip.start + $0.anchor.midpoint - $0.file.lowerBound }
+        }.sorted()
         let sound = outside?.runs(over: threshold) ?? []
         return cuts.map { cut in
             var warnings = Set<SilenceWarning>()

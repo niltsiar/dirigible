@@ -21,7 +21,7 @@ struct SilenceEditCommand: ParsableCommand {
             "removed <n> frames". The frames are those of the session before the edit. Exit 64 when the \
             arguments make no plan: the counts differ, an action is not shorten, mute, or mark, a range \
             is reversed or out of range, two ranges overlap, or --keep is out of range. Exit 1 when a \
-            track is unknown. Exit 3 when a shorten meets a take with some segments on the timeline. \
+            track is unknown. Exit 3 when a shorten that cuts frames meets a take with some segments on the timeline. \
             Exit 2 when the package cannot be read or written, is locked, or has a take that is not \
             finalized.
             """)
@@ -45,7 +45,9 @@ struct SilenceEditCommand: ParsableCommand {
 
     func run() throws {
         let work = try work()
-        let lines = try editPackage(package, ripple: work.plan.hasShorten) { session throws(SessionError) in
+        let plan = work.plan
+        let ripple = RippleNeed { plan.removesFrames(sampleRate: $0.sampleRate) }
+        let lines = try editPackage(package, ripple: ripple) { session throws(SessionError) in
             work.lines(try session.editSilences(work.plan, muting: EditRules.tracks(track, of: session)))
         }
         print(lines.joined(separator: "\n"))

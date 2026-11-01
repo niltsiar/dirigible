@@ -42,9 +42,8 @@ extension StudioSilencesTests {
         #expect(redone, "Redo does not give back the applied session")
     }
 
-    /// C18: under a pending take, a plan with a shorten refuses as a ripple and changes nothing;
-    /// a plan of a mute and a mark applies.
-    @Test func aSplitTakeRefusesAShortenAndAllowsMuteAndMark() async throws {
+    /// A studio on a package with a pending take and the three silences, so it cannot ripple.
+    static func pendingTakeStudio() async throws -> (MixPackage, Studio) {
         let package = try Self.package([Self.threeSilences()])
         try package.session.setRecording(
             Recording(take: 1, playheadFrame: 0, takeStartHostTimeNanos: takeStart, armedTracks: ["t1"]))
@@ -53,9 +52,16 @@ extension StudioSilencesTests {
             at: package.url.appending(path: "Capture"), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: package.url.appending(path: "recovery-attempt").path, contents: nil)
         let studio = try await Studio.open(package.url)
-        defer { withExtendedLifetime(package) {} }
         studio.environment = .test(TestHAL([]))
         try #require(studio.pendingTake != nil && !studio.canRipple, "no pending take")
+        return (package, studio)
+    }
+
+    /// C18: under a pending take, a plan that removes frames refuses as a ripple and changes nothing;
+    /// a plan of a mute and a mark applies.
+    @Test func aSplitTakeRefusesAShortenAndAllowsMuteAndMark() async throws {
+        let (package, studio) = try await Self.pendingTakeStudio()
+        defer { withExtendedLifetime(package) {} }
         let scan = try await Self.scan(studio)
         let before = studio.session
 
@@ -67,6 +73,29 @@ extension StudioSilencesTests {
         #expect(result.cuts.isEmpty && result.markers.count == 1, "\(result)")
         let marker = try #require(studio.session.markers[result.markers[0]])
         #expect(marker.position == 264_000 && studio.session.end == 336_000, "\(marker.position)")
+        let envelope = studio.session.track("t1")?.clips.first?.envelope
+        #expect(envelope != before.track("t1")?.clips.first?.envelope, "the mute changed no gain")
+    }
+
+    /// A plan counts as a ripple only when a cut removes frames. The first row has 72 000 frames:
+    /// a keep of 72 000 cuts nothing, so the Shorten and a Mute apply under a pending take; a keep
+    /// of 71 999 cuts one frame, so the plan is refused. Fail value: `.rippleBlocked` for the first plan.
+    @Test func aShortenThatCutsNothingDoesNotBlockUnderAPendingTake() async throws {
+        let (package, studio) = try await Self.pendingTakeStudio()
+        defer { withExtendedLifetime(package) {} }
+        let scan = try await Self.scan(studio)
+        let rows = scan.silences
+        let edits = [SilenceEdit(range: rows[0], action: .shorten), SilenceEdit(range: rows[1], action: .mute)]
+        let before = studio.session
+
+        #expect(throws: StudioError.rippleBlocked) {
+            try studio.applySilences(try SilencePlan(edits, keep: 71_999), scan: scan)
+        }
+        let unchanged = studio.session == before
+        #expect(unchanged, "a refused Apply changed the session")
+
+        let result = try studio.applySilences(try SilencePlan(edits, keep: 72_000), scan: scan)
+        #expect(result.cuts.isEmpty && result.skipped == [1], "\(result)")
         let envelope = studio.session.track("t1")?.clips.first?.envelope
         #expect(envelope != before.track("t1")?.clips.first?.envelope, "the mute changed no gain")
     }

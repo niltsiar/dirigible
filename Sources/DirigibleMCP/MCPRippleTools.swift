@@ -87,7 +87,8 @@ let rippleTools = [
         } catch {
             throw ToolError(error.message(prefix: ""))
         }
-        return .edit(ripple: work.plan.hasShorten) { session throws(SessionError) in
+        return .edit(ripple: RippleNeed { work.plan.removesFrames(sampleRate: $0.sampleRate) }) {
+            session throws(SessionError) in
             work.lines(try session.editSilences(work.plan, muting: EditRules.tracks(ids, of: session)))
         }
     },

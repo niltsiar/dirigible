@@ -30,7 +30,7 @@ package struct BatchWork: Sendable {
 
     struct Step: Sendable {
         let tool: String
-        let ripple: Bool
+        let ripple: RippleNeed
         let edit: @Sendable (inout Session) throws(StepError) -> [String]
     }
 
@@ -193,7 +193,7 @@ package struct BatchWork: Sendable {
     func run(_ session: inout Session, canRipple: (Session) -> Bool) throws(Failure) -> [[String]] {
         var results: [[String]] = []
         for (index, step) in steps.enumerated() {
-            if step.ripple, !canRipple(session) {
+            if step.ripple.isNeeded(session), !canRipple(session) {
                 throw Failure(index: index, tool: step.tool, cause: .rippleBlocked)
             }
             do throws(StepError) {
@@ -221,7 +221,7 @@ package struct BatchWork: Sendable {
         _ package: URL, scan: (URL) -> (Session) -> Bool = rippleBlocked(in:)
     ) throws(EditFailure<Failure>) -> [String] {
         let (results, note) = try editPackageCore(package, ripple: false) { session, _ throws(Failure) in
-            let blocked = steps.contains(where: \.ripple) ? scan(package) : { _ in false }
+            let blocked = steps.contains { $0.ripple.isNeeded(session) } ? scan(package) : { _ in false }
             return try TakeWork.noted(&session, package: package) { session throws(Failure) in
                 try run(&session, canRipple: { !blocked($0) })
             }

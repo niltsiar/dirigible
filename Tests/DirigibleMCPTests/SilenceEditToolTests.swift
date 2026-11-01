@@ -68,7 +68,7 @@ struct SilenceEditToolTests {
         await studio.settle()
     }
 
-    /// Under a pending take a plan with a shorten gives the ripple refusal and changes nothing,
+    /// Under a pending take a plan that removes frames gives the ripple refusal and changes nothing,
     /// and a plan of marks runs (decision 0037).
     @Test func aPendingTakeRefusesAShortenAndAllowsAMark() async throws {
         let package = try makePackage()
@@ -88,6 +88,25 @@ struct SilenceEditToolTests {
             ["package": package.path, "from": [1_000], "to": [3_000], "action": ["mark"]])
         #expect(replyText(mark).hasPrefix("mark\t1000\t3000\t"), "\(mark)")
         #expect(studio.session.markers.values.map(\.position) == [2_000])
+        await studio.settle()
+    }
+
+    /// A shorten of 2 000 frames cuts nothing with the default keep of 24 000, so it is no ripple:
+    /// with a mute it applies under a pending take. Fail value: the ripple refusal.
+    @Test func aShortenThatCutsNothingRunsUnderAPendingTake() async throws {
+        let package = try makePackage()
+        try package.addPendingTake()
+        let studio = try await package.open(pending: 1)
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let before = studio.session
+
+        let outcome = await send(
+            folder.socket, "silence_edit",
+            ["package": package.path, "from": [1_000, 5_000], "to": [3_000, 20_000], "action": ["shorten", "mute"]])
+
+        #expect(replyText(outcome).hasPrefix("skipped\t1000\t3000\tshorten\nmute\t5000\t20000\n"), "\(outcome)")
+        #expect(studio.session != before, "the mute changed no gain")
         await studio.settle()
     }
 }

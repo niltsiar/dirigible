@@ -56,12 +56,12 @@ extension Studio {
     /// rows on the scanned tracks, in one edit and one undo entry. The frames of the plan come
     /// from the tracks and the pool files, so a change of a track (its ID, place, gain, or clips)
     /// or of a pool file after the scan throws `.silencesStale`. A marker, a mute, a solo, a name,
-    /// a role, the episode, and the transcripts do not count. A plan with a shorten is a ripple
+    /// a role, the episode, and the transcripts do not count. A plan that removes frames is a ripple
     /// (decision 0037). A throw changes nothing.
     @discardableResult
     public func applySilences(_ plan: SilencePlan, scan: SilenceScan) throws(StudioError) -> SilenceResult {
         guard scan.isCurrent(in: session) else { throw .silencesStale }
-        return try edit(ripple: plan.hasShorten) { session throws(SessionError) in
+        return try edit(ripple: plan.removesFrames(sampleRate: session.sampleRate)) { session throws(SessionError) in
             try session.editSilences(plan, muting: scan.tracks)
         }
     }

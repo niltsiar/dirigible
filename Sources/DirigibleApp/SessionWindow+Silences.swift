@@ -27,6 +27,25 @@ extension SessionWindow {
         return review.plan != nil
     }
 
+    /// True when the first responder of `keyWindow` is the Silences list: a table of this window's
+    /// inspector, which has no other table.
+    func silenceListHasFocus(in keyWindow: NSWindow?) -> Bool {
+        guard showsInspector, inspectorTab == .silences, keyWindow === window else { return false }
+        var view = keyWindow?.firstResponder as? NSView
+        while let current = view, !(current is NSTableView) { view = current.superview }
+        return view != nil
+    }
+
+    /// Return and Delete with the list as first responder (criterion C33). Return applies while
+    /// Apply is on, and Delete sets the selected rows to Skip; with Apply off, Return does nothing.
+    func silenceListKey(_ command: TimelineCommand) {
+        if command == .delete {
+            setSilenceAction(.skip, rows: silences.selection)
+        } else if canApplySilences {
+            applySilences()
+        }
+    }
+
     /// Tools > Find Silences...: shows the inspector on the Silences tab, then scans. A refused
     /// Episode draft keeps its tab, and then nothing scans.
     func findSilences() async {

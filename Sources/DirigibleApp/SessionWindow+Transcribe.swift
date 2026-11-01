@@ -109,12 +109,14 @@ extension SessionWindow {
     /// Cancel and Escape of the sheet: they stop a check of a model file.
     func cancelTranscribeSheet() {
         stopModelCheck()
+        transcribe.keptTask?.cancel()
         transcribe.draft = nil
     }
 
     /// The default button of the sheet: closes it and starts the job.
     func startTranscribe(_ draft: TranscribeDraft) {
         stopModelCheck()
+        transcribe.keptTask?.cancel()
         transcribe.draft = nil
         draft.remember(in: app?.defaults)
         start(draft.request)

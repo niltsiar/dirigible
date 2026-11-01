@@ -23,6 +23,7 @@ extension SessionWindow {
     func chooseModelFile() {
         guard let draft = transcribe.draft else { return }
         stopModelCheck()
+        transcribe.keptTask?.cancel()
         let before = draft.beforeChoice ?? draft.model
         transcribe.draft?.beforeChoice = before
         transcribe.draft?.check = nil
@@ -90,7 +91,8 @@ extension SessionWindow {
     /// The kept file at the sheet open (C24): its status, off the main actor. A missing file shows
     /// as "(missing)". A new byte count or date hashes the file once as a read run of the studio
     /// (`Studio.hashModelFile`): the same hash keeps the record with the new status, another hash
-    /// or a read error drops the record, and a refusal or a stop keeps the record as it is.
+    /// or a read error drops the record, and a refusal or a stop keeps the record as it is. It
+    /// stores only over the record that it started from: a pick during the hash stays.
     func readKeptFile() {
         guard let kept = transcribe.draft?.kept else { return }
         transcribe.keptTask?.cancel()
@@ -108,6 +110,7 @@ extension SessionWindow {
             } catch {
                 return
             }
+            guard KeptModelFile.load(from: app?.defaults) == kept else { return }
             updated.store(in: app?.defaults)
             if transcribe.draft?.kept == kept { transcribe.draft?.kept = updated }
         }

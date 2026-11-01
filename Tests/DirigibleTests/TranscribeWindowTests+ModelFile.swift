@@ -270,6 +270,41 @@ import os
             await window.model.close()
         }
 
+        /// A sheet hash of the kept file that ends after the pick of another file stores nothing:
+        /// the defaults keep the pick. The hash waits for a gate that opens after the pick passes.
+        @Test func aSheetHashThatEndsAfterANewPickKeepsThePick() async throws {
+            let picks = Picks([])
+            let window = try await openFile({ try Self.passing($0, ran: $0.appending(path: "ran")) }, picks: picks)
+            KeptModelFile(
+                url: window.file, status: FileStatus(byteCount: 3, modified: Date(timeIntervalSinceNow: -3_600)),
+                passed: PassedModelFile(sha256: Self.abc, facts: Self.tiny)
+            ).store(in: window.defaults)
+            let other = window.folder.appending(path: "other.bin")
+            try Data("abc".utf8).write(to: other)
+            picks.urls = [other]
+            let (started, gate) = (
+                OSAllocatedUnfairLock(initialState: false), OSAllocatedUnfairLock(initialState: false)
+            )
+            let hash = window.studio.environment.hashModelFile
+            window.studio.environment.hashModelFile = { url, stop throws(ModelFileCheckError) in
+                started.withLock { $0 = true }
+                while !gate.withLock({ $0 }) && !stop() { usleep(1_000) }
+                return try hash(url, stop)
+            }
+
+            _ = try sheet(window)
+            await until("the sheet hash of the kept file runs") { started.withLock { $0 } }
+            window.model.selectModel(.choose)
+            await until(limit: .seconds(5), "the pick passes") {
+                window.model.transcribe.draft?.kept?.path == other.path
+            }
+            gate.withLock { $0 = true }
+            await window.model.transcribe.keptTask?.value
+
+            #expect(KeptModelFile.load(from: window.defaults)?.path == other.path)
+            await window.model.close()
+        }
+
         enum CheckStop: CaseIterable { case popUp, cancel, settle, take }
 
         /// C25: a pop-up change, Cancel, the close of the window, and a take start (`endReads(.take)`,

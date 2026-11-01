@@ -123,7 +123,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F109 | A click in an empty lane selects its track | user 2026-10-14 | done, Release 4 run 22 | R7 |
 | F110 | Render link: change the amount of a rendered effect later, or restore the original | user 2026-10-14 | done, Release 4 run 23 (Reduce Noise; the leveler and voice match add their kinds) | R8 |
 | F111 | Transcript cut edges at the word edges | Descript, Hindenburg; user 2026-10-14 | Release 5 | R7 |
-| F112 | Transcription in the app (whisper.cpp) | Hindenburg; user 2026-10-15 | Release 5 | R7 |
+| F112 | Transcription in the app (whisper.cpp) | Hindenburg; user 2026-10-15 | done, Release 5 run 2 (Tools > Transcribe Track..., `dirigible transcribe`, and the agent tool `transcribe`: whisper.cpp on the CPU, with three models that download on first use) | R7 |
 | F113 | More UI languages: Portuguese, German, French, Italian, Dutch | user 2026-10-14 | done, Release 4 run 2 | R13 |
 | F114 | An armed app track before a take: a level meter and the permission state | brief R12 | done, Release 4 run 24 | R12 |
 | F115 | A taller automatic track height | Hindenburg; tester 2026-10-04 | Dropped (covered by View > Taller Tracks) | R1 |

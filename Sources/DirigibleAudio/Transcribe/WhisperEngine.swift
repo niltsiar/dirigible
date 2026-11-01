@@ -47,12 +47,19 @@ final class WhisperEngine {
     private let context: OpaquePointer
     private let vadPath: String?
 
-    init(model: CheckedModel, vad: URL?, log: DiagnosticLog) throws(TranscribeError) {
+    /// A model file of the user loads from the file that its check opened, and a set `stop` ends
+    /// that load with `.modelLoad` (`ModelFileLoad`). A catalog model loads from its path.
+    init(model: CheckedModel, vad: URL?, log: DiagnosticLog, stop: StopFlag = StopFlag()) throws(TranscribeError) {
         WhisperLog.shared.route(to: log)
         var params = whisper_context_default_params()
         params.use_gpu = false
-        guard let context = whisper_init_from_file_with_params(model.url.path, params) else { throw .modelLoad }
-        self.context = context
+        if case .file(let record) = model.source {
+            guard let file = model.file else { throw .modelLoad }
+            context = try ModelFileLoad(file, stop: stop).load(params, sha256: record.sha256)
+        } else {
+            guard let context = whisper_init_from_file_with_params(model.url.path, params) else { throw .modelLoad }
+            self.context = context
+        }
         vadPath = vad?.path
     }
 

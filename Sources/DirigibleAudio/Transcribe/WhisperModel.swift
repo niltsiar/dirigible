@@ -69,6 +69,12 @@ public enum WhisperModelChoice: Hashable, Sendable {
 public struct PassedModelFile: Hashable, Sendable, Codable {
     public let sha256: String
     public let facts: WhisperModelFacts
+    /// The `ModelFileCheck.version` of the check that passed the file.
+    public let check: Int
+
+    public init(sha256: String, facts: WhisperModelFacts, check: Int = ModelFileCheck.version) {
+        (self.sha256, self.facts, self.check) = (sha256, facts, check)
+    }
 }
 
 /// A model file that passed its check: the only input of `WhisperEngine`. In a release build, only
@@ -83,6 +89,12 @@ public struct CheckedModel: Hashable, Sendable {
 
     public let source: Source
     let url: URL
+    /// The file that `ModelFileCheck` opened and hashed for a `.file` source: the engine loads it.
+    let file: OpenModelFile?
+
+    init(source: Source, url: URL, file: OpenModelFile? = nil) {
+        (self.source, self.url, self.file) = (source, url, file)
+    }
 
     #if DEBUG
         /// A model with no check of `url`, for the fake engine of the tests.

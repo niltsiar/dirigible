@@ -119,7 +119,7 @@ struct CaptureEnvironment: Sendable {
         url, stop throws(ModelFileCheckError) in try OpenModelFile(url).sha256(stop: stop)
     }
     /// A step after a passed check of a model file of the user, before the engine part. Tests
-    /// change the file there.
+    /// start a take there.
     var modelFileCheckDone: @Sendable () async -> Void = {}
     /// The model folder and the download of a job (decision 0065 D2). Tests give their own.
     var modelStore = WhisperModelStore.live

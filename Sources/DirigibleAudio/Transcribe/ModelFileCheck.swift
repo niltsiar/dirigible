@@ -1,10 +1,17 @@
 import Foundation
 
+/// The exit watch of the parent of a helper: set once, in `helperMain`.
+nonisolated(unsafe) private var parentWatch: (any DispatchSourceProcess)?
+
 /// The check of a model file of the user (decision 0065, D8). The parse of `WhisperModelFile`
 /// cannot find each file that ends the process in whisper.cpp, so a helper process loads the file
 /// and runs a trial: a bad file ends the helper, not the caller. This file owns both sides of the
 /// helper protocol: the helper body, its output line, its exit status, and their reader.
 public enum ModelFileCheck {
+    /// The version of the parse, the trial, and the engine that pass a file. A record of another
+    /// version counts as not passed. Increment it with each change of the parse, the trial, or the
+    /// CWhisper build that can change what passes.
+    public static let version = 1
     /// The signals of a process death in the parse, the loader, or `whisper_full`. SIGTRAP and
     /// SIGILL are the Swift traps.
     private static let handledSignals: [Int32] = [SIGABRT, SIGSEGV, SIGFPE, SIGBUS, SIGILL, SIGTRAP]
@@ -13,25 +20,52 @@ public enum ModelFileCheck {
     /// The seconds from SIGTERM to SIGKILL after a stop.
     private static let killDelay = 0.5
 
-    /// The body of `dirigible model check <path>`: the parse, the SHA-256, and the trial. A pass
-    /// prints one line of `line(_:)` and exits 0. A refusal prints one `Error:` line on stderr
-    /// and exits 1. A death in the C code exits 128 + signal.
+    /// The body of `dirigible model check <path>`: the parse, the SHA-256, and the trial, all from
+    /// one open file. The path `-` is the file of standard input, which `run` gives. A pass prints
+    /// one line of `line(_:)` and exits 0. A refusal prints one `Error:` line on stderr and exits 1.
+    /// A death in the C code exits 128 + signal. The helper exits when its parent exits.
     public static func helperMain(path: String) -> Never {
         for code in handledSignals { signal(code) { _exit(128 + $0) } }
+        watchParent()
         #if DEBUG
             // The process death of the tests, as a loader assert, with no model file.
             if ProcessInfo.processInfo.environment["DIRIGIBLE_MODEL_CHECK_ABORT"] == "1" { abort() }
+            // A trial that does not end, for the parent exit test: the line "hold" tells the parent
+            // that the exit watch runs.
+            if ProcessInfo.processInfo.environment["DIRIGIBLE_MODEL_CHECK_HOLD"] == "1" {
+                print("hold")
+                fflush(stdout)
+                while true { sleep(60) }
+            }
         #endif
-        let url = URL(filePath: path)
+        let opened: OpenModelFile
+        do throws(ModelFileCheckError) {
+            opened = try path == "-" ? OpenModelFile(descriptor: STDIN_FILENO) : OpenModelFile(URL(filePath: path))
+        } catch {
+            refuse(message(error))
+        }
         let file: WhisperModelFile
-        do { file = try WhisperModelFile.read(url) } catch { refuse(message(error)) }
+        do { file = try WhisperModelFile.read(descriptor: opened.descriptor) } catch { refuse(message(error)) }
         let hash: String
-        do { hash = try sha256(of: url) } catch { refuse(message(error)) }
+        do { hash = try opened.sha256 { false } } catch { refuse(message(error)) }
         let record = PassedModelFile(sha256: hash, facts: file.facts)
-        do { try trial(CheckedModel(source: .file(record), url: url)) } catch { refuse(message(error)) }
+        let model = CheckedModel(source: .file(record), url: URL(filePath: path), file: opened)
+        do { try trial(model) } catch { refuse(message(error)) }
         print(line(record))
         fflush(stdout)
         exit(0)
+    }
+
+    /// Ends this process when its parent exits, so an app crash or a Force Quit leaves no trial
+    /// that runs beside the next take. A parent that exited before the watch started gives this
+    /// process another parent.
+    private static func watchParent() {
+        let parent = getppid()
+        let source = DispatchSource.makeProcessSource(identifier: parent, eventMask: .exit, queue: .global())
+        source.setEventHandler { _exit(1) }
+        source.resume()
+        parentWatch = source
+        if parent == 1 || getppid() != parent { _exit(1) }
     }
 
     /// The job's engine with no VAD (with the VAD of the job, 1 s of noise runs no decoder) and the
@@ -63,7 +97,7 @@ public enum ModelFileCheck {
         }
     }
 
-    /// The hash of the helper has no stop, so only `.unreadable` comes.
+    /// The open and the hash of the helper have no stop, so only `.unreadable` comes.
     private static func message(_ error: ModelFileCheckError) -> String {
         guard case .unreadable(let code) = error else { return "\(error)" }
         return message(ModelFileError.unreadable(errno: code))
@@ -110,18 +144,22 @@ public enum ModelFileCheck {
         handledSignals.contains(status - 128) ? status - 128 : nil
     }
 
-    /// Checks the model file at `url` with `helper` (`<helper> model check <path>`), on the calling
+    /// Checks the model file at `url` with `helper` (`<helper> model check -`), on the calling
     /// thread, which it blocks: run it on the job thread, never on the main actor. Only a regular
-    /// file opens (EFTYPE). When the SHA-256 of the file is the one of `passed`, no helper runs and
-    /// the facts come from `passed`. `stop` is read before each 1 MiB chunk of the hash, before the
-    /// helper starts, and every `stopPoll` seconds while it runs; a set stop ends the helper
-    /// (SIGTERM, then SIGKILL after `killDelay` seconds) and throws `.stopped` after the helper is
-    /// gone.
+    /// file opens (EFTYPE). The file opens once: the hash, the helper (on its standard input), and
+    /// the engine of the result read that open file. When the SHA-256 of the file is the one of
+    /// `passed` and `passed` has this `version`, no helper runs and the facts come from `passed`.
+    /// `stop` is read before each 1 MiB chunk of the hash, before the helper starts, and every
+    /// `stopPoll` seconds while it runs; a set stop ends the helper (SIGTERM, then SIGKILL after
+    /// `killDelay` seconds) and throws `.stopped` after the helper is gone.
     public static func run(_ url: URL, helper: URL, passed: PassedModelFile?, stop: @Sendable () -> Bool)
         throws(ModelFileCheckError) -> CheckedModel
     {
-        let hash = try OpenModelFile(url).sha256(stop: stop)
-        if let passed, passed.sha256 == hash { return CheckedModel(source: .file(passed), url: url) }
+        let file = try OpenModelFile(url)
+        let hash = try file.sha256(stop: stop)
+        if let passed, passed.check == version, passed.sha256 == hash {
+            return CheckedModel(source: .file(passed), url: url, file: file)
+        }
         if stop() { throw .stopped }
         guard FileManager.default.fileExists(atPath: helper.path) else { throw .helperMissing(path: helper.path) }
 
@@ -130,7 +168,10 @@ public enum ModelFileCheck {
         defer { output.remove() }
         let process = Process()
         process.executableURL = helper
-        process.arguments = ["model", "check", url.path]
+        process.arguments = ["model", "check", "-"]
+        let input = dup(file.descriptor)
+        guard input >= 0 else { throw .unreadable(errno: errno) }
+        process.standardInput = FileHandle(fileDescriptor: input, closeOnDealloc: true)
         process.standardOutput = output.stdout
         process.standardError = output.stderr
         let ended = DispatchSemaphore(value: 0)
@@ -156,7 +197,7 @@ public enum ModelFileCheck {
         guard status == 0 else { throw .refused(output.errorLine()) }
         guard let record = record(fromLine: output.outputLine()) else { throw .refused(output.outputLine()) }
         guard record.sha256 == hash else { throw .changedDuringCheck }
-        return CheckedModel(source: .file(record), url: url)
+        return CheckedModel(source: .file(record), url: url, file: file)
     }
 
     /// The helper of the process whose executable is `executable`, with its links resolved: for the

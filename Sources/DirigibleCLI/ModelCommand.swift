@@ -18,7 +18,8 @@ extension ModelCommand {
                 signal number, for example 134 for SIGABRT. It reads no package and changes none.
                 """)
 
-        @Argument(help: ArgumentHelp("The ggml whisper model file.", valueName: "path"))
+        @Argument(
+            help: ArgumentHelp("The ggml whisper model file, or - for the file on standard input.", valueName: "path"))
         var path: String
 
         func run() { ModelFileCheck.helperMain(path: path) }

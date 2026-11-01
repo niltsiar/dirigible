@@ -84,6 +84,11 @@ public struct WhisperModelFile: Hashable, Sendable {
         let descriptor = open(url.path, O_RDONLY)
         guard descriptor >= 0 else { throw .unreadable(errno: errno) }
         defer { close(descriptor) }
+        return try read(descriptor: descriptor)
+    }
+
+    /// `read(_:)` on an open file, which it does not close.
+    static func read(descriptor: Int32) throws(ModelFileError) -> WhisperModelFile {
         var status = stat()
         guard fstat(descriptor, &status) == 0 else { throw .unreadable(errno: errno) }
         var reader = Reader(descriptor: descriptor, size: Int(status.st_size))

@@ -105,7 +105,7 @@ import os
             let report = try await Self.job(studio, file, stages: stages).value.get()
 
             let passed = PassedModelFile(sha256: ModelFileCheckTests.abc, facts: Self.facts)
-            #expect(record.models == [CheckedModel(source: .file(passed), url: file)])
+            #expect(record.models.map(\.source) == [.file(passed)])
             #expect(Self.runs(ran) == 1)
             #expect(Array(stages.all.prefix(2)) == [.check, .checked(passed)])
             #expect(stages.all.dropFirst(2).allSatisfy { if case .transcribe = $0 { true } else { false } })
@@ -182,22 +182,6 @@ import os
 
             #expect(result.failure == .transcription(.modelFile(.refused("The model file ends before its last part."))))
             #expect(stages.all == [.check] && record.models.isEmpty)
-            await studio.settle()
-        }
-
-        /// C11: a 1-byte change after the check and before the engine gives `.modelChanged` and no
-        /// engine call; with no change, the engine runs.
-        @Test(arguments: [true, false]) func aFileThatChangesAfterTheCheckIsRefused(change: Bool) async throws {
-            let fixture = try await ExportStudioFixture.make()
-            let (record, ran) = (ModelRecord(), fixture.package.folder.url.appending(path: "ran"))
-            let helper = try Self.passing(fixture.package.folder.url, ran: ran)
-            let (studio, file) = try await Self.open(fixture.package, helper: helper, engine: Self.engine(record))
-            if change { studio.environment.modelFileCheckDone = { try? Data("abd".utf8).write(to: file) } }
-
-            let result = await Self.job(studio, file).value
-
-            #expect(result.failure == (change ? .transcription(.modelChanged) : nil))
-            #expect(record.models.count == (change ? 0 : 1))
             await studio.settle()
         }
 

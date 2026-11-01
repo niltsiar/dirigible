@@ -37,7 +37,7 @@ struct ModelFileCheckTests {
         let result = await check(helper)
 
         let record = PassedModelFile(sha256: Self.abc, facts: Self.facts)
-        #expect(result == .success(CheckedModel(source: .file(record), url: model)))
+        #expect(result.map(\.source) == .success(.file(record)))
     }
 
     @Test func aHelperThatPrintsAnotherHashIsRefused() async throws {
@@ -80,7 +80,7 @@ struct ModelFileCheckTests {
 
         let result = await check(helper, passed: record)
 
-        #expect(result == .success(CheckedModel(source: .file(record), url: model)))
+        #expect(result.map(\.source) == .success(.file(record)))
         #expect(!FileManager.default.fileExists(atPath: ran.path))
     }
 

@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleAudio
 import DirigibleCore
 import Foundation
@@ -65,8 +66,10 @@ enum TranscribeHint {
     /// The chunk instants of the download of the running job.
     @ObservationIgnored var download: DownloadActivity?
     @ObservationIgnored var hintTask: Task<Void, Never>?
-    /// The open panel of a model file: the picked file, else nil. Tests give their own.
-    @ObservationIgnored var pickModelFile: @MainActor () async -> URL? = { await TranscribeState.livePickModelFile() }
+    /// The open panel of a model file on a window: the picked file, else nil. Tests give their own.
+    @ObservationIgnored var pickModelFile: @MainActor (_ parent: NSWindow?) async -> URL? = {
+        await TranscribeState.livePickModelFile(in: $0)
+    }
     /// The open panel and the check of Choose Model File... in the sheet.
     @ObservationIgnored var checkTask: Task<Void, Never>?
     /// The status read of the kept file at the sheet open.
@@ -101,7 +104,7 @@ extension SessionWindow {
                 TranscribeDraft.Choice(id: $0.id, name: $0.name, words: session.words(on: [$0.id]).count)
             },
             selected: track ?? timeline.selection.headerTracks(in: session).first, onDisk: onDisk, language: language,
-            kept: KeptModelFile.load(from: defaults),
+            kept: KeptModelFile.load(for: language, from: defaults),
             remembered: TranscribeModelMemory.entry(for: language, in: defaults))
         readKeptFile()
     }
@@ -119,7 +122,7 @@ extension SessionWindow {
         transcribe.keptTask?.cancel()
         transcribe.draft = nil
         draft.remember(in: app?.defaults)
-        start(draft.request)
+        if let request = draft.request { start(request) }
     }
 
     /// The Transcribe Again button of the stop banner.
@@ -157,7 +160,7 @@ extension SessionWindow {
                     if case .download = stage { self?.waitForHint() }
                     // A passed check is kept whatever the end of the job (C10).
                     if case .checked(let record) = stage, case .file(let url, _) = request.model {
-                        self?.keepModelFile(url, record)
+                        self?.keepModelFile(url, record, for: request.choice)
                     }
                 }
                 if report.id == nil { self?.notify(in: studio) { .noWords(revision: $0, press: $1) } }
@@ -189,7 +192,9 @@ extension SessionWindow {
                 guard let self, !Task.isCancelled, transcribe.download === download,
                     case .download(let fraction)? = transcribe.job?.stage, fraction < 1
                 else { return }
-                let armed = download.onNextChunk(ifNoChunkSince: seen) { [weak self] in
+                // The armed body sits in `download` until a chunk comes, so it holds the download weakly.
+                let armed = download.onNextChunk(ifNoChunkSince: seen) { [weak self, weak download] in
+                    guard let download else { return }
                     Task { @MainActor [weak self] in self?.chunkAfterHint(download) }
                 }
                 if armed, case .catalog(let model)? = transcribe.job?.request.model {

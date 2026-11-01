@@ -706,6 +706,13 @@
 "sheet.transcribe.check.layers" = "%lld Audioschichten";
 "sheet.transcribe.check.take" = "Eine Aufnahme hat begonnen, daher hat Dirigible die Prüfung der Modelldatei angehalten.";
 "sheet.transcribe.check.busy" = "Eine Aufnahme blockiert die Prüfung der Modelldatei. Versuche es nach der Aufnahme erneut.";
+"sheet.transcribe.check.changed" = "Die Modelldatei hat sich während der Prüfung geändert. Versuche es erneut.";
+"sheet.transcribe.kind.tiny" = "Tiny";
+"sheet.transcribe.kind.base" = "Base";
+"sheet.transcribe.kind.small" = "Small";
+"sheet.transcribe.kind.medium" = "Medium";
+"sheet.transcribe.kind.large" = "Large";
+"sheet.transcribe.file.title" = "%1$@ - %2$@";
 "alert.transcribe.locate" = "Suchen …";
 "transcribe.banner.download" = "Sprachmodell wird geladen … %lld %%";
 "transcribe.banner.running" = "%1$@ wird transkribiert … %2$lld %%";
@@ -756,6 +763,7 @@
 "silences.help.action" = "Legt die Aktion der ausgewählten Zeilen fest.";
 "silences.help.mute" = "Senkt den Ton um 96 dB. Das ist keine digitale Stille.";
 "error.transcribe.file.unreadable" = "Dirigible konnte die Modelldatei nicht lesen (Fehler %lld).";
+"error.transcribe.file.missing" = "Dirigible konnte die Modelldatei %@ nicht finden. Sie wurde vielleicht verschoben.";
 "error.transcribe.file.helper.missing" = "Ein Teil von Dirigible fehlt: das Programm, das eine Modelldatei prüft. Installiere Dirigible erneut.";
 "error.transcribe.file.helper.start" = "Das Programm, das eine Modelldatei prüft, ist nicht gestartet (%1$@ %2$lld). Installiere Dirigible erneut.";
 "error.transcribe.file.refused" = "Dirigible kann diese Modelldatei nicht verwenden. %@";

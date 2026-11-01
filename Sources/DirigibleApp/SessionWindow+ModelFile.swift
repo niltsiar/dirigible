@@ -1,3 +1,4 @@
+import AppKit
 import DirigibleAudio
 import Foundation
 
@@ -28,9 +29,9 @@ extension SessionWindow {
         transcribe.draft?.beforeChoice = before
         transcribe.draft?.check = nil
         transcribe.draft?.model = .choose
-        let pick = transcribe.pickModelFile
+        let (pick, parent) = (transcribe.pickModelFile, panelParent)
         transcribe.checkTask = Task { [weak self] in
-            let url = await pick()
+            let url = await pick(parent)
             guard !Task.isCancelled else { return }
             guard let url else {
                 self?.endChoice(before, line: nil)
@@ -39,6 +40,9 @@ extension SessionWindow {
             await self?.checkModelFile(url, before: before)
         }
     }
+
+    /// The window that an open panel hangs from: the Transcribe sheet while it shows, else the window.
+    private var panelParent: NSWindow? { window?.attachedSheet ?? window }
 
     /// Stops the open panel task and the helper of a sheet check.
     func stopModelCheck() {
@@ -56,9 +60,11 @@ extension SessionWindow {
         do throws(StudioError) {
             let checked = try await studio.checkModelFile(url, passed: nil)
             guard !Task.isCancelled else { return }
-            guard case .file(let record) = checked.source, let status else { return endChoice(before, line: nil) }
+            guard case .file(let record) = checked.source, let status, let choice = transcribe.draft?.choice else {
+                return endChoice(before, line: nil)
+            }
             let kept = KeptModelFile(url: url, status: status, passed: record)
-            kept.store(in: app?.defaults)
+            kept.store(for: choice, in: app?.defaults)
             transcribe.draft?.kept = kept
             transcribe.draft?.keptMissing = false
             transcribe.draft?.beforeChoice = nil
@@ -73,6 +79,8 @@ extension SessionWindow {
             endChoice(before, line: .refused(L10n.sheetTranscribeCheckTake.text))
         } catch .busy {
             endChoice(before, line: .refused(L10n.sheetTranscribeCheckBusy.text))
+        } catch .transcription(.modelFile(.changedDuringCheck)) {
+            endChoice(before, line: .refused(L10n.sheetTranscribeCheckChanged.text))
         } catch {
             endChoice(before, line: .refused(L10n.message(for: error)))
         }
@@ -94,7 +102,8 @@ extension SessionWindow {
     /// or a read error drops the record, and a refusal or a stop keeps the record as it is. It
     /// stores only over the record that it started from: a pick during the hash stays.
     func readKeptFile() {
-        guard let kept = transcribe.draft?.kept else { return }
+        guard let draft = transcribe.draft, let kept = draft.kept else { return }
+        let choice = draft.choice
         transcribe.keptTask?.cancel()
         transcribe.keptTask = Task { [weak self] in
             let status = await FileStatus.read(kept.url)
@@ -110,31 +119,31 @@ extension SessionWindow {
             } catch {
                 return
             }
-            guard KeptModelFile.load(from: app?.defaults) == kept else { return }
-            updated.store(in: app?.defaults)
-            if transcribe.draft?.kept == kept { transcribe.draft?.kept = updated }
+            guard KeptModelFile.load(for: choice, from: app?.defaults) == kept else { return }
+            updated.store(for: choice, in: app?.defaults)
+            if transcribe.draft?.kept == kept { transcribe.draft?.keep(updated) }
         }
     }
 
     /// Keeps the file of a job whose check passed (C10), whatever the end of the job.
-    func keepModelFile(_ url: URL, _ record: PassedModelFile) {
+    func keepModelFile(_ url: URL, _ record: PassedModelFile, for choice: WhisperLanguage) {
         let defaults = app?.defaults
         Task {
             guard let status = await FileStatus.read(url) else { return }
-            KeptModelFile(url: url, status: status, passed: record).store(in: defaults)
+            KeptModelFile(url: url, status: status, passed: record).store(for: choice, in: defaults)
         }
     }
 
     /// Locate... and Choose Model File... of a job alert (C27, C28): the open panel, then `request`
     /// with the picked file, so the job checks it.
     func startWithPickedFile(_ request: TranscribeRequest) {
-        let pick = transcribe.pickModelFile
+        let (pick, parent) = (transcribe.pickModelFile, panelParent)
         Task { [weak self] in
-            guard let url = await pick() else { return }
+            guard let url = await pick(parent) else { return }
             self?.start(
                 TranscribeRequest(
                     track: request.track, trackName: request.trackName, language: request.language,
-                    model: .file(url, passed: nil)))
+                    choice: request.choice, model: .file(url, passed: nil)))
         }
     }
 }

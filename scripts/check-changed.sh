@@ -37,21 +37,24 @@
 #          (default 20) gives `overlap: gh: no answer`. It runs no git fetch and takes no git lock.
 # `make check-changed [BASE=<base>]` runs the targets. It fails closed: a git error exits nonzero.
 # With FILTER (test names, for the tdd loop of a slice), the local target test becomes
-# test-filter, and the local target check becomes check-fast test-filter test-app. FILTER before
-# the push exits 1: the push runs the full targets. A local git run with no FILTER whose targets
-# have test or check prints the three lines and exits 1: the full suite runs only in the push
-# check. A local git run with FILTER whose targets have no test-filter prints the three lines and
-# exits 1: it would run no test. With no changed path, FILTER gives the target test-filter and one
-# stderr note. The mode --paths keeps the targets (a probe of the table).
-# A local run with check-fast (and no check) adds the word HOOK_TESTS=<tests>: the tests of the
-# changed paths from Makefile HOOK_TESTS, joined with commas, so make gets one word and
-# scripts/test-hooks.sh splits it. A path of class tooling or comments needs a test: the entry
-# itself, <name>.test.sh for <name>.sh or <name>.py, the guardrails test for .claude/hooks/*,
-# .claude/settings.json, and .githooks/*, scripts/land.test.sh for .githooks/pre-push, and each entry
-# whose text names the basename of a changed tooling path. A path with no test gives the word
-# DIRIGIBLE_HOOKS_ALL=1 in place of HOOK_TESTS: scripts/test-hooks.sh runs the whole list only with
-# that word (or the switches of the push check and of a person). The same word comes from a
-# check-fast that comes from check with FILTER, and from tests that are every entry of the list.
+# test-filter, and the local target check becomes check-fast test-filter test-app (or static
+# test-filter test-app, below). FILTER before the push exits 1: the push runs the full targets. A
+# local git run with no FILTER whose targets have test or check prints the three lines and exits 1:
+# the full suite runs only in the push check. A local git run with FILTER whose targets have no
+# test-filter prints the three lines and exits 1: it would run no test. With no changed path,
+# FILTER gives the target test-filter and one stderr note. The mode --paths keeps the targets (a
+# probe of the table).
+# A local run with check-fast (the form of check with FILTER too) adds the word HOOK_TESTS=<tests>:
+# the tests of the changed paths from Makefile HOOK_TESTS, joined with commas, so make gets one
+# word and scripts/test-hooks.sh splits it. A path of class tooling, bundle, or build needs a test:
+# the entry itself, <name>.test.sh for <name>.sh or <name>.py, the guardrails test for
+# .claude/hooks/*, .claude/settings.json, and .githooks/*, scripts/land.test.sh for
+# .githooks/pre-push, and each entry whose text names the basename of the changed path. A tooling or
+# build path with no test gives the word DIRIGIBLE_HOOKS_ALL=1 in place of HOOK_TESTS:
+# scripts/test-hooks.sh runs the whole list only with that word (or the switches of the push check
+# and of a person). So do tests that are every entry of the list. A bundle path with no test, and a
+# path of any other class (comments too), needs none. When no path needs a hook test, check-fast
+# becomes static: the gates of STATIC_GATES in the Makefile, with no hook test.
 # The push never adds either word. SINCE is local, so it adds them.
 set -euo pipefail
 
@@ -115,8 +118,8 @@ targets_of() {
 }
 
 # A build or a test in another worktree makes timing tests fail (DLV-157). Before a target other
-# than check-docs and check-fast, wait until the 1-minute load is under CHECK_LOAD_MAX (default:
-# the core count) and no swiftpm-testing-helper of another tree runs (its command line does not
+# than check-docs, check-fast, and static, wait until the 1-minute load is under CHECK_LOAD_MAX
+# (default: the core count) and no swiftpm-testing-helper of another tree runs (its command line does not
 # hold <root>/.build/). A bench (the target bench) and a push check (BASE in the environment: make
 # check-changed BASE=<ref> and land.sh export it) also wait for a toolchain swift-build or
 # swift-test, and for a test-hooks.sh, of another tree. The tree of a process is the git top level
@@ -155,7 +158,7 @@ other_tree_process() {
 wait_load() {
     local rest=" " t max load other why stop root waited=0 limit="${CHECK_LOAD_WAIT:-300}" pattern='/swiftpm-testing-helper '
     for t in "$@"; do [[ $t == *=* ]] || rest+="$t "; done
-    for t in check-docs check-fast none; do rest="${rest// $t / }"; done
+    for t in check-docs check-fast static none; do rest="${rest// $t / }"; done
     [[ -n "${rest// /}" ]] || return 0
     max="${CHECK_LOAD_MAX:-$(sysctl -n hw.ncpu)}"
     root="$(git rev-parse --show-toplevel)"
@@ -189,7 +192,8 @@ hook_list() {
 }
 
 # hook_tests <paths>: the hook tests that the changed paths need, in the order of HOOK_TESTS and
-# joined with commas. It prints nothing when a path of class tooling or comments has no test.
+# joined with commas. It prints "all" when a path of class tooling or build has no test, and nothing
+# when no path needs a hook test.
 hook_tests() {
     local root list p c t base hits all=" " out=""
     root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -197,20 +201,19 @@ hook_tests() {
     while IFS= read -r p; do
         [[ -n "$p" ]] || continue
         if comment_only "$p"; then c=comments; else c="$(class_of "$p")"; fi
-        # As classify: a Makefile with only comment changes is class docs and needs no test.
-        [[ $c == comments && $p == Makefile ]] && c=docs
-        [[ $c == tooling || $c == comments ]] || continue
+        [[ $c == tooling || $c == bundle || $c == build ]] || continue
         hits=" "
         grep -qxF -- "$p" <<<"$list" && hits+="$p "
         case "$p" in *.sh | *.py) t="${p%.*}.test.sh"; grep -qxF -- "$t" <<<"$list" && hits+="$t " ;; esac
         case "$p" in .claude/hooks/* | .claude/settings.json | .githooks/*) hits+=".claude/hooks/git-guardrails.test.sh " ;; esac
         [[ $p == .githooks/pre-push ]] && hits+="scripts/land.test.sh "
-        if [[ $c == tooling ]]; then
-            base="${p##*/}"
-            # A basename that no test names is no failure: grep exits 1 with no match.
-            while IFS= read -r t; do hits+="$t "; done < <(cd "$root" && grep -lsF -- "$base" $list || true)
+        base="${p##*/}"
+        # A basename that no test names is no failure: grep exits 1 with no match.
+        while IFS= read -r t; do hits+="$t "; done < <(cd "$root" && grep -lsF -- "$base" $list || true)
+        if [[ "$hits" == " " ]]; then
+            [[ $c == bundle ]] || { echo all; return 0; }
+            continue
         fi
-        [[ "$hits" != " " ]] || return 0
         all+="${hits# } "
     done <<<"$1"
     for t in $list; do [[ "$all" == *" $t "* ]] && out+=",$t"; done
@@ -482,14 +485,6 @@ done
 
 [[ -n "$run" ]] && targets+=" PUSH_RUN=$(sort -u <<<"${run%$'\n'}" | paste -sd, -)"
 
-# A local check-fast runs only the hook tests that the changed paths need.
-if [[ $push == 0 && " $targets " == *" check-fast "* && " $targets " != *" check "* ]]; then
-    hooks="$(hook_tests "$paths")"
-    # The tests of every entry are the whole list: test-hooks.sh refuses that as a word.
-    [[ "$hooks" != "$(hook_list | paste -sd, -)" ]] || hooks=""
-    [[ -z "$hooks" ]] || targets+=" HOOK_TESTS=$hooks"
-fi
-
 # The word RERUN=<P>:fast:<names>+slow:<names> gives run-checks.sh the failed tests of P. The fast
 # part drops beside check or test, which run each fast test. test-slow-push skips a PUSH_SKIP file
 # that PUSH_RUN does not name, so the slow part stays. A name with no `func <name>(` under Tests/
@@ -512,10 +507,17 @@ needs_suite=no
 if [[ -n "${FILTER:-}" ]]; then
     targets="$(sed -E 's/(^| )check( |$)/\1check-fast test-filter test-app\2/; s/(^| )test( |$)/\1test-filter\2/' <<<"$targets")"
 fi
-# A local check-fast with no HOOK_TESTS word runs the whole list, which test-hooks.sh runs only with a
-# switch. The FILTER rewrite makes check-fast of check, so this comes after it.
-if [[ $push == 0 && " $targets " == *" check-fast "* && " $targets " != *" HOOK_TESTS="* ]]; then
-    targets+=" DIRIGIBLE_HOOKS_ALL=1"
+# A local check-fast runs only the hook tests that the changed paths need. The FILTER rewrite makes
+# check-fast of check, so this comes after it. The whole list runs only with a switch, which
+# test-hooks.sh needs; with no hook test, check-fast is static.
+if [[ $push == 0 && " $targets " == *" check-fast "* ]]; then
+    hooks="$(hook_tests "$paths")"
+    [[ "$hooks" != "$(hook_list | paste -sd, -)" ]] || hooks=all
+    case "$hooks" in
+        all) targets+=" DIRIGIBLE_HOOKS_ALL=1" ;;
+        "") targets="$(sed -E 's/(^| )check-fast( |$)/\1static\2/' <<<"$targets")" ;;
+        *) targets+=" HOOK_TESTS=$hooks" ;;
+    esac
 fi
 # A local git run with FILTER and no changed path runs the named tests: no path needs another target.
 if [[ $mode == git && $push == 0 && -n "${FILTER:-}" && -z "$paths" ]]; then

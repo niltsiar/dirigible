@@ -77,7 +77,7 @@ trap 'rm -f "$log" "$log".* ${mark:+"$mark"}' EXIT
 skip=() vars=() goals=() first=no
 for a in "$@"; do
     if [[ $a == *=* ]]; then vars+=("$a"); else goals+=("$a"); fi
-    if [[ $a == check || $a == check-fast ]]; then first=yes; fi
+    if [[ $a == check || $a == check-fast || $a == static ]]; then first=yes; fi
 done
 
 no_rerun() { echo "run-checks: no rerun: $1" >&2; exit 1; }
@@ -185,7 +185,7 @@ fi
 
 # With no goal (only a word), make does not run: make with no goal runs the default goal setup.
 if [[ ${#goals[@]} -gt 0 ]]; then
-    # The static gates first (decision 0028): for the goal check or check-fast, make -k static
+    # The static gates first (decision 0028): for the goal check, check-fast, or static, make -k static
     # runs the gates of STATIC_GATES in the Makefile. A red gate stops the check before the Swift
     # targets. The main make then skips each passed gate with -o, so each gate runs once. GNU make
     # does not pass -o to a nested make.

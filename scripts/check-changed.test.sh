@@ -4,7 +4,8 @@
 # file of a floor file is on the floor.
 # Check that `make check-changed` of the real Makefile exits nonzero when the script does, and
 # runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
-# gives test-filter in place of test (and check-fast test-filter test-app in place of check), that
+# gives test-filter in place of test (and check-fast test-filter test-app, or static test-filter test-app when
+# no hook test is needed, in place of check), that
 # a local git run with a Swift test target and no FILTER exits 1 with the reason, and that FILTER
 # reaches the swift calls through make. Check that a
 # passing make check-changed with BASE writes the stamp, and a red one does not. Check that the push
@@ -15,7 +16,8 @@
 # Check that the recipe waits for a load under the core count before Swift tests, stops the wait
 # at CHECK_LOAD_WAIT, and reads no load for docs targets. Check the delta after a pass stamp, and
 # the partial stamp: its selection, the RERUN word and its drops, the risk refusal, and the
-# ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word.
+# ignore mode. Check the word DIRIGIBLE_HOOKS_ALL=1 of a local check-fast with no HOOK_TESTS word (a tooling
+# or build path that no hook test names), and the target static, in place of check-fast, when the paths need no hook test.
 # Check the mode --overlap: the shared Sources/ and Tests/ files of the base, the other worktrees, and
 # the open PRs (a fake gh), the notes for a failed or silent gh, and the usage exit. Check that
 # .sourcekit-lsp/config.json (or the file that LSP_CONFIG names) sets backgroundIndexing to false.
@@ -146,10 +148,23 @@ got="$(cd "$tmp" && "$script" --paths --push <<<'Tests/A.swift')" || fail "outsi
 # FILTER: the tests of the slice in place of all tests. The other targets do not change.
 FILTER=ClipTests expect 'tests with FILTER' "$(out tests test-filter no)" <<<'Tests/DirigibleCoreTests/SessionTests.swift'
 FILTER=ClipTests expect 'docs with FILTER' "$(out docs check-docs no)" <<<'docs/guide.md'
-FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle "check-fast test-filter test-app$all_hooks" no)" <<<'Makefile'
-FILTER=ClipTests expect 'build with FILTER' "$(out build "check-fast test-filter test-app$all_hooks" no)" <<<'Package.swift'
-FILTER=ClipTests expect 'bundle and sources with FILTER' "$(out 'sources bundle' "check-fast test-filter test-app$all_hooks" no)" \
+FILTER=ClipTests expect 'bundle with FILTER' "$(out bundle "check-fast test-filter test-app$(hw Makefile)" no)" <<<'Makefile'
+FILTER=ClipTests expect 'build with FILTER' "$(out build "check-fast test-filter test-app$(hw Package.swift)" no)" <<<'Package.swift'
+FILTER=ClipTests expect 'bundle and sources with FILTER' "$(out 'sources bundle' "check-fast test-filter test-app$(hw Makefile)" no)" \
   <<<$'Makefile\nSources/DirigibleApp/AppDelegate.swift'
+# A FILTER check whose paths need no hook test runs the static gates only. The names are built from
+# parts, so this file does not name them.
+strings_file="Support/Resources/en.lproj/Localizable.str""ings" unnamed_build=".swift-ver""sion-x"
+FILTER=ClipTests expect 'the paths of a sources-risk slice with FILTER' "$(out 'docs tests sources sources-risk bundle' 'static test-filter test-app' yes)" \
+  <<<$'Sources/DirigibleCore/SessionWriter.swift\nSources/DirigibleApp/AppDelegate.swift\nTests/DirigibleCoreTests/SessionTests.swift\n'"$strings_file"$'\ndocs/guide.md\nREADME.md'
+FILTER=ClipTests expect 'a bundle path that no hook test names, with FILTER' "$(out bundle 'static test-filter test-app' no)" <<<"$strings_file"
+FILTER=ClipTests expect 'a build path that no hook test names, with FILTER' "$(out build "check-fast test-filter test-app$all_hooks" no)" <<<"$unnamed_build"
+FILTER=ClipTests expect 'a build path that no hook test names, with a sources path' "$(out 'sources build' "check-fast test-filter test-app$all_hooks" no)" \
+  <<<"$unnamed_build"$'\nSources/DirigibleApp/AppDelegate.swift'
+FILTER=ClipTests expect 'a bundle path and a mapped Makefile, with FILTER' "$(out bundle "check-fast test-filter test-app$(hw Makefile)" no)" <<<"$strings_file"$'\nMakefile'
+# The push targets do not change.
+expect 'the paths of a sources-risk slice before the push' "$(out 'docs tests sources sources-risk bundle' 'check test-slow-push test-dmg' yes)" --push \
+  <<<$'Sources/DirigibleCore/SessionWriter.swift\nSources/DirigibleApp/AppDelegate.swift\nTests/DirigibleCoreTests/SessionTests.swift\n'"$strings_file"$'\ndocs/guide.md\nREADME.md'
 # With no FILTER, the stdin mode keeps the targets: the refusal is for the local git run.
 expect 'bundle with no FILTER, stdin' "$(out bundle check no)" <<<'Makefile'
 FILTER='ClipTests TrackTests' expect 'tooling and sources with FILTER' "$(out 'tooling sources' "check-fast test-filter$(hw scripts/probe.sh)" no)" \
@@ -162,8 +177,8 @@ got="$(FILTER=ClipTests "$script" --paths --push 2>&1 <<<'Tests/A.swift')" && fa
 # need, so make runs those and not the whole list: the entry itself, the <name>.test.sh of a
 # <name>.sh or <name>.py, the guardrails test for a hook, settings, or .githooks path, and each
 # entry whose text names the basename of a changed tooling path. A changed path of class tooling
-# or comments with no test gives the word DIRIGIBLE_HOOKS_ALL=1: test-hooks.sh refuses the whole
-# list with no word. The HOOK_TESTS word never comes before the push.
+# or build with no test gives the word DIRIGIBLE_HOOKS_ALL=1: test-hooks.sh refuses the whole
+# list with no word. A path of class comments, or of class bundle with no test, needs none. The HOOK_TESTS word never comes before the push.
 # word_of [--push]: the HOOK_TESTS word of the paths on stdin, or nothing.
 word_of() { (cd "$e" && "$script" --paths "$@") | sed -n 's/^targets: .*HOOK_TESTS=\([^ ]*\).*/\1/p'; }
 # has_test <path> <test>: the word for the path holds the test.
@@ -362,11 +377,13 @@ content_case() {
 }
 sw=Sources/DirigibleCore/SessionWriter.swift app=Sources/DirigibleApp/A.swift
 # A Swift change of only // lines and blank lines is class comments, also in a risk floor file.
-content_case 'a comment in a floor file' $sw $'let a = 1\n' $'let a = 1\n// note\n' "$(out comments "check-fast$all_hooks" no)"
+content_case 'a comment in a floor file' $sw $'let a = 1\n' $'let a = 1\n// note\n' "$(out comments static no)"
 content_case 'code in a floor file' $sw $'let a = 1\n' $'let a = 1\nlet y = 1\n' "$(out sources-risk test yes)"
-content_case 'a comment and a blank line' $app $'let a = 1\n' $'let a = 1\n\n  // note\n' "$(out comments "check-fast$all_hooks" no)"
+content_case 'a comment and a blank line' $app $'let a = 1\n' $'let a = 1\n\n  // note\n' "$(out comments static no)"
 content_case 'a comment and a code line' $app $'let a = 1\n' $'let a = 1\n// note\nlet x = 1\n' "$(out sources test no)"
-content_case 'a doc comment' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc f() {}\n' "$(out comments "check-fast$all_hooks" no)"
+content_case 'a doc-comment edit of a Sources Swift file prints no DIRIGIBLE_HOOKS_ALL and no hook test' Sources/DirigibleCore/Clip.swift $'/// Old.\nstruct Clip {}\n' $'/// New.\nstruct Clip {}\n' "$(out comments static no)"
+[[ "$got" != *DIRIGIBLE_HOOKS_ALL* && "$got" != *HOOK_TESTS* ]] || fail "a doc-comment edit: a hook word in [$got]"
+content_case 'a doc comment' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc f() {}\n' "$(out comments static no)"
 content_case 'a doc comment and a name' $app $'/// Old.\nfunc f() {}\n' $'/// New.\nfunc g() {}\n' "$(out sources test no)"
 # A code line with a comment, a // in a string, #if, and a block comment stay code.
 content_case 'a code line with a comment' $app $'let x = 1 // a\n' $'let x = 2 // a\n' "$(out sources test no)"
@@ -699,6 +716,10 @@ grep -q 'load 9.50 after 300 s, not under 4.5: run the tests' "$tmp/wait.err" ||
 : > "$tmp/sysctl.log"
 got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-docs check-fast 2>&1)" || fail "--wait-load with docs targets exits $?"
 [[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load with docs targets read the load: [$got] [$(cat "$tmp/sysctl.log")]"
+# The target static runs no Swift test either.
+: > "$tmp/sysctl.log"
+got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load static 2>&1)" || fail "--wait-load static exits $?"
+[[ -z "$got" && ! -s "$tmp/sysctl.log" ]] || fail "--wait-load static read the load: [$got] [$(cat "$tmp/sysctl.log")]"
 # A NAME=value word of the targets is no target: the HOOK_TESTS word of a check-fast run reads no load.
 : > "$tmp/sysctl.log"
 got="$(PATH="$tmp/bin:$PATH" "$script" --wait-load check-fast HOOK_TESTS=a,b 2>&1)" || fail "--wait-load with a HOOK_TESTS word exits $?"

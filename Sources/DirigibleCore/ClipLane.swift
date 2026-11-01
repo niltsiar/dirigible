@@ -127,6 +127,22 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         repair(storage.indices)
     }
 
+    /// Removes the frames in `ranges` and closes each gap, in one pass (a ripple delete, decision
+    /// 0037). The ranges are sorted and do not overlap. `clear` repairs the lane while it has the
+    /// gaps, so no clip edge at a range bound keeps a crossfade, and each new join gets none. The
+    /// move keeps the order of the clips.
+    mutating func rippleDelete(_ ranges: [Range<Frames>], rightID: (Clip, Frames) -> ClipID) {
+        clear(ranges, rightID: rightID)
+        var (next, removed) = (0, Frames.zero)
+        for index in storage.indices {
+            while next < ranges.count, ranges[next].upperBound <= storage[index].start {
+                removed = removed + (ranges[next].upperBound - ranges[next].lowerBound)
+                next += 1
+            }
+            storage[index].start = storage[index].start - removed
+        }
+    }
+
     /// Merges clips that are sorted by start and do not overlap the lane or each other. It repairs
     /// only the joins next to each inserted clip: the lane is paired before the edit (0036).
     mutating func insert(sorted clips: [Clip]) {

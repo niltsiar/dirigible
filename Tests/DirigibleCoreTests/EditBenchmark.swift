@@ -24,6 +24,13 @@ struct EditBenchmark {
     #else
         static let budget = Duration.milliseconds(16)
     #endif
+    /// Silence-tool C32: an Apply is one click, so its budget is 3 frames at 60 Hz, a time that a
+    /// user feels (`performance-criteria.md`). The debug value is a proxy, as `budget`.
+    #if DEBUG
+        static let applyBudget = budget
+    #else
+        static let applyBudget = Duration.milliseconds(50)
+    #endif
 
     static let hour = Frames(172_800_000)
 
@@ -78,8 +85,34 @@ struct EditBenchmark {
         for (name, edit) in ripples { try Self.measure(name, History(marked), edit) }
     }
 
+    /// Silence-tool C32: one `editSilences` of 1200 shortens on 6 tracks with one clip each, so each
+    /// lane gets 1201 clips.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aSilencePlanOf1200ShortensFitsItsBudget() throws {
+        let (count, period) = (1_200, 96_000)
+        var session = Session(sampleRate: 48_000)
+        for n in 1...6 {
+            let file = FileID("f\(n)")
+            try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: Frames(count * period)))
+            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+            try session.place(
+                Clip(id: ClipID("c\(n)"), file: file, start: 0, offset: 0, length: Frames(count * period)),
+                on: TrackID("t\(n)"))
+        }
+        let edits = (0..<count).map {
+            SilenceEdit(range: Frames($0 * period + 24_000)..<Frames($0 * period + 72_000), action: .shorten)
+        }
+        let plan = try SilencePlan(edits, keep: 24_000)
+        try Self.measure("editSilences of 1,200 shortens on 6 tracks", History(session), within: Self.applyBudget) {
+            _ = try $0.editSilences(plan, muting: [])
+        }
+    }
+
     /// Runs `edit` 20 times on a copy of `history`, and compares the p95 with the budget.
-    static func measure(_ name: String, _ history: History, _ edit: (inout Session) throws -> Void) throws {
+    static func measure(
+        _ name: String, _ history: History, within budget: Duration = EditBenchmark.budget,
+        _ edit: (inout Session) throws -> Void
+    ) throws {
         var times: [Duration] = []
         for _ in 0..<20 {
             var copy = history
@@ -90,7 +123,7 @@ struct EditBenchmark {
         }
         let p95 = times.sorted()[18]
         print("EditBenchmark \(name): p95 \(p95)")
-        expectWithinBudget(p95, Self.budget, "\(name): p95 \(p95)")
+        expectWithinBudget(p95, budget, "\(name): p95 \(p95)")
     }
 
     /// Places 2 000 clips on the first track, then pastes that track onto the other five.

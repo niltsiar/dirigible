@@ -91,6 +91,13 @@
 # stops the process group of the command. make exits 2 for a recipe that exits 75, so the call exits
 # 75 when the command fails and its stderr has the make line "Error 75" of the check-changed target:
 # the recipe passes the 75 of scripts/run-checks.sh (a lock wait of a swift-test.sh call over its limit).
+# WITH_LOCK_RUN_ONLY=1 makes a call lock-free (targets run-only) for a step that only runs a built
+# binary and times nothing: it takes no lock and waits only for a long holder, as above. The call
+# skips the leading words env and time (each only when the next word does not start with -), each
+# NAME=value word, and probe.sh [--no-audio] <folder>, comparing words by basename. The command
+# left must be a built binary (a path under .build/ or build/Dirigible.app/, with no .. part),
+# bash <file>, or sh <file>. Any other form exits 2 and runs nothing, because the call cannot see
+# inside a wrapper that it does not know. It also cannot see the command inside bash <file>.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -246,12 +253,43 @@ ahead() {
     done
     return 1
 }
+# run_only <command>: the mode WITH_LOCK_RUN_ONLY=1 (header). It skips the leading words env and time
+# (each only when the next word does not start with -), NAME=value, and probe.sh [--no-audio]
+# <folder>, compared by basename. The command left must be a built binary or bash <file>; any
+# other form exits 2 and runs nothing, because the call cannot see inside a wrapper that it does
+# not know.
+run_only() {
+    local c
+    while [[ $# -gt 0 ]]; do
+        case "${1##*/}" in
+            env | time) [[ $# -ge 2 && "$2" != -* ]] || break ;;
+            probe.sh) shift; [[ "${1:-}" != --no-audio ]] || shift; [[ $# -ge 1 ]] || break ;;
+            *) [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break ;;
+        esac
+        shift
+    done
+    c="${1:-}"
+    case "/$c/" in */../*) c="" ;; esac
+    case "$c" in
+        .build/?* | build/Dirigible.app/?* | */.build/?* | */build/Dirigible.app/?*) ;;
+        *) case "${c##*/}" in
+               bash | sh) [[ $# -ge 2 && "$2" != -* ]] || c="" ;;
+               *) c="" ;;
+           esac ;;
+    esac
+    [[ -n "$c" ]] || {
+        echo "with-lock: WITH_LOCK_RUN_ONLY=1 runs a built binary (a path under .build/ or build/Dirigible.app/), bash <file>, or sh <file>, after the words env, time, NAME=value, and probe.sh [--no-audio] <folder>; it runs nothing else" >&2
+        exit 2
+    }
+    free_targets=run-only
+}
 # lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift, or whose
 # Swift calls take the lock themselves (the header lists them). Any other command, goal, or
 # check-changed.sh failure is not lock-free (fail closed), except status 3 of check-changed.sh: it
 # prints the output and exits 3 at once.
 lock_free() {
     local w goal="" assign=() out="" hooks="" status=0
+    if [[ "${WITH_LOCK_RUN_ONLY:-}" == 1 ]]; then run_only "$@"; return; fi
     [[ "${1##*/}" == make ]] || return 1
     ! push_env || return 1
     for w in "${@:2}"; do

@@ -678,11 +678,13 @@ mkdir -p "$ro/bin" "$repo/.build/debug" "$repo/build/Dirigible.app/Contents/MacO
 printf '#!/bin/bash\necho "$(basename "$0") $*" >> "%s"\n' "$marker" > "$ro/stub"
 for name in swift swiftc make touch; do cp "$ro/stub" "$ro/bin/$name"; done
 cp "$ro/stub" "$repo/scripts/land.sh"
-cp "$ro/stub" "$repo/scripts/probe.sh"
+printf '#!/bin/bash\n[[ "${1:-}" != --no-audio ]] || shift\ncd "$1" || exit 1\nshift\nexec "$@"\n' > "$repo/scripts/probe.sh"
 cp "$ro/stub" "$repo/.build/debug/dirigible"
 cp "$ro/stub" "$repo/build/Dirigible.app/Contents/MacOS/Dirigible"
 chmod +x "$ro/bin/"* "$repo/scripts/land.sh" "$repo/scripts/probe.sh" "$repo/.build/debug/dirigible" "$repo/build/Dirigible.app/Contents/MacOS/Dirigible"
 printf 'echo script >> "%s"\n' "$marker" > "$repo/run.sh"
+cp "$repo/run.sh" "$tmp/pf/run.sh"
+printf '"%s/scripts/with-lock.sh" swift build\n' "$repo" > "$repo/nested.sh"
 # ro_call <variable value> <command...>: one call beside the holder that is there, with a limit of 2 s.
 ro_call() {
     local value="$1"
@@ -753,6 +755,9 @@ no_run bash -x run.sh
 no_run bash
 no_run env
 no_run scripts/probe.sh "$tmp/pf"
+no_run scripts/probe.sh "$tmp/pf" .build/debug/dirigible info
+no_run scripts/probe.sh --no-audio "$tmp/pf" build/Dirigible.app/Contents/MacOS/Dirigible info
+no_run scripts/probe.sh "$tmp/pf" env FOO=1 .build/debug/dirigible info
 no_run .build/../scripts/land.sh
 no_run build/Dirigible.app/../../scripts/land.sh
 # Near inputs of C7: each one runs.
@@ -768,11 +773,19 @@ ro_run 'dirigible info' "$repo/.build/debug/dirigible" info
 ro_run 'Dirigible info' build/Dirigible.app/Contents/MacOS/Dirigible info
 ro_run 'dirigible info' env FOO=1 .build/debug/dirigible info
 ro_run 'dirigible info' time .build/debug/dirigible info
-ro_run "probe.sh $tmp/pf .build/debug/dirigible info" scripts/probe.sh "$tmp/pf" .build/debug/dirigible info
-ro_run "probe.sh --no-audio $tmp/pf .build/debug/dirigible info" "$repo/scripts/probe.sh" --no-audio "$tmp/pf" .build/debug/dirigible info
+ro_run 'dirigible info' scripts/probe.sh "$tmp/pf" "$repo/.build/debug/dirigible" info
+ro_run 'Dirigible info' "$repo/scripts/probe.sh" --no-audio "$tmp/pf" "$repo/build/Dirigible.app/Contents/MacOS/Dirigible" info
+ro_run script scripts/probe.sh "$tmp/pf" bash run.sh
 ro_run script bash run.sh
 ro_run script sh run.sh
 ro_run script env FOO=1 bash run.sh
+# The mode applies to the call that sets the variable: a bash <file> that it runs and that calls
+# with-lock.sh for a build takes the lock path, with no exit 2.
+reset_builders
+ro_call 1 bash nested.sh
+[[ $code -eq 0 && "$(cat "$marker" 2>/dev/null)" == 'swift build' && "$out" != *'WITH_LOCK_RUN_ONLY=1 runs'* ]] ||
+    fail "run-only, nested build call: exit $code (want 0), marker [$(cat "$marker" 2>/dev/null)]: $out"
+reset_builders
 
 # The refusal of check-changed.sh for a clean tree with commits past origin/main (exit 3, one line)
 # passes through at once: no lock, no wait, no ticket, no log line, no command, also behind a long

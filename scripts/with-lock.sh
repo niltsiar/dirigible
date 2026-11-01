@@ -48,8 +48,9 @@
 # seconds in the window fall under the floor. A release call, a nested call, and a
 # DIRIGIBLE_LOCKED_SCRIPT call skip the cap, and so does WITH_LOCK_NO_CAP=1 (a read-only scan,
 # long-runs.md): it waits for the lock as any call, takes no slot, and ends its wait and hold lines
-# with the column nocap (the hold line has an empty fifth column unless it has limit). A release call also ends its lines with nocap, so a make dmg,
-# a land, or the hooks pass never fills a slot of the cap. cost.sh counts those minutes.
+# with the column nocap (the hold line has an empty fifth column unless it has limit). A release
+# call also ends its lines with nocap, so a make dmg, a land, or the hooks pass never fills a slot
+# of the cap. cost.sh counts those minutes.
 # A hold limit stops a command that runs too long: after WITH_LOCK_MAX_HOLD seconds the process
 # group of the command gets TERM, then KILL after WITH_LOCK_HOLD_GRACE seconds (default 10), the lock
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
@@ -96,8 +97,11 @@
 # skips the leading words env and time (each only when the next word does not start with -), each
 # NAME=value word, and probe.sh [--no-audio] <folder>, comparing words by basename. The command
 # left must be a built binary (a path under .build/ or build/Dirigible.app/, with no .. part),
-# bash <file>, or sh <file>. Any other form exits 2 and runs nothing, because the call cannot see
-# inside a wrapper that it does not know. It also cannot see the command inside bash <file>.
+# bash <file>, or sh <file>. After a probe.sh word, a built binary must be an absolute path (for
+# example "$PWD/.build/debug/dirigible"), because probe.sh changes to its folder first. Any other
+# form exits 2 and runs nothing, because the call cannot see inside a wrapper that it does not
+# know. It also cannot see the command inside bash <file>, and the command does not inherit the
+# variable, so a with-lock.sh call inside it takes the lock as usual.
 # The command gets DIRIGIBLE_BUILD_LOCK=<pid of this call>. A call that finds this value in the pid
 # file (a nested call, for example swift-test.sh under make test) runs its command at once, and
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
@@ -255,33 +259,37 @@ ahead() {
 }
 # run_only <command>: the mode WITH_LOCK_RUN_ONLY=1 (header). It skips the leading words env and time
 # (each only when the next word does not start with -), NAME=value, and probe.sh [--no-audio]
-# <folder>, compared by basename. The command left must be a built binary or bash <file>; any
-# other form exits 2 and runs nothing, because the call cannot see inside a wrapper that it does
-# not know.
+# <folder>, compared by basename. The command left must be a built binary (a path under .build/
+# or build/Dirigible.app/), bash <file>, or sh <file>; after a probe.sh word, a built binary must
+# be an absolute path, because probe.sh changes to its folder first. Any other form exits 2 and
+# runs nothing, because the call cannot see inside a wrapper that it does not know.
 run_only() {
-    local c
+    local c probed="" built=""
     while [[ $# -gt 0 ]]; do
         case "${1##*/}" in
             env | time) [[ $# -ge 2 && "$2" != -* ]] || break ;;
-            probe.sh) shift; [[ "${1:-}" != --no-audio ]] || shift; [[ $# -ge 1 ]] || break ;;
+            probe.sh) shift; probed=1; [[ "${1:-}" != --no-audio ]] || shift; [[ $# -ge 1 ]] || break ;;
             *) [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break ;;
         esac
         shift
     done
     c="${1:-}"
     case "/$c/" in */../*) c="" ;; esac
-    case "$c" in
-        .build/?* | build/Dirigible.app/?* | */.build/?* | */build/Dirigible.app/?*) ;;
-        *) case "${c##*/}" in
-               bash | sh) [[ $# -ge 2 && "$2" != -* ]] || c="" ;;
-               *) c="" ;;
-           esac ;;
+    if [[ -n "$probed" ]]; then
+        case "$c" in /*/.build/?* | /*/build/Dirigible.app/?*) built=1 ;; esac
+    else
+        case "$c" in .build/?* | build/Dirigible.app/?* | */.build/?* | */build/Dirigible.app/?*) built=1 ;; esac
+    fi
+    [[ -n "$built" ]] || case "${c##*/}" in
+        bash | sh) [[ $# -ge 2 && "$2" != -* ]] || c="" ;;
+        *) c="" ;;
     esac
     [[ -n "$c" ]] || {
-        echo "with-lock: WITH_LOCK_RUN_ONLY=1 runs a built binary (a path under .build/ or build/Dirigible.app/), bash <file>, or sh <file>, after the words env, time, NAME=value, and probe.sh [--no-audio] <folder>; it runs nothing else" >&2
+        echo "with-lock: WITH_LOCK_RUN_ONLY=1 runs a built binary (a path under .build/ or build/Dirigible.app/), bash <file>, or sh <file>, after the words env, time, NAME=value, and probe.sh [--no-audio] <folder>; after probe.sh, a built binary needs an absolute path; it runs nothing else" >&2
         exit 2
     }
     free_targets=run-only
+    unset WITH_LOCK_RUN_ONLY
 }
 # lock_free <command>: succeeds, and sets free_targets, for a call that builds no Swift, or whose
 # Swift calls take the lock themselves (the header lists them). Any other command, goal, or

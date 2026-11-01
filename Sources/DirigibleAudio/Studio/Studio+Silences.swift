@@ -111,6 +111,7 @@ private func sameFrames(_ a: Session, _ b: Session) -> Bool {
         case .read(let error):
             return .failure(error.code == .ECANCELED ? .silencesCancelled : .silencesRead(error.code.rawValue))
         case .faults(let faults): return .failure(.silencesFaults(faults))
+        case .badSource: return .failure(.silencesRead(EINVAL))
         }
     }
 }

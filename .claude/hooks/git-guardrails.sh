@@ -496,14 +496,17 @@ if [[ "$chained_data" == *DIRIGIBLE_BUILD_LOCK=* || "$chained_data" == *DIRIGIBL
   block "sets a lock reuse value by hand (DIRIGIBLE_BUILD_LOCK or DIRIGIBLE_LOCKED_SCRIPT); run the command through scripts/with-lock.sh and wait for the lock"
 fi
 
-# A repo hook test runs through scripts/with-lock.sh (AGENTS.md, Commands): a bare run takes no lock
-# and adds load to a push check (DLV-157/flake). Each segment of the chain (split on ; & | ( and a
-# backtick) is read from its start, after the prefix words (NAME=value, time, env, probe.sh <folder>,
-# and the like). It blocks a shell word (sh, bash, zsh, with a path) with flags other than -n and then
-# a .test.sh path, a bare .test.sh path, and make test-hooks or scripts/test-hooks.sh (any path, with
-# or without HOOK_TESTS), which run every hook test. A with-lock.sh word in the prefix, bash -n,
-# make -n, and a .test.sh path under .scratchpads/ pass. Misses: a path in a variable, bash -c, and a
-# wrapper word that the prefix does not hold (nice, nohup, caffeinate).
+# A repo hook test runs in its lock-free form, scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>'
+# (AGENTS.md, Commands). That call takes no lock and also runs a test that the Makefile list does not
+# hold. A bare run adds load to a push check (DLV-157/flake). A run inside a with-lock.sh call holds
+# a slot of the 2-tree cap for 200 s or more (DLV-206/cost). Each segment of the chain (split on ; & |
+# ( and a backtick) is read from its start, after the prefix words (NAME=value, time, env, probe.sh
+# <folder>, with-lock.sh, and the like). It blocks a shell word (sh, bash, zsh, with a path) with
+# flags other than -n and then a .test.sh path, a bare .test.sh path, and scripts/test-hooks.sh (any
+# path), also after with-lock.sh. It blocks make test-hooks (with or without HOOK_TESTS) unless
+# with-lock.sh is in the prefix. bash -n, make -n, and a .test.sh path under .scratchpads/ pass.
+# Misses: a path in a variable, bash -c, and a wrapper word that the prefix does not hold (nice,
+# nohup, caffeinate).
 # The segments are read from the text with each separator inside a quoted string, and each data
 # heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. A
 # heredoc body is data when no word before the marker is a shell or an interpreter (sh, bash, python3,
@@ -730,28 +733,29 @@ test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
 hooks_path="[\"']?([^[:space:]\"']*/)?test-hooks\.sh[\"']?([[:space:])}<>]|\$)"
 make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
-lock_way="Run it through the lock: scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>' (AGENTS.md, Commands). A bare run adds load to the push checks of the other worktrees."
+lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>', which takes no lock (AGENTS.md, Commands). It waits only for a long holder (a release call, a bench, a mutation pass, or a flake loop: long_holder in scripts/with-lock.sh). The header of scripts/with-lock.sh has the rule."
 if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   test_segments="$(mask_quoted_data <<< "$chained")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
   while IFS= read -r segment; do
     [[ "$segment" =~ ^[[:space:]]?($test_pre)(.*)$ ]] || continue
     prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
-    [[ "$prefix" == *with-lock.sh* ]] && continue
+    in_lock=""
+    [[ "$prefix" == *with-lock.sh* ]] && in_lock=1
     if [[ "$rest" =~ ^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+(.*)$ ]]; then
       [[ "${BASH_REMATCH[3]}" == *n* ]] && continue
       rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
     fi
     if [[ "$rest" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then
-      block "runs a repo .test.sh with no lock" "$lock_way"
+      block "runs a repo hook test outside the key tree" "$lock_way"
     fi
     if [[ "$rest" =~ ^$hooks_path ]]; then
-      block "runs every repo hook test with no lock (scripts/test-hooks.sh)" "$lock_way"
+      block "runs scripts/test-hooks.sh outside its lock-free form" "$lock_way"
     fi
-    if [[ "$rest" =~ $make_hooks ]]; then
+    if [[ -z "$in_lock" && "$rest" =~ $make_hooks ]]; then
       words=" ${BASH_REMATCH[2]} "
       [[ "$words" == *" -n "* || "$words" == *" --dry-run "* ]] && continue
-      block "runs every repo hook test with no lock (make test-hooks)" "$lock_way"
+      block "runs scripts/test-hooks.sh outside its lock-free form (make test-hooks)" "$lock_way"
     fi
   done <<< "$test_segments"
 fi

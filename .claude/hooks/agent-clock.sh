@@ -10,14 +10,18 @@
 # line. The hook exits 0 in bash, before Python starts, when the input has no "agent_id": the lead
 # never gets a refusal.
 # The commit trigger: a Bash call with a git commit segment at 60 or more active minutes, after
-# which the HEAD history of its work tree (the last `cd <path>` segment before the commit, else the
-# `git -C <path>` of the segment, else the cwd of the entry) holds a commit whose committer time is
-# from 2 s before the call to 2 s after its result, and whose author time is within 2 s of that
-# (`--amend`: the committer time only). One `git log -n 20` call reads the history, and a failed
-# call gives no trigger. The output text and the is_error flag of the command do not decide. A
-# coordinator message (a user entry that starts with `The coordinator sent a message`) after the
-# commit clears the trigger. The scan is the same pass as the sum: before 60 active minutes a line
-# gets no more than its timestamp, and it skips api-request-blob lines.
+# which the HEAD history of its work tree (the cwd of the entry, moved by each `cd <path>` segment
+# before the commit and then by the `-C <path>`, `--work-tree=`, or `--git-dir=` of the segment; an
+# absolute path wins) holds a commit whose committer time is from 2 s before the call to 2 s after
+# its result, and whose author time is within 2 s of that (`--amend`, or a command that sets the
+# author date, which is `--date`, GIT_AUTHOR_DATE, or a commit given to `-C`, `-c`,
+# `--reuse-message`, or `--reedit-message`: the committer time only). The segment may start with
+# `(`, `env`, `time`, `command`, and NAME=value words, and may have `--no-pager` and `-c` after
+# `git`. One `git log -n 20` call reads the history, and a failed call gives no trigger. The output
+# text and the is_error flag of the command do not decide. A coordinator message (a user entry that
+# starts with `The coordinator sent a message`) after the commit clears the trigger. The scan is the
+# same pass as the sum: before 60 active minutes a line gets no more than its timestamp, and it
+# skips api-request-blob lines.
 # Past the limit, or after the trigger, these calls pass, so the agent can write its handoff and
 # hand back:
 #   - the tools Read, ToolSearch, TaskStop, and SubagentHandback;
@@ -66,31 +70,50 @@ def line_time(line):
         return None
 
 
+def resolve(base, path):
+    """A path against a base folder: an absolute path wins."""
+    return os.path.join(base or "", os.path.expanduser(path))
+
+
 def commit_segment(command, cwd):
-    """The work tree and the amend flag of the first git commit segment of a command, else None."""
-    tree = None
+    """The work tree and the author-time flag of the first git commit segment of a command, else None.
+    The flag is true for --amend and for a command that sets the author date."""
+    tree, dated = cwd if isinstance(cwd, str) else None, False
     for segment in re.split(r"&&|\|\||;|\||\n", command):
-        words = segment.split()
-        while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=\S*", words[0]):
+        words = segment.strip().lstrip("(").rstrip(")").split()
+        while words and (words[0] in ("env", "time", "command") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=\S*", words[0])):
+            dated = dated or words[0].startswith("GIT_AUTHOR_DATE=")
             words.pop(0)
         if not words:
             continue
         if words[0] == "cd":
             if len(words) == 2:
-                tree = words[1]
+                tree = resolve(tree, words[1])
             continue
         if words[0] != "git":
             continue
-        rest, option_tree = words[1:], None
-        while len(rest) >= 2 and rest[0] in ("-C", "-c"):
-            if rest[0] == "-C":
-                option_tree = rest[1]
-            rest = rest[2:]
+        rest, base, git_dir, work_tree = words[1:], tree, None, None
+        while rest:
+            if rest[0] in ("-C", "-c") and len(rest) >= 2:
+                if rest[0] == "-C":
+                    base = resolve(base, rest[1])
+                rest = rest[2:]
+            elif rest[0].startswith("--git-dir="):
+                git_dir = resolve(base, rest[0].partition("=")[2])
+                rest = rest[1:]
+            elif rest[0].startswith("--work-tree="):
+                work_tree = resolve(base, rest[0].partition("=")[2])
+                rest = rest[1:]
+            elif rest[0] == "--no-pager":
+                rest = rest[1:]
+            else:
+                break
         if rest and rest[0] == "commit":
-            where = tree or option_tree or cwd
-            if not isinstance(where, str) or not where:
+            where = git_dir or work_tree or base
+            if not where:
                 return None
-            return os.path.join(cwd or "", os.path.expanduser(where)), "--amend" in rest
+            sets_date = any(re.fullmatch(r"--date(=.*)?|--(reuse|reedit)-message(=.*)?|-[Cc].*", w) for w in rest[1:])
+            return where, "--amend" in rest or dated or sets_date
     return None
 
 
@@ -121,7 +144,7 @@ def coordinator_entry(line):
 def scan(path):
     """The active minutes of the transcript, and the Bash commit calls at COMMIT_MIN active minutes
     or more after the last coordinator message, each (time of the call, time of its result, work
-    tree, amend flag). One pass: a line before COMMIT_MIN gets no more than its timestamp."""
+    tree, skip-author flag). One pass: a line before COMMIT_MIN gets no more than its timestamp."""
     total, prev = 0.0, None
     pending, done = {}, []
     with open(path, encoding="utf-8", errors="replace") as handle:
@@ -140,8 +163,8 @@ def scan(path):
                     done.clear()
             elif pending and "\"tool_use_id\":\"" in line:
                 for key in [k for k in pending if "\"tool_use_id\":\"" + k + "\"" in line]:
-                    start, tree, amend = pending.pop(key)
-                    done.append((start, at, tree, amend))
+                    start, tree, skip_author = pending.pop(key)
+                    done.append((start, at, tree, skip_author))
             elif "\"name\":\"Bash\"" in line and "commit" in line and "\"type\":\"assistant\"" in line:
                 for key, command, cwd in bash_calls(line):
                     found = commit_segment(command, cwd)
@@ -154,7 +177,7 @@ def committed_in_window(calls):
     """True when the HEAD history of the work tree of a call holds a commit that the call made."""
     env = {k: v for k, v in os.environ.items() if k not in ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE")}
     history = {}
-    for start, end, tree, amend in calls:
+    for start, end, tree, skip_author in calls:
         if tree not in history:
             try:
                 out = subprocess.run(
@@ -169,7 +192,7 @@ def committed_in_window(calls):
                 committed, authored = (float(w) for w in row.split())
             except ValueError:
                 continue
-            if start - WINDOW <= committed <= end + WINDOW and (amend or abs(committed - authored) <= WINDOW):
+            if start - WINDOW <= committed <= end + WINDOW and (skip_author or abs(committed - authored) <= WINDOW):
                 return True
     return False
 

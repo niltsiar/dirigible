@@ -1962,6 +1962,17 @@ ct_shapes=(
   'amend~amend~git commit --amend --no-edit~tree~[main 1234abc] m'
   'detached~detached~git commit -m x~tree~[detached HEAD 1234abc] m'
   'root~root~git commit -m x~tree~[main (root-commit) 1234abc] m'
+  'env-cmd~new~env FOO=1 git commit -m x~tree~[main 1234abc] m'
+  'time~new~time git commit -m x~tree~[main 1234abc] m'
+  'command~new~command git commit -m x~tree~[main 1234abc] m'
+  'no-pager~new~git --no-pager commit -m x~tree~[main 1234abc] m'
+  'subshell~new~(cd @T@ && git commit -m x)~elsewhere~[main 1234abc] m'
+  'cd-then-C~new~cd @T@/x && git -C @T@ commit -m x~elsewhere~[main 1234abc] m'
+  'relative~new~cd @T@/.. && git -C ctr-relative commit -m x~elsewhere~[main 1234abc] m'
+  'git-dir~new~git --git-dir=@T@/.git --work-tree=@T@ commit -m x~elsewhere~[main 1234abc] m'
+  'date~amend~git commit --date=2020-01-01 -m x~tree~[main 1234abc] m'
+  'env-date~amend~GIT_AUTHOR_DATE=2020-01-01 git commit -m x~tree~[main 1234abc] m'
+  'reuse~amend~git commit -C HEAD~tree~[main 1234abc] m'
 )
 for ct_shape in "${ct_shapes[@]}"; do
   IFS='~' read -r ct_name ct_mode ct_command ct_cwd ct_text <<< "$ct_shape"
@@ -1979,6 +1990,9 @@ hb_expect "$clock_hook" 0 'make build after a failed commit (no new commit in th
 ct_repo failed-error old
 ct_session failed-error 62 'git commit -F x 2>&1 | tail -5' tree 'lint: 3 errors'
 hb_expect "$clock_hook" 0 'make build after a failed commit whose output has no error flag' "$(hb_bash 'make build')"
+ct_repo failed-date old
+ct_session failed-date 62 'git commit --date=2020-01-01 -m x' tree 'lint: 3 errors'
+hb_expect "$clock_hook" 0 'make build after a failed commit with an author date option' "$(hb_bash 'make build')"
 ct_repo gone new
 ct_session gone 62 'git commit -q -F x' tree ''
 rm -rf "$ct_tree"

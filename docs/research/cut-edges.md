@@ -1,8 +1,8 @@
 # Research: cut edges of a text cut (F111)
 
-Date: 2026-10-28
+Date: 2026-10-28 (research); 2026-11-01 (measurement)
 
-Each claim has a source number [n]. "Inference:" marks a claim with no owner source. Time spent: about 30 min. No build ran. The probe of the last measurement section ran on 2026-11-01. Adobe help pages (helpx) gave HTTP 403 on every URL tried. web.archive.org is blocked for this tool. Riverside help pages gave HTTP 403 too. Search excerpts replace them, and each one is marked.
+Each claim has a source number [n]. "Inference:" marks a claim with no owner source. Time spent: about 30 min for the research on 2026-10-28. The measurement on 2026-11-01 is in its own section. Adobe help pages (helpx) gave HTTP 403 on every URL tried. web.archive.org is blocked for this tool. Riverside help pages gave HTTP 403 too. Search excerpts replace them, and each one is marked.
 
 ## Short answer
 
@@ -45,7 +45,7 @@ No reference app documents where a text cut puts its start edge and end edge. Th
 ### Premiere Pro
 
 1. A Community Manager wrote: "The shortest pause Premiere can allow is .1 seconds" and it is "the smallest amount Premiere can filter by without accidentally chopping off pieces of your audio" [7]. The role is a forum reply, not a help page.
-2. Search excerpt of a tutorial (third party): Extract closes the gap, Lift leaves it [8]. The earlier run records the Adobe excerpt that a cut in the transcript ripples [23].
+2. Search excerpt of a tutorial (third party): Extract closes the gap, Lift leaves it [8]. A search excerpt of the Adobe help page says that a cut in the transcript ripples [23].
 3. Secondary source (forum, user, Mar 2026): silence regions look offset from the waveform and pause removal cuts dialogue. No staff reply, no ms value [24].
 4. Edge placement, fade length: not found. The helpx page is not readable.
 
@@ -106,11 +106,19 @@ What the numbers say:
 3. The bar measured whether the edge lands in silence. The word edges miss this too (11 of 40), so the bar cannot tell a better edge from the word edge.
 4. The move helps a little (18 edges quieter, 7 louder, mean -3.7 dB), but it does not reach silence.
 
-Conclusion: a rule bounded by the Whisper word gap cannot move most edges. A quiet-point rule needs an audio read with its own reach. Its bar must compare the moved edge with the word edge, and the bar must be fixed before its data run.
+Conclusion, for this sample and the `base` model only: a rule bounded by the Whisper word gap could not move most edges. A quiet-point rule then needs an audio read with its own reach. Its bar must compare the moved edge with the word edge, and the bar must be fixed before its data run.
+
+Not measured: a larger model, a second language, and a forced aligner. Any of them can give more pauses between words. A run on item 1257 must measure them before it takes this conclusion as settled.
 
 ## Defaults this suggests
 
 All rows are Inference unless a source is named.
+
+Rules of the table:
+
+- Rule 1: the cut edges are the word start and the word end, as now.
+- Rule 2: the cut ends at the next word start (the common belief about Descript; no source).
+- Rule 3: the cut edge moves to the quietest point near the word edge (the common belief about Hindenburg; no source).
 
 | item | suggested default | basis |
 |---|---|---|

@@ -698,12 +698,14 @@
 "sheet.transcribe.note.replace.many" = "Dit spoor heeft %lld woorden. Vervangen wisselt ze om voor de nieuwe woorden. Herstel brengt ze terug.";
 "transcribe.banner.download" = "Spraakmodel downloaden… %lld %%";
 "transcribe.banner.running" = "%1$@ transcriberen… %2$lld %%";
+"transcribe.banner.firewall" = "Nog geen gegevens van %@. Een firewall kan de download blokkeren.";
 "transcribe.stopped" = "Transcriptie gestopt omdat een opname begon.";
 "transcribe.again" = "Opnieuw transcriberen";
 "transcribe.nowords" = "Geen woorden gevonden. Het spoor is niet gewijzigd.";
 "transcribe.canceled" = "Transcriptie geannuleerd. Het spoor is niet gewijzigd.";
 "error.transcribe.load" = "Het spraakmodel is niet geladen. Verwijder het bestand in ~/Library/Application Support/Dirigible/Models en probeer het opnieuw.";
 "error.transcribe.download" = "Het downloaden van het model is mislukt. Controleer je internetverbinding en probeer het opnieuw.";
+"error.transcribe.download.nodata" = "Het downloaden van het model kreeg geen gegevens van %@. Een firewall kan de download blokkeren. Sta de verbinding toe in je firewall en probeer het opnieuw.";
 "error.transcribe.folder" = "Dirigible kon het spraakmodel niet in %1$@ schrijven (fout %2$lld). Controleer of de schijf vrije ruimte heeft en of je in die map mag schrijven, en probeer het opnieuw.";
 "error.transcribe.download.checksum" = "Het gedownloade spraakmodel is niet het verwachte bestand, dus Dirigible heeft het verwijderd. Probeer het later opnieuw.";
 "error.transcribe.checksum" = "Het bestand van het spraakmodel is beschadigd of niet het verwachte. Verwijder het in ~/Library/Application Support/Dirigible/Models en probeer het opnieuw.";

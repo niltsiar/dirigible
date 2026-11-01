@@ -698,12 +698,14 @@
 "sheet.transcribe.note.replace.many" = "Diese Spur hat %lld Wörter. Ersetzen tauscht sie gegen die neuen Wörter aus. Mit Widerrufen kommen sie zurück.";
 "transcribe.banner.download" = "Sprachmodell wird geladen … %lld %%";
 "transcribe.banner.running" = "%1$@ wird transkribiert … %2$lld %%";
+"transcribe.banner.firewall" = "Noch keine Daten von %@. Eine Firewall kann den Download blockieren.";
 "transcribe.stopped" = "Die Transkription wurde angehalten, weil eine Aufnahme begann.";
 "transcribe.again" = "Erneut transkribieren";
 "transcribe.nowords" = "Keine Wörter gefunden. Die Spur ist unverändert.";
 "transcribe.canceled" = "Transkription abgebrochen. Die Spur ist unverändert.";
 "error.transcribe.load" = "Das Sprachmodell wurde nicht geladen. Lösche seine Datei in ~/Library/Application Support/Dirigible/Models und versuche es erneut.";
 "error.transcribe.download" = "Der Download des Modells ist fehlgeschlagen. Prüfe deine Internetverbindung und versuche es erneut.";
+"error.transcribe.download.nodata" = "Der Download des Modells hat keine Daten von %@ erhalten. Eine Firewall kann den Download blockieren. Erlaube die Verbindung in deiner Firewall und versuche es erneut.";
 "error.transcribe.folder" = "Dirigible konnte das Sprachmodell nicht in %1$@ schreiben (Fehler %2$lld). Prüfe, ob das Volume freien Speicherplatz hat und ob du in diesen Ordner schreiben darfst, und versuche es erneut.";
 "error.transcribe.download.checksum" = "Das geladene Sprachmodell ist nicht die erwartete Datei, daher hat Dirigible es gelöscht. Versuche es später erneut.";
 "error.transcribe.checksum" = "Die Datei des Sprachmodells ist beschädigt oder nicht die erwartete. Lösche sie in ~/Library/Application Support/Dirigible/Models und versuche es erneut.";

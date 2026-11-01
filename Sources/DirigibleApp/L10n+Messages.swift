@@ -77,6 +77,7 @@ extension L10n {
         switch error {
         case .modelLoad: errorTranscribeLoad.text
         case .modelDownload: errorTranscribeDownload.text
+        case .modelDownloadNoData(let host): errorTranscribeDownloadNoData.format(host)
         case .modelWrite(let folder, let code): errorTranscribeFolder.format(folder, Int(code))
         case .modelDownloadChecksum: errorTranscribeDownloadChecksum.text
         case .modelChecksum: errorTranscribeChecksum.text

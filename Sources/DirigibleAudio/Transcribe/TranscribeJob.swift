@@ -133,7 +133,8 @@ extension PassedModelFile {
 /// checks and the engine run on a `.userInitiated` GCD thread. Nil for a stop.
 @concurrent nonisolated func transcribeWork(
     _ map: SpanMap, session: Session, lock: PackageLock, language: WhisperLanguage, model: WhisperModelChoice,
-    environment: CaptureEnvironment, run: ReadRun, announce: @escaping @Sendable (TranscribeProgress) async -> Void,
+    environment: CaptureEnvironment, run: ReadRun, download: DownloadActivity,
+    announce: @escaping @Sendable (TranscribeProgress) async -> Void,
     progress: @escaping @Sendable (TranscribeProgress) -> Void
 ) async -> Result<(TranscribedWords, PassedModelFile?)?, StudioError> {
     let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
@@ -146,7 +147,9 @@ extension PassedModelFile {
     var passed: PassedModelFile?
     switch model {
     case .catalog(let entry):
-        switch await catalogModel(entry, environment: environment, stopped: stopped, progress: progress) {
+        switch await catalogModel(
+            entry, environment: environment, stopped: stopped, download: download, progress: progress)
+        {
         case .success(let model?): checked = model
         case .success(nil): return .success(nil)
         case .failure(let error): return .failure(.transcription(error))
@@ -199,7 +202,7 @@ extension PassedModelFile {
 /// that fails the check and the download. Nil for a stop.
 private func catalogModel(
     _ model: WhisperModel, environment: CaptureEnvironment, stopped: @escaping @Sendable () -> Bool,
-    progress: @escaping @Sendable (TranscribeProgress) -> Void
+    download: DownloadActivity, progress: @escaping @Sendable (TranscribeProgress) -> Void
 ) async -> Result<CheckedModel?, TranscribeError> {
     let store = environment.modelStore
     let file = store.folder.appending(path: model.fileName)
@@ -209,7 +212,9 @@ private func catalogModel(
         if FileManager.default.fileExists(atPath: file.path) { checked = await check() }
         if checked == nil {
             if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
-            try await store.download(model, stop: stopped) { progress(.download($0)) }
+            // The window starts its firewall hint wait at this stage, also on the heal path.
+            progress(.download(0))
+            try await store.download(model, stop: stopped, activity: download) { progress(.download($0)) }
             checked = await check()
         }
     } catch {
@@ -232,10 +237,11 @@ private func onJobThread<T: Sendable>(_ body: @escaping @Sendable () -> T) async
 }
 
 /// The error of the model download step of a job in `folder`: a `URLError` is the network, a
-/// download that fails the catalog check has its own case, and each other error is a file step in
-/// `folder`, with the POSIX code under it, else EIO.
+/// download that fails the catalog check and a download with no byte have their own cases, and
+/// each other error is a file step in `folder`, with the POSIX code under it, else EIO.
 func modelError(_ error: any Error, folder: URL) -> TranscribeError {
     if error as? WhisperModelStoreError == .checksumMismatch { return .modelDownloadChecksum }
+    if case .noData(let host) = error as? WhisperModelStoreError { return .modelDownloadNoData(host: host) }
     if error is URLError { return .modelDownload }
     if let code = posixCode(of: error) { return .modelWrite(folder: folder.path, errno: code) }
     let full = (error as? CocoaError)?.code == .fileWriteOutOfSpace

@@ -3,11 +3,18 @@ import DirigibleCore
 import Foundation
 import Observation
 
-/// The running transcription job of a window: its request, its stage, and its start.
+/// The running transcription job of a window: its request, its stage, its start, and the host of
+/// the firewall hint.
 struct TranscribeJobShown: Equatable {
     let request: TranscribeRequest
     var stage: TranscribeProgress?
     let since: ContinuousClock.Instant
+    /// The host that the firewall hint names, while the download gets no byte; else nil.
+    var hint: String?
+
+    /// The second line of the banner: "No data from huggingface.co yet. A firewall can block the
+    /// download."
+    var hintText: String? { hint.map { L10n.transcribeBannerFirewall.format($0) } }
 
     /// "Downloading the speech model... 42 %" or "Transcribing Host... 42 %".
     var text: String {
@@ -36,6 +43,12 @@ enum TranscribeNotice: Equatable {
     case noWords(revision: Int, press: Int)
 }
 
+/// The firewall hint of the model download (U13, U19).
+enum TranscribeHint {
+    /// The time with no byte before the hint shows. It is far under the 60 s request limit.
+    static let delay = Duration.seconds(10)
+}
+
 /// The Transcribe state of a window. Its own object, so a progress tick wakes only the banner.
 @Observable @MainActor final class TranscribeState {
     var draft: TranscribeDraft?
@@ -45,6 +58,13 @@ enum TranscribeNotice: Equatable {
     @ObservationIgnored var presses = 0
     /// Tests give their own folder.
     @ObservationIgnored var modelFolder: () -> URL = { WhisperModelStore.folder() }
+    /// Returns at `since` plus `TranscribeHint.delay`, or at a cancel. Tests give their own wait.
+    @ObservationIgnored var hintWait: @MainActor (_ since: ContinuousClock.Instant) async -> Void = { since in
+        try? await Task.sleep(until: since + TranscribeHint.delay, clock: .continuous)
+    }
+    /// The chunk instants of the download of the running job.
+    @ObservationIgnored var download: DownloadActivity?
+    @ObservationIgnored var hintTask: Task<Void, Never>?
 }
 
 /// Tools > Transcribe Track... (decision 0065): the sheet starts a job of the studio beside the
@@ -106,11 +126,17 @@ extension SessionWindow {
         let missing = !FileManager.default.fileExists(
             atPath: transcribe.modelFolder().appending(path: request.model.fileName).path)
         transcribe.job = TranscribeJobShown(request: request, stage: missing ? .download(0) : nil, since: .now)
+        let download = DownloadActivity()
+        transcribe.download = download
         transcribe.task = Task { [weak self] in
             do throws(StudioError) {
                 let report = try await studio.transcribe(
-                    track: request.track, language: request.language, model: .catalog(request.model)
-                ) { [weak self] in self?.transcribe.job?.stage = $0 }
+                    track: request.track, language: request.language, model: .catalog(request.model),
+                    download: download
+                ) { [weak self] stage in
+                    self?.transcribe.job?.stage = stage
+                    if case .download = stage { self?.waitForHint() }
+                }
                 if report.id == nil { self?.notify(in: studio) { .noWords(revision: $0, press: $1) } }
             } catch .transcriptionYielded {
                 self?.notify(in: studio) { .stopped(request, revision: $0, press: $1) }
@@ -119,9 +145,44 @@ extension SessionWindow {
             } catch {
                 self?.alert = .error(error)
             }
+            self?.transcribe.hintTask?.cancel()
+            self?.transcribe.hintTask = nil
+            self?.transcribe.download = nil
             self?.transcribe.job = nil
             self?.transcribe.task = nil
         }
+    }
+
+    /// The firewall hint (U19, U27): after `TranscribeHint.delay` with no chunk, the banner names the
+    /// host. A chunk during the wait runs the wait again. The first chunk after the hint removes it
+    /// and starts the wait again. The wait ends with the download stage.
+    private func waitForHint() {
+        guard transcribe.hintTask == nil, let download = transcribe.download else { return }
+        let start = ContinuousClock.now
+        transcribe.hintTask = Task { [weak self] in
+            while let wait = self?.transcribe.hintWait, !Task.isCancelled {
+                let seen = download.lastChunk
+                await wait(seen ?? start)
+                guard let self, !Task.isCancelled, transcribe.download === download,
+                    case .download(let fraction)? = transcribe.job?.stage, fraction < 1
+                else { return }
+                let armed = download.onNextChunk(ifNoChunkSince: seen) { [weak self] in
+                    Task { @MainActor [weak self] in self?.chunkAfterHint(download) }
+                }
+                if armed {
+                    let host = transcribe.job?.request.model.url.host()
+                    transcribe.job?.hint = host
+                    return
+                }
+            }
+        }
+    }
+
+    private func chunkAfterHint(_ download: DownloadActivity) {
+        guard transcribe.download === download else { return }
+        transcribe.job?.hint = nil
+        transcribe.hintTask = nil
+        waitForHint()
     }
 
     /// Shows the notice of `make` at the session revision now, with a new press number.

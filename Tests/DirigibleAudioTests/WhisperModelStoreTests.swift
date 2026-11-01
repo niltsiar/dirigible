@@ -165,6 +165,52 @@ struct WhisperModelStoreTests {
         #expect(fractions.withLock { $0 }.map { Int($0 * 100) } == [0, 1, 2, 3, 4])
     }
 
+    /// C21: only a timeout after 0 bytes is the no-data error with the host. A timeout after 1 byte
+    /// and another error after 0 bytes keep the download error.
+    @Test(arguments: [
+        (0, URLError.Code.timedOut, TranscribeError.modelDownloadNoData(host: "huggingface.co")),
+        (1, .timedOut, .modelDownload), (0, .notConnectedToInternet, .modelDownload),
+    ])
+    func aStreamThatTimesOutAfterNoByteGivesNoData(bytes: Int, code: URLError.Code, expected: TranscribeError)
+        async throws
+    {
+        let folder = try TemporaryFolder()
+        let store = WhisperModelStore(folder: folder.url) { _ in
+            AsyncThrowingStream { continuation in
+                if bytes > 0 { continuation.yield(Data(count: bytes)) }
+                continuation.finish(throwing: URLError(code))
+            }
+        }
+        var thrown: (any Error)?
+        do { try await store.download(.base, stop: { false }) } catch { thrown = error }
+
+        #expect(thrown.map { modelError($0, folder: folder.url) } == expected, "\(String(describing: thrown))")
+        #expect(try fileNames(folder.url) == [])
+    }
+
+    /// C20: the activity gets the instant of each chunk, also of a chunk that does not raise the
+    /// whole percent and so gives no progress call.
+    @Test func theActivityGetsEachChunk() async throws {
+        let folder = try TemporaryFolder()
+        let (chunks, loader) = AsyncThrowingStream<Data, any Error>.makeStream()
+        let store = WhisperModelStore(folder: folder.url) { _ in chunks }
+        let (activity, calls) = (DownloadActivity(), OSAllocatedUnfairLock(initialState: 0))
+        let small = Data(count: WhisperModel.base.byteCount / 1000)
+        let download = Task {
+            try await store.download(.base, stop: { false }, activity: activity) { _ in calls.withLock { $0 += 1 } }
+        }
+        #expect(activity.lastChunk == nil)
+        loader.yield(small)
+        await until(limit: .seconds(30), "chunk 1 is recorded") { activity.lastChunk != nil }
+        let first = try #require(activity.lastChunk)
+        loader.yield(small)
+        await until(limit: .seconds(30), "chunk 2 is recorded") { activity.lastChunk.map { $0 > first } == true }
+        loader.finish()
+
+        await #expect(throws: WhisperModelStoreError.checksumMismatch) { try await download.value }
+        #expect(calls.withLock { $0 } == 1, "chunk 2 did not raise the whole percent")
+    }
+
     @Test func aCancelAtHalfLeavesNoFile() async throws {
         let source = try TemporaryFolder()
         let bytes = source.url.appending(path: "zeros.bin")
@@ -325,6 +371,7 @@ struct WhisperModelStoreTests {
             (CocoaError(.fileWriteOutOfSpace), .modelWrite(folder: folder.path, errno: ENOSPC)),
             (underlying, .modelWrite(folder: folder.path, errno: EACCES)),
             (WhisperModelStoreError.checksumMismatch, .modelDownloadChecksum),
+            (WhisperModelStoreError.noData(host: "hf.example"), .modelDownloadNoData(host: "hf.example")),
         ]
         for (error, expected) in cases {
             #expect(modelError(error, folder: folder) == expected, "\(error)")

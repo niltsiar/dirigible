@@ -698,12 +698,14 @@
 "sheet.transcribe.note.replace.many" = "This track has %lld words. Replace swaps them for the new words. Undo brings them back.";
 "transcribe.banner.download" = "Downloading the speech model… %lld %%";
 "transcribe.banner.running" = "Transcribing %1$@… %2$lld %%";
+"transcribe.banner.firewall" = "No data from %@ yet. A firewall can block the download.";
 "transcribe.stopped" = "Transcription stopped because recording started.";
 "transcribe.again" = "Transcribe Again";
 "transcribe.nowords" = "No words found. The track is unchanged.";
 "transcribe.canceled" = "Transcription canceled. The track is unchanged.";
 "error.transcribe.load" = "The speech model did not load. Delete its file in ~/Library/Application Support/Dirigible/Models and try again.";
 "error.transcribe.download" = "The model download failed. Check your internet connection and try again.";
+"error.transcribe.download.nodata" = "The model download got no data from %@. A firewall can block the download. Allow the connection in your firewall and try again.";
 "error.transcribe.folder" = "Dirigible could not write the speech model in %1$@ (error %2$lld). Check that the disk has free space and that you can write to that folder, then try again.";
 "error.transcribe.download.checksum" = "The downloaded speech model is not the expected file, so Dirigible deleted it. Try again later.";
 "error.transcribe.checksum" = "The speech model file is damaged or is not the expected file. Delete it in ~/Library/Application Support/Dirigible/Models and try again.";

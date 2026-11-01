@@ -698,12 +698,14 @@
 "sheet.transcribe.note.replace.many" = "Questa traccia ha %lld parole. Sostituisci le scambia con le parole nuove. Annulla le ripristina.";
 "transcribe.banner.download" = "Download del modello vocale… %lld %%";
 "transcribe.banner.running" = "Trascrizione di %1$@… %2$lld %%";
+"transcribe.banner.firewall" = "Ancora nessun dato da %@. Un firewall può bloccare il download.";
 "transcribe.stopped" = "La trascrizione si è fermata perché è iniziata una registrazione.";
 "transcribe.again" = "Trascrivi di nuovo";
 "transcribe.nowords" = "Nessuna parola trovata. La traccia non è cambiata.";
 "transcribe.canceled" = "Trascrizione annullata. La traccia non è cambiata.";
 "error.transcribe.load" = "Il modello vocale non è stato caricato. Elimina il suo file in ~/Library/Application Support/Dirigible/Models e riprova.";
 "error.transcribe.download" = "Il download del modello non è riuscito. Controlla la connessione a internet e riprova.";
+"error.transcribe.download.nodata" = "Il download del modello non ha ricevuto dati da %@. Un firewall può bloccare il download. Consenti la connessione nel firewall e riprova.";
 "error.transcribe.folder" = "Dirigible non ha potuto scrivere il modello vocale in %1$@ (errore %2$lld). Controlla che il disco abbia spazio libero e che tu possa scrivere in quella cartella, poi riprova.";
 "error.transcribe.download.checksum" = "Il modello vocale scaricato non è il file previsto, quindi Dirigible lo ha eliminato. Riprova più tardi.";
 "error.transcribe.checksum" = "Il file del modello vocale è danneggiato o non è quello previsto. Eliminalo in ~/Library/Application Support/Dirigible/Models e riprova.";

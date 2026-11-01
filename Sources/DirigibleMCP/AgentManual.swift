@@ -256,7 +256,7 @@ extension Tool {
     /// The tools whose name does not follow the name rule of decision 0041.
     static let commandNames = [
         "session_create": "create", "session_info": "info", "episode_get": "episode show",
-        "nearest_pause": "nearest-pause",
+        "nearest_pause": "nearest-pause", "silence_edit": "silence-edit",
     ]
 
     /// The `dirigible` command words of the tool: the first word, then the other words with `-`.

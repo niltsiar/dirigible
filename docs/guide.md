@@ -1018,6 +1018,14 @@ Three commands read the audio by time and write nothing. Each takes `--track` fo
 
 A missing, short, or unreadable file stops `silences` and `nearest-pause`, because its clips would read as silence. `meter` reads such a file as silence, with a warning. Like an export, `meter` also warns when a track is muted or not soloed.
 
+`dirigible silence-edit Demo.dirigible --from <frame> --to <frame> --action shorten|mute|mark` changes the silences of a list in one edit. The ranges are the lines of `silences`, and each range has its own `--action`. Repeat the three options for more ranges; they pair by order.
+
+- **shorten** cuts the middle of the silence on all tracks and closes the gap. `--keep <frames>` stays in the silence: 500 ms by default, half at each side. The markers move with the cut.
+- **mute** lowers the silence by 96 dB on the `--track` tracks (none is all tracks), with a ramp of 10 ms inside each edge of the silence. This is not digital silence. A session with a mute opens only in a build that has gain envelopes.
+- **mark** adds a marker named "Silence 1", "Silence 2", and so on in the middle of the silence.
+
+The command prints one line for each range: `shorten`, the range, and the cut; `mute` and the range; `mark`, the range, and the marker ID. Then `removed <n> frames`. The frames are those of the session before the edit. A range with nothing to change (a shorten of `--keep` frames or less, a mute of 20 ms or less) gets a `skipped` line and the call goes on, so read `silences` with a `--min-length` over `--keep` to get no `skipped` line. A call that makes no plan exits 64 and changes nothing: the counts differ, an action is unknown, a range is reversed or out of range, or two ranges overlap. A shorten with a take that has some segments on the timeline exits 3.
+
 These commands change clips and the export. `info` shows the clip IDs. A length is in frames: at 48 kHz, 24000 frames are 0.5 s.
 
 - `dirigible clip gain Demo.dirigible <clip> <clip> --db -6` sets the gain of one or more clips in one edit.
@@ -1183,7 +1191,7 @@ The sheet guards only the `record` tool. An agent that runs `dirigible record` i
 
 A rule is not a security boundary: a command such as `sh -c '...'` does not match it. To stop a shell agent from recording, do not give the microphone to its terminal app in System Settings > Privacy & Security > Microphone.
 
-The 68 tools, in groups:
+The 69 tools, in groups:
 
 - Session: `session_create`, `session_info`.
 - Track: `track_add`, `track_add_call`, `track_remove`, `track_rename`, `track_gain`, `track_route`, `track_layout`, `track_mute`, `track_solo`, `track_role`.
@@ -1192,6 +1200,7 @@ The 68 tools, in groups:
 - Pool: `capture_remove`, `file_remove`, `file_prune`. `file_prune` gives the lines of `dirigible file prune`. With `dry_run` set to true, it changes nothing. The tool cannot see the clipboard of an app window.
 - Clip: `clip_place`, `clip_clear`, `clip_split`, `clip_split_at`, `clip_split_stereo`, `clip_paste`, `clip_paste_clips`, `clip_nudge`, `clip_remove`, `clip_move`, `clip_trim`, `clip_gain`, `clip_fade`, `clip_denoise`, `clip_repair`, `clip_restore`, `clip_crossfade`, `clip_heal`, `clip_envelope`, `clip_gain_range`. `clip_envelope` takes the points as `[frame, dB]` pairs, the shape of `envelope` in `session_info`. `clip_split_stereo` gives one line for each clip: the left clip, the right clip, the left track, and the right track, with a tab between them. `clip_denoise` takes `clips`, `reduction` (1 to 30 dB, the default is 12), `hum` (50 or 60), and `noise` (true by default) and gives one line for each clip: the clip and its new file, with a tab between them. `hum` also removes mains hum at that frequency and its harmonics. `noise` set to false with `hum` removes only the hum and also a stored noise reduction, and the clip can be on any track; `noise` set to false with no `hum`, or with `reduction`, is an argument error. A second call on a clip that this version reduced renders its old file again, and the same amount gives `Nothing to change.` With the noise reduction on, it refuses a clip on a music or effects track. `clip_repair` takes `clips`, `rumble` (20 to 300 Hz), `clipping` (90 to 100 percent), `sibilance` (1 to 40 dB), and `sibilance_hz` (2000 to 16000 Hz) and gives one line for each clip: the clip and its new file, with a tab between them. Give at least one of `rumble`, `clipping`, and `sibilance`; the standard values are 80, 99, 10, and 6000. `sibilance_hz` needs `sibilance`. A repair of clipped peaks makes the clip quieter. A second call on a clip that this version rendered renders its old file again, and the same values give `Nothing to change.` A frequency at or over 0.45 times the session rate is refused, and the text names the limit. `clip_restore` takes `clips` and gives the ID of each restored clip, or `No rendered clip.`
 - Ripple: `clip_ripple_delete`, `clip_ripple_insert`, `clip_ripple_trim`.
+- Silence: `silence_edit`. It gives the text of `dirigible silence-edit`. The agent passes the ranges of a `silences` read, with one action for each: shorten, mute, or mark.
 - Transcript: `transcript_import`, `transcript_words`, `transcript_cut`, `transcript_export`, `transcribe`. They give the text of `dirigible transcript import`, `words`, `cut`, `export`, and `dirigible transcribe`. In the app, `transcribe` downloads a missing model first.
 - Take: `take_map`. It gives the text of `dirigible take map`. On a session that is open in Dirigible, it maps the session of the window.
 - Backup: `backup_list`, `backup_revert`.

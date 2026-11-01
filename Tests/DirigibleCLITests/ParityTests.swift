@@ -50,6 +50,7 @@ struct ParityTests {
         "importTranscript": ["transcript import"],
         "addTranscript": ["transcribe"],
         "cutWords": ["transcript cut"],
+        "editSilences": ["silence-edit"],
         "importChapters": ["chapters import"],
         "heal": ["clip heal"],
         "restoreOriginals": ["clip restore"],

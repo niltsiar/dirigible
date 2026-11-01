@@ -135,19 +135,14 @@ enum TranscribeModelMemory {
 
 extension TranscribeState {
     /// The open panel of Choose Model File... and Locate...: any file, one file, no folder. A
-    /// ggml file is ".bin" with no content type, and the parse refuses a wrong file (U15).
-    static func modelPanel() -> NSOpenPanel {
+    /// ggml file is ".bin" with no content type, and the parse refuses a wrong file (U15). It gives
+    /// the picked file, else nil for Cancel.
+    static func livePickModelFile() async -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = []
-        return panel
-    }
-
-    /// The live open panel: the picked file, else nil for Cancel.
-    static func livePickModelFile() async -> URL? {
-        let panel = modelPanel()
         let response = await withCheckedContinuation { continuation in
             panel.begin { continuation.resume(returning: $0) }
         }

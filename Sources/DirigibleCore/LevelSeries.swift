@@ -114,6 +114,37 @@ public struct LevelSeries: Hashable, Sendable {
         }
     }
 
+    /// The least threshold that gives `silences(threshold:minLength:in:)` a silence (decision
+    /// 0066): for each shortest run of windows with `minLength` frames or more that meets `range`,
+    /// the loudest window of the run; the quietest of those windows. Nil when no run has
+    /// `minLength` frames.
+    public func quietestRun(minLength: Frames, in range: Range<Frames>) -> WindowLevel? {
+        var best: WindowLevel?
+        // The indices of the run in order of position, with falling mean squares: the first is
+        // the loudest window of the run.
+        var loudest: [Int] = []
+        var head = 0
+        var last = -1
+        for first in levels.indices {
+            while last + 1 < levels.count,
+                last < first || frames(of: last).upperBound.count - frames(of: first).lowerBound.count < minLength.count
+            {
+                last += 1
+                while loudest.count > head, levels[loudest[loudest.count - 1]].meanSquare <= levels[last].meanSquare {
+                    loudest.removeLast()
+                }
+                loudest.append(last)
+            }
+            let run = frames(of: first).lowerBound..<frames(of: last).upperBound
+            guard run.upperBound.count - run.lowerBound.count >= minLength.count else { break }
+            while loudest[head] < first { head += 1 }
+            if run.overlaps(range), best.map({ levels[loudest[head]].meanSquare < $0.meanSquare }) ?? true {
+                best = levels[loudest[head]]
+            }
+        }
+        return best
+    }
+
     /// The pause nearest to `at` in `at - window ..< at + window`, cut to the series (decision 0062):
     /// the silence of `silences(threshold:minLength:in:)` with the least distance from `at` to its
     /// range (0 from its start frame to its end frame; a tie takes the earlier silence), with its

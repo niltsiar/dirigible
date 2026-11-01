@@ -19,7 +19,7 @@ extension Studio {
             apply: { session, read in (read.0, (report: LevelReport(read.1, before: session), levels: read.1)) })
     }
 
-    /// The body of a level and a duck (decisions 0031, 0049, and 0060). A running play stops
+    /// The body of a level, a duck, and a silence scan (decisions 0031, 0049, 0060, and 0066). A running play stops
     /// first, as at a take start. `read` runs off the main actor on the session of the turn, while
     /// `job` holds the transport and every other entry point throws `.busy`; `apply` makes the new
     /// session and the value on the main actor. A change saves `session.xml` and records one undo
@@ -82,8 +82,8 @@ extension Studio {
         return try result.get()
     }
 
-    /// The Cancel of the level banner and of the duck banner (decisions 0049 and 0060): sets the
-    /// flag of the running level or duck, with no wait. It ends at its next block and saves nothing.
+    /// The Cancel of the level, duck, and silence scan banners (decisions 0049, 0060, and 0066): sets
+    /// the flag of the running job, with no wait. It ends at its next block and saves nothing.
     public func cancelReadJob() { readJobFlags?.cancel(yielding: false) }
 }
 

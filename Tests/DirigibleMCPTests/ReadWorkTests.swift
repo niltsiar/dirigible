@@ -1,6 +1,7 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 @testable import DirigibleMCP
@@ -100,6 +101,47 @@ struct ReadWorkTests {
             }
             #expect(progress.values.isEmpty, "the refusal came after a read: \(progress.values)")
         }
+    }
+
+    /// C7: a media check with no free descriptor keeps the text of the check.
+    @Test func aFailingMediaCheckKeepsTheCheckText() throws {
+        let (package, session) = try Self.tone()
+        let error = POSIXError(.EMFILE)
+        let open: MediaOpen = { _, _, _ throws(POSIXError) in throw error }
+        #expect(throws: CheckedReadError.check(error)) {
+            try checkedMixLevels(
+                of: nil, in: session, package: package.url, range: 0..<144_000, silence: nil, progress: { _ in },
+                isCancelled: { false }, open: open)
+        }
+        #expect(
+            ReadWork.failure(.check(error), in: session)
+                == .refused("cannot check the audio files: \(error.localizedDescription)"))
+    }
+
+    /// C7: an open that passes the media check and fails in the read keeps the text of the read;
+    /// a cancelled read is a cancel.
+    @Test func aFailingReadKeepsTheReadText() throws {
+        let (package, session) = try Self.tone()
+        let error = POSIXError(.EMFILE)
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        let open: MediaOpen = { file, clips, rate throws(POSIXError) in
+            let call = calls.withLock { count in
+                count += 1
+                return count
+            }
+            guard call > 1 else { return try openMedia(file, in: clips, rate: rate) }
+            throw error
+        }
+        #expect(throws: CheckedReadError.read(error)) {
+            try checkedMixLevels(
+                of: nil, in: session, package: package.url, range: 0..<144_000, silence: nil, progress: { _ in },
+                isCancelled: { false }, open: open)
+        }
+        #expect(calls.withLock { $0 } == 2, "the open ran \(calls.withLock { $0 }) times")
+        #expect(
+            ReadWork.failure(.read(error), in: session)
+                == .refused("cannot read the audio files: \(error.localizedDescription)"))
+        #expect(ReadWork.failure(.read(POSIXError(.ECANCELED)), in: session) == .cancelled)
     }
 
     /// The scan reads at most 60 s past each edge of the range, and a silence that goes on past

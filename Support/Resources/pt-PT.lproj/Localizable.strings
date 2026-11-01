@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Selecione uma faixa a atenuar ou atribua a uma faixa a função Música.";
 "error.duck.both.lists" = "A faixa “%@” não pode ser, ao mesmo tempo, uma faixa de voz e uma faixa a atenuar.";
 "error.duck.read" = "Não foi possível ler um ficheiro de áudio de uma faixa de voz (erro %lld). Nenhum ponto de ganho mudou.";
+"error.silences.read" = "Não foi possível ler um ficheiro de áudio (erro %lld). A procura não encontrou silêncios.";
+"error.silences.stale" = "As faixas mudaram depois da procura. Procure de novo para aplicar os silêncios.";
+"error.silences.faults" = "Estes ficheiros estão em falta ou danificados: %@. Os clips deles seriam lidos como silêncio, por isso a procura não mostra silêncios. Restaure os ficheiros e procure de novo.";
 "error.duck.past.end" = "A seleção começa no fim da sessão ou depois, por isso a atenuação não mudou nenhum ponto de ganho.";
 "banner.duck.unread" = "A atenuação não conseguiu ler estes ficheiros de voz, por isso a música mantém-se alta sobre a voz deles: %@.";
 "banner.take.sync.broken" = "%1$@ moveu parte do áudio do excerto. O excerto %2$lld está dessincronizado da gravação a partir de %3$@ na linha cronológica.";
@@ -331,6 +334,7 @@
 "take.placing" = "A posicionar %@…";
 "take.leveling" = "A nivelar os clipes…";
 "take.ducking" = "A atenuar a música sob a voz…";
+"take.finding.silences" = "A procurar silêncios…";
 "take.pending" = "O excerto %lld não foi finalizado.";
 "take.pending.leave.hint" = "Se o disco não conseguir voltar a ler este áudio, finalize o excerto sem ele. O ficheiro permanece no pacote e poderá posicioná-lo mais tarde.";
 "take.pending.space" = "A finalização precisa de %1$@ de espaço livre. Espaço livre agora: %2$@.";

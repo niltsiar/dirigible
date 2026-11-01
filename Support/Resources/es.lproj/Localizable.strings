@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Selecciona una pista que atenuar o da a una pista el rol Música.";
 "error.duck.both.lists" = "La pista “%@” no puede ser a la vez una pista de voz y una pista que atenuar.";
 "error.duck.read" = "No se pudo leer un archivo de audio de una pista de voz (error %lld). No cambió ningún punto de ganancia.";
+"error.silences.read" = "No se pudo leer un archivo de audio (error %lld). La búsqueda no encontró silencios.";
+"error.silences.stale" = "Las pistas cambiaron después de la búsqueda. Busca de nuevo para aplicar los silencios.";
+"error.silences.faults" = "Faltan estos archivos o están dañados: %@. Sus clips se leerían como silencio, así que la búsqueda no muestra silencios. Restaura los archivos y busca de nuevo.";
 "error.duck.past.end" = "La selección empieza en el final de la sesión o después, así que la atenuación no cambió ningún punto de ganancia.";
 "banner.duck.unread" = "La atenuación no pudo leer estos archivos de voz, así que la música sigue alta sobre su voz: %@.";
 "banner.take.sync.broken" = "%1$@ movió parte del audio de la toma. La toma %2$lld no está sincronizada con la grabación desde %3$@ en la línea de tiempo.";
@@ -331,6 +334,7 @@
 "take.placing" = "Colocando %@…";
 "take.leveling" = "Nivelando clips…";
 "take.ducking" = "Atenuando la música bajo la voz…";
+"take.finding.silences" = "Buscando silencios…";
 "take.pending" = "La toma %lld no está terminada.";
 "take.pending.leave.hint" = "Si el disco no puede volver a leer este audio, termina la toma sin él. El archivo se queda en el paquete y puedes colocarlo más tarde.";
 "take.pending.space" = "Para terminar hacen falta %1$@ libres. Ahora hay %2$@ libres.";

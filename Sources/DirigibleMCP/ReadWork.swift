@@ -210,25 +210,23 @@ package struct ReadWork: Sendable {
         _ range: Range<Frames>, _ tracks: Set<TrackID>?, _ session: Session, _ package: URL, _ threshold: Gain,
         progress: (Double) -> Void, isCancelled: () -> Bool
     ) throws(ReadFailure) -> LevelSeries {
-        // The range has a frame in the session, and `tracks` is nil or has a track.
-        let source = ExportSource(range: range, tracks: tracks)!
-        let faults: [FileID: MediaFault]
-        do throws(POSIXError) {
-            faults = try checkMedia(session.ignoringMuteAndSolo, package: package, source: source)
-        } catch {
-            throw .refused(mediaCheckMessage(error))
-        }
-        guard faults.isEmpty else { throw .refused(Self.faultMessage(faults, in: session)) }
-        let read: (series: LevelSeries, faults: [FileID: MediaFault])
-        do throws(POSIXError) {
-            read = try mixLevels(
+        do throws(CheckedReadError) {
+            // The range has a frame in the session, and `tracks` is nil or has a track.
+            return try checkedMixLevels(
                 of: tracks, in: session, package: package, range: range, silence: threshold, progress: progress,
                 isCancelled: isCancelled)
         } catch {
-            throw error.code == .ECANCELED ? .cancelled : .refused(audioReadMessage(error))
+            throw Self.failure(error, in: session)
         }
-        guard read.faults.isEmpty else { throw .refused(Self.faultMessage(read.faults, in: session)) }
-        return read.series
+    }
+
+    /// The refusal of `silences` and `nearest_pause` for each step of `checkedMixLevels`.
+    static func failure(_ error: CheckedReadError, in session: Session) -> ReadFailure {
+        switch error {
+        case .check(let error): .refused(mediaCheckMessage(error))
+        case .read(let error): error.code == .ECANCELED ? .cancelled : .refused(audioReadMessage(error))
+        case .faults(let faults): .refused(faultMessage(faults, in: session))
+        }
     }
 
     /// One warning line for each edge of `series` that a silence of `silences` reaches, unless it is

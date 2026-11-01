@@ -19,6 +19,13 @@ public enum MediaFault: Hashable, Sendable {
 public func checkMedia(
     _ session: Session, package: URL, source: ExportSource? = nil
 ) throws(POSIXError) -> [FileID: MediaFault] {
+    try checkMedia(session, package: package, source: source, open: openMedia)
+}
+
+/// `checkMedia` with the open of each file.
+func checkMedia(
+    _ session: Session, package: URL, source: ExportSource?, open: MediaOpen
+) throws(POSIXError) -> [FileID: MediaFault] {
     let clips = package.appending(path: clipsFolderName)
     var files = Array(session.files.values)
     if let source {
@@ -30,7 +37,7 @@ public func checkMedia(
     }
     var faults: [FileID: MediaFault] = [:]
     for file in files {
-        faults[file.id] = try openMedia(file, in: clips, rate: session.sampleRate).fault
+        faults[file.id] = try open(file, clips, session.sampleRate).fault
     }
     return faults
 }

@@ -70,6 +70,9 @@
 "error.duck.no.ducked.track" = "Selecteer een spoor om te verlagen of geef een spoor de rol Muziek.";
 "error.duck.both.lists" = "Spoor '%@' kan niet zowel een spraakspoor als een spoor om te verlagen zijn.";
 "error.duck.read" = "Een audiobestand van een spraakspoor is niet gelezen (fout %lld). Er is geen gainpunt gewijzigd.";
+"error.silences.read" = "Een audiobestand is niet gelezen (fout %lld). De zoekactie heeft geen stilte gevonden.";
+"error.silences.stale" = "De sporen zijn na de zoekactie gewijzigd. Zoek opnieuw om de stiltes toe te passen.";
+"error.silences.faults" = "Deze bestanden ontbreken of zijn beschadigd: %@. Hun clips zouden als stilte worden gelezen, dus de zoekactie toont geen stilte. Zet de bestanden terug en zoek opnieuw.";
 "error.duck.past.end" = "De selectie begint bij of na het einde van de sessie, dus de verlaging heeft geen gainpunt gewijzigd.";
 "banner.duck.unread" = "De verlaging kon deze spraakbestanden niet lezen, dus de muziek blijft luid boven hun spraak: %@.";
 "banner.take.sync.broken" = "%1$@ heeft een deel van de take-audio verplaatst. Take %2$lld loopt vanaf %3$@ op de tijdlijn niet meer synchroon met de opname.";
@@ -331,6 +334,7 @@
 "take.placing" = "%@ plaatsen…";
 "take.leveling" = "Clipniveaus instellen…";
 "take.ducking" = "Muziek onder de spraak verlagen…";
+"take.finding.silences" = "Stiltes zoeken…";
 "take.pending" = "Take %lld is niet afgerond.";
 "take.pending.leave.hint" = "Als de schijf deze audio ook bij een nieuwe poging niet kan lezen, rond de take dan af zonder de audio. Het bestand blijft in het pakket, en je kunt het later plaatsen.";
 "take.pending.space" = "Voor het afronden is %1$@ vrije ruimte nodig. Nu is %2$@ vrij.";

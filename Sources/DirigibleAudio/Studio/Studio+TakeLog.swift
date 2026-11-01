@@ -117,6 +117,10 @@ extension StudioError {
         case .transcriptionYielded: "transcriptionYielded"
         case .transcriptionCancelled: "transcriptionCancelled"
         case .duckRead: "duckRead"
+        case .silencesCancelled: "silencesCancelled"
+        case .silencesRead: "silencesRead"
+        case .silencesStale: "silencesStale"
+        case .silencesFaults: "silencesFaults"
         case .writerDidNotStop: "writerDidNotStop"
         }
     }

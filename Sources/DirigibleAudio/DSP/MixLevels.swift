@@ -44,6 +44,56 @@ public func mixLevels(
     return (series, reader.faults)
 }
 
+/// Why `checkedMixLevels` gives no series (decision 0066). Each case keeps the step that stopped.
+public enum CheckedReadError: Error, Hashable, Sendable {
+    /// The media check found no free descriptor.
+    case check(POSIXError)
+    /// The read found no free descriptor or no memory, or it was cancelled (`ECANCELED`).
+    case read(POSIXError)
+    /// A file of the read is missing, short, or unreadable, in the media check or in the read.
+    case faults([FileID: MediaFault])
+}
+
+/// The window levels of `mixLevels` with the fault rule of decision 0062: the media check of the
+/// files of `tracks` in `range` on `Session.ignoringMuteAndSolo`, then the read, then the faults
+/// of the read. A fault refuses the levels, because its clips would read as silence. Precondition:
+/// `range` is not empty, and `tracks` is nil or not empty. It blocks, so never call it on the
+/// main actor.
+public func checkedMixLevels(
+    of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>, silence: Gain?,
+    progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool = { false }
+) throws(CheckedReadError) -> LevelSeries {
+    try checkedMixLevels(
+        of: tracks, in: session, package: package, range: range, silence: silence, progress: progress,
+        isCancelled: isCancelled, open: openMedia)
+}
+
+/// `checkedMixLevels` with the open of each file, for the media check and the read.
+func checkedMixLevels(
+    of tracks: Set<TrackID>?, in session: Session, package: URL, range: Range<Frames>, silence: Gain?,
+    progress: (Double) -> Void, isCancelled: () -> Bool, open: @escaping MediaOpen
+) throws(CheckedReadError) -> LevelSeries {
+    let source = ExportSource(range: range, tracks: tracks)!
+    let faults: [FileID: MediaFault]
+    do throws(POSIXError) {
+        faults = try checkMedia(session.ignoringMuteAndSolo, package: package, source: source, open: open)
+    } catch {
+        throw .check(error)
+    }
+    guard faults.isEmpty else { throw .faults(faults) }
+    let reader = MixReader(package: package, session: session.ignoringMuteAndSolo, tracks: tracks, open: open)
+    let series: LevelSeries
+    do throws(POSIXError) {
+        series = try scanMix(
+            reader, rate: session.sampleRate, end: session.end, range: range, silence: silence, sink: { _ in },
+            progress: progress, isCancelled: isCancelled)
+    } catch {
+        throw .read(error)
+    }
+    guard reader.faults.isEmpty else { throw .faults(reader.faults) }
+    return series
+}
+
 /// The one chunk loop of the reads and the duck. It renders the mix of `reader` in chunks of 20
 /// windows of 50 ms from the grid window of `range.lowerBound` up to the grid frame after
 /// `range.upperBound`, or up to `end` (the session end) when that comes first, and gives `sink`

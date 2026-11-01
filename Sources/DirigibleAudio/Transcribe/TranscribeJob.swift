@@ -58,13 +58,18 @@ public struct TranscribedWords: Sendable {
 
 /// Transcribes the clips of `track` from the pool files of `package` with `model`, on the calling
 /// thread, with the live engine (decision 0065 D3, D6): the work of `dirigible transcribe` and of
-/// the tool `transcribe` on the files. `isCancelled` is read before and after each piece. Nil for
-/// a cancel.
+/// the tool `transcribe` on the files. For a model file of the user, the language rule and the hash
+/// of the job come first (D8). `isCancelled` is read before and after each piece. Nil for a cancel.
 public func transcribeTrack(
     _ track: Track, of session: Session, package: URL, language: WhisperLanguage, model: CheckedModel,
     log: DiagnosticLog, isCancelled: @escaping @Sendable () -> Bool = { false },
     progress: @escaping (Double) -> Void = { _ in }
 ) throws(TranscribeError) -> TranscribedWords? {
+    var language = language
+    if case .file(let record) = model.source {
+        language = try record.jobLanguage(language)
+        try record.checkUnchanged(model.url)
+    }
     let stop = StopFlag()
     let map = SpanMap(clips: track.clips, session: session)
     return try transcribeSpans(
@@ -98,6 +103,26 @@ func transcribeSpans(
     else { return nil }
     let mapped = map.fileWords(result.pieces, in: pieces)
     return TranscribedWords(words: mapped.words, untimed: mapped.untimed, language: result.language)
+}
+
+extension PassedModelFile {
+    /// The language of a job with this file (U34): an English-only file runs `.automatic` as en and
+    /// refuses another language.
+    func jobLanguage(_ language: WhisperLanguage) throws(TranscribeError) -> WhisperLanguage {
+        guard !facts.isMultilingual else { return language }
+        switch language {
+        case .automatic, .code("en"): return .code("en")
+        case .code: throw .languageNotInModel
+        }
+    }
+
+    /// The hash of the file again before the engine loads it: a file that changed after its check
+    /// throws `.modelChanged`.
+    func checkUnchanged(_ url: URL) throws(TranscribeError) {
+        let hash: String
+        do { hash = try DirigibleAudio.sha256(of: url) } catch { throw .modelFile(.unreadable(errno: error.errno)) }
+        guard hash == sha256 else { throw .modelChanged }
+    }
 }
 
 /// The work of a job off the main actor (decision 0065 D5): the leftover sweep, then the model.
@@ -141,12 +166,8 @@ func transcribeSpans(
         }
         if case .file(let record) = checked.source {
             await announce(.checked(record))
-            if !record.facts.isMultilingual {
-                switch language {
-                case .automatic: language = .code("en")
-                case .code("en"): break
-                case .code: return .failure(.transcription(.languageNotInModel))
-                }
+            do throws(TranscribeError) { language = try record.jobLanguage(language) } catch {
+                return .failure(.transcription(error))
             }
             passed = record
         }
@@ -156,12 +177,8 @@ func transcribeSpans(
     return await onJobThread { () -> Result<(TranscribedWords, PassedModelFile?)?, StudioError> in
         guard !stopped() else { return .success(nil) }
         if let file {
-            do throws(FileReadError) {
-                guard try sha256(of: checked.url) == file.sha256 else {
-                    return .failure(.transcription(.modelChanged))
-                }
-            } catch {
-                return .failure(.transcription(.modelFile(.unreadable(errno: error.errno))))
+            do throws(TranscribeError) { try file.checkUnchanged(checked.url) } catch {
+                return .failure(.transcription(error))
             }
         }
         let package: URL

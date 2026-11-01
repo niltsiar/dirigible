@@ -90,7 +90,7 @@ struct TranscribeCommandTests {
     /// Plan change after S3 item 3: with no ID, stdout holds only the `Imported` line, and the
     /// skip line goes to stderr.
     @Test func noIDPutsTheSkipLineOnStderr() {
-        let lines = TranscribeWork.lines(id: nil, kept: 0, skipped: 0, untimed: 1, dropped: [])
+        let lines = TranscribeWork.lines(id: nil, kept: 0, skipped: 0, untimed: 1, dropped: [], modelFile: nil)
         let output = TranscriptWork.importOutput(lines)
         #expect(output.stdout == ["Imported 0 words."])
         #expect(output.stderr == ["Skipped 1 word with no time."])
@@ -205,5 +205,99 @@ struct TranscribeCommandTests {
         let expected = "Error: the whisper model at \(model.path) does not match its checksum\n"
         #expect(result == CLIResult(status: 1, stdout: "", stderr: expected), "\(result)")
         #expect(!Self.transcripts(package), "a failed transcribe wrote a Transcripts folder")
+    }
+
+    /// The VAD model of the bundle: the parse refuses it (n_vocab 10), and whisper.cpp would load it.
+    static let silero = URL(filePath: #filePath).deletingLastPathComponent()
+        .appending(path: "../../Support/Resources/ggml-silero-v6.2.0.bin").standardizedFileURL
+    static let sileroRefusal =
+        "the model check refused the file: The model file has a value that Dirigible cannot run: n_vocab 10."
+
+    /// C14: the parser refuses both options, so the last one does not win.
+    @Test func modelAndModelFileTogetherExit64() async throws {
+        let package = try Self.package()
+        let result = try await Self.transcribe(
+            package, models: package.folder, "--track", "t1", "--model", "base", "--model-file", Self.silero.path)
+        #expect(result.status == 64 && result.stdout.isEmpty, "\(result)")
+        #expect(result.stderr.hasPrefix("Error: Give --model or --model-file, not both.\n"), "\(result)")
+        #expect(!Self.transcripts(package))
+    }
+
+    /// C14: a missing file gives the text of a missing catalog model, not the errno text.
+    @Test func aMissingModelFileExitsOne() async throws {
+        let package = try Self.package()
+        let missing = package.folder.appending(path: "user.bin")
+        let result = try await Self.transcribe(
+            package, models: package.folder, "--track", "t1", "--model-file", missing.path)
+        let expected = CLIResult(status: 1, stdout: "", stderr: "Error: no whisper model at \(missing.path)\n")
+        #expect(result == expected, "\(result)")
+        #expect(!Self.transcripts(package) && !FileManager.default.fileExists(atPath: missing.path))
+    }
+
+    /// C14: the helper refuses the file, so no engine loads it, and the package does not change.
+    @Test func theSileroFileLeavesThePackageUnchanged() async throws {
+        let package = try Self.package()
+        let before = try package.xml()
+        let result = try await Self.transcribe(
+            package, models: package.folder, "--track", "t1", "--model-file", Self.silero.path)
+        #expect(result == CLIResult(status: 1, stdout: "", stderr: "Error: \(Self.sileroRefusal)\n"), "\(result)")
+        #expect(try package.xml() == before, "session.xml bytes changed")
+        #expect(!Self.transcripts(package))
+    }
+
+    /// C15 on the files: the tool gives the refusal of the helper, and the package does not change.
+    @Test func theToolOnTheFilesRefusesTheSileroFile() async throws {
+        let package = try Self.package()
+        let before = try package.xml()
+        let answers = try await mcp([
+            toolCall(1, "transcribe", ["package": package.path, "track": "t1", "model_file": Self.silero.path])
+        ])
+        let (text, isError) = toolResult(answer(answers, id: 1))
+        #expect(isError && text == Self.sileroRefusal, "\(text)")
+        #expect(try package.xml() == before, "session.xml bytes changed")
+    }
+
+    /// C15: both model arguments, and a relative path, are refused before any check.
+    @Test func theToolRefusesBothModelsAndARelativePath() async throws {
+        let package = try Self.package()
+        let before = try package.xml()
+        let answers = try await mcp([
+            toolCall(
+                1, "transcribe",
+                ["package": package.path, "track": "t1", "model": "base", "model_file": Self.silero.path]),
+            toolCall(2, "transcribe", ["package": package.path, "track": "t1", "model_file": "user.bin"]),
+        ])
+        let both = toolResult(answer(answers, id: 1))
+        #expect(both.isError && both.text == "Give model or model_file, not both.", "\(both.text)")
+        let relative = toolResult(answer(answers, id: 2))
+        #expect(
+            relative.isError && relative.text == "The argument \"model_file\" must be an absolute path.",
+            "\(relative.text)")
+        #expect(try package.xml() == before, "session.xml bytes changed")
+    }
+
+    /// Rule 11: the usage line had `[--model <model>]` and no model file; now it names both.
+    @Test func theUsageLineNamesTheModelFile() async throws {
+        let help = try await dirigible("transcribe", "--help")
+        let usage =
+            "USAGE: dirigible transcribe <package> --track <track> [--language <language>] [--model <model>] "
+            + "[--model-file <path>] [--name <name>]"
+        #expect(help.stdout.contains(usage), "\(help.stdout)")
+    }
+
+    /// C14 slow: the tiny fixture as a model file passes the check, gives its words, and gives its
+    /// SHA-256 on stderr.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func theTinyFixtureAsAModelFileGivesItsWords() async throws {
+        let package = try Self.package(samples: try Self.speech("The morning train left the station at seven."))
+        let tiny = Self.fetched.appending(path: "ggml-tiny-q5_1.bin")
+        let result = try await Self.transcribe(
+            package, models: Self.fetched, limit: .seconds(120),
+            "--track", "t1", "--language", "en", "--model-file", tiny.path)
+        let sha = "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7"
+        #expect(result.status == 0 && result.stderr == "Model file SHA-256: \(sha)\n", "\(result)")
+        #expect(result.stdout.wholeMatch(of: #/1\nImported [1-9][0-9]* words?\.\n/#) != nil, "\(result)")
+        let words = try package.read().words().map(\.text).joined(separator: " ").lowercased()
+        #expect(words.contains("train") && words.contains("station"), "words: \(words)")
     }
 }

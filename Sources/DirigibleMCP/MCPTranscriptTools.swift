@@ -33,10 +33,14 @@ private let transcribeTrack = Param.required("track", "The track whose clips to 
 private let language = Param.defaulted(
     "language", "auto, or a whisper language code, for example es. auto detects it from the first 30 s of speech.",
     .string, "auto")
-private let model = Param.defaulted(
+private let model = Param<String?>.optional(
     "model",
-    "The model name: base, small-q5_1 (more accurate and slower), or large-v3-turbo-q5_0 (most accurate and slowest).",
-    .string, "base")
+    "The model name: base (the default), small-q5_1 (more accurate and slower), or large-v3-turbo-q5_0 (most "
+        + "accurate and slowest).", .string)
+private let modelFile = Param<String?>.optional(
+    "model_file",
+    "The absolute path of a ggml whisper model file, in place of model. Dirigible checks it in a helper process "
+        + "first.", .string)
 private let transcribeName = Param<String?>.optional(
     "name", "The transcript name. The default is the track name.", .string)
 
@@ -115,12 +119,15 @@ let transcriptTools = [
         "Transcribe the clips of a track with whisper.cpp on this Mac, as dirigible transcribe, and add the words as "
             + "a transcript, with the lines of transcript_import. No kept word changes nothing and gives only "
             + "\"Imported 0 words.\" and the skip lines. In the app, a missing model downloads first; on the files, "
-            + "the model must be in the model folder." + editCancelNote("no words are added"),
-        [transcribeTrack, language, model, transcribeName], batch: .alone
+            + "the model must be in the model folder. With model_file, the text ends with the SHA-256 of the file."
+            + editCancelNote("no words are added"),
+        [transcribeTrack, language, model, modelFile, transcribeName], batch: .alone
     ) { a throws(ToolError) in
-        .transcribe(
+        let file = try a[modelFile]
+        if let file, !file.hasPrefix("/") { throw ToolError("The argument \"model_file\" must be an absolute path.") }
+        return .transcribe(
             try TranscribeWork(
-                track: try a[transcribeTrack], language: try a[language], model: try a[model],
+                track: try a[transcribeTrack], language: try a[language], model: try a[model], modelFile: file,
                 name: try a[transcribeName]))
     },
     Tool(

@@ -30,35 +30,49 @@ package enum TranscribeFailure: Error {
 package struct TranscribeWork: Sendable {
     let track: TrackID
     let language: WhisperLanguage
-    let model: WhisperModel
+    let model: WhisperModelChoice
     /// The transcript name. Nil is the track name.
     let name: String?
 
-    /// The error text: an unknown language or an unknown model name.
-    package init(track: String, language: String, model: String, name: String?) throws(ToolError) {
+    /// No `model` and no `modelFile` is the model base. The error text: an unknown language, an
+    /// unknown model name, or both a model and a model file, named as `spelling` spells them.
+    package init(
+        track: String, language: String, model: String?, modelFile: String?, name: String?,
+        spelling: OptionSpelling = .tool
+    ) throws(ToolError) {
         guard let parsed = WhisperLanguage(language) else {
             throw ToolError("unknown language \(language): give auto or a whisper language code, for example es")
         }
-        guard let catalog = WhisperModel(rawValue: model) else { throw ToolError("unknown model \(model)") }
-        (self.track, self.language, self.model, self.name) = (TrackID(track), parsed, catalog, name)
+        let choice: WhisperModelChoice
+        switch (model, modelFile) {
+        case (.some, .some): throw ToolError("Give \(spelling("model")) or \(spelling("model_file")), not both.")
+        case (nil, let file?): choice = .file(URL(filePath: file), passed: nil)
+        case (let given, nil):
+            let entry = given ?? WhisperModel.base.rawValue
+            guard let catalog = WhisperModel(rawValue: entry) else { throw ToolError("unknown model \(entry)") }
+            choice = .catalog(catalog)
+        }
+        (self.track, self.language, self.model, self.name) = (TrackID(track), parsed, choice, name)
     }
 
-    /// The lines of a transcription, as `importLines` gives them for an import.
-    static func lines(id: TranscriptID?, kept: Int, skipped: Int, untimed: Int, dropped: [String]) -> [String] {
+    /// The lines of a transcription, as `importLines` gives them for an import, then the SHA-256 of
+    /// a model file of the user.
+    static func lines(
+        id: TranscriptID?, kept: Int, skipped: Int, untimed: Int, dropped: [String], modelFile: PassedModelFile?
+    ) -> [String] {
         TranscriptWork.importLines((id, kept, skipped, untimed, 0, dropped), cues: false)
+            + (modelFile.map { ["Model file SHA-256: \($0.sha256)"] } ?? [])
     }
 
     /// The transcription of the track in `session` with the model of the model folder (decision
-    /// 0065 D2), and its lines. The flag is read last before the caller saves: a cancel keeps
+    /// 0065 D2), or with a model file of the user after its check in the helper `dirigible model
+    /// check` (D8), and its lines. The flag is read last before the caller saves: a cancel keeps
     /// `session` as it was. No kept word leaves `session` as it was.
     package func run(
         _ session: inout Session, package: URL, log: DiagnosticLog = .disabled,
         progress: @escaping (Double) -> Void = { _ in }, isCancelled: @escaping @Sendable () -> Bool = { false }
     ) throws(TranscribeFailure) -> [String] {
-        let file = WhisperModelStore.folder().appending(path: model.fileName)
-        guard FileManager.default.fileExists(atPath: file.path) else { throw .noModel(file.path) }
-        guard let track = session.track(track) else { throw .session(.unknownTrack(track)) }
-        guard let checked = model.checked(at: file) else { throw .checksum(file.path) }
+        let (track, checked) = try model(of: session, isCancelled: isCancelled)
         let done: TranscribedWords?
         do throws(TranscribeError) {
             done = try transcribeTrack(
@@ -74,8 +88,41 @@ package struct TranscribeWork: Sendable {
         } catch {
             throw .session(error)
         }
+        let modelFile: PassedModelFile? = if case .file(let record) = checked.source { record } else { nil }
         return Self.lines(
-            id: added.id, kept: added.kept, skipped: added.skipped, untimed: words.untimed, dropped: added.dropped)
+            id: added.id, kept: added.kept, skipped: added.skipped, untimed: words.untimed, dropped: added.dropped,
+            modelFile: modelFile)
+    }
+
+    /// The track and the checked model. The helper of a model file of the user starts only after
+    /// the track is found.
+    private func model(of session: Session, isCancelled: @escaping @Sendable () -> Bool) throws(TranscribeFailure)
+        -> (Track, CheckedModel)
+    {
+        switch model {
+        case .catalog(let entry):
+            let file = WhisperModelStore.folder().appending(path: entry.fileName)
+            guard FileManager.default.fileExists(atPath: file.path) else { throw .noModel(file.path) }
+            guard let track = session.track(track) else { throw .session(.unknownTrack(track)) }
+            guard let checked = entry.checked(at: file) else { throw .checksum(file.path) }
+            return (track, checked)
+        case .file(let url, let passed):
+            guard let track = session.track(track) else { throw .session(.unknownTrack(track)) }
+            guard let executable = Bundle.main.executableURL else {
+                throw .engine(.modelFile(.helperMissing(path: "dirigible")))
+            }
+            do throws(ModelFileCheckError) {
+                let checked = try ModelFileCheck.run(
+                    url, helper: ModelFileCheck.helper(executable: executable), passed: passed, stop: isCancelled)
+                return (track, checked)
+            } catch {
+                switch error {
+                case .unreadable(errno: ENOENT): throw .noModel(url.path)
+                case .stopped: throw .cancelled
+                default: throw .engine(.modelFile(error))
+                }
+            }
+        }
     }
 
     /// The job of a tool call on the files, under the package lock. No kept word writes nothing.

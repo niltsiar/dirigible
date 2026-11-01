@@ -103,6 +103,35 @@ struct ModelFileCheckTests {
         #expect(await check(helper) == .failure(.unreadable(errno: ENOENT)))
     }
 
+    /// The helper of the app is `Contents/Helpers/dirigible`, and the helper of the CLI is the
+    /// `dirigible` beside it, also through a link to the CLI of the app. A wrong path gives
+    /// `.helperMissing` on each check of the app.
+    @Test func theHelperIsInTheHelpersFolderOfTheAppOrBesideTheCLI() throws {
+        let contents = folder.url.appending(path: "Dirigible.app/Contents")
+        let (app, cli, bin) = (
+            contents.appending(path: "MacOS/Dirigible"), contents.appending(path: "Helpers/dirigible"),
+            folder.url.appending(path: "bin/dirigible")
+        )
+        for file in [app, cli, bin] {
+            try FileManager.default.createDirectory(
+                at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data().write(to: file)
+        }
+        let link = folder.url.appending(path: "link/dirigible")
+        try FileManager.default.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: cli)
+        // Foundation drops the /private of the temporary folder, and realpath keeps it.
+        let real = { (url: URL) -> String? in
+            guard let path = realpath(url.path, nil) else { return nil }
+            defer { free(path) }
+            return String(cString: path)
+        }
+
+        #expect(real(ModelFileCheck.helper(executable: app)) == real(cli))
+        #expect(real(ModelFileCheck.helper(executable: bin)) == real(bin))
+        #expect(real(ModelFileCheck.helper(executable: link)) == real(cli))
+    }
+
     @Test func aFlagSetBeforeTheRunStartsNoHelper() async throws {
         let pid = folder.url.appending(path: "pid")
         let helper = try stub("echo $$ > '\(pid.path)'; exec sleep 30")

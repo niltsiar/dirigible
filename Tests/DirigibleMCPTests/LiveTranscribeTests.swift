@@ -47,6 +47,54 @@ import os
             #expect(toolFraction(.download(0.99)) < toolFraction(.transcribe(0.01)))
         }
 
+        /// The check of a model file takes the place of the download: it starts at 0, and its end
+        /// gives no new fraction, so the gate sends nothing for it.
+        @Test func theCheckOfAModelFileIsAtTheStartOfTheScale() {
+            let record = PassedModelFile(
+                sha256: String(repeating: "0", count: 64),
+                facts: WhisperModelFacts(audioLayers: 4, textLayers: 4, melCount: 80, isMultilingual: true))
+            #expect(toolFraction(.check) == 0 && toolFraction(.checked(record)) == 0)
+            #expect(toolFraction(.checked(record)) < toolFraction(.transcribe(0.01)))
+        }
+
+        /// C15 in the app: the job checks the file once, the engine gets that file, and the text ends
+        /// with the SHA-256 of the file.
+        @Test func theToolTranscribesWithAModelFile() async throws {
+            let language = OSAllocatedUnfairLock<WhisperLanguage?>(initialState: nil)
+            let words = [TimedWord(text: "hola", start: 50, end: 100)]
+            let studio = try await open(words, language: language)
+            let file = package.folder.appending(path: "user.bin")
+            try Data("abc".utf8).write(to: file)
+            let hash = try sha256(of: file)
+            let record = PassedModelFile(
+                sha256: hash,
+                facts: WhisperModelFacts(audioLayers: 4, textLayers: 4, melCount: 80, isMultilingual: true))
+            let (checks, models) = (
+                OSAllocatedUnfairLock(initialState: [URL]()), OSAllocatedUnfairLock(initialState: [CheckedModel]())
+            )
+            studio.environment.checkModelFile = { url, _, _ throws(ModelFileCheckError) in
+                checks.withLock { $0.append(url) }
+                return CheckedModel(source: .file(record), url: url)
+            }
+            studio.environment.transcribe = { model, _, count, _, _, _, _ throws(TranscribeError) in
+                models.withLock { $0.append(model) }
+                return Transcription(pieces: [words] + Array(repeating: [], count: max(0, count - 1)), language: "es")
+            }
+            let (server, folder) = try liveServer(studio)
+            defer { server.stop() }
+
+            let outcome = await send(
+                folder.socket, "transcribe",
+                ["package": package.path, "track": "t1", "language": "es", "model_file": file.path])
+
+            let text = "1\nImported 1 word.\nModel file SHA-256: \(hash)"
+            #expect(outcome == .reply(.result(text: text, isError: false)), "\(outcome)")
+            #expect(checks.withLock { $0 } == [file])
+            #expect(models.withLock { $0 } == [CheckedModel(source: .file(record), url: file)])
+            #expect(studio.session.words().map(\.text) == ["hola"])
+            await studio.settle()
+        }
+
         @Test func theToolAddsTheWordsInTheWindow() async throws {
             let language = OSAllocatedUnfairLock<WhisperLanguage?>(initialState: nil)
             let words = [TimedWord(text: "hola", start: 50, end: 100), TimedWord(text: "mundo", start: 150, end: 200)]

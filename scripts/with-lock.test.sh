@@ -9,7 +9,8 @@
 # holder), a pid write that fails (exit 2, no lock), and the wait log (one line after a wait, none
 # with no wait), a lock folder that goes between a failed mkdir and the test for it (the call
 # tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
-# default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make), and --release-holder (a live
+# default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make, also with a test-app whose app step exits 75), scripts/bundle.sh
+# (it takes the lock itself after its path check, and keeps the wait limit and the cap), and --release-holder (a live
 # release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
@@ -390,7 +391,7 @@ clear_hold
 holds="$repo/.git/dirigible-build-holds.log" waiting="$repo/.git/dirigible-build-waiting"
 reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$first"; }
 # A make check-changed call whose targets build no Swift or lock each Swift call themselves
-# (check-docs, check-fast, lint, format, none, test, test-filter, or a word with =), and a make
+# (check-docs, check-fast, static, test-app, lint, format, none, test, test-filter, or a word with =), and a make
 # test-hooks call with a HOOK_TESTS= word, run at once with no lock, no wait line, and no hold line,
 # while an ordinary build or test holds the lock. While a release call, a bench, a mutation pass, or
 # a flake loop holds the lock, they wait without taking the lock (the cases below). The fake
@@ -433,9 +434,14 @@ for targets in "check-fast HOOK_TESTS=a" "check-docs" "none" "check-fast DIRIGIB
 done
 FAKE_TARGETS="check-fast test-filter" lockfree run "test-filter with a FILTER word" "$fake/make" check-changed FILTER=ATests
 [[ "$(cat "$FAKE_FILTER_LOG")" == ATests ]] || fail "lock-free: check-changed.sh got FILTER [$(cat "$FAKE_FILTER_LOG")], not ATests"
-FAKE_TARGETS="check-fast test-filter test-app" lockfree wait "targets check-fast test-filter test-app" "$fake/make" check-changed
-FAKE_TARGETS="check-fast test-filter test-app" lockfree wait "test-app with a FILTER word" "$fake/make" check-changed FILTER=ATests
+FAKE_TARGETS="check-fast test-filter test-app" lockfree run "targets check-fast test-filter test-app" "$fake/make" check-changed
+FAKE_TARGETS="check-fast test-filter test-app" lockfree run "test-app with a FILTER word" "$fake/make" check-changed FILTER=ATests
 [[ "$(cat "$FAKE_FILTER_LOG")" == ATests ]] || fail "lock-free: check-changed.sh got FILTER [$(cat "$FAKE_FILTER_LOG")], not ATests"
+FAKE_TARGETS="static test-filter test-app" lockfree run "targets static test-filter test-app with a FILTER word" "$fake/make" check-changed FILTER=ATests
+FAKE_TARGETS="static" lockfree run "targets static" "$fake/make" check-changed
+FAKE_TARGETS="check" lockfree wait "targets check" "$fake/make" check-changed
+FAKE_TARGETS="test-dmg" lockfree wait "targets test-dmg" "$fake/make" check-changed
+FAKE_TARGETS="check-fast test-filter test-app bench" lockfree wait "targets check-fast test-filter test-app bench" "$fake/make" check-changed
 FAKE_TARGETS="check-fast" lockfree run "a make word with =" "$fake/make" check-changed SINCE=main
 FAKE_TARGETS="check-fast" FAKE_EXIT=1 lockfree wait "check-changed.sh exit 1" "$fake/make" check-changed
 FAKE_TARGETS="" lockfree wait "no targets" "$fake/make" check-changed
@@ -488,7 +494,8 @@ lockfree wait "test-hooks with an empty HOOK_TESTS" "$fake/make" test-hooks HOOK
 reset_builders
 { printf 'FILTER ?=\nBASE ?=\nRECIPE ?= %s touch %s\n' "$repo/scripts/with-lock.sh" "$tmp/ran"
   awk '/^check-changed:/ { p = 1 } p { print } p && /^$/ { exit }' "$(dirname "$script")/../Makefile"
-  printf 'test-filter:\n\t@$(RECIPE)\n'; } > "$repo/Makefile"
+  printf 'test-filter:\n\t@$(RECIPE)\n'
+  printf 'test-app: app\n\t@touch %s\napp:\n\t@exit 75\n' "$tmp/appran"; } > "$repo/Makefile"
 hold
 rm -f "$tmp/ran"
 out="$(cd "$repo" && FAKE_TARGETS=test-filter WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 scripts/with-lock.sh make check-changed FILTER=x 2>&1)"
@@ -499,6 +506,13 @@ out="$(cd "$repo" && FAKE_TARGETS=test-filter scripts/with-lock.sh make check-ch
 code=$?
 [[ $code -eq 2 && "$out" == *'lock-free targets (test-filter)'* ]] ||
     fail "lock-free, check-changed FILTER with a red recipe: exit $code (want 2): $out"
+# The app step of test-app (scripts/bundle.sh takes the lock itself) exits 75 at its limit: the
+# lock-free call exits 75 and AppBundleTests do not run.
+rm -f "$tmp/appran"
+out="$(cd "$repo" && FAKE_TARGETS=test-app scripts/with-lock.sh make check-changed FILTER=x 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -e "$tmp/appran" && "$out" == *'lock-free targets (test-app)'* ]] ||
+    fail "lock-free, check-changed FILTER with a test-app whose app step exits 75: exit $code (want 75): $out"
 clear_hold
 rm -f "$repo/Makefile"
 # A TERM to a lock-free call stops the command and its children, which the call runs as a child.
@@ -1025,6 +1039,72 @@ reset_builders
 hold_for 1
 WITH_LOCK_NO_CAP=1 WITH_LOCK_MAX_WAIT=5 capcall "$repo" touch "$tmp/ran"
 [[ $code -eq 0 && "$(tail -n 1 "$waits" | awk -F'\t' '{ print NF, $6 }')" == '6 nocap' ]] || fail "cap, nocap wait line: exit $code [$(tail -n 1 "$waits" 2>&1)]: $out"
+reset_builders
+
+# scripts/bundle.sh takes the build lock itself, after its path check, and keeps the wait limit and
+# the cap of an ordinary call. The copy in the temporary repo runs a fake icon.sh and a fake swift
+# (first on the PATH) that logs whether the lock folder holds a live pid, and exits 3.
+cp "$(dirname "$script")/bundle.sh" "$repo/scripts/bundle.sh"
+printf '#!/bin/bash\necho icon >> "%s"\n' "$tmp/bundle.log" > "$repo/scripts/icon.sh"
+chmod +x "$repo/scripts/icon.sh"
+mkdir -p "$fake/bin"
+cat > "$fake/bin/swift" << EOF
+#!/bin/bash
+pid="\$(cat "$lock/pid" 2>/dev/null)"
+if [[ -n "\$pid" ]] && kill -0 "\$pid" 2>/dev/null; then echo swift-live-lock >> "$tmp/bundle.log"; else echo swift-no-lock >> "$tmp/bundle.log"; fi
+exit 3
+EOF
+chmod +x "$fake/bin/swift"
+# bundlecall <command...>: out and code hold the result; the wait limit is 1 s.
+bundlecall() {
+  out="$(cd "$repo" && PATH="$fake/bin:$PATH" WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=1 "$@" 2>&1)"
+  code=$?
+}
+no_run() { [[ ! -e "$tmp/bundle.log" ]] || fail "bundle.sh, $1: icon.sh or swift ran: $(cat "$tmp/bundle.log")"; }
+reset_builders
+rm -f "$tmp/bundle.log"
+bundlecall scripts/bundle.sh
+[[ $code -eq 3 && "$(paste -sd, "$tmp/bundle.log")" == icon,swift-live-lock && ! -e "$lock" ]] ||
+  fail "bundle.sh, free lock: exit $code (want 3), log [$(paste -sd, "$tmp/bundle.log" 2>&1)]: $out"
+# A live holder: the wait ends at the limit, with no icon.sh and no swift.
+reset_builders
+rm -f "$tmp/bundle.log"
+hold
+bundlecall scripts/bundle.sh
+[[ $code -eq 75 && "$out" == *'still waiting after 1 s'* && "$(cat "$lock/pid")" == "$holder" ]] ||
+  fail "bundle.sh, live holder: exit $code (want 75): $out"
+no_run "live holder"
+# Two other building trees and a free lock: the cap line and exit 75, with no swift.
+reset_builders
+rm -f "$tmp/bundle.log"
+holdline 5 "$ta"
+holdline 3 "$tb"
+bundlecall scripts/bundle.sh
+[[ $code -eq 75 && "$out" == *"$cap_text: $ta, $tb"* && ! -e "$lock" ]] ||
+  fail "bundle.sh, 2 other building trees: exit $code (want 75, the cap line): $out"
+no_run "2 other building trees"
+# Under the hold of a caller (its DIRIGIBLE_BUILD_LOCK is in the pid file), and under an outer
+# with-lock.sh call: it runs at once, once, and builds under that hold.
+reset_builders
+rm -f "$tmp/bundle.log"
+hold
+DIRIGIBLE_BUILD_LOCK=$holder bundlecall scripts/bundle.sh
+[[ $code -eq 3 && "$(paste -sd, "$tmp/bundle.log")" == icon,swift-live-lock && ! -e "$waits" && ! -e "$holds" ]] ||
+  fail "bundle.sh, under the hold of a caller: exit $code (want 3), log [$(paste -sd, "$tmp/bundle.log" 2>&1)]: $out"
+reset_builders
+rm -f "$tmp/bundle.log"
+bundlecall scripts/with-lock.sh scripts/bundle.sh
+[[ $code -eq 3 && "$(paste -sd, "$tmp/bundle.log")" == icon,swift-live-lock && ! -e "$waits" ]] ||
+  fail "bundle.sh, under an outer with-lock.sh call: exit $code (want 3), log [$(paste -sd, "$tmp/bundle.log" 2>&1)]: $out"
+# A bundle path outside build/ exits 2 before the lock: no lock folder, wait line, or hold line.
+for path in /private/tmp/dirigible-guard.app build/../dirigible-guard.app; do
+  reset_builders
+  rm -f "$tmp/bundle.log"
+  bundlecall scripts/bundle.sh "$path"
+  [[ $code -eq 2 && "$out" == *'the bundle path must be build/<name>.app'* && ! -e "$lock" && ! -e "$waits" && ! -e "$holds" ]] ||
+    fail "bundle.sh, path $path: exit $code (want 2, no lock, no log line): $out"
+  no_run "path $path"
+done
 reset_builders
 
 # The hold limit WITH_LOCK_MAX_HOLD: a command that runs past it gets TERM on its process group,

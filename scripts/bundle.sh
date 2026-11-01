@@ -3,6 +3,8 @@
 # app icon, user guide, and signature.
 # The first argument is the bundle path (default build/Dirigible.app). It must be
 # build/<name>.app, because the script deletes that folder first.
+# After the path check the script runs itself under scripts/with-lock.sh, with a marker of its own
+# (DIRIGIBLE_LOCKED_SCRIPT would lift the wait limit and the cap of the lock).
 # SIGN_IDENTITY defaults to "-" (ad-hoc). Set it to a local self-signed certificate
 # name to keep the microphone permission across rebuilds (see README).
 set -euo pipefail
@@ -13,6 +15,7 @@ if [[ "$APP" != build/*.app || "$APP" == *..* ]]; then
     echo "bundle.sh: the bundle path must be build/<name>.app" >&2
     exit 2
 fi
+[[ -n "${DIRIGIBLE_BUNDLE_LOCKED:-}" ]] || DIRIGIBLE_BUNDLE_LOCKED=1 exec scripts/with-lock.sh scripts/bundle.sh "$@"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 SWIFT_FLAGS=(-c release --arch arm64 --arch x86_64)
 

@@ -157,10 +157,9 @@ def scan(path):
             prev = at
             if total < COMMIT_MIN * 60 or line.startswith(BLOB):
                 continue
-            if COORDINATOR in line and "\"type\":\"user\"" in line:
-                if coordinator_entry(line):
-                    pending.clear()
-                    done.clear()
+            if COORDINATOR in line and "\"type\":\"user\"" in line and coordinator_entry(line):
+                pending.clear()
+                done.clear()
             elif pending and "\"tool_use_id\":\"" in line:
                 for key in [k for k in pending if "\"tool_use_id\":\"" + k + "\"" in line]:
                     start, tree, skip_author = pending.pop(key)

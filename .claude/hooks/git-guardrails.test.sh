@@ -2013,6 +2013,10 @@ hb_session ct-clear < <(hb_span 62 2; hb_commit 1 c1 'git commit -m x' "$ct_tree
 hb_expect "$clock_hook" 0 'make build after a coordinator message that follows the commit' "$(hb_bash 'make build')"
 hb_session ct-notify < <(hb_span 62 2; hb_commit 1 c1 'git commit -m x' "$ct_tree"; hb_result 0 c1 ''; hb_text user 0 '[SYSTEM NOTIFICATION] a task ended')
 hb_expect "$clock_hook" 2 'make build after a task notification that follows the commit' "$(hb_bash 'make build')"
+# A commit result that quotes the coordinator text still closes its commit call.
+ct_repo quote new
+hb_session ct-quote < <(hb_span 62 2; hb_commit 1 c1 'git commit -m x' "$ct_tree"; hb_result 0 c1 'The coordinator sent a message while you were working: go on')
+hb_expect "$clock_hook" 2 'make build after a commit whose result quotes the coordinator text' "$(hb_bash 'make build')"
 clock_forms "$tmp/ct-quiet" 'commit hand-off'
 
 hb_expect "$clock_hook" 0 'no agent_id (the lead)' "$(printf '{"transcript_path":"%s/s.jsonl","tool_name":"Bash","tool_input":{"command":"make test"}}' "$hb_dir")"

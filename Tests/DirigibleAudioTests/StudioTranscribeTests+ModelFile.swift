@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 @testable import DirigibleCore
@@ -239,6 +240,87 @@ import Testing
             #expect(record.models.isEmpty && studio.session.transcripts.isEmpty)
             if stop != .takeHere { #expect(studio.session == before.0 && T.xml(package) == before.1) }
             if let host { try await StudioExportTests().recordAndStop(takeStudio, hal, from: host) }
+            await studio.settle()
+            await takeStudio.settle()
+        }
+
+        /// The sheet check of `url` in `studio`: nil when it passes, else its error.
+        static func check(_ studio: Studio, _ url: URL) async -> StudioError? {
+            do throws(StudioError) {
+                _ = try await studio.checkModelFile(url, passed: nil)
+                return nil
+            } catch {
+                return error
+            }
+        }
+
+        enum CheckStop: CaseIterable { case takeHere, takeInAnotherStudio, settle }
+
+        /// C25: the sheet check is a read run of the studio. A take start here or in another studio
+        /// ends it with `.readYielded`, `settle()` ends it with `.readClosed`, and the helper is gone.
+        @Test(arguments: CheckStop.allCases) func aTakeStartStopsTheSheetCheck(stop: CheckStop) async throws {
+            let taking = try await ExportStudioFixture.make()
+            let hal = TestHAL([taking.mic])
+            let other = try await ExportStudioFixture.make()
+            let second = stop == .takeInAnotherStudio
+            let package = second ? other.package : taking.package
+            let pidFile = package.folder.url.appending(path: "pid")
+            let helper = try ModelFileCheckTests.stub(
+                "echo $$ > '\(pidFile.path)'.tmp; mv '\(pidFile.path)'.tmp '\(pidFile.path)'; exec sleep 30",
+                in: package.folder.url)
+            let (studio, file) = try await Self.open(
+                package, helper: helper, hal: hal, engine: Self.engine(ModelRecord()))
+            let takeStudio = second ? try await taking.open(hal) : studio
+            if second { takeStudio.otherStudios = { [studio] } }
+            let check = Task { await Self.check(studio, file) }
+            await until(limit: .seconds(10), "the helper wrote its PID") {
+                FileManager.default.fileExists(atPath: pidFile.path)
+            }
+            let pid = try #require(pid_t(String(decoding: Data(contentsOf: pidFile), as: UTF8.self).filter(\.isNumber)))
+
+            var host: UInt64?
+            var closing: Task<Void, Never>?
+            switch stop {
+            case .takeHere, .takeInAnotherStudio:
+                host = try await StudioExportTests().start(.startTake, takeStudio, taking)
+            case .settle: closing = Task { await studio.settle() }
+            }
+
+            #expect(await check.value == (host == nil ? .readClosed : .readYielded))
+            await closing?.value
+            #expect(kill(pid, 0) == -1 && errno == ESRCH, "the helper \(pid) still runs")
+            if let host { try await StudioExportTests().recordAndStop(takeStudio, hal, from: host) }
+            await studio.settle()
+            await takeStudio.settle()
+        }
+
+        /// C25 (f): while another studio records, the sheet check refuses with `.busy` before the
+        /// check seam, so no hash and no helper run. Control: after the take stops, the same check
+        /// runs the helper once.
+        @Test func aCheckDuringATakeInAnotherStudioRunsNothing() async throws {
+            let taking = try await ExportStudioFixture.make()
+            let hal = TestHAL([taking.mic])
+            let other = try await ExportStudioFixture.make()
+            let ran = other.package.folder.url.appending(path: "ran")
+            let helper = try Self.passing(other.package.folder.url, ran: ran)
+            let (studio, file) = try await Self.open(
+                other.package, helper: helper, hal: hal, engine: Self.engine(ModelRecord()))
+            let seams = OSAllocatedUnfairLock(initialState: 0)
+            let seam = studio.environment.checkModelFile
+            studio.environment.checkModelFile = { url, passed, stop throws(ModelFileCheckError) in
+                seams.withLock { $0 += 1 }
+                return try seam(url, passed, stop)
+            }
+            let takeStudio = try await taking.open(hal)
+            studio.otherStudios = { [takeStudio] }
+            let host = try await StudioExportTests().start(.startTake, takeStudio, taking)
+
+            #expect(await Self.check(studio, file) == .busy)
+            #expect(seams.withLock { $0 } == 0 && Self.runs(ran) == 0)
+
+            try await StudioExportTests().recordAndStop(takeStudio, hal, from: host)
+            #expect(await Self.check(studio, file) == nil)
+            #expect(seams.withLock { $0 } == 1 && Self.runs(ran) == 1)
             await studio.settle()
             await takeStudio.settle()
         }

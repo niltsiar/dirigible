@@ -65,6 +65,14 @@ enum TranscribeHint {
     /// The chunk instants of the download of the running job.
     @ObservationIgnored var download: DownloadActivity?
     @ObservationIgnored var hintTask: Task<Void, Never>?
+    /// The open panel of a model file: the picked file, else nil. Tests give their own.
+    @ObservationIgnored var pickModelFile: @MainActor () async -> URL? = { await TranscribeState.livePickModelFile() }
+    /// The SHA-256 of the kept file at the sheet open, off the main actor (C24). Tests count it.
+    @ObservationIgnored var hashFile: @Sendable (URL) -> String? = { ModelFileCheck.fileHash($0) }
+    /// The open panel and the check of Choose Model File... in the sheet.
+    @ObservationIgnored var checkTask: Task<Void, Never>?
+    /// The status read of the kept file at the sheet open.
+    @ObservationIgnored var keptTask: Task<Void, Never>?
 }
 
 /// Tools > Transcribe Track... (decision 0065): the sheet starts a job of the studio beside the
@@ -86,20 +94,29 @@ extension SessionWindow {
             TranscribeDraft.models.filter {
                 FileManager.default.fileExists(atPath: folder.appending(path: $0.fileName).path)
             })
+        let defaults = app?.defaults
         let language = TranscribeLanguages.first(
-            stored: app?.defaults?.string(forKey: TranscribeDraft.languageKey),
+            stored: defaults?.string(forKey: TranscribeDraft.languageKey),
             appLanguage: Bundle.main.preferredLocalizations.first)
         transcribe.draft = TranscribeDraft(
             tracks: session.tracks.map {
                 TranscribeDraft.Choice(id: $0.id, name: $0.name, words: session.words(on: [$0.id]).count)
             },
-            selected: track ?? timeline.selection.headerTracks(in: session).first, onDisk: onDisk, language: language)
+            selected: track ?? timeline.selection.headerTracks(in: session).first, onDisk: onDisk, language: language,
+            kept: KeptModelFile.load(from: defaults),
+            remembered: TranscribeModelMemory.entry(for: language, in: defaults))
+        readKeptFile()
     }
 
-    func cancelTranscribeSheet() { transcribe.draft = nil }
+    /// Cancel and Escape of the sheet: they stop a check of a model file.
+    func cancelTranscribeSheet() {
+        stopModelCheck()
+        transcribe.draft = nil
+    }
 
     /// The default button of the sheet: closes it and starts the job.
     func startTranscribe(_ draft: TranscribeDraft) {
+        stopModelCheck()
         transcribe.draft = nil
         draft.remember(in: app?.defaults)
         start(draft.request)
@@ -118,24 +135,30 @@ extension SessionWindow {
         transcribe.task?.cancel()
     }
 
-    private func start(_ request: TranscribeRequest) {
+    func start(_ request: TranscribeRequest) {
         guard canTranscribe, let studio = idleStudio else { return }
         commitDrafts()
         transcribe.notice = nil
         // The download comes first, and a stalled download sends no progress: show it from the start.
-        let missing = !FileManager.default.fileExists(
-            atPath: transcribe.modelFolder().appending(path: request.model.fileName).path)
+        var missing = false
+        if case .catalog(let model) = request.model {
+            missing = !FileManager.default.fileExists(
+                atPath: transcribe.modelFolder().appending(path: model.fileName).path)
+        }
         transcribe.job = TranscribeJobShown(request: request, stage: missing ? .download(0) : nil, since: .now)
         let download = DownloadActivity()
         transcribe.download = download
         transcribe.task = Task { [weak self] in
             do throws(StudioError) {
                 let report = try await studio.transcribe(
-                    track: request.track, language: request.language, model: .catalog(request.model),
-                    download: download
+                    track: request.track, language: request.language, model: request.model, download: download
                 ) { [weak self] stage in
                     self?.transcribe.job?.stage = stage
                     if case .download = stage { self?.waitForHint() }
+                    // A passed check is kept whatever the end of the job (C10).
+                    if case .checked(let record) = stage, case .file(let url, _) = request.model {
+                        self?.keepModelFile(url, record)
+                    }
                 }
                 if report.id == nil { self?.notify(in: studio) { .noWords(revision: $0, press: $1) } }
             } catch .transcriptionYielded {
@@ -143,7 +166,7 @@ extension SessionWindow {
             } catch .transcriptionCancelled {
                 self?.chrome?.announce(L10n.transcribeCanceled.text, .medium)
             } catch {
-                self?.alert = .error(error)
+                self?.alert = .transcribe(error, request)
             }
             self?.transcribe.hintTask?.cancel()
             self?.transcribe.hintTask = nil
@@ -169,9 +192,8 @@ extension SessionWindow {
                 let armed = download.onNextChunk(ifNoChunkSince: seen) { [weak self] in
                     Task { @MainActor [weak self] in self?.chunkAfterHint(download) }
                 }
-                if armed {
-                    let host = transcribe.job?.request.model.url.host()
-                    transcribe.job?.hint = host
+                if armed, case .catalog(let model)? = transcribe.job?.request.model {
+                    transcribe.job?.hint = model.url.host()
                     return
                 }
             }

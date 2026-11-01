@@ -44,6 +44,9 @@ struct SessionView: View {
                 case .error, .importChain, .exported, .noUnusedFiles, .transcriptExport, .transcriptImport:
                     // The default button: Return closes the alert (HIG: Cancel is never the default).
                     Button(L10n.alertOK.key) {}
+                case .transcribeFile(_, let request), .transcribeNoData(_, let request):
+                    Button(L10n.alertOK.key) {}
+                    if let pick = alert.pickButton { Button(pick.key) { model.startWithPickedFile(request) } }
                 }
             }
             // An AppKit sheet, so the close button is off (decision 0048). Only its buttons answer.
@@ -119,7 +122,7 @@ struct SessionView: View {
             // Tools > Transcribe Track... (decision 0065). Only its buttons close it.
             .background {
                 Color.clear.sheet(isPresented: Binding(get: { model.transcribe.draft != nil }, set: { _ in })) {
-                    if let draft = model.transcribe.draft { TranscribeSheet(model: model, draft: draft) }
+                    if model.transcribe.draft != nil { TranscribeSheet(model: model) }
                 }
             }
             // Transport > Go to Take Time... (decision 0061). Only its buttons close it.
@@ -270,6 +273,7 @@ extension WindowAlert {
                 } ?? "")
         case .transcriptExport(let error): L10n.message(for: error)
         case .transcriptImport(let text): text
+        case .transcribeFile(let error, _), .transcribeNoData(let error, _): L10n.message(for: error)
         }
     }
 }

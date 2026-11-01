@@ -696,6 +696,17 @@
 "sheet.transcribe.note.download" = "Dirigible downloadt dit model één keer. Je audio verlaat deze Mac nooit.";
 "sheet.transcribe.note.replace.one" = "Dit spoor heeft 1 woord. Vervangen wisselt het om voor de nieuwe woorden. Herstel brengt het terug.";
 "sheet.transcribe.note.replace.many" = "Dit spoor heeft %lld woorden. Vervangen wisselt ze om voor de nieuwe woorden. Herstel brengt ze terug.";
+"sheet.transcribe.choose" = "Kies modelbestand…";
+"sheet.transcribe.missing" = "%@ (ontbreekt)";
+"sheet.transcribe.note.file" = "Dit model staat niet in de lijst van Dirigible. De snelheid en nauwkeurigheid kunnen verschillen. Je audio verlaat deze Mac nooit.";
+"sheet.transcribe.check.running" = "%@ controleren…";
+"sheet.transcribe.check.wait" = "Dit kan een minuut duren.";
+"sheet.transcribe.check.multilingual" = "%@, meertalig";
+"sheet.transcribe.check.english" = "%@, alleen Engels";
+"sheet.transcribe.check.layers" = "%lld audiolagen";
+"sheet.transcribe.check.take" = "Er begon een opname, dus Dirigible stopte de controle van het modelbestand.";
+"sheet.transcribe.check.busy" = "Een opname blokkeert de controle van het modelbestand. Probeer het opnieuw na de opname.";
+"alert.transcribe.locate" = "Zoek…";
 "transcribe.banner.download" = "Spraakmodel downloaden… %lld %%";
 "transcribe.banner.running" = "%1$@ transcriberen… %2$lld %%";
 "transcribe.banner.firewall" = "Nog geen gegevens van %@. Een firewall kan de download blokkeren.";

@@ -69,6 +69,7 @@ struct InspectorView: View {
             case .clip: clipPane
             case .episode: EpisodeInspector(model: model, studio: studio)
             case .marker: MarkerInspector(model: model, studio: studio)
+            case .silences: SilencesInspector(model: model, studio: studio)
             case .transcript: TranscriptPane(model: model, studio: studio)
             }
         }
@@ -186,7 +187,7 @@ extension SessionWindow {
         commitInspector()
         if markerDraft?.refused == true { markerDraft = nil }
         if inspectorFocus != nil || episodeFocus != nil || markerFocus != nil
-            || window?.firstResponder is TranscriptTextView
+            || window?.firstResponder is TranscriptTextView || silences.keepFocused
         {
             (inspectorFocus, episodeFocus, markerFocus) = (nil, nil, nil)
             focusLanes()

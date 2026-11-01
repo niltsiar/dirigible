@@ -42,6 +42,11 @@ final class TimelineDocumentView: NSView {
     /// The tint of the lanes of the selected tracks, above the dim (run 2026-10-11-ui-polish-header
     /// C11).
     let tint = LaneShade()
+    /// The silences of the Silences tab and their planned cuts, above the tint (decision 0066).
+    let silenceShade = SilenceShade()
+    var silenceBands: [SilenceBand] = [] {
+        didSet { if silenceBands != oldValue { updateShades() } }
+    }
     /// A drag of audio files from the Finder (run 13c).
     let drop = LaneDrop()
     /// The renders, for the redraw tests (criteria 10 and 24).
@@ -154,6 +159,7 @@ final class TimelineDocumentView: NSView {
         layer?.addSublayer(surfaces.layer)
         layer?.addSublayer(dim.layer)
         layer?.addSublayer(tint.layer)
+        layer?.addSublayer(silenceShade.layer)
         layer?.addSublayer(drop.layer)
         playhead.zPosition = 10
         showPlayheadColors()
@@ -225,6 +231,9 @@ final class TimelineDocumentView: NSView {
         let alpha = palette.accent == nil ? 0.08 : 0.10
         tint.update(
             lanes: LaneShade.selected(inputs), laneHeight: height, width: width, color: palette.outline, alpha: alpha)
+        silenceShade.update(
+            bands: silenceBands, geometry: inputs.geometry, height: Double(inputs.session.tracks.count) * height,
+            width: width, contrast: increasesContrast, color: palette.outline)
     }
 
     private func showPlayheadColors() {

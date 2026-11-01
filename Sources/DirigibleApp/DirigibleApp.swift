@@ -145,6 +145,8 @@ struct DirigibleApp: App {
                         ForEach(TimelineCommand.toolItems, id: \.command) { item in menuButton(item) }
                         Divider()
                         Button(L10n.menuToolsDuck.key) { app.timeline(.duck) }.disabled(app.key?.isOn(.duck) != true)
+                        Button(L10n.menuToolsSilences.key) { app.timeline(.findSilences) }
+                            .disabled(app.key?.isOn(.findSilences) != true)
                         Divider()
                         let split = TimelineCommand.splitStereoItem
                         Button(split.title.key) { app.timeline(split.command) }

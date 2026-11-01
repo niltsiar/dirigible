@@ -224,7 +224,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
-        "sheet.transcribe.standard",
+        "sheet.transcribe.standard", "inspector.tab.silences", "silences.action", "silences.mark.name",
         "agent.mark", "alert.ok", "banner.kind.info", "dock.badge.recording", "episode.copyright",
         "episode.date", "episode.description", "episode.guid", "episode.notes", "export.chapter.intro",
         "inspector.clip", "inspector.decibels", "inspector.gain", "inspector.milliseconds",

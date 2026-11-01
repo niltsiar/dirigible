@@ -85,6 +85,7 @@ extension SessionWindow {
         case .autoLevel, .autoLevelPerTrack:
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true
         case .duck: !dialogShowing && isOn(.autoLevel)
+        case .findSilences: canFindSilences
         case .splitStereo:
             canImport && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
         case .reduceNoise, .repairSound:

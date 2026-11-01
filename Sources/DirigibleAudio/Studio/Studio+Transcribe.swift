@@ -25,20 +25,28 @@ public struct TranscribeReport: Hashable, Sendable {
     public let dropped: [String]
     /// The language code of the engine, for example "es".
     public let language: String
+    /// The record of the check of a model file of the user; nil for a catalog model.
+    public let modelFile: PassedModelFile?
 }
 
 /// The stage of a transcription job and its fraction from 0 to 1.
 public enum TranscribeProgress: Hashable, Sendable {
     /// The model download: the received bytes over the catalog byte count.
     case download(Double)
+    /// The check of a model file of the user (decision 0065, D8).
+    case check
+    /// The check of the model file passed with this record, before the engine starts. A job sends
+    /// it also when it ends after the check with an error or a stop.
+    case checked(PassedModelFile)
     /// The engine: the values of `PieceProgress`.
     case transcribe(Double)
 }
 
 extension Studio {
     /// Transcribes the clips of track `id` with `model` (decision 0065 D5) and adds the words as the
-    /// transcript `name`, else of the track name, in one undo entry with `agent`. It downloads the model first
-    /// when the model folder does not have it. The job runs beside the write chain: edits go on, and
+    /// transcript `name`, else of the track name, in one undo entry with `agent`. For a catalog model,
+    /// it downloads the model first when the model folder does not have it; for a model file of the
+    /// user, it checks the file first (D8). The job runs beside the write chain: edits go on, and
     /// the words anchor to the files, so an edit during the job keeps its place. It throws `.busy`
     /// during a take, a pending take, a take start, a level, a duck, an import, or `settle()`, while
     /// a job runs in any studio, and while another studio records, has a pending take, or starts a
@@ -48,7 +56,7 @@ extension Studio {
     /// nothing and gives no ID. It returns after the save of the new session. `progress` gets the
     /// stage and the fraction on the main actor.
     public func transcribe(
-        track id: TrackID, language: WhisperLanguage, model: WhisperModel, name: String? = nil,
+        track id: TrackID, language: WhisperLanguage, model: WhisperModelChoice, name: String? = nil,
         agent: AgentName? = nil,
         progress: @escaping @MainActor @Sendable (TranscribeProgress) -> Void = { _ in }
     ) async throws(StudioError) -> TranscribeReport {
@@ -71,21 +79,26 @@ extension Studio {
             ProcessInfo.processInfo.endActivity(activity)
         }
         let hop: @Sendable (TranscribeProgress) -> Void = { stage in Task { @MainActor in progress(stage) } }
+        // `.check` and `.checked` arrive in order and before the job ends, so a caller keeps a passed
+        // check whatever the end of the job.
+        let announce: @Sendable (TranscribeProgress) async -> Void = { stage in
+            await MainActor.run { progress(stage) }
+        }
         // The work, the step after it, and the wait for idle up to the edit: a cancel of the caller
         // in any of them sets the flags that the end turn reads.
         func job() async throws(StudioError) -> TranscribeReport {
             let work = await transcribeWork(
                 map, session: snapshot, lock: lock, language: language, model: model, environment: environment,
-                run: run, progress: hop)
+                run: run, announce: announce, progress: hop)
             await environment.transcribeWorkDone()
             // The end turn. A set flag decides the exit, also after an engine error.
             while true {
                 if run.cancelled.withLock({ $0 }) {
                     throw run.end.withLock { $0 } == .take ? .transcriptionYielded : .transcriptionCancelled
                 }
-                let words: TranscribedWords
+                let (words, modelFile): (TranscribedWords, PassedModelFile?)
                 switch work {
-                case .success(let done?): words = done
+                case .success(let done?): (words, modelFile) = done
                 // No flag and no words: the engine part saw a flag that the end turn reads above.
                 case .success(nil): throw .transcriptionCancelled
                 case .failure(let error): throw error
@@ -105,7 +118,7 @@ extension Studio {
                     await serialized {}
                     return TranscribeReport(
                         id: added.id, kept: added.kept, skipped: added.skipped, untimed: words.untimed,
-                        dropped: added.dropped, language: words.language)
+                        dropped: added.dropped, language: words.language, modelFile: modelFile)
                 }
                 // A level, a duck, an import, a paste, a split, a render, a placement, or a take start of
                 // this studio runs. The sleep is in a task of its own, so a cancel of the caller does not

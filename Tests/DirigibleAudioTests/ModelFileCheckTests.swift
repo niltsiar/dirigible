@@ -196,7 +196,12 @@ struct ModelFileCheckTests {
     }
 
     private func stub(_ body: String, mode: Int = 0o755) throws -> URL {
-        let url = folder.url.appending(path: "helper-\(UUID().uuidString)")
+        try Self.stub(body, in: folder.url, mode: mode)
+    }
+
+    /// A shell script in `folder` with `body` and the file mode `mode`.
+    static func stub(_ body: String, in folder: URL, mode: Int = 0o755) throws -> URL {
+        let url = folder.appending(path: "helper-\(UUID().uuidString)")
         try Data("#!/bin/sh\n\(body)\n".utf8).write(to: url)
         try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: url.path)
         return url

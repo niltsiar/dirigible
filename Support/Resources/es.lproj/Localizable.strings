@@ -742,3 +742,10 @@
 "silences.help.keep" = "El tiempo en ms que Acortar deja en cada silencio. Es menor que la duración mínima.";
 "silences.help.action" = "Define la acción de las filas seleccionadas.";
 "silences.help.mute" = "Baja el audio 96 dB. No es silencio digital.";
+"error.transcribe.file.unreadable" = "Dirigible no pudo leer el archivo de modelo (error %lld).";
+"error.transcribe.file.helper.missing" = "Falta una parte de Dirigible: el programa que comprueba un archivo de modelo. Instala Dirigible de nuevo.";
+"error.transcribe.file.helper.start" = "El programa que comprueba un archivo de modelo no se inició (%1$@ %2$lld). Instala Dirigible de nuevo.";
+"error.transcribe.file.refused" = "Dirigible no puede usar este archivo de modelo. %@";
+"error.transcribe.file.crashed" = "El archivo de modelo detuvo el programa que lo comprueba (señal %lld). Dirigible no puede usar este archivo.";
+"error.transcribe.file.changed" = "El archivo de modelo cambió durante la transcripción. Inténtalo de nuevo.";
+"error.transcribe.file.english" = "Este archivo de modelo solo tiene inglés. Elige inglés o Automático como idioma.";

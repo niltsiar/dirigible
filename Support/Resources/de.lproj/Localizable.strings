@@ -742,3 +742,10 @@
 "silences.help.keep" = "Die Zeit in ms, die Kürzen in jeder Stille stehen lässt. Sie ist kleiner als die Mindestlänge.";
 "silences.help.action" = "Legt die Aktion der ausgewählten Zeilen fest.";
 "silences.help.mute" = "Senkt den Ton um 96 dB. Das ist keine digitale Stille.";
+"error.transcribe.file.unreadable" = "Dirigible konnte die Modelldatei nicht lesen (Fehler %lld).";
+"error.transcribe.file.helper.missing" = "Ein Teil von Dirigible fehlt: das Programm, das eine Modelldatei prüft. Installiere Dirigible erneut.";
+"error.transcribe.file.helper.start" = "Das Programm, das eine Modelldatei prüft, ist nicht gestartet (%1$@ %2$lld). Installiere Dirigible erneut.";
+"error.transcribe.file.refused" = "Dirigible kann diese Modelldatei nicht verwenden. %@";
+"error.transcribe.file.crashed" = "Die Modelldatei hat das Programm beendet, das sie prüft (Signal %lld). Dirigible kann diese Datei nicht verwenden.";
+"error.transcribe.file.changed" = "Die Modelldatei hat sich während der Transkription geändert. Versuche es erneut.";
+"error.transcribe.file.english" = "Diese Modelldatei kennt nur Englisch. Wähle Englisch oder Automatisch als Sprache.";

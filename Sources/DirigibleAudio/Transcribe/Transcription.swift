@@ -66,6 +66,12 @@ public enum TranscribeError: Error, Hashable, Sendable {
     case vadModelChecksum(file: String)
     /// `whisper_full` returned this non-zero code with the stop flag clear.
     case engine(code: Int32)
+    /// The check of a model file of the user gave no checked model.
+    case modelFile(ModelFileCheckError)
+    /// The model file of the user changed after its passed check, before the engine.
+    case modelChanged
+    /// The model file of the user is English only, and the job asks for another language.
+    case languageNotInModel
 }
 
 /// Why `ModelFileCheck.run` gives no checked model for a model file of the user (decision 0065, D8).

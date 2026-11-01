@@ -730,4 +730,11 @@ enum L10n: String, CaseIterable {
     case silencesHelpKeep = "silences.help.keep"
     case silencesHelpAction = "silences.help.action"
     case silencesHelpMute = "silences.help.mute"
+    case errorTranscribeFileUnreadable = "error.transcribe.file.unreadable"
+    case errorTranscribeFileHelperMissing = "error.transcribe.file.helper.missing"
+    case errorTranscribeFileHelperStart = "error.transcribe.file.helper.start"
+    case errorTranscribeFileRefused = "error.transcribe.file.refused"
+    case errorTranscribeFileCrashed = "error.transcribe.file.crashed"
+    case errorTranscribeFileChanged = "error.transcribe.file.changed"
+    case errorTranscribeFileEnglish = "error.transcribe.file.english"
 }

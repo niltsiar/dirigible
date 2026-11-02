@@ -20,6 +20,13 @@ public struct ExportPartsResult: Hashable, Sendable {
     public let files: [ExportedPart]
     /// The split points of the rendered session that have no file of their own.
     public let dropped: [Marker]
+
+    /// The chapters that the file of `file` leaves out, except the split points in `dropped`: each of
+    /// those has one warning of its own, so the part does not name it again.
+    public func droppedChapters(of file: ExportedPart) -> [Marker] {
+        let points = Set(dropped.map(\.id))
+        return file.result.droppedChapters.filter { !points.contains($0.id) }
+    }
 }
 
 /// A split export that stopped or failed after the check of its targets.

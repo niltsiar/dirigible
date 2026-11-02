@@ -149,14 +149,14 @@ package enum ExportText {
     }
 
     /// The warning lines of an export, in this order: the files that rendered as silence, the
-    /// tracks that are not heard, the chapters that the file leaves out, the chapter images, and
-    /// the title tag.
+    /// tracks that are not heard, the `droppedChapters` that the file leaves out, the chapter images,
+    /// and the title tag.
     package static func warnings(
-        of result: ExportResult, session: Session, source: ExportSource, output: URL, format: ExportFormat,
-        spelling: OptionSpelling
+        of result: ExportResult, droppedChapters: [Marker], session: Session, source: ExportSource, output: URL,
+        format: ExportFormat, spelling: OptionSpelling
     ) -> [String] {
         var lines = faultLines(result.faults, in: session) + unheardLines(session, source: source)
-        lines += droppedLines(result.droppedChapters, pastEnd: true)
+        lines += droppedLines(droppedChapters, pastEnd: true)
         if result.chapterImagesOmitted {
             lines.append(
                 "Warning: \(output.path) has no chapter images: a chapter has no image, and the episode has no "

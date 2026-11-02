@@ -105,7 +105,8 @@ package struct ExportWork: Sendable {
         return (
             result.loudness.map { [ExportText.loudnessLine($0)] } ?? [],
             ExportText.warnings(
-                of: result, session: session, source: source, output: url, format: options.format, spelling: spelling)
+                of: result, droppedChapters: result.droppedChapters, session: session, source: source, output: url,
+                format: options.format, spelling: spelling)
         )
     }
 
@@ -218,9 +219,9 @@ extension ExportWork {
         }
         for file in result.files {
             for line in ExportText.warnings(
-                of: file.result, session: session.forPart(file.part), source: source, output: file.url,
-                format: options.format, spelling: spelling) where !warnings.contains(line)
-            {
+                of: file.result, droppedChapters: result.droppedChapters(of: file), session: session.forPart(file.part),
+                source: source, output: file.url, format: options.format, spelling: spelling)
+            where !warnings.contains(line) {
                 warnings.append(line)
             }
         }

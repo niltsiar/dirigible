@@ -185,8 +185,7 @@ extension SessionWindow {
     /// A refused Record shows in the sheet until the end.
     func run(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
         recordRefusal = nil
-        exportReport = nil
-        chapterWarnings = nil
+        clearExportBanners()
         defer { recordRefusal = nil }
         // The file has the session of the export start: an edit during the export does not match it.
         let revision = studio.sessionRevision
@@ -282,6 +281,13 @@ extension SessionWindow {
                 }
             }
         }
+    }
+
+    /// The banners of the earlier export: each export start and each take start removes them.
+    func clearExportBanners() {
+        exportReport = nil
+        chapterWarnings = nil
+        exportSet = nil
     }
 
     /// The Cancel button of the progress sheet.

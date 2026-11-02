@@ -115,9 +115,7 @@ extension SessionWindow {
             // The body does not run when the window changed during the microphone prompt.
             guard let take else { return changed ? .changed : .closed }
             endModelFileWorkForTake()
-            exportReport = nil
-            chapterWarnings = nil
-            exportSet = nil
+            clearExportBanners()
             levelReport = nil
             denoiseReport = nil
             repairReport = nil

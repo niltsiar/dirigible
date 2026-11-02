@@ -200,6 +200,8 @@ extension ExportWindowTests {
         let (model, studio, nsWindow) = try await window()
         for second in 0..<7 { try addPoint("P\(second)", at: Double(second), studio) }
         try await runSet(model, studio, setTarget())
+        // An export writes the same bytes again (decision 0032), so only other bytes show a replace.
+        for name in try setFiles() { try Data("old".utf8).write(to: file(name)) }
         let before = try setFiles().map { try Data(contentsOf: file($0)) }
         try #require(before.count == 7)
         let source = try #require(model.source(of: .session, in: studio))

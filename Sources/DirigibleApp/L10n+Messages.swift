@@ -34,6 +34,9 @@ extension L10n {
             return errorFinalizeUnreadable.format(file, Int(errno))
         case .export(let error): return message(for: error)
         case .exportYielded: return errorExportYielded.text
+        case .exportParts(.exists): return errorExportExists.text
+        case .exportParts(.noPoint): return errorSessionOther.text
+        case .exportParts(.stopped(let stop)): return message(for: stop.error)
         case .audioImport(.session(let error)): return message(for: error, name: name)
         case .audioImport(let error): return message(for: error)
         case .importYielded(let file): return errorImportYielded.format(file)

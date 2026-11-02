@@ -98,6 +98,7 @@ extension StudioError {
         case .placementSpace: "placementSpace"
         case .export: "export"
         case .exportYielded: "exportYielded"
+        case .exportParts: "exportParts"
         case .audioImport: "audioImport"
         case .importYielded: "importYielded"
         case .paste: "paste"

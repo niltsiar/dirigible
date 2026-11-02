@@ -175,7 +175,7 @@ func exportMix(
     // The unlink runs before the close, so no sweep sees the file with no lock.
     defer { close(held) }
     defer { unlink(temporary.path) }
-    let tagged = tags ? folder.appending(path: "\(name).tag.tmp") : nil
+    let tagged = tags ? folder.appending(path: "\(name)\(tagSuffix)") : nil
     // This unlink runs before the unlink of the `.tmp` file, so no sweep removes a live file.
     defer { if let tagged { unlink(tagged.path) } }
     var current: LoudnessStage?
@@ -348,3 +348,11 @@ private func removeExportLeftovers(of url: URL) {
 }
 
 private func leftoverPrefix(_ url: URL) -> String { ".\(url.lastPathComponent)." }
+
+/// The suffix of the tagged copy of an M4A export.
+private let tagSuffix = ".tag.tmp"
+
+/// The longest target name in UTF-8 bytes whose `.<name>.<UUID>.tag.tmp` name fits the 255 bytes
+/// of a file name on APFS: 209.
+let exportNameLimit =
+    255 - (leftoverPrefix(URL(filePath: "/x")).utf8.count - 1) - UUID().uuidString.utf8.count - tagSuffix.utf8.count

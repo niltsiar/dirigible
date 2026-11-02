@@ -152,7 +152,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .segment,
         .rippleBlocked, .silencesStale:
         editRefused
-    case .busy, .locked, .file, .finalize, .export, .exportYielded, .audioImport, .importYielded, .paste, .pasteYielded,
+    case .busy, .locked, .file, .finalize, .export, .exportYielded, .exportParts, .audioImport, .importYielded, .paste,
+        .pasteYielded,
         .split, .splitYielded, .clipRender, .clipRenderYielded, .artwork, .unusedFiles, .levelCancelled,
         .duckCancelled, .readYielded, .readClosed, .transcription, .transcriptionYielded, .transcriptionCancelled,
         .duckRead, .silencesCancelled, .silencesRead, .silencesFaults,

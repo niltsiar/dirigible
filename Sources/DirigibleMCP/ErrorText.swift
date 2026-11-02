@@ -239,6 +239,8 @@ extension StudioError {
         // No command exports through Studio; `dirigible export` calls `exportMix` (decision 0019).
         case .export(let error): "the export failed (\(error))."
         case .exportYielded: "a take in another studio stopped the export."
+        // `liveExport` catches each `.exportParts` case first, and no command exports a set through Studio.
+        case .exportParts(let error): "the export of the files failed (\(error))."
         // No command imports through Studio; `dirigible import` calls `importAudio` (decision 0040).
         case .audioImport(let error): "the import failed (\(error))."
         case .importYielded: "a take in another studio stopped the import."

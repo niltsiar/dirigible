@@ -241,9 +241,12 @@ enum TranscribeLanguages {
 /// the window changes after the open panel and the check of a model file.
 struct TranscribeSheet: View {
     let model: SessionWindow
-    /// The room of the check line and the model notes: three lines of text, so the sheet has one
-    /// height for each state of the check line (U17).
-    static let lineRegionHeight: CGFloat = 60
+    /// The room of the check line and the model notes, which is fixed so the sheet has one height for
+    /// each state of the check line (U17): the facts line and the three-line file note of the German,
+    /// Italian, and Dutch tables, 16 + 6 + 48 pt. `TranscribeSheetTests` checks each table against it.
+    static let lineRegionHeight: CGFloat = 70
+    /// The lines of a note or a refusal in the region; the rest is cut. A refusal shows whole in its help.
+    static let noteLineLimit = 3
 
     private var preferred: [String] { TranscribeLanguages.preferred(Locale.preferredLanguages) }
 
@@ -293,10 +296,12 @@ struct TranscribeSheet: View {
                 if let check = draft.check {
                     checkLine(check)
                 } else {
-                    ForEach(draft.modelNotes, id: \.self) { note($0) }
+                    ForEach(draft.modelNotes, id: \.self) { note($0, limit: Self.noteLineLimit) }
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: Self.lineRegionHeight, alignment: .topLeading)
+            .frame(
+                maxWidth: .infinity, minHeight: Self.lineRegionHeight, maxHeight: Self.lineRegionHeight,
+                alignment: .topLeading)
             HStack {
                 Spacer()
                 Button(L10n.alertCancel.key) { model.cancelTranscribeSheet() }.keyboardShortcut(.cancelAction)
@@ -321,19 +326,21 @@ struct TranscribeSheet: View {
         case .running:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                note(line.text)
+                note(line.text, limit: Self.noteLineLimit)
             }
-        case .passed: note(line.text)
+        case .passed: note(line.text, limit: Self.noteLineLimit)
         case .refused:
             Label {
-                Text(verbatim: line.text).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: line.text).textSelection(.enabled).lineLimit(Self.noteLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
             }
+            .help(line.text)
         }
     }
 
-    private func note(_ text: String) -> some View {
-        Text(verbatim: text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    private func note(_ text: String, limit: Int? = nil) -> some View {
+        Text(verbatim: text).foregroundStyle(.secondary).lineLimit(limit).fixedSize(horizontal: false, vertical: true)
     }
 }

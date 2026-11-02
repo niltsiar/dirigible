@@ -134,9 +134,12 @@ import Testing
         @Test(arguments: [0, 2]) func theSheetKeepsOneHeightForEachStateOfTheCheckLine(words: Int) async throws {
             let window = try await openFile({ $0 }, picks: Picks([]))
             let refusal = String(repeating: "The model file is damaged and cannot be used here. ", count: 3)
+            let longRefusal = String(repeating: "A helper reason that runs on and on. ", count: 20)
+            let longName = String(repeating: "a-long-file-name-", count: 12) + ".bin"
             let lines: [ModelCheckLine?] = [
                 nil, .running(name: "ggml-medium.bin", byteCount: 600_000_000), .passed(Self.tiny),
-                .refused("The file is not a ggml whisper model."), .refused(refusal),
+                .refused("The file is not a ggml whisper model."), .refused(refusal), .refused(longRefusal),
+                .running(name: longName, byteCount: 600_000_000),
             ]
             let kept = KeptModelFile(
                 url: window.file, status: FileStatus(byteCount: 3, modified: .now),

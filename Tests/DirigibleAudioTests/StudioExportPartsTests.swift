@@ -146,4 +146,47 @@ struct StudioExportPartsTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.package.folder.url.path).sorted() == before)
         #expect(studio.exportProgress == nil)
     }
+
+    /// The 10 s tone with chapters "A" at 0 and "B" at 3 s.
+    static func twoParts() async throws -> ExportStudioFixture {
+        try await ExportStudioFixture.make { package in
+            try package.session.setMarker(Marker(id: MarkerID("a"), name: "A", position: 0, kind: .chapter))
+            try package.session.setMarker(Marker(id: MarkerID("b"), name: "B", position: 144_000, kind: .chapter))
+        }
+    }
+
+    /// C10, H2. Control: the parts of the caller session give part 2 a length of 7 s.
+    @Test func aMoveBeforeTheJobGivesThePartsOfTheJobSession() async throws {
+        let fixture = try await Self.twoParts()
+        let studio = try await fixture.open()
+        #expect(Self.targets(studio, fixture).count == 2)
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setMarker(Marker(id: MarkerID("b"), name: "B", position: 192_000, kind: .chapter))
+        }
+
+        let result = try await Self.startSet(studio, fixture).value
+
+        #expect(result.files.map(\.part.range) == [0..<192_000, 192_000..<480_000])
+        #expect(try ExportTests.read(result.files[1].url).length == 288_000)
+    }
+
+    /// C10, H2: a rename after the caller listed the targets meets an item that nobody confirmed.
+    @Test func aRenameBeforeTheJobRefusesAnUnconfirmedTarget() async throws {
+        let fixture = try await Self.twoParts()
+        let studio = try await fixture.open()
+        let folder = fixture.package.folder.url
+        #expect(Self.targets(studio, fixture).map(\.lastPathComponent) == ["Ep-01-A.wav", "Ep-02-B.wav"])
+        let unconfirmed = folder.appending(path: "Ep-02-C.wav")
+        try Data("old".utf8).write(to: unconfirmed)
+        let before = try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted()
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setMarker(Marker(id: MarkerID("b"), name: "C", position: 144_000, kind: .chapter))
+        }
+
+        await #expect(throws: StudioError.exportParts(.exists([unconfirmed]))) {
+            try await Self.startSet(studio, fixture).value
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: folder.path).sorted() == before)
+        #expect(try Data(contentsOf: unconfirmed) == Data("old".utf8))
+    }
 }

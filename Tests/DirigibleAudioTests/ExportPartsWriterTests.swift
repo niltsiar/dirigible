@@ -21,11 +21,12 @@ struct ExportPartsWriterTests {
     }
 
     static func export(
-        _ package: MixPackage, range: Range<Frames> = 0..<480_000, options: ExportOptions = wav, stem: String = "Ep",
+        _ package: MixPackage, range: Range<Frames> = 0..<480_000, by kind: SplitKind = .chapters,
+        options: ExportOptions = wav, stem: String = "Ep",
         replacing: [URL: ConfirmedFile] = [:], progress: (ExportPartsProgress) -> Void = { _ in }
     ) throws(ExportPartsError) -> ExportPartsResult {
         try exportParts(
-            package.session, range: range, by: .chapters, tracks: nil, options: options, folder: package.folder.url,
+            package.session, range: range, by: kind, tracks: nil, options: options, folder: package.folder.url,
             stem: stem, replacing: replacing, package: { package.url }, progress: progress)
     }
 
@@ -34,6 +35,89 @@ struct ExportPartsWriterTests {
             package.session, range: range, by: .chapters, options: wav, folder: package.folder.url, stem: stem
         )
         .targets.map(\.url)
+    }
+
+    static let mp3 = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session)
+    static let m4a = ExportOptions(format: .aac(.k128), layout: .stereo, rate: .session)
+
+    /// Chapters "Intro" at 0 and "Interview" at 3 s, the episode title "Episode 12", and the show.
+    static func titled(_ first: String = "Intro") throws -> MixPackage {
+        let package = try Self.package([(first, 0), ("Interview", 144_000)], frames: 288_000)
+        var episode = Episode()
+        episode.title = try EpisodeLine("Episode 12")
+        episode.show = try EpisodeLine("The Show")
+        package.session.setEpisode(episode)
+        return package
+    }
+
+    /// C7. Control: the session of the set for each part gives "Episode 12" in every file.
+    @Test func anMP3PartHasThePartTitle() async throws {
+        let result = try Self.export(try Self.titled(), range: 0..<288_000, options: Self.mp3)
+        let frames = try await ID3TagTests.frames(result.files[1].url)
+        #expect(frames["id3/TIT2"] == "Interview")
+        #expect(frames["id3/TALB"] == "The Show")
+    }
+
+    /// C7.
+    @Test func anM4APartHasThePartTitle() async throws {
+        let result = try Self.export(try Self.titled(), range: 0..<288_000, options: Self.m4a)
+        #expect(try await M4ATagTests.atoms(result.files[1].url)["itsk/%A9nam"] == "Interview")
+    }
+
+    /// C7: a part title of only whitespace keeps the episode title.
+    @Test func aPartWithNoTitleKeepsTheEpisodeTitle() async throws {
+        let result = try Self.export(try Self.titled("   "), range: 0..<288_000, options: Self.mp3)
+        #expect(try await ID3TagTests.frames(result.files[0].url)["id3/TIT2"] == "Episode 12")
+    }
+
+    /// C8: the part of chapter "Interview" has one chapter at 0 with its title.
+    @Test func anM4APartHasItsOneChapterAtZero() async throws {
+        let result = try Self.export(try Self.titled(), range: 0..<288_000, options: Self.m4a)
+        let groups = try await M4AChapterTests.groups(result.files[1].url)
+        #expect(groups.map(\.title) == ["Interview"])
+        #expect(groups.first?.start.hasPrefix("0/") == true)
+    }
+
+    /// C8: a markers split at a plain marker gives a part with no chapter.
+    @Test func aPlainMarkerPartHasNoChapter() async throws {
+        let package = try Self.titled()
+        try package.session.setMarker(Marker(id: MarkerID("plain"), name: "Plain", position: 216_000, kind: .marker))
+        let result = try Self.export(package, range: 0..<288_000, by: .markers, options: Self.m4a)
+        #expect(result.files.count == 3)
+        #expect(try await M4AChapterTests.groups(result.files[2].url).isEmpty)
+    }
+
+    /// C6: chapters 6 LU apart each read the target. Control: one gain for the set leaves them 6 LU apart.
+    @Test func eachPartIsNormalizedByItself() throws {
+        let package = try MixPackage()
+        let tone = ExportTests.tone(frames: 480_000, rms: -30) + ExportTests.tone(frames: 480_000, rms: -24)
+        try package.addFile("f1", channels: [tone])
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: 960_000)
+        for (name, position) in [("Quiet", Frames(0)), ("Loud", Frames(480_000))] {
+            try package.session.setMarker(Marker(id: MarkerID(name), name: name, position: position, kind: .chapter))
+        }
+        var options = Self.wav
+        options.loudness = .podcast
+
+        let reports = try Self.export(package, range: 0..<960_000, options: options).files.map {
+            try #require($0.result.loudness)
+        }
+
+        #expect(reports.count == 2)
+        for report in reports { #expect(abs(try #require(report.output).value - -16) <= 0.1) }
+        #expect(abs(reports[0].gain.dB - reports[1].gain.dB - 6) <= 0.2)
+    }
+
+    /// C6, U7, probe P2: a part of 300 ms has no 400 ms block, so no measurement and no gain.
+    @Test func aShortPartWithATargetGetsNoGain() throws {
+        let package = try Self.package([("a", 0), ("short", 465_600)])
+        var options = Self.wav
+        options.loudness = .podcast
+
+        let report = try #require(try Self.export(package, options: options).files.last?.result.loudness)
+
+        #expect(report.measured == nil)
+        #expect(report.gain.dB == 0)
     }
 
     static func listing(_ package: MixPackage) throws -> [String] {

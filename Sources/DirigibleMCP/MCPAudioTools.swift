@@ -30,6 +30,11 @@ private let replace = Param.defaulted("replace", "Replace the output file when i
 private let allowMissing = Param.defaulted(
     "allow_missing", "Export the clips of a missing, short, or unreadable file as silence, with a warning.", .boolean,
     false)
+private let split = Param<String?>.optional(
+    "split",
+    "Write one file for each chapter or marker of the range: chapters or markers. out gives the folder, the stem, "
+        + "and the format; each file is <stem>-<NN>-<title>, and replace takes the files that exist.",
+    .string)
 
 private let chosenClips = Param<[String]?>.optional(
     "clips", "The IDs of the clips to level. The default is every clip.", .strings())
@@ -135,9 +140,11 @@ let audioTools = [
         "export",
         "Export the session mix to WAV, AAC (.m4a), MP3, or FLAC, as dirigible export. The extension of out gives "
             + "the format. The text is the loudness line with a loudness target, then the warning lines, or OK. A "
-            + "file in the range that is missing, short, or unreadable refuses the export, unless allow_missing."
-            + cancelNote,
-        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing], saves: false,
+            + "file in the range that is missing, short, or unreadable refuses the export, unless allow_missing. With "
+            + "split, the text is the path of each file, with its loudness line, then the warning lines; a stop or a "
+            + "failure names the files that were written and the files that were not." + cancelNote
+            + " With split, a cancel keeps the files that were done.",
+        [out, bits, bitrate, mono, rate, from, to, tracks, loudnessTarget, replace, allowMissing, split], saves: false,
         batch: .alone
     ) { a throws(ToolError) in
         // The type of each argument first, then the path, then the option rules.
@@ -147,13 +154,14 @@ let audioTools = [
         let (first, end, ids, replaces, allows) = (
             try a[from], try a[to], try a[tracks] ?? [], try a[replace], try a[allowMissing]
         )
+        let kind = try ExportText.splitKind(try a[split], spelling: .tool)
         let path = try outPath(a, out)
         let options = try ExportText.options(
             out: path, bits: depth, bitrate: kbits, mono: folds, rate: hertz, loudness: target, spelling: .tool)
         return .export(
             ExportWork(
                 out: path, options: options, from: first, to: end, tracks: ids.map { TrackID($0) },
-                replace: replaces, allowMissing: allows))
+                replace: replaces, allowMissing: allows, split: kind))
     },
     Tool(
         "render",

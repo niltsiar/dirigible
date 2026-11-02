@@ -154,45 +154,6 @@ private func liveRead(
     }
 }
 
-/// `export` and `render` through `Studio.export`: the window shows the export sheet, and a take
-/// start, the sheet Cancel, or a cancel of the call ends the job with no file (decision 0049).
-@MainActor
-private func liveExport(
-    _ work: ExportWork, studio: Studio, path: String, sheetCause: @MainActor () -> AgentBusy?,
-    report: @escaping @Sendable (Double) -> Void
-) async throws(ToolError) -> String {
-    let session = studio.session
-    let source = try work.source(in: session)
-    // A render writes a bad file as silence, so it reads no media state.
-    if !work.isRender {
-        guard let faults = await studio.exportFaults(source) else {
-            throw ToolError("cannot check the audio files: the package or a file descriptor is not available.")
-        }
-        try work.check(faults, in: session)
-        // The user can open a dialog or start an export during the media check.
-        if let busy = sheetCause() { throw ToolError(busy.message(package: path)) }
-    }
-    // The item at `out` now is the one that `replace` confirms.
-    let confirmed = work.replace ? ConfirmedFile(at: work.url) : nil
-    let result: ExportResult
-    do throws(StudioError) {
-        result = try await studio.export(source, work.options, to: work.url, replacing: confirmed, progress: report)
-    } catch .export(.cancelled) {
-        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
-        if Task.isCancelled { throw ToolError(cancelledMessage) }
-        throw ToolError(stopMessage(studio.exportStop, noun: work.noun))
-    } catch .export(let error) {
-        throw ToolError(work.message(error) ?? cancelledMessage)
-    } catch .exportYielded {
-        throw ToolError(stopMessage(.take, noun: work.noun))
-    } catch .busy {
-        throw ToolError((exportBusy(studio) ?? .task).message(package: path))
-    } catch {
-        throw ToolError(error.message(package: path))
-    }
-    return try work.text(of: result, session: session, source: source)
-}
-
 /// `import` through `Studio.importAudio`: one undo step with the agent name. The banner Cancel or
 /// a cancel of the call ends it with no clip and no new WAV (decision 0049).
 @MainActor
@@ -320,7 +281,7 @@ private let noChange = "No clip changed."
 
 /// The text of an export, an import, or a split that the app stopped: the agent must not try again before
 /// it asks the user.
-private func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "No file was written.") -> String {
+func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "No file was written.") -> String {
     switch stop {
     case .user: "The user cancelled the \(noun) in Dirigible. \(nothing)"
     case .take: "A take started in Dirigible, so the \(noun) stopped. \(nothing)"
@@ -332,6 +293,9 @@ private func stopMessage(_ stop: ExportStop?, noun: String, nothing: String = "N
 /// or quits.
 func serverStopMessage(_ work: ToolWork) -> String {
     switch work {
+    case .export(let export) where export.split != nil:
+        "Dirigible stopped its agent server, so the export stopped. The files that were written before the stop "
+            + "stay in \(export.folder.path)."
     case .export(let export):
         "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
@@ -355,6 +319,6 @@ func serverStopMessage(_ work: ToolWork) -> String {
 /// The busy cause of an export that `Studio.export` refuses: a running export or a take that is
 /// not finalized.
 @MainActor
-private func exportBusy(_ studio: Studio) -> AgentBusy? {
+func exportBusy(_ studio: Studio) -> AgentBusy? {
     studio.exportProgress != nil ? .export : studio.pendingTake != nil ? .pendingTake : nil
 }

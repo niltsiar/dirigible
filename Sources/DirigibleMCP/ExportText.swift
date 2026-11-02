@@ -58,6 +58,16 @@ package enum ExportText {
         return ExportOptions(format: format, layout: mono ? .mono : .stereo, rate: fileRate, loudness: target)
     }
 
+    /// The split kind that the `split` argument gives, nil for no split. Another word is a usage
+    /// error.
+    package static func splitKind(_ word: String?, spelling o: OptionSpelling) throws(ToolError) -> SplitKind? {
+        guard let word else { return nil }
+        guard let kind = SplitKind(rawValue: word) else {
+            throw ToolError("\(o("split")) must be chapters or markers.")
+        }
+        return kind
+    }
+
     /// The refusal of an output file inside a session package: a write there can replace a take.
     package static let insidePackageMessage = "The output file must be outside the session package."
 
@@ -213,6 +223,56 @@ package enum ExportText {
         let loudness = report.output.map { String(format: "%.1f LUFS", $0.value) } ?? "none"
         let peak = report.truePeak.map { String(format: "%.1f dBTP", $0) } ?? "none"
         return "loudness \(loudness), true peak \(peak), gain \(String(format: "%+.1f dB", report.gain.dB))"
+    }
+
+    /// The refusal of a split export whose range has no split point.
+    package static func noPointMessage(_ kind: SplitKind, range: Range<Frames>) -> String {
+        "no \(kind == .chapters ? "chapter" : "marker") in frames \(range.lowerBound)..<\(range.upperBound)."
+    }
+
+    /// The refusal of a split export when files are at its targets and `replace` is off.
+    package static func partsExistMessage(_ urls: [URL], spelling o: OptionSpelling) -> String {
+        let list = urls.map(\.path).joined(separator: ", ")
+        return urls.count == 1
+            ? "1 file exists: \(list). Use \(o("replace")) to replace it."
+            : "\(urls.count) files exist: \(list). Use \(o("replace")) to replace them."
+    }
+
+    /// The stdout line of a file of a split export: its path, and with a loudness target a tab and the
+    /// loudness line of the file.
+    package static func partLine(_ file: ExportedPart) -> String {
+        file.url.path + (file.result.loudness.map { "\t" + loudnessLine($0) } ?? "")
+    }
+
+    /// "1 file", "2 files".
+    static func count(_ number: Int) -> String { number == 1 ? "1 file" : "\(number) files" }
+
+    /// The paths of `urls` in a list, separated by ", ".
+    static func list(_ urls: [URL]) -> String { urls.map(\.path).joined(separator: ", ") }
+
+    /// The stderr line of a split export that stopped: the files that it did not write. An old item
+    /// at each path stays.
+    package static func stopLine(remaining: [URL]) -> String {
+        let (verb, which) = remaining.count == 1 ? ("was", "this path") : ("were", "each path")
+        return "Stopped: \(count(remaining.count)) \(verb) not written: \(list(remaining)). "
+            + "An existing file at \(which) did not change."
+    }
+
+    /// The counts of a stopped set for a tool that has no stderr: "2 files were written; 8 files were not
+    /// written: <paths>."
+    package static func stopCounts(_ stop: ExportPartsStop) -> String {
+        func verb(_ number: Int) -> String { number == 1 ? "was" : "were" }
+        return "\(count(stop.written.count)) \(verb(stop.written.count)) written; "
+            + "\(count(stop.remaining.count)) \(verb(stop.remaining.count)) not written: \(list(stop.remaining))."
+    }
+
+    /// The stderr line of a split export that ended with exit 0: the files of the stem that an
+    /// earlier set wrote and this set did not. Dirigible keeps them. Nil with none.
+    package static func oldFilesLine(_ old: [URL]) -> String? {
+        guard !old.isEmpty else { return nil }
+        return old.count == 1
+            ? "Warning: 1 older file of this stem stays: \(list(old)). Dirigible does not delete it."
+            : "Warning: \(old.count) older files of this stem stay: \(list(old)). Dirigible does not delete them."
     }
 
     /// The files of `faults` in ID order, separated by "; ".

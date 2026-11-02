@@ -62,11 +62,11 @@ extension TranscribeSheetTests {
     @Test func theKeptFileShowsItsFactsAndTheNote() throws {
         var draft = try Self.sheet(.code("en"), kept: Self.kept(), remembered: .file)
         #expect(draft.model == .file)
-        #expect(draft.notes == [ModelCheckLine.text(of: Self.medium), L10n.sheetTranscribeNoteFile.text])
+        #expect(draft.modelNotes == [ModelCheckLine.text(of: Self.medium), L10n.sheetTranscribeNoteFile.text])
         draft.select(.catalog(.base))
-        #expect(!draft.notes.contains(L10n.sheetTranscribeNoteFile.text))
+        #expect(!draft.modelNotes.contains(L10n.sheetTranscribeNoteFile.text))
         draft.check = .running(name: "x.bin", byteCount: 1)
-        #expect(draft.notes.isEmpty && !draft.canStart, "the check line takes the place of the notes")
+        #expect(!draft.canStart)
     }
 
     /// C19: the first selection per language choice. (a) no job: Spanish More Accurate, German
@@ -139,13 +139,13 @@ extension TranscribeSheetTests {
     func theReplaceNoteStaysWhileTheCheckLineShows(line: ModelCheckLine) throws {
         var one = try Self.sheet(.code("en"), words: 1)
         one.check = line
-        #expect(one.notes == [L10n.sheetTranscribeNoteReplaceOne.text])
+        #expect(one.replaceNote == L10n.sheetTranscribeNoteReplaceOne.text)
         var many = try Self.sheet(.code("en"), words: 3)
         many.check = line
-        #expect(many.notes == [L10n.sheetTranscribeNoteReplaceMany.format(3)])
+        #expect(many.replaceNote == L10n.sheetTranscribeNoteReplaceMany.format(3))
         var none = try Self.sheet(.code("en"))
         none.check = line
-        #expect(none.notes.isEmpty)
+        #expect(none.replaceNote == nil)
     }
 
     /// Item 13: the kind names and the title of the kept file come from the tables.

@@ -129,9 +129,6 @@ struct TranscribeDraft: Equatable {
         return notes
     }
 
-    /// The notes under the pop-ups: the replace note, and the model notes while no check line shows.
-    var notes: [String] { (replaceNote.map { [$0] } ?? []) + (check == nil ? modelNotes : []) }
-
     /// The default button: the download comes first, then Replace for a track with words.
     var buttonTitle: L10n {
         if needsDownload { return .sheetTranscribeDownload }

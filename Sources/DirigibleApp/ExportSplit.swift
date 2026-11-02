@@ -121,6 +121,11 @@ struct ExportSetShown: Equatable {
 }
 
 extension L10n {
+    /// A loudness in LUFS with one decimal, in the number format of `locale`.
+    static func loudnessNumber(_ value: Double, locale: Locale = .current) -> String {
+        String(format: "%.1f", locale: locale, value)
+    }
+
     /// "a, b, c, d, e and 2 more": the first five names, then the rest as a count.
     static func firstNames(_ names: [String]) -> String {
         let (shown, more) = nameList(names)

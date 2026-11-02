@@ -131,4 +131,10 @@ extension ExportWindowTests {
 
         #expect(keys.count == 9 && Set(keys).count == 9, "\(keys)")
     }
+
+    /// Item 10: a number of a banner uses the decimal separator of the current locale.
+    @Test func theSetLoudnessNumbersUseTheLocale() {
+        #expect(L10n.loudnessNumber(-16.04, locale: Locale(identifier: "de_DE")) == "-16,0")
+        #expect(L10n.loudnessNumber(-15.96, locale: Locale(identifier: "en_US")) == "-16.0")
+    }
 }

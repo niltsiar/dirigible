@@ -225,7 +225,7 @@ func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?, _ old: [
     let folder = files.first.map { $0.deletingLastPathComponent().path(percentEncoded: false) } ?? ""
     var text = L10n.bannerExportSetDone.format(files.count, folder)
     if let low, let high {
-        text += " " + L10n.bannerExportSetLoudness.format(String(format: "%.1f", low), String(format: "%.1f", high))
+        text += " " + L10n.bannerExportSetLoudness.format(L10n.loudnessNumber(low), L10n.loudnessNumber(high))
     }
     if !old.isEmpty { text += " " + L10n.oldFilesText(old) }
     return text

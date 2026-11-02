@@ -51,9 +51,11 @@ func exportSheetTitle(_ file: ExportPartsProgress?) -> String {
 
 extension SessionWindow {
     /// The split export of the save panel. It lists the targets and the older files off the main
-    /// actor. An item at a target gives the replace sheet; else the set starts.
+    /// actor. An item at a target gives the replace sheet; else the set starts. `exportStep` is `.starting`
+    /// until the set ends or the user cancels, so no second export starts.
     func runSet(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
         guard let split = target.split else { return }
+        defer { if exportStep == .starting { exportStep = nil } }
         let targets = exportPartTargets(
             studio.session, range: source.range, by: split.kind, options: target.options, folder: split.folder,
             stem: split.stem
@@ -92,6 +94,8 @@ extension SessionWindow {
         _ source: ExportSource, _ options: ExportOptions, _ split: SplitTarget, replacing: [URL: ConfirmedFile],
         _ studio: Studio
     ) async {
+        // `Studio.export` sets its job before its first suspension: the progress takes the place of the step.
+        exportStep = nil
         recordRefusal = nil
         exportReport = nil
         chapterWarnings = nil

@@ -23,7 +23,8 @@ func liveExport(
     }
     if let kind = work.split {
         return try await liveSet(
-            work, kind: kind, studio: studio, session: session, source: source, path: path, report: report)
+            work, kind: kind, studio: studio, session: session, source: source, path: path, sheetCause: sheetCause,
+            report: report)
     }
     // The item at `out` now is the one that `replace` confirms.
     let confirmed = work.replace ? ConfirmedFile(at: work.url) : nil
@@ -51,12 +52,14 @@ func liveExport(
 @MainActor
 private func liveSet(
     _ work: ExportWork, kind: SplitKind, studio: Studio, session: Session, source: ExportSource, path: String,
-    report: @escaping @Sendable (Double) -> Void
+    sheetCause: @MainActor () -> AgentBusy?, report: @escaping @Sendable (Double) -> Void
 ) async throws(ToolError) -> String {
     let replacing: [URL: ConfirmedFile]
     do throws(SplitRefusal) { replacing = try await confirmations(work, session, source, kind) } catch {
         throw ToolError(error.message)
     }
+    // The user can open a dialog during the check of the targets.
+    if let busy = sheetCause() { throw ToolError(busy.message(package: path)) }
     let result: ExportPartsResult
     do throws(StudioError) {
         result = try await studio.export(

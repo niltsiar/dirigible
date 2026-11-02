@@ -22,7 +22,7 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 root="$tmp/root"
 mkdir -p "$root/scripts" "$tmp/bin"
-cp "$here/test-shards.sh" "$here/with-lock.sh" "$root/scripts/"
+cp "$here/test-shards.sh" "$here/with-lock.sh" "$here/lock-words.sh" "$root/scripts/"
 export FAKE_DIR="$tmp" FAKE_PID_FILE="$root/.git/dirigible-build.lock/pid"
 # The fake swift logs its arguments and the lock hold; FAKE_BUILD_FAIL makes the build fail.
 cat > "$tmp/bin/swift" <<'EOF'

@@ -107,11 +107,15 @@
 # does not take, wait for, or remove the lock. A value that is not in the pid file waits as usual.
 # cost.sh and wiki.py build nothing: the call exits 2 at once with a message, before any wait, so a
 # transcript scan never queues behind a push check (DLV-157).
+# scripts/lock-words.sh holds the word rules of the lock-free make call (lock_make_words), push_env,
+# hooks_env, and release_call; the guardrail hook reads the same file.
 # The guardrail hook blocks each command that names the lock and is not a read.
 # scripts/with-lock.test.sh tests it.
 set -uo pipefail
 [[ $# -ge 1 ]] || { echo "usage: scripts/with-lock.sh <command> [<argument>...]" >&2; exit 2; }
 here="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "$here/lock-words.sh" ]] || { echo "with-lock: $here/lock-words.sh is missing; scripts/with-lock.sh needs scripts/lock-words.sh beside it" >&2; exit 2; }
+. "$here/lock-words.sh"
 lock="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/dirigible-build.lock" || exit 2
 retry="${WITH_LOCK_RETRY:-30}"
 told="" start="$(date +%s)" held=""
@@ -217,35 +221,6 @@ esac
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # A mutation pass builds the tree of its first argument, whatever the working directory is.
 if [[ "${1##*/}" == mutation-pass.sh && $# -ge 2 ]]; then tree="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || echo "$tree")"; fi
-# push_env: succeeds when BASE has a value in the environment or in a BASE= word of MAKEFLAGS (the
-# Makefile reads $(BASE), and make puts a variable of its command line into the environment and
-# MAKEFLAGS of the recipe).
-push_env() { [[ -n "${BASE:-}" || " ${MAKEFLAGS:-}" =~ [[:space:]]BASE=[^[:space:]] ]]; }
-# hooks_env: succeeds when DIRIGIBLE_HOOKS_ALL is 1 in the environment or in a word of MAKEFLAGS.
-hooks_env() {
-    local re='[[:space:]]DIRIGIBLE_HOOKS_ALL=1([[:space:]]|$)'
-    [[ "${DIRIGIBLE_HOOKS_ALL:-}" == 1 || " ${MAKEFLAGS:-}" =~ $re ]]
-}
-# release_call <command>: a push check (make check-changed with a BASE= word, or with BASE from
-# push_env), the hooks pass of a run (make test-hooks with DIRIGIBLE_HOOKS_ALL=1 as a word, or from
-# hooks_env), a land (land.sh), or a DMG build (make dmg).
-release_call() {
-    local w goal="" base="" hooks=""
-    [[ "${1##*/}" == land.sh ]] && return 0
-    [[ "${1##*/}" == make ]] || return 1
-    ! push_env || base=1
-    ! hooks_env || hooks=1
-    for w in "${@:2}"; do
-        case "$w" in
-            BASE=?*) base=1 ;;
-            DIRIGIBLE_HOOKS_ALL=1) hooks=1 ;;
-            dmg) goal=dmg ;;
-            check-changed) [[ $goal == dmg ]] || goal=check ;;
-            test-hooks) [[ -n $goal ]] || goal=hooks ;;
-        esac
-    done
-    [[ $goal == dmg || ($goal == check && -n $base) || ($goal == hooks && -n $hooks) ]]
-}
 # ahead: the ticket of a live release call other than this one. A ticket of a dead pid goes.
 ticket=""
 ahead() {
@@ -296,23 +271,13 @@ run_only() {
 # check-changed.sh failure is not lock-free (fail closed), except status 3 of check-changed.sh: it
 # prints the output and exits 3 at once.
 lock_free() {
-    local w goal="" assign=() out="" hooks="" status=0
+    local w out="" status=0
     if [[ "${WITH_LOCK_RUN_ONLY:-}" == 1 ]]; then run_only "$@"; return; fi
-    [[ "${1##*/}" == make ]] || return 1
-    ! push_env || return 1
-    for w in "${@:2}"; do
-        case "$w" in
-            BASE=?*) return 1 ;;
-            HOOK_TESTS=?*) assign+=("$w"); hooks=1 ;;
-            *=*) assign+=("$w") ;;
-            check-changed | test-hooks) [[ -z "$goal" ]] || return 1; goal="$w" ;;
-            *) return 1 ;;
-        esac
-    done
-    case "$goal" in
-        test-hooks) [[ -n "$hooks" ]] || return 1; free_targets=test-hooks ;;
+    lock_make_words "$@" || return 1
+    case "$lock_goal" in
+        test-hooks) free_targets=test-hooks ;;
         check-changed)
-            out="$(env ${assign[@]+"${assign[@]}"} "$here/check-changed.sh" 2>&1)" || status=$?
+            out="$(env ${lock_assign[@]+"${lock_assign[@]}"} "$here/check-changed.sh" 2>&1)" || status=$?
             [[ $status -ne 3 ]] || { echo "$out" >&2; exit 3; }
             [[ $status -eq 0 ]] || return 1
             free_targets="$(sed -n 's/^targets: //p' <<<"$out")"
@@ -321,7 +286,6 @@ lock_free() {
                 case "$w" in check-docs | check-fast | static | lint | format | none | test | test-app | test-filter | *=*) ;; *) return 1 ;; esac
             done
             ;;
-        *) return 1 ;;
     esac
 }
 # long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, or a

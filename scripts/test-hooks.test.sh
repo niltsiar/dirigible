@@ -399,7 +399,7 @@ cmp -s "$repo/.git/index" "$tmp/index-before" || fail "stopped dirty run: the re
 # own build lock. The caller sets each variable, and a stub test writes env to a file and then
 # runs the with-lock.sh of the key tree.
 new_repo
-cp "$here/with-lock.sh" "$repo/scripts/"
+cp "$here/with-lock.sh" "$here/lock-words.sh" "$repo/scripts/"
 printf '#!/bin/bash\nenv > "$ENV_FILE"\nPATH="${PATH#"$FAKE_BIN:"}" scripts/with-lock.sh true\n' > "$repo/t/a.test.sh"
 commit 'env'
 (cd "$repo" && TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" ENV_FILE="$tmp/env" FAKE_BIN="$tmp/bin" \

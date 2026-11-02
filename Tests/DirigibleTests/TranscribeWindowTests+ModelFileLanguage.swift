@@ -162,5 +162,40 @@ import os
             await until("the take ends") { window.studio.isIdle }
             await model.close()
         }
+
+        /// C25 (d): a take start of this window while the open panel of Choose Model File... shows
+        /// closes the panel and gives the entry before the pick and the take line.
+        @Test func aTakeOfThisWindowDuringTheOpenPanelShowsTheTakeLine() async throws {
+            let window = try await openFile({ $0 }, picks: Picks([]), device: "duo")
+            let hal = CountingHAL()
+            window.studio.environment = hal.environment
+            let (opened, closed) = (LockedFlag(), LockedFlag())
+            let model = window.model
+            model.transcribe.pickModelFile = { _ in
+                opened.value = true
+                try? await Task.sleep(for: .seconds(30))
+                closed.value = Task.isCancelled
+                return nil
+            }
+            let before = try sheet(window).model
+            model.selectModel(.choose)
+            await until("the open panel shows") { opened.value }
+            #expect(model.transcribe.draft?.model == .choose && model.transcribe.draft?.beforeChoice == before)
+            let task = model.transcribe.checkTask
+
+            #expect(await model.startTake(armed: ["t1"], playhead: nil) == .started(take: 1))
+            let take = L10n.sheetTranscribeCheckTake.text
+            let draft = try #require(model.transcribe.draft)
+            #expect(draft.model == before && draft.check == .refused(take) && draft.beforeChoice == nil)
+            await until("the open panel closes") { closed.value }
+            await task?.value
+            let late = model.transcribe.draft
+            #expect(late?.model == before && late?.check == .refused(take) && window.kept() == nil)
+            #expect(window.studio.transport == .recording(take: 1))
+
+            await model.stop()
+            await until("the take ends") { window.studio.isIdle }
+            await model.close()
+        }
     }
 #endif

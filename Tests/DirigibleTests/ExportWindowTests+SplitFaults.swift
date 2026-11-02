@@ -108,4 +108,27 @@ extension ExportWindowTests {
         #expect(dropped == ["Ep-02-Talk.mp3: [\"Dup\"]"], "the chapter left out of part 2 names part 2")
         await model.close()
     }
+
+    /// Item 9: the rows of one window use the key as their identity, so a set with two level warnings and
+    /// warnings of two parts has one key for each banner.
+    @Test func eachBannerOfASetHasItsOwnKey() throws {
+        func report(gain: Double) throws -> LoudnessReport {
+            LoudnessReport(
+                target: LUFS(value: -16), measured: LUFS(value: -16 - gain), gain: try #require(Gain(dB: gain)),
+                output: LUFS(value: -16), truePeak: -1)
+        }
+        let (first, second) = (file("Ep-01-A.mp3"), file("Ep-02-B.mp3"))
+        let warnings = [first, second].compactMap {
+            ChapterWarningsShown(
+                [Marker(id: MarkerID(), name: "Dup", position: 1, kind: .chapter)], imagesOmitted: true,
+                titleMissing: true, file: $0.lastPathComponent, revision: 1)
+        }
+        let shown = ExportSetShown(
+            files: [first, second], count: 2, loudness: [try report(gain: 24), try report(gain: 25)], old: [],
+            warnings: warnings, revision: 1)
+
+        let keys = shown.banners.map(\.key)
+
+        #expect(keys.count == 9 && Set(keys).count == 9, "\(keys)")
+    }
 }

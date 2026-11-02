@@ -126,7 +126,8 @@ enum WindowBanner: Equatable {
         func label(_ text: String) -> String { "\(word.text): \(text)" }
     }
 
-    /// The case with no value: a new banner of a kind that shows already is not new.
+    /// The case with no value: a new banner of a kind that shows already is not new. A banner that a set
+    /// can show for several files adds the file name, so each key is unique in one window.
     var key: String {
         switch self {
         case .playbackStopped: "playbackStopped"
@@ -134,12 +135,12 @@ enum WindowBanner: Equatable {
         case .lowRecordTime: "lowRecordTime"
         case .useHeadphones: "useHeadphones"
         case .monitorHeadphones: "monitorHeadphones"
-        case .exportReport: "exportReport"
+        case .exportReport(_, let file): "exportReport.\(file)"
         case .exportSetDone: "exportSetDone"
         case .exportSetStopped: "exportSetStopped"
-        case .chaptersDropped: "chaptersDropped"
-        case .chapterImagesOmitted: "chapterImagesOmitted"
-        case .titleMissing: "titleMissing"
+        case .chaptersDropped(_, let file): "chaptersDropped.\(file)"
+        case .chapterImagesOmitted(let file): "chapterImagesOmitted.\(file)"
+        case .titleMissing(let file): "titleMissing.\(file)"
         case .transcriptLeftOut: "transcriptLeftOut"
         case .levelReport(_, let press): "levelReport.\(press)"
         case .noiseReduced(_, _, let press): "denoiseReport.\(press)"

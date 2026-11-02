@@ -238,6 +238,35 @@ extension ExportWindowTests {
         await model.close()
     }
 
+    /// The Esc button is transparent and has no title: the accessibility tree of the sheet holds the
+    /// buttons Cancel and Replace only.
+    @Test func theReplaceSheetShowsVoiceOverOnlyCancelAndReplace() async throws {
+        let (model, studio, nsWindow) = try await window()
+        try threeChapters(studio)
+        try await runSet(model, studio, setTarget())
+        let source = try #require(model.source(of: .session, in: studio))
+        let task = Task { await model.runSet(source, setTarget(), studio) }
+        await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
+        let sheet = try #require(nsWindow.attachedSheet)
+
+        func buttonTitles(_ element: Any) -> [String] {
+            let own = (element as? NSButtonCell)?.title.map { [$0] } ?? []
+            let children = (element as? NSAccessibilityProtocol)?.accessibilityChildren() ?? []
+            return own + children.flatMap(buttonTitles)
+        }
+
+        #expect(sheetButtons(sheet).contains { $0.isTransparent }, "the sheet has the Esc button")
+        #expect(
+            Set(buttonTitles(sheet.contentView as Any)) == [
+                L10n.alertCancel.text, L10n.alertExportReplaceConfirm.text,
+            ],
+            "VoiceOver reads the Esc button")
+        try #require(sheetButtons(sheet).first { $0.title == L10n.alertCancel.text }).performClick(nil)
+        await until(limit: .seconds(10), "Cancel closes the sheet") { nsWindow.attachedSheet == nil }
+        await task.value
+        await model.close()
+    }
+
     @Test func theReplaceSheetListsTheOldFilesOfTheStemAndKeepsThem() async throws {
         let (model, studio, nsWindow) = try await window()
         try threeChapters(studio)

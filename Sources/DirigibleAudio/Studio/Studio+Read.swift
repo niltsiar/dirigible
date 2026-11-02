@@ -7,6 +7,9 @@ import os
 /// read sets `observed` when it sees `cancelled` at a block, so a read that completed before the
 /// end keeps its result. A transcription job (decision 0065 D5) is a read run too: `stop` is the
 /// flag that the abort callback of whisper.cpp reads, and each stop source sets it with `cancelled`.
+/// A read of a model file (decision 0065 D8) is not `joined`: its `open` or `pread` can block in the
+/// kernel (a share that stops answering, a dataless iCloud file), where no stop reaches it, and it
+/// reads no package file.
 final class ReadRun: Sendable {
     /// Why the app ended the read: a take start, or the close of the window (`settle()`).
     enum End: Sendable { case take, close }
@@ -15,6 +18,10 @@ final class ReadRun: Sendable {
     let end = OSAllocatedUnfairLock<End?>(initialState: nil)
     let observed = OSAllocatedUnfairLock(initialState: false)
     let stop = StopFlag()
+    /// True when `settle()` waits for the end of this run.
+    let joined: Bool
+
+    init(joined: Bool = true) { self.joined = joined }
 
     /// Sets `cancelled` and `stop`: a cancel of the caller or of the banner.
     func cancel() {
@@ -81,18 +88,19 @@ extension Studio {
         }
     }
 
-    /// Takes `run` out of `readRuns`. After the last run, the waits of `readsEnded()` resume.
+    /// Takes `run` out of `readRuns`. After the last joined run, the waits of `readsEnded()` resume.
     func endRead(_ run: ReadRun) {
         readRuns.removeAll { $0 === run }
-        if readRuns.isEmpty {
+        if !readRuns.contains(where: \.joined) {
             for waiter in readWaiters { waiter.resume() }
             readWaiters = []
         }
     }
 
-    /// Waits for the end of each running read. `settle()` calls it after `endReads(.close)`.
+    /// Waits for the end of each running joined read. `settle()` calls it after `endReads(.close)`; a
+    /// read of a model file runs on and finds its stop set.
     func readsEnded() async {
-        guard !readRuns.isEmpty else { return }
+        guard readRuns.contains(where: \.joined) else { return }
         await withCheckedContinuation { readWaiters.append($0) }
     }
 }

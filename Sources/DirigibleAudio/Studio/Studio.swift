@@ -244,7 +244,7 @@ import Observation
 
     /// Ends a running import, export, and agent read (decisions 0040, 0019, and 0062), turns off every Listener,
     /// releases every monitor device, stops a take that records, then waits for a start, a finalize, an import,
-    /// a read, and every write in progress. With `saveError`, it writes the session once more; `saveError` stays
+    /// a read of a package file, and every write in progress. With `saveError`, it writes the session once more; `saveError` stays
     /// only when that write fails too. Then it ends the peak pass (decision 0017). After it returns, no device is
     /// held, no take records, and no export, read, write, or pass runs.
     public func settle() async {

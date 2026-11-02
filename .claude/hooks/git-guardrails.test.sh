@@ -1395,6 +1395,23 @@ for run in 'scripts/with-lock.sh make test-hooks' 'time scripts/with-lock.sh env
   '(scripts/with-lock.sh make test-hooks)'; do
   expect_message "HOOK_TESTS='<names>'" "$run"
 done
+# A segment of only NAME=value words runs no command, so it passes. A later segment that runs $NAME, a name that an
+# earlier segment set to a repo .test.sh path, blocks across ;, &&, ||, and a new line (item 1452, source run
+# 2026-11-01-upkeep-thirteenth, earlier lesson DLV-210/hook).
+for run in 'F=.claude/hooks/git-guardrails.test.sh; sed -n 1,5p $F' 'T=.claude/hooks/git-guardrails.test.sh; rg -n expect_each $T' \
+  'F=scripts/land.test.sh; bash $G' 'F=scripts/land.test.sh; bash -n $F' \
+  'F=.scratchpads/x/a.test.sh; bash $F' 'F=scripts/land.sh; bash $F' 'F=scripts/land.test.sh && wc -l $F' $'F=scripts/land.test.sh\nwc -l $F'; do
+  expect allow "$run"
+done
+expect_each_context allow 'F=.claude/hooks/git-guardrails.test.sh; sed -n 1,5p $F'
+for run in 'F=scripts/land.test.sh; bash $F' 'F=scripts/land.test.sh; bash "$F"' 'F=scripts/land.test.sh; sh ${F}' 'F=scripts/land.test.sh; $F' \
+  'F=scripts/land.test.sh; scripts/with-lock.sh bash $F' 'export F=scripts/land.test.sh; bash $F' \
+  'F=scripts/land.test.sh && bash $F' 'F=scripts/land.test.sh || bash "$F"' $'F=scripts/land.test.sh\nbash $F' \
+  'H=scripts/test-hooks.sh; bash $H'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+expect_each_context block 'F=scripts/land.test.sh; bash $F'
+expect_each_context allow 'F=scripts/land.test.sh; bash $F'
 # A hook copy with no scripts/lock-words.sh above it blocks a with-lock.sh make test-hooks segment, names the file, and
 # still allows a command that is no such segment.
 mkdir -p "$tmp/nolw/.claude/hooks"

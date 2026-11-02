@@ -106,7 +106,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F92 | Time display format and a large time window | Logic | Later (also: the selection length in the time display, as in Hindenburg, and a click on the time to type a time) | R7 |
 | F93 | Customizable toolbar | Logic | done, Release 2 run 1a | R1 |
 | F94 | A track volume fader in the track header | Hindenburg PRO | done, Release 3 run 2 (v0.3.4) | R7 |
-| F95 | Export one file for each chapter or marker | Audition, Audacity; user 2026-10-14 | Release 5 | R11 |
+| F95 | Export one file for each chapter or marker | Audition, Audacity; user 2026-10-14 | done, Release 5 run 6 (the Files pop-up of File > Export and Export Selection, `dirigible export --split`, and the `split` argument of the agent tool `export`) | R11 |
 | F96 | Silence tool with a review list: shorten, mute, or mark each long pause | Audition, Audacity; user 2026-10-14 | done, Release 5 run 4 (the Silences tab with Shorten, Mute, Mark, and Skip for each row, in one undo step) | R10 |
 | F97 | Clip audio type (voice, music, call) that sets the defaults | Audition; user 2026-10-14 | Later | R10 |
 | F98 | Reduce rumble (a high-pass filter) | Audition; user 2026-10-14 | done, Release 4 run 29 | R8 |

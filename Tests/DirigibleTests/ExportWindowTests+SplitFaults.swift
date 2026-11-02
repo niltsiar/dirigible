@@ -102,10 +102,25 @@ extension ExportWindowTests {
             try session.setMarker(Marker(id: MarkerID(), name: "Dup", position: 144_010, kind: .chapter))
         }
         try await runSet(model, studio, setTarget(options: mp3))
-        let dropped = ChromeState.reportBanners(model, studio).compactMap {
-            if case .chaptersDropped(let names, let file) = $0 { "\(file): \(names)" } else { nil }
-        }
-        #expect(dropped == ["Ep-02-Talk.mp3: [\"Dup\"]"], "the chapter left out of part 2 names part 2")
+        await model.close()
+    }
+
+    /// Item 4: a split point with no file of its own gets one banner line, also when the MP3 part leaves
+    /// the chapter out of its tags.
+    @Test func aDroppedSplitPointGetsOneBannerLine() async throws {
+        let mp3 = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session)
+        let (model, studio, _) = try await window()
+        try threeChapters(studio)
+        let dup = Marker(id: MarkerID(), name: "Dup", position: 144_010, kind: .chapter)
+        try studio.edit(ripple: false) { session throws(SessionError) in try session.setMarker(dup) }
+
+        try await runSet(model, studio, setTarget(options: mp3))
+
+        let banners = ChromeState.reportBanners(model, studio)
+        #expect(banners.filter { $0 == .exportSetDropped(dup) }.count == 1, "\(banners)")
+        #expect(banners.allSatisfy { $0.kind != .warning || $0 == .exportSetDropped(dup) }, "a second line: \(banners)")
+        #expect(banners.last?.text == L10n.bannerExportSetDropped.format("Dup"))
+        #expect(try setFiles() == ["Ep-01-Intro.mp3", "Ep-02-Talk.mp3", "Ep-03-Outro.mp3"])
         await model.close()
     }
 

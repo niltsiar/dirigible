@@ -801,5 +801,6 @@
 "banner.export.set.old.one" = "1 archivo anterior con este prefijo permanece: %@. Dirigible no lo elimina.";
 "banner.export.set.old.many" = "%1$lld archivos anteriores con este prefijo permanecen: %2$@. Dirigible no los elimina.";
 "banner.export.set.show" = "Mostrar en el Finder";
+"banner.export.set.dropped" = "«%@» no tiene archivo propio: coincide con el punto de división anterior o con el final del rango.";
 "error.export.nochapter" = "La sesión ya no tiene capítulos en el rango de exportación. No se escribió ningún archivo.";
 "error.export.nomarker" = "La sesión ya no tiene marcadores en el rango de exportación. No se escribió ningún archivo.";

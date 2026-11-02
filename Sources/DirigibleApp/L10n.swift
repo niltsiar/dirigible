@@ -419,6 +419,7 @@ enum L10n: String, CaseIterable {
     case bannerExportSetOldOne = "banner.export.set.old.one"
     case bannerExportSetOldMany = "banner.export.set.old.many"
     case bannerExportSetShow = "banner.export.set.show"
+    case bannerExportSetDropped = "banner.export.set.dropped"
     case bannerTranscriptLeftOut = "banner.transcript.left.out"
     case reportLoudness = "report.loudness"
     case reportLoudnessNone = "report.loudness.none"

@@ -801,5 +801,6 @@
 "banner.export.set.old.one" = "1 file precedente con questo prefisso resta: %@. Dirigible non lo elimina.";
 "banner.export.set.old.many" = "%1$lld file precedenti con questo prefisso restano: %2$@. Dirigible non li elimina.";
 "banner.export.set.show" = "Mostra nel Finder";
+"banner.export.set.dropped" = "“%@” non ha un file proprio: coincide con il punto di divisione precedente o con la fine dell’intervallo.";
 "error.export.nochapter" = "La sessione non ha più capitoli nell’intervallo di esportazione. Nessun file è stato scritto.";
 "error.export.nomarker" = "La sessione non ha più marcatori nell’intervallo di esportazione. Nessun file è stato scritto.";

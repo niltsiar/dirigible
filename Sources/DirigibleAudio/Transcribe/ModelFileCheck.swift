@@ -19,11 +19,15 @@ public enum ModelFileCheck {
     private static let stopPoll = 0.25
     /// The seconds from SIGTERM to SIGKILL after a stop.
     private static let killDelay = 0.5
+    /// The start of the stderr line of a refusal with a code.
+    fileprivate static let refusalPrefix = "Refusal: "
 
     /// The body of `dirigible model check <path>`: the parse, the SHA-256, and the trial, all from
     /// one open file. The path `-` is the file of standard input, which `run` gives. A pass prints
-    /// one line of `line(_:)` and exits 0. A refusal prints one `Error:` line on stderr and exits 1.
-    /// A death in the C code exits 128 + signal. The helper exits when its parent exits.
+    /// one line of `line(_:)` and exits 0. A refusal exits 1 and prints one line on stderr: for the
+    /// path `-`, `Refusal: <code>` (`ModelFileRefusal(wire:)`), which the app writes in its own
+    /// language; for another path, `Error:` and the English text. A death in the C code exits
+    /// 128 + signal. The helper exits when its parent exits.
     public static func helperMain(path: String) -> Never {
         for code in handledSignals { signal(code) { _exit(128 + $0) } }
         watchParent()
@@ -38,19 +42,22 @@ public enum ModelFileCheck {
                 while true { sleep(60) }
             }
         #endif
+        let coded = path == "-"
         let opened: OpenModelFile
         do throws(ModelFileCheckError) {
-            opened = try path == "-" ? OpenModelFile(descriptor: STDIN_FILENO) : OpenModelFile(URL(filePath: path))
+            opened = try coded ? OpenModelFile(descriptor: STDIN_FILENO) : OpenModelFile(URL(filePath: path))
         } catch {
-            refuse(message(error))
+            refuse(refusal(error), coded: coded)
         }
         let file: WhisperModelFile
-        do { file = try WhisperModelFile.read(descriptor: opened.descriptor) } catch { refuse(message(error)) }
+        do { file = try WhisperModelFile.read(descriptor: opened.descriptor) } catch {
+            refuse(.file(error), coded: coded)
+        }
         let hash: String
-        do { hash = try opened.sha256 { false } } catch { refuse(message(error)) }
+        do { hash = try opened.sha256 { false } } catch { refuse(refusal(error), coded: coded) }
         let record = PassedModelFile(sha256: hash, facts: file.facts)
         let model = CheckedModel(record, opened: opened, at: URL(filePath: path))
-        do { try trial(model) } catch { refuse(message(error)) }
+        do { try trial(model) } catch { refuse(refusal(error), coded: coded) }
         print(line(record))
         fflush(stdout)
         exit(0)
@@ -82,32 +89,23 @@ public enum ModelFileCheck {
         _ = try engine.transcribe(piece: noise, language: .code("en"), stop: StopFlag())
     }
 
-    private static func refuse(_ message: String) -> Never {
-        try? FileHandle.standardError.write(contentsOf: Data("Error: \(message)\n".utf8))
+    private static func refuse(_ reason: ModelFileRefusal, coded: Bool) -> Never {
+        let line = coded ? "\(refusalPrefix)\(reason.wire)" : "Error: \(reason.message)"
+        try? FileHandle.standardError.write(contentsOf: Data("\(line)\n".utf8))
         exit(1)
     }
 
-    private static func message(_ error: ModelFileError) -> String {
-        switch error {
-        case .notWhisperModel: "The file is not a ggml whisper model."
-        case .unsupported(let reason): "The model file has a value that Dirigible cannot run: \(reason)."
-        case .truncated: "The model file ends before its last part."
-        case .damaged(let reason): "The model file is damaged: \(reason)."
-        case .unreadable(let code): "The model file cannot be read: \(String(cString: strerror(code)))."
-        }
-    }
-
     /// The open and the hash of the helper have no stop, so only `.unreadable` comes.
-    private static func message(_ error: ModelFileCheckError) -> String {
-        guard case .unreadable(let code) = error else { return "\(error)" }
-        return message(ModelFileError.unreadable(errno: code))
+    private static func refusal(_ error: ModelFileCheckError) -> ModelFileRefusal {
+        guard case .unreadable(let code) = error else { return .unknown("\(error)") }
+        return .file(.unreadable(errno: code))
     }
 
-    private static func message(_ error: TranscribeError) -> String {
+    private static func refusal(_ error: TranscribeError) -> ModelFileRefusal {
         switch error {
-        case .modelLoad: "whisper.cpp did not load the model file."
-        case .engine(let code): "The trial transcription failed with code \(code)."
-        default: "The trial transcription failed: \(error)."
+        case .modelLoad: .modelLoad
+        case .engine(let code): .engine(code: code)
+        default: .trialFailed
         }
     }
 
@@ -203,8 +201,8 @@ public enum ModelFileCheck {
         let status = process.terminationStatus
         if process.terminationReason == .uncaughtSignal { throw .helperStopped(signal: status) }
         if let signal = handledSignal(exitStatus: status) { throw .helperStopped(signal: signal) }
-        guard status == 0 else { throw .refused(output.errorLine()) }
-        guard let record = record(fromLine: output.outputLine()) else { throw .refused(output.outputLine()) }
+        guard status == 0 else { throw .refused(output.refusal()) }
+        guard let record = record(fromLine: output.outputLine()) else { throw .refused(.unknown(output.outputLine())) }
         guard record.sha256 == hash else { throw .changedDuringCheck }
         return CheckedModel(record, opened: file, at: url)
     }
@@ -243,10 +241,16 @@ private struct HelperOutput {
     /// The last line of stdout that is not empty.
     func outputLine() -> String { lastLine("stdout") }
 
-    /// The last line of stderr that is not empty, with no `Error: ` prefix.
-    func errorLine() -> String {
+    /// The reason on the last line of stderr that is not empty: the code after `Refusal: `, else the
+    /// line with no `Error: ` prefix.
+    func refusal() -> ModelFileRefusal {
         let line = lastLine("stderr")
-        return line.hasPrefix("Error: ") ? String(line.dropFirst("Error: ".count)) : line
+        if line.hasPrefix(ModelFileCheck.refusalPrefix),
+            let reason = ModelFileRefusal(wire: String(line.dropFirst(ModelFileCheck.refusalPrefix.count)))
+        {
+            return reason
+        }
+        return .unknown(line.hasPrefix("Error: ") ? String(line.dropFirst("Error: ".count)) : line)
     }
 
     func remove() {
@@ -259,5 +263,44 @@ private struct HelperOutput {
         let data = (try? Data(contentsOf: folder.appending(path: name))) ?? Data()
         let lines = String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline)
         return lines.last.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+    }
+}
+
+extension ModelFileRefusal {
+    /// The text after `Refusal: `: a kind and, for a reason with a value, a space and the value.
+    fileprivate var wire: String {
+        switch self {
+        case .file(.notWhisperModel): "notWhisperModel"
+        case .file(.unsupported(let reason)): "unsupported \(reason)"
+        case .file(.truncated): "truncated"
+        case .file(.damaged(let reason)): "damaged \(reason)"
+        case .file(.unreadable(let code)): "unreadable \(code)"
+        case .modelLoad: "modelLoad"
+        case .engine(let code): "engine \(code)"
+        case .trialFailed: "trialFailed"
+        case .unknown: "unknown"
+        }
+    }
+
+    /// The reason of a `wire`, else nil.
+    fileprivate init?(wire: String) {
+        let parts = wire.split(separator: " ", maxSplits: 1)
+        guard let kind = parts.first else { return nil }
+        let value = parts.count > 1 ? String(parts[1]) : nil
+        switch (kind, value) {
+        case ("notWhisperModel", nil): self = .file(.notWhisperModel)
+        case ("unsupported", let reason?): self = .file(.unsupported(reason))
+        case ("truncated", nil): self = .file(.truncated)
+        case ("damaged", let reason?): self = .file(.damaged(reason))
+        case ("unreadable", let code?):
+            guard let code = Int32(code) else { return nil }
+            self = .file(.unreadable(errno: code))
+        case ("modelLoad", nil): self = .modelLoad
+        case ("engine", let code?):
+            guard let code = Int32(code) else { return nil }
+            self = .engine(code: code)
+        case ("trialFailed", nil): self = .trialFailed
+        default: return nil
+        }
     }
 }

@@ -28,6 +28,17 @@ struct ModelCommandTests {
                     stderr: "Error: The model file has a value that Dirigible cannot run: n_vocab 10.\n"))
     }
 
+    /// The path `-` is the protocol of the app: the reason is a code, which the app writes in its own language.
+    @Test func theProtocolFormGivesTheReasonAsACode() async throws {
+        let temporary = try TemporaryPackage(Session(sampleRate: 48_000))
+        let file = temporary.folder.appending(path: "magic-only.bin")
+        try Data([0x6c, 0x6d, 0x67, 0x67]).write(to: file)
+
+        let result = try await dirigible(["model", "check", "-"], input: file)
+
+        #expect(result == CLIResult(status: 1, stdout: "", stderr: "Refusal: truncated\n"))
+    }
+
     @Test func aMissingFileExits1() async throws {
         let temporary = try TemporaryPackage(Session(sampleRate: 48_000))
         let missing = temporary.folder.appending(path: "missing.bin")

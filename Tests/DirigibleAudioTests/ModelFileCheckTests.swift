@@ -47,10 +47,36 @@ struct ModelFileCheckTests {
         #expect(await check(helper) == .failure(.changedDuringCheck))
     }
 
-    @Test func aHelperThatExits1GivesRefusedWithItsLine() async throws {
+    @Test func aHelperThatExits1WithNoCodeGivesRefusedWithItsLine() async throws {
         let helper = try stub("echo 'Error: The model file is damaged: n_vocab -1.' >&2; exit 1")
 
-        #expect(await check(helper) == .failure(.refused("The model file is damaged: n_vocab -1.")))
+        #expect(await check(helper) == .failure(.refused(.unknown("The model file is damaged: n_vocab -1."))))
+    }
+
+    /// The reason of a refusal is a code on the standard error of the helper, not English text.
+    @Test(arguments: [
+        ("notWhisperModel", ModelFileRefusal.file(.notWhisperModel)),
+        ("unsupported n_vocab 10", .file(.unsupported("n_vocab 10"))),
+        ("truncated", .file(.truncated)),
+        (
+            "damaged NaN or infinite value in decoder.positional_embedding",
+            .file(.damaged("NaN or infinite value in decoder.positional_embedding"))
+        ),
+        ("unreadable 5", .file(.unreadable(errno: 5))),
+        ("modelLoad", .modelLoad),
+        ("engine -3", .engine(code: -3)),
+        ("trialFailed", .trialFailed),
+    ])
+    func aHelperThatExits1WithACodeGivesItsReason(wire: String, reason: ModelFileRefusal) async throws {
+        let helper = try stub("echo 'Refusal: \(wire)' >&2; exit 1")
+
+        #expect(await check(helper) == .failure(.refused(reason)))
+    }
+
+    @Test func aCodeThatNoReasonHasGivesRefusedWithItsLine() async throws {
+        let helper = try stub("echo 'Refusal: bogus 1' >&2; exit 1")
+
+        #expect(await check(helper) == .failure(.refused(.unknown("Refusal: bogus 1"))))
     }
 
     @Test func aMissingHelperGivesHelperMissing() async throws {
@@ -92,7 +118,7 @@ struct ModelFileCheckTests {
 
         let result = await check(helper, passed: PassedModelFile(sha256: Self.abc, facts: Self.facts))
 
-        #expect(result == .failure(.refused("")))
+        #expect(result == .failure(.refused(.unknown(""))))
         #expect(FileManager.default.fileExists(atPath: ran.path))
     }
 

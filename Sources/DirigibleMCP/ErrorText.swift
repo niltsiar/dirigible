@@ -330,7 +330,7 @@ extension ModelFileCheckError {
         case .helperMissing(let path): "the model check helper is not at \(path). Install Dirigible again."
         case .helperNotStarted(let path, let domain, let code):
             "the model check helper at \(path) did not start (\(domain) \(code)). Install Dirigible again."
-        case .refused(let line): "the model check refused the file: \(line)"
+        case .refused(let reason): "the model check refused the file: \(reason.message)"
         case .helperStopped(let signal): "the model file stopped the model check with signal \(signal)."
         case .changedDuringCheck: "the model file changed during its check."
         case .stopped: "the model check was stopped."

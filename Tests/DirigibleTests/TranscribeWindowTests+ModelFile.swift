@@ -169,7 +169,7 @@ import os
             }
 
             let draft = try #require(window.model.transcribe.draft)
-            let text = L10n.message(for: ModelFileCheckError.refused("The file is no whisper model."))
+            let text = L10n.message(for: ModelFileCheckError.refused(.unknown("The file is no whisper model.")))
             #expect(draft.check == .refused(text) && draft.model == before)
             #expect(window.heard.texts == [text])
             #expect(window.kept() == nil && Self.runs(ran) == 1)

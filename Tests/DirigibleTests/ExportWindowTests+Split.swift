@@ -27,9 +27,7 @@ extension ExportWindowTests {
     func setTarget(_ kind: SplitKind = .chapters, options: ExportOptions = ExportWindowTests.options) -> ExportTarget {
         ExportTarget(
             url: folder.url.appending(path: "Ep"), options: options, confirmed: nil,
-            split: SplitTarget(
-                kind: kind, folder: folder.url, stem: "Ep",
-                pathExtension: options.format == .mp3(.k128) ? "mp3" : "wav"))
+            split: SplitTarget(kind: kind, folder: folder.url, stem: "Ep"))
     }
 
     func file(_ name: String) -> URL { folder.url.appending(path: name) }

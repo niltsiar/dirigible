@@ -16,13 +16,12 @@ enum ExportFiles: Hashable, CaseIterable {
     }
 }
 
-/// What a split export needs from the save panel: the kind, the folder, the stem that the panel
-/// name gives, and the extension of the format.
+/// What a split export needs from the save panel: the kind, the folder, and the stem that the panel
+/// name gives.
 struct SplitTarget: Hashable {
     let kind: SplitKind
     let folder: URL
     let stem: String
-    let pathExtension: String
 
     /// The stem of a panel name: the name without the extension of an export format. A split panel has
     /// no type, so it adds no extension, and a name field that showed `.wav` before a change of the

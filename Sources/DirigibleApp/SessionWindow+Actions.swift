@@ -117,6 +117,7 @@ extension SessionWindow {
             endModelFileWorkForTake()
             exportReport = nil
             chapterWarnings = nil
+            exportSet = nil
             levelReport = nil
             denoiseReport = nil
             repairReport = nil

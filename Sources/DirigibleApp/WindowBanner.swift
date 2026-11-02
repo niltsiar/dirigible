@@ -53,6 +53,11 @@ enum WindowBanner: Equatable {
     /// The loudness of the last clean export with a target and the name of its file (decision
     /// 0032). A warning when the gain is over the auto-level limit.
     case exportReport(LoudnessReport, file: String)
+    /// The files of a split export, the lowest and the highest loudness of a target, and the older
+    /// files of the stem that stay (decision 0067).
+    case exportSetDone(files: [URL], low: Double?, high: Double?, old: [String])
+    /// A split export that stopped: the files on disk and the files of the set.
+    case exportSetStopped(written: Int, count: Int)
     /// The names of the chapters that the exported file leaves out, because each starts at the
     /// time of another chapter, or at or after the end of the M4A audio (run
     /// 2026-10-11-chapters-in-file, C5f, code gate item D6).
@@ -130,6 +135,8 @@ enum WindowBanner: Equatable {
         case .useHeadphones: "useHeadphones"
         case .monitorHeadphones: "monitorHeadphones"
         case .exportReport: "exportReport"
+        case .exportSetDone: "exportSetDone"
+        case .exportSetStopped: "exportSetStopped"
         case .chaptersDropped: "chaptersDropped"
         case .chapterImagesOmitted: "chapterImagesOmitted"
         case .titleMissing: "titleMissing"
@@ -153,10 +160,10 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
-            .transcriptImported, .transcriptionStopped:
+            .transcriptImported, .transcriptionStopped, .exportSetStopped:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
-        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound: .info
+        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound, .exportSetDone: .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
@@ -171,6 +178,8 @@ enum WindowBanner: Equatable {
         case .monitorHeadphones: L10n.bannerMonitorHeadphones.text
         case .exportReport(let report, let file):
             L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
+        case .exportSetDone(let files, let low, let high, let old): exportSetDoneText(files, low, high, old)
+        case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
         case .chapterImagesOmitted(let file): L10n.bannerExportChapterImagesOmitted.format(file)
@@ -200,13 +209,25 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport, .chaptersDropped, .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
+        case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .chaptersDropped, .chapterImagesOmitted,
+            .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseReduced, .soundRepaired, .transcriptImported, .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound:
             .medium
         }
     }
+}
+
+/// "Exported 10 files to <folder>.", then the loudness range of the files, then the older files of the stem.
+func exportSetDoneText(_ files: [URL], _ low: Double?, _ high: Double?, _ old: [String]) -> String {
+    let folder = files.first.map { $0.deletingLastPathComponent().path(percentEncoded: false) } ?? ""
+    var text = L10n.bannerExportSetDone.format(files.count, folder)
+    if let low, let high {
+        text += " " + L10n.bannerExportSetLoudness.format(String(format: "%.1f", low), String(format: "%.1f", high))
+    }
+    if !old.isEmpty { text += " " + L10n.oldFilesText(old) }
+    return text
 }
 
 /// The text of the take sync banner: "Claude Code moved part of the take audio. Take 4 is out of

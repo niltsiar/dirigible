@@ -10,6 +10,8 @@ struct ExportTarget {
     let url: URL
     let options: ExportOptions
     let confirmed: ConfirmedFile?
+    /// Set for a split export (decision 0067): `url` and `confirmed` are then not used.
+    var split: SplitTarget? = nil
 }
 
 /// The options of the save panel pop-ups (decision 0019). Each change goes to `defaults` at
@@ -21,6 +23,11 @@ struct ExportTarget {
     }
 
     @ObservationIgnored private let defaults: UserDefaults?
+    /// The source of the panel, for the counts of the Files pop-up. Nil: the pop-up is not shown.
+    @ObservationIgnored let plan: ExportSplitPlan?
+
+    /// The Files pop-up. It is not stored: each panel starts at One File (decision 0067).
+    var files = ExportFiles.one
 
     var format: Format { didSet { defaults?.set(format.rawValue, forKey: "export.format") } }
     var bits: BitDepth { didSet { defaults?.set(bits.rawValue, forKey: "export.bits") } }
@@ -41,8 +48,9 @@ struct ExportTarget {
 
     /// The stored options, or the defaults: WAV, 24-bit, 128 kbit/s, stereo, the session rate,
     /// and the podcast loudness target. An unknown loudness token gives the podcast target.
-    init(defaults: UserDefaults?) {
+    init(defaults: UserDefaults?, plan: ExportSplitPlan? = nil) {
         self.defaults = defaults
+        self.plan = plan
         format = defaults?.string(forKey: "export.format").flatMap(Format.init) ?? .wav
         bits = BitDepth(rawValue: defaults?.integer(forKey: "export.bits") ?? 0) ?? .bits24
         bitRate = BitRate(rawValue: defaults?.integer(forKey: "export.bitrate") ?? 0) ?? .k128
@@ -83,6 +91,9 @@ struct ExportTarget {
 
     /// The type of the panel: its extension follows a format change (probe P11).
     var contentType: UTType { UTType(filenameExtension: fileExtension) ?? .audio }
+
+    /// The note under a split line: each file gets its own gain, so it shows with a target only.
+    var showsLoudnessNote: Bool { files != .one && loudness != nil }
 }
 
 /// The line of the export panel about the tracks of the source that are not heard (decision
@@ -117,14 +128,23 @@ enum ExportPanel {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = name
         panel.allowedContentTypes = [settings.contentType]
+        let nameLabel: String = panel.nameFieldLabel ?? ""
+        let button: String = panel.prompt ?? ""
         panel.accessoryView = NSHostingView(
-            rootView: ExportAccessory(settings: settings, sessionRate: sessionRate, note: note) { [weak panel] type in
-                panel?.allowedContentTypes = [type]
-            })
+            rootView: ExportAccessory(
+                settings: settings, sessionRate: sessionRate, note: note,
+                name: { [weak panel] in panel?.nameFieldStringValue ?? name },
+                changed: { [weak panel] in
+                    if let panel { Self.follow(settings, panel, nameLabel: nameLabel, button: button) }
+                }))
         panel.beginSheetModal(for: window) { response in
             MainActor.assumeIsolated {
                 guard response == .OK, let url = panel.url else { return done(nil) }
-                done(ExportTarget(url: url, options: settings.options, confirmed: ConfirmedFile(at: url)))
+                let split = splitTarget(settings, url)
+                done(
+                    ExportTarget(
+                        url: url, options: settings.options, confirmed: split == nil ? ConfirmedFile(at: url) : nil,
+                        split: split))
             }
         }
     }
@@ -276,7 +296,10 @@ private struct ExportAccessory: View {
     @Bindable var settings: ExportSettings
     let sessionRate: Int
     let note: String?
-    let typeChanged: (UTType) -> Void
+    /// The name field of the panel now.
+    let name: () -> String
+    /// The files choice or the format changed: the panel follows.
+    let changed: () -> Void
 
     var body: some View {
         Form {
@@ -286,6 +309,7 @@ private struct ExportAccessory: View {
                 Text(L10n.panelExportFormatMP3.key).tag(ExportSettings.Format.mp3)
                 Text(L10n.panelExportFormatFLAC.key).tag(ExportSettings.Format.flac)
             }
+            if let plan = settings.plan { filesPicker(plan) }
             if settings.format == .aac || settings.format == .mp3 {
                 Picker(L10n.panelExportBitrate.key, selection: $settings.bitRate) {
                     ForEach(BitRate.allCases, id: \.self) { rate in
@@ -315,10 +339,34 @@ private struct ExportAccessory: View {
             if let note {
                 Text(verbatim: note).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
+            if let plan = settings.plan, let kind = settings.files.kind {
+                // The panel reports no edit of its name field, so the line reads it again.
+                TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+                    let stem = SplitTarget.stem(of: name())
+                    let line = plan.line(
+                        kind, options: settings.options, stem: stem, pathExtension: settings.fileExtension)
+                    Text(verbatim: line?.text ?? "").foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if settings.showsLoudnessNote {
+                    Text(L10n.panelExportLoudnessNote.key).foregroundStyle(.secondary)
+                }
+            }
         }
         .padding()
         .frame(width: 420)
-        .onChange(of: settings.format) { typeChanged(settings.contentType) }
+        .onChange(of: settings.format) { changed() }
+        .onChange(of: settings.files) { changed() }
+    }
+
+    private func filesPicker(_ plan: ExportSplitPlan) -> some View {
+        Picker(L10n.panelExportFiles.key, selection: $settings.files) {
+            Text(verbatim: plan.title(.one)).tag(ExportFiles.one)
+            ForEach([ExportFiles.chapters, .markers], id: \.self) { files in
+                let help = files.kind.flatMap { plan.help($0) }
+                Text(verbatim: plan.title(files)).tag(files).disabled(help != nil).help(help.map(\.text) ?? "")
+            }
+        }
     }
 
     /// The preset name with its value for the chosen channels: -16 stereo, -19 mono for Podcast.

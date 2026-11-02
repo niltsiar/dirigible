@@ -237,7 +237,7 @@ private struct ExportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.sheetExportTitle.key).font(.headline)
+            Text(verbatim: exportSheetTitle(studio.exportFile)).font(.headline)
             ProgressView(value: studio.exportProgress ?? 1).frame(width: 320)
             if let refusal = model.recordRefusal {
                 Text(verbatim: L10n.message(for: refusal, session: studio.session)).foregroundStyle(.red)

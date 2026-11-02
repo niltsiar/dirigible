@@ -161,12 +161,19 @@ extension SessionWindow {
         exportStep = .choosing
         app.chooseExport(
             window, url.deletingPathExtension().lastPathComponent, studio.session.sampleRate,
-            ExportSettings(defaults: app.defaults), exportNote(studio.session, source)?.text
+            ExportSettings(defaults: app.defaults, plan: ExportSplitPlan(session: studio.session, source: source)),
+            exportNote(studio.session, source)?.text
         ) { [weak self] target in
             guard let self, exportStep == .choosing else { return }
             exportStep = nil
             guard let target, let studio = idleStudio else { return }
-            Task { await self.run(source, target, studio) }
+            Task {
+                if target.split == nil {
+                    await self.run(source, target, studio)
+                } else {
+                    await self.runSet(source, target, studio)
+                }
+            }
         }
     }
 

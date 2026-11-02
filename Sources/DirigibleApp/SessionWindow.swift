@@ -119,11 +119,11 @@ import SwiftUI
     func copy(_ excerpt: Excerpt, of studio: Studio) { app?.clipboard = studio.clipboard(of: excerpt) }
     /// The step of Export before the export runs (decision 0019). Nil: no step.
     var exportStep: ExportStep?
-    /// The last clean export with a target, for its banner (decision 0032). The next export
-    /// start and the next take start remove it; the banner shows only at its session revision.
+    /// The last clean export with a target (decision 0032), its chapter warnings, and its split result, for
+    /// their banners. The next export or take start removes them; each shows at its session revision only.
     var exportReport: ExportReportShown?
-    /// The chapter warnings of the last export, for their banners. They go as `exportReport` goes.
     var chapterWarnings: ChapterWarningsShown?
+    var exportSet: ExportSetShown?
     /// The cues that the last Export Transcript left out, for its banner at its session revision.
     var transcriptLeftOut: TranscriptLeftOutShown?
     /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;

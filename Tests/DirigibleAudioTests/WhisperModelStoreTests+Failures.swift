@@ -187,4 +187,54 @@ extension WhisperModelStoreTests {
         #expect(result.gotBytes)
         #expect(result.files == [])
     }
+
+    /// Makes and mounts a 5 MB HFS+ image named `name` in `folder`, and returns its volume.
+    static func mountImage(_ name: String, in folder: URL) async throws -> URL {
+        let volume = folder.appending(path: name)
+        try await offMainActor {
+            try FullDiskTests.hdiutil(
+                "create", "-size", "5m", "-fs", "HFS+", "-volname", "Dirigible\(name)",
+                folder.appending(path: name + ".dmg").path)
+            try FullDiskTests.hdiutil(
+                "attach", folder.appending(path: name + ".dmg").path, "-nobrowse", "-mountpoint", volume.path)
+        }
+        return volume
+    }
+
+    /// A write that fails with ENOSPC on a real disk image: the folder name and the errno reach the
+    /// error, no file stays, and the request ends. The same download on an image with room is the
+    /// near input: it reaches the checksum check. The store folder is a folder of the volume, as
+    /// the volume root holds the folders of Spotlight.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aFullDiskGivesAWriteErrorAndLeavesNoFile() async throws {
+        let folder = try TemporaryFolder()
+        let full = try await Self.mountImage("full", in: folder.url)
+        defer { FullDiskTests.run(["detach", full.path, "-force"]) }
+        let room = try await Self.mountImage("room", in: folder.url)
+        defer { FullDiskTests.run(["detach", room.path, "-force"]) }
+        try await offMainActor { try FullDiskTests.fill(full, leaving: 300_000, with: full.appending(path: "filler")) }
+
+        let models = full.appending(path: "Models")
+        let loader = HeldLoader(Data(count: 2 << 20))
+        var thrown: (any Error)?
+        do {
+            try await WhisperModelStore(folder: models, load: loader.load).download(.tinyQ51, stop: { false })
+        } catch { thrown = error }
+
+        #expect(thrown.map { modelError($0, folder: models) } == .modelWrite(folder: models.path, errno: ENOSPC))
+        #expect(try fileNames(models) == [])
+        await until(limit: .seconds(5), "the request ends after the write error") { loader.ended }
+
+        let roomModels = room.appending(path: "Models")
+        let oneChunk = WhisperModelStore(folder: roomModels) { _ in
+            AsyncThrowingStream { continuation in
+                continuation.yield(Data(count: 1 << 20))
+                continuation.finish()
+            }
+        }
+        await #expect(throws: WhisperModelStoreError.checksumMismatch) {
+            try await oneChunk.download(.tinyQ51, stop: { false })
+        }
+        #expect(try fileNames(roomModels) == [])
+    }
 }

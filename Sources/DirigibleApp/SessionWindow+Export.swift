@@ -177,11 +177,11 @@ extension SessionWindow {
             guard let self, exportStep == .choosing else { return }
             exportStep = nil
             guard let target, let studio = idleStudio else { return }
-            if target.split == nil {
-                Task { await self.run(source, target, studio) }
-            } else {
+            if let split = target.split {
                 exportStep = .starting
-                Task { await self.runSet(source, target, studio) }
+                Task { await self.runSet(source, target.options, split, studio) }
+            } else {
+                Task { await self.run(source, target, studio) }
             }
         }
     }

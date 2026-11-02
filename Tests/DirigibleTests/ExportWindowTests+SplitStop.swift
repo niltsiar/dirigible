@@ -40,7 +40,8 @@ extension ExportWindowTests {
         let hold = PartHold(folder: folder.url, prefix: ".Ep-02")
         studio.environment.exportChunk = { hold.step() }
         let (source, target) = (try #require(model.source(of: .session, in: studio)), setTarget())
-        let task = Task { await model.runSet(source, target, studio) }
+        let split = try #require(target.split)
+        let task = Task { await model.runSet(source, target.options, split, studio) }
         await until("the set holds in part 2") { hold.isHeld }
         await until("the progress hop names part 2") { studio.exportFile?.number == 2 }
         return (model, studio, nsWindow, hold, task)

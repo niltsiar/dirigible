@@ -154,13 +154,15 @@ extension Studio {
         }
     }
 
-    /// `body` on the job thread as a read run of this studio, with the stop check of the run.
+    /// `body` on the job thread as a read run of this studio, with the stop check of the run. The run
+    /// is not joined: `settle()` sets its stop and does not wait for it, and a result that comes
+    /// after a close is dropped with `.readClosed`.
     private func modelFileRead<T: Sendable>(
         _ body:
             @escaping @Sendable (CaptureEnvironment, @escaping @Sendable () -> Bool) throws(ModelFileCheckError) -> T
     ) async throws(StudioError) -> T {
         try checkModelFileIdle()
-        let (environment, run) = (environment, ReadRun())
+        let (environment, run) = (environment, ReadRun(joined: false))
         readRuns.append(run)
         defer { endRead(run) }
         let stopped: @Sendable () -> Bool = { run.cancelled.withLock { $0 } }
@@ -170,7 +172,9 @@ extension Studio {
             run.cancel()
         }
         switch result {
-        case .success(let value): return value
+        case .success(let value):
+            if run.end.withLock({ $0 }) == .close { throw .readClosed }
+            return value
         case .failure(let error):
             guard error == .stopped || stopped() else { throw .transcription(.modelFile(error)) }
             switch run.end.withLock({ $0 }) {

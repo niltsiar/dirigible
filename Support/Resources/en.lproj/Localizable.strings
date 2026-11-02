@@ -801,5 +801,6 @@
 "banner.export.set.old.one" = "1 older file of this stem stays: %@. Dirigible does not delete it.";
 "banner.export.set.old.many" = "%1$lld older files of this stem stay: %2$@. Dirigible does not delete them.";
 "banner.export.set.show" = "Show in Finder";
+"banner.export.set.dropped" = "“%@” has no file of its own: it starts at the time of the split point before it, or at the end of the range.";
 "error.export.nochapter" = "The session has no chapters in the export range now. No file was written.";
 "error.export.nomarker" = "The session has no markers in the export range now. No file was written.";

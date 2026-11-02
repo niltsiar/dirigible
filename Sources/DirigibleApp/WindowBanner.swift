@@ -58,6 +58,9 @@ enum WindowBanner: Equatable {
     case exportSetDone(files: [URL], low: Double?, high: Double?, old: [String])
     /// A split export that stopped: the files on disk and the files of the set.
     case exportSetStopped(written: Int, count: Int)
+    /// A split point that has no file of its own, because it starts at the time of the split point
+    /// before it or at the end of the range (decision 0067).
+    case exportSetDropped(Marker)
     /// The names of the chapters that the exported file leaves out, because each starts at the
     /// time of another chapter, or at or after the end of the M4A audio (run
     /// 2026-10-11-chapters-in-file, C5f, code gate item D6).
@@ -138,6 +141,7 @@ enum WindowBanner: Equatable {
         case .exportReport(_, let file): "exportReport.\(file)"
         case .exportSetDone: "exportSetDone"
         case .exportSetStopped: "exportSetStopped"
+        case .exportSetDropped(let marker): "exportSetDropped.\(marker.id)"
         case .chaptersDropped(_, let file): "chaptersDropped.\(file)"
         case .chapterImagesOmitted(let file): "chapterImagesOmitted.\(file)"
         case .titleMissing(let file): "titleMissing.\(file)"
@@ -161,7 +165,7 @@ enum WindowBanner: Equatable {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut, .duckNoSpeech, .duckUnread, .takeSyncBroken,
-            .transcriptImported, .transcriptionStopped, .exportSetStopped:
+            .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound, .exportSetDone: .info
@@ -181,6 +185,7 @@ enum WindowBanner: Equatable {
             L10n.bannerExportReport.format(file, L10n.message(for: report)) + L10n.largeGainHint(for: report)
         case .exportSetDone(let files, let low, let high, let old): exportSetDoneText(files, low, high, old)
         case .exportSetStopped(let written, let count): L10n.bannerExportSetStopped.format(written, count)
+        case .exportSetDropped(let marker): L10n.bannerExportSetDropped.format(marker.name)
         case .chaptersDropped(let names, let file):
             L10n.bannerExportChapterDropped.format(file, names.joined(separator: ", "))
         case .chapterImagesOmitted(let file): L10n.bannerExportChapterImagesOmitted.format(file)
@@ -210,8 +215,8 @@ enum WindowBanner: Equatable {
     var announcement: NSAccessibilityPriorityLevel? {
         switch self {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
-        case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .chaptersDropped, .chapterImagesOmitted,
-            .titleMissing, .transcriptLeftOut,
+        case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .chaptersDropped,
+            .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseReduced, .soundRepaired, .transcriptImported, .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound:

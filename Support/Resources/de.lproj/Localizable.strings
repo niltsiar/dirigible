@@ -801,5 +801,6 @@
 "banner.export.set.old.one" = "1 ältere Datei mit diesem Präfix bleibt erhalten: %@. Dirigible löscht sie nicht.";
 "banner.export.set.old.many" = "%1$lld ältere Dateien mit diesem Präfix bleiben erhalten: %2$@. Dirigible löscht sie nicht.";
 "banner.export.set.show" = "Im Finder zeigen";
+"banner.export.set.dropped" = "„%@“ hat keine eigene Datei: Der Punkt liegt an derselben Stelle wie der Teilungspunkt davor oder am Ende des Bereichs.";
 "error.export.nochapter" = "Die Sitzung hat jetzt keine Kapitel im Exportbereich. Es wurde keine Datei geschrieben.";
 "error.export.nomarker" = "Die Sitzung hat jetzt keine Marker im Exportbereich. Es wurde keine Datei geschrieben.";

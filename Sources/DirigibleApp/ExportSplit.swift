@@ -101,6 +101,8 @@ struct ExportSetShown: Equatable {
     let old: [String]
     /// The tag warnings of the files that have one, each naming its file.
     var warnings: [ChapterWarningsShown] = []
+    /// The split points with no file of their own.
+    var dropped: [Marker] = []
     let revision: Int
 
     var stopped: Bool { files.count < count }
@@ -116,7 +118,7 @@ struct ExportSetShown: Equatable {
         for (url, report) in zip(files, loudness) where report.exceedsLevelLimit {
             banners.append(.exportReport(report, file: url.lastPathComponent))
         }
-        return banners + warnings.flatMap(\.banners)
+        return banners + dropped.map { .exportSetDropped($0) } + warnings.flatMap(\.banners)
     }
 }
 

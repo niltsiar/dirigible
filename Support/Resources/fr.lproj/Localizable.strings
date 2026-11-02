@@ -801,5 +801,6 @@
 "banner.export.set.old.one" = "1 fichier plus ancien de ce préfixe reste en place : %@. Dirigible ne le supprime pas.";
 "banner.export.set.old.many" = "%1$lld fichiers plus anciens de ce préfixe restent en place : %2$@. Dirigible ne les supprime pas.";
 "banner.export.set.show" = "Afficher dans le Finder";
+"banner.export.set.dropped" = "« %@ » n’a pas de fichier propre : ce point coïncide avec le point de découpe précédent ou avec la fin de la plage.";
 "error.export.nochapter" = "La session n’a plus de chapitre dans la plage d’exportation. Aucun fichier n’a été écrit.";
 "error.export.nomarker" = "La session n’a plus de marqueur dans la plage d’exportation. Aucun fichier n’a été écrit.";

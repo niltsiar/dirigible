@@ -801,5 +801,6 @@
 "banner.export.set.old.one" = "1 ouder bestand met dit voorvoegsel blijft staan: %@. Dirigible verwijdert het niet.";
 "banner.export.set.old.many" = "%1$lld oudere bestanden met dit voorvoegsel blijven staan: %2$@. Dirigible verwijdert ze niet.";
 "banner.export.set.show" = "Toon in Finder";
+"banner.export.set.dropped" = "'%@' heeft geen eigen bestand: het valt samen met het vorige splitspunt of met het einde van het bereik.";
 "error.export.nochapter" = "De sessie heeft nu geen hoofdstukken in het exportbereik. Er is geen bestand geschreven.";
 "error.export.nomarker" = "De sessie heeft nu geen markeringen in het exportbereik. Er is geen bestand geschreven.";

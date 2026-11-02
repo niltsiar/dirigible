@@ -94,7 +94,8 @@ import Testing
             await window.model.close()
         }
 
-        /// The open panel of Choose Model File... and of Locate... gets the window of the sheet.
+        /// The open panel of Choose Model File... gets the window of the sheet; the panel of Locate...
+        /// gets the session window, because the alert closes before the panel opens.
         @Test func theOpenPanelGetsTheWindowOfTheSheet() async throws {
             let picks = Picks([])
             let window = try await openFile({ try Self.passing($0, ran: $0.appending(path: "ran")) }, picks: picks)
@@ -112,8 +113,8 @@ import Testing
             await until("the second panel closes") { parents.windows.count == 2 }
 
             let hosts = [window.model.window, window.model.window?.attachedSheet].compactMap { $0 }
-            #expect(
-                parents.windows.count == 2 && parents.windows.allSatisfy { parent in hosts.contains { $0 === parent } })
+            #expect(parents.windows.count == 2 && hosts.contains { $0 === parents.windows.first ?? nil })
+            #expect(parents.windows.last ?? nil === window.model.window)
             await window.model.close()
         }
 
@@ -153,6 +154,65 @@ import Testing
 
             await until(limit: .seconds(5), "the panel closes") { panel.gone == 1 }
             if end == .cancelSheet { await window.model.close() }
+        }
+
+        /// An open panel as the live one: a sheet of its parent that a cancel of the calling task ends.
+        @MainActor final class SheetPanel {
+            let window = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered,
+                defer: false)
+            var parent: NSWindow?
+
+            func pick(_ parent: NSWindow?) async -> URL? {
+                self.parent = parent
+                guard let parent else { return nil }
+                await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        guard !Task.isCancelled else { return continuation.resume() }
+                        parent.beginSheet(window) { _ in continuation.resume() }
+                    }
+                } onCancel: {
+                    Task { @MainActor in self.window.sheetParent?.endSheet(self.window) }
+                }
+                return nil
+            }
+        }
+
+        enum AlertButton: CaseIterable { case locate, chooseModelFile }
+
+        /// Code gate 2 item 8: the panel of an alert button hangs on the session window, so File >
+        /// Close All leaves no alert without its window. Close All closes each window whose close
+        /// button is on (`NSApp.closeAll(_:)`), as `performClose(_:)` does for one window.
+        @Test(arguments: AlertButton.allCases)
+        func anAlertPanelLeavesNoAlertWithoutItsWindowAfterCloseAll(button: AlertButton) async throws {
+            let window = try await openFile({ $0 }, picks: Picks([]))
+            let session = try #require(window.model.window)
+            let panel = SheetPanel()
+            window.model.transcribe.pickModelFile = { await panel.pick($0) }
+            let request = TranscribeRequest(
+                track: "t2", trackName: "t2", language: .code("es"), choice: .code("es"),
+                model: .file(window.file, passed: nil))
+            window.model.alert =
+                switch button {
+                case .locate: .transcribeFile(.transcription(.modelFile(.unreadable(errno: ENOENT))), request)
+                case .chooseModelFile:
+                    .transcribeNoData(.transcription(.modelDownloadNoData(host: "huggingface.co")), request)
+                }
+            let title = try #require(window.model.alert?.pickButton).text
+            await until(limit: .seconds(10), "the alert shows") { session.attachedSheet != nil }
+            let alert = try #require(session.attachedSheet)
+            let buttons = HeaderStateLineTests.buttons(try #require(alert.contentView))
+            try #require(buttons.first { $0.title == title }, "\(buttons.map(\.title))").performClick(nil)
+            await until(limit: .seconds(10), "the panel shows") { panel.window.isVisible }
+
+            #expect(panel.parent === session, "the panel hangs on the session window")
+            #expect(!alert.isVisible, "the alert is gone while the panel shows")
+            session.performClose(nil)
+            await window.model.close()
+            await until(limit: .seconds(5), "the panel closes") { !panel.window.isVisible }
+            #expect(!alert.isVisible, "the alert stays after its window closed")
+            // A left alert would stay on screen for the next tests of this process.
+            alert.orderOut(nil)
         }
 
         /// Code gate 2 item 5: the sheet check of a file that is gone names the file, as the job alert does.

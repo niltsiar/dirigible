@@ -30,7 +30,7 @@ extension ExportWindowTests {
         let off = ExportTarget(url: folder.url.appending(path: "off.wav"), options: Self.options, confirmed: nil)
         await model.run(source, off, studio)
         #expect(model.exportReport == nil)
-        await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport" } }
+        await until("the report banner goes") { !model.shown.banners.contains { $0.key.hasPrefix("exportReport") } }
         await model.close()
     }
 
@@ -40,17 +40,17 @@ extension ExportWindowTests {
         let (model, studio, window) = try await window()
         let source = try #require(model.source(of: .session, in: studio))
         await model.run(source, ExportTarget(url: out, options: Self.podcast, confirmed: nil), studio)
-        await until("the report banner shows") { model.shown.banners.contains { $0.key == "exportReport" } }
+        await until("the report banner shows") { model.shown.banners.contains { $0.key.hasPrefix("exportReport") } }
         // The progress sheet ends its close after the export; under load it shows a little longer.
         await until("the progress sheet goes") { window.attachedSheet == nil }
         #expect(model.alert == nil && model.canRecord)
-        #expect(model.shown.banners.contains { $0.key == "exportReport" }, "the report went with the sheet")
+        #expect(model.shown.banners.contains { $0.key.hasPrefix("exportReport") }, "the report went with the sheet")
 
         await model.record()
 
         #expect(studio.transport == .recording(take: 1))
         #expect(model.exportReport == nil)
-        await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport" } }
+        await until("the report banner goes") { !model.shown.banners.contains { $0.key.hasPrefix("exportReport") } }
         await hal.feed(seconds: 0.5)
         await model.stop()
         await until("the take finalizes") { studio.transport == .idle }
@@ -87,7 +87,7 @@ extension ExportWindowTests {
 
         try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
 
-        await until("the report banner goes") { !model.shown.banners.contains { $0.key == "exportReport" } }
+        await until("the report banner goes") { !model.shown.banners.contains { $0.key.hasPrefix("exportReport") } }
         await model.close()
     }
 
@@ -116,7 +116,9 @@ extension ExportWindowTests {
 
         #expect(model.exportReport != nil && model.alert == nil, "the export did not end clean")
         try await Task.sleep(for: .milliseconds(300))
-        #expect(!model.shown.banners.contains { $0.key == "exportReport" }, "a report for a file that does not match")
+        #expect(
+            !model.shown.banners.contains { $0.key.hasPrefix("exportReport") },
+            "a report for a file that does not match")
         await model.close()
     }
 
@@ -161,7 +163,7 @@ extension ExportWindowTests {
         await until("the banner shows") { model.shown.banners.contains(banner) }
         #expect(banner.kind == .warning)
         try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
-        await until("the banner goes") { !model.shown.banners.contains { $0.key == "chaptersDropped" } }
+        await until("the banner goes") { !model.shown.banners.contains { $0.key.hasPrefix("chaptersDropped") } }
         // Code gate item D6: the text also gives the second reason, a chapter after the audio.
         let texts = [
             "en": "mix.mp3 leaves out these chapters, because each starts at the time of another chapter, or at or "
@@ -231,7 +233,7 @@ extension ExportWindowTests {
             #expect(text.contains("%@"), "\(language): \(text)")
         }
         try studio.edit(ripple: false) { session throws(SessionError) in try session.renameTrack("t1", to: "Renamed") }
-        await until("the banner goes") { !model.shown.banners.contains { $0.key == "titleMissing" } }
+        await until("the banner goes") { !model.shown.banners.contains { $0.key.hasPrefix("titleMissing") } }
 
         await model.run(source, self.target, studio)
         #expect(model.alert == nil && FileManager.default.fileExists(atPath: out.path), "the WAV export ran")

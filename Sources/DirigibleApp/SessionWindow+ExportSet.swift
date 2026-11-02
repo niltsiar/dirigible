@@ -120,13 +120,15 @@ extension SessionWindow {
         _ result: ExportPartsResult, old: [String], session: Session, format: ExportFormat, revision: Int
     ) {
         let files = result.files
-        let missing = files.first { ExportText.lacksTitleTag(session.forPart($0.part), format: format) }
-        chapterWarnings = ChapterWarningsShown(
-            files.flatMap(\.result.droppedChapters), imagesOmitted: files.contains { $0.result.chapterImagesOmitted },
-            titleMissing: missing != nil, file: (missing ?? files[0]).url.lastPathComponent, revision: revision)
+        let warnings = files.compactMap {
+            ChapterWarningsShown(
+                $0.result.droppedChapters, imagesOmitted: $0.result.chapterImagesOmitted,
+                titleMissing: ExportText.lacksTitleTag(session.forPart($0.part), format: format),
+                file: $0.url.lastPathComponent, revision: revision)
+        }
         exportSet = ExportSetShown(
             files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: old,
-            revision: revision)
+            warnings: warnings, revision: revision)
         let faulty = files.filter { !$0.result.faults.isEmpty }
         guard !faulty.isEmpty else { return }
         let faults = faulty.reduce(into: [FileID: MediaFault]()) { $0.merge($1.result.faults) { first, _ in first } }

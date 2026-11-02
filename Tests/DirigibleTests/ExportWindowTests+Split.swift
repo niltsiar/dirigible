@@ -303,7 +303,7 @@ extension ExportWindowTests {
         let (model, studio, _) = try await window()
         try threeChapters(studio)
         try await runSet(model, studio, setTarget(options: mp3))
-        #expect(model.chapterWarnings == nil, "the parts have titles: \(String(describing: model.chapterWarnings))")
+        #expect(titleBanners(model, studio) == [], "the parts have titles")
 
         let ids = Array(studio.session.markers.keys)
         try studio.edit(ripple: false) { session throws(SessionError) in
@@ -312,7 +312,7 @@ extension ExportWindowTests {
         try addPoint("  ", at: 0, studio)
         try addPoint("  ", at: 5, studio)
         try await runSet(model, studio, setTarget(options: mp3))
-        #expect(model.chapterWarnings?.titleMissing == true, "a part with no title and an episode with none")
+        #expect(titleBanners(model, studio).count == 2, "a part with no title and an episode with none")
         await model.close()
     }
 }

@@ -71,4 +71,41 @@ extension ExportWindowTests {
         #expect(model.exportSet == nil, "the set banner stays next to the single export")
         await model.close()
     }
+
+    /// The files that the title banners name.
+    func titleBanners(_ model: SessionWindow, _ studio: Studio) -> [String] {
+        ChromeState.reportBanners(model, studio).compactMap {
+            if case .titleMissing(let file) = $0 { file } else { nil }
+        }
+    }
+
+    /// Item 8: each part with a warning has its own banner that names its file.
+    @Test func eachChapterWarningNamesThePartFileThatHasIt() async throws {
+        let mp3 = ExportOptions(format: .mp3(.k128), layout: .stereo, rate: .session)
+        let (model, studio, _) = try await window()
+        try addPoint("  ", at: 0, studio)
+        try addPoint("Talk", at: 3, studio)
+        try addPoint("  ", at: 5, studio)
+        try await runSet(model, studio, setTarget(options: mp3))
+
+        let files = try setFiles()
+        try #require(files.count == 3)
+        #expect(titleBanners(model, studio) == [files[0], files[2]], "one banner for each part with no title tag")
+
+        for name in files { try FileManager.default.removeItem(at: file(name)) }
+        let ids = Array(studio.session.markers.keys)
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            for id in ids { try session.removeMarker(id) }
+        }
+        try threeChapters(studio)
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.setMarker(Marker(id: MarkerID(), name: "Dup", position: 144_010, kind: .chapter))
+        }
+        try await runSet(model, studio, setTarget(options: mp3))
+        let dropped = ChromeState.reportBanners(model, studio).compactMap {
+            if case .chaptersDropped(let names, let file) = $0 { "\(file): \(names)" } else { nil }
+        }
+        #expect(dropped == ["Ep-02-Talk.mp3: [\"Dup\"]"], "the chapter left out of part 2 names part 2")
+        await model.close()
+    }
 }

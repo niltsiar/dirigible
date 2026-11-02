@@ -99,6 +99,8 @@ struct ExportSetShown: Equatable {
     let loudness: [LoudnessReport]
     /// The names of the files of the stem that an older set wrote and this set did not.
     let old: [String]
+    /// The tag warnings of the files that have one, each naming its file.
+    var warnings: [ChapterWarningsShown] = []
     let revision: Int
 
     var stopped: Bool { files.count < count }
@@ -114,7 +116,7 @@ struct ExportSetShown: Equatable {
         for (url, report) in zip(files, loudness) where report.exceedsLevelLimit {
             banners.append(.exportReport(report, file: url.lastPathComponent))
         }
-        return banners
+        return banners + warnings.flatMap(\.banners)
     }
 }
 

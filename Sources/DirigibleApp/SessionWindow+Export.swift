@@ -39,6 +39,13 @@ struct ChapterWarningsShown: Equatable {
         (names, self.imagesOmitted, self.titleMissing) = (chapters.map(\.name), imagesOmitted, titleMissing)
         (self.file, self.revision) = (file, revision)
     }
+
+    /// One banner for each warning, each naming the file.
+    var banners: [WindowBanner] {
+        (names.isEmpty ? [] : [.chaptersDropped(names, file: file)])
+            + (imagesOmitted ? [.chapterImagesOmitted(file: file)] : [])
+            + (titleMissing ? [.titleMissing(file: file)] : [])
+    }
 }
 
 /// The count of cues that an exported transcript file leaves out because they have no length, the

@@ -234,6 +234,25 @@ extension MCPExportToolTests {
         #expect(try outputs().sorted() == names.map { $0 + ".mp3" })
     }
 
+    /// Code gate 1 item 12: the check takes the kind of the call. A plain marker is a point of
+    /// `markers` only, so `chapters` gives the no-point refusal.
+    @Test func theTargetCheckReadsTheKindOfTheCall() throws {
+        try package.edit { try $0.setMarker(Marker(id: "m", name: "Note", position: 8000, kind: .marker)) }
+        let session = try Session(contentsOf: package.url)
+        let work = ExportWork(
+            out: out("Ep.mp3"),
+            options: try ExportText.options(
+                out: out("Ep.mp3"), bits: nil, bitrate: nil, mono: false, rate: nil, loudness: nil, spelling: .tool),
+            from: 0, to: nil, tracks: [], replace: false, allowMissing: false)
+        let source = try work.source(in: session)
+
+        #expect(try work.splitConfirmations(session, source: source, by: .markers) == [:])
+        let refusal = #expect(throws: SplitRefusal.self) {
+            try work.splitConfirmations(session, source: source, by: .chapters)
+        }
+        #expect(refusal?.message == "no chapter in frames 0..<21000." && refusal?.isNoPoint == true)
+    }
+
     /// Lead ruling 1b row 6: the text ends with the line of the older files of the stem.
     @Test func exportWithSplitNamesTheOldFilesOfTheStem() async throws {
         try addChapters()

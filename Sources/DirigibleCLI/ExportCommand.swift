@@ -88,24 +88,24 @@ struct Export: ParsableCommand {
             out: out, options: try options(), from: from, to: to, tracks: track.map { TrackID($0) }, replace: replace,
             allowMissing: allowMissing, spelling: .cli, split: kind)
         let session = try readPackage(package)
-        if kind == nil {
-            try runWork(work, package: package.url, session: session)
+        if let kind {
+            try runSet(work, by: kind, package: package.url, session: session)
         } else {
-            try runSet(work, package: package.url, session: session)
+            try runWork(work, package: package.url, session: session)
         }
     }
 }
 
 /// The steps of `export --split` from `ExportWork`: the exit codes of `runWork`, and exit 1 for a
 /// range with no split point. A stop or a failure prints the files on disk and the stop line.
-func runSet(_ work: ExportWork, package: URL, session: Session) throws {
+func runSet(_ work: ExportWork, by kind: SplitKind, package: URL, session: Session) throws {
     let source: ExportSource
     do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }
     do { try work.checkFiles(session, package: package, source: source) } catch {
         throw fail(error.message, code: packageError)
     }
     let replacing: [URL: ConfirmedFile]
-    do { replacing = try work.splitConfirmations(session, source: source) } catch {
+    do { replacing = try work.splitConfirmations(session, source: source, by: kind) } catch {
         throw fail(error.message, code: error.isNoPoint ? editRefused : packageError)
     }
     let interrupt = cancelOnInterrupt()
@@ -113,7 +113,8 @@ func runSet(_ work: ExportWork, package: URL, session: Session) throws {
     let result: ExportPartsResult
     do {
         result = try work.exportSet(
-            session, source: source, replacing: replacing, package: package, isCancelled: interrupt.isCancelled)
+            session, source: source, by: kind, replacing: replacing, package: package,
+            isCancelled: interrupt.isCancelled)
     } catch {
         guard case .stopped(let stop) = error else { throw fail(work.setRefusal(error), code: packageError) }
         let lines = work.stopLines(stop)

@@ -25,10 +25,15 @@
 # - With CHECK_PLAN_AT_PHASE4=1 only, when a round file review-plan-<n>.md (a per-lens name is none)
 #   has a numbered item under `## Act on`, the round file with the highest number has a `## Fix check`
 #   heading (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
+#   A run whose first row is at or after fixline_cutoff also needs, in that section, a `- <round>.<item>`
+#   line for each numbered Act on item of each round file. Each line has the parts, and a plan gate item
+#   that changes a criterion has the control, that lead-judgment.md, Fix check names.
 # - With CHECK_PLAN_AT_PHASE7=1 only (log-decision.sh sets it before the first phase 7 row), the
 #   `## Fix check` of the review-diff-<n>.md file with the highest number has a line with the whole
 #   word <round>.<item> for each numbered item under `## Act on` of each review-diff-<n>.md file
 #   (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
+#   From fixline_cutoff, each `- <round>.<item>` line there has the parts that lead-judgment.md, Fix check
+#   names, and each deferred control of the last review-plan-<n>.md has its file in the run folder.
 # - When analysis-gate.md exists (log-decision.sh copies analysis.md to it at the first phase 4 row)
 #   and the run has a phase 4 row (or CHECK_PLAN_AT_PHASE4=1), each criterion line of its
 #   `## Acceptance criteria` section whose line differs in analysis.md, or is gone, needs a
@@ -77,6 +82,139 @@ set -euo pipefail
 run="${1%/}"
 fail=0
 say() { echo "check-plan: $1" >&2; fail=1; }
+
+# Local time of the commit that added the Fix check line parts (YYYY-MM-DDTHH:MM, as decisions.tsv writes it):
+# a run whose first row is older needs none of them.
+fixline_cutoff=2026-11-02T04:58
+
+# fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.
+# lines (plan gate): a "- <round>.<item>" line for each Act on item of each round file, the new failure part
+# of each line, and the control of each item that a criterion change row or a Plan gate changes item names.
+# parts (code gate): the new failure part of each line. files (phase 7): the file of each deferred control.
+fix_lines() {
+    local kind="$1" mode="$2" files="" last_file="" last=0 file n msg
+    for file in "$run"/review-"$kind"-*.md; do
+        [[ "${file##*/}" =~ ^review-$kind-([0-9]+)\.md$ ]] || continue
+        n=$((10#${BASH_REMATCH[1]}))
+        files+="$file"$'\n'
+        ((n > last)) && { last=$n; last_file="$file"; }
+    done
+    ((last)) || return 0
+    while IFS= read -r msg; do say "$msg"; done < <(FIX_FILES="$files" awk -v run="$run" -v last_file="$last_file" -v mode="$mode" '
+        function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+        # nf_ok(line): the text after "new failure:" is not empty, and "none" has ": <reason>" after it.
+        function nf_ok(line,  i, t) {
+            i = index(line, "new failure:")
+            if (!i) return 0
+            t = substr(line, i + 12)
+            i = index(t, "control:"); if (i) t = substr(t, 1, i - 1)
+            t = trim(t)
+            if (tolower(t) ~ /^none([^[:alnum:]]|$)/) return substr(t, 5) ~ /^[[:space:]]*:[[:space:]]*[[:alnum:]]/
+            return t ~ /[[:alnum:]]/
+        }
+        # ctl(line): the text of the control part, up to the next ";" or "new failure:".
+        function ctl(line,  i, t) {
+            i = index(line, "control:"); if (!i) return ""
+            t = substr(line, i + 8)
+            i = index(t, "new failure:"); if (i) t = substr(t, 1, i - 1)
+            i = index(t, ";"); if (i) t = substr(t, 1, i - 1)
+            gsub(/`/, "", t); t = trim(t); sub(/[.]$/, "", t)
+            return t
+        }
+        # form(c): "a" for "<path> <result>", "b" for "<path> after <slice>", else "". Sets cpath.
+        function form(c,  n, t) {
+            n = split(c, t, /[[:space:]]+/); cpath = t[1]
+            if (cpath !~ /^(logs|probes)\/[^[:space:]]+$/ || cpath ~ /(^|\/)\.\.(\/|$)/) return ""
+            if (n == 3 && t[2] == "after") return (t[3] in slice) ? "b" : ""
+            if (n == 3 && t[2] == "exit" && t[3] ~ /^[0-9]+$/) return "a"
+            if (n == 4 && t[2] ~ /^[0-9]+$/ && t[3] == "of" && t[4] ~ /^[0-9]+$/) return "a"
+            if (n == 2 && (t[2] == "PASS" || t[2] == "FAIL")) return "a"
+            return ""
+        }
+        function exists(path,  r) { r = (getline junk < (run "/" path)); close(run "/" path); return r >= 0 }
+        # flush_item: a Plan gate changes item with a Criteria ID names the gate item that its start gives.
+        function flush_item(  v, s, w) {
+            if (!pitem) return
+            pitem = 0
+            if (ptext !~ /Criteria[*]*:/) return
+            v = ptext; sub(/.*Criteria[*]*:/, "", v); sub(/\n.*/, "", v)
+            if (!match(v, /[A-Z]+[0-9]+[a-z]*/)) return
+            s = ptext; sub(/^(- |[0-9]+\. )[*[:space:]]*/, "", s); s = tolower(s)
+            if (match(s, /^act on [0-9]+/)) { split(substr(s, RSTART, RLENGTH), w, " "); need[pround "." (w[3] + 0)] = 1 }
+            else if (match(s, /^gate [0-9]+ item [0-9]+/)) { split(substr(s, RSTART, RLENGTH), w, " "); need[(w[2] + 0) "." (w[4] + 0)] = 1 }
+            else if (match(s, /^plan gate [0-9]+ item [0-9]+/)) { split(substr(s, RSTART, RLENGTH), w, " "); need[(w[3] + 0) "." (w[5] + 0)] = 1 }
+        }
+        BEGIN {
+            nfiles = split(ENVIRON["FIX_FILES"], F, "\n")
+            for (i = 1; i <= nfiles; i++) {
+                if (F[i] == "") continue
+                name = F[i]; sub(/.*\//, "", name)
+                r = name; sub(/^review-[a-z]+-/, "", r); sub(/\.md$/, "", r); r += 0
+                act = 0
+                while ((getline line < F[i]) > 0) {
+                    if (line ~ /^## /) act = (line ~ /^## Act on/)
+                    else if (act && line ~ /^[0-9]+\. /) {
+                        k = line; sub(/\..*/, "", k); key = r "." (k + 0)
+                        if (!(key in seen)) { seen[key] = 1; order[++norder] = key }
+                    }
+                }
+                close(F[i])
+            }
+            lastname = last_file; sub(/.*\//, "", lastname)
+            infix = 0; cur = 0
+            while ((getline line < last_file) > 0) {
+                if (line ~ /^## /) { infix = (line ~ /^## Fix check/); cur = 0; continue }
+                if (!infix) continue
+                if (line ~ /^- +[0-9]+\.[0-9]+/) {
+                    t = line; sub(/^- +/, "", t); match(t, /^[0-9]+\.[0-9]+/); split(substr(t, RSTART, RLENGTH), kk, ".")
+                    ltext[++nl] = line; lkey[nl] = (kk[1] + 0) "." (kk[2] + 0); has[lkey[nl]] = 1; cur = nl
+                } else if (cur && line ~ /[^[:space:]]/ && line !~ /^- /) ltext[cur] = ltext[cur] " " line
+                else cur = 0
+            }
+            close(last_file)
+            while ((getline line < (run "/decisions.tsv")) > 0) {
+                split(line, cols, "\t"); d = tolower(cols[3])
+                if (d !~ /^criterion change/) continue
+                while (match(d, /plan gate [0-9]+ item [0-9]+/)) {
+                    split(substr(d, RSTART, RLENGTH), w, " ")
+                    need[(w[3] + 0) "." (w[5] + 0)] = 1
+                    d = substr(d, RSTART + RLENGTH)
+                }
+            }
+            inslices = ingate = pitem = 0
+            while ((getline line < (run "/plan.md")) > 0) {
+                if (line ~ /^## /) {
+                    flush_item()
+                    inslices = (line ~ /^## Slices([[:space:]].*)?$/); ingate = (line ~ /^## Plan gate( [0-9]+)? changes/)
+                    pround = 1
+                    if (match(line, /^## Plan gate [0-9]+ changes/)) { split(line, w, " "); pround = w[4] + 0 }
+                    continue
+                }
+                if (inslices && line ~ /^### /) { split(line, w, " "); id = w[2]; gsub(/`/, "", id); sub(/:$/, "", id); slice[id] = 1; continue }
+                if (!ingate) continue
+                if (line ~ /^(- |[0-9]+\. )/) { flush_item(); pitem = 1; ptext = line }
+                else if (pitem) ptext = ptext "\n" line
+            }
+            flush_item()
+            if (mode == "lines") {
+                for (i = 1; i <= norder; i++) if (!(order[i] in has)) missing = missing " " order[i]
+                if (missing != "")
+                    print lastname ": the ## Fix check has no \"- <round>.<item>\" line for the Act on item(s)" missing "; write one line for each item of each round, starting with its <round>.<item> (lead-judgment.md, Fix check)"
+            }
+            for (i = 1; i <= nl; i++) {
+                key = lkey[i]
+                if (mode != "files" && !nf_ok(ltext[i]))
+                    print lastname ": the Fix check line for " key " has no valid new failure: part; write new failure: <what the fix can break>, or new failure: none: <reason> (lead-judgment.md, Fix check)"
+                c = ctl(ltext[i]); f = form(c)
+                if (mode == "lines" && (key in need) && f == "")
+                    print lastname ": the Fix check line for " key " names a plan gate item that changes a criterion, and needs control: <logs/ or probes/ file> <exit n, k of n, PASS, or FAIL> with the file in the run folder, or control: <logs/ or probes/ file> after <slice ID of plan.md> (lead-judgment.md, Fix check)"
+                else if (mode == "lines" && (key in need) && f == "a" && !exists(cpath))
+                    print lastname ": the Fix check line for " key " has control: " cpath ", and that file is not in the run folder; run the control and save its log there"
+                else if (mode == "files" && f == "b" && !exists(cpath))
+                    print lastname ": the Fix check line for " key " defers its control to " cpath ", and that file is not in the run folder; run the slice and save the log there, then log this row"
+            }
+        }')
+}
 
 if [[ ! -f "$run/analysis.md" ]]; then
     say "no analysis.md in $run"
@@ -336,6 +474,10 @@ else
             [[ -z "$missing" ]] ||
                 say "${last_file##*/} has no ## Fix check line for the Act on item(s)$missing; write one line for each item of each round, starting with its <round>.<item> (lead-judgment.md, Fix check)"
         fi
+        if [[ -z "$start" || ! "$start" < "$fixline_cutoff" ]]; then
+            fix_lines diff parts
+            fix_lines plan files
+        fi
     fi
     # Each criterion of analysis-gate.md (the copy that log-decision.sh makes at the first phase 4 row)
     # whose line changed or is gone needs a criterion change row after the first phase 4 row.
@@ -389,6 +531,9 @@ else
         done
         if ((acts)) && [[ -z "$start" || ! "$start" < 2026-10-24T10:09 ]] && ! grep -q '^## Fix check' "$last_file"; then
             say "${last_file##*/} has no ## Fix check, and a round file has a numbered Act on item; run the fix check after the last round (lead-judgment.md, Fix check) and write its result under ## Fix check"
+        fi
+        if ((acts)) && [[ -z "$start" || ! "$start" < "$fixline_cutoff" ]] && grep -q '^## Fix check' "$last_file"; then
+            fix_lines plan lines
         fi
     fi
     # 2026-10-14, the commit that added the number rule: a run with an older plan gate passed without it.

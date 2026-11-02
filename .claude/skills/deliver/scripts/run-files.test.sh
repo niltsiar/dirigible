@@ -197,7 +197,7 @@ p7_run() { # <name> <first row time>: a run folder with a plan and two review ro
   printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n' > "$d/plan.md"
   printf '%s\t2\tplan written\twhy\tevidence\tdone\n' "$2" > "$d/decisions.tsv"
   printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none.\n2. (warning, x, read) Two. Invariant: a. Siblings: none.\n3. (warning, x, read) Three. Invariant: a. Siblings: none.\n' > "$d/review-diff-1.md"
-  printf '# V\n\n## Act on\n\n1. (warning, x, read) Again. Invariant: a. Siblings: none.\n\n## Fix check\n\n- 1.1 OK: done\n- 1.2 OK: done\n- 2.1 OK: done\n- 11.3 OK: another item\n' > "$d/review-diff-2.md"
+  printf '# V\n\n## Act on\n\n1. (warning, x, read) Again. Invariant: a. Siblings: none.\n\n## Fix check\n\n- 1.1 OK: done; new failure: none: x.\n- 1.2 OK: done; new failure: none: x.\n- 2.1 OK: done; new failure: none: x.\n- 11.3 OK: another item; new failure: none: x.\n' > "$d/review-diff-2.md"
 }
 p7_run p7 "$(date +%FT%R)"
 before="$(shasum -a 256 "$tmp/p7/decisions.tsv")"
@@ -206,7 +206,24 @@ code=$?
 [[ $code -eq 2 && "$err" == *1.3* && "$err" != *1.1* ]] || fail "p7: a Fix check with no line for item 1.3: exit $code: $err"
 [[ "$(shasum -a 256 "$tmp/p7/decisions.tsv")" == "$before" ]] || fail 'p7: the refused phase 7 row changed decisions.tsv'
 printf -- '- 1.3 OK: done\n' >> "$tmp/p7/review-diff-2.md"
+err="$("$log" "$tmp/p7" 7 'criterion 1 verified' why evidence done 2>&1)"
+code=$?
+[[ $code -eq 2 && "$err" == *1.3* && "$err" == *'new failure:'* && "$err" != *1.1* ]] || fail "p7: a line for 1.3 with no new failure part: exit $code: $err"
+[[ "$(shasum -a 256 "$tmp/p7/decisions.tsv")" == "$before" ]] || fail 'p7: the phase 7 row with no new failure part changed decisions.tsv'
+sed -i.bak 's/^- 1.3 OK: done$/&; new failure: none: x./' "$tmp/p7/review-diff-2.md" && rm "$tmp/p7/review-diff-2.md.bak"
 "$log" "$tmp/p7" 7 'criterion 1 verified' why evidence done || fail "p7: a Fix check with a line for each item exits $?"
+# A plan gate line with a deferred control (form b) refuses the first phase 7 row until its file exists.
+p7_run p7-ctl "$(date +%FT%R)"
+printf -- '- 1.3 OK; new failure: none: x.\n' >> "$tmp/p7-ctl/review-diff-2.md"
+printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none.\n\n## Fix check\n\n- 1.1 OK; new failure: none: x; control: logs/c1.log after S1\n' > "$tmp/p7-ctl/review-plan-1.md"
+printf '2026-11-02T00:00\t3\tcriterion change C1 (plan gate 1 item 1): old a, new b\twhy\tevidence\tdone\n' >> "$tmp/p7-ctl/decisions.tsv"
+before="$(shasum -a 256 "$tmp/p7-ctl/decisions.tsv")"
+err="$("$log" "$tmp/p7-ctl" 7 'criterion 1 verified' why evidence done 2>&1)"
+code=$?
+[[ $code -eq 2 && "$err" == *1.1* && "$err" == *logs/c1.log* ]] || fail "p7: a deferred control with no file: exit $code: $err"
+[[ "$(shasum -a 256 "$tmp/p7-ctl/decisions.tsv")" == "$before" ]] || fail 'p7: the phase 7 row with a missing control file changed decisions.tsv'
+mkdir "$tmp/p7-ctl/logs"; : > "$tmp/p7-ctl/logs/c1.log"
+"$log" "$tmp/p7-ctl" 7 'criterion 1 verified' why evidence done || fail "p7: a deferred control with its file exits $?"
 p7_run p7-none "$(date +%FT%R)"
 printf '# V\n\n## Consider\n\n- a nit\n' > "$tmp/p7-none/review-diff-1.md"
 printf '# V\n\n## Consider\n\n- a nit\n' > "$tmp/p7-none/review-diff-2.md"

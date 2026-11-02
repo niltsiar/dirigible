@@ -15,7 +15,8 @@
 # passing scripts/check-plan.sh (CHECK_PLAN_AT_PHASE4=1): a Criteria: field for each plan gate
 # change, and a criterion change row for each of its IDs, while such a row can still come before
 # Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
-# last phase 2 row. A phase 6 row needs a passing scripts/check-plan.sh with no variable, the check
+# last phase 2 row. For a run that starts after the cutoff in check-plan.sh, the Fix check of the last
+# review-plan-<n>.md also has its lines (lead-judgment.md, Fix check). A phase 6 row needs a passing scripts/check-plan.sh with no variable, the check
 # of the land: the review files have their fields. A criterion change row skips that check. A phase
 # 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
 # origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a
@@ -23,7 +24,8 @@
 # needs a criterion change row for each criterion line that differs from the copy. A phase 4 row
 # that is a criterion change row skips the plan check once the copy exists. The first phase 7 row of a run folder with a plan.md needs a passing
 # scripts/check-plan.sh (CHECK_PLAN_AT_PHASE7=1): the Fix check has a line for each Act on item of
-# each review-diff-<n>.md round. Else the script appends nothing and exits 2.
+# each review-diff-<n>.md round, with the parts that lead-judgment.md, Fix check names, and each deferred
+# control of the plan gate has its file. Else the script appends nothing and exits 2.
 set -euo pipefail
 
 usage="usage: log-decision.sh <run folder> <phase> <decision> <why> <evidence> <result>
@@ -62,7 +64,7 @@ plan_check="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/check-plan.sh"
 # A phase 4 row: the plan gate is closed, so plan.md must pass check-plan.sh now.
 if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! [[ "$(lower "$2")" == "criterion change"* && -f "${file%/*}/analysis-gate.md" ]]; then
     if ! out="$(CHECK_PLAN_AT_PHASE4=1 "$plan_check" "${file%/*}" 2>&1)"; then
-        printf '%s\na phase 4 row needs a passing check-plan.sh: fix plan.md or log the rows above, then log this row\n' "$out" >&2
+        printf '%s\na phase 4 row needs a passing check-plan.sh: fix plan.md, log the rows above, or add the Fix check lines, then log this row\n' "$out" >&2
         exit 2
     fi
 fi
@@ -83,7 +85,7 @@ fi
 # The first phase 7 row: the Fix check of the last review round has a line for each Act on item.
 if [[ "$1" == 7 && -f "${file%/*}/plan.md" ]] && ! awk -F'\t' '$2 == "7" { f = 1 } END { exit !f }' "$file"; then
     if ! out="$(CHECK_PLAN_AT_PHASE7=1 "$plan_check" "${file%/*}" 2>&1)"; then
-        printf '%s\nthe first phase 7 row needs a passing check-plan.sh: add the Fix check lines, then log this row\n' "$out" >&2
+        printf '%s\nthe first phase 7 row needs a passing check-plan.sh: add or fix the Fix check lines, then log this row\n' "$out" >&2
         exit 2
     fi
 fi

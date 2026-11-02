@@ -512,6 +512,105 @@ ROW_AT=2026-10-01T10:00 closed; round 1 "$ACT"
 pass 'a run that started before the rule, with a round file that a later note changed'
 unset CHECK_PLAN_AT_PHASE4 ROW_AT
 
+# Fix check lines (item 1357, lead-judgment.md, Fix check). From the cutoff in check-plan.sh, the
+# plan gate Fix check has a "- <round>.<item>" line for each Act on item of each round, each line has a
+# new failure: part, and a line of a plan gate item that changes a criterion has a control: part.
+# fixrun <Fix check text> [<Act on text>]: a closed plan gate with round 1, dated now (after the cutoff).
+# refuse_only <name> <named> <not named>: exit 1, the message names the first and not the second.
+export CHECK_PLAN_AT_PHASE4=1 ROW_AT="$(date +%FT%R)"
+fixrun() { closed; round 1 "${2:-$ACT}" $'\n## Fix check\n\n'"$1"$'\n'; }
+refuse_only() {
+  local out
+  refuse "$1" "$2"
+  out="$("$script" "$run" 2>&1)"
+  [[ "$out" != *"$3"* ]] || fail "$1: '$3' is named in: $out"
+}
+NF='new failure: none: x.'
+fixrun '1. Item 1: closed.'
+refuse 'a numbered Fix check line, not a - 1.1 line' '1.1'
+fixrun 'Done.'
+refuse 'a Fix check of one word' '1.1'
+closed; round 1 "$ACT"; round 2 "$ACT" $'\n## Fix check\n\n- 1.1 OK; new failure: none: x.\n'
+refuse_only 'a Fix check with a line for 1.1 and none for 2.1' '2.1' '1.1'
+fixrun "- 1.1 OK: done; new failure: none: the fix adds no shared name."
+pass 'a line with a new failure part that says none and why'
+unset CHECK_PLAN_AT_PHASE4
+fixrun 'Done.'
+pass 'the same refused Fix check at the land check'
+export CHECK_PLAN_AT_PHASE4=1
+ROW_AT=2026-10-24T11:00 fixrun 'Done.'
+pass 'the same Fix check in a run that started before the cutoff'
+fixrun '- 1.1 OK: done'
+refuse 'a line with no new failure part' 'new failure:'
+fixrun '- 1.1 OK; new failure:'
+refuse 'an empty new failure part' 'new failure:'
+fixrun '- 1.1 OK; new failure: none'
+refuse 'new failure: none with no reason' 'new failure:'
+fixrun '- 1.1 OK; new failure: the stamp path that land.sh and test-hooks.sh share'
+pass 'a new failure part that names the failure'
+fixrun '- 1.1 OK; new failure: none: the fix changes one test name.'
+pass 'new failure: none with a reason'
+
+# C3: a control for the plan gate item that a criterion change row names, or that a Plan gate changes item
+# names with a Criteria: ID. ctl <tail>: item 1 gets <tail> after its new failure part; item 2 has none.
+ACT2=$'1. (warning, x) A fix.\n   Invariant: i. Siblings: s.\n2. (warning, x) Another fix.\n   Invariant: i. Siblings: s.'
+ctl() {
+  closed; row 3 'criterion change C1 (plan gate 1 item 1): old a, new b'
+  round 1 "$ACT2" $'\n## Fix check\n\n- 1.1 OK; '"$NF$1"$'\n- 1.2 OK; '"$NF"$'\n'
+  mkdir -p "$run/logs" "$run/probes/p1"
+}
+ctl ''
+refuse_only 'a criterion change item with no control' 'control:' '1.2'
+refuse 'the refusal names the item' '1.1'
+ctl ' control: logs/c1.log exit 0'
+refuse 'form (a) with no file' 'logs/c1.log'
+ctl ' control: logs/c1.log'; : > "$run/logs/c1.log"
+refuse 'form (a) with a file and no result' 'control:'
+ctl ' control: logs/c1.log after S9'
+refuse 'form (b) with a slice that is no heading' 'control:'
+ctl ' control: docs/c1.log exit 0'; mkdir -p "$run/docs"; : > "$run/docs/c1.log"
+refuse 'a control path outside logs/ and probes/' 'control:'
+ctl ' control: logs/c1.log exit 0'; : > "$run/logs/c1.log"
+pass 'form (a) with a file and exit 0'
+ctl ' control: probes/p1/c1.log 3 of 3'; : > "$run/probes/p1/c1.log"
+pass 'form (a) with a file and 3 of 3'
+ctl ' control: logs/c1.log after S2'
+pass 'form (b) with a slice heading and no file yet'
+
+# C3, a Plan gate changes item as the trigger: the lock-yield shape has a criterion change row with no
+# (plan gate <r> item <i>) name, so only its Plan gate changes item names the gate item.
+gate_item() { # <review-plan-1.md Fix check line> <criterion change row ID> <plan gate changes text>
+  closed; row 3 "criterion change $2: old a, new b"
+  round 1 "$ACT" $'\n## Fix check\n\n'"$1"$'\n'
+  printf '\n## Plan gate changes\n\n%s\n' "$3" >> "$run/plan.md"
+}
+gate_item "- 1.1 OK; $NF" C4 $'1. Act on 1: x\n   Criteria: C4'
+refuse 'a Plan gate changes item Act on 1 with a Criteria ID and a line with no control' '1.1'
+refuse 'the refusal names control:' 'control:'
+for start in 'Plan gate 1 item 1' 'plan gate 1 item 1' 'Gate 1 item 1'; do
+  gate_item "- 1.1 OK; $NF" C2 "- $start: x Criteria: C2"
+  refuse "a '$start' item with a Criteria ID and a line with no control" '1.1'
+done
+gate_item "- 1.1 OK; $NF" C2 '- Plan gate 1 item 1: x Criteria: none'
+pass 'a Plan gate item with Criteria: none needs no control'
+gate_item "- 1.1 OK; $NF" C4 $'- Consider 1 (taken): x Criteria: C4'
+pass 'a Consider item with a Criteria ID names no gate item'
+closed; row 3 'criterion change C2: old a, new b'; round 1 'None.'; round 2 "$ACT" $'\n## Fix check\n\n- 2.1 OK; '"$NF"$'\n'
+printf '\n## Plan gate changes\n\n- Gate 2 item 1: x Criteria: C2\n' >> "$run/plan.md"
+refuse 'a Gate 2 item 1 item with a Criteria ID and a 2.1 line with no control' '2.1'
+# The round is the n of "## Plan gate <n> changes": Act on 1 under heading 2 is item 2.1, not 1.1.
+twoloop() { # <2.1 tail>
+  closed; row 3 'criterion change C4: old a, new b'
+  mkdir -p "$run/logs"; : > "$run/logs/c4.log"
+  round 1 "$ACT"; round 2 "$ACT" $'\n## Fix check\n\n- 1.1 OK; '"$NF"$' control: logs/c4.log exit 0\n- 2.1 OK; '"$NF$1"$'\n'
+  printf '\n## Plan gate 2 changes\n\n1. Act on 1: x\n   Criteria: C4\n' >> "$run/plan.md"
+}
+twoloop ''
+refuse_only 'Act on 1 under Plan gate 2 changes with a control on 1.1 alone' '2.1' '1.1'
+twoloop ' control: logs/c4.log exit 0'
+pass 'the same folder with a control on the 2.1 line'
+unset CHECK_PLAN_AT_PHASE4 ROW_AT
+
 # A feat/ Landings row with Lands none and a Sources/ path in the Check line of one of its slices
 # is refused: scripts/tag-release.sh needs an F-ID (DLV-196). The columns come from the header names.
 # landings <header> <row>...: a table and three slices: L1-S1 with a Support/ check, L1-S2 with a Tests/

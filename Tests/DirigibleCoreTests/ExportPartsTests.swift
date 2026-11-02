@@ -103,6 +103,26 @@ struct ExportPartsTests {
         }
     }
 
+    /// C1 case 6 (code gate 1 item 3): a point at the rounded millisecond of the range start takes the
+    /// range start, as a point at the start frame does. Control: 24 frames (1 ms) give a part 00.
+    @Test(
+        arguments: [(0, 10, nil), (0, 23, nil), (0, 24, 24), (384_000, 10, nil), (384_000, 24, 24)]
+            as [(Int, Int, Int?)])
+    func aPointAtTheMillisecondOfTheStartTakesTheStart(start: Int, after: Int, partZero: Int?) throws {
+        let session = try Self.chapters([("First", Frames(start + after))])
+        let parts = session.exportParts(in: Frames(start)..<Self.end, by: .chapters, introTitle: "Intro")
+        let first = try #require(session.markers[MarkerID("First")])
+        if let partZero {
+            #expect(parts.parts.map(\.start) == [.rangeStart, .point(first, number: 1)])
+            #expect(parts.parts.first.map { Self.length($0.range) } == partZero)
+        } else {
+            #expect(Self.ranges(parts) == [Frames(start)..<Self.end])
+            #expect(parts.parts.map(\.start) == [.point(first, number: 1)])
+            #expect(parts.parts.first?.title?.text == "First")
+        }
+        #expect(parts.dropped.isEmpty)
+    }
+
     /// C2.
     @Test func aMarkersSplitTakesBothKinds() throws {
         let session = try Self.session([("plain", 336_000, .marker), ("chapter", 720_000, .chapter)])

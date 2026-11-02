@@ -48,7 +48,8 @@ extension Session {
     /// millisecond (the rule of `chapterList(in:)`) equals that of the point before it, or that of
     /// the range end, is dropped. Part k runs from point k to point k + 1, and the last part to the
     /// range end. Audio before the first point is part 00, with the name of the last point before
-    /// the range start, else the episode title, else the show, else `introTitle`.
+    /// the range start, else the episode title, else the show, else `introTitle`. A first point at
+    /// the millisecond of the range start takes the range start, so no part is under 1 ms.
     public func exportParts(in range: Range<Frames>, by kind: SplitKind, introTitle: String) -> ExportParts {
         func isPoint(_ marker: Marker) -> Bool { kind == .markers || marker.kind == .chapter }
         func millisecond(_ position: Frames) -> Int { milliseconds(position - range.lowerBound) }
@@ -65,7 +66,8 @@ extension Session {
         }
         guard let first = kept.first else { return ExportParts(parts: [], dropped: dropped) }
         var parts: [ExportPart] = []
-        if first.position > range.lowerBound {
+        let partZero = millisecond(first.position) > 0
+        if partZero {
             let before = sortedMarkers.last { isPoint($0) && $0.position < range.lowerBound }
             let title = before.flatMap { Self.partTitle($0.name) } ?? episode.title ?? episode.show
             parts.append(
@@ -75,9 +77,10 @@ extension Session {
         }
         for (index, marker) in kept.enumerated() {
             let end = index + 1 < kept.count ? kept[index + 1].position : range.upperBound
+            let start = index == 0 && !partZero ? range.lowerBound : marker.position
             parts.append(
                 ExportPart(
-                    range: marker.position..<end, start: .point(marker, number: index + 1),
+                    range: start..<end, start: .point(marker, number: index + 1),
                     title: Self.partTitle(marker.name)))
         }
         return ExportParts(parts: parts, dropped: dropped)

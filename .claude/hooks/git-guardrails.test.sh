@@ -12,6 +12,7 @@
 #   guarded file: expect_each_write <path> (block forms) and expect_each_read <path> (allow forms)
 #   command guard (a command in a shell context): expect_each_context <want> <command>
 #   commit message file (an option value): expect_each_value <want> <path> <command with @V@>
+#   lock-free make words (a with-lock.sh make test-hooks call): expect_each_lock <want> <command>...
 # HOOK_CASES=<label pattern> runs only the case blocks whose label matches the whole value, with no
 # anchors: HOOK_CASES=agent-clock, HOOK_CASES='agent-clock|write-guard'. The `labels` array lists
 # them. Each block is an `if case_block <label>; then` segment; the helpers stay outside.
@@ -74,13 +75,45 @@ expect_each_value() {
   done
 }
 
+# expect_message <reason> <command>: a block whose message holds the reason and tells how to write data (the hook
+# matches quoted text too).
+expect_message() {
+  local reason="$1" msg
+  expect block "$2"
+  msg="$("$hook" < "$input" 2>&1)"
+  [[ "$msg" == *"$reason"* && "$msg" == *"If the matched text is only data, write it with the Write tool"* ]] \
+    || { echo "FAIL: no reason or no data hint in the message: $2"; failures=$((failures + 1)); }
+}
+
+# expect_each_lock <want> <command>...: the hook verdict of a with-lock.sh make test-hooks spelling, and the
+# class that scripts/lock-words.sh gives the words that with-lock.sh would get from it. The spelling runs
+# through eval with a stub for scripts/with-lock.sh ($lock_stub, made by the test-rule segment) that prints
+# free, release, or lock. A free or release call is allowed, a lock call blocks. want agree: the hook
+# verdict is the verdict of the class. want allow or block: both hold that verdict. One FAIL line a spelling.
+expect_each_lock() {
+  local want="$1" form class verdict got
+  shift
+  for form in "$@"; do
+    class="$( (unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL; eval "${form//scripts\/with-lock.sh/$lock_stub}") 2>/dev/null | tail -n 1)"
+    case "$class" in free | release) verdict=allow ;; *) verdict=block ;; esac
+    plutil -create xml1 "$input"
+    plutil -insert tool_input -dictionary "$input"
+    plutil -insert tool_input.command -string "$form" "$input"
+    plutil -convert json "$input"
+    "$hook" < "$input" > /dev/null 2>&1
+    [[ $? -eq 2 ]] && got=block || got=allow
+    [[ "$class" =~ ^(free|release|lock)$ && "$got" == "$verdict" && ( "$want" == agree || "$want" == "$verdict" ) ]] ||
+      { echo "FAIL: lock class '$class' (want $want), hook $got: $form"; failures=$((failures + 1)); }
+  done
+}
+
 settings="$(dirname "$0")/../settings.json"
 printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"command","command":"x/.claude/hooks/usage-hook.sh"}]}]}}' > "$tmp/old-settings.json"
 
 # HOOK_CASES=<ERE> runs only the case blocks whose label matches the whole value. The test wraps the
 # value as ^(<value>)$, so write it with no anchors: make drops a trailing $. A block prints its
 # label when it starts. A value that matches no label exits 1.
-labels=(guardrails guardrails-tag guardrails-rules post-commit pre-commit commit-msg agent-guard usage-hook
+labels=(guardrails guardrails-tag guardrails-rules test-rule post-commit pre-commit commit-msg agent-guard usage-hook
   handback-guard agent-clock write-guard stop-guard pre-compact hook-cases)
 cases_pattern="^(${HOOK_CASES:-.*})\$"
 cases_hit=0
@@ -855,14 +888,6 @@ expect block 'git push origin "main":feat/x'
 expect allow 'git push -u origin main-feature'
 expect allow 'git push origin feat/x > main.log 2>&1'
 
-# The hook matches quoted text too. Each block message gives the reason and tells how to write data.
-expect_message() {
-  local reason="$1" msg
-  expect block "$2"
-  msg="$("$hook" < "$input" 2>&1)"
-  [[ "$msg" == *"$reason"* && "$msg" == *"If the matched text is only data, write it with the Write tool"* ]] \
-    || { echo "FAIL: no reason or no data hint in the message: $2"; failures=$((failures + 1)); }
-}
 expect_message "matches '--no-verify'" "git commit -m 'docs(agents): the hook blocks --no-verify'"
 expect_message 'without &&' 'make check; git commit -m x'
 # git -C <path> is the same commit for the make-check rule.
@@ -1203,10 +1228,11 @@ for run in 'scripts/with-lock.sh scripts/test-hooks.sh scripts/land.test.sh' 'sc
   expect_no_reason 'AGENTS.md' "$run"
 done
 
-# Inside a with-lock.sh call a make test-hooks segment passes only when each word after make is test-hooks
-# or a NAME=value word other than BASE=<value>, the words that lock_free() in with-lock.sh reads (code gate 1 of
-# upkeep-thirteenth, Act on 1): a make flag, another target, or a BASE value makes with-lock.sh take the lock, and the test then holds a slot
-# of the cap. A quoted value, a redirect, and a pipe after the words do not count as words.
+# Inside a with-lock.sh call a make test-hooks segment passes only when scripts/lock-words.sh, which
+# with-lock.sh also reads, classes it as free or release (code gate 1 of upkeep-thirteenth, Act on 1): a
+# make flag, another target, or a BASE value makes with-lock.sh take the lock, and the test then holds a
+# slot of the cap. A quoted value, a redirect, and a pipe after the words do not count as words. The
+# test-rule segment below sends each spelling through the hook and through lock-words.sh.
 for run in 'scripts/with-lock.sh make -C ../wt test-hooks HOOK_TESTS=scripts/land.test.sh' \
   'scripts/with-lock.sh make -s test-hooks HOOK_TESTS=scripts/land.test.sh' \
   'scripts/with-lock.sh make --no-print-directory test-hooks HOOK_TESTS=scripts/land.test.sh' \
@@ -1222,7 +1248,7 @@ for run in 'scripts/with-lock.sh make -C ../wt test-hooks HOOK_TESTS=scripts/lan
   expect_no_reason 'holds the build lock' "$run"
   expect_no_reason 'outside the key tree' "$run"
 done
-for run in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts/with-lock.sh make test-hooks' \
+for run in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' \
   'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh DIRIGIBLE_HOOKS_ALL=1' \
   "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh scripts/with-lock.test.sh'" \
   'scripts/with-lock.sh make test-hooks HOOK_TESTS="scripts/land.test.sh scripts/with-lock.test.sh"' \
@@ -1230,8 +1256,7 @@ for run in 'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' 'scripts
   'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh >logs/x.log 2>&1' \
   'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh 12>&1' \
   '{ scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh; }' \
-  '../wt/scripts/with-lock.sh /usr/bin/make test-hooks HOOK_TESTS=scripts/land.test.sh' \
-  'time scripts/with-lock.sh env X=1 make test-hooks HOOK_TESTS=scripts/land.test.sh'; do
+  '../wt/scripts/with-lock.sh /usr/bin/make test-hooks HOOK_TESTS=scripts/land.test.sh'; do
   expect allow "$run"
 done
 
@@ -1282,10 +1307,9 @@ for run in 'make test-hooks' 'make -C ../wt test-hooks' 'DIRIGIBLE_FULL_SUITE=1 
   'make -C ../wt test-hooks>log' '(make test-hooks) 2>&1' 'make test-hooks<in'; do
   expect_message "HOOK_TESTS='<names>'" "$run"
 done
-for run in 'scripts/with-lock.sh make test-hooks' "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh'" \
-  'DIRIGIBLE_FULL_SUITE=1 scripts/with-lock.sh make test-hooks' 'bash -n scripts/test-hooks.sh' 'rg -n test-hooks Makefile' \
-  'sed -n 1,5p scripts/test-hooks.sh' 'echo make test-hooks' 'make check-docs' 'git add scripts/test-hooks.sh' \
-  'scripts/with-lock.sh make test-hooks>log' '(scripts/with-lock.sh make test-hooks)'; do
+for run in "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/land.test.sh'" \
+  'bash -n scripts/test-hooks.sh' 'rg -n test-hooks Makefile' \
+  'sed -n 1,5p scripts/test-hooks.sh' 'echo make test-hooks' 'make check-docs' 'git add scripts/test-hooks.sh'; do
   expect allow "$run"
 done
 
@@ -1310,7 +1334,7 @@ done
 for run in $'# run bash scripts/land.test.sh later\necho done' $'# it\'s scripts/land.test.sh\n# that\'s all' \
   $'# it\'s here\nmake check-docs\n# that\'s all' 'echo "a; scripts/land.test.sh" # it'"'"'s fine' \
   $'echo x # bash scripts/land.test.sh\necho y' $'#scripts/land.test.sh\necho y' \
-  $'# it\'s here\nscripts/with-lock.sh make test-hooks\n# that\'s all'; do
+  $'# it\'s here\nscripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/land.test.sh\n# that\'s all'; do
   expect allow "$run"
 done
 
@@ -1330,6 +1354,56 @@ sys.exit(0 if ok else 1)
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }
 fi # guardrails-rules
+
+# The hook test rule reads the verdict of scripts/lock-words.sh for a with-lock.sh make test-hooks call
+# (item 1120, source run 2026-11-01-upkeep-thirteenth, earlier lesson NEW-DLV-cmdforms/scope).
+if case_block test-rule; then
+lock_stub="$tmp/lockstub/wl"
+mkdir -p "$tmp/lockstub"
+printf '#!/bin/bash\n. "%s"\nif lock_make_words "$@" && [[ $lock_goal == test-hooks ]]; then echo free; elif release_call "$@"; then echo release; else echo lock; fi\n' \
+  "$(cd "$(dirname "$0")/../../scripts" && pwd)/lock-words.sh" > "$lock_stub"
+chmod +x "$lock_stub"
+T=scripts/land.test.sh
+# The 23 spellings of the probe: the hook allows a call if and only if lock-words.sh classes it free or release.
+expect_each_lock agree \
+  "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh /usr/bin/make test-hooks HOOK_TESTS=$T" \
+  "scripts/with-lock.sh env make test-hooks HOOK_TESTS=$T" "time scripts/with-lock.sh env X=1 make test-hooks HOOK_TESTS=$T" \
+  "env X=1 scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh make -C ../wt test-hooks HOOK_TESTS=$T" \
+  "scripts/with-lock.sh make -s test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh make -n test-hooks HOOK_TESTS=$T" \
+  "scripts/with-lock.sh make --no-print-directory test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh make test-hooks -j4 HOOK_TESTS=$T" \
+  "scripts/with-lock.sh make test-hooks test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh make test-hooks BASE=origin/main HOOK_TESTS=$T" \
+  "BASE=origin/main scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" "MAKEFLAGS=BASE=origin/main scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" \
+  "scripts/with-lock.sh make test-hooks HOOK_TESTS=" "scripts/with-lock.sh make test-hooks HOOK_TESTS=''" \
+  "HOOK_TESTS=$T scripts/with-lock.sh make test-hooks" "scripts/with-lock.sh make test-hooks" \
+  "DIRIGIBLE_FULL_SUITE=1 scripts/with-lock.sh make test-hooks" "scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1" \
+  "DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks" "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T DIRIGIBLE_HOOKS_ALL=1" \
+  "scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=0"
+# Spellings that the fix was not fitted to, each with a fixed verdict. With WITH_LOCK_RUN_ONLY=1, with-lock.sh
+# exits 2 and runs nothing unless the command is a built binary or a shell file, so the bare form blocks and
+# the HOOK_TESTS=a form is safe to allow (the hook models no run-only mode).
+expect_each_lock allow \
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1' "scripts/with-lock.sh 'make' test-hooks HOOK_TESTS=a" \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS="a b"' 'MAKEFLAGS=-s scripts/with-lock.sh make test-hooks HOOK_TESTS=a' \
+  'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh make test-hooks HOOK_TESTS=a'
+expect_each_lock block 'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh make test-hooks'
+# A $ value counts as non-empty.
+expect allow 'scripts/with-lock.sh make test-hooks HOOK_TESTS="$T"'
+expect allow 'scripts/with-lock.sh make test-hooks HOOK_TESTS=$T'
+# The bare form, the whole-suite form, and an env word after with-lock.sh take the lock in with-lock.sh, so they block.
+for run in 'scripts/with-lock.sh make test-hooks' 'time scripts/with-lock.sh env X=1 make test-hooks HOOK_TESTS=scripts/land.test.sh' \
+  'DIRIGIBLE_FULL_SUITE=1 scripts/with-lock.sh make test-hooks' 'scripts/with-lock.sh make test-hooks>log' \
+  '(scripts/with-lock.sh make test-hooks)'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+# A hook copy with no scripts/lock-words.sh above it blocks a with-lock.sh make test-hooks segment, names the file, and
+# still allows a command that is no such segment.
+mkdir -p "$tmp/nolw/.claude/hooks"
+cp "$hook" "$tmp/nolw/.claude/hooks/"
+hook_saved="$hook" hook="$tmp/nolw/.claude/hooks/git-guardrails.sh"
+expect_message 'scripts/lock-words.sh' "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T"
+expect allow 'git status'
+hook="$hook_saved"
+fi # test-rule
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
 gc() { git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty "${@:2}"; }
 

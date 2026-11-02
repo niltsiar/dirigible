@@ -122,11 +122,9 @@ extension SessionWindow {
         _ result: ExportPartsResult, old: [String], session: Session, format: ExportFormat, revision: Int
     ) {
         let files = result.files
-        // A split point with no file has its own line, so a part does not list it again.
-        let dropped = Set(result.dropped.map(\.id))
         let warnings = files.compactMap {
             ChapterWarningsShown(
-                $0.result.droppedChapters.filter { !dropped.contains($0.id) },
+                result.droppedChapters(of: $0),
                 imagesOmitted: $0.result.chapterImagesOmitted,
                 titleMissing: ExportText.lacksTitleTag(session.forPart($0.part), format: format),
                 file: $0.url.lastPathComponent, revision: revision)

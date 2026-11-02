@@ -232,7 +232,8 @@ extension ExportCommandTests {
     }
 
     /// C8 (code gate 1 item 4): "Dup" at 8010 is at the millisecond of "Interview" (167 ms), so it has
-    /// no file of its own and gets one warning. The MP3 of part 2 also leaves it out of its chapters.
+    /// no file of its own and gets one warning. The MP3 of part 2 also leaves it out of its chapters,
+    /// and that fact gets no second line, as the one banner row of the app.
     @Test func aDroppedSplitPointGetsOneWarning() async throws {
         try addChapters()
         try package.edit { try $0.setMarker(Marker(id: "d", name: "Dup", position: 8010, kind: .chapter)) }
@@ -242,11 +243,8 @@ extension ExportCommandTests {
         let point =
             "Warning: chapter \"Dup\" at 8010 starts at the time of the split point before it, or at the end of "
             + "the range; it has no file of its own.\n"
-        let chapter =
-            "Warning: chapter \"Dup\" at 8010 starts at the time of another chapter, or at or after the end of "
-            + "the audio; the file leaves it out.\n"
         let lines = paths(Self.partNames, "mp3").map { $0 + "\n" }.joined()
-        #expect(result == CLIResult(status: 0, stdout: lines, stderr: point + chapter), "\(result)")
+        #expect(result == CLIResult(status: 0, stdout: lines, stderr: point), "\(result)")
     }
 
     /// C12 (code gate 1 item 1): `bad.caf` passes the check and fails its reads in parts 1 and 3.

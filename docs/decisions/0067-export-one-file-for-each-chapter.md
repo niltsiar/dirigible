@@ -1,7 +1,8 @@
 # 0067. Export one file for each chapter or marker: parts in DirigibleCore, one export job for the set, and a split argument of export
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-28
+- Accepted: 2026-11-02, after the code gate and the Phase 7 checks of run `2026-10-28-chapter-export-files`.
 - Amends: 0019 (one export job holds a set of files; the target check covers each file of the set), 0045 (the title tag of a part file is the part title), 0011 (`dirigible export --split`), 0041 (the `split` argument of the `export` tool).
 
 ## Context

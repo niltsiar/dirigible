@@ -56,37 +56,36 @@ extension SessionWindow {
     /// The split export of the save panel. It lists the targets and the older files off the main
     /// actor. An item at a target gives the replace sheet; else the set starts. `exportStep` is `.starting`
     /// until the set ends or the user cancels, so no second export starts.
-    func runSet(_ source: ExportSource, _ target: ExportTarget, _ studio: Studio) async {
-        guard let split = target.split else { return }
+    func runSet(_ source: ExportSource, _ options: ExportOptions, _ split: SplitTarget, _ studio: Studio) async {
         defer { if exportStep == .starting { exportStep = nil } }
         let targets = exportPartTargets(
-            studio.session, range: source.range, by: split.kind, options: target.options, folder: split.folder,
+            studio.session, range: source.range, by: split.kind, options: options, folder: split.folder,
             stem: split.stem
         ).targets
         guard !targets.isEmpty else {
             alert = .error(.exportParts(.noPoint(split.kind, source.range)))
             return
         }
-        guard let set = await replacements(source, target, split, targets: targets) else {
-            await startSet(source, target.options, split, replacing: [:], studio)
+        guard let set = await replacements(source, options, split, targets: targets) else {
+            await startSet(source, options, split, replacing: [:], studio)
             return
         }
         guard let window, await replaceQuestion(set).beginSheetModal(for: window) == .alertSecondButtonReturn,
             let studio = idleStudio
         else { return }
-        await startSet(source, target.options, split, replacing: set.existing, studio)
+        await startSet(source, options, split, replacing: set.existing, studio)
     }
 
     /// The question before the set, read off the main actor: the items at the targets and the older
     /// files of the stem. Nil when no item is at a target.
     func replacements(
-        _ source: ExportSource, _ target: ExportTarget, _ split: SplitTarget, targets: [ExportPartTarget]
+        _ source: ExportSource, _ options: ExportOptions, _ split: SplitTarget, targets: [ExportPartTarget]
     ) async -> ReplaceParts? {
         let existing = await confirmations(of: targets.map(\.url))
         guard !existing.isEmpty else { return nil }
         let old = await olderFiles(
-            split, format: target.options.format, besides: Set(targets.map(\.url.lastPathComponent)))
-        return ReplaceParts(source: source, options: target.options, split: split, existing: existing, old: old)
+            split, format: options.format, besides: Set(targets.map(\.url.lastPathComponent)))
+        return ReplaceParts(source: source, options: options, split: split, existing: existing, old: old)
     }
 
     func showInFinder(_ files: [URL]) { app?.reveal(files) }

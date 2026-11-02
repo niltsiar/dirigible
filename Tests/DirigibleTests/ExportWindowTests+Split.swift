@@ -41,7 +41,7 @@ extension ExportWindowTests {
     /// The set job and its source: the whole session.
     func runSet(_ model: SessionWindow, _ studio: Studio, _ target: ExportTarget) async throws {
         let source = try #require(model.source(of: .session, in: studio))
-        await model.runSet(source, target, studio)
+        await model.runSet(source, target.options, try #require(target.split), studio)
     }
 
     /// The buttons of the replace sheet, in the order of the sheet.
@@ -205,7 +205,8 @@ extension ExportWindowTests {
         let before = try setFiles().map { try Data(contentsOf: file($0)) }
         try #require(before.count == 7)
         let source = try #require(model.source(of: .session, in: studio))
-        let task = Task { await model.runSet(source, setTarget(), studio) }
+        let (options, split) = (Self.options, try #require(setTarget().split))
+        let task = Task { await model.runSet(source, options, split, studio) }
         await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
 
         let sheet = try #require(nsWindow.attachedSheet)
@@ -245,7 +246,8 @@ extension ExportWindowTests {
         try threeChapters(studio)
         try await runSet(model, studio, setTarget())
         let source = try #require(model.source(of: .session, in: studio))
-        let task = Task { await model.runSet(source, setTarget(), studio) }
+        let (options, split) = (Self.options, try #require(setTarget().split))
+        let task = Task { await model.runSet(source, options, split, studio) }
         await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
         let sheet = try #require(nsWindow.attachedSheet)
 
@@ -279,10 +281,12 @@ extension ExportWindowTests {
             studio.session, range: source.range, by: .chapters, options: Self.options, folder: folder.url, stem: "Ep"
         ).targets
 
-        let set = try #require(await model.replacements(source, setTarget(), setTarget().split!, targets: targets))
+        let split = try #require(setTarget().split)
+        let set = try #require(
+            await model.replacements(source, Self.options, split, targets: targets))
         #expect(set.old.map(\.lastPathComponent) == ["Ep-02-Old.wav", "Ep-05-Outro.wav"])
         #expect(set.names == ["Ep-01-Intro.wav", "Ep-02-Talk.wav", "Ep-03-Outro.wav"])
-        let task = Task { await model.runSet(source, setTarget(), studio) }
+        let task = Task { await model.runSet(source, Self.options, split, studio) }
         await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
         let sheet = try #require(nsWindow.attachedSheet)
         try #require(sheetButtons(sheet).first { $0.title == L10n.alertExportReplaceConfirm.text }).performClick(nil)

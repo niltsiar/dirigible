@@ -80,14 +80,7 @@ struct ExportTarget {
             format: file, layout: layout, rate: rate, loudness: loudness, introTitle: L10n.exportChapterIntro.text)
     }
 
-    var fileExtension: String {
-        switch format {
-        case .wav: "wav"
-        case .aac: "m4a"
-        case .mp3: "mp3"
-        case .flac: "flac"
-        }
-    }
+    var fileExtension: String { options.format.pathExtension }
 
     /// The type of the panel: its extension follows a format change (probe P11).
     var contentType: UTType { UTType(filenameExtension: fileExtension) ?? .audio }

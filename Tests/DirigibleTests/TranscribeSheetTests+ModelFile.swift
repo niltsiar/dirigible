@@ -71,7 +71,7 @@ extension TranscribeSheetTests {
 
     /// C19: the first selection per language choice. (a) no job: Spanish More Accurate, German
     /// Standard; (b) a remembered Standard for Spanish; (f) a remembered kept file that is gone
-    /// gives the language rule; (g) a language change keeps the model.
+    /// gives the language rule. (g) is in `TranscribeWindowTests`, through the Language pop-up.
     @Test func theFirstModelFollowsTheMemoryElseTheLanguage() throws {
         #expect(try Self.sheet(.code("es")).model == .catalog(.smallQ51))
         #expect(try Self.sheet(.code("de")).model == .catalog(.base))
@@ -80,9 +80,6 @@ extension TranscribeSheetTests {
         var missing = try Self.sheet(.code("es"), kept: Self.kept(), remembered: .file)
         missing.keptFileIsMissing()
         #expect(missing.model == .catalog(.smallQ51) && missing.keptMissing && missing.canStart)
-        var changed = try Self.sheet(.code("es"))
-        changed.language = .code("de")
-        #expect(changed.model == .catalog(.smallQ51))
     }
 
     /// C19: the memory is per language choice, Automatic as one choice. (c) an English job with

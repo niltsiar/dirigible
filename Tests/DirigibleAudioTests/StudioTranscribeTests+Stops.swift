@@ -82,28 +82,34 @@ import Testing
         @Test(arguments: [Stop.banner, .close])
         func aBannerCancelAndAWindowCloseEndAStubThatReadsTheCallback(stop: Stop) async throws {
             let fixture = try await ExportStudioFixture.make()
-            let record = EngineRecord()
+            let (record, endedByCallback, endedByTest) = (EngineRecord(), StopSwitch(), StopSwitch())
             let stub: TranscribeEngine = { _, _, _, _, _, flag, _ throws(TranscribeError) in
                 record.add(qos: qos_class_self(), samples: 0)
-                let end = ContinuousClock.now + .seconds(15)
                 while !flag.abortCallback(flag.userData) {
-                    guard ContinuousClock.now < end else { return Transcription(pieces: [], language: "es") }
+                    guard !endedByTest.isSet else { return Transcription(pieces: [], language: "es") }
                     usleep(1_000)
                 }
+                endedByCallback.set()
                 return nil
             }
             let studio = try await T.open(fixture.package, engine: stub)
             let job = T.job(studio)
             await until(limit: .seconds(10), "the stub runs") { record.calls == 1 }
+            // The limit starts at the stop and runs off the main actor, so only a callback that stays
+            // false ends the stub here.
+            let limit = Task { @concurrent in
+                try await Task.sleep(for: Gate.openLimit)
+                endedByTest.set()
+            }
+            defer { limit.cancel() }
 
-            let start = ContinuousClock.now
             switch stop {
             case .banner: studio.cancelTranscription()
             default: await studio.settle()
             }
 
             #expect(await job.value.failure == .transcriptionCancelled)
-            #expect(ContinuousClock.now - start < .seconds(5))
+            #expect(endedByCallback.isSet, "the abort callback ended the stub, not its limit")
             await studio.settle()
         }
 

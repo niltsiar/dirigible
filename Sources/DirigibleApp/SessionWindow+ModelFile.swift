@@ -153,9 +153,10 @@ extension SessionWindow {
     }
 
     /// Locate... and Choose Model File... of a job alert (C27, C28): the open panel, then `request`
-    /// with the picked file, so the job checks it.
+    /// with the picked file, so the job checks it. The panel hangs on the session window: the alert
+    /// ends its sheet after this action, and a sheet on the alert shows it again with no parent.
     func startWithPickedFile(_ request: TranscribeRequest) {
-        let (pick, parent) = (transcribe.pickModelFile, panelParent)
+        let (pick, parent) = (transcribe.pickModelFile, window)
         transcribe.pickTask?.cancel()
         transcribe.pickTask = Task { [weak self] in
             guard let url = await pick(parent), !Task.isCancelled else { return }

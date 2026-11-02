@@ -89,6 +89,14 @@ struct LocalizationTests {
         }
     }
 
+    /// A doubled backslash in a table shows as a backslash and an n in the alert, not as a new line.
+    @Test func noValueHoldsABackslashBeforeN() throws {
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let broken = try stringsTable(language).filter { $0.value.contains("\\n") }.keys.sorted()
+            #expect(broken == [], "\(language) shows a backslash and n")
+        }
+    }
+
     /// A pt-PT value has no word of the Brazil-only list: the pt table has them, and a copy of its
     /// text is the likely mistake. The list is words, not a `-ndo` pattern, because that also ends
     /// `quando` and `segundo`. `docs/research/pt-pt-ui.md` names the source of the list.

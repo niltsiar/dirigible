@@ -33,16 +33,21 @@ struct SplitTarget: Hashable {
     }
 }
 
-/// The source of a split export as the save panel sees it: the session of now and the range.
+/// The source of a split export as the save panel sees it: the range and the parts of each kind. The
+/// panel builds the parts once, so a tick of its line builds only the first file name.
 struct ExportSplitPlan {
-    let session: Session
     let source: ExportSource
+    let chapters: ExportParts
+    let markers: ExportParts
 
     /// True for the Marks: the source names tracks.
     var isSelection: Bool { source.tracks != nil }
 
     func parts(_ kind: SplitKind) -> ExportParts {
-        session.exportParts(in: source.range, by: kind, introTitle: L10n.exportChapterIntro.text)
+        switch kind {
+        case .chapters: chapters
+        case .markers: markers
+        }
     }
 
     /// The count of the files that a split writes.
@@ -69,11 +74,22 @@ struct ExportSplitPlan {
 
     /// The line under the pop-ups: the count, the first file, and the stem file that stays.
     func line(_ kind: SplitKind, options: ExportOptions, stem: String, pathExtension: String) -> SplitLine? {
-        let targets = exportPartTargets(
-            session, range: source.range, by: kind, options: options, folder: URL(filePath: "/"), stem: stem
-        ).targets
-        guard let first = targets.first?.url.lastPathComponent else { return nil }
-        return SplitLine(count: targets.count, first: first, stemFile: "\(stem).\(pathExtension)")
+        let parts = parts(kind)
+        guard let first = parts.parts.first else { return nil }
+        return SplitLine(
+            count: parts.parts.count, first: exportPartFileName(first, of: parts, options: options, stem: stem),
+            stemFile: "\(stem).\(pathExtension)")
+    }
+}
+
+extension ExportSplitPlan {
+    /// The parts of `source` in the session of now.
+    init(session: Session, source: ExportSource) {
+        let intro = L10n.exportChapterIntro.text
+        self.init(
+            source: source,
+            chapters: session.exportParts(in: source.range, by: .chapters, introTitle: intro),
+            markers: session.exportParts(in: source.range, by: .markers, introTitle: intro))
     }
 }
 

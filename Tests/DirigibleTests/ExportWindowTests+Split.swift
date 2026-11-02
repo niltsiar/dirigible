@@ -89,6 +89,27 @@ extension ExportWindowTests {
         await model.close()
     }
 
+    /// A plan holds the parts that the panel computed once. It has no session, so a tick of the line
+    /// and a read of a count cannot build the parts again.
+    @Test func thePlanAnswersFromThePartsThatItHoldsAndHasNoSession() async throws {
+        let (model, studio, _) = try await window()
+        let none = studio.session.exportParts(
+            in: try #require(model.source(of: .session, in: studio)).range, by: .chapters, introTitle: "")
+        try threeChapters(studio)
+        let source = try #require(model.source(of: .session, in: studio))
+        let held = studio.session.exportParts(in: source.range, by: .chapters, introTitle: "")
+        let plan = ExportSplitPlan(source: source, chapters: held, markers: none)
+
+        #expect(plan.count(.chapters) == 3 && plan.count(.markers) == 0)
+        #expect(plan.title(.chapters) == L10n.panelExportFilesChapters.format(3))
+        #expect(plan.help(.markers) == .panelExportFilesNoMarkersSession && plan.help(.chapters) == nil)
+        #expect(
+            plan.line(.chapters, options: Self.options, stem: "Ep", pathExtension: "wav")
+                == SplitLine(count: 3, first: "Ep-01-Intro.wav", stemFile: "Ep.wav"))
+        #expect(plan.line(.markers, options: Self.options, stem: "Ep", pathExtension: "wav") == nil)
+        await model.close()
+    }
+
     @Test func aSplitItemIsOffWithNoPointOfItsKind() async throws {
         var plans: [ExportSplitPlan] = []
         app.chooseExport = { _, _, _, given, _, done in

@@ -35,8 +35,11 @@ extension L10n {
         case .export(let error): return message(for: error)
         case .exportYielded: return errorExportYielded.text
         case .exportParts(.exists): return errorExportExists.text
-        case .exportParts(.noPoint): return errorSessionOther.text
-        case .exportParts(.stopped(let stop)): return message(for: stop.error)
+        case .exportParts(.noPoint(let kind, _)):
+            return (kind == .chapters ? errorExportNoChapter : errorExportNoMarker).text
+        case .exportParts(.stopped(let stop)):
+            let count = stop.written.count + stop.remaining.count
+            return message(for: stop.error) + "\n\n" + bannerExportSetStopped.format(stop.written.count, count)
         case .audioImport(.session(let error)): return message(for: error, name: name)
         case .audioImport(let error): return message(for: error)
         case .importYielded(let file): return errorImportYielded.format(file)

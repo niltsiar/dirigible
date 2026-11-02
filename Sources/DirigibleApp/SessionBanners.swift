@@ -66,6 +66,10 @@ struct WindowBanners: View {
                     .disabled(!model.canUndoAgentEdit(revision: revision))
                     Button(L10n.bannerTakeSyncShow.key) { model.transport(.seek(.frame(from))) }
                 }
+            } else if case .exportSetDone(let files, _, _, _) = banner {
+                BannerRow(kind: banner.kind, text: banner.text) {
+                    Button(L10n.bannerExportSetShow.key) { model.showInFinder(files) }
+                }
             } else if case .transcriptionStopped = banner {
                 BannerRow(kind: banner.kind, text: banner.text) {
                     Button(L10n.transcribeAgain.key) { model.transcribeAgain() }.disabled(!model.canTranscribe)

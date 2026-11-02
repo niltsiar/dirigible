@@ -77,4 +77,21 @@ import Testing
         defaults.set("loud", forKey: "export.loudness")
         #expect(ExportSettings(defaults: defaults).loudness == .podcast, "an unknown token")
     }
+
+    /// Run 2026-10-28-chapter-export-files, U15: the Files pop-up is not stored. The next panel
+    /// starts at One File, so an export does not write a set by surprise.
+    @Test func theFilesChoiceStartsAtOneFileAtEachPanel() throws {
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let settings = ExportSettings(defaults: defaults)
+        #expect(settings.files == .one)
+
+        settings.files = .chapters
+        settings.format = .mp3
+
+        #expect(ExportSettings(defaults: defaults).files == .one, "the choice came back")
+        #expect(ExportSettings(defaults: defaults).format == .mp3, "the format is stored")
+        let stored = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("export.") }
+        #expect(stored.allSatisfy { !$0.lowercased().contains("files") && !$0.lowercased().contains("split") })
+    }
 }

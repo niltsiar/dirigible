@@ -38,6 +38,9 @@ struct ReplaceParts: Hashable {
     let escape = NSButton(frame: .zero)
     escape.keyEquivalent = "\u{1b}"
     escape.isTransparent = true
+    // The parent lists the cell of a button in its accessibility children, so the cell needs the flag too.
+    escape.setAccessibilityElement(false)
+    escape.cell?.setAccessibilityElement(false)
     escape.target = cancel
     escape.action = #selector(NSButton.performClick(_:))
     alert.window.contentView?.addSubview(escape)

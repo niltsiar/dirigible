@@ -320,7 +320,7 @@ import Testing
         return view.subviews.lazy.compactMap { segmented($0) }.first
     }
 
-    /// P22: the picker of four symbols fits the narrowest inspector (240 pt minus 2 x 12 pt of
+    /// P22: the picker of five symbols fits the narrowest inspector (240 pt minus 2 x 12 pt of
     /// padding), and each segment has its tab title as its help tag (the accessibility label is the same text).
     @Test func tabPickerFitsTheNarrowestInspector() async throws {
         let (model, _, window, _) = try await open(try await package(), shown: true)
@@ -331,7 +331,7 @@ import Testing
             return found != nil
         }
         let picker = try #require(found)
-        #expect(picker.segmentCount == 4)
+        #expect(picker.segmentCount == 5)
         #expect(picker.fittingSize.width <= 216, "\(picker.fittingSize.width) pt")
         let cell = try #require(picker.cell as? NSSegmentedCell)
         let labels = (0..<picker.segmentCount).map { cell.toolTip(forSegment: $0) }

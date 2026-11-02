@@ -15,7 +15,7 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 root="$tmp/root"
 mkdir -p "$root/scripts" "$tmp/bin"
-cp "$here/sanitize.sh" "$here/with-lock.sh" "$here/tsan.supp" "$root/scripts/"
+cp "$here/sanitize.sh" "$here/with-lock.sh" "$here/lock-words.sh" "$here/tsan.supp" "$root/scripts/"
 export FAKE_DIR="$tmp" FAKE_PID_FILE="$root/.git/dirigible-build.lock/pid" FAKE_OUT="Test run with 1 test passed" FAKE_EXIT=0
 # The fake swift and the stub runner log their arguments, and the hold value that they get and the
 # pid file of the lock of the repo in lock.log. The stub runner prints FAKE_OUT and exits FAKE_EXIT.

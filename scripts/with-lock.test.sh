@@ -54,7 +54,7 @@ kill() {
 
 repo="$tmp/repo" lock="$tmp/repo/.git/dirigible-build.lock" waits="$tmp/repo/.git/dirigible-build-waits.log"
 mkdir -p "$repo/scripts"
-cp "$script" "$repo/scripts/with-lock.sh"
+cp "$script" "$repo/scripts/with-lock.sh" && cp "${script%/*}/lock-words.sh" "$repo/scripts/lock-words.sh"
 git -C "$repo" init -q && git -C "$repo" add -A &&
     git -C "$repo" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base
 git -C "$repo" worktree add -q "$tmp/wt" 2>/dev/null
@@ -487,6 +487,17 @@ reset_builders
 lockfree run "test-hooks with HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=a,b
 lockfree wait "test-hooks with no HOOK_TESTS" "$fake/make" test-hooks
 lockfree wait "test-hooks with an empty HOOK_TESTS" "$fake/make" test-hooks HOOK_TESTS=
+lockfree wait "test-hooks, the goal twice" "$fake/make" test-hooks test-hooks HOOK_TESTS=a
+lockfree wait "test-hooks, env before make" env "$fake/make" test-hooks HOOK_TESTS=a
+lockfree wait "test-hooks, a make flag" "$fake/make" -s test-hooks HOOK_TESTS=a
+# A copy of with-lock.sh with no lock-words.sh beside it fails closed: it runs nothing and names the file.
+mkdir -p "$tmp/nolw/scripts"
+git -C "$tmp/nolw" init -q
+cp "$script" "$tmp/nolw/scripts/with-lock.sh"
+out="$("$tmp/nolw/scripts/with-lock.sh" touch "$tmp/nolw/ran" 2>&1)"
+code=$?
+[[ $code -eq 2 && ! -e "$tmp/nolw/ran" && "$out" == *scripts/lock-words.sh* ]] ||
+    fail "no lock-words.sh: exit $code (want 2), ran [$(ls "$tmp/nolw/ran" 2>/dev/null)]: $out"
 # The slice call of an agent, make check-changed FILTER=x, is lock-free. A recipe that exits 75 gives
 # the make line "Error 75" and make exits 2, so the call turns that line back into exit 75. The
 # case runs the real make, the check-changed recipe of the Makefile, and run-checks.sh; the test-filter
@@ -816,7 +827,7 @@ pair_in_time() { [[ $1 -lt 10 ]]; }
 pair_in_time 8 || fail 'pair bound: 8 s (a loaded call) fails'
 ! pair_in_time 10 || fail 'pair bound: 10 s (the wait limit) passes'
 mkdir -p "$pair/scripts"
-cp "$script" "$(dirname "$script")/check-changed.sh" "$pair/scripts/"
+cp "$script" "$(dirname "$script")/lock-words.sh" "$(dirname "$script")/check-changed.sh" "$pair/scripts/"
 git -C "$pair" init -q && git -C "$pair" add -A &&
     git -C "$pair" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base &&
     git -C "$pair" update-ref refs/remotes/origin/main HEAD &&

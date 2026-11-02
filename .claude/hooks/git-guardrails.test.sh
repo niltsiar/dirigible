@@ -1580,7 +1580,7 @@ lock_repo="$tmp/lock-repo" lock_dir="$tmp/lock-repo/.git/dirigible-build.lock" l
 mkdir -p "$lock_repo/.claude/hooks" "$lock_repo/scripts"
 git -C "$lock_repo" init -q
 cp "$lock_dir_src/agent-guard.sh" "$lock_dir_src/commit-files.awk" "$lock_repo/.claude/hooks/"
-cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_repo/scripts/"
+cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_dir_src/../../scripts/lock-words.sh" "$lock_repo/scripts/"
 ( : ) & lock_dead=$!
 wait "$lock_dead"
 # A dead group leader with a live member: kill -0 on the leader pid fails, kill -0 on -<leader> works.
@@ -1688,7 +1688,7 @@ for stub in 'exit 2' 'exit 127'; do
 done
 rm -f "$lock_repo/scripts/with-lock.sh"
 expect_lock_brief allow release Agent prompt "$lock_step"
-cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_repo/scripts/"
+cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_dir_src/../../scripts/lock-words.sh" "$lock_repo/scripts/"
 # The lists of the hook equal their sources: lock_targets the Makefile .PHONY line minus the four
 # make targets that take no lock (free_targets), and lock_scripts the scripts that AGENTS.md says take the lock
 # themselves. A new make target is then a lock step the day it exists. An empty source fails.

@@ -11,7 +11,7 @@ unset DIRIGIBLE_BUILD_LOCK DIRIGIBLE_LOCKED_SCRIPT WITH_LOCK_MAX_WAIT WITH_LOCK_
 export WITH_LOCK_RETRY=0.1
 repo="$tmp/repo"
 mkdir -p "$repo/scripts/flake-monitor"
-cp "$here/../with-lock.sh" "$repo/scripts/with-lock.sh"
+cp "$here/../with-lock.sh" "$here/../lock-words.sh" "$repo/scripts/"
 cp "$here/loop.sh" "$repo/scripts/flake-monitor/loop.sh"
 git -C "$repo" init -q
 loop="$repo/scripts/flake-monitor/loop.sh"

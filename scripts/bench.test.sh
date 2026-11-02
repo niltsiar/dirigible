@@ -15,7 +15,7 @@ fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 
 root="$tmp/root" cache="$tmp/root/.build/bench/.build"
 mkdir -p "$root/scripts" "$root/Sources/App" "$root/Tests/T" "$tmp/bin"
-cp "$here/bench.sh" "$here/bench-pairs.sh" "$here/with-lock.sh" "$root/scripts/"
+cp "$here/bench.sh" "$here/bench-pairs.sh" "$here/with-lock.sh" "$here/lock-words.sh" "$root/scripts/"
 printf '#!/bin/bash\nexit 0\n' > "$root/scripts/check-changed.sh"
 # The fake swift logs its arguments in args.log, and the hold value that it gets and the pid file of
 # the lock of the repo in lock.log. With FAKE_NONE=1, its test run prints the two no-test strings

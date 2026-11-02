@@ -13,7 +13,8 @@ import os
     /// the stops of the check, and the buttons of the job alerts. The model file is "abc".
     extension TranscribeWindowTests {
         static let abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        static let tiny = WhisperModelFacts(audioLayers: 4, textLayers: 4, melCount: 80, isMultilingual: true)
+        nonisolated static let tiny = WhisperModelFacts(
+            audioLayers: 4, textLayers: 4, melCount: 80, isMultilingual: true)
 
         /// The open panel of the tests: it gives the next URL, nil for Cancel.
         @MainActor final class Picks {
@@ -141,7 +142,7 @@ import os
             await until("the check runs") { isRunning(model) }
             let running = try #require(model.transcribe.draft)
             #expect(running.check == .running(name: "user.bin", byteCount: 3))
-            #expect(running.notes.isEmpty && !running.canStart && running.model == .choose)
+            #expect(!running.canStart && running.model == .choose)
             try Data().write(to: gate)
             await until("the check ends") { !isRunning(model) }
 
@@ -206,7 +207,7 @@ import os
             let next = try sheet(window)
             #expect(next.kept?.path == window.file.path && next.entries.contains(.file))
             window.model.selectModel(.file)
-            #expect(window.model.transcribe.draft?.notes.first == ModelCheckLine.text(of: Self.tiny))
+            #expect(window.model.transcribe.draft?.modelNotes.first == ModelCheckLine.text(of: Self.tiny))
             #expect(Self.runs(ran) == 1, "the sheet shows the record with no check")
             window.model.selectModel(.choose)
             await until("the second check passes") { window.model.transcribe.draft?.kept?.path == other.path }

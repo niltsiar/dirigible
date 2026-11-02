@@ -155,6 +155,24 @@ import Testing
             if end == .cancelSheet { await window.model.close() }
         }
 
+        /// Code gate 2 item 4: the view draws the replace note while a check line shows. The sheet of a
+        /// track with words is taller than the sheet of a track with none in the same check state.
+        @Test(arguments: [
+            ModelCheckLine.running(name: "a.bin", byteCount: 1), .passed(TranscribeWindowTests.tiny),
+            .refused("The file is no model."),
+        ])
+        func theSheetDrawsTheReplaceNoteWhileACheckLineShows(line: ModelCheckLine) async throws {
+            let window = try await openFile({ $0 }, picks: Picks([]))
+            let heights = try [0, 15].map { words in
+                var draft = try TranscribeSheetTests.sheet(.code("en"), words: words)
+                draft.check = line
+                return sheetHeight(window, draft, line: line)
+            }
+
+            #expect(heights[1] >= heights[0] + 12, "the replace note adds a line: \(heights)")
+            await window.model.close()
+        }
+
         @MainActor final class Parents { var windows: [NSWindow?] = [] }
 
         /// The height of the sheet for the sheet check line: `nil` is the sheet with no line.

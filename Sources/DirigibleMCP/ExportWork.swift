@@ -135,6 +135,19 @@ package struct ExportWork: Sendable {
     }
 }
 
+/// A set whose files only the export found bad, with no `allow_missing`. Each file is on disk.
+package struct SetFaults: Error, Sendable {
+    /// A line for each written file.
+    package let stdout: [String]
+    /// A line for each split point with no file of its own.
+    package let warnings: [String]
+    /// A refusal for each file with faults.
+    package let refusals: [String]
+
+    /// The tool text: the stdout lines, the warnings, and the refusals.
+    package var text: String { (stdout + warnings + refusals).joined(separator: "\n") }
+}
+
 /// A split export that the checks refuse before the first write.
 package struct SplitRefusal: Error, Sendable {
     package let message: String
@@ -188,17 +201,22 @@ extension ExportWork {
 
     /// The stdout lines and the stderr lines of a set that ended with no error: a line for each file,
     /// a line for each split point with no file, the warnings of each file, and the line of the older
-    /// files of the stem. A file that only the export found bad is refused, as for one file.
+    /// files of the stem. The files that only the export found bad refuse the set, as for one file:
+    /// `SetFaults` names each of them.
     package func setLines(of result: ExportPartsResult, session: Session, source: ExportSource, old: [URL])
-        throws(ToolError) -> (stdout: [String], stderr: [String])
+        throws(SetFaults) -> (stdout: [String], stderr: [String])
     {
+        let stdout = result.files.map(ExportText.partLine)
         var warnings = ExportText.droppedPointLines(result.dropped)
+        let faulty = allowMissing ? [] : result.files.filter { !$0.result.faults.isEmpty }
+        guard faulty.isEmpty else {
+            throw SetFaults(
+                stdout: stdout, warnings: warnings,
+                refusals: faulty.map {
+                    ExportText.readFaultMessage($0.result.faults, in: session, out: $0.url.path, spelling: spelling)
+                })
+        }
         for file in result.files {
-            guard file.result.faults.isEmpty || allowMissing else {
-                throw ToolError(
-                    ExportText.readFaultMessage(file.result.faults, in: session, out: file.url.path, spelling: spelling)
-                )
-            }
             for line in ExportText.warnings(
                 of: file.result, session: session.forPart(file.part), source: source, output: file.url,
                 format: options.format, spelling: spelling) where !warnings.contains(line)
@@ -206,7 +224,7 @@ extension ExportWork {
                 warnings.append(line)
             }
         }
-        return (result.files.map(ExportText.partLine), warnings + [ExportText.oldFilesLine(old)].compactMap { $0 })
+        return (stdout, warnings + [ExportText.oldFilesLine(old)].compactMap { $0 })
     }
 
     /// The stdout lines and the stderr lines of a set that stopped or failed: a line for each file
@@ -242,9 +260,13 @@ extension ExportWork {
             guard case .stopped(let stop) = error else { throw ToolError(setRefusal(error)) }
             throw ToolError(stopText(stop))
         }
-        let (stdout, stderr) = try setLines(
-            of: result, session: session, source: source, old: oldFiles(besides: result.files))
-        return (stdout + stderr).joined(separator: "\n")
+        do throws(SetFaults) {
+            let (stdout, stderr) = try setLines(
+                of: result, session: session, source: source, old: oldFiles(besides: result.files))
+            return (stdout + stderr).joined(separator: "\n")
+        } catch {
+            throw ToolError(error.text)
+        }
     }
 
     /// The text of a set that the writer refused before the first write.

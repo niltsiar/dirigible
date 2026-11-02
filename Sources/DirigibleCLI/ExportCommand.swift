@@ -35,7 +35,9 @@ struct Export: ParsableCommand {
             before it, or of the range end, has no file of its own, and a warning names it. Exit 1 when \
             the range has no chapter (or no marker). Exit 2, before any file is written, when a file is at a target (unless \
             --replace). Control-C or a failed file stops the set: the files before it stay, and stderr \
-            names the files that were not written (exit 130 or 2). After a set, stderr names the older \
+            names the files that were not written (exit 130 or 2). A set with files that only the export \
+            found bad prints the path of each file, then names each file with such a fault (exit 2, unless \
+            --allow-missing). After a set, stderr names the older \
             files of the stem; Dirigible keeps them. The file <stem>.<ext> is never written.
             """)
 
@@ -128,7 +130,9 @@ func runSet(_ work: ExportWork, by kind: SplitKind, package: URL, session: Sessi
         lines = try work.setLines(
             of: result, session: session, source: source, old: work.oldFiles(besides: result.files))
     } catch {
-        throw fail(error.message, code: packageError)
+        for line in error.stdout { print(line) }
+        warn(error.warnings + error.refusals.map { "Error: " + $0 })
+        throw ExitCode(packageError)
     }
     warn(lines.stderr)
     for line in lines.stdout { print(line) }

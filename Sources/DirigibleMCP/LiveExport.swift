@@ -73,8 +73,12 @@ private func liveSet(
         throw ToolError(error.message(package: path))
     }
     let old = await oldFiles(work, besides: result.files)
-    let (stdout, stderr) = try work.setLines(of: result, session: session, source: source, old: old)
-    return (stdout + stderr).joined(separator: "\n")
+    do throws(SetFaults) {
+        let (stdout, stderr) = try work.setLines(of: result, session: session, source: source, old: old)
+        return (stdout + stderr).joined(separator: "\n")
+    } catch {
+        throw ToolError(error.text)
+    }
 }
 
 /// The text of a set that stopped. A failure gives the lines of the files on disk, the error, and the

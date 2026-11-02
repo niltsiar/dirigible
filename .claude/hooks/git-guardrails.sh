@@ -509,9 +509,12 @@ fi
 # release (release_call). The check runs those functions in a subshell on the words after the
 # with-lock.sh word, with the BASE, MAKEFLAGS, and DIRIGIBLE_HOOKS_ALL words before it as their
 # environment, and evals no command text. bash -n, make -n outside a with-lock.sh call, and a .test.sh
-# path under .scratchpads/ pass.
-# Misses: a path in a variable, bash -c, and a wrapper word that the prefix does not hold (nice,
-# nohup, caffeinate).
+# path under .scratchpads/ pass. A segment of only NAME=value words runs no command, so it passes; a
+# later segment that runs $NAME (after an optional shell word) of a name set to a .test.sh path or to
+# test-hooks.sh blocks, across ;, &&, ||, and a new line.
+# Misses: a path in a variable that the command does not assign, bash -c, a wrapper word that the
+# prefix does not hold (nice, nohup, caffeinate), and a quoted prefix value with a space
+# (MAKEFLAGS="-s BASE=x"), which hides BASE from the hook.
 # The segments are read from the text with each separator inside a quoted string, and each data
 # heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. A
 # heredoc body is data when no word before the marker is a shell or an interpreter (sh, bash, python3,
@@ -757,7 +760,18 @@ lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<name
 if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   test_segments="$(mask_quoted_data <<< "$chained")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
+  assign_seg="^[[:space:]]*(\{ |! |if |then |do |else |while )*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=$word[[:space:]]*)+\$"
+  assigned=""
   while IFS= read -r segment; do
+    if [[ "$segment" =~ $assign_seg ]]; then
+      rem="$segment"
+      while [[ "$rem" =~ ([A-Za-z_][A-Za-z0-9_]*)=($word)(.*)$ ]]; do
+        aname="${BASH_REMATCH[1]}" aval="${BASH_REMATCH[2]}" rem="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+        if [[ "$aval" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then assigned+=" $aname:t"
+        elif [[ "$aval" =~ ^$hooks_path ]]; then assigned+=" $aname:h"; fi
+      done
+      continue
+    fi
     [[ "$segment" =~ ^[[:space:]]?($test_pre)(.*)$ ]] || continue
     prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
     in_lock=""
@@ -772,6 +786,13 @@ if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
     if [[ "$rest" =~ ^$hooks_path ]]; then
       block "runs scripts/test-hooks.sh outside its lock-free form" "$lock_way"
     fi
+    for aent in $assigned; do
+      aname="${aent%:*}"
+      use_re="^[\"']?[\$]([{]${aname}[}]|${aname})[\"']?([[:space:])}<>]|\$)"
+      [[ "$rest" =~ $use_re ]] || continue
+      [[ "$aent" == *:t ]] && block "runs a repo hook test outside the key tree of scripts/test-hooks.sh (through a variable)" "$lock_way"
+      block "runs scripts/test-hooks.sh outside its lock-free form (through a variable)" "$lock_way"
+    done
     if [[ -z "$in_lock" && "$rest" =~ $make_hooks ]]; then
       words=" ${BASH_REMATCH[2]} "
       [[ "$words" == *" -n "* || "$words" == *" --dry-run "* ]] && continue

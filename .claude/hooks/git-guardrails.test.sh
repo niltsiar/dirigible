@@ -1410,6 +1410,31 @@ for run in 'F=scripts/land.test.sh; bash $F' 'F=scripts/land.test.sh; bash "$F"'
 done
 expect_each_context block 'F=scripts/land.test.sh; bash $F'
 expect_each_context allow 'F=scripts/land.test.sh; bash $F'
+# export, declare, typeset, local, and readonly (with -<letters> flags) are assignment words too, and a name set to
+# $NAME, "$NAME", or ${NAME} of a recorded name is recorded.
+for run in "declare F=$T; bash \$F" "readonly F=$T; bash \$F" "typeset F=$T; bash \$F" "local F=$T; bash \$F" \
+  "declare -x F=$T; bash \$F" "declare -r -x F=$T; bash \$F" "F=$T; G=\$F; bash \$G" "F=$T; G=\"\$F\"; bash \$G" \
+  "F=$T; G=\${F}; bash \$G" "F=$T; export G=\$F; bash \$G" "F=$T; H=\$F; G=\$H; bash \$G" "F=$T && G=\$F && bash \$G" \
+  "H=scripts/test-hooks.sh; G=\$H; bash \$G" $'F=scripts/land.test.sh\nG=$F\nbash $G'; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+for run in "G=\$F; bash \$G" "F=.scratchpads/x/a.test.sh; G=\$F; bash \$G" "F=scripts/land.sh; G=\$F; bash \$G" \
+  "F=$T; G=\$F; wc -l \$G" "declare F=$T; wc -l \$F"; do
+  expect allow "$run"
+done
+# An export (or declare -x, typeset -x) of BASE or MAKEFLAGS=BASE=... in an earlier segment is in the environment of a
+# with-lock.sh make test-hooks segment, so the call takes the lock and blocks, across ;, &&, and a new line. An export of
+# DIRIGIBLE_HOOKS_ALL=1 makes the bare call a hooks pass. A plain BASE=x segment is not in the environment of the child.
+lw="scripts/with-lock.sh make test-hooks HOOK_TESTS=$T"
+for run in "export BASE=origin/main; $lw" "export BASE=origin/main && $lw" $'export BASE=origin/main\n'"$lw" \
+  "export MAKEFLAGS=BASE=origin/main; $lw" "export MAKEFLAGS=BASE=origin/main && $lw" $'export MAKEFLAGS=BASE=origin/main\n'"$lw" \
+  "declare -x BASE=origin/main; $lw" "typeset -x BASE=origin/main; $lw"; do
+  expect_message "HOOK_TESTS='<names>'" "$run"
+done
+expect_each_lock agree "export BASE=origin/main; $lw" "export MAKEFLAGS=BASE=origin/main; $lw" "declare -x BASE=origin/main; $lw" \
+  'export DIRIGIBLE_HOOKS_ALL=1; scripts/with-lock.sh make test-hooks' 'export DIRIGIBLE_HOOKS_ALL=0; scripts/with-lock.sh make test-hooks' \
+  "export BASE=origin/main; export BASE=; $lw" "export -n BASE=origin/main; $lw"
+expect_each_lock allow "BASE=origin/main; $lw"
 # A hook copy with no scripts/lock-words.sh above it blocks a with-lock.sh make test-hooks segment, names the file, and
 # still allows a command that is no such segment.
 mkdir -p "$tmp/nolw/.claude/hooks"

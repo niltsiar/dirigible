@@ -509,12 +509,17 @@ fi
 # release (release_call). The check runs those functions in a subshell on the words after the
 # with-lock.sh word, with the BASE, MAKEFLAGS, and DIRIGIBLE_HOOKS_ALL words before it as their
 # environment, and evals no command text. bash -n, make -n outside a with-lock.sh call, and a .test.sh
-# path under .scratchpads/ pass. A segment of only NAME=value words runs no command, so it passes; a
-# later segment that runs $NAME (after an optional shell word) of a name set to a .test.sh path or to
-# test-hooks.sh blocks, across ;, &&, ||, and a new line.
-# Misses: a path in a variable that the command does not assign, bash -c, a wrapper word that the
-# prefix does not hold (nice, nohup, caffeinate), and a quoted prefix value with a space
-# (MAKEFLAGS="-s BASE=x"), which hides BASE from the hook.
+# path under .scratchpads/ pass. A segment of only NAME=value words, with an optional export, declare,
+# typeset, local, or readonly word (and -<letters> flags), runs no command, so it passes; a later
+# segment that runs $NAME (after an optional shell word) of a name set to a .test.sh path or to
+# test-hooks.sh, or set to $NAME, "$NAME", or ${NAME} of such a name, blocks, across ;, &&, ||, and a new
+# line. An export (or declare -x, typeset -x, local -x) of BASE, MAKEFLAGS, or DIRIGIBLE_HOOKS_ALL joins the
+# environment of each later with-lock.sh segment; a plain BASE=x segment does not reach the child.
+# Misses: a path that the command does not assign in one of those words (a for list, read, a command
+# substitution), bash -c, a wrapper word that the prefix does not hold (nice, nohup, caffeinate), a
+# quoted prefix value with a space (MAKEFLAGS="-s BASE=x"), which hides BASE from the hook, export
+# BASE with no value, and a command in another worktree (the hook reads the lock-words.sh of the
+# session checkout).
 # The segments are read from the text with each separator inside a quoted string, and each data
 # heredoc body, masked, so quoted data that names a test file after ( or ; is not a command. A
 # heredoc body is data when no word before the marker is a shell or an interpreter (sh, bash, python3,
@@ -760,15 +765,36 @@ lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<name
 if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   test_segments="$(mask_quoted_data <<< "$chained")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done
-  assign_seg="^[[:space:]]*(\{ |! |if |then |do |else |while )*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=$word[[:space:]]*)+\$"
-  assigned=""
+  assign_kw="((export|declare|typeset|local|readonly)([[:space:]]+-[A-Za-z]+)*[[:space:]]+)?"
+  assign_seg="^[[:space:]]*(\{ |! |if |then |do |else |while )*${assign_kw}([A-Za-z_][A-Za-z0-9_]*=($word)?[[:space:]]*)+\$"
+  assign_word="(^|[[:space:]])(export|declare|typeset|local|readonly)(([[:space:]]+-[A-Za-z]+)*)[[:space:]]"
+  copy_re='^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$'
+  assigned="" lock_exports=()
   while IFS= read -r segment; do
     if [[ "$segment" =~ $assign_seg ]]; then
+      akind="" aflags="" aexp=""
+      if [[ "$segment" =~ $assign_word ]]; then akind="${BASH_REMATCH[2]}" aflags="${BASH_REMATCH[3]}"; fi
+      case "$akind" in
+        export) [[ "$aflags" =~ -[A-Za-z]*n ]] || aexp=1 ;;
+        declare | typeset | local) [[ "$aflags" =~ -[A-Za-z]*x ]] && aexp=1 ;;
+      esac
       rem="$segment"
-      while [[ "$rem" =~ ([A-Za-z_][A-Za-z0-9_]*)=($word)(.*)$ ]]; do
+      while [[ "$rem" =~ ([A-Za-z_][A-Za-z0-9_]*)=($word)?(.*)$ ]]; do
         aname="${BASH_REMATCH[1]}" aval="${BASH_REMATCH[2]}" rem="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+        acopy="${aval#\"}"
+        acopy="${acopy%\"}"
+        if [[ -n "$aexp" && "$aname" =~ ^(BASE|MAKEFLAGS|DIRIGIBLE_HOOKS_ALL)$ ]]; then
+          unmask_lock_quotes "$aname=$aval"
+          lock_exports+=("$lock_text")
+        fi
         if [[ "$aval" =~ ^$test_path && "${BASH_REMATCH[1]}" != *.scratchpads/* ]]; then assigned+=" $aname:t"
-        elif [[ "$aval" =~ ^$hooks_path ]]; then assigned+=" $aname:h"; fi
+        elif [[ "$aval" =~ ^$hooks_path ]]; then assigned+=" $aname:h"
+        elif [[ "$acopy" =~ $copy_re ]]; then
+          asrc="${BASH_REMATCH[1]}"
+          for aent in $assigned; do
+            [[ "${aent%:*}" == "$asrc" ]] && assigned+=" $aname:${aent##*:}"
+          done
+        fi
       done
       continue
     fi
@@ -806,7 +832,7 @@ if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
       lock_text="${lock_text%%[<>)\}]*}"
       [[ "$lock_text" =~ ^(.*[[:space:]])[0-9]+$ ]] && lock_text="${BASH_REMATCH[1]}"
       read -ra lock_all <<< "$lock_text"
-      lock_env=() lock_args=() lock_seen=""
+      lock_env=(${lock_exports[@]+"${lock_exports[@]}"}) lock_args=() lock_seen=""
       for lock_arg in "${lock_all[@]}"; do
         if [[ -n "$lock_seen" ]]; then lock_args+=("$lock_arg")
         elif [[ "${lock_arg##*/}" == with-lock.sh ]]; then lock_seen=1

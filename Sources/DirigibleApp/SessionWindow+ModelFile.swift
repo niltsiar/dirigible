@@ -70,10 +70,11 @@ extension SessionWindow {
         transcribe.pickTask?.cancel()
     }
 
-    /// `endModelFileWork` for a take start of this window. A running sheet check ends here as a take
-    /// start in another studio ends it (C25 d): the entry before the pick and the take line.
+    /// `endModelFileWork` for a take start of this window. A choice that runs (the open panel, the
+    /// status read, or the check) ends here as a take start in another studio ends a check (C25 d):
+    /// the entry before the pick and the take line.
     func endModelFileWorkForTake() {
-        let before = transcribe.draft?.isChecking == true ? transcribe.draft?.beforeChoice : nil
+        let before = transcribe.draft?.beforeChoice
         endModelFileWork()
         if let before { showChoiceEnd(before, line: .refused(L10n.sheetTranscribeCheckTake.text)) }
     }

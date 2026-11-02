@@ -117,6 +117,44 @@ import Testing
             await window.model.close()
         }
 
+        @MainActor final class Panel {
+            var opened = 0
+            var gone = 0
+            /// An open panel that stays until its calling task is cancelled.
+            func pick(_: NSWindow?) async -> URL? {
+                opened += 1
+                try? await Task.sleep(for: .seconds(30))
+                gone += 1
+                return nil
+            }
+        }
+
+        enum PanelStart: CaseIterable { case chooseModelFile, locate }
+        enum PanelEnd: CaseIterable { case cancelSheet, closeWindow }
+
+        /// Code gate 2 item 3: each open panel of the model file flow (Choose Model File..., and
+        /// Locate... or Choose Model File... of a job alert) closes when the sheet or the window closes.
+        @Test(arguments: PanelStart.allCases, PanelEnd.allCases)
+        func eachOpenPanelClosesWithItsSheetOrWindow(start: PanelStart, end: PanelEnd) async throws {
+            let window = try await openFile({ $0 }, picks: Picks([]))
+            let panel = Panel()
+            window.model.transcribe.pickModelFile = { await panel.pick($0) }
+            let draft = try sheet(window)
+            switch start {
+            case .chooseModelFile: window.model.selectModel(.choose)
+            case .locate: window.model.startWithPickedFile(try #require(draft.request))
+            }
+            await until("the panel opens") { panel.opened == 1 }
+
+            switch end {
+            case .cancelSheet: window.model.cancelTranscribeSheet()
+            case .closeWindow: await window.model.close()
+            }
+
+            await until(limit: .seconds(5), "the panel closes") { panel.gone == 1 }
+            if end == .cancelSheet { await window.model.close() }
+        }
+
         @MainActor final class Parents { var windows: [NSWindow?] = [] }
 
         /// The height of the sheet for the sheet check line: `nil` is the sheet with no line.

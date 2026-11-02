@@ -12,13 +12,11 @@ extension ExportPanel {
         panel.prompt = split ? L10n.alertExportConfirm.text : button
     }
 
-    /// The set that the panel answered: its folder, the prefix as the stem, and the extension of the
-    /// format. Nil at One File.
+    /// The set that the panel answered: its folder and the prefix as the stem. Nil at One File.
     @MainActor static func splitTarget(_ settings: ExportSettings, _ url: URL) -> SplitTarget? {
         settings.files.kind.map {
             SplitTarget(
-                kind: $0, folder: url.deletingLastPathComponent(), stem: SplitTarget.stem(of: url.lastPathComponent),
-                pathExtension: settings.fileExtension)
+                kind: $0, folder: url.deletingLastPathComponent(), stem: SplitTarget.stem(of: url.lastPathComponent))
         }
     }
 }

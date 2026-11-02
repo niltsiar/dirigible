@@ -80,7 +80,7 @@ import os
 
         func openFile(
             _ helper: @escaping (URL) throws -> URL, picks: Picks, engine: @escaping TranscribeEngine = engine(),
-            hashes: OSAllocatedUnfairLock<Int> = OSAllocatedUnfairLock(initialState: 0)
+            hashes: OSAllocatedUnfairLock<Int> = OSAllocatedUnfairLock(initialState: 0), device: String = "mic"
         ) async throws -> FileWindow {
             let root = folder.url.appending(path: UUID().uuidString)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -88,7 +88,7 @@ import os
             let defaults = try #require(UserDefaults(suiteName: suite))
             defaults.set("es", forKey: TranscribeDraft.languageKey)
             let app = AppDelegate(recordings: nil, defaults: defaults)
-            let package = try await timelinePackage(in: root, tracks: 2, seconds: 3, audio: true)
+            let package = try await timelinePackage(in: root, tracks: 2, seconds: 3, audio: true, device: device)
             let (model, studio, _, _) = try await openLanes(app, package)
             let models = root.appending(path: "Models")
             try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)

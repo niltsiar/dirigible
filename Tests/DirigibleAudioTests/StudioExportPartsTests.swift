@@ -78,6 +78,42 @@ struct StudioExportPartsTests {
         try await StudioExportTests().recordAndStop(studioA, hal, from: host)
     }
 
+    /// C10: the disk check of a take ends a set to the volume of the take, and the take runs on.
+    /// Control: a job URL on another volume lets the set run, and the take stops for low disk.
+    @Test func aTakeDiskCheckEndsASetOnItsVolume() async throws {
+        let a = try await ExportStudioFixture.make()
+        let hal = TestHAL([a.mic])
+        let studioA = try await a.open(hal)
+        let folderB = LockedBox<URL>()
+        studioA.environment.freeBytes = { _ in
+            let temporary = folderB.value.flatMap { try? FileManager.default.contentsOfDirectory(atPath: $0.path) }?
+                .contains { $0.hasSuffix(".tmp") }
+            return temporary == true ? 0 : 100_000_000_000
+        }
+        try await studioA.startRecording(armed: ["t1"])
+        let b = try await Self.tenParts()
+        let studioB = try await b.open(seam: ChunkSeam(pause: longChunk))
+        let targets = Self.targets(studioB, b)
+        let export = Self.startSet(studioB, b)
+        await until(limit: .seconds(30), "B made no temporary file") { (try? b.temporaryFiles())?.isEmpty == false }
+        studioA.otherStudios = { [studioB] }
+        folderB.value = b.package.folder.url
+
+        await until(limit: .seconds(30), "neither B nor the take ended") {
+            studioB.exportProgress == nil || studioA.transport != .recording(take: 1)
+        }
+
+        let stop = try #require(await Self.stop(of: export))
+        #expect(stop.error == .cancelled)
+        #expect(stop.written.map(\.url) + stop.remaining == targets)
+        #expect(studioB.exportStop == .take)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(studioA.transport == .recording(take: 1))
+        #expect(try Self.partFiles(b) == stop.written.map(\.url.lastPathComponent))
+        #expect(try b.temporaryFiles() == [])
+        try await studioA.stopRecording()
+    }
+
     /// C10, the cancel of the job handle reaches the GCD loop: Cancel in the sheet.
     @Test func aCancelEndsTheSetAndNamesTheWrittenFiles() async throws {
         let fixture = try await Self.tenParts()

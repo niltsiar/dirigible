@@ -16,6 +16,9 @@ enum WindowAlert: Hashable {
     /// The report after an export: the paths of the files that rendered as silence (decision 0003),
     /// and the loudness of an export with a target (decision 0032).
     case exported([String], LoudnessReport?)
+    /// The report after a split export whose media was bad (decision 0067): the paths of the media
+    /// files, and the names of the part files that have silence from them.
+    case exportedSet(media: [String], parts: [String])
     /// Remove Unused Files found no file to move (decision 0047). The scan gives the kept files,
     /// the damaged backups, and the pool entries that are not a regular file.
     case noUnusedFiles(UnusedFiles)

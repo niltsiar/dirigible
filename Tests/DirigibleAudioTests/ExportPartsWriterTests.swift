@@ -21,13 +21,13 @@ struct ExportPartsWriterTests {
     }
 
     static func export(
-        _ package: MixPackage, range: Range<Frames> = 0..<480_000, by kind: SplitKind = .chapters,
-        options: ExportOptions = wav, stem: String = "Ep",
+        _ package: MixPackage, range: Range<Frames> = 0..<480_000, tracks: Set<TrackID>? = nil,
+        by kind: SplitKind = .chapters, options: ExportOptions = wav, stem: String = "Ep",
         replacing: [URL: ConfirmedFile] = [:], progress: (ExportPartsProgress) -> Void = { _ in }
     ) throws(ExportPartsError) -> ExportPartsResult {
         try exportParts(
-            package.session, range: range, by: kind, tracks: nil, options: options, folder: package.folder.url,
-            stem: stem, replacing: replacing, package: { package.url }, progress: progress)
+            package.session, source: ExportSource(range: range, tracks: tracks)!, by: kind, options: options,
+            folder: package.folder.url, stem: stem, replacing: replacing, package: { package.url }, progress: progress)
     }
 
     static func targets(_ package: MixPackage, range: Range<Frames> = 0..<480_000, stem: String = "Ep") -> [URL] {
@@ -153,6 +153,27 @@ struct ExportPartsWriterTests {
         let expected = try ExportTests.read(whole)
         for channel in 0..<2 {
             #expect(parts.flatMap { $0.channels[channel] } == expected.channels[channel])
+        }
+    }
+
+    /// Code gate 1 item 5: each part source keeps the range and the tracks of the set source, so the
+    /// parts of a selection of track t1, which leaves out the t2 tone, join to its whole export.
+    @Test func eachPartKeepsTheTracksOfTheSource() throws {
+        let package = try Self.package([("a", 0), ("b", 144_000), ("c", 336_000)])
+        try package.addFile("f2", channels: [ExportTests.tone(frames: 480_000, rms: -12, sign: -1)])
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 0, offset: 0, length: 480_000)
+        let source = try #require(ExportSource(range: 48_000..<432_000, tracks: ["t1"]))
+        let whole = package.folder.url.appending(path: "whole.wav")
+        _ = try exportMix(package.session, source: source, options: Self.wav, to: whole, package: { package.url })
+
+        let result = try Self.export(package, range: source.range, tracks: source.tracks)
+
+        let parts = try result.files.map { try ExportTests.read($0.url) }
+        #expect(parts.map(\.length) == [96_000, 192_000, 96_000])
+        let expected = try ExportTests.read(whole)
+        for channel in 0..<2 {
+            let same = parts.flatMap { $0.channels[channel] } == expected.channels[channel]
+            #expect(same, "channel \(channel)")
         }
     }
 

@@ -163,6 +163,15 @@ public struct ExportSource: Hashable, Sendable {
         self.range = range
         self.tracks = tracks
     }
+
+    /// The source of a part of `range` with the tracks of this source. `part` is the range of a part
+    /// of `Session.exportParts(in: range)`: a range with frames inside `range`, so it needs no check.
+    func part(_ part: Range<Frames>) -> ExportSource { ExportSource(checked: part, tracks: tracks) }
+
+    private init(checked range: Range<Frames>, tracks: Set<TrackID>?) {
+        self.range = range
+        self.tracks = tracks
+    }
 }
 
 /// The loudness of an export with a target (decision 0032). The output values are those of the

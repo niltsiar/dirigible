@@ -60,8 +60,8 @@ private func liveSet(
     let result: ExportPartsResult
     do throws(StudioError) {
         result = try await studio.export(
-            range: source.range, by: kind, tracks: source.tracks, options: work.options, folder: work.folder,
-            stem: work.stem, replacing: replacing, progress: report)
+            source, by: kind, options: work.options, folder: work.folder, stem: work.stem, replacing: replacing,
+            progress: report)
     } catch .exportParts(.stopped(let stop)) {
         if Task.isCancelled { throw ToolError(cancelledMessage) }
         throw ToolError(setStopMessage(work, stop, cause: studio.exportStop))

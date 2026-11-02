@@ -82,13 +82,14 @@ public func oldPartFiles(in folder: URL, stem: String, pathExtension: String, ta
 /// path, and nothing is written. Then it calls `exportMix` for each part with `session.forPart`, so
 /// each part file has its own loudness gain, title tag, and chapters. A stop or a failure in part k
 /// throws `.stopped`: the files before part k stay, and part k leaves no file. `progress` gets the
-/// fraction of the set by frames at each new whole percent and at the start of each part. `tracks`
-/// is nil or not empty, as for `ExportSource`. Thread rule: as `exportMix`.
+/// fraction of the set by frames at each new whole percent and at the start of each part. The source
+/// of each part keeps the tracks of `source`. Thread rule: as `exportMix`.
 public func exportParts(
-    _ session: Session, range: Range<Frames>, by kind: SplitKind, tracks: Set<TrackID>?, options: ExportOptions,
-    folder: URL, stem: String, replacing: [URL: ConfirmedFile], package: () throws(SessionFileError) -> URL,
+    _ session: Session, source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, stem: String,
+    replacing: [URL: ConfirmedFile], package: () throws(SessionFileError) -> URL,
     progress: (ExportPartsProgress) -> Void = { _ in }, isCancelled: () -> Bool = { Task.isCancelled }
 ) throws(ExportPartsError) -> ExportPartsResult {
+    let range = source.range
     let (targets, dropped) = exportPartTargets(
         session, range: range, by: kind, options: options, folder: folder, stem: stem)
     guard !targets.isEmpty else { throw .noPoint(kind, range) }
@@ -116,7 +117,7 @@ public func exportParts(
         if isCancelled() { throw stop(.cancelled) }
         do {
             let result = try exportMix(
-                session.forPart(part), source: ExportSource(range: part.range, tracks: tracks)!, options: options,
+                session.forPart(part), source: source.part(part.range), options: options,
                 to: target.url, replacing: replacing[target.url], package: package,
                 progress: { fraction in
                     let set = (Double(done) + fraction * Double(length)) / total

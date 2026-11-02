@@ -193,7 +193,7 @@ extension Studio {
 }
 
 extension Studio {
-    /// Exports one file for each part of `range` of the session of now, split at `kind`, to
+    /// Exports one file for each part of `source` of the session of now, split at `kind`, to
     /// `folder` with the names of `exportPartTargets` (decision 0067). It is one export job: it
     /// throws `.busy` as `export`, and a take start in this or another studio, `settle()`, Cancel,
     /// and a cancel of the caller stop the whole set with `.exportParts(.stopped(_))`; `exportStop`
@@ -202,15 +202,16 @@ extension Studio {
     /// point it throws `.exportParts(.noPoint(_, _))` and starts no job. `exportFile` gives the part
     /// in hand.
     public func export(
-        range: Range<Frames>, by kind: SplitKind, tracks: Set<TrackID>?, options: ExportOptions, folder: URL,
-        stem: String, replacing: [URL: ConfirmedFile],
+        _ source: ExportSource, by kind: SplitKind, options: ExportOptions, folder: URL, stem: String,
+        replacing: [URL: ConfirmedFile],
         progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
     ) async throws(StudioError) -> ExportPartsResult {
         try checkIdle()
         guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
         let session = session
-        let targets = exportPartTargets(session, range: range, by: kind, options: options, folder: folder, stem: stem)
-        guard let first = targets.targets.first else { throw .exportParts(.noPoint(kind, range)) }
+        let targets = exportPartTargets(
+            session, range: source.range, by: kind, options: options, folder: folder, stem: stem)
+        guard let first = targets.targets.first else { throw .exportParts(.noPoint(kind, source.range)) }
         exportNumber += 1
         exportStop = nil
         let number = exportNumber
@@ -220,7 +221,7 @@ extension Studio {
         let task = jobTask { package, isCancelled in
             Result { () throws(ExportPartsError) in
                 try exportParts(
-                    session, range: range, by: kind, tracks: tracks, options: options, folder: folder, stem: stem,
+                    session, source: source, by: kind, options: options, folder: folder, stem: stem,
                     replacing: replacing, package: package, progress: hop, isCancelled: isCancelled)
             }
         }

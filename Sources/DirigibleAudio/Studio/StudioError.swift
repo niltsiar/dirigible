@@ -33,6 +33,10 @@ public enum StudioError: Error, Hashable, Sendable {
     case export(ExportError)
     /// A take in another studio ended the export (decision 0019). No file was made.
     case exportYielded
+    /// A split export refused its targets or found no split point before its first write, or it
+    /// stopped or failed after it (decision 0067). A split export never throws `.export` or
+    /// `.exportYielded`; `exportStop` gives the cause of a stop.
+    case exportParts(ExportPartsError)
     /// The import failed or was cancelled (decision 0040).
     case audioImport(ImportError)
     /// A take in another studio ended the import of `file` (decisions 0019 and 0040). The session

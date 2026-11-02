@@ -60,7 +60,7 @@ import Testing
                 {
                     studio.exportJob = ExportJob(
                         number: 0, url: sync.folder.url, progress: 0.5, report: { _ in },
-                        task: Task { .failure(.cancelled) })
+                        task: Task {})
                 }
             ),
             ("the duck sheet", { model.duckDraft = DuckDraft(roles: studio.session) }),

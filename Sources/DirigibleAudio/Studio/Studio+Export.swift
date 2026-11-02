@@ -6,12 +6,16 @@ import os
 struct ExportJob {
     /// One more for each export, so a late progress hop of an ended export changes nothing.
     let number: Int
-    /// The target: the disk check of a take in another studio ends only an export to its volume.
+    /// The target, or the first target of a set: the disk check of a take in another studio ends
+    /// only an export to its volume.
     let url: URL
     var progress: Double
+    /// The part in hand of a set.
+    var file: ExportPartsProgress?
     /// The progress of the caller of `export`.
     let report: @MainActor @Sendable (Double) -> Void
-    let task: Task<Result<ExportResult, ExportError>, Never>
+    /// A cancel of it reaches the cancel flag of the GCD job; its end is the end of the job.
+    let task: Task<Void, Never>
 }
 
 /// The cause of an export or an import end before its end: Cancel in the export sheet or the
@@ -23,6 +27,9 @@ public enum ExportStop: Sendable {
 extension Studio {
     /// The fraction of the running export, in 0...1. Nil when no export runs.
     public var exportProgress: Double? { exportJob?.progress }
+
+    /// The number, the count, and the name of the file in hand of a running split export.
+    public var exportFile: ExportPartsProgress? { exportJob?.file }
 
     /// The faults of the files that `source` reads, off the main actor: the media question
     /// before an export (decision 0003). Nil when the check cannot run: the package left its
@@ -47,8 +54,18 @@ extension Studio {
         exportNumber += 1
         exportStop = nil
         let number = exportNumber
-        let task = exportTask(number, session, source, options, url, replacing)
-        exportJob = ExportJob(number: number, url: url, progress: 0, report: progress, task: task)
+        let session = session
+        let hop: @Sendable (Double) -> Void = { [weak self] fraction in
+            Task { @MainActor in self?.exportProgressed(number, fraction) }
+        }
+        let task = jobTask { package, isCancelled in
+            Result { () throws(ExportError) in
+                try exportMix(
+                    session, source: source, options: options, to: url, replacing: replacing, package: package,
+                    progress: hop, isCancelled: isCancelled)
+            }
+        }
+        exportJob = ExportJob(number: number, url: url, progress: 0, report: progress, task: Self.handle(task))
         let result = await withTaskCancellationHandler {
             await task.value
         } onCancel: {
@@ -127,32 +144,33 @@ extension Studio {
         job.report(fraction)
     }
 
-    /// The job: `exportMix` on a utility GCD thread. A Swift task that a caller awaits takes the
-    /// priority of that caller, so the chunk loop does not run in one (plan gate 1). On a GCD
-    /// thread `Task.isCancelled` is false, so a cancel of the job sets a flag that the loop reads.
-    private func exportTask(
-        _ number: Int, _ session: Session, _ source: ExportSource, _ options: ExportOptions, _ url: URL,
-        _ replacing: ConfirmedFile?
-    ) -> Task<Result<ExportResult, ExportError>, Never> {
+    /// The progress hop of split export `number`. A hop of another export changes nothing.
+    func exportPartProgressed(_ number: Int, _ file: ExportPartsProgress) {
+        guard let job = exportJob, job.number == number else { return }
+        exportJob?.progress = file.fraction
+        exportJob?.file = file
+        job.report(file.fraction)
+    }
+
+    /// The job: `work` (`exportMix` or `exportParts`) on a utility GCD thread. A Swift task that a
+    /// caller awaits takes the priority of that caller, so the chunk loop does not run in one (plan
+    /// gate 1). On a GCD thread `Task.isCancelled` is false, so a cancel of the job sets a flag that
+    /// the loop reads.
+    private func jobTask<Value: Sendable>(
+        _ work: @escaping @Sendable (_ package: () throws(SessionFileError) -> URL, _ isCancelled: () -> Bool) -> Value
+    ) -> Task<Value, Never> {
         let (lock, step) = (lock, environment.exportChunk)
         let cancelled = OSAllocatedUnfairLock(initialState: false)
-        let hop: @Sendable (Double) -> Void = { [weak self] fraction in
-            Task { @MainActor in self?.exportProgressed(number, fraction) }
-        }
         return Task {
             await withTaskCancellationHandler {
                 await withCheckedContinuation { continuation in
                     DispatchQueue.global(qos: .utility).async {
-                        let result = Result { () throws(ExportError) in
-                            try exportMix(
-                                session, source: source, options: options, to: url, replacing: replacing,
-                                package: { () throws(SessionFileError) -> URL in try lock.package() },
-                                progress: hop,
-                                isCancelled: {
-                                    step()
-                                    return cancelled.withLock { $0 }
-                                })
-                        }
+                        let result = work(
+                            { () throws(SessionFileError) -> URL in try lock.package() },
+                            {
+                                step()
+                                return cancelled.withLock { $0 }
+                            })
                         continuation.resume(returning: result)
                     }
                 }
@@ -160,6 +178,60 @@ extension Studio {
                 cancelled.withLock { $0 = true }
             }
         }
+    }
+
+    /// The `ExportJob.task` of `task`: its cancel cancels `task`, so it reaches the flag of the job.
+    private static func handle<Value: Sendable>(_ task: Task<Value, Never>) -> Task<Void, Never> {
+        Task {
+            await withTaskCancellationHandler {
+                _ = await task.value
+            } onCancel: {
+                task.cancel()
+            }
+        }
+    }
+}
+
+extension Studio {
+    /// Exports one file for each part of `range` of the session of now, split at `kind`, to
+    /// `folder` with the names of `exportPartTargets` (decision 0067). It is one export job: it
+    /// throws `.busy` as `export`, and a take start in this or another studio, `settle()`, Cancel,
+    /// and a cancel of the caller stop the whole set with `.exportParts(.stopped(_))`; `exportStop`
+    /// gives the cause. The job computes the parts and the targets on the session that it renders,
+    /// so an edit after the caller listed the targets refuses an unconfirmed name. With no split
+    /// point it throws `.exportParts(.noPoint(_, _))` and starts no job. `exportFile` gives the part
+    /// in hand.
+    public func export(
+        range: Range<Frames>, by kind: SplitKind, tracks: Set<TrackID>?, options: ExportOptions, folder: URL,
+        stem: String, replacing: [URL: ConfirmedFile],
+        progress: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
+    ) async throws(StudioError) -> ExportPartsResult {
+        try checkIdle()
+        guard pendingTake == nil, exportJob == nil, !settling else { throw .busy }
+        let session = session
+        let targets = exportPartTargets(session, range: range, by: kind, options: options, folder: folder, stem: stem)
+        guard let first = targets.targets.first else { throw .exportParts(.noPoint(kind, range)) }
+        exportNumber += 1
+        exportStop = nil
+        let number = exportNumber
+        let hop: @Sendable (ExportPartsProgress) -> Void = { [weak self] file in
+            Task { @MainActor in self?.exportPartProgressed(number, file) }
+        }
+        let task = jobTask { package, isCancelled in
+            Result { () throws(ExportPartsError) in
+                try exportParts(
+                    session, range: range, by: kind, tracks: tracks, options: options, folder: folder, stem: stem,
+                    replacing: replacing, package: package, progress: hop, isCancelled: isCancelled)
+            }
+        }
+        exportJob = ExportJob(number: number, url: first.url, progress: 0, report: progress, task: Self.handle(task))
+        let result = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        if exportJob?.number == number { exportJob = nil }
+        do { return try result.get() } catch { throw .exportParts(error) }
     }
 }
 

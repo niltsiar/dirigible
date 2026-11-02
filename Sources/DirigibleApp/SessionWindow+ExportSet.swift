@@ -79,7 +79,8 @@ extension SessionWindow {
     ) async -> ReplaceParts? {
         let existing = await confirmations(of: targets.map(\.url))
         guard !existing.isEmpty else { return nil }
-        let old = await olderFiles(split, besides: Set(targets.map(\.url.lastPathComponent)))
+        let old = await olderFiles(
+            split, format: target.options.format, besides: Set(targets.map(\.url.lastPathComponent)))
         return ReplaceParts(source: source, options: target.options, split: split, existing: existing, old: old)
     }
 
@@ -101,7 +102,7 @@ extension SessionWindow {
             let result = try await studio.export(
                 source, by: split.kind, options: options, folder: split.folder, stem: split.stem, replacing: replacing)
             let written = Set(result.files.map(\.url.lastPathComponent))
-            let old = await olderFiles(split, besides: written).map(\.lastPathComponent)
+            let old = await olderFiles(split, format: options.format, besides: written).map(\.lastPathComponent)
             show(result, old: old, session: session, format: options.format, revision: revision)
         } catch .exportParts(.stopped(let stop)) where stop.error == .cancelled {
             let count = stop.written.count + stop.remaining.count
@@ -138,7 +139,8 @@ extension SessionWindow {
 }
 
 /// The older files of the stem that are not in `names`. It reads the folder.
-@concurrent private func olderFiles(_ split: SplitTarget, besides names: Set<String>) async -> [URL] {
-    oldPartFiles(in: split.folder, stem: split.stem, pathExtension: split.pathExtension, targets: [])
-        .filter { !names.contains($0.lastPathComponent) }
+@concurrent private func olderFiles(_ split: SplitTarget, format: ExportFormat, besides names: Set<String>) async
+    -> [URL]
+{
+    oldPartFiles(in: split.folder, stem: split.stem, format: format, besides: names)
 }

@@ -29,7 +29,7 @@ struct SplitTarget: Hashable {
     /// format keeps it: the stem drops it, whatever the format of now is.
     static func stem(of name: String) -> String {
         let ext = (name as NSString).pathExtension.lowercased()
-        return ["wav", "m4a", "mp3", "flac"].contains(ext) ? (name as NSString).deletingPathExtension : name
+        return ExportFormat.exportPathExtensions.contains(ext) ? (name as NSString).deletingPathExtension : name
     }
 }
 

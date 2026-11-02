@@ -120,6 +120,19 @@ struct ExportPartsWriterTests {
         #expect(report.gain.dB == 0)
     }
 
+    /// C8: a chapter at the millisecond of the range end has no file; it is a chapter of the part
+    /// before it, at its own millisecond.
+    @Test func aDroppedChapterStaysInThePartBeforeIt() throws {
+        let package = try Self.package([("a", 0), ("z", 479_990)])
+
+        let result = try Self.export(package, options: Self.mp3)
+
+        #expect(result.dropped.map(\.id) == [MarkerID("z")])
+        #expect(result.files.count == 1)
+        let chapters = ChapterTagTests.chapters(try ChapterTagTests.tag(result.files[0].url))
+        #expect(chapters.map(\.start) == [0, 10_000])
+    }
+
     static func listing(_ package: MixPackage) throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: package.folder.url.path).sorted()
     }

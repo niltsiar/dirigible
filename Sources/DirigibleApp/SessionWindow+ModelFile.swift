@@ -19,6 +19,16 @@ extension SessionWindow {
         transcribe.draft?.select(entry)
     }
 
+    /// A choice in the Language pop-up: the kept file and the model memory of the new choice take over,
+    /// as at the sheet open.
+    func selectLanguage(_ language: WhisperLanguage) {
+        let defaults = app?.defaults
+        transcribe.draft?.changeLanguage(
+            to: language, kept: KeptModelFile.load(for: language, from: defaults),
+            remembered: TranscribeModelMemory.entry(for: language, in: defaults))
+        readKeptFile()
+    }
+
     /// The open panel of the sheet. A picked file runs the sheet check; a Cancel gives back the
     /// entry before.
     func chooseModelFile() {

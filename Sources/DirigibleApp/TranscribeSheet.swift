@@ -99,6 +99,22 @@ struct TranscribeDraft: Equatable {
         select(model)
     }
 
+    /// A Language pop-up change: the kept file and the remembered entry of the new choice take over, as
+    /// at the sheet open. Without a remembered entry, a file entry with no kept file gives way to the
+    /// model of the language.
+    mutating func changeLanguage(to language: WhisperLanguage, kept: KeptModelFile?, remembered: ModelEntry?) {
+        self.language = language
+        self.kept = kept
+        keptMissing = false
+        if let remembered, remembered != .file || kept != nil {
+            select(remembered)
+        } else if model == .file && kept == nil {
+            select(.catalog(Self.languageModel(language)))
+        } else {
+            select(model)
+        }
+    }
+
     /// The kept file is missing at the sheet open: a selection of it gives the language rule.
     mutating func keptFileIsMissing() {
         keptMissing = true
@@ -258,7 +274,11 @@ struct TranscribeSheet: View {
                 Picker(L10n.sheetTranscribeTrack.key, selection: binding(\.track, draft.track)) {
                     ForEach(draft.tracks, id: \.id) { Text(verbatim: $0.name).tag($0.id) }
                 }
-                Picker(L10n.sheetTranscribeLanguage.key, selection: binding(\.language, draft.language)) {
+                Picker(
+                    L10n.sheetTranscribeLanguage.key,
+                    selection: Binding(
+                        get: { model.transcribe.draft?.language ?? draft.language }, set: { model.selectLanguage($0) })
+                ) {
                     Text(L10n.sheetTranscribeAutomatic.key).tag(WhisperLanguage.automatic)
                     ForEach(preferred, id: \.self) { code in
                         Text(verbatim: TranscribeLanguages.name(code)).tag(WhisperLanguage.code(code))

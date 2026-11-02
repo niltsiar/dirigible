@@ -74,6 +74,8 @@ enum TranscribeHint {
     @ObservationIgnored var checkTask: Task<Void, Never>?
     /// The status read of the kept file at the sheet open.
     @ObservationIgnored var keptTask: Task<Void, Never>?
+    /// The open panel of Locate... and Choose Model File... of a job alert.
+    @ObservationIgnored var pickTask: Task<Void, Never>?
 }
 
 /// Tools > Transcribe Track... (decision 0065): the sheet starts a job of the studio beside the
@@ -111,15 +113,13 @@ extension SessionWindow {
 
     /// Cancel and Escape of the sheet: they stop a check of a model file.
     func cancelTranscribeSheet() {
-        stopModelCheck()
-        transcribe.keptTask?.cancel()
+        endModelFileWork()
         transcribe.draft = nil
     }
 
     /// The default button of the sheet: closes it and starts the job.
     func startTranscribe(_ draft: TranscribeDraft) {
-        stopModelCheck()
-        transcribe.keptTask?.cancel()
+        endModelFileWork()
         transcribe.draft = nil
         draft.remember(in: app?.defaults)
         if let request = draft.request { start(request) }

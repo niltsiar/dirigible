@@ -304,7 +304,7 @@ import SwiftUI
         unusedFiles = nil
         denoiseDraft = nil
         repairDraft = nil
-        transcribe.draft = nil
+        cancelTranscribeSheet()
         closeConsent()
         switch phase {
         case .closing, .closed: return

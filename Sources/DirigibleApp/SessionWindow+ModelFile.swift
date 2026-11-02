@@ -50,6 +50,14 @@ extension SessionWindow {
         transcribe.checkTask = nil
     }
 
+    /// Closes each open panel of the model file flow and stops the check and the status read of the
+    /// sheet: for Cancel of the sheet, the start of its job, the close of the window, and a take start.
+    func endModelFileWork() {
+        stopModelCheck()
+        transcribe.keptTask?.cancel()
+        transcribe.pickTask?.cancel()
+    }
+
     /// The sheet check (U17): a read run of the studio, so a take start in any window and
     /// `settle()` stop it. A pass keeps the file; a refusal keeps nothing.
     private func checkModelFile(_ url: URL, before: ModelEntry) async {
@@ -138,8 +146,9 @@ extension SessionWindow {
     /// with the picked file, so the job checks it.
     func startWithPickedFile(_ request: TranscribeRequest) {
         let (pick, parent) = (transcribe.pickModelFile, panelParent)
-        Task { [weak self] in
-            guard let url = await pick(parent) else { return }
+        transcribe.pickTask?.cancel()
+        transcribe.pickTask = Task { [weak self] in
+            guard let url = await pick(parent), !Task.isCancelled else { return }
             self?.start(
                 TranscribeRequest(
                     track: request.track, trackName: request.trackName, language: request.language,

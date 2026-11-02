@@ -253,6 +253,23 @@ extension MCPExportToolTests {
         #expect(refusal?.message == "no chapter in frames 0..<21000." && refusal?.isNoPoint == true)
     }
 
+    /// C8 (code gate 1 item 4): a plain marker at the millisecond of a chapter has no file of its own
+    /// in a `markers` split, and the text says so.
+    @Test func aDroppedMarkerGetsOneWarningLine() async throws {
+        try addChapters()
+        try package.edit { try $0.setMarker(Marker(id: "n", name: "Note", position: 8010, kind: .marker)) }
+
+        let answers = try await mcp([
+            toolCall(1, "export", ["package": package.path, "out": out("Ep.mp3"), "split": "markers"])
+        ])
+
+        let names = ["Ep-01-Intro", "Ep-02-Interview", "Ep-03-Outro"]
+        let line =
+            "Warning: marker \"Note\" at 8010 starts at the time of the split point before it, or at the end of "
+            + "the range; it has no file of its own."
+        #expect(toolResult(answer(answers, id: 1)) == ((exported(names) + [line]).joined(separator: "\n"), false))
+    }
+
     /// Lead ruling 1b row 6: the text ends with the line of the older files of the stem.
     @Test func exportWithSplitNamesTheOldFilesOfTheStem() async throws {
         try addChapters()

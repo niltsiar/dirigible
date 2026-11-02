@@ -231,6 +231,24 @@ extension ExportCommandTests {
         #expect(two.status == 0 && two.stderr == both, "\(two)")
     }
 
+    /// C8 (code gate 1 item 4): "Dup" at 8010 is at the millisecond of "Interview" (167 ms), so it has
+    /// no file of its own and gets one warning. The MP3 of part 2 also leaves it out of its chapters.
+    @Test func aDroppedSplitPointGetsOneWarning() async throws {
+        try addChapters()
+        try package.edit { try $0.setMarker(Marker(id: "d", name: "Dup", position: 8010, kind: .chapter)) }
+
+        let result = try await package.run("export", "PKG", "--out", out("Ep.mp3").path, "--split", "chapters")
+
+        let point =
+            "Warning: chapter \"Dup\" at 8010 starts at the time of the split point before it, or at the end of "
+            + "the range; it has no file of its own.\n"
+        let chapter =
+            "Warning: chapter \"Dup\" at 8010 starts at the time of another chapter, or at or after the end of "
+            + "the audio; the file leaves it out.\n"
+        let lines = paths(Self.partNames, "mp3").map { $0 + "\n" }.joined()
+        #expect(result == CLIResult(status: 0, stdout: lines, stderr: point + chapter), "\(result)")
+    }
+
     /// With no `--split`, a package with chapters writes the one file.
     @Test func noSplitKeepsTheOutputOfToday() async throws {
         try addChapters()

@@ -187,12 +187,12 @@ extension ExportWork {
     }
 
     /// The stdout lines and the stderr lines of a set that ended with no error: a line for each file,
-    /// the warnings of each file, and the line of the older files of the stem. A file that only the
-    /// export found bad is refused, as for one file.
+    /// a line for each split point with no file, the warnings of each file, and the line of the older
+    /// files of the stem. A file that only the export found bad is refused, as for one file.
     package func setLines(of result: ExportPartsResult, session: Session, source: ExportSource, old: [URL])
         throws(ToolError) -> (stdout: [String], stderr: [String])
     {
-        var warnings: [String] = []
+        var warnings = ExportText.droppedPointLines(result.dropped)
         for file in result.files {
             guard file.result.faults.isEmpty || allowMissing else {
                 throw ToolError(

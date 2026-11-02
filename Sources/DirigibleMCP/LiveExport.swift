@@ -54,7 +54,7 @@ private func liveSet(
     report: @escaping @Sendable (Double) -> Void
 ) async throws(ToolError) -> String {
     let replacing: [URL: ConfirmedFile]
-    do throws(SplitRefusal) { replacing = try await confirmations(work, session, source) } catch {
+    do throws(SplitRefusal) { replacing = try await confirmations(work, session, source, kind) } catch {
         throw ToolError(error.message)
     }
     let result: ExportPartsResult
@@ -87,10 +87,10 @@ private func setStopMessage(_ work: ExportWork, _ stop: ExportPartsStop, cause: 
 }
 
 /// The check of the targets of a set off the main actor: an lstat for each file is file I/O.
-@concurrent private func confirmations(_ work: ExportWork, _ session: Session, _ source: ExportSource)
-    async throws(SplitRefusal) -> [URL: ConfirmedFile]
-{
-    try work.splitConfirmations(session, source: source)
+@concurrent private func confirmations(
+    _ work: ExportWork, _ session: Session, _ source: ExportSource, _ kind: SplitKind
+) async throws(SplitRefusal) -> [URL: ConfirmedFile] {
+    try work.splitConfirmations(session, source: source, by: kind)
 }
 
 /// The folder read for the older files of the stem, off the main actor.

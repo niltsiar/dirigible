@@ -123,7 +123,7 @@ package struct ExportWork: Sendable {
         }
         let source = try source(in: session)
         try checkFiles(session, package: package, source: source)
-        if split != nil { return try runSet(session, source: source, package: package, control: control) }
+        if let kind = split { return try runSet(session, source: source, by: kind, package: package, control: control) }
         let result: ExportResult
         do throws(ExportError) {
             result = try export(
@@ -149,10 +149,9 @@ extension ExportWork {
     /// The files of the set that the targets of `session` name, and the confirmation of each item
     /// that `replace` takes. Refuses a range with no split point, and an item at a target with no
     /// `replace`. It reads the targets, so call it off the main actor.
-    package func splitConfirmations(_ session: Session, source: ExportSource) throws(SplitRefusal) -> [URL:
-        ConfirmedFile]
+    package func splitConfirmations(_ session: Session, source: ExportSource, by kind: SplitKind)
+        throws(SplitRefusal) -> [URL: ConfirmedFile]
     {
-        guard let kind = split else { return [:] }
         let targets = exportPartTargets(
             session, range: source.range, by: kind, options: options, folder: folder, stem: stem
         ).targets
@@ -179,11 +178,10 @@ extension ExportWork {
 
     /// The job of a set on the files.
     package func exportSet(
-        _ session: Session, source: ExportSource, replacing: [URL: ConfirmedFile], package: URL,
+        _ session: Session, source: ExportSource, by kind: SplitKind, replacing: [URL: ConfirmedFile], package: URL,
         progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool
     ) throws(ExportPartsError) -> ExportPartsResult {
-        guard let kind = split else { throw .noPoint(.chapters, source.range) }
-        return try exportParts(
+        try exportParts(
             session, source: source, by: kind, options: options, folder: folder, stem: stem, replacing: replacing,
             package: { package }, progress: { progress($0.fraction) }, isCancelled: isCancelled)
     }
@@ -228,17 +226,17 @@ extension ExportWork {
     }
 
     /// The set of a tool call on the files.
-    func runSet(_ session: Session, source: ExportSource, package: URL, control: CallControl) throws(ToolError)
-        -> String
+    func runSet(_ session: Session, source: ExportSource, by kind: SplitKind, package: URL, control: CallControl)
+        throws(ToolError) -> String
     {
         let replacing: [URL: ConfirmedFile]
-        do throws(SplitRefusal) { replacing = try splitConfirmations(session, source: source) } catch {
+        do throws(SplitRefusal) { replacing = try splitConfirmations(session, source: source, by: kind) } catch {
             throw ToolError(error.message)
         }
         let result: ExportPartsResult
         do throws(ExportPartsError) {
             result = try exportSet(
-                session, source: source, replacing: replacing, package: package, progress: control.report,
+                session, source: source, by: kind, replacing: replacing, package: package, progress: control.report,
                 isCancelled: control.isCancelled)
         } catch {
             guard case .stopped(let stop) = error else { throw ToolError(setRefusal(error)) }

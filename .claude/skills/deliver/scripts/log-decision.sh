@@ -16,7 +16,8 @@
 # change, and a criterion change row for each of its IDs, while such a row can still come before
 # Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
 # last phase 2 row. For a run that starts after the cutoff in check-plan.sh, the Fix check of the last
-# review-plan-<n>.md also has its lines (lead-judgment.md, Fix check). A phase 6 row needs a passing scripts/check-plan.sh with no variable, the check
+# review-plan-<n>.md also has its lines (lead-judgment.md, Fix check). A phase 6 row needs a passing
+# scripts/check-plan.sh with no variable, the check
 # of the land: the review files have their fields. A criterion change row skips that check. A phase
 # 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
 # origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a

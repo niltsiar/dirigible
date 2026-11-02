@@ -1355,8 +1355,7 @@ printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }
 fi # guardrails-rules
 
-# The hook test rule reads the verdict of scripts/lock-words.sh for a with-lock.sh make test-hooks call
-# (item 1120, source run 2026-11-01-upkeep-thirteenth, earlier lesson NEW-DLV-cmdforms/scope).
+# The hook test rule reads the verdict of scripts/lock-words.sh for a with-lock.sh make test-hooks call.
 if case_block test-rule; then
 lock_stub="$tmp/lockstub/wl"
 mkdir -p "$tmp/lockstub"
@@ -1364,7 +1363,7 @@ printf '#!/bin/bash\n. "%s"\nif lock_make_words "$@" && [[ $lock_goal == test-ho
   "$(cd "$(dirname "$0")/../../scripts" && pwd)/lock-words.sh" > "$lock_stub"
 chmod +x "$lock_stub"
 T=scripts/land.test.sh
-# The 23 spellings of the probe: the hook allows a call if and only if lock-words.sh classes it free or release.
+# The 23 spellings: the hook allows a call if and only if lock-words.sh classes it free or release.
 expect_each_lock agree \
   "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh /usr/bin/make test-hooks HOOK_TESTS=$T" \
   "scripts/with-lock.sh env make test-hooks HOOK_TESTS=$T" "time scripts/with-lock.sh env X=1 make test-hooks HOOK_TESTS=$T" \
@@ -1396,8 +1395,7 @@ for run in 'scripts/with-lock.sh make test-hooks' 'time scripts/with-lock.sh env
   expect_message "HOOK_TESTS='<names>'" "$run"
 done
 # A segment of only NAME=value words runs no command, so it passes. A later segment that runs $NAME, a name that an
-# earlier segment set to a repo .test.sh path, blocks across ;, &&, ||, and a new line (item 1452, source run
-# 2026-11-01-upkeep-thirteenth, earlier lesson DLV-210/hook).
+# earlier segment set to a repo .test.sh path, blocks across ;, &&, ||, and a new line.
 for run in 'F=.claude/hooks/git-guardrails.test.sh; sed -n 1,5p $F' 'T=.claude/hooks/git-guardrails.test.sh; rg -n expect_each $T' \
   'F=scripts/land.test.sh; bash $G' 'F=scripts/land.test.sh; bash -n $F' \
   'F=.scratchpads/x/a.test.sh; bash $F' 'F=scripts/land.sh; bash $F' 'F=scripts/land.test.sh && wc -l $F' $'F=scripts/land.test.sh\nwc -l $F'; do

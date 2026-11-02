@@ -512,7 +512,7 @@ ROW_AT=2026-10-01T10:00 closed; round 1 "$ACT"
 pass 'a run that started before the rule, with a round file that a later note changed'
 unset CHECK_PLAN_AT_PHASE4 ROW_AT
 
-# Fix check lines (item 1357, lead-judgment.md, Fix check). From the cutoff in check-plan.sh, the
+# Fix check lines (lead-judgment.md, Fix check). From the cutoff in check-plan.sh, the
 # plan gate Fix check has a "- <round>.<item>" line for each Act on item of each round, each line has a
 # new failure: part, and a line of a plan gate item that changes a criterion has a control: part.
 # fixrun <Fix check text> [<Act on text>]: a closed plan gate with round 1, dated now (after the cutoff).
@@ -551,7 +551,7 @@ pass 'a new failure part that names the failure'
 fixrun '- 1.1 OK; new failure: none: the fix changes one test name.'
 pass 'new failure: none with a reason'
 
-# C3: a control for the plan gate item that a criterion change row names, or that a Plan gate changes item
+# A control for the plan gate item that a criterion change row names, or that a Plan gate changes item
 # names with a Criteria: ID. ctl <tail>: item 1 gets <tail> after its new failure part; item 2 has none.
 ACT2=$'1. (warning, x) A fix.\n   Invariant: i. Siblings: s.\n2. (warning, x) Another fix.\n   Invariant: i. Siblings: s.'
 ctl() {
@@ -577,7 +577,7 @@ pass 'form (a) with a file and 3 of 3'
 ctl ' control: logs/c1.log after S2'
 pass 'form (b) with a slice heading and no file yet'
 
-# C3, a Plan gate changes item as the trigger: the lock-yield shape has a criterion change row with no
+# A Plan gate changes item as the trigger: the lock-yield shape has a criterion change row with no
 # (plan gate <r> item <i>) name, so only its Plan gate changes item names the gate item.
 gate_item() { # <review-plan-1.md Fix check line> <criterion change row ID> <plan gate changes text>
   closed; row 3 "criterion change $2: old a, new b"

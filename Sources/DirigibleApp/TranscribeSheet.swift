@@ -56,7 +56,14 @@ struct TranscribeDraft: Equatable {
         self.kept = kept
         model = .catalog(Self.languageModel(language))
         track = tracks.contains { $0.id == selected } ? selected ?? first.id : first.id
-        if let remembered, remembered != .file || kept != nil { select(remembered) }
+        select(Self.firstModel(for: language, kept: kept, remembered: remembered))
+    }
+
+    /// The model that a sheet with `language` starts on (C19): `remembered`, else the model of the
+    /// language. A remembered file needs a kept file.
+    static func firstModel(for language: WhisperLanguage, kept: KeptModelFile?, remembered: ModelEntry?) -> ModelEntry {
+        if let remembered, remembered != .file || kept != nil { return remembered }
+        return .catalog(languageModel(language))
     }
 
     /// The model of a language choice with no job yet. Spanish starts at More Accurate: in the C27
@@ -99,20 +106,14 @@ struct TranscribeDraft: Equatable {
         select(model)
     }
 
-    /// A Language pop-up change: the kept file and the remembered entry of the new choice take over, as
-    /// at the sheet open. Without a remembered entry, a file entry with no kept file gives way to the
-    /// model of the language.
+    /// A Language pop-up change (C19): the kept file and the model of the new choice take over, as at
+    /// a sheet open with that choice.
     mutating func changeLanguage(to language: WhisperLanguage, kept: KeptModelFile?, remembered: ModelEntry?) {
         self.language = language
         self.kept = kept
         keptMissing = false
-        if let remembered, remembered != .file || kept != nil {
-            select(remembered)
-        } else if model == .file && kept == nil {
-            select(.catalog(Self.languageModel(language)))
-        } else {
-            select(model)
-        }
+        beforeChoice = nil
+        select(Self.firstModel(for: language, kept: kept, remembered: remembered))
     }
 
     /// The kept file is missing at the sheet open: a selection of it gives the language rule.

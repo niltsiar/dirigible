@@ -19,9 +19,11 @@ extension SessionWindow {
         transcribe.draft?.select(entry)
     }
 
-    /// A choice in the Language pop-up: the kept file and the model memory of the new choice take over,
-    /// as at the sheet open.
+    /// A choice in the Language pop-up: it stops a running check as a Model change does, then the kept
+    /// file and the model memory of the new choice take over, as at the sheet open.
     func selectLanguage(_ language: WhisperLanguage) {
+        stopModelCheck()
+        transcribe.draft?.check = nil
         let defaults = app?.defaults
         transcribe.draft?.changeLanguage(
             to: language, kept: KeptModelFile.load(for: language, from: defaults),
@@ -104,8 +106,11 @@ extension SessionWindow {
         }
     }
 
-    /// The end of a choice with no new file: the entry before, and the refusal line, if any.
+    /// The end of a choice with no new file: the entry before, and the refusal line, if any. A
+    /// stopped check changes nothing: a take start after the stop gives `.readYielded`, and the entry
+    /// before can be a file that the new language choice does not keep.
     private func endChoice(_ before: ModelEntry, line: ModelCheckLine?) {
+        guard !Task.isCancelled else { return }
         transcribe.checkTask = nil
         guard transcribe.draft != nil else { return }
         transcribe.draft?.beforeChoice = nil

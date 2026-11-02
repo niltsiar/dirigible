@@ -97,9 +97,7 @@ extension SessionWindow {
         // `Studio.export` sets its job before its first suspension: the progress takes the place of the step.
         exportStep = nil
         recordRefusal = nil
-        exportReport = nil
-        chapterWarnings = nil
-        exportSet = nil
+        clearExportBanners()
         defer { recordRefusal = nil }
         let (revision, session) = (studio.sessionRevision, studio.session)
         do throws(StudioError) {

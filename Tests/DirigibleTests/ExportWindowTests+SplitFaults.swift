@@ -57,4 +57,18 @@ extension ExportWindowTests {
         #expect(model.exportStep == nil && studio.exportProgress == nil)
         await model.close()
     }
+
+    /// Item 7: the next single export removes the banners of the earlier set.
+    @Test func aSingleExportRemovesTheBannersOfTheEarlierSet() async throws {
+        let (model, studio, _) = try await window()
+        try threeChapters(studio)
+        try await runSet(model, studio, setTarget())
+        try #require(model.exportSet != nil)
+
+        let source = try #require(model.source(of: .session, in: studio))
+        await model.run(source, target, studio)
+
+        #expect(model.exportSet == nil, "the set banner stays next to the single export")
+        await model.close()
+    }
 }

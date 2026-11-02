@@ -18,13 +18,16 @@ package struct ExportWork: Sendable {
     let allowMissing: Bool
     /// How the texts name an option.
     let spelling: OptionSpelling
+    /// Nil for one file. Else one file for each part of the range (decision 0067): `out` gives the
+    /// folder, the stem, and the format.
+    let split: SplitKind?
 
     package init(
         out: String, options: ExportOptions, from: Int, to: Int?, tracks: [TrackID], replace: Bool,
-        allowMissing: Bool, spelling: OptionSpelling = .tool
+        allowMissing: Bool, spelling: OptionSpelling = .tool, split: SplitKind? = nil
     ) {
         (self.out, self.options, self.from, self.to, self.tracks) = (out, options, from, to, tracks)
-        (self.replace, self.allowMissing, self.spelling) = (replace, allowMissing, spelling)
+        (self.replace, self.allowMissing, self.spelling, self.split) = (replace, allowMissing, spelling, split)
     }
 
     var isRender: Bool { options == .render }
@@ -75,8 +78,9 @@ package struct ExportWork: Sendable {
             progress: progress, isCancelled: isCancelled)
     }
 
-    /// The text of a failed job, or nil for a cancel.
-    package func message(_ error: ExportError) -> String? {
+    /// The text of a failed job, or nil for a cancel. A set names the file in hand as `file`.
+    package func message(_ error: ExportError, file: String? = nil) -> String? {
+        let out = file ?? out
         if case .rateNotSupported(let rate) = error, !isRender {
             return ExportText.rateMessage(out: out, rate: rate, spelling: spelling)
         }
@@ -119,6 +123,7 @@ package struct ExportWork: Sendable {
         }
         let source = try source(in: session)
         try checkFiles(session, package: package, source: source)
+        if split != nil { return try runSet(session, source: source, package: package, control: control) }
         let result: ExportResult
         do throws(ExportError) {
             result = try export(
@@ -127,5 +132,133 @@ package struct ExportWork: Sendable {
             throw ToolError(message(error) ?? cancelledMessage)
         }
         return try text(of: result, session: session, source: source)
+    }
+}
+
+/// A split export that the checks refuse before the first write.
+package struct SplitRefusal: Error, Sendable {
+    package let message: String
+    /// True when the range has no split point: exit 1. Else files exist at the targets: exit 2.
+    package let isNoPoint: Bool
+}
+
+extension ExportWork {
+    var folder: URL { url.deletingLastPathComponent() }
+    var stem: String { url.deletingPathExtension().lastPathComponent }
+
+    /// The files of the set that the targets of `session` name, and the confirmation of each item
+    /// that `replace` takes. Refuses a range with no split point, and an item at a target with no
+    /// `replace`. It reads the targets, so call it off the main actor.
+    package func splitConfirmations(_ session: Session, source: ExportSource) throws(SplitRefusal) -> [URL:
+        ConfirmedFile]
+    {
+        guard let kind = split else { return [:] }
+        let targets = exportPartTargets(
+            session, range: source.range, by: kind, options: options, folder: folder, stem: stem
+        ).targets
+        guard !targets.isEmpty else {
+            throw SplitRefusal(message: ExportText.noPointMessage(kind, range: source.range), isNoPoint: true)
+        }
+        var confirmed: [URL: ConfirmedFile] = [:]
+        var existing: [URL] = []
+        for target in targets {
+            guard let item = ConfirmedFile(at: target.url) else { continue }
+            if replace { confirmed[target.url] = item } else { existing.append(target.url) }
+        }
+        guard existing.isEmpty else {
+            throw SplitRefusal(message: ExportText.partsExistMessage(existing, spelling: spelling), isNoPoint: false)
+        }
+        return confirmed
+    }
+
+    /// The items of the folder that an earlier set of the stem wrote and `files` do not. It reads
+    /// the folder, so call it off the main actor.
+    package func oldFiles(besides files: [ExportedPart]) -> [URL] {
+        let written = Set(files.map(\.url.lastPathComponent))
+        return oldPartFiles(in: folder, stem: stem, pathExtension: url.pathExtension.lowercased(), targets: []).filter {
+            !written.contains($0.lastPathComponent)
+        }
+    }
+
+    /// The job of a set on the files.
+    package func exportSet(
+        _ session: Session, source: ExportSource, replacing: [URL: ConfirmedFile], package: URL,
+        progress: (Double) -> Void = { _ in }, isCancelled: () -> Bool
+    ) throws(ExportPartsError) -> ExportPartsResult {
+        guard let kind = split else { throw .noPoint(.chapters, source.range) }
+        return try exportParts(
+            session, range: source.range, by: kind, tracks: source.tracks, options: options, folder: folder,
+            stem: stem, replacing: replacing, package: { package }, progress: { progress($0.fraction) },
+            isCancelled: isCancelled)
+    }
+
+    /// The stdout lines and the stderr lines of a set that ended with no error: a line for each file,
+    /// the warnings of each file, and the line of the older files of the stem. A file that only the
+    /// export found bad is refused, as for one file.
+    package func setLines(of result: ExportPartsResult, session: Session, source: ExportSource, old: [URL])
+        throws(ToolError) -> (stdout: [String], stderr: [String])
+    {
+        var warnings: [String] = []
+        for file in result.files {
+            guard file.result.faults.isEmpty || allowMissing else {
+                throw ToolError(
+                    ExportText.readFaultMessage(file.result.faults, in: session, out: file.url.path, spelling: spelling)
+                )
+            }
+            for line in ExportText.warnings(
+                of: file.result, session: session.forPart(file.part), source: source, output: file.url,
+                format: options.format, spelling: spelling) where !warnings.contains(line)
+            {
+                warnings.append(line)
+            }
+        }
+        return (result.files.map(ExportText.partLine), warnings + [ExportText.oldFilesLine(old)].compactMap { $0 })
+    }
+
+    /// The stdout lines and the stderr lines of a set that stopped or failed: a line for each file
+    /// on disk, the error text of a failure, and the stop line.
+    package func stopLines(_ stop: ExportPartsStop) -> (stdout: [String], stderr: [String]) {
+        let failure = message(stop.error, file: stop.remaining.first?.path)
+        return (
+            stop.written.map(ExportText.partLine),
+            [failure, ExportText.stopLine(remaining: stop.remaining)].compactMap { $0 }
+        )
+    }
+
+    /// The tool text of a set that stopped or failed.
+    package func stopText(_ stop: ExportPartsStop) -> String {
+        let (stdout, stderr) = stopLines(stop)
+        return (stdout + stderr).joined(separator: "\n")
+    }
+
+    /// The set of a tool call on the files.
+    func runSet(_ session: Session, source: ExportSource, package: URL, control: CallControl) throws(ToolError)
+        -> String
+    {
+        let replacing: [URL: ConfirmedFile]
+        do throws(SplitRefusal) { replacing = try splitConfirmations(session, source: source) } catch {
+            throw ToolError(error.message)
+        }
+        let result: ExportPartsResult
+        do throws(ExportPartsError) {
+            result = try exportSet(
+                session, source: source, replacing: replacing, package: package, progress: control.report,
+                isCancelled: control.isCancelled)
+        } catch {
+            guard case .stopped(let stop) = error else { throw ToolError(setRefusal(error)) }
+            throw ToolError(stopText(stop))
+        }
+        let (stdout, stderr) = try setLines(
+            of: result, session: session, source: source, old: oldFiles(besides: result.files))
+        return (stdout + stderr).joined(separator: "\n")
+    }
+
+    /// The text of a set that the writer refused before the first write.
+    package func setRefusal(_ error: ExportPartsError) -> String {
+        switch error {
+        case .exists(let urls): ExportText.partsExistMessage(urls, spelling: spelling)
+        case .noPoint(let kind, let range): ExportText.noPointMessage(kind, range: range)
+        case .stopped(let stop): stopText(stop)
+        }
     }
 }

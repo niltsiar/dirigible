@@ -1,6 +1,9 @@
 import DirigibleCore
 import Foundation
 import Testing
+import os
+
+@testable import DirigibleMCP
 
 /// The `export` and `render` tools of `dirigible mcp` on the files (decision 0049). The package of
 /// `ExportCommandTests`: track `t1` with `f1.wav` at frames 1000..<21 000, and track `t2`, empty.
@@ -154,6 +157,97 @@ struct MCPExportToolTests {
         #expect(lines.contains { $0.contains(#""id":3"#) }, "the ping after the cancel has its answer: \(lines)")
         #expect(!lines.contains { $0.contains(#""id":2"#) }, "a cancelled export has no answer: \(lines)")
         #expect(try outputs() == [], "a cancelled export left a file")
+    }
+}
+
+/// The `split` argument of `export` (decision 0067, criterion C14): the chapters Intro at 0,
+/// Interview at 8000, and Outro at 15 000 give `Ep-01-Intro`, `Ep-02-Interview`, and `Ep-03-Outro`.
+extension MCPExportToolTests {
+    func addChapters() throws {
+        try package.edit { session in
+            try session.setMarker(Marker(id: "a", name: "Intro", position: 0, kind: .chapter))
+            try session.setMarker(Marker(id: "b", name: "Interview", position: 8000, kind: .chapter))
+            try session.setMarker(Marker(id: "c", name: "Outro", position: 15_000, kind: .chapter))
+        }
+    }
+
+    func exported(_ names: [String]) -> [String] { names.map { out($0 + ".mp3") } }
+
+    @Test func exportWithSplitWritesTheSet() async throws {
+        try addChapters()
+
+        let answers = try await mcp([
+            toolCall(1, "export", ["package": package.path, "out": out("Ep.mp3"), "split": "chapters"])
+        ])
+
+        let names = ["Ep-01-Intro", "Ep-02-Interview", "Ep-03-Outro"]
+        #expect(toolResult(answer(answers, id: 1)) == (exported(names).joined(separator: "\n"), false))
+        #expect(try outputs().sorted() == names.map { $0 + ".mp3" })
+    }
+
+    @Test func splitOtherWordIsAToolError() async throws {
+        try addChapters()
+
+        let answers = try await mcp([
+            toolCall(1, "export", ["package": package.path, "out": out("Ep.mp3"), "split": "sections"])
+        ])
+
+        #expect(toolResult(answer(answers, id: 1)) == ("split must be chapters or markers.", true))
+        #expect(try outputs() == [])
+    }
+
+    /// C14, H1: `control.isCancelled` turns true in part 3 of 5. The text has the lines of parts 1 and 2
+    /// and the stop line, not "The call was cancelled." alone.
+    @Test func aCancelledSetOnFilesNamesTheWrittenFiles() throws {
+        try RenderCommandTests.writeWAV(package.url.appending(path: "Clips/long.wav"), frames: 384_000)
+        try package.edit { session in
+            try session.addFile(AudioFile(id: "long", path: "long.wav", layout: .mono, length: 384_000))
+            try session.place(Clip(id: "c2", file: "long", start: 0, offset: 0, length: 384_000), on: "t2")
+            let starts = [0, 48_000, 96_000, 336_000, 360_000]
+            for (index, name) in ["One", "Two", "Three", "Four", "Five"].enumerated() {
+                let marker = Marker(
+                    id: MarkerID("m\(index)"), name: name, position: Frames(starts[index]), kind: .chapter)
+                try session.setMarker(marker)
+            }
+        }
+        let folder = package.folder
+        let control = CallControl(
+            token: nil, interval: .zero, send: { _ in },
+            poll: { _ in
+                let items = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+                return items.contains { $0.hasPrefix(".Ep-03") }
+            }, step: {})
+        let work = ExportWork(
+            out: out("Ep.mp3"),
+            options: try ExportText.options(
+                out: out("Ep.mp3"), bits: nil, bitrate: nil, mono: false, rate: nil, loudness: nil, spelling: .tool),
+            from: 0, to: nil, tracks: [], replace: false, allowMissing: false, split: .chapters)
+
+        let thrown = #expect(throws: ToolError.self) {
+            try work.run(package.url, path: package.path, control: control)
+        }
+
+        let names = ["Ep-01-One", "Ep-02-Two"]
+        let stopped = ["Ep-03-Three", "Ep-04-Four", "Ep-05-Five"].map { out($0 + ".mp3") }.joined(separator: ", ")
+        let line = "Stopped: 3 files were not written: \(stopped). An existing file at each path did not change."
+        #expect(thrown?.message == (exported(names) + [line]).joined(separator: "\n"), "\(String(describing: thrown))")
+        #expect(try outputs().sorted() == names.map { $0 + ".mp3" })
+    }
+
+    /// Lead ruling 1b row 6: the text ends with the line of the older files of the stem.
+    @Test func exportWithSplitNamesTheOldFilesOfTheStem() async throws {
+        try addChapters()
+        let old = out("Ep-05-Outro.mp3")
+        try Data("old".utf8).write(to: URL(filePath: old))
+
+        let answers = try await mcp([
+            toolCall(1, "export", ["package": package.path, "out": out("Ep.mp3"), "split": "chapters"])
+        ])
+
+        let names = ["Ep-01-Intro", "Ep-02-Interview", "Ep-03-Outro"]
+        let line = "Warning: 1 older file of this stem stays: \(old). Dirigible does not delete it."
+        #expect(toolResult(answer(answers, id: 1)) == ((exported(names) + [line]).joined(separator: "\n"), false))
+        #expect(try Data(contentsOf: URL(filePath: old)) == Data("old".utf8))
     }
 }
 

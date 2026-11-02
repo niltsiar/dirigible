@@ -240,8 +240,8 @@ struct DenoiseCommandTests {
 
 /// Starts `dirigible` with `arguments` and returns its process ID. The child inherits no
 /// descriptor of the test process, and SIGINT has its default action and is not blocked, also when
-/// the test runner ignores or blocks it. Its output goes to /dev/null.
-func spawnDirigible(_ arguments: String...) throws -> pid_t {
+/// the test runner ignores or blocks it. Its output goes to /dev/null, or to the two files of `output`.
+func spawnDirigible(_ arguments: String..., output: (stdout: URL, stderr: URL)? = nil) throws -> pid_t {
     var attributes: posix_spawnattr_t?
     posix_spawnattr_init(&attributes)
     defer { posix_spawnattr_destroy(&attributes) }
@@ -255,8 +255,9 @@ func spawnDirigible(_ arguments: String...) throws -> pid_t {
     var actions: posix_spawn_file_actions_t?
     posix_spawn_file_actions_init(&actions)
     defer { posix_spawn_file_actions_destroy(&actions) }
-    for descriptor in [STDOUT_FILENO, STDERR_FILENO] {
-        posix_spawn_file_actions_addopen(&actions, descriptor, "/dev/null", O_WRONLY, 0)
+    let files = output.map { [$0.stdout.path, $0.stderr.path] } ?? ["/dev/null", "/dev/null"]
+    for (descriptor, file) in zip([STDOUT_FILENO, STDERR_FILENO], files) {
+        posix_spawn_file_actions_addopen(&actions, descriptor, file, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
     }
     var argv: [UnsafeMutablePointer<CChar>?] = ([dirigibleBinary.path] + arguments).map { strdup($0) } + [nil]
     defer { for argument in argv { free(argument) } }

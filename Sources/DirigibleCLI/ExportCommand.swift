@@ -27,7 +27,15 @@ struct Export: ParsableCommand {
             track, and an .mp3 gets them as ID3 CHAP frames, at most 255. Each chapter keeps its URL \
             and its image. A chapter at the time of the chapter before it is not in the file, and a \
             warning names it. An .m4a with a chapter image, a chapter with none, and no episode \
-            artwork gets no chapter images, and a warning says so.
+            artwork gets no chapter images, and a warning says so. With --split chapters or --split \
+            markers, the export writes one file for each part of the range, named <stem>-<NN>-<title> \
+            from the file name of --out, in the folder of --out, and prints the path of each file; with \
+            --loudness, each line adds a tab and the loudness line of its file. Each file has its own \
+            gain. The part before the first point is number 00. Exit 1 when the range has no chapter \
+            (or no marker). Exit 2, before any file is written, when a file is at a target (unless \
+            --replace). Control-C or a failed file stops the set: the files before it stay, and stderr \
+            names the files that were not written (exit 130 or 2). After a set, stderr names the older \
+            files of the stem; Dirigible keeps them. The file <stem>.<ext> is never written.
             """)
 
     @OptionGroup var package: PackageArgument
@@ -50,9 +58,18 @@ struct Export: ParsableCommand {
     @Flag(help: "Replace the output file when it exists.") var replace = false
     @Flag(help: "Export the clips of a missing, short, or unreadable file as silence, with a warning.")
     var allowMissing = false
+    @Option(help: "Write one file for each chapter or marker of the range: chapters or markers.") var split: String?
 
     func validate() throws {
         _ = try options()
+        _ = try splitKind()
+    }
+
+    /// The split that `--split` gives, or a usage error.
+    func splitKind() throws(ValidationError) -> SplitKind? {
+        do throws(ToolError) { return try ExportText.splitKind(split, spelling: .cli) } catch {
+            throw ValidationError(error.message)
+        }
     }
 
     /// The options that the arguments give, or a usage error.
@@ -66,9 +83,51 @@ struct Export: ParsableCommand {
     }
 
     func run() throws {
+        let kind = try splitKind()
         let work = ExportWork(
             out: out, options: try options(), from: from, to: to, tracks: track.map { TrackID($0) }, replace: replace,
-            allowMissing: allowMissing, spelling: .cli)
-        try runWork(work, package: package.url, session: try readPackage(package))
+            allowMissing: allowMissing, spelling: .cli, split: kind)
+        let session = try readPackage(package)
+        if kind == nil {
+            try runWork(work, package: package.url, session: session)
+        } else {
+            try runSet(work, package: package.url, session: session)
+        }
     }
+}
+
+/// The steps of `export --split` from `ExportWork`: the exit codes of `runWork`, and exit 1 for a
+/// range with no split point. A stop or a failure prints the files on disk and the stop line.
+func runSet(_ work: ExportWork, package: URL, session: Session) throws {
+    let source: ExportSource
+    do { source = try work.source(in: session) } catch { throw ValidationError(error.message) }
+    do { try work.checkFiles(session, package: package, source: source) } catch {
+        throw fail(error.message, code: packageError)
+    }
+    let replacing: [URL: ConfirmedFile]
+    do { replacing = try work.splitConfirmations(session, source: source) } catch {
+        throw fail(error.message, code: error.isNoPoint ? editRefused : packageError)
+    }
+    let interrupt = cancelOnInterrupt()
+    defer { interrupt.source.cancel() }
+    let result: ExportPartsResult
+    do {
+        result = try work.exportSet(
+            session, source: source, replacing: replacing, package: package, isCancelled: interrupt.isCancelled)
+    } catch {
+        guard case .stopped(let stop) = error else { throw fail(work.setRefusal(error), code: packageError) }
+        let lines = work.stopLines(stop)
+        for line in lines.stdout { print(line) }
+        warn(lines.stderr)
+        throw ExitCode(stop.error == .cancelled ? 128 + SIGINT : packageError)
+    }
+    let lines: (stdout: [String], stderr: [String])
+    do {
+        lines = try work.setLines(
+            of: result, session: session, source: source, old: work.oldFiles(besides: result.files))
+    } catch {
+        throw fail(error.message, code: packageError)
+    }
+    warn(lines.stderr)
+    for line in lines.stdout { print(line) }
 }

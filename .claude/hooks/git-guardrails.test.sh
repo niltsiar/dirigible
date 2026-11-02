@@ -107,6 +107,31 @@ expect_each_lock() {
   done
 }
 
+# A command guard must hold in each shell context, not only in the contexts that a gate found one at a
+# time (the DLV-210 guard failed open in five review rounds). expect_each_context <block|allow>
+# <command> runs <command> in one shared list: a block context runs it as code (a group, a redirect, a
+# comment line with an apostrophe around it, a shell heredoc, a $(...), a cd prefix), and an allow
+# context holds it as data (quotes, a commit message heredoc, a cat heredoc). @C@ is the command.
+# The two optional values after <command> go to each case (see expect).
+context_block=(
+  '( @C@ )' '{ @C@; }' '@C@ >log' '@C@>log'
+  $'# it\'s here\n@C@\n# that\'s all'
+  $'bash <<\'EOF\'\n@C@\nEOF'
+  'x=$(@C@)' 'echo "$(@C@)"'
+  'cd /x/wt && @C@' "cd '/x y/wt' && @C@"
+)
+context_allow=(
+  "echo '@C@'" 'echo "@C@"'
+  $'git commit -F - <<\'EOF\'\n@C@\nEOF'
+  $'cat <<\'EOF\'\n@C@\nEOF'
+)
+expect_each_context() {
+  local want="$1" cmd="$2" ctx
+  local -a forms=("${context_block[@]}")
+  [[ "$want" == block ]] || forms=("${context_allow[@]}")
+  for ctx in "${forms[@]}"; do expect "$want" "${ctx//@C@/$cmd}" "${@:3}"; done
+}
+
 settings="$(dirname "$0")/../settings.json"
 printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"command","command":"x/.claude/hooks/usage-hook.sh"}]}]}}' > "$tmp/old-settings.json"
 
@@ -141,6 +166,17 @@ if [[ -z "${GUARDRAILS_TEST_COPY:-}" ]] && case_block hook-cases; then
   [[ -z "$outside" ]] || { echo "FAIL: a case call is outside a case_block segment: $(head -n 3 <<< "$outside")"; failures=$((failures + 1)); }
   [[ "$(grep -oE '^if .*case_block [a-z-]+' "$0" | awk '{print $NF}' | sort -u)" == "$(printf '%s\n' "${labels[@]}" | sort)" ]] ||
     { echo "FAIL: the labels array and the case_block segments name other labels"; failures=$((failures + 1)); }
+
+  # An expect_each_* helper that a case block calls must be defined outside every segment, or in the
+  # same segment: a filtered run (HOOK_CASES) skips the other segments, and bash 3.2 has no
+  # command_not_found_handle, so a missing helper would print "command not found" and pass.
+  stray_helpers="$(awk '
+    /^if .*case_block /{blk=$0; sub(/.*case_block /, "", blk); sub(/;.*/, "", blk); next}
+    /^fi # /{blk=""; next}
+    /^expect_each_[a-z_]+\(\) *\{/{n=$1; sub(/\(\).*/, "", n); if (blk == "") shared[n] = 1; else def[n] = blk; next}
+    blk != "" && !/^[ \t]*#/ && match($0, /expect_each_[a-z_]+/) {calls[++k] = substr($0, RSTART, RLENGTH) " " blk}
+    END {for (i = 1; i <= k; i++) {split(calls[i], c, " "); if (!(c[1] in shared) && def[c[1]] != c[2]) print c[1] " in " c[2]}}' "$0" | sort -u)"
+  [[ -z "$stray_helpers" ]] || { echo "FAIL: a helper is not defined for the segment that calls it: $(head -n 3 <<< "$stray_helpers")"; failures=$((failures + 1)); }
 
   copy="$tmp/copy"
   mkdir -p "$copy/.claude"
@@ -1063,30 +1099,6 @@ for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m
   expect_each_join "$first" "$ld"
 done
 
-# A command guard must hold in each shell context, not only in the contexts that a gate found one at a
-# time (the DLV-210 guard failed open in five review rounds). expect_each_context <block|allow>
-# <command> runs <command> in one shared list: a block context runs it as code (a group, a redirect, a
-# comment line with an apostrophe around it, a shell heredoc, a $(...), a cd prefix), and an allow
-# context holds it as data (quotes, a commit message heredoc, a cat heredoc). @C@ is the command.
-# The two optional values after <command> go to each case (see expect).
-context_block=(
-  '( @C@ )' '{ @C@; }' '@C@ >log' '@C@>log'
-  $'# it\'s here\n@C@\n# that\'s all'
-  $'bash <<\'EOF\'\n@C@\nEOF'
-  'x=$(@C@)' 'echo "$(@C@)"'
-  'cd /x/wt && @C@' "cd '/x y/wt' && @C@"
-)
-context_allow=(
-  "echo '@C@'" 'echo "@C@"'
-  $'git commit -F - <<\'EOF\'\n@C@\nEOF'
-  $'cat <<\'EOF\'\n@C@\nEOF'
-)
-expect_each_context() {
-  local want="$1" cmd="$2" ctx
-  local -a forms=("${context_block[@]}")
-  [[ "$want" == block ]] || forms=("${context_allow[@]}")
-  for ctx in "${forms[@]}"; do expect "$want" "${ctx//@C@/$cmd}" "${@:3}"; done
-}
 for run in 'bash scripts/land.test.sh' 'make test-hooks' 'scripts/test-hooks.sh' 'scripts/with-lock.sh bash scripts/land.test.sh' \
   'scripts/with-lock.sh scripts/test-hooks.sh'; do
   expect_each_context block "$run"

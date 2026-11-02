@@ -34,7 +34,8 @@ struct StudioExportPartsTests {
         let folder = fixture.package.folder.url
         return Task {
             try await studio.export(
-                range: range, by: .chapters, tracks: nil, options: options, folder: folder, stem: "Ep", replacing: [:])
+                ExportSource(range: range)!, by: .chapters, options: options, folder: folder, stem: "Ep",
+                replacing: [:])
         }
     }
 

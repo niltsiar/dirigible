@@ -99,8 +99,7 @@ extension SessionWindow {
         let (revision, session) = (studio.sessionRevision, studio.session)
         do throws(StudioError) {
             let result = try await studio.export(
-                range: source.range, by: split.kind, tracks: source.tracks, options: options, folder: split.folder,
-                stem: split.stem, replacing: replacing)
+                source, by: split.kind, options: options, folder: split.folder, stem: split.stem, replacing: replacing)
             let written = Set(result.files.map(\.url.lastPathComponent))
             let old = await olderFiles(split, besides: written).map(\.lastPathComponent)
             show(result, old: old, session: session, format: options.format, revision: revision)

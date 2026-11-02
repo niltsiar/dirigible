@@ -187,9 +187,8 @@ extension ExportWork {
     ) throws(ExportPartsError) -> ExportPartsResult {
         guard let kind = split else { throw .noPoint(.chapters, source.range) }
         return try exportParts(
-            session, range: source.range, by: kind, tracks: source.tracks, options: options, folder: folder,
-            stem: stem, replacing: replacing, package: { package }, progress: { progress($0.fraction) },
-            isCancelled: isCancelled)
+            session, source: source, by: kind, options: options, folder: folder, stem: stem, replacing: replacing,
+            package: { package }, progress: { progress($0.fraction) }, isCancelled: isCancelled)
     }
 
     /// The stdout lines and the stderr lines of a set that ended with no error: a line for each file,

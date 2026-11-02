@@ -339,9 +339,9 @@ private func removeExportLeftovers(of url: URL) {
         unlink(path)
         close(dead)
     }
-    for name in names(".tag.tmp")
+    for name in names(tagSuffix)
     where !FileManager.default.fileExists(
-        atPath: folder.appending(path: "\(name.dropLast(8)).tmp").path)
+        atPath: folder.appending(path: "\(name.dropLast(tagSuffix.count)).tmp").path)
     {
         unlink(folder.appending(path: name).path)
     }

@@ -8,7 +8,8 @@ import os
 
 #if DEBUG
     /// The Language pop-up of the Transcribe sheet (`selectLanguage`) and the model file of the user
-    /// (C19 (g), C25): the model of the new choice, and a stop of the sheet check.
+    /// (C19 (g), C25): the model of the new choice, and the stops of the sheet check by a Language
+    /// change and by a take start of the window.
     extension TranscribeWindowTests {
         /// The kept file `url` of `language`, with the status of the file, so no sheet hash runs.
         func keepFile(_ url: URL, for language: WhisperLanguage, in window: FileWindow) throws {
@@ -113,6 +114,53 @@ import os
             let draft = try #require(window.model.transcribe.draft)
             #expect(draft.model == .catalog(.base) && draft.check == nil && draft.request != nil)
             await window.model.close()
+        }
+
+        /// C25 (d): a take start of this window (`startTake`) during the sheet check gives the entry
+        /// before the pick and the take line when the start returns. The check result waits on a gate
+        /// until after the start, so the window cancels the check before its result comes.
+        @Test func aTakeOfThisWindowDuringTheSheetCheckShowsTheTakeLine() async throws {
+            let pidFile = folder.url.appending(path: "pid-\(UUID().uuidString)")
+            let picks = Picks([])
+            let window = try await openFile(
+                {
+                    try Self.stub(
+                        "echo $$ > '\(pidFile.path)'.tmp; mv '\(pidFile.path)'.tmp '\(pidFile.path)'; exec sleep 30",
+                        in: $0)
+                }, picks: picks, device: "duo")
+            let (hal, gate) = (CountingHAL(), OSAllocatedUnfairLock(initialState: false))
+            defer { gate.withLock { $0 = true } }
+            let check = window.studio.environment.checkModelFile
+            var environment = hal.environment
+            environment.checkModelFile = { url, passed, stop throws(ModelFileCheckError) in
+                defer { while !gate.withLock({ $0 }) { usleep(1_000) } }
+                return try check(url, passed, stop)
+            }
+            window.studio.environment = environment
+            picks.urls = [window.file]
+            let model = window.model
+            let before = try sheet(window).model
+            model.selectModel(.choose)
+            await until(limit: .seconds(10), "the helper wrote its PID") {
+                FileManager.default.fileExists(atPath: pidFile.path)
+            }
+            let pid = try #require(pid_t(String(decoding: Data(contentsOf: pidFile), as: UTF8.self).filter(\.isNumber)))
+            let task = model.transcribe.checkTask
+
+            #expect(await model.startTake(armed: ["t1"], playhead: nil) == .started(take: 1))
+            let take = L10n.sheetTranscribeCheckTake.text
+            let draft = try #require(model.transcribe.draft)
+            #expect(draft.model == before && draft.check == .refused(take) && !draft.isChecking)
+            await until(limit: .seconds(5), "the helper \(pid) ends") { kill(pid, 0) == -1 && errno == ESRCH }
+            gate.withLock { $0 = true }
+            await task?.value
+            let late = model.transcribe.draft
+            #expect(late?.model == before && late?.check == .refused(take) && window.kept() == nil)
+            #expect(window.studio.transport == .recording(take: 1))
+
+            await model.stop()
+            await until("the take ends") { window.studio.isIdle }
+            await model.close()
         }
     }
 #endif

@@ -63,11 +63,19 @@ extension SessionWindow {
     }
 
     /// Closes each open panel of the model file flow and stops the check and the status read of the
-    /// sheet: for Cancel of the sheet, the start of its job, the close of the window, and a take start.
+    /// sheet: for Cancel of the sheet, the start of its job, and the close of the window.
     func endModelFileWork() {
         stopModelCheck()
         transcribe.keptTask?.cancel()
         transcribe.pickTask?.cancel()
+    }
+
+    /// `endModelFileWork` for a take start of this window. A running sheet check ends here as a take
+    /// start in another studio ends it (C25 d): the entry before the pick and the take line.
+    func endModelFileWorkForTake() {
+        let before = transcribe.draft?.isChecking == true ? transcribe.draft?.beforeChoice : nil
+        endModelFileWork()
+        if let before { showChoiceEnd(before, line: .refused(L10n.sheetTranscribeCheckTake.text)) }
     }
 
     /// The sheet check (U17): a read run of the studio, so a take start in any window and
@@ -106,12 +114,17 @@ extension SessionWindow {
         }
     }
 
-    /// The end of a choice with no new file: the entry before, and the refusal line, if any. A
-    /// stopped check changes nothing: a take start after the stop gives `.readYielded`, and the entry
-    /// before can be a file that the new language choice does not keep.
+    /// The end of a choice with no new file, in the check task. A stopped check changes nothing: the
+    /// caller that stopped it set the sheet, and the entry before can be a file that the new language
+    /// choice does not keep.
     private func endChoice(_ before: ModelEntry, line: ModelCheckLine?) {
         guard !Task.isCancelled else { return }
         transcribe.checkTask = nil
+        showChoiceEnd(before, line: line)
+    }
+
+    /// The entry before, and the refusal line, if any.
+    private func showChoiceEnd(_ before: ModelEntry, line: ModelCheckLine?) {
         guard transcribe.draft != nil else { return }
         transcribe.draft?.beforeChoice = nil
         transcribe.draft?.select(before)

@@ -174,10 +174,7 @@ extension ExportWork {
     /// The items of the folder that an earlier set of the stem wrote and `files` do not. It reads
     /// the folder, so call it off the main actor.
     package func oldFiles(besides files: [ExportedPart]) -> [URL] {
-        let written = Set(files.map(\.url.lastPathComponent))
-        return oldPartFiles(in: folder, stem: stem, pathExtension: url.pathExtension.lowercased(), targets: []).filter {
-            !written.contains($0.lastPathComponent)
-        }
+        oldPartFiles(in: folder, stem: stem, format: options.format, besides: Set(files.map(\.url.lastPathComponent)))
     }
 
     /// The job of a set on the files.

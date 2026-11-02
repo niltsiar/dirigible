@@ -67,12 +67,14 @@ public func exportPartTargets(
 }
 
 /// The old files of the stem: the items of `folder` whose name `Session.isPartFileName` matches
-/// and that are not in `targets`, by name. It reads the folder, so call it off the main actor.
-public func oldPartFiles(in folder: URL, stem: String, pathExtension: String, targets: [ExportPartTarget]) -> [URL] {
-    let names = Set(targets.map(\.url.lastPathComponent))
+/// with the extension of `format`, and that are not in `besides`. It reads the folder, so call it off
+/// the main actor.
+public func oldPartFiles(in folder: URL, stem: String, format: ExportFormat, besides names: Set<String>) -> [URL] {
     let items = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-    return items.filter { !names.contains($0) && Session.isPartFileName($0, stem: stem, pathExtension: pathExtension) }
-        .sorted().map { folder.appending(path: $0) }
+    return items.filter {
+        !names.contains($0) && Session.isPartFileName($0, stem: stem, pathExtension: format.pathExtension)
+    }
+    .sorted().map { folder.appending(path: $0) }
 }
 
 /// Exports one file for each part of `range` of `session`, split at `kind`, to the targets of
@@ -133,7 +135,12 @@ public func exportParts(
 }
 
 extension ExportFormat {
-    var pathExtension: String {
+    /// The extensions of the formats that `export` writes: wav, flac, m4a, and mp3.
+    public static let exportPathExtensions: Set<String> = Set(
+        [ExportFormat.wav(.bits24), .flac(.bits24), .aac(.k128), .mp3(.k128)].map(\.pathExtension))
+
+    /// The extension of the files of the format.
+    public var pathExtension: String {
         switch self {
         case .wav: "wav"
         case .flac: "flac"

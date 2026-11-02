@@ -274,9 +274,17 @@ struct ExportPartsWriterTests {
             try Data("old".utf8).write(to: folder.appending(path: name))
         }
 
-        let old = oldPartFiles(in: folder, stem: "Ep 12", pathExtension: "mp3", targets: targets.targets)
+        let besides = Set(targets.targets.map(\.url.lastPathComponent))
+
+        let old = oldPartFiles(in: folder, stem: "Ep 12", format: .mp3(.k128), besides: besides)
 
         #expect(old == [folder.appending(path: "Ep 12-05-Outro.mp3")])
         #expect(try Data(contentsOf: folder.appending(path: "Ep 12-05-Outro.mp3")) == Data("old".utf8))
+        // Code gate 1 item 6: the format gives the extension, so an M4A set sees no MP3 file.
+        #expect(oldPartFiles(in: folder, stem: "Ep 12", format: .aac(.k128), besides: []) == [])
+        try Data("old".utf8).write(to: folder.appending(path: "Ep 12-02-B.m4a"))
+        #expect(
+            oldPartFiles(in: folder, stem: "Ep 12", format: .aac(.k128), besides: [])
+                == [folder.appending(path: "Ep 12-02-B.m4a")])
     }
 }

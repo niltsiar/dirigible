@@ -9,9 +9,9 @@ import Testing
 /// Code gate 2 item 1: the Transcribe sheet has one height in each state of its check line, drawn
 /// with the table of each language. The suite is slow-gated: see `HeaderStateLineTests`.
 extension HeaderStateLineTests {
-    @Test(
-        .enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"),
-        arguments: ["en", "es", "de", "fr"])
+    nonisolated static let languages = ["en", "es", "de", "fr"]
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"), arguments: Self.languages)
     func theTranscribeSheetKeepsOneHeightInEachLanguage(language: String) async throws {
         let (model, _) = try await headerModel(.states)
         let medium = WhisperModelFacts(audioLayers: 24, textLayers: 24, melCount: 80, isMultilingual: true)

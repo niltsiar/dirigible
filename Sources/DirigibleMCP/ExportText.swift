@@ -218,6 +218,15 @@ package enum ExportText {
         }
     }
 
+    /// One warning line for each split point that has no file of its own (decision 0067): its audio is
+    /// in the file before it.
+    package static func droppedPointLines(_ points: [Marker]) -> [String] {
+        points.map {
+            "Warning: \($0.kind == .chapter ? "chapter" : "marker") \"\($0.name)\" at \($0.position) starts at the "
+                + "time of the split point before it, or at the end of the range; it has no file of its own."
+        }
+    }
+
     /// The stdout line of an export with a loudness target.
     package static func loudnessLine(_ report: LoudnessReport) -> String {
         let loudness = report.output.map { String(format: "%.1f LUFS", $0.value) } ?? "none"

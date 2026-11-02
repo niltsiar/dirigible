@@ -31,8 +31,9 @@ struct Export: ParsableCommand {
             markers, the export writes one file for each part of the range, named <stem>-<NN>-<title> \
             from the file name of --out, in the folder of --out, and prints the path of each file; with \
             --loudness, each line adds a tab and the loudness line of its file. Each file has its own \
-            gain. The part before the first point is number 00. Exit 1 when the range has no chapter \
-            (or no marker). Exit 2, before any file is written, when a file is at a target (unless \
+            gain. The part before the first point is number 00. A point at the millisecond of the point \
+            before it, or of the range end, has no file of its own, and a warning names it. Exit 1 when \
+            the range has no chapter (or no marker). Exit 2, before any file is written, when a file is at a target (unless \
             --replace). Control-C or a failed file stops the set: the files before it stay, and stderr \
             names the files that were not written (exit 130 or 2). After a set, stderr names the older \
             files of the stem; Dirigible keeps them. The file <stem>.<ext> is never written.

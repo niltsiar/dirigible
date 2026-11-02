@@ -59,11 +59,19 @@ public func exportPartTargets(
 ) -> (targets: [ExportPartTarget], dropped: [Marker]) {
     let parts = session.exportParts(in: range, by: kind, introTitle: options.introTitle)
     let targets = parts.parts.map { part in
-        let name = Session.partFileName(
-            part, digits: parts.digits, stem: stem, pathExtension: options.format.pathExtension, limit: exportNameLimit)
-        return ExportPartTarget(part: part, url: folder.appending(path: name))
+        ExportPartTarget(
+            part: part, url: folder.appending(path: exportPartFileName(part, of: parts, options: options, stem: stem)))
     }
     return (targets, parts.dropped)
+}
+
+/// The file name of `part` of `parts` (decision 0067): the one owner of the name that
+/// `exportPartTargets` uses. A caller that holds the parts asks it for one name.
+public func exportPartFileName(_ part: ExportPart, of parts: ExportParts, options: ExportOptions, stem: String)
+    -> String
+{
+    Session.partFileName(
+        part, digits: parts.digits, stem: stem, pathExtension: options.format.pathExtension, limit: exportNameLimit)
 }
 
 /// The old files of the stem: the items of `folder` whose name `Session.isPartFileName` matches

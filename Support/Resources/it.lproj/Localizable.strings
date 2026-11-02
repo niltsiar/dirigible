@@ -578,6 +578,7 @@
 "alert.export.confirm" = "Esporta";
 "alert.exported" = "L’esportazione è terminata. Questi file mancavano o non erano leggibili, e sono stati esportati come silenzio:\n%@";
 "alert.exported.loudness" = "Risultato dell’esportazione: %@.";
+"alert.exported.parts" = "Il silenzio è in questi file esportati:\n%@";
 "alert.import.chain" = "Dirigible non ha importato tutti i file:\n%@";
 "alert.import.not.imported" = "L’importazione si è interrotta. Dirigible non ha importato questi file:\n%@";
 

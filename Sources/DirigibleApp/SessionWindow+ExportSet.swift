@@ -122,14 +122,15 @@ extension SessionWindow {
         chapterWarnings = ChapterWarningsShown(
             files.flatMap(\.result.droppedChapters), imagesOmitted: files.contains { $0.result.chapterImagesOmitted },
             titleMissing: missing != nil, file: (missing ?? files[0]).url.lastPathComponent, revision: revision)
-        let faults = files.reduce(into: [FileID: MediaFault]()) { $0.merge($1.result.faults) { first, _ in first } }
-        guard faults.isEmpty else {
-            alert = .exported(faults.keys.map { session.files[$0]?.path ?? $0.rawValue }.sorted(), nil)
-            return
-        }
         exportSet = ExportSetShown(
             files: files.map(\.url), count: files.count, loudness: files.compactMap(\.result.loudness), old: old,
             revision: revision)
+        let faulty = files.filter { !$0.result.faults.isEmpty }
+        guard !faulty.isEmpty else { return }
+        let faults = faulty.reduce(into: [FileID: MediaFault]()) { $0.merge($1.result.faults) { first, _ in first } }
+        alert = .exportedSet(
+            media: faults.keys.map { session.files[$0]?.path ?? $0.rawValue }.sorted(),
+            parts: faulty.map(\.url.lastPathComponent))
     }
 }
 

@@ -578,6 +578,7 @@
 "alert.export.confirm" = "Exportieren";
 "alert.exported" = "Der Export ist fertig. Diese Dateien fehlten oder waren nicht lesbar und wurden als Stille exportiert:\n%@";
 "alert.exported.loudness" = "Exportergebnis: %@.";
+"alert.exported.parts" = "Die Stille steckt in diesen exportierten Dateien:\n%@";
 "alert.import.chain" = "Dirigible hat nicht alle Dateien importiert:\n%@";
 "alert.import.not.imported" = "Der Import wurde gestoppt. Dirigible hat diese Dateien nicht importiert:\n%@";
 

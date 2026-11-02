@@ -289,6 +289,7 @@ enum L10n: String, CaseIterable {
     case exportNamesMore = "alert.export.more"
     case alertExported = "alert.exported"
     case alertExportedLoudness = "alert.exported.loudness"
+    case alertExportedParts = "alert.exported.parts"
     case alertImportChain = "alert.import.chain"
     case alertImportNotImported = "alert.import.not.imported"
 

@@ -578,6 +578,7 @@
 "alert.export.confirm" = "Exporteer";
 "alert.exported" = "De export is klaar. Deze bestanden ontbraken of konden niet worden gelezen, en ze zijn als stilte geëxporteerd:\n%@";
 "alert.exported.loudness" = "Exportresultaat: %@.";
+"alert.exported.parts" = "De stilte zit in deze geëxporteerde bestanden:\n%@";
 "alert.import.chain" = "Dirigible heeft niet alle bestanden geïmporteerd:\n%@";
 "alert.import.not.imported" = "Het importeren is gestopt. Dirigible heeft deze bestanden niet geïmporteerd:\n%@";
 

@@ -578,6 +578,7 @@
 "alert.export.confirm" = "Exporter";
 "alert.exported" = "L’exportation est terminée. Ces fichiers étaient manquants ou illisibles, et ils ont été exportés sous forme de silence :\n%@";
 "alert.exported.loudness" = "Résultat de l’exportation : %@.";
+"alert.exported.parts" = "Le silence se trouve dans ces fichiers exportés :\n%@";
 "alert.import.chain" = "Dirigible n’a pas importé tous les fichiers :\n%@";
 "alert.import.not.imported" = "L’importation s’est arrêtée. Dirigible n’a pas importé ces fichiers :\n%@";
 

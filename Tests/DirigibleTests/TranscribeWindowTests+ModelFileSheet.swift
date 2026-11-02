@@ -170,6 +170,55 @@ import Testing
             await window.model.close()
         }
 
+        /// Code gate 2 item 6: the English file B and the Spanish file A are kept. The sheet opens on
+        /// English with B, which locks the language. After Standard unlocks it, the Spanish choice
+        /// shows A and the language lock follows A.
+        @Test func aLanguageChangeInTheOpenSheetLoadsTheKeptFileOfTheNewChoice() async throws {
+            let window = try await openFile({ $0 }, picks: Picks([]))
+            let english = window.folder.appending(path: "english.bin")
+            try Data("only english".utf8).write(to: english)
+            for (file, language, facts) in [
+                (english, WhisperLanguage.code("en"), Self.englishOnly), (window.file, .code("es"), Self.tiny),
+            ] {
+                KeptModelFile(
+                    url: file, status: try #require(FileStatus(of: file)),
+                    passed: PassedModelFile(sha256: String(repeating: "d", count: 64), facts: facts)
+                ).store(for: language, in: window.defaults)
+                TranscribeModelMemory.remember(.file, for: language, in: window.defaults)
+            }
+            window.defaults.set("en", forKey: TranscribeDraft.languageKey)
+            let opened = try sheet(window)
+            #expect(opened.kept?.path == english.path && opened.languageLocked)
+            window.model.selectModel(.catalog(.base))
+
+            window.model.selectLanguage(.code("es"))
+
+            let draft = try #require(window.model.transcribe.draft)
+            #expect(draft.kept?.path == window.file.path, "the shown file is the Spanish file")
+            #expect(draft.model == .file && draft.language == .code("es") && !draft.languageLocked)
+            await window.model.close()
+        }
+
+        /// Code gate 2 item 6, sibling: a choice with no kept file lists no file, and a selected file
+        /// entry gives way to the model of the language.
+        @Test(arguments: [ModelEntry.catalog(.base), .file])
+        func aLanguageChangeToAChoiceWithNoKeptFileDropsTheFileEntry(entry: ModelEntry) async throws {
+            let window = try await openFile({ $0 }, picks: Picks([]))
+            KeptModelFile(
+                url: window.file, status: try #require(FileStatus(of: window.file)),
+                passed: PassedModelFile(sha256: String(repeating: "d", count: 64), facts: Self.tiny)
+            ).store(for: .code("es"), in: window.defaults)
+            _ = try sheet(window)
+            window.model.selectModel(entry)
+
+            window.model.selectLanguage(.code("de"))
+
+            let draft = try #require(window.model.transcribe.draft)
+            #expect(draft.kept == nil && !draft.entries.contains(.file) && !draft.keptMissing)
+            #expect(draft.model == .catalog(.base) && draft.language == .code("de") && draft.request != nil)
+            await window.model.close()
+        }
+
         /// Code gate 2 item 4: the view draws the replace note while a check line shows. The sheet of a
         /// track with words is taller than the sheet of a track with none in the same check state.
         @Test(arguments: [

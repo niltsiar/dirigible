@@ -129,6 +129,29 @@ extension LiveExportTests {
         await studio.settle()
     }
 
+    /// Code gate 1, item 2: the check of the targets awaits, so a dialog that opens during it stops the
+    /// set before the job.
+    @Test func aDialogThatOpensDuringTheTargetCheckStopsTheLiveSet() async throws {
+        try addChapters()
+        let studio = try await package.open()
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        // The first call is the check of the bridge, the second the one after the media check, the third
+        // the one after the check of the targets.
+        let (server, folder) = try liveServer(studio) {
+            calls.withLock {
+                $0 += 1
+                return $0 >= 3 ? .dialog : nil
+            }
+        }
+        defer { server.stop() }
+
+        let outcome = await send(folder.socket, "export", setArguments)
+
+        #expect(outcome == .reply(.result(text: AgentBusy.dialog.message(package: package.path), isError: true)))
+        #expect(try outputs() == [], "the set wrote a file")
+        await studio.settle()
+    }
+
     /// Fix check: a chapter renamed after the check of the caller gives a target that the caller did not
     /// confirm. The set stops before part 1, and the text names the file.
     @Test func aRenameBeforeTheLiveJobNamesTheExistingFile() async throws {

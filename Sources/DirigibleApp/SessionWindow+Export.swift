@@ -17,6 +17,9 @@ enum ExportStep: Hashable {
     case asking(ExportSource, [FileID: MediaFault])
     /// The save panel shows.
     case choosing
+    /// A split export after the save panel: the checks of the targets and the replace sheet, until the
+    /// set starts or the user cancels.
+    case starting
 }
 
 /// The tag warnings of an exported file: the names of the chapters that it leaves out, because
@@ -167,12 +170,11 @@ extension SessionWindow {
             guard let self, exportStep == .choosing else { return }
             exportStep = nil
             guard let target, let studio = idleStudio else { return }
-            Task {
-                if target.split == nil {
-                    await self.run(source, target, studio)
-                } else {
-                    await self.runSet(source, target, studio)
-                }
+            if target.split == nil {
+                Task { await self.run(source, target, studio) }
+            } else {
+                exportStep = .starting
+                Task { await self.runSet(source, target, studio) }
             }
         }
     }

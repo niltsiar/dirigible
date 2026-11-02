@@ -132,7 +132,6 @@ public func exportParts(
 }
 
 extension ExportFormat {
-    /// The extension of a file of this format.
     var pathExtension: String {
         switch self {
         case .wav: "wav"

@@ -231,7 +231,7 @@ extension ExportCommandTests {
         #expect(two.status == 0 && two.stderr == both, "\(two)")
     }
 
-    /// With no `--split`, a package with chapters writes the one file, as before.
+    /// With no `--split`, a package with chapters writes the one file.
     @Test func noSplitKeepsTheOutputOfToday() async throws {
         try addChapters()
 

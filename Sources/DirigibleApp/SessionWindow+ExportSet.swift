@@ -83,7 +83,6 @@ extension SessionWindow {
         return ReplaceParts(source: source, options: target.options, split: split, existing: existing, old: old)
     }
 
-    /// Show in Finder of the done banner.
     func showInFinder(_ files: [URL]) { app?.reveal(files) }
 
     /// Runs the set. A stop with no error of a part shows the count banner, a fault shows its alert

@@ -767,6 +767,13 @@
 "error.transcribe.file.helper.missing" = "Een onderdeel van Dirigible ontbreekt: het programma dat een modelbestand controleert. Installeer Dirigible opnieuw.";
 "error.transcribe.file.helper.start" = "Het programma dat een modelbestand controleert, is niet gestart (%1$@ %2$lld). Installeer Dirigible opnieuw.";
 "error.transcribe.file.refused" = "Dirigible kan dit modelbestand niet gebruiken. %@";
+"error.transcribe.file.reason.notwhisper" = "Het bestand is geen ggml-whispermodel.";
+"error.transcribe.file.reason.unsupported" = "Het modelbestand heeft een waarde die Dirigible niet kan gebruiken: %@.";
+"error.transcribe.file.reason.truncated" = "Het modelbestand eindigt vóór het laatste deel.";
+"error.transcribe.file.reason.damaged" = "Het modelbestand is beschadigd: %@.";
+"error.transcribe.file.reason.load" = "whisper.cpp heeft het modelbestand niet geladen.";
+"error.transcribe.file.reason.engine" = "De proeftranscriptie is mislukt met code %lld.";
+"error.transcribe.file.reason.trial" = "De proeftranscriptie is mislukt.";
 "error.transcribe.file.crashed" = "Het modelbestand heeft het programma gestopt dat het controleert (signaal %lld). Dirigible kan dit bestand niet gebruiken.";
 "error.transcribe.file.changed" = "Het modelbestand is tijdens de transcriptie gewijzigd. Probeer het opnieuw.";
 "error.transcribe.file.english" = "Dit modelbestand kent alleen Engels. Kies Engels of Automatisch als taal.";

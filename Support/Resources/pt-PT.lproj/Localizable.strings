@@ -767,6 +767,13 @@
 "error.transcribe.file.helper.missing" = "Falta uma parte do Dirigible: o programa que verifica um ficheiro de modelo. Instale o Dirigible novamente.";
 "error.transcribe.file.helper.start" = "O programa que verifica um ficheiro de modelo não foi iniciado (%1$@ %2$lld). Instale o Dirigible novamente.";
 "error.transcribe.file.refused" = "O Dirigible não pode usar este ficheiro de modelo. %@";
+"error.transcribe.file.reason.notwhisper" = "O ficheiro não é um modelo whisper ggml.";
+"error.transcribe.file.reason.unsupported" = "O ficheiro do modelo tem um valor que o Dirigible não consegue usar: %@.";
+"error.transcribe.file.reason.truncated" = "O ficheiro do modelo termina antes da última parte.";
+"error.transcribe.file.reason.damaged" = "O ficheiro do modelo está danificado: %@.";
+"error.transcribe.file.reason.load" = "O whisper.cpp não carregou o ficheiro do modelo.";
+"error.transcribe.file.reason.engine" = "A transcrição de teste falhou com o código %lld.";
+"error.transcribe.file.reason.trial" = "A transcrição de teste falhou.";
 "error.transcribe.file.crashed" = "O ficheiro de modelo interrompeu o programa que o verifica (sinal %lld). O Dirigible não pode usar este ficheiro.";
 "error.transcribe.file.changed" = "O ficheiro de modelo mudou durante a transcrição. Tente novamente.";
 "error.transcribe.file.english" = "Este ficheiro de modelo só tem inglês. Escolha inglês ou Automático como idioma.";

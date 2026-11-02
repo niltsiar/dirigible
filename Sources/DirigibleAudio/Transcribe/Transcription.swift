@@ -1,3 +1,5 @@
+import Foundation
+
 /// The value types of the transcribe seam (decision 0065, D6). Times are in piece time, in ticks of
 /// 10 ms: the time unit of whisper.cpp tokens.
 public struct TimedWord: Hashable, Sendable {
@@ -77,6 +79,37 @@ public enum TranscribeError: Error, Hashable, Sendable {
     case languageNotInModel
 }
 
+/// Why the helper refused a model file, as a code and not as English text, so the app writes the
+/// reason in its own language (decision 0010). A reason that names a field and its value keeps that
+/// text inside the sentence, as an errno does.
+public enum ModelFileRefusal: Hashable, Sendable {
+    /// The parse refused the file.
+    case file(ModelFileError)
+    /// whisper.cpp did not load the file in the trial.
+    case modelLoad
+    /// The engine of the trial failed with this code.
+    case engine(code: Int32)
+    /// The trial failed in another way.
+    case trialFailed
+    /// The helper gave no code: its last line.
+    case unknown(String)
+
+    /// The English text of the CLI and the tools.
+    public var message: String {
+        switch self {
+        case .file(.notWhisperModel): "The file is not a ggml whisper model."
+        case .file(.unsupported(let reason)): "The model file has a value that Dirigible cannot run: \(reason)."
+        case .file(.truncated): "The model file ends before its last part."
+        case .file(.damaged(let reason)): "The model file is damaged: \(reason)."
+        case .file(.unreadable(let code)): "The model file cannot be read: \(String(cString: strerror(code)))."
+        case .modelLoad: "whisper.cpp did not load the model file."
+        case .engine(let code): "The trial transcription failed with code \(code)."
+        case .trialFailed: "The trial transcription failed."
+        case .unknown(let line): line
+        }
+    }
+}
+
 /// Why `ModelFileCheck.run` gives no checked model for a model file of the user (decision 0065, D8).
 public enum ModelFileCheckError: Error, Hashable, Sendable {
     /// The open or a read of the file for its SHA-256 failed with this errno.
@@ -85,8 +118,8 @@ public enum ModelFileCheckError: Error, Hashable, Sendable {
     case helperMissing(path: String)
     /// `Process.run()` of the helper threw: the path and the error domain and code.
     case helperNotStarted(path: String, domain: String, code: Int)
-    /// The parse or the trial refused the file: the error line of the helper.
-    case refused(String)
+    /// The parse or the trial refused the file: the reason of the helper.
+    case refused(ModelFileRefusal)
     /// The helper ended by this signal, or exited with 128 + this signal from its handlers.
     case helperStopped(signal: Int32)
     /// The helper read the file with another SHA-256 than the hash before the helper.

@@ -93,15 +93,15 @@ extension L10n {
 
     /// The text of a model file check that gave no checked model (decision 0065, D8). The switch
     /// has no `default`.
-    static func message(for error: ModelFileCheckError) -> String {
+    static func message(for error: ModelFileCheckError, text: (L10n) -> String = { $0.text }) -> String {
         switch error {
         case .unreadable(let code): errorTranscribeFileUnreadable.format(Int(code))
         case .helperMissing: errorTranscribeFileHelperMissing.text
         // The error of `Process.run()` can name a false cause: a file with no execute permission
         // gives NSCocoaErrorDomain 4, "doesn't exist". The text gives only the domain and the code.
         case .helperNotStarted(_, let domain, let code): errorTranscribeFileHelperStart.format(domain, code)
-        // The reason is the English line of the helper, the same for each language.
-        case .refused(let line): errorTranscribeFileRefused.format(line)
+        case .refused(let reason):
+            String(format: text(.errorTranscribeFileRefused), locale: .current, Self.reason(reason, text: text))
         case .helperStopped(let signal): errorTranscribeFileCrashed.format(Int(signal))
         case .changedDuringCheck: errorTranscribeFileChanged.text
         // A stop ends the job with `.transcriptionCancelled` or `.transcriptionYielded`, not with this case.

@@ -767,6 +767,13 @@
 "error.transcribe.file.helper.missing" = "A part of Dirigible is missing: the program that checks a model file. Install Dirigible again.";
 "error.transcribe.file.helper.start" = "The program that checks a model file did not start (%1$@ %2$lld). Install Dirigible again.";
 "error.transcribe.file.refused" = "Dirigible cannot use this model file. %@";
+"error.transcribe.file.reason.notwhisper" = "The file is not a ggml whisper model.";
+"error.transcribe.file.reason.unsupported" = "The model file has a value that Dirigible cannot run: %@.";
+"error.transcribe.file.reason.truncated" = "The model file ends before its last part.";
+"error.transcribe.file.reason.damaged" = "The model file is damaged: %@.";
+"error.transcribe.file.reason.load" = "whisper.cpp did not load the model file.";
+"error.transcribe.file.reason.engine" = "The trial transcription failed with code %lld.";
+"error.transcribe.file.reason.trial" = "The trial transcription failed.";
 "error.transcribe.file.crashed" = "The model file stopped the program that checks it (signal %lld). Dirigible cannot use this file.";
 "error.transcribe.file.changed" = "The model file changed during the transcription. Try again.";
 "error.transcribe.file.english" = "This model file has only English. Choose English or Automatic as the language.";

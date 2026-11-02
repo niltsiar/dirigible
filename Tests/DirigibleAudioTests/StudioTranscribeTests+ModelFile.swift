@@ -175,12 +175,12 @@ import os
             let fixture = try await ExportStudioFixture.make()
             let (record, stages) = (ModelRecord(), Stages())
             let helper = try ModelFileCheckTests.stub(
-                "echo 'Error: The model file ends before its last part.' >&2; exit 1", in: fixture.package.folder.url)
+                "echo 'Refusal: truncated' >&2; exit 1", in: fixture.package.folder.url)
             let (studio, file) = try await Self.open(fixture.package, helper: helper, engine: Self.engine(record))
 
             let result = await Self.job(studio, file, stages: stages).value
 
-            #expect(result.failure == .transcription(.modelFile(.refused("The model file ends before its last part."))))
+            #expect(result.failure == .transcription(.modelFile(.refused(.file(.truncated)))))
             #expect(stages.all == [.check] && record.models.isEmpty)
             await studio.settle()
         }

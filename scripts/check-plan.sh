@@ -83,8 +83,8 @@ run="${1%/}"
 fail=0
 say() { echo "check-plan: $1" >&2; fail=1; }
 
-# Local time of the commit that added the Fix check line parts (YYYY-MM-DDTHH:MM, as decisions.tsv writes it):
-# a run whose first row is older needs none of them.
+# Local time at which the rule for the Fix check line parts was written, before its commit (YYYY-MM-DDTHH:MM,
+# as decisions.tsv writes it): a run whose first row is older needs none of them.
 fixline_cutoff=2026-11-02T04:58
 
 # fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.

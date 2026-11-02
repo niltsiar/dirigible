@@ -90,7 +90,7 @@ extension SessionWindow {
         } catch .transcription(.modelFile(.changedDuringCheck)) {
             endChoice(before, line: .refused(L10n.sheetTranscribeCheckChanged.text))
         } catch {
-            endChoice(before, line: .refused(L10n.message(for: error)))
+            endChoice(before, line: .refused(L10n.message(for: error, modelFile: url)))
         }
     }
 

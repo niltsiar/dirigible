@@ -155,6 +155,21 @@ import Testing
             if end == .cancelSheet { await window.model.close() }
         }
 
+        /// Code gate 2 item 5: the sheet check of a file that is gone names the file, as the job alert does.
+        @Test func theSheetCheckOfAMissingFileNamesTheFile() async throws {
+            let picks = Picks([])
+            let window = try await openFile({ try Self.passing($0, ran: $0.appending(path: "ran")) }, picks: picks)
+            picks.urls = [window.folder.appending(path: "gone.bin")]
+            _ = try sheet(window)
+
+            window.model.selectModel(.choose)
+            await until("the refusal shows") { window.model.transcribe.draft?.check != nil && !isRunning(window.model) }
+
+            #expect(
+                window.model.transcribe.draft?.check == .refused(L10n.errorTranscribeFileMissing.format("gone.bin")))
+            await window.model.close()
+        }
+
         /// Code gate 2 item 4: the view draws the replace note while a check line shows. The sheet of a
         /// track with words is taller than the sheet of a track with none in the same check state.
         @Test(arguments: [

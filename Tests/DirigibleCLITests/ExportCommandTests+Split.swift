@@ -249,6 +249,33 @@ extension ExportCommandTests {
         #expect(result == CLIResult(status: 0, stdout: lines, stderr: point + chapter), "\(result)")
     }
 
+    /// C12 (code gate 1 item 1): `bad.caf` passes the check and fails its reads in parts 1 and 3.
+    /// Stdout lists each written part, and stderr names each part with faults; exit 2.
+    @Test func aSetWithFaultsListsEachFileAndNamesEachPartWithFaults() async throws {
+        try addChapters()
+        try Self.writeDamagedFLAC(package.url.appending(path: "Clips/bad.caf"))
+        try package.edit { session in
+            try session.addFile(AudioFile(id: "bad", path: "bad.caf", layout: .mono, length: 20_000))
+            try session.place(Clip(id: "c2", file: "bad", start: 0, offset: 12_000, length: 6000), on: "t2")
+            try session.place(Clip(id: "c3", file: "bad", start: 15_000, offset: 12_000, length: 6000), on: "t2")
+        }
+
+        let result = try await package.run("export", "PKG", "--out", out("Ep.mp3").path, "--split", "chapters")
+
+        let lines = paths(Self.partNames, "mp3").map { $0 + "\n" }.joined()
+        let refusals = paths(["Ep-01-Intro", "Ep-03-Outro"], "mp3").map {
+            "Error: file bad \"bad.caf\" cannot be read; its clips in \($0) are silence. Use --allow-missing to "
+                + "accept it.\n"
+        }
+        #expect(result == CLIResult(status: 2, stdout: lines, stderr: refusals.joined()), "\(result)")
+        #expect(try names() == Self.partNames.map { $0 + ".mp3" } + ["Show.dirigible"])
+
+        let allowed = try await package.run(
+            "export", "PKG", "--out", out("Ep.mp3").path, "--split", "chapters", "--allow-missing", "--replace")
+        let warning = "Warning: file bad \"bad.caf\" cannot be read; its clips render as silence.\n"
+        #expect(allowed == CLIResult(status: 0, stdout: lines, stderr: warning), "\(allowed)")
+    }
+
     /// With no `--split`, a package with chapters writes the one file.
     @Test func noSplitKeepsTheOutputOfToday() async throws {
         try addChapters()

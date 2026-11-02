@@ -151,20 +151,7 @@ struct ExportCommandTests {
     /// but its read fails during the export (probe g1-corrupt). Exit 2 with its path; the output
     /// has its clips as silence. With `--allow-missing`: exit 0 and one warning line.
     @Test func aFaultThatOnlyTheExportFindsFailsIt() async throws {
-        let bad = package.url.appending(path: "Clips/bad.caf")
-        do {
-            let settings: [String: Any] = [
-                AVFormatIDKey: kAudioFormatFLAC, AVSampleRateKey: 48_000, AVNumberOfChannelsKey: 1,
-            ]
-            let file = try AVAudioFile(forWriting: bad, settings: settings)
-            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 20_000))
-            buffer.frameLength = 20_000
-            for i in 0..<20_000 { buffer.floatChannelData![0][i] = 0.5 * sin(Float(i) * 0.13) }
-            try file.write(from: buffer)
-        }
-        var bytes = try Data(contentsOf: bad)
-        bytes.replaceSubrange(bytes.count / 3..<bytes.count, with: Data(repeating: 0x5A, count: bytes.count * 2 / 3))
-        try bytes.write(to: bad)
+        try Self.writeDamagedFLAC(package.url.appending(path: "Clips/bad.caf"))
         try package.edit { session in
             try session.addFile(AudioFile(id: "bad", path: "bad.caf", layout: .mono, length: 20_000))
             try session.place(Clip(id: "c2", file: "bad", start: 0, offset: 0, length: 20_000), on: "t2")
@@ -185,6 +172,24 @@ struct ExportCommandTests {
                 == CLIResult(
                     status: 0, stdout: "",
                     stderr: "Warning: file bad \"bad.caf\" cannot be read; its clips render as silence.\n"))
+    }
+
+    /// A FLAC CAF of 20 000 frames whose last two thirds are bad packets: it opens, so the media check
+    /// finds it whole, but a read there fails during the export.
+    static func writeDamagedFLAC(_ bad: URL) throws {
+        do {
+            let settings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatFLAC, AVSampleRateKey: 48_000, AVNumberOfChannelsKey: 1,
+            ]
+            let file = try AVAudioFile(forWriting: bad, settings: settings)
+            let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 20_000))
+            buffer.frameLength = 20_000
+            for i in 0..<20_000 { buffer.floatChannelData![0][i] = 0.5 * sin(Float(i) * 0.13) }
+            try file.write(from: buffer)
+        }
+        var bytes = try Data(contentsOf: bad)
+        bytes.replaceSubrange(bytes.count / 3..<bytes.count, with: Data(repeating: 0x5A, count: bytes.count * 2 / 3))
+        try bytes.write(to: bad)
     }
 
     /// Criterion 31: AAC takes 48 kHz at most (probe P5). A 96 kHz session exports AAC with

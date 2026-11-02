@@ -270,6 +270,28 @@ extension MCPExportToolTests {
         #expect(toolResult(answer(answers, id: 1)) == ((exported(names) + [line]).joined(separator: "\n"), false))
     }
 
+    /// C12 (code gate 1 item 1): the tool error lists each written part, then names each part with
+    /// faults, as the command (`aSetWithFaultsListsEachFileAndNamesEachPartWithFaults`).
+    @Test func aSetWithFaultsNamesEachPartWithFaults() async throws {
+        try addChapters()
+        try ExportCommandTests.writeDamagedFLAC(package.url.appending(path: "Clips/bad.caf"))
+        try package.edit { session in
+            try session.addFile(AudioFile(id: "bad", path: "bad.caf", layout: .mono, length: 20_000))
+            try session.place(Clip(id: "c2", file: "bad", start: 0, offset: 12_000, length: 6000), on: "t2")
+            try session.place(Clip(id: "c3", file: "bad", start: 15_000, offset: 12_000, length: 6000), on: "t2")
+        }
+
+        let answers = try await mcp([
+            toolCall(1, "export", ["package": package.path, "out": out("Ep.mp3"), "split": "chapters"])
+        ])
+
+        let refusals = exported(["Ep-01-Intro", "Ep-03-Outro"]).map {
+            "file bad \"bad.caf\" cannot be read; its clips in \($0) are silence. Use allow_missing to accept it."
+        }
+        let text = (exported(["Ep-01-Intro", "Ep-02-Interview", "Ep-03-Outro"]) + refusals).joined(separator: "\n")
+        #expect(toolResult(answer(answers, id: 1)) == (text, true))
+    }
+
     /// Lead ruling 1b row 6: the text ends with the line of the older files of the stem.
     @Test func exportWithSplitNamesTheOldFilesOfTheStem() async throws {
         try addChapters()

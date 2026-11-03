@@ -36,7 +36,7 @@ import Observation
 
     private(set) var history: History
     /// The disk fact under `unplacedSegments`. Open, stop, and retry read it off the main actor.
-    private(set) var segmentsWithAudio: [SegmentName]
+    var segmentsWithAudio: [SegmentName]
     private(set) var notAudioSegments: Set<SegmentName>
     /// The live state of each armed track of the take or of the monitor (decision 0015), from
     /// the reports of the drain. Empty while no take records and no monitor runs.

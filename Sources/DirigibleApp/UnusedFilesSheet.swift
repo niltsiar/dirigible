@@ -15,6 +15,7 @@ struct UnusedFileRow: Identifiable, Equatable {
                 case .pool: .sheetUnusedReasonPool
                 case .stray: .sheetUnusedReasonStray
                 case .transcript: .sheetUnusedReasonTranscript
+                case .capture: .sheetUnusedReasonCapture
                 }
             return UnusedFileRow(id: item.path, bytes: item.bytes, reason: reason)
         }
@@ -28,6 +29,8 @@ struct UnusedFileRow: Identifiable, Equatable {
 struct UnusedFilesSheet: View {
     let model: SessionWindow
     let scan: UnusedFiles
+    /// The width of the Reason column. A cell keeps at least this width less 10 pt for its text.
+    nonisolated static let reasonWidth: CGFloat = 204
 
     var body: some View {
         let rows = UnusedFileRow.rows(scan)
@@ -36,9 +39,9 @@ struct UnusedFilesSheet: View {
             Table(rows) {
                 TableColumn(L10n.sheetUnusedName.key) { Text(verbatim: $0.id) }
                 TableColumn(L10n.sheetUnusedSize.key) { Text(verbatim: L10n.bytes($0.bytes)) }.width(90)
-                TableColumn(L10n.sheetUnusedReason.key) { Text($0.reason.key) }.width(150)
+                TableColumn(L10n.sheetUnusedReason.key) { Text($0.reason.key) }.width(Self.reasonWidth)
             }
-            .frame(width: 560, height: 220)
+            .frame(width: 614, height: 220)
             Text(verbatim: L10n.sheetUnusedTotal.format(rows.count, L10n.bytes(rows.map(\.bytes).reduce(0, +))))
             ForEach(L10n.scanLines(scan), id: \.self) { Text(verbatim: $0) }
             Text(L10n.sheetUnusedFootnote.key).foregroundStyle(.secondary)

@@ -558,6 +558,7 @@
 "sheet.unused.reason.pool" = "Nenhum clipe o utiliza";
 "sheet.unused.reason.stray" = "Fora da sessão";
 "sheet.unused.reason.transcript" = "Nenhuma transcrição o utiliza";
+"sheet.unused.reason.capture" = "Take de um ficheiro sem uso";
 "sheet.unused.total" = "Ficheiros: %lld (%@)";
 "sheet.unused.kept" = "Mantidos para uma cópia de segurança, para o histórico de Desfazer ou para o clipboard: %lld (%@)";
 "sheet.unused.damaged" = "As cópias de segurança danificadas não mantêm nenhum ficheiro: %@";

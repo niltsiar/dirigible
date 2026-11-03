@@ -6,7 +6,8 @@ import Foundation
 /// `session.xml` on the disk (the prune save can make it a backup), each readable backup, and the
 /// keepers that the caller gives (the undo and redo entries, the clipboard files). Also each
 /// transcript file in `Transcripts/` that the session and these holders do not name
-/// (decision 0055). The scan is the one place of this rule.
+/// (decision 0055), and with `listingCaptureFiles`, the capture files of each free capture. The
+/// scan is the one place of this rule.
 public struct UnusedFiles: Hashable, Sendable {
     public struct Item: Hashable, Sendable {
         public enum Kind: Hashable, Sendable {
@@ -14,10 +15,12 @@ public struct UnusedFiles: Hashable, Sendable {
             case stray
             /// A file in `Transcripts/` that no holder names (decision 0055).
             case transcript(TranscriptFileName)
+            /// A capture file of a free capture (`captures`), from `listingCaptureFiles`.
+            case capture(CaptureID)
         }
         public let kind: Kind
         /// Relative to `Clips/` for `.pool` and `.stray`, and to the package for `.transcript`
-        /// ("Transcripts/<name>.xml").
+        /// ("Transcripts/<name>.xml") and `.capture`.
         public let path: String
         public let bytes: Int64
         /// The `lstat` identity at the scan, nil for a missing file. A file that another file
@@ -38,6 +41,8 @@ public struct UnusedFiles: Hashable, Sendable {
     /// The unused pool paths that are not a regular file (a symbolic link or a folder). They stay,
     /// so the prune never moves or follows a link to a file outside the package. Sorted.
     public let notFiles: [String]
+    /// The free captures, each with its pool items.
+    let owners: [CaptureID: Set<FileID>]
 
     /// Reads `Clips/`, `session.xml`, and `Backups/` of `package`. `keptFiles` are the pool paths
     /// of the files that the app clipboard of the same package uses. Throws for an unreadable
@@ -116,14 +121,16 @@ public struct UnusedFiles: Hashable, Sendable {
             }
         }
         self.init(
-            items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged, notFiles: notFiles.sorted())
+            items: items.sorted { $0.path < $1.path }, kept: kept, damagedBackups: damaged, notFiles: notFiles.sorted(),
+            owners: Self.captureOwners(items, in: session, holders: held + keepers))
     }
 
-    private init(items: [Item], kept: Kept, damagedBackups: [Backup], notFiles: [String]) {
+    init(items: [Item], kept: Kept, damagedBackups: [Backup], notFiles: [String], owners: [CaptureID: Set<FileID>]) {
         self.notFiles = notFiles
         self.items = items
         self.kept = kept
         self.damagedBackups = damagedBackups
+        self.owners = owners
     }
 
     /// Removes the pool entries of the items from `session`, calls `save` with the result, and
@@ -198,9 +205,14 @@ public struct UnusedFiles: Hashable, Sendable {
                 session.files[id] != nil && !used.contains(id) && !usedNames.contains(normalized(item.path))
             case .stray: !named.contains(normalized(item.path))
             case .transcript(let name): !transcriptFiles.contains(name)
+            case .capture: true
             }
         }
-        return UnusedFiles(items: live, kept: kept, damagedBackups: damagedBackups, notFiles: notFiles)
+        return keeping(
+            live,
+            owners: owners.filter { capture, ids in
+                !session.files.values.contains { $0.capture == capture && !ids.contains($0.id) }
+            })
     }
 
     /// `session` with no pool entry of the items, or nil when there is no item.
@@ -222,32 +234,46 @@ public struct UnusedFiles: Hashable, Sendable {
         return (result as URL?) ?? url
     }
 
-    /// Moves each item to the Trash under `package`, after the save.
+    /// Moves each item to the Trash under `package`, after the save. The capture files go last,
+    /// and only for a capture whose pool items all moved: else the CAF can be the last copy.
     private func moved(under package: URL, trash: (URL) throws -> URL) -> PruneReport {
         let clips = package.appending(path: clipsFolderName)
         var moved: [PruneReport.Moved] = []
         var failed: [PruneReport.Failed] = []
         var dropped: [FileID] = []
-        for item in items {
+        var movedPool: Set<FileID> = []
+        func move(_ item: Item) {
             let url: URL =
-                if case .transcript = item.kind { package.appending(path: item.path) } else {
-                    clips.appending(path: item.path)
+                switch item.kind {
+                case .transcript, .capture: package.appending(path: item.path)
+                case .pool, .stray: clips.appending(path: item.path)
                 }
             let now = FileIdentity(lstat: url.path)
             guard now != nil || errno != ENOENT else {
                 if case .pool(let id) = item.kind { dropped.append(id) }
-                continue
+                return
             }
             // With another lstat errno, the move runs, and its error gives the true cause.
             if let now, now != item.identity {
                 failed.append(PruneReport.Failed(item: item, fault: .replaced))
-                continue
+                return
             }
             do {
                 moved.append(PruneReport.Moved(item: item, trashURL: try trash(url)))
+                if case .pool(let id) = item.kind { movedPool.insert(id) }
             } catch {
                 failed.append(PruneReport.Failed(item: item, fault: TrashFault(error)))
             }
+        }
+        for item in items {
+            if case .capture = item.kind { continue }
+            move(item)
+        }
+        for item in items {
+            guard case .capture(let capture) = item.kind, owners[capture]?.isSubset(of: movedPool) == true else {
+                continue
+            }
+            move(item)
         }
         return PruneReport(moved: moved, failed: failed, dropped: dropped)
     }
@@ -256,9 +282,7 @@ public struct UnusedFiles: Hashable, Sendable {
     /// confirmation of the app moves only these.
     public func intersection(_ other: UnusedFiles) -> UnusedFiles {
         let others = Set(other.items)
-        return UnusedFiles(
-            items: items.filter(others.contains), kept: other.kept, damagedBackups: other.damagedBackups,
-            notFiles: other.notFiles)
+        return other.keeping(items.filter(others.contains), owners: other.owners)
     }
 
     private static func read(_ url: URL) throws(SessionFileError) -> Session {

@@ -24,6 +24,24 @@ extension LocalizationTests {
             }
         }
     }
+
+    /// "Kein Clip verwendet sie" (140.81 pt) shows whole in a 150 pt column, so a cell keeps at least
+    /// the column width less 10 pt for its text.
+    @Test func eachUnusedFileReasonFitsItsColumn() throws {
+        let keys: [L10n] = [
+            .sheetUnusedReasonPool, .sheetUnusedReasonStray, .sheetUnusedReasonTranscript, .sheetUnusedReasonCapture,
+        ]
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let room = UnusedFilesSheet.reasonWidth - 10
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            for key in keys {
+                let text = try #require(table[key.rawValue], "\(language) \(key.rawValue)")
+                let width = NSString(string: text).size(withAttributes: [.font: font]).width.rounded(.up)
+                #expect(width <= room, "\(language) \(key.rawValue): \(width) pt in the room \(room) pt")
+            }
+        }
+    }
 }
 
 /// The inspector text groups: name, font size in pt (11 in the panes, the regular size for the tab

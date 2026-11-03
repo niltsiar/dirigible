@@ -90,9 +90,10 @@ extension FileCommand {
         static let configuration = CommandConfiguration(
             abstract: "Move the clip files that no clip uses to the Trash.",
             discussion: """
-                It lists each pool file that no clip uses and each WAV in Clips that the pool does not name, and \
-                removes their pool entries. A file that a clip of session.xml or of a backup uses stays. The command \
-                cannot see the clipboard of an app window. The space comes back when you empty the Trash. Exit 1 \
+                It lists each pool file that no clip uses, each WAV in Clips that the pool does not name, and the \
+                CAF and sidecar in Capture of each take segment whose pool file goes, and removes the pool entries. \
+                A file that a clip of session.xml or of a backup uses stays. The command cannot see the clipboard of \
+                an app window. The space comes back when you empty the Trash. Exit 1 \
                 when a file did not move or a backup blocks the scan, 2 when the package cannot be read or written, \
                 is locked, or has a take that is not finalized.
                 """)

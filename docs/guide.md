@@ -788,6 +788,8 @@ After many retakes, the session package keeps audio files that no clip uses. To 
 
 The window then shows the number of moved files and their size. If a file does not move, the window names it, and the file stays in the session package.
 
+When a pool file is the audio of a take segment, the sheet also lists the recording of that segment in the `Capture` folder: its CAF file and its sidecar file. They move to the Trash after the pool file, so the segment does not come back as a take to place. When the pool file does not move, its CAF and sidecar stay. To get a segment back, drag its CAF and sidecar from the Trash into the `Capture` folder of the session.
+
 Dirigible keeps each file that a clip of a backup, an Undo or Redo step, or the clipboard uses, so a revert, an Undo, and a Paste still find their audio. The sheet shows the number of these files. A pool file that is a link or a folder also stays, and the sheet names it, with each damaged backup, which keeps no file. Remove Unused Files has no Undo. To get a file back, drag it from the Trash into the `Clips` folder of the session (**File > Show Clips in Finder**). **Put Back** in the Trash works only for the first file that Dirigible or a `dirigible` command moves after it starts. The space on the disk comes back when you empty the Trash.
 
 During a take, an import, Auto Level, or a duck, the command is off. With no file to remove, an alert says so.
@@ -1110,7 +1112,7 @@ These commands use the backups of the session in `Backups/`:
 
 This command removes the audio files that the session does not use:
 
-- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses, each WAV file in `Clips/` that the session does not name, and each file in `Transcripts/` that `session.xml` and the backups do not name, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. A pool file that is a symbolic link or a folder stays, and the command writes "Not a regular file, it stays" for it. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
+- `dirigible file prune Demo.dirigible` moves to the Trash each pool file that no clip uses, each WAV file in `Clips/` that the session does not name, each file in `Transcripts/` that `session.xml` and the backups do not name, and the CAF and sidecar in `Capture/` of each take segment whose pool file goes, as **File > Remove Unused Files** does. A file that a clip of a backup uses stays. It writes each moved file with its size and its place in the Trash, and gives exit 1 when a file did not move. A pool file that is a symbolic link or a folder stays, and the command writes "Not a regular file, it stays" for it. `--dry-run` writes the list and changes nothing. The space comes back when you empty the Trash. The tool cannot see the clipboard of an app window: after you copy clips in the app, close the window, and prune, a paste of those clips fails. Use **Put Back** in the Trash to get the files back.
 
 These commands use a transcript with word times, in Whisper JSON, WebVTT, or SRT. For example, export the session from the start as a WAV file and transcribe it with Whisper.
 

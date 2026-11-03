@@ -5,8 +5,9 @@
 # fills a skeleton with the Edit tool, which works where the Write tool refuses a new run file.
 # Running it again for the slug of an open run, on any day, returns the same folder and changes
 # nothing. It prints the later count, the upkeep items of status next, the size of the next list
-# (a warning over 3000 words), a due architecture audit, and a due consolidation (the workflow doc
-# words over TOTAL x 1.03 of docs/workflow/budgets.tsv) on stderr. It also prints one health line:
+# (a warning over 3000 words), a due architecture audit, a due consolidation (the workflow doc
+# words over TOTAL x 1.03 of docs/workflow/budgets.tsv), and a due dependency check (the Last check:
+# date of docs/workflow/dependency-check.md 30 or more days old) on stderr. It also prints one health line:
 # the product and the workflow PRs of the runs with a done row and a run name dated in the last 7
 # days (the log rows have no date), the seconds of the newest "test-shards: ... <s> s" line in the
 # push-check.log of a done run, and the minutes of the hold lines of dirigible-build-holds.log
@@ -157,6 +158,22 @@ if [[ "$total" =~ ^[0-9]+$ ]]; then
     sum="$("$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/workflow-words.sh" sum --root "$top")"
     (( sum * 100 <= total * 103 )) || echo "consolidation due: the workflow docs have $sum words, over TOTAL x 1.03 ($total in docs/workflow/budgets.tsv);" \
         "add one consolidation item with status next unless it has one (reflect rule 6)" >&2
+fi
+# A dependency check is due 30 or more calendar days after the first Last check: line of the doc,
+# or when that line is not a real date; with no doc, nothing is due. BSD date turns 2026-11-31
+# into 2026-12-01 with exit 0, so the date must give back its own text. Noon anchors keep the day
+# count whole across a DST change.
+dep_doc="$top/docs/workflow/dependency-check.md"
+if [[ -f "$dep_doc" ]]; then
+    dep_run="run the check of docs/workflow/dependency-check.md in one lock-free agent before the next product item"
+    last="$(sed -n 's/^Last check: //p' "$dep_doc" | head -n 1)"
+    if [[ "$last" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && "$(date -j -f %F "$last" +%F 2>/dev/null)" == "$last" ]]; then
+        noon() { date -j -f '%F %T' "$1 12:00:00" +%s; }
+        days=$(( ($(noon "$(date +%F)") - $(noon "$last") + 43200) / 86400 ))
+        (( days < 30 )) || echo "dependency check due: last check $last, $days days ago; $dep_run" >&2
+    else
+        echo "dependency check due: no valid Last check: line in docs/workflow/dependency-check.md; $dep_run" >&2
+    fi
 fi
 
 [[ -f "$dir/analysis.md" ]] || printf '# Analysis: %s\n\n## Acceptance criteria\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n\n## Out of scope\n' "$slug" > "$dir/analysis.md"

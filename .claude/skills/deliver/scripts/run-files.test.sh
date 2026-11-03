@@ -502,6 +502,35 @@ grep -q 'consolidation due' "$tmp/err" && fail "the words of a pinned skill coun
 n_words .claude/skills/s/references/r.md 301
 audit references-file
 grep -q 'consolidation due: the workflow docs have 10301 words' "$tmp/err" || fail "a references file does not count: $(cat "$tmp/err")"
+
+# It prints `dependency check due` when the first `Last check: YYYY-MM-DD` line of
+# docs/workflow/dependency-check.md is 30 or more calendar days old, or when no such line is a real
+# date. A date after today and no doc print nothing. Each call exits 0 and prints the run folder.
+dep_doc="$repo/docs/workflow/dependency-check.md"
+dep_run='; run the check of docs/workflow/dependency-check.md in one lock-free agent before the next product item'
+dep_case() {
+  local out
+  out="$(cd "$repo" && "$new_run" "$1" feat 2> "$tmp/err")" || fail "new-run $1 exits $?"
+  [[ "$out" == "$(cd "$repo" && pwd -P)/.scratchpads/runs/$today-$1" ]] || fail "new-run $1 stdout is not the run folder: $out"
+}
+day30="$(date -v-30d +%F)"
+printf '# x\n\nLast check: %s\n' "$day30" > "$dep_doc"
+dep_case dep-30
+grep -qxF "dependency check due: last check $day30, 30 days ago$dep_run" "$tmp/err" || fail "no dependency check due at 30 days: $(cat "$tmp/err")"
+for d in "$(date -v-29d +%F)" "$(date +%F)" "$(date -v+1d +%F)"; do
+  printf 'Last check: %s\n' "$d" > "$dep_doc"
+  dep_case "dep-$d"
+  grep -q 'dependency check due' "$tmp/err" && fail "a dependency check due for Last check: $d: $(cat "$tmp/err")"
+done
+for line in 'Last checked: 2026-11-02' 'Last check: 2026-11-31' 'Last check: 2026-13-45'; do
+  printf '# x\n%s\n' "$line" > "$dep_doc"
+  dep_case "dep-bad-${line//[^0-9]/}"
+  grep -qxF "dependency check due: no valid Last check: line in docs/workflow/dependency-check.md$dep_run" "$tmp/err" \
+    || fail "no dependency check due for '$line': $(cat "$tmp/err")"
+done
+rm "$dep_doc"
+dep_case dep-no-doc
+grep -q 'dependency check due' "$tmp/err" && fail "a dependency check due with no doc: $(cat "$tmp/err")"
 rm -rf "$repo/AGENTS.md" "$repo/.claude" "$repo/docs"
 
 # It refuses a third non-feature run in a row: the two runs of the log with the highest PR numbers

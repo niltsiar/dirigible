@@ -54,6 +54,24 @@ extension StudioPreRollTests {
         #expect(manual.map { "\($0.key)=\(text($0.value))" } == ["lead=500.0 ms", "start=1", "frames=820", "ht=2"])
     }
 
+    /// A stop before T gives a take length of 0 s in the `finalized` line, not a negative one.
+    @Test func stopBeforeTJournalsNoNegativeLength() async throws {
+        let logs = package.folder.url.appending(path: "logs")
+        let studio = try await studio()
+        studio.environment.log = startLog(in: logs)
+        // H_T is about 60 s after the real host clock, so the stop comes before T.
+        let ahead = hostNanosNow() + 60_000_000_000
+        studio.environment.hostNanos = { ahead }
+        try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        try await studio.stopRecording()
+        studio.log.drain()
+
+        let finalized = try journalLines(of: try #require(journalFiles(in: logs).first))
+            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
+            .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "finalized" }.map(fieldValues)
+        #expect(finalized.map { $0["seconds"] } == ["0.0"])
+    }
+
     /// No poll reads the take play, so the take stop writes its output change in the journal.
     @Test func takePlayStopHasAJournalLine() async throws {
         let logs = package.folder.url.appending(path: "logs")

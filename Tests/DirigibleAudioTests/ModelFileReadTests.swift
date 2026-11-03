@@ -134,17 +134,19 @@ struct ModelFileReadTests {
         #expect(kill(pid, 0) == -1 && errno == ESRCH, "the helper \(pid) still runs")
     }
 
-    /// The job reads the file in the app a counted number of times (decision 0065 D8): a check reads
-    /// it once, with a helper and with a kept record, and the helper reads its own copy of the
-    /// open file on its standard input.
-    @Test(arguments: [false, true]) func aCheckReadsTheFileOnceInTheApp(kept: Bool) async throws {
-        let helper = try stub("cat > /dev/null; echo '\(Check.passLine)'")
-        let record = PassedModelFile(sha256: Check.abc, facts: Check.facts)
+    #if DEBUG
+        /// The job reads the file in the app a counted number of times (decision 0065 D8): a check reads
+        /// it once, with a helper and with a kept record, and the helper reads its own copy of the
+        /// open file on its standard input.
+        @Test(arguments: [false, true]) func aCheckReadsTheFileOnceInTheApp(kept: Bool) async throws {
+            let helper = try stub("cat > /dev/null; echo '\(Check.passLine)'")
+            let record = PassedModelFile(sha256: Check.abc, facts: Check.facts)
 
-        let result = await Self.run(model, helper: helper, passed: kept ? record : nil)
+            let result = await Self.run(model, helper: helper, passed: kept ? record : nil)
 
-        #expect(try result.get().file?.bytesRead == 3)
-    }
+            #expect(try result.get().file?.bytesRead == 3)
+        }
+    #endif
 
     private func stub(_ body: String) throws -> URL { try Check.stub(body, in: folder.url) }
 

@@ -118,6 +118,23 @@ import os
         await model.close()
     }
 
+    /// Record with Pre-roll (P, decision 0070) while the sheet waits: no take starts, and the
+    /// item, which is never disabled, beeps.
+    @Test func preRollWhileTheSheetWaitsBeeps() async throws {
+        let (model, studio) = try await window()
+        let answer = ask(model)
+        let sheet = try await sheet(model)
+        var beeps = 0
+        model.beep = { beeps += 1 }
+
+        await model.recordPreRoll()
+
+        #expect(model.consent?.phase == .waiting && studio.transport == .idle && beeps == 1, "beeps \(beeps)")
+        press("\u{1b}", code: 53, in: sheet)
+        #expect(await answer.value == .declined)
+        await model.close()
+    }
+
     /// C11: no button takes Return, so a Return while the sheet shows records nothing. Escape
     /// then proves that the keys reach the sheet.
     @Test func returnDoesNotRecord() async throws {

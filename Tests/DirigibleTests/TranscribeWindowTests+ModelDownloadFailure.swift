@@ -42,7 +42,7 @@ import os
                 }
             }
 
-            var files: [String] { (try? FileManager.default.contentsOfDirectory(atPath: models.path)) ?? ["?"] }
+            var files: [String] { get throws { try FileManager.default.contentsOfDirectory(atPath: models.path) } }
         }
 
         func openFailing(_ fault: DownloadFault) async throws -> (SessionWindow, Studio, FailingDownload) {
@@ -102,7 +102,7 @@ import os
             #expect(model.alert == .error(.transcription(expected)))
             #expect(model.transcribe.job == nil && model.transcribe.task == nil && model.transcribe.download == nil)
             #expect(banners(model).isEmpty && studio.session == before && model.transcribe.notice == nil)
-            #expect(download.files == [])
+            #expect(try download.files == [])
             let text = L10n.message(for: expected)
             #expect(text != L10n.message(for: .modelDownloadNoData(host: "huggingface.co")))
             #expect((text == L10n.message(for: .modelDownload)) == (expected == .modelDownload))
@@ -143,7 +143,7 @@ import os
             model.cancelTranscribe()
             await until("the job ends") { model.transcribe.job == nil }
             #expect(model.alert == nil && model.transcribe.notice == nil)
-            #expect(download.files == [])
+            #expect(try download.files == [])
             await model.close()
         }
     }

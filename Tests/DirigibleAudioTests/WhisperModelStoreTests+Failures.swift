@@ -29,8 +29,8 @@ final class LoopbackServer: Sendable {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 _ = bind(listener, $0, size)
                 _ = listen(listener, 8)
-                var length = size
-                _ = getsockname(listener, $0, &length)
+                var bound = size
+                _ = getsockname(listener, $0, &bound)
             }
         }
         (self.listener, port) = (listener, UInt16(bigEndian: address.sin_port))

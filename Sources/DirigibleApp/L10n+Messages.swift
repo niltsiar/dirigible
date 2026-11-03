@@ -3,7 +3,7 @@ import DirigibleCore
 import Foundation
 import UniformTypeIdentifiers
 
-/// The texts of library errors and reports.
+/// The texts of library errors.
 extension L10n {
     /// A byte count in the units of the Finder.
     static func bytes(_ count: Int64) -> String { ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
@@ -260,90 +260,6 @@ extension L10n {
         case .session(let error): message(for: error, name: { $0.rawValue })
         case .cancelled: ""
         }
-    }
-
-    /// The loudness report of an export with a target (decision 0032): the output loudness, the
-    /// true peak, and the gain.
-    static func message(for report: LoudnessReport) -> String {
-        [
-            report.output.map { reportLoudness.format($0.value) } ?? reportLoudnessNone.text,
-            report.truePeak.map { reportPeak.format($0) } ?? reportPeakNone.text,
-            reportGain.format(report.gain.dB),
-        ].joined(separator: ", ")
-    }
-
-    /// The sentence after the report of a gain over the auto-level limit. Empty for a usual gain.
-    static func largeGainHint(for report: LoudnessReport) -> String {
-        report.exceedsLevelLimit ? " " + reportGainLarge.text : ""
-    }
-
-    /// The banner text of an Auto Level: the head, the track volume sentence when no clip changed,
-    /// then the count of clips at the limit and of clips with no level. `text` gives the value of
-    /// a key, so a test can read the English table.
-    static func message(for report: LevelReport, text: (L10n) -> String = { $0.text }) -> String {
-        func count(_ key: L10n, _ value: Int) -> String { String(format: text(key), locale: .current, value) }
-        var parts = [report.isEmpty ? text(.bannerLevelNone) : count(.bannerLevelChanged, report.changed)]
-        if report.changed == 0 { parts.append(text(.bannerLevelVolume)) }
-        if report.atLimit > 0 { parts.append(count(.bannerLevelLimit, report.atLimit)) }
-        if report.unmeasured > 0 { parts.append(count(.bannerLevelUnmeasured, report.unmeasured)) }
-        return parts.joined(separator: " ")
-    }
-
-    /// The result banner of a Reduce Noise run: "Reduced noise in 3 clips by 12 dB.", with one form for
-    /// a single clip, and the forms with hum. A treatment with no noise reduction is hum alone. `text`
-    /// gives the value of a key, so a test can read a table.
-    static func denoiseResult(
-        clips: Int, treatment: Treatment, text: (L10n) -> String = { $0.text }
-    ) -> String {
-        func fill(_ key: L10n, _ values: Int...) -> String {
-            String(format: text(key), locale: .current, arguments: values)
-        }
-        let one = clips == 1
-        switch (treatment.noise?.decibels, treatment.hum != nil) {
-        case (nil, _): return one ? fill(.denoiseHumOne) : fill(.denoiseHumMany, clips)
-        case (let decibels?, true):
-            return one ? fill(.denoiseBothOne, decibels) : fill(.denoiseBothMany, clips, decibels)
-        case (let decibels?, false):
-            return one ? fill(.denoiseDoneOne, decibels) : fill(.denoiseDoneMany, clips, decibels)
-        }
-    }
-
-    /// The result banner of a Repair Sound run (decision 0064 D4): "Repaired clipped peaks in 2 clips.
-    /// The level is up to 4 dB lower." for a de-clip that found runs, "No clipped peaks found." for
-    /// a de-clip alone that found none, and "Repaired the sound of 3 clips." for the other repairs.
-    /// The drop sentence has no dB value of 0. `text` gives the value of a key.
-    static func repairResult(_ result: RepairResult, text: (L10n) -> String = { $0.text }) -> String {
-        func fill(_ key: L10n, _ values: Int...) -> String {
-            String(format: text(key), locale: .current, arguments: values)
-        }
-        guard result.clips > 0 else { return text(.denoiseUnchanged) }
-        guard result.declip, result.repaired > 0 else {
-            if result.declip, !result.others { return text(.repairNone) }
-            return result.clips == 1 ? fill(.repairSoundOne) : fill(.repairSoundMany, result.clips)
-        }
-        let one = result.repaired == 1
-        let found = one ? fill(.repairPeaksOne) : fill(.repairPeaksMany, result.repaired)
-        guard result.drop > 0 else { return found }
-        return found + " " + (one ? fill(.repairDropOne, result.drop) : fill(.repairDropMany, result.drop))
-    }
-
-    /// The counts banner of Import Transcript: each count that is not zero as "Label: N", then the
-    /// names of the dropped transcripts. Nil when there is nothing to say. `text` gives the value
-    /// of a key, so a test can read a table.
-    static func transcriptImportResult(
-        skipped: Int, untimed: Int, repeated: Int, dropped: [String], text: (L10n) -> String = { $0.text }
-    ) -> String? {
-        func count(_ key: L10n, _ value: Int) -> String? {
-            value > 0 ? String(format: text(key), locale: .current, value) : nil
-        }
-        var parts = [
-            count(.bannerTranscriptSkipped, skipped), count(.bannerTranscriptUntimed, untimed),
-            count(.bannerTranscriptRepeated, repeated),
-        ].compactMap { $0 }
-        if !dropped.isEmpty {
-            parts.append(String(format: text(.bannerTranscriptDropped), dropped.joined(separator: ", ")))
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: ". ") + "."
     }
 
     /// The text of a stop of playback that the user did not ask for.

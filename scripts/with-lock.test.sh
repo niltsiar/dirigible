@@ -595,6 +595,8 @@ lf_finish 80
 [[ $code -eq 0 && $elapsed -le 4 && "$(cat "$tmp/state" 2>/dev/null)" == $'nolock\nunset\nticket-gone' ]] ||
     fail "lock-free wait: exit $code after $elapsed s, state [$(cat "$tmp/state" 2>/dev/null | paste -sd, -)]: $out"
 [[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
+[[ "$out" == *'it waits while a release call (a push check, the hooks pass, a land, or make dmg)'* ]] ||
+    fail "lock-free wait: the lock-free line does not name the wait behind a release call: $out"
 [[ ! -e "$holds" ]] || fail "lock-free wait: a hold line: $(cat "$holds")"
 [[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg lockfree' ]] ||
     fail "lock-free wait: the wait line: [$(cat "$waits" 2>/dev/null)]"

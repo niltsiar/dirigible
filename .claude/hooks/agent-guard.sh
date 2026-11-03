@@ -23,7 +23,7 @@
 #   script that takes the lock itself, or swift build, test, or run (AGENTS.md, Commands). The
 #   state comes from scripts/with-lock.sh --release-holder, and an exit other than 0 or 1 of that
 #   query lets the brief pass. A line that starts with Build lock: none (after spaces and one -, *,
-#   or > marker) passes a brief of an agent that takes no lock.
+#   or > marker) passes a brief of an agent that runs no with-lock.sh step.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
@@ -55,7 +55,7 @@ make_set="[A-Za-z_][A-Za-z0-9_]*=($sq[^$sq]*$sq|\"[^\"]*\"|[^[:space:]]*)"
 lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make([[:space:]]+($make_opt|$make_set|($free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($lock_scripts)\.sh|(^|[^A-Za-z0-9_-])swift +($lock_swift)([^A-Za-z0-9_-]|\$)"
 if grep -qE "$lock_re" <<< "$steps" && ! grep -qE '^[[:space:]]*([-*>][[:space:]]+)?Build lock: none' <<< "$text"; then
   if holder="$("$(dirname "$0")/../../scripts/with-lock.sh" --release-holder 2>/dev/null)"; then
-    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent takes no lock (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own." >&2
+    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own. A lock-free with-lock.sh call also waits for this call." >&2
     exit 2
   fi
 fi

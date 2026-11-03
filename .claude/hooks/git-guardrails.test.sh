@@ -1244,7 +1244,7 @@ for run in 'scripts/with-lock.sh bash scripts/land.test.sh' 'scripts/with-lock.s
   'scripts/with-lock.sh /bin/bash -x scripts/land.test.sh' 'scripts/with-lock.sh scripts/probe.sh f bash scripts/land.test.sh' \
   '../wt/scripts/with-lock.sh bash scripts/land.test.sh' 'scripts/with-lock.sh bash .claude/hooks/git-guardrails.test.sh' \
   'scripts/with-lock.sh .claude/hooks/git-guardrails.test.sh' 'bash scripts/land.test.sh'; do
-  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' '(the header of scripts/with-lock.sh)' \
+  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' 'waits while a long holder' '(the header of scripts/with-lock.sh)' \
     'outside the key tree of scripts/test-hooks.sh'
   expect_no_reason 'holds the build lock' "$run"
   expect_no_reason 'outside its lock-free form' "$run"
@@ -1827,6 +1827,8 @@ builtin kill "$lock_member" 2>/dev/null
 expect_lock_brief block release Agent prompt "$lock_step"
 grep -qF 'Build lock: none' "$tmp/agent-err" && grep -qF 'scripts/with-lock.sh --builders' "$tmp/agent-err" && grep -qF 'check-changed BASE=origin/main' "$tmp/agent-err" ||
   { echo "FAIL: the lock-step message does not name the pass line, --builders, and the holder: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+grep -qF 'runs no with-lock.sh step' "$tmp/agent-err" && ! grep -qF 'takes no lock' "$tmp/agent-err" ||
+  { echo "FAIL: the lock-step message does not give the pass line to an agent that runs no with-lock.sh step: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 expect_lock_brief allow dead-ticket Agent prompt "$lock_step"
 [[ ! -e "$lock_first/$lock_dead" ]] || { echo 'FAIL: agent-guard: the ticket of a dead pid stays'; failures=$((failures + 1)); }
 # The commit message rule keeps its verdicts with a free lock and with a release holder.

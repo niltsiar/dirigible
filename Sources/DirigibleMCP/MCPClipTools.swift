@@ -90,8 +90,8 @@ extension Arguments {
     /// `until` with `mode`, in one edit, or the paste of `source`.
     fileprivate func rangePaste(_ mode: (Range<Frames>) -> PasteMode) throws(ToolError) -> ToolWork {
         let (range, sources) = (try self.range(), try self[tracks])
-        guard let target = EditRules.frameRange(from: try self[at], to: try self[until]) else {
-            throw ToolError("at must not be more than until.")
+        guard let target = EditRules.targetRange(at: try self[at], until: try self[until]) else {
+            throw ToolError("at must be less than until.")
         }
         guard let targets = EditRules.pasteTargets(sources: sources, onto: try self[onto]) else {
             throw ToolError("Give one onto for each track, or none.")
@@ -211,14 +211,15 @@ let clipTools = [
     Tool(
         "clip_replace",
         "Copy a range of tracks and replace the range at to until with it. The range goes on every track, and the "
-            + "later audio on every track moves by the copy length minus the range length. Give the pasted IDs."
-            + sourceNote,
+            + "later audio on every track moves by the copy length minus the range length. at must be less than "
+            + "until, else the call is refused. Give the pasted IDs." + sourceNote,
         [Arg.from, Arg.to, tracks, at, until, onto, source], batch: .step
     ) { a throws(ToolError) in try a.rangePaste { .replace($0) } },
     Tool(
         "clip_fill",
         "Copy a range of tracks and paste it again and again from at, with butt joins, and cut the last copy at "
-            + "until. Nothing moves. More than 1000 new clips are refused. Give the pasted IDs." + sourceNote,
+            + "until. Nothing moves. at must be less than until, else the call is refused. More than 1000 new clips "
+            + "are refused. Give the pasted IDs." + sourceNote,
         [Arg.from, Arg.to, tracks, at, until, onto, source], batch: .step
     ) { a throws(ToolError) in try a.rangePaste { .fill($0) } },
     Tool(

@@ -10,7 +10,7 @@ extension ClipCommand {
             abstract:
                 "Copy a range of tracks and replace the range --at to --until with it (decision 0053). The range goes "
                 + "on every track, and the later audio on every track moves by the copy length minus the range "
-                + "length. Write the pasted IDs.")
+                + "length. --at must be less than --until, else the command exits 64. Write the pasted IDs.")
         @OptionGroup var paste: RangePaste
 
         func run() throws { try paste.run(.replace(paste.target)) }
@@ -20,7 +20,8 @@ extension ClipCommand {
         static let configuration = CommandConfiguration(
             abstract:
                 "Copy a range of tracks and paste it again and again from --at, with butt joins, and cut the last "
-                + "copy at --until (decision 0053). Nothing moves. Write the pasted IDs.")
+                + "copy at --until (decision 0053). Nothing moves. --at must be less than --until, else the command "
+                + "exits 64. Write the pasted IDs.")
         @OptionGroup var paste: RangePaste
 
         func run() throws { try paste.run(.fill(paste.target)) }
@@ -44,8 +45,8 @@ struct RangePaste: ParsableArguments {
         guard EditRules.pasteTargets(sources: track, onto: onto) != nil else {
             throw ValidationError("Give one --onto for each --track, or none.")
         }
-        guard EditRules.frameRange(from: at, to: until) != nil else {
-            throw ValidationError("--at must not be more than --until.")
+        guard EditRules.targetRange(at: at, until: until) != nil else {
+            throw ValidationError("--at must be less than --until.")
         }
         try SourceOption.validate(source, package: package, onto: onto)
     }

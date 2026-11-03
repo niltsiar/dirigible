@@ -235,14 +235,17 @@ public struct UnusedFiles: Hashable, Sendable {
     }
 
     /// Moves each item to the Trash under `package`, after the save. The capture files go last,
-    /// and only for a capture whose pool items all moved: else the CAF can be the last copy.
+    /// and only for a capture whose pool items all moved: else the CAF can be the last copy. The
+    /// files of a capture go in path order (the CAF, then its sidecar), each only after the earlier
+    /// files of its capture left: a CAF with no sidecar can never place.
     private func moved(under package: URL, trash: (URL) throws -> URL) -> PruneReport {
         let clips = package.appending(path: clipsFolderName)
         var moved: [PruneReport.Moved] = []
         var failed: [PruneReport.Failed] = []
         var dropped: [FileID] = []
         var movedPool: Set<FileID> = []
-        func move(_ item: Item) {
+        /// False when the item is still at its path.
+        @discardableResult func move(_ item: Item) -> Bool {
             let url: URL =
                 switch item.kind {
                 case .transcript, .capture: package.appending(path: item.path)
@@ -251,29 +254,32 @@ public struct UnusedFiles: Hashable, Sendable {
             let now = FileIdentity(lstat: url.path)
             guard now != nil || errno != ENOENT else {
                 if case .pool(let id) = item.kind { dropped.append(id) }
-                return
+                return true
             }
             // With another lstat errno, the move runs, and its error gives the true cause.
             if let now, now != item.identity {
                 failed.append(PruneReport.Failed(item: item, fault: .replaced))
-                return
+                return false
             }
             do {
                 moved.append(PruneReport.Moved(item: item, trashURL: try trash(url)))
                 if case .pool(let id) = item.kind { movedPool.insert(id) }
+                return true
             } catch {
                 failed.append(PruneReport.Failed(item: item, fault: TrashFault(error)))
+                return false
             }
         }
         for item in items {
             if case .capture = item.kind { continue }
             move(item)
         }
+        var stuck: Set<CaptureID> = []
         for item in items {
-            guard case .capture(let capture) = item.kind, owners[capture]?.isSubset(of: movedPool) == true else {
-                continue
-            }
-            move(item)
+            guard case .capture(let capture) = item.kind, owners[capture]?.isSubset(of: movedPool) == true,
+                !stuck.contains(capture)
+            else { continue }
+            if !move(item) { stuck.insert(capture) }
         }
         return PruneReport(moved: moved, failed: failed, dropped: dropped)
     }

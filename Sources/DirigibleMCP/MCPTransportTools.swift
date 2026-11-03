@@ -60,7 +60,7 @@ extension Shuttle {
 }
 
 extension PlaybackStop {
-    fileprivate var reason: String {
+    var reason: String {
         switch self {
         case .outputUnavailable(let code): "the audio output did not start (error \(code))"
         case .packageUnavailable: "the session package is not available"

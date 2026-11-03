@@ -51,7 +51,8 @@ extension Player {
     /// frame of `base`. It picks a host time 100 ms after the clock, plus the time of the last
     /// schedule after a late pick, and schedules from the frame due then, so the frames whose time
     /// passed are skipped. A pick that is late after its schedule picks again; after 3 late picks
-    /// the node plays at once. The node is stopped. A failed schedule gives the feed with no start.
+    /// the node plays at once. The node is stopped. A failed schedule plays the node at once, as a
+    /// plain refill does, so the next refill can restart it.
     func restartTake(_ dry: Feed, base: TakeBase, graph: Graph, ahead: Int) -> Feed {
         var (feed, now, loop) = (dry, hostNanos(), UInt64(0))
         for pick in 1...3 {
@@ -60,7 +61,7 @@ extension Player {
             feed = Feed(
                 anchor: base.frame + Frames(Int(due.rounded())), shuttle: dry.shuttle, end: dry.end, speed: dry.speed,
                 mix: dry.mix, fadeFrom: dry.fadeFrom, take: base)
-            guard schedule(&feed, graph, ahead: ahead) else { return feed }
+            guard schedule(&feed, graph, ahead: ahead) else { break }
             let checked = hostNanos()
             if checked + Self.lateMargin <= host {
                 startNode(graph.node, host)

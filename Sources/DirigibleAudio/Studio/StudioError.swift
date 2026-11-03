@@ -100,4 +100,7 @@ public enum StudioError: Error, Hashable, Sendable {
     /// The output latency of the playback device did not read, so a pre-roll take did not start
     /// (decision 0070). Nothing changed.
     case outputTermUnavailable
+    /// The take play of a pre-roll take stopped at its start with this stop, so the take did not
+    /// start (decision 0070). Nothing changed.
+    case preRollStopped(PlaybackStop)
 }

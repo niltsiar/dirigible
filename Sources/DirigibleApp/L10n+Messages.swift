@@ -76,6 +76,7 @@ extension L10n {
         // Retry Finalize is the control that finishes the pending take, so the text names it.
         case .writerDidNotStop(let name): return errorWriterDidNotStop.format(name, menuRecordRetry.text)
         case .outputTermUnavailable: return errorOutputTermUnavailable.text
+        case .preRollStopped(let stop): return message(for: stop)
         }
     }
 
@@ -95,24 +96,6 @@ extension L10n {
         case .modelFile(let error): message(for: error)
         case .modelChanged: errorTranscribeFileChanged.text
         case .languageNotInModel: errorTranscribeFileEnglish.text
-        }
-    }
-
-    /// The text of a model file check that gave no checked model (decision 0065, D8). The switch
-    /// has no `default`.
-    static func message(for error: ModelFileCheckError, text: (L10n) -> String = { $0.text }) -> String {
-        switch error {
-        case .unreadable(let code): errorTranscribeFileUnreadable.format(Int(code))
-        case .helperMissing: errorTranscribeFileHelperMissing.text
-        // The error of `Process.run()` can name a false cause: a file with no execute permission
-        // gives NSCocoaErrorDomain 4, "doesn't exist". The text gives only the domain and the code.
-        case .helperNotStarted(_, let domain, let code): errorTranscribeFileHelperStart.format(domain, code)
-        case .refused(let reason):
-            String(format: text(.errorTranscribeFileRefused), locale: .current, Self.reason(reason, text: text))
-        case .helperStopped(let signal): errorTranscribeFileCrashed.format(Int(signal))
-        case .changedDuringCheck: errorTranscribeFileChanged.text
-        // A stop ends the job with `.transcriptionCancelled` or `.transcriptionYielded`, not with this case.
-        case .stopped: transcribeCanceled.text
         }
     }
 

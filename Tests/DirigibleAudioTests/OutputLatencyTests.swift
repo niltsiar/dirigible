@@ -64,6 +64,22 @@ struct OutputLatencyTests {
         let result = readOutputTerm(device: fake.currentDevice, reads: fake.reads)
         #expect(result == .failure(.read(failing.fault)), "\(failing): \(result)")
     }
+
+    /// The device latency and the stream latency have one selector ('ltnc'), so the fault line
+    /// names the read: each failed read gives its own name.
+    @Test func faultLineNamesTheRead() {
+        func name(_ failing: FakeLatencyHAL.Read) -> String? {
+            let fake = FakeLatencyHAL(failing: failing)
+            guard case .failure(let fault) = readOutputTerm(device: fake.currentDevice, reads: fake.reads),
+                case .text(let name) = fault.journalFields.first(where: { $0.key == "read" })?.value
+            else { return nil }
+            return name
+        }
+        #expect(name(.latency) == "device-latency")
+        #expect(name(.streamLatency) == "stream-latency")
+        let names = FakeLatencyHAL.Read.allCases.filter { $0 != .noStream }.map(name)
+        #expect(Set(names).count == names.count && !names.contains(nil), "\(names)")
+    }
 }
 
 /// A fake HAL with one output device and its stream. Each read checks its object and its scope,
@@ -75,15 +91,15 @@ struct FakeLatencyHAL: Sendable {
         /// The fault that the reader gives when this read fails.
         var fault: HALReadFault {
             switch self {
-            case .device: HALReadFault(selector: kAudioOutputUnitProperty_CurrentDevice, status: FakeLatencyHAL.status)
-            case .latency: HALReadFault(selector: kAudioDevicePropertyLatency, status: FakeLatencyHAL.status)
-            case .streams: HALReadFault(selector: kAudioDevicePropertyStreams, status: FakeLatencyHAL.status)
-            case .noStream: HALReadFault(selector: kAudioDevicePropertyStreams, status: nil)
-            case .streamLatency: HALReadFault(selector: kAudioStreamPropertyLatency, status: FakeLatencyHAL.status)
-            case .safety: HALReadFault(selector: kAudioDevicePropertySafetyOffset, status: FakeLatencyHAL.status)
-            case .buffer: HALReadFault(selector: kAudioDevicePropertyBufferFrameSize, status: FakeLatencyHAL.status)
-            case .rate: HALReadFault(selector: kAudioDevicePropertyNominalSampleRate, status: FakeLatencyHAL.status)
-            case .uid: HALReadFault(selector: kAudioDevicePropertyDeviceUID, status: nil)
+            case .device: HALReadFault(read: .currentDevice, status: FakeLatencyHAL.status)
+            case .latency: HALReadFault(read: .deviceLatency, status: FakeLatencyHAL.status)
+            case .streams: HALReadFault(read: .streams, status: FakeLatencyHAL.status)
+            case .noStream: HALReadFault(read: .streams, status: nil)
+            case .streamLatency: HALReadFault(read: .streamLatency, status: FakeLatencyHAL.status)
+            case .safety: HALReadFault(read: .safetyOffset, status: FakeLatencyHAL.status)
+            case .buffer: HALReadFault(read: .bufferFrames, status: FakeLatencyHAL.status)
+            case .rate: HALReadFault(read: .rate, status: FakeLatencyHAL.status)
+            case .uid: HALReadFault(read: .uid, status: nil)
             }
         }
     }

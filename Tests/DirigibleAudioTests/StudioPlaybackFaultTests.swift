@@ -270,7 +270,7 @@ extension StudioPlaybackTests {
         let logs = package.folder.url.appending(path: "logs")
         let studio = try await studio()
         studio.environment.log = startLog(in: logs)
-        let fault = HALReadFault(selector: kAudioDevicePropertyBufferFrameSize, status: kAudioHardwareNotRunningError)
+        let fault = HALReadFault(read: .bufferFrames, status: kAudioHardwareNotRunningError)
         studio.environment.outputTerm = { _ in fails ? .failure(.read(fault)) : .success(.builtIn) }
         await studio.perform(.seek(.start))
         await studio.perform(.playStop)
@@ -289,7 +289,9 @@ extension StudioPlaybackTests {
         let faults = lines.filter { $0.contains("\tdevice\toutput-term-fault\t") }
         #expect(faults.count == (fails ? 1 : 0), "lines: \(lines)")
         if fails {
-            #expect(faults.first?.hasSuffix("fault=read\tproperty=fsiz\tstatus=stop/1937010544") == true, "\(faults)")
+            #expect(
+                faults.first?.hasSuffix("fault=read\tread=buffer-frames\tproperty=fsiz\tstatus=stop/1937010544")
+                    == true, "\(faults)")
         }
     }
 

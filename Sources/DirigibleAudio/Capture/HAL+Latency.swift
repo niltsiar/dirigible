@@ -2,9 +2,35 @@ import AVFoundation
 import AudioToolbox
 import CoreAudio
 
-/// One HAL read that failed: the property, and the status when the read gives one.
+/// One HAL read that failed: the read, and the status when the read gives one.
 struct HALReadFault: Error, Hashable, Sendable {
-    let selector: AudioObjectPropertySelector
+    /// A read of the latency reader, by its journal name. The device latency and the stream
+    /// latency have one selector (`ltnc`), so a selector alone does not name the read.
+    enum Read: String, Sendable {
+        case currentDevice = "current-device"
+        case deviceLatency = "device-latency"
+        case streams
+        case streamLatency = "stream-latency"
+        case safetyOffset = "safety-offset"
+        case bufferFrames = "buffer-frames"
+        case rate
+        case uid
+
+        var selector: AudioObjectPropertySelector {
+            switch self {
+            case .currentDevice: kAudioOutputUnitProperty_CurrentDevice
+            case .deviceLatency: kAudioDevicePropertyLatency
+            case .streams: kAudioDevicePropertyStreams
+            case .streamLatency: kAudioStreamPropertyLatency
+            case .safetyOffset: kAudioDevicePropertySafetyOffset
+            case .bufferFrames: kAudioDevicePropertyBufferFrameSize
+            case .rate: kAudioDevicePropertyNominalSampleRate
+            case .uid: kAudioDevicePropertyDeviceUID
+            }
+        }
+    }
+
+    let read: Read
     let status: OSStatus?
 }
 
@@ -48,21 +74,17 @@ struct LatencyParts {
 extension LatencyParts {
     /// A failed read of the device latency, the stream list, or the safety offset throws.
     init(_ id: AudioObjectID, scope: AudioObjectPropertyScope, reads: LatencyReads) throws(HALReadFault) {
-        device = try read(kAudioDevicePropertyLatency) { () throws(HALError) in
-            try reads.number(id, kAudioDevicePropertyLatency, scope)
-        }
-        let streams = try read(kAudioDevicePropertyStreams) { () throws(HALError) in try reads.streams(id, scope) }
+        device = try read(.deviceLatency) { selector throws(HALError) in try reads.number(id, selector, scope) }
+        let streams = try read(.streams) { _ throws(HALError) in try reads.streams(id, scope) }
         stream = Result { () throws(HALReadFault) in
             guard let first = streams.first else {
-                throw HALReadFault(selector: kAudioDevicePropertyStreams, status: nil)
+                throw HALReadFault(read: .streams, status: nil)
             }
-            return try read(kAudioStreamPropertyLatency) { () throws(HALError) in
-                try reads.number(first, kAudioStreamPropertyLatency, kAudioObjectPropertyScopeGlobal)
+            return try read(.streamLatency) { selector throws(HALError) in
+                try reads.number(first, selector, kAudioObjectPropertyScopeGlobal)
             }
         }
-        safety = try read(kAudioDevicePropertySafetyOffset) { () throws(HALError) in
-            try reads.number(id, kAudioDevicePropertySafetyOffset, scope)
-        }
+        safety = try read(.safetyOffset) { selector throws(HALError) in try reads.number(id, selector, scope) }
     }
 }
 
@@ -77,11 +99,11 @@ func readOutputTerm(device: Result<AudioObjectID, HALReadFault>, reads: LatencyR
         let id = try device.get()
         let parts = try LatencyParts(id, scope: kAudioObjectPropertyScopeOutput, reads: reads)
         let stream = try parts.stream.get()
-        let buffer = try read(kAudioDevicePropertyBufferFrameSize) { () throws(HALError) in
-            try reads.number(id, kAudioDevicePropertyBufferFrameSize, kAudioObjectPropertyScopeGlobal)
+        let buffer = try read(.bufferFrames) { selector throws(HALError) in
+            try reads.number(id, selector, kAudioObjectPropertyScopeGlobal)
         }
-        let rate = try read(kAudioDevicePropertyNominalSampleRate) { () throws(HALError) in try reads.rate(id) }
-        guard let uid = reads.uid(id) else { throw HALReadFault(selector: kAudioDevicePropertyDeviceUID, status: nil) }
+        let rate = try read(.rate) { _ throws(HALError) in try reads.rate(id) }
+        guard let uid = reads.uid(id) else { throw HALReadFault(read: .uid, status: nil) }
         guard
             let term = OutputTerm.Device(
                 latency: parts.device, streamLatency: stream, safetyOffset: parts.safety, bufferFrames: buffer,
@@ -100,23 +122,24 @@ func readOutputTerm(device: Result<AudioObjectID, HALReadFault>, reads: LatencyR
 
 /// `kAudioOutputUnitProperty_CurrentDevice` of an output unit.
 private func currentDevice(of unit: AudioUnit?) -> Result<AudioObjectID, HALReadFault> {
-    let selector = kAudioOutputUnitProperty_CurrentDevice
-    guard let unit else { return .failure(HALReadFault(selector: selector, status: nil)) }
+    let selector = HALReadFault.Read.currentDevice.selector
+    guard let unit else { return .failure(HALReadFault(read: .currentDevice, status: nil)) }
     var id = AudioObjectID(kAudioObjectUnknown)
     var size = UInt32(MemoryLayout<AudioObjectID>.size)
     let status = AudioUnitGetProperty(unit, selector, kAudioUnitScope_Global, 0, &id, &size)
     guard status == noErr, id != kAudioObjectUnknown else {
-        return .failure(HALReadFault(selector: selector, status: status))
+        return .failure(HALReadFault(read: .currentDevice, status: status))
     }
     return .success(id)
 }
 
-private func read<Value>(_ selector: AudioObjectPropertySelector, _ body: () throws(HALError) -> Value)
-    throws(HALReadFault) -> Value
-{
-    do { return try body() } catch .status(let status) {
-        throw HALReadFault(selector: selector, status: status)
+/// Runs `body` with the selector of `read`, and gives a fault that names `read`.
+private func read<Value>(
+    _ read: HALReadFault.Read, _ body: (AudioObjectPropertySelector) throws(HALError) -> Value
+) throws(HALReadFault) -> Value {
+    do { return try body(read.selector) } catch .status(let status) {
+        throw HALReadFault(read: read, status: status)
     } catch {
-        throw HALReadFault(selector: selector, status: nil)
+        throw HALReadFault(read: read, status: nil)
     }
 }

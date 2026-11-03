@@ -19,7 +19,8 @@ enum OutputTermFault: Error, Hashable, Sendable {
             return [("fault", .text("not-started")), ("stop", .text(stop.map { "\($0)" } ?? "none"))]
         case .read(let fault):
             var fields: [(key: String, value: DiagnosticValue)] = [
-                ("fault", .text("read")), ("property", .text(fourCharacters(fault.selector))),
+                ("fault", .text("read")), ("read", .text(fault.read.rawValue)),
+                ("property", .text(fourCharacters(fault.read.selector))),
             ]
             if let status = fault.status { fields.append(("status", .status(status))) }
             return fields

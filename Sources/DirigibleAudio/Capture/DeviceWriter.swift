@@ -70,10 +70,10 @@ final class DeviceWriter: @unchecked Sendable {
     var drops = LineLimit()
     /// `tracks.wavBytes` after each drain.
     private let wavByteCount = ManagedAtomic<Int64>(0)
-    /// The take start host time H_T of a pre-roll take (decision 0070, **Late start**); nil for a
-    /// Command-R take and a monitor.
-    private let lateStartLimit: UInt64?
-    /// The first record of the take was compared with `lateStartLimit`.
+    /// The take start host time H_T of a pre-roll take (decision 0070, **Late start**): the limit is
+    /// this base + 3 IO buffers of the device. Nil for a Command-R take and a monitor.
+    private let lateStartBase: UInt64?
+    /// The first record of the take was compared with `lateStartBase`.
     private var startChecked = false
     private let late = ManagedAtomic<Bool>(false)
     /// The start state and the stop time, which the Studio sets from any thread.
@@ -91,7 +91,7 @@ final class DeviceWriter: @unchecked Sendable {
         log: DiagnosticLog = .disabled, report: @escaping @Sendable (Report) -> Void = { _ in },
         drainInterval: Duration = .milliseconds(50),
         silenceLimit: Duration = .seconds(2), firstRecordLimit: Duration = .seconds(10), ringSeconds: Double = 10,
-        keepLimit: Int = .max, app: String? = nil, lateStartLimit: UInt64? = nil
+        keepLimit: Int = .max, app: String? = nil, lateStartBase: UInt64? = nil
     ) {
         self.hal = hal
         self.log = log
@@ -102,7 +102,7 @@ final class DeviceWriter: @unchecked Sendable {
         self.firstRecordLimit = firstRecordLimit
         self.ringSeconds = ringSeconds
         self.keepLimit = keepLimit
-        self.lateStartLimit = lateStartLimit
+        self.lateStartBase = lateStartBase
         silence = SilenceCheck(files == nil ? .monitor : .take)
         name = device.name
         queue = DispatchQueue(label: "Dirigible.DeviceWriter.\(tracks.map(\.arm).min() ?? 0)")
@@ -115,7 +115,7 @@ final class DeviceWriter: @unchecked Sendable {
     /// The frames of the take that the ring or the writer dropped: a full ring, a record without
     /// valid times, and a record with no routed channel or a wrong size. Any thread can read it.
     var droppedFrames: Int { dropped.load(ordering: .relaxed) }
-    /// The first frame of the take, less the input latency, came after `lateStartLimit` + 3 IO
+    /// The first frame of the take, less the input latency, came after `lateStartBase` + 3 IO
     /// buffers of the device. Any thread can read it.
     var startedLate: Bool { late.load(ordering: .relaxed) }
 
@@ -293,13 +293,14 @@ final class DeviceWriter: @unchecked Sendable {
             .levels(take: tracks.take, arms: levels, latencyNanos: tracks.latencyNanos, droppedFrames: droppedFrames))
     }
 
-    /// Compares the first record of the take with the limit; the IO buffer is the record length.
+    /// Compares the first record of the take with the limit, `lateStartBase` + 3 IO buffers; the IO
+    /// buffer is the record length.
     private func checkStart(_ record: InputRecord) {
         startChecked = true
-        guard let lateStartLimit else { return }
+        guard let lateStartBase else { return }
         let buffers = Int64((Double(3 * record.frameCount) * 1e9 / record.nominalRate).rounded())
         let first = Int64(bitPattern: record.hostTimeNanos) - tracks.latencyNanos
-        if first > Int64(bitPattern: lateStartLimit) + buffers { late.store(true, ordering: .relaxed) }
+        if first > Int64(bitPattern: lateStartBase) + buffers { late.store(true, ordering: .relaxed) }
     }
 
     /// Detaches the current input and writes the rest of its ring, then keeps the input.

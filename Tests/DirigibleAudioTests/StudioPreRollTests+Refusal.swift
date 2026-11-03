@@ -72,7 +72,7 @@ extension StudioPreRollTests {
         let logs = package.folder.url.appending(path: "logs")
         let studio = try await studio()
         studio.environment.log = startLog(in: logs)
-        let fault = HALReadFault(selector: kAudioDevicePropertyBufferFrameSize, status: kAudioHardwareNotRunningError)
+        let fault = HALReadFault(read: .bufferFrames, status: kAudioHardwareNotRunningError)
         studio.environment.outputTerm = { _ in .failure(.read(fault)) }
 
         await #expect(throws: StudioError.outputTermUnavailable) {

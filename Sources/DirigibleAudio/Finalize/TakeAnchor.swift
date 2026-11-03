@@ -6,15 +6,19 @@ import Foundation
 /// knows the track and the start of each segment of the take. The bytes use the sidecar framing:
 /// an 8-byte magic, then one record. The reader refuses a torn or changed file.
 enum TakeAnchor {
-    private static let magic = Array("DRGANCH1".utf8)
+    /// Version 2 is a pre-roll take, so a build that reads only version 1 never places it at the
+    /// take start. A plain take keeps version 1, which every build reads.
+    private static let magic = Array("DRGANCH2".utf8)
+    private static let plainMagic = Array("DRGANCH1".utf8)
     private static let kind: UInt8 = 1
 
     /// The package-relative path of the anchor of `take`.
     static func file(take: Int) -> String { "\(captureFolderName)/take\(take).anchor" }
 
     /// The payload: the take (UInt32), the playhead (Int64), the take start host time (UInt64),
-    /// the track count (UInt32), then each track ID as a UInt32 byte count and its UTF-8 bytes.
-    /// A UInt32 count, so no track ID length can trap the writer.
+    /// the track count (UInt32), then each track ID as a UInt32 byte count and its UTF-8 bytes;
+    /// version 2 then has the pre-roll flag (UInt8 1). A UInt32 count, so no track ID length can
+    /// trap the writer.
     static func encode(_ recording: Recording) -> Data {
         var payload = ByteWriter()
         payload.put(UInt32(truncatingIfNeeded: recording.take))
@@ -26,6 +30,8 @@ enum TakeAnchor {
             payload.put(UInt32(truncatingIfNeeded: utf8.count))
             payload.bytes += utf8
         }
+        guard recording.isPreRoll else { return Data(plainMagic) + Sidecar.record(kind, payload.bytes) }
+        payload.put(UInt8(1))
         return Data(magic) + Sidecar.record(kind, payload.bytes)
     }
 
@@ -37,6 +43,7 @@ enum TakeAnchor {
         guard try reader.magic(magic), let record = reader.record(), record.kind == kind,
             reader.isAtEnd
         else { return nil }
+        let isPreRoll = data[data.startIndex + plainMagic.count - 1] == magic.last
         var fields = ByteReader(Array(record.payload))
         guard let number: UInt32 = fields.integer(), let playhead: UInt64 = fields.integer(),
             let hostTime: UInt64 = fields.integer(), let count: UInt32 = fields.integer()
@@ -49,9 +56,14 @@ enum TakeAnchor {
             tracks.append(TrackID(id))
         }
         let frames = Frames(Int(Int64(bitPattern: playhead)))
+        if isPreRoll {
+            guard fields.integer() == UInt8(1) else { return nil }
+        }
         guard fields.isAtEnd, Int(number) == take, Recording.takes.contains(take), frames >= .zero, frames <= .limit
         else { return nil }
-        return Recording(take: take, playheadFrame: frames, takeStartHostTimeNanos: hostTime, armedTracks: tracks)
+        return Recording(
+            take: take, playheadFrame: frames, takeStartHostTimeNanos: hostTime, armedTracks: tracks,
+            isPreRoll: isPreRoll)
     }
 
     /// Writes the anchor to a temporary file, flushes it, renames it, and flushes `Capture/`, so

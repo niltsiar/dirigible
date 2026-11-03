@@ -95,6 +95,7 @@ extension Session {
             let node = element(
                 "recording", ("take", String(recording.take)), ("playheadFrame", recording.playheadFrame.description),
                 ("takeStartHostTimeNanos", String(recording.takeStartHostTimeNanos)))
+            if recording.isPreRoll { add(("preRoll", "true"), to: node) }
             for track in recording.armedTracks { node.addChild(element("arm", ("track", track.rawValue))) }
             root.addChild(node)
         }

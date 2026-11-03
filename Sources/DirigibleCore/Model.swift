@@ -303,12 +303,19 @@ public struct Recording: Hashable, Sendable {
     public var playheadFrame: Frames
     public var takeStartHostTimeNanos: UInt64
     public var armedTracks: [TrackID]
+    /// A take that starts with a pre-roll. An older build refuses its `session.xml` and its anchor
+    /// as newer (decision 0024), so it never places the take audio from the take start.
+    public var isPreRoll: Bool
 
-    public init(take: Int, playheadFrame: Frames, takeStartHostTimeNanos: UInt64, armedTracks: [TrackID]) {
+    public init(
+        take: Int, playheadFrame: Frames, takeStartHostTimeNanos: UInt64, armedTracks: [TrackID],
+        isPreRoll: Bool = false
+    ) {
         self.take = take
         self.playheadFrame = playheadFrame
         self.takeStartHostTimeNanos = takeStartHostTimeNanos
         self.armedTracks = armedTracks
+        self.isPreRoll = isPreRoll
     }
 }
 

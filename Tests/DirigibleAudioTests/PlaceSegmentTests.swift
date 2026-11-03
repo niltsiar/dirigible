@@ -180,9 +180,9 @@ struct PlaceSegmentTests {
             return refused(.newerSidecar(version: 2))
         case .newerAnchor, .newerAnchorTrackOnly, .newerAnchorStartOnly:
             // Decision 0024: a placement that needs the anchor names its newer version.
-            try setMagicDigit(anchor, "2")
+            try setMagicDigit(anchor, "3")
             return refused(
-                .newerAnchor(version: 2), track: refusal == .newerAnchorTrackOnly ? "t1" : nil,
+                .newerAnchor(version: 3), track: refusal == .newerAnchorTrackOnly ? "t1" : nil,
                 start: refusal == .newerAnchorStartOnly ? 1_000 : nil)
         }
     }
@@ -211,7 +211,7 @@ struct PlaceSegmentTests {
     /// Decision 0024: a placement with a track and a start does not read the anchor, so a newer
     /// anchor does not refuse it and keeps its bytes.
     @Test @MainActor func aPlacementWithTrackAndStartSkipsTheAnchor() async throws {
-        try setMagicDigit(anchor, "2")
+        try setMagicDigit(anchor, "3")
         let bytes = try Data(contentsOf: anchor)
         let studio = try await studio()
 

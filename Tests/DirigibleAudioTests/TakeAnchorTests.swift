@@ -35,6 +35,23 @@ struct TakeAnchorTests {
         #expect(try TakeAnchor.decode(TakeAnchor.encode(recording), take: 3) == recording)
     }
 
+    /// P31: the anchor of a pre-roll take is version 2 with the pre-roll flag, which the reader of a
+    /// version 1 build refuses as newer; a plain take keeps version 1 and its bytes.
+    @Test func preRollAnchorIsVersion2() throws {
+        var preRoll = recording
+        preRoll.isPreRoll = true
+        let plainBytes = TakeAnchor.encode(recording)
+        let preRollBytes = TakeAnchor.encode(preRoll)
+
+        #expect(Array(plainBytes.prefix(8)) == Array("DRGANCH1".utf8))
+        #expect(Array(preRollBytes.prefix(8)) == Array("DRGANCH2".utf8))
+        #expect(preRollBytes.count == plainBytes.count + 1)
+        #expect(try TakeAnchor.decode(preRollBytes, take: 1) == preRoll)
+        #expect(try TakeAnchor.decode(plainBytes, take: 1) == recording)
+        var olderReader = ByteReader(Array(preRollBytes))
+        #expect(throws: NewerFormat(version: 2)) { try olderReader.magic(Array("DRGANCH1".utf8)) }
+    }
+
     /// Every recording that `Session.setRecording` accepts, the reader accepts.
     @Test func aSeededRandomAnchorRoundTrips() throws {
         var random = SeededGenerator(seed: 21)
@@ -54,7 +71,8 @@ struct TakeAnchorTests {
                 Recording(
                     take: Int.random(in: Recording.takes, using: &random),
                     playheadFrame: Frames(Int.random(in: 0...Frames.limit.count, using: &random)),
-                    takeStartHostTimeNanos: UInt64.random(in: 0...UInt64.max, using: &random), armedTracks: tracks))
+                    takeStartHostTimeNanos: UInt64.random(in: 0...UInt64.max, using: &random), armedTracks: tracks,
+                    isPreRoll: Bool.random(using: &random)))
             let recording = try #require(session.recording)
 
             #expect(try TakeAnchor.decode(TakeAnchor.encode(recording), take: recording.take) == recording)
@@ -104,11 +122,11 @@ struct TakeAnchorTests {
         #expect(TakeAnchor.encode(recording).prefix(8) == Data("DRGANCH1".utf8))
     }
 
-    /// Decision 0024 P3 and P9: digit 2 is a newer anchor; digit 0 and a byte that is not a
+    /// Decision 0024 P3 and P9: digit 3 is a newer anchor; digit 0 and a byte that is not a
     /// digit are damaged.
     @Test func aNewerAnchorIsNewer() throws {
         let package = try twoTrackPackage()
-        for (digit, expected) in [("2", .failure(NewerFormat(version: 2))), ("0", nil), ("X", nil)]
+        for (digit, expected) in [("3", .failure(NewerFormat(version: 3))), ("0", nil), ("X", nil)]
             as [(String, Result<Recording, NewerFormat>?)]
         {
             try TakeAnchor.encode(recording).write(to: anchor(package))
@@ -123,7 +141,7 @@ struct TakeAnchorTests {
     @Test func aFinalizeKeepsANewerAnchor() async throws {
         let package = try twoTrackPackage()
         try TakeAnchor.encode(recording).write(to: anchor(package))
-        try setMagicDigit(anchor(package), "2")
+        try setMagicDigit(anchor(package), "3")
         let bytes = try Data(contentsOf: anchor(package))
 
         let outcome = await completeTake(of: try package.read(), lock: try PackageLock(package.url))
@@ -140,7 +158,7 @@ struct TakeAnchorTests {
     @Test func aFinalizeWithAnUnreadableAnchorStaysPending() async throws {
         let package = try twoTrackPackage()
         try TakeAnchor.encode(recording).write(to: anchor(package))
-        try setMagicDigit(anchor(package), "2")
+        try setMagicDigit(anchor(package), "3")
         let bytes = try Data(contentsOf: anchor(package))
         chmod(anchor(package).path, 0o000)
 

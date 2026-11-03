@@ -164,10 +164,10 @@ struct PlaceCommandTests {
                     + "cannot place take1-1-1.\n"
             )
         case .newerAnchor:
-            try setMagicDigit(anchor, "2")
+            try setMagicDigit(anchor, "3")
             return (
                 ["take1-1-1"],
-                "Error: Capture/take1.anchor was made by a newer version of Dirigible (version 2). Give --track and "
+                "Error: Capture/take1.anchor was made by a newer version of Dirigible (version 3). Give --track and "
                     + "--at to place take1-1-1.\n"
             )
         }
@@ -190,7 +190,7 @@ struct PlaceCommandTests {
     /// Decision 0024: with --track and --at, a newer anchor is not read and keeps its bytes.
     @Test func aNewerAnchorDoesNotRefuseAnExplicitPlacement() async throws {
         let anchor = capture.appending(path: "take1.anchor")
-        try setMagicDigit(anchor, "2")
+        try setMagicDigit(anchor, "3")
         let bytes = try Data(contentsOf: anchor)
 
         #expect(

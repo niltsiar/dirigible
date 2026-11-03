@@ -168,6 +168,21 @@ struct PlayerTakeTests {
         #expect(maxError(out[0], try package.mix(16_800..<21_600)[0]) <= 1e-6)
     }
 
+    /// An `.offline` Player with no start seam ignores the host time (U20), so an underrun of its
+    /// take feed restarts at once at the frame after the last scheduled frame, as a plain play does.
+    @Test func underrunOfAnOfflineTakeRestartsAtOnce() async throws {
+        let clock = HostClock(h0)
+        let url = package.url
+        let player = Player(
+            package: { url }, output: .offline, session: package.session, speedUnit: { nil },
+            hostNanos: { clock.read() })
+        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        clock.set(h0 + 1_000_000_000)
+        _ = await player.renderOffline(frames: 4 * 4800, starve: true)
+        await player.refill()
+        #expect(await player.feedAnchor == 16_800)
+    }
+
     /// A take started at H0 + 0.1 s from frame 2400 runs dry, and the refill reads H0 + 1 s: the
     /// restart starts at H0 + 1.1 s, at the frame due then, 2400 + 1.0 s x 48 kHz. A second
     /// underrun at H0 + 1.5 s counts from the take start too: 74400, not 50400 + 1.5 s x 48 kHz.

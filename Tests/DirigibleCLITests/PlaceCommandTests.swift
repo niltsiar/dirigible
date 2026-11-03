@@ -86,6 +86,22 @@ struct PlaceCommandTests {
         #expect(try await starts("t1") == ["take1-1-1": 96_480])
     }
 
+    /// A segment that ends before the take playhead becomes a pool file with no clip (decision
+    /// 0004 **Timing**).
+    @Test func aSegmentBeforeTheFloorPlacesNoClip() async throws {
+        // The new first frame needs a new capture: the fixture keeps the capture of the old one.
+        try package.edit { try $0.removeCapture("take1-1-1") }
+        try segment(arm: 1, firstHost: Self.takeStart - 5_000_000_000)
+
+        let result = try await package.run("capture", "place", "PKG", "take1-1-1")
+
+        #expect(
+            result == CLIResult(status: 0, stdout: "no clip: the segment ends before the take playhead\n", stderr: ""),
+            "\(result)")
+        #expect(try await starts("t1") == [:])
+        #expect(try Session(contentsOf: package.url).files["take1-1-1"]?.capture == "take1-1-1")
+    }
+
     /// Frame 0 is the lowest start (the control of the `--at` check).
     @Test(arguments: [0, 1_000])
     func anExplicitTrackAndStartReplaceTheAnchor(at: Int) async throws {
@@ -101,7 +117,7 @@ struct PlaceCommandTests {
     // MARK: Criterion 18
 
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
-        case placed, noCAF, missingSidecar, emptyCAF, noAnchor, noAnchorWithTrack, wavInUse, beforeTimeline
+        case placed, noCAF, missingSidecar, emptyCAF, noAnchor, noAnchorWithTrack, wavInUse
         case layoutMismatch, newerSidecar, newerAnchor
         var testDescription: String { rawValue }
     }
@@ -137,9 +153,6 @@ struct PlaceCommandTests {
         case .wavInUse:
             try package.edit { try $0.addFile(AudioFile(id: "user", path: "take1-1-1.wav", layout: .mono, length: 1)) }
             return (["take1-1-1"], "Error: file \"user\" has the path of Clips/take1-1-1.wav.\n")
-        case .beforeTimeline:
-            try segment(arm: 1, firstHost: Self.takeStart - 5_000_000_000)
-            return (["take1-1-1"], "Error: take1-1-1 ends before the start of the timeline.\n")
         case .layoutMismatch:
             try segment(arm: 1, channels: 2)
             return (["take1-1-1"], "Error: file \"take1-1-1\" does not have the layout of track \"t1\".\n")

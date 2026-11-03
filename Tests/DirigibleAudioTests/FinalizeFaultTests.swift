@@ -19,7 +19,7 @@ struct FinalizeFaultTests {
     func file(_ name: String) -> URL { package.capture.appending(path: name) }
 
     enum Fault: String, CaseIterable, CustomTestStringConvertible {
-        case badMagic, randomCAF, emptyCAF, rateNotTheHeaderRate, clipIDInUse, beforeTimeline
+        case badMagic, randomCAF, emptyCAF, rateNotTheHeaderRate, clipIDInUse
         var testDescription: String { rawValue }
     }
 
@@ -47,12 +47,6 @@ struct FinalizeFaultTests {
             try session.addFile(AudioFile(id: "user", path: "user.wav", layout: .mono, length: 1_000))
             try session.place(Clip(id: "take1-1-1", file: "user", start: 0, offset: 0, length: 1_000), on: "t2")
             try session.write(to: package.url)
-        case .beforeTimeline:
-            // The first frame is 5 s before the take start and the playhead is at 2 s, so the
-            // whole 2 s segment is before frame 0.
-            try package.segment(
-                arm: 1, header: TakePackage.header(firstHost: takeStart - 5_000_000_000),
-                samples: sine(seconds: 2, rate: 48_000))
         }
     }
 
@@ -68,7 +62,7 @@ struct FinalizeFaultTests {
         #expect(session.files["take1-1-1"] == nil)
         #expect(session.track("t1")?.clips.isEmpty == true)
         #expect(unplacedSegments(segmentsWithAudio(in: package.url), session: session).map(\.stem) == ["take1-1-1"])
-        // Also after a conversion (a session refusal, a segment before the timeline): no WAV and
+        // Also after a conversion (a session refusal): no WAV and
         // no temporary file of the unplaced segment stays in `Clips/`.
         #expect(
             try FileManager.default.contentsOfDirectory(atPath: package.url.appending(path: "Clips").path)

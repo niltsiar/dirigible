@@ -255,15 +255,16 @@ extension Studio {
     /// (the take anchor), or on `track` and at `start` when given. A negative `start` throws
     /// `.segment(segment, .session(.frameOutOfRange))`. A running play stops first, as
     /// at a take start. The conversion and the save run off the main actor; meanwhile every other
-    /// entry point throws `.busy`. A success records one undo entry and returns the clip ID. A
-    /// throw changes nothing.
+    /// entry point throws `.busy`. A success records one undo entry and returns the clip ID, or
+    /// nil when the segment has no frame after the take playhead: then it is a pool file with no
+    /// clip. A throw changes nothing.
     public func place(_ segment: SegmentName, on track: TrackID? = nil, at start: Frames? = nil)
-        async throws(StudioError) -> ClipID
+        async throws(StudioError) -> ClipID?
     {
         try checkIdle()
         guard unplacedSegments.contains(segment) else { throw .segment(segment, .notUnplaced) }
-        // The per-segment finalize moves a negative aligned start into the offset; a given start
-        // is a timeline position, so it cannot be negative.
+        // The per-segment finalize moves an aligned start before the floor into the offset; a
+        // given start is a timeline position, so it cannot be negative.
         if let start, start < .zero { throw .segment(segment, .session(.frameOutOfRange)) }
         let stopped = endPlayForTake()
         transport = .placing(segment)
@@ -277,7 +278,7 @@ extension Studio {
             return nil
         }
         if let error { throw error }
-        return ClipID(segment.stem)
+        return session.clip(ClipID(segment.stem)).map { _ in ClipID(segment.stem) }
     }
 
     /// The device writer of `uid` in the take that records. For tests.

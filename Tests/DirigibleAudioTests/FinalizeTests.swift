@@ -132,14 +132,16 @@ struct FinalizeTests {
         #expect(try clip(session) == Clip(id: "take1-1-1", file: "take1-1-1", start: 0, offset: 48, length: 47_952))
     }
 
-    @Test func aFirstFrameBeforeTheTakeStartMovesTheClipEarlier() throws {
+    @Test func aFirstFrameBeforeTheTakeStartMovesIntoTheOffset() throws {
         try package.segment(
             header: TakePackage.header(firstHost: takeStart - 5_000_000), samples: sine(seconds: 1, rate: 48_000))
 
         let session = try finalizeTake(of: package.read(), in: package.url)
 
-        // 96000 - 5 ms at 48 kHz - 48 frames of latency.
-        #expect(try clip(session).start == 95_712)
+        // File frame 0 is at 96000 - 5 ms at 48 kHz - 48 frames of latency = 95712; the clip
+        // starts at the playhead.
+        #expect(
+            try clip(session) == Clip(id: "take1-1-1", file: "take1-1-1", start: 96_000, offset: 288, length: 47_712))
     }
 
     @Test func aSecondRunGivesTheSameSessionAndTheSameWAVBytes() throws {

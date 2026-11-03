@@ -97,7 +97,7 @@
 "error.segment.newer" = "Das Audio %@ wurde mit einer neueren Version von Dirigible erstellt. Aktualisiere Dirigible, um es zu platzieren.";
 "error.segment.newer.anchor" = "Die Timing-Datei des Audios %@ wurde mit einer neueren Version von Dirigible erstellt. Wähle eine Spur aus und verwende dann „An Abspielposition auf ausgewählter Spur platzieren“.";
 "error.segment.bad.audio" = "Das Audio %@ ist beschädigt und kann nicht konvertiert werden.";
-"error.segment.before.start" = "Das Audio %@ endet vor dem Anfang der Timeline.";
+"alert.place.no.clip" = "Das Audio %@ endet vor der Abspielposition der Aufnahme und hat daher keinen Clip. Seine Datei bleibt im Pool.";
 "error.segment.no.alignment" = "Die Aufnahmezeit des Audios %@ ist nicht bekannt. Wähle eine Spur aus und verwende dann „An Abspielposition auf ausgewählter Spur platzieren“.";
 "error.segment.wav.in.use" = "Eine andere Datei der Session verwendet den Clip-Namen des Audios %@.";
 "error.export.exists" = "Ein Objekt mit diesem Namen existiert bereits. Der Export hat es nicht ersetzt.";

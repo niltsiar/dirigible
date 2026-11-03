@@ -97,7 +97,7 @@
 "error.segment.newer" = "O áudio %@ foi criado por uma versão mais recente do Dirigible. Atualize o Dirigible para o posicionar.";
 "error.segment.newer.anchor" = "O ficheiro de temporização do áudio %@ foi criado por uma versão mais recente do Dirigible. Selecione uma faixa e utilize “Posicionar no cursor de reprodução na faixa selecionada”.";
 "error.segment.bad.audio" = "O áudio %@ está danificado e não pode ser convertido.";
-"error.segment.before.start" = "O áudio %@ termina antes do início da linha cronológica.";
+"alert.place.no.clip" = "O áudio %@ termina antes do cursor da gravação, por isso não tem clip. O ficheiro fica no pool.";
 "error.segment.no.alignment" = "A hora de gravação do áudio %@ é desconhecida. Selecione uma faixa e utilize “Posicionar no cursor de reprodução na faixa selecionada”.";
 "error.segment.wav.in.use" = "Outro ficheiro da sessão utiliza o nome de clipe do áudio %@.";
 "error.export.exists" = "Já existe um item com este nome. A exportação não o substituiu.";

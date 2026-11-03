@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
+- Amended: 2026-11-03, run `2026-10-28-pre-roll`. A clip of a finalize at the recorded time starts at the playhead of `<recording>` or later: that playhead is the floor of 0004 **Timing**.
 - Amended: 2026-09-24. A clip file over 4 GiB is RF64 (EBU Tech 3306) with the .wav name (see 0012).
 - Amended: 2026-09-24. The media check runs at open, after each finalize, at each play start, and at window focus. A pool file is `.missing`, `.short(frames)`, or `.unreadable`. The package does not save the playhead (see 0016).
 - Amended: 2026-09-25. A pasted clip gets the first free ID of `<source id>@<start>`. A nudged clip keeps its ID (see 0018).

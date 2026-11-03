@@ -97,7 +97,7 @@
 "error.segment.newer" = "L’audio %@ è stato creato da una versione più recente di Dirigible. Aggiorna Dirigible per posizionarlo.";
 "error.segment.newer.anchor" = "Il file di temporizzazione dell’audio %@ è stato creato da una versione più recente di Dirigible. Seleziona una traccia, poi usa “Posiziona alla testina di riproduzione sulla traccia selezionata”.";
 "error.segment.bad.audio" = "L’audio %@ è danneggiato e non può essere convertito.";
-"error.segment.before.start" = "L’audio %@ finisce prima dell’inizio della timeline.";
+"alert.place.no.clip" = "L’audio %@ finisce prima della testina della ripresa, quindi non ha una clip. Il suo file resta nel pool.";
 "error.segment.no.alignment" = "L’ora di registrazione dell’audio %@ non è nota. Seleziona una traccia, poi usa “Posiziona alla testina di riproduzione sulla traccia selezionata”.";
 "error.segment.wav.in.use" = "Un altro file della sessione usa il nome di clip dell’audio %@.";
 "error.export.exists" = "Esiste già un elemento con questo nome. L’esportazione non lo ha sostituito.";

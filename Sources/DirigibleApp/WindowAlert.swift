@@ -26,6 +26,8 @@ enum WindowAlert: Hashable {
     case transcriptExport(TranscriptExportError)
     /// File > Import Transcript changed nothing: the text of the reason.
     case transcriptImport(String)
+    /// A placement made a pool file with no clip: the segment ends before the take playhead.
+    case placedWithNoClip(SegmentName)
     /// A job with a model file of the user failed because of the file (C28). Locate... starts
     /// `request` again with a picked file.
     case transcribeFile(StudioError, TranscribeRequest)

@@ -97,7 +97,7 @@
 "error.segment.newer" = "The audio %@ was made by a newer version of Dirigible. Update Dirigible to place it.";
 "error.segment.newer.anchor" = "The timing file of the audio %@ was made by a newer version of Dirigible. Select one track, then use Place at Playhead on Selected Track.";
 "error.segment.bad.audio" = "The audio %@ is damaged and cannot be converted.";
-"error.segment.before.start" = "The audio %@ ends before the start of the timeline.";
+"alert.place.no.clip" = "The audio %@ ends before the take playhead, so it has no clip. Its file stays in the pool.";
 "error.segment.no.alignment" = "The recorded time of the audio %@ is not known. Select one track, then use Place at Playhead on Selected Track.";
 "error.segment.wav.in.use" = "Another file of the session uses the clip name of the audio %@.";
 "error.export.exists" = "An item with this name exists. The export did not replace it.";

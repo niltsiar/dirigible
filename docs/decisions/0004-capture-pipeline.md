@@ -9,6 +9,7 @@
 - Amended: 2026-10-15, run record-time-relevant (F152). The record time is computed before a take; decision 0023 says when the window shows it.
 - Amended: 2026-10-22, run `2026-10-22-take-sync`. `Capture.alignedStart(in:sampleRate:)` is the one owner of the take anchor formula of **Timing**: finalize and the take map of 0061 call it.
 - Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. Each read-modify-write of the active-recordings list takes the file lock `active-recordings.lock` (`O_EXLOCK`) beside the list, so two processes do not lose an entry. A `set` with no change takes no lock. One `set` waits at most 1 s for the lock of the process and the file lock together, and then the write goes on with no lock. The app names the folder of the list by its bundle ID (see 0014).
+- Amended: 2026-11-03, run `2026-10-28-pre-roll`. An aligned finalize and an aligned placement have a floor: no clip of a take starts before the playhead at record start (**Timing**). A segment with no frame after the floor is a pool file with no clip.
 - Amended: 2026-11-01, run `2026-11-01-upkeep-thirteenth`. The No data loss and Real-time thread rules are in **Safety** of `CODING_STANDARDS.md`, not in `AGENTS.md`.
 
 ## Context
@@ -41,6 +42,7 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 - Rebase a `UInt64` host time with wrapping operators (`time &- base &+ saved`): a record can come before the base, and host time is small after a boot.
 - Each segment has a sidecar file next to it. The first record holds the capture header: device UID, device name, nominal rate, the available nominal rates of the device (`kAudioDevicePropertyAvailableNominalSampleRates`), channel count, input latency, and the host time and sample time of the first frame. After that, the writer appends a checkpoint about once per second, and one at the last record of each segment: the file frame index, the sample time, and the host time. A segment shorter than 0.5 s, or with a zero host-time span, has no usable fit and takes the "no usable checkpoint" path of finalize.
 - The take anchor: timeline start = playhead at record start + (first-frame host time - take start host time) - latency. Host time never crosses a take, because host time is valid for one boot only.
+- The floor: an aligned clip starts at the larger of the timeline start and the playhead at record start, and the frames before the floor go to the clip offset. A segment with no frame after the floor is a pool file with no clip: its WAV is in `Clips/` and its CAF stays. So a take at the playhead keeps the tail of a clip that ends just before it. A placement at an explicit start has the floor 0.
 
 **Segments.** A new segment file starts on any of these events:
 

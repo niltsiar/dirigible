@@ -119,6 +119,44 @@ struct TranscriptTakeImportTests {
             ], "the cut word is skipped and the third word follows its audio")
     }
 
+    /// A pre-roll take file starts before the take playhead: file frame 0 is take frame -144,000
+    /// (3 s), and the clip starts at the playhead 480,000 with offset 144,000. A transcript of the
+    /// file imports with `--at=-144000`, so each word lands on its audio; the word before the
+    /// playhead has no clip under it.
+    @Test func preRollTakeFileImportsWithANegativeAt() async throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addTrack("t1", name: "Host", layout: .mono)
+        try session.addCapture(
+            Capture(
+                id: "take1-1-1", deviceUID: "usb-1", deviceName: "USB Mic",
+                hostTimeNanos: Self.takeStart - 3_000_000_000,
+                sampleTime: 0, nominalSampleRate: 48_000, measuredSampleRate: 48_000, latency: 0,
+                resampledFromRate: nil,
+                driftCorrected: true))
+        try session.addFile(
+            AudioFile(id: "take1-1-1", path: "take1-1-1.wav", layout: .mono, length: 480_000, capture: "take1-1-1"))
+        try session.place(
+            Clip(id: "take1-1-1", file: "take1-1-1", start: 480_000, offset: 144_000, length: 336_000), on: "t1")
+        let package = try TemporaryPackage(session)
+        try FileManager.default.createDirectory(
+            at: package.url.appending(path: "Capture"), withIntermediateDirectories: true)
+        try TakeAnchor.write(
+            Recording(take: 1, playheadFrame: 480_000, takeStartHostTimeNanos: Self.takeStart, armedTracks: ["t1"]),
+            in: package.url)
+
+        let result = try await package.run(
+            "transcript", "import", "PKG", try Self.write(Self.words, in: package), "--track", "t1", "--take", "1",
+            "--at=-144000")
+
+        #expect(result.status == 0 && result.stdout.hasPrefix("1\ntake 1: 2 words placed, 1 skipped"), "\(result)")
+        // File 3 s is the playhead; file 6 s is 3 s after it.
+        #expect(
+            try await Self.rows(package) == [
+                Row(start: 480_000, end: 528_000, track: "t1", text: "two"),
+                Row(start: 624_000, end: 672_000, track: "t1", text: "three"),
+            ])
+    }
+
     /// C10. A pasted cold open does not shorten a word. The cold open is a copy of take frames
     /// 156 000 to 180 000, the middle of the word "two" (144 000 to 192 000), at timeline 0. The
     /// stored word is the whole word of the file, so the main clip shows all of it and the copy

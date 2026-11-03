@@ -203,7 +203,6 @@ extension L10n {
         case .noSidecar: errorSegmentNoSidecar
         case .newerSidecar: errorSegmentNewer
         case .badAudio: errorSegmentBadAudio
-        case .beforeTimeline: errorSegmentBeforeStart
         case .noAlignment: errorSegmentNoAlignment
         case .newerAnchor: errorSegmentNewerAnchor
         case .wavInUse: errorSegmentWAVInUse

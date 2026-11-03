@@ -1829,6 +1829,8 @@ grep -qF 'Build lock: none' "$tmp/agent-err" && grep -qF 'scripts/with-lock.sh -
   { echo "FAIL: the lock-step message does not name the pass line, --builders, and the holder: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 grep -qF 'runs no with-lock.sh step' "$tmp/agent-err" && ! grep -qF 'takes no lock' "$tmp/agent-err" ||
   { echo "FAIL: the lock-step message does not give the pass line to an agent that runs no with-lock.sh step: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+grep -qF 'A with-lock.sh call that prints no lock also waits while this call holds the lock.' "$tmp/agent-err" ||
+  { echo "FAIL: the lock-step message does not say that a call that prints no lock waits while this call holds the lock: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 expect_lock_brief allow dead-ticket Agent prompt "$lock_step"
 [[ ! -e "$lock_first/$lock_dead" ]] || { echo 'FAIL: agent-guard: the ticket of a dead pid stays'; failures=$((failures + 1)); }
 # The commit message rule keeps its verdicts with a free lock and with a release holder.

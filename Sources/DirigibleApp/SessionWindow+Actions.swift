@@ -70,11 +70,14 @@ extension SessionWindow {
     /// Command-R. The library reads the microphone access; the app requests it (decision 0013).
     /// It commits the drafts first, also when no track is armed. `startTake` keeps the other rules
     /// of `canRecord`. With `preRoll` (whole seconds), the Player plays the take mix first
-    /// (decision 0070).
+    /// (decision 0070); its item is never disabled, so with no armed track or a consent hold, it beeps.
     func record(preRoll: Int? = nil) async {
         commitDrafts()
         guard !consentHoldsRecord, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
-        else { return }
+        else {
+            if preRoll != nil { beep() }
+            return
+        }
         endCheckingConsent()
         if await startTake(armed: tracks, playhead: nil, preRoll: preRoll).isBusy { beep() }
     }

@@ -101,7 +101,7 @@ A pre-roll is a short play of the session before a take starts. You hear what co
 
 - The length of the pre-roll is 3 s. To change it, choose **Dirigible > Settings…** and use the arrows of the row **Pre-roll**: 1 to 10 whole seconds. Near the start of the session, the pre-roll is shorter. At 0:00, the take starts a short time after you press P, and you hear nothing before it.
 - The pre-roll plays all tracks at normal speed, also when **Playback Speed** is not 1x. The armed tracks play their old audio up to the red line and are silent after it. The take records in place of that audio.
-- When a text field has the focus, P types the letter and starts no take. P does nothing when no track is armed or while a take runs.
+- When a text field has the focus, P types the letter and starts no take. When no track is armed, while a take runs, or while an agent record request waits for your answer, P beeps and starts no take.
 - The file of a take over a pre-roll starts before the red line, and its clip starts at the red line. The take time 0 of the file stays at the red line, so the first frame of the file is at a negative take time. To go there with **Go to Take Time**, type the time with a minus sign. The file holds up to 10 s more audio than the clip.
 - Stop or Space before the red line ends the take with no clip, and the playhead goes back to the red line. The audio stays in the package as a file that no clip uses. **File > Remove Unused Files…** can move it to the Trash.
 - When a device starts to record late, the banner of the take says so for its track: "Track "Host" started recording late, so the start of the take is missing from it."

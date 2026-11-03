@@ -121,28 +121,34 @@ import Testing
         await end(model, studio)
     }
 
-    /// No armed track: the refusal of Record, with no take.
-    @Test func pWithNoArmedTrackStartsNoTake() async throws {
+    /// No armed track: the refusal of Record, with no take. The item is never disabled, so it beeps.
+    @Test func pWithNoArmedTrackBeepsAndStartsNoTake() async throws {
         let (model, studio, window) = try await open()
         model.armed = []
+        var beeps = 0
+        model.beep = { beeps += 1 }
 
         app.recordPreRoll(event: event(in: window), in: window)
 
         try await Task.sleep(for: .milliseconds(300))
         #expect(studio.transport == .idle && studio.session.recording == nil)
+        #expect(beeps == 1)
         await model.close()
     }
 
-    /// A take or a finalize runs: the key starts nothing and changes nothing.
+    /// A take or a finalize runs: the key starts nothing and changes nothing, and gives the busy beep.
     @Test func pDuringATakeDoesNothing() async throws {
         let (model, studio, window) = try await open()
         studio.transport = .recording(take: 7)
         defer { studio.transport = .idle }
+        var beeps = 0
+        model.beep = { beeps += 1 }
 
         app.recordPreRoll(event: event(in: window), in: window)
 
         try await Task.sleep(for: .milliseconds(300))
         #expect(studio.transport == .recording(take: 7) && studio.session.recording == nil)
+        #expect(beeps == 1)
         await model.close()
     }
 

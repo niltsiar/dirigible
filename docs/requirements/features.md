@@ -27,7 +27,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F05 | Record audio from other apps to its own track | Hindenburg PRO | done, Release 2 run 6 | R12 |
 | F06 | Call recording preset: local mic and remote app on two tracks | Hindenburg PRO | done, Release 2 run 6 | R12 |
 | F07 | Punch-in recording | Hindenburg PRO, Logic Pro | Later (Autopunch at a selection; record at the playhead is done, Release 1 run 4a) | R7 |
-| F08 | Pre-roll, record at the playhead | Hindenburg PRO | Release 6 | R7 |
+| F08 | Pre-roll, record at the playhead | Hindenburg PRO | done, Release 6 run 2; Later: the timed pre-roll take of `dirigible record` and the `record` tool | R7 |
 | F09 | Retroactive capture of a take | Logic Pro | Later | - |
 | F10 | Transport: play, stop, go to start or end | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4a; Later: Stop when stopped goes to the start, as in Logic | R7 |
 | F11 | Select, cut, copy, paste, delete clip | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4c; Later: progress and cancel for a paste across sessions | R7 |

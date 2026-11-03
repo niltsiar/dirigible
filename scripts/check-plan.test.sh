@@ -11,6 +11,8 @@
 # phase 2 row, and that the land check without it does not.
 # Check that with CHECK_PLAN_AT_PHASE4=1 the last round file has a ## Fix check when a round file has an Act on item.
 # Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
+# Check that CHECK_PLAN_AT_PHASE7=1 refuses a fix commit that removes a double-quoted criterion text
+# with no criterion change row after the first phase 6 row.
 # Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-plan.sh"
@@ -787,6 +789,90 @@ pass 'a per-lens file with a numbered heading'
 roundfile review-diff-1.md '## G1: a finding\n\n## Fix check\n\n- none\n'
 touch -t 202610290000 "$run/review-diff-1.md"
 pass 'a round file older than the round_cutoff line'
+
+# The first phase 7 row (CHECK_PLAN_AT_PHASE7=1): a fix commit (author time at or after the first phase 6
+# row) that removes a double-quoted criterion text that no fix commit adds needs a criterion change row
+# after the first phase 6 row. A fixture repo holds a copy of the script, origin/main, and the run branch.
+p7="$tmp/p7repo"
+mkdir -p "$p7/scripts"
+cp "$script" "$p7/scripts/"
+p7git() { git -C "$p7" -c core.hooksPath=/dev/null -c commit.gpgsign=false "$@"; }
+printf 'the old message text\na gone text\nAct on nits stop the gate.\nkeep\n' > "$p7/f"
+p7git init -q && p7git add f && p7git commit -q -m base && p7git update-ref refs/remotes/origin/main HEAD
+p7branch() { p7git checkout -q -f -B chore/fixture refs/remotes/origin/main || fail 'p7 branch'; }
+# p7commit <author time> <file> <text>: write <text> (printf %b) to <file> and commit it on the branch.
+p7commit() {
+  printf '%b' "$3" > "$p7/$2"
+  p7git add -- "$2" && GIT_AUTHOR_DATE="$1" p7git commit -q -m "$2 at $1" || fail "p7 commit $2"
+}
+# p7run <first row time>: a good run folder whose last Branch line names the branch, with criteria C2
+# (a quoted text), C3 (a quote in a backtick span), and C4 (a nested quote), and its first row.
+p7run() {
+  good
+  printf -- '- Branch: chore/old\n- Branch: chore/fixture\n' > "$run/run.md"
+  printf '\n## Acceptance criteria\n\n- C2: The hook prints "the old message text" on a refusal.\n- C3: `rg -c -F "a gone text" f` prints nothing.\n- C4: The gate reads "More than 5 "Act on" nits stop the gate."\n' >> "$run/analysis.md"
+  names 'C2, C3, C4'
+  ROW_AT="$1" row 2 'plan written'
+}
+p7rows() { ROW_AT=2026-11-03T11:00 row 4 'implement'; ROW_AT=2026-11-03T12:00 row 6 'code gate'; }
+saved_script="$script"
+script="$p7/scripts/check-plan.sh"
+export CHECK_PLAN_AT_PHASE7=1
+p7branch
+p7commit 2026-11-03T12:30:00 f 'the new message text\na gone text\nAct on nits stop the gate.\nkeep\n'
+fix_hash="$(p7git log -1 --format=%h)"
+p7run 2026-11-03T10:00; p7rows
+refuse 'a fix commit that removes a quoted criterion text' 'criterion C2 quotes "the old message text"'
+refuse 'the refusal names the fix commit' "fix commit $fix_hash"
+refuse 'the refusal gives the --from form of the row' "log-decision.sh $run --from <file>"
+refuse 'the refusal names the criterion change row' 'line 2 criterion change C2: old ..., new ...'
+cp "$run/analysis.md" "$tmp/p7-gate.md"
+sed -i '' 's/"the old message text"/"the new message text"/' "$run/analysis.md"
+ROW_AT=2026-11-03T12:40 row 6 'criterion change C2: old the old message text, new the new message text'
+cd "$tmp" || fail 'cd to a folder outside the fixture repo'
+pass 'C2 edited and a phase 6 criterion change row, from a folder outside the fixture repo'
+cd - > /dev/null || fail 'cd back'
+cp "$tmp/p7-gate.md" "$run/analysis-gate.md"
+pass 'C2 edited and a phase 6 criterion change row, with analysis-gate.md'
+p7run 2026-11-03T10:00; ROW_AT=2026-11-03T10:30 row 3 'criterion change C2: old ..., new ...'; p7rows
+refuse 'a criterion change row before the first phase 6 row' 'criterion C2 quotes'
+p7run 2026-11-03T10:00; p7rows; ROW_AT=2026-11-03T12:40 row 6 'criterion change C2: the text stays, the log has it'
+pass 'an unchanged criterion with a criterion change row after the first phase 6 row'
+p7run 2026-11-03T10:00; p7rows; printf -- '- Branch: chore/nope\n' >> "$run/run.md"
+refuse 'a Branch line that git does not know' 'chore/nope'
+p7run 2026-11-03T10:00; p7rows
+unset CHECK_PLAN_AT_PHASE7
+pass 'the land check, with no CHECK_PLAN_AT_PHASE7'
+export CHECK_PLAN_AT_PHASE7=1
+rm "$run/run.md"
+pass 'a run folder with no run.md'
+p7run 2026-11-03T10:00; ROW_AT=2026-11-03T11:00 row 4 'implement'
+pass 'a run with no phase 6 row'
+p7run 2026-11-02T23:59; p7rows
+pass 'a run whose first row is older than the quote_cutoff line'
+p7branch
+p7commit 2026-11-03T12:30:00 f 'a gone text\nAct on nits stop the gate.\nkeep\n'
+p7commit 2026-11-03T12:31:00 g 'the old message text\n'
+p7run 2026-11-03T10:00; p7rows
+pass 'a fix commit that moves the text to another file'
+p7branch
+p7commit 2026-11-03T12:30:00 f 'the old message text, with more words\na gone text\nAct on nits stop the gate.\nkeep\n'
+p7run 2026-11-03T10:00; p7rows
+pass 'a fix commit that changes a line and keeps the text'
+p7branch
+p7commit 2026-11-03T12:30:00 f 'the old message text\nAct on nits stop the gate.\nkeep\n'
+p7run 2026-11-03T10:00; p7rows
+pass 'a fix commit that removes a text that a backtick span pins as absent'
+p7branch
+p7commit 2026-11-03T11:30:00 f 'the new message text\na gone text\nAct on nits stop the gate.\nkeep\n'
+p7run 2026-11-03T10:00; p7rows
+pass 'a slice commit before the first phase 6 row that removes the text'
+p7branch
+p7commit 2026-11-03T12:30:00 f 'the old message text\na gone text\nAct on items stop the gate.\nkeep\n'
+p7run 2026-11-03T10:00; p7rows
+pass 'a fix commit that removes a fragment of a nested quote'
+unset CHECK_PLAN_AT_PHASE7
+script="$saved_script"
 
 out="$("$script" 2>&1)"
 code=$?

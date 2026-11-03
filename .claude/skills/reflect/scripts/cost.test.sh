@@ -188,15 +188,34 @@ result() { printf '{"type":"user","timestamp":"%s","message":{"role":"user","con
 { u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture-2, slice 1."'; bash_use 2026-09-20T09:01:00.000Z c1 ls; } > "$sub/agent-longer.jsonl"
 { u 2026-09-20T09:00:00.000Z '"Run 2026-09-21-other."'; bash_use 2026-09-20T09:01:00.000Z d1 ls; } > "$sub/agent-other.jsonl"
 { u 2026-09-20T13:00:00.000Z '"Compare 2026-09-20-fixture with 2026-09-21-other."'; bash_use 2026-09-20T13:01:00.000Z e1 ls; } > "$sub/agent-late.jsonl"
+# A subagent transcript can hold a tool_use record twice (the second with no timestamp) and repeat an
+# error result: each id counts once. A repeat is a Bash command, or else a tool name and its file_path.
+edit_use() { printf '{"type":"assistant"%s,"message":{"content":[{"type":"tool_use","id":"%s","name":"Edit","input":{"file_path":"%s"}}]}}\n' "$1" "$2" "$3"; }
+{
+  u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture, duplicates."'
+  bash_use 2026-09-20T09:01:00.000Z h1 'make test'
+  printf '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"h1","name":"Bash","input":{"command":"make test"}}]}}\n'
+  edit_use ',"timestamp":"2026-09-20T09:02:00.000Z"' h2 /w/a.md
+  edit_use ',"timestamp":"2026-09-20T09:03:00.000Z"' h3 /w/b.md
+  result 2026-09-20T09:03:00.000Z h2 true
+  printf '{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"h2","is_error":true,"content":"x"}]}}\n'
+} > "$sub/agent-dup.jsonl"
+{
+  u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture, one file."'
+  edit_use ',"timestamp":"2026-09-20T09:01:00.000Z"' s1 /w/a.md
+  edit_use ',"timestamp":"2026-09-20T09:02:00.000Z"' s2 /w/a.md
+} > "$sub/agent-same.jsonl"
 out="$(cd "$tmp" && TZ=UTC PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$transcript" 2>&1)" || fail "subagents: exit $?: $out"
 for line in 'subagent: agent-one: 3 tool calls, 21 min, 1 errors (make test), repeated: make test x2, gaps: 1 over 5 min (16 min)' \
   'subagent: agent-two: 1 tool calls, 2 min, 0 errors, repeated: none, gaps: 0 over 5 min (0 min)' \
   'subagent: agent-early: 1 tool calls, 30 min, 0 errors, repeated: none, gaps: 1 over 5 min (30 min)' \
   'subagent: agent-opener: 1 tool calls, 10 min, 0 errors, repeated: none, gaps: 1 over 5 min (10 min)' \
+  'subagent: agent-dup: 3 tool calls, 3 min, 1 errors (Edit /w/a.md), repeated: none, gaps: 0 over 5 min (0 min)' \
+  'subagent: agent-same: 2 tool calls, 2 min, 0 errors, repeated: Edit /w/a.md x2, gaps: 0 over 5 min (0 min)' \
   'unattributed: 3 files'; do
   grep -qxF -- "$line" <<<"$out" || fail "subagents: no line '$line' in: $(grep -E '^(subagent|unattributed)' <<<"$out")"
 done
-[[ "$(grep -c '^subagent: ' <<<"$out")" == 4 ]] || fail "subagents: want 4 subagent lines: $(grep '^subagent' <<<"$out")"
+[[ "$(grep -c '^subagent: ' <<<"$out")" == 6 ]] || fail "subagents: want 6 subagent lines: $(grep '^subagent' <<<"$out")"
 rm -rf "$tmp/t"
 
 # A run folder with no logs/ and no controls/ (the early runs): no false zero for the checks and the

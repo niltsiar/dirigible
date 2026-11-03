@@ -6,12 +6,13 @@ import DirigibleTimeline
 /// A paste from the one clipboard of the app (decision 0042). The same package pastes at once, as
 /// before; another package runs as a blocking studio run with the banner of an import.
 extension SessionWindow {
-    /// Paste and Insert. With no clipboard, or no target, nothing. During a take or a run, nothing at
-    /// once (`idleStudio`). `.unselected` goes to the studio only for a range with no selected
-    /// track: new tracks for another package, the source tracks for the same package. A file that
-    /// an undo removed beeps; another refusal shows its alert. After the paste, the selection is
-    /// the pasted range, or the pasted clips for a set excerpt.
-    func paste(insert: Bool) {
+    /// Paste, Insert, Replace, and Paste to Fill Selection, by `mode`. With no clipboard, or no
+    /// target, nothing. During a take or a run, nothing at once (`idleStudio`). `.unselected` goes
+    /// to the studio only for a range with no selected track: new tracks for another package, the
+    /// source tracks for the same package. A file that an undo removed beeps; another refusal shows
+    /// its alert. After the paste, the selection is the pasted range, or the pasted clips for a set
+    /// excerpt.
+    func paste(mode: PasteMode) {
         guard let studio = idleStudio, let clipboard = app?.clipboard else { return }
         let target: PasteTarget
         if case .range(let marks) = timeline.selection, marks.tracks.isEmpty {
@@ -21,10 +22,9 @@ extension SessionWindow {
         } else {
             return
         }
-        let at = studio.playhead
         do throws(StudioError) {
-            if let pasted = try studio.pasteInPlace(clipboard, at: at, on: target, insert: insert) {
-                select(pasted, of: clipboard, at: at, in: studio)
+            if let pasted = try studio.pasteInPlace(clipboard, mode: mode, on: target) {
+                select(pasted, of: clipboard, at: mode.start, in: studio)
                 return
             }
         } catch {
@@ -44,12 +44,12 @@ extension SessionWindow {
         }
         importJob?.task = Task { [weak self] in
             do throws(StudioError) {
-                let pasted = try await studio.pasteAcross(clipboard, from: source, at: at, on: target, insert: insert) {
+                let pasted = try await studio.pasteAcross(clipboard, from: source, mode: mode, on: target) {
                     [weak self] in self?.importProgressed($0)
                 }
                 shown.cancel()
                 if self?.importJob?.visible == true { self?.chrome?.announce(L10n.pasteDone.text, .high) }
-                self?.select(pasted, of: clipboard, at: at, in: studio)
+                self?.select(pasted, of: clipboard, at: mode.start, in: studio)
             } catch {
                 shown.cancel()
                 self?.refused(error)

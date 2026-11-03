@@ -55,7 +55,7 @@ struct PasteAcrossVolumeTests {
         let values = OSAllocatedUnfairLock<[Double]>(initialState: [])
 
         _ = try pasteClipboard(
-            clipboard, from: source, into: session, in: target, identity: nil, at: 0, on: .tracks(["u1"]),
+            clipboard, from: source, into: session, in: target, identity: nil, mode: .over(at: 0), on: .tracks(["u1"]),
             freeBytes: { .max }, progress: { value in values.withLock { $0.append(value) } })
 
         let seen = values.withLock { $0 }
@@ -69,7 +69,8 @@ struct PasteAcrossVolumeTests {
         let last = OSAllocatedUnfairLock<Double?>(initialState: nil)
         #expect(throws: PasteError.cancelled) {
             try pasteClipboard(
-                clipboard, from: source, into: otherSession, in: other, identity: nil, at: 0, on: .tracks(["u1"]),
+                clipboard, from: source, into: otherSession, in: other, identity: nil, mode: .over(at: 0),
+                on: .tracks(["u1"]),
                 freeBytes: { .max }, progress: { value in last.withLock { $0 = value } },
                 isCancelled: { last.withLock { $0 != nil } })
         }
@@ -96,7 +97,8 @@ struct PasteAcrossVolumeTests {
 
         #expect(throws: PasteError.write(file: "take1-mic.wav", errno: ENOSPC)) {
             try pasteClipboard(
-                clipboard, from: source, into: session, in: target, identity: nil, at: 0, on: .tracks(["u1"]),
+                clipboard, from: source, into: session, in: target, identity: nil, mode: .over(at: 0),
+                on: .tracks(["u1"]),
                 freeBytes: { .max })
         }
         #expect(try Self.names(target).isEmpty, "no WAV and no .tmp")
@@ -121,7 +123,8 @@ struct PasteAcrossVolumeTests {
 
         #expect(throws: PasteError.write(file: "take1-mic.wav", errno: EXDEV)) {
             try pasteClipboard(
-                clipboard, from: source, into: session, in: target, identity: nil, at: 0, on: .tracks(["u1"]),
+                clipboard, from: source, into: session, in: target, identity: nil, mode: .over(at: 0),
+                on: .tracks(["u1"]),
                 freeBytes: { 0 }, canClone: { _, _ in true })
         }
         #expect(try Self.names(target).isEmpty, "no WAV and no .tmp")

@@ -4,7 +4,7 @@
 - Date: 2026-10-26
 - Accepted: 2026-10-26, after plan gates 1 to 3 of run `2026-10-13-replace-roomtone-split`.
 - Amends: 0031 (the Tools menu gets the item Split Stereo to Mono), 0037 (the lane menu gets the item in group 2), 0040 (a split is a blocking run of the import transport), 0049 (`clip_split_stereo` is a sixth long edit tool), 0051 (`clip_split_stereo` is in the tool list only), 0060 (a clip that moves to another file moves its envelope points).
-- Amended: 2026-11-03, run `2026-10-13-replace-roomtone-split` (landing 2). Replace and Paste to Fill Selection: see "Replace and fill" below. It amends 0037 (the Rule M Replace clause).
+- Amended: 2026-11-03, run `2026-10-13-replace-roomtone-split` (landing 2). Replace and Paste to Fill Selection: see "Replace and fill" below. It amends 0037 (the Rule M Replace clause) and 0042 (`PasteMode` replaces `insert: Bool`).
 - Reference: `docs/research/hindenburg-edit-tools.md`, `logic-audition-edits.md`, and `audacity-soundcraft.md`.
 
 ## Context
@@ -29,6 +29,7 @@ A clip has no channel field, and a clip file layout must equal its track layout 
 
 - **Replace** (`Session.replace`) is a Ripple Delete of the range and a Ripple Insert of the clipboard length at its start on all tracks (0037 scope), then a paste on the targets, in one edit. Rule M, new clause: a marker in the range or at its start ends at the range start; a marker at or after the range end moves by the clipboard length minus the range length.
 - **Paste to Fill Selection** (`Session.fill`) puts the clipboard again and again from the range start, with butt joins, and cuts the last copy at the range end. Nothing moves. It builds one tiled excerpt of the range length and pastes it once, so the range clears as one block (the gaps of a clip set stay silent), and each copy gets the clip check, the envelope, and a derived ID of `paste`. The words of a clipboard from another package come once, not once for each copy. More than `fillClipLimit` (1000) new clips (each clip of the clipboard, once for each copy that it starts in) refuses with `.fillTooManyClips` before any copy, and a clipboard of length 0 refuses with `.emptyExcerpt`. Hindenburg cuts a long clipboard to the selection [HM]; the repeat of a short one follows Audition Clip Loop and Logic region Loop.
+- **One paste mode.** `PasteMode` (`.over(at:)`, `.insert(at:)`, `.replace(range)`, `.fill(range)`) is the mode of `pasteClipboard` and of the paste path of 0042, so a Replace or a fill from another package copies its files as a paste does. `mode.ripples` gives the `ripple:` flag of `Studio.edit` and of `blockingRun`, so no caller passes a ripple flag by hand for a paste.
 
 ## Consequences
 

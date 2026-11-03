@@ -15,17 +15,17 @@ extension Studio {
     /// paste of today, with no file I/O. Nil, and no change, for a clipboard of another package:
     /// then the caller runs `pasteAcross`. It owns the origin compare of the app,
     /// `PackageID.same(clipboard.origin, identity)`, on stored values.
-    public func pasteInPlace(_ clipboard: Clipboard, at start: Frames, on target: PasteTarget, insert: Bool = false)
+    public func pasteInPlace(_ clipboard: Clipboard, mode: PasteMode, on target: PasteTarget)
         throws(StudioError) -> (clips: [ClipID], tracks: [TrackID])?
     {
         let identity = lock.identity
         guard PackageID.same(clipboard.origin, identity) else { return nil }
         var failure: PasteError?
-        let pasted = try edit(ripple: insert) { session throws(SessionError) in
+        let pasted = try edit(ripple: mode.ripples) { session throws(SessionError) in
             do throws(PasteError) {
                 let pasted = try pasteClipboard(
                     clipboard, from: clipboard.package, into: session, in: clipboard.package, identity: identity,
-                    at: start, on: target, insert: insert, freeBytes: { 0 })
+                    mode: mode, on: target, freeBytes: { 0 })
                 session = pasted.session
                 return (pasted.clips, pasted.tracks)
             } catch {
@@ -46,11 +46,11 @@ extension Studio {
     /// import (`blockingRun`). The source path is `lock.package()` of `source`, the open studio of
     /// the source package, read here so the run holds no source lock; else the path at the copy.
     /// Then `pasteClipboard` copies or converts the files off the main actor, and the run saves and
-    /// records one undo entry. `insert` runs a ripple insert of the excerpt length on all tracks
-    /// first. Returns the pasted IDs and the target tracks. A throw changes nothing in memory; a
-    /// renamed WAV stays as an unused file (0040).
+    /// records one undo entry. A `mode` that ripples refuses under a pending or split take
+    /// (decision 0037). Returns the pasted IDs and the target tracks. A throw changes nothing in
+    /// memory; a renamed WAV stays as an unused file (0040).
     public func pasteAcross(
-        _ clipboard: Clipboard, from source: Studio?, at start: Frames, on target: PasteTarget, insert: Bool = false,
+        _ clipboard: Clipboard, from source: Studio?, mode: PasteMode, on target: PasteTarget,
         progress: @escaping @MainActor @Sendable (Double) -> Void
     ) async throws(StudioError) -> (clips: [ClipID], tracks: [TrackID]) {
         let name = clipboard.package.deletingPathExtension().lastPathComponent
@@ -63,10 +63,10 @@ extension Studio {
         let environment = environment
         return try await blockingRun(
             name: name, kind: .paste, cancelled: .paste(.cancelled, source: name), yielded: .pasteYielded(source: name),
-            ripple: insert
+            ripple: mode.ripples
         ) { session, lock, flags in
             await pasteOffMain(
-                clipboard, from: path, into: session, lock: lock, at: start, on: target, insert: insert,
+                clipboard, from: path, into: session, lock: lock, mode: mode, on: target,
                 environment: environment, flags: flags, name: name,
                 progress: { fraction in Task { @MainActor in progress(fraction) } }
             ).map { ($0.0, $0.1, made: []) }
@@ -77,8 +77,8 @@ extension Studio {
 /// `pasteClipboard` on a utility GCD thread, in the package that `lock` holds now, as
 /// `convertImport` runs an import.
 @concurrent nonisolated private func pasteOffMain(
-    _ clipboard: Clipboard, from source: URL, into session: Session, lock: PackageLock, at start: Frames,
-    on target: PasteTarget, insert: Bool, environment: CaptureEnvironment, flags: ImportFlags, name: String,
+    _ clipboard: Clipboard, from source: URL, into session: Session, lock: PackageLock, mode: PasteMode,
+    on target: PasteTarget, environment: CaptureEnvironment, flags: ImportFlags, name: String,
     progress: @escaping @Sendable (Double) -> Void
 ) async -> Result<(Session, (clips: [ClipID], tracks: [TrackID])), StudioError> {
     @Sendable func run() -> Result<(Session, (clips: [ClipID], tracks: [TrackID])), StudioError> {
@@ -87,8 +87,8 @@ extension Studio {
         do throws(SessionFileError) { package = try lock.package() } catch { return .failure(.file(error)) }
         do throws(PasteError) {
             let pasted = try pasteClipboard(
-                clipboard, from: source, into: session, in: package, identity: lock.identity, at: start, on: target,
-                insert: insert, freeBytes: { environment.freeBytes(lock) }, progress: progress,
+                clipboard, from: source, into: session, in: package, identity: lock.identity, mode: mode, on: target,
+                freeBytes: { environment.freeBytes(lock) }, progress: progress,
                 isCancelled: {
                     environment.importStep()
                     return flags.isCancelled

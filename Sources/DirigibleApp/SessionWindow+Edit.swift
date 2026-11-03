@@ -12,7 +12,7 @@ extension SessionWindow {
     /// copies the set clips whole, and Delete removes the clips (decision 0038). After a Paste, the
     /// selection is the pasted range, or the pasted clips for a set excerpt.
     func runClipboard(_ command: TimelineCommand, _ studio: Studio) {
-        if command == .paste { return paste(insert: false) }
+        if command == .paste { return paste(mode: .over(at: studio.playhead)) }
         if command == .copy {
             if let excerpt = try? timeline.selection.excerpt(in: studio.session) { copy(excerpt, of: studio) }
             return
@@ -78,7 +78,7 @@ extension SessionWindow {
     /// or split take, a beep before the paste, so the typed track names stay drafts.
     private func insert(_ studio: Studio) {
         guard studio.canRipple else { return beep() }
-        paste(insert: true)
+        paste(mode: .insert(at: studio.playhead))
     }
 
     /// Split and Nudge. A split with no clip at its frames makes no undo entry and beeps. A split

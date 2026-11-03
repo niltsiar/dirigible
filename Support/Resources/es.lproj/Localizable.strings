@@ -185,7 +185,7 @@
 "paste.banner" = "Pegando desde «%@»";
 "paste.done" = "Pegado.";
 "replace.done" = "Reemplazados %@ segundos";
-"fill.done" = "Rellenados %1$@ segundos con %2$lld clips";
+"fill.done" = "Rellenados %1$@ segundos. Clips: %2$lld";
 "split.banner" = "Dividiendo clips estéreo en pistas mono";
 "split.done" = "Dividido en dos pistas mono.";
 "split.suffix.left" = "I";

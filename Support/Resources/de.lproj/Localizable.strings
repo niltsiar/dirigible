@@ -64,6 +64,7 @@
 "error.session.layout" = "Das Layout der Spur „%@“ kann nicht geändert werden.";
 "error.session.track.in.take" = "Spur „%@“ ist im Take, der auf seinen Abschluss wartet.";
 "error.session.track.count" = "Die Kopie hat %lld Spuren. Wähle genauso viele Spuren aus, um sie einzusetzen.";
+"error.fill.too.many.clips" = "Das Füllen erzeugt %1$lld Clips, das Limit ist %2$lld. Wähle einen kürzeren Bereich aus oder kopiere ein längeres Audiostück.";
 "error.session.other" = "Die Session hat die Änderung abgelehnt.";
 "error.duck.no.speech" = "Das Absenken fand keine Sprache über %.1f dBFS und hat keinen Pegelpunkt geändert.";
 "error.duck.no.speech.track" = "Wähle eine Sprachspur aus oder gib einer Spur die Rolle „Dialog“.";

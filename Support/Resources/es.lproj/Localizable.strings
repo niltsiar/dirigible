@@ -64,6 +64,7 @@
 "error.session.layout" = "La disposición de la pista «%@» no puede cambiar.";
 "error.session.track.in.take" = "La pista «%@» está en la toma que espera a terminar.";
 "error.session.track.count" = "La copia tiene %lld pistas. Seleccione el mismo número de pistas para pegarla.";
+"error.fill.too.many.clips" = "El relleno crea %1$lld clips y el límite es %2$lld. Seleccione un rango más corto o copie un fragmento de audio más largo.";
 "error.session.other" = "La sesión rechazó el cambio.";
 "error.duck.no.speech" = "La atenuación no encontró voz por encima de %.1f dBFS, así que no cambió ningún punto de ganancia.";
 "error.duck.no.speech.track" = "Selecciona una pista de voz o da a una pista el rol Diálogo.";

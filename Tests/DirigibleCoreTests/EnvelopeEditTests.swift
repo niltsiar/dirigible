@@ -49,7 +49,7 @@ struct EnvelopeEditTests {
             let before = session
             let lane = session.tracks[0].clips
             func anyClip() -> Clip? { lane.randomElement(using: &random) }
-            let kind = Int.random(in: 0..<11, using: &random)
+            let kind = Int.random(in: 0..<13, using: &random)
             let name: String
             do {
                 switch kind {
@@ -106,6 +106,18 @@ struct EnvelopeEditTests {
                     }
                     guard !lengths.isEmpty else { continue }
                     try session.setCrossfades(lengths)
+                case 10:
+                    name = "replace"
+                    let start = frame(0...30_000)
+                    let excerpt = try session.excerpt(of: start..<(start + frame(1...8_000)), on: ["t1"])
+                    let at = frame(0...30_000)
+                    try session.replace(at..<(at + frame(1...4_000)), with: excerpt, on: ["t1"])
+                case 11:
+                    name = "fill"
+                    let start = frame(0...30_000)
+                    let excerpt = try session.excerpt(of: start..<(start + frame(1_000...8_000)), on: ["t1"])
+                    let at = frame(0...30_000)
+                    try session.fill(at..<(at + frame(1...20_000)), with: excerpt, on: ["t1"])
                 default:
                     name = "heal"
                     try session.heal()
@@ -123,7 +135,7 @@ struct EnvelopeEditTests {
             wrong += result.wrong.map { "seed \(seed) step \(step) \(name): \($0)" }
         }
         #expect(wrong.isEmpty, "\(wrong.count) wrong gains, first: \(wrong.prefix(3))")
-        #expect(done.keys.count == 11, "each kind of edit ran: \(done)")
+        #expect(done.keys.count == 13, "each kind of edit ran: \(done)")
         #expect((done["heal"] ?? 0) >= 10, "heals: \(done["heal"] ?? 0)")
         #expect(compared >= 5_000 && outside >= 500, "\(compared) frames compared, \(outside) with a point outside")
     }

@@ -30,7 +30,7 @@ Value: 5 = a podcaster needs it for each episode, 1 = rarely used. Effort: S = d
 | F18 | Vari-speed playback | edit | Period key toggles; Shift-period and Shift-comma change speed | No (unconfirmed) | Varispeed (unconfirmed) | 3 | S | R7 | [HM] |
 | F19 | Markers: add, rename, go to | edit | Cmd-Return adds; keys 3-0 go to markers; imports cue points from field recorders | Arrangement markers for song sections only | Markers | 4 | S | R7 | [HM] |
 | F20 | Ripple edit: cut closes the gap, insert pushes later clips | edit | Cut closes the gap; Insert (Cmd-I) moves the next regions forward | No (unconfirmed) | Shuffle drag mode (unconfirmed) | 5 | M | R7, R10 | [HM] |
-| F21 | Replace, room-tone fill, duplicate | edit | Shift-Cmd-V replaces a selection and fills small gaps with room tone; Cmd-D duplicates | No | No (unconfirmed) | 3 | S | R7 | [HM] |
+| F21 | Replace, room-tone fill, duplicate | edit | Shift-Cmd-V replaces a selection; Paste in Selection puts only the selection length of a long clipboard, such as room tone, into a gap (no room-tone command); Cmd-D duplicates | No | No (unconfirmed) | 3 | S | R7 | [HM] |
 | F22 | Clipboard with groups (bins) | edit | Groups for interviews, music, ambience; copy a selection to it during recording | No | Project Audio Browser (unconfirmed) | 4 | M | R7, R10 | [HM] [HS] |
 | F23 | Favorites: a clipboard shared by all sessions | edit | Jingles and station IDs; Opt-Cmd-0 adds, Cmd-0 pastes | No | No | 4 | S | R10 | [HM] |
 | F24 | Group or link tracks; merge clips | edit | Link tracks; group regions; merge and un-merge smart regions | No (unconfirmed) | Track groups, join regions (unconfirmed) | 3 | M | R7 | [HG] [HS] |

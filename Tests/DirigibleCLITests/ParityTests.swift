@@ -64,6 +64,8 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
+        "replace": "L2-S3 of run replace-roomtone-split maps it to clip replace.",
+        "fill": "L2-S3 of run replace-roomtone-split maps it to clip fill.",
     ]
 
     /// The commands with no MCP tool (decision 0041).

@@ -64,6 +64,7 @@
 "error.session.layout" = "The layout of track “%@” cannot change.";
 "error.session.track.in.take" = "Track “%@” is in the take that waits to finish.";
 "error.session.track.count" = "The copy has %lld tracks. Select as many tracks to paste it.";
+"error.fill.too.many.clips" = "The fill makes %1$lld clips, and the limit is %2$lld. Select a shorter range or copy a longer piece of audio.";
 "error.session.other" = "The session refused the change.";
 "error.duck.no.speech" = "The duck found no speech over %.1f dBFS, so it changed no gain point.";
 "error.duck.no.speech.track" = "Select a speech track, or give a track the Dialogue role.";

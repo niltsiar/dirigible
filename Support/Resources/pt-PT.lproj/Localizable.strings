@@ -64,6 +64,7 @@
 "error.session.layout" = "A disposição dos canais da faixa “%@” não pode mudar.";
 "error.session.track.in.take" = "A faixa “%@” faz parte do excerto que aguarda finalização.";
 "error.session.track.count" = "A cópia tem %lld faixas. Selecione o mesmo número de faixas para a colar.";
+"error.fill.too.many.clips" = "O preenchimento cria %1$lld clipes e o limite é %2$lld. Selecione um intervalo mais curto ou copie um excerto de áudio mais longo.";
 "error.session.other" = "A sessão recusou a alteração.";
 "error.duck.no.speech" = "A atenuação não encontrou voz acima de %.1f dBFS, por isso nenhum ponto de ganho mudou.";
 "error.duck.no.speech.track" = "Selecione uma faixa de voz ou atribua a uma faixa a função Diálogo.";

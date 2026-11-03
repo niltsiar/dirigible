@@ -84,6 +84,10 @@ extension SessionError {
             "the range \(range.lowerBound)..<\(range.upperBound) starts at or after the session end at frame "
                 + "\(end), so the duck changed nothing."
         case .notStereo(let id): "clip \"\(id)\" is on a mono track, so it has no two sides to split."
+        case .fillTooManyClips(let needed):
+            "the fill makes \(needed) clips, more than the limit of \(Session.fillClipLimit). Give a shorter range "
+                + "or a longer clipboard."
+        case .emptyExcerpt: "the excerpt has no frames: give a range or clips with audio."
         }
     }
 }

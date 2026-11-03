@@ -4,12 +4,12 @@ extension UnusedFiles {
     /// The captures that the prune frees, sorted: the capture of each pool item whose file is on
     /// the disk, when no other pool entry of the session and no file that a clip of a holder uses
     /// names it. A pool item with no file frees nothing: its CAF can be the last copy.
-    public var captures: [CaptureID] { owners.keys.sorted() }
+    package var captures: [CaptureID] { owners.keys.sorted() }
 
     /// The scan with the capture files of `captures` as `.capture` items. `paths` gives the paths
     /// of a capture relative to `package` (the layout of DirigibleAudio). A path that is not a
     /// regular file in the package gives no item.
-    public func listingCaptureFiles(_ paths: (CaptureID) -> [String], in package: URL) -> UnusedFiles {
+    package func listingCaptureFiles(_ paths: (CaptureID) -> [String], in package: URL) -> UnusedFiles {
         let real = package.resolvingSymlinksInPath().path
         var added: [Item] = []
         for capture in captures {

@@ -41,8 +41,8 @@ struct SegmentFinalize {
     let readFault: ReadFault?
     let blockFrames: Int
 
-    var caf: String { "\(captureFolderName)/\(name.stem).caf" }
-    var sidecar: String { "\(captureFolderName)/\(name.stem).sidecar" }
+    var caf: String { "\(captureFolderName)/\(name.cafName)" }
+    var sidecar: String { "\(captureFolderName)/\(name.sidecarName)" }
     /// The WAV path in `Clips/`, and the path of the WAV until its read-back ends.
     var wavName: String { "\(name.stem).wav" }
     var temporaryWAVName: String { temporaryWAV(of: name.stem) }

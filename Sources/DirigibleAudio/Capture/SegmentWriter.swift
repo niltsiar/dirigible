@@ -30,8 +30,8 @@ final class SegmentWriter {
     /// Writes and flushes the magic and the header before it makes the CAF, so a CAF with frames
     /// always has a header.
     init(folder: URL, name: SegmentName, header: CaptureHeader) throws(CaptureError) {
-        caf = folder.appending(path: "\(name.stem).caf")
-        sidecar = folder.appending(path: "\(name.stem).sidecar")
+        caf = folder.appending(path: name.cafName)
+        sidecar = folder.appending(path: name.sidecarName)
         bytesPerFrame = 4 * header.channelCount
 
         sidecarDescriptor = open(sidecar.path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0o644)

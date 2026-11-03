@@ -270,7 +270,7 @@ typealias TakeAnchorStep = @MainActor @Sendable () async -> Result<UInt64, Studi
 func wavBytes(of segments: [SegmentName], in package: URL) -> Int64 {
     let capture = package.appending(path: captureFolderName)
     let bytes = segments.reduce(Int64(0)) { sum, name in
-        let size = try? FileManager.default.attributesOfItem(atPath: capture.appending(path: "\(name.stem).caf").path)[
+        let size = try? FileManager.default.attributesOfItem(atPath: capture.appending(path: name.cafName).path)[
             .size]
         return sum + ((size as? NSNumber)?.int64Value ?? 0)
     }

@@ -180,7 +180,7 @@ func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResu
         let newer = newerSidecarVersion(of: segment, in: studio.url).map {
             ": its sidecar was made by a newer version of Dirigible (version \($0))"
         }
-        warn("\(captureFolderName)/\(segment.stem).caf is not on the timeline\(newer ?? "").")
+        warn("\(captureFolderName)/\(segment.cafName) is not on the timeline\(newer ?? "").")
         codes.append(unplacedAudio)
     }
     if result?.end == .diskLow {

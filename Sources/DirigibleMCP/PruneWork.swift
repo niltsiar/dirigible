@@ -25,8 +25,7 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
         guard session.recording == nil else { throw .pendingTake }
         let scan: UnusedFiles
         do throws(UnusedFilesError) {
-            scan = try UnusedFiles(scanning: session, keptBy: [], in: package)
-                .listingCaptureFiles(captureFilePaths, in: package)
+            scan = try UnusedFiles(scanningWithCaptures: session, keptBy: [], in: package)
         } catch {
             throw .body(error)
         }

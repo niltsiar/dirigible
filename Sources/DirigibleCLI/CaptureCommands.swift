@@ -57,8 +57,9 @@ extension CaptureCommand {
             abstract: "Place one segment that is not on the timeline, and write its clip ID.",
             discussion: """
                 The default is the track of its arm at its recorded time, from the take anchor that the end of the \
-                take wrote (decision 0021). Exit 1 when the segment is refused, 2 when the package cannot be read \
-                or written, is locked, or has a take that is not finalized.
+                take wrote (decision 0021). A segment with no frame after the take playhead becomes a file with no \
+                clip: stdout stays empty, and a warning goes to stderr. Exit 1 when the segment is refused, 2 when \
+                the package cannot be read or written, is locked, or has a take that is not finalized.
                 """)
         @OptionGroup var package: PackageArgument
         @Argument(help: "The segment, for example take3-1-2.", transform: parseSegment) var segment: SegmentName
@@ -104,8 +105,11 @@ private func placeSegment(
 ) async throws(ExitCode) {
     let studio = try await openStudio(package)
     do {
-        let clip = try await studio.place(segment, on: track, at: start)
-        print(clip?.rawValue ?? "no clip: the segment ends before the take playhead")
+        if let clip = try await studio.place(segment, on: track, at: start) {
+            print(clip.rawValue)
+        } else {
+            warn("no clip: the segment ends before the take playhead")
+        }
     } catch {
         throw fail(error.message(package: package.path), code: refusedCode(error))
     }

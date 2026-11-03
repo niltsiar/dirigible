@@ -308,7 +308,7 @@ extension Studio {
         await player.update(session, revision: play.revision)
         await player.apply(.play(from: from, shuttle: shuttle, speed: play.speed, end: end), number: number)
         let reading = await player.reading()
-        if reading.played == number, let fault = reading.termFault {
+        if reading.played == number, case .failure(let fault) = reading.term {
             environment.log.note(.device, "output-term-fault", level: .error, fields: fault.journalFields)
         }
         if play.feed == number, reading.played == number, let stop = accept(reading) {

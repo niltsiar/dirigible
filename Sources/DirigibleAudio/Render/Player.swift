@@ -75,10 +75,11 @@ actor Player {
     private(set) var graph: Graph?
     private(set) var feed: Feed?
     private(set) var stop: PlaybackStop?
-    /// The output term of the last play start, and why it has no term of its own: then `term` is
-    /// the presentation latency of the output node. The node frames run ahead of the heard frames by it.
-    private(set) var term = OutputTerm.manual(0)
-    private(set) var termFault: OutputTermFault?
+    /// The output term of the last play start, or why it has none. Each play start sets it first.
+    private(set) var term: Result<OutputTerm, OutputTermFault> = .failure(.notStarted(nil))
+    /// The term that the node frames run ahead of the heard frames by: `term`, or after a failed
+    /// read the presentation latency of the output node.
+    private(set) var heardTerm = OutputTerm.manual(0)
     /// The refill tick of the running play; nil while no play runs.
     private var ticker: DispatchSourceTimer?
     /// Tests only: the ticks that ran.
@@ -151,14 +152,14 @@ actor Player {
         frame = start
         played = number
         stop = nil
-        termFault = .notStarted(nil)
+        term = .failure(.notStarted(nil))
         guard let graph = makeGraph() else { return }
         // A rewire while the engine runs costs no more than a seek during play (probe S6).
         let wanted = shuttle.rate == .one ? speed : .one
         let feedSpeed = wire(graph, speed: wanted) ? wanted : .one
         loudness.start(at: start, shuttle: shuttle, speed: feedSpeed)
         guard let url = try? package() else {
-            (stop, termFault) = (.packageUnavailable, .notStarted(.packageUnavailable))
+            (stop, term) = (.packageUnavailable, .failure(.notStarted(.packageUnavailable)))
             return
         }
         dispatchPrecondition(condition: .notOnQueue(.main))
@@ -166,12 +167,13 @@ actor Player {
             if !graph.engine.isRunning { try self.start(graph.engine) }
         } catch {
             stop = .outputUnavailable((error as NSError).code)
-            termFault = .notStarted(stop)
+            term = .failure(.notStarted(stop))
             return
         }
-        switch readTerm(graph.engine) {
-        case .success(let read): (term, termFault) = (read, nil)
-        case .failure(let fault): (term, termFault) = (presentationTerm(graph), fault)
+        term = readTerm(graph.engine)
+        switch term {
+        case .success(let read): heardTerm = read
+        case .failure: heardTerm = presentationTerm(graph)
         }
         feed = Feed(
             anchor: start, shuttle: shuttle, end: end, speed: feedSpeed,
@@ -207,7 +209,7 @@ actor Player {
         let ended = feed.map { $0.scheduled >= length($0) && heardFrames() >= $0.scheduled } ?? false
         return Reading(
             number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
-            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values, term: term, termFault: termFault,
+            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values, term: term,
             realStart: feed?.take?.host)
     }
 

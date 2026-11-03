@@ -278,10 +278,11 @@ extension StudioPlaybackTests {
         #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
         let reading = try await reading(studio)
         if fails {
-            #expect(reading.termFault == .read(fault))
-            #expect(reading.term != .builtIn, "the term of a failed read is the presentation latency")
+            #expect(reading.term == .failure(.read(fault)))
+            let heard = await studio.play.player?.heardTerm
+            #expect(heard != nil && heard != .builtIn, "the term of a failed read is the presentation latency")
         } else {
-            #expect(reading.term == .builtIn && reading.termFault == nil)
+            #expect(reading.term == .success(.builtIn))
         }
         await studio.perform(.playStop)
         studio.log.drain()

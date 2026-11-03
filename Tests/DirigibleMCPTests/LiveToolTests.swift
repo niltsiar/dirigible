@@ -304,6 +304,13 @@ struct LiveToolTests {
         for (tool, arguments) in calls {
             #expect(await send(folder.socket, tool, arguments) == refused, "\(tool)")
         }
+        for tool in ["clip_replace", "clip_fill"] {
+            let arguments: [String: any Sendable] = [
+                "package": package.path, "from": 0, "to": 100, "track": ["t1"], "at": 0, "until": 100, "onto": ["t1"],
+                "source": source.path,
+            ]
+            #expect(await send(folder.socket, tool, arguments) == refused, "L2 C12 \(tool)")
+        }
         #expect(studio.session == before)
         await studio.settle()
     }

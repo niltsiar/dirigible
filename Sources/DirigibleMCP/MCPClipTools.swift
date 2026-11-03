@@ -16,6 +16,7 @@ private let rightID = Param<String?>.optional(
     "right_id", "The ID of the right part. The default is <clip>@<frame>.", .string)
 private let onto = Param.defaulted(
     "onto", "A target track for each source track, in order. The default is the source tracks.", .strings(), [String]())
+private let until = Param.required("until", "The frame after the last frame of the target range.", .integer())
 private let source = Param<String?>.optional(
     "source",
     "The absolute path of another session package to copy from. Its files are copied or converted into this "
@@ -73,7 +74,7 @@ private let healTo = Param<Int?>.optional(
 extension Arguments {
     /// The paste from another package of `source` (decision 0042), or nil with no `source`. The
     /// path is absolute, as `package`, and another package needs `onto`.
-    fileprivate func paste(_ selection: PasteWork.Selection, at frame: Frames, onto: [String]) throws(ToolError)
+    fileprivate func paste(_ selection: PasteWork.Selection, mode: PasteMode, onto: [String]) throws(ToolError)
         -> PasteWork?
     {
         guard let path = try self[source] else { return nil }
@@ -82,7 +83,27 @@ extension Arguments {
         guard !EditRules.sourceNeedsOnto(source: url, target: URL(filePath: self.path), onto: onto) else {
             throw ToolError("Give onto with source of another package.")
         }
-        return PasteWork(source: url, selection: selection, mode: .over(at: frame), onto: onto)
+        return PasteWork(source: url, selection: selection, mode: mode, onto: onto)
+    }
+
+    /// `clip_replace` and `clip_fill`: the range `from` to `to` of `track`, put on the range `at` to
+    /// `until` with `mode`, in one edit, or the paste of `source`.
+    fileprivate func rangePaste(_ mode: (Range<Frames>) -> PasteMode) throws(ToolError) -> ToolWork {
+        let (range, sources) = (try self.range(), try self[tracks])
+        guard let target = EditRules.frameRange(from: try self[at], to: try self[until]) else {
+            throw ToolError("at must not be more than until.")
+        }
+        guard let targets = EditRules.pasteTargets(sources: sources, onto: try self[onto]) else {
+            throw ToolError("Give one onto for each track, or none.")
+        }
+        let mode = mode(target)
+        if let work = try paste(.range(range, tracks: sources.map { TrackID($0) }), mode: mode, onto: try self[onto]) {
+            return .paste(work)
+        }
+        return .edit(ripple: RippleNeed { _ in mode.ripples }) { session throws(SessionError) in
+            let excerpt = try session.excerpt(of: range, on: sources.map { TrackID($0) })
+            return try session.paste(excerpt, mode: mode, on: targets.map { TrackID($0) }).map(\.rawValue)
+        }
     }
 
     /// `from` and `to` (V19: `EditRules.frameRange`).
@@ -163,7 +184,9 @@ let clipTools = [
         guard let targets = EditRules.pasteTargets(sources: sources, onto: try a[onto]) else {
             throw ToolError("Give one onto for each track, or none.")
         }
-        if let work = try a.paste(.range(range, tracks: sources.map { TrackID($0) }), at: frame, onto: try a[onto]) {
+        if let work = try a.paste(
+            .range(range, tracks: sources.map { TrackID($0) }), mode: .over(at: frame), onto: try a[onto])
+        {
             return .paste(work)
         }
         return .edit(ripple: false) { session throws(SessionError) in
@@ -178,13 +201,26 @@ let clipTools = [
         [clips, at, onto, source], batch: .step
     ) { a throws(ToolError) in
         let (ids, frame, targets) = (try a[clips].map { ClipID($0) }, Frames(try a[at]), try a[onto])
-        if let work = try a.paste(.clips(ids), at: frame, onto: targets) { return .paste(work) }
+        if let work = try a.paste(.clips(ids), mode: .over(at: frame), onto: targets) { return .paste(work) }
         return .edit(ripple: false) { session throws(SessionError) in
             let excerpt = try session.excerpt(of: ids)
             return try session.paste(excerpt, at: frame, on: EditRules.laneTargets(of: excerpt, onto: targets))
                 .map(\.rawValue)
         }
     },
+    Tool(
+        "clip_replace",
+        "Copy a range of tracks and replace the range at to until with it. The range goes on every track, and the "
+            + "later audio on every track moves by the copy length minus the range length. Give the pasted IDs."
+            + sourceNote,
+        [Arg.from, Arg.to, tracks, at, until, onto, source], batch: .step
+    ) { a throws(ToolError) in try a.rangePaste { .replace($0) } },
+    Tool(
+        "clip_fill",
+        "Copy a range of tracks and paste it again and again from at, with butt joins, and cut the last copy at "
+            + "until. Nothing moves. More than 1000 new clips are refused. Give the pasted IDs." + sourceNote,
+        [Arg.from, Arg.to, tracks, at, until, onto, source], batch: .step
+    ) { a throws(ToolError) in try a.rangePaste { .fill($0) } },
     Tool(
         "clip_nudge", "Move clips by a number of frames and tracks. They overwrite the clips under them.",
         [someClips, by, lanes], batch: .step

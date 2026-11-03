@@ -9,7 +9,7 @@ struct HALReadFault: Error, Hashable, Sendable {
 }
 
 /// The HAL property reads of the latency reader, as closures: the live value calls Core Audio, and
-/// tests fail one read. Not a protocol: two values, one type.
+/// tests fail one read.
 struct LatencyReads: Sendable {
     /// A `UInt32` property of an object in a scope: a latency, the safety offset, or the IO buffer
     /// frame size.

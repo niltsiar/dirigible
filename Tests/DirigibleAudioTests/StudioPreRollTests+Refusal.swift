@@ -79,7 +79,7 @@ extension StudioPreRollTests {
             try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
         }
 
-        #expect(try await reading(studio).termFault == .read(fault))
+        #expect(try await reading(studio).term == .failure(.read(fault)))
         try await expectRefusedAfterThePlay(studio, "failed read")
         studio.log.drain()
         let line = try faultLine(in: logs)
@@ -137,7 +137,7 @@ extension StudioPreRollTests {
             try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
         }
 
-        #expect(try await reading(studio).termFault == .notStarted(.outputUnavailable(-10_851)))
+        #expect(try await reading(studio).term == .failure(.notStarted(.outputUnavailable(-10_851))))
         try await expectRefusedAfterThePlay(studio, "failed engine start")
         studio.log.drain()
         let line = try faultLine(in: logs)

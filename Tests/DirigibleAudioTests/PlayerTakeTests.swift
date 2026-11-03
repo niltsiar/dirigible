@@ -91,7 +91,25 @@ struct PlayerTakeTests {
         let reading = await player.reading()
         #expect(starts.withLock { $0 } == [h0 + 400_000_000])
         #expect(reading.realStart == h0 + 400_000_000)
-        #expect(reading.term == .builtIn && reading.term.nanos(sessionRate: 48_000) == 18_583_333)
+        let term = try reading.term.get()
+        #expect(term == .builtIn && term.nanos(sessionRate: 48_000) == 18_583_333)
+    }
+
+    /// A play start whose engine start fails has no term in `Reading`, not the term of the play
+    /// before it.
+    @Test func failedStartShowsNoEarlierTerm() async throws {
+        let fails = OSAllocatedUnfairLock(initialState: false)
+        let player = player(
+            start: { engine in
+                if fails.withLock({ $0 }) { throw NSError(domain: "test", code: -10_851) }
+                try engine.start()
+            }, readTerm: { _ in .success(.builtIn) })
+        await player.apply(.play(from: 2400, shuttle: forward), number: 1)
+        #expect(await player.reading().term == .success(.builtIn))
+        await player.apply(.stop, number: 2)
+        fails.withLock { $0 = true }
+        await player.apply(.play(from: 2400, shuttle: forward), number: 3)
+        #expect(await player.reading().term == .failure(.notStarted(.outputUnavailable(-10_851))), "the term of play 1")
     }
 
     /// The engine start takes 300 ms, and T - S is 0.2 s: H_T is still 0.5 s or more after the

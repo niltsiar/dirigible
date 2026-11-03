@@ -38,8 +38,10 @@ extension Studio {
         let shuttle = Shuttle(direction: .forward, rate: .one)
         await player.apply(.play(from: start, shuttle: shuttle, take: take), number: play.feed)
         let reading = await player.reading()
-        guard reading.termFault == nil, let realStart = reading.realStart else {
-            environment.log.note(.take, "pre-roll-fault", level: .error, fields: reading.termFault?.journalFields ?? [])
+        guard case .success(let term) = reading.term, let realStart = reading.realStart else {
+            let fields: [(key: String, value: DiagnosticValue)] =
+                if case .failure(let fault) = reading.term { fault.journalFields } else { [] }
+            environment.log.note(.take, "pre-roll-fault", level: .error, fields: fields)
             await endPreRoll(at: playhead)
             throw .outputTermUnavailable
         }
@@ -47,10 +49,10 @@ extension Studio {
             await endPreRoll(at: playhead)
             throw .preRollStopped(stop)
         }
-        let anchor = takeStartHostNanos(realStart: realStart, term: reading.term, from: start, to: playhead, rate: rate)
+        let anchor = takeStartHostNanos(realStart: realStart, term: term, from: start, to: playhead, rate: rate)
         let lead = anchor - min(anchor, environment.hostNanos())
         span.end(
-            "pre-roll", fields: preRollFields(lead: lead, realStart: realStart, term: reading.term, takeStart: anchor))
+            "pre-roll", fields: preRollFields(lead: lead, realStart: realStart, term: term, takeStart: anchor))
         return anchor
     }
 

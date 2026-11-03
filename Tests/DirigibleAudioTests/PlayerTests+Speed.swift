@@ -189,7 +189,7 @@ struct PlayerSpeedTests {
         let reading = await player.reading()
         #expect(node > 1_640, "the output played \(node) frames")
         #expect(reading.frame.count == node - 820)
-        #expect(reading.term == .builtIn && reading.termFault == nil)
+        #expect(reading.term == .success(.builtIn))
     }
 
     /// Code gate 2 item 1: on an output with 200 ms of latency, a change from 0.75x to 2x during

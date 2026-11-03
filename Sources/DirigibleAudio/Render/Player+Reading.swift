@@ -15,10 +15,8 @@ extension Player {
         var faults: [FileID: MediaFault]
         /// The loudness of the heard frame (decision 0033).
         var loudness: LoudnessValues
-        /// The output term of the last play start (decision 0070, **Anchor**).
-        var term: OutputTerm
-        /// Why the last play start has no output term of its own; `term` is then the fallback.
-        var termFault: OutputTermFault?
+        /// The output term of the last play start, or why it has none (decision 0070, **Anchor**).
+        var term: Result<OutputTerm, OutputTermFault>
         /// The start host time of a take play in nanoseconds; nil for a plain play (0070).
         var realStart: UInt64?
     }

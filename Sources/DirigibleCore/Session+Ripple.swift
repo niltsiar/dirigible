@@ -103,7 +103,7 @@ extension Session {
 
     /// The ripple delete of `lanes` and the markers, in one pass. The ranges are in range and
     /// merged (`merged`).
-    private mutating func rippleDelete(_ ranges: [Range<Frames>], lanes: [Int], taken: inout Set<ClipID>)
+    mutating func rippleDelete(_ ranges: [Range<Frames>], lanes: [Int], taken: inout Set<ClipID>)
         throws(SessionError)
     {
         for index in lanes {
@@ -117,7 +117,7 @@ extension Session {
     }
 
     /// The ripple insert of `lanes` and the markers. The length and the frame are in range.
-    private mutating func rippleInsert(_ length: Frames, at frame: Frames, lanes: [Int], taken: inout Set<ClipID>)
+    mutating func rippleInsert(_ length: Frames, at frame: Frames, lanes: [Int], taken: inout Set<ClipID>)
         throws(SessionError)
     {
         for index in lanes {

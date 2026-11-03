@@ -16,11 +16,18 @@ extension Session {
         throws(SessionError) -> [ClipID]
     {
         guard excerpt.length > .zero else { throw .emptyExcerpt }
-        let all = self.tracks.map(\.id)
+        guard range.lowerBound.isInRange, range.upperBound.isInRange, excerpt.length.isInRange else {
+            throw .frameOutOfRange
+        }
         let inside = markers.values.filter { range.lowerBound <= $0.position && $0.position < range.upperBound }
         var copy = self
-        try copy.rippleDelete(range, on: all)
-        try copy.rippleInsert(excerpt.length, at: range.lowerBound, on: all)
+        if !self.tracks.isEmpty {
+            let lanes = Array(self.tracks.indices)
+            var taken = clipIDs
+            if !range.isEmpty { try copy.rippleDelete([range], lanes: lanes, taken: &taken) }
+            // The delete cuts each clip at the range start, so the insert derives no ID from `taken`.
+            try copy.rippleInsert(excerpt.length, at: range.lowerBound, lanes: lanes, taken: &taken)
+        }
         for marker in inside {
             var kept = marker
             kept.position = range.lowerBound

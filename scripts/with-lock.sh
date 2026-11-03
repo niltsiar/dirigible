@@ -76,9 +76,10 @@
 # "with-lock: lock-free targets (<targets>): no lock; it waits while a release call (a push
 # check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds
 # the lock". It is make check-changed with no BASE= word and no BASE in the environment or in
-# MAKEFLAGS (both make a push check, and so a release call), when scripts/check-changed.sh (with the NAME=value words of the call in its
-# environment) gives only check-docs, check-fast, static, lint, format, none, test, test-app,
-# test-filter, or a word with =; and make test-hooks with a HOOK_TESTS= word. test, test-filter, and
+# MAKEFLAGS (both make a push check, and so a release call), when scripts/check-changed.sh (with the
+# NAME=value words of the call in its environment) gives only check-docs, check-fast, static, lint,
+# format, none, test, test-app, test-filter, or a word with =; and make test-hooks with a
+# HOOK_TESTS= word. test, test-filter, and
 # test-app take the lock themselves through scripts/swift-test.sh (test-shards.sh holds it once for
 # its build and shards) and scripts/bundle.sh, so the outer call holds nothing while the hook tests
 # run. A check-changed.sh failure and every other target keep the lock. Exit 3 of check-changed.sh

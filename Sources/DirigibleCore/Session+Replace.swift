@@ -9,11 +9,13 @@ extension Session {
     /// the range start, and pastes `excerpt` there on `tracks`, in one edit. So each later clip on
     /// every track moves by the excerpt length minus the range length. A marker in the range or at
     /// its start ends at the range start; a marker at or after the range end moves with the later
-    /// clips (Rule M Replace clause, decision 0037). Returns the pasted IDs. A throw changes nothing.
+    /// clips (Rule M Replace clause, decision 0037). An excerpt of length 0 throws `.emptyExcerpt`.
+    /// Returns the pasted IDs. A throw changes nothing.
     @discardableResult
     public mutating func replace(_ range: Range<Frames>, with excerpt: Excerpt, on tracks: [TrackID])
         throws(SessionError) -> [ClipID]
     {
+        guard excerpt.length > .zero else { throw .emptyExcerpt }
         let all = self.tracks.map(\.id)
         let inside = markers.values.filter { range.lowerBound <= $0.position && $0.position < range.upperBound }
         var copy = self

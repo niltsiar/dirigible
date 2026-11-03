@@ -39,6 +39,14 @@
 #   `## Acceptance criteria` section whose line differs in analysis.md, or is gone, needs a
 #   decisions.tsv row after the first phase 4 row whose decision starts with `criterion change` and
 #   names the ID as a whole word. A run with phase 4 rows and no analysis-gate.md needs none.
+# - With CHECK_PLAN_AT_PHASE7=1 only, when run.md and a phase 6 row exist: a fix commit (a commit of
+#   origin/main..<the branch of the last `- Branch:` line of run.md> whose author time is at or after the
+#   minute of the first phase 6 row) that removes a double-quoted text of a criterion line of analysis.md,
+#   when no fix commit adds a line that holds the text, needs a decisions.tsv row from the first phase 6
+#   row on whose decision starts with `criterion change` and names the ID as a whole word. A quote in a
+#   backtick span is not read. A text that is empty, or that starts or ends with a space, is a fragment
+#   of a nested quote and is skipped. A branch that git does not know fails. A run whose first
+#   decisions.tsv row is older than quote_cutoff needs none.
 # - Each numbered item under `## Act on` of a review-*.md file has an `Invariant` and a `Siblings`
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
@@ -86,6 +94,8 @@ say() { echo "check-plan: $1" >&2; fail=1; }
 # Local time at which the rule for the Fix check line parts was written, before its commit (YYYY-MM-DDTHH:MM,
 # as decisions.tsv writes it): a run whose first row is older needs none of them.
 fixline_cutoff=2026-11-02T04:58
+# The same for the rule on a fix commit that removes a quoted criterion text.
+quote_cutoff=2026-11-03T00:00
 
 # fix_lines <plan|diff> <lines|parts|files>: read the ## Fix check of the last round file review-<kind>-<n>.md.
 # lines (plan gate): a "- <round>.<item>" line for each Act on item of each round file, the new failure part
@@ -477,6 +487,69 @@ else
         if [[ -z "$start" || ! "$start" < "$fixline_cutoff" ]]; then
             fix_lines diff parts
             fix_lines plan files
+        fi
+        first6="$(awk -F'\t' '$2 == "6" { print $1; exit }' "$run/decisions.tsv" 2>/dev/null || true)"
+        if [[ -f "$run/run.md" && -f "$run/analysis.md" && -n "$first6" && ! "$start" < "$quote_cutoff" ]]; then
+            root="$(cd "$(dirname "$0")/.." && pwd)"
+            branch="$(grep '^- Branch:' "$run/run.md" | tail -n 1 | sed -E 's/^- Branch: *//; s/[ ,].*$//; s/`//g' || true)"
+            if ! git -C "$root" rev-parse --verify -q "refs/heads/$branch" >/dev/null; then
+                say "run.md: the last - Branch: line names '$branch', and the repo $root has no such branch; write the run branch on a new - Branch: line"
+            else
+                since="$(date -j -f %Y-%m-%dT%H:%M:%S "$first6:00" +%s)"
+                # The awk reads a "commit <short hash>" line, then the -U0 diff of that commit, for each fix commit.
+                while IFS= read -r msg; do say "$msg"; done < <(
+                    while read -r hash short at; do
+                        ((at >= since)) || continue
+                        echo "commit $short"
+                        git -C "$root" show --format= --no-color -U0 "$hash"
+                    done < <(git -C "$root" log --no-merges --format='%H %h %at' "origin/main..$branch") |
+                        awk -v rows="$run/decisions.tsv" -v analysis="$run/analysis.md" -v run="$run" '
+                        # texts(line): the double-quoted texts of line outside backtick spans, in q[1..n].
+                        function texts(line,  n, c, j, t) {
+                            n = 0
+                            while (match(line, /[`"]/)) {
+                                c = substr(line, RSTART, 1); line = substr(line, RSTART + 1)
+                                j = index(line, c)
+                                if (!j) break
+                                t = substr(line, 1, j - 1); line = substr(line, j + 1)
+                                if (c == "\"" && t != "" && t !~ /^ | $/) q[++n] = t
+                            }
+                            return n
+                        }
+                        /^commit / { h = $2; hunk = 0; next }
+                        /^diff --git / { hunk = 0; next }
+                        /^@@/ { hunk = 1; next }
+                        hunk && /^-/ { rl[++nr] = substr($0, 2); rh[nr] = h; next }
+                        hunk && /^\+/ { al[++na] = substr($0, 2) }
+                        END {
+                            while ((getline line < rows) > 0) {
+                                split(line, c, "\t")
+                                if (c[2] == "6") seen6 = 1
+                                if (seen6 && tolower(c[3]) ~ /^criterion change/) changes[++m] = c[3]
+                            }
+                            while ((getline line < analysis) > 0) {
+                                if (line ~ /^## /) { on = (line ~ /^## Acceptance criteria[[:space:]]*$/); continue }
+                                if (!on || line !~ /^(- |[0-9]+\. |\|)/) continue
+                                t = line; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                                if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) continue
+                                id = substr(t, 1, RLENGTH)
+                                covered = 0
+                                for (k = 1; k <= m; k++) if (changes[k] ~ ("(^|[^A-Za-z0-9])" id "([^A-Za-z0-9]|$)")) covered = 1
+                                if (covered || id in told) continue
+                                n = texts(line)
+                                for (k = 1; k <= n; k++) {
+                                    by = ""
+                                    for (i = 1; i <= nr && by == ""; i++) if (index(rl[i], q[k])) by = rh[i]
+                                    if (by == "") continue
+                                    for (i = 1; i <= na; i++) if (index(al[i], q[k])) break
+                                    if (i <= na) continue
+                                    told[id] = 1
+                                    print "analysis.md: criterion " id " quotes \"" substr(q[k], 1, 60) "\", and fix commit " by " removes it; edit the criterion in analysis.md first, then log it with .claude/skills/deliver/scripts/log-decision.sh " run " --from <file>: line 1 6, line 2 criterion change " id ": old ..., new ..., then the why, the evidence, and the result"
+                                    break
+                                }
+                            }
+                        }')
+            fi
         fi
     fi
     # Each criterion of analysis-gate.md (the copy that log-decision.sh makes at the first phase 4 row)

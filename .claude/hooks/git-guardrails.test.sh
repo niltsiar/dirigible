@@ -778,7 +778,7 @@ for run in "L=x; cat > row-s1.txt <<'EOF'" "L=x && cat > row-s1.txt <<'EOF'" "mk
 done
 for run in "L=x; bash <<'EOF'" "PATH=stub:\$PATH; cat > f.txt <<'EOF'" "L=x PATH=stub:\$PATH; cat > f.txt <<'EOF'" \
   "L=x; PATH=stub; cat > f.txt <<'EOF'" "export L=x; cat > f.txt <<'EOF'" "mkdir stub; cat > stub/f.txt <<'EOF'" \
-  "rm -rf x; cat > f.txt <<'EOF'"; do
+  "rm -rf x; cat > f.txt <<'EOF'" "path=stub; cat > f.txt <<'EOF'"; do
   expect_message "matches 'git (checkout|restore)" "$run$co"
 done
 expect_message "matches 'git (checkout|restore)" $'git checkout .; cat > f.txt <<\'EOF\'\nx\nEOF'

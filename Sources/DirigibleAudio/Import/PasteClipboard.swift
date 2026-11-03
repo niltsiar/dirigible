@@ -37,14 +37,6 @@ public enum PasteMode: Hashable, Sendable {
     /// Paste to Fill Selection: `Session.fill` of the range.
     case fill(Range<Frames>)
 
-    /// The frame of the first pasted clip: the `at` frame, or the range start.
-    public var start: Frames {
-        switch self {
-        case .over(let at), .insert(let at): at
-        case .replace(let range), .fill(let range): range.lowerBound
-        }
-    }
-
     /// True for a mode that moves later audio, so it needs the ripple rule of decision 0037.
     public var ripples: Bool {
         switch self {

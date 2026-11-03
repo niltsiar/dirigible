@@ -1,3 +1,4 @@
+import CoreAudio
 import Testing
 
 @testable import DirigibleAudio
@@ -49,5 +50,22 @@ struct InputDeviceTests {
         #expect(record() != nil)
         for rate in [0, 0.4, -48_000, .nan, .infinity, 1e300] { #expect(record(rate: rate) == nil) }
         for time in [Double.nan, .infinity, -.infinity] { #expect(record(sampleTime: time) == nil) }
+    }
+
+    /// Criterion P29 (run 2026-10-28-pre-roll): the shared latency reader keeps the input rule. A
+    /// failed stream latency reads 0; a failed device latency, stream list, or safety offset gives
+    /// no input latency, so `read` gives no `InputDevice`.
+    @Test func inputKeepsItsFailureRule() throws {
+        let input = kAudioObjectPropertyScopeInput
+        func fake(failing: FakeLatencyHAL.Read) -> LatencyReads {
+            FakeLatencyHAL(device: 40, stream: 1919, safety: 114, scope: input, failing: failing).reads
+        }
+        let noStream = try LatencyParts(FakeLatencyHAL.id, scope: input, reads: fake(failing: .streamLatency))
+        #expect(noStream.inputFrames == 154)
+        for failing in [FakeLatencyHAL.Read.latency, .streams, .safety] {
+            #expect(throws: failing.fault) {
+                try LatencyParts(FakeLatencyHAL.id, scope: input, reads: fake(failing: failing))
+            }
+        }
     }
 }

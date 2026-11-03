@@ -86,6 +86,14 @@ extension Player {
         return true
     }
 
+    /// The output frames that the output path holds: the term of the play start in session frames.
+    var latency: Int { term.sessionFrames(sessionRate: session.sampleRate) }
+
+    /// The term of a play whose read failed: the presentation latency of the output node.
+    func presentationTerm(_ graph: Graph) -> OutputTerm {
+        .manual(Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded()))
+    }
+
     /// The frame that the user hears: the heard node frames, at most the scheduled frames.
     func position() -> Frames {
         guard let feed else { return frame }

@@ -101,20 +101,16 @@ extension InputDevice {
 
     /// The facts of device `id`. Nil when a read fails or the device has no input buffer.
     static func read(_ id: AudioObjectID) -> InputDevice? {
-        let input = kAudioObjectPropertyScopeInput
         guard let uid = readString(id, kAudioDevicePropertyDeviceUID),
             let name = readString(id, kAudioObjectPropertyName),
             let rate = try? readValue(id, kAudioDevicePropertyNominalSampleRate, as: Float64.self),
             let rates = try? readArray(id, kAudioDevicePropertyAvailableNominalSampleRates, as: AudioValueRange.self),
-            let latency = try? readValue(id, kAudioDevicePropertyLatency, scope: input, as: UInt32.self),
-            let safetyOffset = try? readValue(id, kAudioDevicePropertySafetyOffset, scope: input, as: UInt32.self),
-            let streams = try? readArray(id, kAudioDevicePropertyStreams, scope: input, as: AudioStreamID.self),
+            let latency = try? LatencyParts(id, scope: kAudioObjectPropertyScopeInput, reads: .live),
             let channels = readChannels(id)
         else { return nil }
-        let streamLatency = streams.first.flatMap { try? readValue($0, kAudioStreamPropertyLatency, as: UInt32.self) }
         return InputDevice(
             uid: uid, name: name, nominalRate: rate, availableRates: rates, channelsPerBuffer: channels,
-            deviceLatency: latency, streamLatency: streamLatency ?? 0, safetyOffset: safetyOffset)
+            latency: latency.inputFrames)
     }
 
     /// The parse of the HAL property values. The input latency is the device latency, the stream
@@ -127,19 +123,20 @@ extension InputDevice {
     ) {
         self.init(
             uid: uid, name: name, nominalRate: nominalRate, availableRates: availableRates,
-            channelsPerBuffer: channels(of: streamConfiguration), deviceLatency: deviceLatency,
-            streamLatency: streamLatency, safetyOffset: safetyOffset)
+            channelsPerBuffer: channels(of: streamConfiguration),
+            latency: LatencyParts(device: deviceLatency, stream: .success(streamLatency), safety: safetyOffset)
+                .inputFrames)
     }
 
     private init?(
         uid: String, name: String, nominalRate: Double, availableRates: [AudioValueRange], channelsPerBuffer: [Int],
-        deviceLatency: UInt32, streamLatency: UInt32, safetyOffset: UInt32
+        latency: Int
     ) {
         guard availableRates.allSatisfy({ $0.mMinimum <= $0.mMaximum }) else { return nil }
         self.init(
             uid: uid, name: name, nominalRate: nominalRate,
             availableRates: availableRates.map { $0.mMinimum...$0.mMaximum }, channelsPerBuffer: channelsPerBuffer,
-            latency: Int(deviceLatency) + Int(streamLatency) + Int(safetyOffset))
+            latency: latency)
     }
 }
 

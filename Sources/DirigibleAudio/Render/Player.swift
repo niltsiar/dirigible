@@ -22,21 +22,6 @@ actor Player {
         case stop
     }
 
-    /// `played` is the number of the last play that the Player started; `frame` is the position.
-    /// `stop` is a stop that the user did not ask for; `faults` are the read faults of the feed.
-    struct Reading: Sendable {
-        var number: Int
-        var played: Int
-        var frame: Frames
-        var ended: Bool
-        /// The engine runs: a play started and no stop came.
-        var running: Bool
-        var stop: PlaybackStop?
-        var faults: [FileID: MediaFault]
-        /// The loudness of the heard frame (decision 0033).
-        var loudness: LoudnessValues
-    }
-
     /// The chunks that one play keeps scheduled ahead of the node (a calibration knob).
     static let depth = 3
 
@@ -62,9 +47,9 @@ actor Player {
     private let open: MediaOpen
     /// Finds the speed unit at the first play. Tests give one that finds nothing.
     private let speedUnit: SpeedUnitLookup
-    /// The output latency of offline rendering, in session frames. Tests give one; the device
-    /// output reads its own at each play.
-    private let offlineLatency: Int
+    /// Reads the output term at each play start: the HAL on `.device`, `offlineLatency` on the two
+    /// manual rendering outputs. Tests give one, which wins on every output.
+    private let readTerm: OutputTermRead
     /// The host clock of the paced pull. Tests give one that they move.
     let now: @Sendable () -> ContinuousClock.Instant
     /// Renders the frames of the paced pull. Tests give one that fails.
@@ -83,9 +68,10 @@ actor Player {
     private(set) var graph: Graph?
     private(set) var feed: Feed?
     private(set) var stop: PlaybackStop?
-    /// The output presentation latency in session frames, read at each play start. The node
-    /// frames run ahead of the heard frames by this much. 0 in offline rendering.
-    private(set) var latency = 0
+    /// The output term of the last play start, and why it has no term of its own: then `term` is
+    /// the presentation latency of the output node. The node frames run ahead of the heard frames by it.
+    private(set) var term = OutputTerm.manual(0)
+    private(set) var termFault: OutputTermFault?
     /// The refill tick of the running play; nil while no play runs.
     private var ticker: DispatchSourceTimer?
     /// Tests only: the ticks that ran.
@@ -109,7 +95,8 @@ actor Player {
         package: @escaping @Sendable () throws -> URL, output: Output, session: Session,
         start: @escaping @Sendable (AVAudioEngine) throws -> Void = { try $0.start() },
         open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit,
-        offlineLatency: Int = 0, now: @escaping @Sendable () -> ContinuousClock.Instant = { .now },
+        offlineLatency: Int = 0, readTerm: OutputTermRead? = nil,
+        now: @escaping @Sendable () -> ContinuousClock.Instant = { .now },
         pacedRender:
             @escaping @Sendable (AVAudioEngine, AVAudioFrameCount, AVAudioPCMBuffer) throws
             -> AVAudioEngineManualRenderingStatus = { try $0.renderOffline($1, to: $2) }
@@ -120,7 +107,8 @@ actor Player {
         self.start = start
         self.open = open
         self.speedUnit = speedUnit
-        self.offlineLatency = offlineLatency
+        let manual: OutputTermRead = { _ in .success(.manual(offlineLatency)) }
+        self.readTerm = readTerm ?? (output == .device ? readOutputTerm(of:) : manual)
         self.now = now
         self.pacedRender = pacedRender
         chunk = max(1, session.sampleRate / 10)
@@ -152,13 +140,14 @@ actor Player {
         frame = start
         played = number
         stop = nil
+        termFault = .notStarted(nil)
         guard let graph = makeGraph() else { return }
         // A rewire while the engine runs costs no more than a seek during play (probe S6).
         let wanted = shuttle.rate == .one ? speed : .one
         let feedSpeed = wire(graph, speed: wanted) ? wanted : .one
         loudness.start(at: start, shuttle: shuttle, speed: feedSpeed)
         guard let url = try? package() else {
-            stop = .packageUnavailable
+            (stop, termFault) = (.packageUnavailable, .notStarted(.packageUnavailable))
             return
         }
         dispatchPrecondition(condition: .notOnQueue(.main))
@@ -166,12 +155,13 @@ actor Player {
             if !graph.engine.isRunning { try self.start(graph.engine) }
         } catch {
             stop = .outputUnavailable((error as NSError).code)
+            termFault = .notStarted(stop)
             return
         }
-        latency =
-            output == .device
-            ? Int((graph.engine.outputNode.presentationLatency * Double(session.sampleRate)).rounded())
-            : offlineLatency
+        switch readTerm(graph.engine) {
+        case .success(let read): (term, termFault) = (read, nil)
+        case .failure(let fault): (term, termFault) = (presentationTerm(graph), fault)
+        }
         feed = Feed(
             anchor: start, shuttle: shuttle, end: end, speed: feedSpeed,
             mix: MixReader(package: url, session: session, open: open))
@@ -202,7 +192,7 @@ actor Player {
         let ended = feed.map { $0.scheduled >= length($0) && heardFrames() >= $0.scheduled } ?? false
         return Reading(
             number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
-            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values)
+            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values, term: term, termFault: termFault)
     }
 
     func outputChanged() {

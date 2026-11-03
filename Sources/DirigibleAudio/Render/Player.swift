@@ -56,6 +56,9 @@ actor Player {
     let hostNanos: @Sendable () -> UInt64
     /// Starts the node of a take play. Tests record the host time.
     let startNode: NodeStart
+    /// The node starts at a host time: the device output, or the offline output of a test with a
+    /// start seam in its place. Only then does an underrun of a take feed skip the passed frames.
+    let startsAtHostTime: Bool
     /// Renders the frames of the paced pull. Tests give one that fails.
     let pacedRender:
         @Sendable (AVAudioEngine, AVAudioFrameCount, AVAudioPCMBuffer) throws -> AVAudioEngineManualRenderingStatus
@@ -117,6 +120,7 @@ actor Player {
         self.now = now
         self.hostNanos = hostNanos
         self.startNode = startNode ?? Self.nodeStart(on: output)
+        startsAtHostTime = output == .device || (output == .offline && startNode != nil)
         self.pacedRender = pacedRender
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
@@ -233,7 +237,7 @@ actor Player {
         if dry {
             loudness.restart(scheduled: scheduled)
             graph.node.stop()
-            if let base = feed.take, output != .paced {
+            if let base = feed.take, startsAtHostTime {
                 self.feed = restartTake(feed, base: base, graph: graph, ahead: ahead)
                 return
             }

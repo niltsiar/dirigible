@@ -33,7 +33,7 @@ extension Studio {
         play.revision += 1
         await player.update(playerSession, revision: play.revision)
         play.feed += 1
-        let take = Player.TakeStart(floor: environment.hostNanos() + Player.startMargin, span: playhead - start)
+        let take = Player.TakeStart(span: playhead - start)
         let span = environment.log.begin(.take, "pre-roll-begin", ["from": .number(Int64(start.count))])
         let shuttle = Shuttle(direction: .forward, rate: .one)
         await player.apply(.play(from: start, shuttle: shuttle, take: take), number: play.feed)

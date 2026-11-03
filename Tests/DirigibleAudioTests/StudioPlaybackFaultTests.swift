@@ -262,6 +262,37 @@ extension StudioPlaybackTests {
         #expect(studio.playheadTime >= before)
     }
 
+    /// Criterion P29 (run 2026-10-28-pre-roll): a failed read of the output term does not refuse a
+    /// plain play. The play runs with a manual term, the reading has the fault, and the journal has
+    /// one line with it. Control: a read that works gives its term and no line.
+    @Test(arguments: [true, false])
+    func failedTermReadKeepsPlainPlay(fails: Bool) async throws {
+        let logs = package.folder.url.appending(path: "logs")
+        let studio = try await studio()
+        studio.environment.log = startLog(in: logs)
+        let fault = HALReadFault(selector: kAudioDevicePropertyBufferFrameSize, status: kAudioHardwareNotRunningError)
+        studio.environment.outputTerm = { _ in fails ? .failure(.read(fault)) : .success(.builtIn) }
+        await studio.perform(.seek(.start))
+        await studio.perform(.playStop)
+
+        #expect(studio.playback == .playing(Shuttle(direction: .forward, rate: .one)))
+        let reading = try await reading(studio)
+        if fails {
+            #expect(reading.termFault == .read(fault))
+            #expect(reading.term != .builtIn, "the term of a failed read is the presentation latency")
+        } else {
+            #expect(reading.term == .builtIn && reading.termFault == nil)
+        }
+        await studio.perform(.playStop)
+        studio.log.drain()
+        let lines = try journalLines(of: try #require(journalFiles(in: logs).first))
+        let faults = lines.filter { $0.contains("\tdevice\toutput-term-fault\t") }
+        #expect(faults.count == (fails ? 1 : 0), "lines: \(lines)")
+        if fails {
+            #expect(faults.first?.hasSuffix("fault=read\tproperty=fsiz\tstatus=stop/1937010544") == true, "\(faults)")
+        }
+    }
+
     /// Control: a start that works plays and shows no stop.
     @Test(arguments: [true, false])
     func aStartFailureShowsOutputUnavailable(fails: Bool) async throws {

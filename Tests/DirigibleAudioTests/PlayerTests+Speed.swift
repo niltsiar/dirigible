@@ -171,6 +171,27 @@ struct PlayerSpeedTests {
         }
     }
 
+    /// Criterion P29 (run 2026-10-28-pre-roll): the position is the node frames less the output
+    /// term, once. 892 device frames at 48 kHz are 820 frames of a 44.1 kHz session; a dropped term
+    /// gives the node frames, and a doubled one 1640 frames less.
+    @Test func positionLessTheOutputTerm() async throws {
+        let package = try MixPackage(sampleRate: 44_100)
+        let tone = sine(seconds: 1, rate: 44_100, frequency: 440)
+        try package.addFile("f1", channels: [tone])
+        try package.addTrack("t1", clip: "c1", file: "f1", start: 0, offset: 0, length: Frames(tone.count))
+        let url = package.url
+        let player = Player(
+            package: { url }, output: .offline, session: package.session, speedUnit: { nil },
+            readTerm: { _ in .success(.builtIn) })
+        await player.apply(.play(from: 0, shuttle: forward), number: 1)
+        _ = await player.renderOffline(frames: 8_820)
+        let node = await player.nodeFrames()
+        let reading = await player.reading()
+        #expect(node > 1_640, "the output played \(node) frames")
+        #expect(reading.frame.count == node - 820)
+        #expect(reading.term == .builtIn && reading.termFault == nil)
+    }
+
     /// Code gate 2 item 1: on an output with 200 ms of latency, a change from 0.75x to 2x during
     /// the play does not move the heard frame back, at the change or after it.
     @Test func aChangeOnALateOutputKeepsTheHeardFrame() async throws {

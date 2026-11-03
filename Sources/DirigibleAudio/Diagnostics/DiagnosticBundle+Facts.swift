@@ -61,7 +61,7 @@ struct BundleDevice: Sendable {
 private func rateText(_ rate: Double) -> String { rate.rounded() == rate ? String(Int(rate)) : String(rate) }
 
 /// `bltn` for `kAudioDeviceTransportTypeBuiltIn`, with no trailing space; else the integer.
-private func fourCharacters(_ code: UInt32) -> String {
+func fourCharacters(_ code: UInt32) -> String {
     let bytes = withUnsafeBytes(of: code.bigEndian, Array.init)
     guard code != 0, bytes.allSatisfy({ (0x20...0x7E).contains($0) }) else { return String(code) }
     return String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .whitespaces)

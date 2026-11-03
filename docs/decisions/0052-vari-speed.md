@@ -4,6 +4,7 @@
 - Date: 2026-10-13
 - Accepted: 2026-10-13, after plan gates 1 and 2 of run `2026-10-13-preroll-varispeed` and probe S6.
 - Amends: 0016 (the Player graph, the rates, the position, `AVAudioUnitVarispeed`), 0033 (the meter gate).
+- Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). The output latency of **Position** is the output term of 0070. It is one IO buffer longer than the presentation latency, so the ramp after a speed change (`Player.held`) lasts as long: 892 frames (18.6 ms) at a 512-frame buffer on the built-in speakers of the test Mac, in place of 19 frames (0.4 ms). The ramp is shorter than one playhead poll (33 ms). A take plays at 1x, so the ramp never moves a take.
 
 ## Context
 
@@ -24,7 +25,7 @@ Probes (2026-10-13; `.scratchpads/runs/2026-10-13-preroll-varispeed/probes/outpu
 - **Unit.** The time-domain voice unit 'ipto' (`AVAudioUnitTimeEffect`, rate 0.5 to 2; S1, S2), between the player node and the main mixer, only while the feed speed is not 1x. A play rewires the graph upstream of the main mixer, also while the engine runs (S6). At 1x the graph is the node into the main mixer, bit for bit as before.
 - **Which plays.** A play at the shuttle rate 1x (Space, the first L or J) uses the speed. The tape rates (0.5x, 2x, 4x) use no unit. A take and its pre-roll play at 1x.
 - **Change.** A speed change during play goes on from the heard frame, as a shuttle change does (0016): the node stops, the graph changes upstream of the main mixer while the engine runs, and the node plays again from the heard frame. The heard gap is 10 ms or less (S6). A change between two speeds other than 1x only sets the rate of the unit, with no new play (S6: no gap, a transient of 0.5 to 8 dB).
-- **Position.** The player time counts source frames (S3), so the position keeps its formula, and the latency to subtract is the output latency in output frames x the speed. After a change between two speeds other than 1x, the output frames from before the change keep the old speed until they played, so the playhead does not jump on an output with a large latency (code gate 1 item 3). The output latency is the value of 0016 until the pre-roll record changes it.
+- **Position.** The player time counts source frames (S3), so the position keeps its formula, and the latency to subtract is the output latency in output frames x the speed. After a change between two speeds other than 1x, the output frames from before the change keep the old speed until they played, so the playhead does not jump on an output with a large latency (code gate 1 item 3). The output latency is the output term of 0070.
 - **Meter.** The live loudness meter takes values only at 1x forward (0033).
 - **Unit fault.** If the system has no voice unit, the speed control is off and shows 1x, and the Player plays at 1x. The check is a component lookup with no instance, so the main actor loads no audio unit. If the unit refuses the rate, the Player plays at 1x (code gate 1 items 8 and 9). Limit: the control then shows the picked speed, not 1x. No unit on the test Mac refuses a rate (probe cg1-rate-refuse), so no user sees this gap today.
 - **Keys.** Transport > Playback Speed: Vari-Speed (Period), Faster (">"), Slower ("<"), and a radio item per speed. A toolbar pop-up `transport.speed` shows the speed. Plain keys yield to a focused text field (0016).

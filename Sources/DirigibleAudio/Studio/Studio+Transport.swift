@@ -297,13 +297,16 @@ extension Studio {
             play.player
             ?? Player(
                 package: { [lock] in try lock.package() }, output: environment.playerOutput, session: session,
-                start: environment.startEngine, speedUnit: environment.speedUnit)
+                start: environment.startEngine, speedUnit: environment.speedUnit, readTerm: environment.outputTerm)
         play.player = player
         // Awaited, so a play after a take hears the take (plan gate 2 item 5).
         play.revision += 1
         await player.update(session, revision: play.revision)
         await player.apply(.play(from: from, shuttle: shuttle, speed: play.speed, end: end), number: number)
         let reading = await player.reading()
+        if reading.played == number, let fault = reading.termFault {
+            environment.log.note(.device, "output-term-fault", level: .error, fields: fault.journalFields)
+        }
         if play.feed == number, reading.played == number, let stop = accept(reading) {
             await player.apply(.stop, number: play.feed)
             return .failed(stop)

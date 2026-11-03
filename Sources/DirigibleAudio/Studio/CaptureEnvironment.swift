@@ -70,6 +70,9 @@ struct CaptureEnvironment: Sendable {
     var speedUnit: SpeedUnitLookup = findSpeedUnit
     /// Starts the engine of the Player. Tests give one that throws.
     var startEngine: @Sendable (AVAudioEngine) throws -> Void = { try $0.start() }
+    /// Reads the output term of each play start of the Player (decision 0070). Tests give a fake
+    /// term or a failed read; nil (`live`) reads the HAL on the device output.
+    var outputTerm: OutputTermRead?
     /// A step before each block of a peak compute (decision 0017), isolated to the actor of the
     /// compute (nil: none). Tests count, hold, or slow the blocks with it.
     var beforePeakBlock: @Sendable (isolated (any Actor)?) async -> Void = { _ in }

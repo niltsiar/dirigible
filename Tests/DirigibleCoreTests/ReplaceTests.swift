@@ -76,6 +76,21 @@ struct ReplaceTests {
         }
     }
 
+    /// U41: a clipboard of length 0, a range or a clip set, throws `.emptyExcerpt` and removes no
+    /// audio. The control Replace of the same range removes clip "N".
+    @Test mutating func emptyClipboardRefused() throws {
+        try session.place(Clip(id: "N", file: "f", start: 100_000, offset: 0, length: 20_000), on: "b")
+        let before = session
+        for clipboard in [try session.excerpt(of: 10..<10, on: ["a"]), try session.excerpt(of: [])] {
+            #expect(throws: SessionError.emptyExcerpt) {
+                try session.replace(96_000..<192_000, with: clipboard, on: ["a"])
+            }
+            #expect(session == before)
+        }
+        try session.replace(96_000..<192_000, with: try Self.clipboard(48_000), on: ["a"])
+        #expect(session.clip("N") == nil)
+    }
+
     /// C10b: a Replace and a fill keep `fileVersion` 12 of a session with a dialogue role, an
     /// envelope point, and a clip on a file with a noise reduction origin (decision 0057).
     @Test(arguments: ["replace", "fill"])

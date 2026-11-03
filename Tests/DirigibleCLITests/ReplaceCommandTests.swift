@@ -57,6 +57,18 @@ struct ReplaceCommandTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted() == files, "no file copied")
     }
 
+    /// U41: a clipboard of 0 frames exits 1 with the empty excerpt text and removes no audio.
+    @Test func emptyRangeExits1() async throws {
+        let before = try package.xml()
+
+        let result = try await package.run(
+            "clip", "replace", "PKG", "--track", "t1", "--from", "100", "--to", "100", "--at", "0", "--until",
+            "24000")
+
+        #expect(result.status == 1 && result.stderr.contains("the excerpt has no frames"), "\(result)")
+        #expect(try package.xml() == before)
+    }
+
     /// C15: no track, a target range that ends before it starts, and an onto count that differs exit 64.
     @Test func badArgumentsExit64() async throws {
         let before = try package.xml()

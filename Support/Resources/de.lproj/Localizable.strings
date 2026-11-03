@@ -182,6 +182,7 @@
 "error.paste.convert" = "Dirigible kann nicht aus „%1$@“ einsetzen. Das Audio wurde nicht konvertiert (Fehler %2$lld). Prüfe die Festplatte und versuche es erneut.";
 "error.paste.yielded" = "Das Einsetzen aus „%@“ wurde für einen Take in einem anderen Fenster gestoppt. Setze nach dem Take erneut ein.";
 "error.writer.did.not.stop" = "Dirigible konnte %1$@ nicht stoppen. Das Audio ist sicher auf der Festplatte. Klicke auf „%2$@“, um es erneut zu versuchen, oder beende Dirigible: Beim nächsten Start wird der Take wiederhergestellt.";
+"error.studio.output.term" = "Dirigible konnte die Verzögerung des Ausgabegeräts nicht lesen, daher wurde „Mit Vorlauf aufnehmen“ nicht gestartet. „Aufnehmen“ (⌘R) funktioniert weiterhin.";
 "paste.banner" = "Aus „%@“ wird eingesetzt";
 "paste.done" = "Eingesetzt.";
 "replace.done" = "%@ Sekunden ersetzt";

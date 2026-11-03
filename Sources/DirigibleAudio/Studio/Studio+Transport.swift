@@ -262,7 +262,7 @@ extension Studio {
     /// revision replaces the session of the Player.
     func sendSession() {
         guard let player = play.player else { return }
-        var session = session
+        var session = playerSession
         // An edit during a drag sends the session again: the Player keeps the dragged gain.
         if let preview = play.preview { try? session.setGain(preview.gain, track: preview.track) }
         play.revision += 1
@@ -290,14 +290,18 @@ extension Studio {
         if session.track(preview.track)?.gain != preview.gain { sendSession() }
     }
 
+    /// The Player of the first play, with the seams of `environment`.
+    func makePlayer() -> Player {
+        Player(
+            package: { [lock] in try lock.package() }, output: environment.playerOutput, session: session,
+            start: environment.startEngine, speedUnit: environment.speedUnit, readTerm: environment.outputTerm,
+            hostNanos: environment.hostNanos)
+    }
+
     /// Starts the feed `number`, then takes one reading of the Player as the poll does.
     func startPlay(_ shuttle: Shuttle, from: Frames, number: Int, end: Frames?) async -> TransportOutcome {
         stopEffectPreview()
-        let player =
-            play.player
-            ?? Player(
-                package: { [lock] in try lock.package() }, output: environment.playerOutput, session: session,
-                start: environment.startEngine, speedUnit: environment.speedUnit, readTerm: environment.outputTerm)
+        let player = play.player ?? makePlayer()
         play.player = player
         // Awaited, so a play after a take hears the take (plan gate 2 item 5).
         play.revision += 1

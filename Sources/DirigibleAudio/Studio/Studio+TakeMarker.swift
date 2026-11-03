@@ -20,7 +20,8 @@ extension Studio {
         -> Marker
     {
         guard canAddTakeMarker, let head = liveHead(atHostNanos: time) else { throw .busy }
-        let marker = Marker(id: MarkerID(), name: name, position: head, kind: kind)
+        // In the lead of a pre-roll take the head is before 0 (decision 0070).
+        let marker = Marker(id: MarkerID(), name: name, position: max(.zero, head), kind: kind)
         do throws(SessionError) {
             try recordEdit(agent: nil) { session throws(SessionError) in try session.setMarker(marker) }
         } catch { throw .session(error) }

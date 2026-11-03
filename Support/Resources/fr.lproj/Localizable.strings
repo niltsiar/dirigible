@@ -182,6 +182,7 @@
 "error.paste.convert" = "Dirigible ne peut pas coller depuis « %1$@ ». L’audio n’a pas pu être converti (erreur %2$lld). Vérifiez le disque et réessayez.";
 "error.paste.yielded" = "Le collage depuis « %@ » s’est arrêté à cause d’une prise dans une autre fenêtre. Collez à nouveau après la prise.";
 "error.writer.did.not.stop" = "Dirigible n’a pas pu arrêter %1$@. L’audio est en sécurité sur le disque. Cliquez sur %2$@ pour réessayer, ou quittez Dirigible. Le prochain lancement restaure la prise.";
+"error.studio.output.term" = "Dirigible n’a pas pu lire le délai du périphérique de sortie, donc « Enregistrer avec pré-roll » n’a pas démarré. « Enregistrer » (⌘R) fonctionne toujours.";
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";
 "replace.done" = "%@ secondes remplacées";

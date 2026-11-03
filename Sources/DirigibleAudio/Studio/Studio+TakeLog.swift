@@ -6,12 +6,12 @@ import Foundation
 extension Studio {
     /// `startSteps` between `take start-request` and `take started` with the total ms, or
     /// `take start-failed` with the error case.
-    func beginRecording(armed: [TrackID], playhead: Frames?, length: UInt64? = nil) async throws(StudioError) -> (
-        take: Int, generation: Int
-    ) {
+    func beginRecording(
+        armed: [TrackID], playhead: Frames?, length: UInt64? = nil, preRoll: Int? = nil
+    ) async throws(StudioError) -> (take: Int, generation: Int) {
         let request = environment.log.begin(.take, "start-request", ["armed": .number(Int64(armed.count))])
         do throws(StudioError) {
-            let started = try await startSteps(armed: armed, playhead: playhead, length: length)
+            let started = try await startSteps(armed: armed, playhead: playhead, length: length, preRoll: preRoll)
             request.end("started")
             return started
         } catch {
@@ -123,6 +123,7 @@ extension StudioError {
         case .silencesStale: "silencesStale"
         case .silencesFaults: "silencesFaults"
         case .writerDidNotStop: "writerDidNotStop"
+        case .outputTermUnavailable: "outputTermUnavailable"
         }
     }
 }

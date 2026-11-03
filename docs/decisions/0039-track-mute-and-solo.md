@@ -8,6 +8,7 @@
 - Amended: 2026-10-11, run `2026-10-11-track-fader` (F94). A track gain change of a track in both sessions also crossfades during play. Line 2 of a two-line row shows the volume fader from 252 pt, when the row shows no live state and no quiet text. The line 1 gates do not change.
 - Amended: 2026-10-22, run `2026-10-18-envelope-ducking` (see 0060). The duck detection ignores the mute and solo flags, as Auto Level does: `MixReader` reads a copy of the session with the flags off.
 - Amended: 2026-10-23, run `2026-10-23-read-by-time` (see 0062). `silences` and `nearest_pause` also ignore the mute and solo flags, as the duck: a pause search does not change when the user mutes a voice to listen.
+- Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). Record with Pre-roll plays the take mix during its take: the session with the clips of the armed tracks cleared from T. M, S, the fader, and edits stay off during a take. Command-R plays nothing during its take.
 - Amends: 0003 (version 5 adds mute and solo), 0016 (an update during play crossfades a mute or solo change), 0019 (the track filter of `MixReader`), 0024 (the `session.xml` version table).
 
 ## Context

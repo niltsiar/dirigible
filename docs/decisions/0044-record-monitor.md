@@ -7,6 +7,7 @@
 - Amended: 2026-10-10. Track > Monitor Track has the key Control-Command-M. A text field has no Control-Command-M, so the track name field keeps its keys. Each device track header has a Monitor button with the same state.
 - Amended: 2026-10-11, run ui-polish-header. The full quiet sentence wrapped to 3 to 13 lines in a header row. The row shows "No monitor sound": on line 3 in a row of 80 pt or more, as a speaker symbol in a lower row. The full sentence is the help tag and the VoiceOver label.
 - Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. With `DIRIGIBLE_AUDIO_OUTPUT=none` at launch, a Listener makes no output unit and no HAL call (`ListenOutput.offline`), so the monitor plays no sound.
+- Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). A pre-roll take plays the take mix at 1x during the take, and the record monitor plays with it. Command-R plays nothing during its take.
 - Amends: 0013 (a second owner of an input IOProc), 0015 (the meter request includes the listened tracks), 0039 (playback during a take goes to the pre-roll run, F08, Release 6).
 
 ## Context

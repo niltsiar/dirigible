@@ -182,6 +182,7 @@
 "error.paste.convert" = "O Dirigible não pode colar de “%1$@”. Não foi possível converter o áudio (erro %2$lld). Verifique o disco e tente novamente.";
 "error.paste.yielded" = "A colagem de “%@” foi interrompida por uma tomada em outra janela. Cole novamente depois da tomada.";
 "error.writer.did.not.stop" = "O Dirigible não conseguiu parar %1$@. O áudio está seguro no disco. Clique em %2$@ para tentar novamente ou encerre o Dirigible: a próxima abertura restaura a tomada.";
+"error.studio.output.term" = "O Dirigible não conseguiu ler o atraso do dispositivo de saída, então Gravar com pré-roll não começou. Gravar (⌘R) continua funcionando.";
 "paste.banner" = "Colando de “%@”";
 "paste.done" = "Colado.";
 "replace.done" = "Substituídos %@ segundos";

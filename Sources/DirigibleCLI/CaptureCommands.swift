@@ -151,7 +151,7 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .appSourcesUnavailable,
         .session,
         .segment,
-        .rippleBlocked, .silencesStale:
+        .rippleBlocked, .silencesStale, .outputTermUnavailable:
         editRefused
     case .busy, .locked, .file, .finalize, .export, .exportYielded, .exportParts, .audioImport, .importYielded, .paste,
         .pasteYielded,

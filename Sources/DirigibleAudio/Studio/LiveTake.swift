@@ -130,7 +130,8 @@ func checkRoutes(_ session: Session, armed: [TrackID], devices: [InputDevice]) t
 /// Capture/`, then save `session.xml` with `<recording>`. It resolves the package path once
 /// (decision 0014). A throw leaves `session.xml` unchanged. Off the main actor.
 func saveTakeStart(
-    _ session: Session, lock: PackageLock, routes: [ArmedRoute], playhead: Frames, hostTimeNanos: UInt64
+    _ session: Session, lock: PackageLock, routes: [ArmedRoute], playhead: Frames, hostTimeNanos: UInt64,
+    preRoll: Bool = false
 ) throws(StudioError) -> StartedTake {
     dispatchPrecondition(condition: .notOnQueue(.main))
     let package: URL
@@ -141,7 +142,7 @@ func saveTakeStart(
         try started.setRecording(
             Recording(
                 take: take, playheadFrame: playhead, takeStartHostTimeNanos: hostTimeNanos,
-                armedTracks: routes.map(\.track)))
+                armedTracks: routes.map(\.track), isPreRoll: preRoll))
     } catch {
         throw .session(error)
     }
@@ -210,15 +211,22 @@ func appUID(_ bundleID: String) -> String { "app:\(bundleID)" }
 /// The channels of an app route in the tap mixdown: the track layout (decision 0029).
 func appChannels(_ layout: ChannelLayout) -> Route.Channels { layout == .mono ? .mono(1) : .stereo(1, 2) }
 
+/// The step of a take start that gives the take start host time: the pre-roll (decision 0070).
+/// It returns a `Result`: a typed-throws function type needs the runtime of macOS 15.
+typealias TakeAnchorStep = @MainActor @Sendable () async -> Result<UInt64, StudioError>
+
 /// Steps 2 to 5 of the start order of decision 0013, off the main actor: `checkTake`, the disk
-/// check, and the save. Then the list entry, before the attach (decision 0004). `endExport` runs
+/// check, and the save. Then the list entry, before the attach (decision 0004). `anchor`, the
+/// pre-roll step, runs after the disk check and gives the take start host time of the save
+/// (decision 0070); with none, it is the time of the save. `endExport` runs
 /// after the checks and before the disk check (decision 0019), so a refused start keeps the
 /// export and the disk check sees the space that the export frees. It is nil when no export
 /// runs, so the start makes no main-actor turn between its checks and its save. It also returns
 /// the free bytes of the disk check.
 @concurrent nonisolated func prepareTake(
     of session: Session, lock: PackageLock, armed: [TrackID], playhead: Frames, environment: CaptureEnvironment,
-    recordings: ActiveRecordings?, endExport: (@MainActor @Sendable () async -> Void)?
+    recordings: ActiveRecordings?, endExport: (@MainActor @Sendable () async -> Void)?,
+    anchor: TakeAnchorStep? = nil
 ) async throws(StudioError) -> (started: StartedTake, free: Int64) {
     dispatchPrecondition(condition: .notOnQueue(.main))
     await environment.beforeLookUp(#isolation)
@@ -228,11 +236,12 @@ func appChannels(_ layout: ChannelLayout) -> Route.Channels { layout == .mono ? 
     let free = environment.freeBytes(lock)
     disk.end("free", ["bytes": .number(free)])
     guard free >= diskMargin else { throw .diskLow }
+    let heard = try await anchor?().get()
     let save = environment.log.begin(.session, "save-begin")
     await environment.beforeTakeSave()
     let started = try saveTakeStart(
         session, lock: lock, routes: routes, playhead: playhead,
-        hostTimeNanos: hostNanosNow())
+        hostTimeNanos: heard ?? hostNanosNow(), preRoll: heard != nil)
     save.end("save", ["take": .number(Int64(started.take))])
     recordings?.set(started.package, active: true)
     return (started, free)

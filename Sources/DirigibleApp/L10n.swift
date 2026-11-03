@@ -604,6 +604,7 @@ enum L10n: String, CaseIterable {
     case errorPasteConvert = "error.paste.convert"
     case errorPasteYielded = "error.paste.yielded"
     case errorWriterDidNotStop = "error.writer.did.not.stop"
+    case errorOutputTermUnavailable = "error.studio.output.term"
     case pasteBanner = "paste.banner"
     case pasteDone = "paste.done"
     case replaceDone = "replace.done"

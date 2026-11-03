@@ -131,7 +131,6 @@ struct SegmentFinalize {
                 AudioFile(
                     id: FileID(id), path: "\(id).wav", layout: ChannelLayout(channelCount: header.channelCount)!,
                     length: Frames(length), capture: CaptureID(id)))
-            // A segment with no frame after the floor is a pool file with no clip.
             if length > offset {
                 try copy.place(
                     Clip(

@@ -27,6 +27,13 @@ extension StudioPreRollTests {
         return rows.first { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-fault" }.map(fieldValues)
     }
 
+    /// The `stop` field of each `take pre-roll-stop` line of the journal.
+    func stopLines(in logs: URL) throws -> [String?] {
+        try journalLines(of: try #require(journalFiles(in: logs).first))
+            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
+            .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-stop" }.map { fieldValues($0)["stop"] }
+    }
+
     /// A check refusal comes before the take play: the Player keeps its last plain play.
     @Test(arguments: Refusal.allCases)
     func refusalPlaysNothing(refusal: Refusal) async throws {
@@ -120,10 +127,26 @@ extension StudioPreRollTests {
 
         try await expectRefusedAfterThePlay(studio, "first refill stop")
         studio.log.drain()
-        let stops = try journalLines(of: try #require(journalFiles(in: logs).first))
-            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
-            .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-stop" }.map(fieldValues)
-        #expect(stops.map { $0["stop"] } == ["noFreeDescriptor(24)"])
+        #expect(try stopLines(in: logs) == ["noFreeDescriptor(24)"])
+    }
+
+    /// A refused start whose take play never started (the engine start fails, so the Player has
+    /// no real start): the start still ends the take play, so no take mix stays for the next play,
+    /// and the journal has the stop.
+    @Test func refusedStartWithNoRealStartEndsTheTakePlay() async throws {
+        let logs = package.folder.url.appending(path: "logs")
+        let studio = try await studio()
+        studio.environment.log = startLog(in: logs)
+        studio.environment.startEngine = { _ in throw NSError(domain: NSOSStatusErrorDomain, code: -10_851) }
+
+        await #expect(throws: StudioError.outputTermUnavailable) {
+            try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        }
+
+        #expect(try await reading(studio).realStart == nil)
+        #expect(studio.play.takeMix == nil)
+        studio.log.drain()
+        #expect(try stopLines(in: logs) == ["outputUnavailable(-10851)"])
     }
 
     /// The `start:` closure of the Player throws: the term fault of `Reading` refuses the take.

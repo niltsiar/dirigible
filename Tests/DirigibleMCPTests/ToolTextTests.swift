@@ -176,4 +176,24 @@ struct ToolTextTests {
         #expect(
             play.contains("After the play, the playhead stays where the play stopped, and the next take starts there."))
     }
+
+    /// 0053: `clip_replace` and `clip_fill` name `at` and `until` as the edges of the target range,
+    /// and `clip_fill` names the clip limit of `Session.fillClipLimit`. `clip_paste` keeps "The
+    /// timeline frame.".
+    @Test(arguments: ["clip_replace", "clip_fill"])
+    func theRangePasteToolsNameTheTargetRange(name: String) throws {
+        func properties(_ name: String) throws -> [String: [String: Any]] {
+            let tool = try #require(Tool.all.first { $0.name == name })
+            return try #require(tool.inputSchema["properties"] as? [String: [String: Any]])
+        }
+        let target = try properties(name)
+
+        #expect(target["at"]?["description"] as? String == "The first frame of the target range.")
+        #expect(target["until"]?["description"] as? String == "The frame after the last frame of the target range.")
+        #expect(try properties("clip_paste")["at"]?["description"] as? String == "The timeline frame.")
+        let description = try #require(Tool.all.first { $0.name == name }).description
+        #expect(
+            name == "clip_replace" || description.contains("More than \(Session.fillClipLimit) new clips are refused."),
+            "\(description)")
+    }
 }

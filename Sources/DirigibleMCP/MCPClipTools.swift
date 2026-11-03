@@ -16,6 +16,7 @@ private let rightID = Param<String?>.optional(
     "right_id", "The ID of the right part. The default is <clip>@<frame>.", .string)
 private let onto = Param.defaulted(
     "onto", "A target track for each source track, in order. The default is the source tracks.", .strings(), [String]())
+private let targetAt = Param.required("at", "The first frame of the target range.", .integer())
 private let until = Param.required("until", "The frame after the last frame of the target range.", .integer())
 private let source = Param<String?>.optional(
     "source",
@@ -90,7 +91,7 @@ extension Arguments {
     /// `until` with `mode`, in one edit, or the paste of `source`.
     fileprivate func rangePaste(_ mode: (Range<Frames>) -> PasteMode) throws(ToolError) -> ToolWork {
         let (range, sources) = (try self.range(), try self[tracks])
-        guard let target = EditRules.targetRange(at: try self[at], until: try self[until]) else {
+        guard let target = EditRules.targetRange(at: try self[targetAt], until: try self[until]) else {
             throw ToolError("at must be less than until.")
         }
         guard let targets = EditRules.pasteTargets(sources: sources, onto: try self[onto]) else {
@@ -213,14 +214,14 @@ let clipTools = [
         "Copy a range of tracks and replace the range at to until with it. The range goes on every track, and the "
             + "later audio on every track moves by the copy length minus the range length. at must be less than "
             + "until, else the call is refused. Give the pasted IDs." + sourceNote,
-        [Arg.from, Arg.to, tracks, at, until, onto, source], batch: .step
+        [Arg.from, Arg.to, tracks, targetAt, until, onto, source], batch: .step
     ) { a throws(ToolError) in try a.rangePaste { .replace($0) } },
     Tool(
         "clip_fill",
         "Copy a range of tracks and paste it again and again from at, with butt joins, and cut the last copy at "
-            + "until. Nothing moves. at must be less than until, else the call is refused. More than 1000 new clips "
-            + "are refused. Give the pasted IDs." + sourceNote,
-        [Arg.from, Arg.to, tracks, at, until, onto, source], batch: .step
+            + "until. Nothing moves. at must be less than until, else the call is refused. More than "
+            + "\(Session.fillClipLimit) new clips are refused. Give the pasted IDs." + sourceNote,
+        [Arg.from, Arg.to, tracks, targetAt, until, onto, source], batch: .step
     ) { a throws(ToolError) in try a.rangePaste { .fill($0) } },
     Tool(
         "clip_nudge", "Move clips by a number of frames and tracks. They overwrite the clips under them.",

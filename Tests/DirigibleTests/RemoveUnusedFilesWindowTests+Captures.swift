@@ -73,7 +73,7 @@ extension RemoveUnusedFilesWindowTests {
         await model.close()
     }
 
-    /// A capture file that does not move is in the failed banner, and it stays in `Capture/`.
+    /// A CAF that does not move is in the failed banner, and it stays in `Capture/` with its sidecar.
     @Test func failedCaptureMoveIsNamed() async throws {
         let (model, studio, window, stem) = try await windowWithSegment()
         let sheet = try await sheet(model, window)
@@ -87,10 +87,11 @@ extension RemoveUnusedFilesWindowTests {
         await until(limit: .seconds(10), "the prune ends") { model.pruneReport != nil }
         let report = try #require(model.pruneReport?.report)
         defer { for moved in report.moved { try? FileManager.default.removeItem(at: moved.trashURL) } }
-        let failed = ["Capture/\(stem).caf", "Capture/\(stem).sidecar"]
+        let failed = ["Capture/\(stem).caf"]
         #expect(report.failed.map(\.item.path) == failed)
         await until("the banner shows") { model.shown.banners.contains(.unusedFilesFailed(failed)) }
         #expect(FileManager.default.fileExists(atPath: capture.appending(path: "\(stem).caf").path))
+        #expect(FileManager.default.fileExists(atPath: capture.appending(path: "\(stem).sidecar").path))
         await model.close()
     }
 }

@@ -41,15 +41,19 @@ fi
 # data. A body is data when the first line is `cat` or `tee` with a redirect or a file argument to a
 # plain file, and only the marker (or the marker and one `> file`) ends that line. In mode all, the
 # body of python3, node, perl, or ruby with no -c or -e goes too: only the lock-value rule and the
-# log-decision rule skip it, because an interpreter runs its body. One `cd <word> &&` before the
-# first word is not part of that line. A body stays when the end line is missing or not exact, when
-# the first line has a second marker, a here-string, a pipe, or another list, and when an unquoted
-# marker has `$(` or a backtick in the body (the shell runs them). After a line that it can not
-# read, it cuts no more.
+# log-decision rule skip it, because an interpreter runs its body. A prefix before the first word
+# is not part of that line: segments that each end with `;` or `&&` and hold `NAME=<word>`
+# assignments with no name PATH (a PATH value can make `cat` a stub), `cd <word>`, or
+# `mkdir -p <word>...`. A body stays when the end line is missing or not exact, when the first line
+# has a second marker, a here-string, a pipe, or another list, and when an unquoted marker has `$(`
+# or a backtick in the body (the shell runs them). After a line that it can not read, it cuts no
+# more.
 cut_bodies() {
   local mode="$1" line head tail marker dash quoted body i j k n ones kind has_arg name w out="" cut
-  local bt='`' lines=() ws=()
+  local bt='`' lines=() ws=() rest
   local word="[^[:space:];&|<>()${bt}]+"
+  local assign="[A-Za-z_][A-Za-z0-9_]*=$word"
+  local prefix_re="^[[:space:]]*(($assign[[:space:]]+)*$assign|cd[[:space:]]+[^[:space:];&|<>]+|mkdir[[:space:]]+-p([[:space:]]+$word)+)[[:space:]]*(;|&&)(.*)$"
   local start_re='^(.*[^<])?<<(-?)[[:space:]]*(\\?[A-Za-z0-9_.-]+|'"'"'[A-Za-z0-9_.-]+'"'"'|"[A-Za-z0-9_.-]+")(.*)$'
   local sink_re="^[[:space:]]*(cat|tee)(([[:space:]]+$word)|([[:space:]]*>>?[[:space:]]*$word))*[[:space:]]*\$"
   local tail_re="^[[:space:]]*(>>?[[:space:]]*$word)?[[:space:]]*\$"
@@ -87,7 +91,11 @@ cut_bodies() {
       break
     fi
     kind=none
-    [[ "$head" =~ ^[[:space:]]*cd[[:space:]]+[^[:space:]\;\&\|\<\>]+[[:space:]]*\&\&(.*)$ ]] && head="${BASH_REMATCH[1]}"
+    while [[ "$head" =~ $prefix_re ]]; do
+      rest="${BASH_REMATCH[5]}"
+      [[ "${BASH_REMATCH[1]}" =~ (^|[[:space:]])PATH= ]] && break
+      head="$rest"
+    done
     if [[ "$head" =~ $sink_re ]]; then
       name="${BASH_REMATCH[1]}"
     else

@@ -758,14 +758,32 @@ expect block "python3 -c 'import os; os.rmdir(\".git/dirigible-build.lock\")'"
 expect block "node -e 'require(\"fs\").rmdirSync(\".git/dirigible-build.lock\")'"
 expect block "perl -e 'rmdir \".git/dirigible-build.lock\"'"
 expect block "ruby -e 'Dir.rmdir(\".git/dirigible-build.lock\")'"
-# After one `cd <word> &&`, a cat, tee, or python3 - body is data as without the prefix. A ; join,
-# a bash body, an unquoted marker with $( in the body, and a python3 body that pushes main block.
+# After a prefix, a cat, tee, or python3 - body is data as without the prefix. The prefix is a run
+# of segments, each ended by ; or &&: NAME=<word> assignments with no name PATH, cd <word>, or
+# mkdir -p <word>.... A PATH assignment, export, mkdir with no -p, another command, a bash body, an
+# unquoted marker with $( in the body, and a python3 body that pushes main block.
 expect allow $'cd /x && cat > f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
 expect allow $'cd /x && tee f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
 expect allow $'cd /x && cat > f.txt <<\'EOF\'\ngit push origin main\nEOF'
 expect allow $'cd /x && python3 - <<\'EOF\'\ns = \'DIRIGIBLE_LOCKED_SCRIPT="$0" exec\'\nEOF'
+expect allow $'cd /x; cat > f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
+expect allow $'L=x; python3 - <<\'EOF\'\ns = \'DIRIGIBLE_LOCKED_SCRIPT="$0" exec\'\nEOF'
+expect allow $'L=x; cat > f.txt <<\'EOF\'\ngit push origin main\nEOF'
+co=$'\ngit checkout .\nEOF'
+for run in "L=x; cat > row-s1.txt <<'EOF'" "L=x && cat > row-s1.txt <<'EOF'" "mkdir -p rows && tee rows/a.txt <<'EOF'" \
+  "mkdir -p a b && cd a && L=x; tee f.txt <<'EOF'" "L=x; cd \$(pwd)/a && cat > f.txt <<'EOF'" \
+  "cd \$(pwd) && cat > f.txt <<'EOF'" "MYPATH=1; cat > f.txt <<'EOF'"; do
+  expect allow "$run$co"
+done
+for run in "L=x; bash <<'EOF'" "PATH=stub:\$PATH; cat > f.txt <<'EOF'" "L=x PATH=stub:\$PATH; cat > f.txt <<'EOF'" \
+  "L=x; PATH=stub; cat > f.txt <<'EOF'" "export L=x; cat > f.txt <<'EOF'" "mkdir stub; cat > stub/f.txt <<'EOF'" \
+  "rm -rf x; cat > f.txt <<'EOF'"; do
+  expect_message "matches 'git (checkout|restore)" "$run$co"
+done
+expect_message "matches 'git (checkout|restore)" $'git checkout .; cat > f.txt <<\'EOF\'\nx\nEOF'
+expect_message 'runs a repo hook test outside the key tree' $'L=x; cat > f.txt <<EOF\n$(bash scripts/land.test.sh)\nEOF'
+expect_message "matches 'git push .*" $'L=x; python3 - <<\'EOF\'\nimport os; os.system(\'git push origin main\')\nEOF'
 expect block $'cd /x && bash <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
-expect block $'cd /x; cat > f.txt <<\'EOF\'\nDIRIGIBLE_LOCKED_SCRIPT="$0" exec\nEOF'
 expect block $'cd /x && cat > f.txt <<EOF\nDIRIGIBLE_LOCKED_SCRIPT=$(date) exec\nEOF'
 expect block $'cd /x && python3 - <<\'EOF\'\nimport os; os.system(\'git push origin main\')\nEOF'
 
@@ -1447,6 +1465,13 @@ expect_each_lock agree "export BASE=origin/main; $lw" "export MAKEFLAGS=BASE=ori
   'export DIRIGIBLE_HOOKS_ALL=1; scripts/with-lock.sh make test-hooks' 'export DIRIGIBLE_HOOKS_ALL=0; scripts/with-lock.sh make test-hooks' \
   "export BASE=origin/main; export BASE=; $lw" "export -n BASE=origin/main; $lw"
 expect_each_lock allow "BASE=origin/main; $lw"
+# After a prefix of assignments, cd, and mkdir -p, a cat body that runs a repo .test.sh file is data. A python3 or
+# bash body after the same prefix runs it, so it blocks.
+expect allow "S=x; mkdir -p stubbin; cat > stubbin/make <<'EOF'"$'\n'"bash $T"$'\nEOF'
+expect allow "cd logs && mkdir -p fix4-stub && cat > fix4-stub/make <<'EOF'"$'\n'"bash $T"$'\nEOF'
+for run in "L=x; python3 - <<'EOF'" "L=x; bash <<'EOF'"; do
+  expect_message 'runs a repo hook test outside the key tree' "$run"$'\n'"bash $T"$'\nEOF'
+done
 # A hook copy with no scripts/lock-words.sh above it blocks a with-lock.sh make test-hooks segment, names the file, and
 # still allows a command that is no such segment.
 mkdir -p "$tmp/nolw/.claude/hooks"

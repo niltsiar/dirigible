@@ -3,8 +3,8 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The `preRoll` mark of a `<recording>` (decision 0024 P6 and P7): version 15 while a pre-roll
-/// take is in the session, and the version of before after it.
+/// The `preRoll` mark of a `<recording>` (decision 0024 P6 and P7): `preRollSessionVersion` while a
+/// pre-roll take is in the session, and the version of before after it.
 struct SessionVersionTests {
     let files = SessionFileTests()
 
@@ -20,7 +20,8 @@ struct SessionVersionTests {
 
     func text(_ session: Session) throws -> String { String(decoding: try session.checkedData(), as: UTF8.self) }
 
-    /// P31: a pre-roll `<recording>` gives 15, also when a repair effect in a file origin gives 14.
+    /// P31: a pre-roll `<recording>` gives `preRollSessionVersion`, also when a repair effect in a
+    /// file origin gives 14.
     @Test func preRollRecordingRaisesTheVersion() throws {
         let repaired = try files.renderedBeforeSource(try files.allRepairs())
         #expect(repaired.fileVersion == 14)
@@ -29,8 +30,9 @@ struct SessionVersionTests {
             let session = try withTake(base, preRoll: true)
             let text = try text(session)
 
-            #expect(session.fileVersion == 15)
-            #expect(text.contains(#"version="15""#) && text.contains(#"preRoll="true""#), "\(text)")
+            #expect(session.fileVersion == preRollSessionVersion)
+            #expect(
+                text.contains(#"version="\#(preRollSessionVersion)""#) && text.contains(#"preRoll="true""#), "\(text)")
         }
     }
 
@@ -40,7 +42,7 @@ struct SessionVersionTests {
         let repaired = try files.renderedBeforeSource(try files.allRepairs())
         for (base, before) in [(Session(sampleRate: 48_000), 1), (repaired, 14)] {
             var session = try withTake(base, preRoll: true)
-            #expect(session.fileVersion == 15)
+            #expect(session.fileVersion == preRollSessionVersion)
 
             try session.setRecording(nil)
             let plain = try withTake(base, preRoll: false)
@@ -53,11 +55,13 @@ struct SessionVersionTests {
         }
     }
 
-    /// P31: a file of version 14 with `preRoll="true"` is refused, and the same file at 15 reads.
+    /// P31: a file one version below `preRollSessionVersion` with `preRoll="true"` is refused, and the
+    /// same file at that version reads.
     @Test func preRollBelowItsVersionIsRefused() throws {
         let session = try withTake(Session(sampleRate: 48_000), preRoll: true)
         let text = try text(session)
-        let older = text.replacingOccurrences(of: #"version="15""#, with: #"version="14""#)
+        let older = text.replacingOccurrences(
+            of: #"version="\#(preRollSessionVersion)""#, with: #"version="\#(preRollSessionVersion - 1)""#)
         #expect(older != text)
 
         #expect(throws: SessionFileError.invalidValue(element: "recording", attribute: "preRoll")) {

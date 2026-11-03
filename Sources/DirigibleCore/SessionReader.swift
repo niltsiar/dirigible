@@ -254,12 +254,12 @@ extension Transcript {
 }
 
 extension Recording {
-    /// `preRoll` is `true` from version 15 on, else absent.
+    /// `preRoll` is `true` from `preRollSessionVersion` on, else absent.
     fileprivate init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         var armed: [TrackID] = []
         for arm in node.sessionElements("arm") { armed.append(TrackID(try arm.string("track"))) }
         let preRoll = node.optionalString("preRoll")
-        guard preRoll == nil || (version >= 15 && preRoll == "true") else {
+        guard preRoll == nil || (version >= preRollSessionVersion && preRoll == "true") else {
             throw .invalidValue(element: "recording", attribute: "preRoll")
         }
         self.init(

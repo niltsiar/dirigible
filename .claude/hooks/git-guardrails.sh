@@ -859,8 +859,9 @@ if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   done <<< "$test_segments"
 fi
 
-# A subagent never runs a lock wait with no limit: after a second exit 75 it returns to the lead,
-# which runs the wait in the background (AGENTS.md, Commands). The input of a subagent holds
+# A subagent never runs a lock wait with no limit: after a second exit 75 it writes the remaining
+# locked steps as one bash file and returns its path to the lead, which runs the file in the
+# background (AGENTS.md, Commands). The input of a subagent holds
 # agent_id; the input of the lead does not. The wait has no limit with WITH_LOCK_MAX_WAIT set to
 # zeros, with a with-lock.sh call of land.sh, make dmg, or make check-changed with BASE (a word,
 # or a BASE= word before it), and with mutation-pass.sh (it wraps itself). Each segment of the
@@ -872,7 +873,7 @@ if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.s
   agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
 fi
 if [[ -n "$agent" ]]; then
-  agent_way="After a second exit 75, return to the lead: the lead runs the unlimited wait in the background."
+  agent_way="After a second exit 75, write the remaining locked steps as one bash file in the run folder, then return to the lead with its path: the lead runs it in the background with no wait limit."
   shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
   agent_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |$shell_c|bash |[^[:space:]]*with-lock\.sh )*"
   agent_start="(^|[;|&(]|"$'\n'") ?$agent_pre"

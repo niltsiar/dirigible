@@ -558,6 +558,7 @@
 "sheet.unused.reason.pool" = "No clip uses it";
 "sheet.unused.reason.stray" = "Not in the session";
 "sheet.unused.reason.transcript" = "No transcript uses it";
+"sheet.unused.reason.capture" = "Take of an unused file";
 "sheet.unused.total" = "Files: %lld (%@)";
 "sheet.unused.kept" = "Kept for a backup, Undo, or the clipboard: %lld (%@)";
 "sheet.unused.damaged" = "Damaged backups keep no file: %@";

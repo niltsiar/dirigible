@@ -558,6 +558,7 @@
 "sheet.unused.reason.pool" = "Aucun clip ne l’utilise";
 "sheet.unused.reason.stray" = "Absent de la session";
 "sheet.unused.reason.transcript" = "Aucune transcription ne l’utilise";
+"sheet.unused.reason.capture" = "Prise d’un fichier inutilisé";
 "sheet.unused.total" = "Fichiers : %lld (%@)";
 "sheet.unused.kept" = "Conservés pour une copie de secours, l’historique d’annulation ou le presse-papiers : %lld (%@)";
 "sheet.unused.damaged" = "Les copies de secours endommagées ne conservent aucun fichier : %@";

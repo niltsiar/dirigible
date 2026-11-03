@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import Foundation
 
@@ -25,6 +26,7 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
         let scan: UnusedFiles
         do throws(UnusedFilesError) {
             scan = try UnusedFiles(scanning: session, keptBy: [], in: package)
+                .listingCaptureFiles(captureFilePaths, in: package)
         } catch {
             throw .body(error)
         }

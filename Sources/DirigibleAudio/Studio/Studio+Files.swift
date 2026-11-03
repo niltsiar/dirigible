@@ -51,6 +51,15 @@ extension Studio {
             switch done.result {
             case .success(let report):
                 poolChanged(from: before.files)
+                // A segment whose CAF went is no take audio, so it is not unplaced.
+                let gone = Set(
+                    report.moved.compactMap { moved -> SegmentName? in
+                        guard case .capture(let capture) = moved.item.kind, moved.item.path.hasSuffix(".caf") else {
+                            return nil
+                        }
+                        return SegmentName(stem: capture.rawValue)
+                    })
+                segmentsWithAudio.removeAll(where: gone.contains)
                 return .success(report)
             case .failure(let error):
                 // The next save or `settle()` writes the session in memory again.
@@ -97,7 +106,8 @@ extension Studio {
     do throws(SessionFileError) {
         let package = try lock.package()
         do throws(UnusedFilesError) {
-            return .success(try UnusedFiles(scanning: session, keptBy: entries, keptFiles: keptFiles, in: package))
+            let scan = try UnusedFiles(scanning: session, keptBy: entries, keptFiles: keptFiles, in: package)
+            return .success(scan.listingCaptureFiles(captureFilePaths, in: package))
         } catch {
             return .failure(.unusedFiles(error))
         }

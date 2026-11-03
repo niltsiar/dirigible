@@ -245,6 +245,7 @@ enum L10n: String, CaseIterable {
     case sheetUnusedReasonPool = "sheet.unused.reason.pool"
     case sheetUnusedReasonStray = "sheet.unused.reason.stray"
     case sheetUnusedReasonTranscript = "sheet.unused.reason.transcript"
+    case sheetUnusedReasonCapture = "sheet.unused.reason.capture"
     case sheetUnusedTotal = "sheet.unused.total"
     case sheetUnusedKept = "sheet.unused.kept"
     case sheetUnusedDamaged = "sheet.unused.damaged"

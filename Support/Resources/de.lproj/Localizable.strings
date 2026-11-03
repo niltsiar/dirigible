@@ -558,6 +558,7 @@
 "sheet.unused.reason.pool" = "Kein Clip verwendet sie";
 "sheet.unused.reason.stray" = "Nicht in der Session";
 "sheet.unused.reason.transcript" = "Kein Transkript verwendet sie";
+"sheet.unused.reason.capture" = "Take einer ungenutzten Datei";
 "sheet.unused.total" = "Dateien: %lld (%@)";
 "sheet.unused.kept" = "Für ein Backup, „Widerrufen“ oder die Zwischenablage behalten: %lld (%@)";
 "sheet.unused.damaged" = "Beschädigte Backups behalten keine Datei: %@";

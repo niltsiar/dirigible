@@ -507,7 +507,7 @@ grep -q 'consolidation due: the workflow docs have 10301 words' "$tmp/err" || fa
 # docs/workflow/dependency-check.md is 30 or more calendar days old, or when no such line is a real
 # date. A date after today and no doc print nothing. Each call exits 0 and prints the run folder.
 dep_doc="$repo/docs/workflow/dependency-check.md"
-dep_run='; run the check of docs/workflow/dependency-check.md in one lock-free agent before the next product item'
+dep_run='; add one dependency check item with status next unless the next list has one (docs/workflow/dependency-check.md)'
 dep_case() {
   local out
   out="$(cd "$repo" && "$new_run" "$1" feat 2> "$tmp/err")" || fail "new-run $1 exits $?"

@@ -115,7 +115,7 @@ func placeSegment(
 /// The format version of the sidecar of `segment` when a newer build of Dirigible wrote it
 /// (decision 0024), else nil. The `take finalize` warning gives it.
 public func newerSidecarVersion(of segment: SegmentName, in package: URL) -> Int? {
-    guard let data = try? readPackageFile("\(captureFolderName)/\(segment.stem).sidecar", in: package) else {
+    guard let data = try? readPackageFile("\(captureFolderName)/\(segment.sidecarName)", in: package) else {
         return nil
     }
     do {
@@ -138,7 +138,7 @@ func segmentsWithAudio(in package: URL) -> [SegmentName] { scanSegments(in: pack
 func scanSegments(in package: URL) -> (withAudio: [SegmentName], notAudio: Set<SegmentName>) {
     var notAudio: Set<SegmentName> = []
     let withAudio = ((try? captureSegments(in: package)) ?? []).filter { name in
-        let url = package.appending(path: "\(captureFolderName)/\(name.stem).caf")
+        let url = package.appending(path: "\(captureFolderName)/\(name.cafName)")
         do {
             return try AVAudioFile(forReading: url).length > 0
         } catch {

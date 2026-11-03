@@ -194,15 +194,15 @@ extension ChaptersFileError {
 extension SegmentFault {
     /// No `default` case: a new fault does not compile until it has a message.
     package func message(segment: SegmentName) -> String {
-        let capture = "\(captureFolderName)/\(segment.stem)"
+        let (caf, sidecar) = ("\(captureFolderName)/\(segment.cafName)", "\(captureFolderName)/\(segment.sidecarName)")
         return switch self {
         case .notUnplaced:
             "\(segment) is on the timeline, is in a pending take, or has no audio in \(captureFolderName)/."
-        case .noSidecar: "\(capture).sidecar is missing or damaged, so the timing of \(segment) is not known."
+        case .noSidecar: "\(sidecar) is missing or damaged, so the timing of \(segment) is not known."
         case .newerSidecar(let version):
-            "\(capture).sidecar was made by a newer version of Dirigible (version \(version)), so this build cannot "
+            "\(sidecar) was made by a newer version of Dirigible (version \(version)), so this build cannot "
                 + "place \(segment)."
-        case .badAudio: "\(capture).caf is not audio that Dirigible can convert."
+        case .badAudio: "\(caf) is not audio that Dirigible can convert."
         case .noAlignment: "no take anchor gives the track and the start of \(segment). Give --track and --at."
         case .newerAnchor(let version):
             "\(captureFolderName)/take\(segment.take).anchor was made by a newer version of Dirigible (version "

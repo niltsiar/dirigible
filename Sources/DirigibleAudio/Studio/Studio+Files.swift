@@ -106,8 +106,8 @@ extension Studio {
     do throws(SessionFileError) {
         let package = try lock.package()
         do throws(UnusedFilesError) {
-            let scan = try UnusedFiles(scanning: session, keptBy: entries, keptFiles: keptFiles, in: package)
-            return .success(scan.listingCaptureFiles(captureFilePaths, in: package))
+            return .success(
+                try UnusedFiles(scanningWithCaptures: session, keptBy: entries, keptFiles: keptFiles, in: package))
         } catch {
             return .failure(.unusedFiles(error))
         }

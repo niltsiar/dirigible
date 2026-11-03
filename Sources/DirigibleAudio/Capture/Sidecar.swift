@@ -42,6 +42,9 @@ public struct SegmentName: Hashable, Comparable, Sendable, CustomStringConvertib
 
     public var stem: String { "take\(take)-\(arm)-\(segment)" }
     public var description: String { stem }
+    /// The capture files of the segment in `Capture/` (decision 0004).
+    package var cafName: String { "\(stem).caf" }
+    package var sidecarName: String { "\(stem).sidecar" }
 
     /// 1 plus the highest take number in the file names of `Capture/` and `Clips/`, the capture,
     /// file, and clip IDs of the session, and the pending take. So a take number is never reused,

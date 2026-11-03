@@ -770,7 +770,7 @@ unmask_lock_quotes() {
 }
 make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
-lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>', which takes no lock (the header of scripts/with-lock.sh)."
+lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>', which takes no lock but waits while a long holder holds it (the header of scripts/with-lock.sh)."
 if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   test_segments="$(mask_quoted_data <<< "$chained")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do test_segments="${test_segments//"$sep"/$'\n'}"; done

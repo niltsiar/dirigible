@@ -163,7 +163,7 @@ fi
 # With no doc, no check is due. Noon anchors keep the day count whole across a DST change.
 dep_doc="$top/docs/workflow/dependency-check.md"
 if [[ -f "$dep_doc" ]]; then
-    dep_run="run the check of docs/workflow/dependency-check.md in one lock-free agent before the next product item"
+    dep_run="add one dependency check item with status next unless the next list has one (docs/workflow/dependency-check.md)"
     last="$(sed -n 's/^Last check: //p' "$dep_doc" | head -n 1)"
     if [[ "$last" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && "$(date -j -f %F "$last" +%F 2>/dev/null)" == "$last" ]]; then
         noon() { date -j -f '%F %T' "$1 12:00:00" +%s; }

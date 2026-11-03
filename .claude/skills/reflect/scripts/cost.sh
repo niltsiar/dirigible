@@ -39,8 +39,9 @@
 #   window (the earlier of the open time and the window start, to the window end; the agent that
 #   opens a run starts before its first row):
 #   one line with its tool calls, wall minutes, error results (at most 5 commands, 80 characters
-#   each), the commands that ran more than once (the 3 most), and its gaps over 5 min. The other
-#   files are unattributed.
+#   each), the commands that ran more than once (the 3 most), and its gaps over 5 min. Each tool_use
+#   id counts once, and an error counts once for each tool_use_id. A command is the Bash command,
+#   or else the tool name and its file_path. The other files are unattributed.
 # - lock: the minutes of wait and of hold in the lock logs (dirigible-build-waits.log and
 #   dirigible-build-holds.log of the git common dir of each tree) for the lines that start in the
 #   window. The trees are the worktree of each `- Branch:` line of run.md (the first word of the
@@ -204,10 +205,10 @@ else
             attributed+=("$f")
             jq -r -s --arg file "$(basename "$f" .jsonl)" '
                 ([.[] | select(.timestamp) | .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601] | sort) as $t
-                | [.[] | .message.content[]? | objects | select(.type == "tool_use")
-                    | {id, c: ((.input.command // .name) | tostring | gsub("\n"; " ") | .[0:80])}] as $uses
+                | ([.[] | .message.content[]? | objects | select(.type == "tool_use")
+                    | {id, c: ((.input.command // ([.name, .input.file_path // empty] | join(" "))) | tostring | gsub("\n"; " ") | .[0:80])}] | unique_by(.id)) as $uses
                 | ($uses | map({(.id): .c}) | add // {}) as $by
-                | [.[] | .message.content[]? | objects | select(.type == "tool_result" and .is_error == true) | $by[.tool_use_id] // "?"] as $errs
+                | ([.[] | .message.content[]? | objects | select(.type == "tool_result" and .is_error == true)] | unique_by(.tool_use_id) | map($by[.tool_use_id] // "?")) as $errs
                 | ([$uses | group_by(.c)[] | select(length > 1) | {c: .[0].c, n: length}] | sort_by(-.n) | .[0:3]) as $rep
                 | [range(1; $t | length) as $i | $t[$i] - $t[$i - 1] | select(. > 300)] as $gaps
                 | "subagent: \($file): \($uses | length) tool calls, \((($t[-1] // 0) - ($t[0] // 0)) / 60 | floor) min, \($errs | length) errors"

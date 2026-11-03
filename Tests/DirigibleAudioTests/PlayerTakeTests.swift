@@ -66,18 +66,18 @@ struct PlayerTakeTests {
             })
     }
 
-    func take(floor: UInt64, span: Frames) -> Player.Command {
-        .play(from: 2400, shuttle: forward, take: Player.TakeStart(floor: floor, span: span))
+    func take(span: Frames) -> Player.Command {
+        .play(from: 2400, shuttle: forward, take: Player.TakeStart(span: span))
     }
 
     /// An older command does nothing to a take play, and a newer one stops it.
     @Test func takePlayHasAFeedNumber() async throws {
         let player = player(host: HostClock(h0))
-        await player.apply(take(floor: h0 + 2_000_000_000, span: 24_000), number: 2)
+        await player.apply(take(span: 4800), number: 2)
         await player.apply(.stop, number: 1)
         var reading = await player.reading()
         #expect(reading.played == 2 && reading.running)
-        #expect(reading.realStart == h0 + 2_000_000_000)
+        #expect(reading.realStart == h0 + 400_000_000)
         await player.apply(.stop, number: 3)
         reading = await player.reading()
         #expect(reading.number == 3 && !reading.running && reading.realStart == nil)
@@ -87,10 +87,10 @@ struct PlayerTakeTests {
     /// the start-time seam got, and that term: 18,583,333 ns.
     @Test func readingHasTheStartAndTheTerm() async throws {
         let player = player(host: HostClock(h0), readTerm: { _ in .success(.builtIn) })
-        await player.apply(take(floor: h0 + 2_000_000_000, span: 24_000), number: 1)
+        await player.apply(take(span: 4800), number: 1)
         let reading = await player.reading()
-        #expect(starts.withLock { $0 } == [h0 + 2_000_000_000])
-        #expect(reading.realStart == h0 + 2_000_000_000)
+        #expect(starts.withLock { $0 } == [h0 + 400_000_000])
+        #expect(reading.realStart == h0 + 400_000_000)
         #expect(reading.term == .builtIn && reading.term.nanos(sessionRate: 48_000) == 18_583_333)
     }
 
@@ -103,7 +103,7 @@ struct PlayerTakeTests {
             try engine.start()
             returned.withLock { $0 = hostNanosNow() }
         })
-        await player.apply(take(floor: hostNanosNow() + 100_000_000, span: 9600), number: 1)
+        await player.apply(take(span: 9600), number: 1)
         let start = try #require(await player.reading().realStart)
         let anchor = takeStartHostNanos(realStart: start, term: .manual(0), from: 2400, to: 12_000, rate: 48_000)
         let lead = Int64(anchor) - Int64(returned.withLock { $0 })
@@ -118,7 +118,7 @@ struct PlayerTakeTests {
             defer { opened.withLock { $0 = hostNanosNow() } }
             return try openMedia(file, in: clips, rate: rate)
         })
-        await player.apply(take(floor: hostNanosNow() + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         let start = try #require(await player.reading().realStart)
         let ahead = Int64(start) - Int64(opened.withLock { $0 })
         #expect(ahead >= 100_000_000, "the start is \(ahead) ns after the open")
@@ -130,7 +130,7 @@ struct PlayerTakeTests {
         let clock = FrozenClock()
         let x = clock.now
         let player = player(output: .paced, host: HostClock(h0), now: { clock.now })
-        await player.apply(take(floor: h0 + 300_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 9600), number: 1)
         #expect(await player.pacedBase == x + .milliseconds(300))
     }
 
@@ -138,7 +138,7 @@ struct PlayerTakeTests {
     @Test func pacedTakePlayPullsFromTheStart() async throws {
         let clock = FrozenClock()
         let player = player(output: .paced, host: HostClock(h0), now: { clock.now })
-        await player.apply(take(floor: h0 + 300_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 9600), number: 1)
         func settle() async -> Bool {
             let ticks = await player.ticks
             let end = ContinuousClock.now + .seconds(10)
@@ -176,7 +176,7 @@ struct PlayerTakeTests {
         let player = Player(
             package: { url }, output: .offline, session: package.session, speedUnit: { nil },
             hostNanos: { clock.read() })
-        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         clock.set(h0 + 1_000_000_000)
         _ = await player.renderOffline(frames: 4 * 4800, starve: true)
         await player.refill()
@@ -189,7 +189,7 @@ struct PlayerTakeTests {
     @Test func underrunKeepsTheHostMap() async throws {
         let clock = HostClock(h0)
         let player = player(host: clock)
-        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         clock.set(h0 + 1_000_000_000)
         _ = await player.renderOffline(frames: 4 * 4800, starve: true)
         await player.refill()
@@ -202,7 +202,7 @@ struct PlayerTakeTests {
     @Test func secondUnderrunKeepsTheBase() async throws {
         let clock = HostClock(h0)
         let player = player(host: clock)
-        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         for (now, anchor) in [(h0 + 1_000_000_000, Frames(50_400)), (h0 + 1_500_000_000, 74_400)] {
             clock.set(now)
             _ = await player.renderOffline(frames: 5 * 4800, starve: true)
@@ -219,7 +219,7 @@ struct PlayerTakeTests {
     @Test func slowRestartRefillPicksAgain() async throws {
         let clock = HostClock(h0)
         let player = player(host: clock)
-        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         clock.set(h0 + 1_000_000_000, steps: [150_000_000])
         _ = await player.renderOffline(frames: 4 * 4800, starve: true)
         await player.refill()
@@ -241,7 +241,7 @@ struct PlayerTakeTests {
                 if file.id == "f2" { throw POSIXError(.EMFILE) }
                 return try openMedia(file, in: clips, rate: rate)
             })
-        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         clock.set(h0 + 1_000_000_000)
         _ = await player.renderOffline(frames: 4 * 4800, starve: true)
         await player.refill()
@@ -256,7 +256,7 @@ struct PlayerTakeTests {
     @Test func thirdLatePickPlaysAtOnce() async throws {
         let clock = HostClock(h0)
         let player = player(host: clock)
-        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        await player.apply(take(span: 96_000), number: 1)
         clock.set(h0 + 500_000_000, steps: [200_000_000, 400_000_000, 800_000_000])
         _ = await player.renderOffline(frames: 4 * 4800, starve: true)
         await player.refill()

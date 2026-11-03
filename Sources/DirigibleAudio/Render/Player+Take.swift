@@ -8,10 +8,8 @@ typealias NodeStart = @Sendable (AVAudioPlayerNode, UInt64?) -> Void
 /// The take play of a pre-roll take (decision 0070, **One start path**): `apply` starts it at a
 /// host time that keeps the lead.
 extension Player {
-    /// The take start of a play: the earliest start host time in nanoseconds, and the pre-roll
-    /// span T - S.
+    /// The take start of a play: the pre-roll span T - S.
     struct TakeStart: Sendable {
-        let floor: UInt64
         let span: Frames
     }
 
@@ -36,12 +34,12 @@ extension Player {
     }
 
     /// Starts the take feed of `take` at frame `frame`, after the first refill. The start host time
-    /// is the latest of the floor, 100 ms after the host time read, and the lead of 0.5 s after it
-    /// less the pre-roll span (P18). The paced pull owes its first frame at that host time.
+    /// is the later of 100 ms after the host time read and the lead of 0.5 s after it less the
+    /// pre-roll span (P18). The paced pull owes its first frame at that host time.
     func startTake(_ take: TakeStart, node: AVAudioPlayerNode, from frame: Frames) -> TakeBase {
         let (host, instant) = (hostNanos(), now())
         let span = UInt64((Double(take.span.count) * 1e9 / Double(session.sampleRate)).rounded())
-        let start = max(take.floor, host + Self.startMargin, host + Self.lead - min(span, Self.lead))
+        let start = max(host + Self.startMargin, host + Self.lead - min(span, Self.lead))
         startNode(node, start)
         pacedBase = instant + .nanoseconds(Int64(start) - Int64(host))
         return TakeBase(host: start, frame: frame)

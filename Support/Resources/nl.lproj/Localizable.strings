@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Spoormonitor";
 "menu.record" = "Opname";
 "menu.record.start" = "Neem op";
+"menu.record.pre.roll" = "Neem op met pre-roll";
 "menu.record.retry" = "Probeer opnieuw af te ronden";
 "menu.record.leave.unreadable" = "Rond af zonder onleesbare audio";
 "menu.unplaced.place" = "Plaats";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "Spoor '%@' heeft een gat: het apparaat viel weg.";
 "take.gap.write.failed" = "Spoor '%@' heeft een gat: een schrijfactie is mislukt.";
 "take.dropped" = "Spoor '%1$@' heeft %2$lld frames verloren.";
+"take.late.start" = "Spoor '%@' begon te laat met opnemen, dus het begin van de take ontbreekt.";
 "take.recovered" = "Take %lld is hersteld.";
 "take.unplaced" = "Audio die op geen enkel spoor staat:";
 "take.unplaced.redo" = "Kies Wijzig > Opnieuw om deze audio terug te halen.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Dirigible-handleiding";
 "menu.app.about" = "Over Dirigible";
 "settings.language" = "Taal";
+"settings.pre.roll" = "Pre-roll: %@";
 "settings.language.system" = "Systeemtaal";
 "settings.language.restart" = "Start Dirigible opnieuw om de taal toe te passen.";
 "settings.agents" = "Laat agents open sessies wijzigen";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Exporteer";
 "toolbar.inspector" = "Info";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pre-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). Scroll met ⌘ of knijp om rond de aanwijzer te zoomen.";
 "key.space" = "Spatie";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Sporen:";
 "subtitle.record.time" = "Resterende opnametijd:";
+"subtitle.pre.roll" = "Pre-roll";
 "banner.low.record.time.left" = "Er is minder dan %@ opnametijd over op deze schijf. Maak schijfruimte vrij voordat je opneemt.";
 "banner.use.headphones" = "Gebruik een koptelefoon: de gast kan doorklinken in je microfoon.";
 "banner.monitor.headphones" = "Gebruik een koptelefoon om de monitor te horen.";

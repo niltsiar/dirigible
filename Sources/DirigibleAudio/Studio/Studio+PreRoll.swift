@@ -12,6 +12,15 @@ extension Studio {
         return takeMix(session, armed: recording.armedTracks, from: recording.playheadFrame)
     }
 
+    /// T while a pre-roll take plays before T: the take records, and the host clock is before H_T.
+    /// The window shows the red line and the status "Pre-roll" while it is not nil.
+    public var preRollFrame: Frames? {
+        guard case .recording = transport, let recording = session.recording, recording.isPreRoll,
+            environment.hostNanos() < recording.takeStartHostTimeNanos
+        else { return nil }
+        return recording.playheadFrame
+    }
+
     /// The step of a pre-roll take start after its checks and before its save (**Start order**):
     /// the take mix, the take play from S = `seconds` (0 to 10) before `playhead`, then H_T. With no
     /// output term, it stops the Player, keeps the playhead at T, and throws `.outputTermUnavailable`.

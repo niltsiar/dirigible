@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Monitorar Pista";
 "menu.record" = "Gravação";
 "menu.record.start" = "Gravar";
+"menu.record.pre.roll" = "Gravar com pré-roll";
 "menu.record.retry" = "Tentar Finalizar Novamente";
 "menu.record.leave.unreadable" = "Finalizar sem o Áudio Ilegível";
 "menu.unplaced.place" = "Posicionar";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "A pista “%@” tem uma lacuna: o dispositivo ficou indisponível.";
 "take.gap.write.failed" = "A pista “%@” tem uma lacuna: uma escrita no disco falhou.";
 "take.dropped" = "A pista “%1$@” perdeu %2$lld quadros.";
+"take.late.start" = "A pista “%@” começou a gravar tarde, então falta o início da tomada nela.";
 "take.recovered" = "A tomada %lld foi recuperada.";
 "take.unplaced" = "Áudio que não está em nenhuma pista:";
 "take.unplaced.redo" = "Refazer traz este áudio de volta.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Guia do Dirigible";
 "menu.app.about" = "Sobre o Dirigible";
 "settings.language" = "Idioma";
+"settings.pre.roll" = "Pré-roll: %@";
 "settings.language.system" = "Idioma do Sistema";
 "settings.language.restart" = "Reinicie o Dirigible para aplicar o idioma.";
 "settings.agents" = "Permitir que Agentes Editem Sessões Abertas";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Exportar";
 "toolbar.inspector" = "Inspetor";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pré-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). Role com ⌘ ou faça o gesto de pinça para dar zoom no ponteiro.";
 "key.space" = "Espaço";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Pistas:";
 "subtitle.record.time" = "Tempo de gravação restante:";
+"subtitle.pre.roll" = "Pré-roll";
 "banner.low.record.time.left" = "Restam menos de %@ de tempo de gravação neste disco. Libere espaço em disco antes de gravar.";
 "banner.use.headphones" = "Use fones de ouvido: o convidado pode vazar para o seu microfone.";
 "banner.monitor.headphones" = "Use fones de ouvido para ouvir o monitor.";

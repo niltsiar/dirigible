@@ -27,6 +27,8 @@ enum ToolbarItemID: String, CaseIterable {
     case snap = "view.snap"
     /// The vari-speed pop-up (decision 0052).
     case speed = "transport.speed"
+    /// Record with Pre-roll (decision 0070): in Customize Toolbar only, not in the default set.
+    case preRoll = "transport.pre.roll"
 
     static let toolbar = NSToolbar.Identifier("dirigible.session")
 
@@ -49,6 +51,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .stop: "stop.fill"
         case .play: "play.fill"
         case .record: "circle.fill"
+        case .preRoll: "record.circle"
         case .time, .speed: nil
         case .start: "backward.end.fill"
         case .end: "forward.end.fill"
@@ -75,7 +78,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .monitor, .export:
             NSToolbarItem.VisibilityPriority(rawValue: NSToolbarItem.VisibilityPriority.standard.rawValue + 500)
         case .addTrack, .start, .end: .standard
-        case .split, .cut, .copy, .paste, .delete, .zoomOut, .zoomIn, .zoomToSession, .snap, .speed: .low
+        case .split, .cut, .copy, .paste, .delete, .zoomOut, .zoomIn, .zoomToSession, .snap, .speed, .preRoll: .low
         }
     }
 
@@ -91,6 +94,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .stop: .stop
         case .play: .transport(.playStop)
         case .record: .record
+        case .preRoll: .recordPreRoll
         case .time, .speed: nil
         case .start: .transport(.seek(.start))
         case .end: .transport(.seek(.end))
@@ -116,6 +120,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .stop: .transportStop
         case .play: .transportPlay
         case .record: .transportRecord
+        case .preRoll: .toolbarPreRoll
         case .time: .toolbarTime
         case .speed: .toolbarSpeed
         case .start: .menuTransportStart
@@ -140,7 +145,7 @@ enum ToolbarItemID: String, CaseIterable {
 enum WindowCommand: Hashable {
     case timeline(TimelineCommand)
     case transport(TransportCommand)
-    case addTrack, record, stop, toggleMonitor, toggleInspector, toggleSnap
+    case addTrack, record, recordPreRoll, stop, toggleMonitor, toggleInspector, toggleSnap
 
     /// The title and the key of the menu item of the command: a lookup in the menu tables, the
     /// one source of the menus and of the palette label, the tooltip, and the key of the item.
@@ -155,6 +160,7 @@ enum WindowCommand: Hashable {
             return (item.title, item.key)
         case .addTrack: return (.menuTrackAdd, MenuKeys.addTrack)
         case .record: return (.menuRecordStart, MenuKeys.record)
+        case .recordPreRoll: return (.menuRecordPreRoll, MenuKeys.preRoll)
         case .stop: return (.menuTransportStop, MenuKeys.stop)
         case .toggleMonitor: return (.menuRecordMonitor, MenuKeys.monitor)
         case .toggleInspector: return (.menuViewInspectorShow, MenuKeys.inspector)
@@ -178,34 +184,6 @@ extension TimelineCommand {
                 ($0.command, $0)
             },
         uniquingKeysWith: { first, _ in first })
-}
-
-/// The tooltip of a toolbar item: the menu text and the key, "Record (⌘R)". The zoom items also
-/// name the gestures that zoom at the pointer (run 2026-10-11-ui-polish-header C21). `format` is
-/// the value of `tooltipKey(command)` in the app language.
-func toolbarTooltip(_ command: WindowCommand, format: String? = nil) -> String {
-    let title = command.menuItem.title.text
-    return String(format: format ?? tooltipKey(command).text, locale: .current, title, keyText(command.menuItem.key))
-}
-
-/// The key of the tooltip format of `command`.
-func tooltipKey(_ command: WindowCommand) -> L10n {
-    [.timeline(.zoomIn), .timeline(.zoomOut)].contains(command) ? .toolbarTooltipZoom : .toolbarTooltip
-}
-
-/// A key as a menu shows it: the modifier glyphs, then the key ("⌥⌘N", "⌘.", "⌫").
-func keyText(_ shortcut: KeyboardShortcut) -> String {
-    let glyphs: [(EventModifiers, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
-    let modifiers = glyphs.filter { shortcut.modifiers.contains($0.0) }.map(\.1).joined()
-    let key: String =
-        switch shortcut.key {
-        case .space: L10n.keySpace.text
-        case .delete: "⌫"
-        case .home: "↖"
-        case .end: "↘"
-        default: String(shortcut.key.character).uppercased()
-        }
-    return modifiers + key
 }
 
 /// The values that the chrome loop writes only on a change and SwiftUI reads, so no SwiftUI body
@@ -242,6 +220,8 @@ struct ChromeState: Equatable {
     var shown = ShownChrome()
     /// One or more agents are connected to the app server (C12).
     var agentConnected = false
+    /// A pre-roll take plays before T: the subtitle starts with "Pre-roll".
+    var preRolling = false
 
     @MainActor init(model: SessionWindow) {
         agentConnected = (model.app?.agents.connected ?? 0) > 0
@@ -254,6 +234,7 @@ struct ChromeState: Equatable {
             head ?? studio.playhead, rate: studio.session.sampleRate, playing: playing || head != nil)
         // Record stays on during a take: a click then does nothing (ux-decisions 4).
         if recording || model.canRecord { enabled.insert(.record) }
+        if model.canRecord { enabled.insert(.preRoll) }
         if recording || playing { enabled.insert(.stop) }
         if model.canMonitor { enabled.insert(.monitor) }
         // A zoom changes no session data, so it runs during a take, as the View menu and the gestures.
@@ -275,8 +256,10 @@ struct ChromeState: Equatable {
         let subtitleLeft = left.flatMap {
             showsLowRecordTime(left: $0, recording: false, shownBefore: model.shown.recordTime) ? $0 : nil
         }
+        preRolling = studio.preRollFrame != nil
         subtitle = subtitleText(
-            rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: subtitleLeft)
+            rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: subtitleLeft,
+            preRoll: preRolling)
         var banners: [WindowBanner] = []
         if let stop = studio.playbackStop { banners.append(.playbackStopped(stop)) }
         if !studio.missingMedia.isEmpty {
@@ -346,13 +329,14 @@ func lowRecordTimeText(minutes: Int, locale: Locale = .current, text: (L10n) -> 
 
 /// The window subtitle: "48 kHz · Tracks: 3 · Record time left: 2 hr, 10 min", with the time left
 /// rounded down to the minute. No plural form (0010); Foundation gives the units of the time.
-/// `text` gives the value of a key.
+/// During the pre-roll of a take it starts with "Pre-roll". `text` gives the value of a key.
 func subtitleText(
-    rate: Int, tracks: Int, recordTimeLeft: Duration?, locale: Locale = .current,
+    rate: Int, tracks: Int, recordTimeLeft: Duration?, preRoll: Bool = false, locale: Locale = .current,
     text: (L10n) -> String = { $0.text }
 ) -> String {
     let kHz = (Double(rate) / 1000).formatted(.number.locale(locale))
     var parts = ["\(kHz) kHz", "\(text(.subtitleTracks)) \(tracks)"]
+    if preRoll { parts.insert(text(.subtitlePreRoll), at: 0) }
     if let recordTimeLeft {
         let minutes = Duration.seconds(Int(recordTimeLeft / .seconds(60)) * 60)
         parts.append("\(text(.subtitleRecordTime)) \(minutes.formatted(recordTimeStyle(locale)))")

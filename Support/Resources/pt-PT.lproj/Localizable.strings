@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Monitorizar faixa";
 "menu.record" = "Gravação";
 "menu.record.start" = "Gravar";
+"menu.record.pre.roll" = "Gravar com pré-roll";
 "menu.record.retry" = "Voltar a tentar finalizar";
 "menu.record.leave.unreadable" = "Finalizar sem o áudio ilegível";
 "menu.unplaced.place" = "Posicionar";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "A faixa “%@” tem uma lacuna: o dispositivo ficou indisponível.";
 "take.gap.write.failed" = "A faixa “%@” tem uma lacuna: falhou uma escrita.";
 "take.dropped" = "A faixa “%1$@” perdeu %2$lld frames.";
+"take.late.start" = "A faixa “%@” começou a gravar tarde, por isso falta-lhe o início do excerto.";
 "take.recovered" = "O excerto %lld foi recuperado.";
 "take.unplaced" = "Áudio que não está em nenhuma faixa:";
 "take.unplaced.redo" = "Refazer traz este áudio de volta.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Guia do Dirigible";
 "menu.app.about" = "Acerca do Dirigible";
 "settings.language" = "Idioma";
+"settings.pre.roll" = "Pré-roll: %@";
 "settings.language.system" = "Idioma do sistema";
 "settings.language.restart" = "Reinicie o Dirigible para aplicar o idioma.";
 "settings.agents" = "Permitir que os agentes editem sessões abertas";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Exportar";
 "toolbar.inspector" = "Inspetor";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pré-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). Desloque com ⌘ ou faça o gesto de pinça para aplicar zoom no ponteiro.";
 "key.space" = "Espaço";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Faixas:";
 "subtitle.record.time" = "Tempo de gravação restante:";
+"subtitle.pre.roll" = "Pré-roll";
 "banner.low.record.time.left" = "Restam menos de %@ de tempo de gravação neste disco. Liberte espaço no disco antes de gravar.";
 "banner.use.headphones" = "Utilize auscultadores: o convidado pode ser captado pelo seu microfone.";
 "banner.monitor.headphones" = "Utilize auscultadores para ouvir o monitor.";

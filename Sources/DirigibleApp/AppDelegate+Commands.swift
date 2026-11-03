@@ -23,6 +23,18 @@ extension AppDelegate {
         key?.transport(command)
     }
 
+    /// The action of Record > Record with Pre-roll (decision 0070): a key that belongs to text or to a
+    /// panel goes there, as the transport keys do. A held P starts one take.
+    func recordPreRoll() {
+        recordPreRoll(event: NSApp.currentEvent, in: NSApp.keyWindow)
+    }
+
+    func recordPreRoll(event: NSEvent?, in keyWindow: NSWindow?) {
+        if let event, forwardTypingKey(event, in: keyWindow) { return }
+        if let event, event.type == .keyDown, event.isARepeat { return }
+        key?.run(.recordPreRoll)
+    }
+
     /// The action of each plain-key item of Transport > Playback Speed: a key that belongs to text
     /// or to a panel goes there, as the transport keys do (decision 0052).
     func speed(_ change: SpeedChange) {

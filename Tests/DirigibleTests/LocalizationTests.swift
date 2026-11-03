@@ -97,6 +97,18 @@ struct LocalizationTests {
         }
     }
 
+    /// P16 (run 2026-10-28-pre-roll): the output term alert quotes the titles of Record and Record
+    /// with Pre-roll as the Record menu shows them, in each language.
+    @Test(arguments: AppLanguage.allCases.map(\.rawValue))
+    func theOutputTermAlertQuotesTheMenuTitles(language: String) throws {
+        let table = try stringsTable(language)
+        let alert = try #require(table[L10n.errorOutputTermUnavailable.rawValue])
+        for key in [L10n.menuRecordStart, .menuRecordPreRoll] {
+            let title = try #require(table[key.rawValue])
+            #expect(alert.contains(title), "\(language): the alert does not quote \(title)")
+        }
+    }
+
     /// A pt-PT value has no word of the Brazil-only list: the pt table has them, and a copy of its
     /// text is the likely mistake. The list is words, not a `-ndo` pattern, because that also ends
     /// `quando` and `segundo`. `docs/research/pt-pt-ui.md` names the source of the list.
@@ -233,11 +245,13 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.format.mp3", "panel.export.format.flac", "panel.export.bitrate.value",
         "panel.export.channels.stereo", "panel.export.channels.mono", "panel.export.rate.48000",
         "panel.export.loudness", "panel.export.loudness.podcast", "panel.export.loudness.ebu",
-        "export.chapter.intro", "sheet.unused.name", "toolbar.tooltip", "banner.kind.info", "start.version",
+        "export.chapter.intro", "sheet.unused.name", "toolbar.tooltip", "toolbar.tooltip.record", "banner.kind.info",
+        "start.version",
         "start.name", "sheet.duck.attack", "sheet.duck.release", "sheet.take.time.take", "sheet.take.time.item",
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "es": [
+        "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "banner.kind.error", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.clip",
@@ -245,6 +259,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.bitrate.value", "panel.export.channels.mono", "panel.export.format.aac",
         "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
         "panel.export.loudness.ebu", "panel.export.rate.48000", "toolbar.inspector", "toolbar.tooltip",
+        "toolbar.tooltip.record",
         "track.layout.mono", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.label",
         "track.solo.letter", "track.volume.value",
@@ -263,12 +278,14 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.format.mp3", "panel.export.format.wav", "panel.export.loudness.ebu",
         "panel.export.loudness.podcast", "panel.export.rate.48000", "report.gain", "start.version",
         "timeline.accessibility", "timeline.readout.gain", "timeline.readout.point", "toolbar.tooltip",
+        "toolbar.tooltip.record",
         "track.layout.mono",
         "track.role.dialogue", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter", "track.volume.value",
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.standard",
@@ -278,13 +295,14 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.channels.mono", "panel.export.channels.stereo", "panel.export.format.aac",
         "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
         "panel.export.loudness.ebu", "panel.export.loudness.podcast", "panel.export.rate.48000",
-        "timeline.accessibility", "toolbar.inspector", "toolbar.tooltip", "track.layout.mono",
+        "timeline.accessibility", "toolbar.inspector", "toolbar.tooltip", "toolbar.tooltip.record", "track.layout.mono",
         "track.layout.stereo", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.no.sound.privacy", "track.route",
         "track.solo.letter", "track.volume.value", "sheet.take.time.take", "sheet.take.time.item",
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "nl": [
+        "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.model",
@@ -298,7 +316,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.channels.stereo", "panel.export.format.aac", "panel.export.format.flac",
         "panel.export.format.mp3", "panel.export.format.wav", "panel.export.loudness.ebu",
         "panel.export.loudness.podcast", "panel.export.rate.48000", "timeline.readout.crossfade",
-        "toolbar.tooltip", "track.layout.mono", "track.layout.stereo", "track.role.dialogue.letter",
+        "toolbar.tooltip", "toolbar.tooltip.record", "track.layout.mono", "track.layout.stereo",
+        "track.role.dialogue.letter",
         "track.role.effects.letter", "track.role.music.letter", "track.mute.letter",
         "track.no.sound.privacy", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value", "transport.stop", "sheet.duck.attack", "sheet.duck.release",
@@ -314,6 +333,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.format.flac", "panel.export.format.mp3", "panel.export.format.wav",
         "panel.export.loudness", "panel.export.loudness.ebu", "panel.export.loudness.podcast",
         "panel.export.rate.48000", "report.loudness", "timeline.readout.crossfade", "toolbar.tooltip",
+        "toolbar.tooltip.record",
         "track.layout.mono", "track.role.dialogue.letter", "track.role.effects.letter", "track.role.music.letter",
         "track.mute.letter", "track.route", "track.route.apps", "track.solo.letter",
         "track.volume.value",
@@ -327,7 +347,8 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.export.channels.mono", "panel.export.format.aac", "panel.export.format.flac",
         "panel.export.format.mp3", "panel.export.format.wav", "panel.export.loudness.ebu",
         "panel.export.loudness.podcast", "panel.export.rate.48000", "panel.transcript.format.srt",
-        "panel.transcript.format.vtt", "timeline.readout.crossfade", "toolbar.tooltip", "track.layout.mono",
+        "panel.transcript.format.vtt", "timeline.readout.crossfade", "toolbar.tooltip", "toolbar.tooltip.record",
+        "track.layout.mono",
         "track.mute.letter", "track.role.dialogue.letter", "track.role.effects.letter",
         "track.role.music.letter", "track.route", "track.solo.letter", "track.volume.value",
     ],

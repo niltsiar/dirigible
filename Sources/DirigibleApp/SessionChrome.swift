@@ -43,6 +43,8 @@ import Observation
     /// no sound announces nothing, and only a change to the other warning announces again.
     private var announcedWarnings: [TrackID: LiveTrack.State] = [:]
     private var announcedInTake = false
+    /// The pre-roll of a take was announced: "Pre-roll" once at the press.
+    private var announcedPreRoll = false
     /// The reads that started and that ended, written or dropped, for the tests.
     private(set) var recordTimeReadsStarted = 0
     private(set) var recordTimeReads = 0
@@ -185,6 +187,10 @@ import Observation
             announcedInTake = model.canStop
             announcedWarnings = [:]
         }
+        if state.preRolling != announcedPreRoll {
+            announcedPreRoll = state.preRolling
+            if state.preRolling { announce(L10n.subtitlePreRoll.text, .medium) }
+        }
         if let studio = model.studio {
             announcedWarnings = announcedWarnings.filter { studio.liveStates[$0.key] != nil }
         }
@@ -279,6 +285,8 @@ import Observation
             // One width for the push-on items: their symbols gave 40 to 51 pt (ui-polish-chrome U5).
             button.widthAnchor.constraint(equalToConstant: Self.toggleWidth).isActive = true
             item.view = button
+            // VoiceOver does not read a help tag: the hint of Record has the same text (ruling Q4).
+            if id == .record { button.setAccessibilityHelp(item.toolTip) }
             // AppKit gives the overflow menu item of a view item no state (probe P4).
             let menuItem = NSMenuItem(title: id.label.text, action: #selector(runItem(_:)), keyEquivalent: "")
             menuItem.target = self

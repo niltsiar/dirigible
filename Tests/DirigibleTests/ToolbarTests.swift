@@ -17,7 +17,7 @@ struct ToolbarValueTests {
                 "track.add", "record.monitor", "transport.stop", "transport.play", "transport.record",
                 "transport.time", "transport.start", "transport.end", "edit.split", "edit.cut", "edit.copy",
                 "edit.paste", "edit.delete", "view.zoom.out", "view.zoom.in", "view.zoom.session", "file.export",
-                "view.inspector", "view.snap", "transport.speed",
+                "view.inspector", "view.snap", "transport.speed", "transport.pre.roll",
             ])
     }
 
@@ -42,7 +42,7 @@ struct ToolbarValueTests {
             .zoomOut: "minus.magnifyingglass", .zoomIn: "plus.magnifyingglass",
             .zoomToSession: "arrow.up.left.and.down.right.magnifyingglass", .export: "square.and.arrow.up",
             .start: "backward.end.fill", .end: "forward.end.fill", .inspector: "sidebar.trailing",
-            .snap: "arrow.right.and.line.vertical.and.arrow.left",
+            .snap: "arrow.right.and.line.vertical.and.arrow.left", .preRoll: "record.circle",
         ]
         for id in ToolbarItemID.allCases {
             #expect(id.symbol == symbols[id], "\(id)")
@@ -61,7 +61,7 @@ struct ToolbarValueTests {
             .export: boost,
             .addTrack: .standard, .start: .standard, .end: .standard, .split: .low, .cut: .low, .copy: .low,
             .paste: .low, .delete: .low, .zoomOut: .low, .zoomIn: .low, .zoomToSession: .low, .snap: .low,
-            .speed: .low,
+            .speed: .low, .preRoll: .low,
         ]
         for id in ToolbarItemID.allCases { #expect(id.priority == priorities[id], "priority of \(id)") }
     }
@@ -235,6 +235,51 @@ struct ToolbarValueTests {
             #expect(lit >= 20, "\(appearance.rawValue): \(lit) red pixels")
             #expect(dim < lit / 2, "\(appearance.rawValue): disabled \(dim), enabled \(lit)")
         }
+        await model.close()
+    }
+
+    /// P33 (run 2026-10-28-pre-roll): the help tag of Record names the key of Record with Pre-roll,
+    /// in each table. The test process has no app tables, so the titles and the format come from
+    /// each table.
+    @Test(arguments: [
+        ("en", "Record (⌘R) · Record with Pre-roll (P)"), ("es", "Grabar (⌘R) · Grabar con pre-roll (P)"),
+        ("de", "Aufnehmen (⌘R) · Mit Vorlauf aufnehmen (P)"),
+        ("fr", "Enregistrer (⌘R) · Enregistrer avec pré-roll (P)"),
+        ("it", "Registra (⌘R) · Registra con pre-roll (P)"), ("nl", "Neem op (⌘R) · Neem op met pre-roll (P)"),
+        ("pt", "Gravar (⌘R) · Gravar com pré-roll (P)"), ("pt-PT", "Gravar (⌘R) · Gravar com pré-roll (P)"),
+    ])
+    func recordHelpNamesThePreRollKey(language: String, expected: String) throws {
+        let table = try stringsTable(language)
+        let text = { (key: L10n) in table[key.rawValue] ?? key.rawValue }
+
+        let tag = toolbarTooltip(.record, format: text(tooltipKey(.record)), text: text)
+
+        #expect(tag == expected, "\(language): \(tag)")
+    }
+
+    /// P33: the accessibility hint of the Record item is the help tag, because VoiceOver does not
+    /// read a help tag.
+    @Test func theRecordHintIsTheHelpTag() async throws {
+        let (model, _, chrome) = try await open()
+        let item = try #require(chrome.toolbar.items.first { $0.itemIdentifier == ToolbarItemID.record.identifier })
+        let button = try #require(item.view as? NSButton)
+
+        #expect(item.toolTip == toolbarTooltip(.record) && item.toolTip?.isEmpty == false)
+        #expect(button.accessibilityHelp() == item.toolTip, "the hint differs from the help tag")
+        await model.close()
+    }
+
+    /// Ruling Q3: Record with Pre-roll is a toolbar item in Customize Toolbar only.
+    @Test func thePreRollItemIsInThePaletteOnly() async throws {
+        let (model, _, chrome) = try await open()
+        let item = try #require(
+            chrome.toolbar(
+                chrome.toolbar, itemForItemIdentifier: ToolbarItemID.preRoll.identifier,
+                willBeInsertedIntoToolbar: false))
+
+        #expect(!ToolbarItemID.defaults.contains(ToolbarItemID.preRoll.identifier))
+        #expect(!visible(chrome).contains("transport.pre.roll"))
+        #expect(item.toolTip == toolbarTooltip(.recordPreRoll) && item.paletteLabel == L10n.menuRecordPreRoll.text)
         await model.close()
     }
 

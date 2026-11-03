@@ -35,8 +35,8 @@ struct TakeAnchorTests {
         #expect(try TakeAnchor.decode(TakeAnchor.encode(recording), take: 3) == recording)
     }
 
-    /// P31: the anchor of a pre-roll take is version 2 with the pre-roll flag, which the reader of a
-    /// version 1 build refuses as newer; a plain take keeps version 1 and its bytes.
+    /// P31: the anchor of a pre-roll take is version 2, which the reader of a version 1 build
+    /// refuses as newer; a plain take keeps version 1 and its bytes. Only the digit differs.
     @Test func preRollAnchorIsVersion2() throws {
         var preRoll = recording
         preRoll.isPreRoll = true
@@ -45,11 +45,25 @@ struct TakeAnchorTests {
 
         #expect(Array(plainBytes.prefix(8)) == Array("DRGANCH1".utf8))
         #expect(Array(preRollBytes.prefix(8)) == Array("DRGANCH2".utf8))
-        #expect(preRollBytes.count == plainBytes.count + 1)
+        #expect(preRollBytes.dropFirst(8) == plainBytes.dropFirst(8))
         #expect(try TakeAnchor.decode(preRollBytes, take: 1) == preRoll)
         #expect(try TakeAnchor.decode(plainBytes, take: 1) == recording)
         var olderReader = ByteReader(Array(preRollBytes))
         #expect(throws: NewerFormat(version: 2)) { try olderReader.magic(Array("DRGANCH1".utf8)) }
+    }
+
+    /// The version digit is the one pre-roll mark: digit 2 on the bytes of a plain take reads as a
+    /// pre-roll take, and digit 1 on the bytes of a pre-roll take reads as a plain take.
+    @Test func theVersionDigitAloneMarksThePreRoll() throws {
+        let package = try twoTrackPackage()
+        var preRoll = recording
+        preRoll.isPreRoll = true
+        for (source, digit, expected) in [(recording, "2", preRoll), (preRoll, "1", recording)] {
+            try TakeAnchor.encode(source).write(to: anchor(package))
+            try setMagicDigit(anchor(package), digit)
+
+            #expect(try TakeAnchor.read(take: 1, in: package.url) == .success(expected), "digit \(digit)")
+        }
     }
 
     /// Every recording that `Session.setRecording` accepts, the reader accepts.

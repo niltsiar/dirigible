@@ -23,7 +23,7 @@
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). `session.xml` is version 12 when a file has an origin.
 - Amended: 2026-10-28, run `2026-10-13-render-denoise`, landing 2 (see 0054 and 0057). `session.xml` is version 13 when a file origin holds a hum removal. A file of version 12 or lower with a `<hum>` element is refused.
 - Amended: 2026-10-29 (see 0064 D7). `session.xml` is version 14 when a file origin holds a repair effect (declip, rumble, or de-ess).
-- Amended: 2026-11-03, run `2026-10-28-pre-roll`. `session.xml` is version 15 while a `<recording>` has `preRoll="true"`, and the take anchor of a pre-roll take is version 2 (`DRGANCH2`, with a pre-roll flag byte). A file of version 14 or lower with `preRoll` is refused. An older build so never places a pre-roll take from its start.
+- Amended: 2026-11-03, run `2026-10-28-pre-roll`. `session.xml` is version 15 while a `<recording>` has `preRoll="true"`, and the take anchor of a pre-roll take is version 2 (`DRGANCH2`, with the record of version 1). A file of version 14 or lower with `preRoll` is refused. An older build so never places a pre-roll take from its start.
 
 ## Context
 

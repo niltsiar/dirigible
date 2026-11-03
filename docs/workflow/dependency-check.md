@@ -6,8 +6,8 @@ Last check: 2026-11-02
 
 ## Run rule
 
-- A due check runs before the next product item.
-- One agent runs the check. The check is read-only and lock-free: it builds nothing, runs no test, and changes no pin.
+- A due check becomes one dependency check item with status next, and runs before the next product item. `new-run.sh` prints the due line until the new `Last check:` date lands on main.
+- The run that takes the item runs the check in one lock-free agent, and commits the new `Last check:` line on its branch. The check is read-only: it builds nothing, runs no test, and changes no pin.
 - The check is done when each pin has a result from each source, item 1477 has the new History line, and the `Last check:` line has the date of the check.
 
 ## Pins to read
@@ -41,4 +41,4 @@ Put each finding in one class:
 
 1. Add one dated History line to wiki item 1477: `scripts/wiki.py show 1477`, then `scripts/wiki.py edit 1477 --from <file> --expect <hash>`. The line gives each finding with its class, or says that the check found none.
 2. For each security finding, add an item with status next (`scripts/wiki.py add next --from <file>`). It goes before the next product item. For each bug or improvement that the app can use, add an item with status later.
-3. Change the `Last check:` line above to the date of the check, and commit it on the branch of the run.
+3. Change the `Last check:` line above to the date of the check, and commit it on the branch of the run that takes the item.

@@ -189,17 +189,18 @@ extension Studio {
         environment.log.note(.take, "stop-request", ["take": .number(Int64(take)), "end": .text("\(end)")])
         let called = ContinuousClock.now
         transport = .finalizing(take: take)
-        // The pre-roll sound stops first, so the playhead of a stop before T is T (decision 0070).
-        if let recording = session.recording, recording.isPreRoll { await endPreRoll(at: recording.playheadFrame) }
+        // E1: the take ends now on every track, also while an app attach waits for the prompt.
+        let now = hostNanosNow()
         stopLive()
         diskWatcher?.cancel()
         diskWatcher = nil
         takeTimer?.cancel()
         takeTimer = nil
-        // E1: the take ends now on every track, also while an app attach waits for the prompt.
-        let now = hostNanosNow()
         let seconds = session.recording.map { Double(Int64(bitPattern: now &- $0.takeStartHostTimeNanos)) / 1e9 }
         for writer in writers.values { writer.end(atHostNanos: now) }
+        // After the take end, so the Player stop does not make the take longer. The playhead of a
+        // stop before T is T (decision 0070).
+        if let recording = session.recording, recording.isPreRoll { await endPreRoll(at: recording.playheadFrame) }
         // A writer that never attached holds no audio, so the stop does not wait for it; its queued
         // finish runs after its attach returns. The start step returns at once.
         let abandoned = writers.values.filter { $0.abandon() }

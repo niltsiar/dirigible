@@ -40,7 +40,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F18 | Vari-speed playback | Hindenburg PRO | done, Release 3 run 9 (v0.3.9); Later: a typed speed value, as in Hindenburg | R7 |
 | F19 | Markers: add, rename, go to | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 4c | R7 |
 | F20 | Ripple edit: cut closes the gap, insert pushes later clips | Hindenburg PRO | done, Release 2 run 12 | R7, R10 |
-| F21 | Replace, room-tone fill, duplicate | Hindenburg PRO | Release 6 | R7 |
+| F21 | Replace, room-tone fill, duplicate | Hindenburg PRO | done, Release 6 run 1; Later: Duplicate | R7 |
 | F22 | Clipboard with groups (bins) | Hindenburg PRO | Release 7 (also: a paste near the last track adds tracks, as in Audition) | R7, R10 |
 | F23 | Favorites: a clipboard shared by all sessions | Hindenburg PRO | Release 7 | R10 |
 | F24 | Group or link tracks; merge clips | Hindenburg PRO | Later | R7 |

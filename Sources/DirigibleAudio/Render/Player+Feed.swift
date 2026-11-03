@@ -1,7 +1,26 @@
 import DirigibleCore
 
-/// The frame math of a feed, apart from the state of the Player.
+/// The feed of a play and its frame math, apart from the state of the Player.
 extension Player {
+    /// The running play. `scheduled` counts output frames from the play start. `fadeFrom` is the
+    /// session of the last scheduled chunk when a mute or solo changed after it: the next chunk
+    /// crossfades from that mix (decision 0039).
+    struct Feed {
+        let anchor: Frames
+        let shuttle: Shuttle
+        /// The frame where a forward feed stops before the session end; nil: the session end.
+        let end: Frames?
+        /// The vari-speed that the unit plays: 1x at a tape rate, with no unit, or when the unit
+        /// refuses the rate. `scheduled` counts node frames, which are source frames at any
+        /// speed (probe S3).
+        var speed: Speed
+        /// The last change of speed with no new play, for the heard frame.
+        var step: SpeedStep?
+        let mix: MixReader
+        var scheduled = 0
+        var fadeFrom: Session?
+    }
+
     /// The heard set or a track gain of the tracks that are in both sessions changed: a mute, solo,
     /// or fader change, or the removal of the only soloed track. A track add or remove alone keeps it.
     static func mixChanged(from old: Session, to new: Session) -> Bool {

@@ -103,6 +103,12 @@ struct EditBenchmark {
                 "rippleTrim of the first clip on 6 tracks",
                 { try $0.rippleTrim("c0", edge: .end, by: -4_800, on: tracks) }
             ),
+            // Replace-roomtone-split: a 3.5 s range near the start replaced by the 1,000-clip
+            // excerpt of each track; each later clip and marker moves.
+            (
+                "replace of 3.5 s with 1,000 clips on 6 tracks",
+                { try $0.replace(100_000..<268_000, with: excerpt, on: tracks) }
+            ),
         ]
         for (name, edit) in ripples { try Self.measure(name, History(marked), edit) }
     }

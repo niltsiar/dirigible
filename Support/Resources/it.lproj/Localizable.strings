@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Monitoraggio traccia";
 "menu.record" = "Registrazione";
 "menu.record.start" = "Registra";
+"menu.record.pre.roll" = "Registra con pre-roll";
 "menu.record.retry" = "Riprova la finalizzazione";
 "menu.record.leave.unreadable" = "Termina senza l’audio illeggibile";
 "menu.unplaced.place" = "Posiziona";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "La traccia “%@” ha un vuoto: il dispositivo non era più disponibile.";
 "take.gap.write.failed" = "La traccia “%@” ha un vuoto: una scrittura non è riuscita.";
 "take.dropped" = "La traccia “%1$@” ha perso %2$lld frame.";
+"take.late.start" = "La traccia “%@” ha iniziato a registrare in ritardo, quindi manca l’inizio del take.";
 "take.recovered" = "Il take %lld è stato recuperato.";
 "take.unplaced" = "Audio che non è su nessuna traccia:";
 "take.unplaced.redo" = "Con Ripristina, questo audio torna al suo posto.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Guida di Dirigible";
 "menu.app.about" = "Informazioni su Dirigible";
 "settings.language" = "Lingua";
+"settings.pre.roll" = "Pre-roll: %@";
 "settings.language.system" = "Lingua di sistema";
 "settings.language.restart" = "Riavvia Dirigible per applicare la lingua.";
 "settings.agents" = "Consenti agli agenti di modificare le sessioni aperte";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Esporta";
 "toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pre-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). Scorri con ⌘ o pizzica per lo zoom attorno al puntatore.";
 "key.space" = "Barra spaziatrice";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Tracce:";
 "subtitle.record.time" = "Tempo di registrazione rimanente:";
+"subtitle.pre.roll" = "Pre-roll";
 "banner.low.record.time.left" = "Restano meno di %@ di registrazione su questo disco. Libera spazio su disco prima di registrare.";
 "banner.use.headphones" = "Usa le cuffie: l’audio dell’ospite può essere captato dal tuo microfono.";
 "banner.monitor.headphones" = "Usa le cuffie per ascoltare il monitoraggio.";

@@ -10,6 +10,8 @@ enum MenuKeys {
     static let startWindow = KeyboardShortcut("1", modifiers: [.command, .shift])
     static let addTrack = KeyboardShortcut("n", modifiers: [.command, .option])
     static let record = KeyboardShortcut("r")
+    /// Record > Record with Pre-roll (decision 0070): a plain key, so a focused text field gets it first.
+    static let preRoll = KeyboardShortcut("p", modifiers: [])
     static let stop = KeyboardShortcut(".")
     static let monitor = KeyboardShortcut("m", modifiers: [.command, .shift])
     /// Track > Monitor Track (record monitor run 1b). A text field has no Control-Command-M, so the
@@ -71,7 +73,8 @@ enum MenuKeys {
 
     static let all =
         [
-            newSession, open, startWindow, addTrack, record, stop, monitor, monitorTrack, retry, play, stopAndReturn,
+            newSession, open, startWindow, addTrack, record, preRoll, stop, monitor, monitorTrack, retry, play,
+            stopAndReturn,
             reverse, pause,
             forward, slowReverse, slowForward, start, end, previousClip, nextClip, takeTime, zoomInEquals,
             loudnessMeter, inspector, transcript, snap, variSpeed, faster, slower,

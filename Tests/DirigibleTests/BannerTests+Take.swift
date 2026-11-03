@@ -280,4 +280,40 @@ extension BannerTests {
         #expect(zip(leading, trailing).allSatisfy { abs($0 - $1) <= 3 }, "leading \(leading), trailing \(trailing)")
         await model.close()
     }
+
+    // MARK: Late start of a pre-roll take (criterion P17, run 2026-10-28-pre-roll)
+
+    /// The rows of a take result, with the English values of the table, as the take banner shows them.
+    private func rows(_ take: TakeResult, names: [TrackID: String] = [:]) throws -> [String] {
+        let table = try stringsTable("en")
+        return take.bannerLines(
+            name: { names[$0] ?? $0.rawValue }, text: { table[$0.rawValue] ?? $0.rawValue })
+    }
+
+    @Test func eachLateStartTrackHasARow() throws {
+        let take = TakeResult(take: 2, end: .requested, gaps: [:], lateStarts: ["t2", "t1"])
+        let rows = try rows(take, names: ["t1": "Host", "t2": "Guest"])
+
+        #expect(rows.count == 3, "\(rows)")
+        #expect(rows[0] == "Take 2 is finished.")
+        #expect(rows[1].contains("“Host”") && rows[1].contains("started recording late"), "\(rows[1])")
+        #expect(rows[2].contains("“Guest”") && rows[2].contains("started recording late"), "\(rows[2])")
+    }
+
+    /// A track whose first record came after the stop is a late start with no audio: the row still
+    /// reads right. It says that the start of the take is missing, and makes no claim about audio.
+    @Test func aLateStartRowReadsRightForATrackWithNoAudio() throws {
+        let take = TakeResult(take: 1, end: .requested, gaps: [:], lateStarts: ["t1"])
+        let row = try #require(try rows(take).last)
+
+        #expect(row == "Track “t1” started recording late, so the start of the take is missing from it.")
+    }
+
+    /// Negative control: a take with no late start has no such row, and a gap keeps its own row.
+    @Test func aTakeWithNoLateStartHasNoLateRow() throws {
+        let take = TakeResult(take: 1, end: .requested, gaps: ["t1": .deviceLost])
+        let rows = try rows(take)
+
+        #expect(rows.count == 2 && !rows.contains { $0.contains("late") }, "\(rows)")
+    }
 }

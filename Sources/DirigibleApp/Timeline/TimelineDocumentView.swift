@@ -18,6 +18,8 @@ final class TimelineDocumentView: NSView {
     let playhead = PlayheadLine()
     /// The snap guide (snap run).
     let guide = GuideLayer()
+    /// The red line at T during the pre-roll of a take (decision 0070).
+    let preRollLine = PreRollLine()
     /// The marquee of a Shift-drag (decision 0038).
     let marquee = MarqueeLayer()
     /// The value of a gain or fade-handle drag at the pointer (run 11b-1).
@@ -164,6 +166,7 @@ final class TimelineDocumentView: NSView {
         playhead.zPosition = 10
         showPlayheadColors()
         layer?.addSublayer(playhead)
+        layer?.addSublayer(preRollLine)
         layer?.addSublayer(guide)
         layer?.addSublayer(marquee)
         readout.zPosition = 20
@@ -249,6 +252,16 @@ final class TimelineDocumentView: NSView {
             showPlayheadColors()
         }
         playhead.position = CGPoint(x: frame / framesPerPoint, y: bounds.height / 2)
+        showPreRollLine(studio?.preRollFrame)
+    }
+
+    /// The line at T on the lanes and the mark on the ruler while a pre-roll take plays before T; nil
+    /// hides both.
+    private func showPreRollLine(_ frame: Frames?) {
+        let x = frame.map { Double($0.count) / framesPerPoint }
+        preRollLine.show(
+            at: x, width: increasesContrast ? 2 : 1, height: bounds.height, appearance: effectiveAppearance)
+        scrollView?.ruler.showPreRoll(atDocumentX: x)
     }
 
     /// The snap guide at `frame` with the width rule of the playhead; nil hides it (snap run).

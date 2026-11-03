@@ -69,13 +69,19 @@ extension SessionWindow {
 
     /// Command-R. The library reads the microphone access; the app requests it (decision 0013).
     /// It commits the drafts first, also when no track is armed. `startTake` keeps the other rules
-    /// of `canRecord`.
-    func record() async {
+    /// of `canRecord`. With `preRoll` (whole seconds), the Player plays the take mix first
+    /// (decision 0070).
+    func record(preRoll: Int? = nil) async {
         commitDrafts()
         guard !consentHoldsRecord, let tracks = studio?.session.tracks.map(\.id).filter(armed.contains), !tracks.isEmpty
         else { return }
         endCheckingConsent()
-        if await startTake(armed: tracks, playhead: nil).isBusy { beep() }
+        if await startTake(armed: tracks, playhead: nil, preRoll: preRoll).isBusy { beep() }
+    }
+
+    /// P: a take with the pre-roll length of the app preference.
+    func recordPreRoll() async {
+        await record(preRoll: app?.preRollSeconds ?? PreRollSetting.standard)
     }
 
     /// The take start of Command-R and of the consent sheet (decision 0048). With no `playhead`,
@@ -85,7 +91,7 @@ extension SessionWindow {
     /// `check` runs before each Studio start, also after the microphone prompt: when it is false,
     /// no take starts (a grant take, decision 0050).
     func startTake(
-        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, check: (() -> Bool)? = nil
+        armed: [TrackID], playhead: Frames?, seconds: Double? = nil, preRoll: Int? = nil, check: (() -> Bool)? = nil
     ) async -> RecordStart {
         commitDrafts()
         if let refusal = takeRefusal { return refusal }
@@ -105,7 +111,7 @@ extension SessionWindow {
                     take = try await studio.startRecording(armed: armed, playhead: playhead, for: .seconds(seconds))
                     return
                 }
-                try await studio.startRecording(armed: armed, playhead: playhead)
+                try await studio.startRecording(armed: armed, playhead: playhead, preRoll: preRoll)
                 // Read with no await after the start: a stop can end the take soon after it.
                 switch studio.transport {
                 case .recording(let number), .finalizing(let number): take = number

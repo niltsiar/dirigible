@@ -15,7 +15,7 @@ struct ToolbarMenuTests {
     static let keys: [ToolbarItemID: String] = [
         .addTrack: "⌥⌘N", .monitor: "⇧⌘M", .stop: "⌘.", .play: "key.space", .record: "⌘R", .start: "↖",
         .end: "↘", .split: "⌘B", .cut: "⌘X", .copy: "⌘C", .paste: "⌘V", .delete: "⌫", .zoomOut: "⌘-",
-        .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I", .snap: "N",
+        .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I", .snap: "N", .preRoll: "P",
     ]
 
     /// A5: each item but the time display and the speed pop-up (a pop-up of picks, decision 0052)
@@ -106,6 +106,7 @@ struct ToolbarMenuTests {
             switch command {
             case .timeline(let command): app.timeline(command, event: nil, in: window)
             case .transport(let command): app.transport(command, event: nil, in: window)
+            case .recordPreRoll: app.recordPreRoll(event: nil, in: window)
             case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector, .toggleSnap: app.key?.run(command)
             }
             let menu = model.leafCalls ?? []
@@ -227,7 +228,7 @@ struct ToolbarMenuTests {
                 == Set(ToolbarItemID.allCases.map(\.rawValue) + ["NSToolbarSpaceItem", "NSToolbarFlexibleSpaceItem"]))
         #expect(
             allowed.subtracting(defaults) == [
-                "edit.cut", "edit.copy", "edit.paste", "transport.end",
+                "edit.cut", "edit.copy", "edit.paste", "transport.end", "transport.pre.roll",
             ])
 
         let tables = (en: try stringsTable("en"), es: try stringsTable("es"))
@@ -251,7 +252,11 @@ struct ToolbarMenuTests {
                 )
                 // Only the zoom items add a sentence (`theZoomTooltipsNameTheGestures`).
                 let zoom = tooltipKey(command) == .toolbarTooltipZoom
-                #expect(zoom ? tooltip.hasPrefix(short + ". ") : tooltip == short, "tooltip of \(id): \(tooltip)")
+                // The Record tag also names Record with Pre-roll (`recordHelpNamesThePreRollKey`).
+                let record = tooltipKey(command) == .toolbarTooltipRecord
+                #expect(
+                    zoom ? tooltip.hasPrefix(short + ". ") : record ? tooltip.hasPrefix(short + " ") : tooltip == short,
+                    "tooltip of \(id): \(tooltip)")
             }
         }
         await model.close()

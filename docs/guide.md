@@ -89,6 +89,27 @@ After Stop, Dirigible also levels the new clips: it sets the gain of each clip s
 
 When you close the window during a take, Dirigible asks first. Press Return to stop the take and close the window, or press Esc to go on recording.
 
+### Record with a pre-roll
+
+A pre-roll is a short play of the session before a take starts. You hear what comes before the place where you speak, for example the end of the last sentence, and you start at the right moment. **Record > Record with Pre-roll** (**Grabar con pre-roll**, key P) starts a take at the playhead after a pre-roll. **Record** (Command-R) does not change: it plays nothing during a take.
+
+1. Put on headphones. With speakers, the microphone records the sound of the pre-roll.
+2. Put the playhead at the place where the take must start. Arm the tracks that you record.
+3. Press P, or choose **Record > Record with Pre-roll**. The window subtitle starts with **Pre-roll**, and a red line shows at the start place of the take, on the lanes and in the time ruler.
+4. Dirigible plays the session from the pre-roll length before the red line. When the play reaches the red line, the take starts, and the subtitle shows its other text again. Speak at the red line.
+5. Choose **Transport > Stop** (Command-Period) as for any take.
+
+- The length of the pre-roll is 3 s. To change it, choose **Dirigible > Settings…** and use the arrows of the row **Pre-roll**: 1 to 10 whole seconds. Near the start of the session, the pre-roll is shorter. At 0:00, the take starts a short time after you press P, and you hear nothing before it.
+- The pre-roll plays all tracks at normal speed, also when **Playback Speed** is not 1x. The armed tracks play their old audio up to the red line and are silent after it. The take records in place of that audio.
+- When a text field has the focus, P types the letter and starts no take. P does nothing when no track is armed or while a take runs.
+- The file of a take over a pre-roll starts before the red line, and its clip starts at the red line. The take time 0 of the file stays at the red line, so the first frame of the file is at a negative take time. To go there with **Go to Take Time**, type the time with a minus sign. The file holds up to 10 s more audio than the clip.
+- Stop or Space before the red line ends the take with no clip, and the playhead goes back to the red line. The audio stays in the package as a file that no clip uses. **File > Remove Unused Files…** can move it to the Trash.
+- When a device starts to record late, the banner of the take says so for its track: "Track "Host" started recording late, so the start of the take is missing from it."
+- When the output device changes during the pre-roll, the sound of the pre-roll stops. The take goes on and stays in line, and the window shows no message.
+- When Dirigible cannot read the delay of the output device, it shows a message, and no take starts. **Record** (Command-R) still works.
+- Some outputs play later than they report. A take that you speak over the pre-roll then sits late by that delay. On the built-in speakers of a tested MacBook Pro, it was 47 to 65 ms. Dirigible gives no general limit.
+- In Hindenburg, P plays, and Control-Space records with a pre-roll. In Dirigible, P starts a take. If you start a take by mistake, choose **Edit > Undo**. Dirigible does not use Control-Space, because it is the key of macOS that changes the input source.
+
 ### Play the take
 
 1. Choose **Transport > Go to Start** (Home).
@@ -946,6 +967,7 @@ The **Record** menu (**Grabación**).
 | Command | Spanish name | Key |
 |---|---|---|
 | **Record** | **Grabar** | Command-R |
+| **Record with Pre-roll** | **Grabar con pre-roll** | P |
 | **Retry Finalize** | **Reintentar la finalización** | Option-Command-R |
 | **Input Levels** | **Niveles de entrada** | Shift-Command-M |
 
@@ -1144,7 +1166,7 @@ To register the server:
 1. Move Dirigible to the Applications folder and open it once. An app that runs from the disk image or from the Downloads folder has a path that changes, so the pull-down copies nothing.
 2. Choose Dirigible > Settings.
 
-   ![Dirigible Settings: the Language pop-up, the Let Agents Edit Open Sessions switch with its help line, and the Copy Setup Command pull-down.](images/screenshot-settings.png)
+   ![Dirigible Settings: the Language pop-up, the Pre-roll row with its stepper, the Let Agents Edit Open Sessions switch with its help line, and the Copy Setup Command pull-down.](images/screenshot-settings.png)
 
 3. Click Copy Setup Command, then choose your agent: Claude Code, Codex, opencode, or Any MCP App.
 4. Paste the text in Terminal and press Return. For Any MCP App, the text is the server command: give it to your app as a local (stdio) server.

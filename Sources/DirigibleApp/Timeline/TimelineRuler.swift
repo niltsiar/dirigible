@@ -58,6 +58,9 @@ final class TimelineRuler: NSRulerView {
     private(set) var highlightDraws = 0
     /// The head of the playhead, a layer over the times.
     let head = PlayheadHead()
+    /// The red mark at T during the pre-roll of a take (decision 0070), a layer under the head.
+    let preRollMark = CALayer()
+    private var preRollX: Double?
 
     init(model: SessionWindow) {
         self.model = model
@@ -70,6 +73,10 @@ final class TimelineRuler: NSRulerView {
         clipsToBounds = true
         wantsLayer = true
         layer?.addSublayer(head.container)
+        preRollMark.zPosition = 99
+        preRollMark.isHidden = true
+        preRollMark.actions = ["position": NSNull(), "bounds": NSNull(), "hidden": NSNull()]
+        layer?.addSublayer(preRollMark)
     }
 
     required init(coder: NSCoder) { fatalError("no coder") }
@@ -86,6 +93,29 @@ final class TimelineRuler: NSRulerView {
         head.place(
             at: x(of: documentX), edge: x(of: Double(shown.minX)), width: bounds.width, taking: taking,
             scale: Double(window?.backingScaleFactor ?? 2))
+        placePreRollMark()
+    }
+
+    /// Puts the mark at the document x `documentX`, or hides it for nil. The scroll moves it with the
+    /// head, and a mark left of the lanes in view stays hidden, so none shows over the track headers.
+    func showPreRoll(atDocumentX documentX: Double?) {
+        preRollX = documentX
+        placePreRollMark()
+    }
+
+    private func placePreRollMark() {
+        guard let shown = (scrollView as? TimelineScrollView)?.shown, let documentX = preRollX else {
+            if !preRollMark.isHidden { preRollMark.isHidden = true }
+            return
+        }
+        let (at, edge) = (x(of: documentX), x(of: Double(shown.minX)))
+        let visible = at >= edge
+        if preRollMark.isHidden == visible { preRollMark.isHidden = !visible }
+        let frame = CGRect(x: at - 0.5, y: 0, width: 1, height: bounds.height)
+        if visible, preRollMark.frame != frame {
+            preRollMark.backgroundColor = NSColor.systemRed.cgColor
+            preRollMark.frame = frame
+        }
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {

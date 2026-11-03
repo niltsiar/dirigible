@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Monitor Track";
 "menu.record" = "Record";
 "menu.record.start" = "Record";
+"menu.record.pre.roll" = "Record with Pre-roll";
 "menu.record.retry" = "Retry Finalize";
 "menu.record.leave.unreadable" = "Finish Without Unreadable Audio";
 "menu.unplaced.place" = "Place";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "Track “%@” has a gap: the device was lost.";
 "take.gap.write.failed" = "Track “%@” has a gap: a write failed.";
 "take.dropped" = "Track “%1$@” lost %2$lld frames.";
+"take.late.start" = "Track “%@” started recording late, so the start of the take is missing from it.";
 "take.recovered" = "Take %lld was recovered.";
 "take.unplaced" = "Audio that is on no track:";
 "take.unplaced.redo" = "Redo brings this audio back.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Dirigible Guide";
 "menu.app.about" = "About Dirigible";
 "settings.language" = "Language";
+"settings.pre.roll" = "Pre-roll: %@";
 "settings.language.system" = "System Language";
 "settings.language.restart" = "Restart Dirigible to apply the language.";
 "settings.agents" = "Let Agents Edit Open Sessions";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Export";
 "toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pre-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). ⌘-scroll or pinch zooms at the pointer.";
 "key.space" = "Space";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Tracks:";
 "subtitle.record.time" = "Record time left:";
+"subtitle.pre.roll" = "Pre-roll";
 "banner.low.record.time.left" = "Less than %@ of record time left on this disk. Free up disk space before you record.";
 "banner.use.headphones" = "Use headphones: the guest can leak into your microphone.";
 "banner.monitor.headphones" = "Use headphones to hear the monitor.";

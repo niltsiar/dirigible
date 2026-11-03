@@ -129,6 +129,9 @@ struct DirigibleApp: App {
                 }
                 CommandMenu(L10n.menuRecord.key) {
                     windowButton(.record).disabled(app.key?.canRecord != true)
+                    // A plain key: never disabled (probe K1). The action gives it to text first.
+                    let preRoll = WindowCommand.recordPreRoll.menuItem
+                    Button(preRoll.title.key) { app.recordPreRoll() }.keyboardShortcut(preRoll.key)
                     Button(L10n.menuRecordRetry.key) { Task { await app.key?.retry() } }
                         .keyboardShortcut(MenuKeys.retry).disabled(app.key?.canRetry != true)
                     let monitor = WindowCommand.toggleMonitor.menuItem

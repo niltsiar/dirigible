@@ -237,21 +237,29 @@ struct TakeBanner: View {
 
     /// The last take (gaps, dropped frames, a disk-low stop) and a recovered take.
     private var resultText: String? {
-        let name = { (id: TrackID) in studio.session.track(id)?.name ?? id.rawValue }
-        var lines: [String] = []
-        if let take = studio.lastTake {
-            lines.append(
-                take.end == .diskLow ? L10n.takeEndedDiskLow.format(take.take) : L10n.takeEnded.format(take.take))
-            for (track, gap) in take.gaps.sorted(by: { $0.key < $1.key }) {
-                lines.append(
-                    (gap == .deviceLost ? L10n.takeGapDeviceLost : L10n.takeGapWriteFailed).format(name(track)))
-            }
-            for (track, frames) in take.droppedFrames.sorted(by: { $0.key < $1.key }) {
-                lines.append(L10n.takeDropped.format(name(track), frames))
-            }
-        }
+        var lines = studio.lastTake?.bannerLines { studio.session.track($0)?.name ?? $0.rawValue } ?? []
         if let take = studio.recoveredTake { lines.append(L10n.takeRecovered.format(take.take)) }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+}
+
+extension TakeResult {
+    /// The rows of the take banner: the end, then a row for each gap, each track that dropped
+    /// frames, and each track of a pre-roll take that started late. `name` gives a track name and
+    /// `text` the value of a key.
+    func bannerLines(name: (TrackID) -> String, text: (L10n) -> String = { $0.text }) -> [String] {
+        func row(_ key: L10n, _ arguments: any CVarArg...) -> String {
+            String(format: text(key), locale: .current, arguments: arguments)
+        }
+        var lines = [end == .diskLow ? row(.takeEndedDiskLow, take) : row(.takeEnded, take)]
+        for (track, gap) in gaps.sorted(by: { $0.key < $1.key }) {
+            lines.append(row(gap == .deviceLost ? .takeGapDeviceLost : .takeGapWriteFailed, name(track)))
+        }
+        for (track, frames) in droppedFrames.sorted(by: { $0.key < $1.key }) {
+            lines.append(row(.takeDropped, name(track), frames))
+        }
+        for track in lateStarts.sorted() { lines.append(row(.takeLateStart, name(track))) }
+        return lines
     }
 }
 

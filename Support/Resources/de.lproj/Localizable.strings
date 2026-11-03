@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Spur-Monitoring";
 "menu.record" = "Aufnahme";
 "menu.record.start" = "Aufnehmen";
+"menu.record.pre.roll" = "Mit Vorlauf aufnehmen";
 "menu.record.retry" = "Abschluss erneut versuchen";
 "menu.record.leave.unreadable" = "Ohne unlesbares Audio abschließen";
 "menu.unplaced.place" = "Platzieren";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "Spur „%@“ hat eine Lücke: Das Gerät wurde getrennt.";
 "take.gap.write.failed" = "Spur „%@“ hat eine Lücke: Ein Schreibvorgang ist fehlgeschlagen.";
 "take.dropped" = "Spur „%1$@“ hat %2$lld Frames verloren.";
+"take.late.start" = "Spur „%@“ hat zu spät mit der Aufnahme begonnen, daher fehlt ihr der Anfang des Takes.";
 "take.recovered" = "Take %lld wurde wiederhergestellt.";
 "take.unplaced" = "Audio, das auf keiner Spur liegt:";
 "take.unplaced.redo" = "„Wiederholen“ bringt dieses Audio zurück.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Dirigible-Handbuch";
 "menu.app.about" = "Über Dirigible";
 "settings.language" = "Sprache";
+"settings.pre.roll" = "Vorlauf: %@";
 "settings.language.system" = "Systemsprache";
 "settings.language.restart" = "Starte Dirigible neu, um die Sprache zu übernehmen.";
 "settings.agents" = "Agenten dürfen offene Sessions bearbeiten";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Exportieren";
 "toolbar.inspector" = "Informationen";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Vorlauf";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). ⌘-Scrollen oder Auf- und Zuziehen zoomt am Zeiger.";
 "key.space" = "Leertaste";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Spuren:";
 "subtitle.record.time" = "Verbleibende Aufnahmezeit:";
+"subtitle.pre.roll" = "Vorlauf";
 "banner.low.record.time.left" = "Auf dieser Festplatte bleiben weniger als %@ Aufnahmezeit. Gib Speicherplatz frei, bevor du aufnimmst.";
 "banner.use.headphones" = "Verwende Kopfhörer: Der Gast kann in dein Mikrofon übersprechen.";
 "banner.monitor.headphones" = "Verwende Kopfhörer, um das Monitoring zu hören.";

@@ -106,6 +106,8 @@ struct SettingsView: View {
             Text(L10n.settingsLanguageRestart.key).settingsHelp()
             if let app {
                 Divider()
+                PreRollSettingsView(app: app)
+                Divider()
                 AgentSettingsView(app: app)
             }
         }

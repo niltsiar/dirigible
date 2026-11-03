@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Monitorizar pista";
 "menu.record" = "Grabación";
 "menu.record.start" = "Grabar";
+"menu.record.pre.roll" = "Grabar con pre-roll";
 "menu.record.retry" = "Reintentar la finalización";
 "menu.record.leave.unreadable" = "Terminar sin el audio ilegible";
 "menu.unplaced.place" = "Colocar";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "La pista «%@» tiene un hueco: se perdió el dispositivo.";
 "take.gap.write.failed" = "La pista «%@» tiene un hueco: falló una escritura.";
 "take.dropped" = "La pista «%1$@» perdió %2$lld tramas.";
+"take.late.start" = "La pista «%@» empezó a grabar tarde, así que le falta el inicio de la toma.";
 "take.recovered" = "Se recuperó la toma %lld.";
 "take.unplaced" = "Audio que no está en ninguna pista:";
 "take.unplaced.redo" = "Rehacer recupera este audio.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Guía de Dirigible";
 "menu.app.about" = "Acerca de Dirigible";
 "settings.language" = "Idioma";
+"settings.pre.roll" = "Pre-roll: %@";
 "settings.language.system" = "Idioma del sistema";
 "settings.language.restart" = "Reinicia Dirigible para aplicar el idioma.";
 "settings.agents" = "Permitir que los agentes editen las sesiones abiertas";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Exportar";
 "toolbar.inspector" = "Inspector";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pre-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). Desplaza con ⌘ o pellizca para hacer zoom en el puntero.";
 "key.space" = "Espacio";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Pistas:";
 "subtitle.record.time" = "Grabación restante:";
+"subtitle.pre.roll" = "Pre-roll";
 "banner.low.record.time.left" = "Quedan menos de %@ de grabación en este disco. Libera espacio antes de grabar.";
 "banner.use.headphones" = "Usa auriculares: el invitado puede colarse en tu micrófono.";
 "banner.monitor.headphones" = "Usa auriculares para oír el monitor.";

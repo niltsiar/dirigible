@@ -32,6 +32,7 @@
 "menu.track.monitor" = "Monitoring de la piste";
 "menu.record" = "Enregistrement";
 "menu.record.start" = "Enregistrer";
+"menu.record.pre.roll" = "Enregistrer avec pré-roll";
 "menu.record.retry" = "Réessayer la finalisation";
 "menu.record.leave.unreadable" = "Terminer sans l’audio illisible";
 "menu.unplaced.place" = "Placer";
@@ -347,6 +348,7 @@
 "take.gap.device.lost" = "La piste « %@ » a un blanc : l’appareil a été perdu.";
 "take.gap.write.failed" = "La piste « %@ » a un blanc : une écriture a échoué.";
 "take.dropped" = "La piste « %1$@ » a perdu %2$lld trames.";
+"take.late.start" = "La piste « %@ » a commencé l’enregistrement trop tard : le début de la prise lui manque.";
 "take.recovered" = "La prise %lld a été récupérée.";
 "take.unplaced" = "Audio qui n’est sur aucune piste :";
 "take.unplaced.redo" = "Rétablir ramène cet audio.";
@@ -488,6 +490,7 @@
 "menu.help.guide" = "Guide de Dirigible";
 "menu.app.about" = "À propos de Dirigible";
 "settings.language" = "Langue";
+"settings.pre.roll" = "Pré-roll : %@";
 "settings.language.system" = "Langue du système";
 "settings.language.restart" = "Redémarrez Dirigible pour appliquer la langue.";
 "settings.agents" = "Laisser les agents modifier les sessions ouvertes";
@@ -597,12 +600,15 @@
 "toolbar.export" = "Exporter";
 "toolbar.inspector" = "Inspecteur";
 "toolbar.tooltip" = "%1$@ (%2$@)";
+"toolbar.tooltip.record" = "%1$@ (%2$@) · %3$@ (%4$@)";
+"toolbar.pre.roll" = "Pré-roll";
 "toolbar.tooltip.zoom" = "%1$@ (%2$@). Faites défiler avec ⌘ ou pincez pour zoomer autour du pointeur.";
 "key.space" = "Espace";
 
 /* Subtitle and banners (decision 0023) */
 "subtitle.tracks" = "Pistes :";
 "subtitle.record.time" = "Temps d’enregistrement restant :";
+"subtitle.pre.roll" = "Pré-roll";
 "banner.low.record.time.left" = "Il reste moins de %@ d’enregistrement sur ce disque. Libérez de l’espace disque avant d’enregistrer.";
 "banner.use.headphones" = "Utilisez un casque : le son de l’invité peut être capté par votre micro.";
 "banner.monitor.headphones" = "Utilisez un casque pour entendre le monitoring.";

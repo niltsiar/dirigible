@@ -595,8 +595,8 @@ expect block 'echo 1 >> "$d"/dirigible-check-running/5'
 expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
 # A subagent never runs a lock wait with no limit: WITH_LOCK_MAX_WAIT=0, a land, a push check (a
 # BASE= word, or BASE in the environment), make dmg, or a mutation pass, also inside bash -c and
-# sh -c. After a second exit 75 it returns to the lead. The lead runs the wait, so the input with
-# no agent_id allows each form.
+# sh -c. After a second exit 75 it writes the remaining locked steps as one bash file and returns
+# its path to the lead. The lead runs the wait, so the input with no agent_id allows each form.
 unlimited_forms=(
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed'
   'WITH_LOCK_MAX_WAIT=00 scripts/with-lock.sh make check-changed'
@@ -626,6 +626,7 @@ unlimited_forms=(
 for form in "${unlimited_forms[@]}"; do
   expect_agent block "$form"
   grep -q 'return to the lead' "$tmp/agent.err" || { echo "FAIL: the subagent block says nothing of the lead: $form"; failures=$((failures + 1)); }
+  grep -q 'one bash file' "$tmp/agent.err" || { echo "FAIL: the subagent block names no bash file: $form"; failures=$((failures + 1)); }
   expect allow "$form"
 done
 expect_agent allow 'WITH_LOCK_MAX_WAIT=120 scripts/with-lock.sh make x'

@@ -109,6 +109,12 @@ extension Selection {
         }
     }
 
+    /// The range of Replace and Paste to Fill Selection: the range with frames and a live track. Nil
+    /// for a clip set, so neither command reads a clip set as a range.
+    public func replaceRange(in session: Session) -> Range<Frames>? {
+        marks?.selection(in: session)?.range
+    }
+
     /// The frames and tracks of a split: for a clip set, the playhead on the tracks where it cuts a
     /// set clip.
     public func splitPoints(playhead: Frames, in session: Session) -> (frames: [Frames], tracks: [TrackID]) {

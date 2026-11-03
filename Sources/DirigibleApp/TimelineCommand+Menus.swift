@@ -38,12 +38,14 @@ extension TimelineCommand {
     static let viewItems = viewGroups.flatMap { $0 }
 
     /// The items that replace the system pasteboard group (probe E6). Delete has Backspace (F16).
-    /// Cut, Delete and Close Gap, and Insert ripple all tracks (decision 0037).
+    /// Cut, Delete and Close Gap, Insert, and Replace ripple all tracks (decisions 0037 and 0053).
     static let pasteboardItems = [
         MenuItem(command: .cut, title: .menuEditCut, key: "x", modifiers: .command),
         MenuItem(command: .copy, title: .menuEditCopy, key: "c", modifiers: .command),
         MenuItem(command: .paste, title: .menuEditPaste, key: "v", modifiers: .command),
+        MenuItem(command: .fill, title: .menuEditFill, key: "v", modifiers: [.command, .option]),
         MenuItem(command: .insert, title: .menuEditInsert, key: "i", modifiers: .command),
+        MenuItem(command: .replace, title: .menuEditReplace, key: "v", modifiers: [.command, .shift]),
         MenuItem(command: .delete, title: .menuEditDelete, key: .delete, modifiers: []),
         MenuItem(command: .deleteCloseGap, title: .menuEditDeleteCloseGap, key: .delete, modifiers: .shift),
         MenuItem(command: .selectAll, title: .menuEditSelectAll, key: "a", modifiers: .command),

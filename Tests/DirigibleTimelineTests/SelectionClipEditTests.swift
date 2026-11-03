@@ -151,4 +151,21 @@ struct SelectionClipEditTests {
         #expect(set.stereoClips(in: session) == [], "a mono set")
         #expect(Self.clips(["gone"]).stereoClips(in: session) == [], "a stale set")
     }
+
+    /// C16: the range of Replace and Paste to Fill Selection is the range with a live track. A clip
+    /// set, a range with no track, a range with one point, and a stale track give none, and a track
+    /// that the session lost drops out of the tracks but not out of the range.
+    @Test func theReplaceRangeIsTheRangeWithATrack() {
+        let marks = Marks(inPoint: 1_000, outPoint: 9_000, tracks: ["t2"])
+        #expect(Selection.range(marks).replaceRange(in: session) == 1_000..<9_000)
+        #expect(
+            Selection.range(Marks(inPoint: 1_000, outPoint: 9_000, tracks: ["t2", "gone"])).replaceRange(in: session)
+                == 1_000..<9_000)
+        #expect(Selection.range(Marks(inPoint: 1_000, outPoint: 9_000)).replaceRange(in: session) == nil, "no track")
+        #expect(Selection.range(Marks(inPoint: 1_000, tracks: ["t1"])).replaceRange(in: session) == nil, "one point")
+        #expect(
+            Selection.range(Marks(inPoint: 1_000, outPoint: 9_000, tracks: ["gone"])).replaceRange(in: session) == nil)
+        #expect(set.replaceRange(in: session) == nil, "a clip set is no range")
+        #expect(Selection.none.replaceRange(in: session) == nil)
+    }
 }

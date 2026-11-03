@@ -184,6 +184,8 @@
 "error.writer.did.not.stop" = "Dirigible konnte %1$@ nicht stoppen. Das Audio ist sicher auf der Festplatte. Klicke auf „%2$@“, um es erneut zu versuchen, oder beende Dirigible: Beim nächsten Start wird der Take wiederhergestellt.";
 "paste.banner" = "Aus „%@“ wird eingesetzt";
 "paste.done" = "Eingesetzt.";
+"replace.done" = "%@ Sekunden ersetzt";
+"fill.done" = "%1$@ Sekunden mit %2$lld Clips gefüllt";
 "split.banner" = "Stereo-Clips werden in Mono-Spuren geteilt";
 "split.done" = "In zwei Mono-Spuren geteilt.";
 "split.suffix.left" = "L";
@@ -460,6 +462,8 @@
 "menu.edit.delete" = "Löschen";
 "menu.edit.delete.close.gap" = "Löschen und Lücke schließen";
 "menu.edit.insert" = "Einfügen";
+"menu.edit.replace" = "Ersetzen";
+"menu.edit.fill" = "Mit Einsetzen die Auswahl füllen";
 "menu.edit.cut.selected.tracks" = "In ausgewählten Spuren ausschneiden";
 "menu.edit.delete.close.gap.selected.tracks" = "In ausgewählten Spuren löschen und Lücke schließen";
 "menu.edit.select.all" = "Alles auswählen";

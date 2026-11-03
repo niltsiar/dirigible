@@ -184,6 +184,8 @@
 "error.writer.did.not.stop" = "Dirigible n’a pas pu arrêter %1$@. L’audio est en sécurité sur le disque. Cliquez sur %2$@ pour réessayer, ou quittez Dirigible. Le prochain lancement restaure la prise.";
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";
+"replace.done" = "%@ secondes remplacées";
+"fill.done" = "%1$@ secondes remplies avec %2$lld clips";
 "split.banner" = "Séparation des clips stéréo en pistes mono";
 "split.done" = "Séparé en deux pistes mono.";
 "split.suffix.left" = "G";
@@ -460,6 +462,8 @@
 "menu.edit.delete" = "Supprimer";
 "menu.edit.delete.close.gap" = "Supprimer et combler le blanc";
 "menu.edit.insert" = "Insérer";
+"menu.edit.replace" = "Remplacer";
+"menu.edit.fill" = "Coller pour remplir la sélection";
 "menu.edit.cut.selected.tracks" = "Couper dans les pistes sélectionnées";
 "menu.edit.delete.close.gap.selected.tracks" = "Supprimer et combler le blanc dans les pistes sélectionnées";
 "menu.edit.select.all" = "Tout sélectionner";

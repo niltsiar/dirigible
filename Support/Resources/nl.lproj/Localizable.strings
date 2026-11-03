@@ -184,6 +184,8 @@
 "error.writer.did.not.stop" = "Dirigible kon %1$@ niet stoppen. De audio staat veilig op de schijf. Klik op '%2$@' om het opnieuw te proberen, of stop Dirigible: bij de volgende start wordt de take hersteld.";
 "paste.banner" = "Plakken uit '%@'";
 "paste.done" = "Geplakt.";
+"replace.done" = "%@ seconden vervangen";
+"fill.done" = "%1$@ seconden gevuld met %2$lld clips";
 "split.banner" = "Stereoclips worden gesplitst in monosporen";
 "split.done" = "Gesplitst in twee monosporen.";
 "split.suffix.left" = "L";
@@ -460,6 +462,8 @@
 "menu.edit.delete" = "Verwijder";
 "menu.edit.delete.close.gap" = "Verwijder en sluit gat";
 "menu.edit.insert" = "Voeg in";
+"menu.edit.replace" = "Vervang";
+"menu.edit.fill" = "Plak om de selectie te vullen";
 "menu.edit.cut.selected.tracks" = "Knip in geselecteerde sporen";
 "menu.edit.delete.close.gap.selected.tracks" = "Verwijder en sluit gat in geselecteerde sporen";
 "menu.edit.select.all" = "Selecteer alles";

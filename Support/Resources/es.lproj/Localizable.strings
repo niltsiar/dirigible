@@ -184,6 +184,8 @@
 "error.writer.did.not.stop" = "Dirigible no pudo detener %1$@. El audio está a salvo en el disco. Pulsa %2$@ para intentarlo de nuevo, o sal de Dirigible: el próximo arranque restaura la toma.";
 "paste.banner" = "Pegando desde «%@»";
 "paste.done" = "Pegado.";
+"replace.done" = "Reemplazados %@ segundos";
+"fill.done" = "Rellenados %1$@ segundos con %2$lld clips";
 "split.banner" = "Dividiendo clips estéreo en pistas mono";
 "split.done" = "Dividido en dos pistas mono.";
 "split.suffix.left" = "I";
@@ -460,6 +462,8 @@
 "menu.edit.delete" = "Eliminar";
 "menu.edit.delete.close.gap" = "Eliminar y cerrar hueco";
 "menu.edit.insert" = "Insertar";
+"menu.edit.replace" = "Reemplazar";
+"menu.edit.fill" = "Pegar para rellenar la selección";
 "menu.edit.cut.selected.tracks" = "Cortar en las pistas seleccionadas";
 "menu.edit.delete.close.gap.selected.tracks" = "Eliminar y cerrar hueco en las pistas seleccionadas";
 "menu.edit.select.all" = "Seleccionar todo";

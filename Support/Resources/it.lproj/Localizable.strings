@@ -184,6 +184,8 @@
 "error.writer.did.not.stop" = "Dirigible non è riuscito a fermare %1$@. L’audio è al sicuro sul disco. Fai clic su %2$@ per riprovare, oppure esci da Dirigible: il prossimo avvio ripristina il take.";
 "paste.banner" = "Operazione Incolla da “%@” in corso";
 "paste.done" = "Incollato.";
+"replace.done" = "Sostituiti %@ secondi";
+"fill.done" = "Riempiti %1$@ secondi con %2$lld clip";
 "split.banner" = "Suddivisione delle clip stereo in tracce mono in corso";
 "split.done" = "Suddiviso in due tracce mono.";
 "split.suffix.left" = "S";
@@ -460,6 +462,8 @@
 "menu.edit.delete" = "Elimina";
 "menu.edit.delete.close.gap" = "Elimina e chiudi il vuoto";
 "menu.edit.insert" = "Inserisci";
+"menu.edit.replace" = "Sostituisci";
+"menu.edit.fill" = "Incolla per riempire la selezione";
 "menu.edit.cut.selected.tracks" = "Taglia nelle tracce selezionate";
 "menu.edit.delete.close.gap.selected.tracks" = "Elimina e chiudi il vuoto nelle tracce selezionate";
 "menu.edit.select.all" = "Seleziona tutto";

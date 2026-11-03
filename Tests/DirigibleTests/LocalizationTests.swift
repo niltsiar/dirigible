@@ -185,6 +185,21 @@ struct LocalizationTests {
         }
     }
 
+    /// The fill announcement puts no noun after the count, so 1 does not read "with 1 clips"
+    /// (decision 0010: avoid a plural). The count comes last, after the clip label of the same
+    /// table (`inspector.clips`).
+    @Test func theFillTextHasNoNounAfterTheCount() throws {
+        #expect(try stringsTable("en")[L10n.fillDone.rawValue] == "Filled %1$@ seconds. Clips: %2$lld")
+        #expect(try stringsTable("es")[L10n.fillDone.rawValue] == "Rellenados %1$@ segundos. Clips: %2$lld")
+        for language in AppLanguage.allCases.map(\.rawValue) {
+            let table = try stringsTable(language)
+            let text = try #require(table[L10n.fillDone.rawValue], "\(language)")
+            let label = try #require(table[L10n.inspectorClips.rawValue], "\(language)")
+            let tail = ". " + label.replacingOccurrences(of: "%d", with: "%2$lld")
+            #expect(text.contains("%1$@") && text.hasSuffix(tail), "\(language): \(text)")
+        }
+    }
+
     @Test func checkerFindsAnEmptyValue() {
         #expect(tableProblems(["en": ["a": "A"], "es": ["a": ""]], keys: ["a"]) == ["es: no value for a"])
     }

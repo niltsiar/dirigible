@@ -185,7 +185,7 @@
 "paste.banner" = "Collage depuis « %@ »";
 "paste.done" = "Collé.";
 "replace.done" = "%@ secondes remplacées";
-"fill.done" = "%1$@ secondes remplies avec %2$lld clips";
+"fill.done" = "%1$@ secondes remplies. Clips : %2$lld";
 "split.banner" = "Séparation des clips stéréo en pistes mono";
 "split.done" = "Séparé en deux pistes mono.";
 "split.suffix.left" = "G";

@@ -185,7 +185,7 @@
 "paste.banner" = "Colando de “%@”";
 "paste.done" = "Colado.";
 "replace.done" = "Substituídos %@ segundos";
-"fill.done" = "Preenchidos %1$@ segundos com %2$lld clipes";
+"fill.done" = "Preenchidos %1$@ segundos. Clipes: %2$lld";
 "split.banner" = "Dividindo clipes estéreo em faixas mono";
 "split.done" = "Dividido em duas faixas mono.";
 "split.suffix.left" = "E";

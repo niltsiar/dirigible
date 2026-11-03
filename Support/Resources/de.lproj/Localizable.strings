@@ -185,7 +185,7 @@
 "paste.banner" = "Aus „%@“ wird eingesetzt";
 "paste.done" = "Eingesetzt.";
 "replace.done" = "%@ Sekunden ersetzt";
-"fill.done" = "%1$@ Sekunden mit %2$lld Clips gefüllt";
+"fill.done" = "%1$@ Sekunden gefüllt. Clips: %2$lld";
 "split.banner" = "Stereo-Clips werden in Mono-Spuren geteilt";
 "split.done" = "In zwei Mono-Spuren geteilt.";
 "split.suffix.left" = "L";

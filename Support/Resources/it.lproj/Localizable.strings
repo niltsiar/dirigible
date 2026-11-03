@@ -185,7 +185,7 @@
 "paste.banner" = "Operazione Incolla da “%@” in corso";
 "paste.done" = "Incollato.";
 "replace.done" = "Sostituiti %@ secondi";
-"fill.done" = "Riempiti %1$@ secondi con %2$lld clip";
+"fill.done" = "Riempiti %1$@ secondi. Clip: %2$lld";
 "split.banner" = "Suddivisione delle clip stereo in tracce mono in corso";
 "split.done" = "Suddiviso in due tracce mono.";
 "split.suffix.left" = "S";

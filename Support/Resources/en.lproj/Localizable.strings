@@ -185,7 +185,7 @@
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
 "replace.done" = "Replaced %@ seconds";
-"fill.done" = "Filled %1$@ seconds with %2$lld clips";
+"fill.done" = "Filled %1$@ seconds. Clips: %2$lld";
 "split.banner" = "Splitting stereo clips into mono tracks";
 "split.done" = "Split into two mono tracks.";
 "split.suffix.left" = "L";

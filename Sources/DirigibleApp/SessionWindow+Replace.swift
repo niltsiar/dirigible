@@ -34,7 +34,7 @@ extension SessionWindow {
             format: table(.replaceDone), locale: locale, SilenceReview.seconds(clipboard, rate: rate, locale: locale))
     }
 
-    /// "Filled 3.0 seconds with 3 clips": the length of the range and the new clips.
+    /// "Filled 3.0 seconds. Clips: 3": the length of the range and the new clips.
     static func filledText(
         range: Range<Frames>, rate: Int, clips: Int, table: (L10n) -> String = { $0.text },
         locale: Locale = .current

@@ -152,7 +152,7 @@ import Testing
     /// C17, C20: the numbers of the two texts, with one decimal in the number format of the locale.
     @Test func theTextsHoldTheNumbers() {
         let table: (L10n) -> String = {
-            $0 == .replaceDone ? "Replaced %@ seconds" : "Filled %1$@ seconds with %2$lld clips"
+            $0 == .replaceDone ? "Replaced %@ seconds" : "Filled %1$@ seconds. Clips: %2$lld"
         }
         let english = Locale(identifier: "en")
         #expect(
@@ -161,6 +161,6 @@ import Testing
         #expect(
             SessionWindow.filledText(
                 range: 96_000..<240_000, rate: 48_000, clips: 3, table: table, locale: Locale(identifier: "es"))
-                == "Filled 3,0 seconds with 3 clips")
+                == "Filled 3,0 seconds. Clips: 3")
     }
 }

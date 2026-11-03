@@ -87,7 +87,7 @@ actor Player {
     /// The old mix of a crossfade chunk, reused.
     private var fadeBuffer: AVAudioPCMBuffer?
     /// The meter of the heard mix (decision 0033).
-    private(set) var loudness: PlayerLoudness
+    var loudness: PlayerLoudness
     /// The paced pull (`Player+Paced.swift`): the instant that frame 0 of the pull is owed from,
     /// the frames pulled since, and the buffer that the pull renders into.
     var pacedBase: ContinuousClock.Instant?
@@ -233,33 +233,43 @@ actor Player {
         if dry {
             loudness.restart(scheduled: scheduled)
             graph.node.stop()
+            if let base = feed.take, output != .paced {
+                self.feed = restartTake(feed, base: base, graph: graph, ahead: ahead)
+                return
+            }
             feed = Feed(
                 anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, end: feed.end, speed: feed.speed,
                 mix: feed.mix, fadeFrom: feed.fadeFrom, take: feed.take)
             self.feed = feed
         }
         defer { if dry { graph.node.play() } }
+        guard schedule(&feed, graph, ahead: ahead) else { return }
+        self.feed = feed
+    }
+
+    /// Schedules chunks until `feed` is `ahead` node frames ahead of the node. False when one fails.
+    func schedule(_ feed: inout Feed, _ graph: Graph, ahead: Int) -> Bool {
         let total = length(feed)
         let target = min(total, nodeFrames() + ahead)
         while feed.scheduled < target {
             let count = min(chunk, total - feed.scheduled)
             guard let buffer = AVAudioPCMBuffer(pcmFormat: graph.format, frameCapacity: AVAudioFrameCount(count)),
                 render(feed, count: count, into: buffer)
-            else { return }
+            else { return false }
             if let old = feed.fadeFrom {
-                guard crossfade(feed, from: old, count: count, into: buffer) else { return }
+                guard crossfade(feed, from: old, count: count, into: buffer) else { return false }
                 feed.fadeFrom = nil
             }
             // The chunk plays a file that did not open as silence: stop, as the render fails.
             if let error = feed.mix.openError {
                 stop = .noFreeDescriptor(Int(error.code.rawValue))
-                return
+                return false
             }
             graph.node.scheduleBuffer(buffer)
             feed.scheduled += count
             loudness.scheduled(buffer, end: feed.scheduled)
         }
-        self.feed = feed
+        return true
     }
 
     /// Renders the next `count` output frames of the feed. Output frame k is the mix at

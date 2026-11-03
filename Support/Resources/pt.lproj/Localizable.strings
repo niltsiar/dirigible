@@ -64,6 +64,7 @@
 "error.session.layout" = "O layout da pista “%@” não pode mudar.";
 "error.session.track.in.take" = "A pista “%@” faz parte da tomada que aguarda finalização.";
 "error.session.track.count" = "A cópia tem %lld pistas. Selecione o mesmo número de pistas para colá-la.";
+"error.fill.too.many.clips" = "O preenchimento cria %1$lld clipes, e o limite é %2$lld. Selecione um intervalo mais curto ou copie um trecho de áudio mais longo.";
 "error.session.other" = "A sessão recusou a alteração.";
 "error.duck.no.speech" = "O abaixamento não encontrou voz acima de %.1f dBFS, então nenhum ponto de ganho mudou.";
 "error.duck.no.speech.track" = "Selecione uma pista de voz ou dê a uma pista a função Diálogo.";

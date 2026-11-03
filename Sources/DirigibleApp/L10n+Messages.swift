@@ -278,6 +278,7 @@ extension L10n {
         case .layoutMismatch(let track, _): return errorSessionLayout.format(name(track))
         case .trackInRecording(let track): return errorSessionTrackInTake.format(name(track))
         case .trackCount(let count): return errorSessionTrackCount.format(count)
+        case .fillTooManyClips(let needed): return errorFillTooManyClips.format(needed, Session.fillClipLimit)
         // The window never makes these edits: they are bugs, not user errors.
         case .duplicateID, .unknownCapture, .unknownFile, .unknownTrack, .unknownClip, .unknownMarker,
             .captureInUse, .invalidCapture, .fileInUse, .fileIsSource, .invalidOrigin, .invalidRoute, .invalidPath,
@@ -286,7 +287,7 @@ extension L10n {
             .takeOutOfRange, .clipOutsideFile, .overlap, .frameOutsideClip, .pointOutsideClip, .fadeOutsideClip,
             .crossfadeOutsideFile,
             .crossfadeWithoutJoin, .crossfadeAtSeamlessJoin, .crossfadeAtEqualGains, .fadeAtCrossfade, .laneOutOfRange,
-            .foreignFile,
+            .foreignFile, .emptyExcerpt,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo:
             return errorSessionOther.text

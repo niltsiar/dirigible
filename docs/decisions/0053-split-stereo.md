@@ -4,6 +4,7 @@
 - Date: 2026-10-26
 - Accepted: 2026-10-26, after plan gates 1 to 3 of run `2026-10-13-replace-roomtone-split`.
 - Amends: 0031 (the Tools menu gets the item Split Stereo to Mono), 0037 (the lane menu gets the item in group 2), 0040 (a split is a blocking run of the import transport), 0049 (`clip_split_stereo` is a sixth long edit tool), 0051 (`clip_split_stereo` is in the tool list only), 0060 (a clip that moves to another file moves its envelope points).
+- Amended: 2026-11-03, run `2026-10-13-replace-roomtone-split` (landing 2). Replace and Paste to Fill Selection: see "Replace and fill" below. It amends 0037 (the Rule M Replace clause).
 - Reference: `docs/research/hindenburg-edit-tools.md`, `logic-audition-edits.md`, and `audacity-soundcraft.md`.
 
 ## Context
@@ -24,6 +25,11 @@ A clip has no channel field, and a clip file layout must equal its track layout 
 - **The pick is typed.** `Side` (`.left`, `.right`) is the channel pick of `ClipConversion`. A stereo input into one channel with a pick takes only that channel; with no pick it folds 0.5 L + 0.5 R (0040).
 - **The split is a blocking run.** It uses the import transport (`ImportRun.Kind.split`): `.busy` during a take, the banner after 0.5 s, Cancel, the take yield, and one undo entry. Its order: one space check, the stems of each side, the Core split on a copy of the session, the temporary files, a check that each written length equals its run span, then the renames, one flush of `Clips/`, and one save. So a refusal of the session edit (a transcript that did not load, a mono clip) writes no file. The progress rises with the frames written and reaches 1 only at the end of the last side. A split error has its own type (`SplitError`), so no split text names an import. Undo keeps the WAVs as unused files (0047 holds them while a redo entry names them).
 
+### Replace and fill
+
+- **Replace** (`Session.replace`) is a Ripple Delete of the range and a Ripple Insert of the clipboard length at its start on all tracks (0037 scope), then a paste on the targets, in one edit. Rule M, new clause: a marker in the range or at its start ends at the range start; a marker at or after the range end moves by the clipboard length minus the range length.
+- **Paste to Fill Selection** (`Session.fill`) puts the clipboard again and again from the range start, with butt joins, and cuts the last copy at the range end. Nothing moves. It builds one tiled excerpt of the range length and pastes it once, so the range clears as one block (the gaps of a clip set stay silent), and each copy gets the clip check, the envelope, and a derived ID of `paste`. The words of a clipboard from another package come once, not once for each copy. More than `fillClipLimit` (1000) new clips (each clip of the clipboard, once for each copy that it starts in) refuses with `.fillTooManyClips` before any copy, and a clipboard of length 0 refuses with `.emptyExcerpt`. Hindenburg cuts a long clipboard to the selection [HM]; the repeat of a short one follows Audition Clip Loop and Logic region Loop.
+
 ## Consequences
 
 - No session version change. A split keeps `fileVersion`, except when a crossfade whose partner was not split goes. A session after a split opens in each older build that reads its version.
@@ -39,3 +45,5 @@ A clip has no channel field, and a clip file layout must equal its track layout 
 - **Write the whole source file once for each side.** It keeps all of the media, but a 10 s clip of a 2 h take writes 2.07 GB. Rejected.
 - **One pair for each clip.** Each seamless cut becomes a butt join (0036 then refuses a crossfade there, and Command-F can add a bump), and a dense edit writes more than the whole file. Rejected.
 - **Write only the clip span with no handle.** It loses each crossfade at the clip edges (0036 needs media past the edge), which is user work. Rejected.
+- **Replace that ripples only the target tracks.** The other tracks drift out of sync; 0037 ripples all tracks by default. Rejected; an "in Selected Tracks" twin can come later.
+- **Fill with a crossfade at each join.** It needs media past each copy edge, and room tone is noise. Deferred until a measured step at a join needs it.

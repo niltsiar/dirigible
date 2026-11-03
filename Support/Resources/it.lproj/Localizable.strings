@@ -64,6 +64,7 @@
 "error.session.layout" = "Impossibile modificare il layout della traccia “%@”.";
 "error.session.track.in.take" = "La traccia “%@” fa parte del take in attesa di finalizzazione.";
 "error.session.track.count" = "La copia ha %lld tracce. Seleziona lo stesso numero di tracce per incollarla.";
+"error.fill.too.many.clips" = "Il riempimento crea %1$lld clip e il limite è %2$lld. Seleziona un intervallo più breve o copia un tratto audio più lungo.";
 "error.session.other" = "La sessione ha rifiutato la modifica.";
 "error.duck.no.speech" = "L’abbassamento non ha trovato voce sopra %.1f dBFS, quindi non ha cambiato nessun punto di gain.";
 "error.duck.no.speech.track" = "Seleziona una traccia vocale o assegna a una traccia il ruolo Dialogo.";

@@ -64,6 +64,7 @@
 "error.session.layout" = "De kanaalindeling van spoor '%@' kan niet worden gewijzigd.";
 "error.session.track.in.take" = "Spoor '%@' hoort bij de take die nog moet worden afgerond.";
 "error.session.track.count" = "De kopie heeft %lld sporen. Selecteer evenveel sporen om de kopie te plakken.";
+"error.fill.too.many.clips" = "Het vullen maakt %1$lld clips en de limiet is %2$lld. Selecteer een korter bereik of kopieer een langer stuk audio.";
 "error.session.other" = "De sessie heeft de wijziging geweigerd.";
 "error.duck.no.speech" = "De verlaging vond geen spraak boven %.1f dBFS, dus er is geen gainpunt gewijzigd.";
 "error.duck.no.speech.track" = "Selecteer een spraakspoor of geef een spoor de rol Dialoog.";

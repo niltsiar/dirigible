@@ -47,6 +47,16 @@ struct EditBenchmark {
             uniqueKeysWithValues: history.session.tracks.flatMap { $0.clips.map { ($0.id, fades) } })
         #expect(allFades.count == 12_000)
         let allGains = allFades.mapValues { _ in Gain(dB: -6)! }
+        // Replace-roomtone-split C13b: the clipboards of the fills, 1 clip and 10 clips of track t1,
+        // and clip c0 with a 100-point envelope.
+        let one = try history.session.excerpt(of: .zero..<168_000, on: ["t1"])
+        let ten = try history.session.excerpt(of: .zero..<1_728_000, on: ["t1"])
+        var shaped = history.session
+        try shaped.setEnvelope(
+            Dictionary(uniqueKeysWithValues: (0..<100).map { (Frames($0 * 1_680), Gain(dB: Double($0 % 12) - 6)!) }),
+            clip: "c0")
+        let pointed = try shaped.excerpt(of: .zero..<168_000, on: ["t1"])
+        #expect(ten.lanes[0].clips.count == 10 && pointed.lanes[0].clips[0].envelope.points.count == 100)
 
         let edits: [(String, (inout Session) throws -> Void)] = [
             ("paste of 1,000 clips on 6 tracks", { try $0.paste(excerpt, at: Self.hour, on: tracks) }),
@@ -64,6 +74,18 @@ struct EditBenchmark {
             (
                 "excerpt and set paste of 6,000 clips",
                 { try $0.paste(try $0.excerpt(of: firstHour), at: Self.hour, on: tracks) }
+            ),
+            (
+                "fill of 1,000 new clips, 1 clip x 1,000 copies",
+                { try $0.fill(.zero..<168_000_000, with: one, on: ["t1"]) }
+            ),
+            (
+                "fill of 1,000 new clips, 10 clips x 100 copies",
+                { try $0.fill(.zero..<172_800_000, with: ten, on: ["t1"]) }
+            ),
+            (
+                "fill of 1,000 new clips, 1 clip with a 100-point envelope x 1,000 copies",
+                { try $0.fill(.zero..<168_000_000, with: pointed, on: ["t1"]) }
             ),
         ]
         for (name, edit) in edits { try Self.measure(name, history, edit) }

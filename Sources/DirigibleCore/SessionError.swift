@@ -100,4 +100,9 @@ public enum SessionError: Error, Hashable, Sendable {
     case duckRangePastEnd(Range<Frames>, end: Frames)
     /// A split names a clip on a mono track (decision 0053). It changes nothing.
     case notStereo(ClipID)
+    /// A fill would make `needed` new clips, more than `Session.fillClipLimit` (decision 0053). It
+    /// changes nothing.
+    case fillTooManyClips(needed: Int)
+    /// A fill of an excerpt with no frames (decision 0053). It changes nothing.
+    case emptyExcerpt
 }

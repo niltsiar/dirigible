@@ -122,6 +122,47 @@ extension UnusedFilesTests {
         #expect(captureExists("take1-2-1.caf") && captureExists("take1-2-1.sidecar"))
     }
 
+    /// A CAF that the Trash refuses keeps its sidecar, so a later build can still place its audio.
+    @Test func aCAFThatTheTrashRefusesKeepsItsSidecar() throws {
+        var session = try Self.withSegments(Self.session([]), [("take1-2-1", Self.segment)])
+        try plant("take1-2-1.wav")
+        try plantCapture(Self.segment)
+        let scan = try scan(session).listingCaptureFiles(Self.layout, in: package)
+        var trashed: [String] = []
+
+        let report = try scan.prune(&session, save: save) { url in
+            trashed.append(url.lastPathComponent)
+            if url.pathExtension == "caf" { throw Self.refusal }
+            return Self.fakeTrashURL(url)
+        }
+
+        #expect(trashed == ["take1-2-1.wav", "take1-2-1.caf"])
+        #expect(report.moved.map(\.item.path) == ["take1-2-1.wav"])
+        #expect(report.failed.map(\.item.path) == ["Capture/take1-2-1.caf"])
+        #expect(captureExists("take1-2-1.sidecar"))
+    }
+
+    /// A CAF that another file replaced after the scan keeps its sidecar.
+    @Test func aReplacedCAFKeepsItsSidecar() throws {
+        var session = try Self.withSegments(Self.session([]), [("take1-2-1", Self.segment)])
+        try plant("take1-2-1.wav")
+        try plantCapture(Self.segment)
+        let scan = try scan(session).listingCaptureFiles(Self.layout, in: package)
+        let caf = package.appending(path: "Capture/take1-2-1.caf")
+        try FileManager.default.removeItem(at: caf)
+        try Data(count: 11).write(to: caf)
+        var trashed: [String] = []
+
+        let report = try scan.prune(&session, save: save) { url in
+            trashed.append(url.lastPathComponent)
+            return Self.fakeTrashURL(url)
+        }
+
+        #expect(trashed == ["take1-2-1.wav"])
+        #expect(report.failed.map(\.item.path) == ["Capture/take1-2-1.caf"])
+        #expect(captureExists("take1-2-1.caf") && captureExists("take1-2-1.sidecar"))
+    }
+
     /// P20: an edit after the scan that gives a clip to the pool file keeps its capture files.
     @Test func editAfterScanKeepsTheCaptureFiles() throws {
         var session = try Self.withSegments(Self.session([]), [("take1-2-1", Self.segment)])

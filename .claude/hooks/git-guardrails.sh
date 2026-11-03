@@ -43,8 +43,9 @@ fi
 # body of python3, node, perl, or ruby with no -c or -e goes too: only the lock-value rule and the
 # log-decision rule skip it, because an interpreter runs its body. A prefix before the first word
 # is not part of that line: segments that each end with `;` or `&&` and hold `NAME=<word>`
-# assignments with no name PATH (a PATH value can make `cat` a stub), `cd <word>`, or
-# `mkdir -p <word>...`. A body stays when the end line is missing or not exact, when the first line
+# assignments with no name PATH in any case (a PATH value can make `cat` a stub, and zsh ties
+# `path` to PATH), `cd <word>`, or `mkdir -p <word>...`. A PATH change on an earlier line is not
+# checked. A body stays when the end line is missing or not exact, when the first line
 # has a second marker, a here-string, a pipe, or another list, and when an unquoted marker has `$(`
 # or a backtick in the body (the shell runs them). After a line that it can not read, it cuts no
 # more.
@@ -93,7 +94,7 @@ cut_bodies() {
     kind=none
     while [[ "$head" =~ $prefix_re ]]; do
       rest="${BASH_REMATCH[5]}"
-      [[ "${BASH_REMATCH[1]}" =~ (^|[[:space:]])PATH= ]] && break
+      [[ "${BASH_REMATCH[1]}" =~ (^|[[:space:]])[Pp][Aa][Tt][Hh]= ]] && break
       head="$rest"
     done
     if [[ "$head" =~ $sink_re ]]; then

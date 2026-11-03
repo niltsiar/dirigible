@@ -17,8 +17,8 @@ actor Player {
     /// Only these change the feed number. A seek or a shuttle change is a new play.
     enum Command: Sendable {
         /// `speed` applies only at the shuttle rate 1x (decision 0052). A forward play stops at
-        /// `end`, else at the session end.
-        case play(from: Frames, shuttle: Shuttle, speed: Speed = .one, end: Frames? = nil)
+        /// `end`, else at the session end. `take` starts a pre-roll take at a host time (0070).
+        case play(from: Frames, shuttle: Shuttle, speed: Speed = .one, end: Frames? = nil, take: TakeStart? = nil)
         case stop
     }
 
@@ -52,6 +52,10 @@ actor Player {
     private let readTerm: OutputTermRead
     /// The host clock of the paced pull. Tests give one that they move.
     let now: @Sendable () -> ContinuousClock.Instant
+    /// The host clock in nanoseconds of a take start, the clock of the take anchor. Tests set it.
+    let hostNanos: @Sendable () -> UInt64
+    /// Starts the node of a take play. Tests record the host time.
+    let startNode: NodeStart
     /// Renders the frames of the paced pull. Tests give one that fails.
     let pacedRender:
         @Sendable (AVAudioEngine, AVAudioFrameCount, AVAudioPCMBuffer) throws -> AVAudioEngineManualRenderingStatus
@@ -97,6 +101,7 @@ actor Player {
         open: @escaping MediaOpen = openMedia, speedUnit: @escaping SpeedUnitLookup = findSpeedUnit,
         offlineLatency: Int = 0, readTerm: OutputTermRead? = nil,
         now: @escaping @Sendable () -> ContinuousClock.Instant = { .now },
+        hostNanos: @escaping @Sendable () -> UInt64 = hostNanosNow, startNode: NodeStart? = nil,
         pacedRender:
             @escaping @Sendable (AVAudioEngine, AVAudioFrameCount, AVAudioPCMBuffer) throws
             -> AVAudioEngineManualRenderingStatus = { try $0.renderOffline($1, to: $2) }
@@ -110,6 +115,8 @@ actor Player {
         let manual: OutputTermRead = { _ in .success(.manual(offlineLatency)) }
         self.readTerm = readTerm ?? (output == .device ? readOutputTerm(of:) : manual)
         self.now = now
+        self.hostNanos = hostNanos
+        self.startNode = startNode ?? Self.nodeStart(on: output)
         self.pacedRender = pacedRender
         chunk = max(1, session.sampleRate / 10)
         loudness = PlayerLoudness(sampleRate: session.sampleRate)
@@ -133,7 +140,7 @@ actor Player {
         // The unit keeps the frames of the old position; a new play must not hear them.
         graph?.unit?.reset()
         feed = nil
-        guard case .play(let start, let shuttle, let speed, let end) = command else {
+        guard case .play(let start, let shuttle, let speed, let end, let take) = command else {
             graph?.engine.stop()
             return
         }
@@ -166,8 +173,12 @@ actor Player {
             anchor: start, shuttle: shuttle, end: end, speed: feedSpeed,
             mix: MixReader(package: url, session: session, open: open))
         refill()
-        graph.node.play()
-        pacedBase = now()
+        if let take {
+            feed?.take = startTake(take, node: graph.node, from: start)
+        } else {
+            graph.node.play()
+            pacedBase = now()
+        }
         pacedPulled = 0
         ticker = Self.tick(self, every: .nanoseconds(chunk * 500_000_000 / session.sampleRate))
     }
@@ -192,7 +203,8 @@ actor Player {
         let ended = feed.map { $0.scheduled >= length($0) && heardFrames() >= $0.scheduled } ?? false
         return Reading(
             number: number, played: played, frame: position(), ended: ended, running: graph?.engine.isRunning ?? false,
-            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values, term: term, termFault: termFault)
+            stop: stop, faults: feed?.mix.faults ?? [:], loudness: loudness.values, term: term, termFault: termFault,
+            realStart: feed?.take?.host)
     }
 
     func outputChanged() {
@@ -223,7 +235,7 @@ actor Player {
             graph.node.stop()
             feed = Feed(
                 anchor: frame(feed, played: scheduled), shuttle: feed.shuttle, end: feed.end, speed: feed.speed,
-                mix: feed.mix, fadeFrom: feed.fadeFrom)
+                mix: feed.mix, fadeFrom: feed.fadeFrom, take: feed.take)
             self.feed = feed
         }
         defer { if dry { graph.node.play() } }

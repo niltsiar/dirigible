@@ -21,7 +21,9 @@ import Testing
         let command = EventModifiers.command.rawValue
         #expect(
             edit.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
-                "cut x \(command)", "copy c \(command)", "paste v \(command)", "insert i \(command)", "delete \u{8} 0",
+                "cut x \(command)", "copy c \(command)", "paste v \(command)",
+                "fill v \(EventModifiers([.command, .option]).rawValue)", "insert i \(command)",
+                "replace v \(EventModifiers([.command, .shift]).rawValue)", "delete \u{8} 0",
                 "deleteCloseGap \u{8} \(EventModifiers.shift.rawValue)", "selectAll a \(command)",
                 "cutSelectedTracks x \(EventModifiers([.command, .option]).rawValue)",
                 "deleteCloseGapSelectedTracks \u{8} \(EventModifiers([.shift, .option]).rawValue)", "setIn i 0",
@@ -153,6 +155,42 @@ import Testing
         #expect(studio.session == session && studio.playhead == playhead)
         #expect(model.timeline.marks == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"]))
         await model.close()
+    }
+
+    /// C16 (UQ5 b): with a name field focused, the key of Replace or of Paste to Fill Selection goes to
+    /// the field first. The session, the playhead, and the Marks stay, and so does the text. Control:
+    /// with no forward, the command edits the session.
+    func aFocusedFieldTakes(_ command: TimelineCommand, flags: NSEvent.ModifierFlags) async throws {
+        let (model, studio, window, _) = try await openLanes(
+            app, try await timelinePackage(in: folder.url, tracks: 2, seconds: 60))
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["t1"])
+        model.run(.copy)
+        try #require(model.clipboard != nil)
+        let marks = Marks(inPoint: 96_000, outPoint: 192_000, tracks: ["t2"])
+        model.timeline.marks = marks
+        await studio.perform(.seek(.frame(24_000)))
+        let editor = try await focusName(in: window)
+        editor.setSelectedRange(NSRange(location: 1, length: 0))
+        let (session, playhead, text) = (studio.session, studio.playhead, editor.string)
+        let event = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
+                context: nil, characters: "v", charactersIgnoringModifiers: "v", isARepeat: false, keyCode: 9))
+
+        app.timeline(command, event: event, in: window)
+
+        #expect(studio.session == session && studio.playhead == playhead && !studio.canUndo)
+        #expect(model.timeline.marks == marks && model.importJob == nil)
+        #expect(editor.string == text && window.firstResponder === editor)
+        await model.close()
+    }
+
+    @Test func replaceKeyGoesToAFocusedField() async throws {
+        try await aFocusedFieldTakes(.replace, flags: [.command, .shift])
+    }
+
+    @Test func fillKeyGoesToAFocusedField() async throws {
+        try await aFocusedFieldTakes(.fill, flags: [.command, .option])
     }
 
     /// Criterion 14: with a name field focused, the marker keys change no marker, no playhead, and

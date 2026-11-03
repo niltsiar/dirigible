@@ -82,7 +82,8 @@ extension SessionWindow {
     /// in the selection or when Import Audio is off (a pending take too), Reduce Noise in the same
     /// cases or with no clip on a track that it takes, Restore Original Audio with no clip on a
     /// rendered file in the selection or a busy studio, and Heal Clips with no range or a busy
-    /// studio. The other items are never off: a field uses their keys (0018 K1).
+    /// studio, and Replace and Paste to Fill Selection with no clipboard, no range on a track, or a
+    /// run of the window. The other items are never off: a field uses their keys (0018 K1).
     func isOn(_ command: TimelineCommand) -> Bool {
         switch command {
         case .export: canExport
@@ -92,6 +93,7 @@ extension SessionWindow {
         case .importAudio: canImport
         case .importTranscript: canImportTranscript
         case .insert, .cutSelectedTracks, .fade: importJob == nil
+        case .replace, .fill: rangePasteRange != nil
         case .autoLevel, .autoLevelPerTrack:
             importJob == nil && idleStudio?.session.tracks.contains { !$0.clips.isEmpty } == true
         case .duck: !dialogShowing && isOn(.autoLevel)

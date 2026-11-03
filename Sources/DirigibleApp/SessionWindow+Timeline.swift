@@ -69,6 +69,8 @@ enum TimelineCommand: Hashable {
     /// The ripple items of decision 0037: Delete and Close Gap, Insert, and the two twins that
     /// ripple only the selected tracks. Cut closes the gap too.
     case deleteCloseGap, insert, cutSelectedTracks, deleteCloseGapSelectedTracks
+    /// Replace and Paste to Fill Selection (decision 0053): a paste into the selected range.
+    case replace, fill
     case split, nudgeLeft, nudgeRight, fade, heal
     case addMarker, addChapter, markerInfo, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, importTranscript, export,
@@ -105,6 +107,8 @@ enum TimelineCommand: Hashable {
         // A text field moves the caret to its start or end with Command-Up and Command-Down.
         case .tallerTracks, .shorterTracks: true
         case .fitTracks: false
+        // A name field gets the key first: Shift-Command-V is a plain-paste habit in text fields (UQ5).
+        case .replace, .fill: true
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker: true
         // A focused text field ends its edit with Return.
         case .renameTrack, .removeTrack, .showInFinder: true
@@ -250,6 +254,7 @@ extension SessionWindow {
             timeline.marker = nil
         case .selectAll: timeline.selection = .range(Marks.all(in: studio.session))
         case .copy, .paste, .delete: runClipboard(command, studio)
+        case .replace, .fill: runRangePaste(command, studio)
         case .cut, .deleteCloseGap, .insert, .cutSelectedTracks, .deleteCloseGapSelectedTracks:
             runRipple(command, studio)
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)

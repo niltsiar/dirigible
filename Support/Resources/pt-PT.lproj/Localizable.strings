@@ -184,6 +184,8 @@
 "error.writer.did.not.stop" = "O Dirigible não conseguiu parar %1$@. O áudio está seguro no disco. Clique em %2$@ para voltar a tentar ou saia do Dirigible: a próxima abertura restaura o excerto.";
 "paste.banner" = "A colar de “%@”";
 "paste.done" = "Colado.";
+"replace.done" = "Substituídos %@ segundos";
+"fill.done" = "Preenchidos %1$@ segundos com %2$lld clipes";
 "split.banner" = "A dividir clipes estéreo em faixas mono";
 "split.done" = "Dividido em duas faixas mono.";
 "split.suffix.left" = "E";
@@ -460,6 +462,8 @@
 "menu.edit.delete" = "Apagar";
 "menu.edit.delete.close.gap" = "Apagar e fechar a lacuna";
 "menu.edit.insert" = "Inserir";
+"menu.edit.replace" = "Substituir";
+"menu.edit.fill" = "Colar para preencher a seleção";
 "menu.edit.cut.selected.tracks" = "Cortar nas faixas selecionadas";
 "menu.edit.delete.close.gap.selected.tracks" = "Apagar e fechar a lacuna nas faixas selecionadas";
 "menu.edit.select.all" = "Selecionar tudo";

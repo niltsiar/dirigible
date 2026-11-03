@@ -43,7 +43,8 @@ import Testing
             canRipple: true)
         #expect(
             groups.map { $0.map(\.command) } == [
-                [.cut, .copy, .paste, .insert], [.delete, .deleteCloseGap, .split, .fade], [.addMarker, .addChapter],
+                [.cut, .copy, .paste, .fill, .insert, .replace], [.delete, .deleteCloseGap, .split, .fade],
+                [.addMarker, .addChapter],
             ])
         let enabled = groups.joined().allSatisfy { $0.enabled }
         #expect(enabled)
@@ -58,7 +59,7 @@ import Testing
         let menu = try menu(view, 120, 10)
         #expect(menu.items.allSatisfy { $0.keyEquivalent.isEmpty }, "\(menu.items.map(\.keyEquivalent))")
         #expect(!titles(menu).contains("Undo"))
-        #expect(menu.items.count == 14, "\(titles(menu))")
+        #expect(menu.items.count == 16, "\(titles(menu))")
         await model.close()
     }
 
@@ -114,8 +115,31 @@ import Testing
             canRipple: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
-                [.copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],
+                [.copy, .paste, .fill], [.delete, .split, .fade], [.addMarker, .addChapter],
             ])
+    }
+
+    /// C18: Paste to Fill Selection follows Paste and shows with a range, dimmed with no clipboard.
+    /// Replace follows Insert and shows with a range and a clipboard when a ripple can run. A clip
+    /// set and no selection show neither. Control: Replace with no clipboard, or under a pending
+    /// take.
+    @Test func replaceAndFillShowWithARange() {
+        func commands(
+            selection: Bool = true, clips: Bool = false, clipboard: Bool = true, ripple: Bool = true
+        ) -> [[LaneMenu.Item]] {
+            LaneMenu.groups(
+                selection: selection, clips: clips, stereo: false, denoise: false, restore: false,
+                clipboard: clipboard, split: false, canEdit: true, canRipple: ripple)
+        }
+        func first(_ groups: [[LaneMenu.Item]]) -> [LaneMenu.Item] { groups[0] }
+        #expect(first(commands()).map(\.command) == [.cut, .copy, .paste, .fill, .insert, .replace])
+        #expect(first(commands(clipboard: false)).filter { $0.command == .fill }.map(\.enabled) == [false])
+        #expect(!first(commands(clipboard: false)).map(\.command).contains(.replace))
+        #expect(!first(commands(ripple: false)).map(\.command).contains(.replace))
+        #expect(first(commands(ripple: false)).map(\.command).contains(.fill))
+        for shown in [commands(clips: true), commands(selection: false)] {
+            #expect(!shown.joined().map(\.command).contains { $0 == .fill || $0 == .replace })
+        }
     }
 
     /// C20 in the window: the menu reads `Studio.canRipple`. A `<recording>` and the marker of a
@@ -260,9 +284,8 @@ import Testing
         }
         #expect(
             model.leafCalls == [
-                "cut", "copy", "paste", "insert", "delete", "deleteCloseGap", "split", "reduceNoise", "repairSound",
-                "fade",
-                "addMarker", "addChapter",
+                "cut", "copy", "paste", "fill", "insert", "replace", "delete", "deleteCloseGap", "split",
+                "reduceNoise", "repairSound", "fade", "addMarker", "addChapter",
             ])
         await model.close()
     }

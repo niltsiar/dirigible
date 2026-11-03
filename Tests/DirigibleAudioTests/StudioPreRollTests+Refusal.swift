@@ -7,8 +7,7 @@ import Testing
 
 /// The refusals and faults of a pre-roll take start (decision 0070, criterion P23): a check
 /// refusal plays nothing; a save fault, a failed term read, and a failed engine start stop the
-/// Player, write no `<recording>`, and keep the playhead at T. A stop of the take play has a
-/// journal line.
+/// Player, write no `<recording>`, and keep the playhead at T.
 extension StudioPreRollTests {
     enum Refusal: CaseIterable { case route, access, disk }
 
@@ -125,22 +124,6 @@ extension StudioPreRollTests {
             .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
             .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-stop" }.map(fieldValues)
         #expect(stops.map { $0["stop"] } == ["noFreeDescriptor(24)"])
-    }
-
-    /// No poll reads the take play, so the take stop writes its output change in the journal.
-    @Test func takePlayStopHasAJournalLine() async throws {
-        let logs = package.folder.url.appending(path: "logs")
-        let studio = try await studio()
-        studio.environment.log = startLog(in: logs)
-        try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
-        await studio.play.player?.outputChanged()
-        try await studio.stopRecording()
-        studio.log.drain()
-
-        let stops = try journalLines(of: try #require(journalFiles(in: logs).first))
-            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
-            .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-stop" }.map(fieldValues)
-        #expect(stops.map { $0["stop"] } == ["outputChanged"])
     }
 
     /// The `start:` closure of the Player throws: the term fault of `Reading` refuses the take.

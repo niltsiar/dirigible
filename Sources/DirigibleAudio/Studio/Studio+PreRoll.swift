@@ -6,10 +6,8 @@ extension Studio {
     /// The session that the Player plays: during a pre-roll take, the take mix of the session, so
     /// an edit in the take keeps the armed tracks silent from T (**One Player session**).
     var playerSession: Session {
-        guard case .recording = transport, let recording = session.recording, recording.isPreRoll else {
-            return session
-        }
-        return takeMix(session, armed: recording.armedTracks, from: recording.playheadFrame)
+        guard let mix = play.takeMix else { return session }
+        return takeMix(session, armed: mix.armed, from: mix.from)
     }
 
     /// T while a pre-roll take plays before T: the take records, and the host clock is before H_T.
@@ -31,8 +29,9 @@ extension Studio {
         let player = play.player ?? makePlayer()
         play.player = player
         // Awaited with a new revision, so no late plain session replaces the take mix.
+        play.takeMix = (armed, playhead)
         play.revision += 1
-        await player.update(takeMix(session, armed: armed, from: playhead), revision: play.revision)
+        await player.update(playerSession, revision: play.revision)
         play.feed += 1
         let take = Player.TakeStart(floor: environment.hostNanos() + Player.startMargin, span: playhead - start)
         let span = environment.log.begin(.take, "pre-roll-begin", ["from": .number(Int64(start.count))])
@@ -76,6 +75,7 @@ extension Studio {
     /// the take play, so a stop that the user did not ask for gets its journal line here.
     func endPreRoll(at playhead: Frames) async {
         _ = await endFeed(stop: true)
+        play.takeMix = nil
         if let stop = await play.player?.reading().stop {
             environment.log.note(.take, "pre-roll-stop", ["stop": .text("\(stop)")])
         }

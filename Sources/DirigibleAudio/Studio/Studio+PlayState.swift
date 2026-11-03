@@ -23,6 +23,9 @@ struct PlayState {
     var revision = 0
     /// The gain of a fader drag: each session that the Player gets has it, until `endPreview`.
     var preview: (track: TrackID, gain: Gain)?
+    /// The armed tracks and T of a pre-roll take from its take play start to its end: each
+    /// session that the Player gets is the take mix (decision 0070).
+    var takeMix: (armed: [TrackID], from: Frames)?
     /// The vari-speed of a 1x play (decision 0052): window state, 1x at open.
     var speed = Speed.one
     /// Made at the first play from `environment.playerOutput`.

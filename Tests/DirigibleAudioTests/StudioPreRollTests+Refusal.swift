@@ -7,7 +7,8 @@ import Testing
 
 /// The refusals and faults of a pre-roll take start (decision 0070, criterion P23): a check
 /// refusal plays nothing; a save fault, a failed term read, and a failed engine start stop the
-/// Player, write no `<recording>`, and keep the playhead at T.
+/// Player, write no `<recording>`, and keep the playhead at T. A stop of the take play has a
+/// journal line.
 extension StudioPreRollTests {
     enum Refusal: CaseIterable { case route, access, disk }
 
@@ -98,6 +99,48 @@ extension StudioPreRollTests {
 
         #expect(studio.lastTake?.lateStarts == ["t1"])
         #expect(studio.lastTake?.gaps == ["t1": .writeFailed])
+    }
+
+    /// The take play stops at its first refill (no free descriptor for `f2`): the take does not
+    /// start, the error carries that stop, and the journal has the stop.
+    @Test func firstRefillStopRefusesThePreRoll() async throws {
+        let logs = package.folder.url.appending(path: "logs")
+        let studio = try await studio()
+        studio.environment.log = startLog(in: logs)
+        let url = package.url
+        studio.play.player = Player(
+            package: { url }, output: .offline, session: studio.session,
+            open: { file, clips, rate throws(POSIXError) in
+                if file.id == "f2" { throw POSIXError(.EMFILE) }
+                return try openMedia(file, in: clips, rate: rate)
+            }, readTerm: { _ in .success(.builtIn) }, hostNanos: { Self.hostNow })
+
+        await #expect(throws: StudioError.preRollStopped(.noFreeDescriptor(Int(EMFILE)))) {
+            try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        }
+
+        try await expectRefusedAfterThePlay(studio, "first refill stop")
+        studio.log.drain()
+        let stops = try journalLines(of: try #require(journalFiles(in: logs).first))
+            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
+            .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-stop" }.map(fieldValues)
+        #expect(stops.map { $0["stop"] } == ["noFreeDescriptor(24)"])
+    }
+
+    /// No poll reads the take play, so the take stop writes its output change in the journal.
+    @Test func takePlayStopHasAJournalLine() async throws {
+        let logs = package.folder.url.appending(path: "logs")
+        let studio = try await studio()
+        studio.environment.log = startLog(in: logs)
+        try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        await studio.play.player?.outputChanged()
+        try await studio.stopRecording()
+        studio.log.drain()
+
+        let stops = try journalLines(of: try #require(journalFiles(in: logs).first))
+            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(String.init) }
+            .filter { $0.count >= 6 && $0[4] == "take" && $0[5] == "pre-roll-stop" }.map(fieldValues)
+        #expect(stops.map { $0["stop"] } == ["outputChanged"])
     }
 
     /// The `start:` closure of the Player throws: the term fault of `Reading` refuses the take.

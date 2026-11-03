@@ -124,6 +124,7 @@ extension StudioError {
         case .silencesFaults: "silencesFaults"
         case .writerDidNotStop: "writerDidNotStop"
         case .outputTermUnavailable: "outputTermUnavailable"
+        case .preRollStopped: "preRollStopped"
         }
     }
 }

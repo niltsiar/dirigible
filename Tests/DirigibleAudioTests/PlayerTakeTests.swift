@@ -214,6 +214,27 @@ struct PlayerTakeTests {
         #expect(maxError(out[0], try package.mix(64_800..<69_600)[0]) <= 1e-6, "the frames of the second pick")
     }
 
+    /// The restart schedule fails (no free descriptor for `f2` at 40000): the node still plays at
+    /// once, as a plain refill does, so the next refill can restart it.
+    @Test func failedRestartScheduleStartsTheNode() async throws {
+        try package.addFile("f2", channels: [ramp(frames: 50_000, channel: 1)])
+        try package.addTrack("t2", clip: "c2", file: "f2", start: 40_000, offset: 0, length: 50_000)
+        let clock = HostClock(h0)
+        let player = player(
+            host: clock,
+            open: { file, clips, rate throws(POSIXError) in
+                if file.id == "f2" { throw POSIXError(.EMFILE) }
+                return try openMedia(file, in: clips, rate: rate)
+            })
+        await player.apply(take(floor: h0 + 100_000_000, span: 96_000), number: 1)
+        clock.set(h0 + 1_000_000_000)
+        _ = await player.renderOffline(frames: 4 * 4800, starve: true)
+        await player.refill()
+
+        #expect(await player.reading().stop == .noFreeDescriptor(Int(EMFILE)))
+        #expect(starts.withLock { $0 } == [h0 + 100_000_000, nil])
+    }
+
     /// Each schedule takes longer than the last (0.2 s, 0.4 s, 0.8 s), so the picks at
     /// H0 + 0.6 s, 1.1 s, and 1.6 s are late. After the third, the node plays at once with the
     /// frames of the third pick: 2400 + 1.5 s x 48 kHz.

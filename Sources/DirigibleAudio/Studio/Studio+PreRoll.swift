@@ -23,7 +23,8 @@ extension Studio {
 
     /// The step of a pre-roll take start after its checks and before its save (**Start order**):
     /// the take mix, the take play from S = `seconds` (0 to 10) before `playhead`, then H_T. With no
-    /// output term, it stops the Player, keeps the playhead at T, and throws `.outputTermUnavailable`.
+    /// output term, it stops the Player, keeps the playhead at T, and throws `.outputTermUnavailable`;
+    /// a take play that stopped at its start throws `.preRollStopped` with that stop the same way.
     func startPreRoll(at playhead: Frames, seconds: Int, armed: [TrackID]) async throws(StudioError) -> UInt64 {
         let rate = session.sampleRate
         let start = preRollStart(playhead: playhead, seconds: min(max(seconds, 0), 10), rate: rate)
@@ -42,6 +43,10 @@ extension Studio {
             environment.log.note(.take, "pre-roll-fault", level: .error, fields: reading.termFault?.journalFields ?? [])
             await endPreRoll(at: playhead)
             throw .outputTermUnavailable
+        }
+        if let stop = reading.stop {
+            await endPreRoll(at: playhead)
+            throw .preRollStopped(stop)
         }
         let anchor = takeStartHostNanos(realStart: realStart, term: reading.term, from: start, to: playhead, rate: rate)
         let lead = anchor - min(anchor, environment.hostNanos())
@@ -67,9 +72,13 @@ extension Studio {
         await endPreRoll(at: playhead)
     }
 
-    /// Stops the take play of a pre-roll take and puts the playhead at T (**Stop**).
+    /// Stops the take play of a pre-roll take and puts the playhead at T (**Stop**). No poll reads
+    /// the take play, so a stop that the user did not ask for gets its journal line here.
     func endPreRoll(at playhead: Frames) async {
         _ = await endFeed(stop: true)
+        if let stop = await play.player?.reading().stop {
+            environment.log.note(.take, "pre-roll-stop", ["stop": .text("\(stop)")])
+        }
         play.playhead = playhead
     }
 }

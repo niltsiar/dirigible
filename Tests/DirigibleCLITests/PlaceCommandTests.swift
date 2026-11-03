@@ -87,7 +87,7 @@ struct PlaceCommandTests {
     }
 
     /// A segment that ends before the take playhead becomes a pool file with no clip (decision
-    /// 0004 **Timing**).
+    /// 0004 **Timing**). Stdout is a clip ID or nothing, so the reason goes to stderr.
     @Test func aSegmentBeforeTheFloorPlacesNoClip() async throws {
         // The new first frame needs a new capture: the fixture keeps the capture of the old one.
         try package.edit { try $0.removeCapture("take1-1-1") }
@@ -96,7 +96,9 @@ struct PlaceCommandTests {
         let result = try await package.run("capture", "place", "PKG", "take1-1-1")
 
         #expect(
-            result == CLIResult(status: 0, stdout: "no clip: the segment ends before the take playhead\n", stderr: ""),
+            result
+                == CLIResult(
+                    status: 0, stdout: "", stderr: "Warning: no clip: the segment ends before the take playhead\n"),
             "\(result)")
         #expect(try await starts("t1") == [:])
         #expect(try Session(contentsOf: package.url).files["take1-1-1"]?.capture == "take1-1-1")

@@ -158,6 +158,21 @@ struct StudioPreRollTests {
         #expect(studio.session.recording == nil)
     }
 
+    /// The writers end at the host time of the stop command, before the Player stop.
+    @Test func stopEndsTheWritersBeforeThePlayerStop() async throws {
+        let studio = try await studio()
+        let ends = LockedBox<[UInt64]>()
+        studio.environment.beforePlayerStop = { @MainActor in
+            ends.value = studio.writers.values.map(\.lifecycle.endHostNanos)
+        }
+        try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        let called = hostNanosNow()
+        try await studio.stopRecording()
+
+        let end = try #require(ends.value?.first)
+        #expect(ends.value?.count == 1 && end >= called && end < .max)
+    }
+
     /// Input from H_T - 0.5 s for 1 s: the clip starts at T with an offset of 0.5 s, and the stop
     /// ends the pre-roll play.
     @Test func stopAfterTStopsThePlayer() async throws {

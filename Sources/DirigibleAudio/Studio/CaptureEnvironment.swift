@@ -42,7 +42,8 @@ struct CaptureEnvironment: Sendable {
     /// The output of the Player that the next play makes (decision 0016). Tests render offline;
     /// `DIRIGIBLE_AUDIO_OUTPUT=none` gives `.paced` (`live(environment:)`).
     var playerOutput: Player.Output = .device
-    /// A step before the Player stop of a take start, off the main actor. Tests hold it.
+    /// A step before the Player stop of a take start and of a pre-roll take end, off the main
+    /// actor. Tests hold it.
     var beforePlayerStop: @Sendable () async -> Void = {}
     /// A step of a take start before the device lookup, off the main actor. Tests hold the start
     /// with it and suspend, so no thread of the concurrency pool waits; `live` does nothing. The

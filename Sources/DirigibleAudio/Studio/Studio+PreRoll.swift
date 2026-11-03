@@ -74,6 +74,7 @@ extension Studio {
     /// Stops the take play of a pre-roll take and puts the playhead at T (**Stop**). No poll reads
     /// the take play, so a stop that the user did not ask for gets its journal line here.
     func endPreRoll(at playhead: Frames) async {
+        await environment.beforePlayerStop()
         _ = await endFeed(stop: true)
         play.takeMix = nil
         if let stop = await play.player?.reading().stop {

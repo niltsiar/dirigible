@@ -84,7 +84,7 @@ extension AppDelegate {
 }
 
 extension AppDelegate {
-    /// The items with a key of a field that are off when no session window is key.
+    /// The items that a field gives a key to, and that are still off when no session window is key.
     private static let needsWindow: Set<TimelineCommand> = [.addMarker, .addChapter, .replace, .fill]
 
     /// File > Remove Unused Files… is on while the key session window takes an edit (decision 0047).

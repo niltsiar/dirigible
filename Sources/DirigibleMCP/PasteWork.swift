@@ -13,7 +13,7 @@ package struct PasteWork: Sendable {
 
     let source: URL
     let selection: Selection
-    let mode: PasteMode
+    package let mode: PasteMode
     /// Checked by `EditRules.pasteTargets` and `EditRules.sourceNeedsOnto`.
     let onto: [String]
 

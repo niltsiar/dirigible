@@ -54,6 +54,26 @@ public enum PasteMode: Hashable, Sendable {
     }
 }
 
+extension Session {
+    /// The session edit of a paste of `excerpt` on `tracks` with `mode` (decision 0053). Returns the
+    /// pasted IDs. A throw changes nothing.
+    public mutating func paste(_ excerpt: Excerpt, mode: PasteMode, on tracks: [TrackID]) throws(SessionError)
+        -> [ClipID]
+    {
+        switch mode {
+        case .over(let at): return try paste(excerpt, at: at, on: tracks)
+        case .insert(let at):
+            var copy = self
+            try copy.rippleInsert(excerpt.length, at: at, on: copy.tracks.map(\.id))
+            let pasted = try copy.paste(excerpt, at: at, on: tracks)
+            self = copy
+            return pasted
+        case .replace(let range): return try replace(range, with: excerpt, on: tracks)
+        case .fill(let range): return try fill(range, with: excerpt, on: tracks)
+        }
+    }
+}
+
 /// Why a paste changed nothing (decision 0042). Each `file` is a path in `Clips/` of the source.
 public enum PasteError: Error, Hashable, Sendable {
     /// The source package or a source WAV is not there, or another package is at the path.
@@ -190,14 +210,7 @@ struct PastePlan {
             }
             pasted = try pasted.mapped(to: records)
         }
-        switch mode {
-        case .over(let at): clips = try self.session.paste(pasted, at: at, on: tracks)
-        case .insert(let at):
-            try self.session.rippleInsert(pasted.length, at: at, on: self.session.tracks.map(\.id))
-            clips = try self.session.paste(pasted, at: at, on: tracks)
-        case .replace(let range): clips = try self.session.replace(range, with: pasted, on: tracks)
-        case .fill(let range): clips = try self.session.fill(range, with: pasted, on: tracks)
-        }
+        clips = try self.session.paste(pasted, mode: mode, on: tracks)
     }
 }
 

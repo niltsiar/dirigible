@@ -58,7 +58,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         }
     case .paste(let work):
         do throws(EditFailure<PasteError>) {
-            let (ids, note) = try editPackageCore(package, ripple: false) { session, lock throws(PasteError) in
+            let (ids, note) = try editPackageCore(package, ripple: RippleNeed { _ in work.mode.ripples }) {
+                session, lock throws(PasteError) in
                 try TakeWork.noted(&session, package: package) { session throws(PasteError) in
                     try work.run(&session, lock: lock, package: package)
                 }

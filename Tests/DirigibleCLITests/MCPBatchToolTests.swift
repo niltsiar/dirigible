@@ -115,13 +115,15 @@ struct MCPBatchToolTests {
     }
 
     /// C6: a tool that is a step, with a call that copies a file.
-    @Test(arguments: ["clip_paste", "clip_paste_clips", "marker_set", "episode_set"])
+    @Test(arguments: ["clip_paste", "clip_paste_clips", "clip_replace", "clip_fill", "marker_set", "episode_set"])
     func aCallThatCopiesAFileIsRefused(name: String) async throws {
         let before = try snapshot()
         let arguments: [String: Any] =
             switch name {
             case "clip_paste": ["from": 0, "to": 10, "track": ["V"], "at": 0, "source": package.path]
             case "clip_paste_clips": ["clips": ["a"], "at": 0, "source": package.path]
+            case "clip_replace", "clip_fill":
+                ["from": 0, "to": 10, "track": ["V"], "at": 0, "until": 10, "source": package.path]
             case "marker_set": ["id": "M", "name": "A", "at": 0, "image": "/image.png"]
             default: ["artwork": "/image.png"]
             }

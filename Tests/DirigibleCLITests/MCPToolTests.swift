@@ -222,10 +222,13 @@ struct MCPToolTests {
             toolCall(4, "clip_ripple_delete", ["package": pkg, "from": [0, 9_600], "to": [4_800, 48_000]]),
             toolCall(2, "clip_ripple_insert", ["package": pkg, "at": 0, "length": 48_000]),
             toolCall(3, "clip_ripple_trim", ["package": pkg, "clip": "take1-2-1", "edge": "end", "by": -4800]),
+            toolCall(
+                5, "clip_replace",
+                ["package": pkg, "from": 96_000, "to": 120_000, "track": ["t2"], "at": 0, "until": 48_000]),
         ])
         let cli = try await fixture.package.run("clip", "ripple-delete", "PKG", "--from", "0", "--to", "48000")
         #expect(cli.status == 3)
-        for id in 1...4 { #expect(toolResult(answer(answers, id: id)) == (errorText(cli), true), "ripple \(id)") }
+        for id in 1...5 { #expect(toolResult(answer(answers, id: id)) == (errorText(cli), true), "ripple \(id)") }
         #expect(try fixture.package.xml() == before)
 
         let control = try await mcp([toolCall(1, "marker_set", ["package": pkg, "name": "M", "at": 0, "id": "m"])])

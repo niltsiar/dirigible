@@ -12,7 +12,7 @@ struct ClipCommand: ParsableCommand {
             Remove.self, Denoise.self, Repair.self, Restore.self,
             Move.self, Trim.self,
             SetGain.self, Envelope.self, GainRange.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self,
-            RippleInsert.self, RippleTrim.self,
+            RippleInsert.self, RippleTrim.self, Replace.self, Fill.self,
         ])
 
     struct Place: ParsableCommand {
@@ -347,7 +347,7 @@ enum SourceOption {
     }
 
     static func run(_ work: PasteWork, package: PackageArgument) throws {
-        let pasted = try editPackage(package, ripple: false, refused: refusedPaste) {
+        let pasted = try editPackage(package, ripple: RippleNeed { _ in work.mode.ripples }, refused: refusedPaste) {
             session, lock throws(PasteError) in
             try work.run(&session, lock: lock, package: package.url)
         }

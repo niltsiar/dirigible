@@ -3,7 +3,7 @@ import Testing
 
 /// The tool list of `dirigible mcp` (decision 0041).
 struct MCPToolListTests {
-    /// 69 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// 71 tools in a fixed order, each with a description and a closed schema with `package`,
     /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])
@@ -14,7 +14,8 @@ struct MCPToolListTests {
                 "track_gain", "track_route", "track_layout", "track_mute", "track_solo", "track_role", "marker_set",
                 "marker_remove", "episode_set", "episode_get",
                 "capture_remove", "file_remove", "file_prune", "clip_place", "clip_clear", "clip_split",
-                "clip_split_at", "clip_split_stereo", "clip_paste", "clip_paste_clips", "clip_nudge", "clip_remove",
+                "clip_split_at", "clip_split_stereo", "clip_paste", "clip_paste_clips", "clip_replace", "clip_fill",
+                "clip_nudge", "clip_remove",
                 "clip_move",
                 "clip_trim", "clip_gain", "clip_fade", "clip_denoise", "clip_repair", "clip_restore",
                 "clip_crossfade", "clip_heal", "clip_envelope", "clip_gain_range", "clip_ripple_delete",

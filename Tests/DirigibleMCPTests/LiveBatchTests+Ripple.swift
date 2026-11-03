@@ -60,6 +60,24 @@ extension LiveBatchTests {
         await studio.settle()
     }
 
+    /// L2 C12: a Replace step after a step that splits a take is refused with the ripple text.
+    @Test func aReplaceStepUnderASplitTakeIsRefused() async throws {
+        let (package, file) = try Self.takePackage()
+        let studio = try await package.open()
+        let (server, folder) = try liveServer(studio)
+        defer { server.stop() }
+        let before = studio.session
+        let replace = Self.call("clip_replace", ["from": 0, "to": 4_800, "track": ["t1"], "at": 0, "until": 2_400])
+
+        let outcome = await batch(
+            [Self.call("file_remove", ["file": file]), replace], to: folder.socket, package: package)
+
+        let split = StudioError.rippleBlocked.message(package: package.path)
+        #expect(outcome == Self.refused(1, "clip_replace", split), "\(outcome)")
+        #expect(studio.session == before && !studio.canUndo)
+        await studio.settle()
+    }
+
     /// C9: under a pending take, a batch of steps with no ripple runs, as one call does. A ripple
     /// step is refused at its index, and the steps before it change nothing.
     @Test func aPendingTakeRefusesOnlyARippleStep() async throws {

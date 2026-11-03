@@ -196,7 +196,8 @@ extension Studio {
         diskWatcher = nil
         takeTimer?.cancel()
         takeTimer = nil
-        let seconds = session.recording.map { Double(Int64(bitPattern: now &- $0.takeStartHostTimeNanos)) / 1e9 }
+        // A stop before T gives 0 s.
+        let seconds = session.recording.map { Double(now - min(now, $0.takeStartHostTimeNanos)) / 1e9 }
         for writer in writers.values { writer.end(atHostNanos: now) }
         // After the take end, so the Player stop does not make the take longer. The playhead of a
         // stop before T is T (decision 0070).

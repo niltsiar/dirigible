@@ -128,23 +128,32 @@ import Testing
         await b.close()
     }
 
-    /// C17: one announcement for each edit. A Replace of the same package and a fill of another
-    /// package each give the text of their kind once, and a paste run that shows its banner gives
-    /// the banner and then the effect, not "Pasted.".
+    /// C17: one announcement for each edit. A Replace from another package gives the text of its
+    /// kind once, and a fill run that shows its banner gives the banner and then the effect, not
+    /// "Pasted.".
     @Test func announcesTheEffect() async throws {
         let (a, _) = try await open("from")
         copy(a)
-        let (model, _) = try await open("into")
+        let (model, studio) = try await open("into")
         var heard: [String] = []
         model.chrome?.announce = { text, _ in heard.append(text) }
+        // Only the test ends the banner wait; the slow steps stand for a loaded suite.
+        let release = LockedFlag()
+        defer { release.value = true }
+        model.bannerWait = {
+            while !release.value, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(10)) }
+        }
+        studio.environment.importStep = { Thread.sleep(forTimeInterval: 0.6) }
         model.timeline.marks = Marks(inPoint: 96_000, outPoint: 240_000, tracks: ["t2"])
 
         await run(model, .replace)
         #expect(heard == [L10n.replaceDone.format(SilenceReview.seconds(48_000, rate: 48_000))], "\(heard)")
 
         heard = []
+        release.value = true
         await run(model, .fill)
-        #expect(heard == [L10n.fillDone.format(SilenceReview.seconds(144_000, rate: 48_000), 3)], "\(heard)")
+        let filled = L10n.fillDone.format(SilenceReview.seconds(144_000, rate: 48_000), 3)
+        #expect(heard == [L10n.pasteBanner.format("timeline"), filled], "\(heard)")
         await a.close()
         await model.close()
     }

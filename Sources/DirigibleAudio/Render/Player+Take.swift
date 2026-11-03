@@ -25,6 +25,8 @@ extension Player {
     static let startMargin: UInt64 = 100_000_000
     /// The least time from the host time read before the start to the take start T.
     static let lead: UInt64 = 500_000_000
+    /// A pick that is less than this ahead of the host clock after its schedule is late.
+    static let lateMargin: UInt64 = 10_000_000
 
     /// Only the device clock follows the host time: manual rendering ignores it (probe U20).
     /// `AVAudioTime` takes host ticks, not nanoseconds.
@@ -43,5 +45,34 @@ extension Player {
         startNode(node, start)
         pacedBase = instant + .nanoseconds(Int64(start) - Int64(host))
         return TakeBase(host: start, frame: frame)
+    }
+
+    /// The restart of a take feed after an underrun (P28): it keeps the map from host time to
+    /// frame of `base`. It picks a host time 100 ms after the clock, plus the time of the last
+    /// schedule after a late pick, and schedules from the frame due then, so the frames whose time
+    /// passed are skipped. A pick that is late after its schedule picks again; after 3 late picks
+    /// the node plays at once. The node is stopped. A failed schedule gives the feed with no start.
+    func restartTake(_ dry: Feed, base: TakeBase, graph: Graph, ahead: Int) -> Feed {
+        var (feed, now, loop) = (dry, hostNanos(), UInt64(0))
+        for pick in 1...3 {
+            let host = now + Self.startMargin + loop
+            let due = Double(Int64(host) - Int64(base.host)) * Double(session.sampleRate) / 1e9
+            feed = Feed(
+                anchor: base.frame + Frames(Int(due.rounded())), shuttle: dry.shuttle, end: dry.end, speed: dry.speed,
+                mix: dry.mix, fadeFrom: dry.fadeFrom, take: base)
+            guard schedule(&feed, graph, ahead: ahead) else { return feed }
+            let checked = hostNanos()
+            if checked + Self.lateMargin <= host {
+                startNode(graph.node, host)
+                return feed
+            }
+            guard pick < 3 else { break }
+            graph.node.stop()
+            // The dropped chunks never played.
+            loudness.restart(scheduled: 0)
+            (now, loop) = (checked, checked - now)
+        }
+        startNode(graph.node, nil)
+        return feed
     }
 }

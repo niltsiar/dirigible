@@ -159,10 +159,8 @@ if [[ "$total" =~ ^[0-9]+$ ]]; then
     (( sum * 100 <= total * 103 )) || echo "consolidation due: the workflow docs have $sum words, over TOTAL x 1.03 ($total in docs/workflow/budgets.tsv);" \
         "add one consolidation item with status next unless it has one (reflect rule 6)" >&2
 fi
-# A dependency check is due 30 or more calendar days after the first Last check: line of the doc,
-# or when that line is not a real date; with no doc, nothing is due. BSD date turns 2026-11-31
-# into 2026-12-01 with exit 0, so the date must give back its own text. Noon anchors keep the day
-# count whole across a DST change.
+# BSD date turns 2026-11-31 into 2026-12-01 with exit 0, so a valid date gives back its own text.
+# With no doc, no check is due. Noon anchors keep the day count whole across a DST change.
 dep_doc="$top/docs/workflow/dependency-check.md"
 if [[ -f "$dep_doc" ]]; then
     dep_run="run the check of docs/workflow/dependency-check.md in one lock-free agent before the next product item"

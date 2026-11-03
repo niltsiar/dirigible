@@ -235,12 +235,15 @@ struct ByteReader {
     /// Reads the 8-byte magic of decision 0024 P9: the 7-byte prefix of `current`, then one ASCII
     /// digit 1 to 9, the version. False for another prefix, another byte, or a short file. Throws
     /// for a digit above the digit of `current`.
-    mutating func magic(_ current: [UInt8]) throws(NewerFormat) -> Bool {
+    mutating func magic(_ current: [UInt8]) throws(NewerFormat) -> Bool { try version(current) != nil }
+
+    /// `magic(_:)` that gives the version, or nil where `magic(_:)` gives false.
+    mutating func version(_ current: [UInt8]) throws(NewerFormat) -> Int? {
         guard let bytes = take(current.count), bytes.dropLast().elementsEqual(current.dropLast()),
             let digit = bytes.last, (UInt8(ascii: "1")...UInt8(ascii: "9")).contains(digit)
-        else { return false }
+        else { return nil }
         if digit > current.last! { throw NewerFormat(version: Int(digit - UInt8(ascii: "0"))) }
-        return true
+        return Int(digit - UInt8(ascii: "0"))
     }
 
     /// The kind and the payload of the next record, or nil when it is short or its hash is bad.

@@ -111,7 +111,7 @@ struct PlaceSegmentTests {
 
     enum Refusal: String, CaseIterable, CustomTestStringConvertible {
         case placed, pendingTake, noCAF, missingSidecar, badMagicSidecar, noAnchor, noAnchorNoTrack, noAnchorNoStart
-        case wavInUse, wavInUseOtherCase, layoutMismatch, beforeTimeline, unreadableAnchor, armOutsideTheAnchor
+        case wavInUse, wavInUseOtherCase, layoutMismatch, unreadableAnchor, armOutsideTheAnchor
         case negativeStart, newerSidecar, newerAnchor, newerAnchorTrackOnly, newerAnchorStartOnly
         var testDescription: String { rawValue }
     }
@@ -165,11 +165,6 @@ struct PlaceSegmentTests {
             try package.segment(
                 arm: 1, header: TakePackage.header(channels: 2), samples: sine(seconds: 2, rate: 48_000, channels: 2))
             return refused(.session(.layoutMismatch("t1", .file("take1-1-1"))))
-        case .beforeTimeline:
-            try package.segment(
-                arm: 1, header: TakePackage.header(firstHost: takeStart - 5_000_000_000),
-                samples: sine(seconds: 2, rate: 48_000))
-            return refused(.beforeTimeline)
         case .unreadableAnchor:
             chmod(anchor.path, 0o000)
             return (s, nil, nil, .finalize(.readFailed(file: "Capture/take1.anchor", errno: EACCES)))

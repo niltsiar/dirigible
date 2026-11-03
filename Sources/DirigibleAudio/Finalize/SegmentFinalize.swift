@@ -49,7 +49,8 @@ struct SegmentFinalize {
     var wav: String { "\(clipsFolderName)/\(wavName)" }
 
     /// The session with the capture, the file, and the clip of the segment added, or the fault of
-    /// the segment that keeps it unplaced.
+    /// the segment that keeps it unplaced. A segment with no frame after the floor (the playhead
+    /// of an aligned target, 0 for a fixed one) gets no clip.
     func place(on session: Session) throws(FinalizeError) -> Result<Session, SegmentFault> {
         // Held open, so a read error with no errno can be checked on the same file.
         // A listed CAF that is gone is take-wide: the package moved during the finalize.
@@ -110,19 +111,18 @@ struct SegmentFinalize {
             hostTimeNanos: header.firstHostTimeNanos, sampleTime: header.firstSampleTime,
             nominalSampleRate: choice.nominal, measuredSampleRate: choice.measured, latency: header.latency,
             resampledFromRate: choice.source == rate ? nil : choice.source, driftCorrected: choice.driftCorrected)
-        let anchor: Int
+        let (anchor, floor): (Int, Int)
         switch target {
         case .aligned(let recording, _):
             guard let aligned = capture.alignedStart(in: recording, sampleRate: session.sampleRate) else {
                 return .failure(.badAudio)
             }
-            anchor = aligned
+            (anchor, floor) = (aligned, recording.playheadFrame.count)
         case .fixed(_, let start):
-            anchor = start.count
+            (anchor, floor) = (start.count, 0)
         }
-        // A negative start moves into the file offset.
-        let offset = max(0, -anchor)
-        guard length > offset else { return .failure(.beforeTimeline) }
+        // A start before the floor moves into the file offset.
+        let offset = max(0, floor - anchor)
 
         var copy = session
         do throws(SessionError) {
@@ -131,11 +131,14 @@ struct SegmentFinalize {
                 AudioFile(
                     id: FileID(id), path: "\(id).wav", layout: ChannelLayout(channelCount: header.channelCount)!,
                     length: Frames(length), capture: CaptureID(id)))
-            try copy.place(
-                Clip(
-                    id: ClipID(id), file: FileID(id), start: Frames(max(0, anchor)), offset: Frames(offset),
-                    length: Frames(length - offset), gain: gain),
-                on: target.track)
+            // A segment with no frame after the floor is a pool file with no clip.
+            if length > offset {
+                try copy.place(
+                    Clip(
+                        id: ClipID(id), file: FileID(id), start: Frames(anchor + offset), offset: Frames(offset),
+                        length: Frames(length - offset), gain: gain),
+                    on: target.track)
+            }
         } catch {
             return .failure(.session(error))
         }

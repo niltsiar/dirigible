@@ -33,7 +33,8 @@ struct TakeOriginTests {
         let session = try package.read()
 
         #expect(session.captures["take1-2-1"]?.resampledFromRate == 44_100)
-        #expect(session.track("t3")?.clips.first?.offset == 24_156)
+        // The clip starts at the playhead 48000: 48000 + 24156 frames go to the offset.
+        #expect(session.track("t3")?.clips.first?.offset == 72_156)
         let found = try origins(session, package.url)
         // 480 - 156; 1104 - round(156 x 48000 / 44100) = 170; -72000 - 156.
         #expect(

@@ -203,8 +203,9 @@ struct TakeMapCommandTests {
         #expect(result.stderr.contains("Each frame must be 0 to 1099511627776."), "\(result.stderr)")
     }
 
-    /// A capture file whose first frame is 10 ms before the take start has the origin -480, so
-    /// `--timeline` gives a take frame under 0. That take frame maps back to the same place.
+    /// A capture file whose first frame is 10 ms before the take start has the origin -480. The
+    /// finalize puts those frames into the clip offset; after a trim shows them, `--timeline` gives
+    /// a take frame under 0, and that take frame maps back to the same place.
     @Test func aPrintedNegativeTakeFrameMapsBack() async throws {
         var session = Session(sampleRate: 48_000)
         try session.addTrack("t1", name: "Host", layout: .mono)
@@ -214,6 +215,8 @@ struct TakeMapCommandTests {
         try Self.rampSegment(package, arm: 1, firstHost: Self.takeStart - 10_000_000, frames: 48_000)
         let finalize = try await package.run("take", "finalize", "PKG")
         try #require(finalize.status == 0, "take finalize: \(finalize)")
+        let trim = try await package.run("clip", "trim", "PKG", "take1-1-1", "--from", "95520", "--to", "143520")
+        try #require(trim.status == 0, "clip trim: \(trim)")
 
         let timeline = try await package.run("take", "map", "PKG", "--timeline", "95520")
         let take = try await package.run("take", "map", "PKG", "-480")

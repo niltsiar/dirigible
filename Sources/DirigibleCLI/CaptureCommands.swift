@@ -104,7 +104,8 @@ private func placeSegment(
 ) async throws(ExitCode) {
     let studio = try await openStudio(package)
     do {
-        print(try await studio.place(segment, on: track, at: start))
+        let clip = try await studio.place(segment, on: track, at: start)
+        print(clip?.rawValue ?? "no clip: the segment ends before the take playhead")
     } catch {
         throw fail(error.message(package: package.path), code: refusedCode(error))
     }

@@ -19,7 +19,8 @@ extension SessionWindow {
     }
 
     /// Places `segment` at its recorded track and time, or at the playhead on the selected track.
-    /// A refusal shows the error alert.
+    /// A refusal shows the error alert; a segment that ends before the take playhead shows the
+    /// alert that it has no clip.
     func place(_ segment: SegmentName, atPlayhead: Bool) async {
         commitDrafts()
         guard canPlace, let studio = idleStudio else { return }
@@ -29,7 +30,7 @@ extension SessionWindow {
             (track, start) = (selectedTrack, studio.playhead)
         }
         do {
-            _ = try await studio.place(segment, on: track, at: start)
+            if try await studio.place(segment, on: track, at: start) == nil { alert = .placedWithNoClip(segment) }
         } catch {
             alert = .error(error)
         }

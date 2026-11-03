@@ -34,8 +34,6 @@ public enum SegmentFault: Error, Hashable, Sendable {
     case newerSidecar(version: Int)
     /// The CAF has no frames, is not a CAF, does not match its sidecar, or does not convert whole.
     case badAudio
-    /// The whole segment is before frame 0 of the timeline.
-    case beforeTimeline
     /// This pool file has the path of the WAV of the segment, so the finalize does not write it.
     case wavInUse(FileID)
     /// The session refuses the capture, the file, or the clip.

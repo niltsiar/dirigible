@@ -97,7 +97,7 @@
 "error.segment.newer" = "De audio %@ is gemaakt met een nieuwere versie van Dirigible. Werk Dirigible bij om de audio te plaatsen.";
 "error.segment.newer.anchor" = "Het bestand met tijdgegevens van de audio %@ is gemaakt met een nieuwere versie van Dirigible. Selecteer één spoor en kies dan 'Plaats bij afspeelkop op geselecteerd spoor'.";
 "error.segment.bad.audio" = "De audio %@ is beschadigd en kan niet worden omgezet.";
-"error.segment.before.start" = "De audio %@ eindigt vóór het begin van de tijdlijn.";
+"alert.place.no.clip" = "De audio %@ eindigt vóór de afspeelkop van de opname en heeft dus geen clip. Het bestand blijft in de pool.";
 "error.segment.no.alignment" = "Het opnametijdstip van de audio %@ is niet bekend. Selecteer één spoor en kies dan 'Plaats bij afspeelkop op geselecteerd spoor'.";
 "error.segment.wav.in.use" = "Een ander bestand van de sessie gebruikt de clipnaam van de audio %@.";
 "error.export.exists" = "Er bestaat al een onderdeel met deze naam. De export heeft het niet vervangen.";

@@ -498,7 +498,7 @@ enum L10n: String, CaseIterable {
     case errorSegmentNewer = "error.segment.newer"
     case errorSegmentNewerAnchor = "error.segment.newer.anchor"
     case errorSegmentBadAudio = "error.segment.bad.audio"
-    case errorSegmentBeforeStart = "error.segment.before.start"
+    case alertPlaceNoClip = "alert.place.no.clip"
     case errorSegmentNoAlignment = "error.segment.no.alignment"
     case errorSegmentWAVInUse = "error.segment.wav.in.use"
     case errorExportExists = "error.export.exists"

@@ -4,6 +4,7 @@
 - Date: 2026-10-22
 - Accepted: 2026-10-22, after plan gates 1 and 2 of run `2026-10-22-take-sync`.
 - Amends: 0011 (`take map`, `transcript export`, `transcript import --take`), 0041 (the tools `take_map` and `transcript_export`, the `take` argument of `transcript_import`, and the sync line of an edit result), 0051 (the `cut-from-transcript` recipe), 0055 (the SRT parser, the take-time import, and the export), 0021 (a second reader of the take anchor file, which keeps the take time, so it must stay; a read fault throws), 0004 (one owner of the aligned start formula).
+- Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0004). A transcript of a take file that starts before the record start needs a negative `at`.
 - Amended: 2026-10-27, run `2026-10-14-render-link` (see 0057). A rendered file whose root is a take file has the take origin of the root plus the sum of the origin offsets, so a rendered clip keeps its take time.
 
 ## Context
@@ -41,7 +42,7 @@ Probe p1 of the run replayed the aligned start formula on the session of the tes
 - No `session.xml` change and no new file format: a session keeps its version, and an older build opens it.
 - The map of an open window costs no file read per edit: Studio keeps the anchors of the package (read off the main actor by the open and by each take end or placement, and carried in their result to the main actor), and makes the map from the session of each revision once.
 - A derived file of a later run (split stereo, render) has no origin until that run stores one: that run needs a `session.xml` change for it.
-- A transcript of one take file, or of a call recording that started with the take, needs no `at`. A transcript of a timeline that was already edited before the transcript (the tester's head trim) needs `at`: the take frame of second 0, which `take map --timeline 0` gives before the edit.
+- A transcript of one take file, or of a call recording that started with the take, needs no `at`. A take file whose first frame is before the record start (a pre-roll take, 0004 **Timing**) has file frame 0 at a negative take frame, so a take-time import of a transcript of that file needs that negative `at`. A transcript of a timeline that was already edited before the transcript (the tester's head trim) needs `at`: the take frame of second 0, which `take map --timeline 0` gives before the edit.
 - A cue that an edit splits is clamped to the clip under its midpoint (0055), so the export can shorten it; the text is not split.
 
 ## Alternatives considered

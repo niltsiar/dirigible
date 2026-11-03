@@ -86,6 +86,20 @@ extension StudioPreRollTests {
         #expect(line?["fault"] == "read" && line?["property"] == "fsiz", "\(String(describing: line))")
     }
 
+    /// A late first frame whose segment cannot open: the take reports both the late start and the
+    /// write error of the track (P17).
+    @Test func writeFailureAfterLateStartIsReported() async throws {
+        let studio = try await studio()
+        try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        try FileManager.default.createDirectory(
+            at: package.url.appending(path: "Capture/take1-1-1.sidecar"), withIntermediateDirectories: true)
+        await input(from: 232_000_000, seconds: 0.5)
+        try await studio.stopRecording()
+
+        #expect(studio.lastTake?.lateStarts == ["t1"])
+        #expect(studio.lastTake?.gaps == ["t1": .writeFailed])
+    }
+
     /// The `start:` closure of the Player throws: the term fault of `Reading` refuses the take.
     @Test func failedEngineStartRefusesThePreRoll() async throws {
         let logs = package.folder.url.appending(path: "logs")

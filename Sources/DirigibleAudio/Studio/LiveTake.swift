@@ -67,6 +67,10 @@ public struct TakeResult: Hashable, Sendable {
     /// The armed app tracks that showed the silence warning and got no sound in the take, each
     /// with the app name (A9).
     public var silent: [TrackID: String] = [:]
+    /// The armed tracks of a pre-roll take whose first frame, less its input latency, came after
+    /// H_T + 3 IO buffers of its device (decision 0070, **Late start**). A gap of the track is
+    /// in `gaps` too.
+    public var lateStarts: Set<TrackID> = []
 }
 
 /// A microphone access that is not granted. The library reads it and never requests it; the

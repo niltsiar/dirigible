@@ -306,7 +306,7 @@ import Observation
                 hal: environment.hal, log: environment.log,
                 report: report, silenceLimit: environment.silenceLimit,
                 firstRecordLimit: environment.firstRecordLimit, ringSeconds: environment.ringSeconds,
-                app: started.routes.first { $0.device == device }?.app)
+                app: started.routes.first { $0.device == device }?.app, lateStartLimit: started.lateStartLimit)
         }
         // Every route's device is in `devices` above, so its writer exists.
         armed = started.routes.map { ($0.track, writers[$0.device.uid]!) }

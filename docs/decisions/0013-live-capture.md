@@ -9,6 +9,7 @@
 - Amended: 2026-10-10. A `Listener` also owns an input IOProc on a device, for the record monitor. Its callback is a `static let` C function, and it keeps the detach and keep rules of this decision. Its ring is a `ListenRing`, not a `CaptureRing` (see 0044).
 - Amended: 2026-10-17, run `2026-10-16-diagnostics`. Each step of a take start and stop writes a journal line, and each call that can block writes a begin line before it (0059).
 - Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). A pre-roll take starts the Player between the checks and the save: `prepareTake` runs an anchor step after the disk check, and the step gives the take start host time H_T of the save. A check refusal starts no play. A save fault after the step stops the Player. A play start with no output term stops the Player and throws `outputTermUnavailable` before the save.
+- Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). **Gaps**: `TakeResult` also has `lateStarts`, the armed tracks of a pre-roll take whose first frame, less the input latency, came after H_T + 3 IO buffers of the device. Each writer compares its first record with the limit on its queue. A late start is not a gap, so a later `writeFailed` or `deviceLost` stays in `gaps`. A Command-R take does not check it.
 
 ## Context
 

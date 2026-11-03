@@ -218,7 +218,7 @@ extension Studio {
             let wav = writers.values.reduce(Int64(0)) { $0 + $1.wavBytes }
             lastTake = TakeResult(
                 take: take, end: end, gaps: gaps, droppedFrames: Dictionary(uniqueKeysWithValues: dropped),
-                silent: silent)
+                silent: silent, lateStarts: Set(armed.filter { $0.writer.startedLate }.map(\.id)))
             writers = [:]
             armed = []
             liveTracks = [:]

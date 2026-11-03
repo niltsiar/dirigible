@@ -84,3 +84,11 @@ func preRollFields(lead: UInt64, realStart: UInt64, term: OutputTerm, takeStart:
     return [("lead", .milliseconds(Double(lead) / 1e6)), ("start", .number(Int64(realStart)))] + parts
         + [("ht", .number(Int64(takeStart)))]
 }
+
+extension StartedTake {
+    /// The late start limit of the writers (decision 0070, **Late start**): H_T of a pre-roll take;
+    /// nil for a Command-R take, which never checks it.
+    var lateStartLimit: UInt64? {
+        session.recording.flatMap { $0.isPreRoll ? $0.takeStartHostTimeNanos : nil }
+    }
+}

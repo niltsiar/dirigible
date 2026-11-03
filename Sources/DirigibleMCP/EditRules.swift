@@ -113,6 +113,12 @@ package enum EditRules {
         from < to ? Frames(from)..<Frames(to) : nil
     }
 
+    /// The target range of a Replace or a fill: `at` less than `until`, so an empty range never
+    /// becomes an Insert or a fill of no clip.
+    package static func targetRange(at: Int, until: Int) -> Range<Frames>? {
+        at < until ? Frames(at)..<Frames(until) : nil
+    }
+
     package static func edge(_ word: String) -> Fades.Edge? {
         switch word {
         case "start": .start

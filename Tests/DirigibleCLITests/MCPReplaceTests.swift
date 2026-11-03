@@ -21,6 +21,25 @@ struct MCPReplaceTests {
         #expect(try package.xml() == before)
     }
 
+    /// U41: a target range with no frame (`at` equal to `until`) is a tool error, and the package
+    /// stays. The control call with `until` one frame later changes it.
+    @Test(arguments: ["clip_replace", "clip_fill"]) func emptyTargetRangeIsAToolError(tool: String) async throws {
+        let package = try PasteFromCommandTests.package(tone: true, track: "t1", rate: 48_000)
+        let before = try package.xml()
+        let call = { (until: Int) in
+            toolCall(
+                1, tool,
+                ["package": package.path, "track": ["t1"], "from": 0, "to": 24_000, "at": 24_000, "until": until])
+        }
+
+        let refused = toolResult(answer(try await mcp([call(24_000)]), id: 1))
+
+        #expect(refused == ("at must be less than until.", true))
+        #expect(try package.xml() == before)
+        #expect(toolResult(answer(try await mcp([call(24_001)]), id: 1)).isError == false)
+        #expect(try package.xml() != before)
+    }
+
     /// C12: under a split take, `clip_replace` with `source` gives the exit-3 text of the CLI as a
     /// tool error, and changes nothing.
     @Test func sourceSplitTakeIsAToolError() async throws {

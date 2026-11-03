@@ -69,14 +69,19 @@ struct ReplaceCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// C15: no track, a target range that ends before it starts, and an onto count that differs exit 64.
-    @Test func badArgumentsExit64() async throws {
+    /// C15 and U41: no track, a target range that ends before it starts or has no frame, and an onto
+    /// count that differs exit 64, for `clip replace` and `clip fill`.
+    @Test(arguments: ["replace", "fill"]) func badArgumentsExit64(command: String) async throws {
         let before = try package.xml()
         for (arguments, text) in [
             (["--from", "0", "--to", "24000", "--at", "0", "--until", "10"], "Give one or more --track."),
             (
                 ["--track", "t1", "--from", "0", "--to", "24000", "--at", "10", "--until", "0"],
-                "--at must not be more than --until."
+                "--at must be less than --until."
+            ),
+            (
+                ["--track", "t1", "--from", "0", "--to", "24000", "--at", "24000", "--until", "24000"],
+                "--at must be less than --until."
             ),
             (
                 [
@@ -87,7 +92,7 @@ struct ReplaceCommandTests {
                 "Give one --onto for each --track, or none."
             ),
         ] {
-            let result = try await package.run(["clip", "replace", "PKG"] + arguments)
+            let result = try await package.run(["clip", command, "PKG"] + arguments)
             #expect(result.status == 64 && result.stderr.contains(text), "\(arguments): \(result)")
         }
         #expect(try package.xml() == before)

@@ -31,8 +31,8 @@ extension Session {
         return pasted
     }
 
-    /// Pastes `excerpt` again and again from the start of `range` on `tracks`, with butt joins,
-    /// and cuts the last copy at the range end. The range clears as one block, so the gaps of a
+    /// Pastes `excerpt` again and again from the start of `range` on `tracks`, with butt joins:
+    /// a clip keeps no crossfade at a copy edge. It cuts the last copy at the range end. The range clears as one block, so the gaps of a
     /// clip set stay silent, and no clip moves. It is one `paste` of one tiled excerpt, so each
     /// clip gets its check, its envelope, and a derived ID, and the words of another package come
     /// once. An excerpt of length 0 throws `.emptyExcerpt`; more than `fillClipLimit` new clips
@@ -58,8 +58,16 @@ extension Session {
             var tiled = lane
             // A lane with a clip places one for each copy, so `needed` bounds this loop.
             guard !lane.clips.isEmpty else { return tiled }
+            // No crossfade at a copy edge, so no copy pairs with the next one at a join.
+            let clips = lane.clips.map { clip in
+                var edged = clip
+                edged.crossfades = Crossfades(
+                    valid: clip.start == .zero ? .zero : clip.crossfades.start,
+                    end: clip.end == excerpt.length ? .zero : clip.crossfades.end)
+                return edged
+            }
             tiled.clips = stride(from: 0, to: span, by: period).flatMap { copy in
-                lane.clips.compactMap { clip -> Clip? in
+                clips.compactMap { clip -> Clip? in
                     var placed = clip
                     placed.start = Frames(copy) + clip.start
                     guard placed.start < end else { return nil }

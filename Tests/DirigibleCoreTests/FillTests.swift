@@ -82,6 +82,27 @@ struct FillTests {
         #expect(lane("a").count == 3)
     }
 
+    /// 0053: each join between two copies is a butt join. Clip "K" has a 960-frame crossfade at
+    /// each edge, so a copy of "K" alone, as a clip set or as the range of "K", would pair with the
+    /// next copy. Three copies have no crossfade.
+    @Test mutating func joinsHaveNoCrossfade() throws {
+        var source = try editFixture()
+        try source.place(Clip(id: "P", file: "f", start: 0, offset: 0, length: 10_000), on: "a")
+        try source.place(Clip(id: "K", file: "f", start: 10_000, offset: 100_000, length: 20_000), on: "a")
+        try source.place(Clip(id: "Q", file: "f", start: 30_000, offset: 200_000, length: 10_000), on: "a")
+        try source.setCrossfades(["P": 960, "K": 960])
+        let before = session
+        for clipboard in [try source.excerpt(of: ["K"]), try source.excerpt(of: 10_000..<30_000, on: ["a"])] {
+            #expect(clipboard.lanes.map { $0.clips.map(\.crossfades) } == [[Crossfades(valid: 960, end: 960)]])
+            session = before
+
+            try session.fill(0..<60_000, with: clipboard, on: ["a"])
+
+            #expect(lane("a").map(\.start) == [0, 20_000, 40_000, 240_000])
+            #expect(lane("a").map(\.crossfades) == Array(repeating: Crossfades.zero, count: 4), "\(clipboard.kind)")
+        }
+    }
+
     /// C13: a clip-set clipboard fills as a block of its length; its gaps stay silent, so the fill
     /// clears clip "L" and clip "X" under a gap. Lane "b" holds its clip 60 000 frames into each
     /// copy, and the third copy of it starts after the range end.
@@ -107,55 +128,82 @@ struct FillTests {
             ])
     }
 
-    /// C10b, C13: a seeded fill equals its paste loop on a copy: a clear of the range on each
+    /// C10b, C13, 0053: a seeded fill equals its paste loop on a copy: a clear of the range on each
     /// target, a paste of each whole copy at its start, then a paste of the last copy cut at the
-    /// range end. It compares every clip of the targets without the IDs: file, start, offset,
-    /// length, gain, fades, crossfades, and envelope.
-    @Test(arguments: [UInt64(1), 2, 3, 4, 5, 6, 7, 8])
+    /// range end. Each pasted copy has no crossfade at its edges, so each join is a butt join. Most
+    /// clips touch the clip before them with one crossfade length of the seed. It compares every
+    /// clip of the targets without the IDs: file, start, offset, length, gain, fades, crossfades,
+    /// and envelope.
+    @Test(arguments: Array(UInt64(1)...16))
     func fillEqualsAPasteLoop(seed: UInt64) throws {
         var random = SplitMix(seed: seed)
         func int(_ range: ClosedRange<Int>) -> Int { Int.random(in: range, using: &random) }
         var session = try editFixture()
-        var ids: [ClipID] = []
+        var ids: [[ClipID]] = []
+        var crossfades: [ClipID: Frames] = [:]
+        let crossfade = Frames(2 * int(10...400))
         for track in ["a", "b"] as [TrackID] {
             var cursor = int(0...20_000)
-            for _ in 0..<int(2...6) {
+            var touching: ClipID?
+            var lane: [ClipID] = []
+            for _ in 0..<int(3...6) {
                 let length = int(2_000...30_000)
-                let id = ClipID("\(track)\(ids.count)")
+                let id = ClipID("\(track)\(lane.count)")
                 let points = (0..<int(0...3)).map { _ in (int(0...480_000), Double(int(-12...6))) }
+                if let touching { crossfades[touching] = crossfade }
                 try session.place(
                     Clip(
-                        id: id, file: "f", start: Frames(cursor), offset: Frames(int(0...(480_000 - length))),
+                        id: id, file: "f", start: Frames(cursor), offset: Frames(int(1_000...(479_000 - length))),
                         length: Frames(length), gain: Gain(dB: Double(int(-12...6)))!,
                         fades: Fades(fadeIn: Frames(int(0...length / 4)), fadeOut: Frames(int(0...length / 4)))!,
                         envelope: envelope(
                             Dictionary(points, uniquingKeysWith: { a, _ in a }).sorted { $0.key < $1.key }
                                 .map { ($0.key, $0.value) })),
                     on: track)
-                ids.append(id)
-                cursor += length + int(0...10_000)
+                lane.append(id)
+                let gap = int(0...3) == 0 ? int(1...10_000) : 0
+                touching = gap == 0 ? id : nil
+                cursor += length + gap
             }
+            ids.append(lane)
         }
+        try session.setCrossfades(crossfades)
         let clipboard: Excerpt
         if Bool.random(using: &random) {
             let start = Frames(int(0...100_000))
             clipboard = try session.excerpt(of: start..<(start + Frames(int(5_000...60_000))), on: ["a", "b"])
         } else {
-            clipboard = try session.excerpt(of: Array(ids.shuffled(using: &random).prefix(int(1...3))))
+            // A run of 1 to 3 clips inside track "a", so a crossfade can be at each run edge, and
+            // maybe a run of track "b".
+            var chosen: [ClipID] = []
+            for (track, lane) in ids.enumerated() where track == 0 || Bool.random(using: &random) {
+                let inner = track == 0
+                let first = inner ? int(1...(lane.count - 2)) : int(0...(lane.count - 1))
+                chosen += lane[first..<min(inner ? lane.count - 1 : lane.count, first + int(1...3))]
+            }
+            clipboard = try session.excerpt(of: chosen)
         }
         let targets = Array((["a", "b"] as [TrackID]).prefix(clipboard.lanes.count))
         let low = Frames(int(0...200_000))
         let range = low..<(low + Frames(int(1...(clipboard.length.count * 8))))
 
+        var copy = clipboard
+        for lane in copy.lanes.indices {
+            for (index, clip) in copy.lanes[lane].clips.enumerated() {
+                copy.lanes[lane].clips[index].crossfades = Crossfades(
+                    valid: clip.start == .zero ? .zero : clip.crossfades.start,
+                    end: clip.end == clipboard.length ? .zero : clip.crossfades.end)
+            }
+        }
         var reference = session
         for target in targets { try reference.clear(range, on: [target]) }
         var at = range.lowerBound
         while at < range.upperBound {
             if at + clipboard.length <= range.upperBound {
-                try reference.paste(clipboard, at: at, on: targets)
+                try reference.paste(copy, at: at, on: targets)
             } else {
                 var scratch = reference
-                try scratch.paste(clipboard, at: at, on: targets)
+                try scratch.paste(copy, at: at, on: targets)
                 try reference.paste(try scratch.excerpt(of: at..<range.upperBound, on: targets), at: at, on: targets)
             }
             at = at + clipboard.length

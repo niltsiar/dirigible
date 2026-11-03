@@ -91,6 +91,36 @@ struct ReplaceTests {
         #expect(session.clip("N") == nil)
     }
 
+    /// 0053: a Replace pastes one copy, so it keeps the crossfade inside the clipboard, and its two
+    /// edges are butt joins: the range clear takes the partner of each crossfade at a range edge
+    /// (X to Y, V to Z), and the clipboard edges "J" start and "K" end have no partner.
+    @Test mutating func edgesAreButtJoins() throws {
+        try session.place(Clip(id: "X", file: "f", start: 76_000, offset: 150_000, length: 20_000), on: "a")
+        try session.place(Clip(id: "Y", file: "f", start: 96_000, offset: 350_000, length: 20_000), on: "a")
+        try session.place(Clip(id: "V", file: "f", start: 172_000, offset: 50_000, length: 20_000), on: "a")
+        try session.place(Clip(id: "Z", file: "f", start: 192_000, offset: 400_000, length: 20_000), on: "a")
+        try session.setCrossfades(["X": 960, "V": 960])
+        var source = try editFixture()
+        for (index, id) in (["P", "J", "K", "Q"] as [ClipID]).enumerated() {
+            let clip = Clip(
+                id: id, file: "f", start: Frames(index * 20_000), offset: Frames(10_000 + index * 100_000),
+                length: 20_000)
+            try source.place(clip, on: "a")
+        }
+        try source.setCrossfades(["P": 960, "J": 960, "K": 960])
+        let clipboard = try source.excerpt(of: ["J", "K"])
+
+        try session.replace(96_000..<192_000, with: clipboard, on: ["a"])
+
+        let fade = Crossfades(valid: 960, end: 960)
+        #expect(lane("a").map(\.start) == [0, 76_000, 96_000, 116_000, 136_000, 184_000])
+        #expect(
+            lane("a").map(\.crossfades) == [
+                .zero, .zero, Crossfades(valid: .zero, end: fade.end), Crossfades(valid: fade.start, end: .zero),
+                .zero, .zero,
+            ])
+    }
+
     /// C10b: a Replace and a fill keep `fileVersion` 12 of a session with a dialogue role, an
     /// envelope point, and a clip on a file with a noise reduction origin (decision 0057).
     @Test(arguments: ["replace", "fill"])

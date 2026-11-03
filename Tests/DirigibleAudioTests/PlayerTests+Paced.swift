@@ -7,7 +7,7 @@ import os
 @testable import DirigibleAudio
 
 /// A clock that only the test moves: the paced Player pulls no frame until the test advances it.
-private final class FrozenClock: @unchecked Sendable {
+final class FrozenClock: @unchecked Sendable {
     private let lock = NSLock()
     private let start = ContinuousClock.now
     private var offset = Duration.zero

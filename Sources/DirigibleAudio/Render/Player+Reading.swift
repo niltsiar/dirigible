@@ -19,5 +19,7 @@ extension Player {
         var term: OutputTerm
         /// Why the last play start has no output term of its own; `term` is then the fallback.
         var termFault: OutputTermFault?
+        /// The start host time of a take play in nanoseconds; nil for a plain play (0070).
+        var realStart: UInt64?
     }
 }

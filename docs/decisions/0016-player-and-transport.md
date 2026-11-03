@@ -16,6 +16,7 @@
 - Amended: 2026-10-17, run `2026-10-16-timeline-clarity` (F153). The record-over warning is a chip over the track headers, and a lane counts as in view when half of its height or more shows (see 0017, 0023).
 - Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (see 0060). The mix also multiplies each clip by the factor of its gain envelope, linear in dB at each file frame.
 - Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). The Player position subtracts the output term of each play start in place of the output presentation latency: on the device output, the device latency, the stream latency, the safety offset, and the IO buffer frame size of the device of the engine output unit, at its nominal rate. The two manual rendering outputs keep the latency that the Player gets at its creation. When the read fails, a play uses the presentation latency and writes the fault in the journal.
+- Amended: 2026-11-03, run `2026-10-28-pre-roll` (see 0070). A play command can carry a take start: the earliest start host time and the pre-roll span. After the engine start and the first refill, the Player picks the start host time with a lead of 0.5 s and starts the node at it (`play(at:)` on the device). `Reading` gives that host time. In the paced output, the pull owes its first frame at that host time.
 
 ## Context
 

@@ -19,6 +19,8 @@ extension Player {
         let mix: MixReader
         var scheduled = 0
         var fadeFrom: Session?
+        /// The start of a take feed; nil for a plain play. A restart keeps it.
+        var take: TakeBase?
     }
 
     /// The heard set or a track gain of the tracks that are in both sessions changed: a mute, solo,

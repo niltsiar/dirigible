@@ -75,6 +75,7 @@ extension L10n {
         case .unusedFiles(let error): return message(for: error)
         // Retry Finalize is the control that finishes the pending take, so the text names it.
         case .writerDidNotStop(let name): return errorWriterDidNotStop.format(name, menuRecordRetry.text)
+        case .outputTermUnavailable: return errorOutputTermUnavailable.text
         }
     }
 

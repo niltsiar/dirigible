@@ -182,6 +182,7 @@
 "error.paste.convert" = "Dirigible non può incollare da “%1$@”. Impossibile convertire l’audio (errore %2$lld). Controlla il disco e riprova.";
 "error.paste.yielded" = "L’operazione Incolla da “%@” si è interrotta a causa di un take in un’altra finestra. Incolla di nuovo dopo il take.";
 "error.writer.did.not.stop" = "Dirigible non è riuscito a fermare %1$@. L’audio è al sicuro sul disco. Fai clic su %2$@ per riprovare, oppure esci da Dirigible: il prossimo avvio ripristina il take.";
+"error.studio.output.term" = "Dirigible non è riuscito a leggere il ritardo del dispositivo di uscita, quindi Registra con pre-roll non è partito. Registra (⌘R) funziona ancora.";
 "paste.banner" = "Operazione Incolla da “%@” in corso";
 "paste.done" = "Incollato.";
 "replace.done" = "Sostituiti %@ secondi";

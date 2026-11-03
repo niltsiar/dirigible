@@ -73,6 +73,9 @@ struct CaptureEnvironment: Sendable {
     /// Reads the output term of each play start of the Player (decision 0070). Tests give a fake
     /// term or a failed read; nil (`live`) reads the HAL on the device output.
     var outputTerm: OutputTermRead?
+    /// The host clock in nanoseconds of a pre-roll take start and of the Player (decision 0070).
+    /// Tests give a fixed one.
+    var hostNanos: @Sendable () -> UInt64 = hostNanosNow
     /// A step before each block of a peak compute (decision 0017), isolated to the actor of the
     /// compute (nil: none). Tests count, hold, or slow the blocks with it.
     var beforePeakBlock: @Sendable (isolated (any Actor)?) async -> Void = { _ in }

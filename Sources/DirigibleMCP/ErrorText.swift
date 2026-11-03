@@ -274,6 +274,7 @@ extension StudioError {
         case .writerDidNotStop(let name):
             "\(name) did not stop in time. The audio is safe in \(package)/Capture; open the package in "
                 + "Dirigible to finish the take."
+        case .outputTermUnavailable: "the output latency of the playback device did not read; a pre-roll take needs it."
         }
     }
 }

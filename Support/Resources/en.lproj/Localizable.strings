@@ -182,6 +182,7 @@
 "error.paste.convert" = "Dirigible cannot paste from “%1$@”. The audio did not convert (error %2$lld). Check the disk and try again.";
 "error.paste.yielded" = "The paste from “%@” stopped for a take in another window. Paste again after the take.";
 "error.writer.did.not.stop" = "Dirigible could not stop %1$@. The audio is safe on disk. Click %2$@ to try again, or quit Dirigible: the next launch restores the take.";
+"error.studio.output.term" = "Dirigible could not read the delay of the output device, so Record with Pre-roll did not start. Record (⌘R) still works.";
 "paste.banner" = "Pasting from “%@”";
 "paste.done" = "Pasted.";
 "replace.done" = "Replaced %@ seconds";

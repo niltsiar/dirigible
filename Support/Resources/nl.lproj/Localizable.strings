@@ -182,6 +182,7 @@
 "error.paste.convert" = "Dirigible kan niet plakken uit '%1$@'. De audio kon niet worden omgezet (fout %2$lld). Controleer de schijf en probeer het opnieuw.";
 "error.paste.yielded" = "Het plakken uit '%@' is gestopt vanwege een take in een ander venster. Plak opnieuw na de take.";
 "error.writer.did.not.stop" = "Dirigible kon %1$@ niet stoppen. De audio staat veilig op de schijf. Klik op '%2$@' om het opnieuw te proberen, of stop Dirigible: bij de volgende start wordt de take hersteld.";
+"error.studio.output.term" = "Dirigible kon de vertraging van het uitvoerapparaat niet lezen, dus 'Neem op met pre-roll' is niet gestart. 'Neem op' (⌘R) werkt nog wel.";
 "paste.banner" = "Plakken uit '%@'";
 "paste.done" = "Geplakt.";
 "replace.done" = "%@ seconden vervangen";

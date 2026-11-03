@@ -97,4 +97,7 @@ public enum StudioError: Error, Hashable, Sendable {
     /// The writer of the named device or app did not stop by the stop deadline (decision 0030).
     /// The take stays pending with its audio on disk, and Retry Finalize waits for it again.
     case writerDidNotStop(String)
+    /// The output latency of the playback device did not read, so a pre-roll take did not start
+    /// (decision 0070). Nothing changed.
+    case outputTermUnavailable
 }

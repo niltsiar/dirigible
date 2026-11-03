@@ -74,9 +74,13 @@ extension Studio {
     /// access read, the disk check, and the save run off the main actor; meanwhile every other
     /// entry point throws `.busy`. A throw changes nothing. A device that does not attach after
     /// the save is lost, and the take goes on. The take attaches before a running monitor
-    /// releases its devices (decision 0015).
-    public func startRecording(armed: [TrackID], playhead: Frames? = nil) async throws(StudioError) {
-        _ = try await beginRecording(armed: armed, playhead: playhead)
+    /// releases its devices (decision 0015). With `preRoll` (whole seconds), the Player plays the
+    /// take mix from that time before the playhead, and the take starts at the heard playhead
+    /// (decision 0070).
+    public func startRecording(armed: [TrackID], playhead: Frames? = nil, preRoll: Int? = nil)
+        async throws(StudioError)
+    {
+        _ = try await beginRecording(armed: armed, playhead: playhead, preRoll: preRoll)
     }
 
     /// `startRecording` for `duration`, the take of an agent (decision 0048). Each writer ends at
@@ -117,7 +121,7 @@ extension Studio {
     /// can end that take before this call returns. With `length` (nanoseconds), each writer
     /// writes no record at or after the take start + `length`. The end is set before the
     /// hand-over waits, so no drain writes past it. `beginRecording` writes its first and last line.
-    func startSteps(armed: [TrackID], playhead: Frames?, length: UInt64?) async throws(StudioError) -> (
+    func startSteps(armed: [TrackID], playhead: Frames?, length: UInt64?, preRoll: Int?) async throws(StudioError) -> (
         take: Int, generation: Int
     ) {
         try checkIdle()
@@ -134,8 +138,10 @@ extension Studio {
             do throws(StudioError) {
                 (started, free) = try await prepareTake(
                     of: session, lock: lock, armed: armed, playhead: playhead, environment: environment,
-                    recordings: recordings, endExport: exportEnd())
+                    recordings: recordings, endExport: exportEnd(),
+                    anchor: preRoll.map { preRollStep(seconds: $0, at: playhead, armed: armed) })
             } catch {
+                if preRoll != nil { await endFaultedPreRoll(at: playhead) }
                 return .failure(error)
             }
             let deadline = ContinuousClock.now + environment.startLimit
@@ -183,6 +189,8 @@ extension Studio {
         environment.log.note(.take, "stop-request", ["take": .number(Int64(take)), "end": .text("\(end)")])
         let called = ContinuousClock.now
         transport = .finalizing(take: take)
+        // The pre-roll sound stops first, so the playhead of a stop before T is T (decision 0070).
+        if let recording = session.recording, recording.isPreRoll { await endPreRoll(at: recording.playheadFrame) }
         stopLive()
         diskWatcher?.cancel()
         diskWatcher = nil

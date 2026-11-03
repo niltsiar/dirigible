@@ -188,6 +188,30 @@ extension WhisperModelStoreTests {
         #expect(result.files == [])
     }
 
+    /// A crash leaves `<name>.download` and no catch runs. A caller that skips `removeLeftovers()`
+    /// still gets a download from byte 0: the 2 MB of stale bytes are cut at the open, so after
+    /// the first 1 MB chunk the file holds 1 MB of the new bytes and none of the old ones.
+    @Test func aDownloadOverAStaleTemporaryFileStartsAtByteZero() async throws {
+        let folder = try TemporaryFolder()
+        let temporary = folder.url.appending(path: "ggml-tiny-q5_1.bin.download")
+        try Data(repeating: 0xFF, count: 2 << 20).write(to: temporary)
+        let fresh = Data(count: 1 << 20)
+        let loader = HeldLoader(Data(count: 2 << 20))
+        let store = WhisperModelStore(folder: folder.url, load: loader.load)
+
+        let download = Task { try await store.download(.tinyQ51, stop: { false }) }
+        await until(limit: .seconds(5), "the first chunk of the new bytes is on disk") {
+            (try? Data(contentsOf: temporary).prefix(1 << 20)) == fresh
+        }
+        let onDisk = try Data(contentsOf: temporary)
+        loader.end()
+        await #expect(throws: WhisperModelStoreError.checksumMismatch) { try await download.value }
+
+        #expect(onDisk.count == fresh.count, "the file holds the new chunk only")
+        #expect(!onDisk.contains(0xFF), "the file holds no stale byte")
+        #expect(try fileNames(folder.url) == [])
+    }
+
     /// Makes and mounts a 5 MB HFS+ image named `name` in `folder`, and returns its volume.
     static func mountImage(_ name: String, in folder: URL) async throws -> URL {
         let volume = folder.appending(path: name)

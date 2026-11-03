@@ -54,9 +54,10 @@ package func summary(
     }
     if let recording = session.recording {
         let armed = recording.armedTracks.map(\.rawValue).joined(separator: ",")
+        let preRoll = recording.isPreRoll ? " pre-roll" : ""
         lines.append(
             "recording take \(recording.take) at \(recording.playheadFrame) "
-                + "host time \(recording.takeStartHostTimeNanos) armed \(armed)")
+                + "host time \(recording.takeStartHostTimeNanos) armed \(armed)\(preRoll)")
     }
     lines += TakeWork.syncLines(takeMap.map.sync, sampleRate: session.sampleRate)
     lines += takeMap.faults.map { TakeWork.faultLine($0.error) }

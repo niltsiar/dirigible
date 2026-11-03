@@ -78,7 +78,7 @@ struct TakeOriginTests {
         case .noAnchorFile:
             try FileManager.default.removeItem(at: anchor)
         case .newerAnchor:
-            try setMagicDigit(anchor, "2")
+            try setMagicDigit(anchor, "3")
         case .unparsedAnchor:
             try Data("not an anchor".utf8).write(to: anchor)
         }

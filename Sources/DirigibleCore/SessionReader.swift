@@ -44,7 +44,7 @@ extension Session {
         var markers: [Marker] = []
         for node in root.children("markers", "marker") { markers.append(try Marker(node, version: version)) }
         let recording = try root.sessionElements("recording").first.map { node throws(SessionFileError) in
-            try Recording(node)
+            try Recording(node, version: version)
         }
         let episode = try root.sessionElements("episode").first.map { node throws(SessionFileError) in
             guard version >= 6 else { throw .invalidValue(element: "episode", attribute: "version") }
@@ -254,12 +254,18 @@ extension Transcript {
 }
 
 extension Recording {
-    fileprivate init(_ node: XMLElement) throws(SessionFileError) {
+    /// `preRoll` is `true` from version 15 on, else absent.
+    fileprivate init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         var armed: [TrackID] = []
         for arm in node.sessionElements("arm") { armed.append(TrackID(try arm.string("track"))) }
+        let preRoll = node.optionalString("preRoll")
+        guard preRoll == nil || (version >= 15 && preRoll == "true") else {
+            throw .invalidValue(element: "recording", attribute: "preRoll")
+        }
         self.init(
             take: try node.value("take"), playheadFrame: try node.frames("playheadFrame"),
-            takeStartHostTimeNanos: try node.value("takeStartHostTimeNanos"), armedTracks: armed)
+            takeStartHostTimeNanos: try node.value("takeStartHostTimeNanos"), armedTracks: armed,
+            isPreRoll: preRoll != nil)
     }
 }
 

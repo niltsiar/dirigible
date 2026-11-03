@@ -138,6 +138,8 @@ package struct SessionView: Encodable {
         let playheadFrame: Int
         let takeStartHostTimeNanos: UInt64
         let armedTracks: [String]
+        /// True for a pre-roll take; left out for a plain take.
+        let preRoll: Bool?
     }
 
     /// The sync state of one take with audio (decision 0061): `offset` for `inSync`, `from` and
@@ -218,7 +220,7 @@ package struct SessionView: Encodable {
         recording = session.recording.map {
             RecordingView(
                 take: $0.take, playheadFrame: $0.playheadFrame.count, takeStartHostTimeNanos: $0.takeStartHostTimeNanos,
-                armedTracks: $0.armedTracks.map(\.rawValue))
+                armedTracks: $0.armedTracks.map(\.rawValue), preRoll: $0.isPreRoll ? true : nil)
         }
     }
 

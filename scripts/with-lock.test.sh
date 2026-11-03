@@ -411,7 +411,7 @@ EOF
 chmod +x "$repo/scripts/check-changed.sh"
 export FAKE_FILTER_LOG="$tmp/filter.log"
 # lockfree <expect> <label> <command...>: with a live holder, the call runs at once (run) or waits
-# until the limit of 2 s (wait). It leaves the holder, the wait log, and the hold log as they were.
+# until the limit of 2 s (wait, or freewait for a lock-free call, which prints its line first). It leaves the holder, the wait log, and the hold log as they were.
 lockfree() {
     local expect="$1" label="$2"
     shift 2
@@ -425,6 +425,8 @@ lockfree() {
         [[ $code -eq 0 && -s "$tmp/order" && "$out" == *'lock-free targets'* ]] || fail "lock-free, $label: exit $code, order [$(cat "$tmp/order" 2>/dev/null)]: $out"
         [[ ! -e "$waits" && ! -e "$holds" && "$(cat "$lock/pid")" == "$holder" ]] ||
             fail "lock-free, $label: a log line or a change of the lock: $(cat "$waits" "$holds" 2>/dev/null)"
+    elif [[ $expect == freewait ]]; then
+        [[ $code -eq 75 && ! -s "$tmp/order" && "$out" == *'no lock; it waits while'* ]] || fail "lock-free, $label: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
     else
         [[ $code -eq 75 && ! -s "$tmp/order" && "$out" != *'lock-free targets'* ]] || fail "lock-free, $label: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
     fi
@@ -480,7 +482,7 @@ until_true 50 test -s "$lock/child" || fail 'lock-free, push check holder: the h
 rm -f "$tmp/order"
 out="$(FAKE_TARGETS="check-docs" WITH_LOCK_MAX_WAIT=2 WITH_LOCK_RETRY=1 "$repo/scripts/with-lock.sh" "$fake/make" check-changed 2>&1)"
 code=$?
-[[ $code -eq 75 && ! -s "$tmp/order" && "$out" != *'lock-free targets'* ]] ||
+[[ $code -eq 75 && ! -s "$tmp/order" && "$out" == *'no lock; it waits while'* ]] ||
     fail "lock-free, holder with BASE in its environment: exit $code (want 75), order [$(cat "$tmp/order" 2>/dev/null)]: $out"
 reset_builders
 # make test-hooks: a HOOK_TESTS= word runs at once; the bare goal waits.
@@ -545,7 +547,7 @@ waiter=""
 for holder_command in "make check-changed BASE=origin/main" "$repo/scripts/land.sh x" "make dmg" "$repo/scripts/bench.sh x" "$repo/scripts/bench-pairs.sh x" \
     "$repo/scripts/mutation-pass.sh $repo batch" "$repo/scripts/flake-monitor/loop.sh x" "bash $repo/scripts/flake-monitor/loop.sh x" \
     "make bench FILTER=HeaderDragBenchmark" "make bench FILTER=ATests BTests" "make FILTER=ATests bench" "make DMG_X=1 dmg"; do
-    FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree wait "holder $holder_command" "$fake/make" check-changed
+    FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree freewait "holder $holder_command" "$fake/make" check-changed
 done
 for holder_command in "make test-filter ATests" "make test-filter FILTER=bench" "make benchmark-gate"; do
     FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree run "holder $holder_command" "$fake/make" check-changed
@@ -606,7 +608,7 @@ lf_finish 80
 lf_holder 'make dmg'
 lf_start env WITH_LOCK_MAX_WAIT=2
 lf_finish 80
-[[ $code -eq 75 && ! -e "$tmp/state" && "$out" == *'still waiting after 2 s (WITH_LOCK_MAX_WAIT); run the same command again'* && "$out" != *'lock-free targets'* ]] ||
+[[ $code -eq 75 && ! -e "$tmp/state" && "$out" == *'still waiting after 2 s (WITH_LOCK_MAX_WAIT); run the same command again'* && "$out" == *'no lock; it waits while'* ]] ||
     fail "lock-free limit: exit $code after $elapsed s: $out"
 [[ ! -e "$waits" && ! -e "$holds" && "$(cat "$lock/pid")" == "$holder" && "$(cat "$lock/command")" == 'make dmg' ]] ||
     fail "lock-free limit: a log line or a change of the holder: $(cat "$waits" "$holds" 2>/dev/null)"
@@ -722,7 +724,7 @@ done
 for holder_command in 'scripts/bench.sh EditBenchmark' 'make dmg'; do
     lf_holder "$holder_command"
     ro_call 1 .build/debug/dirigible info
-    [[ $code -eq 75 && ! -e "$marker" && "$out" != *'lock-free targets'* && "$(cat "$lock/pid")" == "$holder" ]] && ro_idle ||
+    [[ $code -eq 75 && ! -e "$marker" && "$out" == *'no lock; it waits while'* && "$(cat "$lock/pid")" == "$holder" ]] && ro_idle ||
         fail "run-only, holder [$holder_command]: exit $code (want 75), marker [$(cat "$marker" 2>/dev/null)]: $out"
 done
 # The holder ends during the wait: the command runs with no lock, and one wait line ends with lockfree.

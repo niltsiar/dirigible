@@ -349,6 +349,7 @@ run_lock_free() {
 # until one poll finds no long holder and no live ticket of a release call.
 free_targets=""
 if lock_free "$@"; then
+    echo "with-lock: lock-free targets ($free_targets): no lock; it waits while a release call (a push check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds the lock" >&2
     if long_holder; then
         wait_limit "$@"
         held="$(cat "$lock/command" 2>/dev/null)"
@@ -356,7 +357,6 @@ if lock_free "$@"; then
         while long_holder || ahead; do pause; done
         printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
     fi
-    echo "with-lock: lock-free targets ($free_targets): no lock; it waits while a release call (a push check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds the lock" >&2
     run_lock_free "$@"
 fi
 wait_limit "$@"

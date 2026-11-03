@@ -53,7 +53,8 @@ struct PasteAcrossTests {
     ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
         try pasteClipboard(
             clipboard, from: clipboard.package, into: q.session, in: q.url,
-            identity: identity ?? PackageID(lockFileOf: q.url), at: 480_000, on: target, freeBytes: { free },
+            identity: identity ?? PackageID(lockFileOf: q.url), mode: .over(at: 480_000), on: target,
+            freeBytes: { free },
             canClone: canClone, isCancelled: isCancelled)
     }
 
@@ -92,7 +93,7 @@ struct PasteAcrossTests {
 
         let (session, clips, _) = try pasteClipboard(
             Clipboard(excerpt, package: q.url, origin: id), from: moved, into: q.session, in: moved,
-            identity: PackageID(lockFileOf: moved), at: 480_000, on: .tracks(["u1"]), freeBytes: { 0 })
+            identity: PackageID(lockFileOf: moved), mode: .over(at: 480_000), on: .tracks(["u1"]), freeBytes: { 0 })
 
         #expect(session == expected && clips == ids)
         #expect(
@@ -106,7 +107,7 @@ struct PasteAcrossTests {
 
         let (session, _, _) = try pasteClipboard(
             Clipboard(excerpt, package: q.url, origin: nil), from: q.url, into: q.session, in: q.url,
-            identity: nil, at: 480_000, on: .tracks(["u1"]), freeBytes: { .max })
+            identity: nil, mode: .over(at: 480_000), on: .tracks(["u1"]), freeBytes: { .max })
 
         #expect(try names(q) == ["take1-mic 2.wav", "take1-mic.wav"])
         #expect(session.clip("Z@480000")?.clip.file == "take1-mic 2")
@@ -139,6 +140,23 @@ struct PasteAcrossTests {
         #expect(try names(q) == ["take1-mic.wav"])
     }
 
+    /// C10b: a fill of 10 copies of one clip copies its file once, and adds its words once.
+    @Test func fillAcrossCopiesOneFile() throws {
+        let words = #"{"words":[{"word":"one","start":0.5,"end":0.75}]}"#
+        try p.session.importTranscript(TranscriptFile(data: Data(words.utf8)), name: "t", track: "t1", at: 0)
+        let clipboard = Clipboard(
+            try p.session.excerpt(of: 0..<48_000, on: ["t1"]), package: p.url, origin: PackageID(lockFileOf: p.url))
+
+        let (session, clips, _) = try pasteClipboard(
+            clipboard, from: p.url, into: q.session, in: q.url, identity: PackageID(lockFileOf: q.url),
+            mode: .fill(480_000..<960_000), on: .tracks(["u1"]), freeBytes: { .max })
+
+        #expect(try names(q) == ["take1-mic 2.wav", "take1-mic.wav"], "one copy of the file")
+        #expect(clips.count == 10 && clips.allSatisfy { session.clip($0)?.clip.file == "take1-mic 2" })
+        #expect(session.transcriptNames.map(\.name) == ["t"], "one transcript, not one for each copy")
+        #expect(session.words(on: ["u1"]).count == 10, "each copy shows the word once")
+    }
+
     /// C7a: no check for a clone; the bytes and the margin for a copy, at the exact limit.
     @Test func theSpaceCheckCountsOnlyACopyToAnotherVolume() throws {
         let clipboard = try clipboard
@@ -155,7 +173,8 @@ struct PasteAcrossTests {
         try r.session.addTrack("u1", name: "u1", layout: .mono)
         try r.session.addTrack("u2", name: "u2", layout: .mono)
         _ = try pasteClipboard(
-            clipboard, from: p.url, into: r.session, in: r.url, identity: nil, at: 0, on: .tracks(["u1", "u2"]),
+            clipboard, from: p.url, into: r.session, in: r.url, identity: nil, mode: .over(at: 0),
+            on: .tracks(["u1", "u2"]),
             freeBytes: { needed }, canClone: { _, _ in false })
     }
 
@@ -216,7 +235,7 @@ struct PasteAcrossTests {
         #expect(throws: PasteError.write(file: "take2-mic.wav", errno: EIO)) {
             try pasteClipboard(
                 try clipboard, from: p.url, into: q.session, in: q.url, identity: PackageID(lockFileOf: q.url),
-                at: 480_000, on: .tracks(["u1", "u2"]), insert: false, freeBytes: { .max },
+                mode: .over(at: 480_000), on: .tracks(["u1", "u2"]), freeBytes: { .max },
                 canClone: { cloneWorks($0, into: $1) }, progress: { _ in }, isCancelled: { false },
                 flush: { $0.hasSuffix("/.take2-mic.wav.tmp") ? EIO : nil })
         }

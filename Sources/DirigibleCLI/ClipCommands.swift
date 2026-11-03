@@ -98,8 +98,8 @@ struct ClipCommand: ParsableCommand {
             let sources = track.map { TrackID($0) }
             if let source {
                 let work = PasteWork(
-                    source: URL(filePath: source), selection: .range(range.frames, tracks: sources), at: Frames(at),
-                    onto: onto)
+                    source: URL(filePath: source), selection: .range(range.frames, tracks: sources),
+                    mode: .over(at: Frames(at)), onto: onto)
                 return try SourceOption.run(work, package: package)
             }
             // `validate()` checked the targets.
@@ -129,8 +129,8 @@ struct ClipCommand: ParsableCommand {
         func run() throws {
             if let source {
                 let work = PasteWork(
-                    source: URL(filePath: source), selection: .clips(clips.map { ClipID($0) }), at: Frames(at),
-                    onto: onto)
+                    source: URL(filePath: source), selection: .clips(clips.map { ClipID($0) }),
+                    mode: .over(at: Frames(at)), onto: onto)
                 return try SourceOption.run(work, package: package)
             }
             let pasted = try editPackage(package, ripple: false) { session throws(SessionError) in

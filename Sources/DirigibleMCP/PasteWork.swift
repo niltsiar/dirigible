@@ -13,12 +13,12 @@ package struct PasteWork: Sendable {
 
     let source: URL
     let selection: Selection
-    let at: Frames
+    let mode: PasteMode
     /// Checked by `EditRules.pasteTargets` and `EditRules.sourceNeedsOnto`.
     let onto: [String]
 
-    package init(source: URL, selection: Selection, at: Frames, onto: [String]) {
-        (self.source, self.selection, self.at, self.onto) = (source, selection, at, onto)
+    package init(source: URL, selection: Selection, mode: PasteMode, onto: [String]) {
+        (self.source, self.selection, self.mode, self.onto) = (source, selection, mode, onto)
     }
 
     /// Copies or converts the files of the clips into the target and pastes them (`pasteClipboard`).
@@ -52,7 +52,7 @@ package struct PasteWork: Sendable {
         }
         let pasted = try pasteClipboard(
             Clipboard(excerpt, package: source, origin: PackageID(lockFileOf: source)), from: source,
-            into: session, in: target, identity: lock.identity, at: at,
+            into: session, in: target, identity: lock.identity, mode: mode,
             on: .tracks(targets), freeBytes: { lock.freeBytes() })
         session = pasted.session
         return pasted.clips

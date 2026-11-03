@@ -43,8 +43,23 @@ struct PasteConvertTests {
         isCancelled: @escaping () -> Bool = { false }
     ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
         try pasteClipboard(
-            try! clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 480_000, on: .tracks(["u1"]),
+            try! clipboard, from: p.url, into: q.session, in: q.url, identity: nil, mode: .over(at: 480_000),
+            on: .tracks(["u1"]),
             freeBytes: { free }, progress: progress, isCancelled: isCancelled)
+    }
+
+    /// C12: a Replace at another rate pastes at the range start, and the later audio moves by the
+    /// converted clipboard length (132 300 frames at 44.1 kHz give 144 000) minus the range length.
+    @Test func aReplaceStartsAtTheRangeStart() throws {
+        try q.addFile("later", channels: [[Float](repeating: 0, count: 48_000)])
+        try q.session.place(Clip(id: "L", file: "later", start: 600_000, offset: 0, length: 48_000), on: "u1")
+
+        let (session, clips, _) = try pasteClipboard(
+            try clipboard, from: p.url, into: q.session, in: q.url, identity: nil, mode: .replace(480_000..<528_000),
+            on: .tracks(["u1"]), freeBytes: { .max })
+
+        #expect(session.clip(clips[0])?.clip.start == 480_000, "the first clip is at the range start")
+        #expect(session.clip("L")?.clip.start == 696_000, "600 000 + 144 000 - 48 000")
     }
 
     /// C10 and C10c: a 24-bit WAV at 48 kHz, the clips scaled by edges, renamed before the return.
@@ -76,7 +91,8 @@ struct PasteConvertTests {
         let called = OSAllocatedUnfairLock(initialState: false)
         #expect(throws: PasteError.cancelled) {
             try pasteClipboard(
-                try clipboard, from: p.url, into: r.session, in: r.url, identity: nil, at: 0, on: .tracks(["u1"]),
+                try clipboard, from: p.url, into: r.session, in: r.url, identity: nil, mode: .over(at: 0),
+                on: .tracks(["u1"]),
                 freeBytes: { .max }, progress: { _ in called.withLock { $0 = true } },
                 isCancelled: { called.withLock { $0 } })
         }
@@ -115,7 +131,8 @@ struct PasteConvertTests {
 
         #expect(throws: PasteError.write(file: "take2-mic.wav", errno: EEXIST)) {
             try pasteClipboard(
-                clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 480_000, on: .tracks(["u1"]),
+                clipboard, from: p.url, into: q.session, in: q.url, identity: nil, mode: .over(at: 480_000),
+                on: .tracks(["u1"]),
                 freeBytes: { .max },
                 progress: { _ in if !FileManager.default.fileExists(atPath: taken.path) { try? other.write(to: taken) }
                 })
@@ -136,8 +153,9 @@ struct PasteConvertLengthTests {
         let length = Frames(192_000 + delta)
 
         let plan = try PastePlan(
-            excerpt, same: false, into: fixture.q.session, in: fixture.q.url, at: 480_000, on: .tracks(["u1"]),
-            insert: false, lengths: ["take1-mic": length], gains: [:], stems: ["take1-mic": "take1-mic"])
+            excerpt, same: false, into: fixture.q.session, in: fixture.q.url, mode: .over(at: 480_000),
+            on: .tracks(["u1"]),
+            lengths: ["take1-mic": length], gains: [:], stems: ["take1-mic": "take1-mic"])
 
         #expect(plan.session.files["take1-mic"]?.length == length, "the record has the real length")
         let clips = plan.clips.compactMap { plan.session.clip($0)?.clip }
@@ -153,7 +171,7 @@ struct PasteConvertLengthTests {
         let clipboard = Clipboard(try p.session.excerpt(of: 0..<176_406, on: ["t1"]), package: p.url, origin: nil)
 
         let (session, clips, _) = try pasteClipboard(
-            clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 0, on: .tracks(["u1"]),
+            clipboard, from: p.url, into: q.session, in: q.url, identity: nil, mode: .over(at: 0), on: .tracks(["u1"]),
             freeBytes: { .max })
 
         let wav = try ImportedWAV(q.url.appending(path: "\(clipsFolderName)/odd.wav"))
@@ -182,7 +200,8 @@ struct PasteConvertSpaceTests {
 
         #expect(throws: PasteError.space(needed: byFile, free: byRecord)) {
             try pasteClipboard(
-                clipboard, from: p.url, into: q.session, in: q.url, identity: nil, at: 0, on: .tracks(["u1"]),
+                clipboard, from: p.url, into: q.session, in: q.url, identity: nil, mode: .over(at: 0),
+                on: .tracks(["u1"]),
                 freeBytes: { byRecord })
         }
         #expect(

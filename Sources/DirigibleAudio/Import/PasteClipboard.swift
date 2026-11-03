@@ -26,6 +26,34 @@ public enum PasteTarget: Hashable, Sendable {
     case unselected
 }
 
+/// Where a paste puts the clipboard, and what it does to the audio there (decisions 0042 and 0053).
+public enum PasteMode: Hashable, Sendable {
+    /// Paste: over the audio from the frame.
+    case over(at: Frames)
+    /// Insert: a ripple insert of the clipboard length on all tracks at the frame, then a paste.
+    case insert(at: Frames)
+    /// Replace: `Session.replace` of the range.
+    case replace(Range<Frames>)
+    /// Paste to Fill Selection: `Session.fill` of the range.
+    case fill(Range<Frames>)
+
+    /// The frame of the first pasted clip: the `at` frame, or the range start.
+    public var start: Frames {
+        switch self {
+        case .over(let at), .insert(let at): at
+        case .replace(let range), .fill(let range): range.lowerBound
+        }
+    }
+
+    /// True for a mode that moves later audio, so it needs the ripple rule of decision 0037.
+    public var ripples: Bool {
+        switch self {
+        case .insert, .replace: true
+        case .over, .fill: false
+        }
+    }
+}
+
 /// Why a paste changed nothing (decision 0042). Each `file` is a path in `Clips/` of the source.
 public enum PasteError: Error, Hashable, Sendable {
     /// The source package or a source WAV is not there, or another package is at the path.
@@ -44,35 +72,34 @@ public enum PasteError: Error, Hashable, Sendable {
     case session(SessionError)
 }
 
-/// Pastes `clipboard` into a copy of `session` at `start` on `target`, after a ripple insert of its
-/// length on all tracks when `insert`, and returns that copy, the pasted IDs, and the target tracks
-/// (decision 0042). For a clipboard of another package, it first copies each file that the clips name
-/// from `Clips/` of `source` into `Clips/` of `package` under a new file ID (the stem rule of 0040):
-/// a clone on one volume that can clone, else a copy; at another sample rate, the conversion of
-/// import, and the clip edges scale to the nearest frame (`Excerpt.resampled`). The order: the stems
-/// and the session edit on a copy (a refusal moves no byte), the source and space checks, the copies
-/// or conversions into `.<stem>.wav.tmp` with a flush and a read-back, the session edit again with the
-/// real converted lengths, the cancel check, the renames, the flush of `Clips/`. It never writes
-/// `session.xml`. A throw before the first rename leaves no new name in `Clips/`; after it, nothing
-/// deletes a renamed WAV (0040). For another package it blocks: never call it on the main actor.
-/// `isCancelled` is read in each copy callback, before each conversion block, between the files, and
-/// before the renames.
+/// Pastes `clipboard` into a copy of `session` on `target` with `mode`, and returns that copy, the
+/// pasted IDs, and the target tracks (decision 0042). For a clipboard of another package, it first
+/// copies each file that the clips name from `Clips/` of `source` into `Clips/` of `package` under
+/// a new file ID (the stem rule of 0040): a clone on one volume that can clone, else a copy; at
+/// another sample rate, the conversion of import, and the clip edges scale to the nearest frame
+/// (`Excerpt.resampled`). The order: the stems and the session edit on a copy (a refusal moves no
+/// byte), the source and space checks, the copies or conversions into `.<stem>.wav.tmp` with a
+/// flush and a read-back, the session edit again with the real converted lengths, the cancel check,
+/// the renames, the flush of `Clips/`. It never writes `session.xml`. A throw before the first
+/// rename leaves no new name in `Clips/`; after it, nothing deletes a renamed WAV (0040). For
+/// another package it blocks: never call it on the main actor. `isCancelled` is read in each copy
+/// callback, before each conversion block, between the files, and before the renames.
 public func pasteClipboard(
     _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
-    at start: Frames, on target: PasteTarget, insert: Bool = false, freeBytes: () -> Int64,
+    mode: PasteMode, on target: PasteTarget, freeBytes: () -> Int64,
     canClone: (URL, URL) -> Bool = { cloneWorks($0, into: $1) }, progress: @escaping (Double) -> Void = { _ in },
     isCancelled: @escaping () -> Bool = { false }
 ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
     try pasteClipboard(
-        clipboard, from: source, into: session, in: package, identity: identity, at: start, on: target,
-        insert: insert, freeBytes: freeBytes, canClone: canClone, progress: progress, isCancelled: isCancelled,
+        clipboard, from: source, into: session, in: package, identity: identity, mode: mode, on: target,
+        freeBytes: freeBytes, canClone: canClone, progress: progress, isCancelled: isCancelled,
         flush: NewClipFiles.flushToDisk)
 }
 
 /// `pasteClipboard` with the flush of each copied file and of `Clips/` given: the tests give a fault.
 func pasteClipboard(
     _ clipboard: Clipboard, from source: URL, into session: Session, in package: URL, identity: PackageID?,
-    at start: Frames, on target: PasteTarget, insert: Bool, freeBytes: () -> Int64,
+    mode: PasteMode, on target: PasteTarget, freeBytes: () -> Int64,
     canClone: (URL, URL) -> Bool, progress: @escaping (Double) -> Void, isCancelled: @escaping () -> Bool,
     flush: @escaping (String) -> Int32?
 ) throws(PasteError) -> (session: Session, clips: [ClipID], tracks: [TrackID]) {
@@ -88,8 +115,8 @@ func pasteClipboard(
     let plan: PastePlan
     do throws(SessionError) {
         plan = try PastePlan(
-            excerpt, same: same, into: session, in: package, at: start, on: target, insert: insert,
-            lengths: predicted, gains: [:], stems: nil)
+            excerpt, same: same, into: session, in: package, mode: mode, on: target, lengths: predicted, gains: [:],
+            stems: nil)
     } catch {
         throw .session(error)
     }
@@ -108,7 +135,7 @@ func pasteClipboard(
         // shorter than its file): edit again with them, before the renames.
         do throws(SessionError) {
             final = try PastePlan(
-                excerpt, same: false, into: session, in: package, at: start, on: target, insert: insert,
+                excerpt, same: false, into: session, in: package, mode: mode, on: target,
                 lengths: converted.mapValues(\.length), gains: converted.mapValues(\.gain),
                 stems: Dictionary(uniqueKeysWithValues: plan.copies.map { ($0.record.id, $0.copy.id.rawValue) }))
         } catch {
@@ -129,8 +156,8 @@ struct PastePlan {
 
     /// `lengths` and `gains` are by source file ID. `stems` keeps the stems of an earlier plan.
     init(
-        _ excerpt: Excerpt, same: Bool, into session: Session, in package: URL, at start: Frames,
-        on target: PasteTarget, insert: Bool, lengths: [FileID: Frames], gains: [FileID: Gain],
+        _ excerpt: Excerpt, same: Bool, into session: Session, in package: URL, mode: PasteMode,
+        on target: PasteTarget, lengths: [FileID: Frames], gains: [FileID: Gain],
         stems: [FileID: String]?
     ) throws(SessionError) {
         self.session = session
@@ -163,8 +190,14 @@ struct PastePlan {
             }
             pasted = try pasted.mapped(to: records)
         }
-        if insert { try self.session.rippleInsert(pasted.length, at: start, on: self.session.tracks.map(\.id)) }
-        clips = try self.session.paste(pasted, at: start, on: tracks)
+        switch mode {
+        case .over(let at): clips = try self.session.paste(pasted, at: at, on: tracks)
+        case .insert(let at):
+            try self.session.rippleInsert(pasted.length, at: at, on: self.session.tracks.map(\.id))
+            clips = try self.session.paste(pasted, at: at, on: tracks)
+        case .replace(let range): clips = try self.session.replace(range, with: pasted, on: tracks)
+        case .fill(let range): clips = try self.session.fill(range, with: pasted, on: tracks)
+        }
     }
 }
 

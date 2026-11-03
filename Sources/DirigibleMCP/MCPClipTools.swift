@@ -82,7 +82,7 @@ extension Arguments {
         guard !EditRules.sourceNeedsOnto(source: url, target: URL(filePath: self.path), onto: onto) else {
             throw ToolError("Give onto with source of another package.")
         }
-        return PasteWork(source: url, selection: selection, at: frame, onto: onto)
+        return PasteWork(source: url, selection: selection, mode: .over(at: frame), onto: onto)
     }
 
     /// `from` and `to` (V19: `EditRules.frameRange`).

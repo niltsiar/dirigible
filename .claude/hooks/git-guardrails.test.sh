@@ -626,7 +626,8 @@ unlimited_forms=(
 for form in "${unlimited_forms[@]}"; do
   expect_agent block "$form"
   grep -q 'return to the lead' "$tmp/agent.err" || { echo "FAIL: the subagent block says nothing of the lead: $form"; failures=$((failures + 1)); }
-  grep -q 'one bash file' "$tmp/agent.err" || { echo "FAIL: the subagent block names no bash file: $form"; failures=$((failures + 1)); }
+  grep -q 'one bash file' "$tmp/agent.err" && grep -qF 'WITH_LOCK_MAX_WAIT=0 bash' "$tmp/agent.err" \
+    || { echo "FAIL: the subagent block names no bash file or no lead command: $form"; failures=$((failures + 1)); }
   expect allow "$form"
 done
 expect_agent allow 'WITH_LOCK_MAX_WAIT=120 scripts/with-lock.sh make x'

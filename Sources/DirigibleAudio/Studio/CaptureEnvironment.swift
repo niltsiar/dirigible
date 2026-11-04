@@ -54,10 +54,10 @@ struct CaptureEnvironment: Sendable {
     /// `beforeLookUp`.
     var beforeStartSave: @Sendable (isolated (any Actor)?) async -> Void = { _ in }
     /// The wait of a timed take until `clock`, the clock of H_T (`hostNanos`), reaches the host
-    /// time of its stop (decision 0048). Tests hold it with a gate, so no wall clock races a check.
+    /// time of its stop (decision 0048). The host clock stands still in a system sleep and the sleep
+    /// clock does not, so each wake reads `clock` again. A cancel ends the wait. Tests hold it with
+    /// a gate, so no wall clock races a check.
     var takeStop: @Sendable (_ stop: UInt64, _ clock: @Sendable () -> UInt64) async -> Void = { stop, clock in
-        // The host clock stands still in a system sleep and the sleep clock does not, so each wake
-        // reads the host clock again. A cancel ends the wait.
         while case let now = clock(), now < stop {
             do { try await Task.sleep(for: .nanoseconds(stop - now)) } catch { return }
         }

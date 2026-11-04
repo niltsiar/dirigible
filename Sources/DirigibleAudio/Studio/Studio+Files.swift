@@ -50,6 +50,7 @@ extension Studio {
             if let written = done.written { (url, backups, saveError) = (written.package, written.backups, nil) }
             switch done.result {
             case .success(let report):
+                if done.written != nil { savedRevision = sessionRevision }
                 poolChanged(from: before.files)
                 // A segment whose CAF went is no take audio, so it is not unplaced.
                 let gone = Set(

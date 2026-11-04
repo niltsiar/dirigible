@@ -22,7 +22,13 @@ public enum RawVerdict: Hashable, Sendable {
 /// Why a removal step kept a CAF that the gate passes. Only the journal gets it.
 enum RawRemovalError: Error, Hashable, Sendable {
     case unreadable(file: String, errno: Int32)
+    /// The CAF, the WAV, or the sidecar is not the file that the job read.
+    case changed
+    /// The sidecar does not decode with the finalize record that the job read.
+    case recordMismatch
     case writeFailed(file: String, status: Int32)
+    /// The unlink of the CAF failed.
+    case removeFailed(errno: Int32)
 }
 
 /// The gate of decision 0071 for one placed segment. `cafFrames` and `wavFrames` are the frame
@@ -53,15 +59,88 @@ func rawVerdict(
 /// and a clip of `session` uses that pool file. It reads file headers and sidecars and writes
 /// nothing, so call it off the main actor.
 public func rawCaptures(of session: Session, in package: URL) -> [SegmentName: RawVerdict] {
-    let used = Set(session.tracks.flatMap { $0.clips.map(\.file) })
     var verdicts: [SegmentName: RawVerdict] = [:]
-    for name in (try? captureSegments(in: package)) ?? [] where name.take != session.recording?.take {
-        guard let file = session.files[FileID(name.stem)], file.path == "\(name.stem).wav",
-            file.capture == CaptureID(name.stem), used.contains(file.id)
-        else { continue }
-        verdicts[name] = rawVerdict(of: name, file: file, session: session, in: package)
+    for name in (try? captureSegments(in: package)) ?? [] {
+        verdicts[name] = placedVerdict(of: name, session: session, in: package)
     }
     return verdicts
+}
+
+/// The verdict of `name` when it is placed (`rawCaptures`), else nil.
+private func placedVerdict(of name: SegmentName, session: Session, in package: URL) -> RawVerdict? {
+    guard name.take != session.recording?.take, let file = session.files[FileID(name.stem)],
+        file.path == "\(name.stem).wav", file.capture == CaptureID(name.stem),
+        session.tracks.contains(where: { $0.clips.contains { $0.file == file.id } })
+    else { return nil }
+    return rawVerdict(of: name, file: file, session: session, in: package)
+}
+
+/// The device, the inode, and the size of one file.
+struct FileIdentity: Hashable, Sendable {
+    var device: Int32
+    var inode: UInt64
+    var size: Int64
+
+    init?(path: String) {
+        var info = stat()
+        guard stat(path, &info) == 0 else { return nil }
+        (device, inode, size) = (info.st_dev, info.st_ino, info.st_size)
+    }
+}
+
+/// What the sweep job read of one segment that passes the gate: the identity of its CAF, its WAV,
+/// and its sidecar, and its finalize record. Its removal checks them again.
+struct RawRead: Hashable, Sendable {
+    var files: [FileIdentity?]
+    var record: FinalizeRecord
+}
+
+/// The placed segments that pass the gate and have a finalize record (decision 0071), in name
+/// order. It reads file headers and sidecars and no audio, so call it off the main actor.
+func removableCaptures(of session: Session, in package: URL) -> [(name: SegmentName, read: RawRead)] {
+    rawCaptures(of: session, in: package).filter { $0.value == .removable }.keys.sorted().compactMap { name in
+        let files = rawFiles(of: name, in: package)
+        guard let record = finalizeRecord(of: name, in: package) else { return nil }
+        return (name, RawRead(files: files, record: record))
+    }
+}
+
+/// One removal of decision 0071 in a turn of the write chain, where `session` is the session on
+/// the disk: the gate again, the identity of the three files against `read`, the sidecar flush, its
+/// record against `read`, the unlink of the CAF, and the flush of `Capture/`. False when the gate
+/// does not pass now; then no file changes. Call it off the main actor.
+func removeRawCapture(_ name: SegmentName, of session: Session, in package: URL, read: RawRead)
+    throws(RawRemovalError) -> Bool
+{
+    guard placedVerdict(of: name, session: session, in: package) == .removable else { return false }
+    guard rawFiles(of: name, in: package) == read.files else { throw .changed }
+    let sidecar = "\(captureFolderName)/\(name.stem).sidecar"
+    if let code = fullFlush(path: package.appending(path: sidecar).path) {
+        throw .writeFailed(file: sidecar, status: code)
+    }
+    guard finalizeRecord(of: name, in: package) == read.record else { throw .recordMismatch }
+    guard unlink(package.appending(path: "\(captureFolderName)/\(name.stem).caf").path) == 0 else {
+        throw .removeFailed(errno: errno)
+    }
+    if let code = fullFlush(path: package.appending(path: captureFolderName).path) {
+        throw .writeFailed(file: captureFolderName, status: code)
+    }
+    return true
+}
+
+/// The CAF, the WAV, and the sidecar of `name`, in that order.
+private func rawFiles(of name: SegmentName, in package: URL) -> [FileIdentity?] {
+    [
+        "\(captureFolderName)/\(name.stem).caf", "\(clipsFolderName)/\(name.stem).wav",
+        "\(captureFolderName)/\(name.stem).sidecar",
+    ]
+    .map { FileIdentity(path: package.appending(path: $0).path) }
+}
+
+private func finalizeRecord(of name: SegmentName, in package: URL) -> FinalizeRecord? {
+    (try? readPackageFile("\(captureFolderName)/\(name.stem).sidecar", in: package)).flatMap {
+        try? Sidecar.decode($0)
+    }?.finalized
 }
 
 private func rawVerdict(of name: SegmentName, file: AudioFile, session: Session, in package: URL) -> RawVerdict {
@@ -158,6 +237,17 @@ private func peakCode(of file: String, in package: URL, isCancelled: () -> Bool)
 }
 
 extension RawRemovalError {
+    /// The case name and the errno or status of the `raw` journal line (decision 0059).
+    var journal: (name: String, code: Int32) {
+        switch self {
+        case .unreadable(_, let code): ("unreadable", code)
+        case .changed: ("changed", 0)
+        case .recordMismatch: ("recordMismatch", 0)
+        case .writeFailed(_, let status): ("writeFailed", status)
+        case .removeFailed(let code): ("removeFailed", code)
+        }
+    }
+
     init(_ error: FinalizeError) {
         switch error {
         case .readFailed(let file, let code), .segmentUnreadable(_, let file, let code):

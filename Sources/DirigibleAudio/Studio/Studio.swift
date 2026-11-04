@@ -17,12 +17,6 @@ import Observation
     public var pendingTake: Recording? { transport == .idle ? session.recording : nil }
     /// The last error of a finalize or of the save after it. Nil after a success.
     public internal(set) var takeError: StudioError?
-    /// The segments of CAFs with audio that no pool file points to (decision 0012). Derived from
-    /// the session on each read, so an edit, an undo, or a redo changes it.
-    public var unplacedSegments: [SegmentName] { DirigibleAudio.unplacedSegments(segmentsWithAudio, session: session) }
-    /// False under a pending or split take (decision 0037): then a ripple must not move the
-    /// timeline. A segment whose CAF opens but is not audio can never place, so it does not block.
-    public var canRipple: Bool { canRipple(session) }
     public var canUndo: Bool { history.canUndo }
     public var canRedo: Bool { history.canRedo }
     /// The agent of the change that Undo reverts, or nil for a user change (decision 0046).
@@ -112,7 +106,11 @@ import Observation
     /// in its turn, so the writes run one at a time in the order of their calls.
     @ObservationIgnored private let writes = TurnQueue()
     /// True from `scheduleSave` until its write starts.
-    @ObservationIgnored private var saveWaits = false
+    @ObservationIgnored private(set) var saveWaits = false
+    /// The revision of the session that the last write saved (decision 0071).
+    @ObservationIgnored var savedRevision = 0
+    /// The raw sweep job (decision 0071), in `Studio+RawSweep.swift`.
+    @ObservationIgnored var rawSweepJob = RawSweepJob()
     /// The monitor order (decision 0015): each change of the monitor runs in one turn. Code that
     /// holds a monitor turn never waits for a package write, so the two orders cannot wait for
     /// each other.
@@ -245,8 +243,8 @@ import Observation
     /// Ends a running import, export, and agent read (decisions 0040, 0019, and 0062), turns off every Listener,
     /// releases every monitor device, stops a take that records, then waits for a start, a finalize, an import,
     /// a read of a package file, and every write in progress. With `saveError`, it writes the session once more; `saveError` stays
-    /// only when that write fails too. Then it ends the peak pass (decision 0017). After it returns, no device is
-    /// held, no take records, and no export, read, write, or pass runs.
+    /// only when that write fails too. Then it ends the peak pass (decision 0017) and the raw sweep job (0071). After
+    /// it returns, no device is held, no take records, and no export, read, write, pass, or sweep runs.
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
@@ -262,6 +260,7 @@ import Observation
         await monitorTurns.run { await applyMonitor() }
         while true {
             // A start or a finalize in progress holds an earlier ticket.
+            await startsQueued()
             await serialized {}
             guard case .recording = transport else { break }
             try? await stop(.requested)
@@ -273,6 +272,7 @@ import Observation
         // After the last write: the state that the user hands to the CLI or an agent (0043).
         await serialized { if let list = await keepBackupAtClose(lock) { backups = list } }
         await stopPeaks()
+        await rawSweep
         settling = false
     }
 
@@ -284,7 +284,7 @@ import Observation
         let span = environment.log.begin(.take, "writers-begin")
         defer { span.end("writers") }
         history.edit { $0 = started.session }
-        saveError = nil  // The start save wrote the whole session.
+        (saveError, savedRevision) = (nil, sessionRevision)  // The start save wrote the whole session.
         url = started.package
         lastTake = nil
         recoveredTake = nil
@@ -335,6 +335,7 @@ import Observation
         let before = session.files
         if let beforeLevel = outcome.beforeLevel { history.edit { $0 = beforeLevel } }
         history.edit { $0 = outcome.session }
+        savedRevision = sessionRevision
         poolChanged(from: before, transitions: false)
     }
 
@@ -349,7 +350,7 @@ import Observation
     /// The write saved the whole session.
     func recordLevel(_ leveled: Session, agent: AgentName? = nil) {
         history.edit(agent: agent) { $0 = leveled }
-        saveError = nil
+        (saveError, savedRevision) = (nil, sessionRevision)
     }
 
     /// Runs `body` after every package write that started before this call. `body` runs in the
@@ -384,11 +385,12 @@ import Observation
         Task {
             await writes.wait(for: ticket)
             saveWaits = false
+            let revision = sessionRevision
             switch await writeSession(session, lock: lock, previous: url, recordings: recordings, save) {
             case .success(let written):
                 url = written.package
                 backups = written.backups
-                saveError = nil
+                (saveError, savedRevision) = (nil, revision)
             case .failure(let error):
                 saveError = error
             }

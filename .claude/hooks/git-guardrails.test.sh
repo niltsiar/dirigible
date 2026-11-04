@@ -65,12 +65,14 @@ value_forms=(
   "-m 'a -F b' -F @P@" $'-F @P@ <<MARK\nbody\nMARK' $'-F @P@ <<-MARK\n\tbody\n\tMARK'
   $'-F @P@ <<A <<B\na\nA\nb\nB'
 )
-# expect_each_value <want> <path> <command with @V@>: @V@ becomes each form in value_forms.
+# expect_each_value <want> <path> <command with @V@> [plain]: @V@ becomes each form in value_forms.
+# With plain, the command holds the forms as data (an interpreter body), so the fail-closed ANSI-C
+# form needs no block.
 expect_each_value() {
   local form want
   for form in "${value_forms[@]}"; do
     want="$1"
-    [[ "$form" == *"\$'@P@'"* ]] && want=block
+    [[ "$form" == *"\$'@P@'"* && -z "${4:-}" ]] && want=block
     expect "$want" "${3//@V@/${form//@P@/$2}}"
   done
 }
@@ -124,6 +126,7 @@ context_allow=(
   "echo '@C@'" 'echo "@C@"'
   $'git commit -F - <<\'EOF\'\n@C@\nEOF'
   $'cat <<\'EOF\'\n@C@\nEOF'
+  $'python3 - <<\'EOF\'\n@C@\nEOF'
 )
 expect_each_context() {
   local want="$1" cmd="$2" ctx
@@ -737,11 +740,14 @@ expect block $'cat <<EOF > f; git reset --hard\nx\nEOF'
 expect block $'cat <<EOF > f | sh\ngit reset --hard\nEOF'
 expect block $'cat <<EOF > >(sh)\ngit reset --hard\nEOF'
 expect block $'cat > f <<EOF\ngit reset --hard\nEOF x'
-# An interpreter heredoc is read as a program. The lock-value rule and the log-decision rule skip
-# its body. Each other rule reads it, so python3 can not remove the lock or write a stamp.
+# An interpreter heredoc is read as a program. The command-shape rules (lock-value, log-decision,
+# commit after make check, push, commit message file, hook test run) skip its body when it names no
+# process call. The hooks-path rule and the file-guard rules read it, so python3 can not remove the
+# lock, write a stamp, or change the hooks path.
 expect allow $'python3 - <<\'EOF\'\n'"${sink_bodies[0]}"$'\nEOF'
 expect allow $'python3 <<\'EOF\'\n'"${sink_bodies[1]}"$'\nEOF'
-for body in "${sink_bodies[@]:2}"; do
+expect allow $'python3 - <<\'EOF\'\n'"${sink_bodies[3]}"$'\nEOF'
+for body in "${sink_bodies[2]}" "${sink_bodies[@]:4}"; do
   expect block $'python3 - <<\'EOF\'\n'"$body"$'\nEOF'
 done
 for name in dirigible-check-stamp dirigible-slow-date dirigible-flakes dirigible-check-partial \
@@ -1102,13 +1108,14 @@ expect block "bash scripts/with-lock.sh make x; $ld"
 
 # A chain rule must hold for each join form, not only for the forms that a gate found one at a time
 # (run 2026-10-08-upkeep-batch-4). Each chain rule calls this helper: one block case for each join
-# of <first> and <second>, and one allow case for &&.
+# of <first> and <second>, and one allow case for &&. The optional <wrap> (@C@ is the chain) puts the
+# chain in a context, and <want> is the verdict of the join cases there (the && case always allows).
 expect_each_join() {
-  local first="$1" second="$2" join
+  local first="$1" second="$2" wrap="${3:-@C@}" want="${4:-block}" join
   for join in '; ' $'\n' ' | ' ' & ' ' > log 2>&1 & ' $'\t;\t' ';  '; do
-    expect block "$first$join$second"
+    expect "$want" "${wrap//@C@/$first$join$second}"
   done
-  expect allow "$first && $second"
+  expect allow "${wrap//@C@/$first && $second}"
 }
 for commit in 'git commit -m x' 'git -C /x/wt commit -m x' "git -C '/x y/wt' commit -m x" 'git -C "/x y/wt" commit -m x'; do
   expect_each_join 'make check' "$commit"
@@ -1118,6 +1125,59 @@ for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m
   'scripts/with-lock.sh scripts/probe.sh f swift build' "scripts/with-lock.sh scripts/probe.sh '/x y/f' swift build"; do
   expect_each_join "$first" "$ld"
 done
+
+# The command-shape rules read an interpreter heredoc body with no process call as data (an edit of a
+# test file that holds the trigger text), and a bash body with the same text as code. A body that names
+# a process call (subprocess, child_process, Open3, system(, popen(, exec..(, spawn..(, qx, %x, a
+# backtick) can run the text, so it keeps its text. The file-guard rules and the hooks-path rule read
+# every body.
+for lang in 'python3 -' node perl ruby; do
+  data_wrap="$lang"$' <<\'EOF\'\n@C@\nEOF'
+  expect_each_join 'make check' 'git commit -m x' "$data_wrap" allow
+  expect_each_join 'git commit -F .scratchpads/commit-msg.txt' "$ld" "$data_wrap" allow
+  expect_each_value allow msg.txt "${data_wrap//@C@/git commit @V@}" plain
+done
+bash_wrap=$'bash <<\'EOF\'\n@C@\nEOF'
+expect_each_join 'make check' 'git commit -m x' "$bash_wrap"
+expect_each_value block msg.txt "${bash_wrap//@C@/git commit @V@}"
+for push in 'git push origin main' 'git push --force origin feat/x' 'git push -f origin feat/x' 'git push origin +feat/x'; do
+  body="open(\"t.sh\", \"a\").write(\"expect block '$push'\\n\")"
+  expect allow $'python3 - <<\'EOF\'\n'"$body"$'\nEOF'
+  expect allow $'cd /x && python3 - <<\'EOF\'\n'"$body"$'\nEOF'
+  expect block $'bash <<\'EOF\'\n'"$push"$'\nEOF'
+  expect block $'bash <<\'EOF\'\n'"$body"$'\nEOF'
+  expect block $'python3 - <<\'EOF\'\nimport os\nos.system("'"$push"$'")\nEOF'
+done
+expect block $'python3 - <<\'EOF\'\nimport subprocess\nsubprocess.run("git push --force origin feat/x", shell=True)\nEOF'
+expect block $'python3 - <<\'EOF\'\nimport subprocess\nsubprocess.run(["sh", "-c", "git push origin main"])\nEOF'
+expect block $'python3 - <<\'EOF\'\nimport os\nos.system("git push origin main")\nEOF'
+expect block $'node - <<\'EOF\'\nrequire("child_process").execSync("git push --force")\nEOF'
+expect block $'perl <<\'EOF\'\nsystem("git push origin main");\nEOF'
+expect block $'ruby <<\'EOF\'\nsystem "git push origin main"\nEOF'
+expect block $'ruby <<\'EOF\'\n`git push origin main`\nEOF'
+expect block $'perl <<\'EOF\'\nqx{git push origin main};\nEOF'
+expect block $'python3 - <<\'EOF\'\nimport os\nos.system("true")\nbash scripts/land.test.sh\nEOF'
+# A printf row with the text (make check-changed ...) in a quoted string is data for the log-decision rule.
+expect allow $'printf \'%s\\n\' 6 \'fix row\' \'why\' \'(make check-changed: check-docs, exit 0)\' pass > rows/r.txt; .claude/skills/deliver/scripts/log-decision.sh .scratchpads/runs/r --from rows/r.txt'
+expect block $'make check-docs; printf \'%s\\n\' 6 \'fix row\' > rows/r.txt; .claude/skills/deliver/scripts/log-decision.sh .scratchpads/runs/r --from rows/r.txt'
+# A python3 body that names a guarded file or a hooks path keeps exit 2.
+expect block $'python3 - <<\'EOF\'\nprint(".git/dirigible-flakes")\nEOF'
+expect block $'python3 - <<\'EOF\'\nprint(".git/dirigible-check-stamp")\nEOF'
+expect block $'python3 - <<\'EOF\'\nprint(".git/dirigible-screen")\nEOF'
+expect block $'python3 - <<\'EOF\'\nprint("git config core.hooksPath /dev/null")\nEOF'
+expect block $'bash <<\'EOF\'\ngit config core.hooksPath /dev/null\nEOF'
+# A search (rg, grep) that names the hooks-path key reads it; each other command that names it with a value stays a change.
+expect allow "rg -n 'core.hooksPath=/dev/null' scripts/check-plan.test.sh"
+expect allow 'grep -c core.hooksPath .githooks/pre-commit'
+expect allow "FOO=1 rg -n 'core.hooksPath' .githooks docs"
+expect allow "cd /x && grep -rn core.hooksPath scripts"
+expect block 'git config core.hooksPath /dev/null'
+expect block 'git -c core.hooksPath=/dev/null commit -m x'
+expect block 'grep -l x f | xargs git config core.hooksPath'
+expect block 'rg x f; git config core.hooksPath /dev/null'
+expect block 'rg x f && git config core.hooksPath /dev/null'
+expect block "rg --pre 'git config core.hooksPath /dev/null' x f"
+expect block 'rg x $(git config core.hooksPath /dev/null)'
 
 for run in 'bash scripts/land.test.sh' 'make test-hooks' 'scripts/test-hooks.sh' 'scripts/with-lock.sh bash scripts/land.test.sh' \
   'scripts/with-lock.sh scripts/test-hooks.sh'; do
@@ -1323,7 +1383,7 @@ done
 for run in $'cat <<\'EOF\' | bash\nbash scripts/land.test.sh\nEOF' $'bash -s <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
   $'/bin/sh <<\'EOF\'\n(bash scripts/land.test.sh)\nEOF' $'sudo bash <<\'EOF\'\nbash scripts/land.test.sh\nEOF' \
   $'bash <<-\'EOF\'\n\t(bash scripts/land.test.sh)\n\tEOF' \
-  $'python3 - <<\'EOF\'\n(bash scripts/land.test.sh)\nEOF' \
+  $'python3 - <<\'EOF\'\nimport os\nos.system("true")\nbash scripts/land.test.sh\nEOF' \
   $'git commit -F - <<EOF\nthe case $(bash scripts/land.test.sh) runs\nEOF' \
   $'git commit -F - <<EOF\nthe case `bash scripts/land.test.sh` runs\nEOF'; do
   expect_message "HOOK_TESTS='<names>'" "$run"
@@ -1471,9 +1531,9 @@ expect_each_lock allow "BASE=origin/main; $lw"
 # bash body after the same prefix runs it, so it blocks.
 expect allow "S=x; mkdir -p stubbin; cat > stubbin/make <<'EOF'"$'\n'"bash $T"$'\nEOF'
 expect allow "cd logs && mkdir -p fix4-stub && cat > fix4-stub/make <<'EOF'"$'\n'"bash $T"$'\nEOF'
-for run in "L=x; python3 - <<'EOF'" "L=x; bash <<'EOF'"; do
-  expect_message 'runs a repo hook test outside the key tree' "$run"$'\n'"bash $T"$'\nEOF'
-done
+expect_message 'runs a repo hook test outside the key tree' "L=x; python3 - <<'EOF'"$'\nimport os\nos.system("true")\n'"bash $T"$'\nEOF'
+expect_message 'runs a repo hook test outside the key tree' "L=x; bash <<'EOF'"$'\n'"bash $T"$'\nEOF'
+expect allow "L=x; python3 - <<'EOF'"$'\n'"bash $T"$'\nEOF'
 # A hook copy with no scripts/lock-words.sh above it blocks a with-lock.sh make test-hooks segment, names the file, and
 # still allows a command that is no such segment.
 mkdir -p "$tmp/nolw/.claude/hooks"

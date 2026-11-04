@@ -37,12 +37,21 @@ if ! COMMAND="$(plutil -extract tool_input.command raw -o - "$input" 2>/dev/null
   block "cannot be checked"
 fi
 
+# process_call_re: an ERE (bash and Python read it alike) for text that starts a process, so an
+# interpreter body that matches can run a command: subprocess, child_process, Open3; system, popen,
+# fork, a word that starts with exec or spawn, each before a (; system or exec before a space and a
+# quote (Perl, Ruby); qx before a bracket or /; %x before a bracket or /; a backtick.
+pc_ws=$' \t\n' pc_dq='"' pc_sq="'"
+process_call_re="subprocess|child_process|Open3|(^|[^A-Za-z0-9])(system|popen|fork|exec[A-Za-z0-9_]*|spawn[A-Za-z0-9_]*)[$pc_ws]*\\(|(^|[^A-Za-z0-9_])(system|exec)[$pc_ws]+[$pc_dq$pc_sq]|(^|[^A-Za-z0-9_])qx[$pc_ws]*[({</[]|%x[({</[]|\`"
 # cut_bodies <sink|all>: print $COMMAND without the body and the end line of each heredoc that is
 # data. A body is data when the first line is `cat` or `tee` with a redirect or a file argument to a
 # plain file, and only the marker (or the marker and one `> file`) ends that line. In mode all, the
-# body of python3, node, perl, or ruby with no -c or -e goes too: only the lock-value rule and the
-# log-decision rule skip it, because an interpreter runs its body. A prefix before the first word
-# is not part of that line: segments that each end with `;` or `&&` and hold `NAME=<word>`
+# body of python3, node, perl, or ruby with no -c or -e goes too when it matches no process_call_re:
+# the rules that read the cut (DATA_CUT: lock-value, log-decision, commit after make check, push,
+# and through mask_quoted_data the commit message file and hook test rules) skip it, because such a
+# body can not run a command (a call name built from string parts is a miss). The hooks-path rule
+# and the file-guard rules read every body, because python3 can write the guarded file. A prefix
+# before the first word is not part of that line: segments that each end with `;` or `&&` and hold `NAME=<word>`
 # assignments with no name PATH in any case (a PATH value can make `cat` a stub, and zsh ties
 # `path` to PATH), `cd <word>`, or `mkdir -p <word>...`. A PATH change on an earlier line is not
 # checked. A body stays when the end line is missing or not exact, when the first line
@@ -119,6 +128,7 @@ cut_bodies() {
       body=""
       for ((k = i; k < j; k++)); do body+="${lines[k]}"$'\n'; done
       if ((quoted)) || [[ "$body" != *'$('* && "$body" != *"$bt"* ]]; then cut=1; fi
+      [[ "$kind" == interpreter && "$body" =~ $process_call_re ]] && cut=0
     fi
     if ((cut)); then
       i=$((j + 1))
@@ -134,17 +144,21 @@ DATA_CUT="$(cut_bodies all)"
 # Join backslash-newline continuations, as the shell does. Make each run of tabs and spaces
 # one space, so the patterns match `git<TAB>push` and `git  push` too.
 joined="${SINK_CUT//\\$'\n'/ }"
-NORMALIZED="$(tr -s '\t ' '  ' <<< "$joined")"
 # Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
-NORMALIZED="$(sed -E 's/git( +-[Cc] +[^ ]+)+/git/g' <<< "$NORMALIZED")"
-UNSPLIT="$NORMALIZED"
+join_text() { tr -s '\t ' '  ' <<< "${1//\\$'\n'/ }" | sed -E 's/git( +-[Cc] +[^ ]+)+/git/g'; }
 # Put each command of a chain (&&, ||, ;, |) on its own line. grep matches one line at a time,
 # so a pattern cannot match a word of the next command, for example `--base main` of gh.
-NORMALIZED="$(awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$NORMALIZED")"
+split_chain() { awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$1"; }
+UNSPLIT="$(join_text "$SINK_CUT")"
+NORMALIZED="$(split_chain "$UNSPLIT")"
+# The push rules read the text with the data body of an interpreter cut too (DATA_CUT).
+if [[ "$DATA_CUT" == "$SINK_CUT" ]]; then PUSH_TEXT="$NORMALIZED"; else PUSH_TEXT="$(split_chain "$(join_text "$DATA_CUT")")"; fi
 
-DANGEROUS_PATTERNS=(
+PUSH_PATTERNS=(
   'git push( .*)? (--force|-[a-zA-Z]*f|\+)'
   "git push .*[ :/'\"]main([^[:alnum:]_./-]|\$)"
+)
+DANGEROUS_PATTERNS=(
   'git reset --hard'
   'git clean -[a-z]*f'
   'git branch .*(-D|--delete --force|-d -f|-d --force|-f )'
@@ -161,12 +175,17 @@ DANGEROUS_PATTERNS=(
 # core.hooksPath [2>/dev/null]`, flags in any order) is allowed too, only as a whole command:
 # `xargs git config core.hooksPath` is a write. The key matches in
 # any case. Each command of a chain or a substitution is one line; a line that is not one of the
-# two forms and names the key is a change. A direct write of .git/config is not checked.
+# two forms and names the key is a change. A line whose command word (after NAME=value, time, env,
+# command, and the shell keywords) is rg or grep is a search that names the key as a pattern, so
+# it passes, unless it has --pre (rg runs that command). A direct write of .git/config is not checked.
 hooks_key='[Cc][Oo][Rr][Ee]\.[Hh][Oo][Oo][Kk][Ss][Pp][Aa][Tt][Hh]'
 if [[ "$joined" =~ $hooks_key ]]; then
   hooks_read='^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$'
   hooks_set='^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$'
+  hooks_search='^ *(((\{|!|if|then|do|else|while|time|env|command|[A-Za-z_][A-Za-z0-9_]*=[^ ]*) +)*)(rg|grep)( |$)'
+  hooks_pre='(^| )--pre([ =]|$)'
   while IFS= read -r line; do
+    [[ "$line" =~ $hooks_search && ! "$line" =~ $hooks_pre ]] && continue
     [[ "$line" == *core.hookspath* && ! "$line" =~ $hooks_read && ! "$line" =~ $hooks_set ]] && block "changes core.hooksPath"
   done < <(sed -E "s/$hooks_key/core.hookspath/g" <<< "$joined" |
     tr -s '\t ' '  ' | awk '{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }')
@@ -191,37 +210,15 @@ drop_safe_joins() {
 
 # A commit in the same command as a make check must run only when the check passed, so only
 # && may join them. After `;`, `||`, a pipe, a background `&`, or a new line, a red check still commits.
-if [[ "$chained" =~ make\ check(.*)git\ commit ]]; then
+# The text read keeps the body of an interpreter heredoc only when it names a process call.
+if [[ "$chained_data" =~ make\ check(.*)git\ commit ]]; then
   drop_safe_joins "${BASH_REMATCH[1]}"
   if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
     block "runs git commit after make check without && (a red check still commits)"
   fi
 fi
 
-# A decisions.tsv row after a commit or a build must come after its status is read. After `;`, a
-# new line, a pipe (no pipefail), or a background `&`, the row is written before that. && and ||
-# pass the status, and a redirect (2>&1, &>, >&) is not a background job.
-# [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
-# The rule matches git commit, make, or swift only at a command start: the text start, or after
-# `;`, `|`, `&`, `(`, or a new line, then the prefix words `{`, `!`, if, then, do, else, while,
-# NAME=value, time, env, bash, with-lock.sh, and probe.sh <folder>, in any order. So the word make
-# in row text is data. log-decision.sh also counts only at a command start, after the same prefix
-# words, so a read of the script (cat, sed -n, head) after a commit or a build passes. Limits: in
-# quoted data, git commit, make, or swift after `;`, `|`, `&`, `(`, or a new line still blocks:
-# write the row file with the Write tool and log it with
-# log-decision.sh --from <file>. A command after another wrapper word (nice, nohup, caffeinate,
-# xcrun) or after a quote character is not blocked.
 word="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
-start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
-if [[ "$chained_data" =~ $start(git\ commit|make|swift)([[:space:]].*)?$start[^[:space:]]*log-decision\.sh ]]; then
-  # Group 6 is optional, so the start before log-decision.sh can take a new line right after make.
-  # Group 7 is that separator: it stays in the test below.
-  middle="${BASH_REMATCH[6]}${BASH_REMATCH[7]}"
-  drop_safe_joins "${middle//||/}"
-  if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
-    block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, a pipe, or & (the row can come before the status). Run log-decision.sh in its own command after you read the status"
-  fi
-fi
 
 # Only the check-changed recipe of the Makefile writes the pass stamp that land.sh reuses, so a
 # direct write cannot skip the land check. A command that names the stamp file is blocked too.
@@ -534,9 +531,10 @@ fi
 # heredoc body is data when no word before the marker is a shell or an interpreter (sh, bash, python3,
 # node, ssh, make, source, and the like) and only a > file follows the marker; an unquoted body with
 # $( or a backtick stays code. The text of a $(...) or a backtick pair inside double quotes stays code.
+# The body of a bare python3, python3 -, node, perl, or ruby is data too when it matches no
+# process_call_re (it can not run a command); with one, it stays code.
 # A # at the start of a word, outside quotes, starts a comment that ends at the next new line: the mask
 # blanks it, so a quote mark in a comment opens no string and hides no command on a later line.
-# The text read is the one that keeps the body of an interpreter heredoc (it runs the body).
 # By then chain_text has made each run of tabs one space, so the end line of a <<- heredoc may have
 # leading spaces.
 mask_quoted_data() {
@@ -548,7 +546,9 @@ text = sys.stdin.read()
 n = len(text)
 out = []
 SQ = chr(39)
+PROCESS = re.compile(sys.argv[1])
 FREE = re.compile(r"[;&|()`\n]")
+INTERP = re.compile(r"(?:python3?|node|perl|ruby)")
 CODE = re.compile(r"(?:(?:ba|z|da|k)?sh|python[0-9.]*|node|perl|ruby|php|osascript|eval|source|ssh|make|\.)")
 TAIL = re.compile(r"\s*(>>?\s*[^\s;&|<>()`]+)?\s*")
 HERE = re.compile(r"<<(-?)[ \t]*(\\?[A-Za-z0-9_.-]+|" + SQ + r"[A-Za-z0-9_.-]+" + SQ + r"|\"[A-Za-z0-9_.-]+\")")
@@ -611,7 +611,7 @@ def double(start):
 
 
 def bodies(i, pending):
-    for marker, dash, quoted, data in pending:
+    for marker, dash, quoted, data, interp in pending:
         pos = i
         while True:
             end = text.find("\n", pos)
@@ -624,7 +624,7 @@ def bodies(i, pending):
             pos = end + 1
         after = min(end + 1, n)
         body = text[i:pos]
-        if not (data and (quoted or ("$(" not in body and "`" not in body))):
+        if not (data and (quoted or ("$(" not in body and "`" not in body)) and not (interp and PROCESS.search(body))):
             out.append(text[i:after])
         i = after
     return i
@@ -672,9 +672,11 @@ def scan(i, end):
             raw = m.group(2)
             line_end = text.find("\n", m.end())
             rest = text[m.end() : n if line_end < 0 else line_end]
-            code = any(CODE.fullmatch(w.rsplit("/", 1)[-1]) for w in seg.split())
+            words = seg.split()
+            interp = bool(words) and bool(INTERP.fullmatch(words[0])) and words[1:] in ([], ["-"])
+            code = not interp and any(CODE.fullmatch(w.rsplit("/", 1)[-1]) for w in words)
             data = not code and bool(TAIL.fullmatch(rest))
-            pending.append((raw.lstrip("\\").strip(SQ + "\""), bool(m.group(1)), raw[0] in "\\" + SQ + "\"", data))
+            pending.append((raw.lstrip("\\").strip(SQ + "\""), bool(m.group(1)), raw[0] in "\\" + SQ + "\"", data, interp))
             out.append(m.group(0))
             seg += m.group(0)
             i = m.end()
@@ -709,8 +711,35 @@ def scan(i, end):
 
 scan(0, None)
 sys.stdout.write("".join(out))
-' || block "cannot be checked for a hook test run (python3 failed)"
+' "$process_call_re" || block "cannot be checked for a hook test run (python3 failed)"
 }
+
+# A decisions.tsv row after a commit or a build must come after its status is read. After `;`, a
+# new line, a pipe (no pipefail), or a background `&`, the row is written before that. && and ||
+# pass the status, and a redirect (2>&1, &>, >&) is not a background job.
+# [[:space:]] and not $: in [[ =~ ]], $ is the end of the text, not the end of a line.
+# The rule matches git commit, make, or swift only at a command start: the text start, or after
+# `;`, `|`, `&`, `(`, or a new line, then the prefix words `{`, `!`, if, then, do, else, while,
+# NAME=value, time, env, bash, with-lock.sh, and probe.sh <folder>, in any order. So the word make
+# in row text is data. log-decision.sh also counts only at a command start, after the same prefix
+# words, so a read of the script (cat, sed -n, head) after a commit or a build passes. A match is
+# read again on the text of mask_quoted_data, where a separator inside a quoted string is blank: a
+# printf row that quotes (make check-changed ...) passes. A command after another wrapper word
+# (nice, nohup, caffeinate, xcrun) or after a quote character is not blocked.
+start="(^|[;|&(]|"$'\n'") ?(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |bash |[^[:space:]]*with-lock\.sh |[^[:space:]]*probe\.sh $word )*"
+log_row_re="$start(git commit|make|swift)([[:space:]].*)?$start[^[:space:]]*log-decision\.sh"
+if [[ "$chained_data" =~ $log_row_re ]]; then
+  log_masked="$(mask_quoted_data <<< "$chained_data")" || exit 2
+  if [[ "$log_masked" =~ $log_row_re ]]; then
+    # Group 6 is optional, so the start before log-decision.sh can take a new line right after make.
+    # Group 7 is that separator: it stays in the test below.
+    middle="${BASH_REMATCH[6]}${BASH_REMATCH[7]}"
+    drop_safe_joins "${middle//||/}"
+    if [[ "$stripped" =~ [\;\|\&]|$'\n' ]]; then
+      block "logs a decisions.tsv row after git commit, make, or swift joined by ;, a new line, a pipe, or & (the row can come before the status). Run log-decision.sh in its own command after you read the status"
+    fi
+  fi
+fi
 
 # A background lock job needs a Bash timeout of 7200000 (AGENTS.md, Commands): the Bash tool stops a
 # background call at 30 min by default and the result of a land, a push check, or a mutation pass is
@@ -1033,6 +1062,11 @@ if [[ "$NORMALIZED" == *tccutil* ]]; then
   done < <(sed -E 's/[0-9]*>&[0-9-]*//g' <<< "$NORMALIZED")
 fi
 
+for pattern in "${PUSH_PATTERNS[@]}"; do
+  if matches "$pattern" "$PUSH_TEXT"; then
+    block "matches '$pattern'"
+  fi
+done
 for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   if matches "$pattern" "$NORMALIZED"; then
     block "matches '$pattern'"

@@ -19,6 +19,14 @@ extension Studio {
         return recording.playheadFrame
     }
 
+    /// The take start H_T of the take that records, on the continuous clock: for a pre-roll take,
+    /// after its pre-roll. Nil with no take.
+    public var takeStartInstant: ContinuousClock.Instant? {
+        guard case .recording = transport, let start = session.recording?.takeStartHostTimeNanos else { return nil }
+        let (host, now) = (environment.hostNanos(), ContinuousClock.now)
+        return start > host ? now + .nanoseconds(start - host) : now - .nanoseconds(host - start)
+    }
+
     /// The step of a pre-roll take start after its checks and before its save (**Start order**):
     /// the take mix, the take play from S = `seconds` (0 to 10) before `playhead`, then H_T. With no
     /// output term, it stops the Player, keeps the playhead at T, and throws `.outputTermUnavailable`;

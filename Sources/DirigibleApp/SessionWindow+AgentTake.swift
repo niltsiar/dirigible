@@ -15,7 +15,7 @@ extension SessionWindow {
         guard let studio, case .recording(take) = studio.transport else { return }
         let started = AgentTake(
             take: take, agent: consent.agent.name, tracks: consent.names, seconds: consent.seconds,
-            since: studio.recordingSince ?? .now)
+            since: studio.takeStartInstant ?? .now)
         agentRecord.take = started
         let text = agentTakeText(started)
         if !attention.isActive() {
@@ -28,9 +28,10 @@ extension SessionWindow {
         followAgentTake(studio, take: take)
     }
 
-    /// The text of the take row of an agent take, with the time left.
+    /// The text of the take row of an agent take, with the time left: the whole length until the
+    /// take start H_T.
     func agentTakeText(_ take: AgentTake, now: ContinuousClock.Instant = .now) -> String {
-        let elapsed: Duration = now - take.since
+        let elapsed = max(Duration.zero, now - take.since)
         let left = max(Duration.zero, Duration.seconds(take.seconds) - elapsed)
         let time = Duration.seconds(Int((left / .seconds(1)).rounded(.up))).formatted(.time(pattern: .minuteSecond))
         let tracks = ListFormatter.localizedString(byJoining: take.tracks)

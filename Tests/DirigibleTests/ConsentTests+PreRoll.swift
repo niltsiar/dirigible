@@ -58,6 +58,28 @@ extension ConsentTests {
         await model.close()
     }
 
+    /// The agent take row, the notification, and the Dock text count the length from the take start
+    /// H_T, not from the start of the pre-roll. The table of a test process has no text, so the
+    /// on-screen check reads the row.
+    @Test func agentTakeRowCountsFromTheTakeStart() async throws {
+        let (model, studio) = try await window()
+        // The offline Player plays the pre-roll at once; a paced one plays it in real time.
+        studio.environment.playerOutput = .paced
+        let request = RecordRequest(armed: ["t1"], seconds: 30, playhead: 96_000, preRoll: 2)
+        let answer = Task { await model.askRecord(request, agent: agent) }
+        try click(record: true, in: try await sheet(model))
+        _ = await answer.value
+        let take = try #require(model.agentRecord.take)
+        let start = try #require(studio.session.recording?.takeStartHostTimeNanos)
+        let (host, now) = (studio.environment.hostNanos(), ContinuousClock.now)
+        let takeStart = start > host ? now + .nanoseconds(start - host) : now - .nanoseconds(host - start)
+
+        let gap: Duration = take.since - takeStart
+        #expect(gap > .milliseconds(-100) && gap < .milliseconds(100), "since \(gap) from H_T")
+        await model.stop()
+        await model.close()
+    }
+
     /// P27: one sentence names the start and the pre-roll length, in English and Spanish.
     @Test func preRollLine() throws {
         for (language, line) in [

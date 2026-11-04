@@ -2,8 +2,9 @@
 # Refuse a commit that fails the size gate (scripts/check-sizes.sh), the wait gate
 # (scripts/check-waits.sh), or the format check (make lint). Each checks the working tree, not only
 # the staged files. The two gates are greps under 1 s, so a red gate stops the commit, not a push
-# check after the Swift tests. `make setup` enables this hook. Tests run in the tdd loop and in the
-# push check, not here.
+# check after the Swift tests. make lint runs only when a .swift path or .swift-format differs from
+# HEAD or is new, because it takes minutes and checks only Swift. `make setup` enables this hook.
+# Tests run in the tdd loop and in the push check, not here.
 set -euo pipefail
 [[ "$(git config --get core.hooksPath)" == .githooks ]] ||
   { echo "pre-commit: core.hooksPath is not .githooks, so a worktree runs the hooks of another tree. Run make setup." >&2; exit 1; }
@@ -17,4 +18,9 @@ for f in "$(git rev-parse --path-format=absolute --git-dir)"/dirigible-check-run
 done
 scripts/check-sizes.sh
 scripts/check-waits.sh
-make --no-print-directory lint
+base="$(git rev-parse -q --verify HEAD || git hash-object -t tree /dev/null)"
+paths="$(git -c core.quotePath=false diff --no-renames --name-only "$base"
+  git -c core.quotePath=false ls-files --others --exclude-standard)"
+if grep -qE '(\.swift|(^|/)\.swift-format)$' <<<"$paths"; then
+  make --no-print-directory lint
+fi

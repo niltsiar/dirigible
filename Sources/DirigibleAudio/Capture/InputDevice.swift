@@ -35,6 +35,9 @@ public struct InputDevice: Hashable, Sendable {
 
     public var channelCount: Int { channelsPerBuffer.reduce(0, +) }
 
+    /// The latency in nanoseconds at the nominal rate. It is signed and holds no host time.
+    var latencyNanos: Int64 { Int64((Double(latency) * 1e9 / nominalRate).rounded()) }
+
     /// The same device with `name`: the app name of an app source.
     func named(_ name: String) -> InputDevice {
         InputDevice(

@@ -82,7 +82,12 @@ extension CaptureEnvironment {
 /// of its device (`TestHAL.current`). It waits for an attach. Real-time pace sends one record each 10 ms; burst mode
 /// sends as fast as the ring has room; `ignoreRoom` sends at once and lets a full ring drop.
 final class SyntheticInput: @unchecked Sendable {
-    enum Pace { case realTime, burst, ignoreRoom }
+    enum Pace: Equatable {
+        case realTime, burst, ignoreRoom
+        /// Sends each record when the host clock is `nanos` past its host time: a device that
+        /// delivers its frames late.
+        case lagging(nanos: UInt64)
+    }
 
     let hal: TestHAL
     let uid: String
@@ -235,6 +240,10 @@ final class SyntheticInput: @unchecked Sendable {
             if pace == .realTime {
                 let delay = start.addingTimeInterval(Double(index) / 100).timeIntervalSinceNow
                 if delay > 0 { usleep(UInt32(delay * 1e6)) }
+            }
+            if case .lagging(let lag) = pace {
+                let (due, now) = (record.hostTimeNanos &+ lag, hostNanosNow())
+                if due > now { usleep(UInt32((due - now) / 1000)) }
             }
             input.ring.setRate(record.nominalRate)
             withIOProcArguments(record, flags: flags) { time, list in

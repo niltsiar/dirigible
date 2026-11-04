@@ -47,7 +47,7 @@ struct RecordTests {
         let studio = try await studio(TestHAL([mic]))
         let gate = AsyncGate()
         studio.environment.afterStart = { await gate.wait() }
-        studio.environment.takeLength = { _ in }
+        studio.environment.takeStop = { _ in }
         let start = Task { try await studio.startRecording(armed: ["t1"], playhead: 0, for: .seconds(1)) }
         await gate.entered()
         let stop = Task { try await studio.stopRecording() }

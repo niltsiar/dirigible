@@ -230,7 +230,7 @@ struct TrackSegments {
     }
 
     /// The device latency in nanoseconds at the nominal rate. It is signed and holds no host time.
-    var latencyNanos: Int64 { Int64((Double(device.latency) * 1e9 / device.nominalRate).rounded()) }
+    var latencyNanos: Int64 { device.latencyNanos }
 
     /// The level of each arm since the last call, and a new start. The short-term value is the
     /// current one of the meter, also after a drain with no record. The meters keep no blocks.

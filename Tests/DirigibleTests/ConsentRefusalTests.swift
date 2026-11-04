@@ -135,13 +135,14 @@ extension ConsentTests {
     // MARK: C9
 
     /// C9: the take stops when its length ends, and finalizes. A gate holds the timer of the
-    /// length, so no wall clock races the checks.
+    /// length, so no wall clock races the checks. The stop is at the take start + the length +
+    /// 250 ms for the frames in flight (`duo` has no input latency).
     @Test func takeStopsAfterSeconds() async throws {
         let (model, studio) = try await window()
         let gate = AsyncGate()
-        let length = OSAllocatedUnfairLock<Duration?>(initialState: nil)
-        studio.environment.takeLength = { duration in
-            length.withLock { $0 = duration }
+        let stop = OSAllocatedUnfairLock<UInt64?>(initialState: nil)
+        studio.environment.takeStop = { host in
+            stop.withLock { $0 = host }
             await gate.wait()
         }
         let answer = ask(model, seconds: 0.5)
@@ -149,7 +150,8 @@ extension ConsentTests {
         #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 0.5))
         let timer = try #require(studio.takeTimer)
         await gate.entered()
-        #expect(length.withLock { $0 } == .milliseconds(500))
+        let start = try #require(studio.session.recording?.takeStartHostTimeNanos)
+        #expect(stop.withLock { $0 } == start + 750_000_000)
         #expect(studio.transport == .recording(take: 1), "the take runs until its length ends")
 
         gate.open()
@@ -166,7 +168,7 @@ extension ConsentTests {
     @Test func userStopKeepsTheNextTake() async throws {
         let (model, studio) = try await window()
         let gate = AsyncGate()
-        studio.environment.takeLength = { _ in await gate.wait() }
+        studio.environment.takeStop = { _ in await gate.wait() }
         let answer = ask(model, seconds: 1)
         try click(record: true, in: try await sheet(model))
         #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 1))

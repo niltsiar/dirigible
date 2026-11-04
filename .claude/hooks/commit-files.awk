@@ -13,9 +13,10 @@
 # command an & that is part of a redirect (2>&1, >&2, &>) does not end the chunk. In a brief a quote
 # opens only after a non-word character and when a closing quote follows on the line, so an apostrophe
 # in prose opens none; a quote that holds git commit is data only when a search word (rg, grep, find,
-# ag, git log -S) comes before it on the line, so a quoted instruction is read. There the chunk of a
-# commit in inline code ends at the closing backtick. Misses: a commit that a shell runs from a quoted
-# string (bash -c, eval, $(...)).
+# ag, git log -S) comes before it on the line, or a block report touches it (blocked or refused
+# right before the quote, or was blocked right after it, also in inline code), so a quoted
+# instruction is read. In a brief the chunk of a commit in inline code ends at the closing backtick.
+# Misses: a commit that a shell runs from a quoted string (bash -c, eval, $(...)).
 BEGIN { search = "(^|[^A-Za-z0-9_-])(rg|grep|find|ag|git log -S)([^A-Za-z0-9_]|$)" }
 # closes(line, k): the index of the closing quote of the quote that opens at k, or 0.
 function closes(line, k,   c, j, n) {
@@ -25,6 +26,23 @@ function closes(line, k,   c, j, n) {
     if (substr(line, j, 1) == c && substr(line, j + 1, 1) !~ /[A-Za-z0-9]/) return j
   }
   return 0
+}
+# reports(line, k, e): 1 when a block report touches the quote that opens at k and closes at e:
+# blocked or refused (with only spaces or a colon after it) or BLOCKED by <path>: right before the
+# opening quote, or was, were, is, or got and then blocked or refused right after the closing quote.
+function reports(line, k, e,   before, after) {
+  before = substr(line, 1, k - 1); after = substr(line, e + 1)
+  return before ~ /(^|[^A-Za-z])(blocked|refused)[ :]*$/ || before ~ /BLOCKED by [^ ]+: *$/ ||
+    after ~ /^ +(was|were|is|got) +(blocked|refused)([^A-Za-z]|$)/
+}
+# opens(line, k, c) (brief mode): 1 when the quote character c at k opens a quoted string. A quote
+# that holds git commit opens only after a search word or in a block report; only that report opens
+# inline code.
+function opens(line, k, c,   e) {
+  if (substr(line, k - 1, 1) ~ /[A-Za-z0-9]/ || !(e = closes(line, k))) return 0
+  if (reports(line, k, e)) return 1
+  if (c == "`") return 0
+  return substr(line, 1, k - 1) ~ search || substr(line, k + 1, e - k - 1) !~ /git commit/
 }
 # mark(line): inq[k] is 1 for each character inside a quoted string of the line.
 function mark(line,   n, k, c, e, dollar) {
@@ -40,8 +58,7 @@ function mark(line,   n, k, c, e, dollar) {
       dollar = 0
     }
     else if (c == "\\" && !brief) { k++; dollar = 0 }
-    else if ((c == "\"" || c == "\047") && (!brief || (substr(line, k - 1, 1) !~ /[A-Za-z0-9]/ && (e = closes(line, k)) &&
-        (substr(line, 1, k - 1) ~ search || substr(line, k + 1, e - k - 1) !~ /git commit/)))) {
+    else if (((c == "\"" || c == "\047") && !brief) || (brief && (c == "\"" || c == "\047" || c == "`") && opens(line, k, c))) {
       q = c; ansi = (c == "\047" && dollar); dollar = 0
     }
     else dollar = (c == "$")

@@ -132,6 +132,7 @@ extension Studio {
         guard pendingTake == nil else { throw .busy }
         isStarting = true
         let stopped = endPlayForTake()
+        await rawSweepsEnded()
         let queued = ContinuousClock.now
         // The whole start is one step of the chain, so a stop or a settle never sees half of it.
         let result = await serialized { () async -> Result<(take: Int, generation: Int, stop: UInt64?), StudioError> in
@@ -266,6 +267,7 @@ extension Studio {
         takeError = outcome.error
         if outcome.error == nil { takeEnded(outcome.session) } else { dropLiveTake() }
         try apply(outcome)
+        sweepRaw()
     }
 
     /// Places an unplaced segment (decision 0021): on the track of its arm at its recorded time
@@ -292,6 +294,7 @@ extension Studio {
                 segment, track: track, start: start, of: session, lock: lock, environment: environment,
                 recordings: recordings, previous: url)
             do throws(StudioError) { try apply(outcome) } catch { return error }
+            sweepRaw()
             return nil
         }
         if let error { throw error }
@@ -314,6 +317,7 @@ extension Studio {
         let routes = try checkRoutes(session, armed: armed, devices: devices)
         isStarting = true
         let stopped = endPlayForTake()
+        await rawSweepsEnded()
         let error = await serialized { () async -> StudioError? in
             defer { isStarting = false }
             let playhead = await takePlayhead(stopped, playhead)

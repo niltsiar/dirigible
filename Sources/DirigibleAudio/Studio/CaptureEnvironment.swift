@@ -89,6 +89,8 @@ struct CaptureEnvironment: Sendable {
     /// A step on the thread of each WAV read of a peak pass: at each file start (the open and the
     /// cache read) and after each block read. Tests check that it is never the main thread.
     var peakRead: @Sendable () -> Void = {}
+    /// A step of the raw sweep job (decision 0071). Tests count or hold the steps with it.
+    var beforeRawStep: @Sendable (RawSweepStep) async -> Void = { _ in }
     /// A step on the export thread at each cancel check: each chunk and once after the close
     /// (decision 0019). Tests record the thread and the QoS with it, or hold or slow the export.
     var exportChunk: @Sendable () -> Void = {}
@@ -162,4 +164,14 @@ struct CaptureEnvironment: Sendable {
         if noDevice { built.playerOutput = .paced }
         return built
     }
+}
+
+/// One step of the raw sweep job (decision 0071).
+enum RawSweepStep: Hashable, Sendable {
+    /// Before the first read of a run of the job.
+    case first
+    /// Before block n (0-based) of an audio read.
+    case block(Int)
+    /// Before the job asks for the turn of one removal.
+    case turn
 }

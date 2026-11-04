@@ -4,7 +4,7 @@ import os
 
 /// The part of the app that a journal line is about (decision 0059).
 public enum DiagnosticCategory: String, Sendable {
-    case app, take, device, tap, permission, disk, session, recovery, hang, agent
+    case app, take, device, tap, permission, disk, session, recovery, hang, agent, raw
 }
 
 /// The level of a journal line. A `fault` line and each `hang` line also call `fsync`.

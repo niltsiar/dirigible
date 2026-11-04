@@ -1115,11 +1115,17 @@ done
 # The main checkout stays on main: a second agent that finds another branch there commits to it by
 # mistake. A git checkout or git switch in a main checkout (its git dir is its common git dir)
 # blocks when it makes a branch (-b, -B, --orphan; -c, -C for switch), detaches (--detach; -d for
-# switch), goes to -, or goes to a local branch other than main. A -- , -p, or a second word is a
-# file restore. A remote ref or a commit with no detach option passes. The tree is the last -C dir
-# of the git command, else the last cd dir before it, else the cwd of the hook input. A dir with a
-# variable, a substitution, or a glob leaves the tree unknown, and an unknown tree passes. The text
-# read is the joined command, so the -C drop of join_text does not hide the tree.
+# switch), tracks (-t, --track), goes to -, or goes to a local branch other than main. A name that
+# only a remote has blocks too (git makes the local branch), unless --no-guess is set. A git checkout
+# of another commit (a sha, a tag, origin/<b>, HEAD~1) detaches, so it blocks; git switch refuses
+# such a name and passes. gh pr checkout and gh co (also gh -R <repo> pr checkout) block. A -- , -p,
+# or a second word is a file restore. The tree is the last -C dir of the git command, else the last
+# cd dir before it, else the cwd of the hook input. A dir with a variable, a substitution, or a glob
+# leaves the tree unknown, and an unknown tree passes. The text read is the joined command, so the
+# -C drop of join_text does not hide the tree. The gh call blocks only at the start of a command.
+# Misses: a name or a dir from a variable, a gh alias other than co, a wrapper word (nice, xargs),
+# a shell -c string, and a command that moves HEAD with no checkout or switch word (git
+# symbolic-ref HEAD, git reset to another branch, git rebase).
 sw_quoted_re="^(\"(.*)\"|'(.*)')\$"
 sw_dir() { # <base> <dir>: the dir resolved against the base, empty when unknown
   local base="$1" dir="$2" bad='[]$`*?[]'
@@ -1134,14 +1140,15 @@ sw_is_main_checkout() { # <dir>
   [[ -n "$git_dir" && "$git_dir" == "$common_dir" ]]
 }
 sw_moves_branch() { # <tree> <checkout|switch> <words after the command>: 0 when the branch moves
-  local tree="$1" kind="$2" w pos=() make=0 detach=0 restore=0
+  local tree="$1" kind="$2" w name pos=() make=0 detach=0 restore=0 guess=1
   shift 2
   for w in "$@"; do
     [[ "$w" =~ ^[0-9]*[\<\>] || "$w" == '&>'* ]] && continue
     [[ "$w" =~ $sw_quoted_re ]] && w="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
     case "$w" in
       -- | -p | --patch) restore=1 ;;
-      --orphan*) make=1 ;;
+      --orphan* | -t | --track | --track=*) make=1 ;;
+      --no-guess) guess=0 ;;
       -b* | -B*) [[ "$kind" == checkout ]] && make=1 ;;
       -c* | -C* | --create* | --force-create*) [[ "$kind" == switch ]] && make=1 ;;
       --detach) detach=1 ;;
@@ -1153,13 +1160,21 @@ sw_moves_branch() { # <tree> <checkout|switch> <words after the command>: 0 when
   done
   ((make || detach)) && return 0
   ((restore || ${#pos[@]} != 1)) && return 1
-  [[ "${pos[0]}" == - ]] && return 0
-  [[ "${pos[0]}" =~ ^[A-Za-z0-9._/@+-]+$ && "${pos[0]}" != main ]] || return 1
-  git -C "$tree" rev-parse --verify -q "refs/heads/${pos[0]}" > /dev/null 2>&1
+  name="${pos[0]}"
+  [[ "$name" == - ]] && return 0
+  [[ "$name" =~ ^[A-Za-z0-9._/@+~^{}-]+$ && "$name" != main && "$name" != HEAD && "$name" != @ ]] || return 1
+  git -C "$tree" rev-parse --verify -q "refs/heads/$name" > /dev/null 2>&1 && return 0
+  # A name that only a remote has: git makes the local branch and switches to it.
+  ((guess)) && [[ -n "$(git -C "$tree" for-each-ref --count=1 --format=x "refs/remotes/*/$name" 2> /dev/null)" ]] && return 0
+  # git checkout of any other commit (a sha, a tag, origin/<b>, HEAD~1) detaches; git switch refuses it.
+  [[ "$kind" == checkout ]] && git -C "$tree" rev-parse --verify -q "$name^{commit}" > /dev/null 2>&1
 }
-if [[ "$joined" == *checkout* || "$joined" == *switch* ]]; then
+if [[ "$joined" == *checkout* || "$joined" == *switch* || "$joined" == *'gh '* ]]; then
+  sw_gh_flag=' +(-R|--repo) +[^ ]+| +--repo=[^ ]+'
+  sw_gh_re="^[[:space:]({]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+ +|env +|time +|command +|! +|(if|then|do|else|elif|while|until) +)*gh($sw_gh_flag)* +(pr($sw_gh_flag)* +checkout|co)( |\$)"
   sw_git_re='(^|[^[:alnum:]_.-])git((( +-C +[^ ]+)|( +-c +[^ ]+))*) +(checkout|switch)( +(.*))?$'
   sw_cd_re='^[ ({]*cd +([^ ]+)( |$)'
+  sw_way="The main checkout stays on main. Make a worktree for the branch with git worktree add -b <branch> ../<folder> <base>, and work in that folder."
   sw_cwd="$(plutil -extract cwd raw -o - "$input" 2> /dev/null)"
   sw_base="$sw_cwd"
   while IFS= read -r line; do
@@ -1167,6 +1182,10 @@ if [[ "$joined" == *checkout* || "$joined" == *switch* ]]; then
       sw_base="$sw_cwd"
     elif [[ "$line" =~ $sw_cd_re ]]; then
       sw_base="$(sw_dir "$sw_base" "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ $sw_gh_re ]]; then
+      if [[ -n "$sw_base" ]] && sw_is_main_checkout "$sw_base"; then
+        block "changes the branch of the main checkout (gh pr checkout makes a local branch and switches to it)" "$sw_way"
+      fi
     elif [[ "$line" =~ $sw_git_re ]]; then
       sw_tree="$sw_base" sw_kind="${BASH_REMATCH[6]}"
       read -ra sw_opts <<< "${BASH_REMATCH[2]}"
@@ -1176,10 +1195,10 @@ if [[ "$joined" == *checkout* || "$joined" == *switch* ]]; then
       done
       if [[ -n "$sw_tree" ]] && sw_is_main_checkout "$sw_tree" &&
         sw_moves_branch "$sw_tree" "$sw_kind" "${sw_args[@]}"; then
-        block "changes the branch of the main checkout" "The main checkout stays on main. Make a worktree for the branch with git worktree add -b <branch> ../<folder> <base>, and work in that folder."
+        block "changes the branch of the main checkout" "$sw_way"
       fi
     fi
-  done < <(tr -s '\t ' '  ' <<< "$joined" | awk '{ gsub(/&&|\|\||[;|]/, "\n"); gsub(/\)/, "\n)\n"); print }')
+  done < <(tr -s '\t ' '  ' <<< "$joined" | awk '{ gsub(/&&|\|\||[;|&]/, "\n"); gsub(/\)/, "\n)\n"); print }')
 fi
 
 # A pull request merges only through scripts/land.sh. The hook sees only the Bash command text, so

@@ -53,10 +53,10 @@ struct CaptureEnvironment: Sendable {
     /// Tests check its thread with it; `live` does nothing. It passes its `#isolation`, as
     /// `beforeLookUp`.
     var beforeStartSave: @Sendable (isolated (any Actor)?) async -> Void = { _ in }
-    /// The wait of a timed take until the host time of its stop (decision 0048). Tests hold it
-    /// with a gate, so no wall clock races a check.
-    var takeStop: @Sendable (UInt64) async -> Void = { stop in
-        let now = hostNanosNow()
+    /// The wait of a timed take until `clock`, the clock of H_T (`hostNanos`), reaches the host
+    /// time of its stop (decision 0048). Tests hold it with a gate, so no wall clock races a check.
+    var takeStop: @Sendable (_ stop: UInt64, _ clock: @Sendable () -> UInt64) async -> Void = { stop, clock in
+        let now = clock()
         if stop > now { try? await Task.sleep(for: .nanoseconds(stop - now)) }
     }
     /// A step of a take start after the take begins, before the app attach. Tests hold it to stop

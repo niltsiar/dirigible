@@ -325,7 +325,7 @@ extension StartLimitTests {
         defer { hal.releaseAttach("box") }
         let studio = try await studio(hal, stop: limit)
         let length = AsyncGate()
-        studio.environment.takeStop = { _ in await length.wait() }
+        studio.environment.takeStop = { _, _ in await length.wait() }
         let inputs = [play(hal, "mic"), play(hal, "box")]
         let done = Done()
         let record = Task { @MainActor () -> StudioError? in

@@ -55,7 +55,10 @@ extension EditRules {
 
     /// The pre-roll of a timed take in whole seconds (decision 0070): 0 to 10. A take with 0 has no
     /// pre-roll.
-    package static func preRollSeconds(_ seconds: Int) -> Int? { (0...10).contains(seconds) ? seconds : nil }
+    package static func preRollSeconds(_ seconds: Int) -> Int? { preRollRange.contains(seconds) ? seconds : nil }
+
+    /// The range of `preRollSeconds`.
+    package static let preRollRange = 0...10
 }
 
 /// The window grant after a take start (decision 0050): its end on the wall clock, the take
@@ -170,7 +173,12 @@ private let preRoll = Param<Int?>.optional(
     "pre_roll",
     "The seconds of pre-roll, 0 to 10: the session plays from that time before the playhead, and the take starts "
         + "at the playhead. seconds counts from the playhead. The default is 0, no pre-roll.",
-    .integer())
+    // The schema gives the range, and the work refuses a value out of it with the text of `dirigible record`.
+    Kind(
+        schema: [
+            "type": "integer", "minimum": EditRules.preRollRange.lowerBound,
+            "maximum": EditRules.preRollRange.upperBound,
+        ], expected: "an integer", parse: exactInteger))
 
 let recordTools = [
     Tool(

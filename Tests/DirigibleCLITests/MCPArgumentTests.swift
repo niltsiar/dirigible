@@ -30,6 +30,16 @@ extension MCPToolTests {
         }
     }
 
+    /// The `pre_roll` schema of `record` carries the range of `EditRules.preRollSeconds`.
+    @Test func thePreRollSchemaHasTheRange() async throws {
+        let listed = try await mcp([modernRequest(1, "tools/list")])
+        let tools = result(answer(listed, id: 1))["tools"] as? [[String: Any]] ?? []
+        let tool = tools.first { $0["name"] as? String == "record" }
+        let properties = (tool?["inputSchema"] as? [String: Any])?["properties"] as? [String: [String: Any]]
+        let preRoll = properties?["pre_roll"] ?? [:]
+        #expect(preRoll["minimum"] as? Int == 0 && preRoll["maximum"] as? Int == 10, "\(preRoll)")
+    }
+
     /// C2 (decision 0048): `record` checks its arguments with the rules of `dirigible record`. A
     /// valid call reaches the file refusal.
     @Test func recordArguments() async throws {

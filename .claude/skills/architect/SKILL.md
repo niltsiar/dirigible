@@ -15,7 +15,7 @@ Open a todo list with one entry per phase: Ground, Sketch, Agree, Implement, Scr
 
 Spawn `Explore` subagents over each module that the new code touches, and trace the data flow from input to output. Produce the traced model: the types, the call path, and the owner of each piece of state. A file name is not a model. If the design redefines ownership or layering, also read the decision records in `docs/decisions/` and the `git log` of the touched files, so the rationale becomes a constraint, not a guess.
 
-When the design depends on framework behavior that the documentation does not state (an error value, a format limit, a frame count), write a small probe with `swiftc -O`. Record the command, the macOS and Swift versions, and the result in `.scratchpads/runs/<run>/probe/output.txt`. Delete large generated files after the probe. Run the probe with `scripts/probe.sh .scratchpads/runs/<run>/probe/<name> <binary>`.
+When the design depends on framework behavior that the documentation does not state (an error value, a format limit, a frame count), write a small probe with `swiftc -O`. Record the command, the macOS and Swift versions, and the result in `.scratchpads/runs/<run>/probe/output.txt`. Delete large generated files after the probe. Run the probe with `scripts/with-lock.sh scripts/probe.sh .scratchpads/runs/<run>/probe/<name> <binary>`.
 
 A probe proves only the objects and the conditions it ran with. Probe the object that the design will query, in the production setup (a key window and the real responder chain, not a stand-in delegate). Mark each conclusion that goes past the printed result as an inference. When the design depends on an inference, the first slice that uses it starts with a test on the real object.
 

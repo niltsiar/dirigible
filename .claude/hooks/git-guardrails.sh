@@ -1073,6 +1073,76 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
   fi
 done
 
+# The main checkout stays on main: a second agent that finds another branch there commits to it by
+# mistake. A git checkout or git switch in a main checkout (its git dir is its common git dir)
+# blocks when it makes a branch (-b, -B, --orphan; -c, -C for switch), detaches (--detach; -d for
+# switch), goes to -, or goes to a local branch other than main. A -- , -p, or a second word is a
+# file restore. A remote ref or a commit with no detach option passes. The tree is the last -C dir
+# of the git command, else the last cd dir before it, else the cwd of the hook input. A dir with a
+# variable, a substitution, or a glob leaves the tree unknown, and an unknown tree passes. The text
+# read is the joined command, so the -C drop of join_text does not hide the tree.
+sw_quoted_re="^(\"(.*)\"|'(.*)')\$"
+sw_dir() { # <base> <dir>: the dir resolved against the base, empty when unknown
+  local base="$1" dir="$2" bad='[]$`*?[]'
+  [[ "$dir" =~ $sw_quoted_re ]] && dir="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+  [[ "$dir" == '~' || "$dir" == '~/'* ]] && dir="$HOME${dir#\~}"
+  [[ -z "$dir" || "$dir" == - || "$dir" =~ $bad ]] && return 0
+  if [[ "$dir" == /* ]]; then printf '%s' "$dir"; elif [[ -n "$base" ]]; then printf '%s/%s' "$base" "$dir"; fi
+}
+sw_is_main_checkout() { # <dir>
+  local git_dir common_dir
+  { read -r git_dir && read -r common_dir; } < <(git -C "$1" rev-parse --path-format=absolute --git-dir --git-common-dir 2> /dev/null)
+  [[ -n "$git_dir" && "$git_dir" == "$common_dir" ]]
+}
+sw_moves_branch() { # <tree> <checkout|switch> <words after the command>: 0 when the branch moves
+  local tree="$1" kind="$2" w pos=() make=0 detach=0 restore=0
+  shift 2
+  for w in "$@"; do
+    [[ "$w" =~ ^[0-9]*[\<\>] || "$w" == '&>'* ]] && continue
+    [[ "$w" =~ $sw_quoted_re ]] && w="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+    case "$w" in
+      -- | -p | --patch) restore=1 ;;
+      --orphan*) make=1 ;;
+      -b* | -B*) [[ "$kind" == checkout ]] && make=1 ;;
+      -c* | -C* | --create* | --force-create*) [[ "$kind" == switch ]] && make=1 ;;
+      --detach) detach=1 ;;
+      -d) [[ "$kind" == switch ]] && detach=1 ;;
+      -) pos+=(-) ;;
+      -*) ;;
+      *) pos+=("$w") ;;
+    esac
+  done
+  ((make || detach)) && return 0
+  ((restore || ${#pos[@]} != 1)) && return 1
+  [[ "${pos[0]}" == - ]] && return 0
+  [[ "${pos[0]}" =~ ^[A-Za-z0-9._/@+-]+$ && "${pos[0]}" != main ]] || return 1
+  git -C "$tree" rev-parse --verify -q "refs/heads/${pos[0]}" > /dev/null 2>&1
+}
+if [[ "$joined" == *checkout* || "$joined" == *switch* ]]; then
+  sw_git_re='(^|[^[:alnum:]_.-])git((( +-C +[^ ]+)|( +-c +[^ ]+))*) +(checkout|switch)( +(.*))?$'
+  sw_cd_re='^[ ({]*cd +([^ ]+)( |$)'
+  sw_cwd="$(plutil -extract cwd raw -o - "$input" 2> /dev/null)"
+  sw_base="$sw_cwd"
+  while IFS= read -r line; do
+    if [[ "$line" == ')' ]]; then
+      sw_base="$sw_cwd"
+    elif [[ "$line" =~ $sw_cd_re ]]; then
+      sw_base="$(sw_dir "$sw_base" "${BASH_REMATCH[1]}")"
+    elif [[ "$line" =~ $sw_git_re ]]; then
+      sw_tree="$sw_base" sw_kind="${BASH_REMATCH[6]}"
+      read -ra sw_opts <<< "${BASH_REMATCH[2]}"
+      read -ra sw_args <<< "${BASH_REMATCH[8]}"
+      for ((i = 0; i + 1 < ${#sw_opts[@]}; i++)); do
+        [[ "${sw_opts[i]}" == -C ]] && sw_tree="$(sw_dir "$sw_tree" "${sw_opts[i + 1]}")"
+      done
+      if [[ -n "$sw_tree" ]] && sw_is_main_checkout "$sw_tree" &&
+        sw_moves_branch "$sw_tree" "$sw_kind" "${sw_args[@]}"; then
+        block "changes the branch of the main checkout" "The main checkout stays on main. Make a worktree for the branch with git worktree add -b <branch> ../<folder> <base>, and work in that folder."
+      fi
+    fi
+  done < <(tr -s '\t ' '  ' <<< "$joined" | awk '{ gsub(/&&|\|\||[;|]/, "\n"); gsub(/\)/, "\n)\n"); print }')
+fi
+
 # A pull request merges only through scripts/land.sh. The hook sees only the Bash command text, so
 # the gh call inside land.sh passes. The api path blocks with a PUT only (the GET is a read); a query
 # or an alias can hold ; or |, so those two forms read the text before the chain split. The route

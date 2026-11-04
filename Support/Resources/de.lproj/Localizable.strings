@@ -618,6 +618,7 @@
 "banner.level.changed" = "Auto-Pegel ist fertig. Geänderte Clips: %lld.";
 "banner.unused.moved" = "In den Papierkorb gelegte Dateien: %lld (%@).";
 "banner.unused.failed" = "Diese Dateien wurden nicht bewegt: %@";
+"banner.unused.take" = "Diese Take-Audiodateien bleiben und liegen auf keiner Spur: %@";
 "banner.level.none" = "Auto-Pegel ist fertig. Keine Änderung: Die Clips haben bereits den Zielpegel.";
 "banner.level.volume" = "Die Spurlautstärke ändert den Clip-Pegel nicht.";
 "banner.level.limit" = "Clips am Limit von 20 dB: %lld. Prüfe, ob sie Sprache enthalten.";

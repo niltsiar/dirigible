@@ -618,6 +618,7 @@
 "banner.level.changed" = "Nivellement automatique terminé. Clips modifiés : %lld.";
 "banner.unused.moved" = "Fichiers placés dans la corbeille : %lld (%@).";
 "banner.unused.failed" = "Ces fichiers n’ont pas été déplacés : %@";
+"banner.unused.take" = "Ces fichiers audio de prise restent et ne sont sur aucune piste : %@";
 "banner.level.none" = "Nivellement automatique terminé. Aucune modification : les clips sont au niveau cible.";
 "banner.level.volume" = "Le volume de la piste ne change pas le gain du clip.";
 "banner.level.limit" = "Clips à la limite de 20 dB : %lld. Vérifiez qu’ils contiennent de la parole.";

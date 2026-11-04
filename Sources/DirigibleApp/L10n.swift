@@ -417,6 +417,7 @@ enum L10n: String, CaseIterable {
     case bannerLevelChanged = "banner.level.changed"
     case bannerUnusedMoved = "banner.unused.moved"
     case bannerUnusedFailed = "banner.unused.failed"
+    case bannerUnusedTake = "banner.unused.take"
     case bannerLevelNone = "banner.level.none"
     case bannerLevelVolume = "banner.level.volume"
     case bannerLevelLimit = "banner.level.limit"

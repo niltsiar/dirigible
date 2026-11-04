@@ -27,9 +27,12 @@ extension ChromeState {
         }
         if let shown = model.duckReport, shown.revision == studio.sessionRevision { banners.append(shown.banner) }
         if let shown = model.pruneReport, shown.revision == studio.sessionRevision {
-            let moved = shown.report.moved.map(\.item.bytes)
-            banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))
+            let (moved, kept) = (shown.report.moved.map(\.item.bytes), shown.report.unplaced.map(\.path))
+            if !moved.isEmpty || kept.isEmpty {
+                banners.append(.unusedFilesMoved(count: moved.count, bytes: moved.reduce(0, +)))
+            }
             if !shown.report.failed.isEmpty { banners.append(.unusedFilesFailed(shown.report.failed.map(\.item.path))) }
+            if !kept.isEmpty { banners.append(.unusedTakeFiles(kept)) }
         }
         switch model.transcribe.notice {
         case .stopped(let request, let revision, let press) where revision == studio.sessionRevision:

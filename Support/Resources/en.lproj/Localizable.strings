@@ -618,6 +618,7 @@
 "banner.level.changed" = "Auto Level is done. Clips changed: %lld.";
 "banner.unused.moved" = "Files moved to the Trash: %lld (%@).";
 "banner.unused.failed" = "These files did not move: %@";
+"banner.unused.take" = "These take audio files stay and are on no track: %@";
 "banner.level.none" = "Auto Level is done. No change: the clips are at the target level.";
 "banner.level.volume" = "The track volume does not change the clip gain.";
 "banner.level.limit" = "Clips at the 20 dB limit: %lld. Check that they have speech.";

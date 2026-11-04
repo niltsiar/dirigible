@@ -60,7 +60,7 @@ if [[ "$tool" == mcp__t3-code__delegate_task ]] \
       && reset_at="$(date -j -u -f %Y-%m-%dT%H:%M:%S "$reset:00" +%s 2>/dev/null)" \
       && [[ "$(date -u -r "$reset_at" +%Y-%m-%dT%H:%M)" == "$reset" ]]; then
       if (( now < reset_at )); then
-        echo "BLOCKED by .claude/hooks/agent-guard.sh: the provider $name hit a rate limit, and its reset is at $reset UTC ($limits). This job has no result: log a decisions.tsv row with the result skipped: rate limit, and do not wait. When the limit is over, remove its line from that file." >&2
+        echo "BLOCKED by .claude/hooks/agent-guard.sh: the provider $name hit a rate limit, and its reset is at $reset UTC ($limits). This job has no result: log a decisions.tsv row with the result skipped: rate limit, and do not wait." >&2
         exit 2
       fi
     else

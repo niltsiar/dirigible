@@ -63,11 +63,16 @@ struct RawRemovalStopTests {
     }
 
     /// Records take 1 for 2 s with the job seam of `steps` and the journal `log`, and stops it.
-    func recordAndStop(_ studio: Studio, steps: Steps, log: DiagnosticLog = .disabled) async throws {
+    /// `beforeFinalize` runs in the stop before the finalize.
+    func recordAndStop(
+        _ studio: Studio, steps: Steps, log: DiagnosticLog = .disabled,
+        beforeFinalize: @escaping @Sendable () async -> Void = {}
+    ) async throws {
         let hal = TestHAL([mic, box])
         studio.environment = .test(hal)
         studio.environment.log = log
         studio.environment.beforeRawStep = { await steps.step($0) }
+        studio.environment.beforeFinalize = beforeFinalize
         _ = try await studio.startTake(
             armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
         let micInput = SyntheticInput(hal, "mic")
@@ -118,6 +123,29 @@ struct RawRemovalStopTests {
         #expect(steps.seen.contains(.first))
         #expect(!steps.seen.contains { if case .block = $0 { true } else { false } }, "no audio block read")
         #expect(studio.unplacedSegments == [])
+        await studio.settle()
+    }
+
+    /// C3: the mix after the sweep has the samples of the mix while the job is held, before any
+    /// CAF went.
+    @Test func aSweptTakeExportsTheMixOfTheHeldTake() async throws {
+        let studio = try await Studio.open(url)
+        let steps = Steps()
+        defer { steps.first.open() }
+        try await recordAndStop(studio, steps: steps)
+        let options = ExportOptions(format: .wav(.bits24), layout: .stereo, rate: .session)
+        let source = try #require(ExportSource(range: 0..<144_000))
+        let (held, swept) = (folder.url.appending(path: "held.wav"), folder.url.appending(path: "swept.wav"))
+        _ = try exportMix(studio.session, source: source, options: options, to: held, package: { url })
+
+        steps.first.open()
+        await studio.rawSweep
+
+        try #require(!exists("Capture/take1-1-1.caf"), "the sweep removed the passing CAF")
+        _ = try exportMix(studio.session, source: source, options: options, to: swept, package: { url })
+        let (before, after) = (try readAudio(held).samples, try readAudio(swept).samples)
+        #expect(before.contains { $0 != 0 }, "the held mix has the take")
+        #expect(after == before)
         await studio.settle()
     }
 

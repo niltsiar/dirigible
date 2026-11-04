@@ -25,11 +25,13 @@ input="$(mktemp)"
 tmp="$(mktemp -d)"
 trap 'rm -f "$input"; rm -rf "$tmp"' EXIT
 
-# expect <want> <command> [<run_in_background> [<timeout>]]: the optional values (true or false, and
-# milliseconds) go to tool_input as the Bash tool gives them.
+# expect <want> <command> [<run_in_background> [<timeout> [<cwd>]]]: the optional values (true or
+# false, and milliseconds) go to tool_input as the Bash tool gives them; the cwd goes to the top level
+# of the input, as the harness gives it.
 expect() {
-  local want="$1" command="$2" background="${3:-}" limit="${4:-}" got
+  local want="$1" command="$2" background="${3:-}" limit="${4:-}" cwd="${5:-}" got
   plutil -create xml1 "$input"
+  [[ -z "$cwd" ]] || plutil -insert cwd -string "$cwd" "$input"
   plutil -insert tool_input -dictionary "$input"
   plutil -insert tool_input.command -string "$command" "$input"
   [[ -z "$background" ]] || plutil -insert tool_input.run_in_background -bool "$background" "$input"
@@ -365,6 +367,50 @@ expect allow 'make check'
 expect allow 'git -C /repo status'
 expect allow 'git push -u origin feat/main-window'
 expect allow 'git push --follow-tags origin feat/x'
+# A branch switch in a main checkout (INT-071): a local branch other than main, `-`, a create option,
+# and a detach block; a file restore, main, a linked worktree, and no known tree pass.
+sw_main="$tmp/sw-main"
+sw_wt="$tmp/sw-wt"
+git init -q -b main "$sw_main"
+git -C "$sw_main" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init
+git -C "$sw_main" branch feat/x
+git -C "$sw_main" worktree add -q -b wt "$sw_wt"
+mkdir "$sw_main/sub"
+expect block 'git checkout -q feat/x' '' '' "$sw_main"
+expect block 'git switch feat/x' '' '' "$sw_main"
+expect block 'git switch feat/x' '' '' "$sw_main/sub"
+expect block 'git switch "feat/x"' '' '' "$sw_main"
+expect block $'git switch\tfeat/x 2>&1' '' '' "$sw_main"
+expect block 'git switch -c y' '' '' "$sw_main"
+expect block 'git switch -C y' '' '' "$sw_main"
+expect block 'git checkout -b y' '' '' "$sw_main"
+expect block 'git checkout -B y origin/main' '' '' "$sw_main"
+expect block 'git checkout --orphan z' '' '' "$sw_main"
+expect block 'git switch --detach origin/main' '' '' "$sw_main"
+expect block 'git switch -d main' '' '' "$sw_main"
+expect block 'git checkout -' '' '' "$sw_main"
+expect block 'git switch -' '' '' "$sw_main"
+expect block "cd $sw_main && git switch feat/x" '' '' "$sw_wt"
+expect block "git -C $sw_main switch feat/x" '' '' "$sw_wt"
+expect block 'cd sw-main && git switch feat/x' '' '' "$tmp"
+expect block 'git -C sw-main switch feat/x' '' '' "$tmp"
+expect block 'git status; git switch feat/x' '' '' "$sw_main"
+expect allow 'git checkout -- README.md' '' '' "$sw_main"
+expect allow 'git checkout main' '' '' "$sw_main"
+expect allow 'git switch main' '' '' "$sw_main"
+expect allow 'git checkout feat-file.txt' '' '' "$sw_main"
+expect allow 'git checkout feat/x -- README.md' '' '' "$sw_main"
+expect allow 'git checkout feat/x README.md' '' '' "$sw_main"
+expect allow 'git worktree add -b y ../w main' '' '' "$sw_main"
+expect allow 'git switch feat/x' '' '' "$sw_wt"
+expect allow 'git switch -c y' '' '' "$sw_wt"
+expect allow "git -C $sw_wt switch feat/x" '' '' "$sw_main"
+expect allow "cd $sw_wt && git switch feat/x" '' '' "$sw_main"
+expect allow "(cd $sw_main && git log -1); git switch feat/x" '' '' "$sw_wt"
+expect allow 'git switch feat/x'
+expect allow 'git -C ../nowhere switch feat/x' '' '' "$sw_main"
+expect allow 'git commit -m "docs: git switch feat/x is refused"' '' '' "$sw_main"
+expect allow "rg 'git switch feat/x' docs" '' '' "$sw_main"
 fi # guardrails
 if case_block guardrails-tag; then
 # A release tag comes only from scripts/tag-release.sh: a hand tag, a tag delete, or a tag push

@@ -175,6 +175,9 @@ package final class AgentServer {
         guard let target = targets().first(where: { $0.studio.url.path == call.identity.path }) else { return .notOpen }
         if case .record(let request) = call.work { return await liveRecord(request, call, target: target) }
         if case .transport(let work) = call.work { return await liveTransport(work, call, target: target) }
+        if case .info(let tracks, let range, let compact) = call.work {
+            return await liveInfo(tracks: tracks, range: range, compact: compact, target: target)
+        }
         guard call.work.isLong else { return liveCall(call, target: target) }
         let reply = await liveJob(call, target: target, report: report)
         // A stop of the server cancels the job too, but the agent did not cancel it (decision 0049).

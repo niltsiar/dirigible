@@ -193,17 +193,19 @@ private func info(_ package: URL, path: String, tracks: [TrackID]?, range: Range
         throw ToolError(mediaCheckMessage(error))
     }
     let takeMap = TakeMap.of(session, anchors: TakeAnchors.result(package))
-    return try infoText(session, media: media, takeMap: takeMap, tracks: tracks, range: range, compact: compact)
+    return try infoText(
+        session, media: media, takeMap: takeMap, raw: rawCaptures(of: session, in: package), tracks: tracks,
+        range: range, compact: compact)
 }
 
-/// The `session_info` text of a session, its media faults, and its take map: the file path and
-/// the live path of an agent give the same JSON (decision 0046).
+/// The `session_info` text of a session, its media faults, its take map, and its raw verdicts: the
+/// file path and the live path of an agent give the same JSON (decision 0046).
 func infoText(
-    _ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead, tracks: [TrackID]?,
-    range: Range<Frames>?, compact: Bool
+    _ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead, raw: [SegmentName: RawVerdict],
+    tracks: [TrackID]?, range: Range<Frames>?, compact: Bool
 ) throws(ToolError) -> String {
     try checkTracks(tracks, in: session)
-    let whole = SessionView(session, media: media, takeMap: takeMap)
+    let whole = SessionView(session, media: media, takeMap: takeMap, raw: raw)
     let view = whole.filtered(tracks: tracks.map { Set($0.map(\.rawValue)) }, range: range)
     let text: String
     do {

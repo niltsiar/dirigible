@@ -98,10 +98,11 @@ struct Info: ParsableCommand {
             throw fail(mediaCheckMessage(error), code: packageError)
         }
         let takeMap = TakeMap.of(session, anchors: TakeAnchors.result(package.url))
+        let raw = rawCaptures(of: session, in: package.url)
         print(
             json
-                ? try SessionView(session, media: media, takeMap: takeMap).json(compact: compact)
-                : summary(of: session, name: package.url.lastPathComponent, media: media, takeMap: takeMap),
+                ? try SessionView(session, media: media, takeMap: takeMap, raw: raw).json(compact: compact)
+                : summary(of: session, name: package.url.lastPathComponent, media: media, takeMap: takeMap, raw: raw),
             terminator: "")
     }
 }

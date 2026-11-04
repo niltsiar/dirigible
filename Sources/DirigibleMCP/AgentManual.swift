@@ -73,7 +73,7 @@ package enum AgentManual {
                 + "layout of the file, or in a range of a track that has no clip; "
                 + "`import` with `file` (an absolute path), `track`, and `at` (a frame) shapes the clip in the same "
                 + "call: `offset` and `length` (frames of the made WAV) take a range of the file, `db` sets the gain "
-                + "relative to the file level, with no auto level, `fade_in` and `fade_out` set the fades in frames, "
+                + "relative to the file level, with no auto level, `fade_in` and `fade_out` set the fades, "
                 + "and `id` names the clip. For more parts of one file, import it once, then run `clip_place` with "
                 + "the file ID and `clip_fade` for each part: each import converts the whole file."),
         Recipe(
@@ -84,7 +84,7 @@ package enum AgentManual {
         Recipe(
             phase: .produce, name: "add-chapter", title: "Add a chapter",
             summary: "Add a chapter marker at a time.",
-            steps: "`marker_set` with `kind` chapter and `at` in frames. For a chapters file, run `chapters_import` "
+            steps: "`marker_set` with `kind` chapter and `at`. For a chapters file, run `chapters_import` "
                 + "with `path` (Podcasting 2.0 JSON) and `at` (the frame of 0 s). Give `replace` to remove the old "
                 + "chapters first: each image stays on the chapter of the file at the same time. A chapter with an "
                 + "image that the file leaves out blocks `replace`: run `marker_remove` for it first."),
@@ -93,7 +93,7 @@ package enum AgentManual {
             summary: "Set the episode details, level the session, and export an MP3 at the podcast loudness.",
             steps: "read `session_info` (use `compact`) and `episode_get`; ask for a missing title or show and set "
                 + "them with `episode_set`; when the session has chapters, make sure one is at frame 0; run "
-                + "`level`; then run `export` with `out` an .mp3 file and `loudness` podcast; `chapters_export` with "
+                + "`level`, then `export` with `out` an .mp3 file and `loudness` podcast; `chapters_export` with "
                 + "`out` a .txt file gives the chapter list for the show notes; `file_prune` with `dry_run` lists "
                 + "the unused files of a closed package (in the app, File > Remove Unused Files does it); "
                 + "report the loudness line and the file path."),
@@ -159,15 +159,19 @@ package enum AgentManual {
         }.joined(separator: "\n")
     }
 
-    /// The core, then one line for each recipe, then the pre-roll line and the report line.
+    /// The core, then one line for each recipe, then the pre-roll line, the raw line, and the report line.
     static func manual(pathLine: String) -> String {
         core(pathLine: pathLine) + "\n\nRecipes (also MCP prompts):\n"
-            + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n") + "\n\n" + preRollLine + "\n\n"
-            + reportLine
+            + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n") + "\n\n" + preRollLine + "\n"
+            + rawLine + "\n\n" + reportLine
     }
 
     /// The pre-roll of a take (decision 0070). Outside the core, which has no room.
     static let preRollLine = "`record` takes `pre_roll` (0 to 10), and the CLI `--pre-roll <seconds>`."
+
+    /// The raw files that stay (decision 0071). Outside the core, which has no room.
+    static let rawLine =
+        "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each raw CAF that stays, and why."
 
     /// The problem report (decision 0059). Outside the core, which has no room.
     static let reportLine =
@@ -204,7 +208,7 @@ package enum AgentManual {
             With no MCP server, run the command of a tool in place of the tool. The tool arguments are options \
             of the command, with - in place of _; some, such as clip IDs, come after the package with no option \
             name. `dirigible help <command>` gives the exact form. For `session_info`, run \
-            `dirigible info <package> --json`. For `batch`, run `dirigible batch <package> <file>`: the file holds \
+            `dirigible info <package> --json`. \(rawLine) For `batch`, run `dirigible batch <package> <file>`: the file holds \
             the `calls` array. A batch is one undo step in the app and one save on the files. A step edits \
             session.xml only, with no file argument, and `transcript_cut` is not a step. A later step names a new \
             object by the ID that the earlier step gave; `clip_split_at` and `clip_paste` give theirs in the result \

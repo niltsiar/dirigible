@@ -3,9 +3,11 @@ import DirigibleCore
 import Foundation
 
 /// The text summary of `info`: one line for the session, then one line for each object, then the
-/// sync line of each take with audio, and the line of each anchor fault (decision 0061).
+/// sync line of each take with audio, the line of each anchor fault (decision 0061), and the `raw`
+/// line of each placed segment that has its CAF (decision 0071).
 package func summary(
-    of session: Session, name: String, media: [FileID: MediaFault], takeMap: TakeMapRead
+    of session: Session, name: String, media: [FileID: MediaFault], takeMap: TakeMapRead,
+    raw: [SegmentName: RawVerdict]
 ) -> String {
     var lines = ["\(name): \(session.sampleRate) Hz"]
     for track in session.tracks {
@@ -61,6 +63,7 @@ package func summary(
     }
     lines += TakeWork.syncLines(takeMap.map.sync, sampleRate: session.sampleRate)
     lines += takeMap.faults.map { TakeWork.faultLine($0.error) }
+    lines += raw.sorted { $0.key < $1.key }.map { "raw \($0.key.stem) kept: \($0.value.keptReason)" }
     return lines.map { $0 + "\n" }.joined()
 }
 

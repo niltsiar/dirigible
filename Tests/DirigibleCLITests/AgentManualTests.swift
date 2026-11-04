@@ -42,6 +42,15 @@ struct AgentManualTests {
         #expect(!AgentManual.core(pathLine: pathLine).contains("pre_roll"), "the core has no pre-roll line")
     }
 
+    /// C13 of decision 0071: the manual and the skill name the `raw` line of `info` and its
+    /// `rawKept` key.
+    @Test func theManualNamesTheRawLine() {
+        let manual = AgentManual.manual(pathLine: AgentManual.pathLine(quoted: Self.longPath))
+        for text in [manual, AgentManual.skill] {
+            #expect(text.contains("`raw <stem> kept: <reason>`") && text.contains("`rawKept`"), "\(text)")
+        }
+    }
+
     @Test func thePathIsNamedOnce() {
         let manual = AgentManual.manual(pathLine: AgentManual.pathLine(quoted: Self.longPath))
         #expect(manual.components(separatedBy: Self.longPath).count == 2, "the path is not named once")

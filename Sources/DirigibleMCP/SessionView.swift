@@ -161,6 +161,12 @@ package struct SessionView: Encodable {
         }
     }
 
+    /// One CAF in `Capture/` that a placed segment keeps, and why (decision 0071).
+    struct RawKeptView: Encodable {
+        let segment: String
+        let reason: String
+    }
+
     /// The anchor file that does not read, and its errno.
     struct FaultView: Encodable {
         let file: String
@@ -182,9 +188,15 @@ package struct SessionView: Encodable {
     /// One entry for each anchor read fault, the fault of `Capture/` first, then in take order; left
     /// out with none.
     let takeSyncFaults: [FaultView]?
+    /// One entry for each placed segment that has its CAF, in segment order; left out with none
+    /// (decision 0071).
+    private(set) var rawKept: [RawKeptView]?
 
-    /// `takeMap` is the take map of the session and its anchor read faults.
-    package init(_ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead) {
+    /// `takeMap` is the take map of the session and its anchor read faults, and `raw` the verdict
+    /// of each placed segment that has its CAF (`rawCaptures`).
+    package init(
+        _ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead, raw: [SegmentName: RawVerdict]
+    ) {
         version = session.fileVersion
         sampleRate = session.sampleRate
         captures = session.sortedCaptures.map {
@@ -217,6 +229,8 @@ package struct SessionView: Encodable {
         takeSync = sync.isEmpty ? nil : sync.sorted { $0.key < $1.key }.map { TakeSyncView(take: $0.key, $0.value) }
         let faults = takeMap.faults.map { FaultView(file: $0.error.fault.file, errno: $0.error.fault.errno) }
         takeSyncFaults = faults.isEmpty ? nil : faults
+        let kept = raw.sorted { $0.key < $1.key }.map { RawKeptView(segment: $0.key.stem, reason: $0.value.keptReason) }
+        rawKept = kept.isEmpty ? nil : kept
         recording = session.recording.map {
             RecordingView(
                 take: $0.take, playheadFrame: $0.playheadFrame.count, takeStartHostTimeNanos: $0.takeStartHostTimeNanos,
@@ -257,8 +271,8 @@ package struct SessionView: Encodable {
     /// Only the `tracks`, and only the clips and markers that touch `range`: a clip touches it when
     /// `clip.start <= range.upperBound` and `range.lowerBound <= clip.end`, and a marker when its
     /// position is in `range.lowerBound...range.upperBound`. With a filter, only the files of the
-    /// clips that stay and the captures of those files stay. So an agent can read a long session
-    /// in parts.
+    /// clips that stay, the captures of those files, and their `rawKept` entries stay. So an agent
+    /// can read a long session in parts.
     func filtered(tracks ids: Set<String>?, range: Range<Frames>?) -> SessionView {
         var view = self
         if let ids { view.tracks = tracks.filter { ids.contains($0.id) } }
@@ -276,6 +290,8 @@ package struct SessionView: Encodable {
         view.files = files.filter { used.contains($0.id) }
         let captured = Set(view.files.compactMap(\.capture))
         view.captures = captures.filter { captured.contains($0.id) }
+        let kept = rawKept?.filter { used.contains($0.segment) } ?? []
+        view.rawKept = kept.isEmpty ? nil : kept
         return view
     }
 }

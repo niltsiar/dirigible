@@ -23,6 +23,19 @@ func openInAppMessage(_ package: String) -> String {
     "\(package) is open in Dirigible. Do this in the app, or close the window."
 }
 
+extension RawVerdict {
+    /// The reason of a `raw <stem> kept: <reason>` line of `info` and of a `rawKept` entry
+    /// (decision 0071). A segment that passes the gate and still has its CAF is not removed yet.
+    var keptReason: String {
+        switch self {
+        case .removable: "not removed yet"
+        case .frames: "frames"
+        case .rateChoice: "rate choice"
+        case .alignment(let error): String(format: "alignment %.2f ms", error * 1000)
+        }
+    }
+}
+
 /// The fault of the media check of `info` and `session_info`.
 package func mediaCheckMessage(_ error: any Error) -> String {
     "cannot check the audio files: \(error.localizedDescription)"

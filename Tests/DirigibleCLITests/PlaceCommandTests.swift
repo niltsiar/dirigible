@@ -34,15 +34,24 @@ struct PlaceCommandTests {
         try #require(try await package.run("file", "remove", "PKG", "take1-1-1").status == 0)
     }
 
-    /// Writes a closed 2.0 s segment of take `take` for arm `arm` with the real writer.
-    func segment(take: Int = 1, arm: Int, channels: Int = 1, firstHost: UInt64 = takeStart + 10_000_000) throws {
+    /// Writes a closed 2.0 s segment of take `take` for arm `arm` with the real writer, with a
+    /// checkpoint at each frame of `checkpoints` on a clock at 48 kHz.
+    func segment(
+        take: Int = 1, arm: Int, channels: Int = 1, firstHost: UInt64 = takeStart + 10_000_000,
+        checkpoints: [Int] = [0]
+    ) throws {
         try FileManager.default.createDirectory(at: capture, withIntermediateDirectories: true)
         let header = CaptureHeader(
             deviceUID: "usb-1", deviceName: "USB Mic", nominalRate: 48_000, availableRates: [48_000...48_000],
             channelCount: channels, latency: 0, firstSampleTime: 0, firstHostTimeNanos: firstHost)
         let writer = try SegmentWriter(
             folder: capture, name: SegmentName(take: take, arm: arm, segment: 1), header: header)
-        try writer.checkpoint(Checkpoint(fileFrame: 0, sampleTime: 0, hostTimeNanos: firstHost))
+        for frame in checkpoints {
+            try writer.checkpoint(
+                Checkpoint(
+                    fileFrame: Int64(frame), sampleTime: Double(frame),
+                    hostTimeNanos: firstHost + UInt64(frame) * 62_500 / 3))
+        }
         let samples = [Float](repeating: 0.25, count: 96_000 * channels)
         try samples.withUnsafeBufferPointer { try writer.write($0, frames: 96_000) }
         try writer.close()
@@ -114,6 +123,36 @@ struct PlaceCommandTests {
         // The placed clip goes on top, so it can trim take1-2-1 (decision 0021 Q5).
         #expect(try await starts("t2")["take1-1-1"] == at)
         #expect(try await starts("t1") == [:])
+    }
+
+    /// C8 of decision 0071: after the sweep removes the CAF of a take, a revert to the backup
+    /// before the take leaves its segment unplaced, and `capture place` puts it at its recorded
+    /// frame from the WAV.
+    @Test func aRevertAfterTheRawRemovalPlacesTheSegmentFromItsWAV() async throws {
+        let backup = "session-20261104T120000.000Z.xml"
+        let backups = package.url.appending(path: "Backups")
+        try FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        try package.xml().write(to: backups.appending(path: backup))
+        let start = Self.takeStart + 10_000_000_000
+        try package.edit {
+            try $0.setRecording(
+                Recording(take: 2, playheadFrame: 480_000, takeStartHostTimeNanos: start, armedTracks: ["t1"]))
+        }
+        try segment(take: 2, arm: 1, firstHost: start + 10_000_000, checkpoints: [0, 48_000, 95_999])
+        // Exit 3: the warning of the unplaced take1-1-1 of the fixture.
+        let finalize = try await package.run("take", "finalize", "PKG")
+        try #require(finalize.status == 3 && finalize.stdout == "take2-1-1\n", "\(finalize)")
+        try #require(
+            !FileManager.default.fileExists(atPath: capture.appending(path: "take2-1-1.caf").path),
+            "the sweep of take finalize removes the CAF")
+
+        #expect(try await package.run("backup", "revert", "PKG", "--name", backup).status == 0)
+        #expect(try await starts("t1") == [:], "the revert leaves take 2 unplaced")
+        #expect(
+            try await package.run("capture", "place", "PKG", "take2-1-1")
+                == CLIResult(status: 0, stdout: "take2-1-1\n", stderr: ""))
+
+        #expect(try await starts("t1") == ["take2-1-1": 480_480])
     }
 
     // MARK: Criterion 18

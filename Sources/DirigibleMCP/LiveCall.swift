@@ -69,15 +69,6 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             if let artwork = work.artwork, !artwork.isEmpty { return refusedOpen }
             try edit(ripple: false) { session in work.edit(&session) }
             return .result(text: "OK", isError: false)
-        case .info(let tracks, let range, let compact):
-            do throws(ToolError) {
-                let text = try infoText(
-                    studio.session, media: studio.missingMedia, takeMap: studio.takeMap, tracks: tracks, range: range,
-                    compact: compact)
-                return .result(text: text, isError: false)
-            } catch {
-                return .result(text: error.message, isError: true)
-            }
         case .episodeInfo:
             // EpisodeView holds only strings, numbers, and a flag, so the encode does not fail.
             return .result(text: (try? EpisodeView(studio.session.episode).json(pretty: false)) ?? "{}", isError: false)
@@ -112,8 +103,10 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
             let note = TakeWork.note(studio, after: revision, agent: call.agent)
             return .result(text: (work.lines(results) + note).joined(separator: "\n"), isError: false)
         case .paste, .revert, .prune: return refusedOpen
-        // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, and long work to `liveJob`.
-        case .create, .record, .transport, .loudness, .export, .level, .duck, .importFile, .splitStereo, .clipRender,
+        // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, `info` to
+        // `liveInfo`, and long work to `liveJob`.
+        case .create, .record, .transport, .info, .loudness, .export, .level, .duck, .importFile, .splitStereo,
+            .clipRender,
             .chapters,
             .transcriptExport,
             .read, .transcribe:
@@ -124,6 +117,28 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
     } catch {
         return .result(text: error.message(package: path), isError: true)
     }
+}
+
+/// `session_info` on the studio of an open window. The raw verdicts read file headers and
+/// sidecars, so they are read off the main actor, on the session of the call (decision 0071).
+@MainActor
+func liveInfo(tracks: [TrackID]?, range: Range<Frames>?, compact: Bool, target: AgentTarget) async -> AgentReply {
+    let studio = target.studio
+    let (session, media, takeMap) = (studio.session, studio.missingMedia, studio.takeMap)
+    let raw = await rawVerdicts(of: session, in: studio.url)
+    do throws(ToolError) {
+        let text = try infoText(
+            session, media: media, takeMap: takeMap, raw: raw, tracks: tracks, range: range, compact: compact)
+        return .result(text: text, isError: false)
+    } catch {
+        return .result(text: error.message, isError: true)
+    }
+}
+
+@concurrent nonisolated private func rawVerdicts(of session: Session, in package: URL) async
+    -> [SegmentName: RawVerdict]
+{
+    rawCaptures(of: session, in: package)
 }
 
 /// Asks the window of the package to record (decision 0048). The reply waits for the answer of

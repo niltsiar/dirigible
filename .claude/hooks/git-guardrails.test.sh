@@ -1213,7 +1213,7 @@ expect block $'python3 - <<\'EOF\'\nprint(".git/dirigible-screen")\nEOF'
 expect block $'python3 - <<\'EOF\'\nprint("git config core.hooksPath /dev/null")\nEOF'
 expect block $'bash <<\'EOF\'\ngit config core.hooksPath /dev/null\nEOF'
 # A search (rg, grep) that names the hooks-path key reads it; each other command that names it with a value stays a change.
-expect allow "rg -n 'core.hooksPath=/dev/null' scripts/check-plan.test.sh"
+expect allow "rg -n 'core.hooksPath=/dev/null' scripts/search-target.txt"
 expect allow 'grep -c core.hooksPath .githooks/pre-commit'
 expect allow "FOO=1 rg -n 'core.hooksPath' .githooks docs"
 expect allow "cd /x && grep -rn core.hooksPath scripts"

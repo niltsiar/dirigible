@@ -351,6 +351,8 @@ import Observation
 
     /// Tests only: the calls that wait for their turn of the package writes.
     var writesWaiting: Int { writes.waiters }
+    /// Tests only: the turns of the package writes that began or wait.
+    var writesTaken: Int { writes.tickets }
 
     /// The steps of `edit` after its busy check: one undo entry and one autosave when `body`
     /// changes the session, then the pool check. The take marker calls it during a take.

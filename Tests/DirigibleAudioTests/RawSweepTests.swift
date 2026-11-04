@@ -127,34 +127,116 @@ struct RawSweepTests {
     /// old take stays during the take, and the sweep at the end of that take removes it.
     @Test func aTakeStartDuringABlockedReadStopsTheJob() async throws {
         let (package, _) = try await Self.oldTake(seconds: 6)
+        let (studio, hal) = try await Self.armed(package)
+        let hold = Hold(at: .block(2))
+        defer { hold.gate.open() }
+        studio.environment.beforeRawStep = { await hold.step($0) }
+        await hold.gate.entered()
+        let start = Task { try await Self.start(studio, recorded: false) }
+        await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
+
+        hold.gate.open()
+        try await start.value
+
+        #expect(!hold.seen.contains(.block(3)), "steps: \(hold.seen)")
+        #expect(Self.hasCAF(package), "the old take keeps its CAF during the take")
+        try await Self.stop(studio, hal)
+        await studio.rawSweep
+        #expect(!Self.hasCAF(package), "the sweep at the take end removes the CAF of the old take")
+        await studio.settle()
+    }
+
+    /// C17: a job that the seam holds at `.turn` while a take start waits for it asks for no turn
+    /// after the release, and the start returns within the limit. `recorded` starts the take with
+    /// `startRecording` (`startSteps`), else with `startTake`.
+    @Test(arguments: [false, true]) func aTakeStartDuringAHeldTurnReturns(recorded: Bool) async throws {
+        let (package, _) = try await Self.oldTake()
+        let (studio, hal) = try await Self.armed(package)
+        let hold = Hold(at: .turn)
+        defer { hold.gate.open() }
+        studio.environment.beforeRawStep = { await hold.step($0) }
+        await hold.gate.entered()
+        let done = StepCounter()
+        let start = Task {
+            try await Self.start(studio, recorded: recorded)
+            _ = done.next()
+        }
+        await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
+        let turns = studio.writesTaken
+
+        hold.gate.open()
+        await until(limit: .seconds(10), "the take start does not return") { done.calls == 1 }
+        guard done.calls == 1 else { return }
+        try await start.value
+
+        #expect(studio.writesTaken == turns + 1, "only the start takes a turn")
+        #expect(Self.hasCAF(package), "the held job removes no CAF")
+        try await Self.stop(studio, hal)
+        await studio.settle()
+    }
+
+    /// C17: two studios whose jobs the seam holds at `.turn`, with a take start in each at the same
+    /// time. Each start stops the jobs of both studios, and both starts return within the limit.
+    @Test func twoTakeStartsDuringHeldTurnsReturn() async throws {
+        let packages = [try await Self.oldTake().0, try await Self.oldTake().0]
+        var studios: [(studio: Studio, hal: TestHAL, hold: Hold)] = []
+        for package in packages {
+            let (studio, hal) = try await Self.armed(package)
+            let hold = Hold(at: .turn)
+            studio.environment.beforeRawStep = { await hold.step($0) }
+            studios.append((studio, hal, hold))
+        }
+        defer { for entry in studios { entry.hold.gate.open() } }
+        let (first, second) = (studios[0].studio, studios[1].studio)
+        first.otherStudios = { [weak second] in second.map { [$0] } ?? [] }
+        second.otherStudios = { [weak first] in first.map { [$0] } ?? [] }
+        for entry in studios { await entry.hold.gate.entered() }
+        let done = StepCounter()
+        let starts = studios.map { entry in
+            Task {
+                try await Self.start(entry.studio, recorded: false)
+                _ = done.next()
+            }
+        }
+        await until(limit: .seconds(10), "the take starts do not begin") { first.isStarting && second.isStarting }
+
+        for entry in studios { entry.hold.gate.open() }
+        await until(limit: .seconds(10), "the take starts do not return") { done.calls == 2 }
+        guard done.calls == 2 else { return }
+        for start in starts { try await start.value }
+
+        #expect(packages.allSatisfy(Self.hasCAF), "the held jobs remove no CAF")
+        for entry in studios { try await Self.stop(entry.studio, entry.hal) }
+        for entry in studios { await entry.studio.settle() }
+    }
+
+    /// Opens `package` with track t1 routed to `mic` on a test HAL.
+    static func armed(_ package: TakePackage) async throws -> (Studio, TestHAL) {
         var session = try Session(contentsOf: package.url)
         try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
         try session.write(to: package.url)
         let studio = try await Studio.open(package.url)
         let hal = TestHAL([Self.mic])
         studio.environment = .test(hal)
-        let hold = Hold(at: .block(2))
-        defer { hold.gate.open() }
-        studio.environment.beforeRawStep = { await hold.step($0) }
-        await hold.gate.entered()
-        let start = Task {
-            try await studio.startTake(
-                armed: ["t1"], devices: [Self.mic], playhead: session.end, hostTimeNanos: takeStart)
+        return (studio, hal)
+    }
+
+    /// Starts a take on t1 at the session end.
+    static func start(_ studio: Studio, recorded: Bool) async throws {
+        let end = studio.session.end
+        if recorded {
+            try await studio.startRecording(armed: ["t1"], playhead: end)
+        } else {
+            _ = try await studio.startTake(armed: ["t1"], devices: [mic], playhead: end, hostTimeNanos: takeStart)
         }
-        await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
+    }
 
-        hold.gate.open()
-        _ = try await start.value
-
-        #expect(!hold.seen.contains(.block(3)), "steps: \(hold.seen)")
-        #expect(Self.hasCAF(package), "the old take keeps its CAF during the take")
+    /// Plays 1 s of input to the take of `studio` and stops it.
+    static func stop(_ studio: Studio, _ hal: TestHAL) async throws {
+        let start = try #require(studio.session.recording?.takeStartHostTimeNanos)
         let input = SyntheticInput(hal, "mic")
-        input.play(
-            records([sine(seconds: 1, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart + 1_000_000))
+        input.play(records([sine(seconds: 1, rate: 48_000)], layout: [1], rate: 48_000, hostStart: start + 1_000_000))
         await input.wait()
         try await studio.stopRecording()
-        await studio.rawSweep
-        #expect(!Self.hasCAF(package), "the sweep at the take end removes the CAF of the old take")
-        await studio.settle()
     }
 }

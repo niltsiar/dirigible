@@ -58,6 +58,26 @@ struct TakeNumberTests {
         #expect(SegmentName.nextTake(in: package, session: Session(sampleRate: 48_000)) == 4)
     }
 
+    /// Decision 0071 (C12): after the removal of the CAF of take 3 and a revert to a session with
+    /// no take, the files that the removal keeps give take 4.
+    @Test func aRemovedCAFKeepsItsTakeNumber() async throws {
+        let take = try TakePackage(take: 3)
+        try take.segment(take: 3, samples: sine(seconds: 2, rate: 48_000))
+        let url = take.url
+        try await offMainActor {
+            let outcome = completeTake(of: try Session(contentsOf: url), lock: try PackageLock(url), level: false) {
+                session throws(SessionFileError) in try session.write(to: url)
+            }
+            let removable = removableCaptures(of: outcome.session, in: url)
+            #expect(removable.map(\.name.stem) == ["take3-1-1"])
+            for candidate in removable {
+                #expect(try removeRawCapture(candidate.name, of: outcome.session, in: url, read: candidate.read))
+            }
+        }
+        try #require(!FileManager.default.fileExists(atPath: take.capture.appending(path: "take3-1-1.caf").path))
+        #expect(SegmentName.nextTake(in: url, session: Session(sampleRate: 48_000)) == 4)
+    }
+
     /// Decision 0024 P10: a file of a newer build keeps its take number. A name counts when
     /// `take`, 1 to 9 digits with no leading zero, and then a byte that is not a digit start it.
     @Test(arguments: [

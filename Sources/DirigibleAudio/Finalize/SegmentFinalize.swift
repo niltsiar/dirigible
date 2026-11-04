@@ -57,6 +57,10 @@ struct SegmentFinalize {
         let descriptor = open(package.appending(path: caf).path, O_RDONLY | O_CLOEXEC)
         guard descriptor >= 0 else {
             let code = errno
+            // A CAF that decision 0071 removed: the WAV and the finalize record of the sidecar stay.
+            if code == ENOENT, case .success(let sidecar) = try readSidecar(), let record = sidecar.finalized {
+                return try placeFromWAV(sidecar.header, record, checkpoints: sidecar.checkpoints, on: session)
+            }
             throw code == ENOENT ? .readFailed(file: caf, errno: code) : unreadable(caf, code)
         }
         defer { close(descriptor) }
@@ -76,17 +80,7 @@ struct SegmentFinalize {
         guard input.fileFormat.sampleRate == sidecar.header.nominalRate,
             Int(input.fileFormat.channelCount) == sidecar.header.channelCount
         else { return .failure(.badAudio) }
-        // The errors of `Session.place`, before the conversion, so a bad target converts nothing.
-        guard let track = session.track(target.track) else {
-            return .failure(.session(.unknownTrack(target.track)))
-        }
-        guard ChannelLayout(channelCount: sidecar.header.channelCount) == track.layout else {
-            return .failure(.session(.layoutMismatch(track.id, .file(FileID(name.stem)))))
-        }
-        // A user file with a stem path (`dirigible file add`) is never overwritten.
-        if let user = poolFile(at: wavName, in: session) ?? poolFile(at: temporaryWAVName, in: session) {
-            return .failure(.wavInUse(user))
-        }
+        if let refusal = refusal(of: sidecar.header, on: session) { return .failure(refusal) }
         let temporary = package.appending(path: "\(clipsFolderName)/\(temporaryWAVName)")
         // Each exit but the rename unlinks it, so a fault or a refusal (also a refusal of the
         // session after the conversion) leaves no WAV under either name.
@@ -104,13 +98,71 @@ struct SegmentFinalize {
                 input, file: descriptor, from: choice.source, to: rate, into: temporary)
         else { return .failure(.badAudio) }
         let (length, gain) = converted
+        let placed = place(header, choice, source: choice.source, length: length, gain: gain, on: session)
+        guard case .success = placed else { return placed }
+        guard rename(temporary.path, package.appending(path: wav).path) == 0 else {
+            throw .writeFailed(file: wav, status: errno)
+        }
+        renamed = true
+        // With no flush: the sweep of decision 0071 flushes it before a CAF goes. A fault keeps no
+        // record, and the sweep then reads the gain from the files.
+        _ = Sidecar.append(
+            FinalizeRecord(cafFrames: input.length, sourceRate: choice.source, conversionGain: gain),
+            toSidecarAt: package.appending(path: self.sidecar))
+        return placed
+    }
 
+    /// The placement of a segment whose CAF is gone (decision 0071): the WAV in `Clips/` as it is,
+    /// with the capture of the sidecar and the record, and the gain of the record. It converts
+    /// nothing.
+    private func placeFromWAV(
+        _ header: CaptureHeader, _ record: FinalizeRecord, checkpoints: [Checkpoint], on session: Session
+    ) throws(FinalizeError) -> Result<Session, SegmentFault> {
+        let url = package.appending(path: wav)
+        if let code = openErrno(url.path) {
+            throw code == ENOENT ? .readFailed(file: caf, errno: code) : unreadable(wav, code)
+        }
+        let length: AVAudioFramePosition
+        do {
+            let file = try AVAudioFile(forReading: url)
+            guard file.fileFormat.sampleRate == Double(session.sampleRate),
+                Int(file.fileFormat.channelCount) == header.channelCount
+            else { return .failure(.badAudio) }
+            length = file.length
+        } catch {
+            return .failure(.badAudio)
+        }
+        guard length > 0 else { return .failure(.badAudio) }
+        if let refusal = refusal(of: header, on: session) { return .failure(refusal) }
+        let choice = RateChoice(header: header, checkpoints: checkpoints, frames: Int(record.cafFrames))
+        return place(
+            header, choice, source: record.sourceRate, length: Int(length), gain: record.conversionGain, on: session)
+    }
+
+    /// The errors of `Session.place` before a conversion, so a bad target converts nothing.
+    private func refusal(of header: CaptureHeader, on session: Session) -> SegmentFault? {
+        guard let track = session.track(target.track) else { return .session(.unknownTrack(target.track)) }
+        guard ChannelLayout(channelCount: header.channelCount) == track.layout else {
+            return .session(.layoutMismatch(track.id, .file(FileID(name.stem))))
+        }
+        // A user file with a stem path (`dirigible file add`) is never overwritten.
+        return (poolFile(at: wavName, in: session) ?? poolFile(at: temporaryWAVName, in: session)).map {
+            .wavInUse($0)
+        }
+    }
+
+    /// `session` with the capture, the file, and the clip of a WAV of `length` frames converted
+    /// from `source`.
+    private func place(
+        _ header: CaptureHeader, _ choice: RateChoice, source: Double, length: Int, gain: Gain, on session: Session
+    ) -> Result<Session, SegmentFault> {
         let id = name.stem
         let capture = Capture(
             id: CaptureID(id), deviceUID: header.deviceUID, deviceName: header.deviceName,
             hostTimeNanos: header.firstHostTimeNanos, sampleTime: header.firstSampleTime,
             nominalSampleRate: choice.nominal, measuredSampleRate: choice.measured, latency: header.latency,
-            resampledFromRate: choice.source == rate ? nil : choice.source, driftCorrected: choice.driftCorrected)
+            resampledFromRate: source == Double(session.sampleRate) ? nil : source,
+            driftCorrected: choice.driftCorrected)
         let (anchor, floor): (Int, Int)
         switch target {
         case .aligned(let recording, _):
@@ -141,10 +193,6 @@ struct SegmentFinalize {
         } catch {
             return .failure(.session(error))
         }
-        guard rename(temporary.path, package.appending(path: wav).path) == 0 else {
-            throw .writeFailed(file: wav, status: errno)
-        }
-        renamed = true
         return .success(copy)
     }
 

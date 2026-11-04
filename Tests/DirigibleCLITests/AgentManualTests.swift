@@ -32,6 +32,16 @@ struct AgentManualTests {
             core.contains("After an edit, read `session_info` again and report it. Saves keep backups: `backup_list`."))
     }
 
+    /// P16 (run 2026-10-28-pre-roll): the manual and the skill name the pre-roll of the `record` tool
+    /// and of the CLI command, outside the core, which has no room.
+    @Test func theManualNamesThePreRoll() {
+        let pathLine = AgentManual.pathLine(quoted: Self.longPath)
+        for (name, text) in [("manual", AgentManual.manual(pathLine: pathLine)), ("skill", AgentManual.skill)] {
+            #expect(text.contains("`pre_roll` (0 to 10)") && text.contains("`--pre-roll <seconds>`"), "\(name)")
+        }
+        #expect(!AgentManual.core(pathLine: pathLine).contains("pre_roll"), "the core has no pre-roll line")
+    }
+
     @Test func thePathIsNamedOnce() {
         let manual = AgentManual.manual(pathLine: AgentManual.pathLine(quoted: Self.longPath))
         #expect(manual.components(separatedBy: Self.longPath).count == 2, "the path is not named once")

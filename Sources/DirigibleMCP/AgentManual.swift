@@ -42,11 +42,10 @@ package enum AgentManual {
         Recipe(
             phase: .edit, name: "cut-a-range", title: "Cut a range",
             summary: "Remove a time range from all tracks and keep them in sync.",
-            steps: "`clip_ripple_delete` with `from` and `to` and no `track`; `from` and `to` are arrays, one item "
-                + "for each range; read `session_info` (use `compact`) again. `clip_heal` joins the splits that stay "
-                + "after the cuts: the sound does not change. After a cut, \"no join to heal\" is normal: a cut "
-                + "leaves a gap in the file, so its join is not healable. A heal changes clip IDs: run "
-                + "`transcript_words` again."),
+            steps: "`clip_ripple_delete` with no `track`; `from` and `to` are arrays, one item for each range; read "
+                + "`session_info` (use `compact`) again. `clip_heal` joins the splits that stay after the cuts: the "
+                + "sound does not change. \"no join to heal\" is normal: a cut leaves a gap in the file. A heal "
+                + "changes clip IDs: run `transcript_words` again."),
         Recipe(
             phase: .edit, name: "cut-from-transcript", title: "Cut from a transcript",
             summary: "Find words in a transcript with word times, and cut them from all tracks in sync.",
@@ -160,15 +159,19 @@ package enum AgentManual {
         }.joined(separator: "\n")
     }
 
-    /// The core, then one line for each recipe, then the report line.
+    /// The core, then one line for each recipe, then the pre-roll line and the report line.
     static func manual(pathLine: String) -> String {
         core(pathLine: pathLine) + "\n\nRecipes (also MCP prompts):\n"
-            + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n") + "\n\n" + reportLine
+            + recipes.map { "- \($0.name): \($0.steps)" }.joined(separator: "\n") + "\n\n" + preRollLine + "\n\n"
+            + reportLine
     }
+
+    /// The pre-roll of a take (decision 0070). Outside the core, which has no room.
+    static let preRollLine = "`record` takes `pre_roll` (0 to 10), and the CLI `--pre-roll <seconds>`."
 
     /// The problem report (decision 0059). Outside the core, which has no room.
     static let reportLine =
-        "When Dirigible fails or hangs, `dirigible diagnostics collect <zip>` saves a report zip with no private "
+        "When Dirigible fails or hangs, `dirigible diagnostics collect <zip>` saves a report with no private "
         + "names; the user sends the file."
 
     /// The `SKILL.md` text: the frontmatter, the core with the path rule of the bundle, the command of
@@ -212,6 +215,8 @@ package enum AgentManual {
             `transcribe` takes `model_file`, the absolute path of a ggml whisper model file of the user, in place \
             of `model`. Before it loads the file, Dirigible checks it in a helper process: \
             `dirigible model check <path>`. A file that the check refuses gives the reason and changes nothing.
+
+            \(preRollLine)
 
             | Tool | Command |
             |---|---|

@@ -49,7 +49,8 @@ process_call_re="subprocess|child_process|Open3|(^|[^A-Za-z0-9])(system|popen|fo
 # body of python3, node, perl, or ruby with no -c or -e goes too when it matches no process_call_re:
 # the rules that read the cut (DATA_CUT: lock-value, log-decision, commit after make check, push,
 # and through mask_quoted_data the commit message file and hook test rules) skip it, because such a
-# body can not run a command (a call name built from string parts is a miss). The hooks-path rule
+# body can not run a command (misses: a call name built from string parts, and a Perl or Ruby open
+# with a pipe in its mode or path, which process_call_re does not name). The hooks-path rule
 # and the file-guard rules read every body, because python3 can write the guarded file. A prefix
 # before the first word is not part of that line: segments that each end with `;` or `&&` and hold
 # `NAME=<word>` assignments with no name PATH in any case (a PATH value can make `cat` a stub, and

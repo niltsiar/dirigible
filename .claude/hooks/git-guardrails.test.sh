@@ -1184,7 +1184,7 @@ for lang in 'python3 -' node perl ruby; do
   expect_each_value allow msg.txt "${data_wrap//@C@/git commit @V@}" plain
 done
 bash_wrap=$'bash <<\'EOF\'\n@C@\nEOF'
-expect_each_join 'make check' 'git commit -m x' "$bash_wrap"
+expect_each_join 'scripts/with-lock.sh make check' 'git commit -m x' "$bash_wrap"
 expect_each_value block msg.txt "${bash_wrap//@C@/git commit @V@}"
 for push in 'git push origin main' 'git push --force origin feat/x' 'git push -f origin feat/x' 'git push origin +feat/x'; do
   body="open(\"t.sh\", \"a\").write(\"expect block '$push'\\n\")"

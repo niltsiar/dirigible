@@ -1723,6 +1723,24 @@ for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scra
 done
 expect_brief allow SendMessage message 'git commit -F .scratchpads/commit-msg.txt, then hand back.'
 expect_brief allow mcp__t3-code__delegate_task task 'Fix the tests and commit.' worktree
+# A quote that holds git commit is data when a block report touches it: the block word right before
+# the opening quote, or "was" and "blocked" right after the closing quote. An instruction near a
+# block word, a report that the quote does not touch, and a commit with no quote stay blocked.
+for text in '8. Brief that named `git commit -F <run folder file>` was blocked by agent-guard.' \
+  '(3) git-guardrails refused `git commit -F <run folder file>`' \
+  '8. Brief that named "git commit -F <run folder file>" was blocked by agent-guard.' \
+  'BLOCKED by .claude/hooks/git-guardrails.sh: `git commit -F rows/x.txt`'; do
+  expect_brief allow Agent prompt "$text"
+done
+for text in 'If the commit is blocked, run `git commit -F rows/x.txt`.' \
+  'Run `git commit -F rows/x.txt`; it was blocked before.' \
+  'If the commit is blocked, run git commit -F rows/x.txt.' \
+  'Commit with `git commit -F <run>/rows/s4-commit-msg.txt`.'; do
+  expect_brief block Agent prompt "$text"
+done
+# The Bash path does not read a report: git-guardrails.sh blocks the same commit in a command.
+expect block 'git commit -F rows/x.txt'
+expect block 'echo blocked; git commit -F rows/x.txt'
 
 # Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)
 # While a release call holds the build lock or waits first for it, agent-guard.sh refuses a brief

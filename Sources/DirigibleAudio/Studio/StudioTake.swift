@@ -22,7 +22,7 @@ extension Studio {
         async throws(StudioError) -> TakeResult
     {
         // The generation, not the take number, tells this take from a new one that another
-        // caller starts. The timer of the timed start stops the take at its length.
+        // caller starts. The timer of the timed start stops the take (`timedTakeStop`).
         let (take, mine) = try await beginTimed(armed: armed, playhead: playhead, duration: duration, preRoll: preRoll)
         while generation == mine, transport == .recording(take: take) {
             // A cancel ends the take now, as an early end.

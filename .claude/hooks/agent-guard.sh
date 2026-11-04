@@ -24,6 +24,12 @@
 #   state comes from scripts/with-lock.sh --release-holder, and an exit other than 0 or 1 of that
 #   query lets the brief pass. A line that starts with Build lock: none (after spaces and one -, *,
 #   or > marker) passes a brief of an agent that runs no with-lock.sh step.
+# - A delegate_task whose target providerInstanceId or model equals the name of a line of
+#   dirigible-provider-limits in the git common dir is refused while now is before the reset of that
+#   line. A line is <name><TAB><reset UTC, YYYY-MM-DDTHH:MM>, and scripts/provider-limit.sh writes
+#   it. The reset is the start of that minute. PROVIDER_LIMIT_NOW (epoch seconds) sets now. A line
+#   that is not in that form, and a missing file, let the call pass; the hook prints a note for the
+#   line.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
@@ -39,6 +45,28 @@ isolation="$(plutil -extract tool_input.isolation raw -o - "$input" 2>/dev/null)
 if [[ "$tool" != mcp__t3-code__delegate_task && "$isolation" == worktree ]]; then
   echo "BLOCKED by .claude/hooks/agent-guard.sh: an Agent call with isolation \"worktree\". Make the worktree yourself with git worktree add -b <branch> ../<folder> <base>, give the agent that folder in its brief, and call the agent with no isolation." >&2
   exit 2
+fi
+if [[ "$tool" == mcp__t3-code__delegate_task ]] \
+  && common="$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+  && limits="$common/dirigible-provider-limits" && [[ -f "$limits" ]]; then
+  provider="$(plutil -extract tool_input.target.providerInstanceId raw -o - "$input" 2>/dev/null)"
+  model="$(plutil -extract tool_input.target.model raw -o - "$input" 2>/dev/null)"
+  now="${PROVIDER_LIMIT_NOW:-$(date +%s)}"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    name="${line%%$'\t'*}"
+    [[ -n "$name" && ( "$name" == "$provider" || "$name" == "$model" ) ]] || continue
+    reset="${line#*$'\t'}"
+    if [[ "$line" == *$'\t'* && "$reset" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$ ]] \
+      && reset_at="$(date -j -u -f %Y-%m-%dT%H:%M:%S "$reset:00" +%s 2>/dev/null)" \
+      && [[ "$(date -u -r "$reset_at" +%Y-%m-%dT%H:%M)" == "$reset" ]]; then
+      if (( now < reset_at )); then
+        echo "BLOCKED by .claude/hooks/agent-guard.sh: the provider $name hit a rate limit, and its reset is at $reset UTC ($limits). This job has no result: log a decisions.tsv row with the result skipped: rate limit, and do not wait. When the limit is over, remove its line from that file." >&2
+        exit 2
+      fi
+    else
+      echo "agent-guard.sh: $limits has a line for $name that is not <name><TAB><YYYY-MM-DDTHH:MM> of a real UTC time. The hook ignores it." >&2
+    fi
+  done < "$limits"
 fi
 text="$(plutil -extract "tool_input.$field" raw -o - "$input" 2>/dev/null)"
 # The lock-step lists are in scripts/lock-words.sh, which git-guardrails.sh reads too. They equal

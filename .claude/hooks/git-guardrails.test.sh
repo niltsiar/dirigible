@@ -1792,7 +1792,8 @@ if case_block agent-guard; then
 # The second hook, agent-guard.sh, refuses an Agent call with worktree isolation: such a worktree does
 # not fit the run layout, and its creation can set the hooks path of the shared git config. It also
 # refuses a brief of Agent, SendMessage, or delegate_task with a wrong commit message path, and a
-# brief with a lock step while a release call holds the build lock.
+# brief with a lock step while a release call holds the build lock, and a delegate_task to a provider
+# before its recorded rate-limit reset.
 agent_hook="$(dirname "$0")/agent-guard.sh"
 # The hooks pass and the push check run this file as a release call, so a case of the real repo
 # must name no lock step: the real --release-holder would see that holder. The pattern is lock_re of
@@ -2061,6 +2062,49 @@ sed 's/take the lock themselves/take the lock/' "$lock_real/AGENTS.md" > "$lock_
 expect_lock_lists differ 'the AGENTS.md sentence is gone' "$lock_real/Makefile" "$lock_mut/AGENTS.no-sentence" "$lock_words_src"
 sed 's/^\.PHONY: .*$//' "$lock_real/Makefile" > "$lock_mut/Makefile.no-phony"
 expect_lock_lists differ 'the Makefile has no .PHONY line' "$lock_mut/Makefile.no-phony" "$lock_real/AGENTS.md" "$lock_words_src"
+
+# Provider limit cases. A delegate_task whose target provider or model has a line in
+# dirigible-provider-limits of the git common dir, with a reset after now, is refused. PROVIDER_LIMIT_NOW
+# pins now at a minute start, and the reset of a line is the start of its UTC minute.
+limit_file="$lock_repo/.git/dirigible-provider-limits"
+limit_t=$((1792000000 / 60 * 60))
+limit_after="$(date -u -r $((limit_t + 60)) +%Y-%m-%dT%H:%M)"
+limit_now="$(date -u -r "$limit_t" +%Y-%m-%dT%H:%M)"
+limit_before="$(date -u -r $((limit_t - 60)) +%Y-%m-%dT%H:%M)"
+# expect_limit <want> <file text for printf %b, or - for no file> <providerInstanceId> <model> [<tool name>]
+expect_limit() {
+  local want="$1" got tool="${5:-mcp__t3-code__delegate_task}" field=task
+  [[ "$tool" != Agent ]] || field=prompt
+  lock_state free
+  if [[ "$2" == - ]]; then rm -f "$limit_file"; else printf '%b' "$2" > "$limit_file"; fi
+  plutil -create xml1 "$input"
+  plutil -insert tool_name -string "$tool" "$input"
+  plutil -insert tool_input -dictionary "$input"
+  plutil -insert "tool_input.$field" -string 'Review the diff.' "$input"
+  plutil -insert tool_input.target -dictionary "$input"
+  plutil -insert tool_input.target.providerInstanceId -string "$3" "$input"
+  plutil -insert tool_input.target.model -string "$4" "$input"
+  plutil -convert json "$input"
+  env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE PROVIDER_LIMIT_NOW=$limit_t "$lock_repo/.claude/hooks/agent-guard.sh" < "$input" 2>"$tmp/agent-err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == "$want" ]] || { echo "FAIL: agent-guard provider limit: expected $want, got $got: $tool $3 $4: ${2//$'\n'/\\n}"; failures=$((failures + 1)); }
+}
+expect_limit block "antigravity\t$limit_after\n" antigravity gemini-4-argon
+grep -q "antigravity" "$tmp/agent-err" && grep -q "$limit_after" "$tmp/agent-err" && grep -q "dirigible-provider-limits" "$tmp/agent-err" ||
+  { echo "FAIL: the provider limit message does not name the provider, the reset, and the file: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+expect_limit block "gemini-4-argon\t$limit_after\n" antigravity gemini-4-argon
+expect_limit block "opencode\t$limit_before\nantigravity\t$limit_after\n" antigravity gemini-4-argon
+expect_limit block "antigravity\tsoon\nantigravity\t$limit_after\n" antigravity gemini-4-argon
+expect_limit allow "antigravity\t$limit_now\n" antigravity gemini-4-argon
+expect_limit allow "antigravity\t$limit_before\n" antigravity gemini-4-argon
+expect_limit allow "opencode\t$limit_after\n" antigravity gemini-4-argon
+expect_limit allow "antigravity\t$limit_after\n" opencode opencode/big-pickle-free
+expect_limit allow - antigravity gemini-4-argon
+expect_limit allow "antigravity\tsoon\n" antigravity gemini-4-argon
+grep -q "dirigible-provider-limits" "$tmp/agent-err" ||
+  { echo "FAIL: a malformed provider limit line gives no note on stderr: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+expect_limit allow "antigravity\t2026-02-30T10:00\n" antigravity gemini-4-argon
+expect_limit allow "antigravity\t$limit_after\n" antigravity gemini-4-argon Agent
 
 fi # agent-guard
 if case_block usage-hook; then

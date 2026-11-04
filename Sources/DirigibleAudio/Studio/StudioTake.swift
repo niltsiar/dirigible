@@ -12,17 +12,18 @@ extension Studio {
         return try await open(package, recordings: recordings, peakCache: peakCache, log: log)
     }
 
-    /// Records a take for `duration`, then stops it, the call of `dirigible record`. A disk-low
-    /// stop, a stop from another caller, or a cancel of this call can end it early; then it
-    /// returns soon after that end.
+    /// Records a take for `duration`, then stops it, the call of `dirigible record`. With
+    /// `preRoll`, the take plays the pre-roll first, as `startRecording`. A disk-low stop, a stop
+    /// from another caller, or a cancel of this call can end it early; then it returns soon after
+    /// that end.
     /// Throws what `startRecording` throws, or the finalize error; then `lastTake` still has the
     /// result and the take stays pending.
-    public func record(armed: [TrackID], playhead: Frames, for duration: Duration) async throws(StudioError)
-        -> TakeResult
+    public func record(armed: [TrackID], playhead: Frames, for duration: Duration, preRoll: Int? = nil)
+        async throws(StudioError) -> TakeResult
     {
         // The generation, not the take number, tells this take from a new one that another
         // caller starts. The timer of the timed start stops the take at its length.
-        let (take, mine) = try await beginTimed(armed: armed, playhead: playhead, duration: duration)
+        let (take, mine) = try await beginTimed(armed: armed, playhead: playhead, duration: duration, preRoll: preRoll)
         while generation == mine, transport == .recording(take: take) {
             // A cancel ends the take now, as an early end.
             do { try await Task.sleep(for: .milliseconds(50)) } catch { break }
@@ -84,27 +85,29 @@ extension Studio {
     }
 
     /// `startRecording` for `duration`, the take of an agent (decision 0048). Each writer ends at
-    /// the take start + `duration`, and `takeTimer` stops the take then. A stop before cancels
-    /// the timer. Returns the take.
-    public func startRecording(armed: [TrackID], playhead: Frames?, for duration: Duration) async throws(StudioError)
-        -> Int
+    /// the take start H_T + `duration`, and `takeTimer` stops the take after that end and the
+    /// frames in flight (`timedTakeStop`). A stop before cancels the timer. Returns the take.
+    public func startRecording(armed: [TrackID], playhead: Frames?, for duration: Duration, preRoll: Int? = nil)
+        async throws(StudioError) -> Int
     {
-        try await beginTimed(armed: armed, playhead: playhead, duration: duration).take
+        try await beginTimed(armed: armed, playhead: playhead, duration: duration, preRoll: preRoll).take
     }
 
-    /// The timed start of `startRecording(armed:playhead:for:)` and `record`, with the generation.
-    private func beginTimed(armed: [TrackID], playhead: Frames?, duration: Duration) async throws(StudioError) -> (
-        take: Int, generation: Int
-    ) {
+    /// The timed start of `startRecording(armed:playhead:for:preRoll:)` and `record`, with the
+    /// generation.
+    private func beginTimed(armed: [TrackID], playhead: Frames?, duration: Duration, preRoll: Int?)
+        async throws(StudioError) -> (take: Int, generation: Int)
+    {
         // Before the start: a conversion that traps after the save of <recording> would leave a
         // pending take.
         let length = Self.nanos(duration)
-        let (take, mine) = try await beginRecording(armed: armed, playhead: playhead, length: length)
+        let (take, mine, stop) = try await beginRecording(
+            armed: armed, playhead: playhead, length: length, preRoll: preRoll)
         // A stop can end the take before the start returns: then no timer.
-        guard transport == .recording(take: take) else { return (take, mine) }
-        let wait = environment.takeLength
+        guard transport == .recording(take: take), let stop else { return (take, mine) }
+        let wait = environment.takeStop
         takeTimer = Task { [weak self] in
-            await wait(duration)
+            await wait(stop)
             guard !Task.isCancelled else { return }
             try? await self?.stopRecording()
         }
@@ -119,10 +122,11 @@ extension Studio {
 
     /// `startRecording`, which also returns the take and the generation that it started. A stop
     /// can end that take before this call returns. With `length` (nanoseconds), each writer
-    /// writes no record at or after the take start + `length`. The end is set before the
-    /// hand-over waits, so no drain writes past it. `beginRecording` writes its first and last line.
+    /// writes no record at or after the take start + `length`, and `stop` is the host time of the
+    /// timed stop (`timedTakeStop`). The end is set before the hand-over waits, so no drain writes
+    /// past it. `beginRecording` writes its first and last line.
     func startSteps(armed: [TrackID], playhead: Frames?, length: UInt64?, preRoll: Int?) async throws(StudioError) -> (
-        take: Int, generation: Int
+        take: Int, generation: Int, stop: UInt64?
     ) {
         try checkIdle()
         guard pendingTake == nil else { throw .busy }
@@ -130,7 +134,7 @@ extension Studio {
         let stopped = endPlayForTake()
         let queued = ContinuousClock.now
         // The whole start is one step of the chain, so a stop or a settle never sees half of it.
-        let result = await serialized { () async -> Result<(take: Int, generation: Int), StudioError> in
+        let result = await serialized { () async -> Result<(take: Int, generation: Int, stop: UInt64?), StudioError> in
             defer { isStarting = false }
             environment.log.note(.take, "write-chain", ["ms": .since(queued)])
             let playhead = await takePlayhead(stopped, playhead)
@@ -148,10 +152,13 @@ extension Studio {
             begin(started)
             let cut = WaitCut()
             startCut = cut
+            var stop: UInt64?
             if let length {
-                let (end, overflow) = (started.session.recording?.takeStartHostTimeNanos ?? 0)
+                let (sum, overflow) = (started.session.recording?.takeStartHostTimeNanos ?? 0)
                     .addingReportingOverflow(length)
-                for writer in writers.values { writer.end(atHostNanos: overflow ? .max : end) }
+                let end = overflow ? UInt64.max : sum
+                for writer in writers.values { writer.end(atHostNanos: end) }
+                stop = timedTakeStop(end: end, devices: started.routes.map(\.device))
             }
             let channels = self.armed.compactMap { session.track($0.id)?.layout.channelCount }.reduce(0, +)
             recordTimeLeft = DirigibleAudio.remainingRecordTime(
@@ -166,7 +173,7 @@ extension Studio {
             await startApps(by: deadline, cut: cut)
             await handOver(by: deadline, cut: cut)
             startCut = nil
-            return .success((started.take, generation))
+            return .success((started.take, generation, stop))
         }
         return try result.get()
     }

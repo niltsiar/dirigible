@@ -8,7 +8,7 @@ extension Studio {
     /// `take start-failed` with the error case.
     func beginRecording(
         armed: [TrackID], playhead: Frames?, length: UInt64? = nil, preRoll: Int? = nil
-    ) async throws(StudioError) -> (take: Int, generation: Int) {
+    ) async throws(StudioError) -> (take: Int, generation: Int, stop: UInt64?) {
         let request = environment.log.begin(.take, "start-request", ["armed": .number(Int64(armed.count))])
         do throws(StudioError) {
             let started = try await startSteps(armed: armed, playhead: playhead, length: length, preRoll: preRoll)

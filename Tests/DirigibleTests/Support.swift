@@ -32,6 +32,17 @@ import os
     }
 }
 
+/// Closes `model`. At `limit` it records an issue and returns while the close runs, so a close
+/// that does not end fails the test and does not hold the test process.
+@MainActor func boundedClose(_ model: SessionWindow, limit: Duration = .seconds(60)) async {
+    let closed = OSAllocatedUnfairLock(initialState: false)
+    Task {
+        await model.close()
+        closed.withLock { $0 = true }
+    }
+    await until(limit: limit, "the close of the window ends") { closed.withLock { $0 } }
+}
+
 /// Returns at the end of a pass of the main run loop: the observer has the last order of
 /// `beforeWaiting`, so it runs after the SwiftUI and Core Animation observers of that pass.
 @MainActor func runLoopPass() async {

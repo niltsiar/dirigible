@@ -246,7 +246,8 @@ import os
                 passed: PassedModelFile(sha256: Self.abc, facts: Self.tiny))
             kept.store(for: window.choice, in: window.defaults)
             let newDate = Date(timeIntervalSinceNow: -3_600)
-            var other: SessionWindow?
+            var other: FileWindow?
+            defer { other?.studio.isStarting = false }
             switch status {
             case .same: break
             case .newDate:
@@ -258,7 +259,7 @@ import os
                 let second = try await openFile({ $0 }, picks: Picks([]))
                 second.studio.isStarting = true
                 window.studio.otherStudios = { [second.studio] }
-                other = second.model
+                other = second
             }
 
             _ = try sheet(window)
@@ -279,9 +280,10 @@ import os
             }
             if let other {
                 window.studio.otherStudios = { [] }
-                await other.close()
+                other.studio.isStarting = false
+                await boundedClose(other.model)
             }
-            await window.model.close()
+            await boundedClose(window.model)
         }
 
         /// A sheet hash of the kept file that ends after the pick of another file stores nothing:
@@ -377,6 +379,7 @@ import os
             }
             let second = try await openFile({ $0 }, picks: Picks([]))
             second.studio.isStarting = true
+            defer { second.studio.isStarting = false }
             window.studio.otherStudios = { [second.studio] }
             let before = try sheet(window).model
 
@@ -388,8 +391,9 @@ import os
             #expect(seams.withLock { $0 } == 0 && Self.runs(ran) == 0)
             #expect(window.kept() == nil)
             window.studio.otherStudios = { [] }
-            await second.model.close()
-            await window.model.close()
+            second.studio.isStarting = false
+            await boundedClose(second.model)
+            await boundedClose(window.model)
         }
     }
 #endif

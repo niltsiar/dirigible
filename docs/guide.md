@@ -759,6 +759,21 @@ If a device goes away during a take, its tracks show **Device lost**. The other 
 - Record does not start when less than 1 GB is free on the disk of the session.
 - If the disk becomes almost full during a take, Dirigible stops the take and keeps the audio.
 
+### When Dirigible removes a raw recording
+
+During a take, Dirigible writes each track twice: a raw recording in the `Capture` folder (a CAF file and a sidecar file), and a 24-bit WAV in `Clips`. Both files use 7 bytes per sample and channel, so the record time on the disk counts both.
+
+After the take, Dirigible removes the CAF of a segment when all of these are true:
+
+- A clip of the saved session plays the WAV of the segment, and the segment is not in a take that waits for its end.
+- The WAV has the same number of frames as the CAF.
+- The WAV uses the sample rate that the sidecar gives.
+- At each check point, the WAV is within 1 ms of the clock of the Mac.
+
+The removal runs in the background after you open a session and after each take or placement. It never runs during a take, and it never removes a sidecar, a take anchor, or a WAV. After the removal, a take uses 3 bytes per sample and channel: about 518 MB for 1 h of one mono channel at 48 kHz. A segment that fails a test keeps its CAF.
+
+Audio that is on no track and whose CAF is gone stays in the window under **Audio that is on no track:**. **Place** puts it on its track from the WAV, with the same level as the first time.
+
 ### When a take is not finished
 
 If Dirigible cannot finalize a take, the window shows **Take 1 is not finished.** (with the number of the take). You cannot record until the take is finished.
@@ -1149,6 +1164,7 @@ These commands use the take time: the time of the audio from the record start of
 
 - `dirigible take map Demo.dirigible 48000 96000` writes, for each take frame, the timeline frame of each clip that plays it: `48000 t1:240000 t2:240000`. `cut` means that an edit removed that audio. `--timeline` maps timeline frames to take frames: `240000 t1:48000`, or `none` where no audio of the take is. `--track` limits the map to some tracks, and `--json` writes JSON. With two takes with audio or more, give `--take <n>`, else it gives exit 64 with the list of takes. A session with no take audio gives exit 1, and a take anchor that cannot be read gives exit 2.
 - `dirigible info Demo.dirigible` writes one sync line for each take with audio: `sync take 1 in sync, offset 5.000 s (240000 frames)` when each clip of the take keeps one shift from the take, or `sync take 1 broken from 0:21:07.000 (60816000), 2 shifts` when an edit moved some clips of the take and not others. A copy of take audio, for example a cold open, does not break the take when the same track still plays that audio in sync. The offset is the timeline time of take time 0. `info --json` has the key `takeSync`. When a take anchor cannot be read, `info` writes `sync anchor file unreadable: Capture/take1.anchor (errno 13)` after the sync lines of the other takes, or `sync folder unreadable: Capture (errno 13)` when the whole `Capture` folder cannot be read, and `info --json` has the key `takeSyncFaults`, one entry for each fault. A fault of one anchor keeps only its own take out of the map.
+- `dirigible info Demo.dirigible` also writes one line for each raw CAF that stays, after the sync lines: `raw take4-1-1 kept: frames`, `raw take4-1-1 kept: rate choice`, `raw take4-1-1 kept: alignment 1.20 ms`, or `raw take4-1-1 kept: not removed yet` when the CAF passes the tests and the removal has not run yet. A package with no CAF to keep writes no `raw` line. `info --json` and the `session_info` tool have the key `rawKept`, one entry for each CAF, with its segment and its reason; the key is not in the compact view. `dirigible take finalize` waits for the removal. A `dirigible` command that edits the session also removes the CAF of each segment that has a finalize record.
 
 The words follow the clips of the import track: a move, a trim, or a cut moves the words with the audio. An edit of another track alone does not move them, so edit all tracks together. The package keeps the words, in the `Transcripts` folder. A session with a transcript does not open in a version of Dirigible from before the transcripts.
 

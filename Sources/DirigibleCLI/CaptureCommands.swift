@@ -48,7 +48,7 @@ struct Record: AsyncParsableCommand {
         guard EditRules.preRollSeconds(preRoll) != nil else { throw ValidationError("The pre-roll must be 0 to 10 s.") }
     }
 
-    /// The one command that runs the capture code, so the one command with a journal (decision 0059).
+    /// It runs the capture code, so it starts its journal at launch (decision 0059).
     func run() async throws {
         let log = DiagnosticLog.start(
             .cli, folder: DiagnosticLog.folder(), version: Dirigible.appVersion, commit: Dirigible.appCommit)
@@ -81,7 +81,11 @@ extension CaptureCommand {
         }
 
         func run() async throws {
-            try await placeSegment(package, segment, track: track.map { TrackID($0) }, start: at.map { Frames($0) })
+            let log = DiagnosticLog.start(
+                .cli, folder: DiagnosticLog.folder(), version: Dirigible.appVersion, commit: Dirigible.appCommit)
+            defer { log.quit() }
+            try await placeSegment(
+                package, segment, track: track.map { TrackID($0) }, start: at.map { Frames($0) }, log: log)
         }
     }
 }
@@ -107,11 +111,13 @@ private func openStudio(_ package: PackageArgument, log: DiagnosticLog = .disabl
     }
 }
 
+/// The command returns after the raw sweep job of the placement (decision 0071), whose faults go
+/// to `log`.
 @MainActor
 private func placeSegment(
-    _ package: PackageArgument, _ segment: SegmentName, track: TrackID?, start: Frames?
+    _ package: PackageArgument, _ segment: SegmentName, track: TrackID?, start: Frames?, log: DiagnosticLog
 ) async throws(ExitCode) {
-    let studio = try await openStudio(package)
+    let studio = try await openStudio(package, log: log)
     do {
         if let clip = try await studio.place(segment, on: track, at: start) {
             print(clip.rawValue)
@@ -121,6 +127,7 @@ private func placeSegment(
     } catch {
         throw fail(error.message(package: package.path), code: refusedCode(error))
     }
+    await studio.rawSweep
 }
 
 /// Requests the microphone access once when the status is not determined, and starts again

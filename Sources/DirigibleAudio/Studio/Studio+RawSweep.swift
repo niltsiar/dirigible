@@ -84,7 +84,7 @@ extension Studio {
                     switch await readOldTake(candidate.name, lock: lock, step: step) {
                     case .success(let record?): read = RawRead(files: candidate.files, record: record, appends: true)
                     case .success(nil): break
-                    case .failure(let error): studio()?.noteRawFault(candidate.name, error)
+                    case .failure(let error): studio()?.environment.log.noteRawFault(candidate.name, error)
                     }
                 }
                 guard studio()?.rawSweepHeld == false, !Task.isCancelled else { return }
@@ -103,15 +103,7 @@ extension Studio {
         guard !rawSweepHeld, !saveWaits, sessionRevision == savedRevision else { return }
         guard let error = await removeRaw(name, of: session, lock: lock, read: read, flush: environment.rawFlush)
         else { return }
-        noteRawFault(name, error)
-    }
-
-    /// One `raw` line of the journal (decision 0059).
-    private func noteRawFault(_ name: SegmentName, _ error: RawRemovalError) {
-        let (fault, code) = error.journal
-        environment.log.note(
-            .raw, "fault", level: .error,
-            ["segment": .text(name.stem), "error": .text(fault), "errno": .number(Int64(code))])
+        environment.log.noteRawFault(name, error)
     }
 }
 

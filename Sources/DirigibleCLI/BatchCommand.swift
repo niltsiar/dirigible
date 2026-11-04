@@ -41,8 +41,10 @@ struct BatchCommand: ParsableCommand {
         } catch {
             throw fail(error.message, code: ExitCode.validationFailure.rawValue)
         }
+        let journal = FaultJournal()
+        defer { journal.quit() }
         do throws(EditFailure<BatchWork.Failure>) {
-            print(try work.runOnFiles(package.url).joined(separator: "\n"))
+            print(try work.runOnFiles(package.url, log: journal.log).joined(separator: "\n"))
         } catch {
             throw fail(error.message(package: package.path), code: exitCode(of: error))
         }

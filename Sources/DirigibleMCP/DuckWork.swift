@@ -143,7 +143,7 @@ package struct DuckWork: Sendable {
     /// writes nothing.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<DuckFailure>) {
-            let result = try editPackageCore(package, ripple: false, writeUnchanged: false) {
+            let result = try editPackageCore(package, ripple: false, writeUnchanged: false, log: control.log) {
                 session, _ throws(DuckFailure) in
                 try run(
                     &session, package: package, progress: { control.report($0) },

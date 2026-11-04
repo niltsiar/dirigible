@@ -23,7 +23,9 @@ struct MCPCommand: ParsableCommand {
         bridge.connect()
         // A failed progress write is lost; the write of the answer then reports the error.
         let send = { (line: String) in _ = try? FileHandle.standardOutput.write(contentsOf: Data((line + "\n").utf8)) }
-        var server = MCPServer(route: bridge.route, send: send, pollCancel: input.pollCancel)
+        let journal = FaultJournal()
+        defer { journal.quit() }
+        var server = MCPServer(route: bridge.route, send: send, pollCancel: input.pollCancel, log: journal.log)
         // The lines split on \n and \r\n only, and nil comes at the end of stdin.
         while let line = input.next() {
             guard let answer = server.answer(line) else { continue }

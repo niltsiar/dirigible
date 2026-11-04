@@ -1,3 +1,4 @@
+import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
 import Foundation
@@ -62,9 +63,11 @@ struct MCPDuckToolTests {
             speech: [], music: [], from: nil, to: nil, depth: nil, attack: nil, release: nil, threshold: nil, hold: nil
         ).get()
         let readEnded = OSAllocatedUnfairLock(initialState: false)
+        let noLog: () -> DiagnosticLog = { .disabled }
 
         let failure = #expect(throws: EditFailure<DuckFailure>.self) {
-            try editPackageCore(url, ripple: false, writeUnchanged: false) { session, _ throws(DuckFailure) in
+            try editPackageCore(url, ripple: false, writeUnchanged: false, log: noLog) {
+                session, _ throws(DuckFailure) in
                 try work.run(
                     &session, package: url, progress: { if $0 >= 1 { readEnded.withLock { $0 = true } } },
                     isCancelled: { readEnded.withLock { $0 } })

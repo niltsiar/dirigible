@@ -140,7 +140,7 @@ package struct ClipRenderWork: Sendable {
     /// The job of a tool call on the files, under the package lock.
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<ClipRenderError>) {
-            let (moved, note) = try editPackageCore(package, ripple: false, writeUnchanged: false) {
+            let (moved, note) = try editPackageCore(package, ripple: false, writeUnchanged: false, log: control.log) {
                 session, lock throws(ClipRenderError) in
                 try TakeWork.noted(&session, package: package) { session throws(ClipRenderError) in
                     try render(

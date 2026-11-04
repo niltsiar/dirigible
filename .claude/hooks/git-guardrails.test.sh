@@ -363,7 +363,7 @@ expect block 'git config --show-origin --unset core.hooksPath'
 expect block 'git config --get core.hooksPath 2>/dev/null; git config --add core.hooksPath x'
 expect block 'gh pr merge 3 --rebase --delete-branch'
 expect allow 'git stash push -m wip'
-expect allow 'make check'
+expect allow 'scripts/with-lock.sh make check'
 expect allow 'git -C /repo status'
 expect allow 'git push -u origin feat/main-window'
 expect allow 'git push --follow-tags origin feat/x'
@@ -523,14 +523,14 @@ expect block 'make check > log 2>&1; echo "exit $?"; git commit -m "x"'
 expect block 'make check || true && git commit -m "x"'
 expect block 'make check | tail -3 && git commit -m "x"'
 expect block $'make check\ngit commit -m "x"'
-expect allow 'make check && git commit -m "x"'
-expect allow 'git add a && make check > log 2>&1 && grep -c ok log && git commit -F .scratchpads/commit-msg.txt'
-expect allow $'make check > log 2>&1 \\\n  && git commit -m "x"'
+expect allow 'scripts/with-lock.sh make check && git commit -m "x"'
+expect allow 'git add a && scripts/with-lock.sh make check > log 2>&1 && grep -c ok log && git commit -F .scratchpads/commit-msg.txt'
+expect allow $'scripts/with-lock.sh make check > log 2>&1 \\\n  && git commit -m "x"'
 # The regex matches make check as a prefix, so make check-changed gets the same rule.
 expect block 'make check-changed; git commit -m "x"'
-expect allow 'make check-changed > log 2>&1 && git commit -m "x"'
+expect allow 'scripts/with-lock.sh make check-changed > log 2>&1 && git commit -m "x"'
 # The inner-commit check of a slice: FILTER is test names with spaces between them.
-expect allow "make check-changed FILTER='ClipTests TrackTests' > log 2>&1 && git commit -F .scratchpads/commit-msg.txt"
+expect allow "scripts/with-lock.sh make check-changed FILTER='ClipTests TrackTests' > log 2>&1 && git commit -F .scratchpads/commit-msg.txt"
 # Only the check-changed recipe writes the pass stamp. A direct write skips the land check.
 expect block 'echo abc >> .git/dirigible-check-stamp'
 expect block 'cp x "$(git rev-parse --git-path dirigible-check-stamp)"'
@@ -541,8 +541,8 @@ expect allow 'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/check-stam
 # Only a passing make test-slow or test-slow-push writes the slow-run date. A direct write skips the daily slow run.
 expect block 'date +%F > .git/dirigible-slow-date'
 expect block 'echo 2026-01-01 > "$(git rev-parse --git-common-dir)/dirigible-slow-date"'
-expect allow 'make test-slow'
-expect allow 'make test-slow-push'
+expect allow 'scripts/with-lock.sh make test-slow'
+expect allow 'scripts/with-lock.sh make test-slow-push'
 # expect_each_write <path>: each form of one shared list of writes blocks on <path>. A rule that
 # guards a file allows a list of read forms and blocks all other forms (a list of write forms
 # missed sed -i, dd of=, and a variable), so a new write form goes in this list once and runs for
@@ -1012,13 +1012,13 @@ expect block "swift test; $ld"
 expect block "git -C /x/wt commit -F .scratchpads/commit-msg.txt; $ld"
 expect block "make test-filter FILTER=X | tail -3 && log-decision.sh r 4 a b c VERIFIED"
 expect allow "git commit -F .scratchpads/commit-msg.txt && $ld"
-expect allow "make test-filter FILTER=X > log 2>&1 && $ld"
-expect allow "make test-filter FILTER=X > log 2>&1 || $ld"
+expect allow "scripts/with-lock.sh make test-filter FILTER=X > log 2>&1 && $ld"
+expect allow "scripts/with-lock.sh make test-filter FILTER=X > log 2>&1 || $ld"
 expect allow "$ld"
 # A background job: the row comes before make ends. A redirect with & is not a background job.
 expect block "make test > log 2>&1 & $ld"
-expect allow "make test &> log && $ld"
-expect allow "make test >& log && $ld"
+expect allow "scripts/with-lock.sh make test &> log && $ld"
+expect allow "scripts/with-lock.sh make test >& log && $ld"
 expect allow "$ld; make lint"
 expect allow "remake; $ld"
 expect allow $'make lint \\\n  && '"$ld"
@@ -1164,9 +1164,9 @@ expect_each_join() {
   expect allow "${wrap//@C@/$first && $second}"
 }
 for commit in 'git commit -m x' 'git -C /x/wt commit -m x' "git -C '/x y/wt' commit -m x" 'git -C "/x y/wt" commit -m x'; do
-  expect_each_join 'make check' "$commit"
+  expect_each_join 'scripts/with-lock.sh make check' "$commit"
 done
-for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m x' 'make test-filter FILTER=X' 'swift test' \
+for first in 'git commit -F .scratchpads/commit-msg.txt' 'git -C /x/wt commit -m x' \
   'scripts/with-lock.sh make test-filter FILTER=X' 'scripts/with-lock.sh swift test' \
   'scripts/with-lock.sh scripts/probe.sh f swift build' "scripts/with-lock.sh scripts/probe.sh '/x y/f' swift build"; do
   expect_each_join "$first" "$ld"
@@ -1241,7 +1241,7 @@ bg_jobs=(
   'scripts/land.sh "t" x/pr.md'
   'scripts/mutation-pass.sh wt batch.txt'
   'scripts/swift-test.sh' 'scripts/test-shards.sh' 'scripts/bench.sh Foo' 'scripts/bench-pairs.sh Foo'
-  'scripts/sanitize.sh thread' 'scripts/flake-monitor/loop.sh --min-load 4 t 1 5 out' 'make build' 'swift build'
+  'scripts/sanitize.sh thread' 'scripts/flake-monitor/loop.sh --min-load 4 t 1 5 out' 'scripts/with-lock.sh make build' 'scripts/with-lock.sh swift build'
   'bash .scratchpads/loop.sh' 'sh .scratchpads/loop.sh' 'zsh .scratchpads/loop.sh'
 )
 for job in "${bg_jobs[@]}"; do
@@ -1491,6 +1491,25 @@ sys.exit(0 if ok else 1)
 # Unreadable input fails closed.
 printf 'not json' | "$hook" 2>/dev/null
 [[ $? -eq 2 ]] || { echo "FAIL: unreadable input was allowed"; failures=$((failures + 1)); }
+
+# A build, a test, or a probe runs as scripts/with-lock.sh <command> (AGENTS.md, Commands), so two work
+# trees do not build at once. The block message gives the form and the run-only probe form. The scripts
+# that take the lock themselves, swift run, swift format, and the make targets that take no lock pass.
+for run in 'swift build' 'swift test --filter X' 'cd /w && swift build' 'time make build' 'make test-filter FILTER=x' \
+  'make check-changed' 'make -s app' 'scripts/probe.sh .scratchpads/x bash p.sh' 'BASE=origin/main make check-changed' \
+  'if swift build; then echo ok; fi' '(cd /w; swift test)' 'make -C /w build' 'env X=1 make test' './scripts/probe.sh f cmd' \
+  $'swift build\ngit status'; do
+  expect_message 'scripts/with-lock.sh <command>' "$run"
+  expect_message 'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh' "$run"
+done
+for run in 'scripts/with-lock.sh swift build' 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main' \
+  'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh .scratchpads/x /abs/dirigible' 'scripts/with-lock.sh scripts/probe.sh f cmd' \
+  'make check-docs' 'make lint' 'make format' 'make check-fast' 'swift format lint --strict Sources' 'swift run dirigible --help' \
+  'scripts/swift-test.sh --filter X' 'rg "swift build" AGENTS.md' "rg 'swift build' AGENTS.md" 'echo "make build"' 'make -n build' \
+  'make --dry-run test' 'git commit -m "fix: swift build now takes the lock"' $'git commit -F - <<\'EOF\'\nmake build\nEOF' \
+  'swift --version' 'swift package dump-package' 'make' 'ls scripts/probe.sh' 'cat scripts/probe.sh' 'echo make build'; do
+  expect allow "$run"
+done
 fi # guardrails-rules
 
 # The hook test rule reads the verdict of scripts/lock-words.sh for a with-lock.sh make test-hooks call.
@@ -1746,8 +1765,9 @@ if case_block agent-guard; then
 agent_hook="$(dirname "$0")/agent-guard.sh"
 # The hooks pass and the push check run this file as a release call, so a case of the real repo
 # must name no lock step: the real --release-holder would see that holder. The pattern is lock_re of
-# agent-guard.sh, read from its lines.
-real_lock_re="$(bash -c "$(sed -n '/^lock_targets=/,/^lock_re=/p' "$(dirname "$0")/agent-guard.sh" | grep -v '^steps='); printf '%s' \"\$lock_re\"")"
+# agent-guard.sh, read from its line with the lists of scripts/lock-words.sh.
+lock_words_src="$(cd "$(dirname "$0")/../../scripts" && pwd)/lock-words.sh"
+real_lock_re="$(bash -c ". '$lock_words_src'; $(sed -n '/^lock_re=/p' "$(dirname "$0")/agent-guard.sh"); printf '%s' \"\$lock_re\"")"
 no_lock_step() { # <text>
   ! grep -qE "$real_lock_re" <<< "$1" || { echo "FAIL: agent-guard: a real-repo brief case names a lock word: $1"; failures=$((failures + 1)); }
 }
@@ -1971,14 +1991,14 @@ rm -f "$lock_repo/scripts/with-lock.sh"
 expect_lock_brief allow release Agent prompt "$lock_step"
 cp "$lock_dir_src/../../scripts/with-lock.sh" "$lock_dir_src/../../scripts/lock-words.sh" "$lock_repo/scripts/"
 # The lists of the hook equal their sources: lock_targets the Makefile .PHONY line minus the four
-# make targets that take no lock (free_targets), and lock_scripts the scripts that AGENTS.md says take the lock
+# make targets that take no lock (lock_free_targets), and lock_scripts the scripts that AGENTS.md says take the lock
 # themselves. A new make target is then a lock step the day it exists. An empty source fails.
-# lock_lists_equal <Makefile> <AGENTS.md> <agent-guard.sh>
+# lock_lists_equal <Makefile> <AGENTS.md> <scripts/lock-words.sh>
 lock_lists_equal() {
   local free='check-docs|check-fast|lint|format' want_t have_t want_s have_s
   want_t="$(sed -n 's/^\.PHONY: //p' "$1" | tr ' ' '\n' | grep -vxE "$free" | sort)"
   have_t="$(sed -n "s/^lock_targets='\(.*\)'\$/\1/p" "$3" | tr '|' '\n' | sort)"
-  [[ "$(sed -n "s/^free_targets='\(.*\)'\$/\1/p" "$3")" == "$free" ]] || return 1
+  [[ "$(sed -n "s/^lock_free_targets='\(.*\)'\$/\1/p" "$3")" == "$free" ]] || return 1
   want_s="$(python3 -I -c '
 import re, sys
 m = re.search(r"((?:`scripts/[\w-]+\.sh`(?:,? and |, )?)+) take the lock themselves", open(sys.argv[1], encoding="utf-8").read())
@@ -1987,7 +2007,7 @@ print("\n".join(sorted(re.findall(r"scripts/([\w-]+)\.sh", m.group(1)))) if m el
   have_s="$(sed -n "s/^lock_scripts='\(.*\)'\$/\1/p" "$3" | tr '|' '\n' | sort)"
   [[ -n "$want_t" && "$want_t" == "$have_t" && -n "$want_s" && "$want_s" == "$have_s" ]]
 }
-# expect_lock_lists <equal|differ> <name> <Makefile> <AGENTS.md> <agent-guard.sh>
+# expect_lock_lists <equal|differ> <name> <Makefile> <AGENTS.md> <scripts/lock-words.sh>
 expect_lock_lists() {
   local got
   lock_lists_equal "$3" "$4" "$5" && got=equal || got=differ
@@ -1995,21 +2015,21 @@ expect_lock_lists() {
 }
 lock_real="$lock_dir_src/../.." lock_mut="$tmp/lock-mut"
 mkdir -p "$lock_mut"
-expect_lock_lists equal 'the real files' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
+expect_lock_lists equal 'the real files' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_words_src"
 sed 's/^\(\.PHONY: .*\)$/\1 newtarget/' "$lock_real/Makefile" > "$lock_mut/Makefile.new-target"
-expect_lock_lists differ 'the Makefile gains a target' "$lock_mut/Makefile.new-target" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
+expect_lock_lists differ 'the Makefile gains a target' "$lock_mut/Makefile.new-target" "$lock_real/AGENTS.md" "$lock_words_src"
 sed 's/^\(\.PHONY: .*\) static /\1 /' "$lock_real/Makefile" > "$lock_mut/Makefile.no-static"
-expect_lock_lists differ 'the Makefile loses static' "$lock_mut/Makefile.no-static" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
-sed 's/|dmg|/|/' "$lock_dir_src/agent-guard.sh" > "$lock_mut/hook.no-dmg"
+expect_lock_lists differ 'the Makefile loses static' "$lock_mut/Makefile.no-static" "$lock_real/AGENTS.md" "$lock_words_src"
+sed 's/|dmg|/|/' "$lock_words_src" > "$lock_mut/hook.no-dmg"
 expect_lock_lists differ 'the hook list loses dmg' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-dmg"
-sed "s/^free_targets='check-docs|check-fast|lint|format'\$/free_targets='check-docs|check-fast|format'/" "$lock_dir_src/agent-guard.sh" > "$lock_mut/hook.no-free-lint"
+sed "s/^lock_free_targets='check-docs|check-fast|lint|format'\$/lock_free_targets='check-docs|check-fast|format'/" "$lock_words_src" > "$lock_mut/hook.no-free-lint"
 expect_lock_lists differ 'the hook free list loses lint' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-free-lint"
 sed 's/`scripts\/sanitize.sh` take the lock/`scripts\/other.sh` take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.new-script"
-expect_lock_lists differ 'AGENTS.md names another script' "$lock_real/Makefile" "$lock_mut/AGENTS.new-script" "$lock_dir_src/agent-guard.sh"
+expect_lock_lists differ 'AGENTS.md names another script' "$lock_real/Makefile" "$lock_mut/AGENTS.new-script" "$lock_words_src"
 sed 's/take the lock themselves/take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.no-sentence"
-expect_lock_lists differ 'the AGENTS.md sentence is gone' "$lock_real/Makefile" "$lock_mut/AGENTS.no-sentence" "$lock_dir_src/agent-guard.sh"
+expect_lock_lists differ 'the AGENTS.md sentence is gone' "$lock_real/Makefile" "$lock_mut/AGENTS.no-sentence" "$lock_words_src"
 sed 's/^\.PHONY: .*$//' "$lock_real/Makefile" > "$lock_mut/Makefile.no-phony"
-expect_lock_lists differ 'the Makefile has no .PHONY line' "$lock_mut/Makefile.no-phony" "$lock_real/AGENTS.md" "$lock_dir_src/agent-guard.sh"
+expect_lock_lists differ 'the Makefile has no .PHONY line' "$lock_mut/Makefile.no-phony" "$lock_real/AGENTS.md" "$lock_words_src"
 
 fi # agent-guard
 if case_block usage-hook; then

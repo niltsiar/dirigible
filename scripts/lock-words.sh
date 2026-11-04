@@ -3,7 +3,19 @@
 # .claude/hooks/git-guardrails.sh (the verdict for a with-lock.sh make test-hooks call). Both read
 # the same functions, so a form of the call has one class. The case test-rule of
 # .claude/hooks/git-guardrails.test.sh (expect_each_lock) sends each spelling through both.
-# Sourced only: no set line, no top-level command.
+# It also holds the lock-step lists that .claude/hooks/agent-guard.sh (a brief) and git-guardrails.sh
+# (a Bash command with no with-lock.sh) read: lock_targets (the make targets that take the lock),
+# lock_scripts (the scripts that take it themselves), lock_swift (the swift commands that take it),
+# and lock_free_targets (the make targets that take none). scripts/with-lock.sh sets its own
+# free_targets, so this list has another name. lock_make_opt and lock_make_set match the make words
+# before the target. git-guardrails.test.sh keeps the lists equal to the Makefile and AGENTS.md.
+# Sourced only: no set line, and the top level holds the list assignments only.
+lock_targets='setup|build|app|icon-preview|test|test-filter|test-asan|test-tsan|test-slow|test-slow-push|check-slow-gates|check-warnings|check-sizes|bench|test-app|dmg|test-dmg|test-hooks|run|static|check|check-changed|clean'
+lock_scripts='swift-test|test-shards|bench|bench-pairs|sanitize'
+lock_swift='build|test|run'
+lock_free_targets='check-docs|check-fast|lint|format'
+lock_make_opt='-[^[:space:]]*([[:space:]]+[^-[:space:]][^[:space:]]*)?'
+lock_make_set="[A-Za-z_][A-Za-z0-9_]*=('[^']*'|\"[^\"]*\"|[^[:space:]]*)"
 # push_env: succeeds when BASE has a value in the environment or in a BASE= word of MAKEFLAGS (the
 # Makefile reads $(BASE), and make puts a variable of its command line into the environment and
 # MAKEFLAGS of the recipe).

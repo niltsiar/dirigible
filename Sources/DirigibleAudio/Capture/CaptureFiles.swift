@@ -2,14 +2,18 @@ import DirigibleCore
 import Foundation
 
 extension UnusedFiles {
-    /// The scan of decision 0047, with the capture files of each free capture as `.capture` items.
+    /// The scan of decision 0047, with the capture files of each free capture as `.capture` items,
+    /// and with the sole-copy WAVs of decision 0071 (`soleCopyWAVs`).
     package init(
         scanningWithCaptures session: Session, keptBy keepers: [Session], keptFiles: [String] = [], in package: URL
     )
         throws(UnusedFilesError)
     {
-        self = try UnusedFiles(scanning: session, keptBy: keepers, keptFiles: keptFiles, in: package)
-            .listingCaptureFiles(captureFilePaths, in: package)
+        self = try UnusedFiles(
+            scanning: session, keptBy: keepers, keptFiles: keptFiles, soleCopies: soleCopyWAVs(in: package),
+            in: package
+        )
+        .listingCaptureFiles(captureFilePaths, in: package)
     }
 }
 

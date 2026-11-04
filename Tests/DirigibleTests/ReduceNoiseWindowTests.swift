@@ -252,7 +252,10 @@ import Testing
             ("the take time sheet", { model.takeTimeDraft = TakeTimeDraft(takes: [1], take: 1) }),
             (
                 "the unused files sheet",
-                { model.unusedFiles = try? UnusedFiles(scanning: studio.session, keptBy: [], in: studio.url) }
+                {
+                    model.unusedFiles = try? UnusedFiles(
+                        scanning: studio.session, keptBy: [], soleCopies: [], in: studio.url)
+                }
             ),
         ]
         for (name, show) in dialogs {

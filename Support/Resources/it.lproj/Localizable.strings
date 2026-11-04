@@ -564,6 +564,7 @@
 "sheet.unused.reason.stray" = "Non è nella sessione";
 "sheet.unused.reason.transcript" = "Nessuna trascrizione lo usa";
 "sheet.unused.reason.capture" = "Take di un file inutilizzato";
+"sheet.unused.reason.take" = "Audio di ripresa: il file resta";
 "sheet.unused.total" = "File: %lld (%@)";
 "sheet.unused.kept" = "Conservati per un backup, la cronologia degli annullamenti o gli Appunti: %lld (%@)";
 "sheet.unused.damaged" = "I backup danneggiati non conservano alcun file: %@";

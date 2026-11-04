@@ -36,6 +36,9 @@ public struct PruneReport: Hashable, Sendable {
     public let failed: [Failed]
     /// The pool entries whose file was not on the disk: not a failure.
     public let dropped: [FileID]
+    /// The take entries (decision 0071): the prune dropped their pool entries and kept their
+    /// files, which now are unplaced segments.
+    public let unplaced: [UnusedFiles.Item]
 }
 
 public enum UnusedFilesError: Error, Hashable, Sendable {

@@ -894,17 +894,20 @@ fi
 # the masked text (quoted data and data heredocs are blank), after the prefix words (NAME=value,
 # time, env, command, the shell keywords). A command with a with-lock.sh word in the prefix passes.
 # It blocks swift build and swift test, make with a target that takes the lock (lock_targets of
-# scripts/lock-words.sh; make -n and --dry-run pass), and scripts/probe.sh. The scripts that take the lock
+# scripts/lock-words.sh) or with no target (the default goal is setup; make -n, --dry-run, --version,
+# and --help pass), and scripts/probe.sh. The scripts that take the lock
 # themselves, swift run (AGENTS.md tells agents to run swift run dirigible --help), swift format,
 # and the make targets that take no lock pass. Misses: a wrapper word (nice, nohup, xargs), a shell
 # -c string, and a path in a variable.
 lock_gate='(^|[^[:alnum:]_.-])(swift|make)([^[:alnum:]_.-]|$)|probe\.sh'
 lock_step_way="Run it as scripts/with-lock.sh <command>. A probe that only runs a built binary and times nothing runs as WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh <folder> <absolute path of the binary> (AGENTS.md, Commands)."
 if [[ "$chained" =~ $lock_gate ]]; then
-  lock_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |[^[:space:]]*with-lock\.sh )*"
+  lock_pre="(\{ |! |if |then |do |else |elif |while |until |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |[^[:space:]]*with-lock\.sh )*"
   lock_segments="$(mask_quoted_data <<< "$chained")" || exit 2
   for sep in ';' '&' '|' '(' '`'; do lock_segments="${lock_segments//"$sep"/$'\n'}"; done
   lock_words_file="$(dirname "$0")/../../scripts/lock-words.sh"
+  make_opt_arg='-[A-Za-z]*[CfIoW]([[:space:]]+[^[:space:]]+)?|-[A-Za-z]*[jl]([[:space:]]+[0-9]+)?|--(directory|file|makefile|include-dir|old-file|assume-old|what-if|new-file|assume-new)(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)'
+  make_redirect='[0-9]*[<>]+[[:space:]]*[^[:space:]]*'
   while IFS= read -r segment; do
     [[ "$segment" =~ ^[[:space:]]?($lock_pre)(.*)$ ]] || continue
     prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
@@ -917,9 +920,12 @@ if [[ "$chained" =~ $lock_gate ]]; then
       swift) lock_step="$( . "$lock_words_file"; [[ "$rest" =~ ^([^[:space:]]*/)?swift[[:space:]]+(${lock_swift//|run/})([^A-Za-z0-9_-]|$) ]] && echo 1)" ;;
       probe.sh) lock_step=1 ;;
       make)
-        [[ " $rest " == *" -n "* || " $rest " == *" --dry-run "* ]] && continue
+        [[ " $rest " == *" -n "* || " $rest " == *" --dry-run "* || " $rest " == *" --version "* || " $rest " == *" --help "* ]] && continue
         lock_step="$( . "$lock_words_file"
-          [[ "$rest" =~ ^([^[:space:]]*/)?make([[:space:]]+($lock_make_opt|$lock_make_set|($lock_free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|$) ]] && echo 1)"
+          [[ "$rest" =~ ^([^[:space:]]*/)?make([[:space:]]+($lock_make_opt|$lock_make_set|($lock_free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|$) ]] && echo 1
+          # No target word: the default goal is setup, which writes core.hooksPath.
+          make_bare_re="^([^[:space:]]*/)?make(([[:space:]]+($make_opt_arg|-[^[:space:]]*|$lock_make_set))|([[:space:]]*$make_redirect))*[[:space:]]*\$"
+          [[ "$rest" =~ $make_bare_re ]] && echo 1)"
         ;;
     esac
     if [[ -n "$lock_step" ]]; then

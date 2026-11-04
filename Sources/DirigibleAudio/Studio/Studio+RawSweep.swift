@@ -126,7 +126,7 @@ extension Studio {
 /// `oldTakeRecord` in the package that `lock` holds now, with the step `.block(n)` before each
 /// WAV block. A cancel of the job ends the read.
 @concurrent nonisolated private func readOldTake(
-    _ name: SegmentName, lock: PackageLock, step: @escaping @Sendable (RawSweepStep) async -> Void
+    _ name: SegmentName, lock: PackageLock, step: @Sendable (RawSweepStep) async -> Void
 ) async -> Result<FinalizeRecord?, RawRemovalError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return .success(nil) }
@@ -142,7 +142,7 @@ extension Studio {
 /// `removeRawCapture` in the package that `lock` holds now. Returns the fault.
 @concurrent nonisolated private func removeRaw(
     _ name: SegmentName, of session: Session, lock: PackageLock, read: RawRead,
-    flush: @escaping @Sendable (String) -> Int32?
+    flush: @Sendable (String) -> Int32?
 ) async -> RawRemovalError? {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return nil }

@@ -618,6 +618,7 @@
 "banner.level.changed" = "'Automatische niveaus' is klaar. Gewijzigde clips: %lld.";
 "banner.unused.moved" = "Bestanden naar de prullenmand verplaatst: %lld (%@).";
 "banner.unused.failed" = "Deze bestanden zijn niet verplaatst: %@";
+"banner.unused.take" = "Deze take-audiobestanden blijven en staan op geen enkel spoor: %@";
 "banner.level.none" = "'Automatische niveaus' is klaar. Geen wijziging: de clips staan op het doelniveau.";
 "banner.level.volume" = "Het spoorvolume verandert de clipversterking niet.";
 "banner.level.limit" = "Clips op de limiet van 20 dB: %lld. Controleer of ze spraak bevatten.";

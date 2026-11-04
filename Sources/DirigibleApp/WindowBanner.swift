@@ -86,6 +86,8 @@ enum WindowBanner: Equatable {
     case unusedFilesMoved(count: Int, bytes: Int64)
     /// The files that Remove Unused Files did not move: they stay in `Clips/`.
     case unusedFilesFailed([String])
+    /// The take entries of Remove Unused Files (decision 0071): their files stay as unplaced segments.
+    case unusedTakeFiles([String])
     /// An agent record request ended with no answer (decision 0048). Nil: the agent gave no name.
     case consentExpired(agent: String?)
     /// A duck found no speech over the threshold in dBFS, so it changed nothing (decision 0060),
@@ -152,6 +154,7 @@ enum WindowBanner: Equatable {
         case .transcriptImported(_, let press): "transcriptImported.\(press)"
         case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
+        case .unusedTakeFiles: "unusedTakeFiles"
         case .consentExpired: "consentExpired"
         case .duckNoSpeech(_, _, let press): "duckNoSpeech.\(press)"
         case .duckUnread(_, let press): "duckUnread.\(press)"
@@ -168,7 +171,9 @@ enum WindowBanner: Equatable {
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
-        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound, .exportSetDone: .info
+        case .unusedFilesMoved, .unusedTakeFiles, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound,
+            .exportSetDone:
+            .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
@@ -198,6 +203,7 @@ enum WindowBanner: Equatable {
         case .soundRepaired(let result, _): L10n.repairResult(result)
         case .unusedFilesMoved(let count, let bytes): L10n.bannerUnusedMoved.format(count, L10n.bytes(bytes))
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
+        case .unusedTakeFiles(let paths): L10n.bannerUnusedTake.format(paths.joined(separator: ", "))
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
         case .consentExpired(nil): L10n.bannerConsentExpiredUnnamed.text
         case .duckNoSpeech(let threshold, let unread, _) where unread.isEmpty: L10n.errorDuckNoSpeech.format(threshold)
@@ -218,7 +224,7 @@ enum WindowBanner: Equatable {
         case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
             .levelReport, .noiseReduced, .soundRepaired, .transcriptImported, .unusedFilesMoved,
-            .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
+            .unusedFilesFailed, .unusedTakeFiles, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound:
             .medium
         }

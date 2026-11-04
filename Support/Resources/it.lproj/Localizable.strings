@@ -618,6 +618,7 @@
 "banner.level.changed" = "Livellamento automatico terminato. Clip modificati: %lld.";
 "banner.unused.moved" = "File spostati nel Cestino: %lld (%@).";
 "banner.unused.failed" = "Questi file non sono stati spostati: %@";
+"banner.unused.take" = "Questi file audio del take restano e non sono su nessuna traccia: %@";
 "banner.level.none" = "Livellamento automatico terminato. Nessuna modifica: i clip sono al livello obiettivo.";
 "banner.level.volume" = "Il volume della traccia non cambia il guadagno del clip.";
 "banner.level.limit" = "Clip al limite di 20 dB: %lld. Controlla che contengano parlato.";

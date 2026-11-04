@@ -32,6 +32,12 @@ struct Record: AsyncParsableCommand {
     var seconds: Double
     @Option(help: "An armed track. Repeat it for each track.") var arm: [String] = []
     @Option(parsing: .unconditional, help: "The timeline frame of the take start.") var playhead = 0
+    @Option(
+        parsing: .unconditional,
+        help: ArgumentHelp(
+            "The seconds of pre-roll, 0 to 10: the session plays from that time before the playhead, and the "
+                + "take starts at the playhead. The take length counts from the playhead."))
+    var preRoll = 0
 
     func validate() throws {
         guard EditRules.takeSeconds(seconds) != nil else {
@@ -39,6 +45,7 @@ struct Record: AsyncParsableCommand {
         }
         guard !arm.isEmpty else { throw ValidationError("Arm one track or more with --arm.") }
         guard playhead >= 0 else { throw ValidationError("The playhead must be 0 or more.") }
+        guard EditRules.preRollSeconds(preRoll) != nil else { throw ValidationError("The pre-roll must be 0 to 10 s.") }
     }
 
     /// The one command that runs the capture code, so the one command with a journal (decision 0059).
@@ -47,7 +54,8 @@ struct Record: AsyncParsableCommand {
             .cli, folder: DiagnosticLog.folder(), version: Dirigible.appVersion, commit: Dirigible.appCommit)
         defer { log.quit() }
         try await recordTake(
-            package, armed: arm.map { TrackID($0) }, playhead: Frames(playhead), duration: .seconds(seconds), log: log)
+            package, armed: arm.map { TrackID($0) }, playhead: Frames(playhead), duration: .seconds(seconds),
+            preRoll: preRoll > 0 ? preRoll : nil, log: log)
     }
 }
 
@@ -119,7 +127,8 @@ private func placeSegment(
 /// (decision 0013).
 @MainActor
 private func recordTake(
-    _ package: PackageArgument, armed: [TrackID], playhead: Frames, duration: Duration, log: DiagnosticLog
+    _ package: PackageArgument, armed: [TrackID], playhead: Frames, duration: Duration, preRoll: Int?,
+    log: DiagnosticLog
 ) async throws(ExitCode) {
     let studio = try await openStudio(package, log: log)
     // A shell command records with no sheet: name each app it records (decision 0050, C18).
@@ -130,11 +139,11 @@ private func recordTake(
     let result: TakeResult
     do throws(StudioError) {
         do throws(StudioError) {
-            result = try await studio.record(armed: armed, playhead: playhead, for: duration)
+            result = try await studio.record(armed: armed, playhead: playhead, for: duration, preRoll: preRoll)
         } catch {
             guard error == .microphoneAccess(.notDetermined) else { throw error }
             guard await AVCaptureDevice.requestAccess(for: .audio) else { throw .microphoneAccess(.denied) }
-            result = try await studio.record(armed: armed, playhead: playhead, for: duration)
+            result = try await studio.record(armed: armed, playhead: playhead, for: duration, preRoll: preRoll)
         }
     } catch {
         guard let take = studio.lastTake else {
@@ -190,6 +199,7 @@ func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResu
     if writeGaps(result?.gaps ?? [:], armed: armed) { codes.append(trackGap) }
     // The track has a clip, so a silence line adds no exit code (A9).
     for line in silenceWarnings(result?.silent ?? [:], armed: armed) { warn(line) }
+    for line in lateStartWarnings(result?.lateStarts ?? [], armed: armed) { warn(line) }
     if let take {
         for track in armed where !(studio.session.track(track)?.clips.contains { clips.contains($0.id) } ?? false) {
             warn("track \"\(track)\" has no clip from take \(take).")
@@ -218,6 +228,13 @@ func silenceWarnings(_ silent: [TrackID: String], armed: [TrackID]) -> [String] 
         silent[track].map {
             "track \"\(track)\" got only silence from \($0); check System Audio Recording in Privacy & Security."
         }
+    }
+}
+
+/// P17: one line for each armed track with a late start of a pre-roll take, in arm order.
+func lateStartWarnings(_ late: Set<TrackID>, armed: [TrackID]) -> [String] {
+    armed.filter(late.contains).map {
+        "track \"\($0)\" started recording late, so the start of the take is missing from it."
     }
 }
 

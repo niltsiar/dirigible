@@ -21,7 +21,8 @@ package struct SplitWork: Sendable {
     /// removes the WAVs and writes nothing (decision 0049).
     func run(_ package: URL, path: String, control: CallControl) throws(ToolError) -> String {
         do throws(EditFailure<SplitError>) {
-            let (parts, note) = try editPackageCore(package, ripple: false) { session, lock throws(SplitError) in
+            let (parts, note) = try editPackageCore(package, ripple: false, log: control.log) {
+                session, lock throws(SplitError) in
                 try TakeWork.noted(&session, package: package) { session throws(SplitError) -> [SplitPart] in
                     let split = try splitStereo(
                         clips, names: Self.names, of: session, in: package, freeBytes: { lock.freeBytes() },

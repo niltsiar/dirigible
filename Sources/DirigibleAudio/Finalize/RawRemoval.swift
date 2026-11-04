@@ -160,6 +160,37 @@ func removeRawCapture(
     return true
 }
 
+/// The removal of a locked CLI or MCP edit (decision 0071), where `session` is the session on the
+/// disk under the package lock: `removeRawCapture` for each placed segment that passes the gate and
+/// has a valid finalize record. It reads no audio, so a take with no record keeps its CAF. Writes
+/// one `raw` line for each fault to `log()`, which it calls only at the first fault. Returns the
+/// count of removed CAFs.
+package func removeRecordedRawCaptures(of session: Session, in package: URL, log: () -> DiagnosticLog) -> Int {
+    var (removed, journal): (Int, DiagnosticLog?) = (0, nil)
+    for candidate in removableCaptures(of: session, in: package) {
+        guard let record = candidate.record else { continue }
+        do throws(RawRemovalError) {
+            let read = RawRead(files: candidate.files, record: record)
+            if try removeRawCapture(candidate.name, of: session, in: package, read: read) { removed += 1 }
+        } catch {
+            let started = journal ?? log()
+            journal = started
+            started.noteRawFault(candidate.name, error)
+        }
+    }
+    return removed
+}
+
+extension DiagnosticLog {
+    /// One `raw` line of the journal (decision 0059).
+    func noteRawFault(_ name: SegmentName, _ error: RawRemovalError) {
+        let (fault, code) = error.journal
+        note(
+            .raw, "fault", level: .error,
+            ["segment": .text(name.stem), "error": .text(fault), "errno": .number(Int64(code))])
+    }
+}
+
 /// The CAF, the WAV, and the sidecar of `name`, in that order.
 private func rawFiles(of name: SegmentName, in package: URL) -> [FileIdentity?] {
     [

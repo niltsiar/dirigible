@@ -16,9 +16,11 @@ struct TransportGroup: ParsableCommand {
 /// path resolves against the working folder first.
 private func sendTransport(_ tool: String, _ package: PackageArgument, _ arguments: [String: Any] = [:]) throws {
     let path = URL(filePath: package.path, relativeTo: .currentDirectory()).standardizedFileURL.path
+    let journal = FaultJournal()
+    defer { journal.quit() }
     let (text, isError) = MCPServer.run(
         tool: tool, ["package": path].merging(arguments) { $1 }, client: ClientInfo(name: "dirigible"),
-        route: AgentBridge().route)
+        route: AgentBridge().route, log: journal.log)
     guard !isError else { throw fail(text, code: editRefused) }
     print(text)
 }

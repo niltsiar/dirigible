@@ -38,7 +38,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
     switch work {
     case .edit(let ripple, let edit):
         do throws(EditFailure<SessionError>) {
-            let (ids, note) = try editPackageCore(package, ripple: ripple) { session, _ throws(SessionError) in
+            let (ids, note) = try editPackageCore(package, ripple: ripple, log: control.log) {
+                session, _ throws(SessionError) in
                 try TakeWork.noted(&session, package: package, edit)
             }
             // The new IDs, one on each line, or OK; then the note.
@@ -48,7 +49,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         }
     case .takeImport(let take, let edit):
         do throws(EditFailure<TakeImportError>) {
-            let lines = try editPackageCore(package, ripple: false) { session, _ throws(TakeImportError) in
+            let lines = try editPackageCore(package, ripple: false, log: control.log) {
+                session, _ throws(TakeImportError) in
                 try TranscriptWork.inTake(
                     &session, take: take, read: TakeMap.of(session, anchors: TakeAnchors.result(package)), edit)
             }
@@ -58,7 +60,9 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         }
     case .paste(let work):
         do throws(EditFailure<PasteError>) {
-            let (ids, note) = try editPackageCore(package, ripple: RippleNeed { _ in work.mode.ripples }) {
+            let (ids, note) = try editPackageCore(
+                package, ripple: RippleNeed { _ in work.mode.ripples }, log: control.log
+            ) {
                 session, lock throws(PasteError) in
                 try TakeWork.noted(&session, package: package) { session throws(PasteError) in
                     try work.run(&session, lock: lock, package: package)
@@ -88,7 +92,7 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return try TranscriptWork.wordsText(try read(package, path: path), query)
     case .episode(let work):
         do throws(EditFailure<ArtworkError>) {
-            try editPackageCore(package, ripple: false) { session, _ throws(ArtworkError) in
+            try editPackageCore(package, ripple: false, log: control.log) { session, _ throws(ArtworkError) in
                 try work.run(&session, package: package)
             }
             return "OK"
@@ -97,7 +101,7 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         }
     case .marker(let work):
         do throws(EditFailure<MarkerEditError>) {
-            return try editPackageCore(package, ripple: false) { session, _ throws(MarkerEditError) in
+            return try editPackageCore(package, ripple: false, log: control.log) { session, _ throws(MarkerEditError) in
                 try work.run(&session, package: package)
             }.rawValue
         } catch {
@@ -116,7 +120,7 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         return text
     case .batch(let work):
         do throws(EditFailure<BatchWork.Failure>) {
-            return try work.runOnFiles(package).joined(separator: "\n")
+            return try work.runOnFiles(package, log: control.log).joined(separator: "\n")
         } catch {
             throw ToolError(error.message(package: path))
         }
@@ -156,7 +160,8 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
         }
     case .revert(let backup):
         do throws(EditFailure<RevertError>) {
-            let note = try editPackageCore(package, ripple: false) { session, lock throws(RevertError) in
+            let note = try editPackageCore(package, ripple: false, log: control.log) {
+                session, lock throws(RevertError) in
                 try TakeWork.noted(&session, package: package) { session throws(RevertError) in
                     try revert(&session, to: backup, under: lock)
                 }.note
@@ -243,11 +248,13 @@ extension MCPServer {
     /// One call of the tool `name`, with no MCP session: the commands of the CLI that need the
     /// app (`dirigible transport`) run their tool here, so they get the replies and the files
     /// refusals of `dirigible mcp` with no copy of them.
-    package static func run(tool name: String, _ arguments: [String: Any], client: ClientInfo, route: Route?) -> (
-        text: String, isError: Bool
-    ) {
+    package static func run(
+        tool name: String, _ arguments: [String: Any], client: ClientInfo, route: Route?,
+        log: @escaping () -> DiagnosticLog
+    ) -> (text: String, isError: Bool) {
         guard let tool = Tool.all.first(where: { $0.name == name }) else { return ("no tool \(name).", true) }
-        let control = CallControl(token: nil, interval: .seconds(1), send: { _ in }, poll: { _ in false }, step: {})
+        let control = CallControl(
+            token: nil, interval: .seconds(1), send: { _ in }, poll: { _ in false }, step: {}, log: log)
         return tool.run(arguments, client: client, control: control, route: route)
     }
 }

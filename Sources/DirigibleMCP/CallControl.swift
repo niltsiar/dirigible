@@ -1,3 +1,4 @@
+import DirigibleAudio
 import Foundation
 
 /// The controls of one `tools/call` in `dirigible mcp` (decision 0049). `MCPServer` makes one for
@@ -15,14 +16,18 @@ package final class CallControl: @unchecked Sendable {
     private let send: (String) -> Void
     private let poll: (_ read: Bool) -> Bool
     private let step: () -> Void
+    /// The journal of a removal fault of `editPackageCore` (decision 0071).
+    package let log: () -> DiagnosticLog
 
     /// `poll` reads stdin when `read` is true, and gives true when a buffered line cancels this
     /// call. `step` runs after each report; tests hold the job with it.
     init(
         token: Any?, interval: Duration, send: @escaping (String) -> Void, poll: @escaping (Bool) -> Bool,
-        step: @escaping () -> Void
+        step: @escaping () -> Void, log: @escaping () -> DiagnosticLog = { .disabled }
     ) {
-        (self.token, self.interval, self.send, self.poll, self.step) = (token, interval, send, poll, step)
+        (self.token, self.interval, self.send, self.poll, self.step, self.log) = (
+            token, interval, send, poll, step, log
+        )
     }
 
     /// Sends `notifications/progress` when the call has a token and the gate passes `fraction`

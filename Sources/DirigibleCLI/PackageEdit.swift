@@ -1,4 +1,5 @@
 import ArgumentParser
+import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
 import Foundation
@@ -27,6 +28,22 @@ func readPackage(_ package: PackageArgument) throws(ExitCode) -> Session {
     }
 }
 
+/// The `.cli` journal of a command that writes a line only at a fault (decision 0059): `log()`
+/// starts it at the first call, so a run with no fault writes no file. `quit()` ends a started one.
+final class FaultJournal {
+    private var started: DiagnosticLog?
+
+    func log() -> DiagnosticLog {
+        if let started { return started }
+        let log = DiagnosticLog.start(
+            .cli, folder: DiagnosticLog.folder(), version: Dirigible.appVersion, commit: Dirigible.appCommit)
+        started = log
+        return log
+    }
+
+    func quit() { started?.quit() }
+}
+
 /// Runs `editPackageCore` and maps its failure: one error line on stderr and the exit code. A
 /// session refusal exits 1, a package fault or a pending take exits 2, and a split take on a
 /// `ripple` edit exits 3 (decision 0037).
@@ -49,8 +66,11 @@ func editPackage<Result, Failure: Error>(
     _ package: PackageArgument, ripple: RippleNeed, writeUnchanged: Bool = true, refused: (Failure) -> ExitCode,
     _ body: (inout Session, PackageLock) throws(Failure) -> Result
 ) throws(ExitCode) -> Result {
+    let journal = FaultJournal()
+    defer { journal.quit() }
     do {
-        return try editPackageCore(package.url, ripple: ripple, writeUnchanged: writeUnchanged, body)
+        return try editPackageCore(
+            package.url, ripple: ripple, writeUnchanged: writeUnchanged, log: journal.log, body)
     } catch {
         switch error {
         case .body(let error): throw refused(error)

@@ -1,3 +1,4 @@
+import DirigibleAudio
 import Foundation
 
 /// The JSON-RPC 2.0 side of `dirigible mcp` (decision 0041): one request line in, one answer line
@@ -20,17 +21,19 @@ package struct MCPServer {
     private let pollCancel: (NSObject, Bool) -> Bool
     private let pollInterval: Duration
     private let step: () -> Void
+    private let log: () -> DiagnosticLog
 
     /// With `route`, `dirigible mcp` is the bridge to the app (decision 0046). A call reads stdin
     /// for its cancel at most once in `pollInterval`. `step` runs after each progress report of a
-    /// call; tests hold the job with it.
+    /// call; tests hold the job with it. `log` gives the journal of a raw removal fault of a call
+    /// on the files (decision 0071).
     package init(
         route: Route? = nil, send: @escaping (String) -> Void = { _ in },
         pollCancel: @escaping (NSObject, Bool) -> Bool = { _, _ in false }, pollInterval: Duration = .milliseconds(100),
-        step: @escaping () -> Void = {}
+        step: @escaping () -> Void = {}, log: @escaping () -> DiagnosticLog = { .disabled }
     ) {
-        (self.route, self.send, self.pollCancel, self.pollInterval, self.step) = (
-            route, send, pollCancel, pollInterval, step
+        (self.route, self.send, self.pollCancel, self.pollInterval, self.step, self.log) = (
+            route, send, pollCancel, pollInterval, step, log
         )
     }
 
@@ -95,7 +98,7 @@ package struct MCPServer {
             let pollCancel = pollCancel
             let control = CallControl(
                 token: meta(params)?["progressToken"], interval: pollInterval, send: send,
-                poll: { read in requestID.map { pollCancel($0, read) } ?? false }, step: step)
+                poll: { read in requestID.map { pollCancel($0, read) } ?? false }, step: step, log: log)
             let (text, isError) = tool.run(arguments, client: client, control: control, route: route)
             // MCP 2026-07-28: no response for a cancelled request.
             if control.cancelSeen { return nil }

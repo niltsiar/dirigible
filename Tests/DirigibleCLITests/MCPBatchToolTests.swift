@@ -259,7 +259,8 @@ struct MCPBatchToolTests {
         let before = try snapshot()
 
         var scans = 0
-        let lines = try work.runOnFiles(package.url) { _ in
+        let noLog: () -> DiagnosticLog = { .disabled }
+        let lines = try work.runOnFiles(package.url, log: noLog) { _ in
             scans += 1
             return { _ in false }
         }
@@ -269,7 +270,7 @@ struct MCPBatchToolTests {
         let blocked = try BatchWork.check(BatchWork.parse([Self.addT2, ripple(0, 4_800)]), package: package.path)
         let text = "calls[1] clip_ripple_delete failed, so the batch changed nothing: \(splitTakeMessage(package.path))"
         do throws(EditFailure<BatchWork.Failure>) {
-            _ = try blocked.runOnFiles(package.url) { _ in { _ in true } }
+            _ = try blocked.runOnFiles(package.url, log: noLog) { _ in { _ in true } }
             Issue.record("a blocked ripple step ran")
         } catch {
             #expect(error.message(package: package.path) == text, "\(error.message(package: package.path))")

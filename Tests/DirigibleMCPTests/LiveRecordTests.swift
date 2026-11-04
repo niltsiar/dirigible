@@ -108,6 +108,66 @@ struct LiveRecordTests {
         }
     }
 
+    /// P14: a `pre_roll` outside 0 to 10 s is a tool error with the text of `dirigible record`, and
+    /// the window is not asked. Control: 3 reaches the window, and 0 gives no pre-roll.
+    @Test func preRollOutOfRange() async throws {
+        let package = try LivePackage()
+        let studio = try await package.open()
+        var asked: [RecordRequest] = []
+        let folder = try SocketFolder()
+        let server = AgentServer(socket: folder.socket) {
+            [
+                AgentTarget(
+                    studio: studio,
+                    record: { request, _, _ in
+                        asked.append(request)
+                        return .declined
+                    })
+            ]
+        }
+        server.start()
+        defer { server.stop() }
+        func call(_ preRoll: Int) async -> AgentBridge.Outcome {
+            await send(
+                folder.socket, "record", ["package": package.path, "seconds": 1, "arm": ["t1"], "pre_roll": preRoll])
+        }
+
+        for value in [11, -1] {
+            let outcome = await call(value)
+            guard case .reply(.result(let text, true)) = outcome else {
+                Issue.record("\(value): \(outcome)")
+                continue
+            }
+            #expect(text.contains("The pre-roll must be 0 to 10 s."), "\(value): \(text)")
+        }
+        #expect(asked.isEmpty, "the window is not asked")
+        _ = await call(3)
+        _ = await call(0)
+        #expect(
+            asked == [
+                RecordRequest(armed: ["t1"], seconds: 1, playhead: nil, preRoll: 3),
+                RecordRequest(armed: ["t1"], seconds: 1, playhead: nil),
+            ])
+        await studio.settle()
+    }
+
+    /// P27: the reply of a take with a pre-roll names it, also under a window grant.
+    @Test func preRollReply() {
+        let reply = RecordAnswer.started(take: 3, tracks: ["Host"], seconds: 4, preRoll: 3).reply(package: "/p")
+        let text =
+            "Take 3 records on Host for 4 s after a 3 s pre-roll. The user can stop it earlier. Read session_info: "
+            + "the take ended when recording is gone."
+        #expect(reply == .result(text: text, isError: false))
+        let grant = GrantNote(end: .now, secondsLeft: 600, noSheet: true)
+        let granted = RecordAnswer.started(take: 3, tracks: ["Host"], seconds: 4, preRoll: 3, grant: grant)
+        guard case .result(let grantText, false) = granted.reply(package: "/p") else {
+            Issue.record("an error")
+            return
+        }
+        #expect(
+            grantText.hasPrefix("Take 3 records on Host for 4 s after a 3 s pre-roll with no sheet: a window grant"))
+    }
+
     /// Decision 0048: the answer limit and a start of 10 s fit in the reply limit of the bridge.
     @Test func lifetimeFitsTheBridgeLimit() {
         #expect(RecordRequest.answerLimit + .seconds(10) <= AgentBridge.replyLimit)

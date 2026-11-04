@@ -33,7 +33,7 @@ extension ConsentTests {
         let sheet = try await sheet(model)
         try #require(grantBox(in: sheet)).performClick(nil)
         try click(record: true, in: sheet)
-        guard case .started(_, _, _, let grant?) = await answer.value else {
+        guard case .started(_, _, _, _, let grant?) = await answer.value else {
             Issue.record("the click take with the box on gives no grant")
             return
         }
@@ -52,7 +52,7 @@ extension ConsentTests {
 
         let answer = await ask(model, seconds: 0.3, connection: Self.seven).value
 
-        guard case .started(2, ["Host"], 0.3, let grant?) = answer else {
+        guard case .started(2, ["Host"], 0.3, nil, let grant?) = answer else {
             Issue.record("no grant take: \(answer)")
             return await model.close()
         }
@@ -132,7 +132,7 @@ extension ConsentTests {
     }
 
     func isGrantTake(_ answer: RecordAnswer) -> Bool {
-        if case .started(_, _, _, let grant?) = answer { return grant.noSheet }
+        if case .started(_, _, _, _, let grant?) = answer { return grant.noSheet }
         return false
     }
 

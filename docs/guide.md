@@ -1219,7 +1219,7 @@ By default, an agent edits only sessions that are closed in the app. To let an a
 
 #### Let an agent record
 
-An agent can ask to record. A take starts only when you click Record, or while a window grant that you gave lasts. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`; a take after your click can be up to 24 hours long), and the start (`playhead`, by default the playhead of the window). The session must be open, and Let Agents Edit Open Sessions must be on.
+An agent can ask to record. A take starts only when you click Record, or while a window grant that you gave lasts. The `record` tool takes the tracks (`arm`), the length in seconds (`seconds`; a take after your click can be up to 24 hours long), the start (`playhead`, by default the playhead of the window), and a pre-roll (`pre_roll`, 0 to 10 seconds, by default 0). The session must be open, and Let Agents Edit Open Sessions must be on.
 
 ![The sheet "An AI agent wants to record" on the session window: the name that the agent gives, the take of 30 seconds on Host, the checkbox Don't ask again until I close this window with its help line, and the buttons Don't Record and Record.](images/screenshot-consent.png)
 

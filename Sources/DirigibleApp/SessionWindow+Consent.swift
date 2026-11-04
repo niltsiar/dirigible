@@ -55,6 +55,8 @@ final class ConsentRequest {
     let names: [String]
     let start: Frames
     let seconds: Double
+    /// The pre-roll in seconds, or nil for no pre-roll.
+    let preRoll: Int?
     /// The names of the request tracks with a clip after the start (C15).
     let over: [String]
     /// The bridge connection of the call, or nil (decision 0050).
@@ -83,10 +85,10 @@ final class ConsentRequest {
     @ObservationIgnored private var reply: CheckedContinuation<RecordAnswer, Never>?
 
     init(
-        agent: AgentName, tracks: [Track], start: Frames, seconds: Double, over: [String],
+        agent: AgentName, tracks: [Track], start: Frames, seconds: Double, preRoll: Int? = nil, over: [String],
         connection: AgentConnection? = nil
     ) {
-        (self.agent, self.start, self.seconds, self.over) = (agent, start, seconds, over)
+        (self.agent, self.start, self.seconds, self.preRoll, self.over) = (agent, start, seconds, preRoll, over)
         (self.tracks, names) = (tracks.map(\.id), tracks.map(\.name))
         self.connection = connection
         offersGrant = ConsentGrant.offered(tracks: tracks, over: over, seconds: seconds, connection: connection)
@@ -178,7 +180,7 @@ extension SessionWindow {
         }
         let start = request.playhead ?? studio.playhead
         let consent = ConsentRequest(
-            agent: agent, tracks: tracks, start: start, seconds: request.seconds,
+            agent: agent, tracks: tracks, start: start, seconds: request.seconds, preRoll: request.preRoll,
             over: recordOverTracks(studio.session, request.armed, from: start), connection: connection)
         // The request holds the window busy for agents during the read of the disk room.
         self.consent = consent
@@ -224,7 +226,9 @@ extension SessionWindow {
         guard canPressRecord(consent) else { return }
         consent.begin()
         // After the microphone prompt: a route that changed after the sheet showed starts no take.
-        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
+        let start = await startTake(
+            armed: consent.tracks, playhead: consent.start, seconds: consent.seconds, preRoll: consent.preRoll
+        ) {
             [weak self, weak consent] in
             guard let self, let consent, let session = self.studio?.session else { return false }
             return consent.routesShown(in: session)
@@ -346,7 +350,9 @@ extension SessionWindow {
     private func grantTake(_ consent: ConsentRequest) async -> RecordAnswer {
         consentExpired = nil
         consent.begin()
-        let start = await startTake(armed: consent.tracks, playhead: consent.start, seconds: consent.seconds) {
+        let start = await startTake(
+            armed: consent.tracks, playhead: consent.start, seconds: consent.seconds, preRoll: consent.preRoll
+        ) {
             [weak self, weak consent] in
             guard let self, let consent else { return false }
             return grantCovers(consent)
@@ -366,7 +372,9 @@ extension SessionWindow {
 
     private func answer(_ start: RecordStart, _ consent: ConsentRequest, grant: GrantNote?) -> RecordAnswer {
         switch start {
-        case .started(let take): .started(take: take, tracks: consent.names, seconds: consent.seconds, grant: grant)
+        case .started(let take):
+            .started(
+                take: take, tracks: consent.names, seconds: consent.seconds, preRoll: consent.preRoll, grant: grant)
         case .busy(let busy): .busy(busy)
         case .closed: .closed
         case .changed: .grantChanged

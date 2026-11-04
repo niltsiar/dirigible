@@ -43,6 +43,9 @@ extension MCPToolTests {
             (["seconds": 1, "arm": [String]()], "\"arm\" must be an array of strings with one item or more"),
             (["seconds": 1, "arm": ["a"], "playhead": -1], "\"playhead\" must be an integer, 0 or more"),
             (["seconds": 1, "arm": ["a"], "playhead": 0], refused),
+            (["seconds": 1, "arm": ["a"], "pre_roll": 11], "The pre-roll must be 0 to 10 s."),
+            (["seconds": 1, "arm": ["a"], "pre_roll": -1], "The pre-roll must be 0 to 10 s."),
+            (["seconds": 1, "arm": ["a"], "pre_roll": 3], refused),
         ]
         let answers = try await mcp(
             cases.enumerated().map { toolCall($0 + 1, "record", $1.0.merging(["package": pkg]) { $1 }) })

@@ -35,9 +35,11 @@ extension Studio {
             rawSweepJob.again = true
             return
         }
-        rawSweepJob.task = Task {
-            await runRawSweep()
-            rawSweepJob.task = nil
+        // The job holds the studio only for one step at a time, so a drop of the studio frees the
+        // lock, as the peak pass does.
+        rawSweepJob.task = Task { [weak self] in
+            await Self.runRawSweep { [weak self] in self }
+            self?.rawSweepJob.task = nil
         }
     }
 
@@ -62,30 +64,36 @@ extension Studio {
 
     /// The reads run off the main actor; each removal runs in a turn of the write chain. The job
     /// tests the hold before its reads, after the WAV read of a take with no finalize record, right
-    /// before it asks for a turn, and at the start of the turn.
-    private func runRawSweep() async {
-        let step = environment.beforeRawStep
+    /// before it asks for a turn, and at the start of the turn. A studio that is gone ends it.
+    private static func runRawSweep(_ studio: () -> Studio?) async {
+        guard let step = studio()?.environment.beforeRawStep else { return }
         repeat {
-            rawSweepJob.again = false
-            guard !rawSweepHeld else { return }
+            studio()?.rawSweepJob.again = false
+            guard studio()?.rawSweepHeld == false else { return }
             await step(.first)
-            guard !rawSweepHeld else { return }
-            for candidate in await readRemovable(of: session, lock: lock) {
+            // Each read holds the lock only for its own run.
+            let candidates: [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)]
+            do {
+                guard let current = studio(), !current.rawSweepHeld else { return }
+                let (session, lock) = (current.session, current.lock)
+                candidates = await readRemovable(of: session, lock: lock)
+            }
+            for candidate in candidates {
                 var read = candidate.record.map { RawRead(files: candidate.files, record: $0) }
-                if read == nil {
+                if read == nil, let lock = studio()?.lock {
                     switch await readOldTake(candidate.name, lock: lock, step: step) {
                     case .success(let record?): read = RawRead(files: candidate.files, record: record, appends: true)
                     case .success(nil): break
-                    case .failure(let error): noteRawFault(candidate.name, error)
+                    case .failure(let error): studio()?.noteRawFault(candidate.name, error)
                     }
                 }
-                guard !rawSweepHeld, !Task.isCancelled else { return }
+                guard studio()?.rawSweepHeld == false, !Task.isCancelled else { return }
                 guard let read else { continue }
                 await step(.turn)
-                guard !rawSweepHeld else { return }
-                await serialized { await removeInTurn(candidate.name, read: read) }
+                guard let current = studio(), !current.rawSweepHeld else { return }
+                await current.serialized { await current.removeInTurn(candidate.name, read: read) }
             }
-        } while rawSweepJob.again
+        } while studio()?.rawSweepJob.again == true
     }
 
     /// With no waiting save and the saved revision, `session` is the session on the disk. Else the

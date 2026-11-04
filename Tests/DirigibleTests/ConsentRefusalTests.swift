@@ -141,7 +141,7 @@ extension ConsentTests {
         let (model, studio) = try await window()
         let gate = AsyncGate()
         let stop = OSAllocatedUnfairLock<UInt64?>(initialState: nil)
-        studio.environment.takeStop = { host in
+        studio.environment.takeStop = { host, _ in
             stop.withLock { $0 = host }
             await gate.wait()
         }
@@ -168,7 +168,7 @@ extension ConsentTests {
     @Test func userStopKeepsTheNextTake() async throws {
         let (model, studio) = try await window()
         let gate = AsyncGate()
-        studio.environment.takeStop = { _ in await gate.wait() }
+        studio.environment.takeStop = { _, _ in await gate.wait() }
         let answer = ask(model, seconds: 1)
         try click(record: true, in: try await sheet(model))
         #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 1))

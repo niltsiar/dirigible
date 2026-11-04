@@ -28,4 +28,19 @@ extension StudioPreRollTests {
         let clip = try #require(takeClip(studio))
         #expect(clip.start == 96_000 && clip.offset == 24_000 && clip.length == 96_000, "\(clip)")
     }
+
+    /// A timed pre-roll take on a host clock in another base than `hostNanosNow`: the stop waits on
+    /// that clock, so the take records its whole length after H_T.
+    @Test func timedTakeWaitsOnTheTakeClock() async throws {
+        let studio = try await studio()
+        let shift = hostNanosNow() / 2
+        studio.environment.hostNanos = { hostNanosNow() - shift }
+        let take = try await studio.startRecording(armed: ["t1"], playhead: 96_000, for: .seconds(1), preRoll: 1)
+        let start = try #require(studio.session.recording?.takeStartHostTimeNanos)
+
+        await until(limit: .seconds(10), "the take stops") { studio.transport != .recording(take: take) }
+        let end = studio.environment.hostNanos()
+        #expect(end >= start + 1_000_000_000, "the take ended \(Int64(bitPattern: end &- start)) ns after H_T")
+        await until(limit: .seconds(10), "the take finalizes") { studio.transport == .idle }
+    }
 }

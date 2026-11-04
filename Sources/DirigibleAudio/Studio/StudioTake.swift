@@ -105,9 +105,9 @@ extension Studio {
             armed: armed, playhead: playhead, length: length, preRoll: preRoll)
         // A stop can end the take before the start returns: then no timer.
         guard transport == .recording(take: take), let stop else { return (take, mine) }
-        let wait = environment.takeStop
+        let (wait, clock) = (environment.takeStop, environment.hostNanos)
         takeTimer = Task { [weak self] in
-            await wait(stop)
+            await wait(stop, clock)
             guard !Task.isCancelled else { return }
             try? await self?.stopRecording()
         }

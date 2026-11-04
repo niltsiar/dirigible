@@ -6,6 +6,9 @@ struct RawSweepJob {
     var task: Task<Void, Never>?
     /// `sweepRaw` during a run: the job runs once more.
     var again = false
+    /// True while the job waits for its turn of the write chain, which a long turn (an import, a
+    /// level) can hold.
+    var waitsForTurn = false
 }
 
 extension Studio {
@@ -43,10 +46,15 @@ extension Studio {
         }
     }
 
-    /// Stops the job of this studio and of each studio of `otherStudios`, and waits for each. A
-    /// take start calls it after it sets `isStarting` and before its `serialized` call: the job
+    /// Stops the job of this studio and of each studio of `otherStudios`, and waits for each job
+    /// that does not wait for its turn: such a job sees the hold at the start of its turn and ends.
+    /// A take start calls it after it sets `isStarting` and before its `serialized` call: the job
     /// asks for a turn of its own chain, so a wait for it inside a turn does not end.
-    func rawSweepsEnded() async { await stopRawSweeps([self] + otherStudios()) }
+    func rawSweepsEnded() async {
+        let studios = [self] + otherStudios()
+        for studio in studios { studio.rawSweepJob.task?.cancel() }
+        for studio in studios where !studio.rawSweepJob.waitsForTurn { await studio.rawSweep }
+    }
 
     /// Cancels the job of each studio of `studios`, so a WAV read ends at its next block, and waits
     /// for each.
@@ -91,7 +99,11 @@ extension Studio {
                 guard let read else { continue }
                 await step(.turn)
                 guard let current = studio(), !current.rawSweepHeld else { return }
-                await current.serialized { await current.removeInTurn(candidate.name, read: read) }
+                current.rawSweepJob.waitsForTurn = true
+                await current.serialized {
+                    current.rawSweepJob.waitsForTurn = false
+                    await current.removeInTurn(candidate.name, read: read)
+                }
             }
         } while studio()?.rawSweepJob.again == true
     }

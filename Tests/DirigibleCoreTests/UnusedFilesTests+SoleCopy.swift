@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// Decision 0071 (run caf-removal, C9): a stem WAV whose CAF is gone is the only copy of its take
+/// Decision 0071 (C9): a stem WAV whose CAF is gone is the only copy of its take
 /// audio. The caller gives these WAVs as `soleCopies`; the scan never lists one as a stray WAV,
 /// and the prune drops only the pool entry of one and keeps the file.
 extension UnusedFilesTests {

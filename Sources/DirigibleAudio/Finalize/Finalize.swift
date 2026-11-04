@@ -127,7 +127,8 @@ public func newerSidecarVersion(of segment: SegmentName, in package: URL) -> Int
 }
 
 /// The segments of the CAFs in `Capture/` that have frames or do not open, and the WAV-backed
-/// segments (decision 0071): the disk fact under the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
+/// segments (decision 0071): the disk fact under the unplaced list (decision 0012). In name order.
+/// It reads files, so call it off the main actor.
 func segmentsWithAudio(in package: URL) -> [SegmentName] { scanSegments(in: package).withAudio }
 
 /// `segmentsWithAudio`, and the segments whose CAF is not audio: they can never place, so they do
@@ -158,9 +159,9 @@ func wavBackedSegments(in package: URL) -> [SegmentName] {
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return [] }
     let files = Set(names)
     return names.filter { $0.hasSuffix(".sidecar") }.compactMap(SegmentName.init(fileName:)).filter { name in
-        let sidecar = (try? readPackageFile("\(captureFolderName)/\(name.stem).sidecar", in: package))
+        let sidecar = (try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package))
             .flatMap { try? Sidecar.decode($0) }
-        return !files.contains("\(name.stem).caf") && sidecar?.finalized != nil
+        return !files.contains(name.cafName) && sidecar?.finalized != nil
             && FileManager.default.fileExists(
                 atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).wav").path)
     }.sorted()

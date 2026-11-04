@@ -36,7 +36,7 @@ package func editPackageCore<Result, Failure: Error>(
         }
         session.removeTemporaryFiles(in: package)
         guard session.recording == nil else { throw .pendingTake }
-        _ = removeRecordedRawCaptures(of: session, in: package, log: log)
+        removeRecordedRawCaptures(of: session, in: package, log: log)
         if ripple.isNeeded(session), rippleBlocked(in: package, session: session) { throw .splitTake }
         let before = session
         let result: Result

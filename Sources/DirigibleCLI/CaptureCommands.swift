@@ -131,6 +131,7 @@ private func recordTake(
     log: DiagnosticLog
 ) async throws(ExitCode) {
     let studio = try await openStudio(package, log: log)
+    let played = playedPreRoll(preRoll, playhead: playhead, rate: studio.session.sampleRate)
     // A shell command records with no sheet: name each app it records (decision 0050, C18).
     for id in armed {
         guard let track = studio.session.track(id), case .app(let bundleID) = track.route else { continue }
@@ -139,11 +140,11 @@ private func recordTake(
     let result: TakeResult
     do throws(StudioError) {
         do throws(StudioError) {
-            result = try await studio.record(armed: armed, playhead: playhead, for: duration, preRoll: preRoll)
+            result = try await studio.record(armed: armed, playhead: playhead, for: duration, preRoll: played)
         } catch {
             guard error == .microphoneAccess(.notDetermined) else { throw error }
             guard await AVCaptureDevice.requestAccess(for: .audio) else { throw .microphoneAccess(.denied) }
-            result = try await studio.record(armed: armed, playhead: playhead, for: duration, preRoll: preRoll)
+            result = try await studio.record(armed: armed, playhead: playhead, for: duration, preRoll: played)
         }
     } catch {
         guard let take = studio.lastTake else {

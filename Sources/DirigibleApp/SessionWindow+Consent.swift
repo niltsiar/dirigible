@@ -55,7 +55,7 @@ final class ConsentRequest {
     let names: [String]
     let start: Frames
     let seconds: Double
-    /// The pre-roll in seconds, or nil for no pre-roll.
+    /// The pre-roll in seconds that plays (`playedPreRoll`), or nil for no pre-roll.
     let preRoll: Int?
     /// The names of the request tracks with a clip after the start (C15).
     let over: [String]
@@ -180,7 +180,8 @@ extension SessionWindow {
         }
         let start = request.playhead ?? studio.playhead
         let consent = ConsentRequest(
-            agent: agent, tracks: tracks, start: start, seconds: request.seconds, preRoll: request.preRoll,
+            agent: agent, tracks: tracks, start: start, seconds: request.seconds,
+            preRoll: playedPreRoll(request.preRoll, playhead: start, rate: studio.session.sampleRate),
             over: recordOverTracks(studio.session, request.armed, from: start), connection: connection)
         // The request holds the window busy for agents during the read of the disk room.
         self.consent = consent

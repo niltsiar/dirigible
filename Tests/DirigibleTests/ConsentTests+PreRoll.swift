@@ -41,6 +41,23 @@ extension ConsentTests {
         await model.close()
     }
 
+    /// The sheet, the take, and the answer give the pre-roll that plays: a request near the session
+    /// start gets the whole seconds before the start, and a request at the start gets no pre-roll.
+    @Test(arguments: [(48_000, 1), (72_000, 1), (0, nil)] as [(Int, Int?)])
+    func preRollIsCutAtTheSessionStart(playhead: Int, played: Int?) async throws {
+        let (model, studio) = try await window()
+        let request = RecordRequest(armed: ["t1"], seconds: 30, playhead: Frames(playhead), preRoll: 3)
+        let answer = Task { await model.askRecord(request, agent: agent) }
+        let sheet = try await sheet(model)
+        #expect(model.consent?.preRoll == played, "the sheet line")
+        try click(record: true, in: sheet)
+
+        #expect(await answer.value == .started(take: 1, tracks: ["Host"], seconds: 30, preRoll: played))
+        #expect(studio.session.recording?.isPreRoll == (played != nil))
+        await model.stop()
+        await model.close()
+    }
+
     /// P27: one sentence names the start and the pre-roll length, in English and Spanish.
     @Test func preRollLine() throws {
         for (language, line) in [

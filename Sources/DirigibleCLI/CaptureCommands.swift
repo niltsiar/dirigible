@@ -179,7 +179,8 @@ private func refusedCode(_ error: StudioError) -> Int32 {
 
 /// The end of `record` and `take finalize` (decision 0013): the clip IDs of take `take` on
 /// stdout, then one warning line for each unplaced segment, a disk-low stop, each armed track
-/// with a gap, and each armed track with no clip of the take. Returns the lowest code that
+/// with a gap, each silent armed track, each armed track with a late start, and each armed track
+/// with no clip of the take. Returns the lowest code that
 /// applies of 3, 4, and 5, else 0.
 @MainActor
 func reportTake(_ studio: Studio, take: Int?, armed: [TrackID], result: TakeResult?) -> Int32 {

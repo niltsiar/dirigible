@@ -39,7 +39,9 @@ package struct RecordRequest: Sendable, Equatable {
     package let seconds: Double
     /// The start frame, or nil for the playhead of the window.
     package let playhead: Frames?
-    /// The pre-roll in seconds, 1 to 10 (`EditRules.preRollSeconds`), or nil for no pre-roll.
+    /// The pre-roll in seconds, or nil for no pre-roll. The `record` tool gives 1 to 10
+    /// (`EditRules.preRollSeconds`, 0 gives nil); the app plays at most the whole seconds before
+    /// the start (`playedPreRoll`).
     package let preRoll: Int?
 
     package init(armed: [TrackID], seconds: Double, playhead: Frames?, preRoll: Int? = nil) {

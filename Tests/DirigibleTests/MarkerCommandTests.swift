@@ -67,7 +67,9 @@ import Testing
         studio.transport = .idle
         studio.isStarting = true
         #expect(edits.map(model.isOn) == [false, false, false, false], "the take starts")
-        await model.close()
+        // A close waits while a take starts.
+        studio.isStarting = false
+        await boundedClose(model)
     }
 
     /// N counts the markers and the chapters. The test process has no app strings, so the test

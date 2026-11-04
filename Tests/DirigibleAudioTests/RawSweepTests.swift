@@ -83,6 +83,24 @@ struct RawSweepTests {
         await studio.settle()
     }
 
+    /// C5: the removal of an old take flushes its WAV and `Clips/` before the record append. A WAV
+    /// that does not flush keeps the CAF with no record, and the journal has one `raw` line.
+    @Test func anOldTakeWhoseWAVDoesNotFlushKeepsItsCAF() async throws {
+        let (package, _) = try await Self.oldTake()
+        let logs = package.folder.url.appending(path: "logs")
+        let log = startLog(in: logs)
+        let studio = try await Studio.open(package.url, log: log)
+        studio.environment.rawFlush = { $0.hasSuffix(".wav") ? EIO : fullFlush(path: $0) }
+
+        await studio.rawSweep
+
+        #expect(Self.hasCAF(package), "a WAV that does not flush keeps the CAF")
+        #expect(try Self.record(in: package) == nil, "no record append before the WAV flush")
+        let raw = TakeLogTests.lines(log, in: logs).filter { $0.contains("\traw\t") }
+        #expect(raw.count == 1 && raw.first?.contains("errno=\(EIO)") == true, "raw lines: \(raw)")
+        await studio.settle()
+    }
+
     /// C17: a close during a blocked WAV read returns only after the job ends, and the job reads
     /// no block after the one that it held.
     @Test func aCloseDuringABlockedReadEndsTheJobAfterThatBlock() async throws {

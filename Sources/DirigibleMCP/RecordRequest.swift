@@ -50,6 +50,10 @@ extension EditRules {
     package static func takeSeconds(_ seconds: Double) -> Double? {
         seconds.isFinite && seconds > 0 && seconds <= RecordRequest.takeLimit ? seconds : nil
     }
+
+    /// The pre-roll of a timed take in whole seconds (decision 0070): 0 to 10. A take with 0 has no
+    /// pre-roll.
+    package static func preRollSeconds(_ seconds: Int) -> Int? { (0...10).contains(seconds) ? seconds : nil }
 }
 
 /// The window grant after a take start (decision 0050): its end on the wall clock, the take

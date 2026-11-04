@@ -108,6 +108,7 @@ A pre-roll is a short play of the session before a take starts. You hear what co
 - When the output device changes during the pre-roll, the sound of the pre-roll stops. The take goes on and stays in line, and the window shows no message.
 - When Dirigible cannot read the delay of the output device, it shows a message, and no take starts. **Record** (Command-R) still works.
 - Some outputs play later than they report. A take that you speak over the pre-roll then sits late by that delay. On the built-in speakers of a tested MacBook Pro, it was 47 to 65 ms. Dirigible gives no general limit.
+- On the command line, `dirigible record --pre-roll <seconds>` (0 to 10) records a take with a pre-roll. The take starts at `--playhead`, and `--seconds` counts from there. A track that started recording late gets a warning line.
 - In Hindenburg, P plays, and Control-Space records with a pre-roll. In Dirigible, P starts a take. If you start a take by mistake, choose **Edit > Undo**. Dirigible does not use Control-Space, because it is the key of macOS that changes the input source.
 
 ### Play the take

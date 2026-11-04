@@ -94,6 +94,16 @@ struct CLIHelperTests {
             ], "the silence lines")
     }
 
+    /// P17: one warning line for each armed track with a late start of a pre-roll take, in arm
+    /// order. It does not change the exit code: the track has a clip.
+    @Test func theLateStartLineNamesTheTrack() {
+        #expect(
+            lateStartWarnings(["t2", "t1"], armed: ["t1", "t3", "t2"]) == [
+                "track \"t1\" started recording late, so the start of the take is missing from it.",
+                "track \"t2\" started recording late, so the start of the take is missing from it.",
+            ])
+    }
+
     /// A child that exits before the helper waits still wakes the helper: a lost wake-up would
     /// hang the run.
     @Test func aChildThatExitsAtOnceWakesTheHelper() async throws {

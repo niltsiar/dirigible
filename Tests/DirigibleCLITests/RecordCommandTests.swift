@@ -34,6 +34,19 @@ struct RecordCommandTests {
         #expect(try await refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--playhead", "-1").status == 64)
     }
 
+    /// P14: a pre-roll outside 0 to 10 s is a usage error before the package opens. Control:
+    /// 3 s passes the parse and gets the device error of `aMissingDeviceExitsOne`.
+    @Test func preRollOutOfRangeExits64() async throws {
+        for value in ["11", "-1"] {
+            let result = try await refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--pre-roll", value)
+            #expect(result.status == 64, "\(value)")
+            #expect(result.stderr.hasPrefix("Error: The pre-roll must be 0 to 10 s.\n"), "\(value): \(result.stderr)")
+        }
+        #expect(
+            try await refused("record", "PKG", "--seconds", "1", "--arm", "t1", "--pre-roll", "3")
+                == CLIResult(status: 1, stdout: "", stderr: "Error: the device of track \"t1\" is missing.\n"))
+    }
+
     @Test func anUnknownTrackExitsOne() async throws {
         #expect(
             try await refused("record", "PKG", "--seconds", "1", "--arm", "x")

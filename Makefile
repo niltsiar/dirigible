@@ -135,6 +135,7 @@ HOOK_TESTS = \
 	scripts/check-governance.test.sh \
 	scripts/check-eval-keys.test.sh \
 	scripts/pr-terms.test.sh \
+	scripts/provider-limit.test.sh \
 	scripts/land.test.sh \
 	.claude/workflows/review-panel.test.sh \
 	scripts/flake-monitor/sample-threads.test.sh \

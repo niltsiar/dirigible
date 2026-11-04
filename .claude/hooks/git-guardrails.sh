@@ -51,9 +51,9 @@ process_call_re="subprocess|child_process|Open3|(^|[^A-Za-z0-9])(system|popen|fo
 # and through mask_quoted_data the commit message file and hook test rules) skip it, because such a
 # body can not run a command (a call name built from string parts is a miss). The hooks-path rule
 # and the file-guard rules read every body, because python3 can write the guarded file. A prefix
-# before the first word is not part of that line: segments that each end with `;` or `&&` and hold `NAME=<word>`
-# assignments with no name PATH in any case (a PATH value can make `cat` a stub, and zsh ties
-# `path` to PATH), `cd <word>`, or `mkdir -p <word>...`. A PATH change on an earlier line is not
+# before the first word is not part of that line: segments that each end with `;` or `&&` and hold
+# `NAME=<word>` assignments with no name PATH in any case (a PATH value can make `cat` a stub, and
+# zsh ties `path` to PATH), `cd <word>`, or `mkdir -p <word>...`. A PATH change on an earlier line is not
 # checked. A body stays when the end line is missing or not exact, when the first line
 # has a second marker, a here-string, a pipe, or another list, and when an unquoted marker has `$(`
 # or a backtick in the body (the shell runs them). After a line that it can not read, it cuts no

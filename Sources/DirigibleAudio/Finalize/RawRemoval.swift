@@ -93,20 +93,39 @@ struct FileIdentity: Hashable, Sendable {
 struct RawRead: Hashable, Sendable {
     var files: [FileIdentity?]
     var record: FinalizeRecord
+    /// True for a take with no finalize record: the removal appends `record` first.
+    var appends = false
 }
 
-/// The placed segments that pass the gate and have a finalize record (decision 0071), in name
-/// order. It reads file headers and sidecars and no audio, so call it off the main actor.
-func removableCaptures(of session: Session, in package: URL) -> [(name: SegmentName, read: RawRead)] {
-    rawCaptures(of: session, in: package).filter { $0.value == .removable }.keys.sorted().compactMap { name in
-        let files = rawFiles(of: name, in: package)
-        guard let record = finalizeRecord(of: name, in: package) else { return nil }
-        return (name, RawRead(files: files, record: record))
+/// The placed segments that pass the gate (decision 0071), in name order, with the identity of
+/// their files and their finalize record: nil for a take that a build before 0071 finalized. It
+/// reads file headers and sidecars and no audio, so call it off the main actor.
+func removableCaptures(of session: Session, in package: URL) -> [(
+    name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?
+)] {
+    rawCaptures(of: session, in: package).filter { $0.value == .removable }.keys.sorted().map { name in
+        (name, rawFiles(of: name, in: package), finalizeRecord(of: name, in: package))
     }
 }
 
+/// The finalize record of a segment with no record: the CAF frames, the rate choice of its
+/// sidecar, and `rawGain`. Nil after a cancel, or when a file does not read whole.
+func oldTakeRecord(
+    of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
+    beforeBlock: (Int) async -> Void
+) async throws(RawRemovalError) -> FinalizeRecord? {
+    guard let data = try? readPackageFile("\(captureFolderName)/\(segment.sidecarName)", in: package),
+        let sidecar = try? Sidecar.decode(data),
+        let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(segment.cafName)")),
+        let gain = try await rawGain(of: segment, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
+    else { return nil }
+    let choice = RateChoice(header: sidecar.header, checkpoints: sidecar.checkpoints, frames: Int(caf.length))
+    return FinalizeRecord(cafFrames: caf.length, sourceRate: choice.source, conversionGain: gain)
+}
+
 /// One removal of decision 0071 in a turn of the write chain, where `session` is the session on
-/// the disk: the gate again, the identity of the three files against `read`, the sidecar flush, its
+/// the disk: the gate again, the identity of the three files against `read`, then for `appends`
+/// the flush of the WAV and of `Clips/` and the append of the record, then the sidecar flush, its
 /// record against `read`, the unlink of the CAF, and the flush of `Capture/`. False when the gate
 /// does not pass now; then no file changes. Call it off the main actor.
 func removeRawCapture(_ name: SegmentName, of session: Session, in package: URL, read: RawRead)
@@ -115,6 +134,17 @@ func removeRawCapture(_ name: SegmentName, of session: Session, in package: URL,
     guard placedVerdict(of: name, session: session, in: package) == .removable else { return false }
     guard rawFiles(of: name, in: package) == read.files else { throw .changed }
     let sidecar = "\(captureFolderName)/\(name.stem).sidecar"
+    if read.appends {
+        // A build before 0071 can have left the WAV and its name in Clips/ in the cache only.
+        for file in ["\(clipsFolderName)/\(name.stem).wav", clipsFolderName] {
+            if let code = fullFlush(path: package.appending(path: file).path) {
+                throw .writeFailed(file: file, status: code)
+            }
+        }
+        if let code = Sidecar.append(read.record, toSidecarAt: package.appending(path: sidecar)) {
+            throw .writeFailed(file: sidecar, status: code)
+        }
+    }
     if let code = fullFlush(path: package.appending(path: sidecar).path) {
         throw .writeFailed(file: sidecar, status: code)
     }
@@ -162,13 +192,15 @@ private func rawVerdict(of name: SegmentName, file: AudioFile, session: Session,
 /// after the converter. Over 1.0, the gain is the gain of `ClipConversion` for that peak, but
 /// 0 dB for a WAV at code 8388607 or 8388608: a saturated WAV of a build before the clip gain.
 /// Each code is a magnitude, so 8388608 is a sample at -1.0. Nil after a cancel, or when the WAV,
-/// the sidecar, or the CAF does not read whole. `isCancelled` is read before each block.
-/// `readFault` is a test seam on the CAF blocks.
+/// the sidecar, or the CAF does not read whole. `isCancelled` is read before each block, after
+/// `beforeBlock` with the index of each WAV block. `readFault` is a test seam on the CAF blocks.
 func rawGain(
-    of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool, readFault: ReadFault? = nil
-) throws(RawRemovalError) -> Gain? {
+    of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
+    beforeBlock: (Int) async -> Void = { _ in }, readFault: ReadFault? = nil
+) async throws(RawRemovalError) -> Gain? {
     let wav = "\(clipsFolderName)/\(segment.stem).wav"
-    guard let wavPeak = try peakCode(of: wav, in: package, isCancelled: isCancelled) else { return nil }
+    guard let wavPeak = try await peakCode(of: wav, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
+    else { return nil }
     if wavPeak.code <= 8_388_604 { return .zero }
     let caf = "\(captureFolderName)/\(segment.stem).caf"
     let sidecarData: Data?
@@ -206,9 +238,9 @@ func rawGain(
 
 /// The peak magnitude of the WAV at `file` as a 24-bit code (full scale 8388608), and its rate.
 /// Nil after a cancel, or for a file that is not audio or does not read whole.
-private func peakCode(of file: String, in package: URL, isCancelled: () -> Bool) throws(RawRemovalError) -> (
-    code: Int, rate: Double
-)? {
+private func peakCode(
+    of file: String, in package: URL, isCancelled: () -> Bool, beforeBlock: (Int) async -> Void
+) async throws(RawRemovalError) -> (code: Int, rate: Double)? {
     let url = package.appending(path: file)
     let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
     guard descriptor >= 0 else { throw .unreadable(file: file, errno: errno) }
@@ -218,8 +250,10 @@ private func peakCode(of file: String, in package: URL, isCancelled: () -> Bool)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: 65_536) else {
             return nil
         }
-        var peak: Float = 0
+        var (peak, block): (Float, Int) = (0, 0)
         while input.framePosition < input.length {
+            await beforeBlock(block)
+            block += 1
             if isCancelled() { return nil }
             try input.read(into: buffer)
             guard buffer.frameLength > 0, let data = buffer.floatChannelData else { return nil }

@@ -34,9 +34,9 @@ extension RawRemovalGateTests {
     }
 
     /// `rawGain` of the segment, and the count of its passes over the CAF (block 0 reads).
-    static func gain(_ package: TakePackage) throws -> (gain: Gain?, cafPasses: Int) {
+    static func gain(_ package: TakePackage) async throws -> (gain: Gain?, cafPasses: Int) {
         let reads = StepCounter()
-        let gain = try rawGain(
+        let gain = try await rawGain(
             of: segment, in: package.url, isCancelled: { false },
             readFault: ReadFault(stem: segment.stem, block: 0) { _ = reads.next() })
         return (gain, reads.calls)
@@ -44,7 +44,7 @@ extension RawRemovalGateTests {
 
     /// A WAV peak at code 8388604 or less is a WAV that no rescale wrote, so its gain is 0 dB and
     /// the CAF stays unread. At code 8388605 the CAF pass gives the gain.
-    @Test func aWAVPeakAtCode8388604ReadsNoCAFBlock() throws {
+    @Test func aWAVPeakAtCode8388604ReadsNoCAFBlock() async throws {
         let package = try TakePackage()
         try package.segment(samples: sine(seconds: 1, rate: 48_000).map { $0 * 4 })
         for (code, gain, passes) in [(8_388_604, 0.0, 0), (8_388_605, 20 * log10(2 / (1 - 0x1p-22)), 1)] {
@@ -53,7 +53,7 @@ extension RawRemovalGateTests {
             try Self.writeWAV(samples, in: package)
             try #require(try Self.wavCode(package) == code)
 
-            let result = try Self.gain(package)
+            let result = try await Self.gain(package)
 
             #expect(abs((result.gain?.dB ?? .nan) - gain) < 1e-4, "code \(code)")
             #expect(result.cafPasses == passes, "code \(code)")
@@ -63,7 +63,7 @@ extension RawRemovalGateTests {
     /// The real writer puts a rescaled peak at code 8388605 or 8388606, on each side: so the WAV
     /// peak alone cannot give the gain, and the converter pass gives the gain of the finalize.
     @Test(arguments: [Float(1), -1])
-    func aRescaledWAVGetsTheClipGainOfItsConvert(side: Float) throws {
+    func aRescaledWAVGetsTheClipGainOfItsConvert(side: Float) async throws {
         let package = try TakePackage()
         // Peak 2.0 on `side` only: the other side stays at 0.5.
         try package.segment(samples: sine(seconds: 1, rate: 48_000).map { $0 * side > 0 ? $0 * 4 : $0 })
@@ -72,7 +72,7 @@ extension RawRemovalGateTests {
         #expect(abs(clipGain.dB - 6.0206) < 1e-3)
         #expect([8_388_605, 8_388_606].contains(try Self.wavCode(package)))
 
-        let result = try Self.gain(package)
+        let result = try await Self.gain(package)
 
         #expect(result.gain == clipGain)
         #expect(result.cafPasses == 1)
@@ -81,7 +81,7 @@ extension RawRemovalGateTests {
     /// A 44.1 kHz tone at a quarter of the rate, 45 degrees off its peaks: each CAF sample is at
     /// 0.92, but the resampled tone reaches 1.3. So only the pass through the converter gives the
     /// gain.
-    @Test func aResampledPeakOverFullScaleFromASourceUnderItGetsTheClipGain() throws {
+    @Test func aResampledPeakOverFullScaleFromASourceUnderItGetsTheClipGain() async throws {
         let package = try TakePackage()
         let samples = (0..<88_200).map { Float(1.3 * sin(Double.pi / 2 * Double($0) + Double.pi / 4)) }
         #expect(vDSP.maximumMagnitude(samples) < 1, "the raw peak is under full scale")
@@ -91,7 +91,7 @@ extension RawRemovalGateTests {
         let clipGain = try #require(session.track("t1")?.clips.first).gain
         #expect(clipGain.dB > 0, "the resampled peak is over full scale")
 
-        let result = try Self.gain(package)
+        let result = try await Self.gain(package)
 
         #expect(result.gain == clipGain)
     }
@@ -99,14 +99,14 @@ extension RawRemovalGateTests {
     /// A WAV of a build before the clip gain saturates at full scale with gain 0 dB. Its CAF peak
     /// is 2.0, but its gain stays 0 dB: a boost would play it louder than the take.
     @Test(arguments: [Float(1), -1])
-    func aSaturatedWAVKeepsGainZero(side: Float) throws {
+    func aSaturatedWAVKeepsGainZero(side: Float) async throws {
         let package = try TakePackage()
         let samples = sine(seconds: 1, rate: 48_000).map { $0 * side > 0 ? $0 * 4 : $0 }
         try package.segment(samples: samples)
         try Self.writeWAV(samples, in: package)
         #expect(try Self.wavCode(package) == (side > 0 ? 8_388_607 : 8_388_608))
 
-        let result = try Self.gain(package)
+        let result = try await Self.gain(package)
 
         #expect(result.gain == .zero)
         #expect(result.cafPasses == 1, "the CAF pass ran")

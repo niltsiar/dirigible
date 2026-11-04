@@ -41,11 +41,16 @@ extension Studio {
         }
     }
 
-    /// Waits for the job of this studio and of each studio of `otherStudios`. A take start calls it
-    /// after it sets `isStarting` and before its `serialized` call: the job asks for a turn of its
-    /// own chain, so a wait for it inside a turn does not end.
-    func rawSweepsEnded() async {
-        for studio in [self] + otherStudios() { await studio.rawSweep }
+    /// Stops the job of this studio and of each studio of `otherStudios`, and waits for each. A
+    /// take start calls it after it sets `isStarting` and before its `serialized` call: the job
+    /// asks for a turn of its own chain, so a wait for it inside a turn does not end.
+    func rawSweepsEnded() async { await stopRawSweeps([self] + otherStudios()) }
+
+    /// Cancels the job of each studio of `studios`, so a WAV read ends at its next block, and waits
+    /// for each.
+    func stopRawSweeps(_ studios: [Studio]) async {
+        for studio in studios { studio.rawSweepJob.task?.cancel() }
+        for studio in studios { await studio.rawSweep }
     }
 
     /// Waits while a take start of this studio runs up to its `begin`. A start waits for the sweep
@@ -56,7 +61,8 @@ extension Studio {
     }
 
     /// The reads run off the main actor; each removal runs in a turn of the write chain. The job
-    /// tests the hold before its reads, right before it asks for a turn, and at the start of the turn.
+    /// tests the hold before its reads, after the WAV read of a take with no finalize record, right
+    /// before it asks for a turn, and at the start of the turn.
     private func runRawSweep() async {
         let step = environment.beforeRawStep
         repeat {
@@ -65,10 +71,19 @@ extension Studio {
             await step(.first)
             guard !rawSweepHeld else { return }
             for candidate in await readRemovable(of: session, lock: lock) {
-                guard !rawSweepHeld else { return }
+                var read = candidate.record.map { RawRead(files: candidate.files, record: $0) }
+                if read == nil {
+                    switch await readOldTake(candidate.name, lock: lock, step: step) {
+                    case .success(let record?): read = RawRead(files: candidate.files, record: record, appends: true)
+                    case .success(nil): break
+                    case .failure(let error): noteRawFault(candidate.name, error)
+                    }
+                }
+                guard !rawSweepHeld, !Task.isCancelled else { return }
+                guard let read else { continue }
                 await step(.turn)
                 guard !rawSweepHeld else { return }
-                await serialized { await removeInTurn(candidate.name, read: candidate.read) }
+                await serialized { await removeInTurn(candidate.name, read: read) }
             }
         } while rawSweepJob.again
     }
@@ -79,6 +94,11 @@ extension Studio {
     private func removeInTurn(_ name: SegmentName, read: RawRead) async {
         guard !rawSweepHeld, !saveWaits, sessionRevision == savedRevision else { return }
         guard let error = await removeRaw(name, of: session, lock: lock, read: read) else { return }
+        noteRawFault(name, error)
+    }
+
+    /// One `raw` line of the journal (decision 0059).
+    private func noteRawFault(_ name: SegmentName, _ error: RawRemovalError) {
         let (fault, code) = error.journal
         environment.log.note(
             .raw, "fault", level: .error,
@@ -87,11 +107,27 @@ extension Studio {
 }
 
 @concurrent nonisolated private func readRemovable(of session: Session, lock: PackageLock) async -> [(
-    name: SegmentName, read: RawRead
+    name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?
 )] {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return [] }
     return removableCaptures(of: session, in: package)
+}
+
+/// `oldTakeRecord` in the package that `lock` holds now, with the step `.block(n)` before each
+/// WAV block. A cancel of the job ends the read.
+@concurrent nonisolated private func readOldTake(
+    _ name: SegmentName, lock: PackageLock, step: @escaping @Sendable (RawSweepStep) async -> Void
+) async -> Result<FinalizeRecord?, RawRemovalError> {
+    dispatchPrecondition(condition: .notOnQueue(.main))
+    guard let package = try? lock.package() else { return .success(nil) }
+    do throws(RawRemovalError) {
+        return .success(
+            try await oldTakeRecord(of: name, in: package, isCancelled: { Task.isCancelled }) { await step(.block($0)) }
+        )
+    } catch {
+        return .failure(error)
+    }
 }
 
 /// `removeRawCapture` in the package that `lock` holds now. Returns the fault.

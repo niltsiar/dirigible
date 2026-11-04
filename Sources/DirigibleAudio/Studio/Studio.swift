@@ -192,26 +192,17 @@ import Observation
     /// Opens the package and runs recovery (decision 0004). No file I/O runs on the main actor.
     /// Throws `.locked` when another studio or the CLI has the package. `recordings` is the list
     /// of decision 0004 that the studio keeps; the default is none. With `peakCache`, it starts
-    /// a peak pass (decision 0017); with none, it computes no peaks. The studio writes its lines to
-    /// `log`, the journal of the front end (decision 0059).
+    /// a peak pass (decision 0017); with none, it computes no peaks. It starts the raw sweep job
+    /// (decision 0071) and does not wait for it. The studio writes its lines to `log`, the journal
+    /// of the front end (decision 0059).
     public static func open(
         _ package: URL, recordings: ActiveRecordings? = nil, peakCache: URL? = nil, log: DiagnosticLog = .disabled
     ) async throws(StudioError) -> Studio {
         let opened = try await openPackage(package, recordings: recordings, log: log)
         let studio = Studio(opened: opened, recordings: recordings, peakCache: peakCache, log: log)
         studio.loadPeaks()
+        studio.sweepRaw()
         return studio
-    }
-
-    /// The one edit core: runs `body` on a copy of the session and records one undo entry if it
-    /// changed. A change schedules one autosave of the new session; `edit` does not wait for it.
-    /// A busy studio throws `refused(.busy)`; a throw of `body` changes nothing. `agent` names the
-    /// agent of an MCP edit in its undo entry (decision 0046). `body` reads only its copy.
-    public func edit<Result, Failure: Error>(
-        agent: AgentName?, refused: (StudioError) -> Failure, _ body: (inout Session) throws(Failure) -> Result
-    ) throws(Failure) -> Result {
-        do { try checkIdle() } catch { throw refused(error) }
-        return try recordEdit(agent: agent, body)
     }
 
     /// Runs `body` as a part of the last recorded edit (`History.amend`), with the autosave of
@@ -272,7 +263,7 @@ import Observation
         // After the last write: the state that the user hands to the CLI or an agent (0043).
         await serialized { if let list = await keepBackupAtClose(lock) { backups = list } }
         await stopPeaks()
-        await rawSweep
+        await stopRawSweeps([self])
         settling = false
     }
 

@@ -515,6 +515,7 @@
 "consent.app.tracks" = "Cette prise enregistre %@. Les personnes de l’appel ne reçoivent aucune notification de Dirigible.";
 "consent.message" = "Une prise de %1$@ sur %2$@, à partir de %3$@. Rien ne s’enregistre tant que vous ne cliquez pas sur Enregistrer. Cette demande prend fin dans %4$lld s.";
 "consent.record.over" = "L’enregistrement remplace l’audio sur %1$@ après %2$@.";
+"consent.pre.roll.line" = "L’enregistrement commence à %1$@, après un pré-roll de %2$@.";
 "consent.dont.record" = "Refuser";
 "consent.grant" = "Ne plus demander avant la fermeture de cette fenêtre";
 "consent.grant.help" = "Prend fin quand vous fermez cette fenêtre, %1$@ après votre clic, après %2$@ de prises au total sans confirmation, ou quand l’agent se reconnecte. La prise de votre clic ne compte pas.";

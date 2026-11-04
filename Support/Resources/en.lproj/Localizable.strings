@@ -515,6 +515,7 @@
 "consent.app.tracks" = "This take records %@. People in the call get no notice from Dirigible.";
 "consent.message" = "A take of %1$@ on %2$@, from %3$@. Nothing records until you click Record. This request ends in %4$lld s.";
 "consent.record.over" = "Recording replaces audio on %1$@ after %2$@.";
+"consent.pre.roll.line" = "Starts recording at %1$@, after a %2$@ pre-roll.";
 "consent.dont.record" = "Don't Record";
 "consent.grant" = "Don't ask again until I close this window";
 "consent.grant.help" = "Ends when you close this window, %1$@ after your click, after %2$@ of takes with no sheet, or when the agent reconnects. The take of your click does not count.";

@@ -515,6 +515,7 @@
 "consent.app.tracks" = "Dieser Take nimmt %@ auf. Personen im Anruf erhalten von Dirigible keinen Hinweis.";
 "consent.message" = "Ein Take von %1$@ auf %2$@, ab %3$@. Nichts wird aufgenommen, bis du auf „Aufnehmen“ klickst. Diese Anfrage endet in %4$lld s.";
 "consent.record.over" = "Die Aufnahme ersetzt Audio auf %1$@ nach %2$@.";
+"consent.pre.roll.line" = "Startet die Aufnahme bei %1$@ nach %2$@ Vorlauf.";
 "consent.dont.record" = "Nicht aufnehmen";
 "consent.grant" = "Nicht erneut fragen, bis ich dieses Fenster schließe";
 "consent.grant.help" = "Endet, wenn du dieses Fenster schließt, %1$@ nach deinem Klick, nach insgesamt %2$@ Aufnahme ohne Abfrage oder wenn der Agent sich neu verbindet. Der Take deines Klicks zählt nicht.";

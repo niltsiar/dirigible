@@ -515,6 +515,7 @@
 "consent.app.tracks" = "Esta tomada grava %@. As pessoas na chamada não recebem nenhum aviso do Dirigible.";
 "consent.message" = "Uma tomada de %1$@ em %2$@, a partir de %3$@. Nada é gravado até que você clique em Gravar. Este pedido expira em %4$lld s.";
 "consent.record.over" = "A gravação substitui o áudio em %1$@ depois de %2$@.";
+"consent.pre.roll.line" = "Começa a gravar em %1$@, depois de um pré-roll de %2$@.";
 "consent.dont.record" = "Não Gravar";
 "consent.grant" = "Não perguntar de novo até que eu feche esta janela";
 "consent.grant.help" = "Termina quando você fechar esta janela, %1$@ depois do seu clique, depois de %2$@ de tomadas no total sem confirmação ou quando o agente se reconectar. A tomada do seu clique não conta.";

@@ -19,6 +19,10 @@ struct ConsentSheet: View {
                 Text(verbatim: L10n.consentAgentLine.format(name)).fixedSize(horizontal: false, vertical: true)
             }
             Text(verbatim: message).fixedSize(horizontal: false, vertical: true)
+            if let preRoll = consent.preRoll {
+                Text(verbatim: consentPreRollText(start: startText, seconds: preRoll))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if !consent.appTracks.isEmpty {
                 Label {
                     Text(verbatim: L10n.consentAppTracks.format(list(consent.appTracks)))
@@ -141,4 +145,13 @@ final class GrantCheckbox: ClickOnlyButton {}
 /// grant gets its hours from the constants of decision 0050.
 func grantHours(_ duration: Duration, _ locale: Locale = .autoupdatingCurrent) -> String {
     duration.formatted(.units(allowed: [.hours], width: .wide).locale(locale))
+}
+
+/// The pre-roll line of the sheet, "Starts recording at 1:02:03, after a 3 s pre-roll.": `start`
+/// is the start time text. `text` gives the value of a key.
+func consentPreRollText(
+    start: String, seconds: Int, locale: Locale = .current, text: (L10n) -> String = { $0.text }
+) -> String {
+    String(
+        format: text(.consentPreRollLine), locale: locale, start, preRollLengthText(seconds: seconds, locale: locale))
 }

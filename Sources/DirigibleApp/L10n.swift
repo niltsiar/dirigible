@@ -191,6 +191,7 @@ enum L10n: String, CaseIterable {
     case consentAppTracks = "consent.app.tracks"
     case consentMessage = "consent.message"
     case consentRecordOver = "consent.record.over"
+    case consentPreRollLine = "consent.pre.roll.line"
     case consentDontRecord = "consent.dont.record"
     case consentGrant = "consent.grant"
     case consentGrantHelp = "consent.grant.help"

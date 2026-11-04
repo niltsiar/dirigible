@@ -11,6 +11,7 @@
 - Amended: 2026-10-30, run `2026-10-28-verify-copy-isolation`. Each read-modify-write of the active-recordings list takes the file lock `active-recordings.lock` (`O_EXLOCK`) beside the list, so two processes do not lose an entry. A `set` with no change takes no lock. One `set` waits at most 1 s for the lock of the process and the file lock together, and then the write goes on with no lock. The app names the folder of the list by its bundle ID (see 0014).
 - Amended: 2026-11-03, run `2026-10-28-pre-roll`. An aligned finalize and an aligned placement have a floor: no clip of a take starts before the playhead at record start (**Timing**). A segment with no frame after the floor is a pool file with no clip.
 - Amended: 2026-11-01, run `2026-11-01-upkeep-thirteenth`. The No data loss and Real-time thread rules are in **Safety** of `CODING_STANDARDS.md`, not in `AGENTS.md`.
+- Amended: 2026-11-03, run `2026-11-03-caf-removal`. [0071](0071-raw-capture-removal.md) removes the raw CAF of a placed segment after its WAV passes a gate of frames, rate choice, and alignment to the host clock (1 ms), and adds a finalize record to the sidecar. It replaces the rule that Release 1 keeps every raw CAF.
 
 ## Context
 

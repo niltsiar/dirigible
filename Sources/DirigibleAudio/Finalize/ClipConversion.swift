@@ -54,20 +54,15 @@ struct ClipConversion {
                 progress: { report($0 * share) })
         else { return nil }
         var gain = Gain.zero
-        // An infinite peak gives no finite gain, so it keeps the one pass. A finite peak always gets
-        // the second pass at the full scale, because a capped scale saturates the file. Its clip
-        // gain stops at +96 dB, so a clip with a peak over +96 dB plays (peak dB - 96) dB quieter
-        // than its source.
-        let scale = Float(ceiling / Double(result.peak))
-        if result.peak > 1, let scaled = Gain(clamping: -20 * log10(Double(scale))) {
+        if let rescale = rescale(peak: result.peak) {
             input.framePosition = span?.lowerBound ?? 0
             guard
                 let second = try pass(
-                    input, file: descriptor, from: source, to: rate, into: url, scale: scale,
+                    input, file: descriptor, from: source, to: rate, into: url, scale: rescale.scale,
                     progress: { report(0.5 + $0 / 2) })
             else { return nil }
             result = second
-            gain = scaled
+            gain = rescale.gain
         }
         guard !isCancelled() else { return nil }
         let clip = open(url.path, O_RDONLY | O_CLOEXEC)
@@ -84,11 +79,20 @@ struct ClipConversion {
         return (result.length, gain)
     }
 
-    /// One read of `input` from its position into a new WAV at `url`. Each buffer that goes to the
-    /// writer is multiplied by `scale` first. Returns the frame count and the peak of all channels
-    /// before the scale, or nil as `convert`. `progress` gets the read fraction of the input.
+    /// The peak of all channels of `input` from its position, after the channel map and the
+    /// converter of `convert`, with no WAV written. Nil as `convert`.
+    func peak(_ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double)
+        throws(FinalizeError) -> Float?
+    {
+        try pass(input, file: descriptor, from: source, to: rate, into: nil, scale: 1, progress: { _ in })?.peak
+    }
+
+    /// One read of `input` from its position into a new WAV at `url`, or into no file when `url` is
+    /// nil. Each buffer that goes to the writer is multiplied by `scale` first. Returns the frame
+    /// count and the peak of all channels before the scale, or nil as `convert`. `progress` gets
+    /// the read fraction of the input.
     private func pass(
-        _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL,
+        _ input: AVAudioFile, file descriptor: Int32, from source: Double, to rate: Double, into url: URL?,
         scale: Float, progress: @escaping (Double) -> Void
     ) throws(FinalizeError) -> (length: Int, peak: Float)? {
         let capacity = AVAudioFrameCount(blockFrames)
@@ -96,8 +100,11 @@ struct ClipConversion {
             let read = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: capacity),
             let written = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: capacity)
         else { return nil }
-        try createClipsFolder(in: package)
-        let writer = try ClipWriter(url: url, file: wav, format: output)
+        var writer: ClipWriter?
+        if let url {
+            try createClipsFolder(in: package)
+            writer = try ClipWriter(url: url, file: wav, format: output)
+        }
         let reader = BlockReader(
             input: input, descriptor: descriptor, buffer: read, span: span ?? input.framePosition..<input.length,
             fault: readFault, progress: progress, isCancelled: isCancelled)
@@ -107,7 +114,7 @@ struct ClipConversion {
         // The peak and the scale act on the buffer that goes to the writer.
         func write(_ buffer: AVAudioPCMBuffer) throws(FinalizeError) {
             peak = max(peak, scaleInPlace(buffer, by: scale))
-            try writer.write(buffer)
+            try writer?.write(buffer)
             length += Int(buffer.frameLength)
         }
         // The same-rate path has no converter and ends at the end of the stream. Its copy of each
@@ -141,9 +148,20 @@ struct ClipConversion {
         // A converter that ends in .error or .inputRanDry gives a short clip; a placed clip holds
         // the whole input.
         guard !reader.unreadable, !reader.cancelled, status == .endOfStream else { return nil }
-        try writer.close()
+        try writer?.close()
         return (length, peak)
     }
+}
+
+/// The scale of the second pass of `convert` and the clip gain that gives the level back, for a
+/// float peak over full scale (A11). Nil for a peak of 1.0 or less, or an infinite peak: it gives
+/// no finite gain, so it keeps the one pass. A finite peak always gets the second pass at the full
+/// scale, because a capped scale saturates the file. Its clip gain stops at +96 dB, so a clip with
+/// a peak over +96 dB plays (peak dB - 96) dB quieter than its source.
+func rescale(peak: Float) -> (scale: Float, gain: Gain)? {
+    let scale = Float(ceiling / Double(peak))
+    guard peak > 1, let gain = Gain(clamping: -20 * log10(Double(scale))) else { return nil }
+    return (scale, gain)
 }
 
 /// The level of the peak sample after the scale of a second pass: two 24-bit steps under full

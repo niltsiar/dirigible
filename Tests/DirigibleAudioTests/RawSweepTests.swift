@@ -11,6 +11,9 @@ import Testing
 @MainActor
 struct RawSweepTests {
     static let segment = SegmentName(stem: "take1-1-1")!
+    static let mic = InputDevice(
+        uid: "mic", name: "USB Mic", nominalRate: 48_000, availableRates: [48_000...48_000], channelsPerBuffer: [1],
+        latency: 48)!
 
     /// The steps of the job that the seam saw, and a hold of the job at the step `at`.
     final class Hold: @unchecked Sendable {
@@ -29,12 +32,12 @@ struct RawSweepTests {
         }
     }
 
-    /// An old take: take 1 with a 4 s segment (3 WAV blocks) whose float peak is 4.0, finalized
-    /// and saved with no sweep, and with no finalize record in its sidecar. Returns the package
-    /// and the record that the finalize wrote.
-    static func oldTake() async throws -> (TakePackage, FinalizeRecord) {
+    /// An old take: take 1 with a segment of `seconds` (4 s is 3 WAV blocks) whose float peak is
+    /// 4.0, finalized and saved with no sweep, and with no finalize record in its sidecar. Returns
+    /// the package and the record that the finalize wrote.
+    static func oldTake(seconds: Double = 4) async throws -> (TakePackage, FinalizeRecord) {
         let package = try TakePackage()
-        try package.segment(samples: sine(seconds: 4, rate: 48_000).map { $0 * 4 })
+        try package.segment(samples: sine(seconds: seconds, rate: 48_000).map { $0 * 4 })
         let url = package.url
         try await offMainActor {
             let outcome = completeTake(of: try Session(contentsOf: url), lock: try PackageLock(url), level: false) {
@@ -77,6 +80,63 @@ struct RawSweepTests {
         let record = try #require(try Self.record(in: package))
         #expect(record.cafFrames == written.cafFrames && record.sourceRate == written.sourceRate)
         #expect(abs(record.conversionGain.dB - written.conversionGain.dB) < 1e-4, "the gain of the finalize")
+        await studio.settle()
+    }
+
+    /// C17: a close during a blocked WAV read returns only after the job ends, and the job reads
+    /// no block after the one that it held.
+    @Test func aCloseDuringABlockedReadEndsTheJobAfterThatBlock() async throws {
+        let (package, _) = try await Self.oldTake(seconds: 6)
+        let hold = Hold(at: .block(2))
+        defer { hold.gate.open() }
+        let studio = try await Studio.open(package.url)
+        studio.environment.beforeRawStep = { await hold.step($0) }
+        await hold.gate.entered()
+        let settle = Task { await studio.settle() }
+        await until(limit: .seconds(10), "the settle does not begin") { studio.settling }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(studio.settling, "the settle waits for the held job")
+
+        hold.gate.open()
+        await settle.value
+
+        #expect(studio.rawSweepJob.task == nil)
+        #expect(!hold.seen.contains(.block(3)), "steps: \(hold.seen)")
+        #expect(Self.hasCAF(package))
+    }
+
+    /// C17: a take start during a blocked WAV read stops the job after that block. The CAF of the
+    /// old take stays during the take, and the sweep at the end of that take removes it.
+    @Test func aTakeStartDuringABlockedReadStopsTheJob() async throws {
+        let (package, _) = try await Self.oldTake(seconds: 6)
+        var session = try Session(contentsOf: package.url)
+        try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
+        try session.write(to: package.url)
+        let studio = try await Studio.open(package.url)
+        let hal = TestHAL([Self.mic])
+        studio.environment = .test(hal)
+        let hold = Hold(at: .block(2))
+        defer { hold.gate.open() }
+        studio.environment.beforeRawStep = { await hold.step($0) }
+        await hold.gate.entered()
+        let start = Task {
+            try await studio.startTake(
+                armed: ["t1"], devices: [Self.mic], playhead: session.end, hostTimeNanos: takeStart)
+        }
+        await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
+
+        hold.gate.open()
+        _ = try await start.value
+
+        #expect(!hold.seen.contains(.block(3)), "steps: \(hold.seen)")
+        #expect(Self.hasCAF(package), "the old take keeps its CAF during the take")
+        let input = SyntheticInput(hal, "mic")
+        input.play(
+            records([sine(seconds: 1, rate: 48_000)], layout: [1], rate: 48_000, hostStart: takeStart + 1_000_000))
+        await input.wait()
+        try await studio.stopRecording()
+        await studio.rawSweep
+        #expect(!Self.hasCAF(package), "the sweep at the take end removes the CAF of the old take")
         await studio.settle()
     }
 }

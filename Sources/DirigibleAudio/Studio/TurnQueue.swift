@@ -1,7 +1,8 @@
 /// A chain of turns on the main actor: each caller takes the next ticket and runs when `serving`
 /// reaches it, so the turns run one at a time in ticket order.
 @MainActor final class TurnQueue {
-    private var tickets = 0
+    /// Tests read it: the tickets taken.
+    private(set) var tickets = 0
     private var serving = 0
     private var waiting: [Int: CheckedContinuation<Void, Never>] = [:]
 

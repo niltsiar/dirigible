@@ -110,23 +110,31 @@ struct SoleCopyPruneCommandTests {
         #expect(try starts("t1") == [96_480])
     }
 
-    /// Near value of the prune above: a backup that names the clip keeps the entry and the WAV,
-    /// and a revert to that backup brings the clip back.
+    /// A backup that names the clip keeps the entry and the WAV, and a revert to that backup
+    /// brings the clip back. After the clip goes again and no backup names it, the next prune
+    /// drops the entry and the WAV stays.
     @Test func aBackupOfTheClipKeepsTheTakeEntry() async throws {
         let placed = try package.xml()
-        try #require(
-            try await package.run("clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000").status
-                == 0)
+        let clear = ["clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000"]
+        try #require(try await package.run(clear).status == 0)
         try deleteBackups(but: [])
         let holder = "session-20261009T091530.250Z.xml"
         try plant(holder, placed)
         let bytes = try Data(contentsOf: clips.appending(path: "take1-1-1.wav")).count
+        let before = try inode("take1-1-1.wav")
 
-        let result = try await package.run("file", "prune", "PKG")
+        let held = try await package.run("file", "prune", "PKG")
 
-        #expect(result.status == 0 && result.stdout.contains("Kept for a backup: 1 (\(bytes) bytes)"), "\(result)")
+        #expect(held.status == 0 && held.stdout.contains("Kept for a backup: 1 (\(bytes) bytes)"), "\(held)")
         #expect(try package.read().files["take1-1-1"] != nil, "the pool entry stays")
         #expect(try await package.run("backup", "revert", "PKG", "--name", holder).status == 0)
         #expect(try starts("t1") == [96_480])
+
+        try #require(try await package.run(clear).status == 0)
+        try deleteBackups(but: [])
+        let pruned = try await package.run("file", "prune", "PKG")
+
+        #expect(pruned.stdout.contains("Audio of a take, the file stays on no track: take1-1-1.wav\n"), "\(pruned)")
+        #expect((try? inode("take1-1-1.wav")) == before, "the WAV stays after the backup goes")
     }
 }

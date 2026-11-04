@@ -69,7 +69,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
   - under rule 3, or with no usable checkpoint: always the header rate.
 - Store `resampledFromRate` in the `<capture>` element whenever finalize resampled, under any rule. `resampledFromRate` and `driftCorrected="false"` can be on the same `<capture>`.
 - Finalize is deterministic: the clip IDs and the WAV paths come from the take and segment identity. A take number is never reused in a package: the next take number is the highest take number in the CAF and WAV file names of the package, plus one. A second run of finalize on the same take overwrites the output of the first.
-- Release 1 keeps every raw CAF until the hardware drift spike confirms the fit. A later run deletes a CAF only after its WAV passes the frame-count check.
+- The CAF of a placed segment stays until its WAV passes the gate of 0071: the frame count, the rate choice, and the alignment to the host clock. Then the sweep of 0071 removes it. A CAF of the pending take or of an unplaced segment stays.
 - The player and the export never read a CAF.
 
 **Recovery has one owner: `Studio.open`.**
@@ -91,7 +91,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 
 **Disk and sleep.**
 
-- A take needs 7 bytes per sample and channel on disk: 4 for the float32 CAF and 3 for the 24-bit WAV, because Release 1 keeps the CAF. The rate of use is the sum over the armed tracks of channels x rate x 7 bytes per second.
+- A take needs 7 bytes per sample and channel on disk: 4 for the float32 CAF and 3 for the 24-bit WAV, because both files exist until the removal of 0071. The rate of use is the sum over the armed tracks of channels x rate x 7 bytes per second.
 - Before a take, compute the remaining record time from the free space and that rate; decision 0023 says when the window shows it. During a take, stop cleanly and tell the user when the free space is less than the WAV size of the take so far plus 1 GB.
 - Hold a `kIOPMAssertPreventUserIdleSystemSleep` assertion while recording. It does not stop sleep on lid close, from the Apple menu, or on low battery (IOPMLib.h). A segment break catches the sample-time jump after a wake.
 
@@ -100,7 +100,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 ## Consequences
 
 - "No data loss" means: a process crash loses nothing that the writer wrote; a power loss or a kernel panic loses at most 5 s; an unplug loses the time until the device comes back.
-- Release 1 uses double disk space for each take (CAF and WAV) until the drift spike passes.
+- A take uses double disk space (CAF and WAV) until the removal of 0071. After the removal, a take that passes the gate uses 3 bytes per sample and channel.
 - Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together, a full disk during a take and an open after space is freed, and `tccutil reset Microphone` before a take, and one hour on a Bluetooth headset that must stay one segment.
 
 ## Alternatives considered

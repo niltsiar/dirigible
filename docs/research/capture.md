@@ -128,6 +128,8 @@ Launch recovery:
 
 Update 2026-09-23: decision 0004 keeps the `recording` marker in `session.xml` as the single source of truth and adds an active-recordings list as a reopen hint. Only `Studio.open` runs recovery. Finalize always writes WAV at the session rate. Release 1 keeps the raw CAF until the hardware drift spike passes, so step 6 does not delete it yet.
 
+Update 2026-11-04: decision 0071 runs step 6. The sweep deletes the CAF of a placed segment after its WAV passes the gate of frames, rate choice, and alignment to the host clock.
+
 ## 5. App audio capture (R12)
 
 ### Facts: Core Audio process taps

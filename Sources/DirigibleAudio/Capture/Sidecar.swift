@@ -188,6 +188,37 @@ struct Sidecar: Hashable, Sendable {
         return sidecar
     }
 
+    /// The byte count of the magic and the whole records of `data`: the end of the last record
+    /// before one that is short or has a bad hash. Nil when the magic is bad or newer.
+    static func wholeLength(_ data: Data) -> Int? {
+        var reader = ByteReader(Array(data))
+        guard (try? reader.magic(magic)) == true else { return nil }
+        var end = reader.offset
+        while reader.record() != nil { end = reader.offset }
+        return end
+    }
+
+    /// Truncates the sidecar at `url` to `wholeLength`, then appends `finalized`, with no flush. A
+    /// torn record hides each record after it (`decode`), so the truncate comes first. Returns the
+    /// errno of a fault: then the sidecar has no new record.
+    static func append(_ finalized: FinalizeRecord, toSidecarAt url: URL) -> Int32? {
+        let descriptor = open(url.path, O_RDWR | O_CLOEXEC)
+        guard descriptor >= 0 else { return errno }
+        defer { close(descriptor) }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            return posixCode(of: error) ?? EIO
+        }
+        guard let length = wholeLength(data) else { return EINVAL }
+        let bytes = encode(finalized)
+        guard ftruncate(descriptor, off_t(length)) == 0 else { return errno }
+        let written = bytes.withUnsafeBytes { pwrite(descriptor, $0.baseAddress, bytes.count, off_t(length)) }
+        if written < 0 { return errno }
+        return written == bytes.count ? nil : EIO
+    }
+
     private static func decodeCheckpoint(_ payload: ArraySlice<UInt8>, after previous: Checkpoint?) -> Checkpoint? {
         guard payload.count == 24 else { return nil }
         var fields = ByteReader(Array(payload))

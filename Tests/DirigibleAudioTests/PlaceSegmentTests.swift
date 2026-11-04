@@ -78,7 +78,13 @@ struct PlaceSegmentTests {
         #expect(studio.transport == .idle)
         #expect(studio.takeError == nil)
         #expect(try package.read() == studio.session, "the placement is saved")
-        #expect(try captureBytes() == capture, "Capture/ does not change (criterion 24)")
+        // Criterion 24, amended by decision 0071: only the sidecar changes, by one finalize record.
+        var after = try captureBytes()
+        let sidecar = try #require(after.removeValue(forKey: "take1-1-1.sidecar") ?? nil)
+        var before = capture
+        let old = try #require(before.removeValue(forKey: "take1-1-1.sidecar") ?? nil)
+        #expect(after == before, "Capture/ does not change but the sidecar")
+        #expect(sidecar.count == old.count + 33 && sidecar.prefix(old.count) == old, "one record is appended")
     }
 
     enum Explicit: String, CaseIterable, CustomTestStringConvertible {

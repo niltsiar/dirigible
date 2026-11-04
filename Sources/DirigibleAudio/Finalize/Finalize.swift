@@ -126,18 +126,19 @@ public func newerSidecarVersion(of segment: SegmentName, in package: URL) -> Int
     }
 }
 
-/// The segments of the CAFs in `Capture/` that have frames or do not open: the disk fact under
-/// the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
+/// The segments of the CAFs in `Capture/` that have frames or do not open, and the WAV-backed
+/// segments (decision 0071): the disk fact under the unplaced list (decision 0012). In name order. It reads files, so call it off the main actor.
 func segmentsWithAudio(in package: URL) -> [SegmentName] { scanSegments(in: package).withAudio }
 
 /// `segmentsWithAudio`, and the segments whose CAF is not audio: they can never place, so they do
 /// not block a ripple (decision 0037). As `SegmentFinalize.place` tells them, a CAF that opens and
 /// reads whole but that AVAudioFile refuses is not audio (`badAudio`). A CAF that does not open
 /// (probe 2026-10-04: mode 000 gives open() EACCES and AVAudioFile -54) or that a read errno stops
-/// can place later, so it still blocks.
+/// can place later, so it still blocks. A segment with audio is also a WAV-backed segment
+/// (`wavBackedSegments`).
 func scanSegments(in package: URL) -> (withAudio: [SegmentName], notAudio: Set<SegmentName>) {
     var notAudio: Set<SegmentName> = []
-    let withAudio = ((try? captureSegments(in: package)) ?? []).filter { name in
+    let withCAF = ((try? captureSegments(in: package)) ?? []).filter { name in
         let url = package.appending(path: "\(captureFolderName)/\(name.cafName)")
         do {
             return try AVAudioFile(forReading: url).length > 0
@@ -146,7 +147,23 @@ func scanSegments(in package: URL) -> (withAudio: [SegmentName], notAudio: Set<S
             return true
         }
     }
-    return (withAudio, notAudio)
+    return ((withCAF + wavBackedSegments(in: package)).sorted(), notAudio)
+}
+
+/// The segments whose CAF is gone and whose WAV is in `Clips/`, with a finalize record in the
+/// sidecar (decision 0071): the WAV is the only copy of the audio. In name order. A stem WAV with
+/// no CAF and no record is not one.
+func wavBackedSegments(in package: URL) -> [SegmentName] {
+    let folder = package.appending(path: captureFolderName)
+    guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return [] }
+    let files = Set(names)
+    return names.filter { $0.hasSuffix(".sidecar") }.compactMap(SegmentName.init(fileName:)).filter { name in
+        let sidecar = (try? readPackageFile("\(captureFolderName)/\(name.stem).sidecar", in: package))
+            .flatMap { try? Sidecar.decode($0) }
+        return !files.contains("\(name.stem).caf") && sidecar?.finalized != nil
+            && FileManager.default.fileExists(
+                atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).wav").path)
+    }.sorted()
 }
 
 /// True when the file at `url` opens and reads whole: the refusal `error` of AVAudioFile is then

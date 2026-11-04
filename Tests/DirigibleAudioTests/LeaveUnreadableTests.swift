@@ -81,7 +81,11 @@ struct LeaveUnreadableTests {
         #expect(studio.unplacedSegments == [Self.segment])
         #expect(try package.read() == studio.session, "the end of the take is saved")
         #expect(try TakeAnchor.read(take: 1, in: package.url)?.get().armedTracks == ["t1", "t2"])
-        #expect(try captureListing() == capture, "no file in Capture/ is deleted or changed (criterion 24)")
+        // Criterion 24, amended by decision 0071: the sidecar of the converted segment gets one
+        // finalize record, and no other file in Capture/ changes.
+        var expected = capture
+        expected["take1-2-1.sidecar"]? += 33
+        #expect(try captureListing() == expected, "no file in Capture/ is deleted or changed (criterion 24)")
     }
 
     // MARK: Criterion 16

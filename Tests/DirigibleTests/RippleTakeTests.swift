@@ -68,6 +68,24 @@ extension UnplacedBannerTests {
         await reopened.close()
     }
 
+    /// Decision 0071: an unplaced segment whose CAF is gone places from its WAV, so it blocks as a
+    /// CAF segment does. Control: `anUndoneTakeAllowsARipple`.
+    @Test func aSplitTakeWithAWAVBackedSegmentStaysBlocked() async throws {
+        let url = try await splitTake()
+        try FileManager.default.removeItem(at: url.appending(path: "\(captureFolderName)/\(Self.second.stem).caf"))
+        let (reopened, again) = try await timelineModel(url, app: app)
+        try #require(again.unplacedSegments == [Self.second])
+        var beeps = 0
+        reopened.beep = { beeps += 1 }
+        reopened.timeline.marks = Marks(inPoint: 0, outPoint: 4_800, tracks: ["t1"])
+        let before = again.session
+
+        reopened.run(.deleteCloseGap)
+
+        #expect(again.session == before && beeps == 1, "a WAV-backed segment does not block")
+        await reopened.close()
+    }
+
     /// Plan gate 1: an Insert from another package beeps before the paste commits the typed names.
     @Test func aCrossPackageInsertUnderASplitTakeBeeps() async throws {
         let source = folder.url.appending(path: "source")

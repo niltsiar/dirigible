@@ -35,6 +35,39 @@ struct RawRemovalCrashTests {
         try Sidecar.decode(Data(contentsOf: package.appending(path: "Capture/\(name.sidecarName)")))?.finalized
     }
 
+    static func hasCAF(_ name: SegmentName, in package: URL) -> Bool {
+        FileManager.default.fileExists(atPath: package.appending(path: "Capture/\(name.cafName)").path)
+    }
+
+    /// The open sweep removed the CAF of each segment, and each sidecar has a finalize record.
+    static func expectSwept(_ package: URL) throws {
+        for name in segments {
+            #expect(!hasCAF(name, in: package), "the open sweep removes \(name) in \(package.lastPathComponent)")
+            #expect(try record(name, in: package) != nil, "\(name) has a record in \(package.lastPathComponent)")
+        }
+    }
+
+    /// Take 1 finalized and saved, with the finalize record bytes of each sidecar dropped: the
+    /// state of a crash after the save and before the record bytes reached the disk. Returns the
+    /// record of each segment.
+    static func savedWithNoRecord(_ package: TakePackage) async throws -> [FinalizeRecord] {
+        let url = package.url
+        try await offMainActor {
+            let outcome = completeTake(of: try Session(contentsOf: url), lock: try PackageLock(url), level: false) {
+                session throws(SessionFileError) in try session.write(to: url)
+            }
+            #expect(outcome.error == nil)
+        }
+        return try segments.map { name in
+            let record = try #require(try Self.record(name, in: url))
+            let sidecar = package.capture.appending(path: name.sidecarName)
+            let size = try #require(try FileManager.default.attributesOfItem(atPath: sidecar.path)[.size] as? Int)
+            #expect(truncate(sidecar.path, off_t(size - Sidecar.encode(record).count)) == 0)
+            #expect(try Self.record(name, in: url) == nil, "\(name) lost its record")
+            return record
+        }
+    }
+
     /// Opens `package` as the app does after a crash, checks that each segment has audio, and
     /// returns the session that the open recovered.
     static func reopened(_ package: URL, _ comment: String) async throws -> Session {
@@ -111,23 +144,12 @@ struct RawRemovalCrashTests {
     }
 
     /// C4 (b): a crash after the save, before the record bytes reach the disk. Each segment is
-    /// placed and keeps its CAF, and the open keeps each segment placed.
+    /// placed and keeps its CAF; the open keeps each segment placed, and its sweep appends the
+    /// record and removes the CAF.
     @Test func aCrashThatDropsTheRecordBytesKeepsTheTakePlaced() async throws {
         let package = try Self.take()
         let url = package.url
-        try await offMainActor {
-            let outcome = completeTake(of: try Session(contentsOf: url), lock: try PackageLock(url), level: false) {
-                session throws(SessionFileError) in try session.write(to: url)
-            }
-            #expect(outcome.error == nil)
-        }
-        for name in Self.segments {
-            let record = try #require(try Self.record(name, in: url))
-            let sidecar = package.capture.appending(path: name.sidecarName)
-            let size = try #require(try FileManager.default.attributesOfItem(atPath: sidecar.path)[.size] as? Int)
-            #expect(truncate(sidecar.path, off_t(size - Sidecar.encode(record).count)) == 0)
-            #expect(try Self.record(name, in: url) == nil, "\(name) lost its record")
-        }
+        _ = try await Self.savedWithNoRecord(package)
         let copy = package.folder.url.appending(path: "Copy.dirigible")
         try FileManager.default.copyItem(at: url, to: copy)
         let crashed = try Session(contentsOf: copy)
@@ -139,11 +161,44 @@ struct RawRemovalCrashTests {
 
         for package in [url, copy] {
             _ = try await Self.reopened(package, "open of \(package.lastPathComponent)")
+            try Self.expectSwept(package)
+        }
+    }
+
+    /// C4 (b1): a crash in the middle of the record append of a sweep leaves half the record
+    /// bytes. The open sweep drops the torn bytes, appends the record, and removes the CAF.
+    @Test func aCrashInTheSweepAppendLeavesATornRecordThatTheOpenReplaces() async throws {
+        let package = try Self.take()
+        let url = package.url
+        let records = try await Self.savedWithNoRecord(package)
+        for (name, record) in zip(Self.segments, records) {
+            let torn = Sidecar.encode(record).prefix(Sidecar.encode(record).count / 2)
+            let sidecar = try FileHandle(forWritingTo: package.capture.appending(path: name.sidecarName))
+            try sidecar.seekToEnd()
+            try sidecar.write(contentsOf: torn)
+            try sidecar.close()
+        }
+        let copy = package.folder.url.appending(path: "Copy.dirigible")
+        try FileManager.default.copyItem(at: url, to: copy)
+        let crashed = try Session(contentsOf: copy)
+        for name in Self.segments {
+            #expect(try Self.record(name, in: copy) == nil, "\(name) has only the torn record at the crash")
+            #expect(Self.hasAudio(name, session: crashed, in: copy), "\(name) has audio at the crash")
+        }
+
+        for package in [url, copy] {
+            _ = try await Self.reopened(package, "open of \(package.lastPathComponent)")
+            try Self.expectSwept(package)
+            for (name, record) in zip(Self.segments, records) {
+                let swept = try #require(try Self.record(name, in: package))
+                #expect(swept.cafFrames == record.cafFrames, "\(name) in \(package.lastPathComponent)")
+            }
         }
     }
 
     /// C4 (b2) and (c): a crash before the unlink of the CAF, and after the unlink before the
-    /// flush of `Capture/`. Each open keeps each segment placed, with its sidecar record.
+    /// flush of `Capture/`. Each open keeps each segment placed, with its sidecar record, and its
+    /// sweep removes each CAF that stays.
     @Test func aCrashBeforeOrAfterTheUnlinkKeepsTheTakePlaced() async throws {
         let package = try Self.take()
         let url = package.url
@@ -179,9 +234,7 @@ struct RawRemovalCrashTests {
         for package in [url, beforeUnlink, afterUnlink] {
             let session = try await Self.reopened(package, "open of \(package.lastPathComponent)")
             #expect(session.files.count == 2, "\(package.lastPathComponent)")
-            for name in Self.segments {
-                #expect(try Self.record(name, in: package) != nil, "\(name) in \(package.lastPathComponent)")
-            }
+            try Self.expectSwept(package)
         }
     }
 }

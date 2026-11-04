@@ -5,8 +5,7 @@ import Testing
 @testable import DirigibleAudio
 
 /// `Studio.unusedFiles` and `Studio.removeUnusedFiles` after the CAFs of a take are gone
-/// (decision 0071, run caf-removal C9): the WAV is the only copy of the take audio, so the prune
-/// never moves it.
+/// (decision 0071, C9): the WAV is the only copy of the take audio, so the prune never moves it.
 extension WAVPlacementTests {
     var backups: URL { url.appending(path: "Backups") }
 

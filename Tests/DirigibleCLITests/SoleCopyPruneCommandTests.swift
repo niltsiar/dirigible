@@ -4,7 +4,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// `dirigible file prune` of a take whose CAFs are gone (decision 0071, run caf-removal C9): the
+/// `dirigible file prune` of a take whose CAFs are gone (decision 0071, C9): the
 /// WAV is the only copy of the take audio, so the prune never moves it.
 ///
 /// Fixture: tracks `t1` and `t2`, take 1 at playhead 96,000 with a 2.0 s segment on each arm (the

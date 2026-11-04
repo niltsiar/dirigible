@@ -57,7 +57,7 @@ struct RawRemovalGateTests {
 
     /// A segment of 2,881,041 CAF frames (60 s) on a 48 kHz device whose clock runs 50 ppm fast
     /// (48,002.4 Hz). The drift passes 1 ms, so finalize resamples from the fitted rate, and the WAV
-    /// has 2,881,041 x 48,000 / 48,002.4 = 2,880,896.955 frames (probe in the run folder).
+    /// has 2,881,041 x 48,000 / 48,002.4 = 2,880,896.955 frames.
     static let resampledFrames = 2_881_041
 
     static func resampledVerdict(wav: Int, length: Int? = nil, resampledFrom: Double?? = nil) throws -> RawVerdict {

@@ -135,7 +135,7 @@ func removeRawCapture(
 ) throws(RawRemovalError) -> Bool {
     guard placedVerdict(of: name, session: session, in: package) == .removable else { return false }
     guard rawFiles(of: name, in: package) == read.files else { throw .changed }
-    let sidecar = "\(captureFolderName)/\(name.stem).sidecar"
+    let sidecar = "\(captureFolderName)/\(name.sidecarName)"
     if read.appends {
         // A build before 0071 can have left the WAV and its name in Clips/ in the cache only.
         for file in ["\(clipsFolderName)/\(name.stem).wav", clipsFolderName] {
@@ -151,7 +151,7 @@ func removeRawCapture(
         throw .writeFailed(file: sidecar, status: code)
     }
     guard finalizeRecord(of: name, in: package) == read.record else { throw .recordMismatch }
-    guard unlink(package.appending(path: "\(captureFolderName)/\(name.stem).caf").path) == 0 else {
+    guard unlink(package.appending(path: "\(captureFolderName)/\(name.cafName)").path) == 0 else {
         throw .removeFailed(errno: errno)
     }
     if let code = flush(package.appending(path: captureFolderName).path) {
@@ -163,22 +163,20 @@ func removeRawCapture(
 /// The removal of a locked CLI or MCP edit (decision 0071), where `session` is the session on the
 /// disk under the package lock: `removeRawCapture` for each placed segment that passes the gate and
 /// has a valid finalize record. It reads no audio, so a take with no record keeps its CAF. Writes
-/// one `raw` line for each fault to `log()`, which it calls only at the first fault. Returns the
-/// count of removed CAFs.
-package func removeRecordedRawCaptures(of session: Session, in package: URL, log: () -> DiagnosticLog) -> Int {
-    var (removed, journal): (Int, DiagnosticLog?) = (0, nil)
+/// one `raw` line for each fault to `log()`, which it calls only at the first fault.
+package func removeRecordedRawCaptures(of session: Session, in package: URL, log: () -> DiagnosticLog) {
+    var journal: DiagnosticLog?
     for candidate in removableCaptures(of: session, in: package) {
         guard let record = candidate.record else { continue }
         do throws(RawRemovalError) {
             let read = RawRead(files: candidate.files, record: record)
-            if try removeRawCapture(candidate.name, of: session, in: package, read: read) { removed += 1 }
+            _ = try removeRawCapture(candidate.name, of: session, in: package, read: read)
         } catch {
             let started = journal ?? log()
             journal = started
             started.noteRawFault(candidate.name, error)
         }
     }
-    return removed
 }
 
 extension DiagnosticLog {
@@ -194,24 +192,24 @@ extension DiagnosticLog {
 /// The CAF, the WAV, and the sidecar of `name`, in that order.
 private func rawFiles(of name: SegmentName, in package: URL) -> [FileIdentity?] {
     [
-        "\(captureFolderName)/\(name.stem).caf", "\(clipsFolderName)/\(name.stem).wav",
-        "\(captureFolderName)/\(name.stem).sidecar",
+        "\(captureFolderName)/\(name.cafName)", "\(clipsFolderName)/\(name.stem).wav",
+        "\(captureFolderName)/\(name.sidecarName)",
     ]
     .map { FileIdentity(path: package.appending(path: $0).path) }
 }
 
 private func finalizeRecord(of name: SegmentName, in package: URL) -> FinalizeRecord? {
-    (try? readPackageFile("\(captureFolderName)/\(name.stem).sidecar", in: package)).flatMap {
+    (try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package)).flatMap {
         try? Sidecar.decode($0)
     }?.finalized
 }
 
 private func rawVerdict(of name: SegmentName, file: AudioFile, session: Session, in package: URL) -> RawVerdict {
     guard let capture = session.captures[CaptureID(name.stem)],
-        let data = try? readPackageFile("\(captureFolderName)/\(name.stem).sidecar", in: package),
+        let data = try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package),
         let sidecar = try? Sidecar.decode(data)
     else { return .rateChoice }
-    guard let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.stem).caf")),
+    guard let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.cafName)")),
         let wav = try? AVAudioFile(forReading: package.appending(path: "\(clipsFolderName)/\(file.path)"))
     else { return .frames }
     return rawVerdict(
@@ -235,10 +233,10 @@ func rawGain(
     guard let wavPeak = try await peakCode(of: wav, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
     else { return nil }
     if wavPeak.code <= 8_388_604 { return .zero }
-    let caf = "\(captureFolderName)/\(segment.stem).caf"
+    let caf = "\(captureFolderName)/\(segment.cafName)"
     let sidecarData: Data?
     do {
-        sidecarData = try readPackageFile("\(captureFolderName)/\(segment.stem).sidecar", in: package)
+        sidecarData = try readPackageFile("\(captureFolderName)/\(segment.sidecarName)", in: package)
     } catch {
         throw RawRemovalError(error)
     }

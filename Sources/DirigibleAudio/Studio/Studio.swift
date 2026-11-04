@@ -239,6 +239,7 @@ import Observation
     public func settle() async {
         // Before the first await: from now no pass, no block, and no export starts.
         settling = true
+        rawSweepJob.task?.cancel()
         endImport(.close)
         endReads(.close)
         await endListen()

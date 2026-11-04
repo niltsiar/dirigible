@@ -889,6 +889,45 @@ if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   done <<< "$test_segments"
 fi
 
+# A command that builds or tests runs as scripts/with-lock.sh <command> (AGENTS.md, Commands), so
+# two work trees do not build at once. The rule reads each command of the chain from its start, on
+# the masked text (quoted data and data heredocs are blank), after the prefix words (NAME=value,
+# time, env, command, the shell keywords). A command with a with-lock.sh word in the prefix passes.
+# It blocks swift build and swift test, make with a target that takes the lock (lock_targets of
+# scripts/lock-words.sh; make -n and --dry-run pass), and scripts/probe.sh. The scripts that take the lock
+# themselves, swift run (AGENTS.md tells agents to run swift run dirigible --help), swift format,
+# and the make targets that take no lock pass. Misses: a wrapper word (nice, nohup, xargs), a shell
+# -c string, and a path in a variable.
+lock_gate='(^|[^[:alnum:]_.-])(swift|make)([^[:alnum:]_.-]|$)|probe\.sh'
+lock_step_way="Run it as scripts/with-lock.sh <command>. A probe that only runs a built binary and times nothing runs as WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh <folder> <absolute path of the binary> (AGENTS.md, Commands)."
+if [[ "$chained" =~ $lock_gate ]]; then
+  lock_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |[^[:space:]]*with-lock\.sh )*"
+  lock_segments="$(mask_quoted_data <<< "$chained")" || exit 2
+  for sep in ';' '&' '|' '(' '`'; do lock_segments="${lock_segments//"$sep"/$'\n'}"; done
+  lock_words_file="$(dirname "$0")/../../scripts/lock-words.sh"
+  while IFS= read -r segment; do
+    [[ "$segment" =~ ^[[:space:]]?($lock_pre)(.*)$ ]] || continue
+    prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+    [[ "$prefix" == *with-lock.sh* ]] && continue
+    [[ "$rest" =~ ^([^[:space:]]*/)?(swift|make|probe\.sh)([[:space:]]|$) ]] || continue
+    [[ -f "$lock_words_file" ]] ||
+      block "cannot check a lock step: scripts/lock-words.sh, the lock-step lists, is missing" "$lock_step_way"
+    lock_step=""
+    case "${BASH_REMATCH[2]}" in
+      swift) lock_step="$( . "$lock_words_file"; [[ "$rest" =~ ^([^[:space:]]*/)?swift[[:space:]]+(${lock_swift//|run/})([^A-Za-z0-9_-]|$) ]] && echo 1)" ;;
+      probe.sh) lock_step=1 ;;
+      make)
+        [[ " $rest " == *" -n "* || " $rest " == *" --dry-run "* ]] && continue
+        lock_step="$( . "$lock_words_file"
+          [[ "$rest" =~ ^([^[:space:]]*/)?make([[:space:]]+($lock_make_opt|$lock_make_set|($lock_free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|$) ]] && echo 1)"
+        ;;
+    esac
+    if [[ -n "$lock_step" ]]; then
+      block "runs a build, a test, or a probe with no with-lock.sh" "$lock_step_way"
+    fi
+  done <<< "$lock_segments"
+fi
+
 # A subagent never runs a lock wait with no limit: after a second exit 75 it writes the remaining
 # locked steps as one bash file and returns its path to the lead, which runs the file in the
 # background as WITH_LOCK_MAX_WAIT=0 bash <file> (AGENTS.md, Commands). The input of a subagent holds

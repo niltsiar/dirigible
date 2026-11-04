@@ -22,7 +22,7 @@ One run takes one goal (a requirement, a slice, or a bug) to a merged pull reque
 1. Run `scripts/wiki.py now` and `scripts/wiki.py list next --ready`, and read the last `run.md`; `scripts/wiki.py show <id>` prints an item. The **reflect** skill reads the lessons.
 2. Find unfinished work: `git status --porcelain`, `git branch`, runs with status `open`. Resume one on its branch: run `git fetch origin` and `scripts/check-changed.sh --overlap origin/main`, and read its lines (information, never a stop). Read its `run.md` and `decisions.tsv`; compare its handoff with the git output, the last commit, and the PR state; log each difference; continue at the first unchecked phase. Do not switch to `main` with uncommitted changes.
 3. For a new goal, run `.claude/skills/deliver/scripts/new-run.sh <slug> <type>`.
-4. Run `make check` on `main` only when `main` has commits no run landed. If it is red, the fix is the goal.
+4. Run `scripts/with-lock.sh make check` on `main` only when `main` has commits no run landed. If it is red, the fix is the goal.
 5. Before any file change, create the branch `<type>/<slug>` and write it in `run.md`. Every commit of the run goes on it. A run with several landings adds a `- Branch:` line to `run.md` when each next landing starts: `scripts/check-eval-keys.sh` reads the last line. `scripts/check-governance.sh` reads the branch of HEAD, and the last line only on a detached HEAD.
 
 ## Phase 1: Analyze

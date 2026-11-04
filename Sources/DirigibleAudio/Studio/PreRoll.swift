@@ -5,6 +5,14 @@ func preRollStart(playhead: Frames, seconds: Int, rate: Int) -> Frames {
     max(.zero, playhead - Frames(seconds * rate))
 }
 
+/// The whole seconds of the pre-roll `seconds` that play before a take at `playhead`: at most the
+/// whole seconds of the playhead, so S is never cut at 0. Nil when none play.
+public func playedPreRoll(_ seconds: Int?, playhead: Frames, rate: Int) -> Int? {
+    guard let seconds else { return nil }
+    let played = min(seconds, playhead.count / rate)
+    return played > 0 ? played : nil
+}
+
 /// The take start host time H_T of a pre-roll take (decision 0070, **Anchor**): the host time
 /// that frame S starts at (`realStart`), the output term, and the span from S to T.
 func takeStartHostNanos(realStart: UInt64, term: OutputTerm, from start: Frames, to playhead: Frames, rate: Int)

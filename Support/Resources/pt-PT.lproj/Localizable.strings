@@ -564,7 +564,7 @@
 "sheet.unused.reason.stray" = "Fora da sessão";
 "sheet.unused.reason.transcript" = "Nenhuma transcrição o utiliza";
 "sheet.unused.reason.capture" = "Take de um ficheiro sem uso";
-"sheet.unused.reason.take" = "Áudio de take: o ficheiro fica";
+"sheet.unused.reason.take" = "Áudio do excerto: o ficheiro fica";
 "sheet.unused.total" = "Ficheiros: %lld (%@)";
 "sheet.unused.kept" = "Mantidos para uma cópia de segurança, para o histórico de Desfazer ou para o clipboard: %lld (%@)";
 "sheet.unused.damaged" = "As cópias de segurança danificadas não mantêm nenhum ficheiro: %@";

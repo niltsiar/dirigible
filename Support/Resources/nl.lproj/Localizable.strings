@@ -564,7 +564,7 @@
 "sheet.unused.reason.stray" = "Niet in de sessie";
 "sheet.unused.reason.transcript" = "Geen transcript gebruikt het";
 "sheet.unused.reason.capture" = "Take van ongebruikt bestand";
-"sheet.unused.reason.take" = "Opname-audio: het bestand blijft";
+"sheet.unused.reason.take" = "Take-audio: het bestand blijft";
 "sheet.unused.total" = "Bestanden: %lld (%@)";
 "sheet.unused.kept" = "Bewaard voor een reservekopie, de herstelgeschiedenis of het klembord: %lld (%@)";
 "sheet.unused.damaged" = "Beschadigde reservekopieën bewaren geen bestand: %@";

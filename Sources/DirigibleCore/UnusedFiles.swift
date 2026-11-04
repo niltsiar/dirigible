@@ -6,8 +6,10 @@ import Foundation
 /// `session.xml` on the disk (the prune save can make it a backup), each readable backup, and the
 /// keepers that the caller gives (the undo and redo entries, the clipboard files). Also each
 /// transcript file in `Transcripts/` that the session and these holders do not name
-/// (decision 0055), and with `listingCaptureFiles`, the capture files of each free capture. The
-/// scan is the one place of this rule.
+/// (decision 0055), and with `listingCaptureFiles`, the capture files of each free capture. A
+/// stem WAV whose CAF is gone is the only copy of its take audio (decision 0071): it is never a
+/// stray WAV, and an unused pool entry of it is a take entry, whose file stays. The scan is the
+/// one place of this rule.
 public struct UnusedFiles: Hashable, Sendable {
     public struct Item: Hashable, Sendable {
         public enum Kind: Hashable, Sendable {
@@ -17,10 +19,13 @@ public struct UnusedFiles: Hashable, Sendable {
             case transcript(TranscriptFileName)
             /// A capture file of a free capture (`captures`), from `listingCaptureFiles`.
             case capture(CaptureID)
+            /// An unused pool entry of a sole-copy stem WAV (decision 0071). The prune drops the
+            /// entry and keeps the file, which then is an unplaced segment.
+            case takeEntry(FileID)
         }
         public let kind: Kind
-        /// Relative to `Clips/` for `.pool` and `.stray`, and to the package for `.transcript`
-        /// ("Transcripts/<name>.xml") and `.capture`.
+        /// Relative to `Clips/` for `.pool`, `.stray`, and `.takeEntry`, and to the package for
+        /// `.transcript` ("Transcripts/<name>.xml") and `.capture`.
         public let path: String
         public let bytes: Int64
         /// The `lstat` identity at the scan, nil for a missing file. A file that another file
@@ -48,9 +53,11 @@ public struct UnusedFiles: Hashable, Sendable {
     /// of the files that the app clipboard of the same package uses. Throws for an unreadable
     /// `Clips/` or `session.xml`, and for a backup of a newer version or with a read errno other
     /// than ENOENT: the scan cannot know its clips. A backup that is gone keeps nothing.
-    public init(scanning session: Session, keptBy keepers: [Session], keptFiles: [String] = [], in package: URL)
-        throws(UnusedFilesError)
-    {
+    /// `soleCopies` are the `Clips/` paths of the stem WAVs whose CAF is gone (decision 0071).
+    public init(
+        scanning session: Session, keptBy keepers: [Session], keptFiles: [String] = [], soleCopies: Set<String>,
+        in package: URL
+    ) throws(UnusedFilesError) {
         let clips = package.appending(path: clipsFolderName)
         let names: [String]
         do {
@@ -82,12 +89,15 @@ public struct UnusedFiles: Hashable, Sendable {
         let poolNames = Set(session.files.values.map { normalized($0.path) })
         let used = session.filesInUse
         let realClips = clips.resolvingSymlinksInPath().path
+        let sole = Set(soleCopies.map(normalized))
 
         var candidates: [(Item.Kind, String)] = session.files.values
             .filter { !used.contains($0.id) && Self.staysIn(realClips, clips.appending(path: $0.path)) }
-            .map { (.pool($0.id), $0.path) }
-        candidates += names.filter { Self.isStray($0, in: clips) && !poolNames.contains(normalized($0)) }
-            .map { (.stray, $0) }
+            .map { (sole.contains(normalized($0.path)) ? .takeEntry($0.id) : .pool($0.id), $0.path) }
+        candidates += names.filter {
+            Self.isStray($0, in: clips) && !poolNames.contains(normalized($0)) && !sole.contains(normalized($0))
+        }
+        .map { (.stray, $0) }
 
         var items: [Item] = []
         var notFiles: [String] = []
@@ -150,7 +160,7 @@ public struct UnusedFiles: Hashable, Sendable {
     {
         let live = unused(in: session)
         guard let pruned = try live.removingEntries(from: session) else {
-            return PruneReport(moved: [], failed: [], dropped: [])
+            return PruneReport(moved: [], failed: [], dropped: [], unplaced: [])
         }
         let package: URL
         do throws(SessionFileError) {
@@ -168,7 +178,7 @@ public struct UnusedFiles: Hashable, Sendable {
     ) throws(UnusedFilesError) -> PruneReport {
         let live = unused(in: session)
         guard let pruned = try live.removingEntries(from: session) else {
-            return PruneReport(moved: [], failed: [], dropped: [])
+            return PruneReport(moved: [], failed: [], dropped: [], unplaced: [])
         }
         let package: URL
         do throws(SessionFileError) {
@@ -185,7 +195,13 @@ public struct UnusedFiles: Hashable, Sendable {
     /// It builds its sets once, so a caller can use it for many sessions (the undo and redo entries).
     public var poolIDs: (Session) -> Set<FileID> {
         let strays = Set(items.filter { $0.kind == .stray }.map { normalized($0.path) })
-        let ids = Set(items.compactMap { if case .pool(let id) = $0.kind { id } else { nil } })
+        let ids = Set(
+            items.compactMap {
+                switch $0.kind {
+                case .pool(let id), .takeEntry(let id): id
+                case .stray, .transcript, .capture: nil
+                }
+            })
         return { session in
             ids.union(session.files.values.filter { strays.contains(normalized($0.path)) }.map(\.id))
         }
@@ -201,7 +217,7 @@ public struct UnusedFiles: Hashable, Sendable {
         let transcriptFiles = session.transcriptFiles
         let live = items.filter { item in
             switch item.kind {
-            case .pool(let id):
+            case .pool(let id), .takeEntry(let id):
                 session.files[id] != nil && !used.contains(id) && !usedNames.contains(normalized(item.path))
             case .stray: !named.contains(normalized(item.path))
             case .transcript(let name): !transcriptFiles.contains(name)
@@ -237,23 +253,31 @@ public struct UnusedFiles: Hashable, Sendable {
     /// Moves each item to the Trash under `package`, after the save. The capture files go last,
     /// and only for a capture whose pool items all moved: else the CAF can be the last copy. The
     /// files of a capture go in path order (the CAF, then its sidecar), each only after the earlier
-    /// files of its capture left: a CAF with no sidecar can never place.
+    /// files of its capture left: a CAF with no sidecar can never place. A take entry moves no file.
     private func moved(under package: URL, trash: (URL) throws -> URL) -> PruneReport {
         let clips = package.appending(path: clipsFolderName)
         var moved: [PruneReport.Moved] = []
         var failed: [PruneReport.Failed] = []
         var dropped: [FileID] = []
         var movedPool: Set<FileID> = []
+        var unplaced: [UnusedFiles.Item] = []
         /// False when the item is still at its path.
         @discardableResult func move(_ item: Item) -> Bool {
             let url: URL =
                 switch item.kind {
                 case .transcript, .capture: package.appending(path: item.path)
-                case .pool, .stray: clips.appending(path: item.path)
+                case .pool, .stray, .takeEntry: clips.appending(path: item.path)
                 }
             let now = FileIdentity(lstat: url.path)
             guard now != nil || errno != ENOENT else {
-                if case .pool(let id) = item.kind { dropped.append(id) }
+                switch item.kind {
+                case .pool(let id), .takeEntry(let id): dropped.append(id)
+                case .stray, .transcript, .capture: break
+                }
+                return true
+            }
+            if case .takeEntry = item.kind {
+                unplaced.append(item)
                 return true
             }
             // With another lstat errno, the move runs, and its error gives the true cause.
@@ -281,7 +305,7 @@ public struct UnusedFiles: Hashable, Sendable {
             else { continue }
             if !move(item) { stuck.insert(capture) }
         }
-        return PruneReport(moved: moved, failed: failed, dropped: dropped)
+        return PruneReport(moved: moved, failed: failed, dropped: dropped, unplaced: unplaced)
     }
 
     /// The items that are in both scans, with the kept files, damaged backups, and not-files of `other`. The

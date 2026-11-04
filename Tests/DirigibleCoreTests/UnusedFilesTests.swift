@@ -54,8 +54,8 @@ struct UnusedFilesTests {
         return backup
     }
 
-    func scan(_ session: Session, keptBy keepers: [Session] = []) throws -> UnusedFiles {
-        try UnusedFiles(scanning: session, keptBy: keepers, in: package)
+    func scan(_ session: Session, keptBy keepers: [Session] = [], soleCopies: Set<String> = []) throws -> UnusedFiles {
+        try UnusedFiles(scanning: session, keptBy: keepers, soleCopies: soleCopies, in: package)
     }
 
     static func paths(_ scan: UnusedFiles) -> [String] { scan.items.map(\.path) }

@@ -166,6 +166,12 @@ func wavBackedSegments(in package: URL) -> [SegmentName] {
     }.sorted()
 }
 
+/// The `Clips/` paths of the WAVs of `wavBackedSegments`, also when a pool file names one: the
+/// prune keeps each of them (decision 0071).
+package func soleCopyWAVs(in package: URL) -> Set<String> {
+    Set(wavBackedSegments(in: package).map { "\($0.stem).wav" })
+}
+
 /// True when the file at `url` opens and reads whole: the refusal `error` of AVAudioFile is then
 /// a format fault, not a disk fault.
 private func isNotAudio(_ url: URL, _ error: any Error) -> Bool {

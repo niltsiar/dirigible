@@ -67,7 +67,8 @@ import Testing
             (
                 "the unused files sheet",
                 {
-                    model.unusedFiles = try? UnusedFiles(scanning: studio.session, keptBy: [], in: studio.url)
+                    model.unusedFiles = try? UnusedFiles(
+                        scanning: studio.session, keptBy: [], soleCopies: [], in: studio.url)
                 }
             ),
             ("an alert", { model.alert = .error(.busy) }),

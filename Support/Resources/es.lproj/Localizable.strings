@@ -564,6 +564,7 @@
 "sheet.unused.reason.stray" = "No está en la sesión";
 "sheet.unused.reason.transcript" = "Ninguna transcripción lo usa";
 "sheet.unused.reason.capture" = "Toma de un archivo sin uso";
+"sheet.unused.reason.take" = "Audio de toma: el archivo se queda";
 "sheet.unused.total" = "Archivos: %lld (%@)";
 "sheet.unused.kept" = "Se conservan por una copia, Deshacer o el portapapeles: %lld (%@)";
 "sheet.unused.damaged" = "Las copias dañadas no conservan ningún archivo: %@";

@@ -1,5 +1,8 @@
+import AppKit
 import DirigibleCore
 import DirigibleMCP
+import Foundation
+import SwiftUI
 import Testing
 
 @testable import DirigibleApp
@@ -36,5 +39,39 @@ extension ConsentTests {
         #expect(studio.session.recording?.isPreRoll == true)
         await model.stop()
         await model.close()
+    }
+
+    /// P27: one sentence names the start and the pre-roll length, in English and Spanish.
+    @Test func preRollLine() throws {
+        for (language, line) in [
+            ("en", "Starts recording at 1:02:03, after a 3 s pre-roll."),
+            ("es", "Empieza a grabar en 1:02:03, después de un pre-roll de 3 s."),
+        ] {
+            let table = try stringsTable(language)
+            let text = consentPreRollText(
+                start: "1:02:03", seconds: 3, locale: Locale(identifier: language), text: { table[$0.rawValue] ?? "" })
+            #expect(text == line, "\(language)")
+        }
+    }
+
+    /// P27: a request with a pre-roll makes the sheet taller by one line of text and the stack
+    /// spacing (12), not by a second line under the message. SwiftUI gives a test no text of the
+    /// sheet, so the test measures the real sheet.
+    @Test func preRollLineIsOneLine() async throws {
+        let (model, _) = try await window()
+        var heights: [CGFloat] = []
+        for preRoll in [nil, 3] {
+            let request = RecordRequest(armed: ["t1"], seconds: 30, playhead: 48_000, preRoll: preRoll)
+            let answer = Task { await model.askRecord(request, agent: agent) }
+            heights.append(try await sheet(model).frame.height)
+            await model.answerConsent(record: false)
+            #expect(await answer.value == .declined)
+            await until("the sheet goes") { model.window?.attachedSheet == nil }
+        }
+        await model.close()
+        let text = consentPreRollText(start: timeDisplayText(48_000, rate: 48_000, playing: false), seconds: 3)
+        let line = NSHostingView(rootView: Text(verbatim: text)).fittingSize.height
+        #expect(
+            heights[0] > 0 && abs(heights[1] - heights[0] - (line + 12)) < 1, "sheet heights \(heights), line \(line)")
     }
 }

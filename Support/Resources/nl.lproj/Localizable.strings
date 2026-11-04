@@ -515,6 +515,7 @@
 "consent.app.tracks" = "Deze take neemt %@ op. Mensen in het gesprek krijgen geen melding van Dirigible.";
 "consent.message" = "Een take van %1$@ op %2$@, vanaf %3$@. Er wordt niets opgenomen tot je op 'Neem op' klikt. Dit verzoek verloopt over %4$lld s.";
 "consent.record.over" = "De opname vervangt audio op %1$@ na %2$@.";
+"consent.pre.roll.line" = "Begint met opnemen op %1$@, na een pre-roll van %2$@.";
 "consent.dont.record" = "Neem niet op";
 "consent.grant" = "Niet meer vragen tot dit venster sluit";
 "consent.grant.help" = "Stopt als je dit venster sluit, %1$@ na je klik, na in totaal %2$@ aan takes zonder te vragen of als de agent opnieuw verbinding maakt. De take van je klik telt niet mee.";

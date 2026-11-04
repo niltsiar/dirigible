@@ -515,6 +515,7 @@
 "consent.app.tracks" = "Questo take registra %@. Le persone nella chiamata non ricevono alcun avviso da Dirigible.";
 "consent.message" = "Un take di %1$@ su %2$@, a partire da %3$@. Non viene registrato nulla finché non fai clic su Registra. Questa richiesta scade tra %4$lld s.";
 "consent.record.over" = "La registrazione sostituisce l’audio su %1$@ dopo %2$@.";
+"consent.pre.roll.line" = "Inizia a registrare da %1$@, dopo un pre-roll di %2$@.";
 "consent.dont.record" = "Rifiuta";
 "consent.grant" = "Non chiedere più fino alla chiusura di questa finestra";
 "consent.grant.help" = "Termina quando chiudi questa finestra, %1$@ dopo il tuo clic, dopo %2$@ di take in totale senza conferma o quando l’agente si riconnette. Il take del tuo clic non conta.";

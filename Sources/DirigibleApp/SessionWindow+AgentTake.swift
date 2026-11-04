@@ -58,7 +58,8 @@ extension SessionWindow {
         guard let studio else { return }
         var (event, take, reason): (AgentLog.Event, Int?, String?) = (.refused, nil, nil)
         switch answer {
-        case .started(let number, _, _, let grant): (event, take) = (grant?.noSheet == true ? .grant : .click, number)
+        case .started(let number, _, _, _, let grant):
+            (event, take) = (grant?.noSheet == true ? .grant : .click, number)
         case .declined: event = .declined
         case .noAnswer: event = .noAnswer
         case .ended: reason = "ended"

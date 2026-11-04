@@ -111,7 +111,8 @@ extension SessionWindow {
                     return
                 }
                 if let seconds {
-                    take = try await studio.startRecording(armed: armed, playhead: playhead, for: .seconds(seconds))
+                    take = try await studio.startRecording(
+                        armed: armed, playhead: playhead, for: .seconds(seconds), preRoll: preRoll)
                     return
                 }
                 try await studio.startRecording(armed: armed, playhead: playhead, preRoll: preRoll)

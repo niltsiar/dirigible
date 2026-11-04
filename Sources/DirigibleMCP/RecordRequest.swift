@@ -39,9 +39,11 @@ package struct RecordRequest: Sendable, Equatable {
     package let seconds: Double
     /// The start frame, or nil for the playhead of the window.
     package let playhead: Frames?
+    /// The pre-roll in seconds, 1 to 10 (`EditRules.preRollSeconds`), or nil for no pre-roll.
+    package let preRoll: Int?
 
-    package init(armed: [TrackID], seconds: Double, playhead: Frames?) {
-        (self.armed, self.seconds, self.playhead) = (armed, seconds, playhead)
+    package init(armed: [TrackID], seconds: Double, playhead: Frames?, preRoll: Int? = nil) {
+        (self.armed, self.seconds, self.playhead, self.preRoll) = (armed, seconds, playhead, preRoll)
     }
 }
 
@@ -79,9 +81,9 @@ package struct GrantNote: Equatable, Sendable {
 
 /// The end of one record request in the app (decision 0048). `reply` gives its English text.
 package enum RecordAnswer: Equatable, Sendable {
-    /// Take `take` started on the tracks with these names, after a click or under a window grant
-    /// (`grant`, decision 0050).
-    case started(take: Int, tracks: [String], seconds: Double, grant: GrantNote? = nil)
+    /// Take `take` started on the tracks with these names, with `preRoll` seconds of pre-roll or
+    /// none, after a click or under a window grant (`grant`, decision 0050).
+    case started(take: Int, tracks: [String], seconds: Double, preRoll: Int? = nil, grant: GrantNote? = nil)
     case declined
     /// The request ended after `RecordRequest.answerLimit` with no answer.
     case noAnswer
@@ -104,9 +106,11 @@ package enum RecordAnswer: Equatable, Sendable {
     package func reply(package: String) -> AgentReply {
         let text: String
         switch self {
-        case .started(let take, let tracks, let seconds, let grant):
+        case .started(let take, let tracks, let seconds, let preRoll, let grant):
             let length = seconds.rounded() == seconds ? "\(Int(seconds))" : "\(seconds)"
-            let start = "Take \(take) records on \(tracks.joined(separator: ", ")) for \(length) s"
+            let start =
+                "Take \(take) records on \(tracks.joined(separator: ", ")) for \(length) s"
+                + (preRoll.map { " after a \($0) s pre-roll" } ?? "")
             let lead =
                 switch grant {
                 case nil: start + ". "
@@ -162,6 +166,11 @@ private let arm = Param.required("arm", "The track IDs to record.", .strings(min
 private let playhead = Param<Int?>.optional(
     "playhead", "The timeline frame of the take start. The default is the playhead of the window.",
     .integer(minimum: 0))
+private let preRoll = Param<Int?>.optional(
+    "pre_roll",
+    "The seconds of pre-roll, 0 to 10: the session plays from that time before the playhead, and the take starts "
+        + "at the playhead. seconds counts from the playhead. The default is 0, no pre-roll.",
+    .integer())
 
 let recordTools = [
     Tool(
@@ -181,13 +190,17 @@ let recordTools = [
             + "show the sheet. A take after a click can be up to "
             + "\(RecordRequest.units(Int64(RecordRequest.takeLimit / 3600), "hour")) long. A window takes "
             + "\(RecordRequest.askText) at most.",
-        [seconds, arm, playhead], saves: false, batch: .alone
+        [seconds, arm, playhead, preRoll], saves: false, batch: .alone
     ) { a throws(ToolError) in
         guard let length = EditRules.takeSeconds(try a[seconds]) else {
             throw ToolError("The seconds must be more than 0 and 86400 (24 h) or less.")
         }
+        guard let lead = EditRules.preRollSeconds(try a[preRoll] ?? 0) else {
+            throw ToolError("The pre-roll must be 0 to 10 s.")
+        }
         return .record(
             RecordRequest(
-                armed: try a[arm].map { TrackID($0) }, seconds: length, playhead: try a[playhead].map { Frames($0) }))
+                armed: try a[arm].map { TrackID($0) }, seconds: length, playhead: try a[playhead].map { Frames($0) },
+                preRoll: lead > 0 ? lead : nil))
     }.hinted(.records)
 ]

@@ -45,7 +45,7 @@ Use the **deliver** skill for every feature, requirement, or bug. The principles
 - Never commit on `main` directly. Every run lands through a pull request with `scripts/land.sh`.
 - Use Conventional Commits (`feat`, `fix`, `test`, `refactor`, `perf`, `docs`, `build`, `chore`, `style`), with a scope when it helps: `feat(capture): ...`.
 - One commit is one logical change. The subject is imperative and under 72 characters. The body says why. For a long message, use `git commit -F .scratchpads/commit-msg.txt`.
-- At each commit, only the hooks run, no test: pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and `make lint` on the working tree, and commit-msg checks cuts of eval key text. Tests run in the **tdd** loop and the push check before the land. Stage whole changes.
+- At each commit, only the hooks run, no test: pre-commit runs `scripts/check-sizes.sh`, `scripts/check-waits.sh`, and, for working-tree Swift changes, `make lint`, and commit-msg checks cuts of eval key text. Tests run in the **tdd** loop and the push check before the land. Stage whole changes.
 - `scripts/land.sh` and the pre-push hook refuse a commit that a tool made (author, committer, or Co-Authored-By).
 - `.claude/hooks/git-guardrails.sh` matches quoted text too: write data with the Write tool. It allows `git checkout <path>` and `git restore <path>`. Before one of them, or any other command that overwrites a file in the working tree:
   - First run `git status --porcelain <path>` and `git diff <path>`.

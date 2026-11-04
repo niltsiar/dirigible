@@ -1654,6 +1654,8 @@ git -C "$tmp/p" config core.hooksPath "$tmp/p/.githooks"
 gc "$tmp/pw" -m absolute 2>"$tmp/err" && pre_fail 'a commit with an absolute hooks path passed'
 grep -q 'make setup' "$tmp/err" || pre_fail 'the refusal does not name make setup'
 git -C "$tmp/p" config core.hooksPath .githooks
+mkdir -p "$tmp/pw/Sources/M"
+echo '// a' > "$tmp/pw/Sources/M/A.swift"
 gc "$tmp/pw" -m relative 2>"$tmp/err" && pre_fail 'a commit with no Makefile passed'
 grep -q lint "$tmp/err" || pre_fail 'the hook of the worktree did not run make lint'
 grep -q 'make setup' "$tmp/err" && pre_fail 'the hook names make setup with the .githooks path'
@@ -1696,6 +1698,35 @@ mv "$tmp/pw/Tests/T/W.swift" "$tmp/pw/Sources/M/W.swift"
 gc "$tmp/pw" -m source-wait 2>"$tmp/err"
 grep -q check-waits "$tmp/err" && pre_fail 'a raw wait under Sources/ failed the wait gate'
 grep -q lint "$tmp/err" || pre_fail "a raw wait under Sources/ did not reach make lint: $(cat "$tmp/err")"
+# make lint runs only when the working tree has a changed or new .swift path or a changed
+# .swift-format. A stub make records its calls: a change of only a doc makes none.
+mkdir -p "$tmp/bin"
+printf '#!/bin/bash\necho "$*" >> "%s"\n' "$tmp/make.calls" > "$tmp/bin/make"
+chmod +x "$tmp/bin/make"
+rm -rf "$tmp/pw/Sources" "$tmp/pw/Tests"
+lint_ran() { # <commit message>: commit in the worktree with the stub make; true when it ran make lint
+  rm -f "$tmp/make.calls"
+  PATH="$tmp/bin:$PATH" gc "$tmp/pw" -m "$1" 2>"$tmp/err" || pre_fail "the commit $1 failed: $(cat "$tmp/err")"
+  [[ -s "$tmp/make.calls" ]]
+}
+settle() { git -C "$tmp/pw" add -A && lint_ran settle || true; }
+mkdir -p "$tmp/pw/docs"
+echo x > "$tmp/pw/docs/x.md"
+! lint_ran doc-only || pre_fail 'a change of only docs/x.md ran make lint'
+settle
+mkdir -p "$tmp/pw/Sources/M"
+echo '// a' > "$tmp/pw/Sources/M/T.swift"
+echo '{}' > "$tmp/pw/.swift-format"
+git -C "$tmp/pw" add -A
+lint_ran staged-new || pre_fail 'a new staged .swift file did not run make lint'
+echo '// b' >> "$tmp/pw/Sources/M/T.swift"
+lint_ran changed-swift || pre_fail 'a changed .swift file did not run make lint'
+settle
+echo '// c' > "$tmp/pw/Sources/M/New.swift"
+lint_ran untracked-swift || pre_fail 'a new untracked .swift file did not run make lint'
+rm "$tmp/pw/Sources/M/New.swift"
+echo '{"version": 1}' > "$tmp/pw/.swift-format"
+lint_ran changed-format || pre_fail 'a changed .swift-format did not run make lint'
 
 fi # pre-commit
 if case_block commit-msg; then

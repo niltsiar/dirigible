@@ -127,17 +127,19 @@ func oldTakeRecord(
 /// the disk: the gate again, the identity of the three files against `read`, then for `appends`
 /// the flush of the WAV and of `Clips/` and the append of the record, then the sidecar flush, its
 /// record against `read`, the unlink of the CAF, and the flush of `Capture/`. False when the gate
-/// does not pass now; then no file changes. Call it off the main actor.
-func removeRawCapture(_ name: SegmentName, of session: Session, in package: URL, read: RawRead)
-    throws(RawRemovalError) -> Bool
-{
+/// does not pass now; then no file changes. `flush` gives the errno of a flush. Call it off the
+/// main actor.
+func removeRawCapture(
+    _ name: SegmentName, of session: Session, in package: URL, read: RawRead,
+    flush: (String) -> Int32? = { fullFlush(path: $0) }
+) throws(RawRemovalError) -> Bool {
     guard placedVerdict(of: name, session: session, in: package) == .removable else { return false }
     guard rawFiles(of: name, in: package) == read.files else { throw .changed }
     let sidecar = "\(captureFolderName)/\(name.stem).sidecar"
     if read.appends {
         // A build before 0071 can have left the WAV and its name in Clips/ in the cache only.
         for file in ["\(clipsFolderName)/\(name.stem).wav", clipsFolderName] {
-            if let code = fullFlush(path: package.appending(path: file).path) {
+            if let code = flush(package.appending(path: file).path) {
                 throw .writeFailed(file: file, status: code)
             }
         }
@@ -145,14 +147,14 @@ func removeRawCapture(_ name: SegmentName, of session: Session, in package: URL,
             throw .writeFailed(file: sidecar, status: code)
         }
     }
-    if let code = fullFlush(path: package.appending(path: sidecar).path) {
+    if let code = flush(package.appending(path: sidecar).path) {
         throw .writeFailed(file: sidecar, status: code)
     }
     guard finalizeRecord(of: name, in: package) == read.record else { throw .recordMismatch }
     guard unlink(package.appending(path: "\(captureFolderName)/\(name.stem).caf").path) == 0 else {
         throw .removeFailed(errno: errno)
     }
-    if let code = fullFlush(path: package.appending(path: captureFolderName).path) {
+    if let code = flush(package.appending(path: captureFolderName).path) {
         throw .writeFailed(file: captureFolderName, status: code)
     }
     return true

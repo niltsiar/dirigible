@@ -93,7 +93,8 @@ extension Studio {
     /// for the end of this turn.
     private func removeInTurn(_ name: SegmentName, read: RawRead) async {
         guard !rawSweepHeld, !saveWaits, sessionRevision == savedRevision else { return }
-        guard let error = await removeRaw(name, of: session, lock: lock, read: read) else { return }
+        guard let error = await removeRaw(name, of: session, lock: lock, read: read, flush: environment.rawFlush)
+        else { return }
         noteRawFault(name, error)
     }
 
@@ -132,12 +133,13 @@ extension Studio {
 
 /// `removeRawCapture` in the package that `lock` holds now. Returns the fault.
 @concurrent nonisolated private func removeRaw(
-    _ name: SegmentName, of session: Session, lock: PackageLock, read: RawRead
+    _ name: SegmentName, of session: Session, lock: PackageLock, read: RawRead,
+    flush: @escaping @Sendable (String) -> Int32?
 ) async -> RawRemovalError? {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return nil }
     do throws(RawRemovalError) {
-        _ = try removeRawCapture(name, of: session, in: package, read: read)
+        _ = try removeRawCapture(name, of: session, in: package, read: read, flush: flush)
         return nil
     } catch {
         return error

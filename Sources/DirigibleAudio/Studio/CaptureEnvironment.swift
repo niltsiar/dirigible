@@ -91,6 +91,8 @@ struct CaptureEnvironment: Sendable {
     var peakRead: @Sendable () -> Void = {}
     /// A step of the raw sweep job (decision 0071). Tests count or hold the steps with it.
     var beforeRawStep: @Sendable (RawSweepStep) async -> Void = { _ in }
+    /// The flush of each file of a raw removal: the path, then the errno or nil. Tests fail it.
+    var rawFlush: @Sendable (String) -> Int32? = { fullFlush(path: $0) }
     /// A step on the export thread at each cancel check: each chunk and once after the close
     /// (decision 0019). Tests record the thread and the QoS with it, or hold or slow the export.
     var exportChunk: @Sendable () -> Void = {}

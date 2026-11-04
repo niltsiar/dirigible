@@ -89,16 +89,32 @@ struct Checkpoint: Hashable, Sendable {
     var hostTimeNanos: UInt64
 }
 
+/// The facts of one finalize of a segment that a placement from its WAV needs after the CAF is
+/// gone (decision 0071).
+struct FinalizeRecord: Hashable, Sendable {
+    /// The CAF frames that the finalize converted.
+    var cafFrames: Int64
+    /// `RateChoice.source`.
+    var sourceRate: Double
+    /// The clip gain of `ClipConversion`, before the level of decision 0031.
+    var conversionGain: Gain
+}
+
 /// The sidecar file of a segment, version 1 (decision 0012). Little-endian. An 8-byte magic,
 /// then records: a UInt32 payload length, a UInt8 kind, the payload, and the FNV-1a 32 hash of
-/// the kind and the payload. Kind 1 is the header and comes first; kind 2 is a checkpoint.
+/// the kind and the payload. Kind 1 is the header and comes first; kind 2 is a checkpoint; kind 3
+/// is a finalize record, after the last checkpoint (decision 0071). A reader of an older build
+/// stops at the first record that is not a checkpoint, so kind 3 keeps version 1.
 struct Sidecar: Hashable, Sendable {
     var header: CaptureHeader
     var checkpoints: [Checkpoint]
+    /// The last valid finalize record.
+    var finalized: FinalizeRecord? = nil
 
     private static let magic = Array("DRGSIDE1".utf8)
     private static let headerKind: UInt8 = 1
     private static let checkpointKind: UInt8 = 2
+    private static let finalizeKind: UInt8 = 3
 
     /// The magic and the header record: the first bytes of a sidecar file.
     static func encode(_ header: CaptureHeader) -> Data {
@@ -126,6 +142,14 @@ struct Sidecar: Hashable, Sendable {
         return record(checkpointKind, payload.bytes)
     }
 
+    static func encode(_ finalized: FinalizeRecord) -> Data {
+        var payload = ByteWriter()
+        payload.put(finalized.cafFrames)
+        payload.put(finalized.sourceRate)
+        payload.put(finalized.conversionGain.dB)
+        return record(finalizeKind, payload.bytes)
+    }
+
     /// One record: a UInt32 payload length, the kind, the payload, and the FNV-1a 32 hash of the
     /// kind and the payload. The take anchor uses the same framing (decision 0021).
     static func record(_ kind: UInt8, _ payload: [UInt8]) -> Data {
@@ -138,26 +162,51 @@ struct Sidecar: Hashable, Sendable {
     }
 
     /// Nil when the magic or the header is bad; throws for a sidecar of a newer version (decision
-    /// 0024). The checkpoints end before the first record that is short, has a bad hash, has a bad
-    /// value, or goes back: a torn last record or a tail of zeros after a power loss.
+    /// 0024). The records end before the first record that is short or has a bad hash: a torn last
+    /// record or a tail of zeros after a power loss. The checkpoints end before the first record
+    /// that is not a checkpoint, has a bad value, or goes back. `finalized` is the last kind 3
+    /// record with valid values.
     static func decode(_ data: Data) throws(NewerFormat) -> Sidecar? {
         var reader = ByteReader(Array(data))
         guard try reader.magic(magic), let first = reader.record(),
             first.kind == headerKind, let header = decodeHeader(first.payload)
         else { return nil }
-        var checkpoints: [Checkpoint] = []
-        while let record = reader.record(), record.kind == checkpointKind, record.payload.count == 24 {
-            var fields = ByteReader(Array(record.payload))
-            let checkpoint = Checkpoint(
-                fileFrame: Int64(bitPattern: fields.integer()!), sampleTime: fields.double()!,
-                hostTimeNanos: fields.integer()!)
-            let previous = checkpoints.last
-            guard checkpoint.sampleTime.isFinite, checkpoint.fileFrame >= (previous?.fileFrame ?? 0),
-                checkpoint.hostTimeNanos >= (previous?.hostTimeNanos ?? 0)
-            else { break }
-            checkpoints.append(checkpoint)
+        var sidecar = Sidecar(header: header, checkpoints: [])
+        var checkpointsEnded = false
+        while let record = reader.record() {
+            if record.kind == finalizeKind, let finalized = decodeFinalized(record.payload) {
+                sidecar.finalized = finalized
+            }
+            guard !checkpointsEnded, record.kind == checkpointKind,
+                let checkpoint = decodeCheckpoint(record.payload, after: sidecar.checkpoints.last)
+            else {
+                checkpointsEnded = true
+                continue
+            }
+            sidecar.checkpoints.append(checkpoint)
         }
-        return Sidecar(header: header, checkpoints: checkpoints)
+        return sidecar
+    }
+
+    private static func decodeCheckpoint(_ payload: ArraySlice<UInt8>, after previous: Checkpoint?) -> Checkpoint? {
+        guard payload.count == 24 else { return nil }
+        var fields = ByteReader(Array(payload))
+        let checkpoint = Checkpoint(
+            fileFrame: Int64(bitPattern: fields.integer()!), sampleTime: fields.double()!,
+            hostTimeNanos: fields.integer()!)
+        guard checkpoint.sampleTime.isFinite, checkpoint.fileFrame >= (previous?.fileFrame ?? 0),
+            checkpoint.hostTimeNanos >= (previous?.hostTimeNanos ?? 0)
+        else { return nil }
+        return checkpoint
+    }
+
+    private static func decodeFinalized(_ payload: ArraySlice<UInt8>) -> FinalizeRecord? {
+        guard payload.count == 24 else { return nil }
+        var fields = ByteReader(Array(payload))
+        let frames = Int64(bitPattern: fields.integer()!)
+        let rate = fields.double()!
+        guard frames > 0, isValidRate(rate), let gain = Gain(dB: fields.double()!) else { return nil }
+        return FinalizeRecord(cafFrames: frames, sourceRate: rate, conversionGain: gain)
     }
 
     private static func decodeHeader(_ payload: ArraySlice<UInt8>) -> CaptureHeader? {

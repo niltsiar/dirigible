@@ -1,3 +1,4 @@
+import DirigibleCore
 import Foundation
 import Testing
 
@@ -179,6 +180,80 @@ struct SidecarTests {
             #expect(
                 try Sidecar.decode(Self.bytes(header, checkpoints)) == Sidecar(header: header, checkpoints: checkpoints)
             )
+        }
+    }
+
+    // MARK: Finalize record (decision 0071)
+
+    static let finalized = FinalizeRecord(cafFrames: 240_000, sourceRate: 48_002.5, conversionGain: Gain(dB: 6.02)!)
+
+    /// The checkpoint loop of the decoder before decision 0071 (`origin/main` at c05bcde2): it
+    /// stops at the first record that is not a checkpoint.
+    static func olderBuildCheckpoints(_ data: Data) -> [Checkpoint] {
+        var reader = ByteReader(Array(data))
+        _ = try? reader.magic(Array("DRGSIDE1".utf8))
+        _ = reader.record()
+        var checkpoints: [Checkpoint] = []
+        while let record = reader.record(), record.kind == 2, record.payload.count == 24 {
+            var fields = ByteReader(Array(record.payload))
+            let checkpoint = Checkpoint(
+                fileFrame: Int64(bitPattern: fields.integer()!), sampleTime: fields.double()!,
+                hostTimeNanos: fields.integer()!)
+            let previous = checkpoints.last
+            guard checkpoint.sampleTime.isFinite, checkpoint.fileFrame >= (previous?.fileFrame ?? 0),
+                checkpoint.hostTimeNanos >= (previous?.hostTimeNanos ?? 0)
+            else { break }
+            checkpoints.append(checkpoint)
+        }
+        return checkpoints
+    }
+
+    @Test func aFinalizeRecordKeepsTheHeaderAndEveryCheckpoint() throws {
+        let data = Self.bytes() + Sidecar.encode(Self.finalized)
+
+        let sidecar = try #require(try Sidecar.decode(data))
+
+        #expect(sidecar == Sidecar(header: Self.header, checkpoints: Self.checkpoints, finalized: Self.finalized))
+        #expect(Self.olderBuildCheckpoints(data) == Self.checkpoints, "an older build reads every checkpoint")
+        #expect(try #require(try Sidecar.decode(Self.bytes())).finalized == nil)
+    }
+
+    @Test func theLastOfTwoFinalizeRecordsCounts() throws {
+        var second = Self.finalized
+        second.conversionGain = .zero
+        let data = Self.bytes() + Sidecar.encode(Self.finalized) + Sidecar.encode(second)
+
+        let sidecar = try #require(try Sidecar.decode(data))
+
+        #expect(sidecar.finalized == second)
+        #expect(sidecar.checkpoints == Self.checkpoints)
+        #expect(Self.olderBuildCheckpoints(data) == Self.checkpoints)
+    }
+
+    /// A torn second record after a crash leaves the first; a record with a bad value is not
+    /// valid, so the one before it counts.
+    @Test func aTornOrBadSecondFinalizeRecordLeavesTheFirst() throws {
+        var bad = Self.finalized
+        bad.cafFrames = 0
+        let first = Self.bytes() + Sidecar.encode(Self.finalized)
+        let torn = first + Sidecar.encode(Self.finalized).dropLast(1)
+
+        #expect(try #require(try Sidecar.decode(torn)).finalized == Self.finalized)
+        #expect(try #require(try Sidecar.decode(first + Sidecar.encode(bad))).finalized == Self.finalized)
+        #expect(try #require(try Sidecar.decode(Self.bytes() + Sidecar.encode(bad))).finalized == nil)
+    }
+
+    @Test func randomFinalizeRecordsReadBackEqual() throws {
+        var random = SeededGenerator(seed: 0xF1_4A_11)
+        for _ in 0..<200 {
+            let checkpoints = Array(Self.checkpoints.prefix(Int.random(in: 0...5, using: &random)))
+            let record = FinalizeRecord(
+                cafFrames: Int64.random(in: 1...Int64.max, using: &random),
+                sourceRate: Double.random(in: 1...10_000_000, using: &random),
+                conversionGain: Gain(dB: Double.random(in: Gain.range, using: &random))!)
+            let data = Self.bytes(Self.header, checkpoints) + Sidecar.encode(record)
+            #expect(
+                try Sidecar.decode(data) == Sidecar(header: Self.header, checkpoints: checkpoints, finalized: record))
         }
     }
 }

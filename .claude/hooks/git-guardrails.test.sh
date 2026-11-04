@@ -1548,7 +1548,8 @@ printf 'not json' | "$hook" 2>/dev/null
 for run in 'swift build' 'swift test --filter X' 'cd /w && swift build' 'time make build' 'make test-filter FILTER=x' \
   'make check-changed' 'make -s app' 'scripts/probe.sh .scratchpads/x bash p.sh' 'BASE=origin/main make check-changed' \
   'if swift build; then echo ok; fi' '(cd /w; swift test)' 'make -C /w build' 'env X=1 make test' './scripts/probe.sh f cmd' \
-  $'swift build\ngit status'; do
+  $'swift build\ngit status' 'until make build; do sleep 1; done' 'if true; then echo x; elif make build; then echo y; fi' \
+  'make' 'make -j4' 'make -j 4' 'make -C /w' 'make -sC /w' 'make FOO=1' 'time make' 'make > log 2>&1' 'make -j4 -C /w FOO=1'; do
   expect_message 'scripts/with-lock.sh <command>' "$run"
   expect_message 'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh' "$run"
 done
@@ -1557,7 +1558,9 @@ for run in 'scripts/with-lock.sh swift build' 'WITH_LOCK_MAX_WAIT=0 scripts/with
   'make check-docs' 'make lint' 'make format' 'make check-fast' 'swift format lint --strict Sources' 'swift run dirigible --help' \
   'scripts/swift-test.sh --filter X' 'rg "swift build" AGENTS.md' "rg 'swift build' AGENTS.md" 'echo "make build"' 'make -n build' \
   'make --dry-run test' 'git commit -m "fix: swift build now takes the lock"' $'git commit -F - <<\'EOF\'\nmake build\nEOF' \
-  'swift --version' 'swift package dump-package' 'make' 'ls scripts/probe.sh' 'cat scripts/probe.sh' 'echo make build'; do
+  'make -C /w check-docs' 'make -s lint' 'make -j4 check-fast' 'make -j 4 check-docs' 'make -f Makefile lint' 'make --version' \
+  'make -n' 'make -C /w -n' 'make -C /w lint FOO=1' 'make FOO=1 format' \
+  'swift --version' 'swift package dump-package' 'ls scripts/probe.sh' 'cat scripts/probe.sh' 'echo make build'; do
   expect allow "$run"
 done
 fi # guardrails-rules

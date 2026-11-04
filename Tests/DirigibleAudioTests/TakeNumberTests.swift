@@ -71,7 +71,8 @@ struct TakeNumberTests {
             let removable = removableCaptures(of: outcome.session, in: url)
             #expect(removable.map(\.name.stem) == ["take3-1-1"])
             for candidate in removable {
-                #expect(try removeRawCapture(candidate.name, of: outcome.session, in: url, read: candidate.read))
+                let read = RawRead(files: candidate.files, record: try #require(candidate.record))
+                #expect(try removeRawCapture(candidate.name, of: outcome.session, in: url, read: read))
             }
         }
         try #require(!FileManager.default.fileExists(atPath: take.capture.appending(path: "take3-1-1.caf").path))

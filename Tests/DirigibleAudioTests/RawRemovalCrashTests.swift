@@ -164,7 +164,8 @@ struct RawRemovalCrashTests {
             let removable = removableCaptures(of: outcome.session, in: url)
             #expect(removable.map(\.name) == names)
             for candidate in removable {
-                #expect(try removeRawCapture(candidate.name, of: outcome.session, in: url, read: candidate.read))
+                let read = RawRead(files: candidate.files, record: try #require(candidate.record))
+                #expect(try removeRawCapture(candidate.name, of: outcome.session, in: url, read: read))
             }
             try FileManager.default.copyItem(at: url, to: afterUnlink)
         }

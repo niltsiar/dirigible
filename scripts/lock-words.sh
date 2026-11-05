@@ -11,7 +11,7 @@
 # before the target. git-guardrails.test.sh keeps the lists equal to the Makefile and AGENTS.md.
 # Sourced only: no set line, and the top level holds the list assignments only.
 lock_targets='setup|build|app|icon-preview|test|test-filter|test-asan|test-tsan|test-slow|test-slow-push|check-slow-gates|check-warnings|check-sizes|bench|test-app|dmg|test-dmg|test-hooks|run|static|check|check-changed|clean'
-lock_scripts='swift-test|test-shards|bench|bench-pairs|sanitize'
+lock_scripts='swift-test|test-shards|bench|bench-pairs|flake-monitor/loop|sanitize|test-stress'
 lock_swift='build|test|run'
 lock_free_targets='check-docs|check-fast|lint|format'
 lock_make_opt='-[^[:space:]]*([[:space:]]+[^-[:space:]][^[:space:]]*)?'

@@ -35,10 +35,11 @@
 # waiter, one per line. A marker of a dead pid is ignored and removed.
 # A wait with 2 or more other trees in that list prints their count.
 # scripts/with-lock.sh --release-holder takes no lock and runs no command, also inside a locked
-# process tree. It prints "holder: <command>" and exits 0 while a release call (below) holds the
-# lock with a live pid, child, or child group, or "ticket: <pid>" and exits 0 for a live release
-# ticket; else it prints nothing, exits 1, and removes the ticket of a dead pid. A bench, a mutation
-# pass, a flake loop, and an ordinary call give exit 1. .claude/hooks/agent-guard.sh calls it.
+# process tree. It prints "holder: <command>" and exits 0 while a release call (below) or a stress
+# lane (scripts/test-stress.sh) holds the lock with a live pid, child, or child group, or "ticket:
+# <pid>" and exits 0 for a live release ticket; else it prints nothing, exits 1, and removes the
+# ticket of a dead pid. A bench, a mutation pass, a flake loop, and an ordinary call give exit 1.
+# .claude/hooks/agent-guard.sh and the CPU-share signal of the TV launcher session read it.
 # The cap: an ordinary call does not take a free lock while 2 or more other trees build. It
 # counts the tree of the live holder and the trees of the hold lines in the same window (not a
 # waiter, its own tree, a line or a holder of a call with WITH_LOCK_NO_CAP=1, a path that is not a
@@ -77,8 +78,8 @@
 # command first. The call exits with the status of the command.
 # A lock-free call takes no lock and writes no hold line, and prints one stderr line
 # "with-lock: lock-free targets (<targets>): no lock; it waits while a release call (a push
-# check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds
-# the lock". It is make check-changed with no BASE= word and no BASE in the environment or in
+# check, the hooks pass, a land, or make dmg), a bench, a mutation pass, a flake loop, or a stress
+# lane holds the lock". It is make check-changed with no BASE= word and no BASE in the environment or in
 # MAKEFLAGS (both make a push check, and so a release call), when scripts/check-changed.sh (with the
 # NAME=value words of the call in its environment) gives only check-docs, check-fast, static, lint,
 # format, none, test, test-app, test-filter, or a word with =; and make test-hooks with a
@@ -89,8 +90,8 @@
 # (its refusal of a bare run with no changed path and commits past origin/main) runs no command:
 # the call prints the output of check-changed.sh and exits 3 at once, with no lock, wait, ticket, or
 # log line, also behind a long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
-# does not wait for another build or test. While a release call, a bench, a mutation pass, or a
-# flake loop holds the lock (long-runs.md), and, after it waited, while a release call has a live
+# does not wait for another build or test. While a release call, a bench, a mutation pass, a flake
+# loop, or a stress lane holds the lock (long-runs.md), and, after it waited, while a release call has a live
 # ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
 # and then runs. That wait keeps no marker and no ticket, and appends one wait line that ends with
 # lockfree. cost.sh counts its minutes. A lock-free call runs its command as a child. TERM or INT
@@ -205,7 +206,7 @@ first="${lock%/*}/dirigible-build-first"
 release_holder() {
     local m c t
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
-    if [[ -e "$lock/release" ]] && { alive "$m" || alive "$c" || alive "-$c"; }; then
+    if { alive "$m" || alive "$c" || alive "-$c"; } && { [[ -e "$lock/release" ]] || [[ "$(cat "$lock/command" 2>/dev/null)" == *test-stress.sh* ]]; }; then
         echo "holder: $(cat "$lock/command" 2>/dev/null)"
         return 0
     fi
@@ -293,8 +294,8 @@ lock_free() {
             ;;
     esac
 }
-# long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, or a
-# flake loop (long-runs.md): a lock-free call still waits for it.
+# long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
+# loop, or a stress lane (long-runs.md): a lock-free call still waits for it.
 long_holder() {
     local m c cmd w words make=""
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
@@ -302,7 +303,7 @@ long_holder() {
     [[ ! -e "$lock/release" ]] || return 0
     cmd="$(cat "$lock/command" 2>/dev/null)"
     case "$cmd" in
-        *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh*) return 0 ;;
+        *check-changed*BASE=* | *land.sh* | *bench.sh* | *bench-pairs.sh* | *mutation-pass.sh* | *flake-monitor/loop.sh* | *test-stress.sh*) return 0 ;;
     esac
     # The goal bench or dmg of make, also after a NAME=value word (make bench FILTER=X, make FILTER=X bench).
     read -ra words <<<"$cmd"

@@ -547,10 +547,10 @@ waiter=""
 # ordinary build or test does not.
 for holder_command in "make check-changed BASE=origin/main" "$repo/scripts/land.sh x" "make dmg" "$repo/scripts/bench.sh x" "$repo/scripts/bench-pairs.sh x" \
     "$repo/scripts/mutation-pass.sh $repo batch" "$repo/scripts/flake-monitor/loop.sh x" "bash $repo/scripts/flake-monitor/loop.sh x" \
-    "make bench FILTER=HeaderDragBenchmark" "make bench FILTER=ATests BTests" "make FILTER=ATests bench" "make DMG_X=1 dmg"; do
+    "$repo/scripts/test-stress.sh --runs 1 out" "make bench FILTER=HeaderDragBenchmark" "make bench FILTER=ATests BTests" "make FILTER=ATests bench" "make DMG_X=1 dmg"; do
     FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree freewait "holder $holder_command" "$fake/make" check-changed
 done
-for holder_command in "make test-filter ATests" "make test-filter FILTER=bench" "make benchmark-gate"; do
+for holder_command in "make test-filter ATests" "make test-filter FILTER=bench" "make benchmark-gate" "bash $repo/scripts/test-stress.test.sh"; do
     FAKE_TARGETS="check-docs" HOLDER_COMMAND="$holder_command" lockfree run "holder $holder_command" "$fake/make" check-changed
 done
 reset_builders
@@ -1420,9 +1420,9 @@ rh_member="$(cat "$tmp/rh.member")"
 rh_state() { # <kind>: write the lock state of a case
   reset_builders
   case "$1" in
-    release | dead-release | dead-release-child | dead-release-group | ordinary | bench)
+    release | dead-release | dead-release-child | dead-release-group | ordinary | bench | lane | dead-lane | filter | lane-test)
       mkdir -p "$lock"
-      case "$1" in dead-release*) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
+      case "$1" in dead-release* | dead-lane) echo "$rh_dead" > "$lock/pid" ;; *) echo "$$" > "$lock/pid" ;; esac
       case "$1" in
         dead-release-child) echo "$$" > "$lock/child" ;;
         dead-release-group) echo "$rh_leader" > "$lock/child" ;;
@@ -1430,6 +1430,9 @@ rh_state() { # <kind>: write the lock state of a case
       case "$1" in
         ordinary) echo 'make build' > "$lock/command" ;;
         bench) echo 'scripts/bench.sh' > "$lock/command" ;;
+        lane | dead-lane) echo 'scripts/test-stress.sh --runs 1 out' > "$lock/command" ;;
+        filter) echo 'make test-filter FILTER=ATests' > "$lock/command" ;;
+        lane-test) echo 'bash scripts/test-stress.test.sh' > "$lock/command" ;;
         *) : > "$lock/release"; echo 'make check-changed BASE=origin/main' > "$lock/command" ;;
       esac ;;
     ticket) mkdir -p "$first/$$" ;;
@@ -1455,6 +1458,11 @@ rh_check dead-release-group 0 "holder: $rh_cmd"
 builtin kill "$rh_member" 2>/dev/null
 rh_check ordinary 1 ''
 rh_check bench 1 ''
+# A stress lane is a holder as well; a make test-filter call, the test of the lane, and a dead lane are not.
+rh_check lane 0 'holder: scripts/test-stress.sh --runs 1 out'
+rh_check filter 1 ''
+rh_check lane-test 1 ''
+rh_check dead-lane 1 ''
 rh_check free 1 ''
 rh_check ticket 0 "ticket: $$"
 rh_check dead-ticket 1 ''

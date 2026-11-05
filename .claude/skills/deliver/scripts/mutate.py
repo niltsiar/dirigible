@@ -17,7 +17,8 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
                 up to 10 compared lines that hold ✘, failed, or error
   NO TESTS      the test ran no test: the filter matched nothing (exit 5). The test passed, or
                 scripts/test-filter.sh refused a name with a line that starts with
-                "test-filter: no test matched " or "test-filter: no test ID matches "
+                "test-filter: no test matched " or "test-filter: no test ID matches ", and no line
+                of the output starts with "FAIL:"
   LOCK WAIT     the build or the test exited 75, the exit of a scripts/with-lock.sh wait over its
                 limit: nothing was tested, run it again (exit 75)
   stopped       SIGINT, SIGTERM, or SIGHUP stopped the run; the files are restored (exit 130)
@@ -341,7 +342,9 @@ def verdict(log, test_start, built, status, expected, build_status=None):
     if code == 1 and ('No matching test cases were run' in output or re.search(r'Test run with 0 tests', output)):
         result, code = 'NO TESTS', 5
     # scripts/test-filter.sh exits 1 and prints one of these two lines for a name that ran no test.
-    if result == 'killed' and re.search(r'^test-filter: no test (matched|ID matches) ', output, re.M):
+    # A FAIL: line is a shell test (test-filter.test.sh) that failed and may quote the script output.
+    if (result == 'killed' and re.search(r'^test-filter: no test (matched|ID matches) ', output, re.M)
+            and not re.search(r'^FAIL:', output, re.M)):
         result, code = 'NO TESTS', 5
     compared = []
     if code == 0 and expected is not None:

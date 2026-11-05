@@ -7,7 +7,8 @@ import Foundation
 /// The span scan of the agent manual (decision 0051, C5). Each backticked span gets a class from
 /// the data: a `name(arg, ...)` call of a tool with arguments of its schema; one lowercase or
 /// snake_case word that is a tool, a tool argument, an `enum` value of a tool schema, or a
-/// `dirigible` command word; or a `dirigible ...` command line, which
+/// `dirigible` command word; or an option such as `--pre-roll <seconds>`, which a command lists in
+/// its help; or a `dirigible ...` command line, which
 /// `AgentManualCommandTests.eachCommandExampleParses` parses; or a path, the `realpath` form of the
 /// skill, a recipe name, or a prompt name such as `/dirigible:check-levels`. Each other span fails.
 enum ManualScan {
@@ -36,6 +37,9 @@ enum ManualScan {
             }
         }
         if span.wholeMatch(of: /[a-z][a-z0-9_]*/) != nil { return words.contains(span) }
+        if let option = span.wholeMatch(of: /(--[a-z][a-z0-9-]*)(?: <[^>]+>)?/) {
+            return options.contains(String(option.1))
+        }
         let recipes = AgentManual.recipes.map(\.name)
         let path = span.contains("/") && !span.contains(" ") && !span.contains(":")
         return path || span.hasPrefix("realpath ") || recipes.contains(span)
@@ -50,6 +54,16 @@ enum ManualScan {
             words.formUnion(param.schema["enum"] as? [String] ?? [])
         }
         return words.union(commandWords(of: Dirigible.self))
+    }()
+
+    /// The long options that the help text of each command lists.
+    static let options: Set<String> = {
+        func options(of command: any ParsableCommand.Type) -> Set<String> {
+            let help = command.helpMessage(columns: 200)
+            let own = Set(help.matches(of: /(?:^|[^\w-])(--[a-z][a-z0-9-]*)/).map { String($0.1) })
+            return command.configuration.subcommands.reduce(own) { $0.union(options(of: $1)) }
+        }
+        return options(of: Dirigible.self)
     }()
 
     private static func commandWords(of command: any ParsableCommand.Type) -> Set<String> {

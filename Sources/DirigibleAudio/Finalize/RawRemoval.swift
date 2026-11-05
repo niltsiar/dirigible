@@ -110,13 +110,17 @@ struct RawRead: Hashable, Sendable {
 
 /// The placed segments that pass the gate (decision 0071), in name order, with the identity of
 /// their files and their finalize record: nil for a take that a build before 0071 finalized. It
-/// reads file headers and sidecars and no audio, so call it off the main actor. It reads
-/// `isCancelled` after `beforeSegment` with the index of each segment, and after a cancel it
-/// returns no segment.
+/// returns no segment on a volume that is read-only or does not say, so no removal path unlinks
+/// there. It reads `isCancelled` after `beforeSegment` with the index of each segment, and after
+/// a cancel it returns no segment. It reads file headers and sidecars and no audio, so call it
+/// off the main actor.
 func removableCaptures(
     of session: Session, in package: URL, isCancelled: () -> Bool = { false },
     beforeSegment: (Int) -> Void = { _ in }
 ) -> [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)] {
+    guard (try? package.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly == false else {
+        return []
+    }
     var removable: [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)] = []
     for (index, name) in ((try? captureSegments(in: package)) ?? []).enumerated() {
         beforeSegment(index)

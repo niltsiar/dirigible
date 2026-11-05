@@ -79,7 +79,7 @@ if [[ "$(lower "$2 $3")" =~ $claim ]]; then
         [[ "$log_file" != *..* && -f "$run_dir/logs/$log_file" ]] && named=1
     done < <(tr ',;() \t' '\n' <<<"$4")
     [[ $named -eq 1 ]] || {
-        echo "a row that claims a red-tree or old-tree test result names a file of $run_dir/logs/ in its evidence: write the log there, then log the row" >&2
+        echo "a row that claims a red-tree or old-tree test result names a file of $run_dir/logs/ in its evidence: write the log there, then log the row, or, for no test claim, name the rule INR-030/claim" >&2
         exit 2
     }
 fi

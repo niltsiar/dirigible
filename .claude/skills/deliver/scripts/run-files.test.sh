@@ -138,7 +138,7 @@ appended() {
   "$log" "$run" "$@" || fail "$name: exit $?"
   [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 1)) ]] || fail "$name: no row appended"
 }
-refused 'a red-tree claim with a file outside logs/' 'logs/' 6 'item 4 fixed' "$claim" review-diff-2.md done
+refused 'a red-tree claim with a file outside logs/' 'name the rule INR-030/claim' 6 'item 4 fixed' "$claim" review-diff-2.md done
 printf '6\nitem 4 fixed\n%s\nreview-diff-2.md\ndone\n' "$claim" > "$tmp/claim"
 refused 'a red-tree claim, --from form' 'logs/' --from "$tmp/claim"
 [[ -e "$tmp/claim" ]] || fail 'a refused claim row: the --from file is gone'

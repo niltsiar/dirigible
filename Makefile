@@ -24,7 +24,7 @@ test:
 	scripts/test-shards.sh
 
 # Only the tests of FILTER (test or suite names with spaces between them), in two processes:
-# the CLI tests in the second. It fails when no test matched.
+# the CLI tests in the second. It fails when a name matches no test.
 test-filter:
 	scripts/test-filter.sh $(FILTER)
 

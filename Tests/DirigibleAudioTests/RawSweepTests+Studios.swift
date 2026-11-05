@@ -43,4 +43,28 @@ extension RawSweepTests {
         await first.settle()
         await second.settle()
     }
+
+    /// A pending take of another studio records nothing, so it does not hold the job of this
+    /// studio: the job removes the CAF of the old take.
+    @Test func aPendingTakeOfAnotherStudioDoesNotHoldTheJob() async throws {
+        let pending = try TakePackage()
+        try pending.segment(arm: 1, samples: sine(seconds: 2, rate: 48_000))
+        let clips = pending.url.appending(path: "Clips")
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        chmod(clips.path, 0o500)
+        let second = try await Studio.open(pending.url)
+        chmod(clips.path, 0o755)
+        try #require(second.pendingTake?.take == 1, "the finalize fails, so the take stays pending")
+        let (package, _) = try await Self.oldTake()
+        let (first, hold, _) = try await Self.held(package, at: .first)
+        defer { hold.gate.open() }
+        first.otherStudios = { [weak second] in second.map { [$0] } ?? [] }
+
+        hold.gate.open()
+        await first.rawSweep
+
+        #expect(!Self.hasCAF(package), "the job removes the CAF during a pending take of another studio")
+        await first.settle()
+        await second.settle()
+    }
 }

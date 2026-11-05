@@ -215,4 +215,27 @@ struct RawRemovalStopTests {
         #expect(studio.transport == .idle)
         #expect(studio.session.recording == nil, "the settle stopped the take")
     }
+
+    /// A `settle()` during a take start waits on a resume from the end of that start, with no poll.
+    @Test func aSettleDuringAStartWaitsForTheStartEnd() async throws {
+        let studio = try await Studio.open(url)
+        let steps = Steps()
+        defer { steps.first.open() }
+        try await recordAndStop(studio, steps: steps)
+        await steps.first.entered()
+        let start = Task {
+            try await studio.startTake(
+                armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)
+        }
+        await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
+        let settle = Task { await studio.settle() }
+        await until(limit: .seconds(10), "the settle does not wait for the start") { studio.startWaiters == 1 }
+
+        steps.first.open()
+        await until(limit: .seconds(10), "the settle does not return") { !studio.settling }
+        _ = try? await start.value
+
+        #expect(studio.startWaiters == 0)
+        await settle.value
+    }
 }

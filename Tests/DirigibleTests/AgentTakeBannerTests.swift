@@ -26,8 +26,9 @@ extension ConsentTests {
         return dock
     }
 
-    /// A click take of `seconds` from connection 7, with the grant box on when `grant`.
-    func clickTake(_ model: SessionWindow, seconds: Double = 5, grant: Bool = false) async throws -> RecordAnswer {
+    /// A click take of `seconds` from connection 7, with the grant box on when `grant`. The default
+    /// is a length that a slow test run cannot outlast: a test ends the take with `model.stop()`.
+    func clickTake(_ model: SessionWindow, seconds: Double = 600, grant: Bool = false) async throws -> RecordAnswer {
         let answer = ask(model, seconds: seconds, connection: Self.seven)
         let sheet = try await sheet(model)
         if grant { try #require(grantBox(in: sheet)).performClick(nil) }
@@ -43,7 +44,7 @@ extension ConsentTests {
         let take = try #require(model.agentRecord.take)
         #expect(take.take == 1 && take.tracks == ["Host"] && take.agent == "Claude Code")
         let row = model.agentTakeText(take, now: take.since + .seconds(1))
-        #expect(row == L10n.takeAgent.format(1, "Host", "Claude Code", "0:04"), "\(row)")
+        #expect(row == L10n.takeAgent.format(1, "Host", "Claude Code", "9:59"), "\(row)")
         // The row shows Stop, and Always Ask Again while a grant lives. The tree of the SwiftUI
         // host is empty in a test process, so the on-screen check of S3 reads the buttons.
         #expect((model.agentRecord.grant != nil) == grant)

@@ -149,4 +149,31 @@ extension TakeCommandTests {
         #expect(result.status == 0 && result.stdout == "take1-1-1\n", "capture place: \(result)")
         #expect(!hasCAF("take1-1-1"), "the sweep after the placement removes the CAF")
     }
+
+    /// Code gate item 8: before the unlink, the removal compares the finalize record with the CAF
+    /// header frames and the rate choice. A record of other frames or of another source rate keeps
+    /// the CAF at a locked edit and at `take finalize`. The record of the finalize removes it.
+    @Test(arguments: ["none", "frames", "rate"]) func aRecordOfAnotherCAFKeepsTheCAF(fault: String) async throws {
+        try await finalizedTake(1, record: true)
+        let name = SegmentName(take: 1, arm: 1, segment: 1)
+        var record = try #require(finalizeRecord(name))
+        switch fault {
+        case "frames": record.cafFrames -= 1
+        case "rate": record.sourceRate = 44_100
+        default: break
+        }
+        try #require(Sidecar.append(record, toSidecarAt: capture.appending(path: name.sidecarName)) == nil)
+        try #require(finalizeRecord(name) == record, "the reader uses the last record")
+        let logs = package.folder.appending(path: "logs")
+
+        let marker = try await dirigible(["marker", "set", package.path, "--name", "Note", "--at", "10"], logs: logs)
+
+        #expect(marker.status == 0, "marker set: \(marker)")
+        #expect(hasCAF("take1-1-1") == (fault != "none"), "\(fault): the CAF stays only for a record of another CAF")
+        guard fault != "none" else { return }
+        let finalize = try await dirigible(["take", "finalize", package.path], logs: logs)
+        #expect(finalize == CLIResult(status: 0, stdout: "", stderr: ""))
+        #expect(hasCAF("take1-1-1"), "take finalize keeps the CAF too")
+        #expect(FileManager.default.fileExists(atPath: clips.appending(path: "take1-1-1.wav").path))
+    }
 }

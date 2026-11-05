@@ -84,6 +84,38 @@ struct RecordTests {
         #expect(studio.session.track("t1")?.clips.first?.start == 0)
     }
 
+    /// Decision 0071: `record` returns after the raw sweep job of its take, so `dirigible record`
+    /// ends with the CAF of a segment that passes the gate gone.
+    @Test func aRecordReturnsAfterTheRawSweepOfItsTake() async throws {
+        let hal = TestHAL([mic])
+        let studio = try await studio(hal)
+        await studio.rawSweep
+        let gate = AsyncGate()
+        defer { gate.open() }
+        studio.environment.beforeRawStep = { if $0 == .first { await gate.wait() } }
+        let input = SyntheticInput(hal, "mic")
+        var clock = DeviceClock(hostNanos: Double(takeStart) - 500_000_000)
+        input.play(clock.run(seconds: 3), takeStartIn: url)
+        let done = StepCounter()
+        let record = Task {
+            _ = try await studio.record(armed: ["t1"], playhead: 0, for: .seconds(1))
+            _ = done.next()
+        }
+        await gate.entered()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(done.calls == 0, "the record waits for the job of its take")
+        let segment = SegmentName(stem: "take1-1-1")!
+        #expect(rawCaptures(of: studio.session, in: url)[segment] == .removable)
+
+        gate.open()
+        await until(limit: .seconds(10), "the record does not return") { done.calls == 1 }
+        try await record.value
+        await input.wait()
+
+        let caf = url.appending(path: "Capture/\(segment.cafName)")
+        #expect(!FileManager.default.fileExists(atPath: caf.path), "the CAF is gone when the record returns")
+    }
+
     /// A take that ends early returns soon after its end, not after the full duration: a disk
     /// low stop, and a stop from another caller. The limit is 10 s less than the duration. The
     /// `Stopwatch` leaves out the main-actor holds of other suites (run flakes-2, S4).

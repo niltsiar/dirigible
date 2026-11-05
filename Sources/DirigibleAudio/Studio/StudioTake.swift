@@ -15,7 +15,7 @@ extension Studio {
     /// Records a take for `duration`, then stops it, the call of `dirigible record`. With
     /// `preRoll`, the take plays the pre-roll first, as `startRecording`. A disk-low stop, a stop
     /// from another caller, or a cancel of this call can end it early; then it returns soon after
-    /// that end.
+    /// that end. It returns after the raw sweep job (decision 0071) of the take.
     /// Throws what `startRecording` throws, or the finalize error; then `lastTake` still has the
     /// result and the take stays pending.
     public func record(armed: [TrackID], playhead: Frames, for duration: Duration, preRoll: Int? = nil)
@@ -36,6 +36,7 @@ extension Studio {
         while generation == mine, transport == .finalizing(take: take) || isStarting {
             await Task { try? await Task.sleep(for: .milliseconds(10)) }.value
         }
+        await rawSweep
         // Another caller can start a new take before this call wakes; that start clears the
         // result, and a finalize error is then of the new take. A start that fails keeps both.
         guard generation == mine, let lastTake else { throw .busy }

@@ -78,7 +78,9 @@ struct StartLimitTests {
     }
 
     /// Starts a take of `armed` and returns the time from the begin (`afterStart`) to the return.
-    /// A start that does not return in 5 s is an issue; then `release` lets it end.
+    /// A start that does not return in 5 s is an issue; then `release` lets it end. A test that
+    /// holds no writer at the start calls `startRecording`: the wall cap of this wait also counts
+    /// the main-actor holds of other suites.
     func start(_ studio: Studio, _ armed: [TrackID], release: () -> Void) async throws -> Duration {
         let begun = OSAllocatedUnfairLock<ContinuousClock.Instant?>(initialState: nil)
         studio.environment.afterStart = { begun.withLock { $0 = .now } }

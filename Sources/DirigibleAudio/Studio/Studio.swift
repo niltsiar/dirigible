@@ -268,7 +268,7 @@ import Observation
         // After the last write: the state that the user hands to the CLI or an agent (0043).
         await serialized { if let list = await keepBackupAtClose(lock) { backups = list } }
         await stopPeaks()
-        await stopRawSweeps([self])
+        await stopRawSweep()
         settling = false
     }
 

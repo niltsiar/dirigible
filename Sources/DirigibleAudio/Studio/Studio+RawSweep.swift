@@ -58,11 +58,10 @@ extension Studio {
         for studio in studios where !studio.rawSweepJob.waitsForTurn { await studio.rawSweep }
     }
 
-    /// Cancels the job of each studio of `studios`, so a WAV read ends at its next block, and waits
-    /// for each.
-    func stopRawSweeps(_ studios: [Studio]) async {
-        for studio in studios { studio.rawSweepJob.task?.cancel() }
-        for studio in studios { await studio.rawSweep }
+    /// Cancels the job, so a WAV read ends at its next block, and waits for it.
+    func stopRawSweep() async {
+        rawSweepJob.task?.cancel()
+        await rawSweep
     }
 
     /// Waits while a take start of this studio runs up to its `begin`. A start waits for the sweep

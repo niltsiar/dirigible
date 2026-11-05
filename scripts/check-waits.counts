@@ -1,0 +1,2 @@
+# The caps of the wall-clock count gate of scripts/check-waits.sh. The first line that is no comment is `mode warn` or `mode fail`. A cap line is <path><TAB><cap><TAB><reason>.
+mode warn

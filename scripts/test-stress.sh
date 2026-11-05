@@ -5,10 +5,13 @@
 # Usage: scripts/test-stress.sh [--runs <n>] [--filter '<names>'] <out folder>
 # The script takes the build lock itself, as scripts/flake-monitor/loop.sh does (the
 # DIRIGIBLE_LOCKED_SCRIPT marker), with WITH_LOCK_MAX_WAIT=0 and, unless the caller sets it,
-# WITH_LOCK_MAX_HOLD = <runs> x H, with H = max(7200, 4 x the newest push-check hold of the holds log
-# in the git common dir). A call that holds the lock already (DIRIGIBLE_BUILD_LOCK set, no marker of
-# this script) exits 2: an outer hold limit would end the lane in exit 124. An out folder that holds
-# a summary.txt exits 2.
+# WITH_LOCK_MAX_HOLD=6600: one call holds the lock for at most 6600 s, under the 7200 s limit of a
+# Bash background call. Each shard gets a limit of <hold> / <runs> / 2 s, and test-shards.sh refuses
+# a limit under 2400 s. So a call whose hold gives a shard under 2400 s exits 2 before the lock, with
+# a message that names the largest --runs that fits. The default hold fits --runs 1. A hold of 0 is
+# no limit. A call that holds the lock already (DIRIGIBLE_BUILD_LOCK set, no marker of this script)
+# exits 2: an outer hold limit would end the lane in exit 124. An out folder that holds a
+# summary.txt exits 2.
 # Inside the lock: it starts 2 x hw.ncpu busy processes (pids in <out folder>/busy.pids) and waits
 # until the 1-minute load average is at or over hw.ncpu (a check each 5 s, 36 checks, else exit 3
 # with "test-stress: the load source made no load"). Then it runs scripts/flake-monitor/loop.sh
@@ -35,7 +38,7 @@ while [[ "${1:-}" == --runs || "${1:-}" == --filter ]]; do
     shift 2
 done
 usage="usage: scripts/test-stress.sh [--runs <n>] [--filter '<names>'] <out folder>"
-[[ $# -eq 1 && "$runs" =~ ^[1-9][0-9]*$ ]] || { echo "$usage" >&2; exit 2; }
+[[ $# -eq 1 && "$runs" =~ ^[1-9][0-9]{0,8}$ ]] || { echo "$usage" >&2; exit 2; }
 out="$1"
 
 if [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" != "$0" ]]; then
@@ -47,12 +50,15 @@ if [[ "${DIRIGIBLE_LOCKED_SCRIPT:-}" != "$0" ]]; then
         echo "test-stress: $out holds a summary.txt; use a new out folder" >&2
         exit 2
     fi
-    holds="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)/dirigible-build-holds.log" || exit 2
-    [[ -f "$holds" ]] || holds=/dev/null
     export WITH_LOCK_MAX_WAIT=0
-    export WITH_LOCK_MAX_HOLD="${WITH_LOCK_MAX_HOLD:-$(awk -F'\t' -v runs="$runs" \
-        '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { s = $2 }
-        END { s *= 4; print runs * ((s < 7200) ? 7200 : s) }' "$holds" 2>/dev/null)}"
+    export WITH_LOCK_MAX_HOLD="${WITH_LOCK_MAX_HOLD:-6600}"
+    hold="$WITH_LOCK_MAX_HOLD"
+    if [[ "$hold" =~ ^[1-9][0-9]{0,14}$ && $hold -lt $((4800 * runs)) ]]; then
+        fit="the largest --runs that fits is $((hold / 4800)), or"
+        [[ $hold -ge 4800 ]] || fit="no --runs fits, so"
+        echo "test-stress: --runs $runs with a hold of $hold s gives each shard $((hold / runs / 2)) s, under the floor of 2400 s; $fit set WITH_LOCK_MAX_HOLD to $((4800 * runs)) or more" >&2
+        exit 2
+    fi
     DIRIGIBLE_LOCKED_SCRIPT="$0" exec "$here/with-lock.sh" "$0" "${args[@]}"
 fi
 

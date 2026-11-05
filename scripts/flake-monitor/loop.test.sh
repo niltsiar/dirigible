@@ -87,5 +87,16 @@ printf 'test:\n\t@echo "goal=test"\ntest-filter:\n\t@echo "goal=filter FILTER=$(
 [[ "$(cat "$tmp/out14/t-1.log" 2>/dev/null)" == "goal=filter FILTER=CTests suite=1 limit=0" ]] \
     || { echo "FAIL: --min-load then --filter: $(cat "$tmp/out14/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
 
+# When a run ends, the loop prints the red lines of its log after the summary line: a failed test
+# and each issue of it, never a known issue; a green run prints none.
+printf 'test:\n\t@cat "%s/run.log"\n' "$tmp" > "$tmp/stub/Makefile"
+out="$("$loop" t 1 1 "$tmp/out15" "$tmp/stub" 2>&1)"
+want=$'t 1 red: ✘ Test settleEndsATakeWhileAPassWaits() recorded an issue at StudioPeaksSettleTests.swift:68:9: Issue recorded\nt 1 red: ✘ Test settleEndsATakeWhileAPassWaits() failed after 16.679 seconds with 1 issue.'
+[[ "$(grep -F ' red: ' <<<"$out")" == "$want" ]] \
+    || { echo "FAIL: the red lines of a red run: $(grep -F ' red: ' <<<"$out")"; failures=$((failures + 1)); }
+printf 'test:\n\t@echo ok\n' > "$tmp/stub/Makefile"
+out="$("$loop" t 1 1 "$tmp/out16" "$tmp/stub" 2>&1)"
+! grep -qF ' red: ' <<<"$out" || { echo "FAIL: a green run prints a red line: $out"; failures=$((failures + 1)); }
+
 [[ $failures -eq 0 ]] && echo "loop tests: all passed"
 exit $((failures > 0))

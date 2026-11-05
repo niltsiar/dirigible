@@ -564,7 +564,6 @@
 "sheet.unused.reason.stray" = "Non è nella sessione";
 "sheet.unused.reason.transcript" = "Nessuna trascrizione lo usa";
 "sheet.unused.reason.capture" = "Take di un file inutilizzato";
-"sheet.unused.reason.take" = "Audio del take: il file resta";
 "sheet.unused.total" = "File: %lld (%@)";
 "sheet.unused.kept" = "Conservati per un backup, la cronologia degli annullamenti o gli Appunti: %lld (%@)";
 "sheet.unused.damaged" = "I backup danneggiati non conservano alcun file: %@";
@@ -618,7 +617,6 @@
 "banner.level.changed" = "Livellamento automatico terminato. Clip modificati: %lld.";
 "banner.unused.moved" = "File spostati nel Cestino: %lld (%@).";
 "banner.unused.failed" = "Questi file non sono stati spostati: %@";
-"banner.unused.take" = "Questi file audio del take restano e non sono su nessuna traccia: %@";
 "banner.level.none" = "Livellamento automatico terminato. Nessuna modifica: i clip sono al livello obiettivo.";
 "banner.level.volume" = "Il volume della traccia non cambia il guadagno del clip.";
 "banner.level.limit" = "Clip al limite di 20 dB: %lld. Controlla che contengano parlato.";

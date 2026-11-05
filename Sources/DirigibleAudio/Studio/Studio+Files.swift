@@ -52,12 +52,11 @@ extension Studio {
             case .success(let report):
                 if done.written != nil { savedRevision = sessionRevision }
                 poolChanged(from: before.files)
-                // A segment whose CAF went is no take audio, so it is not unplaced.
+                // A segment whose CAF or, with its CAF gone, whose sidecar went is no take audio, so it
+                // is not unplaced.
                 let gone = Set(
                     report.moved.compactMap { moved -> SegmentName? in
-                        guard case .capture(let capture) = moved.item.kind, moved.item.path.hasSuffix(".caf") else {
-                            return nil
-                        }
+                        guard case .capture(let capture) = moved.item.kind else { return nil }
                         return SegmentName(stem: capture.rawValue)
                     })
                 segmentsWithAudio.removeAll(where: gone.contains)

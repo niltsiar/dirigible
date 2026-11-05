@@ -564,7 +564,6 @@
 "sheet.unused.reason.stray" = "Fora da sessão";
 "sheet.unused.reason.transcript" = "Nenhuma transcrição o utiliza";
 "sheet.unused.reason.capture" = "Take de um ficheiro sem uso";
-"sheet.unused.reason.take" = "Áudio do excerto: o ficheiro fica";
 "sheet.unused.total" = "Ficheiros: %lld (%@)";
 "sheet.unused.kept" = "Mantidos para uma cópia de segurança, para o histórico de Desfazer ou para o clipboard: %lld (%@)";
 "sheet.unused.damaged" = "As cópias de segurança danificadas não mantêm nenhum ficheiro: %@";
@@ -618,7 +617,6 @@
 "banner.level.changed" = "“Nivelamento automático” concluído. Clipes alterados: %lld.";
 "banner.unused.moved" = "Ficheiros movidos para o Lixo: %lld (%@).";
 "banner.unused.failed" = "Estes ficheiros não foram movidos: %@";
-"banner.unused.take" = "Estes ficheiros de áudio do excerto ficam e não estão em nenhuma faixa: %@";
 "banner.level.none" = "“Nivelamento automático” concluído. Nenhuma alteração: os clipes estão no nível alvo.";
 "banner.level.volume" = "O volume da faixa não altera o ganho do clipe.";
 "banner.level.limit" = "Clipes no limite de 20 dB: %lld. Verifique se têm voz.";

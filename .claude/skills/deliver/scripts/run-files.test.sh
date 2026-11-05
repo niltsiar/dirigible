@@ -6,6 +6,8 @@
 # Check that a criterion change row needs a newer analysis.md and the words old and new. Check
 # that the first phase 4 row of a run folder with a plan.md needs a passing scripts/check-plan.sh
 # (a Criteria: field for each plan gate change, and a criterion change row for each ID).
+# Check that a row that claims a test result on the red tree or the old tree needs an existing file
+# of the logs/ folder of the run in its evidence.
 # Check that a phase 6 row needs a graded eval key for each evals.md row that the branch adds or re-keys.
 # Check that new-run.sh reads the wiki: it reports the later count, the size of the next list, the
 # upkeep items, and a due architecture audit, opens a run with one log row, refuses a third
@@ -122,6 +124,45 @@ refused 'a criterion change with no old and new' 'old and new' 4 'criterion chan
 check_row 'a criterion change after an analysis.md edit' $'4\tCriterion change C1: old 3 s, new 5 s\tthe probe gives 4 s\tevidence\tdone'
 refused 'a second criterion change with no new analysis.md edit' analysis.md "${change[@]}"
 "$log" "$run" 7 'criterion 4 verified' 'the test passes' evidence done || fail "a criterion verification row exits $?"
+
+# A row that claims a test result on the red tree or the old tree names a file of the logs/ folder
+# of the run in its evidence. The phrase is read at a word start, in the decision or the why.
+mkdir "$run/logs"
+: > "$run/review-diff-2.md"
+printf 'red output\n' > "$run/logs/s1-red.log"
+claim='The item 4 test passed on the red tree'
+appended() {
+  local name="$1" rows
+  shift
+  rows="$(wc -l < "$run/decisions.tsv")"
+  "$log" "$run" "$@" || fail "$name: exit $?"
+  [[ "$(wc -l < "$run/decisions.tsv")" -eq $((rows + 1)) ]] || fail "$name: no row appended"
+}
+refused 'a red-tree claim with a file outside logs/' 'logs/' 6 'item 4 fixed' "$claim" review-diff-2.md done
+printf '6\nitem 4 fixed\n%s\nreview-diff-2.md\ndone\n' "$claim" > "$tmp/claim"
+refused 'a red-tree claim, --from form' 'logs/' --from "$tmp/claim"
+[[ -e "$tmp/claim" ]] || fail 'a refused claim row: the --from file is gone'
+refused 'a claim in the decision' 'logs/' 6 'item 4 fails on the old tree' 'the fix is in' review-diff-2.md done
+for why in 'the test failed on the red-tree' 'It Passed on the red build' 'the old tree gave exit 0' 'the old-tree run'; do
+  refused "the claim phrase '$why'" 'logs/' 6 decision "$why" review-diff-2.md done
+done
+"$log" "$run" 6 'item 4 fixed' "$claim" 'logs/s1-red.log:3.' done || fail "a red-tree claim with a log exits $?"
+check_row 'a red-tree claim with a log' $'6\titem 4 fixed\tThe item 4 test passed on the red tree\tlogs/s1-red.log:3.\tdone'
+printf '6\nitem 4 fixed\n%s\nlogs/s1-red.log\ndone\n' "$claim" > "$tmp/claim"
+"$log" "$run" --from "$tmp/claim" || fail "a red-tree claim with a log, --from form, exits $?"
+# Evidence forms: a word is logs/<file>, or ends in /<run name>/logs/<file>, and the file exists.
+appended 'a log in parentheses' 6 d "$claim" 'the red run (logs/s1-red.log)' done
+appended 'a log between other files' 6 d "$claim" 'review-diff-2.md, logs/s1-red.log; a.txt' done
+appended 'the absolute path of the log' 6 d "$claim" "$run/logs/s1-red.log" done
+refused 'a log that does not exist' 'logs/' 6 d "$claim" logs/s9-missing.log done
+refused 'a log of another run' 'logs/' 6 d "$claim" /x/other-run/logs/s1-red.log done
+refused 'a path out of logs/' 'logs/' 6 d "$claim" logs/../review-diff-2.md done
+refused 'the word logs alone' 'logs/' 6 d "$claim" 'review-diff-2.md in logs' done
+# Rows with no claim phrase are not read: a word that holds the letters, the rule named by its key,
+# and a loop that is red-capable.
+appended 'a tree that is no red tree' 6 'the measured tree' 'a scored tree' review-diff-2.md done
+appended 'a red-capable loop' 6 d 'no test without a red-capable loop' review-diff-2.md done
+appended 'the rule named by its key' 6 'apply the INR-030/claim rule of log-decision.sh' 'the key names the rule' review-diff-2.md done
 
 # Each phase 4 row of a run with a plan.md runs scripts/check-plan.sh on the run folder: a plan
 # gate change with no Criteria: field, or a criterion with no criterion change row, refuses the

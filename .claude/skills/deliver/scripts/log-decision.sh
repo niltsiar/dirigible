@@ -11,7 +11,11 @@
 # its why: the word or line that reverses the default (deliver autonomy rules). The phase is one
 # digit (0-9), so land.sh finds the mutation pass row of phase 7. A decision that starts with
 # `criterion change` (any case) needs an analysis.md in the run folder that changed after the last
-# row, and the words old and new. Each phase 4 row of a run folder with a plan.md needs a
+# row, and the words old and new. A decision or why with "red tree", "red-tree", "passed on the
+# red", "old tree", or "old-tree" at a word start (any case) claims a test result on that tree:
+# its evidence then names a file of the logs/ folder of the run (logs/<file>, or a path that ends
+# in /<run name>/logs/<file>) that exists. Name the rule by its key (INR-030/claim), not by those
+# words. Each phase 4 row of a run folder with a plan.md needs a
 # passing scripts/check-plan.sh (CHECK_PLAN_AT_PHASE4=1): a Criteria: field for each plan gate
 # change, and a criterion change row for each of its IDs, while such a row can still come before
 # Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
@@ -59,6 +63,25 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
     word='(^|[^a-z])old([^a-z]|$)'
     text="$(lower "$2 $3")"
     [[ "$text" =~ $word && "$text" =~ ${word/old/new} ]] || { echo "a criterion change row names the old and new value (the words old and new)" >&2; exit 2; }
+fi
+claim='(^|[^a-z])(red[- ]tree|passed on the red|old[- ]tree)'
+if [[ "$(lower "$2 $3")" =~ $claim ]]; then
+    run_dir="${file%/*}"
+    run_name="$(basename "$run_dir")"
+    named=0
+    while IFS= read -r evidence_word; do
+        evidence_word="${evidence_word%.}"
+        evidence_word="${evidence_word%%:*}"
+        if [[ "$evidence_word" == logs/* ]]; then log_file="${evidence_word#logs/}"
+        elif [[ "$evidence_word" == */"$run_name"/logs/* ]]; then log_file="${evidence_word##*/"$run_name"/logs/}"
+        else continue
+        fi
+        [[ "$log_file" != *..* && -f "$run_dir/logs/$log_file" ]] && named=1
+    done < <(tr ',;() \t' '\n' <<<"$4")
+    [[ $named -eq 1 ]] || {
+        echo "a row that claims a red-tree or old-tree test result names a file of $run_dir/logs/ in its evidence: write the log there, then log the row" >&2
+        exit 2
+    }
 fi
 
 plan_check="$(cd "$(dirname "$0")/../../../.." && pwd)/scripts/check-plan.sh"

@@ -22,6 +22,22 @@ extension RawSweepTests {
         await studio.settle()
     }
 
+    /// C6: a package that opens with no lock (no lock file in a package folder with no write
+    /// access) keeps its CAF, also when `Capture/` takes the unlink.
+    @Test func aPackageWithNoLockKeepsItsCAF() async throws {
+        let (package, _) = try await Self.oldTake()
+        try FileManager.default.removeItem(at: package.url.appending(path: ".lock"))
+        try #require(chmod(package.url.path, 0o555) == 0)
+        defer { chmod(package.url.path, 0o755) }
+        let studio = try await Studio.open(package.url)
+        try #require(!studio.lock.isHeld, "the package opens with no lock")
+
+        await studio.rawSweep
+
+        #expect(Self.hasCAF(package), "a package with no lock keeps its CAF")
+        await studio.settle()
+    }
+
     /// C6: a package on a read-only volume opens, with and without a lock file, and its CAF and
     /// sidecar do not change.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

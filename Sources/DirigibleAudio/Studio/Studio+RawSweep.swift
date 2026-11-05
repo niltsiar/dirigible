@@ -33,9 +33,9 @@ extension Studio {
     }
 
     /// Starts the job after a take or a placement with no error, or marks the running job to run
-    /// once more. With the hold set, it does nothing.
+    /// once more. With the hold set, or for a package that opened with no lock, it does nothing.
     func sweepRaw() {
-        guard !rawSweepHeld else { return }
+        guard lock.isHeld, !rawSweepHeld else { return }
         guard rawSweepJob.task == nil else {
             rawSweepJob.again = true
             return
@@ -133,7 +133,9 @@ extension Studio {
     name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?
 )] {
     dispatchPrecondition(condition: .notOnQueue(.main))
-    guard let package = try? lock.package() else { return [] }
+    guard let package = try? lock.package(),
+        (try? package.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly == false
+    else { return [] }
     return removableCaptures(of: session, in: package)
 }
 

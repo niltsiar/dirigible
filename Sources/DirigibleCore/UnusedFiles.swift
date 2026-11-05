@@ -142,8 +142,10 @@ public struct UnusedFiles: Hashable, Sendable {
 
     /// Removes the pool entries of the items from `session`, calls `save` with the result, and
     /// only then moves each item to the Trash under the package URL that `save` returns. A crash
-    /// between the two steps leaves stray WAVs that the next scan finds. A failed save moves
-    /// nothing and leaves `session` as it was. The CLI and MCP use this form.
+    /// between the two steps leaves WAVs with no pool entry. The next scan finds each as a stray
+    /// WAV, except a stem WAV whose CAF is gone and whose sidecar has a finalize record: that WAV
+    /// comes back as a WAV-backed unplaced segment (decision 0071). A failed save moves nothing
+    /// and leaves `session` as it was. The CLI and MCP use this form.
     public func prune(_ session: inout Session, save: (Session) throws(SessionFileError) -> URL)
         throws(UnusedFilesError) -> PruneReport
     {

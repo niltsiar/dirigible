@@ -24,10 +24,12 @@ extension Studio {
         get async { while let task = rawSweepJob.task { await task.value } }
     }
 
-    /// True while a take starts or records in this studio or in a studio of `otherStudios`, or
-    /// while this studio settles: then the job removes no CAF and ends at its next step.
+    /// True while a take starts, records, or finalizes in this studio or in a studio of
+    /// `otherStudios`, while this studio has a pending take, or while it settles: then the job
+    /// removes no CAF and ends at its next step. A pending take of another studio records nothing.
     var rawSweepHeld: Bool {
-        settling || ([self] + otherStudios()).contains { $0.isStarting || $0.session.recording != nil }
+        settling || isStarting || session.recording != nil
+            || otherStudios().contains { $0.isStarting || $0.session.recording != nil && $0.pendingTake == nil }
     }
 
     /// Starts the job after a take or a placement with no error, or marks the running job to run

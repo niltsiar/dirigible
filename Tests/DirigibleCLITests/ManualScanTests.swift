@@ -22,8 +22,10 @@ struct ManualScanTests {
         #expect(bad == ["dirigble export <package>", "clip ripple delete", "dirigible:no-such-recipe"], "\(bad)")
         let badOptions = ManualScan.spansWithNoClass(in: "Use `--pre-rol <seconds>`, `--no-such`, and `--pre-roll`.")
         #expect(badOptions == ["--pre-rol <seconds>", "--no-such"], "\(badOptions)")
+        let badOutput = ManualScan.spansWithNoClass(in: "Read `rawkept` or `raw <stem> kept: <why>`.")
+        #expect(badOutput == ["rawkept", "raw <stem> kept: <why>"], "\(badOutput)")
         let good =
-            "`/Applications/A.app`, `realpath <x>`, `check-levels`, `/dirigible:add-chapter`, `dirigible info <p>`, `--pre-roll <seconds>`"
+            "`/Applications/A.app`, `realpath <x>`, `check-levels`, `/dirigible:add-chapter`, `dirigible info <p>`, `--pre-roll <seconds>`, `rawKept`, `raw <stem> kept: <reason>`"
         #expect(ManualScan.spansWithNoClass(in: good).isEmpty, "\(ManualScan.spansWithNoClass(in: good))")
     }
 

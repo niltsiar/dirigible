@@ -60,6 +60,9 @@ public final class PackageLock: Sendable {
         close(descriptor)
     }
 
+    /// False for an unlocked value (see `descriptor`): then another process can write the package.
+    public var isHeld: Bool { descriptor >= 0 }
+
     /// The current path of the package that the lock holds (decision 0014, probe P11). A rename or
     /// a move on the same volume moves the lock file with the package, and `F_GETPATH` gives the
     /// new path. After a move to another volume or a delete, `F_GETPATH` gives the old path with

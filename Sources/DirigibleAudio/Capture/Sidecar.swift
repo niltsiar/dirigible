@@ -103,18 +103,23 @@ struct FinalizeRecord: Hashable, Sendable {
 /// The sidecar file of a segment, version 1 (decision 0012). Little-endian. An 8-byte magic,
 /// then records: a UInt32 payload length, a UInt8 kind, the payload, and the FNV-1a 32 hash of
 /// the kind and the payload. Kind 1 is the header and comes first; kind 2 is a checkpoint; kind 3
-/// is a finalize record, after the last checkpoint (decision 0071). A reader of an older build
-/// stops at the first record that is not a checkpoint, so kind 3 keeps version 1.
+/// is a finalize record and kind 4 a saturated record, after the last checkpoint (decision 0071).
+/// A reader of an older build stops at the first record that is not a checkpoint, so kinds 3 and
+/// 4 keep version 1.
 struct Sidecar: Hashable, Sendable {
     var header: CaptureHeader
     var checkpoints: [Checkpoint]
     /// The last valid finalize record.
     var finalized: FinalizeRecord? = nil
+    /// The CAF frames of the last valid saturated record: the WAV of a build before the clip gain
+    /// lost the samples over full scale that this CAF holds.
+    var saturatedFrames: Int64? = nil
 
     private static let magic = Array("DRGSIDE1".utf8)
     private static let headerKind: UInt8 = 1
     private static let checkpointKind: UInt8 = 2
     private static let finalizeKind: UInt8 = 3
+    private static let saturatedKind: UInt8 = 4
 
     /// The magic and the header record: the first bytes of a sidecar file.
     static func encode(_ header: CaptureHeader) -> Data {
@@ -150,6 +155,13 @@ struct Sidecar: Hashable, Sendable {
         return record(finalizeKind, payload.bytes)
     }
 
+    /// The saturated record of a CAF of `cafFrames` frames.
+    static func encode(saturated cafFrames: Int64) -> Data {
+        var payload = ByteWriter()
+        payload.put(cafFrames)
+        return record(saturatedKind, payload.bytes)
+    }
+
     /// One record: a UInt32 payload length, the kind, the payload, and the FNV-1a 32 hash of the
     /// kind and the payload. The take anchor uses the same framing (decision 0021).
     static func record(_ kind: UInt8, _ payload: [UInt8]) -> Data {
@@ -165,7 +177,7 @@ struct Sidecar: Hashable, Sendable {
     /// 0024). The records end before the first record that is short or has a bad hash: a torn last
     /// record or a tail of zeros after a power loss. The checkpoints end before the first record
     /// that is not a checkpoint, has a bad value, or goes back. `finalized` is the last kind 3
-    /// record with valid values.
+    /// record with valid values, and `saturatedFrames` the last valid kind 4.
     static func decode(_ data: Data) throws(NewerFormat) -> Sidecar? {
         var reader = ByteReader(Array(data))
         guard try reader.magic(magic), let first = reader.record(),
@@ -176,6 +188,9 @@ struct Sidecar: Hashable, Sendable {
         while let record = reader.record() {
             if record.kind == finalizeKind, let finalized = decodeFinalized(record.payload) {
                 sidecar.finalized = finalized
+            }
+            if record.kind == saturatedKind, let frames = decodeSaturated(record.payload) {
+                sidecar.saturatedFrames = frames
             }
             guard !checkpointsEnded, record.kind == checkpointKind,
                 let checkpoint = decodeCheckpoint(record.payload, after: sidecar.checkpoints.last)
@@ -202,6 +217,11 @@ struct Sidecar: Hashable, Sendable {
     /// torn record hides each record after it (`decode`), so the truncate comes first. Returns the
     /// errno of a fault: then the sidecar has no new record.
     static func append(_ finalized: FinalizeRecord, toSidecarAt url: URL) -> Int32? {
+        append(encode(finalized), toSidecarAt: url)
+    }
+
+    /// `append` of the encoded record `bytes`.
+    static func append(_ bytes: Data, toSidecarAt url: URL) -> Int32? {
         let descriptor = open(url.path, O_RDWR | O_CLOEXEC)
         guard descriptor >= 0 else { return errno }
         defer { close(descriptor) }
@@ -212,7 +232,6 @@ struct Sidecar: Hashable, Sendable {
             return posixCode(of: error) ?? EIO
         }
         guard let length = wholeLength(data) else { return EINVAL }
-        let bytes = encode(finalized)
         guard ftruncate(descriptor, off_t(length)) == 0 else { return errno }
         let written = bytes.withUnsafeBytes { pwrite(descriptor, $0.baseAddress, bytes.count, off_t(length)) }
         if written < 0 { return errno }
@@ -238,6 +257,13 @@ struct Sidecar: Hashable, Sendable {
         let rate = fields.double()!
         guard frames > 0, isValidRate(rate), let gain = Gain(dB: fields.double()!) else { return nil }
         return FinalizeRecord(cafFrames: frames, sourceRate: rate, conversionGain: gain)
+    }
+
+    private static func decodeSaturated(_ payload: ArraySlice<UInt8>) -> Int64? {
+        guard payload.count == 8 else { return nil }
+        var fields = ByteReader(Array(payload))
+        let frames = Int64(bitPattern: fields.integer()!)
+        return frames > 0 ? frames : nil
     }
 
     private static func decodeHeader(_ payload: ArraySlice<UInt8>) -> CaptureHeader? {

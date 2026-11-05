@@ -17,6 +17,9 @@ public enum RawVerdict: Hashable, Sendable {
     /// G3: the largest WAV error against the host clock over the checkpoints, in seconds, is over
     /// 1 ms.
     case alignment(Double)
+    /// Every clause holds, but the WAV of a build before the clip gain saturated where the CAF
+    /// is over full scale, so only the CAF holds those samples (a saturated record in the sidecar).
+    case saturated
 }
 
 /// Why a removal step kept a CAF that the gate passes. Only the journal gets it.
@@ -95,6 +98,9 @@ struct RawRead: Hashable, Sendable {
     var record: FinalizeRecord
     /// True for a take with no finalize record: the removal appends `record` first.
     var appends = false
+    /// True for a take with no finalize record whose WAV saturated (`rawGain`): the removal
+    /// appends a saturated record of the CAF frames of `record` and keeps the CAF.
+    var saturated = false
 }
 
 /// The placed segments that pass the gate (decision 0071), in name order, with the identity of
@@ -109,26 +115,28 @@ func removableCaptures(of session: Session, in package: URL) -> [(
 }
 
 /// The finalize record of a segment with no record: the CAF frames, the rate choice of its
-/// sidecar, and `rawGain`. Nil after a cancel, or when a file does not read whole.
+/// sidecar, and `rawGain`, with `saturated` of `rawGain`. Nil after a cancel, or when a file does
+/// not read whole.
 func oldTakeRecord(
     of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
     beforeBlock: (Int) async -> Void
-) async throws(RawRemovalError) -> FinalizeRecord? {
+) async throws(RawRemovalError) -> (record: FinalizeRecord, saturated: Bool)? {
     guard let data = try? readPackageFile("\(captureFolderName)/\(segment.sidecarName)", in: package),
         let sidecar = try? Sidecar.decode(data),
         let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(segment.cafName)")),
         let gain = try await rawGain(of: segment, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
     else { return nil }
     let choice = RateChoice(header: sidecar.header, checkpoints: sidecar.checkpoints, frames: Int(caf.length))
-    return FinalizeRecord(cafFrames: caf.length, sourceRate: choice.source, conversionGain: gain)
+    return (FinalizeRecord(cafFrames: caf.length, sourceRate: choice.source, conversionGain: gain.gain), gain.saturated)
 }
 
 /// One removal of decision 0071 in a turn of the write chain, where `session` is the session on
 /// the disk: the gate again, the identity of the three files against `read`, then for `appends`
 /// the flush of the WAV and of `Clips/` and the append of the record, then the sidecar flush, its
 /// record against `read`, the unlink of the CAF, and the flush of `Capture/`. False when the gate
-/// does not pass now; then no file changes. `flush` gives the errno of a flush. Call it off the
-/// main actor.
+/// does not pass now; then no file changes. For `saturated`, it appends and flushes only the
+/// saturated record, and returns false. `flush` gives the errno of a flush. Call it off the main
+/// actor.
 func removeRawCapture(
     _ name: SegmentName, of session: Session, in package: URL, read: RawRead,
     flush: (String) -> Int32? = { fullFlush(path: $0) }
@@ -136,6 +144,15 @@ func removeRawCapture(
     guard placedVerdict(of: name, session: session, in: package) == .removable else { return false }
     guard rawFiles(of: name, in: package) == read.files else { throw .changed }
     let sidecar = "\(captureFolderName)/\(name.sidecarName)"
+    if read.saturated {
+        let url = package.appending(path: sidecar)
+        if let code = Sidecar.append(Sidecar.encode(saturated: read.record.cafFrames), toSidecarAt: url)
+            ?? flush(url.path)
+        {
+            throw .writeFailed(file: sidecar, status: code)
+        }
+        return false
+    }
     if read.appends {
         // A build before 0071 can have left the WAV and its name in Clips/ in the cache only.
         for file in ["\(clipsFolderName)/\(name.stem).wav", clipsFolderName] {
@@ -212,27 +229,29 @@ private func rawVerdict(of name: SegmentName, file: AudioFile, session: Session,
     guard let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.cafName)")),
         let wav = try? AVAudioFile(forReading: package.appending(path: "\(clipsFolderName)/\(file.path)"))
     else { return .frames }
-    return rawVerdict(
+    let verdict = rawVerdict(
         sidecar: sidecar, cafFrames: Int(caf.length), wavFrames: Int(wav.length), file: file, capture: capture,
         sessionRate: session.sampleRate)
+    let saturated = sidecar.finalized == nil && sidecar.saturatedFrames == caf.length
+    return verdict == .removable && saturated ? .saturated : verdict
 }
 
 /// The conversion gain of a segment with no valid finalize record (decision 0071). A WAV peak
 /// magnitude at code 8388604 or less gives 0 dB with no CAF read: a rescaled WAV has its peak at
 /// code 8388605 or 8388606. Else one converter pass of the CAF with no writer gives the peak
 /// after the converter. Over 1.0, the gain is the gain of `ClipConversion` for that peak, but
-/// 0 dB for a WAV at code 8388607 or 8388608: a saturated WAV of a build before the clip gain.
-/// Each code is a magnitude, so 8388608 is a sample at -1.0. Nil after a cancel, or when the WAV,
+/// 0 dB and `saturated` for a WAV at code 8388607 or 8388608: a saturated WAV of a build before
+/// the clip gain. Each code is a magnitude, so 8388608 is a sample at -1.0. Nil after a cancel, or when the WAV,
 /// the sidecar, or the CAF does not read whole. `isCancelled` is read before each block, after
 /// `beforeBlock` with the index of each WAV block. `readFault` is a test seam on the CAF blocks.
 func rawGain(
     of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
     beforeBlock: (Int) async -> Void = { _ in }, readFault: ReadFault? = nil
-) async throws(RawRemovalError) -> Gain? {
+) async throws(RawRemovalError) -> (gain: Gain, saturated: Bool)? {
     let wav = "\(clipsFolderName)/\(segment.stem).wav"
     guard let wavPeak = try await peakCode(of: wav, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
     else { return nil }
-    if wavPeak.code <= 8_388_604 { return .zero }
+    if wavPeak.code <= 8_388_604 { return (.zero, false) }
     let caf = "\(captureFolderName)/\(segment.cafName)"
     let sidecarData: Data?
     do {
@@ -263,8 +282,8 @@ func rawGain(
         throw RawRemovalError(error)
     }
     guard let peak else { return nil }
-    guard let rescale = rescale(peak: peak), wavPeak.code <= 8_388_606 else { return .zero }
-    return rescale.gain
+    guard let rescale = rescale(peak: peak) else { return (.zero, false) }
+    return wavPeak.code <= 8_388_606 ? (rescale.gain, false) : (.zero, true)
 }
 
 /// The peak magnitude of the WAV at `file` as a 24-bit code (full scale 8388608), and its rate.

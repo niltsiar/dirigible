@@ -39,7 +39,7 @@ extension RawRemovalGateTests {
         let gain = try await rawGain(
             of: segment, in: package.url, isCancelled: { false },
             readFault: ReadFault(stem: segment.stem, block: 0) { _ = reads.next() })
-        return (gain, reads.calls)
+        return (gain?.gain, reads.calls)
     }
 
     /// A WAV peak at code 8388604 or less is a WAV that no rescale wrote, so its gain is 0 dB and

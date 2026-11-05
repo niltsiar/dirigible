@@ -100,7 +100,10 @@ extension Studio {
                 var read = candidate.record.map { RawRead(files: candidate.files, record: $0) }
                 if read == nil, let lock = studio()?.lock {
                     switch await readOldTake(candidate.name, lock: lock, step: step) {
-                    case .success(let record?): read = RawRead(files: candidate.files, record: record, appends: true)
+                    case .success(let old?):
+                        read = RawRead(
+                            files: candidate.files, record: old.record, appends: !old.saturated,
+                            saturated: old.saturated)
                     case .success(nil): break
                     case .failure(let error): studio()?.environment.log.noteRawFault(candidate.name, error)
                     }
@@ -143,7 +146,7 @@ extension Studio {
 /// WAV block. A cancel of the job ends the read.
 @concurrent nonisolated private func readOldTake(
     _ name: SegmentName, lock: PackageLock, step: @Sendable (RawSweepStep) async -> Void
-) async -> Result<FinalizeRecord?, RawRemovalError> {
+) async -> Result<(record: FinalizeRecord, saturated: Bool)?, RawRemovalError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return .success(nil) }
     do throws(RawRemovalError) {

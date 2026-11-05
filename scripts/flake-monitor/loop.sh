@@ -1,8 +1,8 @@
 #!/bin/bash
 # Runs `make test` (with --filter, `make test-filter FILTER='<names>'`) with the flake monitor
-# (Tests/DirigibleAudioTests/FlakeMonitor.swift) for the
-# runs <first> to <last>, and appends one line for each run to <out folder>/summary.txt. The log
-# of run i is <out folder>/<tag>-<i>.log, and its monitor folder is <out folder>/<tag>-<i>/.
+# (Tests/DirigibleAudioTests/FlakeMonitor.swift) for the runs <first> to <last>, and appends one
+# line for each run to <out folder>/summary.txt. The log of run i is <out folder>/<tag>-<i>.log,
+# and its monitor folder is <out folder>/<tag>-<i>/.
 # Usage: scripts/flake-monitor/loop.sh [--min-load <n>] [--filter '<names>'] <tag> <first> <last> <out folder> [repo]
 #        scripts/flake-monitor/loop.sh --summary <tag> <run> <exit> <wall> <load> <begin> <log>
 # The second form prints the summary line of one log. loop.test.sh calls it.

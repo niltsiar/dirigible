@@ -118,13 +118,9 @@ awk -v runs="$runs" '
 while IFS=$'\t' read -r kind a b; do
     case "$kind" in
         NOTEST) echo "test-stress: run $a ended with exit $b and no failed test"; status=1 ;;
-    esac
-done < "$out/table.tsv"
-while IFS=$'\t' read -r kind a b; do
-    case "$kind" in
         RED) echo "test-stress: $b red in $a of $runs runs"; status=1 ;;
     esac
-done < <(grep '^RED' "$out/table.tsv" | sort -t$'\t' -k2,2nr -k3,3)
+done < "$out/table.tsv"
 lines="$(wc -l < "$summary" | tr -d ' ')"
 if [[ $code -ne 0 && $lines -lt $runs ]]; then
     echo "test-stress: the loop ended with exit $code after $lines of $runs runs"

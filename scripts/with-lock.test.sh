@@ -11,7 +11,8 @@
 # tries again), and the wait limit WITH_LOCK_MAX_WAIT (exit 75, the calls with no limit, the
 # default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make, also with a test-app whose app step exits 75), scripts/bundle.sh
 # (it takes the lock itself after its path check, and keeps the wait limit and the cap), and --release-holder (a live
-# release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree). Each case uses a temporary repo with a worktree, so the lock of an outer
+# release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree), and the hold limit
+# (exit 124; a command that creates <lock>/shard-limit gets the column limit and keeps its exit). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -1362,6 +1363,18 @@ code=$?
 WITH_LOCK_MAX_HOLD=0 "$repo/scripts/with-lock.sh" bash -c 'sleep 2' > /dev/null 2>&1
 code=$?
 [[ $code -eq 0 ]] || fail "WITH_LOCK_MAX_HOLD=0: exit $code"
+# A step limit of test-shards.sh (the file <lock>/shard-limit) gives the hold line the column limit,
+# so the push check that it ended is no base of a limit. The exit stays that of the command, and no
+# "ran past WITH_LOCK_MAX_HOLD" line prints.
+reset_builders
+printf '#!/bin/bash\n: > "%s/shard-limit"\nexit 1\n' "$lock" > "$fake/shardlimit"
+chmod +x "$fake/shardlimit"
+"$repo/scripts/with-lock.sh" "$fake/shardlimit" > "$tmp/wait.out" 2>&1
+code=$?
+started="" seconds=0 command="" htree="" word=""
+IFS=$'\t' read -r started seconds command htree word < "$holds"
+[[ $code -eq 1 && "$word" == limit && "$command" == "$fake/shardlimit" ]] || fail "shard-limit file: exit $code, hold line [$started] [$seconds] [$command] [$htree] [$word]"
+[[ "$(cat "$tmp/wait.out")" != *'ran past WITH_LOCK_MAX_HOLD'* && ! -e "$lock" ]] || fail "shard-limit file: a hold limit line or the lock stays: $(cat "$tmp/wait.out")"
 # The default limit: 30 min for an ordinary call, 60 min for a release call with no push check in
 # the log, and 2 times the newest push-check hold when that is over 30 min. A killed push check
 # does not count.

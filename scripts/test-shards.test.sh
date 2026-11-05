@@ -10,7 +10,10 @@
 # and the shards share one hold of the lock, that a journal in the default log folder fails the run,
 # and that a TERM leaves no test process alive. Check that a call with neither DIRIGIBLE_PUSH_CHECK=1
 # (run-checks.sh sets it with a base) nor DIRIGIBLE_FULL_SUITE=1 (a person sets it) exits 1 with the
-# reason, before the build.
+# reason, before the build. Check the shard limit: the value from TEST_SHARD_LIMIT or from the newest
+# push-check hold (also from a linked worktree), a shard or the test list past it (one line, exit 1,
+# no live test process, steps.log, the file <lock>/shard-limit, the column limit on the hold line),
+# and a bad value (exit 2, no build).
 # A fake swift and a stub test-helper.sh stand in for the toolchain. make test-hooks runs it.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -36,7 +39,7 @@ EOF
 # Testing. A name in FAKE_CRASH, FAKE_FAIL, FAKE_SHORT, FAKE_NOREPORT, FAKE_HANG, FAKE_SLOW, or
 # FAKE_JOURNAL changes the run of the shard that has it: exit 132 with no report, a failed test,
 # one test fewer in the report, exit 0 with no report, a wait of 60 s, a wait of 1 s before the
-# tests, or a journal in DIRIGIBLE_LOG_FOLDER.
+# tests, or a journal in DIRIGIBLE_LOG_FOLDER. FAKE_LIST_HANG makes the --list-tests call wait 60 s.
 cat > "$root/scripts/test-helper.sh" <<'EOF'
 #!/bin/bash
 echo "runner $*" >> "$FAKE_DIR/args.log"
@@ -45,7 +48,9 @@ echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo f
 filter="" skips=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --list-tests) cat "$FAKE_DIR/list.txt"; exit 0 ;;
+        --list-tests)
+            [[ -z "${FAKE_LIST_HANG:-}" ]] || { echo $$ >> "$FAKE_DIR/hang.pid"; sleep 60; }
+            cat "$FAKE_DIR/list.txt"; exit 0 ;;
         --filter) filter="$2"; shift ;;
         --skip) skips+=("$2"); shift ;;
     esac
@@ -101,7 +106,7 @@ EOF
 # The call has DIRIGIBLE_FULL_SUITE=1 unless an assignment changes it.
 run() {
     : > "$tmp/args.log" && : > "$tmp/lock.log"
-    (cd / && env PATH="$tmp/bin:$PATH" DIRIGIBLE_FULL_SUITE=1 "$@" "$root/scripts/test-shards.sh") > "$tmp/out" 2>&1
+    (cd / && env PATH="$tmp/bin:$PATH" DIRIGIBLE_FULL_SUITE=1 "$@" "${script:-$root/scripts/test-shards.sh}") > "$tmp/out" 2>&1
     code=$?
 }
 ran() { grep -cE "^(✔|✘) Test $1 (passed|failed)" "$tmp/out"; }
@@ -221,6 +226,94 @@ run TEST_SHARDS=3
 run TEST_SHARDS=3 FAKE_BUILD_FAIL=1
 [[ $code -ne 0 ]] || fail "build: exit 0"
 grep -q '^runner' "$tmp/args.log" && fail "build: a runner ran: $(cat "$tmp/args.log")"
+
+# The shard limit L (C7): TEST_SHARD_LIMIT, else max(2400, 1.5 x the newest push-check hold of the
+# holds log in the git common dir, a line with no fifth column limit). Each step (the list, each
+# shard) runs under it; a step past it gets TERM, the run prints one line for it, and the other
+# shards run to their end.
+holds="$root/.git/dirigible-build-holds.log" steps="$root/.build/test-shards/steps.log"
+lock="$root/.git/dirigible-build.lock"
+tab=$'\t'
+hold_line() { printf '2026-11-05T10:00:00\t%s\t%s\t/tree%s\n' "$1" "$2" "${3:+$tab$3}"; }
+push='make check-changed BASE=origin/main'
+# limit_of <name>: a pass run; lim is the <L> of its line "each shard has a limit of <L> s".
+limit_of() {
+    run TEST_SHARDS=3
+    [[ $code -eq 0 ]] || fail "limit $1: exit $code: $(tail -3 "$tmp/out")"
+    lim="$(sed -n 's/^test-shards: each shard has a limit of \([0-9]*\) s$/\1/p' "$tmp/out")"
+}
+rm -f "$holds"
+limit_of none; [[ "$lim" == 2400 ]] || fail "limit, no holds log: $(grep 'each shard' "$tmp/out")"
+{ hold_line 1300 "$push"; } > "$holds"
+limit_of 1300; [[ "$lim" == 2400 ]] || fail "limit, newest push hold 1300: $(grep 'each shard' "$tmp/out")"
+{ hold_line 1700 "$push"; } > "$holds"
+limit_of 1700; [[ "$lim" == 2550 ]] || fail "limit, newest push hold 1700: $(grep 'each shard' "$tmp/out")"
+{ hold_line 2500 "$push"; } > "$holds"
+limit_of 2500; [[ "$lim" == 3750 ]] || fail "limit, newest push hold 2500: $(grep 'each shard' "$tmp/out")"
+# A push check that a limit ended (fifth column limit) and a hold of another command are no base.
+{ hold_line 2500 "$push"; hold_line 9000 "$push" limit; hold_line 9000 'make test-hooks'; } > "$holds"
+limit_of 'limit lines'; [[ "$lim" == 3750 ]] || fail "limit, a limit line and another command after 2500: $(grep 'each shard' "$tmp/out")"
+rm -f "$holds"
+run TEST_SHARDS=3 TEST_SHARD_LIMIT=0
+[[ $code -eq 0 ]] && grep -qxF 'test-shards: no shard limit (TEST_SHARD_LIMIT=0)' "$tmp/out" || fail "limit 0: exit $code: $(head -3 "$tmp/out")"
+run TEST_SHARDS=3 TEST_SHARD_LIMIT=abc
+[[ $code -eq 2 ]] && grep -qF 'TEST_SHARD_LIMIT' "$tmp/out" || fail "limit abc: exit $code: $(cat "$tmp/out")"
+[[ ! -s "$tmp/args.log" ]] || fail "limit abc: a build or runner started: $(cat "$tmp/args.log")"
+
+# A call from a linked worktree reads the holds log of the main .git: a newest push hold of 2500 gives 3750.
+git -C "$root" worktree add -q --detach "$tmp/wt"
+{ hold_line 2500 "$push"; } > "$holds"
+script="$tmp/wt/scripts/test-shards.sh"
+limit_of worktree; [[ "$lim" == 3750 ]] || fail "limit, from a worktree: $(grep 'each shard' "$tmp/out")"
+unset script
+rm -f "$holds"
+
+# A pass under a limit: each step has a start and an end line in steps.log, and no limit line.
+run TEST_SHARDS=3 FAKE_SLOW=c1 TEST_SHARD_LIMIT=30
+[[ $code -eq 0 ]] || fail "slow shard under its limit: exit $code: $(tail -3 "$tmp/out")"
+grep -q 'over its limit' "$tmp/out" && fail "slow shard under its limit: a limit line: $(grep 'over its' "$tmp/out")"
+for step in 'list' 'shard 1' 'shard 2' 'shard cli'; do
+    for event in start end; do
+        [[ "$(grep -cE "^[0-9T:-]+ $step $event\$" "$steps")" -eq 1 ]] || fail "steps.log: no '$step $event' line: $(cat "$steps")"
+    done
+done
+grep -q ' limit$' "$steps" && fail "slow shard under its limit: a limit line in steps.log: $(cat "$steps")"
+
+# A shard past its limit: one line for it, exit 1, each other shard reports in full, no test process
+# of it stays, steps.log names it, and the hold line of the lock gets the column limit.
+: > "$tmp/hang.pid"
+run TEST_SHARDS=3 FAKE_HANG=c1 TEST_SHARD_LIMIT=2
+[[ $code -eq 1 ]] || fail "shard limit: exit $code, want 1"
+grep -qxF 'test-shards: shard 2: the test process ended before its report (over its limit of 2 s)' "$tmp/out" ||
+    fail "shard limit: no limit line: $(grep -E 'test-shards: shard' "$tmp/out")"
+[[ "$(grep -c 'over its limit' "$tmp/out")" -eq 1 ]] || fail "shard limit: not one limit line: $(grep 'over its limit' "$tmp/out")"
+grep -q 'shard cli: the test process ended' "$tmp/out" && fail "shard limit: a lost line for the CLI shard"
+for t in 'a1\(\)' 'a2\(value:\)' 'b1\(\)' 'd1\(\)' 'd2\(\)'; do
+    [[ "$(ran "$t")" -eq 1 ]] || fail "shard limit: $t did not run once: $(cat "$tmp/out")"
+done
+! kill -0 "$(cat "$tmp/hang.pid")" 2>/dev/null || fail "shard limit: the hung test process is alive"
+grep -qE '^[0-9T:-]+ shard 2 limit$' "$steps" || fail "shard limit: no 'shard 2 limit' in steps.log: $(cat "$steps")"
+for step in 'shard 1' 'shard cli'; do
+    grep -qE "^[0-9T:-]+ $step end\$" "$steps" || fail "shard limit: no '$step end' in steps.log: $(cat "$steps")"
+done
+[[ "$(tail -n 1 "$holds" | awk -F'\t' '{ print $5 }')" == limit ]] || fail "shard limit: the hold line has no column limit: $(tail -n 1 "$holds")"
+# With the lock folder of the call, the limit leaves <lock>/shard-limit; a pass under its limit leaves none.
+mkdir -p "$lock" && echo 4242 > "$lock/pid"
+run TEST_SHARDS=3 FAKE_SLOW=c1 TEST_SHARD_LIMIT=30 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" DIRIGIBLE_BUILD_LOCK=4242
+[[ $code -eq 0 && ! -e "$lock/shard-limit" ]] || fail "shard limit, pass: exit $code, shard-limit file [$(ls "$lock")]"
+run TEST_SHARDS=3 FAKE_HANG=c1 TEST_SHARD_LIMIT=2 DIRIGIBLE_LOCKED_SCRIPT="$root/scripts/test-shards.sh" DIRIGIBLE_BUILD_LOCK=4242
+[[ -e "$lock/shard-limit" ]] || fail "shard limit: no file $lock/shard-limit [$(ls "$lock")]"
+rm -rf "$lock"
+
+# A test list past its limit: its line, exit 1, and no shard starts.
+: > "$tmp/hang.pid"
+run TEST_SHARDS=3 FAKE_LIST_HANG=1 TEST_SHARD_LIMIT=2
+[[ $code -eq 1 ]] || fail "list limit: exit $code, want 1"
+grep -qxF 'test-shards: the test list: the test process ended before its report (over its limit of 2 s)' "$tmp/out" ||
+    fail "list limit: no limit line: $(cat "$tmp/out")"
+grep -q '^runner .*--filter' "$tmp/args.log" && fail "list limit: a shard started: $(cat "$tmp/args.log")"
+grep -qE '^[0-9T:-]+ list limit$' "$steps" || fail "list limit: no 'list limit' in steps.log: $(cat "$steps")"
+! kill -0 "$(cat "$tmp/hang.pid")" 2>/dev/null || fail "list limit: the hung list process is alive"
 
 # A TERM stops every shard, leaves no test process, keeps the logs, names only the shard that ran,
 # prints its tail, and exits 143.

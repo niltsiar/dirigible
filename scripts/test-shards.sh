@@ -24,12 +24,25 @@
 # The script holds the build lock (with-lock.sh) once for the build, the list, and the shards.
 # INT, TERM, or an exit stops each shard process; on INT (exit 130) or TERM (exit 143), it
 # prints the tail of each shard that still ran.
+# The list step and each shard have a limit of L seconds: TEST_SHARD_LIMIT (whole seconds, 0 for
+# none), else max(2400, 1.5 x the newest push-check hold of dirigible-build-holds.log in the git
+# common dir: the last line whose command has check-changed and BASE=, with no fifth column
+# limit, as with-lock.sh reads it). The script prints "test-shards: each shard has a limit of
+# <L> s" before the build. A step past L gets TERM, then KILL 10 s later, only while its pid is a
+# live child of this script. A shard past L prints "test-shards: shard <n>: the test process
+# ended before its report (over its limit of <L> s)", and the run fails after the other shards
+# end. A list past L prints "test-shards: the test list: the test process ended before its report
+# (over its limit of <L> s)", starts no shard, and exits 1. run-checks.sh reruns nothing after
+# either line. A limit also creates <lock>/shard-limit, so with-lock.sh writes the column limit
+# on the hold line: a push check that a limit ended is no base of L. .build/test-shards/steps.log
+# gets one line for each step event: "<ISO time> list start", "list end", "list limit", "shard
+# <n> start", "shard <n> end", "shard <n> limit". After a hang, the last step that started names it.
 # The full suite runs only in the push check. A call without DIRIGIBLE_PUSH_CHECK=1 (run-checks.sh
 # sets it for a run with BASE) or DIRIGIBLE_FULL_SUITE=1 (a person sets it) prints the reason and
 # exits 1, before the build. make test and make check reach this script. An outer
 # with-lock.sh call still waits for the lock first.
 # Usage: [TEST_SHARDS=<processes, the CLI shard in the count; default: the physical cores>]
-#        scripts/test-shards.sh
+#        [TEST_SHARD_LIMIT=<seconds>] scripts/test-shards.sh
 # scripts/test-shards.test.sh tests it.
 set -uo pipefail
 if [[ "${DIRIGIBLE_PUSH_CHECK:-}" != 1 && "${DIRIGIBLE_FULL_SUITE:-}" != 1 ]]; then
@@ -48,17 +61,97 @@ n=$((total > 1 ? total - 1 : 1))
 helper="$root/scripts/test-helper.sh"
 bundle="$root/.build/debug/DirigiblePackageTests.xctest/Contents/MacOS/DirigiblePackageTests"
 logs="$root/.build/test-shards"
+steps="$logs/steps.log"
+common="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)" || { echo "test-shards: no git folder" >&2; exit 2; }
+lock="$common/dirigible-build.lock"
 start=$SECONDS
+
+# The limit L of each step (header).
+limit="${TEST_SHARD_LIMIT:-}"
+if [[ -z "$limit" ]]; then
+    limit="$(awk -F'\t' '$3 ~ /check-changed/ && $3 ~ /BASE=/ && $5 != "limit" { s = $2 } END { s *= 1.5; s = (s > int(s)) ? int(s) + 1 : s; print (s < 2400) ? 2400 : s }' "$common/dirigible-build-holds.log" 2>/dev/null)"
+    limit="${limit:-2400}"
+fi
+[[ "$limit" =~ ^[0-9]+$ ]] || { echo "test-shards: TEST_SHARD_LIMIT must be whole seconds, or 0 for no limit: $limit" >&2; exit 2; }
+limit=$((10#$limit))
+if [[ $limit -gt 0 ]]; then echo "test-shards: each shard has a limit of $limit s"; else echo "test-shards: no shard limit (TEST_SHARD_LIMIT=0)"; fi
 
 swift build --build-tests || { echo "test-shards: the build failed" >&2; exit 1; }
 mkdir -p "$logs"
-rm -f "$logs"/shard-*.log
+rm -f "$logs"/shard-*.log "$logs"/limit-*
+: > "$steps"
 guard="$logs/default-logs"
 rm -rf "$guard" && mkdir "$guard" || { echo "test-shards: no folder $guard" >&2; exit 1; }
 export DIRIGIBLE_LOG_FOLDER="$guard"
 list="$logs/list.txt"
-"$helper" --test-bundle-path "$bundle" --testing-library swift-testing --list-tests > "$list" ||
-    { echo "test-shards: the test list failed" >&2; cat "$list" >&2; exit 1; }
+step_log() { echo "$(date +%FT%T) $*" >> "$steps"; }
+# live_child <pid>: succeeds while the pid is a child of this script and no zombie (a shard that
+# ended waits for its turn in the wait loop below).
+live_child() {
+    local out
+    out="$(ps -o ppid=,stat= -p "$1" 2>/dev/null)" || return 1
+    set -- $out
+    [[ "${1:-}" == "$$" && "${2:-Z}" != Z* ]]
+}
+watchers=()
+# watch <pid> <step>: a poll watcher, in the form of the one in with-lock.sh. It ends with its step
+# or with this script. At L it acts only on a live child: it writes the marker, the line of
+# steps.log, and the lock file, sends TERM, and sends KILL 10 s later.
+watch() {
+    [[ $limit -gt 0 ]] || return 0
+    (
+        end=$(($(date +%s) + limit))
+        while kill -0 "$1" 2>/dev/null && kill -0 $$ 2>/dev/null && [[ $(date +%s) -lt $end ]]; do /bin/sleep 1; done
+        kill -0 $$ 2>/dev/null && live_child "$1" || exit 0
+        : > "$logs/limit-${2// /-}"
+        echo "$(date +%FT%T) $2 limit" >> "$steps"
+        [[ "$(cat "$lock/pid" 2>/dev/null)" != "${DIRIGIBLE_BUILD_LOCK:-none}" ]] || : > "$lock/shard-limit"
+        kill -TERM "$1"
+        /bin/sleep 10
+        ! live_child "$1" || kill -KILL "$1"
+    ) > /dev/null 2>&1 &
+    watchers+=($!)
+}
+pids=() names=()
+stop() {
+    local p
+    # A shard that ended gave its number back: signal a pid only while it is still a child of this shell.
+    for p in ${pids[@]+"${pids[@]}"}; do
+        [[ "$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')" != "$$" ]] || kill -TERM "$p" 2>/dev/null
+    done
+    for p in ${pids[@]+"${pids[@]}"}; do wait "$p" 2>/dev/null; done
+    for p in ${watchers[@]+"${watchers[@]}"}; do ! kill -0 "$p" 2>/dev/null || kill "$p" 2>/dev/null; done
+}
+interrupted() {
+    trap - INT TERM
+    local i running=()
+    for i in ${pids[@]+"${!pids[@]}"}; do kill -0 "${pids[$i]}" 2>/dev/null && running+=("${names[$i]}"); done
+    stop
+    local s
+    for s in ${running[@]+"${running[@]}"}; do
+        echo "test-shards: shard $s stopped; the end of its log:"
+        if [[ $s == list ]]; then tail -n 20 "$list"; else tail -n 20 "$logs/shard-$s.log"; fi
+    done
+    exit "$1"
+}
+trap 'interrupted 130' INT
+trap 'interrupted 143' TERM
+trap stop EXIT
+
+step_log list start
+"$helper" --test-bundle-path "$bundle" --testing-library swift-testing --list-tests > "$list" &
+listpid=$!
+pids+=($listpid) names+=(list)
+watch $listpid list
+wait $listpid
+code=$?
+step_log list end
+pids=() names=()
+if [[ -e "$logs/limit-list" ]]; then
+    echo "test-shards: the test list: the test process ended before its report (over its limit of $limit s)" >&2
+    exit 1
+fi
+[[ $code -eq 0 ]] || { echo "test-shards: the test list failed" >&2; cat "$list" >&2; exit 1; }
 grep -vE '^DirigibleTests\.(AppBundleTests|DiskImageTests)/' "$list" | grep -E '^[A-Za-z0-9_]+\.' > "$logs/ids.txt"
 [[ -s "$logs/ids.txt" ]] || { echo "test-shards: the list has no test" >&2; exit 1; }
 
@@ -83,38 +176,15 @@ if [[ -f "$weights" ]]; then
     [[ -z "$missing$gone" ]] || stale="test-shards: stale weights: no weight: ${missing:-none}; no test: ${gone:-none}"
 fi
 
-pids=() names=()
-stop() {
-    local p
-    # A shard that ended gave its number back: signal a pid only while it is still a child of this shell.
-    for p in ${pids[@]+"${pids[@]}"}; do
-        [[ "$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')" != "$$" ]] || kill -TERM "$p" 2>/dev/null
-    done
-    for p in ${pids[@]+"${pids[@]}"}; do wait "$p" 2>/dev/null; done
-}
-interrupted() {
-    trap - INT TERM
-    local i running=()
-    for i in ${pids[@]+"${!pids[@]}"}; do kill -0 "${pids[$i]}" 2>/dev/null && running+=("${names[$i]}"); done
-    stop
-    local s
-    for s in ${running[@]+"${running[@]}"}; do
-        echo "test-shards: shard $s stopped; the end of its log:"
-        tail -n 20 "$logs/shard-$s.log"
-    done
-    exit "$1"
-}
-trap 'interrupted 130' INT
-trap 'interrupted 143' TERM
-trap stop EXIT
-
 for s in $(cut -d' ' -f1 "$logs/shards.txt" | awk '!seen[$0]++'); do
     # The key of a CLI shard is already a regex; each other key is escaped.
     keys="$(awk -v s="$s" '$1 == s { k = $3; if (s != "cli") gsub(/[][\\.*^$+?(){}|\/]/, "\\\\&", k); printf "%s%s", sep, k; sep = "|" }' "$logs/shards.txt")"
     filter="^($keys)(/|\$)"
     [[ "$s" != cli ]] || filter="^($keys)"
+    step_log "shard $s start"
     "$helper" --test-bundle-path "$bundle" --testing-library swift-testing --filter "$filter" > "$logs/shard-$s.log" 2>&1 &
     pids+=($!) names+=("$s")
+    watch $! "shard $s"
 done
 
 listed=0 total=0 failed=0 messages=()
@@ -122,12 +192,14 @@ for i in "${!pids[@]}"; do
     s="${names[$i]}" log="$logs/shard-${names[$i]}.log"
     wait "${pids[$i]}"
     code=$?
+    step_log "shard $s end"
     want="$(awk -v s="$s" '$1 == s { t += $2 } END { print t + 0 }' "$logs/shards.txt")"
     # Swift Testing writes " in <n> suites" (also "in 0 suites" for free functions); the part is optional.
     got="$(sed -nE 's/.*Test run with ([0-9]+) tests?( in [0-9]+ suites?)? (passed|failed) .*/\1/p' "$log" | tail -n 1)"
     listed=$((listed + want)) total=$((total + ${got:-0}))
     lost=""
-    if [[ -z "$got" ]]; then lost="no report line, exit $code"
+    if [[ -e "$logs/limit-shard-$s" ]]; then lost="over its limit of $limit s"
+    elif [[ -z "$got" ]]; then lost="no report line, exit $code"
     elif [[ "$got" -eq 0 ]]; then lost="no test matched, exit $code"
     elif [[ "$got" -ne "$want" ]]; then
         messages+=("test-shards: shard $s ran $got of $want tests")

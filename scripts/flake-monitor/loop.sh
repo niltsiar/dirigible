@@ -16,6 +16,7 @@
 # make test refuses (test-shards.sh).
 # With --min-load, the loop stops before a run whose 1-minute load average is below <n>. A loop
 # under a load source uses it: a load source that makes no load gives the numbers of a quiet loop.
+# When a run ends, the loop prints the red lines of its log after the summary line ("<tag> <run> red: ").
 # With --filter, each run has the same exports and monitor folder, and runs only the tests of the names.
 set -uo pipefail
 export WITH_LOCK_MAX_WAIT=0 DIRIGIBLE_FULL_SUITE=1
@@ -84,5 +85,6 @@ for i in $(seq "$first" "$last"); do
     code=$?
     wall=$(($(date +%s) - begin))
     summary "$tag" "$i" "$code" "$wall" "$load" "$begin" "$log" | tee -a "$out/summary.txt"
+    grep '✘ Test' "$log" | grep -v 'known issue' | sed "s/^/$tag $i red: /"
 done
 uptime

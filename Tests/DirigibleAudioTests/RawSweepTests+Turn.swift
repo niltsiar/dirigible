@@ -157,4 +157,32 @@ extension RawSweepTests {
         #expect(try package.read().tracks.flatMap(\.clips).count == 1, "the Undo save has the clip")
         await studio.settle()
     }
+
+    /// C19 (6): an Undo of a clip delete during the save of that delete, and the save of the Undo
+    /// fails. The saved revision is the revision at the start of the delete save, not at its end.
+    @Test func aFailedSaveOfAnUndoDuringASaveKeepsTheCAF() async throws {
+        let (package, _) = try await Self.oldTake()
+        let (studio, hold, flushes) = try await Self.held(package, at: .turn)
+        defer { hold.open() }
+        let (save, saving, saves) = (studio.environment.saveSession, AsyncGate(), StepCounter { $0 > 1 })
+        defer { saving.open() }
+        studio.environment.saveSession = { session, lock throws(SessionFileError) in
+            await saving.wait()
+            if saves.next() { throw .writeFailed(step: "test", errno: EIO) }
+            return try await save(session, lock)
+        }
+
+        try Self.deleteClips(studio)
+        await saving.entered()
+        try studio.undo()
+        hold.open()
+        await until(limit: .seconds(10), "the job does not wait for its turn") { studio.writesWaiting == 2 }
+        saving.open()
+        await studio.rawSweep
+
+        #expect(studio.saveError != nil, "the save of the Undo fails")
+        #expect(Self.hasCAF(package) && flushes.calls == 0, "flushes: \(flushes.calls)")
+        studio.environment.saveSession = save
+        await studio.settle()
+    }
 }

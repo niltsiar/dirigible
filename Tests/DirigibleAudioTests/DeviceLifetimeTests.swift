@@ -2,6 +2,7 @@ import CoreAudio
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -289,14 +290,19 @@ extension DeviceEventTests {
 // MARK: Criterion 10 of input-monitor: the keep limit of a monitor writer
 
 extension DeviceEventTests {
-    /// Each attach throws `.undone`, so each try keeps one input. A monitor writer with a keep
-    /// limit of 2 stops at 2 tries and reports `.retryStopped` once, at its next 1 s try.
-    /// Control: a take writer (no limit) tries at the start and once at the end of the first
-    /// window (250 ms), and never stops. The 5 events wait in that window.
+    /// Tries 1 and 2 throw `.undone`, so each keeps one input; try 3 attaches. A monitor writer
+    /// with a keep limit of 2 stops at 2 tries and reports `.retryStopped` once, at its next try.
+    /// Control: a take writer (no limit) goes past 2: its try 3 attaches, so no later try comes.
+    /// Each try waits for the backoff window of the try before it (250 ms, then 500 ms), and the
+    /// 5 events wait in the first window.
     @Test(arguments: [true, false])
-    func aMonitorWriterStopsAtItsKeepLimit(monitor: Bool) async throws {
+    func aMonitorWriterStopsAtItsKeepLimit(monitor: Bool) async {
         let hal = TestHAL([mic])
-        hal.failAttach { _, _ in .undone(kAudioHardwareUnspecifiedError) }
+        let times = OSAllocatedUnfairLock<[ContinuousClock.Instant]>(initialState: [])
+        hal.failAttach { _, count in
+            times.withLock { $0.append(.now) }
+            return count < 3 ? .undone(kAudioHardwareUnspecifiedError) : nil
+        }
         let url = folder.url
         let writer = DeviceWriter(
             device: mic, tracks: [(arm: 1, channels: .mono(1))],
@@ -305,19 +311,15 @@ extension DeviceEventTests {
         writer.start()
 
         for _ in 0..<5 { writer.post(.devicesChanged, from: nil) }
-        if monitor {
-            await until(limit: .seconds(5), "no retry stop") { log.states(arm: 1).contains(.retryStopped) }
-        } else {
-            try await Task.sleep(for: .milliseconds(300))
-        }
+        let end: LiveTrack.State = monitor ? .retryStopped : .recording
+        await until(limit: .seconds(5), "no \(end) state") { log.states(arm: 1).contains(end) }
         await writer.finish()
 
-        if monitor {
-            #expect(hal.tries("mic").count == 2)
-        } else {
-            #expect((2...3).contains(hal.tries("mic").count))
-        }
+        #expect(hal.tries("mic").count == (monitor ? 2 : 3))
+        let gaps = times.withLock { zip($0, $0.dropFirst()).map { $1 - $0 } }
+        #expect(zip(gaps, [Duration.milliseconds(250), .milliseconds(500)]).allSatisfy { $0 > $1 }, "gaps \(gaps)")
         #expect(log.states(arm: 1).filter { $0 == .retryStopped }.count == (monitor ? 1 : 0))
+        #expect(log.states(arm: 1).last == end)
     }
 }
 

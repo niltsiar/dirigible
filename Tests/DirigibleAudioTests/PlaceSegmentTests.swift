@@ -10,7 +10,8 @@ import Testing
 ///
 /// Fixture, made off the main actor: a two-arm take 1 (playhead 96,000, first frame 10 ms after
 /// the take start, latency 48) that the take finalize ended, then the clip and the pool file of
-/// `take1-1-1` removed. The capture stays, and `Clips/take1-1-1.wav` stays as an orphan WAV.
+/// `take1-1-1` removed. `Clips/take1-1-1.wav` stays as an orphan WAV. The open sweep of
+/// `studio()` removes the CAF of the placed `take1-2-1` (decision 0071); the other capture files stay.
 struct PlaceSegmentTests {
     let package: TakePackage
     var clips: URL { package.url.appending(path: "Clips") }
@@ -31,10 +32,12 @@ struct PlaceSegmentTests {
         try session.write(to: package.url)
     }
 
-    /// Opens the fixture with the test environment and checks that `take1-1-1` is unplaced.
+    /// Opens the fixture with the test environment and waits for the open sweep, so a test reads
+    /// `Capture/` after the sweep changed it.
     @MainActor func studio(free: FreeBytes = FreeBytes()) async throws -> Studio {
         let studio = try await Studio.open(package.url)
         studio.environment = .test(TestHAL([]), free: free)
+        await studio.rawSweep
         return studio
     }
 
@@ -204,6 +207,7 @@ struct PlaceSegmentTests {
         let (capture, clipFiles, canUndo) = (try captureBytes(), try clipBytes(), studio.canUndo)
 
         await #expect(throws: call.error) { try await studio.place(call.segment, on: call.track, at: call.start) }
+        await studio.rawSweep
 
         #expect(studio.session == session)
         #expect(try Data(contentsOf: package.url.appending(path: "session.xml")) == xml)

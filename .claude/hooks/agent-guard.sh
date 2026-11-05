@@ -19,9 +19,9 @@
 #   ) ; : . , and quotes go before the comparison, so -F "" is refused.
 # - A brief that names a lock step is refused while a release call (a push check, the hooks pass, a
 #   land, or make dmg) or a stress lane (scripts/test-stress.sh) holds the build lock or waits first
-#   for it, because the agent would wait for
-#   the lock on its 90 min clock. A lock step is with-lock.sh, a make target that takes the lock, a
-#   script that takes the lock itself, or swift build, test, or run (AGENTS.md, Commands). The
+#   for it, because the agent would wait for the lock on its 90 min clock. A lock step is
+#   with-lock.sh, a make target that takes the lock, a script that takes the lock itself, or swift
+#   build, test, or run (AGENTS.md, Commands). The
 #   state comes from scripts/with-lock.sh --release-holder, and an exit other than 0 or 1 of that
 #   query lets the brief pass. A line that starts with Build lock: none (after spaces and one -, *,
 #   or > marker) passes a brief of an agent that runs no with-lock.sh step.

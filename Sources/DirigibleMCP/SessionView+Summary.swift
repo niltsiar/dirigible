@@ -4,7 +4,7 @@ import Foundation
 
 /// The text summary of `info`: one line for the session, then one line for each object, then the
 /// sync line of each take with audio, the line of each anchor fault (decision 0061), and the `raw`
-/// line of each placed segment that has its CAF (decision 0071).
+/// line of each segment that has its CAF (decision 0071).
 package func summary(
     of session: Session, name: String, media: [FileID: MediaFault], takeMap: TakeMapRead,
     raw: [SegmentName: RawVerdict]

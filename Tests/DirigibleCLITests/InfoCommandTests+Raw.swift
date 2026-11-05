@@ -12,7 +12,8 @@ extension InfoCommandTests {
     /// A package with take 1 finalized and placed, with no sweep: one 2.0 s mono segment on track
     /// `t<arm>` for each bow, made with the real writer. A bow adds that many seconds to the host
     /// time of the middle checkpoint, so 1.07 ms keeps the CAF for its alignment and 0 passes the gate.
-    static func rawPackage(bows: [Double]) async throws -> TemporaryPackage {
+    /// With `finalized` false, take 1 stays the pending take.
+    static func rawPackage(bows: [Double], finalized: Bool = true) async throws -> TemporaryPackage {
         var session = Session(sampleRate: 48_000)
         let tracks = bows.indices.map { TrackID("t\($0 + 1)") }
         for track in tracks { try session.addTrack(track, name: track.rawValue, layout: .mono) }
@@ -37,6 +38,7 @@ extension InfoCommandTests {
             try samples.withUnsafeBufferPointer { try writer.write($0, frames: samples.count) }
             try writer.close()
         }
+        guard finalized else { return package }
         let outcome = await completeTake(of: try package.read(), lock: try PackageLock(package.url))
         try #require(outcome.error == nil, "finalize: \(String(describing: outcome.error))")
         return package
@@ -85,6 +87,28 @@ extension InfoCommandTests {
         }
         #expect(placed, "the segment stays placed: \(text.stdout)")
         #expect(try Self.rawKept(json.stdout) == nil, "\(json.stdout)")
+    }
+
+    /// Code gate item 4: each CAF in `Capture/` has one `raw` line and one `rawKept` entry, also a
+    /// CAF that the gate does not read: `pending take` before the finalize, and `not placed` for a
+    /// segment whose clip is gone. The placed segment beside it passes the gate.
+    @Test(arguments: [false, true]) func eachCAFInCaptureHasARawLine(finalized: Bool) async throws {
+        let package = try await Self.rawPackage(bows: [0, 0], finalized: finalized)
+        if finalized {
+            var session = try package.read()
+            try session.removeClips(["take1-1-1"])
+            try session.write(to: package.url)
+        }
+        let kept =
+            finalized
+            ? [("take1-1-1", "not placed"), ("take1-2-1", "not removed yet")]
+            : [("take1-1-1", "pending take"), ("take1-2-1", "pending take")]
+
+        let text = try await package.run("info", "PKG")
+        let json = try await package.run("info", "PKG", "--json")
+
+        #expect(Self.rawLines(text.stdout) == kept.map { "raw \($0.0) kept: \($0.1)" }, "\(text.stdout)")
+        #expect(try Self.rawKept(json.stdout) == kept.map { ["segment": $0.0, "reason": $0.1] }, "\(json.stdout)")
     }
 
     /// Code gate item 2: a segment with no finalize record and a saturated record of its CAF

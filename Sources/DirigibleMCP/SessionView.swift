@@ -161,7 +161,7 @@ package struct SessionView: Encodable {
         }
     }
 
-    /// One CAF in `Capture/` that a placed segment keeps, and why (decision 0071).
+    /// One CAF in `Capture/` that a segment keeps, and why (decision 0071).
     struct RawKeptView: Encodable {
         let segment: String
         let reason: String
@@ -188,12 +188,12 @@ package struct SessionView: Encodable {
     /// One entry for each anchor read fault, the fault of `Capture/` first, then in take order; left
     /// out with none.
     let takeSyncFaults: [FaultView]?
-    /// One entry for each placed segment that has its CAF, in segment order; left out with none
+    /// One entry for each segment that has its CAF, in segment order; left out with none
     /// (decision 0071).
     private(set) var rawKept: [RawKeptView]?
 
     /// `takeMap` is the take map of the session and its anchor read faults, and `raw` the verdict
-    /// of each placed segment that has its CAF (`rawCaptures`).
+    /// of each segment that has its CAF (`rawCaptures`).
     package init(
         _ session: Session, media: [FileID: MediaFault], takeMap: TakeMapRead, raw: [SegmentName: RawVerdict]
     ) {

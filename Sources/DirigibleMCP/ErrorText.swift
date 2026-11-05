@@ -28,6 +28,8 @@ extension RawVerdict {
     /// (decision 0071). A segment that passes the gate and still has its CAF is not removed yet.
     var keptReason: String {
         switch self {
+        case .pendingTake: "pending take"
+        case .notPlaced: "not placed"
         case .removable: "not removed yet"
         case .frames: "frames"
         case .rateChoice: "rate choice"

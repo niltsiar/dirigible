@@ -123,6 +123,8 @@ check '0:killed' 'a test list failure is no marker' "$file" 'b = 1' 'b = 2' "$tm
   "echo 'test-filter: test list failed (exit 3)'; exit 1"
 check '0:killed' 'a marker text inside a line is no marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
   "echo '✘ Test x() failed: test-filter: no test ID matches y'; exit 1"
+check '0:killed' 'a marker line after a FAIL line is a killed test of test-filter' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'FAIL: x: output was:'; echo 'test-filter: no test ID matches y'; exit 1"
 check '75:LOCK WAIT' 'a lock wait after the marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
   "echo 'test-filter: no test ID matches x'; exit 75"
 

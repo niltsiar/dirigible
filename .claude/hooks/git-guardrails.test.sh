@@ -1291,7 +1291,7 @@ bg_jobs=(
   'scripts/land.sh "t" x/pr.md'
   'scripts/mutation-pass.sh wt batch.txt'
   'scripts/swift-test.sh' 'scripts/test-shards.sh' 'scripts/bench.sh Foo' 'scripts/bench-pairs.sh Foo'
-  'scripts/sanitize.sh thread' 'scripts/flake-monitor/loop.sh --min-load 4 t 1 5 out' 'scripts/with-lock.sh make build' 'scripts/with-lock.sh swift build'
+  'scripts/sanitize.sh thread' 'scripts/flake-monitor/loop.sh --min-load 4 t 1 5 out' 'scripts/test-stress.sh --runs 3 out' 'scripts/with-lock.sh make build' 'scripts/with-lock.sh swift build'
   'bash .scratchpads/loop.sh' 'sh .scratchpads/loop.sh' 'zsh .scratchpads/loop.sh'
 )
 for job in "${bg_jobs[@]}"; do
@@ -2086,8 +2086,8 @@ lock_lists_equal() {
   [[ "$(sed -n "s/^lock_free_targets='\(.*\)'\$/\1/p" "$3")" == "$free" ]] || return 1
   want_s="$(python3 -I -c '
 import re, sys
-m = re.search(r"((?:`scripts/[\w-]+\.sh`(?:,? and |, )?)+) take the lock themselves", open(sys.argv[1], encoding="utf-8").read())
-print("\n".join(sorted(re.findall(r"scripts/([\w-]+)\.sh", m.group(1)))) if m else "")
+m = re.search(r"((?:`scripts/[\w/-]+\.sh`(?:,? and |, )?)+) take the lock themselves", open(sys.argv[1], encoding="utf-8").read())
+print("\n".join(sorted(re.findall(r"scripts/([\w/-]+)\.sh", m.group(1)))) if m else "")
 ' "$2")"
   have_s="$(sed -n "s/^lock_scripts='\(.*\)'\$/\1/p" "$3" | tr '|' '\n' | sort)"
   [[ -n "$want_t" && "$want_t" == "$have_t" && -n "$want_s" && "$want_s" == "$have_s" ]]
@@ -2109,8 +2109,12 @@ sed 's/|dmg|/|/' "$lock_words_src" > "$lock_mut/hook.no-dmg"
 expect_lock_lists differ 'the hook list loses dmg' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-dmg"
 sed "s/^lock_free_targets='check-docs|check-fast|lint|format'\$/lock_free_targets='check-docs|check-fast|format'/" "$lock_words_src" > "$lock_mut/hook.no-free-lint"
 expect_lock_lists differ 'the hook free list loses lint' "$lock_real/Makefile" "$lock_real/AGENTS.md" "$lock_mut/hook.no-free-lint"
-sed 's/`scripts\/sanitize.sh` take the lock/`scripts\/other.sh` take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.new-script"
+sed 's/`scripts\/test-stress.sh` take the lock/`scripts\/other.sh` take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.new-script"
 expect_lock_lists differ 'AGENTS.md names another script' "$lock_real/Makefile" "$lock_mut/AGENTS.new-script" "$lock_words_src"
+sed 's/, and `scripts\/test-stress.sh`//' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.no-stress"
+expect_lock_lists differ 'AGENTS.md has no test-stress.sh' "$lock_real/Makefile" "$lock_mut/AGENTS.no-stress" "$lock_words_src"
+sed 's/`scripts\/flake-monitor\/loop.sh`, //' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.no-loop"
+expect_lock_lists differ 'AGENTS.md has no flake-monitor/loop.sh' "$lock_real/Makefile" "$lock_mut/AGENTS.no-loop" "$lock_words_src"
 sed 's/take the lock themselves/take the lock/' "$lock_real/AGENTS.md" > "$lock_mut/AGENTS.no-sentence"
 expect_lock_lists differ 'the AGENTS.md sentence is gone' "$lock_real/Makefile" "$lock_mut/AGENTS.no-sentence" "$lock_words_src"
 sed 's/^\.PHONY: .*$//' "$lock_real/Makefile" > "$lock_mut/Makefile.no-phony"

@@ -748,7 +748,7 @@ fi
 # of the two keys. Each segment of the chain (the masked text of the hook test rule below) is read from
 # its start, after the prefix words. A lock job has a with-lock.sh word in the prefix; or land.sh,
 # mutation-pass.sh, swift-test.sh, test-shards.sh, bench.sh, bench-pairs.sh, sanitize.sh, loop.sh,
-# make, or swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command.
+# test-stress.sh, make, or swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command.
 # make with one target that takes no lock (check-docs, check-fast, lint, format: AGENTS.md, Commands)
 # and no other word but a redirection is no lock job. Misses: a
 # wrapper word that the prefix does not hold (nice, nohup, caffeinate) and a path in a variable.
@@ -770,7 +770,7 @@ if [[ "$chained" =~ $bg_gate ]]; then
       lock_job=""
       [[ "$prefix" == *with-lock.sh* ]] && lock_job=1
       case "${words[0]:+${words[0]##*/}}" in
-        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|swift) lock_job=1 ;;
+        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|test-stress.sh|swift) lock_job=1 ;;
         make) [[ "$rest" =~ $bg_free_make ]] || lock_job=1 ;;
       esac
       [[ "$rest" =~ $bg_shell ]] && lock_job=1

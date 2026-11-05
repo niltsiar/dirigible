@@ -4,7 +4,8 @@
 # Makefile: the busy processes and TEST_SHARD_LIMIT that make sees, no busy process after the exit,
 # the load wait (exit 3 and no make call), the hold and the shard limit (the default of 6600 s with
 # and without history, and with WITH_LOCK_MAX_HOLD), the refusal of a hold that gives a shard under
-# 2400 s, of a call that holds the lock, and of an out folder with a summary.txt, a TERM to the
+# 2400 s (a full-suite call only: a --filter call has the limit hold / runs / 2 and no floor), of a
+# call that holds the lock, and of an out folder with a summary.txt, a TERM to the
 # caller and to the child of the lock (the stub make and each busy process are dead when the lock
 # goes), the table of red tests (most reds first, a run with an exit and no failed test, a loop that
 # stops early), and the exit status. Run by `make test-hooks`.
@@ -41,7 +42,7 @@ echo 2.50 > "$tmp/load"
 # The stub make: $STRESS_OUT is the out folder. Each run counts itself in $STRESS_OUT/n, writes its
 # limit, the maxhold of the lock, and the number of live busy processes, writes the pid of make, and
 # prints the failed tests of $STRESS_FAIL (one word list for each run, split by a comma).
-printf 'test:\n' > "$tmp/stub/Makefile"
+printf 'test-filter: test\ntest:\n' > "$tmp/stub/Makefile"
 printf '\t@n=$$(cat "$$STRESS_OUT/n" 2>/dev/null || echo 0); n=$$((n + 1)); echo $$n > "$$STRESS_OUT/n"; echo $$PPID > "$$STRESS_OUT/make.pid"\n' >> "$tmp/stub/Makefile"
 printf '\t@alive=0; for p in $$(cat "$$STRESS_OUT/busy.pids"); do kill -0 $$p 2>/dev/null && alive=$$((alive + 1)); done; echo "busy=$$alive limit=$$TEST_SHARD_LIMIT maxhold=$$(cat "$$STRESS_LOCK/maxhold")"\n' >> "$tmp/stub/Makefile"
 printf '\t@[ -z "$$STRESS_SLEEP" ] || /bin/sleep "$$STRESS_SLEEP"\n' >> "$tmp/stub/Makefile"
@@ -133,6 +134,18 @@ refused near 9599 2 '--runs 2 with a hold of 9599 s gives each shard 2399 s, und
 refused none 4000 1 '--runs 1 with a hold of 4000 s gives each shard 2000 s, under the floor of 2400 s; no --runs fits, so set WITH_LOCK_MAX_HOLD to 4800 or more'
 WITH_LOCK_MAX_HOLD=4800 stress "$tmp/o8c"
 [[ "$(cat "$tmp/o8c/stress-1.log" 2>/dev/null)" == 'busy=2 limit=2400 maxhold=4800' ]] || fail "a shard of exactly 2400 s: [$(cat "$tmp/o8c/stress-1.log" 2>/dev/null)]"
+
+# A --filter call has no floor: its per-run limit is hold / runs / 2 (the default hold with 15 runs
+# gives 220 s). A hold of 0 is no limit. A hold under 2 x runs gives a limit of 0 s, which would
+# mean no limit, so it exits 2 before the lock.
+stress "$tmp/o8d" --runs 15 --filter 'someTest'
+[[ $code -eq 0 ]] || fail "filter, 15 runs: exit $code: $(cat "$tmp/out")"
+[[ "$(cat "$tmp/o8d"/stress-*.log 2>/dev/null | sort | uniq -c | tr -s ' ')" == ' 15 busy=2 limit=220 maxhold=6600' ]] || fail "filter, 15 runs: [$(cat "$tmp/o8d"/stress-*.log 2>/dev/null | sort | uniq -c | paste -sd'|' -)]"
+WITH_LOCK_MAX_HOLD=0 stress "$tmp/o8e" --runs 3 --filter 'someTest'
+[[ "$(cat "$tmp/o8e/stress-3.log" 2>/dev/null)" == 'busy=2 limit=0 maxhold=0' ]] || fail "filter, no hold limit: [$(cat "$tmp/o8e/stress-3.log" 2>/dev/null)]"
+WITH_LOCK_MAX_HOLD=20 stress "$tmp/o8f" --runs 15 --filter 'someTest'
+[[ $code -eq 2 ]] && grep -qxF 'test-stress: --runs 15 with a hold of 20 s gives each run under 1 s; set WITH_LOCK_MAX_HOLD to 30 or more' "$tmp/out" && [[ ! -e "$tmp/o8f/busy.pids" && ! -d "$lock" ]] ||
+  fail "filter, hold under 2 x runs: exit $code: $(cat "$tmp/out")"
 
 # A call that holds the lock already exits 2 with the reason and starts no busy process; so does an
 # out folder with a summary.txt. The self-wrap (the marker) runs, as the cases above show.

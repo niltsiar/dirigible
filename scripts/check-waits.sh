@@ -12,7 +12,7 @@
 # In a git work tree, two more gates compare the Swift files with the reference: HEAD (the empty
 # tree before the first commit), or, with BASE set, the merge base of BASE and HEAD, the commit
 # that the rest of the push check compares with. No BASE and no merge base exits 2. The count gate:
-# a Swift file under Tests/ or Sources/ with more wall-clock lines (the regex r1 below, a comment
+# a Swift file under Tests/ or Sources/ with more wall-clock lines (the terms r1 below, a comment
 # line counts) than at the reference, and over its cap in scripts/check-waits.counts, fails. A
 # counts line is `mode warn`, `mode fail`, or <path><TAB><cap><TAB><reason>. The first line that is
 # no comment is the mode; with no file or no mode line, the mode is fail and no cap counts. In mode
@@ -62,16 +62,40 @@ while IFS= read -r file; do
     problems+="$file: an isIntermittent: true with no \"quarantine: marker that has a FLAKE word; name its FLAKE item"$'\n'
 done < <(cd "$root" && { grep -rlF --include='*.swift' 'isIntermittent: true' Tests 2>/dev/null || true; } | sort)
 
-# count_lines <commit, or - for the work tree> <-E or -F> <pattern> <pathspec>...: "<path>:<count>"
-# for each file with a match. The work tree read includes untracked files.
-count_lines() {
-  local at="$1" kind="$2" pattern="$3"
-  shift 3
+# r1: the wall-clock terms of a Swift file: a sleep, a clock read, a timer, or the real-time pace.
+r1=('Task.sleep' 'Thread.sleep' 'usleep(' 'ContinuousClock.now' 'DispatchTime.now' 'asyncAfter' 'makeTimerSource' 'Timer.scheduled' 'pace: .realTime')
+# The refused markers, each counted on its own in the Tests/ total.
+markers=(isIntermittent '"quarantine:' '.disabled(')
+# scan <commit, or - for the work tree>: one `git grep` for the r1 terms and the markers in all Swift
+# files under Tests/ and Sources/, as "<path>:<line>:<text>". The work tree read includes untracked files.
+# A fixed-string term is much faster than the same terms in one -E regex.
+scan() {
+  local at="$1" args=() term
+  for term in "${r1[@]}" "${markers[@]}"; do args+=(-e "$term"); done
   if [[ "$at" == - ]]; then
-    git -C "$root" grep --untracked -c "$kind" -e "$pattern" -- "$@" || true
+    git -C "$root" grep -anF --untracked "${args[@]}" -- 'Tests/*.swift' 'Sources/*.swift' || true
   else
-    git -C "$root" grep -c "$kind" -e "$pattern" "$at" -- "$@" | sed "s|^$at:||" || true
+    git -C "$root" grep -anF "${args[@]}" "$at" -- 'Tests/*.swift' 'Sources/*.swift' | sed "s|^$at:||" || true
   fi
+}
+# tally <r1 or total> <scan output>: for r1, "<path>:<count>" of the lines with an r1 term, for each
+# file with a match; for total, the number of lines under Tests/ with each marker, on one line.
+tally() {
+  LC_ALL=C awk -v want="$1" -v r1="$(printf '%s\t' "${r1[@]}")" -v mk="$(printf '%s\t' "${markers[@]}")" '
+    BEGIN { nr = split(r1, R, "\t"); nm = split(mk, M, "\t"); nr--; nm-- }
+    {
+      i = index($0, ":"); path = substr($0, 1, i - 1); rest = substr($0, i + 1)
+      text = substr(rest, index(rest, ":") + 1)
+      if (want == "r1") {
+        for (k = 1; k <= nr; k++) if (index(text, R[k])) { n[path]++; if (!(path in seen)) { seen[path] = 1; order[++files] = path } break }
+      } else if (substr(path, 1, 6) == "Tests/") {
+        for (k = 1; k <= nm; k++) if (index(text, M[k])) total[k]++
+      }
+    }
+    END {
+      if (want == "r1") for (f = 1; f <= files; f++) print order[f] ":" n[order[f]]
+      else { for (k = 1; k <= nm; k++) line = line (k > 1 ? " " : "") (total[k] + 0); print line }
+    }' <<<"$2"
 }
 # rises <reference counts> <work tree counts>: "<path>:<now>:<before>" for each file with more.
 rises() {
@@ -105,10 +129,9 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
     fi
   fi
 
-  # The regex r1 of a wall-clock term in a Swift file: a sleep, a clock read, a timer, or the real-time pace.
-  r1='Task\.sleep|Thread\.sleep|usleep\(|ContinuousClock\.now|DispatchTime\.now|asyncAfter|makeTimerSource|Timer\.scheduled|pace: \.realTime'
-  now_r1="$(count_lines - -E "$r1" 'Tests/*.swift' 'Sources/*.swift')"
-  ref_r1="$(count_lines "$ref" -E "$r1" 'Tests/*.swift' 'Sources/*.swift')"
+  scan_now="$(scan -)" scan_ref="$(scan "$ref")"
+  now_r1="$(tally r1 "$scan_now")"
+  ref_r1="$(tally r1 "$scan_ref")"
   gate=""
   while IFS=: read -r file n before; do
     [[ -n "$file" ]] || continue
@@ -134,9 +157,10 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
   fi
 
   # The Tests/ total of each refused marker against the reference: a move of a line is no rise.
-  total() { count_lines "$1" -F "$2" 'Tests/*.swift' | awk -F: '{ n += $NF } END { print n + 0 }'; }
-  for marker in isIntermittent '"quarantine:' '.disabled('; do
-    n="$(total - "$marker")" before="$(total "$ref" "$marker")"
+  read -r -a now_totals <<<"$(tally total "$scan_now")"
+  read -r -a ref_totals <<<"$(tally total "$scan_ref")"
+  for i in "${!markers[@]}"; do
+    marker="${markers[$i]}" n="${now_totals[$i]}" before="${ref_totals[$i]}"
     advice='a flaky test moves to the real-time tier (flake-triage.md, Time box)'
     [[ "$marker" != '.disabled(' ]] ||
       advice='a new disabled test; move a flaky test to the real-time tier (flake-triage.md), or gate a test with .enabled(if:)'

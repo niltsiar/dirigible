@@ -83,7 +83,11 @@ import Observation
     /// Held from the start of a take until its finalize ends.
     @ObservationIgnored var sleepAssertion: SleepAssertion?
     /// True while `startRecording` works off the main actor: every other entry point is busy.
-    public internal(set) var isStarting = false
+    public internal(set) var isStarting = false {
+        didSet { if !isStarting { resumeStartWaits() } }
+    }
+    /// The waits of `startsQueued()`, resumed when `isStarting` becomes false.
+    @ObservationIgnored var startWaits: [CheckedContinuation<Void, Never>] = []
     /// The last autosave error. Nil after a good save, finalize, or placement write.
     public internal(set) var saveError: StudioError?
     @ObservationIgnored var diskWatcher: Task<Void, Never>?

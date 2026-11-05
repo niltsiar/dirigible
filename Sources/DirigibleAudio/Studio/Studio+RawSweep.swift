@@ -67,8 +67,16 @@ extension Studio {
     /// jobs before it takes its ticket, so `settle()` calls it before each `serialized` call: then the
     /// settle comes after the start in the chain and stops its take.
     func startsQueued() async {
-        while isStarting { await Task { try? await Task.sleep(for: .milliseconds(10)) }.value }
+        while isStarting { await withCheckedContinuation { startWaits.append($0) } }
     }
+
+    func resumeStartWaits() {
+        for waiter in startWaits { waiter.resume() }
+        startWaits = []
+    }
+
+    /// Tests only: the calls that wait in `startsQueued()`.
+    var startWaiters: Int { startWaits.count }
 
     /// The reads run off the main actor; each removal runs in a turn of the write chain. The job
     /// tests the hold before its reads, after the WAV read of a take with no finalize record, right

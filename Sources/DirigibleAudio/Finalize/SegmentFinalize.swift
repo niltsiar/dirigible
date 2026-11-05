@@ -120,7 +120,7 @@ struct SegmentFinalize {
     ) throws(FinalizeError) -> Result<Session, SegmentFault> {
         let url = package.appending(path: wav)
         if let code = openErrno(url.path) {
-            throw code == ENOENT ? .readFailed(file: caf, errno: code) : unreadable(wav, code)
+            throw code == ENOENT ? .readFailed(file: wav, errno: code) : unreadable(wav, code)
         }
         let length: AVAudioFramePosition
         do {

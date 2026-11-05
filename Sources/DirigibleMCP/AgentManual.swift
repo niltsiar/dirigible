@@ -42,15 +42,15 @@ package enum AgentManual {
         Recipe(
             phase: .edit, name: "cut-a-range", title: "Cut a range",
             summary: "Remove a time range from all tracks and keep them in sync.",
-            steps: "`clip_ripple_delete` with no `track`; `from` and `to` are arrays, one item for each range; read "
-                + "`session_info` (use `compact`) again. `clip_heal` joins the splits that stay after the cuts: the "
-                + "sound does not change. \"no join to heal\" is normal: a cut leaves a gap in the file. A heal "
-                + "changes clip IDs: run `transcript_words` again."),
+            steps: "`clip_ripple_delete`: `from` and `to` are arrays, one item for each range; read `session_info` "
+                + "(use `compact`) again. `clip_heal` joins the splits that stay after the cuts: the sound does not "
+                + "change. \"no join to heal\" is normal: a cut leaves a gap in the file. A heal changes clip IDs: "
+                + "run `transcript_words` again."),
         Recipe(
             phase: .edit, name: "cut-from-transcript", title: "Cut from a transcript",
             summary: "Find words in a transcript with word times, and cut them from all tracks in sync.",
             steps: RecordRequest.loudnessRule + " The transcript is of an `export` of the current session from "
-                + "frame 0 with each track heard, or of one take: give `take`, and time 0 is its record start. "
+                + "frame 0 with each track heard, or of one take: give `take`; time 0 is its record start. "
                 + "`export` a .wav file for Whisper, or `transcribe` the track; if the export says that a track is "
                 + "muted or not soloed, stop and ask the user. Turn on word timestamps (Whisper). For a transcript of the user, "
                 + "ask which it is. Run `transcript_import` with the `path` of the Whisper JSON, WebVTT, or SRT file "
@@ -59,19 +59,19 @@ package enum AgentManual {
                 + "user: a cut removes each whole cue. The words follow the clips of the import track: edit all "
                 + "tracks together. Find each passage with `transcript_words` with `match`. A cut on a closed "
                 + "package saves at once: list each passage with its words and seconds, and get consent before the "
-                + "cut, unless the user already agreed. Run one `transcript_cut` with all the occurrences; report "
+                + "cut, unless the user agreed. Run one `transcript_cut` with all the occurrences; report "
                 + "each cut in seconds. Each edit makes the occurrences stale: run `transcript_words` again before "
                 + "the next cut."),
         Recipe(
             phase: .produce, name: "check-levels", title: "Check the levels",
             summary: "Measure the loudness of each clip, level the session, and report the change.",
-            steps: "run `loudness`, then `level`, then `loudness` again; report each clip before and after."),
+            steps: "run `loudness`, `level`, then `loudness` again; report each clip before and after."),
         Recipe(
             phase: .produce, name: "add-sound", title: "Add a sound clip",
             summary: "Import a sound clip, such as music or a jingle, at a frame, and fade it.",
             steps: "the imported clip replaces the clips under it, so put it on a new track from `track_add` with the "
                 + "layout of the file, or in a range of a track that has no clip; "
-                + "`import` with `file` (an absolute path), `track`, and `at` (a frame) shapes the clip in the same "
+                + "`import` with `file` (an absolute path), `track`, and `at` (a frame) shapes the clip in one "
                 + "call: `offset` and `length` (frames of the made WAV) take a range of the file, `db` sets the gain "
                 + "relative to the file level, with no auto level, `fade_in` and `fade_out` set the fades, "
                 + "and `id` names the clip. For more parts of one file, import it once, then run `clip_place` with "
@@ -94,8 +94,8 @@ package enum AgentManual {
             steps: "read `session_info` (use `compact`) and `episode_get`; ask for a missing title or show and set "
                 + "them with `episode_set`; when the session has chapters, make sure one is at frame 0; run "
                 + "`level`, then `export` with `out` an .mp3 file and `loudness` podcast; `chapters_export` with "
-                + "`out` a .txt file gives the chapter list for the show notes; `file_prune` with `dry_run` lists "
-                + "the unused files of a closed package (in the app, File > Remove Unused Files does it); "
+                + "`out` a .txt file gives the show-notes chapter list; `file_prune` with `dry_run` lists "
+                + "the unused files of a closed package (the app: File > Remove Unused Files); "
                 + "report the loudness line and the file path."),
     ]
 
@@ -167,16 +167,16 @@ package enum AgentManual {
     }
 
     /// The pre-roll of a take (decision 0070). Outside the core, which has no room.
-    static let preRollLine = "`record` takes `pre_roll` (0 to 10), and the CLI `--pre-roll <seconds>`."
+    static let preRollLine = "`record` takes `pre_roll` (0 to 10). CLI: `--pre-roll <seconds>`."
 
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
-        "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each raw CAF that stays, and why."
+        "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
 
     /// The problem report (decision 0059). Outside the core, which has no room.
     static let reportLine =
         "When Dirigible fails or hangs, `dirigible diagnostics collect <zip>` saves a report with no private "
-        + "names; the user sends the file."
+        + "names; the user sends it."
 
     /// The `SKILL.md` text: the frontmatter, the core with the path rule of the bundle, the command of
     /// each tool from the tool table, and each recipe in full.

@@ -133,7 +133,8 @@ func oldTakeRecord(
 /// One removal of decision 0071 in a turn of the write chain, where `session` is the session on
 /// the disk: the gate again, the identity of the three files against `read`, then for `appends`
 /// the flush of the WAV and of `Clips/` and the append of the record, then the sidecar flush, its
-/// record against `read`, the unlink of the CAF, and the flush of `Capture/`. False when the gate
+/// record against `read` and against the CAF header frames and the rate choice, the unlink of the
+/// CAF, and the flush of `Capture/`. False when the gate
 /// does not pass now; then no file changes. For `saturated`, it appends and flushes only the
 /// saturated record, and returns false. `flush` gives the errno of a flush. Call it off the main
 /// actor.
@@ -167,7 +168,7 @@ func removeRawCapture(
     if let code = flush(package.appending(path: sidecar).path) {
         throw .writeFailed(file: sidecar, status: code)
     }
-    guard finalizeRecord(of: name, in: package) == read.record else { throw .recordMismatch }
+    guard recordMatches(read.record, of: name, in: package) else { throw .recordMismatch }
     guard unlink(package.appending(path: "\(captureFolderName)/\(name.cafName)").path) == 0 else {
         throw .removeFailed(errno: errno)
     }
@@ -213,6 +214,17 @@ private func rawFiles(of name: SegmentName, in package: URL) -> [FileIdentity?] 
         "\(captureFolderName)/\(name.sidecarName)",
     ]
     .map { FileIdentity(path: package.appending(path: $0).path) }
+}
+
+/// True when the sidecar of `name` decodes with `record` as its finalize record, and `record` has
+/// the frames of the CAF header and the source rate of `RateChoice`.
+private func recordMatches(_ record: FinalizeRecord, of name: SegmentName, in package: URL) -> Bool {
+    guard let data = try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package),
+        let sidecar = try? Sidecar.decode(data), sidecar.finalized == record,
+        let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(name.cafName)"))
+    else { return false }
+    let choice = RateChoice(header: sidecar.header, checkpoints: sidecar.checkpoints, frames: Int(caf.length))
+    return record.cafFrames == caf.length && record.sourceRate == choice.source
 }
 
 private func finalizeRecord(of name: SegmentName, in package: URL) -> FinalizeRecord? {

@@ -155,6 +155,7 @@ struct RecoveryTests {
         #expect(studio?.takeError == nil)
         #expect(studio?.session.track("t2")?.clips.map(\.id) == ["take1-2-1"])
         #expect(studio?.unplacedSegments.map(\.stem) == ["take1-1-1"])
+        await studio?.settle()
         studio = nil
 
         let saved = try Data(contentsOf: package.url.appending(path: "session.xml"))
@@ -209,11 +210,14 @@ struct RecoveryTests {
         await #expect(throws: StudioError.file(.malformedXML)) { try await Studio.open(package.url) }
     }
 
+    /// The studio goes away as a window close does: `settle()`, then the drop. A read of the raw
+    /// sweep job holds the lock until it ends, and the settle waits for it (decision 0071).
     @Test func aLockedPackageThrowsUntilTheStudioGoesAway() async throws {
         var studio: Studio? = try await Studio.open(package.url)
 
         await #expect(throws: StudioError.locked) { try await Studio.open(package.url) }
         #expect(studio != nil)
+        await studio?.settle()
         studio = nil
         await #expect(throws: Never.self) { try await Studio.open(package.url) }
     }

@@ -9,7 +9,7 @@
 # flaky test names its FLAKE item (flake-triage.md, Time box). A Swift file under Tests/ with
 # `isIntermittent: true` and no such `"quarantine:` line with a FLAKE word also fails. The match is
 # one line: a call split over two lines passes.
-# In a git work tree, two more gates compare each Swift file with the reference: HEAD (the empty
+# In a git work tree, two more gates compare the Swift files with the reference: HEAD (the empty
 # tree before the first commit), or, with BASE set, the merge base of BASE and HEAD, the commit
 # that the rest of the push check compares with. No BASE and no merge base exits 2. The count gate:
 # a Swift file under Tests/ or Sources/ with more wall-clock lines (the regex r1 below, a comment
@@ -18,9 +18,10 @@
 # no comment is the mode; with no file or no mode line, the mode is fail and no cap counts. In mode
 # warn the count gate prints `check-waits: warning: ` lines and does not change the exit. A cap
 # line with no reason, with no whole number, or over the count of its file is a count gate line
-# too. More `isIntermittent` lines in all Swift files under Tests/ than at the reference fails in
-# each mode, with no cap: a flaky test moves to the real-time tier (flake-triage.md, Time box). The
-# gate compares the total, so a rename or a split of a file that keeps the lines passes.
+# too. More lines with `isIntermittent`, `"quarantine:`, or `.disabled(` (each counted on its own)
+# in all Swift files under Tests/ than at the reference fails in each mode, with no cap: a flaky
+# test moves to the real-time tier (flake-triage.md, Time box), and no commit adds a quarantine of
+# any form. The gate compares the total, so a rename or a split of a file that keeps the lines passes.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -134,7 +135,7 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
 
   # The Tests/ total of each refused marker against the reference: a move of a line is no rise.
   total() { count_lines "$1" -F "$2" 'Tests/*.swift' | awk -F: '{ n += $NF } END { print n + 0 }'; }
-  for marker in isIntermittent; do
+  for marker in isIntermittent '"quarantine:' '.disabled('; do
     n="$(total - "$marker")" before="$(total "$ref" "$marker")"
     [[ $n -le $before ]] ||
       problems+="Tests/: $n $marker lines, $before at $label; a flaky test moves to the real-time tier (flake-triage.md, Time box)"$'\n'

@@ -31,7 +31,7 @@ In this order:
 ## Time box
 
 - A flake hunt stops after 2 h of agent time. Count the time across all agents of the hunt, also after a hand-off.
-- At the limit, move the flaky test behind the `DIRIGIBLE_SLOW_TESTS` gate (the real-time tier). `scripts/check-waits.sh` refuses a new `isIntermittent` line under `Tests/`, in each mode, because `isIntermittent: true` also passes when the assert fails on every run.
+- At the limit, move the flaky test behind the `DIRIGIBLE_SLOW_TESTS` gate (the real-time tier). `scripts/check-waits.sh` refuses more `isIntermittent`, `"quarantine:`, or `.disabled(` lines in the `Tests/` total than at the reference, in each mode, so no commit adds a quarantine of any form. A move of a line passes. `isIntermittent: true` also passes when the assert fails on every run.
 - Add a FLAKE item with status next that names the test, the run, the triage, and an expiry date 7 days on.
 - Write the defect class of the moved test and the test that still finds it in the FLAKE item.
 - A test that guards the No data loss rule or the Real-time thread rule (**Safety** in `CODING_STANDARDS.md`) needs a deterministic test of the same behavior that still runs in the suite. Name it in the FLAKE item: `still checked by <test name>`. With no such test, do not move it: the hunt goes to the user as an item with status next.

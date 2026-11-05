@@ -124,12 +124,12 @@ func removableCaptures(of session: Session, in package: URL) -> [(
 /// not read whole.
 func oldTakeRecord(
     of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
-    beforeBlock: (Int) async -> Void
-) async throws(RawRemovalError) -> (record: FinalizeRecord, saturated: Bool)? {
+    beforeBlock: (Int) -> Void
+) throws(RawRemovalError) -> (record: FinalizeRecord, saturated: Bool)? {
     guard let data = try? readPackageFile("\(captureFolderName)/\(segment.sidecarName)", in: package),
         let sidecar = try? Sidecar.decode(data),
         let caf = try? AVAudioFile(forReading: package.appending(path: "\(captureFolderName)/\(segment.cafName)")),
-        let gain = try await rawGain(of: segment, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
+        let gain = try rawGain(of: segment, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
     else { return nil }
     let choice = RateChoice(header: sidecar.header, checkpoints: sidecar.checkpoints, frames: Int(caf.length))
     return (FinalizeRecord(cafFrames: caf.length, sourceRate: choice.source, conversionGain: gain.gain), gain.saturated)
@@ -263,10 +263,10 @@ private func rawVerdict(of name: SegmentName, file: AudioFile, session: Session,
 /// `beforeBlock` with the index of each WAV block. `readFault` is a test seam on the CAF blocks.
 func rawGain(
     of segment: SegmentName, in package: URL, isCancelled: @escaping () -> Bool,
-    beforeBlock: (Int) async -> Void = { _ in }, readFault: ReadFault? = nil
-) async throws(RawRemovalError) -> (gain: Gain, saturated: Bool)? {
+    beforeBlock: (Int) -> Void = { _ in }, readFault: ReadFault? = nil
+) throws(RawRemovalError) -> (gain: Gain, saturated: Bool)? {
     let wav = "\(clipsFolderName)/\(segment.stem).wav"
-    guard let wavPeak = try await peakCode(of: wav, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
+    guard let wavPeak = try peakCode(of: wav, in: package, isCancelled: isCancelled, beforeBlock: beforeBlock)
     else { return nil }
     if wavPeak.code <= 8_388_604 { return (.zero, false) }
     let caf = "\(captureFolderName)/\(segment.cafName)"
@@ -306,8 +306,8 @@ func rawGain(
 /// The peak magnitude of the WAV at `file` as a 24-bit code (full scale 8388608), and its rate.
 /// Nil after a cancel, or for a file that is not audio or does not read whole.
 private func peakCode(
-    of file: String, in package: URL, isCancelled: () -> Bool, beforeBlock: (Int) async -> Void
-) async throws(RawRemovalError) -> (code: Int, rate: Double)? {
+    of file: String, in package: URL, isCancelled: () -> Bool, beforeBlock: (Int) -> Void
+) throws(RawRemovalError) -> (code: Int, rate: Double)? {
     let url = package.appending(path: file)
     let descriptor = open(url.path, O_RDONLY | O_CLOEXEC)
     guard descriptor >= 0 else { throw .unreadable(file: file, errno: errno) }
@@ -319,7 +319,7 @@ private func peakCode(
         }
         var (peak, block): (Float, Int) = (0, 0)
         while input.framePosition < input.length {
-            await beforeBlock(block)
+            beforeBlock(block)
             block += 1
             if isCancelled() { return nil }
             try input.read(into: buffer)

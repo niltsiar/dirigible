@@ -89,8 +89,12 @@ struct CaptureEnvironment: Sendable {
     /// A step on the thread of each WAV read of a peak pass: at each file start (the open and the
     /// cache read) and after each block read. Tests check that it is never the main thread.
     var peakRead: @Sendable () -> Void = {}
-    /// A step of the raw sweep job (decision 0071). Tests count or hold the steps with it.
+    /// A step of the raw sweep job (decision 0071) on the main actor: `.first` and `.turn`. Tests
+    /// count or hold the steps with it.
     var beforeRawStep: @Sendable (RawSweepStep) async -> Void = { _ in }
+    /// A step on the read thread of the raw sweep job: `.block(n)` before each WAV block. Tests
+    /// record the QoS of the thread, or hold the read, with it.
+    var rawReadStep: @Sendable (RawSweepStep) -> Void = { _ in }
     /// The flush of each file of a raw removal: the path, then the errno or nil. Tests fail it.
     var rawFlush: @Sendable (String) -> Int32? = { fullFlush(path: $0) }
     /// A step on the export thread at each cancel check: each chunk and once after the close

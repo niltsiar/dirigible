@@ -2,6 +2,7 @@ import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
+import os
 
 @testable import DirigibleAudio
 
@@ -15,10 +16,12 @@ struct RawSweepTests {
         uid: "mic", name: "USB Mic", nominalRate: 48_000, availableRates: [48_000...48_000], channelsPerBuffer: [1],
         latency: 48)!
 
-    /// The steps of the job that the seam saw, and a hold of the job at the step `at`.
+    /// The steps of the job that the two seams saw, and a hold of the job at the step `at`: on
+    /// the main actor, or on the read thread for `.block(n)`.
     final class Hold: @unchecked Sendable {
         let at: RawSweepStep
-        let gate = AsyncGate()
+        private let gate = AsyncGate()
+        private let readGate = Gate(limit: Gate.openLimit)
         private let lock = NSLock()
         private var steps: [RawSweepStep] = []
 
@@ -26,9 +29,29 @@ struct RawSweepTests {
 
         var seen: [RawSweepStep] { lock.withLock { steps } }
 
-        func step(_ step: RawSweepStep) async {
+        /// Sets both seams of `studio` to this hold.
+        @MainActor func attach(_ studio: Studio) {
+            studio.environment.beforeRawStep = { await self.step($0) }
+            studio.environment.rawReadStep = { self.read($0) }
+        }
+
+        func entered() async {
+            if case .block = at { await readGate.entered() } else { await gate.entered() }
+        }
+
+        func open() {
+            gate.open()
+            readGate.open()
+        }
+
+        private func step(_ step: RawSweepStep) async {
             lock.withLock { steps.append(step) }
             if step == at { await gate.wait() }
+        }
+
+        private func read(_ step: RawSweepStep) {
+            lock.withLock { steps.append(step) }
+            if step == at { readGate.waitOnce() }
         }
     }
 
@@ -65,15 +88,15 @@ struct RawSweepTests {
         let (package, written) = try await Self.oldTake()
         #expect(written.conversionGain != .zero, "the peak of 4.0 gives a clip gain")
         let hold = Hold(at: .block(2))
-        defer { hold.gate.open() }
+        defer { hold.open() }
 
         let studio = try await Studio.open(package.url)
-        studio.environment.beforeRawStep = { await hold.step($0) }
-        await hold.gate.entered()
+        hold.attach(studio)
+        await hold.entered()
 
         #expect(Self.hasCAF(package), "the job holds at block 2 of the WAV read with the CAF")
         #expect(try Self.record(in: package) == nil, "no record before the read ends")
-        hold.gate.open()
+        hold.open()
         await studio.rawSweep
 
         #expect(!Self.hasCAF(package), "the sweep removes the CAF of the old take")
@@ -81,6 +104,25 @@ struct RawSweepTests {
         #expect(record.cafFrames == written.cafFrames && record.sourceRate == written.sourceRate)
         #expect(abs(record.conversionGain.dB - written.conversionGain.dB) < 1e-4, "the gain of the finalize")
         await studio.settle()
+    }
+
+    /// The WAV read of the job runs at utility, as an export, also while a user-initiated caller
+    /// waits for the job.
+    @Test func theSweepReadsAtUtilityWhileAUserInitiatedCallerWaits() async throws {
+        let (package, _) = try await Self.oldTake()
+        let qos = OSAllocatedUnfairLock<[UInt32]>(initialState: [])
+        let studio = try await Studio.open(package.url)
+        studio.environment.rawReadStep = { _ in qos.withLock { $0.append(qos_class_self().rawValue) } }
+
+        await Self.bounded("the sweep does not end") {
+            await Task(priority: .userInitiated) { await studio.rawSweep }.value
+        }
+
+        let seen = qos.withLock { $0 }
+        #expect(seen.count == 3, "4 s is 3 WAV blocks: \(seen)")
+        #expect(seen.allSatisfy { $0 == QOS_CLASS_UTILITY.rawValue }, "\(seen)")
+        #expect(!Self.hasCAF(package), "the sweep removes the CAF of the old take")
+        await Self.bounded("the settle does not end") { await studio.settle() }
     }
 
     /// C5: the removal of an old take flushes its WAV and `Clips/` before the record append. A WAV
@@ -106,16 +148,16 @@ struct RawSweepTests {
     @Test func aCloseDuringABlockedReadEndsTheJobAfterThatBlock() async throws {
         let (package, _) = try await Self.oldTake(seconds: 6)
         let hold = Hold(at: .block(2))
-        defer { hold.gate.open() }
+        defer { hold.open() }
         let studio = try await Studio.open(package.url)
-        studio.environment.beforeRawStep = { await hold.step($0) }
-        await hold.gate.entered()
+        hold.attach(studio)
+        await hold.entered()
         let settle = Task { await studio.settle() }
         await until(limit: .seconds(10), "the settle does not begin") { studio.settling }
         try await Task.sleep(for: .milliseconds(100))
         #expect(studio.settling, "the settle waits for the held job")
 
-        hold.gate.open()
+        hold.open()
         await settle.value
 
         #expect(studio.rawSweepJob.task == nil)
@@ -129,13 +171,13 @@ struct RawSweepTests {
         let (package, _) = try await Self.oldTake(seconds: 6)
         let (studio, hal) = try await Self.armed(package)
         let hold = Hold(at: .block(2))
-        defer { hold.gate.open() }
-        studio.environment.beforeRawStep = { await hold.step($0) }
-        await hold.gate.entered()
+        defer { hold.open() }
+        hold.attach(studio)
+        await hold.entered()
         let start = Task { try await Self.start(studio, recorded: false) }
         await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
 
-        hold.gate.open()
+        hold.open()
         try await start.value
 
         #expect(!hold.seen.contains(.block(3)), "steps: \(hold.seen)")
@@ -153,9 +195,9 @@ struct RawSweepTests {
         let (package, _) = try await Self.oldTake()
         let (studio, hal) = try await Self.armed(package)
         let hold = Hold(at: .turn)
-        defer { hold.gate.open() }
-        studio.environment.beforeRawStep = { await hold.step($0) }
-        await hold.gate.entered()
+        defer { hold.open() }
+        hold.attach(studio)
+        await hold.entered()
         let done = StepCounter()
         let start = Task {
             try await Self.start(studio, recorded: recorded)
@@ -164,7 +206,7 @@ struct RawSweepTests {
         await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
         let turns = studio.writesTaken
 
-        hold.gate.open()
+        hold.open()
         await until(limit: .seconds(10), "the take start does not return") { done.calls == 1 }
         guard done.calls == 1 else { return }
         try await start.value
@@ -183,14 +225,14 @@ struct RawSweepTests {
         for package in packages {
             let (studio, hal) = try await Self.armed(package)
             let hold = Hold(at: .turn)
-            studio.environment.beforeRawStep = { await hold.step($0) }
+            hold.attach(studio)
             studios.append((studio, hal, hold))
         }
-        defer { for entry in studios { entry.hold.gate.open() } }
+        defer { for entry in studios { entry.hold.open() } }
         let (first, second) = (studios[0].studio, studios[1].studio)
         first.otherStudios = { [weak second] in second.map { [$0] } ?? [] }
         second.otherStudios = { [weak first] in first.map { [$0] } ?? [] }
-        for entry in studios { await entry.hold.gate.entered() }
+        for entry in studios { await entry.hold.entered() }
         let done = StepCounter()
         let starts = studios.map { entry in
             Task {
@@ -200,7 +242,7 @@ struct RawSweepTests {
         }
         await until(limit: .seconds(10), "the take starts do not begin") { first.isStarting && second.isStarting }
 
-        for entry in studios { entry.hold.gate.open() }
+        for entry in studios { entry.hold.open() }
         await until(limit: .seconds(10), "the take starts do not return") { done.calls == 2 }
         guard done.calls == 2 else { return }
         for start in starts { try await start.value }

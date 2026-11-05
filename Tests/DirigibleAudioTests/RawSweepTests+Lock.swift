@@ -11,11 +11,11 @@ extension RawSweepTests {
     @Test func aSecondOpenDuringAHeldLockIsLocked() async throws {
         let (package, _) = try await Self.oldTake()
         let (studio, hold, _) = try await Self.held(package, at: .block(2))
-        defer { hold.gate.open() }
+        defer { hold.open() }
 
         await #expect(throws: StudioError.locked) { _ = try await Studio.open(package.url) }
         #expect(Self.hasCAF(package), "the second open removes nothing")
-        hold.gate.open()
+        hold.open()
         await studio.rawSweep
 
         #expect(!Self.hasCAF(package), "the first studio removes the CAF")

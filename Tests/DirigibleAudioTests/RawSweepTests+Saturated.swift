@@ -46,8 +46,8 @@ extension RawSweepTests {
 
         let again = try await Studio.open(package.url)
         let hold = Hold(at: .turn)
-        defer { hold.gate.open() }
-        again.environment.beforeRawStep = { await hold.step($0) }
+        defer { hold.open() }
+        hold.attach(again)
         await Self.bounded("the second sweep does not end") { await again.rawSweep }
 
         #expect(hold.seen == [.first], "the second open reads no WAV block: \(hold.seen)")

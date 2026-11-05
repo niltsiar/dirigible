@@ -14,12 +14,12 @@ extension RawSweepTests {
     ) async throws -> (Studio, Hold, StepCounter) {
         let studio = try await Studio.open(package.url, log: log)
         let (hold, flushes) = (Hold(at: at), StepCounter())
-        studio.environment.beforeRawStep = { await hold.step($0) }
+        hold.attach(studio)
         studio.environment.rawFlush = {
             _ = flushes.next()
             return fullFlush(path: $0)
         }
-        await hold.gate.entered()
+        await hold.entered()
         return (studio, hold, flushes)
     }
 
@@ -41,11 +41,11 @@ extension RawSweepTests {
     @Test func aClipDeleteDuringABlockedReadKeepsTheCAF() async throws {
         let (package, _) = try await Self.oldTake()
         let (studio, hold, flushes) = try await Self.held(package, at: .block(2))
-        defer { hold.gate.open() }
+        defer { hold.open() }
 
         try Self.deleteClips(studio)
         await studio.serialized {}
-        hold.gate.open()
+        hold.open()
         await studio.rawSweep
 
         #expect(Self.hasCAF(package) && flushes.calls == 0, "flushes: \(flushes.calls)")
@@ -59,13 +59,13 @@ extension RawSweepTests {
         let logs = package.folder.url.appending(path: "logs")
         let log = startLog(in: logs)
         let (studio, hold, flushes) = try await Self.held(package, at: .turn, log: log)
-        defer { hold.gate.open() }
+        defer { hold.open() }
 
         let wav = package.url.appending(path: "Clips/\(Self.segment.stem).wav")
         let copy = package.url.appending(path: "Clips/copy.wav")
         try FileManager.default.copyItem(at: wav, to: copy)
         try #require(rename(copy.path, wav.path) == 0)
-        hold.gate.open()
+        hold.open()
         await studio.rawSweep
 
         #expect(Self.hasCAF(package) && flushes.calls == 0, "flushes: \(flushes.calls)")
@@ -79,7 +79,7 @@ extension RawSweepTests {
     @Test func aFailedSaveDuringABlockedReadKeepsTheCAF() async throws {
         let (package, _) = try await Self.oldTake()
         let (studio, hold, flushes) = try await Self.held(package, at: .block(2))
-        defer { hold.gate.open() }
+        defer { hold.open() }
         let save = studio.environment.saveSession
         studio.environment.saveSession = { _, _ throws(SessionFileError) in
             throw .writeFailed(step: "test", errno: EIO)
@@ -88,7 +88,7 @@ extension RawSweepTests {
         try Self.edit(studio) { session throws(SessionError) in try session.renameTrack("t1", to: "Host") }
         await studio.serialized {}
         #expect(studio.saveError != nil)
-        hold.gate.open()
+        hold.open()
         await studio.rawSweep
 
         #expect(Self.hasCAF(package) && flushes.calls == 0, "flushes: \(flushes.calls)")
@@ -101,7 +101,7 @@ extension RawSweepTests {
     @Test func aTurnBetweenTwoSavesKeepsTheCAF() async throws {
         let (package, _) = try await Self.oldTake()
         let (studio, hold, flushes) = try await Self.held(package, at: .turn)
-        defer { hold.gate.open() }
+        defer { hold.open() }
         let (save, saving) = (studio.environment.saveSession, AsyncGate())
         defer { saving.open() }
         studio.environment.saveSession = { session, lock throws(SessionFileError) in
@@ -111,7 +111,7 @@ extension RawSweepTests {
 
         try Self.deleteClips(studio)
         await saving.entered()
-        hold.gate.open()
+        hold.open()
         await until(limit: .seconds(10), "the job does not wait for its turn") { studio.writesWaiting == 1 }
         try studio.undo()
         saving.open()

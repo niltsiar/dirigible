@@ -15,14 +15,14 @@ extension RawSweepTests {
         let (first, hal) = try await Self.armed(packageA)
         await first.rawSweep
         let (second, hold, _) = try await Self.held(packageB, at: .turn)
-        defer { hold.gate.open() }
+        defer { hold.open() }
         first.otherStudios = { [weak second] in second.map { [$0] } ?? [] }
         second.otherStudios = { [weak first] in first.map { [$0] } ?? [] }
         let blocker = AsyncGate()
         defer { blocker.open() }
         let long = Task { await second.serialized { await blocker.wait() } }
         await blocker.entered()
-        hold.gate.open()
+        hold.open()
         await until(limit: .seconds(10), "the job does not wait for its turn") { second.writesWaiting == 1 }
 
         let done = StepCounter()
@@ -57,10 +57,10 @@ extension RawSweepTests {
         try #require(second.pendingTake?.take == 1, "the finalize fails, so the take stays pending")
         let (package, _) = try await Self.oldTake()
         let (first, hold, _) = try await Self.held(package, at: .first)
-        defer { hold.gate.open() }
+        defer { hold.open() }
         first.otherStudios = { [weak second] in second.map { [$0] } ?? [] }
 
-        hold.gate.open()
+        hold.open()
         await first.rawSweep
 
         #expect(!Self.hasCAF(package), "the job removes the CAF during a pending take of another studio")

@@ -1,5 +1,6 @@
 import DirigibleCore
 import Foundation
+import os
 
 /// The raw sweep job of a studio (decision 0071), as `PeakLoad` is for the peak pass.
 struct RawSweepJob {
@@ -79,11 +80,12 @@ extension Studio {
     /// Tests only: the calls that wait in `startsQueued()`.
     var startWaiters: Int { startWaits.count }
 
-    /// The reads run off the main actor; each removal runs in a turn of the write chain. The job
+    /// The reads run on a utility thread; each removal runs in a turn of the write chain. The job
     /// tests the hold before its reads, after the WAV read of a take with no finalize record, right
     /// before it asks for a turn, and at the start of the turn. A studio that is gone ends it.
     private static func runRawSweep(_ studio: () -> Studio?) async {
-        guard let step = studio()?.environment.beforeRawStep else { return }
+        guard let environment = studio()?.environment else { return }
+        let (step, readStep) = (environment.beforeRawStep, environment.rawReadStep)
         repeat {
             studio()?.rawSweepJob.again = false
             guard studio()?.rawSweepHeld == false else { return }
@@ -93,12 +95,13 @@ extension Studio {
             do {
                 guard let current = studio(), !current.rawSweepHeld else { return }
                 let (session, lock) = (current.session, current.lock)
-                candidates = await readRemovable(of: session, lock: lock)
+                candidates = await utilityRead { _ in readRemovable(of: session, lock: lock) }
             }
             for candidate in candidates {
                 var read = candidate.record.map { RawRead(files: candidate.files, record: $0) }
                 if read == nil, let lock = studio()?.lock {
-                    switch await readOldTake(candidate.name, lock: lock, step: step) {
+                    let name = candidate.name
+                    switch await utilityRead({ readOldTake(name, lock: lock, isCancelled: $0, step: readStep) }) {
                     case .success(let old?):
                         read = RawRead(
                             files: candidate.files, record: old.record, appends: !old.saturated,
@@ -131,7 +134,25 @@ extension Studio {
     }
 }
 
-@concurrent nonisolated private func readRemovable(of session: Session, lock: PackageLock) async -> [(
+/// `work` on a utility GCD thread, as an export (decision 0019): a Swift task that a caller
+/// awaits takes the priority of that caller. On that thread `Task.isCancelled` is false, so a
+/// cancel of the job sets the flag that `work` reads.
+@concurrent nonisolated private func utilityRead<Value: Sendable>(
+    _ work: @escaping @Sendable (_ isCancelled: @escaping @Sendable () -> Bool) -> Value
+) async -> Value {
+    let cancelled = OSAllocatedUnfairLock(initialState: false)
+    return await withTaskCancellationHandler {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: work { cancelled.withLock { $0 } })
+            }
+        }
+    } onCancel: {
+        cancelled.withLock { $0 = true }
+    }
+}
+
+private func readRemovable(of session: Session, lock: PackageLock) -> [(
     name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?
 )] {
     dispatchPrecondition(condition: .notOnQueue(.main))
@@ -142,16 +163,15 @@ extension Studio {
 }
 
 /// `oldTakeRecord` in the package that `lock` holds now, with the step `.block(n)` before each
-/// WAV block. A cancel of the job ends the read.
-@concurrent nonisolated private func readOldTake(
-    _ name: SegmentName, lock: PackageLock, step: @Sendable (RawSweepStep) async -> Void
-) async -> Result<(record: FinalizeRecord, saturated: Bool)?, RawRemovalError> {
+/// WAV block. `isCancelled` ends the read.
+private func readOldTake(
+    _ name: SegmentName, lock: PackageLock, isCancelled: @escaping @Sendable () -> Bool,
+    step: (RawSweepStep) -> Void
+) -> Result<(record: FinalizeRecord, saturated: Bool)?, RawRemovalError> {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package() else { return .success(nil) }
     do throws(RawRemovalError) {
-        return .success(
-            try await oldTakeRecord(of: name, in: package, isCancelled: { Task.isCancelled }) { await step(.block($0)) }
-        )
+        return .success(try oldTakeRecord(of: name, in: package, isCancelled: isCancelled) { step(.block($0)) })
     } catch {
         return .failure(error)
     }

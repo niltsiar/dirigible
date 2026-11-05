@@ -121,6 +121,22 @@ extension TakeCommandTests {
         try Self.expectOneRawLine(in: logs)
     }
 
+    /// C6: a locked edit on a package that opens with no lock (no lock file in a package folder
+    /// with no write access) keeps the CAF of a take with a record, also when `Capture/` takes the
+    /// unlink.
+    @Test func aLockedEditOnAPackageWithNoLockKeepsTheCAF() async throws {
+        try await finalizedTake(1, record: true)
+        try FileManager.default.removeItem(at: package.url.appending(path: ".lock"))
+        try #require(chmod(package.url.path, 0o555) == 0)
+        defer { chmod(package.url.path, 0o755) }
+        try #require(!(try PackageLock(package.url)).isHeld, "the package opens with no lock")
+        let logs = package.folder.appending(path: "logs")
+
+        let marker = try await dirigible(["marker", "set", package.path, "--name", "Note", "--at", "10"], logs: logs)
+
+        #expect(hasCAF("take1-1-1"), "a locked edit on a package with no lock keeps its CAF: \(marker)")
+    }
+
     /// C11: `take finalize` that cannot unlink the CAF exits 0, keeps it, and writes one `raw` line.
     @Test func aTakeFinalizeThatCannotRemoveTheCAFWritesOneRawLine() async throws {
         try await finalizedTake(1, record: true)

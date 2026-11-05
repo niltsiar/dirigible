@@ -3,9 +3,13 @@ import Accelerate
 import DirigibleCore
 import Foundation
 
-/// The gate verdict of one placed segment (decision 0071). The text of `info` and
+/// The gate verdict of one segment that has its CAF (decision 0071). The text of `info` and
 /// `session_info` comes from it.
 public enum RawVerdict: Hashable, Sendable {
+    /// The segment is in the pending take.
+    case pendingTake
+    /// No clip of the session uses a pool file `<stem>.wav` that refers to the capture.
+    case notPlaced
     /// Every clause holds. A CAF that stays waits for the next sweep.
     case removable
     /// G1: the WAV frames on disk do not match the pool file length or the CAF frames, or the CAF
@@ -57,24 +61,25 @@ func rawVerdict(
     return error <= 1e-3 ? .removable : .alignment(error)
 }
 
-/// The verdict of each placed segment whose CAF is in `Capture/`. A segment is placed when it is
-/// not in the pending take, its pool file has the path `<stem>.wav` and refers to its capture,
-/// and a clip of `session` uses that pool file. It reads file headers and sidecars and writes
-/// nothing, so call it off the main actor.
+/// The verdict of each segment whose CAF is in `Capture/`. A segment is placed when it is not in
+/// the pending take, its pool file has the path `<stem>.wav` and refers to its capture, and a clip
+/// of `session` uses that pool file; only a placed segment gets the gate. It reads file headers
+/// and sidecars and writes nothing, so call it off the main actor.
 public func rawCaptures(of session: Session, in package: URL) -> [SegmentName: RawVerdict] {
     var verdicts: [SegmentName: RawVerdict] = [:]
     for name in (try? captureSegments(in: package)) ?? [] {
-        verdicts[name] = placedVerdict(of: name, session: session, in: package)
+        verdicts[name] = verdict(of: name, session: session, in: package)
     }
     return verdicts
 }
 
-/// The verdict of `name` when it is placed (`rawCaptures`), else nil.
-private func placedVerdict(of name: SegmentName, session: Session, in package: URL) -> RawVerdict? {
-    guard name.take != session.recording?.take, let file = session.files[FileID(name.stem)],
-        file.path == "\(name.stem).wav", file.capture == CaptureID(name.stem),
+/// The verdict of one segment of `rawCaptures`.
+private func verdict(of name: SegmentName, session: Session, in package: URL) -> RawVerdict {
+    guard name.take != session.recording?.take else { return .pendingTake }
+    guard let file = session.files[FileID(name.stem)], file.path == "\(name.stem).wav",
+        file.capture == CaptureID(name.stem),
         session.tracks.contains(where: { $0.clips.contains { $0.file == file.id } })
-    else { return nil }
+    else { return .notPlaced }
     return rawVerdict(of: name, file: file, session: session, in: package)
 }
 
@@ -142,7 +147,7 @@ func removeRawCapture(
     _ name: SegmentName, of session: Session, in package: URL, read: RawRead,
     flush: (String) -> Int32? = { fullFlush(path: $0) }
 ) throws(RawRemovalError) -> Bool {
-    guard placedVerdict(of: name, session: session, in: package) == .removable else { return false }
+    guard verdict(of: name, session: session, in: package) == .removable else { return false }
     guard rawFiles(of: name, in: package) == read.files else { throw .changed }
     let sidecar = "\(captureFolderName)/\(name.sidecarName)"
     if read.saturated {

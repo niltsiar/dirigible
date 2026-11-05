@@ -21,7 +21,7 @@ The toolchain is Xcode 26 with Swift 6.2, with no Xcode project (decision 0001).
 | `make check-docs` | Checks the docs, this table, and the links. |
 | `make check-fast` | `make check` with no Swift test. A bare call refuses: run `make check-changed`. |
 | `make check-changed` | Runs the targets that `scripts/check-changed.sh` picks for the changed paths (decision 0028): a docs-only change gets `check-docs`. `BASE=<ref>` gives the targets before the push. `FILTER='<name> <name>'` runs `test-filter` in place of `test`. |
-| `make test-filter FILTER='<name> <name>'` | Only the tests that match a name. It fails when no test ran. |
+| `make test-filter FILTER='<name> <name>'` | Only the tests that match a name. A name with no test fails. |
 | `make check` | `lint`, `check-docs`, `check-slow-gates`, `check-warnings`, `check-sizes`, `test`, `test-hooks`, and `test-app`. |
 
 More targets are in the `Makefile`: read the comment above the recipe, or the header of its script.

@@ -635,7 +635,8 @@ make_repo; make_case 'make check-changed with no changed path' ''
 # FILTER reaches the swift calls through the recipe and the sub-make: one --filter for each word.
 make_repo
 mkdir -p "$tmp/bin" "$tmp/r/Tests/DirigibleCoreTests"
-printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "Test run with 2 tests passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
+# The fake prints a started line for each suite, so test-filter.sh makes no list call.
+printf '#!/bin/bash\necho "swift $*" >> "%s"\necho "◇ Suite ATests started."\necho "◇ Suite BTests started."\necho "Test run with 2 tests passed after 0.1 seconds."\n' "$tmp/swift.log" > "$tmp/bin/swift"
 chmod +x "$tmp/bin/swift"
 printf 't\n' > "$tmp/r/Tests/DirigibleCoreTests/T.swift"
 : > "$tmp/swift.log"

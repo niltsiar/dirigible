@@ -1,6 +1,6 @@
 #!/bin/bash
-# Check the summary line that loop.sh writes for one run, the --min-load stop, the exports to make
-# test, and the hold limit that the loop sets for its own take of the lock. Run by `make test-hooks`.
+# Check the summary line that loop.sh writes for one run, the --min-load stop, --filter (make
+# test-filter in place of make test), the exports to make test, and the hold limit that the loop sets for its own take of the lock. Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
@@ -73,6 +73,19 @@ out="$("$repo/scripts/with-lock.sh" "$loop" t 1 1 "$tmp/outh" "$tmp/stub" 2>&1)"
 code=$?
 [[ $code -eq 0 && "$(cat "$tmp/outh/t-1.log" 2>/dev/null)" == 1800 ]] \
     || { echo "FAIL: the loop under an outer with-lock.sh call: exit $code, limit [$(cat "$tmp/outh/t-1.log" 2>/dev/null)]: $out"; failures=$((failures + 1)); }
+
+# --filter '<names>' runs make test-filter FILTER='<names>' in place of make test, with the same
+# exports; no --filter runs make test.
+printf 'test:\n\t@echo "goal=test"\ntest-filter:\n\t@echo "goal=filter FILTER=$(FILTER) suite=$$DIRIGIBLE_FULL_SUITE limit=$$WITH_LOCK_MAX_WAIT"\n' > "$tmp/stub/Makefile"
+"$loop" --filter 'ATests BTests/b1' t 1 1 "$tmp/out12" "$tmp/stub" > /dev/null 2>&1
+[[ "$(cat "$tmp/out12/t-1.log" 2>/dev/null)" == "goal=filter FILTER=ATests BTests/b1 suite=1 limit=0" ]] \
+    || { echo "FAIL: --filter does not run make test-filter: $(cat "$tmp/out12/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
+"$loop" t 1 1 "$tmp/out13" "$tmp/stub" > /dev/null 2>&1
+[[ "$(cat "$tmp/out13/t-1.log" 2>/dev/null)" == "goal=test" ]] \
+    || { echo "FAIL: no --filter does not run make test: $(cat "$tmp/out13/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
+"$loop" --min-load 0 --filter 'CTests' t 1 1 "$tmp/out14" "$tmp/stub" > /dev/null 2>&1
+[[ "$(cat "$tmp/out14/t-1.log" 2>/dev/null)" == "goal=filter FILTER=CTests suite=1 limit=0" ]] \
+    || { echo "FAIL: --min-load then --filter: $(cat "$tmp/out14/t-1.log" 2>/dev/null)"; failures=$((failures + 1)); }
 
 [[ $failures -eq 0 ]] && echo "loop tests: all passed"
 exit $((failures > 0))

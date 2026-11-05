@@ -137,8 +137,10 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
   total() { count_lines "$1" -F "$2" 'Tests/*.swift' | awk -F: '{ n += $NF } END { print n + 0 }'; }
   for marker in isIntermittent '"quarantine:' '.disabled('; do
     n="$(total - "$marker")" before="$(total "$ref" "$marker")"
-    [[ $n -le $before ]] ||
-      problems+="Tests/: $n $marker lines, $before at $label; a flaky test moves to the real-time tier (flake-triage.md, Time box)"$'\n'
+    advice='a flaky test moves to the real-time tier (flake-triage.md, Time box)'
+    [[ "$marker" != '.disabled(' ]] ||
+      advice='a new disabled test; move a flaky test to the real-time tier (flake-triage.md), or gate a test with .enabled(if:)'
+    [[ $n -le $before ]] || problems+="Tests/: $n $marker lines, $before at $label; $advice"$'\n'
   done
 fi
 

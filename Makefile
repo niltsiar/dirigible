@@ -140,6 +140,7 @@ HOOK_TESTS = \
 	.claude/workflows/review-panel.test.sh \
 	scripts/flake-monitor/sample-threads.test.sh \
 	scripts/flake-monitor/loop.test.sh \
+	scripts/flake-stats.test.sh \
 	scripts/fetch-whisper-test-model.test.sh \
 	scripts/test-hooks.test.sh
 

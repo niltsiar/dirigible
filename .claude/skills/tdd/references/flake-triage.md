@@ -4,7 +4,7 @@
 
 In this order:
 
-1. Record in `decisions.tsv`, with the result `flake`, the load average at the failure and the heavy commands just before it (disk images, benches, builds in another worktree). A land.sh flake row gives the load at the end of the check. Quote in that row each `wiki: <test>: <page>` line of `scripts/run-checks.sh`, and read the page for an earlier triage of the test. When the load was high, run the loops of step 2 under that load source: start it, wait until `uptime` shows its load, and pass `--min-load <n>` to `scripts/flake-monitor/loop.sh`. A source that makes no load gives the numbers of a quiet loop.
+1. Record in `decisions.tsv`, with the result `flake`, the load average at the failure and the heavy commands just before it (disk images, benches, builds in another worktree). A land.sh flake row gives the load at the end of the check. Quote in that row each `wiki: <test>: <page>` line of `scripts/run-checks.sh`, and read the page for an earlier triage of the test. When the load was high, run the loops of step 2 under that load source: start it, wait until `uptime` shows its load, and pass `--min-load <n>` to `scripts/flake-monitor/loop.sh`. A source that makes no load gives the numbers of a quiet loop. After a push check that ends in exit 124 or prints `over its limit`, copy `.build/test-shards/steps.log` of the tree into the row before the worktree goes: the last `start` line with no `end` line names the hung step.
 2. Run the full suite and the test alone, 15 times each.
 3. For a flake on a limit (a timeout or a hang guard), compare the duration of the test with its limit on the branch and on `main` in each loop run. A time near the limit on `main` shows a flake of `main`. A pass count alone decides nothing.
 4. Repeat the same loops on `main`. A new flake is "outside the run" only after they pass on `main`. "The diff does not touch the test" and a backlog watch line are not a triage.
@@ -31,7 +31,7 @@ In this order:
 ## Time box
 
 - A flake hunt stops after 2 h of agent time. Count the time across all agents of the hunt, also after a hand-off.
-- At the limit, quarantine the flaky assert with `withKnownIssue("quarantine: <reason>, FLAKE <title>", isIntermittent: true)`. Use `.disabled("quarantine: <reason>, FLAKE <title>")` only when each assert of the test is flaky. The other asserts of the test stay on.
-- Add a FLAKE item with status next that names the test, the run, and the triage. `scripts/check-waits.sh` refuses a `"quarantine:` line under `Tests/` with no FLAKE word, and a file with `isIntermittent: true` and no such line. `rg '"quarantine:'` lists the quarantines.
-- Write the defect class of the quarantined assert and the test that still finds it in the FLAKE item. `isIntermittent: true` also passes when the assert fails on every run, so the FLAKE item alone is not a check.
-- An assert that guards the No data loss rule or the Real-time thread rule (**Safety** in `CODING_STANDARDS.md`) needs a deterministic test of the same behavior that still runs. Name it in the marker: `still checked by <test name>`. With no such test, do not quarantine: the hunt goes to the user as an item with status next.
+- At the limit, move the flaky test behind the `DIRIGIBLE_SLOW_TESTS` gate (the real-time tier). `scripts/check-waits.sh` refuses a new `isIntermittent` line under `Tests/`, in each mode, because `isIntermittent: true` also passes when the assert fails on every run.
+- Add a FLAKE item with status next that names the test, the run, the triage, and an expiry date 7 days on.
+- Write the defect class of the moved test and the test that still finds it in the FLAKE item.
+- A test that guards the No data loss rule or the Real-time thread rule (**Safety** in `CODING_STANDARDS.md`) needs a deterministic test of the same behavior that still runs in the suite. Name it in the FLAKE item: `still checked by <test name>`. With no such test, do not move it: the hunt goes to the user as an item with status next.

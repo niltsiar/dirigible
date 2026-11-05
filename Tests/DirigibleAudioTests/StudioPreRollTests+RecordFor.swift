@@ -30,6 +30,42 @@ extension StudioPreRollTests {
         #expect(clip.start == 96_000 && clip.offset == 24_000 && clip.length == 96_000, "\(clip)")
     }
 
+    /// A take of 2 s at T = 2 s on `mic` (`t1`, latency 0) and `box` (`t2`, latency 300 ms). Each
+    /// device delivers its records 100 ms after its latency, so `box` delivers 150 ms after the
+    /// margin of `mic` alone. The stop waits for the frames in flight of `box`. Each writer ends
+    /// at H_T + 2 s, so the clip of `box` ends 300 ms before T + 2 s on the timeline.
+    @Test func timedTakeKeepsTheTailOfTheSlowestDevice() async throws {
+        let box = try #require(
+            InputDevice(
+                uid: "box", name: "Slow Box", nominalRate: 48_000, availableRates: [48_000...48_000],
+                channelsPerBuffer: [1], latency: 14_400))
+        let hal = TestHAL([Self.mic, box])
+        try package.session.setRoute(Route.device(uid: "box", channels: .mono(1)), track: "t2")
+        try package.session.write(to: package.url)
+        let studio = try await Studio.open(package.url)
+        studio.environment = .test(hal)
+        studio.environment.outputTerm = { _ in .success(.builtIn) }
+        studio.environment.hostNanos = hostNanosNow
+        let inputs = [("mic", UInt64(0)), ("box", UInt64(300_000_000))].map { uid, latency in
+            let input = SyntheticInput(hal, uid)
+            input.play(
+                records(
+                    [sine(seconds: 3, rate: 48_000)], layout: [1], rate: 48_000, frames: 480,
+                    hostStart: takeStart - 500_000_000 + latency),
+                pace: .lagging(nanos: latency + 100_000_000), takeStartIn: package.url)
+            return input
+        }
+
+        let result = try await studio.record(armed: ["t1", "t2"], playhead: 96_000, for: .seconds(2), preRoll: 1)
+        for input in inputs { await input.wait() }
+
+        #expect(result.end == .requested && result.gaps == [:] && result.lateStarts.isEmpty)
+        let clip = try #require(takeClip(studio))
+        #expect(clip.start == 96_000 && clip.offset == 24_000 && clip.length == 96_000, "\(clip)")
+        let slow = try #require(studio.session.track("t2")?.clips.first { $0.id == "take1-2-1" })
+        #expect(slow.start == 96_000 && slow.offset == 24_000 && slow.length == 81_600, "\(slow)")
+    }
+
     /// A timed pre-roll take on a host clock in another base than `hostNanosNow`: the stop waits on
     /// that clock, so the take records its whole length after H_T.
     @Test func timedTakeWaitsOnTheTakeClock() async throws {

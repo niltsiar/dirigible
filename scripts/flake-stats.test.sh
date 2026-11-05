@@ -3,7 +3,8 @@
 # each log (tests, suite_s, slowest_s, the loads, the class idle or loaded, reruns, flake lines and
 # names, red, lost), the near input of each threshold, the summary lines (the median of the slowest
 # shard for each class), and --last <n> (the run folders with the newest push-check logs, also from
-# a linked worktree, and a count that is no whole number over 0). Run by `make test-hooks`.
+# a linked worktree, and a count that is no whole number over 0), and a log with the bytes of an
+# earlier log (counted once). Run by `make test-hooks`.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/flake-stats.sh"
 failures=0
@@ -109,13 +110,26 @@ flake-stats: 3 logs, 0 reruns, 0 flake lines, 0 flake names, 0 red, 0 lost
 flake-stats: idle 2 logs, median slowest shard 100 s
 flake-stats: loaded 1 logs, median slowest shard 50 s" m1.log m2.log c2.log
 
+# Two logs with the same bytes are one push check: only the first counts. A log that differs in one
+# byte counts too.
+mklog dup1.log 1 1 40 130 50 50 50 50
+cp dup1.log dup2.log
+mklog dup3.log 1 1 40 130 50 50 50 51
+touch -t 202611010830 dup1.log dup2.log dup3.log
+check 'two logs with the same bytes' "$header
+$(row dup1.log 40 130 50 1 1 idle 0 0 0 0 0)
+$(row dup3.log 40 130 51 1 1 idle 0 0 0 0 0)
+flake-stats: 2 logs, 0 reruns, 0 flake lines, 0 flake names, 0 red, 0 lost
+flake-stats: idle 2 logs, median slowest shard 50 s
+flake-stats: loaded 0 logs, median slowest shard - s" dup1.log dup2.log dup3.log
+
 # --last <n> [<runs folder>]: the n run folders whose newest push-check log is newest.
 runs="$tmp/runs"
 for r in old mid new; do mkdir -p "$runs/$r/logs"; done
 mklog "$runs/old/logs/push-check-1.log" 1 1 40 130 50 50 50 50
-mklog "$runs/old/logs/push-check.log" 1 1 40 130 50 50 50 50
-mklog "$runs/mid/logs/push-check.log" 1 1 40 130 50 50 50 50
-mklog "$runs/new/logs/push-check.log" 1 1 40 130 50 50 50 50
+mklog "$runs/old/logs/push-check.log" 1 1 40 131 50 50 50 50
+mklog "$runs/mid/logs/push-check.log" 1 1 40 132 50 50 50 50
+mklog "$runs/new/logs/push-check.log" 1 1 40 133 50 50 50 50
 touch -t 202610010800 "$runs/old/logs/push-check-1.log"
 touch -t 202610020800 "$runs/old/logs/push-check.log"
 touch -t 202610100800 "$runs/mid/logs/push-check.log"
@@ -126,6 +140,13 @@ logs_of() { "$script" "$@" 2>&1 | awk -F'\t' 'NR > 1 && !/^flake-stats:/ { print
   { echo "FAIL: --last 2: [$(logs_of --last 2 "$runs")]"; failures=$((failures + 1)); }
 [[ "$(logs_of --last 3 "$runs")" == 'mid/logs/push-check.log new/logs/push-check.log old/logs/push-check-1.log old/logs/push-check.log' ]] ||
   { echo "FAIL: --last 3: [$(logs_of --last 3 "$runs")]"; failures=$((failures + 1)); }
+# --last reads the logs of two run folders with the same bytes once.
+mkdir -p "$runs/copy/logs"
+cp "$runs/new/logs/push-check.log" "$runs/copy/logs/push-check-2.log"
+touch -t 202610210800 "$runs/copy/logs/push-check-2.log"
+[[ "$(logs_of --last 1 "$runs")" == 'copy/logs/push-check-2.log' && "$(logs_of --last 2 "$runs")" == 'copy/logs/push-check-2.log' ]] ||
+  { echo "FAIL: --last with a copy of a log: [$(logs_of --last 2 "$runs")]"; failures=$((failures + 1)); }
+rm -rf "$runs/copy"
 for bad in 0 x -1 1.5 ''; do
   out="$("$script" --last "$bad" "$runs" 2>&1)"
   code=$?

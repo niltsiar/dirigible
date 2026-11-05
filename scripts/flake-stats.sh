@@ -6,6 +6,7 @@
 # --last reads each logs/push-check*.log of the <n> run folders whose newest push-check log is
 # newest (by mtime). The default runs folder is .scratchpads/runs of the main checkout (the parent
 # of the git common dir), so a call from a worktree reads the shared ledger.
+# A log with the same bytes as an earlier log of the list is skipped: one push check counts once.
 # Columns:
 #   log          the path as given.
 #   mtime        the mtime of the log, as YYYY-MM-DDTHH:MM.
@@ -51,7 +52,11 @@ else
     logs=("$@")
 fi
 
+seen=" "
 rows="$(for log in ${logs[@]+"${logs[@]}"}; do
+    hash="$(shasum -a 256 < "$log" | cut -d' ' -f1)"
+    [[ "$seen" != *" $hash "* ]] || continue
+    seen+="$hash "
     awk -v name="$log" -v mtime="$(stat -f '%Sm' -t '%Y-%m-%dT%H:%M' "$log")" '
         BEGIN { tests = "-"; suite = "-"; sl = "-"; el = "-"; slowest = -1; done = 0; cur = ""; shards = 0
                 reruns = 0; flakes = 0; names = 0; red = 0; lost = 0 }

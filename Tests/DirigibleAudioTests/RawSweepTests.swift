@@ -143,6 +143,25 @@ struct RawSweepTests {
         await studio.settle()
     }
 
+    /// C5: the removal of a take with a finalize record flushes its sidecar before the unlink. A
+    /// sidecar that does not flush keeps the CAF, and the journal has one `raw` line.
+    @Test func aSidecarThatDoesNotFlushKeepsTheCAF() async throws {
+        let (package, record) = try await Self.oldTake()
+        let sidecar = package.capture.appending(path: Self.segment.sidecarName)
+        try #require(Sidecar.append(record, toSidecarAt: sidecar) == nil)
+        let logs = package.folder.url.appending(path: "logs")
+        let log = startLog(in: logs)
+        let studio = try await Studio.open(package.url, log: log)
+        studio.environment.rawFlush = { $0.hasSuffix(".sidecar") ? EIO : fullFlush(path: $0) }
+
+        await studio.rawSweep
+
+        #expect(Self.hasCAF(package), "a sidecar that does not flush keeps the CAF")
+        let raw = TakeLogTests.lines(log, in: logs).filter { $0.contains("\traw\t") }
+        #expect(raw.count == 1 && raw.first?.contains("errno=\(EIO)") == true, "raw lines: \(raw)")
+        await studio.settle()
+    }
+
     /// C17: a close during a blocked WAV read returns only after the job ends, and the job reads
     /// no block after the one that it held.
     @Test func aCloseDuringABlockedReadEndsTheJobAfterThatBlock() async throws {

@@ -21,7 +21,7 @@ extension StartLimitTests {
         defer { for (uid, _) in held { hal.releaseAttach(uid) } }
         let studio = try await studio(hal, stop: limit)
         let inputs = (["mic"] + held.map(\.0)).map { play(hal, $0) }
-        _ = try await start(studio, ["t1"] + held.map(\.1)) {}
+        try await studio.startRecording(armed: ["t1"] + held.map(\.1), playhead: 0)
         try await Task.sleep(for: .seconds(1))
         // The come-back appearance gets records past any stop time.
         let late = held.map { (uid, _) in
@@ -77,7 +77,7 @@ extension StartLimitTests {
         defer { hal.releaseAttach("box") }
         let studio = try await studio(hal, stop: .milliseconds(100))
         let inputs = [play(hal, "mic"), play(hal, "box")]
-        _ = try await start(studio, ["t1", "t2"]) {}
+        try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
         try await Task.sleep(for: .seconds(1))
         try await holdComeBack(studio.writer("box"), hal, "box")
 
@@ -148,7 +148,7 @@ extension StartLimitTests {
         defer { hal.releaseAttach("box") }
         let studio = try await studio(hal, stop: limit)
         let inputs = [play(hal, "mic"), play(hal, "box")]
-        _ = try await start(studio, ["t1", "t2"]) {}
+        try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
         try await Task.sleep(for: .seconds(1))
         try await holdComeBack(studio.writer("box"), hal, "box")
         let (error, _) = await stop(studio) { hal.releaseAttach("box") }
@@ -230,7 +230,7 @@ extension StartLimitTests {
         try await studio.monitor(armed: ["t2"])
         await until(limit: busy, "no monitor attach of box") { hal.current("box") != nil }
         let mics = play(hal, "mic")
-        _ = try await start(studio, ["t1", "t2"]) {}
+        try await studio.startRecording(armed: ["t1", "t2"], playhead: 0)
         try await Task.sleep(for: .seconds(1))
         try await holdComeBack(studio.writer("box"), hal, "box")
         let (error, _) = await stop(studio) { hal.releaseAttach("box") }
@@ -255,7 +255,7 @@ extension StartLimitTests {
         let hal = hal()
         defer { hal.releaseTaps() }
         let studio = try await studio(hal, stop: limit)
-        _ = try await start(studio, ["t4"]) {}
+        try await studio.startRecording(armed: ["t4"], playhead: 0)
         await until(limit: busy, "Zoom did not attach") { hal.current(Self.zoomUID) != nil }
         let first = try #require(hal.current(Self.zoomUID))
         hal.holdTaps()
@@ -289,7 +289,7 @@ extension StartLimitTests {
         defer { hal.releaseAttach("box") }
         var studio: Studio? = try await studio(hal, stop: limit)
         let inputs = [play(hal, "mic"), play(hal, "box")]
-        _ = try await start(studio!, ["t1", "t2"]) {}
+        try await studio!.startRecording(armed: ["t1", "t2"], playhead: 0)
         try await Task.sleep(for: .seconds(1))
         try await holdComeBack(studio!.writer("box"), hal, "box")
         weak let writer = studio!.writer("box")

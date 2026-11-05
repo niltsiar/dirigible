@@ -150,7 +150,7 @@ quarantine='Tests/: 2 "quarantine: lines, 1 at HEAD; a flaky test moves to the r
 repo; quarantined y > "$tmp/Tests/B/j.swift"; expect fail 'a new "quarantine: line with a FLAKE word in mode fail' "$quarantine"
 repo 'mode warn'; quarantined y > "$tmp/Tests/B/j.swift"; expect fail 'a new "quarantine: line with a FLAKE word in mode warn' "$quarantine"
 repo; quarantined y >> "$tmp/Tests/B/i.swift"; expect fail 'a second "quarantine: line in the same file' "$quarantine"
-disabledrise='Tests/: 1 .disabled( lines, 0 at HEAD; a flaky test moves to the real-time tier (flake-triage.md, Time box)'
+disabledrise='Tests/: 1 .disabled( lines, 0 at HEAD; a new disabled test; move a flaky test to the real-time tier (flake-triage.md), or gate a test with .enabled(if:)'
 repo; disabled slow > "$tmp/Tests/B/j.swift"; expect fail 'a new .disabled( line in mode fail' "$disabledrise"
 repo 'mode warn'; disabled slow > "$tmp/Tests/B/j.swift"; expect fail 'a new .disabled( line in mode warn' "$disabledrise"
 repo; disabled slow > "$tmp/Tests/B/j.swift"; printf '.disabled(' > "$tmp/Tests/B/j.txt"; expect fail 'a .disabled( line beside a file that is not Swift' "$disabledrise"

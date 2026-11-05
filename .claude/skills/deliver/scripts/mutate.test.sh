@@ -109,6 +109,22 @@ check '5:NO TESTS' 'a Swift Testing run of 0 tests' "$file" 'b = 1' 'b = 2' "$tm
   "echo '✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.'"
 check '1:survived' 'a run of 1 test that passes' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
   "echo '✔ Test run with 1 test in 1 suite passed after 0.001 seconds.'"
+# scripts/test-filter.sh exits 1 with a refusal line when a name matches no test. The two refusal
+# lines are NO TESTS. A failed test and a failed test list are no marker: they stay killed.
+check '5:NO TESTS' 'the test-filter marker of a name with no ID' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'test-filter: no test ID matches x'; exit 1"
+check '5:NO TESTS' 'the test-filter marker of a run with no test' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'test-filter: no test matched x' >&2; exit 1"
+check '5:NO TESTS' 'the test-filter marker with --expect' --expect 'x' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'test-filter: no test ID matches x'; exit 1"
+check '0:killed' 'a failed test with no marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo '✘ Test x() failed after 0.001 seconds.'; exit 1"
+check '0:killed' 'a test list failure is no marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'test-filter: test list failed (exit 3)'; exit 1"
+check '0:killed' 'a marker text inside a line is no marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo '✘ Test x() failed: test-filter: no test ID matches y'; exit 1"
+check '75:LOCK WAIT' 'a lock wait after the marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'test-filter: no test ID matches x'; exit 75"
 
 # --expect: a text that Swift Testing can never print exits 2 before the build (the fake build leaves
 # no marker file). Swift Testing prints each operand of the outermost comparison with its value

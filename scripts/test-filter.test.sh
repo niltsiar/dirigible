@@ -6,8 +6,10 @@
 # processes --skip-build --disable-xctest, and that then the Swift Testing string alone means no
 # test. Check that it fails closed: no test
 # in each process that ran, a nonzero swift exit, no word, or a swift exit 0 with no report line
-# (scripts/swift-test.sh). Check that a bare swift-test.sh takes the build
-# lock of its repo. A fake swift on PATH logs its arguments. Run by `make test-hooks`.
+# (scripts/swift-test.sh). Check that a name that no listed test ID matches fails with exit 1
+# (one `swift test list` call, only when the output shows no test of a name). Check that a bare
+# swift-test.sh takes the build lock of its repo. A fake swift on PATH logs its arguments. Run by
+# `make test-hooks`.
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 failures=0
@@ -30,12 +32,25 @@ printf 'struct CLIWordTests {\n    @Test func cliWordRuns() {}\n}\n' > "$tmp/pkg
 # Swift Testing writes its summary to stderr: real (the summary of a real run, on stderr) and
 # noreport (exit 0 and no summary line, on stderr, as when an AppKit call ends the process).
 # In <log>.lock it logs the hold value that it gets and the pid file of the lock of the copy.
+# A `swift test list` call goes to <log>.list: it prints the file FAKE_LIST, writes FAKE_LIST_ERR
+# to stderr, and exits with FAKE_LIST_EXIT. A test call prints the lines of FAKE_STARTED (process 1)
+# or FAKE_STARTED2 (process 2) before its mode output.
 cat > "$tmp/bin/swift" <<'EOF'
 #!/bin/bash
+if [[ "${1:-} ${2:-}" == "test list" ]]; then
+  echo "swift $*" >> "$FAKE_LOG.list"
+  [[ -z "${FAKE_LIST_ERR:-}" ]] || echo "$FAKE_LIST_ERR" >&2
+  [[ "${FAKE_LIST_EXIT:-0}" -eq 0 ]] || exit "$FAKE_LIST_EXIT"
+  cat "$FAKE_LIST"
+  exit 0
+fi
 echo "swift $*" >> "$FAKE_LOG"
 echo "${DIRIGIBLE_BUILD_LOCK:-none} $(cat "$FAKE_PID_FILE" 2>/dev/null || echo free)" >> "$FAKE_LOG.lock"
 mode="$FAKE_P2"
 [[ " $* " == *" --skip DirigibleCLITests "* ]] && mode="$FAKE_P1"
+started="${FAKE_STARTED2:-}"
+[[ " $* " == *" --skip DirigibleCLITests "* ]] && started="${FAKE_STARTED:-}"
+[[ -z "$started" ]] || printf '%s\n' "$started"
 case "$mode" in
   none) echo 'No matching test cases were run'; echo 'Test run with 0 tests passed after 0.001 seconds.' ;;
   xctest) echo 'No matching test cases were run'; echo 'Test run with 3 tests passed after 0.1 seconds.' ;;
@@ -49,13 +64,24 @@ exit 0
 EOF
 chmod +x "$tmp/bin/swift"
 
-# run <p1> <p2> <words...>: sets code and out; the fake swift log is in $tmp/log.
+# The test IDs of `swift test list`: a suite of each target, and the CLI suite that a CLI file names.
+cat > "$tmp/list" <<'EOF'
+DirigibleTests.ClipTests/clipRuns()
+DirigibleTests.TrackTests/trackRuns()
+DirigibleTests.LaneTests/theLanes()
+DirigibleCLITests.CLIWordTests/cliWordRuns()
+AppBundleTests.BundleTests/bundleOpens()
+EOF
+
+# run <p1> <p2> <words...>: sets code and out; the fake swift log is in $tmp/log and the list
+# calls are in $tmp/log.list. FAKE_LIST, FAKE_STARTED, FAKE_LIST_EXIT, and FAKE_LIST_ERR set the fake.
 run() {
   local p1="$1" p2="$2"
   shift 2
   : > "$tmp/log"
   : > "$tmp/log.lock"
-  out="$(cd / && PATH="$tmp/bin:$PATH" FAKE_LOG="$tmp/log" FAKE_P1="$p1" FAKE_P2="$p2" "$tmp/pkg/scripts/test-filter.sh" "$@" 2>&1)"
+  : > "$tmp/log.list"
+  out="$(cd / && PATH="$tmp/bin:$PATH" FAKE_LOG="$tmp/log" FAKE_LIST="${FAKE_LIST:-$tmp/list}" FAKE_P1="$p1" FAKE_P2="$p2" "$tmp/pkg/scripts/test-filter.sh" "$@" 2>&1)"
   code=$?
 }
 p1='swift test --skip AppBundleTests --skip DiskImageTests --skip DirigibleCLITests'
@@ -144,6 +170,83 @@ run tests noreport CLIWordTests
 [[ $code -eq 1 ]] || fail "process 2 with no report: expected exit 1, got $code: $out"
 run real real ClipTests
 [[ $code -eq 0 ]] || fail "a real summary on stderr: exit $code: $out"
+
+# A name that no listed test ID matches: swift test exits 0 when a filter matches no test, and
+# the other names ran tests. The script lists the IDs once, only when a name shows in no started
+# line of the test output, and exits 1 for each name that no ID of its processes matches.
+run tests tests ClipTests NoSuchTestName
+[[ $code -eq 1 ]] || fail "one name matches, one does not: expected exit 1, got $code: $out"
+grep -qxF 'test-filter: no test ID matches NoSuchTestName' <<<"$out" || fail "one name matches, one does not: no refusal line: $out"
+grep -x 'test-filter: no test ID matches .*' <<<"$out" | grep -qF ClipTests && fail "one name matches, one does not: the line names ClipTests: $out"
+run tests tests ClipTests TrackTests
+[[ $code -eq 0 ]] || fail "two listed names: exit $code: $out"
+[[ "$(cat "$tmp/log.list")" == "swift test list --skip-build" ]] || fail "two listed names: list calls: $(cat "$tmp/log.list")"
+run tests tests --skip-build ClipTests
+[[ "$(cat "$tmp/log.list")" == "swift test list --skip-build --disable-xctest" ]] || fail "list in --skip-build: list calls: $(cat "$tmp/log.list")"
+
+# --exact reads a name as '/<name>(' in an ID, as swift test does.
+run tests tests --exact theLane
+[[ $code -eq 1 ]] || fail "--exact prefix: expected exit 1, got $code: $out"
+grep -qxF 'test-filter: no test ID matches theLane' <<<"$out" || fail "--exact prefix: no refusal line: $out"
+run tests tests theLane
+[[ $code -eq 0 ]] || fail "a prefix with no --exact: exit $code: $out"
+run tests tests --exact theLanes
+[[ $code -eq 0 ]] || fail "--exact whole name: exit $code: $out"
+
+# A name matches only the IDs that one of the two processes runs: process 1 skips the app bundle,
+# disk image, and CLI IDs, and process 2 runs a CLI ID only for a name that a CLI file has.
+run tests tests BundleTests
+[[ $code -eq 1 ]] || fail "a skipped target: expected exit 1, got $code: $out"
+grep -qxF 'test-filter: no test ID matches BundleTests' <<<"$out" || fail "a skipped target: no refusal line: $out"
+run tests tests 'cliWord.uns'
+[[ $code -eq 1 ]] || fail "a CLI regex that no CLI file holds: expected exit 1, got $code: $out"
+run tests tests CLIWordTests
+[[ $code -eq 0 ]] || fail "a CLI name: exit $code: $out"
+
+# The list call runs only when a name shows in no started line. The line "Test run started."
+# and a name inside another name ('subtheLanes(') do not show.
+: > "$tmp/empty"
+FAKE_LIST="$tmp/empty" FAKE_STARTED=$'◇ Test run started.\n◇ Suite ClipTests started.\n◇ Test theLanes() started.' run tests tests ClipTests theLanes
+[[ $code -eq 0 ]] || fail "names that show: exit $code: $out"
+[[ ! -s "$tmp/log.list" ]] || fail "names that show: list calls: $(cat "$tmp/log.list")"
+FAKE_STARTED=$'◇ Test run started.' run tests tests run
+[[ $code -eq 1 ]] || fail "the run line is no show: expected exit 1, got $code: $out"
+[[ "$(wc -l < "$tmp/log.list" | tr -d ' ')" -eq 1 ]] || fail "the run line is no show: list calls: $(cat "$tmp/log.list")"
+FAKE_STARTED=$'◇ Test subtheLanes() started.' run tests tests --exact theLanes
+[[ "$(wc -l < "$tmp/log.list" | tr -d ' ')" -eq 1 ]] || fail "exact suffix is no show: list calls: $(cat "$tmp/log.list")"
+FAKE_LIST="$tmp/empty" FAKE_STARTED=$'◇ Test theLanes(x:) started.' run tests tests --exact theLanes
+[[ $code -eq 0 && ! -s "$tmp/log.list" ]] || fail "exact name shows: exit $code, list calls: $(cat "$tmp/log.list")"
+# The started lines of both processes count.
+FAKE_LIST="$tmp/empty" FAKE_STARTED2=$'◇ Suite CLIWordTests started.' run tests tests ClipTests CLIWordTests
+[[ $code -eq 1 ]] || fail "ClipTests shows in no line: expected exit 1, got $code: $out"
+FAKE_LIST="$tmp/empty" FAKE_STARTED=$'◇ Suite ClipTests started.' FAKE_STARTED2=$'◇ Suite CLIWordTests started.' run tests tests ClipTests CLIWordTests
+[[ $code -eq 0 && ! -s "$tmp/log.list" ]] || fail "names that show in both processes: exit $code: $out"
+
+# A failed test or no test ran: the old exit stays and the script makes no list call.
+run fail tests ClipTests NoSuchTestName
+[[ $code -eq 1 && ! -s "$tmp/log.list" ]] || fail "a failed test: exit $code, list calls: $(cat "$tmp/log.list")"
+run none none NoSuchTestName
+[[ $code -eq 1 && ! -s "$tmp/log.list" ]] || fail "no test ran: exit $code, list calls: $(cat "$tmp/log.list")"
+[[ "$out" == *"test-filter: no test matched"* ]] || fail "no test ran: the old reason is gone: $out"
+
+# A list call that ends in exit 75 gives exit 75 (run it again). Another failure gives exit 1 and a
+# line that mutate.py does not read as a wrong filter.
+FAKE_LIST_EXIT=75 run tests tests ClipTests
+[[ $code -eq 75 ]] || fail "list exit 75: expected exit 75, got $code: $out"
+FAKE_LIST_EXIT=3 run tests tests ClipTests
+[[ $code -eq 1 ]] || fail "list exit 3: expected exit 1, got $code: $out"
+grep -qxF 'test-filter: test list failed (exit 3)' <<<"$out" || fail "list exit 3: no failure line: $out"
+grep -q '^test-filter: no test' <<<"$out" && fail "list exit 3: the failure line has the no-test marker: $out"
+
+# Only a stdout line in the ID form is an ID: a name on stderr or a build line does not match, and
+# a test outside a suite has an ID with no slash.
+FAKE_LIST_ERR='NoSuchTestName' run tests tests NoSuchTestName
+[[ $code -eq 1 ]] || fail "a name on the stderr of the list: expected exit 1, got $code: $out"
+printf 'Building for debugging...\nDirigibleCoreTests.freeRuns()\n' > "$tmp/list2"
+FAKE_LIST="$tmp/list2" run tests tests freeRuns
+[[ $code -eq 0 ]] || fail "an ID with no slash: exit $code: $out"
+FAKE_LIST="$tmp/list2" run tests tests debugging
+[[ $code -eq 1 ]] || fail "a build line is no ID: expected exit 1, got $code: $out"
 
 [[ $failures -eq 0 ]] && echo "test-filter tests: all passed"
 exit $((failures > 0))

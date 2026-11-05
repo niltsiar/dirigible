@@ -15,7 +15,9 @@ build piped into `tail` is a failed build, not a stale binary under test. It pri
   BUILD FAILED  the mutant did not build, so it proves nothing (exit 2)
   WRONG FAILURE the test failed, but its output has no <text> of --expect (exit 4); it prints
                 up to 10 compared lines that hold ✘, failed, or error
-  NO TESTS      the test passed, but it ran no test: the filter matched nothing (exit 5)
+  NO TESTS      the test ran no test: the filter matched nothing (exit 5). The test passed, or
+                scripts/test-filter.sh refused a name with a line that starts with
+                "test-filter: no test matched " or "test-filter: no test ID matches "
   LOCK WAIT     the build or the test exited 75, the exit of a scripts/with-lock.sh wait over its
                 limit: nothing was tested, run it again (exit 75)
   stopped       SIGINT, SIGTERM, or SIGHUP stopped the run; the files are restored (exit 130)
@@ -337,6 +339,9 @@ def verdict(log, test_start, built, status, expected, build_status=None):
         output = done.read()
     # A filter that matches no test passes: that run proves nothing (SwiftPM and Swift Testing lines).
     if code == 1 and ('No matching test cases were run' in output or re.search(r'Test run with 0 tests', output)):
+        result, code = 'NO TESTS', 5
+    # scripts/test-filter.sh exits 1 and prints one of these two lines for a name that ran no test.
+    if result == 'killed' and re.search(r'^test-filter: no test (matched|ID matches) ', output, re.M):
         result, code = 'NO TESTS', 5
     compared = []
     if code == 0 and expected is not None:

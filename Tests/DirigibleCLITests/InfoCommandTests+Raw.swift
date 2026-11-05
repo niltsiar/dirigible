@@ -87,6 +87,27 @@ extension InfoCommandTests {
         #expect(try Self.rawKept(json.stdout) == nil, "\(json.stdout)")
     }
 
+    /// Code gate item 2: a segment with no finalize record and a saturated record of its CAF
+    /// frames keeps its CAF with the reason `saturated WAV`, also after `take finalize`. A
+    /// saturated record of other frames names another CAF, so the segment is not removed yet.
+    @Test(arguments: [Int64(96_000), 95_999]) func aSaturatedRecordGivesItsRawLine(frames: Int64) async throws {
+        let package = try await Self.rawPackage(bows: [0])
+        let sidecar = package.url.appending(path: "Capture/take1-1-1.sidecar")
+        let record = try #require(try Sidecar.decode(Data(contentsOf: sidecar))?.finalized)
+        let size = try Data(contentsOf: sidecar).count
+        try #require(truncate(sidecar.path, off_t(size - Sidecar.encode(record).count)) == 0)
+        try #require(Sidecar.append(Sidecar.encode(saturated: frames), toSidecarAt: sidecar) == nil)
+        let reason = frames == 96_000 ? "saturated WAV" : "not removed yet"
+
+        let before = try await package.run("info", "PKG")
+
+        #expect(Self.rawLines(before.stdout) == ["raw take1-1-1 kept: \(reason)"], "\(before.stdout)")
+        guard frames == 96_000 else { return }
+        #expect(try await package.run("take", "finalize", "PKG") == CLIResult(status: 0, stdout: "", stderr: ""))
+        let after = try await package.run("info", "PKG")
+        #expect(Self.rawLines(after.stdout) == ["raw take1-1-1 kept: saturated WAV"], "\(after.stdout)")
+    }
+
     /// C13: `info --json` and `session_info` have `rawKept` with the entries of the `raw` lines,
     /// in segment order. A `session_info` of one track keeps only the entry of its file.
     @Test func rawKeptHasTheEntriesOfTheRawLines() async throws {

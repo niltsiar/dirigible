@@ -6,7 +6,7 @@
 - Amended: 2026-09-27. The sidecar magic is a 7-byte prefix and a version digit. A newer sidecar is not a bad sidecar: its segment stays unplaced with a newer-version fault, and the take ends. The next take number counts every file name that starts with `take<n>` (see 0024).
 - Amended: 2026-10-04, run 12. No edit moves the timeline under a pending take or a split take: the window and the CLI refuse each ripple then (see 0037).
 - Amended: 2026-10-05, run `2026-10-05-file-import`. `Clips/` also holds imported WAVs, `<name>.wav`, with no capture. The import uses the same conversion, write order, and flush (see 0040).
-- Amended: 2026-11-04, run `2026-11-03-caf-removal` (see 0071). The sidecar has the record kind 3, the finalize record. A WAV-backed segment, with its CAF removed, is unplaced when no file in the session refers to it.
+- Amended: 2026-11-04, run `2026-11-03-caf-removal` (see 0071). The sidecar has the record kinds 3 and 4, the finalize record and the saturated record. A WAV-backed segment, with its CAF removed, is unplaced when no file in the session refers to it.
 
 ## Context
 
@@ -42,6 +42,7 @@ Local probes on 2026-09-24 (`.scratchpads/runs/2026-09-24-capture-finalize/probe
 - Kind 1, the header, is the first record only: first sample time (Float64), first host time in nanoseconds (UInt64), nominal rate (Float64), latency in device frames (Int32), channel count (UInt8), device UID and device name (each a UInt16 length and UTF-8), and the available nominal rates (a UInt16 count and a min and max Float64 for each).
 - Kind 2, a checkpoint, is 24 bytes: file frame (Int64), sample time (Float64), host time in nanoseconds (UInt64).
 - Kind 3, the finalize record (0071), is 24 bytes and comes after the last checkpoint: the CAF frames that finalize converted (Int64), the source rate (Float64), and the conversion gain in dB (Float64). The reader keeps the last valid kind 3. A reader of an older build stops at it and keeps every checkpoint, so the version stays 1.
+- Kind 4, the saturated record (0071), is 8 bytes and comes after the last checkpoint: the CAF frames (Int64) of a CAF whose old WAV saturated. The reader keeps the last valid kind 4. An older reader stops at it, as at kind 3.
 - The writer writes and flushes the magic and the header before the first CAF frame.
 - The reader refuses the sidecar when the magic, the version, or the header is bad. A newer version is not bad: the segment stays unplaced with a newer-version fault, and the take ends (0024). It keeps the checkpoints up to the first record that is short, has a bad hash, has a value that is not finite, or goes back in file frame or host time. It drops that record and every record after it.
 - A segment whose CAF has frames but whose sidecar is missing or refused is not placed. Its files stay.

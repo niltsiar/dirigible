@@ -18,8 +18,9 @@
 #   or a lone quote (`git commit -F` in backticks) passes. The leading quotes and the trailing
 #   ) ; : . , and quotes go before the comparison, so -F "" is refused.
 # - A brief that names a lock step is refused while a release call (a push check, the hooks pass, a
-#   land, or make dmg) or a stress lane (scripts/test-stress.sh) holds the build lock or waits first
-#   for it, because the agent would wait for the lock on its 90 min clock. A lock step is
+#   land, or make dmg) holds the build lock or waits first for it, or a stress lane
+#   (scripts/test-stress.sh) holds the build lock, because the agent would wait for the lock on its
+#   90 min clock. A lock step is
 #   with-lock.sh, a make target that takes the lock, a script that takes the lock itself, or swift
 #   build, test, or run (AGENTS.md, Commands). The
 #   state comes from scripts/with-lock.sh --release-holder, and an exit other than 0 or 1 of that
@@ -78,7 +79,7 @@ steps="$(sed -E 's/with-lock\.sh +--(builders|release-holder)//g' <<< "$text")"
 lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make([[:space:]]+($lock_make_opt|$lock_make_set|($lock_free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($lock_scripts)\.sh|(^|[^A-Za-z0-9_-])swift +($lock_swift)([^A-Za-z0-9_-]|\$)"
 if grep -qE "$lock_re" <<< "$steps" && ! grep -qE '^[[:space:]]*([-*>][[:space:]]+)?Build lock: none' <<< "$text"; then
   if holder="$("$(dirname "$0")/../../scripts/with-lock.sh" --release-holder 2>/dev/null)"; then
-    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) or a stress lane holds the build lock or waits first for it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own. A with-lock.sh call that prints no lock also waits while this call holds the lock." >&2
+    echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it, or a stress lane holds it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own. A with-lock.sh call that prints no lock also waits while this call holds the lock." >&2
     exit 2
   fi
 fi

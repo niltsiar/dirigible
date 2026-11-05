@@ -32,11 +32,9 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
         var lines = scan.damagedBackups.map { "Damaged backup, it keeps no file: \(backupsFolderName)/\($0.fileName)" }
         lines += scan.notFiles.map { "Not a regular file, it stays: \(clipsFolderName)/\($0)" }
         let kept = "Kept for a backup: \(scan.kept.count) (\(scan.kept.bytes) bytes)"
-        // The prune drops the pool entry of a take entry and keeps its file (decision 0071).
-        let (entries, files) = (scan.items.filter(\.isTakeEntry), scan.items.filter { !$0.isTakeEntry })
         guard !dryRun else {
-            lines += files.map { "\($0.path)\t\($0.bytes) bytes" } + entries.map(stays)
-            return PruneOutput(lines: lines + ["Unused files: \(total(files))", kept], failed: [])
+            lines += scan.items.map { "\($0.path)\t\($0.bytes) bytes" }
+            return PruneOutput(lines: lines + ["Unused files: \(total(scan.items))", kept], failed: [])
         }
         session.removeTemporaryFiles(in: package)
         let report: PruneReport
@@ -46,7 +44,6 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
             throw .body(error)
         }
         lines += report.moved.map { "\($0.item.path)\t\($0.item.bytes) bytes\t\($0.trashURL.path)" }
-        lines += report.unplaced.map(stays)
         lines.append(
             "Moved to the Trash: \(total(report.moved.map(\.item))). The space comes back when you empty the Trash.")
         let failed = report.failed.map {
@@ -58,14 +55,6 @@ package func prunePackage(_ package: URL, dryRun: Bool) throws(EditFailure<Unuse
         }
         return PruneOutput(lines: lines + [kept], failed: failed)
     }
-}
-
-private func stays(_ item: UnusedFiles.Item) -> String {
-    "Audio of a take, the file stays on no track: \(item.path)"
-}
-
-extension UnusedFiles.Item {
-    fileprivate var isTakeEntry: Bool { if case .takeEntry = kind { true } else { false } }
 }
 
 private func total(_ items: [UnusedFiles.Item]) -> String {

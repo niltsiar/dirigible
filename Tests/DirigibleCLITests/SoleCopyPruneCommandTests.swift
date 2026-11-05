@@ -4,8 +4,9 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// `dirigible file prune` of a take whose CAFs are gone (decision 0071, C9): the
-/// WAV is the only copy of the take audio, so the prune never moves it.
+/// `dirigible file prune` of a take whose CAFs are gone (decision 0071, C9): the WAV is the only
+/// copy of the take audio, so the prune never moves it as a stray WAV. An unused pool entry of it
+/// that no holder names moves its WAV and its sidecar to the Trash (code gate item 3).
 ///
 /// Fixture: tracks `t1` and `t2`, take 1 at playhead 96,000 with a 2.0 s segment on each arm (the
 /// first frame 10 ms after the take start), made with the real writer and ended by
@@ -88,32 +89,31 @@ struct SoleCopyPruneCommandTests {
                     status: 0, stdout: "Unused files: 0 (0 bytes)\nKept for a backup: 0 (0 bytes)\n", stderr: ""))
     }
 
-    /// The clip of `take1-1-1` is gone, and no backup names it: the prune drops its pool entry,
-    /// keeps the WAV, and `capture place` puts it at its recorded frame 96,000 + 480.
-    @Test func aPruneKeepsTheWAVOfADeletedTakeClip() async throws {
+    /// The clip of `take1-1-1` is gone, and no backup names it: the prune drops its pool entry and
+    /// moves its WAV and then its sidecar to the Trash, as for a free capture with a CAF. The
+    /// segment of `t2` stays.
+    @Test func aPruneMovesTheWAVAndSidecarOfADeletedTakeClip() async throws {
         try #require(
             try await package.run("clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000").status
                 == 0)
         try deleteBackups(but: [])
-        let before = try inode("take1-1-1.wav")
 
         let result = try await package.run("file", "prune", "PKG")
 
         #expect(result.status == 0 && result.stderr == "", "\(result)")
-        #expect(result.stdout.contains("Audio of a take, the file stays on no track: take1-1-1.wav\n"), "\(result)")
-        #expect(result.stdout.contains("Moved to the Trash: 0 (0 bytes)."), "\(result)")
-        #expect(try inode("take1-1-1.wav") == before, "the WAV stays")
+        let moved = result.stdout.split(separator: "\n").compactMap { $0.split(separator: "\t").first }
+        #expect(moved.contains("take1-1-1.wav") && moved.contains("Capture/take1-1-1.sidecar"), "\(result)")
+        #expect(result.stdout.contains("Moved to the Trash: 2 ("), "\(result)")
+        #expect((try? inode("take1-1-1.wav")) == nil, "the WAV is in the Trash")
+        #expect(!FileManager.default.fileExists(atPath: capture.appending(path: "take1-1-1.sidecar").path))
+        #expect(FileManager.default.fileExists(atPath: capture.appending(path: "take1-2-1.sidecar").path))
         #expect(try package.read().files["take1-1-1"] == nil, "the pool entry is gone")
-        #expect(
-            try await package.run("capture", "place", "PKG", "take1-1-1")
-                == CLIResult(status: 0, stdout: "take1-1-1\n", stderr: ""))
-        #expect(try starts("t1") == [96_480])
     }
 
     /// A backup that names the clip keeps the entry and the WAV, and a revert to that backup
     /// brings the clip back. After the clip goes again and no backup names it, the next prune
-    /// drops the entry and the WAV stays.
-    @Test func aBackupOfTheClipKeepsTheTakeEntry() async throws {
+    /// moves the WAV to the Trash.
+    @Test func aBackupOfTheClipKeepsTheWAV() async throws {
         let placed = try package.xml()
         let clear = ["clip", "clear", "PKG", "--track", "t1", "--from", "0", "--to", "1000000"]
         try #require(try await package.run(clear).status == 0)
@@ -121,7 +121,6 @@ struct SoleCopyPruneCommandTests {
         let holder = "session-20261009T091530.250Z.xml"
         try plant(holder, placed)
         let bytes = try Data(contentsOf: clips.appending(path: "take1-1-1.wav")).count
-        let before = try inode("take1-1-1.wav")
 
         let held = try await package.run("file", "prune", "PKG")
 
@@ -134,7 +133,7 @@ struct SoleCopyPruneCommandTests {
         try deleteBackups(but: [])
         let pruned = try await package.run("file", "prune", "PKG")
 
-        #expect(pruned.stdout.contains("Audio of a take, the file stays on no track: take1-1-1.wav\n"), "\(pruned)")
-        #expect((try? inode("take1-1-1.wav")) == before, "the WAV stays after the backup goes")
+        #expect(pruned.stdout.contains("take1-1-1.wav\t"), "\(pruned)")
+        #expect((try? inode("take1-1-1.wav")) == nil, "the WAV moves after the backup goes")
     }
 }

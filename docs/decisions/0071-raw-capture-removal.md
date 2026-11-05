@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-11-03
-- Amends: 0004 (Finalize at stop: a CAF goes after its WAV passes the gate; Disk and sleep: the reason of the 7 bytes), 0012 (sidecar record kinds 3 and 4; a WAV-backed unplaced segment), 0021 (a placement from the WAV), 0047 (Remove Unused Files keeps the WAV of a removed CAF).
+- Amends: 0004 (Finalize at stop: a CAF goes after its WAV passes the gate; Disk and sleep: the reason of the 7 bytes), 0012 (sidecar record kinds 3 and 4; a WAV-backed unplaced segment), 0021 (a placement from the WAV), 0047 (Remove Unused Files never lists the WAV of a removed CAF as a stray WAV).
 
 ## Context
 
@@ -33,7 +33,7 @@ A segment that fails a clause keeps its CAF. `dirigible info` writes one `raw <s
 
 **What stays.** The sidecar, the take anchor (0061), each WAV, a CAF of the pending take, and a CAF of an unplaced segment.
 
-**WAV-backed unplaced segment.** A stem WAV in `Clips/` whose sidecar has a finalize record and whose CAF is gone, and that no pool file refers to, is an unplaced segment (0012, 0021). Its placement reads no CAF and converts nothing: the capture comes from the sidecar header and the record, the clip gets the gain of the record, and the WAV stays as it is. It blocks a ripple as a CAF segment does (0037). Remove Unused Files never lists a stem WAV whose CAF is gone and whose sidecar has a finalize record as a stray WAV, and never moves it to the Trash (0047): the app, `dirigible file prune`, and `file_prune` give that set to the scan. An unused pool entry at the path of such a WAV, that no holder keeps (0047, 0057), is a take entry: the prune drops the entry and keeps the file, which then becomes a WAV-backed unplaced segment that the banner lists. A holder keeps the entry and the file, as for every other pool file. The placement needs no free space for a conversion.
+**WAV-backed unplaced segment.** A stem WAV in `Clips/` whose sidecar has a finalize record and whose CAF is gone, and that no pool file refers to, is an unplaced segment (0012, 0021). Its placement reads no CAF and converts nothing: the capture comes from the sidecar header and the record, the clip gets the gain of the record, and the WAV stays as it is. It blocks a ripple as a CAF segment does (0037). Remove Unused Files never lists a stem WAV whose CAF is gone and whose sidecar has a finalize record as a stray WAV (0047): the app, `dirigible file prune`, and `file_prune` give that set to the scan. An unused pool entry at the path of such a WAV, that no holder keeps (0047, 0057), is a pool item, as for a CAF-backed segment: the prune drops the entry and moves the WAV, then the sidecar, to the Trash. A holder keeps the entry, the WAV, and the sidecar, as for every other pool file. The placement needs no free space for a conversion.
 
 **Disk.** The record time keeps 7 bytes per sample and channel: both files exist from the start of the take until the removal.
 
@@ -43,7 +43,7 @@ A segment that fails a clause keeps its CAF. `dirigible info` writes one `raw <s
 - Two hardware clocks can be up to 2 ms apart after a removal, because each segment is 1 ms or less against the host clock. The 0004 hardware check with two USB devices stays a manual check (backlog 1530). A piecewise fit can reduce the bow (backlog 1531).
 - A take whose CAF is gone cannot get the piecewise fit of backlog 1531: the fit reads the CAF.
 - The first open of an older package reads each WAV once, and each CAF whose WAV peak is near full scale, in the background.
-- An edit during the sweep keeps the CAF: the turn checks the gate again on the saved session. A segment whose CAF is gone, and whose clips an edit after the removal deletes, keeps its WAV under an unused pool entry, and it is not an unplaced segment while that entry exists. Undo in the same window brings the clips back. After a close and an open, a backup that names the clip keeps it for a revert; with no holder, Remove Unused Files drops the entry and keeps the WAV, and Place puts the segment back. This is the path of a CAF-backed segment today: first the prune, then Place.
+- An edit during the sweep keeps the CAF: the turn checks the gate again on the saved session. A segment whose CAF is gone, and whose clips an edit after the removal deletes, keeps its WAV under an unused pool entry, and it is not an unplaced segment while that entry exists. Undo in the same window brings the clips back. After a close and an open, a backup that names the clip keeps it for a revert; with no holder, Remove Unused Files moves the WAV and the sidecar to the Trash, as it moves the WAV, the CAF, and the sidecar of a CAF-backed segment. So no prune leaves a segment that blocks a ripple.
 - A take in one studio holds the sweep of every other studio. A held job runs again at the next open, take end, or placement of its own studio, so its CAFs stay until then.
 - An older build lists the WAV of a removed take that a later undo made unplaced as a stray WAV. Its Remove Unused Files moves that WAV to the Trash, not out of the disk.
 - 0222 (FLAC archive) can rely on this: a placed segment that passed the gate has only its WAV; a kept CAF is float32 and stays; a WAV-backed unplaced segment is a stem WAV and its sidecar.

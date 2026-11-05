@@ -564,7 +564,6 @@
 "sheet.unused.reason.stray" = "Not in the session";
 "sheet.unused.reason.transcript" = "No transcript uses it";
 "sheet.unused.reason.capture" = "Take of an unused file";
-"sheet.unused.reason.take" = "Take audio: the file stays";
 "sheet.unused.total" = "Files: %lld (%@)";
 "sheet.unused.kept" = "Kept for a backup, Undo, or the clipboard: %lld (%@)";
 "sheet.unused.damaged" = "Damaged backups keep no file: %@";
@@ -618,7 +617,6 @@
 "banner.level.changed" = "Auto Level is done. Clips changed: %lld.";
 "banner.unused.moved" = "Files moved to the Trash: %lld (%@).";
 "banner.unused.failed" = "These files did not move: %@";
-"banner.unused.take" = "These take audio files stay and are on no track: %@";
 "banner.level.none" = "Auto Level is done. No change: the clips are at the target level.";
 "banner.level.volume" = "The track volume does not change the clip gain.";
 "banner.level.limit" = "Clips at the 20 dB limit: %lld. Check that they have speech.";

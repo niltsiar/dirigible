@@ -564,7 +564,6 @@
 "sheet.unused.reason.stray" = "No está en la sesión";
 "sheet.unused.reason.transcript" = "Ninguna transcripción lo usa";
 "sheet.unused.reason.capture" = "Toma de un archivo sin uso";
-"sheet.unused.reason.take" = "Audio de toma: el archivo se queda";
 "sheet.unused.total" = "Archivos: %lld (%@)";
 "sheet.unused.kept" = "Se conservan por una copia, Deshacer o el portapapeles: %lld (%@)";
 "sheet.unused.damaged" = "Las copias dañadas no conservan ningún archivo: %@";
@@ -618,7 +617,6 @@
 "banner.level.changed" = "Nivelado automático terminado. Clips cambiados: %lld.";
 "banner.unused.moved" = "Archivos trasladados a la Papelera: %lld (%@).";
 "banner.unused.failed" = "Estos archivos no se movieron: %@";
-"banner.unused.take" = "Estos archivos de audio de toma se quedan y no están en ninguna pista: %@";
 "banner.level.none" = "Nivelado automático terminado. Sin cambios: los clips ya están en el nivel objetivo.";
 "banner.level.volume" = "El volumen de la pista no cambia la ganancia del clip.";
 "banner.level.limit" = "Clips en el límite de 20 dB: %lld. Comprueba que tienen voz.";

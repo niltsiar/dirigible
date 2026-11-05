@@ -16,7 +16,6 @@ struct UnusedFileRow: Identifiable, Equatable {
                 case .stray: .sheetUnusedReasonStray
                 case .transcript: .sheetUnusedReasonTranscript
                 case .capture: .sheetUnusedReasonCapture
-                case .takeEntry: .sheetUnusedReasonTake
                 }
             return UnusedFileRow(id: item.path, bytes: item.bytes, reason: reason)
         }
@@ -43,9 +42,7 @@ struct UnusedFilesSheet: View {
                 TableColumn(L10n.sheetUnusedReason.key) { Text($0.reason.key) }.width(Self.reasonWidth)
             }
             .frame(width: 614, height: 220)
-            // The file of a take entry stays (decision 0071), so the total has only the moves.
-            let moving = rows.filter { $0.reason != .sheetUnusedReasonTake }
-            Text(verbatim: L10n.sheetUnusedTotal.format(moving.count, L10n.bytes(moving.map(\.bytes).reduce(0, +))))
+            Text(verbatim: L10n.sheetUnusedTotal.format(rows.count, L10n.bytes(rows.map(\.bytes).reduce(0, +))))
             ForEach(L10n.scanLines(scan), id: \.self) { Text(verbatim: $0) }
             Text(L10n.sheetUnusedFootnote.key).foregroundStyle(.secondary)
             HStack {

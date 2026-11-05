@@ -108,32 +108,6 @@ import Testing
         await model.close()
     }
 
-    /// A prune that drops only take entries (decision 0071) moves no file: the banner names the
-    /// files that stay, with no "moved: 0" banner. With a moved file too, both banners show.
-    /// Fail value: [.unusedFilesMoved(count: 0, bytes: 0)].
-    @Test func aTakeEntryPruneNamesTheFilesThatStay() async throws {
-        let (model, studio, _) = try await window(stray: false)
-        let take = UnusedFiles.Item(kind: .takeEntry("take1-1-1"), path: "take1-1-1.wav", bytes: 300, identity: nil)
-        let moved = PruneReport.Moved(
-            item: UnusedFiles.Item(kind: .stray, path: stray, bytes: 64, identity: nil), trashURL: folder.url)
-
-        model.pruneReport = PruneReportShown(
-            report: PruneReport(moved: [], failed: [], dropped: [], unplaced: [take]), revision: studio.sessionRevision)
-
-        let banners = ChromeState.reportBanners(model, studio)
-        #expect(banners == [.unusedTakeFiles(["take1-1-1.wav"])])
-        #expect(banners.first?.text == L10n.bannerUnusedTake.format("take1-1-1.wav"))
-
-        model.pruneReport = PruneReportShown(
-            report: PruneReport(moved: [moved], failed: [], dropped: [], unplaced: [take]),
-            revision: studio.sessionRevision)
-
-        #expect(
-            ChromeState.reportBanners(model, studio)
-                == [.unusedFilesMoved(count: 1, bytes: 64), .unusedTakeFiles(["take1-1-1.wav"])])
-        await model.close()
-    }
-
     /// C13: with no file to move, an alert says so and no sheet opens.
     @Test func noUnusedFileShowsAlert() async throws {
         let (model, _, _) = try await window(stray: false)

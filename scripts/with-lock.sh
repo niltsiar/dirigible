@@ -56,7 +56,10 @@
 # goes, the hold line gets the fifth column limit, and the call exits 124. The default is 1800 s. A
 # call that has no wait limit (above) gets 2 times the newest push-check hold line (a make
 # check-changed BASE= line with no limit column) in the hold log, at least 3600 s. 0 turns the
-# limit off. The lock folder keeps the limit in <lock>/maxhold, and --builders ends with the line
+# limit off. A step limit of scripts/test-shards.sh makes the second writer of the column limit:
+# it creates <lock>/shard-limit, so the hold line of that push check has the column too, and the
+# exit stays that of the command (only <lock>/limit gives exit 124). The lock folder keeps the
+# limit in <lock>/maxhold, and --builders ends with the line
 # "holder: <tree> held <n> s of <limit> s" while a live call holds the lock.
 # A release call (make check-changed with BASE=<ref> as a word, in the environment, or in MAKEFLAGS;
 # make test-hooks with DIRIGIBLE_HOOKS_ALL=1 in the same three places; land.sh; make dmg) marks the lock folder with <lock>/release, and holds the ticket folder
@@ -440,7 +443,7 @@ release() {
     local extra=""
     [[ "$(cat "$lock/pid" 2>/dev/null)" != $$ ]] || {
         [[ -z "$watcher" ]] || kill "$watcher" 2>/dev/null
-        [[ ! -e "$lock/limit" ]] || extra=$'\tlimit'
+        [[ ! -e "$lock/limit" && ! -e "$lock/shard-limit" ]] || extra=$'\tlimit'
         [[ -z "$nocap" ]] || extra="${extra:-$'\t'}"$'\tnocap'
         printf '%s\t%s\t%s\t%s%s\n' "$(date -r "$taken" +%FT%T)" "$(($(date +%s) - taken))" "$cmdline" "$tree" "$extra" >> "$holds" 2>/dev/null
         rm -rf "$lock"

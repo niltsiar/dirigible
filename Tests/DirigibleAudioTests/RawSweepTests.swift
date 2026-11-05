@@ -17,7 +17,7 @@ struct RawSweepTests {
         latency: 48)!
 
     /// The steps of the job that the two seams saw, and a hold of the job at the step `at`: on
-    /// the main actor, or on the read thread for `.block(n)`.
+    /// the main actor, or on the read thread for `.segment(n)` and `.block(n)`.
     final class Hold: @unchecked Sendable {
         let at: RawSweepStep
         private let gate = AsyncGate()
@@ -36,7 +36,7 @@ struct RawSweepTests {
         }
 
         func entered() async {
-            if case .block = at { await readGate.entered() } else { await gate.entered() }
+            if at == .first || at == .turn { await gate.entered() } else { await readGate.entered() }
         }
 
         func open() {
@@ -119,7 +119,7 @@ struct RawSweepTests {
         }
 
         let seen = qos.withLock { $0 }
-        #expect(seen.count == 3, "4 s is 3 WAV blocks: \(seen)")
+        #expect(seen.count == 4, "one segment of the header scan, and 4 s is 3 WAV blocks: \(seen)")
         #expect(seen.allSatisfy { $0 == QOS_CLASS_UTILITY.rawValue }, "\(seen)")
         #expect(!Self.hasCAF(package), "the sweep removes the CAF of the old take")
         await Self.bounded("the settle does not end") { await studio.settle() }
@@ -185,6 +185,52 @@ struct RawSweepTests {
         try await Self.stop(studio, hal)
         await studio.rawSweep
         #expect(!Self.hasCAF(package), "the sweep at the take end removes the CAF of the old take")
+        await studio.settle()
+    }
+
+    /// C17: a take start during the header scan stops the job at the next segment. A hold of the
+    /// second segment stands for a long scan: the start returns within the limit, the job reads no
+    /// header of the second segment, and both CAFs stay.
+    @Test func aTakeStartDuringTheHeaderScanStopsTheJob() async throws {
+        let package = try TakePackage(tracks: [("t1", .mono), ("t2", .mono)])
+        for arm in 1...2 { try package.segment(arm: arm, samples: sine(seconds: 1, rate: 48_000)) }
+        let url = package.url
+        try await offMainActor {
+            let outcome = completeTake(of: try Session(contentsOf: url), lock: try PackageLock(url), level: false) {
+                session throws(SessionFileError) in try session.write(to: url)
+            }
+            #expect(outcome.error == nil)
+        }
+        let (studio, hal) = try await Self.armed(package)
+        let (hold, scan) = (Hold(at: .segment(0)), Gate(limit: nil))
+        defer {
+            hold.open()
+            scan.open()
+        }
+        hold.attach(studio)
+        let read = studio.environment.rawReadStep
+        studio.environment.rawReadStep = { step in
+            read(step)
+            if step == .segment(1) { scan.waitOnce() }
+        }
+        await hold.entered()
+        let done = StepCounter()
+        let start = Task {
+            try await Self.start(studio, recorded: false)
+            _ = done.next()
+        }
+        await until(limit: .seconds(10), "the take start does not begin") { studio.isStarting }
+
+        hold.open()
+        await until(limit: .seconds(10), "the take start does not return") { done.calls == 1 }
+        guard done.calls == 1 else { return }
+        try await start.value
+
+        #expect(!hold.seen.contains(.segment(1)), "steps: \(hold.seen)")
+        let cafs = (1...2).map { package.capture.appending(path: SegmentName(take: 1, arm: $0, segment: 1).cafName) }
+        #expect(cafs.allSatisfy { FileManager.default.fileExists(atPath: $0.path) }, "the stopped job removes no CAF")
+        scan.open()
+        try await Self.stop(studio, hal)
         await studio.settle()
     }
 

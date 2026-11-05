@@ -2,7 +2,7 @@
 # Check that check-waits.sh passes a tree with no raw `.wait(timeout:` in Tests/, and fails each
 # tree with a raw wait and no allow entry, or with an allow entry that is not true. Check the count
 # gate (a Swift file with more wall-clock lines than at the reference and over its cap in
-# scripts/check-waits.counts; mode warn or fail) and the refusal of a rise of the isIntermittent lines in the
+# scripts/check-waits.counts; mode warn or fail) and the refusal of a rise of the isIntermittent, `"quarantine:`, or `.disabled(` lines in the
 # Tests/ total, each in a git repo with a commit; the reference is HEAD, or the merge base with BASE. Run by `make test-hooks`.
 set -uo pipefail
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE BASE
@@ -141,6 +141,33 @@ repo; flakeline y >> "$tmp/Tests/B/i.swift"; g commit -q -am two
 flakeline y > "$tmp/Tests/B/j.swift"; flakeline x > "$tmp/Tests/B/i.swift"; expect pass 'a file with 2 isIntermittent lines split in two files'
 flakeline z >> "$tmp/Tests/B/j.swift"; expect fail 'a split that adds a line' 'Tests/: 3 isIntermittent lines, 2 at HEAD;'
 repo; flakeline y > "$tmp/Tests/B/j.swift"; : > "$tmp/Tests/B/i.swift"; expect pass 'a line added in one file and removed in another'
+
+# The other quarantine forms are refused the same way, each marker by its own Tests/ total: a
+# `"quarantine:` line with a FLAKE word and no isIntermittent, and a `.disabled(` line.
+quarantined() { printf '    withKnownIssue("quarantine: %s, FLAKE a") {\n' "$1"; }
+disabled() { printf '    @Test(.disabled("%s"))\n' "$1"; }
+quarantine='Tests/: 2 "quarantine: lines, 1 at HEAD; a flaky test moves to the real-time tier (flake-triage.md, Time box)'
+repo; quarantined y > "$tmp/Tests/B/j.swift"; expect fail 'a new "quarantine: line with a FLAKE word in mode fail' "$quarantine"
+repo 'mode warn'; quarantined y > "$tmp/Tests/B/j.swift"; expect fail 'a new "quarantine: line with a FLAKE word in mode warn' "$quarantine"
+repo; quarantined y >> "$tmp/Tests/B/i.swift"; expect fail 'a second "quarantine: line in the same file' "$quarantine"
+disabledrise='Tests/: 1 .disabled( lines, 0 at HEAD; a flaky test moves to the real-time tier (flake-triage.md, Time box)'
+repo; disabled slow > "$tmp/Tests/B/j.swift"; expect fail 'a new .disabled( line in mode fail' "$disabledrise"
+repo 'mode warn'; disabled slow > "$tmp/Tests/B/j.swift"; expect fail 'a new .disabled( line in mode warn' "$disabledrise"
+repo; disabled slow > "$tmp/Tests/B/j.swift"; printf '.disabled(' > "$tmp/Tests/B/j.txt"; expect fail 'a .disabled( line beside a file that is not Swift' "$disabledrise"
+repo; disabled slow > "$tmp/Sources/A/a.swift"; expect pass 'a .disabled( line outside Tests/'
+repo; disabled slow > "$tmp/Tests/B/j.txt"; expect pass 'a .disabled( line in a file that is not Swift'
+repo; quarantined y > "$tmp/Tests/B/j.txt"; expect pass 'a "quarantine: line in a file that is not Swift'
+repo; disabled slow > "$tmp/Tests/B/d.swift"; g add -A; g commit -q -m disabled
+mv "$tmp/Tests/B/d.swift" "$tmp/Tests/B/e.swift"; expect pass 'a renamed file with a .disabled( line'
+disabled other >> "$tmp/Tests/B/e.swift"; expect fail 'a second .disabled( line after the rename' 'Tests/: 2 .disabled( lines, 1 at HEAD;'
+repo; quarantined y >> "$tmp/Tests/B/i.swift"; g commit -q -am two
+quarantined y > "$tmp/Tests/B/j.swift"; flakeline x > "$tmp/Tests/B/i.swift"; expect pass 'a file with 2 "quarantine: lines split in two files'
+repo; : > "$tmp/Tests/B/i.swift"; expect pass 'a removed "quarantine: line'
+repo; disabled slow > "$tmp/Tests/B/d.swift"; g add -A; g commit -q -m disabled; : > "$tmp/Tests/B/d.swift"; expect pass 'a removed .disabled( line'
+repo; g checkout -q -b side; disabled slow > "$tmp/Tests/B/d.swift"; g add -A; g commit -q -m 'side adds a .disabled( line'; side="$(g rev-parse HEAD)"; g checkout -q main
+base="$side"; expect pass 'a BASE tip that adds a .disabled( line the branch lacks'
+base="$(g rev-parse main)"; disabled slow > "$tmp/Tests/B/d.swift"; expect fail 'BASE the first commit, a .disabled( line in the work tree' "Tests/: 1 .disabled( lines, 0 at merge-base $base;"
+base=
 
 [[ $failures -eq 0 ]] && echo "check-waits tests: all passed"
 exit $((failures > 0))

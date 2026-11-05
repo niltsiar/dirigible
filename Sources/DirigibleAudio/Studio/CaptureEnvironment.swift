@@ -92,8 +92,9 @@ struct CaptureEnvironment: Sendable {
     /// A step of the raw sweep job (decision 0071) on the main actor: `.first` and `.turn`. Tests
     /// count or hold the steps with it.
     var beforeRawStep: @Sendable (RawSweepStep) async -> Void = { _ in }
-    /// A step on the read thread of the raw sweep job: `.block(n)` before each WAV block. Tests
-    /// record the QoS of the thread, or hold the read, with it.
+    /// A step on the read thread of the raw sweep job: `.segment(n)` before each segment of the
+    /// header scan, `.block(n)` before each WAV block. Tests record the QoS of the thread, or hold
+    /// the read, with it.
     var rawReadStep: @Sendable (RawSweepStep) -> Void = { _ in }
     /// The flush of each file of a raw removal: the path, then the errno or nil. Tests fail it.
     var rawFlush: @Sendable (String) -> Int32? = { fullFlush(path: $0) }
@@ -176,6 +177,8 @@ struct CaptureEnvironment: Sendable {
 enum RawSweepStep: Hashable, Sendable {
     /// Before the first read of a run of the job.
     case first
+    /// Before segment n (0-based, in name order) of the header scan.
+    case segment(Int)
     /// Before block n (0-based) of an audio read.
     case block(Int)
     /// Before the job asks for the turn of one removal.

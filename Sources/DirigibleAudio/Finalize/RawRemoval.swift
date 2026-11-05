@@ -110,13 +110,21 @@ struct RawRead: Hashable, Sendable {
 
 /// The placed segments that pass the gate (decision 0071), in name order, with the identity of
 /// their files and their finalize record: nil for a take that a build before 0071 finalized. It
-/// reads file headers and sidecars and no audio, so call it off the main actor.
-func removableCaptures(of session: Session, in package: URL) -> [(
-    name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?
-)] {
-    rawCaptures(of: session, in: package).filter { $0.value == .removable }.keys.sorted().map { name in
-        (name, rawFiles(of: name, in: package), finalizeRecord(of: name, in: package))
+/// reads file headers and sidecars and no audio, so call it off the main actor. It reads
+/// `isCancelled` after `beforeSegment` with the index of each segment, and after a cancel it
+/// returns no segment.
+func removableCaptures(
+    of session: Session, in package: URL, isCancelled: () -> Bool = { false },
+    beforeSegment: (Int) -> Void = { _ in }
+) -> [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)] {
+    var removable: [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)] = []
+    for (index, name) in ((try? captureSegments(in: package)) ?? []).enumerated() {
+        beforeSegment(index)
+        if isCancelled() { return [] }
+        guard verdict(of: name, session: session, in: package) == .removable else { continue }
+        removable.append((name, rawFiles(of: name, in: package), finalizeRecord(of: name, in: package)))
     }
+    return removable
 }
 
 /// The finalize record of a segment with no record: the CAF frames, the rate choice of its

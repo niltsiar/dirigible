@@ -59,7 +59,7 @@ extension Studio {
         for studio in studios where !studio.rawSweepJob.waitsForTurn { await studio.rawSweep }
     }
 
-    /// Cancels the job, so a WAV read ends at its next block, and waits for it.
+    /// Cancels the job, so a read ends at its next segment or WAV block, and waits for it.
     func stopRawSweep() async {
         rawSweepJob.task?.cancel()
         await rawSweep
@@ -95,7 +95,9 @@ extension Studio {
             do {
                 guard let current = studio(), !current.rawSweepHeld else { return }
                 let (session, lock) = (current.session, current.lock)
-                candidates = await utilityRead { _ in readRemovable(of: session, lock: lock) }
+                candidates = await utilityRead {
+                    readRemovable(of: session, lock: lock, isCancelled: $0, step: readStep)
+                }
             }
             for candidate in candidates {
                 var read = candidate.record.map { RawRead(files: candidate.files, record: $0) }
@@ -152,14 +154,17 @@ extension Studio {
     }
 }
 
-private func readRemovable(of session: Session, lock: PackageLock) -> [(
-    name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?
-)] {
+/// `removableCaptures` in the package that `lock` holds now, with the step `.segment(n)` before
+/// each segment. `isCancelled` ends the read.
+private func readRemovable(
+    of session: Session, lock: PackageLock, isCancelled: () -> Bool, step: (RawSweepStep) -> Void
+) -> [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)] {
     dispatchPrecondition(condition: .notOnQueue(.main))
     guard let package = try? lock.package(),
         (try? package.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly == false
     else { return [] }
-    return removableCaptures(of: session, in: package)
+    return removableCaptures(
+        of: session, in: package, isCancelled: isCancelled, beforeSegment: { step(.segment($0)) })
 }
 
 /// `oldTakeRecord` in the package that `lock` holds now, with the step `.block(n)` before each

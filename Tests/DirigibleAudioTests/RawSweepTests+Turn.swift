@@ -122,4 +122,39 @@ extension RawSweepTests {
         #expect(try package.read().tracks.flatMap(\.clips).count == 1, "the Undo save has the clip")
         await studio.settle()
     }
+
+    /// C19 (5): an Undo of a clip delete during the save of a prune. The prune sets the saved
+    /// revision after the Undo, so only the waiting save of the Undo tells that the disk has no clip.
+    @Test func anUndoDuringAPruneSaveKeepsTheCAF() async throws {
+        let (package, _) = try await Self.oldTake()
+        let stray = "stray-\(UUID().uuidString).wav"
+        try Data(count: 8).write(to: package.url.appending(path: "Clips/\(stray)"))
+        let (studio, hold, flushes) = try await Self.held(package, at: .turn)
+        defer { hold.open() }
+        try Self.deleteClips(studio)
+        await studio.serialized {}
+        let scan = try await studio.unusedFiles()
+        try #require(scan.items.map(\.path) == [stray], "the prune lists only the stray file")
+        let (save, saving) = (studio.environment.saveSession, AsyncGate())
+        defer { saving.open() }
+        studio.environment.saveSession = { session, lock throws(SessionFileError) in
+            await saving.wait()
+            return try await save(session, lock)
+        }
+
+        let prune = Task { try await studio.removeUnusedFiles(scan) }
+        await saving.entered()
+        hold.open()
+        await until(limit: .seconds(10), "the job does not wait for its turn") { studio.writesWaiting == 1 }
+        try studio.undo()
+        saving.open()
+        let report = try await prune.value
+        for moved in report.moved { try? FileManager.default.removeItem(at: moved.trashURL) }
+        await studio.rawSweep
+        await studio.serialized {}
+
+        #expect(Self.hasCAF(package) && flushes.calls == 0, "flushes: \(flushes.calls)")
+        #expect(try package.read().tracks.flatMap(\.clips).count == 1, "the Undo save has the clip")
+        await studio.settle()
+    }
 }

@@ -46,21 +46,29 @@ extension StudioPreRollTests {
     }
 
     /// A system sleep stops the host clock and not the sleep clock. A timed pre-roll take whose host
-    /// clock stands still after H_T records on after the wake of a sleep to the stop, and stops after
-    /// the clock reaches the stop.
+    /// clock stands still before the stop records on after each wake of the stop wait, and stops
+    /// after the clock reaches the stop.
     @Test func timedTakeOutlastsAHostClockThatStandsStill() async throws {
         let studio = try await studio()
         let clock = SleepingHostClock()
         studio.environment.hostNanos = { clock.read() }
+        let (wait, waitReads) = (studio.environment.takeStop, OSAllocatedUnfairLock(initialState: 0))
+        studio.environment.takeStop = { stop, read in
+            await wait(stop) {
+                waitReads.withLock { $0 += 1 }
+                return read()
+            }
+        }
         let take = try await studio.startRecording(armed: ["t1"], playhead: 96_000, for: .milliseconds(500), preRoll: 1)
         let start = try #require(studio.session.recording?.takeStartHostTimeNanos)
         let stop = timedTakeStop(end: start + 500_000_000, devices: [Self.mic])
 
-        await until(limit: .seconds(10), "the host clock reaches H_T") { hostNanosNow() >= start }
-        let still = clock.standStill(past: stop)
-        await until(limit: .seconds(10), "the stop wait reads the clock after its sleep") { clock.lateReads > 0 }
+        await until(limit: .seconds(10), "the stop wait reads the clock after a sleep") {
+            waitReads.withLock { $0 } >= 2
+        }
         #expect(
-            studio.transport == .recording(take: take), "the take stopped at the host clock \(still), before \(stop)")
+            studio.transport == .recording(take: take),
+            "the take stopped at the host clock \(clock.read()), before \(stop)")
         clock.go()
         await until(limit: .seconds(10), "the take stops") { studio.transport != .recording(take: take) }
         let end = clock.read()
@@ -69,42 +77,24 @@ extension StudioPreRollTests {
     }
 }
 
-/// A host clock that stands still from `standStill(past:)` to `go()`, as in a system sleep. It
-/// counts its reads after the real time at which a running clock reaches the stop.
+/// A host clock that stands still at its first read until `go()`, as in a system sleep, and then
+/// reads the host clock. H_T is at least 100 ms after a read of the clock (the take start of the
+/// Player), so the clock stands still before the stop of a take on every schedule.
 private final class SleepingHostClock: Sendable {
     private struct State {
         var still: UInt64?
-        var behind: UInt64 = 0
-        var due: ContinuousClock.Instant?
-        var lateReads = 0
+        var awake = false
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    var lateReads: Int { state.withLock { $0.lateReads } }
-
     func read() -> UInt64 {
         state.withLock { state in
-            guard let still = state.still else { return hostNanosNow() - state.behind }
-            if let due = state.due, ContinuousClock.now >= due { state.lateReads += 1 }
-            return still
-        }
-    }
-
-    /// Stands still at the current host time, which is before `stop`, and returns it.
-    func standStill(past stop: UInt64) -> UInt64 {
-        state.withLock { state in
-            let still = hostNanosNow() - state.behind
+            if state.awake { return hostNanosNow() }
+            let still = state.still ?? hostNanosNow()
             state.still = still
-            // 10 ms under the wake of a sleep to `stop` that started on the running clock.
-            state.due = .now + .nanoseconds(stop - still) - .milliseconds(10)
             return still
         }
     }
 
-    func go() {
-        state.withLock { state in
-            if let still = state.still { state.behind = hostNanosNow() - still }
-            state.still = nil
-        }
-    }
+    func go() { state.withLock { $0.awake = true } }
 }

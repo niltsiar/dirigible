@@ -122,6 +122,23 @@ struct WAVPlacementTests {
         #expect(studio.unplacedSegments == [])
     }
 
+    /// A WAV that goes after the scan of the studio (the unplaced list is the last scan): the
+    /// placement error names the WAV, not the CAF that is gone, and the session does not change.
+    @Test func aPlacementWithAMissingWAVNamesTheWAV() async throws {
+        let studio = try await Studio.open(url)
+        _ = try await undoneTakeWithNoCAF(studio)
+        let name = Self.segments[0]
+        try FileManager.default.removeItem(at: clips.appending(path: "\(name.stem).wav"))
+        let before = studio.session
+
+        await #expect(throws: StudioError.finalize(.readFailed(file: "Clips/\(name.stem).wav", errno: ENOENT))) {
+            try await studio.place(name)
+        }
+
+        #expect(studio.session == before)
+        #expect(try Session(contentsOf: url) == before)
+    }
+
     /// A placement from the WAV converts nothing, so it needs only the disk margin.
     @Test func aWAVPlacementNeedsNoSpaceForAConversion() async throws {
         let studio = try await Studio.open(url)

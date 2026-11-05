@@ -1972,12 +1972,12 @@ lock_leader=$!
 set +m
 wait "$lock_leader"
 lock_member="$(cat "$tmp/lock-member")"
-# lock_state <release|dead-release|dead-release-child|dead-release-group|ordinary|bench|ticket|dead-ticket|free>:
+# lock_state <release|lane|dead-release|dead-release-child|dead-release-group|ordinary|bench|ticket|dead-ticket|free>:
 # the live pid is that of this shell; the dead pid is that of an ended subshell.
 lock_state() {
   rm -rf "$lock_dir" "$lock_first"
   case "$1" in
-    release | dead-release | dead-release-child | dead-release-group | ordinary | bench)
+    release | lane | dead-release | dead-release-child | dead-release-group | ordinary | bench)
       mkdir -p "$lock_dir"
       case "$1" in dead-release*) echo "$lock_dead" > "$lock_dir/pid" ;; *) echo "$$" > "$lock_dir/pid" ;; esac
       case "$1" in
@@ -1987,6 +1987,7 @@ lock_state() {
       case "$1" in
         ordinary) echo 'make build' > "$lock_dir/command" ;;
         bench) echo 'scripts/bench.sh' > "$lock_dir/command" ;;
+        lane) echo 'scripts/test-stress.sh --runs 1 out' > "$lock_dir/command" ;;
         *) : > "$lock_dir/release"; echo 'make check-changed BASE=origin/main' > "$lock_dir/command" ;;
       esac ;;
     ticket) mkdir -p "$lock_first/$$" ;;
@@ -2060,6 +2061,11 @@ grep -qF 'runs no with-lock.sh step' "$tmp/agent-err" && ! grep -qF 'takes no lo
   { echo "FAIL: the lock-step message does not give the pass line to an agent that runs no with-lock.sh step: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 grep -qF 'A with-lock.sh call that prints no lock also waits while this call holds the lock.' "$tmp/agent-err" ||
   { echo "FAIL: the lock-step message does not say that a call that prints no lock waits while this call holds the lock: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+# A stress lane holds the lock with no release marker and no ticket, so the message says that it
+# holds the lock and does not say that it waits first.
+expect_lock_brief block lane Agent prompt "$lock_step"
+grep -qF 'or a stress lane holds it (holder: scripts/test-stress.sh --runs 1 out)' "$tmp/agent-err" && ! grep -qF 'stress lane holds the build lock or waits first' "$tmp/agent-err" ||
+  { echo "FAIL: the lock-step message for a stress lane does not say that the lane holds the lock: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 expect_lock_brief allow dead-ticket Agent prompt "$lock_step"
 [[ ! -e "$lock_first/$lock_dead" ]] || { echo 'FAIL: agent-guard: the ticket of a dead pid stays'; failures=$((failures + 1)); }
 # The commit message rule keeps its verdicts with a free lock and with a release holder.

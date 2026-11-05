@@ -160,9 +160,7 @@ private func readRemovable(
     of session: Session, lock: PackageLock, isCancelled: () -> Bool, step: (RawSweepStep) -> Void
 ) -> [(name: SegmentName, files: [FileIdentity?], record: FinalizeRecord?)] {
     dispatchPrecondition(condition: .notOnQueue(.main))
-    guard let package = try? lock.package(),
-        (try? package.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly == false
-    else { return [] }
+    guard let package = try? lock.package() else { return [] }
     return removableCaptures(
         of: session, in: package, isCancelled: isCancelled, beforeSegment: { step(.segment($0)) })
 }

@@ -18,8 +18,9 @@
 # no comment is the mode; with no file or no mode line, the mode is fail and no cap counts. In mode
 # warn the count gate prints `check-waits: warning: ` lines and does not change the exit. A cap
 # line with no reason, with no whole number, or over the count of its file is a count gate line
-# too. A Swift file under Tests/ with more `isIntermittent` lines than at the reference fails in
-# each mode, with no cap: a flaky test moves to the real-time tier (flake-triage.md, Time box).
+# too. More `isIntermittent` lines in all Swift files under Tests/ than at the reference fails in
+# each mode, with no cap: a flaky test moves to the real-time tier (flake-triage.md, Time box). The
+# gate compares the total, so a rename or a split of a file that keeps the lines passes.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -131,10 +132,13 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
     if [[ "$mode" == warn ]]; then sed 's/^/check-waits: warning: /' <<<"${gate%$'\n'}" >&2; else problems+="$gate"; fi
   fi
 
-  while IFS=: read -r file n before; do
-    [[ -n "$file" ]] || continue
-    problems+="$file: a new isIntermittent; a flaky test moves to the real-time tier (flake-triage.md, Time box)"$'\n'
-  done < <(rises "$(count_lines "$ref" -F isIntermittent 'Tests/*.swift')" "$(count_lines - -F isIntermittent 'Tests/*.swift')")
+  # The Tests/ total of each refused marker against the reference: a move of a line is no rise.
+  total() { count_lines "$1" -F "$2" 'Tests/*.swift' | awk -F: '{ n += $NF } END { print n + 0 }'; }
+  for marker in isIntermittent; do
+    n="$(total - "$marker")" before="$(total "$ref" "$marker")"
+    [[ $n -le $before ]] ||
+      problems+="Tests/: $n $marker lines, $before at $label; a flaky test moves to the real-time tier (flake-triage.md, Time box)"$'\n'
+  done
 fi
 
 problems="$(sed '/^$/d' <<<"$problems")"

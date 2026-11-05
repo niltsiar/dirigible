@@ -2,8 +2,8 @@
 # Check that check-waits.sh passes a tree with no raw `.wait(timeout:` in Tests/, and fails each
 # tree with a raw wait and no allow entry, or with an allow entry that is not true. Check the count
 # gate (a Swift file with more wall-clock lines than at the reference and over its cap in
-# scripts/check-waits.counts; mode warn or fail) and the refusal of a new isIntermittent, each in a
-# git repo with a commit; the reference is HEAD, or the merge base with BASE. Run by `make test-hooks`.
+# scripts/check-waits.counts; mode warn or fail) and the refusal of a rise of the isIntermittent lines in the
+# Tests/ total, each in a git repo with a commit; the reference is HEAD, or the merge base with BASE. Run by `make test-hooks`.
 set -uo pipefail
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE BASE
 check="$(cd "$(dirname "$0")" && pwd)/check-waits.sh"
@@ -127,14 +127,20 @@ repo; rm "$tmp/scripts/check-waits.counts"; more; expect fail 'no counts file is
 repo '# only a comment'; more; expect fail 'no mode line is mode fail' "Tests/B/b.swift: 2 $rise"
 repo $'Tests/B/b.swift\t2\ta reason'; more; expect fail 'a cap line before any mode line is no cap' "Tests/B/b.swift: 2 $rise"
 repo 'mode loud'; expect fail 'another mode word' 'scripts/check-waits.counts: the mode is warn or fail'
-# A new isIntermittent fails in each mode, with no cap.
-intermittent='Tests/B/i.swift: a new isIntermittent; a flaky test moves to the real-time tier (flake-triage.md, Time box)'
+# A rise of the isIntermittent lines in the Tests/ total fails in each mode, with no cap. A move of a
+# line (a rename, a split) keeps the total, so it passes.
+intermittent='Tests/: 2 isIntermittent lines, 1 at HEAD; a flaky test moves to the real-time tier (flake-triage.md, Time box)'
 repo; flakeline y >> "$tmp/Tests/B/i.swift"; expect fail 'a second isIntermittent line in mode fail' "$intermittent"
 repo 'mode warn'; flakeline y >> "$tmp/Tests/B/i.swift"; expect fail 'a second isIntermittent line in mode warn' "$intermittent"
 repo $'mode warn\nTests/B/i.swift\t9\ta reason'; flakeline y >> "$tmp/Tests/B/i.swift"; expect fail 'a second isIntermittent line with a cap' "$intermittent"
 repo; flakeline z > "$tmp/Tests/B/j.swift"
-expect fail 'a new file with an isIntermittent line' 'Tests/B/j.swift: a new isIntermittent'
+expect fail 'a new file with an isIntermittent line' "$intermittent"
 repo; : > "$tmp/Tests/B/i.swift"; expect pass 'a removed isIntermittent line'
+repo; mv "$tmp/Tests/B/i.swift" "$tmp/Tests/B/k.swift"; expect pass 'a renamed file with an isIntermittent line'
+repo; flakeline y >> "$tmp/Tests/B/i.swift"; g commit -q -am two
+flakeline y > "$tmp/Tests/B/j.swift"; flakeline x > "$tmp/Tests/B/i.swift"; expect pass 'a file with 2 isIntermittent lines split in two files'
+flakeline z >> "$tmp/Tests/B/j.swift"; expect fail 'a split that adds a line' 'Tests/: 3 isIntermittent lines, 2 at HEAD;'
+repo; flakeline y > "$tmp/Tests/B/j.swift"; : > "$tmp/Tests/B/i.swift"; expect pass 'a line added in one file and removed in another'
 
 [[ $failures -eq 0 ]] && echo "check-waits tests: all passed"
 exit $((failures > 0))

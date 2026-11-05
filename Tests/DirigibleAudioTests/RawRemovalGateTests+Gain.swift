@@ -36,7 +36,7 @@ extension RawRemovalGateTests {
     /// `rawGain` of the segment, and the count of its passes over the CAF (block 0 reads).
     static func gain(_ package: TakePackage) async throws -> (gain: Gain?, cafPasses: Int) {
         let reads = StepCounter()
-        let gain = try await rawGain(
+        let gain = try rawGain(
             of: segment, in: package.url, isCancelled: { false },
             readFault: ReadFault(stem: segment.stem, block: 0) { _ = reads.next() })
         return (gain?.gain, reads.calls)

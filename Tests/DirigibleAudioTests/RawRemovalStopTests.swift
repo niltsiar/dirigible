@@ -35,7 +35,7 @@ struct RawRemovalStopTests {
         try session.write(to: url)
     }
 
-    /// The steps of the sweep job that the seam saw, and a hold of the job at `.first`.
+    /// The steps of the sweep job that the two seams saw, and a hold of the job at `.first`.
     final class Steps: @unchecked Sendable {
         private let lock = NSLock()
         private var steps: [RawSweepStep] = []
@@ -47,6 +47,8 @@ struct RawRemovalStopTests {
             lock.withLock { steps.append(step) }
             if step == .first { await first.wait() }
         }
+
+        func read(_ step: RawSweepStep) { lock.withLock { steps.append(step) } }
     }
 
     /// `records` with a parabola added to the host times: 0 at both ends and `bow` seconds at
@@ -72,6 +74,7 @@ struct RawRemovalStopTests {
         studio.environment = .test(hal)
         studio.environment.log = log
         studio.environment.beforeRawStep = { await steps.step($0) }
+        studio.environment.rawReadStep = { steps.read($0) }
         studio.environment.beforeFinalize = beforeFinalize
         _ = try await studio.startTake(
             armed: ["t1", "t2"], devices: [mic, box], playhead: 0, hostTimeNanos: takeStart)

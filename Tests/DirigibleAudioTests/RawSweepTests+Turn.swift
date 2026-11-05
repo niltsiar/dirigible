@@ -185,4 +185,30 @@ extension RawSweepTests {
         studio.environment.saveSession = save
         await studio.settle()
     }
+
+    /// C19 (7): another finalize record replaces the record of the sidecar after the read, with
+    /// the same inode and size. The removal keeps the CAF with one `raw` line.
+    @Test func aSidecarRecordReplacedAfterTheReadKeepsTheCAF() async throws {
+        let (package, record) = try await Self.oldTake()
+        let sidecar = package.capture.appending(path: Self.segment.sidecarName)
+        try #require(Sidecar.append(record, toSidecarAt: sidecar) == nil)
+        let logs = package.folder.url.appending(path: "logs")
+        let log = startLog(in: logs)
+        let (studio, hold, _) = try await Self.held(package, at: .turn, log: log)
+        defer { hold.open() }
+
+        let identity = try #require(FileIdentity(path: sidecar.path))
+        var other = record
+        other.conversionGain = try #require(Gain(dB: record.conversionGain.dB - 1))
+        try #require(truncate(sidecar.path, off_t(identity.size) - off_t(Sidecar.encode(record).count)) == 0)
+        try #require(Sidecar.append(other, toSidecarAt: sidecar) == nil)
+        try #require(FileIdentity(path: sidecar.path) == identity, "the same inode and size")
+        hold.open()
+        await studio.rawSweep
+
+        #expect(Self.hasCAF(package), "the CAF stays for a sidecar with another record")
+        let raw = TakeLogTests.lines(log, in: logs).filter { $0.contains("\traw\t") }
+        #expect(raw.count == 1 && raw.first?.contains("recordMismatch") == true, "raw lines: \(raw)")
+        await studio.settle()
+    }
 }

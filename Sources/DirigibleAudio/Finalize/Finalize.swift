@@ -159,11 +159,11 @@ func wavBackedSegments(in package: URL) -> [SegmentName] {
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return [] }
     let files = Set(names)
     return names.filter { $0.hasSuffix(".sidecar") }.compactMap(SegmentName.init(fileName:)).filter { name in
-        let sidecar = (try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package))
-            .flatMap { try? Sidecar.decode($0) }
-        return !files.contains(name.cafName) && sidecar?.finalized != nil
-            && FileManager.default.fileExists(
-                atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).wav").path)
+        guard !files.contains(name.cafName),
+            FileManager.default.fileExists(atPath: package.appending(path: "\(clipsFolderName)/\(name.stem).wav").path)
+        else { return false }
+        return (try? readPackageFile("\(captureFolderName)/\(name.sidecarName)", in: package))
+            .flatMap { try? Sidecar.decode($0) }?.finalized != nil
     }.sorted()
 }
 

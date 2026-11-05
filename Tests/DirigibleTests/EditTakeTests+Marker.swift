@@ -52,30 +52,35 @@ extension EditTakeTests {
         await model.close()
     }
 
-    /// On the real clock, the ruler draws again after the highlight time with no outline, with no
-    /// other change that asks for a draw. Each pass before the highlight end draws what waits, so a
-    /// draw after the end comes from a request after that pass.
+    /// The ruler draws again at the highlight end with no outline. The test holds the wait of the
+    /// ruler, draws what waits, moves the ruler clock to the end, and awaits the draw request of the
+    /// end. Another change can ask for a ruler draw during a take, so the test draws once after that
+    /// request and does not wait for a draw.
     @Test func theTakeFlagOutlineClearsOnTheClock() async throws {
         let (model, studio, window, view) = try await openLanes(app, try await package())
         studio.environment = hal.environment
         let ruler = view.ruler
         ruler.reducesMotion = { false }
+        let t0 = ContinuousClock.now
+        ruler.now = { t0 }
+        let gate = AsyncGate()
+        defer { gate.open() }
+        ruler.wait = { _ in await gate.wait() }
         await model.record()
         #expect(studio.transport == .recording(take: 1))
         await hal.feed(seconds: 0.2)
 
         model.run(.addMarker)
         let lit = try #require(model.timeline.marker)
-        let end = try #require(ruler.highlight?.end)
-        var (draws, outlines) = (ruler.draws, ruler.highlightDraws)
-        await until(limit: .seconds(1), "no ruler draw after the highlight time") {
-            let late = ContinuousClock.now >= end
-            drawNow(window)
-            if late { return ruler.draws > draws }
-            (draws, outlines) = (ruler.draws, ruler.highlightDraws)
-            return false
-        }
+        await until("the ruler gets the new flag") { ruler.inputs?.markers[lit] != nil && ruler.current == lit }
+        drawNow(window)
+        ruler.now = { t0 + .milliseconds(300) }
+        let (draws, outlines) = (ruler.draws, ruler.highlightDraws)
+        gate.open()
+        await ruler.clearing?.value
+        drawNow(window)
 
+        #expect(ruler.draws > draws, "no ruler draw after the highlight time")
         #expect(!ruler.highlights(lit) && ruler.highlightDraws == outlines, "a late draw lit the flag")
         await hal.feed(seconds: 0.2)
         await model.stop()

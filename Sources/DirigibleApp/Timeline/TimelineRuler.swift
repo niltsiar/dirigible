@@ -26,13 +26,16 @@ final class TimelineRuler: NSRulerView {
         didSet { if current != oldValue { needsDisplay = true } }
     }
     /// The flag of a take marker that shows a highlight until `end` (F107). Tests give their own
-    /// `now` and `reducesMotion`.
+    /// `now`, `wait`, and `reducesMotion`.
     private(set) var highlight: (marker: MarkerID, end: ContinuousClock.Instant)?
     var now: () -> ContinuousClock.Instant = { .now }
+    /// The wait from the highlight start to the draw request of its end.
+    var wait: (Duration) async -> Void = { try? await Task.sleep(for: $0) }
     var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
     private static let highlightTime = Duration.milliseconds(300)
-    private var clearing: Task<Void, Never>?
+    /// The draw request of the highlight end. Tests await it.
+    private(set) var clearing: Task<Void, Never>?
 
     /// Lights the flag of `marker` for 0.3 s. With Reduce Motion on, it lights nothing.
     func highlight(_ marker: MarkerID) {
@@ -40,8 +43,9 @@ final class TimelineRuler: NSRulerView {
         highlight = (marker, now() + Self.highlightTime)
         needsDisplay = true
         clearing?.cancel()
+        let wait = wait
         clearing = Task { [weak self] in
-            try? await Task.sleep(for: Self.highlightTime)
+            await wait(Self.highlightTime)
             if !Task.isCancelled { self?.needsDisplay = true }
         }
     }

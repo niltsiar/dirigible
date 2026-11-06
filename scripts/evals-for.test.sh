@@ -269,6 +269,41 @@ for f in build-copy.sh quote-check.py pointed-missing.py grade.py run.sh; do
 done
 for f in keys.md labels.tsv; do [[ ! -e "$eval_dir/$f" ]] || fail "scripts/eval/$f is a run file"; done
 
+# quote-check.py takes "decision <NNNN>" (any case) as a pointer to docs/decisions/<NNNN>-<name>.md.
+# A number that is not the number of the file, and the plural form, are no pointer.
+qc="$tmp/qc"
+mkdir -p "$qc/set/.claude/skills/deliver" "$qc/set/docs/decisions"
+printf 'Checks follow decision 0028.\nAlso decisions 0028, 0031.\n' > "$qc/set/AGENTS.md"
+printf 'See Decision 0029 for the format.\n' > "$qc/set/.claude/skills/deliver/SKILL.md"
+printf 'The first rule.\n' > "$qc/set/docs/decisions/0028-a.md"
+printf 'The second rule.\n' > "$qc/set/docs/decisions/0029-b.md"
+printf 'The third rule.\n' > "$qc/set/docs/decisions/0030-c.md"
+printf 'The fourth rule.\n' > "$qc/set/docs/decisions/0031-d.md"
+cat > "$qc/answer.json" <<'EOF'
+{"chain": [
+  {"path": "AGENTS.md", "from": null, "pointer": null},
+  {"path": ".claude/skills/deliver/SKILL.md", "from": null, "pointer": null},
+  {"path": "docs/decisions/0028-a.md", "from": "AGENTS.md", "pointer": "decision 0028"},
+  {"path": "docs/decisions/0029-b.md", "from": ".claude/skills/deliver/SKILL.md", "pointer": "Decision 0029"},
+  {"path": "docs/decisions/0030-c.md", "from": "AGENTS.md", "pointer": "decision 0028"},
+  {"path": "docs/decisions/0031-d.md", "from": "AGENTS.md", "pointer": "decisions 0028, 0031"}],
+ "answers": [{"id": "E1", "steps": [
+  {"quote": "The first rule.", "path": "docs/decisions/0028-a.md"},
+  {"quote": "The second rule.", "path": "docs/decisions/0029-b.md"},
+  {"quote": "The third rule.", "path": "docs/decisions/0030-c.md"},
+  {"quote": "The fourth rule.", "path": "docs/decisions/0031-d.md"}]}]}
+EOF
+got="$(python3 -I "$eval_dir/quote-check.py" "$qc/answer.json" "$qc/set" 2>&1)"
+code=$?
+want_first='chain: 6 files, 2 failed; quotes kept 2, dropped 2'
+[[ "$(head -n 1 <<<"$got")" == "$want_first" ]] \
+  || fail "quote-check.py decision pointer: first line [$(head -n 1 <<<"$got")], not [$want_first]"
+for f in 0030-c 0031-d; do
+  [[ "$got" == *"CHAIN FAIL docs/decisions/$f.md: the pointer does not name the path"* ]] \
+    || fail "quote-check.py decision pointer: no CHAIN FAIL line for $f"
+done
+[[ $code -eq 0 ]] || fail "quote-check.py decision pointer: exit $code, not 0"
+
 # build-copy.sh refuses a copy folder outside .scratchpads/ and $TMPDIR, and a folder that holds
 # files, before it changes anything.
 copy_refused() {

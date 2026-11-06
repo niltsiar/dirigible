@@ -19,7 +19,8 @@ Rules:
     the full path;
     the path relative to the skill folder of the "from" file (references/x.md, scripts/x.py);
     "**<name>** skill" for .claude/skills/<name>/SKILL.md;
-    ".claude/agents/" and "<name>" for .claude/agents/<name>.md.
+    ".claude/agents/" and "<name>" for .claude/agents/<name>.md;
+    "decision <NNNN>" (any case) for docs/decisions/<NNNN>-<name>.md.
 - A quote survives when its path is a chain file that passed, and the quote is a substring
   of that file. Both sides get each run of white space changed to one space. Nothing else
   is changed.
@@ -69,6 +70,9 @@ def names_path(pointer, from_path, target):
         return True
     m = re.fullmatch(r"\.claude/agents/([^/]+)\.md", target)
     if m and ".claude/agents/" in pointer and m.group(1) in pointer:
+        return True
+    m = re.fullmatch(r"docs/decisions/(\d{4})-[^/]+\.md", target)
+    if m and re.search(r"(?<![A-Za-z0-9_])decision\s+" + m.group(1) + r"(?!\d)", pointer, re.IGNORECASE):
         return True
     return False
 

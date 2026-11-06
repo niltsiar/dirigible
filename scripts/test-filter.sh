@@ -15,7 +15,8 @@
 # A list exit 75 gives exit 75. Any other list failure gives exit 1 and "test list failed".
 # A refused name that is the file name of a Swift file under Tests/ with no type of that name, and
 # whose extension blocks extend a suite, also gets a line "test-filter: <path> declares no suite
-# <name>; it extends <suite>: give FILTER the suite name <suite>" for each such suite. A suite is a
+# <name>; it extends <suite>: give FILTER the suite name <suite>" for each such suite (with --exact:
+# "run the suite name <suite> without --exact"). A suite is a
 # type with a @Test in a top-level block under Tests/ (its declaration or an extension). The hint
 # reads the source files and runs no swift call.
 # With --exact, each name is the whole name of a Swift Testing test: the filter is '/<name>\(' with
@@ -70,7 +71,11 @@ hint_suite() {
             ! grep -qxF -- "$s" <<<"$shown" || continue
             grep -qxF -- "$s" <<<"$suites" || continue
             shown+="$s"$'\n'
-            echo "test-filter: $file declares no suite $name; it extends $s: give FILTER the suite name $s" >&2
+            if [[ $exact -eq 1 ]]; then
+                echo "test-filter: $file declares no suite $name; it extends $s: run the suite name $s without --exact" >&2
+            else
+                echo "test-filter: $file declares no suite $name; it extends $s: give FILTER the suite name $s" >&2
+            fi
         done < <(sed -n 's/^E //p' <<<"$kinds")
     done < <(find Tests -type f -name "$name.swift" 2>/dev/null | sort)
 }

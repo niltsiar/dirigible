@@ -270,6 +270,11 @@ grep -qxF 'test-filter: no test ID matches ClipTableTests' <<<"$out" || fail "ex
 grep -qxF "$(hint ClipTableTests ClipTests)" <<<"$out" || fail "extension-only file, list path: no hint line: $out"
 run none none NoSuchTestName
 grep -q 'declares no suite' <<<"$out" && fail "a name with no file: a hint line prints: $out"
+# With --exact the suite name is refused too, so the hint names the call without --exact.
+run none none --exact ClipTableTests
+[[ $code -eq 1 ]] || fail "--exact extension-only file: expected exit 1, got $code: $out"
+grep -qxF "test-filter: Tests/DirigibleTests/ClipTableTests.swift declares no suite ClipTableTests; it extends ClipTests: run the suite name ClipTests without --exact" <<<"$out" || fail "--exact extension-only file: no hint without --exact: $out"
+grep -q 'give FILTER the suite name' <<<"$out" && fail "--exact extension-only file: the hint tells to give the suite name to --exact: $out"
 # Held out: an extension of a type that is no suite gives no hint, a file that declares its own type
 # gives none, an extension whose type has its @Test in another file gives a hint, and a @Test after
 # the closing brace of a type belongs to no type.

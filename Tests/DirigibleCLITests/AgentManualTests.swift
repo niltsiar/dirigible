@@ -259,6 +259,17 @@ struct AgentManualTests {
         }
     }
 
+    /// The timeline edit tools are in the tool list only (decision 0051): the skill table gives each
+    /// its command.
+    @Test func theSkillTableNamesTheTimelineEditTools() {
+        let skill = AgentManual.skill
+        for (tool, command) in [
+            ("clip_close_gaps", "clip close-gaps"), ("clip_roll", "clip roll"), ("clip_slip", "clip slip"),
+        ] {
+            #expect(skill.contains("| \(tool) | dirigible \(command) |"), "the skill table does not name \(tool)")
+        }
+    }
+
     /// A chapters file keeps each image at its time, and a chapter whose image
     /// the file leaves out is removed first.
     @Test func theChapterRecipeImportsAFileAndKeepsTheImages() {

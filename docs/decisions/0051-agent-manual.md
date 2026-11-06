@@ -17,6 +17,7 @@
 - Amended: 2026-10-28, run `2026-10-14-render-link` (see 0057). `clip_restore` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it, because the core and the whole text have no room.
 - Amended: 2026-10-29, run `2026-10-27-repair-set` (see 0064). `clip_repair` is in the tool list only: the skill table takes its description from the tool table, and no recipe names it, because the core and the whole text have no room.
 - Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). `silence_edit` is in the tool list only: the core and the whole text have no room.
+- Amended: 2026-11-06, run `2026-10-28-timeline-edits` (see 0011 and 0036). `clip_close_gaps`, `clip_roll`, and `clip_slip` are in the tool list only: the skill table takes their description from the tool table, and no recipe names them, because the core and the whole text have no room.
 
 ## Context
 

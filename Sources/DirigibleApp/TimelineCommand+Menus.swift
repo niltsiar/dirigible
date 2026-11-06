@@ -68,6 +68,11 @@ extension TimelineCommand {
         MenuItem(command: .split, title: .menuEditSplit, key: "b", modifiers: .command),
         MenuItem(command: .nudgeLeft, title: .menuEditNudgeLeft, key: .leftArrow, modifiers: .command),
         MenuItem(command: .nudgeRight, title: .menuEditNudgeRight, key: .rightArrow, modifiers: .command),
+        MenuItem(command: .rollToPlayhead, title: .menuEditRollToPlayhead, key: "x", modifiers: .shift),
+        MenuItem(
+            command: .slipLeft, title: .menuEditSlipContentLeft, key: .leftArrow, modifiers: [.shift, .option]),
+        MenuItem(
+            command: .slipRight, title: .menuEditSlipContentRight, key: .rightArrow, modifiers: [.shift, .option]),
         MenuItem(command: .fade, title: .menuEditFade, key: "f", modifiers: .command),
         MenuItem(command: .addGainPoint, title: .menuEditAddGainPoint, key: "k", modifiers: .option),
     ]
@@ -116,6 +121,7 @@ extension TimelineCommand {
     /// The title of a menu item with no key; the lane menu reads it as it reads `menuItems`.
     static let keylessTitles: [TimelineCommand: L10n] = [
         .reduceNoise: .menuToolsReduceNoise, .repairSound: .menuToolsRepairSound, .transcribe: .menuToolsTranscribe,
+        .closeGaps: .menuEditCloseGaps,
     ]
 
     /// The Import Audio, Show Clips in Finder, Export, Export Selection, and Export Chapters items of the

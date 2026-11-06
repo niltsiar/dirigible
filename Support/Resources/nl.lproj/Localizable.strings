@@ -475,6 +475,10 @@
 "menu.edit.nudge.right" = "Schuif naar rechts";
 "menu.edit.fade" = "Fade";
 "menu.edit.heal" = "Voeg clips samen";
+"menu.edit.close.gaps" = "Sluit gaten";
+"menu.edit.roll.to.playhead" = "Verplaats snijpunt naar afspeelkop";
+"menu.edit.slip.content.left" = "Schuif inhoud naar links";
+"menu.edit.slip.content.right" = "Schuif inhoud naar rechts";
 "menu.edit.gain.point.add" = "Voeg gainpunt toe";
 "gain.point.added" = "Gainpunt toegevoegd: %@";
 "gain.point.set" = "Gainpunt ingesteld: %@";

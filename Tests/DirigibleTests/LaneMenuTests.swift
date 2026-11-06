@@ -353,7 +353,7 @@ extension LaneMenuTests {
     }
 
     /// Multi-clip-selection U11 and clip-set-clipboard C11: a right-click on a clip of the set keeps
-    /// the set, and the menu has Cut, Copy, Delete, and Fade but no Delete and Close Gap. Control:
+    /// the set, and the menu has Cut, Copy, Delete, Fade, and Close Gaps but no Delete and Close Gap. Control:
     /// a right-click on a clip outside the set selects that clip.
     @Test func aRightClickInAClipSetKeepsIt() async throws {
         let (model, _, _, view) = try await lanes()
@@ -364,8 +364,8 @@ extension LaneMenuTests {
         #expect(
             shown == [
                 "menu.edit.cut", "menu.edit.copy", "menu.edit.paste (off)", "-", "menu.edit.delete",
-                "menu.tools.reduce.noise", "menu.tools.repair.sound", "menu.edit.fade", "-", "menu.markers.add",
-                "menu.markers.add.chapter",
+                "menu.tools.reduce.noise", "menu.tools.repair.sound", "menu.edit.fade", "menu.edit.close.gaps", "-",
+                "menu.markers.add", "menu.markers.add.chapter",
             ])
         _ = try menu(view, 50, 110)
         #expect(model.timeline.selection == .clips(ClipSet("c2")), "c2 is not in the set")

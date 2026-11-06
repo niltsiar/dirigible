@@ -475,6 +475,10 @@
 "menu.edit.nudge.right" = "Nudge Right";
 "menu.edit.fade" = "Fade";
 "menu.edit.heal" = "Heal Clips";
+"menu.edit.close.gaps" = "Close Gaps";
+"menu.edit.roll.to.playhead" = "Roll Edit to Playhead";
+"menu.edit.slip.content.left" = "Slip Content Left";
+"menu.edit.slip.content.right" = "Slip Content Right";
 "menu.edit.gain.point.add" = "Add Gain Point";
 "gain.point.added" = "Gain point added: %@";
 "gain.point.set" = "Gain point set: %@";

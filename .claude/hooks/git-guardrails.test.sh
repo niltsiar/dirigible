@@ -1277,6 +1277,43 @@ expect allow "rg -n 'core.hooksPath=/dev/null' scripts/search-target.txt"
 expect allow 'grep -c core.hooksPath .githooks/pre-commit'
 expect allow "FOO=1 rg -n 'core.hooksPath' .githooks docs"
 expect allow "cd /x && grep -rn core.hooksPath scripts"
+# In a one-line search with no substitution, a separator inside a quote that closes on its line is
+# part of the pattern.
+expect allow "rg -n -i 'a|core.hooksPath' notes.txt"
+expect allow "rg -n -i 'destructive|core.hooksPath' .claude/hooks/git-guardrails.sh docs/x.md"
+expect allow "grep -E 'x|core.hooksPath' notes.txt"
+expect allow 'rg -n "a|core.hooksPath" notes.txt'
+expect allow "rg -n 'a;core.hooksPath' notes.txt && git status"
+expect allow "rg -n 'a(core.hooksPath)' notes.txt"
+expect allow $'rg -n \'it"s|core.hooksPath\' notes.txt; rg -n "it\'s|core.hooksPath" notes.txt'
+# A write of the key after a separator stays blocked behind each quote form: an unclosed quote, a
+# quote that spans lines, a substitution, an ANSI-C or locale quote, and a backslash before a quote.
+expect block 'rg x notes.txt | git config core.hooksPath /dev/null'
+expect block "rg 'a|b' notes.txt | git config core.hooksPath /dev/null"
+expect block "rg 'a|b' notes.txt; git config core.hooksPath /dev/null"
+expect block 'rg "a|$(git config core.hooksPath /dev/null)" notes.txt'
+expect block 'rg "a|`git config core.hooksPath /dev/null`" notes.txt'
+expect block 'rg a\|b notes.txt; git config core.hooksPath /dev/null'
+expect block $'rg \\\' notes.txt; git config core.hooksPath /dev/null; echo \\\''
+expect block "rg 'a notes.txt; git config core.hooksPath /dev/null"
+expect block "rg -l 'a|core.hooksPath' | xargs git config core.hooksPath"
+expect block "rg --pre 'git config core.hooksPath /dev/null' x notes.txt"
+expect block $'rg \'x\' notes.txt "a"; git config core.hooksPath /dev/null'
+expect block $'python3 - <<\'EOF\'\nx = \'a|b\'; os.system("git config core.hooksPath /dev/null")\nEOF'
+expect block $'rg x $\'\\\'\' ; git config core.hooksPath /dev/null ; echo $\'\\\'\''
+expect block $'rg x $\'\\\'\' ; git -c core.hooksPath=/dev/null commit -m x ; echo $\'\\\'\''
+expect block $'rg $\'\\\'\' ; git config core.hooksPath /dev/null ; echo \'x\''
+expect block $'rg \'p\n rg \' ; git config core.hooksPath /dev/null ; echo \'\''
+expect block $'echo \'a\nrg \'; git config core.hooksPath /dev/null; echo \'x\ny\''
+expect block $'git commit -m "a\nrg "; git config core.hooksPath /dev/null; echo "x\ny"'
+expect block $'echo "a\nrg "&& git -c core.hooksPath=/dev/null commit -m x && echo "b\nc"'
+expect block $'echo \'a\nrg x\' ; git config core.hooksPath /dev/null ; echo \'b\n\''
+expect block 'rg "$(echo ")rg x " ; git config core.hooksPath /dev/null ; echo "(")"'
+expect block 'rg "`echo "`rg x " ; git config core.hooksPath /dev/null ; echo "`"`"'
+expect block 'rg x <(echo ")rg x " ; git config core.hooksPath /dev/null ; echo "(")'
+expect block 'rg "${x:-"}rg x " ; git config core.hooksPath /dev/null ; echo "{"}"'
+expect block 'rg x $"a" ; git config core.hooksPath /dev/null ; echo $"b"'
+expect block 'rg "a\"rg x " ; git config core.hooksPath /dev/null ; echo "\""'
 expect block 'git config core.hooksPath /dev/null'
 expect block 'git -c core.hooksPath=/dev/null commit -m x'
 expect block 'grep -l x f | xargs git config core.hooksPath'

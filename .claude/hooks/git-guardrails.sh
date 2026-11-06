@@ -176,20 +176,40 @@ DANGEROUS_PATTERNS=(
 # core.hooksPath [2>/dev/null]`, flags in any order) is allowed too, only as a whole command:
 # `xargs git config core.hooksPath` is a write. The key matches in
 # any case. Each command of a chain or a substitution is one line; a line that is not one of the
-# two forms and names the key is a change. A line whose command word (after NAME=value, time, env,
-# command, and the shell keywords) is rg or grep is a search that names the key as a pattern, so
-# it passes, unless it has --pre (rg runs that command). A direct write of .git/config is not checked.
+# two forms and names the key is a change. A separator inside a quote that closes on its line does
+# not split the command only when the command is one line with no substitution, no `$'` or `$"`
+# quote, and no backslash before a quote; each separator of any other command splits. A line whose
+# command word (after NAME=value, time, env, command, and the shell keywords) is rg or grep is a
+# search that names the key as a pattern, so it passes, unless it has --pre (rg runs that command).
+# A direct write of .git/config is not checked.
 hooks_key='[Cc][Oo][Rr][Ee]\.[Hh][Oo][Oo][Kk][Ss][Pp][Aa][Tt][Hh]'
 if [[ "$joined" =~ $hooks_key ]]; then
   hooks_read='^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$'
   hooks_set='^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$'
   hooks_search='^ *(((\{|!|if|then|do|else|while|time|env|command|[A-Za-z_][A-Za-z0-9_]*=[^ ]*) +)*)(rg|grep)( |$)'
   hooks_pre='(^| )--pre([ =]|$)'
+  hooks_split='{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }'
+  if [[ "$joined" != *$'\n'* && "$joined" != *'$('* && "$joined" != *'${'* && "$joined" != *"\$'"* &&
+    "$joined" != *'$"'* && "$joined" != *'`'* && "$joined" != *'<('* && "$joined" != *'>('* &&
+    "$joined" != *"\\'"* && "$joined" != *'\"'* ]]; then
+    hooks_split='{
+      s = $0; n = length(s); out = ""; e = 0
+      for (k = 1; k <= n; k++) {
+        c = substr(s, k, 1)
+        if (k < e) { if (c ~ /[;&|()]/) c = " " }
+        else if (k == e) e = 0
+        else if (c == "\\") { c = c substr(s, k + 1, 1); k++ }
+        else if (c == "\047" || c == "\"") { e = index(substr(s, k + 1), c); e = e ? k + e : 0 }
+        else if (c ~ /[;&|()]/) c = "\n"
+        out = out c
+      }
+      print out
+    }'
+  fi
   while IFS= read -r line; do
     [[ "$line" =~ $hooks_search && ! "$line" =~ $hooks_pre ]] && continue
     [[ "$line" == *core.hookspath* && ! "$line" =~ $hooks_read && ! "$line" =~ $hooks_set ]] && block "changes core.hooksPath"
-  done < <(sed -E "s/$hooks_key/core.hookspath/g" <<< "$joined" |
-    tr -s '\t ' '  ' | awk '{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }')
+  done < <(sed -E "s/$hooks_key/core.hookspath/g" <<< "$joined" | tr -s '\t ' '  ' | awk "$hooks_split")
 fi
 
 # The joined text with one space for each run of tabs and spaces, the git global options removed,

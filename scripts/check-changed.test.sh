@@ -1,7 +1,8 @@
 #!/bin/bash
 # Check that check-changed.sh prints the right three lines for each kind of change, fails closed
 # on a bad or empty base, still sees a moved floor file, that each risk floor path exists, and that each split
-# file of a floor file is on the floor.
+# file of a floor file is on the floor. Check that a path of the shared guard list gives risk: yes and
+# keeps its class, and that each path of the list exists.
 # Check that `make check-changed` of the real Makefile exits nonzero when the script does, and
 # runs no target (not the default goal `setup`) for an empty target list. Check that FILTER
 # gives test-filter in place of test (and check-fast test-filter test-app, or static test-filter
@@ -216,8 +217,8 @@ expect 'a mapped path and an unnamed path' "$(out tooling "check-fast$all_hooks"
 # Before the push the word never comes: the push check runs the full list with its own switch.
 expect 'a script that no test names, before the push' "$(out tooling check-fast no)" --push <<<"$unnamed"
 # A path set that maps to every hook test gives the switch word, not the whole list as one word, which
-# test-hooks.sh would refuse.
-expect 'every hook test as a path' "$(out tooling "check-fast$all_hooks" no)" <<<"$hook_list"
+# test-hooks.sh would refuse. The list holds the guardrails test, a shared guard, so risk is yes.
+expect 'every hook test as a path' "$(out tooling "check-fast$all_hooks" yes)" <<<"$hook_list"
 # A path with a test keeps its HOOK_TESTS word and gets no switch word.
 [[ "$(cd "$e" && "$script" --paths <<<"$seen_sh")" != *DIRIGIBLE_HOOKS_ALL* ]] || fail 'a script with a test: the switch word'
 # A path of class docs needs no test; a change of Swift sources adds the test target, not a hook test.
@@ -232,11 +233,30 @@ for args in 'scripts/a.sh' '--push scripts/a.sh'; do
   grep -q 'usage:' "$tmp/paths.err" || fail "--paths $args: no usage line: $(cat "$tmp/paths.err")"
 done
 
+# A path of the shared guard list gives risk: yes like a floor path, and keeps its class and targets.
+# Names that this file would make it a test of are built from parts.
+clock_hook=".claude/hooks/agent-cl""ock.sh"
+for p in "$clock_hook" scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/git-guardrails.test.sh; do
+  expect "a shared guard $p" "$(out tooling "check-fast$(hw "$p")" yes)" <<<"$p"
+done
+# agent-guard.sh fails open on check-plan.sh, so check-plan.sh is no shared guard.
+for p in "scripts/with-lock.te""st.sh" scripts/check-changed.sh "scripts/check-pl""an.sh" ".claude/skills/deliver/scripts/log-deci""sion.sh"; do
+  expect "near a shared guard $p" "$(out tooling "check-fast$(hw "$p")" no)" <<<"$p"
+done
+expect 'a shared guard before the push' "$(out tooling check-fast yes)" --push <<<"$clock_hook"
+
 # Floor case: each risk floor path exists, so a rename cannot drop a file out of the floor.
 floor="$("$script" --floor)" || fail "--floor exits $?"
 [[ -n "$floor" ]] || fail '--floor prints no path'
 for p in $floor; do
   [[ -e "$repo/$p" ]] || fail "floor path $p does not exist; change the floor in check-changed.sh"
+done
+
+# Shared guard list case: the list holds the build lock script, and each path exists.
+guards="$(sed -n 's/^shared_guards="\(.*\)"$/\1/p' "$script")"
+[[ " $guards " == *" scripts/with-lock.sh "* ]] || fail "the shared guard list [$guards] is empty or lacks scripts/with-lock.sh"
+for p in $guards; do
+  [[ -e "$repo/$p" ]] || fail "shared guard path $p does not exist; change the shared guard list in check-changed.sh"
 done
 
 # Floor split files: a file <floor stem>+*.swift of a floor file is on the floor, so a split cannot leave it.
@@ -349,6 +369,16 @@ g mv Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/Session/Ses
 g commit -q -m move
 got="$(run_in main)" || fail "a moved floor file: exit $?"
 [[ "$got" == *$'\nrisk: yes' ]] || fail "a moved floor file: got [$got]"
+
+# A branch whose only change is a hook: risk: yes against the base.
+new_repo
+g switch -q -c feat/hook
+mkdir -p "$tmp/r/.claude/hooks"
+printf 'h\n' > "$tmp/r/.claude/hooks/h.sh"
+g add -A
+g commit -q -m hook
+got="$(run_in main)" || fail "a hook branch: exit $?"
+[[ "$got" == "$(out tooling check-fast yes)" ]] || fail "a hook branch: got [$got]"
 
 # The content of the change (the git modes only). content_case <name> <file> <old> <new> <want>
 # [main]: commit <old> on main, then write <new> to the working tree. With main, commit <new> on a

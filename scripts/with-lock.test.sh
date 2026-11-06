@@ -939,6 +939,28 @@ mk_end 'second one older'
 rm -rf "$marks" "$tmp/mkdone" "$tmp/ran5" "$tmp/mk.err"
 reset_builders
 
+# A lock-free call that waits behind a holder prints a new line when a new cause appears: a marker
+# after a push check.
+reset_builders
+hold
+echo 'make dmg' > "$lock/command"
+sleep 60 & inner=$!
+WITH_LOCK_MAX_WAIT=30 WITH_LOCK_RETRY=0.2 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=m > "$tmp/free.out" 2>&1 &
+waiter=$!
+until_true 50 grep -q 'held by pid' "$tmp/free.out" || fail "new cause: no holder line: $(cat "$tmp/free.out")"
+mkdir -p "$marks"
+stamped "$inner" "$(date +%s)" "$repo" > "$marks/$inner"
+clear_hold
+until_true 50 grep -q "bench marker pid $inner (" "$tmp/free.out" || fail "new cause: no line that names the marker: $(cat "$tmp/free.out")"
+rm -f "$marks/$inner"
+kill "$inner" 2>/dev/null
+wait "$inner" 2>/dev/null
+inner=""
+wait "$waiter" 2>/dev/null
+waiter=""
+reset_builders
+rm -rf "$marks"
+
 # --bench-mark times only a shell script or a hook test: a command of the lock class that it can see
 # gets exit 64, one stderr line with the lock form, no event, and no marker. A marker command runs.
 # The stubs only log an event, so a form that runs builds nothing.

@@ -102,7 +102,7 @@
 # WITH_LOCK_RUN_ONLY=1 makes a call lock-free (targets run-only) for a step that only runs a built
 # binary and times nothing: it takes no lock and waits only for a long holder, as above. The call
 # skips the leading wrapper words of --bench-mark (below) and probe.sh [--no-audio] <folder>,
-# comparing words by basename. The command
+# comparing words by basename; env -S and env --split-string exit 2. The command
 # left must be a built binary (a path under .build/ or build/Dirigible.app/, with no .. part),
 # bash <file>, or sh <file>. After a probe.sh word, a built binary must be an absolute path (for
 # example "$PWD/.build/debug/dirigible"), because probe.sh changes to its folder first. Any other
@@ -378,16 +378,17 @@ ahead() {
     done
     return 1
 }
-# run_only <command>: the mode WITH_LOCK_RUN_ONLY=1 (header). It skips the leading words env and time
-# (each only when the next word does not start with -), NAME=value, and probe.sh [--no-audio]
-# <folder>, compared by basename. The command left must be a built binary (a path under .build/
-# or build/Dirigible.app/), bash <file>, or sh <file>; after a probe.sh word, a built binary must
+# run_only <command>: the mode WITH_LOCK_RUN_ONLY=1 (header). It skips the leading wrapper words
+# (skip_wrappers) and probe.sh [--no-audio] <folder>, compared by basename. An env -S word exits 2,
+# because the words that it splits are not visible. The command left must be a built binary (a path
+# under .build/ or build/Dirigible.app/), bash <file>, or sh <file>; after a probe.sh word, a built binary must
 # be an absolute path, because probe.sh changes to its folder first. Any other form exits 2 and
 # runs nothing, because the call cannot see inside a wrapper that it does not know.
 run_only() {
-    local c probed="" built=""
+    local c probed="" built="" split=0
     while :; do
         skip_wrappers "$@"
+        split=$((split | skip_split))
         shift "$skip_n"
         [[ "${1##*/}" == probe.sh ]] || break
         shift
@@ -397,6 +398,7 @@ run_only() {
         shift
     done
     c="${1:-}"
+    [[ $split -eq 0 ]] || c=""
     case "/$c/" in */../*) c="" ;; esac
     if [[ -n "$probed" ]]; then
         case "$c" in /*/.build/?* | /*/build/Dirigible.app/?*) built=1 ;; esac

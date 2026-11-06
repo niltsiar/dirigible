@@ -29,7 +29,10 @@ import Testing
                 "deleteCloseGapSelectedTracks \u{8} \(EventModifiers([.shift, .option]).rawValue)", "setIn i 0",
                 "setOut o 0",
                 "deselectAll a \(EventModifiers([.command, .shift]).rawValue)", "split b \(command)",
-                "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)", "fade f \(command)",
+                "nudgeLeft \u{F702} \(command)", "nudgeRight \u{F703} \(command)",
+                "rollToPlayhead x \(EventModifiers.shift.rawValue)",
+                "slipLeft \u{F702} \(EventModifiers([.shift, .option]).rawValue)",
+                "slipRight \u{F703} \(EventModifiers([.shift, .option]).rawValue)", "fade f \(command)",
                 "addGainPoint k \(EventModifiers.option.rawValue)",
             ])
         let shift = EventModifiers.shift.rawValue

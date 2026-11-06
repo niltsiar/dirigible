@@ -475,6 +475,10 @@
 "menu.edit.nudge.right" = "Empurrar para a Direita";
 "menu.edit.fade" = "Fade";
 "menu.edit.heal" = "Unir Clipes";
+"menu.edit.close.gaps" = "Fechar Lacunas";
+"menu.edit.roll.to.playhead" = "Mover Ponto de Edição para o Cursor de Reprodução";
+"menu.edit.slip.content.left" = "Deslizar Conteúdo para a Esquerda";
+"menu.edit.slip.content.right" = "Deslizar Conteúdo para a Direita";
 "menu.edit.gain.point.add" = "Adicionar Ponto de Ganho";
 "gain.point.added" = "Ponto de ganho adicionado: %@";
 "gain.point.set" = "Ponto de ganho definido: %@";

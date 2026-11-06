@@ -475,6 +475,10 @@
 "menu.edit.nudge.right" = "Pousser vers la droite";
 "menu.edit.fade" = "Fondu";
 "menu.edit.heal" = "Joindre les clips";
+"menu.edit.close.gaps" = "Fermer les espaces";
+"menu.edit.roll.to.playhead" = "Déplacer le point de montage à la tête de lecture";
+"menu.edit.slip.content.left" = "Glisser le contenu vers la gauche";
+"menu.edit.slip.content.right" = "Glisser le contenu vers la droite";
 "menu.edit.gain.point.add" = "Ajouter un point de gain";
 "gain.point.added" = "Point de gain ajouté : %@";
 "gain.point.set" = "Point de gain défini : %@";

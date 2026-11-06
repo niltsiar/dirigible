@@ -115,6 +115,7 @@ extension SessionWindow {
         // Add Marker and Add Chapter also act while a take records (F107).
         case .addMarker, .addChapter: canEdit || studio?.canAddTakeMarker == true
         case .moveMarker, .deleteMarker: canEdit
+        case .closeGaps, .rollToPlayhead, .slipLeft, .slipRight: canEdit
         default: true
         }
     }

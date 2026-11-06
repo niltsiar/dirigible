@@ -97,6 +97,8 @@ struct DirigibleApp: App {
                     ForEach(TimelineCommand.rippleItems, id: \.command) { item in menuButton(item) }
                     Divider()
                     ForEach(TimelineCommand.editItems, id: \.command) { item in menuButton(item) }
+                    Button(L10n.menuEditCloseGaps.key) { app.timeline(.closeGaps) }
+                        .disabled(app.key?.isOn(.closeGaps) != true)
                     Button(L10n.menuEditHeal.key) { app.timeline(.heal) }.disabled(app.key?.isOn(.heal) != true)
                 }
                 // Every marker key is one that a text field uses: never disabled (probe K1).

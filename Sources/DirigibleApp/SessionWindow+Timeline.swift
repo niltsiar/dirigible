@@ -72,6 +72,8 @@ enum TimelineCommand: Hashable {
     /// Replace and Paste to Fill Selection (decision 0053): a paste into the selected range.
     case replace, fill
     case split, nudgeLeft, nudgeRight, fade, heal
+    /// The trim edits of decision 0036: Close Gaps, Roll Edit to Playhead, and the two slips.
+    case closeGaps, rollToPlayhead, slipLeft, slipRight
     case addMarker, addChapter, markerInfo, moveMarker, deleteMarker, previousMarker, nextMarker
     case renameTrack, removeTrack, muteTracks, soloTracks, showInFinder, importAudio, importTranscript, export,
         exportSelection
@@ -144,6 +146,10 @@ enum TimelineCommand: Hashable {
         case .fade: false
         // Heal Clips has no key: Command-H is Hide in macOS.
         case .heal: false
+        // Close Gaps has no key. A text field types the capital X of Shift-X and extends its selection
+        // with Shift-Option-Left and Shift-Option-Right.
+        case .rollToPlayhead, .slipLeft, .slipRight: true
+        case .closeGaps: false
         }
     }
 
@@ -261,6 +267,7 @@ extension SessionWindow {
         case .split, .nudgeLeft, .nudgeRight: runSplitOrNudge(command, studio)
         case .fade: runFade(studio)
         case .heal: runHeal(studio)
+        case .closeGaps, .rollToPlayhead, .slipLeft, .slipRight: runTrim(command, studio)
         case .addMarker, .addChapter, .markerInfo, .moveMarker, .deleteMarker, .previousMarker, .nextMarker:
             runMarker(command, studio)
         case .renameTrack:

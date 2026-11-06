@@ -475,6 +475,10 @@
 "menu.edit.nudge.right" = "Nach rechts schieben";
 "menu.edit.fade" = "Fade";
 "menu.edit.heal" = "Clips verbinden";
+"menu.edit.close.gaps" = "Lücken schließen";
+"menu.edit.roll.to.playhead" = "Schnittpunkt an Abspielposition verschieben";
+"menu.edit.slip.content.left" = "Inhalt nach links verschieben";
+"menu.edit.slip.content.right" = "Inhalt nach rechts verschieben";
 "menu.edit.gain.point.add" = "Pegelpunkt hinzufügen";
 "gain.point.added" = "Pegelpunkt hinzugefügt: %@";
 "gain.point.set" = "Pegelpunkt gesetzt: %@";

@@ -18,10 +18,11 @@ enum LaneMenu {
     /// The groups of the menu, with no empty group. `split` is true when a clip is at the split
     /// frames; `clips` is true for a clip set with a clip; `stereo` is true when the selection holds a
     /// stereo clip; `denoise` is true when it holds a clip that Reduce Noise and Repair Sound take; `restore` is true
-    /// when it holds a clip on a rendered file.
+    /// when it holds a clip on a rendered file; `closeGaps` is true for a clip set of 2 or more clips (Close Gaps is no
+    /// ripple, so a pending or split take does not hide it).
     static func groups(
         selection: Bool, clips: Bool, stereo: Bool, denoise: Bool, restore: Bool, clipboard: Bool, split: Bool,
-        canEdit: Bool, canRipple: Bool
+        canEdit: Bool, canRipple: Bool, closeGaps: Bool = false
     ) -> [[Item]] {
         let ripple = canEdit && canRipple
         let range = selection && !clips
@@ -42,6 +43,7 @@ enum LaneMenu {
                 denoise ? Item(command: .repairSound, enabled: true) : nil,
                 restore ? Item(command: .restoreOriginal, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
+                closeGaps ? Item(command: .closeGaps, enabled: true) : nil,
             ],
         ]
         let markers = [Item(command: .addMarker, enabled: true), Item(command: .addChapter, enabled: true)]
@@ -68,7 +70,8 @@ extension TimelineScrollView {
             restore: !model.restoreClips(in: session).isEmpty,
             clipboard: model.clipboard != nil,
             split: split,
-            canEdit: model.canEdit, canRipple: context.canRipple)
+            canEdit: model.canEdit, canRipple: context.canRipple,
+            closeGaps: selection.marks == nil && selection.selectedClips(in: session).count >= 2)
         let menu = NSMenu()
         menu.autoenablesItems = false
         for (index, group) in groups.enumerated() {

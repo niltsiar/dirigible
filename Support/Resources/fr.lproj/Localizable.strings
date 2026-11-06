@@ -409,7 +409,7 @@
 "timeline.readout.range.gain" = "Gain de la plage %@ dB";
 "timeline.readout.roll" = "Point de montage %@ ms";
 "timeline.readout.slip" = "Contenu %@ ms";
-"timeline.help.roll.slip" = "Maj+Commande+glisser : déplace un point de montage ou le contenu d’un clip";
+"timeline.help.roll.slip" = "Maj+Commande+glisser : déplace un point de montage ou fait glisser le contenu d’un clip";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Zoom avant";

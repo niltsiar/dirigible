@@ -241,4 +241,32 @@ struct RollSlipTests {
         }
         #expect(copy == session, "A did not move")
     }
+
+    // MARK: Limits of a loaded session
+
+    /// The load refuses a clip whose media or crossfade handle lies outside its file, so
+    /// `lowest...highest` of a limit query always holds 0 and never traps.
+    @Test func loadRefusesAClipThatWouldInvertALimitRange() throws {
+        let file = #"<file id="f1" path="a.wav" channels="1" length="1000"/>"#
+        func read(_ clip: String) throws(SessionFileError) -> Session {
+            let track = #"<track id="t1" name="A" gain="0" layout="mono">\#(clip)</track>"#
+            return try Session(xml: Data(document(version: "4", files: file, tracks: track).utf8))
+        }
+        let cases: [(String, SessionError)] = [
+            (#"<clip id="c1" file="f1" start="0" offset="1" length="1000" gain="0"/>"#, .clipOutsideFile("c1")),
+            (
+                #"<clip id="c1" file="f1" start="0" offset="0" length="1000" gain="0" crossfadeOut="4"/>"#,
+                .crossfadeOutsideFile("c1", needed: 2)
+            ),
+            (
+                #"<clip id="c1" file="f1" start="0" offset="1" length="999" gain="0" crossfadeIn="4"/>"#,
+                .crossfadeOutsideFile("c1", needed: 2)
+            ),
+        ]
+        for (clip, error) in cases {
+            #expect(throws: SessionFileError.invalidSession(error), "\(clip)") { try read(clip) }
+        }
+        let full = try read(#"<clip id="c1" file="f1" start="0" offset="0" length="1000" gain="0"/>"#)
+        #expect(try full.slipLimits("c1") == 0...0, "a clip that fills its file has no room: the range holds 0")
+    }
 }

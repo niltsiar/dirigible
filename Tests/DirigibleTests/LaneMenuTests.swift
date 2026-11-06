@@ -40,7 +40,7 @@ import Testing
         let groups = LaneMenu.groups(
             selection: true, clips: false, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: true,
-            canRipple: true)
+            canRipple: true, closeGaps: false)
         #expect(
             groups.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste, .fill, .insert, .replace], [.delete, .deleteCloseGap, .split, .fade],
@@ -69,7 +69,7 @@ import Testing
             selection: false, clips: false, stereo: false, denoise: false, restore: false, clipboard: false,
             split: false,
             canEdit: true,
-            canRipple: true)
+            canRipple: true, closeGaps: false)
         #expect(
             none.map { $0.map(\.command) } == [[.cut, .copy, .paste], [.addMarker, .addChapter]],
             "no selection, no clipboard, no clip at the playhead")
@@ -77,7 +77,7 @@ import Testing
         let split = LaneMenu.groups(
             selection: false, clips: false, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: true,
-            canRipple: true)
+            canRipple: true, closeGaps: false)
         #expect(
             split.map { $0.map(\.command) } == [[.cut, .copy, .paste, .insert], [.split], [.addMarker, .addChapter]])
     }
@@ -87,7 +87,7 @@ import Testing
         let take = LaneMenu.groups(
             selection: true, clips: false, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: false,
-            canRipple: false
+            canRipple: false, closeGaps: false
         )
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
@@ -112,7 +112,7 @@ import Testing
         let blocked = LaneMenu.groups(
             selection: true, clips: false, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: true,
-            canRipple: false)
+            canRipple: false, closeGaps: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
                 [.copy, .paste, .fill], [.delete, .split, .fade], [.addMarker, .addChapter],
@@ -129,7 +129,7 @@ import Testing
         ) -> [[LaneMenu.Item]] {
             LaneMenu.groups(
                 selection: selection, clips: clips, stereo: false, denoise: false, restore: false,
-                clipboard: clipboard, split: false, canEdit: true, canRipple: ripple)
+                clipboard: clipboard, split: false, canEdit: true, canRipple: ripple, closeGaps: false)
         }
         func first(_ groups: [[LaneMenu.Item]]) -> [LaneMenu.Item] { groups[0] }
         #expect(first(commands()).map(\.command) == [.cut, .copy, .paste, .fill, .insert, .replace])
@@ -199,7 +199,7 @@ import Testing
         let set = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: true,
-            canRipple: true)
+            canRipple: true, closeGaps: false)
         #expect(
             set.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste, .insert], [.delete, .split, .fade], [.addMarker, .addChapter],
@@ -209,7 +209,7 @@ import Testing
         let blocked = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: true,
-            canRipple: false)
+            canRipple: false, closeGaps: false)
         #expect(
             blocked.map { $0.map(\.command) } == [
                 [.cut, .copy, .paste], [.delete, .split, .fade], [.addMarker, .addChapter],
@@ -217,7 +217,7 @@ import Testing
         let take = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: false, restore: false, clipboard: true, split: true,
             canEdit: false,
-            canRipple: false)
+            canRipple: false, closeGaps: false)
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
@@ -300,7 +300,7 @@ extension LaneMenuTests {
                 selection: true, clips: true, stereo: stereo, denoise: false, restore: false, clipboard: false,
                 split: true,
                 canEdit: canEdit,
-                canRipple: true
+                canRipple: true, closeGaps: false
             ).map { $0.map(\.command) }
         }
         #expect(
@@ -319,7 +319,7 @@ extension LaneMenuTests {
             LaneMenu.groups(
                 selection: true, clips: true, stereo: stereo, denoise: denoise, restore: false, clipboard: false,
                 split: true,
-                canEdit: true, canRipple: true
+                canEdit: true, canRipple: true, closeGaps: false
             )[1].map(\.command)
         }
         #expect(group(denoise: true) == [.delete, .split, .reduceNoise, .repairSound, .fade])
@@ -329,7 +329,7 @@ extension LaneMenuTests {
         let take = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: true, restore: false, clipboard: false, split: true,
             canEdit: false,
-            canRipple: false)
+            canRipple: false, closeGaps: false)
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 
@@ -340,7 +340,7 @@ extension LaneMenuTests {
         func group(restore: Bool, denoise: Bool = true) -> [TimelineCommand] {
             LaneMenu.groups(
                 selection: true, clips: true, stereo: false, denoise: denoise, restore: restore, clipboard: false,
-                split: true, canEdit: true, canRipple: true
+                split: true, canEdit: true, canRipple: true, closeGaps: false
             )[1].map(\.command)
         }
         #expect(group(restore: true) == [.delete, .split, .reduceNoise, .repairSound, .restoreOriginal, .fade])
@@ -348,7 +348,7 @@ extension LaneMenuTests {
         #expect(group(restore: false) == [.delete, .split, .reduceNoise, .repairSound, .fade])
         let take = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: true, restore: true, clipboard: false, split: true,
-            canEdit: false, canRipple: false)
+            canEdit: false, canRipple: false, closeGaps: false)
         #expect(take.map { $0.map(\.command) } == [[.addMarker, .addChapter]])
     }
 

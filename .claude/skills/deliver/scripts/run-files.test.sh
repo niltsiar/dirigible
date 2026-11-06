@@ -216,6 +216,40 @@ cc_dot a b2
 cc_row 'dotted, only C4.1 again' 2 'criterion change C4.1: old x, new y'
 cc_row 'dotted, C4.2 edited' 0 'criterion change C4.2: old x, new y'
 [[ "$(awk -F'\t' '$1 == "C4.2" { print $2 }' "$cc/criteria-logged.tsv" | tail -n 1)" == '- C4.2: b2' ]] || fail 'dotted: criteria-logged.tsv holds no text of C4.2'
+# Each row of any phase gives a baseline to every criterion that has none, so a row for an ID that was
+# in the file at an earlier row needs an edit of that ID, in the first row of a run too.
+logged_text() { awk -F'\t' -v id="$1" '$1 == id { t = $2 } END { print t }' "$cc/criteria-logged.tsv"; }
+cc_fresh
+cc_crit a b
+cc_row 'baselines, first row for C1' 0 'criterion change C1: old none, new a'
+cc_row 'baselines, C2 with no edit of C2' 2 'criterion change C2: old a, new b'
+cc_crit a b2
+cc_row 'baselines, C2 after an edit of C2' 0 'criterion change C2: old b, new b2'
+cc_fresh
+cc_crit a b
+"$log" "$cc" 1 'plan started' why evidence done || fail "baselines: a phase 1 row exits $?"
+[[ "$(logged_text C1)" == '- C1: a' && "$(logged_text C2)" == '- C2: b' ]] || fail 'baselines: a phase 1 row did not write the text of C1 and C2'
+cc_crit a2 b
+cc_row 'baselines, phase 1 row first, C2 with no edit' 2 'criterion change C2: old b, new b'
+cc_row 'baselines, phase 1 row first, C1 edited' 0 'criterion change C1: old a, new a2'
+cc_row 'baselines, no ID, no edit since the C1 row' 2 'criterion change: old x, new y'
+# An ID that appears after the last row is new: its row needs no edit after the add.
+cc_fresh
+cc_crit a b
+"$log" "$cc" 1 'plan started' why evidence done || fail "baselines: a phase 1 row exits $?"
+cc_crit a b c
+cc_row 'baselines, a new ID C3' 0 'criterion change C3: old none, new c'
+# Before the gate copy, an edit of an ID is not a free row after it: the row that makes the gate copy
+# gives every ID the gate text as its baseline.
+cc_fresh
+cc_crit a b
+"$log" "$cc" 1 'plan started' why evidence done || fail "baselines: a phase 1 row exits $?"
+cc_crit a2 b2
+"$log" "$cc" 4 'slice committed' why evidence done || fail "baselines: the first phase 4 row exits $?"
+cc_row 'baselines, C1 edited before the gate copy, no edit since' 2 'criterion change C1: old a, new a2'
+cc_row 'baselines, no ID, no edit since the gate copy' 2 'criterion change: old x, new y'
+cc_crit a3 b2
+cc_row 'baselines, C1 edited after the gate copy' 0 'criterion change C1: old a2, new a3'
 # analysis-gate.md is the baseline of an ID with no row, and a removed criterion needs one row.
 cc_fresh
 cc_crit a b
@@ -233,8 +267,7 @@ cc_sub() { # <C1 sub value> <C2 sub value>
   printf '# A\n\n## Acceptance criteria\n\n- C1: main one\n  - proof: %s\n\n  - near miss: x\n- C2: main two\n\t- proof: %s\n\nA paragraph after the list, not part of C2.\n\n## Other\n' "$1" "$2" > "$cc/analysis.md"
 }
 cc_sub p1 q1
-cc_row 'indented, first row C1' 0 'criterion change C1: old none, new main one'
-cc_row 'indented, first row C2' 0 'criterion change C2: old none, new main two'
+cc_row 'indented, first row C1 and C2' 0 'criterion change C1 C2: old none, new main'
 cc_sub p2 q1
 cc_row 'only the C1 sub-bullet changed, row for C2' 2 'criterion change C2: old a, new b'
 cc_row 'sub-bullet edit of C1' 0 'criterion change C1: old p1, new p2'

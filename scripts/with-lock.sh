@@ -138,7 +138,7 @@
 # <git common dir>/dirigible-bench-marks/<pid of the call>, waits until no live lock-free call is
 # left, runs scripts/check-changed.sh --wait-load bench, runs the command as a child, and removes the
 # marker when the command ends. The marker and each lock-free file (below) have the start time of
-# their process in line 1 (ps lstart); the marker has the call start time in line 2 and the tree in
+# their process in line 1 (ps lstart in the C locale and UTC); the marker has the call start time in line 2 and the tree in
 # line 3. A lock-free call (below) writes <git common dir>/dirigible-lock-free/<pid of the call>
 # with its command while it runs, and removes the file at its end; a call that waits holds no such
 # file. A file is live only while its pid runs with that start time, so a pid that the kernel gave
@@ -168,8 +168,9 @@ retry="${WITH_LOCK_RETRY:-30}"
 told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
-# pstart <pid>: the start time of the process (ps lstart); empty when ps cannot tell.
-pstart() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
+# pstart <pid>: the start time of the process (ps lstart); empty when ps cannot tell. The C locale and
+# UTC make the text the same for a writer and a reader with another LANG or TZ.
+pstart() { LC_ALL=C TZ=UTC0 ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
 # file_live <file>: a marker or lock-free file is named after a pid, and line 1 holds the start time
 # of that process. It is live while the pid runs with that start time. Else it goes: the pid is dead,
 # or the kernel gave it to another process. An empty start time (ps printed nothing when the file was

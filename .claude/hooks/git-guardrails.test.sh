@@ -2469,6 +2469,13 @@ clock_block_commands=('git push origin x' 'make test' 'cd T && git commit -F x &
   'git commit -F x; scripts/with-lock.sh make check-fast' 'git status $(make test)' 'git status & make test'
   'bash x/log-decision.sh' 'x/log-decision.sh run 4 d w e r' 'git status `make test`' 'git diff <(make test)'
   'git diff >(make test)')
+# The hand-off forms of reflect step 4 and of a row or commit check: echo with no redirect, and
+# scripts/wiki.py lesson and move by the word scripts/wiki.py or the path in the repo of the hook.
+clock_pass_commands+=('git commit -F x; echo $?' '.claude/skills/deliver/scripts/log-decision.sh r --from f; echo "exit $?"'
+  'echo done' 'scripts/wiki.py lesson K --from f' "$(cd "$(dirname "$0")/../.." && pwd)/scripts/wiki.py move 1 done")
+clock_block_commands+=('echo x > f' 'echo x >> f' 'git status; echo x < f' 'scripts/wiki.py add next --from f'
+  'python3 scripts/wiki.py move 1 done' 'x/wiki.py lesson K --from f' '.scratchpads/x/scripts/wiki.py lesson K --from f'
+  '/other/scripts/wiki.py move 1 done')
 # clock_forms <transcript folder> <trigger name>: each pass and block form against one transcript
 clock_forms() {
   local form tool want input label command

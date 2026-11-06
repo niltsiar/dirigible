@@ -32,7 +32,9 @@
 #     finish and be read;
 #   - a Bash command in which each segment is `cd <path>`, only NAME=value words, git status, diff,
 #     log, add, or commit (`git -C <path>` and `git -c <key=value>` dropped, as git-guardrails.sh does),
-#     or log-decision.sh by a path that ends in .claude/skills/deliver/scripts/log-decision.sh.
+#     or log-decision.sh by a path that ends in .claude/skills/deliver/scripts/log-decision.sh, or
+#     echo with no word that holds > or <, or scripts/wiki.py lesson or move (the word
+#     scripts/wiki.py, or the absolute path of scripts/wiki.py in the repo of this hook).
 #     Segments split on &&, ||, ;, |, and new lines; each leading NAME=value word of a segment is
 #     dropped. A command with $(, a backtick, <(, >(, or a lone & is refused.
 # The hook passes every input that it cannot read: input that is not JSON, no transcript file, or
@@ -57,6 +59,7 @@ COORDINATOR = "The coordinator sent a message"
 PASS_TOOLS = {"Read", "ToolSearch", "TaskStop", "SubagentHandback"}
 GIT_PASS = {"status", "diff", "log", "add", "commit"}
 LOG_DECISION = ".claude/skills/deliver/scripts/log-decision.sh"
+WIKI = os.path.realpath(os.path.join(os.path.dirname(sys.argv[2]), "..", "..", "scripts", "wiki.py"))
 
 
 def line_time(line):
@@ -206,6 +209,10 @@ def segment_passes(segment):
         return len(words) <= 2
     if words[0].endswith(LOG_DECISION):
         return True
+    if words[0] == "echo":
+        return not any(">" in w or "<" in w for w in words)
+    if words[0] == "scripts/wiki.py" or (words[0].startswith("/") and os.path.realpath(words[0]) == WIKI):
+        return len(words) > 1 and words[1] in ("lesson", "move")
     if words[0] == "git":
         rest = words[1:]
         while len(rest) >= 2 and rest[0] in ("-C", "-c"):

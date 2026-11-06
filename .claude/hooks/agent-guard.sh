@@ -34,8 +34,9 @@
 #   line.
 # - A brief that names a review-plan-<n>.md or review-diff-<n>.md file of the open run of the hook
 #   cwd (open_run of open-run.py) is refused while scripts/check-plan.sh <run folder> exits 1, so no
-#   fixer starts on review items with no Invariant or Siblings field. The lead writes the review
-#   fields itself, so a repair brief is refused too. The folder of a name is its path (absolute, or
+#   fixer starts on review items with no Invariant or Siblings field. Each exit 1 of check-plan.sh
+#   blocks, whatever rule it names; the block text prints each `check-plan:` line (the whole output
+#   when none). The lead writes the review fields itself, so a repair brief is refused too. The folder of a name is its path (absolute, or
 #   relative to the cwd); a bare name takes each .scratchpads/runs/<slug> folder of the same text. An
 #   exit other than 0 or 1 of check-plan.sh lets the brief pass, with a note. This hook holds the plan
 #   gate; at the code gate, log-decision.sh refuses the phase 6 row until check-plan.sh exits 0.
@@ -106,8 +107,8 @@ for name in re.finditer(r"(?<!" + word + r")((?:" + word + r"*/)?)(review-(?:pla
     code=$?
     if [[ $code -eq 1 ]]; then
       { echo "BLOCKED by .claude/hooks/agent-guard.sh: the brief names ${named#*$'\t'} of the open run $folder, and scripts/check-plan.sh $folder exits 1:"
-        head -3 <<< "$out"
-        echo "The lead writes the review fields itself, with no agent. Fix what scripts/check-plan.sh names, then start the agent."; } >&2
+        grep '^check-plan:' <<< "$out" || echo "$out"
+        echo "Fix what scripts/check-plan.sh names (the lead writes review fields itself, with no agent), then start the agent."; } >&2
       exit 2
     fi
     [[ $code -eq 0 ]] || echo "agent-guard.sh: scripts/check-plan.sh $folder exited $code, so the hook does not check the review fields of the brief." >&2

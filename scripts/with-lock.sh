@@ -101,8 +101,8 @@
 # the recipe passes the 75 of scripts/run-checks.sh (a lock wait of a swift-test.sh call over its limit).
 # WITH_LOCK_RUN_ONLY=1 makes a call lock-free (targets run-only) for a step that only runs a built
 # binary and times nothing: it takes no lock and waits only for a long holder, as above. The call
-# skips the leading words env and time (each only when the next word does not start with -), each
-# NAME=value word, and probe.sh [--no-audio] <folder>, comparing words by basename. The command
+# skips the leading wrapper words of --bench-mark (below) and probe.sh [--no-audio] <folder>,
+# comparing words by basename. The command
 # left must be a built binary (a path under .build/ or build/Dirigible.app/, with no .. part),
 # bash <file>, or sh <file>. After a probe.sh word, a built binary must be an absolute path (for
 # example "$PWD/.build/debug/dirigible"), because probe.sh changes to its folder first. Any other
@@ -122,26 +122,35 @@
 # (performance-criteria.md of the deliver skill, A time budget). Before any wait, also inside a
 # locked process tree, the call refuses a command of that lock class that it can see: it prints one
 # stderr line that names the lock form scripts/with-lock.sh <command>, and exits 64. The class it
-# sees: swift, a script of lock_scripts (lock-words.sh), probe.sh, land.sh, a path under .build/ or
-# build/Dirigible.app/, and each make call except make test-hooks with a HOOK_TESTS= word (no
-# release call) and goals of lock_free_targets only. make check-changed is refused, because its
-# targets can run a Swift test. It skips the leading words env, time, NAME=value, and bash or sh
-# before a file, compared by basename. It cannot see inside bash -c, a file, or another wrapper.
+# sees: swift, a script of lock_scripts (lock-words.sh), a script that builds or runs Swift
+# (bench_swift in bench_class), probe.sh, land.sh, a path under .build/ or build/Dirigible.app/,
+# and each make call except make test-hooks with a HOOK_TESTS= word (no release call) and goals of
+# lock_free_targets only. make check-changed is refused, because its targets can run a Swift test.
+# The call skips
+# the leading wrapper words (skip_wrappers: time, nice, xcrun, and env with their options, and
+# NAME=value) and bash or sh before a file, compared by basename. It cannot see inside bash -c, a
+# file, or another wrapper. Inside a locked process tree (the call holds the lock through
+# DIRIGIBLE_BUILD_LOCK) it exits 64 with the plain form scripts/with-lock.sh <command>, because a
+# marker cannot keep the lock-free calls of other trees out of a tree that already runs.
 # The call waits as a lock-free call does, writes the marker
-# <git common dir>/dirigible-bench-marks/<pid of the call> with its tree,
-# waits until no live lock-free call is left, runs scripts/check-changed.sh --wait-load bench, runs
-# the command as a child, and removes the marker when the command ends. A lock-free call (below)
-# writes <git common dir>/dirigible-lock-free/<pid of the call> with its command while it runs, and
-# removes the file at its end; a call that waits holds no such file. While a marker of a live pid
-# exists, a lock-free call waits for it as for a bench. So no lock-free call runs while the command
-# runs, in either start order. The wait of the marked call is under the wait limit above (exit 75,
-# no marker left); the load wait adds up to CHECK_LOAD_WAIT seconds. The command gets
-# DIRIGIBLE_BENCH_MARK=<pid of the call>, so a lock-free call inside it does not wait for its
-# marker. A marked call inside a lock-free call waits for that call until the wait limit. A
-# lock-free call that cannot write its file (a sandbox, a full disk) runs, and a marker cannot see
-# it: the call prints one stderr line that names the file. A file or a marker of a dead pid is
-# ignored and removed. A call that takes the lock, --release-holder, and --builders do not read the
-# marker or the lock-free files.
+# <git common dir>/dirigible-bench-marks/<pid of the call>, waits until no live lock-free call is
+# left, runs scripts/check-changed.sh --wait-load bench, runs the command as a child, and removes the
+# marker when the command ends. The marker and each lock-free file (below) have the start time of
+# their process in line 1 (ps lstart); the marker has the call start time in line 2 and the tree in
+# line 3. A lock-free call (below) writes <git common dir>/dirigible-lock-free/<pid of the call>
+# with its command while it runs, and removes the file at its end; a call that waits holds no such
+# file. A file is live only while its pid runs with that start time, so a pid that the kernel gave
+# to another process after a kill leaves no live file. While a marker of a live pid exists, a
+# lock-free call waits for it as for a bench. So no lock-free call runs while the command runs, in
+# either start order. Two marked calls that start together keep a fixed order: the older one (call
+# start time, then pid) keeps its marker, and the other removes its marker and waits. The wait of
+# the marked call is under the wait limit above (exit 75, no marker left); the load wait adds up to
+# CHECK_LOAD_WAIT seconds. The command gets DIRIGIBLE_BENCH_MARK=<pid of the call>, so a lock-free
+# call inside it does not wait for its marker. A marked call inside a lock-free call waits for that
+# call until the wait limit. A lock-free call that cannot write its file (a sandbox, a full disk)
+# runs, and a marker cannot see it: the call prints one stderr line that names the file. A file or
+# a marker that is not live is ignored and removed. A call that takes the lock, --release-holder,
+# and --builders do not read the marker or the lock-free files.
 # The guardrail hook blocks each command that names the lock, the markers, or the lock-free files
 # and is not a read.
 # scripts/with-lock.test.sh tests it.
@@ -272,16 +281,36 @@ case "${1##*/}" in
         echo "with-lock: $1 builds nothing and needs no lock; run it without scripts/with-lock.sh (DLV-157: work that builds nothing may run beside a push check)" >&2
         exit 2 ;;
 esac
-# bench_class <command>: exits 64 with one stderr line for a command of the lock class that a
-# --bench-mark call can see (the header). The make and script words come from lock-words.sh.
-bench_class() {
-    local c w goal="" re="/($lock_scripts)\$" cmd="$*"
+# skip_wrappers <command>...: sets skip_n to the number of leading words that only wrap the command:
+# time, nice, xcrun, and env with their options, and NAME=value words, compared by basename.
+skip_wrappers() {
+    local takes
+    skip_n=0
     while [[ $# -gt 0 ]]; do
         case "${1##*/}" in
-            env | time | bash | sh) [[ $# -ge 2 && "$2" != -* ]] || break ;;
-            *) [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break ;;
+            time) takes='-o' ;;
+            nice) takes='-n' ;;
+            xcrun) takes='-sdk|--sdk|-toolchain|--toolchain' ;;
+            env) takes='-u|-C|-S|-P' ;;
+            *) [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || return 0; shift; skip_n=$((skip_n + 1)); continue ;;
         esac
         shift
+        skip_n=$((skip_n + 1))
+        while [[ $# -gt 0 && "$1" == -* ]]; do
+            if [[ "$1" =~ ^($takes)$ && $# -ge 2 ]]; then shift 2; skip_n=$((skip_n + 2)); else shift; skip_n=$((skip_n + 1)); fi
+        done
+    done
+}
+# bench_class <command>: exits 64 with one stderr line for a command of the lock class that a
+# --bench-mark call can see (the header), or for a hook test that does not run through make
+# test-hooks. The make and script words come from lock-words.sh.
+bench_class() {
+    local c w goal="" bench_swift='bundle|test-filter|test-helper|test-dmg|screenshots|screenshot|verify-copy|mutation-pass' cmd="$*"
+    local re="/($lock_scripts|$bench_swift)\$"
+    while :; do
+        skip_wrappers "$@"
+        shift "$skip_n"
+        case "${1##*/}" in bash | sh) [[ $# -ge 2 && "$2" != -* ]] || break; shift ;; *) break ;; esac
     done
     c="${1:-}"
     case "$c" in .build/?* | */.build/?* | build/Dirigible.app/?* | */build/Dirigible.app/?*) goal=lock ;; esac
@@ -331,12 +360,14 @@ ahead() {
 # runs nothing, because the call cannot see inside a wrapper that it does not know.
 run_only() {
     local c probed="" built=""
-    while [[ $# -gt 0 ]]; do
-        case "${1##*/}" in
-            env | time) [[ $# -ge 2 && "$2" != -* ]] || break ;;
-            probe.sh) shift; probed=1; [[ "${1:-}" != --no-audio ]] || shift; [[ $# -ge 1 ]] || break ;;
-            *) [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break ;;
-        esac
+    while :; do
+        skip_wrappers "$@"
+        shift "$skip_n"
+        [[ "${1##*/}" == probe.sh ]] || break
+        shift
+        probed=1
+        [[ "${1:-}" != --no-audio ]] || shift
+        [[ $# -ge 1 ]] || break
         shift
     done
     c="${1:-}"

@@ -22,7 +22,7 @@ enum LaneMenu {
     /// ripple, so a pending or split take does not hide it).
     static func groups(
         selection: Bool, clips: Bool, stereo: Bool, denoise: Bool, restore: Bool, clipboard: Bool, split: Bool,
-        canEdit: Bool, canRipple: Bool, closeGaps: Bool = false
+        canEdit: Bool, canRipple: Bool, closeGaps: Bool
     ) -> [[Item]] {
         let ripple = canEdit && canRipple
         let range = selection && !clips

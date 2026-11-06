@@ -13,9 +13,9 @@
 # command an & that is part of a redirect (2>&1, >&2, &>) does not end the chunk. In a brief a quote
 # opens only after a non-word character and when a closing quote follows on the line, so an apostrophe
 # in prose opens none; a quote that holds git commit is data only when a search word (rg, grep, find,
-# ag, git log -S) comes before it on the line, or a block report touches it (blocked or refused
-# right before the quote, or was blocked right after it, also in inline code), so a quoted
-# instruction is read. In a brief the chunk of a commit in inline code ends at the closing backtick.
+# ag, git log -S) comes before it on the line, or a block report touches it (see reports()), also in
+# inline code, so a quoted instruction is read. In a brief the chunk of a commit in inline code ends
+# at the closing backtick.
 # Misses: a commit that a shell runs from a quoted string (bash -c, eval, $(...)).
 BEGIN { search = "(^|[^A-Za-z0-9_-])(rg|grep|find|ag|git log -S)([^A-Za-z0-9_]|$)" }
 # closes(line, k): the index of the closing quote of the quote that opens at k, or 0.
@@ -28,12 +28,32 @@ function closes(line, k,   c, j, n) {
   return 0
 }
 # reports(line, k, e): 1 when a block report touches the quote that opens at k and closes at e:
-# blocked or refused (with only spaces or a colon after it) or BLOCKED by <path>: right before the
-# opening quote, or was, were, is, or got and then blocked or refused right after the closing quote.
-function reports(line, k, e,   before, after) {
+# blocked or refused (with only spaces or a colon after it) right before the opening quote; was,
+# were, is, or got and then blocked or refused right after the closing quote; or, any case, blocked
+# or refused by <hook path> (a word that ends in .sh or holds .claude/hooks/) and then for or a colon
+# right before the opening quote, with only punctuation after the closing quote on its line. In
+# that last form the sentence before the block word holds only letters, digits, spaces, and . / ' -
+# inside words, and is empty or a subject: a pronoun (not you) or a determiner and then words, with
+# no joiner, modal, or verb word except has, have, or had before the last word, which is was, were,
+# is, got, or been.
+function reports(line, k, e,   before, after, low, w, n, i) {
   before = substr(line, 1, k - 1); after = substr(line, e + 1)
-  return before ~ /(^|[^A-Za-z])(blocked|refused)[ :]*$/ || before ~ /BLOCKED by [^ ]+: *$/ ||
-    after ~ /^ +(was|were|is|got) +(blocked|refused)([^A-Za-z]|$)/
+  if (before ~ /(^|[^A-Za-z])(blocked|refused)[ :]*$/ ||
+    after ~ /^ +(was|were|is|got) +(blocked|refused)([^A-Za-z]|$)/) return 1
+  low = tolower(before)
+  if (!match(low, /(^|[^a-z])(blocked|refused) by ([^ ]*\.claude\/hooks\/[^ ]*|[^ ]*\.sh)( +for *:?|:) *$/)) return 0
+  low = substr(low, 1, RSTART - 1) (substr(low, RSTART, 1) ~ /[a-z]/ ? "" : substr(low, RSTART, 1))
+  sub(/.*[.!?] +/, "", low); gsub(/^ +| +$/, "", low)
+  if (after !~ /^[ .,;:!?)]*$/ || low ~ /[^a-z0-9 .\/'-]|(^| )[-.\/']+( |$)/) return 0
+  if (low == "") return 1
+  n = split(low, w, " ")
+  if (w[n] !~ /^(was|were|is|got|been)$/) return 0
+  if (w[1] ~ /^(it|they|we|i|he|she)$/) return n == 2 || (n == 3 && w[2] ~ /^(has|have|had)$/ && w[3] == "been")
+  if (w[1] !~ /^(the|a|an|this|that|these|those|its|their|our|my|each|one|both)$/) return 0
+  for (i = 2; i < n; i++)
+    if (w[i] ~ /^(and|or|but|so|then|to|if|when|unless|once|while|because|not|never|please|now|let|must|should|will|would|can|could|may|might|shall|do|does|did|is|are|am|was|were|be|been|being|got|get|gets|has|have|had)$/ &&
+      !(i == n - 1 && w[n] == "been" && w[i] ~ /^(has|have|had)$/)) return 0
+  return 1
 }
 # opens(line, k, c) (brief mode): 1 when the quote character c at k opens a quoted string. A quote
 # that holds git commit opens only after a search word or in a block report; only that report opens

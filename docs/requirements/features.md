@@ -92,7 +92,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F78 | Waveform vertical zoom | FCP | Release 6 | R7 |
 | F79 | No feature: the catalog skipped this ID | - | Dropped (ID not used) | - |
 | F80 | Drag mode: overlap, no overlap, auto crossfade, shuffle | Logic | Release 6 | R7 |
-| F81 | Close gaps between the selected clips | Logic | Release 6 | R7 |
+| F81 | Close gaps between the selected clips | Logic | done, Release 6 run 5 | R7 |
 | F82 | Snap to clip edges with an alignment guide | GarageBand, Logic | done, Release 3 run 3 (v0.3.4) | R7 |
 | F83 | Zoom toggle and zoom history | Logic | done, Release 2 run 2; Later: center the playhead after a zoom, as in Hindenburg Narrator | R1 |
 | F84 | Clip inspector with numeric gain and fades | Logic | done, Release 2 run 11b-2 | R7 |

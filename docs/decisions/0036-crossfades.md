@@ -7,6 +7,7 @@
 - Amended: 2026-10-04, run 11c-2 (`2026-10-04-crossfades-ui`): the handle drag is relative to the press, the X lines draw in their own pass, and a join takes only the room that the join before it leaves in a short clip.
 - Amended: 2026-10-18, run `2026-10-17-agent-pack` (landing 2): a crossfade at a seamless join with two different gains uses the equal-gain curve; `ClipLane` gives the sounding clips; session version 9.
 - Amended: 2026-10-19, run `2026-10-18-envelope-ducking` (decision 0060): `canHeal(after:)`, and so the **Seamless join** rule, also needs equal gain envelopes at each file frame that the joined clip plays.
+- Amended: 2026-11-06, run `2026-10-28-timeline-edits` (L1): a roll keeps the crossfade of its join, and a slip keeps both crossfades of the clip. `Session.roll(_:by:)` changes both clips in one `ClipLane.replace`, so the repair reads the join once with both clips new.
 
 ## Context
 

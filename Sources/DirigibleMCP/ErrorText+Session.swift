@@ -88,6 +88,7 @@ extension SessionError {
             "the fill makes \(needed) clips, more than the limit of \(Session.fillClipLimit). Give a shorter range "
                 + "or a longer clipboard."
         case .emptyExcerpt: "the excerpt has no frames: give a range or clips with audio."
+        case .noJoin(let id): "no clip touches the end of clip \"\(id)\", so it has no join to roll."
         }
     }
 }

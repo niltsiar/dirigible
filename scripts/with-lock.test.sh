@@ -868,7 +868,7 @@ rm -f "$frees"
 
 # A file of a live pid with another start time in line 1 belongs to a process that the kernel gave
 # the pid after a kill: it is ignored and removed, and no call waits for it.
-stamped() { { ps -o lstart= -p "$1" | sed 's/^ *//'; shift; printf '%s\n' "$@"; }; }
+stamped() { { LC_ALL=C TZ=UTC0 ps -o lstart= -p "$1" | sed 's/^ *//'; shift; printf '%s\n' "$@"; }; }
 sleep 60 & inner=$!
 mkdir -p "$marks" "$frees"
 printf 'Mon Jan  1 00:00:00 2001\n1\n%s\n' "$repo" > "$marks/$inner"
@@ -895,6 +895,17 @@ code=$?
 kill "$inner" 2>/dev/null
 wait "$inner" 2>/dev/null
 inner=""
+rm -rf "$marks" "$frees"
+# The start time in line 1 does not depend on the time zone or the locale: a marker that a call
+# wrote in one zone still blocks a lock-free call in another zone.
+if TZ=America/New_York LC_ALL=es_ES.UTF-8 bm_start 'marker of another time zone'; then
+    rm -f "$tmp/order"
+    out="$(TZ=UTC LC_ALL=C WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a 2>&1)"
+    code=$?
+    [[ $code -eq 75 && ! -s "$tmp/order" && -e "$marks/$waiter" ]] ||
+        fail "marker of another time zone: exit $code, order [$(cat "$tmp/order" 2>/dev/null)], marker [$(ls "$marks")]: $out"
+    bm_end
+fi
 rm -rf "$marks" "$frees"
 
 # A lock-free call that waits behind a holder prints a new line when a new cause appears: a marker
@@ -929,7 +940,7 @@ cat > "$fake/mk/mkdir" << 'EOF'
 for last; do :; done
 if [[ "$last" == */dirigible-bench-marks && ! -e "$MK_DONE" ]]; then
     /bin/mkdir -p "$last" && : > "$MK_DONE"
-    { ps -o lstart= -p "$MK_PID" | sed 's/^ *//'; echo "$MK_AT"; echo "$MK_TREE"; } > "$last/$MK_PID"
+    { LC_ALL=C TZ=UTC0 ps -o lstart= -p "$MK_PID" | sed 's/^ *//'; echo "$MK_AT"; echo "$MK_TREE"; } > "$last/$MK_PID"
 fi
 exec /bin/mkdir "$@"
 EOF

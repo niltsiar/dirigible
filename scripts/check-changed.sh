@@ -1,6 +1,7 @@
 #!/bin/bash
 # Print the change classes of the changed paths, the make targets that they need, and the risk.
 # This script owns the path table and the risk floor (decision 0028). Docs name it, not the table.
+# A change to a path of the shared guard list gives `risk: yes` like a floor path, and keeps its class.
 # In the git modes, the content of a change can also give the class: a change of only comment
 # lines is class comments, and a Makefile change of only comment lines is class docs (comment_only).
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets
@@ -25,7 +26,7 @@
 #          path and one stderr note: `check-changed: <n> commits past origin/main are not checked:
 #          give SINCE=<merge base>`.
 #        scripts/check-changed.sh --paths [--push] <<<$'<path>\n<path>'   the paths from stdin only
-#        scripts/check-changed.sh --floor       print the risk floor paths
+#        scripts/check-changed.sh --floor       print the risk floor paths only (not the shared guard list)
 #        scripts/check-changed.sh --wait-load <targets>   wait for a normal load and no test of another tree
 #          (for a bench and a push check: no build or test of another tree)
 #        scripts/check-changed.sh --overlap <base>   information only, exit 0: name other work that changes a
@@ -61,6 +62,9 @@ set -euo pipefail
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
 # comment-only. A path that ends in / is a folder. check-changed.test.sh fails when a floor path does not exist.
 floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/DirigibleCore/TranscriptStore.swift Sources/DirigibleCore/UnusedFiles.swift Sources/DirigibleCore/Backup.swift Sources/DirigibleCore/Session+Origin.swift Sources/DirigibleCore/SessionReader+Origin.swift Sources/DirigibleCore/UnusedFiles+Transcripts.swift Sources/DirigibleCore/UnusedFiles+Captures.swift Sources/DirigibleMCP/PackageEditCore.swift Sources/DirigibleMCP/PruneWork.swift"
+# The shared guard list: the guards that each session shares (the build lock script, its word
+# lists, the hooks). A change to one gives `risk: yes`. A path that ends in / is a folder.
+shared_guards="scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/"
 
 class_of() {
     local f
@@ -406,6 +410,11 @@ for c in docs comments tooling tests sources sources-risk bundle build; do
     classes+=" $c"
     [[ $c == sources-risk ]] && risk=yes
 done
+while IFS= read -r p; do
+    for f in $shared_guards; do
+        case "$p" in "$f"*) [[ "$f" == */ || "$p" == "$f" ]] && risk=yes ;; esac
+    done
+done <<<"$paths"
 
 # The newest pass stamp S of this base, and the partial stamp line that run-checks.sh appends
 # after a check whose only red targets were tests: '<P> <base commit> failed fast:<names>

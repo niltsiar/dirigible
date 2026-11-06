@@ -157,7 +157,7 @@ struct RollSlipTests {
             Case(
                 name: "B at the file start, no crossfade",
                 session: try Self.fixture(crossfade: .zero, b: { $0.offset = 7 }), limits: -7...95_999,
-                low: .frameOutOfRange, high: .clipOutsideFile("B")),
+                low: .clipOutsideFile("B"), high: .clipOutsideFile("B")),
         ]
         for fixture in cases {
             let limits = try #require(fixture.session.rollLimits("A"), "\(fixture.name)")
@@ -218,9 +218,9 @@ struct RollSlipTests {
         var session = try Self.fixture()
         try session.place(Clip(id: "C", file: "fa", start: 0, offset: 0, length: 48_000), on: "t2")
         let cases: [(ClipID, SessionError, SessionError)] = [
-            ("A", .frameOutOfRange, .crossfadeOutsideFile("A", needed: 480)),
+            ("A", .clipOutsideFile("A"), .crossfadeOutsideFile("A", needed: 480)),
             ("B", .crossfadeOutsideFile("B", needed: 480), .clipOutsideFile("B")),
-            ("C", .frameOutOfRange, .clipOutsideFile("C")),
+            ("C", .clipOutsideFile("C"), .clipOutsideFile("C")),
         ]
         for (id, low, high) in cases {
             let limits = try session.slipLimits(id)

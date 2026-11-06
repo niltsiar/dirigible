@@ -90,7 +90,7 @@ struct ClipEditTests {
         #expect(throws: SessionError.frameOutOfRange) {
             try session.place(clip("c1", start: Frames(.max - 5), length: 10), on: "t1")
         }
-        #expect(throws: SessionError.frameOutOfRange) {
+        #expect(throws: SessionError.clipOutsideFile("c1"), "a negative offset starts outside the file") {
             try session.place(clip("c1", start: 0, offset: -1, length: 10), on: "t1")
         }
         #expect(throws: SessionError.unknownFile("f9")) {

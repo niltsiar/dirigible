@@ -75,7 +75,7 @@ struct TimelineEditCommandLineTests {
             ),
             (["roll", "a", "--by", "48000"], 1, "Error: clip \"b\" is not inside its file.\n"),
             (["slip", "a", "--by", "432001"], 1, "Error: clip \"a\" is not inside its file.\n"),
-            (["slip", "a", "--by", "-1"], 1, "Error: a frame is negative or more than 2^40.\n"),
+            (["slip", "a", "--by", "-1"], 1, "Error: clip \"a\" is not inside its file.\n"),
             (["roll", "a", "--by", "9223372036854775807"], 1, "Error: a frame is negative or more than 2^40.\n"),
             (["slip", "a", "--by", "-9223372036854775807"], 1, "Error: a frame is negative or more than 2^40.\n"),
         ] as [([String], Int32, String)])

@@ -207,6 +207,15 @@ touch -t 200001010000 "$cc/analysis.md"
 cc_row 'no baseline, unchanged analysis.md, no ID' 2 'criterion change: old 10, new 20'
 cc_crit a b
 cc_row 'no baseline, analysis.md edited, no ID' 0 'criterion change: old 10, new 20'
+# A dotted ID is one ID: an edit of C4.2 is a row for C4.2, and C4.1 stays unchanged.
+cc_fresh
+cc_dot() { printf '# A\n\n## Acceptance criteria\n\n- C4.1: %s\n- C4.2: %s\n' "$1" "$2" > "$cc/analysis.md"; }
+cc_dot a b
+cc_row 'dotted, first row for C4.1 and C4.2' 0 'criterion change C4.1 C4.2: old x, new y'
+cc_dot a b2
+cc_row 'dotted, only C4.1 again' 2 'criterion change C4.1: old x, new y'
+cc_row 'dotted, C4.2 edited' 0 'criterion change C4.2: old x, new y'
+[[ "$(awk -F'\t' '$1 == "C4.2" { print $2 }' "$cc/criteria-logged.tsv" | tail -n 1)" == '- C4.2: b2' ]] || fail 'dotted: criteria-logged.tsv holds no text of C4.2'
 # analysis-gate.md is the baseline of an ID with no row, and a removed criterion needs one row.
 cc_fresh
 cc_crit a b

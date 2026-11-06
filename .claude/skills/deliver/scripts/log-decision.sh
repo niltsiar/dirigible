@@ -59,7 +59,7 @@ fi
 # and the indented lines under it, joined by single spaces (the rule of check-plan.sh for the first
 # line). The last row for an ID is its last line in criteria-logged.tsv of the run folder; an ID with
 # no line there reads analysis-gate.md, and an ID with neither counts as new. The row names the ID
-# (a whole word). A row that names an ID which is in no criteria section is refused: a criterion
+# (a whole word; an ID may have dotted parts, so C4.2 is not C4). A row that names an ID which is in no criteria section is refused: a criterion
 # outside the section has no text to compare, so no edit buys the row. Such a word is an ID only when
 # it starts with C or with the capitals of a criterion ID, or when it starts an item line of analysis.md
 # or analysis-gate.md, so a word such as MP3 is no ID. A row that names no ID needs an
@@ -84,7 +84,7 @@ criteria() {
             flush()
             if ($0 !~ /^(- |[0-9]+\. |\|)/) next
             t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
-            if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
+            if (!match(t, /^[A-Z]+[0-9]+(\.[0-9]+)*[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
             id = substr(t, 1, RLENGTH)
             if (id in seen) next
             seen[id] = 1; cur = id; txt = $0; gsub(/\t/, " ", txt)
@@ -122,7 +122,7 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
             while ((getline l < file) > 0) {
                 if (l !~ /^(- |[0-9]+\. |\|)/) continue
                 t = l; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
-                if (match(t, /^[A-Z]+[0-9]+[a-z]*/) && substr(t, RLENGTH + 1, 1) !~ /[A-Za-z0-9]/) item[substr(t, 1, RLENGTH)] = 1
+                if (match(t, /^[A-Z]+[0-9]+(\.[0-9]+)*[a-z]*/) && substr(t, RLENGTH + 1, 1) !~ /[A-Za-z0-9]/) item[substr(t, 1, RLENGTH)] = 1
             }
             close(file)
         }
@@ -133,7 +133,7 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
             prefix["C"] = 1
             for (id in known) { p = id; sub(/[0-9].*/, "", p); prefix[p] = 1 }
             rest = ENVIRON["DECISION"]
-            while (match(rest, /(^|[^A-Za-z0-9])[A-Z]+[0-9]+[a-z]*([^A-Za-z0-9]|$)/)) {
+            while (match(rest, /(^|[^A-Za-z0-9])[A-Z]+[0-9]+(\.[0-9]+)*[a-z]*([^A-Za-z0-9]|$)/)) {
                 tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
                 gsub(/^[^A-Z]+/, "", tok); gsub(/[^A-Za-z0-9]+$/, "", tok)
                 p = tok; sub(/[0-9].*/, "", p)

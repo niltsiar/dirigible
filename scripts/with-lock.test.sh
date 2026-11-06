@@ -14,7 +14,8 @@
 # release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree), and the hold limit
 # (exit 124; a command that creates <lock>/shard-limit gets the column limit and keeps its exit), and --bench-mark (a marker in
 # dirigible-bench-marks/ blocks each lock-free call, a lock-free call keeps a file in dirigible-lock-free/ while it runs and the
-# marked call waits for it, the load wait, and the refusal of a lock-class command). Each case uses a temporary repo with a worktree, so the lock of an outer
+# marked call waits for it, a file of a reused pid, two marked calls that start together, the load wait, and the refusal of a
+# lock-class command). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -576,7 +577,7 @@ printf '#!/bin/bash\necho "L-start $*" >> "$BM_LOG"\nsleep "${BM_SLEEP:-0}"\nech
 printf '#!/bin/bash\necho "RAN-swift $*" >> "$BM_LOG"\n' > "$fake/bm/swift"
 printf '#!/bin/bash\necho W-start >> "$BM_LOG"\nsleep 2\necho W-end >> "$BM_LOG"\n' > "$repo/.build/debug/whisper"
 printf '#!/bin/bash\necho "RAN-built $*" >> "$BM_LOG"\n' > "$repo/.build/debug/stub"
-for stub in land probe swift-test test-shards check-waits; do
+for stub in land probe swift-test test-shards check-waits mutation-pass screenshots bundle; do
     printf '#!/bin/bash\necho "RAN-%s $*" >> "$BM_LOG"\n' "$stub" > "$repo/scripts/$stub.sh"
     chmod +x "$repo/scripts/$stub.sh"
 done
@@ -999,11 +1000,23 @@ bm_refused 'bash before test-shards.sh' bash "$repo/scripts/test-shards.sh"
 bm_refused 'make check-changed' "$fake/bm/make" check-changed
 bm_refused 'make test-hooks as a release call' "$fake/bm/make" test-hooks HOOK_TESTS=a DIRIGIBLE_HOOKS_ALL=1
 bm_refused 'make test-hooks with no HOOK_TESTS' "$fake/bm/make" test-hooks
+bm_refused 'time -p before swift' time -p "$fake/bm/swift" build
+bm_refused '/usr/bin/time -p before swift' /usr/bin/time -p "$fake/bm/swift" build
+bm_refused 'env -u before swift' env -u X "$fake/bm/swift" build
+bm_refused 'env -i before swift' env -i "$fake/bm/swift" build
+bm_refused 'nice before swift' nice "$fake/bm/swift" build
+bm_refused 'nice -n before swift' nice -n 5 "$fake/bm/swift" build
+bm_refused 'xcrun before swift' xcrun "$fake/bm/swift" build
+bm_refused 'two wrappers before swift' time -p nice env X=1 "$fake/bm/swift" build
+bm_refused 'mutation-pass.sh' "$repo/scripts/mutation-pass.sh"
+bm_refused 'screenshots.sh' "$repo/scripts/screenshots.sh"
+bm_refused 'bundle.sh' "$repo/scripts/bundle.sh"
 hold
 echo 'make build' > "$lock/command"
 DIRIGIBLE_BUILD_LOCK="$holder" bm_refused 'swift build in a locked process tree' "$fake/bm/swift" build
 clear_hold
 bm_allowed 'check-waits.sh' 'wait-load RAN-check-waits' "$repo/scripts/check-waits.sh"
+bm_allowed 'env -u before check-waits.sh' 'wait-load RAN-check-waits' env -u X "$repo/scripts/check-waits.sh"
 bm_allowed 'make test-hooks with HOOK_TESTS' 'wait-load L-start L-end' "$fake/bm/make" test-hooks HOOK_TESTS=a
 bm_allowed 'make lint' 'wait-load L-start L-end' "$fake/bm/make" lint
 # A marked call in a locked process tree (the pid file matches DIRIGIBLE_BUILD_LOCK) exits 64 with the
@@ -1020,7 +1033,7 @@ clear_hold
 rm -f "$tmp/ran4" "$tmp/ran2" "$tmp/ran" "$tmp/ro.sh"
 rm -rf "$repo/.build" "$marks" "$frees"
 unset BM_LOG
-rm -f "$repo/scripts/land.sh" "$repo/scripts/probe.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/test-shards.sh" "$repo/scripts/check-waits.sh"
+rm -f "$repo/scripts/land.sh" "$repo/scripts/probe.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/test-shards.sh" "$repo/scripts/check-waits.sh" "$repo/scripts/mutation-pass.sh" "$repo/scripts/screenshots.sh" "$repo/scripts/bundle.sh"
 reset_builders
 
 # A lock-free call that starts behind a long holder waits with no lock (no marker, no ticket, no
@@ -1258,6 +1271,8 @@ ro_run 'dirigible info' "$repo/.build/debug/dirigible" info
 ro_run 'Dirigible info' build/Dirigible.app/Contents/MacOS/Dirigible info
 ro_run 'dirigible info' env FOO=1 .build/debug/dirigible info
 ro_run 'dirigible info' time .build/debug/dirigible info
+ro_run 'dirigible info' env -u X .build/debug/dirigible info
+ro_run 'dirigible info' nice -n 5 .build/debug/dirigible info
 ro_run 'dirigible info' scripts/probe.sh "$tmp/pf" "$repo/.build/debug/dirigible" info
 ro_run 'Dirigible info' "$repo/scripts/probe.sh" --no-audio "$tmp/pf" "$repo/build/Dirigible.app/Contents/MacOS/Dirigible" info
 ro_run script scripts/probe.sh "$tmp/pf" bash run.sh

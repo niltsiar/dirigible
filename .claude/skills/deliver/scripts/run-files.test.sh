@@ -389,7 +389,7 @@ code=$?
 [[ "$err" == *'Siblings'* ]] || fail "p6: the refusal names no Siblings field: $err"
 [[ "$(shasum -a 256 "$p6/decisions.tsv")" == "$before" ]] || fail 'p6: the refused phase 6 row changed decisions.tsv'
 [[ -e "$tmp/p6row" ]] || fail 'p6: the refused --from file is gone'
-printf '# V\n\n## Act on\n\n1. (warning, x, read) A case is missing. Invariant: each case has a test. Siblings: none.\n' > "$p6/review-diff-1.md"
+printf '# V\n\n## Act on\n\n1. (warning, x, read) A case is missing. Invariant: each case has a test. Siblings: none, grepped x.\n' > "$p6/review-diff-1.md"
 "$log" "$p6" --from "$tmp/p6row" || fail "p6: the phase 6 row with both fields exits $?"
 [[ "$(tail -n 1 "$p6/decisions.tsv" | cut -f2-)" == $'6\tfix item 1\tthe case\tevidence\tfixed' ]] || fail 'p6: no phase 6 row after the field came'
 [[ ! -e "$tmp/p6row" ]] || fail 'p6: the --from file is still there after the append'
@@ -405,8 +405,8 @@ p7_run() { # <name> <first row time>: a run folder with a plan and two review ro
   printf '# A\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$d/analysis.md"
   printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n' > "$d/plan.md"
   printf '%s\t2\tplan written\twhy\tevidence\tdone\n' "$2" > "$d/decisions.tsv"
-  printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none.\n2. (warning, x, read) Two. Invariant: a. Siblings: none.\n3. (warning, x, read) Three. Invariant: a. Siblings: none.\n' > "$d/review-diff-1.md"
-  printf '# V\n\n## Act on\n\n1. (warning, x, read) Again. Invariant: a. Siblings: none.\n\n## Fix check\n\n- 1.1 OK: done; new failure: none: x.\n- 1.2 OK: done; new failure: none: x.\n- 2.1 OK: done; new failure: none: x.\n- 11.3 OK: another item; new failure: none: x.\n' > "$d/review-diff-2.md"
+  printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none, grepped x.\n2. (warning, x, read) Two. Invariant: a. Siblings: none, grepped x.\n3. (warning, x, read) Three. Invariant: a. Siblings: none, grepped x.\n' > "$d/review-diff-1.md"
+  printf '# V\n\n## Act on\n\n1. (warning, x, read) Again. Invariant: a. Siblings: none, grepped x.\n\n## Fix check\n\n- 1.1 OK: done; new failure: none: x.\n- 1.2 OK: done; new failure: none: x.\n- 2.1 OK: done; new failure: none: x.\n- 11.3 OK: another item; new failure: none: x.\n' > "$d/review-diff-2.md"
 }
 p7_run p7 "$(date +%FT%R)"
 before="$(shasum -a 256 "$tmp/p7/decisions.tsv")"
@@ -424,7 +424,7 @@ sed -i.bak 's/^- 1.3 OK: done$/&; new failure: none: x./' "$tmp/p7/review-diff-2
 # A plan gate line with a deferred control (form b) refuses the first phase 7 row until its file exists.
 p7_run p7-ctl "$(date +%FT%R)"
 printf -- '- 1.3 OK; new failure: none: x.\n' >> "$tmp/p7-ctl/review-diff-2.md"
-printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none.\n\n## Fix check\n\n- 1.1 OK; new failure: none: x; control: logs/c1.log after S1\n' > "$tmp/p7-ctl/review-plan-1.md"
+printf '# V\n\n## Act on\n\n1. (warning, x, read) One. Invariant: a. Siblings: none, grepped x.\n\n## Fix check\n\n- 1.1 OK; new failure: none: x; control: logs/c1.log after S1\n' > "$tmp/p7-ctl/review-plan-1.md"
 printf '2026-11-02T00:00\t3\tcriterion change C1 (plan gate 1 item 1): old a, new b\twhy\tevidence\tdone\n' >> "$tmp/p7-ctl/decisions.tsv"
 before="$(shasum -a 256 "$tmp/p7-ctl/decisions.tsv")"
 err="$("$log" "$tmp/p7-ctl" 7 'criterion 1 verified' why evidence done 2>&1)"

@@ -51,7 +51,9 @@
 #   field (lead-judgment.md), and the section has no item in another form. So does each `## Consider`
 #   bullet whose text has a `(nit` tag and `taken` (not `not taken`). A nit tagged
 #   `no behavior change` needs no field. A review file older than the rule is not checked; one
-#   older than the nit rule needs no field for a nit.
+#   older than the nit rule needs no field for a nit. A Siblings field whose first word is none, n/a,
+#   no, or nothing needs `grepped` or an `rg` or `grep` word on its line; a review file older than
+#   none_cutoff keeps a bare none.
 # - Before the first phase 4 row only: each Swift path under Sources/ or Tests/ of a slice `- Check:`
 #   line that has the check-sizes.sh limit minus 20 lines or more at origin/main, and that
 #   scripts/check-sizes.allow at origin/main does not list, needs a `- Split:` line in that slice
@@ -644,6 +646,8 @@ cutoff=1791222684
 nit_cutoff=1791510511
 # 2026-10-31, the land time of the round file heading rule (INT-043): an older round file is not read by it.
 round_cutoff=1793423981
+# 2026-11-06, the land time of the Siblings none rule (INT-080): an older review file keeps a bare none.
+none_cutoff=1794007516
 for review in "$run"/review-*.md; do
     [[ -f "$review" ]] || continue
     mtime=$(stat -f %m "$review")
@@ -658,12 +662,24 @@ for review in "$run"/review-*.md; do
             }
             END { if (fix && !act) print file ": has ## Fix check and no ## Act on heading; write ## Act on with a numbered item for each finding, or None. (lead-judgment.md)" }' "$review")
     fi
-    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) '
-        # missing <what>: print each field that text does not have.
-        function missing(what) {
+    while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) -v nonerule=$((mtime >= none_cutoff)) '
+        # missing <what>: print each field that text does not have, and a Siblings field that says
+        # none with no search on its line.
+        function missing(what,  n, lines, i, rest, low) {
             for (f = 1; f <= 2; f++)
                 if (text !~ (field[f] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:"))
                     print file ": " what " has no " field[f] " field (a review file from before the rule: add the fields, or do not edit it)"
+            if (!nonerule) return
+            n = split(text, lines, "\n")
+            for (i = 1; i <= n; i++) {
+                if (!match(lines[i], field[2] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:")) continue
+                low = tolower(lines[i]); rest = tolower(substr(lines[i], RSTART + RLENGTH))
+                sub(/^[*[:space:]]+/, "", rest)
+                if (rest ~ /^(none|n\/a|no|nothing)([^a-z]|$)/ && low !~ /grepped/ && low !~ /(^|[^a-z])(rg|grep)( |$)/) {
+                    print file ": " what " has a Siblings field with no sibling and no search; write \"none, grepped <what you searched>\""
+                    return
+                }
+            }
         }
         # paren: the first parenthesis of $0 in lower case, or nothing.
         function paren(  t) { t = tolower($0); return match(t, /\([^)]*\)/) ? substr(t, RSTART, RLENGTH) : "" }

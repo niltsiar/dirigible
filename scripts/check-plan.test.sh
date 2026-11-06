@@ -218,6 +218,30 @@ printf '## Act on\n\n1. (warning, x) A fix.\n' > "$review"
 touch -t 202601010000 "$review"
 pass 'a review file older than the field rule'
 
+# A Siblings field that says none names its search (INT-042). A review file older than none_cutoff
+# keeps a bare none.
+none_msg='has a Siblings field with no sibling and no search; write "none, grepped <what you searched>"'
+for sib in '   Siblings: none named' '   Invariant: a. Siblings: none.' '   Siblings: n/a' \
+  '   Siblings: no sibling' '   Siblings: nothing' '   - **Siblings:** None'; do
+  good
+  printf '## Act on\n\n1. (warning, x) A fix.\n   Invariant: x\n%s\n' "$sib" > "$review"
+  refuse "a Siblings field of: ${sib#   }" "review-plan-1.md: Act on item 1 $none_msg"
+done
+for sib in '   Siblings: none, grepped Sources/ for x' '   Siblings: none (grepped Tests/)' \
+  '   - **Siblings:** none, grepped x' '   Siblings: none other; rg -n Process Sources prints nothing at the base.' \
+  '   Siblings: none, grep -n x Tests/ found nothing' '   Siblings: nonexistent rows: a, b'; do
+  good
+  printf '## Act on\n\n1. (warning, x) A fix.\n   Invariant: x\n%s\n' "$sib" > "$review"
+  pass "a Siblings field of: ${sib#   }"
+done
+good
+printf '## Consider\n\n- (nit, x; taken) A note.\n  - Invariant: x\n  - Siblings: none named\n' > "$review"
+refuse 'a taken Consider nit with a bare none' "review-plan-1.md: Consider item 1 $none_msg"
+good
+printf '## Act on\n\n1. (warning, x) A fix.\n   Invariant: x\n   Siblings: none.\n' > "$review"
+touch -t 202611010000 "$review"
+pass 'a review file older than none_cutoff keeps a bare none'
+
 # The fixture item comes from the one owner of the format: the Act on line of the interrogate
 # ## Output format. A change of that line that this test cannot parse, or that check-plan.sh
 # does not read, fails here.

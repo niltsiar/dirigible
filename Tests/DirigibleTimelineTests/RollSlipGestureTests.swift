@@ -151,6 +151,34 @@ struct RollSlipGestureTests {
         #expect(drawn.clip("R")?.clip.offset == 24_000)
     }
 
+    /// A gain band or a shown point in the lower third keeps the range drag and the range cursor.
+    @Test mutating func aLowGainBandInTheLowerThirdKeepsTheRangeDrag() throws {
+        try session.setGain(#require(Gain(dB: -45)), clip: "R")
+        guard case .gain = Fixture.geometry.hit(250, 45, in: session) else {
+            Issue.record("x 250, y 45 is not the gain band of R")
+            return
+        }
+        #expect(gesture.cursor(at: .lanes(x: 250, y: 45), context(), shift: true, command: true) == .iBeam)
+        down(250, 45)
+        #expect(isRange(drag(280, 45)))
+        #expect(drawn == session)
+    }
+
+    @Test mutating func aLowEnvelopePointInTheLowerThirdKeepsTheRangeDrag() throws {
+        try session.setEnvelope([120_000: #require(Gain(dB: -60))], clip: "R")
+        let clips = session.tracks[0].clips
+        let shown = Fixture.geometry.envelopePoints(of: clips[1], at: 1, in: clips, trackGain: .zero, lane: 0)
+        #expect(shown.map(\.x) == [250] && shown.map(\.y) == [57], "the point is clamped to y 57")
+        guard case .point = Fixture.geometry.hit(250, 57, in: session) else {
+            Issue.record("x 250, y 57 is not the point of R")
+            return
+        }
+        #expect(gesture.cursor(at: .lanes(x: 250, y: 57), context(), shift: true, command: true) == .iBeam)
+        down(250, 57)
+        #expect(isRange(drag(280, 57)))
+        #expect(drawn == session)
+    }
+
     @Test mutating func aShiftCommandDragOnALooseEdgeTrims() {
         snaps = true
         playhead = 120_100

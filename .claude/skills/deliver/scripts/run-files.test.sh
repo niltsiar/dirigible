@@ -191,6 +191,22 @@ cc_row 'no ID, codec word, after an edit' 0 'criterion change: MP3 export, old x
 cc_row 'C77, which no line holds' 2 'criterion change C77: old x, new y'
 cc_crit a3 b
 cc_row 'C77 after an edit' 2 'criterion change C77: old x, new y'
+# A run with no baseline (no line in criteria-logged.tsv, no analysis-gate.md) reads the file time:
+# the first row needs an analysis.md newer than decisions.tsv, with an ID or with none.
+cc_fresh
+cc_crit a b
+touch -t 200001020000 "$cc/decisions.tsv"
+touch -t 200001010000 "$cc/analysis.md"
+cc_row 'no baseline, unchanged analysis.md, ID row' 2 'criterion change C1: old 10, new 20'
+cc_crit a2 b
+cc_row 'no baseline, analysis.md edited, ID row' 0 'criterion change C1: old 10, new 20'
+cc_fresh
+cc_crit a b
+touch -t 200001020000 "$cc/decisions.tsv"
+touch -t 200001010000 "$cc/analysis.md"
+cc_row 'no baseline, unchanged analysis.md, no ID' 2 'criterion change: old 10, new 20'
+cc_crit a b
+cc_row 'no baseline, analysis.md edited, no ID' 0 'criterion change: old 10, new 20'
 # analysis-gate.md is the baseline of an ID with no row, and a removed criterion needs one row.
 cc_fresh
 cc_crit a b

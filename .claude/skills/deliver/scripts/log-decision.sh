@@ -64,6 +64,8 @@ fi
 # it starts with C or with the capitals of a criterion ID, or when it starts an item line of analysis.md
 # or analysis-gate.md, so a word such as MP3 is no ID. A row that names no ID needs an
 # analysis.md whose hash differs from the #file line of criteria-logged.tsv (else from analysis-gate.md).
+# A run with no baseline at all (no line in criteria-logged.tsv and no analysis-gate.md) has none to
+# compare: its first row needs an analysis.md newer than decisions.tsv, the old file-time rule.
 # A passing row appends one line "<ID><TAB><text>" for each ID that it names, and a #file line.
 # criteria-logged.tsv is append-only, as decisions.tsv is: only this script writes it.
 # criteria <file> prints "<ID><TAB><text>" for each criterion of the section.
@@ -104,8 +106,13 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
     file_sha="$(shasum -a 256 < "$run_dir/analysis.md")"
     gate_sha=""
     [[ ! -f "$run_dir/analysis-gate.md" ]] || gate_sha="$(shasum -a 256 < "$run_dir/analysis-gate.md")"
+    baseless=0 newer=0
+    if [[ ! -s "$run_dir/criteria-logged.tsv" && ! -f "$run_dir/analysis-gate.md" ]]; then
+        baseless=1
+        ! awk -v a="$(stat -f %Fm "$run_dir/analysis.md")" -v d="$(stat -f %Fm "$file")" 'BEGIN { exit !(a > d) }' || newer=1
+    fi
     code=0
-    new_logged="$(DECISION="$2" NOW="$run_dir/.criteria-now.$$" GATE="$run_dir/.criteria-gate.$$" LOGGED="$run_dir/criteria-logged.tsv" FILESHA="$file_sha" GATESHA="$gate_sha" ANALYSIS="$run_dir/analysis.md" GATEFILE="$run_dir/analysis-gate.md" awk '
+    new_logged="$(BASELESS="$baseless" NEWER="$newer" DECISION="$2" NOW="$run_dir/.criteria-now.$$" GATE="$run_dir/.criteria-gate.$$" LOGGED="$run_dir/criteria-logged.tsv" FILESHA="$file_sha" GATESHA="$gate_sha" ANALYSIS="$run_dir/analysis.md" GATEFILE="$run_dir/analysis-gate.md" awk '
         function load(file, text, has,  l, i, id) {
             while ((getline l < file) > 0) { i = index(l, "\t"); id = substr(l, 1, i - 1); text[id] = substr(l, i + 1); has[id] = 1; known[id] = 1 }
             close(file)
@@ -139,6 +146,7 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
                 if (((id in hasnow) ? now[id] : "") != base) ok = 1
             }
             if (length(named) == 0) ok = (ENVIRON["FILESHA"] != (("#file" in haslogged) ? logged["#file"] : ENVIRON["GATESHA"]))
+            if (ENVIRON["BASELESS"] == 1) ok = (ENVIRON["NEWER"] == 1)
             if (!ok) exit 3
             for (id in named) print id "\t" ((id in hasnow) ? now[id] : "")
             print "#file\t" ENVIRON["FILESHA"]
@@ -150,7 +158,7 @@ if [[ "$(lower "$2")" == "criterion change"* ]]; then
             echo "a criterion change row names an ID that is in no ## Acceptance criteria section of ${run_dir}/analysis.md or analysis-gate.md: put the criterion in that section (scripts/check-plan.sh reads it there), and name its ID" >&2
             exit 2 ;;
         *)
-            echo "a criterion change row needs a criterion whose text in ${run_dir}/analysis.md differs from its text at the last row for that ID (the first row reads analysis-gate.md): change the criterion there, and name its ID in the row" >&2
+            echo "a criterion change row needs a criterion whose text in ${run_dir}/analysis.md differs from its text at the last row for that ID (the first row reads analysis-gate.md; a run with no baseline needs an analysis.md newer than decisions.tsv): change the criterion there, and name its ID in the row" >&2
             exit 2 ;;
     esac
 fi

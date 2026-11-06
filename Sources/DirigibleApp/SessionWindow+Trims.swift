@@ -21,8 +21,8 @@ extension SessionWindow {
                 for join in joins { try s.roll(join.left, by: join.by) }
             }
         case .slipLeft, .slipRight:
-            // The step of Nudge. The audio moves left under the clip when the file offset grows.
-            let step = Frames(session.sampleRate / 100)
+            // The audio moves left under the clip when the file offset grows.
+            let step = session.editStep
             let delta = command == .slipLeft ? step : .zero - step
             let fits = clips.allSatisfy { (try? session.slipLimits($0))?.contains(delta) == true }
             guard !clips.isEmpty, fits else { return beep() }

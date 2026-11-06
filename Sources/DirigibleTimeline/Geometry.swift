@@ -101,9 +101,6 @@ public struct LaneGeometry: Equatable, Sendable {
     /// The width of a trim zone inside each clip edge (points).
     static let trimReach = 4.0
 
-    /// The height of the upper part of a clip box, which moves; the lower third is a range.
-    var moveHeight: Double { laneHeight * 2 / 3 }
-
     /// The fraction of the lane height of a 0 dBFS signal at `dB` on the -60 dB to 0 dB scale of
     /// the waveform (decision 0017). `LaneRenderer` draws with it, so the line and the waveform agree.
     public static func gainFraction(dB: Double) -> Double { min(max((dB + 60) / 60, 0), 1) }
@@ -242,7 +239,7 @@ public struct LaneGeometry: Equatable, Sendable {
             )
             if abs(y - line) <= Self.gainReach, x >= fadeInEnd, x <= fadeOutStart { return .gain(clip, lane: lane) }
         }
-        return y - box.minY < moveHeight ? .move(clip, lane: lane) : .range(lane: lane)
+        return y - box.minY < laneHeight * 2 / 3 ? .move(clip, lane: lane) : .range(lane: lane)
     }
 }
 

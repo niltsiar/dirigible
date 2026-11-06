@@ -440,15 +440,16 @@ lock_free() {
 # sets cause to its pid and tree, for the wait line, and mark_before when a live marker is older than
 # this call (the call start time, then the pid; the marker holds the start time in line 2).
 foreign_mark() {
-    local m pid at found=""
+    local m pid at mtree found=""
     mark_before=""
     for m in "$benches"/*; do
         [[ -f "$m" ]] || continue
         file_live "$m" || continue
         pid="${m##*/}"
         [[ "$pid" != "${DIRIGIBLE_BENCH_MARK:-}" ]] || continue
-        at="$(sed -n 2p "$m" 2>/dev/null)" at="${at//[^0-9]/}" at="${at:-0}"
-        [[ -n "$mark_before" ]] || cause="bench marker pid $pid ($(sed -n 3p "$m" 2>/dev/null))"
+        at="$(sed -n 2p "$m" 2>/dev/null)" at="${at//[^0-9]/}" at="${at:-0}" mtree="$(sed -n 3p "$m" 2>/dev/null)"
+        [[ -f "$m" ]] || continue
+        [[ -n "$mark_before" ]] || cause="bench marker pid $pid ($mtree)"
         found=1
         if [[ $at -lt $start || ($at -eq $start && $pid -lt $$) ]]; then mark_before=1; fi
     done
@@ -511,16 +512,19 @@ pause() {
 }
 # say_wait: the one line that names why the call waits (the live marker, lock-free call, or ticket in
 # cause, else the holder of the lock). A new cause gets a new line; the first one is the held column
-# of the wait line.
+# of the wait line. A holder with no pid or no command (it is gone, half gone, or half written) gets
+# no line: the next poll finds the lock free or a whole holder.
 said=""
 say_wait() {
-    local msg
+    local msg hpid hcmd
     if [[ -n "$cause" ]]; then
         msg="$cause is live; this call waits until it ends"
         [[ -n "$held" ]] || held="$cause"
     else
-        [[ -n "$held" ]] || held="$(cat "$lock/command" 2>/dev/null)"
-        msg="$lock is held by pid $(cat "$lock/pid" 2>/dev/null) ($(cat "$lock/command" 2>/dev/null))"
+        hpid="$(cat "$lock/pid" 2>/dev/null)" hcmd="$(cat "$lock/command" 2>/dev/null)"
+        [[ -n "$hpid" && -n "$hcmd" ]] || return 0
+        [[ -n "$held" ]] || held="$hcmd"
+        msg="$lock is held by pid $hpid ($hcmd)"
     fi
     [[ "$msg" != "$said" ]] || return 0
     said="$msg"

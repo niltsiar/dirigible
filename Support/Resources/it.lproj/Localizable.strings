@@ -409,7 +409,7 @@
 "timeline.readout.range.gain" = "Guadagno dell'intervallo %@ dB";
 "timeline.readout.roll" = "Punto di montaggio %@ ms";
 "timeline.readout.slip" = "Contenuto %@ ms";
-"timeline.help.roll.slip" = "Maiusc-Comando e trascina: sposta un punto di montaggio o il contenuto di un clip";
+"timeline.help.roll.slip" = "Maiusc-Comando e trascina: sposta un punto di montaggio o scorri il contenuto di un clip";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Ingrandisci";

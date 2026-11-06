@@ -12,7 +12,7 @@ struct ClipCommand: ParsableCommand {
             Remove.self, Denoise.self, Repair.self, Restore.self,
             Move.self, Trim.self,
             SetGain.self, Envelope.self, GainRange.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self,
-            RippleInsert.self, RippleTrim.self, Replace.self, Fill.self,
+            RippleInsert.self, RippleTrim.self, Replace.self, Fill.self, CloseGaps.self, Roll.self, Slip.self,
         ])
 
     struct Place: ParsableCommand {

@@ -88,6 +88,15 @@ extension MCPEditTableTests {
                 command: [
                     "clip", "gain-range", "PKG", "--track", "a", "--from", "10000", "--to", "100000", "--db", "3",
                 ]),
+            EditRow(
+                tool: "clip_close_gaps", arguments: ["clips": ["A", "A2", "A3"]],
+                command: ["clip", "close-gaps", "PKG", "A", "A2", "A3"]),
+            EditRow(
+                tool: "clip_roll", arguments: ["clip": "A2", "by": 960],
+                command: ["clip", "roll", "PKG", "A2", "--by", "960"]),
+            EditRow(
+                tool: "clip_slip", arguments: ["clips": ["A", "C"], "by": 480],
+                command: ["clip", "slip", "PKG", "A", "C", "--by", "480"]),
         ]
     }
 
@@ -136,6 +145,18 @@ extension MCPEditTableTests {
             EditRow(
                 tool: "clip_gain_range", arguments: ["track": ["zz"], "from": 0, "to": 10, "db": 1],
                 command: ["clip", "gain-range", "PKG", "--track", "zz", "--from", "0", "--to", "10", "--db", "1"]),
+            EditRow(
+                tool: "clip_close_gaps", arguments: ["clips": ["A", "zz"]],
+                command: ["clip", "close-gaps", "PKG", "A", "zz"]),
+            EditRow(
+                tool: "clip_roll", arguments: ["clip": "A", "by": 1],
+                command: ["clip", "roll", "PKG", "A", "--by", "1"]),
+            EditRow(
+                tool: "clip_roll", arguments: ["clip": "A2", "by": 48_000],
+                command: ["clip", "roll", "PKG", "A2", "--by", "48000"]),
+            EditRow(
+                tool: "clip_slip", arguments: ["clips": ["A"], "by": -1],
+                command: ["clip", "slip", "PKG", "A", "--by", "-1"]),
         ]
     }
 }

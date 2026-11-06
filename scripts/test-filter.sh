@@ -13,6 +13,11 @@
 # "test-filter: no test ID matches <names>" for each name that no listed ID matches: process 1
 # takes the IDs that it does not skip, and process 2 the CLI IDs of a name that a CLI file has.
 # A list exit 75 gives exit 75. Any other list failure gives exit 1 and "test list failed".
+# A refused name that is the file name of a Swift file under Tests/ with no type of that name, and
+# whose extension blocks extend a suite, also gets a line "test-filter: <path> declares no suite
+# <name>; it extends <suite>: give FILTER the suite name <suite>" for each such suite. A suite is a
+# type with a @Test in a top-level block under Tests/ (its declaration or an extension). The hint
+# reads the source files and runs no swift call.
 # With --exact, each name is the whole name of a Swift Testing test: the filter is '/<name>\(' with
 # the regex characters escaped, so a name that is a prefix of another test name runs only its own
 # test. The CLI process then takes a name that a CLI test file has as 'func <name>('. With
@@ -32,6 +37,45 @@ done
 cd "$(dirname "$0")/.."
 out="$(mktemp)" started="$(mktemp)"
 trap 'rm -f "$out" "$started"' EXIT
+
+# decl_awk: the awk function decl(line) returns the type name of a top-level struct, class, enum,
+# actor, or extension line at column 0 (attributes and modifiers can come first) and sets kind.
+decl_awk='function decl(l,   n, w) {
+    kind = ""
+    if (!match(l, "^((@[A-Za-z_][A-Za-z0-9_]*(\\([^)]*\\))?|public|internal|private|fileprivate|final|open)[ \t]+)*(struct|class|enum|actor|extension)[ \t]+[A-Za-z_][A-Za-z0-9_.]*")) return ""
+    n = split(substr(l, RSTART, RLENGTH), w, /[ \t]+/)
+    kind = w[n - 1]
+    return w[n]
+}'
+# A block runs from its declaration line to the next declaration line or a line that starts with }.
+suite_awk='FNR == 1 { cur = "" }
+{
+    d = decl($0)
+    if (d != "") cur = d
+    if (cur != "" && $0 !~ /^[ \t]*\/\// && $0 ~ /@Test([^A-Za-z0-9_]|$)/) suite[cur] = 1
+    if (d != "" && $0 ~ /\{.*\}[ \t]*$/) cur = ""
+    else if ($0 ~ /^\}/) cur = ""
+}
+END { for (s in suite) print s }'
+file_awk='{ d = decl($0); if (d != "") print (kind == "extension" ? "E " : "D ") d }'
+suites=""
+# hint_suite <name>: prints the hint lines of a refused name to stderr.
+hint_suite() {
+    local name="$1" file kinds s shown=""
+    while IFS= read -r file; do
+        [[ -n $file ]] || continue
+        kinds="$(awk "$decl_awk $file_awk" "$file")"
+        ! grep -qxF -- "D $name" <<<"$kinds" || continue
+        [[ -n $suites ]] || suites="$(find Tests -type f -name '*.swift' -exec awk "$decl_awk $suite_awk" {} + | sort -u)"
+        while IFS= read -r s; do
+            [[ -n $s ]] || continue
+            ! grep -qxF -- "$s" <<<"$shown" || continue
+            grep -qxF -- "$s" <<<"$suites" || continue
+            shown+="$s"$'\n'
+            echo "test-filter: $file declares no suite $name; it extends $s: give FILTER the suite name $s" >&2
+        done < <(sed -n 's/^E //p' <<<"$kinds")
+    done < <(find Tests -type f -name "$name.swift" 2>/dev/null | sort)
+}
 
 ran=0 status=0
 # run <swift test arguments>: keeps the first nonzero swift status; sets ran when tests ran, and
@@ -65,7 +109,11 @@ done
 run "${p1[@]}"
 [[ ${#p2[@]} -eq 0 ]] || run "${p2[@]}"
 [[ $status -eq 0 ]] || exit $status
-[[ $ran -eq 1 ]] || { echo "test-filter: no test matched $*" >&2; exit 1; }
+[[ $ran -eq 1 ]] || {
+    echo "test-filter: no test matched $*" >&2
+    for name in "${names[@]}"; do hint_suite "$name"; done
+    exit 1
+}
 
 # A name that shows in no started line gets the list check. The text of the started lines is kept
 # in a variable and read with a here-string: grep -q on a pipe can end the writer early.
@@ -94,4 +142,8 @@ for i in "${unseen[@]}"; do
     [[ ${inCLI[$i]} -eq 1 ]] && grep -Eq -- "DirigibleCLITests.*${rx[$i]}" <<<"$cli_ids" && continue
     missing+=("${names[$i]}")
 done
-[[ ${#missing[@]} -eq 0 ]] || { echo "test-filter: no test ID matches ${missing[*]}" >&2; exit 1; }
+[[ ${#missing[@]} -eq 0 ]] || {
+    echo "test-filter: no test ID matches ${missing[*]}" >&2
+    for name in "${missing[@]}"; do hint_suite "$name"; done
+    exit 1
+}

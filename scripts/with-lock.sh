@@ -376,18 +376,22 @@ lock_free() {
     esac
 }
 # foreign_mark: succeeds while a live bench marker other than DIRIGIBLE_BENCH_MARK exists (long-runs.md). It
-# sets cause to its pid and tree, for the wait line.
+# sets cause to its pid and tree, for the wait line, and mark_before when a live marker is older than
+# this call (the call start time, then the pid; the marker holds the start time in line 2).
 foreign_mark() {
-    local m pid
+    local m pid at found=""
+    mark_before=""
     for m in "$benches"/*; do
         [[ -f "$m" ]] || continue
         file_live "$m" || continue
         pid="${m##*/}"
         [[ "$pid" != "${DIRIGIBLE_BENCH_MARK:-}" ]] || continue
-        cause="bench marker pid $pid ($(sed -n 3p "$m" 2>/dev/null))"
-        return 0
+        at="$(sed -n 2p "$m" 2>/dev/null)" at="${at//[^0-9]/}" at="${at:-0}"
+        [[ -n "$mark_before" ]] || cause="bench marker pid $pid ($(sed -n 3p "$m" 2>/dev/null))"
+        found=1
+        if [[ $at -lt $start || ($at -eq $start && $pid -lt $$) ]]; then mark_before=1; fi
     done
-    return 1
+    [[ -n "$found" ]]
 }
 # lock_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
 # loop, or a stress lane.
@@ -493,9 +497,11 @@ run_lock_free() {
 }
 wait_line() { printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null; }
 # --bench-mark <command>: the timing run of the header. Before its marker it waits as a lock-free call
-# does. It writes the marker, and then a long holder or another marker that appeared in between sends
-# it back to wait. With the marker live it waits for the lock-free calls that run (a lock-free call
-# that starts later sees the marker), runs the load wait of a bench, and runs the command.
+# does. It writes the marker. A long holder, or a marker that is older (the call start time, then the
+# pid) and appeared in between, makes it remove the marker and wait; a younger marker makes it keep
+# its marker and wait until that marker goes (the younger call removes it). With the marker live it
+# waits for the lock-free calls that run (a lock-free call that starts later sees the marker), runs
+# the load wait of a bench, and runs the command.
 if [[ "$1" == --bench-mark ]]; then
     shift
     [[ $# -ge 1 ]] || { echo "usage: scripts/with-lock.sh --bench-mark <command> [<argument>...]" >&2; exit 2; }
@@ -514,8 +520,17 @@ if [[ "$1" == --bench-mark ]]; then
         mark="$benches/$$"
         write_stamped "$mark" "$start" "$tree" ||
             { mark=""; echo "with-lock: cannot write the bench marker into $benches; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
-        if long_holder; then rm -f "$mark"; mark=""; pause; continue; fi
-        break
+        while :; do
+            cause=""
+            if lock_holder || { foreign_mark && [[ -n "$mark_before" ]]; }; then
+                rm -f "$mark"; mark=""
+                say_wait; waited=1
+                continue 2
+            fi
+            foreign_mark || break 2
+            say_wait; waited=1
+            pause
+        done
     done
     while free_busy; do
         say_wait; waited=1

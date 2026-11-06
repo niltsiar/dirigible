@@ -463,7 +463,6 @@ run_lock_free() {
     if [[ $status -ne 0 ]] && grep -qE '^[A-Za-z0-9_./-]+(\[[0-9]+\])?: \*\*\* \[check-changed\] Error 75$' "$err"; then exit 75; fi
     exit "$status"
 }
-# wait_line <command>...: appends the wait line of a call that waited without the lock.
 wait_line() { printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null; }
 # --bench-mark <command>: the timing run of the header. Before its marker it waits as a lock-free call
 # does. It writes the marker, and then a long holder or another marker that appeared in between sends

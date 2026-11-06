@@ -37,7 +37,7 @@
 #     scripts/wiki.py, or an absolute path, that resolves to the scripts/wiki.py of the repo of this
 #     hook from the cwd of the hook input after the `cd <path>` segments; a cd before or after a | is not tracked).
 #     Segments split on &&, ||, ;, |, and new lines; each leading NAME=value word of a segment is
-#     dropped. A command with $(, a backtick, <(, >(, or a lone & is refused.
+#     dropped, also for the cd tracking. A command with $(, a backtick, <(, >(, or a lone & is refused.
 # The hook passes every input that it cannot read: input that is not JSON, no transcript file, or
 # no timestamp.
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -200,11 +200,17 @@ def committed_in_window(calls):
     return False
 
 
-def segment_passes(segment, tree):
-    """Whether one segment passes. `tree` is the folder that the cd segments before it give."""
+def command_words(segment):
+    """The words of a segment without its leading NAME=value words."""
     words = segment.split()
     while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=\S*", words[0]):
         words.pop(0)
+    return words
+
+
+def segment_passes(segment, tree):
+    """Whether one segment passes. `tree` is the folder that the cd segments before it give."""
+    words = command_words(segment)
     if not words:
         return True
     if words[0] == "cd":
@@ -237,7 +243,7 @@ def command_passes(command, cwd):
             continue
         if not segment_passes(segment, tree):
             return False
-        words = segment.split()
+        words = command_words(segment)
         piped = "|" in (parts[i - 1] if i else "", parts[i + 1] if i + 1 < len(parts) else "")
         if words[:1] == ["cd"] and len(words) <= 2 and not piped:
             tree = resolve(tree, words[1] if len(words) == 2 else "~")

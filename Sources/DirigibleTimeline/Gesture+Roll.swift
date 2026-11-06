@@ -48,6 +48,15 @@ extension TimelineGesture {
         }
     }
 
+    /// The hover cursor of a Shift-Command press at `x`, `y`: the zone of the press, else the range cursor.
+    func rollSlipCursor(_ x: Double, _ y: Double, _ context: GestureContext) -> TimelineCursor {
+        switch Self.rollSlipZone(x, y, in: context.session, context.geometry) {
+        case .edge: .resizeLeftRight
+        case .slip: .openHand
+        case nil: LaneHit.range(lane: context.geometry.hit(x, y, in: context.session).lane).cursor
+        }
+    }
+
     /// The drag of a zone at the 3 pt threshold: a roll at a join, else the plain trim of a loose
     /// edge, or a slip. Nil when the drag has no state: a file out of the pool.
     func rollSlipState(_ press: Press, _ zone: RollSlipZone, _ context: GestureContext) -> State? {

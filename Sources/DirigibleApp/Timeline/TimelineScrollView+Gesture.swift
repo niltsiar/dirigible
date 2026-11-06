@@ -16,10 +16,12 @@ extension TimelineScrollView {
         return lanes
     }
 
-    /// The cursor of the gesture at a lane or ruler point; `option` is the state of the Option key.
-    func cursor(at place: Place, option: Bool = false) -> TimelineCursor {
+    /// The cursor of the gesture at a lane or ruler point; `flags` are the modifier keys now.
+    func cursor(at place: Place, flags: NSEvent.ModifierFlags = []) -> TimelineCursor {
         guard let source, let context = context(source) else { return .arrow }
-        return gesture.cursor(at: place, context, option: option)
+        return gesture.cursor(
+            at: place, context, option: flags.contains(.option), shift: flags.contains(.shift),
+            command: flags.contains(.command))
     }
 
     /// The frame and the flag of the ruler menu at the document x `x`. Nil during a gesture, so a

@@ -407,6 +407,9 @@
 "timeline.readout.crossfade" = "Crossfade %@ ms";
 "timeline.readout.point" = "Punkt %@ dB";
 "timeline.readout.range.gain" = "Bereichspegel %@ dB";
+"timeline.readout.roll" = "Schnittpunkt %@ ms";
+"timeline.readout.slip" = "Inhalt %@ ms";
+"timeline.help.roll.slip" = "Umschalt-Befehl-Ziehen: Schnittpunkt oder Inhalt eines Clips verschieben";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Einzoomen";

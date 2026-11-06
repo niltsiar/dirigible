@@ -41,7 +41,8 @@ extension TimelineDocumentView {
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        guard trackingAreas.isEmpty else { return }
+        // The help tag of the view adds a tracking area of its own.
+        guard !trackingAreas.contains(where: { $0.owner === self && $0.options.contains(.mouseMoved) }) else { return }
         addTrackingArea(
             NSTrackingArea(
                 rect: .zero, options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect], owner: self))
@@ -50,10 +51,11 @@ extension TimelineDocumentView {
     override func mouseMoved(with event: NSEvent) { showCursor(event) }
     override func cursorUpdate(with event: NSEvent) { showCursor(event) }
 
-    /// An Option key-down or key-up sets the cursor again at the last point, with no mouse move.
+    /// A key-down or key-up of Option, Shift, or Command sets the cursor again at the last point,
+    /// with no mouse move.
     override func flagsChanged(with event: NSEvent) {
         super.flagsChanged(with: event)
-        if let hoverPlace { showCursor(at: hoverPlace, option: event.modifierFlags.contains(.option)) }
+        if let hoverPlace { showCursor(at: hoverPlace, flags: event.modifierFlags) }
         // A Command change during a drag turns snap off or on at once, with no mouse move.
         let command = event.modifierFlags.contains(.command)
         if command != commandHeld {
@@ -63,12 +65,12 @@ extension TimelineDocumentView {
     }
 
     private func showCursor(_ event: NSEvent) {
-        showCursor(at: place(event), option: modifierFlags().contains(.option))
+        showCursor(at: place(event), flags: modifierFlags())
     }
 
-    private func showCursor(at place: Place, option: Bool) {
+    private func showCursor(at place: Place, flags: NSEvent.ModifierFlags) {
         hoverPlace = place
-        guard let kind = scrollView?.cursor(at: place, option: option) else { return }
+        guard let kind = scrollView?.cursor(at: place, flags: flags) else { return }
         shownCursor = kind
         NSCursor.timeline(kind).set()
     }

@@ -13,6 +13,10 @@ public enum GestureReadout: Equatable, Sendable {
     case point(Gain)
     /// The gain that a drag inside a range adds to it (decision 0060).
     case rangeGain(Gain)
+    /// The move of the join of a roll drag, to the right plus (`Gesture+Roll.swift`).
+    case roll(Frames)
+    /// The move of the content of a slip drag, to the right plus.
+    case slip(Frames)
 }
 
 /// The clip part of the gesture (run 11b-1): a drag of the gain line sets the clip gain, a drag of
@@ -48,12 +52,14 @@ extension TimelineGesture {
         var preview: Session
     }
 
-    /// The value of a gain, fade, or crossfade drag; nil in every other state.
+    /// The value of a gain, fade, crossfade, roll, or slip drag; nil in every other state.
     public var readout: GestureReadout? {
         switch state {
         case .gaining(_, let drag): .gain(drag.gain, from: drag.clip.gain)
         case .fading(_, let drag): .fade(drag.edge, drag.edge == .start ? drag.fades.fadeIn : drag.fades.fadeOut)
         case .crossfading(_, let drag): .crossfade(drag.length)
+        case .rolling(_, let roll): .roll(roll.delta)
+        case .slipping(_, let slip): .slip(.zero - slip.delta)
         default: envelopeReadout
         }
     }

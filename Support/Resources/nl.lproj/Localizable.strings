@@ -407,6 +407,9 @@
 "timeline.readout.crossfade" = "Crossfade %@ ms";
 "timeline.readout.point" = "Punt %@ dB";
 "timeline.readout.range.gain" = "Bereikversterking %@ dB";
+"timeline.readout.roll" = "Snijpunt %@ ms";
+"timeline.readout.slip" = "Inhoud %@ ms";
+"timeline.help.roll.slip" = "Shift-Command slepen: verplaats een snijpunt of schuif de inhoud van een clip";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Zoom in";

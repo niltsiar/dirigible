@@ -179,6 +179,70 @@ struct RollSlipGestureTests {
         #expect(drawn.clip("R")?.clip.fades != session.clip("R")?.clip.fades, "no keys: the fade handle")
     }
 
+    /// C25: the hover cursor with Shift-Command and no Option follows the zone rule of the press.
+    @Test mutating func rollAndSlipCursors() throws {
+        func cursor(_ x: Double, _ y: Double, shift: Bool = true, command: Bool = true, option: Bool = false)
+            -> TimelineCursor
+        {
+            gesture.cursor(
+                at: .lanes(x: x, y: y), context(), option: option, shift: shift, command: command)
+        }
+        #expect(cursor(198, 10) == .resizeLeftRight, "the end zone of A")
+        #expect(cursor(250, 30) == .openHand, "the upper part of R")
+        #expect(cursor(250, 3) == .openHand, "the gain band slips")
+        #expect(cursor(250, 50) == .iBeam, "the lower third keeps the range drag")
+        #expect(cursor(350, 10) == .iBeam, "a gap")
+        #expect(cursor(298, 10) == .resizeLeftRight, "the loose end of R")
+        #expect(cursor(250, 3, shift: false, command: false) == .resizeUpDown, "no keys: the gain band")
+        #expect(cursor(250, 30, shift: false, command: false) == .arrow, "no keys: the move zone")
+        #expect(cursor(250, 30, command: false) == .arrow, "Shift alone")
+        #expect(cursor(250, 30, option: true) == .arrow, "Option-Shift-Command is no roll or slip")
+        try session.setFades(["R": #require(Fades(fadeIn: 0, fadeOut: 480))])
+        guard case .fade = Fixture.geometry.hit(298, 4, in: session) else {
+            Issue.record("x 298, y 4 is not the fade handle of R")
+            return
+        }
+        #expect(cursor(298, 4) == .resizeLeftRight, "the edge zone wins over a corner fade handle")
+        down(250, 30)
+        drag(300, 30)
+        #expect(cursor(300, 30, shift: false, command: false) == .openHand, "a slip drag")
+        _ = up(300, 30)
+        down(198)
+        drag(248)
+        #expect(cursor(248, 10, shift: false, command: false) == .resizeLeftRight, "a roll drag")
+    }
+
+    /// C28: the readout of a roll drag is the move of the join, and it ends with the drag.
+    @Test mutating func aRollDragReadoutHoldsTheDelta() {
+        down(198)
+        #expect(gesture.readout == nil, "no drag yet")
+        drag(248)
+        #expect(gesture.readout == .roll(24_000))
+        drag(188)
+        #expect(gesture.readout == .roll(-4_800))
+        _ = up(188)
+        #expect(gesture.readout == nil, "the mouse-up")
+        down(198)
+        drag(248)
+        _ = gesture.handle(.escape, context())
+        #expect(gesture.readout == nil, "Esc")
+    }
+
+    /// C28: the readout of a slip drag is the move of the content: a drag to the right is plus.
+    @Test mutating func aSlipDragReadoutHoldsTheContentMove() {
+        down(250, 30)
+        #expect(gesture.readout == nil, "no drag yet")
+        drag(300, 30)
+        #expect(gesture.readout == .slip(24_000))
+        #expect(drawn.clip("R")?.clip.offset == 24_000, "the offset change is minus the readout")
+        _ = up(300, 30)
+        #expect(gesture.readout == nil, "the mouse-up")
+        down(250, 30)
+        drag(300, 30)
+        _ = gesture.handle(.escape, context())
+        #expect(gesture.readout == nil, "Esc")
+    }
+
     @Test mutating func theOtherShiftCommandPressesKeepTheirDrag() {
         down(350, 30)
         #expect(isRange(drag(380, 30)), "a gap")

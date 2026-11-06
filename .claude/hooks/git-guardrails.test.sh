@@ -2492,7 +2492,8 @@ clock_block_commands+=('echo x > f' 'echo x >> f' 'git status; echo x < f' 'scri
   'python3 scripts/wiki.py move 1 done' 'x/wiki.py lesson K --from f' '.scratchpads/x/scripts/wiki.py lesson K --from f'
   '/other/scripts/wiki.py move 1 done' 'cd .scratchpads/x && scripts/wiki.py lesson K --from f'
   'cd scripts && scripts/wiki.py lesson K --from f' 'cd .scratchpads/x; scripts/wiki.py lesson K --from f'
-  'cd /tmp && scripts/wiki.py lesson K --from f' 'cd && scripts/wiki.py lesson K --from f')
+  'cd /tmp && scripts/wiki.py lesson K --from f' 'cd && scripts/wiki.py lesson K --from f'
+  'X=1 cd .scratchpads/x && scripts/wiki.py lesson K --from f' 'X=1 Y=2 cd /tmp; scripts/wiki.py lesson K --from f')
 # clock_forms <transcript folder> <trigger name>: each pass and block form against one transcript
 clock_forms() {
   local form tool want input label command

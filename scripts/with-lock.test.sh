@@ -886,6 +886,12 @@ rm -f "$tmp/order"
 out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a 2>&1)"
 code=$?
 [[ $code -eq 75 && ! -s "$tmp/order" && -e "$marks/$inner" ]] || fail "marker of a live pid with its start time: exit $code, order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+# A file with an empty line 1 (ps printed nothing when it was written) is live while its pid runs.
+printf '\n1\n%s\n' "$repo" > "$marks/$inner"
+rm -f "$tmp/order"
+out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -s "$tmp/order" && -e "$marks/$inner" ]] || fail "marker of a live pid with an empty start time: exit $code, order [$(cat "$tmp/order" 2>/dev/null)], marker [$(ls "$marks")]: $out"
 kill "$inner" 2>/dev/null
 wait "$inner" 2>/dev/null
 inner=""
@@ -1011,6 +1017,27 @@ bm_refused 'two wrappers before swift' time -p nice env X=1 "$fake/bm/swift" bui
 bm_refused 'mutation-pass.sh' "$repo/scripts/mutation-pass.sh"
 bm_refused 'screenshots.sh' "$repo/scripts/screenshots.sh"
 bm_refused 'bundle.sh' "$repo/scripts/bundle.sh"
+bm_refused 'sh -x before bundle.sh' sh -x "$repo/scripts/bundle.sh"
+bm_refused 'bash -e -o pipefail before bundle.sh' bash -e -o pipefail "$repo/scripts/bundle.sh"
+# env -S splits its argument into words that the call cannot see: exit 64, one line.
+bm_refused_split() { # <name> <command>...
+    local name="$1"
+    shift
+    : > "$bmlog"
+    WITH_LOCK_MAX_WAIT=5 "$repo/scripts/with-lock.sh" --bench-mark "$@" > "$tmp/bm.out" 2> "$tmp/bm.err"
+    is "refused $name: exit" "$?" 64
+    is "refused $name: events" "$(bm_events)" ""
+    is "refused $name: stderr lines" "$(wc -l < "$tmp/bm.err" | tr -d ' ')" 1
+    is "refused $name: reason" "$(grep -c 'cannot see inside env -S' "$tmp/bm.err")" 1
+    is "refused $name: files" "$(bm_files)" ""
+}
+bm_refused_split 'env -S' env -S 'swift build'
+bm_refused_split 'env -S before a path' env -S "$fake/bm/swift build"
+bm_refused_split 'env -S<string>' env "-S$fake/bm/swift build"
+bm_refused_split 'env -iS' env -iS 'swift build'
+bm_refused_split 'env --split-string' env --split-string 'swift build'
+bm_refused_split 'env --split-string=' env '--split-string=swift build'
+bm_refused_split 'time before env -S' time -p env -S 'swift build'
 # A hook test runs only through make test-hooks HOOK_TESTS=: exit 64, one line that names that call.
 bm_refused_hook() { # <name> <command>...
     local name="$1"
@@ -1027,12 +1054,15 @@ bm_refused_hook 'bash and a hook test' bash scripts/x.test.sh
 bm_refused_hook 'a hook test' "$repo/scripts/x.test.sh"
 bm_refused_hook 'env and a hook test' env X=1 bash scripts/x.test.sh
 bm_refused_hook 'test-hooks.sh' "$repo/scripts/test-hooks.sh" scripts/x.test.sh
+bm_refused_hook 'bash -e and a hook test' bash -e scripts/x.test.sh
+bm_refused_hook 'bash -o pipefail and a hook test' bash -o pipefail scripts/x.test.sh
 hold
 echo 'make build' > "$lock/command"
 DIRIGIBLE_BUILD_LOCK="$holder" bm_refused 'swift build in a locked process tree' "$fake/bm/swift" build
 clear_hold
 bm_allowed 'check-waits.sh' 'wait-load RAN-check-waits' "$repo/scripts/check-waits.sh"
 bm_allowed 'env -u before check-waits.sh' 'wait-load RAN-check-waits' env -u X "$repo/scripts/check-waits.sh"
+bm_allowed 'bash -e -o pipefail before check-waits.sh' 'wait-load RAN-check-waits' bash -e -o pipefail "$repo/scripts/check-waits.sh"
 bm_allowed 'make test-hooks with HOOK_TESTS' 'wait-load L-start L-end' "$fake/bm/make" test-hooks HOOK_TESTS=a
 bm_allowed 'make lint' 'wait-load L-start L-end' "$fake/bm/make" lint
 # A marked call in a locked process tree (the pid file matches DIRIGIBLE_BUILD_LOCK) exits 64 with the
@@ -1094,7 +1124,7 @@ sleep 0.3
 lf_finish 80
 [[ $code -eq 0 && $elapsed -le 4 && "$(cat "$tmp/state" 2>/dev/null)" == $'nolock\nunset\nticket-gone' ]] ||
     fail "lock-free wait: exit $code after $elapsed s, state [$(cat "$tmp/state" 2>/dev/null | paste -sd, -)]: $out"
-[[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
+[[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid [0-9]' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
 [[ "$out" == *'it waits while a release call (a push check, the hooks pass, a land, or make dmg)'* ]] ||
     fail "lock-free wait: the lock-free line does not name the wait behind a release call: $out"
 [[ "$out" == *'holds the lock, or while a bench marker is live'* ]] || fail "lock-free wait: the lock-free line does not end with the bench marker: $out"

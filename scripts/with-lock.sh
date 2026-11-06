@@ -129,8 +129,9 @@
 # A hook test script (a .test.sh file) or test-hooks.sh is refused with exit 64 and the line that
 # names make test-hooks HOOK_TESTS=: a hook test runs only through that make call. The call skips
 # the leading wrapper words (skip_wrappers: time, nice, xcrun, and env with their options, and
-# NAME=value) and bash or sh before a file, compared by basename. It cannot see inside bash -c, a
-# file, or another wrapper. Inside a locked process tree (the call holds the lock through
+# NAME=value) and bash or sh with its dash options (-o and -O take a value) before a file, compared
+# by basename. env -S and env --split-string are refused with exit 64: they split their argument
+# into words that the call cannot see. It cannot see inside bash -c, a file, or another wrapper. Inside a locked process tree (the call holds the lock through
 # DIRIGIBLE_BUILD_LOCK) it exits 64 with the plain form scripts/with-lock.sh <command>, because a
 # marker cannot keep the lock-free calls of other trees out of a tree that already runs.
 # The call waits as a lock-free call does, writes the marker
@@ -147,7 +148,9 @@
 # start time, then pid) keeps its marker, and the other removes its marker and waits. The wait of
 # the marked call is under the wait limit above (exit 75, no marker left); the load wait adds up to
 # CHECK_LOAD_WAIT seconds. The command gets DIRIGIBLE_BENCH_MARK=<pid of the call>, so a lock-free
-# call inside it does not wait for its marker. A marked call inside a lock-free call waits for that
+# call inside it does not wait for its marker. A marked call that waits behind a younger marked
+# command keeps its marker, so a lock-free call inside that command waits for it; no script nests
+# marked calls. A marked call inside a lock-free call waits for that
 # call until the wait limit. A lock-free call that cannot write its file (a sandbox, a full disk)
 # runs, and a marker cannot see it: the call prints one stderr line that names the file. A file or
 # a marker that is not live is ignored and removed. A call that takes the lock, --release-holder,
@@ -169,12 +172,13 @@ alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 pstart() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
 # file_live <file>: a marker or lock-free file is named after a pid, and line 1 holds the start time
 # of that process. It is live while the pid runs with that start time. Else it goes: the pid is dead,
-# or the kernel gave it to another process.
+# or the kernel gave it to another process. An empty start time (ps printed nothing when the file was
+# written, or prints nothing now) counts as a match while the pid runs.
 file_live() {
-    local cur
+    local cur stamp
     if alive "${1##*/}"; then
-        cur="$(pstart "${1##*/}")"
-        [[ -z "$cur" || "$cur" == "$(sed -n 1p "$1" 2>/dev/null)" ]] && return 0
+        cur="$(pstart "${1##*/}")" stamp="$(sed -n 1p "$1" 2>/dev/null)"
+        [[ -z "$cur" || -z "$stamp" || "$cur" == "$stamp" ]] && return 0
     fi
     rm -f "$1"
     return 1
@@ -283,12 +287,14 @@ case "${1##*/}" in
         exit 2 ;;
 esac
 # skip_wrappers <command>...: sets skip_n to the number of leading words that only wrap the command:
-# time, nice, xcrun, and env with their options, and NAME=value words, compared by basename.
+# time, nice, xcrun, and env with their options, and NAME=value words, compared by basename. It sets
+# skip_split to 1 when an env option splits its argument into more words (-S, --split-string).
 skip_wrappers() {
-    local takes
-    skip_n=0
+    local takes wrapper
+    skip_n=0 skip_split=0
     while [[ $# -gt 0 ]]; do
-        case "${1##*/}" in
+        wrapper="${1##*/}"
+        case "$wrapper" in
             time) takes='-o' ;;
             nice) takes='-n' ;;
             xcrun) takes='-sdk|--sdk|-toolchain|--toolchain' ;;
@@ -298,6 +304,7 @@ skip_wrappers() {
         shift
         skip_n=$((skip_n + 1))
         while [[ $# -gt 0 && "$1" == -* ]]; do
+            [[ "$wrapper" == env && "$1" =~ ^(-[iv0]*S|--split-string) ]] && skip_split=1
             if [[ "$1" =~ ^($takes)$ && $# -ge 2 ]]; then shift 2; skip_n=$((skip_n + 2)); else shift; skip_n=$((skip_n + 1)); fi
         done
     done
@@ -306,12 +313,25 @@ skip_wrappers() {
 # --bench-mark call can see (the header), or for a hook test that does not run through make
 # test-hooks. The make and script words come from lock-words.sh.
 bench_class() {
-    local c w goal="" bench_swift='bundle|test-filter|test-helper|test-dmg|screenshots|screenshot|verify-copy|mutation-pass' cmd="$*"
+    local c w n goal="" bench_swift='bundle|test-filter|test-helper|test-dmg|screenshots|screenshot|verify-copy|mutation-pass' cmd="$*"
     local re="/($lock_scripts|$bench_swift)\$"
     while :; do
         skip_wrappers "$@"
+        if [[ $skip_split -eq 1 ]]; then
+            echo "with-lock: --bench-mark cannot see inside env -S (it splits its argument into words); write the command words after env, with no -S" >&2
+            exit 64
+        fi
         shift "$skip_n"
-        case "${1##*/}" in bash | sh) [[ $# -ge 2 && "$2" != -* ]] || break; shift ;; *) break ;; esac
+        case "${1##*/}" in
+            bash | sh)
+                n=2
+                while [[ $n -le $# && "${!n}" == -* ]]; do
+                    if [[ "${!n}" == -o || "${!n}" == -O ]]; then n=$((n + 2)); else n=$((n + 1)); fi
+                done
+                [[ $n -le $# ]] || break
+                shift $((n - 1)) ;;
+            *) break ;;
+        esac
     done
     c="${1:-}"
     case "$c" in .build/?* | */.build/?* | build/Dirigible.app/?* | */build/Dirigible.app/?*) goal=lock ;; esac

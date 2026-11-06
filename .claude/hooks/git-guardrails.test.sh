@@ -2000,8 +2000,8 @@ ag_repo="$tmp/ag-repo"
 ag_fx="$ag_repo/.scratchpads/runs/r1"
 ag_run "$ag_repo" r1 open 2026-11-06T10:00 no
 expect_brief block Agent prompt "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
-for part in 'scripts/check-plan.sh' "$ag_fx" 'no Siblings field' 'The lead writes the review fields itself, with no agent.' \
-  'Fix what scripts/check-plan.sh names, then start the agent.'; do
+for part in 'scripts/check-plan.sh' "$ag_fx" 'no Siblings field' \
+  'Fix what scripts/check-plan.sh names (the lead writes review fields itself, with no agent), then start the agent.'; do
   grep -qF "$part" "$tmp/agent-err" || { echo "FAIL: the agent-guard review-field message does not hold $part: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 done
 expect_brief block SendMessage message "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
@@ -2032,6 +2032,16 @@ agent_hook="$ag_stub/.claude/hooks/agent-guard.sh"
 expect_brief allow Agent prompt "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
 grep -qF 'scripts/check-plan.sh' "$tmp/agent-err" && grep -qF 'exited 3' "$tmp/agent-err" ||
   { echo "FAIL: agent-guard does not name the exit 3 of check-plan.sh: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+# An exit 1 of check-plan.sh blocks for any rule, and the block text prints each check-plan: line
+# (the whole output when none), not the first 3 lines.
+printf '#!/bin/bash\necho "check-plan: one" >&2\necho "check-plan: two" >&2\necho "check-plan: three" >&2\necho "check-plan: late cause" >&2\necho "other noise" >&2\nexit 1\n' > "$ag_stub/scripts/check-plan.sh"
+expect_brief block Agent prompt "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
+grep -qF 'check-plan: late cause' "$tmp/agent-err" && ! grep -qF 'other noise' "$tmp/agent-err" ||
+  { echo "FAIL: the agent-guard block text does not print each check-plan: line: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+printf '#!/bin/bash\necho "line 9: boom" >&2\nexit 1\n' > "$ag_stub/scripts/check-plan.sh"
+expect_brief block Agent prompt "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
+grep -qF 'line 9: boom' "$tmp/agent-err" ||
+  { echo "FAIL: the agent-guard block text drops an exit 1 output that has no check-plan: line: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 agent_hook="$ag_real_hook"
 
 # Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)

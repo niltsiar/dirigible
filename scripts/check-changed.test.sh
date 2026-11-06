@@ -239,7 +239,7 @@ clock_hook=".claude/hooks/agent-cl""ock.sh"
 for p in "$clock_hook" scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/git-guardrails.test.sh; do
   expect "a shared guard $p" "$(out tooling "check-fast$(hw "$p")" yes)" <<<"$p"
 done
-# agent-guard.sh fails open on check-plan.sh, so check-plan.sh is no shared guard.
+# agent-guard.sh blocks on exit 1 of check-plan.sh and passes on another exit, and the user decision names with-lock.sh, lock-words.sh, and the hooks only, so check-plan.sh is no shared guard.
 for p in "scripts/with-lock.te""st.sh" scripts/check-changed.sh scripts/check-plan.sh ".claude/skills/deliver/scripts/log-deci""sion.sh"; do
   expect "near a shared guard $p" "$(out tooling "check-fast$(hw "$p")" no)" <<<"$p"
 done

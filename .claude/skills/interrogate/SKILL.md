@@ -80,4 +80,4 @@ Write the verdict to `.scratchpads/runs/<run>/review-<gate>-<n>.md` and return i
 - **Agreement map:** where the lenses agreed or diverged, and what the pattern says.
 - **Not covered:** each lens, claim, or visible behavior that the gate did not check, and why, or `none`.
 
-Before the fixer starts, check the review fields. At a code gate, log a phase 6 verdict row: `log-decision.sh` refuses it until `scripts/check-plan.sh` exits 0. At a plan gate, run `scripts/check-plan.sh <run folder>`: it must exit 0.
+Before the fixer starts, check the review fields. At a code gate, log a phase 6 verdict row. At a plan gate, run `scripts/check-plan.sh <run folder>`: it must exit 0. `.claude/hooks/agent-guard.sh` refuses a brief that names a review file of the open run while `scripts/check-plan.sh` exits 1.

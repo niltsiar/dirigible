@@ -1961,9 +1961,9 @@ for text in 'git commit -F .scratchpads/commit-msg.txt' 'git commit --file=.scra
 done
 expect_brief allow SendMessage message 'git commit -F .scratchpads/commit-msg.txt, then hand back.'
 expect_brief allow mcp__t3-code__delegate_task task 'Fix the tests and commit.' worktree
-# A quote that holds git commit is data when a block report touches it: the block word right before
-# the opening quote, or "was" and "blocked" right after the closing quote. An instruction near a
-# block word, a report that the quote does not touch, and a commit with no quote stay blocked.
+# A quote that holds git commit is data when a block report touches it (see reports() in
+# commit-files.awk). An instruction near a block word, a report that the quote does not touch, and a
+# commit with no quote stay blocked.
 for text in '8. Brief that named `git commit -F <run folder file>` was blocked by agent-guard.' \
   '(3) git-guardrails refused `git commit -F <run folder file>`' \
   '8. Brief that named "git commit -F <run folder file>" was blocked by agent-guard.' \
@@ -1974,6 +1974,54 @@ for text in 'If the commit is blocked, run `git commit -F rows/x.txt`.' \
   'Run `git commit -F rows/x.txt`; it was blocked before.' \
   'If the commit is blocked, run git commit -F rows/x.txt.' \
   'Commit with `git commit -F <run>/rows/s4-commit-msg.txt`.'; do
+  expect_brief block Agent prompt "$text"
+done
+for text in 'The first gate-fix brief was blocked by agent-guard.sh for `git commit -F <run-folder file>`.' \
+  'The first gate-fix brief was blocked by .claude/hooks/agent-guard.sh: `git commit -F <run-folder file>`.' \
+  'The brief was refused by agent-guard.sh for `git commit -F <x>`.' \
+  'The brief was Blocked by agent-guard.sh for "git commit -F <x>".' \
+  "The brief was REFUSED BY agent-guard.sh: 'git commit -F <x>'." \
+  'Blocked by agent-guard.sh for: `git commit -F <x>`.' \
+  'It failed once. The brief was blocked by agent-guard.sh for `git commit -F <x>`.' \
+  'The brief has been blocked by agent-guard.sh for `git commit -F <x>`.'; do
+  expect_brief allow Agent prompt "$text"
+done
+for text in 'If blocked by agent-guard.sh for this, run `git commit -F rows/x.txt`.' \
+  'When blocked by agent-guard.sh for `git commit -F a`, run `git commit -F rows/x.txt`.' \
+  'Do not get blocked by the hook: `git commit -F rows/x.txt`.' \
+  'The brief was blocked by agent-guard.sh for git commit -F rows/x.txt.' \
+  'The brief was blocked by agent-guard.sh for `git commit -F <x>` and `git commit -F x.txt`.' \
+  'blocked by agent-guard.sh for `git commit -F <x>`; next run git commit -F rows/y.txt.' \
+  'If blocked by agent-guard.sh: `git commit -F rows/x.txt`.' \
+  'When refused by git-guardrails.sh for `git commit -F rows/x.txt`, retry.' \
+  'Unless blocked by policy: `git commit -F rows/x.txt`.' \
+  'Do not get blocked by agent-guard.sh for `git commit -F rows/x.txt`; run it.' \
+  'To avoid being blocked by agent-guard.sh for `git commit -F rows/x.txt`, write the file elsewhere.' \
+  'Commit with refused by x for: `git commit -F ../other/msg.txt`' \
+  'Next step: blocked by hook for "git commit -F rows/x.txt" so retry with it.' \
+  'If agent-guard.sh refused by mistake for `git commit -F rows/x.txt`, run it again.' \
+  'It is blocked by default for `git commit -F rows/x.txt`: run it after the gate.' \
+  'Never get blocked by agent-guard.sh for `git commit -F rows/x.txt`; run it with the path.' \
+  'Refused by agent-guard.sh: `git commit -F rows/x.txt`. Run it again after the fix.' \
+  'The brief was blocked by policy for `git commit -F rows/x.txt`.' \
+  'Once blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'Unless refused by agent-guard.sh: `git commit -F rows/x.txt`.' \
+  'Do not get blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  $'Don\'t get blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'The brief was blocked by agent-guard.sh for `git commit -F rows/x.txt` so run it again.' \
+  'Commit now; refused by agent-guard.sh for: `git commit -F ../other/msg.txt`' \
+  'Please commit, blocked by agent-guard.sh for `git commit -F ../other/msg.txt`.' \
+  'Run this, blocked by agent-guard.sh for `git commit -F ../other/msg.txt`' \
+  'Do it now - blocked by agent-guard.sh for `git commit -F ../other/msg.txt`.' \
+  'Commit now and it was blocked by agent-guard.sh for `git commit -F ../other/msg.txt`.' \
+  'We run it now, it was blocked by agent-guard.sh for `git commit -F ../other/msg.txt`.' \
+  'The agent must commit now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'The step is: run this and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  $'The fix is to commit now \xe2\x80\x94 it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  $'The fix is to commit now \xe2\x80\x93 it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'The plan: commit now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'We run it now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'The fix: commit it the brief was blocked by agent-guard.sh for `git commit -F rows/x.txt`.'; do
   expect_brief block Agent prompt "$text"
 done
 # The Bash path does not read a report: git-guardrails.sh blocks the same commit in a command.

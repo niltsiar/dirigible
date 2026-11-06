@@ -7,7 +7,8 @@
 # command as a child, and writes the pid of the child. While another process holds the lock, the
 # call prints the holder once and tries again each 30 s (WITH_LOCK_RETRY sets other seconds).
 # After a wait, the take appends one line to dirigible-build-waits.log in the git common dir: the
-# start time, the wait seconds, the command, and the command of the holder, with tabs between.
+# start time, the wait seconds, the command, and the command of the holder, with tabs between. A
+# lock-free call has its cause there: "bench marker pid N (<tree>)" or "lock-free call pid N (<command>)".
 # A call that an agent starts directly stops after WITH_LOCK_MAX_WAIT seconds of wait (default 120):
 # it prints the limit and "run the same command again", leaves the lock of the holder, and exits
 # 75. The default is min(120, 600 - B) = 120 s: B = 457 s, the warm build plus the slice tests of

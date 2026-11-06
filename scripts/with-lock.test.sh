@@ -961,6 +961,10 @@ waiter=""
 reset_builders
 rm -rf "$marks"
 
+# The header names the two causes that the held column of the wait log can hold.
+[[ "$(sed -n '1,30p' "$script")" == *'"bench marker pid N (<tree>)" or "lock-free call pid N (<command>)"'* ]] ||
+    fail 'the header does not name the two new forms of the held column'
+
 # --bench-mark times only a shell script or a hook test: a command of the lock class that it can see
 # gets exit 64, one stderr line with the lock form, no event, and no marker. A marker command runs.
 # The stubs only log an event, so a form that runs builds nothing.

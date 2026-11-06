@@ -32,6 +32,13 @@
 #   it. The reset is the start of that minute. PROVIDER_LIMIT_NOW (epoch seconds) sets now. A line
 #   that is not in that form, and a missing file, let the call pass; the hook prints a note for the
 #   line.
+# - A brief that names a review-plan-<n>.md or review-diff-<n>.md file of the open run of the hook
+#   cwd (open_run of open-run.py) is refused while scripts/check-plan.sh <run folder> exits 1, so no
+#   fixer starts on review items with no Invariant or Siblings field. The lead writes the review
+#   fields itself, so a repair brief is refused too. The folder of a name is its path (absolute, or
+#   relative to the cwd); a bare name takes each .scratchpads/runs/<slug> folder of the same text. An
+#   exit other than 0 or 1 of check-plan.sh lets the brief pass, with a note. This hook holds the plan
+#   gate; at the code gate, log-decision.sh refuses the phase 6 row until check-plan.sh exits 0.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
@@ -71,6 +78,41 @@ if [[ "$tool" == mcp__t3-code__delegate_task ]] \
   done < "$limits"
 fi
 text="$(plutil -extract "tool_input.$field" raw -o - "$input" 2>/dev/null)"
+if grep -qE 'review-(plan|diff)-[0-9]+\.md' <<< "$text"; then
+  # Prints "<open run folder><TAB><name>" for the first review file name of the text in the open run.
+  named="$(python3 -I -c '
+import importlib.util, os, re, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("open_run", os.path.join(sys.argv[1], "open-run.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+cwd = sys.argv[2]
+found = module.open_run(cwd) if cwd else None
+if not found:
+    sys.exit(0)
+run = os.path.realpath(found[0])
+text = sys.stdin.read()
+word = r"[^\s`\x27\"()<>\[\]]"
+folders = [f.rstrip(".,;:") for f in re.findall(word + r"*\.scratchpads/runs/[^\s/`\x27\"()<>\[\]]+", text)]
+for name in re.finditer(r"(?<!" + word + r")((?:" + word + r"*/)?)(review-(?:plan|diff)-[0-9]+\.md)(?![A-Za-z0-9_-])", text):
+    for folder in [name.group(1)] if name.group(1) else folders:
+        if os.path.realpath(os.path.join(cwd, folder)) == run:
+            print(run + "\t" + name.group(0))
+            sys.exit(0)
+' "$(dirname "$0")" "$(plutil -extract cwd raw -o - "$input" 2>/dev/null)" <<< "$text")"
+  if [[ -n "$named" ]]; then
+    folder="${named%%$'\t'*}"
+    out="$("$(dirname "$0")/../../scripts/check-plan.sh" "$folder" 2>&1)"
+    code=$?
+    if [[ $code -eq 1 ]]; then
+      { echo "BLOCKED by .claude/hooks/agent-guard.sh: the brief names ${named#*$'\t'} of the open run $folder, and scripts/check-plan.sh $folder exits 1:"
+        head -3 <<< "$out"
+        echo "The lead writes the review fields itself, with no agent. Fix what scripts/check-plan.sh names, then start the agent."; } >&2
+      exit 2
+    fi
+    [[ $code -eq 0 ]] || echo "agent-guard.sh: scripts/check-plan.sh $folder exited $code, so the hook does not check the review fields of the brief." >&2
+  fi
+fi
 # The lock-step lists are in scripts/lock-words.sh, which git-guardrails.sh reads too. They equal
 # the Makefile .PHONY line minus the four targets that take no lock and the scripts that AGENTS.md
 # says take the lock themselves; git-guardrails.test.sh keeps them equal.

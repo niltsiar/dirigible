@@ -1904,7 +1904,7 @@ sys.exit(0 if ok else 1)
 
 # A brief with a git commit -F or --file path other than .scratchpads/commit-msg.txt blocks, in the field of each tool. The correct path (also in
 # backticks or before a ; or .), - (stdin), and text with no path pass.
-# expect_brief <want> <tool name, or - for none> <field> <text> [isolation]
+# expect_brief <want> <tool name, or - for none> <field> <text> [isolation] [cwd]
 expect_brief() {
   local want="$1" got
   no_lock_step "$4"
@@ -1913,6 +1913,7 @@ expect_brief() {
   plutil -insert tool_input -dictionary "$input"
   plutil -insert "tool_input.$3" -string "$4" "$input"
   [[ -z "${5:-}" ]] || plutil -insert tool_input.isolation -string "$5" "$input"
+  [[ -z "${6:-}" ]] || plutil -insert cwd -string "$6" "$input"
   plutil -convert json "$input"
   "$agent_hook" < "$input" 2>"$tmp/agent-err"
   [[ $? -eq 2 ]] && got=block || got=allow
@@ -1978,6 +1979,60 @@ done
 # The Bash path does not read a report: git-guardrails.sh blocks the same commit in a command.
 expect block 'git commit -F rows/x.txt'
 expect block 'echo blocked; git commit -F rows/x.txt'
+
+# Review-field cases. A brief that names a review-plan-<n>.md or review-diff-<n>.md file of the open
+# run of the hook cwd (open-run.py) is refused while scripts/check-plan.sh exits 1 for that run.
+# ag_run <repo> <slug> <status> <row time> <siblings: yes or no>: a run folder in a git repo that
+# check-plan.sh passes, plus a review-diff-1.md whose Act on item has an Invariant field and, with
+# yes, a Siblings field.
+ag_run() {
+  local f="$1/.scratchpads/runs/$2"
+  mkdir -p "$f"
+  [[ -d "$1/.git" ]] || git init -q "$1"
+  printf '# Analysis: x\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | Q? | default | A. | %s |\n' "$4" > "$f/analysis.md"
+  printf '# Plan: x\n\nAgents: B = S1.\n\n## Slices\n\n### S1 one\n\n- Check: `targets: check-fast`.\n' > "$f/plan.md"
+  printf '%s\t1\tx\ty\tz\tw\n' "$4" > "$f/decisions.tsv"
+  printf '# Run %s\n\n- Status: %s\n- Branch: chore/%s\n' "$2" "$3" "$2" > "$f/run.md"
+  printf '# Code gate, round 1\n\n## Act on\n\n1. (warning, x) A fix.\n   - Invariant: i.\n' > "$f/review-diff-1.md"
+  [[ "$5" == no ]] || printf '   - Siblings: s.\n' >> "$f/review-diff-1.md"
+}
+ag_repo="$tmp/ag-repo"
+ag_fx="$ag_repo/.scratchpads/runs/r1"
+ag_run "$ag_repo" r1 open 2026-11-06T10:00 no
+expect_brief block Agent prompt "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
+for part in 'scripts/check-plan.sh' "$ag_fx" 'no Siblings field' 'The lead writes the review fields itself, with no agent.' \
+  'Fix what scripts/check-plan.sh names, then start the agent.'; do
+  grep -qF "$part" "$tmp/agent-err" || { echo "FAIL: the agent-guard review-field message does not hold $part: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+done
+expect_brief block SendMessage message "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
+expect_brief block mcp__t3-code__delegate_task task "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
+expect_brief block Agent prompt "Add the Siblings field to each Act on item of $ag_fx/review-diff-1.md." '' "$ag_fx"
+expect_brief block Agent prompt $'Apply the fixes of review-diff-1.md.\nRun folder: '"$ag_fx" '' "$ag_fx"
+# The repo top is in no run folder, so open_run takes the open run with the newest row: r1, not r2.
+ag_run "$ag_repo" r2 open 2026-11-06T09:00 no
+expect_brief block Agent prompt 'Apply the fixes of .scratchpads/runs/r1/review-plan-1.md.' '' "$ag_repo"
+expect_brief allow Agent prompt "Apply the fixes of $ag_repo/.scratchpads/runs/r2/review-diff-1.md." '' "$ag_fx"
+expect_brief allow Agent prompt $'Fix item 1 of the code gate: A fix.\n   - Invariant: i.' '' "$ag_fx"
+expect_brief allow Agent prompt 'Apply the fixes of review-diff-1.md.' '' "$ag_fx"
+expect_brief allow Agent prompt "Write $ag_fx/review-diff-<n>.md, then read $ag_fx/review-plan-*.md." '' "$ag_fx"
+ag_run "$tmp/ag-done" r1 done 2026-11-06T10:00 no
+expect_brief allow Agent prompt "Apply the fixes of $tmp/ag-done/.scratchpads/runs/r1/review-diff-1.md." '' "$tmp/ag-done/.scratchpads/runs/r1"
+ag_run "$tmp/ag-ok" r1 open 2026-11-06T10:00 yes
+expect_brief allow Agent prompt "Apply the fixes of $tmp/ag-ok/.scratchpads/runs/r1/review-diff-1.md." '' "$tmp/ag-ok/.scratchpads/runs/r1"
+# An exit of check-plan.sh other than 0 and 1 is not its verdict: a hook copy beside a stub that
+# exits 3 lets the brief pass and names the exit.
+ag_stub="$tmp/ag-stub"
+mkdir -p "$ag_stub/.claude/hooks" "$ag_stub/scripts"
+cp "$(dirname "$0")/agent-guard.sh" "$(dirname "$0")/commit-files.awk" "$(dirname "$0")/open-run.py" "$ag_stub/.claude/hooks/"
+cp "$lock_words_src" "$ag_stub/scripts/"
+printf '#!/bin/bash\nexit 3\n' > "$ag_stub/scripts/check-plan.sh"
+chmod +x "$ag_stub/scripts/check-plan.sh"
+ag_real_hook="$agent_hook"
+agent_hook="$ag_stub/.claude/hooks/agent-guard.sh"
+expect_brief allow Agent prompt "Apply the fixes of $ag_fx/review-diff-1.md." '' "$ag_fx"
+grep -qF 'scripts/check-plan.sh' "$tmp/agent-err" && grep -qF 'exited 3' "$tmp/agent-err" ||
+  { echo "FAIL: agent-guard does not name the exit 3 of check-plan.sh: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
+agent_hook="$ag_real_hook"
 
 # Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)
 # While a release call holds the build lock or waits first for it, agent-guard.sh refuses a brief

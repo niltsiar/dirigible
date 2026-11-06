@@ -1,4 +1,4 @@
-# Find the open deliver run of a working directory. Read by stop-guard.sh and pre-compact.sh, so both hooks use one rule.
+# Find the open deliver run of a working directory. Read by stop-guard.sh, pre-compact.sh, and agent-guard.sh, so the hooks use one rule.
 # open_run(cwd) returns (run folder, how) or None.
 # A run is open when the run.md in .scratchpads/runs/<name>/ of the main checkout has a `- Status: open`
 # line. The main checkout is the parent of the git common dir, so a run worktree finds the same runs.
@@ -37,6 +37,11 @@ def newest_row(folder):
     return rows[-1].split("\t")[0] if rows else ""
 
 
+def is_open(folder):
+    """Whether the run.md of a run folder has a `- Status: open` line."""
+    return re.search(r"^- Status: open\s*$", read(os.path.join(folder, "run.md")), re.M) is not None
+
+
 def open_run(cwd):
     """The open run of cwd as a (folder, how) pair, or None."""
     main = main_checkout(cwd)
@@ -49,9 +54,9 @@ def open_run(cwd):
         return None
     open_runs = {}
     for name in names:
-        text = read(os.path.join(runs, name, "run.md"))
-        if re.search(r"^- Status: open\s*$", text, re.M):
-            open_runs[os.path.join(runs, name)] = text
+        folder = os.path.join(runs, name)
+        if is_open(folder):
+            open_runs[folder] = read(os.path.join(folder, "run.md"))
     top = git(cwd, "rev-parse", "--show-toplevel")
     if top and os.path.realpath(top) != os.path.realpath(main):
         branch = git(cwd, "symbolic-ref", "--short", "HEAD")

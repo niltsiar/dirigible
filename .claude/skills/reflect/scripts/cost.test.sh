@@ -151,6 +151,15 @@ check() {
 check 'a run with a transcript' "$want" "$run" "$transcript"
 grep -qx 'gh pr list --state merged --limit 100 --json number,createdAt,mergedAt,title' "$tmp/gh.log" || fail "gh arguments: $(cat "$tmp/gh.log")"
 
+# Records out of time order: the idle gaps come from the times sorted, so the idle time stays within
+# the 58 min span of the records (08:22 to 09:20).
+shuffled="$tmp/shuffled.jsonl"
+for t in 08:22 09:00 08:40 09:20; do
+  printf '{"type":"user","timestamp":"2026-09-20T%s:00.000Z","message":{"role":"user","content":"go"}}\n' "$t"
+done > "$shuffled"
+shuffled_want="$(sed -e 's/^agents: .*/agents: 0/' -e 's/^workflows: .*/workflows: 0/' -e 's/^idle: .*/idle: 58 min in 3 gaps over 5 min/' <<<"$want")"
+check 'records out of time order' "$shuffled_want" "$run" "$shuffled"
+
 no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^workflows: .*/workflows: no transcript/' -e 's/^idle: .*/idle: no transcript/' \
   -e 's/^subagents: .*/subagents: no transcript/' -e 's/^tokens: .*/tokens: no transcript/' <<<"$want")"
 check 'no transcript' "$no_transcript" "$run"

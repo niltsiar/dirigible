@@ -1,7 +1,7 @@
 #!/bin/bash
 # Print the change classes of the changed paths, the make targets that they need, and the risk.
 # This script owns the path table and the risk floor (decision 0028). Docs name it, not the table.
-# A change to a path of the shared guard list gives `risk: yes` like a floor path, and keeps its class.
+# A change to a path of the shared guard list gives `risk: yes`, also a change of only comment lines, and keeps its class.
 # In the git modes, the content of a change can also give the class: a change of only comment
 # lines is class comments, and a Makefile change of only comment lines is class docs (comment_only).
 # Usage: scripts/check-changed.sh               HEAD against the working tree and untracked files; the local targets

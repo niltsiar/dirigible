@@ -233,7 +233,7 @@ for args in 'scripts/a.sh' '--push scripts/a.sh'; do
   grep -q 'usage:' "$tmp/paths.err" || fail "--paths $args: no usage line: $(cat "$tmp/paths.err")"
 done
 
-# A path of the shared guard list gives risk: yes like a floor path, and keeps its class and targets.
+# A path of the shared guard list gives risk: yes, also for a change of only comment lines, and keeps its class and targets.
 # A name written whole in this file adds this test to the HOOK_TESTS word of that path, so three names are built from parts.
 clock_hook=".claude/hooks/agent-cl""ock.sh"
 for p in "$clock_hook" scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/git-guardrails.test.sh; do

@@ -234,13 +234,13 @@ for args in 'scripts/a.sh' '--push scripts/a.sh'; do
 done
 
 # A path of the shared guard list gives risk: yes like a floor path, and keeps its class and targets.
-# Names that this file would make it a test of are built from parts.
+# A name written whole in this file adds this test to the HOOK_TESTS word of that path, so three names are built from parts.
 clock_hook=".claude/hooks/agent-cl""ock.sh"
 for p in "$clock_hook" scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/git-guardrails.test.sh; do
   expect "a shared guard $p" "$(out tooling "check-fast$(hw "$p")" yes)" <<<"$p"
 done
 # agent-guard.sh fails open on check-plan.sh, so check-plan.sh is no shared guard.
-for p in "scripts/with-lock.te""st.sh" scripts/check-changed.sh "scripts/check-pl""an.sh" ".claude/skills/deliver/scripts/log-deci""sion.sh"; do
+for p in "scripts/with-lock.te""st.sh" scripts/check-changed.sh scripts/check-plan.sh ".claude/skills/deliver/scripts/log-deci""sion.sh"; do
   expect "near a shared guard $p" "$(out tooling "check-fast$(hw "$p")" no)" <<<"$p"
 done
 expect 'a shared guard before the push' "$(out tooling check-fast yes)" --push <<<"$clock_hook"

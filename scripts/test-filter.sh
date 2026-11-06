@@ -63,12 +63,10 @@ suites=""
 hint_suite() {
     local name="$1" file kinds s shown=""
     while IFS= read -r file; do
-        [[ -n $file ]] || continue
         kinds="$(awk "$decl_awk $file_awk" "$file")"
         ! grep -qxF -- "D $name" <<<"$kinds" || continue
         [[ -n $suites ]] || suites="$(find Tests -type f -name '*.swift' -exec awk "$decl_awk $suite_awk" {} + | sort -u)"
         while IFS= read -r s; do
-            [[ -n $s ]] || continue
             ! grep -qxF -- "$s" <<<"$shown" || continue
             grep -qxF -- "$s" <<<"$suites" || continue
             shown+="$s"$'\n'

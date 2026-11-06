@@ -12,7 +12,7 @@
 #          After a newer partial stamp P (run-checks.sh), it prints `stamp: partial <P>`, the targets
 #          of the paths since P, and the word RERUN=<P>:fast:<names>+slow:<names> of the failed tests.
 #          A partial line still needs the exact commit of <base>.
-#          With risk: yes and no Sources/ or Tests/ path since P, it exits 1 with no targets line.
+#          With class sources-risk (risk: yes) and no Sources/ or Tests/ path since P, it exits 1 with no targets line.
 #          CHECK_PARTIAL=ignore: the targets with no partial stamp, and the word with each name.
 #        SINCE=<ref> scripts/check-changed.sh   the commits since <ref> and the working tree; the local
 #          targets and the HOOK_TESTS word, for the group end of one agent. It reads and writes no stamp.
@@ -433,12 +433,12 @@ if [[ -n "$base" ]]; then
         break
     done < <(tail -r "$partial_file")
 fi
-# With risk: yes, a test that failed and passes with no change of Sources/ or Tests/ is a flake of
-# a risk branch: refuse the rerun, also with CHECK_PARTIAL=ignore.
+# With class sources-risk (risk: yes), a test that failed and passes with no change of Sources/ or Tests/ is a flake of
+# a risk branch: refuse the rerun, also with CHECK_PARTIAL=ignore. A shared guard gives risk: yes only.
 if [[ -n $partial ]]; then
     since="$(git diff --name-only --no-renames "$partial")"$'\n'"$untracked"
-    if [[ $risk == yes ]] && ! grep -qE '^(Sources|Tests)/' <<<"$since"; then
-        echo "check-changed: the tests ${rerun_fast//,/ } ${rerun_slow//,/ } failed in the check of $partial, and no Sources/ or Tests/ path changed since then on this risk: yes branch: fix the test first (.claude/skills/tdd/references/flake-triage.md)" >&2
+    if [[ "$found" == *" sources-risk "* ]] && ! grep -qE '^(Sources|Tests)/' <<<"$since"; then
+        echo "check-changed: the tests ${rerun_fast//,/ } ${rerun_slow//,/ } failed in the check of $partial, and no Sources/ or Tests/ path changed since then on this sources-risk (risk: yes) branch: fix the test first (.claude/skills/tdd/references/flake-triage.md)" >&2
         exit 1
     fi
 fi

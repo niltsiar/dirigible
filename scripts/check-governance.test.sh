@@ -207,7 +207,7 @@ new_repo; reflect_row; verdicts delete merge; mkdir -p "$tmp/r/scripts"; echo x 
 pass 'two removals in a branch with a script change' "$tmp/run"
 new_repo; reflect_row; verdicts delete merge; commit
 pass 'two removals with no run folder'
-# check-changed.sh refuses a rerun after a partial stamp on a risk: yes branch with no Sources/ or
+# check-changed.sh refuses a rerun after a partial stamp on a sources-risk branch with no Sources/ or
 # Tests/ change since the stamp: a flaky test must not read as a governance fault.
 new_repo; reflect_row; mkdir -p "$tmp/r/Sources/DirigibleAudio"; echo x > "$tmp/r/Sources/DirigibleAudio/A.swift"; commit
 printf '%s %s failed fast:SomeTest slow:\n' "$(g rev-parse HEAD)" "$(g rev-parse main)" > "$(g rev-parse --path-format=absolute --git-common-dir)/dirigible-check-partial"

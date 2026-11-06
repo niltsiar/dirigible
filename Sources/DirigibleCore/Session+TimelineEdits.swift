@@ -79,6 +79,45 @@ extension Session {
     }
 }
 
+extension Session {
+    /// On each track, the first selected clip stays, and each later selected clip moves left to the
+    /// end of the clip before it in the lane, as that clip stands after its own move (Logic Shuffle
+    /// Left). It is a clip move, not a ripple: no unselected clip, no marker, and no clip of another
+    /// track moves. A moved clip keeps its ID, gain, fades, and gain points. It leaves its old join, so
+    /// the repair drops the crossfade of that join; a clip that touches the clip before it stays with
+    /// its crossfade. Returns the IDs of the moved clips, track by track in lane order. An unknown ID
+    /// throws `.unknownClip`, and a call that moves no clip changes nothing.
+    @discardableResult
+    public mutating func closeGaps(_ ids: [ClipID]) throws(SessionError) -> [ClipID] {
+        let selected = Set(ids)
+        var lanes = tracks
+        var found = 0
+        var moved: [ClipID] = []
+        for track in lanes.indices {
+            var edits: [(index: Int, clip: Clip)] = []
+            var end: Frames?
+            var started = false
+            for (index, clip) in lanes[track].clips.enumerated() {
+                var placed = clip
+                if selected.contains(clip.id) {
+                    found += 1
+                    if started, let end, clip.start > end {
+                        placed.start = end
+                        edits.append((index, placed))
+                    }
+                    started = true
+                }
+                end = placed.end
+            }
+            moved += edits.map(\.clip.id)
+            lanes[track].clips.replace(edits)
+        }
+        if found < selected.count, let missing = ids.first(where: { clip($0) == nil }) { throw .unknownClip(missing) }
+        tracks = lanes
+        return moved
+    }
+}
+
 extension Clip {
     /// The least length that `Session.check` accepts: one frame, and both crossfade halves.
     fileprivate var minimumLength: Frames { max(Frames(1), crossfades.start.half + crossfades.end.half) }

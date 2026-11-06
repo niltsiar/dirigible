@@ -23,7 +23,9 @@
 #   sessions of ANSWER_MODEL, each in a copy of set b under /private/tmp. The same grader scores
 #   them in <eval folder>/agent/. The runner prints the score rows; the pass rule of the row is
 #   for the caller.
-#   E38 runs through scripts/eval/agent-tasks.sh.
+#   A row of type agent with no quoted prompt (E38) starts no session here. The runner grades the
+#   other IDs, prints one line "<ID>: ..." with the scripts/eval/agent-tasks.sh call of the row,
+#   and exits 4. The lead runs that call as deliver Phase 7 says.
 # Env: RUNS (3), ANSWER_MODEL (sonnet), GRADER_MODEL (opus).
 work="" lock="" agent_work=()
 cleanup() {
@@ -37,7 +39,8 @@ trap cleanup EXIT
 # One call at a time in an eval folder (the lock .run-lock holds the pid). A verdict comes only when
 # each requested ID has RUNS scored rows in both sets.
 # Exit: 0 verdict PASS (or the agent rows scored), 1 verdict FAIL or RERUN DUE, 2 bad input, 3 a
-# session or a check failed. A failed session stops the sessions that still run. An INT stops them
+# session or a check failed, 4 an agent row with no quoted prompt is left to the lead (the other
+# IDs passed or none was asked). A failed session stops the sessions that still run. An INT stops them
 # all and exits 130, a TERM exits 143.
 set -uo pipefail
 
@@ -113,10 +116,13 @@ run_folder_key() {
         done < <(ls -1 "$runs_dir/$r" 2>/dev/null | grep '^eval' | LC_ALL=C sort -r)
     done < <(ls -1 "$runs_dir" 2>/dev/null | LC_ALL=C sort -r)
 }
-doc_ids=() doc_keys=() agent_id="" agent_key="" agent_prompt=""
+doc_ids=() doc_keys=() agent_id="" agent_key="" agent_prompt="" deferred=()
 while IFS=$'\037' read -r id type key prompt; do
     if [[ $type == agent ]]; then
-        [[ -n $prompt ]] || die 2 "$id has no quoted prompt in its question; scripts/eval/agent-tasks.sh runs it"
+        if [[ -z $prompt ]]; then
+            deferred+=("$id")
+            continue
+        fi
         [[ -z $agent_id ]] || die 2 "one agent row for each call; $agent_id and $id"
         agent_id="$id" agent_key="$key" agent_prompt="$prompt"
         has_key_point "$key" || die 2 "the key of $id has no key point \"(a) \""
@@ -135,6 +141,18 @@ while IFS=$'\037' read -r id type key prompt; do
         doc_ids+=("$id") doc_keys+=("$key")
     fi
 done <<<"$table"
+
+# An agent row with no quoted prompt is not run here: the lead runs its call.
+print_deferred() {
+    local id
+    for id in ${deferred[@]+"${deferred[@]}"}; do
+        echo "$id: run.sh does not run this agent row. The lead runs it as deliver Phase 7 says: scripts/eval/agent-tasks.sh <dirigible CLI> $eval_dir/$id $ANSWER_MODEL $tag. It grades the tasks with scripts/eval/agent-grade.py. The Key points cell of $id gives the variants and the run counts."
+    done
+}
+if [[ ${#doc_ids[@]} -eq 0 && -z $agent_id ]]; then
+    print_deferred
+    exit 4
+fi
 
 # One call at a time in an eval folder: the lock holds the pid of the call. A lock of a dead call goes.
 lock_dir="$eval_dir/.run-lock"
@@ -351,4 +369,6 @@ json.dump({"kept": {sys.argv[3]: [{"quote": " ".join(str(obj["result"]).split())
     grade "$ag" 1 "$agent_id" b "${specs[@]}"
     cat "$eval_dir/logs/$tag-score-agent.log"
 fi
+print_deferred
+[[ $verdict_code -ne 0 || ${#deferred[@]} -eq 0 ]] || verdict_code=4
 exit "$verdict_code"

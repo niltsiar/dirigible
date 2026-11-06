@@ -890,7 +890,7 @@ for line in open(sys.argv[1]):
 
   # An agent row with a quoted prompt and no task in agent-tasks.sh (E41) runs RUNS sessions in a
   # copy of set b, inside probe.sh, with the temp folders in the run folder, and is scored in
-  # agent/ only. E38 has no prompt: it runs through agent-tasks.sh.
+  # agent/ only. E38 has no quoted prompt: run.sh prints its agent-tasks.sh call (below).
   e="$(eval_env agent)"
   runner "$e" HEAD HEAD E41 t3
   want="$(awk -F'|' '$2 == " E41 " && NF > 8 { print $5 }' "$rt/docs/workflow/evals.md" | sed -n 's/.*with the prompt: "\([^"]*\)".*/\1/p')"
@@ -916,9 +916,22 @@ for line in open(sys.argv[2]):
   e="$(eval_env agent-error)"
   FAKE_MODE=agent_error runner "$e" HEAD HEAD E41 t3
   [[ $code -eq 3 && "$out" == *E41-* ]] || fail "run.sh agent row with is_error: exit $code: $out"
+  # E38 has no quoted prompt: run.sh grades the other IDs, prints the agent-tasks.sh call of the
+  # row, and exits 4. It starts no session for the row.
+  e="$(eval_env agent-mixed)"
+  runner "$e" HEAD HEAD E2,E38 t1
+  line="$(grep '^E38: ' <<<"$out")"
+  ep="$(cd "$e" && pwd -P)"
+  [[ $code -eq 4 && "$out" == *'verdict: PASS'* && "$(calls '"kind": "answer"')" -eq 6 && "$(calls '"kind": "grader"')" -eq 1 ]] || fail "run.sh E2,E38: exit $code: $out"
+  [[ "$line" == *"scripts/eval/agent-tasks.sh <dirigible CLI> $ep/E38 sonnet t1"* && "$line" == *scripts/eval/agent-grade.py* ]] || fail "run.sh E2,E38: no E38 call line: $out"
+  [[ "$line" != *'after the push check'* ]] || fail "run.sh E2,E38: the E38 line states a time: $line"
+  [[ "$(tail -n +2 "$e/scores.tsv" | cut -f2 | sort -u)" == E2 ]] || fail 'run.sh E2,E38: scores.tsv holds another ID than E2'
   e="$(eval_env agent-e38)"
+  rm -rf "$e/docs-a" "$e/docs-b" "$e/logs"
+  ep="$(cd "$e" && pwd -P)"
   runner "$e" HEAD HEAD E38 t3
-  [[ $code -eq 2 && "$out" == *agent-tasks.sh* && ! -s "$tmp/fake.log" ]] || fail "run.sh E38: exit $code: $out"
+  [[ $code -eq 4 && "$out" == *"E38: "*"scripts/eval/agent-tasks.sh <dirigible CLI> $ep/E38 sonnet t3"* && ! -s "$tmp/fake.log" ]] || fail "run.sh E38: exit $code: $out"
+  [[ ! -e "$e/.run-lock" && ! -e "$e/docs-a" && ! -e "$e/docs-b" ]] || fail 'run.sh E38: it took the lock or built a docs copy'
 
   # The build branch for real: a stamp keys each docs copy to its commit, and a second commit into
   # the same folder is refused (the copies would be those of the first commit).

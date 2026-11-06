@@ -926,6 +926,10 @@ for line in open(sys.argv[2]):
   [[ "$line" == *"scripts/eval/agent-tasks.sh <dirigible CLI> $ep/E38 sonnet t1"* && "$line" == *scripts/eval/agent-grade.py* ]] || fail "run.sh E2,E38: no E38 call line: $out"
   [[ "$line" != *'after the push check'* ]] || fail "run.sh E2,E38: the E38 line states a time: $line"
   [[ "$(tail -n +2 "$e/scores.tsv" | cut -f2 | sort -u)" == E2 ]] || fail 'run.sh E2,E38: scores.tsv holds another ID than E2'
+  # A FAIL verdict wins over the left E38 row: exit 1, and the E38 line still prints.
+  e="$(eval_env agent-mixed-fail)"
+  FAKE_GRADE=FAIL runner "$e" HEAD HEAD E2,E38 t1
+  [[ $code -eq 1 && "$out" == *'verdict: FAIL'* && "$out" == *$'\nE38: '* ]] || fail "run.sh E2,E38 with a failing grader: exit $code, want 1 with verdict: FAIL and the E38 line: $out"
   e="$(eval_env agent-e38)"
   rm -rf "$e/docs-a" "$e/docs-b" "$e/logs"
   ep="$(cd "$e" && pwd -P)"

@@ -890,6 +890,55 @@ wait "$inner" 2>/dev/null
 inner=""
 rm -rf "$marks" "$frees"
 
+# Two marked calls that start together: the older one (call start time, then pid) keeps its marker
+# and waits until the other removes its own, and the other removes its marker and waits. A stub
+# mkdir writes the marker of a second call just before the marker of the call under test, so that
+# call finds it at its second look. The second call is a live sleep; the case plays its part.
+mkdir -p "$fake/mk"
+cat > "$fake/mk/mkdir" << 'EOF'
+#!/bin/bash
+for last; do :; done
+if [[ "$last" == */dirigible-bench-marks && ! -e "$MK_DONE" ]]; then
+    /bin/mkdir -p "$last" && : > "$MK_DONE"
+    { ps -o lstart= -p "$MK_PID" | sed 's/^ *//'; echo "$MK_AT"; echo "$MK_TREE"; } > "$last/$MK_PID"
+fi
+exec /bin/mkdir "$@"
+EOF
+chmod +x "$fake/mk/mkdir"
+mk_call() { # <start time of the second call> ; the marked call runs in the background
+    rm -rf "$marks" "$tmp/mkdone" "$tmp/ran5" "$tmp/mk.err"
+    sleep 60 & inner=$!
+    PATH="$fake/mk:$PATH" MK_PID="$inner" MK_AT="$1" MK_TREE="$repo" MK_DONE="$tmp/mkdone" WITH_LOCK_MAX_WAIT=20 WITH_LOCK_RETRY=0.2 \
+        "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran5'" > /dev/null 2> "$tmp/mk.err" &
+    waiter=$!
+    until_true 50 test -e "$marks/$inner" || fail 'two marked calls: the marker of the second call did not appear'
+    sleep 0.6
+}
+mk_end() {
+    kill "$inner" 2>/dev/null
+    wait "$inner" 2>/dev/null
+    inner=""
+    wait "$waiter" 2>/dev/null
+    is "two marked calls, $1: exit" "$?" 0
+    waiter=""
+}
+mk_call $(($(date +%s) + 3600))
+is 'two marked calls, second one younger: the call keeps its marker' "$(ls "$marks" | wc -l | tr -d ' ')" 2
+[[ ! -e "$tmp/ran5" ]] || fail 'two marked calls, second one younger: the command ran while the other marker lived'
+rm -f "$marks/$inner"
+until_true 50 test -e "$tmp/ran5" || fail 'two marked calls, second one younger: the command did not run after the other marker went'
+is 'two marked calls, second one younger: wait lines' "$(grep -c "bench marker pid $inner (" "$tmp/mk.err")" 1
+mk_end 'second one younger'
+mk_call 1
+is 'two marked calls, second one older: the call removes its marker' "$(ls "$marks" | tr '\n' ' ')" "$inner "
+[[ ! -e "$tmp/ran5" ]] || fail 'two marked calls, second one older: the command ran while the older marker lived'
+rm -f "$marks/$inner"
+until_true 50 test -e "$tmp/ran5" || fail 'two marked calls, second one older: the command did not run after the older marker went'
+is 'two marked calls, second one older: wait lines' "$(grep -c "bench marker pid $inner (" "$tmp/mk.err")" 1
+mk_end 'second one older'
+rm -rf "$marks" "$tmp/mkdone" "$tmp/ran5" "$tmp/mk.err"
+reset_builders
+
 # --bench-mark times only a shell script or a hook test: a command of the lock class that it can see
 # gets exit 64, one stderr line with the lock form, no event, and no marker. A marker command runs.
 # The stubs only log an event, so a form that runs builds nothing.

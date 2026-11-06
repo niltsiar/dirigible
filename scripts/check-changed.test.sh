@@ -622,6 +622,15 @@ for mode in '' CHECK_PARTIAL=ignore; do
 done
 printf 'func cFast() {}\n' >> "$tmp/r/$tests_file"
 partial_is 'risk and a Tests path since P in the working tree' "stamp: partial $P" 'docs tests sources-risk' check yes
+# A shared guard gives risk: yes, not class sources-risk: the flake refusal does not apply.
+partial_case .claude/hooks/x.sh
+partial_line "$P" main aFast ''
+put docs/b.md two
+partial_is 'a hook-only branch with a partial stamp is not refused' "stamp: partial $P" 'docs tooling tests' "check-docs RERUN=$P:fast:aFast+slow:" yes
+partial_case .claude/hooks/x.sh
+partial_line "$P" main aFast ''
+put docs/b.md two
+partial_is 'a hook-only branch in ignore mode is not refused' '' 'docs tooling tests' "check RERUN=$P:fast:aFast+slow:" yes CHECK_PARTIAL=ignore
 # Ignore mode: the targets of a check with no partial line, and the word with each name of the line.
 partial_case
 partial_line "$P" main aFast,gone aSlow

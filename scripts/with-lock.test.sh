@@ -628,11 +628,9 @@ if bm_start 'marker blocks test-hooks'; then
     out="$(WITH_LOCK_RUN_ONLY=1 WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" bash "$tmp/ro.sh" 2>&1)"
     code=$?
     [[ $code -eq 75 && ! -e "$tmp/ran" ]] || fail "marker blocks run-only: exit $code, ran [$(ls "$tmp/ran" 2>/dev/null)]: $out"
-    # A call that takes the lock ignores the marker.
     out="$(WITH_LOCK_MAX_WAIT=5 "$repo/scripts/with-lock.sh" bash -c 'echo ok' 2>&1)"
     code=$?
     [[ $code -eq 0 && "$out" == ok ]] || fail "lock taker ignores the marker: exit $code: $out"
-    # The queries of the TV session do not read the marker.
     out="$("$repo/scripts/with-lock.sh" --release-holder 2>&1)"
     code=$?
     [[ $code -eq 1 && -z "$out" ]] || fail "marker and --release-holder: exit $code, output [$out]"
@@ -807,7 +805,6 @@ code=$?
 [[ $code -eq 75 && "$(grep -c M-start "$bmlog")" == 0 && "$(grep -c "lock-free call pid $inner (" <<<"$out")" == 1 ]] ||
     fail "marked call waits for a lock-free call: exit $code: $out"
 is 'marked call at the limit: marker' "$(ls "$marks" 2>/dev/null | paste -sd' ' -)" ""
-# A TERM to a marked call that waits for a lock-free call removes its marker.
 WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" --bench-mark echo x > /dev/null 2>&1 &
 waiter=$!
 until_true 50 bm_ready || fail 'waiting marked call: no marker'
@@ -817,12 +814,10 @@ wait "$waiter" 2>/dev/null
 is 'waiting marked call: TERM exit' "$?" 143
 waiter=""
 is 'waiting marked call: marker after TERM' "$(ls "$marks" 2>/dev/null | paste -sd' ' -)" ""
-# The queries with a lock-free call live.
 out="$("$repo/scripts/with-lock.sh" --release-holder 2>&1)"
 code=$?
 [[ $code -eq 1 && -z "$out" ]] || fail "lock-free call live and --release-holder: exit $code, output [$out]"
 is 'lock-free call live and --builders' "$("$repo/scripts/with-lock.sh" --builders 2>&1)" ""
-# A TERM to a lock-free call removes its file.
 kill -TERM "$inner"
 wait "$inner" 2>/dev/null
 is 'lock-free TERM: exit' "$?" 143

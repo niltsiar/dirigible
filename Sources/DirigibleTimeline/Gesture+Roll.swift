@@ -8,7 +8,7 @@ extension TimelineGesture {
     /// What a Shift-Command press holds on a clip.
     enum RollSlipZone: Equatable, Sendable {
         case edge(Clip, Edge, lane: Int)
-        case slip(Clip, lane: Int)
+        case slip(Clip)
     }
 
     /// A roll drag: the left clip of the join, the frames that the join can move, the move, and
@@ -43,7 +43,7 @@ extension TimelineGesture {
         if x - box.minX < LaneGeometry.trimReach { return .edge(clip, .start, lane: lane) }
         if box.maxX - x < LaneGeometry.trimReach { return .edge(clip, .end, lane: lane) }
         switch geometry.hit(x, y, in: session) {
-        case .move, .gain, .fade, .point: return .slip(clip, lane: lane)
+        case .move, .gain, .fade, .point: return .slip(clip)
         case .trim, .range: return nil
         }
     }
@@ -76,7 +76,7 @@ extension TimelineGesture {
                 clip: clip, left: a.id, limits: min(lower, .zero)...max(upper, .zero), delta: .zero,
                 preview: press.base)
             return .rolling(press, roll)
-        case .slip(let clip, _):
+        case .slip(let clip):
             guard let limits = try? press.base.slipLimits(clip.id) else { return nil }
             return .slipping(press, Slip(clip: clip, limits: limits, delta: .zero, preview: press.base))
         }

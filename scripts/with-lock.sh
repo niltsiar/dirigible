@@ -79,7 +79,7 @@
 # A lock-free call takes no lock and writes no hold line, and prints one stderr line
 # "with-lock: lock-free targets (<targets>): no lock; it waits while a release call (a push
 # check, the hooks pass, a land, or make dmg), a bench, a mutation pass, a flake loop, or a stress
-# lane holds the lock". It is make check-changed with no BASE= word and no BASE in the environment or in
+# lane holds the lock, or while a bench marker is live". It is make check-changed with no BASE= word and no BASE in the environment or in
 # MAKEFLAGS (both make a push check, and so a release call), when scripts/check-changed.sh (with the
 # NAME=value words of the call in its environment) gives only check-docs, check-fast, static, lint,
 # format, none, test, test-app, test-filter, or a word with =; and make test-hooks with a
@@ -91,9 +91,9 @@
 # the call prints the output of check-changed.sh and exits 3 at once, with no lock, wait, ticket, or
 # log line, also behind a long holder. With no long holder, a lock-free call also writes no wait line and runs at once: it
 # does not wait for another build or test. While a release call, a bench, a mutation pass, a flake
-# loop, or a stress lane holds the lock (long-runs.md), and, after it waited, while a release call has a live
+# loop, or a stress lane holds the lock, or a bench marker is live (long-runs.md), and, after it waited, while a release call has a live
 # ticket in dirigible-build-first/, it waits without taking the lock, under the wait limit above,
-# and then runs. That wait keeps no marker and no ticket, and appends one wait line that ends with
+# and then runs. That wait keeps no marker, no ticket, and no lock-free file, and appends one wait line that ends with
 # lockfree. cost.sh counts its minutes. A lock-free call runs its command as a child. TERM or INT
 # stops the process group of the command. make exits 2 for a recipe that exits 75, so the call exits
 # 75 when the command fails and its stderr has the make line "Error 75" of the check-changed target:
@@ -115,7 +115,34 @@
 # transcript scan never queues behind a push check (DLV-157).
 # scripts/lock-words.sh holds the word rules of the lock-free make call (lock_make_words), push_env,
 # hooks_env, and release_call; the guardrail hook reads the same file.
-# The guardrail hook blocks each command that names the lock and is not a read.
+# scripts/with-lock.sh --bench-mark <command> [<argument>...] runs a timing of a shell script or a
+# hook test (make test-hooks HOOK_TESTS=<names>) that builds no Swift and runs no built binary, while no lock-free call
+# runs. A timed Swift build, Swift test, bench, built binary, or probe takes the lock
+# (performance-criteria.md of the deliver skill, A time budget). Before any wait, also inside a
+# locked process tree, the call refuses a command of that lock class that it can see: it prints one
+# stderr line that names the lock form scripts/with-lock.sh <command>, and exits 64. The class it
+# sees: swift, a script of lock_scripts (lock-words.sh), probe.sh, land.sh, a path under .build/ or
+# build/Dirigible.app/, and each make call except make test-hooks with a HOOK_TESTS= word (no
+# release call) and goals of lock_free_targets only. make check-changed is refused, because its
+# targets can run a Swift test. It skips the leading words env, time, NAME=value, and bash or sh
+# before a file, compared by basename. It cannot see inside bash -c, a file, or another wrapper.
+# The call waits as a lock-free call does, writes the marker
+# <git common dir>/dirigible-bench-marks/<pid of the call> with its tree,
+# waits until no live lock-free call is left, runs scripts/check-changed.sh --wait-load bench, runs
+# the command as a child, and removes the marker when the command ends. A lock-free call (below)
+# writes <git common dir>/dirigible-lock-free/<pid of the call> with its command while it runs, and
+# removes the file at its end; a call that waits holds no such file. While a marker of a live pid
+# exists, a lock-free call waits for it as for a bench. So no lock-free call runs while the command
+# runs, in either start order. The wait of the marked call is under the wait limit above (exit 75,
+# no marker left); the load wait adds up to CHECK_LOAD_WAIT seconds. The command gets
+# DIRIGIBLE_BENCH_MARK=<pid of the call>, so a lock-free call inside it does not wait for its
+# marker. A marked call inside a lock-free call waits for that call until the wait limit. A
+# lock-free call that cannot write its file (a sandbox, a full disk) runs, and a marker cannot see
+# it: the call prints one stderr line that names the file. A file or a marker of a dead pid is
+# ignored and removed. A call that takes the lock, --release-holder, and --builders do not read the
+# marker or the lock-free files.
+# The guardrail hook blocks each command that names the lock, the markers, or the lock-free files
+# and is not a read.
 # scripts/with-lock.test.sh tests it.
 set -uo pipefail
 [[ $# -ge 1 ]] || { echo "usage: scripts/with-lock.sh <command> [<argument>...]" >&2; exit 2; }
@@ -128,7 +155,7 @@ told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
 waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
-waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}" floor="${WITH_LOCK_BUILDERS_FLOOR:-10}"
+benches="${lock%/*}/dirigible-bench-marks" freedir="${lock%/*}/dirigible-lock-free" cause="" waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}" floor="${WITH_LOCK_BUILDERS_FLOOR:-10}"
 # The awk function ep reads a local ISO time as UTC, to add the seconds of a log line.
 ep_awk='
     function ep(s, y, mo) {
@@ -223,7 +250,40 @@ case "${1##*/}" in
         echo "with-lock: $1 builds nothing and needs no lock; run it without scripts/with-lock.sh (DLV-157: work that builds nothing may run beside a push check)" >&2
         exit 2 ;;
 esac
-[[ -z "${DIRIGIBLE_BUILD_LOCK:-}" || "$(cat "$lock/pid" 2>/dev/null)" != "$DIRIGIBLE_BUILD_LOCK" ]] || exec "$@"
+# bench_class <command>: exits 64 with one stderr line for a command of the lock class that a
+# --bench-mark call can see (the header). The make and script words come from lock-words.sh.
+bench_class() {
+    local c w goal="" re="/($lock_scripts)\$" cmd="$*"
+    while [[ $# -gt 0 ]]; do
+        case "${1##*/}" in
+            env | time | bash | sh) [[ $# -ge 2 && "$2" != -* ]] || break ;;
+            *) [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break ;;
+        esac
+        shift
+    done
+    c="${1:-}"
+    case "$c" in .build/?* | */.build/?* | build/Dirigible.app/?* | */build/Dirigible.app/?*) goal=lock ;; esac
+    case "${c##*/}" in
+        swift | probe.sh | land.sh) goal=lock ;;
+        *.sh) [[ ! "/${c%.sh}" =~ $re ]] || goal=lock ;;
+        make)
+            if ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && ! release_call "$@"; }; then
+                for w in "${@:2}"; do
+                    if [[ "$w" =~ ^($lock_free_targets)$ ]]; then goal=free; elif [[ "$w" != *=* ]]; then goal=lock; break; fi
+                done
+                [[ -n "$goal" ]] || goal=lock
+            fi
+            ;;
+    esac
+    [[ "$goal" == lock ]] || return 0
+    echo "with-lock: --bench-mark times only a shell script or a hook test that builds no Swift and runs no built binary; run this command under the lock: scripts/with-lock.sh $cmd" >&2
+    exit 64
+}
+[[ "$1" != --bench-mark ]] || bench_class "${@:2}"
+if [[ -n "${DIRIGIBLE_BUILD_LOCK:-}" && "$(cat "$lock/pid" 2>/dev/null)" == "$DIRIGIBLE_BUILD_LOCK" ]]; then
+    [[ "$1" != --bench-mark ]] || shift
+    exec "$@"
+fi
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # A mutation pass builds the tree of its first argument, whatever the working directory is.
 if [[ "${1##*/}" == mutation-pass.sh && $# -ge 2 ]]; then tree="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || echo "$tree")"; fi
@@ -233,7 +293,7 @@ ahead() {
     local t
     for t in "$first"/*; do
         [[ -d "$t" && "${t##*/}" != $$ ]] || continue
-        alive "${t##*/}" && return 0
+        if alive "${t##*/}"; then cause="release call ticket pid ${t##*/}"; return 0; fi
         rmdir "$t" 2>/dev/null
     done
     return 1
@@ -295,9 +355,21 @@ lock_free() {
     esac
 }
 # long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
-# loop, or a stress lane (long-runs.md): a lock-free call still waits for it.
+# loop, or a stress lane, or while a live bench marker other than DIRIGIBLE_BENCH_MARK exists
+# (long-runs.md): a lock-free call still waits for it. A marker of a dead pid goes. A live marker
+# sets cause to its pid and tree, for the wait line.
 long_holder() {
     local m c cmd w words make=""
+    cause=""
+    for m in "$benches"/*; do
+        [[ -f "$m" ]] || continue
+        if ! alive "${m##*/}"; then
+            rm -f "$m"
+        elif [[ "${m##*/}" != "${DIRIGIBLE_BENCH_MARK:-}" ]]; then
+            cause="bench marker pid ${m##*/} ($(cat "$m" 2>/dev/null))"
+            return 0
+        fi
+    done
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
     alive "$m" || alive "$c" || alive "-$c" || return 1
     [[ ! -e "$lock/release" ]] || return 0
@@ -309,6 +381,20 @@ long_holder() {
     read -ra words <<<"$cmd"
     for w in ${words[@]+"${words[@]}"}; do
         if [[ "${w##*/}" == make ]]; then make=1; elif [[ -n "$make" && ($w == bench || $w == dmg) ]]; then return 0; fi
+    done
+    return 1
+}
+# free_busy: succeeds while a lock-free call lives (a file of a live pid in $freedir), and sets cause
+# to its pid and command. A file of a dead pid goes.
+free_busy() {
+    local f
+    for f in "$freedir"/*; do
+        [[ -f "$f" ]] || continue
+        if alive "${f##*/}"; then
+            cause="lock-free call pid ${f##*/} ($(cat "$f" 2>/dev/null))"
+            return 0
+        fi
+        rm -f "$f"
     done
     return 1
 }
@@ -330,14 +416,42 @@ pause() {
     fi
     sleep "$nap"
 }
+# say_wait: the one line that names why the call waits (the live marker, lock-free call, or ticket in
+# cause, else the holder of the lock). A new cause gets a new line; the first one is the held column
+# of the wait line.
+said=""
+say_wait() {
+    local msg
+    if [[ -n "$cause" ]]; then
+        msg="$cause is live; this call waits until it ends"
+        [[ -n "$held" ]] || held="$cause"
+    else
+        [[ -n "$held" ]] || held="$(cat "$lock/command" 2>/dev/null)"
+        msg="$lock is held by pid $(cat "$lock/pid" 2>/dev/null) ($(cat "$lock/command" 2>/dev/null))"
+    fi
+    [[ "$msg" != "$said" ]] || return 0
+    said="$msg"
+    echo "with-lock: $msg; retry each $retry s" >&2
+}
+# lf_write <command>...: the file of a lock-free call, $freedir/<pid of this call> with its command, while it
+# runs. A write that fails (a sandbox) leaves no file and prints one stderr line for the call; the
+# call still runs.
+lf="" lf_said=""
+lf_write() {
+    if { mkdir -p "$freedir" && printf '%s\n' "$*" > "$freedir/$$"; } 2>/dev/null; then lf="$freedir/$$"; return; fi
+    lf=""
+    [[ -z "$lf_said" ]] || return 0
+    lf_said=1
+    echo "with-lock: cannot write the lock-free file $freedir/$$; a bench marker cannot see this call" >&2
+}
 # run_lock_free <command>: runs the command with no lock, as a child with its own process group,
 # and exits with its status, or with 75 for the make line "Error 75" (see the header).
-free_child=""
+free_child="" mark=""
 stop_free() { [[ -z "$free_child" ]] || { kill -TERM -- "-$free_child" 2>/dev/null; wait "$free_child"; }; exit "$1"; }
 run_lock_free() {
     local err status
     err="$(mktemp)"
-    trap 'rm -f "$err"' EXIT
+    trap 'rm -f "$err" ${lf:+"$lf"} ${mark:+"$mark"}' EXIT
     trap 'stop_free 130' INT
     trap 'stop_free 143' TERM
     set -m
@@ -349,18 +463,67 @@ run_lock_free() {
     if [[ $status -ne 0 ]] && grep -qE '^[A-Za-z0-9_./-]+(\[[0-9]+\])?: \*\*\* \[check-changed\] Error 75$' "$err"; then exit 75; fi
     exit "$status"
 }
+# wait_line <command>...: appends the wait line of a call that waited without the lock.
+wait_line() { printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null; }
+# --bench-mark <command>: the timing run of the header. Before its marker it waits as a lock-free call
+# does. It writes the marker, and then a long holder or another marker that appeared in between sends
+# it back to wait. With the marker live it waits for the lock-free calls that run (a lock-free call
+# that starts later sees the marker), runs the load wait of a bench, and runs the command.
+if [[ "$1" == --bench-mark ]]; then
+    shift
+    [[ $# -ge 1 ]] || { echo "usage: scripts/with-lock.sh --bench-mark <command> [<argument>...]" >&2; exit 2; }
+    wait_limit "$@"
+    trap 'rm -f ${mark:+"$mark"}' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    export DIRIGIBLE_BENCH_MARK=$$
+    waited=""
+    while :; do
+        if long_holder || ahead; then
+            say_wait; waited=1
+            pause
+            continue
+        fi
+        mark="$benches/$$"
+        { mkdir -p "$benches" && echo "$tree" > "$mark"; } 2>/dev/null ||
+            { mark=""; echo "with-lock: cannot write the bench marker into $benches; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
+        if long_holder; then rm -f "$mark"; mark=""; pause; continue; fi
+        break
+    done
+    while free_busy; do
+        say_wait; waited=1
+        pause
+    done
+    "$here/check-changed.sh" --wait-load bench || {
+        status=$?
+        echo "with-lock: scripts/check-changed.sh --wait-load bench exited $status; the marked command did not run" >&2
+        exit 2
+    }
+    [[ -z "$waited" ]] || wait_line "$@"
+    echo "with-lock: bench marker (no lock): a lock-free call waits while this command runs" >&2
+    run_lock_free "$@"
+fi
 # A lock-free call that starts behind a long holder waits here, with no lock, marker, or ticket,
-# until one poll finds no long holder and no live ticket of a release call.
+# until one poll finds no long holder and no live ticket of a release call. While it runs, it keeps
+# its file in $freedir, which a --bench-mark call reads. A waiting call keeps none. It writes the
+# file first and tests for a long holder after, so a marker and a lock-free call that start together
+# never both run: one of them sees the other.
 free_targets=""
 if lock_free "$@"; then
-    echo "with-lock: lock-free targets ($free_targets): no lock; it waits while a release call (a push check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds the lock" >&2
-    if long_holder; then
-        wait_limit "$@"
-        held="$(cat "$lock/command" 2>/dev/null)"
-        echo "with-lock: $lock is held by pid $(cat "$lock/pid" 2>/dev/null) ($held); retry each $retry s" >&2
+    echo "with-lock: lock-free targets ($free_targets): no lock; it waits while a release call (a push check, the hooks pass, a land, or make dmg), a bench, a mutation pass, or a flake loop holds the lock, or while a bench marker is live" >&2
+    trap 'rm -f ${lf:+"$lf"}' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    waited=""
+    while :; do
+        lf_write "$@"
+        long_holder || break
+        [[ -z "$lf" ]] || rm -f "$lf"
+        lf=""
+        if [[ -z "$waited" ]]; then wait_limit "$@"; say_wait; waited=1; fi
         while long_holder || ahead; do pause; done
-        printf '%s\t%s\t%s\t%s\t%s\tlockfree\n' "$(date -r "$start" +%FT%T)" "$(($(date +%s) - start))" "$*" "$held" "$tree" >> "$waits" 2>/dev/null
-    fi
+    done
+    [[ -z "$waited" ]] || wait_line "$@"
     run_lock_free "$@"
 fi
 wait_limit "$@"

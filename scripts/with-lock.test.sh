@@ -12,7 +12,9 @@
 # default with a fake clock, run-checks.sh: no limit only for a push check, and a lock-free make check-changed FILTER call, which exits 75 with the real make, also with a test-app whose app step exits 75), scripts/bundle.sh
 # (it takes the lock itself after its path check, and keeps the wait limit and the cap), and --release-holder (a live
 # release holder or ticket gives exit 0, any other state exit 1, also inside a locked process tree), and the hold limit
-# (exit 124; a command that creates <lock>/shard-limit gets the column limit and keeps its exit). Each case uses a temporary repo with a worktree, so the lock of an outer
+# (exit 124; a command that creates <lock>/shard-limit gets the column limit and keeps its exit), and --bench-mark (a marker in
+# dirigible-bench-marks/ blocks each lock-free call, a lock-free call keeps a file in dirigible-lock-free/ while it runs and the
+# marked call waits for it, the load wait, and the refusal of a lock-class command). Each case uses a temporary repo with a worktree, so the lock of an outer
 # with-lock.sh call is not touched.
 # Run by scripts/bench-pairs.test.sh, which make test-hooks runs.
 set -uo pipefail
@@ -22,7 +24,7 @@ tmp="$(mktemp -d)"
 holder="" child="" waiter="" inner="" other=""
 trap 'kill $holder $child $waiter $inner $other 2>/dev/null; chmod -R u+w "$tmp"; rm -rf "$tmp"' EXIT
 # The value of an outer with-lock.sh call names another lock.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD WITH_LOCK_BUILDERS_MIN WITH_LOCK_BUILDERS_FLOOR WITH_LOCK_RUN_ONLY BASE MAKEFLAGS SINCE
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE DIRIGIBLE_BUILD_LOCK DIRIGIBLE_BENCH_MARK WITH_LOCK_MAX_WAIT WITH_LOCK_MAX_HOLD WITH_LOCK_BUILDERS_MIN WITH_LOCK_BUILDERS_FLOOR WITH_LOCK_RUN_ONLY BASE MAKEFLAGS SINCE
 export WITH_LOCK_RETRY=0.1
 fail() { echo "FAIL: $1"; failures=$((failures + 1)); }
 # A pid variable can outlive its child, and the kernel can give the number to a process of another
@@ -401,6 +403,11 @@ reset_builders() { clear_hold; rm -rf "$lock" "$waits" "$holds" "$waiting" "$fir
 # exits $FAKE_EXIT.
 cat > "$repo/scripts/check-changed.sh" << 'EOF'
 #!/bin/bash
+if [[ "${1:-}" == --wait-load && -n "${BM_LOG:-}" ]]; then # the load wait of a bench marker: logs, blocks while $BM_GATE exists
+    echo "wait-load $*" >> "$BM_LOG"
+    while [[ -e "${BM_GATE:-/nonexistent}" ]]; do sleep 0.1; done
+    exit "${BM_LOAD_EXIT:-0}"
+fi
 echo "${FILTER-unset}" >> "$FAKE_FILTER_LOG"
 if [[ "${FAKE_EXIT:-0}" != 3 ]]; then # exit 3 is the refusal: no stdout
     echo "classes: tooling"
@@ -555,6 +562,369 @@ for holder_command in "make test-filter ATests" "make test-filter FILTER=bench" 
 done
 reset_builders
 
+# A bench marker: with-lock.sh --bench-mark <command> times a shell script or a hook test while no
+# lock-free call runs. A lock-free call keeps a file in dirigible-lock-free/ while it runs, and a
+# marked call keeps a file in dirigible-bench-marks/. The fake check-changed.sh answers the load
+# wait (--wait-load bench) and logs it to $BM_LOG, with the fake make of $fake/bm and the stubs.
+# bm_start <case name> [command...] runs the marked call in the background and returns 0 when its
+# marker file exists. If no file appears in 5 s, or the call ends first, it fails with the stderr
+# of the call and returns 1, so each case asserts only after a 0.
+marks="$repo/.git/dirigible-bench-marks" frees="$repo/.git/dirigible-lock-free" bmlog="$tmp/bm.log"
+export BM_LOG="$bmlog"
+mkdir -p "$fake/bm" "$repo/.build/debug"
+printf '#!/bin/bash\necho "L-start $*" >> "$BM_LOG"\nsleep "${BM_SLEEP:-0}"\necho L-end >> "$BM_LOG"\n' > "$fake/bm/make"
+printf '#!/bin/bash\necho "RAN-swift $*" >> "$BM_LOG"\n' > "$fake/bm/swift"
+printf '#!/bin/bash\necho W-start >> "$BM_LOG"\nsleep 2\necho W-end >> "$BM_LOG"\n' > "$repo/.build/debug/whisper"
+printf '#!/bin/bash\necho "RAN-built $*" >> "$BM_LOG"\n' > "$repo/.build/debug/stub"
+for stub in land probe swift-test test-shards check-waits; do
+    printf '#!/bin/bash\necho "RAN-%s $*" >> "$BM_LOG"\n' "$stub" > "$repo/scripts/$stub.sh"
+    chmod +x "$repo/scripts/$stub.sh"
+done
+chmod +x "$fake/bm/make" "$fake/bm/swift" "$repo/.build/debug/whisper" "$repo/.build/debug/stub"
+bm_events() { awk '{ print $1 }' "$bmlog" | paste -sd' ' -; }
+bm_files() { find "$marks" "$frees" -type f 2>/dev/null | paste -sd' ' -; }
+free_up() { [[ -n "$(ls -A "$frees" 2>/dev/null)" ]]; }
+bm_ready() { [[ -n "$(ls -A "$marks" 2>/dev/null)" ]] || ! kill -0 "$waiter" 2>/dev/null; }
+is() { [[ "$2" == "$3" ]] || fail "$1: [$2] want [$3]"; }
+bm_start() {
+    local name="$1"
+    shift
+    [[ $# -gt 0 ]] || set -- bash -c 'sleep 8'
+    : > "$bmlog"
+    "$repo/scripts/with-lock.sh" --bench-mark "$@" > "$tmp/bm.out" 2> "$tmp/bm.err" &
+    waiter=$!
+    until_true 50 bm_ready || true
+    [[ -z "$(ls -A "$marks" 2>/dev/null)" ]] || return 0
+    kill "$waiter" 2>/dev/null
+    wait "$waiter" 2>/dev/null
+    fail "$name: no bench marker file; the marked call ended first or ran on for 5 s: $(tr '\n' ' ' < "$tmp/bm.err")"
+    waiter=""
+    return 1
+}
+bm_end() { kill "$waiter" 2>/dev/null; wait "$waiter" 2>/dev/null; waiter=""; }
+# A pid that is dead: its files are stale.
+( : ) & gone=$!
+wait "$gone"
+reset_builders
+rm -rf "$marks" "$frees"
+
+# A live marker blocks a lock-free test-hooks call, a lock-free check-changed call, and a run-only
+# call (the Whisper form). The wait line names the marker, and the stderr line ends with the marker.
+if bm_start 'marker blocks test-hooks'; then
+    rm -f "$tmp/order" "$tmp/ran"
+    out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a 2>&1)"
+    code=$?
+    is 'marker blocks test-hooks: exit' "$code" 75
+    [[ ! -s "$tmp/order" ]] || fail "marker blocks test-hooks: the command ran: $(cat "$tmp/order")"
+    [[ "$out" == *'lock-free targets'* && "$out" == *'holds the lock, or while a bench marker is live'* ]] ||
+        fail "marker blocks test-hooks: the lock-free line: $out"
+    is 'marker blocks test-hooks: marker lines' "$(grep -c "bench marker pid $waiter (" <<<"$out")" 1
+    is 'marker blocks test-hooks: held by pid lines' "$(grep -c 'held by pid' <<<"$out")" 0
+    is 'marker file name' "$(ls "$marks")" "$waiter"
+    out="$(FAKE_TARGETS=check-docs WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/make" check-changed 2>&1)"
+    code=$?
+    [[ $code -eq 75 && ! -s "$tmp/order" ]] || fail "marker blocks check-changed: exit $code, order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+    printf '#!/bin/bash\ntouch "%s"\n' "$tmp/ran" > "$tmp/ro.sh"
+    out="$(WITH_LOCK_RUN_ONLY=1 WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" bash "$tmp/ro.sh" 2>&1)"
+    code=$?
+    [[ $code -eq 75 && ! -e "$tmp/ran" ]] || fail "marker blocks run-only: exit $code, ran [$(ls "$tmp/ran" 2>/dev/null)]: $out"
+    # A call that takes the lock ignores the marker.
+    out="$(WITH_LOCK_MAX_WAIT=5 "$repo/scripts/with-lock.sh" bash -c 'echo ok' 2>&1)"
+    code=$?
+    [[ $code -eq 0 && "$out" == ok ]] || fail "lock taker ignores the marker: exit $code: $out"
+    # The queries of the TV session do not read the marker.
+    out="$("$repo/scripts/with-lock.sh" --release-holder 2>&1)"
+    code=$?
+    [[ $code -eq 1 && -z "$out" ]] || fail "marker and --release-holder: exit $code, output [$out]"
+    is 'marker and --builders' "$("$repo/scripts/with-lock.sh" --builders 2>&1)" ""
+    [[ ! -e "$lock" && -z "$(ls "$waiting" 2>/dev/null)" ]] || fail 'marker and the queries: a lock folder or a waiting marker'
+    bm_end
+fi
+is 'marker gone after the end' "$(bm_files)" ""
+
+# The marked command: its exit status passes, the usage line gives exit 2, and a TERM to the call
+# stops the command and removes the marker. The command gets DIRIGIBLE_BENCH_MARK=<pid of the call>,
+# so a lock-free call inside it runs at once.
+: > "$bmlog"
+"$repo/scripts/with-lock.sh" --bench-mark bash -c 'exit 7' > /dev/null 2>&1
+is 'marker exit status' "$?" 7
+"$repo/scripts/with-lock.sh" --bench-mark > /dev/null 2>&1
+is 'marker usage' "$?" 2
+rm -f "$tmp/dbm"
+if bm_start 'marked command runs a lock-free call' bash -c "BM_SLEEP=1 '$repo/scripts/with-lock.sh' '$fake/bm/make' test-hooks HOOK_TESTS=a; echo \$DIRIGIBLE_BENCH_MARK > '$tmp/dbm'"; then
+    marked=$waiter
+    wait "$waiter"
+    is 'marked command with a lock-free call: exit' "$?" 0
+    waiter=""
+    is 'DIRIGIBLE_BENCH_MARK in the command' "$(cat "$tmp/dbm" 2>/dev/null)" "$marked"
+    is 'lock-free call inside the marked command' "$(bm_events)" 'wait-load L-start L-end'
+fi
+rm -f "$tmp/freepid"
+if bm_start 'marker TERM' bash -c "sleep 30 & echo \$! > '$tmp/freepid'; wait"; then
+    until_true 50 test -s "$tmp/freepid" || fail 'marker TERM: the command did not start'
+    kill -TERM "$waiter"
+    wait "$waiter" 2>/dev/null
+    code=$?
+    waiter=""
+    sleep 0.3
+    is 'marker TERM: exit' "$code" 143
+    is 'marker TERM: marker' "$(bm_files)" ""
+    dead "$(cat "$tmp/freepid")" || fail 'marker TERM: the command is alive'
+fi
+
+# Marked calls and lock holders: an ordinary holder is ignored (the call runs, no lock is taken), a
+# long holder (make dmg) makes the call wait without a marker (exit 75 at the limit), the wait ends
+# when the holder ends (one wait line of 6 columns that ends lockfree), a live ticket of a release
+# call makes it wait, and a second marker makes it wait until the first ends.
+: > "$bmlog"
+reset_builders
+hold
+echo 'make test-filter ATests' > "$lock/command"
+out="$("$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran2'" 2>&1)"
+code=$?
+[[ $code -eq 0 && -s "$tmp/ran2" && "$(cat "$lock/pid")" == "$holder" && -z "$(bm_files)" ]] ||
+    fail "marker call, ordinary holder: exit $code, files [$(bm_files)]: $out"
+reset_builders
+rm -f "$tmp/ran2"
+hold
+echo 'make dmg' > "$lock/command"
+out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran2'" 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -e "$tmp/ran2" && -z "$(bm_files)" && "$(grep -c "held by pid $holder" <<<"$out")" == 1 ]] ||
+    fail "marker call, long holder: exit $code, files [$(bm_files)]: $out"
+reset_builders
+hold_for 1
+echo 'make dmg' > "$lock/command"
+out="$(WITH_LOCK_MAX_WAIT=10 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran2'" 2>&1)"
+code=$?
+[[ $code -eq 0 && -s "$tmp/ran2" && "$(wc -l < "$waits" | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg lockfree' ]] ||
+    fail "marker call, holder ends: exit $code, wait line [$(cat "$waits" 2>/dev/null)]: $out"
+reset_builders
+rm -f "$tmp/ran2"
+sleep 60 & inner=$!
+mkdir -p "$first/$inner"
+out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran2'" 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -e "$tmp/ran2" && -z "$(bm_files)" ]] || fail "marker call, release ticket: exit $code: $out"
+kill "$inner" 2>/dev/null
+wait "$inner" 2>/dev/null
+inner=""
+reset_builders
+if bm_start 'marker call, second marker' bash -c 'sleep 1.5'; then
+    first_marker=$waiter
+    out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" --bench-mark bash -c 'echo ran' 2>&1)"
+    is 'marker call, second marker, at the limit: exit' "$?" 75
+    is 'marker call, second marker: cause lines' "$(grep -c "bench marker pid $first_marker (" <<<"$out")" 1
+    out="$(WITH_LOCK_MAX_WAIT=20 "$repo/scripts/with-lock.sh" --bench-mark bash -c "[[ ! -e '$marks/$first_marker' ]] && touch '$tmp/ran3'" 2>&1)"
+    code=$?
+    [[ $code -eq 0 && -e "$tmp/ran3" ]] || fail "marker call, second marker: the second call ran while the first marker lived: exit $code: $out"
+    wait "$waiter" 2>/dev/null
+    waiter=""
+fi
+rm -f "$tmp/ran3"
+reset_builders
+if bm_start 'wait line names the marker' bash -c 'sleep 1.5'; then
+    WITH_LOCK_MAX_WAIT=10 "$repo/scripts/with-lock.sh" "$fake/bm/make" test-hooks HOOK_TESTS=d > /dev/null 2>&1
+    wait "$waiter" 2>/dev/null
+    waiter=""
+    is 'wait line names the marker' "$(awk -F'\t' '{ print NF, substr($4, 1, 16), $NF }' "$waits" 2>/dev/null)" '6 bench marker pid lockfree'
+fi
+
+# A lock-free call that runs when the marked call starts: the marked command starts after it ends,
+# and a lock-free call that starts after the marker waits for the command. The file of the
+# lock-free call is named after its pid while it runs.
+: > "$bmlog"
+reset_builders
+BM_SLEEP=2 "$repo/scripts/with-lock.sh" "$fake/bm/make" test-hooks HOOK_TESTS=a > "$tmp/free.out" 2>&1 &
+inner=$!
+until_true 50 free_up || fail 'lock-free call in flight: no lock-free file'
+is 'lock-free file name' "$(ls "$frees" 2>/dev/null)" "$inner"
+WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'; sleep 0.3; echo M-end >> '$bmlog'" > "$tmp/bm.out" 2>&1
+is 'lock-free call in flight, then the marked call: exit' "$?" 0
+wait "$inner"
+inner=""
+is 'lock-free call in flight, then the marked call: order' "$(bm_events)" 'L-start L-end wait-load M-start M-end'
+is 'lock-free call in flight, then the marked call: files left' "$(bm_files)" ""
+if bm_start 'marked call, then a lock-free call' bash -c "echo M-start >> '$bmlog'; sleep 1.5; echo M-end >> '$bmlog'"; then
+    out="$(WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" "$fake/bm/make" test-hooks HOOK_TESTS=b 2>&1)"
+    is 'marked call, then a lock-free call: exit' "$?" 0
+    wait "$waiter" 2>/dev/null
+    waiter=""
+    is 'marked call, then a lock-free call: order' "$(bm_events)" 'wait-load M-start M-end L-start L-end'
+fi
+# Both start in the same instant: the two never overlap, and neither ends in exit 75.
+bad=0
+for round in $(seq 10); do
+    : > "$bmlog"
+    BM_SLEEP=0.2 WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" "$fake/bm/make" test-hooks HOOK_TESTS=r > /dev/null 2>&1 &
+    inner=$!
+    WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'; sleep 0.2; echo M-end >> '$bmlog'" > /dev/null 2>&1 &
+    waiter=$!
+    wait "$inner"
+    code1=$?
+    wait "$waiter"
+    code2=$?
+    inner="" waiter=""
+    seq_="$(awk '$1 != "wait-load" { print $1 }' "$bmlog" | paste -sd' ' -)"
+    case "$seq_:$code1:$code2" in
+        'L-start L-end M-start M-end:0:0' | 'M-start M-end L-start L-end:0:0') ;;
+        *) bad=$((bad + 1)); fail "start together, round $round: events [$seq_], exits $code1 and $code2" ;;
+    esac
+done
+is 'start together: rounds with an overlap' "$bad" 0
+
+# The load wait: the marker lives while check-changed.sh --wait-load bench blocks, the command waits
+# for it, and a lock-free call waits. A failing load wait gives exit 2, no command, and no marker.
+: > "$tmp/gate"
+if BM_GATE="$tmp/gate" bm_start 'load wait' bash -c "echo M-start >> '$bmlog'"; then
+    sleep 0.5
+    is 'load wait: the command waits' "$(grep -c M-start "$bmlog")" 0
+    is 'load wait: marker' "$(ls "$marks" | wc -l | tr -d ' ')" 1
+    WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/bm/make" test-hooks HOOK_TESTS=c > /dev/null 2>&1
+    is 'load wait: a lock-free call exits' "$?" 75
+    rm -f "$tmp/gate"
+    wait "$waiter"
+    is 'load wait: exit after the gate' "$?" 0
+    waiter=""
+    is 'load wait: order' "$(bm_events)" 'wait-load M-start'
+    is 'load wait: argument' "$(grep wait-load "$bmlog")" 'wait-load --wait-load bench'
+fi
+rm -f "$tmp/gate"
+: > "$bmlog"
+out="$(BM_LOAD_EXIT=3 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'" 2>&1)"
+code=$?
+[[ $code -eq 2 && "$(grep -c M-start "$bmlog")" == 0 && -z "$(bm_files)" ]] || fail "failing load wait: exit $code, files [$(bm_files)]: $out"
+
+# The marked call waits for a lock-free call: one line names the call, the limit gives exit 75, no
+# marker is left, and the command does not run. A lock-free call of the Whisper form (a built
+# binary, WITH_LOCK_RUN_ONLY=1) is a lock-free call too, and the command runs after it ends.
+: > "$bmlog"
+BM_SLEEP=20 "$repo/scripts/with-lock.sh" "$fake/bm/make" test-hooks HOOK_TESTS=e > /dev/null 2>&1 &
+inner=$!
+until_true 50 free_up || fail 'marked call waits for a lock-free call: no lock-free file'
+out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'" 2>&1)"
+code=$?
+[[ $code -eq 75 && "$(grep -c M-start "$bmlog")" == 0 && "$(grep -c "lock-free call pid $inner (" <<<"$out")" == 1 ]] ||
+    fail "marked call waits for a lock-free call: exit $code: $out"
+is 'marked call at the limit: marker' "$(ls "$marks" 2>/dev/null | paste -sd' ' -)" ""
+# A TERM to a marked call that waits for a lock-free call removes its marker.
+WITH_LOCK_MAX_WAIT=30 "$repo/scripts/with-lock.sh" --bench-mark echo x > /dev/null 2>&1 &
+waiter=$!
+until_true 50 bm_ready || fail 'waiting marked call: no marker'
+is 'waiting marked call: marker' "$(ls "$marks" | wc -l | tr -d ' ')" 1
+kill -TERM "$waiter"
+wait "$waiter" 2>/dev/null
+is 'waiting marked call: TERM exit' "$?" 143
+waiter=""
+is 'waiting marked call: marker after TERM' "$(ls "$marks" 2>/dev/null | paste -sd' ' -)" ""
+# The queries with a lock-free call live.
+out="$("$repo/scripts/with-lock.sh" --release-holder 2>&1)"
+code=$?
+[[ $code -eq 1 && -z "$out" ]] || fail "lock-free call live and --release-holder: exit $code, output [$out]"
+is 'lock-free call live and --builders' "$("$repo/scripts/with-lock.sh" --builders 2>&1)" ""
+# A TERM to a lock-free call removes its file.
+kill -TERM "$inner"
+wait "$inner" 2>/dev/null
+is 'lock-free TERM: exit' "$?" 143
+inner=""
+is 'lock-free TERM: file' "$(ls "$frees" 2>/dev/null | paste -sd' ' -)" ""
+: > "$bmlog"
+WITH_LOCK_RUN_ONLY=1 "$repo/scripts/with-lock.sh" "$repo/.build/debug/whisper" > /dev/null 2>&1 &
+inner=$!
+until_true 50 free_up || fail 'run-only item: no lock-free file'
+WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'" > /dev/null 2>&1
+is 'run-only item: the marked call at the limit' "$?" 75
+wait "$inner"
+inner=""
+WITH_LOCK_MAX_WAIT=10 "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo M-start >> '$bmlog'" > /dev/null 2>&1
+is 'run-only item: the marked call after the item' "$(bm_events)" 'W-start W-end wait-load M-start'
+
+# A marker or a lock-free file of a dead pid is ignored and removed. A lock-free file that cannot be
+# written does not stop the call: it runs, with one stderr line that names the file, also after a wait.
+mkdir -p "$marks"
+echo "$repo" > "$marks/$gone"
+rm -f "$tmp/order"
+WITH_LOCK_MAX_WAIT=3 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a > /dev/null 2>&1
+is 'dead marker: lock-free exit' "$?" 0
+[[ -s "$tmp/order" && -z "$(bm_files)" ]] || fail "dead marker: order [$(cat "$tmp/order" 2>/dev/null)], files left [$(bm_files)]"
+mkdir -p "$frees"
+echo 'make test-hooks' > "$frees/$gone"
+WITH_LOCK_MAX_WAIT=3 "$repo/scripts/with-lock.sh" --bench-mark bash -c 'exit 0' > /dev/null 2>&1
+is 'dead lock-free file: marked exit' "$?" 0
+is 'dead lock-free file: files left' "$(bm_files)" ""
+rm -rf "$frees"
+echo notadir > "$frees"
+rm -f "$tmp/order"
+out="$(WITH_LOCK_MAX_WAIT=3 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=j 2>&1)"
+code=$?
+[[ $code -eq 0 && -s "$tmp/order" && "$(grep -c "cannot write the lock-free file [^ ]*dirigible-lock-free/[0-9]*; a bench marker cannot see this call" <<<"$out")" == 1 ]] ||
+    fail "lock-free file not writable: exit $code: $out"
+reset_builders
+hold_for 1.5
+echo 'make dmg' > "$lock/command"
+rm -f "$tmp/order"
+out="$(WITH_LOCK_MAX_WAIT=10 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=j 2>&1)"
+code=$?
+[[ $code -eq 0 && -s "$tmp/order" && "$(grep -c 'cannot write the lock-free file' <<<"$out")" == 1 ]] ||
+    fail "lock-free file not writable, after a wait: exit $code: $out"
+reset_builders
+rm -f "$frees"
+
+# --bench-mark times only a shell script or a hook test: a command of the lock class that it can see
+# gets exit 64, one stderr line with the lock form, no event, and no marker. A marker command runs.
+# The stubs only log an event, so a form that runs builds nothing.
+bm_refused() { # <name> <command>...
+    local name="$1"
+    shift
+    : > "$bmlog"
+    WITH_LOCK_MAX_WAIT=5 "$repo/scripts/with-lock.sh" --bench-mark "$@" > "$tmp/bm.out" 2> "$tmp/bm.err"
+    is "refused $name: exit" "$?" 64
+    is "refused $name: events" "$(bm_events)" ""
+    is "refused $name: stderr lines" "$(wc -l < "$tmp/bm.err" | tr -d ' ')" 1
+    is "refused $name: lock form" "$(grep -cF "run this command under the lock: scripts/with-lock.sh $*" "$tmp/bm.err")" 1
+    is "refused $name: files" "$(bm_files)" ""
+}
+bm_allowed() { # <name> <events> <command>...
+    local name="$1" want="$2"
+    shift 2
+    : > "$bmlog"
+    WITH_LOCK_MAX_WAIT=5 "$repo/scripts/with-lock.sh" --bench-mark "$@" > "$tmp/bm.out" 2> "$tmp/bm.err"
+    is "allowed $name: exit" "$?" 0
+    is "allowed $name: events" "$(bm_events)" "$want"
+    is "allowed $name: files" "$(bm_files)" ""
+}
+bm_refused 'swift build' "$fake/bm/swift" build
+bm_refused 'make test' "$fake/bm/make" test
+bm_refused 'land.sh' "$repo/scripts/land.sh"
+bm_refused 'probe.sh' "$repo/scripts/probe.sh" "$tmp" "$fake/bm/swift" build
+bm_refused 'a .build path' "$repo/.build/debug/stub" transcribe
+bm_refused 'swift-test.sh' "$repo/scripts/swift-test.sh" --filter X
+bm_refused 'env before swift' env X=1 "$fake/bm/swift" test
+bm_refused 'bash before test-shards.sh' bash "$repo/scripts/test-shards.sh"
+bm_refused 'make check-changed' "$fake/bm/make" check-changed
+bm_refused 'make test-hooks as a release call' "$fake/bm/make" test-hooks HOOK_TESTS=a DIRIGIBLE_HOOKS_ALL=1
+bm_refused 'make test-hooks with no HOOK_TESTS' "$fake/bm/make" test-hooks
+hold
+echo 'make build' > "$lock/command"
+DIRIGIBLE_BUILD_LOCK="$holder" bm_refused 'swift build in a locked process tree' "$fake/bm/swift" build
+clear_hold
+bm_allowed 'check-waits.sh' 'wait-load RAN-check-waits' "$repo/scripts/check-waits.sh"
+bm_allowed 'make test-hooks with HOOK_TESTS' 'wait-load L-start L-end' "$fake/bm/make" test-hooks HOOK_TESTS=a
+bm_allowed 'make lint' 'wait-load L-start L-end' "$fake/bm/make" lint
+# A marked call in a locked process tree (the pid file matches DIRIGIBLE_BUILD_LOCK) runs at once and writes no marker.
+hold
+echo 'make build' > "$lock/command"
+: > "$bmlog"
+DIRIGIBLE_BUILD_LOCK="$holder" "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran4'" > /dev/null 2>&1
+code=$?
+[[ $code -eq 0 && -s "$tmp/ran4" && -z "$(bm_events)" && -z "$(bm_files)" ]] || fail "marker call under a lock: exit $code, events [$(bm_events)], files [$(bm_files)]"
+clear_hold
+rm -f "$tmp/ran4" "$tmp/ran2" "$tmp/ran" "$tmp/ro.sh"
+rm -rf "$repo/.build" "$marks" "$frees"
+unset BM_LOG
+rm -f "$repo/scripts/land.sh" "$repo/scripts/probe.sh" "$repo/scripts/swift-test.sh" "$repo/scripts/test-shards.sh" "$repo/scripts/check-waits.sh"
+reset_builders
+
 # A lock-free call that starts behind a long holder waits with no lock (no marker, no ticket, no
 # hold line), under the wait limit of an ordinary call, and runs its command with no lock when the
 # holder ends and no release call has a live ticket. It writes one wait line with the column nocap.
@@ -600,6 +970,7 @@ lf_finish 80
 [[ "$out" == *'lock-free targets'* && "$(grep -c 'held by pid' <<<"$out")" == 1 ]] || fail "lock-free wait: stderr: $out"
 [[ "$out" == *'it waits while a release call (a push check, the hooks pass, a land, or make dmg)'* ]] ||
     fail "lock-free wait: the lock-free line does not name the wait behind a release call: $out"
+[[ "$out" == *'holds the lock, or while a bench marker is live'* ]] || fail "lock-free wait: the lock-free line does not end with the bench marker: $out"
 [[ ! -e "$holds" ]] || fail "lock-free wait: a hold line: $(cat "$holds")"
 [[ "$(wc -l < "$waits" 2>/dev/null | tr -d ' ')" == 1 && "$(awk -F'\t' '{ print NF, $4, $NF }' "$waits")" == '6 make dmg lockfree' ]] ||
     fail "lock-free wait: the wait line: [$(cat "$waits" 2>/dev/null)]"

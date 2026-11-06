@@ -407,6 +407,9 @@
 "timeline.readout.crossfade" = "Crossfade %@ ms";
 "timeline.readout.point" = "Ponto %@ dB";
 "timeline.readout.range.gain" = "Ganho do intervalo %@ dB";
+"timeline.readout.roll" = "Ponto de edição %@ ms";
+"timeline.readout.slip" = "Conteúdo %@ ms";
+"timeline.help.roll.slip" = "Arraste com Maiúsculas e Comando premidos: mova um ponto de edição ou deslize o conteúdo de um clipe";
 
 /* View and Edit items of the timeline (decision 0017) */
 "menu.view.zoom.in" = "Ampliar";

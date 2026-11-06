@@ -214,8 +214,11 @@ public struct TimelineGesture: Sendable {
     }
 
     /// The cursor at `place`: the kind of the gesture while it runs, else the kind of the zone.
-    /// With `option`, a trim zone gives the ripple cursor of its edge (decision 0037).
-    public func cursor(at place: Place, _ context: GestureContext, option: Bool = false) -> TimelineCursor {
+    /// With `option`, a trim zone gives the ripple cursor of its edge (decision 0037). With `shift` and
+    /// `command` and no `option`, the cursor is that of a Shift-Command press (`Gesture+Roll.swift`).
+    public func cursor(
+        at place: Place, _ context: GestureContext, option: Bool = false, shift: Bool = false, command: Bool = false
+    ) -> TimelineCursor {
         switch state {
         case .moving, .grouping: return .closedHand
         case .trimming(_, let trim) where trim.ripple: return .rippleTrim(trim.edge)
@@ -229,6 +232,7 @@ public struct TimelineGesture: Sendable {
         }
         switch place {
         case .lanes(let x, let y):
+            if shift, command, !option { return rollSlipCursor(x, y, context) }
             let hit = context.geometry.hit(x, y, in: context.session)
             if option, case .trim(_, let edge, _) = hit { return .rippleTrim(edge) }
             return hit.cursor

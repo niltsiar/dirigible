@@ -80,9 +80,9 @@ final class ReadoutLayer: CATextLayer {
     }
 
     /// The text of `readout`: the gain in dB to 0.1 and its change since the mouse-down, or the fade
-    /// or crossfade length in whole ms at `rate`, or the gain of a point or of a range gain in dB,
-    /// in the number format of `locale`. `value` gives
-    /// the string of a key (a test passes a table).
+    /// or crossfade length, or the signed move of a roll or slip, in whole ms at `rate`, or the gain of a
+    /// point or of a range gain in dB, in the number format of `locale`. `value` gives the string of a
+    /// key (a test passes a table).
     static func text(_ readout: GestureReadout, rate: Int, locale: Locale, value: (L10n) -> String) -> String {
         switch readout {
         case .gain(let gain, let start):
@@ -98,13 +98,22 @@ final class ReadoutLayer: CATextLayer {
             return String(format: value(.timelineReadoutPoint), decibels(gain.dB, locale: locale))
         case .rangeGain(let gain):
             return String(format: value(.timelineReadoutRangeGain), decibels(gain.dB, locale: locale))
+        case .roll(let move):
+            return String(
+                format: value(.timelineReadoutRoll), milliseconds(move, rate: rate, locale: locale, signed: true))
+        case .slip(let move):
+            return String(
+                format: value(.timelineReadoutSlip), milliseconds(move, rate: rate, locale: locale, signed: true))
         }
     }
 
-    /// A length in whole ms at `rate`: "460".
-    static func milliseconds(_ length: Frames, rate: Int, locale: Locale) -> String {
-        (Double(length.count) * 1000 / Double(rate)).rounded()
-            .formatted(.number.precision(.fractionLength(0)).locale(locale))
+    /// A length in whole ms at `rate`: "460". With `signed`, a move: "+500", "-500", "0".
+    static func milliseconds(_ length: Frames, rate: Int, locale: Locale, signed: Bool = false) -> String {
+        // Adding 0 turns the -0 of a small negative move into 0.
+        let ms = (Double(length.count) * 1000 / Double(rate)).rounded() + 0
+        return ms.formatted(
+            .number.precision(.fractionLength(0)).sign(strategy: signed ? .always(includingZero: false) : .automatic)
+                .locale(locale))
     }
 
     /// A gain or a gain change in dB to 0.1, with its sign: "-6.0", "+4.0", "0.0" (in Spanish "-6,0").

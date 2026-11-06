@@ -174,6 +174,7 @@ final class TimelineDocumentView: NSView {
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel(L10n.timelineAccessibility.text)
+        toolTip = L10n.timelineHelpRollSlip.text
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(displayOptionsChanged),
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)

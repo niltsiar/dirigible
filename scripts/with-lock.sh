@@ -562,8 +562,8 @@ if lock_free "$@"; then
         long_holder || break
         [[ -z "$lf" ]] || rm -f "$lf"
         lf=""
-        if [[ -z "$waited" ]]; then wait_limit "$@"; say_wait; waited=1; fi
-        while long_holder || ahead; do pause; done
+        if [[ -z "$waited" ]]; then wait_limit "$@"; waited=1; fi
+        while long_holder || ahead; do say_wait; pause; done
     done
     [[ -z "$waited" ]] || wait_line "$@"
     run_lock_free "$@"

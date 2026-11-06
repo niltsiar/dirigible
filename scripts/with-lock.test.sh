@@ -891,6 +891,28 @@ wait "$inner" 2>/dev/null
 inner=""
 rm -rf "$marks" "$frees"
 
+# A lock-free call that waits behind a holder prints a new line when a new cause appears: a marker
+# after a push check.
+reset_builders
+hold
+echo 'make dmg' > "$lock/command"
+sleep 60 & inner=$!
+WITH_LOCK_MAX_WAIT=30 WITH_LOCK_RETRY=0.2 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=m > "$tmp/free.out" 2>&1 &
+waiter=$!
+until_true 50 grep -q 'held by pid' "$tmp/free.out" || fail "new cause: no holder line: $(cat "$tmp/free.out")"
+mkdir -p "$marks"
+stamped "$inner" "$(date +%s)" "$repo" > "$marks/$inner"
+clear_hold
+until_true 50 grep -q "bench marker pid $inner (" "$tmp/free.out" || fail "new cause: no line that names the marker: $(cat "$tmp/free.out")"
+rm -f "$marks/$inner"
+kill "$inner" 2>/dev/null
+wait "$inner" 2>/dev/null
+inner=""
+wait "$waiter" 2>/dev/null
+waiter=""
+reset_builders
+rm -rf "$marks"
+
 # Two marked calls that start together: the older one (call start time, then pid) keeps its marker
 # and waits until the other removes its own, and the other removes its marker and waits. A stub
 # mkdir writes the marker of a second call just before the marker of the call under test, so that
@@ -939,28 +961,6 @@ is 'two marked calls, second one older: wait lines' "$(grep -c "bench marker pid
 mk_end 'second one older'
 rm -rf "$marks" "$tmp/mkdone" "$tmp/ran5" "$tmp/mk.err"
 reset_builders
-
-# A lock-free call that waits behind a holder prints a new line when a new cause appears: a marker
-# after a push check.
-reset_builders
-hold
-echo 'make dmg' > "$lock/command"
-sleep 60 & inner=$!
-WITH_LOCK_MAX_WAIT=30 WITH_LOCK_RETRY=0.2 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=m > "$tmp/free.out" 2>&1 &
-waiter=$!
-until_true 50 grep -q 'held by pid' "$tmp/free.out" || fail "new cause: no holder line: $(cat "$tmp/free.out")"
-mkdir -p "$marks"
-stamped "$inner" "$(date +%s)" "$repo" > "$marks/$inner"
-clear_hold
-until_true 50 grep -q "bench marker pid $inner (" "$tmp/free.out" || fail "new cause: no line that names the marker: $(cat "$tmp/free.out")"
-rm -f "$marks/$inner"
-kill "$inner" 2>/dev/null
-wait "$inner" 2>/dev/null
-inner=""
-wait "$waiter" 2>/dev/null
-waiter=""
-reset_builders
-rm -rf "$marks"
 
 # The header names the two causes that the held column of the wait log can hold.
 [[ "$(sed -n '1,30p' "$script")" == *'"bench marker pid N (<tree>)" or "lock-free call pid N (<command>)"'* ]] ||
@@ -1011,6 +1011,22 @@ bm_refused 'two wrappers before swift' time -p nice env X=1 "$fake/bm/swift" bui
 bm_refused 'mutation-pass.sh' "$repo/scripts/mutation-pass.sh"
 bm_refused 'screenshots.sh' "$repo/scripts/screenshots.sh"
 bm_refused 'bundle.sh' "$repo/scripts/bundle.sh"
+# A hook test runs only through make test-hooks HOOK_TESTS=: exit 64, one line that names that call.
+bm_refused_hook() { # <name> <command>...
+    local name="$1"
+    shift
+    : > "$bmlog"
+    WITH_LOCK_MAX_WAIT=5 "$repo/scripts/with-lock.sh" --bench-mark "$@" > "$tmp/bm.out" 2> "$tmp/bm.err"
+    is "refused $name: exit" "$?" 64
+    is "refused $name: events" "$(bm_events)" ""
+    is "refused $name: stderr lines" "$(wc -l < "$tmp/bm.err" | tr -d ' ')" 1
+    is "refused $name: make form" "$(grep -c 'a hook test runs only through make test-hooks HOOK_TESTS=' "$tmp/bm.err")" 1
+    is "refused $name: files" "$(bm_files)" ""
+}
+bm_refused_hook 'bash and a hook test' bash scripts/x.test.sh
+bm_refused_hook 'a hook test' "$repo/scripts/x.test.sh"
+bm_refused_hook 'env and a hook test' env X=1 bash scripts/x.test.sh
+bm_refused_hook 'test-hooks.sh' "$repo/scripts/test-hooks.sh" scripts/x.test.sh
 hold
 echo 'make build' > "$lock/command"
 DIRIGIBLE_BUILD_LOCK="$holder" bm_refused 'swift build in a locked process tree' "$fake/bm/swift" build

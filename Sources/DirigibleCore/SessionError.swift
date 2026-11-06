@@ -105,4 +105,7 @@ public enum SessionError: Error, Hashable, Sendable {
     case fillTooManyClips(needed: Int)
     /// A fill of an excerpt with no frames (decision 0053). It changes nothing.
     case emptyExcerpt
+    /// A roll names a clip with no clip that touches its end, so it has no join to move. It
+    /// changes nothing.
+    case noJoin(ClipID)
 }

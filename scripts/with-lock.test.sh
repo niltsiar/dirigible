@@ -1284,6 +1284,9 @@ no_run scripts/probe.sh "$tmp/pf" swift build
 no_run scripts/probe.sh --no-audio "$tmp/pf" swift run x
 no_run "$repo/scripts/probe.sh" "$tmp/pf" swift build
 no_run env -i swift build
+no_run env -S 'swift build' .build/debug/dirigible info
+no_run env -S'swift build' .build/debug/dirigible info
+no_run scripts/probe.sh "$tmp/pf" env -S 'swift build' "$repo/.build/debug/dirigible" info
 no_run time -p swift build
 no_run /usr/bin/time -p swift build
 no_run /usr/bin/swift build

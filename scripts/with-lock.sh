@@ -126,7 +126,8 @@
 # (bench_swift in bench_class), probe.sh, land.sh, a path under .build/ or build/Dirigible.app/,
 # and each make call except make test-hooks with a HOOK_TESTS= word (no release call) and goals of
 # lock_free_targets only. make check-changed is refused, because its targets can run a Swift test.
-# The call skips
+# A hook test script (a .test.sh file) or test-hooks.sh is refused with exit 64 and the line that
+# names make test-hooks HOOK_TESTS=: a hook test runs only through that make call. The call skips
 # the leading wrapper words (skip_wrappers: time, nice, xcrun, and env with their options, and
 # NAME=value) and bash or sh before a file, compared by basename. It cannot see inside bash -c, a
 # file, or another wrapper. Inside a locked process tree (the call holds the lock through
@@ -316,6 +317,7 @@ bench_class() {
     case "$c" in .build/?* | */.build/?* | build/Dirigible.app/?* | */build/Dirigible.app/?*) goal=lock ;; esac
     case "${c##*/}" in
         swift | probe.sh | land.sh) goal=lock ;;
+        *.test.sh | test-hooks.sh) goal=hooks ;;
         *.sh) [[ ! "/${c%.sh}" =~ $re ]] || goal=lock ;;
         make)
             if ! { lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && ! release_call "$@"; }; then
@@ -326,6 +328,10 @@ bench_class() {
             fi
             ;;
     esac
+    if [[ "$goal" == hooks ]]; then
+        echo "with-lock: a hook test runs only through make test-hooks HOOK_TESTS=<names>; time it as scripts/with-lock.sh --bench-mark make test-hooks HOOK_TESTS=<names>" >&2
+        exit 64
+    fi
     [[ "$goal" == lock ]] || return 0
     echo "with-lock: --bench-mark times only a shell script or a hook test that builds no Swift and runs no built binary; run this command under the lock: scripts/with-lock.sh $cmd" >&2
     exit 64

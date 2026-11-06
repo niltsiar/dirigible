@@ -807,7 +807,7 @@ unmask_lock_quotes() {
   lock_text+="$text"
 }
 make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"
-test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
+test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh (--bench-mark )?)*"
 lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>', which takes no lock but waits while a long holder holds it (the header of scripts/with-lock.sh)."
 if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
   test_segments="$(mask_quoted_data <<< "$chained")" || exit 2
@@ -881,7 +881,7 @@ if [[ "$chained" == *.test.sh* || "$chained" == *test-hooks* ]]; then
       read -ra lock_all <<< "$lock_text"
       lock_env=(${lock_exports[@]+"${lock_exports[@]}"}) lock_args=() lock_seen=""
       for lock_arg in "${lock_all[@]}"; do
-        if [[ -n "$lock_seen" ]]; then lock_args+=("$lock_arg")
+        if [[ -n "$lock_seen" ]]; then [[ "$lock_arg" == --bench-mark && ${#lock_args[@]} -eq 0 ]] || lock_args+=("$lock_arg")
         elif [[ "${lock_arg##*/}" == with-lock.sh ]]; then lock_seen=1
         elif [[ "$lock_arg" =~ ^(BASE|MAKEFLAGS|DIRIGIBLE_HOOKS_ALL)= ]]; then lock_env+=("$lock_arg")
         fi

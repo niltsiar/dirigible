@@ -1426,6 +1426,22 @@ for run in 'scripts/with-lock.sh scripts/test-hooks.sh scripts/land.test.sh' 'sc
   expect_no_reason 'AGENTS.md' "$run"
 done
 
+# A --bench-mark word before the command does not hide a hook test: a hook test runs only through
+# make test-hooks HOOK_TESTS=, marked or not.
+for run in 'scripts/with-lock.sh --bench-mark bash scripts/land.test.sh' 'scripts/with-lock.sh --bench-mark scripts/land.test.sh' \
+  'WITH_LOCK_MAX_WAIT=5 scripts/with-lock.sh --bench-mark bash scripts/with-lock.test.sh > logs/x.log 2>&1'; do
+  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' '(the header of scripts/with-lock.sh)' 'outside the key tree of scripts/test-hooks.sh'
+  expect_no_reason 'outside its lock-free form' "$run"
+done
+for run in 'scripts/with-lock.sh --bench-mark scripts/test-hooks.sh scripts/land.test.sh' 'scripts/with-lock.sh --bench-mark bash scripts/test-hooks.sh x' \
+  'scripts/with-lock.sh --bench-mark make test-hooks' \
+  'scripts/with-lock.sh --bench-mark make -s test-hooks HOOK_TESTS=scripts/land.test.sh'; do
+  expect_each_reason "$run" "HOOK_TESTS='<names>'" 'takes no lock' '(the header of scripts/with-lock.sh)' 'outside its lock-free form'
+  expect_no_reason 'outside the key tree' "$run"
+done
+expect allow 'scripts/with-lock.sh --bench-mark make test-hooks HOOK_TESTS=scripts/land.test.sh'
+expect allow 'WITH_LOCK_MAX_WAIT=5 scripts/with-lock.sh --bench-mark make test-hooks HOOK_TESTS=scripts/land.test.sh > logs/x.log 2>&1'
+
 # Inside a with-lock.sh call a make test-hooks segment passes only when scripts/lock-words.sh, which
 # with-lock.sh also reads, classes it as free or release (code gate 1 of upkeep-thirteenth, Act on 1): a
 # make flag, another target, or a BASE value makes with-lock.sh take the lock, and the test then holds a

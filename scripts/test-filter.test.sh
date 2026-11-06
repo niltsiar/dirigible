@@ -248,5 +248,37 @@ FAKE_LIST="$tmp/list2" run tests tests freeRuns
 FAKE_LIST="$tmp/list2" run tests tests debugging
 [[ $code -eq 1 ]] || fail "a build line is no ID: expected exit 1, got $code: $out"
 
+# A refused name that is the file name of a Swift file with only extensions gets a hint line for
+# each extended type that is a suite: a type with a @Test in a top-level block under Tests/, its
+# declaration or an extension. The hint reads the files; the fake swift is not asked.
+mkdir -p "$tmp/pkg/Tests/DirigibleTests"
+t="$tmp/pkg/Tests/DirigibleTests"
+printf 'struct ClipTests {\n    @Test func clipRuns() {}\n}\n' > "$t/ClipTests.swift"
+printf 'extension ClipTests {\n    @Test func tableRuns() {}\n}\n' > "$t/ClipTableTests.swift"
+printf 'extension ClipTests {\n    @Test func mixRuns() {}\n}\n\nextension Clip {\n    var rows: Int { 1 }\n}\n' > "$t/ClipMixTests.swift"
+printf '@MainActor struct GhostTests {}\n\nextension Other {\n    @Test func otherRuns() {}\n}\n' > "$t/GhostTests.swift"
+printf 'extension ClipTests {\n    var rows: [Int] { [1] }\n}\n\nextension Helper {\n    var rows: Int { 1 }\n}\n' > "$t/ClipRowsTests.swift"
+printf 'struct Helper {\n    let x = 1\n}\n\n@Test func freeRuns() {}\n' > "$t/Helper.swift"
+hint() { echo "test-filter: Tests/DirigibleTests/$1.swift declares no suite $1; it extends $2: give FILTER the suite name $2"; }
+run none none ClipTableTests
+[[ $code -eq 1 ]] || fail "extension-only file, no test ran: expected exit 1, got $code: $out"
+grep -qxF 'test-filter: no test matched ClipTableTests' <<<"$out" || fail "extension-only file, no test ran: the refusal line is gone: $out"
+grep -qxF "$(hint ClipTableTests ClipTests)" <<<"$out" || fail "extension-only file, no test ran: no hint line: $out"
+run tests tests ClipTests ClipTableTests
+[[ $code -eq 1 ]] || fail "extension-only file, list path: expected exit 1, got $code: $out"
+grep -qxF 'test-filter: no test ID matches ClipTableTests' <<<"$out" || fail "extension-only file, list path: no refusal line: $out"
+grep -qxF "$(hint ClipTableTests ClipTests)" <<<"$out" || fail "extension-only file, list path: no hint line: $out"
+run none none NoSuchTestName
+grep -q 'declares no suite' <<<"$out" && fail "a name with no file: a hint line prints: $out"
+# Held out: an extension of a type that is no suite gives no hint, a file that declares its own type
+# gives none, an extension whose type has its @Test in another file gives a hint, and a @Test after
+# the closing brace of a type belongs to no type.
+run none none ClipMixTests
+[[ "$(grep -c 'declares no suite' <<<"$out")" -eq 1 ]] && grep -qxF "$(hint ClipMixTests ClipTests)" <<<"$out" || fail "a file with a suite and a plain extension: the hint is not for ClipTests only: $out"
+run tests tests GhostTests
+grep -q 'declares no suite' <<<"$out" && fail "a file that declares its own type: a hint line prints: $out"
+run none none ClipRowsTests
+[[ "$(grep -c 'declares no suite' <<<"$out")" -eq 1 ]] && grep -qxF "$(hint ClipRowsTests ClipTests)" <<<"$out" || fail "an extension with no @Test of a suite declared in another file: the hint is not for ClipTests only: $out"
+
 [[ $failures -eq 0 ]] && echo "test-filter tests: all passed"
 exit $((failures > 0))

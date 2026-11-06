@@ -32,7 +32,8 @@
 #   end of the minute of the latest row (the clock time when no row has a time).
 # - agents, workflows, and idle: the Agent calls and the Workflow calls of the transcript in the
 #   window (a Workflow call starts many agents that the transcript does not show), and the gaps
-#   over 5 min between its records in the window. Run windows that overlap share these counts.
+#   over 5 min between its records in the window, sorted by time. Run windows that overlap share
+#   these counts.
 # - subagents: each agent-*.jsonl at any depth under <transcript without .jsonl>/subagents (a
 #   Workflow puts its agents in subagents/workflows/wf_*/) whose first user message names the run
 #   folder (no letter, digit, or hyphen after the name) and whose time span overlaps the subagent
@@ -178,6 +179,7 @@ if [[ -n "$transcript" && -f "$transcript" ]]; then
         (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t | select($t >= $from and $t <= $to) |
         [.message.content[]? | objects | select(.type == "tool_use") | .name] as $n |
         "\($t) \($n | map(select(. == "Agent" or . == "Task")) | length) \($n | map(select(. == "Workflow")) | length)"' "$transcript" |
+        sort -n |
         awk 'NR > 1 && $1 - last > 300 { gap += $1 - last; k++ } { last = $1; agents += $2; workflows += $3 }
             END { printf "agents: %d\nworkflows: %d\nidle: %d min in %d gaps over 5 min\n", agents, workflows, gap / 60, k }'
 else

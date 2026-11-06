@@ -13,6 +13,7 @@
 - Amended: 2026-11-01, run `2026-10-28-silence-tool` (see 0066). `Session.rippleDelete(_ ranges:on:)` cuts all merged ranges in one pass over each lane: it clears the ranges, repairs the joins of the lane with the gaps once, and then moves each clip and each marker left by the frames of the ranges before it. The result is the same as the cuts from the last merged range to the first. A plan of 1200 cuts on 6 tracks is one edit of 50 ms or less (decision 0066).
 - Amended: 2026-11-03, run `2026-10-13-replace-roomtone-split` (see 0053). Rule M has a Replace clause, which is its own marker rule and not `Frames.afterRippleDelete(of:)` followed by the insert: after a Replace of R, a marker in R or at R.start is at R.start, and a marker at or after R.end moves by the clipboard length minus the length of R. Replace ripples all tracks, as Cut.
 - Amended: 2026-11-06, run `2026-10-28-timeline-edits` (L1, see 0036). The lane menu has Close Gaps after Fade in group 2, only with a clip set of 2 or more clips. It is no ripple, so a pending or split take does not hide it.
+- Amended: 2026-11-06, run `2026-10-28-timeline-edits` (L2, F69). Option is the ripple modifier. Shift-Command rolls a join and slips a clip with no ripple (see 0020), so a pending or split take does not block the drags.
 
 ## Context
 

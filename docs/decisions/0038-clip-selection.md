@@ -8,6 +8,7 @@
 - Amended: 2026-10-25, run `2026-10-16-timeline-clarity` (F155). A plain click on a clip, the commit of a move, trim, gain, fade, crossfade, or envelope point edit, and a right-click on a clip select the clip as a set of one clip. A ruler drag leaves the clip kind. The one public hull is `Selection.span`, for Zoom to Selection and the duck scope (0060). A Shift-drag on the ruler from a clip set extends the span of the set, and a Shift-click goes from the playhead to the click. Heal Clips and Place at Playhead are off for a clip set.
 - Amended: 2026-10-27, run `2026-10-27-empty-drop-lane-click` (F109, see 0017). A plain click in a gap, on the lower part of a clip, or on a clip box under 12 pt replaces a clip set with the track of the click, as a range with no points. Paste and Insert of a set excerpt then go through `Marks.pasteTracks`: the first lane of the excerpt lands on the clicked track at the playhead, and the other lanes on the tracks under it. When the tracks under it are too few, the paste refuses with the `trackCount` alert and the session stays. The upper part of a clip of 12 pt or more keeps the clip as a set of one clip.
 - Amended: 2026-10-29, run `2026-10-29-marquee-select` (F127). A Shift-drag on the lanes with no Command draws a marquee: at each drag event, the clips that it holds whole in time, on the lanes that it touches, become the clip set; no clip gives no selection; Esc gives the selection at the down. It replaces the Shift-drag range extension of the lanes: a Shift-drag on the lanes no longer extends the span of a clip set; a Shift-drag on the ruler and a Shift-Command drag on the lanes still do.
+- Amended: 2026-11-06, run `2026-10-28-timeline-edits` (L2, F69). The table row "Any, Shift-Command" splits: a trim zone rolls a join or trims a loose edge, and the upper part of a clip slips it (see 0020); the lower part and a gap keep the range drag.
 
 ## Context
 
@@ -40,7 +41,9 @@ public enum Selection: Hashable, Sendable {
 | Upper part of a clip, Command | `toggling(clip)`; the start set is `selectedClips` | Range drag |
 | Lower part or gap, Command | Range: the track toggle of 0017. Clip set: no change | Range drag |
 | Any, Shift, no Command | The Shift rules of 0017 | Marquee: the clips that it holds whole in time on the lanes that it touches, as a clip set; no clip gives no selection |
-| Any, Shift-Command | The Shift rules of 0017 | Range drag; it extends the range at the down, or the span of a clip set |
+| Trim zone, Shift-Command | The Shift rules of 0017 | Roll of the join, or the plain trim of a loose edge, with no snap |
+| Upper part of a clip, Shift-Command | The Shift rules of 0017 | Slip of that clip |
+| Lower part or gap, Shift-Command | The Shift rules of 0017 | Range drag; it extends the range at the down, or the span of a clip set |
 | Time area of the ruler | Seek at the down | Range drag; the playhead is no snap target |
 | Trim, gain, or fade zone of a set clip | The rules of today | That clip only |
 

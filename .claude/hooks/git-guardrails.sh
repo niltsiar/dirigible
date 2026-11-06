@@ -363,6 +363,14 @@ fi
 if ! reads_only dirigible-build.lock; then
   block "names the build lock in a command that is not a read (run the build or test through scripts/with-lock.sh, which takes the lock and removes only a lock that it took; read the lock with ls or cat, joined only with cd or a plain assignment)"
 fi
+# Only scripts/with-lock.sh writes and removes the timing markers and the files of the lock-free
+# calls, so a hand-written remove cannot let a lock-free call run during a timing. A read is allowed.
+if ! reads_only dirigible-bench-marks; then
+  block "names the timing markers of scripts/with-lock.sh in a command that is not a read (only with-lock.sh writes and removes them, and a marker of a dead pid goes at the next call; read them with ls or cat)"
+fi
+if ! reads_only dirigible-lock-free; then
+  block "names the lock-free call files of scripts/with-lock.sh in a command that is not a read (only with-lock.sh writes and removes them, and a file of a dead pid goes at the next call; read them with ls or cat)"
+fi
 # Only scripts/verify-copy.sh start takes the screen lock and stop removes it, so a hand-written
 # remove cannot free the screen for a second verify copy. A read is allowed.
 if ! reads_only dirigible-screen; then

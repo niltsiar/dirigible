@@ -154,6 +154,27 @@ retry="${WITH_LOCK_RETRY:-30}"
 told="" start="$(date +%s)" held=""
 # alive <pid>: the process lives. A negative pid names the process group of the command.
 alive() { [[ -n "$1" ]] && kill -0 -- "$1" 2>/dev/null; }
+# pstart <pid>: the start time of the process (ps lstart); empty when ps cannot tell.
+pstart() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
+# file_live <file>: a marker or lock-free file is named after a pid, and line 1 holds the start time
+# of that process. It is live while the pid runs with that start time. Else it goes: the pid is dead,
+# or the kernel gave it to another process.
+file_live() {
+    local cur
+    if alive "${1##*/}"; then
+        cur="$(pstart "${1##*/}")"
+        [[ -z "$cur" || "$cur" == "$(sed -n 1p "$1" 2>/dev/null)" ]] && return 0
+    fi
+    rm -f "$1"
+    return 1
+}
+# write_stamped <file> <line>...: writes the start time of this call and the lines through a
+# temporary file and mv, so a reader never sees a part of the file.
+write_stamped() {
+    local dir="${1%/*}" name="${1##*/}"
+    shift
+    { mkdir -p "$dir" && printf '%s\n' "$(pstart $$)" "$@" > "$dir/.$name" && mv -f "$dir/.$name" "$dir/$name"; } 2>/dev/null
+}
 waits="${lock%/*}/dirigible-build-waits.log" holds="${lock%/*}/dirigible-build-holds.log"
 benches="${lock%/*}/dirigible-bench-marks" freedir="${lock%/*}/dirigible-lock-free" cause="" waiting="${lock%/*}/dirigible-build-waiting" marker="" min="${WITH_LOCK_BUILDERS_MIN:-20}" floor="${WITH_LOCK_BUILDERS_FLOOR:-10}"
 # The awk function ep reads a local ISO time as UTC, to add the seconds of a log line.
@@ -354,22 +375,24 @@ lock_free() {
             ;;
     esac
 }
-# long_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
-# loop, or a stress lane, or while a live bench marker other than DIRIGIBLE_BENCH_MARK exists
-# (long-runs.md): a lock-free call still waits for it. A marker of a dead pid goes. A live marker
+# foreign_mark: succeeds while a live bench marker other than DIRIGIBLE_BENCH_MARK exists (long-runs.md). It
 # sets cause to its pid and tree, for the wait line.
-long_holder() {
-    local m c cmd w words make=""
-    cause=""
+foreign_mark() {
+    local m pid
     for m in "$benches"/*; do
         [[ -f "$m" ]] || continue
-        if ! alive "${m##*/}"; then
-            rm -f "$m"
-        elif [[ "${m##*/}" != "${DIRIGIBLE_BENCH_MARK:-}" ]]; then
-            cause="bench marker pid ${m##*/} ($(cat "$m" 2>/dev/null))"
-            return 0
-        fi
+        file_live "$m" || continue
+        pid="${m##*/}"
+        [[ "$pid" != "${DIRIGIBLE_BENCH_MARK:-}" ]] || continue
+        cause="bench marker pid $pid ($(sed -n 3p "$m" 2>/dev/null))"
+        return 0
     done
+    return 1
+}
+# lock_holder: succeeds while a live holder runs a release call, a bench, a mutation pass, a flake
+# loop, or a stress lane.
+lock_holder() {
+    local m c cmd w words make=""
     m="$(cat "$lock/pid" 2>/dev/null)" c="$(cat "$lock/child" 2>/dev/null)"
     alive "$m" || alive "$c" || alive "-$c" || return 1
     [[ ! -e "$lock/release" ]] || return 0
@@ -384,17 +407,22 @@ long_holder() {
     done
     return 1
 }
+# long_holder: succeeds while a live marker (foreign_mark) or a live holder (lock_holder) makes a
+# lock-free call wait.
+long_holder() {
+    cause=""
+    foreign_mark || lock_holder
+}
 # free_busy: succeeds while a lock-free call lives (a file of a live pid in $freedir), and sets cause
 # to its pid and command. A file of a dead pid goes.
 free_busy() {
     local f
     for f in "$freedir"/*; do
         [[ -f "$f" ]] || continue
-        if alive "${f##*/}"; then
-            cause="lock-free call pid ${f##*/} ($(cat "$f" 2>/dev/null))"
+        if file_live "$f"; then
+            cause="lock-free call pid ${f##*/} ($(sed 1d "$f" 2>/dev/null))"
             return 0
         fi
-        rm -f "$f"
     done
     return 1
 }
@@ -438,7 +466,7 @@ say_wait() {
 # call still runs.
 lf="" lf_said=""
 lf_write() {
-    if { mkdir -p "$freedir" && printf '%s\n' "$*" > "$freedir/$$"; } 2>/dev/null; then lf="$freedir/$$"; return; fi
+    if write_stamped "$freedir/$$" "$*"; then lf="$freedir/$$"; return; fi
     lf=""
     [[ -z "$lf_said" ]] || return 0
     lf_said=1
@@ -484,7 +512,7 @@ if [[ "$1" == --bench-mark ]]; then
             continue
         fi
         mark="$benches/$$"
-        { mkdir -p "$benches" && echo "$tree" > "$mark"; } 2>/dev/null ||
+        write_stamped "$mark" "$start" "$tree" ||
             { mark=""; echo "with-lock: cannot write the bench marker into $benches; run with-lock.sh outside scripts/probe.sh, and check the disk" >&2; exit 2; }
         if long_holder; then rm -f "$mark"; mark=""; pause; continue; fi
         break

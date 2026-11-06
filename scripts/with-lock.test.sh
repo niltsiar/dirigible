@@ -865,6 +865,31 @@ code=$?
 reset_builders
 rm -f "$frees"
 
+# A file of a live pid with another start time in line 1 belongs to a process that the kernel gave
+# the pid after a kill: it is ignored and removed, and no call waits for it.
+stamped() { { ps -o lstart= -p "$1" | sed 's/^ *//'; shift; printf '%s\n' "$@"; }; }
+sleep 60 & inner=$!
+mkdir -p "$marks" "$frees"
+printf 'Mon Jan  1 00:00:00 2001\n1\n%s\n' "$repo" > "$marks/$inner"
+rm -f "$tmp/order"
+out="$(WITH_LOCK_MAX_WAIT=3 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a 2>&1)"
+code=$?
+[[ $code -eq 0 && -s "$tmp/order" && ! -e "$marks/$inner" && "$out" != *'bench marker pid'* ]] ||
+    fail "marker of a reused pid: exit $code, marker [$(ls "$marks")]: $out"
+printf 'Mon Jan  1 00:00:00 2001\nmake test-hooks\n' > "$frees/$inner"
+out="$(WITH_LOCK_MAX_WAIT=3 "$repo/scripts/with-lock.sh" --bench-mark bash -c 'exit 0' 2>&1)"
+code=$?
+[[ $code -eq 0 && ! -e "$frees/$inner" && "$out" != *'lock-free call pid'* ]] || fail "lock-free file of a reused pid: exit $code, files [$(bm_files)]: $out"
+stamped "$inner" 1 "$repo" > "$marks/$inner"
+rm -f "$tmp/order"
+out="$(WITH_LOCK_MAX_WAIT=1 WITH_LOCK_RETRY=0.5 "$repo/scripts/with-lock.sh" "$fake/make" test-hooks HOOK_TESTS=a 2>&1)"
+code=$?
+[[ $code -eq 75 && ! -s "$tmp/order" && -e "$marks/$inner" ]] || fail "marker of a live pid with its start time: exit $code, order [$(cat "$tmp/order" 2>/dev/null)]: $out"
+kill "$inner" 2>/dev/null
+wait "$inner" 2>/dev/null
+inner=""
+rm -rf "$marks" "$frees"
+
 # --bench-mark times only a shell script or a hook test: a command of the lock class that it can see
 # gets exit 64, one stderr line with the lock form, no event, and no marker. A marker command runs.
 # The stubs only log an event, so a form that runs builds nothing.

@@ -96,6 +96,9 @@ public struct LaneGeometry: Equatable, Sendable {
     public static let controlsWidth = 40.0
     /// The side of a fade handle (points).
     public static let handleSize = 8.0
+    /// The height of the upper part of a clip box (points): the part that moves and slips. Below it
+    /// the box is a range, with every control there, for the plain and the Shift-Command press.
+    var moveHeight: Double { laneHeight * 2 / 3 }
     /// The gain band: the points above and below the gain line.
     static let gainReach = 3.0
     /// The width of a trim zone inside each clip edge (points).
@@ -239,7 +242,7 @@ public struct LaneGeometry: Equatable, Sendable {
             )
             if abs(y - line) <= Self.gainReach, x >= fadeInEnd, x <= fadeOutStart { return .gain(clip, lane: lane) }
         }
-        return y - box.minY < laneHeight * 2 / 3 ? .move(clip, lane: lane) : .range(lane: lane)
+        return y - box.minY < moveHeight ? .move(clip, lane: lane) : .range(lane: lane)
     }
 }
 

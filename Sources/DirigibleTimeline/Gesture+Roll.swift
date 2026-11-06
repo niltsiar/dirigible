@@ -31,7 +31,8 @@ extension TimelineGesture {
 
     /// The zone of a Shift-Command press at the lane point `x`, `y`; nil in a gap, in a box under
     /// `grabWidth`, and in the lower third of a clip, which keep the range drag. An edge zone wins
-    /// over a fade handle or a point; the other handles, the points, and the gain band slip.
+    /// over a fade handle or a point; within `moveHeight` of the box top, the other handles, the points, and the
+    /// gain band slip.
     static func rollSlipZone(_ x: Double, _ y: Double, in session: Session, _ geometry: LaneGeometry) -> RollSlipZone? {
         let lane = geometry.lane(at: y)
         guard lane < session.tracks.count,
@@ -42,6 +43,7 @@ extension TimelineGesture {
         guard box.width >= LaneGeometry.grabWidth else { return nil }
         if x - box.minX < LaneGeometry.trimReach { return .edge(clip, .start, lane: lane) }
         if box.maxX - x < LaneGeometry.trimReach { return .edge(clip, .end, lane: lane) }
+        guard y - box.minY < geometry.moveHeight else { return nil }
         switch geometry.hit(x, y, in: session) {
         case .move, .gain, .fade, .point: return .slip(clip)
         case .trim, .range: return nil

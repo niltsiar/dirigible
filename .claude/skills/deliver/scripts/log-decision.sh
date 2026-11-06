@@ -67,6 +67,12 @@ fi
 # A run with no baseline at all (no line in criteria-logged.tsv and no analysis-gate.md) has none to
 # compare: its first row needs an analysis.md newer than decisions.tsv, the old file-time rule.
 # A passing row appends one line "<ID><TAB><text>" for each ID that it names, and a #file line.
+# Each row of any phase also gives a baseline to the criteria that have none: while no
+# analysis-gate.md exists, it appends the same line for each ID of the section with no line yet (and
+# a #file line when there is none), so a later row for that ID compares with the text at the first
+# row after the ID appeared. An ID that appears after that row, or after the gate copy, has no
+# baseline: it is new, and its first row needs no edit after the add. The row that makes the gate
+# copy appends a line for each ID and a #file line, so the baseline of every ID is the gate text.
 # criteria-logged.tsv is append-only, as decisions.tsv is: only this script writes it.
 # criteria <file> prints "<ID><TAB><text>" for each criterion of the section.
 criteria() {
@@ -192,8 +198,10 @@ if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! [[ "$(lower "$2")" == "criter
 fi
 # The first phase 4 row: analysis.md is copied to analysis-gate.md, so check-plan.sh can find a criterion
 # that a later row changes. A run that has phase 4 rows and no copy is older than the rule.
+gate_made=0
 if [[ "$1" == 4 && -f "${file%/*}/analysis.md" && ! -e "${file%/*}/analysis-gate.md" ]] && ! awk -F'\t' '$2 == "4" { f = 1 } END { exit !f }' "$file"; then
     cp "${file%/*}/analysis.md" "${file%/*}/analysis-gate.md"
+    gate_made=1
 fi
 # A phase 6 row: check-plan.sh passes as the land check runs it (no plan gate test), so the review
 # fields are complete before the fixer starts. The criterion change row repairs a missing criterion
@@ -226,4 +234,18 @@ for field in "$@"; do
 done
 printf '%s\n' "$row" >> "$file"
 [[ -z "$new_logged" ]] || printf '%s\n' "$new_logged" >> "${file%/*}/criteria-logged.tsv"
+# Baselines (see the rule above): the criteria that no line holds, and every criterion at the gate copy.
+run_dir="${file%/*}"
+if [[ -f "$run_dir/analysis.md" && ( ! -e "$run_dir/analysis-gate.md" || $gate_made -eq 1 ) ]]; then
+    baselines="$(criteria "$run_dir/analysis.md" | LOGGED="$run_dir/criteria-logged.tsv" FRESH="$new_logged" ALL="$gate_made" SHA="$(shasum -a 256 < "$run_dir/analysis.md")" awk '
+        BEGIN {
+            while ((getline l < ENVIRON["LOGGED"]) > 0) { i = index(l, "\t"); if (i) old[substr(l, 1, i - 1)] = 1 }
+            n = split(ENVIRON["FRESH"], f, "\n")
+            for (k = 1; k <= n; k++) { i = index(f[k], "\t"); if (i) cur[substr(f[k], 1, i - 1)] = 1 }
+            all = (ENVIRON["ALL"] == 1)
+        }
+        { id = substr($0, 1, index($0, "\t") - 1); if (!(id in cur) && (all || !(id in old))) print }
+        END { if (!("#file" in cur) && (all || !("#file" in old))) print "#file\t" ENVIRON["SHA"] }')"
+    [[ -z "$baselines" ]] || printf '%s\n' "$baselines" >> "$run_dir/criteria-logged.tsv"
+fi
 [[ -z "$from_file" ]] || rm -f "$from_file"

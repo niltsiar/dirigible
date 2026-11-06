@@ -97,9 +97,7 @@ extension SessionWindow {
             if rights?.isEmpty == true { beep() }
             return
         }
-        // ponytail: a fixed step of 10 ms, a calibration knob (manual check M3); a zoom step is the
-        // upgrade.
-        let step = Frames(studio.session.sampleRate / 100)
+        let step = studio.session.editStep
         let offset: Frames
         switch command {
         case .nudgeLeft: offset = .zero - step
@@ -347,4 +345,10 @@ extension AppDelegate {
         default: return nil
         }
     }
+}
+
+extension Session {
+    /// The step of Nudge and Slip: 10 ms. ponytail: a fixed step, a calibration knob (manual check
+    /// M3); a zoom step is the upgrade.
+    var editStep: Frames { Frames(sampleRate / 100) }
 }

@@ -34,7 +34,8 @@
 #     log, add, or commit (`git -C <path>` and `git -c <key=value>` dropped, as git-guardrails.sh does),
 #     or log-decision.sh by a path that ends in .claude/skills/deliver/scripts/log-decision.sh, or
 #     echo with no word that holds > or <, or scripts/wiki.py lesson or move (the word
-#     scripts/wiki.py, or the absolute path of scripts/wiki.py in the repo of this hook).
+#     scripts/wiki.py, or an absolute path, that resolves to the scripts/wiki.py of the repo of this
+#     hook from the cwd of the hook input after the `cd <path>` segments; a cd before or after a | is not tracked).
 #     Segments split on &&, ||, ;, |, and new lines; each leading NAME=value word of a segment is
 #     dropped. A command with $(, a backtick, <(, >(, or a lone & is refused.
 # The hook passes every input that it cannot read: input that is not JSON, no transcript file, or
@@ -199,7 +200,8 @@ def committed_in_window(calls):
     return False
 
 
-def segment_passes(segment):
+def segment_passes(segment, tree):
+    """Whether one segment passes. `tree` is the folder that the cd segments before it give."""
     words = segment.split()
     while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=\S*", words[0]):
         words.pop(0)
@@ -211,8 +213,8 @@ def segment_passes(segment):
         return True
     if words[0] == "echo":
         return not any(">" in w or "<" in w for w in words)
-    if words[0] == "scripts/wiki.py" or (words[0].startswith("/") and os.path.realpath(words[0]) == WIKI):
-        return len(words) > 1 and words[1] in ("lesson", "move")
+    if words[0] == "scripts/wiki.py" or words[0].startswith("/"):
+        return os.path.realpath(resolve(tree, words[0])) == WIKI and len(words) > 1 and words[1] in ("lesson", "move")
     if words[0] == "git":
         rest = words[1:]
         while len(rest) >= 2 and rest[0] in ("-C", "-c"):
@@ -221,13 +223,25 @@ def segment_passes(segment):
     return False
 
 
-def command_passes(command):
+def command_passes(command, cwd):
     if "$(" in command or "`" in command or "<(" in command or ">(" in command:
         return False
     joined = re.sub(r"[0-9]*>&[0-9-]*|&>>?|>&", "", command.replace("&&", ""))
     if "&" in joined:
         return False
-    return all(segment_passes(s) for s in re.split(r"&&|\|\||;|\||\n", command) if s.strip())
+    parts = re.split(r"(&&|\|\||;|\||\n)", command)
+    tree = cwd if isinstance(cwd, str) else os.getcwd()
+    for i in range(0, len(parts), 2):
+        segment = parts[i]
+        if not segment.strip():
+            continue
+        if not segment_passes(segment, tree):
+            return False
+        words = segment.split()
+        piped = "|" in (parts[i - 1] if i else "", parts[i + 1] if i + 1 < len(parts) else "")
+        if words[:1] == ["cd"] and len(words) <= 2 and not piped:
+            tree = resolve(tree, words[1] if len(words) == 2 else "~")
+    return True
 
 
 def main():
@@ -266,7 +280,7 @@ def main():
     if tool == "Bash":
         tool_input = hook.get("tool_input")
         command = tool_input.get("command") if isinstance(tool_input, dict) else None
-        if isinstance(command, str) and command_passes(command):
+        if isinstance(command, str) and command_passes(command, hook.get("cwd")):
             return
     if over:
         reason = f"this agent has run {minutes:.0f} active minutes, over the limit of {limit:g} "

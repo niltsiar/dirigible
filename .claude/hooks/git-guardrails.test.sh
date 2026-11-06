@@ -2424,8 +2424,11 @@ if case_block agent-clock; then
 clock_hook="$(dirname "$0")/agent-clock.sh"
 # hb_span <from> <to>: one entry for each minute from <from> to <to> minutes ago
 hb_span() { local m; for ((m = $1; m >= $2; m--)); do hb_text user "$m" x; done; }
-# hb_bash <command>: the hook input of a Bash call of agent a1
-hb_bash() { hb_in Bash "{\"command\":\"$1\"}"; }
+# hb_bash <command>: the hook input of a Bash call of agent a1, with the repo root as its cwd
+clock_root="$(cd "$(dirname "$0")/../.." && pwd)"
+hb_bash() {
+  printf '{"transcript_path":"%s/s.jsonl","agent_id":"a1","tool_name":"Bash","cwd":"%s","tool_input":{"command":"%s"}}' "$hb_dir" "$clock_root" "$1"
+}
 
 hb_session over < <(hb_span 91 0)
 hb_expect "$clock_hook" 2 'make build at 91 active minutes' "$(hb_bash 'make build')"
@@ -2472,10 +2475,14 @@ clock_block_commands=('git push origin x' 'make test' 'cd T && git commit -F x &
 # The hand-off forms of reflect step 4 and of a row or commit check: echo with no redirect, and
 # scripts/wiki.py lesson and move by the word scripts/wiki.py or the path in the repo of the hook.
 clock_pass_commands+=('git commit -F x; echo $?' '.claude/skills/deliver/scripts/log-decision.sh r --from f; echo "exit $?"'
-  'echo done' 'scripts/wiki.py lesson K --from f' "$(cd "$(dirname "$0")/../.." && pwd)/scripts/wiki.py move 1 done")
+  'echo done' 'scripts/wiki.py lesson K --from f' "$clock_root/scripts/wiki.py move 1 done"
+  'cd . && scripts/wiki.py lesson K --from f' "cd $clock_root && scripts/wiki.py lesson K --from f"
+  'cd /tmp | scripts/wiki.py lesson K --from f')
 clock_block_commands+=('echo x > f' 'echo x >> f' 'git status; echo x < f' 'scripts/wiki.py add next --from f'
   'python3 scripts/wiki.py move 1 done' 'x/wiki.py lesson K --from f' '.scratchpads/x/scripts/wiki.py lesson K --from f'
-  '/other/scripts/wiki.py move 1 done')
+  '/other/scripts/wiki.py move 1 done' 'cd .scratchpads/x && scripts/wiki.py lesson K --from f'
+  'cd scripts && scripts/wiki.py lesson K --from f' 'cd .scratchpads/x; scripts/wiki.py lesson K --from f'
+  'cd /tmp && scripts/wiki.py lesson K --from f' 'cd && scripts/wiki.py lesson K --from f')
 # clock_forms <transcript folder> <trigger name>: each pass and block form against one transcript
 clock_forms() {
   local form tool want input label command

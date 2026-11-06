@@ -302,7 +302,10 @@ bench_class() {
 }
 [[ "$1" != --bench-mark ]] || bench_class "${@:2}"
 if [[ -n "${DIRIGIBLE_BUILD_LOCK:-}" && "$(cat "$lock/pid" 2>/dev/null)" == "$DIRIGIBLE_BUILD_LOCK" ]]; then
-    [[ "$1" != --bench-mark ]] || shift
+    [[ "$1" != --bench-mark ]] || {
+        echo "with-lock: --bench-mark does not run inside a locked process tree (this tree holds the build lock); run the command in the plain form: scripts/with-lock.sh ${*:2}" >&2
+        exit 64
+    }
     exec "$@"
 fi
 tree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

@@ -1002,13 +1002,16 @@ clear_hold
 bm_allowed 'check-waits.sh' 'wait-load RAN-check-waits' "$repo/scripts/check-waits.sh"
 bm_allowed 'make test-hooks with HOOK_TESTS' 'wait-load L-start L-end' "$fake/bm/make" test-hooks HOOK_TESTS=a
 bm_allowed 'make lint' 'wait-load L-start L-end' "$fake/bm/make" lint
-# A marked call in a locked process tree (the pid file matches DIRIGIBLE_BUILD_LOCK) runs at once and writes no marker.
+# A marked call in a locked process tree (the pid file matches DIRIGIBLE_BUILD_LOCK) exits 64 with the
+# plain form, runs nothing, and writes no marker: a marker cannot keep the lock-free calls of other
+# trees out of a tree that already runs.
 hold
 echo 'make build' > "$lock/command"
 : > "$bmlog"
-DIRIGIBLE_BUILD_LOCK="$holder" "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran4'" > /dev/null 2>&1
+out="$(DIRIGIBLE_BUILD_LOCK="$holder" "$repo/scripts/with-lock.sh" --bench-mark bash -c "echo ran > '$tmp/ran4'" 2>&1)"
 code=$?
-[[ $code -eq 0 && -s "$tmp/ran4" && -z "$(bm_events)" && -z "$(bm_files)" ]] || fail "marker call under a lock: exit $code, events [$(bm_events)], files [$(bm_files)]"
+[[ $code -eq 64 && ! -e "$tmp/ran4" && -z "$(bm_events)" && -z "$(bm_files)" && "$out" == *'does not run inside a locked process tree'* && "$out" == *'scripts/with-lock.sh bash -c echo ran'* ]] ||
+    fail "marker call under a lock: exit $code, events [$(bm_events)], files [$(bm_files)]: $out"
 clear_hold
 rm -f "$tmp/ran4" "$tmp/ran2" "$tmp/ran" "$tmp/ro.sh"
 rm -rf "$repo/.build" "$marks" "$frees"

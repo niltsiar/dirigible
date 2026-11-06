@@ -10,8 +10,8 @@
 # A row whose decision or result starts with `default` (any case) needs `Reverse:` (any case) in
 # its why: the word or line that reverses the default (deliver autonomy rules). The phase is one
 # digit (0-9), so land.sh finds the mutation pass row of phase 7. A decision that starts with
-# `criterion change` (any case) needs an analysis.md in the run folder that changed after the last
-# row, and the words old and new. A decision or why with "red tree", "red-tree", "passed on the
+# `criterion change` (any case) needs a criterion of analysis.md whose text differs from its text at
+# the last row for that ID (the rule below), and the words old and new. A decision or why with "red tree", "red-tree", "passed on the
 # red", "old tree", or "old-tree" at a word start (any case) claims a test result on that tree:
 # its evidence then names a file of the logs/ folder of the run (logs/<file>, or a path that ends
 # in /<run name>/logs/<file>) that exists. Name the rule by its key (INR-030/claim), not by those
@@ -54,15 +54,105 @@ if [[ "$(lower "$2")" == default* || "$(lower "$5")" == default* ]] && [[ "$(low
     echo "the decision or the result starts with default, and the why has no Reverse: <the word or line that reverses it>" >&2
     exit 2
 fi
-# analysis.md is gitignored, so the test is its mtime. Two criterion change rows need two edits.
+# A criterion change row needs a criterion whose text in analysis.md differs from its text at the
+# last row for that ID. The text of a criterion is its line of the ## Acceptance criteria section
+# and the indented lines under it, joined by single spaces (the rule of check-plan.sh for the first
+# line). The last row for an ID is its last line in criteria-logged.tsv of the run folder; an ID with
+# no line there reads analysis-gate.md, and an ID with neither counts as new. The row names the ID
+# (a whole word). A row that names an ID which is in no criteria section is refused: a criterion
+# outside the section has no text to compare, so no edit buys the row. Such a word is an ID only when
+# it starts with C or with the capitals of a criterion ID, or when it starts an item line of analysis.md
+# or analysis-gate.md, so a word such as MP3 is no ID. A row that names no ID needs an
+# analysis.md whose hash differs from the #file line of criteria-logged.tsv (else from analysis-gate.md).
+# A passing row appends one line "<ID><TAB><text>" for each ID that it names, and a #file line.
+# criteria-logged.tsv is append-only, as decisions.tsv is: only this script writes it.
+# criteria <file> prints "<ID><TAB><text>" for each criterion of the section.
+criteria() {
+    [[ -f "$1" ]] || return 0
+    awk '
+        function flush() { if (cur != "") print cur "\t" txt; cur = "" }
+        /^## / { flush(); on = ($0 ~ /^## Acceptance criteria[[:space:]]*$/); next }
+        !on { next }
+        /^[[:space:]]*$/ { next }
+        /^[[:space:]]/ {
+            if (cur != "") { t = $0; gsub(/[\t ]+/, " ", t); sub(/^ /, "", t); sub(/ $/, "", t); txt = txt " " t }
+            next
+        }
+        {
+            flush()
+            if ($0 !~ /^(- |[0-9]+\. |\|)/) next
+            t = $0; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+            if (!match(t, /^[A-Z]+[0-9]+[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) next
+            id = substr(t, 1, RLENGTH)
+            if (id in seen) next
+            seen[id] = 1; cur = id; txt = $0; gsub(/\t/, " ", txt)
+        }
+        END { flush() }' "$1"
+}
+new_logged=""
 if [[ "$(lower "$2")" == "criterion change"* ]]; then
-    [[ "${file%/*}/analysis.md" -nt "$file" ]] || {
-        echo "a criterion change row needs an analysis.md that is newer than the last row: change the criterion in ${file%/*}/analysis.md, then log the row" >&2
+    run_dir="${file%/*}"
+    [[ -f "$run_dir/analysis.md" ]] || {
+        echo "a criterion change row needs ${run_dir}/analysis.md: change the criterion there, then log the row" >&2
         exit 2
     }
     word='(^|[^a-z])old([^a-z]|$)'
     text="$(lower "$2 $3")"
     [[ "$text" =~ $word && "$text" =~ ${word/old/new} ]] || { echo "a criterion change row names the old and new value (the words old and new)" >&2; exit 2; }
+    criteria "$run_dir/analysis.md" > "$run_dir/.criteria-now.$$"
+    criteria "$run_dir/analysis-gate.md" > "$run_dir/.criteria-gate.$$"
+    file_sha="$(shasum -a 256 < "$run_dir/analysis.md")"
+    gate_sha=""
+    [[ ! -f "$run_dir/analysis-gate.md" ]] || gate_sha="$(shasum -a 256 < "$run_dir/analysis-gate.md")"
+    code=0
+    new_logged="$(DECISION="$2" NOW="$run_dir/.criteria-now.$$" GATE="$run_dir/.criteria-gate.$$" LOGGED="$run_dir/criteria-logged.tsv" FILESHA="$file_sha" GATESHA="$gate_sha" ANALYSIS="$run_dir/analysis.md" GATEFILE="$run_dir/analysis-gate.md" awk '
+        function load(file, text, has,  l, i, id) {
+            while ((getline l < file) > 0) { i = index(l, "\t"); id = substr(l, 1, i - 1); text[id] = substr(l, i + 1); has[id] = 1; known[id] = 1 }
+            close(file)
+        }
+        # items(file): the ID of each item line of the file, in any section.
+        function items(file,  l, t) {
+            while ((getline l < file) > 0) {
+                if (l !~ /^(- |[0-9]+\. |\|)/) continue
+                t = l; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                if (match(t, /^[A-Z]+[0-9]+[a-z]*/) && substr(t, RLENGTH + 1, 1) !~ /[A-Za-z0-9]/) item[substr(t, 1, RLENGTH)] = 1
+            }
+            close(file)
+        }
+        BEGIN {
+            load(ENVIRON["NOW"], now, hasnow); load(ENVIRON["GATE"], gate, hasgate); load(ENVIRON["LOGGED"], logged, haslogged)
+            delete known["#file"]
+            items(ENVIRON["ANALYSIS"]); items(ENVIRON["GATEFILE"])
+            prefix["C"] = 1
+            for (id in known) { p = id; sub(/[0-9].*/, "", p); prefix[p] = 1 }
+            rest = ENVIRON["DECISION"]
+            while (match(rest, /(^|[^A-Za-z0-9])[A-Z]+[0-9]+[a-z]*([^A-Za-z0-9]|$)/)) {
+                tok = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+                gsub(/^[^A-Z]+/, "", tok); gsub(/[^A-Za-z0-9]+$/, "", tok)
+                p = tok; sub(/[0-9].*/, "", p)
+                if (tok in known) named[tok] = 1; else if ((p in prefix) || (tok in item)) outside[tok] = 1
+            }
+            if (length(named) == 0 && length(outside) > 0) exit 4
+            ok = 0
+            for (id in named) {
+                base = (id in haslogged) ? logged[id] : ((id in hasgate) ? gate[id] : "")
+                if (((id in hasnow) ? now[id] : "") != base) ok = 1
+            }
+            if (length(named) == 0) ok = (ENVIRON["FILESHA"] != (("#file" in haslogged) ? logged["#file"] : ENVIRON["GATESHA"]))
+            if (!ok) exit 3
+            for (id in named) print id "\t" ((id in hasnow) ? now[id] : "")
+            print "#file\t" ENVIRON["FILESHA"]
+        }')" || code=$?
+    rm -f "$run_dir/.criteria-now.$$" "$run_dir/.criteria-gate.$$"
+    case "$code" in
+        0) ;;
+        4)
+            echo "a criterion change row names an ID that is in no ## Acceptance criteria section of ${run_dir}/analysis.md or analysis-gate.md: put the criterion in that section (scripts/check-plan.sh reads it there), and name its ID" >&2
+            exit 2 ;;
+        *)
+            echo "a criterion change row needs a criterion whose text in ${run_dir}/analysis.md differs from its text at the last row for that ID (the first row reads analysis-gate.md): change the criterion there, and name its ID in the row" >&2
+            exit 2 ;;
+    esac
 fi
 claim='(^|[^a-z])(red[- ]tree|passed on the red|old[- ]tree)'
 if [[ "$(lower "$2 $3")" =~ $claim ]]; then
@@ -127,4 +217,5 @@ for field in "$@"; do
     row+=$'\t'"$(printf '%s' "$field" | tr '\t\n\r' '   ')"
 done
 printf '%s\n' "$row" >> "$file"
+[[ -z "$new_logged" ]] || printf '%s\n' "$new_logged" >> "${file%/*}/criteria-logged.tsv"
 [[ -z "$from_file" ]] || rm -f "$from_file"

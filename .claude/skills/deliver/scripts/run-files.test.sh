@@ -3,7 +3,8 @@
 # (--from), changes a tab in a field to a space, refuses a file with four lines and appends
 # nothing, keeps the six-argument form, and refuses a row whose decision or result starts with
 # default and whose why has no `Reverse:` (any case), and refuses a phase that is not one digit.
-# Check that a criterion change row needs a newer analysis.md and the words old and new. Check
+# Check that a criterion change row needs a criterion whose text in analysis.md differs from its text at
+# the last row for that ID (criteria-logged.tsv), and the words old and new. Check
 # that the first phase 4 row of a run folder with a plan.md needs a passing scripts/check-plan.sh
 # (a Criteria: field for each plan gate change, and a criterion change row for each ID).
 # Check that a row that claims a test result on the red tree or the old tree needs an existing file
@@ -101,8 +102,8 @@ printf '4 implement\ndecision\nwhy\nevidence\ndone\n' > "$tmp/phase"
 "$log" "$run" 9 decision why evidence done || fail "phase 9 exits $?"
 check_row 'phase 9' $'9\tdecision\twhy\tevidence\tdone'
 
-# A criterion change row needs an analysis.md that changed after the last row, and the words old
-# and new. /bin/bash compares whole seconds, so touch -t puts decisions.tsv in the past.
+# A criterion change row needs a criterion whose text differs from its text at the last row for that
+# ID, and the words old and new. The file time of analysis.md decides nothing.
 refused() {
   local name="$1" reason="$2" before err code
   shift 2
@@ -115,15 +116,126 @@ refused() {
 }
 change=(4 'Criterion change C1: old 3 s, new 5 s' 'the probe gives 4 s' evidence done)
 refused 'a criterion change with no analysis.md' analysis.md "${change[@]}"
-touch -t 200001010000 "$run/analysis.md"
-refused 'a criterion change with an old analysis.md' analysis.md "${change[@]}"
-touch "$run/analysis.md"
-touch -t 200001010000 "$run/decisions.tsv"
+printf '# A\n\n## Acceptance criteria\n\n- C1: 3 s.\n' > "$run/analysis.md"
 refused 'a criterion change with no old and new' 'old and new' 4 'criterion change C1: 5 s' 'the probe gives 4 s' evidence done
-"$log" "$run" "${change[@]}" || fail "a criterion change after an analysis.md edit exits $?"
-check_row 'a criterion change after an analysis.md edit' $'4\tCriterion change C1: old 3 s, new 5 s\tthe probe gives 4 s\tevidence\tdone'
-refused 'a second criterion change with no new analysis.md edit' analysis.md "${change[@]}"
+"$log" "$run" "${change[@]}" || fail "a criterion change for a new criterion exits $?"
+check_row 'a criterion change for a new criterion' $'4\tCriterion change C1: old 3 s, new 5 s\tthe probe gives 4 s\tevidence\tdone'
+refused 'a second criterion change with no change of the criterion' 'differs from its text' "${change[@]}"
+touch "$run/analysis.md"
+refused 'a criterion change after a touch of analysis.md' 'differs from its text' "${change[@]}"
 "$log" "$run" 7 'criterion 4 verified' 'the test passes' evidence done || fail "a criterion verification row exits $?"
+
+# The text of a criterion is its line and its indented lines. cc_row logs a phase 3 row in a folder
+# of its own and reads the exit status; a refusal also names its reason.
+cc="$tmp/cc"
+cc_fresh() { rm -rf "$cc"; mkdir "$cc"; : > "$cc/decisions.tsv"; }
+cc_crit() { # <text of C1> ...: analysis.md with C1..Cn, a decoy C9 and an outside I3 below the section
+  local i=1 t
+  { printf '# A\n\n## Acceptance criteria\n\n'; for t in "$@"; do printf -- '- C%d: %s\n' "$i" "$t"; i=$((i + 1)); done
+    printf '\n## Other\n\n- C9: not a criterion.\n- I3: outside the section.\n'; } > "$cc/analysis.md"
+}
+cc_row() { # <name> <want exit> <decision>
+  local name="$1" want="$2" err code
+  shift 2
+  err="$("$log" "$cc" 3 "$1" why evidence done 2>&1)"
+  code=$?
+  [[ $code -eq $want ]] || { fail "criterion text, $name: exit $code (want $want): $err"; return; }
+  [[ $want -eq 0 || "$err" == *'differs from its text'* || "$err" == *'Acceptance criteria'* ]] || fail "criterion text, $name: no reason in the message: $err"
+}
+cc_fresh
+cc_crit a b c d e
+cc_row 'first row for C1 (new ID)' 0 'criterion change C1: old none, new a'
+cc_row 'C1 again with no edit' 2 'criterion change C1: old none, new a'
+cc_crit a2 b2 c2 d2 e2
+for i in 2 3 4 5 1; do cc_row "one edit of five, row for C$i" 0 "criterion change C$i: old x, new y"; done
+cc_row 'C3 again with no edit' 2 'criterion change C3: old x, new y'
+cc_crit a2 b2 'c3 \d back\slash' d2 e2
+cc_row 'C3 edited (backslash text)' 0 'criterion change C3: old x, new y'
+cc_crit a2 b2 'c3 \d back\slash2' d2 e2
+cc_row 'C3 edited again (one backslash part)' 0 'criterion change C3: old x, new y'
+cc_row 'C3 third row with no edit' 2 'criterion change C3: old x, new y'
+touch "$cc/analysis.md"
+cc_row 'C3 after a touch only' 2 'criterion change C3: old x, new y'
+cc_crit a2 b4 c5 d2 e2
+cc_row 'two IDs in one row' 0 'criterion change C2 and C3: old x, new y'
+cc_row 'both again with no edit' 2 'criterion change C2, C3: old x, new y'
+cc_row 'a stray token that is no criterion ID' 2 'criterion change U5 C2: old x, new y'
+# A row for an ID of no criteria section is refused, also after an edit of analysis.md. A row with
+# no ID needs another hash of analysis.md. A word such as MP3 is no ID.
+cc_fresh
+cc_crit a b
+cc_row 'ID outside the section' 2 'criterion change I3: old x, new y'
+cc_row 'C9, which the section does not hold' 2 'criterion change C9: old x, new y'
+printf '# A\n\n## Acceptance criteria\n\n- C1: a\n\n## Other\n\n- I3: outside the section, edited\n' > "$cc/analysis.md"
+cc_row 'outside ID, analysis.md edited' 2 'criterion change I3: old x, new y'
+err="$("$log" "$cc" 3 'criterion change I3: old x, new y' why evidence done 2>&1)"
+[[ "$err" == *'Acceptance criteria'*'check-plan.sh'*'name its ID'* ]] || fail "outside ID: the message names no section rule: $err"
+cc_crit a2 b
+cc_row 'C1 changed plus an outside ID' 0 'criterion change C1 I3: old x, new y'
+cc_row 'the outside ID alone after that' 2 'criterion change I3: old x, new y'
+[[ "$(wc -l < "$cc/decisions.tsv" | tr -d ' ')" == 1 ]] || fail "outside ID: $(wc -l < "$cc/decisions.tsv") rows, not 1"
+cc_fresh
+cc_crit a b
+cc_row 'no ID, first row' 0 'criterion change: old x, new y'
+cc_row 'no ID, no edit' 2 'criterion change: old x, new y'
+cc_crit a2 b
+cc_row 'no ID, after an edit' 0 'criterion change: old x, new y'
+cc_row 'C1, which differs from its line at the last C1 row' 0 'criterion change C1: old a, new a2'
+cc_row 'C1 again with no edit' 2 'criterion change C1: old a, new a2'
+cc_fresh
+cc_crit a b
+cc_row 'no ID, codec word' 0 'criterion change: MP3 export, old x, new y'
+cc_row 'no ID, codec word, no edit' 2 'criterion change: MP3 export, old x, new y'
+cc_crit a2 b
+cc_row 'no ID, codec word, after an edit' 0 'criterion change: MP3 export, old x, new y'
+cc_row 'C77, which no line holds' 2 'criterion change C77: old x, new y'
+cc_crit a3 b
+cc_row 'C77 after an edit' 2 'criterion change C77: old x, new y'
+# analysis-gate.md is the baseline of an ID with no row, and a removed criterion needs one row.
+cc_fresh
+cc_crit a b
+cp "$cc/analysis.md" "$cc/analysis-gate.md"
+cc_row 'C1 unchanged since the gate copy' 2 'criterion change C1: old a, new a'
+cc_crit a2 b
+cc_row 'C1 changed since the gate copy' 0 'criterion change C1: old a, new a2'
+cc_row 'C2 unchanged since the gate copy' 2 'criterion change C2: old b, new b'
+printf '# A\n\n## Acceptance criteria\n\n- C1: a2\n' > "$cc/analysis.md"
+cc_row 'C2 removed' 0 'criterion change C2: old b, new gone'
+cc_row 'C2 removed again' 2 'criterion change C2: old b, new gone'
+# The indented lines under a criterion are part of its text; a paragraph after the list is not.
+cc_fresh
+cc_sub() { # <C1 sub value> <C2 sub value>
+  printf '# A\n\n## Acceptance criteria\n\n- C1: main one\n  - proof: %s\n\n  - near miss: x\n- C2: main two\n\t- proof: %s\n\nA paragraph after the list, not part of C2.\n\n## Other\n' "$1" "$2" > "$cc/analysis.md"
+}
+cc_sub p1 q1
+cc_row 'indented, first row C1' 0 'criterion change C1: old none, new main one'
+cc_row 'indented, first row C2' 0 'criterion change C2: old none, new main two'
+cc_sub p2 q1
+cc_row 'only the C1 sub-bullet changed, row for C2' 2 'criterion change C2: old a, new b'
+cc_row 'sub-bullet edit of C1' 0 'criterion change C1: old p1, new p2'
+cc_row 'C1 again with no edit' 2 'criterion change C1: old p1, new p2'
+cc_sub p3 q3
+cc_row 'one edit of both sub-bullets, row for C1' 0 'criterion change C1: old p2, new p3'
+cc_row 'one edit of both sub-bullets, row for C2' 0 'criterion change C2: old q1, new q3'
+printf '# A\n\n## Acceptance criteria\n\n- C1: main one\n  - proof: p3\n\n  - near miss: x\n- C2: main two\n\t- proof: q3\n\nA changed paragraph after the list.\n\n## Other\n' > "$cc/analysis.md"
+cc_row 'a changed paragraph after the list' 2 'criterion change C2: old a, new b'
+printf '# A\n\n## Acceptance criteria\n\n- C1: main one\n  - proof: p3\n\n  - near miss: x2\n- C2: main two\n\t- proof: q3\n' > "$cc/analysis.md"
+cc_row 'sub-bullet after a blank line edited' 0 'criterion change C1: old x, new x2'
+# A refused row keeps decisions.tsv, criteria-logged.tsv, and the folder; a later row only appends.
+cc_fresh
+cc_crit a b c
+cc_row 'first row' 0 'criterion change C1: old none, new a'
+before="$(shasum -a 256 < "$cc/criteria-logged.tsv")" files_before="$(ls -a "$cc")"
+cc_row 'refused: no change' 2 'criterion change C1: old none, new a'
+cc_row 'refused: outside ID' 2 'criterion change I3: old x, new y'
+"$log" "$cc" 3 'criterion change C1: 5 s' why evidence done 2> /dev/null
+[[ "$(shasum -a 256 < "$cc/criteria-logged.tsv")" == "$before" && "$(ls -a "$cc")" == "$files_before" ]] ||
+  fail 'criterion text: a refused row changed criteria-logged.tsv or left a file'
+head -n "$(wc -l < "$cc/criteria-logged.tsv")" "$cc/criteria-logged.tsv" > "$tmp/logged-prefix"
+cc_crit a2 b c
+cc_row 'C1 after an edit' 0 'criterion change C1: old a, new a2'
+cmp -s "$tmp/logged-prefix" <(head -n "$(wc -l < "$tmp/logged-prefix")" "$cc/criteria-logged.tsv") ||
+  fail 'criterion text: a later row changed an earlier line of criteria-logged.tsv'
 
 # A row that claims a test result on the red tree or the old tree names a file of the logs/ folder
 # of the run in its evidence. The phrase is read at a word start, in the decision or the why.
@@ -183,8 +295,7 @@ printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate
 err="$("$log" "$gated" 4 'Slice S1 committed' why evidence done 2>&1)"
 [[ $? -eq 2 ]] || fail "the first phase 4 row with no criterion change row for C8 was not refused"
 [[ "$err" == *'log-decision.sh'*'criterion change C8: old'* ]] || fail "the refusal gives no fixing command: $err"
-touch "$gated/analysis.md"
-touch -t 200001010000 "$gated/decisions.tsv"
+printf '# A\n\n## Acceptance criteria\n\n- C8: 5 s.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$gated/analysis.md"
 "$log" "$gated" 3 'criterion change C8: old 3 s, new 5 s' why evidence done || fail "the criterion change row for C8 exits $?"
 "$log" "$gated" 4 'Slice S1 committed' why evidence done || fail "the first phase 4 row after the C8 row exits $?"
 printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case.\n' > "$gated/plan.md"
@@ -194,8 +305,7 @@ printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate
 printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case. Criteria: C8\n2. S1: a late case. Criteria: C5\n' > "$gated/plan.md"
 "$log" "$gated" 4 'Slice S3 committed' why evidence done 2>/dev/null
 [[ $? -eq 2 ]] || fail "a phase 4 row with a late C5 and no row was not refused"
-touch "$gated/analysis.md"
-touch -t 200001010000 "$gated/decisions.tsv"
+printf '# A\n\n## Acceptance criteria\n\n- C8: 5 s.\n- C5: b.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$gated/analysis.md"
 "$log" "$gated" 6 'criterion change C5: old a, new b' why evidence done || fail "the criterion change row for C5 exits $?"
 "$log" "$gated" 4 'Slice S3 committed' why evidence done || fail "the next phase 4 row after the late C5 row exits $?"
 
@@ -299,14 +409,11 @@ code=$?
 [[ "$(shasum -a 256 "$tmp/g10/decisions.tsv")" == "$before" ]] || fail 'g10: the refused phase 4 row changed decisions.tsv'
 "$log" "$tmp/g10" 6 'fix item 1' why evidence fixed 2>/dev/null
 [[ $? -eq 2 ]] || fail 'g10: a phase 6 row with a changed C1 and no row was not refused'
-touch "$tmp/g10/analysis.md"
-touch -t 200001010000 "$tmp/g10/decisions.tsv"
-"$log" "$tmp/g10" 4 'criterion change C12: old saved, new saved twice' why evidence done || fail "g10: the criterion change row for C12 exits $?"
+"$log" "$tmp/g10" 4 'criterion change C12: old saved, new saved twice' why evidence done 2>/dev/null
+[[ $? -eq 2 ]] || fail "g10: a criterion change row for the unedited C12 exits $?"
 err="$("$log" "$tmp/g10" 4 'Slice S3 committed' why evidence done 2>&1)"
 code=$?
 [[ $code -eq 2 && "$err" == *'criterion C1 '* ]] || fail "g10: a row for C12 stood for the changed C1: exit $code: $err"
-touch "$tmp/g10/analysis.md"
-touch -t 200001010000 "$tmp/g10/decisions.tsv"
 "$log" "$tmp/g10" 4 'criterion change C1: old the meter moves, new the meter moves at 24 fps' why evidence done ||
   fail "g10: the criterion change row for C1 exits $?"
 "$log" "$tmp/g10" 4 'Slice S3 committed' why evidence done || fail "g10: a phase 4 row after the C1 row exits $?"
@@ -314,8 +421,6 @@ sed '/^- C2: /d' "$tmp/g10/analysis.md" > "$tmp/g10/analysis.new" && mv "$tmp/g1
 err="$("$log" "$tmp/g10" 4 'Slice S4 committed' why evidence done 2>&1)"
 code=$?
 [[ $code -eq 2 && "$err" == *'criterion C2 '* && "$err" != *'criterion C1 '* ]] || fail "g10: a removed C2 with no row: exit $code: $err"
-touch "$tmp/g10/analysis.md"
-touch -t 200001010000 "$tmp/g10/decisions.tsv"
 "$log" "$tmp/g10" 6 'criterion change C2: old the file is read, new gone' why evidence done || fail "g10: the criterion change row for C2 exits $?"
 "$log" "$tmp/g10" 4 'Slice S4 committed' why evidence done || fail "g10: a phase 4 row after the C2 row exits $?"
 printf -- '- C3: a new criterion.\n' >> "$tmp/g10/analysis.md"

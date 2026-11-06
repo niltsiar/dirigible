@@ -56,6 +56,33 @@ struct ChangedFramesTests {
         #expect(shiftedFrames(from: session, to: stuck)?.strays == [179_600, 170_000], "a marker that stays")
     }
 
+    /// C26 (decision 0020): a slip changes only the offset of one clip, and its frames redraw on its
+    /// lane. A guard that compares clip ranges only gives nil.
+    @Test func aSlipChangesTheClipFrames() throws {
+        var session = try Fixture.session(withB: false)
+        try session.place(Clip(id: "R", file: "fb", start: 96_000, offset: 48_000, length: 48_000), on: "t1")
+        var slipped = session
+        try slipped.slip(["R"], by: 4_800)
+
+        #expect(changedFrames(from: session, to: slipped)?.frames == 96_000..<144_000)
+        #expect(changedFrames(from: session, to: slipped)?.lanes == 0..<1)
+    }
+
+    /// C26 (decision 0020): a roll of the last two clips of a lane and a slip of the last clip
+    /// move no later clip, so no region copy draws them. A rule that compares clip starts only
+    /// gives a shift for the roll.
+    @Test func aRollOrASlipTakesNoShift() throws {
+        var session = try Fixture.session(withB: false)
+        try session.place(Clip(id: "R", file: "fb", start: 96_000, offset: 48_000, length: 48_000), on: "t1")
+        var rolled = session
+        try rolled.roll("A", by: 4_800)
+        var slipped = session
+        try slipped.slip(["R"], by: 4_800)
+
+        #expect(shiftedFrames(from: session, to: rolled) == nil)
+        #expect(shiftedFrames(from: session, to: slipped) == nil)
+    }
+
     @Test func aMoveToAnotherLaneChangesBothLanes() throws {
         let session = try Fixture.session()
         var moved = session

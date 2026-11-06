@@ -82,12 +82,23 @@ struct MarqueeGestureTests {
         #expect(gesture.marquee == nil)
     }
 
-    /// From the set of A (48,000 ..< 96,000 on t1), a Shift-Command drag on the lanes from inside A to
-    /// 120,000 extends the span of the set: the range runs from the first clip start (decision 0038).
+    /// From the set of A (48,000 ..< 96,000 on t1), a Shift-Command drag on the lanes from the lower part
+    /// of A to 120,000 extends the span of the set: the range runs from the first clip start (decision 0038).
     @Test mutating func aShiftCommandDragFromAClipSetExtendsItsSpan() {
         selection = .clips(ClipSet("A"))
+        down(150, 50, command: true)
+        #expect(drag(250, 50) == [.marks(Marks(inPoint: 48_000, outPoint: 120_000, tracks: ["t1"]))])
+        #expect(gesture.marquee == nil)
+    }
+
+    /// The upper part of a clip of the set slips (decision 0020): the press of
+    /// `aShiftCommandDragFromAClipSetExtendsItsSpan` at y 30 makes no range.
+    @Test mutating func aShiftCommandDragOnTheUpperPartOfASetClipSlips() {
+        selection = .clips(ClipSet("A"))
         down(150, 30, command: true)
-        #expect(drag(250, 30) == [.marks(Marks(inPoint: 48_000, outPoint: 120_000, tracks: ["t1"]))])
+        // A sits at offset 0, so its content slips only to the left.
+        #expect(drag(100, 30) == [])
+        #expect(gesture.drawn(session).clip("A")?.clip.offset == 24_000)
         #expect(gesture.marquee == nil)
     }
 

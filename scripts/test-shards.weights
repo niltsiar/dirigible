@@ -208,6 +208,7 @@ DirigibleTests.MouseEventCrossfadeBenchmark	0.0
 DirigibleTests.MouseEventGainBenchmark	0.0
 DirigibleTests.MouseEventGroupBenchmark	0.0
 DirigibleTests.MouseEventRippleBenchmark	0.0
+DirigibleTests.MouseEventRollSlipBenchmark	0.0
 DirigibleTests.MouseEventSnapBenchmark	0.0
 DirigibleTests.NavigationKeyBenchmark	0.0
 DirigibleTests.NavigationRedrawTests	1.9

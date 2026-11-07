@@ -80,9 +80,10 @@ struct ClipLabel {
         self.holes = holes
     }
 
-    /// The labels of the rect of `region`. It reads only the clips in the frames of the rect, lane
-    /// by lane. A box under 60 pt gets no label: 12,000 labels at fit zoom took 330 ms per draw
-    /// (probe L1, decision 0020). The live region of a take gets the take label at each width, cut
+    /// The labels of the rect of `region`. It reads only the lanes in the rows of the rect and the
+    /// clips in its frames, and keeps only a clip label whose chip meets the rect: a ripple drag
+    /// draws about 100 marker-line strips on a still lane at fit zoom (C53). A box under 60 pt gets
+    /// no label: 12,000 labels at fit zoom took 330 ms per draw (probe L1, decision 0020). The live region of a take gets the take label at each width, cut
     /// at the box end, and an old clip label shows only outside it. So a column of the take label
     /// does not change when the box grows, and the partial draw of a tick gives the pixels of a
     /// full draw.
@@ -93,9 +94,10 @@ struct ClipLabel {
         let rect = region.window.points(of: region.rect)
         let frames = geometry.frame(at: rect.minX)..<geometry.frame(at: rect.maxX) + Frames(2)
         let regions = live?.boxes(inputs, scale: region.window.scale) ?? [:]
+        let tracks = inputs.session.tracks
         var labels: [ClipLabel] = []
-        for (lane, track) in inputs.session.tracks.enumerated() {
-            let region = regions[lane]
+        for lane in region.window.lanes(of: region.rect.rows).clamped(to: tracks.indices) {
+            let (track, region) = (tracks[lane], regions[lane])
             for clip in track.clips.clips(overlapping: frames) {
                 let box = NSRect(geometry.box(of: clip, lane: lane))
                 guard hasChip(width: box.width), box.intersects(rect) else { continue }
@@ -118,11 +120,11 @@ struct ClipLabel {
                         geometry.envelopePoints(of: clip, at: $0, in: track.clips, trackGain: track.gain, lane: lane)
                             .map { NSRect(x: $0.x - reach, y: $0.y - reach, width: 2 * reach, height: 2 * reach) }
                     } ?? []
-                labels.append(
-                    ClipLabel(
-                        clip: clip.id, lane: lane, text: text, box: box, shown: shown,
-                        start: (handles?.start).map { max($0.maxX + 2, box.minX + inset) },
-                        end: (handles?.end).map { $0.minX - 2 }, discs: discs))
+                let label = ClipLabel(
+                    clip: clip.id, lane: lane, text: text, box: box, shown: shown,
+                    start: (handles?.start).map { max($0.maxX + 2, box.minX + inset) },
+                    end: (handles?.end).map { $0.minX - 2 }, discs: discs)
+                if label.chip.intersects(rect) { labels.append(label) }
             }
             if let region, let live, region.intersects(rect) {
                 labels.append(ClipLabel(clip: nil, lane: lane, text: live.label, box: region, shown: [region]))

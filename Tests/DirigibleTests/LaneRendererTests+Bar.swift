@@ -206,6 +206,29 @@ import Testing
         #expect(pixels.pixel(50 * s, 15 * s - 1) == palette.barEdge, "the edge over the waveform")
         #expect(pixels.pixel(50 * s, 15 * s) == palette.peak, "the waveform under the bar")
     }
+
+    /// C53 of run 2026-10-28-timeline-edits: a strip of a still lane in a ripple drag gets the label
+    /// only when the strip meets its chip, and the strip draw gives the pixels of the full draw.
+    @Test(arguments: palettes, [1.0, 2.0])
+    func aStripGetsTheLabelOnlyWhenItMeetsTheChip(palette: LanePalette, scale: Double) throws {
+        let s = Int(scale)
+        let inputs = Self.inputs(try Self.session(path: "take-interview.wav"))
+        let chip = try Self.chip(inputs, scale: scale)
+        let full = try Self.labeled(inputs, palette, scale: scale)
+        #expect(chip.maxX < 92, "the strip from 92 pt is in the box of 100 pt and past the chip: \(chip)")
+        for (columns, label) in [(92 * s..<98 * s, false), (12 * s..<18 * s, true)] {
+            let strip = PixelRect(columns: columns, rows: 0..<100 * s)
+            let part = OwnedPixels(try #require(laneWindow(inputs, width: 120, scale: scale)))
+            var labels: [ClipLabel] = []
+            part.draw(strip) { region in
+                labels = ClipLabel.labels(inputs, live: nil, in: region)
+                TimelineDocumentView.drawLanes(LaneRenderer(), inputs, palette, into: region)
+            }
+            #expect(labels.map(\.chip) == (label ? [chip] : []), "the strip \(columns), the chip \(chip)")
+            let same = columns.allSatisfy { c in (0..<100 * s).allSatisfy { full.pixel(c, $0) == part.pixel(c, $0) } }
+            #expect(same, "the strip \(columns) has the pixels of the full draw")
+        }
+    }
 }
 
 extension CGRect {

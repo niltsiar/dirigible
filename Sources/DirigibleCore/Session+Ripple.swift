@@ -6,20 +6,26 @@ import Foundation
 extension Session {
     /// On each track of `tracks`, removes the frames in each range of `ranges`, in one edit. The
     /// overlapping and touching ranges merge first, so each range removes the frames that the
-    /// caller gave. The cut removes the frames of each range (the edge clips are cut by the 0003 ID
-    /// rule) and moves each clip left by the length of the ranges before it. Each marker moves left
-    /// by the removed frames before it, so a marker in a range goes to the range start. An empty
-    /// range is skipped. No range or an empty track list changes nothing.
-    public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID]) throws(SessionError) {
+    /// caller gave. On each track of `cuttingTracks(tracks, naming:)` the cut removes the frames of
+    /// each range (the edge clips are cut by the 0003 ID rule) and moves each clip left by the length
+    /// of the ranges before it. On a follow track that `naming` does not hold, no clip is cut: each
+    /// start maps as a marker does, and an overlap throws `.followOverlap` (decision 0073). Each
+    /// marker moves left by the removed frames before it, so a marker in a range goes to the range
+    /// start. An empty range is skipped. No range or an empty track list changes nothing; else a
+    /// scope where no track cuts throws `.noRippleTrack`.
+    public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID], naming: [TrackID] = [])
+        throws(SessionError)
+    {
         guard ranges.allSatisfy({ $0.lowerBound.isInRange && $0.upperBound.isInRange }) else {
             throw .frameOutOfRange
         }
         let lanes = try trackIndices(tracks)
         let merged = Self.merged(ranges)
         guard !merged.isEmpty, !lanes.isEmpty else { return }
+        guard !cuttingTracks(tracks, naming: naming).isEmpty else { throw .noRippleTrack }
         var copy = self
         var taken = clipIDs
-        try copy.rippleDelete(merged, lanes: lanes, taken: &taken)
+        try copy.rippleDelete(merged, lanes: lanes, naming: naming, taken: &taken)
         self = copy
     }
 
@@ -39,21 +45,35 @@ extension Session {
 
     /// On each track of `tracks`, removes the frames in `range`. It calls the array form with one
     /// range.
-    public mutating func rippleDelete(_ range: Range<Frames>, on tracks: [TrackID]) throws(SessionError) {
-        try rippleDelete([range], on: tracks)
+    public mutating func rippleDelete(_ range: Range<Frames>, on tracks: [TrackID], naming: [TrackID] = [])
+        throws(SessionError)
+    {
+        try rippleDelete([range], on: tracks, naming: naming)
     }
 
-    /// On each track of `tracks`, splits the clip that holds `frame` strictly inside it, then
-    /// moves each clip at or after `frame` right by `length`: an insert of silence. Each marker at
+    /// The tracks of `tracks` that a ripple cuts: each track that does not follow, and each track
+    /// that the edit names (decision 0073). The ripple lanes, the `.noRippleTrack` refusal, and the
+    /// excerpt of a Cut in the window read this rule.
+    public func cuttingTracks(_ tracks: [TrackID], naming: [TrackID]) -> [TrackID] {
+        tracks.filter { naming.contains($0) || track($0)?.isFollowTrack != true }
+    }
+
+    /// On each track of `cuttingTracks(tracks, naming:)`, splits the clip that holds `frame` strictly
+    /// inside it, then moves each clip at or after `frame` right by `length`: an insert of silence.
+    /// On a follow track that `naming` does not hold, no clip splits (decision 0073). Each marker at
     /// or after `frame` moves right by `length`. A clip end or a marker past `Frames.limit` throws
-    /// `.frameOutOfRange`. A length of 0 or an empty track list changes nothing.
-    public mutating func rippleInsert(_ length: Frames, at frame: Frames, on tracks: [TrackID]) throws(SessionError) {
+    /// `.frameOutOfRange`. A length of 0 or an empty track list changes nothing; else a scope where
+    /// no track cuts throws `.noRippleTrack`.
+    public mutating func rippleInsert(_ length: Frames, at frame: Frames, on tracks: [TrackID], naming: [TrackID] = [])
+        throws(SessionError)
+    {
         guard length.isInRange, frame.isInRange else { throw .frameOutOfRange }
         let lanes = try trackIndices(tracks)
         guard length != .zero, !lanes.isEmpty else { return }
+        guard !cuttingTracks(tracks, naming: naming).isEmpty else { throw .noRippleTrack }
         var copy = self
         var taken = clipIDs
-        try copy.rippleInsert(length, at: frame, lanes: lanes, taken: &taken)
+        try copy.rippleInsert(length, at: frame, lanes: lanes, naming: naming, taken: &taken)
         self = copy
     }
 
@@ -63,10 +83,11 @@ extension Session {
     /// stays: at the start edge, a positive delta removes the span from the clip head, and a
     /// negative delta adds media before it. The clip keeps its ID, the fade of the other edge stays
     /// and the trimmed fade yields (0035), and the crossfade at the trimmed edge goes from both
-    /// clips (0036). Media outside the file throws `.clipOutsideFile`.
-    public mutating func rippleTrim(_ id: ClipID, edge: Fades.Edge, by delta: Frames, on tracks: [TrackID])
-        throws(SessionError)
-    {
+    /// clips (0036). Media outside the file throws `.clipOutsideFile`. The other tracks take the
+    /// follow rule of `rippleDelete` and `rippleInsert` with `naming`.
+    public mutating func rippleTrim(
+        _ id: ClipID, edge: Fades.Edge, by delta: Frames, on tracks: [TrackID], naming: [TrackID] = []
+    ) throws(SessionError) {
         guard delta >= .zero - .limit, delta <= .limit else { throw .frameOutOfRange }
         let (own, index) = try position(of: id)
         let others = try trackIndices(tracks).filter { $0 != own }
@@ -94,20 +115,26 @@ extension Session {
         var taken = clipIDs
         copy.tracks[own].clips.ripple(at: index, with: trimmed)
         if change < .zero {
-            try copy.rippleDelete([edge == .end ? (at - span)..<at : at..<(at + span)], lanes: others, taken: &taken)
+            try copy.rippleDelete(
+                [edge == .end ? (at - span)..<at : at..<(at + span)], lanes: others, naming: naming, taken: &taken)
         } else {
-            try copy.rippleInsert(span, at: at, lanes: others, taken: &taken)
+            try copy.rippleInsert(span, at: at, lanes: others, naming: naming, taken: &taken)
         }
         self = copy
     }
 
     /// The ripple delete of `lanes` and the markers, in one pass. The ranges are in range and
-    /// merged (`merged`).
-    mutating func rippleDelete(_ ranges: [Range<Frames>], lanes: [Int], taken: inout Set<ClipID>)
-        throws(SessionError)
-    {
+    /// merged (`merged`). A lane that `cuttingTracks` leaves out follows.
+    mutating func rippleDelete(
+        _ ranges: [Range<Frames>], lanes: [Int], naming: [TrackID], taken: inout Set<ClipID>
+    ) throws(SessionError) {
+        let cutting = Set(cuttingTracks(lanes.map { tracks[$0].id }, naming: naming))
         for index in lanes {
-            tracks[index].clips.rippleDelete(ranges) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
+            if cutting.contains(tracks[index].id) {
+                tracks[index].clips.rippleDelete(ranges) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
+            } else {
+                try tracks[index].clips.follow(deleting: ranges)
+            }
         }
         for marker in markers.values {
             var moved = marker
@@ -116,17 +143,23 @@ extension Session {
         }
     }
 
-    /// The ripple insert of `lanes` and the markers. The length and the frame are in range.
-    mutating func rippleInsert(_ length: Frames, at frame: Frames, lanes: [Int], taken: inout Set<ClipID>)
-        throws(SessionError)
-    {
+    /// The ripple insert of `lanes` and the markers. The length and the frame are in range. A lane
+    /// that `cuttingTracks` leaves out follows: no clip splits.
+    mutating func rippleInsert(
+        _ length: Frames, at frame: Frames, lanes: [Int], naming: [TrackID], taken: inout Set<ClipID>
+    ) throws(SessionError) {
+        let cutting = Set(cuttingTracks(lanes.map { tracks[$0].id }, naming: naming))
         for index in lanes {
-            // The last clip has the largest end. It moves when it ends after `frame`. Both values
-            // are in 0...limit, so the sum cannot overflow.
-            if let last = tracks[index].clips.last, last.end > frame, !(last.end + length).isInRange {
+            let cuts = cutting.contains(tracks[index].id)
+            // The last clip has the largest end. It moves when it ends after `frame`, or on a follow
+            // lane when it starts at or after `frame`. Both values are in 0...limit, so the sum cannot
+            // overflow.
+            if let last = tracks[index].clips.last, cuts ? last.end > frame : last.start >= frame,
+                !(last.end + length).isInRange
+            {
                 throw .frameOutOfRange
             }
-            if let at = tracks[index].clips.index(cutting: frame) {
+            if cuts, let at = tracks[index].clips.index(cutting: frame) {
                 let right = Self.derivedID(of: tracks[index].clips[at].id, at: frame, taken: &taken)
                 tracks[index].clips.split(at: at, frame: frame, rightID: right)
             }

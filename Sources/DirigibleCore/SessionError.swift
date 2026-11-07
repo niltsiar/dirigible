@@ -85,6 +85,11 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A heal found no join of two clips that play on in one file at one gain at each frame, the
     /// envelope included, with no fade at the join.
     case nothingToHeal
+    /// A ripple would move a clip of a follow track onto the next clip before it (decision 0073):
+    /// the moved clip, then the clip under it.
+    case followOverlap(ClipID, ClipID)
+    /// Each track of a ripple follows, and the edit names none, so no lane would be cut (decision 0073).
+    case noRippleTrack
     /// A duck has no speech track: no track has the dialogue role, and the caller named none
     /// (decision 0060).
     case noSpeechTrack

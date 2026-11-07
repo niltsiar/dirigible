@@ -50,7 +50,7 @@ extension SessionWindow {
         let cuts = command == .cut || command == .cutSelectedTracks
         let done = edit(ripple: true) { session throws(SessionError) -> Excerpt? in
             let excerpt = cuts ? try session.excerpt(of: scope.range, on: scope.selected) : nil
-            try session.rippleDelete(scope.range, on: scope.tracks)
+            try session.rippleDelete(scope.range, on: scope.tracks, naming: scope.named)
             return excerpt
         }
         guard let done else { return }

@@ -56,7 +56,7 @@ extension Session {
         case .over(let at): return try paste(excerpt, at: at, on: tracks)
         case .insert(let at):
             var copy = self
-            try copy.rippleInsert(excerpt.length, at: at, on: copy.tracks.map(\.id))
+            try copy.rippleInsert(excerpt.length, at: at, on: copy.tracks.map(\.id), naming: tracks)
             let pasted = try copy.paste(excerpt, at: at, on: tracks)
             self = copy
             return pasted

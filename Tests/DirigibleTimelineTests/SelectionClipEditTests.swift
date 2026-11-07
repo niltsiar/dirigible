@@ -104,7 +104,9 @@ struct SelectionClipEditTests {
     @Test func theKeysLeaveTheClipKind() {
         #expect(set.settingIn(30_000, in: session) == Marks(inPoint: 30_000, tracks: ["t1", "t2"]))
         #expect(set.settingOut(30_000, in: session) == Marks(outPoint: 30_000, tracks: ["t1", "t2"]))
-        #expect(Selection.none.settingIn(30_000, in: session) == Marks(inPoint: 30_000, tracks: ["t1", "t2", "t3"]))
+        #expect(
+            Selection.none.settingIn(30_000, in: session)
+                == Marks(inPoint: 30_000, tracks: ["t1", "t2", "t3"], tracksByDefault: true))
     }
 
     /// Clip-set-clipboard C6: Copy takes the live set clips whole, or the range. Control: the hull

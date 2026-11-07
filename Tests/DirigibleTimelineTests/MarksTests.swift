@@ -89,14 +89,19 @@ struct MarksTests {
     @Test func iAndOWithNoTracksTakeAllTracks() throws {
         let session = try Self.session(tracks: 3)
 
-        #expect(Marks().settingIn(100, in: session) == Marks(inPoint: 100, tracks: ["t1", "t2", "t3"]))
-        #expect(Marks().settingOut(100, in: session) == Marks(outPoint: 100, tracks: ["t1", "t2", "t3"]))
+        #expect(
+            Marks().settingIn(100, in: session)
+                == Marks(inPoint: 100, tracks: ["t1", "t2", "t3"], tracksByDefault: true))
+        #expect(
+            Marks().settingOut(100, in: session)
+                == Marks(outPoint: 100, tracks: ["t1", "t2", "t3"], tracksByDefault: true))
     }
 
     @Test func selectAllTakesEveryTrackFromZeroToTheEnd() throws {
         let session = try Self.session(tracks: 2)
 
-        #expect(Marks.all(in: session) == Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1", "t2"]))
+        #expect(
+            Marks.all(in: session) == Marks(inPoint: 0, outPoint: 480_000, tracks: ["t1", "t2"], tracksByDefault: true))
     }
 
     @Test func selectAllOnAnEmptySessionGivesNoMarks() throws {
@@ -336,5 +341,19 @@ struct MarksTests {
     @Test func theNewFadeWins() throws {
         let session = try Self.fadeSession(aFades: Fades(fadeIn: 0, fadeOut: 40_000)!)
         #expect(fades(40_000..<62_400, session) == ["A": Fades(fadeIn: 14_400, fadeOut: 33_600)!])
+    }
+
+    /// C56 (decision 0073): tracks by default paste on the source tracks when each is in the
+    /// session; tracks that the user chose keep the 0018 rule, and so does a source that is gone.
+    @Test func aDefaultSelectionPastesOnTheSourceTracks() throws {
+        let session = try Self.session()
+        let second = try session.excerpt(of: 0..<100, on: ["t2"])
+        let all: Set<TrackID> = ["t1", "t2", "t3", "t4"]
+        #expect(Marks(tracks: all, tracksByDefault: true).pasteTracks(for: second, in: session) == ["t2"])
+        #expect(Marks(tracks: all).pasteTracks(for: second, in: session) == ["t1"], "the 0018 rule")
+        var other = try Self.session(tracks: 5)
+        try other.removeTrack("t1")
+        let foreign = try other.excerpt(of: 0..<100, on: ["t5"])
+        #expect(Marks(tracks: all, tracksByDefault: true).pasteTracks(for: foreign, in: session) == ["t1"])
     }
 }

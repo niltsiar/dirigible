@@ -25,7 +25,7 @@ import Testing
     }
 
     /// The package, with the words of the suite on t1, and `guest` on t2 when it has words.
-    func package(guest: [(Double, Double, String)] = []) async throws -> URL {
+    func package(guest: [(Double, Double, String)] = [], follow: [TrackID] = []) async throws -> URL {
         let url = base.folder.url.appending(path: "s.dirigible")
         let host: [(Double, Double, String)] = [
             (1, 1.5, "Hello"), (1.5, 2, "there"), (6, 6.5, "Second"), (6.5, 7, "part"), (11, 11.5, "Third"),
@@ -45,6 +45,7 @@ import Testing
             where !words.isEmpty {
                 try session.importTranscript(try Self.transcript(words), name: name, track: track, at: 0)
             }
+            try session.setFollowTrack(true, tracks: follow)
             try session.write(to: url)
         }.value
         return url
@@ -59,10 +60,10 @@ import Testing
     }
 
     /// The window with the Transcript tab shown and the focus in the pane.
-    func shown(guest: [(Double, Double, String)] = []) async throws -> (
+    func shown(guest: [(Double, Double, String)] = [], follow: [TrackID] = []) async throws -> (
         SessionWindow, Studio, NSWindow, TimelineScrollView, TranscriptTextView
     ) {
-        let (model, studio, window, view) = try await base.open(try await package(guest: guest))
+        let (model, studio, window, view) = try await base.open(try await package(guest: guest, follow: follow))
         model.showTranscript()
         return (model, studio, window, view, try await base.waitForPane(window))
     }
@@ -299,6 +300,17 @@ import Testing
         #expect(board.changeCount == count, "no range: no text")
         #expect(app.clipboard == clipboard)
         #expect(studio.session == session)
+        await model.close()
+    }
+
+    /// C51 (decision 0073): with each track following, a pane selection of words of t1 names t1 and
+    /// holds no tracks by default. `paneSetsTheRange` holds the near input: with no follow track the
+    /// range is on each track.
+    @Test func aPaneSelectionNamesTheTracksOfItsWords() async throws {
+        let (model, _, window, _, pane) = try await shown(follow: ["t1", "t2"])
+        pane.setSelectedRange(try range("Hello", "there", in: pane))
+        #expect(model.timeline.selection == .range(Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1"])))
+        window.close()
         await model.close()
     }
 }

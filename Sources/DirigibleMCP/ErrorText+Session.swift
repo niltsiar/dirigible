@@ -72,6 +72,9 @@ extension SessionError {
                 + ". The file has no chapter at the same time. Remove the chapter first, or add one at that time to "
                 + "the file."
         case .nothingToHeal: "no join to heal."
+        case .followOverlap(let moved, let covered):
+            "clip \"\(moved)\" follows ripples and would cover clip \"\(covered)\"."
+        case .noRippleTrack: "no track to edit: each track of the ripple follows ripples, and the edit names none."
         case .noSpeechTrack: "no speech track: give a track the dialogue role, or name the speech tracks."
         case .noDuckedTrack: "no track to duck: give a track the music role, or name the tracks to duck."
         case .trackInBothDuckLists(let id): "track \"\(id)\" is a speech track and a track to duck."

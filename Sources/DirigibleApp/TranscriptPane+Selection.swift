@@ -8,7 +8,8 @@ import DirigibleTimeline
 extension TranscriptTextView {
     /// Every selection path comes here (U47). A selection of one character or more snaps to whole
     /// units in one range and writes the timeline range on each track that does not follow and on
-    /// the track of each selected unit (decision 0073); with no unit in it, it clears the range. A caret and a selection that the pane sets itself write nothing.
+    /// the track of each selected unit (decision 0073); with no unit in it, it clears the range. A
+    /// caret and a selection that the pane sets itself write nothing.
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
         let spans = ranges.map(\.rangeValue)
         let (lower, upper) = (spans.map(\.location).min() ?? 0, spans.map(NSMaxRange).max() ?? 0)
@@ -149,8 +150,8 @@ extension TranscriptTextView {
         if let words { put(words) }
     }
 
-    /// Cut of the window (a ripple of all tracks that names the tracks of the range), and the words of the range as plain text on the
-    /// pasteboard. A refused Cut makes no edit and writes no text.
+    /// Cut of the window (a ripple of all tracks that names the tracks of the range), and the words
+    /// of the range as plain text on the pasteboard. A refused Cut makes no edit and writes no text.
     override func cut(_ sender: Any?) {
         guard let model, let studio = model.studio else { return }
         let (words, revision) = (rangeText(), studio.sessionRevision)

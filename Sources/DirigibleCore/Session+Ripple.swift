@@ -187,8 +187,9 @@ extension Session {
 extension Frames {
     /// This frame after a ripple delete of `ranges` (Rule M, decision 0037): a frame at or after the
     /// end of a range moves left by its length, a frame inside a range goes to its start, and a
-    /// frame at the start stays. `ranges` are sorted and do not overlap. The markers of the session
-    /// and the playhead of the window both map through this function.
+    /// frame at the start stays. `ranges` are sorted and do not overlap. The markers of the session,
+    /// the clip starts of a follow lane (decision 0073), and the playhead of the window all map
+    /// through this function.
     public func afterRippleDelete(of ranges: [Range<Frames>]) -> Frames {
         var removed = Frames.zero
         for range in ranges {

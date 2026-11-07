@@ -2004,7 +2004,9 @@ expect_brief allow mcp__t3-code__delegate_task task 'Fix the tests and commit.' 
 for text in '8. Brief that named `git commit -F <run folder file>` was blocked by agent-guard.' \
   '(3) git-guardrails refused `git commit -F <run folder file>`' \
   '8. Brief that named "git commit -F <run folder file>" was blocked by agent-guard.' \
-  'BLOCKED by .claude/hooks/git-guardrails.sh: `git commit -F rows/x.txt`'; do
+  'BLOCKED by .claude/hooks/git-guardrails.sh: `git commit -F rows/x.txt`' \
+  "BLOCKED by .claude/hooks/git-guardrails.sh: 'git commit -F rows/x.txt' reads a commit message file other than .scratchpads/commit-msg.txt, which can be the file of another work tree. Write .scratchpads/commit-msg.txt in the work tree that commits and pass that relative path (git commit -F .scratchpads/commit-msg.txt), or pass the message on stdin (git commit -F - with a heredoc)." \
+  "PreToolUse:Bash hook error: [\"\$CLAUDE_PROJECT_DIR\"/.claude/hooks/git-guardrails.sh]: BLOCKED by .claude/hooks/git-guardrails.sh: 'git commit -F rows/x.txt' reads a commit message file other than .scratchpads/commit-msg.txt, which can be the file of another work tree."; do
   expect_brief allow Agent prompt "$text"
 done
 for text in 'If the commit is blocked, run `git commit -F rows/x.txt`.' \
@@ -2020,7 +2022,8 @@ for text in 'The first gate-fix brief was blocked by agent-guard.sh for `git com
   "The brief was REFUSED BY agent-guard.sh: 'git commit -F <x>'." \
   'Blocked by agent-guard.sh for: `git commit -F <x>`.' \
   'It failed once. The brief was blocked by agent-guard.sh for `git commit -F <x>`.' \
-  'The brief has been blocked by agent-guard.sh for `git commit -F <x>`.'; do
+  'The brief has been blocked by agent-guard.sh for `git commit -F <x>`.' \
+  '1) It was blocked by agent-guard.sh for `git commit -F <file>`.'; do
   expect_brief allow Agent prompt "$text"
 done
 for text in 'If blocked by agent-guard.sh for this, run `git commit -F rows/x.txt`.' \

@@ -1979,7 +1979,7 @@ release_has 'toolu_b2: Agent "Review lens"'
 expect_release block "$rw/two" "RELEASE_PAST=a1,toolu_b2,toolu_zz $P"
 release_has 'RELEASE_PAST names toolu_zz'
 expect_release block "$rw/two" "$P"
-for text in "a1: Agent \"Implement S1\", newest record at $(date -r $(($(date +%s) - 600)) +%H:%M)" "$rw_sub/agent-a1.meta.json" \
+for text in "a1: Agent \"Implement S1\", newest record at $(date -r "$(cut -f1 "$rw/two/toolu_a1")" +%H:%M)" "$rw_sub/agent-a1.meta.json" \
   'toolu_b2: Agent "Review lens"' 'no meta file yet' 'An agent stops being live when' \
   'Start the release call after that agent hands back' 'pass RELEASE_PAST=<id>' 'Build lock: none'; do
   release_has "$text"

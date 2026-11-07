@@ -2062,6 +2062,10 @@ for text in 'If blocked by agent-guard.sh for this, run `git commit -F rows/x.tx
   'The plan: commit now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
   'We run it now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
   'The fix: commit it the brief was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'The brief was blocked by policy for `git commit -F <x>`.' \
+  'Once blocked by agent-guard.sh for `git commit -F <x>`.' \
+  'The brief was blocked by agent-guard.sh for `git commit -F <x>` so run it again.' \
+  'The fix: commit it the brief was blocked by agent-guard.sh for `git commit -F <x>`.' \
   'Commit again. It was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.' \
   'Commit again! It was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.' \
   'The agent retries the step that was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.' \

@@ -207,7 +207,7 @@ if [[ "$joined" =~ $hooks_key ]]; then
   hooks_read='^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$'
   hooks_set='^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$'
   hooks_search='^ *(((\{|!|if|then|do|else|while|time|env|command|[A-Za-z_][A-Za-z0-9_]*=[^ '\''"]*) +)*)(rg|grep)( |$)'
-  hooks_pipe='(^|[^|])\|&?[[:space:]]*(env[[:space:]]+)?([^[:space:]]*/)?(sh|bash|zsh|dash|ksh|xargs)([[:space:]]|$)'
+  hooks_pipe='(^|[^|])\|&?[[:space:]]*(([^[:space:]]*/)?env([[:space:]]+(-[^[:space:]]*([[:space:]]+[^-[:space:]][^[:space:]]*)?|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*))*[[:space:]]+)?([^[:space:]]*/)?(sh|bash|zsh|dash|ksh|xargs)([[:space:]]|$)'
   hooks_searches=1
   [[ "$joined" =~ $hooks_pipe ]] && hooks_searches=0
   hooks_pre='(^| )--pre([ =]|$)'
@@ -1015,11 +1015,25 @@ release_env() {
     [[ "$w" =~ ^(BASE|MAKEFLAGS|DIRIGIBLE_HOOKS_ALL)= ]] && renv+=("$w")
   done
 }
-# release_cmd <text>: set rcmd to the words of the text up to a redirect, a ) or }, or a quote mark.
+# release_cmd <text>: set rcmd to the shell words of the text up to a redirect, a ) or }, with the
+# quote marks of each word removed, as with-lock.sh gets its argv. A bash or sh word with a file
+# argument (options before it, no -c) gives the words from the file on.
+release_word_re="^[[:space:]]*((\"[^\"]*\"|'[^']*'|[^[:space:]])+)(.*)\$"
 release_cmd() {
-  local t="${1%%[<>)\}\"\']*}"
+  local t="${1%%[<>)\}]*}" w i
   [[ "$t" =~ ^(.*[[:space:]])[0-9]+$ ]] && t="${BASH_REMATCH[1]}"
-  read -ra rcmd <<< "$t"
+  rcmd=()
+  while [[ "$t" =~ $release_word_re ]]; do
+    w="${BASH_REMATCH[1]}" t="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+    rcmd+=("${w//[\"\']/}")
+  done
+  [[ "${rcmd[0]:-}" =~ $release_script_re ]] || return 0
+  for ((i = 1; i < ${#rcmd[@]}; i++)); do
+    [[ "${rcmd[i]}" == -* ]] || break
+    [[ "${rcmd[i]}" =~ ^-[A-Za-z]*c ]] && return 0
+  done
+  ((i < ${#rcmd[@]})) && rcmd=("${rcmd[@]:i}")
+  return 0
 }
 sw_quoted_re="^(\"(.*)\"|'(.*)')\$"
 sw_dir() { # <base> <dir>: the dir resolved against the base, empty when unknown
@@ -1086,7 +1100,7 @@ release_segments() {
       release_cmd "$rest"
       [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
     else
-      read -ra rcmd <<< "${rest//[\"\']/}"
+      release_cmd "$rest"
       [[ "${rcmd[0]:-}" == */land.sh ]] && printf 'bare\t%s\n' "$seg"
     fi
     read -ra rw <<< "${rest//[\"\']/}"
@@ -1150,7 +1164,8 @@ if [[ -n "$agent" ]]; then
   fi
   agent_masked="$release_masked"
   [[ -n "$agent_masked" ]] || agent_masked="$(mask_quoted_data <<< "$chained")" || exit 2
-  if [[ "$agent_masked" =~ ${agent_start}([^[:space:]]*/)?mutation-pass\.sh([[:space:]]|$) ]] || [[ "$release_found" == *lock$'\t'* ]]; then
+  agent_mutation_re="${agent_start}([^[:space:]]*/)?mutation-pass\.sh([[:space:];&|)]|\$)"
+  if [[ "$agent_masked" =~ $agent_mutation_re ]] || [[ "$release_found" == *lock$'\t'* ]]; then
     block "runs a with-lock.sh call with no wait limit in a subagent (a land, a push check, the hooks pass, make dmg, or a mutation pass)" "$agent_way"
   fi
 fi

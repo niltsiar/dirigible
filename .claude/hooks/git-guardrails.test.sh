@@ -209,6 +209,13 @@ release_forms=(
   'export BASE=origin/main; scripts/with-lock.sh make check-changed'
   'cd /x/wt && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main'
   'cd /x/wt && "scripts/with-lock.sh" make dmg'
+  'scripts/with-lock.sh make check-changed BASE="origin/main"'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE="$(git merge-base HEAD origin/main)"'
+  'scripts/with-lock.sh make "check-changed" BASE=origin/main'
+  'scripts/with-lock.sh make "dmg"'
+  'scripts/with-lock.sh bash scripts/land.sh t b.md'
+  'bash scripts/land.sh t b.md'
+  'sh -x scripts/land.sh t b.md'
 )
 # expect_each_release <want> <records dir>: expect_release on each form of release_forms.
 expect_each_release() {
@@ -813,6 +820,16 @@ unlimited_forms=(
   "env bash -c 'scripts/with-lock.sh make dmg'"
   'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
   'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
+  'scripts/with-lock.sh make check-changed BASE="origin/main"'
+  "scripts/with-lock.sh make check-changed BASE='origin/main'"
+  'scripts/with-lock.sh make check-changed BASE="$(git merge-base HEAD origin/main)"'
+  'scripts/with-lock.sh make "check-changed" BASE=origin/main'
+  'scripts/with-lock.sh make "dmg"'
+  'scripts/with-lock.sh bash scripts/land.sh t b.md'
+  'scripts/mutation-pass.sh; echo hi'
+  'scripts/mutation-pass.sh|tee log'
+  'scripts/mutation-pass.sh&'
+  '(scripts/mutation-pass.sh)'
 )
 for form in "${unlimited_forms[@]}"; do
   expect_agent block "$form"
@@ -832,6 +849,7 @@ expect_agent allow "rg -n 'with-lock.sh make dmg' AGENTS.md"
 expect_agent allow "echo 'scripts/with-lock.sh make dmg'"
 expect_agent allow 'git commit -m "docs: say scripts/with-lock.sh make dmg is for the lead"'
 expect_agent allow 'scripts/land.sh --help'
+expect_agent allow 'scripts/with-lock.sh make check-changed FILTER="a dmg"'
 # The subagent rule reads release_segments on the masked text, so a release text in a quote is data.
 expect_agent allow 'echo "(scripts/with-lock.sh make check-changed BASE=origin/main)"'
 expect_agent allow "echo 'x; scripts/with-lock.sh make dmg'"
@@ -1423,6 +1441,9 @@ expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md |
 expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | bash -s"
 expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | /bin/zsh"
 expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | env sh"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | env -i sh"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | env A=1 bash"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | /usr/bin/env -u X sh"
 expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | xargs -I{} sh -c {}"
 expect block $'rg -n x f \\\\\ngit config core.hooksPath /dev/null'
 expect block 'git config core.hooks""Path /dev/null'
@@ -1433,6 +1454,7 @@ expect_message 'changes core.hooksPath (the key is split by quotes)' 'git config
 expect allow 'FOO=1 rg -n core.hooksPath f'
 expect allow 'rg -n core.hooksPath f | head -3'
 expect allow "rg -n 'core.hooksPath' f | shasum"
+expect allow "rg -n 'core.hooksPath' f | env -i shasum"
 expect allow 'rg -n core.hooksPath f || sh -c true'
 expect allow $'rg -n core.hooksPath \\\nf'
 expect allow "rg -n 'core\\.hooksPath' f"
@@ -1867,7 +1889,8 @@ for run in 'echo "(scripts/with-lock.sh make check-changed BASE=origin/main)"' "
   "rg -n 'make check-changed BASE=' notes.txt" \
   "scripts/with-lock.sh bash -c 'time make test-hooks HOOK_TESTS=.claude/hooks/git-guardrails.test.sh HOOK_CASES=\"test-rule|release-wait\"' > logs/s1-test.log 2>&1" \
   "bash -c 'scripts/with-lock.sh make check-changed'" 'scripts/with-lock.sh make check-changed FILTER=ATests' \
-  'git commit -m "docs: say scripts/with-lock.sh make dmg is for the lead"' 'git status'; do
+  'git commit -m "docs: say scripts/with-lock.sh make dmg is for the lead"' 'git status' \
+  'scripts/with-lock.sh make check-changed FILTER="a dmg"' 'bash scripts/x.sh land.sh'; do
   expect_release allow "$rw/live" "$run"
 done
 expect_release block "$rw/live" $'bash <<\'EOF\'\nprint(\'it\\\'s; scripts/with-lock.sh make dmg\')\nEOF'

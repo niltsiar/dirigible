@@ -193,6 +193,17 @@ let trackTools = [
             return []
         }
     },
+    Tool(
+        "track_follow",
+        "Follow ripples: the clips of the tracks move whole in a ripple and a ripple never cuts them.",
+        [trackIDs, Arg.off], batch: .step
+    ) { a throws(ToolError) in
+        let (tracks, off) = (try a[trackIDs].map { TrackID($0) }, try a[Arg.off])
+        return .edit(ripple: false) { session throws(SessionError) in
+            try session.setFollowTrack(!off, tracks: tracks)
+            return []
+        }
+    },
 ]
 
 /// The route of `track_route` and `track_layout` (V6: `EditRules.route`; V5: an app route needs

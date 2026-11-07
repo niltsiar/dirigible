@@ -5,10 +5,11 @@ import Testing
 /// Each tool of `Tool.all` names its batch role (decision 0063). A new tool must join one of the
 /// two lists below, and this test fails until it does.
 struct BatchRoleTests {
-    /// The 41 tools whose call can be a step: 35 always, and 6 when the call copies no file.
+    /// The 42 tools whose call can be a step: 35 always, and 6 when the call copies no file.
     static let steps: Set<String> = [
         "track_add", "track_add_call", "track_remove", "track_rename", "track_gain", "track_route", "track_layout",
-        "track_mute", "track_solo", "track_role", "marker_set", "marker_remove", "episode_set", "capture_remove",
+        "track_mute", "track_solo", "track_role", "track_follow", "marker_set", "marker_remove", "episode_set",
+        "capture_remove",
         "file_remove", "clip_place", "clip_clear", "clip_split", "clip_split_at", "clip_paste", "clip_paste_clips",
         "clip_replace", "clip_fill", "clip_nudge", "clip_remove", "clip_move", "clip_trim", "clip_gain", "clip_fade",
         "clip_restore",
@@ -80,7 +81,7 @@ struct BatchRoleTests {
     }
 
     @Test func eachToolHasItsBatchRole() {
-        #expect(Self.steps.count == 41 && Self.alone.count == 33 && Self.steps.isDisjoint(with: Self.alone))
+        #expect(Self.steps.count == 42 && Self.alone.count == 33 && Self.steps.isDisjoint(with: Self.alone))
         let names = Tool.all.map(\.name)
         let unlisted = Set(names).subtracting(Self.steps).subtracting(Self.alone)
         #expect(unlisted.isEmpty, "BATCH-S2-6 tools in neither list: \(unlisted.sorted())")

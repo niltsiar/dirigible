@@ -20,6 +20,7 @@ package func summary(
         }
         if track.isMuted { line += " muted" }
         if track.isSoloed { line += " soloed" }
+        if track.isFollowTrack { line += " follow" }
         if let role = track.role { line += " role \(role.rawValue)" }
         lines.append(line)
         for clip in track.clips {

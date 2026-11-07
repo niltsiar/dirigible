@@ -220,7 +220,7 @@ pass 'a review file older than the field rule'
 
 # A Siblings field that says none names its search (INT-042). A review file older than none_cutoff
 # keeps a bare none.
-none_msg='has a Siblings field with no sibling and no search; write "none, grepped <what you searched>"'
+none_msg='has a Siblings field with no sibling and no search; write "none, grepped <what you searched>" (a review file from before the rule: name the search, or do not edit it)'
 for sib in '   Siblings: none named' '   Invariant: a. Siblings: none.' '   Siblings: n/a' \
   '   Siblings: no sibling' '   Siblings: nothing' '   - **Siblings:** None' \
   '   Invariant: each rg search line passes the hook. Siblings: none.' '   Siblings: none. Fix: rg the call sites.' \

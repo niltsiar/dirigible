@@ -681,7 +681,7 @@ for review in "$run"/review-*.md; do
                 for (j = i + 1; rest == "" && j <= n; j++) { rest = tolower(lines[j]); sub(/^[-*[:space:]]+/, "", rest) }
                 if (match(rest, /(^|[^a-z])(invariant|siblings|fix)[*[:space:]]*(\([^)]*\))?[*[:space:]]*:/)) rest = substr(rest, 1, RSTART - 1)
                 if (rest ~ /^(none|n\/a|no|nothing)([^a-z]|$)/ && rest !~ /grepped/ && rest !~ /(^|[^a-z])(rg|grep)([^a-z]|$)/) {
-                    print file ": " what " has a Siblings field with no sibling and no search; write \"none, grepped <what you searched>\""
+                    print file ": " what " has a Siblings field with no sibling and no search; write \"none, grepped <what you searched>\" (a review file from before the rule: name the search, or do not edit it)"
                     return
                 }
             }

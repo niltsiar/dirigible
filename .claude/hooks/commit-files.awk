@@ -33,18 +33,20 @@ function closes(line, k,   c, j, n) {
 # quote, with any text after the closing quote; was, were, is, or got and then blocked or refused
 # right after the closing quote; or, any case, blocked or refused by <hook path> and then for or a
 # colon right before the opening quote, with only punctuation after the closing quote on its line.
-# A hook path is a word that ends in .sh or holds .claude/hooks/. In that last form the sentence
-# (it ends at . ! ? or ) and a space) before the block word holds only letters, digits, spaces, and
-# . / ' - inside words, and is empty or a subject: a pronoun (not you) or a determiner and then
-# words, with no joiner, modal, or verb word except has, have, or had before the last word, which is
-# was, were, is, got, or been.
-function reports(line, k, e,   before, after, low, w, n, i) {
+# A hook path is a word that ends in .sh or holds .claude/hooks/. In that last form each message-file
+# value in the quote is a <...> placeholder, and the sentence (it ends at . ! ? or ) and a space)
+# before the block word holds only letters, digits, spaces, and . / ' - inside words, and is empty
+# or a subject: a pronoun (not you) or a determiner and then words, with no joiner, modal, or verb
+# word except has, have, or had before the last word, which is was, were, is, got, or been.
+function reports(line, k, e,   before, after, low, w, n, i, v) {
   before = substr(line, 1, k - 1); after = substr(line, e + 1)
   if (before ~ /(^|[^A-Za-z])(blocked|refused)[ :]*$/ ||
     before ~ /BLOCKED by ([^ ]*\.claude\/hooks\/[^ ]*|[^ ]*\.sh): *$/ ||
     after ~ /^ +(was|were|is|got) +(blocked|refused)([^A-Za-z]|$)/) return 1
   low = tolower(before)
   if (!match(low, /(^|[^a-z])(blocked|refused) by ([^ ]*\.claude\/hooks\/[^ ]*|[^ ]*\.sh)( +for *:?|:) *$/)) return 0
+  v = substr(line, k + 1, e - k - 1); gsub(/<[^<>]*>/, "", v)
+  if (v ~ /(^| )(-[a-zA-EG-Z]*F ?|--fil(e)?[= ])[^ ]/) return 0
   low = substr(low, 1, RSTART - 1) (substr(low, RSTART, 1) ~ /[a-z]/ ? "" : substr(low, RSTART, 1))
   sub(/.*[.!?)] +/, "", low); gsub(/^ +| +$/, "", low)
   if (after !~ /^[ .,;:!?)]*$/ || low ~ /[^a-z0-9 .\/'-]|(^| )[-.\/']+( |$)/) return 0

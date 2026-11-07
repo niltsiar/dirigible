@@ -2061,7 +2061,11 @@ for text in 'If blocked by agent-guard.sh for this, run `git commit -F rows/x.tx
   $'The fix is to commit now \xe2\x80\x93 it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
   'The plan: commit now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
   'We run it now and it was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
-  'The fix: commit it the brief was blocked by agent-guard.sh for `git commit -F rows/x.txt`.'; do
+  'The fix: commit it the brief was blocked by agent-guard.sh for `git commit -F rows/x.txt`.' \
+  'Commit again. It was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.' \
+  'Commit again! It was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.' \
+  'The agent retries the step that was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.' \
+  $'It was blocked by agent-guard.sh for `git commit -F ../other/.scratchpads/commit-msg.txt`.\nRun that command again now.'; do
   expect_brief block Agent prompt "$text"
 done
 # The Bash path does not read a report: git-guardrails.sh blocks the same commit in a command.

@@ -69,7 +69,7 @@ cut_bodies() {
   local sink_re="^[[:space:]]*(cat|tee)(([[:space:]]+$word)|([[:space:]]*>>?[[:space:]]*$word))*[[:space:]]*\$"
   local tail_re="^[[:space:]]*(>>?[[:space:]]*$word)?[[:space:]]*\$"
   local redirect_re="(^|[[:space:]])>>?[[:space:]]*$word"
-  local interp_re='^[[:space:]]*(python3?|node|perl|ruby)([[:space:]]+-)?[[:space:]]*$'
+  local interp_re='^[[:space:]]*(python3?([[:space:]]+-I)?|node|perl|ruby)([[:space:]]+-)?[[:space:]]*$'
   if [[ "$COMMAND" != *'<<'* ]]; then printf '%s' "$COMMAND"; return; fi
   while IFS= read -r line || [[ -n "$line" ]]; do lines+=("$line"); done <<< "$COMMAND"
   n=${#lines[@]}
@@ -702,7 +702,7 @@ def scan(i, end):
             line_end = text.find("\n", m.end())
             rest = text[m.end() : n if line_end < 0 else line_end]
             words = seg.split()
-            interp = bool(words) and bool(INTERP.fullmatch(words[0])) and words[1:] in ([], ["-"])
+            interp = bool(words) and bool(INTERP.fullmatch(words[0])) and (words[1:] in ([], ["-"]) or (words[0].startswith("python") and words[1:] in (["-I"], ["-I", "-"])))
             code = not interp and any(CODE.fullmatch(w.rsplit("/", 1)[-1]) for w in words)
             data = not code and bool(TAIL.fullmatch(rest))
             pending.append((raw.lstrip("\\").strip(SQ + "\""), bool(m.group(1)), raw[0] in "\\" + SQ + "\"", data, interp))
@@ -930,9 +930,11 @@ fi
 # -c string, and a path in a variable.
 lock_gate='(^|[^[:alnum:]_.-])(swift|make)([^[:alnum:]_.-]|$)|probe\.sh'
 lock_step_way="Run it as scripts/with-lock.sh <command>. A probe that only runs a built binary and times nothing runs as WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh <folder> <absolute path of the binary> (AGENTS.md, Commands)."
+lock_masked=""
 if [[ "$chained" =~ $lock_gate ]]; then
   lock_pre="(\{ |! |if |then |do |else |elif |while |until |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |[^[:space:]]*with-lock\.sh )*"
-  lock_segments="$(mask_quoted_data <<< "$chained")" || exit 2
+  lock_masked="$(mask_quoted_data <<< "$chained")" || exit 2
+  lock_segments="$lock_masked"
   for sep in ';' '&' '|' '(' '`'; do lock_segments="${lock_segments//"$sep"/$'\n'}"; done
   lock_words_file="$(dirname "$0")/../../scripts/lock-words.sh"
   make_opt_arg='-[A-Za-z]*[CfIoW]([[:space:]]+[^[:space:]]+)?|-[A-Za-z]*[jl]([[:space:]]+[0-9]+)?|--(directory|file|makefile|include-dir|old-file|assume-old|what-if|new-file|assume-new)(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)'
@@ -963,17 +965,157 @@ if [[ "$chained" =~ $lock_gate ]]; then
   done <<< "$lock_segments"
 fi
 
+# release_segments <masked text>: print "lock<TAB><segment>" or "bare<TAB><segment>" for each release
+# call of the text (release_call of scripts/lock-words.sh). Each segment of the chain is read from its
+# start after the prefix words; a with-lock.sh word in the prefix gives a lock call of the words after
+# it, and a land.sh command word with no with-lock.sh a bare call. In a shell -c body (masked to one
+# segment), each with-lock.sh word at a word start is a call too.
+release_shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
+release_pre="(\{ |! |if |then |do |else |elif |while |until |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |$release_shell_c|[^[:space:]]*with-lock\.sh[\"']? )*"
+release_words_file="$(dirname "$0")/../../scripts/lock-words.sh"
+# release_words <env word>... -- <command word>...: succeeds when release_call does and with-lock.sh
+# does not run the call lock-free (a test-hooks goal that lock_make_words takes, also with a
+# DIRIGIBLE_HOOKS_ALL=1 word).
+release_words() {
+  (
+    unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
+    while [[ $# -gt 0 && "$1" != -- ]]; do export "$1"; shift; done
+    shift
+    . "$release_words_file"
+    lock_make_words "$@" && [[ $lock_goal == test-hooks ]] && exit 1
+    release_call "$@"
+  )
+}
+# release_env <text>: set renv to the BASE, MAKEFLAGS, and DIRIGIBLE_HOOKS_ALL words of the text, quotes removed.
+release_env() {
+  local w
+  renv=(${release_exports[@]+"${release_exports[@]}"})
+  local ws=()
+  read -ra ws <<< "$1"
+  for w in ${ws[@]+"${ws[@]}"}; do
+    w="${w//[\"\']/}"
+    [[ "$w" =~ ^(BASE|MAKEFLAGS|DIRIGIBLE_HOOKS_ALL)= ]] && renv+=("$w")
+  done
+}
+# release_cmd <text>: set rcmd to the words of the text up to a redirect, a ) or }, or a quote mark.
+release_cmd() {
+  local t="${1%%[<>)\}\"\']*}"
+  [[ "$t" =~ ^(.*[[:space:]])[0-9]+$ ]] && t="${BASH_REMATCH[1]}"
+  read -ra rcmd <<< "$t"
+}
+sw_quoted_re="^(\"(.*)\"|'(.*)')\$"
+sw_dir() { # <base> <dir>: the dir resolved against the base, empty when unknown
+  local base="$1" dir="$2" bad='[]$`*?[]'
+  [[ "$dir" =~ $sw_quoted_re ]] && dir="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+  [[ "$dir" == '~' || "$dir" == '~/'* ]] && dir="$HOME${dir#\~}"
+  [[ -z "$dir" || "$dir" == - || "$dir" =~ $bad ]] && return 0
+  if [[ "$dir" == /* ]]; then printf '%s' "$dir"; elif [[ -n "$base" ]]; then printf '%s/%s' "$base" "$dir"; fi
+}
+# release_expand <word>: the word with each $NAME and ${NAME} that rvars holds put in; it prints
+# nothing when the word names another variable.
+release_var_re='^(.*)[$]([{]([A-Za-z_][A-Za-z0-9_]*)[}]|([A-Za-z_][A-Za-z0-9_]*))(.*)$'
+release_expand() {
+  local w="$1" name val v found pre post
+  while [[ "$w" =~ $release_var_re ]]; do
+    pre="${BASH_REMATCH[1]}" name="${BASH_REMATCH[3]}${BASH_REMATCH[4]}" post="${BASH_REMATCH[5]}" found=""
+    for v in ${rvars[@]+"${rvars[@]}"}; do [[ "${v%%=*}" == "$name" ]] && { val="${v#*=}"; found=1; }; done
+    [[ -n "$found" ]] || return 0
+    w="$pre$val$post"
+  done
+  printf '%s' "$w"
+}
+release_assign_re='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]*)+$'
+release_script_re='^([^[:space:]]*/)?(ba|z|da)?sh$'
+release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A-Za-z_][A-Za-z0-9_]*=(\"[^\"]*\"|'[^']*')[[:space:]]*\$)"
+# release_segments <masked text> [<dir> <depth>]: see the comment above. A segment whose command
+# word is bash, sh, zsh, or dash with a file argument runs a script: the file (a $NAME of an
+# assignment or export of the chain put in, a relative path read from the last cd dir, else <dir>,
+# the cwd of the hook input) is read when it exists and holds at most 64 KB, masked, and its lines
+# are classified the same way, one level deep. A segment whose first word is one quoted string with
+# a space in it is a list or array item (test data), and a segment that only sets NAME to a quoted
+# string is an assignment: neither is a command. In a script file, only a segment with a with-lock.sh,
+# land.sh, or export word is read. The split uses tr: ${text//;/...} is too slow in bash 3.2 for a
+# long script file.
+release_segments() {
+  local text="$1" rdir="${2:-}" depth="${3:-0}" seg prefix rest body head w i f
+  local release_exports=() rvars=() rw=() scripts=""
+  text="$(tr ';&|(`' '\n\n\n\n\n' <<< "$text")"
+  while IFS= read -r seg; do
+    ((depth == 0)) || [[ "$seg" == *with-lock.sh* || "$seg" == *land.sh* || "$seg" == *export* ]] || continue
+    if [[ "$seg" =~ $release_assign_re ]]; then
+      read -ra rw <<< "${seg//[\"\']/}"
+      for w in ${rw[@]+"${rw[@]}"}; do rvars+=("${w%%=*}=$(release_expand "${w#*=}")"); done
+      continue
+    fi
+    if [[ "$seg" =~ ^[[:space:]]*export[[:space:]]+(.*)$ ]]; then
+      read -ra rcmd <<< "${BASH_REMATCH[1]}"
+      for w in ${rcmd[@]+"${rcmd[@]}"}; do
+        w="${w//[\"\']/}"
+        [[ "$w" =~ ^(BASE|MAKEFLAGS|DIRIGIBLE_HOOKS_ALL)=. ]] && release_exports+=("$w")
+        [[ "$w" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && rvars+=("${w%%=*}=$(release_expand "${w#*=}")")
+      done
+      continue
+    fi
+    [[ "$seg" =~ $release_data_re ]] && continue
+    [[ "$seg" =~ ^[[:space:]]*($release_pre)(.*)$ ]] || continue
+    prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
+    if [[ "$prefix" =~ (^|[[:space:]\"\'])[^[:space:]\"\']*with-lock\.sh[\"\']?[[:space:]] ]]; then
+      release_env "$prefix"
+      release_cmd "$rest"
+      [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
+    else
+      read -ra rcmd <<< "${rest//[\"\']/}"
+      [[ "${rcmd[0]:-}" == */land.sh ]] && printf 'bare\t%s\n' "$seg"
+    fi
+    read -ra rw <<< "${rest//[\"\']/}"
+    if [[ "${rw[0]:-}" == cd && -n "${rw[1]:-}" ]]; then
+      rdir="$(sw_dir "$rdir" "$(release_expand "${rw[1]}")")"
+    elif ((depth == 0)) && [[ "${rw[0]:-}" =~ $release_script_re ]]; then
+      for ((i = 1; i < ${#rw[@]}; i++)); do
+        [[ "${rw[i]}" == -* ]] || break
+        [[ "${rw[i]}" =~ ^-[A-Za-z]*c ]] && i=${#rw[@]}
+      done
+      if ((i < ${#rw[@]})) && [[ ! "${rw[i]}" =~ ^[0-9]*[\<\>] ]]; then
+        f="$(release_expand "${rw[i]}")"
+        [[ -n "$f" ]] && f="$(sw_dir "$rdir" "$f")"
+        [[ -n "$f" && -f "$f" ]] && (($(stat -f %z "$f") <= 65536)) && scripts+="$rdir"$'\t'"$f"$'\n'
+      fi
+    fi
+    [[ "$prefix" =~ (^|[[:space:]])$release_shell_c ]] || continue
+    body="$rest"
+    while [[ "$body" == *with-lock.sh[[:space:]]* ]]; do
+      head="${body%%with-lock.sh[[:space:]]*}"
+      body="${body#*with-lock.sh[[:space:]]}"
+      w="${head##*[[:space:]\"\']}"
+      [[ -z "$w" || "$w" == */ ]] || continue
+      release_env "$head"
+      release_cmd "$body"
+      [[ ${#rcmd[@]} -gt 0 ]] && release_words ${renv[@]+"${renv[@]}"} -- "${rcmd[@]}" && printf 'lock\t%s\n' "$seg"
+    done
+  done <<< "$text"
+  while IFS=$'\t' read -r rdir f; do
+    [[ -n "$f" ]] || continue
+    body="$(mask_quoted_data < "$f")" || continue
+    release_segments "$body" "$rdir" 1
+  done <<< "$scripts"
+}
+release_found="" release_masked=""
+if [[ "$chained" == *with-lock.sh* || "$chained" == *land.sh* || "$chained" =~ (^|[^A-Za-z0-9_.-])(ba|z|da)?sh[[:space:]] ]]; then
+  release_masked="$lock_masked"
+  [[ -n "$release_masked" ]] || release_masked="$(mask_quoted_data <<< "$chained")" || exit 2
+  release_found="$(release_segments "$release_masked" "$(plutil -extract cwd raw -o - "$input" 2> /dev/null)")"
+fi
+
 # A subagent never runs a lock wait with no limit: after a second exit 75 it writes the remaining
 # locked steps as one bash file and returns its path to the lead, which runs the file in the
 # background as WITH_LOCK_MAX_WAIT=0 bash <file> (AGENTS.md, Commands). The input of a subagent holds
 # agent_id; the input of the lead does not. The wait has no limit with WITH_LOCK_MAX_WAIT set to
-# zeros, with a with-lock.sh call of land.sh, make dmg, or make check-changed with BASE (a word,
-# or a BASE= word before it), and with mutation-pass.sh (it wraps itself). Each segment of the
-# chain is read from its start, after the prefix words (NAME=value, export, env, time, bash,
-# with-lock.sh, sh -c or bash -c with its quote), so text in a quote of rg or echo is data. A
-# bench and a flake loop pass: a slice runs a bench in the foreground.
+# zeros, with each with-lock.sh release call that release_segments finds (a land, a push check, the
+# hooks pass, make dmg, also in a shell -c body or a script file), and with mutation-pass.sh (it wraps
+# itself) on the masked text, so text in a quote of rg or echo is data. A bench and a flake loop
+# pass: a slice runs a bench in the foreground.
 agent=""
-if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.sh* || "$chained_data" == *mutation-pass.sh* ]]; then
+if [[ "$chained_data" == *WITH_LOCK_MAX_WAIT* || "$chained_data" == *with-lock.sh* || "$chained_data" == *mutation-pass.sh* || "$release_found" == *lock$'\t'* ]]; then
   agent="$(plutil -extract agent_id raw -o - "$input" 2>/dev/null)" || agent=""
 fi
 if [[ -n "$agent" ]]; then
@@ -984,32 +1126,92 @@ if [[ -n "$agent" ]]; then
   if [[ "$chained_data" =~ ${agent_start}WITH_LOCK_MAX_WAIT=[\"\']?0+[\"\']?([^0-9A-Za-z_.\"\'-]|$) ]]; then
     block "sets WITH_LOCK_MAX_WAIT=0 in a subagent" "$agent_way"
   fi
-  base_env=""
-  while IFS= read -r segment; do
-    [[ "$segment" =~ ^[[:space:]]?($agent_pre)(.*)$ ]] || continue
-    prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
-    [[ "$prefix" =~ (^|[[:space:]])BASE=[^[:space:]] ]] && base_env=1
-    read -ra words <<< "$rest"
-    [[ ${#words[@]} -gt 0 ]] || continue
-    [[ "${words[0]}" == BASE=?* ]] && base_env=1
-    wait_goal="" wait_base="$base_env"
-    case "${words[0]##*/}" in
-      mutation-pass.sh) wait_goal=1 ;;
-      land.sh) [[ "$prefix" == *with-lock.sh* ]] && wait_goal=1 ;;
-      make)
-        [[ "$prefix" == *with-lock.sh* ]] || continue
-        for goal in "${words[@]:1}"; do
-          goal="${goal//[\)\"\'\`]/}"
-          case "$goal" in dmg) wait_goal=1 ;; check-changed) has_check=1 ;; BASE=?*) wait_base=1 ;; esac
-        done
-        [[ -n "${has_check:-}" && -n "$wait_base" ]] && wait_goal=1
-        has_check=""
-        ;;
-    esac
-    if [[ -n "$wait_goal" ]]; then
-      block "runs a with-lock.sh call with no wait limit in a subagent (a land, a push check, make dmg, or a mutation pass)" "$agent_way"
+  agent_masked="$release_masked"
+  [[ -n "$agent_masked" ]] || agent_masked="$(mask_quoted_data <<< "$chained")" || exit 2
+  if [[ "$agent_masked" =~ ${agent_start}([^[:space:]]*/)?mutation-pass\.sh([[:space:]]|$) ]] || [[ "$release_found" == *lock$'\t'* ]]; then
+    block "runs a with-lock.sh call with no wait limit in a subagent (a land, a push check, the hooks pass, make dmg, or a mutation pass)" "$agent_way"
+  fi
+fi
+
+# A release call waits while an agent whose brief names a lock step runs (AGT-152). agent-guard.sh
+# writes a record of each Agent or SendMessage brief that names a lock step in dirigible-lock-agents
+# of the git common dir (or $DIRIGIBLE_LOCK_AGENTS), and removes it after 24 h. A record names an
+# agent and its meta file (<transcript_path without .jsonl>/subagents/agent-<id>.meta.json): an
+# Agent record by the toolUseId in the meta, a SendMessage record by the agent id in its to. A run
+# or a resume writes the meta with no finished at its start and with finished true at its end. An
+# agent with a record is live while its meta has no finished true and an mtime under 90 min old
+# (also a resume whose message names no lock step), or while its newest record is under 5 min old
+# and no meta write came after it (start latency). The id of a live agent is its agent id, or the
+# record id when no meta file exists. The command passes when a RELEASE_PAST=<id>[,<id>] word (in
+# any segment, an export, or a shell -c body; one pair of quotes removed) names each live agent and
+# no other id. Failure directions: an agent with no meta file holds release calls for 5 min after
+# its newest record; a meta that never says finished holds them up to 90 min after its run started
+# (RELEASE_PAST passes it); a change of the meta layout ends each agent at 5 min (fail open), and a
+# note names each Agent record 5 to 90 min old with no meta file. Misses: a wrapper word other than
+# nohup and nice, a land.sh with no path or inside a shell -c body, a script that a script runs, a
+# script over 64 KB or at a path with an unknown variable, a release command kept in a quoted variable
+# and run as bash -c "$NAME" or eval, a quoted NAME='a b' word before the command word, and a
+# delegate_task child. A python3 heredoc body with a process call or a backtick stays code to the
+# mask, so a release text in its quotes can block.
+release_note=""
+release_past_re="(^|[[:space:];&|(\`\"'])RELEASE_PAST=(\"[^\"]*\"|'[^']*'|[^[:space:];&|()\`\"']*)(.*)\$"
+if [[ -n "$release_found" ]]; then
+  if [[ -n "${DIRIGIBLE_LOCK_AGENTS:-}" ]]; then rec_dir="$DIRIGIBLE_LOCK_AGENTS"
+  else rec_dir="$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/dirigible-lock-agents"; fi
+  now="$(date +%s)" live_ids="" live_lines="" note_lines="" rlist="" last=""
+  for rec in "$rec_dir"/*; do
+    [[ -f "$rec" ]] || continue
+    IFS=$'\t' read -r r_time r_tool r_key r_path r_desc < "$rec" || true
+    [[ "$r_time" =~ ^[0-9]+$ ]] || { note_lines+=$'\n'"note: $rec is not a record line; the hook skips it."; continue; }
+    ((now - r_time < 86400)) || continue
+    sub="${r_path%.jsonl}/subagents" meta=""
+    if [[ "$r_tool" == SendMessage ]]; then
+      [[ -f "$sub/agent-$r_key.meta.json" ]] && meta="$sub/agent-$r_key.meta.json"
+    else
+      meta="$(grep -l -F "\"toolUseId\":\"$r_key\"" "$sub"/agent-*.meta.json 2>/dev/null | head -n 1)"
     fi
-  done < <(awk '{ gsub(/&&|\|\||[;&|(`]/, "\n"); print }' <<< "$chained_data")
+    rlist+="${meta:-$r_tool $r_key}"$'\t'"$r_time"$'\t'"${rec##*/}"$'\t'"$r_tool"$'\t'"${meta:--}"$'\t'"$sub"$'\t'"$r_desc"$'\n'
+  done
+  # One line per agent, from its newest record.
+  while IFS=$'\t' read -r agent r_time r_id r_tool meta sub r_desc; do
+    [[ -n "$agent" && "$agent" != "$last" ]] || continue
+    last="$agent" age=$((now - r_time)) state="" id="$r_id"
+    [[ "$meta" == - ]] && meta=""
+    if [[ -n "$meta" ]]; then
+      id="${meta##*/agent-}" id="${id%.meta.json}"
+      m_time="$(stat -f %m "$meta")"
+      fin="$(plutil -extract finished raw -o - "$meta" 2>/dev/null)" || fin=""
+      if [[ "$fin" != true ]] && ((now - m_time < 5400)); then
+        state="its meta has no finished true, and its run started $(date -r "$m_time" +%H:%M)"
+      elif ((m_time < r_time && age < 300)); then
+        state="no meta write since its newest record"
+      fi
+    elif ((age < 300)); then
+      state="no meta file yet"
+    elif [[ "$r_tool" == Agent ]] && ((age < 5400)); then
+      note_lines+=$'\n'"note: record $r_id ($r_desc) is $((age / 60)) min old and $sub has no meta file for it, so the hook treats it as ended. If each record shows this, the meta layout of the harness changed."
+    fi
+    [[ -n "$state" ]] || continue
+    live_ids+=" $id"
+    live_lines+=$'\n'"- $id: $r_tool \"$r_desc\", newest record at $(date -r "$r_time" +%H:%M) ($((age / 60)) min ago), $state (meta: ${meta:-none under $sub})"
+  done < <(printf '%s' "$rlist" | sort -t $'\t' -k1,1 -k2,2nr)
+  if [[ -n "$live_ids" ]]; then
+    past="" ptext="$release_masked"
+    while [[ "$ptext" =~ $release_past_re ]]; do
+      v="${BASH_REMATCH[2]}" ptext="${BASH_REMATCH[3]}"
+      [[ "$v" =~ ^\"(.*)\"$ || "$v" =~ ^\'(.*)\'$ ]] && v="${BASH_REMATCH[1]}"
+      past+=" ${v//,/ }"
+    done
+    missing="" unknown=""
+    for id in $live_ids; do [[ " $past " == *" $id "* ]] || missing+=" $id"; done
+    for id in $past; do [[ " $live_ids " == *" $id "* ]] || unknown+=" $id"; done
+    if [[ -n "$missing" || -n "$unknown" ]]; then
+      block "is a release call (a push check, the hooks pass, a land, or make dmg) while an agent whose brief names a lock step runs; that agent would wait for the lock on its 90 min clock${unknown:+ (RELEASE_PAST names$unknown, which is no live agent)}. Live agents:$live_lines$note_lines
+An agent stops being live when its meta file says finished true (the end of its run), 90 min after its run started, or 5 min after its newest record when no meta write follows it. A SendMessage resume makes it live again while one of its records is under 24 h old" \
+        "Start the release call after that agent hands back, and run lock-free work meanwhile. For a dead agent, or a brief with no lock step, pass RELEASE_PAST=<id>[,<id>] before the release call, with the id of each live agent. A brief with no with-lock.sh step needs the line Build lock: none."
+    fi
+  fi
+  release_note="${note_lines#$'\n'}"
 fi
 
 osascript_re='[Oo][Ss][Aa][Ss][Cc][Rr][Ii][Pp][Tt]'
@@ -1160,15 +1362,7 @@ done
 # -C drop of join_text does not hide the tree. The gh call blocks only at the start of a command.
 # Misses: a name or a dir from a variable, a gh alias other than co, a wrapper word (nice, xargs),
 # a shell -c string, and a command that moves HEAD with no checkout or switch word (git
-# symbolic-ref HEAD, git reset to another branch, git rebase).
-sw_quoted_re="^(\"(.*)\"|'(.*)')\$"
-sw_dir() { # <base> <dir>: the dir resolved against the base, empty when unknown
-  local base="$1" dir="$2" bad='[]$`*?[]'
-  [[ "$dir" =~ $sw_quoted_re ]] && dir="${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-  [[ "$dir" == '~' || "$dir" == '~/'* ]] && dir="$HOME${dir#\~}"
-  [[ -z "$dir" || "$dir" == - || "$dir" =~ $bad ]] && return 0
-  if [[ "$dir" == /* ]]; then printf '%s' "$dir"; elif [[ -n "$base" ]]; then printf '%s/%s' "$base" "$dir"; fi
-}
+# symbolic-ref HEAD, git reset to another branch, git rebase). sw_dir is defined above the release rule.
 sw_is_main_checkout() { # <dir>
   local git_dir common_dir
   { read -r git_dir && read -r common_dir; } < <(git -C "$1" rev-parse --path-format=absolute --git-dir --git-common-dir 2> /dev/null)
@@ -1305,4 +1499,15 @@ while IFS= read -r line; do
   fi
 done <<< "$NORMALIZED"
 
+# A note of the release rule reaches the model only as additionalContext: stderr at exit 0 does not.
+if [[ -n "$release_note" ]]; then
+  t="${release_note//\\/\\\\}" t="${t//\"/\\\"}" t="${t//$'\n'/\\n}"
+  # A description can hold any control byte (a CR too), and JSON allows none of them raw.
+  for c in {1..31}; do
+    ((c == 10)) && continue
+    ch="$(printf "\\$(printf %03o "$c")")"
+    t="${t//"$ch"/$(printf '\\u%04x' "$c")}"
+  done
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$t"
+fi
 exit 0

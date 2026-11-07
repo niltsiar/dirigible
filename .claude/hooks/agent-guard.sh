@@ -40,6 +40,13 @@
 #   relative to the cwd); a bare name takes each .scratchpads/runs/<slug> folder of the same text. An
 #   exit other than 0 or 1 of check-plan.sh lets the brief pass, with a note. This hook holds the plan
 #   gate; at the code gate, log-decision.sh refuses the phase 6 row until check-plan.sh exits 0.
+# - An Agent or SendMessage brief that this hook passes and that names a lock step, with no Build
+#   lock: none line, gets a record file in dirigible-lock-agents of the git common dir (or
+#   $DIRIGIBLE_LOCK_AGENTS). Its name is the tool_use_id (<epoch>-<pid> when that is empty or holds
+#   another character than a letter, a digit, _, or -), and its one line is <epoch> <tool> <key>
+#   <transcript_path> <description>, tab-separated: the key is the tool_use_id of an Agent call or the
+#   to of a SendMessage. Each write removes the record files over 24 h old. The release-wait rule of
+#   git-guardrails.sh (AGT-152) reads them.
 
 # plutil reads JSON and ships with every macOS; jq does not ship with macOS 14.
 input="$(mktemp)"
@@ -120,7 +127,9 @@ fi
 . "$(dirname "$0")/../../scripts/lock-words.sh"
 steps="$(sed -E 's/with-lock\.sh +--(builders|release-holder)//g' <<< "$text")"
 lock_re="with-lock\.sh|(^|[^A-Za-z0-9_-])make([[:space:]]+($lock_make_opt|$lock_make_set|($lock_free_targets)))*[[:space:]]+($lock_targets)([^A-Za-z0-9_-]|\$)|(^|[^A-Za-z0-9_-])($lock_scripts)\.sh|(^|[^A-Za-z0-9_-])swift +($lock_swift)([^A-Za-z0-9_-]|\$)"
+lock_brief=""
 if grep -qE "$lock_re" <<< "$steps" && ! grep -qE '^[[:space:]]*([-*>][[:space:]]+)?Build lock: none' <<< "$text"; then
+  lock_brief=1
   if holder="$("$(dirname "$0")/../../scripts/with-lock.sh" --release-holder 2>/dev/null)"; then
     echo "BLOCKED by .claude/hooks/agent-guard.sh: a release call (a push check, the hooks pass, a land, or make dmg) holds the build lock or waits first for it, or a stress lane holds it ($holder), and the brief names a lock step. The agent would wait for the lock on its 90 min clock. Start it after that call ends (scripts/with-lock.sh --builders shows the holder). If the agent runs no with-lock.sh step (a plan, a review, PR text), add the line Build lock: none to the brief, on a line of its own. A with-lock.sh call that prints no lock also waits while this call holds the lock." >&2
     exit 2
@@ -148,4 +157,15 @@ while IFS= read -r file; do
     exit 2
   fi
 done < <(commit_files <<< "$text")
+if [[ -n "$lock_brief" && ( "$tool" == Agent || "$tool" == SendMessage ) ]]; then
+  if [[ -n "${DIRIGIBLE_LOCK_AGENTS:-}" ]]; then rec_dir="$DIRIGIBLE_LOCK_AGENTS"
+  else rec_dir="$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/dirigible-lock-agents"; fi
+  id="$(plutil -extract tool_use_id raw -o - "$input" 2>/dev/null)" || id=""
+  [[ "$id" =~ ^[A-Za-z0-9_-]+$ ]] || id="$(date +%s)-$$"
+  if [[ "$tool" == Agent ]]; then key="$id" desc="$(plutil -extract tool_input.description raw -o - "$input" 2>/dev/null)"
+  else key="$(plutil -extract tool_input.to raw -o - "$input" 2>/dev/null)" desc="resume $key"; fi
+  path="$(plutil -extract transcript_path raw -o - "$input" 2>/dev/null)"
+  mkdir -p "$rec_dir" && find "$rec_dir" -type f -mmin +1439 -delete 2>/dev/null
+  printf '%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" "$tool" "${key//[$'\t\n']/ }" "$path" "${desc//[$'\t\n']/ }" > "$rec_dir/.$id.tmp" && mv "$rec_dir/.$id.tmp" "$rec_dir/$id"
+fi
 exit 0

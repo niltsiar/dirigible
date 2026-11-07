@@ -13,13 +13,16 @@ extension TimelineDocumentView {
         else { return nil }
         guard let last = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap({ $0 }).max() else { return shift }
         let pad = Frames(Int(geometry.scale.framesPerPoint.rounded(.up)))
-        return (max(shift.from, last + pad + max(.zero, shift.delta)), shift.delta, shift.strays, shift.skipped)
+        return (
+            max(shift.from, last + pad + max(.zero, shift.delta)), shift.delta, shift.strays, shift.still, shift.lines
+        )
     }
 
     /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
-    /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
-    /// 1 pt around each stray marker line, on every lane in view, and the columns from the first
-    /// copied column on each skipped lane. Nil when the move is not a whole
+    /// the renderer; one band for each run of lanes in view that move, or that are still; and the
+    /// strips. A band of lanes that move moves by the shift in columns and draws from the dirty rect
+    /// to that column and 1 pt around each stray marker line. A band of still lanes keeps its pixels
+    /// and draws only 1 pt around each line of `lines`. Nil when the move is not a whole
     /// number of columns within one frame (a ripple drag moves by whole device columns, and each of the two
     /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
     func laneShift(
@@ -35,16 +38,39 @@ extension TimelineDocumentView {
         else { return nil }
         if rounded { roundedShift = true }
         let x = geometry.x(of: shift.from) + 1
-        let strip = lanes.pixels(
-            of: NSRect(x: dirty.minX, y: bounds.minY, width: max(0, x - dirty.minX), height: bounds.height))
-        let strays = shift.strays.map {
-            lanes.pixels(of: NSRect(x: geometry.x(of: $0) - 1, y: bounds.minY, width: 3, height: bounds.height))
+        func span(_ minX: Double, _ maxX: Double) -> Range<Int> {
+            lanes.pixels(of: NSRect(x: minX, y: bounds.minY, width: max(0, maxX - minX), height: bounds.height)).columns
         }
-        let column = Int((x * lanes.scale).rounded(.up))
-        let end = lanes.pixels.columns.upperBound
-        let skipped = shift.skipped.map {
-            PixelRect(columns: min(column, end)..<end, rows: lanes.rows(of: $0..<$0 + 1))
+        // 1 pt around each marker line, with the strips that overlap as one.
+        func around(_ lines: [Frames]) -> [Range<Int>] {
+            let spans = lines.map { span(geometry.x(of: $0) - 1, geometry.x(of: $0) + 2) }
+            return spans.sorted { $0.lowerBound < $1.lowerBound }.reduce(into: []) { merged, next in
+                if let last = merged.last, next.lowerBound <= last.upperBound {
+                    merged[merged.count - 1] = last.lowerBound..<max(last.upperBound, next.upperBound)
+                } else {
+                    merged.append(next)
+                }
+            }
         }
-        return LaneSurfaces.Shift(column: column, by: Int(columns.rounded()), strips: [strip] + strays + skipped)
+        let moving = [span(dirty.minX, x)] + around(shift.strays)
+        let still = around(shift.lines)
+        var runs: [(lanes: Range<Int>, still: Bool)] = []
+        for lane in lanes.lanes(of: lanes.pixels.rows) {
+            let isStill = shift.still.contains(lane)
+            if let last = runs.last, last.still == isStill {
+                runs[runs.count - 1].lanes = last.lanes.lowerBound..<lane + 1
+            } else {
+                runs.append((lane..<lane + 1, isStill))
+            }
+        }
+        let by = Int(columns.rounded())
+        var bands: [LaneSurfaces.Shift.Band] = []
+        var strips: [PixelRect] = []
+        for run in runs {
+            let rows = lanes.rows(of: run.lanes).clamped(to: lanes.pixels.rows)
+            bands.append(LaneSurfaces.Shift.Band(rows: rows, by: run.still ? 0 : by))
+            strips += (run.still ? still : moving).filter { !$0.isEmpty }.map { PixelRect(columns: $0, rows: rows) }
+        }
+        return LaneSurfaces.Shift(column: Int((x * lanes.scale).rounded(.up)), bands: bands, strips: strips)
     }
 }

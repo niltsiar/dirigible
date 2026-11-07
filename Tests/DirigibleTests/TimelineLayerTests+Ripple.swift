@@ -142,15 +142,19 @@ extension TimelineLayerTests {
     }
 
     /// C53 (decision 0073): a ripple trim drag over a track that follows ripples and does not move
-    /// draws by a shift, and the follow lane draws in its own strip. Controls: a full draw, and a
-    /// shift that copies the follow lane with the moved lanes (its waveform moves).
-    @Test func aLaneWithNoChangeDrawsInItsStrip() async throws {
+    /// draws by a shift, and the copy keeps the pixels of the follow lane: it draws there only the
+    /// old and the new line of a marker that moves. Controls: the follow lane in its own strip
+    /// (it draws), the follow lane moved with the other lanes (its waveform moves), and no marker
+    /// line on the follow lane (the old line stays).
+    @Test(arguments: [false, true])
+    func aStillLaneDrawsOnlyTheMovedMarkerLines(marker: Bool) async throws {
         let (model, studio, window, view) = try await lanes(tracks: 1, onScreen: true)
         try studio.edit(ripple: false) { session throws(SessionError) in
             try session.addTrack("bed", name: "Bed", layout: .mono)
             try session.place(
                 Clip(id: "bed", file: "f1", start: 0, offset: 0, length: Frames(Self.frames)), on: "bed")
             try session.setFollowTrack(true, tracks: ["bed"])
+            if marker { try session.setMarker(Marker(id: "late", name: "Late", position: 150_000, kind: .marker)) }
         }
         model.timeline.scale = TimelineScale(framesPerPoint: 512)
         // The Marks of a ripple commit are on the clip, so the press keeps the selection.
@@ -158,8 +162,9 @@ extension TimelineLayerTests {
         model.timeline.marks = Marks(inPoint: c1.start, outPoint: c1.end, tracks: ["t1"])
         view.update(inputs(model, studio))
         drawNow(window)
-        let rows = try #require(view.lanes.surfaces.shown).pixels.rows
-        #expect(rows.count == 2 * 200, "the two lanes of 100 pt at scale 2 are in view: \(rows)")
+        let shown = try #require(view.lanes.surfaces.shown)
+        #expect(shown.pixels.rows.count == 2 * 200, "the two lanes of 100 pt at scale 2 are in view: \(shown.pixels)")
+        let bedRows = shown.rows(of: 1..<2)
         let bed = studio.session.clip("bed")?.clip
         let before = view.lanes.surfaces.shifted
         let box = try #require(view.lanes.clipFrame("c1"))
@@ -167,12 +172,24 @@ extension TimelineLayerTests {
         view.lanes.mouseDown(with: try mouse(.leftMouseDown, edge, in: view, flags: .option))
         var failures: [String] = []
         for dx in [-6.0, -12, -18] {
+            let old = view.lanes.inputs?.session.markers["late"]?.position
             view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: edge.x + dx, y: edge.y), in: view))
             drawNow(window)
             await Task.yield()
             let wrong = try Self.wrongPixels(view)
             if wrong.count > 0 {
                 failures.append("drag \(dx): \(wrong.count) pixels, the first \(String(describing: wrong.first))")
+            }
+            // The columns of the old and the new marker line, with the 1 pt on each side of a stray.
+            let new = view.lanes.inputs?.session.markers["late"]?.position
+            if marker, old == new { failures.append("drag \(dx): the marker did not move") }
+            let geometry = try #require(view.lanes.inputs?.geometry)
+            let xs = [old, new].compactMap { $0 }.map { geometry.x(of: $0) }
+            let (low, high) = (((xs.min() ?? 0) - 1) * shown.scale, ((xs.max() ?? 0) + 2) * shown.scale)
+            let lines = xs.isEmpty ? 0..<0 : Int(low.rounded(.down))..<Int(high.rounded(.up))
+            let drawn = view.lanes.surfaces.lastDrawn.filter { $0.rows.overlaps(bedRows) }
+            if drawn.contains(where: { $0.columns.clamped(to: lines) != $0.columns }) {
+                failures.append("drag \(dx): the follow lane drew \(drawn), the marker lines take \(lines)")
             }
         }
         #expect(

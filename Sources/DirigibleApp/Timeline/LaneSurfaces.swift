@@ -131,16 +131,23 @@ struct LaneWindow: Equatable {
     private(set) var made = 0
     /// Test support: the rects that the last update copied from the front.
     private(set) var lastCopied: [PixelRect] = []
+    /// Test support: the rects that the last update drew.
+    private(set) var lastDrawn: [PixelRect] = []
     /// Test support: refuse each new surface, as a failed allocation does.
     var refusesNewSurfaces = false
     /// Test support: the updates that copied the later region by a shift (decision 0037).
     private(set) var shifted = 0
 
-    /// A ripple drag (decision 0037): the columns at or after `column` show the front moved by `by`
-    /// columns, and only the `strips` and the columns that the shift shows at an edge draw.
+    /// A ripple drag (decision 0037): the columns at or after `column` show the front, each band of
+    /// rows moved by its own `by` columns, and only the `strips` and the columns that a band shows
+    /// at an edge draw. The bands cover the rows of the window.
     struct Shift: Equatable {
+        struct Band: Equatable {
+            let rows: Range<Int>
+            let by: Int
+        }
         let column: Int
-        let by: Int
+        let bands: [Band]
         let strips: [PixelRect]
     }
 
@@ -219,25 +226,34 @@ struct LaneWindow: Equatable {
             for rect in copies {
                 Self.copy(rect, except: shift == nil ? drawn : .empty, from: source, from, to: surface, window)
             }
-            if let shift, let later { Self.copy(later, by: shift.by, from: source, to: surface, window) }
+            if let shift, let later {
+                for band in shift.bands {
+                    let rect = PixelRect(columns: later.columns, rows: band.rows.clamped(to: later.rows))
+                    Self.copy(rect, by: band.by, from: source, to: surface, window)
+                }
+            }
             source.unlock(options: .readOnly, seed: nil)
         }
         if let shift, let later {
-            // The strip, then the columns of `later` whose source is outside the window.
-            let sourced = (all.lowerBound + shift.by)..<(all.upperBound + shift.by)
-            let edges = [
-                later.columns.lowerBound..<max(later.columns.lowerBound, min(sourced.lowerBound, all.upperBound)),
-                max(
-                    later.columns.lowerBound, min(later.columns.upperBound, sourced.upperBound))..<later.columns
-                    .upperBound,
-            ].map { PixelRect(columns: $0, rows: later.rows) }
-            for rect in strips + edges where !rect.isEmpty {
+            // The strips, then the columns of each band of `later` whose source is outside the window.
+            let edges = shift.bands.flatMap { band in
+                let sourced = (all.lowerBound + band.by)..<(all.upperBound + band.by)
+                return [
+                    later.columns.lowerBound..<max(later.columns.lowerBound, min(sourced.lowerBound, all.upperBound)),
+                    max(
+                        later.columns.lowerBound, min(later.columns.upperBound, sourced.upperBound))..<later.columns
+                        .upperBound,
+                ].map { PixelRect(columns: $0, rows: band.rows.clamped(to: later.rows)) }
+            }
+            lastDrawn = (strips + edges).filter { !$0.isEmpty }
+            for rect in lastDrawn {
                 draw(
                     PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: rect)
                 )
             }
             shifted += 1
         } else {
+            lastDrawn = [drawn]
             draw(PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: drawn))
         }
         surface.unlock(options: [], seed: nil)

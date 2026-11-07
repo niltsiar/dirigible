@@ -273,8 +273,9 @@ extension L10n {
             .foreignFile, .emptyExcerpt,
             .otherSampleRate, .unknownWord, .noWordOnTrack, .noTakeAudio,
             .wordOutsideFile, .nothingToCut, .chapterOutOfRange, .chapterImageNotKept, .nothingToHeal, .notStereo,
-            .noJoin, .followOverlap, .noRippleTrack:
+            .noJoin, .followOverlap:
             return errorSessionOther.text
+        case .noRippleTrack: return errorRippleFollowOnly.text
         // A transcript cut, a split (0053), and a clip render (0054) refuse it while a transcript did not load.
         case .transcriptNotLoaded: return errorTranscriptUnloaded.text
         case .noSpeechTrack: return errorDuckNoSpeechTrack.text

@@ -825,3 +825,11 @@
 "banner.export.set.dropped" = "“%@” não tem arquivo próprio: coincide com o ponto de divisão anterior ou com o fim do intervalo.";
 "error.export.nochapter" = "A sessão não tem mais capítulos no intervalo de exportação. Nenhum arquivo foi gravado.";
 "error.export.nomarker" = "A sessão não tem mais marcadores no intervalo de exportação. Nenhum arquivo foi gravado.";
+"menu.track.follow.ripples" = "Acompanhar o deslocamento";
+"track.follow.label" = "Acompanhar o deslocamento";
+"track.follow.value" = "Ativado";
+"track.follow.help" = "“Acompanhar o deslocamento” está ativado. Desative-o no menu Faixa.";
+"track.follow.turn.off" = "Desativar “Acompanhar o deslocamento”";
+"alert.follow.overlap.title" = "Um clipe cobriria outro clipe.";
+"alert.follow.overlap.body" = "O clipe em %1$@ em %2$@ acompanha o deslocamento. Mova-o ou desative “Acompanhar o deslocamento”.";
+"error.ripple.follow.only" = "Todas as faixas acompanham o deslocamento, então nada seria cortado. Desative “Acompanhar o deslocamento” na faixa para cortar.";

@@ -23,6 +23,10 @@ struct SessionView: View {
                 presenting: model.alert
             ) { alert in
                 switch alert {
+                case .followOverlap:
+                    // The default button: Return closes the alert, and the edit does not run again.
+                    Button(L10n.alertOK.key) {}
+                    Button(L10n.trackFollowTurnOff.key) { model.turnOffFollow(in: alert) }
                 // Stop and Close is the default (Return), as Stop and Quit: the user chose Close, and the
                 // finalize keeps the audio (HIG). The unsaved Close has no Return: Undo cannot give back
                 // the edits that the failed save lost.
@@ -49,6 +53,8 @@ struct SessionView: View {
                     Button(L10n.alertOK.key) {}
                     if let pick = alert.pickButton { Button(pick.key) { model.startWithPickedFile(request) } }
                 }
+            } message: { alert in
+                if let message = alert.message { Text(verbatim: message) }
             }
             // An AppKit sheet, so the close button is off (decision 0048). Only its buttons answer.
             .sheet(isPresented: Binding(get: { model.consent?.phase == .waiting }, set: { _ in })) {
@@ -255,6 +261,12 @@ private struct ExportSheet: View {
 }
 
 extension WindowAlert {
+    /// The body under the title; only the follow alert has one.
+    var message: String? {
+        guard case .followOverlap(let overlap) = self else { return nil }
+        return overlap.body()
+    }
+
     var text: String {
         switch self {
         case .error(let error): L10n.message(for: error)
@@ -263,6 +275,7 @@ extension WindowAlert {
                 + (notImported.isEmpty
                     ? "" : "\n\n" + L10n.alertImportNotImported.format(notImported.joined(separator: "\n")))
         case .microphone(let access): L10n.message(for: .microphoneAccess(access))
+        case .followOverlap(let overlap): overlap.title()
         case .confirmStopAndClose: L10n.alertCloseRecording.text
         case .confirmUnsavedClose: L10n.alertCloseUnsaved.text
         case .confirmRemoveTracks: L10n.alertTrackRemove.text

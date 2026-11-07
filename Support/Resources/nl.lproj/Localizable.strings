@@ -825,3 +825,11 @@
 "banner.export.set.dropped" = "'%@' heeft geen eigen bestand: het valt samen met het vorige splitspunt of met het einde van het bereik.";
 "error.export.nochapter" = "De sessie heeft nu geen hoofdstukken in het exportbereik. Er is geen bestand geschreven.";
 "error.export.nomarker" = "De sessie heeft nu geen markeringen in het exportbereik. Er is geen bestand geschreven.";
+"menu.track.follow.ripples" = "Meeschuiven bij ripple";
+"track.follow.label" = "Meeschuiven bij ripple";
+"track.follow.value" = "Aan";
+"track.follow.help" = "“Meeschuiven bij ripple” staat aan. Zet het uit in het menu Spoor.";
+"track.follow.turn.off" = "Zet “Meeschuiven bij ripple” uit";
+"alert.follow.overlap.title" = "Een clip zou een andere clip bedekken.";
+"alert.follow.overlap.body" = "De clip op %1$@ bij %2$@ schuift mee bij ripple. Verplaats de clip of zet “Meeschuiven bij ripple” uit.";
+"error.ripple.follow.only" = "Elk spoor schuift mee bij ripple, dus er zou niets worden geknipt. Zet “Meeschuiven bij ripple” uit op het spoor om te knippen.";

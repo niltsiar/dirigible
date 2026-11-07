@@ -138,7 +138,7 @@ extension SessionWindow {
         } catch .rippleBlocked {
             beep()
         } catch {
-            alert = .error(error)
+            alert = .refusing(error, in: studio.session)
         }
     }
 }

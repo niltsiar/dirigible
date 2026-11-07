@@ -143,13 +143,19 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         }
     }
 
-    /// The ripple delete of a follow lane (decision 0073): no clip splits, and each start maps by
-    /// Rule M (`Frames.afterRippleDelete(of:)`), as a marker does. The map keeps the order, so one
-    /// pass over the adjacent pairs finds an overlap, and it throws before any write.
-    mutating func follow(deleting ranges: [Range<Frames>]) throws(SessionError) {
-        let starts = storage.map { $0.start.afterRippleDelete(of: ranges) }
+    /// The ripple of a follow lane (decision 0073): no clip splits, and each start maps by `start`,
+    /// the Rule M map of the edit (`Frames.afterRippleDelete(of:)`, `Frames.afterReplace(of:with:)`),
+    /// as a marker does. The map keeps the order, so one pass over the adjacent pairs finds an
+    /// overlap, and it throws before any write. A last end past `Frames.limit` throws
+    /// `.frameOutOfRange`.
+    mutating func follow(mapping start: (Frames) -> Frames) throws(SessionError) {
+        let starts = storage.map { start($0.start) }
         for right in storage.indices.dropFirst() where starts[right] < starts[right - 1] + storage[right - 1].length {
             throw .followOverlap(storage[right].id, storage[right - 1].id)
+        }
+        // A mapped start is at most 2 * limit and a length at most limit, so the sum cannot overflow.
+        if let last = storage.indices.last, !(starts[last] + storage[last].length).isInRange {
+            throw .frameOutOfRange
         }
         for index in storage.indices { storage[index].start = starts[index] }
         repair(storage.indices)

@@ -309,11 +309,27 @@ struct FollowRippleTests {
             let excerpt = try session.excerpt(of: 0..<48_000, on: ["host"])
             try session.replace(Self.cut, with: excerpt, on: ["bed"])
             lanes.append(lane("bed", in: session))
-            if !follow.isEmpty { #expect(starts("sfx", in: session) == ["w": 192_000, "x": 288_000, "y": 312_000]) }
+            if !follow.isEmpty { #expect(starts("sfx", in: session) == ["w": 192_000, "x": 240_000, "y": 312_000]) }
         }
         #expect(lanes[0].map(\.range) == [0..<240_000, 240_000..<288_000, 288_000..<912_000])
         #expect(lanes[0][2].offset == 336_000)
         #expect(lanes[0] == lanes[1])
+    }
+
+    /// Code gate 3 item 2: after a Replace onto `host`, the follow clip x from inside the cut and a
+    /// marker at its start both start at the cut start, and the bed stays whole. A clip z at the cut
+    /// end moves with the later clips, by the excerpt length minus the cut length.
+    @Test mutating func aReplaceMovesAFollowClipInTheRangeToTheRangeStartAsAMarker() throws {
+        try session.setMarker(Marker(id: "m", name: "m", position: 264_000, kind: .marker))
+        let excerpt = try session.excerpt(of: 0..<48_000, on: ["host"])
+        var replaced = session
+        try replaced.replace(Self.cut, with: excerpt, on: ["host"])
+        #expect(starts("sfx", in: replaced) == ["w": 192_000, "x": 240_000, "y": 312_000])
+        #expect(replaced.markers["m"]?.position == 240_000)
+        #expect(lane("bed", in: replaced).map(\.range) == [0..<960_000])
+        try session.place(Clip(id: "z", file: "s", start: 336_000, offset: 300_000, length: 12_000), on: "sfx")
+        try session.replace(Self.cut, with: excerpt, on: ["host"])
+        #expect(starts("sfx") == ["w": 192_000, "x": 240_000, "z": 288_000, "y": 312_000])
     }
 
     /// C32 (U29): over seeded random follow lanes and 1 to 3 ranges, a refusal changes nothing, and

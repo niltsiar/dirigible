@@ -10,8 +10,9 @@ extension Session {
     /// every track moves by the excerpt length minus the range length. A marker in the range or at
     /// its start ends at the range start; a marker at or after the range end moves with the later
     /// clips (Rule M Replace clause, decision 0037). The paste targets `tracks` are named, so a
-    /// follow track among them is cut; another follow track follows (decision 0073). An excerpt of
-    /// length 0 throws `.emptyExcerpt`. Returns the pasted IDs. A throw changes nothing.
+    /// follow track among them is cut; on another follow track each clip start maps as a marker
+    /// does, and an overlap throws `.followOverlap` (decision 0073). An excerpt of length 0 throws
+    /// `.emptyExcerpt`. Returns the pasted IDs. A throw changes nothing.
     @discardableResult
     public mutating func replace(_ range: Range<Frames>, with excerpt: Excerpt, on tracks: [TrackID])
         throws(SessionError) -> [ClipID]
@@ -23,12 +24,18 @@ extension Session {
         let inside = markers.values.filter { range.lowerBound <= $0.position && $0.position < range.upperBound }
         var copy = self
         if !self.tracks.isEmpty {
-            let lanes = Array(self.tracks.indices)
+            let cutting = Set(cuttingTracks(self.tracks.map(\.id), naming: tracks))
+            let lanes = self.tracks.indices.filter { cutting.contains(self.tracks[$0].id) }
             var taken = clipIDs
             if !range.isEmpty { try copy.rippleDelete([range], lanes: lanes, naming: tracks, taken: &taken) }
-            // The delete cuts each clip of a cutting lane at the range start, and a follow lane splits
-            // no clip, so the insert derives no ID from `taken`.
+            // The delete cuts each clip of a cutting lane at the range start, so the insert derives
+            // no ID from `taken`.
             try copy.rippleInsert(excerpt.length, at: range.lowerBound, lanes: lanes, naming: tracks, taken: &taken)
+            // A follow lane maps once: after the delete, a clip from inside the range and a clip from
+            // the range end both start at the range start, and the insert cannot tell them apart.
+            for index in self.tracks.indices where !cutting.contains(self.tracks[index].id) {
+                try copy.tracks[index].clips.follow { $0.afterReplace(of: range, with: excerpt.length) }
+            }
         }
         for marker in inside {
             var kept = marker

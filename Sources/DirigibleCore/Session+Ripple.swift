@@ -133,7 +133,7 @@ extension Session {
             if cutting.contains(tracks[index].id) {
                 tracks[index].clips.rippleDelete(ranges) { Self.derivedID(of: $0.id, at: $1, taken: &taken) }
             } else {
-                try tracks[index].clips.follow(deleting: ranges)
+                try tracks[index].clips.follow { $0.afterRippleDelete(of: ranges) }
             }
         }
         for marker in markers.values {
@@ -202,5 +202,14 @@ extension Frames {
             }
         }
         return self - removed
+    }
+
+    /// This frame after a Replace of `range` by `length` frames (the Replace clause of Rule M,
+    /// decision 0037): a frame inside `range` or at its start goes to the range start, a frame at or
+    /// after the range end moves by `length` minus the range length, and a frame before it stays.
+    /// A Replace maps the clip starts of each follow lane that it does not name through it (decision
+    /// 0073), so such a clip ends at the frame of a marker that started at the same frame.
+    public func afterReplace(of range: Range<Frames>, with length: Frames) -> Frames {
+        self < range.upperBound ? afterRippleDelete(of: [range]) : self - (range.upperBound - range.lowerBound) + length
     }
 }

@@ -383,9 +383,20 @@ err="$("$log" "$closing" 3 'plan gate 1 closed after 2 rounds' why evidence done
 [[ "$(shasum -a 256 "$closing/decisions.tsv")" == "$before" ]] || fail "a refused close row changed decisions.tsv"
 "$log" "$closing" 3 'Close the plan gate after round 1' why evidence done 2>/dev/null
 [[ $? -eq 2 ]] || fail "a close row in the Close the plan gate form was not refused"
+# The other close forms of past phase 3 rows.
+for form in 'plan gate round 2 closed: 3 Act on items applied' 'plan gate round 1 closed by the lead: 3 Act on items' \
+  'plan gate round on S0a and S0b closed (review-plan-2.md)' 'plan gate 2 judged and closed: 2 Act on items' \
+  'plan gate 3 (output term redesign) closed: 4 Act on items fixed' 'L1 plan gate closed after round 2 and the lead fix check' \
+  'default: plan gate closed; phase 4 starts later' 'plan gate fix check: 10 of 10 pass; gate closed' \
+  'fix check of plan gate 1: 14 corrections applied, no added rule, gate closed'; do
+  err="$("$log" "$closing" 3 "$form" 'Reverse: x' evidence done 2>&1)"
+  [[ $? -eq 2 && "$err" == *'a phase 3 row that closes the plan gate needs'* ]] || fail "the close row form was not refused by the close check: $form"
+done
 "$log" "$closing" 3 'plan gate 1 round 1 verdict: 3 Act on' why evidence done || fail "a round verdict row exits $?"
 "$log" "$closing" 3 'do not close the plan gate yet' why evidence done || fail "a row that only names the close exits $?"
-[[ "$(wc -l < "$closing/decisions.tsv")" -eq 3 ]] || fail "the near rows did not append, or a refused row did"
+"$log" "$closing" 3 'default: the plan gate stays closed after the UI ruling' 'Reverse: x' evidence done || fail "a stays closed row exits $?"
+"$log" "$closing" 3 'plan gate 1 fix check of the UI panel rows (13:08, 13:26): gate stays closed' why evidence done || fail "a fix check row that keeps the gate closed exits $?"
+[[ "$(wc -l < "$closing/decisions.tsv")" -eq 5 ]] || fail "the near rows did not append, or a refused row did"
 printf '# A\n\n## Acceptance criteria\n\n- C8: 6 s.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$closing/analysis.md"
 "$log" "$closing" 3 'criterion change C8: old 5 s, new 6 s' why evidence done || fail "the criterion change row for C8 on the closing run exits $?"
 "$log" "$closing" 3 'plan gate 1 closed after 2 rounds' why evidence done || fail "a close row after the C8 row exits $?"

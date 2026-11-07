@@ -21,7 +21,8 @@
 # Phase 4. The plan gate must be closed: a review-plan-<n>.md file, and a phase 3 row after the
 # last phase 2 row. For a run that starts after the cutoff in check-plan.sh, the Fix check of the last
 # review-plan-<n>.md also has its lines (lead-judgment.md, Fix check). A phase 3 row that closes the
-# plan gate (its decision starts with `plan gate closed`) of a run with a plan.md runs the same check,
+# plan gate (its decision starts with `plan gate closed` or another close form, such as `plan gate
+# round 2 closed` or `close the plan gate`) of a run with a plan.md runs the same check,
 # with that row counted as the phase 3 row. A phase 6 row needs a passing scripts/check-plan.sh with
 # no variable, the check of the land: the review files have their fields. A criterion change row skips that check. A phase
 # 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
@@ -199,7 +200,7 @@ if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! [[ "$(lower "$2")" == "criter
 fi
 # A phase 3 row that closes the plan gate runs the check of the first phase 4 row, with the row
 # itself counted as the phase 3 row, so a gap shows before the first slice agent starts.
-close_form='^(plan gate (is |[0-9]+ (round [0-9]+ )?)?closed|(close|closes|closed|closing) (the )?plan gate)([^a-z]|$)'
+close_form='^((default:? )?([a-z0-9]+ )?plan gate( is| [0-9]+( \([^)]*\))?| round ([0-9]+|on [^:;,]*))?( round [0-9]+)?( judged and)? closed|(plan gate fix check|fix check of (the )?plan gate).*[;,] (the )?gate closed|(close|closes|closed|closing) (the )?plan gate)([^a-z]|$)'
 if [[ "$1" == 3 && -f "${file%/*}/plan.md" && "$(lower "$2")" =~ $close_form ]]; then
     if ! out="$(CHECK_PLAN_AT_PHASE4=1 CHECK_PLAN_GATE_CLOSE=1 "$plan_check" "${file%/*}" 2>&1)"; then
         printf '%s\na phase 3 row that closes the plan gate needs the check of the first phase 4 row: log the criterion change rows or add the Fix check lines, then log this row\n' "$out" >&2

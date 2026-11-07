@@ -8,7 +8,8 @@
 # Check the ## Plan gate changes section of plan.md: each item has a Criteria: field, and each
 # criterion ID of a field has a criterion change row from Phase 4 on.
 # Check that CHECK_PLAN_AT_PHASE4=1 needs a review-plan-<n>.md file and a phase 3 row after the last
-# phase 2 row, and that the land check without it does not.
+# phase 2 row, that CHECK_PLAN_GATE_CLOSE=1 drops the phase 3 row test only, and that the land check
+# without them does not.
 # Check that with CHECK_PLAN_AT_PHASE4=1 the last round file has a ## Fix check when a round file has an Act on item.
 # Check that plan.md names each criterion ID of the ## Acceptance criteria section of analysis.md.
 # Check that CHECK_PLAN_AT_PHASE7=1 refuses a fix commit that removes a double-quoted criterion text
@@ -340,6 +341,11 @@ good
 : > "$run/review-plan-1.md"
 row 2 'plan written'
 CHECK_PLAN_AT_PHASE4=1 refuse 'a review-plan file and a phase 2 row with no phase 3 row' 'phase 3 row'
+# CHECK_PLAN_GATE_CLOSE=1 (log-decision.sh, for the phase 3 row that closes the gate) counts that
+# pending row: a last phase 2 row passes, but a missing review-plan file still refuses.
+CHECK_PLAN_AT_PHASE4=1 CHECK_PLAN_GATE_CLOSE=1 pass 'a review-plan file and a last phase 2 row with the close variable'
+rm "$run/review-plan-1.md"
+CHECK_PLAN_AT_PHASE4=1 CHECK_PLAN_GATE_CLOSE=1 refuse 'no review-plan file with both variables' 'review-plan-<n>.md'
 good
 row 2 'plan written'
 row 4 'Slice S1 committed'

@@ -367,6 +367,34 @@ printf '# A\n\n## Acceptance criteria\n\n- C8: 5 s.\n- C5: b.\n\n## Unknowns\n\n
 "$log" "$gated" 6 'criterion change C5: old a, new b' why evidence done || fail "the criterion change row for C5 exits $?"
 "$log" "$gated" 4 'Slice S3 committed' why evidence done || fail "the next phase 4 row after the late C5 row exits $?"
 
+# A phase 3 row that closes the plan gate runs the check of the first phase 4 row, so a plan gate
+# change with no criterion change row refuses the close row while a fix can still come.
+closing="$tmp/closing"
+mkdir "$closing"
+printf '# A\n\n## Acceptance criteria\n\n- C8: 5 s.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$closing/analysis.md"
+printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case. Criteria: C8\n' > "$closing/plan.md"
+: > "$closing/decisions.tsv"
+: > "$closing/review-plan-1.md"
+"$log" "$closing" 2 'plan written' why evidence done || fail "a phase 2 row of the closing run exits $?"
+before="$(shasum -a 256 "$closing/decisions.tsv")"
+err="$("$log" "$closing" 3 'plan gate 1 closed after 2 rounds' why evidence done 2>&1)"
+[[ $? -eq 2 ]] || fail "a close row with no criterion change row for C8 was not refused"
+[[ "$err" == *'a phase 3 row that closes the plan gate needs the check of the first phase 4 row'* ]] || fail "the close refusal names no rule: $err"
+[[ "$(shasum -a 256 "$closing/decisions.tsv")" == "$before" ]] || fail "a refused close row changed decisions.tsv"
+"$log" "$closing" 3 'Close the plan gate after round 1' why evidence done 2>/dev/null
+[[ $? -eq 2 ]] || fail "a close row in the Close the plan gate form was not refused"
+"$log" "$closing" 3 'plan gate 1 round 1 verdict: 3 Act on' why evidence done || fail "a round verdict row exits $?"
+"$log" "$closing" 3 'do not close the plan gate yet' why evidence done || fail "a row that only names the close exits $?"
+[[ "$(wc -l < "$closing/decisions.tsv")" -eq 3 ]] || fail "the near rows did not append, or a refused row did"
+printf '# A\n\n## Acceptance criteria\n\n- C8: 6 s.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$closing/analysis.md"
+"$log" "$closing" 3 'criterion change C8: old 5 s, new 6 s' why evidence done || fail "the criterion change row for C8 on the closing run exits $?"
+"$log" "$closing" 3 'plan gate 1 closed after 2 rounds' why evidence done || fail "a close row after the C8 row exits $?"
+# A folder with no plan.md has no plan to check: the close row appends.
+noplan="$tmp/noplan"
+mkdir "$noplan"
+: > "$noplan/decisions.tsv"
+"$log" "$noplan" 3 'plan gate closed' why evidence done || fail "a close row of a folder with no plan.md exits $?"
+
 # A phase 6 row runs scripts/check-plan.sh with no CHECK_PLAN_AT_PHASE4 value, the check of the land
 # (check-governance.sh): an Act on item with no Siblings field refuses the row and keeps the --from
 # file. A phase 2 row after the phase 3 row is no refusal, because only the phase 4 check tests the

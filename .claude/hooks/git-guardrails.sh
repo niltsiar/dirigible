@@ -1017,16 +1017,28 @@ release_env() {
 }
 # release_cmd <text>: set rcmd to the shell words of the text up to a redirect, a ) or }, with the
 # quote marks of each word removed, as with-lock.sh gets its argv. A bash or sh word with a file
-# argument (options before it, no -c) gives the words from the file on.
-release_word_re="^[[:space:]]*((\"[^\"]*\"|'[^']*'|[^[:space:]])+)(.*)\$"
+# argument (options before it, no -c) gives the words from the file on. The parts of an open quote
+# join with one space. One read -ra pass: a regex match per word is quadratic in bash 3.2.
 release_cmd() {
-  local t="${1%%[<>)\}]*}" w i
+  local t="${1%%[<>)\}]*}" ws=() w part="" open="" q i
   [[ "$t" =~ ^(.*[[:space:]])[0-9]+$ ]] && t="${BASH_REMATCH[1]}"
   rcmd=()
-  while [[ "$t" =~ $release_word_re ]]; do
-    w="${BASH_REMATCH[1]}" t="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
-    rcmd+=("${w//[\"\']/}")
+  read -ra ws <<< "$t"
+  for w in ${ws[@]+"${ws[@]}"}; do
+    if [[ -z "$open" && "$w" != *[\"\']* ]]; then
+      rcmd+=("$w")
+      continue
+    fi
+    [[ -n "$open" ]] && part+=" $w" || part="$w"
+    q="${w//[!\"\']/}"
+    for ((i = 0; i < ${#q}; i++)); do
+      if [[ -z "$open" ]]; then open="${q:i:1}"; elif [[ "$open" == "${q:i:1}" ]]; then open=""; fi
+    done
+    [[ -n "$open" ]] && continue
+    rcmd+=("${part//[\"\']/}")
+    part=""
   done
+  [[ -z "$open" ]] || rcmd+=("${part//[\"\']/}")
   [[ "${rcmd[0]:-}" =~ $release_script_re ]] || return 0
   for ((i = 1; i < ${#rcmd[@]}; i++)); do
     [[ "${rcmd[i]}" == -* ]] || break

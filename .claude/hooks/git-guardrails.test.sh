@@ -213,6 +213,7 @@ release_forms=(
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE="$(git merge-base HEAD origin/main)"'
   'scripts/with-lock.sh make "check-changed" BASE=origin/main'
   'scripts/with-lock.sh make "dmg"'
+  "scripts/with-lock.sh make 'check-changed' BASE='origin/main'"
   'scripts/with-lock.sh bash scripts/land.sh t b.md'
   'bash scripts/land.sh t b.md'
   'sh -x scripts/land.sh t b.md'
@@ -2063,6 +2064,12 @@ done
 rw_start=$(date +%s)
 expect_release block "$rw/live" "bash $sd/long.sh"
 (($(date +%s) - rw_start < 5)) || { echo "FAIL: release-wait took $(($(date +%s) - rw_start)) s for a 62 KB script"; failures=$((failures + 1)); }
+# The words of a segment are read in one pass: a 4000-word line with a bash <file> word ends in under 2 s.
+rw_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
+rw_start=$(rw_ms)
+expect allow "echo $(seq -f 'w%g' 1 4000 | tr '\n' ' '); bash x.sh"
+rw_took=$(($(rw_ms) - rw_start))
+((rw_took < 2000)) || { echo "FAIL: the hook took $rw_took ms for a 4000-word line with a bash <file> word"; failures=$((failures + 1)); }
 # The subagent rule reads the same script lines: a release call in a script is a wait with no limit.
 expect_release block "$rw/empty" "bash $sd/push.sh" '' a1
 expect_release allow "$rw/empty" "bash $sd/tests.sh" '' a1

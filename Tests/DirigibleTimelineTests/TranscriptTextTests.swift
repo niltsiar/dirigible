@@ -223,7 +223,7 @@ struct TranscriptTextTests {
         ])
         #expect(TranscriptText(session: session).string == "Host · 0:00:00\none two\nHost · 0:00:10\nthree\n")
 
-        try session.rippleDelete(0..<48_000, on: ["host"])
+        try session.rippleDelete(0..<48_000, on: ["host"], naming: [])
 
         let text = TranscriptText(session: session)
         #expect(text.string == "Host · 0:00:09\nthree\n")

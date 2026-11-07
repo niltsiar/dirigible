@@ -74,7 +74,7 @@ import Testing
         #expect(call.name == "timeline" && call.transcripts == ["1 Host"])
         let agent = AgentName(title: "Claude Code", clientName: "claude-code")
         try studio.edit(ripple: true, agent: agent) { session throws(SessionError) in
-            try session.rippleInsert(48_000, at: 0, on: ["t1"])
+            try session.rippleInsert(48_000, at: 0, on: ["t1"], naming: [])
         }
         call.answer(TranscriptTarget(url: file, format: .srt, transcript: 1))
         await until("the file is written") { FileManager.default.fileExists(atPath: file.path) }
@@ -203,7 +203,7 @@ import Testing
         #expect((try Data(contentsOf: file)) == (try commandFile(package, "command.srt")), "the file of the command")
 
         try studio.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleInsert(48_000, at: 0, on: ["t1"])
+            try session.rippleInsert(48_000, at: 0, on: ["t1"], naming: [])
         }
 
         #expect(banners() == [], "the next change of the session hides it")

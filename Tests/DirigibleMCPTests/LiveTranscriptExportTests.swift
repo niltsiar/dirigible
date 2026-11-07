@@ -33,7 +33,7 @@ struct LiveTranscriptExportTests {
                         text: "1\nImported 1 cue: a cut removes a whole cue when it has no word times.", isError: false)
                 ))
         try studio.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleInsert(1000, at: 0, on: ["t1", "t2"])
+            try session.rippleInsert(1000, at: 0, on: ["t1", "t2"], naming: [])
         }
         let out = package.folder.appending(path: "out.srt")
         let arguments: [String: String] = ["package": package.path, "out": out.path]

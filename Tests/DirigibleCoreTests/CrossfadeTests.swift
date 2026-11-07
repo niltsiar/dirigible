@@ -343,10 +343,10 @@ struct CrossfadeTests {
                         done["setFades", default: 0] += 1
                     case 9:
                         let start = frame(0...22_000)
-                        try session.rippleDelete(start..<(start + frame(1...6_000)), on: ["t1"])
+                        try session.rippleDelete(start..<(start + frame(1...6_000)), on: ["t1"], naming: [])
                         done["rippleDelete", default: 0] += 1
                     case 10:
-                        try session.rippleInsert(frame(1...8_000), at: frame(0...24_000), on: ["t1"])
+                        try session.rippleInsert(frame(1...8_000), at: frame(0...24_000), on: ["t1"], naming: [])
                         done["rippleInsert", default: 0] += 1
                     case 11:
                         guard let clip = anyClip() else { continue }

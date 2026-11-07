@@ -27,8 +27,7 @@ import Testing
     static let second: Frames = 288_000
     static let afterSecond: Frames = 400_000
 
-    /// A package with the track and the clip, and with the transcript when `spoken` is true. A
-    /// transcript file that `damaged` names is written, then removed.
+    /// A package with the track and the clip, and with the transcript when `spoken` is true.
     func package(
         spoken: Bool = true, name: String = "a", trackName: String = "Host",
         words custom: [(Double, Double, String)]? = nil
@@ -343,7 +342,7 @@ import Testing
 
     /// P4b: the pane builds its text only when the session revision changes. A play tick and a seek
     /// build nothing, a gain edit builds once and replaces no storage, because no unit changes, and
-    /// a ripple delete replaces the storage once.
+    /// the ripple delete of "Second part" (two units gone, the later header moved) replaces it once.
     @Test func buildsOnlyOnANewRevision() async throws {
         let (model, studio, window, _) = try await open(try await package())
         model.showTranscript()
@@ -357,8 +356,9 @@ import Testing
             pane.builds == builds + 1 && pane.shownRevision == pane.builtRevision
         }
         #expect(pane.replacements == replacements, "a gain edit replaces no storage")
-        // The ripple delete of "Second part" removes two units and moves the later header.
-        try studio.edit(ripple: true) { s throws(SessionError) in try s.rippleDelete(288_000..<336_000, on: ["t1"]) }
+        try studio.edit(ripple: true) { s throws(SessionError) in
+            try s.rippleDelete(288_000..<336_000, on: ["t1"], naming: [])
+        }
         await until("the pane applies again") { pane.builds == builds + 2 && pane.shownRevision == pane.builtRevision }
         #expect(pane.replacements == replacements + 1, "a ripple delete replaces the storage once")
         #expect(!pane.string.contains("Second"), "the cut words are gone")

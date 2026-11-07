@@ -8,7 +8,7 @@ extension RippleTests {
     /// The session after one ripple delete of each range on track "a", in the given order.
     func cuts(_ ranges: [Range<Frames>]) throws -> Session {
         var copy = session
-        for range in ranges { try copy.rippleDelete(range, on: ["a"]) }
+        for range in ranges { try copy.rippleDelete(range, on: ["a"], naming: []) }
         return copy
     }
 
@@ -24,7 +24,7 @@ extension RippleTests {
         let fromTheLast = try cuts(ranges.reversed())
         let ordered = try cuts(ranges) != fromTheLast
         #expect(ordered, "the fixture tells the order of the cuts")
-        try session.rippleDelete(ranges, on: ["a"])
+        try session.rippleDelete(ranges, on: ["a"], naming: [])
         let same = session == fromTheLast
         #expect(same, "one edit equals the cuts from the last range to the first")
         #expect(
@@ -40,7 +40,7 @@ extension RippleTests {
         let expected = try cuts(ranges.reversed())
         for order in [Array(ranges.reversed()), [ranges[1], ranges[2], ranges[0]]] {
             var copy = session
-            try copy.rippleDelete(order, on: ["a"])
+            try copy.rippleDelete(order, on: ["a"], naming: [])
             let same = copy == expected
             #expect(same, "the order \(order) gives the same session")
         }
@@ -53,11 +53,11 @@ extension RippleTests {
         try session.place(Clip(id: "A", file: "f", start: 0, offset: 0, length: 60_000), on: "a")
         try marker("m", at: 42_000)
         var overlap = session
-        try overlap.rippleDelete([10_000..<15_000, 12_000..<20_000], on: ["a"])
+        try overlap.rippleDelete([10_000..<15_000, 12_000..<20_000], on: ["a"], naming: [])
         let overlapped = overlap == (try cuts([10_000..<20_000]))
         #expect(overlapped, "two overlapping ranges cut their union")
         let union = try cuts([10_000..<40_000])
-        try session.rippleDelete([10_000..<40_000, 12_000..<15_000, 20_000..<25_000], on: ["a"])
+        try session.rippleDelete([10_000..<40_000, 12_000..<15_000, 20_000..<25_000], on: ["a"], naming: [])
         let nested = session == union
         #expect(nested, "ranges inside a long range cut only the long range")
         #expect(position("m") == 12_000, "the marker after the long range moves left by 30 000")
@@ -68,14 +68,14 @@ extension RippleTests {
     @Test mutating func touchingRangesCutAsOne() throws {
         try session.place(Clip(id: "A", file: "f", start: 5_000, offset: 5_000, length: 25_000), on: "a")
         var touching = session
-        try touching.rippleDelete([5_000..<10_000, 10_000..<20_000], on: ["a"])
+        try touching.rippleDelete([5_000..<10_000, 10_000..<20_000], on: ["a"], naming: [])
         let merged = touching == (try cuts([5_000..<20_000]))
         #expect(merged, "touching ranges equal their union")
         #expect(
             touching.track("a")?.clips.map(\.id) == ["A"], "the part after one cut keeps the clip ID")
         let gap: [Range<Frames>] = [5_000..<10_000, 10_001..<20_000]
         let expected = try cuts(gap.reversed())
-        try session.rippleDelete(gap, on: ["a"])
+        try session.rippleDelete(gap, on: ["a"], naming: [])
         let apart = session == expected
         #expect(apart, "a gap of 1 frame cuts two ranges")
         #expect(
@@ -92,12 +92,13 @@ extension RippleTests {
         let reached = try cuts([10_000..<20_000]) != before
         #expect(reached, "the first range alone changes the session")
         #expect(throws: SessionError.frameOutOfRange) {
-            try session.rippleDelete([10_000..<20_000, (Frames.limit - 10)..<(Frames.limit + 1)], on: ["a"])
+            try session.rippleDelete(
+                [10_000..<20_000, (Frames.limit - 10)..<(Frames.limit + 1)], on: ["a"], naming: [])
         }
         let unchanged = session == before
         #expect(unchanged, "a refused list changes nothing")
         let expected = try cuts([10_000..<20_000])
-        try session.rippleDelete([10_000..<20_000, 30_000..<30_000], on: ["a"])
+        try session.rippleDelete([10_000..<20_000, 30_000..<30_000], on: ["a"], naming: [])
         let skipped = session == expected
         #expect(skipped, "an empty range in the list is skipped")
     }
@@ -175,7 +176,7 @@ extension RippleTests {
         }
         let oracle = (a: expected("a"), b: expected("b"))
 
-        try session.rippleDelete(ranges, on: ["a", "b"])
+        try session.rippleDelete(ranges, on: ["a", "b"], naming: [])
         func spans(_ track: TrackID) -> [MediaSpan] {
             var spans: [MediaSpan] = []
             for clip in lane(track) {
@@ -244,7 +245,7 @@ extension RippleTests {
             if crossfadesAtBothBounds { reached += 1 }
             let oracle = try perRangeRipple(start, ranges, on: scope)
             var edited = start
-            try edited.rippleDelete(ranges.shuffled(using: &random), on: scope)
+            try edited.rippleDelete(ranges.shuffled(using: &random), on: scope, naming: [])
             let same = edited == oracle
             #expect(same, "seed \(seed) case \(step): \(ranges) on \(scope)")
             if !same { break }

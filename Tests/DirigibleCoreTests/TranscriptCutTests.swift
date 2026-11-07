@@ -93,7 +93,7 @@ struct TranscriptCutTests {
         try session.place(Clip(id: "H", file: "h", start: 0, offset: 0, length: 100_000), on: "host")
         session.addWords([(1, 10_000..<20_000, "a"), (3, 20_000..<30_000, "c")], file: "h")
         var oneRange = session
-        try oneRange.rippleDelete([10_000..<30_000], on: ["host", "guest"])
+        try oneRange.rippleDelete([10_000..<30_000], on: ["host", "guest"], naming: [])
 
         #expect(try session.cutWords(session.occurrences([1, 3])) == [10_000..<30_000])
         let same = session == oneRange

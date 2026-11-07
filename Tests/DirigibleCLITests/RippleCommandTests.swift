@@ -54,7 +54,7 @@ struct RippleCommandTests {
     /// same ranges.
     @Test func twoRangesInOneCommand() async throws {
         var expected = try package.read()
-        try expected.rippleDelete([48_000..<96_000, 120_000..<130_000], on: ["host"])
+        try expected.rippleDelete([48_000..<96_000, 120_000..<130_000], on: ["host"], naming: [])
         let result = try await package.run(
             "clip", "ripple-delete", "PKG", "--from", "48000", "--to", "96000", "--from", "120000", "--to", "130000",
             "--track", "host")

@@ -15,7 +15,7 @@ struct TranscriptWordsTests {
         #expect(history.session.words().map(\.range) == [60_000..<70_000])
 
         try history.edit { (session: inout Session) throws(SessionError) in
-            try session.rippleDelete([0..<5_000], on: ["host", "guest"])
+            try session.rippleDelete([0..<5_000], on: ["host", "guest"], naming: [])
         }
         #expect(history.session.words().map(\.range) == [55_000..<65_000], "a ripple delete moves the word left")
         let moved = try #require(history.session.track("host")?.clips.first?.id)

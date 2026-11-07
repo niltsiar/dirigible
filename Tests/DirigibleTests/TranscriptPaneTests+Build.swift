@@ -13,7 +13,7 @@ extension TranscriptPaneTests {
         let (model, studio, _, _) = try await open(try await package())
         let text = try #require(TranscriptTextView.scrollView().documentView as? TranscriptTextView)
         var cut = studio.session
-        try cut.rippleDelete(288_000..<336_000, on: ["t1"])
+        try cut.rippleDelete(288_000..<336_000, on: ["t1"], naming: [])
         #expect(text.begin(revision: 1))
         let older = await TranscriptTextView.build(studio.session, notices: [], revision: 1)
         #expect(text.begin(revision: 2))

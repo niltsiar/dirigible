@@ -42,11 +42,11 @@ struct TakeSyncTests {
             states.append(fixture.map.sync)
         }
 
-        try next { try $0.rippleInsert(240_000, at: 0, on: tracks) }
-        try next { try $0.rippleInsert(192_000, at: 60_624_000, on: tracks) }
-        try next { try $0.rippleInsert(177_600, at: 115_200_000, on: tracks) }
-        try next { try $0.rippleDelete(115_200_000..<115_377_600, on: tracks) }
-        try next { try $0.rippleDelete(60_624_000..<60_816_000, on: tracks) }
+        try next { try $0.rippleInsert(240_000, at: 0, on: tracks, naming: []) }
+        try next { try $0.rippleInsert(192_000, at: 60_624_000, on: tracks, naming: []) }
+        try next { try $0.rippleInsert(177_600, at: 115_200_000, on: tracks, naming: []) }
+        try next { try $0.rippleDelete(115_200_000..<115_377_600, on: tracks, naming: []) }
+        try next { try $0.rippleDelete(60_624_000..<60_816_000, on: tracks, naming: []) }
         let last = try #require(fixture.session.track("t2")?.clips.last)
         #expect(last.start == 115_008_000)
         try next { try $0.nudge([last.id], by: 1) }
@@ -72,7 +72,7 @@ struct TakeSyncTests {
         var fixture = try TakeSession(tracks: 1)
         let one = try fixture.addTakeFile(take: 1, arm: 1, origin: 0, length: 28_800_000)
         try fixture.session.place(Clip(id: "take1-1-1", file: one, start: 0, offset: 0, length: 28_800_000), on: "t1")
-        try fixture.session.rippleDelete(0..<1_440_000, on: ["t1"])
+        try fixture.session.rippleDelete(0..<1_440_000, on: ["t1"], naming: [])
         let before = fixture.map.sync
         let two = try fixture.addTakeFile(take: 2, arm: 1, origin: 0, length: 480_000, playhead: 27_360_000)
         try fixture.session.place(
@@ -99,7 +99,7 @@ struct TakeSyncTests {
                 on: TrackID("t\(arm)"))
         }
         let cold = fixture.map.sync
-        try fixture.session.rippleInsert(24_000, at: 300_000, on: ["t1"])
+        try fixture.session.rippleInsert(24_000, at: 300_000, on: ["t1"], naming: [])
 
         let ripple = fixture.map.sync
 

@@ -48,8 +48,8 @@ struct FollowRippleTests {
     /// C32: the bed stays whole with its ID, and the sfx starts map by Rule M; the flag off cuts the bed.
     @Test mutating func aFollowClipAfterTheCutMovesWholeAndNoneSplits() throws {
         var plain = try Self.fixture(follow: [])
-        try session.rippleDelete(Self.cut, on: all)
-        try plain.rippleDelete(Self.cut, on: plain.tracks.map(\.id))
+        try session.rippleDelete(Self.cut, on: all, naming: [])
+        try plain.rippleDelete(Self.cut, on: plain.tracks.map(\.id), naming: [])
 
         #expect(lane("bed").map(\.id) == ["bed"] && lane("bed")[0].range == 0..<960_000)
         #expect(starts("sfx") == ["w": 192_000, "x": 240_000, "y": 264_000])
@@ -59,8 +59,8 @@ struct FollowRippleTests {
     /// C32: the host track cuts and closes as with no flag.
     @Test mutating func theOtherTracksCutAsBefore() throws {
         var plain = try Self.fixture(follow: [])
-        try session.rippleDelete(Self.cut, on: all)
-        try plain.rippleDelete(Self.cut, on: plain.tracks.map(\.id))
+        try session.rippleDelete(Self.cut, on: all, naming: [])
+        try plain.rippleDelete(Self.cut, on: plain.tracks.map(\.id), naming: [])
 
         #expect(lane("host") == lane("host", in: plain))
         #expect(lane("host").map(\.range) == [0..<240_000, 240_000..<864_000])
@@ -74,7 +74,7 @@ struct FollowRippleTests {
             },
             on: "sfx")
 
-        try session.rippleDelete([100_000..<110_000, 200_000..<230_000], on: all)
+        try session.rippleDelete([100_000..<110_000, 200_000..<230_000], on: all, naming: [])
 
         #expect(starts("sfx") == ["c105000": 100_000, "c220000": 190_000, "c250000": 210_000])
     }
@@ -82,13 +82,13 @@ struct FollowRippleTests {
     /// C33: each pair passes and fails; a refusal changes nothing on any track.
     @Test func aFollowOverlapRefusesTheWholeRipple() throws {
         var touching = try Self.fixture(w: 48_000)
-        try touching.rippleDelete(Self.cut, on: touching.tracks.map(\.id))
+        try touching.rippleDelete(Self.cut, on: touching.tracks.map(\.id), naming: [])
         #expect(starts("sfx", in: touching) == ["w": 192_000, "x": 240_000, "y": 264_000], "x touches w")
 
         var over = try Self.fixture(w: 48_001)
         let before = over
         #expect(throws: SessionError.followOverlap("x", "w")) {
-            try over.rippleDelete(Self.cut, on: before.tracks.map(\.id))
+            try over.rippleDelete(Self.cut, on: before.tracks.map(\.id), naming: [])
         }
         #expect(over == before)
 
@@ -101,11 +101,11 @@ struct FollowRippleTests {
                 ], on: "sfx")
             let twoBefore = two
             if let result {
-                try two.rippleDelete(Self.cut, on: two.tracks.map(\.id))
+                try two.rippleDelete(Self.cut, on: two.tracks.map(\.id), naming: [])
                 #expect(starts("sfx", in: two) == ["p": 240_000, "q": result])
             } else {
                 #expect(throws: SessionError.followOverlap("q", "p")) {
-                    try two.rippleDelete(Self.cut, on: twoBefore.tracks.map(\.id))
+                    try two.rippleDelete(Self.cut, on: twoBefore.tracks.map(\.id), naming: [])
                 }
                 #expect(two == twoBefore)
             }
@@ -121,11 +121,11 @@ struct FollowRippleTests {
             let pairBefore = pair
             if refuses {
                 #expect(throws: SessionError.followOverlap("m2", "m1")) {
-                    try pair.rippleDelete(range, on: pairBefore.tracks.map(\.id))
+                    try pair.rippleDelete(range, on: pairBefore.tracks.map(\.id), naming: [])
                 }
                 #expect(pair == pairBefore)
             } else {
-                try pair.rippleDelete(range, on: pair.tracks.map(\.id))
+                try pair.rippleDelete(range, on: pair.tracks.map(\.id), naming: [])
                 #expect(starts("sfx", in: pair) == ["m1": 0, "m2": 300_000])
             }
         }
@@ -139,8 +139,8 @@ struct FollowRippleTests {
         var plain = session
         try plain.setFollowTrack(false, tracks: ["bed", "sfx"])
 
-        try session.rippleInsert(48_000, at: 300_000, on: all)
-        try plain.rippleInsert(48_000, at: 300_000, on: plain.tracks.map(\.id))
+        try session.rippleInsert(48_000, at: 300_000, on: all, naming: [])
+        try plain.rippleInsert(48_000, at: 300_000, on: plain.tracks.map(\.id), naming: [])
 
         #expect(starts("bed") == ["bed": 0, "z": 1_018_000] && lane("bed")[0].length == 960_000)
         #expect(starts("sfx") == ["a": 348_000])
@@ -158,7 +158,7 @@ struct FollowRippleTests {
         try session.setCrossfades(["m1": 960])
         #expect(lane("sfx").map(\.crossfades.end) == [960, .zero])
 
-        try session.rippleInsert(48_000, at: 100_000, on: all)
+        try session.rippleInsert(48_000, at: 100_000, on: all, naming: [])
 
         #expect(starts("sfx") == ["m1": 0, "m2": 348_000])
         #expect(lane("sfx").allSatisfy { $0.crossfades == .zero })
@@ -179,18 +179,18 @@ struct FollowRippleTests {
             let before = trim
             if refuses {
                 #expect(throws: SessionError.followOverlap("u", "v")) {
-                    try trim.rippleTrim("hc", edge: .end, by: -20_000, on: before.tracks.map(\.id))
+                    try trim.rippleTrim("hc", edge: .end, by: -20_000, on: before.tracks.map(\.id), naming: [])
                 }
                 #expect(trim == before)
             } else {
-                try trim.rippleTrim("hc", edge: .end, by: -20_000, on: trim.tracks.map(\.id))
+                try trim.rippleTrim("hc", edge: .end, by: -20_000, on: trim.tracks.map(\.id), naming: [])
                 #expect(starts("sfx", in: trim) == ["v": 100_000, "u": 280_000, "t": 380_000], "v \(v)")
                 #expect(lane("bed", in: trim).count == 1)
             }
         }
         var longer = try Self.fixture()
         try longer.setClips([Clip(id: "hc", file: "h", start: 200_000, offset: 0, length: 100_000)], on: "host")
-        try longer.rippleTrim("hc", edge: .end, by: 20_000, on: longer.tracks.map(\.id))
+        try longer.rippleTrim("hc", edge: .end, by: 20_000, on: longer.tracks.map(\.id), naming: [])
         #expect(starts("sfx", in: longer) == ["w": 192_000, "x": 264_000, "y": 380_000], "a longer clip never refuses")
     }
 
@@ -201,7 +201,7 @@ struct FollowRippleTests {
         let excerpt = try base.excerpt(of: 0..<48_000, on: ["host"])
         let plan = try SilencePlan([SilenceEdit(range: 239_750..<336_250, action: .shorten)], keep: 500)
         let edits: [(String, (inout Session) throws -> Void)] = [
-            ("rippleDelete", { try $0.rippleDelete(Self.cut, on: $0.tracks.map(\.id)) }),
+            ("rippleDelete", { try $0.rippleDelete(Self.cut, on: $0.tracks.map(\.id), naming: []) }),
             ("replace", { try $0.replace(Self.cut, with: excerpt, on: ["host"]) }),
             ("cutWords", { try $0.cutWords($0.occurrences([1])) }),
             ("editSilences", { try $0.editSilences(plan, muting: []) }),
@@ -245,8 +245,8 @@ struct FollowRippleTests {
         let ids = base.tracks.map(\.id)
         let cuts = try SilencePlan([SilenceEdit(range: 239_750..<336_250, action: .shorten)], keep: 500)
         let refused: [(String, (inout Session) throws -> Void)] = [
-            ("delete", { try $0.rippleDelete(Self.cut, on: ids) }),
-            ("insert", { try $0.rippleInsert(48_000, at: 300_000, on: ids) }),
+            ("delete", { try $0.rippleDelete(Self.cut, on: ids, naming: []) }),
+            ("insert", { try $0.rippleInsert(48_000, at: 300_000, on: ids, naming: []) }),
             ("silences", { try $0.editSilences(cuts, muting: []) }),
         ]
         for (name, edit) in refused {
@@ -264,7 +264,7 @@ struct FollowRippleTests {
         try inserted.rippleInsert(48_000, at: 300_000, on: ids, naming: ["host"])
         #expect(lane("host", in: inserted).count == 2)
         var trimmed = base
-        try trimmed.rippleTrim("h", edge: .end, by: -20_000, on: ids)
+        try trimmed.rippleTrim("h", edge: .end, by: -20_000, on: ids, naming: [])
         #expect(lane("host", in: trimmed)[0].length == 940_000)
 
         var marked = base
@@ -278,8 +278,8 @@ struct FollowRippleTests {
         #expect(lane("sfx", in: marked) == lane("sfx", in: base))
 
         var still = base
-        try still.rippleDelete([], on: ids)
-        try still.rippleInsert(.zero, at: 300_000, on: ids)
+        try still.rippleDelete([], on: ids, naming: [])
+        try still.rippleInsert(.zero, at: 300_000, on: ids, naming: [])
         try still.editSilences(try SilencePlan([], keep: nil), muting: [])
         #expect(still == base)
     }
@@ -360,7 +360,7 @@ struct FollowRippleTests {
             }
             let before = session
             do {
-                try session.rippleDelete(ranges, on: ["f", "n"])
+                try session.rippleDelete(ranges, on: ["f", "n"], naming: [])
             } catch {
                 refused += 1
                 #expect(isFollowOverlap(error), "\(error)")

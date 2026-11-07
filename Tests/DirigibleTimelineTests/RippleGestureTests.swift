@@ -7,7 +7,7 @@ import Testing
 /// (480 frames per point): A is x 100 to 200 pt on lane 0, B is x 300 to 400 pt. Clip D (file fb)
 /// is on t2 at 120 000 ..< 144 000, and marker m is at 150 000.
 struct RippleGestureTests {
-    let session: Session
+    var session: Session
     var gesture = TimelineGesture()
 
     init() throws {
@@ -163,5 +163,27 @@ struct RippleGestureTests {
         #expect(gesture.cursor(at: .lanes(x: 101, y: 10), context, option: true) == .rippleTrim(.start))
         #expect(gesture.cursor(at: .lanes(x: 198, y: 10), context) == .resizeLeftRight, "no Option")
         #expect(gesture.cursor(at: .lanes(x: 150, y: 10), context, option: true) == .arrow, "the move zone")
+    }
+
+    /// C35 (decision 0073): with t2 following, an event whose ripple would put D on C keeps the
+    /// preview of the last event that passed, and the mouse-up commits it; with the flag off the
+    /// drag moves on.
+    @Test mutating func aRippleTrimDragKeepsTheLastPreviewBeforeAFollowOverlap() throws {
+        let plain = session
+        try session.setFollowTrack(true, tracks: ["t2"])
+        down(198)
+        drag(178)
+        drag(140)
+        let follow = try #require(committed(up(140)))
+        #expect(follow.clip("A")?.clip.range == 48_000..<86_400)
+        #expect(follow.clip("D")?.clip.start == 110_400 && follow.clip("C")?.clip.range == 48_000..<96_000)
+
+        session = plain
+        gesture = TimelineGesture()
+        down(198)
+        drag(178)
+        drag(140)
+        let moved = try #require(committed(up(140)))
+        #expect(moved.clip("A")?.clip.range == 48_000..<68_160 && moved.clip("D")?.clip.start == 92_160)
     }
 }

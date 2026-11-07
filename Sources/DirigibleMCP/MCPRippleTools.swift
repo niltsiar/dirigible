@@ -41,7 +41,7 @@ let rippleTools = [
         }
         let ids = try a[scope]
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleDelete(ranges, on: EditRules.tracks(ids, of: session))
+            try session.rippleDelete(ranges, on: EditRules.tracks(ids, of: session), naming: ids.map { TrackID($0) })
             return []
         }
     },
@@ -52,7 +52,8 @@ let rippleTools = [
     ) { a throws(ToolError) in
         let (frame, frames, ids) = (Frames(try a[at]), Frames(try a[length]), try a[scope])
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleInsert(frames, at: frame, on: EditRules.tracks(ids, of: session))
+            try session.rippleInsert(
+                frames, at: frame, on: EditRules.tracks(ids, of: session), naming: ids.map { TrackID($0) })
             return []
         }
     },
@@ -64,7 +65,8 @@ let rippleTools = [
     ) { a throws(ToolError) in
         let (id, side, frames, ids) = (ClipID(try a[clip]), try a[edge], Frames(try a[by]), try a[scope])
         return .edit(ripple: true) { session throws(SessionError) in
-            try session.rippleTrim(id, edge: side, by: frames, on: EditRules.tracks(ids, of: session))
+            try session.rippleTrim(
+                id, edge: side, by: frames, on: EditRules.tracks(ids, of: session), naming: ids.map { TrackID($0) })
             return []
         }
     },

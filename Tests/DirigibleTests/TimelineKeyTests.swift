@@ -91,7 +91,9 @@ import Testing
         await studio.perform(.seek(.frame(96_000)))
         app.timeline(.setOut, event: key(.keyDown, "o", code: 31, in: window), in: window)
 
-        #expect(model.timeline.marks == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1", "t2"]))
+        #expect(
+            model.timeline.marks
+                == Marks(inPoint: 48_000, outPoint: 96_000, tracks: ["t1", "t2"], tracksByDefault: true))
         await model.close()
     }
 

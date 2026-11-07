@@ -91,6 +91,8 @@ extension Session {
     /// to its largest end. An occurrence that is not shown now throws `.unknownWord`, and words with
     /// no audio throw `.nothingToCut`; both change nothing. While a transcript did not load, a
     /// hidden word could join a run across other speech, so the cut throws `.transcriptNotLoaded`.
+    /// The tracks of the clips of `occurrences` are named, so a follow track is cut only under a
+    /// named word (decision 0073).
     @discardableResult
     public mutating func cutWords(_ occurrences: [WordOccurrence]) throws(SessionError) -> [Range<Frames>] {
         let unloaded = transcriptsNotLoaded.map(\.id)
@@ -131,7 +133,9 @@ extension Session {
         }
         let cut = Self.merged(ranges)
         guard !cut.isEmpty else { throw .nothingToCut }
-        try rippleDelete(cut, on: tracks.map(\.id))
+        let clips = Set(occurrences.map(\.clip))
+        let wordTracks = tracks.filter { $0.clips.contains { clips.contains($0.id) } }.map(\.id)
+        try rippleDelete(cut, on: tracks.map(\.id), naming: wordTracks)
         return cut
     }
 

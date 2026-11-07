@@ -230,4 +230,24 @@ struct ChangedFramesTests {
         try other.setEnvelope([150_000: Gain(dB: -6)!], clip: "B")
         #expect(changedFrames(from: session, to: other)?.frames == 144_000..<192_000, "the frames of B")
     }
+
+    /// C53 guard (decision 0073): on fixture F a follow delete moves x and y by other deltas than the
+    /// cut tracks, so no shift holds and the lanes draw in full.
+    @Test func aFollowDeleteWithAnotherDeltaGivesNoShift() throws {
+        var session = Session(sampleRate: 48_000)
+        for (track, file) in [("host", "h"), ("bed", "b"), ("sfx", "s")] {
+            try session.addTrack(TrackID(track), name: track, layout: .mono)
+            try session.addFile(AudioFile(id: FileID(file), path: "\(file).wav", layout: .mono, length: 1_000_000))
+        }
+        try session.place(Clip(id: "h", file: "h", start: 0, offset: 0, length: 960_000), on: "host")
+        try session.place(Clip(id: "bed", file: "b", start: 0, offset: 0, length: 960_000), on: "bed")
+        try session.place(Clip(id: "w", file: "s", start: 192_000, offset: 0, length: 24_000), on: "sfx")
+        try session.place(Clip(id: "x", file: "s", start: 264_000, offset: 100_000, length: 12_000), on: "sfx")
+        try session.place(Clip(id: "y", file: "s", start: 360_000, offset: 200_000, length: 48_000), on: "sfx")
+        try session.setFollowTrack(true, tracks: ["bed", "sfx"])
+        var deleted = session
+        try deleted.rippleDelete(240_000..<336_000, on: session.tracks.map(\.id))
+        #expect(deleted.clip("x")?.clip.start == 240_000 && deleted.clip("y")?.clip.start == 264_000)
+        #expect(shiftedFrames(from: session, to: deleted) == nil)
+    }
 }

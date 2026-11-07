@@ -175,7 +175,8 @@ struct RulerGestureTests {
         ]
         for (start, end, low, high, tracks) in rows {
             selection = start
-            let range = GestureEffect.marks(Marks(inPoint: low, outPoint: high, tracks: tracks))
+            let range = GestureEffect.marks(
+                Marks(inPoint: low, outPoint: high, tracks: tracks, tracksByDefault: tracks == all))
             #expect(down(250, 10) == [.seek(120_000)])
             #expect(drag(end, 10) == [range], "\(start) to \(end)")
             #expect(gesture.cursor(at: .ruler(x: end, y: 10), context()) == .iBeam)
@@ -204,14 +205,16 @@ struct RulerGestureTests {
             self.playhead = playhead
             _ = down(250, 10)
             #expect(
-                drag(253, 10) == [.marks(Marks(inPoint: 120_000, outPoint: 121_440, tracks: all))],
+                drag(253, 10) == [
+                    .marks(Marks(inPoint: 120_000, outPoint: 121_440, tracks: all, tracksByDefault: true))
+                ],
                 "the playhead at \(playhead)")
             _ = up(253, 10)
         }
         playhead = 1000
         _ = down(191, 10)
         #expect(
-            drag(194.5, 10) == [.marks(Marks(inPoint: 91_680, outPoint: 96_000, tracks: all))],
+            drag(194.5, 10) == [.marks(Marks(inPoint: 91_680, outPoint: 96_000, tracks: all, tracksByDefault: true))],
             "the end snaps to m1 and the end of A")
         _ = up(194.5, 10)
     }
@@ -240,5 +243,27 @@ struct RulerGestureTests {
         #expect(TimelineGesture.menuTarget(at: 700, context())?.marker == nil)
         #expect(TimelineGesture.menuTarget(at: 700, context())?.frame == 336_000)
         #expect(TimelineGesture.menuTarget(at: -5, context()) == nil)
+    }
+
+    /// C51 (decision 0073): a ruler drag with no selected track holds tracks by default, and so does
+    /// a drag from a selection that holds them; a drag from a header track does not.
+    @Test mutating func aRulerDragWithNoSelectedTrackHoldsTheDefault() {
+        func ranged(_ effects: [GestureEffect]) -> Marks? {
+            effects.compactMap { if case .selection(.range(let marks)) = $0 { marks } else { nil } }.last
+        }
+        let all: Set<TrackID> = ["t1", "t2", "t3"]
+        for (start, byDefault) in [
+            (Selection.none, true), (.range(Marks(tracks: all, tracksByDefault: true)), true),
+            (.range(Marks(tracks: ["t1"])), false),
+        ] {
+            selection = start
+            gesture = TimelineGesture()
+            _ = gesture.handle(.down(.ruler(x: 250, y: 10), shift: false, command: false), context())
+            _ = gesture.handle(.drag(.ruler(x: 350, y: 10)), context())
+            let marks = ranged(gesture.handle(.up(.ruler(x: 350, y: 10)), context()))
+            #expect(marks?.inPoint == 120_000 && marks?.outPoint == 168_000, "\(start)")
+            #expect(marks?.tracksByDefault == byDefault, "\(start)")
+            #expect(marks?.tracks == (byDefault ? all : ["t1"]), "\(start)")
+        }
     }
 }

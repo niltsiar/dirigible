@@ -143,6 +143,18 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         }
     }
 
+    /// The ripple delete of a follow lane (decision 0073): no clip splits, and each start maps by
+    /// Rule M (`Frames.afterRippleDelete(of:)`), as a marker does. The map keeps the order, so one
+    /// pass over the adjacent pairs finds an overlap, and it throws before any write.
+    mutating func follow(deleting ranges: [Range<Frames>]) throws(SessionError) {
+        let starts = storage.map { $0.start.afterRippleDelete(of: ranges) }
+        for right in storage.indices.dropFirst() where starts[right] < starts[right - 1] + storage[right - 1].length {
+            throw .followOverlap(storage[right].id, storage[right - 1].id)
+        }
+        for index in storage.indices { storage[index].start = starts[index] }
+        repair(storage.indices)
+    }
+
     /// Merges clips that are sorted by start and do not overlap the lane or each other. It repairs
     /// only the joins next to each inserted clip: the lane is paired before the edit (0036).
     mutating func insert(sorted clips: [Clip]) {

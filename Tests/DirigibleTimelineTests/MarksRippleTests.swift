@@ -16,4 +16,34 @@ struct MarksRippleTests {
         #expect(all?.selected == ["t2"] && twin?.selected == ["t2"], "the excerpt of a Cut")
         #expect(Marks().rippleScope(selectedOnly: false, in: session) == nil, "no selection")
     }
+
+    /// C51 (decision 0073): I and O, `Marks.all`, and tracks by default name no track; a lane drag
+    /// over the same tracks names each; a Command-click after I and O names the rest; a twin names
+    /// its tracks.
+    @Test func aDefaultSelectionNamesNoTrack() throws {
+        let session = try Fixture.session()
+        let io = Marks().settingIn(48_000, in: session).settingOut(96_000, in: session)
+        #expect(io.tracksByDefault && io.rippleScope(selectedOnly: false, in: session)?.named == [])
+        #expect(Marks.all(in: session).rippleScope(selectedOnly: false, in: session)?.named == [])
+        let lanes = Marks.drag(from: 48_000, to: 96_000, lanes: (0, 2), in: session)
+        #expect(!lanes.tracksByDefault)
+        #expect(lanes.rippleScope(selectedOnly: false, in: session)?.named == ["t1", "t2", "t3"])
+        let toggled = io.toggled("t1")
+        #expect(
+            !toggled.tracksByDefault && toggled.rippleScope(selectedOnly: false, in: session)?.named == ["t2", "t3"])
+        #expect(
+            io.rippleScope(selectedOnly: true, in: session)?.named == ["t1", "t2", "t3"], "a twin names its tracks")
+    }
+
+    /// C54: the excerpt of a Cut holds only the lanes that cut: with t3 following, I and O leave it
+    /// out; with the flag off, or a range drawn on its lane, it is in.
+    @Test func theExcerptHoldsOnlyTheLanesThatCut() throws {
+        var session = try Fixture.session()
+        let io = Marks().settingIn(48_000, in: session).settingOut(96_000, in: session)
+        #expect(io.rippleScope(selectedOnly: false, in: session)?.selected == ["t1", "t2", "t3"], "the flag off")
+        try session.setFollowTrack(true, tracks: ["t3"])
+        #expect(io.rippleScope(selectedOnly: false, in: session)?.selected == ["t1", "t2"])
+        let lane = Marks.drag(from: 48_000, to: 96_000, lanes: (2, 2), in: session)
+        #expect(lane.rippleScope(selectedOnly: false, in: session)?.selected == ["t3"])
+    }
 }

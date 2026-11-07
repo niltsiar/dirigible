@@ -7,8 +7,8 @@ import DirigibleTimeline
 /// by any other writer clears the pane selection and shows as a tint.
 extension TranscriptTextView {
     /// Every selection path comes here (U47). A selection of one character or more snaps to whole
-    /// units in one range and writes the timeline range on all tracks; with no unit in it, it
-    /// clears the range. A caret and a selection that the pane sets itself write nothing.
+    /// units in one range and writes the timeline range on each track that does not follow and on
+    /// the track of each selected unit (decision 0073); with no unit in it, it clears the range. A caret and a selection that the pane sets itself write nothing.
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
         let spans = ranges.map(\.rangeValue)
         let (lower, upper) = (spans.map(\.location).min() ?? 0, spans.map(NSMaxRange).max() ?? 0)
@@ -24,10 +24,9 @@ extension TranscriptTextView {
         }
         let range = NSRange(location: noticeLength + snapped.lowerBound, length: snapped.count)
         super.setSelectedRanges([NSValue(range: range)], affinity: affinity, stillSelecting: stillSelecting)
-        writeRange(
-            .range(
-                Marks(inPoint: frames.lowerBound, outPoint: frames.upperBound, tracks: Set(session.tracks.map(\.id))))
-        )
+        let words = text.units[text.unitIndexes(touching: snapped)].map(\.track)
+        let tracks = session.cuttingTracks(session.tracks.map(\.id), naming: words)
+        writeRange(.range(Marks(inPoint: frames.lowerBound, outPoint: frames.upperBound, tracks: Set(tracks))))
     }
 
     private func writeRange(_ selection: Selection) {
@@ -150,7 +149,7 @@ extension TranscriptTextView {
         if let words { put(words) }
     }
 
-    /// Cut of the window (a ripple of all tracks), and the words of the range as plain text on the
+    /// Cut of the window (a ripple of all tracks that names the tracks of the range), and the words of the range as plain text on the
     /// pasteboard. A refused Cut makes no edit and writes no text.
     override func cut(_ sender: Any?) {
         guard let model, let studio = model.studio else { return }

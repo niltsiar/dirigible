@@ -9,8 +9,9 @@ extension Session {
     /// the range start, and pastes `excerpt` there on `tracks`, in one edit. So each later clip on
     /// every track moves by the excerpt length minus the range length. A marker in the range or at
     /// its start ends at the range start; a marker at or after the range end moves with the later
-    /// clips (Rule M Replace clause, decision 0037). An excerpt of length 0 throws `.emptyExcerpt`.
-    /// Returns the pasted IDs. A throw changes nothing.
+    /// clips (Rule M Replace clause, decision 0037). The paste targets `tracks` are named, so a
+    /// follow track among them is cut; another follow track follows (decision 0073). An excerpt of
+    /// length 0 throws `.emptyExcerpt`. Returns the pasted IDs. A throw changes nothing.
     @discardableResult
     public mutating func replace(_ range: Range<Frames>, with excerpt: Excerpt, on tracks: [TrackID])
         throws(SessionError) -> [ClipID]
@@ -24,9 +25,10 @@ extension Session {
         if !self.tracks.isEmpty {
             let lanes = Array(self.tracks.indices)
             var taken = clipIDs
-            if !range.isEmpty { try copy.rippleDelete([range], lanes: lanes, taken: &taken) }
-            // The delete cuts each clip at the range start, so the insert derives no ID from `taken`.
-            try copy.rippleInsert(excerpt.length, at: range.lowerBound, lanes: lanes, taken: &taken)
+            if !range.isEmpty { try copy.rippleDelete([range], lanes: lanes, naming: tracks, taken: &taken) }
+            // The delete cuts each clip of a cutting lane at the range start, and a follow lane splits
+            // no clip, so the insert derives no ID from `taken`.
+            try copy.rippleInsert(excerpt.length, at: range.lowerBound, lanes: lanes, naming: tracks, taken: &taken)
         }
         for marker in inside {
             var kept = marker

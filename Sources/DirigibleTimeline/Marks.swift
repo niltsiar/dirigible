@@ -52,11 +52,18 @@ public struct Marks: Hashable, Sendable {
     public var inPoint: Frames?
     public var outPoint: Frames?
     public var tracks: Set<TrackID> = []
+    /// True when `tracks` are all tracks by default, not a choice of the user: a ruler drag, I and O,
+    /// or Select All with no selected track, or a silence row. A ripple then names no track, so each
+    /// follow track follows (decision 0073).
+    public var tracksByDefault = false
 
-    public init(inPoint: Frames? = nil, outPoint: Frames? = nil, tracks: Set<TrackID> = []) {
+    public init(
+        inPoint: Frames? = nil, outPoint: Frames? = nil, tracks: Set<TrackID> = [], tracksByDefault: Bool = false
+    ) {
         self.inPoint = inPoint
         self.outPoint = outPoint
         self.tracks = tracks
+        self.tracksByDefault = tracksByDefault
     }
 
     /// The one read of the selection: nil unless in < out and at least one selected track exists
@@ -82,22 +89,31 @@ public struct Marks: Hashable, Sendable {
         Marks(inPoint: min(from, to), outPoint: max(from, to), tracks: tracks)
     }
 
-    /// Shift-click: the range from the playhead to the click, and the lane joins the tracks.
+    /// Shift-click: the range from the playhead to the click, and the lane joins the tracks. A lane
+    /// that is new to the tracks is a choice of the user, so the tracks are no longer by default.
     public func extended(to frame: Frames, lane: TrackID, playhead: Frames) -> Marks {
-        Marks(inPoint: min(frame, playhead), outPoint: max(frame, playhead), tracks: tracks.union([lane]))
+        Marks(
+            inPoint: min(frame, playhead), outPoint: max(frame, playhead), tracks: tracks.union([lane]),
+            tracksByDefault: tracksByDefault && tracks.contains(lane))
     }
 
     /// A Shift-drag on the ruler, or a Shift-Command drag on the lanes (mouse-edits criterion 10): the
     /// hull of the set points of both Marks, on the union of the tracks.
     public func extended(by other: Marks) -> Marks {
         let points = [inPoint, outPoint, other.inPoint, other.outPoint].compactMap { $0 }
-        return Marks(inPoint: points.min(), outPoint: points.max(), tracks: tracks.union(other.tracks))
+        let byDefault =
+            (tracksByDefault || tracks.isEmpty) && (other.tracksByDefault || other.tracks.isEmpty)
+            && !(tracks.isEmpty && other.tracks.isEmpty)
+        return Marks(
+            inPoint: points.min(), outPoint: points.max(), tracks: tracks.union(other.tracks),
+            tracksByDefault: byDefault)
     }
 
     /// Command-click: the lane goes into or out of the tracks. With no tracks left, no Marks.
     public func toggled(_ track: TrackID) -> Marks {
         var marks = self
         if marks.tracks.remove(track) == nil { marks.tracks.insert(track) }
+        marks.tracksByDefault = false
         return marks.tracks.isEmpty ? Marks() : marks
     }
 
@@ -119,18 +135,21 @@ public struct Marks: Hashable, Sendable {
 
     private func withTracks(of session: Session) -> Marks {
         var marks = self
-        if marks.tracks.isEmpty { marks.tracks = Set(session.tracks.map(\.id)) }
+        if marks.tracks.isEmpty { (marks.tracks, marks.tracksByDefault) = (Set(session.tracks.map(\.id)), true) }
         return marks
     }
 
     /// The tracks of a paste (decision 0018): the first selected track in session order and the
-    /// tracks under it, one per lane of `excerpt`; with no selected track, the source tracks. When
-    /// the tracks under it are too few, the list is short, and Core refuses the paste with
-    /// `trackCount`, so the alert gives the count (code gate 1). Nil when a source track is gone.
+    /// tracks under it, one per lane of `excerpt`; with no selected track, the source tracks. Tracks
+    /// by default also give the source tracks when each is in the session (decision 0073), so a Cut
+    /// and an Insert at one place restore the lanes. When the tracks under the first one are too
+    /// few, the list is short, and Core refuses the paste with `trackCount`, so the alert gives the
+    /// count (code gate 1). Nil when a source track is gone and no track is selected.
     public func pasteTracks(for excerpt: Excerpt, in session: Session) -> [TrackID]? {
         let ids = session.tracks.map(\.id)
+        let sources = excerpt.lanes.map(\.source)
+        if tracksByDefault, sources.allSatisfy(ids.contains) { return sources }
         guard let first = ids.firstIndex(where: tracks.contains) else {
-            let sources = excerpt.lanes.map(\.source)
             return sources.allSatisfy(ids.contains) ? sources : nil
         }
         return Array(ids[first...].prefix(excerpt.lanes.count))
@@ -158,7 +177,8 @@ public struct Marks: Hashable, Sendable {
         let offset = max(step, .zero - first)
         guard offset != .zero else { return nil }
         let marks = Marks(
-            inPoint: max(.zero, range.lowerBound + offset), outPoint: range.upperBound + offset, tracks: tracks)
+            inPoint: max(.zero, range.lowerBound + offset), outPoint: range.upperBound + offset, tracks: tracks,
+            tracksByDefault: tracksByDefault)
         return (clips.map(\.id), offset, marks)
     }
 
@@ -306,6 +326,8 @@ public struct Marks: Hashable, Sendable {
     /// Select All: 0 to the end on every track. An empty session gives no Marks.
     public static func all(in session: Session) -> Marks {
         session.end == .zero
-            ? Marks() : Marks(inPoint: .zero, outPoint: session.end, tracks: Set(session.tracks.map(\.id)))
+            ? Marks()
+            : Marks(
+                inPoint: .zero, outPoint: session.end, tracks: Set(session.tracks.map(\.id)), tracksByDefault: true)
     }
 }

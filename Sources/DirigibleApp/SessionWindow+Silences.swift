@@ -97,9 +97,9 @@ extension SessionWindow {
         let session = studio.session
         timeline.selection = .range(
             Marks(
-                inPoint: row.silence.lowerBound, outPoint: row.silence.upperBound, tracks: Set(session.tracks.map(\.id))
-            )
-        )
+                inPoint: row.silence.lowerBound, outPoint: row.silence.upperBound,
+                tracks: Set(session.tracks.map(\.id)),
+                tracksByDefault: true))
         silences.rowRange = timeline.selection.marks?.selection(in: session)?.range
         let before = Frames(max(0, row.silence.lowerBound.count - Self.silencePreRoll * session.sampleRate))
         transport(.seek(.frame(before)))

@@ -65,7 +65,6 @@
       "Bash(git rebase --continue)",
       "Bash(git rebase --abort)",
       "Bash(git stash push:*)",
-      "Bash(git stash pop)",
       "Bash(git stash list)",
       "Bash(git config --local core.hooksPath .githooks)",
       "WebSearch",

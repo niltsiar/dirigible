@@ -142,11 +142,21 @@ cut_bodies() {
 SINK_CUT="$(cut_bodies sink)"
 DATA_CUT="$(cut_bodies all)"
 
-# Join backslash-newline continuations, as the shell does. Make each run of tabs and spaces
-# one space, so the patterns match `git<TAB>push` and `git  push` too.
-joined="${SINK_CUT//\\$'\n'/ }"
-# Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
-join_text() { tr -s '\t ' '  ' <<< "${1//\\$'\n'/ }" | sed -E 's/git( +-[Cc] +[^ ]+)+/git/g'; }
+# join_lines <text>: join a new line after an odd run of backslashes, as the shell does; after an
+# even run the backslashes are literal and the new line ends the command. Each rule reads this join.
+join_lines() {
+  [[ "$1" == *\\$'\n'* ]] || { printf '%s' "$1"; return; }
+  printf '%s' "$1" | awk '{ s[NR] = $0 } END {
+    for (i = 1; i <= NR; i++) {
+      n = match(s[i], /\\+$/) ? RLENGTH : 0
+      if (i < NR && n % 2) printf "%s ", substr(s[i], 1, length(s[i]) - 1)
+      else printf "%s%s", s[i], (i < NR ? "\n" : "")
+    } }'
+}
+joined="$(join_lines "$SINK_CUT")"
+# Make each run of tabs and spaces one space, so the patterns match `git<TAB>push` and `git  push`
+# too. Drop git global options (-C <path>, -c <key=value>) so `git -C repo reset` reads as `git reset`.
+join_text() { tr -s '\t ' '  ' <<< "$(join_lines "$1")" | sed -E 's/git( +-[Cc] +[^ ]+)+/git/g'; }
 # Put each command of a chain (&&, ||, ;, |) on its own line. grep matches one line at a time,
 # so a pattern cannot match a word of the next command, for example `--base main` of gh.
 split_chain() { awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }' <<< "$1"; }
@@ -181,12 +191,25 @@ DANGEROUS_PATTERNS=(
 # quote, and no backslash before a quote; each separator of any other command splits. A line whose
 # command word (after NAME=value, time, env, command, and the shell keywords) is rg or grep is a
 # search that names the key as a pattern, so it passes, unless it has --pre (rg runs that command).
+# A NAME=value word before rg or grep holds no quote, so `X='a rg ' git config ...` is no search.
+# A pipe into sh, bash, zsh, dash, ksh, or xargs (with a path or env before it) runs the output of
+# the search, so no line of that command is a search. The rule reads the text of join_lines. A
+# command also blocks when its text with each ' and " removed names the key more times than its
+# text does (`git config core.hooks""Path`).
 # A direct write of .git/config is not checked.
 hooks_key='[Cc][Oo][Rr][Ee]\.[Hh][Oo][Oo][Kk][Ss][Pp][Aa][Tt][Hh]'
+hooks_unquoted="${joined//[\'\"]/}"
+if [[ "$hooks_unquoted" != "$joined" && "$hooks_unquoted" =~ $hooks_key ]] &&
+  (($(grep -oE "$hooks_key" <<< "$hooks_unquoted" | wc -l) > $(grep -oE "$hooks_key" <<< "$joined" | wc -l))); then
+  block "changes core.hooksPath (the key is split by quotes)"
+fi
 if [[ "$joined" =~ $hooks_key ]]; then
   hooks_read='^ *git( +-C +[^ ]+)* +config( +get)?( +--(local|worktree|get|get-all|show-origin))* +core\.hookspath( +2>/dev/null)? *$'
   hooks_set='^ *git( +-C +[^ ]+)* +config( +--local)? +core\.hookspath +\.githooks *$'
-  hooks_search='^ *(((\{|!|if|then|do|else|while|time|env|command|[A-Za-z_][A-Za-z0-9_]*=[^ ]*) +)*)(rg|grep)( |$)'
+  hooks_search='^ *(((\{|!|if|then|do|else|while|time|env|command|[A-Za-z_][A-Za-z0-9_]*=[^ '\''"]*) +)*)(rg|grep)( |$)'
+  hooks_pipe='(^|[^|])\|&?[[:space:]]*(env[[:space:]]+)?([^[:space:]]*/)?(sh|bash|zsh|dash|ksh|xargs)([[:space:]]|$)'
+  hooks_searches=1
+  [[ "$joined" =~ $hooks_pipe ]] && hooks_searches=0
   hooks_pre='(^| )--pre([ =]|$)'
   hooks_split='{ gsub(/&&|\|\||[;&|()`]/, "\n"); print }'
   if [[ "$joined" != *$'\n'* && "$joined" != *'$('* && "$joined" != *'${'* && "$joined" != *"\$'"* &&
@@ -207,7 +230,7 @@ if [[ "$joined" =~ $hooks_key ]]; then
     }'
   fi
   while IFS= read -r line; do
-    [[ "$line" =~ $hooks_search && ! "$line" =~ $hooks_pre ]] && continue
+    ((hooks_searches)) && [[ "$line" =~ $hooks_search && ! "$line" =~ $hooks_pre ]] && continue
     [[ "$line" == *core.hookspath* && ! "$line" =~ $hooks_read && ! "$line" =~ $hooks_set ]] && block "changes core.hooksPath"
   done < <(sed -E "s/$hooks_key/core.hookspath/g" <<< "$joined" | tr -s '\t ' '  ' | awk "$hooks_split")
 fi
@@ -215,7 +238,7 @@ fi
 # The joined text with one space for each run of tabs and spaces, the git global options removed,
 # and the new lines kept, so `git -C <path>  commit` reads as `git commit` in the two chain rules.
 chain_text() {
-  tr -s '\t ' '  ' <<< "${1//\\$'\n'/ }" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g"
+  tr -s '\t ' '  ' <<< "$(join_lines "$1")" | sed -E "s/git( +-[Cc] +('[^']*'|\"[^\"]*\"|[^ ]+))+/git/g"
 }
 chained="$(chain_text "$SINK_CUT")"
 if [[ "$DATA_CUT" == "$SINK_CUT" ]]; then chained_data="$chained"; else chained_data="$(chain_text "$DATA_CUT")"; fi

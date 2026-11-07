@@ -442,6 +442,17 @@ expect block 'git config --show-origin --unset core.hooksPath'
 expect block 'git config --get core.hooksPath 2>/dev/null; git config --add core.hooksPath x'
 expect block 'gh pr merge 3 --rebase --delete-branch'
 expect allow 'git stash push -m wip'
+# AGT-154: all worktrees share one stash list, so pop and apply block in each context, data too.
+for stash in 'git stash pop' 'git stash pop -q' 'git stash apply' 'git stash apply stash@{1}' 'git -C /x/wt stash pop'; do
+  expect_each_context block "$stash"
+done
+expect block "echo 'git stash pop'"
+expect allow 'git stash list'
+expect allow 'git stash show -p stash@{0}'
+expect allow 'git stash'
+expect allow 'git stash push -m pop'
+expect_message 'applies a stash entry, and all worktrees share one stash list' 'git stash pop'
+expect_message 'with git diff <path> > <run>/x.patch, restore with git checkout <path>, and apply it with git apply' 'git stash apply'
 expect allow 'scripts/with-lock.sh make check'
 expect allow 'git -C /repo status'
 expect allow 'git push -u origin feat/main-window'

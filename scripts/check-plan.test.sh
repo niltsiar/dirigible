@@ -222,14 +222,16 @@ pass 'a review file older than the field rule'
 # keeps a bare none.
 none_msg='has a Siblings field with no sibling and no search; write "none, grepped <what you searched>"'
 for sib in '   Siblings: none named' '   Invariant: a. Siblings: none.' '   Siblings: n/a' \
-  '   Siblings: no sibling' '   Siblings: nothing' '   - **Siblings:** None'; do
+  '   Siblings: no sibling' '   Siblings: nothing' '   - **Siblings:** None' \
+  '   Invariant: each rg search line passes the hook. Siblings: none.' '   Siblings: none. Fix: rg the call sites.'; do
   good
   printf '## Act on\n\n1. (warning, x) A fix.\n   Invariant: x\n%s\n' "$sib" > "$review"
   refuse "a Siblings field of: ${sib#   }" "review-plan-1.md: Act on item 1 $none_msg"
 done
 for sib in '   Siblings: none, grepped Sources/ for x' '   Siblings: none (grepped Tests/)' \
   '   - **Siblings:** none, grepped x' '   Siblings: none other; rg -n Process Sources prints nothing at the base.' \
-  '   Siblings: none, grep -n x Tests/ found nothing' '   Siblings: nonexistent rows: a, b'; do
+  '   Siblings: none, grep -n x Tests/ found nothing' '   Siblings: nonexistent rows: a, b' \
+  '   Siblings: none, checked with rg.' '   Siblings: none (searched with `grep`)'; do
   good
   printf '## Act on\n\n1. (warning, x) A fix.\n   Invariant: x\n%s\n' "$sib" > "$review"
   pass "a Siblings field of: ${sib#   }"

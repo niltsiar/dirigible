@@ -658,11 +658,11 @@ for review in "$run"/review-*.md; do
         while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" '
             /^## / {
                 if ($0 ~ /^## ([A-Z]+[0-9]+[a-z]?|[0-9]+\.)([: (]|$)/)
-                    print file ": the heading \"" $0 "\" is an item; write each finding as a numbered item under ## Act on (lead-judgment.md)"
+                    print file ": the heading \"" $0 "\" is an item; write each finding as a numbered item under ## Act on (lead-judgment.md) (a review file from before the rule: do not edit it)"
                 if ($0 ~ /^## Act on/) act = 1
                 if ($0 ~ /^## Fix check/) fix = 1
             }
-            END { if (fix && !act) print file ": has ## Fix check and no ## Act on heading; write ## Act on with a numbered item for each finding, or None. (lead-judgment.md)" }' "$review")
+            END { if (fix && !act) print file ": has ## Fix check and no ## Act on heading; write ## Act on with a numbered item for each finding, or None. (lead-judgment.md) (a review file from before the rule: do not edit it)" }' "$review")
     fi
     while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) -v nonerule=$((mtime >= none_cutoff)) '
         # missing <what>: print each field that text does not have, and a Siblings field that says
@@ -704,7 +704,7 @@ for review in "$run"/review-*.md; do
             item = note = ""
         }
         function close_section() {
-            if (inside == "act" && other && !numbered) print file ": ## Act on has no numbered item"
+            if (inside == "act" && other && !numbered) print file ": ## Act on has no numbered item (a review file from before the rule: do not edit it)"
             inside = numbered = other = 0
         }
         BEGIN { field[1] = "Invariant"; field[2] = "Siblings" }

@@ -41,7 +41,7 @@ Fill `analysis.md` with the Edit tool (`new-run.sh` made its skeleton):
 Fill `plan.md` with the Edit tool (`new-run.sh` made its skeleton):
 
 - Vertical slices, each ending in a passing test and a commit. The riskiest unknown goes first. Types that reference each other share a slice.
-- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line that gives its paths on stdin: `scripts/check-changed.sh --paths <<<$'<path>\n<path>'`. Each slice names the criterion IDs that it covers, and the test of its negative control. A planned red step of a test run expects any nonzero exit and its FAIL line, not one exit value: make exits 2 when a recipe fails.
+- For each slice (a `###` heading): the first test, the modules, the commit message, and a `- Check:` line that gives its paths on stdin: `scripts/check-changed.sh --paths <<<$'<path>\n<path>'`. Each slice names the criterion IDs that it covers, and the test of its negative control. A planned red step of a test run expects any nonzero exit, not one exit value: make exits 2 when a recipe fails; a red step of a `.test.sh` file also expects the FAIL line of its new case.
 - An `Agents:` line: the agent groups (small adjacent slices of one module share an agent), which groups run at the same time (no shared file or build output), and why the others wait.
 - When a criterion sets a time budget or fixes a missed budget, adds a way to move or resize something, or a rule classifies loop runs, read `references/performance-criteria.md`.
 - A bug goal proves its fix with its red repro log (tdd step 7). A refactor or a file split pins the behavior with a test before code moves, and reverts a move that deletes no branch, copy, or layer. A split by responsibility that keeps a file under the size limit is a gain.
@@ -68,7 +68,7 @@ A workflow upkeep run uses the doc lenses of interrogate Step 3 in place of one 
 Run `scripts/check-plan.sh <run folder>`: it must exit 0. Run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Put each "Act on" change in `## Plan gate changes` with `Criteria:`, and log it. Grep each fact that a fix changes, as in Phase 2.
-- After the last round and the fix check, the gate is closed: record open risks in `run.md`, and log a phase 3 row whose decision starts with `plan gate closed`; `log-decision.sh` runs the check of the first phase 4 row on it.
+- After the last round and the fix check, the gate is closed: record open risks in `run.md`, and log a phase 3 row whose decision starts with `plan gate closed`; `log-decision.sh` runs `scripts/check-plan.sh` on it as on the first phase 4 row, and refuses the row until a `criterion change` row names each criterion that a plan gate change moves.
 
 ## Phase 4: Implement
 

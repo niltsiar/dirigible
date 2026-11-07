@@ -12,10 +12,10 @@ struct FollowGlyph: View {
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
             .frame(width: Self.size, height: Self.size)
-            .help(Text(L10n.trackFollowHelp.key))
             .accessibilityElement()
             .accessibilityLabel(Text(L10n.trackFollowLabel.key))
             .accessibilityValue(Text(L10n.trackFollowValue.key))
+            .help(Text(L10n.trackFollowHelp.key))
     }
 }
 

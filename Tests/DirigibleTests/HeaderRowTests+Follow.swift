@@ -18,8 +18,11 @@ extension HeaderRowTests {
         let (window, host) = rows(model, studio, laneHeight: lane, width: width)
         defer { window.close() }
         window.orderFront(nil)
+        await until(limit: .seconds(10), "each row shows its name field") {
+            host.layoutSubtreeIfNeeded()
+            return controls(host, in: host).filter { $0.kind == "name" }.count == studio.session.tracks.count
+        }
         drawNow(window)
-        try await Task.sleep(for: .milliseconds(200))
         let capture = try await TimelineColorTests.capture(window)
         return try studio.session.tracks.indices.map { row in
             let rect = NSRect(x: 8, y: Double(row) * lane + 2, width: width - 8, height: lane - 4)

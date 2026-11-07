@@ -80,6 +80,20 @@ struct RoleItems: View {
     }
 }
 
+/// The content of the header context menu. SwiftUI builds it when the menu opens (ui-panel 8).
+struct HeaderMenu: View {
+    let model: SessionWindow
+    let track: TrackID
+
+    var body: some View {
+        Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track) }
+            .onAppear { model.showHeaderMenu(track) }
+        Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track) }
+        Divider()
+        Button(L10n.menuToolsTranscribe.key) { model.transcribeTrack(track) }.disabled(!model.canTranscribe)
+    }
+}
+
 extension SessionWindow {
     /// One edit, so one undo entry and an autosave.
     func setRole(_ role: Track.Role?, tracks: [TrackID]) {

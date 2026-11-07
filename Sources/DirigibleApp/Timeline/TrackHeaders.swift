@@ -170,14 +170,7 @@ private struct TrackRow: View {
         // The controls of the row take their own clicks.
         .onTapGesture(perform: click)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .contextMenu {
-            // The menu content appears when the menu opens (ui-panel 8).
-            Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track.id) }
-                .onAppear { model.showHeaderMenu(track.id) }
-            Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track.id) }
-            Divider()
-            Button(L10n.menuToolsTranscribe.key) { model.transcribeTrack(track.id) }.disabled(!model.canTranscribe)
-        }
+        .contextMenu { HeaderMenu(model: model, track: track.id) }
     }
 
     /// The name is the main text of the row: 13 pt, and it takes the free width. It reads as a

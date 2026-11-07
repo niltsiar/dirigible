@@ -82,7 +82,9 @@ import os
         /// A ripple delete of `range` on `t1` through `Studio.edit`.
         static func cut(_ studio: Studio, _ range: Range<Frames>) throws {
             let delete = { (session: inout Session) throws(StudioError) in
-                do throws(SessionError) { try session.rippleDelete(range, on: ["t1"]) } catch { throw .session(error) }
+                do throws(SessionError) { try session.rippleDelete(range, on: ["t1"], naming: []) } catch {
+                    throw .session(error)
+                }
             }
             try studio.edit(agent: nil, refused: { $0 }, delete)
         }

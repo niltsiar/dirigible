@@ -65,7 +65,7 @@ struct RippleGestureTests {
     /// file, not at the neighbor. Control: an Option press that stops at the neighbor.
     @Test mutating func anOptionPressRipplesEveryTrack() throws {
         var expected = session
-        try expected.rippleTrim("A", edge: .end, by: 96_000, on: ["t1", "t2", "t3"])
+        try expected.rippleTrim("A", edge: .end, by: 96_000, on: ["t1", "t2", "t3"], naming: [])
         down(198)
         drag(498)
         #expect(drawn == expected, "the preview stops at the file end of A, not at B")

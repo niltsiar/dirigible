@@ -97,11 +97,17 @@ struct EditBenchmark {
                 Marker(id: MarkerID("m\(n)"), name: "M", position: Frames(n * 3_456_000), kind: .marker))
         }
         let ripples: [(String, (inout Session) throws -> Void)] = [
-            ("rippleDelete near the start on 6 tracks", { try $0.rippleDelete(100_000..<200_000, on: tracks) }),
-            ("rippleInsert near the start on 6 tracks", { try $0.rippleInsert(48_000, at: 100_000, on: tracks) }),
+            (
+                "rippleDelete near the start on 6 tracks",
+                { try $0.rippleDelete(100_000..<200_000, on: tracks, naming: []) }
+            ),
+            (
+                "rippleInsert near the start on 6 tracks",
+                { try $0.rippleInsert(48_000, at: 100_000, on: tracks, naming: []) }
+            ),
             (
                 "rippleTrim of the first clip on 6 tracks",
-                { try $0.rippleTrim("c0", edge: .end, by: -4_800, on: tracks) }
+                { try $0.rippleTrim("c0", edge: .end, by: -4_800, on: tracks, naming: []) }
             ),
             // Replace-roomtone-split: a 3.5 s range near the start replaced by the 1,000-clip
             // excerpt of each track; each later clip and marker moves.

@@ -77,7 +77,7 @@ struct RenderOriginTests {
 
         try session.trim("A", to: 10_000..<90_000)
         try session.move("A", to: "t", start: 200_000)
-        try session.rippleDelete(0..<50_000, on: ["t"])
+        try session.rippleDelete(0..<50_000, on: ["t"], naming: [])
 
         #expect(session.files == pool, "the edits change no pool record")
         let edited = try #require(session.clip("A")?.clip)

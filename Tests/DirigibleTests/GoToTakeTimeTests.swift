@@ -29,7 +29,7 @@ import Testing
     @Test func aTakeTimeMovesThePlayheadToItsEditedPlace() async throws {
         let (model, studio) = try await sync.open(try sync.oneTake())
         try studio.edit(ripple: true, agent: nil) { s throws(SessionError) in
-            try s.rippleInsert(Frames(5 * Self.second), at: .zero, on: ["t1", "t2"])
+            try s.rippleInsert(Frames(5 * Self.second), at: .zero, on: ["t1", "t2"], naming: [])
         }
         #expect(model.canGoToTakeTime)
 

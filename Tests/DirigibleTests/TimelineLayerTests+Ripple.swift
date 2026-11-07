@@ -27,7 +27,7 @@ extension TimelineLayerTests {
             let next = session.tracks[0].clips[1].id
             try session.setFades([next: Fades(fadeIn: 4_800, fadeOut: 0)!])
             // A ripple delete at the second join of t2 makes it a butt join, which takes a crossfade.
-            try session.rippleDelete(129_536..<130_560, on: ["t2"])
+            try session.rippleDelete(129_536..<130_560, on: ["t2"], naming: [])
             try session.setCrossfades([session.tracks[1].clips[1].id: 2_048])
             try session.setMarker(Marker(id: "inside", name: "Inside", position: 60_000, kind: .marker))
             try session.setMarker(Marker(id: "after", name: "After", position: 200_000, kind: .chapter))
@@ -117,7 +117,7 @@ extension TimelineLayerTests {
         drawNow(window)
         let before = view.lanes.surfaces.shifted
         try studio.edit(ripple: false) { session throws(SessionError) in
-            try session.rippleDelete(10_240..<20_480, on: session.tracks.map(\.id))
+            try session.rippleDelete(10_240..<20_480, on: session.tracks.map(\.id), naming: [])
             try session.removeMarker("after")
         }
         view.update(inputs(model, studio))
@@ -129,7 +129,7 @@ extension TimelineLayerTests {
         // per point within one frame (10 482 frames) takes no rounded shift: it draws in full.
         let edited = view.lanes.surfaces.shifted
         try studio.edit(ripple: false) { session throws(SessionError) in
-            try session.rippleDelete(5_000..<15_482, on: session.tracks.map(\.id))
+            try session.rippleDelete(5_000..<15_482, on: session.tracks.map(\.id), naming: [])
         }
         view.update(inputs(model, studio))
         drawNow(window)

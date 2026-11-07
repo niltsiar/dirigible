@@ -125,7 +125,7 @@ extension UnplacedBannerTests {
         try #require(studio.unplacedSegments == [Self.second])
         let base = studio.session
         var rippled = base
-        try rippled.rippleDelete(0..<4_800, on: base.tracks.map(\.id))
+        try rippled.rippleDelete(0..<4_800, on: base.tracks.map(\.id), naming: [])
         var renamed = base
         try renamed.renameTrack("t2", to: "Guest")
         var beeps = 0

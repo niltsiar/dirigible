@@ -235,7 +235,9 @@ extension TimelineGesture {
         // The limits keep the clip in its file, so only a later clip past `Frames.limit` throws. A
         // throw keeps the last preview (decision 0020).
         let tracks = press.base.tracks.map(\.id)
-        guard (try? preview.rippleTrim(trim.clip.id, edge: trim.edge, by: moved, on: tracks)) != nil else { return [] }
+        guard (try? preview.rippleTrim(trim.clip.id, edge: trim.edge, by: moved, on: tracks, naming: [])) != nil else {
+            return []
+        }
         var trim = trim
         (trim.range, trim.preview) = (range, preview)
         state = .trimming(press, trim)

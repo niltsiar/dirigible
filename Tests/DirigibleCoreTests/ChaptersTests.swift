@@ -117,7 +117,7 @@ struct ChaptersTests {
         try session.place(Clip(id: "speech", file: "f", start: 0, offset: 0, length: 480_000), on: "a")
         try session.place(Clip(id: "music", file: "g", start: 0, offset: 0, length: 480_000), on: "s")
         try session.setMarker(Marker(id: "c", name: "c", position: 480_000, kind: .chapter))
-        try session.rippleDelete(96_000..<192_000, on: ["a"])
+        try session.rippleDelete(96_000..<192_000, on: ["a"], naming: [])
         #expect(session.markers["c"]?.position == 384_000)
         #expect(try Self.startTimes(session.chaptersJSON(in: 0..<session.end, imageStem: "")) == [8])
     }

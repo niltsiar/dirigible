@@ -13,7 +13,7 @@ extension Session {
     /// marker moves left by the removed frames before it, so a marker in a range goes to the range
     /// start. An empty range is skipped. No range or an empty track list changes nothing; else a
     /// scope where no track cuts throws `.noRippleTrack`.
-    public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID], naming: [TrackID] = [])
+    public mutating func rippleDelete(_ ranges: [Range<Frames>], on tracks: [TrackID], naming: [TrackID])
         throws(SessionError)
     {
         guard ranges.allSatisfy({ $0.lowerBound.isInRange && $0.upperBound.isInRange }) else {
@@ -45,7 +45,7 @@ extension Session {
 
     /// On each track of `tracks`, removes the frames in `range`. It calls the array form with one
     /// range.
-    public mutating func rippleDelete(_ range: Range<Frames>, on tracks: [TrackID], naming: [TrackID] = [])
+    public mutating func rippleDelete(_ range: Range<Frames>, on tracks: [TrackID], naming: [TrackID])
         throws(SessionError)
     {
         try rippleDelete([range], on: tracks, naming: naming)
@@ -64,7 +64,7 @@ extension Session {
     /// or after `frame` moves right by `length`. A clip end or a marker past `Frames.limit` throws
     /// `.frameOutOfRange`. A length of 0 or an empty track list changes nothing; else a scope where
     /// no track cuts throws `.noRippleTrack`.
-    public mutating func rippleInsert(_ length: Frames, at frame: Frames, on tracks: [TrackID], naming: [TrackID] = [])
+    public mutating func rippleInsert(_ length: Frames, at frame: Frames, on tracks: [TrackID], naming: [TrackID])
         throws(SessionError)
     {
         guard length.isInRange, frame.isInRange else { throw .frameOutOfRange }
@@ -86,7 +86,7 @@ extension Session {
     /// clips (0036). Media outside the file throws `.clipOutsideFile`. The other tracks take the
     /// follow rule of `rippleDelete` and `rippleInsert` with `naming`.
     public mutating func rippleTrim(
-        _ id: ClipID, edge: Fades.Edge, by delta: Frames, on tracks: [TrackID], naming: [TrackID] = []
+        _ id: ClipID, edge: Fades.Edge, by delta: Frames, on tracks: [TrackID], naming: [TrackID]
     ) throws(SessionError) {
         guard delta >= .zero - .limit, delta <= .limit else { throw .frameOutOfRange }
         let (own, index) = try position(of: id)

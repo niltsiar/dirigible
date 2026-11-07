@@ -17,7 +17,7 @@ struct LiveTranscriptTakeImportTests {
         let (server, folder) = try liveServer(studio)
         defer { server.stop() }
         try studio.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleInsert(1000, at: 0, on: ["t1", "t2"])
+            try session.rippleInsert(1000, at: 0, on: ["t1", "t2"], naming: [])
         }
 
         let imported = await send(

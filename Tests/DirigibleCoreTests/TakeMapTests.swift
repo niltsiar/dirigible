@@ -108,7 +108,7 @@ struct TakeMapTests {
                     offset: Frames(max(0, -aligned)),
                     length: Frames(2_880_000 - max(0, -aligned))), on: TrackID("t\(arm)"))
         }
-        try fixture.session.rippleDelete(0..<240_000, on: fixture.tracks)
+        try fixture.session.rippleDelete(0..<240_000, on: fixture.tracks, naming: [])
         let end = fixture.session.tracks.compactMap { $0.clips.last?.end.count }.max() ?? 0
         for (arm, origin) in [(1, 100), (2, 0)] {
             let file = try fixture.addTakeFile(take: 2, arm: arm, origin: origin, length: 1_440_000, playhead: end)
@@ -174,9 +174,12 @@ struct TakeMapTests {
         let frame = Frames(Int.random(in: 0...end, using: &random))
         let clip = session.tracks.flatMap(\.clips).randomElement(using: &random)
         switch Int.random(in: 0..<8, using: &random) {
-        case 0: try? session.rippleInsert(Frames(Int.random(in: 1...96_000, using: &random)), at: frame, on: chosen)
+        case 0:
+            try? session.rippleInsert(
+                Frames(Int.random(in: 1...96_000, using: &random)), at: frame, on: chosen, naming: [])
         case 1:
-            try? session.rippleDelete(frame..<frame + Frames(Int.random(in: 1...24_000, using: &random)), on: chosen)
+            try? session.rippleDelete(
+                frame..<frame + Frames(Int.random(in: 1...24_000, using: &random)), on: chosen, naming: [])
         case 2: _ = try? session.splitClips(at: [frame], on: chosen)
         case 3:
             guard let clip, clip.length.count > 8 else { return }

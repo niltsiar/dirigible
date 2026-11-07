@@ -139,7 +139,7 @@ extension Session {
             }
         }
         try copy.changeGains(by: floor, in: mutes, on: tracks, ramp: ramp)
-        try copy.rippleDelete(cuts, on: copy.tracks.map(\.id))
+        try copy.rippleDelete(cuts, on: copy.tracks.map(\.id), naming: [])
         self = copy
         let removed = cuts.reduce(Frames.zero) { $0 + ($1.upperBound - $1.lowerBound) }
         return SilenceResult(cuts: cuts, markers: markers, removed: removed, skipped: skipped)

@@ -74,7 +74,7 @@ import Testing
         let (model, studio) = try await timelineModel(try await package(), app: app)
         let before = studio.session
         model.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleDelete([Self.cut], on: session.tracks.map(\.id))
+            try session.rippleDelete([Self.cut], on: session.tracks.map(\.id), naming: [])
         }
         #expect(
             model.alert == .followOverlap(FollowOverlap(track: "sfx", trackName: "Sfx", start: 264_000, rate: 48_000)))
@@ -82,7 +82,7 @@ import Testing
 
         model.alert = nil
         model.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleDelete([Self.cut], on: ["nope"])
+            try session.rippleDelete([Self.cut], on: ["nope"], naming: [])
         }
         #expect(model.alert != nil)
         if case .followOverlap = model.alert { Issue.record("another refusal must keep the error alert") }
@@ -151,7 +151,7 @@ import Testing
     @Test func turnOffClearsTheFlagInOneUndoEntry() async throws {
         let (model, studio) = try await timelineModel(try await package(), app: app)
         model.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleDelete([Self.cut], on: session.tracks.map(\.id))
+            try session.rippleDelete([Self.cut], on: session.tracks.map(\.id), naming: [])
         }
         let before = studio.session
         let alert = try #require(model.alert)

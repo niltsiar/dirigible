@@ -31,7 +31,7 @@ struct RippleTrimTests {
     /// C11 end shorter. Control: the plain `trim` moves no other clip.
     @Test mutating func anEndTrimShorterRipplesEveryScopeTrack() throws {
         try session.setMarker(Marker(id: "m", name: "m", position: 130_000, kind: .marker))
-        try session.rippleTrim("A", edge: .end, by: -4_800, on: ["a", "b"])
+        try session.rippleTrim("A", edge: .end, by: -4_800, on: ["a", "b"], naming: [])
         #expect(
             lane("a") == [
                 Clip(id: "A", file: "f", start: 48_000, offset: 100_000, length: 43_200),
@@ -47,7 +47,7 @@ struct RippleTrimTests {
 
     /// C11 end longer.
     @Test mutating func anEndTrimLongerInsertsSilenceOnTheOtherTracks() throws {
-        try session.rippleTrim("A", edge: .end, by: 4_800, on: ["a", "b"])
+        try session.rippleTrim("A", edge: .end, by: 4_800, on: ["a", "b"], naming: [])
         #expect(
             lane("a") == [
                 Clip(id: "A", file: "f", start: 48_000, offset: 100_000, length: 52_800),
@@ -62,7 +62,7 @@ struct RippleTrimTests {
 
     /// C11 start shorter: the clip start stays, and its offset grows by d.
     @Test mutating func aStartTrimShorterKeepsTheStart() throws {
-        try session.rippleTrim("A", edge: .start, by: 4_800, on: ["a", "b"])
+        try session.rippleTrim("A", edge: .start, by: 4_800, on: ["a", "b"], naming: [])
         #expect(
             lane("a") == [
                 Clip(id: "A", file: "f", start: 48_000, offset: 104_800, length: 43_200),
@@ -77,7 +77,7 @@ struct RippleTrimTests {
 
     /// C11 start longer: the clip start stays, and its offset shrinks by d.
     @Test mutating func aStartTrimLongerKeepsTheStart() throws {
-        try session.rippleTrim("A", edge: .start, by: -4_800, on: ["a", "b"])
+        try session.rippleTrim("A", edge: .start, by: -4_800, on: ["a", "b"], naming: [])
         #expect(
             lane("a") == [
                 Clip(id: "A", file: "f", start: 48_000, offset: 95_200, length: 52_800),
@@ -93,22 +93,24 @@ struct RippleTrimTests {
     /// C11 limits. Control: a limit plus 1 that does not throw, or a throw that leaves a moved clip.
     @Test mutating func theFileLimitsTheTrim() throws {
         var end = session
-        try end.rippleTrim("A", edge: .end, by: 332_000, on: ["a", "b"])
+        try end.rippleTrim("A", edge: .end, by: 332_000, on: ["a", "b"], naming: [])
         #expect(end.clip("A")?.clip.end == 428_000, "an end at the file end passes")
         var start = session
-        try start.rippleTrim("A", edge: .start, by: -100_000, on: ["a", "b"])
+        try start.rippleTrim("A", edge: .start, by: -100_000, on: ["a", "b"], naming: [])
         #expect(start.clip("A")?.clip.offset == 0, "a start at offset 0 passes")
         let before = session
         #expect(throws: SessionError.clipOutsideFile("A"), "one frame past the file end") {
-            try session.rippleTrim("A", edge: .end, by: 332_001, on: ["a", "b"])
+            try session.rippleTrim("A", edge: .end, by: 332_001, on: ["a", "b"], naming: [])
         }
         #expect(throws: SessionError.clipOutsideFile("A"), "offset -1") {
-            try session.rippleTrim("A", edge: .start, by: -100_001, on: ["a", "b"])
+            try session.rippleTrim("A", edge: .start, by: -100_001, on: ["a", "b"], naming: [])
         }
         #expect(throws: SessionError.clipOutsideFile("A"), "no frame left") {
-            try session.rippleTrim("A", edge: .end, by: -48_000, on: ["a", "b"])
+            try session.rippleTrim("A", edge: .end, by: -48_000, on: ["a", "b"], naming: [])
         }
-        #expect(throws: SessionError.unknownClip("Z")) { try session.rippleTrim("Z", edge: .end, by: 1, on: []) }
+        #expect(throws: SessionError.unknownClip("Z")) {
+            try session.rippleTrim("Z", edge: .end, by: 1, on: [], naming: [])
+        }
         #expect(session == before, "a refused trim changes nothing")
     }
 
@@ -116,12 +118,12 @@ struct RippleTrimTests {
     @Test mutating func aClipAtFrameZeroExtendsItsStart() throws {
         try session.place(Clip(id: "Z", file: "f", start: 0, offset: 4_800, length: 24_000), on: "a")
         var passing = session
-        try passing.rippleTrim("Z", edge: .start, by: -4_800, on: ["a", "b"])
+        try passing.rippleTrim("Z", edge: .start, by: -4_800, on: ["a", "b"], naming: [])
         #expect(passing.clip("Z")?.clip == Clip(id: "Z", file: "f", start: 0, offset: 0, length: 28_800))
         #expect(passing.clip("A")?.clip.start == 52_800, "the rest moves right by 4 800")
         let before = session
         #expect(throws: SessionError.clipOutsideFile("Z")) {
-            try session.rippleTrim("Z", edge: .start, by: -4_801, on: ["a", "b"])
+            try session.rippleTrim("Z", edge: .start, by: -4_801, on: ["a", "b"], naming: [])
         }
         #expect(session == before)
     }
@@ -130,8 +132,8 @@ struct RippleTrimTests {
     @Test func theOwnTrackAlwaysRipples() throws {
         var without = session
         var with = session
-        try without.rippleTrim("A", edge: .end, by: -4_800, on: ["b"])
-        try with.rippleTrim("A", edge: .end, by: -4_800, on: ["a", "b"])
+        try without.rippleTrim("A", edge: .end, by: -4_800, on: ["b"], naming: [])
+        try with.rippleTrim("A", edge: .end, by: -4_800, on: ["a", "b"], naming: [])
         #expect(without == with)
         #expect(without.clip("B")?.clip.start == 115_200)
     }
@@ -147,7 +149,7 @@ struct RippleTrimTests {
         try test.session.place(Clip(id: "P", file: "f", start: 24_000, offset: 300_000, length: 24_000), on: "a")
         try test.session.place(Clip(id: "N", file: "f", start: 96_000, offset: 300_000, length: 24_000), on: "a")
         try test.session.setCrossfades([edge == .start ? "P" : "A": 960])
-        try test.session.rippleTrim("A", edge: edge, by: Frames(delta), on: ["a", "b"])
+        try test.session.rippleTrim("A", edge: edge, by: Frames(delta), on: ["a", "b"], naming: [])
         #expect(test.allCrossfades.isEmpty, "\(edge) \(delta): the crossfade goes from both clips")
         #expect((try? Session(xml: try test.session.checkedData())) == test.session, "\(edge) \(delta): it saves")
     }
@@ -159,10 +161,10 @@ struct RippleTrimTests {
         try session.setCrossfades(["A": 960])
         let before = session
         #expect(throws: SessionError.fadeOutsideClip("A", length: 479)) {
-            try session.rippleTrim("A", edge: .start, by: 47_521, on: ["a", "b"])
+            try session.rippleTrim("A", edge: .start, by: 47_521, on: ["a", "b"], naming: [])
         }
         #expect(session == before)
-        try session.rippleTrim("A", edge: .start, by: 47_520, on: ["a", "b"])
+        try session.rippleTrim("A", edge: .start, by: 47_520, on: ["a", "b"], naming: [])
         #expect(session.clip("A")?.clip.length == 480, "the minimum passes")
         #expect(
             allCrossfades == ["A": Crossfades(start: 0, end: 960)!, "N": Crossfades(start: 960, end: 0)!],

@@ -86,14 +86,14 @@ struct EnvelopeEditTests {
                     name = "rippleTrim"
                     guard let clip = anyClip() else { continue }
                     let edge: Fades.Edge = Bool.random(using: &random) ? .start : .end
-                    try session.rippleTrim(clip.id, edge: edge, by: frame(-2_000...2_000), on: ["t1"])
+                    try session.rippleTrim(clip.id, edge: edge, by: frame(-2_000...2_000), on: ["t1"], naming: [])
                 case 7:
                     name = "rippleDelete"
                     let start = frame(0...30_000)
-                    try session.rippleDelete(start..<(start + frame(1...4_000)), on: ["t1"])
+                    try session.rippleDelete(start..<(start + frame(1...4_000)), on: ["t1"], naming: [])
                 case 8:
                     name = "rippleInsert"
-                    try session.rippleInsert(frame(1...4_000), at: frame(0...30_000), on: ["t1"])
+                    try session.rippleInsert(frame(1...4_000), at: frame(0...30_000), on: ["t1"], naming: [])
                 case 9:
                     name = "crossfade"
                     var lengths: [ClipID: Frames] = [:]

@@ -38,7 +38,7 @@ struct LiveTakeMapTests {
         defer { server.stop() }
         // A live edit that the files do not have: the map follows the studio session.
         try studio.edit(ripple: true) { session throws(SessionError) in
-            try session.rippleInsert(1000, at: 0, on: ["t1", "t2"])
+            try session.rippleInsert(1000, at: 0, on: ["t1", "t2"], naming: [])
         }
 
         let map = await send(folder.socket, "take_map", ["package": package.path, "frames": [10]])

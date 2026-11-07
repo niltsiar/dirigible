@@ -29,7 +29,7 @@ struct ChangedFramesTests {
         var session = try Fixture.session()
         try session.place(Clip(id: "D", file: "fb", start: 120_000, offset: 0, length: 24_000), on: "t2")
         var rippled = session
-        try rippled.rippleTrim("A", edge: .end, by: 9_600, on: session.tracks.map(\.id))
+        try rippled.rippleTrim("A", edge: .end, by: 9_600, on: session.tracks.map(\.id), naming: [])
         let changed = changedFrames(from: session, to: rippled)
         #expect(changed?.lanes == 0..<2, "the rows of t1 and t2")
         #expect(
@@ -45,7 +45,7 @@ struct ChangedFramesTests {
         try session.place(Clip(id: "D", file: "fb", start: 120_000, offset: 0, length: 24_000), on: "t2")
         try session.setMarker(Marker(id: "m", name: "m", position: 170_000, kind: .marker))
         var rippled = session
-        try rippled.rippleTrim("A", edge: .end, by: 9_600, on: session.tracks.map(\.id))
+        try rippled.rippleTrim("A", edge: .end, by: 9_600, on: session.tracks.map(\.id), naming: [])
         let shift = shiftedFrames(from: session, to: rippled)
         #expect(shift?.from == 153_600 && shift?.delta == 9_600 && shift?.strays == [], "\(String(describing: shift))")
         var trimmed = session
@@ -246,7 +246,7 @@ struct ChangedFramesTests {
         try session.place(Clip(id: "y", file: "s", start: 360_000, offset: 200_000, length: 48_000), on: "sfx")
         try session.setFollowTrack(true, tracks: ["bed", "sfx"])
         var deleted = session
-        try deleted.rippleDelete(240_000..<336_000, on: session.tracks.map(\.id))
+        try deleted.rippleDelete(240_000..<336_000, on: session.tracks.map(\.id), naming: [])
         #expect(deleted.clip("x")?.clip.start == 240_000 && deleted.clip("y")?.clip.start == 264_000)
         #expect(shiftedFrames(from: session, to: deleted) == nil)
     }

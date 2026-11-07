@@ -143,7 +143,7 @@ struct StudioTakeSyncTests {
         let studio = try await Studio.open(package.url)
         let agent = AgentName(title: "Test Agent", clientName: nil)
         try studio.edit(ripple: true, agent: agent) { session throws(SessionError) in
-            try session.rippleInsert(1000, at: 0, on: session.tracks.map(\.id))
+            try session.rippleInsert(1000, at: 0, on: session.tracks.map(\.id), naming: [])
         }
         let (revision, change) = (studio.sessionRevision, studio.takeSyncChange)
         try #require(change.agent == agent && change.changes.count == 1, "\(change)")
@@ -174,7 +174,7 @@ struct StudioTakeSyncTests {
         }
 
         try studio.edit(ripple: true, agent: agent) { session throws(SessionError) in
-            try session.rippleInsert(1000, at: 0, on: session.tracks.map(\.id))
+            try session.rippleInsert(1000, at: 0, on: session.tracks.map(\.id), naming: [])
         }
         await moveAndRead()
         try studio.undo()

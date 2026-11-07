@@ -97,7 +97,8 @@ import Testing
         throws
     {
         let frames = Frames(range.lowerBound * Self.second)..<Frames(range.upperBound * Self.second)
-        try studio.edit(ripple: true, agent: agent) { s throws(SessionError) in try s.rippleDelete([frames], on: tracks)
+        try studio.edit(ripple: true, agent: agent) { s throws(SessionError) in
+            try s.rippleDelete([frames], on: tracks, naming: [])
         }
     }
 
@@ -198,7 +199,7 @@ import Testing
         try cut(studio, 10..<11)
         let agentRevision = studio.sessionRevision
         try studio.edit(ripple: true) { s throws(SessionError) in
-            try s.rippleInsert(Frames(Self.second), at: Frames(30 * Self.second), on: ["t1", "t2"])
+            try s.rippleInsert(Frames(Self.second), at: Frames(30 * Self.second), on: ["t1", "t2"], naming: [])
         }
         let newer = studio.sessionRevision
 
@@ -237,7 +238,7 @@ import Testing
         try cut(studio, 10..<11)
         #expect(rows(model).count == 1)
         try studio.edit(ripple: true) { s throws(SessionError) in
-            try s.rippleInsert(Frames(Self.second), at: 480_000, on: ["t1"])
+            try s.rippleInsert(Frames(Self.second), at: 480_000, on: ["t1"], naming: [])
         }
         // The insert leaves a gap at the cut, so the moved clip has its old shift again.
         #expect(studio.takeMap.map.sync[1] == .inSync(offset: 0))
@@ -352,7 +353,7 @@ import Testing
         // The counting HAL feeds a short take: the insert goes in the middle of its clip.
         let inside = clip.start + Frames(clip.length.count / 2)
         try studio.edit(ripple: true, agent: Self.agent) { s throws(SessionError) in
-            try s.rippleInsert(Frames(Self.second), at: inside, on: ["t1"])
+            try s.rippleInsert(Frames(Self.second), at: inside, on: ["t1"], naming: [])
         }
 
         #expect(

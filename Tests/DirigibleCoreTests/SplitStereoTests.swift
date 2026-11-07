@@ -181,6 +181,7 @@ struct SplitStereoTests {
         try session.setMuted(true, tracks: ["t"])
         try session.setSoloed(true, tracks: ["t"])
         try session.setRole(.dialogue, tracks: ["t"])
+        try session.setFollowTrack(true, tracks: ["t"])
         var plain = try self.session(clips: [("A", 1_000_000, 100_000)])
 
         _ = try session.splitStereo(pairs(session, ["A"]), names: ("L", "R"))
@@ -188,9 +189,11 @@ struct SplitStereoTests {
 
         for track in session.tracks.dropFirst() {
             #expect(track.role == .dialogue && track.isMuted && track.isSoloed, "\(track.name)")
+            #expect(track.isFollowTrack, "\(track.name) follows as its source")
             #expect(track.gain == Gain(dB: -3) && track.route == nil, "\(track.name)")
         }
         #expect(plain.tracks.dropFirst().map(\.role) == [nil, nil])
+        #expect(plain.tracks.dropFirst().map(\.isFollowTrack) == [false, false])
         #expect(session.tracks[0].route != nil, "the source track keeps its route")
     }
 

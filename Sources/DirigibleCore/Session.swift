@@ -191,6 +191,11 @@ public struct Session: Hashable, Sendable {
         for index in try ids.map(trackIndex) { tracks[index].isSoloed = on }
     }
 
+    /// An unknown track throws and changes nothing.
+    public mutating func setFollowTrack(_ on: Bool, tracks ids: [TrackID]) throws(SessionError) {
+        for index in try ids.map(trackIndex) { tracks[index].isFollowTrack = on }
+    }
+
     /// Nil removes the role. An unknown track throws and changes nothing.
     public mutating func setRole(_ role: Track.Role?, tracks ids: [TrackID]) throws(SessionError) {
         for index in try ids.map(trackIndex) { tracks[index].role = role }
@@ -221,7 +226,8 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): `preRollSessionVersion`
+    /// The `session.xml` version that holds this session (decision 0024 P6): `followSessionVersion`
+    /// with a follow track (decision 0073), else `preRollSessionVersion`
     /// with a pre-roll `<recording>`, else 14 with a repair effect in a file origin (decision 0064),
     /// else 13 with a hum removal in a file origin (decision 0054), else 12 with a file origin (0057),
     /// else 11 with a track role, else 10 with a gain envelope point (decision 0060), else 9 with a
@@ -230,6 +236,7 @@ public struct Session: Hashable, Sendable {
     /// or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
     /// (decision 0035), else 2 with an app route (decision 0029), else 1.
     public var fileVersion: Int {
+        if tracks.contains(where: \.isFollowTrack) { return followSessionVersion }
         if recording?.isPreRoll == true { return preRollSessionVersion }
         if let version = files.values.compactMap({ $0.origin?.treatment.fileVersion }).max() { return version }
         if tracks.contains(where: { $0.role != nil }) { return 11 }

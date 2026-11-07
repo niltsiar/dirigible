@@ -40,6 +40,7 @@ extension Session {
             // A flag is written only when on, so a track with none keeps its old text (0039).
             if track.isMuted { add(("muted", "true"), to: node) }
             if track.isSoloed { add(("soloed", "true"), to: node) }
+            if track.isFollowTrack { add(("follow", "true"), to: node) }
             if let role = track.role { add(("role", role.rawValue), to: node) }
             switch track.route {
             case nil: break

@@ -356,4 +356,20 @@ struct MarksTests {
         let foreign = try other.excerpt(of: 0..<100, on: ["t5"])
         #expect(Marks(tracks: all, tracksByDefault: true).pasteTracks(for: foreign, in: session) == ["t1"])
     }
+
+    /// Code gate 3 item 4 (decision 0073): I and O after a clip selection name the track of the
+    /// clip, and after a click on a lane gap name that lane, also when it follows; I and O with no
+    /// track name none.
+    @Test func iAndOAfterAClipOrALaneClickNameItsFollowTrack() throws {
+        var session = try Self.session()
+        try session.setFollowTrack(true, tracks: ["t1", "t2"])
+        let scope = { (selection: Selection) in
+            selection.settingIn(100, in: session).settingOut(200, in: session)
+                .rippleScope(selectedOnly: false, in: session)
+        }
+        let clip = try #require(ClipSet(["c1"]))
+        #expect(scope(.clips(clip))?.named == ["t1"] && scope(.clips(clip))?.selected == ["t1"])
+        #expect(scope(.range(Marks(tracks: ["t2"])))?.named == ["t2"], "a lane click")
+        #expect(scope(.none)?.named == [] && scope(.none)?.selected == ["t3", "t4"], "no track")
+    }
 }

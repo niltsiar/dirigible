@@ -648,8 +648,8 @@ cutoff=1791222684
 nit_cutoff=1791510511
 # 2026-10-31, the land time of the round file heading rule (INT-043): an older round file is not read by it.
 round_cutoff=1793423981
-# 2026-11-06, the land time of the Siblings none rule (INT-080): an older review file keeps a bare none.
-none_cutoff=1794007516
+# 2026-11-07, the land time of the Siblings none rule (INT-080): an older review file keeps a bare none.
+none_cutoff=1794022636
 for review in "$run"/review-*.md; do
     [[ -f "$review" ]] || continue
     mtime=$(stat -f %m "$review")

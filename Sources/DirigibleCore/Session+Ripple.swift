@@ -53,7 +53,7 @@ extension Session {
 
     /// The tracks of `tracks` that a ripple cuts: each track that does not follow, and each track
     /// that the edit names (decision 0073). The ripple lanes, the `.noRippleTrack` refusal, and the
-    /// excerpt of a Cut in the window read this rule.
+    /// excerpt of a Cut and of a Copy in the window read this rule.
     public func cuttingTracks(_ tracks: [TrackID], naming: [TrackID]) -> [TrackID] {
         tracks.filter { naming.contains($0) || track($0)?.isFollowTrack != true }
     }

@@ -46,4 +46,22 @@ struct MarksRippleTests {
         let lane = Marks.drag(from: 48_000, to: 96_000, lanes: (2, 2), in: session)
         #expect(lane.rippleScope(selectedOnly: false, in: session)?.selected == ["t3"])
     }
+
+    /// Code gate 3 item 1: a Copy takes the lanes of a Cut of the same range, so I and O leave the
+    /// follow track t3 out, a range on its lane copies it, and with each track following a default
+    /// range copies nothing.
+    @Test func aCopyTakesTheLanesOfACut() throws {
+        var session = try Fixture.session()
+        let io = Marks().settingIn(48_000, in: session).settingOut(96_000, in: session)
+        let sources = { (marks: Marks, session: Session) in
+            try Selection.range(marks).excerpt(in: session)?.lanes.map(\.source)
+        }
+        #expect(try sources(io, session) == ["t1", "t2", "t3"], "the flag off")
+        try session.setFollowTrack(true, tracks: ["t3"])
+        #expect(try sources(io, session) == ["t1", "t2"])
+        let lane = Marks.drag(from: 48_000, to: 96_000, lanes: (2, 2), in: session)
+        #expect(try sources(lane, session) == ["t3"])
+        try session.setFollowTrack(true, tracks: ["t1", "t2"])
+        #expect(try sources(io, session) == nil, "no lane cuts, as a Cut refuses")
+    }
 }

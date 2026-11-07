@@ -9,13 +9,16 @@ extension Selection {
         Set(clips.map { session.tracks[$0.lane].id })
     }
 
-    /// Copy: the range, or the live set clips whole (`Session.excerpt(of:)`). Nil when nothing is
-    /// selected.
+    /// Copy: the range on the lanes that a Cut of it copies (`Marks.rippleScope` `selected`), or the
+    /// live set clips whole (`Session.excerpt(of:)`). Nil when nothing is selected, or when no lane
+    /// of the range cuts (decision 0073).
     public func excerpt(in session: Session) throws(SessionError) -> Excerpt? {
         switch self {
         case .range(let marks):
-            guard let selection = marks.selection(in: session) else { return nil }
-            return try session.excerpt(of: selection.range, on: selection.tracks)
+            guard let scope = marks.rippleScope(selectedOnly: false, in: session), !scope.selected.isEmpty else {
+                return nil
+            }
+            return try session.excerpt(of: scope.range, on: scope.selected)
         case .clips:
             let ids = selectedClips(in: session).map(\.clip.id)
             return ids.isEmpty ? nil : try session.excerpt(of: ids)

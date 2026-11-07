@@ -30,10 +30,10 @@ extension SessionWindow {
     /// Cut, Delete and Close Gap, their selected-tracks twins, and Insert (decision 0037). Cut and
     /// Delete and Close Gap ripple the selection out of all tracks, or of the selected tracks for
     /// a twin; the Marks clear and the playhead goes to the start of the range. Cut puts the
-    /// selected tracks on the clipboard. Insert moves all tracks right by the clipboard length at
-    /// the playhead and pastes there, as Paste does. With no range selection (none, a clip set, or
-    /// a range with no points), a beep; with an empty range, nothing. Insert with no clipboard does
-    /// nothing. During a take, nothing. Under a pending or split take, Studio refuses the ripple
+    /// selected tracks that cut on the clipboard, as Copy does. Insert moves all tracks right by the
+    /// clipboard length at the playhead and pastes there, as Paste does. With no range selection
+    /// (none, a clip set, or a range with no points), a beep; with an empty range, nothing. Insert
+    /// with no clipboard does nothing. During a take, nothing. Under a pending or split take, Studio refuses the ripple
     /// (`.rippleBlocked`), and the window beeps; Insert beeps then also with no clipboard. Cut of a
     /// clip set is no ripple (`cutClips`).
     func runRipple(_ command: TimelineCommand, _ studio: Studio) {

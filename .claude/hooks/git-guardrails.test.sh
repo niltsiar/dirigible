@@ -1405,6 +1405,31 @@ expect block 'rg x f; git config core.hooksPath /dev/null'
 expect block 'rg x f && git config core.hooksPath /dev/null'
 expect block "rg --pre 'git config core.hooksPath /dev/null' x f"
 expect block 'rg x $(git config core.hooksPath /dev/null)'
+# AGT-153: a NAME= value with a quote, a pipe into a shell or xargs, an even backslash run before a
+# new line, and a key split by quotes do not make a search line.
+expect block "X='a rg ' git config core.hooksPath /dev/null"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | sh"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | bash -s"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | /bin/zsh"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | env sh"
+expect block "rg -r 'git config core.hooksPath /dev/null' -o '^' -m1 README.md | xargs -I{} sh -c {}"
+expect block $'rg -n x f \\\\\ngit config core.hooksPath /dev/null'
+expect block 'git config core.hooks""Path /dev/null'
+expect block 'git config core."hooksPath" /dev/null'
+expect block "git config 'core.hooks'Path /dev/null"
+expect block 'rg -n core.hooksPath f; git config core.hooks""Path /dev/null'
+expect_message 'changes core.hooksPath (the key is split by quotes)' 'git config core.hooks""Path /dev/null'
+expect allow 'FOO=1 rg -n core.hooksPath f'
+expect allow 'rg -n core.hooksPath f | head -3'
+expect allow "rg -n 'core.hooksPath' f | shasum"
+expect allow 'rg -n core.hooksPath f || sh -c true'
+expect allow $'rg -n core.hooksPath \\\nf'
+expect allow "rg -n 'core\\.hooksPath' f"
+expect allow 'echo "core.hooks" "Path"'
+# Each rule reads the same join: an even backslash run before a new line ends the command.
+expect block $'rg -n x f \\\\\nmake build'
+expect allow $'echo a \\\nb'
+expect block $'echo a \\\ngit reset --hard'
 
 for run in 'bash scripts/land.test.sh' 'make test-hooks' 'scripts/test-hooks.sh' 'scripts/with-lock.sh bash scripts/land.test.sh' \
   'scripts/with-lock.sh scripts/test-hooks.sh'; do

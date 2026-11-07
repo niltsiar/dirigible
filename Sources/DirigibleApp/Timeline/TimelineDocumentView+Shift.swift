@@ -13,12 +13,13 @@ extension TimelineDocumentView {
         else { return nil }
         guard let last = [inputs.marks.inPoint, inputs.marks.outPoint].compactMap({ $0 }).max() else { return shift }
         let pad = Frames(Int(geometry.scale.framesPerPoint.rounded(.up)))
-        return (max(shift.from, last + pad + max(.zero, shift.delta)), shift.delta, shift.strays)
+        return (max(shift.from, last + pad + max(.zero, shift.delta)), shift.delta, shift.strays, shift.skipped)
     }
 
     /// The pixel form of a shift: the first copied column, 1 pt right of `from` for the rounding of
     /// the renderer; the move in columns; and the strips: from the dirty rect to that column, and
-    /// 1 pt around each stray marker line, on every lane in view. Nil when the move is not a whole
+    /// 1 pt around each stray marker line, on every lane in view, and the columns from the first
+    /// copied column on each skipped lane. Nil when the move is not a whole
     /// number of columns within one frame (a ripple drag moves by whole device columns, and each of the two
     /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
     func laneShift(
@@ -39,7 +40,11 @@ extension TimelineDocumentView {
         let strays = shift.strays.map {
             lanes.pixels(of: NSRect(x: geometry.x(of: $0) - 1, y: bounds.minY, width: 3, height: bounds.height))
         }
-        return LaneSurfaces.Shift(
-            column: Int((x * lanes.scale).rounded(.up)), by: Int(columns.rounded()), strips: [strip] + strays)
+        let column = Int((x * lanes.scale).rounded(.up))
+        let end = lanes.pixels.columns.upperBound
+        let skipped = shift.skipped.map {
+            PixelRect(columns: min(column, end)..<end, rows: lanes.rows(of: $0..<$0 + 1))
+        }
+        return LaneSurfaces.Shift(column: column, by: Int(columns.rounded()), strips: [strip] + strays + skipped)
     }
 }

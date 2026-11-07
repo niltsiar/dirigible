@@ -140,4 +140,48 @@ extension TimelineLayerTests {
         window.close()
         await model.close()
     }
+
+    /// C53 (decision 0073): a ripple trim drag over a track that follows ripples and does not move
+    /// draws by a shift, and the follow lane draws in its own strip. Controls: a full draw, and a
+    /// shift that copies the follow lane with the moved lanes (its waveform moves).
+    @Test func aLaneWithNoChangeDrawsInItsStrip() async throws {
+        let (model, studio, window, view) = try await lanes(tracks: 1, onScreen: true)
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            try session.addTrack("bed", name: "Bed", layout: .mono)
+            try session.place(
+                Clip(id: "bed", file: "f1", start: 0, offset: 0, length: Frames(Self.frames)), on: "bed")
+            try session.setFollowTrack(true, tracks: ["bed"])
+        }
+        model.timeline.scale = TimelineScale(framesPerPoint: 512)
+        // The Marks of a ripple commit are on the clip, so the press keeps the selection.
+        let c1 = try #require(studio.session.clip("c1")).clip
+        model.timeline.marks = Marks(inPoint: c1.start, outPoint: c1.end, tracks: ["t1"])
+        view.update(inputs(model, studio))
+        drawNow(window)
+        let rows = try #require(view.lanes.surfaces.shown).pixels.rows
+        #expect(rows.count == 2 * 200, "the two lanes of 100 pt at scale 2 are in view: \(rows)")
+        let bed = studio.session.clip("bed")?.clip
+        let before = view.lanes.surfaces.shifted
+        let box = try #require(view.lanes.clipFrame("c1"))
+        let edge = NSPoint(x: box.maxX - 2, y: box.minY + 10)
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, edge, in: view, flags: .option))
+        var failures: [String] = []
+        for dx in [-6.0, -12, -18] {
+            view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, NSPoint(x: edge.x + dx, y: edge.y), in: view))
+            drawNow(window)
+            await Task.yield()
+            let wrong = try Self.wrongPixels(view)
+            if wrong.count > 0 {
+                failures.append("drag \(dx): \(wrong.count) pixels, the first \(String(describing: wrong.first))")
+            }
+        }
+        #expect(
+            view.lanes.inputs?.session.clip("c1")?.clip.end == c1.end - Frames(18 * 512), "the drag shows a preview")
+        #expect(view.lanes.inputs?.session.clip("bed")?.clip == bed, "the bed does not move")
+        #expect(view.lanes.surfaces.shifted == before + 3, "each drag event draws by a shift")
+        #expect(failures.isEmpty, "\(failures)")
+        view.lanes.mouseUp(with: try mouse(.leftMouseUp, NSPoint(x: edge.x - 18, y: edge.y), in: view))
+        window.close()
+        await model.close()
+    }
 }

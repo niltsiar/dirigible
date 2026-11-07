@@ -200,7 +200,7 @@ private struct TrackRow: View {
             .accessibilityActions {
                 if track.isFollowTrack {
                     Button(action: { model.setFollowTrack(false, tracks: [track.id]) }) {
-                        Text(L10n.trackFollowTurnOff.key)
+                        Text(verbatim: L10n.trackFollowTurnOff.text)
                     }
                 }
             }

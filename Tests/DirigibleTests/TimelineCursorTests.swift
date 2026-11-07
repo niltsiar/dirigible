@@ -101,7 +101,10 @@ import Testing
         #expect(try stringsTable("en")["timeline.help.roll.slip"]?.contains("Shift-Command") == true)
         // The help tag adds a tracking area of its own: the area of the mouse moves stays.
         view.lanes.updateTrackingAreas()
-        #expect(view.lanes.trackingAreas.contains { $0.owner === view.lanes && $0.options.contains(.mouseMoved) })
+        view.lanes.updateTrackingAreas()
+        #expect(
+            view.lanes.trackingAreas.filter { $0.owner === view.lanes && $0.options.contains(.mouseMoved) }.count == 1,
+            "each layout pass calls updateTrackingAreas: the area is added once")
         await model.close()
     }
 

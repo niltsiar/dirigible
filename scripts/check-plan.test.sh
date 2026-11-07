@@ -210,6 +210,7 @@ refuse 'an Act on heading with more words' 'review-plan-1.md: Act on item 1 has 
 good
 printf '## Act on\n\n- **A1 (warning, x).** A fix.\n' > "$review"
 refuse 'an Act on section with a bullet item' 'review-plan-1.md: ## Act on has no numbered item'
+refuse 'the hint on an Act on section with no numbered item' 'review-plan-1.md: ## Act on has no numbered item (a review file from before the rule: do not edit it)'
 good
 printf '## Act on\n\nNone.\n\n## Consider\n\n- A note.\n' > "$review"
 pass 'an empty Act on section'
@@ -796,8 +797,10 @@ roundfile review-diff-1.md '# Code gate 1\n\n## G1: the hand-over waits for a wr
 refuse 'a round file with an item heading and no Act on' 'review-diff-1.md: '
 refuse 'the refusal names the item heading' '## G1:'
 refuse 'the refusal names Act on' '## Act on'
+refuse 'the hint on an item heading' 'is an item; write each finding as a numbered item under ## Act on (lead-judgment.md) (a review file from before the rule: do not edit it)'
 roundfile review-diff-1.md '# Code gate 1\n\n## Fix check\n\n- none\n'
 refuse 'a round file with a Fix check and no Act on' 'review-diff-1.md: '
+refuse 'the hint on a Fix check with no Act on' 'or None. (lead-judgment.md) (a review file from before the rule: do not edit it)'
 roundfile review-plan-1.md '## Act on\n\nNone.\n\n## N9: a nit\n\nText.\n'
 refuse 'an item heading N9 next to Act on' '## N9:'
 roundfile review-plan-1.md '## 3. a numbered heading\n\nText.\n'

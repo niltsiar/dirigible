@@ -12,7 +12,8 @@
 #   guarded file: expect_each_write <path> (block forms) and expect_each_read <path> (allow forms)
 #   command guard (a command in a shell context): expect_each_context <want> <command>
 #   commit message file (an option value): expect_each_value <want> <path> <command with @V@>
-#   lock-free make words (a with-lock.sh make test-hooks call): expect_each_lock <want> <command>...
+#   lock-free make words (a with-lock.sh make test-hooks call): expect_each_lock [--live <dir>] <want> <command>...
+#   release call while a lock-step agent runs: expect_each_release <want> <records dir> (release_forms)
 # HOOK_CASES=<label pattern> runs only the case blocks whose label matches the whole value, with no
 # anchors: HOOK_CASES=agent-clock, HOOK_CASES='agent-clock|write-guard'. The `labels` array lists
 # them. Each block is an `if case_block <label>; then` segment; the helpers stay outside.
@@ -24,6 +25,10 @@ failures=0
 input="$(mktemp)"
 tmp="$(mktemp -d)"
 trap 'rm -f "$input"; rm -rf "$tmp"' EXIT
+# The release-wait rule reads the records of live lock-step agents: the hooks pass and the push check run
+# this file, so the records of a real agent must not change a case.
+export DIRIGIBLE_LOCK_AGENTS="$tmp/lock-agents"
+mkdir -p "$DIRIGIBLE_LOCK_AGENTS"
 
 # expect <want> <command> [<run_in_background> [<timeout> [<cwd>]]]: the optional values (true or
 # false, and milliseconds) go to tool_input as the Bash tool gives them; the cwd goes to the top level
@@ -94,17 +99,20 @@ expect_message() {
 # through eval with a stub for scripts/with-lock.sh ($lock_stub, made by the test-rule segment) that prints
 # free, release, or lock. A free or release call is allowed, a lock call blocks. want agree: the hook
 # verdict is the verdict of the class. want allow or block: both hold that verdict. One FAIL line a spelling.
+# With --live <records dir>, a folder with a live lock-step agent (AGT-152), a release call blocks too.
 expect_each_lock() {
-  local want="$1" form class verdict got
+  local live="$DIRIGIBLE_LOCK_AGENTS" release=allow want form class verdict got
+  [[ "$1" == --live ]] && { live="$2" release=block; shift 2; }
+  want="$1"
   shift
   for form in "$@"; do
     class="$( (unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL; eval "${form//scripts\/with-lock.sh/$lock_stub}") 2>/dev/null | tail -n 1)"
-    case "$class" in free | release) verdict=allow ;; *) verdict=block ;; esac
+    case "$class" in free) verdict=allow ;; release) verdict="$release" ;; *) verdict=block ;; esac
     plutil -create xml1 "$input"
     plutil -insert tool_input -dictionary "$input"
     plutil -insert tool_input.command -string "$form" "$input"
     plutil -convert json "$input"
-    "$hook" < "$input" > /dev/null 2>&1
+    DIRIGIBLE_LOCK_AGENTS="$live" "$hook" < "$input" > /dev/null 2>&1
     [[ $? -eq 2 ]] && got=block || got=allow
     [[ "$class" =~ ^(free|release|lock)$ && "$got" == "$verdict" && ( "$want" == agree || "$want" == "$verdict" ) ]] ||
       { echo "FAIL: lock class '$class' (want $want), hook $got: $form"; failures=$((failures + 1)); }
@@ -137,13 +145,84 @@ expect_each_context() {
   for ctx in "${forms[@]}"; do expect "$want" "${ctx//@C@/$cmd}" "${@:3}"; done
 }
 
+# The release-wait rule (AGT-152) reads a records folder per case, with a fake session under $tmp. Each
+# age counts back from the time of the helper call, so a slow run does not move a case over a limit.
+rw_sess="$tmp/rw-s/sess.jsonl" rw_sub="$tmp/rw-s/sess/subagents"
+mkdir -p "$rw_sub"
+rw_stamp() { date -r "$1" +%Y%m%d%H%M.%S; }
+# rw_rec <dir> <id> <age s> <tool> <key> [<description>]: a record file as agent-guard.sh writes it.
+rw_rec() {
+  local t=$(($(date +%s) - $3))
+  mkdir -p "$1"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$t" "$4" "$5" "$rw_sess" "${6:-d $2}" > "$1/$2"
+  touch -t "$(rw_stamp "$t")" "$1/$2"
+}
+# rw_meta <agent id> <toolUseId> <true|none> <mtime age s>: the meta file of an agent of the session.
+rw_meta() {
+  local f="$rw_sub/agent-$1.meta.json"
+  if [[ "$3" == true ]]; then printf '{"agentType":"run-agent","description":"d","toolUseId":"%s","finished":true}' "$2" > "$f"
+  else printf '{"agentType":"run-agent","description":"d","toolUseId":"%s"}' "$2" > "$f"; fi
+  touch -t "$(rw_stamp $(($(date +%s) - $4)))" "$f"
+}
+# expect_release <want> <records dir> <command> [<cwd>] [<agent id>]: the hook verdict with that records
+# folder. Stdout goes to $tmp/release.out and the message to $tmp/release.err.
+expect_release() {
+  local want="$1" got
+  plutil -create xml1 "$input"
+  [[ -z "${5:-}" ]] || plutil -insert agent_id -string "$5" "$input"
+  [[ -z "${4:-}" ]] || plutil -insert cwd -string "$4" "$input"
+  plutil -insert tool_input -dictionary "$input"
+  plutil -insert tool_input.command -string "$3" "$input"
+  plutil -convert json "$input"
+  DIRIGIBLE_LOCK_AGENTS="$2" "$hook" < "$input" > "$tmp/release.out" 2> "$tmp/release.err"
+  [[ $? -eq 2 ]] && got=block || got=allow
+  [[ "$got" == "$want" ]] || { echo "FAIL: release-wait expected $want, got $got: ${3//$'\n'/\\n}"; failures=$((failures + 1)); }
+}
+# release_has <text>: the message of the last expect_release holds the text.
+release_has() {
+  grep -qF -- "$1" "$tmp/release.err" || { echo "FAIL: release-wait message lacks: $1"; failures=$((failures + 1)); }
+}
+# release_out <text>: the stdout of the last expect_release holds the text; with "", it is empty.
+release_out() {
+  if [[ -z "$1" ]]; then [[ ! -s "$tmp/release.out" ]] || { echo "FAIL: release-wait stdout is not empty: $(cat "$tmp/release.out")"; failures=$((failures + 1)); }
+  else grep -qF -- "$1" "$tmp/release.out" || { echo "FAIL: release-wait stdout lacks: $1"; failures=$((failures + 1)); }; fi
+}
+# The release call forms of the lead, with neutral paths: the nohup bash -c transcript form of the push
+# check, the hooks pass, the land, both in one body, and make dmg; then nice, nohup nice, shell -c bodies,
+# the plain forms, an export of BASE, and a quoted with-lock.sh word.
+release_forms=(
+  'cd /x/wt && R=/x/run && (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > $R/logs/push-check.log 2>&1; echo \"exit \$?\" > $R/logs/push-check.done" > /dev/null 2>&1 < /dev/null &)'
+  'cd /x/wt && R=/x/run; (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > $R/logs/hooks-pass.log 2>&1; echo \"exit \$?\" > $R/logs/hooks-pass.done" > /dev/null 2>&1 < /dev/null &); sleep 3; head -3 $R/logs/hooks-pass.log'
+  "cd /x/wt && git status --porcelain && R=/x/run && (nohup bash -c \"WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh 'Fix the hooks' \$R/pr.md > \$R/logs/land.log 2>&1; echo \\\"exit \\\$?\\\" > \$R/logs/land.done\" > /dev/null 2>&1 < /dev/null &)"
+  'cd /x/wt && R=/x/run && (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > $R/logs/hooks-pass.log 2>&1; if grep -q '"'"'exit 0'"'"' $R/logs/hooks-pass.done; then WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > $R/logs/push-check.log 2>&1; fi" > /dev/null 2>&1 < /dev/null &)'
+  'cd /x/wt && R=/x/run; (nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make dmg > $R/logs/dmg.log 2>&1; echo \"exit \$?\" > $R/logs/dmg.done" > /dev/null 2>&1 < /dev/null &); echo started'
+  'nice -n 10 scripts/with-lock.sh make check-changed BASE=origin/main'
+  'nohup nice -n 5 scripts/with-lock.sh make dmg > x.log 2>&1 &'
+  'bash -c "cd /x/wt && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make dmg"'
+  "sh -c 'cd /x; scripts/with-lock.sh make dmg'"
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > logs/push-check.log 2>&1'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh "t" x/pr.md'
+  'scripts/land.sh "t" x/pr.md'
+  'scripts/with-lock.sh make dmg'
+  'BASE=origin/main scripts/with-lock.sh make check-changed'
+  'export BASE=origin/main; scripts/with-lock.sh make check-changed'
+  'cd /x/wt && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main'
+  'cd /x/wt && "scripts/with-lock.sh" make dmg'
+)
+# expect_each_release <want> <records dir>: expect_release on each form of release_forms.
+expect_each_release() {
+  local form
+  for form in "${release_forms[@]}"; do expect_release "$1" "$2" "$form"; done
+}
+
 settings="$(dirname "$0")/../settings.json"
 printf '{"hooks":{"PreToolUse":[{"matcher":"Agent|Workflow","hooks":[{"type":"command","command":"x/.claude/hooks/usage-hook.sh"}]}]}}' > "$tmp/old-settings.json"
 
 # HOOK_CASES=<ERE> runs only the case blocks whose label matches the whole value. The test wraps the
 # value as ^(<value>)$, so write it with no anchors: make drops a trailing $. A block prints its
 # label when it starts. A value that matches no label exits 1.
-labels=(guardrails guardrails-tag guardrails-rules test-rule post-commit pre-commit commit-msg agent-guard usage-hook
+labels=(guardrails guardrails-tag guardrails-rules test-rule release-wait post-commit pre-commit commit-msg agent-guard usage-hook
   handback-guard agent-clock write-guard stop-guard pre-compact hook-cases)
 cases_pattern="^(${HOOK_CASES:-.*})\$"
 cases_hit=0
@@ -693,7 +772,7 @@ expect block 'echo 1 >> "$(git rev-parse --path-format=absolute --git-dir)/dirig
 expect block 'echo 1 >> "$d"/dirigible-check-running/5'
 expect block 'printf 1 "$a">"$d/dirigible-check-running/5"'
 # A subagent never runs a lock wait with no limit: WITH_LOCK_MAX_WAIT=0, a land, a push check (a
-# BASE= word, or BASE in the environment), make dmg, or a mutation pass, also inside bash -c and
+# BASE= word, or BASE in the environment), the hooks pass, make dmg, or a mutation pass, also inside bash -c and
 # sh -c. After a second exit 75 it writes the remaining locked steps as one bash file and returns
 # its path to the lead. The lead runs the wait, so the input with no agent_id allows each form.
 unlimited_forms=(
@@ -721,6 +800,8 @@ unlimited_forms=(
   "sh -c 'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make x'"
   "/bin/bash -c 'export WITH_LOCK_MAX_WAIT=0; scripts/with-lock.sh make x'"
   "env bash -c 'scripts/with-lock.sh make dmg'"
+  'scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1'
+  'DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks'
 )
 for form in "${unlimited_forms[@]}"; do
   expect_agent block "$form"
@@ -740,6 +821,9 @@ expect_agent allow "rg -n 'with-lock.sh make dmg' AGENTS.md"
 expect_agent allow "echo 'scripts/with-lock.sh make dmg'"
 expect_agent allow 'git commit -m "docs: say scripts/with-lock.sh make dmg is for the lead"'
 expect_agent allow 'scripts/land.sh --help'
+# The subagent rule reads release_segments on the masked text, so a release text in a quote is data.
+expect_agent allow 'echo "(scripts/with-lock.sh make check-changed BASE=origin/main)"'
+expect_agent allow "echo 'x; scripts/with-lock.sh make dmg'"
 # Only scripts/with-lock.sh takes and removes the build lock, after its own take: a hand-written
 # mkdir and rmdir chain removed the lock of another agent three times. A read is allowed.
 expect_each_write .git/dirigible-build.lock
@@ -1637,7 +1721,7 @@ printf '#!/bin/bash\n. "%s"\nif lock_make_words "$@" && [[ $lock_goal == test-ho
 chmod +x "$lock_stub"
 T=scripts/land.test.sh
 # The 23 spellings: the hook allows a call if and only if lock-words.sh classes it free or release.
-expect_each_lock agree \
+lock_spellings=(
   "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh /usr/bin/make test-hooks HOOK_TESTS=$T" \
   "scripts/with-lock.sh env make test-hooks HOOK_TESTS=$T" "time scripts/with-lock.sh env X=1 make test-hooks HOOK_TESTS=$T" \
   "env X=1 scripts/with-lock.sh make test-hooks HOOK_TESTS=$T" "scripts/with-lock.sh make -C ../wt test-hooks HOOK_TESTS=$T" \
@@ -1650,6 +1734,13 @@ expect_each_lock agree \
   "DIRIGIBLE_FULL_SUITE=1 scripts/with-lock.sh make test-hooks" "scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1" \
   "DIRIGIBLE_HOOKS_ALL=1 scripts/with-lock.sh make test-hooks" "scripts/with-lock.sh make test-hooks HOOK_TESTS=$T DIRIGIBLE_HOOKS_ALL=1" \
   "scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=0"
+)
+expect_each_lock agree \
+  "${lock_spellings[@]}"
+# While an agent whose brief names a lock step runs, each spelling of class release blocks too (AGT-152).
+rw_rec "$tmp/rw-lock" toolu_tl 600 Agent toolu_tl
+rw_meta tl toolu_tl none 10
+expect_each_lock --live "$tmp/rw-lock" agree "${lock_spellings[@]}"
 # Spellings that the fix was not fitted to, each with a fixed verdict. With WITH_LOCK_RUN_ONLY=1, with-lock.sh
 # exits 2 and runs nothing unless the command is a built binary or a shell file, so the bare form blocks and
 # the HOOK_TESTS=a form is safe to allow (the hook models no run-only mode).
@@ -1724,6 +1815,195 @@ expect_message 'scripts/lock-words.sh' "scripts/with-lock.sh make test-hooks HOO
 expect allow 'git status'
 hook="$hook_saved"
 fi # test-rule
+
+# A release call waits while an agent whose brief names a lock step runs (AGT-152).
+if case_block release-wait; then
+rw="$tmp/rw"
+rw_rec "$rw/live" toolu_live 600 Agent toolu_live 'S1 slice agent'
+rw_meta alive toolu_live none 598
+expect_each_release block "$rw/live"
+# Quoted data and calls that are no release call keep their verdict with the live record. A python3 -I
+# heredoc body is data, and the same body as a bash heredoc is code.
+for run in 'echo "(scripts/with-lock.sh make check-changed BASE=origin/main)"' "rg -n '\`scripts/with-lock.sh make dmg\`' AGENTS.md" \
+  $'python3 -I - <<\'EOF\'\nprint(\'it\\\'s; scripts/with-lock.sh make dmg\')\nEOF' \
+  $'python3 -I - <<\'EOF\'\nimport subprocess\nif ("land.sh" not in c): pass\nEOF' \
+  'scripts/with-lock.sh make test-hooks HOOK_TESTS=scripts/x.test.sh' 'scripts/with-lock.sh swift build' \
+  "rg -n 'make check-changed BASE=' notes.txt" \
+  "scripts/with-lock.sh bash -c 'time make test-hooks HOOK_TESTS=.claude/hooks/git-guardrails.test.sh HOOK_CASES=\"test-rule|release-wait\"' > logs/s1-test.log 2>&1" \
+  "bash -c 'scripts/with-lock.sh make check-changed'" 'scripts/with-lock.sh make check-changed FILTER=ATests' \
+  'git commit -m "docs: say scripts/with-lock.sh make dmg is for the lead"' 'git status'; do
+  expect_release allow "$rw/live" "$run"
+done
+expect_release block "$rw/live" $'bash <<\'EOF\'\nprint(\'it\\\'s; scripts/with-lock.sh make dmg\')\nEOF'
+
+P='WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main'
+# Liveness of a SendMessage record: its key is the agent id, and its meta is agent-<key>.meta.json. A
+# finished meta older than a record over 5 min old means that no resume started.
+# rw_send <name> <record age> <meta: none|true|open> <meta mtime age> <want>
+rw_send() {
+  rm -f "$rw_sub/agent-a0123456789abcdef.meta.json"
+  rw_rec "$rw/sm-$1" "toolu_sm$1" "$2" SendMessage a0123456789abcdef
+  [[ "$3" == none ]] || rw_meta a0123456789abcdef toolu_orig "$([[ $3 == true ]] && echo true || echo none)" "$4"
+  expect_release "$5" "$rw/sm-$1" "$P"
+}
+rw_send 1 600 true 1200 allow
+rw_send 2 600 true 60 allow
+rw_send 3 60 true 660 block
+rw_send 4 5460 true 6000 allow
+rw_send 5 5340 true 6000 allow
+rw_send 6 600 open 60 block
+rm -f "$rw_sub/agent-a0123456789abcdef.meta.json"
+rw_rec "$rw/sm-7" toolu_sm7 240 SendMessage main
+expect_release block "$rw/sm-7" "$P"
+rw_rec "$rw/sm-8" toolu_sm8 360 SendMessage main
+expect_release allow "$rw/sm-8" "$P"
+# Liveness of an Agent record: its meta holds its key as the toolUseId.
+# rw_agent <name> <record age> <meta: none|true|open> <meta mtime age> <want>
+rw_agent() {
+  rm -f "$rw_sub"/agent-ag*.meta.json
+  rw_rec "$rw/ag-$1" "toolu_ag$1" "$2" Agent "toolu_ag$1"
+  [[ "$3" == none ]] || rw_meta "ag$1" "toolu_ag$1" "$([[ $3 == true ]] && echo true || echo none)" "$4"
+  expect_release "$5" "$rw/ag-$1" "$P"
+}
+rw_agent 1 600 open 598 block
+rw_agent 2 600 true 60 allow
+rw_agent 3 240 none 0 block
+rw_agent 4 360 none 0 allow
+rw_agent 5 5340 open 5338 block
+rw_agent 6 5460 open 5458 allow
+# A run or a resume of an agent with an old record: the meta with no finished keeps it live for 90 min
+# after its run started, and records over 24 h old do not count.
+rw_agent r1 10800 open 600 block
+release_has "agr1: Agent \"d toolu_agr1\""
+release_has "its run started $(date -r $(($(date +%s) - 600)) +%H:%M)"
+rw_agent r2 10800 true 60 allow
+rw_agent r3 10800 open 5460 allow
+rw_agent r4 10800 open 5340 block
+rw_agent r5 90000 open 600 allow
+rw_agent r6 86000 open 600 block
+rm -f "$rw_sub"/agent-ag*.meta.json
+mkdir -p "$rw/empty"
+expect_release allow "$rw/empty" "$P"
+# Two records of one agent give one message line and one id: the agent id.
+rw_rec "$rw/one" toolu_q1 10800 Agent toolu_q1 'agent q'
+rw_rec "$rw/one" toolu_q2 600 SendMessage aq 'resume aq'
+rw_meta aq toolu_q1 none 590
+expect_release block "$rw/one" "$P"
+[[ "$(grep -c '^- aq:' "$tmp/release.err")" == 1 ]] || { echo "FAIL: release-wait gives other than one line for agent aq"; failures=$((failures + 1)); }
+expect_release allow "$rw/one" "RELEASE_PAST=aq $P"
+expect_release block "$rw/one" "RELEASE_PAST=toolu_q1 $P"
+rm -f "$rw_sub/agent-aq.meta.json"
+
+# RELEASE_PAST passes the call only when it names each live agent and no other id. The id is the agent
+# id when a meta exists (a1), else the record id (toolu_b2).
+rw_rec "$rw/two" toolu_a1 600 Agent toolu_a1 'Implement S1'
+rw_rec "$rw/two" toolu_b2 120 Agent toolu_b2 'Review lens'
+rw_meta a1 toolu_a1 none 598
+nb="(nohup bash -c \"$P > l 2>&1\" > /dev/null 2>&1 < /dev/null &)"
+for run in "RELEASE_PAST=a1,toolu_b2 $P" "cd /x/wt && (RELEASE_PAST=a1,toolu_b2 nohup bash -c \"$P > l 2>&1\" > /dev/null 2>&1 < /dev/null &)" \
+  "(nohup bash -c \"RELEASE_PAST=a1,toolu_b2 $P > l 2>&1\" > /dev/null 2>&1 < /dev/null &)" "RELEASE_PAST=a1,toolu_b2 cd /x/wt && $nb" \
+  "export RELEASE_PAST=a1,toolu_b2; cd /x/wt && $nb" "RELEASE_PAST=\"a1,toolu_b2\" $P" "RELEASE_PAST='a1,toolu_b2' $P" \
+  "cd /x/wt && RELEASE_PAST=\"a1,toolu_b2\" $nb"; do
+  expect_release allow "$rw/two" "$run"
+done
+for run in "RELEASE_PAST=a1 $P" "RELEASE_PAST=a1 cd /x/wt && $nb" "export RELEASE_PAST=toolu_b2; cd /x/wt && $nb" \
+  "RELEASE_PAST=\"a1\" $P" "RELEASE_PAST='toolu_b2' $P"; do
+  expect_release block "$rw/two" "$run"
+done
+expect_release block "$rw/two" "RELEASE_PAST=a1 $P"
+release_has 'toolu_b2: Agent "Review lens"'
+expect_release block "$rw/two" "RELEASE_PAST=a1,toolu_b2,toolu_zz $P"
+release_has 'RELEASE_PAST names toolu_zz'
+expect_release block "$rw/two" "$P"
+for text in "a1: Agent \"Implement S1\", newest record at $(date -r $(($(date +%s) - 600)) +%H:%M)" "$rw_sub/agent-a1.meta.json" \
+  'toolu_b2: Agent "Review lens"' 'no meta file yet' 'An agent stops being live when' \
+  'Start the release call after that agent hands back' 'pass RELEASE_PAST=<id>' 'Build lock: none'; do
+  release_has "$text"
+done
+expect_release allow "$rw/empty" "RELEASE_PAST=toolu_zz $P"
+rm -f "$rw_sub/agent-a1.meta.json"
+
+# An Agent record 5 to 90 min old with no meta file gives a note: with no live agent the call runs and
+# the note reaches the model as additionalContext JSON on stdout (each control byte escaped); with a
+# live agent the note is in the block message. A later rule still blocks.
+rw_rec "$rw/note" toolu_n3 900 Agent toolu_n3 'lost agent 3'
+expect_release allow "$rw/note" "$P"
+release_out '"additionalContext":"note: record toolu_n3 (lost agent 3) is 15 min old'
+rw_rec "$rw/note-cr" toolu_n6 900 Agent toolu_n6 $'lost\ragent'
+expect_release allow "$rw/note-cr" "$P"
+python3 -I -c 'import json, sys; json.load(sys.stdin)' < "$tmp/release.out" 2> /dev/null && release_out 'lost\u000dagent' ||
+  { echo "FAIL: release-wait note with a CR is no JSON: $(cat "$tmp/release.out")"; failures=$((failures + 1)); }
+rw_rec "$rw/note-main" toolu_n4 900 SendMessage main 'resume main'
+expect_release allow "$rw/note-main" "$P"
+release_out ''
+rw_rec "$rw/note-old" toolu_n5 6000 Agent toolu_n5 'agent 100 min old'
+expect_release allow "$rw/note-old" "$P"
+release_out ''
+expect_release allow "$rw/note" 'git status'
+release_out ''
+expect_release block "$rw/note" "$P; git reset --hard"
+rw_rec "$rw/note-live" toolu_n1 120 Agent toolu_n1 'fresh agent'
+rw_rec "$rw/note-live" toolu_n2 900 Agent toolu_n2 'lost agent'
+expect_release block "$rw/note-live" "$P"
+release_has 'note: record toolu_n2 (lost agent) is 15 min old'
+
+# A script file that bash, sh, zsh, or dash runs is read and its lines classified, one level deep.
+sd="$tmp/rw-scripts"
+mkdir -p "$sd"
+cat > "$sd/chain.sh" << 'EOF'
+#!/bin/bash
+R=/x/run
+cd /x/wt || exit 1
+export WITH_LOCK_MAX_WAIT=0
+scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > "$R/logs/hooks-pass-2.log" 2>&1
+scripts/with-lock.sh make check-changed BASE=origin/main > "$R/logs/push-check-2.log" 2>&1
+scripts/with-lock.sh scripts/land.sh 'Fix the hooks' "$R/pr.md" > "$R/logs/land-2.log" 2>&1
+EOF
+printf 'cd /x/wt\nWITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > l 2>&1\n' > "$sd/push.sh"
+printf 'cd /x/wt\nscripts/with-lock.sh scripts/land.sh "t" x/pr.md\n' > "$sd/do-land.sh"
+printf 'R=/x/run\ncd /x/wt || exit 1\nscripts/with-lock.sh bash -c '"'"'time make test-hooks HOOK_TESTS=scripts/land.test.sh'"'"' > "$R/logs/s4-land.log" 2>&1; echo "exit $?" >> "$R/logs/s4-land.log"\n' > "$sd/tests.sh"
+printf 'echo "scripts/with-lock.sh make check-changed BASE=origin/main"\nrg -n "make dmg" AGENTS.md\n' > "$sd/none.sh"
+{ printf 'scripts/with-lock.sh make check-changed BASE=origin/main\n'; head -c 70000 /dev/zero | tr '\0' '#'; printf '\n'; } > "$sd/big.sh"
+cat > "$sd/data.sh" << 'EOF'
+#!/bin/bash
+hook="$1"
+cases=(
+  'scripts/with-lock.sh make dmg'
+  "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main"
+)
+for c in \
+  'scripts/land.sh "t" x/pr.md' \
+  'cd /x && scripts/with-lock.sh make dmg' \
+  ; do
+  printf '{"tool_input":{"command":"%s"}}' "$c" | "$hook"
+done
+P='WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main'
+Q="scripts/land.sh 't' x/pr.md"
+EOF
+printf 'cd /x/wt\n"scripts/with-lock.sh" make dmg\n' > "$sd/quoted.sh"
+for run in "R=$sd; rm -f \$R/x.status; (nohup bash \$R/chain.sh > /dev/null 2>&1 < /dev/null &)" \
+  "bash $sd/push.sh" "sh $sd/do-land.sh" "cd $sd && bash push.sh > l 2>&1" "/bin/bash -x \"$sd/push.sh\"" \
+  "cd /x/wt && R=$sd && (nohup bash -c \"WITH_LOCK_MAX_WAIT=0 bash \$R/push.sh > l 2>&1\" > /dev/null 2>&1 < /dev/null &)" \
+  "export S=$sd; bash \${S}/do-land.sh" "bash $sd/quoted.sh"; do
+  expect_release block "$rw/live" "$run"
+done
+expect_release block "$rw/live" 'bash push.sh' "$sd"
+for run in "bash $sd/tests.sh" "sh $sd/none.sh" "bash $sd/big.sh" "bash $sd/missing.sh" "bash \$UNSET/push.sh" \
+  "bash -c 'echo hi'" "WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh $tmp bash $sd/push.sh" "rg -n 'bash $sd/push.sh' notes.txt" \
+  "WITH_LOCK_MAX_WAIT=0 bash $sd/tests.sh" "bash $sd/data.sh hook.sh" "P='scripts/with-lock.sh make dmg'; echo \"\$P\""; do
+  expect_release allow "$rw/live" "$run"
+done
+# The script lines split with one tr call: a 62 KB script with separators on each line and a push check
+# on its last line blocks in under 5 s.
+{ for ((i = 0; i < 1300; i++)); do printf 'x=$((i + 1)); echo "a|b" | cut -d"|" -f1 & wait\n'; done
+  printf 'scripts/with-lock.sh make check-changed BASE=origin/main\n'; } > "$sd/long.sh"
+rw_start=$(date +%s)
+expect_release block "$rw/live" "bash $sd/long.sh"
+(($(date +%s) - rw_start < 5)) || { echo "FAIL: release-wait took $(($(date +%s) - rw_start)) s for a 62 KB script"; failures=$((failures + 1)); }
+# The subagent rule reads the same script lines: a release call in a script is a wait with no limit.
+expect_release block "$rw/empty" "bash $sd/push.sh" '' a1
+expect_release allow "$rw/empty" "bash $sd/tests.sh" '' a1
+fi # release-wait
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE
 gc() { git -C "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty "${@:2}"; }
 
@@ -2140,6 +2420,9 @@ grep -qF 'line 9: boom' "$tmp/agent-err" ||
   { echo "FAIL: the agent-guard block text drops an exit 1 output that has no check-plan: line: $(cat "$tmp/agent-err")"; failures=$((failures + 1)); }
 agent_hook="$ag_real_hook"
 
+# The lock-step briefs that agent-guard.sh passes below write records (AGT-152): they go to a folder
+# that no release-wait case reads.
+DIRIGIBLE_LOCK_AGENTS="$tmp/ag-records"
 # Lock-step brief cases (a temp repo copy of the hook and a lock state written by the test)
 # While a release call holds the build lock or waits first for it, agent-guard.sh refuses a brief
 # that names a lock step, unless a line of the brief says Build lock: none. The cases run a copy of
@@ -2356,6 +2639,72 @@ grep -q "dirigible-provider-limits" "$tmp/agent-err" ||
 expect_limit allow "antigravity\t2026-02-30T10:00\n" antigravity gemini-4-argon
 expect_limit allow "antigravity\t$limit_after\n" antigravity gemini-4-argon Agent
 
+# Records of lock-step briefs (AGT-152). A passed Agent or SendMessage brief that names a lock step,
+# with no Build lock: none line, writes one record file; a refused brief, a brief with no lock step,
+# and a delegate_task write none.
+ag_sess="$tmp/ag-e2e-s/sess.jsonl" ag_sub="$tmp/ag-e2e-s/sess/subagents" ag_rec_n=0
+mkdir -p "$ag_sub"
+ag_step='Run scripts/with-lock.sh make test-hooks HOOK_TESTS=x'
+# ag_write <records dir> <json>: agent-guard.sh of the temp repo, with a free lock, on the brief.
+ag_write() {
+  lock_state free
+  printf '%s' "$2" | env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE DIRIGIBLE_LOCK_AGENTS="$1" "$lock_repo/.claude/hooks/agent-guard.sh" > /dev/null 2>&1
+}
+# expect_records <count> <json>: the brief leaves that many record files in a new folder.
+expect_records() {
+  ag_dir="$tmp/ag-rec-$((ag_rec_n += 1))"
+  mkdir -p "$ag_dir"
+  ag_write "$ag_dir" "$2"
+  [[ "$(find "$ag_dir" -type f | wc -l | tr -d ' ')" == "$1" ]] || { echo "FAIL: agent-guard record files, want $1: $2"; failures=$((failures + 1)); }
+}
+# ag_fields <file> <tool> <key> <description>: the record line holds an epoch and the four fields.
+ag_fields() {
+  local t tool key path desc
+  IFS=$'\t' read -r t tool key path desc < "$1"
+  [[ "$t" =~ ^[0-9]+$ && "$tool" == "$2" && "$key" == "$3" && "$path" == "$ag_sess" && "$desc" == "$4" ]] ||
+    { echo "FAIL: agent-guard record fields: $(tr '\t' '|' < "$1")"; failures=$((failures + 1)); }
+}
+expect_records 1 "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c1\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"S1 slice\",\"prompt\":\"$ag_step\"}}"
+ag_fields "$ag_dir/toolu_c1" Agent toolu_c1 'S1 slice'
+expect_records 1 "{\"tool_name\":\"SendMessage\",\"tool_use_id\":\"toolu_s1\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"to\":\"a0123456789abcdef\",\"message\":\"$ag_step\"}}"
+ag_fields "$ag_dir/toolu_s1" SendMessage a0123456789abcdef 'resume a0123456789abcdef'
+for brief in "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c2\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\\nBuild lock: none\"}}" \
+  "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c3\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"Run make check-docs.\"}}" \
+  "{\"tool_name\":\"SendMessage\",\"tool_use_id\":\"toolu_c4\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"to\":\"a1\",\"message\":\"Go on with the next item.\"}}" \
+  "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c5\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\",\"isolation\":\"worktree\"}}" \
+  "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_c6\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"d\",\"prompt\":\"$ag_step\\ngit commit -F .scratchpads/runs/x/commit-msg.txt\"}}" \
+  "{\"tool_name\":\"mcp__t3-code__delegate_task\",\"tool_use_id\":\"toolu_c7\",\"tool_input\":{\"task\":\"$ag_step\"}}"; do
+  expect_records 0 "$brief"
+done
+# Each write removes the record files over 24 h old.
+ag_dir="$tmp/ag-purge"
+mkdir -p "$ag_dir"
+printf 'x\n' > "$ag_dir/old"; touch -t "$(rw_stamp $(($(date +%s) - 1441 * 60)))" "$ag_dir/old"
+printf 'x\n' > "$ag_dir/young"; touch -t "$(rw_stamp $(($(date +%s) - 1437 * 60)))" "$ag_dir/young"
+ag_write "$ag_dir" "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_p1\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"p\",\"prompt\":\"$ag_step\"}}"
+[[ ! -e "$ag_dir/old" && -e "$ag_dir/young" && -e "$ag_dir/toolu_p1" ]] || { echo "FAIL: agent-guard record purge: $(ls "$ag_dir" | tr '\n' ' ')"; failures=$((failures + 1)); }
+# End to end: the record of agent-guard.sh makes git-guardrails.sh refuse the push check until the meta
+# of the agent says finished; a resume with no lock words writes no record, and its meta start write
+# makes the agent live again.
+ag_dir="$tmp/ag-e2e"
+mkdir -p "$ag_dir"
+ag_push='WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main'
+ag_write "$ag_dir" "{\"tool_name\":\"Agent\",\"tool_use_id\":\"toolu_t1\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"description\":\"S1 slice\",\"prompt\":\"$ag_step\"}}"
+expect_release block "$ag_dir" "$ag_push"
+release_has 'toolu_t1: Agent "S1 slice"'
+printf '{"toolUseId":"toolu_t1","finished":true}' > "$ag_sub/agent-at1.meta.json"
+expect_release allow "$ag_dir" "$ag_push"
+ag_write "$ag_dir" "{\"tool_name\":\"SendMessage\",\"tool_use_id\":\"toolu_s2\",\"transcript_path\":\"$ag_sess\",\"tool_input\":{\"to\":\"at1\",\"message\":\"Go on with the next item.\"}}"
+[[ "$(ls "$ag_dir")" == toolu_t1 ]] || { echo "FAIL: agent-guard wrote a record for a resume with no lock step: $(ls "$ag_dir" | tr '\n' ' ')"; failures=$((failures + 1)); }
+ag_t=$(($(date +%s) - 7200))
+printf '%s\tAgent\ttoolu_t1\t%s\tS1 slice\n' "$ag_t" "$ag_sess" > "$ag_dir/toolu_t1"
+touch -t "$(rw_stamp "$ag_t")" "$ag_dir/toolu_t1"
+printf '{"toolUseId":"toolu_t1"}' > "$ag_sub/agent-at1.meta.json"
+expect_release block "$ag_dir" "$ag_push"
+release_has 'at1: Agent "S1 slice"'
+printf '{"toolUseId":"toolu_t1","finished":true}' > "$ag_sub/agent-at1.meta.json"
+expect_release allow "$ag_dir" "$ag_push"
+DIRIGIBLE_LOCK_AGENTS="$tmp/lock-agents"
 fi # agent-guard
 if case_block usage-hook; then
 # The third hook, usage-hook.sh, gives the usage mode as context at an agent start. It denies nothing

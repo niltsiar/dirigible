@@ -1385,9 +1385,9 @@ for pattern in "${DANGEROUS_PATTERNS[@]}"; do
     block "matches '$pattern'"
   fi
 done
-# All worktrees share one stash list, so the entry that git stash pop or apply takes can hold the
-# work of another worktree (AGT-154). As the rows above, the rule matches quoted text too.
-if matches 'git stash (pop|apply)([^A-Za-z0-9_-]|$)' "$NORMALIZED"; then
+# All worktrees share one stash list, so the entry that git stash pop, apply, or branch takes can hold
+# the work of another worktree (AGT-154). As the rows above, the rule matches quoted text too.
+if matches 'git stash (pop|apply|branch)([^A-Za-z0-9_-]|$)' "$NORMALIZED"; then
   block "applies a stash entry, and all worktrees share one stash list" "Save a change as a file with git diff <path> > <run>/x.patch, restore with git checkout <path>, and apply it with git apply."
 fi
 

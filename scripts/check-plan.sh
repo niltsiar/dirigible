@@ -53,7 +53,8 @@
 #   `no behavior change` needs no field. A review file older than the rule is not checked; one
 #   older than the nit rule needs no field for a nit. A Siblings field whose first word is none, n/a,
 #   no, or nothing needs `grepped` or an `rg` or `grep` word in its value (the text after its colon,
-#   up to the next Invariant, Siblings, or Fix field); a review file older than
+#   up to the next Invariant, Siblings, or Fix field; the first non-empty next line when the colon ends
+#   its line); a review file older than
 #   none_cutoff keeps a bare none.
 # - Before the first phase 4 row only: each Swift path under Sources/ or Tests/ of a slice `- Check:`
 #   line that has the check-sizes.sh limit minus 20 lines or more at origin/main, and that
@@ -665,8 +666,9 @@ for review in "$run"/review-*.md; do
     fi
     while IFS= read -r msg; do say "$msg"; done < <(awk -v file="${review##*/}" -v nitrule=$((mtime >= nit_cutoff)) -v nonerule=$((mtime >= none_cutoff)) '
         # missing <what>: print each field that text does not have, and a Siblings field that says
-        # none with no search in its value (the text after its colon, up to the next field).
-        function missing(what,  n, lines, i, rest) {
+        # none with no search in its value (the text after its colon, or the first non-empty next line
+        # when the colon ends the line, up to the next field).
+        function missing(what,  n, lines, i, j, rest) {
             for (f = 1; f <= 2; f++)
                 if (text !~ (field[f] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:"))
                     print file ": " what " has no " field[f] " field (a review file from before the rule: add the fields, or do not edit it)"
@@ -675,7 +677,8 @@ for review in "$run"/review-*.md; do
             for (i = 1; i <= n; i++) {
                 if (!match(lines[i], field[2] "[*[:space:]]*(\\([^)]*\\))?[*[:space:]]*:")) continue
                 rest = tolower(substr(lines[i], RSTART + RLENGTH))
-                sub(/^[*[:space:]]+/, "", rest)
+                sub(/^[-*[:space:]]+/, "", rest)
+                for (j = i + 1; rest == "" && j <= n; j++) { rest = tolower(lines[j]); sub(/^[-*[:space:]]+/, "", rest) }
                 if (match(rest, /(^|[^a-z])(invariant|siblings|fix)[*[:space:]]*(\([^)]*\))?[*[:space:]]*:/)) rest = substr(rest, 1, RSTART - 1)
                 if (rest ~ /^(none|n\/a|no|nothing)([^a-z]|$)/ && rest !~ /grepped/ && rest !~ /(^|[^a-z])(rg|grep)([^a-z]|$)/) {
                     print file ": " what " has a Siblings field with no sibling and no search; write \"none, grepped <what you searched>\""

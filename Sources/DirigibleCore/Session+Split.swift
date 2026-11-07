@@ -88,8 +88,8 @@ extension Session {
         for source in sources {
             var sides = [(Side.left, names.left), (.right, names.right)].map { side, name in
                 var track = Track(id: TrackID(), name: "\(source.name) \(name)", layout: .mono)
-                (track.gain, track.isMuted, track.isSoloed, track.role) =
-                    (source.gain, source.isMuted, source.isSoloed, source.role)
+                (track.gain, track.isMuted, track.isSoloed, track.isFollowTrack, track.role) =
+                    (source.gain, source.isMuted, source.isSoloed, source.isFollowTrack, source.role)
                 return (side: side, track: track, clips: [Clip]())
             }
             try Self.checkText(sides[0].track.name, sides[1].track.name)

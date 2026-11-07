@@ -92,4 +92,40 @@ struct SessionVersionTests {
         let read = try Session(contentsOf: files.package)
         #expect(read == session && read.recording?.isPreRoll == true)
     }
+
+    /// Each `package let <name>SessionVersion = <n>` of `SessionWriter.swift` has its own number, and
+    /// `sessionVersion` names the largest, so two runs that take one number fail here.
+    @Test func eachSessionVersionIsDistinctAndTheNewestIsTheLargest() throws {
+        let writer = URL(filePath: #filePath).deletingLastPathComponent()
+            .appending(path: "../../Sources/DirigibleCore/SessionWriter.swift")
+        let text = try String(contentsOf: writer, encoding: .utf8)
+        #expect(versionProblems(in: text).isEmpty, "\(versionProblems(in: text))")
+        #expect(versionConstants(in: text).count >= 2)
+
+        let shared = text + "\npackage let otherSessionVersion = \(sessionVersion)\n"
+        #expect(!versionProblems(in: shared).isEmpty, "a second constant with the newest number")
+        let oldest = try #require(versionConstants(in: text).min { $0.value < $1.value }?.key)
+        let stale = text.replacing(#/package let sessionVersion = \w+/#, with: "package let sessionVersion = \(oldest)")
+        #expect(!versionProblems(in: stale).isEmpty, "sessionVersion names a lower constant")
+    }
+
+    func versionConstants(in text: String) -> [String: Int] {
+        var constants: [String: Int] = [:]
+        for match in text.matches(of: #/package let (\w+SessionVersion) = (\d+)/#) {
+            constants[String(match.1), default: 0] = Int(match.2) ?? -1
+        }
+        return constants
+    }
+
+    func versionProblems(in text: String) -> [String] {
+        let constants = versionConstants(in: text)
+        var problems: [String] = []
+        let numbers = constants.values.sorted()
+        if Set(numbers).count != numbers.count { problems.append("two constants share a number: \(constants)") }
+        let newest = text.firstMatch(of: #/package let sessionVersion = (\w+)/#).map { String($0.1) }
+        if newest.flatMap({ constants[$0] }) != numbers.last {
+            problems.append("sessionVersion is \(newest ?? "missing"), not the largest of \(constants)")
+        }
+        return problems
+    }
 }

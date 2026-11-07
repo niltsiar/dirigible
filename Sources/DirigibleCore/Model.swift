@@ -331,6 +331,8 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// Mute and solo (decision 0039). `Session.heardTracks(in:)` owns the rule.
     public internal(set) var isMuted = false
     public internal(set) var isSoloed = false
+    /// A ripple moves the clips of a follow track whole unless the edit names the track (decision 0073).
+    public internal(set) var isFollowTrack = false
     /// The header strip, the default track lists of a duck (decision 0060), and the clips that Reduce
     /// Noise takes: none on a music or effects track (decision 0054). No role changes the sound.
     public internal(set) var role: Role?

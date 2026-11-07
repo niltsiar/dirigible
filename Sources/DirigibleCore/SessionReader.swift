@@ -71,6 +71,7 @@ extension Session {
                 }
                 try setMuted(track.isMuted, tracks: [track.id])
                 try setSoloed(track.isSoloed, tracks: [track.id])
+                try setFollowTrack(track.isFollowTrack, tracks: [track.id])
                 try setRole(track.role, tracks: [track.id])
             }
             // setMarker replaces a marker with the same ID, so a file with two would lose one.
@@ -97,12 +98,14 @@ private struct ParsedTrack {
     let clips: [Clip]
     let isMuted: Bool
     let isSoloed: Bool
+    let isFollowTrack: Bool
     let role: Track.Role?
 
     init(_ node: XMLElement, version: Int) throws(SessionFileError) {
         id = TrackID(try node.string("id"))
-        isMuted = try node.flag("muted", version: version)
-        isSoloed = try node.flag("soloed", version: version)
+        isMuted = try node.flag("muted", since: 5, version: version)
+        isSoloed = try node.flag("soloed", since: 5, version: version)
+        isFollowTrack = try node.flag("follow", since: followSessionVersion, version: version)
         role = try node.optionalString("role").map { word throws(SessionFileError) in
             // From version 11 on (decision 0060).
             guard version >= 11, let role = Track.Role(rawValue: word) else {
@@ -350,11 +353,11 @@ extension XMLElement {
         return GainEnvelope(valid: points)
     }
 
-    /// `muted` and `soloed` from version 5 on (decision 0039): `true` or `false`. A missing one is
-    /// false.
-    fileprivate func flag(_ attribute: String, version: Int) throws(SessionFileError) -> Bool {
+    /// A flag attribute from version `first` on: `muted` and `soloed` from 5 (decision 0039), `follow`
+    /// from `followSessionVersion` (decision 0073). The value is `true` or `false`; a missing one is false.
+    fileprivate func flag(_ attribute: String, since first: Int, version: Int) throws(SessionFileError) -> Bool {
         guard let value = optionalString(attribute) else { return false }
-        guard version >= 5, let flag = Bool(value) else { throw invalid(attribute) }
+        guard version >= first, let flag = Bool(value) else { throw invalid(attribute) }
         return flag
     }
 

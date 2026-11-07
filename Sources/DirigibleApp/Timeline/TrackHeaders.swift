@@ -197,8 +197,12 @@ private struct TrackRow: View {
                 if !renaming { Color.clear.contentShape(Rectangle()).onTapGesture(perform: click) }
             }
             .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
-            .accessibilityAction(named: Text(L10n.trackFollowTurnOff.key)) {
-                model.setFollowTrack(false, tracks: [track.id])
+            .accessibilityActions {
+                if track.isFollowTrack {
+                    Button(action: { model.setFollowTrack(false, tracks: [track.id]) }) {
+                        Text(L10n.trackFollowTurnOff.key)
+                    }
+                }
             }
             // A one-line row has the arm box of 18 pt at every width, so its name gives up 6 pt.
             .frame(minWidth: nameMinWidth, maxWidth: .infinity)

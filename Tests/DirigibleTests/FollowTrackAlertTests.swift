@@ -21,7 +21,9 @@ import Testing
     }
 
     /// `wLength` 48 001 makes a ripple of `cut` refuse (x would cover w); 24 000 lets it pass (C32).
-    func package(wLength: Frames = 48_001, follow: [TrackID] = ["bed", "sfx"], name: String = "f") async throws -> URL {
+    func package(
+        wLength: Frames = 48_001, follow: [TrackID] = ["bed", "sfx"], name: String = "f", pendingTake: Bool = false
+    ) async throws -> URL {
         let url = folder.url.appending(path: "\(name).dirigible")
         try await Task.detached {
             try Session.create(at: url, sampleRate: 48_000)
@@ -38,6 +40,11 @@ import Testing
                 Clip(id: "y", file: "s", start: 360_000, offset: 200_000, length: 48_000),
             ] { try session.place(clip, on: "sfx") }
             try session.setFollowTrack(true, tracks: follow)
+            if pendingTake {
+                try session.setRecording(
+                    Recording(
+                        take: 1, playheadFrame: 0, takeStartHostTimeNanos: 1_000_000_000_000, armedTracks: ["host"]))
+            }
             try session.write(to: url)
         }.value
         return url
@@ -110,6 +117,32 @@ import Testing
         await until("the run ends") { model.importJob == nil }
         #expect(model.alert == alert, "Replace")
         #expect(studio.session == before && !studio.canUndo, "Replace")
+        await model.close()
+    }
+
+    /// C36: under a pending take, each ripple that would show the follow alert beeps instead, with no
+    /// alert and no edit. The `Clips/` folder is read-only during the open, so the take stays pending.
+    @Test func eachWindowRippleUnderAPendingTakeBeeps() async throws {
+        let url = try await package(name: "pending", pendingTake: true)
+        let clips = url.appending(path: "Clips")
+        try FileManager.default.createDirectory(at: clips, withIntermediateDirectories: true)
+        chmod(clips.path, 0o500)
+        let (model, studio) = try await timelineModel(url, app: app)
+        chmod(clips.path, 0o755)
+        try #require(studio.pendingTake?.take == 1)
+        let before = studio.session
+        var beeps = 0
+        model.beep = { beeps += 1 }
+        for command in [TimelineCommand.deleteCloseGap, .cut] {
+            selectHost(model)
+            model.run(command)
+        }
+        model.timeline.marks = Marks(inPoint: 0, outPoint: 48_000, tracks: ["host"])
+        model.run(.copy)
+        selectHost(model)
+        model.run(.replace)
+        #expect(beeps == 3 && model.alert == nil, "each ripple beeps")
+        #expect(studio.session == before && !studio.canUndo)
         await model.close()
     }
 

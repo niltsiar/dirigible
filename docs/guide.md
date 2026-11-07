@@ -147,7 +147,7 @@ Choose **View > Hide Loudness Meter** (Shift-Command-8) to hide the strip, and *
 
 1. Choose **Edit > Deselect All** (Shift-Command-A).
 2. Drag in the time ruler above the tracks, from the start of the mistake to its end. The drag selects that range on all tracks, and the playhead moves to the start.
-3. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks.
+3. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks. A follow track moves with the audio and is not cut (see **Follow in Ripples**).
 
 The in point is the start of the selection, and the out point is the end. You can also put the playhead at the start, press I, put the playhead at the end, and press O. With no track selected, I and O select all tracks.
 
@@ -245,6 +245,7 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 - **Delete** removes the selection and leaves silence.
 - **Delete and Close Gap** removes the selection from all tracks and moves the audio after it to the left (a ripple delete).
 - **Cut in Selected Tracks** and **Delete and Close Gap in Selected Tracks** close the gap only on the selected tracks. The other tracks do not move, so they can go out of sync with the moved tracks. The markers move with the moved tracks.
+- **Track > Follow in Ripples** keeps the clips of a track whole in a ripple. Use it for a music bed or an effects track. The track shows a link mark in its header, and **Follow in Ripples** is also in the menu of the header (Control-click). In a ripple, the clips of a follow track move by the same time as the audio on the other tracks, and no cut splits them. A clip on a follow track that the cut covers moves to the start of the cut. A track that you select, a range that you draw on its lane, and the words of its transcript that you select are cut as usual, also when the track follows. A range that you draw on a follow track cuts it, and so does a selection of its words in the transcript. A ruler drag, I and O with no selected track, and **Select All** name no track, so each follow track moves and is not cut. When a moved clip of a follow track would cover another clip, nothing changes and an alert says: **A clip would cover another clip.** It names the track and the time of the clip. **OK** closes the alert. **Turn Off Follow in Ripples** clears the flag of that track as one undo step, and the edit does not run again. When each track of the edit follows and none is named, nothing would be cut: an alert says so, and nothing changes. With VoiceOver, the header of a follow track has the action **Turn Off Follow in Ripples**. In Terminal, `dirigible track follow` sets the flag.
 - **Split** cuts the clips at the in point and the out point of a range, and never at the playhead. With no selection, it cuts the clips at the playhead. When Split cuts nothing, for example when the points of a range cut no clip, Dirigible beeps. It also beeps when Split must wait for an import, Auto Level, a duck, or the end of a take. While a take records, Split does not beep.
 - **Nudge Left** and **Nudge Right** move the clips that are fully in the selection, or the set of clips, by 10 ms.
 - **Roll Edit to Playhead** (**Mover el punto de edición al cursor**, Shift-X) moves a join to the playhead. A join is the place where two clips touch. On each selected track, the clip that holds the playhead rolls its nearer join to the playhead: the clip that holds the playhead gets shorter, its neighbor at that join gets longer by the same time, and no other clip and no marker moves. The selection only picks the tracks (all tracks when no track is selected): on each track, the clip at the playhead rolls, not the selected clip. A join keeps its crossfade. A track is left out when the playhead is in a gap, at a join, or in a clip with no touching neighbor, and when the roll would leave a clip with no audio in its file or less than one frame. When no track rolls, Dirigible beeps. All rolls are one **Edit > Undo** step.
@@ -281,7 +282,7 @@ To remove a part and move the audio after it to the left on all tracks, use a ri
 1. Choose **Edit > Deselect All**.
 2. Move the playhead to the start of the mistake. Then choose **Edit > Set In Point**.
 3. Move the playhead to the end of the mistake. Then choose **Edit > Set Out Point**. The selection is on all tracks.
-4. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks. The playhead goes to the start of the old mistake.
+4. Choose **Edit > Delete and Close Gap** (Shift-Delete). The mistake goes, and the audio after it moves to the left on all tracks. A follow track moves with the audio and is not cut. The playhead goes to the start of the old mistake.
 5. Play the result. If it is wrong, choose **Edit > Undo**.
 
 The markers after the mistake move to the left with the audio. A marker in the mistake goes to its start. **Edit > Cut** does the same and also copies the mistake.
@@ -368,11 +369,11 @@ VoiceOver reads the text as **Transcript**. Each paragraph header is a heading, 
 
 ### Select and cut by words
 
-Drag over words in the **Transcript** tab to select them. The selection takes whole words. It selects the same time in the lanes, on all tracks, from the start of the first word to the end of the last word. With the text cursor in the text, Shift-Right Arrow adds the next word, and Shift-Left Arrow takes the last word off. Shift-Down Arrow goes to the end of the next sentence, and Shift-Up Arrow goes back to the end of the sentence before. VoiceOver says how many words are selected. With the focus in the lanes, Shift-Left Arrow and Shift-Right Arrow stay **Previous Clip** and **Next Clip**.
+Drag over words in the **Transcript** tab to select them. The selection takes whole words. It selects the same time in the lanes, on each track that does not follow ripples and on the track of each selected word, from the start of the first word to the end of the last word. With the text cursor in the text, Shift-Right Arrow adds the next word, and Shift-Left Arrow takes the last word off. Shift-Down Arrow goes to the end of the next sentence, and Shift-Up Arrow goes back to the end of the sentence before. VoiceOver says how many words are selected. With the focus in the lanes, Shift-Left Arrow and Shift-Right Arrow stay **Previous Clip** and **Next Clip**.
 
 A range in the lanes shows in the text as a tint behind its words. A word of a track of the range has the tint when its middle is in the range. A new range from the lanes, or a clear of the range, removes the text selection.
 
-With the focus in the text, Delete removes the selected time from all tracks and closes the gap, as **Delete and Close Gap** does. **Edit > Cut** (Command-X) does the same and puts the range on the clipboard. **Edit > Copy** (Command-C) copies the range, as in the lanes. Copy and Cut also put the words as plain text on the clipboard of the system, so you can paste them in another app, for example in your show notes. One **Undo** puts the audio back.
+With the focus in the text, Delete removes the selected time from those tracks and closes the gap, as **Delete and Close Gap** does. **Edit > Cut** (Command-X) does the same and puts the range on the clipboard. **Edit > Copy** (Command-C) copies the range, as in the lanes. Copy and Cut also put the words as plain text on the clipboard of the system, so you can paste them in another app, for example in your show notes. One **Undo** puts the audio back.
 
 ### Import a transcript
 
@@ -981,6 +982,7 @@ The **Track** menu (**Pista**).
 | **Mute Track** | **Silenciar pista** | Shift-M |
 | **Solo Track** | **Solo de pista** | Shift-S |
 | **Role** | **Función** | - |
+| **Follow in Ripples** | **Seguir el desplazamiento** | - |
 | **Raise Track Volume** | **Subir volumen de pista** | Control-= |
 | **Lower Track Volume** | **Bajar volumen de pista** | Control-minus |
 | **Reset Track Volume** | **Restablecer volumen de pista** | Control-0 |

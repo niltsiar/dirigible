@@ -825,3 +825,11 @@
 "banner.export.set.dropped" = "“%@” has no file of its own: it starts at the time of the split point before it, or at the end of the range.";
 "error.export.nochapter" = "The session has no chapters in the export range now. No file was written.";
 "error.export.nomarker" = "The session has no markers in the export range now. No file was written.";
+"menu.track.follow.ripples" = "Follow in Ripples";
+"track.follow.label" = "Follow in Ripples";
+"track.follow.value" = "On";
+"track.follow.help" = "Follow in Ripples is on. Turn it off in the Track menu.";
+"track.follow.turn.off" = "Turn Off Follow in Ripples";
+"alert.follow.overlap.title" = "A clip would cover another clip.";
+"alert.follow.overlap.body" = "The clip on %1$@ at %2$@ follows ripples. Move it, or turn off Follow in Ripples.";
+"error.ripple.follow.only" = "Each track follows ripples, so nothing would be cut. Turn off Follow in Ripples on the track to cut.";

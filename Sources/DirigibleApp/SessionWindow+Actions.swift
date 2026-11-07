@@ -235,7 +235,7 @@ extension SessionWindow {
             beep()
             return nil
         } catch {
-            alert = .error(error)
+            alert = .refusing(error, in: studio.session)
             return nil
         }
     }

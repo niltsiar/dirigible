@@ -825,3 +825,11 @@
 "banner.export.set.dropped" = "„%@“ hat keine eigene Datei: Der Punkt liegt an derselben Stelle wie der Teilungspunkt davor oder am Ende des Bereichs.";
 "error.export.nochapter" = "Die Sitzung hat jetzt keine Kapitel im Exportbereich. Es wurde keine Datei geschrieben.";
 "error.export.nomarker" = "Die Sitzung hat jetzt keine Marker im Exportbereich. Es wurde keine Datei geschrieben.";
+"menu.track.follow.ripples" = "Beim Ripple mitwandern";
+"track.follow.label" = "Beim Ripple mitwandern";
+"track.follow.value" = "Ein";
+"track.follow.help" = "„Beim Ripple mitwandern“ ist an. Schalte es im Menü „Spur“ aus.";
+"track.follow.turn.off" = "„Beim Ripple mitwandern“ ausschalten";
+"alert.follow.overlap.title" = "Ein Clip würde einen anderen Clip überdecken.";
+"alert.follow.overlap.body" = "Der Clip auf %1$@ bei %2$@ wandert beim Ripple mit. Verschiebe ihn oder schalte „Beim Ripple mitwandern“ aus.";
+"error.ripple.follow.only" = "Jede Spur wandert beim Ripple mit, daher würde nichts geschnitten. Schalte „Beim Ripple mitwandern“ auf der Spur aus, um zu schneiden.";

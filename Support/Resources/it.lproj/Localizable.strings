@@ -825,3 +825,11 @@
 "banner.export.set.dropped" = "“%@” non ha un file proprio: coincide con il punto di divisione precedente o con la fine dell’intervallo.";
 "error.export.nochapter" = "La sessione non ha più capitoli nell’intervallo di esportazione. Nessun file è stato scritto.";
 "error.export.nomarker" = "La sessione non ha più marcatori nell’intervallo di esportazione. Nessun file è stato scritto.";
+"menu.track.follow.ripples" = "Segui lo spostamento";
+"track.follow.label" = "Segui lo spostamento";
+"track.follow.value" = "Attivo";
+"track.follow.help" = "“Segui lo spostamento” è attivo. Disattivalo nel menu Traccia.";
+"track.follow.turn.off" = "Disattiva “Segui lo spostamento”";
+"alert.follow.overlap.title" = "Una clip ne coprirebbe un'altra.";
+"alert.follow.overlap.body" = "La clip su %1$@ a %2$@ segue lo spostamento. Spostala o disattiva “Segui lo spostamento”.";
+"error.ripple.follow.only" = "Ogni traccia segue lo spostamento, quindi non verrebbe tagliato nulla. Disattiva “Segui lo spostamento” sulla traccia per tagliare.";

@@ -89,6 +89,7 @@ struct HeaderMenu: View {
         Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track) }
             .onAppear { model.showHeaderMenu(track) }
         Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track) }
+        FollowItem(model: model, headerRow: track)
         Divider()
         Button(L10n.menuToolsTranscribe.key) { model.transcribeTrack(track) }.disabled(!model.canTranscribe)
     }

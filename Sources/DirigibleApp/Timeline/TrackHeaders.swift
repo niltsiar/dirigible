@@ -103,7 +103,10 @@ private struct TrackRow: View {
     private var textColor: Color { style.text.map { Color(nsColor: $0) } ?? .primary }
     private var renaming: Bool { model.renamingTrack == track.id }
     /// The role glyph and its spacing come out of the name, so the width gates hold with a role.
-    private var nameMinWidth: Double { (secondLine ? 60 : 54) - (track.role == nil ? 0 : RoleGlyph.size + 8) }
+    private var nameMinWidth: Double {
+        (secondLine ? 60 : 54) - (track.role == nil ? 0 : RoleGlyph.size + 8)
+            - (track.isFollowTrack ? FollowGlyph.size + 8 : 0)
+    }
 
     var body: some View {
         let _ = model.countHeaderRun(row: true)
@@ -111,6 +114,7 @@ private struct TrackRow: View {
             HStack(spacing: 8) {
                 TrackToggles(model: model, track: track, boxes: boxes)
                 if let role = track.role { RoleGlyph(role: role) }
+                if track.isFollowTrack { FollowGlyph() }
                 if taking { takeName } else { nameField }
                 if showsLayout {
                     // One line: a squeezed text wraps into the lane below. It is cut only after the
@@ -193,6 +197,9 @@ private struct TrackRow: View {
                 if !renaming { Color.clear.contentShape(Rectangle()).onTapGesture(perform: click) }
             }
             .accessibilityAction(named: Text(L10n.headerRename.key)) { model.startRename(track.id) }
+            .accessibilityAction(named: Text(L10n.trackFollowTurnOff.key)) {
+                model.setFollowTrack(false, tracks: [track.id])
+            }
             // A one-line row has the arm box of 18 pt at every width, so its name gives up 6 pt.
             .frame(minWidth: nameMinWidth, maxWidth: .infinity)
     }

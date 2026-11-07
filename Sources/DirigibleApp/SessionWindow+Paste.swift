@@ -90,7 +90,7 @@ extension SessionWindow {
         switch error {
         case .session(.unknownFile), .rippleBlocked: beep()
         case .paste(.cancelled, _): break
-        default: alert = .error(error)
+        default: alert = studio.map { .refusing(error, in: $0.session) } ?? .error(error)
         }
     }
 }

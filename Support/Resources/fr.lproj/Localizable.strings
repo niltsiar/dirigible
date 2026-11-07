@@ -825,3 +825,11 @@
 "banner.export.set.dropped" = "« %@ » n’a pas de fichier propre : ce point coïncide avec le point de découpe précédent ou avec la fin de la plage.";
 "error.export.nochapter" = "La session n’a plus de chapitre dans la plage d’exportation. Aucun fichier n’a été écrit.";
 "error.export.nomarker" = "La session n’a plus de marqueur dans la plage d’exportation. Aucun fichier n’a été écrit.";
+"menu.track.follow.ripples" = "Suivre le décalage";
+"track.follow.label" = "Suivre le décalage";
+"track.follow.value" = "Activé";
+"track.follow.help" = "« Suivre le décalage » est activé. Désactivez-le dans le menu Piste.";
+"track.follow.turn.off" = "Désactiver « Suivre le décalage »";
+"alert.follow.overlap.title" = "Un clip en recouvrirait un autre.";
+"alert.follow.overlap.body" = "Le clip de %1$@ à %2$@ suit le décalage. Déplacez-le ou désactivez « Suivre le décalage ».";
+"error.ripple.follow.only" = "Chaque piste suit le décalage, donc rien ne serait coupé. Désactivez « Suivre le décalage » sur la piste pour couper.";

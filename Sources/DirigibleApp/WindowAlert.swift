@@ -1,5 +1,24 @@
 import DirigibleAudio
 import DirigibleCore
+import Foundation
+
+/// The clip of a follow track that a refused ripple would have moved over another clip: its track and
+/// its start before the edit.
+struct FollowOverlap: Hashable {
+    let track: TrackID
+    let trackName: String
+    let start: Frames
+    let rate: Int
+
+    /// `table` gives the format of a key: the tests read the tables, which `Bundle.main` lacks.
+    func title(table: (L10n) -> String = { $0.text }) -> String { table(.alertFollowOverlapTitle) }
+
+    func body(locale: Locale = .current, table: (L10n) -> String = { $0.text }) -> String {
+        String(
+            format: table(.alertFollowOverlapBody), locale: locale, trackName,
+            SilenceReview.clock(start, rate: rate))
+    }
+}
 
 /// A question or an error that the window shows.
 enum WindowAlert: Hashable {
@@ -8,6 +27,8 @@ enum WindowAlert: Hashable {
     /// import, in the drop order, and the names of the files after a stop of the chain.
     case importChain([StudioError], notImported: [String])
     case microphone(MicrophoneAccess)
+    /// A ripple would move a clip of a follow track over another clip (decision 0073).
+    case followOverlap(FollowOverlap)
     case confirmStopAndClose
     case confirmUnsavedClose
     /// Remove Track of tracks with clips (ui-polish A1). The alert holds the IDs: the binding sets
@@ -48,6 +69,16 @@ enum WindowAlert: Hashable {
             return .transcribeFile(error, request)
         default: return .error(error)
         }
+    }
+
+    /// The alert of a refused edit on `session`, the session before the edit: the follow alert for a
+    /// follow overlap, else the error alert.
+    static func refusing(_ error: StudioError, in session: Session) -> WindowAlert {
+        guard case .session(.followOverlap(let clip, _)) = error, let found = session.clip(clip),
+            let track = session.track(found.track)
+        else { return .error(error) }
+        return .followOverlap(
+            FollowOverlap(track: track.id, trackName: track.name, start: found.clip.start, rate: session.sampleRate))
     }
 
     /// The button beside OK that opens the open panel of a model file, else nil.

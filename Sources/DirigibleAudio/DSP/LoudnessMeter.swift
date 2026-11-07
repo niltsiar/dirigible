@@ -105,6 +105,9 @@ public struct LoudnessMeter: Sendable {
     /// The mean square of each complete 3 s window, one for each step from the first 3 s: the
     /// short-term series of the range meter. Nil for the live and record meters, which keep none.
     var shortTerms: [Double]?
+    /// The mean square of each complete 100 ms step (the step sum over `stepFrames`): the input
+    /// of the level ride. Nil for the meters that keep none. A non-finite sample empties it.
+    var stepMeanSquares: [Double]?
     var nonFinite = false
 
     /// The steps of a 400 ms block, which is also the momentary window (EBU Tech 3341).
@@ -113,11 +116,12 @@ public struct LoudnessMeter: Sendable {
     static let shortTermSteps = 30
 
     /// Nil when the shelf frequency is at or over Nyquist (a rate of 3 363 Hz or less). With
-    /// `keepsShortTerms`, the meter keeps `shortTerms`.
-    public init?(sampleRate: Int, layout: ChannelLayout, keepsShortTerms: Bool = false) {
+    /// `keepsShortTerms`, the meter keeps `shortTerms`; with `keepsSteps`, `stepMeanSquares`.
+    public init?(sampleRate: Int, layout: ChannelLayout, keepsShortTerms: Bool = false, keepsSteps: Bool = false) {
         guard Double(sampleRate) / 2 > Self.shelfFrequency else { return nil }
         self.sampleRate = sampleRate
         shortTerms = keepsShortTerms ? [] : nil
+        stepMeanSquares = keepsSteps ? [] : nil
         stepFrames = Int((Double(sampleRate) / 10).rounded())
         filters = Array(repeating: Self.kWeighting(rate: Double(sampleRate)), count: layout.channelCount)
     }
@@ -188,6 +192,7 @@ public struct LoudnessMeter: Sendable {
                 // the filters of the channel start again.
                 if !sum.isFinite {
                     nonFinite = true
+                    if stepMeanSquares != nil { stepMeanSquares = [] }
                     filters[channel] = Self.kWeighting(rate: Double(sampleRate))
                     sum = 0
                 }
@@ -197,6 +202,7 @@ public struct LoudnessMeter: Sendable {
             stepFilled += count
             if stepFilled == stepFrames {
                 steps.append(stepSum)
+                if !nonFinite { stepMeanSquares?.append(stepSum / Double(stepFrames)) }
                 if steps.count > Self.shortTermSteps { steps.removeFirst() }
                 if steps.count >= Self.blockSteps {
                     blocks.append(steps.suffix(Self.blockSteps).reduce(0, +) / Double(Self.blockSteps * stepFrames))

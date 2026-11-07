@@ -201,7 +201,8 @@ fi
 # A phase 3 row that closes the plan gate runs the check of the first phase 4 row, with the row
 # itself counted as the phase 3 row, so a gap shows before the first slice agent starts.
 close_form='^((default:? )?([a-z0-9]+ )?plan gate( is| [0-9]+( \([^)]*\))?| round ([0-9]+|on [^:;,]*))?( round [0-9]+)?( judged and)? closed|(plan gate fix check|fix check of (the )?plan gate).*[;,] (the )?gate closed|(close|closes|closed|closing) (the )?plan gate)([^a-z]|$)'
-if [[ "$1" == 3 && -f "${file%/*}/plan.md" && "$(lower "$2")" =~ $close_form ]]; then
+not_closed='(^|[^a-z])not( [a-z]+){0,3} clos(e|ed|es|ing)([^a-z]|$)'
+if [[ "$1" == 3 && -f "${file%/*}/plan.md" && "$(lower "$2")" =~ $close_form && ! "$(lower "$2")" =~ $not_closed ]]; then
     if ! out="$(CHECK_PLAN_AT_PHASE4=1 CHECK_PLAN_GATE_CLOSE=1 "$plan_check" "${file%/*}" 2>&1)"; then
         printf '%s\na phase 3 row that closes the plan gate needs the check of the first phase 4 row: log the criterion change rows or add the Fix check lines, then log this row\n' "$out" >&2
         exit 2

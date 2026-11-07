@@ -220,4 +220,19 @@ extension LoudnessTests {
             "read fault: \(String(describing: loudness.integrated)), \(String(describing: fault))")
         #expect(reads == 2, "read fault: \(reads) reads")
     }
+
+    /// Run 2026-10-14-leveler C6: with `keepsSteps`, the meter keeps the mean square of each
+    /// complete step, and a non-finite sample empties them for good.
+    @Test func nonFiniteEmptiesTheSteps() throws {
+        #expect(LoudnessMeter(sampleRate: 48_000, layout: .stereo)?.stepMeanSquares == nil)
+        var meter = try #require(LoudnessMeter(sampleRate: 48_000, layout: .stereo, keepsSteps: true))
+        meter.feed(try pcmBuffer(tone([(1.05, -23)])))
+        let steps = try #require(meter.stepMeanSquares)
+        #expect(steps.count == 10)
+        for step in 2..<10 { expectLUFS(LUFS(value: Loudness.lufs(steps[step])), -23, "step \(step)") }
+        meter.feed(try pcmBuffer([[.nan, 0], [0, 0]]))
+        #expect(meter.stepMeanSquares == [])
+        meter.feed(try pcmBuffer(tone([(0.5, -23)])))
+        #expect(meter.stepMeanSquares == [], "a later step does not come back")
+    }
 }

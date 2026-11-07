@@ -988,11 +988,6 @@ if [[ "$chained" =~ $lock_gate ]]; then
   done <<< "$lock_segments"
 fi
 
-# release_segments <masked text>: print "lock<TAB><segment>" or "bare<TAB><segment>" for each release
-# call of the text (release_call of scripts/lock-words.sh). Each segment of the chain is read from its
-# start after the prefix words; a with-lock.sh word in the prefix gives a lock call of the words after
-# it, and a land.sh command word with no with-lock.sh a bare call. In a shell -c body (masked to one
-# segment), each with-lock.sh word at a word start is a call too.
 release_shell_c="([^[:space:]]*/)?(ba|z|da)?sh( +-[A-Za-z]+)* +-[A-Za-z]*c +[\"']?"
 release_pre="(\{ |! |if |then |do |else |elif |while |until |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |command |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |$release_shell_c|[^[:space:]]*with-lock\.sh[\"']? )*"
 release_words_file="$(dirname "$0")/../../scripts/lock-words.sh"
@@ -1050,10 +1045,14 @@ release_expand() {
 release_assign_re='^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]*)+$'
 release_script_re='^([^[:space:]]*/)?(ba|z|da)?sh$'
 release_data_re="^[[:space:]]*((\"[^\"[:space:]]*|'[^'[:space:]]*)[[:space:]]|[A-Za-z_][A-Za-z0-9_]*=(\"[^\"]*\"|'[^']*')[[:space:]]*\$)"
-# release_segments <masked text> [<dir> <depth>]: see the comment above. A segment whose command
-# word is bash, sh, zsh, or dash with a file argument runs a script: the file (a $NAME of an
-# assignment or export of the chain put in, a relative path read from the last cd dir, else <dir>,
-# the cwd of the hook input) is read when it exists and holds at most 64 KB, masked, and its lines
+# release_segments <masked text> [<dir> <depth>]: print "lock<TAB><segment>" or "bare<TAB><segment>"
+# for each release call of the text (release_call of scripts/lock-words.sh). Each segment of the chain
+# is read from its start after the prefix words (release_pre); a with-lock.sh word in the prefix gives
+# a lock call of the words after it, and a land.sh command word with no with-lock.sh a bare call. In a
+# shell -c body (masked to one segment), each with-lock.sh word at a word start is a call too. A
+# segment whose command word is bash, sh, zsh, or dash with a file argument runs a script: the file
+# (a $NAME of an assignment or export of the chain put in, a relative path read from the last cd dir,
+# else <dir>, the cwd of the hook input) is read when it exists and holds at most 64 KB, masked, and its lines
 # are classified the same way, one level deep. A segment whose first word is one quoted string with
 # a space in it is a list or array item (test data), and a segment that only sets NAME to a quoted
 # string is an assignment: neither is a command. In a script file, only a segment with a with-lock.sh,

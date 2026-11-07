@@ -168,17 +168,16 @@ Fact: among the repos found, no Spanish fine-tune has more than 3,200 downloads 
 
 ## Open questions (probes that need a build, a download, or a run)
 
-- Q-A. Run every row of the table below on the full 67-minute file, or on a 10-minute slice first. Candidate runner: the upstream `whisper-cli -m <file> -l es -f <wav> -otxt` (not checked against the app CLI flags). Needs the real engine and the models, so not run now.
+- Q-A and Q-C are answered by the trial: see **Setup** and **Speed and memory** in `## Trial results`.
 - Q-B. Convert `marianbasti/whisper-large-v3-turbo-latam` (or use the JoaoZaokk files) and check Spanish output on 1 minute of the tester audio before the full run.
-- Q-C. Measure RTF on the Intel Mac for medium-q5_0, large-v3-q5_0, turbo-q8_0 (10-minute slice, 4 threads, as P2 of `docs/research/whisper.md`).
 - Q-D. Dump the decoder prompt of window 2 with the app defaults (R15) and with `initial_prompt` set (R14).
 - Q-E. Build `parakeet-cli` from tag `v1.9.5` and run `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` (668,757,119 bytes) on the slice. Needs a CMake build and a download over 10 MB.
 - Q-G. Check that `vocab.json` exists in the BSC-LT, distil-es, and caesar repos before any conversion.
 - Q-F. Ask the tester for the 12 terms with their expected spelling and the time stamps of 2 or 3 mentions each, and for one 5-minute corrected slice (R10 step 5).
 
-## Candidate table (ranked)
+## Candidate table (expectation before the trial)
 
-Rank is the expected value for the trial question (Spanish with English tech terms, Intel CPU), not a measured result. "Fact" and "Inference:" apply to the Spanish WER and loadability columns only. Revision for all ggerganov rows: `5359861c739e955e79d9a303bcbc70fb988958b1`.
+This table is the expectation before the trial. `## Trial results` replaces its ranking. Rank is the expected value for the trial question (Spanish with English tech terms, Intel CPU), not a measured result. "Fact" and "Inference:" apply to the Spanish WER and loadability columns only. Revision for all ggerganov rows: `5359861c739e955e79d9a303bcbc70fb988958b1`.
 
 | Rank | Model (file) | Size (bytes) | Spanish WER, test set | Loads in v1.9.5 | Why in the trial |
 |---|---|---|---|---|---|
@@ -195,12 +194,9 @@ Rank is the expected value for the trial question (Spanish with English tech ter
 | 11 | Parakeet TDT 0.6B v3, `ggml-org/parakeet-GGUF` `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` | 668,757,119 | 3.45 Fleurs es_419, 4.39 MLS, 3.41 CoVoST2 es (NVIDIA card): Fact | Fact: no with `whisper_full`; the `parakeet.cpp` API of v1.9.5 runs it, not vendored | Reference only. It shows what a non-Whisper model does on the tech terms. No app change in this trial. |
 | 12 | Excluded, not ranked: `distil-large-v3` and `-v3.5` (English only), GGUF repos (`handy-computer`, `xkeyC`), lite-whisper, Canary-1b-v2 (needs NeMo; no whisper.cpp path found) | n/a | n/a | Fact for the first three groups (R1, R4); Inference for lite-whisper | Not run. |
 
-## Recommended grading method (Inference)
+## Grading method
 
-1. Primary: term accuracy on the 12 terms (found/total by term, R10 step 1).
-2. Secondary: leave-one-out consensus word disagreement with a note on shared errors (R10 step 2), and the reference-free checks of R10 step 3.
-3. LLM judge: use it to build the spelling table only, not to rank (R10 step 4).
-4. Calibration: one corrected 5-minute slice (R10 step 5). It is outside the "no human reference" constraint, and no source found supports the three reference-free methods without it.
+The trial grading method is in **Setup** of `## Trial results`. R10 is the research input to it.
 
 ## Trial results
 
@@ -210,10 +206,10 @@ Graded on 2026-11-07, run `2026-11-03-whisper-model-trial`. This section holds m
 
 - Seven models ran on 9 excerpts of tester audio (16 kHz mono, 14 tracks): base, small-q5_1, medium-q5_0, turbo-q5_0, turbo-q8_0, large-v3-q5_0, and latam-q5_0 (`JoaoZaokk/whisper-large-v3-turbo-latam-ggml`, q5_0). The app transcription path ran each one through `dirigible transcribe --model-file`. Each file matched its pinned SHA-256.
 - Set 1 is X1 to X4 (episode 353, 3377 reference words). Set 2 is W1 to W4 (premium episode 360, 2193 reference words). E1 has no reference text, so it gives only loop, misspelling, and LOFO data. Only Spanish audio ran, so the trial gives no evidence for other languages.
-- The reference is the tester SRT with the corrections files of its corpus applied. It is not a human transcript. The set 2 SRT comes from WhisperKit `openai_whisper-large-v3-v20240930`. The model that made the set 1 SRT is not known.
+- The reference is the tester SRT with the corrections files of its corpus applied. It is not a human transcript. The set 2 SRT comes from WhisperKit `openai_whisper-large-v3-v20240930`, which is large-v3-turbo: its `config.json` has `decoder_layers` 4 (large-v3 has 32) and a `_name_or_path` that ends in `tmp_whisper_turbo`. So the set 2 WER of turbo-q5_0 and turbo-q8_0 is close to self-agreement, and set 2 cannot rank turbo against other models. The model that made the set 1 SRT is not known.
 - The machine is an Intel Core i5-8259U (4 cores, 8 threads, 16 GiB), CPU only, no Metal. The speed pass ran S1 (2 tracks of 106.54 s) with the build lock held. The accuracy pass ran at nice 19.
 - Grading method (R10 and R6 to R8): the term score decides. A term group is G1 (22 tech names, 19 of them expected in the excerpts), G2 (12 loanwords), or G3 (2 Spanish words that the set 2 corrections fix). A model is better than the baseline turbo-q5_0 only when the exact two-sided binomial on the discordant G1 occurrences gives p below 0.05. LOFO is the mean word error rate against the other voter families (leave one family out). The five models with the large-v3 encoder count as one voter family.
-- The grader passed its self-test (25 of 25 asserts) before the final run. All 10 acceptance criteria are verified: 98 of 98 items complete, mapping gate passed, 7 of 7 model files with SHA-256 ok.
+- The grader passed its self-test (25 of 25 asserts) before the final run. The numbers come from one run on the tester corpus. The grader and the corpus are not in this repo, so a reader cannot rerun them from the repo.
 
 ### Grades
 
@@ -237,7 +233,7 @@ Graded on 2026-11-07, run `2026-11-03-whisper-model-trial`. This section holds m
 
 ### Ranking and T10 picks
 
-The rank follows the T10 rule. First the models that pass the loop, WPM, and dropped-bin checks, by G1 found. Then the excluded models. WER per set is against the tester text. It is an upper limit of the model error.
+The rank follows the T10 rule. First the models that pass the loop, WPM, and dropped-bin checks, by G1 found. Then the excluded models. WER per set is against the tester text. It is an upper limit of the model error. The set 2 WER of turbo-q5_0, turbo-q8_0, and latam-q5_0 (a fine-tune of turbo) is against a large-v3-turbo reference, so it does not rank turbo against other models. Compare set 2 WER only among base, small-q5_1, medium-q5_0, and large-v3-q5_0.
 
 | Rank | Model | G1 | p vs turbo-q5_0 | WER set 1 | WER set 2 | Loops | Dropped bins | WPM flags | Bytes |
 |---|---|---|---|---|---|---|---|---|---|
@@ -249,7 +245,7 @@ The rank follows the T10 rule. First the models that pass the loop, WPM, and dro
 | out | large-v3-q5_0 | 17/82 | 5:16, 0.027 | 0.211 | 0.086 | 1 | 0/197 | 0 | 1,081,140,203 |
 | out | latam-q5_0 | 6/82 | 2:24, 1.1e-05 | 0.359 | 0.088 | 0 | 13/197 | 1 | 574,041,195 |
 
-T10 (a), the most accurate model: turbo-q5_0, with 28 of 82 G1 occurrences. There is no tie. This is the catalog entry **Most Accurate**.
+T10 (a), the most accurate model: turbo-q5_0 and turbo-q8_0 tie on accuracy. Their G1 counts are 28 and 25 of 82, and the discordant test gives 6:9, p 0.607. The G1 gap comes from the spelling of "Next.js": turbo-q5_0 found 10 of 11 and turbo-q8_0 found 1 of 11. Over all excerpts, turbo-q5_0 writes "Next" 11 times and "Next.js" once, and turbo-q8_0 writes "Nex" or "nex" 10 times. The reference WER does not separate them either (0.117 against 0.113 over all sets). Without the Next.js and React rows, the G1 order is turbo-q8_0 17, large-v3-q5_0 15, medium-q5_0 13, turbo-q5_0 11, and small-q5_1 11. Size and net RTF break the tie for turbo-q5_0: 574 MB against 874 MB, and a net RTF of 0.96 against 0.99. This is the catalog entry **Most Accurate**.
 
 T10 (b), a catalog proposal: no model meets the rule. A candidate must pass the loop, WPM, and dropped-bin checks. It must also either beat a catalog entry on G1 (p below 0.05) at a net RTF of 1.2 times that entry or less, or match it at a net RTF or a file size of 0.8 times that entry or less. The catalog entries are base (net RTF 0.19, 148 MB), small-q5_1 (0.52, 190 MB), and turbo-q5_0 (0.96, 574 MB). The candidates that pass the checks and are not in the catalog are medium-q5_0 and turbo-q8_0.
 
@@ -332,19 +328,17 @@ Net RTF is the sum of the transcribe wall times, minus one check wall time for e
 
 - The episode column is net RTF x 7200 s of track audio. It is an estimate from one 106.54 s excerpt. Speech density changes the time: t2 has 247 to 296 words and t1 has 11 to 23, and t2 takes 3 to 10 times longer on every model.
 - The **Model** paragraph of `docs/guide.md` gives 1.5 times the clip length for **Most Accurate** on the same machine class. That value is the gross wall time of one 240 s clip in the probe of `docs/research/whisper.md` (base 0.25, small-q5_1 0.69, turbo-q5_0 1.54). The net RTF above subtracts the check from each call and uses another excerpt. The trial did not measure which difference causes the gap, so do not put the two values in one table.
-- This answers the speed part of Q-C. medium-q5_0 and turbo-q5_0 have about the same net RTF on this Mac (1.02 and 0.96). R2 estimated medium at about 3 times small. The measured ratio is 2.0 (1.02 against 0.52).
+- medium-q5_0 and turbo-q5_0 have about the same net RTF on this Mac (1.02 and 0.96). R2 estimated medium at about 3 times small. The measured ratio is 2.0 (1.02 against 0.52).
 
-### Recommended default
+### Candidate default
 
 The app sheet starts at small-q5_1 for Spanish and at base for each other language (`languageModel` in `Sources/DirigibleApp/TranscribeSheet.swift`).
 
-Recommendation: start the sheet at turbo-q5_0 for Spanish. Keep small-q5_1 in the catalog as the faster choice.
+Candidate: turbo-q5_0 is the candidate Spanish default for the sheet. The change waits for the human-corrected calibration slice (backlog item 1519). Keep small-q5_1 in the catalog as the faster choice.
 
-The WER against the tester text, per set, decides it:
+The recommendation rests on set 1 alone. The set 2 reference is large-v3-turbo (see **Setup**), so set 2 cannot rank turbo-q5_0 against small-q5_1.
 
-- Set 1: turbo-q5_0 0.166, small-q5_1 0.258. turbo-q5_0 has 36 % fewer word errors.
-- Set 2: turbo-q5_0 0.042, small-q5_1 0.089. turbo-q5_0 has 53 % fewer word errors.
-- The set 2 reference comes from a large-v3-encoder model. This can favor the large-v3-encoder models. But large-v3-q5_0 has the same encoder and gets 0.086 on set 2, and medium-q5_0 has another encoder and gets 0.044. So the shared encoder alone does not give a low WER.
+- Set 1: turbo-q5_0 0.166, small-q5_1 0.258. turbo-q5_0 has 36 % fewer word errors. The model that made the set 1 reference is not known.
 
 The other measures point the same way. None favors small-q5_1:
 
@@ -360,7 +354,7 @@ The cost of turbo-q5_0 against small-q5_1 on this Intel Mac:
 
 What can overturn it: the human-corrected calibration slice (backlog item 1519). If the WER gap comes from the pseudo-reference and not from the models, keep small-q5_1.
 
-The change is a feature run with a `Sources/` change. It touches `TranscribeSheet.languageModel` and its doc comment, the tests that expect `.catalog(.smallQ51)` for `es` in `Tests/DirigibleTests/TranscribeSheetTests+ModelFile.swift`, the **Model** paragraph of `docs/guide.md`, and decision 0065. Check the UI strings of decision 0010 when a title or a size text changes.
+If the calibration slice confirms the candidate, the change is a feature run with a `Sources/` change. It touches `TranscribeSheet.languageModel` and its doc comment, the tests that expect `.catalog(.smallQ51)` for `es` in `Tests/DirigibleTests/TranscribeSheetTests+ModelFile.swift`, the **Model** paragraph of `docs/guide.md`, and decision 0065. Check the UI strings of decision 0010 when a title or a size text changes.
 
 ### CLI and MCP default
 
@@ -379,6 +373,7 @@ latam-q5_0 took 643.87 s wall and 2519.62 s user CPU on S1 track 2. turbo-q5_0 t
 ### Known limits
 
 - Term score power. There are 82 G1 occurrences, 73 in set 1 and 9 in set 2. The paired binomial treats each occurrence as independent. The occurrences of one name in one excerpt are not independent: "React" has 6 occurrences in X1, and 6 of the 13 occurrences that only turbo-q5_0 finds against small-q5_1 are "React". Six of the 19 G1 names are found by no model, and Cloudflare is found by 2 of 7 models. The best model finds 34 % of the G1 occurrences. So the term score separates only the large gaps: base, latam-q5_0, and large-v3-q5_0 from turbo-q5_0.
+- Turbo reference. The set 2 reference is large-v3-turbo, so a set 2 WER that ranks two models needs a reference that neither model made. No set 2 WER ranks turbo-q5_0, turbo-q8_0, or latam-q5_0 against another model.
 - Shared encoder. turbo-q5_0, turbo-q8_0, latam-q5_0, large-v3-q5_0, and the WhisperKit reference vote as one family. So the LOFO value of these models comes from base, small-q5_1, medium-q5_0, and on set 2 the app transcript: weaker voters. The LOFO value is a weak tie-break.
 - The app transcript has no model name. If a large-v3-encoder model made it, it gives agreement to the four large-v3-encoder candidates on set 2.
 - The reference is not a human transcript. It keeps the errors of the tester Whisper run that no regex fixed, so a model that hears a word right can count as wrong. A regex can also over-correct: `\bcloud\b` becomes "Claude", and a bare "Next" is the inference of the tester. So the WER against the tester text is an upper limit of the model error. No measure here has a measured link to the true WER (R9).
@@ -409,4 +404,5 @@ latam-q5_0 took 643.87 s wall and 2519.62 s user CPU on S1 track 2. turbo-q5_0 t
 - Contextual biasing metrics: arXiv 2406.16120 (names B-WER and U-WER, cites Le et al., Interspeech 2021). Conformer-1, arXiv 2404.07341 (by search summary only).
 - OpenAI cookbook, "Whisper prompting guide": `https://developers.openai.com/cookbook/examples/whisper_prompting_guide`. OpenAI speech-to-text guide: `https://developers.openai.com/api/docs/guides/speech-to-text`. `openai/whisper` `whisper/transcribe.py` (GitHub contents API, default branch).
 - Whisper paper (Radford et al., arXiv 2212.04356): through F30.
+- Hugging Face file `argmaxinc/whisperkit-coreml`, `openai_whisper-large-v3-v20240930/config.json`, read 2026-11-07: `decoder_layers` 4 and `_name_or_path` ending in `tmp_whisper_turbo` (large-v3 has 32 decoder layers; turbo has 4).
 - Trial data: the graded outputs of run `2026-11-03-whisper-model-trial` (grades, term table, speed rows, and logs). The run folder is outside git. The audio and the tester SRT files are not in this repo.

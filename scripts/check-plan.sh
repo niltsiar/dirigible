@@ -22,6 +22,8 @@
 # - With CHECK_PLAN_AT_PHASE4=1 only, the plan gate is closed: the run folder has a
 #   review-plan-<n>.md file, and a phase 3 row follows the last phase 2 row. The land check has no
 #   such variable, so a run with phase 4 rows and no review-plan file passes it.
+#   CHECK_PLAN_GATE_CLOSE=1 (log-decision.sh, for the phase 3 row that closes the plan gate) counts
+#   that pending row, so the phase 3 row test passes; the review-plan-<n>.md test stays.
 # - With CHECK_PLAN_AT_PHASE4=1 only, when a round file review-plan-<n>.md (a per-lens name is none)
 #   has a numbered item under `## Act on`, the round file with the highest number has a `## Fix check`
 #   heading (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.
@@ -594,7 +596,7 @@ else
     # Row order, not the clock, decides which phase row is last.
     if [[ -n "${CHECK_PLAN_AT_PHASE4:-}" ]]; then
         compgen -G "$run/review-plan-*.md" >/dev/null || say "no review-plan-<n>.md in $run: the plan gate is not closed; run the plan gate (deliver Phase 3), write review-plan-<n>.md, and log its phase 3 row before the first phase 4 row"
-        if ! awk -F'\t' '$2 == "2" { l2 = NR } $2 == "3" { l3 = NR } END { exit !(l3 > l2) }' "$run/decisions.tsv" 2>/dev/null; then
+        if [[ -z "${CHECK_PLAN_GATE_CLOSE:-}" ]] && ! awk -F'\t' '$2 == "2" { l2 = NR } $2 == "3" { l3 = NR } END { exit !(l3 > l2) }' "$run/decisions.tsv" 2>/dev/null; then
             say "the last phase 2 row of decisions.tsv has no phase 3 row after it: the plan gate is not closed; run the plan gate (deliver Phase 3), write review-plan-<n>.md, and log a new phase 3 row before the first phase 4 row"
         fi
         # Round files are review-plan-<n>.md: a per-lens file such as review-plan-1-premortem.md is none.

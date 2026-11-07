@@ -68,7 +68,7 @@ A workflow upkeep run uses the doc lenses of interrogate Step 3 in place of one 
 Run `scripts/check-plan.sh <run folder>`: it must exit 0. Run the **interrogate** skill with target `plan` and the lenses of the class table. Keep `Sources/` and `Tests/` unchanged until the gate closes; prototype in the run folder only.
 
 - Put each "Act on" change in `## Plan gate changes` with `Criteria:`, and log it. Grep each fact that a fix changes, as in Phase 2.
-- After the last round and the fix check, the gate is closed: record open risks in `run.md`.
+- After the last round and the fix check, the gate is closed: record open risks in `run.md`, and log a phase 3 row whose decision starts with `plan gate closed`; `log-decision.sh` runs the check of the first phase 4 row on it.
 
 ## Phase 4: Implement
 

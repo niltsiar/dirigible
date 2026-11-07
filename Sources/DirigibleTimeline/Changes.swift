@@ -128,7 +128,7 @@ extension ClipLane {
 }
 
 /// The result of `shiftedFrames`.
-public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames])
+public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames], skipped: [Int])
 
 /// The part of the lanes that `new` draws as `old` moved by `delta` frames (a ripple, decision
 /// 0037): on every lane, each clip that sounds at `from` or later starts there or later and is a
@@ -136,8 +136,10 @@ public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames])
 /// `from` and the marker lines in `strays`: the new line and the moved old line of each marker
 /// at `from` or later that does not move by `delta` (a marker that a ripple delete stops at the
 /// range start). `from` is the sounding start of the first moved clip of the lane where it is the
-/// latest, or its sounding end when its join to the clip before it comes or goes. Nil when no
-/// lane moves its last clip, or when the rule does not hold: the lanes then draw in full.
+/// latest, or its sounding end when its join to the clip before it comes or goes. A lane with no
+/// change at `from` or later, such as a track that follows ripples and does not move (decision
+/// 0073), is in `skipped`: it draws in its own strip from `from`. Nil when no lane moves its last
+/// clip, or when the rule does not hold: the lanes then draw in full.
 public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? {
     guard old.tracks.count == new.tracks.count else { return nil }
     func moved(_ clip: Clip, by delta: Frames) -> Clip {
@@ -168,13 +170,18 @@ public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? 
         from = max(from, joined == wasJoined ? first.soundingRange.lowerBound : first.soundingRange.upperBound)
     }
     // The check of the rule at `from`, on each lane and for the markers.
-    for (a, b) in zip(old.tracks, new.tracks) {
+    var skipped: [Int] = []
+    for (lane, (a, b)) in zip(old.tracks, new.tracks).enumerated() {
         let before = a.clips.clips(soundingIn: (from - delta)..<Frames.limit + Frames.limit)
         let after = b.clips.clips(soundingIn: from..<Frames.limit + Frames.limit)
-        guard before.allSatisfy({ $0.soundingRange.lowerBound >= from - delta }),
+        if before.allSatisfy({ $0.soundingRange.lowerBound >= from - delta }),
             after.allSatisfy({ $0.soundingRange.lowerBound >= from }),
             before.map({ moved($0, by: delta) }) == after
-        else { return nil }
+        {
+            continue
+        }
+        guard a.clips.clips(soundingIn: from..<Frames.limit + Frames.limit) == after else { return nil }
+        skipped.append(lane)
     }
     var strays: [Frames] = []
     for id in Set(old.markers.keys).union(new.markers.keys) {
@@ -185,5 +192,5 @@ public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? 
         if shifted == late, a?.kind == b?.kind { continue }
         strays += [shifted, late].compactMap { $0 }
     }
-    return (from, delta, strays)
+    return (from, delta, strays, skipped)
 }

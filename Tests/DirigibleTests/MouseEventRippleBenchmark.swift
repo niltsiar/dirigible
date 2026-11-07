@@ -13,7 +13,7 @@ import Testing
 /// zoom a box is 0.72 pt, so clip "big" of 4,800,000 frames (20 pt) at frame 0 on t1 takes it. At the
 /// zoom of 60 pt boxes, the first fixture clip of t1 takes it. The follow bed row (C53 of run
 /// `2026-10-28-timeline-edits`, decision 0073) adds a track that follows ripples with one clip over
-/// the whole fixture, so its lane does not move.
+/// the whole fixture, so its lane does not move and draws in its own strip.
 @MainActor struct MouseEventRippleBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aRippleTrimEventFitsOneFrameAtTwoHours() async throws {
@@ -68,11 +68,8 @@ import Testing
             // After the clock: each event took the trimmed end to a new place.
             try #require(
                 zip(ends.dropFirst(2), ends.dropFirst(3)).allSatisfy { $0 != $1 }, "\(zoom): an event kept the end")
-            if !bed {
-                try #require(
-                    view.lanes.surfaces.shifted >= 120, "\(zoom): \(view.lanes.surfaces.shifted) events drew by a shift"
-                )
-            }
+            try #require(
+                view.lanes.surfaces.shifted >= 120, "\(zoom): \(view.lanes.surfaces.shifted) events drew by a shift")
             print(
                 "MouseEventRippleBenchmark ripple trim, \(zoom): p50 \(sorted[60]), p95 \(sorted[113]),"
                     + " shifted \(view.lanes.surfaces.shifted), made \(view.lanes.surfaces.made)")

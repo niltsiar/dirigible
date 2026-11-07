@@ -4,7 +4,8 @@ import Foundation
 /// A ripple edit cuts or moves the timeline on the tracks of `track`, or on all tracks when it is
 /// empty (decision 0037). A split take refuses each ripple tool.
 private let scope = Param.defaulted(
-    "track", "The tracks. Give none for all tracks, or one or more.", .strings(), [String]())
+    "track", "The tracks. Give none for all tracks, or one or more. A follow track in the list is cut as usual.",
+    .strings(), [String]())
 private let froms = Param.required("from", "The first frame of each range: one or more.", .integers(minItems: 1))
 private let tos = Param.required(
     "to", "The frame after the last frame of each range, one for each from, in order.", .integers(minItems: 1))

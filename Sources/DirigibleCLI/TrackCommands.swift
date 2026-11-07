@@ -8,7 +8,7 @@ struct TrackCommand: ParsableCommand {
         commandName: "track", abstract: "Add, change, and remove tracks.",
         subcommands: [
             Add.self, AddCall.self, Remove.self, Rename.self, SetGain.self, SetLayout.self, SetRoute.self, Mute.self,
-            Solo.self, SetRole.self,
+            Solo.self, SetRole.self, Follow.self,
         ])
 
     struct Add: ParsableCommand {
@@ -135,6 +135,22 @@ struct TrackCommand: ParsableCommand {
         func run() throws {
             try editPackage(package, ripple: false) { session throws(SessionError) in
                 try session.setSoloed(!off, tracks: tracks.map { TrackID($0) })
+            }
+        }
+    }
+
+    struct Follow: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Follow ripples: the clips of the tracks move whole in a ripple and a ripple never cuts them.")
+        @OptionGroup var package: PackageArgument
+        @Argument(help: "The track IDs.") var tracks: [String] = []
+        @Flag(help: "Stop the tracks from following ripples.") var off = false
+
+        func validate() throws { if tracks.isEmpty { throw ValidationError("Give one track or more.") } }
+
+        func run() throws {
+            try editPackage(package, ripple: false) { session throws(SessionError) in
+                try session.setFollowTrack(!off, tracks: tracks.map { TrackID($0) })
             }
         }
     }

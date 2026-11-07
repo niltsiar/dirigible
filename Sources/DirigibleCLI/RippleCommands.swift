@@ -18,7 +18,8 @@ extension ClipCommand {
             parsing: .unconditionalSingleValue,
             help: "The frame after the last frame of a range. Give one for each --from, in order.")
         var to: [Int] = []
-        @Option(help: "A track. Give none for all tracks, or one or more.") var track: [String] = []
+        @Option(help: "A track. Give none for all tracks, or one or more. A follow track in the list is cut as usual.")
+        var track: [String] = []
 
         func validate() throws { _ = try ranges() }
 
@@ -48,7 +49,8 @@ extension ClipCommand {
         @OptionGroup var package: PackageArgument
         @Option(parsing: .unconditional, help: "The timeline frame of the insert.") var at: Int
         @Option(parsing: .unconditional, help: "The frames of silence to insert.") var length: Int
-        @Option(help: "A track. Give none for all tracks, or one or more.") var track: [String] = []
+        @Option(help: "A track. Give none for all tracks, or one or more. A follow track in the list is cut as usual.")
+        var track: [String] = []
 
         func validate() throws {
             guard length >= 0 else { throw ValidationError("--length must not be negative.") }
@@ -77,7 +79,11 @@ extension ClipCommand {
             parsing: .unconditional,
             help: "The frames to move the edge; negative moves left. At the start edge, positive removes audio.")
         var by: Int
-        @Option(help: "A track. Give none for all tracks, or one or more. The track of the clip always ripples.")
+        @Option(
+            help: """
+                A track. Give none for all tracks, or one or more. The track of the clip always ripples. \
+                A follow track in the list is cut as usual.
+                """)
         var track: [String] = []
 
         func run() throws {

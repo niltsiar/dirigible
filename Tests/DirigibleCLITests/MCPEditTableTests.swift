@@ -91,6 +91,11 @@ struct MCPEditTableTests {
                 tool: "track_solo", arguments: ["tracks": ["s"], "off": true],
                 command: ["track", "solo", "PKG", "s", "--off"]),
             EditRow(
+                tool: "track_follow", arguments: ["tracks": ["a", "b"]], command: ["track", "follow", "PKG", "a", "b"]),
+            EditRow(
+                tool: "track_follow", arguments: ["tracks": ["a"], "off": true],
+                command: ["track", "follow", "PKG", "a", "--off"]),
+            EditRow(
                 tool: "track_role", arguments: ["track": "a", "role": "music"],
                 command: ["track", "role", "PKG", "a", "music"]),
             EditRow(
@@ -121,6 +126,7 @@ struct MCPEditTableTests {
                 tool: "track_layout", arguments: ["track": "a", "layout": "stereo", "none": true],
                 command: ["track", "layout", "PKG", "a", "stereo", "--none"]),
             EditRow(tool: "track_mute", arguments: ["tracks": ["zz"]], command: ["track", "mute", "PKG", "zz"]),
+            EditRow(tool: "track_follow", arguments: ["tracks": ["zz"]], command: ["track", "follow", "PKG", "zz"]),
             EditRow(
                 tool: "track_solo", arguments: ["tracks": ["a", "zz"]], command: ["track", "solo", "PKG", "a", "zz"]),
             EditRow(

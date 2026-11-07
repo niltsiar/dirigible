@@ -119,6 +119,8 @@ package struct SessionView: Encodable {
         /// Left out when false, as in `session.xml` (decision 0039).
         let muted: Bool?
         let soloed: Bool?
+        /// Left out when false, as in `session.xml` (decision 0073).
+        let follow: Bool?
         /// Left out with no role, as in `session.xml` (decision 0060).
         let role: String?
     }
@@ -217,7 +219,8 @@ package struct SessionView: Encodable {
                 id: track.id.rawValue, name: track.name, gain: track.gain.dB, layout: track.layout.rawValue,
                 route: track.route.map(RouteView.init),
                 clips: track.clips.map(ClipView.init), muted: track.isMuted ? true : nil,
-                soloed: track.isSoloed ? true : nil, role: track.role?.rawValue)
+                soloed: track.isSoloed ? true : nil,
+                follow: track.isFollowTrack ? true : nil, role: track.role?.rawValue)
         }
         markers = session.sortedMarkers.map {
             MarkerView(

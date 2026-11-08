@@ -265,7 +265,7 @@ struct AgentManualTests {
         let skill = AgentManual.skill
         for (tool, command) in [
             ("clip_close_gaps", "clip close-gaps"), ("clip_roll", "clip roll"), ("clip_slip", "clip slip"),
-            ("track_follow", "track follow"),
+            ("track_follow", "track follow"), ("clip_shuffle", "clip shuffle"),
         ] {
             #expect(skill.contains("| \(tool) | dirigible \(command) |"), "the skill table does not name \(tool)")
         }

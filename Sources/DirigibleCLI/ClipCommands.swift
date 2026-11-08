@@ -10,7 +10,7 @@ struct ClipCommand: ParsableCommand {
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, SplitStereo.self, Paste.self, PasteClips.self, Nudge.self,
             Remove.self, Denoise.self, Repair.self, Restore.self,
-            Move.self, Trim.self,
+            Move.self, Shuffle.self, Trim.self,
             SetGain.self, Envelope.self, GainRange.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self,
             RippleInsert.self, RippleTrim.self, Replace.self, Fill.self, CloseGaps.self, Roll.self, Slip.self,
         ])
@@ -143,15 +143,19 @@ struct ClipCommand: ParsableCommand {
 
     struct Nudge: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Move clips by a number of frames and tracks. They overwrite the clips under them.")
+            abstract:
+                "Move clips by a number of frames and tracks. They overwrite the clips under them. With --mode "
+                + "no-overlap a cover is refused; with crossfade each covered join gets a crossfade.")
         @OptionGroup var package: PackageArgument
         @Argument var clips: [String] = []
         @Option(parsing: .unconditional, help: "The frames to move; negative moves left.") var by: Int
         @Option(parsing: .unconditional, help: "The tracks to move; negative moves up.") var lanes = 0
+        @Option(help: "overwrite, no-overlap, or crossfade.", transform: parseOverlapMode)
+        var mode = OverlapMode.overwrite
 
         func run() throws {
             try editPackage(package, ripple: false) { session throws(SessionError) in
-                try session.nudge(clips.map { ClipID($0) }, by: Frames(by), lanes: lanes)
+                try session.nudge(clips.map { ClipID($0) }, by: Frames(by), lanes: lanes, mode: mode)
             }
         }
     }
@@ -185,15 +189,19 @@ struct ClipCommand: ParsableCommand {
 
     struct Move: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Move a clip. It overwrites the clips under it at the new place.")
+            abstract:
+                "Move a clip. It overwrites the clips under it at the new place. With --mode no-overlap a cover is "
+                + "refused; with crossfade each covered join gets a crossfade.")
         @OptionGroup var package: PackageArgument
         @Argument var clip: String
         @Option var track: String
         @Option(parsing: .unconditional, help: "The new timeline frame of the first clip frame.") var start: Int
+        @Option(help: "overwrite, no-overlap, or crossfade.", transform: parseOverlapMode)
+        var mode = OverlapMode.overwrite
 
         func run() throws {
             try editPackage(package, ripple: false) { session throws(SessionError) in
-                try session.move(ClipID(clip), to: TrackID(track), start: Frames(start))
+                try session.move(ClipID(clip), to: TrackID(track), start: Frames(start), mode: mode)
             }
         }
     }

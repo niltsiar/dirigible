@@ -6,6 +6,16 @@ import Foundation
 /// the checked value, or nil when the arguments break it. It also owns the English text that a
 /// command and its tool share.
 package enum EditRules {
+    private static let overlapModes: [(word: String, mode: OverlapMode)] = [
+        ("overwrite", .overwrite), ("no-overlap", .noOverlap), ("crossfade", .crossfade),
+    ]
+
+    /// The words of `--mode` of `clip move` and `clip nudge`, and `mode` of `clip_move` and `clip_nudge`.
+    package static let overlapModeWords = overlapModes.map(\.word)
+
+    /// The mode of a word of `overlapModeWords`, else nil.
+    package static func overlapMode(_ word: String) -> OverlapMode? { overlapModes.first { $0.word == word }?.mode }
+
     /// The words of `track role` and `track_role`: a role, or `none` to remove the role.
     package static let roleWords = Track.Role.allCases.map(\.rawValue) + ["none"]
 

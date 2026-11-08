@@ -62,6 +62,7 @@ struct ParityTests {
         "roll": ["clip roll"],
         "slip": ["clip slip"],
         "setFollowTrack": ["track follow"],
+        "shuffle": ["clip shuffle"],
     ]
 
     static let exemptions: [String: String] = [
@@ -70,7 +71,6 @@ struct ParityTests {
         "undo": "History lives in one process. Each command is one read-edit-save step.",
         "redo": "History lives in one process. Each command is one read-edit-save step.",
         "amend": "History lives in one process, so a CLI process has no earlier edit to join.",
-        "shuffle": "The command comes in L4-S2.",
     ]
 
     /// The commands with no MCP tool (decision 0041).

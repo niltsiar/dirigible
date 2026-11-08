@@ -59,6 +59,9 @@ private let someClips = Param.defaulted("clips", "The clip IDs.", .strings(), [S
 private let clips = Param.required("clips", "The clip IDs: one or more.", .strings(minItems: 1))
 private let by = Param.required("by", "The frames to move; negative moves left.", .integer())
 private let lanes = Param.defaulted("lanes", "The tracks to move; negative moves up.", .integer(), 0)
+private let mode = Param.defaulted(
+    "mode", "overwrite, no-overlap, or crossfade. no-overlap refuses a cover; crossfade crossfades each covered join.",
+    .choice(EditRules.overlapModeWords, EditRules.overlapMode), "overwrite")
 private let fadeIn = Param<Int?>.optional(
     "in", "The fade-in length in frames. The default is the current value.", .integer())
 private let fadeOut = Param<Int?>.optional(
@@ -224,12 +227,15 @@ let clipTools = [
         [Arg.from, Arg.to, tracks, targetAt, until, onto, source], batch: .step
     ) { a throws(ToolError) in try a.rangePaste { .fill($0) } },
     Tool(
-        "clip_nudge", "Move clips by a number of frames and tracks. They overwrite the clips under them.",
-        [someClips, by, lanes], batch: .step
+        "clip_nudge",
+        "Move clips by a number of frames and tracks. They overwrite the clips under them, or follow the mode.",
+        [someClips, by, lanes, mode], batch: .step
     ) { a throws(ToolError) in
-        let (ids, frames, count) = (try a[someClips].map { ClipID($0) }, Frames(try a[by]), try a[lanes])
+        let (ids, frames, count, overlap) = (
+            try a[someClips].map { ClipID($0) }, Frames(try a[by]), try a[lanes], try a[mode]
+        )
         return .edit(ripple: false) { session throws(SessionError) in
-            try session.nudge(ids, by: frames, lanes: count)
+            try session.nudge(ids, by: frames, lanes: count, mode: overlap)
             return []
         }
     },
@@ -241,12 +247,14 @@ let clipTools = [
         }
     },
     Tool(
-        "clip_move", "Move a clip. It overwrites the clips under it at the new place.", [clip, Arg.track, start],
-        batch: .step
+        "clip_move", "Move a clip. It overwrites the clips under it at the new place, or follows the mode.",
+        [clip, Arg.track, start, mode], batch: .step
     ) { a throws(ToolError) in
-        let (id, track, frame) = (ClipID(try a[clip]), TrackID(try a[Arg.track]), Frames(try a[start]))
+        let (id, track, frame, overlap) = (
+            ClipID(try a[clip]), TrackID(try a[Arg.track]), Frames(try a[start]), try a[mode]
+        )
         return .edit(ripple: false) { session throws(SessionError) in
-            try session.move(id, to: track, start: frame)
+            try session.move(id, to: track, start: frame, mode: overlap)
             return []
         }
     },

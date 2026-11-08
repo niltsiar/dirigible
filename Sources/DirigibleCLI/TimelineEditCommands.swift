@@ -1,8 +1,35 @@
 import ArgumentParser
 import DirigibleCore
+import DirigibleMCP
 import Foundation
 
+/// `EditRules.overlapMode` of a word.
+func parseOverlapMode(_ text: String) throws -> OverlapMode {
+    guard let mode = EditRules.overlapMode(text) else {
+        throw ValidationError("A mode is overwrite, no-overlap, or crossfade.")
+    }
+    return mode
+}
+
 extension ClipCommand {
+    struct Shuffle: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract:
+                "Move a clip as a ripple (decision 0037): close its old place on its track, open room at the new "
+                + "start on the target track, and put the clip there. The markers follow the ripple. No other track "
+                + "moves. The start is a frame of the timeline after the old place closes.")
+        @OptionGroup var package: PackageArgument
+        @Argument var clip: String
+        @Option var track: String
+        @Option(parsing: .unconditional, help: "The new timeline frame of the first clip frame.") var start: Int
+
+        func run() throws {
+            try editPackage(package, ripple: true) { session throws(SessionError) in
+                try session.shuffle(ClipID(clip), to: TrackID(track), start: Frames(start))
+            }
+        }
+    }
+
     struct CloseGaps: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "close-gaps",

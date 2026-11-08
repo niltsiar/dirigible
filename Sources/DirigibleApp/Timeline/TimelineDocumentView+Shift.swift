@@ -22,9 +22,10 @@ extension TimelineDocumentView {
     /// the renderer; one band for each run of lanes in view that move, or that are still; and the
     /// strips. A band of lanes that move moves by the shift in columns and draws from the dirty rect
     /// to that column and 1 pt around each stray marker line. A band of still lanes keeps its pixels
-    /// and draws only 1 pt around each line of `lines`. Nil when the move is not a whole
-    /// number of columns within one frame (a ripple drag moves by whole device columns, and each of the two
-    /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
+    /// and draws 1 pt around each line of `lines`, with the columns between two lines that are fewer
+    /// than 24 columns apart. Nil when the move is not a whole number of columns within one frame (a
+    /// ripple drag moves by whole device columns, and each of the two previews rounds its frames at
+    /// a zoom that is not whole), or not exact outside a gesture.
     func laneShift(
         _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow
     ) -> LaneSurfaces.Shift? {

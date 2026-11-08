@@ -81,7 +81,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F67 | Session interchange (AES31, AAF, FCPXML, Pro Tools) | Hindenburg PRO | Later | R5 |
 | F68 | Ripple trim: an edge drag with a modifier ripples the tracks | FCP | done, Release 2 run 12 | R7 |
 | F69 | Roll and slip trims | FCP | done, Release 6 run 6 | R7 |
-| F70 | Follow track: in a ripple, its clips move whole and never split | FCP | Release 6 | R7 |
+| F70 | Follow track: in a ripple, its clips move whole and never split | FCP | done, Release 6 run 7 | R7 |
 | F71 | Connected clips: a clip anchored to a clip on another track | FCP | Later | R7 |
 | F72 | Track role (dialogue, music, effects) with a color | FCP | done, Release 4 run 9 (moved from Release 7) | R10 |
 | F73 | Stem export: one file per track or per role, all from the same start | FCP | Release 7 | R11 |

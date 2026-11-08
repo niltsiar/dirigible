@@ -72,7 +72,7 @@ struct StartRecordingTests {
         let studio = try await studio(hal)
 
         let first = Task { try await studio.startRecording(armed: ["t1"], playhead: 0) }
-        await until("the start did not reach the lookup") { hal.heldLookUps == 1 }
+        await hal.lookUpHeld()
         await #expect(throws: StudioError.busy) { try await studio.startRecording(armed: ["t1"], playhead: 0) }
         #expect(throws: StudioError.busy) {
             try studio.edit(ripple: false) { session throws(SessionError) in

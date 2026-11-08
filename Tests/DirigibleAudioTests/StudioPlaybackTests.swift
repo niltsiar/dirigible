@@ -221,7 +221,7 @@ struct StudioPlaybackTests {
         ]
 
         let start = Task { @MainActor in try await studio.startRecording(armed: ["t1"]) }
-        await until(limit: .seconds(10), "the start did not reach the lookup") { hal.heldLookUps == 1 }
+        await hal.lookUpHeld()
         for command in commands { await studio.perform(command) }
         #expect(studio.playback == .stopped && studio.playhead == 1000, "a command acted during the start")
         hal.releaseLookUps()

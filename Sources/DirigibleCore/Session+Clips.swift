@@ -99,7 +99,7 @@ extension Session {
         var trimmed = Clip(
             id: id, file: clip.file, start: range.lowerBound, offset: offset,
             length: range.upperBound - range.lowerBound, gain: clip.gain,
-            crossfades: .kept(edgesOf: clip, in: range), envelope: clip.envelope)
+            crossfades: .kept(edgesOf: clip, in: range), envelope: clip.envelope, ride: clip.ride)
         trimmed.fades = trimmed.fitting(clip.fades, keeping: kept)
         try check(trimmed, on: tracks[track])
         if let neighbor = tracks[track].clips.clips(overlapping: trimmed.range).first(where: { $0.id != id }) {
@@ -195,14 +195,15 @@ extension Session {
     /// throws `.clipOutsideFile`. The comparisons cannot overflow:
     /// the start is in `0...Frames.limit`, and the length is not more than the file length. Each
     /// crossfade half has media handle in the file (decision 0036). No gain point is after the end of
-    /// the file (decision 0060). `ClipLane` checks the pairing.
+    /// the file (decision 0060), and no ride point. `ClipLane` checks the pairing.
     func check(_ clip: Clip, on track: Track) throws(SessionError) {
         guard clip.start.isInRange else { throw .frameOutOfRange }
         guard clip.offset >= .zero else { throw .clipOutsideFile(clip.id) }
         guard let file = files[clip.file] else { throw .unknownFile(clip.file) }
         guard file.layout == track.layout else { throw .layoutMismatch(track.id, .file(file.id)) }
         guard clip.length > .zero, clip.length <= file.length - clip.offset,
-            clip.envelope.points.last.map({ $0.frame <= file.length }) ?? true
+            clip.envelope.points.last.map({ $0.frame <= file.length }) ?? true,
+            clip.ride.points.last.map({ $0.frame <= file.length }) ?? true
         else { throw .clipOutsideFile(clip.id) }
         let (before, after) = (clip.crossfades.start.half, clip.crossfades.end.half)
         guard (before == .zero || clip.fades.fadeIn == .zero) && (after == .zero || clip.fades.fadeOut == .zero) else {

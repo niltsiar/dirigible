@@ -84,6 +84,7 @@ extension Session {
         let sources = tracks.filter { $0.clips.contains { placements[$0.id] != nil } }
 
         var taken = clipIDs
+        var rides = RideMaps()
         var parts: [SplitPart] = []
         for source in sources {
             var sides = [(Side.left, names.left), (.right, names.right)].map { side, name in
@@ -96,10 +97,13 @@ extension Session {
             for clip in source.clips {
                 guard let placement = placements[clip.id] else { continue }
                 var ids: [ClipID] = []
+                let ride = rides.moved(
+                    clip.ride, by: .zero - placement.spanStart, fileLength: placement.spanLength)
                 for index in sides.indices {
                     let side = sides[index].side
                     let moved = Self.monoClip(
-                        of: clip, side: side, placement: placement, id: Self.sideID(of: clip.id, side, &taken))
+                        of: clip, side: side, placement: placement, ride: ride,
+                        id: Self.sideID(of: clip.id, side, &taken))
                     try check(moved, on: sides[index].track)
                     sides[index].clips.append(moved)
                     ids.append(moved.id)
@@ -120,13 +124,17 @@ extension Session {
     }
 
     /// The clip on one side: the file of the side, the offset in the run file, and the envelope at
-    /// the frames of that file. The edge rule of decision 0060 keeps its gain at the edges of the run.
-    private static func monoClip(of clip: Clip, side: Side, placement: Placement, id: ClipID) -> Clip {
+    /// the frames of that file, and `ride`, the ride at the frames of that file. The edge rule of
+    /// decision 0060 keeps their gain at the edges of the run.
+    private static func monoClip(
+        of clip: Clip, side: Side, placement: Placement, ride: GainEnvelope, id: ClipID
+    ) -> Clip {
         Clip(
             id: id, file: side == .left ? placement.left : placement.right, start: clip.start,
             offset: clip.offset - placement.spanStart, length: clip.length, gain: clip.gain, fades: clip.fades,
             crossfades: clip.crossfades,
-            envelope: clip.envelope.moved(by: .zero - placement.spanStart, fileLength: placement.spanLength))
+            envelope: clip.envelope.moved(by: .zero - placement.spanStart, fileLength: placement.spanLength),
+            ride: ride)
     }
 
     /// "<id> L" or "<id> R", else the first free one of "<id> L 2", "<id> L 3", and so on. It goes

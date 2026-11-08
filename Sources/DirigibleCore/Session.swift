@@ -226,19 +226,24 @@ public struct Session: Hashable, Sendable {
         !track.isMuted && (track.isSoloed || !tracks.contains(where: \.isSoloed))
     }
 
-    /// The `session.xml` version that holds this session (decision 0024 P6): `followSessionVersion`
-    /// with a follow track (decision 0073), else `preRollSessionVersion`
-    /// with a pre-roll `<recording>`, else 14 with a repair effect in a file origin (decision 0064),
-    /// else 13 with a hum removal in a file origin (decision 0054), else 12 with a file origin (0057),
-    /// else 11 with a track role, else 10 with a gain envelope point (decision 0060), else 9 with a
-    /// crossfade at a seamless join (decision 0036), else 8 with a transcript (decision 0055), else
-    /// 7 with a marker URL or image, else 6 with episode data (decision 0045), else 5 with a muted
-    /// or soloed track (decision 0039), else 4 with a crossfade (decision 0036), else 3 with a fade
-    /// (decision 0035), else 2 with an app route (decision 0029), else 1.
+    /// The `session.xml` version that holds this session (decision 0024 P6): from 12 on, the largest
+    /// version of the present features: `rideSessionVersion` with a ride point, `followSessionVersion`
+    /// with a follow track (decision 0073), `preRollSessionVersion` with a pre-roll `<recording>`, 14
+    /// with a repair effect in a file origin (decision 0064), 13 with a hum removal in a file origin
+    /// (decision 0054), 12 with a file origin (0057); else 11 with a track role, else 10 with a gain
+    /// envelope point (decision 0060), else 9 with a crossfade at a seamless join (decision 0036), else
+    /// 8 with a transcript (decision 0055), else 7 with a marker URL or image, else 6 with episode data
+    /// (decision 0045), else 5 with a muted or soloed track (decision 0039), else 4 with a crossfade
+    /// (decision 0036), else 3 with a fade (decision 0035), else 2 with an app route (decision 0029),
+    /// else 1.
     public var fileVersion: Int {
-        if tracks.contains(where: \.isFollowTrack) { return followSessionVersion }
-        if recording?.isPreRoll == true { return preRollSessionVersion }
-        if let version = files.values.compactMap({ $0.origin?.treatment.fileVersion }).max() { return version }
+        let features = [
+            tracks.contains { $0.clips.contains { !$0.ride.isEmpty } } ? rideSessionVersion : nil,
+            tracks.contains(where: \.isFollowTrack) ? followSessionVersion : nil,
+            recording?.isPreRoll == true ? preRollSessionVersion : nil,
+            files.values.compactMap { $0.origin?.treatment.fileVersion }.max(),
+        ]
+        if let version = features.compactMap({ $0 }).max() { return version }
         if tracks.contains(where: { $0.role != nil }) { return 11 }
         if tracks.contains(where: { $0.clips.contains { !$0.envelope.isEmpty } }) { return 10 }
         if tracks.contains(where: { $0.clips.seamlessCrossfade != nil }) { return 9 }

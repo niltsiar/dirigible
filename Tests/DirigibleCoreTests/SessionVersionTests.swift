@@ -128,4 +128,33 @@ struct SessionVersionTests {
         }
         return problems
     }
+
+    /// Leveler C20: from 12 on, `fileVersion` is the largest version of the present features. A
+    /// repair origin (14), a pre-roll take, a follow track, and a ride point, alone and in pairs,
+    /// write the larger constant and read back equal.
+    @Test func fileVersionIsTheMaxOfThePresentFeatures() throws {
+        let repaired = try files.renderedBeforeSource(try files.allRepairs())
+        var ridden = repaired
+        try ridden.addTrack("r", name: "Ride", layout: .mono)
+        try ridden.place(Clip(id: "R", file: "z", start: 0, offset: 0, length: 1_000), on: "r")
+        try ridden.setRides(["R": envelope([(500, -1.5)])])
+        var followed = repaired
+        try followed.addTrack("f", name: "Bed", layout: .mono)
+        try followed.setFollowTrack(true, tracks: ["f"])
+        var riddenFollowed = ridden
+        try riddenFollowed.setFollowTrack(true, tracks: ["r"])
+        let cases: [(Session, Int)] = [
+            (repaired, 14), (ridden, rideSessionVersion), (followed, followSessionVersion),
+            (riddenFollowed, rideSessionVersion),
+            (try withTake(repaired, preRoll: true), preRollSessionVersion),
+            (try withTake(followed, preRoll: true), followSessionVersion),
+            (try withTake(ridden, preRoll: true), rideSessionVersion),
+        ]
+        for (session, version) in cases {
+            #expect(session.fileVersion == version)
+            #expect(try text(session).contains(#"version="\#(version)""#))
+            #expect(try Session(xml: try session.checkedData()) == session)
+        }
+        #expect(rideSessionVersion > followSessionVersion && sessionVersion == rideSessionVersion)
+    }
 }

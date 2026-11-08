@@ -70,7 +70,7 @@ extension Clip {
         return Clip(
             id: id, file: file, start: range.lowerBound, offset: offset - left,
             length: range.upperBound - range.lowerBound, gain: gain, fades: fades, crossfades: .zero,
-            envelope: envelope)
+            envelope: envelope, ride: ride)
     }
 
     /// The timeline range of the clip as it sounds: the clip plus half of each crossfade.

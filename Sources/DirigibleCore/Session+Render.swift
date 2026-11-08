@@ -33,8 +33,8 @@ extension Session {
     /// "<stem>.wav" with the layout of the source file, the length of the span, the `capture` of
     /// the source, and the origin of the run (decision 0057), with no words. Each clip of the run
     /// points at that file at (old offset - run start), gets the added gain on its gain (clamped to
-    /// `Gain.range`), and keeps its ID, start, length, fades, and crossfades. Its envelope keeps
-    /// the gain at each source frame (`GainEnvelope.moved`). The source files stay in the pool. The
+    /// `Gain.range`), and keeps its ID, start, length, fades, and crossfades. Its envelope and its
+    /// ride keep the gain at each source frame (`GainEnvelope.moved`). The source files stay in the pool. The
     /// result lists each moved clip with its new file, in the order of `runs`, and inside a run in
     /// the order of `run.clips`.
     ///
@@ -54,6 +54,7 @@ extension Session {
         guard found.count == runs.count, Set(found) == Set(runs.map(\.run)) else { throw .frameOutOfRange }
         var targets: [ClipID: (file: FileID, shift: Frames, length: Frames, gain: Gain)] = [:]
         var moved: [RenderedClip] = []
+        var rides = RideMaps()
         for rendered in runs {
             let run = rendered.run
             guard let layout = files[run.file]?.layout else { throw .unknownFile(run.file) }
@@ -76,6 +77,7 @@ extension Session {
                 new.offset = clip.offset + target.shift
                 new.gain = Gain(clamping: clip.gain.dB + target.gain.dB)!
                 new.envelope = clip.envelope.moved(by: target.shift, fileLength: target.length)
+                new.ride = rides.moved(clip.ride, by: target.shift, fileLength: target.length)
                 try check(new, on: tracks[track])
                 edits.append((index, new))
             }

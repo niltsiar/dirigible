@@ -3,8 +3,8 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The edits keep the gain envelope (decision 0060, C2). Track "t1" (mono); files "fa" and "fb" of
-/// 60 000 frames.
+/// The edits keep the gain envelope and the ride layer (decision 0060, C2, leveler C28). Track "t1"
+/// (mono); files "fa" and "fb" of 60 000 frames.
 struct EnvelopeEditTests {
     static let fileLength = 60_000
 
@@ -17,8 +17,8 @@ struct EnvelopeEditTests {
         return session
     }
 
-    /// C2: after each seeded edit, each file frame that plays before and after the edit at one
-    /// place has the same envelope gain. A clip after the edit compares with its source before it:
+    /// C2, C28: after each seeded edit, each file frame that plays before and after the edit at one
+    /// place has the same layer gain (envelope plus ride). A clip after the edit compares with its source before it:
     /// the clip of the same ID, else of its ID up to the last "@" (split, clear, paste), and for a
     /// heal each clip of the same file map inside it. Points lie inside and outside each clip window.
     /// Control: a trim that drops the points outside the new window fails here.
@@ -40,7 +40,8 @@ struct EnvelopeEditTests {
             try session.place(
                 Clip(
                     id: ClipID("c\(index)"), file: file, start: Frames(index * 5_000),
-                    offset: Frames(10_000 + index * 5_000), length: 5_000, envelope: randomEnvelope()),
+                    offset: Frames(10_000 + index * 5_000), length: 5_000, envelope: randomEnvelope(),
+                    ride: randomEnvelope()),
                 on: "t1")
         }
         var done: [String: Int] = [:]
@@ -59,7 +60,7 @@ struct EnvelopeEditTests {
                         Clip(
                             id: ClipID("p\(step)"), file: Bool.random(using: &random) ? "fa" : "fb",
                             start: frame(0...30_000), offset: frame(0...40_000), length: frame(1...8_000),
-                            envelope: randomEnvelope()),
+                            envelope: randomEnvelope(), ride: randomEnvelope()),
                         on: "t1")
                 case 1:
                     name = "clear"
@@ -140,8 +141,8 @@ struct EnvelopeEditTests {
         #expect(compared >= 5_000 && outside >= 500, "\(compared) frames compared, \(outside) with a point outside")
     }
 
-    /// The frames that `after` and `before` both play at one place, with a different envelope gain.
-    /// `outside` counts the compared clips that have a point outside their window.
+    /// The frames that `after` and `before` both play at one place, with a different layer gain.
+    /// `outside` counts the compared clips that have an envelope or ride point outside their window.
     static func compare(
         _ before: ClipLane, _ after: ClipLane, heal: Bool, random: (ClosedRange<Int>) -> Int
     ) -> (compared: Int, outside: Int, wrong: [String]) {
@@ -167,14 +168,15 @@ struct EnvelopeEditTests {
                 let high = min(source.offset + source.length, new.offset + new.length) - Frames(1)
                 guard low <= high else { continue }
                 let window = source.offset..<(source.offset + source.length)
-                if source.envelope.points.contains(where: { !window.contains($0.frame) }) { outside += 1 }
-                let marks = (source.envelope.points + new.envelope.points).flatMap { point in
+                let points = source.envelope.points + source.ride.points
+                if points.contains(where: { !window.contains($0.frame) }) { outside += 1 }
+                let marks = (points + new.envelope.points + new.ride.points).flatMap { point in
                     [point.frame - Frames(1), point.frame, point.frame + Frames(1)]
                 }
                 let picks = (0..<3).map { _ in Frames(random(low.count...high.count)) }
                 for frame in ([low, high] + marks + picks) where low <= frame && frame <= high {
                     compared += 1
-                    let (was, now) = (source.envelope.gain(at: frame), new.envelope.gain(at: frame))
+                    let (was, now) = (source.layerGain(at: frame), new.layerGain(at: frame))
                     if abs(was - now) > 1e-9 { wrong.append("\(new.id) at file frame \(frame): \(was) then \(now)") }
                 }
             }

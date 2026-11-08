@@ -139,10 +139,10 @@ public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames],
 /// latest, or its sounding end when its join to the clip before it comes or goes. The lane of a
 /// track that follows ripples and whose clips do not change (decision 0073) is in `still`: it keeps
 /// its pixels and draws only `lines`, the old and the new line of each marker that changes. Nil
-/// when no lane moves its last clip, when no lane changes a clip before its moved clips, or when
-/// the rule does not hold: the changed columns then draw with no copy. A move alone changes no
-/// clip before the moved clips (it gives the same sessions as a ripple in a gap), so a clip drag
-/// draws only its changed columns. A lane that does not follow and does not change breaks the rule.
+/// when no lane moves its last clip, when no lane changes the clip just before its moved clips, or
+/// when the rule does not hold: the changed columns then draw with no copy. A move that cuts no
+/// clip puts a still clip or a moved clip just before the moved clips, so its drag draws only its
+/// changed columns. A lane that does not follow and does not change breaks the rule.
 public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? {
     guard old.tracks.count == new.tracks.count else { return nil }
     func moved(_ clip: Clip, by delta: Frames) -> Clip {
@@ -166,12 +166,17 @@ public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? 
             (i, j) = (i - 1, j - 1)
         }
         guard j + 1 < b.clips.endIndex else { continue }
-        // A ripple cuts, trims, inserts, or removes a clip before the moved clips. The walk back
-        // stops at that clip, so a ripple drag event pays one compare.
+        // A ripple cuts, trims, inserts, or removes the clip just before the moved clips, and moves
+        // every later clip. So that clip is no still clip and no moved clip.
         if !ripples {
-            var (p, q) = (i, j)
-            while p >= a.clips.startIndex, q >= b.clips.startIndex, a.clips[p] == b.clips[q] { (p, q) = (p - 1, q - 1) }
-            ripples = p >= a.clips.startIndex || q >= b.clips.startIndex
+            func holds(_ lane: ClipLane, _ clip: Clip?) -> Bool {
+                clip.flatMap { clip in lane.index(holding: clip.start).map { lane[$0] == clip } } ?? false
+            }
+            let x = i >= a.clips.startIndex ? a.clips[i] : nil
+            let y = j >= b.clips.startIndex ? b.clips[j] : nil
+            ripples =
+                x != y && !holds(b.clips, x.map { moved($0, by: delta) })
+                && !holds(a.clips, y.map { moved($0, by: .zero - delta) })
         }
         // The fade handle of the first moved clip shows only with no join, so a join that comes or
         // goes puts that clip in the drawn part.

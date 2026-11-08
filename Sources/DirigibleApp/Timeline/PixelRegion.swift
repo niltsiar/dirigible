@@ -118,19 +118,26 @@ struct PixelRegion: ~Copyable {
     /// of this draw in the columns of that area, so a label draws only over the pixels of this draw
     /// (plan gate 1 item 3). No call for an area where this draw has no column. Each clip holds
     /// only the mask parts of its area: text through a clip of every mask part cost 3 times the text.
+    /// With no mask, one clip to `rect` serves all areas, with no clip per area.
     func withContext(in areas: [CGRect], _ body: (CGContext, Int) -> Void) {
         let scale = window.scale
         var context: CGContext?
         for (index, area) in areas.enumerated() {
+            let columns = Int((area.minX * scale).rounded(.down))..<Int((area.maxX * scale).rounded(.up))
             var clip: [CGRect] = []
-            forEachPart(of: Int((area.minX * scale).rounded(.down))..<Int((area.maxX * scale).rounded(.up))) {
-                clip.append(window.points(of: PixelRect(columns: $0, rows: rect.rows)))
+            if mask == nil {
+                guard columns.overlaps(rect.columns) else { continue }
+            } else {
+                forEachPart(of: columns) { clip.append(window.points(of: PixelRect(columns: $0, rows: rect.rows))) }
+                guard !clip.isEmpty else { continue }
             }
-            guard !clip.isEmpty else { continue }
-            if context == nil { context = makeContext() }
+            if context == nil {
+                context = makeContext()
+                if mask == nil { context?.clip(to: window.points(of: rect)) }
+            }
             guard let context else { return }
             context.saveGState()
-            context.clip(to: clip)
+            if !clip.isEmpty { context.clip(to: clip) }
             body(context, index)
             context.restoreGState()
         }

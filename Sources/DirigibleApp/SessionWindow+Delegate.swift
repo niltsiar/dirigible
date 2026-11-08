@@ -17,6 +17,12 @@ extension SessionWindow: NSWindowDelegate {
         Task { await close() }
     }
 
+    /// "Close anyway?": Close.
+    func closeAnyway() {
+        alert = nil
+        finishClose()
+    }
+
     /// A focus reads the device list again, so a channel change of a present device shows, and
     /// checks the media, so a file that the user put back shows (decision 0016). It loads the
     /// peaks again, because a WAV can change outside the app (decision 0017).

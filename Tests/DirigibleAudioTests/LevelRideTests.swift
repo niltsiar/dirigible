@@ -156,6 +156,16 @@ struct LevelRideTests {
         #expect(abs(gains[75] - quiet) <= 0.01, "0.5 s after the onset: \(gains[75]) dB")
     }
 
+    /// C4 and the texts of the command: when the 6 dB limit stops the gain after the offset, the
+    /// integrated loudness changes, so no text says that it always stays the same.
+    @Test func limitStopsTheLoudnessOffset() throws {
+        let steps = rideSteps([(300, -20), (300, -32)])
+        let gains = try rideOneClip(steps)
+        #expect(gains.max() == LevelRide.standard.maxBoost, "the limit stops the gain")
+        let (ridden, source) = (try #require(riddenLoudness(steps, gains)), try #require(riddenLoudness(steps)))
+        #expect(abs(ridden - source) > 0.1, "ridden \(ridden) LUFS, source \(source) LUFS")
+    }
+
     /// C4: the ride keeps the gated integrated loudness of the clip within 0.1 LU.
     @Test func keepsTheIntegratedLoudness() throws {
         for steps in [c1, c3] {

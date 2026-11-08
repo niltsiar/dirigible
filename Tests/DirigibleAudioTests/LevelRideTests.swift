@@ -185,6 +185,20 @@ struct LevelRideTests {
         #expect(abs(try #require(riddenLoudness(steps, gains)) - reference) <= 0.1)
     }
 
+    /// C10: a silent 60 ms clip between two speech clips with other clip gains holds no full step,
+    /// and the step that holds it gets 0 dB, not the gain of the speech edge before it.
+    @Test func silentClipUnderOneStepGetsZeroDecibels() throws {
+        let steps = rideSteps([(50, -18), (50, -26), (1, -80), (100, -20)])
+        let clips = [
+            (span: 0..<480_000, gain: Gain.zero), (span: 480_000..<482_880, gain: try #require(Gain(dB: -3))),
+            (span: 482_880..<964_800, gain: try #require(Gain(dB: 2))),
+        ]
+        let ride = try #require(rideCurve(stepMeanSquares: steps, stepFrames: rideStepFrames, clips: clips))
+        #expect(ride.unmeasured == [1])
+        #expect(ride.curve.dB[99] > 1, "control: the speech edge has a gain")
+        #expect(ride.curve.dB[100] == 0, "the step of the silent clip: \(ride.curve.dB[100]) dB")
+    }
+
     /// C5: the gain changes by 1.5 dB or less between two steps, also at the 8 LU jump of C1.
     @Test func gainMovesSmoothly() throws {
         let gains = try rideOneClip(c1)

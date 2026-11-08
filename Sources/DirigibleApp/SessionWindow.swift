@@ -328,12 +328,6 @@ import SwiftUI
         finishClose()
     }
 
-    /// "Close anyway?": Close.
-    func closeAnyway() {
-        alert = nil
-        finishClose()
-    }
-
     /// "Close anyway?": Cancel. The window stays open with the same studio, which keeps its lock.
     /// The close settle started no peak pass, so the files of a finalized take get their peaks now (0017).
     func cancelUnsavedClose() {
@@ -358,7 +352,7 @@ import SwiftUI
     }
 
     /// Drops the studio, so its lock goes, and breaks the cycle of the window and its view.
-    private func finishClose() {
+    func finishClose() {
         phase = .closed
         activeObserver.map(NotificationCenter.default.removeObserver)
         activeObserver = nil

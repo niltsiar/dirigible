@@ -102,7 +102,7 @@ extension Session {
             valid: edge == .start ? .zero : clip.crossfades.start, end: edge == .end ? .zero : clip.crossfades.end)
         var trimmed = Clip(
             id: id, file: clip.file, start: clip.start, offset: offset, length: length, gain: clip.gain,
-            crossfades: kept, envelope: clip.envelope)
+            crossfades: kept, envelope: clip.envelope, ride: clip.ride)
         trimmed.fades = trimmed.fitting(clip.fades, keeping: edge.other)
         try check(trimmed, on: self.tracks[own])
         // Both values are in 0...limit, so the sum cannot overflow.

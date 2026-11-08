@@ -172,7 +172,7 @@ extension Session {
                 let placed = Clip(
                     id: Self.derivedID(of: clip.id, at: start + clip.start, taken: &taken), file: clip.file,
                     start: start + clip.start, offset: clip.offset, length: clip.length, gain: clip.gain,
-                    fades: clip.fades, crossfades: clip.crossfades, envelope: clip.envelope)
+                    fades: clip.fades, crossfades: clip.crossfades, envelope: clip.envelope, ride: clip.ride)
                 try check(placed, on: self.tracks[index])
                 clips.append(placed)
             }

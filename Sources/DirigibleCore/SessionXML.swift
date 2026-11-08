@@ -31,6 +31,8 @@ extension Session {
             fileList.addChild(node)
         }
         root.addChild(fileList)
+        let rides = rideLists()
+        if !rides.lists.isEmpty { root.addChild(rides.element) }
 
         let trackList = element("tracks")
         for track in tracks {
@@ -64,6 +66,7 @@ extension Session {
                     add(("crossfadeIn", clip.crossfades.start.description), to: clipNode)
                 }
                 if clip.crossfades.end != .zero { add(("crossfadeOut", clip.crossfades.end.description), to: clipNode) }
+                if let list = rides.lists[clip.id] { add(("ride", "r\(list)"), to: clipNode) }
                 if !clip.envelope.isEmpty {
                     let envelope = element("envelope")
                     for point in clip.envelope.points {
@@ -120,6 +123,41 @@ extension Session {
                     ("file", transcript.file.description)))
         }
         return list
+    }
+}
+
+extension Session {
+    /// `<rides>` (leveler C20): one `<ride id="r<n>">` for each distinct ride list, numbered from 1 in
+    /// track and clip order, and the number of the list of each clip with a ride point. The text
+    /// is the `<frame> <gain>` pairs with one space between numbers, each gain in `text(_:)`.
+    fileprivate func rideLists() -> (lists: [ClipID: Int], element: XMLElement) {
+        var distinct: [GainEnvelope] = []
+        var lists: [ClipID: Int] = [:]
+        for track in tracks {
+            for clip in track.clips where !clip.ride.isEmpty {
+                if let index = distinct.lastIndex(of: clip.ride) {
+                    lists[clip.id] = index + 1
+                } else {
+                    distinct.append(clip.ride)
+                    lists[clip.id] = distinct.count
+                }
+            }
+        }
+        let node = element("rides")
+        for (index, ride) in distinct.enumerated() {
+            var bytes: [UInt8] = []
+            bytes.reserveCapacity(ride.points.count * 16)
+            for point in ride.points {
+                if !bytes.isEmpty { bytes.append(32) }
+                bytes += point.frame.description.utf8
+                bytes.append(32)
+                bytes += text(point.gain.dB).utf8
+            }
+            let list = XMLElement(name: "ride", stringValue: String(decoding: bytes, as: UTF8.self))
+            add(("id", "r\(index + 1)"), to: list)
+            node.addChild(list)
+        }
+        return (lists, node)
     }
 }
 

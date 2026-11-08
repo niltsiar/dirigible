@@ -39,8 +39,12 @@ extension Session {
             guard list.count <= 1 else { throw .invalidValue(element: "origin", attribute: "count") }
             if let origin = list.first { origins[file.id] = try RenderOrigin(origin, version: version) }
         }
+        var rides = try RideLists(root, version: version)
         var tracks: [ParsedTrack] = []
-        for node in root.children("tracks", "track") { tracks.append(try ParsedTrack(node, version: version)) }
+        for node in root.children("tracks", "track") {
+            tracks.append(try ParsedTrack(node, version: version, rides: &rides))
+        }
+        try rides.checkAllNamed()
         var markers: [Marker] = []
         for node in root.children("markers", "marker") { markers.append(try Marker(node, version: version)) }
         let recording = try root.sessionElements("recording").first.map { node throws(SessionFileError) in
@@ -101,7 +105,7 @@ private struct ParsedTrack {
     let isFollowTrack: Bool
     let role: Track.Role?
 
-    init(_ node: XMLElement, version: Int) throws(SessionFileError) {
+    init(_ node: XMLElement, version: Int, rides: inout RideLists) throws(SessionFileError) {
         id = TrackID(try node.string("id"))
         isMuted = try node.flag("muted", since: 5, version: version)
         isSoloed = try node.flag("soloed", since: 5, version: version)
@@ -130,7 +134,7 @@ private struct ParsedTrack {
                     start: try clip.frames("start"), offset: try clip.frames("offset"),
                     length: try clip.frames("length"), gain: try clip.gain("gain"),
                     fades: try clip.fades(version: version), crossfades: try clip.crossfades(version: version),
-                    envelope: try clip.envelope(version: version)))
+                    envelope: try clip.envelope(version: version), ride: try rides.ride(of: clip, version: version)))
         }
         self.clips = clips
     }
@@ -278,7 +282,7 @@ extension XMLElement {
     }
 
     /// Children by local name in the session namespace, so a prefixed file (`<d:tracks>`) reads too.
-    fileprivate func sessionElements(_ name: String) -> [XMLElement] {
+    func sessionElements(_ name: String) -> [XMLElement] {
         elements(forLocalName: name, uri: sessionNamespace)
     }
 

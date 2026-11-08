@@ -242,10 +242,14 @@ public struct Clip: Identifiable, Hashable, Sendable {
     public var crossfades: Crossfades
     /// At file frames, on top of `gain` (decision 0060). `Session.check` keeps each point in the file.
     public var envelope: GainEnvelope
+    /// The Level Over Time layer, at file frames, added to `gain` and `envelope`. Only
+    /// `Session.setRides` writes it. `Session.check` keeps each point in the file.
+    public var ride: GainEnvelope
 
     public init(
         id: ClipID, file: FileID, start: Frames, offset: Frames, length: Frames, gain: Gain = .zero,
-        fades: Fades = .zero, crossfades: Crossfades = .zero, envelope: GainEnvelope = .empty
+        fades: Fades = .zero, crossfades: Crossfades = .zero, envelope: GainEnvelope = .empty,
+        ride: GainEnvelope = .empty
     ) {
         self.id = id
         self.file = file
@@ -256,6 +260,7 @@ public struct Clip: Identifiable, Hashable, Sendable {
         self.fades = fades
         self.crossfades = crossfades
         self.envelope = envelope
+        self.ride = ride
     }
 
     public var end: Frames { start + length }

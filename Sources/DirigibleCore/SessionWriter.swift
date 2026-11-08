@@ -44,12 +44,15 @@ package let artworkFolderName = "Artwork"
 package func temporaryArtwork(of name: ArtworkName) -> String { ".\(name.name).tmp" }
 /// The newest `session.xml` version that this build reads (decision 0024). A save writes
 /// `Session.fileVersion`.
-package let sessionVersion = followSessionVersion
+package let sessionVersion = rideSessionVersion
 /// The `session.xml` version of a pre-roll `<recording>` (decision 0070 **Format**): the next free
 /// number on main at the land.
 package let preRollSessionVersion = 15
 /// The `session.xml` version of `follow="true"` on a track (decision 0073).
 package let followSessionVersion = 16
+/// The `session.xml` version of a ride layer (`<rides>`, decision 0060 Amended): the next free number
+/// on main at the land.
+package let rideSessionVersion = 17
 
 extension Session {
     /// Writes `session.xml` in the package, and makes the package and its `Clips/` folder if

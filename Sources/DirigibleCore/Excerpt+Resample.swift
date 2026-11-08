@@ -22,6 +22,7 @@ extension Excerpt {
                 file.length = lengths[file.id] ?? scale(file.length)
                 return file
             })
+        var rides = RideMaps()
         for lane in scaled.lanes.indices {
             let source = lanes[lane].clips
             var clips = source.map { clip in
@@ -33,6 +34,9 @@ extension Excerpt {
                 result.length = min(scale(clip.end) - start, fileLength - offset)
                 result.crossfades = .zero
                 result.envelope = clip.envelope.resampled(scale, fileLength: fileLength)
+                result.ride = rides.map(clip.ride, FileMap(shift: .zero, length: fileLength)) {
+                    $0.resampled(scale, fileLength: fileLength)
+                }
                 if let gain = gains[clip.file], let sum = Gain(clamping: clip.gain.dB + gain.dB) { result.gain = sum }
                 return result
             }

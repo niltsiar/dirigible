@@ -221,6 +221,21 @@ extension LoudnessTests {
         #expect(reads == 2, "read fault: \(reads) reads")
     }
 
+    /// A NaN in the clip range gives `.unreadable` (Auto Level and `check-levels` show the read
+    /// error), not "no measurement".
+    @Test func aNonFiniteSampleIsUnreadable() throws {
+        let package = try MixPackage()
+        try package.addFile("f1", channels: tone([(5, -23)]))
+        try package.addTrack("t1", layout: .stereo, clip: "c1", file: "f1", start: 0, offset: 0, length: 240_000)
+        let clip = try #require(package.session.tracks.first?.clips.first)
+        let (loudness, fault) = try clipLoudness(clip, in: package.session, package: package.url) {
+            file, buffer, count in
+            try file.read(into: buffer, frameCount: count)
+            buffer.floatChannelData![1][100] = .nan
+        }
+        #expect(loudness.integrated == nil && fault == .unreadable, "fault \(String(describing: fault))")
+    }
+
     /// Run 2026-10-14-leveler C6: with `keepsSteps`, the meter keeps the mean square of each
     /// complete step, and a non-finite sample empties them for good.
     @Test func nonFiniteEmptiesTheSteps() throws {

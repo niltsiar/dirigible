@@ -143,9 +143,9 @@ extension TimelineLayerTests {
 
     /// C53 (decision 0073): a ripple trim drag over a track that follows ripples and does not move
     /// draws by a shift, and the copy keeps the pixels of the follow lane: it draws there only the
-    /// old and the new line of a marker that moves. Controls: the follow lane in its own strip
-    /// (it draws), the follow lane moved with the other lanes (its waveform moves), and no marker
-    /// line on the follow lane (the old line stays).
+    /// old and the new line of a marker that moves, 6 pt apart, in one strip. Controls: the follow
+    /// lane in its own strip (it draws), the follow lane moved with the other lanes (its waveform
+    /// moves), and no marker line on the follow lane (the old line stays).
     @Test(arguments: [false, true])
     func aStillLaneDrawsOnlyTheMovedMarkerLines(marker: Bool) async throws {
         let (model, studio, window, view) = try await lanes(tracks: 1, onScreen: true)
@@ -190,6 +190,9 @@ extension TimelineLayerTests {
             let drawn = view.lanes.surfaces.lastDrawn.filter { $0.rows.overlaps(bedRows) }
             if drawn.contains(where: { $0.columns.clamped(to: lines) != $0.columns }) {
                 failures.append("drag \(dx): the follow lane drew \(drawn), the marker lines take \(lines)")
+            }
+            if marker, drawn.count != 1 {
+                failures.append("drag \(dx): the lines 6 pt apart drew in \(drawn.count) strips, not 1")
             }
         }
         #expect(

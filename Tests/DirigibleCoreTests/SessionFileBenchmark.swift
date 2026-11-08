@@ -10,7 +10,10 @@ import Testing
 struct SessionFileBenchmark {
     static let twoHours = 345_600_000
     static let open = Duration.milliseconds(100)
-    static let save = Duration.milliseconds(200)
+    /// A ridden save takes at most `saveOverPlain` more than the save of the same fixture with no
+    /// ride, from the same run, and `save` in all.
+    static let saveOverPlain = Duration.milliseconds(100)
+    static let save = Duration.milliseconds(250)
     static let peakBytes = 256 << 20
 
     /// The ride list of clip `index`: 18 954 points on a 2 h file, a seeded walk of the gain in
@@ -102,6 +105,8 @@ struct SessionFileBenchmark {
                     + "the ride adds open \(ridden.open - plain.open), save \(ridden.save - plain.save)")
             if fixture.clips == 6 {
                 expectWithinBudget(ridden.open, Self.open, "C34 fixture \(fixture.name) open \(ridden.open)")
+                let added = ridden.save - plain.save
+                expectWithinBudget(added, Self.saveOverPlain, "C34 fixture \(fixture.name) save adds \(added)")
                 expectWithinBudget(ridden.save, Self.save, "C34 fixture \(fixture.name) save \(ridden.save)")
             }
             let points = Self.ride(0).points.count * fixture.clips

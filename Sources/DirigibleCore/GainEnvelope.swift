@@ -124,6 +124,40 @@ public struct GainEnvelope: Hashable, Sendable {
         Self.fitted(points.map { (frame: ($0.frame + shift).count, dB: $0.gain.dB) }, fileLength: fileLength)
     }
 
+    /// The ride layer of a step curve (`dB`, one gain for each step): Douglas-Peucker on
+    /// (step centre frame, dB), with each kept gain rounded to 0.01 dB. A run splits when a step of
+    /// it is more than `tolerance` dB from the line through the rounded gains of its two ends, so
+    /// the layer is within `tolerance` dB of `dB` at each step centre. Centre i is the file frame
+    /// `first + (i + 0.5) x stepFrames`, rounded down. The first and the last centre stay, and the
+    /// hold rule gives their gains before and after them. Empty with no step. Precondition:
+    /// `stepFrames` over 0, each gain finite, each centre in `0...Frames.limit`.
+    package static func decimated(dB: [Double], first: Frames, stepFrames: Int, tolerance: Double) -> GainEnvelope {
+        func centre(_ step: Int) -> Int { first.count + (2 * step + 1) * stepFrames / 2 }
+        func rounded(_ step: Int) -> Double { (dB[step] * 100).rounded() / 100 }
+        guard let last = dB.indices.last else { return .empty }
+        var kept = [Bool](repeating: false, count: dB.count)
+        kept[0] = true
+        kept[last] = true
+        var runs = [(0, last)]
+        while let (start, end) = runs.popLast() {
+            let (from, to) = (rounded(start), rounded(end))
+            let span = Double(centre(end) - centre(start))
+            var (worst, split) = (tolerance, start)
+            for step in start + 1..<max(start + 1, end) {
+                let line = from + (to - from) * Double(centre(step) - centre(start)) / span
+                if abs(dB[step] - line) > worst { (worst, split) = (abs(dB[step] - line), step) }
+            }
+            if split > start {
+                kept[split] = true
+                runs += [(start, split), (split, end)]
+            }
+        }
+        return GainEnvelope(
+            valid: dB.indices.filter { kept[$0] }.map {
+                Point(frame: Frames(centre($0)), gain: Gain(clamping: rounded($0))!)
+            })
+    }
+
     /// The edge rule (decision 0060) of a write that computes a function on the file map of a clip
     /// (range gain, duck). The frames of `corners` ascend strictly and can lie outside the file. The
     /// result drops each corner outside `0...fileLength`. Then it puts a point at frame 0 and at

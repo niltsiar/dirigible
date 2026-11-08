@@ -1,4 +1,3 @@
-import DirigibleCore
 import Foundation
 
 /// The fixed settings of a level ride. The command has no control.
@@ -16,85 +15,62 @@ struct LevelRide: Hashable, Sendable {
     let smoothingHalfSteps = 5
 }
 
-/// The ride of one run of clips of one file, by the curve rule of `LevelRide.gains` for each
-/// measure span. `stepMeanSquares` holds the K-weighted, channel-summed mean square of each 100 ms
-/// step of the run (`LoudnessMeter.stepMeanSquares`); step i covers the run frames
-/// [i x `stepFrames`, (i + 1) x `stepFrames`). Each clip gives its span in run frames and its clip
-/// gain. Nil when no measure span has a reference, so the run makes no file. Else the curve of the
-/// run and the indices of the clips whose measure span has no reference: they get 0 dB.
-func rideCurve(
-    stepMeanSquares: [Double], stepFrames: Int, clips: [(span: Range<Int>, gain: Gain)]
-) -> (curve: GainCurve, unmeasured: [Int])? {
-    var spans: [(steps: Range<Int>, dB: [Double])] = []
-    var unmeasured: [Int] = []
-    var measured = false
-    for span in measureSpans(clips) {
-        // Only the steps that lie in the span count: a step that crosses an edge reads a handle.
-        let first = min((span.frames.lowerBound + stepFrames - 1) / stepFrames, stepMeanSquares.count)
-        let steps = first..<max(first, min(span.frames.upperBound / stepFrames, stepMeanSquares.count))
-        if let gains = LevelRide.standard.gains(Array(stepMeanSquares[steps])) {
-            spans.append((steps, gains))
-            measured = true
-        } else {
-            unmeasured += span.clips
-            // 0 dB on each step that holds a frame of the span, also a span under one step.
-            let end = min((span.frames.upperBound + stepFrames - 1) / stepFrames, stepMeanSquares.count)
-            let touched = min(span.frames.lowerBound / stepFrames, stepMeanSquares.count)..<end
-            if !touched.isEmpty { spans.append((touched, Array(repeating: 0, count: touched.count))) }
-        }
-    }
-    guard measured else { return nil }
-    let dB = stepMeanSquares.indices.map { runGain(at: $0, spans: spans) }
-    return (GainCurve(dB: dB, stepFrames: stepFrames), unmeasured.sorted())
+/// The ride layer of one measure group, one gain in dB for each 100 ms step: median(0, a, b) of
+/// two readings of the curve rule. b is the curve of the source steps; a is the curve as the
+/// envelope plays them (`heardGains`; `envelopeDB` holds the envelope gain at each step centre). So
+/// a manual lift or cut and a duck dip are not ridden twice. Nil when a reading has no reference:
+/// silence, under 400 ms, or an envelope that mutes the group.
+func rideLayer(stepMeanSquares: [Double], envelopeDB: [Double]) -> [Double]? {
+    let ride = LevelRide.standard
+    guard let b = ride.gains(stepMeanSquares),
+        let a = ride.heardGains(stepMeanSquares: stepMeanSquares, envelopeDB: envelopeDB)
+    else { return nil }
+    return rideLayer(a: a.dB, b: b.dB)
 }
 
-/// The measure spans of `clips`, in frame order: the spans of clips with equal clip gains that
-/// touch or overlap merge into one, so a split or a duplicated clip keeps one reference.
-private func measureSpans(_ clips: [(span: Range<Int>, gain: Gain)]) -> [(frames: Range<Int>, clips: [Int])] {
-    var spans: [(frames: Range<Int>, clips: [Int])] = []
-    for indices in Dictionary(grouping: clips.indices, by: { clips[$0].gain }).values {
-        for index in indices.sorted(by: { clips[$0].span.lowerBound < clips[$1].span.lowerBound }) {
-            let span = clips[index].span
-            if let last = spans.last, last.frames.upperBound >= span.lowerBound,
-                clips[last.clips[0]].gain == clips[index].gain
-            {
-                spans[spans.count - 1] = (
-                    last.frames.lowerBound..<max(last.frames.upperBound, span.upperBound), last.clips + [index]
-                )
-            } else {
-                spans.append((span, [index]))
-            }
-        }
-    }
-    return spans.sorted { ($0.frames.lowerBound, $0.frames.upperBound) < ($1.frames.lowerBound, $1.frames.upperBound) }
-}
-
-/// The gain of run step `step`. In one span: its gain. In several spans (clips with other clip
-/// gains that overlap): the mean of their gains, each weighted by the depth of the step in its
-/// span, so the gain blends linearly over the shared steps. Outside every span: the gain of the
-/// nearest span edge step.
-private func runGain(at step: Int, spans: [(steps: Range<Int>, dB: [Double])]) -> Double {
-    let centre = Double(step) + 0.5
-    var (sum, weights) = (0.0, 0.0)
-    for span in spans where span.steps.contains(step) {
-        let weight = min(centre - Double(span.steps.lowerBound), Double(span.steps.upperBound) - centre)
-        sum += weight * span.dB[step - span.steps.lowerBound]
-        weights += weight
-    }
-    if weights > 0 { return sum / weights }
-    let nearest = spans.min {
-        distance(step, $0.steps) < distance(step, $1.steps)
-    }!
-    return step < nearest.steps.lowerBound ? nearest.dB[0] : nearest.dB[nearest.dB.count - 1]
-}
-
-private func distance(_ step: Int, _ steps: Range<Int>) -> Int {
-    step < steps.lowerBound ? steps.lowerBound - step : step - steps.upperBound + 1
+/// median(0, a, b) at each step.
+func rideLayer(a: [Double], b: [Double]) -> [Double] {
+    zip(a, b).map { max(min($0, $1), min(max($0, $1), 0)) }
 }
 
 extension LevelRide {
-    /// The final gain of each step of one measure span (`meanSquares`), or nil when the span has
-    /// no reference. The steps of the rule:
+    /// The curve of one measure group: the reference R in LUFS, the offset o of step 6 in dB, and
+    /// the final gain of each step in dB.
+    struct Curve: Hashable, Sendable {
+        let reference: Double
+        let offset: Double
+        let dB: [Double]
+    }
+
+    /// Reading a of the ride layer: the curve of the steps times 10^(E/10), E = `envelopeDB`. R and
+    /// o count only the blocks whose four steps have E >= G - 0.25 dB, G the mode block gain, so a
+    /// cut in the envelope does not set the reference. With no envelope point, each block counts.
+    /// Precondition: one envelope gain for each step.
+    func heardGains(stepMeanSquares: [Double], envelopeDB: [Double]) -> Curve? {
+        precondition(stepMeanSquares.count == envelopeDB.count, "one envelope gain for each step")
+        let floor = Self.modeBlockGain(envelopeDB) - 0.25
+        let heard = zip(stepMeanSquares, envelopeDB).map { $0 * pow(10, $1 / 10) }
+        return gains(heard, counting: envelopeDB.map { $0 >= floor })
+    }
+
+    /// The mode block gain G of the envelope gains of the steps: the gain of a 400 ms block is the
+    /// lowest gain of its four steps; the bins are 0.5 dB wide and centred on multiples of 0.5 dB;
+    /// G is the centre of the bin with the most blocks, and of two such bins the higher one. 0 with
+    /// no block.
+    static func modeBlockGain(_ envelopeDB: [Double]) -> Double {
+        let size = LoudnessMeter.blockSteps
+        guard envelopeDB.count >= size else { return 0 }
+        var counts: [Double: Int] = [:]
+        for end in size - 1..<envelopeDB.count {
+            counts[(envelopeDB[end - size + 1...end].min()! * 2).rounded() / 2, default: 0] += 1
+        }
+        return counts.max { ($0.value, $0.key) < ($1.value, $1.key) }!.key
+    }
+
+    /// The curve of one measure group (`meanSquares`), or nil when the group has no reference.
+    /// With `counted`, R and o count only the blocks whose four steps are counted: when those
+    /// blocks give no reference, R counts every block, and when their ridden blocks give no
+    /// loudness, o counts every ridden block. The steps of the rule:
     /// 1. A pause step has a mean square more than `gateDepth` under the reference R.
     /// 2. The computed gain c(k) is R minus the power mean of the speech steps of the window,
     ///    clamped; none when the window has no speech step.
@@ -103,8 +79,10 @@ extension LevelRide {
     /// 5. The smoothed gain s(k) is the mean of r over the smoothing window; a pause step then
     ///    gets min(s(k), h(k)).
     /// 6. One offset o restores R; the gain is s(k) + o, clamped.
-    func gains(_ meanSquares: [Double]) -> [Double]? {
-        guard let reference = Loudness(blocks: blocks(meanSquares)).integrated?.value else { return nil }
+    func gains(_ meanSquares: [Double], counting counted: [Bool]? = nil) -> Curve? {
+        guard let whole = Loudness(blocks: blocks(meanSquares)).integrated?.value else { return nil }
+        let reference =
+            counted.flatMap { Loudness(blocks: blocks(meanSquares, counting: $0)).integrated?.value } ?? whole
         let gate = Loudness.meanSquare(reference - gateDepth)
         let speech = meanSquares.map { $0 >= gate }
         var raw: [Double] = []
@@ -131,8 +109,11 @@ extension LevelRide {
             return speech[step] ? mean : min(mean, held[step])
         }
         let ridden = zip(meanSquares, smoothed).map { $0 * pow(10, $1 / 10) }
-        let offset = reference - (Loudness(blocks: blocks(ridden)).integrated?.value ?? reference)
-        return smoothed.map { clamp($0 + offset) }
+        let level =
+            counted.flatMap { Loudness(blocks: blocks(ridden, counting: $0)).integrated?.value }
+            ?? Loudness(blocks: blocks(ridden)).integrated?.value ?? reference
+        let offset = reference - level
+        return Curve(reference: reference, offset: offset, dB: smoothed.map { clamp($0 + offset) })
     }
 
     private func clamp(_ dB: Double) -> Double { min(max(dB, -maxCut), maxBoost) }
@@ -142,13 +123,15 @@ extension LevelRide {
         max(0, step - half)...min(count - 1, step + half)
     }
 
-    /// The 400 ms blocks of BS.1770-5, one at each step: the mean of 4 steps.
-    private func blocks(_ meanSquares: [Double]) -> [Double] {
+    /// The 400 ms blocks of BS.1770-5, one at each step: the mean of 4 steps. With `counted`, only
+    /// the blocks whose 4 steps are counted.
+    private func blocks(_ meanSquares: [Double], counting counted: [Bool]? = nil) -> [Double] {
         let size = LoudnessMeter.blockSteps
         guard meanSquares.count >= size else { return [] }
-        return (size - 1..<meanSquares.count).map { (end: Int) -> Double in
-            let first = end - size + 1
-            return meanSquares[first...end].reduce(0, +) / Double(size)
+        return (size - 1..<meanSquares.count).compactMap { (end: Int) -> Double? in
+            let steps = end - size + 1...end
+            if let counted, counted[steps].contains(false) { return nil }
+            return meanSquares[steps].reduce(0, +) / Double(size)
         }
     }
 }

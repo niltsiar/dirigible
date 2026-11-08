@@ -37,7 +37,10 @@ func rideCurve(
             measured = true
         } else {
             unmeasured += span.clips
-            if !steps.isEmpty { spans.append((steps, Array(repeating: 0, count: steps.count))) }
+            // 0 dB on each step that holds a frame of the span, also a span under one step.
+            let end = min((span.frames.upperBound + stepFrames - 1) / stepFrames, stepMeanSquares.count)
+            let touched = min(span.frames.lowerBound / stepFrames, stepMeanSquares.count)..<end
+            if !touched.isEmpty { spans.append((touched, Array(repeating: 0, count: touched.count))) }
         }
     }
     guard measured else { return nil }

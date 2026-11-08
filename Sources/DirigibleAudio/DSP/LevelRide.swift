@@ -30,7 +30,7 @@ func rideCurve(
     var measured = false
     for span in measureSpans(clips) {
         // Only the steps that lie in the span count: a step that crosses an edge reads a handle.
-        let first = (span.frames.lowerBound + stepFrames - 1) / stepFrames
+        let first = min((span.frames.lowerBound + stepFrames - 1) / stepFrames, stepMeanSquares.count)
         let steps = first..<max(first, min(span.frames.upperBound / stepFrames, stepMeanSquares.count))
         if let gains = LevelRide.standard.gains(Array(stepMeanSquares[steps])) {
             spans.append((steps, gains))

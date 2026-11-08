@@ -6,7 +6,7 @@ import DirigibleCore
 /// - `.missing` and `.unreadable` give an empty `Loudness` and the fault.
 /// - `.short` gives the loudness of the clip frames inside the file and the fault.
 /// - A rate that the meter refuses gives an empty `Loudness` and no fault.
-/// - A read error in the loop gives an empty `Loudness` and `.unreadable`.
+/// - A read error in the loop, or a NaN or an infinity, gives an empty `Loudness` and `.unreadable`.
 /// It reads the disk, so never call it on the main actor. It throws when the process has no free
 /// descriptor (EMFILE or ENFILE), as `checkMedia`, and ECANCELED when `isCancelled`, read before
 /// each block, gives true. `progress` gets the clip frames done after each block.
@@ -72,5 +72,5 @@ func clipLoudness(
         position += Int(buffer.frameLength)
         progress(position - clip.offset.count)
     }
-    return (meter.result(), opened.fault)
+    return (meter.result(), meter.nonFinite ? .unreadable : opened.fault)
 }

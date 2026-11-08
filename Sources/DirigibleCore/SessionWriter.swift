@@ -132,6 +132,7 @@ extension Session {
         readBack.resolveTranscripts { read in
             transcripts[read.id].flatMap { $0.file == read.file ? $0.words : nil }
         }
+        readBack.shareRides(of: self)
         guard readBack == self else { throw .wouldNotReadBack(nil) }
         return data
     }

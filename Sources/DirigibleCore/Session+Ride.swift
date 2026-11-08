@@ -82,6 +82,36 @@ extension Session {
         }
         tracks = lanes
     }
+
+    /// Gives each clip the ride array of its clip in `other` when the two lists are equal, so the
+    /// read-back compare of a save (`checkedData`) returns at the buffer identity (leveler C34).
+    /// Each pair of arrays compares once. A list that differs stays, so `==` still finds it.
+    mutating func shareRides(of other: Session) {
+        var rides: [ClipID: GainEnvelope] = [:]
+        for track in other.tracks {
+            for clip in track.clips where !clip.ride.isEmpty { rides[clip.id] = clip.ride }
+        }
+        // Each value holds the read-back array of its key, so no key address is used again.
+        var compared: [[UnsafeRawPointer?]: (held: GainEnvelope, isEqual: Bool)] = [:]
+        for track in tracks.indices {
+            var shared: [(index: Int, clip: Clip)] = []
+            for index in tracks[track].clips.indices {
+                var clip = tracks[track].clips[index]
+                guard let ride = rides[clip.id], !clip.ride.isEmpty else { continue }
+                let key = [clip.ride.address, ride.address]
+                let isEqual = compared[key]?.isEqual ?? (clip.ride == ride)
+                compared[key] = (clip.ride, isEqual)
+                guard isEqual else { continue }
+                clip.ride = ride
+                shared.append((index, clip))
+            }
+            tracks[track].clips.replace(shared)
+        }
+    }
+}
+
+extension GainEnvelope {
+    fileprivate var address: UnsafeRawPointer? { points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } }
 }
 
 /// A clip of a measure group, with its place in the session.

@@ -110,8 +110,33 @@ struct SessionFileBenchmark {
         let whole = try Self.times(try Self.fixture(clips: 1, parts: 1, ridden: true))
         let split = try Self.times(try Self.fixture(clips: 1, parts: 200, ridden: true))
         #expect(split.size <= whole.size + 199 * 200, "C34 (1): \(split.size) against \(whole.size)")
-        let peak = Self.peakResidentBytes()
-        print("bench report: C34 peak RSS \(peak >> 20) MB")
-        #expect(peak <= Self.peakBytes, "peak RSS \(peak) B")
+    }
+
+    /// The body of a C34 memory test: it builds, saves, and opens only fixture 4, or fixture 5 with
+    /// `repoint`, prints the peak RSS, and exits with a failure over `peakBytes`.
+    static func peakOfOneFixture(repoint: Bool) throws {
+        let session = try fixture(clips: 6, parts: 200, ridden: true)
+        _ = try times(repoint ? try repointed(session) : session)
+        let peak = peakResidentBytes()
+        print("bench report: C34 fixture \(repoint ? 5 : 4) peak RSS \(peak >> 20) MB (\(peak) B)")
+        fflush(stdout)
+        if peak > peakBytes { exit(1) }
+    }
+
+    /// Each memory test runs its fixture in a child process, so no other fixture adds to the peak.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func fixtureFourFitsThePeak() async {
+        let child = await #expect(processExitsWith: .success, observing: [\.standardOutputContent]) {
+            try SessionFileBenchmark.peakOfOneFixture(repoint: false)
+        }
+        print(String(decoding: child?.standardOutputContent ?? [], as: UTF8.self), terminator: "")
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func fixtureFiveFitsThePeak() async {
+        let child = await #expect(processExitsWith: .success, observing: [\.standardOutputContent]) {
+            try SessionFileBenchmark.peakOfOneFixture(repoint: true)
+        }
+        print(String(decoding: child?.standardOutputContent ?? [], as: UTF8.self), terminator: "")
     }
 }

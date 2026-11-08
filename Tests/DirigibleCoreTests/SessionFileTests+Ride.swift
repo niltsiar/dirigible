@@ -133,4 +133,34 @@ extension SessionFileTests {
             read.tracks[0].clips.map { $0.ride.points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } })
         #expect(read == session && arrays.count == 1)
     }
+
+    /// C34: before the read-back compare, a read-back clip takes the ride array of its clip in the
+    /// written session only when the two lists are equal. Clip "B" reads back the list of "A" in
+    /// the array of "A", but its written list differs, so it keeps its list and `==` refuses it.
+    @Test func readBackSharesOnlyEqualRideArrays() throws {
+        func address(_ ride: GainEnvelope) -> UnsafeRawPointer? {
+            ride.points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) }
+        }
+        var written = Session(sampleRate: 48_000)
+        try written.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 60_000))
+        try written.addTrack("t", name: "Host", layout: .mono)
+        for (index, id) in ["A", "B", "C"].enumerated() {
+            let start = Frames(index * 20_000)
+            try written.place(Clip(id: ClipID(id), file: "f", start: start, offset: start, length: 20_000), on: "t")
+        }
+        let (ride, other) = (envelope([(100, -1.37), (30_000, 2.5)]), envelope([(100, -1.37), (30_000, 2.51)]))
+        try written.setRides(["A": ride, "B": other, "C": ride])
+        var read = written
+        let copy = GainEnvelope(valid: ride.points.map { $0 })
+        try read.setRides(["A": copy, "B": copy, "C": copy])
+
+        read.shareRides(of: written)
+
+        let rides = read.tracks[0].clips.map(\.ride)
+        #expect(read != written && rides == [ride, ride, ride])
+        #expect(rides.map(address) == [address(ride), address(copy), address(ride)])
+        try read.setRides(["B": GainEnvelope(valid: other.points.map { $0 })])
+        read.shareRides(of: written)
+        #expect(read == written && read.tracks[0].clips.map { address($0.ride) } == [ride, other, ride].map(address))
+    }
 }

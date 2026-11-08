@@ -41,11 +41,12 @@ extension TimelineDocumentView {
         func span(_ minX: Double, _ maxX: Double) -> Range<Int> {
             lanes.pixels(of: NSRect(x: minX, y: bounds.minY, width: max(0, maxX - minX), height: bounds.height)).columns
         }
-        // 1 pt around each marker line, with the strips that overlap as one.
-        func around(_ lines: [Frames]) -> [Range<Int>] {
+        // 1 pt around each marker line, with the strips that overlap, or have fewer than `gap`
+        // columns between them, as one.
+        func around(_ lines: [Frames], gap: Int = 0) -> [Range<Int>] {
             let spans = lines.map { span(geometry.x(of: $0) - 1, geometry.x(of: $0) + 2) }
             return spans.sorted { $0.lowerBound < $1.lowerBound }.reduce(into: []) { merged, next in
-                if let last = merged.last, next.lowerBound <= last.upperBound {
+                if let last = merged.last, next.lowerBound <= last.upperBound + gap {
                     merged[merged.count - 1] = last.lowerBound..<max(last.upperBound, next.upperBound)
                 } else {
                     merged.append(next)
@@ -53,7 +54,8 @@ extension TimelineDocumentView {
             }
         }
         let moving = [span(dirty.minX, x)] + around(shift.strays)
-        let still = around(shift.lines)
+        // A still strip costs about as much as 24 columns of a lane, so a smaller gap draws.
+        let still = around(shift.lines, gap: 24)
         var runs: [(lanes: Range<Int>, still: Bool)] = []
         for lane in lanes.lanes(of: lanes.pixels.rows) {
             let isStill = shift.still.contains(lane)

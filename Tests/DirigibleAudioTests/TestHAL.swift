@@ -22,8 +22,7 @@ final class TestHAL: @unchecked Sendable {
     private var detachResult = true
     private var failure: @Sendable (_ uid: String, _ try: Int) -> HALError? = { _, _ in nil }
     private var live: Set<String> = []
-    private var holding = false
-    private var held = 0
+    private var lookUpGate: AsyncGate?
     private var attachGate: DispatchSemaphore?
     private var detachGate: Gate?
     private var log: [String: [Event]] = [:]
@@ -136,30 +135,9 @@ final class TestHAL: @unchecked Sendable {
         lock.withLock { present[uid] }
     }
 
-    /// The step before the lookup of a take start (`CaptureEnvironment.beforeLookUp`): a held
-    /// start suspends here until `releaseLookUps`. It polls, so it blocks no thread of the pool.
-    /// The old hold was a 10 s semaphore wait that then found no device, and a full suite can
-    /// hold the main actor of the test past 10 s (deviceMissing in make check). The limit is
-    /// under the time of one full suite, and it records a failure, never a missing device. It
-    /// stays 60 s: the hold prints no `WAIT` line, so the loops of run test-pool-health have no
-    /// wait for it.
-    func beforeLookUp() async {
-        guard
-            lock.withLock({ () -> Bool in
-                held += holding ? 1 : 0
-                return holding
-            })
-        else { return }
-        let limit = Duration.seconds(60)
-        let end = ContinuousClock.now + limit
-        while lock.withLock({ holding }) {
-            guard ContinuousClock.now < end else {
-                Issue.record("A held lookup was not released in \(limit)")
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
+    /// The step before the lookup of a take start (`CaptureEnvironment.beforeLookUp`): after
+    /// `holdLookUps`, the first start waits here in an `AsyncGate` until `releaseLookUps`.
+    func beforeLookUp() async { await lock.withLock { lookUpGate }?.wait() }
 
     private func attach(_ input: DeviceInput) throws(HALError) -> Detach {
         lock.withLock { attachGate }?.wait()
@@ -324,11 +302,16 @@ final class TestHAL: @unchecked Sendable {
         }
     }
 
-    /// The next take starts wait before their lookup until `releaseLookUps`.
-    func holdLookUps() { lock.withLock { holding = true } }
+    /// The next take start waits before its lookup until `releaseLookUps`. Later starts do not wait.
+    func holdLookUps() { lock.withLock { lookUpGate = AsyncGate() } }
 
-    /// Lets the held starts go on, and stops holding new ones.
-    func releaseLookUps() { lock.withLock { holding = false } }
+    /// Lets the held start go on.
+    func releaseLookUps() { lock.withLock { lookUpGate }?.open() }
+
+    /// Returns when the held take start waits before its lookup, with the limit of
+    /// `AsyncGate.entered`. Other suites hold the main actor and the threads of the start past
+    /// the wall cap of `until`.
+    func lookUpHeld() async { await lock.withLock { lookUpGate }?.entered() }
 
     /// The next attaches wait until `releaseAttaches`, with no limit. The test releases them in a
     /// `defer`.
@@ -349,9 +332,6 @@ final class TestHAL: @unchecked Sendable {
 
     /// Each successful attach and each clean detach of `uid`, in order.
     func events(_ uid: String) -> [Event] { lock.withLock { log[uid] ?? [] } }
-
-    /// The take starts that waited before their lookup.
-    var heldLookUps: Int { lock.withLock { held } }
 
     /// The detach result of the attaches after this call.
     func detach(returns result: Bool) { lock.withLock { detachResult = result } }

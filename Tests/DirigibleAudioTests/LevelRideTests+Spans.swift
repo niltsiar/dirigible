@@ -30,6 +30,19 @@ extension LevelRideTests {
         #expect(rideCurve(stepMeanSquares: after, stepFrames: meter.stepFrames, clips: [clip]) == nil)
     }
 
+    /// C6: a clip that starts after the last complete step (a 1-frame clip and a 4799-frame clip
+    /// at the end of the file, each in its own measure span) and a clip after a run with no steps
+    /// give an empty step range, not a trap.
+    @Test func clipsPastTheLastStepDoNotTrap() throws {
+        let steps = rideSteps([(200, -20)])
+        for tail in [960_001..<960_002, 960_001..<964_800] {
+            let clips = [(span: 0..<960_000, gain: Gain.zero), (span: tail, gain: try #require(Gain(dB: -3)))]
+            let ride = try #require(rideCurve(stepMeanSquares: steps, stepFrames: rideStepFrames, clips: clips))
+            #expect(ride.unmeasured == [1], "tail \(tail)")
+        }
+        #expect(rideCurve(stepMeanSquares: [], stepFrames: rideStepFrames, clips: [(4_800..<96_000, .zero)]) == nil)
+    }
+
     /// C10: a clip whose measure span has no reference is listed and gets 0 dB; the run still has
     /// a curve from the other clip.
     @Test func unmeasuredClipsAreListed() throws {

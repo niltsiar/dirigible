@@ -13,7 +13,9 @@ import Testing
 /// zoom a box is 0.72 pt, so clip "big" of 4,800,000 frames (20 pt) at frame 0 on t1 takes it. At the
 /// zoom of 60 pt boxes, the first fixture clip of t1 takes it. The follow bed row (C53 of run
 /// `2026-10-28-timeline-edits`, decision 0073) adds a track that follows ripples with one clip over
-/// the whole fixture, so its lane does not move and draws only the lines of the moved markers.
+/// the whole fixture, so its lane does not move and draws only the lines of the moved markers. The
+/// plain bed row of each zoom has the same 7 lanes with the bed as a plain track: the follow bed row
+/// compares with it, not with the 6-lane row.
 @MainActor struct MouseEventRippleBenchmark {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aRippleTrimEventFitsOneFrameAtTwoHours() async throws {
@@ -26,24 +28,27 @@ import Testing
         }
         var withBig = session
         try withBig.place(Clip(id: "big", file: "f1", start: 0, offset: 0, length: 4_800_000), on: "t1")
-        func withBed(_ session: Session) throws -> Session {
+        func withBed(_ session: Session, follow: Bool) throws -> Session {
             var session = session
             let length = Frames(MouseEventBenchmark.frames)
             try session.addFile(AudioFile(id: "fbed", path: "bed.wav", layout: .mono, length: length))
             try session.addTrack("bed", name: "Bed", layout: .mono)
             try session.place(Clip(id: "bed", file: "fbed", start: 0, offset: 0, length: length), on: "bed")
-            try session.setFollowTrack(true, tracks: ["bed"])
+            if follow { try session.setFollowTrack(true, tracks: ["bed"]) }
             return session
         }
         peaks["fbed"] = peaks["f1"]
         // A real fit is not a whole number of frames per point (code gate 1 item 1).
         let zooms = MouseEventBenchmark.zooms + [("fit, not whole", Double(MouseEventBenchmark.frames) * 1.02 / 1437)]
-        let rows = [false, true].flatMap { bed in zooms.enumerated().map { ($0.offset, $0.element, bed) } }
+        // The plain bed rows have the 7 lanes of the follow bed rows, so a follow bed row compares with the
+        // plain bed row of its zoom and not with the 6-lane row (C53 rule 2).
+        let beds: [(name: String?, follow: Bool)] = [(nil, false), ("follow bed", true), ("plain bed", false)]
+        let rows = beds.flatMap { bed in zooms.enumerated().map { ($0.offset, $0.element, bed) } }
         for (n, (zoom, framesPerPoint), bed) in rows {
             let plain = n != 1 ? withBig : session
-            let shown = bed ? try withBed(plain) : plain
-            let zoom = bed ? "\(zoom), follow bed" : zoom
-            let package = folder.url.appending(path: bed ? "bed\(n)" : "\(n)")
+            let shown = try bed.name == nil ? plain : withBed(plain, follow: bed.follow)
+            let zoom = bed.name.map { "\(zoom), \($0)" } ?? zoom
+            let package = folder.url.appending(path: bed.name.map { "\($0)\(n)" } ?? "\(n)")
             try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
             let (window, view, model, inputs) = try await MouseEventBenchmark.lanesAndInputs(
                 shown, peaks, framesPerPoint: framesPerPoint, app: app, folder: package)

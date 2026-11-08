@@ -56,6 +56,15 @@ extension MCPEditTableTests {
                 tool: "clip_move", arguments: ["clip": "A", "track": "e", "start": 5000],
                 command: ["clip", "move", "PKG", "A", "--track", "e", "--start", "5000"]),
             EditRow(
+                tool: "clip_move", arguments: ["clip": "A", "track": "e", "start": 5000, "mode": "no-overlap"],
+                command: ["clip", "move", "PKG", "A", "--track", "e", "--start", "5000", "--mode", "no-overlap"]),
+            EditRow(
+                tool: "clip_nudge", arguments: ["clips": ["A"], "by": 1000, "mode": "crossfade"],
+                command: ["clip", "nudge", "PKG", "A", "--by", "1000", "--mode", "crossfade"]),
+            EditRow(
+                tool: "clip_shuffle", arguments: ["clip": "A", "track": "e", "start": 5000],
+                command: ["clip", "shuffle", "PKG", "A", "--track", "e", "--start", "5000"]),
+            EditRow(
                 tool: "clip_trim", arguments: ["clip": "A", "from": 1000, "to": 40_000],
                 command: ["clip", "trim", "PKG", "A", "--from", "1000", "--to", "40000"]),
             EditRow(
@@ -127,6 +136,9 @@ extension MCPEditTableTests {
             EditRow(
                 tool: "clip_move", arguments: ["clip": "zz", "track": "a", "start": 0],
                 command: ["clip", "move", "PKG", "zz", "--track", "a", "--start", "0"]),
+            EditRow(
+                tool: "clip_shuffle", arguments: ["clip": "zz", "track": "a", "start": 0],
+                command: ["clip", "shuffle", "PKG", "zz", "--track", "a", "--start", "0"]),
             EditRow(
                 tool: "clip_trim", arguments: ["clip": "zz", "from": 0, "to": 10],
                 command: ["clip", "trim", "PKG", "zz", "--from", "0", "--to", "10"]),

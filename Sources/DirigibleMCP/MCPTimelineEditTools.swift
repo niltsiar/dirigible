@@ -7,8 +7,12 @@ private let rollBy = Param.required("by", "The frames to move the join; negative
 private let slipBy = Param.required(
     "by", "The frames to move the audio; negative plays earlier audio of the file.", .integer())
 
-/// `clip_close_gaps`, `clip_roll`, and `clip_slip` (decision 0036), the tools of `dirigible clip
-/// close-gaps`, `clip roll`, and `clip slip`.
+private let shuffleClip = Param.required("clip", "The clip ID.", .string)
+private let shuffleStart = Param.required(
+    "start", "The timeline frame of the first clip frame, after the old place closes.", .integer())
+
+/// `clip_close_gaps`, `clip_roll`, and `clip_slip` (decision 0036), and `clip_shuffle` (decision 0020), the
+/// tools of `dirigible clip close-gaps`, `clip roll`, `clip slip`, and `clip shuffle`.
 let timelineEditTools = [
     Tool(
         "clip_close_gaps",
@@ -41,6 +45,18 @@ let timelineEditTools = [
         let (ids, frames) = (try a[clips].map { ClipID($0) }, Frames(try a[slipBy]))
         return .edit(ripple: false) { session throws(SessionError) in
             try session.slip(ids, by: frames)
+            return []
+        }
+    },
+    Tool(
+        "clip_shuffle",
+        "Move a clip as a ripple: close its old place on its track, open room at the new start on the target "
+            + "track, and put the clip there. The markers follow the ripple. No other track moves.",
+        [shuffleClip, Arg.track, shuffleStart], batch: .step
+    ) { a throws(ToolError) in
+        let (id, track, frame) = (ClipID(try a[shuffleClip]), TrackID(try a[Arg.track]), Frames(try a[shuffleStart]))
+        return .edit(ripple: true) { session throws(SessionError) in
+            try session.shuffle(id, to: track, start: frame)
             return []
         }
     },

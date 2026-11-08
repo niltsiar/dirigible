@@ -216,8 +216,12 @@ extension Session {
     /// Moves the clips by `offset` and by `lanes` tracks (decision 0038). They keep their IDs. Every
     /// moved clip comes out of every lane first, so two moved clips never cut each other. A clip that
     /// does not move is cut under the new ranges; its right part gets "<id>@<moved end>". Only an
-    /// offset of 0 with a lane offset of 0 changes nothing. A throw changes nothing.
-    public mutating func nudge(_ clips: [ClipID], by offset: Frames, lanes: Int = 0) throws(SessionError) {
+    /// offset of 0 with a lane offset of 0 changes nothing. The mode is that of `move`: `.noOverlap`
+    /// throws `.overlap` for the first moved clip that covers a clip that stays, and `.crossfade`
+    /// crossfades the joins with the covered clips. A throw changes nothing.
+    public mutating func nudge(
+        _ clips: [ClipID], by offset: Frames, lanes: Int = 0, mode: OverlapMode = .overwrite
+    ) throws(SessionError) {
         // The offset is in -limit...limit before any sum, so a sum with a clip start cannot overflow.
         guard offset >= .zero - .limit, offset <= .limit else { throw .frameOutOfRange }
         // No move changes nothing, so it keeps the crossfades (decision 0036).
@@ -249,12 +253,23 @@ extension Session {
         var copy = self
         var taken = clipIDs
         for (source, _) in moves { copy.tracks[source].clips.remove(ids: moving) }
+        if mode == .noOverlap {
+            for (source, moved) in moves {
+                for clip in moved {
+                    if let covered = copy.tracks[source + lanes].clips.clips(overlapping: clip.range).first {
+                        throw .overlap(clip.id, covered.id)
+                    }
+                }
+            }
+        }
         // One lane offset for all clips, so each target lane takes the sorted clips of one lane.
         for (source, moved) in moves {
+            let covers = mode == .crossfade ? copy.dropCovers(moved, in: copy.tracks[source + lanes].clips) : [:]
             copy.tracks[source + lanes].clips.clear(moved.map(\.range)) {
                 Self.derivedID(of: $0.id, at: $1, taken: &taken)
             }
             copy.tracks[source + lanes].clips.insert(sorted: moved)
+            if mode == .crossfade { try copy.crossfadeDrops(covers, on: source + lanes, moving: moving) }
         }
         self = copy
     }

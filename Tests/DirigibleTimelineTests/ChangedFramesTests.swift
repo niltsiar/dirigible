@@ -251,22 +251,59 @@ struct ChangedFramesTests {
         #expect(shiftedFrames(from: session, to: deleted) == nil)
     }
 
-    /// Decisions 0022 and 0073: only a follow lane is still. A move of the last clip of host over
-    /// a bed clip that does not change gives no shift, so the drag draws only the changed columns.
-    @Test func onlyAFollowLaneIsStill() throws {
+    /// Decisions 0022 and 0073: only a follow lane is still. A ripple trim of host over a bed clip
+    /// that does not change gives a shift with the bed still only when the bed follows. A move of
+    /// the last clip of host is no ripple, so it gives no shift over either bed.
+    @Test(arguments: [false, true])
+    func onlyAFollowLaneIsStill(follow: Bool) throws {
         var session = Session(sampleRate: 48_000)
         for (track, file) in [("host", "h"), ("bed", "b")] {
             try session.addTrack(TrackID(track), name: track, layout: .mono)
             try session.addFile(AudioFile(id: FileID(file), path: "\(file).wav", layout: .mono, length: 1_000_000))
         }
         try session.place(Clip(id: "h", file: "h", start: 100_000, offset: 0, length: 50_000), on: "host")
+        try session.place(Clip(id: "h2", file: "h", start: 200_000, offset: 50_000, length: 50_000), on: "host")
         try session.place(Clip(id: "bed", file: "b", start: 0, offset: 0, length: 960_000), on: "bed")
+        try session.setFollowTrack(follow, tracks: ["bed"])
+        var trimmed = session
+        try trimmed.rippleTrim("h", edge: .end, by: 25_000, on: ["host"], naming: [])
         var moved = session
-        try moved.move("h", to: "host", start: 125_000)
-        #expect(shiftedFrames(from: session, to: moved) == nil, "a bed that does not follow")
-        try session.setFollowTrack(true, tracks: ["bed"])
-        try moved.setFollowTrack(true, tracks: ["bed"])
-        let shift = shiftedFrames(from: session, to: moved)
-        #expect(shift?.delta == 25_000 && shift?.still == [1], "a bed that follows: \(String(describing: shift))")
+        try moved.move("h2", to: "host", start: 225_000)
+
+        let shift = shiftedFrames(from: session, to: trimmed)
+        if follow {
+            #expect(shift?.delta == 25_000 && shift?.still == [1], "\(String(describing: shift))")
+        } else {
+            #expect(shift == nil, "a bed that does not follow")
+        }
+        #expect(shiftedFrames(from: session, to: moved) == nil, "a move")
+    }
+
+    /// Decision 0037: a shift needs a lane whose clips before the moved clips change: the edit
+    /// cuts, trims, inserts, or removes a clip there. A move alone gives the same sessions as a
+    /// ripple in the gap before the moved clips, so both draw only the changed columns. A shift
+    /// that also takes a move would draw the region copy to the end of the view.
+    @Test func onlyAChangeBeforeTheMovedClipsGivesAShift() throws {
+        let session = try Fixture.session()
+        let excerpt = try session.excerpt(of: 48_000..<60_000, on: ["t2"])
+        func delta(_ edit: (inout Session) throws -> Void) throws -> Frames? {
+            var new = session
+            try edit(&new)
+            return shiftedFrames(from: session, to: new)?.delta
+        }
+
+        #expect(try delta { try $0.move("B", to: "t1", start: 150_000) } == nil, "a drag of the last clip")
+        #expect(try delta { try $0.nudge(["A", "B", "C"], by: 4_800) } == nil, "a nudge of the clips of two lanes")
+        #expect(try delta { try $0.rippleDelete(100_000..<120_000, on: ["t1"], naming: []) } == nil, "a gap delete")
+        #expect(try delta { try $0.rippleInsert(9_600, at: 120_000, on: ["t1"], naming: []) } == nil, "a gap insert")
+        #expect(try delta { _ = try $0.paste(excerpt, at: 100_000, on: ["t1"]) } == nil, "a paste over a gap")
+        #expect(try delta { try $0.rippleDelete(60_000..<70_000, on: ["t1"], naming: []) } == -10_000, "a cut of A")
+        #expect(try delta { try $0.rippleDelete(48_000..<96_000, on: ["t1"], naming: []) } == -48_000, "A goes")
+        #expect(try delta { try $0.rippleInsert(9_600, at: 60_000, on: ["t1"], naming: []) } == 9_600, "a split of A")
+        let pasted = try delta {
+            try $0.rippleInsert(12_000, at: 120_000, on: ["t1"], naming: [])
+            _ = try $0.paste(excerpt, at: 120_000, on: ["t1"])
+        }
+        #expect(pasted == 12_000, "a paste insert in a gap")
     }
 }

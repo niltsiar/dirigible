@@ -47,6 +47,35 @@ extension TimelineMouseTests {
         await model.close()
     }
 
+    /// Decisions 0022 and 0037: a drag over a track that follows ripples redraws only the columns
+    /// of the clips that it changes, as with no follow track. c1 is the only clip of t1, and t2 is
+    /// a bed that follows ripples: a move is no ripple, so the bed keeps its pixels and no region
+    /// copy runs to the view end.
+    @Test func aDragOverAFollowBedRedrawsOnlyTheClipsItChanges() async throws {
+        let (model, studio) = try await timelineModel(
+            try await timelinePackage(in: folder.url, tracks: 2, seconds: 20), app: app)
+        try studio.edit(ripple: false) { s throws(SessionError) in
+            try s.trim("c1", to: 102_400..<153_600)
+            try s.setFollowTrack(true, tracks: ["t2"])
+        }
+        let (window, view) = standaloneLanes(model, studio)
+        let bed = try #require(view.lanes.surfaces.shown).rows(of: 1..<2)
+        let pixels = bed.map { view.lanes.surfaces.frontRow($0) }
+        try press(view, 250, 10)
+
+        try drag(view, 300, 10)
+        drawNow(window)
+        #expect(view.lanes.drawnRect == NSRect(x: 199, y: 0, width: 152, height: 200))
+        try drag(view, 310, 10)
+        drawNow(window)
+
+        #expect(view.lanes.drawnRect == NSRect(x: 249, y: 0, width: 112, height: 200), "only the event")
+        #expect(bed.map { view.lanes.surfaces.frontRow($0) } == pixels, "the bed keeps its pixels")
+        try release(view, 310, 10)
+        window.close()
+        await model.close()
+    }
+
     /// Decision 0022: an edit far away (new Marks of x 400 to 800, drawn at x 399 to 802) adds
     /// nothing to the draws of a drag after it. c1 is x 200 to 300: the first event draws x 199 to
     /// 351, the next x 249 to 361. The timeline-scroll run drew the union of both, then all lanes.

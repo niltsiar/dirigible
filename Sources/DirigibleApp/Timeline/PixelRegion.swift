@@ -113,23 +113,40 @@ struct PixelRegion: ~Copyable {
         }
     }
 
-    /// A context over the window in flipped document points, clipped to `rect` and its mask: the
-    /// labels draw only over the pixels of this draw (plan gate 1 item 3).
-    func withContext(_ body: (CGContext) -> Void) {
-        guard
-            let context = CGContext(
-                data: base, width: window.pixels.columns.count, height: window.pixels.rows.count, bitsPerComponent: 8,
-                bytesPerRow: bytesPerRow, space: Self.space,
-                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
-        else { return }
+    /// A context over the window in flipped document points, for each area of `areas` (document
+    /// points) in turn: `body` gets the index of the area, with the context clipped to the pixels
+    /// of this draw in the columns of that area, so a label draws only over the pixels of this draw
+    /// (plan gate 1 item 3). No call for an area where this draw has no column. Each clip holds
+    /// only the mask parts of its area: text through a clip of every mask part cost 3 times the text.
+    func withContext(in areas: [CGRect], _ body: (CGContext, Int) -> Void) {
         let scale = window.scale
-        context.translateBy(x: 0, y: Double(window.pixels.rows.count))
-        context.scaleBy(x: scale, y: -scale)
-        context.translateBy(
+        var context: CGContext?
+        for (index, area) in areas.enumerated() {
+            var clip: [CGRect] = []
+            forEachPart(of: Int((area.minX * scale).rounded(.down))..<Int((area.maxX * scale).rounded(.up))) {
+                clip.append(window.points(of: PixelRect(columns: $0, rows: rect.rows)))
+            }
+            guard !clip.isEmpty else { continue }
+            if context == nil { context = makeContext() }
+            guard let context else { return }
+            context.saveGState()
+            context.clip(to: clip)
+            body(context, index)
+            context.restoreGState()
+        }
+    }
+
+    private func makeContext() -> CGContext? {
+        let context = CGContext(
+            data: base, width: window.pixels.columns.count, height: window.pixels.rows.count, bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow, space: Self.space,
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        let scale = window.scale
+        context?.translateBy(x: 0, y: Double(window.pixels.rows.count))
+        context?.scaleBy(x: scale, y: -scale)
+        context?.translateBy(
             x: -Double(window.pixels.columns.lowerBound) / scale, y: -Double(window.pixels.rows.lowerBound) / scale)
-        context.clip(
-            to: (mask ?? [rect.columns]).map { window.points(of: PixelRect(columns: $0, rows: rect.rows)) })
-        body(context)
+        return context
     }
 
     private static let space = CGColorSpace(name: CGColorSpace.sRGB)!

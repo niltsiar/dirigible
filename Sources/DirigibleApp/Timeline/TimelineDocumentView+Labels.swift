@@ -22,23 +22,22 @@ extension TimelineDocumentView {
     static func drawLabels(_ labels: [ClipLabel], _ palette: LanePalette, into region: borrowing PixelRegion) {
         guard !labels.isEmpty else { return }
         let attributes: [NSAttributedString.Key: Any] = [.font: ClipLabel.font, .foregroundColor: palette.labelColor]
-        region.withContext { context in
-            let previous = NSGraphicsContext.current
-            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-            defer { NSGraphicsContext.current = previous }
-            for label in labels {
-                // Only in its box: the dirty rect of a drag event holds the boxes it changes. And only
-                // in its chip, with a hole at each envelope disc.
-                context.saveGState()
-                context.clip(to: label.shown)
-                let chip = CGMutablePath()
-                chip.addRect(label.chip)
-                chip.addRects(label.holes)
-                context.addPath(chip)
-                context.clip(using: .evenOdd)
-                label.text.draw(at: label.origin, withAttributes: attributes)
-                context.restoreGState()
+        let previous = NSGraphicsContext.current
+        defer { NSGraphicsContext.current = previous }
+        region.withContext(in: labels.map(\.chip)) { context, index in
+            if NSGraphicsContext.current?.cgContext !== context {
+                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
             }
+            let label = labels[index]
+            // Only in its box: the dirty rect of a drag event holds the boxes it changes. And only
+            // in its chip, with a hole at each envelope disc.
+            context.clip(to: label.shown)
+            let chip = CGMutablePath()
+            chip.addRect(label.chip)
+            chip.addRects(label.holes)
+            context.addPath(chip)
+            context.clip(using: .evenOdd)
+            label.text.draw(at: label.origin, withAttributes: attributes)
         }
     }
 

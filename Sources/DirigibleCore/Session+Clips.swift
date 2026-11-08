@@ -56,16 +56,31 @@ extension Session {
         }
     }
 
-    /// Moves the clip to `start` on `track`, and overwrites the clips under it there.
-    /// A move to the same track and start changes nothing, so it keeps the crossfades (decision 0036).
-    public mutating func move(_ id: ClipID, to track: TrackID, start: Frames) throws(SessionError) {
+    /// Moves the clip to `start` on `track`. The mode says what happens to the clips under it there
+    /// (decision 0020): `.overwrite` trims, splits, or removes them (decision 0003), `.noOverlap`
+    /// throws `.overlap` and changes nothing, and `.crossfade` overwrites and crossfades each join
+    /// with a covered clip (decision 0036). A move to the same track and start changes nothing, so it
+    /// keeps the crossfades.
+    public mutating func move(_ id: ClipID, to track: TrackID, start: Frames, mode: OverlapMode = .overwrite)
+        throws(SessionError)
+    {
         let (source, index) = try position(of: id)
         if tracks[source].id == track, tracks[source].clips[index].start == start { return }
         var moved = tracks[source].clips[index]
         moved.start = start
         var copy = self
         copy.tracks[source].clips.remove(at: index)
+        let target = try copy.trackIndex(track)
+        var covers: [ClipID: (head: Frames, tail: Frames)] = [:]
+        if mode != .overwrite {
+            try copy.check(moved, on: copy.tracks[target])
+            if mode == .noOverlap, let covered = copy.tracks[target].clips.clips(overlapping: moved.range).first {
+                throw .overlap(id, covered.id)
+            }
+            if mode == .crossfade { covers = copy.dropCovers([moved], in: copy.tracks[target].clips) }
+        }
         try copy.place(moved, on: track)
+        if mode == .crossfade { try copy.crossfadeDrops(covers, on: target, moving: [id]) }
         self = copy
     }
 

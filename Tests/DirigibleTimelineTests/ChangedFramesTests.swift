@@ -250,4 +250,23 @@ struct ChangedFramesTests {
         #expect(deleted.clip("x")?.clip.start == 240_000 && deleted.clip("y")?.clip.start == 264_000)
         #expect(shiftedFrames(from: session, to: deleted) == nil)
     }
+
+    /// Decisions 0022 and 0073: only a follow lane is still. A move of the last clip of host over
+    /// a bed clip that does not change gives no shift, so the drag draws only the changed columns.
+    @Test func onlyAFollowLaneIsStill() throws {
+        var session = Session(sampleRate: 48_000)
+        for (track, file) in [("host", "h"), ("bed", "b")] {
+            try session.addTrack(TrackID(track), name: track, layout: .mono)
+            try session.addFile(AudioFile(id: FileID(file), path: "\(file).wav", layout: .mono, length: 1_000_000))
+        }
+        try session.place(Clip(id: "h", file: "h", start: 100_000, offset: 0, length: 50_000), on: "host")
+        try session.place(Clip(id: "bed", file: "b", start: 0, offset: 0, length: 960_000), on: "bed")
+        var moved = session
+        try moved.move("h", to: "host", start: 125_000)
+        #expect(shiftedFrames(from: session, to: moved) == nil, "a bed that does not follow")
+        try session.setFollowTrack(true, tracks: ["bed"])
+        try moved.setFollowTrack(true, tracks: ["bed"])
+        let shift = shiftedFrames(from: session, to: moved)
+        #expect(shift?.delta == 25_000 && shift?.still == [1], "a bed that follows: \(String(describing: shift))")
+    }
 }

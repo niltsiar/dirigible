@@ -140,9 +140,9 @@ public typealias ShiftedFrames = (from: Frames, delta: Frames, strays: [Frames],
 /// track that follows ripples and whose clips do not change (decision 0073) is in `still`: it keeps
 /// its pixels and draws only `lines`, the old and the new line of each marker that changes. Nil
 /// when no lane moves its last clip, when no lane changes the clip just before its moved clips, or
-/// when the rule does not hold: the changed columns then draw with no copy. A move that cuts no
-/// clip puts a still clip or a moved clip just before the moved clips, so its drag draws only its
-/// changed columns. A lane that does not follow and does not change breaks the rule.
+/// when the rule does not hold: the changed columns then draw with no copy. A move that overwrites
+/// no clip puts a still clip or a moved clip just before the moved clips, so its drag draws only
+/// its changed columns. A lane that does not follow and does not change breaks the rule.
 public func shiftedFrames(from old: Session, to new: Session) -> ShiftedFrames? {
     guard old.tracks.count == new.tracks.count else { return nil }
     func moved(_ clip: Clip, by delta: Frames) -> Clip {

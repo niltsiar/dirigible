@@ -83,10 +83,10 @@ struct ClipLabel {
     /// The labels of the rect of `region`. It reads only the lanes in the rows of the rect and the
     /// clips in its frames, and keeps only a clip label whose chip meets the rect: a ripple drag
     /// draws about 100 marker-line strips on a still lane at fit zoom (C53). A box under 60 pt gets
-    /// no label: 12,000 labels at fit zoom took 330 ms per draw (probe L1, decision 0020). The live region of a take gets the take label at each width, cut
-    /// at the box end, and an old clip label shows only outside it. So a column of the take label
-    /// does not change when the box grows, and the partial draw of a tick gives the pixels of a
-    /// full draw.
+    /// no label: 12,000 labels at fit zoom took 330 ms per draw (probe L1, decision 0020). The live
+    /// region of a take gets the take label at each width, cut at the box end, and an old clip
+    /// label shows only outside it. So a column of the take label does not change when the box
+    /// grows, and the partial draw of a tick gives the pixels of a full draw.
     @MainActor static func labels(_ inputs: LaneInputs, live: LiveLanes.Take?, in region: borrowing PixelRegion)
         -> [ClipLabel]
     {

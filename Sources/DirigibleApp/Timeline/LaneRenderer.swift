@@ -122,6 +122,45 @@ final class LaneRenderer {
                 region.fill(palette.bar, columns: bar.columns, rows: bar.top..<bar.top + barRows)
             }
         }
+        /// The waveform of the columns `range` of `clip`.
+        func drawWaveform(
+            _ clip: Clip, _ track: Track, _ range: Range<Int>, bottom: Int, chip: (columns: Range<Int>, bottom: Int)?
+        ) {
+            let from = Double((clip.offset - clip.start).count) + Double(range.lowerBound) * pixelFrames
+            switch inputs.peaks[clip.file] {
+            case .ready(let peaks):
+                resize(range.count)
+                peaks.fill(&values, from: from, step: pixelFrames)
+            case .unavailable: return
+            case .computing, nil:
+                // A take file before its peaks: the live peaks of its take (live take view), in
+                // live frames, so the columns equal the last live draw.
+                guard let (peaks, anchor) = live.files[clip.file] else { return }
+                resize(range.count)
+                peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
+            }
+            // The fades as the clip sounds: a crossfade is the fade of its edge (decision 0036).
+            // Most clips have no crossfade and skip the lane lookup of the sounding clip.
+            let sounding =
+                clip.crossfades == .zero
+                ? nil : track.clips.index(holding: clip.start).map(track.clips.sounding(at:))
+            let (clipFades, curves, length, start) =
+                sounding.map { ($0.clip.fades, $0.curves, $0.clip.length, $0.clip.start) }
+                ?? (clip.fades, Fades.Curves.sine, clip.length, clip.start)
+            let fades =
+                clipFades == .zero
+                ? nil
+                : ColumnFades(
+                    fades: clipFades, curves: curves, length: length,
+                    first: Double(range.lowerBound) * pixelFrames - Double(start.count),
+                    step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
+            let envelope =
+                clip.envelope.isEmpty
+                ? nil : ColumnEnvelope(envelope: clip.envelope, first: from, step: pixelFrames)
+            drawColumns(
+                range, gain: clip.gain.dB + track.gain.dB, fades: fades, envelope: envelope, bottom: bottom,
+                chip: chip, palette, into: region)
+        }
         crossfaded.removeAll(keepingCapacity: true)
         var chips: [ClipID: (columns: Range<Int>, bottom: Int)] = [:]
         for label in labels { if let clip = label.clip { chips[clip] = label.cut(scale: scale) } }
@@ -130,46 +169,15 @@ final class LaneRenderer {
             let bottom = window.rows(of: lane..<lane + 1).upperBound - 1
             let inView = track.clips.clips(overlapping: visible)
             collectCrossfades(inView, of: track.clips, lane: lane)
+            // The columns whose first frame is in the clip: each column draws one waveform. A clip
+            // under one column can hold none (at fit zoom, 2,000 clips per lane drew each column
+            // about 1.7 times). Each part of a masked region draws as a region of its own columns.
             for clip in inView {
-                // The columns whose first frame is in the clip: each column draws one waveform. A
-                // clip under one column can hold none (at fit zoom, 2,000 clips per lane drew each
-                // column about 1.7 times).
-                let range = clamped(column(clip.start).rounded(.up))..<clamped(column(clip.end).rounded(.up))
-                guard !range.isEmpty else { continue }
-                let from = Double((clip.offset - clip.start).count) + Double(range.lowerBound) * pixelFrames
-                switch inputs.peaks[clip.file] {
-                case .ready(let peaks):
-                    resize(range.count)
-                    peaks.fill(&values, from: from, step: pixelFrames)
-                case .unavailable: continue
-                case .computing, nil:
-                    // A take file before its peaks: the live peaks of its take (live take view), in
-                    // live frames, so the columns equal the last live draw.
-                    guard let (peaks, anchor) = live.files[clip.file] else { continue }
-                    resize(range.count)
-                    peaks.fill(&values, from: from + Double((anchor - peaks.origin).count), step: pixelFrames)
+                region.forEachPart(
+                    of: clamped(column(clip.start).rounded(.up))..<clamped(column(clip.end).rounded(.up))
+                ) { range in
+                    drawWaveform(clip, track, range, bottom: bottom, chip: chips[clip.id])
                 }
-                // The fades as the clip sounds: a crossfade is the fade of its edge (decision 0036).
-                // Most clips have no crossfade and skip the lane lookup of the sounding clip.
-                let sounding =
-                    clip.crossfades == .zero
-                    ? nil : track.clips.index(holding: clip.start).map(track.clips.sounding(at:))
-                let (clipFades, curves, length, start) =
-                    sounding.map { ($0.clip.fades, $0.curves, $0.clip.length, $0.clip.start) }
-                    ?? (clip.fades, Fades.Curves.sine, clip.length, clip.start)
-                let fades =
-                    clipFades == .zero
-                    ? nil
-                    : ColumnFades(
-                        fades: clipFades, curves: curves, length: length,
-                        first: Double(range.lowerBound) * pixelFrames - Double(start.count),
-                        step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
-                let envelope =
-                    clip.envelope.isEmpty
-                    ? nil : ColumnEnvelope(envelope: clip.envelope, first: from, step: pixelFrames)
-                drawColumns(
-                    range, gain: clip.gain.dB + track.gain.dB, fades: fades, envelope: envelope, bottom: bottom,
-                    chip: chips[clip.id], palette, into: region)
             }
         }
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
@@ -224,13 +232,18 @@ final class LaneRenderer {
         // A line crosses every lane; the region keeps it to the rect.
         func line(_ frame: Frames?, _ color: UInt32) {
             guard let frame else { return }
-            region.span(color, column: Int(column(frame).rounded(.down)), rows: window.pixels.rows)
+            region.span(color, column: Self.lineColumn(frame, geometry, scale: scale), rows: window.pixels.rows)
         }
         for marker in inputs.session.markers.values {
             line(marker.position, marker.kind == .marker ? palette.marker : palette.chapter)
         }
         line(inputs.marks.inPoint, palette.inPoint)
         line(inputs.marks.outPoint, palette.outPoint)
+    }
+
+    /// The one pixel column of the line of a marker, a chapter, or a mark at `frame`.
+    static func lineColumn(_ frame: Frames, _ geometry: LaneGeometry, scale: Double) -> Int {
+        Int((geometry.x(of: frame) * scale).rounded(.down))
     }
 
     /// Gives `values` `count` columns. `fill` sets every column, so only the count matters. The

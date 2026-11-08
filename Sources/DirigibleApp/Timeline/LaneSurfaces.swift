@@ -246,10 +246,22 @@ struct LaneWindow: Equatable {
                 ].map { PixelRect(columns: $0, rows: band.rows.clamped(to: later.rows)) }
             }
             lastDrawn = (strips + edges).filter { !$0.isEmpty }
-            for rect in lastDrawn {
+            // The strips of one band draw as one region: their hull, with the strips as its mask.
+            var regions: [(rect: PixelRect, mask: [Range<Int>]?)] = []
+            for strip in strips {
+                if let last = regions.last?.rect, last.rows == strip.rows {
+                    regions[regions.count - 1].rect = last.union(strip)
+                    regions[regions.count - 1].mask?.append(strip.columns)
+                } else {
+                    regions.append((strip, [strip.columns]))
+                }
+            }
+            regions += edges.filter { !$0.isEmpty }.map { ($0, nil) }
+            for region in regions {
                 draw(
-                    PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: rect)
-                )
+                    PixelRegion(
+                        base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: region.rect,
+                        mask: region.mask))
             }
             shifted += 1
         } else {

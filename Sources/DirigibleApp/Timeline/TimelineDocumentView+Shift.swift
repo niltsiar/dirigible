@@ -22,10 +22,9 @@ extension TimelineDocumentView {
     /// the renderer; one band for each run of lanes in view that move, or that are still; and the
     /// strips. A band of lanes that move moves by the shift in columns and draws from the dirty rect
     /// to that column and 1 pt around each stray marker line. A band of still lanes keeps its pixels
-    /// and draws 1 pt around each line of `lines`, with the columns between two lines that are fewer
-    /// than 24 columns apart. Nil when the move is not a whole number of columns within one frame (a
-    /// ripple drag moves by whole device columns, and each of the two previews rounds its frames at
-    /// a zoom that is not whole), or not exact outside a gesture.
+    /// and draws only the column of each line of `lines`. Nil when the move is not a whole number of
+    /// columns within one frame (a ripple drag moves by whole device columns, and each of the two
+    /// previews rounds its frames at a zoom that is not whole), or not exact outside a gesture.
     func laneShift(
         _ shift: ShiftedFrames, _ dirty: NSRect, _ lanes: LaneWindow
     ) -> LaneSurfaces.Shift? {
@@ -42,21 +41,11 @@ extension TimelineDocumentView {
         func span(_ minX: Double, _ maxX: Double) -> Range<Int> {
             lanes.pixels(of: NSRect(x: minX, y: bounds.minY, width: max(0, maxX - minX), height: bounds.height)).columns
         }
-        // 1 pt around each marker line, with the strips that overlap, or have fewer than `gap`
-        // columns between them, as one.
-        func around(_ lines: [Frames], gap: Int = 0) -> [Range<Int>] {
-            let spans = lines.map { span(geometry.x(of: $0) - 1, geometry.x(of: $0) + 2) }
-            return spans.sorted { $0.lowerBound < $1.lowerBound }.reduce(into: []) { merged, next in
-                if let last = merged.last, next.lowerBound <= last.upperBound + gap {
-                    merged[merged.count - 1] = last.lowerBound..<max(last.upperBound, next.upperBound)
-                } else {
-                    merged.append(next)
-                }
-            }
+        let moving = [span(dirty.minX, x)] + shift.strays.map { span(geometry.x(of: $0) - 1, geometry.x(of: $0) + 2) }
+        let still = shift.lines.map {
+            let column = LaneRenderer.lineColumn($0, geometry, scale: lanes.scale)
+            return column..<column + 1
         }
-        let moving = [span(dirty.minX, x)] + around(shift.strays)
-        // A still strip costs about as much as 24 columns of a lane, so a smaller gap draws.
-        let still = around(shift.lines, gap: 24)
         var runs: [(lanes: Range<Int>, still: Bool)] = []
         for lane in lanes.lanes(of: lanes.pixels.rows) {
             let isStill = shift.still.contains(lane)

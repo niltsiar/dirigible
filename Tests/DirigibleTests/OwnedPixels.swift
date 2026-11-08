@@ -21,9 +21,11 @@ final class OwnedPixels {
 
     deinit { memory.deallocate() }
 
-    /// Lends a region of `rect` (all of the window by default).
-    func draw(_ rect: PixelRect? = nil, _ body: (borrowing PixelRegion) -> Void) {
-        body(PixelRegion(base: memory, bytesPerRow: bytesPerRow, window: window, rect: rect ?? window.pixels))
+    /// Lends a region of `rect` (all of the window by default), with the column mask `mask`.
+    func draw(_ rect: PixelRect? = nil, mask: [Range<Int>]? = nil, _ body: (borrowing PixelRegion) -> Void) {
+        body(
+            PixelRegion(
+                base: memory, bytesPerRow: bytesPerRow, window: window, rect: rect ?? window.pixels, mask: mask))
     }
 
     /// The pixel at a document column and row.

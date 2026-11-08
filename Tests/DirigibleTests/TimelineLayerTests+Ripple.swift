@@ -143,7 +143,7 @@ extension TimelineLayerTests {
 
     /// C53 (decision 0073): a ripple trim drag over a track that follows ripples and does not move
     /// draws by a shift, and the copy keeps the pixels of the follow lane: it draws there only the
-    /// old and the new line of a marker that moves, 6 pt apart, in one strip. Controls: the follow
+    /// column of the old and of the new line of a marker that moves. Controls: the follow
     /// lane in its own strip (it draws), the follow lane moved with the other lanes (its waveform
     /// moves), and no marker line on the follow lane (the old line stays).
     @Test(arguments: [false, true])
@@ -180,19 +180,15 @@ extension TimelineLayerTests {
             if wrong.count > 0 {
                 failures.append("drag \(dx): \(wrong.count) pixels, the first \(String(describing: wrong.first))")
             }
-            // The columns of the old and the new marker line, with the 1 pt on each side of a stray.
+            // The one column of the old and of the new marker line.
             let new = view.lanes.inputs?.session.markers["late"]?.position
             if marker, old == new { failures.append("drag \(dx): the marker did not move") }
             let geometry = try #require(view.lanes.inputs?.geometry)
-            let xs = [old, new].compactMap { $0 }.map { geometry.x(of: $0) }
-            let (low, high) = (((xs.min() ?? 0) - 1) * shown.scale, ((xs.max() ?? 0) + 2) * shown.scale)
-            let lines = xs.isEmpty ? 0..<0 : Int(low.rounded(.down))..<Int(high.rounded(.up))
+            let lines = Set(
+                [old, new].compactMap { $0 }.map { Int((geometry.x(of: $0) * shown.scale).rounded(.down)) })
             let drawn = view.lanes.surfaces.lastDrawn.filter { $0.rows.overlaps(bedRows) }
-            if drawn.contains(where: { $0.columns.clamped(to: lines) != $0.columns }) {
-                failures.append("drag \(dx): the follow lane drew \(drawn), the marker lines take \(lines)")
-            }
-            if marker, drawn.count != 1 {
-                failures.append("drag \(dx): the lines 6 pt apart drew in \(drawn.count) strips, not 1")
+            if Set(drawn.flatMap { Array($0.columns) }) != lines {
+                failures.append("drag \(dx): the follow lane drew \(drawn), the marker lines take \(lines.sorted())")
             }
         }
         #expect(

@@ -1,3 +1,4 @@
+import AVFoundation
 import DirigibleCore
 import Foundation
 import Testing
@@ -12,21 +13,23 @@ func rideSteps(_ parts: [(steps: Int, lufs: Double)]) -> [Double] {
     parts.flatMap { Array(repeating: Loudness.meanSquare($0.lufs), count: $0.steps) }
 }
 
-/// The ride of `clips`, each a span in steps with a clip gain in dB.
-func ride(_ steps: [Double], clips: [(steps: Range<Int>, dB: Double)]) throws -> (dB: [Double], unmeasured: [Int]) {
-    let spans = try clips.map {
-        (
-            span: $0.steps.lowerBound * rideStepFrames..<$0.steps.upperBound * rideStepFrames,
-            gain: try #require(Gain(dB: $0.dB))
-        )
-    }
-    let ride = try #require(rideCurve(stepMeanSquares: steps, stepFrames: rideStepFrames, clips: spans))
-    return (ride.curve.dB, ride.unmeasured)
+/// The ride curve of one measure group that holds all of `steps`.
+func ride(_ steps: [Double]) throws -> [Double] {
+    try #require(LevelRide.standard.gains(steps)).dB
 }
 
-/// The ride of one clip that plays all of `steps`.
-func rideOneClip(_ steps: [Double]) throws -> [Double] {
-    try ride(steps, clips: [(0..<steps.count, 0)]).dB
+/// A deinterleaved Float32 buffer of `channels`, all of one length.
+func pcmBuffer(_ channels: [[Float]]) throws -> AVAudioPCMBuffer {
+    let format = try #require(
+        AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: AVAudioChannelCount(channels.count)))
+    let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(channels[0].count)))
+    buffer.frameLength = AVAudioFrameCount(channels[0].count)
+    for (index, samples) in channels.enumerated() {
+        samples.withUnsafeBufferPointer {
+            buffer.floatChannelData![index].update(from: $0.baseAddress!, count: $0.count)
+        }
+    }
+    return buffer
 }
 
 /// The gated integrated loudness (BS.1770-5) of `steps` after `gains`: blocks of 4 steps, one at
@@ -81,7 +84,7 @@ struct LevelRideTests {
     /// (+2.56 dB on paper), not the clamp of a window that reads the floor. From step 168, the
     /// smoothing reads the lower gain of the loud speech after the floor.
     @Test func pausesHoldTheGain() throws {
-        let gains = try rideOneClip(c3)
+        let gains = try ride(c3)
         #expect(gains[140..<180].allSatisfy { $0 <= 2.66 }, "no floor step over +2.56")
         for step in 148..<168 {
             #expect(abs(gains[step] - 2.56) <= 0.1, "floor step \(step): \(gains[step]) dB, not +2.56")
@@ -92,7 +95,7 @@ struct LevelRideTests {
 
     /// C1: 10 s at -26 LUFS and 10 s at -18 LUFS come within 1 LU (8 LU with no ride).
     @Test func evensTwoLevels() throws {
-        let gains = try rideOneClip(c1)
+        let gains = try ride(c1)
         let quiet = windowLoudness(c1, gains, 20..<80)
         let loud = windowLoudness(c1, gains, 120..<180)
         #expect(abs(loud - quiet) <= 1, "the middles differ by \(loud - quiet) LU")
@@ -104,10 +107,10 @@ struct LevelRideTests {
     @Test func boostAndCutStopAtSixDecibels() throws {
         let under = rideSteps([(450, -20), (50, -29), (450, -20)])
         #expect(try #require(riddenLoudness(under)) + 29 >= 8.5, "the passage is about 9 LU under")
-        #expect(abs(try rideOneClip(under)[475] - 6) <= 0.1)
+        #expect(abs(try ride(under)[475] - 6) <= 0.1)
         let over = rideSteps([(450, -20), (50, -9), (450, -20)])
         #expect(-9 - (try #require(riddenLoudness(over))) >= 8.5, "the passage is about 9 LU over")
-        #expect(abs(try rideOneClip(over)[475] + 6) <= 0.1)
+        #expect(abs(try ride(over)[475] + 6) <= 0.1)
     }
 
     /// C3: a passage 14 LU under the reference rides as speech (+6 dB, the clamp); one 16 LU
@@ -115,7 +118,7 @@ struct LevelRideTests {
     @Test func gateDepthIsFifteen() throws {
         let steps = rideSteps([(100, -20), (30, -34), (100, -20), (30, -36), (100, -20)])
         #expect(abs(try #require(riddenLoudness(steps)) + 20) <= 0.1, "the reference is -20 LUFS")
-        let gains = try rideOneClip(steps)
+        let gains = try ride(steps)
         #expect(abs(gains[115] - 6) <= 0.1, "14 LU under: \(gains[115]) dB, not +6")
         #expect(abs(gains[245] - gains[225]) <= 0.1, "16 LU under: \(gains[245]) dB, not \(gains[225])")
     }
@@ -137,7 +140,7 @@ struct LevelRideTests {
     func noFloorStepGetsMoreThanTheSpeechBeforeIt(
         steps: [Double], speechBefore: Double, floorStep: Int, floorGain: Double
     ) throws {
-        let gains = try rideOneClip(steps)
+        let gains = try ride(steps)
         let gate = Loudness.meanSquare(try #require(riddenLoudness(steps)) - 15)
         let highest = steps.indices.filter { steps[$0] < gate }.map { gains[$0] }.max() ?? -.infinity
         #expect(highest <= speechBefore + 0.5, "a pause step gets \(highest) dB, over \(speechBefore) + 0.5")
@@ -148,7 +151,7 @@ struct LevelRideTests {
     /// smoothing ramps up from the first quiet step, (5 x loud + 6 x quiet) / 11, to the quiet
     /// gain 0.5 s after the onset.
     @Test func quietPhraseAfterAPauseRampsUp() throws {
-        let gains = try rideOneClip(rideSteps([(50, -18), (20, -50), (50, -26)]))
+        let gains = try ride(rideSteps([(50, -18), (20, -50), (50, -26)]))
         let (loud, quiet) = (gains[25], gains[95])
         #expect(abs(gains[60] - loud) <= 0.1, "pause \(gains[60]) dB, loud \(loud) dB")
         #expect(abs(quiet - loud - 8) <= 0.1, "quiet \(quiet) dB, loud \(loud) dB")
@@ -160,7 +163,7 @@ struct LevelRideTests {
     /// integrated loudness changes, so no text says that it always stays the same.
     @Test func limitStopsTheLoudnessOffset() throws {
         let steps = rideSteps([(300, -20), (300, -32)])
-        let gains = try rideOneClip(steps)
+        let gains = try ride(steps)
         #expect(gains.max() == LevelRide.standard.maxBoost, "the limit stops the gain")
         let (ridden, source) = (try #require(riddenLoudness(steps, gains)), try #require(riddenLoudness(steps)))
         #expect(abs(ridden - source) > 0.1, "ridden \(ridden) LUFS, source \(source) LUFS")
@@ -170,7 +173,7 @@ struct LevelRideTests {
     @Test func keepsTheIntegratedLoudness() throws {
         for steps in [c1, c3] {
             let reference = try #require(riddenLoudness(steps))
-            let ridden = try #require(riddenLoudness(steps, try rideOneClip(steps)))
+            let ridden = try #require(riddenLoudness(steps, try ride(steps)))
             #expect(abs(ridden - reference) <= 0.1, "ridden \(ridden) LUFS, source \(reference) LUFS")
         }
     }
@@ -178,7 +181,7 @@ struct LevelRideTests {
     /// C4: words with gaps keep their loudness through the offset: 0 dB at each step, not -3 dB.
     @Test func gappySpeechKeepsItsLoudness() throws {
         let steps = words(0.3, lead: 0)
-        let gains = try rideOneClip(steps)
+        let gains = try ride(steps)
         #expect(gains.allSatisfy { abs($0) <= 0.1 }, "gains from \(gains.min()!) to \(gains.max()!) dB, not 0")
         let reference = try #require(riddenLoudness(steps))
         #expect(abs(try #require(riddenLoudness(steps, gains)) - reference) <= 0.1)
@@ -188,30 +191,16 @@ struct LevelRideTests {
     /// lifts the loud speech over 0 dB, so the span keeps its loudness.
     @Test func quietPassageUnderTheGateKeepsTheSpanLoudness() throws {
         let steps = rideSteps([(100, -20), (40, -32), (100, -20)])
-        let gains = try rideOneClip(steps)
+        let gains = try ride(steps)
         #expect(gains[50] >= 0.3, "loud: \(gains[50]) dB, about 0 with no offset")
         #expect(abs(gains[120] - 6) <= 0.1, "passage: \(gains[120]) dB, not +6")
         let reference = try #require(riddenLoudness(steps))
         #expect(abs(try #require(riddenLoudness(steps, gains)) - reference) <= 0.1)
     }
 
-    /// C10: a silent 60 ms clip between two speech clips with other clip gains holds no full step,
-    /// and the step that holds it gets 0 dB, not the gain of the speech edge before it.
-    @Test func silentClipUnderOneStepGetsZeroDecibels() throws {
-        let steps = rideSteps([(50, -18), (50, -26), (1, -80), (100, -20)])
-        let clips = [
-            (span: 0..<480_000, gain: Gain.zero), (span: 480_000..<482_880, gain: try #require(Gain(dB: -3))),
-            (span: 482_880..<964_800, gain: try #require(Gain(dB: 2))),
-        ]
-        let ride = try #require(rideCurve(stepMeanSquares: steps, stepFrames: rideStepFrames, clips: clips))
-        #expect(ride.unmeasured == [1])
-        #expect(ride.curve.dB[99] > 1, "control: the speech edge has a gain")
-        #expect(ride.curve.dB[100] == 0, "the step of the silent clip: \(ride.curve.dB[100]) dB")
-    }
-
     /// C5: the gain changes by 1.5 dB or less between two steps, also at the 8 LU jump of C1.
     @Test func gainMovesSmoothly() throws {
-        let gains = try rideOneClip(c1)
+        let gains = try ride(c1)
         let largest = zip(gains, gains.dropFirst()).map { abs($1 - $0) }.max()!
         #expect(largest <= 1.5, "a change of \(largest) dB")
         let plain = plainClamp(c1)
@@ -223,7 +212,7 @@ struct LevelRideTests {
     @Test(arguments: [(0.3, 0.0, 0.01), (0.3, 0.037, 0.4), (0.33, 0.037, 0.4)])
     func burstySpeechDoesNotPump(word: Double, lead: Double, limit: Double) throws {
         let steps = words(word, lead: lead)
-        let gains = try rideOneClip(steps)
+        let gains = try ride(steps)
         let variation = gains.max()! - gains.min()!
         #expect(variation <= limit, "the gain moves by \(variation) dB")
         let plain = plainClamp(steps)

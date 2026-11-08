@@ -253,7 +253,8 @@ struct ChangedFramesTests {
 
     /// Decisions 0022 and 0073: only a follow lane is still. A ripple trim of host over a bed clip
     /// that does not change gives a shift with the bed still only when the bed follows. A move of
-    /// the last clip of host is no ripple, so it gives no shift over either bed.
+    /// the last clip of host is no ripple, so it gives no shift over either bed. A nudge of two host
+    /// clips with a still clip between them, or with one that passes the still clip, is no ripple.
     @Test(arguments: [false, true])
     func onlyAFollowLaneIsStill(follow: Bool) throws {
         var session = Session(sampleRate: 48_000)
@@ -277,6 +278,14 @@ struct ChangedFramesTests {
             #expect(shift == nil, "a bed that does not follow")
         }
         #expect(shiftedFrames(from: session, to: moved) == nil, "a move")
+
+        try session.place(Clip(id: "h3", file: "h", start: 300_000, offset: 100_000, length: 50_000), on: "host")
+        let nudges: [([ClipID], Frames)] = [(["h", "h3"], 4_800), (["h", "h3"], 160_000), (["h2", "h3"], -150_000)]
+        for (clips, offset) in nudges {
+            var nudged = session
+            try nudged.nudge(clips, by: offset)
+            #expect(shiftedFrames(from: session, to: nudged) == nil, "a nudge of \(clips) by \(offset)")
+        }
     }
 
     /// Decision 0037: a shift needs a lane whose clips before the moved clips change: the edit

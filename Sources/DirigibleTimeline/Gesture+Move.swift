@@ -196,8 +196,8 @@ extension TimelineGesture {
     }
 
     /// The No Overlap start of a move to `start` on `track`: clamped into one free span of the
-    /// track, so the clip stops at its neighbors (U-L4b). The own track keeps the span of the
-    /// mouse-down start; another track keeps the span near the first start on it (U56). At a stop
+    /// track, so the clip stops at its neighbors. The own track keeps the span of the
+    /// mouse-down start; another track keeps the span near the first start on it. At a stop
     /// the guide is at the edge that touches the neighbor. Nil when the track has no free span.
     func noOverlapStart(_ move: inout Move, _ start: Frames, on track: TrackID, _ base: Session)
         -> (start: Frames, stopped: Bool)?
@@ -215,8 +215,8 @@ extension TimelineGesture {
     }
 
     /// The Shuffle drop of a wanted `start` on `track` of the `closed` tracks: the nearer edge of
-    /// the clip that `start` cuts, and the clip start for a tie, so a drop never splits a clip
-    /// (U44). Nil when `start` cuts no clip.
+    /// the clip that `start` cuts, and the clip start for a tie, so a drop never splits a clip.
+    /// Nil when `start` cuts no clip.
     static func dropEdge(_ start: Frames, on track: TrackID, in closed: [Track]) -> Frames? {
         guard let lane = closed.first(where: { $0.id == track })?.clips,
             let index = lane.index(cutting: start)

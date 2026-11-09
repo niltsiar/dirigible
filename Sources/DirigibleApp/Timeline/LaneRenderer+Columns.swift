@@ -33,8 +33,8 @@ struct ColumnFades {
 /// from the file frame of the first column, with the frames per column. In each layer a binary
 /// search finds the first point of the draw rect, and a walk over the columns in order reads each
 /// point once: the cursor `next` of each layer only moves forward. In a column where only one layer
-/// has points, each other layer is a line over the column, so a point costs one multiply-add (C30:
-/// a ride has about 7 points per column at fit zoom).
+/// has points, each other layer is a line over the column, so a point costs one multiply-add (a
+/// ride has about 7 points per column at fit zoom).
 struct ColumnEnvelope {
     /// One layer with a point, and its cursors.
     struct Layer {

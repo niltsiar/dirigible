@@ -189,4 +189,22 @@ struct EnvelopeGestureTests {
         #expect(drawnA().gain == Gain(dB: -14), "a clip gain drag, not a range")
         #expect(drawnA().envelope == session.clip("A")?.clip.envelope)
     }
+
+    /// Leveler C30: the disc of a manual point on a ridden clip sits on the heard line, a drag of it
+    /// moves the manual point by the drag delta, and the ride stays equal.
+    @Test mutating func dragOnARiddenClipKeepsTheRide() throws {
+        let ride = try #require(
+            GainEnvelope([
+                GainEnvelope.Point(frame: 0, gain: Gain(dB: -6)!),
+                GainEnvelope.Point(frame: 48_000, gain: Gain(dB: -6)!),
+            ]))
+        try session.setRides(["A": ride])
+        // At x 150 the heard gain is -8 dB plus -6 dB: the disc is at y 14.
+        down(150, 14)
+        _ = drag(150, 17)
+        #expect(gesture.readout == .point(Gain(dB: -11)!))
+        let moved = try #require(committed(up(150, 17)))
+        expectPoints(moved, [(12_000, 0), (24_000, -11), (36_000, 0)])
+        #expect(moved.clip("A")?.clip.ride == ride, "the drag leaves the ride equal")
+    }
 }

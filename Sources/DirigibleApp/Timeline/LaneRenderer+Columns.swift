@@ -29,58 +29,83 @@ struct ColumnFades {
     }
 }
 
-/// The gain envelope of one clip in the columns of a draw (decision 0060): the file frame of the
-/// first column, and the frames per column. A binary search finds the first point of the draw rect,
-/// and a walk over the columns in order reads each point once: the cursor `next` only moves forward.
+/// The gain layers of one clip in the columns of a draw (decision 0060): the envelope and the ride,
+/// from the file frame of the first column, with the frames per column. In each layer a binary
+/// search finds the first point of the draw rect, and a walk over the columns in order reads each
+/// point once: the cursor `next` of each layer only moves forward.
 struct ColumnEnvelope {
-    private let points: [GainEnvelope.Point]
-    private let first: Double
-    private let step: Double
-    /// The index of the first point after the first column start: the cursor of a walk from there.
-    private let seed: Int
-    /// The index of the first point after the start of the last column read.
-    private(set) var next: Int
-    private var last = Int.min
+    /// One layer with a point, and its cursors.
+    struct Layer {
+        let points: [GainEnvelope.Point]
+        /// The index of the first point after the first column start: the cursor of a walk from there.
+        let seed: Int
+        /// The index of the first point after the start of the last column read.
+        fileprivate(set) var next: Int
+        /// The index of the first point after the frame of the walk inside a column.
+        fileprivate var after = 0
 
-    init(envelope: GainEnvelope, first: Double, step: Double) {
-        (points, self.first, self.step) = (envelope.points, first, step)
-        seed = envelope.index(atOrAfter: Frames(Int(first.rounded(.down)) + 1))
-        next = seed
+        /// The gain at `frame`, where `after` is the index of the first point past it.
+        func value(at frame: Int) -> Double {
+            if after == 0 { return points[0].gain.dB }
+            if after == points.count { return points[after - 1].gain.dB }
+            let (a, b) = (points[after - 1], points[after])
+            return a.gain.dB + (b.gain.dB - a.gain.dB) * Double(frame - a.frame.count)
+                / Double(b.frame.count - a.frame.count)
+        }
+
+        /// Moves `after` past each point at or before `frame`.
+        fileprivate mutating func walk(through frame: Int) {
+            while after < points.count, points[after].frame.count <= frame { after += 1 }
+        }
     }
 
-    /// The highest gain in dB over the file frames of column `index`, as the column keeps the
-    /// highest peak of its frames. The envelope is linear between points, so the maximum is at an
-    /// end of the column or at a point inside it. The `index` of a call is not under the one before.
+    private(set) var layers: [Layer]
+    private let first: Double
+    private let step: Double
+    private var last = Int.min
+
+    init(layers: [GainEnvelope], first: Double, step: Double) {
+        (self.first, self.step) = (first, step)
+        let start = Frames(Int(first.rounded(.down)) + 1)
+        self.layers = layers.filter { !$0.isEmpty }.map {
+            let seed = $0.index(atOrAfter: start)
+            return Layer(points: $0.points, seed: seed, next: seed)
+        }
+    }
+
+    /// The highest sum of the layer gains in dB over the file frames of column `index`, as the
+    /// column keeps the highest peak of its frames. The sum is linear between the points of the
+    /// layers, so the maximum is at an end of the column or at a point of a layer inside it. The
+    /// `index` of a call is not under the one before.
     mutating func gain(_ index: Int) -> Double {
         let start = first + Double(index) * step
         let (low, high) = (Int(start.rounded(.down)), Int((start + step).rounded(.up)))
-        if low < last { next = seed }
+        let reset = low < last
         last = low
-        while next < points.count, points[next].frame.count <= low { next += 1 }
-        var best = max(value(at: low, after: next), points.isEmpty ? 0 : value(at: high))
-        var inside = next
-        while inside < points.count, points[inside].frame.count < high {
-            best = max(best, points[inside].gain.dB)
-            inside += 1
+        for n in layers.indices {
+            if reset { layers[n].next = layers[n].seed }
+            layers[n].after = layers[n].next
+            layers[n].walk(through: low)
+            layers[n].next = layers[n].after
+        }
+        var best = sum(at: low)
+        // Each point inside the column in frame order, then the column end.
+        var frame = low
+        while frame < high {
+            frame = high
+            for layer in layers where layer.after < layer.points.count {
+                frame = min(frame, layer.points[layer.after].frame.count)
+            }
+            for n in layers.indices { layers[n].walk(through: frame) }
+            best = max(best, sum(at: frame))
         }
         return best
     }
 
-    /// The gain at `frame` for a frame at or after the start of the column, by the points from
-    /// `next` on.
-    private func value(at frame: Int) -> Double {
-        var after = next
-        while after < points.count, points[after].frame.count <= frame { after += 1 }
-        return value(at: frame, after: after)
-    }
-
-    /// The gain at `frame`, where `after` is the index of the first point past it.
-    private func value(at frame: Int, after: Int) -> Double {
-        guard let first = points.first, let last = points.last else { return 0 }
-        if after == 0 { return first.gain.dB }
-        if after == points.count { return last.gain.dB }
-        let (a, b) = (points[after - 1], points[after])
-        return a.gain.dB + (b.gain.dB - a.gain.dB) * Double(frame - a.frame.count)
-            / Double(b.frame.count - a.frame.count)
+    /// The sum of the layer gains at `frame`, with `after` of each layer past it. 0 with no layer.
+    private func sum(at frame: Int) -> Double {
+        var total = 0.0
+        for layer in layers { total += layer.value(at: frame) }
+        return total
     }
 }

@@ -229,6 +229,61 @@ extension LaneRenderBenchmark {
     }
 }
 
+extension LaneRenderBenchmark {
+    /// Leveler C30 and U40: 6 lanes of 2 h, each clip with a ride of 18,954 points (the points of a
+    /// decimated ride of 2 h) and a duck of 4 envelope points, so each column sums two layers. At
+    /// fit zoom and at the closest zoom, each draw keeps the budget of a full draw.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aRiddenClipDrawsInTheBudget() throws {
+        let frames = 345_600_000
+        let peaks = randomPeaks(frames: frames)
+        var random = SplitMix(seed: 40)
+        let spacing = frames / 18_954
+        let ride = try #require(
+            GainEnvelope(
+                (0..<18_954).map {
+                    GainEnvelope.Point(
+                        frame: Frames($0 * spacing), gain: Gain(dB: .random(in: -6...6, using: &random))!)
+                }))
+        let duck = try #require(
+            GainEnvelope(
+                [(0, 0.0), (frames / 4, -16), (frames / 2, -16), (3 * frames / 4, 0)].map {
+                    GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!)
+                }))
+        var session = Session(sampleRate: 48_000)
+        var states: [FileID: PeakState] = [:]
+        var rides: [ClipID: GainEnvelope] = [:]
+        for n in 1...6 {
+            let file = FileID("f\(n)")
+            try session.addFile(AudioFile(id: file, path: "f\(n).wav", layout: .mono, length: Frames(frames)))
+            try session.addTrack(TrackID("t\(n)"), name: "T\(n)", layout: .mono)
+            try session.place(
+                Clip(id: ClipID("c\(n)"), file: file, start: 0, offset: 0, length: Frames(frames), envelope: duck),
+                on: TrackID("t\(n)"))
+            rides[ClipID("c\(n)")] = ride
+            states[file] = .ready(peaks)
+        }
+        try session.setRides(rides)
+        let renderer = LaneRenderer()
+        for (zoom, framesPerPoint) in [("fit", Double(frames) / 1440), ("closest", 128.0)] {
+            let inputs = LaneInputs(
+                session: session, peaks: states, missingMedia: [:], selection: .none,
+                scale: TimelineScale(framesPerPoint: framesPerPoint), laneHeight: 100)
+            let windows = try (0..<7).map { try #require(laneWindow(inputs, x: Double($0), width: 1440, scale: 2)) }
+            let pixels = windows.map { OwnedPixels($0) }
+            var times: [Duration] = []
+            for draw in 0..<120 {
+                let start = ContinuousClock.now
+                pixels[draw % 7].draw { renderer.draw(inputs, .light, into: $0) }
+                times.append(ContinuousClock.now - start)
+            }
+            let p95 = times.sorted()[113]
+            print("LaneRenderBenchmark ridden clips, \(zoom): p50 \(times.sorted()[60]), p95 \(p95)")
+            expectWithinBudget(p95, Self.budget, "\(zoom): p95 \(p95)")
+        }
+    }
+}
+
 /// SplitMix64, so the benchmark draws the same peaks on each run.
 struct SplitMix: RandomNumberGenerator {
     var state: UInt64

@@ -51,7 +51,7 @@ extension MixTests {
     }
 
     /// The expected mix of `range` in Double: each sounding clip of t1 on its channel, the clip and
-    /// track gain times `Fades.gain` times 10^(dB/20) of its envelope at the file frame.
+    /// track gain times `Fades.gain` times 10^(dB/20) of its envelope plus its ride at the file frame.
     static func envelopedMix(_ session: Session, _ range: Range<Int>) throws -> [[Double]] {
         let track = try #require(session.track("t1"))
         let sounding = track.clips.sounding(in: Frames(range.lowerBound)..<Frames(range.upperBound))
@@ -61,7 +61,10 @@ extension MixTests {
             return range.map { t in
                 guard clip.range.contains(Frames(t)) else { return 0 }
                 let k = t - clip.start.count
-                let dB = clip.gain.dB + track.gain.dB + decibels(clip.envelope.points, at: clip.offset.count + k)
+                let file = clip.offset.count + k
+                let dB =
+                    clip.gain.dB + track.gain.dB + decibels(clip.envelope.points, at: file)
+                    + decibels(clip.ride.points, at: file)
                 return pow(10, dB / 20) * clip.fades.gain(at: Frames(k), length: clip.length, curves: edges.curves)
             }
         }
@@ -143,9 +146,11 @@ extension MixTests {
         let length = 1 << 30
         let envelope = try Self.envelope([(0, 6), (length, -30)])
         for from in [length - 4_800, length - 30_001] {
-            var factors = [Float](repeating: 0, count: 4_800)
-            factors.withUnsafeMutableBufferPointer {
-                envelopeFactors(envelope, from: Frames(from), decibels: -3, into: $0)
+            var (factors, scratch) = ([Float](repeating: 0, count: 4_800), [Float](repeating: 0, count: 4_800))
+            factors.withUnsafeMutableBufferPointer { factors in
+                scratch.withUnsafeMutableBufferPointer {
+                    envelopeFactors([envelope], from: Frames(from), decibels: -3, into: factors, scratch: $0)
+                }
             }
             let error = (0..<4_800).map { k in
                 abs(20 * log10(Double(factors[k])) - (-3 + Self.decibels(envelope.points, at: from + k)))

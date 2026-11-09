@@ -159,8 +159,11 @@ struct RideLayerTests {
         ]
         for fixture in fixtures {
             var factors = [Float](repeating: 0, count: fixture.samples.count)
-            factors.withUnsafeMutableBufferPointer {
-                envelopeFactors(fixture.envelope, from: .zero, decibels: 0, into: $0)
+            var scratch = factors
+            factors.withUnsafeMutableBufferPointer { factors in
+                scratch.withUnsafeMutableBufferPointer {
+                    envelopeFactors([fixture.envelope], from: .zero, decibels: 0, into: factors, scratch: $0)
+                }
             }
             let source = try meterSteps([fixture.samples])
             let enveloped = try meterSteps([zip(fixture.samples, factors).map(*)])

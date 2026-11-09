@@ -87,13 +87,70 @@ extension LaneRendererTests {
     @Test func theWalkOfADrawRectLateInADenseEnvelopeStartsAtItsFirstPoint() throws {
         let points = (0..<10_000).map { GainEnvelope.Point(frame: Frames($0 * 100), gain: Gain(dB: -Double($0 % 7))!) }
         let envelope = try #require(GainEnvelope(points))
-        var column = ColumnEnvelope(envelope: envelope, first: 700_050, step: 100)
+        var column = ColumnEnvelope(layers: [envelope], first: 700_050, step: 100)
 
-        #expect(column.next == 7_001, "the first point after frame 700,050 is at 700,100")
+        #expect(column.layers.map(\.next) == [7_001], "the first point after frame 700,050 is at 700,100")
         let first = column.gain(0)
         let expected = max(envelope.gain(at: 700_050), envelope.gain(at: 700_150), points[7_001].gain.dB)
         #expect(first == expected)
         _ = column.gain(30)
         #expect(column.gain(0) == first, "a lower column walks again from the first point of the rect")
+    }
+
+    /// Leveler C30: a clip with a ride and no envelope draws its waveform and its line at the heard
+    /// gain, as an envelope of the same gain does.
+    @Test func aRiddenClipDrawsTheHeardGain() throws {
+        var session = try Self.session(length: Self.envelopeLength)
+        let ride = try #require(
+            GainEnvelope([
+                GainEnvelope.Point(frame: 0, gain: Gain(dB: -16)!),
+                GainEnvelope.Point(frame: Frames(Self.envelopeLength), gain: Gain(dB: -16)!),
+            ]))
+        try session.setRides(["c1": ride])
+        let pixels = try Self.render(Self.inputs(session, peaks: Self.fullPeaks()), width: 400)
+
+        #expect(Self.rows(pixels, column: 150, LanePalette.light.label) == [100 - Self.height(dB: -16)])
+        let drawn = Self.drawn(pixels, column: 150)
+        #expect(abs(drawn - Self.height(dB: -16)) <= 1, "the column has the -16 dB height: \(drawn) rows")
+    }
+
+    /// Leveler C30: the column gain of two layers is the maximum of their sum over the frames of the
+    /// column, against a brute-force read of `Clip.layerGain`. Seeded layers put points of both in
+    /// one column; a literal case has the envelope peak at the frame 1,010 and the ride peak at the
+    /// frame 1,090 of one column, where max(E) + max(R) is 10 dB over the heard peak.
+    @Test func maxOfTheLayers() throws {
+        var random = SplitMix(seed: 5)
+        func layer(_ count: Int) throws -> GainEnvelope {
+            let frames = Set((0..<count).map { _ in Int.random(in: 0...20_000, using: &random) }).sorted()
+            return try #require(
+                GainEnvelope(
+                    frames.map {
+                        GainEnvelope.Point(frame: Frames($0), gain: Gain(dB: .random(in: -20...6, using: &random))!)
+                    }))
+        }
+        func literal(_ points: [(Int, Double)]) throws -> GainEnvelope {
+            try #require(GainEnvelope(points.map { GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!) }))
+        }
+        let cases = try [
+            (layer(60), layer(300), 37.5),
+            (
+                literal([(1_000, -10), (1_010, 0), (1_020, -10)]), literal([(1_080, -10), (1_090, 0), (1_100, -10)]),
+                100
+            ),
+        ]
+        var misses: [String] = []
+        for (number, (envelope, ride, step)) in cases.enumerated() {
+            let clip = Clip(id: "c1", file: "f1", start: 0, offset: 0, length: 30_000, envelope: envelope, ride: ride)
+            var column = ColumnEnvelope(layers: [envelope, ride], first: 1_000, step: step)
+            // In order, then a lower column, which walks again from the first point of the rect.
+            for index in Array(0..<200) + [3, 4] {
+                let start = 1_000 + Double(index) * step
+                let (low, high) = (Int(start.rounded(.down)), Int((start + step).rounded(.up)))
+                let heard = (low...high).map { clip.layerGain(at: Frames($0)) }.max()!
+                let gain = column.gain(index)
+                if abs(gain - heard) > 1e-9 { misses.append("case \(number), column \(index): \(gain), \(heard)") }
+            }
+        }
+        #expect(misses.count == 0, "columns off the heard peak: \(misses.prefix(5))")
     }
 }

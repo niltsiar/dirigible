@@ -155,8 +155,8 @@ final class LaneRenderer {
                     first: Double(range.lowerBound) * pixelFrames - Double(start.count),
                     step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
             let envelope =
-                clip.envelope.isEmpty
-                ? nil : ColumnEnvelope(envelope: clip.envelope, first: from, step: pixelFrames)
+                clip.hasLayers
+                ? ColumnEnvelope(layers: [clip.envelope, clip.ride], first: from, step: pixelFrames) : nil
             drawColumns(
                 range, gain: clip.gain.dB + track.gain.dB, fades: fades, envelope: envelope, bottom: bottom,
                 chip: chip, palette, into: region)

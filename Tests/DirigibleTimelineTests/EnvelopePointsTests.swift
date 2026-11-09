@@ -53,4 +53,24 @@ struct EnvelopePointsTests {
         #expect(try shown([56_000: -6]) { try $0.trim("A", to: 48_000..<64_800) }.isEmpty, "35 pt")
         #expect(try shown([56_000: -6]) { try $0.trim("A", to: 48_000..<78_000) }.count == 1, "62.5 pt")
     }
+
+    /// Leveler C30: on a ridden clip, the gain line and the disc of a manual point follow the heard
+    /// gain, the envelope plus the ride. The ride falls from 0 dB to -12 dB over the file frames of A.
+    @Test func lineFollowsTheHeardGain() throws {
+        var session = try Fixture.session()
+        try session.setEnvelope([72_000: Gain(dB: -6)!], clip: "A")
+        try session.setRides([
+            "A": #require(
+                GainEnvelope([
+                    GainEnvelope.Point(frame: 0, gain: .zero), GainEnvelope.Point(frame: 48_000, gain: Gain(dB: -12)!),
+                ]))
+        ])
+        let clips = session.tracks[0].clips
+        let geometry = Fixture.geometry
+        // The file frame 24,000 (x 150): the point -6 dB and the ride -6 dB.
+        #expect(geometry.envelopePoints(of: clips[0], at: 0, in: clips, trackGain: .zero, lane: 0).map(\.y) == [12])
+        #expect(abs(geometry.gainLineY(clips[0], trackGain: .zero, lane: 0, atX: 150) - 12) < 1e-9)
+        // The file frame 12,000 (x 125): the envelope holds -6 dB, and the ride is -3 dB.
+        #expect(abs(geometry.gainLineY(clips[0], trackGain: .zero, lane: 0, atX: 125) - 9) < 1e-9)
+    }
 }

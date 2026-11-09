@@ -262,6 +262,29 @@ struct ExportTests {
         }
     }
 
+    /// Leveler C29: a WAV 24-bit export of a clip with an envelope and a ride has the gain of both
+    /// layers within 1e-5 relative, and equals the play within 2^-23 per sample.
+    @Test func aRideExportsAsItPlays() throws {
+        let source = [Float](repeating: 0.5, count: 24_000)
+        let package = try Self.package([source, source])
+        let (envelope, ride) = try (
+            MixTests.envelope([(4_000, 0), (12_000, -12)]), MixTests.envelope([(0, 3), (8_000, -3), (20_000, 6)])
+        )
+        try package.session.setEnvelopes(["c1": envelope])
+        try package.session.setRides(["c1": ride])
+        let out = try Self.read(Self.export(package, 0..<24_000, Self.options(.wav(.bits24)), to: "ride.wav"))
+        let expected = (0..<24_000).map { k in
+            0.5 * pow(10, (MixTests.decibels(envelope.points, at: k) + MixTests.decibels(ride.points, at: k)) / 20)
+        }
+        let played = try package.mix(0..<24_000)
+        #expect(out.channels.count == 2)
+        for (channel, values) in out.channels.enumerated() {
+            let error = MixLayersTests.relativeError(values, expected)
+            #expect(error.error <= 1e-5, "channel \(channel): \(error.error) at frame \(error.frame)")
+            #expect(maxError(values, played[channel]) <= 1.0 / 8_388_608, "channel \(channel) equals the play")
+        }
+    }
+
     /// Crossfades X2: the preflight of a range from J + 1 checks the file of A, which sounds there
     /// from its handle, and not the file of a clip that ends before the crossfade (C on t2).
     @Test func aRangeInsideACrossfadeChecksBothFiles() throws {

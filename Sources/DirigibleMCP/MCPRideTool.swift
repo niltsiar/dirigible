@@ -21,7 +21,8 @@ let rideTools = [
             + "and leaves the ride as it is. Give one line for each clip: \"<clip>: leveled, <lowest> to <highest> "
             + "dB, <n> points\", or \"<clip>: no measurement\" for a clip with no loudness to measure. With clear, "
             + "the ride goes: \"<clip>: ride removed\" or \"<clip>: no ride\"; with from and to, it goes only "
-            + "inside that range, with a 500 ms ramp at each edge, and no other clip changes what it plays."
+            + "inside that range, with a 500 ms ramp at each edge, and no other clip changes what it plays; "
+            + "\"<clip>: no ride in the range\" for a clip whose ride is outside the range."
             + editCancelNote("no ride changes"),
         [clips, clear, from, to], batch: .alone
     ) { a throws(ToolError) in

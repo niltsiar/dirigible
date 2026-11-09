@@ -7,7 +7,8 @@ package struct RideWindow: Hashable, Sendable {
 }
 
 /// One measure group of Level Over Time: clips of one file whose windows touch or
-/// overlap, with equal clip gains, that play on from each other on the timeline. The ride reads `frames` once and writes one list on `written`.
+/// overlap, with equal clip gains, that play on from each other on the timeline. The ride reads
+/// `frames` once and writes one list on `written`.
 package struct RideGroup: Hashable, Sendable {
     package let file: FileID
     /// File frames: the union of the windows, with no gap.

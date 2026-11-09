@@ -3,7 +3,8 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The measure groups of Level Over Time and the ride layer under the edits. Tracks "t", "u", and "v" (stereo); files "f" and "g" of 2 h at 48 kHz.
+/// The measure groups of Level Over Time and the ride layer under the edits.
+/// Tracks "t", "u", and "v" (stereo); files "f" and "g" of 2 h at 48 kHz.
 struct SessionRideTests {
     static let twoHours = 345_600_000
     var session: Session

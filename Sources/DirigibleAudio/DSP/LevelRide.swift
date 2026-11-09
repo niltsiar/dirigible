@@ -14,6 +14,13 @@ struct LevelRide: Hashable, Sendable {
     let maxCut = Gain.rideLimit
     /// The centred moving average of the gain, over the steps from k - 5 to k + 5.
     let smoothingHalfSteps = 5
+    /// A pause holds the gain of a speech step only from this step of a speech run on. A shorter
+    /// sound near the gate rides as speech and leaves the held gain, so it cannot lift the room
+    /// tone after it by up to 6 dB.
+    let holdSteps = 3
+    /// A pause step gets at most the smoothed gain of the held speech step, and of the last speech
+    /// step before it, plus this many dB.
+    let pauseMargin = 0.5
 }
 
 /// The ride layer of one measure group, one gain in dB for each 100 ms step: median(0, a, b) of
@@ -75,10 +82,11 @@ extension LevelRide {
     /// 1. A pause step has a mean square more than `gateDepth` under the reference R.
     /// 2. The computed gain c(k) is R minus the power mean of the speech steps of the window,
     ///    clamped; none when the window has no speech step.
-    /// 3. The held value h(k) is the raw gain of the last speech step at or before k (0 before).
+    /// 3. The held value h(k) is the raw gain of the last speech step at or before k that is step
+    ///    `holdSteps` or later of its speech run (0 before).
     /// 4. The raw gain r(k) is c(k) for a speech step, min(c(k), h(k)) for a pause step, or h(k).
-    /// 5. The smoothed gain s(k) is the mean of r over the smoothing window; a pause step then
-    ///    gets min(s(k), h(k)).
+    /// 5. The smoothed gain s(k) is the mean m(k) of r over the smoothing window; a pause step then
+    ///    gets min(m(k), h(k), m(j) + `pauseMargin`), j the step of h(k) and the last speech step.
     /// 6. One offset o restores R; the gain is s(k) + o, clamped.
     func gains(_ meanSquares: [Double], counting counted: [Bool]? = nil) -> Curve? {
         guard let whole = Loudness(blocks: blocks(meanSquares)).integrated?.value else { return nil }
@@ -88,7 +96,9 @@ extension LevelRide {
         let speech = meanSquares.map { $0 >= gate }
         var raw: [Double] = []
         var held: [Double] = []
+        var marks: [[Int]] = []
         var last = 0.0
+        var (run, heldStep, lastSpeech): (Int, Int?, Int?) = (0, nil, nil)
         for step in meanSquares.indices {
             var (sum, count) = (0.0, 0)
             for index in window(step, windowHalfSteps, meanSquares.count) where speech[index] {
@@ -96,18 +106,25 @@ extension LevelRide {
                 count += 1
             }
             let computed = count > 0 ? clamp(reference - Loudness.lufs(sum / Double(count))) : nil
+            run = speech[step] ? run + 1 : 0
             if speech[step], let computed {
-                last = computed
                 raw.append(computed)
+                lastSpeech = step
+                if run >= holdSteps { (last, heldStep) = (computed, step) }
             } else {
                 raw.append(computed.map { min($0, last) } ?? last)
             }
             held.append(last)
+            marks.append([heldStep, lastSpeech].compactMap { $0 })
+        }
+        let means = meanSquares.indices.map { step in
+            let steps = window(step, smoothingHalfSteps, raw.count)
+            return raw[steps].reduce(0, +) / Double(steps.count)
         }
         let smoothed = meanSquares.indices.map { step in
-            let steps = window(step, smoothingHalfSteps, raw.count)
-            let mean = raw[steps].reduce(0, +) / Double(steps.count)
-            return speech[step] ? mean : min(mean, held[step])
+            speech[step]
+                ? means[step]
+                : marks[step].map { means[$0] + pauseMargin }.reduce(min(means[step], held[step]), min)
         }
         let ridden = zip(meanSquares, smoothed).map { $0 * pow(10, $1 / 10) }
         let level =

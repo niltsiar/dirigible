@@ -251,12 +251,13 @@ struct ChangedFramesTests {
         #expect(shiftedFrames(from: session, to: deleted) == nil)
     }
 
-    /// Decisions 0022 and 0073: only a follow lane is still. A ripple trim of host over a bed clip
-    /// that does not change gives a shift with the bed still only when the bed follows. A move of
-    /// the last clip of host is no ripple, so it gives no shift over either bed. A nudge of two host
-    /// clips with a still clip between them, or with one that passes the still clip, is no ripple.
+    /// Decisions 0022 and 0073: a lane whose clips do not change is still, whether it follows or
+    /// not. A ripple trim of host over a bed clip that does not change gives a shift with the bed
+    /// still. A move of the last clip of host is no ripple, so it gives no shift over either bed. A
+    /// nudge of two host clips with a still clip between them, or with one that passes the still
+    /// clip, is no ripple.
     @Test(arguments: [false, true])
-    func onlyAFollowLaneIsStill(follow: Bool) throws {
+    func anUnchangedLaneIsStill(follow: Bool) throws {
         var session = Session(sampleRate: 48_000)
         for (track, file) in [("host", "h"), ("bed", "b")] {
             try session.addTrack(TrackID(track), name: track, layout: .mono)
@@ -272,11 +273,7 @@ struct ChangedFramesTests {
         try moved.move("h2", to: "host", start: 225_000)
 
         let shift = shiftedFrames(from: session, to: trimmed)
-        if follow {
-            #expect(shift?.delta == 25_000 && shift?.still == [1], "\(String(describing: shift))")
-        } else {
-            #expect(shift == nil, "a bed that does not follow")
-        }
+        #expect(shift?.delta == 25_000 && shift?.still == [1], "\(String(describing: shift))")
         #expect(shiftedFrames(from: session, to: moved) == nil, "a move")
 
         try session.place(Clip(id: "h3", file: "h", start: 300_000, offset: 100_000, length: 50_000), on: "host")
@@ -286,6 +283,17 @@ struct ChangedFramesTests {
             try nudged.nudge(clips, by: offset)
             #expect(shiftedFrames(from: session, to: nudged) == nil, "a nudge of \(clips) by \(offset)")
         }
+    }
+
+    /// C60 path 3 (U48): a Shuffle edge drag ripples its own track only. The other lanes keep their
+    /// clips past the edit, so they are still, and the drag draws by a shift, not in full.
+    @Test func aShuffleEdgeDragSkipsTheStillLanes() throws {
+        var session = try Fixture.session()
+        try session.place(Clip(id: "D", file: "fb", start: 200_000, offset: 0, length: 24_000), on: "t2")
+        var trimmed = session
+        try trimmed.rippleTrim("A", edge: .end, by: -9_600, on: ["t1"], naming: ["t1"])
+        let shift = shiftedFrames(from: session, to: trimmed)
+        #expect(shift?.delta == -9_600 && shift?.still == [1] && shift?.lines == [], "\(String(describing: shift))")
     }
 
     /// Decision 0037: a shift needs a lane whose clips before the moved clips change: the edit

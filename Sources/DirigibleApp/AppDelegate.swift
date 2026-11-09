@@ -2,6 +2,7 @@ import AppKit
 import DirigibleAudio
 import DirigibleCore
 import DirigibleMCP
+import DirigibleTimeline
 import Observation
 import UniformTypeIdentifiers
 
@@ -26,6 +27,10 @@ import UniformTypeIdentifiers
     /// no value is stored.
     var snaps: Bool { didSet { defaults?.set(snaps, forKey: Self.snapKey) } }
     static let snapKey = "timeline.snaps"
+    /// Edit > Drag Mode: one value for all windows, kept in the app preferences. Overwrite when no
+    /// value or an unknown value is stored.
+    var dragMode: DragMode { didSet { defaults?.set(dragMode.rawValue, forKey: Self.dragModeKey) } }
+    static let dragModeKey = "timeline.dragMode"
     /// The speed that Period turns on (decision 0052): the last speed other than 1.
     var lastSpeed: Speed { didSet { defaults?.set(lastSpeed.factor, forKey: Self.speedKey) } }
     static let speedKey = "playback.lastSpeed"
@@ -164,6 +169,7 @@ import UniformTypeIdentifiers
         self.peakCache = peakCache
         self.defaults = defaults
         snaps = defaults?.object(forKey: Self.snapKey) as? Bool ?? true
+        dragMode = defaults?.string(forKey: Self.dragModeKey).flatMap(DragMode.init(rawValue:)) ?? .overwrite
         lastSpeed = Self.lastSpeed(stored: defaults?.object(forKey: Self.speedKey))
         // Only absolute paths, as for the folder preference. The hint reads no file.
         recent = (defaults?.stringArray(forKey: Self.recentKey) ?? []).filter { $0.hasPrefix("/") }.map {

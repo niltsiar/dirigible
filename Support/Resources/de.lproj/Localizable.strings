@@ -411,6 +411,7 @@
 "timeline.readout.range.gain" = "Bereichspegel %@ dB";
 "timeline.readout.roll" = "Schnittpunkt %@ ms";
 "timeline.readout.slip" = "Inhalt %@ ms";
+"timeline.readout.stopped" = "Am Nachbarclip gestoppt";
 "timeline.help.roll.slip" = "Umschalt-Befehl-Ziehen: Schnittpunkt oder Inhalt eines Clips verschieben";
 
 /* View and Edit items of the timeline (decision 0017) */

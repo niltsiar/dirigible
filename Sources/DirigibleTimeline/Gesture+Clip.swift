@@ -17,6 +17,8 @@ public enum GestureReadout: Equatable, Sendable {
     case roll(Frames)
     /// The move of the content of a slip drag, to the right plus.
     case slip(Frames)
+    /// A No Overlap move stopped at a neighbor clip.
+    case stopped
 }
 
 /// The clip part of the gesture (run 11b-1): a drag of the gain line sets the clip gain, a drag of
@@ -60,6 +62,8 @@ extension TimelineGesture {
         case .crossfading(_, let drag): .crossfade(drag.length)
         case .rolling(_, let roll): .roll(roll.delta)
         case .slipping(_, let slip): .slip(.zero - slip.delta)
+        case .moving(_, let move) where move.stopped: .stopped
+        case .grouping(_, let group) where group.stopped: .stopped
         default: envelopeReadout
         }
     }
@@ -201,29 +205,32 @@ extension TimelineGesture {
         }
     }
 
-    /// The trim of a press on a trim zone: a ripple trim with Option (decision 0037), else the
-    /// plain trim. Nil when the file is not in the pool.
+    /// The trim of a press on a trim zone: a ripple trim with Option (decision 0037) or in Shuffle
+    /// mode, else the plain trim. Nil when the file is not in the pool.
     func trim(_ press: Press, _ clip: Clip, _ edge: Edge, _ lane: Int, _ context: GestureContext) -> Trim? {
         guard let file = press.base.files[clip.file] else { return nil }
         let minimum = context.geometry.trimMinimum
+        let ripple = TrimRipple(option: press.option, mode: context.dragMode)
         let limits =
-            press.option
+            ripple != .none
             ? rippleTrimLimits(clip, edge: edge, fileLength: file.length, minimum: minimum)
             : trimLimits(clip, edge: edge, in: press.base.tracks[lane].clips, fileLength: file.length, minimum: minimum)
         // A trim excludes its own clip, so a start edge never stops at its own end. Command holds
         // the snap off (decision 0020).
         let snap =
-            press.option || press.command ? nil : Snap(press.base, excluding: [clip.id], geometry: context.geometry)
+            ripple != .none || press.command
+            ? nil : Snap(press.base, excluding: [clip.id], geometry: context.geometry)
         return Trim(
-            clip: clip, edge: edge, ripple: press.option, limits: limits, range: clip.range,
+            clip: clip, edge: edge, lane: lane, ripple: ripple, limits: limits, range: clip.range,
             preview: press.base, snap: snap)
     }
 
     /// A ripple trim drag event: the edge moves by the pointer motion in whole device columns,
-    /// clamped to the limits, and the preview is `rippleTrim` on all tracks. Whole columns let the
-    /// lanes draw the later region by a shift at any zoom (decision 0037). The delta does not stop
-    /// at x 0, so a start edge at frame 0 extends into its file. The clip start stays, so the range
-    /// of a start trim changes at its end.
+    /// clamped to the limits, and the preview is `rippleTrim` on all tracks, or on the own track as
+    /// a named lane (decision 0073) for a plain press in Shuffle mode. Whole columns let the lanes
+    /// draw the later region by a shift at any zoom (decision 0037). The delta does not stop at x 0,
+    /// so a start edge at frame 0 extends into its file. The clip start stays, so the range of a
+    /// start trim changes at its end.
     mutating func rippleDrag(_ press: Press, _ trim: Trim, _ x: Double, _ context: GestureContext) -> [GestureEffect] {
         let scale = context.columnsPerPoint
         let points = abs(x - press.x) < Self.threshold ? 0 : ((x - press.x) * scale).rounded() / scale
@@ -234,8 +241,9 @@ extension TimelineGesture {
         var preview = press.base
         // The limits keep the clip in its file, so only a later clip past `Frames.limit` throws. A
         // throw keeps the last preview (decision 0020).
-        let tracks = press.base.tracks.map(\.id)
-        guard (try? preview.rippleTrim(trim.clip.id, edge: trim.edge, by: moved, on: tracks, naming: [])) != nil else {
+        let own = trim.ripple == .ownTrack ? [press.base.tracks[trim.lane].id] : []
+        let tracks = own.isEmpty ? press.base.tracks.map(\.id) : own
+        guard (try? preview.rippleTrim(trim.clip.id, edge: trim.edge, by: moved, on: tracks, naming: own)) != nil else {
             return []
         }
         var trim = trim
@@ -279,7 +287,7 @@ extension TimelineGesture {
             .commit(
                 GestureCommit(
                     base: press.base, result: trim.preview, selection: .clips(ClipSet(trim.clip.id)), marker: nil,
-                    ripple: trim.ripple))
+                    ripple: trim.ripple != .none))
         ]
     }
 }

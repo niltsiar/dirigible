@@ -411,6 +411,7 @@
 "timeline.readout.range.gain" = "Range Gain %@ dB";
 "timeline.readout.roll" = "Roll %@ ms";
 "timeline.readout.slip" = "Slip %@ ms";
+"timeline.readout.stopped" = "Stopped at a neighbor clip";
 "timeline.help.roll.slip" = "Shift-Command drag: roll an edit or slip a clip";
 
 /* View and Edit items of the timeline (decision 0017) */

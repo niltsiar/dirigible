@@ -104,6 +104,8 @@ final class ReadoutLayer: CATextLayer {
         case .slip(let move):
             return String(
                 format: value(.timelineReadoutSlip), milliseconds(move, rate: rate, locale: locale, signed: true))
+        case .stopped:
+            return value(.timelineReadoutStopped)
         }
     }
 

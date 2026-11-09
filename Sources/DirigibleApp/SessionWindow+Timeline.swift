@@ -50,6 +50,7 @@ extension SessionWindow {
                 Task { await studio.perform(.seek(.frame(frame))) }
             case .currentMarker(let id): timeline.marker = id
             case .beep: beep()
+            case .stopAnnouncement: postAnnouncement(L10n.timelineReadoutStopped.text, priority: .high)
             case .commit(let commit):
                 guard edit(ripple: commit.ripple, { session in commit.apply(to: &session) }) == true else { continue }
                 if let selection = commit.selection { timeline.selection = selection }
@@ -225,6 +226,7 @@ extension SessionWindow {
 
     /// View > Snap, the app preference: the one predicate of the gesture context and the toolbar.
     var snaps: Bool { app?.snaps == true }
+    var dragMode: DragMode { app?.dragMode ?? .overwrite }
 
     /// Runs a timeline command on this window.
     func run(_ command: TimelineCommand) {

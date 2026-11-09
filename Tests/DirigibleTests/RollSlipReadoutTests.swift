@@ -32,6 +32,17 @@ import Testing
         #expect(text(.roll(59_232_000), es, "es") == "Punto de edición +1.234.000 ms")
     }
 
+    /// C41: the stop of a No Overlap drag. Control: a key missing from a table gives "".
+    @Test func theReadoutSaysTheClipStopped() throws {
+        for (language, text) in [("en", "Stopped at a neighbor clip"), ("es", "Detenido en un clip vecino")] {
+            let table = try stringsTable(language)
+            let shown = ReadoutLayer.text(.stopped, rate: 48_000, locale: Locale(identifier: language)) {
+                table[$0.rawValue] ?? ""
+            }
+            #expect(shown == text)
+        }
+    }
+
     /// C28: the readout layer shows during a drag of `standaloneLanes` and hides at the mouse-up.
     @Test func theReadoutLeavesWithTheDrag() async throws {
         let (model, studio) = try await timelineModel(

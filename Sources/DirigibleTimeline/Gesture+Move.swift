@@ -15,6 +15,14 @@ extension TimelineGesture {
         /// The snap targets: every clip but this one.
         let snap: Snap
         var guide: Frames? = nil
+        /// No Overlap: the free starts on the target track (`Session.freeSpan`), and whether the
+        /// last event clamped the start to them.
+        var span: (track: TrackID, starts: ClosedRange<Frames>)? = nil
+        var stopped = false
+        /// Shuffle: the tracks of the mouse-down with the gap of the clip closed, made at the first
+        /// drag event. The drop edge reads its target lane. Only the tracks: the debug frames of
+        /// `drag` and `handle` grow with `State`, and a whole Session here overflows a test thread.
+        var closed: [Track]? = nil
     }
 
     /// A group move: the selected clips at the down with their lanes, one frame offset and one lane
@@ -29,6 +37,8 @@ extension TimelineGesture {
         /// The snap targets: every clip that is not in the group.
         let snap: Snap
         var guide: Frames? = nil
+        /// No Overlap: the last event would cover a clip, so the preview is the last free one.
+        var stopped = false
     }
 
     /// The drag of the clip at the down: a group move when the selection holds the clip and 2 or
@@ -76,14 +86,17 @@ extension TimelineGesture {
             return []
         }
         var preview = base
-        // The clamps and the layout check run first, so no gesture input reaches a throw. A throw
-        // keeps the last preview (decision 0020) with no guide: its edge can be off the target.
-        guard (try? preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta)) != nil else {
+        // The clamps and the layout check run first, so only a No Overlap cover reaches a throw. A
+        // throw keeps the last preview (decision 0020) with no guide: its edge can be off the target.
+        do throws(SessionError) {
+            try preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta, mode: context.dragMode.overlap)
+        } catch {
             group.guide = nil
+            if case .overlap = error { group.stopped = true }
             state = .grouping(press, group)
             return []
         }
-        (group.offset, group.lanes, group.preview) = (offset, delta, preview)
+        (group.offset, group.lanes, group.preview, group.stopped) = (offset, delta, preview, false)
         state = .grouping(press, group)
         return []
     }
@@ -115,28 +128,89 @@ extension TimelineGesture {
         let base = press.base
         let (delta, target) = Snap.snapped(
             move.snap, press.delta(to: x, geometry), [move.clip.start, move.clip.end], context)
-        let start = min(max(.zero, move.clip.start + delta), .limit - move.clip.length)
+        var start = min(max(.zero, move.clip.start + delta), .limit - move.clip.length)
         move.guide = Snap.guide(target, on: [start, start + move.clip.length])
         // Half a lane of vertical movement changes the lane; a lane of another layout keeps it.
         let lane = min(
             max(0, move.lane + Int(((y - press.y) / geometry.laneHeight).rounded())), base.tracks.count - 1)
         let source = base.tracks[move.lane]
         let track = base.tracks[lane].layout == source.layout ? base.tracks[lane].id : source.id
+        var effects: [GestureEffect] = []
+        switch context.dragMode {
+        case .noOverlap:
+            guard let stop = noOverlapStart(&move, start, on: track, base) else {
+                state = .moving(press, move)
+                return []
+            }
+            if stop.stopped, !move.stopped { effects = [.stopAnnouncement] }
+            move.stopped = stop.stopped
+            start = stop.start
+        case .shuffle:
+            if move.closed == nil {
+                var closed = base
+                guard (try? closed.rippleDelete([move.clip.range], on: [source.id], naming: [source.id])) != nil else {
+                    state = .moving(press, move)
+                    return []
+                }
+                move.closed = closed.tracks
+            }
+            if let closed = move.closed, let edge = Self.dropEdge(start, on: track, in: closed) {
+                (start, move.guide) = (edge, edge)
+            }
+        case .overwrite, .crossfade: break
+        }
         guard (track, start) != (move.track, move.start) else {
             state = .moving(press, move)
-            return []
+            return effects
         }
         var preview = base
-        // No gesture input reaches a throw (the clamp and the layout check run first). A throw
-        // keeps the last preview (decision 0020) with no guide: its edge can be off the target.
-        guard (try? preview.move(move.clip.id, to: track, start: start)) != nil else {
+        // The clamps, the free span, and the layout check run first, so no gesture input reaches a
+        // throw. A throw keeps the last preview (decision 0020) with no guide: its edge can be off
+        // the target.
+        do throws(SessionError) {
+            if context.dragMode == .shuffle {
+                try preview.shuffle(move.clip.id, to: track, start: start)
+            } else {
+                try preview.move(move.clip.id, to: track, start: start, mode: context.dragMode.overlap)
+            }
+        } catch {
             move.guide = nil
             state = .moving(press, move)
-            return []
+            return effects
         }
         (move.track, move.start, move.preview) = (track, start, preview)
         state = .moving(press, move)
-        return []
+        return effects
+    }
+
+    /// The No Overlap start of a move to `start` on `track`: clamped into one free span of the
+    /// track, so the clip stops at its neighbors (U-L4b). The own track keeps the span of the
+    /// mouse-down start; another track keeps the span near the first start on it (U56). At a stop
+    /// the guide is at the edge that touches the neighbor. Nil when the track has no free span.
+    func noOverlapStart(_ move: inout Move, _ start: Frames, on track: TrackID, _ base: Session)
+        -> (start: Frames, stopped: Bool)?
+    {
+        if move.span?.track != track {
+            let near = track == base.tracks[move.lane].id ? move.clip.start : start
+            guard let starts = try? base.freeSpan(of: move.clip.id, on: track, near: near) else { return nil }
+            move.span = (track, starts)
+        }
+        guard let starts = move.span?.starts else { return nil }
+        let clamped = min(max(start, starts.lowerBound), starts.upperBound)
+        guard clamped != start else { return (start, false) }
+        move.guide = clamped == starts.upperBound ? clamped + move.clip.length : clamped
+        return (clamped, true)
+    }
+
+    /// The Shuffle drop of a wanted `start` on `track` of the `closed` tracks: the nearer edge of
+    /// the clip that `start` cuts, and the clip start for a tie, so a drop never splits a clip
+    /// (U44). Nil when `start` cuts no clip.
+    static func dropEdge(_ start: Frames, on track: TrackID, in closed: [Track]) -> Frames? {
+        guard let lane = closed.first(where: { $0.id == track })?.clips,
+            let index = lane.index(cutting: start)
+        else { return nil }
+        let clip = lane[index]
+        return start - clip.start <= clip.end - start ? clip.start : clip.end
     }
 
     /// A mouse-up under the threshold. On a clip: the clip as a set of one clip, no seek; with Command,
@@ -179,7 +253,7 @@ extension TimelineGesture {
             .commit(
                 GestureCommit(
                     base: press.base, result: move.preview, selection: .clips(ClipSet(move.clip.id)), marker: nil,
-                    ripple: false))
+                    ripple: context.dragMode == .shuffle))
         ]
     }
 }

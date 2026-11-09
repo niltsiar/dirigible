@@ -19,10 +19,17 @@ extension TimelineGesture {
         /// last event clamped the start to them.
         var span: (track: TrackID, starts: ClosedRange<Frames>)? = nil
         var stopped = false
-        /// Shuffle: the tracks of the mouse-down with the gap of the clip closed, made at the first
-        /// drag event. The drop edge reads its target lane. Only the tracks: the debug frames of
-        /// `drag` and `handle` grow with `State`, and a whole Session here overflows a test thread.
-        var closed: [Track]? = nil
+        /// Shuffle: the session of the mouse-down with the gap of the clip closed, made at the first
+        /// drag event. The drop edge reads its target lane, and each event drops the clip on it. A
+        /// reference: the debug frames of `drag` and `handle` grow with `State`, and a whole Session
+        /// here overflows a test thread.
+        var closed: Closed? = nil
+    }
+
+    /// A session on the heap, for `Move.closed`.
+    final class Closed: Sendable {
+        let session: Session
+        init(_ session: Session) { self.session = session }
     }
 
     /// A group move: the selected clips at the down with their lanes, one frame offset and one lane
@@ -152,9 +159,9 @@ extension TimelineGesture {
                     state = .moving(press, move)
                     return []
                 }
-                move.closed = closed.tracks
+                move.closed = Closed(closed)
             }
-            if let closed = move.closed, let edge = Self.dropEdge(start, on: track, in: closed) {
+            if let closed = move.closed, let edge = Self.dropEdge(start, on: track, in: closed.session.tracks) {
                 (start, move.guide) = (edge, edge)
             }
         case .overwrite, .crossfade: break
@@ -169,7 +176,12 @@ extension TimelineGesture {
         // the target.
         do throws(SessionError) {
             if context.dragMode == .shuffle {
-                try preview.shuffle(move.clip.id, to: track, start: start)
+                // `shuffle` of the press session with the one close. Back at the clip start `shuffle`
+                // changes nothing; a drop on the closed session there moves each marker in the clip to its end.
+                if let closed = move.closed, (track, start) != (source.id, move.clip.start) {
+                    preview = closed.session
+                    try preview.shuffleDrop(move.clip, to: track, start: start)
+                }
             } else {
                 try preview.move(move.clip.id, to: track, start: start, mode: context.dragMode.overlap)
             }

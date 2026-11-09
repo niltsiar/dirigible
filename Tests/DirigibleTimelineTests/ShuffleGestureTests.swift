@@ -56,6 +56,28 @@ struct ShuffleGestureTests {
         ModeGesture.expectSame(result.session, expected)
     }
 
+    /// Each event previews `shuffle` of the press session to its target, also after a lane change
+    /// and back at the start of b, where the preview is the press session. Control: an event back
+    /// at the start of b that drops on the closed tracks (m2 goes to 144000).
+    @Test func eachEventOfAShuffleDragPreviewsTheShuffleOfThePressSession() throws {
+        let session = try Self.fixtureS()
+        let events = [
+            (170_000, 0, "t1", 192_000), (264_000, 0, "t1", 240_000), (170_000, 1, "t2", 0), (96_000, 0, "t1", 96_000),
+            (20_000, 0, "t1", 0),
+        ]
+        var g = ModeGesture(session, .shuffle)
+        g.down(120_000)
+        var expected = session
+        for (wanted, lane, track, drop) in events {
+            expected = session
+            try expected.shuffle("b", to: TrackID(track), start: Frames(drop))
+            _ = g.drag(wanted + 24_000, lane: lane)
+            ModeGesture.expectSame(g.drawn, expected)
+        }
+        let result = try #require(g.committed(g.up(20_000 + 24_000)))
+        ModeGesture.expectSame(result.session, expected)
+    }
+
     /// Control: a commit with `ripple: false`.
     @Test func aShuffleCommitIsARipple() throws {
         var g = ModeGesture(try Self.fixtureS(), .shuffle)

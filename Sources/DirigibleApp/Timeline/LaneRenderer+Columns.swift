@@ -160,6 +160,8 @@ struct LayerColumns {
     let pixelFrames: Double
     let columns: Range<Int>
     let gains: [Double]
+    /// The last display event that read or wrote these gains (`LaneRenderer.event`).
+    var event: Int
 
     func holds(_ clip: Clip, _ pixelFrames: Double) -> Bool {
         envelope == clip.envelope && ride == clip.ride && base == clip.offset - clip.start
@@ -169,25 +171,29 @@ struct LayerColumns {
 
 extension LaneRenderer {
     /// The highest sum of the gain layers of `clip` over the file frames of each of its `columns`,
-    /// absolute columns in `clipColumns`. The gains of the last draw serve when they come from the
-    /// same inputs and hold the columns. Else one walk; when only the columns differ (a scroll), the
+    /// absolute columns in `clipColumns`. The kept gains (`layerColumns`) serve when they come from
+    /// the same inputs and hold the columns. Else one walk; when only the columns differ (a scroll), the
     /// walk takes `margin` more columns on each side, in the clip.
     func columnGains(
         of clip: Clip, _ columns: Range<Int>, in clipColumns: Range<Int>, _ pixelFrames: Double, margin: Int
     ) -> ArraySlice<Double> {
-        let kept = layerColumns[clip.id].flatMap { $0.holds(clip, pixelFrames) ? $0 : nil }
+        let previous = layerColumns[clip.id]
+        if previous?.event != event { eventEntries += 1 }
+        let kept = previous.flatMap { $0.holds(clip, pixelFrames) ? $0 : nil }
         if let kept, kept.columns.lowerBound <= columns.lowerBound, columns.upperBound <= kept.columns.upperBound {
+            if kept.event != event { layerColumns[clip.id]?.event = event }
             let start = kept.columns.lowerBound
             return kept.gains[(columns.lowerBound - start)..<(columns.upperBound - start)]
         }
         let walked =
             kept == nil ? columns : (columns.lowerBound - margin..<columns.upperBound + margin).clamped(to: clipColumns)
         let base = clip.offset - clip.start
+        walks += 1
         var envelope = ColumnEnvelope(
             layers: [clip.envelope, clip.ride], first: Double(base.count), step: pixelFrames, from: walked.lowerBound)
         let entry = LayerColumns(
             envelope: clip.envelope, ride: clip.ride, base: base, pixelFrames: pixelFrames, columns: walked,
-            gains: walked.map { envelope.gain($0) })
+            gains: walked.map { envelope.gain($0) }, event: event)
         layerColumns[clip.id] = entry
         return entry.gains[(columns.lowerBound - walked.lowerBound)..<(columns.upperBound - walked.lowerBound)]
     }

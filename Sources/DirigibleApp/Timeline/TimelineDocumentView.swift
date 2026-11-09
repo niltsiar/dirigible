@@ -309,12 +309,14 @@ final class TimelineDocumentView: NSView {
         (pending, pendingShift) = ([], nil)
         let live = studio.map { LiveLanes($0, head: liveHead) } ?? LiveLanes()
         let drawn: PixelRect
-        switch surfaces.show(
-            lanes, changed: dirty.map { lanes.pixels(of: $0) }, shift: shift,
-            draw: { region in
-                Self.drawLanes(renderer, inputs, palette, live: live, into: region)
-            })
-        {
+        let shown = renderer.display {
+            surfaces.show(
+                lanes, changed: dirty.map { lanes.pixels(of: $0) }, shift: shift,
+                draw: { region in
+                    Self.drawLanes(renderer, inputs, palette, live: live, into: region)
+                })
+        }
+        switch shown {
         case .drawn(let rect): drawn = rect
         case .unchanged: return
         case .refused:

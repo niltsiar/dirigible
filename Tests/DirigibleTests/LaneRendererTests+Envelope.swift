@@ -227,4 +227,67 @@ extension LaneRendererTests {
             previous = inputs
         }
     }
+
+    /// The lanes of `session(length:)` at 256 frames per point, with the same ride on `c1` and `c2`
+    /// and a full peak in each column.
+    static func riddenInputs(length: Int) throws -> LaneInputs {
+        var session = try Self.session(length: length)
+        let ride = try #require(
+            GainEnvelope(
+                [(0, -6.0), (length / 2, -6), (length / 2 + 1, 4), (length, 4)].map {
+                    GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!)
+                }))
+        try session.setRides(["c1": ride, "c2": ride])
+        return Self.inputs(session, peaks: Array(repeating: PeakColumn(peak: 65535, rms: 0), count: length / 256))
+    }
+
+    /// A draw of unchanged clips reads the kept layer gains and walks no layer.
+    @Test func aSecondDrawOfUnchangedClipsWalksNoLayer() throws {
+        let inputs = try Self.riddenInputs(length: Self.envelopeLength)
+        let pixels = OwnedPixels(try #require(laneWindow(inputs, width: 400)))
+        let renderer = LaneRenderer()
+        pixels.draw { renderer.draw(inputs, .light, into: $0) }
+        #expect(renderer.walks == 2)
+        pixels.draw { renderer.draw(inputs, .light, into: $0) }
+        #expect(renderer.walks == 2)
+    }
+
+    /// A scroll draws only the new columns. The first scroll past the kept columns walks once,
+    /// with one window width more on each side, so the next scroll in that width walks no layer.
+    @Test func aScrollWalksOnceThenReadsTheKeptColumns() throws {
+        let inputs = try Self.riddenInputs(length: 4 * Self.envelopeLength)
+        let renderer = LaneRenderer()
+        var walks: [Int] = []
+        for (x, strip) in [(0.0, 0..<400), (60, 400..<460), (120, 460..<520), (0, 0..<60)] {
+            let window = try #require(laneWindow(inputs, x: x, width: 400))
+            let before = renderer.walks
+            OwnedPixels(window).draw(PixelRect(columns: strip, rows: window.pixels.rows)) {
+                renderer.draw(inputs, .light, into: $0)
+            }
+            walks.append(renderer.walks - before)
+        }
+        #expect(walks == [2, 2, 0, 0])
+    }
+
+    /// One display event draws a part on each lane, as `LaneSurfaces.show` draws them. The part of
+    /// one lane keeps the layer gains of the other, so a second event walks no layer.
+    @Test func aSecondDisplayOfPartsOnTwoLanesWalksNoLayer() throws {
+        let inputs = try Self.riddenInputs(length: Self.envelopeLength)
+        let window = try #require(laneWindow(inputs, width: 400))
+        let pixels = OwnedPixels(window)
+        let renderer = LaneRenderer()
+        var walks: [Int] = []
+        for _ in 0..<3 {
+            let before = renderer.walks
+            renderer.display {
+                for lane in 0..<2 {
+                    pixels.draw(PixelRect(columns: window.pixels.columns, rows: window.rows(of: lane..<lane + 1))) {
+                        renderer.draw(inputs, .light, into: $0)
+                    }
+                }
+            }
+            walks.append(renderer.walks - before)
+        }
+        #expect(walks == [2, 0, 0])
+    }
 }

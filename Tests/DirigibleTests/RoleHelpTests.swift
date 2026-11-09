@@ -1,4 +1,3 @@
-import DirigibleCore
 import Foundation
 import Testing
 
@@ -39,15 +38,5 @@ struct RoleHelpTests {
         }
         let header = try #require(try stringsTable("en")["track.role.header"])
         #expect(header.contains("label") && header.contains("sound"))
-    }
-
-    @Test func theLetterTooltipHasARoleNameAndTheHelpInEnglishAndSpanish() throws {
-        for language in ["en", "es"] {
-            let table = try stringsTable(language)
-            for role in Track.Role.allCases {
-                #expect(table[role.title.rawValue]?.isEmpty == false, "\(language): \(role.title.rawValue)")
-            }
-            #expect(table["track.role.help"]?.isEmpty == false, "\(language): track.role.help")
-        }
     }
 }

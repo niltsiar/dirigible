@@ -250,7 +250,7 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
         let right = storage.remove(at: index + 1)
         clip.length = clip.length + right.length
         clip.envelope = .joined(clip.envelope, right.envelope, at: right.offset)
-        // `joined` builds a new array; equal lists keep the shared one (leveler C34).
+        // `joined` builds a new array; equal lists keep the shared one.
         if clip.ride != right.ride { clip.ride = .joined(clip.ride, right.ride, at: right.offset) }
         clip.fades = Fades(fadeIn: clip.fades.fadeIn, fadeOut: right.fades.fadeOut)!
         clip.crossfades = Crossfades(valid: clip.crossfades.start, end: right.crossfades.end)

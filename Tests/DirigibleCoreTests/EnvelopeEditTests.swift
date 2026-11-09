@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The edits keep the gain envelope and the ride layer (decision 0060, C2, leveler C28). Track "t1"
+/// The edits keep the gain envelope and the ride layer (decision 0060). Track "t1"
 /// (mono); files "fa" and "fb" of 60 000 frames.
 struct EnvelopeEditTests {
     static let fileLength = 60_000
@@ -17,7 +17,7 @@ struct EnvelopeEditTests {
         return session
     }
 
-    /// C2, C28: after each seeded edit, each file frame that plays before and after the edit at one
+    /// After each seeded edit, each file frame that plays before and after the edit at one
     /// place has the same layer gain (envelope plus ride). A clip after the edit compares with its source before it:
     /// the clip of the same ID, else of its ID up to the last "@" (split, clear, paste), and for a
     /// heal each clip of the same file map inside it. Points lie inside and outside each clip window.

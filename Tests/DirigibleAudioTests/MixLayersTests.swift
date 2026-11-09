@@ -4,7 +4,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The two gain layers of a clip in the mix (leveler C29 and C9): the envelope and the ride add in
+/// The two gain layers of a clip in the mix (decision 0060): the envelope and the ride add in
 /// dB, on the crossfade fixture of `MixTests.envelopedPackage` (A on the left channel, B on the
 /// right channel, each a DC 1 signal).
 struct MixLayersTests {
@@ -28,7 +28,7 @@ struct MixLayersTests {
         return out.count == expected.count ? worst : (.infinity, -1)
     }
 
-    /// C29: A has an envelope and a ride, B has a ride only, with clip and track gains, outer fades,
+    /// A has an envelope and a ride, B has a ride only, with clip and track gains, outer fades,
     /// and a crossfade. One reader renders the mix in parts of seeded sizes, and the offline Player
     /// plays it: each frame is 10^((clip gain + track gain + envelope + ride) / 20) times the fade
     /// factor within 1e-5 relative.
@@ -79,7 +79,7 @@ struct MixLayersTests {
     }
 
     #if DEBUG
-        /// C29: a part with no point in either layer and no fade keeps the one-gain path, and a clip
+        /// A part with no point in either layer and no fade keeps the one-gain path, and a clip
         /// with only a ride reads its layers once per part and plays the ride.
         @Test func noLayerKeepsTheOneGainPath() throws {
             let package = try MixPackage()
@@ -100,7 +100,7 @@ struct MixLayersTests {
         }
     #endif
 
-    /// C9: a stereo clip has one ride for both channels. The right channel is half the left
+    /// A stereo clip has one ride for both channels. The right channel is half the left
     /// channel in the source, and stays half of it after both layers; the left channel has the
     /// gain of the two layers.
     @Test func channelsShareTheLayers() throws {

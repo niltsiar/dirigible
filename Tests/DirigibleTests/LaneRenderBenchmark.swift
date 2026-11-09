@@ -230,7 +230,7 @@ extension LaneRenderBenchmark {
 }
 
 extension LaneRenderBenchmark {
-    /// Leveler C30 and U40: 6 lanes of 2 h, each clip with a ride of 18,954 points (the points of a
+    /// Ride gain layer: 6 lanes of 2 h, each clip with a ride of 18,954 points (the points of a
     /// decimated ride of 2 h) and a duck of 4 envelope points, so each column sums two layers. At
     /// fit zoom and at the closest zoom, each draw keeps the budget of a full draw.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))

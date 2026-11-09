@@ -15,7 +15,7 @@ macOS has no de-esser unit and no de-clip unit; it has AUHipass, AUNBandEQ, `AVA
 
 **D1. Own DSP stages.** The three effects are `vDSP` and Swift stages of `EffectChain`, not Apple units. The de-clip and the high-pass run on each source block before the player node, in that order; the de-ess runs on each output block after the latency drop and before the scale. Each stage keeps its state across blocks, has a latency in frames, and gives its held frames at the end. Each stage is the identity when it finds nothing to change.
 
-**D2. The chain order.** `Effect` cases, in chain order: declip, rumble, hum, noise, deess. The leveler and voice-match put ride and match after noise and before deess.
+**D2. The chain order.** `Effect` cases, in chain order: declip, rumble, hum, noise, deess. Voice-match puts match after noise and before deess. Level Over Time is not a chain stage: it is the ride layer of 0060.
 
 **D3. Reduce Rumble.** A 2nd-order Butterworth high-pass (12 dB per octave), RBJ coefficients, at a whole cutoff of 20 to 300 Hz, standard 80 Hz.
 

@@ -3,8 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The measure groups of Level Over Time (leveler C7c) and the ride layer under the edits (C28,
-/// C34). Tracks "t", "u", and "v" (stereo); files "f" and "g" of 2 h at 48 kHz.
+/// The measure groups of Level Over Time and the ride layer under the edits. Tracks "t", "u", and "v" (stereo); files "f" and "g" of 2 h at 48 kHz.
 struct SessionRideTests {
     static let twoHours = 345_600_000
     var session: Session
@@ -151,7 +150,7 @@ struct SessionRideTests {
         #expect(throws: SessionError.unknownClip("X")) { try current.rideGroups(["A", "X"]) }
     }
 
-    /// C28: a duck writes the envelope only; the ride stays equal.
+    /// A duck writes the envelope only; the ride stays equal.
     @Test mutating func duckKeepsTheRide() throws {
         try place("A", on: "t", start: 0, length: 1_000_000)
         try session.setRides(["A": Self.ride(500)])
@@ -163,7 +162,7 @@ struct SessionRideTests {
         #expect(!clip.envelope.isEmpty && clip.ride == Self.ride(500))
     }
 
-    /// C28: `setEnvelope` (`clip_envelope`) writes the envelope only; the ride stays equal.
+    /// `setEnvelope` (`clip_envelope`) writes the envelope only; the ride stays equal.
     @Test mutating func setEnvelopeKeepsTheRide() throws {
         try place("A", on: "t", start: 0, length: 1_000_000)
         try session.setRides(["A": Self.ride(500)])
@@ -174,7 +173,7 @@ struct SessionRideTests {
         #expect(clip.envelope == envelope([(100_000, -6)]) && clip.ride == Self.ride(500))
     }
 
-    /// C28: two parts with other ride lists do not heal; with equal lists they heal to the list.
+    /// Two parts with other ride lists do not heal; with equal lists they heal to the list.
     @Test mutating func healNeedsEqualRides() throws {
         try place("A", on: "t", start: 0, length: 1_000_000)
         try session.setRides(["A": Self.ride(500)])
@@ -194,7 +193,7 @@ struct SessionRideTests {
         Set(clips.map { $0.ride.points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } })
     }
 
-    /// C34: each edit that maps ride lists maps each distinct list once, so the 200 parts of A keep
+    /// Each edit that maps ride lists maps each distinct list once, so the 200 parts of A keep
     /// one array, and B (another list) keeps its own. A heal of parts with one list keeps the array.
     @Test mutating func repointKeepsOneListForEachDistinctList() throws {
         let (a, b) = (Self.ride(1_000), Self.ride(1_000, shift: 0.01))

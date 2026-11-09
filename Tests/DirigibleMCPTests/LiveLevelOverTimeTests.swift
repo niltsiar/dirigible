@@ -7,7 +7,7 @@ import Testing
 @testable import DirigibleMCP
 
 /// `clip_level_over_time` on a package that the app has open: it runs through `Studio.levelOverTime`
-/// and `Studio.removeLevelOverTime` (decisions 0049 and 0064, criterion C15). Track `t3` "Voice" (mono)
+/// and `Studio.removeLevelOverTime` (decisions 0049 and 0060). Track `t3` "Voice" (mono)
 /// holds clip `n1` of 3 s of `nv.wav`: 1.5 s of a loud tone, then 1.5 s of a quiet one.
 @MainActor
 struct LiveLevelOverTimeTests {
@@ -35,7 +35,7 @@ struct LiveLevelOverTimeTests {
 
     func names() throws -> [String] { try FileManager.default.contentsOfDirectory(atPath: clips.path).sorted() }
 
-    /// C15: the reply is the line of the clip, the ride is one undo step with the agent name, and no
+    /// The reply is the line of the clip, the ride is one undo step with the agent name, and no
     /// file is written.
     @Test func rideRunsInTheStudio() async throws {
         let studio = try await package.open()
@@ -56,7 +56,7 @@ struct LiveLevelOverTimeTests {
         await studio.settle()
     }
 
-    /// C32: `clear` runs in the studio too: the reply names the removed ride, and the remove is one
+    /// `clear` runs in the studio too: the reply names the removed ride, and the remove is one
     /// undo step that brings the ride back.
     @Test func clearRunsInTheStudio() async throws {
         let studio = try await package.open()

@@ -54,7 +54,7 @@ struct EnvelopePointsTests {
         #expect(try shown([56_000: -6]) { try $0.trim("A", to: 48_000..<78_000) }.count == 1, "62.5 pt")
     }
 
-    /// Leveler C30: on a ridden clip, the gain line and the disc of a manual point follow the heard
+    /// On a ridden clip, the gain line and the disc of a manual point follow the heard
     /// gain, the envelope plus the ride. The ride falls from 0 dB to -12 dB over the file frames of A.
     @Test func lineFollowsTheHeardGain() throws {
         var session = try Fixture.session()

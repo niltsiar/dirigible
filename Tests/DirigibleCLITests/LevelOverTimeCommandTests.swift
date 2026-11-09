@@ -3,7 +3,7 @@ import DirigibleCore
 import Foundation
 import Testing
 
-/// `dirigible clip level-over-time` (decision 0064, criteria C14 and C32): the ride gain layer.
+/// `dirigible clip level-over-time` (decision 0060): the ride gain layer.
 struct LevelOverTimeCommandTests {
     static let rate = 48_000
 
@@ -76,7 +76,7 @@ struct LevelOverTimeCommandTests {
             "\(id): leveled, \(String(format: "%.1f", lowest)) to \(String(format: "%.1f", highest)) dB, \(points) points"
     }
 
-    /// C14: one line for each clip with the lowest and the highest ride gain and the point count. The
+    /// One line for each clip with the lowest and the highest ride gain and the point count. The
     /// louder clip is cut and the quieter one is lifted. No file is written, no clip moves, and the
     /// original gain points stay.
     @Test func ridesAndPrints() async throws {
@@ -97,7 +97,7 @@ struct LevelOverTimeCommandTests {
         #expect(DenoiseCommandTests.clips(package) == before, "a ride writes no audio file")
     }
 
-    /// C14: a clip on silence prints "no measurement" and has no ride; the other group is leveled. A
+    /// A clip on silence prints "no measurement" and has no ride; the other group is leveled. A
     /// run with no measurement writes nothing.
     @Test func unmeasuredClipPrints() async throws {
         let mixed = try Self.apart()
@@ -119,7 +119,7 @@ struct LevelOverTimeCommandTests {
         #expect(try silent.xml() == before, "a run with no measurement wrote")
     }
 
-    /// C14: an unknown clip exits 1 with the text of the session and changes nothing.
+    /// An unknown clip exits 1 with the text of the session and changes nothing.
     @Test func unknownClipExits1() async throws {
         let package = try Self.touching()
         let before = try package.xml()
@@ -131,7 +131,7 @@ struct LevelOverTimeCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// C14: a source that does not read exits 1 with the read error text and changes nothing.
+    /// A source that does not read exits 1 with the read error text and changes nothing.
     @Test func unreadableExits1() async throws {
         let package = try Self.touching()
         try FileManager.default.removeItem(at: package.url.appending(path: "Clips/f1.wav"))
@@ -145,7 +145,7 @@ struct LevelOverTimeCommandTests {
         #expect(try package.xml() == before)
     }
 
-    /// C14: Control-C after the measure leaves `session.xml` as it was and exits 130 with nothing on
+    /// Control-C after the measure leaves `session.xml` as it was and exits 130 with nothing on
     /// stdout. The child holds after the measure and says so on stderr (`DIRIGIBLE_RIDE_HOLD`), so the
     /// signal comes before the save at any load.
     @Test func interruptWritesNothing() async throws {
@@ -183,7 +183,7 @@ struct LevelOverTimeCommandTests {
         #expect(DenoiseCommandTests.clips(package) == before.1)
     }
 
-    // MARK: Remove (C32)
+    // MARK: Remove
 
     /// A 60 s file `f1`; the ride lists need no audio, and `--clear` reads none. The old ride is the
     /// line through a point each 5 s with 1 dB more each time.
@@ -209,7 +209,7 @@ struct LevelOverTimeCommandTests {
         return try TemporaryPackage(session)
     }
 
-    /// C14: `--clear` empties the ride of each named clip, reads no audio, and prints "ride removed", or
+    /// `--clear` empties the ride of each named clip, reads no audio, and prints "ride removed", or
     /// "no ride" for a clip with none.
     @Test func clearPrints() async throws {
         let package = try Self.ridden([("c1", "t1", 0, 0, 30), ("c2", "t1", 30, 30, 30)], bare: ["c2"])
@@ -234,7 +234,7 @@ struct LevelOverTimeCommandTests {
         #expect(try package.read().clip("c1")?.clip.ride == (try Self.old()))
     }
 
-    /// C14 and C32: `--clear --from --to` makes the ride 0 dB on the range and keeps the old ride outside the
+    /// `--clear --from --to` makes the ride 0 dB on the range and keeps the old ride outside the
     /// range and its 500 ms ramps.
     @Test func clearOnARangePrints() async throws {
         let package = try Self.ridden([("c1", "t1", 0, 0, 60)])
@@ -256,7 +256,7 @@ struct LevelOverTimeCommandTests {
         }
     }
 
-    /// C32 (round 2 item 4): a clip that plays a changed file frame and is not named keeps its list
+    /// A clip that plays a changed file frame and is not named keeps its list
     /// exactly: part B of an unmoved split.
     @Test func clearOnARangeKeepsAnUnnamedClip() async throws {
         let package = try Self.ridden([("c1", "t1", 0, 0, 30), ("c2", "t1", 30, 30, 30)])
@@ -272,7 +272,7 @@ struct LevelOverTimeCommandTests {
         #expect(session.clip("c1")?.clip.ride != old)
     }
 
-    /// C32 (round 2 item 4): a clip with the same list that plays no file frame of the changed range is
+    /// A clip with the same list that plays no file frame of the changed range is
     /// not named, gets the new list, and hears the same gain.
     @Test func clearOnARangeGivesTheNewListToAClipWithNoChangedFrame() async throws {
         let package = try Self.ridden([("c1", "t1", 0, 0, 30), ("c3", "t2", 100, 40, 20)])
@@ -291,7 +291,7 @@ struct LevelOverTimeCommandTests {
         }
     }
 
-    /// C32: `--from` with no `--clear` exits 64 and changes nothing.
+    /// `--from` with no `--clear` exits 64 and changes nothing.
     @Test func fromWithoutClearExits64() async throws {
         let package = try Self.ridden([("c1", "t1", 0, 0, 30)])
         let before = try package.xml()

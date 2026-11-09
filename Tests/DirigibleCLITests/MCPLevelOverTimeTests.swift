@@ -6,10 +6,10 @@ import os
 @testable import DirigibleAudio
 @testable import DirigibleMCP
 
-/// The `clip_level_over_time` tool of `dirigible mcp` on the files (decisions 0049 and 0064, criterion
-/// C15). The packages of `LevelOverTimeCommandTests`; the tool and the command each get their own copy.
+/// The `clip_level_over_time` tool of `dirigible mcp` on the files (decisions 0049 and 0060). The packages of
+/// `LevelOverTimeCommandTests`; the tool and the command each get their own copy.
 struct MCPLevelOverTimeTests {
-    /// C15: the tool gives the lines of the command and the same session, also for a clip with no
+    /// The tool gives the lines of the command and the same session, also for a clip with no
     /// measurement and for `clear` on a range.
     @Test func toolMatchesCommand() async throws {
         let (cli, tool) = (try LevelOverTimeCommandTests.apart(), try LevelOverTimeCommandTests.apart())
@@ -35,7 +35,7 @@ struct MCPLevelOverTimeTests {
         #expect(try cli.holdsTheSameSession(as: tool), "the range remove differs")
     }
 
-    /// C15: a cancel before the read, in the middle of it, and at the last check leaves the same
+    /// A cancel before the read, in the middle of it, and at the last check leaves the same
     /// `session.xml`: the call gets no answer and no ride.
     @Test func cancelWritesNothing() throws {
         func control(stopAt stop: Int, polls: OSAllocatedUnfairLock<Int>) -> CallControl {

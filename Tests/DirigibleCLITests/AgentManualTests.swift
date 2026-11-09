@@ -341,7 +341,7 @@ struct AgentManualTests {
         #expect(Self.steps("add-sound").contains("`import`"))
     }
 
-    /// C16 (plan gate 4 item 4): the `check-levels` steps stay as on main, and its summary (the skill text
+    /// The `check-levels` steps stay as on main, and its summary (the skill text
     /// and the prompt description) and the tool description of `clip_level_over_time` name the trigger of
     /// the ride. The whole manual has the steps only, so it stays at 6000 characters or less.
     @Test func theLevelsRecipeNamesTheRide() throws {

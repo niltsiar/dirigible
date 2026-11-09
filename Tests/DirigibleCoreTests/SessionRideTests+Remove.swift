@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// Remove Level Over Time on a range (leveler C32): a ridden 60 s clip, remove on 20..30 s with
+/// Remove Level Over Time on a range: a ridden 60 s clip, remove on 20..30 s with
 /// the 500 ms ramp.
 extension SessionRideTests {
     static let removeRange: Range<Frames> = 960_000..<1_440_000

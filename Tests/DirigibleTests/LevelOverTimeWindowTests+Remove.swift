@@ -6,9 +6,9 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleCore
 
-/// Tools > Remove Level Over Time in the session window (criterion C32 of the leveler run).
+/// Tools > Remove Level Over Time in the session window.
 extension LevelOverTimeWindowTests {
-    /// C32: a ridden clip is on for Remove Level Over Time, and one remove is one undo step that
+    /// A ridden clip is on for Remove Level Over Time, and one remove is one undo step that
     /// empties the ride. Redo gives the empty ride again.
     @Test func removeIsOneUndoEntry() async throws {
         let (model, studio, _) = try await open()
@@ -48,7 +48,7 @@ extension LevelOverTimeWindowTests {
         await model.close()
     }
 
-    /// C32: with no ridden clip in the selection, the item is off, the command beeps, and no undo
+    /// With no ridden clip in the selection, the item is off, the command beeps, and no undo
     /// entry is made. Controls: the same selection after a ride is on; a state off during a take.
     @Test func removeIsOffWithNoRide() async throws {
         let (model, studio, _) = try await open()
@@ -79,7 +79,7 @@ extension LevelOverTimeWindowTests {
         await model.close()
     }
 
-    /// C32 (plan gate 6 item 4): with a time range, the remove acts on the range of the selection
+    /// With a time range, the remove acts on the range of the selection
     /// on the selected tracks: 0 dB at each frame of the range, the old ride 500 ms outside it.
     /// A ridden clip on an unselected track keeps its ride, and a range past the clip (also past
     /// the 500 ms ramp) leaves the item off.

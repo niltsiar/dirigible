@@ -5,12 +5,12 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The job rules of Level Over Time (C6, C10 to C12b, C32): fixture A with a passage at -10 dB.
+/// The job rules of Level Over Time: fixture A with a passage at -10 dB.
 @MainActor
 struct StudioRideJobTests {
     static let speech = rideSpeech(seconds: 40) { (12..<28).contains($0) ? -10 : 0 }
 
-    /// C12b: a second ride with no change between writes equal lists, so no save and no undo
+    /// A second ride with no change between writes equal lists, so no save and no undo
     /// entry; one Undo then gives the clip with no ride.
     @Test func secondRideChangesNothing() async throws {
         let fixture = try await RideFixture(Self.speech)
@@ -25,7 +25,7 @@ struct StudioRideJobTests {
         #expect(undone.isEmpty && !fixture.studio.canUndo, "a second ride made an undo entry")
     }
 
-    /// C12b: a manual lift between two rides gives a new layer from the new envelope.
+    /// A manual lift between two rides gives a new layer from the new envelope.
     @Test func rideAfterAManualPointMeasuresIt() async throws {
         let fixture = try await RideFixture(Self.speech)
         try await fixture.ride()
@@ -40,7 +40,7 @@ struct StudioRideJobTests {
         #expect(new < old - 2, "lifted twice: ride at 20 s \(old) before the lift, \(new) after it")
     }
 
-    /// C10: a silent clip gets no ride (its old ride goes) and is listed as unmeasured.
+    /// A silent clip gets no ride (its old ride goes) and is listed as unmeasured.
     @Test func silentClipGetsNoRide() async throws {
         let fixture = try await RideFixture(
             Self.speech,
@@ -55,7 +55,7 @@ struct StudioRideJobTests {
         #expect(try #require(studio.session.clip("c2")).clip.ride.isEmpty, "a ride point on the silent clip")
     }
 
-    /// C10: a ride of silent clips with no ride saves nothing and records no undo entry.
+    /// A ride of silent clips with no ride saves nothing and records no undo entry.
     @Test func allSilentMakesNoUndo() async throws {
         let fixture = try await RideFixture([Float](repeating: 0, count: 480_000))
         let bytes = try fixture.sessionBytes()
@@ -65,14 +65,14 @@ struct StudioRideJobTests {
         #expect(!fixture.studio.canUndo && saved == bytes, "a silent ride changed the session")
     }
 
-    /// C11: a source that ends early stops the ride with the fault of its file; nothing changes.
+    /// A source that ends early stops the ride with the fault of its file; nothing changes.
     @Test func readFaultWritesNothing() async throws {
         let fixture = try await RideFixture(Self.speech)
         let frames = try fixture.package.truncate("f1", toBytes: 1_000_000)
         try await expectNoChange(fixture, .rideFault("f1", .short(Frames(frames))))
     }
 
-    /// C11: the banner Cancel during the read throws `.rideCancelled`; nothing changes.
+    /// The banner Cancel during the read throws `.rideCancelled`; nothing changes.
     @Test func cancelWritesNothing() async throws {
         let fixture = try await RideFixture(Self.speech)
         let gate = AsyncGate()
@@ -89,7 +89,7 @@ struct StudioRideJobTests {
         #expect(try fixture.sessionBytes() == before.1, "a cancelled ride saved")
     }
 
-    /// C6: a NaN in the source stops the ride with `.unreadable`; nothing changes.
+    /// A NaN in the source stops the ride with `.unreadable`; nothing changes.
     @Test func nonFiniteSourceWritesNothing() async throws {
         var samples = Self.speech
         samples[100_000] = .nan
@@ -97,7 +97,7 @@ struct StudioRideJobTests {
         try await expectNoChange(fixture, .rideFault("f1", .unreadable))
     }
 
-    /// C12: a ride holds the `.riding` transport and refuses an edit; then it is one undo entry:
+    /// A ride holds the `.riding` transport and refuses an edit; then it is one undo entry:
     /// Undo gives the clip with no ride and Redo the ride, with no read.
     @Test func rideIsOneUndoEntry() async throws {
         let fixture = try await RideFixture(Self.speech)
@@ -117,7 +117,7 @@ struct StudioRideJobTests {
         #expect(try fixture.clip().ride == ridden, "Redo did not give the ride")
     }
 
-    /// C12: a ride during a take throws `busy`, changes nothing, and the take goes on.
+    /// A ride during a take throws `busy`, changes nothing, and the take goes on.
     @Test func busyDuringTake() async throws {
         let fixture = try await RideFixture(Self.speech) { session in
             try session.setRoute(Route.device(uid: "mic", channels: .mono(1)), track: "t1")
@@ -132,7 +132,7 @@ struct StudioRideJobTests {
         try await studio.stopRecording()
     }
 
-    /// C32: Remove Level Over Time on whole clips is one undo entry with no read; a remove with no
+    /// Remove Level Over Time on whole clips is one undo entry with no read; a remove with no
     /// ride changes nothing and records no entry.
     @Test func removeIsOneUndoEntry() async throws {
         let ride = GainEnvelope([.init(frame: 24_000, gain: Gain(dB: 4)!), .init(frame: 96_000, gain: Gain(dB: -2)!)])!
@@ -145,7 +145,7 @@ struct StudioRideJobTests {
         #expect(undone == ride && !fixture.studio.canUndo, "the remove is not one entry")
     }
 
-    /// C32: Remove Level Over Time on a range is one undo entry: 0 dB in the range, and one Undo
+    /// Remove Level Over Time on a range is one undo entry: 0 dB in the range, and one Undo
     /// gives the old list.
     @Test func removeOnARangeIsOneUndoEntry() async throws {
         let ride = GainEnvelope([.init(frame: 24_000, gain: Gain(dB: 4)!), .init(frame: 960_000, gain: Gain(dB: -2)!)])!

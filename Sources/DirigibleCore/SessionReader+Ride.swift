@@ -1,6 +1,6 @@
 import Foundation
 
-/// The ride lists of `<rides>` (leveler C20), by ID, from `rideSessionVersion` on. A list with a
+/// The ride lists of `<rides>` (decision 0060), by ID, from `rideSessionVersion` on. A list with a
 /// gain past `Gain.rideLimit` is refused.
 struct RideLists {
     private var lists: [String: GainEnvelope] = [:]
@@ -37,7 +37,7 @@ struct RideLists {
         guard named.count == lists.count else { throw .invalidValue(element: "ride", attribute: "id") }
     }
 
-    /// The points of a list: `<frame> <gain>` pairs with one space between numbers (C20). A frame is
+    /// The points of a list: `<frame> <gain>` pairs with one space between numbers. A frame is
     /// `[0-9]+` up to `Frames.limit`, and the frames ascend strictly. A gain is 32 bytes or fewer of
     /// `-?[0-9]+(\.[0-9]+)?(e[-+][0-9]+)?` and finite; it clamps to `Gain.range`. Nil for any other
     /// text. A gain with no exponent, 2 decimals or fewer, and 6 digits or fewer is its digits over

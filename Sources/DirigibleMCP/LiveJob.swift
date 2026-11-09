@@ -130,7 +130,7 @@ private func liveDuck(
 
 /// `clip_level_over_time` through `Studio.levelOverTime`, or with `clear`
 /// `Studio.removeLevelOverTime`: one undo step with the agent name. The banner Cancel or a cancel
-/// of the call ends it with no ride change (decisions 0049 and 0064).
+/// of the call ends it with no ride change (decisions 0049 and 0060).
 @MainActor
 private func liveRide(
     _ work: RideWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void

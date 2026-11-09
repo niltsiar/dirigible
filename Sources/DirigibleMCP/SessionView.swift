@@ -103,7 +103,7 @@ package struct SessionView: Encodable {
         }
     }
 
-    /// The ride layer of a clip (C21): the count of its points inside the clip window, and the
+    /// The ride layer of a clip: the count of its points inside the clip window, and the
     /// lowest and highest ride gain in the window, in dB at 0.1 dB.
     struct RideView: Encodable, Equatable {
         let points: Int

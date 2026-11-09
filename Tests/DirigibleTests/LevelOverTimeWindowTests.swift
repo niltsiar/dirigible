@@ -8,8 +8,7 @@ import Testing
 @testable import DirigibleAudio
 @testable import DirigibleCore
 
-/// Tools > Level Over Time and Remove Level Over Time in the session window (criteria C17, C18,
-/// C18b, and C32 of the leveler run). The tracks t1 (no role), t2 (dialogue), t3 (music), and t4
+/// Tools > Level Over Time and Remove Level Over Time in the session window. The tracks t1 (no role), t2 (dialogue), t3 (music), and t4
 /// (effects) each hold the clip c<n> of 3 s of the file `f1`, which has four levels
 /// (`ReduceNoiseWindowTests.rolesPackage`).
 @Suite(.serialized) @MainActor struct LevelOverTimeWindowTests {
@@ -52,7 +51,7 @@ import Testing
         await model.levelOverTime()
     }
 
-    /// C17: the item is on with an idle studio, no dialog, and a selection that holds a clip of any
+    /// The item is on with an idle studio, no dialog, and a selection that holds a clip of any
     /// track role. Controls: an empty selection, a range past the clips, a take, an import run, and
     /// a sheet turn it off. A selection of music clips only is on (fail: the noise role filter).
     @Test func menuStateForEachStartState() async throws {
@@ -82,7 +81,7 @@ import Testing
         await model.close()
     }
 
-    /// C17: a selection with no clip beeps and starts nothing; a selection of music clips only
+    /// A selection with no clip beeps and starts nothing; a selection of music clips only
     /// rides, and a clip on a track with no role rides too.
     @Test func noClipBeeps() async throws {
         let (model, studio, _) = try await open()
@@ -99,7 +98,7 @@ import Testing
         await model.close()
     }
 
-    /// C17: Shift-Command-L reaches the item of Tools > Level Over Time and no other item, in an
+    /// Shift-Command-L reaches the item of Tools > Level Over Time and no other item, in an
     /// AppKit menu of every menu item of the timeline. The key runs the command with the focus in a
     /// track name field (it is no typing key), and the clip gets a ride.
     @Test func keyReachesTheItem() async throws {
@@ -141,7 +140,7 @@ import Testing
         await model.close()
     }
 
-    /// C12 and C18: one Level Over Time on two clips is one undo step and gives a banner; a second
+    /// One Level Over Time on two clips is one undo step and gives a banner; a second
     /// run with no change gives the same rides, no undo entry, and a new banner.
     @Test func undoRedoAndSecondRun() async throws {
         let (model, studio, _) = try await open()
@@ -171,7 +170,7 @@ import Testing
         await model.close()
     }
 
-    /// C18: the banner text of the counts, in English and Spanish. N = 0 has no "Leveled" sentence;
+    /// The banner text of the counts, in English and Spanish. N = 0 has no "Leveled" sentence;
     /// the gain has its sign.
     @Test func resultBanner() throws {
         let tables = try ["en", "es"].map { try stringsTable($0) }
@@ -196,7 +195,7 @@ import Testing
         #expect(tables[1][L10n.rideCanceled.rawValue] == "Nivelación en el tiempo cancelada. Ningún clip cambió.")
     }
 
-    /// C18 (code gate 1 item 14): a largest gain that rounds to 0 dB has no "up to" part. The
+    /// A largest gain that rounds to 0 dB has no "up to" part. The
     /// sentence has no "+0 dB". Control: 1 dB keeps it.
     @Test func zeroGainHasNoUpTo() throws {
         let table = try stringsTable("en")
@@ -210,7 +209,7 @@ import Testing
         #expect(RideResult(RideReport(leveled: ["c1"], unmeasured: [], largestGain: Gain(dB: -2.6)!)).gain == -3)
     }
 
-    /// C18 (plan gate 4 item 5.2): one silent clip and two speech clips give "Leveled 2 clips" and
+    /// One silent clip and two speech clips give "Leveled 2 clips" and
     /// the sentence for one unmeasured clip. A silent clip alone gives no "Leveled" sentence, and
     /// no undo entry.
     @Test func resultBannerFromARun() async throws {
@@ -236,7 +235,7 @@ import Testing
         await model.close()
     }
 
-    /// C18b: the banner Cancel changes no clip, adds no undo step, shows no alert, and VoiceOver
+    /// The banner Cancel changes no clip, adds no undo step, shows no alert, and VoiceOver
     /// reads the Level Over Time cancel text once.
     @Test func cancelNamesTheCommand() async throws {
         let (model, studio, _) = try await open()
@@ -261,7 +260,7 @@ import Testing
         await model.close()
     }
 
-    /// C18b: the banner of the `.riding` transport and each error alert name Level Over Time.
+    /// The banner of the `.riding` transport and each error alert name Level Over Time.
     /// Fail: "Leveling clips" in the banner, or the general session text in an alert.
     @Test func runTextsNameTheCommand() throws {
         for language in ["en", "es"] {

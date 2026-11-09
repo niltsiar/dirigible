@@ -28,8 +28,8 @@ struct FileMap: Equatable {
     let length: Frames
 }
 
-/// The new list of each distinct pair of an old ride list and a file map in one edit (leveler
-/// C34). Clips that share a list then share the new list, so the writer stores it once.
+/// The new list of each distinct pair of an old ride list and a file map in one edit.
+/// Clips that share a list then share the new list, so the writer stores it once.
 struct RideMaps {
     private var pairs: [(old: GainEnvelope, map: FileMap, new: GainEnvelope)] = []
 

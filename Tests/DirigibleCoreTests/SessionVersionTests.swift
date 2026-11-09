@@ -129,7 +129,7 @@ struct SessionVersionTests {
         return problems
     }
 
-    /// Leveler C20: from 12 on, `fileVersion` is the largest version of the present features. A
+    /// From 12 on, `fileVersion` is the largest version of the present features. A
     /// repair origin (14), a pre-roll take, a follow track, and a ride point, alone and in pairs,
     /// write the larger constant and read back equal.
     @Test func fileVersionIsTheMaxOfThePresentFeatures() throws {

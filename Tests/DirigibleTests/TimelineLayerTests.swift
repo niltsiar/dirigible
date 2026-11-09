@@ -141,7 +141,7 @@ import Testing
         let window = try #require(LaneWindow(view: rect, bounds: rect, laneHeight: 100, lanes: 2, scale: 2, room: 100))
 
         for n in 0..<6 {
-            let drawn = surfaces.show(window, changed: window.pixels) { region in
+            let drawn = surfaces.show(window, changed: [window.pixels]) { region in
                 region.fill(UInt32(n), columns: region.rect.columns, rows: region.rect.rows)
             }
             #expect(drawn == .drawn(window.pixels))

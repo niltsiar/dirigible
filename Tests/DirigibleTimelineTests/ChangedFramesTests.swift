@@ -296,6 +296,21 @@ struct ChangedFramesTests {
         #expect(shift?.delta == -9_600 && shift?.still == [1] && shift?.lines == [], "\(String(describing: shift))")
     }
 
+    /// C60 path 2 (U49): a Shuffle move of A from t1 to a new mono t4 changes t1 (the close) and t4
+    /// (the drop), and the marker between them moves on every lane. The parts name those two lanes
+    /// and the marker lines, not t2 and t3, so the draw skips their rows.
+    @Test func aCrossTrackShuffleChangesTwoLanes() throws {
+        var session = try Fixture.session()
+        try session.addTrack("t4", name: "T4", layout: .mono)
+        try session.setMarker(Marker(id: "m", name: "m", position: 120_000, kind: .marker))
+        var shuffled = session
+        try shuffled.shuffle("A", to: "t4", start: 100_000)
+        let changed = try #require(changedFrames(from: session, to: shuffled))
+        #expect(changed.parts.filter { $0.lanes.count == 1 }.map(\.lanes) == [0..<1, 3..<4])
+        #expect(changed.parts.filter { $0.lanes == 0..<4 }.map(\.frames.lowerBound).sorted() == [72_000, 120_000])
+        #expect(changed.lanes == 0..<4, "the hull holds every part")
+    }
+
     /// Decision 0037: a shift needs a lane whose clips before the moved clips change: the edit
     /// cuts, trims, inserts, or removes a clip there. A move alone gives the same sessions as a
     /// ripple in the gap before the moved clips, so both draw only the changed columns. A shift

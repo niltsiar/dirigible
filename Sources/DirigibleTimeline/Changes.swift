@@ -6,17 +6,23 @@ import Foundation
 /// and the outer half of each crossfade, decision 0036), with the unchanged lane neighbor whose
 /// join to a changed clip comes or goes at an edge with no fade (its fade handle), on the first to
 /// the last changed lane, and the old and the new frame of each changed marker (its line crosses
-/// every lane). Nil when another value that the lanes draw differs: the tracks, their gain or
-/// layout, or the files (the labels). So a drag event redraws the boxes and lines that it changed,
-/// not the lanes in view (decision 0020). A lane with no change costs one compare of its clip
-/// storage.
-public func changedFrames(from old: Session, to new: Session) -> (frames: Range<Frames>, lanes: Range<Int>)? {
+/// every lane). `parts` holds the frames of each changed lane on that lane, and the frames of each
+/// marker line on every lane; `frames` and `lanes` are their hull. Nil when another value that the
+/// lanes draw differs: the tracks, their gain or layout, or the files (the labels). So a drag event
+/// redraws the boxes and lines that it changed, not the lanes in view (decision 0020), and a move
+/// to another lane redraws two lanes, not the lanes between them. A lane with no change costs one
+/// compare of its clip storage.
+public func changedFrames(
+    from old: Session, to new: Session
+) -> (frames: Range<Frames>, lanes: Range<Int>, parts: [ChangedPart])? {
     guard old.tracks.count == new.tracks.count, old.files == new.files else { return nil }
     var changed: Range<Frames>?
     var lanes: Range<Int>?
+    var parts: [ChangedPart] = []
     func add(_ start: Frames, _ end: Frames, lanes new: Range<Int>) {
         changed = hull(changed, start, end)
         lanes = min(lanes?.lowerBound ?? new.lowerBound, new.lowerBound)..<max(lanes?.upperBound ?? 0, new.upperBound)
+        parts.append((start..<end, new))
     }
     if old.markers != new.markers {
         for id in Set(old.markers.keys).union(new.markers.keys) where old.markers[id] != new.markers[id] {
@@ -65,8 +71,11 @@ public func changedFrames(from old: Session, to new: Session) -> (frames: Range<
         }
         add(start, end, lanes: lane..<lane + 1)
     }
-    return (changed ?? .zero ..< .zero, lanes ?? 0..<0)
+    return (changed ?? .zero ..< .zero, lanes ?? 0..<0, parts)
 }
+
+/// One part of `changedFrames`: frames on a range of lanes.
+public typealias ChangedPart = (frames: Range<Frames>, lanes: Range<Int>)
 
 /// The frames where the Marks `new` draw differently from `old` on the lanes of `session`: the old
 /// and the new line of each changed point, and the changed part of the selection band. With the

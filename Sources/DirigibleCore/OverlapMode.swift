@@ -18,7 +18,7 @@ extension Session {
     /// Each end of the span passes `move(_:to:start:mode: .noOverlap)`, and one frame past an end
     /// covers a clip or passes `Frames.limit`. The last span ends at `Frames.limit`. A lane with no
     /// room for the clip, up to `Frames.limit`, throws `.frameOutOfRange`.
-    public func freeSpan(of id: ClipID, on track: TrackID, near start: Frames) throws(SessionError)
+    package func freeSpan(of id: ClipID, on track: TrackID, near start: Frames) throws(SessionError)
         -> ClosedRange<Frames>
     {
         let (clipTrack, clipIndex) = try position(of: id)

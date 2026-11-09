@@ -3,10 +3,23 @@ import Foundation
 
 /// The one owner of each argument rule of the edit commands. The `validate()` of a command and
 /// its MCP tool both call it, and each writes its own text (`--from` or `from`). Each rule gives
-/// the checked value, or nil when the arguments break it.
+/// the checked value, or nil when the arguments break it. It also owns the English text that a
+/// command and its tool share.
 package enum EditRules {
     /// The words of `track role` and `track_role`: a role, or `none` to remove the role.
     package static let roleWords = Track.Role.allCases.map(\.rawValue) + ["none"]
+
+    /// What a role is and what reads it: the description of `track_role` and the help of `track role`.
+    /// It writes each command in CLI words with its tool in parentheses (decision 0011).
+    package static let roleNote =
+        "A role is a label. It changes no sound. `duck` (tool `duck`) takes the dialogue tracks as the speech "
+        + "and the music tracks as the tracks to lower, when it gets no list. A track with no role is in no list. "
+        + "`clip denoise` (tool `clip_denoise`) with noise skips the clips of music and effects tracks; hum "
+        + "removal alone takes every role. The app shows the role as a color strip and a letter. "
+        + "`info` (tool `session_info`) shows the role."
+
+    /// The line after `OK` in the reply of `track_role`. The command prints nothing.
+    package static let roleReply = "The role is a label. It changes no sound."
 
     /// The role of a word of `roleWords`: `.some(nil)` for `none`, nil for a word that is not in it.
     package static func role(_ word: String) -> Track.Role?? {

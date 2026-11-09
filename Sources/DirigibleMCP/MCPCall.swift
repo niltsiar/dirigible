@@ -42,7 +42,7 @@ private func perform(_ work: ToolWork, path: String, control: CallControl) throw
                 session, _ throws(SessionError) in
                 try TakeWork.noted(&session, package: package, edit)
             }
-            // The new IDs, one on each line, or OK; then the note.
+            // The new IDs, one on each line, or OK; then the note. A tool may return its own reply lines.
             return ((ids.isEmpty ? ["OK"] : ids) + note).joined(separator: "\n")
         } catch {
             throw ToolError(error.message(package: path))

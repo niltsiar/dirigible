@@ -18,6 +18,18 @@ struct ToolTextTests {
         #expect(!Tool.all.contains { $0.description.contains("No undo: each call saves the package.") })
     }
 
+    /// C1 (run 2026-11-08-role-explain): `track_role` says the role changes no sound, and names the
+    /// tools and the track kinds that read it. The `track_follow` description does not gain the text.
+    @Test func trackRoleSaysWhatTheRoleDoes() throws {
+        let tool = try #require(Tool.all.first { $0.name == "track_role" })
+        for word in ["no sound", "`duck`", "`clip_denoise`", "`session_info`", "music", "effects"] {
+            #expect(tool.description.contains(word), "no \(word): \(tool.description)")
+        }
+        #expect(tool.description.contains(EditRules.roleNote), "the description does not hold roleNote")
+        let follow = try #require(Tool.all.first { $0.name == "track_follow" })
+        #expect(!follow.description.contains("`duck`") && !follow.description.contains("`clip_denoise`"))
+    }
+
     /// A late cancel of `level`, `import`, `clip_split_stereo`, `clip_denoise`, or `clip_repair` keeps the change,
     /// so the text tells the agent to read the session before a retry (decision 0049, code gate 3 item 1).
     @Test(arguments: ["level", "import", "clip_split_stereo", "clip_denoise", "clip_repair"])

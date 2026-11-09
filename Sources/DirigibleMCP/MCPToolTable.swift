@@ -183,14 +183,14 @@ let trackTools = [
         }
     },
     Tool(
-        "track_role", "Set the role of a track: dialogue, music, effects, or none.", [Arg.track, trackRole],
-        batch: .step
+        "track_role", "Set the role of a track: dialogue, music, effects, or none. " + EditRules.roleNote,
+        [Arg.track, trackRole], batch: .step
     ) {
         a throws(ToolError) in
         let (track, role) = (TrackID(try a[Arg.track]), try a[trackRole])
         return .edit(ripple: false) { session throws(SessionError) in
             try session.setRole(role, tracks: [track])
-            return []
+            return ["OK", EditRules.roleReply]
         }
     },
     Tool(

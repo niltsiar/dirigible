@@ -2,6 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
+@testable import DirigibleMCP
+
 /// One edit tool call and the `dirigible` command that must give the same `session.xml` and the
 /// same text (C6), or the same refusal (C7). The package path goes in at run time ("PKG").
 struct EditRow {
@@ -10,6 +12,8 @@ struct EditRow {
     let command: [String]
     /// The tool and the command each make a new UUID for an ID that the row leaves out.
     var generated = false
+    /// The lines that the tool adds after its answer and the command does not print.
+    var toolNote: [String] = []
 }
 
 /// C6 and C7 for the edit tools, and the fixture that every row starts from.
@@ -97,10 +101,10 @@ struct MCPEditTableTests {
                 command: ["track", "follow", "PKG", "a", "--off"]),
             EditRow(
                 tool: "track_role", arguments: ["track": "a", "role": "music"],
-                command: ["track", "role", "PKG", "a", "music"]),
+                command: ["track", "role", "PKG", "a", "music"], toolNote: [EditRules.roleReply]),
             EditRow(
                 tool: "track_role", arguments: ["track": "a", "role": "none"],
-                command: ["track", "role", "PKG", "a", "none"]),
+                command: ["track", "role", "PKG", "a", "none"], toolNote: [EditRules.roleReply]),
         ]
     }
 
@@ -175,7 +179,8 @@ struct MCPEditTableTests {
 }
 
 /// Runs each row on its own two copies of the fixture: the tool on one, the command on the other.
-/// The `session.xml` files must be equal byte for byte, and the text must be the printed IDs or OK.
+/// The `session.xml` files must be equal byte for byte, and the text must be the printed IDs or OK,
+/// then the note lines of the row.
 /// A generated ID must be a UUID; a placeholder takes its place before the compare.
 func checkEdits(_ rows: [EditRow]) async throws {
     let fixture = try MCPEditTableTests.fixture()
@@ -187,8 +192,13 @@ func checkEdits(_ rows: [EditRow]) async throws {
         })
     for (index, row) in rows.enumerated() {
         let cli = try await copies[index].cli.run(row.command)
-        let tool = toolResult(answer(answers, id: index))
+        var tool = toolResult(answer(answers, id: index))
         #expect(cli.status == 0 && !tool.isError, "\(row.tool) \(row.arguments): \(tool.text) \(cli.stderr)")
+        if !row.toolNote.isEmpty {
+            let note = "\n" + row.toolNote.joined(separator: "\n")
+            #expect(tool.text.hasSuffix(note), "\(row.tool) lacks its note: \(tool.text)")
+            if tool.text.hasSuffix(note) { tool.text = String(tool.text.dropLast(note.count)) }
+        }
         let cliIDs = cli.stdout.split(separator: "\n").map(String.init)
         let toolIDs = tool.text == "OK" ? [] : tool.text.split(separator: "\n").map(String.init)
         #expect(tool.text != "" && (cliIDs.isEmpty == (tool.text == "OK")), "\(row.tool): \(tool.text)")

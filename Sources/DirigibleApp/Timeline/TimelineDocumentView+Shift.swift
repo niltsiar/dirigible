@@ -2,8 +2,41 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 
-/// The shift draw of a ripple drag (decision 0037), apart from the lane draw.
+/// The dirty rects of a drag event (decision 0020) and the shift draw of a ripple drag (decision
+/// 0037), apart from the lane draw.
 extension TimelineDocumentView {
+    /// The rects of the clips, markers, and Marks that changed from `old`, with 1 pt on each side
+    /// for the rounding of the renderer. A change 360 pt wide or more with no new Marks gives one
+    /// rect for each part of `changedFrames`, in the rows of its lanes; else one rect at full
+    /// height. Empty when nothing changed, nil when another input changed.
+    func changedColumns(from old: LaneInputs?) -> [NSRect]? {
+        guard var old, let inputs, let geometry = inputs.geometry,
+            let clips = changedFrames(from: old.session, to: inputs.session)
+        else { return nil }
+        let marks = changedFrames(from: old.selection, to: inputs.selection, in: inputs.session)
+        (old.session, old.selection) = (inputs.session, inputs.selection)
+        guard old == inputs else { return nil }
+        let changed = [clips.frames, marks].filter { !$0.isEmpty }
+        guard let low = changed.map(\.lowerBound).min(), let high = changed.map(\.upperBound).max() else {
+            return []
+        }
+        let all = 0..<inputs.session.tracks.count
+        // Only a wide rect takes the rows of its lanes. A narrow rect of part of the height made
+        // the flush wait for the window server (11 ms p95 against 3 ms at full height, the Intel
+        // Mac of the mouse-edits run), and its full height costs under 1 ms.
+        // ponytail: a fixed 360 pt; measure again on Apple Silicon (manual check M8).
+        func rect(_ frames: Range<Frames>, _ lanes: Range<Int>) -> NSRect {
+            let (x0, x1) = (
+                geometry.x(of: frames.lowerBound).rounded(.down), geometry.x(of: frames.upperBound).rounded(.up)
+            )
+            let rows = x1 - x0 >= 360 ? lanes : all
+            let (y0, y1) = (Double(rows.lowerBound) * inputs.laneHeight, Double(rows.upperBound) * inputs.laneHeight)
+            return NSRect(x: x0 - 1, y: y0, width: x1 - x0 + 2, height: y1 - y0)
+        }
+        let wide = geometry.x(of: high).rounded(.up) - geometry.x(of: low).rounded(.down) >= 360
+        return wide && marks.isEmpty ? clips.parts.map { rect($0.frames, $0.lanes) } : [rect(low..<high, all)]
+    }
+
     /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change. The
     /// Marks lines and band stay at their frames, so the copied region starts 1 pt past them in
     /// the old and the new lanes. A clip set has no Marks, so it needs no such start.

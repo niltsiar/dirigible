@@ -174,14 +174,16 @@ struct LaneWindow: Equatable {
     /// The window that the layer shows.
     var shown: LaneWindow? { front.flatMap { slots[$0].window } }
 
-    /// Shows `window`, with new pixels in `changed` (a rect in the window, from `pixels(of:)`) and in
-    /// the part of the window that the window of the front does not hold. `draw` writes every pixel
-    /// of the rect of its region. A `shift` applies only when the front shows the same window;
-    /// else `changed` draws.
+    /// Shows `window`, with new pixels in the `changed` rects (in the window, from `pixels(of:)`) and
+    /// in the part of the window that the window of the front does not hold. `draw` writes every
+    /// pixel of the rect of its region. A `shift` applies only when the front shows the same window;
+    /// else `changed` draws: one rect as the hull with that part, two or more each apart, so the
+    /// rows between them keep their pixels.
     func show(
-        _ window: LaneWindow, changed: PixelRect, shift: Shift? = nil, draw: (borrowing PixelRegion) -> Void
+        _ window: LaneWindow, changed: [PixelRect], shift: Shift? = nil, draw: (borrowing PixelRegion) -> Void
     ) -> Result {
         let old = shown
+        let changed = changed.filter { !$0.isEmpty }
         if changed.isEmpty, old == window { return .unchanged }
         let pick = slots.indices.filter { $0 != front }.min { slots[$0].commit < slots[$1].commit }!
         if let surface = slots[pick].surface, surface.isInUse || slots[pick].window?.capacity != window.capacity {
@@ -204,8 +206,9 @@ struct LaneWindow: Equatable {
                 columns: min(max($0.column, all.lowerBound), all.upperBound)..<all.upperBound, rows: window.pixels.rows)
         }
         let strips = (shift?.strips ?? []).map { $0.intersection(window.pixels) }.filter { !$0.isEmpty }
-        let drawn =
-            later.map { strips.reduce($0) { $0.union($1) } } ?? changed.union(Self.outside(overlap, of: window.pixels))
+        let outside = Self.outside(overlap, of: window.pixels)
+        let drawn = later.map { strips.reduce($0) { $0.union($1) } } ?? changed.reduce(outside) { $0.union($1) }
+        let parts = changed.count > 1 ? (changed + [outside]).filter { !$0.isEmpty } : [drawn]
         // Buffer age: a slot that shows the same pixels as the new window lacks only the pixels
         // that the later commits drew, so it copies only those rects (in the overlap) from the
         // front. Else it copies the overlap, shifted.
@@ -224,7 +227,9 @@ struct LaneWindow: Equatable {
             source.lock(options: .readOnly, seed: nil)
             // With a shift, the draws after the copies write the strips.
             for rect in copies {
-                Self.copy(rect, except: shift == nil ? drawn : .empty, from: source, from, to: surface, window)
+                Self.copy(
+                    rect, except: shift == nil && changed.count <= 1 ? drawn : .empty, from: source, from, to: surface,
+                    window)
             }
             if let shift, let later {
                 for band in shift.bands {
@@ -265,8 +270,12 @@ struct LaneWindow: Equatable {
             }
             shifted += 1
         } else {
-            lastDrawn = [drawn]
-            draw(PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: drawn))
+            lastDrawn = parts
+            for part in parts {
+                draw(
+                    PixelRegion(base: surface.baseAddress, bytesPerRow: surface.bytesPerRow, window: window, rect: part)
+                )
+            }
         }
         surface.unlock(options: [], seed: nil)
 

@@ -57,14 +57,14 @@ final class TimelineDocumentView: NSView {
     private(set) var drawnRect = NSRect.zero
     /// Every drawn input except the backing scale. A new value draws only when it is not equal, and
     /// only the columns of the changed clips, markers, and Marks when nothing else changed (a drag
-    /// event): in the rows of the changed lanes, or at full height for a marker or the Marks.
+    /// event): in the rows of each changed lane, or at full height for a marker or the Marks.
     var inputs: LaneInputs? {
         didSet {
             guard inputs != oldValue else { return }
-            let first = pending.isNull
-            if let rect = changedColumns(from: oldValue) {
-                // Inputs that draw the same pixels give an empty rect: no draw.
-                if !rect.isEmpty { setNeedsDisplay(rect) }
+            let first = pending.isEmpty
+            if let rects = changedColumns(from: oldValue) {
+                // Inputs that draw the same pixels give no rect: no draw.
+                for rect in rects where !rect.isEmpty { setNeedsDisplay(rect) }
                 pendingShift = first ? shift(from: oldValue) : nil
             } else {
                 needsDisplay = true
@@ -73,14 +73,15 @@ final class TimelineDocumentView: NSView {
         }
     }
 
-    /// The document rect to render at the next `updateLayer()`.
-    private var pending = NSRect.null
+    /// The document rects to render at the next `updateLayer()`. Past 32 rects they join in one,
+    /// so a run of requests with no draw (a live take in a hidden window) stays small.
+    private var pending: [NSRect] = []
     /// The shift of a ripple drag for the next `updateLayer()` (decision 0037). Each other display
     /// request clears it, so it applies only when it is the one change since the last draw.
     var pendingShift: ShiftedFrames?
 
     override func setNeedsDisplay(_ rect: NSRect) {
-        pending = pending.union(rect)
+        pending = pending.count < 32 ? pending + [rect] : [pending.reduce(rect) { $0.union($1) }]
         pendingShift = nil
         super.setNeedsDisplay(rect)
     }
@@ -88,7 +89,7 @@ final class TimelineDocumentView: NSView {
     override var needsDisplay: Bool {
         get { super.needsDisplay }
         set {
-            if newValue { (pending, pendingShift) = (bounds, nil) }
+            if newValue { (pending, pendingShift) = ([bounds], nil) }
             super.needsDisplay = newValue
         }
     }
@@ -117,31 +118,6 @@ final class TimelineDocumentView: NSView {
     func liveChanged(head: Frames?) {
         liveHead = head
         needsDisplay = true
-    }
-
-    /// The columns of the clips, markers, and Marks that changed from `old`, with 1 pt on each side
-    /// for the rounding of the renderer, in the rows of the changed lanes (all rows for new Marks).
-    /// Nil when another input changed.
-    private func changedColumns(from old: LaneInputs?) -> NSRect? {
-        guard var old, let inputs, let geometry = inputs.geometry,
-            let clips = changedFrames(from: old.session, to: inputs.session)
-        else { return nil }
-        let marks = changedFrames(from: old.selection, to: inputs.selection, in: inputs.session)
-        (old.session, old.selection) = (inputs.session, inputs.selection)
-        guard old == inputs else { return nil }
-        let changed = [clips.frames, marks].filter { !$0.isEmpty }
-        guard let low = changed.map(\.lowerBound).min(), let high = changed.map(\.upperBound).max() else {
-            return .zero
-        }
-        let (x0, x1) = (geometry.x(of: low).rounded(.down), geometry.x(of: high).rounded(.up))
-        // Only a wide rect takes the rows of its lanes. A narrow rect of part of the height made
-        // the flush wait for the window server (11 ms p95 against 3 ms at full height, the Intel
-        // Mac of the mouse-edits run), and its full height costs under 1 ms.
-        // ponytail: a fixed 360 pt; measure again on Apple Silicon (manual check M8).
-        let wide = x1 - x0 >= 360 && marks.isEmpty
-        let lanes = wide ? clips.lanes : 0..<inputs.session.tracks.count
-        let (y0, y1) = (Double(lanes.lowerBound) * inputs.laneHeight, Double(lanes.upperBound) * inputs.laneHeight)
-        return NSRect(x: x0 - 1, y: y0, width: x1 - x0 + 2, height: y1 - y0)
     }
 
     private let renderer = LaneRenderer()
@@ -326,12 +302,12 @@ final class TimelineDocumentView: NSView {
         if scrollView?.handOffWaits == true { return }
         let started = ContinuousClock.now
         let dirty = pending
-        let shift = pendingShift.flatMap { laneShift($0, dirty, lanes) }
-        (pending, pendingShift) = (.null, nil)
+        let shift = pendingShift.flatMap { laneShift($0, dirty.reduce(.null) { $0.union($1) }, lanes) }
+        (pending, pendingShift) = ([], nil)
         let live = studio.map { LiveLanes($0, head: liveHead) } ?? LiveLanes()
         let drawn: PixelRect
         switch surfaces.show(
-            lanes, changed: lanes.pixels(of: dirty), shift: shift,
+            lanes, changed: dirty.map { lanes.pixels(of: $0) }, shift: shift,
             draw: { region in
                 Self.drawLanes(renderer, inputs, palette, live: live, into: region)
             })
@@ -342,7 +318,7 @@ final class TimelineDocumentView: NSView {
             // The layer shows the old pixels. Keep the change and try again one frame later: a
             // display request in `updateLayer()` displays again in the same commit, with no end.
             drawLog.error("lanes draw refused: no surface for \(lanes.capacity.columns) x \(lanes.capacity.rows) px")
-            pending = pending.union(dirty)
+            pending += dirty
             DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(16)) { [weak self] in
                 self?.layer?.setNeedsDisplay()
             }

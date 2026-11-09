@@ -72,6 +72,7 @@ struct TrackRoleCommandTests {
             #expect(joined.contains(word), "no \(word): \(help.stdout)")
         }
         #expect(joined.contains(words(EditRules.roleNote)), "the help does not hold roleNote: \(help.stdout)")
+        #expect(joined.contains("refuses") && !joined.contains("skips"), "clip denoise refuses a clip: \(help.stdout)")
         let bare = joined.replacing(/\(tool `[a-z_]+`\)/, with: "")
         #expect(!bare.contains("clip_denoise") && !bare.contains("session_info"), "a tool name: \(help.stdout)")
     }

@@ -49,11 +49,36 @@ final class LaneRenderer {
     /// The layer gains of each column of the clips with gain layers in the draw, which the waveform
     /// pass gets and the gain line reads again.
     var layerGains: [ClipID: ArraySlice<Double>] = [:]
-    /// The layer gains of the clips of the last draw (`columnGains`), so a draw of the same layers,
-    /// clip window, and zoom walks no layer. Only the clips of the last draw stay, each with its
-    /// columns in the rect and at most one window width more on each side: about 3 window widths
-    /// of `Double` per lane.
+    /// The layer gains of clips of earlier draws (`columnGains`), so a draw of the same layers, clip
+    /// window, and zoom walks no layer. Only the clips that the last display event read or walked
+    /// stay, each with its columns in the rect and at most one window width more on each side:
+    /// about 3 window widths of `Double` per lane of that window.
     var layerColumns: [ClipID: LayerColumns] = [:]
+    /// The layer walks of `columnGains`, for the tests.
+    var walks = 0
+    /// The display event of the draws, the count of `layerColumns` entries that it read or walked,
+    /// and whether a `display` is open.
+    private(set) var event = 0
+    var eventEntries = 0
+    private var displaying = false
+
+    /// Runs `body`, whose draws are the parts of one display event: they keep the layer gains of
+    /// each other. A draw outside `display` is a display event of its own.
+    func display<Result>(_ body: () -> Result) -> Result {
+        displaying = true
+        defer {
+            displaying = false
+            endEvent()
+        }
+        return body()
+    }
+
+    /// Keeps only the layer gains of the clips of this event, if it read or walked any.
+    private func endEvent() {
+        guard eventEntries > 0 else { return }
+        if layerColumns.count > eventEntries { layerColumns = layerColumns.filter { $0.value.event == event } }
+        (event, eventEntries) = (event + 1, 0)
+    }
 
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
@@ -196,7 +221,7 @@ final class LaneRenderer {
                 }
             }
         }
-        if layerColumns.count > layerGains.count { layerColumns = layerColumns.filter { layerGains[$0.key] != nil } }
+        if !displaying { endEvent() }
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
         // (decision 0036).
         for (lane, clip) in crossfaded { drawCrossfadeLines(clip, tracks[lane], lane, geometry, palette, into: region) }

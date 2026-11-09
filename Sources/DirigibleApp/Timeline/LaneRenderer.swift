@@ -48,7 +48,7 @@ final class LaneRenderer {
     var bars: [(columns: Range<Int>, top: Int)] = []
     /// The layer gain of each column of the clips with gain layers in the draw, reused, and the
     /// indices of the gains of each such clip. One `ColumnEnvelope` walk per clip, which the
-    /// waveform pass makes and the gain line reads again (C30).
+    /// waveform pass makes and the gain line reads again.
     var layerGains: [Double] = []
     var layerSpans: [ClipID: Range<Int>] = [:]
 

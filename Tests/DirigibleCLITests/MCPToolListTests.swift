@@ -3,7 +3,7 @@ import Testing
 
 /// The tool list of `dirigible mcp` (decision 0041).
 struct MCPToolListTests {
-    /// 76 tools in a fixed order, each with a description and a closed schema with `package`,
+    /// 77 tools in a fixed order, each with a description and a closed schema with `package`,
     /// except `devices` and `apps`, which take no argument.
     @Test func toolsListHasEachTool() async throws {
         let answers = try await mcp([modernRequest(1, "tools/list"), modernRequest(2, "tools/list")])

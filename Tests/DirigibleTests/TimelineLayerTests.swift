@@ -152,6 +152,31 @@ import Testing
         #expect(surfaces.count == 4)
     }
 
+    /// C60 path 2 of run `2026-10-28-timeline-edits`: a draw of two lane parts (the first Shuffle event
+    /// to another lane) is two rects in the history, not their hull. So the later updates copy only
+    /// the rows of the parts, and the lane between them keeps its pixels with no copy.
+    @Test func aTwoPartDrawCopiesOnlyTheRowsOfItsParts() throws {
+        let surfaces = LaneSurfaces()
+        let rect = CGRect(x: 0, y: 0, width: 100, height: 300)
+        let window = try #require(LaneWindow(view: rect, bounds: rect, laneHeight: 100, lanes: 3, scale: 2, room: 100))
+        let parts = [0..<1, 2..<3].map { PixelRect(columns: window.pixels.columns, rows: window.rows(of: $0)) }
+        _ = surfaces.show(window, changed: [window.pixels]) { region in
+            region.fill(0, columns: region.rect.columns, rows: region.rect.rows)
+        }
+
+        for n in 1...6 {
+            _ = surfaces.show(window, changed: parts) { region in
+                region.fill(UInt32(n), columns: region.rect.columns, rows: region.rect.rows)
+            }
+            // The first 3 updates take a slot with no pixels of this window, so they copy the window.
+            let middle = surfaces.lastCopied.filter { $0.rows.overlaps(window.rows(of: 1..<2)) }
+            if n > 3 { #expect(middle.isEmpty, "update \(n) copied \(middle)") }
+        }
+
+        #expect(surfaces.lastDrawn == parts)
+        #expect([0, 300, 500].map { surfaces.pixel(column: 0, row: $0) } == [6, 0, 6])
+    }
+
     /// Code gate 1 item 1: a refused surface keeps the change. The window server uses every surface
     /// but the layer contents, so the next update needs a new surface, and the allocation fails.
     /// The update draws nothing, and the next display after the allocation works shows the change.

@@ -169,6 +169,12 @@ package enum AgentManual {
     /// The pre-roll of a take (decision 0070). Outside the core, which has no room.
     static let preRollLine = "`record` takes `pre_roll` (0 to 10). CLI: `--pre-roll <seconds>`."
 
+    /// What a role is and what reads it (decision 0060). In the skill only: the manual has no room
+    /// under its 6000 characters.
+    static let roleLine =
+        "A role from `track_role` is a label: it changes no sound. `duck` and `clip_denoise` read it. "
+        + "A track with no role is in no list of `duck`: give `speech` or `music`."
+
     /// The raw files that stay (decision 0071). Outside the core, which has no room.
     static let rawLine =
         "`rawKept` in `session_info` (CLI: `raw <stem> kept: <reason>`) names each kept raw CAF and why."
@@ -221,6 +227,8 @@ package enum AgentManual {
             `dirigible model check <path>`. A file that the check refuses gives the reason and changes nothing.
 
             \(preRollLine)
+
+            \(roleLine)
 
             | Tool | Command |
             |---|---|

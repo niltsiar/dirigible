@@ -94,6 +94,14 @@ struct SessionRideTests {
         #expect(try groups(["A", "B"]) == [["A"], ["B"]])
     }
 
+    /// A clip gain of -0 dB equals 0 dB, so the parts are one group.
+    @Test mutating func negativeZeroGainIsOneGroup() throws {
+        try place("A", on: "t", start: 0, length: 40_000)
+        try place("B", on: "t", start: 40_000, length: 60_000, gain: -0.0)
+
+        #expect(try groups(["A", "B"]) == [["A", "B"]])
+    }
+
     /// B overlaps A with another envelope on the overlap, so B (the track with fewer frames) leaves.
     /// C touches A and not B, so it stays with A.
     @Test mutating func overlapWithOtherEnvelopesIsTwoGroups() throws {

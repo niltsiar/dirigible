@@ -73,15 +73,18 @@ final class TimelineDocumentView: NSView {
         }
     }
 
-    /// The document rects to render at the next `updateLayer()`. Past 32 rects they join in one,
-    /// so a run of requests with no draw (a live take in a hidden window) stays small.
+    /// The document rects to render at the next `updateLayer()`. At `dirtyRectLimit` rects they
+    /// join in their hull, so a run of requests with no draw (a live take in a hidden window) stays
+    /// small.
     private var pending: [NSRect] = []
+    static let dirtyRectLimit = 32
     /// The shift of a ripple drag for the next `updateLayer()` (decision 0037). Each other display
     /// request clears it, so it applies only when it is the one change since the last draw.
     var pendingShift: ShiftedFrames?
 
     override func setNeedsDisplay(_ rect: NSRect) {
-        pending = pending.count < 32 ? pending + [rect] : [pending.reduce(rect) { $0.union($1) }]
+        pending =
+            pending.count < Self.dirtyRectLimit ? pending + [rect] : [pending.reduce(rect) { $0.union($1) }]
         pendingShift = nil
         super.setNeedsDisplay(rect)
     }

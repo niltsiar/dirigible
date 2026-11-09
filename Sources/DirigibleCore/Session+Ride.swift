@@ -141,16 +141,22 @@ extension Session {
         for track in other.tracks {
             for clip in track.clips where !clip.ride.isEmpty { rides[clip.id] = clip.ride }
         }
-        // Each value holds the read-back array of its key, so no key address is used again.
-        var compared: [[UnsafeRawPointer?]: (held: GainEnvelope, isEqual: Bool)] = [:]
+        // The parts of a split clip are next to each other, so the last pair is the usual match.
+        var compared: [(read: GainEnvelope, written: GainEnvelope, isEqual: Bool)] = []
         for track in tracks.indices {
             var shared: [(index: Int, clip: Clip)] = []
             for index in tracks[track].clips.indices {
                 var clip = tracks[track].clips[index]
                 guard let ride = rides[clip.id], !clip.ride.isEmpty else { continue }
-                let key = [clip.ride.address, ride.address]
-                let isEqual = compared[key]?.isEqual ?? (clip.ride == ride)
-                compared[key] = (clip.ride, isEqual)
+                let isEqual: Bool
+                if let pair = compared.last(where: {
+                    $0.read.sharesPoints(with: clip.ride) && $0.written.sharesPoints(with: ride)
+                }) {
+                    isEqual = pair.isEqual
+                } else {
+                    isEqual = clip.ride == ride
+                    compared.append((clip.ride, ride, isEqual))
+                }
                 guard isEqual else { continue }
                 clip.ride = ride
                 shared.append((index, clip))
@@ -161,7 +167,12 @@ extension Session {
 }
 
 extension GainEnvelope {
-    fileprivate var address: UnsafeRawPointer? { points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } }
+    /// True when the two point arrays are one buffer.
+    fileprivate func sharesPoints(with other: GainEnvelope) -> Bool {
+        points.withUnsafeBufferPointer { mine in
+            other.points.withUnsafeBufferPointer { mine.baseAddress == $0.baseAddress }
+        }
+    }
 
     /// The list with 0 dB on the file frames `low...high`, the old value at `low - ramp` and at
     /// `high + ramp`, linear in dB between, and the old points outside; fitted to the file.

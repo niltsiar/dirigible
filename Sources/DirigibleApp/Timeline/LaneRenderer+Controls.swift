@@ -79,10 +79,11 @@ extension LaneRenderer {
     /// columns), and its fade handles: each handle rect inset by 1 pt, filled in the label color.
     /// With gain layers (decision 0060), the line has the row of each column, with the highest
     /// gain of the layers over its frames, at least `lineClamp` under the lane top and joined to the
-    /// row of the column before it, and each shown point of the envelope is a disc.
+    /// row of the column before it, and each shown point of the envelope is a disc. `layerGains`:
+    /// the layer gain of each column of the box in the rect (`walkLayers`), nil with no gain layer.
     func drawControls(
         _ clip: Clip, _ track: Track, _ lane: Int, _ geometry: LaneGeometry, _ palette: LanePalette,
-        into region: borrowing PixelRegion
+        layerGains: ArraySlice<Double>?, into region: borrowing PixelRegion
     ) {
         let scale = region.window.scale
         let (rows, pixelFrames) = (region.window.rows(of: lane..<lane + 1), geometry.scale.framesPerPoint / scale)
@@ -104,24 +105,11 @@ extension LaneRenderer {
         var (low, high) = (columns.lowerBound, columns.upperBound)
         while low < high, fades.factor(low - columns.lowerBound) != nil { low += 1 }
         while high > low, fades.factor(high - 1 - columns.lowerBound) != nil { high -= 1 }
-        if !clip.hasLayers {
-            if gain <= 0 {
-                region.fill(palette.label, columns: low..<high, rows: row..<row + 1)
-            } else {
-                for column in low..<high where (column / 3) % 2 == 0 {
-                    region.span(palette.label, column: column, rows: row..<row + 1)
-                }
-            }
-        } else {
-            var envelope = ColumnEnvelope(
-                layers: [clip.envelope, clip.ride],
-                first: Double(clip.offset.count) + Double(columns.lowerBound) * pixelFrames
-                    - Double(clip.start.count),
-                step: pixelFrames)
+        if let layerGains {
             let clamp = Self.lineClamp(scale: scale)
             var previous: Int?
             for column in low..<high {
-                let columnGain = gain + envelope.gain(column - columns.lowerBound)
+                let columnGain = gain + layerGains[layerGains.startIndex + column - columns.lowerBound]
                 let row = Self.lineRow(
                     columnGain, bottom: rows.upperBound - 1, laneRows: rows.count, clamp: clamp)
                 // Over 0 dB the line is dashed, with no joint.
@@ -137,6 +125,12 @@ extension LaneRenderer {
             {
                 fillDisc(
                     palette.label, x: point.x * scale, y: point.y * scale, radius: radius, within: box, into: region)
+            }
+        } else if gain <= 0 {
+            region.fill(palette.label, columns: low..<high, rows: row..<row + 1)
+        } else {
+            for column in low..<high where (column / 3) % 2 == 0 {
+                region.span(palette.label, column: column, rows: row..<row + 1)
             }
         }
         let handles = geometry.fadeHandles(of: clip, at: index, in: track.clips, lane: lane)

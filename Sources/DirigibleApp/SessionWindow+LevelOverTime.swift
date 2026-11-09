@@ -65,22 +65,21 @@ extension SessionWindow {
         }
     }
 
-    /// The ridden clips that Remove Level Over Time acts on, and the time range. A selection with
-    /// a time range gives the range and the ridden clips of its tracks (all tracks with none) that
-    /// play the range widened by the 500 ms ramp of the remove. Another selection gives its clips
+    /// The ridden clips that Remove Level Over Time acts on (`Session.rideRemoveClips` with the
+    /// 500 ms ramp of the remove), and the time range. A selection with a time range gives the
+    /// range and the clips of its tracks (all tracks with none). Another selection gives its clips
     /// of Auto Level and no range.
     func removeRideTarget(in session: Session) -> (clips: Set<ClipID>, range: Range<Frames>?) {
-        let ridden = { (clips: Set<ClipID>) in
-            clips.filter { session.clip($0)?.clip.ride.isEmpty == false }
+        let range: Range<Frames>?
+        let clips: Set<ClipID>
+        if case .range(let marks) = timeline.selection, let low = marks.inPoint, let high = marks.outPoint, low < high {
+            range = low..<high
+            let tracks = session.tracks.filter { marks.tracks.isEmpty || marks.tracks.contains($0.id) }
+            clips = Set(tracks.flatMap { $0.clips.map(\.id) })
+        } else {
+            range = nil
+            clips = timeline.selection.clipsToLevel(in: session) ?? []
         }
-        guard case .range(let marks) = timeline.selection, let low = marks.inPoint, let high = marks.outPoint,
-            low < high
-        else {
-            return (ridden(timeline.selection.clipsToLevel(in: session) ?? []), nil)
-        }
-        let widened = max(0, low - session.gainRamp)..<(high + session.gainRamp)
-        let tracks = session.tracks.filter { marks.tracks.isEmpty || marks.tracks.contains($0.id) }
-        let touching = Set(tracks.flatMap { $0.clips.filter { widened.overlaps($0.range) }.map(\.id) })
-        return (ridden(touching), low..<high)
+        return (Set(session.rideRemoveClips(clips, in: range, ramp: session.gainRamp).map(\.id)), range)
     }
 }

@@ -97,20 +97,20 @@ extension Session {
     {
         let found = Set(tracks.lazy.flatMap(\.clips).map(\.id))
         if let missing = clips.subtracting(found).sorted().first { throw .unknownClip(missing) }
-        let ridden = tracks.flatMap(\.clips).filter { clips.contains($0.id) && !$0.ride.isEmpty }
         guard let range else {
+            let ridden = rideRemoveClips(clips, in: nil, ramp: ramp)
             try setRides(Dictionary(uniqueKeysWithValues: ridden.map { ($0.id, GainEnvelope.empty) }))
             return ridden.map(\.id)
         }
         guard range.lowerBound.isInRange, range.upperBound.isInRange, ramp.isInRange else { throw .frameOutOfRange }
-        guard !range.isEmpty else { return [] }
+        let ridden = rideRemoveClips(clips, in: range, ramp: ramp)
         let ramp = max(ramp.count, 1)
         let (low, high) = (range.lowerBound.count, range.upperBound.count - 1)
         var maps = RideMaps()
         // Each new list with its old list and the open file frames where it differs from it.
         var made: [(old: GainEnvelope, new: GainEnvelope, changed: Range<Int>)] = []
         var rides: [ClipID: GainEnvelope] = [:]
-        for clip in ridden where clip.soundingRange.overlaps(Frames(low - ramp + 1)..<Frames(high + ramp)) {
+        for clip in ridden {
             guard let file = files[clip.file] else { throw .unknownFile(clip.file) }
             let shift = clip.start.count - clip.offset.count
             let new = maps.map(clip.ride, FileMap(shift: Frames(shift), length: file.length)) {
@@ -131,6 +131,18 @@ extension Session {
         }
         try setRides(rides)
         return changed
+    }
+
+    /// The ridden clips of `clips` that `removeRides` reads, in track and clip order. With `range`
+    /// nil, each one; else each that sounds on a frame of `range` or of the ramps of `ramp` frames
+    /// (at least 1) at its edges. An empty range gives none.
+    package func rideRemoveClips(_ clips: Set<ClipID>, in range: Range<Frames>?, ramp: Frames) -> [Clip] {
+        let ridden = tracks.flatMap(\.clips).filter { clips.contains($0.id) && !$0.ride.isEmpty }
+        guard let range else { return ridden }
+        guard !range.isEmpty else { return [] }
+        let ramp = max(ramp.count, 1)
+        let reach = Frames(range.lowerBound.count - ramp + 1)..<Frames(range.upperBound.count - 1 + ramp)
+        return ridden.filter { $0.soundingRange.overlaps(reach) }
     }
 
     /// Gives each clip the ride array of its clip in `other` when the two lists are equal, so the

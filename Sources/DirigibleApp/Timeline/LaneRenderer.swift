@@ -46,11 +46,14 @@ final class LaneRenderer {
     /// The pixel columns of each clip bar of the draw and the first row of its lane, reused. The box
     /// pass fills the bars and collects them, and the edge pass draws their bottom rows.
     var bars: [(columns: Range<Int>, top: Int)] = []
-    /// The layer gain of each column of the clips with gain layers in the draw, reused, and the
-    /// indices of the gains of each such clip. One `ColumnEnvelope` walk per clip, which the
-    /// waveform pass makes and the gain line reads again.
-    var layerGains: [Double] = []
-    var layerSpans: [ClipID: Range<Int>] = [:]
+    /// The layer gains of each column of the clips with gain layers in the draw, which the waveform
+    /// pass gets and the gain line reads again.
+    var layerGains: [ClipID: ArraySlice<Double>] = [:]
+    /// The layer gains of the clips of the last draw (`columnGains`), so a draw of the same layers,
+    /// clip window, and zoom walks no layer. Only the clips of the last draw stay, each with its
+    /// columns in the rect and at most one window width more on each side: about 3 window widths
+    /// of `Double` per lane.
+    var layerColumns: [ClipID: LayerColumns] = [:]
 
     /// 20 log10(v / 65535) for each magnitude v.
     private static let decibels: [Double] = (0...65535).map { 20 * log10(Double($0) / 65535) }
@@ -166,7 +169,6 @@ final class LaneRenderer {
         }
         crossfaded.removeAll(keepingCapacity: true)
         layerGains.removeAll(keepingCapacity: true)
-        layerSpans.removeAll(keepingCapacity: true)
         var chips: [ClipID: (columns: Range<Int>, bottom: Int)] = [:]
         for label in labels { if let clip = label.clip { chips[clip] = label.cut(scale: scale) } }
         for lane in drawn {
@@ -178,18 +180,23 @@ final class LaneRenderer {
             // under one column can hold none (at fit zoom, 2,000 clips per lane drew each column
             // about 1.7 times). Each part of a masked region draws as a region of its own columns.
             for clip in inView {
-                let columns = clamped(column(clip.start).rounded(.up))..<clamped(column(clip.end).rounded(.up))
+                let (left, right) = (column(clip.start).rounded(.up), column(clip.end).rounded(.up))
+                let columns = clamped(left)..<clamped(right)
                 // The layer gains of all the columns of the clip in the rect, as the gain line reads them.
-                let gains = clip.hasLayers && !columns.isEmpty ? walkLayers(of: clip, columns, pixelFrames) : nil
+                var gains: ArraySlice<Double>?
+                if clip.hasLayers && !columns.isEmpty {
+                    gains = columnGains(
+                        of: clip, columns, in: Int(left)..<Int(right), pixelFrames,
+                        margin: window.pixels.columns.count)
+                    layerGains[clip.id] = gains
+                }
                 region.forEachPart(of: columns) { range in
-                    let part = gains.map {
-                        layerGains[
-                            ($0 + range.lowerBound - columns.lowerBound)..<($0 + range.upperBound - columns.lowerBound)]
-                    }
+                    let part = gains.map { $0.dropFirst(range.lowerBound - columns.lowerBound).prefix(range.count) }
                     drawWaveform(clip, track, range, bottom: bottom, chip: chips[clip.id], layerGains: part)
                 }
             }
         }
+        if layerColumns.count > layerGains.count { layerColumns = layerColumns.filter { layerGains[$0.key] != nil } }
         // The fade line of each crossfade half outside its box, over the waveform of the neighbor
         // (decision 0036).
         for (lane, clip) in crossfaded { drawCrossfadeLines(clip, tracks[lane], lane, geometry, palette, into: region) }
@@ -204,8 +211,7 @@ final class LaneRenderer {
             let track = tracks[lane]
             let inView = track.clips.clips(overlapping: visible)
             for clip in inView where geometry.box(of: clip, lane: lane).width >= LaneGeometry.controlsWidth {
-                let gains = layerSpans[clip.id].map { layerGains[$0] }
-                drawControls(clip, track, lane, geometry, palette, layerGains: gains, into: region)
+                drawControls(clip, track, lane, geometry, palette, layerGains: layerGains[clip.id], into: region)
             }
             drawJoins(inView, of: track.clips, lane: lane, geometry, palette, into: region)
         }
@@ -265,25 +271,11 @@ final class LaneRenderer {
         values.append(contentsOf: repeatElement(PeakColumn.zero, count: count))
     }
 
-    /// Appends to `layerGains` the highest sum of the gain layers of `clip` over the file frames of
-    /// each of its `columns`, with one walk, and keeps their indices in `layerSpans`. Returns the
-    /// index of the gain of the first column.
-    func walkLayers(of clip: Clip, _ columns: Range<Int>, _ pixelFrames: Double) -> Int {
-        var envelope = ColumnEnvelope(
-            layers: [clip.envelope, clip.ride],
-            first: Double((clip.offset - clip.start).count) + Double(columns.lowerBound) * pixelFrames,
-            step: pixelFrames)
-        let start = layerGains.count
-        for index in 0..<columns.count { layerGains.append(envelope.gain(index)) }
-        layerSpans[clip.id] = start..<layerGains.count
-        return start
-    }
-
     /// The one waveform draw of the final and the live columns: `values` from the column
     /// `range.lowerBound`, rectified on a -60 dB to 0 dB scale with `gain`, light peaks over dark
     /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor,
     /// and a column of a clip with gain layers adds its gain of `layerGains`, one per column of
-    /// `range` (`walkLayers`); the fade line of such a clip stays under the top of the box (`lineClamp`).
+    /// `range` (`columnGains`); the fade line of such a clip stays under the top of the box (`lineClamp`).
     /// `chip`: the columns of a label chip and the row under its bottom; the peak and RMS spans of
     /// those columns start there, so the bar shows under the text. The fade line still draws.
     func drawColumns(

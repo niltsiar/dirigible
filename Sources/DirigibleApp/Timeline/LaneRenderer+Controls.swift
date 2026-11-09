@@ -80,7 +80,7 @@ extension LaneRenderer {
     /// With gain layers (decision 0060), the line has the row of each column, with the highest
     /// gain of the layers over its frames, at least `lineClamp` under the lane top and joined to the
     /// row of the column before it, and each shown point of the envelope is a disc. `layerGains`:
-    /// the layer gain of each column of the box in the rect (`walkLayers`), nil with no gain layer.
+    /// the layer gain of each column of the box in the rect (`columnGains`), nil with no gain layer.
     func drawControls(
         _ clip: Clip, _ track: Track, _ lane: Int, _ geometry: LaneGeometry, _ palette: LanePalette,
         layerGains: ArraySlice<Double>?, into region: borrowing PixelRegion

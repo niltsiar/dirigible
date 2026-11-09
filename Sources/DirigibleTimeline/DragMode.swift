@@ -5,7 +5,8 @@ public enum DragMode: String, CaseIterable, Sendable {
     case overwrite
     case noOverlap
     case crossfade
-    /// A single move drag is `Session.shuffle`, and a plain trim drag ripples its own track.
+    /// A single move drag is `Session.shuffle` in two steps, `shuffleClose` and `shuffleDrop`, and a
+    /// plain trim drag ripples its own track.
     case shuffle
 
     /// The overlap rule of a move or a nudge in this mode. A group move and the nudge keys are no

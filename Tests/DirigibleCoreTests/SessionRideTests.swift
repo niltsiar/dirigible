@@ -94,6 +94,14 @@ struct SessionRideTests {
         #expect(try groups(["A", "B"]) == [["A"], ["B"]])
     }
 
+    /// Touching clips of one file with one shift that differ only in clip gain are two groups.
+    @Test mutating func touchingClipsWithOtherGainsAreTwoGroups() throws {
+        try place("A", on: "t", start: 0, length: 40_000)
+        try place("B", on: "t", start: 40_000, length: 60_000, gain: -3)
+
+        #expect(try groups(["A", "B"]) == [["A"], ["B"]])
+    }
+
     /// A clip gain of -0 dB equals 0 dB, so the parts are one group.
     @Test mutating func negativeZeroGainIsOneGroup() throws {
         try place("A", on: "t", start: 0, length: 40_000)

@@ -67,11 +67,14 @@ package struct RideWork: Sendable {
 
     /// One line for each named clip, from the session after the run. A ride: `<clip>: leveled, <lowest>
     /// to <highest> dB, <n> points` for a clip with a ride, else `<clip>: no measurement`. A remove:
-    /// `<clip>: ride removed` for a clip in `changed`, else `<clip>: no ride`.
+    /// `<clip>: ride removed` for a clip in `changed`, `<clip>: no ride in the range` for another
+    /// clip with a ride, else `<clip>: no ride`.
     func lines(changed: [ClipID], in session: Session) -> [String] {
         clips.map { clip in
-            guard !clear else { return "\(clip): \(changed.contains(clip) ? "ride removed" : "no ride")" }
-            return Self.rideLine(of: clip, in: session)
+            guard clear else { return Self.rideLine(of: clip, in: session) }
+            if changed.contains(clip) { return "\(clip): ride removed" }
+            let ridden = session.clip(clip)?.clip.ride.isEmpty == false
+            return "\(clip): \(ridden ? "no ride in the range" : "no ride")"
         }
     }
 

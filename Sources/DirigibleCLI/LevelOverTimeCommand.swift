@@ -20,7 +20,8 @@ extension ClipCommand {
                 ride and reads no audio: "<clip>: ride removed", or "<clip>: no ride" for a clip with \
                 no ride to remove. --clear with --from and --to removes the ride only inside that range \
                 of timeline frames, with a ramp of 500 ms at each edge, and no other clip changes what \
-                it plays. Exit 64 when --from comes without --to, without --clear, or with --from at or \
+                it plays; "<clip>: no ride in the range" for a clip whose ride is outside the range. \
+                Exit 64 when --from comes without --to, without --clear, or with --from at or \
                 after --to. Exit 1 when a clip is unknown, or a source WAV is missing, short, or \
                 unreadable. Exit 2 when the package cannot be read or written, is locked, or has a take \
                 that is not finalized. Control-C leaves the package as it was and exits 130.

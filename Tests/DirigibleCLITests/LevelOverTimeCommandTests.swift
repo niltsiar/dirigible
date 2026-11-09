@@ -222,6 +222,18 @@ struct LevelOverTimeCommandTests {
         #expect(session.clip("c1")?.clip.ride.isEmpty == true, "the ride stays on c1")
     }
 
+    /// `--clear --from --to` on a range past a ridden clip prints "no ride in the range" and keeps the ride.
+    @Test func clearOnARangePastARiddenClipPrints() async throws {
+        let package = try Self.ridden([("c1", "t1", 0, 0, 30)])
+
+        let result = try await package.run(
+            "clip", "level-over-time", "PKG", "c1", "--clear", "--from", "\(40 * Self.rate)", "--to",
+            "\(50 * Self.rate)")
+
+        #expect(result == CLIResult(status: 0, stdout: "c1: no ride in the range\n", stderr: ""), "\(result)")
+        #expect(try package.read().clip("c1")?.clip.ride == (try Self.old()))
+    }
+
     /// C14 and C32: `--clear --from --to` makes the ride 0 dB on the range and keeps the old ride outside the
     /// range and its 500 ms ramps.
     @Test func clearOnARangePrints() async throws {

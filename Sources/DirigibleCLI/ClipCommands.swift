@@ -9,7 +9,7 @@ struct ClipCommand: ParsableCommand {
         commandName: "clip", abstract: "Place, cut, and change clips on tracks.",
         subcommands: [
             Place.self, Clear.self, Split.self, SplitAt.self, SplitStereo.self, Paste.self, PasteClips.self, Nudge.self,
-            Remove.self, Denoise.self, Repair.self, Restore.self,
+            Remove.self, Denoise.self, Repair.self, LevelOverTime.self, Restore.self,
             Move.self, Shuffle.self, Trim.self,
             SetGain.self, Envelope.self, GainRange.self, Fade.self, Crossfade.self, Heal.self, RippleDelete.self,
             RippleInsert.self, RippleTrim.self, Replace.self, Fill.self, CloseGaps.self, Roll.self, Slip.self,

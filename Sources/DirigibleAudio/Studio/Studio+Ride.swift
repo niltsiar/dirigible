@@ -63,10 +63,17 @@ extension Studio {
         return .success(
             try rideLists(groups, in: session, package: package, progress: progress, isCancelled: isCancelled))
     } catch {
+        return .failure(StudioError(error))
+    }
+}
+
+extension StudioError {
+    /// The error of a ride read that stopped.
+    package init(_ error: RideReadError) {
         switch error {
-        case .cancelled: return .failure(.rideCancelled)
-        case .fault(let file, let fault): return .failure(.rideFault(file, fault))
-        case .descriptor(let code): return .failure(.rideRead(code))
+        case .cancelled: self = .rideCancelled
+        case .fault(let file, let fault): self = .rideFault(file, fault)
+        case .descriptor(let code): self = .rideRead(code)
         }
     }
 }

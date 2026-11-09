@@ -39,6 +39,8 @@ func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable
         return await liveLevel(work, studio: studio, call: call, report: report)
     case .duck(let work):
         return await liveDuck(work, studio: studio, call: call, report: report)
+    case .ride(let work):
+        return await liveRide(work, studio: studio, call: call, report: report)
     case .importFile(let work):
         return await liveImport(work, studio: studio, call: call, report: report)
     case .splitStereo(let work):
@@ -118,6 +120,35 @@ private func liveDuck(
         // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
         let text =
             Task.isCancelled ? cancelledMessage : "The user cancelled the duck in Dirigible. No envelope changed."
+        return .result(text: text, isError: true)
+    } catch .busy {
+        return .result(text: AgentBusy.task.message(package: call.path), isError: true)
+    } catch {
+        return .result(text: error.message(package: call.path), isError: true)
+    }
+}
+
+/// `clip_level_over_time` through `Studio.levelOverTime`, or with `clear` `Studio.removeLevelOverTime`: one
+/// undo step with the agent name. The banner Cancel or a cancel of the call ends it with no ride change
+/// (decisions 0049 and 0064).
+@MainActor
+private func liveRide(
+    _ work: RideWork, studio: Studio, call: AgentCall, report: @escaping @Sendable (Double) -> Void
+) async -> AgentReply {
+    do throws(StudioError) {
+        let clips = Set(work.clips)
+        var changed: [ClipID] = []
+        if work.clear {
+            changed = try studio.removeLevelOverTime(clips, in: work.range, agent: call.agent)
+        } else {
+            _ = try await studio.levelOverTime(clips, agent: call.agent, progress: report)
+        }
+        return .result(text: work.lines(changed: changed, in: studio.session).joined(separator: "\n"), isError: false)
+    } catch .rideCancelled {
+        // A cancel of the call task: the bridge closed, or `AgentServer` gives the server stop text.
+        let text =
+            Task.isCancelled
+            ? cancelledMessage : "The user cancelled the level over time in Dirigible. No ride changed."
         return .result(text: text, isError: true)
     } catch .busy {
         return .result(text: AgentBusy.task.message(package: call.path), isError: true)
@@ -300,6 +331,7 @@ func serverStopMessage(_ work: ToolWork) -> String {
         "Dirigible stopped its agent server, so the \(export.noun) stopped. No file was written."
     case .level: "Dirigible stopped its agent server, so the level stopped. No gain changed."
     case .duck: "Dirigible stopped its agent server, so the duck stopped. No envelope changed."
+    case .ride: "Dirigible stopped its agent server, so the level over time stopped. No ride changed."
     case .importFile: "Dirigible stopped its agent server, so the import stopped. No clip was added."
     case .splitStereo: "Dirigible stopped its agent server, so the split stopped. No track was added."
     case .clipRender(let render): "Dirigible stopped its agent server, so the \(render.noun) stopped. No clip changed."

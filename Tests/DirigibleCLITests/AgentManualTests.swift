@@ -341,6 +341,27 @@ struct AgentManualTests {
         #expect(Self.steps("add-sound").contains("`import`"))
     }
 
+    /// C16 (plan gate 4 item 4): the `check-levels` steps stay as on main, and its summary (the skill text
+    /// and the prompt description) and the tool description of `clip_level_over_time` name the trigger of
+    /// the ride. The whole manual has the steps only, so it stays at 6000 characters or less.
+    @Test func theLevelsRecipeNamesTheRide() throws {
+        let trigger = "a speech clip whose level moves inside it"
+        let recipe = try #require(AgentManual.recipes.first { $0.name == "check-levels" })
+        #expect(
+            recipe.steps == "run `loudness`, `level`, then `loudness` again; report each clip before and after.",
+            "\(recipe.steps)")
+        #expect(
+            recipe.summary.contains(trigger) && recipe.summary.contains("`clip_level_over_time`"),
+            "\(recipe.summary)")
+        #expect(AgentManual.skill.contains(trigger), "the skill text")
+        let prompts = AgentManual.promptList.filter { $0["name"] as? String == "check-levels" }
+        #expect(prompts.first?["description"] as? String == recipe.summary, "\(prompts)")
+        let tool = try #require(Tool.all.first { $0.name == "clip_level_over_time" })
+        #expect(tool.description.contains(trigger), "\(tool.description)")
+        let whole = AgentManual.manual(pathLine: AgentManual.pathLine(quoted: Self.longPath))
+        #expect(!whole.contains(trigger) && whole.count <= 6000, "whole \(whole.count)")
+    }
+
     /// The lines that import at a frame: the `import` tool with `at`, or `dirigible import` with `--at`.
     static func importLines(in text: String) -> [String] {
         text.split(separator: "\n").map(String.init).filter { line in

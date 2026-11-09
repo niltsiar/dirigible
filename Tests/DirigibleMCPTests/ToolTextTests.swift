@@ -33,9 +33,18 @@ struct ToolTextTests {
         #expect(!follow.description.contains("`duck`") && !follow.description.contains("`clip_denoise`"))
     }
 
-    /// A late cancel of `level`, `import`, `clip_split_stereo`, `clip_denoise`, or `clip_repair` keeps the change,
-    /// so the text tells the agent to read the session before a retry (decision 0049, code gate 3 item 1).
-    @Test(arguments: ["level", "import", "clip_split_stereo", "clip_denoise", "clip_repair"])
+    /// `clip_envelope` says that the ride layer of Level Over Time is separate from its points (C21).
+    @Test func clipEnvelopeNamesTheRideLayer() throws {
+        let tool = try #require(Tool.all.first { $0.name == "clip_envelope" })
+        #expect(tool.description.contains("separate ride layer"), "\(tool.description)")
+    }
+
+    /// A late cancel of `level`, `import`, `clip_split_stereo`, `clip_denoise`, `clip_repair`, or
+    /// `clip_level_over_time` keeps the change, so the text tells the agent to read the session before a retry
+    /// (decision 0049, code gate 3 item 1).
+    @Test(arguments: [
+        "level", "import", "clip_split_stereo", "clip_denoise", "clip_repair", "clip_level_over_time",
+    ])
     func anEditCancelTextTellsTheAgentToReadTheSession(name: String) throws {
         let tool = try #require(Tool.all.first { $0.name == name })
         #expect(

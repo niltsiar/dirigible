@@ -105,7 +105,7 @@ func liveCall(_ call: AgentCall, target: AgentTarget) -> AgentReply {
         case .paste, .revert, .prune: return refusedOpen
         // `AgentServer` sends `record` to `liveRecord`, `transport` to `liveTransport`, `info` to
         // `liveInfo`, and long work to `liveJob`.
-        case .create, .record, .transport, .info, .loudness, .export, .level, .duck, .importFile, .splitStereo,
+        case .create, .record, .transport, .info, .loudness, .export, .level, .duck, .ride, .importFile, .splitStereo,
             .clipRender,
             .chapters,
             .transcriptExport,

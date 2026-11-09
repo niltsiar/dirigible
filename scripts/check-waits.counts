@@ -1,2 +1,4 @@
 # The caps of the wall-clock count gate of scripts/check-waits.sh. The first line that is no comment is `mode warn` or `mode fail`. A cap line is <path><TAB><cap><TAB><reason>.
 mode warn
+Sources/DirigibleMCP/RideWork.swift	1	The DEBUG hold of interruptWritesNothing waits for the interrupt of the child
+Tests/DirigibleCLITests/LevelOverTimeCommandTests.swift	6	interruptWritesNothing waits for the hold line and for the exit of the child

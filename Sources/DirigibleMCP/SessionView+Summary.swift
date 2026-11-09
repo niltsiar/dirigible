@@ -30,7 +30,7 @@ package func summary(
                     + (clip.fades == .zero ? "" : " fade in \(clip.fades.fadeIn), out \(clip.fades.fadeOut)")
                     + (clip.crossfades.start == .zero ? "" : " crossfade in \(clip.crossfades.start)")
                     + (clip.crossfades.end == .zero ? "" : " crossfade out \(clip.crossfades.end)")
-                    + envelopeText(of: clip))
+                    + envelopeText(of: clip) + (clip.rideSummary.map { " \($0.text)" } ?? ""))
         }
     }
     for file in session.sortedFiles {

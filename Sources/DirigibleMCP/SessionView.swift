@@ -68,6 +68,10 @@ package struct SessionView: Encodable {
         var windowEdges: [PointView]?
         /// Only with `compact`, in place of the three keys above: the count of all points.
         var points: Int?
+        /// The ride layer as a summary, never its points. Only with `compact`, in place of it: the
+        /// count of its points inside the window.
+        var ride: RideView?
+        var ridePoints: Int?
 
         init(_ clip: Clip) {
             id = clip.id.rawValue
@@ -85,6 +89,7 @@ package struct SessionView: Encodable {
             let outside = clip.envelope.points.count - inside.count
             pointsOutside = outside == 0 ? nil : outside
             windowEdges = outside == 0 ? nil : [clip.windowEdges.first, clip.windowEdges.last]
+            ride = clip.rideSummary
         }
 
         var compacted: ClipView {
@@ -93,7 +98,22 @@ package struct SessionView: Encodable {
             (clip.envelope, clip.pointsOutside, clip.windowEdges, clip.points) = (
                 nil, nil, nil, count == 0 ? nil : count
             )
+            (clip.ride, clip.ridePoints) = (nil, ride?.points)
             return clip
+        }
+    }
+
+    /// The ride layer of a clip (C21): the count of its points inside the clip
+    /// window, and the lowest and highest ride gain in the window, in dB at 0.1 dB.
+    struct RideView: Encodable, Equatable {
+        let points: Int
+        let lowest: Double
+        let highest: Double
+
+        /// The text of a summary: `ride <n> points <lowest> to <highest> dB`.
+        var text: String {
+            "ride \(points) \(points == 1 ? "point" : "points") \(String(format: "%.1f", lowest)) to "
+                + "\(String(format: "%.1f", highest)) dB"
         }
     }
 
@@ -324,6 +344,18 @@ extension Session {
 }
 
 extension Clip {
+    /// The summary of the ride layer: nil with no ride point. The extremes cover the ride points
+    /// inside the clip window and its gain at the first and the last frame of the window.
+    var rideSummary: SessionView.RideView? {
+        guard !ride.isEmpty else { return nil }
+        let window = offset..<(offset + length)
+        let inside = ride.points(in: window)
+        let gains = inside.map(\.gain.dB) + [ride.gain(at: offset), ride.gain(at: offset + length - 1)]
+        func tenth(_ dB: Double) -> Double { (dB * 10).rounded() / 10 + 0.0 }
+        return SessionView.RideView(
+            points: inside.count, lowest: tenth(gains.min() ?? 0), highest: tenth(gains.max() ?? 0))
+    }
+
     /// The gain points inside the clip window, each at its timeline frame (decision 0060).
     var pointsInWindow: [(frame: Frames, gain: Gain)] {
         let window = offset..<(offset + length)

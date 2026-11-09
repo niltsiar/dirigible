@@ -53,11 +53,12 @@ extension SessionWindow {
     }
 
     /// Removes the ride of the clips that `removeRideTarget` names, as one undo step. A selection
-    /// with no ridden clip beeps.
+    /// with no ridden clip beeps. With a dialog, it does nothing.
     func removeLevelOverTime() {
         guard importJob == nil, !dialogShowing, let studio = idleStudio else { return }
         let target = removeRideTarget(in: studio.session)
         guard !target.clips.isEmpty else { return beep() }
+        commitDrafts()
         do throws(StudioError) {
             try studio.removeLevelOverTime(target.clips, in: target.range, agent: nil)
         } catch {

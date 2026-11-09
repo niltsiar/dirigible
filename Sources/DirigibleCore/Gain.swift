@@ -24,5 +24,8 @@ public struct Gain: Hashable, Sendable, CustomStringConvertible {
     /// export report, the start rule of the gain drag of the lanes, the clamp of the inspector, and
     /// the top of the track fader (`FaderScale`).
     public static let levelLimit = 20.0
+    /// The ride gain limit of Level Over Time, in dB, in each direction (decision 0060): the ride
+    /// clamps to it, and a load refuses a ride gain past it.
+    public static let rideLimit = 6.0
     public var description: String { "\(dB) dB" }
 }

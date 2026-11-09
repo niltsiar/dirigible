@@ -17,12 +17,13 @@ struct SessionFileBenchmark {
     static let peakBytes = 256 << 20
 
     /// The ride list of clip `index`: 18 954 points on a 2 h file, a seeded walk of the gain in
-    /// `-6...6` dB, shifted by 0.01 dB for each index, so the lists of two clips differ.
+    /// `-6...6` dB, shifted by 0.01 dB for each index inside that range, so the lists of two clips
+    /// differ.
     static func ride(_ index: Int) -> GainEnvelope {
         var random = SplitMix(seed: 41)
         var dB = 0
         let points = (0..<18_954).map { step in
-            dB = min(600, max(-600, dB + Int.random(in: -40...40, using: &random)))
+            dB = min(600 - index, max(-600 - index, dB + Int.random(in: -40...40, using: &random)))
             return (2_400 + step * 18_233, Double(dB + index) / 100)
         }
         return envelope(points)

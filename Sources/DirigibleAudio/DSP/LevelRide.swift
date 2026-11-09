@@ -1,3 +1,4 @@
+import DirigibleCore
 import Foundation
 
 /// The fixed settings of a level ride. The command has no control.
@@ -9,8 +10,8 @@ struct LevelRide: Hashable, Sendable {
     /// A step more than this many LU under the reference of its measure span is a pause step.
     let gateDepth = 15.0
     /// The largest boost and the largest cut in dB.
-    let maxBoost = 6.0
-    let maxCut = 6.0
+    let maxBoost = Gain.rideLimit
+    let maxCut = Gain.rideLimit
     /// The centred moving average of the gain, over the steps from k - 5 to k + 5.
     let smoothingHalfSteps = 5
 }

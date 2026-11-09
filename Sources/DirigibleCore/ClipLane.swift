@@ -220,10 +220,10 @@ public struct ClipLane: RandomAccessCollection, Hashable, Sendable {
     }
 
     /// True when the clips at `left` and `left + 1` touch and play on in one file at one gain at
-    /// each frame, the envelope and the ride included, with no fade at the join: one clip over both plays the
-    /// same samples, and so does a crossfade of any length there (Command-F skips the join). The
-    /// envelopes compare on the file frames that the joined clip plays, its crossfade halves too
-    /// (decision 0060).
+    /// each frame, the envelope and the ride included, with no fade at the join: one clip over both
+    /// plays the same samples, and so does a crossfade of any length there (Command-F skips the
+    /// join). The envelopes compare on the file frames that the joined clip plays, its crossfade
+    /// halves too (decision 0060).
     package func canHeal(after left: Int) -> Bool {
         guard join(after: left) == .seamless else { return false }
         let (a, b) = (storage[left], storage[left + 1])

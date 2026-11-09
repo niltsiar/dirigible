@@ -9,8 +9,8 @@ private let from = Param<Int?>.optional(
 private let to = Param<Int?>.optional(
     "to", "With clear: the timeline frame after the range to remove. Give it with from.", .integer())
 
-/// `clip_level_over_time` (decision 0064). It has its own file because
-/// `MCPClipTools.swift` is at its size limit.
+/// `clip_level_over_time` (decision 0064). It has its own file because `MCPClipTools.swift` is at
+/// its size limit.
 let rideTools = [
     Tool(
         "clip_level_over_time",

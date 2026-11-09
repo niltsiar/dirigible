@@ -2,9 +2,9 @@ import DirigibleAudio
 import DirigibleCore
 import Foundation
 
-/// The work of a `clip_level_over_time` call or command after its arguments are checked (decisions 0049
-/// and 0064). It is the one owner of the argument rules, the steps on the
-/// files, and the lines of `dirigible clip level-over-time` and the tool. In the app, `liveJob` runs
+/// The work of a `clip_level_over_time` call or command after its arguments are checked (decisions
+/// 0049 and 0064). It is the one owner of the argument rules, the steps on the files, and the lines
+/// of `dirigible clip level-over-time` and the tool. In the app, `liveJob` runs
 /// `Studio.levelOverTime` and `Studio.removeLevelOverTime`.
 package struct RideWork: Sendable {
     let clips: [ClipID]

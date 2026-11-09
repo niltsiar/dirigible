@@ -9,9 +9,9 @@ import DirigibleCore
 /// 0060) and its ride. A mono clip goes to both channels, a stereo clip left to left and right to
 /// right (0007). It reads only the heard tracks of its track set: muted and unsoloed tracks are out
 /// (decision 0039). Where no clip or no media is, the mix is silence. One owner, not Sendable: the
-/// Player or the command-line render. It keeps at most `openLimit` files open and closes the least recently used one, so a
-/// session with many files does not use up the descriptors of the process. Each read stops at the
-/// real length of the file (probe E6c).
+/// Player or the command-line render. It keeps at most `openLimit` files open and closes the least
+/// recently used one, so a session with many files does not use up the descriptors of the process.
+/// Each read stops at the real length of the file (probe E6c).
 final class MixReader {
     /// A calibration knob: the process limit is 256 descriptors by default.
     static let openLimit = 32

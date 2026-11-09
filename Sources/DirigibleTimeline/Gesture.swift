@@ -272,7 +272,7 @@ public struct TimelineGesture: Sendable {
                 return drag(place, context)
             case .lane(.move(let clip, let lane)):
                 guard context.canEdit else { return [] }
-                state = moveState(press, clip, lane, context.geometry)
+                state = moveState(press, clip, lane, context.geometry, context.dragMode)
                 // A Shuffle move that cannot ripple: one beep, and the press ends (decision 0037).
                 if case .moving = state, context.dragMode == .shuffle, !context.canRipple {
                     state = .dropped

@@ -366,4 +366,26 @@ import Testing
         #expect(!model.isOn(.removeLevelOverTime), "a range past the clip")
         await model.close()
     }
+
+    /// The 1.5 s crossfade after the ridden part c1 (0..1 s) sounds to 1.75 s, past the 500 ms
+    /// ramp. A range from 1.6 s meets c1 only in that half: the item is on, and c1 plays 0 dB there.
+    @Test func removeReachesACrossfadeHalfInTheRange() async throws {
+        let (model, studio, _) = try await open()
+        try studio.edit(ripple: false, agent: nil) { session throws(SessionError) in
+            try session.splitClips(at: [48_000], on: ["t1"])
+            try session.setGain(Gain(dB: 1)!, clip: "c1@48000")
+            try session.setCrossfades(["c1": 72_000])
+        }
+        await levelOverTime(model, set("c1"))
+        let half = stride(from: 76_800, to: 84_000, by: 480).map { Frames($0) }
+        #expect(half.contains { ride("c1", studio).gain(at: $0) != 0 }, "the fixture ride has a level there")
+
+        model.timeline.selection = .range(Marks(inPoint: 76_800, outPoint: 120_000, tracks: ["t1"]))
+        #expect(model.isOn(.removeLevelOverTime))
+        model.run(.removeLevelOverTime)
+
+        let after = ride("c1", studio)
+        #expect(half.allSatisfy { after.gain(at: $0) == 0 }, "c1 keeps its ride in the range")
+        await model.close()
+    }
 }

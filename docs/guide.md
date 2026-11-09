@@ -264,6 +264,21 @@ A selection is a range or a set of clips. A range has an in point, an out point,
 
 Each edit is one step in the undo history. Choose **Edit > Undo** to reverse the last edit.
 
+### Set the Drag Mode
+
+The Drag Mode sets what a drag of a clip does to the clips under it. Choose **Edit > Drag Mode** (**Edición > Modo de arrastre**) and one of four modes. The checkmark shows the mode in use. The mode is one setting of the app. It is the same in all windows, and it stays after you quit Dirigible. The item has no key.
+
+- **Overwrite** (**Sobrescribir**) is the default. The moved clip replaces the audio under it.
+- **No Overlap** (**Sin solapamiento**) stops the clip at the clips next to it. The clip never covers another clip. A yellow line shows the edge that touches the neighbor, the label says **Stopped at a neighbor clip**, and VoiceOver says it once when the clip stops.
+- **Crossfade** (**Fundido cruzado**) is as Overwrite, and each join with a clip that the moved clip covered gets a crossfade of the covered length. The audio that the files have limits its length.
+- **Shuffle** moves the clip as a ripple. The gap at the old place closes, and the clips at the new place move to the right to make room. The clip drops at the edge of a clip, never in the middle of one, and the yellow line shows that edge. A drag of the edge of a clip is a ripple trim of its own track. Under a pending or split take, a Shuffle drag beeps and changes nothing. The markers move by the ripple rule. A Shuffle moves only the track of the clip and the track where you drop it, so the other tracks stay, also a track with Follow in Ripples.
+
+When the mode is not Overwrite, the subtitle of the window shows **Drag Mode: Shuffle** (or the mode in use) before the sample rate. At Overwrite it shows nothing.
+
+A drag of a set of clips in Shuffle mode overwrites, as in Overwrite mode. In the other two modes, a set of clips follows the mode. The nudge keys (Command-Left Arrow, Command-Right Arrow) and the slip keys always overwrite, in every mode. Each drag is one step for **Undo**.
+
+In Terminal, `dirigible clip move` and `dirigible clip nudge` take `--mode`, and `dirigible clip shuffle` is a Shuffle. They do not read the setting of the app.
+
 ### Snap clips into place
 
 When you drag a clip, the edge of a clip, or a selection, its edge snaps to a clip edge on any track, to the playhead, or to a marker or chapter. Snap acts when the edge comes within 6 points of a target on the screen. A yellow line shows where the edge snapped. On a Force Touch trackpad, you also feel a tick.
@@ -936,6 +951,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Fade** | **Fundido** | Command-F |
 | **Close Gaps** | **Cerrar huecos** | None |
 | **Heal Clips** | **Unir clips** | None |
+| **Drag Mode** | **Modo de arrastre** | None |
 | **Add Gain Point** | **Añadir punto de ganancia** | Option-K |
 
 ### View

@@ -1,6 +1,7 @@
 import AppKit
 import DirigibleAudio
 import DirigibleCore
+import DirigibleTimeline
 import SwiftUI
 
 /// An item of the session toolbar (decision 0023). AppKit saves the customization under the raw
@@ -259,7 +260,7 @@ struct ChromeState: Equatable {
         preRolling = studio.preRollFrame != nil
         subtitle = subtitleText(
             rate: studio.session.sampleRate, tracks: studio.session.tracks.count, recordTimeLeft: subtitleLeft,
-            preRoll: preRolling)
+            preRoll: preRolling, dragMode: model.dragMode)
         var banners: [WindowBanner] = []
         if let stop = studio.playbackStop { banners.append(.playbackStopped(stop)) }
         if !studio.missingMedia.isEmpty {
@@ -329,13 +330,18 @@ func lowRecordTimeText(minutes: Int, locale: Locale = .current, text: (L10n) -> 
 
 /// The window subtitle: "48 kHz · Tracks: 3 · Record time left: 2 hr, 10 min", with the time left
 /// rounded down to the minute. No plural form (0010); Foundation gives the units of the time.
-/// During the pre-roll of a take it starts with "Pre-roll". `text` gives the value of a key.
+/// During the pre-roll of a take it starts with "Pre-roll". Outside Overwrite, the cue "Drag Mode:
+/// Shuffle" comes next, before the rate. `text` gives the value of a key.
 func subtitleText(
-    rate: Int, tracks: Int, recordTimeLeft: Duration?, preRoll: Bool = false, locale: Locale = .current,
+    rate: Int, tracks: Int, recordTimeLeft: Duration?, preRoll: Bool = false, dragMode: DragMode = .overwrite,
+    locale: Locale = .current,
     text: (L10n) -> String = { $0.text }
 ) -> String {
     let kHz = (Double(rate) / 1000).formatted(.number.locale(locale))
     var parts = ["\(kHz) kHz", "\(text(.subtitleTracks)) \(tracks)"]
+    if dragMode != .overwrite {
+        parts.insert(String(format: text(.timelineDragModeCue), locale: locale, text(dragMode.title)), at: 0)
+    }
     if preRoll { parts.insert(text(.subtitlePreRoll), at: 0) }
     if let recordTimeLeft {
         let minutes = Duration.seconds(Int(recordTimeLeft / .seconds(60)) * 60)

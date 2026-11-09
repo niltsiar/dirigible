@@ -836,3 +836,11 @@
 "alert.follow.overlap.title" = "Um clipe cobriria outro clipe.";
 "alert.follow.overlap.body" = "O clipe em %1$@ em %2$@ acompanha o deslocamento. Mova-o ou desative “Acompanhar o deslocamento”.";
 "error.ripple.follow.only" = "Todas as faixas acompanham o deslocamento, pelo que nada seria cortado. Desative “Acompanhar o deslocamento” na faixa para cortar.";
+
+/* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
+"menu.edit.drag.mode" = "Modo de arrastamento";
+"menu.edit.drag.mode.overwrite" = "Sobrescrever";
+"menu.edit.drag.mode.no.overlap" = "Sem sobreposição";
+"menu.edit.drag.mode.crossfade" = "Crossfade";
+"menu.edit.drag.mode.shuffle" = "Shuffle";
+"timeline.drag.mode.cue" = "Modo de arrastamento: %@";

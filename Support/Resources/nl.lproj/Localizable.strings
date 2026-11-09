@@ -836,3 +836,11 @@
 "alert.follow.overlap.title" = "Een clip zou een andere clip bedekken.";
 "alert.follow.overlap.body" = "De clip op %1$@ bij %2$@ schuift mee bij ripple. Verplaats de clip of zet “Meeschuiven bij ripple” uit.";
 "error.ripple.follow.only" = "Elk spoor schuift mee bij ripple, dus er zou niets worden geknipt. Zet “Meeschuiven bij ripple” uit op het spoor om te knippen.";
+
+/* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
+"menu.edit.drag.mode" = "Sleepmodus";
+"menu.edit.drag.mode.overwrite" = "Overschrijven";
+"menu.edit.drag.mode.no.overlap" = "Geen overlap";
+"menu.edit.drag.mode.crossfade" = "Crossfade";
+"menu.edit.drag.mode.shuffle" = "Shuffle";
+"timeline.drag.mode.cue" = "Sleepmodus: %@";

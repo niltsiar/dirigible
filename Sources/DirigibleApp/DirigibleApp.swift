@@ -100,6 +100,7 @@ struct DirigibleApp: App {
                     Button(L10n.menuEditCloseGaps.key) { app.timeline(.closeGaps) }
                         .disabled(app.key?.isOn(.closeGaps) != true)
                     Button(L10n.menuEditHeal.key) { app.timeline(.heal) }.disabled(app.key?.isOn(.heal) != true)
+                    Menu(L10n.menuEditDragMode.key) { DragModeItems(app: app) }
                 }
                 // Every marker key is one that a text field uses: never disabled (probe K1).
                 CommandMenu(L10n.menuMarkers.key) {

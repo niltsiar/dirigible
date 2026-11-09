@@ -24,6 +24,7 @@ struct LocalizationCopyTests {
 /// and words that are the same).
 private let sameAsEnglish: [String: Set<String>] = [
     "de": [
+        "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.standard",
@@ -45,6 +46,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "es": [
+        "menu.edit.drag.mode.shuffle",
         "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
@@ -60,6 +62,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "fr": [
+        "menu.edit.drag.mode.shuffle",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "sheet.transcribe.standard", "inspector.tab.silences", "silences.action", "silences.mark.name",
@@ -79,6 +82,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "it": [
+        "menu.edit.drag.mode.shuffle",
         "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
@@ -96,6 +100,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "nl": [
+        "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
         "settings.pre.roll", "toolbar.pre.roll", "subtitle.pre.roll",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
@@ -119,6 +124,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "panel.transcript.choice", "inspector.hertz",
     ],
     "pt": [
+        "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "episode.links",
@@ -134,6 +140,7 @@ private let sameAsEnglish: [String: Set<String>] = [
         "panel.transcript.format.srt", "panel.transcript.format.vtt", "inspector.hertz",
     ],
     "pt-PT": [
+        "menu.edit.drag.mode.shuffle", "menu.edit.drag.mode.crossfade",
         "sheet.transcribe.kind.tiny", "sheet.transcribe.kind.base", "sheet.transcribe.kind.small",
         "sheet.transcribe.kind.medium", "sheet.transcribe.kind.large", "sheet.transcribe.file.title",
         "alert.ok", "dock.badge.recording", "episode.copyright", "episode.guid", "inspector.decibels",

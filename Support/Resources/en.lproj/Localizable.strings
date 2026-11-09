@@ -836,3 +836,11 @@
 "alert.follow.overlap.title" = "A clip would cover another clip.";
 "alert.follow.overlap.body" = "The clip on %1$@ at %2$@ follows ripples. Move it, or turn off Follow in Ripples.";
 "error.ripple.follow.only" = "Each track follows ripples, so nothing would be cut. Turn off Follow in Ripples on the track to cut.";
+
+/* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
+"menu.edit.drag.mode" = "Drag Mode";
+"menu.edit.drag.mode.overwrite" = "Overwrite";
+"menu.edit.drag.mode.no.overlap" = "No Overlap";
+"menu.edit.drag.mode.crossfade" = "Crossfade";
+"menu.edit.drag.mode.shuffle" = "Shuffle";
+"timeline.drag.mode.cue" = "Drag Mode: %@";

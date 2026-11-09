@@ -163,8 +163,8 @@ extension TimelineGesture {
             if move.closed == nil {
                 var closed = base
                 guard (try? closed.rippleDelete([move.clip.range], on: [source.id], naming: [source.id])) != nil else {
-                    state = .moving(press, move)
-                    return []
+                    state = .dropped
+                    return [.beep]
                 }
                 move.closed = Closed(closed)
             }

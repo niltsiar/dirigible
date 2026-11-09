@@ -83,7 +83,14 @@ import Testing
                 let shiftedBefore = view.lanes.surfaces.shifted
                 view.lanes.mouseDown(with: try mouse(.leftMouseDown, down, in: view))
                 let sorted = try await MouseEventBenchmark.pacedDrags(view, window, row) { n in
-                    if n > 1, view.lanes.surfaces.lastDrawn.contains(where: { $0.rows.overlaps(otherLanes) }) {
+                    // The draw of event n - 1: a draw 360 pt wide or more keeps off the rows of t2 to
+                    // t5. A narrower change draws all lanes of its columns.
+                    let drawn = view.lanes.surfaces.lastDrawn
+                    let low = drawn.map(\.columns.lowerBound).min() ?? 0
+                    let high = drawn.map(\.columns.upperBound).max() ?? 0
+                    if n > 1, Double(high - low) >= 360 * shown.scale,
+                        drawn.contains(where: { $0.rows.overlaps(otherLanes) })
+                    {
                         wideDraws += 1
                     }
                     return try mouse(.leftMouseDragged, path.point(n, down, box.width), in: view)
@@ -92,11 +99,13 @@ import Testing
                 let shifted = view.lanes.surfaces.shifted - shiftedBefore
                 print(
                     "MouseEventDragModeBenchmark \(path.name), \(zoom): p50 \(sorted[60]), p95 \(sorted[113]),"
-                        + " shifted \(shifted), draws on t2 to t5 \(wideDraws)")
+                        + " shifted \(shifted), wide draws on t2 to t5 \(wideDraws)")
                 expectWithinBudget(sorted[113], MouseEventBenchmark.budget, "\(row): p95 \(sorted[113])")
                 // The time-free counts of C60 (U48, U49), after the print, so a miss keeps the times.
                 if path.edge { #expect(shifted >= 120, "\(row): \(shifted) events drew by a shift") }
-                if path.name == "shuffle to t6" { #expect(wideDraws == 0, "\(row): \(wideDraws) events drew t2 to t5") }
+                if path.name == "shuffle to t6" {
+                    #expect(wideDraws == 0, "\(row): \(wideDraws) events drew t2 to t5 over 360 pt or more")
+                }
                 window.close()
                 await model.close()
             }

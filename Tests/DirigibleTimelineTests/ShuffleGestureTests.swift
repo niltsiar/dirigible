@@ -101,6 +101,28 @@ struct ShuffleGestureTests {
         #expect(commits == 0)
     }
 
+    /// A clip may end past `Frames.limit`: its close throws `.frameOutOfRange`. The press ends with
+    /// one beep, no preview, and no edit. Control: a gesture that keeps the press retries the close
+    /// at each event with no beep.
+    @Test func aShuffleDragWhoseCloseFailsBeepsOnce() throws {
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 480_000))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        let start = Int(Frames.limit.count) - 24_000
+        try session.place(Clip(id: "z", file: "f", start: Frames(start), offset: 0, length: 48_000), on: "t1")
+        var copy = session
+        #expect(throws: SessionError.frameOutOfRange) {
+            try copy.rippleDelete(Frames(start)..<Frames(start + 48_000), on: ["t1"], naming: ["t1"])
+        }
+        var g = ModeGesture(session, .shuffle)
+        g.down(start + 24_000)
+        let effects = [g.drag(start + 12_000), g.drag(start)]
+        #expect(effects == [[.beep], []])
+        ModeGesture.expectSame(g.drawn, g.session)
+        let commits = ModeGesture.commits(g.up(start)).count
+        #expect(commits == 0)
+    }
+
     /// U14: a group move is no ripple, so it overwrites. Control: `.shuffle` reaches `nudge` with
     /// no `overlap` map.
     @Test func aGroupMoveInShuffleOverwrites() throws {

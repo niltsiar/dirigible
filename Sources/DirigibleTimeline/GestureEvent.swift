@@ -13,6 +13,7 @@ public struct GestureContext: Sendable {
     /// The device columns of one point (the backing scale): a ripple drag moves by whole columns,
     /// so the lanes can draw it by a shift (decision 0037).
     public var columnsPerPoint = 1.0
+    public var dragMode = DragMode.overwrite
     /// True when a move, a trim, or a range drag snaps (decision 0020): the app preference is on and
     /// Command is not held at this event.
     public var snaps: Bool
@@ -49,6 +50,9 @@ public enum GestureEffect: Equatable, Sendable {
     case commit(GestureCommit)
     /// A refused press: an Option press on a trim zone under a pending or split take (0037).
     case beep
+    /// A No Overlap move drag stopped at a neighbor clip: VoiceOver says so once until the clip is
+    /// free again.
+    case stopAnnouncement
 }
 
 /// One Core edit on the session of the mouse-down (`base`), and the selection or the current

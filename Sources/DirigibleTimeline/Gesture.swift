@@ -48,7 +48,8 @@ public struct TimelineGesture: Sendable {
     struct Trim: Sendable {
         let clip: Clip
         let edge: Edge
-        let ripple: Bool
+        let lane: Int
+        let ripple: TrimRipple
         let limits: ClosedRange<Frames>
         var range: Range<Frames>
         var preview: Session
@@ -221,7 +222,7 @@ public struct TimelineGesture: Sendable {
     ) -> TimelineCursor {
         switch state {
         case .moving, .grouping: return .closedHand
-        case .trimming(_, let trim) where trim.ripple: return .rippleTrim(trim.edge)
+        case .trimming(_, let trim) where trim.ripple != .none: return .rippleTrim(trim.edge)
         case .trimming, .rolling, .fading, .crossfading, .markerDrag, .pointDrag: return .resizeLeftRight
         case .slipping: return .openHand
         case .gaining, .rangeGaining: return .resizeUpDown
@@ -234,7 +235,9 @@ public struct TimelineGesture: Sendable {
         case .lanes(let x, let y):
             if shift, command, !option { return rollSlipCursor(x, y, context) }
             let hit = context.geometry.hit(x, y, in: context.session)
-            if option, case .trim(_, let edge, _) = hit { return .rippleTrim(edge) }
+            if TrimRipple(option: option, mode: context.dragMode) != .none, case .trim(_, let edge, _) = hit {
+                return .rippleTrim(edge)
+            }
             return hit.cursor
         case .ruler(let x, let y): return context.rulerHit(x, y)?.cursor ?? .arrow
         }
@@ -270,11 +273,16 @@ public struct TimelineGesture: Sendable {
             case .lane(.move(let clip, let lane)):
                 guard context.canEdit else { return [] }
                 state = moveState(press, clip, lane, context.geometry)
+                // A Shuffle move that cannot ripple: one beep, and the press ends (decision 0037).
+                if case .moving = state, context.dragMode == .shuffle, !context.canRipple {
+                    state = .dropped
+                    return [.beep]
+                }
                 return drag(place, context)
             case .lane(.trim(let clip, let edge, let lane)):
                 guard context.canEdit else { return [] }
                 // A ripple trim that cannot ripple: one beep, and the press ends (decision 0037).
-                if press.option, !context.canRipple {
+                if TrimRipple(option: press.option, mode: context.dragMode) != .none, !context.canRipple {
                     state = .dropped
                     return [.beep]
                 }
@@ -313,7 +321,7 @@ public struct TimelineGesture: Sendable {
                 state = .dropped
                 return []
             }
-            if trim.ripple { return rippleDrag(press, trim, x, context) }
+            if trim.ripple != .none { return rippleDrag(press, trim, x, context) }
             let edge = trim.edge == .start ? trim.clip.start : trim.clip.end
             let (delta, target) = Snap.snapped(trim.snap, press.delta(to: x, geometry), [edge], context)
             let frame = min(max(edge + delta, trim.limits.lowerBound), trim.limits.upperBound)

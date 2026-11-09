@@ -411,6 +411,7 @@ enum L10n: String, CaseIterable {
     case timelineReadoutRangeGain = "timeline.readout.range.gain"
     case timelineReadoutRoll = "timeline.readout.roll"
     case timelineReadoutSlip = "timeline.readout.slip"
+    case timelineReadoutStopped = "timeline.readout.stopped"
     case timelineHelpRollSlip = "timeline.help.roll.slip"
     case toolbarMonitor = "toolbar.monitor"
     case toolbarTime = "toolbar.time"

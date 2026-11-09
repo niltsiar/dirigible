@@ -411,6 +411,7 @@
 "timeline.readout.range.gain" = "Ganancia del rango %@ dB";
 "timeline.readout.roll" = "Punto de edición %@ ms";
 "timeline.readout.slip" = "Contenido %@ ms";
+"timeline.readout.stopped" = "Detenido en un clip vecino";
 "timeline.help.roll.slip" = "Arrastrar con Mayúsculas-Comando: mueve un punto de edición o desliza el contenido de un clip";
 
 /* Elementos de Visualización y Edición de la línea de tiempo (decisión 0017) */

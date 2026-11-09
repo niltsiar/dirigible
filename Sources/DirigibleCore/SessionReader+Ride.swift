@@ -15,7 +15,7 @@ struct RideLists {
             let id = try node.string("id")
             guard lists[id] == nil else { throw .invalidValue(element: "ride", attribute: "id") }
             var text = node.stringValue ?? ""
-            guard let points = text.withUTF8(Self.scan), points.allSatisfy({ abs($0.gain.dB) <= Gain.rideLimit }) else {
+            guard let points = text.withUTF8(Self.scan), points.allSatisfy({ $0.gain.withinRideLimit }) else {
                 throw .invalidValue(element: "ride", attribute: "text")
             }
             lists[id] = GainEnvelope(valid: points)

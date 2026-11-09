@@ -150,6 +150,21 @@ struct SessionRideTests {
         #expect(throws: SessionError.unknownClip("X")) { try current.rideGroups(["A", "X"]) }
     }
 
+    /// A ride gain past `Gain.rideLimit` is refused as the load refuses it, so a save never fails its
+    /// read-back; the limit itself passes. A throw changes nothing.
+    @Test(arguments: [6.01, -6.01, 96.0])
+    mutating func setRidesRefusesAGainPastTheLimit(dB: Double) throws {
+        try place("A", on: "t", start: 0, length: 1_000_000)
+        try place("B", on: "t", start: 1_000_000, length: 1_000_000)
+        try session.setRides(["A": envelope([(10, 6), (20, -6)])])
+        let before = session
+
+        #expect(throws: SessionError.invalidRideGain("B")) {
+            try session.setRides(["A": .empty, "B": envelope([(10, 1), (1_000_020, dB)])])
+        }
+        #expect(session == before)
+    }
+
     /// A duck writes the envelope only; the ride stays equal.
     @Test mutating func duckKeepsTheRide() throws {
         try place("A", on: "t", start: 0, length: 1_000_000)

@@ -36,6 +36,9 @@ public enum SessionError: Error, Hashable, Sendable {
     /// A gain point at this timeline frame is outside the clip window, which this case holds
     /// (decision 0060).
     case pointOutsideClip(ClipID, Frames, Range<Frames>)
+    /// A ride point of this clip has a gain past `Gain.rideLimit`, which a loaded file refuses too
+    /// (decision 0060).
+    case invalidRideGain(ClipID)
     /// The fades and the crossfade halves of the clip are more than its length, which this case
     /// holds (decisions 0035 and 0036).
     case fadeOutsideClip(ClipID, length: Frames)

@@ -49,28 +49,44 @@ func clipLoudness(
     _ clip: Clip, in session: Session, package: URL, progress: (Int) -> Void = { _ in },
     isCancelled: () -> Bool = { false }, read: (AVAudioFile, AVAudioPCMBuffer, AVAudioFrameCount) throws -> Void
 ) throws(POSIXError) -> (loudness: Loudness, fault: MediaFault?) {
-    let empty = Loudness(blocks: [])
-    guard let entry = session.files[clip.file] else { return (empty, .missing) }
+    let (meter, fault) = try meterRead(
+        clip.file, frames: clip.offset..<(clip.offset + clip.length), in: session, package: package, keepsSteps: false,
+        progress: progress, isCancelled: isCancelled, read: read)
+    return (meter?.result() ?? Loudness(blocks: []), fault)
+}
+
+/// The frames `frames` of the pool file `file` through one new `LoudnessMeter`, in blocks of
+/// 65 536 frames: the block read of `clipLoudness`. The meter is nil with each fault, and with no
+/// fault for a rate that the meter refuses. A short file gives the meter of its frames inside
+/// `frames` and `.short`; a NaN or an infinity gives `.unreadable`. The throws and `progress`
+/// (the frames done) are those of `clipLoudness`.
+func meterRead(
+    _ file: FileID, frames: Range<Frames>, in session: Session, package: URL, keepsSteps: Bool,
+    progress: (Int) -> Void, isCancelled: () -> Bool,
+    read: (AVAudioFile, AVAudioPCMBuffer, AVAudioFrameCount) throws -> Void
+) throws(POSIXError) -> (meter: LoudnessMeter?, fault: MediaFault?) {
+    guard let entry = session.files[file] else { return (nil, .missing) }
     let opened = try openMedia(entry, in: package.appending(path: clipsFolderName), rate: session.sampleRate)
-    guard let file = opened.file else { return (empty, opened.fault) }
-    guard var meter = LoudnessMeter(sampleRate: session.sampleRate, layout: entry.layout) else { return (empty, nil) }
-    guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 65_536) else {
-        return (empty, .unreadable)
+    guard let audio = opened.file else { return (nil, opened.fault) }
+    guard var meter = LoudnessMeter(sampleRate: session.sampleRate, layout: entry.layout, keepsSteps: keepsSteps)
+    else { return (nil, nil) }
+    guard let buffer = AVAudioPCMBuffer(pcmFormat: audio.processingFormat, frameCapacity: 65_536) else {
+        return (nil, .unreadable)
     }
     // A short file ends the range at its last frame.
-    let end = min(clip.offset.count + clip.length.count, Int(file.length))
-    var position = clip.offset.count
-    file.framePosition = AVAudioFramePosition(position)
+    let end = min(frames.upperBound.count, Int(audio.length))
+    var position = frames.lowerBound.count
+    audio.framePosition = AVAudioFramePosition(position)
     while position < end {
         if isCancelled() { throw POSIXError(.ECANCELED) }
-        do { try read(file, buffer, AVAudioFrameCount(min(65_536, end - position))) } catch {
-            return (empty, .unreadable)
+        do { try read(audio, buffer, AVAudioFrameCount(min(65_536, end - position))) } catch {
+            return (nil, .unreadable)
         }
         // No frames before the end: stop, so that the loop cannot run forever.
-        guard buffer.frameLength > 0 else { return (empty, .unreadable) }
+        guard buffer.frameLength > 0 else { return (nil, .unreadable) }
         meter.feed(buffer)
         position += Int(buffer.frameLength)
-        progress(position - clip.offset.count)
+        progress(position - frames.lowerBound.count)
     }
-    return (meter.result(), meter.nonFinite ? .unreadable : opened.fault)
+    return (meter, meter.nonFinite ? .unreadable : opened.fault)
 }

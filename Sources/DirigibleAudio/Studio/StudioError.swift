@@ -82,6 +82,13 @@ public enum StudioError: Error, Hashable, Sendable {
     case transcriptionCancelled
     /// A duck could not open an audio file: no free descriptor, with its errno (decision 0016).
     case duckRead(Int32)
+    /// The banner Cancel or a cancel of the caller ended a Level Over Time. No ride changed.
+    case rideCancelled
+    /// A Level Over Time could not open an audio file: no free descriptor, with its errno.
+    case rideRead(Int32)
+    /// A source file of a Level Over Time is missing, short, or unreadable (also a NaN or an
+    /// infinity in it). No ride changed.
+    case rideFault(FileID, MediaFault)
     /// The banner Cancel or a cancel of the caller ended a silence scan (decision 0066).
     case silencesCancelled
     /// A silence scan could not open an audio file: no free descriptor, with its errno (decision

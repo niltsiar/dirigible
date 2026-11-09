@@ -72,7 +72,7 @@ extension Studio.Transport {
         switch self {
         case .recording(let take): (take, false)
         case .finalizing(let take): (take, true)
-        case .idle, .placing, .leveling, .ducking, .findingSilences, .importing: nil
+        case .idle, .placing, .leveling, .ducking, .riding, .findingSilences, .importing: nil
         }
     }
 }

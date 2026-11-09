@@ -7,7 +7,7 @@ extension ClipCommand {
         static let configuration = CommandConfiguration(
             abstract:
                 "Set the gain points of a clip inside its window, in timeline frames (decision 0060). The points "
-                + "outside the window stay.")
+                + "outside the window stay. The ride layer of clip level-over-time is separate and stays.")
         @OptionGroup var package: PackageArgument
         @Argument var clip: String
         @Option(

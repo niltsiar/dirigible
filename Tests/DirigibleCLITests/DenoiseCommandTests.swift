@@ -241,7 +241,10 @@ struct DenoiseCommandTests {
 /// Starts `dirigible` with `arguments` and returns its process ID. The child inherits no
 /// descriptor of the test process, and SIGINT has its default action and is not blocked, also when
 /// the test runner ignores or blocks it. Its output goes to /dev/null, or to the two files of `output`.
-func spawnDirigible(_ arguments: String..., output: (stdout: URL, stderr: URL)? = nil) throws -> pid_t {
+/// `environment` adds variables to those of the test process.
+func spawnDirigible(
+    _ arguments: String..., environment: [String: String] = [:], output: (stdout: URL, stderr: URL)? = nil
+) throws -> pid_t {
     var attributes: posix_spawnattr_t?
     posix_spawnattr_init(&attributes)
     defer { posix_spawnattr_destroy(&attributes) }
@@ -261,7 +264,10 @@ func spawnDirigible(_ arguments: String..., output: (stdout: URL, stderr: URL)? 
     }
     var argv: [UnsafeMutablePointer<CChar>?] = ([dirigibleBinary.path] + arguments).map { strdup($0) } + [nil]
     defer { for argument in argv { free(argument) } }
+    let variables = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+    var envp: [UnsafeMutablePointer<CChar>?] = variables.map { strdup("\($0.key)=\($0.value)") } + [nil]
+    defer { for variable in envp { free(variable) } }
     var pid = pid_t()
-    try #require(posix_spawn(&pid, dirigibleBinary.path, &actions, &attributes, &argv, environ) == 0)
+    try #require(posix_spawn(&pid, dirigibleBinary.path, &actions, &attributes, &argv, &envp) == 0)
     return pid
 }

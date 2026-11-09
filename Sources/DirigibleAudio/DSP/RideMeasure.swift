@@ -2,16 +2,16 @@ import AVFoundation
 import DirigibleCore
 
 /// The new ride lists of one Level Over Time read (run 2026-10-14-leveler).
-struct RideRead: Sendable {
+package struct RideRead: Sendable {
     /// The new list of each written clip: `.empty` for a clip of a group with no reference.
-    let rides: [ClipID: GainEnvelope]
+    package let rides: [ClipID: GainEnvelope]
     /// The written clips of the groups with a reference, then of the groups with none.
-    let leveled: [ClipID]
-    let unmeasured: [ClipID]
+    package let leveled: [ClipID]
+    package let unmeasured: [ClipID]
 }
 
 /// Why a ride read stopped. It changes nothing.
-enum RideReadError: Error, Equatable {
+package enum RideReadError: Error, Equatable {
     case cancelled
     /// A source file is missing, short, or unreadable (also a NaN or an infinity in it).
     case fault(FileID, MediaFault)
@@ -24,7 +24,7 @@ enum RideReadError: Error, Equatable {
 /// 0.1 dB. The list of a group goes on its `written` clips. The read reads no ride layer, so a
 /// second ride with no change between gives equal lists. `progress` gets the frames done over the
 /// frames of all groups. It reads the disk, so never call it on the main actor.
-func rideLists(
+package func rideLists(
     _ groups: [RideGroup], in session: Session, package: URL, progress: (Double) -> Void,
     isCancelled: () -> Bool
 ) throws(RideReadError) -> RideRead {

@@ -35,7 +35,8 @@ let envelopeTools = [
         "clip_envelope",
         "Set the gain points of a clip inside its window, in timeline frames. The points outside the window stay, "
             + "and after [] they still set the gain at the clip edges. To make the clip flat, set a 0 dB point at the "
-            + "first frame and at the last frame of the clip.",
+            + "first frame and at the last frame of the clip. The ride of clip_level_over_time is a separate ride layer "
+            + "that adds to these points, and this tool leaves it as it is.",
         [clip, points], batch: .step
     ) { a throws(ToolError) in
         let (id, given) = (ClipID(try a[clip]), try a[points])

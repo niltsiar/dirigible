@@ -64,7 +64,8 @@ package enum AgentManual {
                 + "the next cut."),
         Recipe(
             phase: .produce, name: "check-levels", title: "Check the levels",
-            summary: "Measure the loudness of each clip, level the session, and report the change.",
+            summary: "Measure the loudness of each clip, level the session, and report the change. "
+                + "For a speech clip whose level moves inside it, run `clip_level_over_time`.",
             steps: "run `loudness`, `level`, then `loudness` again; report each clip before and after."),
         Recipe(
             phase: .produce, name: "add-sound", title: "Add a sound clip",

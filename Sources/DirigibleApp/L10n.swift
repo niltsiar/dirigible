@@ -48,6 +48,8 @@ enum L10n: String, CaseIterable {
     case trackRoleDialogueLetter = "track.role.dialogue.letter"
     case trackRoleMusicLetter = "track.role.music.letter"
     case trackRoleEffectsLetter = "track.role.effects.letter"
+    case trackRoleHelp = "track.role.help"
+    case trackRoleHeader = "track.role.header"
     case menuTrackVolumeUp = "menu.track.volume.up"
     case menuTrackVolumeDown = "menu.track.volume.down"
     case menuTrackVolumeReset = "menu.track.volume.reset"

@@ -56,7 +56,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F35 | Noise reduction, one control | Hindenburg PRO | done, Release 4 run 25 (run 19 landed a fixed 12 dB) | R8 |
 | F36 | EQ and one-dial compressor per track | Hindenburg PRO, Logic Pro | Later | R7 |
 | F37 | Voice Profiler: learned EQ per voice | Hindenburg PRO | Release 4 (voice match; a profile per voice and a voice reference that is a range of a clip stay Later) | R10 |
-| F38 | Magic Levels: bleed, gain riding, auto duck | Hindenburg PRO | Release 4 (the leveler; bleed and auto duck are F42 and F34) | R10 |
+| F38 | Magic Levels: bleed, gain riding, auto duck | Hindenburg PRO | done, Release 4 run 30 (gain riding as Level Over Time; bleed is F42, auto duck is F34) | R10 |
 | F39 | Audio Unit plug-ins | Hindenburg PRO, GarageBand, Logic Pro | Later | - |
 | F40 | Loudness meter (ITU-R BS.1770, EBU R128) | Hindenburg PRO, Logic Pro | done, Release 2 run 9b | R10 |
 | F41 | Mono or stereo per track and for the mix | Hindenburg PRO, GarageBand, Logic Pro | done, Release 1 run 5 | R11, R15 |
@@ -121,7 +121,7 @@ This file lists each feature that we found, one row for each ID. It is the one p
 | F107 | Markers during a take | Hindenburg; user 2026-10-14 | done, Release 4 run 21 | R7 |
 | F108 | A drop of files on an empty session makes one track for each file | Logic; user 2026-10-14 | done, Release 4 run 22 | R7 |
 | F109 | A click in an empty lane selects its track | user 2026-10-14 | done, Release 4 run 22 | R7 |
-| F110 | Render link: change the amount of a rendered effect later, or restore the original | user 2026-10-14 | done, Release 4 run 23 (Reduce Noise; the leveler and voice match add their kinds) | R8 |
+| F110 | Render link: change the amount of a rendered effect later, or restore the original | user 2026-10-14 | done, Release 4 run 23 (Reduce Noise; voice match adds its kind) | R8 |
 | F111 | Transcript cut edges at the word edges | Descript, Hindenburg; user 2026-10-14 | done, Release 3 run 10 and Release 5 run 3 (a cut by words lands at the exact word times, as the user chose for now, with the quietest point after tester feedback; the measurement is in docs/research/cut-edges.md); Later: the quietest point near the word edge, after tester feedback | R7 |
 | F112 | Transcription in the app (whisper.cpp) | Hindenburg; user 2026-10-15 | done, Release 5 runs 2 and 5 (Tools > Transcribe Track..., `dirigible transcribe`, and the agent tool `transcribe`: whisper.cpp on the CPU, with three models that download on first use; run 5: a model file of the user, checked in a helper process, and a hint when a firewall holds the download) | R7 |
 | F113 | More UI languages: Portuguese, German, French, Italian, Dutch | user 2026-10-14 | done, Release 4 run 2 | R13 |

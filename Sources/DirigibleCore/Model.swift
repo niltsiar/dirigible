@@ -335,6 +335,8 @@ public struct Track: Identifiable, Hashable, Sendable {
     public internal(set) var isFollowTrack = false
     /// The header strip, the default track lists of a duck (decision 0060), and the clips that Reduce
     /// Noise takes: none on a music or effects track (decision 0054). No role changes the sound.
+    /// A new reader updates the copies of this list: `track.role.help`, `EditRules.roleNote`,
+    /// `AgentManual.roleLine`, and the guide section "Give a track a role".
     public internal(set) var role: Role?
 
     /// The raw value is the word of `session.xml`, the CLI, and the tools.

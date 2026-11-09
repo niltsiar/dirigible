@@ -152,6 +152,16 @@ struct NoOverlapGestureTests {
         #expect(effects == [[.stopAnnouncement], [], [], [.stopAnnouncement]])
     }
 
+    /// A group drag announces each stop once, and again after it is free: the events are free,
+    /// stopped, still stopped, free again, stopped.
+    @Test func aGroupStopAnnouncesOnceUntilTheGroupIsFree() throws {
+        var g = ModeGesture(try Self.fixtureN(), .noOverlap)
+        g.selection = .clips(try #require(ClipSet(["a", "b"])))
+        g.down(120_000)
+        let effects = [48_000, 48_001, 48_002, 48_000, 48_001].map { g.drag(120_000 + $0) }
+        #expect(effects == [[], [.stopAnnouncement], [], [], [.stopAnnouncement]])
+    }
+
     /// A group drag keeps the last preview that passed when an event would cover a clip, with the
     /// stop readout. Control: the Overwrite nudge trims c.
     @Test func aGroupDragKeepsTheLastFreePreview() throws {

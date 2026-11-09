@@ -96,6 +96,7 @@ extension TimelineGesture {
             delta = 0
         }
         guard (offset, delta) != (group.offset, group.lanes) else {
+            group.stopped = false
             state = .grouping(press, group)
             return []
         }
@@ -106,9 +107,13 @@ extension TimelineGesture {
             try preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta, mode: group.mode.overlap)
         } catch {
             group.guide = nil
-            if case .overlap = error { group.stopped = true }
+            var effects: [GestureEffect] = []
+            if case .overlap = error {
+                if !group.stopped { effects = [.stopAnnouncement] }
+                group.stopped = true
+            }
             state = .grouping(press, group)
-            return []
+            return effects
         }
         (group.offset, group.lanes, group.preview, group.stopped) = (offset, delta, preview, false)
         state = .grouping(press, group)

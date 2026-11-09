@@ -204,9 +204,17 @@ struct SessionRideTests {
         #expect(session.clip("A")?.clip.ride == Self.ride(500))
     }
 
-    /// The ride array of each clip of `clips`.
-    func addresses(_ clips: [Clip]) -> Set<UnsafeRawPointer?> {
-        Set(clips.map { $0.ride.points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } })
+    /// Whether two ride lists hold their points in one storage. The compare stays inside the closures.
+    static func sameArray(_ a: GainEnvelope, _ b: GainEnvelope) -> Bool {
+        a.points.withUnsafeBufferPointer { x in
+            b.points.withUnsafeBufferPointer { x.baseAddress == $0.baseAddress }
+        }
+    }
+
+    /// Whether `rides` is not empty and all its lists hold their points in one storage.
+    static func shareOneArray(_ rides: [GainEnvelope]) -> Bool {
+        guard let first = rides.first else { return false }
+        return rides.allSatisfy { sameArray($0, first) }
     }
 
     /// Each edit that maps ride lists maps each distinct list once, so the 200 parts of A keep
@@ -220,7 +228,7 @@ struct SessionRideTests {
         try session.setRides(Dictionary(uniqueKeysWithValues: parts.map { ($0, a) } + [(ClipID("B"), b)]))
         let source = session
         func lane(_ session: Session, _ track: TrackID) -> [Clip] { Array(session.track(track)!.clips) }
-        #expect(addresses(lane(source, "t")).count == 1)
+        #expect(Self.shareOneArray(lane(source, "t").map(\.ride)))
 
         var rendered = source
         let runs = try rendered.clipRuns(of: parts + ["B"]).map {
@@ -231,12 +239,14 @@ struct SessionRideTests {
         let span = try #require(runs.first { $0.run.file == "f" }).run.span
         let (shift, length) = (Frames.zero - span.lowerBound, span.upperBound - span.lowerBound)
         let renderedParts = lane(rendered, "t")
-        #expect(addresses(renderedParts).count == 1 && addresses(lane(rendered, "u")) != addresses(renderedParts))
+        #expect(
+            Self.shareOneArray(renderedParts.map(\.ride))
+                && !Self.sameArray(lane(rendered, "u")[0].ride, renderedParts[0].ride))
         #expect(span.lowerBound == 520_000 && renderedParts[0].ride == a.moved(by: shift, fileLength: length))
 
         var restored = rendered
         try restored.restoreOriginals(parts + ["B"])
-        #expect(addresses(lane(restored, "t")).count == 1)
+        #expect(Self.shareOneArray(lane(restored, "t").map(\.ride)))
         #expect(
             lane(restored, "t")[0].ride == renderedParts[0].ride.moved(by: span.lowerBound, fileLength: 345_600_000))
 
@@ -244,18 +254,18 @@ struct SessionRideTests {
         let pairs = try split.clipRuns(of: parts).map { MonoPair(run: $0, leftStem: "f L", rightStem: "f R") }
         _ = try split.splitStereo(pairs, names: ("L", "R"))
         let sides = split.tracks.filter { $0.layout == .mono }.flatMap(\.clips)
-        #expect(sides.count == 400 && addresses(sides).count == 1)
+        #expect(sides.count == 400 && Self.shareOneArray(sides.map(\.ride)))
         #expect(sides[0].ride == a.moved(by: shift, fileLength: length))
 
         let excerpt = try source.excerpt(of: parts + ["B"])
         let scaled = excerpt.resampled(to: 44_100, lengths: ["f": 317_520_000, "g": 317_520_000])
         let scaledParts = scaled.lanes.flatMap(\.clips).filter { $0.file == "f" }
         func scale(_ frames: Frames) -> Frames { Frames((2 * frames.count * 44_100 + 48_000) / 96_000) }
-        #expect(scaledParts.count == 200 && addresses(scaledParts).count == 1)
+        #expect(scaledParts.count == 200 && Self.shareOneArray(scaledParts.map(\.ride)))
         #expect(scaledParts[0].ride == a.resampled(scale, fileLength: 317_520_000))
 
         var healed = source
         #expect(try healed.heal(tracks: ["t"]) == [parts[0]])
-        #expect(addresses(lane(healed, "t")) == addresses(lane(source, "t")))
+        #expect(Self.shareOneArray((lane(healed, "t") + lane(source, "t")).map(\.ride)))
     }
 }

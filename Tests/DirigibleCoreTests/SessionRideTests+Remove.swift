@@ -42,7 +42,7 @@ extension SessionRideTests {
 
         let (a, b, c) = (try ride("A"), try ride("A@1200000"), try ride("A@2400000"))
         #expect(a.gain(at: 1_000_000) == 0 && a == b && a == c, "the parts hold more than one list")
-        #expect(a.points.withUnsafeBufferPointer(\.baseAddress) == c.points.withUnsafeBufferPointer(\.baseAddress))
+        #expect(Self.sameArray(a, c))
     }
 
     /// Part B moved 1 s later: two lists. A plays its old ride before 19.5 s, B after 30.5 s on the

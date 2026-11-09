@@ -26,6 +26,9 @@ struct ToolTextTests {
             #expect(tool.description.contains(word), "no \(word): \(tool.description)")
         }
         #expect(tool.description.contains(EditRules.roleNote), "the description does not hold roleNote")
+        #expect(
+            tool.description.contains("refuses") && !tool.description.contains("skips"),
+            "clip_denoise refuses a music or effects clip: \(tool.description)")
         let follow = try #require(Tool.all.first { $0.name == "track_follow" })
         #expect(!follow.description.contains("`duck`") && !follow.description.contains("`clip_denoise`"))
     }

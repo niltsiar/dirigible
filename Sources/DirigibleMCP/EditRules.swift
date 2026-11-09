@@ -14,7 +14,7 @@ package enum EditRules {
     package static let roleNote =
         "A role is a label. It changes no sound. `duck` (tool `duck`) takes the dialogue tracks as the speech "
         + "and the music tracks as the tracks to lower, when it gets no list. A track with no role is in no list. "
-        + "`clip denoise` (tool `clip_denoise`) with noise skips the clips of music and effects tracks; hum "
+        + "`clip denoise` (tool `clip_denoise`) with noise refuses a clip of a music or effects track; hum "
         + "removal alone takes every role. The app shows the role as a color strip and a letter. "
         + "`info` (tool `session_info`) shows the role."
 

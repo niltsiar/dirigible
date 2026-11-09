@@ -63,14 +63,18 @@ extension Session {
             .sorted { ($0.file, $0.frames.lowerBound) < ($1.file, $1.frames.lowerBound) }
     }
 
-    /// Sets the ride layer of each clip in one pass over the lanes. Each clip passes `check`.
-    /// `.empty` removes it. An unknown ID throws `.unknownClip`. A throw changes nothing.
+    /// Sets the ride layer of each clip in one pass over the lanes. Each clip passes `check`
+    /// and holds a gain within `Gain.rideLimit`, else `.invalidRideGain`. `.empty` removes it. An
+    /// unknown ID throws `.unknownClip`. A throw changes nothing.
     package mutating func setRides(_ rides: [ClipID: GainEnvelope]) throws(SessionError) {
         var lanes = tracks
         var found = 0
         for track in lanes.indices {
             for index in lanes[track].clips.indices {
                 guard let new = rides[lanes[track].clips[index].id] else { continue }
+                guard new.points.allSatisfy({ $0.gain.withinRideLimit }) else {
+                    throw .invalidRideGain(lanes[track].clips[index].id)
+                }
                 var clip = lanes[track].clips[index]
                 clip.ride = new
                 try check(clip, on: lanes[track])

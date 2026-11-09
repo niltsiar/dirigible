@@ -58,6 +58,7 @@ import Testing
         #expect(
             TimelineCommand.toolItems.map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" } == [
                 "autoLevel l \(command)", "autoLevelPerTrack l \(EventModifiers([.command, .option]).rawValue)",
+                "levelOverTime l \(EventModifiers([.command, .shift]).rawValue)",
             ])
         #expect(
             [TimelineCommand.splitStereoItem].map { "\($0.command) \($0.key.character) \($0.modifiers.rawValue)" }

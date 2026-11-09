@@ -45,6 +45,8 @@
 "menu.tools.level.track" = "Auto-Pegel pro Spur";
 "menu.tools.level.all" = "Auto-Pegel für alle Clips";
 "menu.tools.level.track.all" = "Auto-Pegel pro Spur (alle)";
+"menu.tools.level.over.time" = "Pegel über die Zeit anpassen";
+"menu.tools.remove.level.over.time" = "Pegel über die Zeit entfernen";
 "menu.tools.duck" = "Musik unter Sprache absenken …";
 "menu.tools.split.stereo" = "Stereo in Mono aufteilen";
 "menu.tools.reduce.noise" = "Rauschen reduzieren \U2026";
@@ -74,6 +76,10 @@
 "error.duck.no.ducked.track" = "Wähle eine Spur zum Absenken aus oder gib einer Spur die Rolle „Musik“.";
 "error.duck.both.lists" = "Spur „%@“ kann nicht zugleich Sprachspur und abzusenkende Spur sein.";
 "error.duck.read" = "Eine Audiodatei einer Sprachspur wurde nicht gelesen (Fehler %lld). Kein Pegelpunkt wurde geändert.";
+"error.ride.read" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Eine Audiodatei konnte nicht gelesen werden (Fehler %lld). Kein Clip wurde geändert.";
+"error.ride.missing" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Die Audiodatei „%@“ ist nicht im Clips-Ordner der Session. Lege die Datei wieder in diesen Ordner und versuche es erneut.";
+"error.ride.short" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Die Audiodatei „%@“ ist kürzer, als die Session angibt. Stelle die Datei wieder her und versuche es erneut.";
+"error.ride.unreadable" = "Dirigible kann den Pegel der Clips nicht über die Zeit anpassen. Die Audiodatei „%@“ konnte nicht gelesen werden. Prüfe die Festplatte und versuche es erneut.";
 "error.silences.read" = "Eine Audiodatei wurde nicht gelesen (Fehler %lld). Die Suche hat keine Stille gefunden.";
 "error.silences.stale" = "Die Spuren haben sich nach der Suche geändert. Suche erneut, um die Stille anzuwenden.";
 "error.silences.faults" = "Diese Dateien fehlen oder sind beschädigt: %@. Ihre Clips würden als Stille gelesen, daher zeigt die Suche keine Stille. Stelle die Dateien wieder her und suche erneut.";
@@ -264,6 +270,13 @@
 "repair.sound.one" = "Ton von 1 Clip repariert.";
 "repair.sound.many" = "Ton von %lld Clips repariert.";
 "repair.canceled" = "Reparatur abgebrochen. Kein Clip wurde geändert.";
+"ride.done.one" = "1 Clip über die Zeit angepasst, bis zu %+lld dB.";
+"ride.done.many" = "%1$lld Clips über die Zeit angepasst, bis zu %2$+lld dB.";
+"ride.flat.one" = "1 Clip über die Zeit angepasst.";
+"ride.flat.many" = "%lld Clips über die Zeit angepasst.";
+"ride.unmeasured.one" = "1 Clip hat keinen messbaren Pegel.";
+"ride.unmeasured.many" = "%lld Clips haben keinen messbaren Pegel.";
+"ride.canceled" = "Pegelanpassung über die Zeit abgebrochen. Kein Clip wurde geändert.";
 "reverted.to" = "Auf das Backup von %@ zurückgesetzt";
 
 /* Window, panels, and alerts */
@@ -340,6 +353,7 @@
 "take.finishing" = "Take %lld wird abgeschlossen …";
 "take.placing" = "%@ wird platziert …";
 "take.leveling" = "Clips werden eingepegelt …";
+"take.riding" = "Pegel wird über die Zeit angepasst";
 "take.ducking" = "Musik wird unter der Sprache abgesenkt …";
 "take.finding.silences" = "Stille wird gesucht …";
 "take.pending" = "Take %lld ist nicht abgeschlossen.";

@@ -112,6 +112,7 @@ extension TimelineCommand {
     static let toolItems = [
         MenuItem(command: .autoLevel, title: .menuToolsLevel, key: "l", modifiers: .command),
         MenuItem(command: .autoLevelPerTrack, title: .menuToolsLevelTrack, key: "l", modifiers: [.command, .option]),
+        MenuItem(command: .levelOverTime, title: .menuToolsLevelOverTime, key: "l", modifiers: [.command, .shift]),
     ]
 
     /// Tools > Split Stereo to Mono (decision 0053): its own group at the end of the Tools menu.
@@ -120,7 +121,8 @@ extension TimelineCommand {
 
     /// The title of a menu item with no key; the lane menu reads it as it reads `menuItems`.
     static let keylessTitles: [TimelineCommand: L10n] = [
-        .reduceNoise: .menuToolsReduceNoise, .repairSound: .menuToolsRepairSound, .transcribe: .menuToolsTranscribe,
+        .removeLevelOverTime: .menuToolsRemoveLevelOverTime, .reduceNoise: .menuToolsReduceNoise,
+        .repairSound: .menuToolsRepairSound, .transcribe: .menuToolsTranscribe,
         .closeGaps: .menuEditCloseGaps,
     ]
 

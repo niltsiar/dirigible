@@ -137,6 +137,10 @@ import SwiftUI
     /// The last Repair Sound for its banner, and the values of its sheet while it shows (decision 0064).
     var repairReport: RepairReportShown?
     var repairDraft: RepairDraft?
+    /// The last Level Over Time, for its banner at its session revision.
+    var rideReport: RideReportShown?
+    /// The number of Level Over Time runs of this window, for the key of its banner.
+    @ObservationIgnored var ridePresses = 0
     /// The first values of the Duck Music Under Speech sheet while it shows (decision 0060).
     var duckDraft: DuckDraft?
     /// The values of the Go to Take Time sheet while it shows (decision 0061).

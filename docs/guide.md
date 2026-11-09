@@ -444,6 +444,25 @@ The banner goes after the next edit, the next take, or the next Auto Level.
 
 Auto Level changes the clip gain only. The envelope of a clip adds to the clip gain, so it keeps its shape. The track volume adds to the clip gain, and Auto Level does not change it.
 
+### Level a clip over time
+
+Use **Tools > Level Over Time** (**Nivelar en el tiempo**, Shift-Command-L) on a speech clip whose level moves inside it, for example a guest who leans away from the microphone. **Auto Level** gives a clip one gain for the whole clip. Level Over Time changes the gain while the clip plays: the gain follows the loudness of the speech, between -6 dB and +6 dB. A pause keeps the gain of the last speech, so the room tone does not pump.
+
+The command makes a second gain layer of the clip, the ride. It makes no new file and changes no audio file. The line of the clip shows the gain that you hear: the ride, your gain points, and a duck, added together. Your gain points and a duck stay and add to the ride. The ride keeps a lift, a cut, or a duck that you made before: a passage that you made louder stays louder. A clip with no speech to measure gets no ride, and the banner says so.
+
+Select clips, a range, or a track, then choose the command. It is also in the menu of a right-click on a clip. It has no sheet. It takes clips of tracks with any role. It is off when nothing is selected, during a take, and during an import. While it runs, the banner shows **Cancel** (Command-period). A cancel changes no clip. A banner gives the result, for example "Leveled 2 clips over time, up to +4 dB.", and VoiceOver reads it. The command is one step in the undo history. A second run with no change in between gives the same result.
+
+Choose **Tools > Remove Level Over Time** to take the ride away. With clips or a track selected, it removes the ride of those clips. With a range selected, it removes the ride only in that range, on the selected tracks, with a ramp of 500 ms at each edge. The command is on only when the selection holds a clip with a ride. It reads no audio and is one step in the undo history.
+
+When the result is not right:
+
+- Too strong: choose **Edit > Undo**, or select the passage and lower it with a range gain, which adds to the ride and shows in the line.
+- Too weak: the 6 dB limit stopped the gain. Select the passage and raise it with a range gain, or add gain points.
+- To change the ride on one passage, add gain points or a range gain on top. The line shows the sum.
+- A ride of some parts of a split clip measures all the touching parts and changes only the selected parts. Select all the parts to get a ride with no step in level at a cut.
+
+In Terminal, `dirigible clip level-over-time <package> <clip>...` does the same, and an agent uses the tool `clip_level_over_time`.
+
 ### Duck the music under the speech
 
 Choose **Tools > Duck Music Under Speech** to lower the music while someone speaks. The command has no key.
@@ -1030,6 +1049,8 @@ The **Tools** menu (**Herramientas**).
 | **Auto Level per Track** | **Nivelar automáticamente por pista** | Option-Command-L |
 | **Auto Level All Clips** | **Nivelar automáticamente todos los clips** | Command-L |
 | **Auto Level per Track (All)** | **Nivelar automáticamente por pista (todos)** | Option-Command-L |
+| **Level Over Time** | **Nivelar en el tiempo** | Shift-Command-L |
+| **Remove Level Over Time** | **Quitar nivelación en el tiempo** | - |
 | **Duck Music Under Speech** | **Atenuar la música bajo la voz** | - |
 | **Find Silences** | **Buscar silencios** | - |
 | **Split Stereo to Mono** | **Dividir estéreo en mono** | Shift-Command-D |

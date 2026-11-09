@@ -45,6 +45,8 @@
 "menu.tools.level.track" = "Livellamento automatico per traccia";
 "menu.tools.level.all" = "Livellamento automatico di tutti i clip";
 "menu.tools.level.track.all" = "Livellamento automatico per traccia (tutti)";
+"menu.tools.level.over.time" = "Livellamento nel tempo";
+"menu.tools.remove.level.over.time" = "Rimuovi livellamento nel tempo";
 "menu.tools.duck" = "Abbassa la musica sotto la voce…";
 "menu.tools.split.stereo" = "Suddividi stereo in mono";
 "menu.tools.reduce.noise" = "Riduci rumore\U2026";
@@ -74,6 +76,10 @@
 "error.duck.no.ducked.track" = "Seleziona una traccia da abbassare o assegna a una traccia il ruolo Musica.";
 "error.duck.both.lists" = "La traccia “%@” non può essere sia una traccia vocale sia una traccia da abbassare.";
 "error.duck.read" = "Non è stato possibile leggere un file audio di una traccia vocale (errore %lld). Nessun punto di gain è cambiato.";
+"error.ride.read" = "Dirigible non può livellare le clip nel tempo. Impossibile leggere un file audio (errore %lld). Nessun clip è cambiato.";
+"error.ride.missing" = "Dirigible non può livellare le clip nel tempo. Il file audio “%@” non è nella cartella Clips della sessione. Rimetti il file in quella cartella e riprova.";
+"error.ride.short" = "Dirigible non può livellare le clip nel tempo. Il file audio “%@” è più corto di quanto dichiara la sessione. Ripristina il file e riprova.";
+"error.ride.unreadable" = "Dirigible non può livellare le clip nel tempo. Impossibile leggere il file audio “%@”. Controlla il disco e riprova.";
 "error.silences.read" = "Non è stato possibile leggere un file audio (errore %lld). La ricerca non ha trovato silenzi.";
 "error.silences.stale" = "Le tracce sono cambiate dopo la ricerca. Cerca di nuovo per applicare i silenzi.";
 "error.silences.faults" = "Questi file mancano o sono danneggiati: %@. Le loro clip verrebbero lette come silenzio, quindi la ricerca non mostra silenzi. Ripristina i file e cerca di nuovo.";
@@ -264,6 +270,13 @@
 "repair.sound.one" = "Audio riparato in 1 clip.";
 "repair.sound.many" = "Audio riparato in %lld clip.";
 "repair.canceled" = "Riparazione annullata. Nessun clip è cambiato.";
+"ride.done.one" = "1 clip livellato nel tempo, fino a %+lld dB.";
+"ride.done.many" = "%1$lld clip livellati nel tempo, fino a %2$+lld dB.";
+"ride.flat.one" = "1 clip livellato nel tempo.";
+"ride.flat.many" = "%lld clip livellati nel tempo.";
+"ride.unmeasured.one" = "1 clip non ha un livello misurabile.";
+"ride.unmeasured.many" = "%lld clip non hanno un livello misurabile.";
+"ride.canceled" = "Livellamento nel tempo annullato. Nessun clip è cambiato.";
 "reverted.to" = "Backup del %@ ripristinato";
 
 /* Window, panels, and alerts */
@@ -340,6 +353,7 @@
 "take.finishing" = "Finalizzazione del take %lld…";
 "take.placing" = "Posizionamento di %@…";
 "take.leveling" = "Livellamento dei clip…";
+"take.riding" = "Livellamento nel tempo";
 "take.ducking" = "Abbassamento della musica sotto la voce…";
 "take.finding.silences" = "Ricerca dei silenzi…";
 "take.pending" = "Il take %lld non è terminato.";

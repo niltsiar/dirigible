@@ -80,6 +80,8 @@ enum WindowBanner: Equatable {
     case noiseReduced(clips: Int, treatment: Treatment, press: Int)
     /// The result of a Repair Sound run (decision 0064). The press number makes a new key for each run.
     case soundRepaired(RepairResult, press: Int)
+    /// The result of a Level Over Time run. The press number makes a new key for each run.
+    case leveledOverTime(RideResult, press: Int)
     /// What the last Import Transcript skipped or dropped. The press number makes a new key.
     case transcriptImported(String, press: Int)
     /// The files that Remove Unused Files moved to the Trash: the count and the bytes (decision 0047).
@@ -149,6 +151,7 @@ enum WindowBanner: Equatable {
         case .levelReport(_, let press): "levelReport.\(press)"
         case .noiseReduced(_, _, let press): "denoiseReport.\(press)"
         case .soundRepaired(_, let press): "repairReport.\(press)"
+        case .leveledOverTime(_, let press): "rideReport.\(press)"
         case .transcriptImported(_, let press): "transcriptImported.\(press)"
         case .unusedFilesMoved: "unusedFilesMoved"
         case .unusedFilesFailed: "unusedFilesFailed"
@@ -168,7 +171,9 @@ enum WindowBanner: Equatable {
             .transcriptImported, .transcriptionStopped, .exportSetStopped, .exportSetDropped:
             .warning
         case .missingMedia, .unusedFilesFailed: .error
-        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .noWordsFound, .exportSetDone: .info
+        case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime, .noWordsFound,
+            .exportSetDone:
+            .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
         }
@@ -196,6 +201,7 @@ enum WindowBanner: Equatable {
         case .noiseReduced(0, _, _): L10n.denoiseUnchanged.text
         case .noiseReduced(let clips, let treatment, _): L10n.denoiseResult(clips: clips, treatment: treatment)
         case .soundRepaired(let result, _): L10n.repairResult(result)
+        case .leveledOverTime(let result, _): L10n.rideResult(result)
         case .unusedFilesMoved(let count, let bytes): L10n.bannerUnusedMoved.format(count, L10n.bytes(bytes))
         case .unusedFilesFailed(let paths): L10n.bannerUnusedFailed.format(paths.joined(separator: ", "))
         case .consentExpired(let agent?): L10n.bannerConsentExpired.format(agent)
@@ -217,7 +223,7 @@ enum WindowBanner: Equatable {
         case .playbackStopped, .lowRecordTime, .useHeadphones, .monitorHeadphones: .high
         case .missingMedia, .exportReport, .exportSetDone, .exportSetStopped, .exportSetDropped, .chaptersDropped,
             .chapterImagesOmitted, .titleMissing, .transcriptLeftOut,
-            .levelReport, .noiseReduced, .soundRepaired, .transcriptImported, .unusedFilesMoved,
+            .levelReport, .noiseReduced, .soundRepaired, .leveledOverTime, .transcriptImported, .unusedFilesMoved,
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound:
             .medium

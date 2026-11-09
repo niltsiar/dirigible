@@ -80,7 +80,8 @@ enum TimelineCommand: Hashable {
         exportSelection
     case raiseVolume, lowerVolume, resetVolume
     case exportChapters, exportTranscript, episodeInfo
-    case autoLevel, autoLevelPerTrack, duck, splitStereo, reduceNoise, repairSound, restoreOriginal, transcribe
+    case autoLevel, autoLevelPerTrack, levelOverTime, removeLevelOverTime, duck, splitStereo, reduceNoise, repairSound
+    case restoreOriginal, transcribe
     case findSilences
     case addGainPoint, previousGainPoint, nextGainPoint
 
@@ -126,6 +127,8 @@ enum TimelineCommand: Hashable {
         // Export Transcript and Import Transcript have no key.
         case .exportTranscript, .importTranscript: false
         case .autoLevel, .autoLevelPerTrack: false
+        // A text field does nothing with Shift-Command-L. Remove Level Over Time has no key.
+        case .levelOverTime, .removeLevelOverTime: false
         // Duck Music Under Speech... has no key (plan gate 1 item 3).
         case .duck: false
         // Find Silences has no key: a rare command, as Duck Music Under Speech.
@@ -293,6 +296,8 @@ extension SessionWindow {
         case .addGainPoint, .previousGainPoint, .nextGainPoint: runGainPoint(command, studio)
         case .autoLevel: Task { await level(.eachClip) }
         case .autoLevelPerTrack: Task { await level(.equallyPerTrack) }
+        case .levelOverTime: Task { await levelOverTime() }
+        case .removeLevelOverTime: removeLevelOverTime()
         case .duck: startDuck()
         case .findSilences: Task { await findSilences() }
         case .splitStereo: splitStereo()

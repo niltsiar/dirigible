@@ -57,8 +57,16 @@ extension L10n {
         // The banner Cancel ends a level or a duck, so the window shows no alert for it (decision 0049).
         // Only an agent read gives `readYielded` and `readClosed`, and the agent gets its text (decision 0062).
         case .levelCancelled, .duckCancelled, .readYielded, .readClosed: return errorSessionOther.text
-        // No window control starts a Level Over Time yet, so its errors keep the general text.
-        case .rideCancelled, .rideRead, .rideFault: return errorSessionOther.text
+        // The banner Cancel ends a ride, so the window shows no alert for it.
+        case .rideCancelled: return errorSessionOther.text
+        case .rideRead(let code): return errorRideRead.format(Int(code))
+        case .rideFault(let file, let fault):
+            let path = session?.files[file]?.path ?? file.rawValue
+            switch fault {
+            case .missing: return errorRideMissing.format(path)
+            case .short: return errorRideShort.format(path)
+            case .unreadable: return errorRideUnreadable.format(path)
+            }
         // The window shows no alert for a stop or a cancel: the banner and the announcement say it.
         case .transcriptionYielded: return transcribeStopped.text
         case .transcriptionCancelled: return transcribeCanceled.text

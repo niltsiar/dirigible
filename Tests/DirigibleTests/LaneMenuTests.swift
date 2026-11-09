@@ -59,7 +59,7 @@ import Testing
         let menu = try menu(view, 120, 10)
         #expect(menu.items.allSatisfy { $0.keyEquivalent.isEmpty }, "\(menu.items.map(\.keyEquivalent))")
         #expect(!titles(menu).contains("Undo"))
-        #expect(menu.items.count == 16, "\(titles(menu))")
+        #expect(menu.items.count == 17, "\(titles(menu))")
         await model.close()
     }
 
@@ -285,7 +285,7 @@ import Testing
         #expect(
             model.leafCalls == [
                 "cut", "copy", "paste", "fill", "insert", "replace", "delete", "deleteCloseGap", "split",
-                "reduceNoise", "repairSound", "fade", "addMarker", "addChapter",
+                "reduceNoise", "repairSound", "levelOverTime", "fade", "addMarker", "addChapter",
             ])
         await model.close()
     }
@@ -311,7 +311,7 @@ extension LaneMenuTests {
         #expect(commands(stereo: true, canEdit: false) == [[.addMarker, .addChapter]])
     }
 
-    /// C13: Reduce Noise and Repair Sound follow Split Stereo to Mono in group 2 only when the
+    /// C13: Reduce Noise, Repair Sound, and Level Over Time follow Split Stereo to Mono in group 2 only when the
     /// selection holds a clip that they take, and hide with the edit items during a take. Control:
     /// the same call with `denoise` false.
     @Test func reduceNoiseShowsOnlyWithAClipItTakes() {
@@ -322,9 +322,11 @@ extension LaneMenuTests {
                 canEdit: true, canRipple: true, closeGaps: false
             )[1].map(\.command)
         }
-        #expect(group(denoise: true) == [.delete, .split, .reduceNoise, .repairSound, .fade])
+        #expect(group(denoise: true) == [.delete, .split, .reduceNoise, .repairSound, .levelOverTime, .fade])
         #expect(
-            group(denoise: true, stereo: true) == [.delete, .split, .splitStereo, .reduceNoise, .repairSound, .fade])
+            group(denoise: true, stereo: true) == [
+                .delete, .split, .splitStereo, .reduceNoise, .repairSound, .levelOverTime, .fade,
+            ])
         #expect(group(denoise: false) == [.delete, .split, .fade])
         let take = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: true, restore: false, clipboard: false, split: true,
@@ -343,9 +345,12 @@ extension LaneMenuTests {
                 split: true, canEdit: true, canRipple: true, closeGaps: false
             )[1].map(\.command)
         }
-        #expect(group(restore: true) == [.delete, .split, .reduceNoise, .repairSound, .restoreOriginal, .fade])
+        #expect(
+            group(restore: true) == [
+                .delete, .split, .reduceNoise, .repairSound, .levelOverTime, .restoreOriginal, .fade,
+            ])
         #expect(group(restore: true, denoise: false) == [.delete, .split, .restoreOriginal, .fade])
-        #expect(group(restore: false) == [.delete, .split, .reduceNoise, .repairSound, .fade])
+        #expect(group(restore: false) == [.delete, .split, .reduceNoise, .repairSound, .levelOverTime, .fade])
         let take = LaneMenu.groups(
             selection: true, clips: true, stereo: false, denoise: true, restore: true, clipboard: false, split: true,
             canEdit: false, canRipple: false, closeGaps: false)
@@ -364,8 +369,8 @@ extension LaneMenuTests {
         #expect(
             shown == [
                 "menu.edit.cut", "menu.edit.copy", "menu.edit.paste (off)", "-", "menu.edit.delete",
-                "menu.tools.reduce.noise", "menu.tools.repair.sound", "menu.edit.fade", "menu.edit.close.gaps", "-",
-                "menu.markers.add", "menu.markers.add.chapter",
+                "menu.tools.reduce.noise", "menu.tools.repair.sound", "menu.tools.level.over.time", "menu.edit.fade",
+                "menu.edit.close.gaps", "-", "menu.markers.add", "menu.markers.add.chapter",
             ])
         _ = try menu(view, 50, 110)
         #expect(model.timeline.selection == .clips(ClipSet("c2")), "c2 is not in the set")

@@ -41,6 +41,7 @@ enum LaneMenu {
                 stereo ? Item(command: .splitStereo, enabled: true) : nil,
                 denoise ? Item(command: .reduceNoise, enabled: true) : nil,
                 denoise ? Item(command: .repairSound, enabled: true) : nil,
+                denoise ? Item(command: .levelOverTime, enabled: true) : nil,
                 restore ? Item(command: .restoreOriginal, enabled: true) : nil,
                 selection ? Item(command: .fade, enabled: true) : nil,
                 closeGaps ? Item(command: .closeGaps, enabled: true) : nil,

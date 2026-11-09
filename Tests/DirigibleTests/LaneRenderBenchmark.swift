@@ -141,6 +141,7 @@ extension LaneRenderBenchmark {
             times.append(ContinuousClock.now - start)
         }
         let p95 = times.sorted()[113]
+        print("LaneRenderBenchmark butt joins: p50 \(times.sorted()[60]), p95 \(p95)")
         expectWithinBudget(p95, Self.budget, "p95 \(p95)")
     }
 }

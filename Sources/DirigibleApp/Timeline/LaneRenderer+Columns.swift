@@ -30,8 +30,8 @@ struct ColumnFades {
 }
 
 /// The gain layers of one clip in the columns of a draw (decision 0060): the envelope and the ride,
-/// from the file frame of the first column, with the frames per column. In each layer a binary
-/// search finds the first point of the draw rect, and a walk over the columns in order reads each
+/// from the file frame of column 0, with the frames per column. In each layer a binary search finds
+/// the first point after the start of the column `from`, and a walk over the columns in order reads each
 /// point once: the cursor `next` of each layer only moves forward. In a column where only one layer
 /// has points, each other layer is a line over the column, so a point costs one multiply-add (a
 /// ride has about 7 points per column at fit zoom).
@@ -52,9 +52,10 @@ struct ColumnEnvelope {
     private let step: Double
     private var last = Int.min
 
-    init(layers: [GainEnvelope], first: Double, step: Double) {
+    /// Each `index` of `gain` is `from` or over it.
+    init(layers: [GainEnvelope], first: Double, step: Double, from: Int = 0) {
         (self.first, self.step) = (first, step)
-        let start = Frames(Int(first.rounded(.down)) + 1)
+        let start = Frames(Int((first + Double(from) * step).rounded(.down)) + 1)
         self.layers = layers.filter { !$0.isEmpty }.map {
             let seed = $0.index(atOrAfter: start)
             return Layer(points: $0.points, seed: seed, next: seed)
@@ -147,5 +148,47 @@ struct ColumnEnvelope {
         if after == 0 || after == points.count { return 0 }
         let (a, b) = (points[after - 1], points[after])
         return (b.gain.dB - a.gain.dB) / Double(b.frame.count - a.frame.count)
+    }
+}
+
+/// The layer gains of one clip by absolute column (`LaneRenderer.columnGains`), with the inputs
+/// they come from: the layers, the file frame of column 0, and the frames per column.
+struct LayerColumns {
+    let envelope: GainEnvelope
+    let ride: GainEnvelope
+    let base: Frames
+    let pixelFrames: Double
+    let columns: Range<Int>
+    let gains: [Double]
+
+    func holds(_ clip: Clip, _ pixelFrames: Double) -> Bool {
+        envelope == clip.envelope && ride == clip.ride && base == clip.offset - clip.start
+            && self.pixelFrames == pixelFrames
+    }
+}
+
+extension LaneRenderer {
+    /// The highest sum of the gain layers of `clip` over the file frames of each of its `columns`,
+    /// absolute columns in `clipColumns`. The gains of the last draw serve when they come from the
+    /// same inputs and hold the columns. Else one walk; when only the columns differ (a scroll), the
+    /// walk takes `margin` more columns on each side, in the clip.
+    func columnGains(
+        of clip: Clip, _ columns: Range<Int>, in clipColumns: Range<Int>, _ pixelFrames: Double, margin: Int
+    ) -> ArraySlice<Double> {
+        let kept = layerColumns[clip.id].flatMap { $0.holds(clip, pixelFrames) ? $0 : nil }
+        if let kept, kept.columns.lowerBound <= columns.lowerBound, columns.upperBound <= kept.columns.upperBound {
+            let start = kept.columns.lowerBound
+            return kept.gains[(columns.lowerBound - start)..<(columns.upperBound - start)]
+        }
+        let walked =
+            kept == nil ? columns : (columns.lowerBound - margin..<columns.upperBound + margin).clamped(to: clipColumns)
+        let base = clip.offset - clip.start
+        var envelope = ColumnEnvelope(
+            layers: [clip.envelope, clip.ride], first: Double(base.count), step: pixelFrames, from: walked.lowerBound)
+        let entry = LayerColumns(
+            envelope: clip.envelope, ride: clip.ride, base: base, pixelFrames: pixelFrames, columns: walked,
+            gains: walked.map { envelope.gain($0) })
+        layerColumns[clip.id] = entry
+        return entry.gains[(columns.lowerBound - walked.lowerBound)..<(columns.upperBound - walked.lowerBound)]
     }
 }

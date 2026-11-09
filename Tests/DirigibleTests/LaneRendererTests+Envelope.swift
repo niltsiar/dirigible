@@ -180,4 +180,51 @@ extension LaneRendererTests {
         }
         #expect(misses.count == 0, "columns off the heard peak: \(misses.prefix(5))")
     }
+
+    /// One renderer keeps the layer gains of a clip between draws. After each change of the ride,
+    /// the envelope, the clip start, the zoom, or the window, its pixels equal those of a new
+    /// renderer, and each change of the inputs moves pixels. The ride steps at the middle of the
+    /// file, so a kept gain of other inputs draws the line and the waveform at the wrong height.
+    @Test func eachDrawAfterAChangeOfTheGainInputsEqualsANewRenderer() throws {
+        let length = Self.envelopeLength
+        func session(start: Int = 0, high: Double = -2, envelope: Double? = nil) throws -> Session {
+            var session = Session(sampleRate: 48_000)
+            try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: Frames(length)))
+            try session.addTrack("t1", name: "T1", layout: .mono)
+            try session.place(
+                Clip(id: "c1", file: "f1", start: Frames(start), offset: 0, length: Frames(length)), on: "t1")
+            func layer(_ points: [(Int, Double)]) throws -> GainEnvelope {
+                try #require(
+                    GainEnvelope(points.map { GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!) }))
+            }
+            try session.setRides(["c1": layer([(0, -6), (length / 2, -6), (length / 2 + 1, high), (length, high)])])
+            if let envelope { try session.setEnvelopes(["c1": layer([(0, envelope), (length, envelope)])]) }
+            return session
+        }
+        var zoomed = Self.inputs(try session(start: 25_600, high: 4, envelope: -8), peaks: Self.fullPeaks())
+        zoomed.scale = TimelineScale(framesPerPoint: 128)
+        let steps: [(String, LaneInputs, x: Double)] = [
+            ("first draw", Self.inputs(try session(), peaks: Self.fullPeaks()), 0),
+            ("ride", Self.inputs(try session(high: 4), peaks: Self.fullPeaks()), 0),
+            ("envelope", Self.inputs(try session(high: 4, envelope: -8), peaks: Self.fullPeaks()), 0),
+            ("start", Self.inputs(try session(start: 25_600, high: 4, envelope: -8), peaks: Self.fullPeaks()), 0),
+            ("zoom", zoomed, 0), ("scroll", zoomed, 60), ("scroll in the kept columns", zoomed, 300),
+        ]
+        let renderer = LaneRenderer()
+        var previous: LaneInputs?
+        for (name, inputs, x) in steps {
+            let window = try #require(laneWindow(inputs, x: x, width: 400))
+            func draw(_ renderer: LaneRenderer, _ inputs: LaneInputs) -> [[UInt32]] {
+                let pixels = OwnedPixels(window)
+                pixels.draw { renderer.draw(inputs, .light, into: $0) }
+                return window.pixels.rows.map { pixels.row($0) }
+            }
+            let fresh = draw(LaneRenderer(), inputs)
+            #expect(draw(renderer, inputs) == fresh, "\(name): the kept renderer draws other pixels")
+            if let previous, previous != inputs {
+                #expect(draw(LaneRenderer(), previous) != fresh, "\(name): the change moves no pixel")
+            }
+            previous = inputs
+        }
+    }
 }

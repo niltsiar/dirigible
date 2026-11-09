@@ -7,7 +7,7 @@ package struct RideWindow: Hashable, Sendable {
 }
 
 /// One measure group of Level Over Time (leveler C7c): clips of one file whose windows touch or
-/// overlap, with equal clip gains. The ride reads `frames` once and writes one list on `written`.
+/// overlap, with equal clip gains, that play on from each other on the timeline. The ride reads `frames` once and writes one list on `written`.
 package struct RideGroup: Hashable, Sendable {
     package let file: FileID
     /// File frames: the union of the windows, with no gap.
@@ -35,7 +35,8 @@ package struct RideGroup: Hashable, Sendable {
 
 extension Session {
     /// The measure groups of `selected` (leveler C7c). A group holds the clips of one file whose
-    /// windows touch or overlap and whose clip gains are equal, selected or not. When two clips of a
+    /// windows touch or overlap, whose clip gains are equal, and that play each file frame at one
+    /// timeline frame, so they play on from each other; selected or not. When two clips of a
     /// group play one file frame with envelopes that differ there, one of them leaves: the clip on
     /// the track with fewer frames of the group, on equal frames the later track, on one track the
     /// later clip. Then the clips that stay and the clips that left form groups again by these
@@ -225,25 +226,32 @@ private struct RideMember {
         return result
     }
 
-    /// The S1 rule: one file, equal clip gains, windows that touch or overlap.
+    /// One file, equal clip gains, one shift from file frames to timeline frames, and windows that
+    /// touch or overlap: the clips play on from each other on the timeline.
     private static func touching(_ members: [RideMember]) -> [[RideMember]] {
-        let byFile = Dictionary(grouping: members, by: \.clip.file)
+        let byKey = Dictionary(grouping: members) { Key(file: $0.clip.file, gain: $0.clip.gain, shift: $0.shift) }
         var result: [[RideMember]] = []
-        for file in byFile.keys.sorted() {
-            let byGain = Dictionary(grouping: byFile[file]!, by: \.clip.gain)
-            for gain in byGain.keys.sorted(by: { $0.dB < $1.dB }) {
-                var end: Frames?
-                for member in byGain[gain]!.sorted(by: { $0.clip.offset < $1.clip.offset }) {
-                    if let end, member.clip.offset <= end {
-                        result[result.count - 1].append(member)
-                    } else {
-                        result.append([member])
-                    }
-                    end = max(end ?? .zero, member.window.upperBound)
+        for key in byKey.keys.sorted(by: { ($0.file, $0.gain.dB, $0.shift) < ($1.file, $1.gain.dB, $1.shift) }) {
+            var end: Frames?
+            for member in byKey[key]!.sorted(by: { $0.clip.offset < $1.clip.offset }) {
+                if let end, member.clip.offset <= end {
+                    result[result.count - 1].append(member)
+                } else {
+                    result.append([member])
                 }
+                end = max(end ?? .zero, member.window.upperBound)
             }
         }
         return result
+    }
+
+    /// The timeline frame minus the file frame, for each frame that the clip plays.
+    private var shift: Int { clip.start.count - clip.offset.count }
+
+    private struct Key: Hashable {
+        let file: FileID
+        let gain: Gain
+        let shift: Int
     }
 
     /// The index in `group` of the clip that leaves for the first pair of clips that play one file

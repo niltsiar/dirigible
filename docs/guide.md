@@ -459,7 +459,7 @@ When the result is not right:
 - Too strong: choose **Edit > Undo**, or select the passage and lower it with a range gain, which adds to the ride and shows in the line.
 - Too weak: the 6 dB limit stopped the gain. Select the passage and raise it with a range gain, or add gain points.
 - To change the ride on one passage, add gain points or a range gain on top. The line shows the sum.
-- A ride of some parts of a split clip measures all the touching parts and changes only the selected parts. Select all the parts to get a ride with no step in level at a cut.
+- A ride of some parts of a split clip measures all the parts that still play on from each other on the timeline, and changes only the selected parts. A part that you moved away is measured alone. Select all the parts to get a ride with no step in level at a cut.
 
 In Terminal, `dirigible clip level-over-time <package> <clip>...` does the same, and an agent uses the tool `clip_level_over_time`.
 

@@ -102,6 +102,16 @@ struct SessionRideTests {
         #expect(try groups(["A", "B"]) == [["A", "B"]])
     }
 
+    /// Parts with touching file windows that play apart on the timeline are two groups, so the
+    /// ride of one part reads no audio of the other.
+    @Test mutating func partsMovedApartAreTwoGroups() throws {
+        try place("A", on: "t", start: 0, length: 40_000)
+        try place("B", on: "t", start: 200_000, offset: 40_000, length: 60_000)
+        try place("C", on: "u", start: 0, offset: 40_000, length: 60_000)
+
+        #expect(Set(try groups(["A", "B", "C"])) == [["A"], ["B"], ["C"]])
+    }
+
     /// B overlaps A with another envelope on the overlap, so B (the track with fewer frames) leaves.
     /// C touches A and not B, so it stays with A.
     @Test mutating func overlapWithOtherEnvelopesIsTwoGroups() throws {

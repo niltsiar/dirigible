@@ -45,6 +45,8 @@
 "menu.tools.level.track" = "Auto Level per Track";
 "menu.tools.level.all" = "Auto Level All Clips";
 "menu.tools.level.track.all" = "Auto Level per Track (All)";
+"menu.tools.level.over.time" = "Level Over Time";
+"menu.tools.remove.level.over.time" = "Remove Level Over Time";
 "menu.tools.duck" = "Duck Music Under Speech…";
 "menu.tools.split.stereo" = "Split Stereo to Mono";
 "menu.tools.reduce.noise" = "Reduce Noise\U2026";
@@ -74,6 +76,10 @@
 "error.duck.no.ducked.track" = "Select a track to duck, or give a track the Music role.";
 "error.duck.both.lists" = "Track “%@” cannot be a speech track and a track to duck.";
 "error.duck.read" = "An audio file of a speech track did not read (error %lld). No gain point changed.";
+"error.ride.read" = "Dirigible cannot level the clips over time. An audio file did not read (error %lld). No clip changed.";
+"error.ride.missing" = "Dirigible cannot level the clips over time. The audio file “%@” is not in the Clips folder of the session. Put the file back in that folder and try again.";
+"error.ride.short" = "Dirigible cannot level the clips over time. The audio file “%@” is shorter than the session says. Restore the file and try again.";
+"error.ride.unreadable" = "Dirigible cannot level the clips over time. The audio file “%@” did not read. Check the disk and try again.";
 "error.silences.read" = "An audio file did not read (error %lld). The scan found no silence.";
 "error.silences.stale" = "The tracks changed after the scan. Scan again to apply the silences.";
 "error.silences.faults" = "These files are missing or damaged: %@. Their clips would read as silence, so the scan shows no silence. Restore the files and scan again.";
@@ -264,6 +270,13 @@
 "repair.sound.one" = "Repaired the sound of 1 clip.";
 "repair.sound.many" = "Repaired the sound of %lld clips.";
 "repair.canceled" = "Repair canceled. No clip changed.";
+"ride.done.one" = "Leveled 1 clip over time, up to %+lld dB.";
+"ride.done.many" = "Leveled %1$lld clips over time, up to %2$+lld dB.";
+"ride.flat.one" = "Leveled 1 clip over time.";
+"ride.flat.many" = "Leveled %lld clips over time.";
+"ride.unmeasured.one" = "1 clip has no level to measure.";
+"ride.unmeasured.many" = "%lld clips have no level to measure.";
+"ride.canceled" = "Level Over Time canceled. No clip changed.";
 "reverted.to" = "Reverted to the backup of %@";
 
 /* Window, panels, and alerts */
@@ -340,6 +353,7 @@
 "take.finishing" = "Finishing take %lld…";
 "take.placing" = "Placing %@…";
 "take.leveling" = "Leveling clips…";
+"take.riding" = "Leveling over time";
 "take.ducking" = "Ducking the music under the speech…";
 "take.finding.silences" = "Finding silences…";
 "take.pending" = "Take %lld is not finished.";

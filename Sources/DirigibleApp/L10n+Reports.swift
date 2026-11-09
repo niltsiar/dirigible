@@ -69,6 +69,30 @@ extension L10n {
         return found + " " + (one ? fill(.repairDropOne, result.drop) : fill(.repairDropMany, result.drop))
     }
 
+    /// The result banner of a Level Over Time run: "Leveled 2 clips over time, up to +4 dB.", then
+    /// "1 clip has no level to measure." when a clip had no reference. A largest gain of 0 dB has no
+    /// "up to" part. With no leveled clip, only the second sentence. `text` gives the value of a
+    /// key, so a test can read a table.
+    static func rideResult(_ result: RideResult, text: (L10n) -> String = { $0.text }) -> String {
+        func fill(_ key: L10n, _ values: Int...) -> String {
+            String(format: text(key), locale: .current, arguments: values)
+        }
+        var parts: [String] = []
+        let flat = result.gain == 0
+        if result.leveled == 1 {
+            parts.append(flat ? text(.rideFlatOne) : fill(.rideDoneOne, result.gain))
+        } else if result.leveled > 1 {
+            parts.append(
+                flat ? fill(.rideFlatMany, result.leveled) : fill(.rideDoneMany, result.leveled, result.gain))
+        }
+        if result.unmeasured == 1 {
+            parts.append(text(.rideUnmeasuredOne))
+        } else if result.unmeasured > 1 {
+            parts.append(fill(.rideUnmeasuredMany, result.unmeasured))
+        }
+        return parts.joined(separator: " ")
+    }
+
     /// The counts banner of Import Transcript: each count that is not zero as "Label: N", then the
     /// names of the dropped transcripts. Nil when there is nothing to say. `text` gives the value
     /// of a key, so a test can read a table.

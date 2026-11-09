@@ -129,6 +129,7 @@ extension SessionWindow {
             levelReport = nil
             denoiseReport = nil
             repairReport = nil
+            rideReport = nil
             duckReport = nil
             consentExpired = nil
             return .started(take: take)

@@ -38,7 +38,7 @@ R9 asks for automatic volume leveling of each clip. The export needs a loudness 
 
 - The limiter is Apple's `kAudioUnitSubType_PeakLimiter` first. It is probably a sample-peak limiter, so its ceiling is set lower than -1 dBTP, and our true-peak meter checks the result.
 - A one-time cross-check against libebur128 or `ffmpeg -af ebur128` on real speech goes in the run ledger as a manual check.
-- Later: a speech-only measurement (a voice detector before the meter) and a leveler inside a clip.
+- Later: a speech-only measurement (a voice detector before the meter) and a leveler inside a clip (done: Tools > Level Over Time, a gain layer of the clip, run `2026-10-14-leveler`).
 
 ## Alternatives considered
 

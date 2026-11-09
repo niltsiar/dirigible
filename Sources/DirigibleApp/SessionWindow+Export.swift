@@ -100,8 +100,10 @@ extension SessionWindow {
         case .findSilences: canFindSilences
         case .splitStereo:
             canImport && idleStudio.map { !timeline.selection.stereoClips(in: $0.session).isEmpty } == true
-        case .reduceNoise, .repairSound:
+        case .reduceNoise, .repairSound, .levelOverTime:
             !dialogShowing && canImport && idleStudio.map { !denoiseClips(in: $0.session).isEmpty } == true
+        case .removeLevelOverTime:
+            canImport && idleStudio.map { !removeRideTarget(in: $0.session).clips.isEmpty } == true
         case .transcribe: canTranscribe
         case .restoreOriginal:
             importJob == nil && idleStudio.map { !restoreClips(in: $0.session).isEmpty } == true

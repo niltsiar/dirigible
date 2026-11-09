@@ -45,6 +45,8 @@
 "menu.tools.level.track" = "Nivelamento automático por faixa";
 "menu.tools.level.all" = "Nivelamento automático de todos os clipes";
 "menu.tools.level.track.all" = "Nivelamento automático por faixa (todos os clipes)";
+"menu.tools.level.over.time" = "Nivelar ao longo do tempo";
+"menu.tools.remove.level.over.time" = "Remover nivelamento ao longo do tempo";
 "menu.tools.duck" = "Atenuar música sob a voz…";
 "menu.tools.split.stereo" = "Dividir estéreo em mono";
 "menu.tools.reduce.noise" = "Reduzir ruído\U2026";
@@ -74,6 +76,10 @@
 "error.duck.no.ducked.track" = "Selecione uma faixa a atenuar ou atribua a uma faixa a função Música.";
 "error.duck.both.lists" = "A faixa “%@” não pode ser, ao mesmo tempo, uma faixa de voz e uma faixa a atenuar.";
 "error.duck.read" = "Não foi possível ler um ficheiro de áudio de uma faixa de voz (erro %lld). Nenhum ponto de ganho mudou.";
+"error.ride.read" = "O Dirigible não pode nivelar os clipes ao longo do tempo. Não foi possível ler um ficheiro de áudio (erro %lld). Nenhum clipe mudou.";
+"error.ride.missing" = "O Dirigible não pode nivelar os clipes ao longo do tempo. O ficheiro de áudio “%@” não está na pasta Clips da sessão. Coloque novamente o ficheiro nessa pasta e volte a tentar.";
+"error.ride.short" = "O Dirigible não pode nivelar os clipes ao longo do tempo. O ficheiro de áudio “%@” é mais curto do que a sessão indica. Restaure o ficheiro e volte a tentar.";
+"error.ride.unreadable" = "O Dirigible não pode nivelar os clipes ao longo do tempo. Não foi possível ler o ficheiro de áudio “%@”. Verifique o disco e volte a tentar.";
 "error.silences.read" = "Não foi possível ler um ficheiro de áudio (erro %lld). A procura não encontrou silêncios.";
 "error.silences.stale" = "As faixas mudaram depois da procura. Procure de novo para aplicar os silêncios.";
 "error.silences.faults" = "Estes ficheiros estão em falta ou danificados: %@. Os clips deles seriam lidos como silêncio, por isso a procura não mostra silêncios. Restaure os ficheiros e procure de novo.";
@@ -264,6 +270,13 @@
 "repair.sound.one" = "Som reparado em 1 clipe.";
 "repair.sound.many" = "Som reparado em %lld clipes.";
 "repair.canceled" = "Reparação cancelada. Nenhum clipe mudou.";
+"ride.done.one" = "1 clipe nivelado ao longo do tempo, até %+lld dB.";
+"ride.done.many" = "%1$lld clipes nivelados ao longo do tempo, até %2$+lld dB.";
+"ride.flat.one" = "1 clipe nivelado ao longo do tempo.";
+"ride.flat.many" = "%lld clipes nivelados ao longo do tempo.";
+"ride.unmeasured.one" = "1 clipe não tem nível para medir.";
+"ride.unmeasured.many" = "%lld clipes não têm nível para medir.";
+"ride.canceled" = "Nivelamento ao longo do tempo cancelado. Nenhum clipe mudou.";
 "reverted.to" = "Cópia de segurança de %@ restabelecida";
 
 /* Window, panels, and alerts */
@@ -340,6 +353,7 @@
 "take.finishing" = "A finalizar o excerto %lld…";
 "take.placing" = "A posicionar %@…";
 "take.leveling" = "A nivelar os clipes…";
+"take.riding" = "A nivelar ao longo do tempo";
 "take.ducking" = "A atenuar a música sob a voz…";
 "take.finding.silences" = "A procurar silêncios…";
 "take.pending" = "O excerto %lld não foi finalizado.";

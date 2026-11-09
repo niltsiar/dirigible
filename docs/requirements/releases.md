@@ -156,7 +156,7 @@ Goal: repair a recording: reduce noise and hum, level a voice, match voices, and
 5. **Noise reduction and the clip render (F35, F89).** Noise reduction on the render of a clip through an effect: L1 has a fixed 12 dB, and L2 adds the one control, a dial in dB. Run: `2026-10-13-render-denoise` L1.
 6. **Render link (F110).** A rendered clip keeps a link to its original, so that the user changes the amount of the effect later or restores the original. Run: `2026-10-14-render-link`.
 7. **Hum removal and the dial (F77).** Hum removal at 50 or 60 Hz, and the preview dial of the noise reduction. Run: `2026-10-13-render-denoise` L2.
-8. **The leveler (F38 part).** Gain riding inside a clip, as a render effect. Run: `2026-10-14-leveler`.
+8. **The leveler (F38 part).** Gain riding inside a clip, as a second gain layer of the clip (Tools > Level Over Time). Run: `2026-10-14-leveler`.
 9. **Voice match (F37 part).** Match the EQ of a clip to a reference clip. Run: `2026-10-14-voice-match`.
 10. **The repair set (F98, F99, F100).** Reduce rumble with a high-pass filter, repair clipped peaks, and soften harsh "s" sounds.
 11. **Armed app track (F114).** A level meter and the permission state of an armed app track before a take.

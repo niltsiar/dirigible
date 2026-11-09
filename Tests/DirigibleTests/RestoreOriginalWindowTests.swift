@@ -111,8 +111,8 @@ import Testing
         await model.close()
     }
 
-    /// C6: a right-click on the rendered clip shows the item, on, right after Reduce Noise; on the
-    /// plain clip of a track with no role it shows Reduce Noise and no Restore item.
+    /// C6: a right-click on the rendered clip shows the item, on, after Reduce Noise, Repair Sound, and
+    /// Level Over Time; on the plain clip of a track with no role it shows Reduce Noise and no Restore item.
     @Test func theLaneMenuShowsTheItem() async throws {
         let (model, studio) = try await timelineModel(try await Self.renderedPackage(in: folder.url), app: app)
         let (window, view) = standaloneLanes(model, studio)
@@ -124,7 +124,8 @@ import Testing
         let rendered = try titles(y: 10)
         let at = try #require(rendered.firstIndex(of: L10n.menuToolsReduceNoise.text), "\(rendered)")
         #expect(rendered.dropFirst(at + 1).first == L10n.menuToolsRepairSound.text, "\(rendered)")
-        #expect(rendered.dropFirst(at + 2).first == restore, "\(rendered)")
+        #expect(rendered.dropFirst(at + 2).first == L10n.menuToolsLevelOverTime.text, "\(rendered)")
+        #expect(rendered.dropFirst(at + 3).first == restore, "\(rendered)")
         let plain = try titles(y: 110)
         #expect(plain.contains(L10n.menuToolsReduceNoise.text) && !plain.contains(restore), "\(plain)")
         window.close()

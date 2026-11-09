@@ -120,8 +120,9 @@ struct DirigibleApp: App {
                     ForEach(TimelineCommand.trackItems, id: \.command) { item in menuButton(item) }
                     if let key = app.key, key.canEdit, !key.roleMenuTracks.isEmpty {
                         Menu(L10n.menuTrackRole.key) { RoleItems(model: key, headerRow: nil) }
+                            .help(Text(L10n.trackRoleHelp.key))
                     } else {
-                        Button(L10n.menuTrackRole.key) {}.disabled(true)
+                        Button(L10n.menuTrackRole.key) {}.disabled(true).help(Text(L10n.trackRoleHelp.key))
                     }
                     if let key = app.key, key.canEdit, !key.roleMenuTracks.isEmpty {
                         FollowItem(model: key, headerRow: nil)

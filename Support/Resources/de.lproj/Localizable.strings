@@ -26,6 +26,8 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
+"track.role.help" = "Eine Bezeichnung für die Spur. Sie ändert keinen Klang. „Musik unter Sprache absenken“ nutzt sie, um Sprache und Musik zu finden. „Rauschen reduzieren“ überspringt Musik- und Effektspuren.";
+"track.role.header" = "Eine Bezeichnung. Sie ändert keinen Klang.";
 "menu.track.volume.up" = "Spurlautstärke erhöhen";
 "menu.track.volume.down" = "Spurlautstärke verringern";
 "menu.track.volume.reset" = "Spurlautstärke zurücksetzen";

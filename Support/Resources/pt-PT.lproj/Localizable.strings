@@ -26,6 +26,8 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
+"track.role.help" = "Uma etiqueta da faixa. Não altera o som. “Atenuar música sob a voz” usa-a para encontrar a voz e a música. “Reduzir ruído” ignora as faixas de música e de efeitos.";
+"track.role.header" = "Uma etiqueta. Não altera o som.";
 "menu.track.volume.up" = "Aumentar volume da faixa";
 "menu.track.volume.down" = "Diminuir volume da faixa";
 "menu.track.volume.reset" = "Repor volume da faixa";

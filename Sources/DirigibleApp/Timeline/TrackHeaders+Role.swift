@@ -42,7 +42,7 @@ struct RoleGlyph: View {
             .foregroundStyle(Color.black.opacity(0.85))
             .frame(width: Self.size, height: Self.size)
             .background(Color(nsColor: role.color), in: RoundedRectangle(cornerRadius: 3))
-            .help(Text(role.title.key))
+            .help(Text(role.title.key) + Text(verbatim: " ") + Text(L10n.trackRoleHelp.key))
             .accessibilityLabel(Text(role.title.key))
     }
 }
@@ -54,8 +54,8 @@ extension View {
     }
 }
 
-/// The items of Track > Role and of the header menu. An item is checked when each track of the
-/// menu has its role.
+/// The items of Track > Role and of the header menu, under a header line that says what a role is.
+/// An item is checked when each track of the menu has its role.
 struct RoleItems: View {
     let model: SessionWindow
     /// The row of the header menu; nil for Track > Role. The tracks come from the selection in
@@ -64,9 +64,11 @@ struct RoleItems: View {
 
     var body: some View {
         let tracks = headerRow.map(model.headerMenuTracks) ?? model.roleMenuTracks
-        item(nil, .trackRoleNone, tracks)
-        Divider()
-        ForEach(Track.Role.allCases, id: \.self) { role in item(role, role.title, tracks) }
+        Section(L10n.trackRoleHeader.key) {
+            item(nil, .trackRoleNone, tracks)
+            Divider()
+            ForEach(Track.Role.allCases, id: \.self) { role in item(role, role.title, tracks) }
+        }
     }
 
     private func item(_ role: Track.Role?, _ title: L10n, _ tracks: [TrackID]) -> some View {
@@ -89,6 +91,7 @@ struct HeaderMenu: View {
         Button(L10n.menuTrackRemove.key) { model.removeFromHeader(track) }
             .onAppear { model.showHeaderMenu(track) }
         Menu(L10n.menuTrackRole.key) { RoleItems(model: model, headerRow: track) }
+            .help(Text(L10n.trackRoleHelp.key))
         FollowItem(model: model, headerRow: track)
         Divider()
         Button(L10n.menuToolsTranscribe.key) { model.transcribeTrack(track) }.disabled(!model.canTranscribe)

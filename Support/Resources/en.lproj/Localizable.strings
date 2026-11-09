@@ -26,6 +26,8 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
+"track.role.help" = "A label for the track. It changes no sound. Duck Music Under Speech uses it to find the speech and the music. Reduce Noise skips music and effects tracks.";
+"track.role.header" = "A label. It changes no sound.";
 "menu.track.volume.up" = "Raise Track Volume";
 "menu.track.volume.down" = "Lower Track Volume";
 "menu.track.volume.reset" = "Reset Track Volume";

@@ -26,6 +26,8 @@
 "track.role.dialogue.letter" = "D";
 "track.role.music.letter" = "M";
 "track.role.effects.letter" = "E";
+"track.role.help" = "Een label voor het spoor. Het verandert het geluid niet. “Verlaag muziek onder spraak” gebruikt het om spraak en muziek te vinden. “Ruis verminderen” slaat muziek- en effectensporen over.";
+"track.role.header" = "Een label. Het verandert het geluid niet.";
 "menu.track.volume.up" = "Verhoog spoorvolume";
 "menu.track.volume.down" = "Verlaag spoorvolume";
 "menu.track.volume.reset" = "Zet spoorvolume terug";

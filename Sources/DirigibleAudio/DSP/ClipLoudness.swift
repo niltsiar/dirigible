@@ -56,10 +56,11 @@ func clipLoudness(
 }
 
 /// The frames `frames` of the pool file `file` through one new `LoudnessMeter`, in blocks of
-/// 65 536 frames: the block read of `clipLoudness`. The meter is nil with each fault, and with no
-/// fault for a rate that the meter refuses. A short file gives the meter of its frames inside
-/// `frames` and `.short`; a NaN or an infinity gives `.unreadable`. The throws and `progress`
-/// (the frames done) are those of `clipLoudness`.
+/// 65 536 frames: the block read of `clipLoudness`. The meter is nil for a missing file, a file
+/// that does not open, a failed read, and (with no fault) a rate that the meter refuses. A short
+/// file gives the meter of its frames inside `frames` and `.short`; a NaN or an infinity gives
+/// the meter and `.unreadable`. The throws and `progress` (the frames done) are those of
+/// `clipLoudness`.
 func meterRead(
     _ file: FileID, frames: Range<Frames>, in session: Session, package: URL, keepsSteps: Bool,
     progress: (Int) -> Void, isCancelled: () -> Bool,

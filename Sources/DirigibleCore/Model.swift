@@ -242,8 +242,10 @@ public struct Clip: Identifiable, Hashable, Sendable {
     public var crossfades: Crossfades
     /// At file frames, on top of `gain` (decision 0060). `Session.check` keeps each point in the file.
     public var envelope: GainEnvelope
-    /// The Level Over Time layer, at file frames, added to `gain` and `envelope`. Only
-    /// `Session.setRides` writes it. `Session.check` keeps each point in the file.
+    /// The Level Over Time layer, at file frames, added to `gain` and `envelope`.
+    /// `Session.setRides` sets a new list. The edits that move a clip or change its file map the
+    /// list with it: lower, a render, split stereo, heal, and `Excerpt.resampled`. `Session.check`
+    /// keeps each point in the file.
     public var ride: GainEnvelope
 
     public init(

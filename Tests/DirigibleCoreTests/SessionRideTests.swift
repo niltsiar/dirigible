@@ -111,8 +111,9 @@ struct SessionRideTests {
         #expect(Set(try groups(["A", "B", "C"])) == [["A"], ["B"], ["C"]])
     }
 
-    /// B overlaps A with another envelope on the overlap, so B (the track with fewer frames) leaves.
-    /// C touches A and not B, so it stays with A.
+    /// B plays file frames of A at another timeline position (another shift from file frames to
+    /// timeline frames), so B is its own group by the timeline group rule. C plays on from A, so it
+    /// stays with A.
     @Test mutating func overlapWithOtherEnvelopesIsTwoGroups() throws {
         try place("A", on: "t", start: 0, length: 100_000)
         try place("C", on: "t", start: 100_000, length: 30_000)

@@ -42,7 +42,7 @@ struct RoleGlyph: View {
             .foregroundStyle(Color.black.opacity(0.85))
             .frame(width: Self.size, height: Self.size)
             .background(Color(nsColor: role.color), in: RoundedRectangle(cornerRadius: 3))
-            .help(Text(role.title.key) + Text(verbatim: " ") + Text(L10n.trackRoleHelp.key))
+            .help(Text(role.title.key) + Text(verbatim: "\n") + Text(L10n.trackRoleHelp.key))
             .accessibilityLabel(Text(role.title.key))
     }
 }

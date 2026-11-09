@@ -15,6 +15,8 @@ extension TimelineGesture {
         /// The snap targets: every clip but this one.
         let snap: Snap
         var guide: Frames? = nil
+        /// The drag mode of the press: a mode change in the context does not change this drag.
+        let mode: DragMode
         /// No Overlap: the free starts on the target track (`Session.freeSpan`), and whether the
         /// last event clamped the start to them.
         var span: (track: TrackID, starts: ClosedRange<Frames>)? = nil
@@ -44,22 +46,27 @@ extension TimelineGesture {
         /// The snap targets: every clip that is not in the group.
         let snap: Snap
         var guide: Frames? = nil
+        /// The drag mode of the press.
+        let mode: DragMode
         /// No Overlap: the last event would cover a clip, so the preview is the last free one.
         var stopped = false
     }
 
     /// The drag of the clip at the down: a group move when the selection holds the clip and 2 or
     /// more clips, else a single move.
-    func moveState(_ press: Press, _ clip: Clip, _ lane: Int, _ geometry: LaneGeometry) -> State {
+    func moveState(_ press: Press, _ clip: Clip, _ lane: Int, _ geometry: LaneGeometry, _ mode: DragMode) -> State {
         let held = press.selection.selectedClips(in: press.base)
         guard held.count >= 2, held.contains(where: { $0.clip.id == clip.id }) else {
             let track = press.base.tracks[lane].id
             let snap = Snap(press.base, excluding: [clip.id], geometry: geometry)
             return .moving(
-                press, Move(clip: clip, lane: lane, track: track, start: clip.start, preview: press.base, snap: snap))
+                press,
+                Move(
+                    clip: clip, lane: lane, track: track, start: clip.start, preview: press.base, snap: snap, mode: mode
+                ))
         }
         let snap = Snap(press.base, excluding: Set(held.map(\.clip.id)), geometry: geometry)
-        return .grouping(press, GroupMove(clips: held, preview: press.base, anchor: clip, snap: snap))
+        return .grouping(press, GroupMove(clips: held, preview: press.base, anchor: clip, snap: snap, mode: mode))
     }
 
     /// A group drag event. The offset stops when the first clip reaches frame 0 or the last end
@@ -96,7 +103,7 @@ extension TimelineGesture {
         // The clamps and the layout check run first, so only a No Overlap cover reaches a throw. A
         // throw keeps the last preview (decision 0020) with no guide: its edge can be off the target.
         do throws(SessionError) {
-            try preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta, mode: context.dragMode.overlap)
+            try preview.nudge(group.clips.map(\.clip.id), by: offset, lanes: delta, mode: group.mode.overlap)
         } catch {
             group.guide = nil
             if case .overlap = error { group.stopped = true }
@@ -143,7 +150,7 @@ extension TimelineGesture {
         let source = base.tracks[move.lane]
         let track = base.tracks[lane].layout == source.layout ? base.tracks[lane].id : source.id
         var effects: [GestureEffect] = []
-        switch context.dragMode {
+        switch move.mode {
         case .noOverlap:
             guard let stop = noOverlapStart(&move, start, on: track, base) else {
                 state = .moving(press, move)
@@ -175,7 +182,7 @@ extension TimelineGesture {
         // throw. A throw keeps the last preview (decision 0020) with no guide: its edge can be off
         // the target.
         do throws(SessionError) {
-            if context.dragMode == .shuffle {
+            if move.mode == .shuffle {
                 // `shuffle` of the press session with the one close. Back at the clip start `shuffle`
                 // changes nothing; a drop on the closed session there moves each marker in the clip to its end.
                 if let closed = move.closed, (track, start) != (source.id, move.clip.start) {
@@ -183,7 +190,7 @@ extension TimelineGesture {
                     try preview.shuffleDrop(move.clip, to: track, start: start)
                 }
             } else {
-                try preview.move(move.clip.id, to: track, start: start, mode: context.dragMode.overlap)
+                try preview.move(move.clip.id, to: track, start: start, mode: move.mode.overlap)
             }
         } catch {
             move.guide = nil
@@ -265,7 +272,7 @@ extension TimelineGesture {
             .commit(
                 GestureCommit(
                     base: press.base, result: move.preview, selection: .clips(ClipSet(move.clip.id)), marker: nil,
-                    ripple: context.dragMode == .shuffle))
+                    ripple: move.mode == .shuffle))
         ]
     }
 }

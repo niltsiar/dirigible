@@ -7,7 +7,7 @@ public struct RideReport: Hashable, Sendable {
     public let leveled: [ClipID]
     /// The clips of a measure group with no reference: their ride layer is empty.
     public let unmeasured: [ClipID]
-    /// The ride gain of the largest size over the new lists, with its sign. Nil with no list.
+    /// The ride gain of the largest size that the leveled clips play, with its sign. Nil with no list.
     public let largestGain: Gain?
 }
 
@@ -31,8 +31,8 @@ extension Studio {
             apply: { session, read throws(StudioError) in
                 var ridden = session
                 do throws(SessionError) { try ridden.setRides(read.rides) } catch { throw .session(error) }
-                let gains = read.leveled.lazy.compactMap { read.rides[$0] }.flatMap(\.points).map(\.gain)
-                let largest = gains.max { abs($0.dB) < abs($1.dB) }
+                let gains = read.leveled.lazy.compactMap { ridden.clip($0)?.clip.playedRideGains }.joined()
+                let largest = gains.max { abs($0) < abs($1) }.flatMap(Gain.init(clamping:))
                 return (ridden, RideReport(leveled: read.leveled, unmeasured: read.unmeasured, largestGain: largest))
             })
     }

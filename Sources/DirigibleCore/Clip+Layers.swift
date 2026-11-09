@@ -8,6 +8,17 @@ extension Clip {
 
     /// True when the envelope or the ride has a point.
     public var hasLayers: Bool { !envelope.isEmpty || !ride.isEmpty }
+
+    /// The ride points inside the clip window. A ride list can be shared with clips that play
+    /// other frames of the file, so only these points and the window edges are heard here.
+    public var playedRidePoints: ArraySlice<GainEnvelope.Point> { ride.points(in: offset..<(offset + length)) }
+
+    /// The ride gains in dB that the clip window plays: of `playedRidePoints` and at the first and
+    /// the last frame of the window. Empty with no ride point.
+    public var playedRideGains: [Double] {
+        guard !ride.isEmpty else { return [] }
+        return playedRidePoints.map(\.gain.dB) + [ride.gain(at: offset), ride.gain(at: offset + length - 1)]
+    }
 }
 
 /// The file map of an edit that maps ride lists: the shift of each frame (0 for a rate change) and

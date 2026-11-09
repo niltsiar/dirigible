@@ -121,4 +121,21 @@ struct StudioRideTests {
         let step = one.gain(at: 960_000) - old.gain(at: 960_000)
         #expect(abs(step) > 0.1, "the pinned step at the cut is \(step)")
     }
+
+    /// The report gives the largest ride gain that the leveled clips play, not a gain of the
+    /// shared list that only the part that is not leveled plays.
+    @Test func largestGainIsOfTheLeveledWindow() async throws {
+        let samples = rideSpeech(seconds: 30) { $0 < 15 ? 0 : -12 }
+        let fixture = try await RideFixture(samples) { session in
+            _ = try session.split("c1", at: 720_000, rightID: "c2")
+        }
+        let report = try await fixture.ride(["c1"])
+        let ride = try fixture.clip("c1").ride
+        let played = stride(from: 0, to: 720_000, by: 48).map { ride.gain(at: Frames($0)) }
+        let expected = try #require(played.max { abs($0) < abs($1) })
+        let listed = try #require(ride.points.map(\.gain.dB).max { abs($0) < abs($1) })
+        #expect(abs(listed) > abs(expected) + 1, "the fixture has no louder gain past the window: \(listed)")
+        let largest = try #require(report.largestGain).dB
+        #expect(abs(largest - expected) <= 0.05, "largest \(largest), the window plays up to \(expected)")
+    }
 }

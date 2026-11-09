@@ -347,13 +347,10 @@ extension Clip {
     /// The summary of the ride layer: nil with no ride point. The extremes cover the ride points
     /// inside the clip window and its gain at the first and the last frame of the window.
     var rideSummary: SessionView.RideView? {
-        guard !ride.isEmpty else { return nil }
-        let window = offset..<(offset + length)
-        let inside = ride.points(in: window)
-        let gains = inside.map(\.gain.dB) + [ride.gain(at: offset), ride.gain(at: offset + length - 1)]
+        let gains = playedRideGains
+        guard let lowest = gains.min(), let highest = gains.max() else { return nil }
         func tenth(_ dB: Double) -> Double { (dB * 10).rounded() / 10 + 0.0 }
-        return SessionView.RideView(
-            points: inside.count, lowest: tenth(gains.min()!), highest: tenth(gains.max()!))
+        return SessionView.RideView(points: playedRidePoints.count, lowest: tenth(lowest), highest: tenth(highest))
     }
 
     /// The gain points inside the clip window, each at its timeline frame (decision 0060).

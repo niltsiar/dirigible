@@ -32,7 +32,9 @@ struct ColumnFades {
 /// The gain layers of one clip in the columns of a draw (decision 0060): the envelope and the ride,
 /// from the file frame of the first column, with the frames per column. In each layer a binary
 /// search finds the first point of the draw rect, and a walk over the columns in order reads each
-/// point once: the cursor `next` of each layer only moves forward.
+/// point once: the cursor `next` of each layer only moves forward. In a column where only one layer
+/// has points, each other layer is a line over the column, so a point costs one multiply-add (C30:
+/// a ride has about 7 points per column at fit zoom).
 struct ColumnEnvelope {
     /// One layer with a point, and its cursors.
     struct Layer {
@@ -43,20 +45,6 @@ struct ColumnEnvelope {
         fileprivate(set) var next: Int
         /// The index of the first point after the frame of the walk inside a column.
         fileprivate var after = 0
-
-        /// The gain at `frame`, where `after` is the index of the first point past it.
-        func value(at frame: Int) -> Double {
-            if after == 0 { return points[0].gain.dB }
-            if after == points.count { return points[after - 1].gain.dB }
-            let (a, b) = (points[after - 1], points[after])
-            return a.gain.dB + (b.gain.dB - a.gain.dB) * Double(frame - a.frame.count)
-                / Double(b.frame.count - a.frame.count)
-        }
-
-        /// Moves `after` past each point at or before `frame`.
-        fileprivate mutating func walk(through frame: Int) {
-            while after < points.count, points[after].frame.count <= frame { after += 1 }
-        }
     }
 
     private(set) var layers: [Layer]
@@ -82,30 +70,82 @@ struct ColumnEnvelope {
         let (low, high) = (Int(start.rounded(.down)), Int((start + step).rounded(.up)))
         let reset = low < last
         last = low
+        return layers.withUnsafeMutableBufferPointer { Self.gain($0, low: low, high: high, reset: reset) }
+    }
+
+    /// The walk of one column over `layers`, read in place: a copy of a `Layer` retains its points.
+    private static func gain(_ layers: UnsafeMutableBufferPointer<Layer>, low: Int, high: Int, reset: Bool) -> Double {
+        // The layer with a point inside the column, if only one layer has one.
+        var (lone, several): (Int?, Bool) = (nil, false)
+        var (atLow, atHigh) = (0.0, 0.0)
         for n in layers.indices {
             if reset { layers[n].next = layers[n].seed }
-            layers[n].after = layers[n].next
-            layers[n].walk(through: low)
-            layers[n].next = layers[n].after
-        }
-        var best = sum(at: low)
-        // Each point inside the column in frame order, then the column end.
-        var frame = low
-        while frame < high {
-            frame = high
-            for layer in layers where layer.after < layer.points.count {
-                frame = min(frame, layer.points[layer.after].frame.count)
+            let next = past(layers[n].points, from: layers[n].next, through: low)
+            layers[n].next = next
+            if next < layers[n].points.count, layers[n].points[next].frame.count < high {
+                several = several || lone != nil
+                lone = n
             }
-            for n in layers.indices { layers[n].walk(through: frame) }
-            best = max(best, sum(at: frame))
+            atLow += value(layers[n].points, after: next, at: low)
+            atHigh += value(layers[n].points, after: past(layers[n].points, from: next, through: high), at: high)
+        }
+        let ends = max(atLow, atHigh)
+        guard let lone else { return ends }
+        if several { return max(ends, merged(layers, low: low, high: high)) }
+        var (base, rise) = (0.0, 0.0)
+        for n in layers.indices where n != lone {
+            base += value(layers[n].points, after: layers[n].next, at: low)
+            rise += slope(layers[n].points, after: layers[n].next)
+        }
+        var best = ends
+        var index = layers[lone].next
+        while index < layers[lone].points.count, layers[lone].points[index].frame.count < high {
+            let point = layers[lone].points[index]
+            best = max(best, point.gain.dB + base + rise * Double(point.frame.count - low))
+            index += 1
         }
         return best
     }
 
-    /// The sum of the layer gains at `frame`, with `after` of each layer past it. 0 with no layer.
-    private func sum(at frame: Int) -> Double {
-        var total = 0.0
-        for layer in layers { total += layer.value(at: frame) }
-        return total
+    /// The highest sum at the points inside the column of two or more layers, in frame order.
+    private static func merged(_ layers: UnsafeMutableBufferPointer<Layer>, low: Int, high: Int) -> Double {
+        for n in layers.indices { layers[n].after = layers[n].next }
+        var best = -Double.infinity
+        while true {
+            var frame = high
+            for n in layers.indices where layers[n].after < layers[n].points.count {
+                frame = min(frame, layers[n].points[layers[n].after].frame.count)
+            }
+            if frame >= high { return best }
+            var total = 0.0
+            for n in layers.indices {
+                layers[n].after = past(layers[n].points, from: layers[n].after, through: frame)
+                total += value(layers[n].points, after: layers[n].after, at: frame)
+            }
+            best = max(best, total)
+        }
+    }
+
+    /// The index of the first point past `frame`, from `index` on.
+    private static func past(_ points: [GainEnvelope.Point], from index: Int, through frame: Int) -> Int {
+        var index = index
+        while index < points.count, points[index].frame.count <= frame { index += 1 }
+        return index
+    }
+
+    /// The gain at `frame`, where `after` is the index of the first point past it.
+    private static func value(_ points: [GainEnvelope.Point], after: Int, at frame: Int) -> Double {
+        if after == 0 { return points[0].gain.dB }
+        if after == points.count { return points[after - 1].gain.dB }
+        let (a, b) = (points[after - 1], points[after])
+        return a.gain.dB + (b.gain.dB - a.gain.dB) * Double(frame - a.frame.count)
+            / Double(b.frame.count - a.frame.count)
+    }
+
+    /// The dB per frame of the segment that holds the frames from the point before `after`.
+    private static func slope(_ points: [GainEnvelope.Point], after: Int) -> Double {
+        if after == 0 || after == points.count { return 0 }
+        let (a, b) = (points[after - 1], points[after])
+        return (b.gain.dB - a.gain.dB) / Double(b.frame.count - a.frame.count)
     }
 }

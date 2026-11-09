@@ -6,9 +6,10 @@ import DirigibleTimeline
 /// 0037), apart from the lane draw.
 extension TimelineDocumentView {
     /// The rects of the clips, markers, and Marks that changed from `old`, with 1 pt on each side
-    /// for the rounding of the renderer. A change 360 pt wide or more with no new Marks gives one
-    /// rect for each part of `changedFrames`, in the rows of its lanes; else one rect at full
-    /// height. Empty when nothing changed, nil when another input changed.
+    /// for the rounding of the renderer. A change 360 pt wide or more with no new Marks and at most
+    /// `dirtyRectLimit` parts of `changedFrames` gives one rect for each part, in the rows of its
+    /// lanes; else one rect at full height. Empty when nothing changed, nil when another input
+    /// changed.
     func changedColumns(from old: LaneInputs?) -> [NSRect]? {
         guard var old, let inputs, let geometry = inputs.geometry,
             let clips = changedFrames(from: old.session, to: inputs.session)
@@ -34,7 +35,8 @@ extension TimelineDocumentView {
             return NSRect(x: x0 - 1, y: y0, width: x1 - x0 + 2, height: y1 - y0)
         }
         let wide = geometry.x(of: high).rounded(.up) - geometry.x(of: low).rounded(.down) >= 360
-        return wide && marks.isEmpty ? clips.parts.map { rect($0.frames, $0.lanes) } : [rect(low..<high, all)]
+        return wide && marks.isEmpty && clips.parts.count <= Self.dirtyRectLimit
+            ? clips.parts.map { rect($0.frames, $0.lanes) } : [rect(low..<high, all)]
     }
 
     /// The shift of `shiftedFrames` from `old` to the inputs, when the Marks do not change. The

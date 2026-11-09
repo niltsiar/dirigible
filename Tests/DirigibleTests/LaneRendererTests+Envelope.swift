@@ -114,6 +114,33 @@ extension LaneRendererTests {
         #expect(abs(drawn - Self.height(dB: -6)) <= 1, "the column has the -6 dB height: \(drawn) rows")
     }
 
+    /// A ridden clip at 100 pt that plays its file from frame 51,200: column c reads the file frame
+    /// 51,200 + (c - 100) x 256. The ride is -6 dB on the first 100 pt of the window and -2 dB after,
+    /// so the line and the waveform of column 150 are at -6 dB and of column 250 at -2 dB. A walk
+    /// that drops the start or adds it reads -2 dB at column 150.
+    @Test func aRiddenClipWithAnOffsetDrawsTheGainOfItsFileFrames() throws {
+        let (offset, start, length) = (51_200, 25_600, Self.envelopeLength)
+        var session = Session(sampleRate: 48_000)
+        try session.addFile(AudioFile(id: "f1", path: "f1.wav", layout: .mono, length: Frames(offset + length)))
+        try session.addTrack("t1", name: "T1", layout: .mono)
+        try session.place(
+            Clip(id: "c1", file: "f1", start: Frames(start), offset: Frames(offset), length: Frames(length)), on: "t1")
+        let ride = try #require(
+            GainEnvelope(
+                [(0, -6.0), (25_599, -6), (25_601, -2), (length, -2)].map {
+                    GainEnvelope.Point(frame: Frames(offset + $0.0), gain: Gain(dB: $0.1)!)
+                }))
+        try session.setRides(["c1": ride])
+        let peaks = Array(repeating: PeakColumn(peak: 65535, rms: 0), count: (offset + length) / 256)
+        let pixels = try Self.render(Self.inputs(session, peaks: peaks), width: 520)
+
+        for (column, dB) in [(150, -6.0), (250, -2.0)] {
+            #expect(Self.rows(pixels, column: column, LanePalette.light.label) == [100 - Self.height(dB: dB)])
+            let drawn = Self.drawn(pixels, column: column)
+            #expect(abs(drawn - Self.height(dB: dB)) <= 1, "column \(column): \(drawn) rows, not \(dB) dB")
+        }
+    }
+
     /// The column gain of two layers is the maximum of their sum over the frames of the
     /// column, against a brute-force read of `Clip.layerGain`. Seeded layers put points of both in
     /// one column; a literal case has the envelope peak at the frame 1,010 and the ride peak at the

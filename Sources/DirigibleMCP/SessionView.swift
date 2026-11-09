@@ -103,8 +103,8 @@ package struct SessionView: Encodable {
         }
     }
 
-    /// The ride layer of a clip (C21): the count of its points inside the clip
-    /// window, and the lowest and highest ride gain in the window, in dB at 0.1 dB.
+    /// The ride layer of a clip (C21): the count of its points inside the clip window, and the
+    /// lowest and highest ride gain in the window, in dB at 0.1 dB.
     struct RideView: Encodable, Equatable {
         let points: Int
         let lowest: Double
@@ -353,7 +353,7 @@ extension Clip {
         let gains = inside.map(\.gain.dB) + [ride.gain(at: offset), ride.gain(at: offset + length - 1)]
         func tenth(_ dB: Double) -> Double { (dB * 10).rounded() / 10 + 0.0 }
         return SessionView.RideView(
-            points: inside.count, lowest: tenth(gains.min() ?? 0), highest: tenth(gains.max() ?? 0))
+            points: inside.count, lowest: tenth(gains.min()!), highest: tenth(gains.max()!))
     }
 
     /// The gain points inside the clip window, each at its timeline frame (decision 0060).

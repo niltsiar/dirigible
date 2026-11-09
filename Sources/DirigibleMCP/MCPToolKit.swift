@@ -61,8 +61,8 @@ enum ToolWork: Sendable {
     case level(LevelWork)
     /// `duck`: a speech read and an edit under the lock, as `dirigible duck`.
     case duck(DuckWork)
-    /// `clip_level_over_time`: a measure and an edit under the lock, as `dirigible clip level-over-time`
-    /// (decision 0064).
+    /// `clip_level_over_time`: a measure and an edit under the lock, as
+    /// `dirigible clip level-over-time` (decision 0064).
     case ride(RideWork)
     /// `import`: a conversion and an edit under the lock, as `dirigible import`.
     case importFile(ImportWork)

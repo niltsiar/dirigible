@@ -94,7 +94,8 @@ extension Session {
 
     /// Moves each clip down `levels` levels of its chain, or to the root for nil. Each level gives
     /// file = source, offset + origin offset, gain - added gain (clamped to `Gain.range`), and the
-    /// envelope and the ride moved by the origin offset. It refuses an unknown clip. A throw changes nothing.
+    /// envelope and the ride moved by the origin offset. It refuses an unknown clip. A throw
+    /// changes nothing.
     package mutating func lower(_ clips: [ClipID], levels: Int?) throws(SessionError) {
         var copy = self
         var rides = RideMaps()

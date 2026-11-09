@@ -34,9 +34,9 @@ extension Session {
     /// the source, and the origin of the run (decision 0057), with no words. Each clip of the run
     /// points at that file at (old offset - run start), gets the added gain on its gain (clamped to
     /// `Gain.range`), and keeps its ID, start, length, fades, and crossfades. Its envelope and its
-    /// ride keep the gain at each source frame (`GainEnvelope.moved`). The source files stay in the pool. The
-    /// result lists each moved clip with its new file, in the order of `runs`, and inside a run in
-    /// the order of `run.clips`.
+    /// ride keep the gain at each source frame (`GainEnvelope.moved`). The source files stay in the
+    /// pool. The result lists each moved clip with its new file, in the order of `runs`, and inside
+    /// a run in the order of `run.clips`.
     ///
     /// The runs must be the runs that `clipRuns(of:)` gives for the clips of all runs, else it
     /// throws `.frameOutOfRange`. A stem that a file of the pool has, an ID or a path, a stem that

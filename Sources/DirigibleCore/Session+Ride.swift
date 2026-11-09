@@ -6,7 +6,7 @@ package struct RideWindow: Hashable, Sendable {
     package let envelope: GainEnvelope
 }
 
-/// One measure group of Level Over Time (leveler C7c): clips of one file whose windows touch or
+/// One measure group of Level Over Time: clips of one file whose windows touch or
 /// overlap, with equal clip gains, that play on from each other on the timeline. The ride reads `frames` once and writes one list on `written`.
 package struct RideGroup: Hashable, Sendable {
     package let file: FileID
@@ -34,7 +34,7 @@ package struct RideGroup: Hashable, Sendable {
 }
 
 extension Session {
-    /// The measure groups of `selected` (leveler C7c). A group holds the clips of one file whose
+    /// The measure groups of `selected`. A group holds the clips of one file whose
     /// windows touch or overlap, whose clip gains are equal, and that play each file frame at one
     /// timeline frame, so they play on from each other; selected or not. When two clips of a
     /// group play one file frame with envelopes that differ there, one of them leaves: the clip on
@@ -84,7 +84,7 @@ extension Session {
         tracks = lanes
     }
 
-    /// Remove Level Over Time on the clip set `clips` (leveler C32). With `range` nil, the ride layer
+    /// Remove Level Over Time on the clip set `clips`. With `range` nil, the ride layer
     /// of each clip of the set is empty. With `range` (timeline frames), on the file map of each
     /// clip of the set that plays a frame of `range` or of its ramps: 0 dB on `range`, a ramp of
     /// `ramp` frames (linear in dB) outside each edge to the old ride, and the old points outside.
@@ -147,7 +147,7 @@ extension Session {
     }
 
     /// Gives each clip the ride array of its clip in `other` when the two lists are equal, so the
-    /// read-back compare of a save (`checkedData`) returns at the buffer identity (leveler C34).
+    /// read-back compare of a save (`checkedData`) returns at the buffer identity.
     /// Each pair of arrays compares once. A list that differs stays, so `==` still finds it.
     mutating func shareRides(of other: Session) {
         var rides: [ClipID: GainEnvelope] = [:]

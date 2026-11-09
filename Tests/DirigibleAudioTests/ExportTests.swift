@@ -262,7 +262,7 @@ struct ExportTests {
         }
     }
 
-    /// Leveler C29: a WAV 24-bit export of a clip with an envelope and a ride has the gain of both
+    /// A WAV 24-bit export of a clip with an envelope and a ride has the gain of both
     /// layers within 1e-5 relative, and equals the play within 2^-23 per sample.
     @Test func aRideExportsAsItPlays() throws {
         let source = [Float](repeating: 0.5, count: 24_000)

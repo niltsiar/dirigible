@@ -1,7 +1,7 @@
 import AVFoundation
 import DirigibleCore
 
-/// The new ride lists of one Level Over Time read (run 2026-10-14-leveler).
+/// The new ride lists of one Level Over Time read.
 package struct RideRead: Sendable {
     /// The new list of each written clip: `.empty` for a clip of a group with no reference.
     package let rides: [ClipID: GainEnvelope]

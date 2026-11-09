@@ -58,16 +58,16 @@ private func heardReference(_ steps: [Double], _ envelope: [Double], floor: Doub
     return Loudness(blocks: ends.map { heard[$0 - 3...$0].reduce(0, +) / 4 }).integrated?.value
 }
 
-/// The ride layer criteria of the envelope ride (C4, C7b, C9, C24, C31, C33), on step arrays.
+/// The ride layer rules of the envelope ride, on step arrays.
 struct RideLayerTests {
-    /// C24: the layer is median(0, a, b) at each step. Cases: a = b gives b; a 0.1 and b 5.0 give
+    /// The layer is median(0, a, b) at each step. Cases: a = b gives b; a 0.1 and b 5.0 give
     /// 0.1; a 6.0 and b -0.75 give 0; a -6.0 and b -1.0 give -1.0.
     @Test func medianOfTheReadings() {
         let layer = rideLayer(a: [1.5, 0.1, 6.0, -6.0], b: [1.5, 5.0, -0.75, -1.0])
         #expect(layer == [1.5, 0.1, 0, -1.0], "layer \(layer)")
     }
 
-    /// C24: reading a counts in R and o only the blocks where the envelope does not cut against
+    /// Reading a counts in R and o only the blocks where the envelope does not cut against
     /// its mode block gain. A -16 dB and a -5 dB dip under half the blocks: R is the loudness of
     /// the blocks with E >= -0.25 dB. A whole-span gain of -3 dB on top moves R by -3 dB and keeps
     /// o. One envelope gain on the whole span (-10 dB or +6 dB) gives the layer of the source.
@@ -97,7 +97,7 @@ struct RideLayerTests {
         #expect(abs(source[50]) > 1, "control: the curve moves")
     }
 
-    /// C4: with no envelope point, reading a equals reading b, and the layer is the S1 curve.
+    /// With no envelope point, reading a equals reading b, and the layer is the step curve of the level ride.
     @Test func noEnvelopeGivesTheCurve() throws {
         let fixtures = [
             rideSteps([(100, -26), (100, -18)]), rideSteps([(100, -20), (40, -23), (40, -50), (100, -20)]),
@@ -108,11 +108,11 @@ struct RideLayerTests {
             let b = try #require(LevelRide.standard.gains(steps))
             #expect(LevelRide.standard.heardGains(stepMeanSquares: steps, envelopeDB: flat) == b, "a = b")
             let layer = try #require(rideLayer(stepMeanSquares: steps, envelopeDB: flat))
-            #expect(zip(layer, b.dB).allSatisfy { abs($0 - $1) <= 1e-9 }, "the layer is the S1 curve")
+            #expect(zip(layer, b.dB).allSatisfy { abs($0 - $1) <= 1e-9 }, "the layer is the step curve")
         }
     }
 
-    /// C9: a stereo source at one constant level gives a layer whose points are all 0 dB within 0.1,
+    /// A stereo source at one constant level gives a layer whose points are all 0 dB within 0.1,
     /// although its steps move with the noise.
     @Test func constantLevelGivesAFlatLayer() throws {
         let channels = [UInt64(12), 13].map { noise(seconds: 20, speech: false, seed: $0) { _ in -10 } }
@@ -124,7 +124,7 @@ struct RideLayerTests {
         #expect(!points.isEmpty && points.allSatisfy { abs($0.gain.dB) <= 0.1 }, "gains \(points.map(\.gain.dB))")
     }
 
-    /// C33: the steps of reading a (the source steps times the envelope power at each step centre)
+    /// The steps of reading a (the source steps times the envelope power at each step centre)
     /// give a curve within 0.1 dB of a meter that reads the samples with the envelope applied: a
     /// +6 dB lift on a -10 dB passage of speech, the same lift with a 1-frame ramp, and the default
     /// duck on music.
@@ -178,7 +178,7 @@ struct RideLayerTests {
         }
     }
 
-    /// C31: at each step centre the layer is within 0.1 dB of the step curve, each gain is a
+    /// At each step centre the layer is within 0.1 dB of the step curve, each gain is a
     /// multiple of 0.01 dB, and the layer has fewer points than steps. Seeded random walks, also
     /// with an odd step length; a tolerance of 0.5 dB fails the first clause.
     @Test(arguments: [(UInt64(1), 4_800), (UInt64(2), 4_799), (UInt64(3), 4_410)])
@@ -201,7 +201,7 @@ struct RideLayerTests {
             layer.points.count < walk.count / 2, "seed \(seed): \(layer.points.count) points for \(walk.count) steps")
     }
 
-    /// C31: a flat run of steps gives two points, at the first and the last step centre.
+    /// A flat run of steps gives two points, at the first and the last step centre.
     @Test func flatRunGivesTwoPoints() {
         let layer = GainEnvelope.decimated(
             dB: Array(repeating: 1.237, count: 100), first: Frames(1_000), stepFrames: rideStepFrames, tolerance: 0.1)
@@ -210,7 +210,7 @@ struct RideLayerTests {
         #expect(GainEnvelope.decimated(dB: [], first: .zero, stepFrames: rideStepFrames, tolerance: 0.1).isEmpty)
     }
 
-    /// C7b: a 1 LU level step at frame 480 000, read through the layer: the gain is halfway between
+    /// A 1 LU level step at frame 480 000, read through the layer: the gain is halfway between
     /// its plateaus about 0.32 step before the frame for a rise in level, and 0.32 step after it for
     /// a fall. With a tolerance of 0 the layer keeps each step, so the test reads the anchor.
     @Test(arguments: [(-20.0, -19.0, 478_500), (-19.0, -20.0, 481_500)])
@@ -228,7 +228,7 @@ struct RideLayerTests {
         #expect(abs(frame - halfway) <= 1_200, "halfway at frame \(frame), not near \(halfway)")
     }
 
-    /// C7b: the layer holds the first and the last step centre of the group; before the first
+    /// The layer holds the first and the last step centre of the group; before the first
     /// centre it has the first gain, and after the last centre the last gain, up to the last frame
     /// of a window with a partial last step.
     @Test func layerCoversTheWindow() throws {

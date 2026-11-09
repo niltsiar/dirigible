@@ -4,11 +4,11 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// Level Over Time through `Studio.levelOverTime` (run 2026-10-14-leveler, the envelope ride): the
-/// composition cases C25 to C27 on the probe U1r-b fixtures, and the job rules C6, C10 to C12b.
+/// Level Over Time through `Studio.levelOverTime` (the envelope ride): the
+/// composition cases of a manual lift, a manual cut, and a duck dip, and the job rules.
 @MainActor
 struct StudioRideTests {
-    /// C25: a manual +6 dB lift on a quiet passage (fixture A) is not lifted twice. Passage at
+    /// A manual +6 dB lift on a quiet passage (fixture A) is not lifted twice. Passage at
     /// -6 dB: the heard gain at 27.5 s is 6.5 dB or less. Passage at -10 dB: the heard passage and
     /// the loud part are 1 LU or less apart. Also with a whole-clip gain of -6 dB after the lift.
     @Test(arguments: [(-6.0, 0.0), (-10.0, 0.0), (-6.0, -6.0), (-10.0, -6.0)])
@@ -34,7 +34,7 @@ struct StudioRideTests {
         }
     }
 
-    /// C26: a manual -6 dB cut on a loud passage (+6 dB) is not cut twice: the heard gain at 27.5 s
+    /// A manual -6 dB cut on a loud passage (+6 dB) is not cut twice: the heard gain at 27.5 s
     /// is -6.5 dB or more.
     @Test func manualCutIsNotCutTwice() async throws {
         let samples = rideSpeech(seconds: 60) { (20..<35).contains($0) ? 6 : 0 }
@@ -47,7 +47,7 @@ struct StudioRideTests {
         #expect(gain >= -6.5, "heard gain \(gain), ride \(clip.ride.gain(at: stepCentre(275))), b \(b)")
     }
 
-    /// C27: a duck dip (fixture B, music -3 +/- 3 dB, runs 20..40 s and 55..70 s) keeps its depth.
+    /// A duck dip (fixture B, music -3 +/- 3 dB, runs 20..40 s and 55..70 s) keeps its depth.
     /// In the dip the ride is at most max(0, b) + 0.1 dB, b the ride of the source alone; the
     /// envelope stays; at 5..15 s the heard music is within 0.1 dB of the ride of the source alone,
     /// with a -16 and a -5 dB duck, also with a whole-clip gain of -3 dB after the duck.
@@ -79,7 +79,7 @@ struct StudioRideTests {
         #expect(abs(heard - alone) <= 0.1, "\(numbers)")
     }
 
-    /// C7c: a split speech clip with a duck across the cut, or a manual point on one part, is one
+    /// A split speech clip with a duck across the cut, or a manual point on one part, is one
     /// measure group: after a ride both parts hold one list, so the ride does not step at the cut.
     @Test(arguments: [false, true])
     func duckAcrossTheCutHasNoRideStep(pointOnOnePart: Bool) async throws {
@@ -101,7 +101,7 @@ struct StudioRideTests {
         #expect(step <= 0.1, "ride step at the cut \(step)")
     }
 
-    /// C7c, the accepted limit: a ride of part A of a split clip measures A and B and writes A
+    /// The accepted limit: a ride of part A of a split clip measures A and B and writes A
     /// only. A gets the list of a ride of both parts, and B keeps its old ride, so the ride steps
     /// at the cut by the list of A there minus the old list of B there.
     @Test func rideOfOnePartOfASplitClip() async throws {

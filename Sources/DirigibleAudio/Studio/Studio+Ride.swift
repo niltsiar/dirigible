@@ -1,7 +1,7 @@
 import DirigibleCore
 import Foundation
 
-/// The result of a Level Over Time (run 2026-10-14-leveler).
+/// The result of a Level Over Time.
 public struct RideReport: Hashable, Sendable {
     /// The clips that got a ride list.
     public let leveled: [ClipID]

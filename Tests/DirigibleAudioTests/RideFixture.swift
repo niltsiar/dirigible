@@ -5,7 +5,7 @@ import Testing
 
 @testable import DirigibleAudio
 
-/// The fixtures of probe U1r-b (run 2026-10-14-leveler): one mono 48 kHz file "f1" on track "t1"
+/// The fixtures of the ride tests: one mono 48 kHz file "f1" on track "t1"
 /// as clip "c1", with an edit of the session before the ride.
 @MainActor
 final class RideFixture {

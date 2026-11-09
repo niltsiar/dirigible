@@ -190,7 +190,7 @@ struct EnvelopeGestureTests {
         #expect(drawnA().envelope == session.clip("A")?.clip.envelope)
     }
 
-    /// Leveler C30: the disc of a manual point on a ridden clip sits on the heard line, a drag of it
+    /// The disc of a manual point on a ridden clip sits on the heard line, a drag of it
     /// moves the manual point by the drag delta, and the ride stays equal.
     @Test mutating func dragOnARiddenClipKeepsTheRide() throws {
         let ride = try #require(

@@ -97,7 +97,7 @@ extension LaneRendererTests {
         #expect(column.gain(0) == first, "a lower column walks again from the first point of the rect")
     }
 
-    /// Leveler C30: a clip with a ride and no envelope draws its waveform and its line at the heard
+    /// A clip with a ride and no envelope draws its waveform and its line at the heard
     /// gain, as an envelope of the same gain does.
     @Test func aRiddenClipDrawsTheHeardGain() throws {
         var session = try Self.session(length: Self.envelopeLength)
@@ -114,7 +114,7 @@ extension LaneRendererTests {
         #expect(abs(drawn - Self.height(dB: -16)) <= 1, "the column has the -16 dB height: \(drawn) rows")
     }
 
-    /// Leveler C30: the column gain of two layers is the maximum of their sum over the frames of the
+    /// The column gain of two layers is the maximum of their sum over the frames of the
     /// column, against a brute-force read of `Clip.layerGain`. Seeded layers put points of both in
     /// one column; a literal case has the envelope peak at the frame 1,010 and the ride peak at the
     /// frame 1,090 of one column, where max(E) + max(R) is 10 dB over the heard peak.

@@ -127,7 +127,7 @@ extension Session {
 }
 
 extension Session {
-    /// `<rides>` (leveler C20): one `<ride id="r<n>">` for each distinct ride list, numbered from 1 in
+    /// `<rides>` (decision 0060): one `<ride id="r<n>">` for each distinct ride list, numbered from 1 in
     /// track and clip order, and the number of the list of each clip with a ride point. The text
     /// is the `<frame> <gain>` pairs with one space between numbers, each gain in `text(_:)`.
     fileprivate func rideLists() -> (lists: [ClipID: Int], element: XMLElement) {

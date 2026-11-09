@@ -33,7 +33,7 @@ struct ToolTextTests {
         #expect(!follow.description.contains("`duck`") && !follow.description.contains("`clip_denoise`"))
     }
 
-    /// `clip_envelope` says that the ride layer of Level Over Time is separate from its points (C21).
+    /// `clip_envelope` says that the ride layer of Level Over Time is separate from its points.
     @Test func clipEnvelopeNamesTheRideLayer() throws {
         let tool = try #require(Tool.all.first { $0.name == "clip_envelope" })
         #expect(tool.description.contains("separate ride layer"), "\(tool.description)")
@@ -41,7 +41,7 @@ struct ToolTextTests {
 
     /// A late cancel of `level`, `import`, `clip_split_stereo`, `clip_denoise`, `clip_repair`, or
     /// `clip_level_over_time` keeps the change, so the text tells the agent to read the session before a retry
-    /// (decision 0049, code gate 3 item 1).
+    /// (decision 0049).
     @Test(arguments: [
         "level", "import", "clip_split_stereo", "clip_denoise", "clip_repair", "clip_level_over_time",
     ])
@@ -109,7 +109,7 @@ struct ToolTextTests {
         for error in noise { #expect(error.message.hasPrefix("the noise reduction "), "\(error.message)") }
     }
 
-    /// Level Over Time (run 2026-10-14-leveler C6, C11): a source fault names the file and says
+    /// Level Over Time: a source fault names the file and says
     /// that no ride changed.
     @Test func rideFaultNamesTheFile() {
         #expect(

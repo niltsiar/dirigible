@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// Leveler C34: the size, the open, the save, and the peak memory of a ridden session, in an
+/// The size, the open, the save, and the peak memory of a ridden session, in an
 /// optimized build (`make bench FILTER=SessionFileBenchmark`). The ride list has 18 954 points on a
 /// 2 h clip, as the decimated ride of a real 2 h speech take, with gains on the 0.01 dB grid. In
 /// debug a miss only prints a report line.
@@ -101,30 +101,30 @@ struct SessionFileBenchmark {
             let ridden = try Self.times(try build(true))
             let plain = try Self.times(try build(false))
             print(
-                "bench report: C34 fixture \(fixture.name): size \(ridden.size) B, open \(ridden.open), save "
+                "bench report: ride fixture \(fixture.name): size \(ridden.size) B, open \(ridden.open), save "
                     + "\(ridden.save); no ride: size \(plain.size) B, open \(plain.open), save \(plain.save); "
                     + "the ride adds open \(ridden.open - plain.open), save \(ridden.save - plain.save)")
             if fixture.clips == 6 {
-                expectWithinBudget(ridden.open, Self.open, "C34 fixture \(fixture.name) open \(ridden.open)")
+                expectWithinBudget(ridden.open, Self.open, "ride fixture \(fixture.name) open \(ridden.open)")
                 let added = ridden.save - plain.save
-                expectWithinBudget(added, Self.saveOverPlain, "C34 fixture \(fixture.name) save adds \(added)")
-                expectWithinBudget(ridden.save, Self.save, "C34 fixture \(fixture.name) save \(ridden.save)")
+                expectWithinBudget(added, Self.saveOverPlain, "ride fixture \(fixture.name) save adds \(added)")
+                expectWithinBudget(ridden.save, Self.save, "ride fixture \(fixture.name) save \(ridden.save)")
             }
             let points = Self.ride(0).points.count * fixture.clips
             #expect(ridden.size - plain.size <= points * 20 + fixture.clips * fixture.parts * 200, "\(ridden.size)")
         }
         let whole = try Self.times(try Self.fixture(clips: 1, parts: 1, ridden: true))
         let split = try Self.times(try Self.fixture(clips: 1, parts: 200, ridden: true))
-        #expect(split.size <= whole.size + 199 * 200, "C34 (1): \(split.size) against \(whole.size)")
+        #expect(split.size <= whole.size + 199 * 200, "split ride size: \(split.size) against \(whole.size)")
     }
 
-    /// The body of a C34 memory test: it builds, saves, and opens only fixture 4, or fixture 5 with
+    /// The body of a memory test: it builds, saves, and opens only fixture 4, or fixture 5 with
     /// `repoint`, prints the peak RSS, and exits with a failure over `peakBytes`.
     static func peakOfOneFixture(repoint: Bool) throws {
         let session = try fixture(clips: 6, parts: 200, ridden: true)
         _ = try times(repoint ? try repointed(session) : session)
         let peak = peakResidentBytes()
-        print("bench report: C34 fixture \(repoint ? 5 : 4) peak RSS \(peak >> 20) MB (\(peak) B)")
+        print("bench report: ride fixture \(repoint ? 5 : 4) peak RSS \(peak >> 20) MB (\(peak) B)")
         fflush(stdout)
         if peak > peakBytes { exit(1) }
     }

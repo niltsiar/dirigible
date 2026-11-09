@@ -3,13 +3,13 @@ import Foundation
 import Testing
 
 /// `info`, `info --json`, and `session_info` show the ride layer of a clip as a summary, never as points
-/// (criterion C21).
+/// (decision 0060).
 extension SessionViewTests {
     func points(_ pairs: [(Int, Double)]) throws -> GainEnvelope {
         try #require(GainEnvelope(pairs.map { GainEnvelope.Point(frame: Frames($0.0), gain: Gain(dB: $0.1)!) }))
     }
 
-    /// C21. Clip `c1` plays the file frames 10 000 to 210 000. Its ride has two points inside the window and
+    /// Clip `c1` plays the file frames 10 000 to 210 000. Its ride has two points inside the window and
     /// one on each side: the text, the JSON, and the compact JSON give the count inside the window and
     /// the lowest and highest gain of the window to 0.1 dB, and the manual point stays in the envelope.
     @Test func rideShowsASummary() async throws {
@@ -50,7 +50,7 @@ extension SessionViewTests {
 }
 
 extension InfoCommandTests {
-    /// C21. A clip with 18 954 ride points adds 60 bytes or less to its line in `info` (the points
+    /// A clip with 18 954 ride points adds 60 bytes or less to its line in `info` (the points
     /// themselves are 548 486 bytes).
     @Test func rideLineIsShort() async throws {
         func size(ride: GainEnvelope) async throws -> Int {

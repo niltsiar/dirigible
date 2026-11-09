@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleCore
 
-/// The ride layer in `session.xml` (leveler C20): one `<rides>` element with one text list for
+/// The ride layer in `session.xml` (decision 0060): one `<rides>` element with one text list for
 /// each distinct ride list, at `rideSessionVersion`.
 extension SessionFileTests {
     /// Clip "A" of file "f" (60 000 frames) on track "t", with the ride `ride` and the envelope
@@ -50,7 +50,7 @@ extension SessionFileTests {
         }
     }
 
-    /// One case for each clause of the C20 grammar: the reader refuses the list and never traps.
+    /// One case for each clause of the ride list grammar: the reader refuses the list and never traps.
     @Test(arguments: [
         "", "0 1 2", "0  1", " 0 1", "0 1 ", "0\t1", "0\n1", "0 +1", "0 nan", "0 inf", "0 infinity", "0 0x1p3",
         "0 1.", "0 .5", "0 1E5", "0 1e5", "0 1e-", "0 1e999", "0 -1.0000000000000000000000000000001",
@@ -129,7 +129,7 @@ extension SessionFileTests {
         }
     }
 
-    /// C20, C34: a ridden 2 h clip in 200 parts writes one list, and after an open the parts
+    /// A ridden 2 h clip in 200 parts writes one list, and after an open the parts
     /// share one array.
     @Test func splitRideIsStoredOnce() throws {
         var session = Session(sampleRate: 48_000)
@@ -149,7 +149,7 @@ extension SessionFileTests {
         #expect(read == session && arrays.count == 1)
     }
 
-    /// C34: before the read-back compare, a read-back clip takes the ride array of its clip in the
+    /// Before the read-back compare, a read-back clip takes the ride array of its clip in the
     /// written session only when the two lists are equal. Clip "B" reads back the list of "A" in
     /// the array of "A", but its written list differs, so it keeps its list and `==` refuses it.
     @Test func readBackSharesOnlyEqualRideArrays() throws {

@@ -236,7 +236,7 @@ extension LoudnessTests {
         #expect(loudness.integrated == nil && fault == .unreadable, "fault \(String(describing: fault))")
     }
 
-    /// Run 2026-10-14-leveler C6: with `keepsSteps`, the meter keeps the mean square of each
+    /// With `keepsSteps`, the meter keeps the mean square of each
     /// complete step, and a non-finite sample empties them for good.
     @Test func nonFiniteEmptiesTheSteps() throws {
         #expect(LoudnessMeter(sampleRate: 48_000, layout: .stereo)?.stepMeanSquares == nil)

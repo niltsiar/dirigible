@@ -37,7 +37,7 @@ extension Studio {
         /// Tools > Duck Music Under Speech... and the `duck` tool read the speech and save the
         /// music envelopes (decision 0060).
         case ducking
-        /// Level Over Time reads the clips and saves their ride layers (run 2026-10-14-leveler).
+        /// Level Over Time reads the clips and saves their ride layers (decision 0060).
         case riding
         /// Tools > Find Silences... reads the silences of the scan tracks (decision 0066).
         case findingSilences

@@ -103,7 +103,8 @@ extension SessionWindow {
         case .reduceNoise, .repairSound, .levelOverTime:
             !dialogShowing && canImport && idleStudio.map { !denoiseClips(in: $0.session).isEmpty } == true
         case .removeLevelOverTime:
-            canImport && idleStudio.map { !removeRideTarget(in: $0.session).clips.isEmpty } == true
+            !dialogShowing && canImport
+                && idleStudio.map { !removeRideTarget(in: $0.session).clips.isEmpty } == true
         case .transcribe: canTranscribe
         case .restoreOriginal:
             importJob == nil && idleStudio.map { !restoreClips(in: $0.session).isEmpty } == true

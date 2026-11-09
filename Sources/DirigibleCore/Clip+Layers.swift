@@ -29,7 +29,8 @@ struct FileMap: Equatable {
 }
 
 /// The new list of each distinct pair of an old ride list and a file map in one edit.
-/// Clips that share a list then share the new list, so the writer stores it once.
+/// Clips that share a list then share the storage of the new list, so a compare of their lists
+/// takes the fast path of equal storage. The writer already stores equal lists once.
 struct RideMaps {
     private var pairs: [(old: GainEnvelope, map: FileMap, new: GainEnvelope)] = []
 

@@ -66,6 +66,21 @@ extension SessionFileTests {
         }
     }
 
+    /// A ride gain past the ride limit, which Level Over Time never writes, is refused; a gain at
+    /// the limit loads.
+    @Test func rideGainPastTheLimitRefused() throws {
+        let text = try xml(try Self.rideSession(envelope([(1_200, -1.37)])))
+        for list in ["0 6.01", "0 -6.01", "0 96", "0 1 10 6.5e+0"] {
+            let crafted = text.replacingOccurrences(of: ">1200 -1.37<", with: ">\(list)<")
+            #expect(throws: SessionFileError.invalidValue(element: "ride", attribute: "text"), "\(list)") {
+                try Session(xml: Data(crafted.utf8))
+            }
+        }
+        let limits = text.replacingOccurrences(of: ">1200 -1.37<", with: ">0 6 10 -6<")
+        let ride = try #require(try Session(xml: Data(limits.utf8)).clip("A")).clip.ride
+        #expect(ride.points.map(\.gain.dB) == [6, -6])
+    }
+
     /// Two lists with one ID, a `ride` that names no list, and a list that no clip names.
     @Test func damagedRideReferencesRefused() throws {
         let text = try xml(try Self.rideSession(envelope([(1_200, -1.37)])))
@@ -89,9 +104,9 @@ extension SessionFileTests {
     }
 
     /// Each point and each sharing of a list survives a write and a read, with the gains of the
-    /// fast path, of `Double`, and the clamp of `Gain.range`.
+    /// fast path and of `Double`.
     @Test func rideRoundTrips() throws {
-        var session = try Self.rideSession(envelope([(0, 0), (1, -0.5), (2, 6.25), (3, -12.345678), (60_000, 1e-05)]))
+        var session = try Self.rideSession(envelope([(0, 0), (1, -0.5), (2, 5.25), (3, -5.345678), (60_000, 1e-05)]))
         try session.place(Clip(id: "B", file: "f", start: 60_000, offset: 0, length: 60_000), on: "t")
         try session.setRides(["B": envelope([(5, -3)])])
 
@@ -99,7 +114,7 @@ extension SessionFileTests {
         let read = try Session(contentsOf: package)
 
         #expect(read == session)
-        #expect(read.clip("A")?.clip.ride.points.map(\.gain.dB) == [0, -0.5, 6.25, -12.345678, 1e-05])
+        #expect(read.clip("A")?.clip.ride.points.map(\.gain.dB) == [0, -0.5, 5.25, -5.345678, 1e-05])
     }
 
     /// Gains off the 0.01 dB grid: a ride moved with `fitted` edge points, and a corner of a range

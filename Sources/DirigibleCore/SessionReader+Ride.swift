@@ -1,6 +1,7 @@
 import Foundation
 
-/// The ride lists of `<rides>` (leveler C20), by ID, from `rideSessionVersion` on.
+/// The ride lists of `<rides>` (leveler C20), by ID, from `rideSessionVersion` on. A list with a
+/// gain past `Gain.rideLimit` is refused.
 struct RideLists {
     private var lists: [String: GainEnvelope] = [:]
     private var named: Set<String> = []
@@ -14,7 +15,9 @@ struct RideLists {
             let id = try node.string("id")
             guard lists[id] == nil else { throw .invalidValue(element: "ride", attribute: "id") }
             var text = node.stringValue ?? ""
-            guard let points = text.withUTF8(Self.scan) else { throw .invalidValue(element: "ride", attribute: "text") }
+            guard let points = text.withUTF8(Self.scan), points.allSatisfy({ abs($0.gain.dB) <= Gain.rideLimit }) else {
+                throw .invalidValue(element: "ride", attribute: "text")
+            }
             lists[id] = GainEnvelope(valid: points)
         }
     }

@@ -119,9 +119,9 @@ struct LaneWindow: Equatable {
     private var slots = [Slot](repeating: Slot(), count: 4)
     private var front: Int?
     private var commits = 0
-    /// The rect that each of the last commits drew, one fewer than the slots. The pick takes the
+    /// The rects that each of the last commits drew, one fewer than the slots. The pick takes the
     /// oldest slot, so the commits after the commit of any picked slot are all here.
-    private var history: [(commit: Int, drawn: PixelRect)] = []
+    private var history: [(commit: Int, drawn: [PixelRect])] = []
 
     /// Test support: writes of a surface in use at its lock, and writes of the layer contents.
     /// Both stay 0 by construction.
@@ -208,7 +208,7 @@ struct LaneWindow: Equatable {
         let strips = (shift?.strips ?? []).map { $0.intersection(window.pixels) }.filter { !$0.isEmpty }
         let outside = Self.outside(overlap, of: window.pixels)
         let drawn = later.map { strips.reduce($0) { $0.union($1) } } ?? changed.reduce(outside) { $0.union($1) }
-        let parts = changed.count > 1 ? (changed + [outside]).filter { !$0.isEmpty } : [drawn]
+        let parts = shift == nil && changed.count > 1 ? (changed + [outside]).filter { !$0.isEmpty } : [drawn]
         // Buffer age: a slot that shows the same pixels as the new window lacks only the pixels
         // that the later commits drew, so it copies only those rects (in the overlap) from the
         // front. Else it copies the overlap, shifted.
@@ -216,7 +216,7 @@ struct LaneWindow: Equatable {
         let left = later.map {
             PixelRect(columns: window.pixels.columns.lowerBound..<$0.columns.lowerBound, rows: $0.rows)
         }
-        let copies = (aged ? history.filter { $0.commit > slots[pick].commit }.map(\.drawn) : [overlap])
+        let copies = (aged ? history.filter { $0.commit > slots[pick].commit }.flatMap(\.drawn) : [overlap])
             .map { $0.intersection(left ?? overlap) }.filter { !$0.isEmpty }
 
         surface.lock(options: [], seed: nil)
@@ -227,9 +227,7 @@ struct LaneWindow: Equatable {
             source.lock(options: .readOnly, seed: nil)
             // With a shift, the draws after the copies write the strips.
             for rect in copies {
-                Self.copy(
-                    rect, except: shift == nil && changed.count <= 1 ? drawn : .empty, from: source, from, to: surface,
-                    window)
+                Self.copy(rect, except: shift == nil ? parts : [], from: source, from, to: surface, window)
             }
             if let shift, let later {
                 for band in shift.bands {
@@ -280,7 +278,7 @@ struct LaneWindow: Equatable {
         surface.unlock(options: [], seed: nil)
 
         commits += 1
-        history = (history + [(commits, drawn)]).suffix(slots.count - 1)
+        history = (history + [(commits, parts)]).suffix(slots.count - 1)
         slots[pick] = Slot(surface: surface, window: window, commit: commits)
         front = pick
         // A new capacity drops the surfaces of the old one, so each held surface has the capacity of
@@ -338,9 +336,9 @@ struct LaneWindow: Equatable {
     }
 
     /// Copies the pixels of `overlap` from `source` (which shows `from`) to `target` (which shows
-    /// `to`), row by row, except the pixels of `except`, which the draw writes.
+    /// `to`), row by row, except the pixels of the `except` rects, which the draw writes.
     private static func copy(
-        _ overlap: PixelRect, except: PixelRect, from source: IOSurface, _ from: LaneWindow, to target: IOSurface,
+        _ overlap: PixelRect, except: [PixelRect], from source: IOSurface, _ from: LaneWindow, to target: IOSurface,
         _ to: LaneWindow
     ) {
         guard !overlap.isEmpty else { return }
@@ -348,17 +346,19 @@ struct LaneWindow: Equatable {
             surface.baseAddress + (row - window.pixels.rows.lowerBound) * surface.bytesPerRow
                 + (column - window.pixels.columns.lowerBound) * 4
         }
-        let skipped = overlap.columns.clamped(to: except.columns)
+        let skips = except.map { (rows: $0.rows, columns: overlap.columns.clamped(to: $0.columns)) }
+            .filter { !$0.columns.isEmpty }.sorted { $0.columns.lowerBound < $1.columns.lowerBound }
         for row in overlap.rows {
-            let parts =
-                except.rows.contains(row) && !skipped.isEmpty
-                ? [overlap.columns.lowerBound..<skipped.lowerBound, skipped.upperBound..<overlap.columns.upperBound]
-                : [overlap.columns]
-            for part in parts where !part.isEmpty {
-                memcpy(
-                    address(target, to, part.lowerBound, row), address(source, from, part.lowerBound, row),
-                    part.count * 4)
+            var column = overlap.columns.lowerBound
+            func copyRow(to end: Int) {
+                guard end > column else { return }
+                memcpy(address(target, to, column, row), address(source, from, column, row), (end - column) * 4)
             }
+            for (rows, skipped) in skips where rows.contains(row) {
+                copyRow(to: skipped.lowerBound)
+                column = max(column, skipped.upperBound)
+            }
+            copyRow(to: overlap.columns.upperBound)
         }
     }
 

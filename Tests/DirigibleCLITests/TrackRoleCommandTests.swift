@@ -2,6 +2,8 @@ import DirigibleCore
 import Foundation
 import Testing
 
+@testable import DirigibleMCP
+
 /// `dirigible track role` and the tool `track_role` (decision 0060, C13).
 struct TrackRoleCommandTests {
     let package: TemporaryPackage
@@ -51,12 +53,34 @@ struct TrackRoleCommandTests {
             toolCall(2, "session_info", ["package": package.path]),
             toolCall(3, "track_role", ["package": package.path, "track": "host", "role": "voice"]),
         ])
-        #expect(toolResult(answer(answers, id: 1)) == ("OK", false))
+        #expect(toolResult(answer(answers, id: 1)) == ("OK\n" + EditRules.roleReply, false))
         let info = toolResult(answer(answers, id: 2)).text
         #expect(info.contains(#""role":"dialogue""#), "\(info)")
         let bad = toolResult(answer(answers, id: 3))
         #expect(bad.isError && bad.text.contains("must be dialogue or music or effects or none"), "\(bad.text)")
         let saved = try text
         #expect(saved.contains(#"<track id="host" name="Host" gain="0" layout="mono" role="dialogue">"#), "\(saved)")
+    }
+
+    /// C2: the help holds the facts in CLI words, the shared text word for word, and a tool name only
+    /// in a `(tool ...)` note.
+    @Test func theHelpSaysWhatTheRoleDoes() async throws {
+        let help = try await dirigible("track", "role", "--help")
+        let words = { (text: String) in text.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+        let joined = words(help.stdout)
+        for word in ["no sound", "music", "effects", "`clip denoise`", "`info`", "`duck`"] {
+            #expect(joined.contains(word), "no \(word): \(help.stdout)")
+        }
+        #expect(joined.contains(words(EditRules.roleNote)), "the help does not hold roleNote: \(help.stdout)")
+        let bare = joined.replacing(/\(tool `[a-z_]+`\)/, with: "")
+        #expect(!bare.contains("clip_denoise") && !bare.contains("session_info"), "a tool name: \(help.stdout)")
+    }
+
+    /// C8: the tool answers `OK` and the line `roleReply` in a batch step; the command prints nothing.
+    @Test func aBatchStepAnswersWithTheRoleReply() async throws {
+        let call: [String: Any] = ["tool": "track_role", "arguments": ["track": "host", "role": "dialogue"]]
+        let answers = try await mcp([toolCall(1, "batch", ["package": package.path, "calls": [call]])])
+        let reply = toolResult(answer(answers, id: 1))
+        #expect(reply == ("calls[0] track_role: OK\ncalls[0] track_role: " + EditRules.roleReply, false), "\(reply)")
     }
 }

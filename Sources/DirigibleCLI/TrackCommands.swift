@@ -157,7 +157,8 @@ struct TrackCommand: ParsableCommand {
 
     struct SetRole: ParsableCommand {
         static let configuration = CommandConfiguration(
-            commandName: "role", abstract: "Set the role of a track: dialogue, music, effects, or none.")
+            commandName: "role", abstract: "Set the role of a track: dialogue, music, effects, or none.",
+            discussion: EditRules.roleNote)
         @OptionGroup var package: PackageArgument
         @Argument var track: String
         @Argument(help: "dialogue, music, effects, or none. none removes the role.") var role: String

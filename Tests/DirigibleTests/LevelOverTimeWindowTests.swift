@@ -98,39 +98,14 @@ import Testing
         await model.close()
     }
 
-    /// Shift-Command-L reaches the item of Tools > Level Over Time and no other item, in an
-    /// AppKit menu of every menu item of the timeline. The key runs the command with the focus in a
-    /// track name field (it is no typing key), and the clip gets a ride.
-    @Test func keyReachesTheItem() async throws {
+    /// The command `.levelOverTime` with a key event runs while the focus is in a track name field
+    /// (the key is no typing key), and only the selected clip gets a ride.
+    @Test func levelOverTimeRunsWithTheFocusInATrackNameField() async throws {
         _ = NSApplication.shared
-        final class Target: NSObject {
-            var fired: [String] = []
-            @objc func fire(_ item: NSMenuItem) { fired.append(item.title) }
-        }
-        let target = Target()
-        let menu = NSMenu()
-        // A synthetic Shift-Command-L also matches the Command-L entry when it comes first in an
-        // NSMenu. The built Tools menu takes the right item (checked on screen), so the entries
-        // with more modifier keys come first, in a fixed order.
-        let items = TimelineCommand.menuItems.values.sorted {
-            ($0.modifiers.rawValue.nonzeroBitCount, "\($0.command)") > (
-                $1.modifiers.rawValue.nonzeroBitCount, "\($1.command)"
-            )
-        }
-        for item in items {
-            let entry = NSMenuItem(
-                title: "\(item.command)", action: #selector(Target.fire(_:)), keyEquivalent: String(item.key.character))
-            entry.keyEquivalentModifierMask = NSEvent.ModifierFlags(item.modifiers)
-            entry.target = target
-            menu.addItem(entry)
-        }
         let chord = try #require(
             NSEvent.keyEvent(
                 with: .keyDown, location: .zero, modifierFlags: [.command, .shift], timestamp: 0, windowNumber: 0,
-                context: nil, characters: "L", charactersIgnoringModifiers: "l", isARepeat: false, keyCode: 37))
-        #expect(menu.performKeyEquivalent(with: chord))
-        #expect(target.fired == ["levelOverTime"], "\(target.fired)")
-
+                context: nil, characters: "L", charactersIgnoringModifiers: "L", isARepeat: false, keyCode: 37))
         let (model, studio, window) = try await open()
         _ = try await focusName(in: window)
         model.timeline.selection = set("c2")

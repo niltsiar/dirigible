@@ -446,7 +446,7 @@ Auto Level changes the clip gain only. The envelope of a clip adds to the clip g
 
 ### Level a clip over time
 
-Use **Tools > Level Over Time** (**Nivelar en el tiempo**, Shift-Command-L) on a speech clip whose level moves inside it, for example a guest who leans away from the microphone. **Auto Level** gives a clip one gain for the whole clip. Level Over Time changes the gain while the clip plays: the gain follows the loudness of the speech, between -6 dB and +6 dB. A pause keeps the gain of the last speech, so the room tone does not pump.
+Use **Tools > Level Over Time** (**Nivelar en el tiempo**, Shift-Command-L) on a speech clip whose level moves inside it, for example a guest who leans away from the microphone. **Auto Level** gives a clip one gain for the whole clip. Level Over Time changes the gain while the clip plays: the gain follows the loudness of the speech, between -6 dB and +6 dB. A pause keeps the gain of the last speech, so the room tone does not pump. A sound shorter than 300 ms in a pause, for example a click or a breath, does not lift that gain.
 
 The command makes a second gain layer of the clip, the ride. It makes no new file and changes no audio file. The line of the clip shows the gain that you hear: the ride, your gain points, and a duck, added together. Your gain points and a duck stay and add to the ride. The ride keeps a lift, a cut, or a duck that you made before: a passage that you made louder stays louder. A clip with no speech to measure gets no ride, and the banner says so.
 

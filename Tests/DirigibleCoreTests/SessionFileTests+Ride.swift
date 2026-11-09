@@ -144,18 +144,13 @@ extension SessionFileTests {
 
         #expect(text.components(separatedBy: "<ride id=").count == 2)
         #expect(text.components(separatedBy: #"ride="r1""#).count == 201)
-        let arrays = Set(
-            read.tracks[0].clips.map { $0.ride.points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } })
-        #expect(read == session && arrays.count == 1)
+        #expect(read == session && SessionRideTests.shareOneArray(read.tracks[0].clips.map(\.ride)))
     }
 
     /// Before the read-back compare, a read-back clip takes the ride array of its clip in the
     /// written session only when the two lists are equal. Clip "B" reads back the list of "A" in
     /// the array of "A", but its written list differs, so it keeps its list and `==` refuses it.
     @Test func readBackSharesOnlyEqualRideArrays() throws {
-        func address(_ ride: GainEnvelope) -> UnsafeRawPointer? {
-            ride.points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) }
-        }
         var written = Session(sampleRate: 48_000)
         try written.addFile(AudioFile(id: "f", path: "f.wav", layout: .mono, length: 60_000))
         try written.addTrack("t", name: "Host", layout: .mono)
@@ -173,9 +168,12 @@ extension SessionFileTests {
 
         let rides = read.tracks[0].clips.map(\.ride)
         #expect(read != written && rides == [ride, ride, ride])
-        #expect(rides.map(address) == [address(ride), address(copy), address(ride)])
+        let same = SessionRideTests.sameArray
+        #expect(same(rides[0], ride) && same(rides[1], copy) && same(rides[2], ride))
         try read.setRides(["B": GainEnvelope(valid: other.points.map { $0 })])
         read.shareRides(of: written)
-        #expect(read == written && read.tracks[0].clips.map { address($0.ride) } == [ride, other, ride].map(address))
+        #expect(
+            read == written
+                && zip(read.tracks[0].clips.map(\.ride), [ride, other, ride]).allSatisfy(SessionRideTests.sameArray))
     }
 }

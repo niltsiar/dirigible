@@ -167,7 +167,7 @@ extension TimelineGesture {
         case .shuffle:
             if move.closed == nil {
                 var closed = base
-                guard (try? closed.rippleDelete([move.clip.range], on: [source.id], naming: [source.id])) != nil else {
+                guard (try? closed.shuffleClose(move.clip, on: source.id)) != nil else {
                     state = .dropped
                     return [.beep]
                 }

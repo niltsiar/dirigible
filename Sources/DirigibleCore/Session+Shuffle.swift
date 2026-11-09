@@ -11,9 +11,16 @@ extension Session {
         let clip = tracks[source].clips[index]
         if tracks[source].id == track, clip.start == start { return }
         var copy = self
-        try copy.rippleDelete([clip.range], on: [tracks[source].id], naming: [tracks[source].id])
+        try copy.shuffleClose(clip, on: tracks[source].id)
         try copy.shuffleDrop(clip, to: track, start: start)
         self = copy
+    }
+
+    /// The first part of `shuffle`: a Ripple Delete of the range of `clip` on `track`, its own track. It
+    /// names the track, so a follow track edits too (decision 0073). A Shuffle drag calls this once. A
+    /// throw changes nothing.
+    package mutating func shuffleClose(_ clip: Clip, on track: TrackID) throws(SessionError) {
+        try rippleDelete([clip.range], on: [track], naming: [track])
     }
 
     /// The part of `shuffle` after the close, on a session where the gap of `clip` is closed: a Ripple

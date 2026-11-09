@@ -204,17 +204,20 @@ private struct RideMember {
 
     /// The S1 rule: one file, equal clip gains, windows that touch or overlap.
     private static func touching(_ members: [RideMember]) -> [[RideMember]] {
-        let keyed = Dictionary(grouping: members) { [$0.clip.file.rawValue, String($0.clip.gain.dB)] }
+        let byFile = Dictionary(grouping: members, by: \.clip.file)
         var result: [[RideMember]] = []
-        for key in keyed.keys.sorted(by: { $0.lexicographicallyPrecedes($1) }) {
-            var end: Frames?
-            for member in keyed[key]!.sorted(by: { $0.clip.offset < $1.clip.offset }) {
-                if let end, member.clip.offset <= end {
-                    result[result.count - 1].append(member)
-                } else {
-                    result.append([member])
+        for file in byFile.keys.sorted() {
+            let byGain = Dictionary(grouping: byFile[file]!, by: \.clip.gain)
+            for gain in byGain.keys.sorted(by: { $0.dB < $1.dB }) {
+                var end: Frames?
+                for member in byGain[gain]!.sorted(by: { $0.clip.offset < $1.clip.offset }) {
+                    if let end, member.clip.offset <= end {
+                        result[result.count - 1].append(member)
+                    } else {
+                        result.append([member])
+                    }
+                    end = max(end ?? .zero, member.window.upperBound)
                 }
-                end = max(end ?? .zero, member.window.upperBound)
             }
         }
         return result

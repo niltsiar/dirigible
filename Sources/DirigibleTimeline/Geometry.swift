@@ -116,10 +116,10 @@ public struct LaneGeometry: Equatable, Sendable {
     }
 
     /// The y of the gain line of `clip` at the document x `x`: the line of `gainLineY` plus the
-    /// gain of the envelope at the file frame under `x` (decision 0060).
+    /// gain of the layers, the envelope and the ride, at the file frame under `x` (decision 0060).
     func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int, atX x: Double) -> Double {
-        let envelope = clip.envelope.isEmpty ? 0 : clip.envelope.gain(at: clip.offset + (frame(at: x) - clip.start))
-        return lineY(gain: clip.gain.dB + trackGain.dB + envelope, lane: lane)
+        let layers = clip.hasLayers ? clip.layerGain(at: clip.offset + (frame(at: x) - clip.start)) : 0
+        return lineY(gain: clip.gain.dB + trackGain.dB + layers, lane: lane)
     }
 
     private func lineY(gain: Double, lane: Int) -> Double {
@@ -167,7 +167,7 @@ public struct LaneGeometry: Equatable, Sendable {
                 || (n + 1 < xs.count && xs[n + 1] - x < Self.pointClearance)
                 || handleXs.contains { abs($0 - x) < Self.pointClearance }
             guard !crowded else { continue }
-            let y = lineY(gain: clip.gain.dB + trackGain.dB + point.gain.dB, lane: lane)
+            let y = lineY(gain: clip.gain.dB + trackGain.dB + clip.layerGain(at: point.frame), lane: lane)
             shown.append(
                 EnvelopePoint(
                     index: inside.startIndex + n, x: x,

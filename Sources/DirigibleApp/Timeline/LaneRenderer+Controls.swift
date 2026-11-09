@@ -49,7 +49,7 @@ extension LaneRenderer {
         let (curves, sounding) = (edges.curves, edges.clip)
         let pixelFrames = geometry.scale.framesPerPoint / scale
         let (bottom, gain) = (window.rows(of: lane..<lane + 1).upperBound - 1, clip.gain.dB + track.gain.dB)
-        let clamp = sounding.envelope.isEmpty ? 0 : Self.lineClamp(scale: scale)
+        let clamp = sounding.hasLayers ? Self.lineClamp(scale: scale) : 0
         func column(_ frame: Frames) -> Int { Int((geometry.x(of: frame) * scale).rounded(.up)) }
         for part in [column(sounding.start)..<column(clip.start), column(clip.end)..<column(sounding.end)] {
             let columns = part.clamped(to: region.rect.columns)
@@ -59,13 +59,12 @@ extension LaneRenderer {
                 first: Double(columns.lowerBound) * pixelFrames - Double(sounding.start.count), step: pixelFrames,
                 line: true)
             var envelope =
-                sounding.envelope.isEmpty
-                ? nil
-                : ColumnEnvelope(
-                    envelope: sounding.envelope,
+                sounding.hasLayers
+                ? ColumnEnvelope(
+                    layers: [sounding.envelope, sounding.ride],
                     first: Double(sounding.offset.count) + Double(columns.lowerBound) * pixelFrames
                         - Double(sounding.start.count),
-                    step: pixelFrames)
+                    step: pixelFrames) : nil
             for column in columns {
                 guard let factor = fades.factor(column - columns.lowerBound) else { continue }
                 let columnGain = gain + 20 * log10(factor) + (envelope?.gain(column - columns.lowerBound) ?? 0)
@@ -78,9 +77,9 @@ extension LaneRenderer {
     /// The gain line of `clip` in the columns that no fade line takes, at the top of a 0 dBFS
     /// signal with the gains (over 0 dB on the top row, dashed 3 px on and 3 px off in absolute
     /// columns), and its fade handles: each handle rect inset by 1 pt, filled in the label color.
-    /// With an envelope (decision 0060), the line has the row of each column, with the highest
-    /// envelope gain of its frames, at least `lineClamp` under the lane top and joined to the row
-    /// of the column before it, and each shown point of the envelope is a disc.
+    /// With gain layers (decision 0060), the line has the row of each column, with the highest
+    /// gain of the layers over its frames, at least `lineClamp` under the lane top and joined to the
+    /// row of the column before it, and each shown point of the envelope is a disc.
     func drawControls(
         _ clip: Clip, _ track: Track, _ lane: Int, _ geometry: LaneGeometry, _ palette: LanePalette,
         into region: borrowing PixelRegion
@@ -105,7 +104,7 @@ extension LaneRenderer {
         var (low, high) = (columns.lowerBound, columns.upperBound)
         while low < high, fades.factor(low - columns.lowerBound) != nil { low += 1 }
         while high > low, fades.factor(high - 1 - columns.lowerBound) != nil { high -= 1 }
-        if clip.envelope.isEmpty {
+        if !clip.hasLayers {
             if gain <= 0 {
                 region.fill(palette.label, columns: low..<high, rows: row..<row + 1)
             } else {
@@ -115,7 +114,7 @@ extension LaneRenderer {
             }
         } else {
             var envelope = ColumnEnvelope(
-                envelope: clip.envelope,
+                layers: [clip.envelope, clip.ride],
                 first: Double(clip.offset.count) + Double(columns.lowerBound) * pixelFrames
                     - Double(clip.start.count),
                 step: pixelFrames)

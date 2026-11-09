@@ -5,11 +5,11 @@ import DirigibleCore
 /// Renders the mix of a session (decision 0016): stereo float32, non-interleaved, at the session
 /// rate. Clip gain plus track gain in dB is one linear factor, times the fade factor of decision
 /// 0035 of the sounding clip of the lane, whose fades hold its crossfades with the curve of each
-/// edge (decision 0036), times the gain envelope factor of the clip (decision 0060). A mono clip
-/// goes to both channels, a stereo clip left to left and right to right (0007). It reads only the
-/// heard tracks of its track set: muted and unsoloed tracks are out (decision 0039). Where no clip
-/// or no media is, the mix is silence. One owner, not Sendable: the Player or the command-line
-/// render. It keeps at most `openLimit` files open and closes the least recently used one, so a
+/// edge (decision 0036), times the factor of the gain layers of the clip: its envelope (decision
+/// 0060) and its ride. A mono clip goes to both channels, a stereo clip left to left and right to
+/// right (0007). It reads only the heard tracks of its track set: muted and unsoloed tracks are out
+/// (decision 0039). Where no clip or no media is, the mix is silence. One owner, not Sendable: the
+/// Player or the command-line render. It keeps at most `openLimit` files open and closes the least recently used one, so a
 /// session with many files does not use up the descriptors of the process. Each read stops at the
 /// real length of the file (probe E6c).
 final class MixReader {
@@ -32,12 +32,13 @@ final class MixReader {
     /// The files that did not open. They hold no descriptor.
     private var failed: Set<FileID> = []
     private var scratch: [AVAudioFormat: AVAudioPCMBuffer] = [:]
-    /// The gain factors of one clip part, and the fade factors of a part with a gain envelope and a
-    /// fade. Each grows only for a longer part.
+    /// The gain factors of one clip part, the fade factors of a part with gain layers and a fade,
+    /// and the scratch of the second layer. Each grows only for a longer part.
     private var factors: [Float] = []
     private var fadeFactors: [Float] = []
+    private var layerFactors: [Float] = []
     #if DEBUG
-        /// The clip parts that read the gain envelope.
+        /// The clip parts that read the gain layers.
         private(set) var envelopeParts = 0
     #endif
     /// Opens a pool file. Tests give one that throws EMFILE.
@@ -69,14 +70,15 @@ final class MixReader {
                 let count = Int(read.frameLength)
                 let frames = vDSP_Length(count)
                 let last = Int(read.format.channelCount) - 1
-                // The clip frame of the part start. A part with no frame in a fade and no envelope
-                // point keeps the one-gain path.
+                // The clip frame of the part start. A part with no frame in a fade and no point in
+                // either gain layer keeps the one-gain path.
                 let first = part.lowerBound - clip.start
                 let faded = clip.fades.fadeIn > first || clip.fades.fadeOut > clip.length - first - Frames(count)
-                let enveloped = !clip.envelope.isEmpty
+                let enveloped = clip.hasLayers
                 if faded || enveloped {
                     if factors.count < count { factors = [Float](repeating: 0, count: count) }
                     if faded, enveloped, fadeFactors.count < count { fadeFactors = [Float](repeating: 0, count: count) }
+                    if enveloped, layerFactors.count < count { layerFactors = [Float](repeating: 0, count: count) }
                     factors.withUnsafeMutableBufferPointer { all in
                         let factors = UnsafeMutableBufferPointer(rebasing: all[..<count])
                         guard enveloped else {
@@ -88,7 +90,11 @@ final class MixReader {
                         #if DEBUG
                             envelopeParts += 1
                         #endif
-                        envelopeFactors(clip.envelope, from: clip.offset + first, decibels: decibels, into: factors)
+                        layerFactors.withUnsafeMutableBufferPointer { all in
+                            envelopeFactors(
+                                [clip.envelope, clip.ride], from: clip.offset + first, decibels: decibels,
+                                into: factors, scratch: UnsafeMutableBufferPointer(rebasing: all[..<count]))
+                        }
                         guard faded else { return }
                         fadeFactors.withUnsafeMutableBufferPointer { all in
                             let fades = UnsafeMutableBufferPointer(rebasing: all[..<count])
@@ -209,17 +215,44 @@ private func fadeRamp(
     }
 }
 
-/// Fills `factors` with 10^((`decibels` + g) / 20), g the dB of `envelope`, which has a point, at the
-/// file frames `from ..< from + factors.count` (decision 0060). In each run of frames between two points, it computes
-/// the dB of the run start in Double and ramps the index from the run start, so no file frame
-/// becomes a Float. Then one `vvexpf` takes all frames.
+/// Fills `factors` with 10^((`decibels` + g) / 20), g the sum of the dB of the `layers` at the file
+/// frames `from ..< from + factors.count` (decision 0060). The first layer with a point writes its dB
+/// ramp into `factors`, and each other layer with a point adds its ramp through `scratch`, which
+/// then holds at least `factors.count` values. Then one `vvexpf` takes all frames.
 func envelopeFactors(
-    _ envelope: GainEnvelope, from: Frames, decibels: Double, into factors: UnsafeMutableBufferPointer<Float>
+    _ layers: [GainEnvelope], from: Frames, decibels: Double, into factors: UnsafeMutableBufferPointer<Float>,
+    scratch: UnsafeMutableBufferPointer<Float>
 ) {
     guard let base = factors.baseAddress else { return }
-    let (points, start, count) = (envelope.points, from.count, factors.count)
+    let frames = vDSP_Length(factors.count)
     // 10^(dB / 20) is e^(dB x ln(10) / 20).
     let scale = log(10.0) / 20
+    var written = false
+    for layer in layers where !layer.isEmpty {
+        if written {
+            decibelRamp(layer, from: from, decibels: 0, scale: scale, into: scratch.baseAddress!, count: factors.count)
+            vDSP_vadd(base, 1, scratch.baseAddress!, 1, base, 1, frames)
+        } else {
+            decibelRamp(layer, from: from, decibels: decibels, scale: scale, into: base, count: factors.count)
+            written = true
+        }
+    }
+    if !written {
+        var level = Float(decibels * scale)
+        vDSP_vfill(&level, base, 1, frames)
+    }
+    var length = Int32(factors.count)
+    vvexpf(base, base, &length)
+}
+
+/// Writes (`decibels` + g) x `scale`, g the dB of `envelope`, which has a point, at the file frames
+/// `from ..< from + count`. In each run of frames between two points, it computes the dB of the run
+/// start in Double and ramps the index from the run start, so no file frame becomes a Float.
+private func decibelRamp(
+    _ envelope: GainEnvelope, from: Frames, decibels: Double, scale: Double, into base: UnsafeMutablePointer<Float>,
+    count: Int
+) {
+    let (points, start) = (envelope.points, from.count)
     // The first point after the part start, by binary search.
     var (next, high) = (0, points.count)
     while next < high {
@@ -247,6 +280,4 @@ func envelopeFactors(
         done = end
         next += 1
     }
-    var length = Int32(count)
-    vvexpf(base, base, &length)
 }

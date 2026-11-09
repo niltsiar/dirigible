@@ -83,6 +83,56 @@ extension Session {
         tracks = lanes
     }
 
+    /// Remove Level Over Time on the clip set `clips` (leveler C32). With `range` nil, the ride layer
+    /// of each clip of the set is empty. With `range` (timeline frames), on the file map of each
+    /// clip of the set that plays a frame of `range` or of its ramps: 0 dB on `range`, a ramp of
+    /// `ramp` frames (linear in dB) outside each edge to the old ride, and the old points outside.
+    /// The clips with one old list and one file map share the new list. A clip that the remove does
+    /// not change gets the new list of its old list when exactly one new list has that old list and
+    /// the clip plays no file frame that it changes, so it hears no change. It returns the clips
+    /// whose ride changed, in track and clip order. An unknown clip throws `.unknownClip`, a bound
+    /// or a ramp outside `0...Frames.limit` `.frameOutOfRange`. A throw changes nothing.
+    package mutating func removeRides(_ clips: Set<ClipID>, in range: Range<Frames>?, ramp: Frames)
+        throws(SessionError) -> [ClipID]
+    {
+        let found = Set(tracks.lazy.flatMap(\.clips).map(\.id))
+        if let missing = clips.subtracting(found).sorted().first { throw .unknownClip(missing) }
+        let ridden = tracks.flatMap(\.clips).filter { clips.contains($0.id) && !$0.ride.isEmpty }
+        guard let range else {
+            try setRides(Dictionary(uniqueKeysWithValues: ridden.map { ($0.id, GainEnvelope.empty) }))
+            return ridden.map(\.id)
+        }
+        guard range.lowerBound.isInRange, range.upperBound.isInRange, ramp.isInRange else { throw .frameOutOfRange }
+        guard !range.isEmpty else { return [] }
+        let ramp = max(ramp.count, 1)
+        let (low, high) = (range.lowerBound.count, range.upperBound.count - 1)
+        var maps = RideMaps()
+        // Each new list with its old list and the open file frames where it differs from it.
+        var made: [(old: GainEnvelope, new: GainEnvelope, changed: Range<Int>)] = []
+        var rides: [ClipID: GainEnvelope] = [:]
+        for clip in ridden where clip.soundingRange.overlaps(Frames(low - ramp + 1)..<Frames(high + ramp)) {
+            guard let file = files[clip.file] else { throw .unknownFile(clip.file) }
+            let shift = clip.start.count - clip.offset.count
+            let new = maps.map(clip.ride, FileMap(shift: Frames(shift), length: file.length)) {
+                $0.removed(low: low - shift, high: high - shift, ramp: ramp, fileLength: file.length)
+            }
+            guard new != clip.ride else { continue }
+            rides[clip.id] = new
+            if !made.contains(where: { $0.new == new }) {
+                made.append((clip.ride, new, (low - shift - ramp + 1)..<(high - shift + ramp)))
+            }
+        }
+        let changed = tracks.flatMap(\.clips).map(\.id).filter { rides[$0] != nil }
+        for clip in tracks.flatMap(\.clips) where rides[clip.id] == nil && !clip.ride.isEmpty {
+            let lists = made.filter { $0.old == clip.ride }
+            let shift = clip.start.count - clip.offset.count
+            let plays = (clip.soundingRange.lowerBound.count - shift)..<(clip.soundingRange.upperBound.count - shift)
+            if lists.count == 1, !plays.overlaps(lists[0].changed) { rides[clip.id] = lists[0].new }
+        }
+        try setRides(rides)
+        return changed
+    }
+
     /// Gives each clip the ride array of its clip in `other` when the two lists are equal, so the
     /// read-back compare of a save (`checkedData`) returns at the buffer identity (leveler C34).
     /// Each pair of arrays compares once. A list that differs stays, so `==` still finds it.
@@ -112,6 +162,19 @@ extension Session {
 
 extension GainEnvelope {
     fileprivate var address: UnsafeRawPointer? { points.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } }
+
+    /// The list with 0 dB on the file frames `low...high`, the old value at `low - ramp` and at
+    /// `high + ramp`, linear in dB between, and the old points outside; fitted to the file.
+    fileprivate func removed(low: Int, high: Int, ramp: Int, fileLength: Frames) -> GainEnvelope {
+        let (start, end) = (low - ramp, high + ramp)
+        let old = points.map { (frame: $0.frame.count, dB: $0.gain.dB) }
+        let edges = low == high ? [(frame: low, dB: 0.0)] : [(frame: low, dB: 0.0), (frame: high, dB: 0.0)]
+        let held = { (frame: Int) in Self.value(of: old.lazy.map { ($0.frame, $0.dB) }, at: frame) }
+        let corners =
+            old.filter { $0.frame < start } + [(frame: start, dB: held(start))] + edges
+            + [(frame: end, dB: held(end))] + old.filter { $0.frame > end }
+        return Self.fitted(corners, fileLength: fileLength)
+    }
 }
 
 /// A clip of a measure group, with its place in the session.

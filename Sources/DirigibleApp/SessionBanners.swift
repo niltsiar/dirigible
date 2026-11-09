@@ -141,7 +141,7 @@ struct TakeBanner: View {
             BannerRow(kind: .info, text: L10n.takeFinishing.format(take))
         case .placing(let segment):
             BannerRow(kind: .info, text: L10n.takePlacing.format(segment.stem))
-        case .leveling:
+        case .leveling, .riding:
             BannerRow(kind: .info, text: L10n.takeLeveling.text) {
                 // Also an agent level (decision 0049). Command-period is the Mac key of Cancel.
                 Button(L10n.importCancel.key) { model.cancelReadJob() }.keyboardShortcut(".", modifiers: .command)

@@ -100,6 +100,15 @@ struct ToolTextTests {
         for error in noise { #expect(error.message.hasPrefix("the noise reduction "), "\(error.message)") }
     }
 
+    /// Level Over Time (run 2026-10-14-leveler C6, C11): a source fault names the file and says
+    /// that no ride changed.
+    @Test func rideFaultNamesTheFile() {
+        #expect(
+            StudioError.rideFault("f1", .unreadable).message(package: "p")
+                == "file f1 cannot be read; no ride changed.")
+        #expect(StudioError.rideCancelled.message(package: "p") == "the level over time was cancelled.")
+    }
+
     /// The CLI keeps its busy text; a live edit names why the app refuses it (C4).
     @Test func busyTextsNameTheCause() {
         #expect(StudioError.busy.message(package: "p") == "p is busy with a take.")

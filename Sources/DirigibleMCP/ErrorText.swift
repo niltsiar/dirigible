@@ -280,6 +280,9 @@ extension StudioError {
         case .transcriptionYielded: "a take stopped the transcription."
         case .transcriptionCancelled: "the transcription was cancelled."
         case .duckRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
+        case .rideCancelled: "the level over time was cancelled."
+        case .rideRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))
+        case .rideFault(let file, let fault): "file \(file) \(ExportText.describe(fault)); no ride changed."
         // No command or tool scans through Studio; `silences` calls `ReadWork.read`.
         case .silencesCancelled: "the silence scan was cancelled."
         case .silencesRead(let code): audioReadMessage(POSIXError(POSIXErrorCode(rawValue: code) ?? .EMFILE))

@@ -178,7 +178,7 @@ private func refusedCode(_ error: StudioError) -> Int32 {
         .pasteYielded,
         .split, .splitYielded, .clipRender, .clipRenderYielded, .artwork, .unusedFiles, .levelCancelled,
         .duckCancelled, .readYielded, .readClosed, .transcription, .transcriptionYielded, .transcriptionCancelled,
-        .duckRead, .silencesCancelled, .silencesRead, .silencesFaults,
+        .duckRead, .rideCancelled, .rideRead, .rideFault, .silencesCancelled, .silencesRead, .silencesFaults,
         .writerDidNotStop:
         packageError
     }

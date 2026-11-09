@@ -103,15 +103,15 @@ extension LaneRendererTests {
         var session = try Self.session(length: Self.envelopeLength)
         let ride = try #require(
             GainEnvelope([
-                GainEnvelope.Point(frame: 0, gain: Gain(dB: -16)!),
-                GainEnvelope.Point(frame: Frames(Self.envelopeLength), gain: Gain(dB: -16)!),
+                GainEnvelope.Point(frame: 0, gain: Gain(dB: -6)!),
+                GainEnvelope.Point(frame: Frames(Self.envelopeLength), gain: Gain(dB: -6)!),
             ]))
         try session.setRides(["c1": ride])
         let pixels = try Self.render(Self.inputs(session, peaks: Self.fullPeaks()), width: 400)
 
-        #expect(Self.rows(pixels, column: 150, LanePalette.light.label) == [100 - Self.height(dB: -16)])
+        #expect(Self.rows(pixels, column: 150, LanePalette.light.label) == [100 - Self.height(dB: -6)])
         let drawn = Self.drawn(pixels, column: 150)
-        #expect(abs(drawn - Self.height(dB: -16)) <= 1, "the column has the -16 dB height: \(drawn) rows")
+        #expect(abs(drawn - Self.height(dB: -6)) <= 1, "the column has the -6 dB height: \(drawn) rows")
     }
 
     /// The column gain of two layers is the maximum of their sum over the frames of the

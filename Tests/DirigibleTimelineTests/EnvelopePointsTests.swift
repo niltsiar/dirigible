@@ -55,14 +55,15 @@ struct EnvelopePointsTests {
     }
 
     /// On a ridden clip, the gain line and the disc of a manual point follow the heard
-    /// gain, the envelope plus the ride. The ride falls from 0 dB to -12 dB over the file frames of A.
+    /// gain, the envelope plus the ride. The ride falls from 0 dB to -6 dB over the first half of the
+    /// file frames of A.
     @Test func lineFollowsTheHeardGain() throws {
         var session = try Fixture.session()
         try session.setEnvelope([72_000: Gain(dB: -6)!], clip: "A")
         try session.setRides([
             "A": #require(
                 GainEnvelope([
-                    GainEnvelope.Point(frame: 0, gain: .zero), GainEnvelope.Point(frame: 48_000, gain: Gain(dB: -12)!),
+                    GainEnvelope.Point(frame: 0, gain: .zero), GainEnvelope.Point(frame: 24_000, gain: Gain(dB: -6)!),
                 ]))
         ])
         let clips = session.tracks[0].clips

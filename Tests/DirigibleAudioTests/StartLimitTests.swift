@@ -13,7 +13,9 @@ import os
 struct StartLimitTests {
     static let zoom = "us.zoom.xos"
     static let zoomUID = "app:us.zoom.xos"
-    /// The limit of a wait for a Studio state, which a report hop sets on the main actor.
+    /// The limit of a wait for a Studio state, which a report hop sets on the main actor. A late
+    /// Retry Finalize also takes it as its stop limit: under suite load, the late finish of a
+    /// released writer can take more than a short stop limit.
     let busy = Duration.seconds(20)
     /// The start or stop limit of a limit test. A bound of 1.5 limits passes one deadline for the
     /// whole operation and fails one limit for each of two waits.

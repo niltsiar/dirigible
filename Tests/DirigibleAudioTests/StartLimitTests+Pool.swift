@@ -94,7 +94,6 @@ extension StartLimitTests {
         if late {
             #expect(error == .writerDidNotStop("USB Mic"), "\(String(describing: error))")
             #expect(unfinished == ["mic"], "late writers: \(unfinished)")
-            // Under suite load, the late finish of a released writer can take more than the stop limit.
             studio.environment.stopLimit = busy
             try await studio.retryFinalize()
         } else {

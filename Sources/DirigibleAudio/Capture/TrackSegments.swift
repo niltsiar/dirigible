@@ -4,9 +4,12 @@ import Foundation
 /// The segment files of the tracks of one device for a take (decisions 0004, 0012, and 0013).
 /// It splits each record into the channels of each track and writes one segment per track: a
 /// checkpoint at the first record, at the first record at or after each further second of device
-/// frames, and at the last record, and a flush every 5 s of device frames. A clock event closes
+/// frames, and at the last record, and a flush every 5 s of device frames. It holds the frames of
+/// each track and writes them with one append for each file: before each checkpoint, flush, and
+/// silence fill, at the segment end, and at the end of each drain (`commit`). A clock event closes
 /// the segments of every track, and the next record opens new ones. A write error closes the
-/// segment of one track, and that track opens its next segment number after 1 s of device frames.
+/// segment of one track, and that track opens its next segment number 1 s of device frames after
+/// the end of the append that failed.
 /// With no take files, it is a monitor (decision 0015): it computes the peaks and opens no
 /// segment. Its `DeviceWriter` uses it on the writer queue only.
 struct TrackSegments {
@@ -22,7 +25,7 @@ struct TrackSegments {
     /// An app source: the routed channels count from the last input buffer, because the tap
     /// stream comes after the inputs of the main sub-device (probe P13).
     private let routesLastChannels: Bool
-    private var outputs: [Output]
+    var outputs: [Output]
     /// The open segment of every track, or nil between segments.
     private var segment: Segment?
     /// The number of the last segment that opened, for any track.
@@ -98,9 +101,9 @@ struct TrackSegments {
         }
     }
 
-    /// Writes `record`. False when it drops the record: its byte sizes do not match its layout,
-    /// or its layout has no routed channel. A record of a new layout ends the segment, and the
-    /// tracks take its layout.
+    /// Holds `record` for the files. False when it drops the record: its byte sizes do not match
+    /// its layout, or its layout has no routed channel. A record of a new layout ends the
+    /// segment, and the tracks take its layout.
     mutating func write(_ record: InputRecord) -> Bool {
         guard record.frameCount > 0 else { return true }
         let layout = record.channelsPerBuffer
@@ -132,6 +135,7 @@ struct TrackSegments {
         if gap > 0 {
             let silenceStart = record.hostTimeNanos &- Self.nanoseconds(frames: gap, rate: current.rate)
             for index in outputs.indices {
+                commit(index)
                 let silence = [Float](repeating: 0, count: gap * outputs[index].sources.count)
                 let filled = write(index) { writer in
                     try silence.withUnsafeBufferPointer { try writer.write($0, frames: gap) }
@@ -161,16 +165,15 @@ struct TrackSegments {
         let end = record.hostTimeNanos &+ Self.nanoseconds(frames: record.frameCount, rate: record.nominalRate)
         for index in outputs.indices {
             let samples = samples(index, of: record)
-            let wrote = write(index) { writer in
-                try samples.withUnsafeBufferPointer { try writer.write($0, frames: record.frameCount) }
-            }
-            if wrote { extend(index, from: record.hostTimeNanos, to: end) }
+            guard outputs[index].writer != nil else { continue }
+            outputs[index].held.add(samples, frames: record.frameCount, from: record.hostTimeNanos, to: end)
         }
         current.fileFrame += Int64(record.frameCount)
         deviceFrames += Int64(record.frameCount)
         current.nextSampleTime = record.sampleTime + Double(record.frameCount)
         current.remember(record)
         if current.fileFrame >= current.nextFlush {
+            commit()
             each { try $0.flush() }
             current.nextFlush = current.fileFrame + 5 * second
         }
@@ -217,7 +220,7 @@ struct TrackSegments {
     /// Adds the host span `start..<end`, which the writer of output `index` wrote, to the span of
     /// its arm. The span keeps the smallest start and the largest end by the signed
     /// `nanos(from:to:)`, so the order of the host times does not matter.
-    private mutating func extend(_ index: Int, from start: UInt64, to end: UInt64) {
+    mutating func extend(_ index: Int, from start: UInt64, to end: UInt64) {
         guard !outputs[index].spanStopped else { return }
         guard let span = outputs[index].written else {
             outputs[index].written = (start, end)
@@ -256,6 +259,17 @@ struct TrackSegments {
 
     /// Tests only: the 400 ms blocks that the meters keep.
     var loudnessBlocks: Int { outputs.reduce(0) { $0 + ($1.loudness?.blocks.count ?? 0) } }
+
+    /// Tests only: for each arm, the CAF appends and the frames of the largest append of the
+    /// segment writers that closed.
+    private(set) var appendStats: [Int: (count: Int, largest: Int)] = [:]
+
+    /// Tests only: adds the appends of the writer of output `index` to `appendStats`.
+    private mutating func countAppends(_ index: Int) {
+        guard let writer = outputs[index].writer else { return }
+        let old = appendStats[outputs[index].arm] ?? (0, 0)
+        appendStats[outputs[index].arm] = (old.count + writer.appends, max(old.largest, writer.largestAppend))
+    }
 
     /// Nil when there is no span or its end is not after its start, so no `Range` traps.
     private static func range(_ span: (start: UInt64, end: UInt64)?) -> Range<UInt64>? {
@@ -313,6 +327,7 @@ struct TrackSegments {
     /// Writes `checkpoint` of the device segment to the sidecar of output `index`, at its file
     /// frame.
     private mutating func checkpoint(_ index: Int, _ checkpoint: Checkpoint) {
+        commit(index)
         let frame = checkpoint.fileFrame - outputs[index].offset
         write(index) { writer in
             try writer.checkpoint(
@@ -322,9 +337,10 @@ struct TrackSegments {
         outputs[index].checkpointed = frame
     }
 
-    /// Writes the checkpoint of the last record where the sidecar does not have it, and closes
-    /// the segment of every track.
+    /// Writes the held frames, then the checkpoint of the last record where the sidecar does not
+    /// have it, and closes the segment of every track.
     mutating func endSegment() {
+        commit()
         guard let current = segment else { return }
         for index in outputs.indices {
             guard let last = current.last, outputs[index].writer != nil,
@@ -333,7 +349,10 @@ struct TrackSegments {
             checkpoint(index, last)
         }
         each { try $0.close() }
-        for index in outputs.indices { outputs[index].writer = nil }
+        for index in outputs.indices {
+            countAppends(index)
+            outputs[index].writer = nil
+        }
         segment = nil
     }
 
@@ -344,7 +363,7 @@ struct TrackSegments {
     /// Runs `body` on the segment of output `index`. A write error closes that segment; the
     /// frames on disk stay. True when `body` ran with no error.
     @discardableResult
-    private mutating func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) -> Bool {
+    mutating func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) -> Bool {
         guard let writer = outputs[index].writer else { return false }
         do {
             try body(writer)
@@ -359,7 +378,9 @@ struct TrackSegments {
     /// The track of output `index` has no segment until 1 s of device frames from now: report
     /// `.writeFailed` with the raw status, and record the gap.
     private mutating func fail(_ index: Int, status: Int32) {
+        countAppends(index)
         outputs[index].writer = nil
+        outputs[index].held.clear()
         outputs[index].failedAt = deviceFrames
         outputs[index].spanStopped = true
         let arm = outputs[index].arm

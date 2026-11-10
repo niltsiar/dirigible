@@ -235,5 +235,33 @@ extension DeviceEventTests {
         let clips = clips(studio, "t1")
         #expect(clips.count == 2, "\(clips.map(\.id))")
         #expect(clips.first?.id == "take1-1-1")
+
+        // A short write is a write error: no written span of t1 ends after the last whole frame
+        // of its CAF, and the reopened CAF holds no frame of the failed batch. The live store
+        // keeps the written spans of the level reports, in frames from the take start.
+        let file = try #require(clips.first?.file)
+        let covered = try #require(studio.liveFiles[file]?.peaks.covered, "t1 has no live spans")
+        let capture = url.appending(path: "Capture")
+        let first = try segment(capture, "take1-1-1")
+        let second = try segment(capture, "take1-1-2")
+        let before = covered.filter { $0.lowerBound < second.start }
+        let after = covered.filter { $0.lowerBound >= second.start }
+        #expect(!before.isEmpty && !after.isEmpty, "the spans of t1 are \(covered)")
+        #expect(before.allSatisfy { $0.upperBound <= first.end }, "a span in \(before) ends after \(first.end)")
+        #expect(after.allSatisfy { $0.upperBound <= second.end }, "a span in \(after) ends after \(second.end)")
+        #expect(
+            second.end - second.start == Frames(Int(second.lastCheckpoint) + 480),
+            "take1-1-2 has \(second.end - second.start) frames, its last checkpoint is \(second.lastCheckpoint)")
+    }
+
+    /// The first frame and the end of the CAF of `stem` in `capture`, in frames at 48 kHz from
+    /// `takeStart` (the header host time plus the CAF frames), and the file frame of its last
+    /// checkpoint.
+    func segment(_ capture: URL, _ stem: String) throws -> (start: Frames, end: Frames, lastCheckpoint: Int64) {
+        let sidecar = try #require(try Sidecar.decode(Data(contentsOf: capture.appending(path: "\(stem).sidecar"))))
+        let frames = try readAudio(capture.appending(path: "\(stem).caf")).samples.count
+        let start = Int((Double(nanos(from: takeStart, to: sidecar.header.firstHostTimeNanos)) * 48e-6).rounded())
+        let last = try #require(sidecar.checkpoints.last, "\(stem) has no checkpoint")
+        return (Frames(start), Frames(start + frames), last.fileFrame)
     }
 }

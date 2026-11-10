@@ -33,7 +33,7 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 - One IOProc per input device, from `AudioDeviceCreateIOProcIDWithBlock` with a NULL queue. AUHAL is the fallback if the IOProc path fails on hardware. This replaces the "AUHAL, one input unit per device" text in 0001.
 - The IOProc copies the whole input buffer list into one SPSC ring per device (0005) and does nothing else. Each ring record header holds the sample time, the host time, the frame count, `mNumberBuffers`, each `mDataByteSize`, and the nominal rate. A property listener stores the new nominal rate in an atomic, and the IOProc copies it into each header. The header rate can lag the real change by one listener delay, so it is a hint. The writer and finalize check it (see below). If the ring is full, the IOProc adds the lost frames to an atomic counter. The UI shows this counter during a take.
 - Each ring holds 10 s of audio. It is allocated before the IOProc starts.
-- Each device has one writer on its own serial `DispatchQueue`, never on the cooperative pool. The writer drains the ring every 50 ms and takes out the channels of each track (0002, `Track.route`). It writes one float32 CAF per track with synchronous writes.
+- Each device has one writer on its own serial `DispatchQueue`, never on the cooperative pool. The writer drains the ring every 50 ms and takes out the channels of each track (0002, `Track.route`). It writes one float32 CAF per track with synchronous writes. It writes the frames of one drain with one append for each CAF, and it writes the frames that it holds before each checkpoint, before each flush, and at each segment end. A write that the volume takes only in part is a write error.
 - The writer checks each record's byte sizes against frames x channels x 4. On a mismatch, it closes the segment at that record.
 - Every 5 s, the writer calls `fcntl(F_FULLFSYNC)` on each CAF and sidecar.
 
@@ -99,7 +99,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 
 ## Consequences
 
-- "No data loss" means: a process crash loses nothing that the writer wrote; a power loss or a kernel panic loses at most 5 s; an unplug loses the time until the device comes back.
+- "No data loss" means: a process crash loses nothing that the writer wrote, and at most the frames that one drain holds (1 s of device frames plus one record for each track); a power loss or a kernel panic loses at most 5 s; an unplug loses the time until the device comes back.
 - A take uses double disk space (CAF and WAV) until the removal of 0071. After the removal, a take that passes the gate uses 3 bytes per sample and channel.
 - Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together, a full disk during a take and an open after space is freed, and `tccutil reset Microphone` before a take, and one hour on a Bluetooth headset that must stay one segment.
 

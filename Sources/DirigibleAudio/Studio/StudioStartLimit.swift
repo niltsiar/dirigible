@@ -114,17 +114,17 @@ extension Studio {
     }
 
     /// Finishes each writer by `deadline`, and returns the gaps of the take and the writers that
-    /// did not finish. The stop starts each finish at its call (`deadline` - `stopLimit`) on the
-    /// writer queue, and a writer is on time when its queue ended the finish by `deadline`, also
-    /// when this call reads it later; a deadline that is past at the call arms no wait. The stop
-    /// time (`end(atHostNanos:)`) ends each track at the click, so a writer that finishes late
-    /// records nothing after it. A writer in `abandoned` never attached: it holds no audio, so
-    /// each of its tracks gets a gap and the stop does not wait for it. Each other writer gets its
+    /// did not finish. The stop starts each finish at its call `called` on the writer queue, and a
+    /// writer is on time when its queue ended the finish by `deadline`, also when this call reads
+    /// it later; a deadline that is past at the call arms no wait. The stop time
+    /// (`end(atHostNanos:)`) ends each track at the click, so a writer that finishes late records
+    /// nothing after it. A writer in `abandoned` never attached: it holds no audio, so each of its
+    /// tracks gets a gap and the stop does not wait for it. Each other writer gets its
     /// `take writer-finished` line now, or when its finish ends.
-    func finishWriters(by deadline: ContinuousClock.Instant, abandoned: [DeviceWriter]) async -> (
-        gaps: [TrackID: TakeResult.Gap], unfinished: [UnfinishedWriter]
-    ) {
-        let (called, log) = (deadline - environment.stopLimit, environment.log)
+    func finishWriters(
+        from called: ContinuousClock.Instant, by deadline: ContinuousClock.Instant, abandoned: [DeviceWriter]
+    ) async -> (gaps: [TrackID: TakeResult.Gap], unfinished: [UnfinishedWriter]) {
+        let log = environment.log
         var gaps: [TrackID: TakeResult.Gap] = [:]
         var unfinished: [UnfinishedWriter] = []
         let isAbandoned = { (writer: DeviceWriter) in abandoned.contains { $0 === writer } }

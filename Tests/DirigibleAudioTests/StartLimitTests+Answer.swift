@@ -28,7 +28,7 @@ extension StartLimitTests {
             hal.releaseAttach("mic")
             await writer.finish()
             let deadline = late ? before : ContinuousClock.now
-            let (gaps, unfinished) = await studio.finishWriters(by: deadline, abandoned: [])
+            let (gaps, unfinished) = await studio.finishWriters(from: before, by: deadline, abandoned: [])
             if late {
                 #expect(unfinished.map(\.uid) == ["mic"], "late writers: \(unfinished.map(\.uid))")
                 #expect(gaps["t1"] == nil, "\(gaps)")

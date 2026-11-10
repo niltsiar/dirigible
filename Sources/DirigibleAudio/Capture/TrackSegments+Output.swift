@@ -38,19 +38,11 @@ extension TrackSegments {
         private(set) var frames = 0
         private(set) var span: (start: UInt64, end: UInt64)?
 
-        /// Adds `frames` interleaved frames from host time `start` to `end`. The span keeps the
-        /// smallest start and the largest end by the signed `nanos(from:to:)`.
+        /// Adds `frames` interleaved frames from host time `start` to `end`.
         mutating func add(_ samples: [Float], frames: Int, from start: UInt64, to end: UInt64) {
             self.samples.append(contentsOf: samples)
             self.frames += frames
-            guard let span else {
-                self.span = (start, end)
-                return
-            }
-            self.span = (
-                nanos(from: span.start, to: start) < 0 ? start : span.start,
-                nanos(from: span.end, to: end) > 0 ? end : span.end
-            )
+            span = TrackSegments.union(span, start, end)
         }
 
         mutating func clear() {
@@ -58,6 +50,18 @@ extension TrackSegments {
             frames = 0
             span = nil
         }
+    }
+
+    /// `span` with `start..<end`: the smallest start and the largest end by the signed
+    /// `nanos(from:to:)`, so the order of the host times does not matter.
+    static func union(_ span: (start: UInt64, end: UInt64)?, _ start: UInt64, _ end: UInt64) -> (
+        start: UInt64, end: UInt64
+    ) {
+        guard let span else { return (start, end) }
+        return (
+            nanos(from: span.start, to: start) < 0 ? start : span.start,
+            nanos(from: span.end, to: end) > 0 ? end : span.end
+        )
     }
 
     /// Writes the held frames of every track with one append for each file. The drain calls it

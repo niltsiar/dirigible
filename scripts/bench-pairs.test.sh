@@ -316,6 +316,13 @@ single 15 0.01677 0.01654 0.01740 0.01636 0.01690 0.02592
 judged 'a p95 case 50 % over main next to a single-sample case' 1 'NOT VERIFIED XBenchmark a' \
   'NO PAIR RULE LiveTakeBenchmark hand-off, fit: one sample for each run (main 16.77 16.54 17.40 16.36; branch 16.90 25.92); judge it by its absolute budget'
 
+# A set with no complete main and branch pair (a run that stopped after main-1) gives no verdict.
+mkdir "$tmp/z"
+pset=z
+for f in aa-1 aa-2 main-1; do slog "$f" "$(A 10)" "$(M 0.0167)"; done
+judged 'a set with no complete pair' 1 'NO VERDICT: no complete main and branch pair'
+[[ "$out" != *VERIFIED* && "$out" != *'NO PAIR RULE'* ]] || fail "a set with no complete pair gets no case verdict: $out"
+
 # A time line in a suite that no form reads gets no verdict: the compare names the line once, each
 # number as N. A line with no time and a runner line (✘, ↳) are no such line.
 mkdir "$tmp/u"

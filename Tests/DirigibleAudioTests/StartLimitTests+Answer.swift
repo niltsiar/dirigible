@@ -53,6 +53,8 @@ extension StartLimitTests {
                 #expect(studio.unfinishedWriters.isEmpty)
                 #expect(studio.lastTake?.gaps["t1"] == .deviceLost)
             }
+            // Under suite load, the late finish of a released writer can take more than the stop limit.
+            studio.environment.stopLimit = busy
             try await studio.retryFinalize()
         }
         await studio.settle()

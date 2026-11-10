@@ -589,6 +589,8 @@ fi
 # blanks it, so a quote mark in a comment opens no string and hides no command on a later line.
 # By then chain_text has made each run of tabs one space, so the end line of a <<- heredoc may have
 # leading spaces.
+# With the argument keep, the separators inside a quoted string stay, and each other character has the
+# position that it has in the masked text.
 mask_quoted_data() {
   python3 -I -c '
 import re
@@ -599,7 +601,7 @@ n = len(text)
 out = []
 SQ = chr(39)
 PROCESS = re.compile(sys.argv[1])
-FREE = re.compile(r"[;&|()`\n]")
+FREE = re.compile(r"[;&|()`\n]" if len(sys.argv) < 3 else r"(?!)")
 INTERP = re.compile(r"(?:python3?|node|perl|ruby)")
 CODE = re.compile(r"(?:(?:ba|z|da|k)?sh|python[0-9.]*|node|perl|ruby|php|osascript|eval|source|ssh|make|\.)")
 TAIL = re.compile(r"\s*(>>?\s*[^\s;&|<>()`]+)?\s*")
@@ -763,7 +765,7 @@ def scan(i, end):
 
 scan(0, None)
 sys.stdout.write("".join(out))
-' "$process_call_re" || block "cannot be checked for a hook test run (python3 failed)"
+' "$process_call_re" "$@" || block "cannot be checked for a hook test run (python3 failed)"
 }
 
 # A decisions.tsv row after a commit or a build must come after its status is read. After `;`, a
@@ -803,32 +805,114 @@ fi
 # make with one target that takes no lock (check-docs, check-fast, lint, format: AGENTS.md, Commands)
 # and no other word but a redirection is no lock job. Misses: a
 # wrapper word that the prefix does not hold (nice, nohup, caffeinate) and a path in a variable.
+# One background call runs one lock job: a second job of the call can wait for the lock behind other
+# work until the 2 h limit of the call stops it. So a call with the flag true and two or more lock jobs
+# blocks at any timeout. The count reads each segment after the prefix words above plus nohup and
+# nice [-n N]. A segment with a lock job counts 1 (a with-lock.sh prefix and the command it runs are one
+# job); bench-pairs.sh --compare with no with-lock.sh prefix counts 0. A shell word, flags with c, and a
+# quoted body count the jobs of the body in place of the 1, one level deep. The body is read from the
+# text with its separators (mask_quoted_data keep), with one level of \ quoting removed. Misses: a
+# script file that runs two lock jobs, a loop body (one job in the text, one job each pass), and a
+# quoted "scripts/with-lock.sh" word.
 bg_gate='\.sh([^[:alnum:]]|$)|(^|[^[:alnum:]_.-])((ba|z|da)?sh|make|swift)([^[:alnum:]_.-]|$)'
+bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
+bg_count_pre="${bg_pre%)\*}|nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? )*"
+bg_shell="^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+[^-<[:space:]]"
+bg_shell_c="^([^[:space:]]*/)?(ba|z|da)?sh([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*c[A-Za-z]*[[:space:]]+[\"']"
+bg_free_make="^([^[:space:]]*/)?make[[:space:]]+(check-docs|check-fast|lint|format)(([[:space:]]+[0-9]*|[[:space:]]*)>>?[[:space:]]*[^[:space:]>)}\"]*)*[[:space:])}\"]*$"
+# bg_lock_job <segment> <prefix re>: sets lock_job to 1 when the segment runs a lock job, else to "",
+# and bg_prefix, bg_rest, and bg_words to the prefix words, the text after them, and its words.
+bg_lock_job() {
+  [[ "$1" =~ ^[[:space:]]?($2)(.*)$ ]]
+  bg_prefix="${BASH_REMATCH[1]}" bg_rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}" bg_words=()
+  read -ra bg_words <<< "$bg_rest"
+  lock_job=""
+  [[ "$bg_prefix" == *with-lock.sh* ]] && lock_job=1
+  case "${bg_words[0]:+${bg_words[0]##*/}}" in
+    land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|test-stress.sh|swift) lock_job=1 ;;
+    make) [[ "$bg_rest" =~ $bg_free_make ]] || lock_job=1 ;;
+  esac
+  [[ "$bg_rest" =~ $bg_shell ]] && lock_job=1
+}
+# bg_body <text>: the text starts at the quote mark of a shell -c body. Sets body to the quoted string
+# with one level of \ quoting removed, and body_len to the length of the string with its quote marks.
+# In double quotes, a quote mark inside $( ) does not end the string.
+bg_body() {
+  local text="$1" i=1 depth=0 c next
+  body=""
+  if [[ "${text:0:1}" == "'" ]]; then
+    body="${text:1}"
+    body="${body%%\'*}"
+    body_len=$((${#body} + 2))
+    return
+  fi
+  while ((i < ${#text})); do
+    c="${text:i:1}" next="${text:i+1:1}"
+    if [[ "$c" == '\' ]]; then
+      case "$next" in '$' | '`' | '"' | '\') body+="$next" ;; $'\n') ;; *) body+="$c$next" ;; esac
+      i=$((i + 2))
+      continue
+    fi
+    ((depth > 0)) || [[ "$c" != '"' ]] || break
+    if [[ "$c$next" == '$(' ]]; then
+      depth=$((depth + 1))
+    elif [[ "$c" == ')' ]] && ((depth > 0)); then
+      depth=$((depth - 1))
+    fi
+    body+="$c"
+    i=$((i + 1))
+  done
+  body_len=$((i + 1))
+}
+# bg_count <segments> <kept text>: sets bg_jobs to the lock-job count of the segments (masked text, one
+# segment a line). The kept text is the keep mask of the same text; with "", a shell -c body counts 1.
+# A segment that starts inside a counted body is part of that body.
+bg_count() {
+  local seg start off=0 skip=0 jobs=0 quote split
+  while IFS= read -r seg; do
+    start=$off off=$((off + ${#seg} + 1))
+    ((start >= skip)) || continue
+    bg_lock_job "$seg" "$bg_count_pre"
+    if [[ -n "$2" && "$bg_rest" =~ $bg_shell_c ]]; then
+      quote=$((start + ${#seg} - ${#bg_rest} + ${#BASH_REMATCH[0]} - 1))
+      bg_body "${2:quote}"
+      skip=$((quote + body_len))
+      split="$(mask_quoted_data <<< "$body")" || exit 2
+      for sep in ';' '&' '|' '(' '`'; do split="${split//"$sep"/$'\n'}"; done
+      bg_count "$split" ""
+      jobs=$((jobs + bg_jobs))
+      continue
+    fi
+    [[ -n "$lock_job" ]] || continue
+    [[ "${bg_words[0]:-}" == *bench-pairs.sh && "${bg_words[1]:-}" == --compare && "$bg_prefix" != *with-lock.sh* ]] && continue
+    jobs=$((jobs + 1))
+  done <<< "$1"
+  bg_jobs=$jobs
+}
 if [[ "$chained" =~ $bg_gate ]]; then
   background="$(plutil -extract tool_input.run_in_background raw -o - "$input" 2>/dev/null)" || background=""
   limit="$(plutil -extract tool_input.timeout raw -o - "$input" 2>/dev/null)" || limit=""
   [[ "$limit" =~ ^[0-9]+$ ]] || limit=0
-  if [[ "$background" == true ]] && ((10#$limit < 7200000)); then
-    bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
-    bg_shell="^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+[^-<[:space:]]"
-    bg_free_make="^([^[:space:]]*/)?make[[:space:]]+(check-docs|check-fast|lint|format)(([[:space:]]+[0-9]*|[[:space:]]*)>>?[[:space:]]*[^[:space:]>)}\"]*)*[[:space:])}\"]*$"
-    bg_segments="$(mask_quoted_data <<< "$chained")" || exit 2
+  if [[ "$background" == true ]]; then
+    bg_masked="$(mask_quoted_data <<< "$chained")" || exit 2
+    bg_segments="$bg_masked"
     for sep in ';' '&' '|' '(' '`'; do bg_segments="${bg_segments//"$sep"/$'\n'}"; done
-    while IFS= read -r segment; do
-      [[ "$segment" =~ ^[[:space:]]?($bg_pre)(.*)$ ]] || continue
-      prefix="${BASH_REMATCH[1]}" rest="${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}"
-      read -ra words <<< "$rest"
-      lock_job=""
-      [[ "$prefix" == *with-lock.sh* ]] && lock_job=1
-      case "${words[0]:+${words[0]##*/}}" in
-        land.sh|mutation-pass.sh|swift-test.sh|test-shards.sh|bench.sh|bench-pairs.sh|sanitize.sh|loop.sh|test-stress.sh|swift) lock_job=1 ;;
-        make) [[ "$rest" =~ $bg_free_make ]] || lock_job=1 ;;
-      esac
-      [[ "$rest" =~ $bg_shell ]] && lock_job=1
-      if [[ -n "$lock_job" ]]; then
-        block "runs a lock job in the background with a Bash timeout under 7200000" "A background Bash call stops at 30 min by default. The lead: set the Bash timeout to 7200000 (AGENTS.md, Commands). A subagent: run the step in the foreground for 10 min or less, or return to the lead."
-      fi
-    done <<< "$bg_segments"
+    if ((10#$limit < 7200000)); then
+      while IFS= read -r segment; do
+        bg_lock_job "$segment" "$bg_pre"
+        if [[ -n "$lock_job" ]]; then
+          block "runs a lock job in the background with a Bash timeout under 7200000" "A background Bash call stops at 30 min by default. The lead: set the Bash timeout to 7200000 (AGENTS.md, Commands). A subagent: run the step in the foreground for 10 min or less, or return to the lead."
+        fi
+      done <<< "$bg_segments"
+    fi
+    bg_kept=""
+    if [[ "$bg_masked" =~ (^|[^[:alnum:]_.-])(ba|z|da)?sh([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*c ]]; then
+      bg_kept="$(mask_quoted_data keep <<< "$chained")" || exit 2
+    fi
+    bg_count "$bg_segments" "$bg_kept"
+    if ((bg_jobs > 1)); then
+      block "runs $bg_jobs lock jobs in one background Bash call" "A second job can wait for the lock behind other work until the 2 h limit of the call stops it. Start one background call per lock job, and start the next job after the first one ends (AGENTS.md, Commands)."
+    fi
   fi
 fi
 

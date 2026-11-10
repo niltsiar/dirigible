@@ -284,17 +284,37 @@ n="$(grep -cE '^(VERIFIED|INCONCLUSIVE|NOT VERIFIED|NO )' <<< "$out")"
 [[ "$n" -eq 28 ]] || fail "each time line form: 28 verdict lines, not $n: $out"
 
 # One sample for each run is no p95: the 10 % or 1 ms rule would judge noise, so a case with one
-# sample gets no pair verdict and the exit stays. A p95 case next to it keeps the rule.
+# sample gets no pair verdict and the exit stays, unless each branch value is over each main-side
+# value by more than the rule of the largest main-side value. A p95 case next to it keeps the rule.
 mkdir "$tmp/one"
 pset=one
 M() { printf 'LiveTakeBenchmark hand-off, fit: max %s seconds' "$1"; }
-one='NO PAIR RULE LiveTakeBenchmark hand-off, fit: one sample for each run (main 10.00 10.00 10.00 10.00; branch 15.00 15.00); judge it by its absolute budget'
-for f in aa-1 aa-2 main-1 main-2; do slog "$f" "$(A 10)" "$(M 0.010)"; done
-for f in branch-1 branch-2; do slog "$f" "$(A 10.2)" "$(M 0.015)"; done
-judged 'a single-sample case 50 % over main' 0 "$one" 'VERIFIED XBenchmark a'
-[[ "$out" != *'VERIFIED LiveTakeBenchmark'* ]] || fail "a single-sample case gets no pair verdict: $out"
-for f in branch-1 branch-2; do slog "$f" "$(A 15)" "$(M 0.015)"; done
-judged 'a p95 case 50 % over main next to a single-sample case' 1 'NOT VERIFIED XBenchmark a' "$one"
+# single <p95 ms of case a on the branch> <seconds of aa-1 aa-2 main-1 main-2 branch-1 branch-2>
+single() {
+  local f a=10 b="$1"
+  shift
+  for f in aa-1 aa-2 main-1 main-2 branch-1 branch-2; do
+    [[ $f != branch-* ]] || a="$b"
+    slog "$f" "$(A "$a")" "$(M "$1")"
+    shift
+  done
+}
+no_pair() { # no_pair <name> <main ms> <branch ms>: exit 0, VERIFIED XBenchmark a, and the NO PAIR RULE line
+  judged "$1" 0 "NO PAIR RULE LiveTakeBenchmark hand-off, fit: one sample for each run (main $2; branch $3); judge it by its absolute budget" 'VERIFIED XBenchmark a'
+  [[ "$out" != *'VERIFIED LiveTakeBenchmark'* ]] || fail "$1: a single-sample case gets no pair verdict: $out"
+}
+single 10.2 0.01677 0.01654 0.01740 0.01636 0.02354 0.02592
+judged 'each branch value over each main value by more than the rule' 1 'VERIFIED XBenchmark a' \
+  'NOT VERIFIED LiveTakeBenchmark hand-off, fit: each branch value is over each main value (main 16.77 16.54 17.40 16.36; branch 23.54 25.92)'
+single 10.2 0.01677 0.01654 0.01740 0.01636 0.01690 0.02592
+no_pair 'a branch value in the main range' '16.77 16.54 17.40 16.36' '16.90 25.92'
+single 10.2 0.01677 0.01654 0.01740 0.01636 0.01890 0.01950
+no_pair 'a separation under 10 % of the largest main value' '16.77 16.54 17.40 16.36' '18.90 19.50'
+single 10.2 0.0050 0.0048 0.0049 0.0047 0.0058 0.0060
+no_pair 'a separation over 10 % and under 1 ms' '5.00 4.80 4.90 4.70' '5.80 6.00'
+single 15 0.01677 0.01654 0.01740 0.01636 0.01690 0.02592
+judged 'a p95 case 50 % over main next to a single-sample case' 1 'NOT VERIFIED XBenchmark a' \
+  'NO PAIR RULE LiveTakeBenchmark hand-off, fit: one sample for each run (main 16.77 16.54 17.40 16.36; branch 16.90 25.92); judge it by its absolute budget'
 
 # A time line in a suite that no form reads gets no verdict: the compare names the line once, each
 # number as N. A line with no time and a runner line (✘, ↳) are no such line.

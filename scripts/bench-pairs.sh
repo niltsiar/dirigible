@@ -120,8 +120,8 @@ def forms(line, suite):
         return [(m.group(1).rstrip(':'), float(m.group(2)), 'time')]
     return []
 # A log: its cases ({name: ms}), its failed tests ({name: issue lines}), the cases of each test
-# ({test: {name: ms}}, read between its started and end lines), and each time line in a suite that no form reads
-# ((suite, the line with each number as N)).
+# ({test: {name: ms}}, read between its started and end lines), and each time line in a suite that
+# no form reads ((suite, the line with each number as N)).
 logs = {}
 def scan(path):
     if path in logs: return logs[path]

@@ -69,13 +69,14 @@ extension Studio {
     }
 }
 
-/// `finish` of `writer`, then `take writer-finished` with its ms and WAV bytes.
-func finishLogged(_ writer: DeviceWriter, _ log: DiagnosticLog) async -> [Int: TakeResult.Gap] {
-    let start = ContinuousClock.now
-    let gaps = await writer.finish()
-    log.note(
-        .take, "writer-finished", ["writer": .text(writer.name), "ms": .since(start), "wav": .number(writer.wavBytes)])
-    return gaps
+/// `take writer-finished` of `writer` with its WAV bytes and the ms from the stop call `called` to
+/// the end of its finish (`record`), for the stop and for Retry Finalize.
+func noteFinished(
+    _ writer: DeviceWriter, _ record: DeviceWriter.FinishRecord, since called: ContinuousClock.Instant,
+    _ log: DiagnosticLog
+) {
+    let ms = DiagnosticValue.milliseconds((record.at - called) / .milliseconds(1))
+    log.note(.take, "writer-finished", ["writer": .text(writer.name), "ms": ms, "wav": .number(writer.wavBytes)])
 }
 
 extension StudioError {

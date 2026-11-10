@@ -160,6 +160,8 @@ good; rule 'AGT-003	AGENTS.md	delete			10edc92		scope'; expect fail 'register de
 good; rule 'AGT-003	AGENTS.md	keep	AGENTS.md	scope			scope'; expect fail 'register row with no source' 'rules.tsv: AGT-003 has no source'
 good; rule 'AGT-003	AGENTS.md	keep	no/such.md	scope	10edc92		scope'; expect fail 'register target that does not exist' 'rules.tsv: AGT-003 targets no/such.md, which does not exist'
 good; rule 'AGT-003	AGENTS.md	new		scope	10edc92		scope'; expect fail 'register row with no target' 'rules.tsv: AGT-003 is new with no target'
+good; rule 'AGT-003	AGENTS.md	new	AGENTS.md	scope10edc92	claim	scope'; expect fail 'register row with 7 fields' 'rules.tsv: AGT-003 has 7 fields; each row has 8'
+good; rule 'AGT-003	AGENTS.md	new	AGENTS.md	scope	10edc92	claim	scope	more'; expect fail 'register row with 9 fields' 'rules.tsv: AGT-003 has 9 fields; each row has 8'
 good; rm "$tmp/docs/workflow/rules.tsv"; expect fail 'no register' 'docs/workflow/rules.tsv is missing'
 good; sed -i '' '1s/$/	text/' "$tmp/docs/workflow/rules.tsv"; expect fail 'register with a text column' 'rules.tsv: the header is not'
 good; printf 'In run 2026-10-01-x the hook failed.\n' >> "$tmp/.claude/skills/s/references/r.md"; expect fail 'a date in a loaded doc' '.claude/skills/s/references/r.md:4: a date in a loaded doc'

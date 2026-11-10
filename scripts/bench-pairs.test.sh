@@ -179,10 +179,16 @@ printf 'aa-1: the bench failed\nmain-1: the bench failed\n' > "$tmp/s/load.txt"
 judged 'an aa and a main log that miss the budget of a test with no case line' 0 'VERIFIED XBenchmark a' \
   'note: aa-1 failed its asserts after its report line; its samples count' \
   'note: main-1 failed its asserts after its report line; its samples count'
+# A bench can assert its time in a form with no budget text (Export: elapsed <= .seconds(120)), so an
+# aa or main log keeps its note for any failed expectation: a miss on main that the branch fixes.
 slog aa-1 "${t_on[@]}" "$(A 10)" "$t_ok"
 slog main-1 "${t_on[@]}" "$(A 10)" "$(no_budget 't()')" "$t_bad"
 printf 'main-1: the bench failed\n' > "$tmp/s/load.txt"
-judged 'a main log that fails an expectation that is no budget' 1 'NOT VERIFIED: main-1: the bench failed'
+judged 'a main log that fails an expectation that is no budget' 0 'VERIFIED XBenchmark a' \
+  'note: main-1 failed its asserts after its report line; its samples count'
+slog main-1 "${t_on[@]}" "$(A 10)" '✘ Test t() recorded an issue at X.swift:9:1: Expectation failed: (elapsed → 130.2 seconds) <= .seconds(120)' "$t_bad"
+judged 'a main log that misses a time assert with no budget text' 0 'VERIFIED XBenchmark a' \
+  'note: main-1 failed its asserts after its report line; its samples count'
 slog main-1 "${t_on[@]}" "$(A 10)" "$t_ok"
 judged 'a failed main log with no failed test' 1 'NOT VERIFIED: main-1: the bench failed'
 # A parameterized test prints its issue line with its arguments before the source location: its

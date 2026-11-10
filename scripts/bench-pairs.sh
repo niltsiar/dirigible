@@ -19,13 +19,14 @@
 # the compare. A set with no complete main and branch pair prints NO VERDICT and exits 1 before any
 # other line. Exit 1 when a case is
 # NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
-# log with samples and a report line of 1 test or more whose failed tests (each `✘ Test <name>
-# recorded an issue` line, also with the arguments of a parameterized test) have budget issues only
-# (`budget →` after `(` or `.`) prints a note, and its samples count. An aa or main log needs 1 failed
-# test or more (a miss that the branch fixes). A branch log (a miss that main shares) needs each failed
-# expectation (its test and the source line of its issue) to fail in an aa or main log too, and each
-# failed test to print a case (a line read between its started and end lines) that the test prints in
-# each aa and main log; with no failed test or no such case it prints NO VERDICT and exits 1.
+# log with samples, a report line of 1 test or more, and 1 failed test or more (each `✘ Test <name>
+# recorded an issue` line, also with the arguments of a parameterized test) prints a note, and its
+# samples count. An aa or main log needs no more (a miss that the branch fixes: a bench can assert its
+# time with no budget word). A branch log (a miss that main shares) needs budget issues only
+# (`budget →` after `(` or `.`), each failed expectation (its test and the source line of its issue)
+# to fail in an aa or main log too, and each failed test to print a case (a line read between its
+# started and end lines) that the test prints in each aa and main log; with no failed test or no such
+# case it prints NO VERDICT and exits 1.
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
@@ -172,9 +173,9 @@ def budget_miss(name):
             re.search(r'Test run with [1-9]', l) for l in open(path, errors='replace'))):
         return None
     failed, cases = runner(path)
-    if any(not re.search(r'[(.]budget →', l) for issues in failed.values() for l in issues): return None
     if not name.startswith('branch-'):
         return f'note: {name} failed its asserts after its report line; its samples count' if failed else None
+    if any(not re.search(r'[(.]budget →', l) for issues in failed.values() for l in issues): return None
     others = [runner(p) for p in sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log'))]
     # An expectation is its test and the source line of its issue.
     def expectations(f):

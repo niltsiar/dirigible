@@ -2,7 +2,7 @@
 # Run the test suite (or the tests of a filter) under load: 2 x hw.ncpu busy processes, so a test
 # that waits on the wall clock fails the way it does in a busy push check. The lane is the baseline
 # of red tests under load for the plan that makes tests independent of CPU load.
-# Usage: scripts/test-stress.sh [--runs <n>] [--filter '<names>'] <out folder>
+# Usage: scripts/test-stress.sh [--runs <n>] [--filter '<names>'] [--sync-load] <out folder>
 # The script takes the build lock itself, as scripts/flake-monitor/loop.sh does (the
 # DIRIGIBLE_LOCKED_SCRIPT marker), with WITH_LOCK_MAX_WAIT=0 and, unless the caller sets it,
 # WITH_LOCK_MAX_HOLD=6600: one call holds the lock for at most 6600 s, under the 7200 s limit of a
@@ -22,8 +22,14 @@
 # Each lane process stays in the process group of this script, which with-lock.sh starts as a group
 # leader. INT or TERM is ignored by the trap, which sends TERM to the group, waits for loop.sh, and
 # exits 130 or 143, so the lock goes after the last lane process. A KILL of the outer with-lock.sh
-# leaves the group alive with the lock held, as for any with-lock.sh command. The EXIT trap stops
-# the busy processes.
+# leaves the group alive with the lock held, as for any with-lock.sh command. A guard process starts
+# with the busy processes and sends them TERM when its parent changes, so a KILL of this script
+# leaves no busy process. The EXIT trap stops the guard and the load, then the busy processes.
+# --sync-load adds a disk flush load. Before the busy processes, one pass writes 1 MiB at offset 0
+# of <out folder>/sync-load.bin and calls F_FULLFSYNC; when that fails (a volume with no support),
+# the call exits 2 before the first run. During the runs a load process repeats the pass, rewrites
+# the pass count in <out folder>/sync-load.count, and exits when its parent changes. The pids are in
+# <out folder>/load.pids, one "guard <pid>" or "load <pid>" line each.
 # After the runs it prints "test-stress: <name> red in <k> of <n> runs" for each failed test (most
 # reds first), "test-stress: run <i> ended with exit <code> and no failed test" for a run with a
 # nonzero exit and no failed test, "test-stress: the loop ended with exit <code> after <k> of <n>
@@ -33,13 +39,14 @@
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 args=("$@")
-runs=1 filter=""
-while [[ "${1:-}" == --runs || "${1:-}" == --filter ]]; do
+runs=1 filter="" sync=""
+while [[ "${1:-}" == --runs || "${1:-}" == --filter || "${1:-}" == --sync-load ]]; do
+    if [[ "$1" == --sync-load ]]; then sync=1; shift; continue; fi
     [[ $# -ge 2 ]] || break
     if [[ "$1" == --runs ]]; then runs="$2"; else filter="$2"; fi
     shift 2
 done
-usage="usage: scripts/test-stress.sh [--runs <n>] [--filter '<names>'] <out folder>"
+usage="usage: scripts/test-stress.sh [--runs <n>] [--filter '<names>'] [--sync-load] <out folder>"
 [[ $# -eq 1 && "$runs" =~ ^[1-9][0-9]{0,8}$ ]] || { echo "$usage" >&2; exit 2; }
 out="$1"
 
@@ -73,10 +80,46 @@ load() { sysctl -n vm.loadavg | awk '{print $2}'; }
 hold="${WITH_LOCK_MAX_HOLD:-0}"
 [[ -n "$filter" ]] || export TEST_SHARD_LIMIT=$((hold / runs / 2))
 
+# The disk flush pass on <file> while the parent is <pid>: one pass with a fourth argument, else
+# passes until the parent changes, with the pass count in <count file> after each one.
+sync_py='
+import fcntl, os, sys
+path, count, parent = sys.argv[1], sys.argv[2], int(sys.argv[3])
+fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o644)
+block, n = bytes(1 << 20), 0
+while os.getppid() == parent:
+    os.pwrite(fd, block, 0)
+    try:
+        fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+    except OSError as e:
+        sys.exit(f"F_FULLFSYNC: {e}")
+    n += 1
+    if len(sys.argv) > 4:
+        break
+    tmp = os.open(count + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+    os.write(tmp, f"{n}\n".encode())
+    os.close(tmp)
+    os.replace(count + ".tmp", count)
+'
+# The guard: TERM to each busy pid (the arguments after the parent pid) when the parent changes.
+guard_py='
+import os, signal, sys, time
+parent = int(sys.argv[1])
+while os.getppid() == parent:
+    time.sleep(0.2)
+for pid in sys.argv[2:]:
+    try:
+        os.kill(int(pid), signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+'
 busy=()
+helpers=()
 looppid=""
-stop_busy() {
+stop_lane() {
     local p
+    for p in ${helpers[@]+"${helpers[@]}"}; do kill "$p" 2>/dev/null; done
+    for p in ${helpers[@]+"${helpers[@]}"}; do wait "$p" 2>/dev/null; done
     for p in ${busy[@]+"${busy[@]}"}; do kill "$p" 2>/dev/null; done
     for p in ${busy[@]+"${busy[@]}"}; do wait "$p" 2>/dev/null; done
 }
@@ -88,14 +131,26 @@ terminated() {
 }
 trap 'terminated 130' INT
 trap 'terminated 143' TERM
-trap stop_busy EXIT
+trap stop_lane EXIT
 
+if [[ -n "$sync" ]] && ! python3 -I -c "$sync_py" "$out/sync-load.bin" "$out/sync-load.count" $$ once; then
+    echo "test-stress: --sync-load: the first disk flush pass failed in $out; run the lane on a volume that supports F_FULLFSYNC" >&2
+    exit 2
+fi
 : > "$out/busy.pids"
 for _ in $(seq $((2 * ncpu))); do
     yes > /dev/null &
     busy+=($!)
     echo $! >> "$out/busy.pids"
 done
+python3 -I -c "$guard_py" $$ "${busy[@]}" &
+helpers+=($!)
+echo "guard $!" > "$out/load.pids"
+if [[ -n "$sync" ]]; then
+    python3 -I -c "$sync_py" "$out/sync-load.bin" "$out/sync-load.count" $$ &
+    helpers+=($!)
+    echo "load $!" >> "$out/load.pids"
+fi
 made=""
 for _ in $(seq 36); do
     if awk -v l="$(load)" -v m="$ncpu" 'BEGIN { exit !(l >= m) }'; then made=1; break; fi

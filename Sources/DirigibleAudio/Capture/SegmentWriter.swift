@@ -26,9 +26,11 @@ final class SegmentWriter {
     private var sidecarDescriptor: Int32
     private var cafDescriptor: Int32
     private var byteOffset: Int64 = 0
-    /// Tests only: the CAF appends, and the frames of the largest one.
-    private(set) var appends = 0
-    private(set) var largestAppend = 0
+    #if DEBUG
+        /// Tests only: the CAF appends, and the frames of the largest one.
+        private(set) var appends = 0
+        private(set) var largestAppend = 0
+    #endif
 
     /// Writes and flushes the magic and the header before it makes the CAF, so a CAF with frames
     /// always has a header.
@@ -69,8 +71,10 @@ final class SegmentWriter {
     func write(_ interleaved: UnsafeBufferPointer<Float>, frames: Int) throws(CaptureError) {
         precondition(interleaved.count * 4 >= frames * bytesPerFrame, "The buffer holds the frames")
         guard let audioFile, frames > 0, let base = interleaved.baseAddress else { return }
-        appends += 1
-        largestAppend = max(largestAppend, frames)
+        #if DEBUG
+            appends += 1
+            largestAppend = max(largestAppend, frames)
+        #endif
         let asked = UInt32(frames * bytesPerFrame)
         var size = asked
         let status = AudioFileWriteBytes(audioFile, false, byteOffset, &size, base)

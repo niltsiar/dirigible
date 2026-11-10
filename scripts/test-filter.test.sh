@@ -227,8 +227,8 @@ FAKE_LIST="$tmp/empty" FAKE_STARTED=$'◇ Suite ClipTests started.' FAKE_STARTED
 # started line fails. The full name of a test keeps its argument labels, as the ID and the line do.
 printf 'DirigibleTests.S/a()\nDirigibleTests.S/b()\n' > "$tmp/list-skip"
 printf 'DirigibleTests.S/a(x:)\n' > "$tmp/list-label"
-# only_skipped <name> <names> [<option>]: the last run exits 1 with the refusal and its hint, and
-# makes one list call.
+# only_skipped <case> <names>: the last run exits 1 with the refusal and its hint, and makes one
+# list call.
 only_skipped() {
   [[ $code -eq 1 ]] || fail "$1: expected exit 1, got $code: $out"
   grep -qxF "test-filter: only skipped tests match $2" <<<"$out" || fail "$1: no refusal line: $out"

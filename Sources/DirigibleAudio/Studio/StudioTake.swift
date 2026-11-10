@@ -210,9 +210,6 @@ extension Studio {
         // A stop before T gives 0 s.
         let seconds = session.recording.map { Double(now - min(now, $0.takeStartHostTimeNanos)) / 1e9 }
         for writer in writers.values { writer.end(atHostNanos: now) }
-        // After the take end, so the Player stop does not make the take longer. The playhead of a
-        // stop before T is T (decision 0070).
-        if let recording = session.recording, recording.isPreRoll { await endPreRoll(at: recording.playheadFrame) }
         // A writer that never attached holds no audio, so the stop does not wait for it; its queued
         // finish runs after its attach returns. The start step returns at once.
         let abandoned = writers.values.filter { $0.abandon() }
@@ -220,9 +217,11 @@ extension Studio {
             writer.finishLater()
             environment.log.note(.take, "abandoned", ["writer": .text(writer.name)])
         }
-        // Each finish starts now on its writer queue with no pool hop, so a main-actor hold or a
-        // full pool before the decision does not delay it.
+        // The deadline counts from `called`, so no await comes before each finish is on its queue.
         for writer in writers.values where !abandoned.contains(where: { $0 === writer }) { writer.finishLater() }
+        // After the take end, so the Player stop does not make the take longer. The playhead of a
+        // stop before T is T (decision 0070).
+        if let recording = session.recording, recording.isPreRoll { await endPreRoll(at: recording.playheadFrame) }
         startCut?.cut()
         let error = await serialized { () async -> StudioError? in
             let deadline = called + environment.stopLimit

@@ -173,6 +173,26 @@ struct StudioPreRollTests {
         #expect(ends.value?.count == 1 && end >= called && end < .max)
     }
 
+    /// The finish of each writer is on its queue before the Player stop starts, so a main-actor
+    /// hold or a full pool in that stop does not delay the finish past the stop deadline. A
+    /// barrier job on the writer queue runs after a finish that the stop queued before it.
+    @Test func stopQueuesTheWriterFinishesBeforeThePlayerStop() async throws {
+        let studio = try await studio()
+        let finished = LockedBox<[Bool]>()
+        studio.environment.beforePlayerStop = { @MainActor in
+            var done: [Bool] = []
+            for writer in studio.writers.values {
+                await writer.started()
+                done.append(writer.finishRecord != nil)
+            }
+            finished.value = done
+        }
+        try await studio.startRecording(armed: ["t1"], playhead: 96_000, preRoll: 1)
+        try await studio.stopRecording()
+
+        #expect(finished.value == [true], "finished at the Player stop: \(String(describing: finished.value))")
+    }
+
     /// Input from H_T - 0.5 s for 1 s: the clip starts at T with an offset of 0.5 s, and the stop
     /// ends the pre-roll play.
     @Test func stopAfterTStopsThePlayer() async throws {

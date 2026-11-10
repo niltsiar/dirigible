@@ -291,6 +291,8 @@ final class DeviceWriter: @unchecked Sendable {
             hasRecord = true
             hosts = (hosts?.first ?? record.hostTimeNanos, record.hostTimeNanos)
         }
+        // The level report reads only spans of frames that the files hold.
+        tracks.commit()
         dropped.wrappingIncrement(by: lost, ordering: .relaxed)
         if lost > 0 { drops.add(Int64(lost), at: .now) }
         wavByteCount.store(tracks.wavBytes, ordering: .relaxed)

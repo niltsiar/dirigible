@@ -2,10 +2,10 @@
 # Check each line that cost.sh prints for a fixture run folder: the phase blocks of decisions.tsv,
 # the check and bench logs and their repeats, the controls, the late on-screen findings, the missed
 # unknowns by result token, the critical findings of the review files, the friction rows by result
-# token, the run window, the agents, the workflows, and the idle gaps of a transcript in that window,
-# and the pace lines from a fake gh. Check the lines with no transcript, with a failed gh, and for a
-# folder with no logs/ and no controls/. Check that scripts/bench.sh prints its bench line before
-# the build.
+# token, the run window, the agents, the workflows, and the idle and wait gaps of a transcript in that
+# window, the tokens of the project sessions of the run, and the pace lines from a fake gh. Check
+# the lines with no transcript, with a failed gh, and for a folder with no logs/ and no controls/.
+# Check that scripts/bench.sh prints its bench line before the build.
 # Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -129,6 +129,7 @@ lock: no tree for the Branch or Worktree line of run.md
 agents: 3
 workflows: 1
 idle: 12 min in 1 gaps over 5 min
+wait: 0 min in 0 gaps
 subagents: none
 tokens: none
 pace: 2026-09-20-fixture open to merge 4.0 h
@@ -161,7 +162,7 @@ shuffled_want="$(sed -e 's/^agents: .*/agents: 0/' -e 's/^workflows: .*/workflow
 check 'records out of time order' "$shuffled_want" "$run" "$shuffled"
 
 no_transcript="$(sed -e 's/^agents: .*/agents: no transcript/' -e 's/^workflows: .*/workflows: no transcript/' -e 's/^idle: .*/idle: no transcript/' \
-  -e 's/^subagents: .*/subagents: no transcript/' -e 's/^tokens: .*/tokens: no transcript/' <<<"$want")"
+  -e 's/^wait: .*/wait: no transcript/' -e 's/^subagents: .*/subagents: no transcript/' -e 's/^tokens: .*/tokens: no transcript/' <<<"$want")"
 check 'no transcript' "$no_transcript" "$run"
 
 no_gh="$(grep -v '^pace: ' <<<"$no_transcript")
@@ -427,6 +428,76 @@ out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tok"
 want_tokens='tokens: claude-fable-5-1 in 7 out 70 cache-read 700 cache-write-5m 0 cache-write-1h 40
 tokens: claude-opus-5-5 in 16 out 152 cache-read 1503 cache-write-5m 104 cache-write-1h 205'
 [[ "$(grep '^tokens:' <<<"$out")" == "$want_tokens" ]] || fail "tokens: $(grep '^tokens:' <<<"$out")"
+
+# A T3 delegated task is an agent: each delegate_task call counts, and a task_status call does not.
+# A gap over 5 min while a delegated task, a background Bash, a background Agent, or a Workflow is open
+# is a wait, not idle. A task opens at its start result (a delegated task at the result of its
+# delegate_task call) and ends at its end text: "Delegated task <id> (<title>) [completed]:" or
+# "[failed]:", a task_cancel result "cancel_requested", or a <task-notification> of its task ID. A
+# t3_background_wait result ends no task. The texts are copies of real transcript lines.
+waits="$tmp/waits.jsonl"
+k1='node:delegated-task:command%3Amcp%3A2ecc20e1-9deb-4738-8d12-98980e61531f%3Adelegate-task%3A0e9039d3-bf45-4171-a0f1-36f0d03d45b6'
+k2='node:delegated-task:command%3Amcp%3A8466d4c3-6e97-4531-b777-2f72f873a90c%3Adelegate-task%3A85999f6b-0c71-4e74-b784-016983097293'
+k3='node:delegated-task:command%3Amcp%3A2ecc20e1-9deb-4738-8d12-98980e61531f%3Adelegate-task%3A62d8201d-8628-4ee2-a532-80dc880ccd30'
+# use <time> <id> <name>; res <time> <id> <content JSON>; note <time> <task id> (a queue record)
+use() { printf '{"type":"assistant","timestamp":"2026-09-20T%s:00.000Z","message":{"content":[{"type":"tool_use","id":"%s","name":"%s","input":{}}]}}\n' "$1" "$2" "$3"; }
+res() { printf '{"type":"user","timestamp":"2026-09-20T%s:00.000Z","message":{"role":"user","content":[{"tool_use_id":"%s","type":"tool_result","content":%s}]}}\n' "$1" "$2" "$3"; }
+note() { printf '{"type":"queue-operation","operation":"enqueue","timestamp":"2026-09-20T%s:00.000Z","content":"<task-notification>\\n<task-id>%s</task-id>\\n<tool-use-id>toolu_x</tool-use-id>\\n<status>completed</status>"}\n' "$1" "$2"; }
+{
+  u 2026-09-20T08:21:00.000Z '"go"'
+  use 08:22 toolu_01BLNQq76NNXqu1MKc97FZxG mcp__t3-code__delegate_task
+  res 08:22 toolu_01BLNQq76NNXqu1MKc97FZxG "\"{\\\"taskId\\\":\\\"$k1\\\",\\\"childThreadId\\\":\\\"thread:delegated-task:x\\\"}\""
+  use 08:24 toolu_019C9VUuni8egdDYsW4tYduG mcp__t3-code__t3_background_wait
+  res 08:24 toolu_019C9VUuni8egdDYsW4tYduG '"{\"matched\":[\"bxizxdc3s\"],\"unmatched\":[]}"'
+  u 2026-09-20T08:40:00.000Z "\"Delegated task $k1 (timeline-edits L2-S1 roll and slip drags) [completed]:\\nL2-S1 is committed as f055693f.\""
+  # A task_status result also starts with the taskId, but only a delegate_task result opens a task.
+  use 08:41 toolu_s mcp__t3-code__task_status
+  res 08:41 toolu_s "\"{\\\"taskId\\\":\\\"$k1\\\",\\\"status\\\":\\\"completed\\\"}\""
+  use 08:50 toolu_01ABZkwRy7eF8THZ4NDrTyYh Bash
+  res 08:50 toolu_01ABZkwRy7eF8THZ4NDrTyYh '"Command running in background with ID: bxizxdc3s. Output is being written to: /x/tasks/bxizxdc3s.output. You will be notified when it completes."'
+  note 09:00 bxizxdc3s
+  use 09:01 toolu_01SgaFvV753yRwiBYrNpWZ4M Agent
+  res 09:01 toolu_01SgaFvV753yRwiBYrNpWZ4M '[{"type":"text","text":"Async agent launched successfully. (This tool result is internal metadata.)\nagentId: ab3529b881c6fc4fa (internal ID - do not mention to user.)"}]'
+  u 2026-09-20T09:08:00.000Z '"<task-notification>\n<task-id>ab3529b881c6fc4fa</task-id>\n<tool-use-id>toolu_01SgaFvV753yRwiBYrNpWZ4M</tool-use-id>\n<status>completed</status>"'
+  use 09:09 toolu_01Q9sP6HjXSd4sX5RqSu6XXS Workflow
+  res 09:09 toolu_01Q9sP6HjXSd4sX5RqSu6XXS '"Workflow launched in background. Task ID: wzrk4dcga\nSummary: Lens review panel"'
+  note 09:15 wzrk4dcga
+  use 09:16 toolu_e mcp__t3-code__delegate_task
+  res 09:16 toolu_e "\"{\\\"taskId\\\":\\\"$k2\\\",\\\"childThreadId\\\":\\\"x\\\"}\""
+  use 09:22 toolu_01KGmKWryPnWyf1NVvAF5SJK mcp__t3-code__task_cancel
+  res 09:22 toolu_01KGmKWryPnWyf1NVvAF5SJK "\"{\\\"taskId\\\":\\\"$k2\\\",\\\"status\\\":\\\"cancel_requested\\\"}\""
+  use 09:23 toolu_f mcp__t3-code__delegate_task
+  res 09:23 toolu_f "\"{\\\"taskId\\\":\\\"$k3\\\",\\\"childThreadId\\\":\\\"x\\\"}\""
+  use 09:23 toolu_g mcp__t3-code__delegate_task
+  res 09:23 toolu_g "\"{\\\"taskId\\\":\\\"$k3-b\\\",\\\"childThreadId\\\":\\\"x\\\"}\""
+  # One message can hold several end texts, after other text.
+  u 2026-09-20T09:30:00.000Z "\"1 endpoint excluded.\\n\\nDelegated task $k3-b (Council H) [failed]:\\nNo model.\\n\\nDelegated task $k3 (S2 slice) [completed]:\\nDone.\""
+  # A TaskStop result ends a background Bash task.
+  use 09:31 toolu_h Bash
+  res 09:31 toolu_h '"Command running in background with ID: b9muzkwou. Output is being written to: /x/tasks/b9muzkwou.output."'
+  use 09:32 toolu_i TaskStop
+  res 09:32 toolu_i '"{\"message\":\"Successfully stopped task: b9muzkwou (make bench)\",\"task_id\":\"b9muzkwou\",\"task_type\":\"local_bash\"}"'
+  u 2026-09-20T09:40:00.000Z '"done"'
+} > "$waits"
+jq -e . "$waits" > /dev/null || fail "the wait fixture is not JSON lines"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$waits" 2>&1)" || fail "waits: exit $?: $out"
+grep -qxF 'agents: 5' <<<"$out" || fail "delegated agents: want agents: 5 (4 delegate_task calls and 1 Agent): $(grep '^agents' <<<"$out")"
+[[ "$(grep -E '^(workflows|idle|wait):' <<<"$out")" == $'workflows: 1\nidle: 17 min in 2 gaps over 5 min\nwait: 52 min in 6 gaps' ]] ||
+  fail "waits: want 16, 10, 7, 6, 6, and 7 min as wait and 9 and 8 min as idle: $(grep -E '^(workflows|idle|wait):' <<<"$out")"
+
+# The tokens also add each project session (a .jsonl next to the transcript) whose first user message
+# names the run folder, with no letter, digit, or hyphen after the name: a T3 delegated agent.
+mkdir "$tmp/proj"
+reply 2026-09-20T09:00:00.000Z r1 m1 '{"input_tokens":1,"output_tokens":10,"cache_read_input_tokens":100,"cache_creation_input_tokens":0}' > "$tmp/proj/lead.jsonl"
+{ u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture, slice S5."'
+  reply 2026-09-20T13:00:00.000Z r7 m7 '{"input_tokens":2,"output_tokens":20,"cache_read_input_tokens":200,"cache_creation_input_tokens":0}'
+} > "$tmp/proj/session-run.jsonl"
+{ u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture-2, slice 1."'
+  reply 2026-09-20T09:01:00.000Z r8 m8 '{"input_tokens":400,"output_tokens":400,"cache_read_input_tokens":400,"cache_creation_input_tokens":0}'
+} > "$tmp/proj/session-other.jsonl"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/proj/lead.jsonl" 2>&1)" || fail "sessions: exit $?: $out"
+[[ "$(grep '^tokens:' <<<"$out")" == 'tokens: claude-opus-5-5 in 3 out 30 cache-read 300 cache-write-5m 0 cache-write-1h 0' ]] ||
+  fail "sessions: want the lead and the session that names the run: $(grep '^tokens:' <<<"$out")"
 
 out="$("$cost" 2>&1)"
 code=$?

@@ -141,12 +141,12 @@ extension Studio {
                 continue
             }
             let record = writer.finishRecord
-            if let record {
-                noteFinished(writer, record, since: called, log)
+            if record != nil {
+                noteFinished(writer, since: called, log)
             } else {
                 Task { @concurrent in
                     await writer.finish()
-                    if let record = writer.finishRecord { noteFinished(writer, record, since: called, log) }
+                    noteFinished(writer, since: called, log)
                 }
             }
             if let record, record.at <= deadline {
@@ -173,7 +173,7 @@ extension Studio {
         var answered = false
         for entry in unfinishedWriters {
             let record = entry.writer.finishRecord
-            if let record { noteFinished(entry.writer, record, since: entry.called, environment.log) }
+            noteFinished(entry.writer, since: entry.called, environment.log)
             guard let record, record.at <= deadline else {
                 still.append(entry)
                 continue

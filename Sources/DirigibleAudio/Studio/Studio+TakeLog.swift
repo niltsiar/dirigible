@@ -70,11 +70,10 @@ extension Studio {
 }
 
 /// `take writer-finished` of `writer` with its WAV bytes and the ms from the stop call `called` to
-/// the end of its finish (`record`), for the stop and for Retry Finalize.
-func noteFinished(
-    _ writer: DeviceWriter, _ record: DeviceWriter.FinishRecord, since called: ContinuousClock.Instant,
-    _ log: DiagnosticLog
-) {
+/// the end of its finish, for the stop and for Retry Finalize: one line for each finish, from the
+/// first call after the finish ends.
+func noteFinished(_ writer: DeviceWriter, since called: ContinuousClock.Instant, _ log: DiagnosticLog) {
+    guard let record = writer.finishRecordToNote() else { return }
     let ms = DiagnosticValue.milliseconds((record.at - called) / .milliseconds(1))
     log.note(.take, "writer-finished", ["writer": .text(writer.name), "ms": ms, "wav": .number(writer.wavBytes)])
 }

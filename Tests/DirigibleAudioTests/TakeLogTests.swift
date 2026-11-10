@@ -186,8 +186,8 @@ struct TakeLogTests {
     }
 
     /// A writer whose finish waits past the stop deadline is named, and no finalize runs. The stop
-    /// writes the finish line of the writer when the writer answers, and Retry Finalize writes its
-    /// count, the finish line again, and the result. Both finish lines time from the stop call.
+    /// writes the finish line of the writer when the writer answers, timed from the stop call, and
+    /// Retry Finalize writes its count and the result, but no second finish line for that finish.
     @Test func aStopPastTheDeadlineNamesTheLateWriter() async throws {
         let hal = TestHAL([mic])
         let gate = Gate(limit: nil)
@@ -214,11 +214,11 @@ struct TakeLogTests {
         let lines = lines()
         #expect(fields(lines, "take\tretry-finalize")?["unfinished"] == "1", "\(events(lines))")
         #expect(has(lines, "take\tfinalized"), "\(events(lines))")
-        #expect(lines.filter(isMicFinished).count == 2, "\(events(lines))")
-        let retry = try #require(lines.firstIndex { $0.contains("\ttake\tretry-finalize") }, "\(events(lines))")
-        let retried = try #require(lines[retry...].first(where: isMicFinished), "\(events(lines))")
-        let ms = fieldValues(retried.split(separator: "\t", omittingEmptySubsequences: false).map(String.init))["ms"]
-        #expect((ms.flatMap(Double.init) ?? 0) >= 500, "\(retried)")
+        let finished = lines.filter(isMicFinished)
+        #expect(finished.count == 1, "\(events(lines))")
+        let late = try #require(finished.first, "\(events(lines))")
+        let ms = fieldValues(late.split(separator: "\t", omittingEmptySubsequences: false).map(String.init))["ms"]
+        #expect((ms.flatMap(Double.init) ?? 0) >= 500, "\(late)")
         await studio.settle()
     }
 

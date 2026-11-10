@@ -185,6 +185,16 @@ printf 'main-1: the bench failed\n' > "$tmp/s/load.txt"
 judged 'a main log that fails an expectation that is no budget' 1 'NOT VERIFIED: main-1: the bench failed'
 slog main-1 "${t_on[@]}" "$(A 10)" "$t_ok"
 judged 'a failed main log with no failed test' 1 'NOT VERIFIED: main-1: the bench failed'
+# A parameterized test prints its issue line with its arguments before the source location: its
+# failure is a failure of the log too.
+slog aa-2 "${t_on[@]}" "$(A 10.1)" "$t_ok"
+slog main-1 "${t_on[@]}" "$(A 10)" "$(miss 't()')" "$t_bad"
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$(miss 't()')" "$t_bad" '◇ Test q(x:) started.' \
+  '✘ Test q(x:) recorded an issue with 1 argument x → 2 at X.swift:3:1: Expectation failed: (count → 3) == 4' \
+  '✘ Test q(x:) with 2 test cases failed after 1.000 seconds with 1 issue.'
+printf 'main-1: the bench failed\nbranch-1: the bench failed\n' > "$tmp/s/load.txt"
+judged 'a parameterized failure next to a shared budget miss' 1 'NOT VERIFIED: branch-1: the bench failed'
+no_claim 'a parameterized failure next to a shared budget miss'
 
 # A case in each branch log and in no aa or main log has no main side: the compare names it, and the
 # exit stays. A case with a value in some logs of a side only, or on the main side only, gets no

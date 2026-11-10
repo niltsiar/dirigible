@@ -20,8 +20,8 @@
 # other line. Exit 1 when a case is
 # NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
 # log with samples and a report line of 1 test or more whose failed tests (each `✘ Test <name>
-# recorded an issue` line) have budget issues only (`budget →` after `(` or `.`) prints a note, and
-# its samples count. An aa or main log needs 1 failed test or more (a miss that the branch fixes). A
+# recorded an issue` line, also with the arguments of a parameterized test) have budget issues only
+# (`budget →` after `(` or `.`) prints a note, and its samples count. An aa or main log needs 1 failed test or more (a miss that the branch fixes). A
 # branch log (a miss that main shares) needs each failed test to fail in an aa or main log too, and
 # to print a case (a line read between its started and end lines) that the test prints in each aa
 # and main log; with no failed test or no such case it prints NO VERDICT and exits 1.
@@ -136,7 +136,7 @@ def scan(path):
             test = m.group(1); tests.setdefault(test, set()); continue
         if re.match(r'[✔✘] Test .+? (?:passed|failed) after', line):
             test = None; continue
-        m = re.match(r'✘ Test (.+?) recorded an issue at', line)
+        m = re.match(r'✘ Test (.+?) recorded an issue\b', line)
         if m:
             failed.setdefault(m.group(1), []).append(line); continue
         read_line = forms(line, suite)

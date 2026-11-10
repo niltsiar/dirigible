@@ -160,9 +160,7 @@ struct BatchedWriteTests {
         let smallInput = SyntheticInput(smallHAL, "duo")
         smallInput.play(records, pace: .realTime)
         await smallInput.wait()
-        await drained(smallHAL, "duo")
-        // A job on the writer queue after the drain that popped the last record.
-        await drains.started()
+        await drains.drainNow()
         for arm in [1, 2] {
             let caf = small.url.appending(path: "take1-\(arm)-3.caf")
             let size = try #require(try FileManager.default.attributesOfItem(atPath: caf.path)[.size] as? Int)

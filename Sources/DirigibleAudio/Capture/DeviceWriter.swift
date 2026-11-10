@@ -161,6 +161,19 @@ final class DeviceWriter: @unchecked Sendable {
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in queue.async { done.resume() } }
     }
 
+    #if DEBUG
+        /// Tests only: one drain on the queue now, so each record in the ring is in its file when
+        /// it returns.
+        func drainNow() async {
+            await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+                queue.async { [self] in
+                    drain()
+                    done.resume()
+                }
+            }
+        }
+    #endif
+
     /// A device listener passes its own `DeviceInput`; the device-list listener passes nil. A
     /// rate, layout, or IsAlive event from an input that is not the current one does nothing. A
     /// device-list handler reads the devices when it runs, so one queued handler serves each

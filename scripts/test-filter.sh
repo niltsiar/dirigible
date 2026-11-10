@@ -152,8 +152,7 @@ for i in ${unseen[@]+"${unseen[@]}"}; do
     [[ ${inCLI[$i]} -eq 1 ]] && grep -Eq -- "DirigibleCLITests.*${rx[$i]}" <<<"$cli_ids" && continue
     missing+=("${names[$i]}")
 done
-# A name whose matched tests each have a skipped line and none a started line ran no test. A test
-# is its full name: the part of its ID after the last / (after the module with no /).
+# A test is its full name: the part of its ID after the last / (after the module with no /).
 only=()
 if [[ -s "$skipped" ]]; then
     ran_tests="$(sed -nE 's/^◇ Test ([^ ]+) started\.$/\1/p' "$started")"

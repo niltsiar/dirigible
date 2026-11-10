@@ -100,6 +100,7 @@ A forward jump of 2 s or less gets silence, and the writer logs the gap. The nam
 ## Consequences
 
 - "No data loss" means: a process crash loses nothing that the writer wrote, and at most the frames that one drain holds (1 s of device frames plus one record for each track); a power loss or a kernel panic loses at most 5 s; an unplug loses the time until the device comes back.
+- A write error on a track loses the frames that the failed append holds (at most 1 s of device frames plus one record), and then the 1 s until the track reopens. The bytes that a full volume took for that append stay in the file, but no level span or checkpoint counts them.
 - A take uses double disk space (CAF and WAV) until the removal of 0071. After the removal, a take that passes the gate uses 3 bytes per sample and channel.
 - Hardware checks go in the run ledger as manual checks: two USB microphones for one hour (drift in ppm), a clap on two devices (alignment within 1 ms, latency sign), an unplug and replug, a rate change in Audio MIDI Setup during a take, `kill -9` during a four-track take, a forced power-off, 44.1 kHz and 48 kHz devices together, a full disk during a take and an open after space is freed, and `tccutil reset Microphone` before a take, and one hour on a Bluetooth headset that must stay one segment.
 

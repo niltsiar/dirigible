@@ -109,4 +109,59 @@ extension StartLimitTests {
         }
         await studio.settle()
     }
+
+    /// Retry Finalize that reads the finish record of a late writer before the late task of the
+    /// stop can run writes the one `take writer-finished` line, timed from the stop call. The stop
+    /// leaves `mic` late (its detach waits); then every pool thread is held, so the late task
+    /// cannot run, and a `Thread` opens the detach and starts the retry on the main actor when the
+    /// finish record exists. Slow: it holds the pool of the whole test process.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func aRetryBeforeTheLateTaskTimesTheFinishLineFromTheStopCall() async throws {
+        let hal = hal()
+        let gate = Gate(limit: nil)
+        let pool = PoolHold(jobs: 2 * ProcessInfo.processInfo.activeProcessorCount)
+        defer {
+            gate.open()
+            pool.release()
+        }
+        let logs = folder.url.appending(path: "logs")
+        let log = startLog(in: logs)
+        let studio = try await studio(hal, stop: .milliseconds(500))
+        studio.environment.log = log
+        try await studio.startRecording(armed: ["t1"], playhead: 0)
+        let writer = try #require(studio.writer("mic"))
+        hal.holdNextDetach(in: gate)
+        await #expect(throws: StudioError.writerDidNotStop("USB Mic")) { try await studio.stopRecording() }
+        #expect(micFinishedLines(log, in: logs).isEmpty, "a finish line before the detach ended")
+        let past = ContinuousClock.now
+
+        let retried = Gate(limit: Gate.openLimit)
+        let jobs = pool.fill()
+        let sentinelRan = OSAllocatedUnfairLock(initialState: false)
+        let ranBeforeRetry = OSAllocatedUnfairLock<Bool?>(initialState: nil)
+        let sentinel = Task { @concurrent in sentinelRan.withLock { $0 = true } }
+        Thread.detachNewThread {
+            Thread.sleep(forTimeInterval: 0.3)
+            gate.open()
+            let limit = Date(timeIntervalSinceNow: 5)
+            while writer.finishRecord == nil, Date() < limit { Thread.sleep(forTimeInterval: 0.001) }
+            // A task that is isolated to the main actor starts on it, with no pool thread.
+            Task { @MainActor in
+                _ = await studio.finishUnfinished(by: past)
+                ranBeforeRetry.withLock { $0 = sentinelRan.withLock { $0 } }
+                retried.open()
+            }
+            retried.waitOnce()
+            pool.release()
+        }
+        for job in jobs { await job.value }
+        await sentinel.value
+
+        #expect(ranBeforeRetry.withLock { $0 } == false, "the pool was not full until the retry ended")
+        let finished = micFinishedLines(log, in: logs)
+        #expect(finished.count == 1 && finished.allSatisfy { (Double($0["ms"] ?? "") ?? 0) >= 500 }, "\(finished)")
+        studio.environment.stopLimit = busy
+        try await studio.retryFinalize()
+        await studio.settle()
+    }
 }

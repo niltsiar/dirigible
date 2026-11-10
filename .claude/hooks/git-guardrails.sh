@@ -961,7 +961,7 @@ if [[ "$chained" =~ $bg_gate ]]; then
     fi
     bg_count "$bg_segments" "$bg_kept"
     if ((bg_jobs > 1)); then
-      block "runs $bg_jobs lock jobs in one background Bash call" "A second job can wait for the lock behind other work until the 2 h limit of the call stops it. Start one background call per lock job, and start the next job after the first one ends (AGENTS.md, Commands)."
+      block "runs $bg_jobs lock jobs in one background Bash call" "A second job can wait for the lock behind other work until the 2 h limit of the call stops it. Start one background call per lock job, and start the next job after the first one ends (see 'One background call runs one lock job' in .claude/hooks/git-guardrails.sh)."
     fi
   fi
 fi

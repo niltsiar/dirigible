@@ -86,7 +86,7 @@ Run the **deslop** skill in the last implementer agent. Phase 5 runs no test, an
 
 Before the gate, run `git fetch origin` and `scripts/check-changed.sh --overlap origin/main`, and read its lines: they are information and never stop the run. Then run `scripts/check-changed.sh origin/main`. When its classes or risk are higher than in the plan, go back to Phase 2 for the controls and the rounds, and log a row.
 
-Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table. Until the seat trial of 0028 (item 1115) closes, run its two seats at round 1.
+Run the **interrogate** skill with target `diff` and the lenses and rounds of the class table.
 
 Run no push check at the gate. Phase 7 runs the one push check, after the last gate fix.
 

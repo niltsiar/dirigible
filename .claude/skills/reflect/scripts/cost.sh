@@ -59,8 +59,9 @@
 #   cache-write-5m <w5> cache-write-1h <w1>`, for the replies of the transcript in the window and
 #   of the attributed subagents. Each reply counts once by message.id and requestId, and each
 #   usage.iterations entry counts under its own model (an advisor_message names the advisor). The
-#   lines also add each other .jsonl next to the transcript (the session of a T3 delegated agent)
-#   whose first user message names the run folder, as for the subagents.
+#   lines also add each other .jsonl next to the transcript (the session of a T3 delegated agent;
+#   the transcript is compared by its resolved path) whose first user message names the run folder
+#   and whose time span overlaps the subagent window, as for the subagents.
 # - pace: open to merge, when run.md names a pull request that gh lists as merged; the merges
 #   on each of the last 10 days with a merge (local dates).
 # cost.test.sh tests it.
@@ -151,6 +152,8 @@ else
     from="$(stat -f %B "$run")" to="$(date +%s)"
 fi
 echo "window: ${first:-$open} to ${last:-now}"
+since="$(stat -f %B "$run")"
+((since < from)) || since="$from"
 # The lock minutes of the trees of the run: the worktree of each `- Branch:` line and each
 # `- Worktree:` line. The logs hold local ISO times and the tree of each call.
 checkout="$(git -C "$run" rev-parse --show-toplevel 2>/dev/null || echo "$run")"
@@ -229,8 +232,7 @@ if [[ -z "$transcript" || ! -f "$transcript" ]]; then
 elif [[ ! -d "${transcript%.jsonl}/subagents" ]]; then
     echo "subagents: none"
 else
-    other=0 since="$(stat -f %B "$run")"
-    ((since < from)) || since="$from"
+    other=0
     while IFS= read -r f; do
         start="$(jq -r -s 'def text: if type == "string" then . else ([.[]? | objects | select(.type == "text") | .text] | join(" ")) end;
             def t: .timestamp | sub("\\.[0-9]+Z$"; "Z") | (fromdateiso8601? // 0) | tostring;
@@ -272,12 +274,15 @@ else
         | [$m.id, $r, ($u.model // $m.model // "unknown"), ($u.input_tokens // 0), ($u.output_tokens // 0),
            ($u.cache_read_input_tokens // 0), (($u.cache_creation_input_tokens // 0) - $w1), $w1, $i] | @tsv'
     # The sessions of the project (a T3 delegated agent): first() stops jq at the first user message.
-    sessions=()
-    for f in "$(dirname "$transcript")"/*.jsonl; do
-        [[ -f "$f" && "$f" != "$transcript" ]] || continue
+    sessions=() lead="$(cd "$(dirname "$transcript")" && pwd -P)/$(basename "$transcript")"
+    for f in "$(dirname "$lead")"/*.jsonl; do
+        [[ -f "$f" && "$f" != "$lead" ]] || continue
         first="$(jq -r -n 'first(inputs | select(.type == "user")) | .message.content
             | if type == "string" then . else ([.[]? | objects | select(.type == "text") | .text] | join(" ")) end' "$f" 2>/dev/null || true)"
-        ! grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"$first" || sessions+=("$f")
+        grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"$first" || continue
+        span="$(jq -r 'select(.timestamp) | .timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601? // empty' "$f" 2>/dev/null | sed -n '1p;$p' | xargs || true)"
+        t0="${span%% *}" t1="${span##* }"
+        if [[ "$t0" =~ ^[0-9]+$ && "$t1" =~ ^[0-9]+$ ]] && ((t0 <= to && t1 >= since)); then sessions+=("$f"); fi
     done
     {
         jq -r --argjson from "$from" --argjson to "$to" --argjson all false "$rows" "$transcript"

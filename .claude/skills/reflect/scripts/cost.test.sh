@@ -488,7 +488,10 @@ grep -qxF 'agents: 5' <<<"$out" || fail "delegated agents: want agents: 5 (4 del
 # The tokens also add each project session (a .jsonl next to the transcript) whose first user message
 # names the run folder, with no letter, digit, or hyphen after the name: a T3 delegated agent.
 mkdir "$tmp/proj"
-reply 2026-09-20T09:00:00.000Z r1 m1 '{"input_tokens":1,"output_tokens":10,"cache_read_input_tokens":100,"cache_creation_input_tokens":0}' > "$tmp/proj/lead.jsonl"
+{ u 2026-09-20T08:59:00.000Z '"Open run 2026-09-20-fixture."'
+  reply 2026-09-20T09:00:00.000Z r1 m1 '{"input_tokens":1,"output_tokens":10,"cache_read_input_tokens":100,"cache_creation_input_tokens":0}'
+  reply 2026-09-20T12:00:00.000Z r9 m9 '{"input_tokens":50,"output_tokens":50,"cache_read_input_tokens":50,"cache_creation_input_tokens":0}'
+} > "$tmp/proj/lead.jsonl"
 { u 2026-09-20T09:00:00.000Z '"Run 2026-09-20-fixture, slice S5."'
   reply 2026-09-20T13:00:00.000Z r7 m7 '{"input_tokens":2,"output_tokens":20,"cache_read_input_tokens":200,"cache_creation_input_tokens":0}'
 } > "$tmp/proj/session-run.jsonl"
@@ -498,6 +501,18 @@ reply 2026-09-20T09:00:00.000Z r1 m1 '{"input_tokens":1,"output_tokens":10,"cach
 out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/proj/lead.jsonl" 2>&1)" || fail "sessions: exit $?: $out"
 [[ "$(grep '^tokens:' <<<"$out")" == 'tokens: claude-opus-5-5 in 3 out 30 cache-read 300 cache-write-5m 0 cache-write-1h 0' ]] ||
   fail "sessions: want the lead and the session that names the run: $(grep '^tokens:' <<<"$out")"
+# A session counts only when its time span overlaps the window, as a subagent: a later session that
+# names the run (a ledger chore the next day) adds nothing. The lead transcript given as a relative
+# path is the lead, not a session: its reply outside the window adds nothing.
+{ u 2026-09-21T10:00:00.000Z '"Fix the ledger of run 2026-09-20-fixture."'
+  reply 2026-09-21T10:01:00.000Z r10 m10 '{"input_tokens":600,"output_tokens":600,"cache_read_input_tokens":600,"cache_creation_input_tokens":0}'
+} > "$tmp/proj/session-later.jsonl"
+out="$(cd "$tmp" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" "$tmp/proj/lead.jsonl" 2>&1)" || fail "later session: exit $?: $out"
+[[ "$(grep '^tokens:' <<<"$out")" == 'tokens: claude-opus-5-5 in 3 out 30 cache-read 300 cache-write-5m 0 cache-write-1h 0' ]] ||
+  fail "sessions: a session after the window adds nothing: $(grep '^tokens:' <<<"$out")"
+out="$(cd "$tmp/proj" && PATH="$bin:$PATH" GH_LOG="$tmp/gh.log" "$cost" "$run" lead.jsonl 2>&1)" || fail "relative transcript: exit $?: $out"
+[[ "$(grep '^tokens:' <<<"$out")" == 'tokens: claude-opus-5-5 in 3 out 30 cache-read 300 cache-write-5m 0 cache-write-1h 0' ]] ||
+  fail "sessions: a relative transcript path is the lead, not a session: $(grep '^tokens:' <<<"$out")"
 
 out="$("$cost" 2>&1)"
 code=$?

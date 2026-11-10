@@ -242,17 +242,30 @@ forms=(
 )
 for f in aa-1 aa-2 main-1 branch-1; do slog "$f" "${forms[@]}"; done
 judged 'each time line form' 0
+# A max or a single time is one sample for each run: no pair verdict (below).
 while IFS='|' read -r c v; do
-  grep -A1 -xF "VERIFIED $c" <<< "$out" | grep -qF "per pair: $v/$v; A/A $v/$v" || fail "form case \"$c\" with $v ms: $out"
+  grep -qxF "NO PAIR RULE $c: one sample for each run (main $v $v $v; branch $v); judge it by its absolute budget" <<< "$out" ||
+    fail "single-sample form case \"$c\" with $v ms: $out"
 done <<'EOF'
-EditBenchmark nudge of 1,000 clips on 8 tracks|12.30
-SnapSearchBenchmark fit|2.00
 LiveTakeBenchmark width step, fit|7.50
 HeaderDragBenchmark rows, fit, one-off|5.50
 TranscribeBenchmark 1 h of Spanish|95500.00
 WhisperEngineBenchmark C10 30 s vad true at 0.5: stop to return|300.00
 ExportBenchmark 600 s of 8 tracks to AAC 256|3250.00
 LoudnessExportBenchmark 600 s of 8 tracks to WAV 1 with podcast|4500.00
+AutoLevelBenchmark 4 clips of 2 h|1250.00
+ReadBenchmark silences of 66.5 min|500.00
+ReadBenchmark nearest pause|250.00
+SessionFileBenchmark ride fixture 4 open|100.00
+SessionFileBenchmark ride fixture 4 save|200.00
+SessionFileBenchmark ride fixture 4 adds save|70.00
+FinalizeBenchmark finalize|750.00
+EOF
+while IFS='|' read -r c v; do
+  grep -A1 -xF "VERIFIED $c" <<< "$out" | grep -qF "per pair: $v/$v; A/A $v/$v" || fail "form case \"$c\" with $v ms: $out"
+done <<'EOF'
+EditBenchmark nudge of 1,000 clips on 8 tracks|12.30
+SnapSearchBenchmark fit|2.00
 TranscriptSaveBenchmark edit|11.00
 TranscriptSaveBenchmark autosave|12.00
 TranscriptSaveBenchmark words change save|13.00
@@ -262,20 +275,26 @@ TranscriptTextBenchmark off-main build|30.00
 TranscriptTextBenchmark drag step|1.50
 TranscriptTextBenchmark Shift-Right move from 40 units|1.60
 TranscriptTextBenchmark from 27000 27000 units|1.70
-AutoLevelBenchmark 4 clips of 2 h|1250.00
-ReadBenchmark silences of 66.5 min|500.00
-ReadBenchmark nearest pause|250.00
 LiveLoudnessBenchmark a step at 2 h|0.60
 DiagnosticLogBenchmark a journal note mean|0.05
 DiagnosticLogBenchmark a journal note p99|0.15
-SessionFileBenchmark ride fixture 4 open|100.00
-SessionFileBenchmark ride fixture 4 save|200.00
-SessionFileBenchmark ride fixture 4 adds save|70.00
-FinalizeBenchmark finalize|750.00
 LaneRenderBenchmark dense envelope, fit|7.79
 EOF
 n="$(grep -cE '^(VERIFIED|INCONCLUSIVE|NOT VERIFIED|NO )' <<< "$out")"
 [[ "$n" -eq 28 ]] || fail "each time line form: 28 verdict lines, not $n: $out"
+
+# One sample for each run is no p95: the 10 % or 1 ms rule would judge noise, so a case with one
+# sample gets no pair verdict and the exit stays. A p95 case next to it keeps the rule.
+mkdir "$tmp/one"
+pset=one
+M() { printf 'LiveTakeBenchmark hand-off, fit: max %s seconds' "$1"; }
+one='NO PAIR RULE LiveTakeBenchmark hand-off, fit: one sample for each run (main 10.00 10.00 10.00 10.00; branch 15.00 15.00); judge it by its absolute budget'
+for f in aa-1 aa-2 main-1 main-2; do slog "$f" "$(A 10)" "$(M 0.010)"; done
+for f in branch-1 branch-2; do slog "$f" "$(A 10.2)" "$(M 0.015)"; done
+judged 'a single-sample case 50 % over main' 0 "$one" 'VERIFIED XBenchmark a'
+[[ "$out" != *'VERIFIED LiveTakeBenchmark'* ]] || fail "a single-sample case gets no pair verdict: $out"
+for f in branch-1 branch-2; do slog "$f" "$(A 15)" "$(M 0.015)"; done
+judged 'a p95 case 50 % over main next to a single-sample case' 1 'NOT VERIFIED XBenchmark a' "$one"
 
 # A time line in a suite that no form reads gets no verdict: the compare names the line once, each
 # number as N. A line with no time and a runner line (✘, ↳) are no such line.

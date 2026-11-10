@@ -30,11 +30,15 @@
 # the call exits 2 before the first run. During the runs a load process repeats the pass, waits
 # 25 ms after each one (at most 40 flushes a second and few bytes: the flush is the load), rewrites
 # the pass count in <out folder>/sync-load.count, and exits when its parent changes. The pids are in
-# <out folder>/load.pids, one "guard <pid>" or "load <pid>" line each.
+# <out folder>/load.pids, one "guard <pid>" or "load <pid>" line each. After the runs, a load
+# process that is dead (a failed flush, or a TERM) means the lane did not have the load for all
+# its runs: the call prints "test-stress: the sync load stopped after <n> passes" (<n> is the last
+# count) as its last line and exits 2. The busy processes get no such check: each is a `yes` that
+# ends only on a signal, and loop.sh --min-load stops the runs when the load average falls.
 # After the runs it prints "test-stress: <name> red in <k> of <n> runs" for each failed test (most
 # reds first), "test-stress: run <i> ended with exit <code> and no failed test" for a run with a
 # nonzero exit and no failed test, "test-stress: the loop ended with exit <code> after <k> of <n>
-# runs" for a loop that stopped early, and last "test-stress: <t> red tests in <n> runs at a 1-minute
+# runs" for a loop that stopped early, and "test-stress: <t> red tests in <n> runs at a 1-minute
 # load of <l>" (<l> is the lowest load at the start of a run). The exit is 0 only with no such line.
 # scripts/test-stress.test.sh tests it.
 set -uo pipefail
@@ -118,6 +122,7 @@ for pid in sys.argv[2:]:
 busy=()
 helpers=()
 looppid=""
+loadpid=""
 stop_lane() {
     local p
     for p in ${helpers[@]+"${helpers[@]}"}; do kill "$p" 2>/dev/null; done
@@ -151,6 +156,7 @@ echo "guard $!" > "$out/load.pids"
 if [[ -n "$sync" ]]; then
     python3 -I -c "$sync_py" "$out/sync-load.bin" "$out/sync-load.count" $$ &
     helpers+=($!)
+    loadpid=$!
     echo "load $!" >> "$out/load.pids"
 fi
 made=""
@@ -195,4 +201,8 @@ if [[ $code -ne 0 && $lines -lt $runs ]]; then
 fi
 IFS=$'\t' read -r _ total low < <(grep '^TOTAL' "$out/table.tsv")
 echo "test-stress: $total red tests in $runs runs at a 1-minute load of $low"
+if [[ -n "$loadpid" ]] && ! kill -0 "$loadpid" 2>/dev/null; then
+    echo "test-stress: the sync load stopped after $(cat "$out/sync-load.count" 2>/dev/null || echo 0) passes"
+    exit 2
+fi
 exit "$status"

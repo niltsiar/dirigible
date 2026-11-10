@@ -10,7 +10,7 @@
 # goes), the table of red tests (most reds first, a run with an exit and no failed test, a loop that
 # stops early), the exit status, the disk flush load of --sync-load (a live load, one 4 KiB file, a
 # counter that rises by 100 or fewer in 2 s, no load or guard process after the exit, exit 2 when
-# F_FULLFSYNC fails), and a KILL of the script (no busy, load, or guard process lives). Run by
+# F_FULLFSYNC fails, and exit 2 with a message when the load stops during the runs), and a KILL of the script (no busy, load, or guard process lives). Run by
 # `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -235,6 +235,28 @@ code=$?
 load="$(role load "$dir")" guard="$(role guard "$dir")"
 [[ -n "$load" && -n "$guard" ]] && gone "$load" "$guard" $(cat "$dir/busy.pids" 2>/dev/null) ||
   fail "sync load: no load or guard pid, or a process lives 5 s after the exit: [$(cat "$dir/load.pids" 2>/dev/null)]"
+
+# A load that stops during the runs (here a TERM to the load pid): the lane exits 2 and names the
+# passes that the load made. The runs go on, so the table of red tests still prints first.
+dir="$tmp/loadstop"
+mkdir -p "$dir"
+(STRESS_SLEEP=4 STRESS_OUT="$dir" PATH="$tmp/bin:$PATH" exec "$stress" --sync-load "$dir" > "$tmp/loadstop.out" 2>&1) &
+caller=$!
+pids="$pids $caller"
+for _ in $(seq 100); do [[ -s "$dir/make.pid" && -s "$dir/sync-load.count" ]] && break; /bin/sleep 0.1; done
+load="$(role load "$dir")"
+if [[ -n "$load" && -s "$dir/sync-load.count" ]]; then
+  kill -TERM "$load"
+  gone "$load" || fail "load stop: the load lives after a TERM"
+  wait "$caller"
+  code=$?
+  stopped="$(cat "$dir/sync-load.count")"
+  [[ $code -eq 2 ]] && [[ "$(tail -1 "$tmp/loadstop.out")" == "test-stress: the sync load stopped after $stopped passes" ]] ||
+    fail "load stop: exit $code: $(cat "$tmp/loadstop.out")"
+else
+  fail "load stop: the load did not start: $(cat "$tmp/loadstop.out")"
+  kill -KILL "$caller" 2>/dev/null
+fi
 
 # A first F_FULLFSYNC that fails (a volume with no support; here a python3 whose fcntl fails): exit 2
 # with the out folder and the call, before a busy process or a run.

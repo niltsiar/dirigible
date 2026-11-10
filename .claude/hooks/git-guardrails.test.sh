@@ -1523,6 +1523,46 @@ grep -q '7200000' "$tmp/agent.err" && grep -q 'AGENTS.md' "$tmp/agent.err" ||
 expect_agent allow 'scripts/with-lock.sh make test-filter FILTER=X' true 7200000
 expect_agent allow 'scripts/with-lock.sh make test-filter FILTER=X'
 
+# One background call runs one lock job: a second job can wait for the lock behind other work until the
+# 2 h limit of the call stops it mid-run. Two jobs block at any timeout, also in a shell -c body and in
+# each shell context; a with-lock.sh prefix and the command it runs are one job, and a bare
+# bench-pairs.sh --compare takes no lock. Each release form holds one job, except the hooks pass that
+# runs a push check after it.
+bg_two_jobs=(
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh SessionFileBenchmark > a.log 2>&1; scripts/bench-pairs.sh /m X 3 out > b.log 2>&1'
+  'scripts/with-lock.sh make check-changed BASE=origin/main > c.log 2>&1 && scripts/land.sh "t" pr.md'
+  'bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh SessionFileBenchmark > a.log 2>&1; scripts/bench-pairs.sh /m X 3 out > b.log 2>&1"'
+  "(nohup sh -c 'scripts/with-lock.sh make dmg; scripts/land.sh t pr.md' > /dev/null 2>&1 &)"
+  'scripts/bench.sh X > a.log; scripts/with-lock.sh scripts/bench-pairs.sh --compare out'
+)
+bg_one_job=(
+  'scripts/bench-pairs.sh /m X 3 out > b.log 2>&1; scripts/bench-pairs.sh --compare out > c.log 2>&1'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh X > a.log 2>&1; scripts/bench-pairs.sh --compare out'
+  'bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh X > b.log 2>&1"'
+  'scripts/mutation-pass.sh wt batch.txt > m.log 2>&1'
+  '(nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=$(git merge-base HEAD origin/main) > l.log 2>&1; echo \"exit \$?\" > l.done" > /dev/null 2>&1 < /dev/null &)'
+  '(nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=`git merge-base HEAD origin/main` > l.log 2>&1" &)'
+  'make check-docs; make lint'
+)
+for job in "${bg_two_jobs[@]}"; do
+  expect block "$job" true 7200000
+  expect block "$job" true
+  expect allow "$job"
+  expect allow "$job" false 7200000
+done
+for job in "${bg_one_job[@]}"; do expect allow "$job" true 7200000; done
+expect_each_context block "${bg_two_jobs[0]}" true 7200000
+expect_each_context allow "${bg_two_jobs[0]}" true 7200000
+expect allow '(nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > l.log 2>&1; echo \"exit \$?\" > l.done" > /dev/null 2>&1 < /dev/null &)'
+for form in "${release_forms[@]}"; do
+  want=allow
+  [[ "$form" == *"then WITH_LOCK_MAX_WAIT=0"* ]] && want=block
+  expect "$want" "$form" true 7200000
+done
+expect_agent block "${bg_two_jobs[1]}" true 7200000
+grep -q 'one background call per lock job' "$tmp/agent.err" ||
+  { echo "FAIL: the two-job block does not say one background call per lock job"; failures=$((failures + 1)); }
+
 # A Bash call with no lock word makes no read of the two keys (hook latency, item 1222): a plutil shim
 # first in PATH logs each call. A lock-word call reads each key once.
 mkdir "$tmp/shim"

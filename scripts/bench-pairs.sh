@@ -10,16 +10,18 @@
 # Per case (the value of its form, in forms() below) the compare prints VERIFIED (no pair over the
 # rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread is over the rule, or
 # only some pairs are). A case in each branch log and in no aa or main log prints NO MAIN SIDE: judge
-# it by its absolute budget. A case with a value in only some logs of a side, or in no branch log,
-# prints NO VERDICT, and so does a time line in a suite that no form reads; each exits 1. These
-# lines print before a failure stops the compare. Exit 1 when a case is NOT VERIFIED, a log has no
-# sample, or a bench failed (load.txt), except for a budget miss: a failed log with samples and a
-# report line of 1 test or more whose failed tests (each `✘ Test <name> recorded an issue` line)
-# have budget issues only (`budget →` after `(` or `.`) prints a note, and its samples count. An aa
-# or main log needs 1 failed test or more (a miss that the branch fixes). A branch log (a miss that
-# main shares) needs each failed test to fail in an aa or main log too, and to print a case (a line
-# read between its started and end lines) that the test prints in each aa and main log; with no
-# failed test or no such case it prints NO VERDICT and exits 1.
+# it by its absolute budget. A case of a max or a single time (no p50, p95, p90, mean, or p99 on its
+# line) is one sample for each run, so the rule would judge noise: it prints NO PAIR RULE with its
+# values (main: the aa and main logs) and gets no verdict. A case with a value in only some logs of
+# a side, or in no branch log, prints NO VERDICT, and so does a time line in a suite that no form
+# reads; each exits 1. These lines print before a failure stops the compare. Exit 1 when a case is
+# NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
+# log with samples and a report line of 1 test or more whose failed tests (each `✘ Test <name>
+# recorded an issue` line) have budget issues only (`budget →` after `(` or `.`) prints a note, and
+# its samples count. An aa or main log needs 1 failed test or more (a miss that the branch fixes). A
+# branch log (a miss that main shares) needs each failed test to fail in an aa or main log too, and
+# to print a case (a line read between its started and end lines) that the test prints in each aa
+# and main log; with no failed test or no such case it prints NO VERDICT and exits 1.
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
@@ -207,7 +209,11 @@ worst, judged = 0, []
 main_side, branch_side = aa + [m for m, _ in pairs], [b for _, b in pairs]
 for case in sorted(set().union(*main_side, *branch_side)):
     on_main, on_branch = [case in c for c in main_side], [case in c for c in branch_side]
-    if all(on_main) and all(on_branch): judged.append(case)
+    if all(on_main) and all(on_branch):
+        if metric[case] not in ('max', 'time'): judged.append(case); continue
+        values = [' '.join(f'{c[case]:.2f}' for c in side) for side in (main_side, branch_side)]
+        print(f'NO PAIR RULE {case}: one sample for each run (main {values[0]}; branch {values[1]}); '
+              'judge it by its absolute budget')
     elif all(on_branch) and not any(on_main): print(f'NO MAIN SIDE {case}: judge it by its absolute budget')
     else:
         print(f'NO VERDICT {case}: a value on one side only'); worst = 1

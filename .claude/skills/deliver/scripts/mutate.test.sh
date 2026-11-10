@@ -117,6 +117,10 @@ check '5:NO TESTS' 'the test-filter marker of a run with no test' "$file" 'b = 1
   "echo 'test-filter: no test matched x' >&2; exit 1"
 check '5:NO TESTS' 'the test-filter marker with --expect' --expect 'x' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
   "echo 'test-filter: no test ID matches x'; exit 1"
+check '5:NO TESTS' 'the test-filter marker of a name with only skipped tests' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo 'test-filter: only skipped tests match x' >&2; exit 1"
+check '0:killed' 'a skipped test next to a started test that fails' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
+  "echo '➜ Test b() skipped.'; echo '◇ Test a() started.'; echo '✘ Test a() failed after 0.001 seconds.'; exit 1"
 check '0:killed' 'a failed test with no marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \
   "echo '✘ Test x() failed after 0.001 seconds.'; exit 1"
 check '0:killed' 'a test list failure is no marker' "$file" 'b = 1' 'b = 2' "$tmp/log" "$build" \

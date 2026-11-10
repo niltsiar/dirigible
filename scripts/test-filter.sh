@@ -13,6 +13,11 @@
 # "test-filter: no test ID matches <names>" for each name that no listed ID matches: process 1
 # takes the IDs that it does not skip, and process 2 the CLI IDs of a name that a CLI file has.
 # A list exit 75 gives exit 75. Any other list failure gives exit 1 and "test list failed".
+# A skipped line ("➜ Test <fn>(<labels>) skipped." or "skipped: "<comment>"") also makes the list
+# call. A name whose matched IDs each name a skipped test and no started test ran no test: exit 1
+# with "test-filter: only skipped tests match <names>" and a hint that names DIRIGIBLE_SLOW_TESTS=1.
+# The lines name no suite, so a skipped test and a started test of one function name in two suites
+# count as started.
 # A refused name that is the file name of a Swift file under Tests/ with no type of that name, and
 # whose extension blocks extend a suite, also gets a line "test-filter: <path> declares no suite
 # <name>; it extends <suite>: give FILTER the suite name <suite>" for each such suite (with --exact:
@@ -36,8 +41,8 @@ while [[ "${1:-}" =~ ^--(exact|no-parallel|skip-build)$ ]]; do
 done
 [[ $# -gt 0 ]] || { echo "usage: scripts/test-filter.sh [--exact] [--no-parallel] [--skip-build] <test or suite name>..." >&2; exit 2; }
 cd "$(dirname "$0")/.."
-out="$(mktemp)" started="$(mktemp)"
-trap 'rm -f "$out" "$started"' EXIT
+out="$(mktemp)" started="$(mktemp)" skipped="$(mktemp)"
+trap 'rm -f "$out" "$started" "$skipped"' EXIT
 
 # decl_awk: the awk function decl(line) returns the type name of a top-level struct, class, enum,
 # actor, or extension line at column 0 (attributes and modifiers can come first) and sets kind.
@@ -82,11 +87,13 @@ hint_suite() {
 
 ran=0 status=0
 # run <swift test arguments>: keeps the first nonzero swift status; sets ran when tests ran, and
-# adds the started lines of the test output to $started.
+# adds the started lines of the test output to $started and the full names of its skipped tests
+# to $skipped.
 run() {
     local code=0
     scripts/swift-test.sh "$@" 2>&1 | tee "$out" || code=$?
     grep -E '^◇ (Test|Suite) .* started\.$' "$out" | grep -vxF '◇ Test run started.' >> "$started" || true
+    sed -nE 's/^➜ Test ([^ ]+) skipped(\.|: ".*)$/\1/p' "$out" >> "$skipped"
     [[ $status -ne 0 ]] || status=$code
     { [[ $built -eq 1 ]] || grep -qF 'No matching test cases were run' "$out"; } && grep -qF 'Test run with 0 tests' "$out" || ran=1
 }
@@ -129,7 +136,7 @@ for i in "${!names[@]}"; do
         grep -qF -- "${names[$i]}" <<<"$shown" || unseen+=("$i")
     fi
 done
-[[ ${#unseen[@]} -gt 0 ]] || exit 0
+[[ ${#unseen[@]} -gt 0 || -s "$skipped" ]] || exit 0
 list_args=(test list --skip-build)
 [[ $built -eq 0 ]] || list_args+=(--disable-xctest)
 list_code=0
@@ -140,13 +147,30 @@ ids="$(grep -E '^[A-Za-z_][A-Za-z0-9_]*\.[^[:space:]]+$' <<<"$listing" || true)"
 p1_ids="$(grep -vE 'AppBundleTests|DiskImageTests|DirigibleCLITests' <<<"$ids" || true)"
 cli_ids="$(grep -E 'DirigibleCLITests' <<<"$ids" || true)"
 missing=()
-for i in "${unseen[@]}"; do
+for i in ${unseen[@]+"${unseen[@]}"}; do
     grep -Eq -- "${rx[$i]}" <<<"$p1_ids" && continue
     [[ ${inCLI[$i]} -eq 1 ]] && grep -Eq -- "DirigibleCLITests.*${rx[$i]}" <<<"$cli_ids" && continue
     missing+=("${names[$i]}")
 done
-[[ ${#missing[@]} -eq 0 ]] || {
+# A name whose matched tests each have a skipped line and none a started line ran no test. A test
+# is its full name: the part of its ID after the last / (after the module with no /).
+only=()
+if [[ -s "$skipped" ]]; then
+    ran_tests="$(sed -nE 's/^◇ Test ([^ ]+) started\.$/\1/p' "$started")"
+    for i in "${!names[@]}"; do
+        matched="$(grep -E -- "${rx[$i]}" <<<"$p1_ids" || true)"
+        [[ ${inCLI[$i]} -eq 0 ]] || matched+=$'\n'"$(grep -E -- "DirigibleCLITests.*${rx[$i]}" <<<"$cli_ids" || true)"
+        tests="$(awk 'NF { if (/\//) sub(/.*\//, ""); else sub(/^[^.]*\./, ""); print }' <<<"$matched")"
+        [[ -n $tests ]] && ! grep -qvxFf "$skipped" <<<"$tests" &&
+            ! grep -qxFf <(printf '%s\n' "$ran_tests") <<<"$tests" && only+=("${names[$i]}")
+    done
+fi
+if [[ ${#missing[@]} -gt 0 ]]; then
     echo "test-filter: no test ID matches ${missing[*]}" >&2
     for name in "${missing[@]}"; do hint_suite "$name"; done
-    exit 1
-}
+fi
+if [[ ${#only[@]} -gt 0 ]]; then
+    echo "test-filter: only skipped tests match ${only[*]}" >&2
+    echo "test-filter: a slow test skips unless DIRIGIBLE_SLOW_TESTS=1 is set; a skipped line with a comment gives the reason" >&2
+fi
+[[ ${#missing[@]} -eq 0 && ${#only[@]} -eq 0 ]] || exit 1

@@ -222,6 +222,35 @@ FAKE_LIST="$tmp/empty" FAKE_STARTED2=$'◇ Suite CLIWordTests started.' run test
 FAKE_LIST="$tmp/empty" FAKE_STARTED=$'◇ Suite ClipTests started.' FAKE_STARTED2=$'◇ Suite CLIWordTests started.' run tests tests ClipTests CLIWordTests
 [[ $code -eq 0 && ! -s "$tmp/log.list" ]] || fail "names that show in both processes: exit $code: $out"
 
+# A name whose tests all skip ran no test: a skipped line in the output makes the one list call, and
+# a name whose listed tests each have a skipped line ("skipped." or "skipped: <comment>") and no
+# started line fails. The full name of a test keeps its argument labels, as the ID and the line do.
+printf 'DirigibleTests.S/a()\nDirigibleTests.S/b()\n' > "$tmp/list-skip"
+printf 'DirigibleTests.S/a(x:)\n' > "$tmp/list-label"
+# only_skipped <name> <names> [<option>]: the last run exits 1 with the refusal and its hint, and
+# makes one list call.
+only_skipped() {
+  [[ $code -eq 1 ]] || fail "$1: expected exit 1, got $code: $out"
+  grep -qxF "test-filter: only skipped tests match $2" <<<"$out" || fail "$1: no refusal line: $out"
+  grep -q '^test-filter: .*DIRIGIBLE_SLOW_TESTS=1' <<<"$out" || fail "$1: no hint: $out"
+  [[ "$(wc -l < "$tmp/log.list" | tr -d ' ')" -eq 1 ]] || fail "$1: list calls: $(cat "$tmp/log.list")"
+}
+FAKE_LIST="$tmp/list-skip" FAKE_STARTED=$'◇ Suite S started.\n➜ Test a() skipped.\n➜ Test b() skipped.' run tests tests S
+only_skipped 'a suite whose tests all skip' S
+FAKE_LIST="$tmp/list-skip" FAKE_STARTED=$'◇ Suite S started.\n◇ Test a() started.\n➜ Test b() skipped.' run tests tests S
+[[ $code -eq 0 ]] || fail "a suite with one started and one skipped test: exit $code: $out"
+[[ "$(wc -l < "$tmp/log.list" | tr -d ' ')" -eq 1 ]] || fail "a suite with one started and one skipped test: list calls: $(cat "$tmp/log.list")"
+FAKE_LIST="$tmp/list-skip" FAKE_STARTED=$'◇ Suite S started.\n➜ Test a() skipped.' run tests tests --exact a
+only_skipped '--exact name of a skipped test' a
+FAKE_LIST="$tmp/list-label" FAKE_STARTED=$'◇ Suite S started.\n➜ Test a(x:) skipped.' run tests tests a
+only_skipped 'a skipped test with argument labels' a
+FAKE_LIST="$tmp/list-label" FAKE_STARTED=$'◇ Suite S started.\n➜ Test a(x:) skipped: "q"' run tests tests a
+only_skipped 'a skipped test with a comment' a
+# The lines name no suite: a started test of the same full name in another suite counts as started.
+printf 'DirigibleTests.S/a()\nDirigibleTests.U/a()\n' > "$tmp/list-two"
+FAKE_LIST="$tmp/list-two" FAKE_STARTED=$'◇ Suite S started.\n◇ Test a() started.\n◇ Suite U started.\n➜ Test a() skipped.' run tests tests S U
+[[ $code -eq 0 ]] || fail "one function name skipped in one suite and started in another: exit $code: $out"
+
 # A failed test or no test ran: the old exit stays and the script makes no list call.
 run fail tests ClipTests NoSuchTestName
 [[ $code -eq 1 && ! -s "$tmp/log.list" ]] || fail "a failed test: exit $code, list calls: $(cat "$tmp/log.list")"

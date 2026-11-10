@@ -341,9 +341,10 @@ def verdict(log, test_start, built, status, expected, build_status=None):
     # A filter that matches no test passes: that run proves nothing (SwiftPM and Swift Testing lines).
     if code == 1 and ('No matching test cases were run' in output or re.search(r'Test run with 0 tests', output)):
         result, code = 'NO TESTS', 5
-    # scripts/test-filter.sh exits 1 and prints one of these two lines for a name that ran no test.
+    # scripts/test-filter.sh exits 1 and prints one of these lines for a name that ran no test.
     # A FAIL: line is a shell test (test-filter.test.sh) that failed and may quote the script output.
-    if (result == 'killed' and re.search(r'^test-filter: no test (matched|ID matches) ', output, re.M)
+    if (result == 'killed'
+            and re.search(r'^test-filter: (no test (matched|ID matches)|only skipped tests match) ', output, re.M)
             and not re.search(r'^FAIL:', output, re.M)):
         result, code = 'NO TESTS', 5
     compared = []

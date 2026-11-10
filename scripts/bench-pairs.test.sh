@@ -347,6 +347,21 @@ for f in aa-1 aa-2 main-1; do slog "$f" "$(A 10)" "$(M 0.0167)"; done
 judged 'a set with no complete pair' 1 'NO VERDICT: no complete main and branch pair'
 [[ "$out" != *VERIFIED* && "$out" != *'NO PAIR RULE'* ]] || fail "a set with no complete pair gets no case verdict: $out"
 
+# Two tests of one log that print one case name (ExportBenchmark prints the same line for two AAC
+# tests) give one case for each test, named with its test.
+mkdir "$tmp/dup"
+pset=dup
+export_line() { printf 'ExportBenchmark: 600 s of 8 tracks to mix.m4a in %s seconds' "$1"; }
+for f in aa-1 aa-2 main-1 branch-1; do
+  a=3.25
+  [[ $f != branch-* ]] || a=5.0
+  slog "$f" '◇ Suite ExportBenchmark started.' '◇ Test a() started.' "$(export_line $a)" '✔ Test a() passed after 1.000 seconds.' \
+    '◇ Test b() started.' "$(export_line 4.5)" '✔ Test b() passed after 1.000 seconds.'
+done
+judged 'two tests that print one case name' 1 \
+  'NOT VERIFIED ExportBenchmark 600 s of 8 tracks to mix.m4a (a()): each branch value is over each main value (main 3250.00 3250.00 3250.00; branch 5000.00)' \
+  'NO PAIR RULE ExportBenchmark 600 s of 8 tracks to mix.m4a (b()): one sample for each run (main 4500.00 4500.00 4500.00; branch 4500.00); judge it by its absolute budget'
+
 # A time line in a suite that no form reads gets no verdict: the compare names the line once, each
 # number as N. A line with no time and a runner line (✘, ↳) are no such line.
 mkdir "$tmp/u"

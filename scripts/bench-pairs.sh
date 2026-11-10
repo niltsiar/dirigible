@@ -9,7 +9,8 @@
 #        scripts/bench-pairs.sh --compare <out folder>
 # Per case (the value of its form, in forms() below) the compare prints VERIFIED (no pair over the
 # rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread is over the rule, or
-# only some pairs are). A case in each branch log and in no aa or main log prints NO MAIN SIDE: judge
+# only some pairs are). A case name that two tests of a log print is one case for each test, named
+# "<name> (<test>)". A case in each branch log and in no aa or main log prints NO MAIN SIDE: judge
 # it by its absolute budget. A case of a max or a single time (no p50, p95, p90, mean, or p99 on its
 # line) is one sample for each run, so the rule would judge noise: it prints NO PAIR RULE with its
 # values (main: the aa and main logs) and gets no verdict, unless its smallest branch value is over
@@ -119,7 +120,7 @@ def forms(line, suite):
         return [(m.group(1).rstrip(':'), float(m.group(2)), 'time')]
     return []
 # A log: its cases ({name: ms}), its failed tests ({name: issue lines}), the cases of each test
-# (read between its started and end lines), and each time line in a suite that no form reads
+# ({test: {name: ms}}, read between its started and end lines), and each time line in a suite that no form reads
 # ((suite, the line with each number as N)).
 logs = {}
 def scan(path):
@@ -135,7 +136,7 @@ def scan(path):
             depth -= 1; continue
         m = re.match(r'◇ Test (.+?) started\.', line)
         if m:
-            test = m.group(1); tests.setdefault(test, set()); continue
+            test = m.group(1); tests.setdefault(test, {}); continue
         if re.match(r'[✔✘] Test .+? (?:passed|failed) after', line):
             test = None; continue
         m = re.match(r'✘ Test (.+?) recorded an issue\b', line)
@@ -151,7 +152,21 @@ def scan(path):
             unread.add((suite, re.sub(r'[0-9]+(?:\.[0-9]+)?(?:e-?[0-9]+)?', 'N', line)))
     logs[path] = cases, failed, tests, unread
     return logs[path]
-def read(path): return scan(path)[0]
+paths = sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log') + glob.glob(f'{folder}/branch-*.log'))
+# A name that two tests of a log print is one case for each test in each log: "<name> (<test>)".
+def two_tests(path):
+    names = [name for found in scan(path)[2].values() for name in found]
+    return {name for name in names if names.count(name) > 1}
+twice = set().union(*(two_tests(p) for p in paths))
+def read(path):
+    cases = dict(scan(path)[0])
+    for name in twice & cases.keys():
+        del cases[name]
+        for test, found in scan(path)[2].items():
+            if name in found:
+                cases[f'{name} ({test})'] = found[name]
+                metric[f'{name} ({test})'] = metric[name]
+    return cases
 def runner(path): return scan(path)[1:3]
 aa = [read(f'{folder}/aa-{n}.log') for n in (1, 2)]
 pairs = []
@@ -233,7 +248,6 @@ for case in sorted(set().union(*main_side, *branch_side)):
     elif all(on_branch) and not any(on_main): print(f'NO MAIN SIDE {case}: judge it by its absolute budget')
     else:
         print(f'NO VERDICT {case}: a value on one side only'); worst = 1
-paths = sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log') + glob.glob(f'{folder}/branch-*.log'))
 for suite, line in sorted(set().union(*(scan(p)[3] for p in paths))):
     print(f'NO VERDICT {suite}: the compare reads no case of the line "{line}"'); worst = 1
 if failed or no_verdict or empty or problems:

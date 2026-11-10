@@ -652,7 +652,17 @@ unset CHECK_PLAN_AT_PHASE4 ROW_AT
 # is refused: scripts/tag-release.sh needs an F-ID (DLV-196). The columns come from the header names.
 # landings <header> <row>...: a table and three slices: L1-S1 with a Support/ check, L1-S2 with a Tests/
 # check, and L2-S3 with the real Check line of run 2026-10-23-read-by-time, one Sources/ path moved after
-# a Tests/ path.
+# a Tests/ path. A fixture repo holds the script, check-sizes.sh, and the record of that line on
+# origin/main, and none of its Swift files, so the size and record rules pass at any size of the live files.
+repo="$tmp/landings-repo"
+mkdir -p "$repo/scripts" "$repo/docs/decisions" "$repo/.scratchpads/runs"
+cp "$script" "$(dirname "$script")/check-sizes.sh" "$repo/scripts/"
+echo record > "$repo/docs/decisions/0051-agent-manual.md"
+git -C "$repo" init -q && git -C "$repo" add . \
+  && git -C "$repo" -c user.name=t -c user.email=t@t -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -q -m one \
+  && git -C "$repo" update-ref refs/remotes/origin/main HEAD
+saved_script="$script" saved_run="$run"
+script="$repo/scripts/check-plan.sh" run="$repo/.scratchpads/runs/2026-10-23-read-by-time"
 cat > "$tmp/l2s3-check" <<'EOF'
 - Check: `scripts/check-changed.sh --paths <<<$'Sources/DirigibleCore/Backup.swift\nSources/DirigibleMCP/AgentManual.swift\nSources/DirigibleMCP/MCPToolTable.swift\nTests/DirigibleCLITests/AgentManualTests.swift\nSources/DirigibleCLI/BackupCommands.swift\nTests/DirigibleCLITests/BackupCommandTests.swift\ndocs/decisions/0051-agent-manual.md'`
 EOF
@@ -696,6 +706,7 @@ refuse 'a Slices heading with a suffix, a feat/ row with Lands none, and a Sourc
 landings "$HEAD6" '| L2 tester small items | L2-S1 to L2-S3 | `feat/tester-small-items` | no | 1 round | none |'
 printf '2026-10-01T10:00\t1\tstart\twhy\tevidence\tdone\n' > "$run/decisions.tsv"
 pass 'a run that started before the Landings rule'
+script="$saved_script" run="$saved_run"
 
 # A slice whose Check line names a Swift file near the size limit needs a Split line, before the first
 # phase 4 row (AGT-097). A fixture repo holds the script, check-sizes.sh, and Swift files of known

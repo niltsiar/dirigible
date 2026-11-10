@@ -25,9 +25,10 @@
 # leaves the group alive with the lock held, as for any with-lock.sh command. A guard process starts
 # with the busy processes and sends them TERM when its parent changes, so a KILL of this script
 # leaves no busy process. The EXIT trap stops the guard and the load, then the busy processes.
-# --sync-load adds a disk flush load. Before the busy processes, one pass writes 1 MiB at offset 0
+# --sync-load adds a disk flush load. Before the busy processes, one pass writes 4 KiB at offset 0
 # of <out folder>/sync-load.bin and calls F_FULLFSYNC; when that fails (a volume with no support),
-# the call exits 2 before the first run. During the runs a load process repeats the pass, rewrites
+# the call exits 2 before the first run. During the runs a load process repeats the pass, waits
+# 25 ms after each one (at most 40 flushes a second and few bytes: the flush is the load), rewrites
 # the pass count in <out folder>/sync-load.count, and exits when its parent changes. The pids are in
 # <out folder>/load.pids, one "guard <pid>" or "load <pid>" line each.
 # After the runs it prints "test-stress: <name> red in <k> of <n> runs" for each failed test (most
@@ -83,10 +84,10 @@ hold="${WITH_LOCK_MAX_HOLD:-0}"
 # The disk flush pass on <file> while the parent is <pid>: one pass with a fourth argument, else
 # passes until the parent changes, with the pass count in <count file> after each one.
 sync_py='
-import fcntl, os, sys
+import fcntl, os, sys, time
 path, count, parent = sys.argv[1], sys.argv[2], int(sys.argv[3])
 fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o644)
-block, n = bytes(1 << 20), 0
+block, n = bytes(4096), 0
 while os.getppid() == parent:
     os.pwrite(fd, block, 0)
     try:
@@ -100,6 +101,7 @@ while os.getppid() == parent:
     os.write(tmp, f"{n}\n".encode())
     os.close(tmp)
     os.replace(count + ".tmp", count)
+    time.sleep(0.025)
 '
 # The guard: TERM to each busy pid (the arguments after the parent pid) when the parent changes.
 guard_py='

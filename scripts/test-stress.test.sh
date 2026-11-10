@@ -8,9 +8,10 @@
 # call that holds the lock, and of an out folder with a summary.txt, a TERM to the
 # caller and to the child of the lock (the stub make and each busy process are dead when the lock
 # goes), the table of red tests (most reds first, a run with an exit and no failed test, a loop that
-# stops early), the exit status, the disk flush load of --sync-load (a live load, one 1 MiB file, a
-# counter that rises, no load or guard process after the exit, exit 2 when F_FULLFSYNC fails), and
-# a KILL of the script (no busy, load, or guard process lives). Run by `make test-hooks`.
+# stops early), the exit status, the disk flush load of --sync-load (a live load, one 4 KiB file, a
+# counter that rises by 100 or fewer in 2 s, no load or guard process after the exit, exit 2 when
+# F_FULLFSYNC fails), and a KILL of the script (no busy, load, or guard process lives). Run by
+# `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
@@ -195,12 +196,26 @@ for target in caller child; do
   wait "$caller" 2>/dev/null
 done
 
-# --sync-load: during the runs one load process writes 1 MiB at offset 0 of one file and calls
-# F_FULLFSYNC on each pass. The stub make sees it live, the file stays at 1 MiB, the counter file
-# rises, and no load, guard, or busy process lives 5 s after the exit.
+# --sync-load: during the runs one load process writes 4 KiB at offset 0 of one file, calls
+# F_FULLFSYNC, and sleeps 25 ms on each pass. The stub make sees it live, the file stays at 4 KiB,
+# the counter file rises by 100 or fewer in 2 s, and no load, guard, or busy process lives 5 s after
+# the exit. A python3 whose F_FULLFSYNC returns at once makes the pause the only limit on the rate.
+real_python="$(command -v python3)"
+mkdir -p "$tmp/fastsync"
+cat > "$tmp/fastsync/python3" <<EOF
+#!/bin/bash
+[[ "\$1 \$2" == '-I -c' ]] || exec "$real_python" "\$@"
+code="\$3"
+shift 3
+exec "$real_python" -I -c "import fcntl
+_real = fcntl.fcntl
+fcntl.fcntl = lambda fd, op, *a: 0 if op == fcntl.F_FULLFSYNC else _real(fd, op, *a)
+\$code" "\$@"
+EOF
+chmod +x "$tmp/fastsync/python3"
 dir="$tmp/sync"
 mkdir -p "$dir"
-(STRESS_SLEEP=3 STRESS_OUT="$dir" PATH="$tmp/bin:$PATH" exec "$stress" --sync-load "$dir" > "$tmp/sync.out" 2>&1) &
+(STRESS_SLEEP=6 STRESS_OUT="$dir" PATH="$tmp/fastsync:$tmp/bin:$PATH" exec "$stress" --sync-load "$dir" > "$tmp/sync.out" 2>&1) &
 caller=$!
 pids="$pids $caller"
 for _ in $(seq 100); do [[ -s "$dir/make.pid" ]] && break; /bin/sleep 0.1; done
@@ -210,7 +225,10 @@ first="$(passes)"
 /bin/sleep 0.5
 second="$(passes)"
 [[ $first -ge 3 && $second -gt $first ]] || fail "sync load: the counter did not rise: $first, then $second"
-[[ "$(stat -f %z "$dir/sync-load.bin" 2>/dev/null)" == 1048576 ]] || fail "sync load: the load file is not 1 MiB: $(ls -l "$dir" 2>&1)"
+[[ "$(stat -f %z "$dir/sync-load.bin" 2>/dev/null)" == 4096 ]] || fail "sync load: the load file is not 4 KiB: $(ls -l "$dir" 2>&1)"
+/bin/sleep 2
+third="$(passes)"
+[[ $((third - second)) -le 100 ]] || fail "sync load: the counter rose by $((third - second)) in 2 s, over the bound of 100"
 wait "$caller"
 code=$?
 [[ $code -eq 0 && -s "$dir/load-seen" ]] || fail "sync load: exit $code, or the test run saw no load: $(cat "$tmp/sync.out")"
@@ -220,7 +238,6 @@ load="$(role load "$dir")" guard="$(role guard "$dir")"
 
 # A first F_FULLFSYNC that fails (a volume with no support; here a python3 whose fcntl fails): exit 2
 # with the out folder and the call, before a busy process or a run.
-real_python="$(command -v python3)"
 mkdir -p "$tmp/nosync" "$tmp/o11"
 cat > "$tmp/nosync/python3" <<EOF
 #!/bin/bash

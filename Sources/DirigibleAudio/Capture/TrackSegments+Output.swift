@@ -45,6 +45,11 @@ extension TrackSegments {
             span = TrackSegments.union(span, start, end)
         }
 
+        /// Appends the frames to `writer` with one call.
+        func write(to writer: SegmentWriter) throws {
+            try samples.withUnsafeBufferPointer { try writer.write($0, frames: frames) }
+        }
+
         mutating func clear() {
             samples.removeAll(keepingCapacity: true)
             frames = 0
@@ -73,13 +78,11 @@ extension TrackSegments {
     /// Appends the held frames of output `index`. Only a whole append gives them a span and
     /// clears them; after a write error, `fail` clears them, so none counts as written.
     mutating func commit(_ index: Int) {
-        let held = outputs[index].held
-        guard held.frames > 0 else { return }
-        let wrote = write(index) { writer in
-            try held.samples.withUnsafeBufferPointer { try writer.write($0, frames: held.frames) }
-        }
-        guard wrote else { return }
-        if let span = held.span { extend(index, from: span.start, to: span.end) }
+        guard outputs[index].held.frames > 0, let writer = outputs[index].writer else { return }
+        // The append reads the stored samples with no copy, so the clear reuses their buffer.
+        let appended = Result { try outputs[index].held.write(to: writer) }
+        guard write(index, { _ in try appended.get() }) else { return }
+        if let span = outputs[index].held.span { extend(index, from: span.start, to: span.end) }
         outputs[index].held.clear()
     }
 }

@@ -12,6 +12,7 @@ A result that depends on a difference between the test process and the app prove
 - `L10n` gives the string keys, because `Bundle.main` is the test runner. A key is wider than most texts, so a layout test chooses its strings on purpose, and a layout must hold at any text width.
 - `#expect(a == b)` of a `CGFloat` and a `Double` with the same value fails: convert both to `Double`.
 - SwiftUI content in the test runner has no `accessibilityChildren()`, unlike AppKit views. For layout, read `alignmentRect(forFrame:)` of its NSButton views. VoiceOver reach needs the built app.
+- The test process does not reach a SwiftUI menu-bar state or key equivalent. A check of it drives the built app (`verify-this/references/driving-the-app.md`), as the first paragraph says.
 
 ## Events and focus
 

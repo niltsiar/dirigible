@@ -21,10 +21,11 @@
 # NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
 # log with samples and a report line of 1 test or more whose failed tests (each `✘ Test <name>
 # recorded an issue` line, also with the arguments of a parameterized test) have budget issues only
-# (`budget →` after `(` or `.`) prints a note, and its samples count. An aa or main log needs 1 failed test or more (a miss that the branch fixes). A
-# branch log (a miss that main shares) needs each failed test to fail in an aa or main log too, and
-# to print a case (a line read between its started and end lines) that the test prints in each aa
-# and main log; with no failed test or no such case it prints NO VERDICT and exits 1.
+# (`budget →` after `(` or `.`) prints a note, and its samples count. An aa or main log needs 1 failed
+# test or more (a miss that the branch fixes). A branch log (a miss that main shares) needs each failed
+# expectation (its test and the source line of its issue) to fail in an aa or main log too, and each
+# failed test to print a case (a line read between its started and end lines) that the test prints in
+# each aa and main log; with no failed test or no such case it prints NO VERDICT and exits 1.
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
@@ -175,7 +176,11 @@ def budget_miss(name):
     if not name.startswith('branch-'):
         return f'note: {name} failed its asserts after its report line; its samples count' if failed else None
     others = [runner(p) for p in sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log'))]
-    if any(not any(t in f for f, _ in others) for t in failed): return None
+    # An expectation is its test and the source line of its issue.
+    def expectations(f):
+        return {(t, m.group(1) if m else l) for t, issues in f.items() for l in issues
+                for m in [re.search(r' at ([^\s:]+:[0-9]+):[0-9]+: ', l)]}
+    if not expectations(failed) <= set().union(*(expectations(f) for f, _ in others)): return None
     if not failed: return f'NO VERDICT {name}: no failed test'
     for t in failed:
         if not any(all(c in oc.get(t, ()) for _, oc in others) for c in cases.get(t, ())):

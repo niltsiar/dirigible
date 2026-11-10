@@ -195,6 +195,14 @@ slog branch-1 "${t_on[@]}" "$(A 10.2)" "$(miss 't()')" "$t_bad" '◇ Test q(x:) 
 printf 'main-1: the bench failed\nbranch-1: the bench failed\n' > "$tmp/s/load.txt"
 judged 'a parameterized failure next to a shared budget miss' 1 'NOT VERIFIED: branch-1: the bench failed'
 no_claim 'a parameterized failure next to a shared budget miss'
+# A shared miss is the same expectation (test and source line) on both sides: main misses line 1 of
+# t(), and the branch misses lines 1 and 5.
+one_off='✘ Test t() recorded an issue at X.swift:5:1: Expectation failed: (oneOff → 0.02 seconds) <= (Self.budget → 0.016 seconds)'
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$(miss 't()')" "$one_off" "$t_bad"
+judged 'a branch miss of a second budget expectation of a shared test' 1 'NOT VERIFIED: branch-1: the bench failed'
+no_claim 'a branch miss of a second budget expectation of a shared test'
+slog main-1 "${t_on[@]}" "$(A 10)" "$(miss 't()')" "$one_off" "$t_bad"
+judged 'a branch miss of two budget expectations that main shares' 0 'note: shared budget miss in branch-1: t()'
 
 # A case in each branch log and in no aa or main log has no main side: the compare names it, and the
 # exit stays. A case with a value in some logs of a side only, or on the main side only, gets no

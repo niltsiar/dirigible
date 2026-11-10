@@ -25,7 +25,7 @@ struct TrackSegments {
     /// An app source: the routed channels count from the last input buffer, because the tap
     /// stream comes after the inputs of the main sub-device (probe P13).
     private let routesLastChannels: Bool
-    var outputs: [Output]
+    private var outputs: [Output]
     /// The open segment of every track, or nil between segments.
     private var segment: Segment?
     /// The number of the last segment that opened, for any track.
@@ -212,14 +212,9 @@ struct TrackSegments {
         return samples
     }
 
-    /// The nanoseconds of `frames` at `rate`.
-    private static func nanoseconds(frames: Int, rate: Double) -> UInt64 {
-        UInt64((Double(frames) * 1e9 / rate).rounded())
-    }
-
     /// Adds the host span `start..<end`, which the writer of output `index` wrote, to the span of
     /// its arm.
-    mutating func extend(_ index: Int, from start: UInt64, to end: UInt64) {
+    private mutating func extend(_ index: Int, from start: UInt64, to end: UInt64) {
         guard !outputs[index].spanStopped else { return }
         outputs[index].written = Self.union(outputs[index].written, start, end)
     }
@@ -252,21 +247,19 @@ struct TrackSegments {
     /// Tests only: the 400 ms blocks that the meters keep.
     var loudnessBlocks: Int { outputs.reduce(0) { $0 + ($1.loudness?.blocks.count ?? 0) } }
 
-    /// Tests only: for each arm, the CAF appends and the frames of the largest append of the
-    /// segment writers that closed.
-    private(set) var appendStats: [Int: (count: Int, largest: Int)] = [:]
+    #if DEBUG
+        /// Tests only: for each arm, the CAF appends and the frames of the largest append of the
+        /// segment writers that closed.
+        private(set) var appendStats: [Int: (count: Int, largest: Int)] = [:]
+    #endif
 
     /// Tests only: adds the appends of the writer of output `index` to `appendStats`.
     private mutating func countAppends(_ index: Int) {
-        guard let writer = outputs[index].writer else { return }
-        let old = appendStats[outputs[index].arm] ?? (0, 0)
-        appendStats[outputs[index].arm] = (old.count + writer.appends, max(old.largest, writer.largestAppend))
-    }
-
-    /// Nil when there is no span or its end is not after its start, so no `Range` traps.
-    private static func range(_ span: (start: UInt64, end: UInt64)?) -> Range<UInt64>? {
-        guard let span, span.end > span.start else { return nil }
-        return span.start..<span.end
+        #if DEBUG
+            guard let writer = outputs[index].writer else { return }
+            let old = appendStats[outputs[index].arm] ?? (0, 0)
+            appendStats[outputs[index].arm] = (old.count + writer.appends, max(old.largest, writer.largestAppend))
+        #endif
     }
 
     /// Opens a segment for every track that has no error. A track with an error waits for its
@@ -305,7 +298,7 @@ struct TrackSegments {
             return false
         }
         do {
-            outputs[index].writer = try SegmentWriter(folder: capture, name: name, header: header)
+            outputs[index].use(try SegmentWriter(folder: capture, name: name, header: header))
         } catch {
             fail(index, status: error.status)
             return false
@@ -343,9 +336,26 @@ struct TrackSegments {
         each { try $0.close() }
         for index in outputs.indices {
             countAppends(index)
-            outputs[index].writer = nil
+            outputs[index].dropWriter()
         }
         segment = nil
+    }
+
+    /// Writes the held frames of every track with one append for each file. The drain calls it
+    /// after its last record.
+    mutating func commit() {
+        for index in outputs.indices { commit(index) }
+    }
+
+    /// Appends the held frames of output `index`. Only a whole append gives them a span and
+    /// clears them; after a write error, `fail` clears them, so none counts as written.
+    mutating func commit(_ index: Int) {
+        guard outputs[index].held.frames > 0, let writer = outputs[index].writer else { return }
+        // The append reads the stored samples with no copy, so the clear reuses their buffer.
+        let appended = Result { try outputs[index].held.write(to: writer) }
+        guard write(index, { _ in try appended.get() }) else { return }
+        if let span = outputs[index].held.span { extend(index, from: span.start, to: span.end) }
+        outputs[index].held.clear()
     }
 
     private mutating func each(_ body: (SegmentWriter) throws -> Void) {
@@ -355,7 +365,7 @@ struct TrackSegments {
     /// Runs `body` on the segment of output `index`. A write error closes that segment; the
     /// frames on disk stay. True when `body` ran with no error.
     @discardableResult
-    mutating func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) -> Bool {
+    private mutating func write(_ index: Int, _ body: (SegmentWriter) throws -> Void) -> Bool {
         guard let writer = outputs[index].writer else { return false }
         do {
             try body(writer)
@@ -371,8 +381,7 @@ struct TrackSegments {
     /// `.writeFailed` with the raw status, and record the gap.
     private mutating func fail(_ index: Int, status: Int32) {
         countAppends(index)
-        outputs[index].writer = nil
-        outputs[index].held.clear()
+        outputs[index].dropWriter()
         outputs[index].failedAt = deviceFrames
         outputs[index].spanStopped = true
         let arm = outputs[index].arm

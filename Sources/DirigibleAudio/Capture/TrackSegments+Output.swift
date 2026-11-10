@@ -7,7 +7,7 @@ extension TrackSegments {
         let channels: [Int]
         /// (buffer index, channel index in the buffer) of each track channel.
         var sources: [(buffer: Int, channel: Int)] = []
-        var writer: SegmentWriter?
+        private(set) var writer: SegmentWriter?
         /// The frames for `writer` that are not in its file yet. An output with no writer holds
         /// no frame.
         var held = HeldFrames()
@@ -29,6 +29,14 @@ extension TrackSegments {
         var spanStopped = false
         /// The short-term loudness of the track (decision 0033), at the rate of the records.
         var loudness: LoudnessMeter?
+
+        mutating func use(_ writer: SegmentWriter) { self.writer = writer }
+
+        /// Drops the writer and the frames held for it, so no held frame goes to a later file.
+        mutating func dropWriter() {
+            writer = nil
+            held.clear()
+        }
     }
 
     /// The interleaved frames of one output that its file does not hold yet, and their host
@@ -57,6 +65,17 @@ extension TrackSegments {
         }
     }
 
+    /// The nanoseconds of `frames` at `rate`.
+    static func nanoseconds(frames: Int, rate: Double) -> UInt64 {
+        UInt64((Double(frames) * 1e9 / rate).rounded())
+    }
+
+    /// Nil when there is no span or its end is not after its start, so no `Range` traps.
+    static func range(_ span: (start: UInt64, end: UInt64)?) -> Range<UInt64>? {
+        guard let span, span.end > span.start else { return nil }
+        return span.start..<span.end
+    }
+
     /// `span` with `start..<end`: the smallest start and the largest end by the signed
     /// `nanos(from:to:)`, so the order of the host times does not matter.
     static func union(_ span: (start: UInt64, end: UInt64)?, _ start: UInt64, _ end: UInt64) -> (
@@ -67,22 +86,5 @@ extension TrackSegments {
             nanos(from: span.start, to: start) < 0 ? start : span.start,
             nanos(from: span.end, to: end) > 0 ? end : span.end
         )
-    }
-
-    /// Writes the held frames of every track with one append for each file. The drain calls it
-    /// after its last record.
-    mutating func commit() {
-        for index in outputs.indices { commit(index) }
-    }
-
-    /// Appends the held frames of output `index`. Only a whole append gives them a span and
-    /// clears them; after a write error, `fail` clears them, so none counts as written.
-    mutating func commit(_ index: Int) {
-        guard outputs[index].held.frames > 0, let writer = outputs[index].writer else { return }
-        // The append reads the stored samples with no copy, so the clear reuses their buffer.
-        let appended = Result { try outputs[index].held.write(to: writer) }
-        guard write(index, { _ in try appended.get() }) else { return }
-        if let span = outputs[index].held.span { extend(index, from: span.start, to: span.end) }
-        outputs[index].held.clear()
     }
 }

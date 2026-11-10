@@ -35,7 +35,7 @@ Take the newest file whose first user message matches this session; if none reso
 
 ### 2. Mine and route with one agent
 
-Make one `Agent` call (`general-purpose`, `opus`). Pass `references/judgment-reviewer.md` verbatim, with the transcript path or digest where marked. When `cost.sh` prints friction above 0, or subagents share an error, also pass `references/tooling-reviewer.md` and `references/divergent-reviewer.md` as lenses for the same agent. Then tell the agent to route its learnings by `references/synthesizer.md` (its output goes in `<JUDGMENT_OUTPUT>`; the other two are empty), and to run `seen.sh <key>` and `scripts/wiki.py lessons --seen-once` (each `seen-once` lesson line) for `<SEEN_OUTPUT>`. It returns the Accepted, Seen once, Rejected, and Backlog lists.
+Make one `Agent` call (`general-purpose`, `opus`, `run_in_background: false`): step 3 needs its result. Pass `references/judgment-reviewer.md` verbatim, with the transcript path or digest where marked. When `cost.sh` prints friction above 0, or subagents share an error, also pass `references/tooling-reviewer.md` and `references/divergent-reviewer.md` as lenses for the same agent. Then tell the agent to route its learnings by `references/synthesizer.md` (its output goes in `<JUDGMENT_OUTPUT>`; the other two are empty), and to run `seen.sh <key>` and `scripts/wiki.py lessons --seen-once` (each `seen-once` lesson line) for `<SEEN_OUTPUT>`. It returns the Accepted, Seen once, Rejected, and Backlog lists.
 
 ### 3. Record
 

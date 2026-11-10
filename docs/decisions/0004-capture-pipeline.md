@@ -12,6 +12,7 @@
 - Amended: 2026-11-03, run `2026-10-28-pre-roll`. An aligned finalize and an aligned placement have a floor: no clip of a take starts before the playhead at record start (**Timing**). A segment with no frame after the floor is a pool file with no clip.
 - Amended: 2026-11-01, run `2026-11-01-upkeep-thirteenth`. The No data loss and Real-time thread rules are in **Safety** of `CODING_STANDARDS.md`, not in `AGENTS.md`.
 - Amended: 2026-11-03, run `2026-11-03-caf-removal`. [0071](0071-raw-capture-removal.md) removes the raw CAF of a placed segment after its WAV passes a gate of frames, rate choice, and alignment to the host clock (1 ms), and adds a finalize record to the sidecar. It replaces the rule that Release 1 keeps every raw CAF.
+- Amended: 2026-11-10, run `2026-11-10-upkeep-eighteenth`. **Timing** states the delay between the take start and the first frame of a real device.
 
 ## Context
 
@@ -43,6 +44,7 @@ The plan gate (two rounds) added the rules for rate changes, reconnects, recover
 - Rebase a `UInt64` host time with wrapping operators (`time &- base &+ saved`): a record can come before the base, and host time is small after a boot.
 - Each segment has a sidecar file next to it. The first record holds the capture header: device UID, device name, nominal rate, the available nominal rates of the device (`kAudioDevicePropertyAvailableNominalSampleRates`), channel count, input latency, and the host time and sample time of the first frame. After that, the writer appends a checkpoint about once per second, and one at the last record of each segment: the file frame index, the sample time, and the host time. A segment shorter than 0.5 s, or with a zero host-time span, has no usable fit and takes the "no usable checkpoint" path of finalize.
 - The take anchor: timeline start = playhead at record start + (first-frame host time - take start host time) - latency. Host time never crosses a take, because host time is valid for one boot only.
+- A real device delivers its first frame a device-dependent time after the take start. So the CAF of an N s take holds less than N s, and a length criterion counts from the first frame.
 - The floor: an aligned clip starts at the larger of the timeline start and the playhead at record start, and the frames before the floor go to the clip offset. A segment with no frame after the floor is a pool file with no clip: its WAV is in `Clips/` and its CAF stays. So a take at the playhead keeps the tail of a clip that ends just before it. A placement at an explicit start has the floor 0.
 
 **Segments.** A new segment file starts on any of these events:

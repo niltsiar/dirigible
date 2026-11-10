@@ -17,8 +17,8 @@
 # its largest main value by more than the rule of that main value: then it is NOT VERIFIED. A case
 # with a value in only some logs of a side, or in no branch log, prints NO VERDICT, and so does a
 # time line in a suite that no form reads; each exits 1. These lines print before a failure stops
-# the compare. A set with no complete main and branch pair prints NO VERDICT and exits 1 before any
-# other line. Exit 1 when a case is
+# the compare. A set with no aa-2 log, or with no complete main and branch pair, prints NO VERDICT
+# and exits 1 before any other line. Exit 1 when a case is
 # NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
 # log with samples, a report line of 1 test or more, and 1 failed test or more (each `✘ Test <name>
 # recorded an issue` line, also with the arguments of a parameterized test) prints a note, and its
@@ -168,6 +168,8 @@ def read(path):
                 metric[f'{name} ({test})'] = metric[name]
     return cases
 def runner(path): return scan(path)[1:3]
+if not all(os.path.exists(f'{folder}/aa-{n}.log') for n in (1, 2)):
+    print('NO VERDICT: no complete A/A pair'); sys.exit(1)
 aa = [read(f'{folder}/aa-{n}.log') for n in (1, 2)]
 pairs = []
 for n in range(1, 1000):

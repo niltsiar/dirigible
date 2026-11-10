@@ -346,6 +346,10 @@ pset=z
 for f in aa-1 aa-2 main-1; do slog "$f" "$(A 10)" "$(M 0.0167)"; done
 judged 'a set with no complete pair' 1 'NO VERDICT: no complete main and branch pair'
 [[ "$out" != *VERIFIED* && "$out" != *'NO PAIR RULE'* ]] || fail "a set with no complete pair gets no case verdict: $out"
+mkdir "$tmp/y"
+pset=y
+slog aa-1 "$(A 10)"
+judged 'a set that stopped after aa-1' 1 'NO VERDICT: no complete A/A pair'
 
 # Two tests of one log that print one case name (ExportBenchmark prints the same line for two AAC
 # tests) give one case for each test, named with its test.

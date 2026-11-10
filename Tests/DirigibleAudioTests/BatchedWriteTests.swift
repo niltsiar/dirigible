@@ -84,7 +84,9 @@ struct BatchedWriteTests {
 
     /// Slow: a thread writes a file of the take folder and flushes it with `F_FULLFSYNC` in a
     /// loop, as the saves of other work do. A writer with a drain each 50 ms still writes about
-    /// one append for each file and drain of 3 s of real-time records.
+    /// one append for each file and drain of 3 s of real-time records, and keeps up: at the end of
+    /// the input, each file holds all but at most 1 s plus one record of the frames, and the ring
+    /// dropped none.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func aDrainUnderASyncLoopKeepsUpWithRealTime() async throws {
         let descriptor = open(
@@ -109,6 +111,14 @@ struct BatchedWriteTests {
 
         input.play(run(&clock, 3, layout: [2], next: &next), pace: .realTime)
         await input.wait()
+        // No queue barrier: a writer that falls behind holds its backlog in the ring.
+        for arm in [1, 2] {
+            let caf = folder.url.appending(path: "take1-\(arm)-1.caf")
+            let size = try #require(try FileManager.default.attributesOfItem(atPath: caf.path)[.size] as? Int)
+            let frames = (size - (try dataOffset(caf))) / 4
+            #expect(frames >= 144_000 - 48_480, "at the input end, arm \(arm) has \(frames) of 144_000 frames")
+        }
+        #expect(writer.droppedFrames == 0, "the ring dropped \(writer.droppedFrames) frames")
         await writer.finish()
 
         for arm in [1, 2] {

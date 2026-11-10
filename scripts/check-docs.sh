@@ -289,6 +289,7 @@ if [[ ! -f "$register" ]]; then
 else
     while IFS= read -r msg; do err "rules.tsv: $msg"; done < <(awk -F'\t' '
         NR == 1 { if ($0 != "id\tfile\tverdict\ttarget\treason\tsource\tkey\tsummary") print "the header is not id file verdict target reason source key summary"; next }
+        NF != 8 { print $1 " has " NF " fields; each row has 8" }
         { n++; id[n] = $1; verdict[n] = $3; target[n] = $4; reason[n] = $5; source[n] = $6; if (seen[$1]++) print "duplicate id " $1 }
         END {
             for (i = 1; i <= n; i++) {

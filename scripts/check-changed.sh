@@ -61,7 +61,7 @@ set -euo pipefail
 
 # The risk floor. A change to one of these paths prints `risk: yes`, unless the change is
 # comment-only. A path that ends in / is a folder. check-changed.test.sh fails when a floor path does not exist.
-floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/DirigibleCore/TranscriptStore.swift Sources/DirigibleCore/UnusedFiles.swift Sources/DirigibleCore/Backup.swift Sources/DirigibleCore/Session+Origin.swift Sources/DirigibleCore/SessionReader+Origin.swift Sources/DirigibleCore/UnusedFiles+Transcripts.swift Sources/DirigibleCore/UnusedFiles+Captures.swift Sources/DirigibleMCP/PackageEditCore.swift Sources/DirigibleMCP/PruneWork.swift"
+floor="Sources/DirigibleAudio/ Sources/DirigibleCore/SessionReader.swift Sources/DirigibleCore/SessionWriter.swift Sources/DirigibleCore/SessionXML.swift Sources/DirigibleCore/PackageLock.swift Sources/DirigibleCore/TranscriptStore.swift Sources/DirigibleCore/UnusedFiles.swift Sources/DirigibleCore/Backup.swift Sources/DirigibleCore/Session+Origin.swift Sources/DirigibleCore/SessionReader+Origin.swift Sources/DirigibleCore/SessionReader+Ride.swift Sources/DirigibleCore/UnusedFiles+Transcripts.swift Sources/DirigibleCore/UnusedFiles+Captures.swift Sources/DirigibleMCP/PackageEditCore.swift Sources/DirigibleMCP/PruneWork.swift"
 # The shared guard list: the guards that each session shares (the build lock script, its word
 # lists, the hooks). A change to one gives `risk: yes`. A path that ends in / is a folder.
 shared_guards="scripts/with-lock.sh scripts/lock-words.sh .claude/hooks/"

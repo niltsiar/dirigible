@@ -9,9 +9,9 @@
 # caller and to the child of the lock (the stub make and each busy process are dead when the lock
 # goes), the table of red tests (most reds first, a run with an exit and no failed test, a loop that
 # stops early), the exit status, the disk flush load of --sync-load (a live load, one 4 KiB file, a
-# counter that rises by 100 or fewer in 2 s, no load or guard process after the exit, exit 2 when
-# F_FULLFSYNC fails, and exit 2 with a message when the load stops during the runs), and a KILL of the script (no busy, load, or guard process lives). Run by
-# `make test-hooks`.
+# counter that rises by 85 or fewer in 2 s, no load or guard process after the exit, exit 2 when
+# F_FULLFSYNC fails, and exit 2 with a message when the load stops during the runs), and a KILL of
+# the script (no busy, load, or guard process lives). Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
@@ -198,7 +198,7 @@ done
 
 # --sync-load: during the runs one load process writes 4 KiB at offset 0 of one file, calls
 # F_FULLFSYNC, and sleeps 25 ms on each pass. The stub make sees it live, the file stays at 4 KiB,
-# the counter file rises by 100 or fewer in 2 s, and no load, guard, or busy process lives 5 s after
+# the counter file rises by 85 or fewer in 2 s, and no load, guard, or busy process lives 5 s after
 # the exit. A python3 whose F_FULLFSYNC returns at once makes the pause the only limit on the rate.
 real_python="$(command -v python3)"
 mkdir -p "$tmp/fastsync"
@@ -210,6 +210,13 @@ shift 3
 exec "$real_python" -I -c "import fcntl
 _real = fcntl.fcntl
 fcntl.fcntl = lambda fd, op, *a: 0 if op == fcntl.F_FULLFSYNC else _real(fd, op, *a)
+import sys, time
+_sleep = time.sleep
+def _record(s):
+    if sys.argv[1].endswith('sync-load.bin'):
+        print(s, file=open('$tmp/pauses', 'a'))
+    _sleep(s)
+time.sleep = _record
 \$code" "\$@"
 EOF
 chmod +x "$tmp/fastsync/python3"
@@ -223,12 +230,20 @@ passes() { cat "$dir/sync-load.count" 2>/dev/null || echo 0; }
 for _ in $(seq 50); do [[ $(passes) -ge 3 ]] && break; /bin/sleep 0.1; done
 first="$(passes)"
 /bin/sleep 0.5
+now() { "$real_python" -c 'import time; print(time.time())'; }
+since="$(now)"
 second="$(passes)"
 [[ $first -ge 3 && $second -gt $first ]] || fail "sync load: the counter did not rise: $first, then $second"
 [[ "$(stat -f %z "$dir/sync-load.bin" 2>/dev/null)" == 4096 ]] || fail "sync load: the load file is not 4 KiB: $(ls -l "$dir" 2>&1)"
 /bin/sleep 2
 third="$(passes)"
-[[ $((third - second)) -le 100 ]] || fail "sync load: the counter rose by $((third - second)) in 2 s, over the bound of 100"
+elapsed="$(awk -v a="$since" -v b="$(now)" 'BEGIN { print b - a }')"
+# The 25 ms pause allows 40 passes a second at most. The bound is 42.5 a second (85 in 2 s). Timer
+# overshoot puts the real rate of a 20 ms pause under it too, so the recorded pauses decide that case.
+awk -v n=$((third - second)) -v e="$elapsed" 'BEGIN { exit !(n <= 42.5 * e) }' ||
+  fail "sync load: the counter rose by $((third - second)) in $elapsed s, over the bound of 42.5 a second"
+awk 'NR == 1 || $1 < least { least = $1 } END { exit !(NR >= 3 && least >= 0.025) }' "$tmp/pauses" 2>/dev/null ||
+  fail "sync load: a pause under 25 ms, or fewer than 3 pauses: [$(sort -n "$tmp/pauses" 2>/dev/null | head -3 | paste -sd' ' -)]"
 wait "$caller"
 code=$?
 [[ $code -eq 0 && -s "$dir/load-seen" ]] || fail "sync load: exit $code, or the test run saw no load: $(cat "$tmp/sync.out")"

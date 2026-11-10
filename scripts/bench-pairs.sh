@@ -16,7 +16,8 @@
 # its largest main value by more than the rule of that main value: then it is NOT VERIFIED. A case
 # with a value in only some logs of a side, or in no branch log, prints NO VERDICT, and so does a
 # time line in a suite that no form reads; each exits 1. These lines print before a failure stops
-# the compare. Exit 1 when a case is
+# the compare. A set with no complete main and branch pair prints NO VERDICT and exits 1 before any
+# other line. Exit 1 when a case is
 # NOT VERIFIED, a log has no sample, or a bench failed (load.txt), except for a budget miss: a failed
 # log with samples and a report line of 1 test or more whose failed tests (each `✘ Test <name>
 # recorded an issue` line) have budget issues only (`budget →` after `(` or `.`) prints a note, and
@@ -156,6 +157,8 @@ for n in range(1, 1000):
     a, b = f'{folder}/main-{n}.log', f'{folder}/branch-{n}.log'
     if not (os.path.exists(a) and os.path.exists(b)): break
     pairs.append((read(a), read(b)))
+if not pairs:
+    print('NO VERDICT: no complete main and branch pair'); sys.exit(1)
 # A failed bench or a side with no sample (a filter that matched no test) gives no verdict.
 load = f'{folder}/load.txt'
 failed = [l.strip() for l in open(load)] if os.path.exists(load) else []

@@ -9,10 +9,14 @@
 #        scripts/bench-pairs.sh --compare <out folder>
 # Per case (its p95, or its p50 for a bench that prints p50 and max) the compare prints VERIFIED
 # (no pair over the rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread
-# is over the rule, or only some pairs are). Exit 1 when a case is NOT VERIFIED, a bench failed
-# (load.txt) with no report line of 1 test or more, or a log has no sample. A bench that failed only
-# its asserts on the aa or main side (a budget miss that the branch fixes) prints a note, and its
-# samples count.
+# is over the rule, or only some pairs are). Exit 1 when a case is NOT VERIFIED, a log has no
+# sample, or a bench failed (load.txt), except for a budget miss: a failed log with samples and a
+# report line of 1 test or more whose failed tests (each `✘ Test <name> recorded an issue` line)
+# have budget issues only (`budget →` after `(` or `.`) prints a note, and its samples count. An aa
+# or main log needs 1 failed test or more (a miss that the branch fixes). A branch log (a miss that
+# main shares) needs each failed test to fail in an aa or main log too, and to print a case (a line
+# read between its started and end lines) that the test prints in each aa and main log; with no
+# failed test or no such case it prints NO VERDICT and exits 1.
 # The pairs give the bench verdict of a budget only with clean provenance: the bench.sh line of the
 # aa-* and main-* logs names one commit, that of the branch-* logs names one commit, each on a
 # clean tree, and the branch commit has the Sources, Tests, Package.swift, Package.resolved, and
@@ -66,15 +70,29 @@ folder, root = sys.argv[1], sys.argv[2]
 # The value of a case: its p95, or its p50 when the bench prints p50 and max (NavigationKeyBenchmark,
 # whose budget is on the p50).
 metric = {}
+def cases_of(line):
+    m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 ([0-9.e-]+) seconds, (p95|max) ([0-9.e-]+) seconds', line)
+    if not m: return {}
+    p95 = m.group(3) == 'p95'
+    metric[m.group(1)] = 'p95' if p95 else 'p50'
+    return {m.group(1): float(m.group(4) if p95 else m.group(2)) * 1000}
 def read(path):
     cases = {}
-    for line in open(path, errors='replace'):
-        m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 ([0-9.e-]+) seconds, (p95|max) ([0-9.e-]+) seconds', line)
-        if m:
-            p95 = m.group(3) == 'p95'
-            cases[m.group(1)] = float(m.group(4) if p95 else m.group(2)) * 1000
-            metric[m.group(1)] = 'p95' if p95 else 'p50'
+    for line in open(path, errors='replace'): cases.update(cases_of(line))
     return cases
+# The failed tests of a runner log ({name: its issue lines}) and the cases of each test.
+def runner(path):
+    failed, cases, test = {}, {}, None
+    for line in open(path, errors='replace'):
+        m = re.match(r'◇ Test (.+?) started\.', line)
+        if m:
+            test = m.group(1); cases.setdefault(test, set()); continue
+        if re.match(r'[✔✘] Test .+? (?:passed|failed) after', line):
+            test = None; continue
+        m = re.match(r'✘ Test (.+?) recorded an issue at', line)
+        if m: failed.setdefault(m.group(1), []).append(line)
+        elif test: cases[test].update(cases_of(line))
+    return failed, cases
 aa = [read(f'{folder}/aa-{n}.log') for n in (1, 2)]
 pairs = []
 for n in range(1, 1000):
@@ -85,16 +103,31 @@ for n in range(1, 1000):
 load = f'{folder}/load.txt'
 failed = [l.strip() for l in open(load)] if os.path.exists(load) else []
 failed = [l for l in failed if l.endswith('the bench failed')]
-# A bench that failed only its asserts printed its samples and a report line of 1 test or more:
-# the main side of a fix of a budget miss. Its samples count. A failed branch bench stays a failure.
-def asserts_only(line):
-    name = line.split(':')[0]
+# A failed bench with samples, a report line, and budget issues only is a budget miss (header):
+# budget_miss gives its note, a NO VERDICT line, or None (the failure stays).
+def budget_miss(name):
     path = f'{folder}/{name}.log'
-    return not name.startswith('branch-') and os.path.exists(path) and bool(read(path)) and any(
-        re.search(r'Test run with [1-9]', l) for l in open(path, errors='replace'))
-for line in [l for l in failed if asserts_only(l)]:
-    print(f'note: {line.split(":")[0]} failed its asserts after its report line; its samples count')
-failed = [l for l in failed if not asserts_only(l)]
+    if not (os.path.exists(path) and read(path) and any(
+            re.search(r'Test run with [1-9]', l) for l in open(path, errors='replace'))):
+        return None
+    failed, cases = runner(path)
+    if any(not re.search(r'[(.]budget →', l) for issues in failed.values() for l in issues): return None
+    if not name.startswith('branch-'):
+        return f'note: {name} failed its asserts after its report line; its samples count' if failed else None
+    others = [runner(p) for p in sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log'))]
+    if any(not any(t in f for f, _ in others) for t in failed): return None
+    if not failed: return f'NO VERDICT {name}: no failed test'
+    for t in failed:
+        if not any(all(c in oc.get(t, ()) for _, oc in others) for c in cases.get(t, ())):
+            return f'NO VERDICT {name}: {t} has no case with a value on both sides'
+    return f'note: shared budget miss in {name}: {", ".join(failed)}'
+kept, no_verdict = [], []
+for line in failed:
+    found = budget_miss(line.split(':')[0])
+    if found is None: kept.append(line)
+    elif found.startswith('NO VERDICT'): no_verdict.append(found)
+    else: print(found)
+failed = kept
 empty = [n for n, cases in [('aa-1.log', aa[0]), ('aa-2.log', aa[1])] + [
     (f'{side}-{i}.log', c) for i, pair in enumerate(pairs, 1) for side, c in zip(('main', 'branch'), pair)] if not cases]
 # Provenance: the first "bench: commit <sha> tree <state>" line of each log.
@@ -116,8 +149,9 @@ if len(commits['branch']) == 1:
         return r.stdout.strip() or 'none'
     for path in ('Sources', 'Tests', 'Package.swift', 'Package.resolved', 'scripts/bench.sh'):
         if object_id(sha, path) != object_id('HEAD', path): problems.append(f'the branch commit differs from HEAD in {path}')
-if failed or empty or problems:
+if failed or no_verdict or empty or problems:
     for line in failed: print(f'NOT VERIFIED: {line}')
+    for line in no_verdict: print(line)
     for name in empty: print(f'NOT VERIFIED: no bench sample in {name}')
     for problem in problems: print(f'NOT VERIFIED: {problem}')
     sys.exit(1)

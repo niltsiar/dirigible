@@ -94,7 +94,12 @@ code=$?
 # stays. A failed bench with no report line (above) still gives exit 1.
 mkdir "$tmp/f"
 cp "$tmp"/m/*.log "$tmp/f/"
-for f in aa-1 aa-2 main-1 main-2; do echo 'Test run with 1 test in 1 suite failed after 7.3 seconds with 2 issues.' >> "$tmp/f/$f.log"; done
+miss() { # miss <test> [<budget word>]: the issue line of a budget expectation
+  printf '✘ Test %s recorded an issue at X.swift:1:1: Expectation failed: (value → 0.009 seconds) <= (%s → 0.008 seconds)' "$1" "${2:-budget}"
+}
+for f in aa-1 aa-2 main-1 main-2; do
+  { miss 't()'; echo; echo 'Test run with 1 test in 1 suite failed after 7.3 seconds with 2 issues.'; } >> "$tmp/f/$f.log"
+done
 printf 'aa-1: the bench failed\naa-2: the bench failed\nmain-1: the bench failed\nmain-2: the bench failed\n' > "$tmp/f/load.txt"
 out="$("$pairs" --compare "$tmp/f" 2>&1)"
 code=$?
@@ -102,13 +107,83 @@ code=$?
   grep -qxF 'note: main-1 failed its asserts after its report line; its samples count' <<< "$out" ||
   fail "a main side that misses its budget: exit $code: $out"
 
-# The exception is only for the aa-* and main-* sides: a branch bench that fails its own budget
-# assert stays a failure.
-echo 'Test run with 1 test in 1 suite failed after 7.3 seconds with 2 issues.' >> "$tmp/f/branch-1.log"
+# The exception is only for the aa-* and main-* sides: a branch bench that fails a budget assert
+# that no aa or main log fails stays a failure.
+{ miss 'u()'; echo; echo 'Test run with 1 test in 1 suite failed after 7.3 seconds with 2 issues.'; } >> "$tmp/f/branch-1.log"
 echo 'branch-1: the bench failed' >> "$tmp/f/load.txt"
 out="$("$pairs" --compare "$tmp/f" 2>&1)"
 code=$?
 [[ $code -eq 1 && "$out" == *'NOT VERIFIED: branch-1: the bench failed'* ]] || fail "a branch side that misses its budget: exit $code: $out"
+
+# A branch budget miss that main shares counts, with a note: each failed test of the branch log also
+# fails in an aa or main log, each of its issues is a budget expectation, and it prints a case with a
+# value on both sides. slog <log> <line>... writes a runner log of $tmp/s: the commit line, the
+# lines, and a report line.
+mkdir "$tmp/s"
+slog() {
+  local f="$tmp/s/$1.log" c="$main"
+  shift
+  [[ "${f##*/}" != branch-* ]] || c="$branch"
+  { echo "bench: commit $c tree clean filter X"; printf '%s\n' "$@"
+    echo '✘ Test run with 2 tests in 2 suites failed after 2.000 seconds with 1 issue.'; } > "$f"
+}
+A() { printf 'XBenchmark a: p50 0.001 seconds, p95 %s seconds' "$(echo "$1 / 1000" | bc -l)"; }
+t_on=('◇ Suite XBenchmark started.' '◇ Test t() started.')
+t_ok='✔ Test t() passed after 1.000 seconds.'
+t_bad='✘ Test t() failed after 1.000 seconds with 1 issue.'
+p_on=('◇ Suite PeakComputeBenchmark started.' '◇ Test p() started.')
+p_ok='✔ Test p() passed after 1.000 seconds.'
+p_bad='✘ Test p() failed after 1.000 seconds with 1 issue.'
+no_budget() { printf '✘ Test %s recorded an issue at X.swift:2:1: Expectation failed: (count → 3) == 4' "$1"; }
+# judged <name> <exit> <line>...: --compare of $tmp/s exits <exit> and prints each line.
+judged() {
+  local name="$1" want="$2" l
+  shift 2
+  out="$("$pairs" --compare "$tmp/s" 2>&1)"
+  code=$?
+  [[ $code -eq $want ]] || { fail "$name: exit $code: $out"; return; }
+  for l in "$@"; do grep -qxF "$l" <<< "$out" || { fail "$name: no line \"$l\": $out"; return; }; done
+}
+# no_claim <name>: the last compare printed no shared note and no NO VERDICT line.
+no_claim() { [[ "$out" != *'shared budget miss'* && "$out" != *'NO VERDICT'* ]] || fail "$1: a shared note or a NO VERDICT line: $out"; }
+slog aa-1 "${t_on[@]}" "$(A 10)" "$t_ok"
+slog aa-2 "${t_on[@]}" "$(A 10.1)" "$t_ok"
+slog main-1 "${t_on[@]}" "$(A 10)" "$(miss 't()')" "$t_bad"
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$(miss 't()')" "$t_bad"
+printf 'main-1: the bench failed\nbranch-1: the bench failed\n' > "$tmp/s/load.txt"
+judged 'a branch budget miss that main shares' 0 'note: shared budget miss in branch-1: t()' \
+  'note: main-1 failed its asserts after its report line; its samples count' 'VERIFIED XBenchmark a'
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$(miss 't()')" "$t_bad" '◇ Test u() started.' "$(miss 'u()')" \
+  '✘ Test u() failed after 1.000 seconds with 1 issue.'
+judged 'a branch budget miss of a test that no aa or main log fails' 1 'NOT VERIFIED: branch-1: the bench failed'
+no_claim 'a branch budget miss of a test that no aa or main log fails'
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$(no_budget 't()')" "$t_bad"
+judged 'a shared failed test with an issue that is no budget expectation' 1 'NOT VERIFIED: branch-1: the bench failed'
+no_claim 'a shared failed test with an issue that is no budget expectation'
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$t_ok"
+judged 'a failed branch log with no failed test' 1 'NO VERDICT branch-1: no failed test'
+# A filter of two suites: the shared failed test p() prints no case line (as PeakComputeBenchmark in
+# an optimized build), so no case of it has a value on both sides.
+slog aa-1 "${t_on[@]}" "$(A 10)" "$t_ok" "${p_on[@]}" "$p_ok"
+slog aa-2 "${t_on[@]}" "$(A 10.1)" "$t_ok" "${p_on[@]}" "$p_ok"
+slog main-1 "${t_on[@]}" "$(A 10)" "$t_ok" "${p_on[@]}" "$(miss 'p()')" "$p_bad"
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$t_ok" "${p_on[@]}" "$(miss 'p()')" "$p_bad"
+judged 'a shared failed test with no case line' 1 'NO VERDICT branch-1: p() has no case with a value on both sides'
+# The aa and main note needs a failed test and budget issues only, in each budget text form; a
+# failed test of an aa or main log needs no case.
+slog aa-1 "${t_on[@]}" "$(A 10)" "$t_ok" "${p_on[@]}" "$(miss 'p()' Self.budget)" "$p_bad"
+slog main-1 "${t_on[@]}" "$(A 10)" "$t_ok" "${p_on[@]}" "$(miss 'p()' MouseEventBenchmark.budget)" "$p_bad"
+slog branch-1 "${t_on[@]}" "$(A 10.2)" "$t_ok" "${p_on[@]}" "$p_ok"
+printf 'aa-1: the bench failed\nmain-1: the bench failed\n' > "$tmp/s/load.txt"
+judged 'an aa and a main log that miss the budget of a test with no case line' 0 'VERIFIED XBenchmark a' \
+  'note: aa-1 failed its asserts after its report line; its samples count' \
+  'note: main-1 failed its asserts after its report line; its samples count'
+slog aa-1 "${t_on[@]}" "$(A 10)" "$t_ok"
+slog main-1 "${t_on[@]}" "$(A 10)" "$(no_budget 't()')" "$t_bad"
+printf 'main-1: the bench failed\n' > "$tmp/s/load.txt"
+judged 'a main log that fails an expectation that is no budget' 1 'NOT VERIFIED: main-1: the bench failed'
+slog main-1 "${t_on[@]}" "$(A 10)" "$t_ok"
+judged 'a failed main log with no failed test' 1 'NOT VERIFIED: main-1: the bench failed'
 
 # Provenance: the pairs give the verdict only when the aa-* and main-* logs name one commit, the
 # branch-* logs name one commit, each log ran on a clean tree, and the branch commit has the

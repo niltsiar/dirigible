@@ -1578,6 +1578,12 @@ done
 expect_agent block "${bg_two_jobs[1]}" true 7200000
 grep -q 'one background call per lock job' "$tmp/agent.err" ||
   { echo "FAIL: the two-job block does not say one background call per lock job"; failures=$((failures + 1)); }
+# AGENTS.md states no two-job rule: the message cites the rule in the hook, and that rule exists.
+if grep -q 'AGENTS.md' "$tmp/agent.err" || ! grep -qF "(see 'One background call runs one lock job' in .claude/hooks/git-guardrails.sh)" "$tmp/agent.err"; then
+  echo "FAIL: the two-job block must cite the hook rule, not AGENTS.md: $(cat "$tmp/agent.err")"; failures=$((failures + 1))
+fi
+grep -qF '# One background call runs one lock job' "$hook" ||
+  { echo "FAIL: the hook has no comment 'One background call runs one lock job'"; failures=$((failures + 1)); }
 
 # A Bash call with no lock word makes no read of the two keys (hook latency, item 1222): a plutil shim
 # first in PATH logs each call. A lock-word call reads each key once.

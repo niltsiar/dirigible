@@ -30,10 +30,15 @@
 #   they name each token.
 # - window: the time of the first decisions.tsv row (the open time when no row has a time) to the
 #   end of the minute of the latest row (the clock time when no row has a time).
-# - agents, workflows, and idle: the Agent calls and the Workflow calls of the transcript in the
-#   window (a Workflow call starts many agents that the transcript does not show), and the gaps
-#   over 5 min between its records in the window, sorted by time. Run windows that overlap share
-#   these counts.
+# - agents, workflows, idle, and wait: the Agent and mcp__t3-code__delegate_task calls and the
+#   Workflow calls of the transcript in the window (a Workflow call starts many agents that the
+#   transcript does not show), and the gaps over 5 min between its records in the window, sorted by
+#   time. A gap is a wait when a task is open at its start, else idle. A task opens at its start
+#   result: a delegate_task result (its taskId), or the ID of a background Bash, a background Agent,
+#   or a Workflow. It ends at the first end text of its ID in any record: a user message line
+#   "Delegated task <taskId> (<title>) [completed]:" or "[failed]:", a task_cancel result
+#   "cancel_requested", a <task-notification> line, or a TaskStop result. A t3_background_wait result
+#   ends no task, and a task with no end text stays open. Run windows that overlap share these counts.
 # - subagents: each agent-*.jsonl at any depth under <transcript without .jsonl>/subagents (a
 #   Workflow puts its agents in subagents/workflows/wf_*/) whose first user message names the run
 #   folder (no letter, digit, or hyphen after the name) and whose time span overlaps the subagent
@@ -53,7 +58,9 @@
 # - tokens: one line for each model, `tokens: <model> in <i> out <o> cache-read <r>
 #   cache-write-5m <w5> cache-write-1h <w1>`, for the replies of the transcript in the window and
 #   of the attributed subagents. Each reply counts once by message.id and requestId, and each
-#   usage.iterations entry counts under its own model (an advisor_message names the advisor).
+#   usage.iterations entry counts under its own model (an advisor_message names the advisor). The
+#   lines also add each other .jsonl next to the transcript (the session of a T3 delegated agent)
+#   whose first user message names the run folder, as for the subagents.
 # - pace: open to merge, when run.md names a pull request that gh lists as merged; the merges
 #   on each of the last 10 days with a merge (local dates).
 # cost.test.sh tests it.
@@ -175,17 +182,45 @@ else
     echo "lock: $((lock_wait / 60)) min wait, $((lock_hold / 60)) min hold"
 fi
 if [[ -n "$transcript" && -f "$transcript" ]]; then
-    jq -r --argjson from "$from" --argjson to "$to" 'select(.timestamp) |
-        (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t | select($t >= $from and $t <= $to) |
-        [.message.content[]? | objects | select(.type == "tool_use") | .name] as $n |
-        "\($t) \($n | map(select(. == "Agent" or . == "Task")) | length) \($n | map(select(. == "Workflow")) | length)"' "$transcript" |
-        sort -n |
-        awk 'NR > 1 && $1 - last > 300 { gap += $1 - last; k++ } { last = $1; agents += $2; workflows += $3 }
-            END { printf "agents: %d\nworkflows: %d\nidle: %d min in %d gaps over 5 min\n", agents, workflows, gap / 60, k }'
+    # One R row for each record (in the window or not, its agent and Workflow calls), then the task
+    # rows of the record: U a delegate_task call, D its result with the task ID, S the start of a
+    # background Bash, Agent, or Workflow task, E an end. The awk keeps the open tasks of all records.
+    jq -r --argjson from "$from" --argjson to "$to" '
+        def text: if type == "string" then . else ([.[]? | objects | select(.type == "text") | .text] | join(" ")) end;
+        select(.timestamp) |
+        (.timestamp | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) as $t |
+        [.message.content[]? | objects | select(.type == "tool_use")] as $u |
+        ([$t, "R", (if $t >= $from and $t <= $to then 1 else 0 end),
+          ($u | map(select(.name == "Agent" or .name == "Task" or .name == "mcp__t3-code__delegate_task")) | length),
+          ($u | map(select(.name == "Workflow")) | length)] | @tsv),
+        ($u[] | select(.name == "mcp__t3-code__delegate_task") | [$t, "U", .id] | @tsv),
+        (.message.content[]? | objects | select(.type == "tool_result") | .tool_use_id as $id | (.content | text) as $c |
+            (($c | capture("^\\{\"taskId\":\"(?<k>[^\"]+)\"") | .k) as $k |
+                if ($c | test("\"status\":\"cancel_requested\"")) then [$t, "E", $k] else [$t, "D", $id, $k] end | @tsv),
+            ($c | capture("^(Command running in background with ID: |Workflow launched in background\\. Task ID: |Async agent launched successfully\\..*?\\nagentId: )(?<k>[A-Za-z0-9_-]+)"; "s")
+                | [$t, "S", .k] | @tsv),
+            ($c | capture("^\\{\"message\":\"Successfully stopped task: (?<k>[A-Za-z0-9_-]+)") | [$t, "E", .k] | @tsv)),
+        (select(.type == "user") | .message.content | text
+            | scan("(?:^|\\n)Delegated task (\\S+) \\([^\\n]*\\) \\[(?:completed|failed)\\]:") | [$t, "E", .[0]] | @tsv),
+        ([.content, (select(.type == "user") | .message.content | text)][] | strings
+            | scan("(?:^|\\n)<task-notification>\\n<task-id>([^<]+)</task-id>") | [$t, "E", .[0]] | @tsv)' "$transcript" |
+        sort -s -n -k1,1 |
+        awk -F'\t' '$2 == "U" { use[$3] = 1 } $2 == "D" && use[$3] { open[$4] = 1 } $2 == "S" { open[$3] = 1 }
+            $2 == "E" { delete open[$3] }
+            $2 == "R" && $3 {
+                if (seen && $1 - last > 300) {
+                    n = 0
+                    for (task in open) n++
+                    if (n) { wait += $1 - last; w++ } else { gap += $1 - last; k++ }
+                }
+                seen = 1; last = $1; agents += $4; workflows += $5
+            }
+            END { printf "agents: %d\nworkflows: %d\nidle: %d min in %d gaps over 5 min\nwait: %d min in %d gaps\n", agents, workflows, gap / 60, k, wait / 60, w }'
 else
     echo "agents: no transcript"
     echo "workflows: no transcript"
     echo "idle: no transcript"
+    echo "wait: no transcript"
 fi
 
 attributed=()
@@ -236,9 +271,19 @@ else
         | .key as $i | .value as $u | ($u.cache_creation.ephemeral_1h_input_tokens // 0) as $w1
         | [$m.id, $r, ($u.model // $m.model // "unknown"), ($u.input_tokens // 0), ($u.output_tokens // 0),
            ($u.cache_read_input_tokens // 0), (($u.cache_creation_input_tokens // 0) - $w1), $w1, $i] | @tsv'
+    # The sessions of the project (a T3 delegated agent): first() stops jq at the first user message.
+    sessions=()
+    for f in "$(dirname "$transcript")"/*.jsonl; do
+        [[ -f "$f" && "$f" != "$transcript" ]] || continue
+        first="$(jq -r -n 'first(inputs | select(.type == "user")) | .message.content
+            | if type == "string" then . else ([.[]? | objects | select(.type == "text") | .text] | join(" ")) end' "$f" 2>/dev/null || true)"
+        ! grep -qE -- "${name}([^A-Za-z0-9-]|$)" <<<"$first" || sessions+=("$f")
+    done
     {
         jq -r --argjson from "$from" --argjson to "$to" --argjson all false "$rows" "$transcript"
-        for f in ${attributed[@]+"${attributed[@]}"}; do jq -r --argjson from 0 --argjson to 0 --argjson all true "$rows" "$f"; done
+        for f in ${attributed[@]+"${attributed[@]}"} ${sessions[@]+"${sessions[@]}"}; do
+            jq -r --argjson from 0 --argjson to 0 --argjson all true "$rows" "$f"
+        done
     } | awk -F'\t' '
         !seen[$1, $2, $9]++ { m[$3] = 1; i[$3] += $4; o[$3] += $5; r[$3] += $6; w5[$3] += $7; w1[$3] += $8 }
         END {

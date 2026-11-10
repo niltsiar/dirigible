@@ -799,24 +799,26 @@ fi
 # background call at 30 min by default and the result of a land, a push check, or a mutation pass is
 # lost. A string test for a lock word opens the rule, so a Bash call with no lock word makes no read
 # of the two keys. Each segment of the chain (the masked text of the hook test rule below) is read from
-# its start, after the prefix words. A lock job has a with-lock.sh word in the prefix; or land.sh,
+# its start, after the prefix words (bg_pre, nohup and nice [-n N] included). A lock job has a
+# with-lock.sh word in the prefix (also a lock-free call: it can wait for a long holder); or land.sh,
 # mutation-pass.sh, swift-test.sh, test-shards.sh, bench.sh, bench-pairs.sh, sanitize.sh, loop.sh,
 # test-stress.sh, make, or swift as the first word; or a shell word (sh, bash, zsh) with a file or a quoted command.
 # make with one target that takes no lock (check-docs, check-fast, lint, format: AGENTS.md, Commands)
 # and no other word but a redirection is no lock job. Misses: a
-# wrapper word that the prefix does not hold (nice, nohup, caffeinate) and a path in a variable.
+# wrapper word that the prefix does not hold (caffeinate) and a path in a variable.
 # One background call runs one lock job: a second job of the call can wait for the lock behind other
 # work until the 2 h limit of the call stops it. So a call with the flag true and two or more lock jobs
-# blocks at any timeout. The count reads each segment after the prefix words above plus nohup and
-# nice [-n N]. A segment with a lock job counts 1 (a with-lock.sh prefix and the command it runs are one
-# job); bench-pairs.sh --compare with no with-lock.sh prefix counts 0. A shell word, flags with c, and a
-# quoted body count the jobs of the body in place of the 1, one level deep. The body is read from the
-# text with its separators (mask_quoted_data keep), with one level of \ quoting removed. Misses: a
-# script file that runs two lock jobs, a loop body (one job in the text, one job each pass), and a
-# quoted "scripts/with-lock.sh" word.
+# blocks at any timeout. The count is the number of times the call takes the lock. A segment with a
+# lock job counts 1, and a with-lock.sh prefix is one job whatever it runs, a shell -c body too. A
+# segment counts 0 when it takes no lock: bench-pairs.sh --compare with no with-lock.sh prefix, and a
+# with-lock.sh call that runs lock-free (WITH_LOCK_RUN_ONLY=1 before it, or make test-hooks with words
+# that lock_make_words of scripts/lock-words.sh takes). With no with-lock.sh prefix, a shell word,
+# flags with c, and a quoted body count the jobs of the body in place of the 1, one level deep. The
+# body is read from the text with its separators (mask_quoted_data keep), with one level of \ quoting
+# removed, and a single-quoted body joins its '\'' parts. Misses: a script file that runs two lock
+# jobs, a loop body (one job in the text, one job each pass), and a quoted "scripts/with-lock.sh" word.
 bg_gate='\.sh([^[:alnum:]]|$)|(^|[^[:alnum:]_.-])((ba|z|da)?sh|make|swift)([^[:alnum:]_.-]|$)'
-bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
-bg_count_pre="${bg_pre%)\*}|nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? )*"
+bg_pre="(\{ |! |if |then |do |else |while |export |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |nohup |nice( +-n +-?[0-9]+| +-[0-9]+)? |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh )*"
 bg_shell="^([^[:space:]]*/)?(ba|z|da)?sh(([[:space:]]+-[A-Za-z]+)*)[[:space:]]+[^-<[:space:]]"
 bg_shell_c="^([^[:space:]]*/)?(ba|z|da)?sh([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*c[A-Za-z]*[[:space:]]+[\"']"
 bg_free_make="^([^[:space:]]*/)?make[[:space:]]+(check-docs|check-fast|lint|format)(([[:space:]]+[0-9]*|[[:space:]]*)>>?[[:space:]]*[^[:space:]>)}\"]*)*[[:space:])}\"]*$"
@@ -834,16 +836,61 @@ bg_lock_job() {
   esac
   [[ "$bg_rest" =~ $bg_shell ]] && lock_job=1
 }
+quote_re="^([^'\"]*)('[^']*'|\"[^\"]*\")(.*)\$"
+# unmask_lock_quotes <text>: sets lock_text to the text with each quoted string as with-lock.sh gets it:
+# an empty value after = stays empty, a string with a space or a $ becomes one non-empty word (Q), and
+# any other string becomes its text ('make' gives make).
+unmask_lock_quotes() {
+  local text="$1" head quoted inner
+  lock_text=""
+  while [[ "$text" =~ $quote_re ]]; do
+    head="${BASH_REMATCH[1]}" quoted="${BASH_REMATCH[2]}" text="${BASH_REMATCH[3]}"
+    inner="${quoted:1:${#quoted}-2}"
+    if [[ -z "$inner" && "$head" != *= ]] || [[ "$inner" =~ [[:space:]\$] ]]; then inner=Q; fi
+    lock_text+="$head$inner"
+  done
+  lock_text+="$text"
+}
+# bg_free: succeeds when the segment of bg_lock_job runs with-lock.sh lock-free (the header).
+bg_free() {
+  [[ "$bg_prefix" == *with-lock.sh* ]] || return 1
+  [[ "$bg_prefix" =~ (^|[[:space:]])WITH_LOCK_RUN_ONLY=1[[:space:]].*with-lock\.sh ]] && return 0
+  [[ "${bg_words[0]##*/}" == make && -f "$(dirname "$0")/../../scripts/lock-words.sh" ]] || return 1
+  unmask_lock_quotes "$bg_prefix$bg_rest"
+  lock_text="${lock_text%%[<>)\}]*}"
+  [[ "$lock_text" =~ ^(.*[[:space:]])[0-9]+$ ]] && lock_text="${BASH_REMATCH[1]}"
+  local w words=() env=() args=() seen=""
+  read -ra words <<< "$lock_text"
+  for w in "${words[@]}"; do
+    if [[ -n "$seen" ]]; then args+=("$w")
+    elif [[ "${w##*/}" == with-lock.sh ]]; then seen=1
+    elif [[ "$w" =~ ^(BASE|MAKEFLAGS|DIRIGIBLE_HOOKS_ALL)= ]]; then env+=("$w")
+    fi
+  done
+  (
+    unset BASE MAKEFLAGS DIRIGIBLE_HOOKS_ALL
+    for w in ${env[@]+"${env[@]}"}; do export "$w"; done
+    . "$(dirname "$0")/../../scripts/lock-words.sh"
+    lock_make_words ${args[@]+"${args[@]}"} && [[ "$lock_goal" == test-hooks ]]
+  )
+}
 # bg_body <text>: the text starts at the quote mark of a shell -c body. Sets body to the quoted string
 # with one level of \ quoting removed, and body_len to the length of the string with its quote marks.
 # In double quotes, a quote mark inside $( ) does not end the string.
 bg_body() {
-  local text="$1" i=1 depth=0 c next
+  local text="$1" i=1 depth=0 c next part
   body=""
   if [[ "${text:0:1}" == "'" ]]; then
-    body="${text:1}"
-    body="${body%%\'*}"
-    body_len=$((${#body} + 2))
+    while :; do
+      part="${text:i}"
+      part="${part%%\'*}"
+      body+="$part"
+      i=$((i + ${#part} + 1))
+      [[ "${text:i:3}" == "\\''" ]] || break
+      body+="'"
+      i=$((i + 3))
+    done
+    body_len=$i
     return
   fi
   while ((i < ${#text})); do
@@ -872,19 +919,22 @@ bg_count() {
   while IFS= read -r seg; do
     start=$off off=$((off + ${#seg} + 1))
     ((start >= skip)) || continue
-    bg_lock_job "$seg" "$bg_count_pre"
+    bg_lock_job "$seg" "$bg_pre"
     if [[ -n "$2" && "$bg_rest" =~ $bg_shell_c ]]; then
       quote=$((start + ${#seg} - ${#bg_rest} + ${#BASH_REMATCH[0]} - 1))
       bg_body "${2:quote}"
       skip=$((quote + body_len))
-      split="$(mask_quoted_data <<< "$body")" || exit 2
-      for sep in ';' '&' '|' '(' '`'; do split="${split//"$sep"/$'\n'}"; done
-      bg_count "$split" ""
-      jobs=$((jobs + bg_jobs))
-      continue
+      if [[ "$bg_prefix" != *with-lock.sh* ]]; then
+        split="$(mask_quoted_data <<< "$body")" || exit 2
+        for sep in ';' '&' '|' '(' '`'; do split="${split//"$sep"/$'\n'}"; done
+        bg_count "$split" ""
+        jobs=$((jobs + bg_jobs))
+        continue
+      fi
     fi
     [[ -n "$lock_job" ]] || continue
     [[ "${bg_words[0]:-}" == *bench-pairs.sh && "${bg_words[1]:-}" == --compare && "$bg_prefix" != *with-lock.sh* ]] && continue
+    bg_free && continue
     jobs=$((jobs + 1))
   done <<< "$1"
   bg_jobs=$jobs
@@ -918,21 +968,6 @@ fi
 
 test_path="[\"']?([^[:space:]\"']*)\.test\.sh[\"']?([[:space:])}<>]|\$)"
 hooks_path="[\"']?([^[:space:]\"']*/)?test-hooks\.sh[\"']?([[:space:])}<>]|\$)"
-quote_re="^([^'\"]*)('[^']*'|\"[^\"]*\")(.*)\$"
-# unmask_lock_quotes <text>: sets lock_text to the text with each quoted string as with-lock.sh gets it:
-# an empty value after = stays empty, a string with a space or a $ becomes one non-empty word (Q), and
-# any other string becomes its text ('make' gives make).
-unmask_lock_quotes() {
-  local text="$1" head quoted inner
-  lock_text=""
-  while [[ "$text" =~ $quote_re ]]; do
-    head="${BASH_REMATCH[1]}" quoted="${BASH_REMATCH[2]}" text="${BASH_REMATCH[3]}"
-    inner="${quoted:1:${#quoted}-2}"
-    if [[ -z "$inner" && "$head" != *= ]] || [[ "$inner" =~ [[:space:]\$] ]]; then inner=Q; fi
-    lock_text+="$head$inner"
-  done
-  lock_text+="$text"
-}
 make_hooks="^([^[:space:]]*/)?make(([[:space:]]+[^[:space:]]+)*)[[:space:]]+test-hooks([[:space:])}<>]|\$)"
 test_pre="(\{ |! |if |then |do |else |while |[A-Za-z_][A-Za-z0-9_]*=$word |time |env |[^[:space:]]*probe\.sh $word |[^[:space:]]*with-lock\.sh (--bench-mark )?)*"
 lock_way="The one form is scripts/with-lock.sh make test-hooks HOOK_TESTS='<names>', which takes no lock but waits while a long holder holds it (the header of scripts/with-lock.sh)."

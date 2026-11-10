@@ -1487,6 +1487,7 @@ bg_jobs=(
   'scripts/swift-test.sh' 'scripts/test-shards.sh' 'scripts/bench.sh Foo' 'scripts/bench-pairs.sh Foo'
   'scripts/sanitize.sh thread' 'scripts/flake-monitor/loop.sh --min-load 4 t 1 5 out' 'scripts/test-stress.sh --runs 3 out' 'scripts/with-lock.sh make build' 'scripts/with-lock.sh swift build'
   'bash .scratchpads/loop.sh' 'sh .scratchpads/loop.sh' 'zsh .scratchpads/loop.sh'
+  'nohup scripts/with-lock.sh make dmg > d.log 2>&1 &' 'nice -n 5 scripts/with-lock.sh make dmg > d.log 2>&1'
 )
 for job in "${bg_jobs[@]}"; do
   expect block "$job" true
@@ -1525,15 +1526,19 @@ expect_agent allow 'scripts/with-lock.sh make test-filter FILTER=X'
 
 # One background call runs one lock job: a second job can wait for the lock behind other work until the
 # 2 h limit of the call stops it mid-run. Two jobs block at any timeout, also in a shell -c body and in
-# each shell context; a with-lock.sh prefix and the command it runs are one job, and a bare
-# bench-pairs.sh --compare takes no lock. Each release form holds one job, except the hooks pass that
-# runs a push check after it.
+# each shell context; a with-lock.sh prefix and the command it runs are one job (a shell -c body too),
+# and a bare bench-pairs.sh --compare and a lock-free with-lock.sh call take no lock. A single-quoted
+# body joins its '\'' parts. Each release form and each form of the lead holds one job, except the
+# hooks pass that runs a push check after it.
 bg_two_jobs=(
   'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh SessionFileBenchmark > a.log 2>&1; scripts/bench-pairs.sh /m X 3 out > b.log 2>&1'
   'scripts/with-lock.sh make check-changed BASE=origin/main > c.log 2>&1 && scripts/land.sh "t" pr.md'
   'bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/bench.sh SessionFileBenchmark > a.log 2>&1; scripts/bench-pairs.sh /m X 3 out > b.log 2>&1"'
   "(nohup sh -c 'scripts/with-lock.sh make dmg; scripts/land.sh t pr.md' > /dev/null 2>&1 &)"
   'scripts/bench.sh X > a.log; scripts/with-lock.sh scripts/bench-pairs.sh --compare out'
+  'scripts/with-lock.sh bash -c "echo a > x.log"; scripts/with-lock.sh bash -c "echo b > y.log"'
+  "bash -c 'echo '\\''start'\\''; scripts/with-lock.sh make dmg; scripts/land.sh t pr.md'"
+  'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh f bash a.sh; scripts/with-lock.sh make dmg; scripts/land.sh t pr.md'
 )
 bg_one_job=(
   'scripts/bench-pairs.sh /m X 3 out > b.log 2>&1; scripts/bench-pairs.sh --compare out > c.log 2>&1'
@@ -1543,6 +1548,17 @@ bg_one_job=(
   '(nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=$(git merge-base HEAD origin/main) > l.log 2>&1; echo \"exit \$?\" > l.done" > /dev/null 2>&1 < /dev/null &)'
   '(nohup bash -c "WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=`git merge-base HEAD origin/main` > l.log 2>&1" &)'
   'make check-docs; make lint'
+  'scripts/with-lock.sh bash -c "swift build; swift build -c release"'
+  "nohup scripts/with-lock.sh bash -c 'make dmg; scripts/land.sh t pr.md' > l.log 2>&1 &"
+  'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh f bash a.sh > a.log; WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh g bash b.sh > b.log'
+  "scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/a.test.sh' > a.log 2>&1; scripts/with-lock.sh make test-hooks HOOK_TESTS='scripts/b.test.sh' > b.log 2>&1"
+  'WITH_LOCK_RUN_ONLY=1 scripts/with-lock.sh scripts/probe.sh f bash a.sh > a.log; scripts/with-lock.sh make dmg > d.log 2>&1'
+  "bash -c 'echo '\\''start'\\''; scripts/with-lock.sh make dmg'"
+  'cd /x/wt && R=/x/run; WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh scripts/land.sh "t" $R/pr.md > $R/logs/land.log 2>&1; echo "exit $?" >> $R/logs/land.log'
+  'cd /x/wt && WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make check-changed BASE=origin/main > l.log 2>&1; echo "exit $?" >> l.log'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make test-hooks DIRIGIBLE_HOOKS_ALL=1 > h.log 2>&1; echo "exit $?" >> h.log'
+  'WITH_LOCK_MAX_WAIT=0 scripts/with-lock.sh make dmg > d.log 2>&1' 'scripts/bench.sh X > b.log 2>&1'
+  '.claude/skills/deliver/scripts/mutation-pass.sh wt batch.txt > m.log 2>&1'
 )
 for job in "${bg_two_jobs[@]}"; do
   expect block "$job" true 7200000

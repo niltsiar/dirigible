@@ -8,7 +8,9 @@
 # call that holds the lock, and of an out folder with a summary.txt, a TERM to the
 # caller and to the child of the lock (the stub make and each busy process are dead when the lock
 # goes), the table of red tests (most reds first, a run with an exit and no failed test, a loop that
-# stops early), and the exit status. Run by `make test-hooks`.
+# stops early), the exit status, the disk flush load of --sync-load (a live load, one 1 MiB file, a
+# counter that rises, no load or guard process after the exit, exit 2 when F_FULLFSYNC fails), and
+# a KILL of the script (no busy, load, or guard process lives). Run by `make test-hooks`.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 failures=0
@@ -45,6 +47,7 @@ echo 2.50 > "$tmp/load"
 printf 'test-filter: test\ntest:\n' > "$tmp/stub/Makefile"
 printf '\t@n=$$(cat "$$STRESS_OUT/n" 2>/dev/null || echo 0); n=$$((n + 1)); echo $$n > "$$STRESS_OUT/n"; echo $$PPID > "$$STRESS_OUT/make.pid"\n' >> "$tmp/stub/Makefile"
 printf '\t@alive=0; for p in $$(cat "$$STRESS_OUT/busy.pids"); do kill -0 $$p 2>/dev/null && alive=$$((alive + 1)); done; echo "busy=$$alive limit=$$TEST_SHARD_LIMIT maxhold=$$(cat "$$STRESS_LOCK/maxhold")"\n' >> "$tmp/stub/Makefile"
+printf '\t@p=$$(sed -n "s/^load //p" "$$STRESS_OUT/load.pids" 2>/dev/null); [ -z "$$p" ] || ! kill -0 $$p 2>/dev/null || echo $$p > "$$STRESS_OUT/load-seen"\n' >> "$tmp/stub/Makefile"
 printf '\t@[ -z "$$STRESS_SLEEP" ] || /bin/sleep "$$STRESS_SLEEP"\n' >> "$tmp/stub/Makefile"
 printf '\t@fails=$$(echo "$$STRESS_FAIL" | cut -d, -f$$(cat "$$STRESS_OUT/n")); for f in $$fails; do echo "✘ Test $$f() failed after 1.0 seconds with 1 issue."; done; [ -z "$$fails" ] || exit 1\n' >> "$tmp/stub/Makefile"
 printf '#!/bin/bash\n' > "$tmp/bin/make"
@@ -52,6 +55,17 @@ printf 'exec /usr/bin/make -s --no-print-directory -C "%s" "$@"\n' "$tmp/stub" >
 chmod +x "$tmp/bin/make"
 export STRESS_LOCK="$lock"
 dead() { ! kill -0 "$1" 2>/dev/null; }
+gone() { # gone <pid>...: each pid is dead within 5 s
+  local p live
+  for _ in $(seq 50); do
+    live=""
+    for p in "$@"; do dead "$p" || live=1; done
+    [[ -n "$live" ]] || return 0
+    /bin/sleep 0.1
+  done
+  return 1
+}
+role() { sed -n "s/^$1 //p" "$2/load.pids" 2>/dev/null; } # role <guard|load> <out folder>: its pid
 
 # stress <out> <argument>...: a lane call; code and out hold the result.
 stress() {
@@ -73,6 +87,10 @@ WITH_LOCK_MAX_HOLD=9600 stress "$tmp/o1" --runs 2
 for p in $(cat "$tmp/o1/busy.pids" 2>/dev/null); do dead "$p" || fail "green lane: busy process $p lives"; done
 [[ "$(wc -l < "$tmp/o1/busy.pids" 2>/dev/null | tr -d ' ')" == 2 ]] || fail "green lane: not 2 busy pids: $(cat "$tmp/o1/busy.pids" 2>/dev/null)"
 grep -q '^test-stress: 0 red tests in 2 runs at a 1-minute load of ' "$tmp/out" || fail "green lane: no last line: $(tail -3 "$tmp/out")"
+# With no --sync-load: no load file, no load seen, and no load pid; the guard starts and ends.
+[[ ! -e "$tmp/o1/sync-load.bin" && ! -e "$tmp/o1/load-seen" && -z "$(role load "$tmp/o1")" ]] || fail "green lane: a load with no --sync-load"
+guard="$(role guard "$tmp/o1")"
+[[ -n "$guard" ]] && gone "$guard" || fail "green lane: no guard pid, or the guard lives: [$(cat "$tmp/o1/load.pids" 2>/dev/null)]"
 
 # The table of red tests: a() in both runs and b() in one; most reds first.
 export STRESS_FAIL="a b,a"
@@ -176,6 +194,70 @@ for target in caller child; do
   for p in $(cat "$dir/busy.pids"); do dead "$p" || fail "term $target: busy process $p lives"; done
   wait "$caller" 2>/dev/null
 done
+
+# --sync-load: during the runs one load process writes 1 MiB at offset 0 of one file and calls
+# F_FULLFSYNC on each pass. The stub make sees it live, the file stays at 1 MiB, the counter file
+# rises, and no load, guard, or busy process lives 5 s after the exit.
+dir="$tmp/sync"
+mkdir -p "$dir"
+(STRESS_SLEEP=3 STRESS_OUT="$dir" PATH="$tmp/bin:$PATH" exec "$stress" --sync-load "$dir" > "$tmp/sync.out" 2>&1) &
+caller=$!
+pids="$pids $caller"
+for _ in $(seq 100); do [[ -s "$dir/make.pid" ]] && break; /bin/sleep 0.1; done
+passes() { cat "$dir/sync-load.count" 2>/dev/null || echo 0; }
+for _ in $(seq 50); do [[ $(passes) -ge 3 ]] && break; /bin/sleep 0.1; done
+first="$(passes)"
+/bin/sleep 0.5
+second="$(passes)"
+[[ $first -ge 3 && $second -gt $first ]] || fail "sync load: the counter did not rise: $first, then $second"
+[[ "$(stat -f %z "$dir/sync-load.bin" 2>/dev/null)" == 1048576 ]] || fail "sync load: the load file is not 1 MiB: $(ls -l "$dir" 2>&1)"
+wait "$caller"
+code=$?
+[[ $code -eq 0 && -s "$dir/load-seen" ]] || fail "sync load: exit $code, or the test run saw no load: $(cat "$tmp/sync.out")"
+load="$(role load "$dir")" guard="$(role guard "$dir")"
+[[ -n "$load" && -n "$guard" ]] && gone "$load" "$guard" $(cat "$dir/busy.pids" 2>/dev/null) ||
+  fail "sync load: no load or guard pid, or a process lives 5 s after the exit: [$(cat "$dir/load.pids" 2>/dev/null)]"
+
+# A first F_FULLFSYNC that fails (a volume with no support; here a python3 whose fcntl fails): exit 2
+# with the out folder and the call, before a busy process or a run.
+real_python="$(command -v python3)"
+mkdir -p "$tmp/nosync" "$tmp/o11"
+cat > "$tmp/nosync/python3" <<EOF
+#!/bin/bash
+[[ "\$1 \$2" == '-I -c' ]] || exec "$real_python" "\$@"
+code="\$3"
+shift 3
+exec "$real_python" -I -c "import fcntl
+def _fail(*_): raise OSError(45, 'Operation not supported')
+fcntl.fcntl = _fail
+\$code" "\$@"
+EOF
+chmod +x "$tmp/nosync/python3"
+STRESS_OUT="$tmp/o11" PATH="$tmp/nosync:$tmp/bin:$PATH" "$stress" --sync-load "$tmp/o11" > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 2 ]] && grep -qxF "test-stress: --sync-load: the first disk flush pass failed in $tmp/o11; run the lane on a volume that supports F_FULLFSYNC" "$tmp/out" &&
+  grep -qxF 'F_FULLFSYNC: [Errno 45] Operation not supported' "$tmp/out" &&
+  [[ ! -e "$tmp/o11/busy.pids" && ! -e "$tmp/o11/n" ]] || fail "a failed F_FULLFSYNC: exit $code: $(cat "$tmp/out")"
+
+# A KILL of the script itself (the pid of <lock>/child) during a run with --sync-load: no busy, load,
+# or guard process lives after 5 s.
+dir="$tmp/kill"
+mkdir -p "$dir"
+(STRESS_SLEEP=30 STRESS_OUT="$dir" PATH="$tmp/bin:$PATH" exec "$stress" --sync-load "$dir" > "$tmp/kill.out" 2>&1) &
+caller=$!
+pids="$pids $caller"
+for _ in $(seq 100); do [[ -s "$dir/make.pid" ]] && break; /bin/sleep 0.1; done
+if [[ -s "$dir/make.pid" ]]; then
+  load="$(role load "$dir")" guard="$(role guard "$dir")"
+  kill -KILL "$(cat "$lock/child")"
+  [[ -n "$load" && -n "$guard" ]] && gone "$load" "$guard" $(cat "$dir/busy.pids") ||
+    fail "kill: no load or guard pid, or a process lives 5 s after a KILL of the script: [$(cat "$dir/load.pids" 2>/dev/null)]"
+  pids="$pids $load $guard $(cat "$dir/busy.pids") $(cat "$dir/make.pid")"
+  for _ in $(seq 100); do [[ -d "$lock" ]] || break; /bin/sleep 0.1; done
+else
+  fail "kill: the stub make did not start: $(cat "$tmp/kill.out")"
+fi
+wait "$caller" 2>/dev/null
 
 [[ $failures -eq 0 ]] && echo "test-stress tests: all passed"
 exit $((failures > 0))

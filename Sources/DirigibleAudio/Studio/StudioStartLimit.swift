@@ -78,11 +78,12 @@ private final class Once<T: Sendable>: Sendable {
 
 /// A writer of the pending take that did not finish by the stop deadline, with its device UID and
 /// the track of each of its arms: the stop clears `armed`, and Retry Finalize maps the late gaps
-/// through it.
+/// through it. `called` is the stop call, from which each finish line counts its ms.
 struct UnfinishedWriter {
     let writer: DeviceWriter
     let uid: String
     let tracks: [Int: TrackID]
+    let called: ContinuousClock.Instant
 }
 
 extension Studio {
@@ -113,18 +114,22 @@ extension Studio {
     }
 
     /// Finishes each writer by `deadline`, and returns the gaps of the take and the writers that
-    /// did not finish. All finishes start at the same time; the stop time (`end(atHostNanos:)`)
-    /// ends each track at the click, so a writer that finishes late records nothing after it. A
-    /// writer in `abandoned` never attached: it holds no audio, so each of its tracks gets a gap
-    /// and the stop does not wait for it.
+    /// did not finish. The stop starts each finish at its call (`deadline` - `stopLimit`) on the
+    /// writer queue, and a writer is on time when its queue ended the finish by `deadline`, also
+    /// when this call reads it later; a deadline that is past at the call arms no wait. The stop
+    /// time (`end(atHostNanos:)`) ends each track at the click, so a writer that finishes late
+    /// records nothing after it. A writer in `abandoned` never attached: it holds no audio, so
+    /// each of its tracks gets a gap and the stop does not wait for it. Each other writer gets its
+    /// `take writer-finished` line now, or when its finish ends.
     func finishWriters(by deadline: ContinuousClock.Instant, abandoned: [DeviceWriter]) async -> (
         gaps: [TrackID: TakeResult.Gap], unfinished: [UnfinishedWriter]
     ) {
+        let (called, log) = (deadline - environment.stopLimit, environment.log)
         var gaps: [TrackID: TakeResult.Gap] = [:]
         var unfinished: [UnfinishedWriter] = []
         let isAbandoned = { (writer: DeviceWriter) in abandoned.contains { $0 === writer } }
-        let answers = await boundedEach(writers.values.filter { !isAbandoned($0) }, by: deadline) {
-            [log = environment.log] in await finishLogged($0, log)
+        if ContinuousClock.now < deadline {
+            _ = await boundedEach(writers.values.filter { !isAbandoned($0) }, by: deadline) { await $0.finish() }
         }
         for (uid, writer) in writers {
             let tracks = Dictionary(
@@ -133,32 +138,49 @@ extension Studio {
                 })
             if isAbandoned(writer) {
                 for track in tracks.values { gaps[track] = .deviceLost }
-            } else if let finished = answers[ObjectIdentifier(writer)] {
-                for (arm, gap) in finished { gaps[armed[arm - 1].id] = gap }
+                continue
+            }
+            let record = writer.finishRecord
+            if let record {
+                noteFinished(writer, record, since: called, log)
             } else {
-                unfinished.append(UnfinishedWriter(writer: writer, uid: uid, tracks: tracks))
+                Task { @concurrent in
+                    await writer.finish()
+                    if let record = writer.finishRecord { noteFinished(writer, record, since: called, log) }
+                }
+            }
+            if let record, record.at <= deadline {
+                for (arm, gap) in record.gaps { gaps[armed[arm - 1].id] = gap }
+            } else {
+                unfinished.append(UnfinishedWriter(writer: writer, uid: uid, tracks: tracks, called: called))
             }
         }
         return (gaps, unfinished)
     }
 
     /// Retry Finalize waits for the writers that the stop left unfinished, by `deadline`, and
-    /// adds their gaps and their silent tracks to `lastTake`. The device of a writer that finished
-    /// gets its monitor again. Returns `.writerDidNotStop` when one still does not answer.
+    /// adds their gaps and their silent tracks to `lastTake`. A writer is on time when its queue
+    /// ended the finish by `deadline`; a deadline that is past at the call arms no wait. The device
+    /// of a writer that finished gets its monitor again. Returns `.writerDidNotStop` when one is
+    /// still late.
     func finishUnfinished(by deadline: ContinuousClock.Instant) async -> StudioError? {
         var late: [TrackID: TakeResult.Gap] = [:]
         var silent: [TrackID: String] = [:]
         var still: [UnfinishedWriter] = []
-        let answers = await boundedEach(unfinishedWriters.map(\.writer), by: deadline) {
-            [log = environment.log] in await finishLogged($0, log)
+        if ContinuousClock.now < deadline {
+            _ = await boundedEach(unfinishedWriters.map(\.writer), by: deadline) { await $0.finish() }
         }
+        var answered = false
         for entry in unfinishedWriters {
-            if let finished = answers[ObjectIdentifier(entry.writer)] {
-                for (arm, gap) in finished { if let track = entry.tracks[arm] { late[track] = gap } }
-                if let app = await entry.writer.silentApp() { for track in entry.tracks.values { silent[track] = app } }
-            } else {
+            let record = entry.writer.finishRecord
+            if let record { noteFinished(entry.writer, record, since: entry.called, environment.log) }
+            guard let record, record.at <= deadline else {
                 still.append(entry)
+                continue
             }
+            answered = true
+            for (arm, gap) in record.gaps { if let track = entry.tracks[arm] { late[track] = gap } }
+            if let app = await entry.writer.silentApp() { for track in entry.tracks.values { silent[track] = app } }
         }
         unfinishedWriters = still
         logLate(still)
@@ -167,7 +189,7 @@ extension Studio {
                 take: last.take, end: last.end, gaps: last.gaps.merging(late) { first, _ in first },
                 droppedFrames: last.droppedFrames, silent: last.silent.merging(silent) { first, _ in first })
         }
-        if !answers.isEmpty { await monitorTurns.run { await applyMonitor() } }
+        if answered { await monitorTurns.run { await applyMonitor() } }
         return still.first.map { .writerDidNotStop($0.writer.name) }
     }
 

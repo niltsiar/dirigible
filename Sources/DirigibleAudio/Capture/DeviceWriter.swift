@@ -2,6 +2,7 @@ import Atomics
 import CoreAudio
 import DirigibleCore
 import Foundation
+import os
 
 /// The recorder of one device for the whole take (decisions 0004 and 0013). A drain timer on its
 /// serial queue pops the ring of the current `DeviceInput`, runs the watchdog while the device
@@ -80,6 +81,13 @@ final class DeviceWriter: @unchecked Sendable {
     let lifecycle = WriterLifecycle()
     /// The name of the device or the app, for an error text. Any thread reads it.
     let name: String
+    private let finishLock = OSAllocatedUnfairLock<FinishRecord?>(initialState: nil)
+
+    /// The end of the first finish: the gaps of the take, and the time when the queue ended it.
+    struct FinishRecord: Sendable {
+        let gaps: [Int: TakeResult.Gap]
+        let at: ContinuousClock.Instant
+    }
 
     /// `tracks` holds the arm index and the 1-based device channels of each track. The start
     /// checks of `Studio` make every channel exist on the device. `files` is nil for a monitor,
@@ -118,6 +126,8 @@ final class DeviceWriter: @unchecked Sendable {
     /// The first frame of the take, less the input latency, came after `lateStartBase` + 3 IO
     /// buffers of the device. Any thread can read it.
     var startedLate: Bool { late.load(ordering: .relaxed) }
+    /// The first finish, or nil until the queue ends it. Any thread reads it.
+    var finishRecord: FinishRecord? { finishLock.withLock { $0 } }
 
     /// Starts the drain timer and the device-list listener, and attaches. A failed attach makes
     /// the device lost, and the retry goes on.
@@ -187,6 +197,9 @@ final class DeviceWriter: @unchecked Sendable {
         spare = nil
         timer?.cancel()
         phase = .finished
+        let gaps = tracks.gaps
+        // The clock read is in the lock section, so a reader that finds no record gets a later time.
+        finishLock.withLock { $0 = FinishRecord(gaps: gaps, at: .now) }
     }
 
     /// The writer writes no record that starts at or after `end` (host time), so a take does not

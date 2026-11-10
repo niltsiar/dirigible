@@ -185,8 +185,10 @@ extension Studio {
     /// With no take, it does nothing. A success records one undo entry, and one more when the
     /// level changes a gain. A failure keeps the take pending and throws. A writer that never
     /// attached is given up, and the stop waits for each other writer until one deadline: the call
-    /// plus `stopLimit`. When a writer misses it, no finalize runs: the take stays pending with its
-    /// audio on disk, and the stop throws `.writerDidNotStop` (decision 0030).
+    /// plus `stopLimit`. Each finish starts at the call on its writer queue, and a writer is on time
+    /// when its queue ended the finish by the deadline. When a writer misses it, no finalize runs:
+    /// the take stays pending with its audio on disk, and the stop throws `.writerDidNotStop`
+    /// (decision 0030).
     public func stopRecording() async throws(StudioError) {
         try await stop(.requested)
     }
@@ -218,6 +220,9 @@ extension Studio {
             writer.finishLater()
             environment.log.note(.take, "abandoned", ["writer": .text(writer.name)])
         }
+        // Each finish starts now on its writer queue with no pool hop, so a main-actor hold or a
+        // full pool before the decision does not delay it.
+        for writer in writers.values where !abandoned.contains(where: { $0 === writer }) { writer.finishLater() }
         startCut?.cut()
         let error = await serialized { () async -> StudioError? in
             let deadline = called + environment.stopLimit

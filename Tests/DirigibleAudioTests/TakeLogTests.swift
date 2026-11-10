@@ -185,8 +185,9 @@ struct TakeLogTests {
         #expect((take["wav"].flatMap { Int($0) } ?? 0) > 0 && take["seconds"] != nil && take["ms"] != nil, "\(take)")
     }
 
-    /// A writer whose finish waits past the stop deadline is named, and no finalize runs. Retry
-    /// Finalize writes its count and the result after the writer answers.
+    /// A writer whose finish waits past the stop deadline is named, and no finalize runs. The stop
+    /// writes the finish line of the writer when the writer answers, and Retry Finalize writes its
+    /// count, the finish line again, and the result. Both finish lines time from the stop call.
     @Test func aStopPastTheDeadlineNamesTheLateWriter() async throws {
         let hal = TestHAL([mic])
         let gate = Gate(limit: nil)
@@ -203,10 +204,21 @@ struct TakeLogTests {
         #expect(fields(held, "take\twriter-did-not-stop")?["writer"] == "USB Mic", "\(events(held))")
         #expect(!has(held, "take\tfinalized"), "\(events(held))")
         gate.open()
+        let isMicFinished = { (line: String) in
+            line.contains("\ttake\twriter-finished\t") && line.contains("\twriter=USB Mic")
+        }
+        await until(limit: .seconds(5), "no late writer-finished line of USB Mic") {
+            self.lines().contains(where: isMicFinished)
+        }
         try await studio.retryFinalize()
         let lines = lines()
         #expect(fields(lines, "take\tretry-finalize")?["unfinished"] == "1", "\(events(lines))")
         #expect(has(lines, "take\tfinalized"), "\(events(lines))")
+        #expect(lines.filter(isMicFinished).count == 2, "\(events(lines))")
+        let retry = try #require(lines.firstIndex { $0.contains("\ttake\tretry-finalize") }, "\(events(lines))")
+        let retried = try #require(lines[retry...].first(where: isMicFinished), "\(events(lines))")
+        let ms = fieldValues(retried.split(separator: "\t", omittingEmptySubsequences: false).map(String.init))["ms"]
+        #expect((ms.flatMap(Double.init) ?? 0) >= 500, "\(retried)")
         await studio.settle()
     }
 

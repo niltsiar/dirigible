@@ -7,9 +7,12 @@
 # A run holds the build lock (with-lock.sh) once for all its benches; --compare takes no lock.
 # Usage: scripts/bench-pairs.sh <main worktree> <test filter> <pairs> <new out folder>
 #        scripts/bench-pairs.sh --compare <out folder>
-# Per case (its p95, or its p50 for a bench that prints p50 and max) the compare prints VERIFIED
-# (no pair over the rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread
-# is over the rule, or only some pairs are). Exit 1 when a case is NOT VERIFIED, a log has no
+# Per case (the value of its form, in forms() below) the compare prints VERIFIED (no pair over the
+# rule), NOT VERIFIED (each pair over the rule), or INCONCLUSIVE (the A/A spread is over the rule, or
+# only some pairs are). A case in each branch log and in no aa or main log prints NO MAIN SIDE: judge
+# it by its absolute budget. A case with a value in only some logs of a side, or in no branch log,
+# prints NO VERDICT, and so does a time line in a suite that no form reads; each exits 1. These
+# lines print before a failure stops the compare. Exit 1 when a case is NOT VERIFIED, a log has no
 # sample, or a bench failed (load.txt), except for a budget miss: a failed log with samples and a
 # report line of 1 test or more whose failed tests (each `✘ Test <name> recorded an issue` line)
 # have budget issues only (`budget →` after `(` or `.`) prints a note, and its samples count. An aa
@@ -67,32 +70,82 @@ fi
 python3 - "${2:?usage: bench-pairs.sh --compare <out folder>}" "$root" <<'PY'
 import glob, os, re, statistics, subprocess, sys
 folder, root = sys.argv[1], sys.argv[2]
-# The value of a case: its p95, or its p50 when the bench prints p50 and max (NavigationKeyBenchmark,
-# whose budget is on the p50).
+N = r'([0-9][0-9.e-]*)'
 metric = {}
-def cases_of(line):
+# The cases (name, seconds, metric) of a line that a bench prints, from the first form that reads it.
+# <S> is the suite of the last "◇ Suite <S> started." line. A line of the base form gives its p95, or
+# its p50 when the bench prints p50 and max (NavigationKeyBenchmark, whose budget is on the p50).
+def forms(line, suite):
+    if 'over debug budget' in line: return []
     m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 ([0-9.e-]+) seconds, (p95|max) ([0-9.e-]+) seconds', line)
-    if not m: return {}
-    p95 = m.group(3) == 'p95'
-    metric[m.group(1)] = 'p95' if p95 else 'p50'
-    return {m.group(1): float(m.group(4) if p95 else m.group(2)) * 1000}
-def read(path):
-    cases = {}
-    for line in open(path, errors='replace'): cases.update(cases_of(line))
-    return cases
-# The failed tests of a runner log ({name: its issue lines}) and the cases of each test.
-def runner(path):
-    failed, cases, test = {}, {}, None
+    if m: return [(m.group(1), float(m.group(4)), 'p95') if m.group(3) == 'p95' else (m.group(1), float(m.group(2)), 'p50')]
+    for pattern, suffix, kind in ((rf'(\w+Benchmark .+?): p95 {N} seconds', '', 'p95'),
+                                  (rf'(\w+Benchmark .+?): max {N} seconds', '', 'max'),
+                                  (rf'(\w+Benchmark .+?): one-off events .*; max {N} seconds', ', one-off', 'max')):
+        m = re.match(pattern, line)
+        if m: return [(m.group(1) + suffix, float(m.group(2)), kind)]
+    m = re.match(rf'(\w+Benchmark): (.+?) in {N} seconds(?::|$)', line)
+    if m: return [(f'{m.group(1)} {m.group(2)}', float(m.group(3)), 'time')]
+    # "bench report: <S>Benchmark ..." with each "<name> p90 <x> seconds|ms"; a p90 with no unit is no case.
+    m = re.match(r'bench report: (\w+Benchmark) ', line)
+    found = [(f'{m.group(1)} {name}', float(x) / (1000 if unit == 'ms' else 1), 'p90') for name, x, unit in re.findall(
+        rf'(?:^|: |, |\()((?:(?!: |, |\().)+?) p90 {N} (seconds|ms)\b', line[m.end():])] if m else []
+    if found: return found
+    if line.startswith('bench report: ') and suite and not re.search(r'\w+Benchmark\b', line):
+        text = line[len('bench report: '):]
+        m = re.match(rf'ride fixture (\S+): size .*?, open {N} seconds, save {N} seconds; .*the ride adds open {N} seconds, save {N} seconds', text)
+        if m:
+            head = f'{suite} ride fixture {m.group(1)}'
+            return [(f'{head} open', float(m.group(2)), 'time'), (f'{head} save', float(m.group(3)), 'time'),
+                    (f'{head} adds save', float(m.group(5)), 'time')]
+        m = re.match(rf'(.+?): mean {N} seconds, p99 {N} seconds, max {N} seconds', text)
+        if m: return [(f'{suite} {m.group(1)} mean', float(m.group(2)), 'mean'), (f'{suite} {m.group(1)} p99', float(m.group(3)), 'p99')]
+        m = re.match(rf'(.+?): p50 {N} seconds, p95 {N} seconds', text)
+        if m: return [(f'{suite} {m.group(1)}', float(m.group(3)), 'p95')]
+        found = [(f'{suite} {t}', float(x), 'time') for t, x in re.findall(rf'(?:^|, )((?:(?!, ).)+?) took {N} seconds', text)]
+        if found: return found
+    m = re.match(rf'finalize: .*?seconds: {N}', line)
+    if m and suite: return [(f'{suite} finalize', float(m.group(1)), 'time')]
+    # A plain time at the line end; a statistic word before it (mean, max, p99) is a form of its own.
+    m = re.match(rf'(\w+Benchmark .*?:.*?) {N} seconds$', line)
+    if m and not re.search(r'(?:^|[\s:])(?:mean|median|min|max|p[0-9]+)$', m.group(1)):
+        return [(m.group(1).rstrip(':'), float(m.group(2)), 'time')]
+    return []
+# A log: its cases ({name: ms}), its failed tests ({name: issue lines}), the cases of each test
+# (read between its started and end lines), and each time line in a suite that no form reads
+# ((suite, the line with each number as N)).
+logs = {}
+def scan(path):
+    if path in logs: return logs[path]
+    cases, failed, tests, unread = {}, {}, {}, set()
+    suite, depth, test = None, 0, None
     for line in open(path, errors='replace'):
+        line = line.rstrip('\n')
+        m = re.match(r'◇ Suite (\S+) started\.', line)
+        if m:
+            suite, depth = m.group(1), depth + 1; continue
+        if re.match(r'[✔✘] Suite \S+ (?:passed|failed) after', line):
+            depth -= 1; continue
         m = re.match(r'◇ Test (.+?) started\.', line)
         if m:
-            test = m.group(1); cases.setdefault(test, set()); continue
+            test = m.group(1); tests.setdefault(test, set()); continue
         if re.match(r'[✔✘] Test .+? (?:passed|failed) after', line):
             test = None; continue
         m = re.match(r'✘ Test (.+?) recorded an issue at', line)
-        if m: failed.setdefault(m.group(1), []).append(line)
-        elif test: cases[test].update(cases_of(line))
-    return failed, cases
+        if m:
+            failed.setdefault(m.group(1), []).append(line); continue
+        read_line = forms(line, suite)
+        found = {name: seconds * 1000 for name, seconds, _ in read_line}
+        metric.update((name, kind) for name, _, kind in read_line)
+        cases.update(found)
+        if test: tests[test].update(found)
+        if (not found and depth > 0 and not re.match(r'[✘✔◇➜↳]|bench:', line) and 'over debug budget' not in line
+                and re.search(r'(?<![\w.])[0-9][0-9.e-]* (?:seconds|ms)\b|seconds: [0-9]', line)):
+            unread.add((suite, re.sub(r'[0-9]+(?:\.[0-9]+)?(?:e-?[0-9]+)?', 'N', line)))
+    logs[path] = cases, failed, tests, unread
+    return logs[path]
+def read(path): return scan(path)[0]
+def runner(path): return scan(path)[1:3]
 aa = [read(f'{folder}/aa-{n}.log') for n in (1, 2)]
 pairs = []
 for n in range(1, 1000):
@@ -149,19 +202,29 @@ if len(commits['branch']) == 1:
         return r.stdout.strip() or 'none'
     for path in ('Sources', 'Tests', 'Package.swift', 'Package.resolved', 'scripts/bench.sh'):
         if object_id(sha, path) != object_id('HEAD', path): problems.append(f'the branch commit differs from HEAD in {path}')
+# A case needs a value in each log of both sides; a time line that no form reads gives no verdict.
+worst, judged = 0, []
+main_side, branch_side = aa + [m for m, _ in pairs], [b for _, b in pairs]
+for case in sorted(set().union(*main_side, *branch_side)):
+    on_main, on_branch = [case in c for c in main_side], [case in c for c in branch_side]
+    if all(on_main) and all(on_branch): judged.append(case)
+    elif all(on_branch) and not any(on_main): print(f'NO MAIN SIDE {case}: judge it by its absolute budget')
+    else:
+        print(f'NO VERDICT {case}: a value on one side only'); worst = 1
+paths = sorted(glob.glob(f'{folder}/aa-*.log') + glob.glob(f'{folder}/main-*.log') + glob.glob(f'{folder}/branch-*.log'))
+for suite, line in sorted(set().union(*(scan(p)[3] for p in paths))):
+    print(f'NO VERDICT {suite}: the compare reads no case of the line "{line}"'); worst = 1
 if failed or no_verdict or empty or problems:
     for line in failed: print(f'NOT VERIFIED: {line}')
     for line in no_verdict: print(line)
     for name in empty: print(f'NOT VERIFIED: no bench sample in {name}')
     for problem in problems: print(f'NOT VERIFIED: {problem}')
     sys.exit(1)
-worst = 0
-for case in sorted(aa[0]):
-    mains = [m[case] for m, _ in pairs if case in m]
-    limit = max(0.10 * statistics.median(mains or [aa[0][case]]), 1.0)
-    spread = abs(aa[0][case] - aa[1].get(case, aa[0][case]))
-    over = sum(1 for m, b in pairs if b.get(case, float('inf')) - m[case] > limit)
-    detail = ' '.join(f'{m[case]:.2f}/{b.get(case, float("nan")):.2f}' for m, b in pairs)
+for case in judged:
+    limit = max(0.10 * statistics.median([m[case] for m, _ in pairs] or [aa[0][case]]), 1.0)
+    spread = abs(aa[0][case] - aa[1][case])
+    over = sum(1 for m, b in pairs if b[case] - m[case] > limit)
+    detail = ' '.join(f'{m[case]:.2f}/{b[case]:.2f}' for m, b in pairs)
     if spread > limit:
         print(f'INCONCLUSIVE {case} (A/A spread {spread:.2f} ms over the rule {limit:.2f} ms)')
     elif over == 0:
@@ -170,6 +233,6 @@ for case in sorted(aa[0]):
         print(f'NOT VERIFIED {case}'); worst = 1
     else:
         print(f'INCONCLUSIVE {case} ({over} of {len(pairs)} pairs over the rule {limit:.2f} ms)')
-    print(f'  main/branch {metric[case]} ms per pair: {detail}; A/A {aa[0][case]:.2f}/{aa[1].get(case, float("nan")):.2f}')
+    print(f'  main/branch {metric[case]} ms per pair: {detail}; A/A {aa[0][case]:.2f}/{aa[1][case]:.2f}')
 sys.exit(worst)
 PY

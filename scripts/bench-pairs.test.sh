@@ -117,11 +117,12 @@ code=$?
 
 # A branch budget miss that main shares counts, with a note: each failed test of the branch log also
 # fails in an aa or main log, each of its issues is a budget expectation, and it prints a case with a
-# value on both sides. slog <log> <line>... writes a runner log of $tmp/s: the commit line, the
-# lines, and a report line.
+# value on both sides. slog <log> <line>... writes a runner log of the pair set $tmp/$pset: the
+# commit line, the lines, and a report line.
 mkdir "$tmp/s"
+pset=s
 slog() {
-  local f="$tmp/s/$1.log" c="$main"
+  local f="$tmp/$pset/$1.log" c="$main"
   shift
   [[ "${f##*/}" != branch-* ]] || c="$branch"
   { echo "bench: commit $c tree clean filter X"; printf '%s\n' "$@"
@@ -135,11 +136,11 @@ p_on=('◇ Suite PeakComputeBenchmark started.' '◇ Test p() started.')
 p_ok='✔ Test p() passed after 1.000 seconds.'
 p_bad='✘ Test p() failed after 1.000 seconds with 1 issue.'
 no_budget() { printf '✘ Test %s recorded an issue at X.swift:2:1: Expectation failed: (count → 3) == 4' "$1"; }
-# judged <name> <exit> <line>...: --compare of $tmp/s exits <exit> and prints each line.
+# judged <name> <exit> <line>...: --compare of $tmp/$pset exits <exit> and prints each line.
 judged() {
   local name="$1" want="$2" l
   shift 2
-  out="$("$pairs" --compare "$tmp/s" 2>&1)"
+  out="$("$pairs" --compare "$tmp/$pset" 2>&1)"
   code=$?
   [[ $code -eq $want ]] || { fail "$name: exit $code: $out"; return; }
   for l in "$@"; do grep -qxF "$l" <<< "$out" || { fail "$name: no line \"$l\": $out"; return; }; done
@@ -184,6 +185,120 @@ printf 'main-1: the bench failed\n' > "$tmp/s/load.txt"
 judged 'a main log that fails an expectation that is no budget' 1 'NOT VERIFIED: main-1: the bench failed'
 slog main-1 "${t_on[@]}" "$(A 10)" "$t_ok"
 judged 'a failed main log with no failed test' 1 'NOT VERIFIED: main-1: the bench failed'
+
+# A case in each branch log and in no aa or main log has no main side: the compare names it, and the
+# exit stays. A case with a value in some logs of a side only, or on the main side only, gets no
+# verdict. B <p95 ms> is a line of case b.
+B() { printf 'XBenchmark b: p50 0.001 seconds, p95 %s seconds' "$(echo "$1 / 1000" | bc -l)"; }
+mkdir "$tmp/c"
+pset=c
+for f in aa-1 aa-2 main-1 main-2; do slog "$f" "$(A 10)"; done
+slog branch-1 "$(A 10)" "$(B 5)"
+slog branch-2 "$(A 10)" "$(B 5)"
+judged 'a case in each branch log only' 0 'NO MAIN SIDE XBenchmark b: judge it by its absolute budget' 'VERIFIED XBenchmark a'
+slog branch-2 "$(A 10)"
+judged 'a case in one of two branch logs only' 1 'NO VERDICT XBenchmark b: a value on one side only' 'VERIFIED XBenchmark a'
+for f in aa-1 aa-2 main-1 branch-1 branch-2; do slog "$f" "$(A 10)" "$(B 5)"; done
+judged 'a case with no value in one main log' 1 'NO VERDICT XBenchmark b: a value on one side only'
+slog main-2 "$(A 10)" "$(B 5)"
+for f in branch-1 branch-2; do slog "$f" "$(A 10)"; done
+judged 'a case of the aa and main logs with no branch value' 1 'NO VERDICT XBenchmark b: a value on one side only'
+
+# Each time line form that a bench prints is a case, with the value of its form; a line gives the
+# cases of its first form only. A p90 with no unit, a line with no time, and an over debug budget
+# line are no case.
+mkdir "$tmp/forms"
+pset=forms
+forms=(
+  '◇ Suite EditBenchmark started.'
+  'EditBenchmark nudge of 1,000 clips on 8 tracks: p95 0.0123 seconds'
+  'SnapSearchBenchmark fit: p95 0.002 seconds, set-up 0.5 seconds, snapped 0 of 120'
+  'LiveTakeBenchmark width step, fit: max 0.0075 seconds'
+  'HeaderDragBenchmark rows, fit: one-off events Esc 0.001 seconds, up at 400 0.002 seconds, double-click 0.003 seconds, AX step 0.004 seconds, up at 400 0.005 seconds; max 0.0055 seconds'
+  'TranscribeBenchmark 1 h of Spanish: 95.5 seconds'
+  'WhisperEngineBenchmark C10 30 s vad true at 0.5: stop to return 0.3 seconds'
+  'ExportBenchmark: 600 s of 8 tracks to AAC 256 in 3.25 seconds'
+  'LoudnessExportBenchmark: 600 s of 8 tracks to WAV 1 with podcast in 4.5 seconds: 5 renders, 2 trial passes, 2 encodes, 0 read-backs'
+  'bench report: TranscriptSaveBenchmark edit p90 0.011 seconds, autosave p90 0.012 seconds, words change save p90 0.013 seconds, open p90 0.014 seconds'
+  'bench report: TranscriptTextBenchmark main-actor apply p90 0.02 seconds, off-main build p90 0.03 seconds, runs [0.02 seconds, 0.03 seconds]'
+  'bench report: TranscriptTextBenchmark selection change over 27000 units: drag step p90 1.5 ms (max 2.0, draw p90 0.5), Shift-Right move from 40 units p90 1.6 ms (max 2.1, draw p90 0.6), from 27000 27000 units p90 1.7 ms (max 2.2, draw p90 0.7), Select All 3.0 ms'
+  '◇ Suite AutoLevelBenchmark started.'
+  'bench report: 4 clips of 2 h took 1.25 seconds'
+  '◇ Suite ReadBenchmark started.'
+  'bench report: silences of 66.5 min took 0.5 seconds, nearest pause took 0.25 seconds'
+  '◇ Suite LiveLoudnessBenchmark started.'
+  'bench report: a step at 2 h: p50 0.0004 seconds, p95 0.0006 seconds'
+  '◇ Suite DiagnosticLogBenchmark started.'
+  'bench report: a journal note: mean 5e-05 seconds, p99 0.00015 seconds, max 0.001 seconds'
+  '◇ Suite SessionFileBenchmark started.'
+  'bench report: ride fixture 4: size 1000 B, open 0.1 seconds, save 0.2 seconds; no ride: size 900 B, open 0.05 seconds, save 0.15 seconds; the ride adds open 0.05 seconds, save 0.07 seconds'
+  'bench report: ride fixture 4 peak RSS 12 MB (12582912 B)'
+  '◇ Suite FinalizeBenchmark started.'
+  'finalize: (status: 0, peakBytes: 123, seconds: 0.75), no pending take: (status: 0, peakBytes: 1, seconds: 0.5), dd: (status: 0, peakBytes: 1, seconds: 0.25)'
+  '◇ Suite LoudnessBenchmark started.'
+  'bench report: 1 h of stereo audio took 5.1 seconds over debug budget 4 seconds'
+  '◇ Suite LaneRenderBenchmark started.'
+  'LaneRenderBenchmark dense envelope, fit: p50 0.006116054 seconds, p95 0.0077946 seconds'
+)
+for f in aa-1 aa-2 main-1 branch-1; do slog "$f" "${forms[@]}"; done
+judged 'each time line form' 0
+while IFS='|' read -r c v; do
+  grep -A1 -xF "VERIFIED $c" <<< "$out" | grep -qF "per pair: $v/$v; A/A $v/$v" || fail "form case \"$c\" with $v ms: $out"
+done <<'EOF'
+EditBenchmark nudge of 1,000 clips on 8 tracks|12.30
+SnapSearchBenchmark fit|2.00
+LiveTakeBenchmark width step, fit|7.50
+HeaderDragBenchmark rows, fit, one-off|5.50
+TranscribeBenchmark 1 h of Spanish|95500.00
+WhisperEngineBenchmark C10 30 s vad true at 0.5: stop to return|300.00
+ExportBenchmark 600 s of 8 tracks to AAC 256|3250.00
+LoudnessExportBenchmark 600 s of 8 tracks to WAV 1 with podcast|4500.00
+TranscriptSaveBenchmark edit|11.00
+TranscriptSaveBenchmark autosave|12.00
+TranscriptSaveBenchmark words change save|13.00
+TranscriptSaveBenchmark open|14.00
+TranscriptTextBenchmark main-actor apply|20.00
+TranscriptTextBenchmark off-main build|30.00
+TranscriptTextBenchmark drag step|1.50
+TranscriptTextBenchmark Shift-Right move from 40 units|1.60
+TranscriptTextBenchmark from 27000 27000 units|1.70
+AutoLevelBenchmark 4 clips of 2 h|1250.00
+ReadBenchmark silences of 66.5 min|500.00
+ReadBenchmark nearest pause|250.00
+LiveLoudnessBenchmark a step at 2 h|0.60
+DiagnosticLogBenchmark a journal note mean|0.05
+DiagnosticLogBenchmark a journal note p99|0.15
+SessionFileBenchmark ride fixture 4 open|100.00
+SessionFileBenchmark ride fixture 4 save|200.00
+SessionFileBenchmark ride fixture 4 adds save|70.00
+FinalizeBenchmark finalize|750.00
+LaneRenderBenchmark dense envelope, fit|7.79
+EOF
+n="$(grep -cE '^(VERIFIED|INCONCLUSIVE|NOT VERIFIED|NO )' <<< "$out")"
+[[ "$n" -eq 28 ]] || fail "each time line form: 28 verdict lines, not $n: $out"
+
+# A time line in a suite that no form reads gets no verdict: the compare names the line once, each
+# number as N. A line with no time and a runner line (✘, ↳) are no such line.
+mkdir "$tmp/u"
+pset=u
+for f in aa-1 aa-2 main-1 branch-1; do
+  slog "$f" '◇ Suite BarBenchmark started.' 'BarBenchmark x: p50 0.001 seconds, p95 0.002 seconds' \
+    '◇ Suite FooBenchmark started.' "FooBenchmark x: mean 0.1${f: -1} seconds"
+done
+judged 'an unread time line' 1 'NO VERDICT FooBenchmark: the compare reads no case of the line "FooBenchmark x: mean N seconds"'
+[[ "$(grep -c '^NO VERDICT' <<< "$out")" -eq 1 ]] || fail "an unread time line is named once: $out"
+for f in aa-1 aa-2 main-1 branch-1; do
+  slog "$f" '◇ Suite LiveTakeBenchmark started.' 'LiveTakeBenchmark tick, fit: p50 0.001 seconds, p95 0.002 seconds' \
+    'LiveTakeBenchmark width step, fit: max 0.0075 seconds' 'LiveTakeBenchmark tick, fit: 3 ticks changed new columns, 2 turns'
+done
+judged 'a LiveTake log' 0
+no_claim 'a LiveTake log'
+for f in aa-1 aa-2 main-1 branch-1; do
+  slog "$f" "${t_on[@]}" "$(A 10)" '✘ Test t() recorded an issue at X.swift:1:1: Expectation failed: (value → 0.01 seconds) <= (budget → 0.008 seconds)' \
+    '↳ fit: p95 0.01 seconds' "$t_bad"
+done
+judged 'a read line, an issue line, and a runner comment with a time' 0 'VERIFIED XBenchmark a'
+no_claim 'a read line, an issue line, and a runner comment with a time'
 
 # Provenance: the pairs give the verdict only when the aa-* and main-* logs name one commit, the
 # branch-* logs name one commit, each log ran on a clean tree, and the branch commit has the

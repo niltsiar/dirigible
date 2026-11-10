@@ -218,18 +218,10 @@ struct TrackSegments {
     }
 
     /// Adds the host span `start..<end`, which the writer of output `index` wrote, to the span of
-    /// its arm. The span keeps the smallest start and the largest end by the signed
-    /// `nanos(from:to:)`, so the order of the host times does not matter.
+    /// its arm.
     mutating func extend(_ index: Int, from start: UInt64, to end: UInt64) {
         guard !outputs[index].spanStopped else { return }
-        guard let span = outputs[index].written else {
-            outputs[index].written = (start, end)
-            return
-        }
-        outputs[index].written = (
-            nanos(from: span.start, to: start) < 0 ? start : span.start,
-            nanos(from: span.end, to: end) > 0 ? end : span.end
-        )
+        outputs[index].written = Self.union(outputs[index].written, start, end)
     }
 
     /// The device latency in nanoseconds at the nominal rate. It is signed and holds no host time.

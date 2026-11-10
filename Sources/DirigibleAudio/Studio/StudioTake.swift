@@ -225,7 +225,7 @@ extension Studio {
         startCut?.cut()
         let error = await serialized { () async -> StudioError? in
             let deadline = called + environment.stopLimit
-            let (gaps, unfinished) = await finishWriters(by: deadline, abandoned: abandoned)
+            let (gaps, unfinished) = await finishWriters(from: called, by: deadline, abandoned: abandoned)
             let silent = await silentTracks(skipping: abandoned + unfinished.map(\.writer))
             let dropped = armed.compactMap { track in
                 track.writer.droppedFrames > 0 ? (track.id, track.writer.droppedFrames) : nil

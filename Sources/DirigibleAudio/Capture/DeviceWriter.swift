@@ -81,7 +81,7 @@ final class DeviceWriter: @unchecked Sendable {
     let lifecycle = WriterLifecycle()
     /// The name of the device or the app, for an error text. Any thread reads it.
     let name: String
-    private let finishLock = OSAllocatedUnfairLock<FinishRecord?>(initialState: nil)
+    private let finishLock = OSAllocatedUnfairLock<(record: FinishRecord?, noted: Bool)>(initialState: (nil, false))
 
     /// The end of the first finish: the gaps of the take, and the time when the queue ended it.
     struct FinishRecord: Sendable {
@@ -127,7 +127,17 @@ final class DeviceWriter: @unchecked Sendable {
     /// buffers of the device. Any thread can read it.
     var startedLate: Bool { late.load(ordering: .relaxed) }
     /// The first finish, or nil until the queue ends it. Any thread reads it.
-    var finishRecord: FinishRecord? { finishLock.withLock { $0 } }
+    var finishRecord: FinishRecord? { finishLock.withLock { $0.record } }
+
+    /// The first finish for its one `take writer-finished` line: nil until the queue ends it, and
+    /// nil at each later call. Any thread calls it.
+    func finishRecordToNote() -> FinishRecord? {
+        finishLock.withLock { state in
+            guard let record = state.record, !state.noted else { return nil }
+            state.noted = true
+            return record
+        }
+    }
 
     /// Starts the drain timer and the device-list listener, and attaches. A failed attach makes
     /// the device lost, and the retry goes on.
@@ -199,7 +209,7 @@ final class DeviceWriter: @unchecked Sendable {
         phase = .finished
         let gaps = tracks.gaps
         // The clock read is in the lock section, so a reader that finds no record gets a later time.
-        finishLock.withLock { $0 = FinishRecord(gaps: gaps, at: .now) }
+        finishLock.withLock { $0.record = FinishRecord(gaps: gaps, at: .now) }
     }
 
     /// The writer writes no record that starts at or after `end` (host time), so a take does not

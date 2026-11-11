@@ -7,7 +7,7 @@
 - The criterion names each input path that reaches the costly code (each gesture that redraws), the worst-case fixtures (many items per lane, one item wider than the view, a change at the end), and the real input rate. A path that it does not name is outside its budget.
 - The benchmark sends one event per display frame, as a pointer does: events back to back measure the frame throttle.
 - A budget misses a regression under it. For a known slow cause (a view body that runs again), also assert a time-free count, with a control that puts the cause back.
-- A test that reads a DEBUG-only counter is in `#if DEBUG` too: `make bench` builds the tests with no DEBUG.
+- A test that reads a DEBUG-only counter: tdd skill, Guardrails.
 - In a bench that times two events in one frame (a real event, then a tick), assert for each event that it changed the output, as a Bool after the clock stops. Run a control that sends the same input twice: a per-frame count passes when either event does the work.
 
 ## A time budget

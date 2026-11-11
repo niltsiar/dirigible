@@ -36,6 +36,7 @@ Prefer no new test over a bad test: one that mostly tests mocks, encodes impleme
 - A test that asserts unchanged files compares the bytes or a hash of each file, not names, sizes, or dates: the likely damage is a rewrite in place with the same size. Its control changes one byte at a fixed offset.
 - Compare processed audio with a stated tolerance, never exact float equality.
 - Put a slow test behind `DIRIGIBLE_SLOW_TESTS=1`. `scripts/with-lock.sh make test-slow` runs it.
+- A test that reads a member that `Sources/` declares only under `#if DEBUG` sits in `#if DEBUG` too: `scripts/bench.sh` builds the tests with no DEBUG. `scripts/check-waits.sh` finds a use by name.
 - Add one seeded random test beside the literal tests, with values built through the public edits and no new library: the round-trip (write, read, `==`) for a writer and reader pair; else its strongest property: inverse (edit, then undo), invariant (output under a limit), or oracle (a simpler reference).
 - Read `references/waits-and-limits.md` when a test waits, sets a product timer, holds a gate or OS resource, stops work, or asserts a thread or priority.
 - Read `references/flake-triage.md` first when a test fails on each full-suite run but passes alone, fails only sometimes, or fails with other wait-limit failures, or when you change a shared helper or the suite speed.

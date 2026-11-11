@@ -121,12 +121,14 @@ BEGIN {
   for (i = 1; i <= k; i++) { K[N[i]] = 1; relre = relre (i > 1 ? "|" : "") N[i] }
   relre = "(var|let|func|case)[ \t]+(" relre ")([^A-Za-z0-9_]|$)"
 }
-FNR == 1 { n = 0; depth = 0 }
+FNR == 1 { n = 0; depth = 0; head = "" }
 {
-  if (index($0, "#") && $0 ~ /^[ \t]*#(if|else|endif)/ && directive($0)) next
+  if (index($0, "#") && $0 ~ /^[ \t]*#(if|else|endif)/ && directive($0)) { head = ""; next }
   hasb = index($0, "{") || index($0, "}")
-  if (want == "rel" && !hasb && $0 !~ relre) next
   t = strip($0)
+  prev = head
+  head = (t ~ /^[ \t]*$|[{}][ \t]*$/) ? "" : head " " t
+  if (want == "rel" && !hasb && $0 !~ relre) next
   top = depth == 0 ? "type" : stack[depth]
   if (top == "type" && (want == "dbg" || $0 ~ relre) && t !~ /(^|[ \t])(private|fileprivate)[ \t]/ &&
       match(t, /^[ \t]*((@[A-Za-z_]+|public|internal|package|private\(set\)|fileprivate\(set\)|static|class|final|nonisolated|mutating|override|lazy|weak|unowned|dynamic)[ \t]+)*(var|let|func|case)[ \t]+[A-Za-z_][A-Za-z_0-9]*/)) {
@@ -135,7 +137,8 @@ FNR == 1 { n = 0; depth = 0 }
   }
   if (hasb) {
     b = t; gsub(/[^{}]/, "", b)
-    u = t; sub(/(^|[ \t])class[ \t]+(func|var|let|subscript)([^A-Za-z_0-9]|$)/, " ", u)
+    u = (t ~ /^[ \t]*\{[ \t]*$/) ? prev : t
+    sub(/(^|[ \t])class[ \t]+(func|var|let|subscript)([^A-Za-z_0-9]|$)/, " ", u)
     kind = (u ~ /(^|[ \t])(struct|class|enum|actor|extension|protocol)[ \t]+[A-Za-z_]/) ? "type" : "code"
     for (i = 1; i <= length(b); i++) { if (substr(b, i, 1) == "{") stack[++depth] = kind; else if (depth > 0) depth-- }
   }

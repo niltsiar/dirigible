@@ -170,11 +170,12 @@ FNR == 1 { n = 0 }
   for (j = 1; j <= k; j++) if (t ~ ("\\." N[j] "([^A-Za-z_0-9]|$)")) print FILENAME ":" FNR ":" N[j]
 }
 '
-# debug_list <extended regex> <pathspec>...: the Swift files that match, one per line.
+# debug_list <extended regex> <pathspec>...: the Swift files that match, one per line. With more
+# than one thread, `git grep -l` can omit a matching file and still exit 0, so each -l call uses one.
 debug_list() {
   local re="$1"
   shift
-  nomatch 'git grep' env LC_ALL=C git -C "$root" grep --no-index -lE "$re" -- "$@" | sort
+  nomatch 'git grep' env LC_ALL=C git -C "$root" grep --threads=1 --no-index -lE "$re" -- "$@" | sort
 }
 # debug_awk <file list> <awk argument>...: awk over the listed files, which are relative to the root.
 debug_awk() {
@@ -324,7 +325,7 @@ if [[ "$swift_changed" != outside-a-work-tree ]]; then
     esac
   done <<<"$changed"
   [[ ${#src[@]} -eq 0 ]] ||
-    debug_src="$(nomatch 'git grep' git -C "$root" grep --no-index -l DEBUG -- "${src[@]}")"
+    debug_src="$(nomatch 'git grep' git -C "$root" grep --threads=1 --no-index -l DEBUG -- "${src[@]}")"
   tests_scope=()
   if grep -qxF scripts/check-waits.sh <<<"$changed" || [[ -n "$debug_src" ]]; then
     tests_scope=('Tests/*.swift')

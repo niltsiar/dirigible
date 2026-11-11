@@ -144,7 +144,8 @@ struct SilencesInspector: View {
             selection: Binding(get: { state.selection }, set: { model.selectSilences($0) })
         ) {
             ForEach(review.rows) { row in
-                SilenceRowView(review: review, row: row) { model.setSilenceAction($0, rows: [row.id]) }.tag(row.id)
+                SilenceRowView(review: review, row: row) { model.setSilenceAction($0, rows: [row.id]) }
+                    .background(SilenceTableMarker(state: state)).tag(row.id)
             }
         }
         .frame(minHeight: 120)

@@ -79,6 +79,8 @@ struct DirigibleApp: App {
                     // It has Command in its keys, so it can be off (probe K1 is about plain keys).
                     Button(app.loudnessItem.title.key) { app.key?.toggleLoudness() }
                         .keyboardShortcut(MenuKeys.loudnessMeter).disabled(!app.loudnessItem.enabled)
+                    Button(app.indexItem.title.key) { app.key?.run(.toggleIndex) }
+                        .keyboardShortcut(MenuKeys.showIndex).disabled(!app.indexItem.enabled)
                     Button(app.inspectorItem.title.key) { app.key?.run(.toggleInspector) }
                         .keyboardShortcut(MenuKeys.inspector).disabled(!app.inspectorItem.enabled)
                     Button(app.transcriptItem.title.key) { app.key?.toggleTranscript() }

@@ -163,6 +163,7 @@ import SwiftUI
     /// The Transcribe sheet, job, and notice (decision 0065), and the Silences tab (decision 0066).
     let transcribe = TranscribeState()
     let silences: SilenceState
+    let leadingPane: LeadingPaneState
     /// The error of a take start that its checks refused while an export runs. The progress
     /// sheet shows it: a window alert would wait behind the sheet until the export ends.
     var recordRefusal: StudioError?
@@ -234,6 +235,7 @@ import SwiftUI
         self.recordings = recordings
         self.app = app
         silences = SilenceState(defaults: app.defaults)
+        leadingPane = LeadingPaneState(defaults: app.defaults)
         showsLoudness = app.defaults?.object(forKey: Self.loudnessKey) as? Bool ?? true
         showsInspector = app.defaults?.bool(forKey: Self.inspectorKey) ?? false
         inspectorWidth = InspectorWidth(stored: app.defaults?.object(forKey: InspectorWidth.defaultsKey))

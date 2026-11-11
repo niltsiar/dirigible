@@ -230,6 +230,9 @@ struct SilenceNote: Equatable {
     /// The range that the last row click set, so the next scan can tell it from a range that the
     /// user sets.
     @ObservationIgnored var rowRange: Range<Frames>?
+    /// The table of the Silences list, from a marker view in its rows. The window has another table
+    /// in the index pane, so a key check compares with this one.
+    @ObservationIgnored weak var table: NSTableView?
     var note: SilenceNote?
     @ObservationIgnored private let defaults: UserDefaults?
     /// True while the keep field has the focus, from the pane.

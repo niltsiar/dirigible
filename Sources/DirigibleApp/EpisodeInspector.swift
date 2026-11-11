@@ -247,7 +247,7 @@ extension SessionWindow {
         commitInspector()
         if markerDraft?.refused == true { markerDraft = nil }
         inspectorTab = tab
-        if showsInspector { widenForInspector() }
+        if showsInspector { widenForPanes() }
     }
 
     /// The end rule of a refused draft, as an AppKit formatter that keeps the focus. The draft

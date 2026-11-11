@@ -235,7 +235,7 @@ import Testing
         let pane = try await waitForPane(window)
         for width in [320.0, 400.0] {
             model.inspectorWidth = InspectorWidth(width)
-            model.widenForInspector()
+            model.widenForPanes()
             window.contentView?.layoutSubtreeIfNeeded()
             // The column takes the divider and the two paddings of 12 pt.
             await until("the pane has the width") {

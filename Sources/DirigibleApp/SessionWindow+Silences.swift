@@ -33,13 +33,15 @@ extension SessionWindow {
         showsInspector && inspectorTab == .silences ? silences.bands(in: studio) : []
     }
 
-    /// True when the first responder of `keyWindow` is the Silences list: a table of this window's
-    /// inspector, which has no other table.
+    /// True when the first responder of `keyWindow` is in the Silences table, by identity: the
+    /// index pane has a table too.
     func silenceListHasFocus(in keyWindow: NSWindow?) -> Bool {
-        guard showsInspector, inspectorTab == .silences, keyWindow === window else { return false }
+        guard showsInspector, inspectorTab == .silences, keyWindow === window, let list = silences.table else {
+            return false
+        }
         var view = keyWindow?.firstResponder as? NSView
         while let current = view, !(current is NSTableView) { view = current.superview }
-        return view != nil
+        return view === list
     }
 
     /// Return and Delete with the list as first responder (criterion C33). Return applies while

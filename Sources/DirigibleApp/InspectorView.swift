@@ -180,7 +180,7 @@ extension SessionWindow {
         showsInspector.toggle()
         app?.defaults?.set(showsInspector, forKey: Self.inspectorKey)
         if showsInspector {
-            widenForInspector()
+            widenForPanes()
             return
         }
         // After the flag: the focus move makes the field send its old text, which `type` ignores.
@@ -276,11 +276,10 @@ extension SessionWindow {
             ? max(inspectorWidth.points, Self.transcriptMinimumWidth) : inspectorWidth.points
     }
 
-    /// Widens the window to the minimum with the pane, inside the visible screen.
-    func widenForInspector() {
+    /// Widens the window to the minimum with the shown panes, inside the visible screen.
+    func widenForPanes() {
         guard let window else { return }
-        let missing =
-            SessionView.minWidth + shownInspectorWidth - window.contentRect(forFrameRect: window.frame).width
+        let missing = paneMinimum - window.contentRect(forFrameRect: window.frame).width
         guard missing > 0 else { return }
         var frame = window.frame
         frame.size.width += missing

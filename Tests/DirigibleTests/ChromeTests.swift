@@ -113,7 +113,7 @@ struct TimeTextTests {
     @Test func theItemsFollowTheWindowState() async throws {
         let (model, studio, chrome) = try await open()
         // C22: the inspector changes no session data, so it stays on during a take too.
-        let zoom: Set<ToolbarItemID> = [.zoomOut, .zoomIn, .zoomToSession, .inspector]
+        let zoom: Set<ToolbarItemID> = [.zoomOut, .zoomIn, .zoomToSession, .inspector, .index]
         let ids = zoom.union([.record, .stop, .play, .monitor, .addTrack, .split, .delete])
         let idle = zoom.union([.record, .play, .monitor, .addTrack, .split, .delete])
         await expectShown(chrome, "idle", ids: ids, enabled: idle, on: [])

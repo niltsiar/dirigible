@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The tooltip of a toolbar item: the menu text and the key, "Record (⌘R)". The zoom items also
@@ -14,6 +15,21 @@ func toolbarTooltip(_ command: WindowCommand, format: String? = nil, text: (L10n
     return String(format: format ?? text(tooltipKey(command)), locale: .current, arguments: arguments)
 }
 
+/// The tooltip and the accessibility label of the Index item: "Hide Session Index (⇧⌘2)" while the
+/// pane shows Index, else "Show Session Index (⇧⌘2)".
+func indexTooltip(shown: Bool, text: (L10n) -> String = { $0.text }) -> String {
+    String(
+        format: text(.toolbarTooltip), locale: .current, text(shown ? .menuViewIndexHide : .menuViewIndexShow),
+        keyText(MenuKeys.showIndex))
+}
+
+/// Gives the Index item and its button the tooltip and the accessibility label of the state.
+@MainActor func showIndexTooltip(on item: NSToolbarItem, _ button: NSButton, shown: Bool) {
+    let tip = indexTooltip(shown: shown)
+    if item.toolTip != tip { item.toolTip = tip }
+    if button.accessibilityLabel() != tip { button.setAccessibilityLabel(tip) }
+}
+
 /// The key of the tooltip format of `command`.
 func tooltipKey(_ command: WindowCommand) -> L10n {
     if command == .record { return .toolbarTooltipRecord }
@@ -28,6 +44,7 @@ func keyText(_ shortcut: KeyboardShortcut) -> String {
         switch shortcut.key {
         case .space: L10n.keySpace.text
         case .delete: "⌫"
+        case .return: "↩"
         case .home: "↖"
         case .end: "↘"
         default: String(shortcut.key.character).uppercased()

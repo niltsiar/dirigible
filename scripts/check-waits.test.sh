@@ -238,6 +238,8 @@ repo; more; AWK_FAIL='FILENAME == ARGV[1]' PATH="$shims/pick:$PATH" expect fail 
 exit2 'a rise pass whose awk fails'
 repo; AWK_FAIL=want=total PATH="$shims/pick:$PATH" expect fail 'a marker total whose awk fails' 'awk failed with status 3'
 exit2 'a marker total whose awk fails'
+tree; raw Tests/B/b.swift; allow 'Tests/B/b.swift\tthe wait of the test\n'; chmod 000 "$tmp/scripts/check-waits.allow"
+expect fail 'an allow file that cannot be read' 'scripts/check-waits.allow cannot be read'; exit2 'an allow file that cannot be read'
 # In a git work tree the gate runs only when a Swift file under Sources/ or Tests/ differs from the reference.
 repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
 mkdir -p "$tmp/docs"; echo note > "$tmp/docs/a.md"; expect pass 'a docs-only change on a tree that holds the fault'

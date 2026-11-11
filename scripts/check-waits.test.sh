@@ -206,6 +206,17 @@ expect pass 'a local let in a class func body under #if DEBUG'
 tree; dbgsrc '#if DEBUG'; usage "$use"
 printf 'struct C {\n    func parse() {\n        let re = /\\{(\\d+)/\n        _ = re\n    }\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
 expect pass 'a regex literal with an unbalanced brace before a release member'
+# A brace on a line of its own takes its kind from the lines of its header.
+tree; dbgsrc '#if DEBUG'; usage "$use"
+printf 'struct C:\n    Hashable,\n    Sendable\n{\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
+expect pass 'a release member of a type with a wrapped conformance list'
+tree; dbgsrc '#if DEBUG'; usage "$use"
+printf 'extension C\nwhere T: Hashable\n{\n    var stats: Int { 0 }\n}\n' > "$tmp/Sources/A/c.swift"
+expect pass 'a release member of an extension with a wrapped where clause'
+tree; printf 'struct A {\n#if DEBUG\n    func make(\n        a: Int,\n        b: Int\n    ) -> Int\n    {\n        let stats = 1\n        return stats\n    }\n#endif\n}\n' > "$tmp/Sources/A/a.swift"; usage "$use"
+expect pass 'a local let in a func with a wrapped signature under #if DEBUG'
+tree; printf 'struct A {\n#if DEBUG\n    struct Inner:\n        Hashable\n    {\n        var stats: Int = 0\n    }\n#endif\n}\n' > "$tmp/Sources/A/a.swift"; usage "$use"
+expect fail 'a debug-only member of a type with a wrapped conformance list' "$(hit 1)"
 # A pass that fails is no pass: a `git grep` status above 1 or an awk error stops the script. Status 1
 # of `git grep` is "no match" and passes (the cases above).
 realgit="$(command -v git)"

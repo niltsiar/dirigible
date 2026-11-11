@@ -20,10 +20,10 @@ allow() { printf '%b' "$1" > "$tmp/scripts/check-waits.allow"; }
 
 # expect pass <name> [<message>], or expect fail <name> <message>. A failure counts only with its
 # message. A pass with a message prints it (a warning line); a pass with none prints nothing. $base is
-# the BASE of the call. The exit status of the call is in $code.
+# the BASE of the call. The exit status of the call is in $code. $feed is the standard input of the call.
 expect() {
   local want="$1" name="$2" message="${3:-}" got output
-  output="$(env BASE="${base:-}" "$check" "$tmp" 2>&1 >/dev/null)"
+  output="$(env BASE="${base:-}" "$check" "$tmp" 2>&1 >/dev/null <<<"${feed:-}")"
   code=$?
   [[ $code -eq 0 ]] && got=pass || got=fail
   if [[ "$got" == fail && "$want" == fail ]] && ! grep -qF "check-waits: $message" <<<"$output"; then
@@ -168,6 +168,47 @@ repo; g checkout -q -b side; disabled slow > "$tmp/Tests/B/d.swift"; g add -A; g
 base="$side"; expect pass 'a BASE tip that adds a .disabled( line the branch lacks'
 base="$(g rev-parse main)"; disabled slow > "$tmp/Tests/B/d.swift"; expect fail 'BASE the first commit, a .disabled( line in the work tree' "Tests/: 1 .disabled( lines, 0 at merge-base $base;"
 base=
+
+# The debug-only member gate: a Tests/ line that names `.<member>` outside `#if DEBUG` fails when
+# Sources/ declares the member only in a debug branch. The debug-only member of a tree is `stats`.
+stats='    var stats: Int { 1 }'
+dbgsrc() { printf 'struct A {\n%s\n%s\n%s\n}\n' "$1" "$stats" "${2:-#endif}" > "$tmp/Sources/A/a.swift"; }
+usage() { printf '%b' "$1" > "$tmp/Tests/B/b.swift"; }
+use='let n = a.stats\n'
+hit() { echo "Tests/B/b.swift:$1: .stats is declared only under #if DEBUG; put the test in #if DEBUG (tdd skill, Guardrails)"; }
+tree; dbgsrc '#if DEBUG'; usage "$use"; expect fail 'a test that reads a debug-only member' "$(hit 1)"
+tree; dbgsrc '#if DEBUG'; usage "#if DEBUG\n#else\n$use#endif\n"; expect fail 'a use in the #else branch of #if DEBUG' "$(hit 3)"
+tree; printf 'struct A {\n#if !DEBUG\n    var other: Int { 0 }\n#else\n%s\n#endif\n}\n' "$stats" > "$tmp/Sources/A/a.swift"
+usage "$use"; expect fail 'a member in the #else branch of #if !DEBUG' "$(hit 1)"
+tree; dbgsrc '#if DEBUG && os(macOS)'; usage "$use"; expect fail 'a member in #if DEBUG && os(macOS)' "$(hit 1)"
+tree; dbgsrc '#if DEBUG'; usage "#if DEBUG\n$use#endif\n"; expect pass 'a use inside #if DEBUG'
+tree; dbgsrc '#if DEBUG'; usage "#if os(macOS)\n#if DEBUG\n$use#endif\n#endif\n"; expect pass 'a use inside #if DEBUG nested in another #if'
+tree; dbgsrc '#if DEBUG'; usage "#if DEBUG\n#if os(macOS)\n$use#endif\n#endif\n"; expect pass 'a use inside another #if nested in #if DEBUG'
+tree; dbgsrc '#if DEBUG'; usage "$use"; printf 'struct C {\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
+expect pass 'a debug-only name that a release declaration also has'
+tree; printf 'struct A {\n#if DEBUG\n    private var stats: Int { 1 }\n#endif\n}\n' > "$tmp/Sources/A/a.swift"; usage "$use"
+expect pass 'a private debug member'
+tree; printf 'struct A {\n#if DEBUG\n    func make() {\n        let stats = 1\n        _ = stats\n    }\n#endif\n}\n' > "$tmp/Sources/A/a.swift"; usage "$use"
+expect pass 'a local let in a function body under #if DEBUG'
+tree; dbgsrc '#if DEBUG'; usage '// a.stats is debug only\n'; expect pass 'a // line that names the member'
+tree; dbgsrc '#if DEBUG'; usage 'let n = 1 // a.stats is debug only\n'; expect pass 'a trailing comment that names the member'
+tree; dbgsrc '#if DEBUG'; usage 'let n = "a.stats"; let m = a.statsCount\n'; expect pass 'a string and a longer name'
+tree; dbgsrc '#if DEBUG || TESTING'; usage "$use"; expect pass 'a member under #if DEBUG || TESTING'
+# The scans read a file list only: with no file in a list they must not read standard input.
+tree; echo 'let n = 1' > "$tmp/Sources/A/a.swift"; usage "$use"; feed=$'#if DEBUG\n    var stats: Int { 1 }\n#endif'
+expect pass 'a tree with no #if DEBUG in Sources'
+tree; dbgsrc '#if DEBUG'; usage 'let n = 1\n'; feed='let n = a.stats'; expect pass 'a test that names no debug-only member'
+feed=
+# The brace-kind pass: a class func is no type scope, and a regex literal holds no brace.
+tree; printf 'struct A {\n#if DEBUG\n    class func make() {\n        let stats = 1\n        _ = stats\n    }\n#endif\n}\n' > "$tmp/Sources/A/a.swift"; usage "$use"
+expect pass 'a local let in a class func body under #if DEBUG'
+tree; dbgsrc '#if DEBUG'; usage "$use"
+printf 'struct C {\n    func parse() {\n        let re = /\\{(\\d+)/\n        _ = re\n    }\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
+expect pass 'a regex literal with an unbalanced brace before a release member'
+# In a git work tree the gate runs only when a Swift file under Sources/ or Tests/ differs from the reference.
+repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+mkdir -p "$tmp/docs"; echo note > "$tmp/docs/a.md"; expect pass 'a docs-only change on a tree that holds the fault'
+echo 'let m = 1' >> "$tmp/Tests/B/b.swift"; expect fail 'a changed Tests file on a tree that holds the fault' "$(hit 1)"
 
 [[ $failures -eq 0 ]] && echo "check-waits tests: all passed"
 exit $((failures > 0))

@@ -325,12 +325,11 @@ if [[ "$swift_changed" != outside-a-work-tree ]]; then
   done <<<"$changed"
   [[ ${#src[@]} -eq 0 ]] ||
     debug_src="$(nomatch 'git grep' git -C "$root" grep --no-index -l DEBUG -- "${src[@]}")"
+  tests_scope=()
   if grep -qxF scripts/check-waits.sh <<<"$changed" || [[ -n "$debug_src" ]]; then
-    :
+    tests_scope=('Tests/*.swift')
   elif [[ ${#tst[@]} -gt 0 ]]; then
     tests_scope=("${tst[@]}")
-  else
-    tests_scope=()
   fi
 fi
 if [[ ${#tests_scope[@]} -gt 0 ]]; then

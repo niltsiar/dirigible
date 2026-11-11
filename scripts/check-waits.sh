@@ -39,8 +39,8 @@
 # of Tests/; else it reads only the changed Tests/ files. So a change to a release declaration of a
 # debug-only name, in a Sources/ file with no DEBUG, shows only when the whole tree is read. Outside
 # a work tree the gate reads all of Tests/.
-# When a `git grep`, `grep`, or awk pass fails, or the allow file cannot be read, the script stops
-# with exit 2 and a `check-waits:` line.
+# When a `git grep` or `grep` read of the Swift files, or an awk pass over what it gives, fails, or
+# the allow file cannot be read, the script stops with exit 2 and a `check-waits:` line.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"

@@ -28,13 +28,19 @@
 # scripts/bench.sh builds the tests with no DEBUG, so such a use stops the bench build. The gate
 # matches names, not types. It does not see: a debug-only name that a release declaration in
 # Sources/ also has; a use with no dot, a key path, or a use through a typealias or protocol; a
-# debug-only type, init, or subscript; a member under `#if DEBUG || <flag>`. A debug-only name used
-# as `.name` on another type in Tests/ also fails: put that test in `#if DEBUG`, or give the member
-# a unique name. In a git work tree the gate runs only when a Swift file under Sources/ or Tests/
-# or this script differs from the reference, and its use pass then reads only the changed Tests/
-# files, unless this script or a changed Sources/ file has DEBUG. So a change to a release
-# declaration of a debug-only name, in a Sources/ file with no DEBUG, shows only when the whole
-# tree is read. Outside a work tree the gate reads all of Tests/.
+# debug-only type, init, or subscript; a member under `#if DEBUG || <flag>`. A brace on its own line
+# takes its kind from the header lines above it, with two limits: an `#if` line inside a type header
+# clears the header, so a release member of that type is missed and the gate fails; and a parameter
+# label `class` in a wrapped signature reads as a type, so a local name in that body counts as a
+# release member and the gate passes. A debug-only name used as `.name` on another type in Tests/
+# also fails: put that test in `#if DEBUG`, or give the member a unique name. In a git work tree the
+# gate runs only when a Swift file under Sources/ or Tests/, or this script, differs from the
+# reference. When this script differs, or a changed Sources/ file has DEBUG, the use pass reads all
+# of Tests/; else it reads only the changed Tests/ files. So a change to a release declaration of a
+# debug-only name, in a Sources/ file with no DEBUG, shows only when the whole tree is read. Outside
+# a work tree the gate reads all of Tests/.
+# When a `git grep`, `grep`, or awk pass fails, or the allow file cannot be read, the script stops
+# with exit 2 and a `check-waits:` line.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"

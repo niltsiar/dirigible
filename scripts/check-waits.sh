@@ -55,6 +55,7 @@ tests_grep() { [[ -d "$root/Tests" ]] || return 0; (cd "$root" && nomatch grep g
 hits="$(tests_grep -nF '.wait(timeout:' | sort)"
 
 if [[ -f "$allow" ]]; then
+  [[ -r "$allow" ]] || { echo "check-waits: scripts/check-waits.allow cannot be read" >&2; exit 2; }
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "$line" || "$line" == \#* ]] && continue
     file="${line%%$'\t'*}"

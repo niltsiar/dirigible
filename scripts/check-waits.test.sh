@@ -211,6 +211,12 @@ tree; dbgsrc '#if DEBUG'; usage "$use"
 printf 'struct C:\n    Hashable,\n    Sendable\n{\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
 expect pass 'a release member of a type with a wrapped conformance list'
 tree; dbgsrc '#if DEBUG'; usage "$use"
+printf 'struct C:\n    Hashable,\n    Sendable\n    // the conformances of C\n{\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
+expect pass 'a release member of a type with a comment line before its own-line brace'
+tree; dbgsrc '#if DEBUG'; usage "$use"
+printf 'struct C:\n    Hashable,\n    Sendable\n\n{\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
+expect pass 'a release member of a type with a blank line before its own-line brace'
+tree; dbgsrc '#if DEBUG'; usage "$use"
 printf 'extension C\nwhere T: Hashable\n{\n    var stats: Int { 0 }\n}\n' > "$tmp/Sources/A/c.swift"
 expect pass 'a release member of an extension with a wrapped where clause'
 tree; printf 'struct A {\n#if DEBUG\n    func make(\n        a: Int,\n        b: Int\n    ) -> Int\n    {\n        let stats = 1\n        return stats\n    }\n#endif\n}\n' > "$tmp/Sources/A/a.swift"; usage "$use"

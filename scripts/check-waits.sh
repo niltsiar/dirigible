@@ -133,7 +133,7 @@ FNR == 1 { n = 0; depth = 0; head = "" }
   hasb = index($0, "{") || index($0, "}")
   t = strip($0)
   prev = head
-  head = (t ~ /^[ \t]*$|[{}][ \t]*$/) ? "" : head " " t
+  if (t ~ /[{}][ \t]*$/) head = ""; else if (t !~ /^[ \t]*$/) head = head " " t
   if (want == "rel" && !hasb && $0 !~ relre) next
   top = depth == 0 ? "type" : stack[depth]
   if (top == "type" && (want == "dbg" || $0 ~ relre) && t !~ /(^|[ \t])(private|fileprivate)[ \t]/ &&

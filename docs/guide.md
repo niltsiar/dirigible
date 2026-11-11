@@ -213,6 +213,15 @@ The **Session overview** is the strip above the time ruler. It shows the whole s
 - Choose **View > Taller Tracks** or **View > Shorter Tracks** to change the height of all tracks.
 - Choose **View > Fit Tracks to Window** to go back to the automatic track height.
 
+### See the clips, markers, and chapters in the index
+
+Choose **View > Show Session Index** (Shift-Command-2), or click **Index** at the left end of the toolbar, to show the index at the left of the window. Choose **View > Hide Session Index**, or click **Index** again, to hide it. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Index** button.
+
+- The index lists the clips, markers, and chapters of the session in time order, with the start time of each.
+- Type in the search field to keep the rows whose name or track name has your text. The search ignores case and accents.
+- Use the filter under the search field to show only the clips, only the markers, or only the chapters. When the pane is narrow, the filter is a pop-up menu.
+- Drag the line between the index and the lanes to change the width of the index, from 240 to 400 points. Double-click the line to go back to 240 points.
+
 ## Select and edit
 
 A selection is a range or a set of clips. A range has an in point, an out point, and one or more tracks. Two triangles in the time ruler show the in point and the out point. A set of clips can hold clips on different tracks. Each clip of the set shows a tint and an outline in the accent color, and the time ruler shows nothing.
@@ -991,6 +1000,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Automatic Scroll** | **Desplazamiento automático** | Option-Command-F |
 | **Snap** | **Ajuste** | N |
 | **Show Loudness Meter** / **Hide Loudness Meter** | **Mostrar medidor de sonoridad** / **Ocultar medidor de sonoridad** | Shift-Command-8 |
+| **Show Session Index** / **Hide Session Index** | **Mostrar índice de la sesión** / **Ocultar índice de la sesión** | Shift-Command-2 |
 | **Show Inspector** / **Hide Inspector** | **Mostrar inspector** / **Ocultar inspector** | Option-Command-I |
 | **Show Transcript** / **Hide Transcript** | **Mostrar transcripción** / **Ocultar transcripción** | Shift-Command-T |
 | **Follow Playhead in Transcript** | **Seguir el cursor en la transcripción** | None |

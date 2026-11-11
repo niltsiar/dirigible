@@ -26,6 +26,8 @@ enum ToolbarItemID: String, CaseIterable {
     case export = "file.export"
     case inspector = "view.inspector"
     case snap = "view.snap"
+    /// View > Show Session Index.
+    case index = "view.index"
     /// The vari-speed pop-up (decision 0052).
     case speed = "transport.speed"
     /// Record with Pre-roll (decision 0070): in Customize Toolbar only, not in the default set.
@@ -35,11 +37,14 @@ enum ToolbarItemID: String, CaseIterable {
 
     /// The groups, leading to trailing, with a space between them (the macOS 26 glass groups). Cut,
     /// Copy, Paste, and Go to End are in the customization palette only.
-    static let defaults: [NSToolbarItem.Identifier] =
-        [addTrack.identifier, .space]
-        + [monitor, start, stop, play, record, time, speed].map(\.identifier) + [.space]
-        + [split, delete].map(\.identifier) + [.flexibleSpace]
-        + [zoomOut, zoomIn, zoomToSession, snap, export, inspector].map(\.identifier)
+    static let defaults: [NSToolbarItem.Identifier] = {
+        let transport: [ToolbarItemID] = [monitor, start, stop, play, record, time, speed]
+        let view: [ToolbarItemID] = [zoomOut, zoomIn, zoomToSession, snap, export, inspector]
+        var items: [NSToolbarItem.Identifier] = [index.identifier, addTrack.identifier, .space]
+        items += transport.map(\.identifier) + [.space]
+        items += [split, delete].map(\.identifier) + [.flexibleSpace]
+        return items + view.map(\.identifier)
+    }()
 
     var identifier: NSToolbarItem.Identifier { NSToolbarItem.Identifier(rawValue) }
 
@@ -66,6 +71,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomToSession: "arrow.up.left.and.down.right.magnifyingglass"
         case .export: "square.and.arrow.up"
         case .inspector: "sidebar.trailing"
+        case .index: "sidebar.leading"
         case .snap: "arrow.right.and.line.vertical.and.arrow.left"
         }
     }
@@ -78,13 +84,13 @@ enum ToolbarItemID: String, CaseIterable {
         case .stop, .play, .record, .time, .inspector: .high
         case .monitor, .export:
             NSToolbarItem.VisibilityPriority(rawValue: NSToolbarItem.VisibilityPriority.standard.rawValue + 500)
-        case .addTrack, .start, .end: .standard
+        case .addTrack, .start, .end, .index: .standard
         case .split, .cut, .copy, .paste, .delete, .zoomOut, .zoomIn, .zoomToSession, .snap, .speed, .preRoll: .low
         }
     }
 
     /// A push-on-push-off button: its on state is a shape, not only a color.
-    var isToggle: Bool { [.record, .monitor, .play, .inspector, .snap].contains(self) }
+    var isToggle: Bool { [.record, .monitor, .play, .inspector, .snap, .index].contains(self) }
 
     /// The command of the item. Nil only for the time display and the speed pop-up, whose picks
     /// run `SessionWindow.speed(.set(_))`: a new item with no command does not compile (F16).
@@ -109,6 +115,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomToSession: .timeline(.zoomToSession)
         case .export: .timeline(.export)
         case .inspector: .toggleInspector
+        case .index: .toggleIndex
         case .snap: .toggleSnap
         }
     }
@@ -136,6 +143,7 @@ enum ToolbarItemID: String, CaseIterable {
         case .zoomToSession: .toolbarZoomFit
         case .export: .toolbarExport
         case .inspector: .toolbarInspector
+        case .index: .indexSegmentIndex
         case .snap: .menuViewSnap
         }
     }
@@ -146,7 +154,7 @@ enum ToolbarItemID: String, CaseIterable {
 enum WindowCommand: Hashable {
     case timeline(TimelineCommand)
     case transport(TransportCommand)
-    case addTrack, record, recordPreRoll, stop, toggleMonitor, toggleInspector, toggleSnap
+    case addTrack, record, recordPreRoll, stop, toggleMonitor, toggleInspector, toggleIndex, toggleSnap
 
     /// The title and the key of the menu item of the command: a lookup in the menu tables, the
     /// one source of the menus and of the palette label, the tooltip, and the key of the item.
@@ -165,6 +173,7 @@ enum WindowCommand: Hashable {
         case .stop: return (.menuTransportStop, MenuKeys.stop)
         case .toggleMonitor: return (.menuRecordMonitor, MenuKeys.monitor)
         case .toggleInspector: return (.menuViewInspectorShow, MenuKeys.inspector)
+        case .toggleIndex: return (.menuViewIndexShow, MenuKeys.showIndex)
         case .toggleSnap: return (.menuViewSnap, MenuKeys.snap)
         }
     }
@@ -239,7 +248,7 @@ struct ChromeState: Equatable {
         if recording || playing { enabled.insert(.stop) }
         if model.canMonitor { enabled.insert(.monitor) }
         // A zoom changes no session data, so it runs during a take, as the View menu and the gestures.
-        enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession, .snap, .inspector])
+        enabled.formUnion([.zoomOut, .zoomIn, .zoomToSession, .snap, .inspector, .index])
         if model.canEdit {
             enabled.formUnion([.addTrack, .play, .start, .end, .split, .cut, .copy, .paste, .delete])
             if studio.canChangeSpeed { enabled.insert(.speed) }
@@ -249,6 +258,7 @@ struct ChromeState: Equatable {
         if playing { on.insert(.play) }
         if model.monitoring { on.insert(.monitor) }
         if model.showsInspector { on.insert(.inspector) }
+        if model.leadingPane.shown && model.leadingPane.segment == .index { on.insert(.index) }
         if model.snaps { on.insert(.snap) }
         // During a take the take start and the disk watch give the time left; before it, the
         // idle read of the armed tracks with a route.

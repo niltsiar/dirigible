@@ -858,3 +858,17 @@
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
 "timeline.drag.mode.cue" = "Drag Mode: %@";
+"menu.view.index.show" = "Show Session Index";
+"menu.view.index.hide" = "Hide Session Index";
+"index.pane.segment.index" = "Index";
+"index.handle" = "Index width";
+"index.search.placeholder" = "Search";
+"index.filter.all" = "All";
+"index.filter.clips" = "Clips";
+"index.filter.chapters" = "Chapters";
+"index.kind.chapter" = "Chapter";
+"index.row.label.clip" = "%1$@, %2$@, %3$@, %4$@";
+"index.row.label.mark" = "%1$@, %2$@, %3$@";
+"index.empty.session" = "No Clips, Markers, or Chapters";
+"index.empty.hint" = "Press %@ to add a marker.";
+"index.column.start" = "Start";

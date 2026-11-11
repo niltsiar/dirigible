@@ -14,9 +14,9 @@ struct SessionView: View {
     var body: some View {
         let _ = model.countBody()
         content
-            // 720 pt keeps the transport and the time display in the toolbar (probe P1c). The
-            // inspector adds its width (run 11b-2).
-            .frame(minWidth: Self.minWidth + (model.showsInspector ? model.shownInspectorWidth : 0), minHeight: 360)
+            // 720 pt keeps the transport and the time display in the toolbar (probe P1c). Each
+            // shown pane adds its width (run 11b-2).
+            .frame(minWidth: model.paneMinimum, minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),
                 isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } }),
@@ -83,6 +83,14 @@ struct SessionView: View {
             }
         case .open(let studio), .closing(let studio?):
             HStack(spacing: 0) {
+                if model.leadingPane.shown {
+                    HStack(spacing: 0) {
+                        SessionIndexView(model: model, studio: studio).frame(width: model.leadingPane.width.points - 1)
+                        // Above the lanes, which come after it: the handle is centered on the divider.
+                        Divider().overlay { IndexHandle(model: model).frame(width: 6) }.zIndex(1)
+                    }
+                    .frame(width: model.leadingPane.width.points, alignment: .leading)
+                }
                 lanes(studio)
                 // Not in the tree when hidden, so a hidden pane runs no body (run 11b-2).
                 if model.showsInspector {

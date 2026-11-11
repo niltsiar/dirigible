@@ -16,6 +16,7 @@ struct ToolbarMenuTests {
         .addTrack: "⌥⌘N", .monitor: "⇧⌘M", .stop: "⌘.", .play: "key.space", .record: "⌘R", .start: "↖",
         .end: "↘", .split: "⌘B", .cut: "⌘X", .copy: "⌘C", .paste: "⌘V", .delete: "⌫", .zoomOut: "⌘-",
         .zoomIn: "⌘+", .zoomToSession: "⌘0", .export: "⌘E", .inspector: "⌥⌘I", .snap: "N", .preRoll: "P",
+        .index: "⇧⌘2",
     ]
 
     /// A5: each item but the time display and the speed pop-up (a pop-up of picks, decision 0052)
@@ -107,7 +108,8 @@ struct ToolbarMenuTests {
             case .timeline(let command): app.timeline(command, event: nil, in: window)
             case .transport(let command): app.transport(command, event: nil, in: window)
             case .recordPreRoll: app.recordPreRoll(event: nil, in: window)
-            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector, .toggleSnap: app.key?.run(command)
+            case .addTrack, .record, .stop, .toggleMonitor, .toggleInspector, .toggleIndex, .toggleSnap:
+                app.key?.run(command)
             }
             let menu = model.leafCalls ?? []
             #expect(!toolbar.isEmpty, "the \(id) click reached no leaf")

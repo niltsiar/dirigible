@@ -858,3 +858,17 @@
 "menu.edit.drag.mode.crossfade" = "Dissolvenza incrociata";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
 "timeline.drag.mode.cue" = "Trascinamento: %@";
+"menu.view.index.show" = "Mostra indice della sessione";
+"menu.view.index.hide" = "Nascondi indice della sessione";
+"index.pane.segment.index" = "Indice";
+"index.handle" = "Larghezza dell’indice";
+"index.search.placeholder" = "Cerca";
+"index.filter.all" = "Tutti";
+"index.filter.clips" = "Clip";
+"index.filter.chapters" = "Capitoli";
+"index.kind.chapter" = "Capitolo";
+"index.row.label.clip" = "%1$@, %2$@, %3$@, %4$@";
+"index.row.label.mark" = "%1$@, %2$@, %3$@";
+"index.empty.session" = "Nessun clip, marcatore o capitolo";
+"index.empty.hint" = "Premi %@ per aggiungere un marcatore.";
+"index.column.start" = "Inizio";

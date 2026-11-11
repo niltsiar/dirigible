@@ -17,7 +17,7 @@ struct ToolbarValueTests {
                 "track.add", "record.monitor", "transport.stop", "transport.play", "transport.record",
                 "transport.time", "transport.start", "transport.end", "edit.split", "edit.cut", "edit.copy",
                 "edit.paste", "edit.delete", "view.zoom.out", "view.zoom.in", "view.zoom.session", "file.export",
-                "view.inspector", "view.snap", "transport.speed", "transport.pre.roll",
+                "view.inspector", "view.snap", "view.index", "transport.speed", "transport.pre.roll",
             ])
     }
 
@@ -25,7 +25,7 @@ struct ToolbarValueTests {
     @Test func theDefaultSetHasTheGroupsInOrder() {
         #expect(
             ToolbarItemID.defaults.map(\.rawValue) == [
-                "track.add", "NSToolbarSpaceItem", "record.monitor", "transport.start", "transport.stop",
+                "view.index", "track.add", "NSToolbarSpaceItem", "record.monitor", "transport.start", "transport.stop",
                 "transport.play", "transport.record", "transport.time", "transport.speed", "NSToolbarSpaceItem",
                 "edit.split",
                 "edit.delete", "NSToolbarFlexibleSpaceItem", "view.zoom.out", "view.zoom.in", "view.zoom.session",
@@ -43,6 +43,7 @@ struct ToolbarValueTests {
             .zoomToSession: "arrow.up.left.and.down.right.magnifyingglass", .export: "square.and.arrow.up",
             .start: "backward.end.fill", .end: "forward.end.fill", .inspector: "sidebar.trailing",
             .snap: "arrow.right.and.line.vertical.and.arrow.left", .preRoll: "record.circle",
+            .index: "sidebar.leading",
         ]
         for id in ToolbarItemID.allCases {
             #expect(id.symbol == symbols[id], "\(id)")
@@ -61,7 +62,7 @@ struct ToolbarValueTests {
             .export: boost,
             .addTrack: .standard, .start: .standard, .end: .standard, .split: .low, .cut: .low, .copy: .low,
             .paste: .low, .delete: .low, .zoomOut: .low, .zoomIn: .low, .zoomToSession: .low, .snap: .low,
-            .speed: .low, .preRoll: .low,
+            .speed: .low, .preRoll: .low, .index: .standard,
         ]
         for id in ToolbarItemID.allCases { #expect(id.priority == priorities[id], "priority of \(id)") }
     }
@@ -299,7 +300,7 @@ struct ToolbarValueTests {
             }
         }
         let (low, high) = (widths.values.min() ?? 0, widths.values.max() ?? 0)
-        #expect(widths.count == 10 && high - low <= 0.5, "\(widths.sorted { $0.key < $1.key })")
+        #expect(widths.count == 12 && high - low <= 0.5, "\(widths.sorted { $0.key < $1.key })")
         await model.close()
     }
 

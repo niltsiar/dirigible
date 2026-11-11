@@ -858,3 +858,17 @@
 "menu.edit.drag.mode.crossfade" = "Crossfade";
 "menu.edit.drag.mode.shuffle" = "Shuffle";
 "timeline.drag.mode.cue" = "Sleepmodus: %@";
+"menu.view.index.show" = "Toon sessie-index";
+"menu.view.index.hide" = "Verberg sessie-index";
+"index.pane.segment.index" = "Index";
+"index.handle" = "Breedte van index";
+"index.search.placeholder" = "Zoek";
+"index.filter.all" = "Alles";
+"index.filter.clips" = "Clips";
+"index.filter.chapters" = "Hoofdstukken";
+"index.kind.chapter" = "Hoofdstuk";
+"index.row.label.clip" = "%1$@, %2$@, %3$@, %4$@";
+"index.row.label.mark" = "%1$@, %2$@, %3$@";
+"index.empty.session" = "Geen clips, markeringen of hoofdstukken";
+"index.empty.hint" = "Druk op %@ om een markering toe te voegen.";
+"index.column.start" = "Start";

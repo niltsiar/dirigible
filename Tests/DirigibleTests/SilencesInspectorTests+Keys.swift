@@ -9,15 +9,10 @@ import Testing
 
 /// Return and Delete with the Silences list as first responder (decision 0066, criterion C33).
 extension SilencesInspectorTests {
-    /// The table of the Silences list, once the inspector draws it.
+    /// The table of the Silences list, once the inspector draws it: the window has the index table too.
     func list(in window: NSWindow) -> NSTableView? {
         window.contentView?.layoutSubtreeIfNeeded()
-        func find(_ view: NSView?) -> NSTableView? {
-            guard let view else { return nil }
-            if let table = view as? NSTableView { return table }
-            return view.subviews.lazy.compactMap { find($0) }.first
-        }
-        return find(window.contentView)
+        return (window as? UndoRoutingWindow)?.model?.silences.table
     }
 
     /// The window with a scanned list, the list as first responder, and the track t1 selected, so a

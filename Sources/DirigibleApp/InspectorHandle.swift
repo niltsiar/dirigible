@@ -113,10 +113,11 @@ extension SessionWindow {
         inspectorTab == .transcript ? InspectorWidth(max(width.points, Self.transcriptMinimumWidth)) : width
     }
 
-    /// The width inside the room of the window, its content width minus the lanes minimum: the
-    /// minimum frame follows the width, so a wider pane would widen the window.
+    /// The width inside the room of the window, its content width minus the lanes minimum and the
+    /// shown index: the minimum frame follows the width, so a wider pane would widen the window.
     private func fitted(_ width: InspectorWidth) -> InspectorWidth {
-        let room = window.map { Double($0.contentLayoutRect.width) - SessionView.minWidth } ?? .infinity
+        let room =
+            window.map { Double($0.contentLayoutRect.width) - SessionView.minWidth - shownIndexWidth } ?? .infinity
         return InspectorWidth(min(width.points, room))
     }
 

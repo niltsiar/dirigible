@@ -240,6 +240,7 @@ import Observation
         let value: NSControl.StateValue = state.on.contains(id) ? .on : .off
         if button.state != value { button.state = value }
         if let menuItem = item.menuFormRepresentation, menuItem.state != value { menuItem.state = value }
+        if id == .index { showIndexTooltip(on: item, button, shown: value == .on) }
     }
 
     // MARK: NSToolbarDelegate

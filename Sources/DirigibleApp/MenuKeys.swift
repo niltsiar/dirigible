@@ -38,6 +38,8 @@ enum MenuKeys {
     static let loudnessMeter = KeyboardShortcut("8", modifiers: [.command, .shift])
     /// View > Show Inspector, as the inspector of Final Cut Pro and Xcode (run 11b-2).
     static let inspector = KeyboardShortcut("i", modifiers: [.command, .option])
+    /// View > Show Session Index, the leading pane of the index list.
+    static let showIndex = KeyboardShortcut("2", modifiers: [.command, .shift])
     /// View > Show Transcript (landing 2 of the transcript run).
     static let transcript = KeyboardShortcut("t", modifiers: [.command, .shift])
     /// View > Snap (snap run): a plain key, so a focused text field gets it first.
@@ -77,7 +79,7 @@ enum MenuKeys {
             stopAndReturn,
             reverse, pause,
             forward, slowReverse, slowForward, start, end, previousClip, nextClip, takeTime, zoomInEquals,
-            loudnessMeter, inspector, transcript, snap, variSpeed, faster, slower,
+            loudnessMeter, inspector, showIndex, transcript, snap, variSpeed, faster, slower,
         ] + system
 }
 

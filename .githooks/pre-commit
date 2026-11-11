@@ -1,8 +1,9 @@
 #!/bin/bash
 # Refuse a commit that fails the size gate (scripts/check-sizes.sh), the wait gate
 # (scripts/check-waits.sh), or the format check (make lint). Each checks the working tree, not only
-# the staged files. The two gates are greps under 1 s, so a red gate stops the commit, not a push
-# check after the Swift tests. make lint runs only when a .swift path or .swift-format differs from
+# the staged files. The two gates take about 1 s on a commit, and check-waits.sh reads all of Tests/
+# (about 1.4 s) when the commit changes that script or a Sources/ file with #if DEBUG, so a red gate
+# stops the commit, not a push check after the Swift tests. make lint runs only when a .swift path or .swift-format differs from
 # HEAD or is new, because it takes minutes and checks only Swift. `make setup` enables this hook.
 # Tests run in the tdd loop and in the push check, not here.
 set -euo pipefail

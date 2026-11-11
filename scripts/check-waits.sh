@@ -31,7 +31,7 @@
 # debug-only type, init, or subscript; a member under `#if DEBUG || <flag>`. A debug-only name used
 # as `.name` on another type in Tests/ also fails: put that test in `#if DEBUG`, or give the member
 # a unique name. In a git work tree the gate runs only when a Swift file under Sources/ or Tests/
-# differs from the reference; outside a work tree it always runs.
+# or this script differs from the reference; outside a work tree it always runs.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -248,8 +248,8 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
     ref="$(git -C "$root" hash-object -t tree /dev/null)"
     label="the empty tree"
   fi
-  swift_changed="$(git -C "$root" diff --no-renames --name-only "$ref" -- 'Sources/*.swift' 'Tests/*.swift')"
-  swift_new="$(git -C "$root" ls-files --others --exclude-standard -- 'Sources/*.swift' 'Tests/*.swift')"
+  swift_changed="$(git -C "$root" diff --no-renames --name-only "$ref" -- 'Sources/*.swift' 'Tests/*.swift' scripts/check-waits.sh)"
+  swift_new="$(git -C "$root" ls-files --others --exclude-standard -- 'Sources/*.swift' 'Tests/*.swift' scripts/check-waits.sh)"
   mode=fail caps=""
   counts="$root/scripts/check-waits.counts"
   if [[ -f "$counts" ]]; then

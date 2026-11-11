@@ -38,7 +38,16 @@ root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 allow="$root/scripts/check-waits.allow"
 problems=""
 entries=""
-hits="$(cd "$root" && { grep -rnF --include='*.swift' '.wait(timeout:' Tests 2>/dev/null || true; } | sort)"
+# nomatch <label> <command>...: run it. Status 1 is "no match"; any other nonzero status stops the script.
+nomatch() {
+  local label="$1" s=0
+  shift
+  "$@" || s=$?
+  [[ $s -le 1 ]] || { echo "check-waits: $label failed with status $s" >&2; exit 2; }
+}
+# tests_grep <grep option>... <pattern>: `grep -r` over the Swift files of Tests/; nothing to find when the folder is absent.
+tests_grep() { [[ -d "$root/Tests" ]] || return 0; (cd "$root" && nomatch grep grep -r --include='*.swift' "$@" Tests); }
+hits="$(tests_grep -nF '.wait(timeout:' | sort)"
 
 if [[ -f "$allow" ]]; then
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -61,16 +70,18 @@ while IFS= read -r hit; do
   grep -qxF "$file" <<<"$entries" || problems+="$file:$(cut -d: -f2 <<<"$hit"): a raw .wait(timeout: with no allow entry; hold product work with Gate"$'\n'
 done <<<"$hits"
 
+quarantined="$(tests_grep -nF '"quarantine:' | sort)"
 while IFS= read -r hit; do
   [[ -n "$hit" ]] || continue
   grep -qw 'FLAKE' <<<"${hit#*:*:}" || problems+="${hit%%:*}:$(cut -d: -f2 <<<"$hit"): a \"quarantine: marker with no FLAKE word; name its FLAKE item"$'\n'
-done < <(cd "$root" && { grep -rnF --include='*.swift' '"quarantine:' Tests 2>/dev/null || true; } | sort)
+done <<<"$quarantined"
 
+intermittent="$(tests_grep -lF 'isIntermittent: true' | sort)"
 while IFS= read -r file; do
   [[ -n "$file" ]] || continue
   grep -F '"quarantine:' "$root/$file" | grep -qw 'FLAKE' ||
     problems+="$file: an isIntermittent: true with no \"quarantine: marker that has a FLAKE word; name its FLAKE item"$'\n'
-done < <(cd "$root" && { grep -rlF --include='*.swift' 'isIntermittent: true' Tests 2>/dev/null || true; } | sort)
+done <<<"$intermittent"
 
 # The debug-only member gate. Three passes, each over a short file list from `git grep`, so a tree
 # with no match reads no file (awk must not read standard input):
@@ -154,29 +165,32 @@ FNR == 1 { n = 0 }
 }
 '
 # debug_list <extended regex> <folder>: the Swift files under <folder> with a match, one per line.
-debug_list() { { LC_ALL=C git -C "$root" grep --no-index -lE "$1" -- "$2/*.swift" 2>/dev/null || true; } | sort; }
+debug_list() { nomatch 'git grep' env LC_ALL=C git -C "$root" grep --no-index -lE "$1" -- "$2/*.swift" | sort; }
 # debug_awk <file list> <awk argument>...: awk over the listed files, which are relative to the root.
 debug_awk() {
-  local list="$1" files=() file
+  local list="$1" files=() file s
   shift
   while IFS= read -r file; do
     if [[ -n "$file" ]]; then files+=("$file"); fi
   done <<<"$list"
   [[ ${#files[@]} -gt 0 ]] || return 0
-  (cd "$root" && LC_ALL=C awk "$@" "${files[@]}")
+  (cd "$root" && LC_ALL=C awk "$@" "${files[@]}") || { s=$?; echo "check-waits: awk failed with status $s" >&2; return "$s"; }
 }
 debug_problems() {
-  local cand kept uses rel
-  cand="$(debug_awk "$(debug_list '^[[:space:]]*#if[[:space:]].*DEBUG' Sources)" -v want=dbg "$awk_lib$awk_decl" | sort -u)"
+  local list cand kept uses rel s
+  list="$(debug_list '^[[:space:]]*#if[[:space:]].*DEBUG' Sources)" || return
+  cand="$(debug_awk "$list" -v want=dbg "$awk_lib$awk_decl" | sort -u)" || return
   [[ -n "$cand" ]] || return 0
-  uses="$(debug_awk "$(debug_list "\\.($(paste -sd'|' - <<<"$cand"))([^A-Za-z0-9_]|\$)" Tests)" -v names="$(tr '\n' ' ' <<<"$cand")" "$awk_lib$awk_use")"
+  list="$(debug_list "\\.($(paste -sd'|' - <<<"$cand"))([^A-Za-z0-9_]|\$)" Tests)" || return
+  uses="$(debug_awk "$list" -v names="$(tr '\n' ' ' <<<"$cand")" "$awk_lib$awk_use")" || return
   [[ -n "$uses" ]] || return 0
   kept="$(cut -d: -f3 <<<"$uses" | sort -u)"
-  rel="$(debug_awk "$(debug_list "(var|let|func|case)[[:space:]]+($(paste -sd'|' - <<<"$kept"))([^A-Za-z0-9_]|\$)" Sources)" -v want=rel -v names="$(tr '\n' ' ' <<<"$kept")" "$awk_lib$awk_decl" | sort -u)"
+  list="$(debug_list "(var|let|func|case)[[:space:]]+($(paste -sd'|' - <<<"$kept"))([^A-Za-z0-9_]|\$)" Sources)" || return
+  rel="$(debug_awk "$list" -v want=rel -v names="$(tr '\n' ' ' <<<"$kept")" "$awk_lib$awk_decl" | sort -u)" || return
   awk -F: -v released="$(tr '\n' ' ' <<<"$rel")" '
     BEGIN { k = split(released, R, " "); for (i = 1; i <= k; i++) skip[R[i]] = 1 }
     !($3 in skip) { print $1 ":" $2 ": ." $3 " is declared only under #if DEBUG; put the test in #if DEBUG (tdd skill, Guardrails)" }
-  ' <<<"$uses"
+  ' <<<"$uses" || { s=$?; echo "check-waits: awk failed with status $s" >&2; return "$s"; }
 }
 
 # r1: the wall-clock terms of a Swift file: a sleep, a clock read, a timer, or the real-time pace.
@@ -190,9 +204,9 @@ scan() {
   local at="$1" args=() term
   for term in "${r1[@]}" "${markers[@]}"; do args+=(-e "$term"); done
   if [[ "$at" == - ]]; then
-    git -C "$root" grep -anF --untracked "${args[@]}" -- 'Tests/*.swift' 'Sources/*.swift' || true
+    nomatch 'git grep' git -C "$root" grep -anF --untracked "${args[@]}" -- 'Tests/*.swift' 'Sources/*.swift'
   else
-    git -C "$root" grep -anF "${args[@]}" "$at" -- 'Tests/*.swift' 'Sources/*.swift' | sed "s|^$at:||" || true
+    nomatch 'git grep' git -C "$root" grep -anF "${args[@]}" "$at" -- 'Tests/*.swift' 'Sources/*.swift' | sed "s|^$at:||"
   fi
 }
 # tally <r1 or total> <scan output>: for r1, "<path>:<count>" of the lines with an r1 term, for each
@@ -220,7 +234,7 @@ rises() {
     <(printf '%s\n' "$1") <(printf '%s\n' "$2")
 }
 
-swift_changed=outside-a-work-tree
+swift_changed=outside-a-work-tree swift_new=""
 if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]; then
   if [[ -n "${BASE:-}" ]]; then
     ref="$(git -C "$root" merge-base "$BASE" HEAD 2>/dev/null)" || { echo "check-waits: no merge base of $BASE and HEAD" >&2; exit 2; }
@@ -231,8 +245,8 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
     ref="$(git -C "$root" hash-object -t tree /dev/null)"
     label="the empty tree"
   fi
-  swift_changed="$(git -C "$root" diff --no-renames --name-only "$ref" -- 'Sources/*.swift' 'Tests/*.swift'
-    git -C "$root" ls-files --others --exclude-standard -- 'Sources/*.swift' 'Tests/*.swift')"
+  swift_changed="$(git -C "$root" diff --no-renames --name-only "$ref" -- 'Sources/*.swift' 'Tests/*.swift')"
+  swift_new="$(git -C "$root" ls-files --others --exclude-standard -- 'Sources/*.swift' 'Tests/*.swift')"
   mode=fail caps=""
   counts="$root/scripts/check-waits.counts"
   if [[ -f "$counts" ]]; then
@@ -249,7 +263,8 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
     fi
   fi
 
-  scan_now="$(scan -)" scan_ref="$(scan "$ref")"
+  scan_now="$(scan -)"
+  scan_ref="$(scan "$ref")"
   now_r1="$(tally r1 "$scan_now")"
   ref_r1="$(tally r1 "$scan_ref")"
   gate=""
@@ -288,7 +303,7 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
   done
 fi
 
-if [[ -n "$swift_changed" ]]; then
+if [[ -n "$swift_changed$swift_new" ]]; then
   debug_found="$(debug_problems)"
   [[ -z "$debug_found" ]] || problems+="$debug_found"$'\n'
 fi

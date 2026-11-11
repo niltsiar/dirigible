@@ -9,7 +9,8 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE BASE
 check="$(cd "$(dirname "$0")" && pwd)/check-waits.sh"
 failures=0
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+shims="$(mktemp -d)"
+trap 'rm -rf "$tmp" "$shims"' EXIT
 
 # A new tree in $tmp with Tests/B, Sources/A, and an empty allow file.
 tree() {
@@ -205,6 +206,16 @@ expect pass 'a local let in a class func body under #if DEBUG'
 tree; dbgsrc '#if DEBUG'; usage "$use"
 printf 'struct C {\n    func parse() {\n        let re = /\\{(\\d+)/\n        _ = re\n    }\n    var stats: Int = 0\n}\n' > "$tmp/Sources/A/c.swift"
 expect pass 'a regex literal with an unbalanced brace before a release member'
+# A pass that fails is no pass: a `git grep` status above 1 or an awk error stops the script. Status 1
+# of `git grep` is "no match" and passes (the cases above).
+realgit="$(command -v git)"
+mkdir "$shims/awk" "$shims/git"
+printf '#!/bin/sh\nexit 2\n' > "$shims/awk/awk"
+printf '#!/bin/bash\nfor a; do [[ $a == grep ]] && exit 128; done\nexec "%s" "$@"\n' "$realgit" > "$shims/git/git"
+chmod +x "$shims/awk/awk" "$shims/git/git"
+tree; rm -r "$tmp/Tests"; expect pass 'a tree with no Tests folder'
+tree; dbgsrc '#if DEBUG'; usage "$use"; PATH="$shims/awk:$PATH" expect fail 'a pass whose awk fails' 'awk failed with status 2'
+tree; dbgsrc '#if DEBUG'; usage "$use"; PATH="$shims/git:$PATH" expect fail 'a pass whose git grep fails' 'git grep failed with status 128'
 # In a git work tree the gate runs only when a Swift file under Sources/ or Tests/ differs from the reference.
 repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
 mkdir -p "$tmp/docs"; echo note > "$tmp/docs/a.md"; expect pass 'a docs-only change on a tree that holds the fault'

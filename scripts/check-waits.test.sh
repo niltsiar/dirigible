@@ -231,6 +231,9 @@ tree; dbgsrc '#if DEBUG'; usage "$use"; PATH="$shims/git:$PATH" expect fail 'a p
 repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
 mkdir -p "$tmp/docs"; echo note > "$tmp/docs/a.md"; expect pass 'a docs-only change on a tree that holds the fault'
 echo 'let m = 1' >> "$tmp/Tests/B/b.swift"; expect fail 'a changed Tests file on a tree that holds the fault' "$(hit 1)"
+# A change of the gate script runs the gate on the whole tree.
+repo; echo '#!/bin/bash' > "$tmp/scripts/check-waits.sh"; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+echo '# changed' >> "$tmp/scripts/check-waits.sh"; expect fail 'a change of only the gate script on a tree that holds the fault' "$(hit 1)"
 
 [[ $failures -eq 0 ]] && echo "check-waits tests: all passed"
 exit $((failures > 0))

@@ -48,6 +48,8 @@ nomatch() {
   "$@" || s=$?
   [[ $s -le 1 ]] || { echo "check-waits: $label failed with status $s" >&2; exit 2; }
 }
+# awk_failed <status>: report a failed awk pass; status 2 stops the caller.
+awk_failed() { echo "check-waits: awk failed with status $1" >&2; return 2; }
 # tests_grep <grep option>... <pattern>: `grep -r` over the Swift files of Tests/; nothing to find when the folder is absent.
 tests_grep() { [[ -d "$root/Tests" ]] || return 0; (cd "$root" && nomatch grep grep -r --include='*.swift' "$@" Tests); }
 hits="$(tests_grep -nF '.wait(timeout:' | sort)"
@@ -179,16 +181,16 @@ debug_list() {
 }
 # debug_awk <file list> <awk argument>...: awk over the listed files, which are relative to the root.
 debug_awk() {
-  local list="$1" files=() file s
+  local list="$1" files=() file
   shift
   while IFS= read -r file; do
     if [[ -n "$file" ]]; then files+=("$file"); fi
   done <<<"$list"
   [[ ${#files[@]} -gt 0 ]] || return 0
-  (cd "$root" && LC_ALL=C awk "$@" "${files[@]}") || { s=$?; echo "check-waits: awk failed with status $s" >&2; return "$s"; }
+  (cd "$root" && LC_ALL=C awk "$@" "${files[@]}") || awk_failed $?
 }
 debug_problems() {
-  local list cand kept uses rel s
+  local list cand kept uses rel
   list="$(debug_list '^[[:space:]]*#if[[:space:]].*DEBUG' 'Sources/*.swift')" || return
   cand="$(debug_awk "$list" -v want=dbg "$awk_lib$awk_decl" | sort -u)" || return
   [[ -n "$cand" ]] || return 0
@@ -201,7 +203,7 @@ debug_problems() {
   awk -F: -v released="$(tr '\n' ' ' <<<"$rel")" '
     BEGIN { k = split(released, R, " "); for (i = 1; i <= k; i++) skip[R[i]] = 1 }
     !($3 in skip) { print $1 ":" $2 ": ." $3 " is declared only under #if DEBUG; put the test in #if DEBUG (tdd skill, Guardrails)" }
-  ' <<<"$uses" || { s=$?; echo "check-waits: awk failed with status $s" >&2; return "$s"; }
+  ' <<<"$uses" || awk_failed $?
 }
 
 # r1: the wall-clock terms of a Swift file: a sleep, a clock read, a timer, or the real-time pace.
@@ -237,12 +239,12 @@ tally() {
     END {
       if (want == "r1") for (f = 1; f <= files; f++) print order[f] ":" n[order[f]]
       else { for (k = 1; k <= nm; k++) line = line (k > 1 ? " " : "") (total[k] + 0); print line }
-    }' <<<"$2"
+    }' <<<"$2" || awk_failed $?
 }
 # rises <reference counts> <work tree counts>: "<path>:<now>:<before>" for each file with more.
 rises() {
   awk -F: 'FILENAME == ARGV[1] { before[$1] = $2; next } $2 + 0 > before[$1] + 0 { print $1 ":" $2 ":" before[$1] + 0 }' \
-    <(printf '%s\n' "$1") <(printf '%s\n' "$2")
+    <(printf '%s\n' "$1") <(printf '%s\n' "$2") || awk_failed $?
 }
 
 swift_changed=outside-a-work-tree swift_new=""
@@ -278,13 +280,14 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
   scan_ref="$(scan "$ref")"
   now_r1="$(tally r1 "$scan_now")"
   ref_r1="$(tally r1 "$scan_ref")"
+  rise_lines="$(rises "$ref_r1" "$now_r1")"
   gate=""
   while IFS=: read -r file n before; do
     [[ -n "$file" ]] || continue
     cap="$(awk -F'\t' -v f="$file" '$1 == f && $2 ~ /^[0-9]+$/ { print $2; exit }' <<<"$caps")"
     [[ -z "$cap" || $((10#$n)) -gt $((10#$cap)) ]] || continue
     gate+="$file: $n wall-clock lines, $before at $label; add $file<TAB>$n<TAB><reason> to scripts/check-waits.counts"$'\n'
-  done < <(rises "$ref_r1" "$now_r1")
+  done <<<"$rise_lines"
   while IFS=$'\t' read -r cpath ccap creason; do
     [[ -n "$cpath" ]] || continue
     if [[ -z "${creason//[[:space:]]/}" ]]; then
@@ -303,8 +306,10 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
   fi
 
   # The Tests/ total of each refused marker against the reference: a move of a line is no rise.
-  read -r -a now_totals <<<"$(tally total "$scan_now")"
-  read -r -a ref_totals <<<"$(tally total "$scan_ref")"
+  now_line="$(tally total "$scan_now")"
+  ref_line="$(tally total "$scan_ref")"
+  read -r -a now_totals <<<"$now_line"
+  read -r -a ref_totals <<<"$ref_line"
   for i in "${!markers[@]}"; do
     marker="${markers[$i]}" n="${now_totals[$i]}" before="${ref_totals[$i]}"
     advice='a flaky test moves to the real-time tier (flake-triage.md, Time box)'

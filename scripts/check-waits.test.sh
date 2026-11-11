@@ -227,6 +227,17 @@ chmod +x "$shims/awk/awk" "$shims/git/git"
 tree; rm -r "$tmp/Tests"; expect pass 'a tree with no Tests folder'
 tree; dbgsrc '#if DEBUG'; usage "$use"; PATH="$shims/awk:$PATH" expect fail 'a pass whose awk fails' 'awk failed with status 2'
 tree; dbgsrc '#if DEBUG'; usage "$use"; PATH="$shims/git:$PATH" expect fail 'a pass whose git grep fails' 'git grep failed with status 128'
+# The pick shim fails only the awk whose arguments hold $AWK_FAIL. Each failed pass exits 2.
+mkdir "$shims/pick"
+printf '#!/bin/bash\nfor a; do [[ $a == *"$AWK_FAIL"* ]] && exit 3; done\nexec "%s" "$@"\n' "$(command -v awk)" > "$shims/pick/awk"
+chmod +x "$shims/pick/awk"
+exit2() { [[ $code -eq 2 ]] || { echo "FAIL: $1: exit $code, want 2"; failures=$((failures + 1)); }; }
+tree; dbgsrc '#if DEBUG'; usage "$use"
+AWK_FAIL=want=dbg PATH="$shims/pick:$PATH" expect fail 'a debug pass whose awk fails' 'awk failed with status 3'; exit2 'a debug pass whose awk fails'
+repo; more; AWK_FAIL='FILENAME == ARGV[1]' PATH="$shims/pick:$PATH" expect fail 'a rise pass whose awk fails' 'awk failed with status 3'
+exit2 'a rise pass whose awk fails'
+repo; AWK_FAIL=want=total PATH="$shims/pick:$PATH" expect fail 'a marker total whose awk fails' 'awk failed with status 3'
+exit2 'a marker total whose awk fails'
 # In a git work tree the gate runs only when a Swift file under Sources/ or Tests/ differs from the reference.
 repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
 mkdir -p "$tmp/docs"; echo note > "$tmp/docs/a.md"; expect pass 'a docs-only change on a tree that holds the fault'

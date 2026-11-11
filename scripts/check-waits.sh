@@ -72,7 +72,7 @@ while IFS= read -r file; do
     problems+="$file: an isIntermittent: true with no \"quarantine: marker that has a FLAKE word; name its FLAKE item"$'\n'
 done < <(cd "$root" && { grep -rlF --include='*.swift' 'isIntermittent: true' Tests 2>/dev/null || true; } | sort)
 
-# The debug-only member gate. Three passes, each over a short file list from `grep -rl`, so a tree
+# The debug-only member gate. Three passes, each over a short file list from `git grep`, so a tree
 # with no match reads no file (awk must not read standard input):
 # 1. The Sources/ files with an `#if ... DEBUG` line: the names declared at type level in a debug branch.
 # 2. The Tests/ files that name one: each use outside a debug branch.
@@ -166,7 +166,7 @@ debug_awk() {
   (cd "$root" && LC_ALL=C awk "$@" "${files[@]}")
 }
 debug_problems() {
-  local cand kept uses rel path line name
+  local cand kept uses rel
   cand="$(debug_awk "$(debug_list '^[[:space:]]*#if[[:space:]].*DEBUG' Sources)" -v want=dbg "$awk_lib$awk_decl" | sort -u)"
   [[ -n "$cand" ]] || return 0
   uses="$(debug_awk "$(debug_list "\\.($(paste -sd'|' - <<<"$cand"))([^A-Za-z0-9_]|\$)" Tests)" -v names="$(tr '\n' ' ' <<<"$cand")" "$awk_lib$awk_use")"

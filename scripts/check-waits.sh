@@ -31,7 +31,10 @@
 # debug-only type, init, or subscript; a member under `#if DEBUG || <flag>`. A debug-only name used
 # as `.name` on another type in Tests/ also fails: put that test in `#if DEBUG`, or give the member
 # a unique name. In a git work tree the gate runs only when a Swift file under Sources/ or Tests/
-# or this script differs from the reference; outside a work tree it always runs.
+# or this script differs from the reference, and its use pass then reads only the changed Tests/
+# files, unless this script or a changed Sources/ file has DEBUG. So a change to a release
+# declaration of a debug-only name, in a Sources/ file with no DEBUG, shows only when the whole
+# tree is read. Outside a work tree the gate reads all of Tests/.
 # Usage: scripts/check-waits.sh [root]. `make check-slow-gates` runs it.
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -167,8 +170,12 @@ FNR == 1 { n = 0 }
   for (j = 1; j <= k; j++) if (t ~ ("\\." N[j] "([^A-Za-z_0-9]|$)")) print FILENAME ":" FNR ":" N[j]
 }
 '
-# debug_list <extended regex> <folder>: the Swift files under <folder> with a match, one per line.
-debug_list() { nomatch 'git grep' env LC_ALL=C git -C "$root" grep --no-index -lE "$1" -- "$2/*.swift" | sort; }
+# debug_list <extended regex> <pathspec>...: the Swift files that match, one per line.
+debug_list() {
+  local re="$1"
+  shift
+  nomatch 'git grep' env LC_ALL=C git -C "$root" grep --no-index -lE "$re" -- "$@" | sort
+}
 # debug_awk <file list> <awk argument>...: awk over the listed files, which are relative to the root.
 debug_awk() {
   local list="$1" files=() file s
@@ -181,14 +188,14 @@ debug_awk() {
 }
 debug_problems() {
   local list cand kept uses rel s
-  list="$(debug_list '^[[:space:]]*#if[[:space:]].*DEBUG' Sources)" || return
+  list="$(debug_list '^[[:space:]]*#if[[:space:]].*DEBUG' 'Sources/*.swift')" || return
   cand="$(debug_awk "$list" -v want=dbg "$awk_lib$awk_decl" | sort -u)" || return
   [[ -n "$cand" ]] || return 0
-  list="$(debug_list "\\.($(paste -sd'|' - <<<"$cand"))([^A-Za-z0-9_]|\$)" Tests)" || return
+  list="$(debug_list "\\.($(paste -sd'|' - <<<"$cand"))([^A-Za-z0-9_]|\$)" "${tests_scope[@]}")" || return
   uses="$(debug_awk "$list" -v names="$(tr '\n' ' ' <<<"$cand")" "$awk_lib$awk_use")" || return
   [[ -n "$uses" ]] || return 0
   kept="$(cut -d: -f3 <<<"$uses" | sort -u)"
-  list="$(debug_list "(var|let|func|case)[[:space:]]+($(paste -sd'|' - <<<"$kept"))([^A-Za-z0-9_]|\$)" Sources)" || return
+  list="$(debug_list "(var|let|func|case)[[:space:]]+($(paste -sd'|' - <<<"$kept"))([^A-Za-z0-9_]|\$)" 'Sources/*.swift')" || return
   rel="$(debug_awk "$list" -v want=rel -v names="$(tr '\n' ' ' <<<"$kept")" "$awk_lib$awk_decl" | sort -u)" || return
   awk -F: -v released="$(tr '\n' ' ' <<<"$rel")" '
     BEGIN { k = split(released, R, " "); for (i = 1; i <= k; i++) skip[R[i]] = 1 }
@@ -248,8 +255,8 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
     ref="$(git -C "$root" hash-object -t tree /dev/null)"
     label="the empty tree"
   fi
-  swift_changed="$(git -C "$root" diff --no-renames --name-only "$ref" -- 'Sources/*.swift' 'Tests/*.swift' scripts/check-waits.sh)"
-  swift_new="$(git -C "$root" ls-files --others --exclude-standard -- 'Sources/*.swift' 'Tests/*.swift' scripts/check-waits.sh)"
+  swift_changed="$(git -C "$root" -c core.quotePath=false diff --no-renames --name-only "$ref" -- 'Sources/*.swift' 'Tests/*.swift' scripts/check-waits.sh)"
+  swift_new="$(git -C "$root" -c core.quotePath=false ls-files --others --exclude-standard -- 'Sources/*.swift' 'Tests/*.swift' scripts/check-waits.sh)"
   mode=fail caps=""
   counts="$root/scripts/check-waits.counts"
   if [[ -f "$counts" ]]; then
@@ -306,7 +313,27 @@ if [[ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" == true ]]
   done
 fi
 
-if [[ -n "$swift_changed$swift_new" ]]; then
+# tests_scope: the Tests/ pathspecs of the use pass.
+tests_scope=('Tests/*.swift')
+if [[ "$swift_changed" != outside-a-work-tree ]]; then
+  changed="$swift_changed"$'\n'"$swift_new" src=() tst=() debug_src=""
+  while IFS= read -r file; do
+    case "$file" in
+      Sources/*) src+=(":(literal)$file") ;;
+      Tests/*) tst+=(":(literal)$file") ;;
+    esac
+  done <<<"$changed"
+  [[ ${#src[@]} -eq 0 ]] ||
+    debug_src="$(nomatch 'git grep' git -C "$root" grep --no-index -l DEBUG -- "${src[@]}")"
+  if grep -qxF scripts/check-waits.sh <<<"$changed" || [[ -n "$debug_src" ]]; then
+    :
+  elif [[ ${#tst[@]} -gt 0 ]]; then
+    tests_scope=("${tst[@]}")
+  else
+    tests_scope=()
+  fi
+fi
+if [[ ${#tests_scope[@]} -gt 0 ]]; then
   debug_found="$(debug_problems)"
   [[ -z "$debug_found" ]] || problems+="$debug_found"$'\n'
 fi

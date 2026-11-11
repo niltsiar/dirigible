@@ -231,6 +231,22 @@ tree; dbgsrc '#if DEBUG'; usage "$use"; PATH="$shims/git:$PATH" expect fail 'a p
 repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
 mkdir -p "$tmp/docs"; echo note > "$tmp/docs/a.md"; expect pass 'a docs-only change on a tree that holds the fault'
 echo 'let m = 1' >> "$tmp/Tests/B/b.swift"; expect fail 'a changed Tests file on a tree that holds the fault' "$(hit 1)"
+# The use pass reads the changed Tests/ files only, unless a changed Sources/ file has DEBUG. Here
+# Tests/B/b.swift holds an old use and is unchanged; hit() names its line.
+clean='let n = 1\n'
+repo; dbgsrc '#if DEBUG'; usage "$clean"; g add -A; g commit -q -m clean
+echo 'let m = a.stats' >> "$tmp/Tests/B/b.swift"; expect fail 'a new use in a changed Tests file' "$(hit 2)"
+repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+echo '// changed' >> "$tmp/Sources/A/a.swift"; expect fail 'an old use in an unchanged Tests file when a changed Sources file has DEBUG' "$(hit 1)"
+repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+echo 'let k = 1' > "$tmp/Sources/A/c.swift"; expect pass 'an old use in an unchanged Tests file when a changed Sources file has no DEBUG'
+repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+echo 'let m = 1' > "$tmp/Tests/B/c.swift"; expect pass 'a changed Tests file with no use beside an old use'
+echo 'let m = a.stats' > "$tmp/Tests/B/c.swift"; expect fail 'a new untracked Tests file with a use' 'Tests/B/c.swift:1: .stats is declared only under #if DEBUG'
+repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+mv "$tmp/Tests/B/b.swift" "$tmp/Tests/B/d.swift"; expect fail 'a renamed Tests file with a use' 'Tests/B/d.swift:1: .stats is declared only under #if DEBUG'
+repo; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
+rm "$tmp/Tests/B/b.swift"; expect pass 'a removed Tests file'
 # A change of the gate script runs the gate on the whole tree.
 repo; echo '#!/bin/bash' > "$tmp/scripts/check-waits.sh"; dbgsrc '#if DEBUG'; usage "$use"; g add -A; g commit -q -m fault
 echo '# changed' >> "$tmp/scripts/check-waits.sh"; expect fail 'a change of only the gate script on a tree that holds the fault' "$(hit 1)"

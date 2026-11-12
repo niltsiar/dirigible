@@ -87,4 +87,82 @@ struct SessionIndexTests {
     @Test func aMarkerRowDoesNotMatchTheTextOfAClipTrack() throws {
         #expect(ids(try index().rows(kind: .marker, search: "host")) == [])
     }
+
+    @Test func anUpdateAfterADeleteGivesTheRowsOfAFullBuild() throws {
+        let before = try Self.session()
+        var after = before
+        try after.removeClips(["c"])
+        let updated = SessionIndex(session: after, updating: SessionIndex(session: before), of: before)
+        #expect(ids(updated.rows) == ["a", "h1", "m1", "b", "m2"])
+    }
+
+    /// 400 seeded edits through the public edits of `Session`, each index updated from the one
+    /// before: clips removed, placed, moved, and trimmed, files added, a gain, markers set and
+    /// removed, and tracks renamed. Each update equals a full build.
+    @Test func eachUpdateGivesTheRowsOfAFullBuild() throws {
+        var random = SplitMix(seed: 0x1D3)
+        var session = try Self.session()
+        try session.addTrack("t3", name: "Third", layout: .mono)
+        let tracks: [TrackID] = ["t1", "t2", "t3"]
+        for n in 0..<60 {
+            let start = Frames(300_000 + n * 50_000)
+            try session.place(
+                Clip(id: ClipID("k\(n)"), file: "fa", start: start, offset: 0, length: 40_000), on: tracks[n % 3])
+        }
+        var index = SessionIndex(session: session)
+        var mismatches: [Int] = []
+        for step in 0..<400 {
+            let before = session
+            let clips = session.tracks.flatMap(\.clips)
+            let markers = Array(session.markers.values)
+            let at = Frames(Int.random(in: 0..<80, using: &random) * 25_000)
+            let track = tracks.randomElement(using: &random)!
+            switch Int.random(in: 0..<9, using: &random) {
+            case 0 where !clips.isEmpty:
+                try session.removeClips([clips.randomElement(using: &random)!.id])
+            case 1:
+                try? session.place(
+                    Clip(id: ClipID("n\(step)"), file: "fb", start: at, offset: 0, length: 20_000), on: track)
+            case 2 where !clips.isEmpty:
+                try? session.move(clips.randomElement(using: &random)!.id, to: track, start: at)
+            case 3 where !clips.isEmpty:
+                let clip = clips.randomElement(using: &random)!
+                try? session.trim(clip.id, to: clip.start + 1_000..<clip.end)
+            case 4:
+                let file = FileID("f\(step)")
+                try session.addFile(AudioFile(id: file, path: "File \(step).wav", layout: .mono, length: 480_000))
+                try? session.place(
+                    Clip(id: ClipID("f\(step)"), file: file, start: at, offset: 0, length: 20_000), on: track)
+            case 5 where !clips.isEmpty:
+                try session.setGain(Gain(dB: -3)!, clip: clips.randomElement(using: &random)!.id)
+            case 6:
+                let old = markers.randomElement(using: &random)?.id
+                let id = Bool.random(using: &random) ? old ?? MarkerID("x\(step)") : MarkerID("x\(step)")
+                let kind: Marker.Kind = Bool.random(using: &random) ? .marker : .chapter
+                try? session.setMarker(Marker(id: id, name: "Mark \(step)", position: at, kind: kind))
+            case 7 where !markers.isEmpty:
+                try session.removeMarker(markers.randomElement(using: &random)!.id)
+            case 8:
+                try session.renameTrack(track, to: "Track \(step)")
+            default: break
+            }
+            index = SessionIndex(session: session, updating: index, of: before)
+            if index != SessionIndex(session: session) { mismatches.append(step) }
+        }
+        let equal = mismatches.isEmpty
+        #expect(equal, "the steps whose update differs from a full build: \(mismatches.prefix(10))")
+    }
+}
+
+/// SplitMix64, so each seed gives the same edits on each run.
+private struct SplitMix: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var value = state
+        value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
+        return value ^ (value >> 31)
+    }
 }

@@ -71,11 +71,12 @@ import SwiftUI
         (table?.dataSource as? IndexTableSource)?.showSelection()
     }
 
-    /// The rows of `session`. A new Session value builds them again; the same value gives the
-    /// cached rows.
+    /// The rows of `session`. A new Session value updates the cached rows; the same value gives them.
     func sessionIndex(for session: Session) -> SessionIndex {
         if let cache = indexCache, cache.session == session { return cache.index }
-        let index = SessionIndex(session: session)
+        let index =
+            indexCache.map { SessionIndex(session: session, updating: $0.index, of: $0.session) }
+            ?? SessionIndex(session: session)
         indexCache = (session, index)
         builds += 1
         return index

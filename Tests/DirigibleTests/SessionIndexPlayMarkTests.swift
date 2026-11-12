@@ -163,4 +163,66 @@ import Testing
         #expect(table.layer?.sublayers?.contains(table.mark.line) == true, "the mark is a layer")
         await model.close()
     }
+
+    /// The play ticks `first` to `last`, each 20,000 frames after the one before.
+    func run(_ view: TimelineScrollView, from first: Int, to last: Int) {
+        for step in first...last { view.tick(playhead: Double(step * 20_000), playback: Self.play) }
+    }
+
+    func returnKey(in window: NSWindow) -> NSEvent {
+        NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+    }
+
+    /// X21. The index follow holds while a row field is open, and the hold clears at the field end.
+    @Test func aRowFieldHoldsTheFollow() async throws {
+        defer { base.defaults.removePersistentDomain(forName: base.suite) }
+        let (model, _, view, table) = try await open(markers: true)
+        let window = try #require(table.window)
+        base.app.key = model
+        let clip = try #require(table.enclosingScrollView?.contentView)
+        let top = clip.bounds.minY
+        try base.click(row: 2, table, in: window)
+        at(0, view)
+        run(view, from: 1, to: 2)
+        base.app.timeline(.renameTrack, event: returnKey(in: window), in: window)
+        try #require(model.leadingPane.rowEdit != nil, "the field opens")
+        #expect(table.mark.hold.contains(.rowField), "the field holds the follow")
+        run(view, from: 3, to: 123)
+        #expect(clip.bounds.minY == top, "120 ticks past the last row in view: no scroll with the field open")
+
+        base.app.timeline(.renameTrack, event: returnKey(in: window), in: window)
+        #expect(table.mark.hold.isEmpty, "the field end clears the hold")
+        run(view, from: 100, to: 100)
+        #expect(clip.bounds.minY > top, "the next tick that changes the current row scrolls")
+        await model.close()
+    }
+
+    /// X21. The index follow holds while a row context menu is open.
+    @Test func aRowMenuHoldsTheFollow() async throws {
+        defer { base.defaults.removePersistentDomain(forName: base.suite) }
+        let (model, _, view, table) = try await open(markers: true)
+        let clip = try #require(table.enclosingScrollView?.contentView)
+        let top = clip.bounds.minY
+        let rect = table.rect(ofRow: 2)
+        let click = NSEvent.mouseEvent(
+            with: .rightMouseDown, location: table.convert(NSPoint(x: rect.minX + 30, y: rect.midY), to: nil),
+            modifierFlags: [], timestamp: 0, windowNumber: try #require(table.window).windowNumber, context: nil,
+            eventNumber: 0, clickCount: 1, pressure: 1)!
+        let menu = try #require(table.menu(for: click), "a marker row has a menu")
+        let delegate = try #require(menu.delegate)
+        at(0, view)
+        run(view, from: 1, to: 2)
+        delegate.menuWillOpen?(menu)
+        #expect(table.mark.hold.contains(.rowMenu), "the open menu holds the follow")
+        run(view, from: 3, to: 123)
+        #expect(clip.bounds.minY == top, "120 ticks past the last row in view: no scroll with the menu open")
+
+        delegate.menuDidClose?(menu)
+        #expect(table.mark.hold.isEmpty, "the menu close clears the hold")
+        run(view, from: 100, to: 100)
+        #expect(clip.bounds.minY > top, "the next tick that changes the current row scrolls")
+        await model.close()
+    }
 }

@@ -6,11 +6,14 @@ import DirigibleCore
 /// table layer, so a tick moves them with no row view, no cell view, and no reload. The layers
 /// are no accessibility element.
 @MainActor final class IndexPlayMark {
-    /// Why the list does not follow the head. Each reason clears at the next play start or take start.
+    /// Why the list does not follow the head. A list scroll and a search key clear at the next play
+    /// start or take start; a row field and a row menu clear when they close.
     struct Hold: OptionSet {
         let rawValue: Int
         static let listScroll = Hold(rawValue: 1)
         static let search = Hold(rawValue: 2)
+        static let rowField = Hold(rawValue: 4)
+        static let rowMenu = Hold(rawValue: 8)
     }
 
     let line = CALayer()
@@ -21,6 +24,8 @@ import DirigibleCore
     /// The index of the current row: nil while the head is before the first shown row.
     private(set) var row: Int?
     private(set) var hold: Hold = []
+    /// The row of the open name field: no mark draws over it.
+    private var edited: Int?
     /// Play or a take runs: a user scroll or a search key holds the follow only then.
     private var active = false
     private var taking = false
@@ -61,7 +66,7 @@ import DirigibleCore
     /// One display tick, with the head of the lanes. `running` is play or a take. A change of the
     /// current row moves the layers and, with Follow on and no hold, scrolls the list to the row.
     func tick(head: Frames, running: Bool, taking: Bool, started: Bool, follows: Bool, in table: NSTableView) {
-        if started { hold = [] }
+        if started { hold.subtract([.listScroll, .search]) }
         active = running
         if taking != self.taking {
             self.taking = taking
@@ -74,6 +79,18 @@ import DirigibleCore
 
     func holdFollow(_ reason: Hold) {
         if active { hold.insert(reason) }
+    }
+
+    /// A row field or a row menu holds the follow while it is open, also when play started before it.
+    func hold(_ reason: Hold, open: Bool) {
+        if open { hold.insert(reason) } else { hold.remove(reason) }
+    }
+
+    /// The name field opens over `row`, or closes with nil.
+    func edit(row: Int?, in table: NSTableView) {
+        guard row != edited else { return }
+        edited = row
+        place(in: table, force: true)
     }
 
     func liveScrollStarted(at origin: Double) { liveScrollStart = origin }
@@ -109,7 +126,8 @@ import DirigibleCore
         let box = current.map { table.rect(ofRow: $0) }
         line.frame = CGRect(x: 0, y: box.map { $0.maxY - 0.5 } ?? 0, width: width, height: 1)
         tint.frame = box.map { CGRect(x: 0, y: $0.minY, width: width, height: $0.height) } ?? .zero
-        (line.isHidden, tint.isHidden) = (false, box == nil)
+        let covered = current != nil && current == edited
+        (line.isHidden, tint.isHidden) = (covered, box == nil || covered)
         return moved
     }
 }

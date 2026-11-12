@@ -42,7 +42,21 @@ import SwiftUI
     /// The body runs of the pane, for the tests.
     @ObservationIgnored private(set) var bodies = 0
 
+    /// The open name field of a row: the marker and the text typed so far. The field shows it.
+    struct RowEdit: Equatable {
+        let marker: MarkerID
+        var text: String
+    }
+
+    @ObservationIgnored var rowEdit: RowEdit?
+    /// The row of the open field. The list keeps it under a filter until the field ends.
+    var editedRow: SessionIndex.Pick?
+
     func countBody() { bodies += 1 }
+
+    func openRowField(select: Bool) { (table?.dataSource as? IndexTableSource)?.openField(select: select) }
+
+    func closeRowField() { (table?.dataSource as? IndexTableSource)?.closeField() }
 
     init(defaults: UserDefaults?) {
         shown = defaults?.bool(forKey: Self.shownKey) ?? false
@@ -128,6 +142,7 @@ extension SessionWindow {
 
     private func dropGoneRows(in session: Session) {
         leadingPane.reconciles += 1
+        if let open = leadingPane.rowEdit, session.markers[open.marker] == nil { finishRowEdit(save: false) }
         guard !timeline.selectedRows.isEmpty else { return }
         var live = Set(session.markers.keys.map { SessionIndex.Pick.marker($0) })
         for track in session.tracks { live.formUnion(track.clips.map { .clip($0.id) }) }
@@ -136,9 +151,10 @@ extension SessionWindow {
         if let anchor, !live.contains(anchor) { leadingPane.announce(L10n.indexPostSelectedGone.text) }
     }
 
-    /// True when the first responder of `keyWindow` is the index list. No row field exists yet.
+    /// True when the first responder of `keyWindow` is the index list and no row field is open: a
+    /// field editor is a subview of the list, and its keys are text.
     func indexListHasFocus(in keyWindow: NSWindow?) -> Bool {
-        guard leadingPane.shown, keyWindow === window, let table = leadingPane.table,
+        guard leadingPane.shown, leadingPane.rowEdit == nil, keyWindow === window, let table = leadingPane.table,
             let responder = keyWindow?.firstResponder as? NSView
         else { return false }
         return responder.isDescendant(of: table)
@@ -156,7 +172,13 @@ extension SessionWindow {
             let only = timeline.selectedRows.count == 1 ? timeline.selectedRows.first : nil
             switch command {
             case .renameTrack where isKey:
-                if case .clip? = only, let row = indexRow(only) { showIndexInfo(row) } else { beep() }
+                if case .clip? = only, let row = indexRow(only) {
+                    showIndexInfo(row)
+                } else if case .marker? = only {
+                    renameSelectedIndexRow()
+                } else {
+                    beep()
+                }
             case .markerInfo where isKey:
                 if case .marker? = only, let row = indexRow(only) { showIndexInfo(row) } else { beep() }
             case .deleteMarker, .moveMarker:
@@ -166,6 +188,53 @@ extension SessionWindow {
             }
             return true
         }
+    }
+
+    /// Return and F2 in the list: the name field of the one selected marker or chapter row. A take
+    /// or an import does nothing, as Marker Info; a clip row or two rows beep.
+    func renameSelectedIndexRow() {
+        guard canEdit else { return }
+        guard timeline.selectedRows.count == 1, case .marker(let id)? = timeline.selectedRows.first,
+            studio?.session.markers[id] != nil
+        else { return beep() }
+        beginRowEdit(id)
+    }
+
+    /// The row menu and the VoiceOver action Rename: the row is selected, with no seek, and its field opens.
+    func renameIndexRow(_ pick: SessionIndex.Pick) {
+        guard canEdit, case .marker(let id) = pick else { return }
+        timeline.selectRows([pick], anchor: pick)
+        beginRowEdit(id)
+    }
+
+    /// Opens the name field of `id`. An open field of another row commits first.
+    func beginRowEdit(_ id: MarkerID) {
+        guard canEdit, let marker = studio?.session.markers[id] else { return }
+        finishRowEdit(save: true)
+        leadingPane.rowEdit = .init(marker: id, text: marker.name)
+        leadingPane.editedRow = .marker(id)
+        leadingPane.openRowField(select: true)
+    }
+
+    /// Ends the open name field. The state is read and cleared first, so a second caller (the focus
+    /// loss after Command-R, or `commitDrafts()` after the focus loss) finds nothing and adds no edit.
+    /// With `save`, the typed name goes in one edit. A name that `Marker.set(.name, text:)` refuses
+    /// ends the field with the old name; with `strict` (Return and Tab) it beeps and keeps the field,
+    /// and the result is false.
+    @discardableResult func finishRowEdit(save: Bool, strict: Bool = false) -> Bool {
+        guard let open = leadingPane.rowEdit else { return true }
+        let stored = idleStudio?.session.markers[open.marker]
+        if save, strict, var probe = stored, !probe.set(.name, text: open.text) {
+            beep()
+            return false
+        }
+        leadingPane.rowEdit = nil
+        leadingPane.editedRow = nil
+        leadingPane.closeRowField()
+        guard save, var named = stored, named.set(.name, text: open.text), named != stored else { return true }
+        let renamed = named
+        edit(ripple: false) { s throws(SessionError) in try s.setMarker(renamed) }
+        return true
     }
 
     private func indexRow(_ pick: SessionIndex.Pick?) -> SessionIndex.Row? {

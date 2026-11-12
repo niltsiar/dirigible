@@ -105,15 +105,6 @@ import Testing
         await model.close()
     }
 
-    @Test func returnOnAMarkerRowBeepsUntilTheRename() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, beeps) = try await list()
-        try windows.click(row: 2, table, in: window)
-        windows.app.timeline(.renameTrack, event: pressReturn(in: window), in: window)
-        #expect(beeps() == 1 && model.renamingTrack == nil && !studio.canUndo, "Return on a marker row beeps")
-        await model.close()
-    }
-
     @Test func aClickOnRenameTrackRenamesTheTrack() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, window, table, beeps) = try await list()

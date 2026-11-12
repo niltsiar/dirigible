@@ -27,7 +27,7 @@ struct SessionIndexView: View {
         let pane = model.leadingPane
         let _ = pane.countBody()
         let index = pane.sessionIndex(for: studio.session)
-        let rows = index.rows(kind: pane.kind, search: pane.search)
+        let rows = index.rows(kind: pane.kind, search: pane.search, keeping: pane.editedRow)
         VStack(spacing: 8) {
             if Self.showsSwitch(segments: LeadingPaneState.Segment.allCases.count) {
                 Picker(selection: Bindable(pane).segment) {

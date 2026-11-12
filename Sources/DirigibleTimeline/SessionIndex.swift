@@ -152,12 +152,15 @@ public struct SessionIndex: Equatable, Sendable {
         return rows
     }
 
-    /// The rows that differ between `old` and `new`: the ranges between their common start and their common end.
+    /// The rows whose IDs differ between `old` and `new`: the ranges between their common start and
+    /// their common end. A row outside the ranges keeps its ID, and can have a new name or position.
     public static func change(from old: [Row], to new: [Row]) -> (old: Range<Int>, new: Range<Int>) {
         var head = 0
-        while head < old.count, head < new.count, old[head] == new[head] { head += 1 }
+        while head < old.count, head < new.count, old[head].id == new[head].id { head += 1 }
         var tail = 0
-        while tail < old.count - head, tail < new.count - head, old[old.count - 1 - tail] == new[new.count - 1 - tail] {
+        while tail < old.count - head, tail < new.count - head,
+            old[old.count - 1 - tail].id == new[new.count - 1 - tail].id
+        {
             tail += 1
         }
         return (head..<old.count - tail, head..<new.count - tail)

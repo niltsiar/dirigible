@@ -78,14 +78,16 @@ struct SessionIndexTable: NSViewRepresentable {
     weak var editing: NSTextField?
     var reloading = false
 
-    /// A change of up to `SessionIndex.updateLimit` rows removes and inserts them; a larger one
-    /// reloads the table. An open field whose row stays keeps its view, and the mark takes its new
-    /// row; a removed field opens again with the text typed so far.
+    /// A change of up to `SessionIndex.updateLimit` row IDs removes and inserts them, and each
+    /// other row view shows its new name and start; a larger change reloads the table. An open
+    /// field whose row stays keeps its view, and the mark takes its new row; a removed field opens
+    /// again with the text typed so far.
     func show(_ rows: [SessionIndex.Row], rate: Int) {
         guard rows != self.rows || rate != self.rate else { return }
+        let old = self.rows
         let change =
             rate == self.rate
-            ? SessionIndex.change(from: self.rows, to: rows) : (old: 0..<self.rows.count, new: 0..<rows.count)
+            ? SessionIndex.change(from: old, to: rows) : (old: 0..<old.count, new: 0..<rows.count)
         (self.rows, self.rate) = (rows, rate)
         let reopening = editing != nil
         reloading = true
@@ -94,6 +96,7 @@ struct SessionIndexTable: NSViewRepresentable {
             table.removeRows(at: IndexSet(integersIn: change.old), withAnimation: [])
             table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
             table.endUpdates()
+            refreshRows(of: table, from: old, change: change)
         } else {
             table?.reloadData()
         }
@@ -106,6 +109,30 @@ struct SessionIndexTable: NSViewRepresentable {
         } else if reopening {
             openField(select: false)
         }
+    }
+
+    /// Each row view that the table holds outside `change` shows the row of `old` at its old
+    /// place: it takes the new row. A new start goes into the start cell, because a reload of a
+    /// cell ends the field editor of its row; a new name loads the name cell again.
+    private func refreshRows(
+        of table: NSTableView, from old: [SessionIndex.Row], change: (old: Range<Int>, new: Range<Int>)
+    ) {
+        let start = table.column(withIdentifier: SessionIndexTable.startColumn)
+        var named = IndexSet()
+        table.enumerateAvailableRowViews { view, n in
+            guard !change.new.contains(n), let view = view as? IndexRowView else { return }
+            let was = old[n < change.new.lowerBound ? n : n - change.new.upperBound + change.old.upperBound]
+            guard was != rows[n] else { return }
+            configure(view, row: n)
+            if was.name != rows[n].name { named.insert(n) }
+            if was.position != rows[n].position,
+                let cell = table.view(atColumn: start, row: n, makeIfNecessary: false) as? IndexCell
+            {
+                cell.show(text: timeDisplayText(rows[n].position, rate: rate, playing: false), symbol: nil)
+            }
+        }
+        let name = table.column(withIdentifier: SessionIndexTable.nameColumn)
+        if !named.isEmpty { table.reloadData(forRowIndexes: named, columnIndexes: [name]) }
     }
 
     /// A live scroll of the list that moves it holds the index follow while play or a take runs.
@@ -169,6 +196,12 @@ struct SessionIndexTable: NSViewRepresentable {
         let id = NSUserInterfaceItemIdentifier("indexRow")
         let view = tableView.makeView(withIdentifier: id, owner: nil) as? IndexRowView ?? IndexRowView()
         view.identifier = id
+        configure(view, row: row)
+        return view
+    }
+
+    /// The label and the actions of row `row`.
+    private func configure(_ view: IndexRowView, row: Int) {
         view.spoken = Self.spoken(rows[row], rate: rate)
         let item = rows[row]
         view.actions = [
@@ -193,7 +226,6 @@ struct SessionIndexTable: NSViewRepresentable {
                 self?.model?.playFromIndexRow(item)
                 return true
             })
-        return view
     }
 
     func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {

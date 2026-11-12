@@ -228,6 +228,29 @@ import Testing
         await model.close()
     }
 
+    /// A ripple delete above the field moves the edited row: the same field stays open with its
+    /// text, and the row shows the new start.
+    @Test func aRippleAboveTheFieldKeepsIt() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await open()
+        let field = try start(row: 2, table, in: window)
+        type("Zed", in: window)
+        model.edit(ripple: true) { s throws(SessionError) in
+            try s.rippleDelete(10_000..<20_000, on: ["t1", "t2"], naming: ["t1", "t2"])
+        }
+        let rows = SessionIndex(session: studio.session).rows
+        await until("the list shows the ripple") { (table.dataSource as? IndexTableSource)?.rows == rows }
+        window.contentView?.layoutSubtreeIfNeeded()
+        let m1 = try #require(rows.firstIndex { $0.id == .marker("m1") })
+        let open = try #require(rowField(in: table), "the field stays open")
+        #expect(open === field && table.row(for: open) == m1 && open.currentEditor()?.string == "Zed")
+        let start = table.view(atColumn: 1, row: m1, makeIfNecessary: false) as? NSTableCellView
+        #expect(start?.textField?.stringValue == timeDisplayText(38_000, rate: 48_000, playing: false))
+        pressReturn(in: window)
+        #expect(name("m1", in: studio) == "Zed", "Return saves the typed name")
+        await model.close()
+    }
+
     @Test func theRenameActionOpensTheField() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, _, table, _) = try await open()

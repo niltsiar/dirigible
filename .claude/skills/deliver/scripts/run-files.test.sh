@@ -379,7 +379,7 @@ printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate
 before="$(shasum -a 256 "$closing/decisions.tsv")"
 err="$("$log" "$closing" 3 'plan gate 1 closed after 2 rounds' why evidence done 2>&1)"
 [[ $? -eq 2 ]] || fail "a close row with no criterion change row for C8 was not refused"
-[[ "$err" == *'a phase 3 row that closes the plan gate needs the check of the first phase 4 row'* ]] || fail "the close refusal names no rule: $err"
+[[ "$err" == *'a phase 3 row that closes the plan gate, or comes after its Fix check, needs the check of the first phase 4 row'* ]] || fail "the close refusal names no rule: $err"
 [[ "$(shasum -a 256 "$closing/decisions.tsv")" == "$before" ]] || fail "a refused close row changed decisions.tsv"
 "$log" "$closing" 3 'Close the plan gate after round 1' why evidence done 2>/dev/null
 [[ $? -eq 2 ]] || fail "a close row in the Close the plan gate form was not refused"
@@ -390,7 +390,7 @@ for form in 'plan gate round 2 closed: 3 Act on items applied' 'plan gate round 
   'default: plan gate closed; phase 4 starts later' 'plan gate fix check: 10 of 10 pass; gate closed' \
   'fix check of plan gate 1: 14 corrections applied, no added rule, gate closed'; do
   err="$("$log" "$closing" 3 "$form" 'Reverse: x' evidence done 2>&1)"
-  [[ $? -eq 2 && "$err" == *'a phase 3 row that closes the plan gate needs'* ]] || fail "the close row form was not refused by the close check: $form"
+  [[ $? -eq 2 && "$err" == *'a phase 3 row that closes the plan gate, or comes after its Fix check, needs'* ]] || fail "the close row form was not refused by the close check: $form"
 done
 "$log" "$closing" 3 'plan gate 1 round 1 verdict: 3 Act on' why evidence done || fail "a round verdict row exits $?"
 "$log" "$closing" 3 'do not close the plan gate yet' why evidence done || fail "a row that only names the close exits $?"
@@ -407,6 +407,43 @@ noplan="$tmp/noplan"
 mkdir "$noplan"
 : > "$noplan/decisions.tsv"
 "$log" "$noplan" 3 'plan gate closed' why evidence done || fail "a close row of a folder with no plan.md exits $?"
+
+# Once the review-plan-<n>.md with the highest number has a ## Fix check heading, each phase 3 row
+# runs the check of the first phase 4 row, whatever its words, except a criterion change row (the
+# check cannot count the row that it is about to append). Without the heading, or when a later round
+# file has none, a phase 3 row appends.
+# fix_run <name> <heading|none>: a run folder whose plan has a plan gate change for C6, whose
+# analysis.md moved C6 after the first row, and whose review-plan-1.md has an Act on item.
+fix_run() {
+  local d="$tmp/$1"
+  mkdir "$d"
+  printf '# A\n\n## Acceptance criteria\n\n- C6: 5 s.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$d/analysis.md"
+  printf '# P\n\nAgents: one.\n\n## Slices\n\n### S1\n\n- Check: x\n\n## Plan gate changes\n\n1. S1: a case. Criteria: C6\n' > "$d/plan.md"
+  : > "$d/decisions.tsv"
+  printf '# R\n\n## Act on\n\n1. (warning, x, read) A case. Invariant: a. Siblings: none, grepped x.\n' > "$d/review-plan-1.md"
+  [[ $2 == heading ]] && printf '\n## Fix check\n\n- 1.1 pass: done; new failure: none: x.\n' >> "$d/review-plan-1.md"
+  "$log" "$d" 2 'plan written' why evidence done || fail "$1: the phase 2 row exits $?"
+  printf '# A\n\n## Acceptance criteria\n\n- C6: 6 s.\n\n## Unknowns\n\n| id | parent | question | resolver | answer | row |\n|---|---|---|---|---|---|\n| U1 | - | q | code | a | 2026-10-01T10:00 |\n' > "$d/analysis.md"
+}
+fix_run fixed heading
+before="$(shasum -a 256 "$tmp/fixed/decisions.tsv")"
+err="$("$log" "$tmp/fixed" 3 'fix check of the plan gate by an agent that did not write the fixes: 3 of 5 fixes wrong' 'the lead corrected them' evidence 'failed 3 of 5, corrected; gate closed' 2>&1)"
+[[ $? -eq 2 && "$err" == *'criterion C6 of a plan gate change has no criterion change row'* ]] \
+  || fail "a fix check row after the Fix check heading, with C6 unlogged, was not refused: $err"
+[[ "$(shasum -a 256 "$tmp/fixed/decisions.tsv")" == "$before" ]] || fail "the refused fix check row changed decisions.tsv"
+err="$("$log" "$tmp/fixed" 3 'C1 red bench at 94c6903a: exit 1' why evidence done 2>&1)"
+[[ $? -eq 2 && "$err" == *'criterion C6 of a plan gate change has no criterion change row'* && "$err" == *'comes after its Fix check'* ]] \
+  || fail "a non-close phase 3 row after the Fix check heading, with C6 unlogged, was not refused: $err"
+[[ "$(shasum -a 256 "$tmp/fixed/decisions.tsv")" == "$before" ]] || fail "the refused non-close row changed decisions.tsv"
+"$log" "$tmp/fixed" 3 'criterion change C6: old 5 s, new 6 s' why evidence done \
+  || fail "a criterion change row after the Fix check heading exits $?"
+[[ "$(wc -l < "$tmp/fixed/decisions.tsv")" -eq 2 ]] || fail "the criterion change row did not append"
+fix_run unfixed none
+"$log" "$tmp/unfixed" 3 'plan gate 1 round 1 verdict: 1 Act on' why evidence done || fail "a round verdict row with no Fix check heading exits $?"
+fix_run round2 heading
+printf '# R\n\n## Act on\n\n1. (warning, x, read) Again. Invariant: a. Siblings: none, grepped x.\n' > "$tmp/round2/review-plan-2.md"
+"$log" "$tmp/round2" 3 'plan gate round 2 (doc lenses): act on 2 items' why evidence done \
+  || fail "a round 2 verdict row, with the heading only in review-plan-1.md, exits $?"
 
 # A phase 6 row runs scripts/check-plan.sh with no CHECK_PLAN_AT_PHASE4 value, the check of the land
 # (check-governance.sh): an Act on item with no Siblings field refuses the row and keeps the --from

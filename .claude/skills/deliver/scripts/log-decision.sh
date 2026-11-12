@@ -23,7 +23,10 @@
 # review-plan-<n>.md also has its lines (lead-judgment.md, Fix check). A phase 3 row that closes the
 # plan gate (its decision starts with `plan gate closed` or another close form, such as `plan gate
 # round 2 closed` or `close the plan gate`) of a run with a plan.md runs the same check,
-# with that row counted as the phase 3 row. A phase 6 row needs a passing scripts/check-plan.sh with
+# with that row counted as the phase 3 row. So does each phase 3 row, whatever its words, once the
+# review-plan-<n>.md with the highest number has a `## Fix check` heading, except a row whose decision
+# starts with `criterion change`: that row repairs the gap, and the check cannot count it before the
+# append. A later round file with no heading ends the check. A phase 6 row needs a passing scripts/check-plan.sh with
 # no variable, the check of the land: the review files have their fields. A criterion change row skips that check. A phase
 # 6 row of a run folder with a run.md also needs a passing scripts/check-eval-keys.sh against
 # origin/main: each evals.md key that the branch of the last `- Branch:` line adds or changes has a
@@ -198,13 +201,26 @@ if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! [[ "$(lower "$2")" == "criter
         exit 2
     fi
 fi
-# A phase 3 row that closes the plan gate runs the check of the first phase 4 row, with the row
-# itself counted as the phase 3 row, so a gap shows before the first slice agent starts.
+# A phase 3 row that closes the plan gate, or comes after the Fix check (the review-plan-<n>.md with
+# the highest number has a ## Fix check heading, as check-plan.sh reads it), runs the check of the
+# first phase 4 row, with the row itself counted as the phase 3 row, so a gap shows before the first
+# slice agent starts. A criterion change row skips it: check-plan.sh cannot count that row before
+# this script appends it, and that row repairs the gap.
 close_form='^((default:? )?([a-z0-9]+ )?plan gate( is| [0-9]+( \([^)]*\))?| round ([0-9]+|on [^:;,]*))?( round [0-9]+)?( judged and)? closed|(plan gate fix check|fix check of (the )?plan gate).*[;,] (the )?gate closed|(close|closes|closed|closing) (the )?plan gate)([^a-z]|$)'
 not_closed='(^|[^a-z])not( [a-z]+){0,3} clos(e|ed|es|ing)([^a-z]|$)'
-if [[ "$1" == 3 && -f "${file%/*}/plan.md" && "$(lower "$2")" =~ $close_form && ! "$(lower "$2")" =~ $not_closed ]]; then
+fix_checked=0
+if [[ "$1" == 3 && -f "${file%/*}/plan.md" ]]; then
+    last=0 last_review=""
+    for review in "${file%/*}"/review-plan-*.md; do
+        [[ "${review##*/}" =~ ^review-plan-([0-9]+)\.md$ ]] || continue
+        if ((10#${BASH_REMATCH[1]} > last)); then last=$((10#${BASH_REMATCH[1]})); last_review="$review"; fi
+    done
+    if [[ -n "$last_review" ]] && grep -q '^## Fix check' "$last_review"; then fix_checked=1; fi
+fi
+if [[ "$1" == 3 && -f "${file%/*}/plan.md" && "$(lower "$2")" != "criterion change"* ]] \
+    && { [[ $fix_checked -eq 1 ]] || [[ "$(lower "$2")" =~ $close_form && ! "$(lower "$2")" =~ $not_closed ]]; }; then
     if ! out="$(CHECK_PLAN_AT_PHASE4=1 CHECK_PLAN_GATE_CLOSE=1 "$plan_check" "${file%/*}" 2>&1)"; then
-        printf '%s\na phase 3 row that closes the plan gate needs the check of the first phase 4 row: log the criterion change rows or add the Fix check lines, then log this row\n' "$out" >&2
+        printf '%s\na phase 3 row that closes the plan gate, or comes after its Fix check, needs the check of the first phase 4 row: log the criterion change rows or add the Fix check lines, then log this row\n' "$out" >&2
         exit 2
     fi
 fi

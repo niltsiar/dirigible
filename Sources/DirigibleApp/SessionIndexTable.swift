@@ -83,33 +83,40 @@ struct SessionIndexTable: NSViewRepresentable {
     /// field whose row stays keeps its view, and the mark takes its new row; a removed or reloaded field
     /// opens again with the text typed so far. A new name of the edited marker (an agent edit) replaces
     /// the typed text, as in the Name field of the inspector.
-    func show(_ rows: [SessionIndex.Row], rate: Int) {
-        guard rows != self.rows || rate != self.rate else { return }
+    func show(_ rows: [SessionIndex.Row], rate: Int) { timePart(pane, "show") { showRows(rows, rate: rate) } }
+
+    private func showRows(_ rows: [SessionIndex.Row], rate: Int) {
+        guard timePart(pane, "show compare", { rows != self.rows || rate != self.rate }) else { return }
         let old = self.rows
-        let change =
+        let change = timePart(pane, "show change") {
             rate == self.rate
-            ? SessionIndex.change(from: old, to: rows) : (old: 0..<old.count, new: 0..<rows.count)
+                ? SessionIndex.change(from: old, to: rows) : (old: 0..<old.count, new: 0..<rows.count)
+        }
         (self.rows, self.rate) = (rows, rate)
-        if let edit = pane?.rowEdit, let was = old.first(where: { $0.id == .marker(edit.marker) })?.name,
-            let name = rows.first(where: { $0.id == .marker(edit.marker) })?.name, name != was
-        {
-            pane?.rowEdit?.text = name
+        timePart(pane, "show echo") {
+            if let edit = pane?.rowEdit, let was = old.first(where: { $0.id == .marker(edit.marker) })?.name,
+                let name = rows.first(where: { $0.id == .marker(edit.marker) })?.name, name != was
+            {
+                pane?.rowEdit?.text = name
+            }
         }
         let reopening = editing != nil
         reloading = true
-        if let table, change.old.count + change.new.count <= SessionIndex.updateLimit {
-            table.beginUpdates()
-            table.removeRows(at: IndexSet(integersIn: change.old), withAnimation: [])
-            table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
-            table.endUpdates()
-            refreshRows(of: table, from: old, change: change)
-        } else {
-            table?.reloadData()
+        timePart(pane, "show table") {
+            if let table, change.old.count + change.new.count <= SessionIndex.updateLimit {
+                table.beginUpdates()
+                table.removeRows(at: IndexSet(integersIn: change.old), withAnimation: [])
+                table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
+                table.endUpdates()
+                refreshRows(of: table, from: old, change: change)
+            } else {
+                table?.reloadData()
+            }
         }
         reloading = false
-        showSelection()
+        timePart(pane, "show selection") { showSelection() }
         guard let table else { return }
-        table.mark.show(rows, in: table)
+        timePart(pane, "show mark") { table.mark.show(rows, in: table) }
         if let field = editing, field.currentEditor() != nil {
             table.mark.edit(row: table.row(for: field), in: table)
         } else if reopening {
@@ -306,7 +313,7 @@ final class IndexTableView: NSTableView {
     }
 
     override func layout() {
-        super.layout()
+        timePart((dataSource as? IndexTableSource)?.pane, "table layout") { super.layout() }
         mark.place(in: self)
     }
 

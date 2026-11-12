@@ -5,18 +5,14 @@ import DirigibleTimeline
 import SwiftUI
 
 /// The state of the leading pane of a session window (decision 0023): whether it shows, its
-/// segment and width, the kind filter and the search of the index, the index table, and the cache
-/// of the index rows. Only the shown pane builds rows.
+/// width, the kind filter and the search of the index, the index table, and the cache of the
+/// index rows. Only the shown pane builds rows.
 @Observable @MainActor final class LeadingPaneState {
-    /// The segments of the switch. The switch shows from two segments.
-    enum Segment: CaseIterable { case index }
-
     /// The app preference of View > Show Session Index: a `Bool`, default false.
     static let shownKey = "view.index.shown"
 
     var shown: Bool
     var width: IndexWidth
-    var segment = Segment.index
     /// The kind filter; nil shows all kinds.
     var kind: SessionIndex.Kind?
     var search = ""
@@ -261,20 +257,18 @@ extension SessionWindow {
     /// The width that the index pane takes: 0 while it is hidden.
     var shownIndexWidth: Double { leadingPane.shown ? leadingPane.width.points : 0 }
 
-    /// View > Show Session Index and the toolbar item. The pane shows at the Index segment, and
-    /// hides only while it shows Index. A toggle ends an index drag that got no mouse-up. A hide
-    /// gives a focus in the pane to the lanes. A show widens a window that is too narrow.
+    /// View > Show Session Index and the toolbar item. A toggle ends an index drag that got no
+    /// mouse-up. A hide gives a focus in the pane to the lanes. A show widens a window that is too narrow.
     func toggleIndex() {
         _ = cancelIndexDrag()
         let pane = leadingPane
-        if pane.shown && pane.segment == .index {
+        if pane.shown {
             let focused = paneHasFocus
             pane.shown = false
             app?.defaults?.set(false, forKey: LeadingPaneState.shownKey)
             if focused { focusLanes() }
             return
         }
-        pane.segment = .index
         pane.shown = true
         app?.defaults?.set(true, forKey: LeadingPaneState.shownKey)
         widenForPanes()
@@ -282,7 +276,7 @@ extension SessionWindow {
 
     /// Edit > Find in Session Index: the pane shows (it stays shown when it is), and the search field takes the focus.
     func findInIndex() {
-        if !(leadingPane.shown && leadingPane.segment == .index) { toggleIndex() }
+        if !leadingPane.shown { toggleIndex() }
         leadingPane.searchFocusRequest = true
         focusIndexSearch()
     }
@@ -338,12 +332,11 @@ extension SessionWindow {
 
 extension AppDelegate {
     /// The title and the state of View > Show/Hide Session Index for the key window. The title
-    /// reads "Hide" only while the pane shows Index.
+    /// reads "Hide" while the pane shows.
     var indexItem: (title: L10n, enabled: Bool) { indexItem(for: key) }
 
     func indexItem(for model: SessionWindow?) -> (title: L10n, enabled: Bool) {
-        let hides = model?.leadingPane.shown == true && model?.leadingPane.segment == .index
-        return (hides ? .menuViewIndexHide : .menuViewIndexShow, model != nil)
+        return (model?.leadingPane.shown == true ? .menuViewIndexHide : .menuViewIndexShow, model != nil)
     }
 
     /// The action of Edit > Find in Session Index and its key.

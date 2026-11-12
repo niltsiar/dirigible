@@ -4,8 +4,8 @@ import DirigibleCore
 import DirigibleTimeline
 import SwiftUI
 
-/// The leading pane of a session window (decision 0023): the segment switch, the search field, the
-/// kind filter, and the list of the index. Its body reads the rows only through
+/// The leading pane of a session window (decision 0023): the search field, the kind filter, and
+/// the list of the index. Its body reads the rows only through
 /// `LeadingPaneState.sessionIndex(for:)`: it never reads the playhead or a field of
 /// `SessionWindow.timeline`, which a lane scroll writes.
 struct SessionIndexView: View {
@@ -29,16 +29,6 @@ struct SessionIndexView: View {
         let index = pane.sessionIndex(for: studio.session)
         let rows = index.rows(kind: pane.kind, search: pane.search, keeping: pane.editedRow)
         VStack(spacing: 8) {
-            if Self.showsSwitch(segments: LeadingPaneState.Segment.allCases.count) {
-                Picker(selection: Bindable(pane).segment) {
-                    ForEach(LeadingPaneState.Segment.allCases, id: \.self) {
-                        Text(L10n.indexSegmentIndex.key).tag($0)
-                    }
-                } label: {
-                    Text(L10n.indexSegmentIndex.key)
-                }
-                .pickerStyle(.segmented).labelsHidden()
-            }
             TextField(L10n.indexSearchPlaceholder.key, text: Bindable(pane).search)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier(Self.searchIdentifier)
@@ -58,9 +48,6 @@ struct SessionIndexView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onChange(of: pane.search) { pane.table?.mark.holdFollow(.search) }
     }
-
-    /// A switch with one segment is a control with one option: it shows from two segments.
-    static func showsSwitch(segments: Int) -> Bool { segments > 1 }
 
     /// The text of the empty session with the key of Add Marker, as the menu shows it.
     static func hint(text: (L10n) -> String = { $0.text }) -> String {

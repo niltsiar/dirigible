@@ -150,6 +150,8 @@ public struct SessionIndex: Equatable, Sendable {
     /// shows: the row of an open name field.
     public func rows(kind: Kind?, search: String, keeping kept: Pick? = nil) -> [Row] {
         let needle = Array(Self.folded(search).utf8)
+        // The same array, not a copy: the list compares it with the rows it shows.
+        if kind == nil, needle.isEmpty { return rows }
         return rows.filter { row in
             row.id == kept
                 || (kind == nil || row.kind == kind) && (needle.isEmpty || Self.contains(row.searchText, needle))

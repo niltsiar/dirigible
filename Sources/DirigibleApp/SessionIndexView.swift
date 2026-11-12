@@ -140,12 +140,15 @@ private struct IndexKindSegments: NSViewRepresentable {
         if control.selectedSegment != selected { control.selectedSegment = selected }
     }
 
+    /// The pane asks again at each list update: the segments keep the size of the first measure.
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSSegmentedControl, context: Context) -> CGSize? {
-        nsView.fittingSize
+        if context.coordinator.fitting == nil { context.coordinator.fitting = nsView.fittingSize }
+        return context.coordinator.fitting
     }
 
     @MainActor final class Coordinator: NSObject {
         var kind: Binding<SessionIndex.Kind?>?
+        var fitting: CGSize?
 
         @objc func pick(_ control: NSSegmentedControl) {
             kind?.wrappedValue = IndexKindFilter.choices[control.selectedSegment].kind

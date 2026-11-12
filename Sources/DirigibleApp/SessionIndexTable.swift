@@ -100,7 +100,7 @@ struct SessionIndexTable: NSViewRepresentable {
         reloading = false
         showSelection()
         guard let table else { return }
-        table.mark.show(starts: rows.map(\.position), in: table)
+        table.mark.show(rows, in: table)
         if let field = editing, field.window != nil {
             table.mark.edit(row: table.row(for: field), in: table)
         } else if reopening {
@@ -135,7 +135,7 @@ struct SessionIndexTable: NSViewRepresentable {
         guard let table, let pane else { return }
         let (selected, anchor) = (pane.pushedRows, pane.pushedAnchor)
         let anchored = anchor.flatMap { pick in selected.contains(pick) ? rows.firstIndex { $0.id == pick } : nil }
-        let shown = anchored ?? rows.firstIndex { selected.contains($0.id) }
+        let shown = selected.isEmpty ? nil : anchored ?? rows.firstIndex { selected.contains($0.id) }
         pushingRows = true
         defer { pushingRows = false }
         guard let shown else {

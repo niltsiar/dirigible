@@ -206,17 +206,15 @@ extension ExportWindowTests {
         try #require(before.count == 7)
         let source = try #require(model.source(of: .session, in: studio))
         let (options, split) = (Self.options, try #require(setTarget().split))
-        let task = Task { await model.runSet(source, options, split, studio) }
-        await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
-
-        let sheet = try #require(nsWindow.attachedSheet)
+        let job = SetJob { await model.runSet(source, options, split, studio) }
+        let sheet = try await untilReplaceSheet(of: nsWindow)
         let names = L10n.nameList(try setFiles())
         #expect(names.shown.count == 5 && names.more == 2)
         // Return is an on-screen check: the sheet is not the key window here.
         let escape = key(.keyDown, "\u{1b}", code: 53, in: sheet)
         if !sheet.performKeyEquivalent(with: escape) { sheet.sendEvent(escape) }
         await until(limit: .seconds(10), "Esc closes the sheet") { nsWindow.attachedSheet == nil }
-        await task.value
+        await job.ends()
 
         #expect(try setFiles().map { try Data(contentsOf: file($0)) } == before, "Esc replaced a file")
         #expect(nsWindow.attachedSheet == nil && studio.exportProgress == nil)
@@ -247,9 +245,8 @@ extension ExportWindowTests {
         try await runSet(model, studio, setTarget())
         let source = try #require(model.source(of: .session, in: studio))
         let (options, split) = (Self.options, try #require(setTarget().split))
-        let task = Task { await model.runSet(source, options, split, studio) }
-        await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
-        let sheet = try #require(nsWindow.attachedSheet)
+        let job = SetJob { await model.runSet(source, options, split, studio) }
+        let sheet = try await untilReplaceSheet(of: nsWindow)
 
         func buttonTitles(_ element: Any) -> [String] {
             let own = (element as? NSButtonCell)?.title.map { [$0] } ?? []
@@ -265,7 +262,7 @@ extension ExportWindowTests {
             "VoiceOver reads the Esc button")
         try #require(sheetButtons(sheet).first { $0.title == L10n.alertCancel.text }).performClick(nil)
         await until(limit: .seconds(10), "Cancel closes the sheet") { nsWindow.attachedSheet == nil }
-        await task.value
+        await job.ends()
         await model.close()
     }
 
@@ -286,12 +283,11 @@ extension ExportWindowTests {
             await model.replacements(source, Self.options, split, targets: targets))
         #expect(set.old.map(\.lastPathComponent) == ["Ep-02-Old.wav", "Ep-05-Outro.wav"])
         #expect(set.names == ["Ep-01-Intro.wav", "Ep-02-Talk.wav", "Ep-03-Outro.wav"])
-        let task = Task { await model.runSet(source, Self.options, split, studio) }
-        await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
-        let sheet = try #require(nsWindow.attachedSheet)
+        let job = SetJob { await model.runSet(source, Self.options, split, studio) }
+        let sheet = try await untilReplaceSheet(of: nsWindow)
         try #require(sheetButtons(sheet).first { $0.title == L10n.alertExportReplaceConfirm.text }).performClick(nil)
         await until(limit: .seconds(10), "Replace closes the sheet") { nsWindow.attachedSheet == nil }
-        await task.value
+        await job.ends()
 
         #expect(try Data(contentsOf: file("Ep-01-Intro.wav")) != Data("old".utf8), "Replace did not replace")
         for name in ["Ep-02-Old.wav", "Ep-05-Outro.wav"] { #expect(try Data(contentsOf: file(name)) == old) }

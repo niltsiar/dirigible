@@ -68,10 +68,20 @@ final class IndexCell: NSTableCellView {
         label.setAccessibilityElement(false)
     }
 
+    /// One image for each symbol: a new image looks up its glyph and draws it again in each cell.
+    private static var glyphs: [String: NSImage] = [:]
+
+    private static func glyph(_ symbol: String) -> NSImage? {
+        if let image = glyphs[symbol] { return image }
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        glyphs[symbol] = image
+        return image
+    }
+
     func show(text: String, symbol: String?) {
         endEditing()
         label.stringValue = text
-        glyph.image = symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
+        glyph.image = symbol.flatMap(Self.glyph)
         glyph.isHidden = symbol == nil
         textLeading?.constant = symbol == nil ? 4 : 24
     }

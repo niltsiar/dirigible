@@ -2,3 +2,4 @@
 mode warn
 Sources/DirigibleMCP/RideWork.swift	1	The DEBUG hold of interruptWritesNothing waits for the interrupt of the child
 Tests/DirigibleCLITests/LevelOverTimeCommandTests.swift	6	interruptWritesNothing waits for the hold line and for the exit of the child
+Tests/DirigibleTests/SessionIndexBenchmark.swift	10	A bench reads the clock to time its span and sleeps one 60 Hz frame between events

@@ -6,9 +6,9 @@
 # The folder holds the session and its `say` audio. It must be a new folder under .scratchpads/ or
 # /private/tmp: the session build runs through scripts/probe.sh, which refuses other folders.
 # The script opens build/Dirigible.app in the language (the number format of its locale) and light
-# mode, with its journal in <folder>/app-logs (new at each run), and writes screenshot-edit.png, screenshot-zoom.png, screenshot-inspector.png,
-# screenshot-episode.png, screenshot-crossfade.png, screenshot-settings.png, and
-# screenshot-silences.png. For en, it writes
+# mode, with its journal in <folder>/app-logs (new at each run), and writes screenshot-edit.png,
+# screenshot-zoom.png, screenshot-inspector.png, screenshot-episode.png, screenshot-crossfade.png,
+# screenshot-settings.png, and screenshot-silences.png. For en, it writes
 # them to docs/images. For another language, it writes them to <folder>/images. The app also
 # writes its preferences (the recent list, the inspector) for the real bundle ID, so do not run
 # this script as a check.
@@ -103,7 +103,7 @@ logs="$(cd "$folder" && pwd -P)/app-logs"
 rm -rf "$logs"
 mkdir -p "$logs"
 pid=""
-trap'[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
+trap '[[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true' EXIT
 # The View preferences and the agent switch in the arguments win over the stored ones, so the
 # images do not depend on them. The inspector toggle below starts from hidden.
 open -a "$app" --env "DIRIGIBLE_LOG_FOLDER=$logs" "$session" --args -NSRequiresAquaSystemAppearance YES -AppleLanguages "($lang)" \

@@ -75,8 +75,9 @@ public struct SessionIndex: Equatable, Sendable {
         rows = keyed.map(\.row)
     }
 
-    /// The most rows that an update removes and adds: a larger change builds all rows.
-    static let updateLimit = 256
+    /// The most rows that an update removes and adds: a larger change builds all rows, and the
+    /// list reloads.
+    public static let updateLimit = 256
 
     /// The rows of `session` from `index`, the rows of `earlier`: only the rows of the clips and
     /// markers that changed are built again, and each goes to its place in the order. A change of the
@@ -113,6 +114,11 @@ public struct SessionIndex: Equatable, Sendable {
         for key in gone { rows.remove(at: Self.place(of: key, in: rows)) }
         for row in added { rows.insert(row, at: Self.place(of: row.key, in: rows)) }
         self.rows = rows
+    }
+
+    /// The rows that differ between `old` and `new`: the ranges between their common start and their common end.
+    public static func change(from old: [Row], to new: [Row]) -> (old: Range<Int>, new: Range<Int>) {
+        change(from: old, to: new, same: ==)
     }
 
     private static func change<C: RandomAccessCollection>(from old: C, to new: C, same: (C.Element, C.Element) -> Bool)

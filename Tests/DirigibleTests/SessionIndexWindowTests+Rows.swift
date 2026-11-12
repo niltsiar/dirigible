@@ -309,6 +309,33 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
+    /// An edit of one clip or one marker removes and adds only its rows, with no `reloadData`. The
+    /// rows after it show their names and labels.
+    @Test func anEditOfOneItemReloadsNoList() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, window, table) = try await openRows()
+        let list = try #require(table as? IndexTableView)
+        let reloads = list.reloads
+        model.edit(ripple: false) { s throws(SessionError) in try s.removeClips(["c"]) }
+        await until("row c goes") { table.numberOfRows == 5 }
+        model.edit(ripple: false) { s throws(SessionError) in
+            try s.setMarker(Marker(id: "m1", name: "Pause", position: 48_000, kind: .marker))
+        }
+        func name(_ n: Int) -> String? {
+            (table.view(atColumn: 0, row: n, makeIfNecessary: false) as? NSTableCellView)?.textField?.stringValue
+        }
+        await until("row m1 shows Pause") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return name(2) == "Pause"
+        }
+        #expect(list.reloads == reloads, "\(list.reloads - reloads) reloadData calls for two edits of one item")
+        #expect((0..<5).map(name) == ["Capture/take1-1-1", "Intro", "Pause", "Café intro", "Cut here"])
+        let labels = (0..<5).map { table.rowView(atRow: $0, makeIfNecessary: false)?.accessibilityLabel() }
+        let spoken = SessionIndex(session: studio.session).rows.map { IndexTableSource.spoken($0, rate: 48_000) }
+        #expect(labels == spoken, "each row says its own item")
+        await model.close()
+    }
+
     /// X23. Delete in the lanes runs the lane Delete only: a selected marker row stays.
     @Test func deleteInTheLanesKeepsTheMarkerRows() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }

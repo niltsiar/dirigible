@@ -78,16 +78,34 @@ struct SessionIndexTable: NSViewRepresentable {
     weak var editing: NSTextField?
     var reloading = false
 
+    /// A change of up to `SessionIndex.updateLimit` rows removes and inserts them; a larger one
+    /// reloads the table. An open field whose row stays keeps its view, and the mark takes its new
+    /// row; a removed field opens again with the text typed so far.
     func show(_ rows: [SessionIndex.Row], rate: Int) {
         guard rows != self.rows || rate != self.rate else { return }
+        let change =
+            rate == self.rate
+            ? SessionIndex.change(from: self.rows, to: rows) : (old: 0..<self.rows.count, new: 0..<rows.count)
         (self.rows, self.rate) = (rows, rate)
         let reopening = editing != nil
         reloading = true
-        table?.reloadData()
+        if let table, change.old.count + change.new.count <= SessionIndex.updateLimit {
+            table.beginUpdates()
+            table.removeRows(at: IndexSet(integersIn: change.old), withAnimation: [])
+            table.insertRows(at: IndexSet(integersIn: change.new), withAnimation: [])
+            table.endUpdates()
+        } else {
+            table?.reloadData()
+        }
         reloading = false
         showSelection()
-        if let table { table.mark.show(starts: rows.map(\.position), in: table) }
-        if reopening { openField(select: false) }
+        guard let table else { return }
+        table.mark.show(starts: rows.map(\.position), in: table)
+        if let field = editing, field.window != nil {
+            table.mark.edit(row: table.row(for: field), in: table)
+        } else if reopening {
+            openField(select: false)
+        }
     }
 
     /// A live scroll of the list that moves it holds the index follow while play or a take runs.

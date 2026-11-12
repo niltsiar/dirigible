@@ -874,4 +874,6 @@
 "index.column.start" = "Start";
 "index.action.go.to" = "Ga naar";
 "index.action.show.info" = "Toon info";
+"index.action.play.from.here" = "Speel af vanaf hier";
+"index.menu.play.from.here" = "Speel af vanaf hier";
 "index.post.selected.gone" = "Geselecteerd onderdeel verwijderd";

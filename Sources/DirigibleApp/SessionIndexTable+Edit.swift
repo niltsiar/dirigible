@@ -78,20 +78,30 @@ extension IndexTableSource: NSTextFieldDelegate, NSMenuDelegate {
         model.beginRowEdit(id)
     }
 
-    /// The menu of a marker or chapter row: Rename. A clip row has none.
+    /// The menu of a row: Rename on a marker or chapter row, and Play from Here on each row.
     func rowMenu(at row: Int) -> NSMenu? {
-        guard rows.indices.contains(row), rows[row].kind != .clip else { return nil }
+        guard rows.indices.contains(row) else { return nil }
         let menu = NSMenu()
-        let item = NSMenuItem(title: L10n.headerRename.text, action: #selector(renameFromMenu(_:)), keyEquivalent: "")
-        item.target = self
-        item.representedObject = rows[row].id
-        menu.addItem(item)
+        func add(_ title: L10n, _ action: Selector) {
+            let item = NSMenuItem(title: title.text, action: action, keyEquivalent: "")
+            item.target = self
+            item.representedObject = rows[row].id
+            menu.addItem(item)
+        }
+        if rows[row].kind != .clip { add(.headerRename, #selector(renameFromMenu(_:))) }
+        add(.indexMenuPlayFromHere, #selector(playFromMenu(_:)))
         menu.delegate = self
         return menu
     }
 
     @objc private func renameFromMenu(_ item: NSMenuItem) {
         if let pick = item.representedObject as? SessionIndex.Pick { model?.renameIndexRow(pick) }
+    }
+
+    @objc private func playFromMenu(_ item: NSMenuItem) {
+        if let pick = item.representedObject as? SessionIndex.Pick, let row = rows.first(where: { $0.id == pick }) {
+            model?.playFromIndexRow(row)
+        }
     }
 
     func menuWillOpen(_ menu: NSMenu) { table?.mark.hold(.rowMenu, open: true) }

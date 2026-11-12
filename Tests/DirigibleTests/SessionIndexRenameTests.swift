@@ -193,7 +193,9 @@ import Testing
         let names = { (n: Int) in
             (table.rowView(atRow: n, makeIfNecessary: true)?.accessibilityCustomActions() ?? []).map(\.name)
         }
-        #expect(names(4) == [L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text], "a clip row has no Rename")
+        #expect(
+            names(4) == [L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text, L10n.indexActionPlayFromHere.text],
+            "a clip row has no Rename")
         let action = try #require(
             table.rowView(atRow: 2, makeIfNecessary: true)?.accessibilityCustomActions()?.first {
                 $0.name == L10n.headerRename.text
@@ -215,7 +217,7 @@ import Testing
                 windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
             return table.menu(for: click)
         }
-        #expect(menu(row: 4) == nil, "a clip row has no menu")
+        #expect(menu(row: 4)?.items.map(\.title) == [L10n.indexMenuPlayFromHere.text], "a clip row has no Rename")
         let item = try #require(menu(row: 2)?.items.first, "a marker row has a menu")
         #expect(item.title == L10n.headerRename.text)
         _ = item.target?.perform(item.action, with: item)

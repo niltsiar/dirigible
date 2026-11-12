@@ -130,12 +130,13 @@ struct SessionIndexTable: NSViewRepresentable {
 
     /// A click on row `n`: the table takes it and the row action runs, also for the row that
     /// shows already.
-    func click(row n: Int) {
+    func click(row n: Int, clickCount: Int = 1) {
         guard let table, rows.indices.contains(n) else { return }
         pushingRows = true
         table.selectRowIndexes([n], byExtendingSelection: false)
         pushingRows = false
         model?.selectIndexRow(rows[n], byClick: true)
+        if clickCount == 2 { model?.playFromIndexRow(rows[n], selecting: false) }
     }
 
     /// An arrow key moved the row.
@@ -169,6 +170,11 @@ struct SessionIndexTable: NSViewRepresentable {
                     return true
                 })
         }
+        view.actions.append(
+            NSAccessibilityCustomAction(name: L10n.indexActionPlayFromHere.text) { [weak self] in
+                self?.model?.playFromIndexRow(item)
+                return true
+            })
         return view
     }
 
@@ -229,6 +235,8 @@ struct SessionIndexTable: NSViewRepresentable {
 }
 
 /// The list view. A click runs the row action itself, so a click on the row that shows also acts.
+/// The table does not call `super.mouseDown`, so `doubleAction` never fires: the second click of a
+/// double click plays from the row here.
 /// Shift-arrows, Shift-click, Command-click, Delete, and Select All beep: the list selects one row.
 final class IndexTableView: NSTableView {
     var beep: () -> Void = {}
@@ -259,7 +267,7 @@ final class IndexTableView: NSTableView {
         window?.makeFirstResponder(self)
         if !flags.isDisjoint(with: [.shift, .command]) { return beep() }
         let n = row(at: convert(event.locationInWindow, from: nil))
-        if n >= 0 { (dataSource as? IndexTableSource)?.click(row: n) }
+        if n >= 0 { (dataSource as? IndexTableSource)?.click(row: n, clickCount: event.clickCount) }
     }
 
     override func keyDown(with event: NSEvent) {

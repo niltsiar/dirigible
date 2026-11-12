@@ -28,12 +28,7 @@ public struct SessionIndex: Equatable, Sendable {
         /// The track order of a clip, 0 for a marker.
         fileprivate let track: Int
 
-        public var id: Pick {
-            switch item {
-            case .clip(let id, _): .clip(id)
-            case .marker(let id), .chapter(let id): .marker(id)
-            }
-        }
+        public var id: Pick { item.pick }
 
         public var kind: Kind {
             switch item {
@@ -43,13 +38,7 @@ public struct SessionIndex: Equatable, Sendable {
             }
         }
 
-        fileprivate var key: Key {
-            switch item {
-            case .clip(let id, _): (position, 2, track, id.rawValue)
-            case .marker(let id): (position, 1, track, id.rawValue)
-            case .chapter(let id): (position, 0, track, id.rawValue)
-            }
-        }
+        fileprivate var key: Key { SessionIndex.key(of: item, at: position, track: track) }
     }
 
     /// The timeline order of a row: the position, then chapter, marker, clip, then the
@@ -145,6 +134,32 @@ public struct SessionIndex: Equatable, Sendable {
         return low
     }
 
+    /// The first of `picks` in timeline order, nil when no pick is in `session`. It builds no row.
+    public static func first(of picks: Set<Pick>, in session: Session) -> Pick? {
+        var first: (key: Key, pick: Pick)?
+        func take(_ item: Item, at position: Frames, track: Int) {
+            let key = Self.key(of: item, at: position, track: track)
+            if first.map({ key < $0.key }) ?? true { first = (key, item.pick) }
+        }
+        for (order, track) in session.tracks.enumerated() {
+            for clip in track.clips where picks.contains(.clip(clip.id)) {
+                take(.clip(clip.id, track: track.name), at: clip.start, track: order)
+            }
+        }
+        for marker in session.markers.values where picks.contains(.marker(marker.id)) {
+            take(Item(marker), at: marker.position, track: 0)
+        }
+        return first?.pick
+    }
+
+    fileprivate static func key(of item: Item, at position: Frames, track: Int) -> Key {
+        switch item {
+        case .clip(let id, _): (position, 2, track, id.rawValue)
+        case .marker(let id): (position, 1, track, id.rawValue)
+        case .chapter(let id): (position, 0, track, id.rawValue)
+        }
+    }
+
     /// The rows of one kind (all kinds for nil) whose name or track name has `search` as a
     /// substring, with no case and no diacritics. An empty search matches every row. The row `kept` always
     /// shows: the row of an open name field.
@@ -183,7 +198,18 @@ extension SessionIndex.Row {
 
     fileprivate init(marker: Marker) {
         self.init(
-            item: marker.kind == .chapter ? .chapter(marker.id) : .marker(marker.id), name: marker.name,
+            item: SessionIndex.Item(marker), name: marker.name,
             position: marker.position, searchText: SessionIndex.folded(marker.name), track: 0)
+    }
+}
+
+extension SessionIndex.Item {
+    fileprivate init(_ marker: Marker) { self = marker.kind == .chapter ? .chapter(marker.id) : .marker(marker.id) }
+
+    fileprivate var pick: SessionIndex.Pick {
+        switch self {
+        case .clip(let id, _): .clip(id)
+        case .marker(let id), .chapter(let id): .marker(id)
+        }
     }
 }

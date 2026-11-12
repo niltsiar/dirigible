@@ -866,6 +866,7 @@
 "index.pane.segment.index" = "Index";
 "index.handle" = "Breedte van index";
 "index.search.placeholder" = "Zoek";
+"index.search.label" = "Zoek in index";
 "index.filter.all" = "Alles";
 "index.filter.clips" = "Clips";
 "index.filter.chapters" = "Hoofdstukken";

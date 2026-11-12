@@ -850,6 +850,7 @@ enum L10n: String, CaseIterable {
     case indexSegmentIndex = "index.pane.segment.index"
     case indexHandle = "index.handle"
     case indexSearchPlaceholder = "index.search.placeholder"
+    case indexSearchLabel = "index.search.label"
     case indexFilterAll = "index.filter.all"
     case indexFilterClips = "index.filter.clips"
     case indexFilterChapters = "index.filter.chapters"

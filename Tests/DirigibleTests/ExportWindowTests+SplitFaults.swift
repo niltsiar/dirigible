@@ -44,12 +44,11 @@ extension ExportWindowTests {
         await model.export(.session)
 
         #expect(model.dialogShowing && !model.canExport && !model.isOn(.export), "the OK left Export on")
-        await until("the replace sheet shows") { nsWindow.attachedSheet != nil }
+        let sheet = try await untilReplaceSheet(of: nsWindow)
         #expect(!model.canExport && !model.isOn(.export), "Export is on while the replace sheet shows")
         let panelsBefore = panelCalls
         await model.export(.session)
         #expect(panelCalls == panelsBefore, "a second save panel opened")
-        let sheet = try #require(nsWindow.attachedSheet)
         try #require(sheetButtons(sheet).first { $0.title == L10n.alertCancel.text }).performClick(nil)
         await until("the replace sheet goes") { nsWindow.attachedSheet == nil }
         await until("the flow ends") { model.canExport }

@@ -94,6 +94,36 @@ import Testing
         await model.close()
     }
 
+    @Test func returnShiftReturnAndShowInfoDuringPlayShowTheTabAndDoNotSeek() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, beeps) = try await list()
+        try windows.click(row: 4, table, in: window)
+        model.transport(.playStop)
+        await model.settleTransport()
+        try #require(studio.playback != .stopped, "the play runs")
+        model.leafCalls = []
+
+        windows.app.timeline(.renameTrack, event: pressReturn(in: window), in: window)
+        #expect(model.showsInspector && model.inspectorTab == .clip, "Return shows the Clip tab")
+        try windows.arrow(true, in: window)
+        windows.app.timeline(.markerInfo, event: pressReturn(shift: true, in: window), in: window)
+        #expect(model.inspectorTab == .marker && model.timeline.marker == "m2", "Shift-Return shows the Marker tab")
+        model.selectInspectorTab(.clip)
+        let showInfo = try #require(
+            table.rowView(atRow: 2, makeIfNecessary: true)?.accessibilityCustomActions()?.first {
+                $0.name == L10n.indexActionShowInfo.text
+            })
+        _ = showInfo.handler?()
+        #expect(model.inspectorTab == .marker && model.timeline.marker == "m1", "Show Info shows the Marker tab")
+
+        await model.settleTransport()
+        let calls = model.leafCalls ?? []
+        #expect(!calls.contains { $0.hasPrefix("seek") }, "a request for the inspector seeks: \(calls)")
+        #expect(studio.playback != .stopped && beeps() == 0, "the play goes on")
+        await studio.perform(.playStop)
+        await model.close()
+    }
+
     @Test func shiftReturnOnAClipRowBeeps() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, window, table, beeps) = try await list()

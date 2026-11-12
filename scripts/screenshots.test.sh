@@ -36,6 +36,21 @@ args="$(awk '/^open -a "\$app"/ { on = 1 } on { print } on && !/\\$/ { exit }' "
 [[ "$args" == *"-view.inspector.shown NO"* ]] || fail "the launch does not pin the inspector hidden: $args"
 [[ "$args" == *"-view.loudness.shown YES"* ]] || fail "the launch does not pin the loudness meter shown: $args"
 
+# The script ends the app with kill, so its journal ends unclean. The launch gets a log folder of its
+# own under the script folder, made new and empty before the launch: no earlier journal shows the
+# "did not quit in the normal way" banner in an image.
+log_var="$(sed -n 's/.*--env "DIRIGIBLE_LOG_FOLDER=\$\([A-Za-z_]*\)".*/\1/p' <<<"$args")"
+if [[ -z "$log_var" ]]; then
+    fail "the launch has no --env DIRIGIBLE_LOG_FOLDER=\$<variable>: $args"
+else
+    grep -q "^$log_var=.*\\\$folder" "$shots" || fail "the log folder \$$log_var is not under the folder of the script"
+    open_line="$(grep -n '^open -a "\$app"' "$shots" | head -n 1 | cut -d: -f1)"
+    for step in "rm -rf \"\$$log_var\"" "mkdir -p \"\$$log_var\""; do
+        at="$(grep -n -F -x "$step" "$shots" | head -n 1 | cut -d: -f1)"
+        [[ -n "$at" && "$at" -lt "$open_line" ]] || fail "'$step' is not before the launch"
+    done
+fi
+
 # Each Support/Resources/<lang>.lproj folder has an arm in the language case of screenshots.sh, and
 # its name passes the name check of the script (a region folder such as pt-PT included).
 arms="$(awk '/^case "\$lang" in/ { on = 1; next } /^esac/ { on = 0 } on' "$shots")"

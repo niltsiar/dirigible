@@ -277,14 +277,6 @@ final class IndexTableView: NSTableView {
         mark.restyle(effectiveAppearance)
     }
 
-    /// A pane that Find in Session Index just showed has its search field now: it takes the focus.
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        guard window != nil, let source = dataSource as? IndexTableSource, source.pane?.searchFocusRequest == true
-        else { return }
-        source.model?.focusIndexSearch()
-    }
-
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {

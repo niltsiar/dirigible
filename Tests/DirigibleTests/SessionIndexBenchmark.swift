@@ -141,7 +141,7 @@ import Testing
         try #require(index.rows.count == 12_250 && source.rows.count == 12_250)
         var expected: [String: [SessionIndex.Row]] = [:]
         for key in Self.keys + [""] { expected[key] = index.rows(kind: nil, search: key) }
-        let field = try #require(model.indexSearchField)
+        let field = try #require(model.leadingPane.searchField)
         try #require(window.makeFirstResponder(field))
         let editor = try #require(window.fieldEditor(false, for: field) as? NSTextView)
         var times: [Duration] = []

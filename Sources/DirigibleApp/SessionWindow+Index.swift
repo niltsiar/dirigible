@@ -128,8 +128,9 @@ extension SessionWindow {
     }
 
     /// The Show Info action and Return on a clip row: the Clip tab; on a marker row, the Marker tab.
+    /// The row selects as an arrow does: during play the playhead stays.
     func showIndexInfo(_ row: SessionIndex.Row) {
-        selectIndexRow(row, byClick: true)
+        selectIndexRow(row, byClick: false)
         if case .clip = row.item {
             if !showsInspector { toggleInspector() }
             selectInspectorTab(.clip)

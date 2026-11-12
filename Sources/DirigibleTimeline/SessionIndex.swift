@@ -22,7 +22,7 @@ public struct SessionIndex: Equatable, Sendable {
     public struct Row: Identifiable, Equatable, Sendable {
         public let item: Item
         public let name: String
-        public let position: Frames
+        public fileprivate(set) var position: Frames
         /// The name, a line break, and the track name of a clip, folded once at the row build.
         fileprivate let searchText: String
         /// The track order of a clip, 0 for a marker.
@@ -64,13 +64,13 @@ public struct SessionIndex: Equatable, Sendable {
         rows = keyed.map(\.row)
     }
 
-    /// The most rows that an update removes and adds: a larger change builds all rows, and the
-    /// list reloads.
+    /// The most rows that the list removes and inserts: a larger change reloads the list.
     public static let updateLimit = 256
 
-    /// The rows of `session` from `index`, the rows of `earlier`: only the rows of the clips and
-    /// markers that changed are built again, and each goes to its place in the order. A change of the
-    /// files or of a track (the count, the order, a name) builds all rows.
+    /// The rows of `session` from `index`, the rows of `earlier`. Only the rows of the clips and
+    /// markers that are new or changed are built again. A row whose clip or marker only moved keeps
+    /// its name and takes the new position, so a ripple that moves thousands of rows builds none
+    /// of them. A change of the files or of a track (the count, the order, a name) builds all rows.
     public init(session: Session, updating index: SessionIndex, of earlier: Session) {
         guard session.files == earlier.files, session.tracks.count == earlier.tracks.count,
             zip(session.tracks, earlier.tracks).allSatisfy({ $0.id == $1.id && $0.name == $1.name })
@@ -78,60 +78,89 @@ public struct SessionIndex: Equatable, Sendable {
             self = SessionIndex(session: session)
             return
         }
-        var gone: [Key] = []
+        var moved: [Pick: Frames] = [:]
+        var gone: Set<Pick> = []
         var added: [Row] = []
         for (order, (track, old)) in zip(session.tracks, earlier.tracks).enumerated() where track.clips != old.clips {
-            let change = Self.change(from: old.clips, to: track.clips) {
-                $0.id == $1.id && $0.start == $1.start && $0.file == $1.file
+            let (was, now) = (old.clips, track.clips)
+            var head = 0
+            while head < was.count, head < now.count, was[head].id == now[head].id,
+                was[head].start == now[head].start, was[head].file == now[head].file
+            {
+                head += 1
             }
-            gone += old.clips[change.old].map { Row(clip: $0, of: old, at: order, in: earlier).key }
-            added += track.clips[change.new].map { Row(clip: $0, of: track, at: order, in: session) }
+            // A clip row depends on the ID, the file, and the start only.
+            var tail = 0
+            while tail < was.count - head, tail < now.count - head {
+                let (before, after) = (was[was.count - 1 - tail], now[now.count - 1 - tail])
+                guard before.id == after.id, before.file == after.file else { break }
+                if before.start != after.start { moved[.clip(after.id)] = after.start }
+                tail += 1
+            }
+            gone.formUnion(was[head..<was.count - tail].map { .clip($0.id) })
+            added += now[head..<now.count - tail].map { Row(clip: $0, of: track, at: order, in: session) }
         }
         if session.markers != earlier.markers {
             for (id, marker) in earlier.markers where session.markers[id] != marker {
-                gone.append(Row(marker: marker).key)
+                if let after = session.markers[id], after.name == marker.name, after.kind == marker.kind {
+                    moved[.marker(id)] = after.position
+                } else {
+                    gone.insert(.marker(id))
+                }
             }
-            for (id, marker) in session.markers where earlier.markers[id] != marker {
+            for (id, marker) in session.markers {
+                if let before = earlier.markers[id], before.name == marker.name, before.kind == marker.kind { continue }
                 added.append(Row(marker: marker))
             }
         }
-        guard gone.count + added.count <= Self.updateLimit else {
-            self = SessionIndex(session: session)
-            return
+        // The kept rows stay in order. A ripple moves the later rows by one length, so the moved
+        // rows stay in order too; a Close Gaps on some tracks can mix them.
+        var kept: [Row] = []
+        var shifted: [Row] = []
+        kept.reserveCapacity(index.rows.count)
+        for row in index.rows {
+            if let position = moved[row.id] {
+                var row = row
+                row.position = position
+                shifted.append(row)
+            } else if !gone.contains(row.id) {
+                kept.append(row)
+            }
         }
-        var rows = index.rows
-        for key in gone { rows.remove(at: Self.place(of: key, in: rows)) }
-        for row in added { rows.insert(row, at: Self.place(of: row.key, in: rows)) }
-        self.rows = rows
+        if !zip(shifted, shifted.dropFirst()).allSatisfy({ $0.key < $1.key }) { shifted.sort { $0.key < $1.key } }
+        added.sort { $0.key < $1.key }
+        rows = Self.merged(Self.merged(kept, shifted), added)
+    }
+
+    /// The rows of `first` and `second`, each in timeline order, in timeline order.
+    private static func merged(_ first: [Row], _ second: [Row]) -> [Row] {
+        if first.isEmpty || second.isEmpty { return first.isEmpty ? second : first }
+        var rows: [Row] = []
+        rows.reserveCapacity(first.count + second.count)
+        var (i, j) = (0, 0)
+        while i < first.count, j < second.count {
+            if second[j].key < first[i].key {
+                rows.append(second[j])
+                j += 1
+            } else {
+                rows.append(first[i])
+                i += 1
+            }
+        }
+        rows += first[i...]
+        rows += second[j...]
+        return rows
     }
 
     /// The rows that differ between `old` and `new`: the ranges between their common start and their common end.
     public static func change(from old: [Row], to new: [Row]) -> (old: Range<Int>, new: Range<Int>) {
-        change(from: old, to: new, same: ==)
-    }
-
-    private static func change<C: RandomAccessCollection>(from old: C, to new: C, same: (C.Element, C.Element) -> Bool)
-        -> (old: Range<Int>, new: Range<Int>) where C.Index == Int
-    {
         var head = 0
-        while head < old.count, head < new.count, same(old[head], new[head]) { head += 1 }
+        while head < old.count, head < new.count, old[head] == new[head] { head += 1 }
         var tail = 0
-        while tail < old.count - head, tail < new.count - head,
-            same(old[old.count - 1 - tail], new[new.count - 1 - tail])
-        {
+        while tail < old.count - head, tail < new.count - head, old[old.count - 1 - tail] == new[new.count - 1 - tail] {
             tail += 1
         }
         return (head..<old.count - tail, head..<new.count - tail)
-    }
-
-    /// The index of the first row at or after `key`.
-    private static func place(of key: Key, in rows: [Row]) -> Int {
-        var (low, high) = (0, rows.count)
-        while low < high {
-            let middle = (low + high) / 2
-            if rows[middle].key < key { low = middle + 1 } else { high = middle }
-        }
-        return low
     }
 
     /// The first of `picks` in timeline order, nil when no pick is in `session`. It builds no row.

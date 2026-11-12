@@ -153,6 +153,66 @@ struct SessionIndexTests {
         #expect(equal, "the steps whose update differs from a full build: \(mismatches.prefix(10))")
     }
 
+    /// 300 seeded ripple edits, each index updated from the one before: Delete and Close Gap and
+    /// Insert Silence on all tracks or on some, Close Gaps, a ripple paste, and Undo and Redo of
+    /// them. Each ripple moves the later rows, so a wrong shift of one row gives a wrong order or
+    /// start. Each update equals a full build.
+    @Test func eachRippleUpdateGivesTheRowsOfAFullBuild() throws {
+        var random = SplitMix(seed: 0x51F7)
+        var session = try Self.session()
+        try session.addTrack("t3", name: "Third", layout: .mono)
+        let tracks: [TrackID] = ["t1", "t2", "t3"]
+        for n in 0..<90 {
+            try session.place(
+                Clip(id: ClipID("k\(n)"), file: "fa", start: Frames(300_000 + n * 30_000), offset: 0, length: 20_000),
+                on: tracks[n % 3])
+        }
+        for n in 0..<20 {
+            try session.setMarker(
+                Marker(id: MarkerID("r\(n)"), name: "Mark \(n)", position: Frames(n * 150_000), kind: .marker))
+        }
+        var (undo, redo): ([Session], [Session]) = ([], [])
+        var index = SessionIndex(session: session)
+        var mismatches: [Int] = []
+        for step in 0..<300 {
+            let before = session
+            let at = Frames(Int.random(in: 0..<120, using: &random) * 25_000)
+            let length = Frames(Int.random(in: 1..<8, using: &random) * 10_000)
+            let some = tracks.filter { _ in Bool.random(using: &random) }
+            let scope = Bool.random(using: &random) || some.isEmpty ? tracks : some
+            let edit = Int.random(in: 0..<6, using: &random)
+            switch edit {
+            case 0: try? session.rippleDelete(at..<at + length, on: scope, naming: scope)
+            case 1: try? session.rippleInsert(length, at: at, on: scope, naming: scope)
+            case 2:
+                let clips = session.tracks.flatMap(\.clips).filter { _ in Int.random(in: 0..<4, using: &random) == 0 }
+                _ = try? session.closeGaps(clips.map(\.id))
+            case 3:
+                if let excerpt = try? session.excerpt(of: at..<at + length, on: scope) {
+                    let place = Frames(Int.random(in: 0..<120, using: &random) * 25_000)
+                    try? session.rippleInsert(excerpt.length, at: place, on: tracks, naming: tracks)
+                    _ = try? session.paste(excerpt, at: place, on: scope)
+                }
+            case 4:
+                guard let last = undo.popLast() else { break }
+                redo.append(session)
+                session = last
+            default:
+                guard let next = redo.popLast() else { break }
+                undo.append(session)
+                session = next
+            }
+            if edit < 4, session != before {
+                undo.append(before)
+                redo.removeAll()
+            }
+            index = SessionIndex(session: session, updating: index, of: before)
+            if index != SessionIndex(session: session) { mismatches.append(step) }
+        }
+        let equal = mismatches.isEmpty
+        #expect(equal, "the steps whose update differs from a full build: \(mismatches.prefix(10))")
+    }
+
     /// Clips and marks on a grid of 10 places over 3 tracks, so many rows tie on the position; 300
     /// seeded sets of picks, some of them gone from the session.
     @Test func theFirstPickInTimelineOrderMatchesAFullBuild() throws {

@@ -130,7 +130,7 @@ struct SessionIndexTable: NSViewRepresentable {
     }
 
     /// Shows the pushed rows: the anchor row when it is selected and shown, else the first shown
-    /// selected row, else nothing. A table holds one selected row in this landing.
+    /// selected row, else nothing. A table holds one selected row.
     func showSelection() {
         guard let table, let pane else { return }
         let (selected, anchor) = (pane.pushedRows, pane.pushedAnchor)

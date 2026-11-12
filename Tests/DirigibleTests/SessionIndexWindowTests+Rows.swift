@@ -55,7 +55,7 @@ extension SessionIndexWindowTests {
 
     func table(_ table: NSTableView, shows n: Int) -> Bool { table.selectedRow == n }
 
-    /// The first test (criterion X9): the rows follow a lane edit and a row click.
+    /// The rows follow a lane edit and a row click.
     @Test func theRowsFollowEachEdit() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, _, window, table) = try await openRows()
@@ -82,7 +82,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X5. A click on a clip row selects the clip set, seeks to the clip start, and shows it; the
+    /// A click on a clip row selects the clip set, seeks to the clip start, and shows it; the
     /// current marker stays. During a take, and the pre-roll of a pre-roll take, the playhead stays.
     @Test func aClipRowSelectsAndSeeks() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -91,8 +91,8 @@ extension SessionIndexWindowTests {
         await studio.perform(.seek(.frame(300_000)))
         try click(row: 4, table, in: window)
         await model.settleTransport()
-        #expect(model.timeline.selection == .clips(ClipSet("c")), "(a) the selection is the clip set of c")
-        #expect(studio.playhead == 192_000, "(a) the playhead was after the clip")
+        #expect(model.timeline.selection == .clips(ClipSet("c")), "the selection is the clip set of c")
+        #expect(studio.playhead == 192_000, "the playhead was after the clip")
         #expect(model.timeline.marker == "m2", "the current marker does not change")
 
         let lanes = try #require(model.timelineView)
@@ -106,7 +106,7 @@ extension SessionIndexWindowTests {
         await model.settleTransport()
         try click(row: 4, table, in: window)
         await model.settleTransport()
-        await until("(b) the view shows the clip start") {
+        await until("the view shows the clip start") {
             drawNow(window)
             return lanes.origin <= 192_000 && 192_000 < lanes.origin + lanes.visibleFrames
         }
@@ -121,8 +121,8 @@ extension SessionIndexWindowTests {
         try #require(studio.playback != .stopped, "the play runs")
         try click(row: 4, table, in: window)
         await model.settleTransport()
-        #expect(studio.playback != .stopped, "(c) the play goes on")
-        #expect(studio.playhead >= 192_000 && studio.playhead < 192_000 + 48_000, "(c) from the clip start")
+        #expect(studio.playback != .stopped, "the play goes on")
+        #expect(studio.playhead >= 192_000 && studio.playhead < 192_000 + 48_000, "from the clip start")
         await studio.perform(.playStop)
         await model.close()
     }
@@ -133,7 +133,7 @@ extension SessionIndexWindowTests {
         let (model, studio, window, table) = try await openRows(routed: true)
         studio.environment = hal.environment
         if preRoll { await model.recordPreRoll() } else { await model.record() }
-        try #require(!studio.isIdle, "(d) the take runs")
+        try #require(!studio.isIdle, "the take runs")
         let head = studio.playhead
         let lanes = try #require(model.timelineView)
         lanes.navigate(.zoom(by: 0.02))
@@ -155,7 +155,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X6. A click on a marker row sets the current marker and seeks; the selection stays.
+    /// A click on a marker row sets the current marker and seeks; the selection stays.
     @Test func aMarkerRowSetsTheCurrentMarker() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, table) = try await openRows()
@@ -168,7 +168,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X7. Down Arrow after m1 selects b, the row after m1, and seeks to it.
+    /// Down Arrow after m1 selects b, the row after m1, and seeks to it.
     @Test func theArrowsMoveTheRow() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, table) = try await openRows()
@@ -200,7 +200,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X9. A lane write pushes the rows once and seeks nowhere.
+    /// A lane write pushes the rows once and seeks nowhere.
     @Test func aLaneSelectionPushesRowsWithNoSeek() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, _, table) = try await openRows()
@@ -235,7 +235,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X26. An undo of an Add leaves the playhead; no row is selected.
+    /// An undo of an Add leaves the playhead; no row is selected.
     @Test func undoOfAnAddLeavesThePlayhead() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, _, table) = try await openRows()
@@ -336,7 +336,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X23. Delete in the lanes runs the lane Delete only: a selected marker row stays.
+    /// Delete in the lanes runs the lane Delete only: a selected marker row stays.
     @Test func deleteInTheLanesKeepsTheMarkerRows() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, table) = try await openRows()
@@ -350,8 +350,8 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X12. Each row has the actions Go to, Show Info, and Play from here; a marker or chapter row
-    /// also has Rename. No row has Delete in this landing.
+    /// Each row has the actions Go to, Show Info, and Play from here; a marker or chapter row
+    /// also has Rename. No row has Delete.
     @Test func aRowHasItsCustomActions() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, _, _, table) = try await openRows()

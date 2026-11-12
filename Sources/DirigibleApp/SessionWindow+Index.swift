@@ -8,7 +8,7 @@ import SwiftUI
 /// segment and width, the kind filter and the search of the index, the index table, and the cache
 /// of the index rows. Only the shown pane builds rows.
 @Observable @MainActor final class LeadingPaneState {
-    /// The segments of the switch. The Bins segment of the favorites run joins this list.
+    /// The segments of the switch. The switch shows from two segments.
     enum Segment: CaseIterable { case index }
 
     /// The app preference of View > Show Session Index: a `Bool`, default false.

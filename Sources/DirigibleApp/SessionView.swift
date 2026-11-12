@@ -15,7 +15,7 @@ struct SessionView: View {
         let _ = model.countBody()
         content
             // 720 pt keeps the transport and the time display in the toolbar (probe P1c). Each
-            // shown pane adds its width (run 11b-2).
+            // shown pane adds its width.
             .frame(minWidth: model.paneMinimum, minHeight: 360)
             .alert(
                 Text(verbatim: model.alert.map(\.text) ?? ""),

@@ -16,7 +16,7 @@ extension SessionIndexWindowTests {
         try click(row: n, table, in: window, clicks: 2)
     }
 
-    /// X22. Stopped, a double click on c plays from its start. During play, the play goes on from
+    /// Stopped, a double click on c plays from its start. During play, the play goes on from
     /// the row start. On a marker row it opens no rename field and no Marker Info.
     @Test func aDoubleClickPlaysFromTheRow() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -47,7 +47,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X22. During a take, and the pre-roll of a pre-roll take, a double click only selects.
+    /// During a take, and the pre-roll of a pre-roll take, a double click only selects.
     @Test(arguments: [false, true])
     func aDoubleClickDuringATakeOnlySelects(preRoll: Bool) async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -68,7 +68,7 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X22 and X12. The action Play from here and the row menu item do what a double click does.
+    /// The action Play from here and the row menu item do what a double click does.
     @Test func playFromHereActsAsADoubleClick() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, studio, window, table) = try await openRows()

@@ -128,16 +128,16 @@ struct TimelineState {
         rowsRevision += 1
     }
 
-    /// Drops each selected row whose item is not in `live`, and moves a gone anchor to the first
-    /// row of `order` that stays (any row that stays without an order). Writes no other field.
+    /// Drops each selected row whose item is not in `live`, and moves a gone anchor to the row that
+    /// `first` picks from the rows that stay (any row without `first`). Writes no other field.
     mutating func pruneRows(
-        keeping live: Set<SessionIndex.Pick>, order: @autoclosure () -> [SessionIndex.Pick] = []
+        keeping live: Set<SessionIndex.Pick>, first: (Set<SessionIndex.Pick>) -> SessionIndex.Pick? = \.first
     ) {
         let kept = selectedRows.intersection(live)
         guard kept != selectedRows else { return }
         selectedRows = kept
         if let anchor = anchorRow, !kept.contains(anchor) {
-            anchorRow = order().first(where: kept.contains) ?? kept.first
+            anchorRow = kept.isEmpty ? nil : first(kept) ?? kept.first
         }
         rowsRevision += 1
     }

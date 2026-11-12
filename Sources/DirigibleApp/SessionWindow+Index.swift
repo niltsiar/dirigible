@@ -159,7 +159,7 @@ extension SessionWindow {
         var live = Set(session.markers.keys.map { SessionIndex.Pick.marker($0) })
         for track in session.tracks { live.formUnion(track.clips.map { .clip($0.id) }) }
         let anchor = timeline.anchorRow
-        timeline.pruneRows(keeping: live, order: SessionIndex(session: session).rows.map(\.id))
+        timeline.pruneRows(keeping: live) { SessionIndex.first(of: $0, in: session) }
         if let anchor, !live.contains(anchor) { leadingPane.announce(L10n.indexPostSelectedGone.text) }
     }
 

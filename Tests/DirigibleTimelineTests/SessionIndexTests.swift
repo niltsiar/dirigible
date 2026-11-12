@@ -152,6 +152,34 @@ struct SessionIndexTests {
         let equal = mismatches.isEmpty
         #expect(equal, "the steps whose update differs from a full build: \(mismatches.prefix(10))")
     }
+
+    /// Clips and marks on a grid of 10 places over 3 tracks, so many rows tie on the position; 300
+    /// seeded sets of picks, some of them gone from the session.
+    @Test func theFirstPickInTimelineOrderMatchesAFullBuild() throws {
+        var random = SplitMix(seed: 0xF1257)
+        var session = try Self.session()
+        try session.addTrack("t3", name: "Third", layout: .mono)
+        let tracks: [TrackID] = ["t1", "t2", "t3"]
+        for n in 0..<40 {
+            try? session.place(
+                Clip(id: ClipID("k\(n)"), file: "fa", start: Frames(n % 10 * 10_000), offset: 0, length: 5_000),
+                on: tracks[n % 3])
+            let kind: Marker.Kind = n % 2 == 0 ? .marker : .chapter
+            try session.setMarker(
+                Marker(id: MarkerID("x\(n)"), name: "M", position: Frames(n % 10 * 10_000), kind: kind))
+        }
+        let order = SessionIndex(session: session).rows.map(\.id)
+        let gone: [SessionIndex.Pick] = [.clip("gone"), .marker("gone")]
+        var mismatches: [Set<SessionIndex.Pick>] = []
+        for _ in 0..<300 {
+            let picks = Set((order + gone).filter { _ in Int.random(in: 0..<8, using: &random) == 0 })
+            if SessionIndex.first(of: picks, in: session) != order.first(where: picks.contains) {
+                mismatches.append(picks)
+            }
+        }
+        #expect(SessionIndex.first(of: Set(gone), in: session) == nil, "no pick in the session gives nil")
+        #expect(mismatches.isEmpty, "\(mismatches.count) sets whose first pick differs, one: \(mismatches.first ?? [])")
+    }
 }
 
 /// SplitMix64, so each seed gives the same edits on each run.

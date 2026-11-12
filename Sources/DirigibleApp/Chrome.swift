@@ -258,7 +258,7 @@ struct ChromeState: Equatable {
         if playing { on.insert(.play) }
         if model.monitoring { on.insert(.monitor) }
         if model.showsInspector { on.insert(.inspector) }
-        if model.leadingPane.shown && model.leadingPane.segment == .index { on.insert(.index) }
+        if model.leadingPane.shown { on.insert(.index) }
         if model.snaps { on.insert(.snap) }
         // During a take the take start and the disk watch give the time left; before it, the
         // idle read of the armed tracks with a route.

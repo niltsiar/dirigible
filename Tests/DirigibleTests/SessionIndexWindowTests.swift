@@ -72,7 +72,7 @@ import Testing
         }
     }
 
-    @Test func theSwitchHidesWhileThePaneHasOneSegment() async throws {
+    @Test func thePaneStacksTheSearchFieldTheFilterAndTheList() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, _, window) = try await open()
         let controls = views(NSSegmentedControl.self, in: window.contentView)
@@ -81,8 +81,6 @@ import Testing
             views(NSTextField.self, in: window.contentView).first { $0.isEditable && frame($0).maxX < 260 },
             "the search field")
         let table = try #require(model.leadingPane.table)
-        #expect(LeadingPaneState.Segment.allCases.count == 1)
-        #expect(!SessionIndexView.showsSwitch(segments: 1) && SessionIndexView.showsSwitch(segments: 2))
         #expect(controls.allSatisfy { $0.segmentCount != 1 }, "a switch with one segment is no control")
         #expect(frame(field).minY > frame(filter).maxY - 1, "the search field is above the filter")
         #expect(frame(filter).minY > frame(table).maxY - 1, "the filter is above the list")

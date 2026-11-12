@@ -25,7 +25,7 @@ extension ToolbarWindowTests {
         try #require(!model.leadingPane.shown)
         await until("the item is enabled") { button.isEnabled }
         button.performClick(nil)
-        #expect(model.leadingPane.shown && model.leadingPane.segment == .index, "a click shows the pane at Index")
+        #expect(model.leadingPane.shown, "a click shows the pane")
         await until("the item shows its state") { button.state == .on }
         button.performClick(nil)
         #expect(!model.leadingPane.shown, "a click hides the shown pane")

@@ -39,6 +39,10 @@ import SwiftUI
     @ObservationIgnored private var indexCache: (session: Session, index: SessionIndex)?
     /// The row builds of this window, for the tests.
     @ObservationIgnored private(set) var builds = 0
+    /// The body runs of the pane, for the tests.
+    @ObservationIgnored private(set) var bodies = 0
+
+    func countBody() { bodies += 1 }
 
     init(defaults: UserDefaults?) {
         shown = defaults?.bool(forKey: Self.shownKey) ?? false
@@ -63,6 +67,15 @@ import SwiftUI
 }
 
 extension SessionWindow {
+    /// One display tick of the lanes: the play mark of the list takes the head. `started` is a play
+    /// start or a take start, which ends the hold of the index follow.
+    func indexTick(head: Frames, playback: Playback, taking: Bool, started: Bool) {
+        guard let table = leadingPane.table else { return }
+        table.mark.tick(
+            head: head, running: taking || playback != .stopped, taking: taking, started: started,
+            follows: timeline.follows, in: table)
+    }
+
     /// The `didSet` of `timeline`: a change of the selected rows goes to the list.
     func rowsChanged(since old: TimelineState) {
         guard timeline.rowsRevision != old.rowsRevision else { return }

@@ -53,6 +53,8 @@ struct SessionIndexTable: NSViewRepresentable {
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         scroll.drawsBackground = false
+        table.mark.attach(to: table)
+        source.observeLiveScroll(of: scroll)
         return scroll
     }
 
@@ -70,12 +72,36 @@ struct SessionIndexTable: NSViewRepresentable {
     private var rate = 48_000
     /// True while the table takes a selection that the window pushed: no row action runs then.
     private(set) var pushingRows = false
+    /// The cell views that the table asked for, for the tests.
+    private(set) var cellViews = 0
 
     func show(_ rows: [SessionIndex.Row], rate: Int) {
         guard rows != self.rows || rate != self.rate else { return }
         (self.rows, self.rate) = (rows, rate)
         table?.reloadData()
         showSelection()
+        if let table { table.mark.show(starts: rows.map(\.position), in: table) }
+    }
+
+    /// A live scroll of the list that moves it holds the index follow while play or a take runs.
+    func observeLiveScroll(of scroll: NSScrollView) {
+        let center = NotificationCenter.default
+        center.addObserver(
+            self, selector: #selector(liveScrollStarted(_:)), name: NSScrollView.willStartLiveScrollNotification,
+            object: scroll)
+        center.addObserver(
+            self, selector: #selector(liveScrollEnded(_:)), name: NSScrollView.didEndLiveScrollNotification,
+            object: scroll)
+    }
+
+    @objc private func liveScrollStarted(_ note: Notification) {
+        guard let scroll = note.object as? NSScrollView else { return }
+        table?.mark.liveScrollStarted(at: scroll.contentView.bounds.minY)
+    }
+
+    @objc private func liveScrollEnded(_ note: Notification) {
+        guard let scroll = note.object as? NSScrollView else { return }
+        table?.mark.liveScrollEnded(at: scroll.contentView.bounds.minY)
     }
 
     /// Shows the pushed rows: the anchor row when it is selected and shown, else the first shown
@@ -134,6 +160,7 @@ struct SessionIndexTable: NSViewRepresentable {
 
     func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
         guard let column else { return nil }
+        cellViews += 1
         let id = column.identifier
         let cell = tableView.makeView(withIdentifier: id, owner: nil) as? IndexCell ?? IndexCell(identifier: id)
         let item = rows[row]
@@ -191,6 +218,24 @@ struct SessionIndexTable: NSViewRepresentable {
 /// Shift-arrows, Shift-click, Command-click, Delete, and Select All beep: the list selects one row.
 final class IndexTableView: NSTableView {
     var beep: () -> Void = {}
+    let mark = IndexPlayMark()
+    /// The calls of `reloadData`, for the tests.
+    private(set) var reloads = 0
+
+    override func reloadData() {
+        reloads += 1
+        super.reloadData()
+    }
+
+    override func layout() {
+        super.layout()
+        mark.place(in: self)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        mark.restyle(effectiveAppearance)
+    }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 

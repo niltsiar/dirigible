@@ -872,3 +872,6 @@
 "index.empty.session" = "Aucun clip, marqueur ou chapitre";
 "index.empty.hint" = "Appuyez sur %@ pour ajouter un marqueur.";
 "index.column.start" = "Début";
+"index.action.go.to" = "Aller à";
+"index.action.show.info" = "Afficher les informations";
+"index.post.selected.gone" = "Élément sélectionné supprimé";

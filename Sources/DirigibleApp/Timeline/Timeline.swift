@@ -78,7 +78,9 @@ func recordOverHidden(session: Session, armed: Set<TrackID>, playhead: Frames, v
 
 /// The timeline state of one window (decision 0017). None of it is saved.
 struct TimelineState {
-    var selection = Selection.none
+    var selection = Selection.none {
+        didSet { laneRows(from: oldValue) }
+    }
     var scale = TimelineScale(framesPerPoint: 512)
     /// Automatic Scroll: on at open.
     var follows = true
@@ -100,7 +102,64 @@ struct TimelineState {
     var canGoForward = false
     /// The current marker (decision 0018): Marker Info…, Move, and Delete act on it. An undo can
     /// remove it from the session; then they beep.
-    var marker: MarkerID?
+    var marker: MarkerID? {
+        didSet { selectRows(marker.map { [.marker($0)] } ?? [], anchor: marker.map { .marker($0) }, form: .lane) }
+    }
+    /// The rows of the index list that are selected, and the row that a range starts from. Only
+    /// `selectRows` and `pruneRows(keeping:)` write them.
+    private(set) var selectedRows: Set<SessionIndex.Pick> = []
+    private(set) var anchorRow: SessionIndex.Pick?
+    /// Raised at each write of the rows: the window gives the list the rows when it changes.
+    private(set) var rowsRevision = 0
+
+    /// Who writes the rows. A row action of the list (`index`) writes the selection and the current
+    /// marker first, then the rows. A write of the lanes (`lane`) comes from the `didSet` of
+    /// `selection` or `marker`, writes only the rows, and so calls nothing again.
+    enum RowForm { case index, lane }
+
+    mutating func selectRows(_ rows: Set<SessionIndex.Pick>, anchor: SessionIndex.Pick?, form: RowForm = .index) {
+        if form == .index {
+            let clips = Set(rows.compactMap { if case .clip(let id) = $0 { id } else { nil } })
+            if let set = ClipSet(clips) { selection = .clips(set) }
+            if case .marker(let id)? = anchor { marker = id }
+        }
+        selectedRows = rows
+        anchorRow = anchor
+        rowsRevision += 1
+    }
+
+    /// Drops each selected row whose item is not in `live`, and moves a gone anchor to the first
+    /// row of `order` that stays (any row that stays without an order). Writes no other field.
+    mutating func pruneRows(
+        keeping live: Set<SessionIndex.Pick>, order: @autoclosure () -> [SessionIndex.Pick] = []
+    ) {
+        let kept = selectedRows.intersection(live)
+        guard kept != selectedRows else { return }
+        selectedRows = kept
+        if let anchor = anchorRow, !kept.contains(anchor) {
+            anchorRow = order().first(where: kept.contains) ?? kept.first
+        }
+        rowsRevision += 1
+    }
+
+    /// The lane form of `selectRows` after a write of `selection`: one row for each clip of a clip
+    /// set, none for a range. The anchor is the one clip that the write adds, else the old anchor
+    /// while it stays selected, else nil (`ClipSet` holds no clicked clip).
+    private mutating func laneRows(from old: Selection) {
+        var rows: Set<SessionIndex.Pick> = []
+        var anchor: SessionIndex.Pick?
+        if case .clips(let set) = selection {
+            rows = Set(set.ids.map { .clip($0) })
+            var added = set.ids
+            if case .clips(let before) = old { added.subtract(before.ids) }
+            if added.count == 1, let id = added.first {
+                anchor = .clip(id)
+            } else {
+                anchor = anchorRow.flatMap { rows.contains($0) ? $0 : nil }
+            }
+        }
+        selectRows(rows, anchor: anchor, form: .lane)
+    }
 
     /// A display tick during play or a take, or a seek: the new origin, or nil.
     mutating func follow(playhead: Frames, origin: Double, frames: Double, direction: Shuttle.Direction) -> Double? {

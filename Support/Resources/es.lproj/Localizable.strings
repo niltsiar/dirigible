@@ -872,3 +872,6 @@
 "index.empty.session" = "Sin clips, marcadores ni capítulos";
 "index.empty.hint" = "Pulsa %@ para añadir un marcador.";
 "index.column.start" = "Inicio";
+"index.action.go.to" = "Ir a";
+"index.action.show.info" = "Mostrar información";
+"index.post.selected.gone" = "Elemento seleccionado eliminado";

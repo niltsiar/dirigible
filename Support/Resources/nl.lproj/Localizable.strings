@@ -872,3 +872,6 @@
 "index.empty.session" = "Geen clips, markeringen of hoofdstukken";
 "index.empty.hint" = "Druk op %@ om een markering toe te voegen.";
 "index.column.start" = "Start";
+"index.action.go.to" = "Ga naar";
+"index.action.show.info" = "Toon info";
+"index.post.selected.gone" = "Geselecteerd onderdeel verwijderd";

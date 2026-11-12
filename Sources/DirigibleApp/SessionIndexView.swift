@@ -28,24 +28,29 @@ struct SessionIndexView: View {
         let index = pane.sessionIndex(for: studio.session)
         let rows = index.rows(kind: pane.kind, search: pane.search)
         VStack(spacing: 8) {
-            Picker(selection: Bindable(pane).segment) {
-                ForEach(LeadingPaneState.Segment.allCases, id: \.self) {
-                    Text(L10n.indexSegmentIndex.key).tag($0)
+            if Self.showsSwitch(segments: LeadingPaneState.Segment.allCases.count) {
+                Picker(selection: Bindable(pane).segment) {
+                    ForEach(LeadingPaneState.Segment.allCases, id: \.self) {
+                        Text(L10n.indexSegmentIndex.key).tag($0)
+                    }
+                } label: {
+                    Text(L10n.indexSegmentIndex.key)
                 }
-            } label: {
-                Text(L10n.indexSegmentIndex.key)
+                .pickerStyle(.segmented).labelsHidden()
             }
-            .pickerStyle(.segmented).labelsHidden()
             TextField(L10n.indexSearchPlaceholder.key, text: Bindable(pane).search)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier(Self.searchIdentifier)
             IndexKindFilter(kind: Bindable(pane).kind)
-            SessionIndexTable(pane: pane, rows: rows, rate: studio.session.sampleRate)
+            SessionIndexTable(model: model, pane: pane, rows: rows, rate: studio.session.sampleRate)
                 .overlay { emptyView(Empty(rows: rows.count, of: index.rows.count), search: pane.search) }
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
+
+    /// A switch with one segment is a control with one option: it shows from two segments.
+    static func showsSwitch(segments: Int) -> Bool { segments > 1 }
 
     /// The text of the empty session with the key of Add Marker, as the menu shows it.
     static func hint(text: (L10n) -> String = { $0.text }) -> String {

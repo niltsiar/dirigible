@@ -858,4 +858,7 @@ enum L10n: String, CaseIterable {
     case indexEmptySession = "index.empty.session"
     case indexEmptyHint = "index.empty.hint"
     case indexColumnStart = "index.column.start"
+    case indexActionGoTo = "index.action.go.to"
+    case indexActionShowInfo = "index.action.show.info"
+    case indexPostSelectedGone = "index.post.selected.gone"
 }

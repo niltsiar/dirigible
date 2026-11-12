@@ -78,6 +78,12 @@ extension AppDelegate {
         {
             return model.silenceListKey(command)
         }
+        // The list gets the keys of its rows. A menu click acts as its key, except Return and Shift-Return.
+        if let model = key, model.indexListHasFocus(in: keyWindow),
+            model.indexCommand(command, isKey: event?.type == .keyDown)
+        {
+            return
+        }
         if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
         if let selector = command.selector {
             if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }

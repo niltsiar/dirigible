@@ -213,14 +213,20 @@ The **Session overview** is the strip above the time ruler. It shows the whole s
 - Choose **View > Taller Tracks** or **View > Shorter Tracks** to change the height of all tracks.
 - Choose **View > Fit Tracks to Window** to go back to the automatic track height.
 
-### See the clips, markers, and chapters in the index
+### Find a clip, a marker, or a chapter
 
-Choose **View > Show Session Index** (Shift-Command-2), or click **Index** at the left end of the toolbar, to show the index at the left of the window. Choose **View > Hide Session Index**, or click **Index** again, to hide it. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Index** button.
+Choose **View > Show Session Index** (Shift-Command-2), or click **Index** (**Índice** in Spanish) at the left end of the toolbar, to show the index at the left of the window. Choose **View > Hide Session Index** (Shift-Command-2), or click **Index** again, to hide it. Each new window shows the index or not, with the width, as you left it. If you changed the toolbar before, choose **View > Customize Toolbar** and drag **Index** to the toolbar.
 
-- The index lists the clips, markers, and chapters of the session in time order, with the start time of each.
-- Type in the search field to keep the rows whose name or track name has your text. The search ignores case and accents. Choose **Edit > Find in Session Index** (Shift-Command-F) to show the index and put the cursor in the search field. In the field, Esc clears the text, and Esc again goes back to the lanes. Down Arrow goes to the first row.
-- Use the filter under the search field to show only the clips, only the markers, or only the chapters. When the pane is narrow, the filter is a pop-up menu.
+- The index lists the clips, markers, and chapters of the session in time order. Each row has a symbol for its kind, its name, and its start time.
+- Type in the search field to keep the rows whose name or track name has your text. The search ignores case and accents. Choose **Edit > Find in Session Index** (Shift-Command-F) to show the index and put the cursor in the search field. In the field, Esc clears the text, and Esc again goes back to the lanes. Down Arrow selects the first row.
+- Use the filter under the search field to show all rows, only the clips, only the markers, or only the chapters. When the pane is narrow, the filter is a pop-up menu.
 - Drag the line between the index and the lanes to change the width of the index, from 240 to 400 points. Double-click the line to go back to 240 points.
+- Click a row to select its clip, marker, or chapter in the lanes. The playhead goes to the start of the row, and the lanes scroll to show it. Up Arrow and Down Arrow do the same for the row before and the row after. During play, a click moves the playhead and the play goes on. An arrow only selects the row. During a take, a click or an arrow selects the row and the playhead stays.
+- Double-click a row to play from its start. You can also control-click the row and choose **Play from Here** (**Reproducir desde aquí**). During a take, nothing starts.
+- To rename a marker or a chapter, select its row and press Return or F2, or control-click the row and choose **Rename** (**Renombrar**). A field opens over the name. Press Return to save the name. Press Tab to save it and open the next marker or chapter row, and Shift-Tab for the one before. Press Esc to keep the old name. A click outside the field saves the name. Each rename is one step of **Edit > Undo**. A clip row has no name field.
+- During play and during a take, a thin line and a tint on one row show the playhead. That row is the last one that starts at or before the playhead. When **View > Automatic Scroll** is on, the list scrolls to keep that row in view. If you scroll the list or type in the search field during play, the list stays where it is until the next start of play or of a take. An open name field or row menu holds it too.
+- With the focus in the list, Space, J, K, L, N, and H run their menu items, as they do in the lanes.
+- The list selects one row. Shift-Up Arrow, Shift-Down Arrow, Shift-click, Command-click, Delete, and **Edit > Select All** (Command-A) beep in the list. The commands that change the audio or the tracks, such as **Edit > Cut**, **Edit > Copy**, and **Edit > Split**, beep too. To use them, click the lanes first.
 
 ## Select and edit
 

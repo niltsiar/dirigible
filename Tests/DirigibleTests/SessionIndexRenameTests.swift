@@ -187,6 +187,23 @@ import Testing
         await model.close()
     }
 
+    /// An edit of a row above the field moves the edited row: the field stays open with its text, and
+    /// nothing is saved until Return.
+    @Test func anEditAboveTheFieldKeepsIt() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await open()
+        _ = try start(row: 2, table, in: window)
+        type("Zed", in: window)
+        model.edit(ripple: false) { s throws(SessionError) in try s.removeClips(["a"]) }
+        await until("row a goes") { table.numberOfRows == 5 }
+        let field = try #require(rowField(in: table), "the field stays open")
+        #expect(table.row(for: field) == 1 && field.currentEditor()?.string == "Zed", "the field moves with m1")
+        #expect(name("m1", in: studio) == "Breath", "nothing is saved yet")
+        pressReturn(in: window)
+        #expect(name("m1", in: studio) == "Zed", "Return saves the typed name")
+        await model.close()
+    }
+
     @Test func theRenameActionOpensTheField() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, _, table, _) = try await open()

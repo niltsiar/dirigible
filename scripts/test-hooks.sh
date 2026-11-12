@@ -16,7 +16,8 @@
 #   itself.
 # The key is the tree of the work tree with no Sources/, Tests/, docs/, or README.md, plus the
 # existence of each floor path of scripts/check-changed.sh --floor, the sorted test list, the tool
-# versions, and the date: a pass is good for one day. The tree is HEAD with the changes of a dirty
+# versions, and the date: a pass is good for one day. The tests run `bash` as /bin/bash (a link first
+# on their PATH), so the key holds no bash version. The tree is HEAD with the changes of a dirty
 # tree and its untracked files that no ignore rule hides: git add -A on a copy of the real index
 # makes it, so the real index stays as it is. The script computes the key once, before the tests.
 # The tests run from a key tree: a clone with a commit of that tree checked out, in a temporary
@@ -124,6 +125,10 @@ git clone -q --shared --no-checkout "$common" "$work/tree" \
 cd "$work/tree" || exit 1
 # The key holds only the existence of a floor path, so a test that reads floor content fails.
 find $floor -type f | while IFS= read -r f; do : > "$f"; done
+# A hook test calls bash by name, and the first bash on the PATH can be a newer one than the 3.2
+# of macOS. The tests must run on /bin/bash, and the key holds no bash version.
+mkdir "$work/bin" && ln -s /bin/bash "$work/bin/bash" || exit 1
+export PATH="$work/bin:$PATH"
 
 # The output of each test goes to the log of the caller and to a file, so the summary can repeat
 # the end of each failed test.

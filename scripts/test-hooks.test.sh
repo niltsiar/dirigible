@@ -4,7 +4,8 @@
 # (C3), a key from the work tree on a dirty tree (C16), no stamp after a red test or a make flag
 # (C4), and a run from a key tree that fails on a read outside the key and leaves no git state
 # (C5), and a refusal of the whole list outside the push check, with no stamp reuse before it
-# (C6), and HOOK_CASES: no stamp and no reuse, and an exit 1 with a push check or a hooks pass (C10).
+# (C6), and HOOK_CASES: no stamp and no reuse, and an exit 1 with a push check or a hooks pass (C10),
+# and a hook test that runs bash on /bin/bash whatever bash the PATH holds first.
 # Each case uses a stub repo whose two stub tests append their name to a log, fake swift,
 # xcodebuild, jq, sw_vers, and date on PATH, and its own TMPDIR. Run by `make test-hooks`.
 set -uo pipefail
@@ -413,6 +414,25 @@ caller_vars='^(BASE|FILTER|SINCE|CHECK_RISK|HOOK_TESTS|MAKEFLAGS|MFLAGS|MAKELEVE
 [[ -z "$(grep -oE "$caller_vars" "$tmp/env")" ]] \
     || fail "caller context: the stub test saw $(grep -oE "$caller_vars" "$tmp/env" | tr -d '=' | tr '\n' ' ')"
 { grep -q '^PATH=' "$tmp/env" && grep -q '^HOME=' "$tmp/env"; } || fail 'caller context: PATH or HOME is not in the env of the stub test'
+
+# A hook test that runs `bash` gets /bin/bash, not the first bash on the PATH of the caller, and a
+# pass is reused when only the PATH bash differs: the key holds no bash version.
+new_repo
+mkdir "$tmp/fakebash" "$tmp/fakebash2"
+printf '#!/bin/sh\necho fake-bash\n' > "$tmp/fakebash/bash"
+printf '#!/bin/sh\necho fake-bash-two\n' > "$tmp/fakebash2/bash"
+chmod +x "$tmp/fakebash/bash" "$tmp/fakebash2/bash"
+printf '#!/bin/bash\necho a >> "$HOOKS_LOG"\nbash -c '\''echo "$BASH_VERSION"'\'' > "$HOOKS_LOG.bash"\n' > "$repo/t/a.test.sh"
+commit 'bash version'
+(cd "$repo" && PATH="$tmp/fakebash:$PATH" TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" make -s test-hooks) > "$tmp/out" 2>&1
+code=$?
+want="$(/bin/bash -c 'echo "$BASH_VERSION"')"
+[[ $code -eq 0 && "$(cat "$tmp/log.bash" 2>/dev/null)" == "$want" ]] \
+    || fail "PATH bash: a hook test did not run /bin/bash: code $code, got [$(cat "$tmp/log.bash" 2>&1)], want [$want]: $(out)"
+(cd "$repo" && PATH="$tmp/fakebash2:$PATH" TMPDIR="$tmp/own" HOOKS_LOG="$tmp/log" make -s test-hooks) > "$tmp/out" 2>&1
+code=$?
+[[ $code -eq 0 && $(ran) -eq 2 ]] && grep -qE '^test-hooks: reuse [0-9a-f]{64}$' "$tmp/out" \
+    || fail "PATH bash: another PATH bash did not reuse the pass: code $code, ran $(ran): $(out)"
 
 [[ $failures -eq 0 ]] || { echo "$failures failure(s)"; exit 1; }
 echo "test-hooks.test.sh: all passed"

@@ -1,5 +1,6 @@
 import AppKit
 import DirigibleCore
+import DirigibleTimeline
 
 /// The play mark of the index list: a 1 pt line between two rows at the head, and a tint on the
 /// current row, the last shown row that starts at or before the head. Both are sublayers of the
@@ -18,8 +19,8 @@ import DirigibleCore
 
     let line = CALayer()
     let tint = CALayer()
-    /// The start of each shown row, in row order.
-    private var starts: [Frames] = []
+    /// The shown rows, in row order.
+    private var rows: [SessionIndex.Row] = []
     private var head = Frames.zero
     /// The index of the current row: nil while the head is before the first shown row.
     private(set) var row: Int?
@@ -57,9 +58,9 @@ import DirigibleCore
         }
     }
 
-    /// The shown rows changed: the mark takes its row from the new starts, and the list does not scroll.
-    func show(starts: [Frames], in table: NSTableView) {
-        self.starts = starts
+    /// The shown rows changed: the mark takes its row from the new rows, and the list does not scroll.
+    func show(_ rows: [SessionIndex.Row], in table: NSTableView) {
+        self.rows = rows
         place(in: table, force: true)
     }
 
@@ -106,10 +107,10 @@ import DirigibleCore
     @discardableResult
     func place(in table: NSTableView, force: Bool = false) -> Bool {
         // The last start at or before the head: a binary search over the row starts.
-        var (low, high) = (0, starts.count)
+        var (low, high) = (0, rows.count)
         while low < high {
             let middle = (low + high) / 2
-            if starts[middle] <= head { low = middle + 1 } else { high = middle }
+            if rows[middle].position <= head { low = middle + 1 } else { high = middle }
         }
         let current = low > 0 ? low - 1 : nil
         let moved = current != row
@@ -119,7 +120,7 @@ import DirigibleCore
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
-        guard !starts.isEmpty else {
+        guard !rows.isEmpty else {
             (line.isHidden, tint.isHidden) = (true, true)
             return moved
         }

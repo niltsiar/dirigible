@@ -285,4 +285,113 @@ import Testing
         }
         await model.close()
     }
+
+    /// 40 markers from 250,000, one second apart: the list scrolls, and the head crosses 40 rows.
+    func addMarkers(to studio: Studio) throws {
+        try studio.edit(ripple: false) { session throws(SessionError) in
+            for n in 0..<40 {
+                let marker = Marker(
+                    id: MarkerID("x\(n)"), name: "Mark \(n)", position: Frames(250_000 + n * 48_000), kind: .marker)
+                try session.setMarker(marker)
+            }
+        }
+    }
+
+    /// The counts of the pane, for a test that expects none to change.
+    func counts(_ model: SessionWindow, _ table: IndexTableView) -> (bodies: Int, reloads: Int, cells: Int) {
+        let source = table.dataSource as? IndexTableSource
+        return (model.leadingPane.bodies, table.reloads, source?.cellViews ?? -1)
+    }
+
+    /// X13c: 120 display ticks of play with the line across 40 rows, and 120 drag events of a clip
+    /// move, run no pane body and no `reloadData`. With Follow off no cell view is made; with Follow
+    /// on, only the rows that scroll into view. The mouse-up runs the body once.
+    @Test func aPlayAndADragRunNoIndexBody() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, window) = try await open()
+        let view = try #require(model.timelineView)
+        view.linkProxy?.view = nil
+        let table = try #require(model.leadingPane.table)
+        try addMarkers(to: studio)
+        await until("the table shows its rows") { table.numberOfRows == 46 }
+        window.contentView?.layoutSubtreeIfNeeded()
+        await runLoopPass()
+        let play = Playback.playing(Shuttle(direction: .forward, rate: .one))
+
+        model.timeline.follows = false
+        var base = counts(model, table)
+        var rows = Set<Int?>()
+        for step in 0..<120 {
+            view.tick(playhead: Double(step * 18_000), playback: play)
+            rows.insert(table.mark.row)
+            await runLoopPass()
+        }
+        #expect(rows.count >= 30, "the mark crossed \(rows.count) rows")
+        #expect(counts(model, table) == base, "Follow off: \(counts(model, table)), before \(base)")
+
+        model.timeline.follows = true
+        view.tick(playhead: 0, playback: .stopped)
+        await runLoopPass()
+        base = counts(model, table)
+        for step in 0..<120 {
+            view.tick(playhead: Double(step * 18_000), playback: play)
+            await runLoopPass()
+        }
+        let after = counts(model, table)
+        #expect(after.bodies == base.bodies && after.reloads == base.reloads, "Follow on: \(after), before \(base)")
+        #expect(
+            after.cells > base.cells && after.cells - base.cells <= 2 * 46, "cells only for the rows that scroll in")
+
+        view.tick(playhead: 0, playback: .stopped)
+        await runLoopPass()
+        base = counts(model, table)
+        let box = try #require(view.lanes.clipFrame("a"))
+        let start = NSPoint(x: box.minX + 40, y: box.minY + 10)
+        view.lanes.mouseDown(with: try mouse(.leftMouseDown, start, in: view))
+        for step in 1...120 {
+            let point = NSPoint(x: start.x + Double(step), y: start.y)
+            view.lanes.mouseDragged(with: try mouse(.leftMouseDragged, point, in: view))
+            await runLoopPass()
+        }
+        #expect(view.lanes.inputs?.session != studio.session, "the drag shows a preview")
+        #expect(counts(model, table) == base, "the drag: \(counts(model, table)), before \(base)")
+        view.lanes.mouseUp(
+            with: try mouse(.leftMouseUp, NSPoint(x: start.x + 120, y: start.y), in: view))
+        await until("the mouse-up runs the body") { model.leadingPane.bodies > base.bodies }
+        await runLoopPass()
+        #expect(
+            model.leadingPane.bodies == base.bodies + 1,
+            "the mouse-up ran \(model.leadingPane.bodies - base.bodies) bodies")
+        await model.close()
+    }
+
+    /// X13c: 120 lane scroll events and a page turn write `timeline.visible` and run no pane body
+    /// and no `reloadData`.
+    @Test func aLaneScrollRunsNoIndexBody() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, _, window) = try await open()
+        let view = try #require(model.timelineView)
+        view.linkProxy?.view = nil
+        let table = try #require(model.leadingPane.table)
+        view.navigate(.zoom(by: 0.02))
+        view.scroll(toFrame: 0)
+        await until("the lanes show the start only") {
+            drawNow(window)
+            return view.origin == 0 && view.visibleFrames < 192_000
+        }
+        await runLoopPass()
+        let base = counts(model, table)
+        var written = Set<TimelineVisible?>()
+        for step in 1...120 {
+            let bounds = view.contentView.bounds
+            view.contentView.scroll(to: NSPoint(x: bounds.minX + 1, y: bounds.minY))
+            view.reflectScrolledClipView(view.contentView)
+            written.insert(model.timeline.visible)
+            if step == 60 { view.scroll(toFrame: view.origin + view.visibleFrames) }
+            await runLoopPass()
+        }
+        #expect(written.count >= 100, "the scroll wrote timeline.visible \(written.count) times")
+        #expect(counts(model, table) == base, "the scroll: \(counts(model, table)), before \(base)")
+        await model.close()
+    }
 }

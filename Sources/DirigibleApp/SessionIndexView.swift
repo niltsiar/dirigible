@@ -25,6 +25,7 @@ struct SessionIndexView: View {
 
     var body: some View {
         let pane = model.leadingPane
+        let _ = pane.countBody()
         let index = pane.sessionIndex(for: studio.session)
         let rows = index.rows(kind: pane.kind, search: pane.search)
         VStack(spacing: 8) {
@@ -47,6 +48,7 @@ struct SessionIndexView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onChange(of: pane.search) { pane.table?.mark.holdFollow(.search) }
     }
 
     /// A switch with one segment is a control with one option: it shows from two segments.

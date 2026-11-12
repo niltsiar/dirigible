@@ -24,9 +24,10 @@ extension TimelineScrollView {
         lanes.movePlayhead(to: playhead, taking: taking)
         moveHead()
         overview?.movePlayhead(to: playhead)
+        let started = previous.map { taking ? !$0.taking : playback != .stopped && playback != $0.playback } ?? false
+        model?.indexTick(head: Frames(Int(playhead)), playback: playback, taking: taking, started: started)
         liveTick(head: taking ? Frames(Int(playhead)) : nil)
         guard let model, let previous, taking || !previous.taking else { return }
-        let started = taking ? !previous.taking : playback != .stopped && playback != previous.playback
         let seeked = !taking && playback == .stopped && playhead != previous.playhead
         guard taking || playback != .stopped || seeked else { return }
         var state = model.timeline

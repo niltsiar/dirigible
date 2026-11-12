@@ -113,7 +113,7 @@ struct SessionIndexTable: NSViewRepresentable {
 
     /// Each row view that the table holds outside `change` shows the row of `old` at its old
     /// place: it takes the new row. A new start goes into the start cell, because a reload of a
-    /// cell ends the field editor of its row; a new name loads the name cell again.
+    /// cell ends the field editor of its row; a new name or kind loads the name cell again.
     private func refreshRows(
         of table: NSTableView, from old: [SessionIndex.Row], change: (old: Range<Int>, new: Range<Int>)
     ) {
@@ -124,7 +124,7 @@ struct SessionIndexTable: NSViewRepresentable {
             let was = old[n < change.new.lowerBound ? n : n - change.new.upperBound + change.old.upperBound]
             guard was != rows[n] else { return }
             configure(view, row: n)
-            if was.name != rows[n].name { named.insert(n) }
+            if was.name != rows[n].name || was.kind != rows[n].kind { named.insert(n) }
             if was.position != rows[n].position,
                 let cell = table.view(atColumn: start, row: n, makeIfNecessary: false) as? IndexCell
             {

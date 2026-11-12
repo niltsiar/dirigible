@@ -336,6 +336,28 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
+    /// A marker that becomes a chapter with the same name shows the chapter glyph and label in its held row.
+    @Test func aMarkerThatBecomesAChapterShowsTheChapterGlyph() async throws {
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (model, studio, window, table) = try await openRows()
+        func glyph(_ symbol: String) -> Data? {
+            NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.tiffRepresentation
+        }
+        let cell = { table.view(atColumn: 0, row: 5, makeIfNecessary: false) as? NSTableCellView }
+        try #require(cell()?.imageView?.image?.tiffRepresentation == glyph("flag"))
+        model.edit(ripple: false) { s throws(SessionError) in
+            try s.setMarker(Marker(id: "m2", name: "Cut here", position: 240_000, kind: .chapter))
+        }
+        let spoken = try #require(SessionIndex(session: studio.session).rows.last)
+        await until("row m2 says Chapter") {
+            table.rowView(atRow: 5, makeIfNecessary: false)?.accessibilityLabel()
+                == IndexTableSource.spoken(spoken, rate: 48_000)
+        }
+        window.contentView?.layoutSubtreeIfNeeded()
+        #expect(cell()?.imageView?.image?.tiffRepresentation == glyph("bookmark"), "the chapter glyph")
+        await model.close()
+    }
+
     /// Delete in the lanes runs the lane Delete only: a selected marker row stays.
     @Test func deleteInTheLanesKeepsTheMarkerRows() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }

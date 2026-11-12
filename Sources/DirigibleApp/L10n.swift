@@ -160,6 +160,7 @@ enum L10n: String, CaseIterable {
     case menuEditNudgeRight = "menu.edit.nudge.right"
     case menuEditFade = "menu.edit.fade"
     case menuEditHeal = "menu.edit.heal"
+    case menuEditFindIndex = "menu.edit.find.index"
     case menuEditDragMode = "menu.edit.drag.mode"
     case menuEditDragModeOverwrite = "menu.edit.drag.mode.overwrite"
     case menuEditDragModeNoOverlap = "menu.edit.drag.mode.no.overlap"

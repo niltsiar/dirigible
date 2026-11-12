@@ -851,6 +851,9 @@
 "alert.follow.overlap.body" = "O clipe em %1$@ em %2$@ acompanha o deslocamento. Mova-o ou desative “Acompanhar o deslocamento”.";
 "error.ripple.follow.only" = "Todas as faixas acompanham o deslocamento, então nada seria cortado. Desative “Acompanhar o deslocamento” na faixa para cortar.";
 
+/* Edit > Find in Session Index */
+"menu.edit.find.index" = "Buscar no Índice da Sessão…";
+
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Modo de arrasto";
 "menu.edit.drag.mode.overwrite" = "Sobrescrever";

@@ -851,6 +851,9 @@
 "alert.follow.overlap.body" = "La clip su %1$@ a %2$@ segue lo spostamento. Spostala o disattiva “Segui lo spostamento”.";
 "error.ripple.follow.only" = "Ogni traccia segue lo spostamento, quindi non verrebbe tagliato nulla. Disattiva “Segui lo spostamento” sulla traccia per tagliare.";
 
+/* Edit > Find in Session Index */
+"menu.edit.find.index" = "Cerca nell’indice della sessione…";
+
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Trascinamento";
 "menu.edit.drag.mode.overwrite" = "Sovrascrivi";

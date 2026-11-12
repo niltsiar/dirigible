@@ -851,6 +851,9 @@
 "alert.follow.overlap.body" = "Le clip de %1$@ à %2$@ suit le décalage. Déplacez-le ou désactivez « Suivre le décalage ».";
 "error.ripple.follow.only" = "Chaque piste suit le décalage, donc rien ne serait coupé. Désactivez « Suivre le décalage » sur la piste pour couper.";
 
+/* Edit > Find in Session Index */
+"menu.edit.find.index" = "Rechercher dans l’index de la session…";
+
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Mode de glissement";
 "menu.edit.drag.mode.overwrite" = "Écraser";

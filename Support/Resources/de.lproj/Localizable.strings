@@ -851,6 +851,9 @@
 "alert.follow.overlap.body" = "Der Clip auf %1$@ bei %2$@ wandert beim Ripple mit. Verschiebe ihn oder schalte „Beim Ripple mitwandern“ aus.";
 "error.ripple.follow.only" = "Jede Spur wandert beim Ripple mit, daher würde nichts geschnitten. Schalte „Beim Ripple mitwandern“ auf der Spur aus, um zu schneiden.";
 
+/* Edit > Find in Session Index */
+"menu.edit.find.index" = "Im Sitzungsindex suchen …";
+
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Ziehmodus";
 "menu.edit.drag.mode.overwrite" = "Überschreiben";

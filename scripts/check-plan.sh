@@ -273,11 +273,48 @@ else
         END { close_slice() }' "$run/plan.md")
     while IFS= read -r msg; do say "$msg"; done < <(awk -v rows="$run/decisions.tsv" -v run="$run" \
         -v at4="${CHECK_PLAN_AT_PHASE4:-}" '
+        # load_criteria(file, arr, order): the text of each criterion of the section, as log-decision.sh
+        # writes it to criteria-logged.tsv: its line, then its indented lines joined by single spaces.
+        function load_criteria(file, arr, order,  l, on, cur, t, id) {
+            while ((getline l < file) > 0) {
+                if (l ~ /^## /) { on = (l ~ /^## Acceptance criteria[[:space:]]*$/); cur = ""; continue }
+                if (!on || l ~ /^[[:space:]]*$/) continue
+                if (l ~ /^[[:space:]]/) {
+                    if (cur != "") { t = l; gsub(/[\t ]+/, " ", t); sub(/^ /, "", t); sub(/ $/, "", t); arr[cur] = arr[cur] " " t }
+                    continue
+                }
+                cur = ""
+                if (l !~ /^(- |[0-9]+\. |\|)/) continue
+                t = l; sub(/^(- |[0-9]+\. |\|)[*[:space:]]*/, "", t)
+                if (!match(t, /^[A-Z]+[0-9]+(\.[0-9]+)*[a-z]*/) || substr(t, RLENGTH + 1, 1) ~ /[A-Za-z0-9]/) continue
+                id = substr(t, 1, RLENGTH)
+                if (id in arr) continue
+                cur = id; order[++order[0]] = id; gsub(/\t/, " ", l); arr[id] = l
+            }
+            close(file)
+        }
+        # changed_ids(): the IDs whose text in analysis.md differs from the last line for the ID in
+        # criteria-logged.tsv, else from analysis-gate.md. An ID with neither is new: no change.
+        function changed_ids(  now, order, base, border, l, i, id, out) {
+            load_criteria(run "/analysis.md", now, order)
+            load_criteria(run "/analysis-gate.md", base, border)
+            while ((getline l < (run "/criteria-logged.tsv")) > 0) {
+                i = index(l, "\t"); id = substr(l, 1, i - 1)
+                if (id != "#file") base[id] = substr(l, i + 1)
+            }
+            close(run "/criteria-logged.tsv")
+            for (i = 1; i <= order[0]; i++) {
+                id = order[i]
+                if ((id in base) && now[id] != base[id]) out = out (out == "" ? "" : ", ") id
+            }
+            return out
+        }
         function close_item(  v) {
             if (!item) return
-            if (text !~ /Criteria[*]*:/)
-                print "plan.md: Plan gate changes item " item " has no Criteria: field; write Criteria: <IDs separated by commas> or Criteria: none"
-            else {
+            if (text !~ /Criteria[*]*:/) {
+                print "plan.md: Plan gate changes item " item " has no Criteria: field; write Criteria: <IDs separated by commas> or Criteria: none" \
+                    ((v = changed_ids()) == "" ? "" : "; criteria whose text changed since their baseline: " v)
+            } else {
                 v = text; sub(/.*Criteria[*]*:/, "", v); sub(/\n.*/, "", v)
                 while (match(v, /[A-Z]+[0-9]+[a-z]*/)) { ids[substr(v, RSTART, RLENGTH)] = 1; v = substr(v, RSTART + RLENGTH) }
             }

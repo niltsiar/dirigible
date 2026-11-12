@@ -282,6 +282,24 @@ pass 'a plan gate change with Criteria: none'
 gate $'1. S2: a new case.'
 refuse 'a numbered plan gate change with no Criteria field' 'Plan gate changes item 1 has no Criteria: field'
 refuse 'the refusal names the format' 'Criteria: <IDs separated by commas> or Criteria: none'
+# The refusal also names each criterion whose text in analysis.md differs from its baseline: the last
+# line for the ID in criteria-logged.tsv, else its line in analysis-gate.md.
+criteria_gate() {
+  gate $'1. S2: a new case for C5 and C6.'
+  printf '\n## Acceptance criteria\n\n- C5. Five.\n- C6. Six, now with a new value.\n  A second line of C6.\n' >> "$run/analysis.md"
+}
+no_criteria_line() { "$script" "$run" 2>&1 | grep 'has no Criteria: field'; }
+criteria_gate
+printf 'C5\t- C5. Five.\nC6\t- C6. Six.\n#file\tabc\n' > "$run/criteria-logged.tsv"
+msg="$(no_criteria_line)"
+[[ "$msg" == *'Criteria: none'*C6* && "$msg" != *C5* ]] || fail "a changed criterion is named, an unchanged one is not: $msg"
+printf 'C6\t- C6. Six, now with a new value. A second line of C6.\n' >> "$run/criteria-logged.tsv"
+msg="$(no_criteria_line)"
+[[ "$msg" == *'Criteria: none' ]] || fail "no criterion changed since its last logged line, so the message names none: $msg"
+criteria_gate
+printf '# Analysis\n\n## Acceptance criteria\n\n- C5. Five.\n- C6. Six.\n' > "$run/analysis-gate.md"
+msg="$(no_criteria_line)"
+[[ "$msg" == *C6* && "$msg" != *C5* ]] || fail "a criterion with no logged line reads analysis-gate.md: $msg"
 gate $'- Slice 1: a new case.\n  - a nested bullet of the item'
 refuse 'a bullet plan gate change with no Criteria field' 'Plan gate changes item 1 has no Criteria: field'
 gate $'- Slice 1: a new case.\n  - Criteria: none\n- Slice 2: another case.'

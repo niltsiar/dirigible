@@ -212,6 +212,27 @@ import Testing
         await model.close()
     }
 
+    /// An agent rename of the edited marker wins, as in the Name field of the inspector: the field stays open
+    /// with the agent name, and no later commit writes the typed text.
+    @Test func anAgentRenameOfTheEditedMarkerShowsItsNameInTheField() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window, table, _) = try await open()
+        _ = try start(row: 2, table, in: window)
+        type("Zed", in: window)
+        try studio.edit(ripple: false) { s throws(SessionError) in
+            try s.setMarker(Marker(id: "m1", name: "Agent", position: 48_000, kind: .marker))
+        }
+        await until("the list shows the agent name") {
+            (table.dataSource as? IndexTableSource)?.rows.contains { $0.name == "Agent" } == true
+        }
+        window.contentView?.layoutSubtreeIfNeeded()
+        let open = try #require(rowField(in: table), "the field stays open")
+        #expect(open.currentEditor()?.string == "Agent" && model.leadingPane.rowEdit?.text == "Agent")
+        model.commitDrafts()
+        #expect(name("m1", in: studio) == "Agent" && model.leadingPane.rowEdit == nil, "the agent name stays")
+        await model.close()
+    }
+
     @Test func theRenameActionOpensTheField() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, _, table, _) = try await open()

@@ -51,6 +51,10 @@ else
     done
 fi
 
+# An EXIT trap ends the launched app, so no app is left open when the script stops or fails.
+exit_trap="$(sed -n "s/^trap \(.*\) EXIT\$/\1/p" "$shots")"
+[[ "$exit_trap" == *'kill "$pid"'* ]] || fail "the script sets no EXIT trap that kills the launched app: '$exit_trap'"
+
 # Each Support/Resources/<lang>.lproj folder has an arm in the language case of screenshots.sh, and
 # its name passes the name check of the script (a region folder such as pt-PT included).
 arms="$(awk '/^case "\$lang" in/ { on = 1; next } /^esac/ { on = 0 } on' "$shots")"

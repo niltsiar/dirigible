@@ -53,7 +53,7 @@ import SwiftUI
     var devices: [InputDevice] { deviceList.devices }
     /// The marks, the zoom, Automatic Scroll, and the view of the timeline (decision 0017). Not
     /// saved.
-    var timeline = TimelineState()
+    var timeline = TimelineState() { didSet { rowsChanged(since: oldValue) } }
     /// View > Show Loudness Meter (decision 0033): the app preference at open.
     var showsLoudness = true
     /// View > Show Inspector (run 11b-2): the app preference at open.
@@ -296,6 +296,7 @@ import SwiftUI
         }
         phase = .open(studio)
         follow(studio)
+        followRows(studio)
         followMonitor(studio)
         followActivation()
         followTakeError(studio)

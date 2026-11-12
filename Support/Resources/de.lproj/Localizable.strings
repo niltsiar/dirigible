@@ -872,3 +872,6 @@
 "index.empty.session" = "Keine Clips, Marker oder Kapitel";
 "index.empty.hint" = "Mit %@ einen Marker hinzufügen.";
 "index.column.start" = "Start";
+"index.action.go.to" = "Gehe zu";
+"index.action.show.info" = "Info zeigen";
+"index.post.selected.gone" = "Ausgewähltes Element entfernt";

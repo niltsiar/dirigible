@@ -15,6 +15,7 @@ import Testing
     let defaults: UserDefaults
     let suite = "SessionIndexWindowTests.\(UUID().uuidString)"
     let app: AppDelegate
+    let hal = CountingHAL()
 
     init() throws {
         folder = try TemporaryFolder()
@@ -23,7 +24,7 @@ import Testing
         NSWindow.allowsAutomaticWindowTabbing = false
     }
 
-    func package() async throws -> URL {
+    func package(routed: Bool = false) async throws -> URL {
         let url = folder.url.appending(path: "i-\(UUID().uuidString).dirigible")
         try await Task.detached {
             try Session.create(at: url, sampleRate: 48_000)
@@ -33,6 +34,7 @@ import Testing
             }
             try session.addTrack("t1", name: "Host", layout: .mono)
             try session.addTrack("t2", name: "Guest", layout: .mono)
+            if routed { try session.setRoute(Route.device(uid: "duo", channels: .mono(1)), track: "t1") }
             try session.place(Clip(id: "a", file: "fa", start: 0, offset: 0, length: 96_000), on: "t1")
             try session.place(Clip(id: "b", file: "fb", start: 48_000, offset: 0, length: 96_000), on: "t2")
             try session.place(Clip(id: "c", file: "fc", start: 192_000, offset: 0, length: 96_000), on: "t1")
@@ -44,8 +46,8 @@ import Testing
         return url
     }
 
-    func open(shown: Bool = true) async throws -> (SessionWindow, Studio, NSWindow) {
-        let (model, studio, window, _) = try await openLanes(app, try await package())
+    func open(shown: Bool = true, routed: Bool = false) async throws -> (SessionWindow, Studio, NSWindow) {
+        let (model, studio, window, _) = try await openLanes(app, try await package(routed: routed))
         if shown { model.toggleIndex() }
         await until("the window lays out") {
             window.contentView?.layoutSubtreeIfNeeded()
@@ -70,18 +72,18 @@ import Testing
         }
     }
 
-    @Test func thePaneHasTheSwitchAtItsTop() async throws {
+    @Test func theSwitchHidesWhileThePaneHasOneSegment() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, _, window) = try await open()
         let controls = views(NSSegmentedControl.self, in: window.contentView)
-        let switcher = try #require(controls.first { $0.segmentCount == 1 }, "the switch")
         let filter = try #require(controls.first { $0.segmentCount == 4 }, "the filter")
         let field = try #require(
             views(NSTextField.self, in: window.contentView).first { $0.isEditable && frame($0).maxX < 260 },
             "the search field")
         let table = try #require(model.leadingPane.table)
-        #expect(switcher.label(forSegment: 0) == L10n.indexSegmentIndex.text, "one segment: Index")
-        #expect(frame(switcher).minY > frame(field).maxY - 1, "the switch is above the search field")
+        #expect(LeadingPaneState.Segment.allCases.count == 1)
+        #expect(!SessionIndexView.showsSwitch(segments: 1) && SessionIndexView.showsSwitch(segments: 2))
+        #expect(controls.allSatisfy { $0.segmentCount != 1 }, "a switch with one segment is no control")
         #expect(frame(field).minY > frame(filter).maxY - 1, "the search field is above the filter")
         #expect(frame(filter).minY > frame(table).maxY - 1, "the filter is above the list")
         #expect(frame(table).maxX <= model.leadingPane.width.points, "the pane is the leading column")

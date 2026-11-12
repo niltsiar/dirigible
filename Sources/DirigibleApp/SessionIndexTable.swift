@@ -4,12 +4,14 @@ import DirigibleTimeline
 import SwiftUI
 
 /// The list of the session index: a view-based `NSTableView` (a SwiftUI `List` of 12,250 rows took
-/// 140 ms per search key). It reloads only when the shown
-/// rows change. One row can be selected. A row is one accessibility element, the kind first.
+/// 140 ms per search key). It reloads only when the shown rows change. One row can be selected,
+/// and a click or a plain arrow runs the row action. A row is one accessibility element, the kind
+/// first.
 struct SessionIndexTable: NSViewRepresentable {
     static let nameColumn = NSUserInterfaceItemIdentifier("name")
     static let startColumn = NSUserInterfaceItemIdentifier("start")
 
+    let model: SessionWindow
     let pane: LeadingPaneState
     let rows: [SessionIndex.Row]
     let rate: Int
@@ -18,7 +20,9 @@ struct SessionIndexTable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let source = context.coordinator
-        let table = NSTableView()
+        source.model = model
+        source.pane = pane
+        let table = IndexTableView()
         let name = NSTableColumn(identifier: Self.nameColumn)
         name.title = L10n.markerName.text
         name.resizingMask = .autoresizingMask
@@ -42,6 +46,7 @@ struct SessionIndexTable: NSViewRepresentable {
         table.delegate = source
         table.setAccessibilityLabel(L10n.indexSegmentIndex.text)
         source.table = table
+        table.beep = { [weak model] in model?.beep() }
         pane.table = table
         let scroll = NSScrollView()
         scroll.documentView = table
@@ -52,19 +57,58 @@ struct SessionIndexTable: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.model = model
         context.coordinator.show(rows, rate: rate)
     }
 }
 
 @MainActor final class IndexTableSource: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-    weak var table: NSTableView?
+    weak var table: IndexTableView?
+    weak var model: SessionWindow?
+    weak var pane: LeadingPaneState?
     private(set) var rows: [SessionIndex.Row] = []
     private var rate = 48_000
+    /// True while the table takes a selection that the window pushed: no row action runs then.
+    private(set) var pushingRows = false
 
     func show(_ rows: [SessionIndex.Row], rate: Int) {
         guard rows != self.rows || rate != self.rate else { return }
         (self.rows, self.rate) = (rows, rate)
         table?.reloadData()
+        showSelection()
+    }
+
+    /// Shows the pushed rows: the anchor row when it is selected and shown, else the first shown
+    /// selected row, else nothing. A table holds one selected row in this landing.
+    func showSelection() {
+        guard let table, let pane else { return }
+        let (selected, anchor) = (pane.pushedRows, pane.pushedAnchor)
+        let anchored = anchor.flatMap { pick in selected.contains(pick) ? rows.firstIndex { $0.id == pick } : nil }
+        let shown = anchored ?? rows.firstIndex { selected.contains($0.id) }
+        pushingRows = true
+        defer { pushingRows = false }
+        guard let shown else {
+            table.deselectAll(nil)
+            return
+        }
+        table.selectRowIndexes([shown], byExtendingSelection: false)
+        table.scrollRowToVisible(shown)
+    }
+
+    /// A click on row `n`: the table takes it and the row action runs, also for the row that
+    /// shows already.
+    func click(row n: Int) {
+        guard let table, rows.indices.contains(n) else { return }
+        pushingRows = true
+        table.selectRowIndexes([n], byExtendingSelection: false)
+        pushingRows = false
+        model?.selectIndexRow(rows[n], byClick: true)
+    }
+
+    /// An arrow key moved the row.
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        guard !pushingRows, let table, rows.indices.contains(table.selectedRow) else { return }
+        model?.selectIndexRow(rows[table.selectedRow], byClick: false)
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
@@ -74,6 +118,17 @@ struct SessionIndexTable: NSViewRepresentable {
         let view = tableView.makeView(withIdentifier: id, owner: nil) as? IndexRowView ?? IndexRowView()
         view.identifier = id
         view.spoken = Self.spoken(rows[row], rate: rate)
+        let item = rows[row]
+        view.actions = [
+            NSAccessibilityCustomAction(name: L10n.indexActionGoTo.text) { [weak self] in
+                self?.model?.selectIndexRow(item, byClick: true)
+                return true
+            },
+            NSAccessibilityCustomAction(name: L10n.indexActionShowInfo.text) { [weak self] in
+                self?.model?.showIndexInfo(item)
+                return true
+            },
+        ]
         return view
     }
 
@@ -132,9 +187,39 @@ struct SessionIndexTable: NSViewRepresentable {
     }
 }
 
+/// The list view. A click runs the row action itself, so a click on the row that shows also acts.
+/// Shift-arrows, Shift-click, Command-click, Delete, and Select All beep: the list selects one row.
+final class IndexTableView: NSTableView {
+    var beep: () -> Void = {}
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags.contains(.control) { return super.mouseDown(with: event) }
+        window?.makeFirstResponder(self)
+        if !flags.isDisjoint(with: [.shift, .command]) { return beep() }
+        let n = row(at: convert(event.locationInWindow, from: nil))
+        if n >= 0 { (dataSource as? IndexTableSource)?.click(row: n) }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let arrow = event.keyCode == 125 || event.keyCode == 126
+        if arrow, event.modifierFlags.contains(.shift) { return beep() }
+        super.keyDown(with: event)
+    }
+
+    @objc func delete(_ sender: Any?) { beep() }
+
+    override func selectAll(_ sender: Any?) { beep() }
+}
+
 /// The row: the one accessibility element of its cells.
 final class IndexRowView: NSTableRowView {
     var spoken = ""
+    var actions: [NSAccessibilityCustomAction] = []
+
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { actions }
 
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .row }

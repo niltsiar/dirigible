@@ -872,3 +872,6 @@
 "index.empty.session" = "Nenhum clipe, marcador ou capítulo";
 "index.empty.hint" = "Pressione %@ para adicionar um marcador.";
 "index.column.start" = "Início";
+"index.action.go.to" = "Ir para";
+"index.action.show.info" = "Mostrar informações";
+"index.post.selected.gone" = "Item selecionado removido";

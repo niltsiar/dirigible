@@ -22,8 +22,8 @@
 # - With CHECK_PLAN_AT_PHASE4=1 only, the plan gate is closed: the run folder has a
 #   review-plan-<n>.md file, and a phase 3 row follows the last phase 2 row. The land check has no
 #   such variable, so a run with phase 4 rows and no review-plan file passes it.
-#   CHECK_PLAN_GATE_CLOSE=1 (log-decision.sh, for the phase 3 row that closes the plan gate) counts
-#   that pending row, so the phase 3 row test passes; the review-plan-<n>.md test stays.
+#   CHECK_PLAN_GATE_CLOSE=1 (log-decision.sh, for the phase 3 row that closes the plan gate, and for
+#   each phase 3 row once the last round file has a `## Fix check` heading) counts that pending row, so the phase 3 row test passes; the review-plan-<n>.md test stays.
 # - With CHECK_PLAN_AT_PHASE4=1 only, when a round file review-plan-<n>.md (a per-lens name is none)
 #   has a numbered item under `## Act on`, the round file with the highest number has a `## Fix check`
 #   heading (lead-judgment.md, Fix check). A run whose first decisions.tsv row is older than the rule needs none.

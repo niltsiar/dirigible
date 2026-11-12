@@ -6,7 +6,7 @@ import Observation
 /// A window that an agent call can reach: its studio, why the app refuses agent edits now
 /// (C4), or nil, and the consent sheet of `record` (decision 0048), or nil. With `sheetCause`, the
 /// window cannot show the export sheet of an agent `export` or `render`: the call is refused
-/// (decision 0049).
+/// (decision 0049). `commit` saves the typed values of the window before a long job, as a take start does.
 package struct AgentTarget {
     package typealias Record = @MainActor (RecordRequest, AgentName, AgentConnection) async -> RecordAnswer
 
@@ -17,12 +17,13 @@ package struct AgentTarget {
     /// reads it again after each await.
     package let sheetCause: @MainActor () -> AgentBusy?
     package let record: Record?
+    package let commit: @MainActor () -> Void
 
     package init(
         studio: Studio, busy: AgentBusy? = nil, sheetCause: @escaping @MainActor () -> AgentBusy? = { nil },
-        record: Record? = nil
+        record: Record? = nil, commit: @escaping @MainActor () -> Void = {}
     ) {
-        (self.studio, self.busy, self.sheetCause, self.record) = (studio, busy, sheetCause, record)
+        (self.studio, self.busy, self.sheetCause, self.record, self.commit) = (studio, busy, sheetCause, record, commit)
     }
 }
 

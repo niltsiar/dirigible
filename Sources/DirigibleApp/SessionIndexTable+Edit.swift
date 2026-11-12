@@ -49,7 +49,7 @@ extension IndexTableSource: NSTextFieldDelegate, NSMenuDelegate {
             return
         }
         pane?.rowEdit?.text = field.stringValue
-        model?.finishRowEdit(save: true)
+        model?.rowFieldLostFocus()
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {

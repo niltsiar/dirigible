@@ -214,4 +214,54 @@ import Testing
         window.close()
         await model.close()
     }
+
+    /// Delete and Close Gap on the range of clip 500 of the first track, as
+    /// `theIndexAddsUnderOneFrameToADelete`. The ripple runs on all tracks, so each edit moves the
+    /// later clips of each track and the later marks: about 9,000 rows change place.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func theIndexAddsUnderOneFrameToARippleDelete() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (model, studio, window) = try await Self.openPane(app, folder: folder.url, shown: false)
+        func rows() -> Int { studio.session.tracks.reduce(studio.session.markers.count) { $0 + $1.clips.count } }
+        var times: [Bool: [Duration]] = [false: [], true: []]
+        var n = 0
+        for shown in [false, true, false, true] {
+            if model.leadingPane.shown != shown {
+                model.toggleIndex()
+                try await Self.showsRows(model, shown ? rows() : nil)
+            }
+            let source = shown ? try #require(model.leadingPane.table?.dataSource as? IndexTableSource) : nil
+            for event in 0..<35 {
+                let clip = studio.session.tracks[0].clips[500]
+                let later = studio.session.tracks[0].clips[501]
+                let tracks = Set(studio.session.tracks.map(\.id))
+                model.timeline.selection = .range(
+                    Marks(inPoint: clip.start, outPoint: clip.end, tracks: tracks, tracksByDefault: true))
+                try await Task.sleep(for: .microseconds(16_700))
+                let start = ContinuousClock.now
+                model.run(.deleteCloseGap)
+                let (session, count) = (studio.session, rows())
+                let done = Self.spin(window) {
+                    model.timelineView?.lanes.inputs?.session == session && (!shown || source?.rows.count == count)
+                }
+                drawNow(window)
+                let time = ContinuousClock.now - start
+                try #require(done, "Ripple delete \(n): the lanes or the list did not update, shown \(shown)")
+                let moved = studio.session.tracks[0].clips.first { $0.id == later.id }
+                try #require(moved.map { $0.start < later.start } == true, "Ripple delete \(n) closed no gap")
+                if event >= 5 { times[shown, default: []].append(time) }
+                n += 1
+            }
+        }
+        let (hidden, shown) = (try #require(times[false]), try #require(times[true]))
+        let added = Self.p95(shown) - Self.p95(hidden)
+        print(
+            "SessionIndexBenchmark pane ripple delete: hidden p50 \(Self.p50(hidden)) p95 \(Self.p95(hidden)), "
+                + "shown p50 \(Self.p50(shown)) p95 \(Self.p95(shown)), added p95 \(added), "
+                + "added p50 \(Self.p50(shown) - Self.p50(hidden)), load \(Self.load)")
+        expectWithinBudget(added, Self.budget, "the pane adds \(added) to a ripple delete at p95")
+        window.close()
+        await model.close()
+    }
 }

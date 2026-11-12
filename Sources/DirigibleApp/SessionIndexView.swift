@@ -29,17 +29,7 @@ struct SessionIndexView: View {
         let index = pane.sessionIndex(for: studio.session)
         let rows = index.rows(kind: pane.kind, search: pane.search, keeping: pane.editedRow)
         VStack(spacing: 8) {
-            TextField(L10n.indexSearchPlaceholder.key, text: Bindable(pane).search)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier(Self.searchIdentifier)
-                .onKeyPress(.escape) {
-                    model.escapeInIndexSearch()
-                    return .handled
-                }
-                .onKeyPress(.downArrow) {
-                    model.focusFirstIndexRow()
-                    return .handled
-                }
+            IndexSearchField(model: model, text: Bindable(pane).search)
             IndexKindFilter(kind: Bindable(pane).kind)
             SessionIndexTable(model: model, pane: pane, rows: rows, rate: studio.session.sampleRate)
                 .overlay { emptyView(Empty(rows: rows.count, of: index.rows.count), search: pane.search) }
@@ -67,6 +57,66 @@ struct SessionIndexView: View {
             }
         case .noResults: ContentUnavailableView.search(text: search)
         }
+    }
+}
+
+/// The search field as an `NSTextField` that `LeadingPaneState.searchField` holds: the window finds
+/// it by that reference, not in the view tree. Esc and Down Arrow go to the window.
+struct IndexSearchField: NSViewRepresentable {
+    let model: SessionWindow
+    @Binding var text: String
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> IndexSearchTextField {
+        let field = IndexSearchTextField()
+        field.placeholderString = L10n.indexSearchPlaceholder.text
+        field.bezelStyle = .roundedBezel
+        field.cell?.usesSingleLineMode = true
+        field.cell?.isScrollable = true
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setAccessibilityIdentifier(SessionIndexView.searchIdentifier)
+        field.delegate = context.coordinator
+        field.model = model
+        model.leadingPane.searchField = field
+        return field
+    }
+
+    func updateNSView(_ field: IndexSearchTextField, context: Context) {
+        context.coordinator.text = $text
+        context.coordinator.model = model
+        field.model = model
+        if field.stringValue != text { field.stringValue = text }
+    }
+
+    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
+        var text: Binding<String>?
+        weak var model: SessionWindow?
+
+        func controlTextDidChange(_ note: Notification) {
+            guard let field = note.object as? NSTextField else { return }
+            text?.wrappedValue = field.stringValue
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            switch selector {
+            case #selector(NSResponder.cancelOperation(_:)): model?.escapeInIndexSearch()
+            case #selector(NSResponder.moveDown(_:)): model?.focusFirstIndexRow()
+            default: return false
+            }
+            return true
+        }
+    }
+}
+
+/// A pane that Find in Session Index just showed has its search field now: it takes the focus.
+final class IndexSearchTextField: NSTextField {
+    weak var model: SessionWindow?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil, model?.leadingPane.searchFocusRequest == true else { return }
+        model?.focusIndexSearch()
     }
 }
 

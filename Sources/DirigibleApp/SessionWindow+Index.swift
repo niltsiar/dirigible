@@ -18,8 +18,9 @@ import SwiftUI
     var search = ""
     /// True from Find in Session Index until the search field has the focus.
     @ObservationIgnored var searchFocusRequest = false
-    /// The table of the index list, from its view.
+    /// The table of the index list and the search field, from their views.
     @ObservationIgnored weak var table: IndexTableView?
+    @ObservationIgnored weak var searchField: NSTextField?
     /// The selected rows that the window last pushed, for a table that reloads. The window pushes
     /// them from the `didSet` of `SessionWindow.timeline`, so no SwiftUI body reads them.
     @ObservationIgnored private(set) var pushedRows: Set<SessionIndex.Pick> = []
@@ -286,29 +287,12 @@ extension SessionWindow {
         focusIndexSearch()
     }
 
-    /// Gives the focus to the search field when the field exists, and ends the request. A pane that
-    /// shows just now builds its field later: its list calls this again when it joins the window.
+    /// Gives the focus to the search field when the field is in this window, and ends the request. A
+    /// pane that shows just now builds its field later: the field calls this again when it joins the window.
     func focusIndexSearch() {
-        guard let field = indexSearchField else { return }
+        guard let field = leadingPane.searchField, let window, field.window === window else { return }
         leadingPane.searchFocusRequest = false
-        window?.makeFirstResponder(field)
-    }
-
-    /// The search field of the pane. SwiftUI sets no identifier on its `NSTextField`, so it is the
-    /// first editable text field outside the list, found from the nearest ancestor of the list that has one.
-    var indexSearchField: NSTextField? {
-        guard let table = leadingPane.table else { return nil }
-        func field(in view: NSView) -> NSTextField? {
-            if view === table { return nil }
-            if let field = view as? NSTextField, field.isEditable { return field }
-            return view.subviews.lazy.compactMap(field).first
-        }
-        var ancestor = table.superview
-        while let view = ancestor {
-            if let found = field(in: view) { return found }
-            ancestor = view.superview
-        }
-        return nil
+        window.makeFirstResponder(field)
     }
 
     /// Esc in the search field: text clears first; with no text the lanes take the focus.
@@ -331,7 +315,7 @@ extension SessionWindow {
         guard let responder = window?.firstResponder as? NSView else { return false }
         if let table = leadingPane.table, responder.isDescendant(of: table) { return true }
         guard let field = (responder as? NSTextView)?.delegate as? NSTextField else { return false }
-        return field === indexSearchField
+        return field === leadingPane.searchField
     }
 }
 

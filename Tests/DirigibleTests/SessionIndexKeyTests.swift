@@ -14,9 +14,53 @@ import Testing
 
     init() throws { windows = try SessionIndexWindowTests() }
 
+    /// The search field by its place: the editable field in the pane column, outside the list.
+    func searchField(_ model: SessionWindow, _ window: NSWindow) -> NSTextField? {
+        let table = model.leadingPane.table
+        return windows.views(NSTextField.self, in: window.contentView).first {
+            $0.isEditable && windows.frame($0).maxX <= model.leadingPane.width.points
+                && !(table.map($0.isDescendant(of:)) ?? false)
+        }
+    }
+
     func fieldHasFocus(_ model: SessionWindow, _ window: NSWindow) -> Bool {
         guard let field = (window.firstResponder as? NSTextView)?.delegate as? NSTextField else { return false }
-        return field === model.indexSearchField
+        return field === searchField(model, window)
+    }
+
+    /// The inspector joins the window before the pane: by the toggle, or by Find itself.
+    @Test(arguments: [false, true])
+    func findAfterTheInspectorTypesInTheIndexSearchOnly(paneBeforeFind: Bool) async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, studio, window) = try await open(shown: false)
+        model.showEpisodeInfo()
+        var inspectorField: NSTextField?
+        await until("the inspector shows a field") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            inspectorField = windows.views(NSTextField.self, in: window.contentView).first {
+                $0.isEditable && windows.frame($0).minX > window.contentLayoutRect.width - 420
+            }
+            return inspectorField != nil
+        }
+        let shown = try #require(inspectorField).stringValue
+        let session = studio.session
+        if paneBeforeFind {
+            model.toggleIndex()
+            await until("the pane shows") { model.leadingPane.table?.window != nil }
+        }
+        try #require(window.makeFirstResponder(model.timelineView?.lanes))
+
+        windows.app.findInIndex()
+        await until(limit: .seconds(5), "a field has the focus") {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return model.leadingPane.table?.window != nil && window.firstResponder is NSTextView
+        }
+        window.sendEvent(key(.keyDown, "q", code: 12, in: window))
+
+        #expect(model.leadingPane.search == "q", "the key went to the index search")
+        model.commitDrafts()
+        #expect(inspectorField?.stringValue == shown && studio.session == session, "the inspector field kept its text")
+        await model.close()
     }
 
     func open(shown: Bool) async throws -> (SessionWindow, Studio, NSWindow) {

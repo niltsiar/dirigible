@@ -40,6 +40,9 @@ import SwiftUI
     @ObservationIgnored private(set) var builds = 0
     /// The body runs of the pane, for the tests.
     @ObservationIgnored private(set) var bodies = 0
+    /// A bench hook: it gets a part name with true at the start of the part and false at its end.
+    /// nil in the app.
+    @ObservationIgnored var partMark: ((String, Bool) -> Void)?
 
     /// The open name field of a row: the marker and the text typed so far. The field shows it.
     struct RowEdit: Equatable {
@@ -65,19 +68,30 @@ import SwiftUI
     func pushRows(_ rows: Set<SessionIndex.Pick>, anchor: SessionIndex.Pick?) {
         (pushedRows, pushedAnchor) = (rows, anchor)
         pushes += 1
-        (table?.dataSource as? IndexTableSource)?.showSelection()
+        timePart(self, "push selection") { (table?.dataSource as? IndexTableSource)?.showSelection() }
     }
 
     /// The rows of `session`. A new Session value updates the cached rows; the same value gives them.
     func sessionIndex(for session: Session) -> SessionIndex {
-        if let cache = indexCache, cache.session == session { return cache.index }
-        let index =
+        if let cache = indexCache, timePart(self, "index compare", { cache.session == session }) {
+            return cache.index
+        }
+        let index = timePart(self, "index update") {
             indexCache.map { SessionIndex(session: session, updating: $0.index, of: $0.session) }
-            ?? SessionIndex(session: session)
+                ?? SessionIndex(session: session)
+        }
         indexCache = (session, index)
         builds += 1
         return index
     }
+}
+
+/// Runs `body`; with `pane.partMark` set, it marks the start and the end of the part `name`.
+@MainActor @discardableResult func timePart<T>(_ pane: LeadingPaneState?, _ name: String, _ body: () -> T) -> T {
+    guard let mark = pane?.partMark else { return body() }
+    mark(name, true)
+    defer { mark(name, false) }
+    return body()
 }
 
 extension SessionWindow {
@@ -144,7 +158,7 @@ extension SessionWindow {
         } onChange: { [weak self, weak studio] in
             Task { @MainActor in
                 guard let self, let studio, self.studio === studio else { return }
-                self.dropGoneRows(in: studio.session)
+                timePart(self.leadingPane, "drop gone rows") { self.dropGoneRows(in: studio.session) }
                 self.followRows(studio)
             }
         }
@@ -157,7 +171,9 @@ extension SessionWindow {
         var live = Set(session.markers.keys.map { SessionIndex.Pick.marker($0) })
         for track in session.tracks { live.formUnion(track.clips.map { .clip($0.id) }) }
         let anchor = timeline.anchorRow
-        timeline.pruneRows(keeping: live) { SessionIndex.first(of: $0, in: session) }
+        timePart(leadingPane, "prune rows") {
+            timeline.pruneRows(keeping: live) { SessionIndex.first(of: $0, in: session) }
+        }
         if let anchor, !live.contains(anchor) { leadingPane.announce(L10n.indexPostSelectedGone.text) }
     }
 

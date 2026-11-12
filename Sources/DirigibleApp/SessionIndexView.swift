@@ -27,7 +27,9 @@ struct SessionIndexView: View {
         let pane = model.leadingPane
         let _ = pane.countBody()
         let index = pane.sessionIndex(for: studio.session)
-        let rows = index.rows(kind: pane.kind, search: pane.search, keeping: pane.editedRow)
+        let rows = timePart(pane, "rows filter") {
+            index.rows(kind: pane.kind, search: pane.search, keeping: pane.editedRow)
+        }
         VStack(spacing: 8) {
             IndexSearchField(model: model, text: Bindable(pane).search)
             IndexKindFilter(kind: Bindable(pane).kind)

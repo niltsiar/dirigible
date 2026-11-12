@@ -28,6 +28,16 @@ import Testing
         return field === searchField(model, window)
     }
 
+    /// VoiceOver says the search field by its label, also with text in the field.
+    @Test func theSearchFieldHasALabel() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, _, window) = try await open(shown: true)
+        let field = try #require(searchField(model, window))
+        field.stringValue = "Breath"
+        #expect(field.accessibilityLabel() == L10n.indexSearchLabel.text)
+        await model.close()
+    }
+
     /// The inspector joins the window before the pane: by the toggle, or by Find itself.
     @Test(arguments: [false, true])
     func findAfterTheInspectorTypesInTheIndexSearchOnly(paneBeforeFind: Bool) async throws {

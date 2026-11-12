@@ -866,6 +866,7 @@
 "index.pane.segment.index" = "Index";
 "index.handle" = "Largeur de l’index";
 "index.search.placeholder" = "Rechercher";
+"index.search.label" = "Rechercher dans l’index";
 "index.filter.all" = "Tout";
 "index.filter.clips" = "Clips";
 "index.filter.chapters" = "Chapitres";

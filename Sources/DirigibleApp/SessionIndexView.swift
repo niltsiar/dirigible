@@ -71,6 +71,7 @@ struct IndexSearchField: NSViewRepresentable {
     func makeNSView(context: Context) -> IndexSearchTextField {
         let field = IndexSearchTextField()
         field.placeholderString = L10n.indexSearchPlaceholder.text
+        field.setAccessibilityLabel(L10n.indexSearchLabel.text)
         field.bezelStyle = .roundedBezel
         field.cell?.usesSingleLineMode = true
         field.cell?.isScrollable = true

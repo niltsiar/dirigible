@@ -177,6 +177,27 @@ import Testing
         await model.close()
     }
 
+    @Test func escapeDuringAnIndexDragRestoresTheStartWidthAndKeepsTheSelection() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, _, window, table, _) = try await list()
+        let marks = Marks(inPoint: 48_000, outPoint: 144_000)
+        model.timeline.selection = .range(marks)
+        try windows.click(row: 2, table, in: window)
+        try #require(window.makeFirstResponder(model.timelineView?.lanes))
+        let start = model.leadingPane.width
+        model.dragIndex(.down(x: start.points, clicks: 1))
+        model.dragIndex(.drag(x: start.points + 40))
+        try #require(model.leadingPane.preview != nil, "the drag shows the guide")
+
+        window.sendEvent(try cgKey(53))
+        model.dragIndex(.up)
+
+        #expect(model.leadingPane.width == start && model.leadingPane.preview == nil, "Esc gives the start width")
+        #expect(windows.defaults.object(forKey: IndexWidth.defaultsKey) == nil, "Esc saves no width")
+        #expect(model.timeline.selectedRows == [.marker("m1")] && model.timeline.selection == .range(marks))
+        await model.close()
+    }
+
     /// A main menu whose items are the plain keys of the transport and the Snap item, each with no modifier.
     @MainActor final class PlainKeyMenu: NSObject {
         var hits: [String] = []

@@ -52,14 +52,15 @@ final class UndoRoutingWindow: NSWindow {
     @objc func delete(_ sender: Any?) { model?.run(.delete) }
 
     /// Esc (decision 0017): with no text focused, the Marks empty. During a timeline gesture, Esc
-    /// ends only the gesture (decision 0020), in order: an inspector drag, a header drag, an overview drag (0025), a
-    /// lane gesture. There is no Esc menu item, so alerts and sheets keep
+    /// ends only the gesture (decision 0020), in order: an inspector drag, an index drag, a header drag, an overview
+    /// drag (0025), a lane gesture. There is no Esc menu item, so alerts and sheets keep
     /// the key.
     override func cancelOperation(_ sender: Any?) {
         switch undoTarget(firstResponder: firstResponder) {
         case .text: super.cancelOperation(sender)
         case .session:
             if model?.cancelInspectorDrag() == true { return }
+            if model?.cancelIndexDrag() == true { return }
             if model?.timelineView?.headers.cancelDrag() == true { return }
             if model?.timelineView?.cancelOverview() == true { return }
             if model?.timelineView?.cancelGesture() == true { return }

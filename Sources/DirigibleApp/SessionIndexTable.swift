@@ -251,6 +251,9 @@ final class IndexTableView: NSTableView {
     override func keyDown(with event: NSEvent) {
         let arrow = event.keyCode == 125 || event.keyCode == 126
         if arrow, event.modifierFlags.contains(.shift) { return beep() }
+        // The route from the table up through the window does not run the item of Space, as it does
+        // for J, K, L, N, and H: the table asks the main menu itself.
+        if event.keyCode == 49, NSApp.mainMenu?.performKeyEquivalent(with: event) == true { return }
         super.keyDown(with: event)
     }
 

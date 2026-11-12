@@ -185,4 +185,47 @@ import Testing
         #expect(studio.session == before && !studio.canUndo && model.timeline.selection == .range(marks))
         await model.close()
     }
+
+    /// A main menu whose items are the plain keys of the transport and the Snap item, each with no modifier.
+    @MainActor final class PlainKeyMenu: NSObject {
+        var hits: [String] = []
+        let menu = NSMenu()
+
+        override init() {
+            super.init()
+            for character in [" ", "j", "k", "l", "n", "h"] {
+                let item = NSMenuItem(title: character, action: #selector(hit(_:)), keyEquivalent: character)
+                item.keyEquivalentModifierMask = []
+                item.target = self
+                menu.addItem(item)
+            }
+        }
+
+        @objc func hit(_ item: NSMenuItem) { hits.append(item.keyEquivalent) }
+    }
+
+    /// A key press reaches the first responder first. With the list focused, the plain-key items of
+    /// Space, J, K, L, N, and H still run, as with the lanes focused.
+    @Test func plainKeysInTheListRunTheirMenuItems() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, _, window, table, _) = try await list()
+        let spy = PlainKeyMenu()
+        let previous = NSApp.mainMenu
+        NSApp.mainMenu = spy.menu
+        defer { NSApp.mainMenu = previous }
+        let keys: [(String, UInt16)] = [(" ", 49), ("j", 38), ("k", 40), ("l", 37), ("n", 45), ("h", 4)]
+        let press = {
+            for (character, code) in keys { window.sendEvent(key(.keyDown, character, code: code, in: window)) }
+        }
+        try #require(window.makeFirstResponder(model.timelineView?.lanes))
+        press()
+        try #require(spy.hits == keys.map(\.0), "the lanes run each item: \(spy.hits)")
+
+        spy.hits = []
+        try #require(window.makeFirstResponder(table), "the list takes the focus")
+        press()
+        #expect(spy.hits == keys.map(\.0), "the list ran \(spy.hits)")
+        #expect(table.selectedRow == -1, "a letter selected a row")
+        await model.close()
+    }
 }

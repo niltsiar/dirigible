@@ -229,9 +229,14 @@ extension SessionWindow {
     /// loss after Command-R, or `commitDrafts()` after the focus loss) finds nothing and adds no edit.
     /// With `save`, the typed name goes in one edit. A name that `Marker.set(.name, text:)` refuses
     /// ends the field with the old name; with `strict` (Return and Tab) it beeps and keeps the field,
-    /// and the result is false.
+    /// and the result is false. A busy studio keeps the field and the typed name for a later commit,
+    /// with a beep when `strict`.
     @discardableResult func finishRowEdit(save: Bool, strict: Bool = false) -> Bool {
         guard let open = leadingPane.rowEdit else { return true }
+        if save, idleStudio == nil {
+            if strict { beep() }
+            return false
+        }
         let stored = idleStudio?.session.markers[open.marker]
         if save, strict, var probe = stored, !probe.set(.name, text: open.text) {
             beep()

@@ -23,7 +23,8 @@ extension AppDelegate {
 
     /// Each window with a studio. A window refuses agent edits (C4) while it is not open, while a
     /// lane drag runs (an edit then cannot join the drag's undo step), while a record request
-    /// waits or starts (decision 0048), and during a Quit. `record` shows the consent sheet.
+    /// waits or starts (decision 0048), and during a Quit. `record` shows the consent sheet, and a long
+    /// agent job saves the drafts first.
     func agentTargets() -> [AgentTarget] {
         windows.values.compactMap { window in
             guard let studio = window.studio else { return nil }
@@ -45,6 +46,8 @@ extension AppDelegate {
             return AgentTarget(studio: studio, busy: busy, sheetCause: sheetCause) {
                 [weak window] request, agent, connection in
                 await window?.askRecord(request, agent: agent, connection: connection) ?? .closed
+            } commit: { [weak window] in
+                window?.commitDrafts()
             }
         }
     }

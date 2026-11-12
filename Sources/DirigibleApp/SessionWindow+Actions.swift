@@ -202,9 +202,9 @@ extension SessionWindow {
     }
 
     /// Record, Close, Quit, Auto Level, Place, Retry, an import (the menu or a drop), a paste from
-    /// another package, a revert to a backup, and a mouse-down on the lanes save each typed name
-    /// and the typed inspector values first, also with the focus still in its field. So does the open
-    /// name field of an index row. The generic menu entry run(_:) and the Transport menu commit only
+    /// another package, a revert to a backup, a long agent job, and a mouse-down on the lanes save each
+    /// typed name and the typed inspector values first, also with the focus still in its field. So does
+    /// the open name field of an index row. The generic menu entry run(_:) and the Transport menu commit only
     /// the inspector values; Remove Track drops the name drafts of its tracks. A refused episode
     /// draft stays: Close and Quit stop on it (`holdsRefusedEpisode`), and the other actions go on
     /// without it.

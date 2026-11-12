@@ -230,26 +230,52 @@ extension SessionWindow {
     /// loss after Command-R, or `commitDrafts()` after the focus loss) finds nothing and adds no edit.
     /// With `save`, the typed name goes in one edit. A name that `Marker.set(.name, text:)` refuses
     /// ends the field with the old name; with `strict` (Return and Tab) it beeps and keeps the field,
-    /// and the result is false. A busy studio keeps the field and the typed name for a later commit,
-    /// with a beep when `strict`.
+    /// and the result is false. A busy studio keeps the field and the typed name, with a beep when
+    /// `strict`.
     @discardableResult func finishRowEdit(save: Bool, strict: Bool = false) -> Bool {
         guard let open = leadingPane.rowEdit else { return true }
         if save, idleStudio == nil {
             if strict { beep() }
             return false
         }
-        let stored = idleStudio?.session.markers[open.marker]
-        if save, strict, var probe = stored, !probe.set(.name, text: open.text) {
+        if save, strict, var probe = idleStudio?.session.markers[open.marker], !probe.set(.name, text: open.text) {
             beep()
             return false
         }
         leadingPane.rowEdit = nil
         leadingPane.editedRow = nil
         leadingPane.closeRowField()
-        guard save, var named = stored, named.set(.name, text: open.text), named != stored else { return true }
+        if save { saveRowName(open) }
+        return true
+    }
+
+    /// A focus loss ends the field and saves the typed name. A busy studio saves it when it is idle again,
+    /// so the list keys and the follow of the playhead never wait for a field that has no focus.
+    func rowFieldLostFocus() {
+        guard let open = leadingPane.rowEdit, !finishRowEdit(save: true), let studio else { return }
+        leadingPane.rowEdit = nil
+        leadingPane.editedRow = nil
+        leadingPane.closeRowField()
+        saveRowName(open, whenIdle: studio)
+    }
+
+    private func saveRowName(_ open: LeadingPaneState.RowEdit, whenIdle studio: Studio) {
+        withObservationTracking {
+            _ = studio.isIdle
+        } onChange: { [weak self, weak studio] in
+            Task { @MainActor in
+                guard let self, let studio, self.studio === studio else { return }
+                if studio.isIdle { self.saveRowName(open) } else { self.saveRowName(open, whenIdle: studio) }
+            }
+        }
+    }
+
+    private func saveRowName(_ open: LeadingPaneState.RowEdit) {
+        guard let stored = idleStudio?.session.markers[open.marker] else { return }
+        var named = stored
+        guard named.set(.name, text: open.text), named != stored else { return }
         let renamed = named
         edit(ripple: false) { s throws(SessionError) in try s.setMarker(renamed) }
-        return true
     }
 
     private func indexRow(_ pick: SessionIndex.Pick?) -> SessionIndex.Row? {

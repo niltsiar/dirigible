@@ -4,12 +4,13 @@ import Foundation
 
 /// Runs one long agent call on the studio of an open window (decision 0049). The job reports its
 /// fraction through `report`, and a cancel of the call task stops it. A busy target refuses, as
-/// in `liveCall`.
+/// in `liveCall`. Each other target saves its typed values first.
 @MainActor
 func liveJob(_ call: AgentCall, target: AgentTarget, report: @escaping @Sendable (Double) -> Void) async
     -> AgentReply
 {
     if let busy = target.busy { return .result(text: busy.message(package: call.path), isError: true) }
+    target.commit()
     let studio = target.studio
     switch call.work {
     case .loudness(let ids):

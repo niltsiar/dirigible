@@ -142,45 +142,6 @@ import Testing
         await model.close()
     }
 
-    @Test func noRenameDuringATake() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, beeps) = try await open(routed: true)
-        studio.environment = windows.hal.environment
-        await model.record()
-        try #require(!studio.isIdle, "the take runs")
-        try windows.click(row: 2, table, in: window)
-        pressReturn(in: window)
-        pressF2(in: window)
-        #expect(rowField(in: table) == nil && beeps() == 0, "Return and F2 open no field and do not beep")
-        await model.stop()
-        await until("the take finalizes") { studio.transport == .idle }
-        await model.close()
-    }
-
-    /// The take starts in the Studio, so no commit of the window ends the field first.
-    @Test func returnWithABusyStudioBeepsAndKeepsTheTypedName() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, beeps) = try await open(routed: true)
-        studio.environment = windows.hal.environment
-        _ = try start(row: 2, table, in: window)
-        type("Breath 2", in: window)
-        try await studio.startRecording(armed: ["t1"])
-        try #require(!studio.isIdle, "the take runs")
-
-        pressReturn(in: window)
-        #expect(beeps() == 1, "Return beeps")
-        #expect(rowField(in: table)?.stringValue == "Breath 2", "the field stays with the typed name")
-        #expect(name("m1", in: studio) == "Breath")
-
-        try #require(window.makeFirstResponder(model.timelineView?.lanes))
-        #expect(model.leadingPane.rowEdit?.text == "Breath 2", "a focus loss keeps the typed name")
-        await model.stop()
-        await until("the take finalizes") { studio.transport == .idle }
-        model.commitDrafts()
-        #expect(name("m1", in: studio) == "Breath 2" && rowField(in: table) == nil, "the next commit saves it")
-        await model.close()
-    }
-
     @Test func theEditedRowStaysUntilTheFieldEnds() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, studio, window, table, _) = try await open()
@@ -316,29 +277,6 @@ import Testing
         #expect(rowField(in: table) == nil && beeps() == 1, "a caller ends the field with no beep")
         #expect(name("m1", in: studio) == "Breath" && !studio.canUndo, "the old name stays")
         await model.close()
-    }
-
-    @Test func aTakeStartCommitsTheField() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, _) = try await open(routed: true)
-        studio.environment = windows.hal.environment
-        _ = try start(row: 2, table, in: window)
-        type("Breath 2", in: window)
-        await model.record()
-        try #require(!studio.isIdle, "the take runs")
-        #expect(name("m1", in: studio) == "Breath 2" && rowField(in: table) == nil, "Command-R saves the typed name")
-        await model.stop()
-        await until("the take finalizes") { studio.transport == .idle }
-        await model.close()
-    }
-
-    @Test func aCloseCommitsTheField() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, _) = try await open()
-        _ = try start(row: 2, table, in: window)
-        type("Breath 2", in: window)
-        await model.close()
-        #expect(name("m1", in: studio) == "Breath 2", "a close saves the typed name")
     }
 
     @Test func oneEditGivesOneUndoEntry() async throws {

@@ -472,8 +472,8 @@ has_copy_state() { [[ -d "$HOME/Library/Application Support/$1" && -d "$HOME/Lib
 # no_copy_state <id>: true when neither folder of the ID exists.
 no_copy_state() { [[ ! -e "$HOME/Library/Application Support/$1" && ! -e "$HOME/Library/Caches/$1" ]]; }
 
-# C13 only stop deletes the state of the copy ID: its two folders and build/verify/logs. The two
-# folders of the real ID stay. start keeps the folders and the logs.
+# C13 stop deletes the state of the copy ID: its two folders and build/verify/logs. The two folders
+# of the real ID stay. start keeps the folders, and deletes the logs when it stopped a running copy.
 new_case
 run start
 copy_state "$copy_id"
@@ -483,12 +483,23 @@ echo x >"$logs/app.log"
 run start
 [[ $code -eq 0 ]] || fail "C13 second start: exit $code: $err"
 has_copy_state "$copy_id" || fail "C13 start deleted a copy ID folder"
-[[ -f "$logs/app.log" ]] || fail "C13 start deleted the logs"
+[[ ! -e "$logs/app.log" ]] || fail "C13 start of a running copy kept the logs"
 run stop
 [[ $code -eq 0 ]] || fail "C13 stop: exit $code: $err"
 no_copy_state "$copy_id" || fail "C13 stop left a copy ID folder"
 [[ ! -e "$logs" && ! -e "$repo/build/verify" ]] || fail "C13 stop left build/verify/logs"
 has_copy_state "$real_id" || fail "C13 stop deleted a folder of the real ID"
+
+# start of a running copy gives the new copy a new journal: stop_copy ends the old copy with SIGTERM,
+# so its journal ends unclean and the next launch would show the unclean-quit banner.
+new_case
+run start
+mkdir -p "$logs"
+echo x >"$logs/old.journal"
+run start
+[[ $code -eq 0 ]] || fail "restart: exit $code: $err"
+[[ ! -e "$logs/old.journal" ]] || fail "restart: start of a running copy kept the old journal"
+run stop
 
 # C14 after kill -9 of the copy, stop exits 0 and C13 holds.
 new_case
@@ -952,7 +963,8 @@ grep -q 'rm -rf' "$here/verify-copy.sh" 2>/dev/null || fail "C17: no rm -rf line
 while IFS= read -r line; do
     operands="$(sed -E 's/.*rm( +-[a-zA-Z]+)+ +//' <<<"$line")"
     case "$operands" in
-        '"$root/build/verify"' | '"$HOME/Library/Saved Application State/$copy_id.savedState"' | '"$copy"') ;;
+        '"$root/build/verify"' | '"$root/build/verify/logs"') ;;
+        '"$HOME/Library/Saved Application State/$copy_id.savedState"' | '"$copy"') ;;
         '"$HOME/Library/Application Support/$copy_id"' | '"$HOME/Library/Caches/$copy_id"') ;;
         '"$socket" "$root/build/verify/source-mtime"' | '"$saved_accent"' | '"$screen/root" "$screen/pid"') ;;
         '"$errf"'\'' EXIT') ;;

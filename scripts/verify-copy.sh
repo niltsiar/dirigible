@@ -19,8 +19,10 @@
 #                                  (defaults -g AppleAccentColor) before the open, after it saves
 #                                  the old value in the file dirigible-screen-accent-old beside
 #                                  the screen lock (only when the file is absent). start keeps the
-#                                  recovery hint and the cache of the copy ID and build/verify/logs,
-#                                  so a kill -9 and a start keep them; only stop deletes them. The
+#                                  recovery hint and the cache of the copy ID, so a kill -9 and a
+#                                  start keep them and build/verify/logs. A start that stopped a
+#                                  running copy deletes build/verify/logs: that stop ends the
+#                                  journal unclean. stop deletes all of them. The
 #                                  flags come before the package, in any order. While the copy of
 #                                  another worktree runs, wait for the screen lock up to
 #                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1; a socket
@@ -84,7 +86,10 @@ copy_pids() {
     esac
 }
 
-# Stop each copy process: SIGTERM, then a wait of up to 5 s, then SIGKILL to the same PID.
+# Stop each copy process: SIGTERM, then a wait of up to 5 s, then SIGKILL to the same PID. It sets
+# stopped_copy to 1 when it stopped one, and always returns 0: start sends its output to /dev/null,
+# so a printed marker is lost, and a nonzero return ends the script under set -e.
+stopped_copy=0
 stop_copy() {
     local pids pid
     pids="$(copy_pids)"
@@ -92,6 +97,7 @@ stop_copy() {
         echo "No verify copy runs."
         return 0
     fi
+    stopped_copy=1
     for pid in $pids; do
         kill "$pid" 2>/dev/null || true
         for _ in $(seq 50); do
@@ -104,11 +110,11 @@ stop_copy() {
 }
 
 # Reset the copy ID: its TCC grants, its preferences, and its saved state, then delete the copy
-# bundle, the socket, and the build time. The recovery hint, the caches, and the journal stay: only
-# stop deletes them. tccutil runs before the delete of the bundle, so LaunchServices still finds
-# it. Accept only the known results for no data: tccutil "No such bundle identifier" when the copy
-# bundle is absent, and defaults exit 1 with "Domain (<id>) not found." Another failure still
-# deletes the files, then returns 1 and names the tool.
+# bundle, the socket, and the build time. The recovery hint, the caches, and the journal stay.
+# tccutil runs before the delete of the bundle, so LaunchServices still finds it. Accept only the
+# known results for no data: tccutil "No such bundle identifier" when the copy bundle is absent,
+# and defaults exit 1 with "Domain (<id>) not found." Another failure still deletes the files,
+# then returns 1 and names the tool.
 reset_copy() {
     local out rc failed=""
     rc=0
@@ -257,6 +263,9 @@ start() {
     take_screen
     restore_accent || exit 1
     stop_copy >/dev/null
+    if [[ $stopped_copy -eq 1 ]]; then
+        rm -rf "$root/build/verify/logs"
+    fi
     reset_copy
     mkdir -p "$root/build/verify"
     if [[ -n "$accent" ]]; then

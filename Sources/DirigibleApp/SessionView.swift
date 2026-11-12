@@ -86,10 +86,11 @@ struct SessionView: View {
                 if model.leadingPane.shown {
                     HStack(spacing: 0) {
                         SessionIndexView(model: model, studio: studio).frame(width: model.leadingPane.width.points - 1)
-                        // Above the lanes, which come after it: the handle is centered on the divider.
-                        Divider().overlay { IndexHandle(model: model).frame(width: 6) }.zIndex(1)
+                        // Centered on the divider, so its trailing half is over the lanes (0023).
+                        Divider().overlay { IndexHandle(model: model).frame(width: 6) }
                     }
                     .frame(width: model.leadingPane.width.points, alignment: .leading)
+                    .zIndex(1)
                 }
                 lanes(studio)
                 // Not in the tree when hidden, so a hidden pane runs no body (run 11b-2).

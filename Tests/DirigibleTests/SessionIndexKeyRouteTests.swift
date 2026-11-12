@@ -228,6 +228,21 @@ import Testing
         await model.close()
     }
 
+    /// The handle is 6 pt wide over the divider and takes the hit 2 pt on each side, as the inspector handle.
+    @Test func theIndexHandleTakesTheHitOnBothSides() async throws {
+        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
+        let (model, _, window, _, _) = try await list()
+        let handle = try #require(windows.views(IndexHandleView.self, in: window.contentView).first)
+        window.contentView?.layoutSubtreeIfNeeded()
+        let frame = handle.convert(handle.bounds, to: nil)
+        #expect(frame.width == 6, "\(frame)")
+        for dx in [-2.0, 2] {
+            let hit = window.contentView?.superview?.hitTest(NSPoint(x: frame.midX + dx, y: frame.midY))
+            #expect(hit === handle, "dx \(dx): \(String(describing: hit))")
+        }
+        await model.close()
+    }
+
     /// A main menu whose items are the plain keys of the transport and the Snap item, each with no modifier.
     @MainActor final class PlainKeyMenu: NSObject {
         var hits: [String] = []

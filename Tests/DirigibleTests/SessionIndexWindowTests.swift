@@ -303,7 +303,7 @@ import Testing
         return (model.leadingPane.bodies, table.reloads, source?.cellViews ?? -1)
     }
 
-    /// X13c: 120 display ticks of play with the line across 40 rows, and 120 drag events of a clip
+    /// 120 display ticks of play with the line across 40 rows, and 120 drag events of a clip
     /// move, run no pane body and no `reloadData`. With Follow off no cell view is made; with Follow
     /// on, only the rows that scroll into view. The mouse-up runs the body once.
     @Test func aPlayAndADragRunNoIndexBody() async throws {
@@ -365,7 +365,7 @@ import Testing
         await model.close()
     }
 
-    /// X13c: 120 lane scroll events and a page turn write `timeline.visible` and run no pane body
+    /// 120 lane scroll events and a page turn write `timeline.visible` and run no pane body
     /// and no `reloadData`.
     @Test func aLaneScrollRunsNoIndexBody() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }

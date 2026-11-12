@@ -2,7 +2,7 @@ import DirigibleCore
 import Foundation
 
 /// The rows of the session index: the clips, markers, and chapters of a session in timeline order,
-/// with the kind filter and the search of the index pane (run 2026-10-28-session-index-zoom).
+/// with the kind filter and the search of the index pane.
 public struct SessionIndex: Equatable, Sendable {
     /// The kind of a row, for the kind filter.
     public enum Kind: CaseIterable, Sendable { case clip, marker, chapter }
@@ -52,7 +52,7 @@ public struct SessionIndex: Equatable, Sendable {
         }
     }
 
-    /// The timeline order of a row: the position, then chapter, marker, clip (decision U17), then the
+    /// The timeline order of a row: the position, then chapter, marker, clip, then the
     /// track order, then the ID.
     fileprivate typealias Key = (position: Frames, rank: Int, track: Int, id: String)
 
@@ -158,7 +158,7 @@ public struct SessionIndex: Equatable, Sendable {
         }
     }
 
-    /// A byte search: 12,250 rows with `String.contains` took 11.7 ms per key (run bench U2).
+    /// A byte search: 12,250 rows with `String.contains` took 11.7 ms per key.
     private static func contains(_ text: String, _ needle: [UInt8]) -> Bool {
         var text = text
         return text.withUTF8 { haystack in

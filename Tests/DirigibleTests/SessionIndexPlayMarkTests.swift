@@ -16,7 +16,7 @@ import Testing
 
     static let play = Playback.playing(Shuttle(direction: .forward, rate: .one))
 
-    /// The window with the list shown. The display link no longer ticks the lanes, so a test gives
+    /// The window with the list shown. The display link does not tick the lanes here, so a test gives
     /// each tick. With `markers`, the 40 more markers show.
     func open(markers: Bool = false) async throws -> (SessionWindow, Studio, TimelineScrollView, IndexTableView) {
         let (model, studio, window) = try await base.open()
@@ -114,33 +114,30 @@ import Testing
             scroll.reflectScrolledClipView(scroll.contentView)
             NotificationCenter.default.post(name: NSScrollView.didEndLiveScrollNotification, object: scroll)
         }
-        func run(from first: Int, to last: Int) {
-            for step in first...last { view.tick(playhead: Double(step * 20_000), playback: Self.play) }
-        }
         at(0, view)
-        run(from: 1, to: 2)
+        run(view, from: 1, to: 2)
         userScroll(to: top)
         #expect(mark.hold.isEmpty, "a live scroll with no move holds nothing")
         userScroll(to: top + 100)
         #expect(mark.hold == .listScroll, "a list scroll during play holds the index follow")
-        run(from: 3, to: 123)
+        run(view, from: 3, to: 123)
         #expect(scroll.contentView.bounds.minY == top + 100, "120 ticks past the last row in view: no scroll")
         #expect(!model.timeline.followHeld, "the lanes hold is apart from the list hold")
 
         at(0, view)
-        run(from: 1, to: 123)
+        run(view, from: 1, to: 123)
         #expect(mark.hold.isEmpty, "a play start ends the hold")
         #expect(scroll.contentView.bounds.minY > top + 100, "Stop and Play: the list scrolls")
 
         at(0, view)
         scroll.contentView.scroll(to: NSPoint(x: 0, y: top))
         scroll.reflectScrolledClipView(scroll.contentView)
-        run(from: 1, to: 2)
+        run(view, from: 1, to: 2)
         model.leadingPane.search = "Mark"
         await runLoopPass()
         #expect(mark.hold == .search, "a search key during play holds the index follow")
         let shown = scroll.contentView.bounds.minY
-        run(from: 3, to: 123)
+        run(view, from: 3, to: 123)
         #expect(scroll.contentView.bounds.minY == shown, "a search key during play: no scroll")
         await model.close()
     }
@@ -169,13 +166,7 @@ import Testing
         for step in first...last { view.tick(playhead: Double(step * 20_000), playback: Self.play) }
     }
 
-    func returnKey(in window: NSWindow) -> NSEvent {
-        NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-            context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
-    }
-
-    /// X21. The index follow holds while a row field is open, and the hold clears at the field end.
+    /// The index follow holds while a row field is open, and the hold clears at the field end.
     @Test func aRowFieldHoldsTheFollow() async throws {
         defer { base.defaults.removePersistentDomain(forName: base.suite) }
         let (model, _, view, table) = try await open(markers: true)
@@ -186,20 +177,20 @@ import Testing
         try base.click(row: 2, table, in: window)
         at(0, view)
         run(view, from: 1, to: 2)
-        base.app.timeline(.renameTrack, event: returnKey(in: window), in: window)
+        base.app.timeline(.renameTrack, event: key(.keyDown, "\r", code: 36, in: window), in: window)
         try #require(model.leadingPane.rowEdit != nil, "the field opens")
         #expect(table.mark.hold.contains(.rowField), "the field holds the follow")
         run(view, from: 3, to: 123)
         #expect(clip.bounds.minY == top, "120 ticks past the last row in view: no scroll with the field open")
 
-        base.app.timeline(.renameTrack, event: returnKey(in: window), in: window)
+        base.app.timeline(.renameTrack, event: key(.keyDown, "\r", code: 36, in: window), in: window)
         #expect(table.mark.hold.isEmpty, "the field end clears the hold")
         run(view, from: 100, to: 100)
         #expect(clip.bounds.minY > top, "the next tick that changes the current row scrolls")
         await model.close()
     }
 
-    /// X21. The index follow holds while a row context menu is open.
+    /// The index follow holds while a row context menu is open.
     @Test func aRowMenuHoldsTheFollow() async throws {
         defer { base.defaults.removePersistentDomain(forName: base.suite) }
         let (model, _, view, table) = try await open(markers: true)

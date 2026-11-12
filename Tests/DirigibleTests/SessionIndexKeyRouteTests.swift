@@ -116,7 +116,7 @@ import Testing
         await model.close()
     }
 
-    @Test func deleteBeepsInTheListInL1() async throws {
+    @Test func deleteBeepsInTheList() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, studio, window, table, beeps) = try await list()
         let selection = model.timeline.selection
@@ -129,7 +129,7 @@ import Testing
         await model.close()
     }
 
-    @Test func shiftKeysBeepInTheListInL1() async throws {
+    @Test func shiftKeysBeepInTheList() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, studio, window, table, beeps) = try await list()
         try windows.click(row: 2, table, in: window)

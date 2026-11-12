@@ -14,13 +14,6 @@ import Testing
 
     init() throws { windows = try SessionIndexWindowTests() }
 
-    func event(_ characters: String, code: UInt16, in window: NSWindow) -> NSEvent {
-        NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-            context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false,
-            keyCode: code)!
-    }
-
     func fieldHasFocus(_ model: SessionWindow, _ window: NSWindow) -> Bool {
         guard let field = (window.firstResponder as? NSTextView)?.delegate as? NSTextField else { return false }
         return field === model.indexSearchField
@@ -100,20 +93,20 @@ import Testing
 
         // The near input: with the focus in the lanes, I sets the In point.
         let before = model.timeline.selection
-        app.timeline(.setIn, event: event("i", code: 34, in: window), in: window)
+        app.timeline(.setIn, event: key(.keyDown, "i", code: 34, in: window), in: window)
         try #require(model.timeline.selection != before, "I in the lanes did not set the In point")
         model.run(.deselectAll)
 
         await find(model, in: window)
         let (selection, snaps) = (model.timeline.selection, app.snaps)
-        app.timeline(.setIn, event: event("i", code: 34, in: window), in: window)
-        app.timeline(.setOut, event: event("o", code: 31, in: window), in: window)
-        app.toggleSnap(event: event("n", code: 45, in: window), in: window)
-        app.timeline(.zoomToSelection, event: event("h", code: 4, in: window), in: window)
-        app.speed(.toggle, event: event(".", code: 47, in: window), in: window)
-        app.transport(.playStop, event: event(" ", code: 49, in: window), in: window)
+        app.timeline(.setIn, event: key(.keyDown, "i", code: 34, in: window), in: window)
+        app.timeline(.setOut, event: key(.keyDown, "o", code: 31, in: window), in: window)
+        app.toggleSnap(event: key(.keyDown, "n", code: 45, in: window), in: window)
+        app.timeline(.zoomToSelection, event: key(.keyDown, "h", code: 4, in: window), in: window)
+        app.speed(.toggle, event: key(.keyDown, ".", code: 47, in: window), in: window)
+        app.transport(.playStop, event: key(.keyDown, " ", code: 49, in: window), in: window)
         #expect(model.leadingPane.search == "ionh. ", "the keys typed: \"\(model.leadingPane.search)\"")
-        app.timeline(.delete, event: event("\u{7f}", code: 51, in: window), in: window)
+        app.timeline(.delete, event: key(.keyDown, "\u{7f}", code: 51, in: window), in: window)
         #expect(model.leadingPane.search == "ionh.", "Backspace deleted one character")
 
         #expect(model.timeline.selection == selection, "a key set a Mark")
@@ -128,11 +121,11 @@ import Testing
         let (model, _, window) = try await open(shown: true)
         await find(model, in: window)
         model.leadingPane.search = "cut"
-        window.sendEvent(event("\u{1B}", code: 53, in: window))
+        window.sendEvent(key(.keyDown, "\u{1B}", code: 53, in: window))
         #expect(model.leadingPane.search.isEmpty, "Esc with text clears it")
         #expect(fieldHasFocus(model, window), "the first Esc keeps the focus in the field")
 
-        window.sendEvent(event("\u{1B}", code: 53, in: window))
+        window.sendEvent(key(.keyDown, "\u{1B}", code: 53, in: window))
         #expect(window.firstResponder === model.timelineView?.lanes, "Esc with no text gives the focus to the lanes")
         await model.close()
     }
@@ -143,7 +136,7 @@ import Testing
         let table = try #require(model.leadingPane.table)
         await until("the table shows its rows") { table.numberOfRows == 6 }
         await find(model, in: window)
-        window.sendEvent(event("\u{F701}", code: 125, in: window))
+        window.sendEvent(key(.keyDown, "\u{F701}", code: 125, in: window))
         #expect(window.firstResponder === table, "Down Arrow gives the list the focus")
         #expect(table.selectedRow == 0 && model.timeline.selectedRows.count == 1, "the first row is selected")
         await model.close()

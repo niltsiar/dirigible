@@ -91,8 +91,9 @@ struct IndexKindFilter: View {
 
     /// The four choices: nil is All. A choice with a symbol shows it in place of its title.
     static let choices: [(kind: SessionIndex.Kind?, title: L10n, symbol: String?)] = [
-        (nil, .indexFilterAll, nil), (.clip, .indexFilterClips, "waveform"), (.marker, .menuMarkers, "flag"),
-        (.chapter, .indexFilterChapters, "bookmark"),
+        (nil, .indexFilterAll, nil), (.clip, .indexFilterClips, IndexTableSource.symbol(.clip)),
+        (.marker, .menuMarkers, IndexTableSource.symbol(.marker)),
+        (.chapter, .indexFilterChapters, IndexTableSource.symbol(.chapter)),
     ]
 
     var body: some View {

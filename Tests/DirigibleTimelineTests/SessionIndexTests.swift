@@ -3,7 +3,7 @@ import Testing
 
 @testable import DirigibleTimeline
 
-/// Criteria X1 to X4 of run 2026-10-28-session-index-zoom, on session `I`: tracks Host and Guest;
+/// The rows of the session index, on a session with tracks Host and Guest;
 /// clips a, b, c; marker m1 and chapter h1 at 48,000; marker m2 at 240,000.
 struct SessionIndexTests {
     static func session() throws -> Session {

@@ -8,7 +8,7 @@ import Testing
 @testable import DirigibleApp
 @testable import DirigibleAudio
 
-/// Session-index criterion X13a: on the 2 h fixture plus 200 markers and 50 chapters (12,250
+/// Search time of the session index: on the 2 h fixture plus 200 markers and 50 chapters (12,250
 /// rows), one search key is the filter of `SessionIndex` and the update of the list in the pane,
 /// timed to the end of the layout. The budget is 16 ms p95 over 60 keys with -O
 /// (`make bench FILTER=SessionIndexBenchmark`), 100 ms in debug (a proxy: a miss only prints).

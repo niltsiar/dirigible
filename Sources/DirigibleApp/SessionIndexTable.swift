@@ -80,8 +80,9 @@ struct SessionIndexTable: NSViewRepresentable {
 
     /// A change of up to `SessionIndex.updateLimit` row IDs removes and inserts them, and each
     /// other row view shows its new name and start; a larger change reloads the table. An open
-    /// field whose row stays keeps its view, and the mark takes its new row; a removed field opens
-    /// again with the text typed so far.
+    /// field whose row stays keeps its view, and the mark takes its new row; a removed or reloaded field
+    /// opens again with the text typed so far. A new name of the edited marker (an agent edit) replaces
+    /// the typed text, as in the Name field of the inspector.
     func show(_ rows: [SessionIndex.Row], rate: Int) {
         guard rows != self.rows || rate != self.rate else { return }
         let old = self.rows
@@ -89,6 +90,11 @@ struct SessionIndexTable: NSViewRepresentable {
             rate == self.rate
             ? SessionIndex.change(from: old, to: rows) : (old: 0..<old.count, new: 0..<rows.count)
         (self.rows, self.rate) = (rows, rate)
+        if let edit = pane?.rowEdit, let was = old.first(where: { $0.id == .marker(edit.marker) })?.name,
+            let name = rows.first(where: { $0.id == .marker(edit.marker) })?.name, name != was
+        {
+            pane?.rowEdit?.text = name
+        }
         let reopening = editing != nil
         reloading = true
         if let table, change.old.count + change.new.count <= SessionIndex.updateLimit {
@@ -104,7 +110,7 @@ struct SessionIndexTable: NSViewRepresentable {
         showSelection()
         guard let table else { return }
         table.mark.show(rows, in: table)
-        if let field = editing, field.window != nil {
+        if let field = editing, field.currentEditor() != nil {
             table.mark.edit(row: table.row(for: field), in: table)
         } else if reopening {
             openField(select: false)

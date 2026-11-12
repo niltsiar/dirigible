@@ -851,6 +851,9 @@
 "alert.follow.overlap.body" = "De clip op %1$@ bij %2$@ schuift mee bij ripple. Verplaats de clip of zet “Meeschuiven bij ripple” uit.";
 "error.ripple.follow.only" = "Elk spoor schuift mee bij ripple, dus er zou niets worden geknipt. Zet “Meeschuiven bij ripple” uit op het spoor om te knippen.";
 
+/* Edit > Find in Session Index */
+"menu.edit.find.index" = "Zoek in sessie-index…";
+
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Sleepmodus";
 "menu.edit.drag.mode.overwrite" = "Overschrijven";

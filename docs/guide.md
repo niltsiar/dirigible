@@ -218,7 +218,7 @@ The **Session overview** is the strip above the time ruler. It shows the whole s
 Choose **View > Show Session Index** (Shift-Command-2), or click **Index** at the left end of the toolbar, to show the index at the left of the window. Choose **View > Hide Session Index**, or click **Index** again, to hide it. If you changed the toolbar before, choose **View > Customize Toolbar** to add the **Index** button.
 
 - The index lists the clips, markers, and chapters of the session in time order, with the start time of each.
-- Type in the search field to keep the rows whose name or track name has your text. The search ignores case and accents.
+- Type in the search field to keep the rows whose name or track name has your text. The search ignores case and accents. Choose **Edit > Find in Session Index** (Shift-Command-F) to show the index and put the cursor in the search field. In the field, Esc clears the text, and Esc again goes back to the lanes. Down Arrow goes to the first row.
 - Use the filter under the search field to show only the clips, only the markers, or only the chapters. When the pane is narrow, the filter is a pop-up menu.
 - Drag the line between the index and the lanes to change the width of the index, from 240 to 400 points. Double-click the line to go back to 240 points.
 
@@ -980,6 +980,7 @@ After an edit of an agent, Undo and Redo name the agent, for example "Undo Claud
 | **Close Gaps** | **Cerrar huecos** | None |
 | **Heal Clips** | **Unir clips** | None |
 | **Drag Mode** | **Modo de arrastre** | None |
+| **Find in Session Index** | **Buscar en el índice de la sesión** | Shift-Command-F |
 | **Add Gain Point** | **Añadir punto de ganancia** | Option-K |
 
 ### View

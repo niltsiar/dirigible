@@ -103,6 +103,9 @@ struct DirigibleApp: App {
                         .disabled(app.key?.isOn(.closeGaps) != true)
                     Button(L10n.menuEditHeal.key) { app.timeline(.heal) }.disabled(app.key?.isOn(.heal) != true)
                     Menu(L10n.menuEditDragMode.key) { DragModeItems(app: app) }
+                    Divider()
+                    Button(L10n.menuEditFindIndex.key) { app.findInIndex() }
+                        .keyboardShortcut(MenuKeys.findInIndex).disabled(app.key == nil)
                 }
                 // Every marker key is one that a text field uses: never disabled (probe K1).
                 CommandMenu(L10n.menuMarkers.key) {

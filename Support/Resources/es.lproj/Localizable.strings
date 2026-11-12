@@ -851,6 +851,9 @@
 "alert.follow.overlap.body" = "El clip de %1$@ en %2$@ sigue el desplazamiento. Muévelo o desactiva «Seguir el desplazamiento».";
 "error.ripple.follow.only" = "Todas las pistas siguen el desplazamiento, así que no se cortaría nada. Desactiva «Seguir el desplazamiento» en la pista para cortar.";
 
+/* Edit > Find in Session Index */
+"menu.edit.find.index" = "Buscar en el índice de la sesión…";
+
 /* Edit > Drag Mode and its cue in the window subtitle (decision 0020) */
 "menu.edit.drag.mode" = "Modo de arrastre";
 "menu.edit.drag.mode.overwrite" = "Sobrescribir";

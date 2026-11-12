@@ -20,6 +20,8 @@ import SwiftUI
     /// The kind filter; nil shows all kinds.
     var kind: SessionIndex.Kind?
     var search = ""
+    /// True from Find in Session Index until the search field has the focus.
+    @ObservationIgnored var searchFocusRequest = false
     /// The table of the index list, from its view.
     @ObservationIgnored weak var table: IndexTableView?
     /// The selected rows that the window last pushed, for a table that reloads. The window pushes
@@ -276,12 +278,59 @@ extension SessionWindow {
         widenForPanes()
     }
 
+    /// Edit > Find in Session Index: the pane shows (it stays shown when it is), and the search field takes the focus.
+    func findInIndex() {
+        if !(leadingPane.shown && leadingPane.segment == .index) { toggleIndex() }
+        leadingPane.searchFocusRequest = true
+        focusIndexSearch()
+    }
+
+    /// Gives the focus to the search field when the field exists, and ends the request. A pane that
+    /// shows just now builds its field later: its list calls this again when it joins the window.
+    func focusIndexSearch() {
+        guard let field = indexSearchField else { return }
+        leadingPane.searchFocusRequest = false
+        window?.makeFirstResponder(field)
+    }
+
+    /// The search field of the pane. SwiftUI sets no identifier on its `NSTextField`, so it is the
+    /// first editable text field outside the list, found from the nearest ancestor of the list that has one.
+    var indexSearchField: NSTextField? {
+        guard let table = leadingPane.table else { return nil }
+        func field(in view: NSView) -> NSTextField? {
+            if view === table { return nil }
+            if let field = view as? NSTextField, field.isEditable { return field }
+            return view.subviews.lazy.compactMap(field).first
+        }
+        var ancestor = table.superview
+        while let view = ancestor {
+            if let found = field(in: view) { return found }
+            ancestor = view.superview
+        }
+        return nil
+    }
+
+    /// Esc in the search field: text clears first; with no text the lanes take the focus.
+    func escapeInIndexSearch() {
+        if leadingPane.search.isEmpty { focusLanes() } else { leadingPane.search = "" }
+    }
+
+    /// Down Arrow in the search field: the list takes the focus and selects its first row, as an arrow does.
+    /// With no row shown it beeps.
+    func focusFirstIndexRow() {
+        guard let table = leadingPane.table, let first = (table.dataSource as? IndexTableSource)?.rows.first else {
+            return beep()
+        }
+        window?.makeFirstResponder(table)
+        selectIndexRow(first, byClick: false)
+    }
+
     /// True when the first responder is the index list or the search field.
     private var paneHasFocus: Bool {
         guard let responder = window?.firstResponder as? NSView else { return false }
         if let table = leadingPane.table, responder.isDescendant(of: table) { return true }
-        return ((responder as? NSTextView)?.delegate as? NSTextField)?.accessibilityIdentifier()
-            == SessionIndexView.searchIdentifier
+        guard let field = (responder as? NSTextView)?.delegate as? NSTextField else { return false }
+        return field === indexSearchField
     }
 }
 
@@ -294,4 +343,7 @@ extension AppDelegate {
         let hides = model?.leadingPane.shown == true && model?.leadingPane.segment == .index
         return (hides ? .menuViewIndexHide : .menuViewIndexShow, model != nil)
     }
+
+    /// The action of Edit > Find in Session Index and its key.
+    func findInIndex() { key?.findInIndex() }
 }

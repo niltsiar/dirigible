@@ -42,6 +42,14 @@ struct SessionIndexView: View {
             TextField(L10n.indexSearchPlaceholder.key, text: Bindable(pane).search)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier(Self.searchIdentifier)
+                .onKeyPress(.escape) {
+                    model.escapeInIndexSearch()
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    model.focusFirstIndexRow()
+                    return .handled
+                }
             IndexKindFilter(kind: Bindable(pane).kind)
             SessionIndexTable(model: model, pane: pane, rows: rows, rate: studio.session.sampleRate)
                 .overlay { emptyView(Empty(rows: rows.count, of: index.rows.count), search: pane.search) }

@@ -874,4 +874,6 @@
 "index.column.start" = "Inicio";
 "index.action.go.to" = "Ir a";
 "index.action.show.info" = "Mostrar información";
+"index.action.play.from.here" = "Reproducir desde aquí";
+"index.menu.play.from.here" = "Reproducir desde aquí";
 "index.post.selected.gone" = "Elemento seleccionado eliminado";

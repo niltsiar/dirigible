@@ -115,6 +115,15 @@ extension SessionWindow {
         }
     }
 
+    /// A double click, the action Play from here, and the row menu item: the row action, then a play
+    /// start while the studio is idle and stopped. During play the click seek keeps the play going.
+    /// During a take or an import nothing starts.
+    func playFromIndexRow(_ row: SessionIndex.Row, selecting: Bool = true) {
+        if selecting { selectIndexRow(row, byClick: true) }
+        guard let studio, studio.isIdle, studio.playback == .stopped else { return }
+        transport(.playStop)
+    }
+
     /// The Show Info action and Return on a clip row: the Clip tab; on a marker row, the Marker tab.
     func showIndexInfo(_ row: SessionIndex.Row) {
         selectIndexRow(row, byClick: true)

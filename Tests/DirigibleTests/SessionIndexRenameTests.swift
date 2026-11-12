@@ -189,13 +189,14 @@ import Testing
         await model.close()
     }
 
-    /// A ripple delete above the field moves the edited row: the same field stays open with its
-    /// text, and the row shows the new start.
+    /// A ripple delete above the field moves the edited row: the same field editor stays open with its
+    /// text and its caret, and the row shows the new start. A reopened field would put the caret at the end.
     @Test func aRippleAboveTheFieldKeepsIt() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, studio, window, table, _) = try await open()
         let field = try start(row: 2, table, in: window)
         type("Zed", in: window)
+        field.currentEditor()?.selectedRange = NSRange(location: 1, length: 0)
         model.edit(ripple: true) { s throws(SessionError) in
             try s.rippleDelete(10_000..<20_000, on: ["t1", "t2"], naming: ["t1", "t2"])
         }
@@ -205,10 +206,13 @@ import Testing
         let m1 = try #require(rows.firstIndex { $0.id == .marker("m1") })
         let open = try #require(rowField(in: table), "the field stays open")
         #expect(open === field && table.row(for: open) == m1 && open.currentEditor()?.string == "Zed")
+        #expect(open.currentEditor()?.selectedRange == NSRange(location: 1, length: 0), "the caret stays after Z")
         let start = table.view(atColumn: 1, row: m1, makeIfNecessary: false) as? NSTableCellView
         #expect(start?.textField?.stringValue == timeDisplayText(38_000, rate: 48_000, playing: false))
+        type("o", in: window)
+        #expect(open.currentEditor()?.string == "Zoed", "a key goes in at the caret")
         pressReturn(in: window)
-        #expect(name("m1", in: studio) == "Zed", "Return saves the typed name")
+        #expect(name("m1", in: studio) == "Zoed", "Return saves the typed name")
         await model.close()
     }
 

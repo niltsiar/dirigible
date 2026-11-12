@@ -323,14 +323,17 @@ extension SessionIndexWindowTests {
         await model.close()
     }
 
-    /// X12. Each row has the actions Go to and Show Info, and no Rename or Delete in this landing.
+    /// X12. Each row has the actions Go to and Show Info; a marker or chapter row also has Rename.
+    /// No row has Delete in this landing.
     @Test func aRowHasItsCustomActions() async throws {
         defer { defaults.removePersistentDomain(forName: suite) }
         let (model, _, _, table) = try await openRows()
+        let clips = [L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text]
         for n in 0..<6 {
             let row = try #require(table.rowView(atRow: n, makeIfNecessary: true))
             let names = (row.accessibilityCustomActions() ?? []).map(\.name)
-            #expect(names == [L10n.indexActionGoTo.text, L10n.indexActionShowInfo.text], "row \(n): \(names)")
+            let renames = [1, 2, 5].contains(n)
+            #expect(names == clips + (renames ? [L10n.headerRename.text] : []), "row \(n): \(names)")
         }
         let row = try #require(table.rowView(atRow: 2, makeIfNecessary: true))
         _ = row.accessibilityCustomActions()?.first { $0.name == L10n.indexActionGoTo.text }?.handler?()

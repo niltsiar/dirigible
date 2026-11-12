@@ -70,11 +70,13 @@ public struct SessionIndex: Equatable, Sendable {
     }
 
     /// The rows of one kind (all kinds for nil) whose name or track name has `search` as a
-    /// substring, with no case and no diacritics. An empty search matches every row.
-    public func rows(kind: Kind?, search: String) -> [Row] {
+    /// substring, with no case and no diacritics. An empty search matches every row. The row `kept` always
+    /// shows: the row of an open name field.
+    public func rows(kind: Kind?, search: String, keeping kept: Pick? = nil) -> [Row] {
         let needle = Array(Self.folded(search).utf8)
         return rows.filter { row in
-            (kind == nil || row.kind == kind) && (needle.isEmpty || Self.contains(row.searchText, needle))
+            row.id == kept
+                || (kind == nil || row.kind == kind) && (needle.isEmpty || Self.contains(row.searchText, needle))
         }
     }
 

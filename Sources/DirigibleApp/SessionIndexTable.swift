@@ -74,13 +74,20 @@ struct SessionIndexTable: NSViewRepresentable {
     private(set) var pushingRows = false
     /// The cell views that the table asked for, for the tests.
     private(set) var cellViews = 0
+    /// The name field of the open row edit, and true while a reload removes it.
+    weak var editing: NSTextField?
+    var reloading = false
 
     func show(_ rows: [SessionIndex.Row], rate: Int) {
         guard rows != self.rows || rate != self.rate else { return }
         (self.rows, self.rate) = (rows, rate)
+        let reopening = editing != nil
+        reloading = true
         table?.reloadData()
+        reloading = false
         showSelection()
         if let table { table.mark.show(starts: rows.map(\.position), in: table) }
+        if reopening { openField(select: false) }
     }
 
     /// A live scroll of the list that moves it holds the index follow while play or a take runs.
@@ -155,6 +162,13 @@ struct SessionIndexTable: NSViewRepresentable {
                 return true
             },
         ]
+        if item.kind != .clip {
+            view.actions.append(
+                NSAccessibilityCustomAction(name: L10n.headerRename.text) { [weak self] in
+                    self?.model?.renameIndexRow(item.id)
+                    return true
+                })
+        }
         return view
     }
 
@@ -251,10 +265,19 @@ final class IndexTableView: NSTableView {
     override func keyDown(with event: NSEvent) {
         let arrow = event.keyCode == 125 || event.keyCode == 126
         if arrow, event.modifierFlags.contains(.shift) { return beep() }
+        // F2 has no menu item.
+        if event.keyCode == 120 {
+            (dataSource as? IndexTableSource)?.model?.renameSelectedIndexRow()
+            return
+        }
         // The route from the table up through the window does not run the item of Space, as it does
         // for J, K, L, N, and H: the table asks the main menu itself.
         if event.keyCode == 49, NSApp.mainMenu?.performKeyEquivalent(with: event) == true { return }
         super.keyDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        (dataSource as? IndexTableSource)?.rowMenu(at: row(at: convert(event.locationInWindow, from: nil)))
     }
 
     @objc func delete(_ sender: Any?) { beep() }
@@ -307,7 +330,31 @@ final class IndexCell: NSTableCellView {
 
     required init?(coder: NSCoder) { nil }
 
+    /// The name as a field: a bezel and a background, the label "Name" for VoiceOver.
+    func beginEditing(text: String, delegate: NSTextFieldDelegate) -> NSTextField {
+        label.delegate = delegate
+        label.isEditable = true
+        label.isSelectable = true
+        label.isBezeled = true
+        label.bezelStyle = .squareBezel
+        label.drawsBackground = true
+        label.stringValue = text
+        label.setAccessibilityElement(true)
+        label.setAccessibilityLabel(L10n.markerName.text)
+        return label
+    }
+
+    func endEditing() {
+        label.delegate = nil
+        label.isEditable = false
+        label.isSelectable = false
+        label.isBezeled = false
+        label.drawsBackground = false
+        label.setAccessibilityElement(false)
+    }
+
     func show(text: String, symbol: String?) {
+        endEditing()
         label.stringValue = text
         glyph.image = symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
         glyph.isHidden = symbol == nil

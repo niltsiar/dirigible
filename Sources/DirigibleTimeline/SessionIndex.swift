@@ -150,9 +150,8 @@ public struct SessionIndex: Equatable, Sendable {
     /// Sets the duration of each chapter row: the time to the next chapter row, or to the session end,
     /// and 0 for a chapter at or after the end. The pass runs at each update, as a clip that moves or
     /// resizes, or a chapter that moves, changes the duration of a chapter. It finds each chapter
-    /// row by its key and reads no other row. It returns the count of rows that it set.
-    @discardableResult
-    static func setChapterDurations(_ rows: inout [Row], in session: Session) -> Int {
+    /// row by a binary search on its key, so it does not scan the rows.
+    static func setChapterDurations(_ rows: inout [Row], in session: Session) {
         let chapters = session.markers.values.filter { $0.kind == .chapter }
             .sorted { ($0.position, $0.id.rawValue) < ($1.position, $1.id.rawValue) }
         var next = session.end
@@ -166,7 +165,6 @@ public struct SessionIndex: Equatable, Sendable {
             rows[low].duration = next < chapter.position ? .zero : next - chapter.position
             next = chapter.position
         }
-        return chapters.count
     }
 
     /// The rows of `first` and `second`, each in timeline order, in timeline order.

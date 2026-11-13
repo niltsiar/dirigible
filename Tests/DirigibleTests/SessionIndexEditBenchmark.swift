@@ -46,6 +46,9 @@ import Testing
         }
     }
 
+    static let addedBudget = Duration.milliseconds(40)
+    static let shownBudget = Duration.milliseconds(100)
+
     /// The parts that no other part of the list holds. The table `show` holds its `show` lines, and
     /// the drop holds the prune and the push. A part in the command phase is in the command time.
     static let top = ["index compare", "index update", "rows filter", "show", "table layout", "drop gone rows"]
@@ -132,12 +135,14 @@ import Testing
     /// The Delete of all 12,000 clips by the lanes: Select All, then Delete. The command, the
     /// SwiftUI update, the lane render, and with the pane shown the list update are timed; the
     /// Select All and the Undo that puts the clips back are not. Hidden and shown alternate in
-    /// blocks of 12 Deletes (2 not timed), 20 timed each. It prints the times and asserts no budget:
-    /// they are the base that a Delete of all rows from the list is compared with. It also prints
-    /// the split of each span by part, and the split of the removal of all 12,250 rows in one edit
-    /// with a list selection of all of them (the drop of the gone rows and its push).
+    /// blocks of 12 Deletes (2 not timed), 20 timed each. With -O the pane adds 40 ms p95 or less and
+    /// the shown span is 100 ms p95 or less. The change of 12,000 rows is over the row limit of the
+    /// table, so it reloads the table; the trace floor of that is about 21 ms, over one frame. It also
+    /// prints the split of each span by part, and the split of the removal of all 12,250 rows in one
+    /// edit with a list selection of all of them (the drop of the gone rows and its push), which
+    /// asserts nothing.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
-    func theLaneDeleteOfAllClipsGivesTheBase() async throws {
+    func theLaneDeleteOfAllClipsAddsUnderItsBudget() async throws {
         let folder = try TemporaryFolder()
         let app = AppDelegate(recordings: nil)
         let (model, studio, window) = try await SessionIndexBenchmark.openPane(app, folder: folder.url, shown: false)
@@ -175,10 +180,14 @@ import Testing
         let (hidden, shown) = (try #require(splits[false]), try #require(splits[true]))
         let (p50, p95) = (SessionIndexBenchmark.p50, SessionIndexBenchmark.p95)
         let (hiddenSpans, shownSpans) = (hidden.map(\.span), shown.map(\.span))
+        let added = p95(shownSpans) - p95(hiddenSpans)
         print(
             "SessionIndexEditBenchmark lane delete of all clips: hidden p50 \(p50(hiddenSpans)) p95 \(p95(hiddenSpans)), "
-                + "shown p50 \(p50(shownSpans)) p95 \(p95(shownSpans)), added p95 \(p95(shownSpans) - p95(hiddenSpans)), "
+                + "shown p50 \(p50(shownSpans)) p95 \(p95(shownSpans)), added p95 \(added), "
                 + "added p50 \(p50(shownSpans) - p50(hiddenSpans)), load \(SessionIndexBenchmark.load)")
+        expectWithinBudget(added, Self.addedBudget, "the pane adds \(added) to a lane Delete of all clips at p95")
+        let shownP95 = p95(shownSpans)
+        expectWithinBudget(shownP95, Self.shownBudget, "a lane Delete of all clips shows in \(shownP95) at p95")
         Self.printSplit("lane delete hidden", hidden)
         Self.printSplit("lane delete shown", shown)
 

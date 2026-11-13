@@ -17,6 +17,7 @@
 - Before the first try of a bench miss, run `scripts/bench.sh --trace <run>/logs/<name>.trace --under <wrapper> <name>`, with `<wrapper>` the `@inline(never)` function of the timed span (add one if missing, as `NavigationKeyBenchmark.timedSpan`). The try row names the top frames.
 - A try is one change, `scripts/with-lock.sh make bench` before and after, and the slice tests. Keep a gain past the A/A spread, else revert in full. One `decisions.tsv` row per try; no pairs.
 - Time a shell script or a hook test (`make test-hooks HOOK_TESTS=<names>`) that builds no Swift and runs no built binary (for example `check-waits.sh`) as `scripts/with-lock.sh --bench-mark <command>`. The wait before the command can last 420 s (120 s for lock-free calls, 300 s for the load). Give a foreground call a Bash `timeout` of 600000 when 420 s plus the expected time of the command is under 600 s. Else the lead runs the call in the background form of `AGENTS.md` (`WITH_LOCK_MAX_WAIT=0`, `run_in_background`, a `timeout` of 7200000, and a Monitor). The call waits for each lock-free `with-lock.sh` call that runs, and a lock-free call that starts later waits for the command. Time a Swift build, a Swift test, a bench, a built binary, or a probe under the lock: `scripts/with-lock.sh <command>`; `--bench-mark` refuses each such command that it can see (exit 64).
+- For a time bar on such a script, time 3 interleaved runs per side, old and new, and write each time and the max-min spread of the runs in the row.
 
 ## A new way to move or resize something
 

@@ -53,7 +53,7 @@ import Testing
             held += 1
             let start = table.view(atColumn: 1, row: n, makeIfNecessary: false) as? NSTableCellView
             if start?.textField?.stringValue != timeDisplayText(rows[n].position, rate: 48_000, playing: false)
-                || view.accessibilityLabel() != IndexTableSource.spoken(rows[n], rate: 48_000)
+                || table.spokenLabel(row: n) != IndexTableSource.spoken(rows[n], rate: 48_000)
             {
                 stale.append(n)
             }

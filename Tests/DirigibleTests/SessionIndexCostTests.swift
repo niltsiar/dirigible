@@ -72,7 +72,7 @@ import Testing
             let view = table.rowView(atRow: n, makeIfNecessary: false)
             let name = table.view(atColumn: 0, row: n, makeIfNecessary: false) as? NSTableCellView
             let start = table.view(atColumn: 1, row: n, makeIfNecessary: false) as? NSTableCellView
-            return view?.accessibilityLabel() != IndexTableSource.spoken(row, rate: 48_000)
+            return table.spokenLabel(row: n) != IndexTableSource.spoken(row, rate: 48_000)
                 || view?.isSelected != table.isRowSelected(n) || name?.textField?.stringValue != row.name
                 || name?.imageView?.isHidden != false || name?.imageView?.contentTintColor != .secondaryLabelColor
                 || name?.imageView?.image?.tiffRepresentation != glyph(row.kind)

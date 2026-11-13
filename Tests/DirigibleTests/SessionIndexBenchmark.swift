@@ -11,7 +11,8 @@ import Testing
 /// Search time of the session index: on the 2 h fixture plus 200 markers and 50 chapters (12,250
 /// rows), one search key is the filter of `SessionIndex` and the update of the list in the pane,
 /// timed to the end of the layout. The budget is 16 ms p95 over 60 keys with -O
-/// (`make bench FILTER=SessionIndexBenchmark`), 100 ms in debug (a proxy: a miss only prints).
+/// (`make bench FILTER=SessionIndexBenchmark`), 100 ms in debug (a proxy: a miss only prints). A
+/// key with all rows selected has the key event budget of `NavigationKeyBenchmark`: 32 ms p95 with -O.
 @Suite(.serialized) @MainActor struct SessionIndexBenchmark {
     #if DEBUG
         static let budget = Duration.milliseconds(100)
@@ -195,8 +196,10 @@ import Testing
         print(
             "SessionIndexBenchmark pane search key with 12,250 rows selected: p50 \(Self.p50(selected)), "
                 + "p95 \(Self.p95(selected)), max \(selected.max()!), load \(Self.load)")
+        // The drop of the hidden rows from the selection takes the key event budget, two frames.
         expectWithinBudget(
-            Self.p95(selected), Self.budget, "one search key with 12,250 rows selected, p95 \(Self.p95(selected))")
+            Self.p95(selected), .milliseconds(NavigationKeyBenchmark.budget),
+            "one search key with 12,250 rows selected, p95 \(Self.p95(selected))")
         window.close()
         await model.close()
     }

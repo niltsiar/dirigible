@@ -73,4 +73,58 @@ extension SessionWindow {
         if !timeline.selectedRows.contains(pick) { timeline.selectRows([pick], anchor: pick, form: .indexSet) }
         deleteIndexRows()
     }
+
+    /// Add Marker or Add Chapter from the list: the command runs as in the lanes, then the name field
+    /// of the new row opens. A take adds its take marker and opens no field (`canEdit`), and a refused
+    /// add leaves the markers as they are.
+    func addIndexMarker(_ kind: Marker.Kind) {
+        guard let studio else { return }
+        finishRowEdit(save: true)
+        let before = Set(studio.session.markers.keys)
+        run(kind == .chapter ? .addChapter : .addMarker)
+        guard let added = studio.session.markers.keys.first(where: { !before.contains($0) }) else { return }
+        beginRowEdit(added)
+    }
+
+    /// The frame of a typed time, or nil: the text of `takeFrame` with no minus, and a frame that
+    /// the timeline holds (0 to `Frames.limit`).
+    static func startFrame(_ text: String, rate: Int) -> Frames? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.hasPrefix("-"), let frame = takeFrame(trimmed, rate: rate),
+            (0...Frames.limit.count).contains(frame)
+        else { return nil }
+        return Frames(frame)
+    }
+
+    /// True when `open` holds a value that its field can save: a name that `Marker.set(.name, text:)`
+    /// takes, or a time that `startFrame` parses.
+    func accepts(_ open: LeadingPaneState.RowEdit, in session: Session) -> Bool {
+        switch open.field {
+        case .name:
+            var probe = session.markers[open.marker]
+            return probe?.set(.name, text: open.text) ?? true
+        case .start:
+            return open.text == open.shown || Self.startFrame(open.text, rate: session.sampleRate) != nil
+        }
+    }
+
+    /// Saves the value of a closed field in one edit. A text that equals the text first shown, a value
+    /// that the marker already has, or a text that the field refuses writes nothing.
+    func saveRowEdit(_ open: LeadingPaneState.RowEdit) {
+        guard let studio = idleStudio, let stored = studio.session.markers[open.marker] else { return }
+        var changed = stored
+        switch open.field {
+        case .name:
+            guard changed.set(.name, text: open.text) else { return }
+        case .start:
+            guard open.text != open.shown, let frame = Self.startFrame(open.text, rate: studio.session.sampleRate)
+            else { return }
+            changed.position = frame
+        }
+        guard changed != stored else { return }
+        let marker = changed
+        if edit(ripple: false, { s throws(SessionError) in try s.setMarker(marker) }) != nil, open.field == .start {
+            leadingPane.revealMarker = open.marker
+        }
+    }
 }

@@ -882,3 +882,4 @@
 "index.menu.play.from.here" = "Riproduci da qui";
 "index.post.selected.gone" = "Elemento selezionato rimosso";
 "index.post.deleted" = "%lld elementi eliminati";
+"index.footer.add" = "Aggiungi";

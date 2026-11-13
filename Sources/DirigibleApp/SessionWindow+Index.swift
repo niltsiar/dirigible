@@ -44,13 +44,20 @@ import SwiftUI
     /// nil in the app.
     @ObservationIgnored var partMark: ((String, Bool) -> Void)?
 
-    /// The open name field of a row: the marker and the text typed so far. The field shows it.
+    /// The open field of a row: the marker, which field, and the text typed so far. The field shows
+    /// it. `shown` is the text the field showed first, or last for a time that an outside edit moved:
+    /// a save of the same text writes nothing.
     struct RowEdit: Equatable {
+        enum Field { case name, start }
         let marker: MarkerID
+        var field = Field.name
         var text: String
+        var shown: String
     }
 
     @ObservationIgnored var rowEdit: RowEdit?
+    /// The marker whose time edit just moved its row: the list scrolls to it when it shows the move.
+    @ObservationIgnored var revealMarker: MarkerID?
     /// The row of the open field. The list keeps it under a filter until the field ends.
     var editedRow: SessionIndex.Pick?
 
@@ -187,7 +194,8 @@ extension SessionWindow {
     }
 
     /// A timeline command with the focus in the list (`TimelineCommand.indexFocus`). True when the
-    /// list took it. Return and Shift-Return take the list meaning only for a key press.
+    /// list took it. Return, Shift-Return, Add Marker, and Add Chapter take the list meaning only for a
+    /// key press.
     func indexCommand(_ command: TimelineCommand, isKey: Bool) -> Bool {
         switch command.indexFocus {
         case .lanes: return false
@@ -211,6 +219,8 @@ extension SessionWindow {
             case .deleteMarker, .moveMarker:
                 if case .marker(let id)? = only, timeline.marker == id { run(command) } else { beep() }
             case .deselectAll: timeline.pruneRows(keeping: [])
+            case .addMarker where isKey: addIndexMarker(.marker)
+            case .addChapter where isKey: addIndexMarker(.chapter)
             default: return false
             }
             return true
@@ -234,35 +244,38 @@ extension SessionWindow {
         beginRowEdit(id)
     }
 
-    /// Opens the name field of `id`. An open field of another row commits first.
-    func beginRowEdit(_ id: MarkerID) {
-        guard canEdit, let marker = studio?.session.markers[id] else { return }
+    /// Opens the name field of `id`, or its time field. An open field of another row commits first.
+    func beginRowEdit(_ id: MarkerID, field: LeadingPaneState.RowEdit.Field = .name) {
+        guard canEdit, let studio, let marker = studio.session.markers[id] else { return }
         finishRowEdit(save: true)
-        leadingPane.rowEdit = .init(marker: id, text: marker.name)
+        let text =
+            field == .name
+            ? marker.name : timeDisplayText(marker.position, rate: studio.session.sampleRate, playing: false)
+        leadingPane.rowEdit = .init(marker: id, field: field, text: text, shown: text)
         leadingPane.editedRow = .marker(id)
         leadingPane.openRowField(select: true)
     }
 
-    /// Ends the open name field. The state is read and cleared first, so a second caller (the focus
+    /// Ends the open field. The state is read and cleared first, so a second caller (the focus
     /// loss after Command-R, or `commitDrafts()` after the focus loss) finds nothing and adds no edit.
-    /// With `save`, the typed name goes in one edit. A name that `Marker.set(.name, text:)` refuses
-    /// ends the field with the old name; with `strict` (Return and Tab) it beeps and keeps the field,
-    /// and the result is false. A busy studio keeps the field and the typed name, with a beep when
-    /// `strict`.
+    /// With `save`, the typed name or time goes in one edit. A name that `Marker.set(.name, text:)`
+    /// refuses, or a time that `startFrame` refuses, ends the field with the old value; with `strict`
+    /// (Return and Tab) it beeps and keeps the field, and the result is false. A busy studio keeps
+    /// the field and the typed text, with a beep when `strict`.
     @discardableResult func finishRowEdit(save: Bool, strict: Bool = false) -> Bool {
         guard let open = leadingPane.rowEdit else { return true }
         if save, idleStudio == nil {
             if strict { beep() }
             return false
         }
-        if save, strict, var probe = idleStudio?.session.markers[open.marker], !probe.set(.name, text: open.text) {
+        if save, strict, let studio = idleStudio, !accepts(open, in: studio.session) {
             beep()
             return false
         }
         leadingPane.rowEdit = nil
         leadingPane.editedRow = nil
         leadingPane.closeRowField()
-        if save { saveRowName(open) }
+        if save { saveRowEdit(open) }
         return true
     }
 
@@ -273,26 +286,18 @@ extension SessionWindow {
         leadingPane.rowEdit = nil
         leadingPane.editedRow = nil
         leadingPane.closeRowField()
-        saveRowName(open, whenIdle: studio)
+        saveRowEdit(open, whenIdle: studio)
     }
 
-    private func saveRowName(_ open: LeadingPaneState.RowEdit, whenIdle studio: Studio) {
+    private func saveRowEdit(_ open: LeadingPaneState.RowEdit, whenIdle studio: Studio) {
         withObservationTracking {
             _ = studio.isIdle
         } onChange: { [weak self, weak studio] in
             Task { @MainActor in
                 guard let self, let studio, self.studio === studio else { return }
-                if studio.isIdle { self.saveRowName(open) } else { self.saveRowName(open, whenIdle: studio) }
+                if studio.isIdle { self.saveRowEdit(open) } else { self.saveRowEdit(open, whenIdle: studio) }
             }
         }
-    }
-
-    private func saveRowName(_ open: LeadingPaneState.RowEdit) {
-        guard let stored = idleStudio?.session.markers[open.marker] else { return }
-        var named = stored
-        guard named.set(.name, text: open.text), named != stored else { return }
-        let renamed = named
-        edit(ripple: false) { s throws(SessionError) in try s.setMarker(renamed) }
     }
 
     private func indexRow(_ pick: SessionIndex.Pick?) -> SessionIndex.Row? {

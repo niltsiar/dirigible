@@ -78,7 +78,12 @@ extension AppDelegate {
         {
             return model.silenceListKey(command)
         }
-        // The list gets the keys of its rows. A menu click acts as its key, except Return and Shift-Return.
+        // A held Command-Return marks once, as a held N toggles once.
+        if command == .addMarker || command == .addChapter, let event, event.type == .keyDown, event.isARepeat {
+            return
+        }
+        // The list gets the keys of its rows. A menu click acts as its key, except Return, Shift-Return,
+        // Add Marker, and Add Chapter.
         if let model = key, model.indexListHasFocus(in: keyWindow),
             model.indexCommand(command, isKey: event?.type == .keyDown)
         {
@@ -87,10 +92,6 @@ extension AppDelegate {
         if command.forwardsKey, let event, forwardTypingKey(event, in: keyWindow) { return }
         if let selector = command.selector {
             if let keyWindow { _ = (keyWindow.firstResponder ?? keyWindow).tryToPerform(selector, with: nil) }
-            return
-        }
-        // A held Command-Return marks once, as a held N toggles once.
-        if command == .addMarker || command == .addChapter, let event, event.type == .keyDown, event.isARepeat {
             return
         }
         // Return in a header of the Transcript pane seeks. A click on the menu item is no key press.

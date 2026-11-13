@@ -100,13 +100,7 @@ struct SessionIndexTable: NSViewRepresentable {
             rate == self.rate ? SessionIndex.change(from: old, to: rows) : nil
         }
         (self.rows, self.rate) = (rows, rate)
-        timePart(pane, "show echo") {
-            if let edit = pane?.rowEdit, let was = old.first(where: { $0.id == .marker(edit.marker) })?.name,
-                let name = rows.first(where: { $0.id == .marker(edit.marker) })?.name, name != was
-            {
-                pane?.rowEdit?.text = name
-            }
-        }
+        timePart(pane, "show echo") { echoOpenField(old: old) }
         let reopening = editing != nil
         reloading = true
         timePart(pane, "show table") {
@@ -135,21 +129,50 @@ struct SessionIndexTable: NSViewRepresentable {
         timePart(pane, "show mark") { table.mark.show(rows, in: table) }
         if let field = editing, field.currentEditor() != nil {
             table.mark.edit(row: table.row(for: field), in: table)
-        } else if reopening {
-            openField(select: false)
+        } else if reopening || (editing == nil && pane?.rowEdit != nil) {
+            openField(select: !reopening)
+        }
+        if let id = pane?.revealMarker, let row = rows.firstIndex(where: { $0.id == .marker(id) }) {
+            pane?.revealMarker = nil
+            table.scrollRowToVisible(row)
+        }
+    }
+
+    /// An outside edit of the marker of the open field writes only the attribute of that field: a new
+    /// name into a name field, a new position into a time field, and the time field shows it and takes
+    /// it as the text first shown, so a pass through the field writes nothing.
+    private func echoOpenField(old: [SessionIndex.Row]) {
+        guard let edit = pane?.rowEdit, let was = old.first(where: { $0.id == .marker(edit.marker) }),
+            let now = rows.first(where: { $0.id == .marker(edit.marker) })
+        else { return }
+        switch edit.field {
+        case .name:
+            if now.name != was.name { pane?.rowEdit?.text = now.name }
+        case .start:
+            guard now.position != was.position else { return }
+            let text = timeDisplayText(now.position, rate: rate, playing: false)
+            pane?.rowEdit?.text = text
+            pane?.rowEdit?.shown = text
+            if let editor = editing?.currentEditor() {
+                editor.string = text
+                editor.selectedRange = NSRange(location: text.utf16.count, length: 0)
+            } else {
+                editing?.stringValue = text
+            }
         }
     }
 
     /// Each row view that the table holds outside `change.new` shows the row of `old` at its old
     /// place, or with no `change` at its own place: its cells take the new row in place. A reload of a
-    /// cell ends the field editor of its row, so only the name cell of the open field loads again, and
-    /// only when its row takes another item, name, or kind; the field opens again on its marker row.
+    /// cell ends the field editor of its row, so only the cell of the open field loads again, and
+    /// only when its row takes another item (a name field also: another name or kind); the field
+    /// opens again on its marker row.
     private func refreshRows(
         of table: NSTableView, from old: [SessionIndex.Row], change: (old: Range<Int>, new: Range<Int>)?
     ) {
         let name = table.column(withIdentifier: SessionIndexTable.nameColumn)
         let start = table.column(withIdentifier: SessionIndexTable.startColumn)
-        var field: Int?
+        var field: (row: Int, column: Int)?
         table.enumerateAvailableRowViews { _, n in
             let w = change.map { n < $0.new.lowerBound ? n : n - $0.new.upperBound + $0.old.upperBound } ?? n
             guard change?.new.contains(n) != true, old.indices.contains(w) else { return }
@@ -159,16 +182,18 @@ struct SessionIndexTable: NSViewRepresentable {
                 if editing?.superview !== cell {
                     cell.show(text: row.name, symbol: Self.symbol(row.kind), spoken: Self.spoken(row, rate: rate))
                 } else if was.id != row.id || was.name != row.name || was.kind != row.kind {
-                    field = n
+                    field = (n, name)
                 }
             }
-            if was.position != row.position,
-                let cell = table.view(atColumn: start, row: n, makeIfNecessary: false) as? IndexCell
-            {
-                cell.show(text: timeDisplayText(row.position, rate: rate, playing: false), symbol: nil)
+            if let cell = table.view(atColumn: start, row: n, makeIfNecessary: false) as? IndexCell {
+                if editing?.superview === cell {
+                    if was.id != row.id { field = (n, start) }
+                } else if was.position != row.position {
+                    cell.show(text: timeDisplayText(row.position, rate: rate, playing: false), symbol: nil)
+                }
             }
         }
-        if let field { table.reloadData(forRowIndexes: [field], columnIndexes: [name]) }
+        if let field { table.reloadData(forRowIndexes: [field.row], columnIndexes: [field.column]) }
     }
 
     private static func lastRowView(of table: NSTableView) -> Int {

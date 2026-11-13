@@ -409,9 +409,8 @@ mkdir "$noplan"
 "$log" "$noplan" 3 'plan gate closed' why evidence done || fail "a close row of a folder with no plan.md exits $?"
 
 # Once the review-plan-<n>.md with the highest number has a ## Fix check heading, each phase 3 row
-# runs the check of the first phase 4 row, whatever its words, except a criterion change row (the
-# check cannot count the row that it is about to append). Without the heading, or when a later round
-# file has none, a phase 3 row appends.
+# except a criterion change row runs the check of the first phase 4 row. Without the heading, or
+# when a later round file has none, a phase 3 row appends.
 # fix_run <name> <heading|none>: a run folder whose plan has a plan gate change for C6, whose
 # analysis.md moved C6 after the first row, and whose review-plan-1.md has an Act on item.
 fix_run() {

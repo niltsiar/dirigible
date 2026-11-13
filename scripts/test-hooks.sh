@@ -126,7 +126,7 @@ cd "$work/tree" || exit 1
 # The key holds only the existence of a floor path, so a test that reads floor content fails.
 find $floor -type f | while IFS= read -r f; do : > "$f"; done
 # A hook test calls bash by name, and the first bash on the PATH can be a newer one than the 3.2
-# of macOS. The tests must run on /bin/bash, and the key holds no bash version.
+# of macOS. The tests must run on /bin/bash.
 mkdir "$work/bin" && ln -s /bin/bash "$work/bin/bash" || exit 1
 export PATH="$work/bin:$PATH"
 

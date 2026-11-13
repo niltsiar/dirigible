@@ -201,11 +201,9 @@ if [[ "$1" == 4 && -f "${file%/*}/plan.md" ]] && ! [[ "$(lower "$2")" == "criter
         exit 2
     fi
 fi
-# A phase 3 row that closes the plan gate, or comes after the Fix check (the review-plan-<n>.md with
-# the highest number has a ## Fix check heading, as check-plan.sh reads it), runs the check of the
-# first phase 4 row, with the row itself counted as the phase 3 row, so a gap shows before the first
-# slice agent starts. A criterion change row skips it: check-plan.sh cannot count that row before
-# this script appends it, and that row repairs the gap.
+# A phase 3 row that closes the plan gate, or comes after the Fix check (a ## Fix check heading in
+# the review-plan-<n>.md with the highest number), runs the check of the first phase 4 row, with the
+# row itself counted as the phase 3 row. A criterion change row skips it, as the header says.
 close_form='^((default:? )?([a-z0-9]+ )?plan gate( is| [0-9]+( \([^)]*\))?| round ([0-9]+|on [^:;,]*))?( round [0-9]+)?( judged and)? closed|(plan gate fix check|fix check of (the )?plan gate).*[;,] (the )?gate closed|(close|closes|closed|closing) (the )?plan gate)([^a-z]|$)'
 not_closed='(^|[^a-z])not( [a-z]+){0,3} clos(e|ed|es|ing)([^a-z]|$)'
 fix_checked=0

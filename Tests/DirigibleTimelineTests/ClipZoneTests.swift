@@ -37,7 +37,7 @@ struct ClipZoneTests {
         var c = Fixture.c
         c.gain = Gain(dB: -6)!
         #expect(abs(geometry.gainLineY(c, trackGain: .zero, lane: 1) - 66) < 1e-9, "lane 1")
-        #expect(LaneGeometry.gainFraction(dB: -6) == 0.9)
+        #expect(WaveformRange.standard.fraction(dB: -6) == 0.9)
     }
 
     /// Code gate nit: the line of the hit test and the row of the renderer use one scale.
@@ -46,7 +46,7 @@ struct ClipZoneTests {
             var a = Fixture.a
             a.gain = Gain(dB: dB)!
             let y = geometry.gainLineY(a, trackGain: .zero, lane: 0)
-            #expect(abs(y - 60 * (1 - LaneGeometry.gainFraction(dB: dB))) < 1e-9, "\(dB) dB")
+            #expect(abs(y - 60 * (1 - WaveformRange.standard.fraction(dB: dB))) < 1e-9, "\(dB) dB")
         }
     }
 

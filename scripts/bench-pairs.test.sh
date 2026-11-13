@@ -459,6 +459,38 @@ code=$?
 [[ $code -eq 2 && "$out" == *'is in a git tree and git does not ignore it'* ]] || fail "an out folder in a tree: exit $code: $out"
 [[ ! -e "$r/pairs-out" ]] || fail 'an out folder in a tree: the folder was made'
 
+# A line of a pane cost (SessionIndexEditBenchmark, SessionIndexBenchmark pane delete), in ms or in
+# seconds, gives the added p95 and the shown p95 as cases. A split line only prints: no case and no
+# NO VERDICT. A "p50 N ms, p95 N ms" line gives its p95.
+mkdir "$tmp/pane"
+pset=pane
+edit() { # edit <added p95 ms of the delete of 100 rows>
+  printf 'SessionIndexEditBenchmark delete of 100 rows: hidden p50 30.8 ms p95 33.7 ms, shown p50 66.2 ms p95 81.6 ms, added p95 %s ms, added p50 35.4 ms, load 2.1748046875' "$1"
+}
+pane_lines=(
+  'SessionIndexEditBenchmark split delete of 100 rows shown spin/show table: p50 13.5 ms, p95 14.8 ms'
+  'SessionIndexEditBenchmark split delete of 100 rows shown pushes: p50 1, max 1'
+  'SessionIndexEditBenchmark lane delete of all clips: hidden p50 0.039464484 seconds p95 0.044226744 seconds, shown p50 0.063089012 seconds p95 0.066062677 seconds, added p95 0.021835933 seconds, added p50 0.023624528 seconds, load 2.24072265625'
+  'SessionIndexEditBenchmark list delete edit pane hidden: p50 38.1 ms, p95 39.6 ms, load 2.123046875'
+  'SessionIndexEditBenchmark list delete of all rows: hidden p50 38.1 ms p95 41.2 ms, shown p50 54.3 ms p95 56.8 ms, added p95 15.5 ms, added p50 16.2 ms, select all p50 4.8 ms p95 5.0 ms, load 2.19287109375'
+  'SessionIndexBenchmark filter p95: 0.00066292 seconds, p50 0.000496993 seconds, max 0.000792514 seconds'
+)
+for f in aa-1 aa-2 main-1 main-2; do slog "$f" "$(edit 47.9)" "${pane_lines[@]}"; done
+for f in branch-1 branch-2; do slog "$f" "$(edit 60)" "${pane_lines[@]}"; done
+judged 'the lines of a pane cost' 1 \
+  'NOT VERIFIED SessionIndexEditBenchmark delete of 100 rows added' \
+  'VERIFIED SessionIndexEditBenchmark delete of 100 rows shown' \
+  'VERIFIED SessionIndexEditBenchmark lane delete of all clips added' \
+  'VERIFIED SessionIndexEditBenchmark lane delete of all clips shown' \
+  'VERIFIED SessionIndexEditBenchmark list delete of all rows added' \
+  'VERIFIED SessionIndexEditBenchmark list delete of all rows shown' \
+  'VERIFIED SessionIndexEditBenchmark list delete edit pane hidden' \
+  'VERIFIED SessionIndexBenchmark filter'
+[[ "$out" != *'NO VERDICT'* && "$out" != *'VERIFIED SessionIndexEditBenchmark split'* ]] ||
+  fail "a split line is no case and no NO VERDICT: $out"
+grep -qF 'main/branch p95 ms per pair: 47.90/60.00 47.90/60.00' <<< "$out" ||
+  fail "the added p95 of the delete of 100 rows is its value: $out"
+
 # bench.sh has no Makefile line of its own: its test runs here.
 bash "$(dirname "$0")/bench.test.sh" || failures=$((failures + 1))
 # with-lock.sh has no Makefile line of its own either (a Makefile change makes the push class bundle).

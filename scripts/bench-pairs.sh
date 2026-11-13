@@ -83,10 +83,24 @@ metric = {}
 # The cases (name, seconds, metric) of a line that a bench prints, from the first form that reads it.
 # <S> is the suite of the last "◇ Suite <S> started." line. A line of the base form gives its p95, or
 # its p50 when the bench prints p50 and max (NavigationKeyBenchmark, whose budget is on the p50).
+# A pane cost line ("hidden ..., shown ..., added p95 ...") gives "<name> added" and "<name> shown",
+# each a p95. A "<S>Benchmark split" line only prints the parts of a span (`split` below).
+split = re.compile(r'\w+Benchmark split ')
 def forms(line, suite):
-    if 'over debug budget' in line: return []
+    if 'over debug budget' in line or split.match(line): return []
     m = re.match(r'(\w+Benchmark .+?): (?:drag )?p50 ([0-9.e-]+) seconds, (p95|max) ([0-9.e-]+) seconds', line)
     if m: return [(m.group(1), float(m.group(4)), 'p95') if m.group(3) == 'p95' else (m.group(1), float(m.group(2)), 'p50')]
+    U = r'(?:ms|seconds)'
+    m = re.match(rf'(\w+Benchmark .+?): hidden p50 {N} (ms|seconds) p95 {N} {U}, shown p50 {N} {U} p95 {N} {U}, '
+                 rf'added p95 {N} {U}', line)
+    if m:
+        scale = 1000 if m.group(3) == 'ms' else 1
+        return [(f'{m.group(1)} added', float(m.group(7)) / scale, 'p95'),
+                (f'{m.group(1)} shown', float(m.group(6)) / scale, 'p95')]
+    m = re.match(rf'(\w+Benchmark .+?): p50 {N} ms, p95 {N} ms', line)
+    if m: return [(m.group(1), float(m.group(3)) / 1000, 'p95')]
+    m = re.match(rf'(\w+Benchmark .+?) p95: {N} seconds, p50 {N} seconds', line)
+    if m: return [(m.group(1), float(m.group(2)), 'p95')]
     for pattern, suffix, kind in ((rf'(\w+Benchmark .+?): p95 {N} seconds', '', 'p95'),
                                   (rf'(\w+Benchmark .+?): max {N} seconds', '', 'max'),
                                   (rf'(\w+Benchmark .+?): one-off events .*; max {N} seconds', ', one-off', 'max')):
@@ -148,6 +162,7 @@ def scan(path):
         cases.update(found)
         if test: tests[test].update(found)
         if (not found and depth > 0 and not re.match(r'[✘✔◇➜↳]|bench:', line) and 'over debug budget' not in line
+                and not split.match(line)
                 and re.search(r'(?<![\w.])[0-9][0-9.e-]* (?:seconds|ms)\b|seconds: [0-9]', line)):
             unread.add((suite, re.sub(r'[0-9]+(?:\.[0-9]+)?(?:e-?[0-9]+)?', 'N', line)))
     logs[path] = cases, failed, tests, unread

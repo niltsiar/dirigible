@@ -129,6 +129,9 @@ import SwiftUI
     /// The last Auto Level, for its banner. The next Auto Level and the next take start remove it;
     /// the banner shows only at its session revision.
     var levelReport: LevelReportShown?
+    /// The last Delete in the index list, for its banner at its session revision.
+    var indexDeleted: IndexDeletedShown?
+    @ObservationIgnored var indexDeletePresses = 0
     /// The last Reduce Noise, for its banner at its session revision.
     var denoiseReport: DenoiseReportShown?
     @ObservationIgnored var denoisePresses = 0

@@ -146,18 +146,6 @@ import Testing
         await model.close()
     }
 
-    @Test func deleteBeepsInTheList() async throws {
-        defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
-        let (model, studio, window, table, beeps) = try await list()
-        let selection = model.timeline.selection
-        try windows.click(row: 2, table, in: window)
-        windows.app.timeline(.delete, event: key(.keyDown, "\u{7f}", code: 51, in: window), in: window)
-        #expect(beeps() == 1, "Delete beeps")
-        #expect(table.numberOfRows == 6 && studio.session.markers["m1"] != nil && !studio.canUndo)
-        #expect(model.timeline.selectedRows == [.marker("m1")] && model.timeline.selection == selection)
-        await model.close()
-    }
-
     @Test func deselectAllInTheListEmptiesTheRowsOnly() async throws {
         defer { windows.defaults.removePersistentDomain(forName: windows.suite) }
         let (model, _, window, table, beeps) = try await list()

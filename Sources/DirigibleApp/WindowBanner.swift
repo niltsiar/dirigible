@@ -17,6 +17,14 @@ struct LevelReportShown: Equatable {
     let press: Int
 }
 
+/// The rows that the last Delete in the index list removed, the session revision after it, and the
+/// number of its press, so each Delete gives a new banner key.
+struct IndexDeletedShown: Equatable {
+    let count: Int
+    let revision: Int
+    let press: Int
+}
+
 /// The result of the last Reduce Noise: the clips that moved, the treatment of the run, the
 /// session revision after it, and the number of its run, so each run gives a new banner key.
 struct DenoiseReportShown: Equatable {
@@ -105,6 +113,8 @@ enum WindowBanner: Equatable {
     case transcriptionStopped(TranscribeRequest, press: Int)
     /// A transcription job kept no word, so the track is unchanged.
     case noWordsFound(press: Int)
+    /// A Delete in the index list removed `count` rows. The window posts the same text itself.
+    case rowsDeleted(count: Int, press: Int)
 
     enum Kind: CaseIterable {
         case warning, error, info, recording
@@ -161,6 +171,7 @@ enum WindowBanner: Equatable {
         case .takeSyncBroken(let take, _, _, _, _): "takeSyncBroken.\(take)"
         case .transcriptionStopped(_, let press): "transcriptionStopped.\(press)"
         case .noWordsFound(let press): "noWordsFound.\(press)"
+        case .rowsDeleted(_, let press): "rowsDeleted.\(press)"
         }
     }
 
@@ -172,7 +183,7 @@ enum WindowBanner: Equatable {
             .warning
         case .missingMedia, .unusedFilesFailed: .error
         case .unusedFilesMoved, .consentExpired, .noiseReduced, .soundRepaired, .leveledOverTime, .noWordsFound,
-            .exportSetDone:
+            .exportSetDone, .rowsDeleted:
             .info
         case .levelReport(let report, _): report.atLimit > 0 ? .warning : .info
         case .exportReport(let report, _): report.exceedsLevelLimit ? .warning : .info
@@ -214,6 +225,7 @@ enum WindowBanner: Equatable {
             takeSyncBreakText(take: take, from: from, rate: rate, agent: agent)
         case .transcriptionStopped: L10n.transcribeStopped.text
         case .noWordsFound: L10n.transcribeNoWords.text
+        case .rowsDeleted(let count, _): L10n.indexPostDeleted.format(count)
         }
     }
 
@@ -227,6 +239,7 @@ enum WindowBanner: Equatable {
             .unusedFilesFailed, .consentExpired, .duckNoSpeech, .duckUnread, .takeSyncBroken,
             .transcriptionStopped, .noWordsFound:
             .medium
+        case .rowsDeleted: nil
         }
     }
 }

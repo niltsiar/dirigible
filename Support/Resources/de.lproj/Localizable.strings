@@ -881,3 +881,4 @@
 "index.action.play.from.here" = "Ab hier abspielen";
 "index.menu.play.from.here" = "Ab hier abspielen";
 "index.post.selected.gone" = "Ausgewähltes Element entfernt";
+"index.post.deleted" = "%lld Elemente gelöscht";

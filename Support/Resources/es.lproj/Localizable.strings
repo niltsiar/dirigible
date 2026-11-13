@@ -881,3 +881,4 @@
 "index.action.play.from.here" = "Reproducir desde aquí";
 "index.menu.play.from.here" = "Reproducir desde aquí";
 "index.post.selected.gone" = "Elemento seleccionado eliminado";
+"index.post.deleted" = "%lld elementos eliminados";

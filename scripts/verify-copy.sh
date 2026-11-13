@@ -21,8 +21,8 @@
 #                                  the screen lock (only when the file is absent). start keeps the
 #                                  recovery hint and the cache of the copy ID, so a kill -9 and a
 #                                  start keep them and build/verify/logs. A start that stopped a
-#                                  running copy deletes build/verify/logs: that stop ends the
-#                                  journal unclean. stop deletes all of them. The
+#                                  running copy deletes build/verify/logs and says so on stderr:
+#                                  that stop ends the journal unclean. stop deletes all of them. The
 #                                  flags come before the package, in any order. While the copy of
 #                                  another worktree runs, wait for the screen lock up to
 #                                  VERIFY_COPY_SCREEN_WAIT s (default 480), then exit 1; a socket
@@ -264,6 +264,7 @@ start() {
     stop_copy >/dev/null
     if [[ $stopped_copy -eq 1 ]]; then
         rm -rf "$root/build/verify/logs"
+        echo "verify-copy.sh: stopped a running copy and deleted build/verify/logs" >&2
     fi
     reset_copy
     mkdir -p "$root/build/verify"

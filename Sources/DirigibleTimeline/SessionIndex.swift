@@ -23,6 +23,9 @@ public struct SessionIndex: Equatable, Sendable {
         public let item: Item
         public let name: String
         public fileprivate(set) var position: Frames
+        /// The length of a clip, and for a chapter the time to the next chapter or to the session end.
+        /// A marker has none.
+        public fileprivate(set) var duration: Frames?
         /// The name, a line break, and the track name of a clip, folded once at the row build.
         fileprivate let searchText: String
         /// The track order of a clip, 0 for a marker.
@@ -61,7 +64,9 @@ public struct SessionIndex: Equatable, Sendable {
             keyed.append((row.key, row))
         }
         keyed.sort { $0.key < $1.key }
-        rows = keyed.map(\.row)
+        var rows = keyed.map(\.row)
+        Self.setChapterDurations(&rows, end: session.end)
+        self.rows = rows
     }
 
     /// The most rows that the list removes and inserts: a larger change reloads the list.
@@ -79,22 +84,25 @@ public struct SessionIndex: Equatable, Sendable {
             return
         }
         var moved: [Pick: Frames] = [:]
+        var resized: [Pick: Frames] = [:]
         var gone: Set<Pick> = []
         var added: [Row] = []
         for (order, (track, old)) in zip(session.tracks, earlier.tracks).enumerated() where track.clips != old.clips {
             let (was, now) = (old.clips, track.clips)
             var head = 0
             while head < was.count, head < now.count, was[head].id == now[head].id,
-                was[head].start == now[head].start, was[head].file == now[head].file
+                was[head].start == now[head].start, was[head].file == now[head].file,
+                was[head].length == now[head].length
             {
                 head += 1
             }
-            // A clip row depends on the ID, the file, and the start only.
+            // A clip row depends on the ID, the file, the start, and the length only.
             var tail = 0
             while tail < was.count - head, tail < now.count - head {
                 let (before, after) = (was[was.count - 1 - tail], now[now.count - 1 - tail])
                 guard before.id == after.id, before.file == after.file else { break }
                 if before.start != after.start { moved[.clip(after.id)] = after.start }
+                if before.length != after.length { resized[.clip(after.id)] = after.length }
                 tail += 1
             }
             gone.formUnion(was[head..<was.count - tail].map { .clip($0.id) })
@@ -122,14 +130,33 @@ public struct SessionIndex: Equatable, Sendable {
             if let position = moved[row.id] {
                 var row = row
                 row.position = position
+                row.duration = resized[row.id] ?? row.duration
                 shifted.append(row)
+            } else if let length = resized[row.id] {
+                var row = row
+                row.duration = length
+                kept.append(row)
             } else if !gone.contains(row.id) {
                 kept.append(row)
             }
         }
         if !zip(shifted, shifted.dropFirst()).allSatisfy({ $0.key < $1.key }) { shifted.sort { $0.key < $1.key } }
         added.sort { $0.key < $1.key }
-        rows = Self.merged(Self.merged(kept, shifted), added)
+        var rows = Self.merged(Self.merged(kept, shifted), added)
+        Self.setChapterDurations(&rows, end: session.end)
+        self.rows = rows
+    }
+
+    /// Sets the duration of each chapter row: the time to the next chapter row, or to `end`, and
+    /// 0 for a chapter at or after `end`. The pass runs at each update, as a clip that moves or
+    /// resizes, or a chapter that moves, changes the duration of other rows.
+    private static func setChapterDurations(_ rows: inout [Row], end: Frames) {
+        var next = end
+        for n in rows.indices.reversed() where rows[n].kind == .chapter {
+            let position = rows[n].position
+            rows[n].duration = next < position ? .zero : next - position
+            next = position
+        }
     }
 
     /// The rows of `first` and `second`, each in timeline order, in timeline order.
@@ -237,14 +264,14 @@ extension SessionIndex.Row {
     fileprivate init(clip: Clip, of track: Track, at order: Int, in session: Session) {
         let name = ClipInspection.name(of: clip, in: session)
         self.init(
-            item: .clip(clip.id, track: track.name), name: name, position: clip.start,
+            item: .clip(clip.id, track: track.name), name: name, position: clip.start, duration: clip.length,
             searchText: SessionIndex.folded(name + "\n" + track.name), track: order)
     }
 
     fileprivate init(marker: Marker) {
         self.init(
             item: SessionIndex.Item(marker), name: marker.name,
-            position: marker.position, searchText: SessionIndex.folded(marker.name), track: 0)
+            position: marker.position, duration: nil, searchText: SessionIndex.folded(marker.name), track: 0)
     }
 }
 

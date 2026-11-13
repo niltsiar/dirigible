@@ -31,11 +31,13 @@ public struct LaneGeometry: Equatable, Sendable {
     public let scale: TimelineScale
     /// Points.
     public let laneHeight: Double
+    /// The dB that the lane height shows: the gain line, the points, and the gain drags scale with it.
+    public let range: WaveformRange
 
     /// Nil unless the frames per point and the lane height are more than 0.
-    public init?(scale: TimelineScale, laneHeight: Double) {
+    public init?(scale: TimelineScale, laneHeight: Double, range: WaveformRange = .standard) {
         guard scale.framesPerPoint > 0, laneHeight > 0 else { return nil }
-        (self.scale, self.laneHeight) = (scale, laneHeight)
+        (self.scale, self.laneHeight, self.range) = (scale, laneHeight, range)
     }
 
     /// The frame at `x`; an x before 0 gives frame 0.
@@ -104,12 +106,8 @@ public struct LaneGeometry: Equatable, Sendable {
     /// The width of a trim zone inside each clip edge (points).
     static let trimReach = 4.0
 
-    /// The fraction of the lane height of a 0 dBFS signal at `dB` on the -60 dB to 0 dB scale of
-    /// the waveform (decision 0017). `LaneRenderer` draws with it, so the line and the waveform agree.
-    public static func gainFraction(dB: Double) -> Double { min(max((dB + 60) / 60, 0), 1) }
-
     /// The y of the gain line of `clip` in `lane`: the top of a 0 dBFS signal with the clip gain
-    /// and the track gain: the lane height times 1 - `gainFraction` under the lane top. Over 0 dB
+    /// and the track gain: the lane height times 1 - `WaveformRange.fraction(dB:)` under the lane top. Over 0 dB
     /// the line stays at the lane top. The product comes first, so a whole dB gives an exact y.
     public func gainLineY(_ clip: Clip, trackGain: Gain, lane: Int) -> Double {
         lineY(gain: clip.gain.dB + trackGain.dB, lane: lane)
@@ -123,7 +121,7 @@ public struct LaneGeometry: Equatable, Sendable {
     }
 
     private func lineY(gain: Double, lane: Int) -> Double {
-        Double(lane) * laneHeight + laneHeight * min(max(-gain, 0), 60) / 60
+        Double(lane) * laneHeight + laneHeight * min(max(-gain, 0), range.dB) / range.dB
     }
 
     /// A point of the envelope of a clip as the lanes show it: the index in `Clip.envelope.points`

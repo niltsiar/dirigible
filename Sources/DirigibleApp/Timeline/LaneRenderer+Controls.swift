@@ -88,7 +88,7 @@ extension LaneRenderer {
         let scale = region.window.scale
         let (rows, pixelFrames) = (region.window.rows(of: lane..<lane + 1), geometry.scale.framesPerPoint / scale)
         let gain = clip.gain.dB + track.gain.dB
-        let height = Int((LaneGeometry.gainFraction(dB: gain) * Double(rows.count)).rounded())
+        let height = Int((WaveformRange.standard.fraction(dB: gain) * Double(rows.count)).rounded())
         let row = min(rows.upperBound - height, rows.upperBound - 1)
         func column(_ frame: Frames) -> Int { Int((geometry.x(of: frame) * scale).rounded(.up)) }
         let box = column(clip.start)..<column(clip.end)

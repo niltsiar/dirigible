@@ -81,7 +81,7 @@ extension TimelineGesture {
     }
 
     /// A point drag event: the point follows the pointer in time, between its neighbors and inside the
-    /// clip window, and in dB (the line stays under the pointer, 60 dB per lane height, rounded to
+    /// clip window, and in dB (the line stays under the pointer, the waveform range per lane height, rounded to
     /// 0.1 dB, from min(start, `PointGain.floor`) to max(start, `Gain.levelLimit`)). A take ends the drag.
     mutating func pointDrag(_ press: Press, _ drag: PointDrag, _ x: Double, _ y: Double, _ context: GestureContext)
         -> [GestureEffect]
@@ -100,7 +100,10 @@ extension TimelineGesture {
         let frame = min(max(start.frame + press.delta(to: x, context.geometry), low), high)
         var dB = start.gain.dB
         if y != press.y {
-            let moved = ((start.gain.dB + (press.y - y) * 60 / context.geometry.laneHeight) * 10).rounded() / 10
+            let geometry = context.geometry
+            let moved =
+                ((start.gain.dB + geometry.range.decibels(points: press.y - y, laneHeight: geometry.laneHeight)) * 10)
+                .rounded() / 10
             dB = min(max(moved, min(start.gain.dB, PointGain.floor)), max(start.gain.dB, Gain.levelLimit))
         }
         guard let gain = Gain(dB: dB), GainEnvelope.Point(frame: frame, gain: gain) != drag.point else { return [] }
@@ -152,8 +155,8 @@ extension TimelineGesture {
         return selection.range
     }
 
-    /// A range-gain drag event: the gain of the range follows the pointer (60 dB per lane height,
-    /// rounded to 0.1 dB, at most `Gain.levelLimit` each way), with ramps of 500 ms. A take ends it.
+    /// A range-gain drag event: the gain of the range follows the pointer (the waveform range per
+    /// lane height, rounded to 0.1 dB, at most `Gain.levelLimit` each way), with ramps of 500 ms. A take ends it.
     mutating func rangeGainDrag(_ press: Press, _ drag: RangeGainDrag, _ y: Double, _ context: GestureContext)
         -> [GestureEffect]
     {
@@ -161,7 +164,8 @@ extension TimelineGesture {
             state = .dropped
             return []
         }
-        let dB = ((press.y - y) * 60 / context.geometry.laneHeight * 10).rounded() / 10
+        let geometry = context.geometry
+        let dB = (geometry.range.decibels(points: press.y - y, laneHeight: geometry.laneHeight) * 10).rounded() / 10
         guard let gain = Gain(dB: min(max(dB, -Gain.levelLimit), Gain.levelLimit)), gain != drag.gain else { return [] }
         var preview = press.base
         // The range is in the clip, so no input reaches a throw. A throw keeps the last preview.

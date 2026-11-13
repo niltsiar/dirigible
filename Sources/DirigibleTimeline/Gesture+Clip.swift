@@ -89,7 +89,7 @@ extension TimelineGesture {
                 preview: press.base))
     }
 
-    /// A gain drag event: the line stays under the pointer (60 dB per lane height), rounded to
+    /// A gain drag event: the line stays under the pointer (the waveform range per lane height), rounded to
     /// 0.1 dB, from min(start, -limit) to max(start, limit) with `Gain.levelLimit`, so a start
     /// outside the limit never jumps. A take ends the drag.
     mutating func gainDrag(_ press: Press, _ drag: GainDrag, _ y: Double, _ context: GestureContext) -> [GestureEffect]
@@ -99,7 +99,10 @@ extension TimelineGesture {
             return []
         }
         let start = drag.clip.gain.dB
-        let dB = ((start + (press.y - y) * 60 / context.geometry.laneHeight) * 10).rounded() / 10
+        let geometry = context.geometry
+        let dB =
+            ((start + geometry.range.decibels(points: press.y - y, laneHeight: geometry.laneHeight)) * 10).rounded()
+            / 10
         guard let gain = Gain(dB: min(max(dB, min(start, -Gain.levelLimit)), max(start, Gain.levelLimit))),
             gain != drag.gain
         else { return [] }

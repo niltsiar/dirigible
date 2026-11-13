@@ -494,11 +494,14 @@ has_copy_state "$real_id" || fail "C13 stop deleted a folder of the real ID"
 # so its journal ends unclean and the next launch would show the unclean-quit banner.
 new_case
 run start
+[[ "$err" != *"deleted build/verify/logs"* ]] || fail "restart: the first start printed the deletion line: $err"
 mkdir -p "$logs"
 echo x >"$logs/old.journal"
 run start
 [[ $code -eq 0 ]] || fail "restart: exit $code: $err"
 [[ ! -e "$logs/old.journal" ]] || fail "restart: start of a running copy kept the old journal"
+[[ "$err" == *"verify-copy.sh: stopped a running copy and deleted build/verify/logs"* ]] ||
+    fail "restart: no stderr line names the deleted journal: $err"
 run stop
 
 # C14 after kill -9 of the copy, stop exits 0 and C13 holds.
@@ -534,6 +537,7 @@ run start
 grep -q 'Pilot.dirigible' "$HOME/Library/Application Support/$copy_id/active-recordings.plist" 2>/dev/null ||
     fail "C14b start deleted the recovery hint"
 [[ -f "$logs/app.log" ]] || fail "C14b start deleted the journal"
+[[ "$err" != *"deleted build/verify/logs"* ]] || fail "C14b start printed the deletion line: $err"
 [[ ! -e "$sock" ]] || fail "C14b start kept the old socket"
 run stop
 

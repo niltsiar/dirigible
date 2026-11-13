@@ -3,8 +3,10 @@ import DirigibleCore
 import DirigibleTimeline
 
 extension IndexTableSource {
-    /// Runs a mouse or key handler of the table. The rows that it writes show at once, so their push
-    /// does not scroll the list to the anchor.
+    /// Runs a mouse or key handler of the table, or the selection of the row after a list Delete. The
+    /// push of the rows that it writes does not scroll the list to the anchor: the rows of a handler
+    /// show at once, and after a Delete the table still holds the deleted rows. The table scrolls to
+    /// the row after the Delete when it shows the new rows.
     func fromList<T>(_ body: () -> T) -> T {
         listWrite = true
         defer { listWrite = false }

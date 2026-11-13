@@ -47,7 +47,8 @@ extension SessionWindow {
         let next = shown.lastIndex { picks.contains($0.id) }
             .flatMap { shown[($0 + 1)...].first ?? shown.last { !picks.contains($0.id) } }?.id
         guard removeIndexRows(picks) else { return }
-        timeline.selectRows(next.map { [$0] } ?? [], anchor: next, form: .indexSet)
+        let select = { [self] in timeline.selectRows(next.map { [$0] } ?? [], anchor: next, form: .indexSet) }
+        if let source = leadingPane.table?.dataSource as? IndexTableSource { source.fromList(select) } else { select() }
         indexDeletePresses += 1
         indexDeleted = IndexDeletedShown(
             count: picks.count, revision: studio.sessionRevision, press: indexDeletePresses)

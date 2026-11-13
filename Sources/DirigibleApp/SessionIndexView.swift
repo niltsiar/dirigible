@@ -35,6 +35,10 @@ struct SessionIndexView: View {
             IndexKindFilter(kind: Bindable(pane).kind)
             SessionIndexTable(model: model, pane: pane, rows: rows, rate: studio.session.sampleRate)
                 .overlay { emptyView(Empty(rows: rows.count, of: index.rows.count), search: pane.search) }
+            HStack {
+                IndexAddButton(model: model).fixedSize()
+                Spacer()
+            }
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -64,6 +68,76 @@ struct SessionIndexView: View {
         case .noResults: ContentUnavailableView.search(text: search)
         }
     }
+}
+
+/// The footer pull-down "Add": Add Marker and Add Chapter, with the keys of the Markers menu. A choice
+/// adds at the playhead and opens the name field of the new row. It follows the list in the tab
+/// order. The keys only show: the Markers menu runs them.
+struct IndexAddButton: NSViewRepresentable {
+    let model: SessionWindow
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> IndexAddPopUp {
+        let coordinator = context.coordinator
+        coordinator.model = model
+        let button = IndexAddPopUp(frame: .zero, pullsDown: true)
+        button.controlSize = .small
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.delegate = coordinator
+        let title = NSMenuItem(title: L10n.indexFooterAdd.text, action: nil, keyEquivalent: "")
+        title.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+        menu.addItem(title)
+        for command in Coordinator.commands {
+            let item = WindowCommand.timeline(command).menuItem
+            let shown = NSMenuItem(title: item.title.text, action: #selector(Coordinator.add(_:)), keyEquivalent: "")
+            shown.target = coordinator
+            shown.tag = command == .addChapter ? 1 : 0
+            shown.keyEquivalent = String(item.key.key.character)
+            shown.keyEquivalentModifierMask = Self.flags(item.key.modifiers)
+            menu.addItem(shown)
+        }
+        button.menu = menu
+        button.setAccessibilityLabel(L10n.indexFooterAdd.text)
+        button.toolTip = L10n.indexFooterAdd.text
+        return button
+    }
+
+    func updateNSView(_ button: IndexAddPopUp, context: Context) { context.coordinator.model = model }
+
+    private static func flags(_ modifiers: EventModifiers) -> NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        for (modifier, flag) in [
+            (EventModifiers.command, NSEvent.ModifierFlags.command), (.shift, .shift), (.option, .option),
+            (.control, .control),
+        ] where modifiers.contains(modifier) {
+            flags.insert(flag)
+        }
+        return flags
+    }
+
+    @MainActor final class Coordinator: NSObject, NSMenuDelegate {
+        static let commands: [TimelineCommand] = [.addMarker, .addChapter]
+        weak var model: SessionWindow?
+
+        @objc func add(_ item: NSMenuItem) { model?.addIndexMarker(item.tag == 1 ? .chapter : .marker) }
+
+        /// The items are on as the Markers menu items are.
+        func menuNeedsUpdate(_ menu: NSMenu) {
+            for (item, command) in zip(menu.items.dropFirst(), Self.commands) {
+                item.isEnabled = model?.isOn(command) ?? false
+            }
+        }
+    }
+}
+
+/// A pull-down that leaves the key equivalents of its items to the Markers menu.
+final class IndexAddPopUp: NSPopUpButton {
+    /// A pull-down joins the tab order without Full Keyboard Access, as the fields of the pane do.
+    override var canBecomeKeyView: Bool { window != nil && !isHiddenOrHasHiddenAncestor }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool { false }
 }
 
 /// The search field as an `NSTextField` that `LeadingPaneState.searchField` holds: the window finds

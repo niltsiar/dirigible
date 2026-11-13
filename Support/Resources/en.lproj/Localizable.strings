@@ -882,3 +882,4 @@
 "index.menu.play.from.here" = "Play from Here";
 "index.post.selected.gone" = "Selected item removed";
 "index.post.deleted" = "Deleted %lld items";
+"index.footer.add" = "Add";

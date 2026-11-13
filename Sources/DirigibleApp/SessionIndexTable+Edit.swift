@@ -2,20 +2,31 @@ import AppKit
 import DirigibleCore
 import DirigibleTimeline
 
-/// The name field of a marker or chapter row and the row menu. The state of the field is
-/// `LeadingPaneState.rowEdit`: the field view shows it, and `SessionWindow.finishRowEdit` ends it.
+/// The name field and the time field of a marker or chapter row, and the row menu. The state of the
+/// field is `LeadingPaneState.rowEdit`: the field view shows it, and `SessionWindow.finishRowEdit` ends it.
 extension IndexTableSource: NSTextFieldDelegate, NSMenuDelegate {
-    /// Shows the open row edit in the name cell of its row. A reload that removed the field opens it
-    /// again with the text typed so far. A row that is gone ends the edit with no commit.
+    /// The column of the field of an edit: Name or Start.
+    private func column(of edit: LeadingPaneState.RowEdit) -> Int {
+        table?.column(
+            withIdentifier: edit.field == .name ? SessionIndexTable.nameColumn : SessionIndexTable.startColumn) ?? 0
+    }
+
+    /// Shows the open row edit in the cell of its row. A reload that removed the field opens it
+    /// again with the text typed so far. A row that is gone from the session ends the edit with no
+    /// commit. A row that the list does not show yet (a marker just added) waits: `show` opens the
+    /// field when the row first shows.
     func openField(select: Bool) {
         guard let table, let pane, let edit = pane.rowEdit else { return }
         guard let row = rows.firstIndex(where: { $0.id == .marker(edit.marker) }) else {
-            model?.finishRowEdit(save: false)
+            if model?.studio?.session.markers[edit.marker] == nil { model?.finishRowEdit(save: false) }
             return
         }
         table.scrollRowToVisible(row)
-        guard let cell = table.view(atColumn: 0, row: row, makeIfNecessary: true) as? IndexCell else { return }
-        let field = cell.beginEditing(text: edit.text, delegate: self)
+        let column = column(of: edit)
+        guard let cell = table.view(atColumn: column, row: row, makeIfNecessary: true) as? IndexCell else { return }
+        let field = cell.beginEditing(
+            text: edit.text, accessibility: (edit.field == .name ? L10n.markerName : L10n.indexColumnStart).text,
+            delegate: self)
         editing = field
         table.window?.makeFirstResponder(field)
         field.currentEditor()?.selectedRange =
@@ -31,11 +42,12 @@ extension IndexTableSource: NSTextFieldDelegate, NSMenuDelegate {
         editing = nil
         let focused = field.currentEditor() != nil
         if focused { table.window?.makeFirstResponder(table) }
+        let column = table.column(for: field)
         (field.superview as? IndexCell)?.endEditing()
         table.mark.edit(row: nil, in: table)
         table.mark.hold(.rowField, open: false)
         let row = table.row(for: field)
-        if row >= 0 { table.reloadData(forRowIndexes: [row], columnIndexes: [0]) }
+        if row >= 0, column >= 0 { table.reloadData(forRowIndexes: [row], columnIndexes: [column]) }
     }
 
     func controlTextDidChange(_ note: Notification) {
@@ -64,18 +76,28 @@ extension IndexTableSource: NSTextFieldDelegate, NSMenuDelegate {
         return true
     }
 
-    /// Tab and Shift-Tab: the typed name is saved, and the field opens on the next or the previous
-    /// marker or chapter row, which skips the clip rows. At the last row the field ends.
+    /// Tab and Shift-Tab run the fields in this order: the name and the time of each marker or chapter
+    /// row, which skips the clip rows. The target is picked from the rows as they show now, before the
+    /// commit moves a row. The typed value is saved, and the field opens on the target. At the end the
+    /// field ends.
     private func move(by step: Int) {
         guard let model, let edit = pane?.rowEdit,
             let here = rows.firstIndex(where: { $0.id == .marker(edit.marker) })
         else { return }
         let names = rows.indices.filter { rows[$0].kind != .clip }
-        let target = step > 0 ? names.first { $0 > here } : names.last { $0 < here }
-        guard model.finishRowEdit(save: true, strict: true), let target, case .marker(let id) = rows[target].id
+        let neighbor = step > 0 ? names.first { $0 > here } : names.last { $0 < here }
+        let target: (row: Int, field: LeadingPaneState.RowEdit.Field)?
+        switch (edit.field, step > 0) {
+        case (.name, true): target = (here, .start)
+        case (.start, false): target = (here, .name)
+        case (.start, true): target = neighbor.map { ($0, .name) }
+        case (.name, false): target = neighbor.map { ($0, .start) }
+        }
+        let pick = target.map { rows[$0.row].id }
+        guard model.finishRowEdit(save: true, strict: true), let target, let pick, case .marker(let id) = pick
         else { return }
-        model.timeline.selectRows([rows[target].id], anchor: rows[target].id)
-        model.beginRowEdit(id)
+        if target.row != here { model.timeline.selectRows([pick], anchor: pick) }
+        model.beginRowEdit(id, field: target.field)
     }
 
     /// The menu of a row: Rename on a marker or chapter row, and Play from Here on each row.

@@ -33,8 +33,8 @@ final class IndexCell: NSTableCellView {
 
     required init?(coder: NSCoder) { nil }
 
-    /// The name as a field: a bezel and a background, the label "Name" for VoiceOver.
-    func beginEditing(text: String, delegate: NSTextFieldDelegate) -> NSTextField {
+    /// The text as a field: a bezel and a background, and `accessibility` for VoiceOver.
+    func beginEditing(text: String, accessibility: String, delegate: NSTextFieldDelegate) -> NSTextField {
         label.delegate = delegate
         label.isEditable = true
         label.isSelectable = true
@@ -43,7 +43,7 @@ final class IndexCell: NSTableCellView {
         label.drawsBackground = true
         label.stringValue = text
         label.setAccessibilityElement(true)
-        label.setAccessibilityLabel(L10n.markerName.text)
+        label.setAccessibilityLabel(accessibility)
         return label
     }
 

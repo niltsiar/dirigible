@@ -6,11 +6,10 @@ import Foundation
 /// (decision 0036).
 extension LaneRenderer {
     /// The row of the fade line of a 0 dBFS signal at `gain` dB (the gains and the fade) in the
-    /// lane whose last row is `bottom`: the top of the waveform of `drawColumns`.
+    /// lane whose last row is `bottom`: the top of the waveform of `drawColumns` at `waveform`.
     /// `clamp` rows under the lane top at the least: the line of an envelope clip.
-    static func lineRow(_ gain: Double, bottom: Int, laneRows: Int, clamp: Int = 0) -> Int {
-        let fraction = (gain + 60) / 60
-        let height = fraction <= 0 ? 0 : Int((min(fraction, 1) * Double(laneRows)).rounded())
+    static func lineRow(_ gain: Double, waveform: WaveformRange, bottom: Int, laneRows: Int, clamp: Int = 0) -> Int {
+        let height = Int((waveform.fraction(dB: gain) * Double(laneRows)).rounded())
         return min(max(bottom - height + 1, bottom - laneRows + 1 + clamp), bottom)
     }
 
@@ -68,7 +67,8 @@ extension LaneRenderer {
             for column in columns {
                 guard let factor = fades.factor(column - columns.lowerBound) else { continue }
                 let columnGain = gain + 20 * log10(factor) + (envelope?.gain(column - columns.lowerBound) ?? 0)
-                let row = Self.lineRow(columnGain, bottom: bottom, laneRows: window.laneRows, clamp: clamp)
+                let row = Self.lineRow(
+                    columnGain, waveform: geometry.range, bottom: bottom, laneRows: window.laneRows, clamp: clamp)
                 region.span(palette.label, column: column, rows: row..<row + 1)
             }
         }
@@ -88,7 +88,7 @@ extension LaneRenderer {
         let scale = region.window.scale
         let (rows, pixelFrames) = (region.window.rows(of: lane..<lane + 1), geometry.scale.framesPerPoint / scale)
         let gain = clip.gain.dB + track.gain.dB
-        let height = Int((WaveformRange.standard.fraction(dB: gain) * Double(rows.count)).rounded())
+        let height = Int((geometry.range.fraction(dB: gain) * Double(rows.count)).rounded())
         let row = min(rows.upperBound - height, rows.upperBound - 1)
         func column(_ frame: Frames) -> Int { Int((geometry.x(of: frame) * scale).rounded(.up)) }
         let box = column(clip.start)..<column(clip.end)
@@ -111,7 +111,8 @@ extension LaneRenderer {
             for column in low..<high {
                 let columnGain = gain + layerGains[layerGains.startIndex + column - columns.lowerBound]
                 let row = Self.lineRow(
-                    columnGain, bottom: rows.upperBound - 1, laneRows: rows.count, clamp: clamp)
+                    columnGain, waveform: geometry.range, bottom: rows.upperBound - 1, laneRows: rows.count,
+                    clamp: clamp)
                 // Over 0 dB the line is dashed, with no joint.
                 if columnGain <= 0 || (column / 3) % 2 == 0 {
                     let (top, bottom) = (min(row, previous ?? row), max(row, previous ?? row))

@@ -125,7 +125,9 @@ extension LaneRenderer {
                 resize(range.count)
                 peaks.fill(
                     &values, from: Double(range.lowerBound) * pixelFrames - Double(origin.count), step: pixelFrames)
-                drawColumns(range, gain: track.gain.dB, bottom: rows.upperBound - 1, chip: chip, palette, into: region)
+                drawColumns(
+                    range, waveform: inputs.range, gain: track.gain.dB, bottom: rows.upperBound - 1, chip: chip,
+                    palette, into: region)
             }
             // The edge shows only when the take finalizes, as it shows on the clips after the hand-off.
             if take.finalizing {

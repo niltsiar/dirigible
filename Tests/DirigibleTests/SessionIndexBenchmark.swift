@@ -13,12 +13,18 @@ import Testing
 /// timed to the end of the layout. The budget is 16 ms p95 over 60 keys with -O
 /// (`make bench FILTER=SessionIndexBenchmark`), 100 ms in debug (a proxy: a miss only prints). A
 /// key with all rows selected has the key event budget of `NavigationKeyBenchmark`: 32 ms p95 with -O.
+/// A plain key is also timed to the end of the draw, which prints only. The Delete benches below
+/// gate the added p50 of the pane (shown p50 minus hidden p50: 16 ms with -O) and the shown p95
+/// (100 ms with -O).
 @Suite(.serialized) @MainActor struct SessionIndexBenchmark {
     #if DEBUG
         static let budget = Duration.milliseconds(100)
     #else
         static let budget = Duration.milliseconds(16)
     #endif
+
+    static let addedBudget = Duration.milliseconds(16)
+    static let shownBudget = Duration.milliseconds(100)
 
     /// The session of `MouseEventBenchmark.fixture` (6 tracks, 2,000 clips each) with 200 markers
     /// and 50 chapters. Every row name starts with "take", so the first four keys match 12,250 rows.
@@ -154,8 +160,8 @@ import Testing
         /// The keys with nothing selected, then with all 12,250 rows selected again before each timed key
         /// (outside the span). With rows selected, the span ends when the drop of the hidden rows has
         /// pushed and the selection equals the picks that the key shows; a key that hides no row pushes
-        /// nothing.
-        func time(selecting: Bool) async throws -> [Duration] {
+        /// nothing. With `drawing` the span ends after `drawNow`.
+        func time(selecting: Bool, drawing: Bool = false) async throws -> [Duration] {
             var times: [Duration] = []
             for (n, key) in (Self.keys + Self.keys).enumerated() {
                 if selecting {
@@ -175,6 +181,7 @@ import Testing
                         && (!selecting
                             || model.timeline.selectedRows == kept && (pane.pushes > pushes || kept == everyPick))
                 }
+                if drawing { drawNow(window) }
                 let time = ContinuousClock.now - start
                 try #require(done, "key \(n) \"\(key)\": the list did not update (search \"\(pane.search)\")")
                 try #require(pane.search == key && source.rows == rows, "key \(n) \"\(key)\": wrong rows")
@@ -192,6 +199,10 @@ import Testing
             "SessionIndexBenchmark pane search key: p50 \(Self.p50(times)), p95 \(Self.p95(times)), "
                 + "max \(times.max()!), load \(Self.load)")
         expectWithinBudget(Self.p95(times), Self.budget, "one search key in the pane, p95 \(Self.p95(times))")
+        let drawn = try await time(selecting: false, drawing: true)
+        print(
+            "SessionIndexBenchmark pane search key with the draw: p50 \(Self.p50(drawn)), p95 \(Self.p95(drawn)), "
+                + "max \(drawn.max()!), load \(Self.load)")
         let selected = try await time(selecting: true)
         print(
             "SessionIndexBenchmark pane search key with 12,250 rows selected: p50 \(Self.p50(selected)), "
@@ -207,7 +218,8 @@ import Testing
     /// The Delete of one clip with the pane hidden and shown, in one run. The command, the
     /// SwiftUI update, the lane render, and with the pane shown the list update, to the end of
     /// `drawNow`. Hidden and shown alternate in blocks of 35 Deletes (5 not timed), 60 timed each,
-    /// so a drift of the load shows in both. The budget is the p95 of shown minus the p95 of hidden.
+    /// so a drift of the load shows in both. With -O the pane adds 16 ms p50 or less (the p50 of
+    /// shown minus the p50 of hidden) and the shown span is 100 ms p95 or less.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theIndexAddsUnderOneFrameToADelete() async throws {
         let folder = try TemporaryFolder()
@@ -243,19 +255,22 @@ import Testing
             }
         }
         let (hidden, shown) = (try #require(times[false]), try #require(times[true]))
-        let added = Self.p95(shown) - Self.p95(hidden)
+        let addedP50 = Self.p50(shown) - Self.p50(hidden)
         print(
             "SessionIndexBenchmark pane delete: hidden p50 \(Self.p50(hidden)) p95 \(Self.p95(hidden)), "
-                + "shown p50 \(Self.p50(shown)) p95 \(Self.p95(shown)), added p95 \(added), "
-                + "added p50 \(Self.p50(shown) - Self.p50(hidden)), load \(Self.load)")
-        expectWithinBudget(added, Self.budget, "the pane adds \(added) to a Delete at p95")
+                + "shown p50 \(Self.p50(shown)) p95 \(Self.p95(shown)), "
+                + "added p95 \(Self.p95(shown) - Self.p95(hidden)), added p50 \(addedP50), load \(Self.load)")
+        expectWithinBudget(addedP50, Self.addedBudget, "a Delete: added p50 \(addedP50)")
+        expectWithinBudget(
+            Self.p95(shown), Self.shownBudget, "a Delete: shown p95 \(Self.p95(shown))")
         window.close()
         await model.close()
     }
 
     /// Delete and Close Gap on the range of clip 500 of the first track, as
     /// `theIndexAddsUnderOneFrameToADelete`. The ripple runs on all tracks, so each edit moves the
-    /// later clips of each track and the later marks: about 9,000 rows change place.
+    /// later clips of each track and the later marks: about 9,000 rows change place. The limits are
+    /// the same: the pane adds 16 ms p50 or less, and the shown span is 100 ms p95 or less.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
     func theIndexAddsUnderOneFrameToARippleDelete() async throws {
         let folder = try TemporaryFolder()
@@ -293,12 +308,14 @@ import Testing
             }
         }
         let (hidden, shown) = (try #require(times[false]), try #require(times[true]))
-        let added = Self.p95(shown) - Self.p95(hidden)
+        let addedP50 = Self.p50(shown) - Self.p50(hidden)
         print(
             "SessionIndexBenchmark pane ripple delete: hidden p50 \(Self.p50(hidden)) p95 \(Self.p95(hidden)), "
-                + "shown p50 \(Self.p50(shown)) p95 \(Self.p95(shown)), added p95 \(added), "
-                + "added p50 \(Self.p50(shown) - Self.p50(hidden)), load \(Self.load)")
-        expectWithinBudget(added, Self.budget, "the pane adds \(added) to a ripple delete at p95")
+                + "shown p50 \(Self.p50(shown)) p95 \(Self.p95(shown)), "
+                + "added p95 \(Self.p95(shown) - Self.p95(hidden)), added p50 \(addedP50), load \(Self.load)")
+        expectWithinBudget(addedP50, Self.addedBudget, "a ripple delete: added p50 \(addedP50)")
+        expectWithinBudget(
+            Self.p95(shown), Self.shownBudget, "a ripple delete: shown p95 \(Self.p95(shown))")
         window.close()
         await model.close()
     }

@@ -79,6 +79,23 @@ struct SessionIndexTests {
         #expect(try row("h2", in: session).duration == 256_000, "to the chapter h3")
     }
 
+    /// A ripple runs the pass at each edit of a list of 12,250 rows with 50 chapters: it reads the
+    /// chapter rows only. It returns the count of rows that it read.
+    @Test func theDurationPassReadsOnlyTheChapterRows() throws {
+        var session = try Self.session()
+        for (n, position) in [100_000, 144_000, 400_000].enumerated() {
+            let chapter = Marker(id: MarkerID("k\(n)"), name: "Chapter", position: Frames(position), kind: .chapter)
+            try session.setMarker(chapter)
+        }
+        var rows = SessionIndex(session: session).rows
+        let before = rows
+        #expect(rows.count == 9)
+        #expect(SessionIndex.setChapterDurations(&rows, in: session) == 4, "h1, k0, k1, and k2")
+        #expect(rows == before, "the pass gives the same durations")
+        #expect(try row("k1", in: session).duration == 256_000, "to the chapter k2 past the end")
+        #expect(try row("k2", in: session).duration == .zero, "a chapter after the session end lasts 0")
+    }
+
     @Test func anEndTrimChangesTheDurationsInAnUpdate() throws {
         let before = try Self.session()
         var after = before

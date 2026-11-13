@@ -65,7 +65,7 @@ public struct SessionIndex: Equatable, Sendable {
         }
         keyed.sort { $0.key < $1.key }
         var rows = keyed.map(\.row)
-        Self.setChapterDurations(&rows, end: session.end)
+        Self.setChapterDurations(&rows, in: session)
         self.rows = rows
     }
 
@@ -143,20 +143,30 @@ public struct SessionIndex: Equatable, Sendable {
         if !zip(shifted, shifted.dropFirst()).allSatisfy({ $0.key < $1.key }) { shifted.sort { $0.key < $1.key } }
         added.sort { $0.key < $1.key }
         var rows = Self.merged(Self.merged(kept, shifted), added)
-        Self.setChapterDurations(&rows, end: session.end)
+        Self.setChapterDurations(&rows, in: session)
         self.rows = rows
     }
 
-    /// Sets the duration of each chapter row: the time to the next chapter row, or to `end`, and
-    /// 0 for a chapter at or after `end`. The pass runs at each update, as a clip that moves or
-    /// resizes, or a chapter that moves, changes the duration of other rows.
-    private static func setChapterDurations(_ rows: inout [Row], end: Frames) {
-        var next = end
-        for n in rows.indices.reversed() where rows[n].kind == .chapter {
-            let position = rows[n].position
-            rows[n].duration = next < position ? .zero : next - position
-            next = position
+    /// Sets the duration of each chapter row: the time to the next chapter row, or to the session end,
+    /// and 0 for a chapter at or after the end. The pass runs at each update, as a clip that moves or
+    /// resizes, or a chapter that moves, changes the duration of a chapter. It finds each chapter
+    /// row by its key and reads no other row. It returns the count of rows that it set.
+    @discardableResult
+    static func setChapterDurations(_ rows: inout [Row], in session: Session) -> Int {
+        let chapters = session.markers.values.filter { $0.kind == .chapter }
+            .sorted { ($0.position, $0.id.rawValue) < ($1.position, $1.id.rawValue) }
+        var next = session.end
+        for chapter in chapters.reversed() {
+            let key = Self.key(of: .chapter(chapter.id), at: chapter.position, track: 0)
+            var (low, high) = (0, rows.count)
+            while low < high {
+                let middle = (low + high) / 2
+                if rows[middle].key < key { low = middle + 1 } else { high = middle }
+            }
+            rows[low].duration = next < chapter.position ? .zero : next - chapter.position
+            next = chapter.position
         }
+        return chapters.count
     }
 
     /// The rows of `first` and `second`, each in timeline order, in timeline order.

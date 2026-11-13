@@ -79,21 +79,25 @@ struct SessionIndexTests {
         #expect(try row("h2", in: session).duration == 256_000, "to the chapter h3")
     }
 
-    /// A ripple runs the pass at each edit of a list of 12,250 rows with 50 chapters: it reads the
-    /// chapter rows only. It returns the count of rows that it read.
-    @Test func theDurationPassReadsOnlyTheChapterRows() throws {
-        var session = try Self.session()
-        for (n, position) in [100_000, 144_000, 400_000].enumerated() {
+    /// An end trim moves the session end, so rows made before it hold stale chapter durations. The pass
+    /// sets them from the session and changes no other row.
+    @Test func theDurationPassSetsEachChapterDurationFromTheSessionEnd() throws {
+        var before = try Self.session()
+        for (n, position) in [100_000, 144_000].enumerated() {
             let chapter = Marker(id: MarkerID("k\(n)"), name: "Chapter", position: Frames(position), kind: .chapter)
-            try session.setMarker(chapter)
+            try before.setMarker(chapter)
         }
-        var rows = SessionIndex(session: session).rows
-        let before = rows
-        #expect(rows.count == 9)
-        #expect(SessionIndex.setChapterDurations(&rows, in: session) == 4, "h1, k0, k1, and k2")
-        #expect(rows == before, "the pass gives the same durations")
-        #expect(try row("k1", in: session).duration == 256_000, "to the chapter k2 past the end")
-        #expect(try row("k2", in: session).duration == .zero, "a chapter after the session end lasts 0")
+        var after = before
+        try after.trim("c", to: 192_000..<240_000)
+        let stale = SessionIndex(session: before).rows
+        let chapters = { (rows: [SessionIndex.Row]) in rows.filter { $0.kind == .chapter }.map(\.duration) }
+        let expected = chapters(SessionIndex(session: after).rows)
+        try #require(chapters(stale) != expected, "the old end gives other chapter durations")
+        var rows = stale
+        SessionIndex.setChapterDurations(&rows, in: after)
+        #expect(chapters(rows) == expected, "h1, k0, and k1 get the durations of the new end")
+        #expect(rows.filter { $0.kind != .chapter } == stale.filter { $0.kind != .chapter }, "no other row changes")
+        #expect(try row("k1", in: after).duration == 96_000, "to the new session end")
     }
 
     @Test func anEndTrimChangesTheDurationsInAnUpdate() throws {

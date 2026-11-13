@@ -15,6 +15,7 @@ struct SessionIndexTable: NSViewRepresentable {
     let pane: LeadingPaneState
     let rows: [SessionIndex.Row]
     let rate: Int
+    let columns: IndexColumns
 
     func makeCoordinator() -> IndexTableSource { IndexTableSource() }
 
@@ -27,16 +28,14 @@ struct SessionIndexTable: NSViewRepresentable {
         name.title = L10n.markerName.text
         name.resizingMask = .autoresizingMask
         name.minWidth = 60
-        let start = NSTableColumn(identifier: Self.startColumn)
-        start.title = L10n.indexColumnStart.text
-        start.width = 84
-        start.minWidth = 84
-        start.maxWidth = 84
-        start.resizingMask = []
+        name.width = name.minWidth
         table.addTableColumn(name)
-        table.addTableColumn(start)
+        table.addTableColumn(Self.fixedColumn(Self.startColumn, title: .indexColumnStart, width: Self.timeWidth))
+        for column in IndexColumns.Column.allCases { table.addTableColumn(Self.makeColumn(column)) }
+        table.headerView = IndexHeaderView()
         table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
         table.rowHeight = 22
+        table.intercellSpacing = NSSize(width: 6, height: 0)
         table.allowsMultipleSelection = true
         table.allowsColumnReordering = false
         table.allowsColumnResizing = false
@@ -46,11 +45,13 @@ struct SessionIndexTable: NSViewRepresentable {
         table.delegate = source
         table.setAccessibilityLabel(L10n.indexSegmentIndex.text)
         source.table = table
+        source.apply(columns)
         table.beep = { [weak model] in model?.beep() }
         pane.table = table
         let scroll = NSScrollView()
         scroll.documentView = table
         scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = true
         scroll.drawsBackground = false
         table.mark.attach(to: table)
@@ -60,6 +61,7 @@ struct SessionIndexTable: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.model = model
+        context.coordinator.apply(columns)
         context.coordinator.show(rows, rate: rate)
     }
 }
@@ -172,6 +174,9 @@ struct SessionIndexTable: NSViewRepresentable {
     ) {
         let name = table.column(withIdentifier: SessionIndexTable.nameColumn)
         let start = table.column(withIdentifier: SessionIndexTable.startColumn)
+        let others = IndexColumns.Column.allCases.map(SessionIndexTable.identifier(of:)).filter {
+            table.tableColumn(withIdentifier: $0)?.isHidden == false
+        }
         var field: (row: Int, column: Int)?
         table.enumerateAvailableRowViews { _, n in
             let w = change.map { n < $0.new.lowerBound ? n : n - $0.new.upperBound + $0.old.upperBound } ?? n
@@ -191,6 +196,10 @@ struct SessionIndexTable: NSViewRepresentable {
                 } else if was.position != row.position {
                     cell.show(text: timeDisplayText(row.position, rate: rate, playing: false), symbol: nil)
                 }
+            }
+            for id in others where SessionIndexTable.changed(id, from: was, to: row) {
+                let cell = table.view(atColumn: table.column(withIdentifier: id), row: n, makeIfNecessary: false)
+                (cell as? IndexCell)?.show(text: SessionIndexTable.text(of: row, in: id, rate: rate), symbol: nil)
             }
         }
         if let field { table.reloadData(forRowIndexes: [field.row], columnIndexes: [field.column]) }
@@ -257,7 +266,7 @@ struct SessionIndexTable: NSViewRepresentable {
         if id == SessionIndexTable.nameColumn {
             cell.show(text: item.name, symbol: Self.symbol(item.kind), spoken: Self.spoken(item, rate: rate))
         } else {
-            cell.show(text: timeDisplayText(item.position, rate: rate, playing: false), symbol: nil)
+            cell.show(text: SessionIndexTable.text(of: item, in: id, rate: rate), symbol: nil)
         }
         return cell
     }

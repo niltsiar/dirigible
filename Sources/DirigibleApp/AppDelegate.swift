@@ -30,6 +30,10 @@ import Observation
     /// value or an unknown value is stored.
     var dragMode: DragMode { didSet { defaults?.set(dragMode.rawValue, forKey: Self.dragModeKey) } }
     static let dragModeKey = "timeline.dragMode"
+    /// The optional columns of the session index list: one value for all windows, kept in the app
+    /// preferences. Name and Start always show.
+    var indexColumns: IndexColumns { didSet { defaults?.set(indexColumns.stored, forKey: Self.indexColumnsKey) } }
+    static let indexColumnsKey = "index.columns"
     /// The speed that Period turns on (decision 0052): the last speed other than 1.
     var lastSpeed: Speed { didSet { defaults?.set(lastSpeed.factor, forKey: Self.speedKey) } }
     static let speedKey = "playback.lastSpeed"
@@ -169,6 +173,7 @@ import Observation
         self.defaults = defaults
         snaps = defaults?.object(forKey: Self.snapKey) as? Bool ?? true
         dragMode = defaults?.string(forKey: Self.dragModeKey).flatMap(DragMode.init(rawValue:)) ?? .overwrite
+        indexColumns = IndexColumns(stored: defaults?.object(forKey: Self.indexColumnsKey))
         lastSpeed = Self.lastSpeed(stored: defaults?.object(forKey: Self.speedKey))
         // Only absolute paths, as for the folder preference. The hint reads no file.
         recent = (defaults?.stringArray(forKey: Self.recentKey) ?? []).filter { $0.hasPrefix("/") }.map {

@@ -144,24 +144,59 @@ import Testing
         let field = try #require(model.leadingPane.searchField)
         try #require(window.makeFirstResponder(field))
         let editor = try #require(window.fieldEditor(false, for: field) as? NSTextView)
-        var times: [Duration] = []
-        for (n, key) in (Self.keys + Self.keys).enumerated() {
-            try await Task.sleep(for: .microseconds(16_700))
-            let (bodies, rows) = (pane.bodies, try #require(expected[key]))
-            let start = ContinuousClock.now
-            editor.string = key
-            editor.didChangeText()
-            let done = Self.spin(window) { pane.bodies > bodies && source.rows.count == rows.count }
-            let time = ContinuousClock.now - start
-            try #require(done, "key \(n) \"\(key)\": the list did not update (search \"\(pane.search)\")")
-            try #require(pane.search == key && source.rows == rows, "key \(n) \"\(key)\": wrong rows")
-            // The first 60 keys warm the window and are not timed.
-            if n >= Self.keys.count { times.append(time) }
+        let everyPick = Set(index.rows.map(\.id))
+        var picks: [String: Set<SessionIndex.Pick>] = [:]
+        for key in Self.keys + [""] { picks[key] = index.shownPicks(of: everyPick, kind: nil, search: key) }
+        try #require(picks.values.contains { $0.count < everyPick.count }, "no key hides a selected row")
+        try #require(picks["take"]?.count == everyPick.count, "the key \"take\" must keep every selected row")
+
+        /// The keys with nothing selected, then with all 12,250 rows selected again before each timed key
+        /// (outside the span). With rows selected, the span ends when the drop of the hidden rows has
+        /// pushed and the selection equals the picks that the key shows; a key that hides no row pushes
+        /// nothing.
+        func time(selecting: Bool) async throws -> [Duration] {
+            var times: [Duration] = []
+            for (n, key) in (Self.keys + Self.keys).enumerated() {
+                if selecting {
+                    model.timeline.selectRows(everyPick, anchor: index.rows.first?.id, form: .indexSet)
+                    try #require(
+                        model.timeline.selectedRows.count == 12_250,
+                        "key \(n): \(model.timeline.selectedRows.count) selected")
+                }
+                try await Task.sleep(for: .microseconds(16_700))
+                let (bodies, pushes, rows) = (pane.bodies, pane.pushes, try #require(expected[key]))
+                let kept = selecting ? try #require(picks[key]) : []
+                let start = ContinuousClock.now
+                editor.string = key
+                editor.didChangeText()
+                let done = Self.spin(window) {
+                    pane.bodies > bodies && source.rows.count == rows.count
+                        && (!selecting
+                            || model.timeline.selectedRows == kept && (pane.pushes > pushes || kept == everyPick))
+                }
+                let time = ContinuousClock.now - start
+                try #require(done, "key \(n) \"\(key)\": the list did not update (search \"\(pane.search)\")")
+                try #require(pane.search == key && source.rows == rows, "key \(n) \"\(key)\": wrong rows")
+                if selecting {
+                    let pushed = pane.pushes - pushes
+                    try #require(kept == everyPick ? pushed == 0 : pushed >= 1, "key \(n) \"\(key)\": \(pushed) pushes")
+                }
+                // The first 60 keys warm the window and are not timed.
+                if n >= Self.keys.count { times.append(time) }
+            }
+            return times
         }
+        let times = try await time(selecting: false)
         print(
             "SessionIndexBenchmark pane search key: p50 \(Self.p50(times)), p95 \(Self.p95(times)), "
                 + "max \(times.max()!), load \(Self.load)")
         expectWithinBudget(Self.p95(times), Self.budget, "one search key in the pane, p95 \(Self.p95(times))")
+        let selected = try await time(selecting: true)
+        print(
+            "SessionIndexBenchmark pane search key with 12,250 rows selected: p50 \(Self.p50(selected)), "
+                + "p95 \(Self.p95(selected)), max \(selected.max()!), load \(Self.load)")
+        expectWithinBudget(
+            Self.p95(selected), Self.budget, "one search key with 12,250 rows selected, p95 \(Self.p95(selected))")
         window.close()
         await model.close()
     }

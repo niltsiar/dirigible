@@ -227,4 +227,51 @@ import Testing
         window.close()
         await model.close()
     }
+
+    /// The edit of a list Delete of all rows: `removeClips` of 12,000 IDs and 250 marker removals in
+    /// one edit. It is the base of `deleteOfAllRowsAddsUnderOneFrame`: the pane is hidden, so the
+    /// span holds the edit, the lane render, and the draw, and no list work. Prints only; the hidden
+    /// p95 sets the added limit of the list Delete (the lower of 16 ms and 50 ms minus this p95).
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIRIGIBLE_SLOW_TESTS"] == "1"))
+    func theListDeleteEditGivesItsPaneHiddenBase() async throws {
+        let folder = try TemporaryFolder()
+        let app = AppDelegate(recordings: nil)
+        let (model, studio, window) = try await SessionIndexBenchmark.openPane(app, folder: folder.url, shown: false)
+        let clips = studio.session.tracks.reduce(0) { $0 + $1.clips.count }
+        let ids = studio.session.tracks.flatMap { $0.clips.map(\.id) }
+        let markers = Array(studio.session.markers.keys)
+        try #require(ids.count == 12_000 && markers.count == 250 && clips == ids.count)
+        func drawn() -> Int? { model.timelineView?.lanes.inputs?.session.tracks.reduce(0) { $0 + $1.clips.count } }
+        let times = PartTimes()
+        var spans: [Split] = []
+        var failure: String?
+        for event in 0..<22 {
+            drawNow(window)
+            try await Task.sleep(for: .microseconds(16_700))
+            let (split, done) = await Self.timedEvent(
+                model, window, times,
+                command: {
+                    do {
+                        try studio.edit(ripple: false) { session throws(SessionError) in
+                            try session.removeClips(ids)
+                            for id in markers { try session.removeMarker(id) }
+                        }
+                    } catch { failure = "\(error)" }
+                },
+                finished: { drawn() == 0 })
+            try #require(done, "Hidden list Delete \(event): edit \(failure ?? "ok"), lanes \(drawn() ?? -1)")
+            try #require(studio.session.markers.isEmpty, "Hidden list Delete \(event) left a marker")
+            if event >= 2 { spans.append(split) }
+            try studio.undo()
+            let back = SessionIndexBenchmark.spin(window) { drawn() == clips }
+            try #require(back, "Hidden list Undo \(event): the lanes did not show the clips again")
+        }
+        let hidden = spans.map(\.span)
+        let (p50, p95) = (SessionIndexBenchmark.p50, SessionIndexBenchmark.p95)
+        print(
+            "SessionIndexEditBenchmark list delete edit pane hidden: p50 \(Self.ms(p50(hidden))), "
+                + "p95 \(Self.ms(p95(hidden))), load \(SessionIndexBenchmark.load)")
+        window.close()
+        await model.close()
+    }
 }

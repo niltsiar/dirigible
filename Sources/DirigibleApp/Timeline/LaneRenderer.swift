@@ -19,24 +19,27 @@ struct LaneInputs: Equatable {
     var scale: TimelineScale
     /// Points.
     var laneHeight: Double
+    /// The dB that the lane height shows: the waveform, the fade lines, and the gain lines draw with it.
+    var range: WaveformRange = .standard
 
     /// The one point and frame conversion of the lanes (decision 0020).
-    var geometry: LaneGeometry? { LaneGeometry(scale: scale, laneHeight: laneHeight) }
+    var geometry: LaneGeometry? { LaneGeometry(scale: scale, laneHeight: laneHeight, range: range) }
     /// The range that draws its band and lines; no Marks for a clip set (decision 0038).
     var marks: Marks { selection.marks ?? Marks() }
 }
 
 /// Draws the lanes into a caller's pixels (decisions 0017 and 0022, probe D2): a background pattern
 /// per row, then the clip boxes with their bars, the missing-media tint, and the waveform as column
-/// spans, rectified on a -60 dB to 0 dB scale, light peaks over dark RMS, with clip gain plus track
-/// gain and the fades of decision 0035, and a fade line in clip boxes of 12 pt or more. Then the fade
-/// lines of the crossfade halves outside the boxes (decision 0036), the bar edges, the gain lines and
-/// handles, the joins between clips that touch, the selection band and the marker, chapter, in, and
-/// out lines. One per document view, on the main thread. It writes every pixel of the rect of the
-/// region, and the region refuses every pixel outside it. Each edge rounds in absolute document pixels,
-/// so two partial draws agree with one full draw on each pixel. It keeps no pixel state. A drag event
-/// redraws only the columns that `changedFrames` gives, so each Session value drawn here needs a
-/// compare there (decision 0020, the invariant).
+/// spans, rectified on the dB scale of the waveform range (0 dB at the lane top, 60 dB per lane height
+/// by default), light peaks over dark RMS, with clip gain plus track gain and the fades of decision
+/// 0035, and a fade line in clip boxes of 12 pt or more. Then the fade lines of the crossfade halves
+/// outside the boxes (decision 0036), the bar edges, the gain lines and handles, the joins between
+/// clips that touch, the selection band and the marker, chapter, in, and out lines. One per document
+/// view, on the main thread. It writes every pixel of the rect of the region, and the region refuses
+/// every pixel outside it. Each edge rounds in absolute document pixels, so two partial draws agree with
+/// one full draw on each pixel. It keeps no pixel state. A drag event redraws only the columns that
+/// `changedFrames` gives, so each Session value drawn here needs a compare there (decision 0020, the
+/// invariant).
 final class LaneRenderer {
     /// The columns of one clip, reused.
     var values: [PeakColumn] = []
@@ -189,8 +192,8 @@ final class LaneRenderer {
                     first: Double(range.lowerBound) * pixelFrames - Double(start.count),
                     step: pixelFrames, line: Double(clip.length.count) / inputs.scale.framesPerPoint >= 12)
             drawColumns(
-                range, gain: clip.gain.dB + track.gain.dB, fades: fades, layerGains: layerGains, bottom: bottom,
-                chip: chip, palette, into: region)
+                range, waveform: inputs.range, gain: clip.gain.dB + track.gain.dB, fades: fades,
+                layerGains: layerGains, bottom: bottom, chip: chip, palette, into: region)
         }
         crossfaded.removeAll(keepingCapacity: true)
         layerGains.removeAll(keepingCapacity: true)
@@ -297,24 +300,23 @@ final class LaneRenderer {
     }
 
     /// The one waveform draw of the final and the live columns: `values` from the column
-    /// `range.lowerBound`, rectified on a -60 dB to 0 dB scale with `gain`, light peaks over dark
+    /// `range.lowerBound`, rectified on the dB scale of `waveform` with `gain`, light peaks over dark
     /// RMS, up from the row `bottom`. A column in a fade of `fades` adds 20 log10 of its fade factor,
     /// and a column of a clip with gain layers adds its gain of `layerGains`, one per column of
     /// `range` (`columnGains`); the fade line of such a clip stays under the top of the box (`lineClamp`).
     /// `chip`: the columns of a label chip and the row under its bottom; the peak and RMS spans of
     /// those columns start there, so the bar shows under the text. The fade line still draws.
     func drawColumns(
-        _ range: Range<Int>, gain: Double, fades: ColumnFades? = nil, layerGains: ArraySlice<Double>? = nil,
-        bottom: Int, chip: (columns: Range<Int>, bottom: Int)? = nil, _ palette: LanePalette,
-        into region: borrowing PixelRegion
+        _ range: Range<Int>, waveform: WaveformRange, gain: Double, fades: ColumnFades? = nil,
+        layerGains: ArraySlice<Double>? = nil, bottom: Int, chip: (columns: Range<Int>, bottom: Int)? = nil,
+        _ palette: LanePalette, into region: borrowing PixelRegion
     ) {
         let laneRows = region.window.laneRows
         let clamp = layerGains == nil ? 0 : Self.lineClamp(scale: region.window.scale)
         values.withUnsafeBufferPointer { values in
             Self.decibels.withUnsafeBufferPointer { decibels in
                 func height(decibels decibel: Double, _ gain: Double) -> Int {
-                    let fraction = (decibel + gain + 60) / 60
-                    return fraction <= 0 ? 0 : Int(((fraction < 1 ? fraction : 1) * Double(laneRows)).rounded())
+                    Int((waveform.fraction(dB: decibel + gain) * Double(laneRows)).rounded())
                 }
                 func height(_ value: UInt16, _ gain: Double) -> Int {
                     value > 0 ? height(decibels: decibels[Int(value)], gain) : 0
@@ -336,7 +338,8 @@ final class LaneRenderer {
                     region.span(palette.peak, column: column, rows: top..<middle)
                     region.span(palette.rms, column: column, rows: middle..<bottom + 1)
                     if factor != nil, fades?.line == true {
-                        let row = Self.lineRow(columnGain, bottom: bottom, laneRows: laneRows, clamp: clamp)
+                        let row = Self.lineRow(
+                            columnGain, waveform: waveform, bottom: bottom, laneRows: laneRows, clamp: clamp)
                         region.span(palette.label, column: column, rows: row..<row + 1)
                     }
                     index += 1
